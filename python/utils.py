@@ -951,6 +951,7 @@ def read_germline_set(datadir):
     glfo = {}
     glfo['seqs'] = read_germline_seqs(datadir)
     glfo['aligned-genes'] = read_germline_seqs(datadir, aligned=True)
+    add_missing_alignments(glfo)
     for codon in ['cyst', 'tryp']:
         glfo[codon + '-positions'] = read_codon_positions(datadir + '/' + codon + '-positions.csv')
     return glfo
@@ -970,6 +971,22 @@ def read_germline_seqs(datadir, only_region=None, aligned=False):
             seq_str = str(seq_record.seq).upper()
             glseqs[region][gene_name] = seq_str
     return glseqs
+
+#----------------------------------------------------------------------------------------
+def add_missing_alignments(glfo):
+    """ Add alignments for any genes in <glfo['seqs']> that aren't there already. """
+    missing_genes = []
+    for region in regions:
+        for gene in glfo['seqs'][region]:
+            if gene not in glfo['aligned-genes'][region]:
+                missing_genes.append(gene)
+                seq = glfo['seqs'][region][gene]  # unaligned sequence for the missing gene
+                alignment_to_use = glfo['aligned-genes'][region].itervalues().next()  # pick a random alignment to get the length (well, the first one in the dict, so kinda random)
+                if len(seq) > len(alignment_to_use):
+                    raise Exception('gene %s too long to generate missing alignment' % gene)  # could really just extend all the other alignments here, but fuck it, maybe I won't need to
+                n_dashes = len(alignment_to_use) - len(seq)
+                glfo['aligned-genes'][region][gene] = n_dashes * '-' + seq  # just hack a bunch of dashes on the left
+    print '    WARNING adding placeholder alignments for missing genes %s' % ' '.join([color_gene(g) for g in missing_genes])
 
 # ----------------------------------------------------------------------------------------
 def read_codon_positions(csvfname):
