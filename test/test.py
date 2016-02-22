@@ -64,6 +64,7 @@ class Tester(object):
             for ptest, args in self.tests.items():
                 if ptest in self.production_tests:
                     args['bin'] = run_driver
+                    args['input_stype'] = 'n/a'
                 else:
                     args['bin'] = self.partis
                     if 'annotate' in ptest:
