@@ -54,12 +54,12 @@ class Tester(object):
         self.tests = OrderedDict()
 
         def add_inference_tests(input_stype):  # if input_stype is 'ref', infer on old simulation and parameters, if it's 'new' use the new ones
-            self.tests['annotate-' + input_stype + '-simu']          = {'bin' : self.partis, 'action' : 'run-viterbi', 'extras' : ['--seqfile', simfnames[input_stype], '--parameter-dir', param_dirs[input_stype]['simu'], '--plotdir', self.dirs['new'] + '/' + self.perfdirs[input_stype], '--plot-performance']}
-            self.tests['annotate-' + input_stype + '-data']          = {'bin' : self.partis, 'action' : 'run-viterbi', 'extras' : ['--seqfile', self.datafname, '--parameter-dir', param_dirs[input_stype]['data'], '--is-data', '--n-max-queries', n_data_inference_queries]}
+            self.tests['annotate-' + input_stype + '-simu']          = {'bin' : self.partis, 'action' : 'run-viterbi', 'extras' : ['--seqfile', simfnames[input_stype], '--parameter-dir', param_dirs[input_stype]['simu'], '--is-simu', '--plotdir', self.dirs['new'] + '/' + self.perfdirs[input_stype], '--plot-performance']}
+            self.tests['annotate-' + input_stype + '-data']          = {'bin' : self.partis, 'action' : 'run-viterbi', 'extras' : ['--seqfile', self.datafname, '--parameter-dir', param_dirs[input_stype]['data'], '--n-max-queries', n_data_inference_queries]}
             self.tests['partition-' + input_stype + '-simu']         = {'bin' : self.partis, 'action' : 'partition',   'extras' : ['--seqfile', simfnames[input_stype], '--parameter-dir', param_dirs[input_stype]['simu'], '--n-max-queries', n_partition_queries, '--persistent-cachefname', self.dirs['new'] + '/' + self.cachefnames[input_stype], '--n-precache-procs', '10']}
-            # self.tests['partition-' + input_stype + '-data']         = {'bin' : self.partis, 'action' : 'partition',   'extras' : ['--seqfile', self.datafname, '--parameter-dir', param_dirs[input_stype]['data'], '--is-data', '--skip-unproductive', '--n-max-queries', n_partition_queries, '--n-precache-procs', '10']}
-            self.tests['point-partition-' + input_stype + '-simu']   = {'bin' : self.partis, 'action' : 'partition',   'extras' : ['--naive-hamming', '--seqfile', simfnames[input_stype], '--parameter-dir', param_dirs[input_stype]['simu'], '--n-max-queries', n_partition_queries, '--n-precache-procs', '10']}
-            self.tests['vsearch-partition-' + input_stype + '-simu'] = {'bin' : self.partis, 'action' : 'partition',   'extras' : ['--naive-vsearch', '--seqfile', simfnames[input_stype], '--parameter-dir', param_dirs[input_stype]['simu'], '--n-max-queries', n_partition_queries, '--n-precache-procs', '10']}
+            # self.tests['partition-' + input_stype + '-data']         = {'bin' : self.partis, 'action' : 'partition',   'extras' : ['--seqfile', self.datafname, '--parameter-dir', param_dirs[input_stype]['data'], '--skip-unproductive', '--n-max-queries', n_partition_queries, '--n-precache-procs', '10']}
+            self.tests['point-partition-' + input_stype + '-simu']   = {'bin' : self.partis, 'action' : 'partition',   'extras' : ['--naive-hamming', '--seqfile', simfnames[input_stype], '--parameter-dir', param_dirs[input_stype]['simu'], '--is-simu', '--n-max-queries', n_partition_queries, '--n-precache-procs', '10']}
+            self.tests['vsearch-partition-' + input_stype + '-simu'] = {'bin' : self.partis, 'action' : 'partition',   'extras' : ['--naive-vsearch', '--seqfile', simfnames[input_stype], '--parameter-dir', param_dirs[input_stype]['simu'], '--is-simu', '--n-max-queries', n_partition_queries, '--n-precache-procs', '10']}
 
         add_inference_tests('ref')
         self.tests['cache-data-parameters']  = {'bin' : run_driver, 'extras' : []}  # ['--skip-unproductive']}
@@ -113,7 +113,6 @@ class Tester(object):
                     cmd_str += ' --datafname ' + self.datafname
             logstr = 'TEST %30s   %s' % (name, cmd_str)
             print logstr
-            continue
             logfile = open(self.logfname, 'a')
             logfile.write(logstr + '\n')
             logfile.close()

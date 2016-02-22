@@ -1133,11 +1133,11 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
     extras = []
     seqfname = get_seqfile(args, datafname, label, n_leaves, mut_mult)
     if args.data:
-        cmd += ' --datafname ' + seqfname + ' --is-data'
+        cmd += ' --datafname ' + seqfname
         # if args.dataset == 'adaptive':
         extras += ['--skip-unproductive', ]
     else:
-        cmd += ' --simfname ' + seqfname
+        cmd += ' --simfname ' + seqfname + ' --is-simu'
 
     n_procs = 1
     n_total_seqs = 1

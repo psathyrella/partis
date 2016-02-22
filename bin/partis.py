@@ -21,7 +21,8 @@ parser.add_argument('--action', choices=('cache-parameters', 'run-viterbi', 'run
 # finer action control
 parser.add_argument('--n-sets', type=int, default=1, help='Run on sets of sequences of size <n> (i.e. \"k-hmm\")')
 parser.add_argument('--all-combinations', action='store_true', help='Run algorithm on *all* possible combinations of the input queries of length <n-sets> (otherwise we run on sequential sets of <n-sets> in the input file).')
-parser.add_argument('--is-data', action='store_true', help='True if not simulation')
+parser.add_argument('--is-data', action='store_true', help='deprecated!')
+parser.add_argument('--is-simu', action='store_true', help='Set if running on simulated sequences')
 parser.add_argument('--skip-unproductive', action='store_true', help='Skip sequences which Smith-Waterman determines to be unproductive (they have stop codons, are out of frame, etc.)')
 parser.add_argument('--plot-performance', action='store_true', help='Write out plots comparing true and inferred distributions')
 parser.add_argument('--seed', type=int, default=int(time.time()), help='Random seed for use (mostly) by recombinator (to allow reproducibility)')
@@ -49,7 +50,6 @@ parser.add_argument('--only-csv-plots', action='store_true', help='only write cs
 if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
     print '    TODO make sure all mpl figures are getting closed'
     print '    TODO add some garbage-ey seqs to mishmash.fa'
-    print '    TODO stop requiring --is-data'
     print '    TODO clean up add_inference_tests()'
     print '    TODO clean up --quick option to tests'
     print '    TODO add alignments for sequences with indels'
@@ -116,6 +116,15 @@ args.only_genes = utils.get_arg_list(args.only_genes)
 args.n_procs = utils.get_arg_list(args.n_procs, intify=True)
 args.n_fewer_procs = args.n_procs[0] if len(args.n_procs) == 1 else args.n_procs[1]
 args.n_procs = args.n_procs[0]
+
+if args.is_data:  # if <is_data> was set on the command line, print a warning and continue
+    print '  NOTE --is-data is no longer needed (it\'s the default; add --is-simu if running on simulation)'
+    if args.is_simu:
+        raise Exception('--is-data and --is-simu both set on the command line')
+elif args.is_simu:
+    pass  # args.is_data = False
+else:  # if neither was given on the command line, set is_data to True
+    args.is_data = True
 
 if args.sw_debug is None:  # if not explicitly set, set equal to regular debug
     args.sw_debug = args.debug

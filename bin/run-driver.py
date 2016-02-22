@@ -24,7 +24,7 @@ parser.add_argument('--label', required=True)  # label for this test run. e.g. r
 parser.add_argument('--stashdir', required=True)  #default=fsdir + '/_output')
 parser.add_argument('--extra-args')  # args to pass on to commands (colon-separated) NOTE have to add space and quote like so: --extra-args __option (NOTE replaces __ with --, and . with :)
 parser.add_argument('--datafname')
-parser.add_argument('--is-data', action='store_true')
+parser.add_argument('--is-simu', action='store_true')
 parser.add_argument('--old-style-dir-structure', action='store_true')
 parser.add_argument('--simfname')
 parser.add_argument('--outfname')
@@ -59,7 +59,7 @@ if 'cache-data-parameters' in args.actions:
     if args.datafname is None or not os.path.exists(args.datafname):
         raise Exception('ERROR datafname d.n.e.: ' + str(args.datafname))
     # cache parameters from data
-    cmd_str = ' --action cache-parameters --seqfile ' + args.datafname + ' --is-data' + common_args
+    cmd_str = ' --action cache-parameters --seqfile ' + args.datafname + common_args
     # cmd_str += ' --skip-unproductive'
     cmd_str += ' --parameter-dir ' + param_dir + '/data'
     if args.plotdir is not None:
@@ -75,14 +75,14 @@ if 'simulate' in args.actions:
 sim_name = os.path.basename(args.simfname).replace('.csv', '')  # 'sim', if simfname is just 'simu.csv'
 if 'cache-simu-parameters' in args.actions:
     # cache parameters from simulation
-    cmd_str = ' --action cache-parameters --seqfile ' + args.simfname + common_args
+    cmd_str = ' --action cache-parameters --seqfile ' + args.simfname + ' --is-simu' + common_args
     cmd_str += ' --parameter-dir ' + param_dir + '/' + sim_name
     if args.plotdir is not None:
         cmd_str += ' --plotdir ' + args.plotdir + '/' + sim_name
     run_command(cmd_str)
 
 if 'plot-performance' in args.actions:  # run point estimation on simulation
-    cmd_str = ' --action run-viterbi --plot-performance --seqfile ' + args.simfname + common_args
+    cmd_str = ' --action run-viterbi --plot-performance --seqfile ' + args.simfname + ' --is-simu' + common_args
     cmd_str += ' --parameter-dir ' + param_dir + '/' + sim_name + '/hmm'
     cmd_str += ' --plotdir ' + args.plotdir + '/' + sim_name + '-performance'
     run_command(cmd_str)
@@ -92,13 +92,13 @@ if 'partition' in args.actions or 'run-viterbi' in args.actions:
     action = args.actions[0]
 
     cmd_str = ' --action ' + action + common_args
-    if args.is_data:
-        cmd_str += ' --is-data'
+    if not args.is_simu:
         seqfile = args.datafname
         pdir = param_dir + '/data/hmm'
         if args.outfname is None:
             args.outfname =  param_dir + '/data-' + action + '.csv'
     else:
+        cmd_str += ' --is-simu'
         seqfile = args.simfname
         pdir = param_dir + '/' + sim_name + '/hmm'
         if args.outfname is None:

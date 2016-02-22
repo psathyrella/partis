@@ -77,7 +77,7 @@ def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, 
         input_info[unique_id] = {'unique_id' : unique_id, 'seq' : line[seq_column]}
         if not is_data:
             if 'v_gene' not in line:
-                raise Exception('simulation info not found in %s -- if this is data add option --is-data' % fname)
+                raise Exception('simulation info not found in %s' % fname)
             reco_info[unique_id] = copy.deepcopy(line)
             utils.add_implicit_info(glfo, reco_info[unique_id], multi_seq=False, existing_implicit_keys=('cdr3_length', ))  # single seqs, since each seq is on its own line in the file
         n_queries += 1
