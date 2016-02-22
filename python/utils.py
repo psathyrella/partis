@@ -566,7 +566,7 @@ def disambiguate_effective_insertions(bound, line, seq, unique_id, debug=False):
 
 # ----------------------------------------------------------------------------------------
 def reset_effective_erosions_and_effective_insertions(glfo, padded_line, debug=False):
-    """ 
+    """
     Ham does not allow (well, no longer allows) v_5p and j_3p deletions -- we instead pad sequences with Ns.
     This means that the info we get from ham always has these effective erosions set to zero, but for downstream
     things we sometimes want to know where the reads stopped (e.g. if we want to mimic them in simulation).
@@ -1755,33 +1755,30 @@ def subset_files(uids, fnames, outdir, uid_header='Sequence ID', delimiter='\t',
 
 # ----------------------------------------------------------------------------------------
 def add_indels_to_germline_strings(germlines, line, indelfo):
-# ----------------------------------------------------------------------------------------
-# ----------------------------------------------------------------------------------------
-# ----------------------------------------------------------------------------------------
-    print 'TODO reread me!'
-# ----------------------------------------------------------------------------------------
-# ----------------------------------------------------------------------------------------
-# ----------------------------------------------------------------------------------------
+    """ Add stars to the germline sequences (for ascii printing) if there were SHM insertions. """
+
+    if len(indelfo['indels']) > 1:
+        print '    WARNING found %d indels, but we can only handle 1' % len(indelfo['indels'])
+
     lastfo = indelfo['indels'][-1]
-    if lastfo['type'] == 'insertion':
-        chunks = [line['fv_insertion'], line['v_gl_seq'], line['vd_insertion'], line['d_gl_seq'], line['dj_insertion'], line['j_gl_seq'], line['jf_insertion']]
-        chunknames =  ['fv_insertion', 'v', 'vd_insertion', 'd', 'dj_insertion', 'j', 'jf_insertion']
-        weirdolist = []
-        for ichunk in range(len(chunks)):
-            for inuke in range(len(chunks[ichunk])):
-                weirdolist.append(chunknames[ichunk])
-        thischunk = weirdolist[lastfo['pos']]
-        # offset = 0
-        # if reverse_indels:
-        offset = weirdolist.index(thischunk)  # index of first occurence
-        if thischunk in regions:  # eroded_seqs
-            # original_seqs[thischunk] = original_seqs[thischunk][ : lastfo['pos'] - offset] + '*' * lastfo['len'] + eroded_seqs[thischunk][lastfo['pos'] - offset : ]
-            line['lengths'][thischunk] += lastfo['len']
-            line[thischunk + '_gl_seq'] = line[thischunk + '_gl_seq'][ : lastfo['pos'] - offset] + '*' * lastfo['len'] + line[thischunk + '_gl_seq'][lastfo['pos'] - offset : ]
-        else:
-            print '     unhandled indel in NTIs'
-            pass
+
+    if lastfo['type'] == 'deletion':
+        return
+
+    # divide it up into its constituent chunks
+    chunks = [line['fv_insertion'], line['v_gl_seq'], line['vd_insertion'], line['d_gl_seq'], line['dj_insertion'], line['j_gl_seq'], line['jf_insertion']]
+    chunknames =  ['fv_insertion', 'v', 'vd_insertion', 'd', 'dj_insertion', 'j', 'jf_insertion']
+    weirdolist = []  # list of lists, where each entry is the name of the chunk in which we find ourselves
+    for ichunk in range(len(chunks)):
+        for inuke in range(len(chunks[ichunk])):
+            weirdolist.append(chunknames[ichunk])
+    thischunk = weirdolist[lastfo['pos']]
+    offset = weirdolist.index(thischunk)  # index of first occurence
+    if thischunk in regions:
+        line['lengths'][thischunk] += lastfo['len']
+        line[thischunk + '_gl_seq'] = line[thischunk + '_gl_seq'][ : lastfo['pos'] - offset] + '*' * lastfo['len'] + line[thischunk + '_gl_seq'][lastfo['pos'] - offset : ]
     else:
+        print '     unhandled indel within a non-templated insertion'
         pass
 
 # ----------------------------------------------------------------------------------------
