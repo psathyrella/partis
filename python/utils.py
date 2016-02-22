@@ -764,11 +764,15 @@ def print_seq_in_reco_event(germlines, line, extra_str='', label='', one_line=Fa
     indelfo = None if line['indelfo']['reversed_seq'] == '' else line['indelfo']
     reverse_indels = False  # for inferred sequences, we want to un-reverse the indels that we previously reversed in smith-waterman
     if indelfo is not None:
-        if indelfo['reversed_seq'] == line['seq']:  # if <line> has the reversed sequence in it, then this is an inferred <line>, i.e. we removed the info, then passed the reversed sequence to the sw/hmm, so we need to reverse the indels now in order to get a sequence with indels in it
+        # if indelfo['reversed_seq'] == line['seq']:  # if <line> has the reversed sequence in it, then this is an inferred <line>, i.e. we removed the info, then passed the reversed sequence to the sw/hmm, so we need to reverse the indels now in order to get a sequence with indels in it
+        if line['seq'] in indelfo['reversed_seq']:  # if <line> has the reversed sequence in it, then this is an inferred <line>, i.e. we removed the info, then passed the reversed sequence to the sw/hmm, so we need to reverse the indels now in order to get a sequence with indels in it
             reverse_indels = True
         if len(indelfo['indels']) > 1:
             print 'WARNING multiple indels not really handled'
         add_indels_to_germline_strings(germlines, line, indelfo)
+
+    print 'rev', indelfo['reversed_seq']
+    print 'seq', line['seq']
 
     # build up the query sequence line, including colors for mutations and conserved codons
     final_seq = ''
@@ -1747,6 +1751,13 @@ def subset_files(uids, fnames, outdir, uid_header='Sequence ID', delimiter='\t',
 
 # ----------------------------------------------------------------------------------------
 def add_indels_to_germline_strings(germlines, line, indelfo):
+# ----------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------
+    print 'TODO reread me!'
+# ----------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------
     lastfo = indelfo['indels'][-1]
     if lastfo['type'] == 'insertion':
         chunks = [line['fv_insertion'], line['v_gl_seq'], line['vd_insertion'], line['d_gl_seq'], line['dj_insertion'], line['j_gl_seq'], line['jf_insertion']]
@@ -1879,10 +1890,6 @@ def add_regional_alignments(glfo, line, multi_seq, region, debug=False):
     if not multi_seq:  # TODO implement this
         line['aligned_' + region + '_seq'] = 'ack!'
         return
-    for indelfo in line['indelfos']:
-        if indelfo['reversed_seq'] != '':
-            line['aligned_' + region + '_seqs'] = ['ack!' for _ in range(len(line['seqs']))]
-            return
 
     aligned_seqs = []
     for iseq in range(len(line['seqs'])):
