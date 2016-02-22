@@ -74,6 +74,7 @@ class Tester(object):
                     namelist = ptest.split('-')
                     input_stype = namelist[-2]
                     assert input_stype in self.stypes
+                    args['input_stype'] = input_stype
                     if namelist[-1] == 'simu':
                         args['extras'] += ['--is-simu', ]
                         args['extras'] += ['--seqfile', simfnames[input_stype]]
@@ -85,10 +86,11 @@ class Tester(object):
                         raise Exception('-'.join(namelist))
 
         add_inference_tests('ref')
-        self.tests['cache-data-parameters']  = {'extras' : []}  # ['--skip-unproductive']}
-        self.tests['simulate']  = {'extras' : ['--n-sim-events', 500, '--n-leaves', 2, '--mimic-data-read-length']}
-        self.tests['cache-simu-parameters']  = {'extras' : []}
-        add_inference_tests('new')
+        if not args.only_ref:
+            self.tests['cache-data-parameters']  = {'extras' : []}  # ['--skip-unproductive']}
+            self.tests['simulate']  = {'extras' : ['--n-sim-events', 500, '--n-leaves', 2, '--mimic-data-read-length']}
+            self.tests['cache-simu-parameters']  = {'extras' : []}
+            add_inference_tests('new')
         add_common_args()
 
         self.perf_info = { version_stype : OrderedDict() for version_stype in self.stypes }
@@ -119,12 +121,11 @@ class Tester(object):
             if args.quick and name not in self.quick_tests:
                 continue
 
-            input_stype = None
-            if name not in self.production_tests:
-                input_stype = 'ref' if '-ref-' in name else 'new'
-                assert '-' + input_stype + '-' in name
-                if name == 'partition-' + input_stype + '-simu' and os.path.exists(self.dirs['new'] + '/' + self.cachefnames[input_stype]):
-                    check_call(['rm', '-v', self.dirs['new'] + '/' + self.cachefnames[input_stype]])
+            # delete old partition cache file
+            if name == 'partition-' + info['input_stype'] + '-simu':
+                this_cachefname = self.dirs['new'] + '/' + self.cachefnames[info['input_stype']]
+                if os.path.exists(this_cachefname):
+                    check_call(['rm', '-v', this_cachefname])
 
             action = info['action'] if 'action' in info else name
             cmd_str = info['bin'] + ' --action ' + action
@@ -445,8 +446,8 @@ class Tester(object):
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
 parser.add_argument('--dont-run', action='store_true', help='don\'t actually run the tests, presumably so you can just check the results ')
-parser.add_argument('--dont-plot', action='store_true', help='don\'t make all the comparison plots')
 parser.add_argument('--quick', action='store_true')
+parser.add_argument('--only-ref', action='store_true', help='only run with input_stype of \'ref\'')
 parser.add_argument('--bust-cache', action='store_true', help='copy info from new dir to reference dir, i.e. overwrite old test info')
 parser.add_argument('--make-plots', action='store_true')
 args = parser.parse_args()

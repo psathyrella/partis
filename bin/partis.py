@@ -50,9 +50,6 @@ parser.add_argument('--only-csv-plots', action='store_true', help='only write cs
 if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
     print '    TODO make sure all mpl figures are getting closed'
     print '    TODO add some garbage-ey seqs to mishmash.fa'
-    print '    TODO clean up add_inference_tests()'
-    print '    TODO clean up --quick option to tests'
-    print '    TODO add alignments for sequences with indels'
 
 # input and output locations
 parser.add_argument('--seqfile', help='input sequence file')
