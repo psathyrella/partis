@@ -151,6 +151,8 @@ xcolumns['extra'] = tuple(['invalid', ])
 xcolumns['simu'] = tuple(['reco_id', ])
 xall_columns = set([k for cols in xcolumns.values() for k in cols])
 
+translation_columns = {'indels' : 'indelfo'}  # used to be <key>, now they're <value>
+
 common_implicit_columns = set(['naive_seq', 'cdr3_length', 'cyst_position', 'tryp_position', 'lengths', 'regional_bounds', 'invalid'] + [r + '_gl_seq' for r in regions])
 single_per_seq_implicit_columns = set([r + '_qr_seq' for r in regions] + ['aligned_' + r + '_seq' for r in regions])
 multi_per_seq_implicit_columns = set(list(common_implicit_columns) + [k + 's' for k in single_per_seq_implicit_columns])
@@ -1270,7 +1272,13 @@ def process_input_line(info):
 
     ccfg = column_configs  # shorten the name a bit
 
-    for key, val in info.items():
+    # translate old column names (for backwards compatibility on old simulation files)
+    for key in info.keys():
+        if key in translation_columns:
+            info[translation_columns[key]] = info[key]
+            del info[key]
+
+    for key in info:
         if key is None:
             continue
 

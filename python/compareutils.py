@@ -1101,10 +1101,12 @@ def get_seqfile(args, datafname, label, n_leaves, mut_mult):
     return seqfname
 
 # ----------------------------------------------------------------------------------------
-def get_seed_unique_id(seqfname, n_leaves):
-    _, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=False)
+def get_seed_unique_id(datadir, seqfname, n_leaves):
+    glfo = utils.read_germline_set(datadir)
+    _, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=False, glfo=glfo)
     true_partition = utils.get_true_partition(reco_info)
     for cluster in true_partition:
+        print len(cluster)
         if len(cluster) < n_leaves:  # don't want the little tiddlers
             continue
         return cluster[0]  # just use the first one
@@ -1190,7 +1192,7 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
             # we don't really want this to be 10, but we're dependent on vsearch's non-slurm paralellization, and if I ask for more than 10 cpus per task on slurm I'm worried it'll take forever to get a node. It's still blazing *@*@$!$@ing fast with 10 procs.
             n_procs = 10  # note that when partiondriver caches all the naive seqs, it decides on its own how many procs to use
         elif action == 'seed-partition':
-            extras += ['--seed-unique-id', get_seed_unique_id(seqfname, n_leaves)]
+            extras += ['--seed-unique-id', get_seed_unique_id(args.datadir, seqfname, n_leaves)]
             if hfrac_bounds is not None:
                 assert hfrac_bounds[0] == hfrac_bounds[1]
                 extras += ['--logprob-ratio-threshold', hfrac_bounds[0]]
