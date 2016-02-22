@@ -600,13 +600,14 @@ def reset_effective_erosions_and_effective_insertions(glfo, padded_line, debug=F
         trimmed_seqs.append(trimmed_seq)
 
     # arbitrarily use the zeroth sequence
+    tmpiseq = 0
     if len(trimmed_seqs) > 1:
         print 'TODO don\'t just use the zeroth sequence'
-    trimmed_seq = trimmed_seqs[0]  # TODO right now I'm setting these to the same values for the entire clonal family, but at some point we should allow different sequences to have different read lengths/start positions
-    final_fv_insertion = final_insertions[0]['fv']
-    final_jf_insertion = final_insertions[0]['jf']
-    fv_insertion_to_remove = insertions_to_remove[0]['fv']
-    jf_insertion_to_remove = insertions_to_remove[0]['jf']
+    trimmed_seq = trimmed_seqs[tmpiseq]  # TODO right now I'm setting these to the same values for the entire clonal family, but at some point we should allow different sequences to have different read lengths/start positions
+    final_fv_insertion = final_insertions[tmpiseq]['fv']
+    final_jf_insertion = final_insertions[tmpiseq]['jf']
+    fv_insertion_to_remove = insertions_to_remove[tmpiseq]['fv']
+    jf_insertion_to_remove = insertions_to_remove[tmpiseq]['jf']
     line['v_5p_del'] = find_first_non_ambiguous_base(trimmed_seq)
     line['j_3p_del'] = len(trimmed_seq) - find_last_non_ambiguous_base_plus_one(trimmed_seq)
 
