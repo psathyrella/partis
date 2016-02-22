@@ -56,7 +56,7 @@ class Tester(object):
         def add_inference_tests(input_stype):  # if input_stype is 'ref', infer on old simulation and parameters, if it's 'new' use the new ones
             self.tests['annotate-' + input_stype + '-simu']          = {'bin' : self.partis, 'action' : 'run-viterbi', 'extras' : ['--seqfile', simfnames[input_stype], '--parameter-dir', param_dirs[input_stype]['simu'], '--is-simu', '--plotdir', self.dirs['new'] + '/' + self.perfdirs[input_stype], '--plot-performance']}
             self.tests['annotate-' + input_stype + '-data']          = {'bin' : self.partis, 'action' : 'run-viterbi', 'extras' : ['--seqfile', self.datafname, '--parameter-dir', param_dirs[input_stype]['data'], '--n-max-queries', n_data_inference_queries]}
-            self.tests['partition-' + input_stype + '-simu']         = {'bin' : self.partis, 'action' : 'partition',   'extras' : ['--seqfile', simfnames[input_stype], '--parameter-dir', param_dirs[input_stype]['simu'], '--n-max-queries', n_partition_queries, '--persistent-cachefname', self.dirs['new'] + '/' + self.cachefnames[input_stype], '--n-precache-procs', '10']}
+            self.tests['partition-' + input_stype + '-simu']         = {'bin' : self.partis, 'action' : 'partition',   'extras' : ['--seqfile', simfnames[input_stype], '--parameter-dir', param_dirs[input_stype]['simu'], '--is-simu', '--n-max-queries', n_partition_queries, '--persistent-cachefname', self.dirs['new'] + '/' + self.cachefnames[input_stype], '--n-precache-procs', '10']}
             # self.tests['partition-' + input_stype + '-data']         = {'bin' : self.partis, 'action' : 'partition',   'extras' : ['--seqfile', self.datafname, '--parameter-dir', param_dirs[input_stype]['data'], '--skip-unproductive', '--n-max-queries', n_partition_queries, '--n-precache-procs', '10']}
             self.tests['point-partition-' + input_stype + '-simu']   = {'bin' : self.partis, 'action' : 'partition',   'extras' : ['--naive-hamming', '--seqfile', simfnames[input_stype], '--parameter-dir', param_dirs[input_stype]['simu'], '--is-simu', '--n-max-queries', n_partition_queries, '--n-precache-procs', '10']}
             self.tests['vsearch-partition-' + input_stype + '-simu'] = {'bin' : self.partis, 'action' : 'partition',   'extras' : ['--naive-vsearch', '--seqfile', simfnames[input_stype], '--parameter-dir', param_dirs[input_stype]['simu'], '--is-simu', '--n-max-queries', n_partition_queries, '--n-precache-procs', '10']}
@@ -235,17 +235,12 @@ class Tester(object):
         for ptest in ptest_list:
             cp = ClusterPath(-1)
             cp.readfile(self.dirs[version_stype] + '/' + ptest + '.csv')
-            if 'data' in ptest:
-                raise Exception('needs fixing')
-                # ref_cp = ClusterPath(-1)
-                # ref_cp.readfile(self.dirs['xxxref'] + '/' + ptest + '.csv')
-                # self.perf_info['xxx'][ptest] = utils.adjusted_mutual_information(cp.partitions[cp.i_best], ref_cp.partitions[ref_cp.i_best])  # adj mi between the reference and the new data partitions
-                # if debug:
-                #     print '    %5.2f   %-28s   to reference partition' % (self.perf_info['xxx'][ptest], ptest)
-            else:
-                self.perf_info[version_stype][ptest + '-precision'], self.perf_info[version_stype][ptest + '-sensitivity'] = cp.ccfs[cp.i_best]
-                if debug:
-                    print '    %5.2f          %5.2f      %-28s   to true partition' % (self.perf_info[version_stype][ptest + '-precision'], self.perf_info[version_stype][ptest + '-sensitivity'], ptest)
+            ccfs = cp.ccfs[cp.i_best]
+            if None in ccfs:
+                raise Exception('none type ccf read from %s' % self.dirs[version_stype] + '/' + ptest + '.csv')
+            self.perf_info[version_stype][ptest + '-precision'], self.perf_info[version_stype][ptest + '-sensitivity'] = ccfs
+            if debug:
+                print '    %5.2f          %5.2f      %-28s   to true partition' % (self.perf_info[version_stype][ptest + '-precision'], self.perf_info[version_stype][ptest + '-sensitivity'], ptest)
 
     # ----------------------------------------------------------------------------------------
     def compare_data_annotation(self, input_stype):
