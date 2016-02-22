@@ -54,18 +54,42 @@ class Tester(object):
         self.tests = OrderedDict()
 
         def add_inference_tests(input_stype):  # if input_stype is 'ref', infer on old simulation and parameters, if it's 'new' use the new ones
-            self.tests['annotate-' + input_stype + '-simu']          = {'bin' : self.partis, 'action' : 'run-viterbi', 'extras' : ['--seqfile', simfnames[input_stype], '--parameter-dir', param_dirs[input_stype]['simu'], '--is-simu', '--plotdir', self.dirs['new'] + '/' + self.perfdirs[input_stype], '--plot-performance']}
-            self.tests['annotate-' + input_stype + '-data']          = {'bin' : self.partis, 'action' : 'run-viterbi', 'extras' : ['--seqfile', self.datafname, '--parameter-dir', param_dirs[input_stype]['data'], '--n-max-queries', n_data_inference_queries]}
-            self.tests['partition-' + input_stype + '-simu']         = {'bin' : self.partis, 'action' : 'partition',   'extras' : ['--seqfile', simfnames[input_stype], '--parameter-dir', param_dirs[input_stype]['simu'], '--is-simu', '--n-max-queries', n_partition_queries, '--persistent-cachefname', self.dirs['new'] + '/' + self.cachefnames[input_stype], '--n-precache-procs', '10']}
-            # self.tests['partition-' + input_stype + '-data']         = {'bin' : self.partis, 'action' : 'partition',   'extras' : ['--seqfile', self.datafname, '--parameter-dir', param_dirs[input_stype]['data'], '--skip-unproductive', '--n-max-queries', n_partition_queries, '--n-precache-procs', '10']}
-            self.tests['point-partition-' + input_stype + '-simu']   = {'bin' : self.partis, 'action' : 'partition',   'extras' : ['--naive-hamming', '--seqfile', simfnames[input_stype], '--parameter-dir', param_dirs[input_stype]['simu'], '--is-simu', '--n-max-queries', n_partition_queries, '--n-precache-procs', '10']}
-            self.tests['vsearch-partition-' + input_stype + '-simu'] = {'bin' : self.partis, 'action' : 'partition',   'extras' : ['--naive-vsearch', '--seqfile', simfnames[input_stype], '--parameter-dir', param_dirs[input_stype]['simu'], '--is-simu', '--n-max-queries', n_partition_queries, '--n-precache-procs', '10']}
+            self.tests['annotate-' + input_stype + '-simu']          = {'extras' : ['--plotdir', self.dirs['new'] + '/' + self.perfdirs[input_stype], '--plot-performance']}
+            self.tests['annotate-' + input_stype + '-data']          = {'extras' : ['--n-max-queries', n_data_inference_queries]}
+            self.tests['partition-' + input_stype + '-simu']         = {'extras' : ['--n-max-queries', n_partition_queries, '--persistent-cachefname', self.dirs['new'] + '/' + self.cachefnames[input_stype], '--n-precache-procs', '10']}
+            self.tests['point-partition-' + input_stype + '-simu']   = {'extras' : ['--naive-hamming', '--n-max-queries', n_partition_queries, '--n-precache-procs', '10']}
+            self.tests['vsearch-partition-' + input_stype + '-simu'] = {'extras' : ['--naive-vsearch', '--n-max-queries', n_partition_queries, '--n-precache-procs', '10']}
+
+        def add_common_args():
+            for ptest, args in self.tests.items():
+                if ptest in self.production_tests:
+                    args['bin'] = run_driver
+                else:
+                    args['bin'] = self.partis
+                    if 'annotate' in ptest:
+                        args['action'] = 'run-viterbi'
+                    elif 'partition' in ptest:
+                        args['action'] = 'partition'
+
+                    namelist = ptest.split('-')
+                    input_stype = namelist[-2]
+                    assert input_stype in self.stypes
+                    if namelist[-1] == 'simu':
+                        args['extras'] += ['--is-simu', ]
+                        args['extras'] += ['--seqfile', simfnames[input_stype]]
+                        args['extras'] += ['--parameter-dir', param_dirs[input_stype]['simu']]
+                    elif namelist[-1] == 'data':
+                        args['extras'] += ['--seqfile', self.datafname]
+                        args['extras'] += ['--parameter-dir', param_dirs[input_stype]['data']]
+                    else:
+                        raise Exception('-'.join(namelist))
 
         add_inference_tests('ref')
-        self.tests['cache-data-parameters']  = {'bin' : run_driver, 'extras' : []}  # ['--skip-unproductive']}
-        self.tests['simulate']  = {'bin' : run_driver, 'extras' : ['--n-sim-events', 500, '--n-leaves', 2, '--mimic-data-read-length']}
-        self.tests['cache-simu-parameters']  = {'bin' : run_driver, 'extras' : []}
+        self.tests['cache-data-parameters']  = {'extras' : []}  # ['--skip-unproductive']}
+        self.tests['simulate']  = {'extras' : ['--n-sim-events', 500, '--n-leaves', 2, '--mimic-data-read-length']}
+        self.tests['cache-simu-parameters']  = {'extras' : []}
         add_inference_tests('new')
+        add_common_args()
 
         self.perf_info = { version_stype : OrderedDict() for version_stype in self.stypes }
 
