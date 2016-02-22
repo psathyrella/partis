@@ -616,6 +616,13 @@ def reset_effective_erosions_and_effective_insertions(glfo, padded_line, debug=F
         if line['j_3p_del'] > 0:
             line['seqs'][iseq] = line['seqs'][iseq][ : -line['j_3p_del']]
 
+        if line['indelfos'][iseq]['reversed_seq'] != '':
+            rseq = line['indelfos'][iseq]['reversed_seq']
+            rseq = rseq[len(fv_insertion_to_remove) + line['v_5p_del'] : ]
+            if len(jf_insertion_to_remove) + line['j_3p_del'] > 0:
+                rseq = rseq[ : -(len(jf_insertion_to_remove) + line['j_3p_del'])]
+            line['indelfos'][iseq]['reversed_seq'] = rseq
+
     if debug:
         print '     fv %d   v_5p %d   j_3p %d   jf %d    %s' % (len(fv_insertion_to_remove), line['v_5p_del'], line['j_3p_del'], len(jf_insertion_to_remove), line['seqs'][0])
 
@@ -765,15 +772,11 @@ def print_seq_in_reco_event(germlines, line, extra_str='', label='', one_line=Fa
     indelfo = None if line['indelfo']['reversed_seq'] == '' else line['indelfo']
     reverse_indels = False  # for inferred sequences, we want to un-reverse the indels that we previously reversed in smith-waterman
     if indelfo is not None:
-        # if indelfo['reversed_seq'] == line['seq']:  # if <line> has the reversed sequence in it, then this is an inferred <line>, i.e. we removed the info, then passed the reversed sequence to the sw/hmm, so we need to reverse the indels now in order to get a sequence with indels in it
-        if line['seq'] in indelfo['reversed_seq']:  # if <line> has the reversed sequence in it, then this is an inferred <line>, i.e. we removed the info, then passed the reversed sequence to the sw/hmm, so we need to reverse the indels now in order to get a sequence with indels in it
+        if indelfo['reversed_seq'] == line['seq']:  # if <line> has the reversed sequence in it, then this is an inferred <line>, i.e. we removed the info, then passed the reversed sequence to the sw/hmm, so we need to reverse the indels now in order to get a sequence with indels in it
             reverse_indels = True
         if len(indelfo['indels']) > 1:
             print 'WARNING multiple indels not really handled'
         add_indels_to_germline_strings(germlines, line, indelfo)
-
-    print 'rev', indelfo['reversed_seq']
-    print 'seq', line['seq']
 
     # build up the query sequence line, including colors for mutations and conserved codons
     final_seq = ''
