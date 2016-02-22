@@ -1937,8 +1937,8 @@ def add_regional_alignments(glfo, line, multi_seq, region, debug=False):
             continue
         aligned_seqs.append(qr_seq)  # TODO is this supposed to be just the v section of the query sequence, or the whole sequence? (if it's the latter, I don't know what to do about alignments)
 
-    if line['invalid']:
-        aligned_seqs = None
+    if line['invalid']:  # this seems to only happening when we simulate with debug 1, and in that case we don't actually do anything with the aligned seqs, so screw it
+        aligned_seqs = [None for _ in range(len(line['seqs']))]
     line['aligned_' + region + '_seqs'] = aligned_seqs
 
 # ----------------------------------------------------------------------------------------
