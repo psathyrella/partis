@@ -403,7 +403,7 @@ class Waterer(object):
                 first_match_query_bounds = qrbounds
 
             # perform a few checks and see if we want to skip this match
-            # TODO I wish this wasn't here and I suspect I don't really need it (any more)
+            # TODO I wish this wasn't here and I suspect I don't really need it (any more) UPDATE I dunno, this definitely eliminates some stupid (albeit rare) matches
             if region == 'v':  # skip matches with cpos past the end of the query seq (i.e. eroded a ton on the right side of the v)
                 cpos = self.glfo['cyst-positions'][gene] - glbounds[0] + qrbounds[0]  # position within original germline gene, minus the position in that germline gene at which the match starts, plus the position in the query sequence at which the match starts
                 if cpos < 0 or cpos >= len(query_seq):
@@ -645,6 +645,8 @@ class Waterer(object):
         for region in utils.regions:
             all_match_names[region] = sorted(all_match_names[region], reverse=True)
             match_names[region] = []
+        if self.debug >= 2:
+            print query_name
         for region in utils.regions:
             for score, gene in all_match_names[region]:
                 glbounds = all_germline_bounds[gene]
@@ -662,7 +664,6 @@ class Waterer(object):
                 match_names[region].append(gene)
 
                 if self.debug >= 2:
-                    print query_name
                     self.print_match(region, gene, query_seq, score, glbounds, qrbounds, -1, warnings, skipping=False)
 
                 # if the germline match and the query match aren't the same length, s-w likely added an insert, which we shouldn't get since the gap-open penalty is jacked up so high
