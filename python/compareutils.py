@@ -1195,15 +1195,19 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
                 extras += ['--naive-hamming-bounds', get_str(hfrac_bounds, delimiter=':')]
             # we don't really want this to be 10, but we're dependent on vsearch's non-slurm paralellization, and if I ask for more than 10 cpus per task on slurm I'm worried it'll take forever to get a node. It's still blazing *@*@$!$@ing fast with 10 procs.
             n_procs = 10  # note that when partiondriver caches all the naive seqs, it decides on its own how many procs to use
-        elif action == 'seed-partition':
+        elif 'seed-' in action:
             extras += ['--seed-unique-id', get_seed_unique_id(args.datadir, seqfname, n_leaves)]
-            if hfrac_bounds is not None:
-                assert hfrac_bounds[0] == hfrac_bounds[1]
-                extras += ['--logprob-ratio-threshold', hfrac_bounds[0]]
             seqs_per_proc = 3000 #300
             if args.n_to_partition > 30000:
                 seqs_per_proc *= 3
             n_procs = max(1, args.n_to_partition / seqs_per_proc)
+            if action == 'seed-partition':
+                if hfrac_bounds is not None:
+                    assert hfrac_bounds[0] == hfrac_bounds[1]
+                    extras += ['--logprob-ratio-threshold', hfrac_bounds[0]]
+            elif action == 'seed-naive-hamming-partition':
+                if hfrac_bounds is not None:
+                    extras += ['--naive-hamming-bounds', get_str(hfrac_bounds, delimiter=':')]
         elif action == 'run-viterbi':
             extras += ['--annotation-clustering', 'vollmers', '--annotation-clustering-thresholds', '0.5:0.9']
             # extras += ['--persistent-cachefname', seqfname.replace('.csv', '-naive-seq-cache.csv')]  # useful if you're rerunning a bunch of times

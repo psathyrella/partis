@@ -87,7 +87,7 @@
 nl=2.3  # 7
 leaf_mut_hum="--n-leaf-list $nl --mutation-multipliers 1 --humans 021-018"
 xtra="--zipf"
-./bin/compare-partition-methods.py --actions simulate --n-sim-seqs 500000 $leaf_mut_hum $xtra &
+./bin/compare-partition-methods.py --actions simulate --n-sim-seqs 1000000 $leaf_mut_hum $xtra &
 # ./bin/compare-partition-methods.py --actions cache-simu-parameters $leaf_mut_hum &
 istartstoplist="0:250 250:750 750:1500 1500:2500 2500:4000 4000:6500 6500:9500 9500:13500 13500:18500 18500:26000 26000:36000 36000:51000 51000:71000 71000:101000 101000:141000 141000:191000 191000:266000 266000:366000 366000:516000"
 # istartstoplist="0:250 71000:101000 366000:516000 26000:36000 141000:191000 2500:4000 266000:366000 "
