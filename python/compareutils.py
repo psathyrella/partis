@@ -11,6 +11,7 @@ import itertools
 import scipy.stats
 sys.path.insert(1, './python')
 csv.field_size_limit(sys.maxsize)
+
 from hist import Hist
 import seqfileopener
 import utils
@@ -1148,7 +1149,12 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
         n_total_seqs = args.n_data_to_cache
     elif action == 'simulate':
         outfname = seqfname
-        extras += ['--n-sim-events', int(float(args.n_sim_seqs) / n_leaves)]
+        if args.zipf:
+            mean_leaves = scipy.stats.zipf(n_leaves).mean()
+        else:
+            mean_leaves = n_leaves
+        n_sim_events = int(float(args.n_sim_seqs) / mean_leaves)
+        extras += ['--n-sim-events', n_sim_events]
         extras += ['--n-leaves', n_leaves, '--mutation-multiplier', mut_mult]
         if args.indels:
             extras += ['--indel-frequency', 0.5]
@@ -1241,7 +1247,7 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
 
     cmd += baseutils.get_extra_str(extras)
     print '   ' + cmd
-    return
+    # return
 
     logbase = os.path.dirname(outfname) + '/_logs/' + os.path.basename(outfname).replace('.csv', '')
     if action not in logbase:

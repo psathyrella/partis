@@ -164,11 +164,10 @@ class TreeGenerator(object):
                 raise Exception('n leaves %d and width %f round to bad box bounds [%f, %f]' % (self.args.n_leaves, width, lo, hi))
             return random.randint(lo, hi)  # NOTE interval is inclusive!
         elif self.args.n_leaf_distribution == 'zipf':
-            assert False
+            return numpy.random.zipf(self.args.n_leaves)  # NOTE <n_leaves> is not the mean here
         else:
             raise Exception('n leaf distribution %s not among allowed choices' % self.args.n_leaf_distribution)
-        # n_leaves = max(1, int(numpy.random.exponential(scale=self.args.n_leaves)))
-        # n_leaves = random.randint(2, self.args.n_leaves)  # NOTE interval is inclusive!
+
     # ----------------------------------------------------------------------------------------
     def generate_trees(self, seed, outfname):
         if os.path.exists(outfname):
@@ -198,7 +197,7 @@ class TreeGenerator(object):
                 commandfile.write('set.seed(' + str(seed)+ ')\n')
                 ages, lonely_leaves = [], []  # keep track of which trees should have one leaft, so we can go back and add them later in the proper spots
                 for itree in range(self.args.n_trees):
-                    n_leaves = get_n_leaves()
+                    n_leaves = self.get_n_leaves()
                     age = self.choose_mean_branch_length()
                     ages.append(age)
                     if n_leaves == 1:  # TODO doesn't work yet
