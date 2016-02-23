@@ -47,7 +47,7 @@ parser.add_argument('--actions', required=True)  #, choices=all_actions)  #defau
 args = parser.parse_args()
 args.actions = utils.get_arg_list(args.actions)
 args.mutation_multipliers = utils.get_arg_list(args.mutation_multipliers, floatify=True)
-args.n_leaf_list = utils.get_arg_list(args.n_leaf_list, intify=True)
+args.n_leaf_list = utils.get_arg_list(args.n_leaf_list, floatify=True)
 args.istartstop = utils.get_arg_list(args.istartstop, intify=True)
 args.istartstoplist = utils.get_arg_list(args.istartstoplist, intify=True, list_of_pairs=True)
 args.humans = utils.get_arg_list(args.humans)

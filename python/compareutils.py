@@ -24,12 +24,11 @@ changeorandomcrapstr = '_db-pass_parse-select_clone-pass.tab'
 metrics = ['adj_mi', 'ccf_under', 'ccf_over', 'ccf_product']  # NOTE ccf_{under,over} is a deprecated name, they're 'purity' and 'completeness' now
 
 # ----------------------------------------------------------------------------------------
-def mut_str(args, label, n_leaves, mut_mult):
-    # if float(mut_mult).is_integer():  # TODO fix this
-    if mut_mult - int(mut_mult) == 0.:  # TODO fix this
-        return '%dx mutation' % mut_mult
+def float_str(float_val):
+    if float_val - int(float_val) == 0.:
+        return '%dx' % float_val
     else:
-        return '%.1fx mutation' % mut_mult
+        return '%.1fx' % float_val
 
 # ----------------------------------------------------------------------------------------
 def get_dataset(human):
@@ -45,7 +44,7 @@ def get_title(args, label, n_leaves, mut_mult, hfrac_bounds=None):
     if args.data:
         title = 'data (%s %s)' % (get_dataset(label), label)
     else:
-        title = '%d leaves, %s' % (n_leaves, mut_str(args, label, n_leaves, mut_mult))
+        title = '%s leaves, %sx mutation' % (float_str(n_leaves), float_str(mut_mult))
         if hfrac_bounds is not None:
             title += ', %.2f-%.2f hfrac' % tuple(hfrac_bounds)
         if args.istartstop is not None:
@@ -593,7 +592,7 @@ def compare_subsets(args, label):
     info = {k : {} for k in metrics + ['hists', ]}
     print 'TODO rationalize all these different plotdirs'
     for n_leaves in args.n_leaf_list:
-        print '%d leaves' % n_leaves
+        print '%s leaves' % float_str(n_leaves)
         for mut_mult in args.mutation_multipliers:
             print '  %.1f mutation' % mut_mult
             compare_subsets_for_each_leafmut(args, baseplotdir, label, n_leaves, mut_mult, info)
@@ -716,8 +715,6 @@ def read_histfiles_and_co(args, label, n_leaves, mut_mult):
 
     per_subset_info = {k : OrderedDict() for k in metrics + ['hists', ]}
     for metric in per_subset_info:
-        if n_leaves == 1 and metric == 'adj_mi':
-            continue
         for method in get_expected_methods_to_plot(args, metric):
             if metric != 'hists' and (args.data or method == 'true' or method == 'mixcr'):
                 continue
@@ -1102,13 +1099,14 @@ def get_seqfile(args, datafname, label, n_leaves, mut_mult):
 
 # ----------------------------------------------------------------------------------------
 def get_seed_unique_id(datadir, seqfname, n_leaves):
+    assert False
     glfo = utils.read_germline_set(datadir)
     _, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=False, glfo=glfo)
     true_partition = utils.get_true_partition(reco_info)
     for cluster in true_partition:
-        print len(cluster)
-        if len(cluster) < n_leaves:  # don't want the little tiddlers
+        if len(cluster) < n_leaves or len(cluster) > 2*n_leaves:  # don't want the little tiddlers, or the huge ones
             continue
+        print 'returning', len(cluster)
         return cluster[0]  # just use the first one
 
     assert False  # shouldn't get here
@@ -1243,7 +1241,7 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
 
     cmd += baseutils.get_extra_str(extras)
     print '   ' + cmd
-    # return
+    return
 
     logbase = os.path.dirname(outfname) + '/_logs/' + os.path.basename(outfname).replace('.csv', '')
     if action not in logbase:

@@ -50,9 +50,9 @@ class TreeGenerator(object):
         if self.args.debug:
             print 'generating %d trees from %s' % (self.args.n_trees, mute_freq_dir),
             if self.args.constant_number_of_leaves:
-                print ' with %d leaves' % self.args.n_leaves
+                print ' with %s leaves' % str(self.args.n_leaves)
             else:
-                print ' with random number of leaves with parameter %d' % self.args.n_leaves
+                print ' with random number of leaves with parameter %s' % str(self.args.n_leaves)
 
     #----------------------------------------------------------------------------------------
     def convert_observed_changes_to_branch_length(self, mute_freq):
@@ -151,6 +151,25 @@ class TreeGenerator(object):
             print '    mean n leaves %.2f' % (float(total_leaves) / len(ages))
 
     # ----------------------------------------------------------------------------------------
+    def get_n_leaves(self):
+        if self.args.constant_number_of_leaves:
+            return self.args.n_leaves
+
+        if self.args.n_leaf_distribution == 'geometric':
+            return numpy.random.geometric(1./self.args.n_leaves)
+        elif self.args.n_leaf_distribution == 'box':
+            width = self.args.n_leaves / 5.  # whatever
+            lo, hi = int(self.args.n_leaves - width), int(self.args.n_leaves + width)
+            if hi - lo <= 0:
+                raise Exception('n leaves %d and width %f round to bad box bounds [%f, %f]' % (self.args.n_leaves, width, lo, hi))
+            return random.randint(lo, hi)  # NOTE interval is inclusive!
+        elif self.args.n_leaf_distribution == 'zipf':
+            assert False
+        else:
+            raise Exception('n leaf distribution %s not among allowed choices' % self.args.n_leaf_distribution)
+        # n_leaves = max(1, int(numpy.random.exponential(scale=self.args.n_leaves)))
+        # n_leaves = random.randint(2, self.args.n_leaves)  # NOTE interval is inclusive!
+    # ----------------------------------------------------------------------------------------
     def generate_trees(self, seed, outfname):
         if os.path.exists(outfname):
             os.remove(outfname)
@@ -179,21 +198,7 @@ class TreeGenerator(object):
                 commandfile.write('set.seed(' + str(seed)+ ')\n')
                 ages, lonely_leaves = [], []  # keep track of which trees should have one leaft, so we can go back and add them later in the proper spots
                 for itree in range(self.args.n_trees):
-                    if self.args.constant_number_of_leaves:
-                        n_leaves = self.args.n_leaves
-                    else:
-                        if self.args.n_leaf_distribution == 'geometric':
-                            n_leaves = numpy.random.geometric(1./self.args.n_leaves)
-                        elif self.args.n_leaf_distribution == 'box':
-                            width = self.args.n_leaves / 5.  # whatever
-                            lo, hi = int(self.args.n_leaves - width), int(self.args.n_leaves + width)
-                            if hi - lo <= 0:
-                                raise Exception('n leaves %d and width %f round to bad box bounds [%f, %f]' % (self.args.n_leaves, width, lo, hi))
-                            n_leaves = random.randint(lo, hi)  # NOTE interval is inclusive!
-                        else:
-                            raise Exception('n leaf distribution %s not among allowed choices' % self.args.n_leaf_distribution)
-                        # n_leaves = max(1, int(numpy.random.exponential(scale=self.args.n_leaves)))
-                        # n_leaves = random.randint(2, self.args.n_leaves)  # NOTE interval is inclusive!
+                    n_leaves = get_n_leaves()
                     age = self.choose_mean_branch_length()
                     ages.append(age)
                     if n_leaves == 1:  # TODO doesn't work yet
