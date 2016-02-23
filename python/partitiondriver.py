@@ -259,10 +259,7 @@ class PartitionDriver(object):
                 missing_ids.add(uid)
         if len(missing_ids) > 0:
             warnstr = 'queries missing from partition: ' + ' '.join(missing_ids)
-            if self.args.is_data:
-                print '  ' + utils.color('red', 'warning') + ' ' + warnstr
-            else:
-                raise Exception(warnstr)
+            print '  ' + utils.color('red', 'warning') + ' ' + warnstr
 
         for fid in found_ids:
             found = False
