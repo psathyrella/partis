@@ -75,9 +75,7 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> >
 
 // ----------------------------------------------------------------------------------------
 Glomerator::~Glomerator() {
-  cout << "        calculated   vtb " << n_vtb_calculated_ << "    fwd " << n_fwd_calculated_ << "   hamming merged " << n_hamming_merged_
-       << "    naive hfracs " << n_hfrac_calculated_
-       << endl;
+  printf("         calculated   vtb %-4d   fwd %-4d   hamming merged %-4d   naive hfracs %d\n", n_vtb_calculated_, n_fwd_calculated_, n_hamming_merged_, n_hfrac_calculated_);
   if(args_->cachefile() != "")
     WriteCachedLogProbs();
 
@@ -829,7 +827,6 @@ ClusterPair Glomerator::GetSmallBigClusters(set<vector<string> > &clusters) { //
 }
 
 // ----------------------------------------------------------------------------------------
-// perform one merge step, i.e. find the two "nearest" clusters and merge 'em (unless we're doing doing smc, in which case we choose a random merge accordingy to their respective nearnesses)
 void Glomerator::NaiveSeqGlomerate(int n_clusters) {
   clock_t run_start(clock());
   // clusters = [[names,] for names in naive_seqs.keys()]
