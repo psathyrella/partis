@@ -202,7 +202,14 @@ def parse_mixcr(args, info, seqfname, outdir):
     deal_with_parse_results(info, outdir, 'mixcr', None, mixhist, None)
 
 # ----------------------------------------------------------------------------------------
-def parse_partis(args, action, info, outfname, outdir):
+def read_seed_unique_id_from_file(fname):
+    with open(fname) as csvfile:
+        reader = csv.DictReader(csvfile)
+        for line in reader:
+            return line['seed_unique_id']  # just take the first line, they should all be the same (like, really, really, really should)
+
+# ----------------------------------------------------------------------------------------
+def parse_partis(args, action, info, outfname, outdir, reco_info, true_partition):
     cpath = ClusterPath()
     cpath.readfile(outfname)
     hist = plotting.get_cluster_size_hist(cpath.partitions[cpath.i_best])
@@ -210,8 +217,13 @@ def parse_partis(args, action, info, outfname, outdir):
     vname = action
     metric_vals = None
     if not args.data:
-        ccfs = cpath.ccfs[cpath.i_best]
-        metric_vals = {'adj_mi' : cpath.adj_mis[cpath.i_best], 'ccf_under' : ccfs[0], 'ccf_over' : ccfs[1], 'ccf_product' : scipy.stats.hmean(ccfs)}
+        if 'seed' in action:  # recalculate ccfs for only the seeded cluster
+            adj_mi = -1.  # screw it, we don't use this any more
+            ccfs = utils.new_ccfs_that_need_better_names(partition, true_partition, reco_info, seed_unique_id=read_seed_unique_id_from_file(outfname))
+        else:
+            adj_mi = cpath.adj_mis[cpath.i_best]
+            ccfs = cpath.ccfs[cpath.i_best]
+        metric_vals = {'adj_mi' : adj_mi, 'ccf_under' : ccfs[0], 'ccf_over' : ccfs[1], 'ccf_product' : scipy.stats.hmean(ccfs)}
     deal_with_parse_results(info, outdir, action, partition, hist, metric_vals)
 
 # ----------------------------------------------------------------------------------------
@@ -556,7 +568,7 @@ def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, all_info,
 
     # partis stuff
     for action in [a for a in args.expected_methods if 'partition' in a]:
-        parse_partis(args, action, this_info, get_outputname(args, label, action, seqfname, hfrac_bounds), csvdir)
+        parse_partis(args, action, this_info, get_outputname(args, label, action, seqfname, hfrac_bounds), csvdir, reco_info, true_partition)
 
     log = 'x'
     if args.data:
@@ -576,7 +588,6 @@ def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, all_info,
             if '0.5' in meth1 or '0.5' in meth2:  # skip vollmers 0.5
                 continue
             n_biggest_clusters = 40  # if args.data else 30)
-            print 'x' + plotname + 'x'
             plotting.plot_cluster_similarity_matrix(plotdir + '/similarity-matrices/' + (meth1 + '-' + meth2).replace('partition ', ''), plotname, meth1, this_info['partitions'][meth1], meth2, this_info['partitions'][meth2], n_biggest_clusters=n_biggest_clusters, title=get_title(args, label, n_leaves, mut_mult))
 
 # ----------------------------------------------------------------------------------------
