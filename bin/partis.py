@@ -129,6 +129,9 @@ if args.seed_unique_id is not None:
 if args.sw_debug is None:  # if not explicitly set, set equal to regular debug
     args.sw_debug = args.debug
 
+if args.n_sim_events / args.n_procs > args.n_trees:
+    raise Exception('requested more simulated events per process %d / %d = %d than trees %d (you should increase --n-trees)' % (args.n_sim_events, args.n_procs, args.n_sim_events / args.n_procs, args.n_trees))  # doesn't really need to be an exception, but just for now...
+
 if args.slurm and '/tmp' in args.workdir:
     raise Exception('it appears that <workdir> isn\'t set to something visible to all slurm nodes')
 

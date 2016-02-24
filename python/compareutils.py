@@ -1169,13 +1169,14 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
         n_procs = max(1, args.n_data_to_cache / 500)
         n_total_seqs = args.n_data_to_cache
     elif action == 'simulate':
+        n_procs = 10
         outfname = seqfname
         if args.zipf:
             mean_leaves = scipy.stats.zipf(n_leaves).mean()
         else:
             mean_leaves = n_leaves
         n_sim_events = int(float(args.n_sim_seqs) / mean_leaves)
-        extras += ['--n-sim-events', n_sim_events]
+        extras += ['--n-sim-events', n_sim_events, '--n-trees', n_sim_events / n_procs + 1]
         extras += ['--n-leaves', n_leaves, '--mutation-multiplier', mut_mult]
         if args.indels:
             extras += ['--indel-frequency', 0.5]
@@ -1189,7 +1190,6 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
             extras += ['--n-leaf-distribution', 'box']
         if args.zipf:
             extras += ['--n-leaf-distribution', 'zipf']
-        n_procs = 10
     elif action == 'cache-simu-parameters':
         outfname = seqfname.replace('.csv', '')
         n_procs = 20
