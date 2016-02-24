@@ -1230,6 +1230,7 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
                     assert hfrac_bounds[0] == hfrac_bounds[1]
                     extras += ['--logprob-ratio-threshold', hfrac_bounds[0]]
             elif action == 'seed-naive-hamming-partition':
+                extras += ['--naive-hamming']
                 if hfrac_bounds is not None:
                     extras += ['--naive-hamming-bounds', get_str(hfrac_bounds, delimiter=':')]
         elif action == 'run-viterbi':
