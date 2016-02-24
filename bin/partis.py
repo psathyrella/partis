@@ -123,6 +123,9 @@ elif args.is_simu:
 else:  # if neither was given on the command line, set is_data to True
     args.is_data = True
 
+if args.seed_unique_id is not None:
+    args.seed_unique_id = args.seed_unique_id.strip()  # protect against the space you have to put in front of it if it's got an initial minus sign
+
 if args.sw_debug is None:  # if not explicitly set, set equal to regular debug
     args.sw_debug = args.debug
 

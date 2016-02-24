@@ -25,12 +25,14 @@ class ClusterPath(object):
         self.we_have_an_adj_mi = False  # did we read in at least one adj mi value from a file?
 
     # ----------------------------------------------------------------------------------------
-    def get_headers(self, is_data, smc_particles):
+    def get_headers(self, is_data, smc_particles, seed_unique_id=None):
         headers = ['logprob', 'n_clusters', 'n_procs', 'partition']
         if smc_particles > 1:
             headers += ['path_index', 'logweight']
         if not is_data:
             headers += ['n_true_clusters', 'adj_mi', 'ccf_under', 'ccf_over']
+        if seed_unique_id is not None:
+            headers += ['seed_unique_id', ]
         # headers += 'bad_clusters'  # can also write the clusters that aren't perfect
         return headers
 
@@ -260,9 +262,9 @@ class ClusterPath(object):
             self.logweights[ip] = this_logweight
 
     # ----------------------------------------------------------------------------------------
-    def init_outfile(self, outfname, is_data, smc_particles):
+    def init_outfile(self, outfname, is_data, smc_particles, seed_unique_id=None):
         outfile = open(outfname, 'w')
-        writer = csv.DictWriter(outfile, self.get_headers(is_data, smc_particles))
+        writer = csv.DictWriter(outfile, self.get_headers(is_data, smc_particles, seed_unique_id))
         writer.writeheader()
         return outfile, writer
 
@@ -274,7 +276,7 @@ class ClusterPath(object):
         outfile.close()
 
     # ----------------------------------------------------------------------------------------
-    def write_partitions(self, writer, reco_info, true_partition, is_data, smc_particles=1, path_index=None, n_to_write=None, calc_missing_values='none'):
+    def write_partitions(self, writer, reco_info, true_partition, is_data, smc_particles=1, path_index=None, n_to_write=None, calc_missing_values='none', seed_unique_id=None):
         """ use this if you're writing several paths to the same file"""
 
         # ----------------------------------------------------------------------------------------
@@ -305,7 +307,7 @@ class ClusterPath(object):
             self.calculate_missing_values(reco_info)
 
         # ----------------------------------------------------------------------------------------
-        headers = self.get_headers(is_data, smc_particles)
+        headers = self.get_headers(is_data, smc_particles, seed_unique_id)
         for ipart in self.get_surrounding_partitions(n_partitions=n_to_write):
             part = self.partitions[ipart]
             cluster_str = ''
@@ -331,5 +333,7 @@ class ClusterPath(object):
             if 'path_index' in headers:
                 row['path_index'] = path_index
                 row['logweight'] = self.logweights[ipart]
+            if 'seed_unique_id' in headers:
+                row['seed_unique_id'] = seed_unique_id
 
             writer.writerow(row)

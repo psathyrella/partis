@@ -284,7 +284,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def write_clusterpaths(self, outfname, paths, deduplicate_uid=None):
-        outfile, writer = paths[0].init_outfile(outfname, self.args.is_data, self.args.smc_particles)
+        outfile, writer = paths[0].init_outfile(outfname, self.args.is_data, self.args.smc_particles, seed_unique_id=self.args.seed_unique_id)
         true_partition = None
         if not self.args.is_data:
             true_partition = utils.get_true_partition(self.reco_info)
@@ -299,10 +299,10 @@ class PartitionDriver(object):
             partition = copy.deepcopy(path.partitions[path.i_best])
             self.check_partition(partition, deduplicate_uid=deduplicate_uid)  # NOTE doesn't set adj mi and whatnot (they'd be wrong if there's duplicates. Actually, I'm distrubed that the duplicates don't seem to cause them to fail)
             newcp.add_partition(partition, path.logprobs[path.i_best], path.n_procs[path.i_best])
-            newcp.write_partitions(writer=writer, reco_info=self.reco_info, true_partition=true_partition, is_data=self.args.is_data, n_to_write=self.args.n_partitions_to_write, calc_missing_values='best')
+            newcp.write_partitions(writer=writer, reco_info=self.reco_info, true_partition=true_partition, is_data=self.args.is_data, n_to_write=self.args.n_partitions_to_write, calc_missing_values='best', seed_unique_id=self.args.seed_unique_id)
         else:
             for ipath in range(len(paths)):
-                paths[ipath].write_partitions(writer=writer, reco_info=self.reco_info, true_partition=true_partition, is_data=self.args.is_data, smc_particles=self.args.smc_particles, path_index=self.args.seed + ipath, n_to_write=self.args.n_partitions_to_write, calc_missing_values='best')
+                paths[ipath].write_partitions(writer=writer, reco_info=self.reco_info, true_partition=true_partition, is_data=self.args.is_data, smc_particles=self.args.smc_particles, path_index=self.args.seed + ipath, n_to_write=self.args.n_partitions_to_write, calc_missing_values='best', seed_unique_id=self.args.seed_unique_id)
 
         outfile.close()
 
