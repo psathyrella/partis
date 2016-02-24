@@ -27,9 +27,9 @@ metrics = ['adj_mi', 'ccf_under', 'ccf_over', 'ccf_product']  # NOTE ccf_{under,
 # ----------------------------------------------------------------------------------------
 def float_str(float_val):
     if float_val - int(float_val) == 0.:
-        return '%dx' % float_val
+        return '%d' % float_val
     else:
-        return '%.1fx' % float_val
+        return '%.1f' % float_val
 
 # ----------------------------------------------------------------------------------------
 def get_dataset(human):
@@ -56,6 +56,8 @@ def get_title(args, label, n_leaves, mut_mult, hfrac_bounds=None):
             title += ', mimic'
         if args.box:
             title += ', box'
+        if args.zipf:
+            title += ', zipf'
     return title
 
 # ----------------------------------------------------------------------------------------
@@ -64,7 +66,7 @@ def get_str(a_list, delimiter='-'):
 
 # ----------------------------------------------------------------------------------------
 def leafmutstr(args, n_leaves, mut_mult, hfrac_bounds=None):
-    return_str = 'simu-' + str(n_leaves) + '-leaves-' + str(mut_mult) + '-mutate'
+    return_str = 'simu-' + float_str(n_leaves) + '-leaves-' + str(mut_mult) + '-mutate'
     if hfrac_bounds is not None:
         return_str += '-hfrac-bounds-' + get_str(hfrac_bounds)
     if args.indels:
@@ -75,6 +77,8 @@ def leafmutstr(args, n_leaves, mut_mult, hfrac_bounds=None):
         return_str += '-mimic'
     if args.box:
         return_str += '-box'
+    if args.zipf:
+        return_str += '-zipf'
     return return_str
 
 # ----------------------------------------------------------------------------------------
@@ -1099,16 +1103,22 @@ def get_seqfile(args, datafname, label, n_leaves, mut_mult):
     return seqfname
 
 # ----------------------------------------------------------------------------------------
-def get_seed_unique_id(datadir, seqfname, n_leaves):
-    assert False
-    glfo = utils.read_germline_set(datadir)
+def get_seed_info(args, seqfname, n_leaves):
+    glfo = utils.read_germline_set(args.datadir)
+
+    start = time.time()
     _, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=False, glfo=glfo)
+    print '        seqfileopener time: %.3f' % (time.time()-start)
+
+    start = time.time()
     true_partition = utils.get_true_partition(reco_info)
+    print '        time to get true partition: %.3f' % (time.time()-start)
+
     for cluster in true_partition:
-        if len(cluster) < n_leaves or len(cluster) > 2*n_leaves:  # don't want the little tiddlers, or the huge ones
+        if len(cluster) < args.seed_cluster_bounds[0] or len(cluster) > args.seed_cluster_bounds[1]:
             continue
-        print 'returning', len(cluster)
-        return cluster[0]  # just use the first one
+        print '  chose seed with size:', len(cluster)
+        return cluster[0], len(cluster)  # arbitrarily use the first member of the cluster as the seed
 
     assert False  # shouldn't get here
 
@@ -1166,6 +1176,8 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
             extras += ['--mimic-data-read-length', ]
         if args.box:
             extras += ['--n-leaf-distribution', 'box']
+        if args.zipf:
+            extras += ['--n-leaf-distribution', 'zipf']
         n_procs = 10
     elif action == 'cache-simu-parameters':
         outfname = seqfname.replace('.csv', '')
@@ -1196,7 +1208,8 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
             # we don't really want this to be 10, but we're dependent on vsearch's non-slurm paralellization, and if I ask for more than 10 cpus per task on slurm I'm worried it'll take forever to get a node. It's still blazing *@*@$!$@ing fast with 10 procs.
             n_procs = 10  # note that when partiondriver caches all the naive seqs, it decides on its own how many procs to use
         elif 'seed-' in action:
-            extras += ['--seed-unique-id', get_seed_unique_id(args.datadir, seqfname, n_leaves)]
+            seed_unique_id, seed_cluster_size = get_seed_info(args, seqfname, n_leaves)
+            extras += ['--seed-unique-id', seed_unique_id]
             seqs_per_proc = 3000 #300
             if args.n_to_partition > 30000:
                 seqs_per_proc *= 3
