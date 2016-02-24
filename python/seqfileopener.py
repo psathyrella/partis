@@ -14,6 +14,8 @@ from opener import opener
 # ----------------------------------------------------------------------------------------
 def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, reco_ids=None):
     """ return list of sequence info from files of several types """
+    if not is_data and glfo is None:
+        print '  WARNING glfo is None, so not adding implicit info'
 
     suffix = os.path.splitext(fname)[1]
     if suffix == '.csv':
@@ -79,7 +81,8 @@ def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, 
             if 'v_gene' not in line:
                 raise Exception('simulation info not found in %s' % fname)
             reco_info[unique_id] = copy.deepcopy(line)
-            utils.add_implicit_info(glfo, reco_info[unique_id], multi_seq=False, existing_implicit_keys=('cdr3_length', ))  # single seqs, since each seq is on its own line in the file
+            if glfo is not None:
+                utils.add_implicit_info(glfo, reco_info[unique_id], multi_seq=False, existing_implicit_keys=('cdr3_length', ))  # single seqs, since each seq is on its own line in the file
         n_queries += 1
         if n_max_queries > 0 and n_queries >= n_max_queries:
             break
