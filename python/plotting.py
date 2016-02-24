@@ -1015,14 +1015,12 @@ def plot_cluster_similarity_matrix(plotdir, plotname, meth1, partition1, meth2, 
     heatmap = ax.pcolor(data, cmap=cmap, vmin=0., vmax=1.)
     cbar = plt.colorbar(heatmap)
     
-    ticks = [n - 0.5 for n in range(1, n_biggest_clusters + 1, 2)]
-    xticklabels = [str(int(n + 0.5)) for n in ticks]
-    yticklabels = xticklabels
+    modulo = 2
     if n_biggest_clusters > 20:
         modulo = 3
-        ticks = [ticks[it] for it in range(0, len(ticks), modulo)]
-        xticklabels = [b_cluster_lengths[it] for it in range(0, len(b_cluster_lengths), modulo)]
-        yticklabels = [a_cluster_lengths[it] for it in range(0, len(a_cluster_lengths), modulo)]
+    ticks = [n - 0.5 for n in range(1, n_biggest_clusters + 1, modulo)]
+    xticklabels = [b_cluster_lengths[it] for it in range(0, len(b_cluster_lengths), modulo)]
+    yticklabels = [a_cluster_lengths[it] for it in range(0, len(a_cluster_lengths), modulo)]
     plt.xticks(ticks, xticklabels)
     plt.yticks(ticks, yticklabels)
 
