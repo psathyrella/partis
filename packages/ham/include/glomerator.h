@@ -41,10 +41,10 @@ public:
   void Merge(ClusterPath *path, smc::rng *rgen=nullptr);
 
   void CacheNaiveSeqs();
-  void PrintClusterSizes(set<vector<string> > &clusters);
-  ClusterPair GetClustersToMergeForNaiveSeqGlomerate(set<vector<string> > &clusters, int max_per_cluster, bool merge_whatever_you_got);
-  ClusterPair GetSmallBigClusters(set<vector<string> > &clusters);
-  void NaiveSeqGlomerate(int n_clusters);
+  // ClusterPair GetClustersToMergeForNaiveSeqGlomerate(set<vector<string> > &clusters, int max_per_cluster, bool merge_whatever_you_got);
+  // void PrintClusterSizes(set<vector<string> > &clusters);
+  // ClusterPair GetSmallBigClusters(set<vector<string> > &clusters);
+  // void NaiveSeqGlomerate(int n_clusters);
   
   // Return the next (i.e. the <i_initial_partition_>th) initial partition in the list of initial partitions, and increment <i_initial_partition_>.
   // Also sets arguments <initial_path_index> and <logweight> to correspond to the returned partition.
@@ -84,8 +84,6 @@ private:
   vector<double> initial_logprobs_;
   vector<double> initial_logweights_;
 
-  map<string, double> hamming_fractions_;  // cached hamming fractions NOTE key is query names, *not* sequences
-
   int i_initial_partition_;  // index of the next inital partition to grab (for smc stuff)
 
   map<string, vector<Sequence> > seq_info_;  // NOTE it would be more memory-efficient to just keep track of vectors of keys here, and have Glomerator keep all the actual info
@@ -97,11 +95,16 @@ private:
   // NOTE also that I don't keep track of the order, which I kinda should do since I might be calculating some things twice.
   // These all include cached info from previous runs
   map<string, double> log_probs_;  
+
+// ----------------------------------------------------------------------------------------
   map<string, double> naive_hfracs_;  // NOTE since this uses the joint key, it assumes there's only *one* way to get to a given cluster
+  map<string, double> hamming_fractions_;  // cached hamming fractions NOTE key is query names, *not* sequences
+  map<string, double> naive_hamming_fractions_;
+// ----------------------------------------------------------------------------------------
+
   map<string, Sequence> naive_seqs_;
   map<string, RecoEvent> events_;  // annotations corresponding to the naive seqs. NOTE keeping it separate, at least for now, since I only want the full annotations for the final partition, but I need naive seqs for loads and loads of groups of sequences
   map<string, string> errors_;
-  map<string, double> naive_hamming_fractions_;
 
   set<string> initial_log_probs_, initial_naive_hfracs_, initial_naive_seqs_;  // keep track of the ones we read from the initial cache file so we can write only the new ones to the output cache file
 
