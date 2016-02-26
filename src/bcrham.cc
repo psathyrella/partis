@@ -91,9 +91,10 @@ int main(int argc, const char * argv[]) {
   }
 
   if(args.naive_hamming_cluster() > 0) {
+    assert(0);  // not used a.t.m.
     clock_t run_start(clock());
     Glomerator glom(hmms, gl, qry_seq_list, &args, &track);
-    glom.NaiveSeqGlomerate(args.naive_hamming_cluster());
+    // glom.NaiveSeqGlomerate(args.naive_hamming_cluster());
     cout << "        time " << ((clock() - run_start) / (double)CLOCKS_PER_SEC) << endl;
     return 0;
   }

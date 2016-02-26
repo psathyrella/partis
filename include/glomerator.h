@@ -59,6 +59,7 @@ private:
   void WriteCacheLine(ofstream &ofs, string query);
   void WriteCachedLogProbs();
   string ParentalString(pair<string, string> *parents);
+  void ReplaceNaiveSeq(string queries, string parentname);
   int CountMembers(string namestr);
   string ClusterSizeString(ClusterPath *path);
   void WriteStatus(ClusterPath *path);  // write some progress info to file
@@ -69,7 +70,7 @@ private:
   vector<Sequence> MergeSeqVectors(string name_a, string name_b);
   bool SameLength(vector<Sequence> &seqs, bool debug=false);
   Query GetMergedQuery(string name_a, string name_b);
-  string JoinNames(string name1, string name2);
+  string JoinNames(string name1, string name2, string delimiter=":");
   string JoinNameStrings(vector<Sequence> &strlist, string delimiter=":");
   string JoinSeqStrings(vector<Sequence> &strlist, string delimiter=":");
   Query ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_lratio);
@@ -95,13 +96,7 @@ private:
   // NOTE also that I don't keep track of the order, which I kinda should do since I might be calculating some things twice.
   // These all include cached info from previous runs
   map<string, double> log_probs_;  
-
-// ----------------------------------------------------------------------------------------
-  map<string, double> naive_hfracs_;  // NOTE since this uses the joint key, it assumes there's only *one* way to get to a given cluster
-  map<string, double> hamming_fractions_;  // cached hamming fractions NOTE key is query names, *not* sequences
-  map<string, double> naive_hamming_fractions_;
-// ----------------------------------------------------------------------------------------
-
+  map<string, double> naive_hfracs_;  // NOTE since this uses the joint key, it assumes there's only *one* way to get to a given cluster (this is similar to, but not quite the same as, the situation for log probs and naive seqs)
   map<string, Sequence> naive_seqs_;
   map<string, RecoEvent> events_;  // annotations corresponding to the naive seqs. NOTE keeping it separate, at least for now, since I only want the full annotations for the final partition, but I need naive seqs for loads and loads of groups of sequences
   map<string, string> errors_;
