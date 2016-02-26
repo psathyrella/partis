@@ -142,7 +142,7 @@ void Glomerator::ReadCachedLogProbs() {
   }
   line.erase(remove(line.begin(), line.end(), '\r'), line.end());
   vector<string> headstrs(SplitString(line, ","));
-  assert(headstrs[0].find("unique_ids") == 0);  // each set of unique_ids can appear many times, once for each truncation
+  assert(headstrs[0].find("unique_ids") == 0);
   assert(headstrs[1].find("logprob") == 0);
   assert(headstrs[2].find("naive_seq") == 0);
   assert(headstrs[3].find("naive_hfrac") == 0);
@@ -353,15 +353,10 @@ void Glomerator::WriteAnnotations(vector<ClusterPath> &paths) {
 // ----------------------------------------------------------------------------------------
 double Glomerator::HammingFraction(Sequence seq_a, Sequence seq_b) {
   // NOTE since the cache is indexed by the joint key, this assumes we can arrive at this cluster via only one path. Which should be ok.
+
   string joint_key = JoinNames(seq_a.name(), seq_b.name());  // TODO remove this [assert(0)]
-  // if(naive_hfracs_.count(joint_key) != 0) {
-  //   cout << " err" << endl;
-  //   cout << " err " << seq_a.name() << " " << seq_b.name() << endl;
-  //   cout << " err " << joint_key << " " << naive_hfracs_.count(joint_key) << endl;
-  // }
   assert(naive_hfracs_.count(joint_key) == 0);  // shouldn't already be there TODO remove this
 
-  // cout << "  calcing " << joint_key << endl;
   ++n_hfrac_calculated_;
   if(seq_a.size() != seq_b.size())
     throw runtime_error("ERROR sequences different length in Glomerator::HammingFraction (" + seq_a.undigitized() + "," + seq_b.undigitized() + ")\n");
@@ -381,7 +376,6 @@ double Glomerator::HammingFraction(Sequence seq_a, Sequence seq_b) {
 // ----------------------------------------------------------------------------------------
 double Glomerator::NaiveHammingFraction(string key_a, string key_b) {
   string joint_key = JoinNames(key_a, key_b);
-  // cout << "look " << joint_key << " " << naive_hfracs_.count(joint_key) << endl;
   if(naive_hfracs_.count(joint_key))  // if we've already calculated this distance
     return naive_hfracs_[joint_key];
 
@@ -418,7 +412,7 @@ void Glomerator::ReplaceNaiveSeq(string queries, string parentname) {
 // ----------------------------------------------------------------------------------------
 void Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents) {
   // <queries> is colon-separated list of query names
-  if(naive_seqs_.count(queries)) {  // already did it (note that it's ok to cache naive seqs even when we're truncating, since each sequence, when part of a given group of sequence, always has the same length [it's different for forward because each key is compared in the likelihood ratio to many other keys, and each time its sequences can potentially have a different length]. In other words the difference is because we only calculate the naive sequence for sets of sequences that we've already merged.)
+  if(naive_seqs_.count(queries)) {  // already did it
     return;
   }
 
@@ -490,8 +484,6 @@ void Glomerator::GetLogProb(string name, vector<Sequence> &seqs, KBounds &kbound
 
 // ----------------------------------------------------------------------------------------
 vector<Sequence> Glomerator::MergeSeqVectors(string name_a, string name_b) {
-  // NOTE does *not* truncate anything
-
   // first merge the two vectors
   vector<Sequence> merged_seqs;  // NOTE doesn't work if you preallocate and use std::vector::insert(). No, I have no *@#*($!#ing idea why
   for(size_t is=0; is<seq_info_[name_a].size(); ++is)
@@ -542,13 +534,10 @@ bool Glomerator::SameLength(vector<Sequence> &seqs, bool debug) {
 
 // ----------------------------------------------------------------------------------------
 Query Glomerator::GetMergedQuery(string name_a, string name_b) {
-  // NOTE truncates sequences!
-
   Query qmerged;
   qmerged.name_ = JoinNames(name_a, name_b);  // sorts name_a and name_b, but *doesn't* sort within them
-  qmerged.seqs_ = MergeSeqVectors(name_a, name_b);  // doesn't truncate anything
+  qmerged.seqs_ = MergeSeqVectors(name_a, name_b);
 
-  // truncation
   assert(SameLength(seq_info_[name_a]));  // all the seqs for name_a should already be the same length
   assert(SameLength(seq_info_[name_b]));  // ...same for name_b
   vector<KBounds> kbvector;  // make vector of kbounds, with first chunk corresponding to <name_a>, and the second to <name_b>. This shenaniganery is necessary so we can take the OR of the two kbounds *after* truncation
