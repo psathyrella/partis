@@ -350,7 +350,7 @@ void Glomerator::WriteAnnotations(vector<ClusterPath> &paths) {
 
 // ----------------------------------------------------------------------------------------
 double Glomerator::HammingFraction(Sequence seq_a, Sequence seq_b) {
-  // NOTE since the cache is index by the joint key, this assumes we can arrive at this cluster via only one path. Which should be ok.
+  // NOTE since the cache is indexed by the joint key, this assumes we can arrive at this cluster via only one path. Which should be ok.
   string joint_key = JoinNames(seq_a.name(), seq_b.name());
   if(naive_hfracs_.count(joint_key))  // already did it (note that it's ok to cache naive seqs even when we're truncating, since each sequence, when part of a given group of sequence, always has the same length [it's different for forward because each key is compared in the likelihood ratio to many other keys, and each time its sequences can potentially have a different length]. In other words the difference is because we only calculate the naive sequence for sets of sequences that we've already merged.)
     return naive_hfracs_[joint_key];
@@ -767,7 +767,7 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
 }
 
 // ----------------------------------------------------------------------------------------
-ClusterPair Glomerator::GetClustersToMerge(set<vector<string> > &clusters, int max_per_cluster, bool merge_whatever_you_got) {
+ClusterPair Glomerator::GetClustersToMergeForNaiveSeqGlomerate(set<vector<string> > &clusters, int max_per_cluster, bool merge_whatever_you_got) {
   double smallest_min_distance(9999);
   ClusterPair clusters_to_merge;
   int n_skipped(0);
@@ -845,7 +845,7 @@ void Glomerator::NaiveSeqGlomerate(int n_clusters) {
   bool merge_whatever_you_got(false);
   while(clusters.size() > (size_t)n_clusters) {
     // if(args_->debug())//   printf'    current ', ' '.join([str(len(cl)) for cl in clusters])
-    ClusterPair clusters_to_merge = GetClustersToMerge(clusters, max_per_cluster, merge_whatever_you_got);
+    ClusterPair clusters_to_merge = GetClustersToMergeForNaiveSeqGlomerate(clusters, max_per_cluster, merge_whatever_you_got);
     if(clusters_to_merge.first.size() == 0) {  // if we didn't find a suitable pair
       // if debug://     print '    didn\'t find shiznitz'
       merge_whatever_you_got = true;  // next time through, merge whatever's best regardless of size
