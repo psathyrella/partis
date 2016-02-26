@@ -42,7 +42,7 @@ public:
 
   void CacheNaiveSeqs();
   void PrintClusterSizes(set<vector<string> > &clusters);
-  ClusterPair GetClustersToMerge(set<vector<string> > &clusters, int max_per_cluster, bool merge_whatever_you_got);
+  ClusterPair GetClustersToMergeForNaiveSeqGlomerate(set<vector<string> > &clusters, int max_per_cluster, bool merge_whatever_you_got);
   ClusterPair GetSmallBigClusters(set<vector<string> > &clusters);
   void NaiveSeqGlomerate(int n_clusters);
   
@@ -86,14 +86,14 @@ private:
 
   map<string, double> hamming_fractions_;  // cached hamming fractions NOTE key is query names, *not* sequences
 
-  int i_initial_partition_;  // index of the next inital paritition to grab (for smc stuff)
+  int i_initial_partition_;  // index of the next inital partition to grab (for smc stuff)
 
   map<string, vector<Sequence> > seq_info_;  // NOTE it would be more memory-efficient to just keep track of vectors of keys here, and have Glomerator keep all the actual info
   map<string, vector<string> > only_genes_;
   map<string, KBounds> kbinfo_;
   map<string, float> mute_freqs_;  // overall mute freq for single sequences, mean overall mute freq for n-sets of sequences
 
-  // NOTE they keys for these two maps are colon-separated lists of *query* *sequences*, whereas all the other maps are of query names. This is because we need logprobs and naive seqs for each truncation length
+  // NOTE the keys for these two maps are colon-separated lists of *query* *sequences*, whereas all the other maps are of query names. This is because we need logprobs and naive seqs for each truncation length
   // NOTE also that I don't keep track of the order, which I kinda should do since I might be calculating some things twice.
   // These all include cached info from previous runs
   map<string, double> log_probs_;  
