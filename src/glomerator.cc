@@ -286,6 +286,7 @@ void Glomerator::WriteCachedLogProbs() {
     keys_to_cache.insert(kv.first);
   }
   if(args_->cache_naive_hfracs()) {
+    throw runtime_error("you really don't want to do that -- this has totally different keys because it's fundamentally *pairs* of clusters")
     for(auto &kv : naive_hfracs_) {
       if(args_->only_cache_new_vals() && initial_naive_hfracs_.count(kv.first))
 	continue;
@@ -766,151 +767,151 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
   }
 }
 
-// ----------------------------------------------------------------------------------------
-ClusterPair Glomerator::GetClustersToMergeForNaiveSeqGlomerate(set<vector<string> > &clusters, int max_per_cluster, bool merge_whatever_you_got) {
-  double smallest_min_distance(9999);
-  ClusterPair clusters_to_merge;
-  int n_skipped(0);
-  for(set<vector<string> >::iterator clust_a = clusters.begin(); clust_a != clusters.end(); ++clust_a) {
-    for(set<vector<string> >::iterator clust_b = clust_a; ++clust_b != clusters.end();) {
-      if(!merge_whatever_you_got && clust_a->size() + clust_b->size() > (size_t)max_per_cluster) {  // merged cluster would be too big, so look for smaller (albeit further-apart) things to merge
-	++n_skipped;
-	continue;
-      }
+// // ----------------------------------------------------------------------------------------
+// ClusterPair Glomerator::GetClustersToMergeForNaiveSeqGlomerate(set<vector<string> > &clusters, int max_per_cluster, bool merge_whatever_you_got) {
+//   double smallest_min_distance(9999);
+//   ClusterPair clusters_to_merge;
+//   int n_skipped(0);
+//   for(set<vector<string> >::iterator clust_a = clusters.begin(); clust_a != clusters.end(); ++clust_a) {
+//     for(set<vector<string> >::iterator clust_b = clust_a; ++clust_b != clusters.end();) {
+//       if(!merge_whatever_you_got && clust_a->size() + clust_b->size() > (size_t)max_per_cluster) {  // merged cluster would be too big, so look for smaller (albeit further-apart) things to merge
+// 	++n_skipped;
+// 	continue;
+//       }
 
-      double min_distance(9999);  // find the smallest hamming distance between any two sequences in the two clusters
-      for(auto &query_a : *clust_a) {
-	for(auto &query_b : *clust_b) {
-	  string key(query_a + "-" + query_b);
-	  double hfrac;
-	  if(hamming_fractions_.count(key) == 0) {
-	    hfrac = NaiveHammingFraction(query_a, query_b);
-	    hamming_fractions_[key] = hfrac;
-	    hamming_fractions_[query_b + "-" + query_a] = hfrac;  // also add the reverse-ordered key
-	  } else {
-	    hfrac = hamming_fractions_[key];
-	  }
-	  if(hfrac < min_distance)
-	    min_distance = hfrac;
-	}
-      }
+//       double min_distance(9999);  // find the smallest hamming distance between any two sequences in the two clusters
+//       for(auto &query_a : *clust_a) {
+// 	for(auto &query_b : *clust_b) {
+// 	  string key(query_a + "-" + query_b);
+// 	  double hfrac;
+// 	  if(hamming_fractions_.count(key) == 0) {
+// 	    hfrac = NaiveHammingFraction(query_a, query_b);
+// 	    hamming_fractions_[key] = hfrac;
+// 	    hamming_fractions_[query_b + "-" + query_a] = hfrac;  // also add the reverse-ordered key
+// 	  } else {
+// 	    hfrac = hamming_fractions_[key];
+// 	  }
+// 	  if(hfrac < min_distance)
+// 	    min_distance = hfrac;
+// 	}
+//       }
 
-      if(min_distance < smallest_min_distance) {
-	smallest_min_distance = min_distance;
-	// vector<string> &ref_a(*clust_a), &ref_b(*clust_b);
-	clusters_to_merge = ClusterPair(*clust_a, *clust_b);
-      }
-      // if(args_->debug() && n_skipped > 0)
-      // 	printf("      skipped: %d", n_skipped);
-    }
-  }
-  return clusters_to_merge;
-}
+//       if(min_distance < smallest_min_distance) {
+// 	smallest_min_distance = min_distance;
+// 	// vector<string> &ref_a(*clust_a), &ref_b(*clust_b);
+// 	clusters_to_merge = ClusterPair(*clust_a, *clust_b);
+//       }
+//       // if(args_->debug() && n_skipped > 0)
+//       // 	printf("      skipped: %d", n_skipped);
+//     }
+//   }
+//   return clusters_to_merge;
+// }
 
-// ----------------------------------------------------------------------------------------
-void Glomerator::PrintClusterSizes(set<vector<string> > &clusters) {
-  for(auto &cl : clusters)
-    cout << " " << cl.size();
-  cout << endl;
-}
+// // ----------------------------------------------------------------------------------------
+// void Glomerator::PrintClusterSizes(set<vector<string> > &clusters) {
+//   for(auto &cl : clusters)
+//     cout << " " << cl.size();
+//   cout << endl;
+// }
 
-// ----------------------------------------------------------------------------------------
-ClusterPair Glomerator::GetSmallBigClusters(set<vector<string> > &clusters) { // return the samllest and biggest clusters
-  ClusterPair smallbig;
-  for(auto &clust : clusters) {
-    if(smallbig.first.size() == 0 || clust.size() < smallbig.first.size())
-      smallbig.first = clust;
-    if(smallbig.second.size() == 0 || clust.size() > smallbig.second.size())
-      smallbig.second = clust;
-  }
-  return smallbig;
-}
+// // ----------------------------------------------------------------------------------------
+// ClusterPair Glomerator::GetSmallBigClusters(set<vector<string> > &clusters) { // return the samllest and biggest clusters
+//   ClusterPair smallbig;
+//   for(auto &clust : clusters) {
+//     if(smallbig.first.size() == 0 || clust.size() < smallbig.first.size())
+//       smallbig.first = clust;
+//     if(smallbig.second.size() == 0 || clust.size() > smallbig.second.size())
+//       smallbig.second = clust;
+//   }
+//   return smallbig;
+// }
 
-// ----------------------------------------------------------------------------------------
-void Glomerator::NaiveSeqGlomerate(int n_clusters) {
-  clock_t run_start(clock());
-  // clusters = [[names,] for names in naive_seqs.keys()]
-  double seqs_per_cluster = double(seq_info_.size()) / n_clusters;
-  int max_per_cluster = ceil(seqs_per_cluster);
-  if(args_->debug())
-    printf("  making %d clusters (max %d per cluster)\n", n_clusters, max_per_cluster);
+// // ----------------------------------------------------------------------------------------
+// void Glomerator::NaiveSeqGlomerate(int n_clusters) {
+//   clock_t run_start(clock());
+//   // clusters = [[names,] for names in naive_seqs.keys()]
+//   double seqs_per_cluster = double(seq_info_.size()) / n_clusters;
+//   int max_per_cluster = ceil(seqs_per_cluster);
+//   if(args_->debug())
+//     printf("  making %d clusters (max %d per cluster)\n", n_clusters, max_per_cluster);
 
-  set<vector<string> > clusters;
-  for(auto &kv : seq_info_)
-    clusters.insert(vector<string>{kv.first});
+//   set<vector<string> > clusters;
+//   for(auto &kv : seq_info_)
+//     clusters.insert(vector<string>{kv.first});
 
-  if(args_->debug())
-    PrintClusterSizes(clusters);
+//   if(args_->debug())
+//     PrintClusterSizes(clusters);
 
-  bool merge_whatever_you_got(false);
-  while(clusters.size() > (size_t)n_clusters) {
-    // if(args_->debug())//   printf'    current ', ' '.join([str(len(cl)) for cl in clusters])
-    ClusterPair clusters_to_merge = GetClustersToMergeForNaiveSeqGlomerate(clusters, max_per_cluster, merge_whatever_you_got);
-    if(clusters_to_merge.first.size() == 0) {  // if we didn't find a suitable pair
-      // if debug://     print '    didn\'t find shiznitz'
-      merge_whatever_you_got = true;  // next time through, merge whatever's best regardless of size
-    } else {
-      // if debug:print '    merging', len(clusters_to_merge[0]), len(clusters_to_merge[1])
-      vector<string> new_cluster(clusters_to_merge.first);
-      new_cluster.insert(new_cluster.end(), clusters_to_merge.second.begin(), clusters_to_merge.second.end());  // add clusters from the second cluster to the first cluster
-      clusters.insert(new_cluster);
-      clusters.erase(clusters_to_merge.first);  // then erase the old clusters
-      clusters.erase(clusters_to_merge.second);
-      if(args_->debug())
-	PrintClusterSizes(clusters);
-    }
-  }
+//   bool merge_whatever_you_got(false);
+//   while(clusters.size() > (size_t)n_clusters) {
+//     // if(args_->debug())//   printf'    current ', ' '.join([str(len(cl)) for cl in clusters])
+//     ClusterPair clusters_to_merge = GetClustersToMergeForNaiveSeqGlomerate(clusters, max_per_cluster, merge_whatever_you_got);
+//     if(clusters_to_merge.first.size() == 0) {  // if we didn't find a suitable pair
+//       // if debug://     print '    didn\'t find shiznitz'
+//       merge_whatever_you_got = true;  // next time through, merge whatever's best regardless of size
+//     } else {
+//       // if debug:print '    merging', len(clusters_to_merge[0]), len(clusters_to_merge[1])
+//       vector<string> new_cluster(clusters_to_merge.first);
+//       new_cluster.insert(new_cluster.end(), clusters_to_merge.second.begin(), clusters_to_merge.second.end());  // add clusters from the second cluster to the first cluster
+//       clusters.insert(new_cluster);
+//       clusters.erase(clusters_to_merge.first);  // then erase the old clusters
+//       clusters.erase(clusters_to_merge.second);
+//       if(args_->debug())
+// 	PrintClusterSizes(clusters);
+//     }
+//   }
 
-  size_t itries(0);
-  ClusterPair smallbig = GetSmallBigClusters(clusters);
-  while(float(smallbig.second.size()) / smallbig.first.size() > 1.1 && smallbig.second.size() - smallbig.first.size() > 3) {  // keep homogenizing while biggest cluster is more than 3/2 the size of the smallest (and while their sizes differ by more than 2)
-    if(args_->debug())
-      cout << "homogenizing" << endl;
-    int n_to_keep_in_biggest_cluster = ceil(double(smallbig.first.size() + smallbig.second.size()) / 2);
-    clusters.erase(smallbig.first);
-    clusters.erase(smallbig.second);
-    smallbig.first.insert(smallbig.first.end(), smallbig.second.begin() + n_to_keep_in_biggest_cluster, smallbig.second.end());
-    smallbig.second.erase(smallbig.second.begin() + n_to_keep_in_biggest_cluster, smallbig.second.end());
-    clusters.insert(smallbig.first);
-    clusters.insert(smallbig.second);
-    if(args_->debug())
-      PrintClusterSizes(clusters);
-    ++itries;
-    if(itries > clusters.size()) {
-      // if debug: print '  too many homogenization tries'
-      break;
-    }
-    smallbig = GetSmallBigClusters(clusters);
-  }
+//   size_t itries(0);
+//   ClusterPair smallbig = GetSmallBigClusters(clusters);
+//   while(float(smallbig.second.size()) / smallbig.first.size() > 1.1 && smallbig.second.size() - smallbig.first.size() > 3) {  // keep homogenizing while biggest cluster is more than 3/2 the size of the smallest (and while their sizes differ by more than 2)
+//     if(args_->debug())
+//       cout << "homogenizing" << endl;
+//     int n_to_keep_in_biggest_cluster = ceil(double(smallbig.first.size() + smallbig.second.size()) / 2);
+//     clusters.erase(smallbig.first);
+//     clusters.erase(smallbig.second);
+//     smallbig.first.insert(smallbig.first.end(), smallbig.second.begin() + n_to_keep_in_biggest_cluster, smallbig.second.end());
+//     smallbig.second.erase(smallbig.second.begin() + n_to_keep_in_biggest_cluster, smallbig.second.end());
+//     clusters.insert(smallbig.first);
+//     clusters.insert(smallbig.second);
+//     if(args_->debug())
+//       PrintClusterSizes(clusters);
+//     ++itries;
+//     if(itries > clusters.size()) {
+//       // if debug: print '  too many homogenization tries'
+//       break;
+//     }
+//     smallbig = GetSmallBigClusters(clusters);
+//   }
 
-  // cout << "  final bcrham divvy" << endl;
-  // int tmpic(0);
-  // for(auto &clust : clusters) {
-  //   cout << "      " << tmpic << endl;
-  //   for(auto &query : clust)
-  //     cout << "          " << query << endl;
-  //   ++tmpic;
-  // }
+//   // cout << "  final bcrham divvy" << endl;
+//   // int tmpic(0);
+//   // for(auto &clust : clusters) {
+//   //   cout << "      " << tmpic << endl;
+//   //   for(auto &query : clust)
+//   //     cout << "          " << query << endl;
+//   //   ++tmpic;
+//   // }
 
-  ofs_.open(args_->outfile());
-  ofs_ << "partition" << endl;
-  int ic(0);
-  for(auto &clust : clusters) {
-    if(ic > 0)
-      ofs_ << "|";
-    int iq(0);
-    for(auto &query : clust) {
-      if(iq > 0)
-	ofs_ << ";";
-      ofs_ << query;
-      ++iq;
-    }
-    ++ic;
-  }
-  ofs_ << endl;
-  ofs_.close();
+//   ofs_.open(args_->outfile());
+//   ofs_ << "partition" << endl;
+//   int ic(0);
+//   for(auto &clust : clusters) {
+//     if(ic > 0)
+//       ofs_ << "|";
+//     int iq(0);
+//     for(auto &query : clust) {
+//       if(iq > 0)
+// 	ofs_ << ";";
+//       ofs_ << query;
+//       ++iq;
+//     }
+//     ++ic;
+//   }
+//   ofs_ << endl;
+//   ofs_.close();
 
-  cout << "        naive hamming cluster time " << ((clock() - run_start) / (double)CLOCKS_PER_SEC) << "   to condense " << seq_info_.size() << " --> " << n_clusters <<  endl;
-}
+//   cout << "        naive hamming cluster time " << ((clock() - run_start) / (double)CLOCKS_PER_SEC) << "   to condense " << seq_info_.size() << " --> " << n_clusters <<  endl;
+// }
 
 }
