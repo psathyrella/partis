@@ -155,7 +155,7 @@ private:
   bool could_not_expand_;
 };
 
-void TruncateSeqs(vector<Sequence> &seqs, vector<KBounds> &kbvector, bool debug = false);
+// void TruncateSeqs(vector<Sequence> &seqs, vector<KBounds> &kbvector, bool debug = false);
 
 void StreamHeader(ofstream &ofs, string algorithm);
 void StreamOutput(ofstream &ofs, string algorithm, size_t n_max, vector<RecoEvent> &events, vector<Sequence> &seqs, double total_score, string errors);
