@@ -18,6 +18,7 @@ public:
   ~Sequence();
 
   inline string name() const { return name_; }
+  inline void set_name(string name)  { name_ = name; }
   inline uint8_t operator[](size_t index) { return seqq_.at(index); }  // digitized value at position <index>
   inline uint8_t value(size_t pos) const { return seqq_[pos]; }  // get digitized value at <pos>
   inline string symbol(size_t pos) const { return track_->symbol(seqq_[pos]); }  // get undigitized value at <pos>
