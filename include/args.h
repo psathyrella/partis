@@ -37,7 +37,6 @@ public:
   int naive_hamming_cluster() { return naive_hamming_cluster_arg_.getValue(); }
   bool no_chunk_cache() { return no_chunk_cache_arg_.getValue(); }
   bool partition() { return partition_arg_.getValue(); }
-  bool truncate_seqs() { return truncate_seqs_arg_.getValue(); }
   bool rescale_emissions() { return rescale_emissions_arg_.getValue(); }
   bool unphysical_insertions() { return unphysical_insertions_arg_.getValue(); }
   bool cache_naive_seqs() { return cache_naive_seqs_arg_.getValue(); }
@@ -53,7 +52,7 @@ public:
   ValueArg<string> hmmdir_arg_, datadir_arg_, infile_arg_, outfile_arg_, annotationfile_arg_, cachefile_arg_, algorithm_arg_, ambig_base_arg_, seed_unique_id_arg_;
   ValueArg<float> hamming_fraction_bound_lo_arg_, hamming_fraction_bound_hi_arg_, logprob_ratio_threshold_arg_, max_logprob_drop_arg_;
   ValueArg<int> debug_arg_, n_best_events_arg_, smc_particles_arg_, naive_hamming_cluster_arg_;
-  SwitchArg no_chunk_cache_arg_, partition_arg_, truncate_seqs_arg_, rescale_emissions_arg_, unphysical_insertions_arg_, cache_naive_seqs_arg_, no_fwd_arg_, cache_naive_hfracs_arg_, only_cache_new_vals_arg_;
+  SwitchArg no_chunk_cache_arg_, partition_arg_, rescale_emissions_arg_, unphysical_insertions_arg_, cache_naive_seqs_arg_, no_fwd_arg_, cache_naive_hfracs_arg_, only_cache_new_vals_arg_;
 
   // arguments read from csv input file
   map<string, vector<string> > strings_;
