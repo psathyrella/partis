@@ -9,7 +9,7 @@ tests['cpg'] = ('cpg', 'ACTTTTACCGTCAGTGCAGTGCGCGCGCGCGCGCGCCGTTTTAAAAAACCAATT')
 tests['multi-cpg'] = ('cpg', 'CGCCGCACTTTTACCGTCAGTGCAGTGCGCGCGCGCGCGCGCCGTTTTAAAAAACCAATT:GCGGCGCCTTCGACCGTCAGTGCAGTGCTTGCGCGCGCGAGCCGTTTGCATTAACGCATT:GCGGAAACTTCGACCGTTTTTGCAGTGCTTGCGCGCGCGAGTTTTTTGCAAAAACGCATT')
 
 testdir = 'test/data/regression/bcrham'
-bcrham_args = ' --chunk-cache --debug 1 --n_best_events 3 --hmmdir ' + testdir + ' --datadir ' + testdir
+bcrham_args = ' --debug 1 --n_best_events 3 --hmmdir ' + testdir + ' --datadir ' + testdir
 tests['bcrham-single-viterbi'] = ' --algorithm viterbi' + bcrham_args + ' --infile '+testdir+'/single-input.csv'
 tests['bcrham-pair-viterbi'] = ' --algorithm viterbi' + bcrham_args + ' --infile '+testdir+'/pair-input.csv'
 tests['bcrham-forward'] = ' --algorithm forward' + bcrham_args + ' --infile '+testdir+'/pair-input.csv'
