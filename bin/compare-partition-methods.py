@@ -36,6 +36,7 @@ parser.add_argument('--hfrac-bound-list')
 parser.add_argument('--subset', type=int)
 parser.add_argument('--n-to-partition', type=int, default=5000)
 parser.add_argument('--n-data-to-cache', type=int, default=100000)
+parser.add_argument('--n-simu-to-cache', type=int, default=-1)
 parser.add_argument('--n-sim-seqs', type=int, default=10000)
 parser.add_argument('--n-subsets', type=int)
 parser.add_argument('--istartstop')  # NOTE usual zero indexing

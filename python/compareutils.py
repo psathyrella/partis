@@ -1192,8 +1192,11 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
             extras += ['--n-leaf-distribution', 'zipf']
     elif action == 'cache-simu-parameters':
         outfname = seqfname.replace('.csv', '')
-        n_procs = 20
         n_total_seqs = args.n_sim_seqs
+        if args.n_simu_to_cache != -1:
+            extras += ['--n-max-queries', + args.n_simu_to_cache]
+            n_total_seqs = args.n_simu_to_cache
+        n_procs = max(1, n_total_seqs / 1000)
     elif 'partition' in action or action == 'run-viterbi':
         outfname = get_outputname(args, label, action, seqfname, hfrac_bounds)
         cmd += ' --outfname ' + outfname
