@@ -449,9 +449,45 @@ Sequence &Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents)
 }
 
 // ----------------------------------------------------------------------------------------
+string Glomerator::ChooseSubsetOfNames(string names, int n_max) {
+
+  // make sure we have a vector of these sequences to pass into the dp handler
+  vector<Sequence> seqs;
+  for(auto &nm : SplitString(names, ":")) {
+    seqs.push_back(seq_info_[nm][0]);
+  }
+  extra_seq_info_[names] = seqs;
+
+  return names;
+}
+
+// ----------------------------------------------------------------------------------------
+string Glomerator::GetNameTranslation(string actual_name) {
+  if(key_translations_.count(actual_name)) {
+    return key_translations_[actual_name];  // already decided on a translation for it
+  }
+
+  int n_max(5);
+
+  if(CountMembers(actual_name) > n_max) {  // if cluster is really big, replace it with a subset
+    key_translations_[actual_name] = ChooseSubsetOfNames(actual_name, n_max);
+    return key_translations_[actual_name];
+  }
+
+  return actual_name;
+}
+
+// ----------------------------------------------------------------------------------------
 // add log prob for <name>/<seqs> to <log_probs_> (if it isn't already there)
 double Glomerator::GetLogProb(string name, vector<Sequence> &seqs, KBounds &kbounds, vector<string> &only_genes, double mean_mute_freq) {
   // NOTE that when this improves the kbounds, that info doesn't get propagated to <kbinfo_>
+
+  // string transname = GetNameTranslation(name);  // assume kbounds, only_genes, and mean_mute_freq are the same
+  // vector<Sequence> transseqs(seqs);
+  // if(transname != name) {
+  //   transseqs = extra_seq_info_[transname];
+  // }
+
   if(log_probs_.count(name)) {  // already did it (see note in GetNaiveSeq above)
     return log_probs_[name];
   }
@@ -460,7 +496,6 @@ double Glomerator::GetLogProb(string name, vector<Sequence> &seqs, KBounds &kbou
   Result result(kbounds);
   bool stop(false);
   do {
-    // assert(SameLength(seqs, true));
     result = fwd_dph_.Run(seqs, kbounds, only_genes, mean_mute_freq);  // NOTE <only_genes> isn't necessarily <only_genes_[name]>, since for the denominator calculation we take the OR
     kbounds = result.better_kbounds();
     stop = !result.boundary_error() || result.could_not_expand();  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
@@ -580,7 +615,7 @@ pair<double, Query> *Glomerator::ChooseRandomMerge(vector<pair<double, Query> > 
 }
 
 // ----------------------------------------------------------------------------------------
-  string Glomerator::JoinNames(string name1, string name2, string delimiter) {
+string Glomerator::JoinNames(string name1, string name2, string delimiter) {
   vector<string> names{name1, name2};
   sort(names.begin(), names.end());  // NOTE this doesn't sort *within* name1 or name2 when they're already comprised of several uids. In principle this will lead to unnecessary cache misses (if we later arrive at the same combination of sequences from a different starting point). In practice, this is very unlikely (unless we're dong smc) since we've already merged the constituents of name1 and name2 and we can't unmerge them.
   return names[0] + delimiter + names[1];
@@ -648,8 +683,8 @@ Query Glomerator::ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_
       // NOTE also that the _a and _b results will be cached (unless we're truncating), but with their *individual* only_gene sets (rather than the OR)... but this seems to be ok.
 
       // TODO if kbounds gets expanded in one of these three calls, we don't redo the others. Which is really ok, but could be checked again?
-      double log_prob_a = GetLogProb(key_a, seq_info_[key_a], qmerged.kbounds_, qmerged.only_genes_, mute_freqs_[key_a]);
-      double log_prob_b = GetLogProb(key_b, seq_info_[key_b], qmerged.kbounds_, qmerged.only_genes_, mute_freqs_[key_b]);
+      double log_prob_a = GetLogProb(key_a, seq_info_[key_a], kbinfo_[key_a], only_genes_[key_a], mute_freqs_[key_a]);
+      double log_prob_b = GetLogProb(key_b, seq_info_[key_b], kbinfo_[key_b], only_genes_[key_b], mute_freqs_[key_b]);
       double log_prob_ab = GetLogProb(qmerged.name_, qmerged.seqs_, qmerged.kbounds_, qmerged.only_genes_, qmerged.mean_mute_freq_);
 
       double lratio(log_prob_ab - log_prob_a - log_prob_b);  // REMINDER a, b not necessarily same order as names[0], names[1]
