@@ -75,8 +75,8 @@ private:
   Query ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_lratio);
   pair<double, Query> *ChooseRandomMerge(vector<pair<double, Query> > &potential_merges, smc::rng *rgen);
 
-  string ChooseSubsetOfNames(string names, int n_max);
-  string GetNameTranslation(string actual_name);  // convert between the actual queries/key we're interested in and the one we're going to calculate
+  pair<string, vector<Sequence> > ChooseSubsetOfNames(string names, int n_max);
+  string GetNameTranslation(string actual_names);  // convert between the actual queries/key we're interested in and the one we're going to calculate
 
   Track *track_;
   Args *args_;
@@ -95,7 +95,6 @@ private:
   map<string, float> mute_freqs_;  // overall mute freq for single sequences, mean overall mute freq for n-sets of sequences
 
   map<string, string> key_translations_;  // map between a cluster's actual query string (i.e. colon-separated list of queries) and the one we're using for calculations (which is presumably shorter, to make it faster to calculate things)
-  map<string, vector<Sequence> > extra_seq_info_;  // suplement to seq_info_, for stuff in key_translations_, which I need because I think I can't just add extra stuff to seq_info_ TODO figure out all the things for which I use seq_info_
 
   // NOTE the keys for these two maps are colon-separated lists of *query* *sequences*, whereas all the other maps are of query names. This is because we need logprobs and naive seqs for each truncation length
   // NOTE also that I don't keep track of the order, which I kinda should do since I might be calculating some things twice.

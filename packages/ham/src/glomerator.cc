@@ -449,32 +449,49 @@ Sequence &Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents)
 }
 
 // ----------------------------------------------------------------------------------------
-string Glomerator::ChooseSubsetOfNames(string names, int n_max) {
+pair<string, vector<Sequence> > Glomerator::ChooseSubsetOfNames(string names, int n_max) {
 
-  // make sure we have a vector of these sequences to pass into the dp handler
-  vector<Sequence> seqs;
-  for(auto &nm : SplitString(names, ":")) {
-    seqs.push_back(seq_info_[nm][0]);
+  vector<string> subnames;
+  vector<Sequence> subseqs;
+
+  vector<string> namevector(SplitString(names, ":"));
+  for(size_t iname=0; iname<namevector.size(); ++iname) {
+    string name(namevector[iname]);
+    if(iname == 0)
+      continue;
+
+    subnames.push_back(name);
+    subseqs.push_back(seq_info_[names][iname]);
   }
-  extra_seq_info_[names] = seqs;
 
-  return names;
+  pair<string, vector<Sequence> > substuff(JoinStrings(subnames), subseqs);
+  return substuff;
 }
 
 // ----------------------------------------------------------------------------------------
-string Glomerator::GetNameTranslation(string actual_name) {
-  if(key_translations_.count(actual_name)) {
-    return key_translations_[actual_name];  // already decided on a translation for it
+string Glomerator::GetNameTranslation(string actual_names) {
+  if(key_translations_.count(actual_names)) {
+    cout <<  "     already in key translations " << actual_names << " --> " << key_translations_[actual_names] << endl;
+    return key_translations_[actual_names];  // already decided on a translation for it
   }
 
   int n_max(5);
 
-  if(CountMembers(actual_name) > n_max) {  // if cluster is really big, replace it with a subset
-    key_translations_[actual_name] = ChooseSubsetOfNames(actual_name, n_max);
-    return key_translations_[actual_name];
+  if(CountMembers(actual_names) > n_max) {  // if cluster is really big, replace it with a subset
+    pair<string, vector<Sequence> > substuff = ChooseSubsetOfNames(actual_names, n_max);
+    string subnames(substuff.first);
+    seq_info_[subnames] = substuff.second;
+    cout <<  "   replacing " << actual_names << " --> " << subnames << endl;
+    kbinfo_[subnames] = kbinfo_[actual_names];  // just use the entire/super cluster for this stuff. It's just overly conservative (as long as you keep the mute freqs the same)
+    mute_freqs_[subnames] = mute_freqs_[actual_names];
+    only_genes_[subnames] = only_genes_[actual_names];
+
+    key_translations_[actual_names] = subnames;
+    return key_translations_[actual_names];
   }
 
-  return actual_name;
+  // falling through to here means we want to actually run on <actual_names>
+  return actual_names;
 }
 
 // ----------------------------------------------------------------------------------------
@@ -482,17 +499,17 @@ string Glomerator::GetNameTranslation(string actual_name) {
 double Glomerator::GetLogProb(string name) {
   // NOTE that when this improves the kbounds, that info doesn't get propagated to <kbinfo_> UPDATE now it does!
 
-  // string transname = GetNameTranslation(name);  // assume kbounds, only_genes, and mean_mute_freq are the same
-  // vector<Sequence> transseqs(seqs);
-  // if(transname != name) {
-  //   transseqs = extra_seq_info_[transname];
-  // }
+// ----------------------------------------------------------------------------------------
+  name = GetNameTranslation(name);
+// ----------------------------------------------------------------------------------------
 
   if(log_probs_.count(name)) {  // already did it (see note in GetNaiveSeq above)
     return log_probs_[name];
   }
   ++n_fwd_calculated_;
     
+  clock_t run_start(clock());
+
   Result result(kbinfo_[name]);
   bool stop(false);
   do {
@@ -507,6 +524,8 @@ double Glomerator::GetLogProb(string name) {
     errors_[name] = errors_[name] + ":boundary";
 
   log_probs_[name] = result.total_score();
+
+  printf("        time for size %5d  %5.2f    %s\n", int(SplitString(name, ":").size()), ((clock() - run_start) / (double)CLOCKS_PER_SEC), name.c_str());
 
   return log_probs_[name];
 }
