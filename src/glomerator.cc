@@ -190,7 +190,7 @@ double Glomerator::LogProbOfPartition(Partition &partition, bool debug) {
     cout << "LogProbOfPartition: " << endl;
   for(auto &key : partition) {
     // assert(SameLength(seq_info_[key], true));
-    double log_prob = GetLogProb(key, seq_info_[key], kbinfo_[key], only_genes_[key], mute_freqs_[key]);  // immediately returns if we already have it NOTE all the sequences in <seq_info_[key]> are already the same length, since we've already merged them
+    double log_prob = GetLogProb(key);  // immediately returns if we already have it NOTE all the sequences in <seq_info_[key]> are already the same length, since we've already merged them
     if(debug)
       cout << "  " << log_prob << "  " << key << endl;
     total_log_prob = AddWithMinusInfinities(total_log_prob, log_prob);
@@ -479,8 +479,8 @@ string Glomerator::GetNameTranslation(string actual_name) {
 
 // ----------------------------------------------------------------------------------------
 // add log prob for <name>/<seqs> to <log_probs_> (if it isn't already there)
-double Glomerator::GetLogProb(string name, vector<Sequence> &seqs, KBounds &kbounds, vector<string> &only_genes, double mean_mute_freq) {
-  // NOTE that when this improves the kbounds, that info doesn't get propagated to <kbinfo_>
+double Glomerator::GetLogProb(string name) {
+  // NOTE that when this improves the kbounds, that info doesn't get propagated to <kbinfo_> UPDATE now it does!
 
   // string transname = GetNameTranslation(name);  // assume kbounds, only_genes, and mean_mute_freq are the same
   // vector<Sequence> transseqs(seqs);
@@ -493,10 +493,11 @@ double Glomerator::GetLogProb(string name, vector<Sequence> &seqs, KBounds &kbou
   }
   ++n_fwd_calculated_;
     
+  KBounds kbounds(kbinfo_[name]);
   Result result(kbounds);
   bool stop(false);
   do {
-    result = fwd_dph_.Run(seqs, kbounds, only_genes, mean_mute_freq);  // NOTE <only_genes> isn't necessarily <only_genes_[name]>, since for the denominator calculation we take the OR
+    result = fwd_dph_.Run(seq_info_[name], kbounds, only_genes_[name], mute_freqs_[name]);  // NOTE <only_genes> isn't necessarily <only_genes_[name]>, since for the denominator calculation we take the OR
     kbounds = result.better_kbounds();
     stop = !result.boundary_error() || result.could_not_expand();  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
     if(args_->debug() && !stop)
@@ -585,6 +586,13 @@ Query Glomerator::GetMergedQuery(string name_a, string name_b) {
   // TODO mute freqs aren't really right any more if we truncated things above
   qmerged.mean_mute_freq_ = (seq_info_[name_a].size()*mute_freqs_[name_a] + seq_info_[name_b].size()*mute_freqs_[name_b]) / double(qmerged.seqs_.size());  // simple weighted average (doesn't account for different sequence lengths)
   qmerged.parents_ = pair<string, string>(name_a, name_b);
+
+  // NOTE now that I'm adding the merged query to the cache info here, I can maybe get rid of the qmerged entirely
+  seq_info_[qmerged.name_] = qmerged.seqs_;
+  kbinfo_[qmerged.name_] = qmerged.kbounds_;
+  mute_freqs_[qmerged.name_] = qmerged.mean_mute_freq_;
+  only_genes_[qmerged.name_] = qmerged.only_genes_;
+
   return qmerged;
 }
 
@@ -683,9 +691,9 @@ Query Glomerator::ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_
       // NOTE also that the _a and _b results will be cached (unless we're truncating), but with their *individual* only_gene sets (rather than the OR)... but this seems to be ok.
 
       // TODO if kbounds gets expanded in one of these three calls, we don't redo the others. Which is really ok, but could be checked again?
-      double log_prob_a = GetLogProb(key_a, seq_info_[key_a], kbinfo_[key_a], only_genes_[key_a], mute_freqs_[key_a]);
-      double log_prob_b = GetLogProb(key_b, seq_info_[key_b], kbinfo_[key_b], only_genes_[key_b], mute_freqs_[key_b]);
-      double log_prob_ab = GetLogProb(qmerged.name_, qmerged.seqs_, qmerged.kbounds_, qmerged.only_genes_, qmerged.mean_mute_freq_);
+      double log_prob_a = GetLogProb(key_a);
+      double log_prob_b = GetLogProb(key_b);
+      double log_prob_ab = GetLogProb(qmerged.name_);
 
       double lratio(log_prob_ab - log_prob_a - log_prob_b);  // REMINDER a, b not necessarily same order as names[0], names[1]
       if(args_->debug()) {
@@ -774,14 +782,17 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
   if(path->finished_)
     return;
 
-  // add query info for the chosen merge, unless we already did it (e.g. if another particle already did this merge)
-  if(seq_info_.count(chosen_qmerge.name_) == 0) {  // if we're doing smc, this will happen once for each particle that wants to merge these two. NOTE you get a very, very strange seg fault at the Sequences::Union line above, I *think* inside the implicit copy constructor. Yes, I should just define my own copy constructor, but I can't work out how to navigate through the const jungle a.t.m.
-    seq_info_[chosen_qmerge.name_] = chosen_qmerge.seqs_;
-    kbinfo_[chosen_qmerge.name_] = chosen_qmerge.kbounds_;
-    mute_freqs_[chosen_qmerge.name_] = chosen_qmerge.mean_mute_freq_;
-    only_genes_[chosen_qmerge.name_] = chosen_qmerge.only_genes_;
-    GetNaiveSeq(chosen_qmerge.name_, &chosen_qmerge.parents_);
-  }
+  assert(seq_info_.count(chosen_qmerge.name_) != 0);
+  GetNaiveSeq(chosen_qmerge.name_, &chosen_qmerge.parents_);
+
+  // // add query info for the chosen merge, unless we already did it (e.g. if another particle already did this merge)
+  // if(seq_info_.count(chosen_qmerge.name_) == 0) {  // if we're doing smc, this will happen once for each particle that wants to merge these two. NOTE you get a very, very strange seg fault at the Sequences::Union line above, I *think* inside the implicit copy constructor. Yes, I should just define my own copy constructor, but I can't work out how to navigate through the const jungle a.t.m.
+  //   seq_info_[chosen_qmerge.name_] = chosen_qmerge.seqs_;
+  //   kbinfo_[chosen_qmerge.name_] = chosen_qmerge.kbounds_;
+  //   mute_freqs_[chosen_qmerge.name_] = chosen_qmerge.mean_mute_freq_;
+  //   only_genes_[chosen_qmerge.name_] = chosen_qmerge.only_genes_;
+  //   GetNaiveSeq(chosen_qmerge.name_, &chosen_qmerge.parents_);
+  // }
 
   double last_partition_logprob(LogProbOfPartition(path->CurrentPartition()));
   Partition new_partition(path->CurrentPartition());  // note: CurrentPartition() returns a reference
