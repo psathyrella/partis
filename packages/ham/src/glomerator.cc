@@ -351,15 +351,20 @@ void Glomerator::WriteAnnotations(vector<ClusterPath> &paths) {
 }
 
 // ----------------------------------------------------------------------------------------
-double Glomerator::HammingFraction(Sequence seq_a, Sequence seq_b) {
-  // NOTE since the cache is indexed by the joint key, this assumes we can arrive at this cluster via only one path. Which should be ok.
+double Glomerator::NaiveHfrac(string key_a, string key_b) {
+  string joint_key = JoinNames(key_a, key_b);  // NOTE since the cache is indexed by the joint key, this assumes we can arrive at this cluster via only one path. Which should be ok.
+  if(naive_hfracs_.count(joint_key))  // if we've already calculated this distance
+    return naive_hfracs_[joint_key];
 
-  string joint_key = JoinNames(seq_a.name(), seq_b.name());  // TODO remove this [assert(0)]
-  assert(naive_hfracs_.count(joint_key) == 0);  // shouldn't already be there TODO remove this
+  // shouldn't need the opposite ordering any more -- we're using JoinNames(), which sorts 'em
+  assert(naive_hfracs_.count(key_b + ";" + key_a) == 0);  // TODO remove this and its unnecessary surrounds
+
+  Sequence &seq_a = GetNaiveSeq(key_a);
+  Sequence &seq_b = GetNaiveSeq(key_b);
 
   ++n_hfrac_calculated_;
   if(seq_a.size() != seq_b.size())
-    throw runtime_error("ERROR sequences different length in Glomerator::HammingFraction (" + seq_a.undigitized() + "," + seq_b.undigitized() + ")\n");
+    throw runtime_error("ERROR sequences different length in Glomerator::NaiveHfrac (" + seq_a.undigitized() + "," + seq_b.undigitized() + ")\n");
   int distance(0), len_excluding_ambigs(0);
   for(size_t ic=0; ic<seq_a.size(); ++ic) {
     uint8_t ch_a(seq_a[ic]), ch_b(seq_b[ic]);
@@ -370,23 +375,7 @@ double Glomerator::HammingFraction(Sequence seq_a, Sequence seq_b) {
       ++distance;
   }
 
-  return distance / double(len_excluding_ambigs);
-}
-
-// ----------------------------------------------------------------------------------------
-double Glomerator::NaiveHammingFraction(string key_a, string key_b) {
-  string joint_key = JoinNames(key_a, key_b);
-  if(naive_hfracs_.count(joint_key))  // if we've already calculated this distance
-    return naive_hfracs_[joint_key];
-
-  GetNaiveSeq(key_a);
-  GetNaiveSeq(key_b);
-  double hfrac = HammingFraction(naive_seqs_[key_a], naive_seqs_[key_b]);  // hamming distance fcn will fail if the seqs aren't the same length
-  naive_hfracs_[joint_key] = hfrac;  // NOTE if you combine these two lines, it inserts joint_key before calling HammingFraction()
-
-  // shouldn't need the opposite ordering any more -- we're using JoinNames(), which sorts 'em
-  assert(naive_hfracs_.count(key_b + ";" + key_a) == 0);  // TODO remove this and its unnecessary surrounds
-  // naive_hamming_fractions_[key_b + '-' + key_a] = hfrac;  // add it with both key orderings... hackey, but only doubles the memory consumption
+  naive_hfracs_[joint_key] = distance / double(len_excluding_ambigs);
 
   return naive_hfracs_[joint_key];
 }
@@ -410,29 +399,29 @@ void Glomerator::ReplaceNaiveSeq(string queries, string parentname) {
 }
 
 // ----------------------------------------------------------------------------------------
-void Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents) {
+Sequence &Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents) {
   // <queries> is colon-separated list of query names
   if(naive_seqs_.count(queries)) {  // already did it
-    return;
+    return naive_seqs_[queries];
   }
 
   if(parents != nullptr) {
     if(naive_seqs_[parents->first].undigitized() == naive_seqs_[parents->second].undigitized()) {  // if we have naive seqs for both the parental clusters and they're the same, no reason to calculate this naive seq. NOTE could use seqq_ instead of undigitized(), but it shouldn't be any faster, right? I mean they're just chars
       // cout << "     parents " << ParentalString(parents) << "  have same naive seq" << endl;
       ReplaceNaiveSeq(queries, parents->first);
-      return;
+      return naive_seqs_[queries];
     }
     double max_factor = 20.;  // if one of the clusters is waaaaaayy bigger than the other, the merged naive seq is unlikely to change (note that this could get us in trouble in situations where we add many many many singletons onto a large cluster)
     double size_ratio = double(seq_info_[parents->first].size()) / seq_info_[parents->second].size();
     if(size_ratio > max_factor) {
       cout << "     first parent much larger: " << ParentalString(parents) << "  (ratio " << size_ratio << ")" << endl;
       ReplaceNaiveSeq(queries, parents->first);
-      return;
+      return naive_seqs_[queries];
     }
     if(1. / size_ratio > max_factor) {
       cout << "     second parent much larger: " << ParentalString(parents) << "  (ratio " << size_ratio << ")" << endl;
       ReplaceNaiveSeq(queries, parents->second);
-      return;
+      return naive_seqs_[queries];
     }
   }
 
@@ -455,6 +444,8 @@ void Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents) {
   events_[queries] = result.events_[0];  // NOTE keeping separate from naive_seqs_ (at least for now) because I only need the full event for the final partition (UPDATE or do I only use it to write annotations)
   if(result.boundary_error())
     errors_[queries] = errors_[queries] + ":boundary";
+
+  return naive_seqs_[queries];
 }
 
 // ----------------------------------------------------------------------------------------
@@ -563,7 +554,7 @@ Query Glomerator::GetMergedQuery(string name_a, string name_b) {
 }
 
 // ----------------------------------------------------------------------------------------
-Query *Glomerator::ChooseRandomMerge(vector<pair<double, Query> > &potential_merges, smc::rng *rgen) {
+pair<double, Query> *Glomerator::ChooseRandomMerge(vector<pair<double, Query> > &potential_merges, smc::rng *rgen) {
   // first leave log space and normalize. NOTE instead of normalizing, we could just use rng::Uniform(0., total)
   vector<double> ratios;  // NOTE *not* a probability: it's the ratio of the probability together to the probability apart
   double total(0.0);
@@ -581,7 +572,7 @@ Query *Glomerator::ChooseRandomMerge(vector<pair<double, Query> > &potential_mer
   for(size_t im=0; im<ratios.size(); ++im) {
     sum += ratios[im];
     if(sum > drawpoint) {
-      return &potential_merges[im].second;
+      return &potential_merges[im];
     }
   }
 
@@ -634,7 +625,7 @@ Query Glomerator::ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_
 
       ++n_total_pairs;
 
-      double hfrac = NaiveHammingFraction(key_a, key_b);
+      double hfrac = NaiveHfrac(key_a, key_b);
       if(hfrac > args_->hamming_fraction_bound_hi()) {  // if naive hamming fraction too big, don't even consider merging the pair
 	++n_skipped_hamming;
 	continue;
@@ -732,9 +723,9 @@ Query Glomerator::ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_
     *chosen_lratio = potential_merges[imax].first;
     return potential_merges[imax].second;
   } else {
-    Query *chosen_qmerge = ChooseRandomMerge(potential_merges, rgen);
-    *chosen_lratio = log_probs_[chosen_qmerge->name_];
-    return *chosen_qmerge;
+    pair<double, Query> *chosen_qmerge = ChooseRandomMerge(potential_merges, rgen);
+    *chosen_lratio = chosen_qmerge->first;
+    return chosen_qmerge->second;
   }
 }
 
@@ -797,7 +788,7 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
 // 	  double hfrac;
 //        throw runtime_error("needs updating -- should use naive_hamming_fractions_ or naive_hfracs_ like everybody else");
 // 	  if(hamming_fractions_.count(key) == 0) {
-// 	    hfrac = NaiveHammingFraction(query_a, query_b);
+// 	    hfrac = NaiveHfrac(query_a, query_b);
 // 	    hamming_fractions_[key] = hfrac;
 // 	    hamming_fractions_[query_b + "-" + query_a] = hfrac;  // also add the reverse-ordered key
 // 	  } else {

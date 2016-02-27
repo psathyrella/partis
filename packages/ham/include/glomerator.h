@@ -63,9 +63,8 @@ private:
   int CountMembers(string namestr);
   string ClusterSizeString(ClusterPath *path);
   void WriteStatus(ClusterPath *path);  // write some progress info to file
-  double NaiveHammingFraction(string key_a, string key_b);
-  double HammingFraction(Sequence seq_a, Sequence seq_b);
-  void GetNaiveSeq(string key, pair<string, string> *parents=nullptr);
+  double NaiveHfrac(string key_a, string key_b);
+  Sequence &GetNaiveSeq(string key, pair<string, string> *parents=nullptr);
   double GetLogProb(string name, vector<Sequence> &seqs, KBounds &kbounds, vector<string> &only_genes, double mean_mute_freq);
   vector<Sequence> MergeSeqVectors(string name_a, string name_b);
   bool SameLength(vector<Sequence> &seqs, bool debug=false);
@@ -74,7 +73,7 @@ private:
   string JoinNameStrings(vector<Sequence> &strlist, string delimiter=":");
   string JoinSeqStrings(vector<Sequence> &strlist, string delimiter=":");
   Query ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_lratio);
-  Query *ChooseRandomMerge(vector<pair<double, Query> > &potential_merges, smc::rng *rgen);
+  pair<double, Query> *ChooseRandomMerge(vector<pair<double, Query> > &potential_merges, smc::rng *rgen);
 
   Track *track_;
   Args *args_;
