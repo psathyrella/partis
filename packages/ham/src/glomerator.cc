@@ -493,12 +493,11 @@ double Glomerator::GetLogProb(string name) {
   }
   ++n_fwd_calculated_;
     
-  KBounds kbounds(kbinfo_[name]);
-  Result result(kbounds);
+  Result result(kbinfo_[name]);
   bool stop(false);
   do {
-    result = fwd_dph_.Run(seq_info_[name], kbounds, only_genes_[name], mute_freqs_[name]);  // NOTE <only_genes> isn't necessarily <only_genes_[name]>, since for the denominator calculation we take the OR
-    kbounds = result.better_kbounds();
+    result = fwd_dph_.Run(seq_info_[name], kbinfo_[name], only_genes_[name], mute_freqs_[name]);  // NOTE <only_genes> isn't necessarily <only_genes_[name]>, since for the denominator calculation we take the OR
+    kbinfo_[name] = result.better_kbounds();
     stop = !result.boundary_error() || result.could_not_expand();  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
     if(args_->debug() && !stop)
       cout << "             expand and run again" << endl;  // note that subsequent runs are much faster than the first one because of chunk caching
