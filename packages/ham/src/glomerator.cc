@@ -190,10 +190,10 @@ double Glomerator::LogProbOfPartition(Partition &partition, bool debug) {
     cout << "LogProbOfPartition: " << endl;
   for(auto &key : partition) {
     // assert(SameLength(seq_info_[key], true));
-    GetLogProb(key, seq_info_[key], kbinfo_[key], only_genes_[key], mute_freqs_[key]);  // immediately returns if we already have it NOTE all the sequences in <seq_info_[key]> are already the same length, since we've already merged them
+    double log_prob = GetLogProb(key, seq_info_[key], kbinfo_[key], only_genes_[key], mute_freqs_[key]);  // immediately returns if we already have it NOTE all the sequences in <seq_info_[key]> are already the same length, since we've already merged them
     if(debug)
-      cout << "  " << log_probs_[key] << "  " << key << endl;
-    total_log_prob = AddWithMinusInfinities(total_log_prob, log_probs_[key]);
+      cout << "  " << log_prob << "  " << key << endl;
+    total_log_prob = AddWithMinusInfinities(total_log_prob, log_prob);
   }
   if(debug)
     cout << "  total: " << total_log_prob << endl;
@@ -459,10 +459,10 @@ void Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents) {
 
 // ----------------------------------------------------------------------------------------
 // add log prob for <name>/<seqs> to <log_probs_> (if it isn't already there)
-void Glomerator::GetLogProb(string name, vector<Sequence> &seqs, KBounds &kbounds, vector<string> &only_genes, double mean_mute_freq) {
+double Glomerator::GetLogProb(string name, vector<Sequence> &seqs, KBounds &kbounds, vector<string> &only_genes, double mean_mute_freq) {
   // NOTE that when this improves the kbounds, that info doesn't get propagated to <kbinfo_>
   if(log_probs_.count(name)) {  // already did it (see note in GetNaiveSeq above)
-    return;
+    return log_probs_[name];
   }
   ++n_fwd_calculated_;
     
@@ -477,9 +477,12 @@ void Glomerator::GetLogProb(string name, vector<Sequence> &seqs, KBounds &kbound
       cout << "             expand and run again" << endl;  // note that subsequent runs are much faster than the first one because of chunk caching
   } while(!stop);
 
-  log_probs_[name] = result.total_score();
   if(result.boundary_error() && !result.could_not_expand())  // could_not_expand means the max is at the edge of the sequence -- e.g. k_d min is 1
     errors_[name] = errors_[name] + ":boundary";
+
+  log_probs_[name] = result.total_score();
+
+  return log_probs_[name];
 }
 
 // ----------------------------------------------------------------------------------------
@@ -631,16 +634,17 @@ Query Glomerator::ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_
 
       ++n_total_pairs;
 
-      if(NaiveHammingFraction(key_a, key_b) > args_->hamming_fraction_bound_hi()) {  // if naive hamming fraction too big, don't even consider merging the pair
+      double hfrac = NaiveHammingFraction(key_a, key_b);
+      if(hfrac > args_->hamming_fraction_bound_hi()) {  // if naive hamming fraction too big, don't even consider merging the pair
 	++n_skipped_hamming;
 	continue;
       }
 
-      Query qmerged(GetMergedQuery(key_a, key_b));
+      Query qmerged = GetMergedQuery(key_a, key_b);
 
-      if(args_->hamming_fraction_bound_lo() > 0.0 && NaiveHammingFraction(key_a, key_b) < args_->hamming_fraction_bound_lo()) {  // if naive hamming is small enough, merge the pair without running hmm
-	if(NaiveHammingFraction(key_a, key_b) < min_hamming_fraction) {
-	  min_hamming_fraction = NaiveHammingFraction(key_a, key_b);
+      if(args_->hamming_fraction_bound_lo() > 0.0 && hfrac < args_->hamming_fraction_bound_lo()) {  // if naive hamming is small enough, merge the pair without running hmm
+	if(hfrac < min_hamming_fraction) {
+	  min_hamming_fraction = hfrac;
 	  min_hamming_merge = qmerged;
 	}
 	continue;
@@ -653,15 +657,15 @@ Query Glomerator::ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_
       // NOTE also that the _a and _b results will be cached (unless we're truncating), but with their *individual* only_gene sets (rather than the OR)... but this seems to be ok.
 
       // TODO if kbounds gets expanded in one of these three calls, we don't redo the others. Which is really ok, but could be checked again?
-      GetLogProb(key_a, seq_info_[key_a], qmerged.kbounds_, qmerged.only_genes_, mute_freqs_[key_a]);
-      GetLogProb(key_b, seq_info_[key_b], qmerged.kbounds_, qmerged.only_genes_, mute_freqs_[key_b]);
-      GetLogProb(qmerged.name_, qmerged.seqs_, qmerged.kbounds_, qmerged.only_genes_, qmerged.mean_mute_freq_);
+      double log_prob_a = GetLogProb(key_a, seq_info_[key_a], qmerged.kbounds_, qmerged.only_genes_, mute_freqs_[key_a]);
+      double log_prob_b = GetLogProb(key_b, seq_info_[key_b], qmerged.kbounds_, qmerged.only_genes_, mute_freqs_[key_b]);
+      double log_prob_ab = GetLogProb(qmerged.name_, qmerged.seqs_, qmerged.kbounds_, qmerged.only_genes_, qmerged.mean_mute_freq_);
 
-      double lratio(log_probs_[qmerged.name_] - log_probs_[key_a] - log_probs_[key_b]);  // REMINDER a, b not necessarily same order as names[0], names[1]
+      double lratio(log_prob_ab - log_prob_a - log_prob_b);  // REMINDER a, b not necessarily same order as names[0], names[1]
       if(args_->debug()) {
 	printf("       %8.3f = ", lratio);
-	printf("%2s %8.2f", "", log_probs_[qmerged.name_]);
-	printf(" - %8.2f - %8.2f", log_probs_[key_a], log_probs_[key_b]);
+	printf("%2s %8.2f", "", log_prob_ab);
+	printf(" - %8.2f - %8.2f", log_prob_a, log_prob_b);
 	printf("\n");
       }
 
