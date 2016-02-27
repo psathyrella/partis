@@ -25,6 +25,7 @@ class Waterer(object):
         self.debug = self.args.debug if self.args.sw_debug is None else self.args.sw_debug
 
         self.max_insertion_length = 35  # if vdjalign reports an insertion longer than this, rerun the query (typically with different match/mismatch ratio)
+        self.absolute_max_insertion_length = 200  # just ignore them if it's longer than this
 
         self.input_info = input_info
         self.remaining_queries = set()  # we remove queries from this set when we're satisfied with the current output (in general we may have to rerun some queries with different match/mismatch scores)
@@ -719,6 +720,11 @@ class Waterer(object):
                     print '      suspiciously long insertion in %s, rerunning' % query_name
                 queries_to_rerun['weird-annot.'].add(query_name)
                 return
+        if len(vd_insertion) > self.absolute_max_insertion_length or len(dj_insertion) > self.absolute_max_insertion_length:
+            if self.debug:
+                print '      suspiciously long insertion in %s, rerunning' % query_name
+            queries_to_rerun['weird-annot.'].add(query_name)
+            return
 
         if self.debug:
             print query_name
