@@ -65,7 +65,7 @@ private:
   void WriteStatus(ClusterPath *path);  // write some progress info to file
   double NaiveHfrac(string key_a, string key_b);
   Sequence &GetNaiveSeq(string key, pair<string, string> *parents=nullptr);
-  double GetLogProb(string name, vector<Sequence> &seqs, KBounds &kbounds, vector<string> &only_genes, double mean_mute_freq);
+  double GetLogProb(string name);
   vector<Sequence> MergeSeqVectors(string name_a, string name_b);
   bool SameLength(vector<Sequence> &seqs, bool debug=false);
   Query GetMergedQuery(string name_a, string name_b);
