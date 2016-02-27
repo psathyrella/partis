@@ -66,7 +66,7 @@ private:
   double NaiveHammingFraction(string key_a, string key_b);
   double HammingFraction(Sequence seq_a, Sequence seq_b);
   void GetNaiveSeq(string key, pair<string, string> *parents=nullptr);
-  void GetLogProb(string name, vector<Sequence> &seqs, KBounds &kbounds, vector<string> &only_genes, double mean_mute_freq);
+  double GetLogProb(string name, vector<Sequence> &seqs, KBounds &kbounds, vector<string> &only_genes, double mean_mute_freq);
   vector<Sequence> MergeSeqVectors(string name_a, string name_b);
   bool SameLength(vector<Sequence> &seqs, bool debug=false);
   Query GetMergedQuery(string name_a, string name_b);
@@ -91,6 +91,8 @@ private:
   map<string, vector<string> > only_genes_;
   map<string, KBounds> kbinfo_;
   map<string, float> mute_freqs_;  // overall mute freq for single sequences, mean overall mute freq for n-sets of sequences
+
+  map<string, string> key_translations_;  // map between a cluster's actual query string (i.e. colon-separated list of queries) and the one we're using for calculations (which is presumably shorter, to make it faster to calculate things)
 
   // NOTE the keys for these two maps are colon-separated lists of *query* *sequences*, whereas all the other maps are of query names. This is because we need logprobs and naive seqs for each truncation length
   // NOTE also that I don't keep track of the order, which I kinda should do since I might be calculating some things twice.
