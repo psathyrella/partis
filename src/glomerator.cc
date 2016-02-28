@@ -522,19 +522,23 @@ string Glomerator::GetNaiveSeqNameTranslation(string actual_names, pair<string, 
 }
 
 // ----------------------------------------------------------------------------------------
-// add log prob for <name>/<seqs> to <log_probs_> (if it isn't already there)
 double Glomerator::GetLogProb(string name) {
-
 // // ----------------------------------------------------------------------------------------
 //   name = GetNameTranslation(name);
 // // ----------------------------------------------------------------------------------------
+  
+  if(log_probs_.count(name) == 0)  // already did it
+    log_probs_[name] = CalculateLogProb(name);
 
-  if(log_probs_.count(name)) {  // already did it
-    return log_probs_[name];
-  }
-  ++n_fwd_calculated_;
-    
+  return log_probs_[name];
+}
+
+// ----------------------------------------------------------------------------------------
+double Glomerator::CalculateLogProb(string name) {  // NOTE can modify kbinfo_
+  // NOTE do *not* call this from anywhere except GetLogProb()
+  
   // clock_t run_start(clock());
+  ++n_fwd_calculated_;
 
   Result result(kbinfo_[name]);
   bool stop(false);
@@ -549,11 +553,8 @@ double Glomerator::GetLogProb(string name) {
   if(result.boundary_error() && !result.could_not_expand())  // could_not_expand means the max is at the edge of the sequence -- e.g. k_d min is 1
     errors_[name] = errors_[name] + ":boundary";
 
-  log_probs_[name] = result.total_score();
-
   // printf("        time for size %5d  %5.2f    %s\n", int(SplitString(name, ":").size()), ((clock() - run_start) / (double)CLOCKS_PER_SEC), name.c_str());
-
-  return log_probs_[name];
+  return result.total_score();
 }
 
 // ----------------------------------------------------------------------------------------
