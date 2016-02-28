@@ -390,35 +390,25 @@ string Glomerator::ParentalString(pair<string, string> *parents) {
 // ----------------------------------------------------------------------------------------
 // add an entry to <naive_seqs_>, filed under <queries>, which has the same naive sequence as <parentname>
 void Glomerator::ReplaceNaiveSeq(string queries, string parentname) {
-  naive_seqs_[queries] = naive_seqs_[parentname];  // copy the whole sequence object
+  naive_seqs_[queries] = GetNaiveSeq(parentname);  // copy the whole sequence object
   events_[queries] = events_[parentname];  // also copy the event  // TODO this doesn't set all the event info correctly
   events_[queries].seq_name_ = queries;
 }
 
 // ----------------------------------------------------------------------------------------
 string &Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents) {
+
+  queries = GetNaiveSeqNameTranslation(queries, parents);
+
   if(naive_seqs_.count(queries)) {  // already did it
     return naive_seqs_[queries];
   }
 
-  if(parents != nullptr) {
-    if(naive_seqs_[parents->first] == naive_seqs_[parents->second]) {  // if we have naive seqs for both the parental clusters and they're the same, no reason to calculate this naive seq. NOTE could use seqq_ instead of undigitized(), but it shouldn't be any faster, right? I mean they're just chars
-      // cout << "     parents " << ParentalString(parents) << "  have same naive seq" << endl;
-      ReplaceNaiveSeq(queries, parents->first);
-      return naive_seqs_[queries];
-    }
-    double max_factor = 20.;  // if one of the clusters is waaaaaayy bigger than the other, the merged naive seq is unlikely to change (note that this could get us in trouble in situations where we add many many many singletons onto a large cluster)
-    double size_ratio = double(seq_info_[parents->first].size()) / seq_info_[parents->second].size();
-    if(size_ratio > max_factor) {
-      cout << "     first parent much larger: " << ParentalString(parents) << "  (ratio " << size_ratio << ")" << endl;
-      ReplaceNaiveSeq(queries, parents->first);
-      return naive_seqs_[queries];
-    }
-    if(1. / size_ratio > max_factor) {
-      cout << "     second parent much larger: " << ParentalString(parents) << "  (ratio " << size_ratio << ")" << endl;
-      ReplaceNaiveSeq(queries, parents->second);
-      return naive_seqs_[queries];
-    }
+  // if we have naive seqs for both the parental clusters and they're the same, no reason to calculate this naive seq
+  if(parents != nullptr && GetNaiveSeq(parents->first) == GetNaiveSeq(parents->second)) {
+    // cout << "     parents " << ParentalString(parents) << "  have same naive seq" << endl;
+    ReplaceNaiveSeq(queries, parents->first);
+    return naive_seqs_[queries];
   }
 
   ++n_vtb_calculated_;
@@ -466,9 +456,13 @@ pair<string, vector<Sequence> > Glomerator::ChooseSubsetOfNames(string names, in
 
 // ----------------------------------------------------------------------------------------
 string Glomerator::GetNameTranslation(string actual_names) {
-  if(key_translations_.count(actual_names)) {
+  // NOTE that we don't (a.t.m.) cache the stuff in name translation, so future processes don't know anything about it. This is ok, I think, because we'll arrive at the same translation in the future, and have the necessary info cached.
+  if(log_probs_.count(actual_names)) {  // if we already calculated it, we may as well just use the existing value
+    return actual_names;
+  }
+  if(key_translations_.count(actual_names)) {  // already decided on a translation for it (we presumably also already calculated the value, but we check the cache after getting the translation)
     cout <<  "     already in key translations " << actual_names << " --> " << key_translations_[actual_names] << endl;
-    return key_translations_[actual_names];  // already decided on a translation for it
+    return key_translations_[actual_names];
   }
 
   int n_max(99998);
@@ -486,20 +480,56 @@ string Glomerator::GetNameTranslation(string actual_names) {
     return key_translations_[actual_names];
   }
 
-  // falling through to here means we want to actually run on <actual_names>
+  // falling through to here means we want to just use <actual_names>
+  return actual_names;
+}
+
+// ----------------------------------------------------------------------------------------
+string Glomerator::GetNaiveSeqNameTranslation(string actual_names, pair<string, string> *parents) {
+  // NOTE that we don't (a.t.m.) cache the stuff in name translation, so if we don't actually replace the naive seq in naive_seqs_, future processes won't know anything about it. This is not ok for naive seqs, since we don't have the parental information in the future.
+  if(naive_seqs_.count(actual_names)) {  // if we already calculated it, we may as well just use the existing value
+    // cout <<  "     already cached " << actual_names << endl;
+    return actual_names;
+  }
+  if(naive_seq_key_translations_.count(actual_names)) {  // already decided on a translation for it (we presumably also already calculated the value, but we check the cache after getting the translation)
+    // cout <<  "     already in key translations " << actual_names << " --> " << naive_seq_key_translations_[actual_names] << endl;
+    return naive_seq_key_translations_[actual_names];
+  }
+
+  if(parents != nullptr) {
+    string pfirst_translation = GetNaiveSeqNameTranslation(parents->first);
+    string psecond_translation = GetNaiveSeqNameTranslation(parents->second);
+
+    // if one of the clusters is waaaaaayy bigger than the other, the merged naive seq is unlikely to change (note that this could get us in trouble in situations where we add many many many singletons onto a large cluster)
+    double max_factor = 20.;
+    double size_ratio = double(seq_info_[parents->first].size()) / seq_info_[parents->second].size();
+    if(size_ratio > max_factor) {
+      cout << "     first parent much larger: " << ParentalString(parents) << "  (ratio " << size_ratio << ")" << endl;
+      // naive_seq_key_translations_[actual_names] = pfirst_translation;
+      ReplaceNaiveSeq(actual_names, pfirst_translation);
+      return pfirst_translation;
+    }
+    if(1. / size_ratio > max_factor) {
+      cout << "     second parent much larger: " << ParentalString(parents) << "  (ratio " << size_ratio << ")" << endl;
+      // naive_seq_key_translations_[actual_names] = psecond_translation;
+      ReplaceNaiveSeq(actual_names, psecond_translation);
+      return psecond_translation;
+    }
+  }
+
+  // falling through to here means we want to just use <actual_names>
   return actual_names;
 }
 
 // ----------------------------------------------------------------------------------------
 // add log prob for <name>/<seqs> to <log_probs_> (if it isn't already there)
 double Glomerator::GetLogProb(string name) {
-  // NOTE that when this improves the kbounds, that info doesn't get propagated to <kbinfo_> UPDATE now it does!
 
 // // ----------------------------------------------------------------------------------------
 //   name = GetNameTranslation(name);
 // // ----------------------------------------------------------------------------------------
 
-  if(log_probs_.count(name)) {  // already did it (see note in GetNaiveSeq above)
+  if(log_probs_.count(name)) {  // already did it
     return log_probs_[name];
   }
   ++n_fwd_calculated_;

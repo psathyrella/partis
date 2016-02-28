@@ -65,6 +65,7 @@ private:
   void WriteStatus(ClusterPath *path);  // write some progress info to file
   double NaiveHfrac(string key_a, string key_b);
   string &GetNaiveSeq(string key, pair<string, string> *parents=nullptr);
+  string GetNaiveSeqNameTranslation(string actual_names, pair<string, string> *parents=nullptr);
   double GetLogProb(string name);
   vector<Sequence> MergeSeqVectors(string name_a, string name_b);
   bool SameLength(vector<Sequence> &seqs, bool debug=false);
@@ -96,6 +97,7 @@ private:
   map<string, float> mute_freqs_;  // overall mute freq for single sequences, mean overall mute freq for n-sets of sequences
 
   map<string, string> key_translations_;  // map between a cluster's actual query string (i.e. colon-separated list of queries) and the one we're using for calculations (which is presumably shorter, to make it faster to calculate things)
+  map<string, string> naive_seq_key_translations_;
 
   // NOTE the keys for these two maps are colon-separated lists of *query* *sequences*, whereas all the other maps are of query names. This is because we need logprobs and naive seqs for each truncation length
   // NOTE also that I don't keep track of the order, which I kinda should do since I might be calculating some things twice.
