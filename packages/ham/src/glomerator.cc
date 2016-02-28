@@ -356,9 +356,6 @@ double Glomerator::NaiveHfrac(string key_a, string key_b) {
   if(naive_hfracs_.count(joint_key))  // if we've already calculated this distance
     return naive_hfracs_[joint_key];
 
-  // shouldn't need the opposite ordering any more -- we're using JoinNames(), which sorts 'em
-  assert(naive_hfracs_.count(key_b + ";" + key_a) == 0);  // TODO remove this and its unnecessary surrounds
-
   Sequence &seq_a = GetNaiveSeq(key_a);
   Sequence &seq_b = GetNaiveSeq(key_b);
 
