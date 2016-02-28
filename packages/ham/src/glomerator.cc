@@ -439,15 +439,12 @@ pair<string, vector<Sequence> > Glomerator::ChooseSubsetOfNames(string names, in
 
   vector<string> subnames;
   vector<Sequence> subseqs;
-
   vector<string> namevector(SplitString(names, ":"));
-  for(size_t iname=0; iname<namevector.size(); ++iname) {
-    string name(namevector[iname]);
-    if(iname > 1)
-      continue;
 
-    subnames.push_back(name);
-    subseqs.push_back(seq_info_[names][iname]);
+  for(size_t iname=0; iname<unsigned(n_max); ++iname) {
+    int ichosen = rand() % namevector.size();
+    subnames.push_back(namevector[ichosen]);
+    subseqs.push_back(seq_info_[names][ichosen]);
   }
 
   pair<string, vector<Sequence> > substuff(JoinStrings(subnames), subseqs);
@@ -466,19 +463,19 @@ string Glomerator::GetNameTranslation(string actual_names) {
   // }
 
   int n_max(5);  // if cluster is more than half again larger than this, replace it with a cluster of this size
+  if(CountMembers(actual_names) > 1.5 * n_max) {
+    pair<string, vector<Sequence> > substuff = ChooseSubsetOfNames(actual_names, n_max);
+    string subnames(substuff.first);
+    seq_info_[subnames] = substuff.second;
+    cout <<  "   replacing " << actual_names << " --> " << subnames << endl;
+    kbinfo_[subnames] = kbinfo_[actual_names];  // just use the entire/super cluster for this stuff. It's just overly conservative (as long as you keep the mute freqs the same)
+    mute_freqs_[subnames] = mute_freqs_[actual_names];
+    only_genes_[subnames] = only_genes_[actual_names];
 
-  // if(CountMembers(actual_names) > 1.5 * n_max) {
-  //   pair<string, vector<Sequence> > substuff = ChooseSubsetOfNames(actual_names, n_max);
-  //   string subnames(substuff.first);
-  //   seq_info_[subnames] = substuff.second;
-  //   cout <<  "   replacing " << actual_names << " --> " << subnames << endl;
-  //   kbinfo_[subnames] = kbinfo_[actual_names];  // just use the entire/super cluster for this stuff. It's just overly conservative (as long as you keep the mute freqs the same)
-  //   mute_freqs_[subnames] = mute_freqs_[actual_names];
-  //   only_genes_[subnames] = only_genes_[actual_names];
-
-  //   key_translations_[actual_names] = subnames;
-  //   return key_translations_[actual_names];
-  // }
+    // key_translations_[actual_names] = subnames;
+    // return key_translations_[actual_names];
+    return subnames;
+  }
 
   // falling through to here means we want to just use <actual_names>
   return actual_names;
@@ -526,7 +523,7 @@ double Glomerator::GetLogProb(string name) {
   if(log_probs_.count(name))  // already did it
     return log_probs_[name];
 
-  string name_to_calc = name;  // GetNameTranslation(name);  // can be ("usually" is) equal to name
+  string name_to_calc = GetNameTranslation(name);  // can be (usually is) equal to name
 
   if(log_probs_.count(name_to_calc) == 0)
     log_probs_[name_to_calc] = CalculateLogProb(name_to_calc);  // NOTE this should be the *only* place (besides cache reading) that log_probs_ gets modified
@@ -534,6 +531,7 @@ double Glomerator::GetLogProb(string name) {
   if(name_to_calc != name) {
     double factor = double(CountMembers(name)) / CountMembers(name_to_calc);
     log_probs_[name] = factor * log_probs_[name_to_calc];
+    printf("       sublate %5.4f * %8.2f = %8.2f", factor, log_probs_[name_to_calc], log_probs_[name]);
   }
 
   return log_probs_[name];
