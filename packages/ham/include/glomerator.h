@@ -67,6 +67,7 @@ private:
   string &GetNaiveSeq(string key, pair<string, string> *parents=nullptr);
   string GetNaiveSeqNameTranslation(string actual_names, pair<string, string> *parents=nullptr);
   double GetLogProb(string name);
+  double CalculateLogProb(string name);
   vector<Sequence> MergeSeqVectors(string name_a, string name_b);
   bool SameLength(vector<Sequence> &seqs, bool debug=false);
   Query GetMergedQuery(string name_a, string name_b);
