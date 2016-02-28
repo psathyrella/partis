@@ -50,6 +50,10 @@ parser.add_argument('--only-csv-plots', action='store_true', help='only write cs
 if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
     print '    TODO make sure all mpl figures are getting closed'
     print '    TODO add some garbage-ey seqs to mishmash.fa'
+    print '    TODO remove extra assertions from glomerator'
+    print '    TODO make sure all trace of truncation is removed from ham (including cyst position stuff)'
+    print '    TODO in addition to translating from a large cluster to a smaller one, you should also not recalculate just \'cause you add one sequence to a huge cluster'
+    print '    TODO fix WriteAnnotations in glomerator (and/i.e. clean up events_ filling, in particular in ReplaceNaiveSeq)'
 
 # input and output locations
 parser.add_argument('--seqfile', help='input sequence file')
