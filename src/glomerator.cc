@@ -803,15 +803,6 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
   assert(seq_info_.count(chosen_qmerge.name_) != 0);
   GetNaiveSeq(chosen_qmerge.name_, &chosen_qmerge.parents_);
 
-  // // add query info for the chosen merge, unless we already did it (e.g. if another particle already did this merge)
-  // if(seq_info_.count(chosen_qmerge.name_) == 0) {  // if we're doing smc, this will happen once for each particle that wants to merge these two. NOTE you get a very, very strange seg fault at the Sequences::Union line above, I *think* inside the implicit copy constructor. Yes, I should just define my own copy constructor, but I can't work out how to navigate through the const jungle a.t.m.
-  //   seq_info_[chosen_qmerge.name_] = chosen_qmerge.seqs_;
-  //   kbinfo_[chosen_qmerge.name_] = chosen_qmerge.kbounds_;
-  //   mute_freqs_[chosen_qmerge.name_] = chosen_qmerge.mean_mute_freq_;
-  //   only_genes_[chosen_qmerge.name_] = chosen_qmerge.only_genes_;
-  //   GetNaiveSeq(chosen_qmerge.name_, &chosen_qmerge.parents_);
-  // }
-
   double last_partition_logprob(LogProbOfPartition(path->CurrentPartition()));
   Partition new_partition(path->CurrentPartition());  // note: CurrentPartition() returns a reference
   new_partition.erase(chosen_qmerge.parents_.first);
@@ -820,16 +811,12 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
   path->AddPartition(new_partition, LogProbOfPartition(new_partition), args_->max_logprob_drop());
 
   if(args_->debug()) {
-    // cout << "    path " << path->initial_path_index_ << endl;
-    // printf("       merged %-8.2f %s and %s\n", max_log_prob, max_pair.first.c_str(), max_pair.second.c_str());
-    // assert(SameLength(chosen_qmerge.seqs_, true));
     printf("       merged %-8.2f", chosen_lratio);
     double newdelta = LogProbOfPartition(new_partition) - last_partition_logprob;
     if(fabs(newdelta - chosen_lratio) > 1e-8)
       printf(" ( %-20.15f != %-20.15f)", chosen_lratio, LogProbOfPartition(new_partition) - last_partition_logprob);
     printf("   %s and %s\n", chosen_qmerge.parents_.first.c_str(), chosen_qmerge.parents_.second.c_str());
     string extrastr("current (logweight " + to_string(path->CurrentLogWeight()) + ")");
-    // PrintPartition(new_partition, extrastr);
   }
 }
 
