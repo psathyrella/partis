@@ -457,7 +457,7 @@ pair<string, vector<Sequence> > Glomerator::ChooseSubsetOfNames(string names, in
   vector<string> namevector(SplitString(names, ":"));
   for(size_t iname=0; iname<namevector.size(); ++iname) {
     string name(namevector[iname]);
-    if(iname == 0)
+    if(iname > 1)
       continue;
 
     subnames.push_back(name);
@@ -475,7 +475,7 @@ string Glomerator::GetNameTranslation(string actual_names) {
     return key_translations_[actual_names];  // already decided on a translation for it
   }
 
-  int n_max(5);
+  int n_max(99998);
 
   if(CountMembers(actual_names) > n_max) {  // if cluster is really big, replace it with a subset
     pair<string, vector<Sequence> > substuff = ChooseSubsetOfNames(actual_names, n_max);
@@ -499,16 +499,16 @@ string Glomerator::GetNameTranslation(string actual_names) {
 double Glomerator::GetLogProb(string name) {
   // NOTE that when this improves the kbounds, that info doesn't get propagated to <kbinfo_> UPDATE now it does!
 
-// ----------------------------------------------------------------------------------------
-  name = GetNameTranslation(name);
-// ----------------------------------------------------------------------------------------
+// // ----------------------------------------------------------------------------------------
+//   name = GetNameTranslation(name);
+// // ----------------------------------------------------------------------------------------
 
   if(log_probs_.count(name)) {  // already did it (see note in GetNaiveSeq above)
     return log_probs_[name];
   }
   ++n_fwd_calculated_;
     
-  clock_t run_start(clock());
+  // clock_t run_start(clock());
 
   Result result(kbinfo_[name]);
   bool stop(false);
@@ -525,7 +525,7 @@ double Glomerator::GetLogProb(string name) {
 
   log_probs_[name] = result.total_score();
 
-  printf("        time for size %5d  %5.2f    %s\n", int(SplitString(name, ":").size()), ((clock() - run_start) / (double)CLOCKS_PER_SEC), name.c_str());
+  // printf("        time for size %5d  %5.2f    %s\n", int(SplitString(name, ":").size()), ((clock() - run_start) / (double)CLOCKS_PER_SEC), name.c_str());
 
   return log_probs_[name];
 }
