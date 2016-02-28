@@ -457,28 +457,28 @@ pair<string, vector<Sequence> > Glomerator::ChooseSubsetOfNames(string names, in
 // ----------------------------------------------------------------------------------------
 string Glomerator::GetNameTranslation(string actual_names) {
   // NOTE that we don't (a.t.m.) cache the stuff in name translation, so future processes don't know anything about it. This is ok, I think, because we'll arrive at the same translation in the future, and have the necessary info cached.
-  if(log_probs_.count(actual_names)) {  // if we already calculated it, we may as well just use the existing value
-    return actual_names;
-  }
-  if(key_translations_.count(actual_names)) {  // already decided on a translation for it (we presumably also already calculated the value, but we check the cache after getting the translation)
-    cout <<  "     already in key translations " << actual_names << " --> " << key_translations_[actual_names] << endl;
-    return key_translations_[actual_names];
-  }
+  // if(log_probs_.count(actual_names)) {  // if we already calculated it, we may as well just use the existing value
+  //   return actual_names;
+  // }
+  // if(key_translations_.count(actual_names)) {  // already decided on a translation for it (we presumably also already calculated the value, but we check the cache after getting the translation)
+  //   cout <<  "     already in key translations " << actual_names << " --> " << key_translations_[actual_names] << endl;
+  //   return key_translations_[actual_names];
+  // }
 
-  int n_max(99998);
+  int n_max(5);  // if cluster is more than half again larger than this, replace it with a cluster of this size
 
-  if(CountMembers(actual_names) > n_max) {  // if cluster is really big, replace it with a subset
-    pair<string, vector<Sequence> > substuff = ChooseSubsetOfNames(actual_names, n_max);
-    string subnames(substuff.first);
-    seq_info_[subnames] = substuff.second;
-    cout <<  "   replacing " << actual_names << " --> " << subnames << endl;
-    kbinfo_[subnames] = kbinfo_[actual_names];  // just use the entire/super cluster for this stuff. It's just overly conservative (as long as you keep the mute freqs the same)
-    mute_freqs_[subnames] = mute_freqs_[actual_names];
-    only_genes_[subnames] = only_genes_[actual_names];
+  // if(CountMembers(actual_names) > 1.5 * n_max) {
+  //   pair<string, vector<Sequence> > substuff = ChooseSubsetOfNames(actual_names, n_max);
+  //   string subnames(substuff.first);
+  //   seq_info_[subnames] = substuff.second;
+  //   cout <<  "   replacing " << actual_names << " --> " << subnames << endl;
+  //   kbinfo_[subnames] = kbinfo_[actual_names];  // just use the entire/super cluster for this stuff. It's just overly conservative (as long as you keep the mute freqs the same)
+  //   mute_freqs_[subnames] = mute_freqs_[actual_names];
+  //   only_genes_[subnames] = only_genes_[actual_names];
 
-    key_translations_[actual_names] = subnames;
-    return key_translations_[actual_names];
-  }
+  //   key_translations_[actual_names] = subnames;
+  //   return key_translations_[actual_names];
+  // }
 
   // falling through to here means we want to just use <actual_names>
   return actual_names;
@@ -523,12 +523,18 @@ string Glomerator::GetNaiveSeqNameTranslation(string actual_names, pair<string, 
 
 // ----------------------------------------------------------------------------------------
 double Glomerator::GetLogProb(string name) {
-// // ----------------------------------------------------------------------------------------
-//   name = GetNameTranslation(name);
-// // ----------------------------------------------------------------------------------------
-  
-  if(log_probs_.count(name) == 0)  // already did it
-    log_probs_[name] = CalculateLogProb(name);
+  if(log_probs_.count(name))  // already did it
+    return log_probs_[name];
+
+  string name_to_calc = name;  // GetNameTranslation(name);  // can be ("usually" is) equal to name
+
+  if(log_probs_.count(name_to_calc) == 0)
+    log_probs_[name_to_calc] = CalculateLogProb(name_to_calc);  // NOTE this should be the *only* place (besides cache reading) that log_probs_ gets modified
+
+  if(name_to_calc != name) {
+    double factor = double(CountMembers(name)) / CountMembers(name_to_calc);
+    log_probs_[name] = factor * log_probs_[name_to_calc];
+  }
 
   return log_probs_[name];
 }
