@@ -172,7 +172,7 @@ void Glomerator::ReadCachedLogProbs() {
     int cyst_position(atoi(column_list[4].c_str()));
 
     if(naive_seq.size() > 0) {
-      naive_seqs_[query] = Sequence(track_, query, naive_seq, cyst_position);
+      naive_seqs_[query] = naive_seq;
       initial_naive_seqs_.insert(query);
     }
   }
@@ -215,13 +215,13 @@ void Glomerator::WriteCacheLine(ofstream &ofs, string query) {
     ofs << log_probs_[query];
   ofs << ",";
   if(naive_seqs_.count(query))
-    ofs << naive_seqs_[query].undigitized();
+    ofs << naive_seqs_[query];
   ofs << ",";
   if(args_->cache_naive_hfracs() && naive_hfracs_.count(query))
     ofs << naive_hfracs_[query];
   ofs << ",";
-  if(naive_seqs_.count(query))
-    ofs << naive_seqs_[query].cyst_position();
+  if(naive_seqs_.count(query))  // TODO remove this cyst_position stuff
+    ofs << -1.;  // [...removed...].cyst_position();
   ofs << ",";
   if(errors_.count(query))
     ofs << errors_[query];
@@ -356,15 +356,16 @@ double Glomerator::NaiveHfrac(string key_a, string key_b) {
   if(naive_hfracs_.count(joint_key))  // if we've already calculated this distance
     return naive_hfracs_[joint_key];
 
-  Sequence &seq_a = GetNaiveSeq(key_a);
-  Sequence &seq_b = GetNaiveSeq(key_b);
+  string &seq_a = GetNaiveSeq(key_a);
+  string &seq_b = GetNaiveSeq(key_b);
 
   ++n_hfrac_calculated_;
   if(seq_a.size() != seq_b.size())
-    throw runtime_error("ERROR sequences different length in Glomerator::NaiveHfrac (" + seq_a.undigitized() + "," + seq_b.undigitized() + ")\n");
+    throw runtime_error("ERROR sequences different length in Glomerator::NaiveHfrac (" + seq_a + "," + seq_b + ")\n");
   int distance(0), len_excluding_ambigs(0);
   for(size_t ic=0; ic<seq_a.size(); ++ic) {
-    uint8_t ch_a(seq_a[ic]), ch_b(seq_b[ic]);
+    uint8_t ch_a = track_->symbol_index(seq_a.substr(ic, 1));  // kind of hackey remnant left from when naive seqs were Sequence objects
+    uint8_t ch_b = track_->symbol_index(seq_b.substr(ic, 1));
     if(ch_a == track_->ambiguous_index() || ch_b == track_->ambiguous_index())  // skip this position if either sequence has an ambiguous character (if not set, ambig-base should be the empty string)
       continue;
     ++len_excluding_ambigs;
@@ -387,23 +388,21 @@ string Glomerator::ParentalString(pair<string, string> *parents) {
 }
 
 // ----------------------------------------------------------------------------------------
+// add an entry to <naive_seqs_>, filed under <queries>, which has the same naive sequence as <parentname>
 void Glomerator::ReplaceNaiveSeq(string queries, string parentname) {
-  // NOTE this doesn't set all the event info correctly
   naive_seqs_[queries] = naive_seqs_[parentname];  // copy the whole sequence object
-  naive_seqs_[queries].set_name(queries);  // and set the name
-  events_[queries] = events_[parentname];  // also copy the event
+  events_[queries] = events_[parentname];  // also copy the event  // TODO this doesn't set all the event info correctly
   events_[queries].seq_name_ = queries;
 }
 
 // ----------------------------------------------------------------------------------------
-Sequence &Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents) {
-  // <queries> is colon-separated list of query names
+string &Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents) {
   if(naive_seqs_.count(queries)) {  // already did it
     return naive_seqs_[queries];
   }
 
   if(parents != nullptr) {
-    if(naive_seqs_[parents->first].undigitized() == naive_seqs_[parents->second].undigitized()) {  // if we have naive seqs for both the parental clusters and they're the same, no reason to calculate this naive seq. NOTE could use seqq_ instead of undigitized(), but it shouldn't be any faster, right? I mean they're just chars
+    if(naive_seqs_[parents->first] == naive_seqs_[parents->second]) {  // if we have naive seqs for both the parental clusters and they're the same, no reason to calculate this naive seq. NOTE could use seqq_ instead of undigitized(), but it shouldn't be any faster, right? I mean they're just chars
       // cout << "     parents " << ParentalString(parents) << "  have same naive seq" << endl;
       ReplaceNaiveSeq(queries, parents->first);
       return naive_seqs_[queries];
@@ -437,7 +436,7 @@ Sequence &Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents)
 
   if(result.events_.size() < 1)
     throw runtime_error("no events for queries " + queries + "\n");
-  naive_seqs_[queries] = Sequence(track_, queries, result.events_[0].naive_seq_, result.events_[0].cyst_position_);
+  naive_seqs_[queries] = result.events_[0].naive_seq_;
   events_[queries] = result.events_[0];  // NOTE keeping separate from naive_seqs_ (at least for now) because I only need the full event for the final partition (UPDATE or do I only use it to write annotations)
   if(result.boundary_error())
     errors_[queries] = errors_[queries] + ":boundary";

@@ -64,7 +64,7 @@ private:
   string ClusterSizeString(ClusterPath *path);
   void WriteStatus(ClusterPath *path);  // write some progress info to file
   double NaiveHfrac(string key_a, string key_b);
-  Sequence &GetNaiveSeq(string key, pair<string, string> *parents=nullptr);
+  string &GetNaiveSeq(string key, pair<string, string> *parents=nullptr);
   double GetLogProb(string name);
   vector<Sequence> MergeSeqVectors(string name_a, string name_b);
   bool SameLength(vector<Sequence> &seqs, bool debug=false);
@@ -102,7 +102,7 @@ private:
   // These all include cached info from previous runs
   map<string, double> log_probs_;  
   map<string, double> naive_hfracs_;  // NOTE since this uses the joint key, it assumes there's only *one* way to get to a given cluster (this is similar to, but not quite the same as, the situation for log probs and naive seqs)
-  map<string, Sequence> naive_seqs_;
+  map<string, string> naive_seqs_;
   map<string, RecoEvent> events_;  // annotations corresponding to the naive seqs. NOTE keeping it separate, at least for now, since I only want the full annotations for the final partition, but I need naive seqs for loads and loads of groups of sequences
   map<string, string> errors_;
 
