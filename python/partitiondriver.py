@@ -465,7 +465,7 @@ class PartitionDriver(object):
         cmd_str += ' --datadir ' + self.args.datadir  # NOTE waterer is using a rewritten datadir in the workdir if <only_genes> is specified... maybe I should switch this as well?
         cmd_str += ' --infile ' + csv_infname
         cmd_str += ' --outfile ' + csv_outfname
-        cmd_str += ' --random-seed ' + self.args.seed
+        cmd_str += ' --random-seed ' + str(self.args.seed)
         if self.args.cache_naive_hfracs:
             cmd_str += ' --cache-naive-hfracs'
         if n_procs > 1:  # only cache vals for sequence sets with newly-calculated vals (initial cache file is copied to each subdir)
