@@ -69,9 +69,9 @@ void print_forward_scores(double numerator, vector<double> single_scores, double
 
 // ----------------------------------------------------------------------------------------
 int main(int argc, const char * argv[]) {
-  srand(time(NULL));
   // clock_t run_start(clock());
   Args args(argc, argv);
+  srand(args.random_seed());
 
   // init some infrastructure
   vector<string> characters {"A", "C", "G", "T"};
