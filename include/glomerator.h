@@ -72,6 +72,7 @@ private:
   string JoinNames(string name1, string name2, string delimiter=":");
   string JoinNameStrings(vector<Sequence> &strlist, string delimiter=":");
   string JoinSeqStrings(vector<Sequence> &strlist, string delimiter=":");
+  bool LikelihoodRatioTooSmall(double lratio, int candidate_cluster_size);
   Query ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_lratio);
   pair<double, Query> *ChooseRandomMerge(vector<pair<double, Query> > &potential_merges, smc::rng *rgen);
 

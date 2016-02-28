@@ -670,6 +670,26 @@ string Glomerator::JoinSeqStrings(vector<Sequence> &strlist, string delimiter) {
 }
 
 // ----------------------------------------------------------------------------------------
+bool Glomerator::LikelihoodRatioTooSmall(double lratio, int candidate_cluster_size) {
+  int ccs(candidate_cluster_size);  // shorthand
+  bool lratio_too_small(false);
+  double max_lratio(args_->logprob_ratio_threshold());
+  if(ccs == 2 && lratio < max_lratio) {
+    lratio_too_small = true;
+  } else if(ccs == 3 && lratio < max_lratio - 2.) {  // this subtraction "scheme" is largely heuristic a.t.m.
+    lratio_too_small = true;
+  } else if(ccs == 4 && lratio < max_lratio - 3.) {
+    lratio_too_small = true;
+  } else if(ccs == 5 && lratio < max_lratio - 4.) {
+    lratio_too_small = true;
+  } else if(lratio < max_lratio - 5.) {  // just guessing on the 13... but I don't think the best threshold gets anywhere close to zero (like I had it before...)
+    lratio_too_small = true;
+  }
+
+  return lratio_too_small;
+}
+
+// ----------------------------------------------------------------------------------------
 Query Glomerator::ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_lratio) {
   double max_log_prob(-INFINITY), min_hamming_fraction(INFINITY);
   Query min_hamming_merge;
@@ -707,13 +727,12 @@ Query Glomerator::ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_
 
       // NOTE the error from using the single kbounds rather than the OR seems to be around a part in a thousand or less
       // NOTE also that the _a and _b results will be cached (unless we're truncating), but with their *individual* only_gene sets (rather than the OR)... but this seems to be ok.
-
       // TODO if kbounds gets expanded in one of these three calls, we don't redo the others. Which is really ok, but could be checked again?
       double log_prob_a = GetLogProb(key_a);
       double log_prob_b = GetLogProb(key_b);
       double log_prob_ab = GetLogProb(qmerged.name_);
 
-      double lratio(log_prob_ab - log_prob_a - log_prob_b);  // REMINDER a, b not necessarily same order as names[0], names[1]
+      double lratio(log_prob_ab - log_prob_a - log_prob_b);
       if(args_->debug()) {
 	printf("       %8.3f = ", lratio);
 	printf("%2s %8.2f", "", log_prob_ab);
@@ -721,26 +740,11 @@ Query Glomerator::ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_
 	printf("\n");
       }
 
-      // ----------------------------------------------------------------------------------------
-      bool lratio_too_small(false);
-      int ccs(qmerged.seqs_.size());  // candidate cluster size
-      double max_lratio(args_->logprob_ratio_threshold());
-      if(ccs == 2 && lratio < max_lratio) {
-      	lratio_too_small = true;
-      } else if(ccs == 3 && lratio < max_lratio - 2.) {  // this subtraction "scheme" is largely heuristic a.t.m.
-      	lratio_too_small = true;
-      } else if(ccs == 4 && lratio < max_lratio - 3.) {
-      	lratio_too_small = true;
-      } else if(ccs == 5 && lratio < max_lratio - 4.) {
-      	lratio_too_small = true;
-      } else if(lratio < max_lratio - 5.) {  // just guessing on the 13... but I don't think the best threshold gets anywhere close to zero (like I had it before...)
-      	lratio_too_small = true;
-      }
-      if(lratio_too_small) {
+      // don't merge if lratio is small (less than zero, more or less)
+      if(LikelihoodRatioTooSmall(lratio, qmerged.seqs_.size())) {
 	++n_small_lratios;
 	continue;
       }
-      // ----------------------------------------------------------------------------------------
 
       potential_merges.push_back(pair<double, Query>(lratio, qmerged));
 
