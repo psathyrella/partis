@@ -462,7 +462,7 @@ string Glomerator::GetNameTranslation(string actual_names) {
   //   return key_translations_[actual_names];
   // }
 
-  int n_max(5);  // if cluster is more than half again larger than this, replace it with a cluster of this size
+  int n_max(args_->biggest_cluster_to_calculate());  // if cluster is more than half again larger than this, replace it with a cluster of this size
   if(CountMembers(actual_names) > 1.5 * n_max) {
     pair<string, vector<Sequence> > substuff = ChooseSubsetOfNames(actual_names, n_max);
     string subnames(substuff.first);
@@ -531,7 +531,7 @@ double Glomerator::GetLogProb(string name) {
   if(name_to_calc != name) {
     double factor = double(CountMembers(name)) / CountMembers(name_to_calc);
     log_probs_[name] = factor * log_probs_[name_to_calc];
-    printf("       sublate %5.4f * %8.2f = %8.2f", factor, log_probs_[name_to_calc], log_probs_[name]);
+    printf("       sublate %5.4f * %8.2f = %8.2f\n", factor, log_probs_[name_to_calc], log_probs_[name]);
   }
 
   return log_probs_[name];
