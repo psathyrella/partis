@@ -113,6 +113,7 @@ class Tester(object):
         print 'new input'
         self.compare_performance(input_stype='new')
         self.compare_partition_cachefiles(input_stype='new')
+        self.compare_data_annotation(input_stype='new')
 
     # ----------------------------------------------------------------------------------------
     def run(self, args):
@@ -338,12 +339,12 @@ class Tester(object):
     # ----------------------------------------------------------------------------------------
     def make_comparison_plots(self):
         plotdirs = [
-            self.perfdirs['ref'] + '/sw',  # ref sw performance
-            self.perfdirs['ref'] + '/hmm', # ref hmm performance
-            # 'test/plots/data/sw',          # sw data parameters
-            # 'test/plots/data/hmm',         # hmm data parameters
-            # 'test/plots/data/hmm/mute-freqs/v',
-            # 'test/plots/data/sw/mute-freqs',
+            # self.perfdirs['ref'] + '/sw',  # ref sw performance
+            # self.perfdirs['ref'] + '/hmm', # ref hmm performance
+            'test/plots/data/sw/overall',          # sw data parameters
+            'test/plots/data/hmm/overall',         # hmm data parameters
+            'test/plots/data/hmm/mute-freqs/overall',
+            'test/plots/data/sw/mute-freqs/overall'
             # 'test/plots/data/hmm/mute-freqs'
             # 'test/plots/simu/hmm-true',    # true simulation parameters
             # 'test/plots/simu/hmm-true/mute-freqs'
