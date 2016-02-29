@@ -466,6 +466,7 @@ class PartitionDriver(object):
         cmd_str += ' --infile ' + csv_infname
         cmd_str += ' --outfile ' + csv_outfname
         cmd_str += ' --random-seed ' + str(self.args.seed)
+        cmd_str += ' --biggest-cluster-to-calculate ' + str(self.args.biggest_cluster_to_calculate)
         if self.args.cache_naive_hfracs:
             cmd_str += ' --cache-naive-hfracs'
         if n_procs > 1:  # only cache vals for sequence sets with newly-calculated vals (initial cache file is copied to each subdir)

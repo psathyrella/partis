@@ -54,6 +54,7 @@ if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
     print '    TODO make sure all trace of truncation is removed from ham (including cyst position stuff)'
     print '    TODO in addition to translating from a large cluster to a smaller one, you should also not recalculate just \'cause you add one sequence to a huge cluster'
     print '    TODO fix WriteAnnotations in glomerator (and/i.e. clean up events_ filling, in particular in ReplaceNaiveSeq)'
+    print '    TODO besides "replacing" clusters with smaller subsets, you should, when making the merged cluster object, not recalculate unless it\'s really different'
 
 # input and output locations
 parser.add_argument('--seqfile', help='input sequence file')
@@ -77,6 +78,8 @@ parser.add_argument('--seed-unique-id', help='only look for sequences that are c
 parser.add_argument('--n-max-queries', type=int, default=-1, help='Maximum number of query sequences on which to run (except for simulator, where it\'s the number of rearrangement events)')
 parser.add_argument('--only-genes', help='Colon-separated list of genes to which to restrict the analysis')
 parser.add_argument('--n-best-events', default=None, help='Number of best events to print (i.e. n-best viterbi paths). Default is set in bcrham.')
+
+parser.add_argument('--biggest-cluster-to-calculate', type=int, default=10, help='start thinking about subsampling before you calculate anything if cluster is bigger than this')
 
 # simulation (see also gtr-fname)
 # NOTE see also mutation-multiplier, although that comes into play after the trees are generated
