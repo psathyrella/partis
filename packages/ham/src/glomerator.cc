@@ -467,7 +467,8 @@ string Glomerator::GetNameTranslation(string actual_names) {
     pair<string, vector<Sequence> > substuff = ChooseSubsetOfNames(actual_names, n_max);
     string subnames(substuff.first);
     seq_info_[subnames] = substuff.second;
-    cout <<  "   replacing " << actual_names << " --> " << subnames << endl;
+    if(args_->debug() > 0)
+      cout <<  "   replacing " << actual_names << " --> " << subnames << endl;
     kbinfo_[subnames] = kbinfo_[actual_names];  // just use the entire/super cluster for this stuff. It's just overly conservative (as long as you keep the mute freqs the same)
     mute_freqs_[subnames] = mute_freqs_[actual_names];
     only_genes_[subnames] = only_genes_[actual_names];
@@ -531,7 +532,8 @@ double Glomerator::GetLogProb(string name) {
   if(name_to_calc != name) {
     double factor = double(CountMembers(name)) / CountMembers(name_to_calc);
     log_probs_[name] = factor * log_probs_[name_to_calc];
-    printf("       sublate %5.4f * %8.2f = %8.2f\n", factor, log_probs_[name_to_calc], log_probs_[name]);
+    if(args_->debug() > 0)
+      printf("       sublate %5.4f * %8.2f = %8.2f\n", factor, log_probs_[name_to_calc], log_probs_[name]);
   }
 
   return log_probs_[name];
