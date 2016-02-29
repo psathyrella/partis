@@ -789,7 +789,7 @@ class Waterer(object):
                 k_d_min -= 5
                 k_d_max += 2
 
-        k_v_min = max(0, k_v_min - self.args.default_v_fuzz)  # ok, so I don't *actually* want it to be zero... oh, well
+        k_v_min = max(1, k_v_min - self.args.default_v_fuzz)  # ok, so I don't *actually* want it to be zero... oh, well
         k_v_max += self.args.default_v_fuzz
         k_d_min = max(1, k_d_min - self.args.default_d_fuzz)
         k_d_max += self.args.default_d_fuzz

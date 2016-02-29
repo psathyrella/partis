@@ -81,7 +81,7 @@ parser.add_argument('--n-max-queries', type=int, default=-1, help='Maximum numbe
 parser.add_argument('--only-genes', help='Colon-separated list of genes to which to restrict the analysis')
 parser.add_argument('--n-best-events', default=None, help='Number of best events to print (i.e. n-best viterbi paths). Default is set in bcrham.')
 
-parser.add_argument('--biggest-cluster-to-calculate', type=int, default=10, help='start thinking about subsampling before you calculate anything if cluster is bigger than this')
+parser.add_argument('--biggest-cluster-to-calculate', type=int, default=25, help='start thinking about subsampling before you calculate anything if cluster is bigger than this')
 
 # simulation (see also gtr-fname)
 # NOTE see also mutation-multiplier, although that comes into play after the trees are generated
