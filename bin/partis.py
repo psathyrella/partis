@@ -56,8 +56,10 @@ if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
     print '    TODO fix WriteAnnotations in glomerator (and/i.e. clean up events_ filling, in particular in ReplaceNaiveSeq)'
     print '    TODO besides "replacing" clusters with smaller subsets, you should, when making the merged cluster object, not recalculate unless it\'s really different'
 
-# input and output locations
+# input and output stuff
 parser.add_argument('--seqfile', help='input sequence file')
+parser.add_argument('--name-column', default='unique_id', help='csv column name for sequence ids')
+parser.add_argument('--seq-column', default='seq', help='csv column name for nucleotide sequences')
 parser.add_argument('--parameter-dir', required=True, help='Directory to/from which to write/read sample-specific parameters')
 parser.add_argument('--datadir', default=os.getcwd() + '/data/imgt', help='Directory from which to read non-sample-specific information (e.g. germline genes)')
 parser.add_argument('--outfname')

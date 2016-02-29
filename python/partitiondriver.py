@@ -30,10 +30,10 @@ class PartitionDriver(object):
     """ Class to parse input files, start bcrham jobs, and parse/interpret bcrham output for annotation and partitioning """
     def __init__(self, args):
         self.args = args
-        self.glfo = utils.read_germline_set(self.args.datadir)
+        self.glfo = utils.read_germline_set(self.args.datadir, debug=True)
 
         if self.args.seqfile is not None:
-            self.input_info, self.reco_info = get_seqfile_info(self.args.seqfile, self.args.is_data, self.glfo, self.args.n_max_queries, self.args.queries, self.args.reco_ids)
+            self.input_info, self.reco_info = get_seqfile_info(self.args.seqfile, self.args.is_data, self.glfo, self.args.n_max_queries, self.args.queries, self.args.reco_ids, name_column=self.args.name_column, seq_column=self.args.seq_column)
         self.sw_info = None
         self.paths = []
         self.smc_info = []
