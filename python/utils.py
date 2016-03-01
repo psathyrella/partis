@@ -725,7 +725,7 @@ def add_implicit_info(glfo, line, multi_seq, existing_implicit_keys=None, debug=
             line['invalid'] = True
     if end['j'] != seq_length:
         line['invalid'] = True
-    if line['cdr3_length'] < 6:  # i.e. if cyst and tryp overlap
+    if line['cdr3_length'] < 6:  # i.e. if cyst and tryp overlap  NOTE six is also hardcoded in waterer
         line['invalid'] = True
 
     # add alignment info

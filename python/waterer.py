@@ -614,13 +614,11 @@ class Waterer(object):
 
         for region in utils.regions:
             self.info[query_name][region + '_gene'] = best[region]
-            self.info[query_name][region + '_gl_seq'] = best[region + '_gl_seq']
-            self.info[query_name][region + '_qr_seq'] = best[region + '_qr_seq']
             self.info['all_best_matches'].add(best[region])
 
         self.info[query_name]['seq'] = query_seq  # NOTE this is the seq output by vdjalign, i.e. if we reversed any indels it is the reversed sequence
 
-        existing_implicit_keys = tuple(['cdr3_length', 'cyst_position', 'tryp_position'] + [r + '_gl_seq' for r in utils.regions] + [r + '_qr_seq' for r in utils.regions])
+        existing_implicit_keys = tuple(['cdr3_length', 'cyst_position', 'tryp_position'])
         utils.add_implicit_info(self.glfo, self.info[query_name], multi_seq=False, existing_implicit_keys=existing_implicit_keys)
 
         if self.debug:
@@ -748,6 +746,13 @@ class Waterer(object):
         # check for unproductive rearrangements
         codons_ok = utils.check_both_conserved_codons(query_seq, codon_positions['v'], codon_positions['j'], debug=self.debug, extra_str='      ', assert_on_fail=False)
         cdr3_length = codon_positions['j'] - codon_positions['v'] + 3
+
+        if cdr3_length < 6:  # NOTE six is also hardcoded in utils
+            if self.debug:
+                print '      negative cdr3 length %d' % (cdr3_length)
+            queries_to_rerun['invalid-codon'].add(query_name)
+            return
+
         in_frame_cdr3 = (cdr3_length % 3 == 0)
         if self.debug and not in_frame_cdr3:
             print '      out of frame cdr3: %d %% 3 = %d' % (cdr3_length, cdr3_length % 3)
