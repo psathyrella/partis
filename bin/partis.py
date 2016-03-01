@@ -49,7 +49,6 @@ parser.add_argument('--only-csv-plots', action='store_true', help='only write cs
 
 if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
     print '    TODO make sure all mpl figures are getting closed'
-    print '    TODO add some garbage-ey seqs to mishmash.fa'
     print '    TODO remove extra assertions from glomerator'
     print '    TODO make sure all trace of truncation is removed from ham (including cyst position stuff)'
     print '    TODO in addition to translating from a large cluster to a smaller one, you should also not recalculate just \'cause you add one sequence to a huge cluster'
@@ -225,6 +224,8 @@ else:
         raise Exception('n-max-per-region should be of the form \'x:y:z\', but I got ' + str(args.n_max_per_region))
     if len(args.match_mismatch) != 2:
         raise Exception('match-mismatch should be of the form \'match:mismatch\', but I got ' + str(args.n_max_per_region))
+    if args.seqfile is None:
+        raise Exception('--seqfile is required for this action')
 
     parter = PartitionDriver(args)
 
