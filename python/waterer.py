@@ -514,6 +514,10 @@ class Waterer(object):
             qrbounds[l_gene] = (leftmost_position, leftmost_position + 1)  # swap whatever crummy nonsense d match we have now for a one-base match at the left end of things (things in practice should be left end of j match)
             glbounds[l_gene] = (0, 1)
             status = self.check_boundaries(rpair, qrbounds, glbounds, query_name, query_seq, best, debug)
+            if status == 'overlap':
+                if debug:
+                    print '  \'overlap\' status after synthesizing d match. Setting to \'nonsense\', I can\'t deal with this bullshit'
+                status = 'nonsense'
 
         return status
 
