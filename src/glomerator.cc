@@ -412,6 +412,7 @@ string &Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents) {
   }
 
   ++n_vtb_calculated_;
+  // clock_t run_start(clock());
 
   Result result(kbinfo_[queries]);
   bool stop(false);
@@ -431,6 +432,7 @@ string &Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents) {
   if(result.boundary_error())
     errors_[queries] = errors_[queries] + ":boundary";
 
+  // printf("        time for size %5d  %5.2f    %s\n", int(SplitString(queries, ":").size()), ((clock() - run_start) / (double)CLOCKS_PER_SEC), queries.c_str());
   return naive_seqs_[queries];
 }
 
