@@ -412,7 +412,6 @@ string &Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents) {
   }
 
   ++n_vtb_calculated_;
-  // clock_t run_start(clock());
 
   Result result(kbinfo_[queries]);
   bool stop(false);
@@ -432,7 +431,6 @@ string &Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents) {
   if(result.boundary_error())
     errors_[queries] = errors_[queries] + ":boundary";
 
-  // printf("        time for size %5d  %5.2f    %s\n", int(SplitString(queries, ":").size()), ((clock() - run_start) / (double)CLOCKS_PER_SEC), queries.c_str());
   return naive_seqs_[queries];
 }
 
@@ -455,15 +453,6 @@ pair<string, vector<Sequence> > Glomerator::ChooseSubsetOfNames(string names, in
 
 // ----------------------------------------------------------------------------------------
 string Glomerator::GetNameTranslation(string actual_names) {
-  // NOTE that we don't (a.t.m.) cache the stuff in name translation, so future processes don't know anything about it. This is ok, I think, because we'll arrive at the same translation in the future, and have the necessary info cached.
-  // if(log_probs_.count(actual_names)) {  // if we already calculated it, we may as well just use the existing value
-  //   return actual_names;
-  // }
-  // if(key_translations_.count(actual_names)) {  // already decided on a translation for it (we presumably also already calculated the value, but we check the cache after getting the translation)
-  //   cout <<  "     already in key translations " << actual_names << " --> " << key_translations_[actual_names] << endl;
-  //   return key_translations_[actual_names];
-  // }
-
   int n_max(args_->biggest_cluster_to_calculate());  // if cluster is more than half again larger than this, replace it with a cluster of this size
   if(CountMembers(actual_names) > 1.5 * n_max) {
     pair<string, vector<Sequence> > substuff = ChooseSubsetOfNames(actual_names, n_max);
@@ -475,8 +464,6 @@ string Glomerator::GetNameTranslation(string actual_names) {
     mute_freqs_[subnames] = mute_freqs_[actual_names];
     only_genes_[subnames] = only_genes_[actual_names];
 
-    // key_translations_[actual_names] = subnames;
-    // return key_translations_[actual_names];
     return subnames;
   }
 
@@ -491,10 +478,6 @@ string Glomerator::GetNaiveSeqNameTranslation(string actual_names, pair<string, 
     // cout <<  "     already cached " << actual_names << endl;
     return actual_names;
   }
-  if(naive_seq_key_translations_.count(actual_names)) {  // already decided on a translation for it (we presumably also already calculated the value, but we check the cache after getting the translation)
-    // cout <<  "     already in key translations " << actual_names << " --> " << naive_seq_key_translations_[actual_names] << endl;
-    return naive_seq_key_translations_[actual_names];
-  }
 
   if(parents != nullptr) {
     string pfirst_translation = GetNaiveSeqNameTranslation(parents->first);
@@ -505,13 +488,11 @@ string Glomerator::GetNaiveSeqNameTranslation(string actual_names, pair<string, 
     double size_ratio = double(seq_info_[parents->first].size()) / seq_info_[parents->second].size();
     if(size_ratio > max_factor) {
       cout << "     first parent much larger: " << ParentalString(parents) << "  (ratio " << size_ratio << ")" << endl;
-      // naive_seq_key_translations_[actual_names] = pfirst_translation;
       ReplaceNaiveSeq(actual_names, pfirst_translation);
       return pfirst_translation;
     }
     if(1. / size_ratio > max_factor) {
       cout << "     second parent much larger: " << ParentalString(parents) << "  (ratio " << size_ratio << ")" << endl;
-      // naive_seq_key_translations_[actual_names] = psecond_translation;
       ReplaceNaiveSeq(actual_names, psecond_translation);
       return psecond_translation;
     }
@@ -545,7 +526,6 @@ double Glomerator::GetLogProb(string name) {
 double Glomerator::CalculateLogProb(string name) {  // NOTE can modify kbinfo_
   // NOTE do *not* call this from anywhere except GetLogProb()
   
-  // clock_t run_start(clock());
   ++n_fwd_calculated_;
 
   Result result(kbinfo_[name]);
@@ -561,7 +541,6 @@ double Glomerator::CalculateLogProb(string name) {  // NOTE can modify kbinfo_
   if(result.boundary_error() && !result.could_not_expand())  // could_not_expand means the max is at the edge of the sequence -- e.g. k_d min is 1
     errors_[name] = errors_[name] + ":boundary";
 
-  // printf("        time for size %5d  %5.2f    %s\n", int(SplitString(name, ":").size()), ((clock() - run_start) / (double)CLOCKS_PER_SEC), name.c_str());
   return result.total_score();
 }
 
