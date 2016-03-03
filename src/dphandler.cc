@@ -145,23 +145,23 @@ Result DPHandler::Run(vector<Sequence> seqvector, KBounds kbounds, vector<string
   // StreamOutput(total_score_);  // NOTE this must happen after sorting in viterbi
 
   // print debug info
-  double cpu_seconds(((clock() - run_start) / (double)CLOCKS_PER_SEC));
   if(args_->debug()) {
+    double prob;
+    string alg_str;
+    char kstr[300];
     if(algorithm_ == "viterbi") {
-      char kstr[300];
+      prob = best_score;
+      alg_str = "vtb";
       sprintf(kstr, "%zu [%zu-%zu]  %zu [%zu-%zu]", best_kset.v, kbounds.vmin, kbounds.vmax-1, best_kset.d, kbounds.dmin, kbounds.dmax-1);
-      printf("           vtb %12.3f   %-25s  %2zuv %2zud %2zuj  %5.1fs  %s\n", best_score, kstr,
-	     only_genes["v"].size(), only_genes["d"].size(), only_genes["j"].size(),
-	     cpu_seconds, seqs.name_str().c_str());
-      // hmms_.NameString(&only_genes, 30)
     } else {
-      char kstr[300];
-      sprintf(kstr, "[%zu-%zu] [%zu-%zu]", kbounds.vmin, kbounds.vmax-1, kbounds.dmin, kbounds.dmax-1);
-      printf("           fwd %12.3f   %-20s  %2zuv %2zud %2zuj  %5.1fs  %s\n", *total_score, kstr,
-	     only_genes["v"].size(), only_genes["d"].size(), only_genes["j"].size(),
-	     cpu_seconds, seqs.name_str().c_str());
-      // hmms_.NameString(&only_genes, 30)
+      prob = *total_score;
+      alg_str = "fwd";
+      sprintf(kstr, "    [%zu-%zu]     [%zu-%zu]", kbounds.vmin, kbounds.vmax-1, kbounds.dmin, kbounds.dmax-1);
     }
+    double cpu_seconds(((clock() - run_start) / (double)CLOCKS_PER_SEC));
+    printf("           %s %12.3f   %-25s  %2zuv %2zud %2zuj  %5.1fs  %s\n", alg_str.c_str(), prob, kstr,
+	   only_genes["v"].size(), only_genes["d"].size(), only_genes["j"].size(),  // hmms_.NameString(&only_genes, 30)
+	   cpu_seconds, seqs.name_str().c_str());
   }
 
   result.check_boundaries(best_kset, kbounds);
