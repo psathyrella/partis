@@ -397,19 +397,30 @@ void Glomerator::ReplaceNaiveSeq(string queries, string parentname) {
 
 // ----------------------------------------------------------------------------------------
 string &Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents) {
-
-  queries = GetNaiveSeqNameTranslation(queries, parents);
-
-  if(naive_seqs_.count(queries)) {  // already did it
+  if(naive_seqs_.count(queries))
     return naive_seqs_[queries];
-  }
 
   // if we have naive seqs for both the parental clusters and they're the same, no reason to calculate this naive seq
   if(parents != nullptr && GetNaiveSeq(parents->first) == GetNaiveSeq(parents->second)) {
-    // cout << "     parents " << ParentalString(parents) << "  have same naive seq" << endl;
     ReplaceNaiveSeq(queries, parents->first);
     return naive_seqs_[queries];
   }
+
+  string queries_to_calc = GetNaiveSeqNameTranslation(queries, parents);
+
+  if(naive_seqs_.count(queries_to_calc) == 0)
+    naive_seqs_[queries_to_calc] = CalculateNaiveSeq(queries_to_calc);
+
+  if(queries_to_calc != queries)
+    naive_seqs_[queries] = naive_seqs_[queries_to_calc];
+
+  return naive_seqs_[queries];
+}
+
+// ----------------------------------------------------------------------------------------
+string &Glomerator::CalculateNaiveSeq(string queries) {
+  // NOTE do *not* call this from anywhere except GetNaiveSeq()
+  assert(naive_seqs_.count(queries) == 0);  // TODO remove me
 
   ++n_vtb_calculated_;
 
@@ -426,12 +437,12 @@ string &Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents) {
 
   if(result.events_.size() < 1)
     throw runtime_error("no events for queries " + queries + "\n");
-  naive_seqs_[queries] = result.events_[0].naive_seq_;
   events_[queries] = result.events_[0];  // NOTE keeping separate from naive_seqs_ (at least for now) because I only need the full event for the final partition (UPDATE or do I only use it to write annotations)
+  // TODO get events_ on same footing as naive_seqs_
   if(result.boundary_error())
     errors_[queries] = errors_[queries] + ":boundary";
 
-  return naive_seqs_[queries];
+  return result.events_[0].naive_seq_;
 }
 
 // ----------------------------------------------------------------------------------------
@@ -473,9 +484,7 @@ string Glomerator::GetNameTranslation(string actual_names) {
 
 // ----------------------------------------------------------------------------------------
 string Glomerator::GetNaiveSeqNameTranslation(string actual_names, pair<string, string> *parents) {
-  // NOTE that we don't (a.t.m.) cache the stuff in name translation, so if we don't actually replace the naive seq in naive_seqs_, future processes won't know anything about it. This is not ok for naive seqs, since we don't have the parental information in the future.
-  if(naive_seqs_.count(actual_names)) {  // if we already calculated it, we may as well just use the existing value
-    // cout <<  "     already cached " << actual_names << endl;
+  if(naive_seqs_.count(actual_names)) {
     return actual_names;
   }
 
@@ -525,6 +534,7 @@ double Glomerator::GetLogProb(string name) {
 // ----------------------------------------------------------------------------------------
 double Glomerator::CalculateLogProb(string name) {  // NOTE can modify kbinfo_
   // NOTE do *not* call this from anywhere except GetLogProb()
+  assert(log_probs_.count(name) == 0);  // TODO remove me
   
   ++n_fwd_calculated_;
 
