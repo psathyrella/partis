@@ -68,16 +68,15 @@ private:
   string JoinNameStrings(vector<Sequence> &strlist, string delimiter=":");
   string JoinSeqStrings(vector<Sequence> &strlist, string delimiter=":");
 
-  void ReplaceNaiveSeq(string queries, string parentname);
-
   double NaiveHfrac(string key_a, string key_b);
 
-  string &GetNaiveSeq(string key, pair<string, string> *parents=nullptr);
-  string &CalculateNaiveSeq(string key);
-  double GetLogProb(string name);
-  double CalculateLogProb(string name);
+  void ReplaceNaiveSeq(string queries, string parentname);
   pair<string, vector<Sequence> > ChooseSubsetOfNames(string names, int n_max);
   string GetNameToCalculate(string actual_names);  // convert between the actual queries/key we're interested in and the one we're going to calculate
+  string &GetNaiveSeq(string key, pair<string, string> *parents=nullptr);
+  double GetLogProb(string name);
+  string &CalculateNaiveSeq(string key);
+  double CalculateLogProb(string name);
 
   bool SameLength(vector<Sequence> &seqs, bool debug=false);
   vector<Sequence> MergeSeqVectors(string name_a, string name_b);
