@@ -41,6 +41,7 @@ public:
   void Merge(ClusterPath *path, smc::rng *rgen=nullptr);
 
   void CacheNaiveSeqs();
+  // NOTE don't remove these (yet, at least)
   // ClusterPair GetClustersToMergeForNaiveSeqGlomerate(set<vector<string> > &clusters, int max_per_cluster, bool merge_whatever_you_got);
   // void PrintClusterSizes(set<vector<string> > &clusters);
   // ClusterPair GetSmallBigClusters(set<vector<string> > &clusters);
@@ -54,15 +55,20 @@ public:
   void WriteAnnotations(vector<ClusterPath> &paths);
 private:
   void ReadCachedLogProbs();
-  void GetSoloLogProb(string key);
-  void PrintPartition(Partition &clusters, string extrastr);
   void WriteCacheLine(ofstream &ofs, string query);
   void WriteCachedLogProbs();
+
+  void PrintPartition(Partition &clusters, string extrastr);
+  void WriteStatus(ClusterPath *path);  // write some progress info to file
+
   string ParentalString(pair<string, string> *parents);
-  void ReplaceNaiveSeq(string queries, string parentname);
   int CountMembers(string namestr);
   string ClusterSizeString(ClusterPath *path);
-  void WriteStatus(ClusterPath *path);  // write some progress info to file
+  string JoinNames(string name1, string name2, string delimiter=":");
+  string JoinNameStrings(vector<Sequence> &strlist, string delimiter=":");
+  string JoinSeqStrings(vector<Sequence> &strlist, string delimiter=":");
+
+  void ReplaceNaiveSeq(string queries, string parentname);
 
   double NaiveHfrac(string key_a, string key_b);
 
@@ -73,12 +79,10 @@ private:
   pair<string, vector<Sequence> > ChooseSubsetOfNames(string names, int n_max);
   string GetNameToCalculate(string actual_names);  // convert between the actual queries/key we're interested in and the one we're going to calculate
 
-  vector<Sequence> MergeSeqVectors(string name_a, string name_b);
   bool SameLength(vector<Sequence> &seqs, bool debug=false);
+  vector<Sequence> MergeSeqVectors(string name_a, string name_b);
   Query GetMergedQuery(string name_a, string name_b);
-  string JoinNames(string name1, string name2, string delimiter=":");
-  string JoinNameStrings(vector<Sequence> &strlist, string delimiter=":");
-  string JoinSeqStrings(vector<Sequence> &strlist, string delimiter=":");
+
   bool LikelihoodRatioTooSmall(double lratio, int candidate_cluster_size);
   Query ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_lratio);
   pair<double, Query> *ChooseRandomMerge(vector<pair<double, Query> > &potential_merges, smc::rng *rgen);

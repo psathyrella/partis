@@ -180,35 +180,6 @@ void Glomerator::ReadCachedLogProbs() {
 }
 
 // ----------------------------------------------------------------------------------------
-double Glomerator::LogProbOfPartition(Partition &partition, bool debug) {
-  if(args_->no_fwd())  // if we're doing pure naive hamming glomeration, we don't want to calculate any forward probs
-    return -INFINITY;
-
-  // get log prob of entire partition given by the keys in <partinfo> using the individual log probs in <log_probs>
-  double total_log_prob(0.0);
-  if(debug)
-    cout << "LogProbOfPartition: " << endl;
-  for(auto &key : partition) {
-    // assert(SameLength(seq_info_[key], true));
-    double log_prob = GetLogProb(key);  // immediately returns if we already have it NOTE all the sequences in <seq_info_[key]> are already the same length, since we've already merged them
-    if(debug)
-      cout << "  " << log_prob << "  " << key << endl;
-    total_log_prob = AddWithMinusInfinities(total_log_prob, log_prob);
-  }
-  if(debug)
-    cout << "  total: " << total_log_prob << endl;
-  return total_log_prob;
-}
-
-// ----------------------------------------------------------------------------------------
-void Glomerator::PrintPartition(Partition &partition, string extrastr) {
-  const char *extra_cstr(extrastr.c_str());  // dammit I shouldn't need this line
-  printf("    %-8.2f %s partition\n", LogProbOfPartition(partition), extra_cstr);
-  for(auto &key : partition)
-    cout << "          " << key << endl;
-}
-
-// ----------------------------------------------------------------------------------------
 void Glomerator::WriteCacheLine(ofstream &ofs, string query) {
   ofs << query << ",";
   if(log_probs_.count(query))
@@ -226,43 +197,6 @@ void Glomerator::WriteCacheLine(ofstream &ofs, string query) {
   if(errors_.count(query))
     ofs << errors_[query];
   ofs << endl;
-}
-
-// ----------------------------------------------------------------------------------------
-// count the number of members in a cluster's colon-separated name string
-int Glomerator::CountMembers(string namestr) {
-  int n_colons = (int)count(namestr.begin(), namestr.end(), ':');
-  return n_colons + 1;
-}
-
-// ----------------------------------------------------------------------------------------
-string Glomerator::ClusterSizeString(ClusterPath *path) {
-  vector<int> cluster_sizes;
-  for(auto &cluster : path->CurrentPartition()) {
-    cluster_sizes.push_back(CountMembers(cluster));
-  }
-  sort(cluster_sizes.begin(), cluster_sizes.end());
-  reverse(cluster_sizes.begin(), cluster_sizes.end());
-  string return_str("          clusters: ");
-  for(size_t is=0; is<cluster_sizes.size(); ++is)
-    return_str += " "  + to_string(cluster_sizes[is]);
-  return return_str;
-}
-
-// ----------------------------------------------------------------------------------------
-void Glomerator::WriteStatus(ClusterPath *path) {
-  time_t current_time;
-  time(&current_time);
-  if(difftime(current_time, last_status_write_time_) > 300) {  // write something every five minutes
-    char buffer[200];
-    strftime(buffer, 200, "%b %d %T", localtime(&current_time));  // %H:%M
-    fprintf(progress_file_, "      %s    %4d clusters    fwd %-4d   vtb %-4d\n", buffer, (int)path->CurrentPartition().size(), n_fwd_calculated_, n_vtb_calculated_);
-
-    fprintf(progress_file_, "%s\n", ClusterSizeString(path).c_str());
-
-    fflush(progress_file_);
-    last_status_write_time_ = current_time;
-  }
 }
 
 // ----------------------------------------------------------------------------------------
@@ -351,6 +285,110 @@ void Glomerator::WriteAnnotations(vector<ClusterPath> &paths) {
 }
 
 // ----------------------------------------------------------------------------------------
+double Glomerator::LogProbOfPartition(Partition &partition, bool debug) {
+  if(args_->no_fwd())  // if we're doing pure naive hamming glomeration, we don't want to calculate any forward probs
+    return -INFINITY;
+
+  // get log prob of entire partition given by the keys in <partinfo> using the individual log probs in <log_probs>
+  double total_log_prob(0.0);
+  if(debug)
+    cout << "LogProbOfPartition: " << endl;
+  for(auto &key : partition) {
+    // assert(SameLength(seq_info_[key], true));
+    double log_prob = GetLogProb(key);  // immediately returns if we already have it NOTE all the sequences in <seq_info_[key]> are already the same length, since we've already merged them
+    if(debug)
+      cout << "  " << log_prob << "  " << key << endl;
+    total_log_prob = AddWithMinusInfinities(total_log_prob, log_prob);
+  }
+  if(debug)
+    cout << "  total: " << total_log_prob << endl;
+  return total_log_prob;
+}
+
+// ----------------------------------------------------------------------------------------
+void Glomerator::PrintPartition(Partition &partition, string extrastr) {
+  const char *extra_cstr(extrastr.c_str());  // dammit I shouldn't need this line
+  printf("    %-8.2f %s partition\n", LogProbOfPartition(partition), extra_cstr);
+  for(auto &key : partition)
+    cout << "          " << key << endl;
+}
+
+// ----------------------------------------------------------------------------------------
+void Glomerator::WriteStatus(ClusterPath *path) {
+  time_t current_time;
+  time(&current_time);
+  if(difftime(current_time, last_status_write_time_) > 300) {  // write something every five minutes
+    char buffer[200];
+    strftime(buffer, 200, "%b %d %T", localtime(&current_time));  // %H:%M
+    fprintf(progress_file_, "      %s    %4d clusters    fwd %-4d   vtb %-4d\n", buffer, (int)path->CurrentPartition().size(), n_fwd_calculated_, n_vtb_calculated_);
+
+    fprintf(progress_file_, "%s\n", ClusterSizeString(path).c_str());
+
+    fflush(progress_file_);
+    last_status_write_time_ = current_time;
+  }
+}
+
+// ----------------------------------------------------------------------------------------
+string Glomerator::ParentalString(pair<string, string> *parents) {
+  if(CountMembers(parents->first) > 5 || CountMembers(parents->second) > 5) {
+    return to_string(CountMembers(parents->first)) + " and " + to_string(CountMembers(parents->second));
+  } else {
+    return parents->first + " and " + parents->second;
+  }
+}
+
+// ----------------------------------------------------------------------------------------
+// count the number of members in a cluster's colon-separated name string
+int Glomerator::CountMembers(string namestr) {
+  int n_colons = (int)count(namestr.begin(), namestr.end(), ':');
+  return n_colons + 1;
+}
+
+// ----------------------------------------------------------------------------------------
+string Glomerator::ClusterSizeString(ClusterPath *path) {
+  vector<int> cluster_sizes;
+  for(auto &cluster : path->CurrentPartition()) {
+    cluster_sizes.push_back(CountMembers(cluster));
+  }
+  sort(cluster_sizes.begin(), cluster_sizes.end());
+  reverse(cluster_sizes.begin(), cluster_sizes.end());
+  string return_str("          clusters: ");
+  for(size_t is=0; is<cluster_sizes.size(); ++is)
+    return_str += " "  + to_string(cluster_sizes[is]);
+  return return_str;
+}
+
+// ----------------------------------------------------------------------------------------
+string Glomerator::JoinNames(string name1, string name2, string delimiter) {
+  vector<string> names{name1, name2};
+  sort(names.begin(), names.end());  // NOTE this doesn't sort *within* name1 or name2 when they're already comprised of several uids. In principle this will lead to unnecessary cache misses (if we later arrive at the same combination of sequences from a different starting point). In practice, this is very unlikely (unless we're dong smc) since we've already merged the constituents of name1 and name2 and we can't unmerge them.
+  return names[0] + delimiter + names[1];
+}
+
+// ----------------------------------------------------------------------------------------
+string Glomerator::JoinNameStrings(vector<Sequence> &strlist, string delimiter) {
+  string return_str;
+  for(size_t is=0; is<strlist.size(); ++is) {
+    if(is > 0)
+      return_str += delimiter;
+    return_str += strlist[is].name();
+  }
+  return return_str;
+}
+
+// ----------------------------------------------------------------------------------------
+string Glomerator::JoinSeqStrings(vector<Sequence> &strlist, string delimiter) {
+  string return_str;
+  for(size_t is=0; is<strlist.size(); ++is) {
+    if(is > 0)
+      return_str += delimiter;
+    return_str += strlist[is].undigitized();
+  }
+  return return_str;
+}
+
+// ----------------------------------------------------------------------------------------
 double Glomerator::NaiveHfrac(string key_a, string key_b) {
   string joint_key = JoinNames(key_a, key_b);  // NOTE since the cache is indexed by the joint key, this assumes we can arrive at this cluster via only one path. Which should be ok.
   if(naive_hfracs_.count(joint_key))  // if we've already calculated this distance
@@ -376,15 +414,6 @@ double Glomerator::NaiveHfrac(string key_a, string key_b) {
   naive_hfracs_[joint_key] = distance / double(len_excluding_ambigs);
 
   return naive_hfracs_[joint_key];
-}
-
-// ----------------------------------------------------------------------------------------
-string Glomerator::ParentalString(pair<string, string> *parents) {
-  if(CountMembers(parents->first) > 5 || CountMembers(parents->second) > 5) {
-    return to_string(CountMembers(parents->first)) + " and " + to_string(CountMembers(parents->second));
-  } else {
-    return parents->first + " and " + parents->second;
-  }
 }
 
 // ----------------------------------------------------------------------------------------
@@ -489,8 +518,10 @@ double Glomerator::GetLogProb(string name) {
 
   string name_to_calc = GetNameToCalculate(name);  // can be (usually is) equal to name
 
-  if(log_probs_.count(name_to_calc) == 0)
-    log_probs_[name_to_calc] = CalculateLogProb(name_to_calc);  // NOTE this should be the *only* place (besides cache reading) that log_probs_ gets modified
+  if(log_probs_.count(name_to_calc) == 0) {
+    double TMPlb = CalculateLogProb(name_to_calc);  // NOTE this should be the *only* place (besides cache reading) that log_probs_ gets modified
+    log_probs_[name_to_calc] = TMPlb;  // TODO remove tmp variable
+  }
 
   if(name_to_calc != name) {
     double factor = double(CountMembers(name)) / CountMembers(name_to_calc);
@@ -633,35 +664,6 @@ pair<double, Query> *Glomerator::ChooseRandomMerge(vector<pair<double, Query> > 
   }
 
   throw runtime_error("fell through in Glomerator::ChooseRandomMerge");
-}
-
-// ----------------------------------------------------------------------------------------
-string Glomerator::JoinNames(string name1, string name2, string delimiter) {
-  vector<string> names{name1, name2};
-  sort(names.begin(), names.end());  // NOTE this doesn't sort *within* name1 or name2 when they're already comprised of several uids. In principle this will lead to unnecessary cache misses (if we later arrive at the same combination of sequences from a different starting point). In practice, this is very unlikely (unless we're dong smc) since we've already merged the constituents of name1 and name2 and we can't unmerge them.
-  return names[0] + delimiter + names[1];
-}
-
-// ----------------------------------------------------------------------------------------
-string Glomerator::JoinNameStrings(vector<Sequence> &strlist, string delimiter) {
-  string return_str;
-  for(size_t is=0; is<strlist.size(); ++is) {
-    if(is > 0)
-      return_str += delimiter;
-    return_str += strlist[is].name();
-  }
-  return return_str;
-}
-
-// ----------------------------------------------------------------------------------------
-string Glomerator::JoinSeqStrings(vector<Sequence> &strlist, string delimiter) {
-  string return_str;
-  for(size_t is=0; is<strlist.size(); ++is) {
-    if(is > 0)
-      return_str += delimiter;
-    return_str += strlist[is].undigitized();
-  }
-  return return_str;
 }
 
 // ----------------------------------------------------------------------------------------
@@ -819,6 +821,7 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
   }
 }
 
+// NOTE don't remove these (yet, at least)
 // // ----------------------------------------------------------------------------------------
 // ClusterPair Glomerator::GetClustersToMergeForNaiveSeqGlomerate(set<vector<string> > &clusters, int max_per_cluster, bool merge_whatever_you_got) {
 //   double smallest_min_distance(9999);
