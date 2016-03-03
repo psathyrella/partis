@@ -406,7 +406,7 @@ string &Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents) {
     return naive_seqs_[queries];
   }
 
-  string queries_to_calc = GetNaiveSeqNameTranslation(queries, parents);
+  string queries_to_calc = GetNaiveSeqNameToCalculate(queries, parents);
 
   if(naive_seqs_.count(queries_to_calc) == 0)
     naive_seqs_[queries_to_calc] = CalculateNaiveSeq(queries_to_calc);
@@ -463,7 +463,7 @@ pair<string, vector<Sequence> > Glomerator::ChooseSubsetOfNames(string names, in
 }
 
 // ----------------------------------------------------------------------------------------
-string Glomerator::GetNameTranslation(string actual_names) {
+string Glomerator::GetNameToCalculate(string actual_names) {
   int n_max(args_->biggest_cluster_to_calculate());  // if cluster is more than half again larger than this, replace it with a cluster of this size
   if(CountMembers(actual_names) > 1.5 * n_max) {
     pair<string, vector<Sequence> > substuff = ChooseSubsetOfNames(actual_names, n_max);
@@ -483,14 +483,13 @@ string Glomerator::GetNameTranslation(string actual_names) {
 }
 
 // ----------------------------------------------------------------------------------------
-string Glomerator::GetNaiveSeqNameTranslation(string actual_names, pair<string, string> *parents) {
-  if(naive_seqs_.count(actual_names)) {
+string Glomerator::GetNaiveSeqNameToCalculate(string actual_names, pair<string, string> *parents) {
+  if(naive_seqs_.count(actual_names))
     return actual_names;
-  }
 
   if(parents != nullptr) {
-    string pfirst_translation = GetNaiveSeqNameTranslation(parents->first);
-    string psecond_translation = GetNaiveSeqNameTranslation(parents->second);
+    string pfirst_translation = GetNaiveSeqNameToCalculate(parents->first);
+    string psecond_translation = GetNaiveSeqNameToCalculate(parents->second);
 
     // if one of the clusters is waaaaaayy bigger than the other, the merged naive seq is unlikely to change (note that this could get us in trouble in situations where we add many many many singletons onto a large cluster)
     double max_factor = 20.;
@@ -516,7 +515,7 @@ double Glomerator::GetLogProb(string name) {
   if(log_probs_.count(name))  // already did it
     return log_probs_[name];
 
-  string name_to_calc = GetNameTranslation(name);  // can be (usually is) equal to name
+  string name_to_calc = GetNameToCalculate(name);  // can be (usually is) equal to name
 
   if(log_probs_.count(name_to_calc) == 0)
     log_probs_[name_to_calc] = CalculateLogProb(name_to_calc);  // NOTE this should be the *only* place (besides cache reading) that log_probs_ gets modified

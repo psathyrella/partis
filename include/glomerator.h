@@ -68,9 +68,11 @@ private:
 
   string &GetNaiveSeq(string key, pair<string, string> *parents=nullptr);
   string &CalculateNaiveSeq(string key);
-  string GetNaiveSeqNameTranslation(string actual_names, pair<string, string> *parents=nullptr);
+  string GetNaiveSeqNameToCalculate(string actual_names, pair<string, string> *parents=nullptr);
   double GetLogProb(string name);
   double CalculateLogProb(string name);
+  pair<string, vector<Sequence> > ChooseSubsetOfNames(string names, int n_max);
+  string GetNameToCalculate(string actual_names);  // convert between the actual queries/key we're interested in and the one we're going to calculate
 
   vector<Sequence> MergeSeqVectors(string name_a, string name_b);
   bool SameLength(vector<Sequence> &seqs, bool debug=false);
@@ -81,9 +83,6 @@ private:
   bool LikelihoodRatioTooSmall(double lratio, int candidate_cluster_size);
   Query ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_lratio);
   pair<double, Query> *ChooseRandomMerge(vector<pair<double, Query> > &potential_merges, smc::rng *rgen);
-
-  pair<string, vector<Sequence> > ChooseSubsetOfNames(string names, int n_max);
-  string GetNameTranslation(string actual_names);  // convert between the actual queries/key we're interested in and the one we're going to calculate
 
   Track *track_;
   Args *args_;
