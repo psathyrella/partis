@@ -425,56 +425,6 @@ void Glomerator::ReplaceNaiveSeq(string queries, string parentname) {
 }
 
 // ----------------------------------------------------------------------------------------
-string &Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents) {
-  if(naive_seqs_.count(queries))
-    return naive_seqs_[queries];
-
-  // if we have naive seqs for both the parental clusters and they're the same, no reason to calculate this naive seq
-  if(parents != nullptr && GetNaiveSeq(parents->first) == GetNaiveSeq(parents->second)) {
-    ReplaceNaiveSeq(queries, parents->first);
-    return naive_seqs_[queries];
-  }
-
-  string queries_to_calc = GetNameToCalculate(queries);
-
-  if(naive_seqs_.count(queries_to_calc) == 0)
-    naive_seqs_[queries_to_calc] = CalculateNaiveSeq(queries_to_calc);
-
-  if(queries_to_calc != queries)
-    naive_seqs_[queries] = naive_seqs_[queries_to_calc];
-
-  return naive_seqs_[queries];
-}
-
-// ----------------------------------------------------------------------------------------
-string &Glomerator::CalculateNaiveSeq(string queries) {
-  // NOTE do *not* call this from anywhere except GetNaiveSeq()
-  assert(naive_seqs_.count(queries) == 0);  // TODO remove me
-
-  ++n_vtb_calculated_;
-
-  Result result(kbinfo_[queries]);
-  bool stop(false);
-  do {
-    // assert(SameLength(seq_info_[queries], true));
-    result = vtb_dph_.Run(seq_info_[queries], kbinfo_[queries], only_genes_[queries], mute_freqs_[queries]);  // NOTE the sequences in <seq_info_[queries]> should already be the same length, since they've already been merged
-    kbinfo_[queries] = result.better_kbounds();
-    stop = !result.boundary_error() || result.could_not_expand();  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
-    if(args_->debug() && !stop)
-      cout << "             expand and run again" << endl;  // note that subsequent runs are much faster than the first one because of chunk caching
-  } while(!stop);
-
-  if(result.events_.size() < 1)
-    throw runtime_error("no events for queries " + queries + "\n");
-  events_[queries] = result.events_[0];  // NOTE keeping separate from naive_seqs_ (at least for now) because I only need the full event for the final partition (UPDATE or do I only use it to write annotations)
-  // TODO get events_ on same footing as naive_seqs_
-  if(result.boundary_error())
-    errors_[queries] = errors_[queries] + ":boundary";
-
-  return result.events_[0].naive_seq_;
-}
-
-// ----------------------------------------------------------------------------------------
 pair<string, vector<Sequence> > Glomerator::ChooseSubsetOfNames(string names, int n_max) {
 
   vector<string> subnames;
@@ -512,6 +462,28 @@ string Glomerator::GetNameToCalculate(string actual_names) {
 }
 
 // ----------------------------------------------------------------------------------------
+string &Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents) {
+  if(naive_seqs_.count(queries))
+    return naive_seqs_[queries];
+
+  // if we have naive seqs for both the parental clusters and they're the same, no reason to calculate this naive seq
+  if(parents != nullptr && GetNaiveSeq(parents->first) == GetNaiveSeq(parents->second)) {
+    ReplaceNaiveSeq(queries, parents->first);
+    return naive_seqs_[queries];
+  }
+
+  string queries_to_calc = GetNameToCalculate(queries);
+
+  if(naive_seqs_.count(queries_to_calc) == 0)
+    naive_seqs_[queries_to_calc] = CalculateNaiveSeq(queries_to_calc);
+
+  if(queries_to_calc != queries)
+    naive_seqs_[queries] = naive_seqs_[queries_to_calc];
+
+  return naive_seqs_[queries];
+}
+
+// ----------------------------------------------------------------------------------------
 double Glomerator::GetLogProb(string name) {
   if(log_probs_.count(name))  // already did it
     return log_probs_[name];
@@ -531,6 +503,34 @@ double Glomerator::GetLogProb(string name) {
   }
 
   return log_probs_[name];
+}
+
+// ----------------------------------------------------------------------------------------
+string &Glomerator::CalculateNaiveSeq(string queries) {
+  // NOTE do *not* call this from anywhere except GetNaiveSeq()
+  assert(naive_seqs_.count(queries) == 0);  // TODO remove me
+
+  ++n_vtb_calculated_;
+
+  Result result(kbinfo_[queries]);
+  bool stop(false);
+  do {
+    // assert(SameLength(seq_info_[queries], true));
+    result = vtb_dph_.Run(seq_info_[queries], kbinfo_[queries], only_genes_[queries], mute_freqs_[queries]);  // NOTE the sequences in <seq_info_[queries]> should already be the same length, since they've already been merged
+    kbinfo_[queries] = result.better_kbounds();
+    stop = !result.boundary_error() || result.could_not_expand();  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
+    if(args_->debug() && !stop)
+      cout << "             expand and run again" << endl;  // note that subsequent runs are much faster than the first one because of chunk caching
+  } while(!stop);
+
+  if(result.events_.size() < 1)
+    throw runtime_error("no events for queries " + queries + "\n");
+  events_[queries] = result.events_[0];  // NOTE keeping separate from naive_seqs_ (at least for now) because I only need the full event for the final partition (UPDATE or do I only use it to write annotations)
+  // TODO get events_ on same footing as naive_seqs_
+  if(result.boundary_error())
+    errors_[queries] = errors_[queries] + ":boundary";
+
+  return result.events_[0].naive_seq_;
 }
 
 // ----------------------------------------------------------------------------------------
