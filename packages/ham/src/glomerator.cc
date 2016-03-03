@@ -425,40 +425,40 @@ void Glomerator::ReplaceNaiveSeq(string queries, string parentname) {
 }
 
 // ----------------------------------------------------------------------------------------
-pair<string, vector<Sequence> > Glomerator::ChooseSubsetOfNames(string names, int n_max) {
+pair<string, vector<Sequence> > Glomerator::ChooseSubsetOfNames(string queries, int n_max) {
 
-  vector<string> subnames;
+  vector<string> subqueries;
   vector<Sequence> subseqs;
-  vector<string> namevector(SplitString(names, ":"));
+  vector<string> namevector(SplitString(queries, ":"));
 
   for(size_t iname=0; iname<unsigned(n_max); ++iname) {
     int ichosen = rand() % namevector.size();
-    subnames.push_back(namevector[ichosen]);
-    subseqs.push_back(seq_info_[names][ichosen]);
+    subqueries.push_back(namevector[ichosen]);
+    subseqs.push_back(seq_info_[queries][ichosen]);
   }
 
-  pair<string, vector<Sequence> > substuff(JoinStrings(subnames), subseqs);
+  pair<string, vector<Sequence> > substuff(JoinStrings(subqueries), subseqs);
   return substuff;
 }
 
 // ----------------------------------------------------------------------------------------
-string Glomerator::GetNameToCalculate(string actual_names) {
+string Glomerator::GetNameToCalculate(string actual_queries) {
   int n_max(args_->biggest_cluster_to_calculate());  // if cluster is more than half again larger than this, replace it with a cluster of this size
-  if(CountMembers(actual_names) > 1.5 * n_max) {
-    pair<string, vector<Sequence> > substuff = ChooseSubsetOfNames(actual_names, n_max);
-    string subnames(substuff.first);
-    seq_info_[subnames] = substuff.second;
+  if(CountMembers(actual_queries) > 1.5 * n_max) {
+    pair<string, vector<Sequence> > substuff = ChooseSubsetOfNames(actual_queries, n_max);
+    string subqueries(substuff.first);
+    seq_info_[subqueries] = substuff.second;
     if(args_->debug() > 0)
-      cout <<  "   replacing " << actual_names << " --> " << subnames << endl;
-    kbinfo_[subnames] = kbinfo_[actual_names];  // just use the entire/super cluster for this stuff. It's just overly conservative (as long as you keep the mute freqs the same)
-    mute_freqs_[subnames] = mute_freqs_[actual_names];
-    only_genes_[subnames] = only_genes_[actual_names];
+      cout <<  "   replacing " << actual_queries << " --> " << subqueries << endl;
+    kbinfo_[subqueries] = kbinfo_[actual_queries];  // just use the entire/super cluster for this stuff. It's just overly conservative (as long as you keep the mute freqs the same)
+    mute_freqs_[subqueries] = mute_freqs_[actual_queries];
+    only_genes_[subqueries] = only_genes_[actual_queries];
 
-    return subnames;
+    return subqueries;
   }
 
-  // falling through to here means we want to just use <actual_names>
-  return actual_names;
+  // falling through to here means we want to just use <actual_queries>
+  return actual_queries;
 }
 
 // ----------------------------------------------------------------------------------------
