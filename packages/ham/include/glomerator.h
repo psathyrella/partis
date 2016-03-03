@@ -68,7 +68,6 @@ private:
 
   string &GetNaiveSeq(string key, pair<string, string> *parents=nullptr);
   string &CalculateNaiveSeq(string key);
-  string GetNaiveSeqNameToCalculate(string actual_names, pair<string, string> *parents=nullptr);
   double GetLogProb(string name);
   double CalculateLogProb(string name);
   pair<string, vector<Sequence> > ChooseSubsetOfNames(string names, int n_max);

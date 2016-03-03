@@ -406,7 +406,7 @@ string &Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents) {
     return naive_seqs_[queries];
   }
 
-  string queries_to_calc = GetNaiveSeqNameToCalculate(queries, parents);
+  string queries_to_calc = GetNameToCalculate(queries);
 
   if(naive_seqs_.count(queries_to_calc) == 0)
     naive_seqs_[queries_to_calc] = CalculateNaiveSeq(queries_to_calc);
@@ -476,34 +476,6 @@ string Glomerator::GetNameToCalculate(string actual_names) {
     only_genes_[subnames] = only_genes_[actual_names];
 
     return subnames;
-  }
-
-  // falling through to here means we want to just use <actual_names>
-  return actual_names;
-}
-
-// ----------------------------------------------------------------------------------------
-string Glomerator::GetNaiveSeqNameToCalculate(string actual_names, pair<string, string> *parents) {
-  if(naive_seqs_.count(actual_names))
-    return actual_names;
-
-  if(parents != nullptr) {
-    string pfirst_translation = GetNaiveSeqNameToCalculate(parents->first);
-    string psecond_translation = GetNaiveSeqNameToCalculate(parents->second);
-
-    // if one of the clusters is waaaaaayy bigger than the other, the merged naive seq is unlikely to change (note that this could get us in trouble in situations where we add many many many singletons onto a large cluster)
-    double max_factor = 20.;
-    double size_ratio = double(seq_info_[parents->first].size()) / seq_info_[parents->second].size();
-    if(size_ratio > max_factor) {
-      cout << "     first parent much larger: " << ParentalString(parents) << "  (ratio " << size_ratio << ")" << endl;
-      ReplaceNaiveSeq(actual_names, pfirst_translation);
-      return pfirst_translation;
-    }
-    if(1. / size_ratio > max_factor) {
-      cout << "     second parent much larger: " << ParentalString(parents) << "  (ratio " << size_ratio << ")" << endl;
-      ReplaceNaiveSeq(actual_names, psecond_translation);
-      return psecond_translation;
-    }
   }
 
   // falling through to here means we want to just use <actual_names>
