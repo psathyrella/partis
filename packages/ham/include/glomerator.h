@@ -63,11 +63,15 @@ private:
   int CountMembers(string namestr);
   string ClusterSizeString(ClusterPath *path);
   void WriteStatus(ClusterPath *path);  // write some progress info to file
+
   double NaiveHfrac(string key_a, string key_b);
+
   string &GetNaiveSeq(string key, pair<string, string> *parents=nullptr);
+  string &CalculateNaiveSeq(string key);
   string GetNaiveSeqNameTranslation(string actual_names, pair<string, string> *parents=nullptr);
   double GetLogProb(string name);
   double CalculateLogProb(string name);
+
   vector<Sequence> MergeSeqVectors(string name_a, string name_b);
   bool SameLength(vector<Sequence> &seqs, bool debug=false);
   Query GetMergedQuery(string name_a, string name_b);

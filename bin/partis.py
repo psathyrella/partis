@@ -55,6 +55,7 @@ if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
     print '    TODO fix WriteAnnotations in glomerator (and/i.e. clean up events_ filling, in particular in ReplaceNaiveSeq)'
     print '    TODO besides "replacing" clusters with smaller subsets, you should, when making the merged cluster object, not recalculate unless it\'s really different'
     print '    TODO make things completely assertion/exception safe, i.e. if you catch one, that causes a failure on that one sequence only'
+    print '    TODO remove todos in glomerator (well, some of them)'
 
 # input and output stuff
 parser.add_argument('--seqfile', help='input sequence file')
