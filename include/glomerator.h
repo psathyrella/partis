@@ -71,8 +71,8 @@ private:
   double NaiveHfrac(string key_a, string key_b);
 
   void ReplaceNaiveSeq(string queries, string parentname);
-  pair<string, vector<Sequence> > ChooseSubsetOfNames(string names, int n_max);
-  string GetNameToCalculate(string actual_names);  // convert between the actual queries/key we're interested in and the one we're going to calculate
+  pair<string, vector<Sequence> > ChooseSubsetOfNames(string queries, int n_max);
+  string GetNameToCalculate(string actual_queries);  // convert between the actual queries/key we're interested in and the one we're going to calculate
   string &GetNaiveSeq(string key, pair<string, string> *parents=nullptr);
   double GetLogProb(string name);
   string &CalculateNaiveSeq(string key);
