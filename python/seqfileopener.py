@@ -87,6 +87,9 @@ def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, 
         if reco_ids is not None and line['reco_id'] not in reco_ids:
             continue
 
+        if unique_id in input_info:
+            raise Exception('found id %s twice in file %s' % (unique_id, fname))
+
         input_info[unique_id] = {'unique_id' : unique_id, 'seq' : line[internal_seq_column]}
 
         if n_queries == 0 and is_data and 'v_gene' in line:
@@ -100,7 +103,7 @@ def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, 
                 utils.add_implicit_info(glfo, reco_info[unique_id], multi_seq=False, existing_implicit_keys=('cdr3_length', ))  # single seqs, since each seq is on its own line in the file
 
         n_queries += 1
-        if n_max_queries > 0 and n_queries > n_max_queries:
+        if n_max_queries > 0 and n_queries >= n_max_queries:
             break
 
     if len(input_info) == 0:
