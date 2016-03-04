@@ -1221,7 +1221,10 @@ class PartitionDriver(object):
         #     self.read_cachefile(self.hmm_cachefname)
 
         if self.args.action != 'partition':
-            self.read_annotation_output(self.hmm_outfname, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir)
+            if self.args.action == 'run-viterbi':
+                self.read_annotation_output(self.hmm_outfname, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir)
+            elif self.args.action == 'run-forward':
+                self.read_forward_output(self.hmm_outfname)
 
         if not self.args.no_clean and os.path.exists(self.hmm_infname):
             os.remove(self.hmm_infname)
@@ -1254,6 +1257,26 @@ class PartitionDriver(object):
                 boundary_error_queries.append(':'.join([uid for uid in line['unique_ids']]))
             else:  # we don't expect anything except boundary errors a.t.m.
                 assert len(line['errors']) == 0
+
+    # ----------------------------------------------------------------------------------------
+    def read_forward_output(self, annotation_fname):
+        probs = OrderedDict()
+        with opener('r')(annotation_fname) as csvfile:
+            reader = csv.DictReader(csvfile)
+            for line in reader:
+                if line['errors'] != '':
+                    print '  bcrham errors (%s) for %s' % (line['errors'], line['unique_ids'])
+                probs[line['unique_ids']] = float(line['logprob'])
+
+        if self.args.outfname is not None:
+            with open(self.args.outfname, 'w') as outfile:
+                writer = csv.DictWriter(outfile, ('unique_ids', 'logprob'))
+                writer.writeheader()
+                for uids, prob in probs.items():
+                    writer.writerow({'unique_ids' : uids, 'logprob' : prob})
+
+        if not self.args.no_clean:
+            os.remove(annotation_fname)
 
     # ----------------------------------------------------------------------------------------
     def read_annotation_output(self, annotation_fname, count_parameters=False, parameter_out_dir=None):
