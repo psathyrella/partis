@@ -1189,7 +1189,7 @@ class PartitionDriver(object):
                         nsets = itertools.combinations(self.sw_info['queries'], self.args.n_sets)
                     else:  # put the first n together, and the second group of n (note that self.sw_info['queries'] is a list)
                         nsets = []
-                        keylist = self.sw_info['queries']
+                        keylist = [k for k in self.input_info.keys() if k in self.sw_info['queries']]  # we want the queries from sw (to skip failures), but the order from input_info
                         this_set = []
                         for iquery in range(len(keylist)):
                             if iquery % self.args.n_sets == 0:  # every nth query, start a new group

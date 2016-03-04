@@ -56,6 +56,7 @@ if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
     print '    TODO besides "replacing" clusters with smaller subsets, you should, when making the merged cluster object, not recalculate unless it\'s really different'
     print '    TODO make things completely assertion/exception safe, i.e. if you catch one, that causes a failure on that one sequence only'
     print '    TODO remove todos in glomerator (well, some of them)'
+    print '    TODO todo in reset_effective_erosions_and_effective_insertions()'
 
 # input and output stuff
 parser.add_argument('--seqfile', help='input sequence file')
