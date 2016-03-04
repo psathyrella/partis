@@ -169,13 +169,13 @@ int main(int argc, const char * argv[]) {
       result = dph.Run(qry_seqs, kbounds, args.str_lists_["only_genes"][iqry], mean_mute_freq);
       numerator = result.total_score();
       lratio = numerator;
-      if(args.algorithm() == "forward" && qry_seqs.size() > 1) {  // calculate factors for denominator
-        for(size_t iseq = 0; iseq < qry_seqs.size(); ++iseq) {
-          denom_results[iseq] = dph.Run(qry_seqs[iseq], kbounds, args.str_lists_["only_genes"][iqry], mean_mute_freq);  // result for a single sequence  TODO hm, wait, should this be the individual mute freqs?
-          single_scores[iseq] = denom_results[iseq].total_score();
-          lratio -= single_scores[iseq];
-        }
-      }
+      // if(args.algorithm() == "forward" && qry_seqs.size() > 1) {  // calculate factors for denominator
+      //   for(size_t iseq = 0; iseq < qry_seqs.size(); ++iseq) {
+      //     denom_results[iseq] = dph.Run(qry_seqs[iseq], kbounds, args.str_lists_["only_genes"][iqry], mean_mute_freq);  // result for a single sequence  TODO hm, wait, should this be the individual mute freqs?
+      //     single_scores[iseq] = denom_results[iseq].total_score();
+      //     lratio -= single_scores[iseq];
+      //   }
+      // }
 
       kbounds = result.better_kbounds();
       for(auto & res : denom_results)

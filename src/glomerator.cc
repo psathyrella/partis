@@ -220,7 +220,6 @@ void Glomerator::WriteCachedLogProbs() {
     keys_to_cache.insert(kv.first);
   }
   if(args_->cache_naive_hfracs()) {
-    throw runtime_error("you really don't want to do that -- this has totally different keys because it's fundamentally *pairs* of clusters");
     for(auto &kv : naive_hfracs_) {
       if(args_->only_cache_new_vals() && initial_naive_hfracs_.count(kv.first))
 	continue;
@@ -448,8 +447,8 @@ string Glomerator::GetNameToCalculate(string actual_queries) {
     pair<string, vector<Sequence> > substuff = ChooseSubsetOfNames(actual_queries, n_max);
     string subqueries(substuff.first);
     seq_info_[subqueries] = substuff.second;
-    if(args_->debug() > 0)
-      cout <<  "   replacing " << actual_queries << " --> " << subqueries << endl;
+    // if(args_->debug() > 0)
+    cout <<  "   replacing " << actual_queries << " --> " << subqueries << endl;
     kbinfo_[subqueries] = kbinfo_[actual_queries];  // just use the entire/super cluster for this stuff. It's just overly conservative (as long as you keep the mute freqs the same)
     mute_freqs_[subqueries] = mute_freqs_[actual_queries];
     only_genes_[subqueries] = only_genes_[actual_queries];
