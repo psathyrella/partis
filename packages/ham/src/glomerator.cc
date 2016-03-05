@@ -495,6 +495,10 @@ double Glomerator::GetLogProb(string name) {
   }
 
   if(name_to_calc != name) {
+    // double nset(CountMembers(name));
+    // double factor(1.);
+    // if(args_->logprob_ratio_threshold() == 0.)
+    //   factor = nset / (1. - 0.225 / pow(nset, 0.9));
     double factor = double(CountMembers(name)) / CountMembers(name_to_calc);
     log_probs_[name] = factor * log_probs_[name_to_calc];
     if(args_->debug() > 0)
@@ -505,7 +509,7 @@ double Glomerator::GetLogProb(string name) {
 }
 
 // ----------------------------------------------------------------------------------------
-string &Glomerator::CalculateNaiveSeq(string queries) {
+string Glomerator::CalculateNaiveSeq(string queries) {
   // NOTE do *not* call this from anywhere except GetNaiveSeq()
   assert(naive_seqs_.count(queries) == 0);  // TODO remove me
 
