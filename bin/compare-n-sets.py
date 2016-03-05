@@ -60,7 +60,7 @@ def run_inference(algorithm):
         cmd = base_cmd + ' --n-sets ' + str(n_set) + ' --seqfile ' + get_subfname(n_set)
         cmd += ' --plotdir ' + baseplotdir + '/' + str(n_set) + ' --n-procs ' + str(n_procs)
         cmd += ' --workdir /fh/fast/matsen_e/dralph/work/partis-dev/_tmp/' + str(random.randint(0, 99999))
-        cmd += ' --outfname ' + str(n_set) + '-' + algorithm + '.csv'
+        cmd += ' --outfname ' + outputdir + '/' + str(n_set) + '-' + algorithm + '.csv'
         print cmd
         Popen(cmd.split())
         time.sleep(0.5)
@@ -81,24 +81,26 @@ def peruse_naive_seqs():
     fig, ax = plotting.mpl_init()
     # hall.mpl_plot(ax)
     ax.plot(n_set_list, means, marker='.')
-    plotting.mpl_finish(ax, baseplotdir, 'means', xlabel='N simultaneous seqs', ylabel='mean hamming to true naive')
+    plotting.mpl_finish(ax, baseplotdir, 'means', xlabel='N simultaneous seqs', ylabel='mean hamming to true naive', ybounds=(0, None))
 
 # ----------------------------------------------------------------------------------------
-def get_ratios(lps, i_baseline):
-    ratios = []
+def get_deviations(lps, i_baseline, signed=False):
+    deviations = []
     for n_set in n_set_list:
         vals = []
         # print n_set
         for reco_id in lps[n_set]:
             val = lps[n_set][reco_id]
             ref_val = lps[n_set_list[i_baseline]][reco_id]
-            ratio = 0.
+            deviation = 0.
             if ref_val != 0.:
-                ratio = val / ref_val
-            # print '  %10.4f  %10.4f  %8.4f' % (val, ref_val, ratio)
-            vals.append(ratio)
-        ratios.append(sum(vals) / float(len(vals)))
-    return ratios
+                deviation = (val - ref_val) / ref_val
+            if not signed:
+                deviation = abs(deviation)
+            # print '  %10.4f  %10.4f  %8.4f' % (val, ref_val, deviation)
+            vals.append(deviation)
+        deviations.append(sum(vals) / float(len(vals)))
+    return deviations
 
 # ----------------------------------------------------------------------------------------
 def func(n, a, b):
@@ -114,7 +116,7 @@ def peruse_forward_scores():
         # if n_set != 5:
         #     continue
         logprobs[n_set], partialcorr_logprobs[n_set], corr_logprobs[n_set] = OrderedDict(), OrderedDict(), OrderedDict()
-        with open(str(n_set) + '-forward.csv') as csvfile:
+        with open(outputdir + '/' + str(n_set) + '-forward.csv') as csvfile:
             reader = csv.DictReader(csvfile)
             for line in reader:
                 uidlist = line['unique_ids'].split(':')
@@ -128,31 +130,41 @@ def peruse_forward_scores():
                 factor = 1. / n_set
                 partialcorr_logprobs[n_set][reco_id] = factor * float(line['logprob'])
 
-                factor = (1. - 0.225 / pow(float(n_set), 0.9)) / n_set
+                factor = (1. - 0.24 / pow(float(n_set), 0.9)) / n_set
                 # factor = 1. / (0.77547824*n_set + 0.20327936)
                 corr_logprobs[n_set][reco_id] = factor * float(line['logprob'])
 
 
-    i_baseline = 0
-    ratios = get_ratios(logprobs, i_baseline)
-    fit_stuff(n_set_list, ratios)
-    corr_ratios = get_ratios(corr_logprobs, i_baseline)
-    partialcorr_ratios = get_ratios(partialcorr_logprobs, i_baseline)
+    i_baseline = -1
+    deviations = get_deviations(logprobs, i_baseline)
+    # fit_stuff(n_set_list, deviations)
+    partialcorr_deviations = get_deviations(partialcorr_logprobs, i_baseline)
+    signed_partialcorr_deviations = get_deviations(partialcorr_logprobs, i_baseline, signed=True)
+    corr_deviations = get_deviations(corr_logprobs, i_baseline)
+    signed_corr_deviations = get_deviations(corr_logprobs, i_baseline, signed=True)
 
     import plotting
     fig, ax = plotting.mpl_init()
-    ax.plot(n_set_list, ratios, marker='.')
-    plotting.mpl_finish(ax, baseplotdir, 'forwards', xlabel='N simultaneous seqs', ylabel='log prob ratio to ' + str(n_set_list[i_baseline]))  #, ybounds=(-0.02, 0.02))
+    ax.plot(n_set_list, deviations, marker='.')
+    plotting.mpl_finish(ax, baseplotdir, 'forwards', xlabel='N simultaneous seqs', ylabel='log prob deviation to ' + str(n_set_list[i_baseline]))  #, ybounds=(-0.02, 0.02))
+
+    # fig, ax = plotting.mpl_init()
+    # ax.plot(n_set_list, partialcorr_deviations, marker='.')
+    # ax.plot([n_set_list[0], n_set_list[-1]], [0, 0])
+    # plotting.mpl_finish(ax, baseplotdir, 'partially-corrected-forwards', xlabel='N simultaneous seqs', ylabel='log prob deviation to ' + str(n_set_list[i_baseline])) #, ybounds=(-0.02, 0.02))
 
     fig, ax = plotting.mpl_init()
-    ax.plot(n_set_list, partialcorr_ratios, marker='.')
+    ax.plot(n_set_list, partialcorr_deviations, marker='.', label='1/n (abs)')
+    ax.plot(n_set_list, signed_partialcorr_deviations, marker='.', label='1/n')
+    ax.plot(n_set_list, corr_deviations, marker='.', label='1/crap (abs)')
+    ax.plot(n_set_list, signed_corr_deviations, marker='.', label='1/crap')
     ax.plot([n_set_list[0], n_set_list[-1]], [0, 0])
-    plotting.mpl_finish(ax, baseplotdir, 'partially-corrected-forwards', xlabel='N simultaneous seqs', ylabel='log prob ratio to ' + str(n_set_list[i_baseline])) #, ybounds=(-0.02, 0.02))
+    plotting.mpl_finish(ax, baseplotdir, 'corrected-forwards', xlabel='N simultaneous seqs', ylabel='log prob deviation to ' + str(n_set_list[i_baseline])) #, ybounds=(-0.02, 0.02))
 
     fig, ax = plotting.mpl_init()
-    ax.plot(n_set_list, corr_ratios, marker='.')
-    ax.plot([n_set_list[0], n_set_list[-1]], [1, 1])
-    plotting.mpl_finish(ax, baseplotdir, 'corrected-forwards', xlabel='N simultaneous seqs', ylabel='log prob ratio to ' + str(n_set_list[i_baseline])) #, ybounds=(-0.02, 0.02))
+    ax.plot(n_set_list, signed_corr_deviations, marker='.')
+    ax.plot([n_set_list[0], n_set_list[-1]], [0, 0])
+    plotting.mpl_finish(ax, baseplotdir, 'signed-corrected-forwards', xlabel='N simultaneous seqs', ylabel='log prob deviation to ' + str(n_set_list[i_baseline])) #, ybounds=(-0.02, 0.02))
 
 # ----------------------------------------------------------------------------------------
 def fit_stuff(xvals, yvals):
@@ -197,9 +209,9 @@ def simulate():
 # simulate()
 # divide_simulation()
 # run_inference('viterbi')
-# peruse_naive_seqs()
+peruse_naive_seqs()
 # run_inference('forward')
-peruse_forward_scores()
+# peruse_forward_scores()
 # xvals = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 15, 20, 25, 50]
 # yvals = [0.0, 0.7653082061900935, 1.5329842153963764, 2.311362454137212, 3.121540811338117, 3.90620744902059, 4.6167805465227065, 5.365305056511266, 6.232965310537493, 6.915898187309928, 7.781688535833085, 10.749505939689282, 14.569377524709266, 18.64614056231728, 38.01829568891039]
 # fit_stuff(xvals, yvals)
