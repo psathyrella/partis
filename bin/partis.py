@@ -58,6 +58,7 @@ if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
     print '    TODO remove todos in glomerator (well, some of them)'
     print '    TODO todo in reset_effective_erosions_and_effective_insertions()'
     print '    TODO whoa, bcrham is still calculating the denominator for the lratio (see above todo as well)'
+    print '    TODO add functional column'
 
 # input and output stuff
 parser.add_argument('--seqfile', help='input sequence file')

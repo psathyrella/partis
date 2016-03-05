@@ -537,7 +537,7 @@ def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, all_info,
     _, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=args.data, n_max_queries=args.n_to_partition)
     if args.count_distances:
         for metric in ['logprob', 'naive_hfrac']:
-            make_distance_plots(args, plotdir, label, n_leaves, mut_mult, seqfname.replace('.csv', '-partition-cache.csv'), reco_info, metric)
+            make_distance_plots(args, plotdir, label, n_leaves, mut_mult, get_outputname(args, label, 'partition', seqfname, hfrac_bounds).replace('.csv', '-cache.csv'), reco_info, metric)
         print '\nTODO why am I returning here?'
         return
 
