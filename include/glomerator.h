@@ -75,7 +75,7 @@ private:
   string GetNameToCalculate(string actual_queries);  // convert between the actual queries/key we're interested in and the one we're going to calculate
   string &GetNaiveSeq(string key, pair<string, string> *parents=nullptr);
   double GetLogProb(string name);
-  string &CalculateNaiveSeq(string key);
+  string CalculateNaiveSeq(string key);
   double CalculateLogProb(string name);
 
   bool SameLength(vector<Sequence> &seqs, bool debug=false);
