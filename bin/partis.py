@@ -59,6 +59,9 @@ if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
     print '    TODO todo in reset_effective_erosions_and_effective_insertions()'
     print '    TODO whoa, bcrham is still calculating the denominator for the lratio (see above todo as well)'
     print '    TODO add functional column'
+    print '    TODO re-profile bcrham'
+    print '    TODO also print how many forward merges'
+    print '    TODO swap name --> queries everywhere in glomerator'
 
 # input and output stuff
 parser.add_argument('--seqfile', help='input sequence file')
