@@ -74,7 +74,7 @@ private:
 
   void ReplaceNaiveSeq(string queries, string parentname);
   pair<string, vector<Sequence> > ChooseSubsetOfNames(string queries, int n_max);
-  string GetNameToCalculate(string actual_queries);  // convert between the actual queries/key we're interested in and the one we're going to calculate
+  string GetNameToCalculate(string actual_queries, int n_max);  // convert between the actual queries/key we're interested in and the one we're going to calculate
   string &GetNaiveSeq(string key, pair<string, string> *parents=nullptr);
   // double NormFactor(string name);
   double GetLogProb(string name);
