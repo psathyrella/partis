@@ -380,13 +380,12 @@ class Tester(object):
             return
 
         print '  %s input partition cache file' % input_stype
-
         def readcache(fname):
             cache = {}
             with open(fname) as cachefile:
                 reader = csv.DictReader(cachefile)
                 for line in reader:
-                    cache[line['unique_ids']] = {'naive_seq' : line['naive_seq'], 'logprob' : float(line['logprob'])}
+                    cache[line['unique_ids']] = {'naive_seq' : None if line['naive_seq'] == '' else line['naive_seq'], 'logprob' : None if line['logprob'] == '' else float(line['logprob'])}
             return cache
 
         refcache = readcache(self.dirs['ref'] + '/' + self.cachefnames[input_stype])
@@ -412,7 +411,7 @@ class Tester(object):
         for uids in refkeys & newkeys:
             refline = refcache[uids]
             newline = newcache[uids]
-            if refline['naive_seq'] != '':
+            if refline['naive_seq'] is not None:
                 n_hammings += 1
                 if len(refline['naive_seq']) == len(newline['naive_seq']):
                     hamming_fraction = utils.hamming_fraction(refline['naive_seq'], newline['naive_seq'])
@@ -421,7 +420,7 @@ class Tester(object):
                         hammings.append(hamming_fraction)
                 else:
                     n_different_length += 1
-            if refline['logprob'] != '':
+            if refline['logprob'] is not None:
                 n_delta_logprobs += 1
                 delta_logprob = abs(float(refline['logprob']) - float(newline['logprob']))
                 if delta_logprob > logprob_eps:
