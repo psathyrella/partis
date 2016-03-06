@@ -101,7 +101,7 @@ private:
 
   int i_initial_partition_;  // index of the next inital partition to grab (for smc stuff)
 
-  map<string, string> name_translations_;
+  // map<string, string> name_translations_;
 
   map<string, vector<Sequence> > seq_info_;  // NOTE it would be more memory-efficient to just keep track of vectors of keys here, and have Glomerator keep all the actual info
   map<string, vector<string> > only_genes_;

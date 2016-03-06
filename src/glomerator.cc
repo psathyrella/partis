@@ -451,9 +451,9 @@ pair<string, vector<Sequence> > Glomerator::ChooseSubsetOfNames(string queries, 
 
 // ----------------------------------------------------------------------------------------
 string Glomerator::GetNameToCalculate(string actual_queries, int n_max) {
-  // NOTE don't need this any more, since we added the seed set above TODO remove it then?
-  if(name_translations_.count(actual_queries))  // make sure we always use the same translation if we already did one
-    return name_translations_[actual_queries];
+  // // NOTE don't need this any more, since we added the seed set above TODO remove it then?
+  // if(name_translations_.count(actual_queries))  // make sure we always use the same translation if we already did one
+  //   return name_translations_[actual_queries];
 
   // if cluster is more than half again larger than n_max, replace it with a cluster of this size
   if(CountMembers(actual_queries) > 1.5 * n_max) {
@@ -466,7 +466,7 @@ string Glomerator::GetNameToCalculate(string actual_queries, int n_max) {
     mute_freqs_[subqueries] = mute_freqs_[actual_queries];
     only_genes_[subqueries] = only_genes_[actual_queries];
 
-    name_translations_[actual_queries] = subqueries;
+    // name_translations_[actual_queries] = subqueries;
     return subqueries;
   }
 
