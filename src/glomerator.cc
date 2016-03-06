@@ -450,12 +450,12 @@ pair<string, vector<Sequence> > Glomerator::ChooseSubsetOfNames(string queries, 
 }
 
 // ----------------------------------------------------------------------------------------
-string Glomerator::GetNameToCalculate(string actual_queries) {
+string Glomerator::GetNameToCalculate(string actual_queries, int n_max) {
   // NOTE don't need this any more, since we added the seed set above TODO remove it then?
   if(name_translations_.count(actual_queries))  // make sure we always use the same translation if we already did one
     return name_translations_[actual_queries];
 
-  int n_max(args_->biggest_cluster_to_calculate());  // if cluster is more than half again larger than this, replace it with a cluster of this size
+  // if cluster is more than half again larger than n_max, replace it with a cluster of this size
   if(CountMembers(actual_queries) > 1.5 * n_max) {
     pair<string, vector<Sequence> > substuff = ChooseSubsetOfNames(actual_queries, n_max);
     string subqueries(substuff.first);
@@ -485,7 +485,7 @@ string &Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents) {
     return naive_seqs_[queries];
   }
 
-  string queries_to_calc = GetNameToCalculate(queries);
+  string queries_to_calc = GetNameToCalculate(queries, args_->biggest_naive_seq_cluster_to_calculate());
 
   if(naive_seqs_.count(queries_to_calc) == 0)
     naive_seqs_[queries_to_calc] = CalculateNaiveSeq(queries_to_calc);
@@ -728,8 +728,8 @@ double Glomerator::GetLogProbRatio(string key_a, string key_b) {
   // NOTE the error from using the single kbounds rather than the OR seems to be around a part in a thousand or less
   // NOTE also that the _a and _b results will be cached (unless we're truncating), but with their *individual* only_gene sets (rather than the OR)... but this seems to be ok.
   // TODO if kbounds gets expanded in one of these three calls, we don't redo the others. Which is really ok, but could be checked again?
-  string key_a_to_calc = GetNameToCalculate(key_a);
-  string key_b_to_calc = GetNameToCalculate(key_b);
+  string key_a_to_calc = GetNameToCalculate(key_a, args_->biggest_logprob_cluster_to_calculate());
+  string key_b_to_calc = GetNameToCalculate(key_b, args_->biggest_logprob_cluster_to_calculate());
 
   // arg, this makes a whole new Query even if we're not replacing
   Query qmerged_to_calc = GetMergedQuery(key_a_to_calc, key_b_to_calc);  // NOTE also enters the merged query's info into seq_info_, kbinfo_, mute_freqs_, and only_genes_
