@@ -388,14 +388,7 @@ string Glomerator::JoinSeqStrings(vector<Sequence> &strlist, string delimiter) {
 }
 
 // ----------------------------------------------------------------------------------------
-double Glomerator::NaiveHfrac(string key_a, string key_b) {
-  string joint_key = JoinNames(key_a, key_b);  // NOTE since the cache is indexed by the joint key, this assumes we can arrive at this cluster via only one path. Which should be ok.
-  if(naive_hfracs_.count(joint_key))  // if we've already calculated this distance
-    return naive_hfracs_[joint_key];
-
-  string &seq_a = GetNaiveSeq(key_a);
-  string &seq_b = GetNaiveSeq(key_b);
-
+double Glomerator::CalculateHfrac(string &seq_a, string &seq_b) {
   ++n_hfrac_calculated_;
   if(seq_a.size() != seq_b.size())
     throw runtime_error("ERROR sequences different length in Glomerator::NaiveHfrac (" + seq_a + "," + seq_b + ")\n");
@@ -410,7 +403,18 @@ double Glomerator::NaiveHfrac(string key_a, string key_b) {
       ++distance;
   }
 
-  naive_hfracs_[joint_key] = distance / double(len_excluding_ambigs);
+  return distance / double(len_excluding_ambigs);
+}
+
+// ----------------------------------------------------------------------------------------
+double Glomerator::NaiveHfrac(string key_a, string key_b) {
+  string joint_key = JoinNames(key_a, key_b);  // NOTE since the cache is indexed by the joint key, this assumes we can arrive at this cluster via only one path. Which should be ok.
+  if(naive_hfracs_.count(joint_key))  // if we've already calculated this distance
+    return naive_hfracs_[joint_key];
+
+  string &seq_a = GetNaiveSeq(key_a);
+  string &seq_b = GetNaiveSeq(key_b);
+  naive_hfracs_[joint_key] = CalculateHfrac(seq_a, seq_b);
 
   return naive_hfracs_[joint_key];
 }
@@ -425,13 +429,18 @@ void Glomerator::ReplaceNaiveSeq(string queries, string parentname) {
 
 // ----------------------------------------------------------------------------------------
 pair<string, vector<Sequence> > Glomerator::ChooseSubsetOfNames(string queries, int n_max) {
-
   vector<string> subqueries;
   vector<Sequence> subseqs;
   vector<string> namevector(SplitString(queries, ":"));
 
+  srand(hash<string>{}(queries));  // make sure we get the same subset each time we pass in the same queries
+
+  set<int> already_chosen;
   for(size_t iname=0; iname<unsigned(n_max); ++iname) {
-    int ichosen = rand() % namevector.size();
+    int ichosen(-1);
+    while(ichosen < 0 || already_chosen.count(ichosen))
+      ichosen = rand() % namevector.size();
+    already_chosen.insert(ichosen);
     subqueries.push_back(namevector[ichosen]);
     subseqs.push_back(seq_info_[queries][ichosen]);
   }
@@ -442,17 +451,22 @@ pair<string, vector<Sequence> > Glomerator::ChooseSubsetOfNames(string queries, 
 
 // ----------------------------------------------------------------------------------------
 string Glomerator::GetNameToCalculate(string actual_queries) {
+  // NOTE don't need this any more, since we added the seed set above TODO remove it then?
+  if(name_translations_.count(actual_queries))  // make sure we always use the same translation if we already did one
+    return name_translations_[actual_queries];
+
   int n_max(args_->biggest_cluster_to_calculate());  // if cluster is more than half again larger than this, replace it with a cluster of this size
   if(CountMembers(actual_queries) > 1.5 * n_max) {
     pair<string, vector<Sequence> > substuff = ChooseSubsetOfNames(actual_queries, n_max);
     string subqueries(substuff.first);
     seq_info_[subqueries] = substuff.second;
     // if(args_->debug() > 0)
-    cout <<  "   replacing " << actual_queries << " --> " << subqueries << endl;
+    cout <<  "     replacing " << actual_queries << " --> " << subqueries << endl;
     kbinfo_[subqueries] = kbinfo_[actual_queries];  // just use the entire/super cluster for this stuff. It's just overly conservative (as long as you keep the mute freqs the same)
     mute_freqs_[subqueries] = mute_freqs_[actual_queries];
     only_genes_[subqueries] = only_genes_[actual_queries];
 
+    name_translations_[actual_queries] = subqueries;
     return subqueries;
   }
 
@@ -476,34 +490,48 @@ string &Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents) {
   if(naive_seqs_.count(queries_to_calc) == 0)
     naive_seqs_[queries_to_calc] = CalculateNaiveSeq(queries_to_calc);
 
-  if(queries_to_calc != queries)
+  if(queries_to_calc != queries) {
+    // string full_nseq = CalculateNaiveSeq(queries);
+    // string sub_nseq = CalculateNaiveSeq(queries_to_calc);
+    // double hfrac = CalculateHfrac(full_nseq, sub_nseq);
+    // printf("       use %3d instead of %3d (hamming %5.3f)\n", CountMembers(queries_to_calc), CountMembers(queries), hfrac);
     naive_seqs_[queries] = naive_seqs_[queries_to_calc];
+  }
 
   return naive_seqs_[queries];
 }
+
+// // ----------------------------------------------------------------------------------------
+// double Glomerator::NormFactor(string name) {
+//     double nseqs(CountMembers(name));
+//     return nseqs / (1. - 0.24 / pow(nseqs, 0.9));
+// }
 
 // ----------------------------------------------------------------------------------------
 double Glomerator::GetLogProb(string name) {
   if(log_probs_.count(name))  // already did it
     return log_probs_[name];
 
-  string name_to_calc = GetNameToCalculate(name);  // can be (usually is) equal to name
+  double TMPlb = CalculateLogProb(name);  // NOTE this should be the *only* place (besides cache reading) that log_probs_ gets modified
+  log_probs_[name] = TMPlb;  // TODO remove tmp variable
 
-  if(log_probs_.count(name_to_calc) == 0) {
-    double TMPlb = CalculateLogProb(name_to_calc);  // NOTE this should be the *only* place (besides cache reading) that log_probs_ gets modified
-    log_probs_[name_to_calc] = TMPlb;  // TODO remove tmp variable
-  }
+  // string name_to_calc = GetNameToCalculate(name);  // can be (usually is) equal to name
 
-  if(name_to_calc != name) {
-    // double nset(CountMembers(name));
-    // double factor(1.);
-    // if(args_->logprob_ratio_threshold() == 0.)
-    //   factor = nset / (1. - 0.225 / pow(nset, 0.9));
-    double factor = double(CountMembers(name)) / CountMembers(name_to_calc);
-    log_probs_[name] = factor * log_probs_[name_to_calc];
-    if(args_->debug() > 0)
-      printf("       sublate %5.4f * %8.2f = %8.2f\n", factor, log_probs_[name_to_calc], log_probs_[name]);
-  }
+  // if(log_probs_.count(name_to_calc) == 0) {
+  //   double TMPlb = CalculateLogProb(name_to_calc);  // NOTE this should be the *only* place (besides cache reading) that log_probs_ gets modified
+  //   log_probs_[name_to_calc] = TMPlb;  // TODO remove tmp variable
+  // }
+
+  // if(name_to_calc != name) {
+  //   double factor = NormFactor(name) / NormFactor(name_to_calc);
+  //   log_probs_[name] = factor * log_probs_[name_to_calc];
+  //   if(args_->debug() > 0) {
+  //     double full_logprob = CalculateLogProb(name);
+  //     double sub_logprob = CalculateLogProb(name_to_calc);
+  //     double frac_diff = (factor * sub_logprob - full_logprob) / full_logprob;
+  //     printf("       use %5.4f * %8.2f = %8.2f instead of %8.2f (%5.3f)\n", factor, sub_logprob, factor * sub_logprob, full_logprob, frac_diff);
+  //   }
+  // }
 
   return log_probs_[name];
 }
@@ -511,7 +539,10 @@ double Glomerator::GetLogProb(string name) {
 // ----------------------------------------------------------------------------------------
 string Glomerator::CalculateNaiveSeq(string queries) {
   // NOTE do *not* call this from anywhere except GetNaiveSeq()
-  assert(naive_seqs_.count(queries) == 0);  // TODO remove me
+  // assert(naive_seqs_.count(queries) == 0);  // TODO remove me
+
+  if(seq_info_.count(queries) == 0 || kbinfo_.count(queries) == 0 || only_genes_.count(queries) == 0 || mute_freqs_.count(queries) == 0)
+    throw runtime_error("no info for " + queries);
 
   ++n_vtb_calculated_;
 
@@ -539,7 +570,10 @@ string Glomerator::CalculateNaiveSeq(string queries) {
 // ----------------------------------------------------------------------------------------
 double Glomerator::CalculateLogProb(string name) {  // NOTE can modify kbinfo_
   // NOTE do *not* call this from anywhere except GetLogProb()
-  assert(log_probs_.count(name) == 0);  // TODO remove me
+  // assert(log_probs_.count(name) == 0);  // TODO remove me
+
+  if(seq_info_.count(name) == 0 || kbinfo_.count(name) == 0 || only_genes_.count(name) == 0 || mute_freqs_.count(name) == 0)
+    throw runtime_error("no info for " + name);
   
   ++n_fwd_calculated_;
 
@@ -690,6 +724,39 @@ bool Glomerator::LikelihoodRatioTooSmall(double lratio, int candidate_cluster_si
 }
 
 // ----------------------------------------------------------------------------------------
+double Glomerator::GetLogProbRatio(string key_a, string key_b) {
+  // NOTE the error from using the single kbounds rather than the OR seems to be around a part in a thousand or less
+  // NOTE also that the _a and _b results will be cached (unless we're truncating), but with their *individual* only_gene sets (rather than the OR)... but this seems to be ok.
+  // TODO if kbounds gets expanded in one of these three calls, we don't redo the others. Which is really ok, but could be checked again?
+  string key_a_to_calc = GetNameToCalculate(key_a);
+  string key_b_to_calc = GetNameToCalculate(key_b);
+
+  // arg, this makes a whole new Query even if we're not replacing
+  Query qmerged_to_calc = GetMergedQuery(key_a_to_calc, key_b_to_calc);  // NOTE also enters the merged query's info into seq_info_, kbinfo_, mute_freqs_, and only_genes_
+
+  double log_prob_a = GetLogProb(key_a_to_calc);
+  double log_prob_b = GetLogProb(key_b_to_calc);
+  double log_prob_ab = GetLogProb(qmerged_to_calc.name_);
+
+  double lratio(log_prob_ab - log_prob_a - log_prob_b);
+  if(args_->debug()) {
+    printf("       %8.3f = ", lratio);
+    printf("%2s %8.2f", "", log_prob_ab);
+    printf(" - %8.2f - %8.2f", log_prob_a, log_prob_b);
+    printf("\n");
+    // if(key_a != key_a_to_calc || key_b != key_b_to_calc) {
+    //   Query tmpq(GetMergedQuery(key_a, key_b));  // need this to insert the full merged query's info into seq_info_ and whatnot
+    //   double full_lratio = CalculateLogProb(JoinNames(key_a, key_b)) - CalculateLogProb(key_a) - CalculateLogProb(key_b);
+    //   double sub_lratio = CalculateLogProb(JoinNames(key_a_to_calc, key_b_to_calc)) - CalculateLogProb(key_a_to_calc) - CalculateLogProb(key_b_to_calc);
+    //   double frac_diff = (sub_lratio - full_lratio) / full_lratio;
+    //   printf("       use %8.2f instead of %8.2f (%5.3f)\n", sub_lratio, full_lratio, frac_diff);
+    // }
+  }
+
+  return lratio;
+}
+
+// ----------------------------------------------------------------------------------------
 Query Glomerator::ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_lratio) {
   double max_log_prob(-INFINITY), min_hamming_fraction(INFINITY);
   Query min_hamming_merge;
@@ -712,12 +779,10 @@ Query Glomerator::ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_
 	continue;
       }
 
-      Query qmerged = GetMergedQuery(key_a, key_b);
-
       if(args_->hamming_fraction_bound_lo() > 0.0 && hfrac < args_->hamming_fraction_bound_lo()) {  // if naive hamming is small enough, merge the pair without running hmm
 	if(hfrac < min_hamming_fraction) {
 	  min_hamming_fraction = hfrac;
-	  min_hamming_merge = qmerged;
+	  min_hamming_merge = GetMergedQuery(key_a, key_b);  // NOTE also enters the merged query's info into seq_info_, kbinfo_, mute_freqs_, and only_genes_
 	}
 	continue;
       }
@@ -725,28 +790,15 @@ Query Glomerator::ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_
 	continue;
       }
 
-      // NOTE the error from using the single kbounds rather than the OR seems to be around a part in a thousand or less
-      // NOTE also that the _a and _b results will be cached (unless we're truncating), but with their *individual* only_gene sets (rather than the OR)... but this seems to be ok.
-      // TODO if kbounds gets expanded in one of these three calls, we don't redo the others. Which is really ok, but could be checked again?
-      double log_prob_a = GetLogProb(key_a);
-      double log_prob_b = GetLogProb(key_b);
-      double log_prob_ab = GetLogProb(qmerged.name_);
-
-      double lratio(log_prob_ab - log_prob_a - log_prob_b);
-      if(args_->debug()) {
-	printf("       %8.3f = ", lratio);
-	printf("%2s %8.2f", "", log_prob_ab);
-	printf(" - %8.2f - %8.2f", log_prob_a, log_prob_b);
-	printf("\n");
-      }
+      double lratio = GetLogProbRatio(key_a, key_b);
 
       // don't merge if lratio is small (less than zero, more or less)
-      if(LikelihoodRatioTooSmall(lratio, qmerged.seqs_.size())) {
+      if(LikelihoodRatioTooSmall(lratio, CountMembers(key_a) + CountMembers(key_b))) {
 	++n_small_lratios;
 	continue;
       }
 
-      potential_merges.push_back(pair<double, Query>(lratio, qmerged));
+      potential_merges.push_back(pair<double, Query>(lratio, GetMergedQuery(key_a, key_b))); // NOTE also enters the merged query's info into seq_info_, kbinfo_, mute_freqs_, and only_genes_
 
       if(lratio == -INFINITY)
 	++n_inf_factors;

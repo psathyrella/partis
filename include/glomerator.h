@@ -7,6 +7,7 @@
 #include <iomanip>
 #include <ctime>
 #include <algorithm>
+#include <functional>
 
 #include "smctc.hh"
 #include "args.h"
@@ -68,12 +69,14 @@ private:
   string JoinNameStrings(vector<Sequence> &strlist, string delimiter=":");
   string JoinSeqStrings(vector<Sequence> &strlist, string delimiter=":");
 
+  double CalculateHfrac(string &seq_a, string &seq_b);
   double NaiveHfrac(string key_a, string key_b);
 
   void ReplaceNaiveSeq(string queries, string parentname);
   pair<string, vector<Sequence> > ChooseSubsetOfNames(string queries, int n_max);
   string GetNameToCalculate(string actual_queries);  // convert between the actual queries/key we're interested in and the one we're going to calculate
   string &GetNaiveSeq(string key, pair<string, string> *parents=nullptr);
+  // double NormFactor(string name);
   double GetLogProb(string name);
   string CalculateNaiveSeq(string key);
   double CalculateLogProb(string name);
@@ -83,6 +86,7 @@ private:
   Query GetMergedQuery(string name_a, string name_b);
 
   bool LikelihoodRatioTooSmall(double lratio, int candidate_cluster_size);
+  double GetLogProbRatio(string key_a, string key_b);
   Query ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_lratio);
   pair<double, Query> *ChooseRandomMerge(vector<pair<double, Query> > &potential_merges, smc::rng *rgen);
 
@@ -96,6 +100,8 @@ private:
   vector<double> initial_logweights_;
 
   int i_initial_partition_;  // index of the next inital partition to grab (for smc stuff)
+
+  map<string, string> name_translations_;
 
   map<string, vector<Sequence> > seq_info_;  // NOTE it would be more memory-efficient to just keep track of vectors of keys here, and have Glomerator keep all the actual info
   map<string, vector<string> > only_genes_;
