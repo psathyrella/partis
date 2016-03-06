@@ -78,6 +78,7 @@ private:
   string &GetNaiveSeq(string key, pair<string, string> *parents=nullptr);
   // double NormFactor(string name);
   double GetLogProb(string name);
+  double GetLogProbRatio(string key_a, string key_b);
   string CalculateNaiveSeq(string key);
   double CalculateLogProb(string name);
 
@@ -86,7 +87,6 @@ private:
   Query GetMergedQuery(string name_a, string name_b);
 
   bool LikelihoodRatioTooSmall(double lratio, int candidate_cluster_size);
-  double GetLogProbRatio(string key_a, string key_b);
   Query ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_lratio);
   pair<double, Query> *ChooseRandomMerge(vector<pair<double, Query> > &potential_merges, smc::rng *rgen);
 
@@ -101,7 +101,7 @@ private:
 
   int i_initial_partition_;  // index of the next inital partition to grab (for smc stuff)
 
-  // map<string, string> name_translations_;
+  map<int, map<string, string> > name_translations_;
 
   map<string, vector<Sequence> > seq_info_;  // NOTE it would be more memory-efficient to just keep track of vectors of keys here, and have Glomerator keep all the actual info
   map<string, vector<string> > only_genes_;
