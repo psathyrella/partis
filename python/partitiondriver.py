@@ -205,7 +205,7 @@ class PartitionDriver(object):
             ipath = 0
             path = self.paths[ipath]
             self.check_partition(path.partitions[path.i_best])
-            if len(self.input_info) < 100:
+            if len(self.input_info) < 250:
                 print 'final'
                 start = time.time()
                 path.print_partitions(self.reco_info, print_header=True, calc_missing_values='all' if (len(self.input_info) < 500) else 'best')
