@@ -15,31 +15,43 @@
 #include "args.h"
 #include "glomerator.h"
 #include "tclap/CmdLine.h"
-#include "smctc.hh"
+// #include "smctc.hh"
 
 using namespace TCLAP;
 using namespace ham;
 using namespace std;
 
-Glomerator *stupid_global_glom;  // I *(#*$$!*ING HATE GLOBALS
+// ----------------------------------------------------------------------------------------
+vector<vector<Sequence> > GetSeqs(Args &args, Track *trk);
+void run_algorithm(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> > &qry_seq_list, Args &args);
 
 // ----------------------------------------------------------------------------------------
-smc::particle<ClusterPath> SMCInit(smc::rng *rgen) {
-  int initial_path_index(-1);
-  throw runtime_error("I think this is ok, but I just changed the default path index in clusterpath from -1 to 0, and it should be double checked that this doesn't screw up anything in this fcn.\n");
-  double logweight;
-  Partition initial_partition(stupid_global_glom->GetAnInitialPartition(initial_path_index, logweight));  // get the next initial partition (and increment the counter)
-  double logprob = stupid_global_glom->LogProbOfPartition(initial_partition);
-  ClusterPath thecp(initial_partition, logprob, logweight);
-  thecp.initial_path_index_ = initial_path_index;
-  return smc::particle<ClusterPath>(thecp, thecp.CurrentLogWeight());  //logprob);
-}
+int main(int argc, const char * argv[]) {
+  clock_t run_start(clock());
+  Args args(argc, argv);
+  if(args.smc_particles() > 1)
+    assert(0);  // see commented code below
+  srand(args.random_seed());
 
-// ----------------------------------------------------------------------------------------
-void SMCMove(long time, smc::particle<ClusterPath> &ptl, smc::rng *rgen) {
-  stupid_global_glom->Merge(ptl.GetValuePointer(), rgen);  // ...but I couldn't figure out a good way to do this without a global
-  // ptl.SetLogWeight(ptl.GetValuePointer()->CurrentLogProb());
-  ptl.SetLogWeight(ptl.GetValuePointer()->CurrentLogWeight());
+  // init some infrastructure
+  vector<string> characters {"A", "C", "G", "T"};
+  Track track("NUKES", characters, args.ambig_base());
+  GermLines gl(args.datadir());
+  HMMHolder hmms(args.hmmdir(), gl, &track);
+  vector<vector<Sequence> > qry_seq_list(GetSeqs(args, &track));
+
+  if(args.cache_naive_seqs()) {
+    Glomerator glom(hmms, gl, qry_seq_list, &args, &track);
+    glom.CacheNaiveSeqs();
+  } else if(args.partition()) {  // NOTE this is kind of hackey -- there's some code duplication between Glomerator and the loop below... but only a little, and they're doing fairly different things, so screw it for the time being
+    Glomerator glom(hmms, gl, qry_seq_list, &args, &track);
+    glom.Cluster();
+  } else {
+    run_algorithm(hmms, gl, qry_seq_list, args);
+  }
+
+  cout << "        time " << ((clock() - run_start) / (double)CLOCKS_PER_SEC) << endl;
+  return 0;
 }
 
 // ----------------------------------------------------------------------------------------
@@ -65,71 +77,7 @@ vector<vector<Sequence> > GetSeqs(Args &args, Track *trk) {
 }
 
 // ----------------------------------------------------------------------------------------
-void print_forward_scores(double numerator, vector<double> single_scores, double lratio);
-
-// ----------------------------------------------------------------------------------------
-int main(int argc, const char * argv[]) {
-  // clock_t run_start(clock());
-  Args args(argc, argv);
-  srand(args.random_seed());
-
-  // init some infrastructure
-  vector<string> characters {"A", "C", "G", "T"};
-  Track track("NUKES", characters, "N");
-  GermLines gl(args.datadir());
-  HMMHolder hmms(args.hmmdir(), gl, &track);
-  // Track *track(hmms.track());
-  vector<vector<Sequence> > qry_seq_list(GetSeqs(args, &track));
-  // hmms.CacheAll();
-
-  if(args.cache_naive_seqs()) {
-    clock_t run_start(clock());
-    Glomerator glom(hmms, gl, qry_seq_list, &args, &track);
-    glom.CacheNaiveSeqs();
-    cout << "        time " << ((clock() - run_start) / (double)CLOCKS_PER_SEC) << endl;
-    return 0;
-  }
-
-  if(args.naive_hamming_cluster() > 0) {
-    assert(0);  // not used a.t.m.
-    clock_t run_start(clock());
-    Glomerator glom(hmms, gl, qry_seq_list, &args, &track);
-    // glom.NaiveSeqGlomerate(args.naive_hamming_cluster());
-    cout << "        time " << ((clock() - run_start) / (double)CLOCKS_PER_SEC) << endl;
-    return 0;
-  }
-
-  if(args.partition()) {  // NOTE this is kind of hackey -- there's some code duplication between Glomerator and the loop below... but only a little, and they're doing fairly different things, so screw it for the time being
-    clock_t run_start(clock());
-    Glomerator glom(hmms, gl, qry_seq_list, &args, &track);
-    if(args.smc_particles() == 1) {
-      glom.Cluster();
-    } else {
-      if(args.debug()) cout << "   glomerating with smc" << endl;
-      stupid_global_glom = &glom;
-      smc::sampler<ClusterPath> smp(args.smc_particles(), SMC_HISTORY_NONE);
-      smc::moveset<ClusterPath> mvs(SMCInit, SMCMove);
-      smp.SetResampleParams(SMC_RESAMPLE_RESIDUAL, 0.5);
-      smp.SetMoveSet(mvs);
-      smp.Initialise();
-
-      bool finished(true);
-      do {
-	smp.Iterate();
-	finished = true;
-	for(int ip=0; ip<args.smc_particles(); ++ip)
-	  finished &= smp.GetParticleValue(ip).finished_;
-      } while(!finished);
-
-      vector<ClusterPath> paths;
-      for(int ip=0; ip<args.smc_particles(); ++ip) {
-	paths.push_back(smp.GetParticleValue(ip));
-      }
-      glom.WritePartitions(paths);
-    }
-    cout << "        time " << ((clock() - run_start) / (double)CLOCKS_PER_SEC) << endl;
-    return 0;
-  }
+void run_algorithm(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> > &qry_seq_list, Args &args) {
 
   DPHandler dph(args.algorithm(), &args, gl, hmms);
 
@@ -151,50 +99,23 @@ int main(int argc, const char * argv[]) {
     double mean_mute_freq(avgVector(mute_freqs));
 
     vector<KBounds> kbvector(qry_seqs.size(), kbounds);
-    // if(args.truncate_seqs()) {
-    //   assert(0);
-    //   TruncateSeqs(qry_seqs, kbvector);
-    // }
 
     Result result(kbounds);
-    vector<Result> denom_results(qry_seqs.size(), result);  // only used for forward if n_seqs > 1
-    double numerator(-INFINITY);  // numerator in P(A,B,C,...) / (P(A)P(B)P(C)...)
-    double lratio(-INFINITY); // final result
-    vector<double> single_scores(qry_seqs.size(), -INFINITY);  // NOTE log probs, not scores, but I haven't managed to finish switching over to the new terminology
+    double logprob(-INFINITY);
     bool stop(false);
     string errors;
     do {
       errors = "";
       if(args.debug()) cout << "       ----" << endl;
       result = dph.Run(qry_seqs, kbounds, args.str_lists_["only_genes"][iqry], mean_mute_freq);
-      numerator = result.total_score();
-      lratio = numerator;
-      // if(args.algorithm() == "forward" && qry_seqs.size() > 1) {  // calculate factors for denominator
-      //   for(size_t iseq = 0; iseq < qry_seqs.size(); ++iseq) {
-      //     denom_results[iseq] = dph.Run(qry_seqs[iseq], kbounds, args.str_lists_["only_genes"][iqry], mean_mute_freq);  // result for a single sequence  TODO hm, wait, should this be the individual mute freqs?
-      //     single_scores[iseq] = denom_results[iseq].total_score();
-      //     lratio -= single_scores[iseq];
-      //   }
-      // }
-
+      logprob = result.total_score();
       kbounds = result.better_kbounds();
-      for(auto & res : denom_results)
-        kbounds = kbounds.LogicalOr(res.better_kbounds());
-
       stop = !result.boundary_error() || result.could_not_expand();  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
-      for(auto & res : denom_results)
-        stop &= !res.boundary_error() || res.could_not_expand();
       if(args.debug() && !stop)
         cout << "             expand and run again" << endl;  // note that subsequent runs are much faster than the first one because of chunk caching
       if(result.boundary_error())
         errors = "boundary";
-      for(auto & res : denom_results) // NOTE <errors> will still just have one "boundary" in it even if multiple results had boundary errors
-        if(res.boundary_error())
-          errors = "boundary";
     } while(!stop);
-
-    if(args.debug() && args.algorithm() == "forward" && qry_seqs.size() > 1)
-      print_forward_scores(numerator, single_scores, lratio);
 
     if(args.algorithm() == "viterbi" && size_t(args.n_best_events()) > result.events_.size()) {   // if we were asked for more events than we found
       if(result.events_.size() > 0)
@@ -202,19 +123,53 @@ int main(int argc, const char * argv[]) {
       else
         assert(result.no_path_);  // if there's some *other* way we can end up with no events, I want to know about it
     }
-    StreamOutput(ofs, args.algorithm(), min(size_t(args.n_best_events()), result.events_.size()), result.events_, qry_seqs, lratio, errors);
+    StreamOutput(ofs, args.algorithm(), min(size_t(args.n_best_events()), result.events_.size()), result.events_, qry_seqs, logprob, errors);
   }
-
   ofs.close();
-  // cout << "      time " << ((clock() - run_start) / (double)CLOCKS_PER_SEC) << endl;
-  return 0;
 }
 
-// ----------------------------------------------------------------------------------------
-void print_forward_scores(double numerator, vector<double> single_scores, double lratio) {
-  printf("   %8.3f = ", lratio);
-  printf("%2s %8.2f", "", numerator);
-  for(auto & score : single_scores)
-    printf(" - %8.2f", score);
-  printf("\n");
-}
+
+// Glomerator *stupid_global_glom;  // I *(#*$$!*ING HATE GLOBALS
+
+// } else {
+//   if(args.debug()) cout << "   glomerating with smc" << endl;
+//   stupid_global_glom = &glom;
+//   smc::sampler<ClusterPath> smp(args.smc_particles(), SMC_HISTORY_NONE);
+//   smc::moveset<ClusterPath> mvs(SMCInit, SMCMove);
+//   smp.SetResampleParams(SMC_RESAMPLE_RESIDUAL, 0.5);
+//   smp.SetMoveSet(mvs);
+//   smp.Initialise();
+
+//   bool finished(true);
+//   do {
+//   	smp.Iterate();
+//   	finished = true;
+//   	for(int ip=0; ip<args.smc_particles(); ++ip)
+//   	  finished &= smp.GetParticleValue(ip).finished_;
+//   } while(!finished);
+
+//   vector<ClusterPath> paths;
+//   for(int ip=0; ip<args.smc_particles(); ++ip) {
+//   	paths.push_back(smp.GetParticleValue(ip));
+//   }
+//   glom.WritePartitions(paths);
+// }
+// // ----------------------------------------------------------------------------------------
+// smc::particle<ClusterPath> SMCInit(smc::rng *rgen) {
+//   int initial_path_index(-1);
+//   throw runtime_error("I think this is ok, but I just changed the default path index in clusterpath from -1 to 0, and it should be double checked that this doesn't screw up anything in this fcn.\n");
+//   double logweight;
+//   Partition initial_partition(stupid_global_glom->GetAnInitialPartition(initial_path_index, logweight));  // get the next initial partition (and increment the counter)
+//   double logprob = stupid_global_glom->LogProbOfPartition(initial_partition);
+//   ClusterPath thecp(initial_partition, logprob, logweight);
+//   thecp.initial_path_index_ = initial_path_index;
+//   return smc::particle<ClusterPath>(thecp, thecp.CurrentLogWeight());  //logprob);
+// }
+
+// // ----------------------------------------------------------------------------------------
+// void SMCMove(long time, smc::particle<ClusterPath> &ptl, smc::rng *rgen) {
+//   stupid_global_glom->Merge(ptl.GetValuePointer(), rgen);  // ...but I couldn't figure out a good way to do this without a global
+//   // ptl.SetLogWeight(ptl.GetValuePointer()->CurrentLogProb());
+//   ptl.SetLogWeight(ptl.GetValuePointer()->CurrentLogWeight());
+// }
+
