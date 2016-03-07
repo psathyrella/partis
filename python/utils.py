@@ -1638,12 +1638,13 @@ def find_uid_in_partition(uid, partition):
 # ----------------------------------------------------------------------------------------
 def check_intersection_and_complement(part_a, part_b):
     """ make sure two partitions have identical uid lists """
-    for cluster in part_a:
-        for uid in cluster:
-            find_uid_in_partition(uid, part_b)
-    for cluster in part_b:  # NOTE we could avoid looping over some of these if we were so inclined
-        for uid in cluster:
-            find_uid_in_partition(uid, part_a)
+
+    uids_a = set([uid for cluster in part_a for uid in cluster])
+    uids_b = set([uid for cluster in part_b for uid in cluster])
+    a_not_b = uids_a - uids_b
+    b_not_a = uids_b - uids_a
+    if len(a_not_b) > 0 or len(b_not_a) > 0:
+        raise Exception('partitions don\'t have the same uids')
 
 # ----------------------------------------------------------------------------------------
 def get_cluster_list_for_sklearn(part_a, part_b):
