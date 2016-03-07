@@ -20,7 +20,7 @@ def translate_columns(line, translations):  # NOTE similar to code in utils.get_
             del line[key]
 
 # ----------------------------------------------------------------------------------------
-def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, reco_ids=None, name_column=None, seq_column=None):
+def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, reco_ids=None, name_column=None, seq_column=None, seed_unique_id=None):
     """ return list of sequence info from files of several types """
 
     # WARNING defaults for <name_column> and <seq_column> also set in partis.py (since we call this from places other than partis.py, but we also want people to be able set them from the partis.py command line)
@@ -71,6 +71,7 @@ def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, 
     if not is_data:
         reco_info = OrderedDict()
     n_queries = 0
+    found_seed = False
     for line in reader:
         if name_column not in line or seq_column not in line:
             raise Exception('mandatory headers \'%s\' and \'%s\' not both present in %s (set with --name-column and --seq-column)' % (name_column, seq_column, fname))
@@ -90,6 +91,9 @@ def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, 
         if unique_id in input_info:
             raise Exception('found id %s twice in file %s' % (unique_id, fname))
 
+        if seed_unique_id is not None and unique_id == seed_unique_id:
+            found_seed = True
+
         input_info[unique_id] = {'unique_id' : unique_id, 'seq' : line[internal_seq_column]}
 
         if n_queries == 0 and is_data and 'v_gene' in line:
@@ -108,5 +112,7 @@ def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, 
 
     if len(input_info) == 0:
         raise Exception('didn\'t end up pulling any input info out of %s while looking for queries: %s reco_ids: %s\n' % (fname, str(queries), str(reco_ids)))
+    if seed_unique_id is not None and not found_seed:
+        raise Exception('couldn\'t find seed %s in %s' % (seed_unique_id, fname))
     
     return (input_info, reco_info)
