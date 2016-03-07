@@ -77,10 +77,10 @@ private:
   string GetNameToCalculate(string actual_queries, int n_max);  // convert between the actual queries/key we're interested in and the one we're going to calculate
   string &GetNaiveSeq(string key, pair<string, string> *parents=nullptr);
   // double NormFactor(string name);
-  double GetLogProb(string name);
+  double GetLogProb(string queries);
   double GetLogProbRatio(string key_a, string key_b);
   string CalculateNaiveSeq(string key);
-  double CalculateLogProb(string name);
+  double CalculateLogProb(string queries);
 
   bool SameLength(vector<Sequence> &seqs, bool debug=false);
   vector<Sequence> MergeSeqVectors(string name_a, string name_b);

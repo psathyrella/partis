@@ -515,14 +515,14 @@ string &Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents) {
 // }
 
 // ----------------------------------------------------------------------------------------
-double Glomerator::GetLogProb(string name) {
-  if(log_probs_.count(name))  // already did it
-    return log_probs_[name];
+double Glomerator::GetLogProb(string queries) {
+  if(log_probs_.count(queries))  // already did it
+    return log_probs_[queries];
 
-  double tmplp = CalculateLogProb(name);  // NOTE this should be the *only* place (besides cache reading) that log_probs_ gets modified
-  log_probs_[name] = tmplp;  // tmp variable is just so we can assert that name isn't already in log_probs_
+  double tmplp = CalculateLogProb(queries);  // NOTE this should be the *only* place (besides cache reading) that log_probs_ gets modified
+  log_probs_[queries] = tmplp;  // tmp variable is just so we can assert that queries isn't already in log_probs_
 
-  return log_probs_[name];
+  return log_probs_[queries];
 }
 
 // ----------------------------------------------------------------------------------------
@@ -590,27 +590,27 @@ string Glomerator::CalculateNaiveSeq(string queries) {
 }
 
 // ----------------------------------------------------------------------------------------
-double Glomerator::CalculateLogProb(string name) {  // NOTE can modify kbinfo_
+double Glomerator::CalculateLogProb(string queries) {  // NOTE can modify kbinfo_
   // NOTE do *not* call this from anywhere except GetLogProb()
-  assert(log_probs_.count(name) == 0);  // TODO remove me
+  assert(log_probs_.count(queries) == 0);  // TODO remove me
 
-  if(seq_info_.count(name) == 0 || kbinfo_.count(name) == 0 || only_genes_.count(name) == 0 || mute_freqs_.count(name) == 0)
-    throw runtime_error("no info for " + name);
+  if(seq_info_.count(queries) == 0 || kbinfo_.count(queries) == 0 || only_genes_.count(queries) == 0 || mute_freqs_.count(queries) == 0)
+    throw runtime_error("no info for " + queries);
   
   ++n_fwd_calculated_;
 
-  Result result(kbinfo_[name]);
+  Result result(kbinfo_[queries]);
   bool stop(false);
   do {
-    result = fwd_dph_.Run(seq_info_[name], kbinfo_[name], only_genes_[name], mute_freqs_[name]);  // NOTE <only_genes> isn't necessarily <only_genes_[name]>, since for the denominator calculation we take the OR
-    kbinfo_[name] = result.better_kbounds();
+    result = fwd_dph_.Run(seq_info_[queries], kbinfo_[queries], only_genes_[queries], mute_freqs_[queries]);  // NOTE <only_genes> isn't necessarily <only_genes_[queries]>, since for the denominator calculation we take the OR
+    kbinfo_[queries] = result.better_kbounds();
     stop = !result.boundary_error() || result.could_not_expand();  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
     if(args_->debug() && !stop)
       cout << "             expand and run again" << endl;  // note that subsequent runs are much faster than the first one because of chunk caching
   } while(!stop);
 
   if(result.boundary_error() && !result.could_not_expand())  // could_not_expand means the max is at the edge of the sequence -- e.g. k_d min is 1
-    errors_[name] = errors_[name] + ":boundary";
+    errors_[queries] = errors_[queries] + ":boundary";
 
   return result.total_score();
 }
