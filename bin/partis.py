@@ -50,20 +50,13 @@ parser.add_argument('--only-csv-plots', action='store_true', help='only write cs
 if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
     print '    TODO make sure all mpl figures are getting closed'
     print '    TODO remove extra assertions from glomerator'
-    print '    TODO make sure all trace of truncation is removed from ham (including cyst position stuff)'
-    print '    TODO in addition to translating from a large cluster to a smaller one, you should also not recalculate just \'cause you add one sequence to a huge cluster'
+    print '    TODO in addition to translating from a large cluster to a smaller one, you should also not recalculate just \'cause you add one sequence to a huge cluster (probably do this when making the merged Query object)'
     print '    TODO fix WriteAnnotations in glomerator (and/i.e. clean up events_ filling, in particular in ReplaceNaiveSeq)'
-    print '    TODO besides "replacing" clusters with smaller subsets, you should, when making the merged cluster object, not recalculate unless it\'s really different'
     print '    TODO make things completely assertion/exception safe, i.e. if you catch one, that causes a failure on that one sequence only'
     print '    TODO remove todos in glomerator (well, some of them)'
     print '    TODO todo in reset_effective_erosions_and_effective_insertions()'
-    print '    TODO whoa, bcrham is still calculating the denominator for the lratio (see above todo as well)'
     print '    TODO add functional column'
-    print '    TODO re-profile bcrham'
     print '    TODO also print how many forward merges'
-    print '    TODO swap name --> queries everywhere in glomerator'
-    print '    TODO remove unused c++ arguments'
-    print '    TODO double check by (greping through output) that you\'re not recalculating and getting different translations'
 
 # input and output stuff
 parser.add_argument('--seqfile', help='input sequence file')
