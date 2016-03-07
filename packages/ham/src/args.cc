@@ -39,7 +39,7 @@ Args::Args(int argc, const char * argv[]):
   int_headers_ {"path_index", "k_v_min", "k_v_max", "k_d_min", "k_d_max"},
   float_headers_ {"logweight"},
   str_list_headers_ {"names", "seqs", "only_genes"},  // passed as colon-separated lists of strings
-  int_list_headers_ {"cyst_positions"},  // passed as colon-separated lists of ints
+  int_list_headers_ {},  // passed as colon-separated lists of ints
   float_list_headers_ {"mute_freqs"}  // passed as colon-separated lists of floats
 {
   try {

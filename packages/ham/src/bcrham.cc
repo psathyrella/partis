@@ -60,14 +60,12 @@ vector<vector<Sequence> > GetSeqs(Args &args, Track *trk) {
   vector<vector<Sequence> > all_seqs;
   assert(args.str_lists_["names"].size() == args.str_lists_["seqs"].size());
   assert(args.str_lists_["names"].size() == args.float_lists_["mute_freqs"].size());
-  assert(args.str_lists_["names"].size() == args.int_lists_["cyst_positions"].size());
   for(size_t iqry = 0; iqry < args.str_lists_["names"].size(); ++iqry) { // loop over queries, where each query can be composed of one, two, or k sequences
     vector<Sequence> seqs;
     assert(args.str_lists_["names"][iqry].size() == args.str_lists_["seqs"][iqry].size());
     assert(args.str_lists_["names"][iqry].size() == args.float_lists_["mute_freqs"][iqry].size());
-    assert(args.str_lists_["names"][iqry].size() == args.int_lists_["cyst_positions"][iqry].size());
     for(size_t iseq = 0; iseq < args.str_lists_["names"][iqry].size(); ++iseq) { // loop over each sequence in that query
-      Sequence sq(trk, args.str_lists_["names"][iqry][iseq], args.str_lists_["seqs"][iqry][iseq], args.int_lists_["cyst_positions"][iqry][iseq]);
+      Sequence sq(trk, args.str_lists_["names"][iqry][iseq], args.str_lists_["seqs"][iqry][iseq]);
       seqs.push_back(sq);
     }
     all_seqs.push_back(seqs);
