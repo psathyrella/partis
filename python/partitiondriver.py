@@ -1220,7 +1220,7 @@ class PartitionDriver(object):
         #     self.read_cachefile(self.hmm_cachefname)
 
         if self.args.action != 'partition':
-            if self.args.action == 'run-viterbi':
+            if self.args.action == 'run-viterbi' or self.args.action == 'cache-parameters':
                 self.read_annotation_output(self.hmm_outfname, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir)
             elif self.args.action == 'run-forward':
                 self.read_forward_output(self.hmm_outfname)
