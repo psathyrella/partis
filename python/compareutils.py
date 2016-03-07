@@ -1131,7 +1131,7 @@ def get_seed_info(args, seqfname, n_leaves):
         print '  chose seed with size:', len(cluster)
         return cluster[0], len(cluster)  # arbitrarily use the first member of the cluster as the seed
 
-    assert False  # shouldn't get here
+    raise Exception('couldn\'t find seed in cluster between size %d and %d' % (args.seed_cluster_bounds[0], args.seed_cluster_bounds[1]))
 
 # ----------------------------------------------------------------------------------------
 def get_outputname(args, label, action, seqfname, hfrac_bounds):
