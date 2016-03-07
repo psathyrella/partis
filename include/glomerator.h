@@ -28,7 +28,6 @@ public:
   KBounds kbounds_;
   vector<string> only_genes_;
   double mean_mute_freq_;
-  vector<int> cyst_positions_;
   pair<string, string> parents_;  // queries that were joined to make this
 };
 
@@ -108,8 +107,6 @@ private:
   map<string, KBounds> kbinfo_;
   map<string, float> mute_freqs_;  // overall mute freq for single sequences, mean overall mute freq for n-sets of sequences
 
-  // NOTE the keys for these two maps are colon-separated lists of *query* *sequences*, whereas all the other maps are of query names. This is because we need logprobs and naive seqs for each truncation length
-  // NOTE also that I don't keep track of the order, which I kinda should do since I might be calculating some things twice.
   // These all include cached info from previous runs
   map<string, double> log_probs_;  
   map<string, double> naive_hfracs_;  // NOTE since this uses the joint key, it assumes there's only *one* way to get to a given cluster (this is similar to, but not quite the same as, the situation for log probs and naive seqs)

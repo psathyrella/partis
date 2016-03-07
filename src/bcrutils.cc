@@ -505,66 +505,6 @@ string HMMHolder::NameString(map<string, set<string> > *only_genes, int max_to_p
   return return_str;
 }
 
-// // ----------------------------------------------------------------------------------------
-// // truncate sequences in <seqs> to the same length (on both ends of the conserved cysteine), and correspondingly modify <kbvector>
-// void TruncateSeqs(vector<Sequence> &seqs, vector<KBounds> &kbvector, bool debug) {
-//   assert(seqs.size() == kbvector.size());  // one kbound for each sequence
-//   if(debug)
-//     cout << "    truncating      dleft dright   (cpos, len)" << endl;
-
-//   // first find min length to left and right of the cysteine position
-//   int min_left(-1), min_right(-1);
-//   for(size_t is=0; is<seqs.size(); ++is) {
-//     Sequence *seq(&seqs[is]);
-//     int cpos(seq->cyst_position());
-//     if(cpos < 0 || cpos >= (int)seq->size())
-//       throw runtime_error("cpos " + to_string(cpos) + " invalid for " + seq->name() + " (" + seq->undigitized() + ")");
-//     int dleft = cpos;  // NOTE <dright> includes <cpos>, i.e. dleft + dright = len(seq)
-//     int dright = seq->size() - cpos;
-//     if(debug)
-//       printf("                    %4d %4d      (%-4d, %4d)\n", dleft, dright, (int)cpos, (int)seq->size()); //, seq->name().c_str());
-//     if(min_left == -1 || dleft < min_left) {
-//       min_left = dleft;
-//     }
-//     if(min_right == -1 || dright < min_right) {
-//       min_right = dright;
-//     }
-//   }
-//   assert(min_left >= 0 && min_right >= 0);
-//   // printf("  min left %d right %d\n", min_left, min_right);
-
-//   // then truncate all the sequences to these lengths
-//   if(debug)
-//     cout << "          chops:" << endl;
-//   for(size_t is=0; is<seqs.size(); ++is) {
-//     Sequence *seq(&seqs[is]);
-//     int cpos(seq->cyst_position());
-//     int istart(cpos - min_left);
-//     int istop(cpos + min_right);
-//     int chopleft(istart);
-//     int chopright(seq->size() - istop);
-
-//     // string truncated_str(seq->undigitized().substr(istart, istop - istart));
-//     // Sequence trunc_seq(seq->track(), seq->name(), truncated_str, cpos - istart);
-//     // seqs[is] = trunc_seq;  // replace the old sequence with the truncated one
-//     seqs[is] = Sequence(*seq, istart, istop - istart);  // replace the old sequence with the truncated one (this sets cpos in the new sequence to cpos in the old sequence minus istart)
-//     assert(chopleft < (int)kbvector[is].vmin);  // kinda nonsensical if we start chopping off the entire v
-//     kbvector[is].vmin -= chopleft;
-//     kbvector[is].vmax -= chopleft;
-    
-//     // printf("%s", seq->name());
-//     if(debug)
-//       printf("                    %4d %4d\n", chopleft, chopright);  //, seq->name().c_str());
-//     // printf("  before", self.sw_info[name]['k_v']['min'], self.sw_info[name]['k_v']['max'], self.sw_info[name]['v_5p_del'], self.sw_info[name]['j_3p_del'], self.sw_info[name]['seq']
-//     // self.sw_info[name]['seq'] = seq[istart : istop]
-//     // self.sw_info[name]['k_v']['min'] -= chopleft
-//     // self.sw_info[name]['k_v']['max'] -= chopleft
-//     // self.sw_info[name]['v_5p_del'] += chopleft
-//     // self.sw_info[name]['j_3p_del'] += chopright
-//     // print '   after', self.sw_info[name]['k_v']['min'], self.sw_info[name]['k_v']['max'], self.sw_info[name]['v_5p_del'], self.sw_info[name]['j_3p_del'], self.sw_info[name]['seq']
-//   }
-// }
-
 // ----------------------------------------------------------------------------------------
 void StreamHeader(ofstream &ofs, string algorithm) {
   if(algorithm == "viterbi")

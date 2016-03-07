@@ -149,13 +149,12 @@ void Glomerator::ReadCachedLogProbs() {
   assert(headstrs[1].find("logprob") == 0);
   assert(headstrs[2].find("naive_seq") == 0);
   assert(headstrs[3].find("naive_hfrac") == 0);
-  assert(headstrs[4].find("cyst_position") == 0);
 
   // NOTE there can be two lines with the same key (say if in one run we calculated the naive seq, and in a later run calculated the log prob)
   while(getline(ifs, line)) {
     line.erase(remove(line.begin(), line.end(), '\r'), line.end());
     vector<string> column_list = SplitString(line, ",");
-    assert(column_list.size() == 6);
+    assert(column_list.size() == 5);
     string query(column_list[0]);
 
     string logprob_str(column_list[1]);
@@ -171,8 +170,6 @@ void Glomerator::ReadCachedLogProbs() {
       naive_hfracs_[query] = stof(naive_hfrac_str);
       initial_naive_hfracs_.insert(query);
     }
-
-    int cyst_position(atoi(column_list[4].c_str()));
 
     if(naive_seq.size() > 0) {
       naive_seqs_[query] = naive_seq;
@@ -194,9 +191,6 @@ void Glomerator::WriteCacheLine(ofstream &ofs, string query) {
   if(args_->cache_naive_hfracs() && naive_hfracs_.count(query))
     ofs << naive_hfracs_[query];
   ofs << ",";
-  if(naive_seqs_.count(query))  // TODO remove this cyst_position stuff
-    ofs << -1.;  // [...removed...].cyst_position();
-  ofs << ",";
   if(errors_.count(query))
     ofs << errors_[query];
   ofs << endl;
@@ -207,7 +201,7 @@ void Glomerator::WriteCachedLogProbs() {
   ofstream log_prob_ofs(args_->cachefile());
   if(!log_prob_ofs.is_open())
     throw runtime_error("ERROR cache file (" + args_->cachefile() + ") d.n.e.\n");
-  log_prob_ofs << "unique_ids,logprob,naive_seq,naive_hfrac,cyst_position,errors" << endl;
+  log_prob_ofs << "unique_ids,logprob,naive_seq,naive_hfrac,errors" << endl;
 
   log_prob_ofs << setprecision(20);
 
@@ -454,7 +448,7 @@ pair<string, vector<Sequence> > Glomerator::ChooseSubsetOfNames(string queries, 
 
 // ----------------------------------------------------------------------------------------
 string Glomerator::GetNameToCalculate(string actual_queries, int n_max) {
-  // // NOTE don't need this any more, since we added the seed set above TODO remove it then?
+  // // NOTE we don't really need this, since we're setting the random seed. But it just seems so messy to go through the whole subset calculation every time, even though I profiled it and it's not a significant contributor
   if(name_translations_[n_max].count(actual_queries))  // make sure we always use the same translation if we already did one
     return name_translations_[n_max][actual_queries];
 
@@ -527,9 +521,9 @@ double Glomerator::GetLogProb(string queries) {
 
 // ----------------------------------------------------------------------------------------
 double Glomerator::GetLogProbRatio(string key_a, string key_b) {
-  // NOTE the error from using the single kbounds rather than the OR seems to be around a part in a thousand or less
-  // NOTE also that the _a and _b results will be cached (unless we're truncating), but with their *individual* only_gene sets (rather than the OR)... but this seems to be ok.
-  // TODO if kbounds gets expanded in one of these three calls, we don't redo the others. Which is really ok, but could be checked again?
+  // NOTE the error from using the single kbounds rather than the OR seems to be around a part in a thousand or less (it's only really important that the merged query has the OR)
+  // NOTE also that the _a and _b results will be cached, but with their *individual* only_gene sets (rather than the OR)... but this seems to be ok.
+  // NOTE if kbounds gets expanded in one of these three calls, we don't redo the others. Which is really ok, but could be checked again?
   string key_a_to_calc = GetNameToCalculate(key_a, args_->biggest_logprob_cluster_to_calculate());
   string key_b_to_calc = GetNameToCalculate(key_b, args_->biggest_logprob_cluster_to_calculate());
 
@@ -561,7 +555,7 @@ double Glomerator::GetLogProbRatio(string key_a, string key_b) {
 // ----------------------------------------------------------------------------------------
 string Glomerator::CalculateNaiveSeq(string queries) {
   // NOTE do *not* call this from anywhere except GetNaiveSeq()
-  assert(naive_seqs_.count(queries) == 0);  // TODO remove me
+  assert(naive_seqs_.count(queries) == 0);
 
   if(seq_info_.count(queries) == 0 || kbinfo_.count(queries) == 0 || only_genes_.count(queries) == 0 || mute_freqs_.count(queries) == 0)
     throw runtime_error("no info for " + queries);
@@ -592,7 +586,7 @@ string Glomerator::CalculateNaiveSeq(string queries) {
 // ----------------------------------------------------------------------------------------
 double Glomerator::CalculateLogProb(string queries) {  // NOTE can modify kbinfo_
   // NOTE do *not* call this from anywhere except GetLogProb()
-  assert(log_probs_.count(queries) == 0);  // TODO remove me
+  assert(log_probs_.count(queries) == 0);
 
   if(seq_info_.count(queries) == 0 || kbinfo_.count(queries) == 0 || only_genes_.count(queries) == 0 || mute_freqs_.count(queries) == 0)
     throw runtime_error("no info for " + queries);
@@ -673,20 +667,12 @@ Query Glomerator::GetMergedQuery(string name_a, string name_b) {
 
   assert(SameLength(seq_info_[name_a]));  // all the seqs for name_a should already be the same length
   assert(SameLength(seq_info_[name_b]));  // ...same for name_b
-  vector<KBounds> kbvector;  // make vector of kbounds, with first chunk corresponding to <name_a>, and the second to <name_b>. This shenaniganery is necessary so we can take the OR of the two kbounds *after* truncation
-  for(size_t is=0; is<qmerged.seqs_.size(); ++is) {
-    if(is < seq_info_[name_a].size())  // the first part of the vector is for sequences from name_a
-      kbvector.push_back(kbinfo_[name_a]);
-    else
-      kbvector.push_back(kbinfo_[name_b]);  // ... and second part is for those from name_b
-  }
 
-  qmerged.kbounds_ = kbvector[0].LogicalOr(kbvector.back());  // OR of the kbounds for name_a and name_b, after they've been properly truncated
+  qmerged.kbounds_ = kbinfo_[name_a].LogicalOr(kbinfo_[name_b]);
 
   qmerged.only_genes_ = only_genes_[name_a];
   for(auto &g : only_genes_[name_b])  // NOTE this will add duplicates (that's no big deal, though) OPTIMIZATION
     qmerged.only_genes_.push_back(g);
-  // TODO mute freqs aren't really right any more if we truncated things above
   qmerged.mean_mute_freq_ = (seq_info_[name_a].size()*mute_freqs_[name_a] + seq_info_[name_b].size()*mute_freqs_[name_b]) / double(qmerged.seqs_.size());  // simple weighted average (doesn't account for different sequence lengths)
   qmerged.parents_ = pair<string, string>(name_a, name_b);
 
@@ -756,7 +742,7 @@ Query Glomerator::ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_
     for(Partition::iterator it_b = it_a; ++it_b != path->CurrentPartition().end();) {
       string key_a(*it_a), key_b(*it_b);
       if(args_->seed_unique_id() != "") {
-	if(key_a.find(args_->seed_unique_id()) == string::npos && key_b.find(args_->seed_unique_id()) == string::npos)  // if a seed unique id was set on the command line, and if it's not in either key (which are colon-joined strings of unique_ids) TODO it might be more efficient to split by colons before looking for the id
+	if(key_a.find(args_->seed_unique_id()) == string::npos && key_b.find(args_->seed_unique_id()) == string::npos)  // if a seed unique id was set on the command line, and if it's not in either key (which are colon-joined strings of unique_ids)
 	  continue;
       }
 

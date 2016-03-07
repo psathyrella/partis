@@ -8,9 +8,8 @@ Sequence::Sequence() : track_(nullptr)
 }
 
 // ----------------------------------------------------------------------------------------
-Sequence::Sequence(Track* trk, string name, string &undigitized, int cyst_position):
+Sequence::Sequence(Track* trk, string name, string &undigitized):
   name_(name),
-  cyst_position_(cyst_position),
   track_(trk),
   seqq_(undigitized.size())
 {
@@ -20,17 +19,13 @@ Sequence::Sequence(Track* trk, string name, string &undigitized, int cyst_positi
 }
 
 // ----------------------------------------------------------------------------------------
-Sequence::Sequence(Track* trk, string name, string &undigitized, size_t pos, size_t len, int untruncated_cyst_position):
-  // NOTE <untruncated_cyst_position> argument refers to the position in <undigitized>, i.e. *before* truncation at <pos>
+Sequence::Sequence(Track* trk, string name, string &undigitized, size_t pos, size_t len):
   name_(name),
   track_(trk),
   seqq_(undigitized.size())
 {
   CheckPosLen(name, undigitized, pos, len);
   undigitized_ = undigitized.substr(pos, len);  // <len> better be greater than zero
-  // if(int(pos) > untruncated_cyst_position)
-  //   throw runtime_error("truncating at pos " + to_string(pos) + " beyond cyst_position " + to_string(untruncated_cyst_position));
-  cyst_position_ = untruncated_cyst_position - pos;  // NOTE <cyst_position_> is negative e.g. if the sequence doesn't include the V region
   ClearWhitespace("\n", &undigitized_);
   Digitize();
 }
@@ -39,9 +34,6 @@ Sequence::Sequence(Track* trk, string name, string &undigitized, size_t pos, siz
 Sequence::Sequence(Sequence &rhs, size_t pos, size_t len) {
   name_ = rhs.name_;
   CheckPosLen(name_, rhs.undigitized(), pos, len);
-  // if(int(pos) > rhs.cyst_position_)
-  //   throw runtime_error("truncating at pos " + to_string(pos) + " beyond cyst_position " + to_string(rhs.cyst_position_));
-  cyst_position_ = rhs.cyst_position_ - pos;  // NOTE <cyst_position_> is negative e.g. if the sequence doesn't include the V region
   header_  = rhs.header_;
   track_  = rhs.track_;
   undigitized_ = rhs.undigitized().substr(pos, len);  // <len> better be greater than zero
@@ -52,7 +44,6 @@ Sequence::Sequence(Sequence &rhs, size_t pos, size_t len) {
 Sequence::Sequence(const Sequence &rhs) {
   name_ = rhs.name_;
   header_  = rhs.header_;
-  cyst_position_ = rhs.cyst_position_;
   undigitized_ = rhs.undigitized_;
   track_  = rhs.track_;
   seqq_ = rhs.seqq_;
