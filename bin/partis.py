@@ -53,10 +53,14 @@ if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
     print '    TODO in addition to translating from a large cluster to a smaller one, you should also not recalculate just \'cause you add one sequence to a huge cluster (probably do this when making the merged Query object)'
     print '    TODO fix WriteAnnotations in glomerator (and/i.e. clean up events_ filling, in particular in ReplaceNaiveSeq)'
     print '    TODO make things completely assertion/exception safe, i.e. if you catch one, that causes a failure on that one sequence only'
-    print '    TODO remove todos in glomerator (well, some of them)'
     print '    TODO todo in reset_effective_erosions_and_effective_insertions()'
     print '    TODO add functional column'
     print '    TODO also print how many forward merges'
+    print '    TODO stop compiling smc'
+    print '    TODO wait, why am I first caching all the naive seqs?'
+    print '    TODO print size of various cache arrays'
+    print '    TODO n_precache_procs shouldn\'t be limited by the number of procesros'
+    print '    TODO print time waiting for slurm'
 
 # input and output stuff
 parser.add_argument('--seqfile', help='input sequence file')

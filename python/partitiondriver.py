@@ -152,14 +152,15 @@ class PartitionDriver(object):
         if len(self.sw_info['queries']) > 50 or self.args.naive_vsearch or self.args.naive_swarm:
             if self.args.n_precache_procs is None:
                 n_seqs = len(self.sw_info['queries'])
-                seqs_per_proc = 500
+                seqs_per_proc = 500  # 2.5 mins (at something like 0.3 sec/seq)
                 if n_seqs > 3000:
                     seqs_per_proc *= 2
                 if n_seqs > 10000:
-                    seqs_per_proc *= 2
+                    seqs_per_proc *= 1.5
                 n_precache_procs = int(math.ceil(float(n_seqs) / seqs_per_proc))
-                n_precache_procs = min(n_precache_procs, self.args.n_max_procs)
-                n_precache_procs = min(n_precache_procs, multiprocessing.cpu_count())  # make sure it's less than the number of cpus
+                n_precache_procs = min(n_precache_procs, self.args.n_max_procs)  # I can't get more'n a few hundred slots at a time, so it isn't worth using too much more than that
+                if not self.args.slurm and not utils.auto_slurm(self.args.n_procs):  # if we're not on slurm, make sure it's less than the number of cpus
+                    n_precache_procs = min(n_precache_procs, multiprocessing.cpu_count())
             else:  # allow to override from command line (really just to make testing a bit faster)
                 n_precache_procs = self.args.n_precache_procs
             print '    precache procs', n_precache_procs
