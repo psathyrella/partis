@@ -9,6 +9,7 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> >
   vtb_dph_("viterbi", args_, gl, hmms),
   fwd_dph_("forward", args_, gl, hmms),
   i_initial_partition_(0),
+  n_max_factor_(1.5),
   n_fwd_calculated_(0),
   n_vtb_calculated_(0),
   n_hfrac_calculated_(0),
@@ -259,7 +260,7 @@ void Glomerator::WritePartitions(vector<ClusterPath> &paths) {
 
 // ----------------------------------------------------------------------------------------
 void Glomerator::WriteAnnotations(vector<ClusterPath> &paths) {
-  throw runtime_error("needs updating -- specifically need to make sure ReplaceNaiveSeq is replacing all the info it needs to in events_ ");
+  throw runtime_error("needs updating -- specifically need to make sure that when we replace one naive seq with another, we also replace other things like the event_ info ");
   ofstream annotation_ofs;
   annotation_ofs.open(args_->annotationfile());
   StreamHeader(annotation_ofs, "viterbi");
@@ -291,7 +292,7 @@ double Glomerator::LogProbOfPartition(Partition &partition, bool debug) {
     cout << "LogProbOfPartition: " << endl;
   for(auto &key : partition) {
     // assert(SameLength(seq_info_[key], true));
-    double log_prob = GetLogProb(key);  // immediately returns if we already have it NOTE all the sequences in <seq_info_[key]> are already the same length, since we've already merged them
+    double log_prob = GetLogProb(key);
     if(debug)
       cout << "  " << log_prob << "  " << key << endl;
     total_log_prob = AddWithMinusInfinities(total_log_prob, log_prob);
@@ -417,14 +418,6 @@ double Glomerator::NaiveHfrac(string key_a, string key_b) {
 }
 
 // ----------------------------------------------------------------------------------------
-// add an entry to <naive_seqs_>, filed under <queries>, which has the same naive sequence as <parentname>
-void Glomerator::ReplaceNaiveSeq(string queries, string parentname) {
-  naive_seqs_[queries] = GetNaiveSeq(parentname);  // copy the whole sequence object
-  events_[queries] = events_[parentname];  // also copy the event  // TODO this doesn't set all the event info correctly
-  events_[queries].seq_name_ = queries;
-}
-
-// ----------------------------------------------------------------------------------------
 pair<string, vector<Sequence> > Glomerator::ChooseSubsetOfNames(string queries, int n_max) {
   vector<string> subqueries;
   vector<Sequence> subseqs;
@@ -453,7 +446,7 @@ string Glomerator::GetNameToCalculate(string actual_queries, int n_max) {
     return name_translations_[n_max][actual_queries];
 
   // if cluster is more than half again larger than n_max, replace it with a cluster of this size
-  if(CountMembers(actual_queries) > 1.5 * n_max) {
+  if(CountMembers(actual_queries) > n_max_factor_ * n_max) {
     pair<string, vector<Sequence> > substuff = ChooseSubsetOfNames(actual_queries, n_max);
     string subqueries(substuff.first);
     seq_info_[subqueries] = substuff.second;
@@ -481,8 +474,10 @@ string &Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents) {
     return naive_seqs_[queries];
 
   // if we have naive seqs for both the parental clusters and they're the same, no reason to calculate this naive seq
-  if(parents != nullptr && GetNaiveSeq(parents->first) == GetNaiveSeq(parents->second)) {
-    ReplaceNaiveSeq(queries, parents->first);
+  if(parents != nullptr && GetNaiveSeq(parents->first) == GetNaiveSeq(parents->second)) {  /// add an entry to <naive_seqs_>, filed under <queries>, which has the same naive sequence as <parentname>
+    naive_seqs_[queries] = GetNaiveSeq(parents->first);  // copy the whole sequence object
+    events_[queries] = events_[parents->first];  // also copy the event  // TODO this doesn't set all the event info correctly
+    events_[queries].seq_name_ = queries;
     return naive_seqs_[queries];
   }
 
