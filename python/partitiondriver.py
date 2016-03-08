@@ -1008,16 +1008,21 @@ class PartitionDriver(object):
         # print '    time to write hmms: %.3f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
-    def remove_genes_with_no_hmm(self, gene_list, skipped_gene_matches, parameter_dir):
-        """ Check if hmm model file exists, and if not remove gene from <gene_list> """
-        if len(glob.glob(parameter_dir + '/hmms/*.yaml')) == 0:
+    def get_existing_hmm_files(self, parameter_dir):
+        fnames = [os.path.basename(fn) for fn in glob.glob(parameter_dir + '/hmms/*.yaml')]
+        genes = set([utils.unsanitize_name(os.path.splitext(fn)[0]) for fn in fnames])
+        if len(genes) == 0:
             raise Exception('no yamels in %s' % parameter_dir + '/hmms')
+        return genes
+
+    # ----------------------------------------------------------------------------------------
+    def remove_genes_with_no_hmm(self, gene_list, skipped_gene_matches, genes_with_hmm_files):
+        """ Check if hmm model file exists, and if not remove gene from <gene_list> """
 
         # first get the list of genes for which we don't have hmm files
         genes_to_remove = []  # NOTE there should *only* be genes to remove if we're caching parameters, i.e. if we just ran sw for the first time, so we couldn't tell sw ahead of time which genes to use because we didn't know yet
         for gene in gene_list:
-            hmmfname = parameter_dir + '/hmms/' + utils.sanitize_name(gene) + '.yaml'
-            if not os.path.exists(hmmfname):
+            if gene not in genes_with_hmm_files:
                 skipped_gene_matches.add(gene)
                 genes_to_remove.append(gene)
 
@@ -1061,6 +1066,8 @@ class PartitionDriver(object):
         # TODO this whole thing probably ought to use cached hmm info if it's available
         # TODO this just always uses the SW mutation rate, but I should really update it with the (multi-)hmm-derived ones (same goes for k space boundaries)
 
+        genes_with_hmm_files = self.get_existing_hmm_files(parameter_dir)
+
         for name in query_names:
             swfo = self.sw_info[name]
             if 'padded' in swfo:
@@ -1082,7 +1089,7 @@ class PartitionDriver(object):
 
             # work out which genes to tell the hmm to use
             only_genes = swfo['all'].split(':')  # start with all the sw matches for this query
-            self.remove_genes_with_no_hmm(only_genes, skipped_gene_matches, parameter_dir)  # remove the ones for which we don't have hmm files (we only write hmms for genes that appeared as the best sw match for at least one query, but swfo['all'] in general includes genes that were never the *best* match for any one query)
+            self.remove_genes_with_no_hmm(only_genes, skipped_gene_matches, genes_with_hmm_files)  # remove the ones for which we don't have hmm files (we only write hmms for genes that appeared as the best sw match for at least one query, but swfo['all'] in general includes genes that were never the *best* match for any one query)
             genes_to_use = []
             for region in utils.regions:  # take the best <self.args.n_max_per_region> from each region
                 reg_genes = [g for g in only_genes if utils.get_region(g) == region]

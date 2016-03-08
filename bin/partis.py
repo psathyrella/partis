@@ -61,6 +61,8 @@ if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
     print '    TODO print size of various cache arrays'
     print '    TODO n_precache_procs shouldn\'t be limited by the number of procesros'
     print '    TODO print time waiting for slurm'
+    print '    TODO user smaller n procs in loops through sw after the first'
+    print '    TODO rethink about how many sequences want to go along with the seed sequence to each process'
 
 # input and output stuff
 parser.add_argument('--seqfile', help='input sequence file')
