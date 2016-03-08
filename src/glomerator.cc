@@ -523,6 +523,7 @@ double Glomerator::GetLogProbRatio(string key_a, string key_b) {
   string key_b_to_calc = GetNameToCalculate(key_b, args_->biggest_logprob_cluster_to_calculate());
 
   // arg, this makes a whole new Query even if we're not replacing
+  // TODO wait, don't I want to translate *this*, and *then* see about translating the denominator?
   Query qmerged_to_calc = GetMergedQuery(key_a_to_calc, key_b_to_calc);  // NOTE also enters the merged query's info into seq_info_, kbinfo_, mute_freqs_, and only_genes_
 
   double log_prob_a = GetLogProb(key_a_to_calc);
@@ -676,6 +677,19 @@ Query Glomerator::GetMergedQuery(string name_a, string name_b) {
   kbinfo_[qmerged.name_] = qmerged.kbounds_;
   mute_freqs_[qmerged.name_] = qmerged.mean_mute_freq_;
   only_genes_[qmerged.name_] = qmerged.only_genes_;
+
+  // // only do this if seed unique id is set
+  // int biggest_cluster = args_->biggest_naive_seq_cluster_to_calculate();
+  // string queries = name_a;
+  // string queries_other = name_b;
+
+  // int nseq = CountMembers(queries);
+  // int nseq_other = CountMembers(queries_other);
+  // int nmax = n_max_factor_ * biggest_cluster;
+  // if(nseq > nmax && float(nseq) / nseq_other > 2. ) {  // if <nseq> is large, and if <nseq> more than twice the size of <nseq_other>, use the existing name translation (for which we should already have a logprob and a naive seq)
+  //   name_translations_[nmax][JoinNames(queries, queries_other)] = name_translations_[nmax][queries];
+  // }
+
 
   return qmerged;
 }

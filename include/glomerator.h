@@ -100,7 +100,7 @@ private:
   int i_initial_partition_;  // index of the next inital partition to grab (for smc stuff)
   double n_max_factor_;  // if cluster is larger than this factor times biggest_[naive_seq,logprob]_cluster_to_calculate(), use a subset of its sequences
 
-  map<int, map<string, string> > name_translations_;
+  map<int, map<string, string> > name_translations_;  // NOTE that this does somewhat different things for naive seqs and for logprobs, because naive seqs we can just replace with those from a smaller cluster, but logprobs we really can't, so we have to replace in the numerator *and* denominator of the ratio
 
   map<string, vector<Sequence> > seq_info_;  // NOTE it would be more memory-efficient to just keep track of vectors of keys here, and have Glomerator keep all the actual info
   map<string, vector<string> > only_genes_;
