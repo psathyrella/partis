@@ -263,11 +263,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def remove_duplicate_ids(self, uids, partition, deduplicate_uid):
-        clids = {uid : [] for uid in uids}
-        for iclust in range(len(partition)):
-            cluster = partition[iclust]
-            for uid in cluster:
-                clids[uid].append(iclust)
+        clids = utils.get_cluster_ids(uids, partition)
 
         for uid in uids:
             for index_in_clids in range(len(clids[uid])):

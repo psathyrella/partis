@@ -1471,10 +1471,19 @@ def get_str_from_partition(partition):
     return partition_str
 
 # ----------------------------------------------------------------------------------------
+def get_cluster_ids(uids, partition):
+    clids = {uid : [] for uid in uids}
+    for iclust in range(len(partition)):
+        for uid in partition[iclust]:
+            clids[uid].append(iclust)
+    return clids
+
+# ----------------------------------------------------------------------------------------
 def new_ccfs_that_need_better_names(partition, true_partition, reco_info, seed_unique_id=None):
     check_intersection_and_complement(partition, true_partition)
-
     reco_ids = {uid : reco_info[uid]['reco_id'] for cluster in partition for uid in cluster}  # just a teensy lil' optimization
+    uids = set([uid for cluster in partition for uid in cluster])
+    clids = get_cluster_ids(uids, partition)  # inferred cluster ids
 
     def get_clonal_fraction(uid, inferred_cluster):
         """ Return the fraction of seqs in <uid>'s inferred cluster which are really clonal. """
@@ -1498,7 +1507,9 @@ def new_ccfs_that_need_better_names(partition, true_partition, reco_info, seed_u
         for uid in true_cluster:
             if seed_unique_id is not None and uid != seed_unique_id:
                 continue
-            inferred_cluster = partition[find_uid_in_partition(uid, partition)]
+            if len(clids[uid]) != 1:
+                print 'WARNING %s in multiple clusters' % uid
+            inferred_cluster = partition[clids[uid][0]]
             mean_clonal_fraction += get_clonal_fraction(uid, inferred_cluster)
             mean_fraction_present +=  get_fraction_present(uid, inferred_cluster, true_cluster)
             n_uids += 1
