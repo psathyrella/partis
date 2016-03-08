@@ -250,35 +250,35 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def check_partition(self, partition, deduplicate_uid=None):
         start = time.time()
-        found_ids = set([uid for cluster in partition for uid in cluster])
-        print '    checking partition with %d ids' % len(found_ids)
-        missing_ids = set()
-        print '      looking for %d ids from input info' % len(self.input_info)
-        for uid in self.input_info:  # maybe should switch this to self.sw_info['queries']? at least if we want to not worry about missing failed sw queries
-            if uid not in found_ids:
-                missing_ids.add(uid)
+        uids = set([uid for cluster in partition for uid in cluster])
+        print '    checking partition with %d ids' % len(uids)
+        input_ids = set(self.input_info.keys())  # maybe should switch this to self.sw_info['queries']? at least if we want to not worry about missing failed sw queries
+        missing_ids = input_ids - uids
         if len(missing_ids) > 0:
             warnstr = 'queries missing from partition: ' + ' '.join(missing_ids)
             print '  ' + utils.color('red', 'warning') + ' ' + warnstr
 
-        for fid in found_ids:
-            found = False
-            for cluster in partition:
-                if fid in cluster:
-                    if found or cluster.count(fid) > 1:  # if we already found it in another cluster, or if it's in this cluster more than once
-                        if self.args.seed_unique_id is not None and fid == self.args.seed_unique_id:
-                            pass
-                        else:
-                            raise Exception('duplicate sequence %s in partition' % fid)
-                        if deduplicate_uid:
-                            assert deduplicate_uid == self.args.seed_unique_id  # er, could stand to clean this up a bit
-                            n_remaining = 1  # if there's more than one in this cluster only, then we want to leave one of 'em
-                            if found:
-                                n_remaining = 0  # if we already found it in another cluster, remove *all* of 'em
-                            while cluster.count(fid) > n_remaining:
-                                cluster.remove(deduplicate_uid)
+        if self.args.seed_unique_id is not None:
+            self.remove_duplicate_ids(uids, partition, self.args.seed_unique_id)
 
-                    found = True
+    # ----------------------------------------------------------------------------------------
+    def remove_duplicate_ids(self, uids, partition, deduplicate_uid):
+        clids = {uid : [] for uid in uids}
+        for iclust in range(len(partition)):
+            cluster = partition[iclust]
+            for uid in cluster:
+                clids[uid].append(iclust)
+
+        for uid in uids:
+            for index_in_clids in range(len(clids[uid])):
+                iclust = clids[uid][index_in_clids]
+                cluster = partition[iclust]
+                if index_in_clids > 0 or cluster.count(uid) > 1:  # if this isn't the first cluster that it's in, or if it's in this cluster more than once
+                    n_remaining = 1  # if there's more than one in this cluster only, then we want to leave one of 'em
+                    if index_in_clids > 0:
+                        n_remaining = 0  # if we already found it in another cluster, remove *all* of 'em
+                    while cluster.count(uid) > n_remaining:
+                        cluster.remove(deduplicate_uid)
 
         print '      check time: %.3f' % (time.time()-start)
 
@@ -297,7 +297,7 @@ class PartitionDriver(object):
             # assert path.adj_mis[path.i_best] is None
             # assert path.ccfs[path.i_beset][0] is None and path.ccfs[path.i_beset][1] is None
             partition = copy.deepcopy(path.partitions[path.i_best])
-            self.check_partition(partition, deduplicate_uid=deduplicate_uid)  # NOTE doesn't set adj mi and whatnot (they'd be wrong if there's duplicates. Actually, I'm distrubed that the duplicates don't seem to cause them to fail)
+            # self.check_partition(partition, deduplicate_uid=deduplicate_uid)  # NOTE doesn't set adj mi and whatnot (they'd be wrong if there's duplicates. Actually, I'm distrubed that the duplicates don't seem to cause them to fail)
             newcp.add_partition(partition, path.logprobs[path.i_best], path.n_procs[path.i_best])
             newcp.write_partitions(writer=writer, reco_info=self.reco_info, true_partition=true_partition, is_data=self.args.is_data, n_to_write=self.args.n_partitions_to_write, calc_missing_values='best', seed_unique_id=self.args.seed_unique_id)
         else:
