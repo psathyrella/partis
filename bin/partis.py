@@ -63,6 +63,7 @@ if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
     print '    TODO print time waiting for slurm'
     print '    TODO user smaller n procs in loops through sw after the first'
     print '    TODO rethink about how many sequences want to go along with the seed sequence to each process'
+    print '    TODO make progress file a bit more informative'
 
 # input and output stuff
 parser.add_argument('--seqfile', help='input sequence file')
@@ -90,7 +91,7 @@ parser.add_argument('--only-genes', help='Colon-separated list of genes to which
 parser.add_argument('--n-best-events', default=None, help='Number of best events to print (i.e. n-best viterbi paths). Default is set in bcrham.')
 
 parser.add_argument('--biggest-naive-seq-cluster-to-calculate', type=int, default=7, help='start thinking about subsampling before you calculate anything if cluster is bigger than this')
-parser.add_argument('--biggest-logprob-cluster-to-calculate', type=int, default=10, help='start thinking about subsampling before you calculate anything if cluster is bigger than this')
+parser.add_argument('--biggest-logprob-cluster-to-calculate', type=int, default=7, help='start thinking about subsampling before you calculate anything if cluster is bigger than this')
 
 # simulation (see also gtr-fname)
 # NOTE see also mutation-multiplier, although that comes into play after the trees are generated

@@ -261,6 +261,8 @@ class PartitionDriver(object):
         if self.args.seed_unique_id is not None:
             self.remove_duplicate_ids(uids, partition, self.args.seed_unique_id)
 
+        print '      check time: %.3f' % (time.time()-start)
+
     # ----------------------------------------------------------------------------------------
     def remove_duplicate_ids(self, uids, partition, deduplicate_uid):
         clids = utils.get_cluster_ids(uids, partition)
@@ -275,8 +277,6 @@ class PartitionDriver(object):
                         n_remaining = 0  # if we already found it in another cluster, remove *all* of 'em
                     while cluster.count(uid) > n_remaining:
                         cluster.remove(deduplicate_uid)
-
-        print '      check time: %.3f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
     def write_clusterpaths(self, outfname, paths, deduplicate_uid=None):
@@ -293,7 +293,8 @@ class PartitionDriver(object):
             # assert path.adj_mis[path.i_best] is None
             # assert path.ccfs[path.i_beset][0] is None and path.ccfs[path.i_beset][1] is None
             partition = copy.deepcopy(path.partitions[path.i_best])
-            # self.check_partition(partition, deduplicate_uid=deduplicate_uid)  # NOTE doesn't set adj mi and whatnot (they'd be wrong if there's duplicates. Actually, I'm distrubed that the duplicates don't seem to cause them to fail)
+            # need this one to remove duplicates
+            self.check_partition(partition, deduplicate_uid=deduplicate_uid)  # NOTE doesn't set adj mi and whatnot (they'd be wrong if there's duplicates. Actually, I'm distrubed that the duplicates don't seem to cause them to fail)
             newcp.add_partition(partition, path.logprobs[path.i_best], path.n_procs[path.i_best])
             newcp.write_partitions(writer=writer, reco_info=self.reco_info, true_partition=true_partition, is_data=self.args.is_data, n_to_write=self.args.n_partitions_to_write, calc_missing_values='best', seed_unique_id=self.args.seed_unique_id)
         else:
@@ -1045,7 +1046,7 @@ class PartitionDriver(object):
         return True
 
     # ----------------------------------------------------------------------------------------
-    def combine_queries(self, query_names, parameter_dir, skipped_gene_matches=None):
+    def combine_queries(self, query_names, parameter_dir, genes_with_hmm_files, skipped_gene_matches=None):
         """ 
         Return the 'logical OR' of the queries in <query_names>, i.e. the maximal extent in k_v/k_d space and OR of only_gene sets.
         """
@@ -1061,8 +1062,6 @@ class PartitionDriver(object):
 
         # TODO this whole thing probably ought to use cached hmm info if it's available
         # TODO this just always uses the SW mutation rate, but I should really update it with the (multi-)hmm-derived ones (same goes for k space boundaries)
-
-        genes_with_hmm_files = self.get_existing_hmm_files(parameter_dir)
 
         for name in query_names:
             swfo = self.sw_info[name]
@@ -1135,11 +1134,10 @@ class PartitionDriver(object):
         if self.args.synthetic_distance_based_partition:
             self.write_fake_cache_file(nsets)
 
-        for query_name_list in nsets:
+        genes_with_hmm_files = self.get_existing_hmm_files(parameter_dir)
 
-            # NOTE in principle I think I should remove duplicate singleton <seed_unique_id>s here. But I think they in effect get remove 'cause in bcrham everything's store as hash maps, so any duplicates just overwites the original upon reading its input
-
-            combined_query = self.combine_queries(query_name_list, parameter_dir, skipped_gene_matches=skipped_gene_matches)
+        for query_name_list in nsets:  # NOTE in principle I think I should remove duplicate singleton <seed_unique_id>s here. But I think they in effect get remove 'cause in bcrham everything's store as hash maps, so any duplicates just overwites the original upon reading its input
+            combined_query = self.combine_queries(query_name_list, parameter_dir, genes_with_hmm_files, skipped_gene_matches=skipped_gene_matches)
             if len(combined_query) == 0:  # didn't find all regions
                 continue
             writer.writerow({
