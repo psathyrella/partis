@@ -32,7 +32,7 @@ def abbreviate(used_names, potential_names, unique_id):
     return new_id
 
 # ----------------------------------------------------------------------------------------
-def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, reco_ids=None, name_column=None, seq_column=None, seed_unique_id=None, abbreviate_names=True):
+def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, reco_ids=None, name_column=None, seq_column=None, seed_unique_id=None, abbreviate_names=False):
     """ return list of sequence info from files of several types """
 
     # WARNING defaults for <name_column> and <seq_column> also set in partis.py (since we call this from places other than partis.py, but we also want people to be able set them from the partis.py command line)

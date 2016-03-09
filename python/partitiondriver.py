@@ -32,7 +32,7 @@ class PartitionDriver(object):
         self.args = args
         self.glfo = utils.read_germline_set(self.args.datadir, debug=True)
 
-        self.input_info, self.reco_info = get_seqfile_info(self.args.seqfile, self.args.is_data, self.glfo, self.args.n_max_queries, self.args.queries, self.args.reco_ids, name_column=self.args.name_column, seq_column=self.args.seq_column, seed_unique_id=self.args.seed_unique_id)
+        self.input_info, self.reco_info = get_seqfile_info(self.args.seqfile, self.args.is_data, self.glfo, self.args.n_max_queries, self.args.queries, self.args.reco_ids, name_column=self.args.name_column, seq_column=self.args.seq_column, seed_unique_id=self.args.seed_unique_id, abbreviate_names=self.args.debug)
         self.sw_info = None
         self.paths = []
         self.smc_info = []
