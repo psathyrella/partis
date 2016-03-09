@@ -75,6 +75,8 @@ private:
   string ChooseSubsetOfNames(string queries, int n_max);
   string GetNaiveSeqNameToCalculate(string actual_queries);  // convert between the actual queries/key we're interested in and the one we're going to calculate
   pair<string, string> GetLogProbNameToCalculate(string actual_queries, pair<string, string> actual_parents);  // convert between the actual queries/key we're interested in and the one we're going to calculate
+  bool FirstParentBigger(string queries, string queries_other, int nmax);
+  string FindNaiveSeqNameReplace(pair<string, string> *parents);
   string &GetNaiveSeq(string key, pair<string, string> *parents=nullptr);
   // double NormFactor(string name);
   double GetLogProb(string queries);
