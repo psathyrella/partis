@@ -71,11 +71,13 @@ private:
   double CalculateHfrac(string &seq_a, string &seq_b);
   double NaiveHfrac(string key_a, string key_b);
 
-  pair<string, vector<Sequence> > ChooseSubsetOfNames(string queries, int n_max);
-  string GetNameToCalculate(string actual_queries, int n_max);  // convert between the actual queries/key we're interested in and the one we're going to calculate
+  string ChooseSubsetOfNames(string queries, int n_max);
+  string GetNaiveSeqNameToCalculate(string actual_queries);  // convert between the actual queries/key we're interested in and the one we're going to calculate
+  pair<string, string> GetLogProbNameToCalculate(string actual_queries, pair<string, string> actual_parents);  // convert between the actual queries/key we're interested in and the one we're going to calculate
   string &GetNaiveSeq(string key, pair<string, string> *parents=nullptr);
   // double NormFactor(string name);
   double GetLogProb(string queries);
+  string GetNamesInSubCluster(string queries, string subqueries);
   double GetLogProbRatio(string key_a, string key_b);
   string CalculateNaiveSeq(string key);
   double CalculateLogProb(string queries);
@@ -98,9 +100,9 @@ private:
   vector<double> initial_logweights_;
 
   int i_initial_partition_;  // index of the next inital partition to grab (for smc stuff)
-  double n_max_factor_;  // if cluster is larger than this factor times biggest_[naive_seq,logprob]_cluster_to_calculate(), use a subset of its sequences
 
-  map<int, map<string, string> > name_translations_;  // NOTE that this does somewhat different things for naive seqs and for logprobs, because naive seqs we can just replace with those from a smaller cluster, but logprobs we really can't, so we have to replace in the numerator *and* denominator of the ratio
+  map<string, string> naive_seq_name_translations_;
+  map<string, pair<string, string> > logprob_name_translations_;
 
   map<string, vector<Sequence> > seq_info_;  // NOTE it would be more memory-efficient to just keep track of vectors of keys here, and have Glomerator keep all the actual info
   map<string, vector<string> > only_genes_;
