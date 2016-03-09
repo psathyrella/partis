@@ -276,11 +276,6 @@ class Waterer(object):
                     self.process_query(bam.references, list(reads), queries_to_rerun)
                     n_processed += 1
 
-            if not self.args.no_clean:
-                os.remove(outfname)
-                if n_procs > 1:  # still need the top-level workdir
-                    os.rmdir(workdir)
-
         if self.nth_try == 1:
             print '        processed       remaining      new-indels          rerun: ' + '      '.join([reason for reason in queries_to_rerun])
         print '      %8d' % n_processed,
@@ -295,7 +290,7 @@ class Waterer(object):
             print printstr,
             if n_to_rerun + self.new_indels != len(self.remaining_queries):
                 print n_to_rerun, self.new_indels, len(self.remaining_queries)
-                raise Exception('I\'m an exception!')
+                raise Exception('numbers don\'t add up in sw output reader (n_to_rerun + new_indels != remaining_queries): %d + %d != %d   (look in %s)' % (n_to_rerun, self.new_indels, len(self.remaining_queries), self.args.workdir))
             if self.nth_try < 2 or self.new_indels == 0:  # increase the mismatch score if it's the first try, or if there's no new indels
                 print '            increasing mismatch score (%d --> %d) and rerunning them' % (self.args.match_mismatch[1], self.args.match_mismatch[1] + 1)
                 self.args.match_mismatch[1] += 1
@@ -306,6 +301,15 @@ class Waterer(object):
                 assert False
         else:
             print '        all done'
+
+        if not self.args.no_clean:
+            for iproc in range(n_procs):
+                workdir = self.args.workdir
+                if n_procs > 1:
+                    workdir += '/sw-' + str(iproc)
+                os.remove(workdir + '/' + base_outfname)
+                if n_procs > 1:  # still need the top-level workdir
+                    os.rmdir(workdir)
 
     # ----------------------------------------------------------------------------------------
     def get_choice_prob(self, region, gene):
