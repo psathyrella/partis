@@ -433,13 +433,6 @@ string Glomerator::ChooseSubsetOfNames(string queries, int n_max) {
 
   string subqueries(JoinStrings(subqueryvec));
 
-  if(args_->debug() > 0) {
-    if(CountMembers(queries) + CountMembers(subqueries) < 20)
-      cout <<  "     replacing " << queries << " --> " << subqueries << endl;
-    else
-      cout <<  "     replacing " << CountMembers(queries) << " --> " << CountMembers(subqueries) << endl;
-  }
-
   seq_info_[subqueries] = subseqs;
   kbinfo_[subqueries] = kbinfo_[queries];  // just use the entire/super cluster for this stuff. It's just overly conservative (as long as you keep the mute freqs the same)
   mute_freqs_[subqueries] = mute_freqs_[queries];
@@ -459,6 +452,12 @@ string Glomerator::GetNaiveSeqNameToCalculate(string actual_queries) {
     return actual_queries;
 
   string subqueries = ChooseSubsetOfNames(actual_queries, args_->biggest_naive_seq_cluster_to_calculate());
+  if(args_->debug() > 0) {
+    if(CountMembers(actual_queries) + CountMembers(subqueries) < 20)
+      cout <<  "     replacing " << actual_queries << " --> " << subqueries << endl;
+    else
+      cout <<  "     replacing " << CountMembers(actual_queries) << " --> " << CountMembers(subqueries) << endl;
+  }
 
   naive_seq_name_translations_[actual_queries] = subqueries;
   return subqueries;
@@ -476,13 +475,16 @@ pair<string, string> Glomerator::GetLogProbNameToCalculate(string actual_queries
     return actual_parents;
 
   pair<string, string> queries_to_calc(actual_parents.first, actual_parents.second);
-  if(CountMembers(actual_parents.first) > n_max)
+  if(CountMembers(actual_parents.first) > n_max) {
     queries_to_calc.first = ChooseSubsetOfNames(queries_to_calc.first, n_max);
-  if(CountMembers(actual_parents.second) > n_max)
+    cout << "      parent 1 goes " << actual_parents.first << "  to  " << queries_to_calc.first << endl;
+  }
+  if(CountMembers(actual_parents.second) > n_max) {
     queries_to_calc.second = ChooseSubsetOfNames(queries_to_calc.second, n_max);
+    cout << "      parent 1 goes " << actual_parents.second << "  to  " << queries_to_calc.second << endl;
+  }
 
   logprob_name_translations_[actual_queries] = queries_to_calc;
-
   return queries_to_calc;
 }
 
@@ -533,40 +535,18 @@ double Glomerator::GetLogProb(string queries) {
 }
 
 // ----------------------------------------------------------------------------------------
-string Glomerator::GetNamesInSubCluster(string queries, string subqueries) {
-  // vector<string> found_queries;
-  // for(auto &query : SplitString(queries, ":")) {
-  //   if(subqueries.find(query) != string::npos)
-  //     found_queries.push_back(query);
-  // }
-  // return JoinStrings(found_queries, ":");
-  return string();
-}
-
-// ----------------------------------------------------------------------------------------
 double Glomerator::GetLogProbRatio(string key_a, string key_b) {
-  // // NOTE the error from using the single kbounds rather than the OR seems to be around a part in a thousand or less (it's only really important that the merged query has the OR)
-  // // NOTE also that the _a and _b results will be cached, but with their *individual* only_gene sets (rather than the OR)... but this seems to be ok.
-  // // NOTE if kbounds gets expanded in one of these three calls, we don't redo the others. Which is really ok, but could be checked again?
-  // string key_a_to_calc = GetNameToCalculate(key_a, args_->biggest_logprob_cluster_to_calculate());
-  // string key_b_to_calc = GetNameToCalculate(key_b, args_->biggest_logprob_cluster_to_calculate());
+  // NOTE the error from using the single kbounds rather than the OR seems to be around a part in a thousand or less (it's only really important that the merged query has the OR)
+  // NOTE also that the _a and _b results will be cached, but with their *individual* only_gene sets (rather than the OR)... but this seems to be ok.
+  // NOTE if kbounds gets expanded in one of these three calls, we don't redo the others. Which is really ok, but could be checked again?
 
-  // // arg, this makes a whole new Query even if we're not replacing
-  // // TODO wait, don't I want to translate *this*, and *then* see about translating the denominator?
-  // Query qmerged_to_calc = GetMergedQuery(key_a_to_calc, key_b_to_calc);  // NOTE also enters the merged query's info into seq_info_, kbinfo_, mute_freqs_, and only_genes_
-
-  cout << "  considering " << key_a << " and " << key_b << endl;
+  // TODO we could avoid recalculating a lot of the denominators if we didn't randomly choose a subset, and instead looked to see what we already have
 
   Query full_qmerged = GetMergedQuery(key_a, key_b);  // have to make this to get seq_info_ and whatnot filled up
   pair<string, string> parents_to_calc = GetLogProbNameToCalculate(full_qmerged.name_, full_qmerged.parents_);
   string key_a_to_calc = parents_to_calc.first;
   string key_b_to_calc = parents_to_calc.second;
   Query qmerged_to_calc = GetMergedQuery(key_a_to_calc, key_b_to_calc);  // NOTE also enters the merged query's info into seq_info_, kbinfo_, mute_freqs_, and only_genes_
-  if(qmerged_to_calc.name_ != JoinNames(key_a, key_b)) {
-    cout << "     merged goes from " << JoinNames(key_a, key_b) << " to " << qmerged_to_calc.name_ << endl;
-    cout << "        so parents go " << key_a << " --> " << key_a_to_calc << endl;
-    cout << "                      " << key_b << " --> " << key_b_to_calc << endl;
-  }
 
   double log_prob_a = GetLogProb(key_a_to_calc);
   double log_prob_b = GetLogProb(key_b_to_calc);
@@ -719,20 +699,7 @@ Query Glomerator::GetMergedQuery(string name_a, string name_b) {
   kbinfo_[qmerged.name_] = qmerged.kbounds_;
   mute_freqs_[qmerged.name_] = qmerged.mean_mute_freq_;
   only_genes_[qmerged.name_] = qmerged.only_genes_;
-
-  // // only do this if seed unique id is set
-  // int biggest_cluster = args_->biggest_naive_seq_cluster_to_calculate();
-  // string queries = name_a;
-  // string queries_other = name_b;
-
-  // int nseq = CountMembers(queries);
-  // int nseq_other = CountMembers(queries_other);
-  // int nmax = n_max_factor_ * biggest_cluster;
-  // if(nseq > nmax && float(nseq) / nseq_other > 2. ) {  // if <nseq> is large, and if <nseq> more than twice the size of <nseq_other>, use the existing name translation (for which we should already have a logprob and a naive seq)
-  //   name_translations_[nmax][JoinNames(queries, queries_other)] = name_translations_[nmax][queries];
-  // }
-
-
+  
   return qmerged;
 }
 
@@ -872,6 +839,27 @@ Query Glomerator::ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_
   }
 }
 
+
+// ----------------------------------------------------------------------------------------
+void Glomerator::UpdateTranslations(string queries, string queries_other) {
+  int nseq = CountMembers(queries);
+  int nseq_other = CountMembers(queries_other);
+  string merged_queries(JoinNames(queries, queries_other));
+
+  int nmax = 1.5 * args_->biggest_naive_seq_cluster_to_calculate();  // TODO don't hard code the factor
+  if(nseq > nmax && float(nseq) / nseq_other > 2. ) {  // if <nseq> is large, and if <nseq> more than twice the size of <nseq_other>, use the existing name translation (for which we should already have a logprob and a naive seq)
+    cout << "  translate naive seq " << queries << " " << queries_other << endl;
+    naive_seqs_[merged_queries] = GetNaiveSeq(queries);  // copy the whole sequence object
+    events_[merged_queries] = events_[queries];  // also copy the event  // TODO this doesn't set all the event info correctly
+    events_[merged_queries].seq_name_ = merged_queries;
+  }
+
+  if(logprob_name_translations_.count(queries) && float(nseq) / nseq_other > 2. ) {  // if <nseq> is large, and if <nseq> more than twice the size of <nseq_other>, use the existing name translation (for which we should already have a logprob and a naive seq)
+    cout << "  translate logprob " << queries << " " << queries_other << endl;
+    logprob_name_translations_[JoinNames(queries, queries_other)] = logprob_name_translations_[queries]; //GetLogProbNameToCalculate(queries);
+  }
+}
+
 // ----------------------------------------------------------------------------------------
 // perform one merge step, i.e. find the two "nearest" clusters and merge 'em (unless we're doing doing smc, in which case we choose a random merge accordingy to their respective nearnesses)
 void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
@@ -883,9 +871,13 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
     return;
 
   assert(seq_info_.count(chosen_qmerge.name_) != 0);
+  if(args_->seed_unique_id() != "") {  // if there's no seed, there isn't a need to do this, since in that case we don't end up merging clusters one sequence at a time
+    UpdateTranslations(chosen_qmerge.parents_.first, chosen_qmerge.parents_.second);
+    UpdateTranslations(chosen_qmerge.parents_.second, chosen_qmerge.parents_.first);
+  }
   GetNaiveSeq(chosen_qmerge.name_, &chosen_qmerge.parents_);
 
-  double last_partition_logprob(LogProbOfPartition(path->CurrentPartition()));
+  double last_partition_logprob(LogProbOfPartition(path->CurrentPartition()));  // NOTE this will calculate any logprobs that we earlier approximated with translations when we only needed the ratio
   Partition new_partition(path->CurrentPartition());  // note: CurrentPartition() returns a reference
   new_partition.erase(chosen_qmerge.parents_.first);
   new_partition.erase(chosen_qmerge.parents_.second);

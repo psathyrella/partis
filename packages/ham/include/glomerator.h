@@ -77,13 +77,13 @@ private:
   string &GetNaiveSeq(string key, pair<string, string> *parents=nullptr);
   // double NormFactor(string name);
   double GetLogProb(string queries);
-  string GetNamesInSubCluster(string queries, string subqueries);
   double GetLogProbRatio(string key_a, string key_b);
   string CalculateNaiveSeq(string key);
   double CalculateLogProb(string queries);
 
   bool SameLength(vector<Sequence> &seqs, bool debug=false);
   vector<Sequence> MergeSeqVectors(string name_a, string name_b);
+  void UpdateTranslations(string queries, string queries_other);
   Query GetMergedQuery(string name_a, string name_b);
 
   bool LikelihoodRatioTooSmall(double lratio, int candidate_cluster_size);
