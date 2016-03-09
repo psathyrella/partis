@@ -26,8 +26,9 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> >
 
     int ipath(args_->integers_["path_index"][iqry]);
     if(last_ipath != ipath) {  // if we need to push back a new initial partition (i.e. this is a new path/particle) NOTE I'm assuming the the first one will have <path_index> zero
+      assert(0);  // deprecated, I think?
       initial_partitions_.push_back(tmp_partition);
-      initial_logprobs_.push_back(LogProbOfPartition(tmp_partition));
+      initial_logprobs_.push_back(-INFINITY);  //LogProbOfPartition(tmp_partition));
       initial_logweights_.push_back(args_->floats_["logweight"][iqry]);  // it's the same for each <iqry> with this <path_index>
       tmp_partition.clear();
       last_ipath = ipath;
@@ -53,14 +54,14 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> >
   // add the last initial partition (i.e. for the last path/particle)
   assert(tmp_partition.size() > 0);
   initial_partitions_.push_back(tmp_partition);
-  initial_logprobs_.push_back(LogProbOfPartition(tmp_partition));
+  initial_logprobs_.push_back(-INFINITY);  // LogProbOfPartition(tmp_partition));
   initial_logweights_.push_back(args_->floats_["logweight"].back());
 
   // the *first* time, we only get one path/partition from partis, so we push back a bunch of copies
   if((int)initial_partitions_.size() == 1 && args_->smc_particles() > 1)  {
     for(int ip=1; ip<args_->smc_particles(); ++ip) {
       initial_partitions_.push_back(tmp_partition);
-      initial_logprobs_.push_back(LogProbOfPartition(tmp_partition));
+      initial_logprobs_.push_back(-INFINITY);  // LogProbOfPartition(tmp_partition));
       initial_logweights_.push_back(args_->floats_["logweight"].back());
     }
   }
@@ -68,9 +69,9 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> >
   if((int)initial_partitions_.size() != args_->smc_particles())
     throw runtime_error("wrong number of initial partitions " + to_string(initial_partitions_.size()) + " (should be " + to_string(args_->smc_particles()) + ")");
 
-  if(args_->debug())
-    for(auto &part : initial_partitions_)
-      PrintPartition(part, "initial");
+  // if(args_->debug())
+  //   for(auto &part : initial_partitions_)
+  //     PrintPartition(part, "initial");
 }
 
 // ----------------------------------------------------------------------------------------
@@ -106,7 +107,7 @@ void Glomerator::Cluster() {
     throw runtime_error("logprob ratio threshold not specified");
 
   assert((int)initial_partitions_.size() == 1);
-  ClusterPath cp(initial_partitions_[0], LogProbOfPartition(initial_partitions_[0]), initial_logweights_[0]);
+  ClusterPath cp(initial_partitions_[0], -INFINITY /*LogProbOfPartition(initial_partitions_[0])*/, initial_logweights_[0]);
   do {
     Merge(&cp);
     // cout << ClusterSizeString(&cp) << endl;
@@ -301,7 +302,7 @@ double Glomerator::LogProbOfPartition(Partition &partition, bool debug) {
 // ----------------------------------------------------------------------------------------
 void Glomerator::PrintPartition(Partition &partition, string extrastr) {
   const char *extra_cstr(extrastr.c_str());  // dammit I shouldn't need this line
-  printf("    %-8.2f %s partition\n", LogProbOfPartition(partition), extra_cstr);
+  printf("    %-8.2f %s partition\n", -INFINITY/*LogProbOfPartition(partition)*/, extra_cstr);
   for(auto &key : partition)
     cout << "          " << key << endl;
 }
@@ -427,17 +428,28 @@ string Glomerator::ChooseSubsetOfNames(string queries, int n_max) {
     return logprob_name_subsets_[queries];
 
   assert(seq_info_.count(queries));
-  vector<string> subqueryvec;
-  vector<Sequence> subseqs;
   vector<string> namevector(SplitString(queries, ":"));
 
   srand(hash<string>{}(queries));  // make sure we get the same subset each time we pass in the same queries (well, if there's different thresholds for naive_seqs annd logprobs they'll each get their own [very correlated] subset)
+
+  // first choose the indices we'll choose
   set<int> already_chosen;
+  vector<int> chosen;  // don't really need both of these... but maybe it's faster
   for(size_t iname=0; iname<unsigned(n_max); ++iname) {
     int ichosen(-1);
     while(ichosen < 0 || already_chosen.count(ichosen))
       ichosen = rand() % namevector.size();
     already_chosen.insert(ichosen);
+    chosen.push_back(ichosen);
+  }
+
+  // then sort 'em
+  sort(chosen.begin(), chosen.end());
+
+  // and finally make the new vectors
+  vector<string> subqueryvec;
+  vector<Sequence> subseqs;
+  for(auto &ichosen : chosen) {
     subqueryvec.push_back(namevector[ichosen]);
     subseqs.push_back(seq_info_[queries][ichosen]);
   }
@@ -499,7 +511,7 @@ pair<string, string> Glomerator::GetLogProbNameToCalculate(string actual_queries
 
   logprob_name_translations_[actual_queries] = queries_to_calc;
   if(args_->debug())
-    printf("                translate for lratio  %s   %s  %s  -->  %s  %s\n", actual_queries.c_str(), actual_parents.first.c_str(), actual_parents.second.c_str(), queries_to_calc.first.c_str(), queries_to_calc.second.c_str());
+    printf("                translate for lratio (%s)   %s  %s  -->  %s  %s\n", actual_queries.c_str(), actual_parents.first.c_str(), actual_parents.second.c_str(), queries_to_calc.first.c_str(), queries_to_calc.second.c_str());
   return queries_to_calc;
 }
 
@@ -527,6 +539,7 @@ string &Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents) {
     // double hfrac = CalculateHfrac(full_nseq, sub_nseq);
     // printf("       use %3d instead of %3d (hamming %5.3f)\n", CountMembers(queries_to_calc), CountMembers(queries), hfrac);
     naive_seqs_[queries] = naive_seqs_[queries_to_calc];
+    // TODO wait, shouldn't I set events_ and whatnot here?
   }
 
   return naive_seqs_[queries];
@@ -900,15 +913,20 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
     UpdateTranslations(chosen_qmerge.parents_.first, chosen_qmerge.parents_.second);
     UpdateTranslations(chosen_qmerge.parents_.second, chosen_qmerge.parents_.first);
   }
-  GetNaiveSeq(chosen_qmerge.name_, &chosen_qmerge.parents_);
+  GetNaiveSeq(chosen_qmerge.name_, &chosen_qmerge.parents_);  // we could wait to do this later, but we basically know we'll need it, and doing it here makes it easy to pass in the parents
 
   // NOTE this will calculate any logprobs that we earlier approximated with translations when we only needed the ratio
-  double last_partition_logprob(LogProbOfPartition(path->CurrentPartition()));
+  // double last_partition_logprob(LogProbOfPartition(path->CurrentPartition()));
   Partition new_partition(path->CurrentPartition());  // note: CurrentPartition() returns a reference
   new_partition.erase(chosen_qmerge.parents_.first);
   new_partition.erase(chosen_qmerge.parents_.second);
   new_partition.insert(chosen_qmerge.name_);
-  path->AddPartition(new_partition, LogProbOfPartition(new_partition), args_->max_logprob_drop());
+  path->AddPartition(new_partition, -INFINITY/*LogProbOfPartition(new_partition)*/);  // , args_->max_logprob_drop());
+
+  // if(max_log_prob_of_partition_ - logprob > max_drop) {  // stop if we've moved too far past the maximum
+  //   cout << "        stopping after drop " << max_log_prob_of_partition_ << " --> " << logprob << endl;
+  //   finished_ = true;  // NOTE this will not play well with multiple maxima, but I'm pretty sure we shouldn't be getting those
+  // }
 
   if(args_->debug()) {
     printf("       merged   %s  %s\n", chosen_qmerge.parents_.first.c_str(), chosen_qmerge.parents_.second.c_str());
