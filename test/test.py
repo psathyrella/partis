@@ -375,63 +375,82 @@ class Tester(object):
             # ----------------------------------------------------------------------------------------
     def compare_partition_cachefiles(self, input_stype):
         """ NOTE only writing this for the ref input_stype a.t.m. """
+
+        # ----------------------------------------------------------------------------------------
+        def print_key_differences(vtype, refkeys, newkeys):
+            print '    %s keys' % vtype
+            if len(refkeys - newkeys) > 0 or len(newkeys - refkeys) > 0:
+                if len(refkeys - newkeys) > 0:
+                    print utils.color('red', '      %d only in ref version' % len(refkeys - newkeys))
+                if len(newkeys - refkeys) > 0:
+                    print utils.color('red', '      %d only in new version' % len(newkeys - refkeys))
+                print '      %d in common' % len(refkeys & newkeys)
+            else:
+                print '        %d identical keys in new and ref cache' % len(refkeys)
+
         ptest = 'partition-' + input_stype + '-simu'
         if args.quick and ptest not in self.quick_tests:
             return
 
+        # ----------------------------------------------------------------------------------------
         print '  %s input partition cache file' % input_stype
         def readcache(fname):
-            cache = {}
+            cache = {'naive_seqs' : {}, 'logprobs' : {}}
             with open(fname) as cachefile:
                 reader = csv.DictReader(cachefile)
                 for line in reader:
-                    cache[line['unique_ids']] = {'naive_seq' : None if line['naive_seq'] == '' else line['naive_seq'], 'logprob' : None if line['logprob'] == '' else float(line['logprob'])}
+                    if line['naive_seq'] != '':
+                        cache['naive_seqs'][line['unique_ids']] = line['naive_seq']
+                    if line['logprob'] != '':
+                        cache['logprobs'][line['unique_ids']] = float(line['logprob'])
             return cache
 
         refcache = readcache(self.dirs['ref'] + '/' + self.cachefnames[input_stype])
         newcache = readcache(self.dirs['new'] + '/' + self.cachefnames[input_stype])
 
         # work out intersection and complement
-        refkeys = set(refcache.keys())
-        newkeys = set(newcache.keys())
-        if len(refkeys - newkeys) > 0 or len(newkeys - refkeys) > 0:
-            if len(refkeys - newkeys) > 0:
-                print utils.color('red', '    %d only in ref version' % len(refkeys - newkeys))
-            if len(newkeys - refkeys) > 0:
-                print utils.color('red', '    %d only in new version' % len(newkeys - refkeys))
-            print '    %d in common' % len(refkeys & newkeys)
-        else:
-            print '      %d identical keys in new and ref cache' % len(refkeys)
+        refkeys, newkeys = {}, {}
+        for vtype in ['naive_seqs', 'logprobs']:
+            refkeys[vtype] = set(refcache[vtype].keys())
+            newkeys[vtype] = set(newcache[vtype].keys())
+            print_key_differences(vtype, refkeys[vtype], newkeys[vtype])
 
-        hammings, delta_logprobs = [], []
-        n_hammings, n_delta_logprobs = 0, 0
-        n_different_length, n_big_hammings, n_big_delta_logprobs = 0, 0, 0
+        hammings = []
+        n_hammings = 0
+        n_different_length, n_big_hammings = 0, 0
         hamming_eps = 0.
-        logprob_eps = 1e-5
-        for uids in refkeys & newkeys:
-            refline = refcache[uids]
-            newline = newcache[uids]
-            if refline['naive_seq'] is not None:
-                n_hammings += 1
-                if len(refline['naive_seq']) == len(newline['naive_seq']):
-                    hamming_fraction = utils.hamming_fraction(refline['naive_seq'], newline['naive_seq'])
-                    if hamming_fraction > hamming_eps:
-                        n_big_hammings += 1
-                        hammings.append(hamming_fraction)
-                else:
-                    n_different_length += 1
-            if refline['logprob'] is not None:
-                n_delta_logprobs += 1
-                delta_logprob = abs(float(refline['logprob']) - float(newline['logprob']))
-                if delta_logprob > logprob_eps:
-                    n_big_delta_logprobs += 1
-                    delta_logprobs.append(delta_logprob)
+        vtype = 'naive_seqs'
+        for uids in refkeys[vtype] & newkeys[vtype]:
+            refseq = refcache[vtype][uids]
+            newseq = newcache[vtype][uids]
+            n_hammings += 1
+            if len(refseq) == len(newseq):
+                hamming_fraction = utils.hamming_fraction(refseq, newseq)
+                if hamming_fraction > hamming_eps:
+                    n_big_hammings += 1
+                    hammings.append(hamming_fraction)
+            else:
+                n_different_length += 1
 
         diff_hfracs_str = '%3d / %4d' % (n_big_hammings, n_hammings)
         mean_hfrac_str = '%.3f' % (numpy.average(hammings) if len(hammings) > 0 else 0.)
         if n_big_hammings > 0:
             diff_hfracs_str = utils.color('red', diff_hfracs_str)
             mean_hfrac_str = utils.color('red', mean_hfrac_str)
+
+        delta_logprobs = []
+        n_delta_logprobs = 0
+        n_big_delta_logprobs = 0
+        logprob_eps = 1e-5
+        vtype = 'logprobs'
+        for uids in refkeys[vtype] & newkeys[vtype]:
+            refval = refcache[vtype][uids]
+            newval = newcache[vtype][uids]
+            n_delta_logprobs += 1
+            delta_logprob = abs(refval - newval)
+            if delta_logprob > logprob_eps:
+                n_big_delta_logprobs += 1
+                delta_logprobs.append(delta_logprob)
 
         diff_logprob_str = '%3d / %4d' % (n_big_delta_logprobs, n_delta_logprobs)
         mean_logprob_str = '%.6f' % (numpy.average(delta_logprobs) if len(delta_logprobs) > 0 else 0.)
