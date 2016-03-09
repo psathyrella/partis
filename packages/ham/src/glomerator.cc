@@ -479,12 +479,8 @@ string Glomerator::GetNaiveSeqNameToCalculate(string actual_queries) {
     return actual_queries;
 
   string subqueries = ChooseSubsetOfNames(actual_queries, args_->biggest_naive_seq_cluster_to_calculate());
-  if(args_->debug() > 0) {
-    // if(CountMembers(actual_queries) + CountMembers(subqueries) < 20)
+  if(args_->debug() > 0)
     cout << "                translate for naive seq  " << actual_queries << "  -->  " << subqueries << endl;
-    // else
-    //   cout <<  "     replacing " << CountMembers(actual_queries) << " --> " << CountMembers(subqueries) << endl;
-  }
 
   naive_seq_name_translations_[actual_queries] = subqueries;
   return subqueries;
@@ -534,12 +530,7 @@ string &Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents) {
     naive_seqs_[queries_to_calc] = CalculateNaiveSeq(queries_to_calc);
 
   if(queries_to_calc != queries) {
-    // string full_nseq = CalculateNaiveSeq(queries);
-    // string sub_nseq = CalculateNaiveSeq(queries_to_calc);
-    // double hfrac = CalculateHfrac(full_nseq, sub_nseq);
-    // printf("       use %3d instead of %3d (hamming %5.3f)\n", CountMembers(queries_to_calc), CountMembers(queries), hfrac);
-    naive_seqs_[queries] = naive_seqs_[queries_to_calc];
-    // TODO wait, shouldn't I set events_ and whatnot here?
+    naive_seqs_[queries] = naive_seqs_[queries_to_calc];  // TODO wait, shouldn't I set events_ and whatnot here?
   }
 
   return naive_seqs_[queries];
@@ -591,17 +582,6 @@ double Glomerator::GetLogProbRatio(string key_a, string key_b) {
     if(qmerged_to_calc.name_ != joint_name || key_a_to_calc != key_a || key_b_to_calc != key_b)
       printf(" (calc'd  %s - %s - %s)", qmerged_to_calc.name_.c_str(), key_a_to_calc.c_str(), key_b_to_calc.c_str());
     printf("\n");
-    // printf("       %8.3f = ", lratio);
-    // printf("%2s %8.2f", "", log_prob_ab);
-    // printf(" - %8.2f - %8.2f", log_prob_a, log_prob_b);
-    // printf("\n");
-    // if(key_a != key_a_to_calc || key_b != key_b_to_calc) {
-    //   Query tmpq(GetMergedQuery(key_a, key_b));  // need this to insert the full merged query's info into seq_info_ and whatnot
-    //   double full_lratio = CalculateLogProb(joint_name) - CalculateLogProb(key_a) - CalculateLogProb(key_b);
-    //   double sub_lratio = CalculateLogProb(JoinNames(key_a_to_calc, key_b_to_calc)) - CalculateLogProb(key_a_to_calc) - CalculateLogProb(key_b_to_calc);
-    //   double frac_diff = (sub_lratio - full_lratio) / full_lratio;
-    //   printf("       use %8.2f instead of %8.2f (%5.3f)\n", sub_lratio, full_lratio, frac_diff);
-    // }
   }
 
   return lratios_[joint_name] = lratio;
@@ -906,7 +886,6 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
   if(path->finished_)
     return;
 
-  double chosen_lratio = qpair.first;
   Query chosen_qmerge = qpair.second;
 
   assert(seq_info_.count(chosen_qmerge.name_));
@@ -917,26 +896,14 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
   GetNaiveSeq(chosen_qmerge.name_, &chosen_qmerge.parents_);  // we could wait to do this later, but we basically know we'll need it, and doing it here makes it easy to pass in the parents
 
   // NOTE this will calculate any logprobs that we earlier approximated with translations when we only needed the ratio
-  // double last_partition_logprob(LogProbOfPartition(path->CurrentPartition()));
   Partition new_partition(path->CurrentPartition());  // note: CurrentPartition() returns a reference
   new_partition.erase(chosen_qmerge.parents_.first);
   new_partition.erase(chosen_qmerge.parents_.second);
   new_partition.insert(chosen_qmerge.name_);
-  path->AddPartition(new_partition, -INFINITY/*LogProbOfPartition(new_partition)*/);  // , args_->max_logprob_drop());
-
-  // if(max_log_prob_of_partition_ - logprob > max_drop) {  // stop if we've moved too far past the maximum
-  //   cout << "        stopping after drop " << max_log_prob_of_partition_ << " --> " << logprob << endl;
-  //   finished_ = true;  // NOTE this will not play well with multiple maxima, but I'm pretty sure we shouldn't be getting those
-  // }
+  path->AddPartition(new_partition, -INFINITY);
 
   if(args_->debug()) {
     printf("       merged   %s  %s\n", chosen_qmerge.parents_.first.c_str(), chosen_qmerge.parents_.second.c_str());
-    // printf("       merged %-8.2f", chosen_lratio);
-    // double newdelta = LogProbOfPartition(new_partition) - last_partition_logprob;
-    // if(fabs(newdelta - chosen_lratio) > 1e-8)
-    //   printf(" ( %-20.15f != %-20.15f)", chosen_lratio, LogProbOfPartition(new_partition) - last_partition_logprob);
-    // printf("   %s and %s\n", chosen_qmerge.parents_.first.c_str(), chosen_qmerge.parents_.second.c_str());
-    // string extrastr("current (logweight " + to_string(path->CurrentLogWeight()) + ")");
   }
 }
 
