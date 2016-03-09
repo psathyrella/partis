@@ -87,10 +87,14 @@ class Waterer(object):
         base_outfname = 'query-seqs.bam'
         sys.stdout.flush()
 
+        n_procs = self.args.n_fewer_procs
+        initial_queries_per_proc = float(len(self.remaining_queries)) / n_procs
         while len(self.remaining_queries) > 0:  # we remove queries from <self.remaining_queries> as we're satisfied with their output
-            self.write_vdjalign_input(base_infname, n_procs=self.args.n_fewer_procs)
-            self.execute_commands(base_infname, base_outfname, self.args.n_fewer_procs)
-            self.read_output(base_outfname, n_procs=self.args.n_fewer_procs)
+            if self.nth_try > 1 and float(len(self.remaining_queries)) / n_procs < initial_queries_per_proc:
+                n_procs = int(max(1., float(len(self.remaining_queries)) / initial_queries_per_proc))
+            self.write_vdjalign_input(base_infname, n_procs)
+            self.execute_commands(base_infname, base_outfname, n_procs)
+            self.read_output(base_outfname, n_procs)
             if self.nth_try > 3:
                 break
             self.nth_try += 1  # it's set to 1 before we begin the first try, and increases to 2 just before we start the second try

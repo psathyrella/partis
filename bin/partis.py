@@ -59,9 +59,7 @@ if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
     print '    TODO stop compiling smc'
     print '    TODO wait, why am I first caching all the naive seqs?'
     print '    TODO print size of various cache arrays'
-    print '    TODO n_precache_procs shouldn\'t be limited by the number of procesros'
     print '    TODO print time waiting for slurm'
-    print '    TODO user smaller n procs in loops through sw after the first'
     print '    TODO rethink about how many sequences want to go along with the seed sequence to each process'
     print '    TODO make progress file a bit more informative'
 
