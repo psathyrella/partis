@@ -452,12 +452,12 @@ string Glomerator::GetNaiveSeqNameToCalculate(string actual_queries) {
     return actual_queries;
 
   string subqueries = ChooseSubsetOfNames(actual_queries, args_->biggest_naive_seq_cluster_to_calculate());
-  if(args_->debug() > 0) {
+  // if(args_->debug() > 0) {
     if(CountMembers(actual_queries) + CountMembers(subqueries) < 20)
       cout <<  "     replacing " << actual_queries << " --> " << subqueries << endl;
     else
       cout <<  "     replacing " << CountMembers(actual_queries) << " --> " << CountMembers(subqueries) << endl;
-  }
+  // }
 
   naive_seq_name_translations_[actual_queries] = subqueries;
   return subqueries;
