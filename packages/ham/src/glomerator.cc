@@ -382,6 +382,14 @@ string Glomerator::JoinSeqStrings(vector<Sequence> &strlist, string delimiter) {
 }
 
 // ----------------------------------------------------------------------------------------
+string Glomerator::PrintStr(string queries) {
+  if(CountMembers(queries) < 10)
+    return queries;
+  else
+    return to_string(CountMembers(queries));
+}
+
+// ----------------------------------------------------------------------------------------
 double Glomerator::CalculateHfrac(string &seq_a, string &seq_b) {
   ++n_hfrac_calculated_;
   if(seq_a.size() != seq_b.size())
@@ -415,6 +423,9 @@ double Glomerator::NaiveHfrac(string key_a, string key_b) {
 
 // ----------------------------------------------------------------------------------------
 string Glomerator::ChooseSubsetOfNames(string queries, int n_max) {
+  if(logprob_name_subsets_.count(queries))
+    return logprob_name_subsets_[queries];
+
   assert(seq_info_.count(queries));
   vector<string> subqueryvec;
   vector<Sequence> subseqs;
@@ -438,6 +449,10 @@ string Glomerator::ChooseSubsetOfNames(string queries, int n_max) {
   mute_freqs_[subqueries] = mute_freqs_[queries];
   only_genes_[subqueries] = only_genes_[queries];
 
+  if(args_->debug())
+    cout << "                chose subset  " << queries << "  -->  " << subqueries << endl;
+
+  logprob_name_subsets_[queries] = subqueries;
   return subqueries;
 }
 
@@ -452,12 +467,12 @@ string Glomerator::GetNaiveSeqNameToCalculate(string actual_queries) {
     return actual_queries;
 
   string subqueries = ChooseSubsetOfNames(actual_queries, args_->biggest_naive_seq_cluster_to_calculate());
-  // if(args_->debug() > 0) {
-    if(CountMembers(actual_queries) + CountMembers(subqueries) < 20)
-      cout <<  "     replacing " << actual_queries << " --> " << subqueries << endl;
-    else
-      cout <<  "     replacing " << CountMembers(actual_queries) << " --> " << CountMembers(subqueries) << endl;
-  // }
+  if(args_->debug() > 0) {
+    // if(CountMembers(actual_queries) + CountMembers(subqueries) < 20)
+    cout << "                translate for naive seq  " << actual_queries << "  -->  " << subqueries << endl;
+    // else
+    //   cout <<  "     replacing " << CountMembers(actual_queries) << " --> " << CountMembers(subqueries) << endl;
+  }
 
   naive_seq_name_translations_[actual_queries] = subqueries;
   return subqueries;
@@ -477,14 +492,14 @@ pair<string, string> Glomerator::GetLogProbNameToCalculate(string actual_queries
   pair<string, string> queries_to_calc(actual_parents.first, actual_parents.second);
   if(CountMembers(actual_parents.first) > n_max) {
     queries_to_calc.first = ChooseSubsetOfNames(queries_to_calc.first, n_max);
-    cout << "      parent 1 goes " << actual_parents.first << "  to  " << queries_to_calc.first << endl;
   }
   if(CountMembers(actual_parents.second) > n_max) {
     queries_to_calc.second = ChooseSubsetOfNames(queries_to_calc.second, n_max);
-    cout << "      parent 1 goes " << actual_parents.second << "  to  " << queries_to_calc.second << endl;
   }
 
   logprob_name_translations_[actual_queries] = queries_to_calc;
+  if(args_->debug())
+    printf("                translate for lratio  %s   %s  %s  -->  %s  %s\n", actual_queries.c_str(), actual_parents.first.c_str(), actual_parents.second.c_str(), queries_to_calc.first.c_str(), queries_to_calc.second.c_str());
   return queries_to_calc;
 }
 
@@ -541,9 +556,13 @@ double Glomerator::GetLogProbRatio(string key_a, string key_b) {
   // NOTE if kbounds gets expanded in one of these three calls, we don't redo the others. Which is really ok, but could be checked again?
 
   // TODO we could avoid recalculating a lot of the denominators if we didn't randomly choose a subset, and instead looked to see what we already have
+  string joint_name(JoinNames(key_a, key_b));
+
+  if(lratios_.count(joint_name))  // NOTE as in other places, this assumes there's only *one* way to get to a given joint name (or at least that we'll get the same answer each different way)
+    return lratios_[joint_name];
 
   Query full_qmerged = GetMergedQuery(key_a, key_b);  // have to make this to get seq_info_ and whatnot filled up
-  pair<string, string> parents_to_calc = GetLogProbNameToCalculate(full_qmerged.name_, full_qmerged.parents_);
+  pair<string, string> parents_to_calc = GetLogProbNameToCalculate(joint_name, full_qmerged.parents_);
   string key_a_to_calc = parents_to_calc.first;
   string key_b_to_calc = parents_to_calc.second;
   Query qmerged_to_calc = GetMergedQuery(key_a_to_calc, key_b_to_calc);  // NOTE also enters the merged query's info into seq_info_, kbinfo_, mute_freqs_, and only_genes_
@@ -554,19 +573,25 @@ double Glomerator::GetLogProbRatio(string key_a, string key_b) {
 
   double lratio(log_prob_ab - log_prob_a - log_prob_b);
   if(args_->debug()) {
-    printf("       %8.3f = ", lratio);
-    printf("%2s %8.2f", "", log_prob_ab);
-    printf(" - %8.2f - %8.2f", log_prob_a, log_prob_b);
+    printf("             %8.3f =", lratio);
+    printf(" %s - %s - %s", joint_name.c_str(), key_a.c_str(), key_b.c_str());
+    if(qmerged_to_calc.name_ != joint_name || key_a_to_calc != key_a || key_b_to_calc != key_b)
+      printf(" (calc'd  %s - %s - %s)", qmerged_to_calc.name_.c_str(), key_a_to_calc.c_str(), key_b_to_calc.c_str());
     printf("\n");
+    // printf("       %8.3f = ", lratio);
+    // printf("%2s %8.2f", "", log_prob_ab);
+    // printf(" - %8.2f - %8.2f", log_prob_a, log_prob_b);
+    // printf("\n");
     // if(key_a != key_a_to_calc || key_b != key_b_to_calc) {
     //   Query tmpq(GetMergedQuery(key_a, key_b));  // need this to insert the full merged query's info into seq_info_ and whatnot
-    //   double full_lratio = CalculateLogProb(JoinNames(key_a, key_b)) - CalculateLogProb(key_a) - CalculateLogProb(key_b);
+    //   double full_lratio = CalculateLogProb(joint_name) - CalculateLogProb(key_a) - CalculateLogProb(key_b);
     //   double sub_lratio = CalculateLogProb(JoinNames(key_a_to_calc, key_b_to_calc)) - CalculateLogProb(key_a_to_calc) - CalculateLogProb(key_b_to_calc);
     //   double frac_diff = (sub_lratio - full_lratio) / full_lratio;
     //   printf("       use %8.2f instead of %8.2f (%5.3f)\n", sub_lratio, full_lratio, frac_diff);
     // }
   }
 
+  return lratios_[joint_name] = lratio;
   return lratio;
 }
 
@@ -807,12 +832,9 @@ Query Glomerator::ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_
     ++n_hamming_merged_;
     *chosen_lratio = -INFINITY;  // er... or something
     if(args_->debug())
-      printf("           naive hamming merge %.3f\n", min_hamming_fraction);
+      printf("          hfrac merge  %.3f   %s  %s\n", min_hamming_fraction, PrintStr(min_hamming_merge.parents_.first).c_str(), PrintStr(min_hamming_merge.parents_.second).c_str());
     return min_hamming_merge;
   }
-
-  if(args_->debug())
-    printf("          hamming skipped %d / %d\n", n_skipped_hamming, n_total_pairs);
 
   // if <path->CurrentPartition()> only has one cluster, if hamming is too large between all remaining clusters, or if remaining likelihood ratios are -INFINITY
   if(max_log_prob == -INFINITY) {
@@ -831,7 +853,10 @@ Query Glomerator::ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_
 
   if(args_->smc_particles() == 1) {
     *chosen_lratio = potential_merges[imax].first;
-    return potential_merges[imax].second;
+    Query chosen_qmerge(potential_merges[imax].second);
+    if(args_->debug())
+      printf("          lratio merge  %.3f   %s  %s\n", *chosen_lratio, PrintStr(chosen_qmerge.parents_.first).c_str(), PrintStr(chosen_qmerge.parents_.second).c_str());
+    return chosen_qmerge;
   } else {
     pair<double, Query> *chosen_qmerge = ChooseRandomMerge(potential_merges, rgen);
     *chosen_lratio = chosen_qmerge->first;
@@ -870,14 +895,15 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
   if(path->finished_)
     return;
 
-  assert(seq_info_.count(chosen_qmerge.name_) != 0);
+  assert(seq_info_.count(chosen_qmerge.name_));
   if(args_->seed_unique_id() != "") {  // if there's no seed, there isn't a need to do this, since in that case we don't end up merging clusters one sequence at a time
     UpdateTranslations(chosen_qmerge.parents_.first, chosen_qmerge.parents_.second);
     UpdateTranslations(chosen_qmerge.parents_.second, chosen_qmerge.parents_.first);
   }
   GetNaiveSeq(chosen_qmerge.name_, &chosen_qmerge.parents_);
 
-  double last_partition_logprob(LogProbOfPartition(path->CurrentPartition()));  // NOTE this will calculate any logprobs that we earlier approximated with translations when we only needed the ratio
+  // NOTE this will calculate any logprobs that we earlier approximated with translations when we only needed the ratio
+  double last_partition_logprob(LogProbOfPartition(path->CurrentPartition()));
   Partition new_partition(path->CurrentPartition());  // note: CurrentPartition() returns a reference
   new_partition.erase(chosen_qmerge.parents_.first);
   new_partition.erase(chosen_qmerge.parents_.second);
@@ -885,12 +911,13 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
   path->AddPartition(new_partition, LogProbOfPartition(new_partition), args_->max_logprob_drop());
 
   if(args_->debug()) {
-    printf("       merged %-8.2f", chosen_lratio);
-    double newdelta = LogProbOfPartition(new_partition) - last_partition_logprob;
-    if(fabs(newdelta - chosen_lratio) > 1e-8)
-      printf(" ( %-20.15f != %-20.15f)", chosen_lratio, LogProbOfPartition(new_partition) - last_partition_logprob);
-    printf("   %s and %s\n", chosen_qmerge.parents_.first.c_str(), chosen_qmerge.parents_.second.c_str());
-    string extrastr("current (logweight " + to_string(path->CurrentLogWeight()) + ")");
+    printf("       merged   %s  %s\n", chosen_qmerge.parents_.first.c_str(), chosen_qmerge.parents_.second.c_str());
+    // printf("       merged %-8.2f", chosen_lratio);
+    // double newdelta = LogProbOfPartition(new_partition) - last_partition_logprob;
+    // if(fabs(newdelta - chosen_lratio) > 1e-8)
+    //   printf(" ( %-20.15f != %-20.15f)", chosen_lratio, LogProbOfPartition(new_partition) - last_partition_logprob);
+    // printf("   %s and %s\n", chosen_qmerge.parents_.first.c_str(), chosen_qmerge.parents_.second.c_str());
+    // string extrastr("current (logweight " + to_string(path->CurrentLogWeight()) + ")");
   }
 }
 

@@ -159,9 +159,9 @@ Result DPHandler::Run(vector<Sequence> seqvector, KBounds kbounds, vector<string
       sprintf(kstr, "    [%zu-%zu]     [%zu-%zu]", kbounds.vmin, kbounds.vmax-1, kbounds.dmin, kbounds.dmax-1);
     }
     double cpu_seconds(((clock() - run_start) / (double)CLOCKS_PER_SEC));
-    printf("           %s %12.3f   %-25s  %2zuv %2zud %2zuj  %5.1fs  %s\n", alg_str.c_str(), prob, kstr,
+    printf("           %s %12.3f   %-25s  %2zuv %2zud %2zuj  %5.1fs   %s\n", alg_str.c_str(), prob, kstr,
 	   only_genes["v"].size(), only_genes["d"].size(), only_genes["j"].size(),  // hmms_.NameString(&only_genes, 30)
-	   cpu_seconds, seqs.name_str().c_str());
+	   cpu_seconds, seqs.name_str(":").c_str());
   }
 
   result.check_boundaries(best_kset, kbounds);
