@@ -88,7 +88,8 @@ private:
   Query GetMergedQuery(string name_a, string name_b);
 
   bool LikelihoodRatioTooSmall(double lratio, int candidate_cluster_size);
-  Query ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_lratio);
+  pair<double, Query> FindHfracMerge(ClusterPath *path);
+  pair<double, Query> FindLRatioMerge(ClusterPath *path);
   pair<double, Query> *ChooseRandomMerge(vector<pair<double, Query> > &potential_merges, smc::rng *rgen);
 
   Track *track_;
