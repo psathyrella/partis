@@ -512,16 +512,45 @@ pair<string, string> Glomerator::GetLogProbNameToCalculate(string actual_queries
 }
 
 // ----------------------------------------------------------------------------------------
+bool Glomerator::FirstParentBigger(string queries, string queries_other, int nmax) {
+  int nseq(CountMembers(queries));
+  int nseq_other(CountMembers(queries_other));
+  if(nseq > nmax && float(nseq) / nseq_other > 2. ) {  // if <nseq> is large, and if <nseq> more than twice the size of <nseq_other>, use the existing name translation (for which we should already have a logprob and a naive seq)
+    cout << "                asymetric  " << nseq << " " << nseq_other << "  use " << queries << "  instead of " << JoinNames(queries, queries_other) << endl;
+    return true;
+  }
+  return false;
+}
+
+// ----------------------------------------------------------------------------------------
+string Glomerator::FindNaiveSeqNameReplace(pair<string, string> *parents) {
+  assert(parents != nullptr);
+
+  if(GetNaiveSeq(parents->first) == GetNaiveSeq(parents->second))
+    return parents->first;
+
+  int nmax = 1.5 * args_->biggest_naive_seq_cluster_to_calculate();  // TODO don't hard code the factor
+  if(FirstParentBigger(parents->first, parents->second, nmax))
+    return parents->first;
+  if(FirstParentBigger(parents->second, parents->first, nmax))
+    return parents->second;
+
+  return string("");
+}
+
+// ----------------------------------------------------------------------------------------
 string &Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents) {
   if(naive_seqs_.count(queries))
     return naive_seqs_[queries];
 
-  // if we have naive seqs for both the parental clusters and they're the same, no reason to calculate this naive seq
-  if(parents != nullptr && GetNaiveSeq(parents->first) == GetNaiveSeq(parents->second)) {  /// add an entry to <naive_seqs_>, filed under <queries>, which has the same naive sequence as <parentname>
-    naive_seqs_[queries] = GetNaiveSeq(parents->first);  // copy the whole sequence object
-    events_[queries] = events_[parents->first];  // also copy the event  // TODO this doesn't set all the event info correctly
-    events_[queries].seq_name_ = queries;
-    return naive_seqs_[queries];
+  if(parents != nullptr) {
+    string name_with_which_to_replace = FindNaiveSeqNameReplace(parents);
+    if(name_with_which_to_replace != "") {
+      naive_seqs_[queries] = GetNaiveSeq(name_with_which_to_replace);  // copy the whole sequence object
+      events_[queries] = events_[name_with_which_to_replace];  // also copy the event  // TODO this doesn't set all the event info correctly
+      events_[queries].seq_name_ = name_with_which_to_replace;
+      return naive_seqs_[queries];
+    }
   }
 
   string queries_to_calc = GetNaiveSeqNameToCalculate(queries);
@@ -857,19 +886,21 @@ pair<double, Query> Glomerator::FindLRatioMerge(ClusterPath *path) {
 
 // ----------------------------------------------------------------------------------------
 void Glomerator::UpdateTranslations(string queries, string queries_other) {
+  assert(0);
   int nseq = CountMembers(queries);
   int nseq_other = CountMembers(queries_other);
   string merged_queries(JoinNames(queries, queries_other));
 
   int nmax = 1.5 * args_->biggest_naive_seq_cluster_to_calculate();  // TODO don't hard code the factor
   if(nseq > nmax && float(nseq) / nseq_other > 2. ) {  // if <nseq> is large, and if <nseq> more than twice the size of <nseq_other>, use the existing name translation (for which we should already have a logprob and a naive seq)
-    cout << "  translate naive seq " << queries << " " << queries_other << endl;
+    cout << "                asymetric  " << nseq << " " << nseq_other << "  use " << queries << " for naive seq" << endl;
     naive_seqs_[merged_queries] = GetNaiveSeq(queries);  // copy the whole sequence object
     events_[merged_queries] = events_[queries];  // also copy the event  // TODO this doesn't set all the event info correctly
     events_[merged_queries].seq_name_ = merged_queries;
   }
 
   if(logprob_name_translations_.count(queries) && float(nseq) / nseq_other > 2. ) {  // if <nseq> is large, and if <nseq> more than twice the size of <nseq_other>, use the existing name translation (for which we should already have a logprob and a naive seq)
+    cout << "                asymetric  " << nseq << " " << nseq_other << "  use existing translation for " << queries << "(" << logprob_name_translations_[queries].first << "  " << logprob_name_translations_[queries].second << ") for lratio" << endl;
     cout << "  translate logprob " << queries << " " << queries_other << endl;
     logprob_name_translations_[JoinNames(queries, queries_other)] = logprob_name_translations_[queries]; //GetLogProbNameToCalculate(queries);
   }
@@ -889,10 +920,10 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
   Query chosen_qmerge = qpair.second;
 
   assert(seq_info_.count(chosen_qmerge.name_));
-  if(args_->seed_unique_id() != "") {  // if there's no seed, there isn't a need to do this, since in that case we don't end up merging clusters one sequence at a time
-    UpdateTranslations(chosen_qmerge.parents_.first, chosen_qmerge.parents_.second);
-    UpdateTranslations(chosen_qmerge.parents_.second, chosen_qmerge.parents_.first);
-  }
+  // if(args_->seed_unique_id() != "") {  // if there's no seed, there isn't a need to do this, since in that case we don't end up merging clusters one sequence at a time
+  //   UpdateTranslations(chosen_qmerge.parents_.first, chosen_qmerge.parents_.second);
+  //   UpdateTranslations(chosen_qmerge.parents_.second, chosen_qmerge.parents_.first);
+  // }
   GetNaiveSeq(chosen_qmerge.name_, &chosen_qmerge.parents_);  // we could wait to do this later, but we basically know we'll need it, and doing it here makes it easy to pass in the parents
 
   // NOTE this will calculate any logprobs that we earlier approximated with translations when we only needed the ratio
