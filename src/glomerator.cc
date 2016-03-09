@@ -788,11 +788,41 @@ bool Glomerator::LikelihoodRatioTooSmall(double lratio, int candidate_cluster_si
 }
 
 // ----------------------------------------------------------------------------------------
-Query Glomerator::ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_lratio) {
-  double max_log_prob(-INFINITY), min_hamming_fraction(INFINITY);
+pair<double, Query> Glomerator::FindHfracMerge(ClusterPath *path) {
+  double min_hamming_fraction(INFINITY);
   Query min_hamming_merge;
-  int imax(-1);
-  vector<pair<double, Query> > potential_merges;
+  for(Partition::iterator it_a = path->CurrentPartition().begin(); it_a != path->CurrentPartition().end(); ++it_a) {
+    for(Partition::iterator it_b = it_a; ++it_b != path->CurrentPartition().end();) {
+      string key_a(*it_a), key_b(*it_b);
+      if(args_->seed_unique_id() != "") {
+	if(key_a.find(args_->seed_unique_id()) == string::npos && key_b.find(args_->seed_unique_id()) == string::npos)  // if a seed unique id was set on the command line, and if it's not in either key (which are colon-joined strings of unique_ids)
+	  continue;
+      }
+
+      double hfrac = NaiveHfrac(key_a, key_b);
+      if(hfrac > args_->hamming_fraction_bound_hi())  // if naive hamming fraction too big, don't even consider merging the pair
+	continue;
+
+      if(args_->hamming_fraction_bound_lo() <= 0.0 || hfrac >= args_->hamming_fraction_bound_lo())
+	continue;
+
+      if(hfrac < min_hamming_fraction) {
+	  min_hamming_fraction = hfrac;
+	  min_hamming_merge = GetMergedQuery(key_a, key_b);  // NOTE also enters the merged query's info into seq_info_, kbinfo_, mute_freqs_, and only_genes_
+      }
+    }
+  }
+
+  if(args_->debug() && min_hamming_fraction != INFINITY)
+    printf("          hfrac merge  %.3f   %s  %s\n", min_hamming_fraction, PrintStr(min_hamming_merge.parents_.first).c_str(), PrintStr(min_hamming_merge.parents_.second).c_str());
+
+  return pair<double, Query>(min_hamming_fraction, min_hamming_merge);
+}
+
+// ----------------------------------------------------------------------------------------
+pair<double, Query> Glomerator::FindLRatioMerge(ClusterPath *path) {
+  double max_lratio(-INFINITY);
+  Query chosen_qmerge;
   int n_total_pairs(0), n_skipped_hamming(0), n_small_lratios(0), n_inf_factors(0);
   for(Partition::iterator it_a = path->CurrentPartition().begin(); it_a != path->CurrentPartition().end(); ++it_a) {
     for(Partition::iterator it_b = it_a; ++it_b != path->CurrentPartition().end();) {
@@ -810,17 +840,6 @@ Query Glomerator::ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_
 	continue;
       }
 
-      if(args_->hamming_fraction_bound_lo() > 0.0 && hfrac < args_->hamming_fraction_bound_lo()) {  // if naive hamming is small enough, merge the pair without running hmm
-	if(hfrac < min_hamming_fraction) {
-	  min_hamming_fraction = hfrac;
-	  min_hamming_merge = GetMergedQuery(key_a, key_b);  // NOTE also enters the merged query's info into seq_info_, kbinfo_, mute_freqs_, and only_genes_
-	}
-	continue;
-      }
-      if(min_hamming_fraction < INFINITY) {  // if we have any potential hamming merges, that means we'll do those before we do any hmm tomfoolery
-	continue;
-      }
-
       double lratio = GetLogProbRatio(key_a, key_b);
 
       // don't merge if lratio is small (less than zero, more or less)
@@ -829,28 +848,19 @@ Query Glomerator::ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_
 	continue;
       }
 
-      potential_merges.push_back(pair<double, Query>(lratio, GetMergedQuery(key_a, key_b))); // NOTE also enters the merged query's info into seq_info_, kbinfo_, mute_freqs_, and only_genes_
-
       if(lratio == -INFINITY)
 	++n_inf_factors;
 
-      if(lratio > max_log_prob) {
-	max_log_prob = lratio;
-	imax = potential_merges.size() - 1;
+      if(lratio > max_lratio) {
+	max_lratio = lratio;
+	chosen_qmerge = GetMergedQuery(key_a, key_b);
       }
     }
   }
 
-  if(min_hamming_fraction < INFINITY) {  // if lower hamming fraction was set, then merge the best (nearest) pair of clusters
-    ++n_hamming_merged_;
-    *chosen_lratio = -INFINITY;  // er... or something
-    if(args_->debug())
-      printf("          hfrac merge  %.3f   %s  %s\n", min_hamming_fraction, PrintStr(min_hamming_merge.parents_.first).c_str(), PrintStr(min_hamming_merge.parents_.second).c_str());
-    return min_hamming_merge;
-  }
-
   // if <path->CurrentPartition()> only has one cluster, if hamming is too large between all remaining clusters, or if remaining likelihood ratios are -INFINITY
-  if(max_log_prob == -INFINITY) {
+  if(max_lratio == -INFINITY) {
+    path->finished_ = true;
     if(path->CurrentPartition().size() == 1)
       cout << "        stop with partition of size one" << endl;
     else if(n_skipped_hamming == n_total_pairs)
@@ -858,25 +868,12 @@ Query Glomerator::ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_
     else if(n_inf_factors == n_total_pairs)
       cout << "        stop with all " << n_inf_factors << " / " << n_total_pairs << " likelihood ratios -inf" << endl;
     else
-      cout << "        stop for some reason or other with -inf: " << n_inf_factors << "   ham skip: " << n_skipped_hamming << "   small lratios: " << n_small_lratios << "   total: " << n_total_pairs << endl;
+      cout << "        stop with: inf " << n_inf_factors << "   ham skip " << n_skipped_hamming << "   small lratios " << n_small_lratios << "   total " << n_total_pairs << endl;
+  } else if(args_->debug())
+    printf("          lratio merge  %.3f   %s  %s\n", max_lratio, PrintStr(chosen_qmerge.parents_.first).c_str(), PrintStr(chosen_qmerge.parents_.second).c_str());
 
-    path->finished_ = true;
-    return Query();
-  }
-
-  if(args_->smc_particles() == 1) {
-    *chosen_lratio = potential_merges[imax].first;
-    Query chosen_qmerge(potential_merges[imax].second);
-    if(args_->debug())
-      printf("          lratio merge  %.3f   %s  %s\n", *chosen_lratio, PrintStr(chosen_qmerge.parents_.first).c_str(), PrintStr(chosen_qmerge.parents_.second).c_str());
-    return chosen_qmerge;
-  } else {
-    pair<double, Query> *chosen_qmerge = ChooseRandomMerge(potential_merges, rgen);
-    *chosen_lratio = chosen_qmerge->first;
-    return chosen_qmerge->second;
-  }
+  return pair<double, Query>(max_lratio, chosen_qmerge);
 }
-
 
 // ----------------------------------------------------------------------------------------
 void Glomerator::UpdateTranslations(string queries, string queries_other) {
@@ -903,10 +900,14 @@ void Glomerator::UpdateTranslations(string queries, string queries_other) {
 void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
   if(path->finished_)  // already finished this <path>, but we're still iterating 'cause some of the other paths aren't finished
     return;
-  double chosen_lratio;
-  Query chosen_qmerge = ChooseMerge(path, rgen, &chosen_lratio);  // NOTE chosen_lratio is not set if we hamming merge
+  pair<double, Query> qpair = FindHfracMerge(path);
+  if(qpair.first == INFINITY)
+    qpair = FindLRatioMerge(path);
   if(path->finished_)
     return;
+
+  double chosen_lratio = qpair.first;
+  Query chosen_qmerge = qpair.second;
 
   assert(seq_info_.count(chosen_qmerge.name_));
   if(args_->seed_unique_id() != "") {  // if there's no seed, there isn't a need to do this, since in that case we don't end up merging clusters one sequence at a time
