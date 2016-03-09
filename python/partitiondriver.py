@@ -514,6 +514,9 @@ class PartitionDriver(object):
             return
         total = 0
         for procinfo in self.n_likelihoods_calculated:
+            if 'vtb' not in procinfo or 'fwd' not in procinfo:
+                print 'couldn\'t find vdb/fwd in:\n%s' % procinfo
+                return 1.  # er, or something?
             total += procinfo['vtb'] + procinfo['fwd']
         if self.args.debug:
             print '  n calcd: %d (%.1f per proc)' % (total, float(total) / len(self.n_likelihoods_calculated))
