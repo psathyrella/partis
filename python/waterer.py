@@ -28,9 +28,7 @@ class Waterer(object):
         self.absolute_max_insertion_length = 200  # just ignore them if it's longer than this
 
         self.input_info = input_info
-        self.remaining_queries = set()  # we remove queries from this set when we're satisfied with the current output (in general we may have to rerun some queries with different match/mismatch scores)
-        for query in self.input_info.keys():
-            self.remaining_queries.add(query)
+        self.remaining_queries = set([q for q in self.input_info.keys()])  # we remove queries from this set when we're satisfied with the current output (in general we may have to rerun some queries with different match/mismatch scores)
         self.new_indels = 0  # number of new indels that were kicked up this time through
 
         self.reco_info = reco_info
@@ -207,6 +205,7 @@ class Waterer(object):
         n_remaining = len(self.remaining_queries)
         queries_per_proc = float(n_remaining) / n_procs
         n_queries_per_proc = int(math.ceil(queries_per_proc))
+        written_queries = set()  # make sure we actually write each query TODO remove this when you work out where they're disappearing to
         if n_procs == 1:  # double check for rounding problems or whatnot
             assert n_queries_per_proc == n_remaining
         for iproc in range(n_procs):
@@ -228,7 +227,11 @@ class Waterer(object):
                     if query_name in self.info['indels']:
                         seq = self.info['indels'][query_name]['reversed_seq']  # use the query sequence with shm insertions and deletions reversed
                     sub_infile.write(seq + '\n')
+                    written_queries.add(query_name)
                     iquery += 1
+        not_written = self.remaining_queries - written_queries
+        if len(not_written) > 0:
+            raise Exception('didn\'t write %s to %s' % (':'.join(not_written), self.args.workdir))
 
     # ----------------------------------------------------------------------------------------
     def get_vdjalign_cmd_str(self, workdir, base_infname, base_outfname, datadir, n_procs=None, shell=False):
@@ -265,6 +268,7 @@ class Waterer(object):
 
         self.new_indels = 0
         n_processed = 0
+        self.tmp_queries_read_from_file = set()  # TODO remove this
         for iproc in range(n_procs):
             workdir = self.args.workdir
             if n_procs > 1:
@@ -275,6 +279,10 @@ class Waterer(object):
                 for _, reads in grouped:  # loop over query sequences
                     self.process_query(bam.references, list(reads), queries_to_rerun)
                     n_processed += 1
+
+        not_read = self.remaining_queries - self.tmp_queries_read_from_file
+        if len(not_read) > 0:
+            raise Exception('didn\'t read %s from %s' % (':'.join(not_read), self.args.workdir))
 
         if self.nth_try == 1:
             print '        processed       remaining      new-indels          rerun: ' + '      '.join([reason for reason in queries_to_rerun])
@@ -289,7 +297,7 @@ class Waterer(object):
                 n_to_rerun += len(queries_to_rerun[reason])
             print printstr,
             if n_to_rerun + self.new_indels != len(self.remaining_queries):
-                print n_to_rerun, self.new_indels, len(self.remaining_queries)
+                print ''
                 raise Exception('numbers don\'t add up in sw output reader (n_to_rerun + new_indels != remaining_queries): %d + %d != %d   (look in %s)' % (n_to_rerun, self.new_indels, len(self.remaining_queries), self.args.workdir))
             if self.nth_try < 2 or self.new_indels == 0:  # increase the mismatch score if it's the first try, or if there's no new indels
                 print '            increasing mismatch score (%d --> %d) and rerunning them' % (self.args.match_mismatch[1], self.args.match_mismatch[1] + 1)
@@ -387,6 +395,7 @@ class Waterer(object):
         primary = next((r for r in reads if not r.is_secondary), None)
         query_seq = primary.seq
         query_name = primary.qname
+        self.tmp_queries_read_from_file.add(query_name)
         first_match_query_bounds = None  # since sw excises its favorite v match, we have to know this match's boundaries in order to calculate k_d for all the other matches
         all_match_names = {}
         warnings = {}  # ick, this is a messy way to pass stuff around
