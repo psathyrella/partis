@@ -8,6 +8,8 @@ from collections import OrderedDict
 import random
 import re
 from Bio import SeqIO
+import string
+import itertools
 
 import utils
 from opener import opener
@@ -20,7 +22,17 @@ def translate_columns(line, translations):  # NOTE similar to code in utils.get_
             del line[key]
 
 # ----------------------------------------------------------------------------------------
-def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, reco_ids=None, name_column=None, seq_column=None, seed_unique_id=None):
+def abbreviate(used_names, potential_names, unique_id):
+    ilet = 0
+    new_id = potential_names[ilet]
+    while new_id in used_names:  # NOTE this is kind of wasteful, since they're both ordered I could just keep track of which one to use next
+        new_id = potential_names[ilet]
+        ilet += 1
+    used_names.add(new_id)
+    return new_id
+
+# ----------------------------------------------------------------------------------------
+def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, reco_ids=None, name_column=None, seq_column=None, seed_unique_id=None, abbreviate_names=True):
     """ return list of sequence info from files of several types """
 
     # WARNING defaults for <name_column> and <seq_column> also set in partis.py (since we call this from places other than partis.py, but we also want people to be able set them from the partis.py command line)
@@ -72,6 +84,11 @@ def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, 
         reco_info = OrderedDict()
     n_queries = 0
     found_seed = False
+    used_names = set()  # for abbreviating
+    if abbreviate_names:
+        potential_names = list(string.ascii_lowercase)
+        while n_max_queries > len(potential_names):
+            potential_names += [''.join(ab) for ab in itertools.combinations(potential_names, 2)]
     for line in reader:
         if name_column not in line or seq_column not in line:
             raise Exception('mandatory headers \'%s\' and \'%s\' not both present in %s (set with --name-column and --seq-column)' % (name_column, seq_column, fname))
@@ -79,6 +96,8 @@ def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, 
             translate_columns(line, {name_column : internal_name_column, seq_column: internal_seq_column})
         utils.process_input_line(line)
         unique_id = line[internal_name_column]
+        if abbreviate_names:
+            unique_id = abbreviate(used_names, potential_names, unique_id)
         if any(fc in unique_id for fc in utils.forbidden_characters):
             raise Exception('found a forbidden character (one of %s) in sequence id \'%s\' -- sorry, you\'ll have to replace it with something else' % (' '.join(["'" + fc + "'" for fc in utils.forbidden_characters]), unique_id))
 
@@ -103,6 +122,7 @@ def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, 
             if 'v_gene' not in line:
                 raise Exception('simulation info not found in %s' % fname)
             reco_info[unique_id] = copy.deepcopy(line)
+            reco_info[unique_id]['unique_id'] = unique_id  # in case we're abbreviating
             if glfo is not None:
                 utils.add_implicit_info(glfo, reco_info[unique_id], multi_seq=False, existing_implicit_keys=('cdr3_length', ))  # single seqs, since each seq is on its own line in the file
 
