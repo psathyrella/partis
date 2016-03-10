@@ -1475,7 +1475,8 @@ def get_cluster_ids(uids, partition):
     clids = {uid : [] for uid in uids}
     for iclust in range(len(partition)):
         for uid in partition[iclust]:
-            clids[uid].append(iclust)
+            if iclust not in clids[uid]:  # in case there's duplicates (from seed unique id)
+                clids[uid].append(iclust)
     return clids
 
 # ----------------------------------------------------------------------------------------

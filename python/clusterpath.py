@@ -168,7 +168,7 @@ class ClusterPath(object):
         # clusters
         for cluster in self.partitions[ip]:
             if abbreviate:
-                cluster_str = ':'.join(['o' if len(uid) > 1 else uid for uid in cluster])
+                cluster_str = ':'.join(['o' if len(uid) > 2 else uid for uid in cluster])
             else:
                 # cluster_str = ':'.join(sorted([str(uid) for uid in cluster]))
                 cluster_str = ':'.join([str(uid) for uid in cluster])

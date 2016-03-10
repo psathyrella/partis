@@ -266,17 +266,15 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def remove_duplicate_ids(self, uids, partition, deduplicate_uid):
         clids = utils.get_cluster_ids(uids, partition)
-
-        for uid in uids:
-            for index_in_clids in range(len(clids[uid])):
-                iclust = clids[uid][index_in_clids]
-                cluster = partition[iclust]
-                if index_in_clids > 0 or cluster.count(uid) > 1:  # if this isn't the first cluster that it's in, or if it's in this cluster more than once
-                    n_remaining = 1  # if there's more than one in this cluster only, then we want to leave one of 'em
-                    if index_in_clids > 0:
-                        n_remaining = 0  # if we already found it in another cluster, remove *all* of 'em
-                    while cluster.count(uid) > n_remaining:
-                        cluster.remove(deduplicate_uid)
+        for index_in_clids in range(len(clids[deduplicate_uid])):
+            iclust = clids[deduplicate_uid][index_in_clids]
+            cluster = partition[iclust]
+            if index_in_clids > 0 or cluster.count(deduplicate_uid) > 1:  # if this isn't the first cluster that it's in, or if it's in this cluster more than once
+                n_remaining = 1  # if there's more than one in this cluster only, then we want to leave one of 'em
+                if index_in_clids > 0:  # if we already found it in another cluster, remove *all* of 'em
+                    n_remaining = 0
+                while cluster.count(deduplicate_uid) > n_remaining:
+                    cluster.remove(deduplicate_uid)
 
     # ----------------------------------------------------------------------------------------
     def write_clusterpaths(self, outfname, paths, deduplicate_uid=None):

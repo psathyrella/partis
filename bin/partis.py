@@ -62,6 +62,7 @@ if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
     print '    TODO print time waiting for slurm'
     print '    TODO rethink about how many sequences want to go along with the seed sequence to each process'
     print '    TODO make progress file a bit more informative'
+    print '    TODO todos in glomerator'
 
 # input and output stuff
 parser.add_argument('--seqfile', help='input sequence file')
