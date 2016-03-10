@@ -507,7 +507,8 @@ string Glomerator::GetNaiveSeqNameToCalculate(string actual_queries) {
 // ----------------------------------------------------------------------------------------
 string Glomerator::GetLogProbNameToCalculate(string queries, int n_max) {
   if(logprob_asymetric_translations_.count(queries)) {
-    cout << "             using asymetric translation  " << queries << "  -->  " << logprob_asymetric_translations_[queries] << endl;
+    if(args_->debug())
+      cout << "             using asymetric translation  " << queries << "  -->  " << logprob_asymetric_translations_[queries] << endl;
     queries = logprob_asymetric_translations_[queries];
     // *don't* access logprob_asymetric_translations_[queries], it isn't there, 'cause <queries> changed
   } 
@@ -547,9 +548,11 @@ bool Glomerator::FirstParentBigger(string queries, string queries_other, int nma
   int nseq(CountMembers(queries));
   int nseq_other(CountMembers(queries_other));
   if(nseq > nmax && float(nseq) / nseq_other > asym_factor_ ) {  // if <nseq> is large, and if <nseq> more than twice the size of <nseq_other>, use the existing name translation (for which we should already have a logprob and a naive seq)
-    cout << "                asymetric  " << nseq << " " << nseq_other << "  use " << queries << "  instead of " << JoinNames(queries, queries_other) << endl;
-    if(naive_seq_name_translations_.count(queries))
-      cout << "                    naive seq translates to " << naive_seq_name_translations_[queries] << endl;
+    if(args_->debug()) {
+      cout << "                asymetric  " << nseq << " " << nseq_other << "  use " << queries << "  instead of " << JoinNames(queries, queries_other) << endl;
+      if(naive_seq_name_translations_.count(queries))
+	cout << "                    naive seq translates to " << naive_seq_name_translations_[queries] << endl;
+    }
     return true;
   }
   return false;
@@ -925,15 +928,18 @@ void Glomerator::UpdateLogProbTranslationsForAsymetrics(Query &qmerge) {
   if(queries != "") {
     string subqueries(queries);
     while(logprob_asymetric_translations_.count(subqueries)) {
-      cout << "                  turtles " << subqueries << "  -->  " << logprob_asymetric_translations_[subqueries] << endl;
+      if(args_->debug())
+	cout << "                  turtles " << subqueries << "  -->  " << logprob_asymetric_translations_[subqueries] << endl;
       subqueries = logprob_asymetric_translations_[subqueries];
     }
     if(float(CountMembers(queries)) / CountMembers(subqueries) < 2.)  {  // if we haven't added too many new sequences since we last calculated something, we can just reuse things
-      cout << "                logprob asymetric translation  " << qmerge.name_ << "  -->  " << subqueries << endl;
+      if(args_->debug())
+	cout << "                logprob asymetric translation  " << qmerge.name_ << "  -->  " << subqueries << endl;
       // assert(log_probs_.count(subqueries) || (logprob_name_translations_.count(subqueries) && log_probs_.count(logprob_name_translations_[subqueries])));
       logprob_asymetric_translations_[qmerge.name_] = subqueries;
     } else {
-      cout << "                  ratio too big for asymetric " << CountMembers(queries) << " " << CountMembers(subqueries) << endl;
+      if(args_->debug())
+	cout << "                  ratio too big for asymetric " << CountMembers(queries) << " " << CountMembers(subqueries) << endl;
     }
     
     // cout << "  translate logprob " << queries << " " << queries_other << endl;
