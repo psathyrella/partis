@@ -753,8 +753,9 @@ class PartitionDriver(object):
         with opener('r')(infname) as infile:
             reader = csv.DictReader(infile, delimiter=' ')
             for line in reader:
-                if self.args.seed_unique_id is not None and self.args.seed_unique_id in line['names']:
-                    if len(seed_info) > 0 and len(line['names'].split(':')) == 1:  # the first time through, we add the seed uid to *every* process. So, when we read those results back in, the procs that didn't merge the seed with anybody will have it as a singleton still, and we only need the singleton once
+                queries = set(line['names'].split(':'))
+                if self.args.seed_unique_id is not None and self.args.seed_unique_id in queries:
+                    if len(seed_info) > 0 and len(queries) == 1:  # the first time through, we add the seed uid to *every* process. So, when we read those results back in, the procs that didn't merge the seed with anybody will have it as a singleton still, and we only need the singleton once
                         continue
                     seed_info[line['names']] = line
                     # print '      ', line['names']
