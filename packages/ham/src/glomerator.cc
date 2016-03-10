@@ -509,6 +509,7 @@ string Glomerator::GetLogProbNameToCalculate(string queries, int n_max) {
   if(logprob_asymetric_translations_.count(queries)) {
     // assert(logprobs_.count(logprob_asymetric_translations_[queries]));  // if it's in here, it should actually be cached
     queries = logprob_asymetric_translations_[queries];
+    cout << "             using asymetric translation  " << queries << "  -->  " << logprob_asymetric_translations_[queries] << endl;
     // assert(log_probs_.count(queries) || (logprob_name_translations_.count(queries) && log_probs_.count(logprob_name_translations_[queries])));
   } 
 
@@ -548,6 +549,8 @@ bool Glomerator::FirstParentBigger(string queries, string queries_other, int nma
   int nseq_other(CountMembers(queries_other));
   if(nseq > nmax && float(nseq) / nseq_other > asym_factor_ ) {  // if <nseq> is large, and if <nseq> more than twice the size of <nseq_other>, use the existing name translation (for which we should already have a logprob and a naive seq)
     cout << "                asymetric  " << nseq << " " << nseq_other << "  use " << queries << "  instead of " << JoinNames(queries, queries_other) << endl;
+    if(naive_seq_name_translations_.count(queries))
+      cout << "                    naive seq translates to " << naive_seq_name_translations_[queries] << endl;
     return true;
   }
   return false;
