@@ -68,6 +68,7 @@ private:
   string JoinNameStrings(vector<Sequence> &strlist, string delimiter=":");
   string JoinSeqStrings(vector<Sequence> &strlist, string delimiter=":");
   string PrintStr(string queries);
+  bool SeedMissing(string queries, string delimiter=":");
 
   double CalculateHfrac(string &seq_a, string &seq_b);
   double NaiveHfrac(string key_a, string key_b);
