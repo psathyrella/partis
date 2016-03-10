@@ -507,10 +507,9 @@ string Glomerator::GetNaiveSeqNameToCalculate(string actual_queries) {
 // ----------------------------------------------------------------------------------------
 string Glomerator::GetLogProbNameToCalculate(string queries, int n_max) {
   if(logprob_asymetric_translations_.count(queries)) {
-    // assert(logprobs_.count(logprob_asymetric_translations_[queries]));  // if it's in here, it should actually be cached
-    queries = logprob_asymetric_translations_[queries];
     cout << "             using asymetric translation  " << queries << "  -->  " << logprob_asymetric_translations_[queries] << endl;
-    // assert(log_probs_.count(queries) || (logprob_name_translations_.count(queries) && log_probs_.count(logprob_name_translations_[queries])));
+    queries = logprob_asymetric_translations_[queries];
+    // *don't* access logprob_asymetric_translations_[queries], it isn't there, 'cause <queries> changed
   } 
 
   if(CountMembers(queries) > n_max) {
