@@ -392,6 +392,19 @@ string Glomerator::PrintStr(string queries) {
 }
 
 // ----------------------------------------------------------------------------------------
+bool Glomerator::SeedMissing(string queries, string delimiter) {
+  // set<string> queryset(SplitString(queries, delimiter));  // might be faster to look for :uid: and uid: and... hm, wait, that's kind of hard
+  return !InString(args_->seed_unique_id(), queries,  delimiter);
+  //// oh, wait this (below) won't work without more checks
+  // if(queries.find(delimiter + uid) != string::npos)
+  //   return true;
+  // else if(queries.find(uid + delimiter) != string::npos)
+  //   return true;
+  // else
+  //   return false;
+}
+
+// ----------------------------------------------------------------------------------------
 double Glomerator::CalculateHfrac(string &seq_a, string &seq_b) {
   ++n_hfrac_calculated_;
   if(seq_a.size() != seq_b.size())
@@ -434,25 +447,27 @@ string Glomerator::ChooseSubsetOfNames(string queries, int n_max) {
   srand(hash<string>{}(queries));  // make sure we get the same subset each time we pass in the same queries (well, if there's different thresholds for naive_seqs annd logprobs they'll each get their own [very correlated] subset)
 
   // first choose the indices we'll choose
-  set<int> already_chosen;
-  vector<int> chosen;  // don't really need both of these... but maybe it's faster
+  set<int> ichosen;
+  set<string> chosen_str;
+  vector<int> ichosen_vec;  // don't really need both of these... but maybe it's faster
   for(size_t iname=0; iname<unsigned(n_max); ++iname) {
-    int ichosen(-1);
-    while(ichosen < 0 || already_chosen.count(ichosen))
-      ichosen = rand() % namevector.size();
-    already_chosen.insert(ichosen);
-    chosen.push_back(ichosen);
+    int ich(-1);
+    while(ich < 0 || ichosen.count(ich) || chosen_str.count(namevector[ich]))  // last bit is there since if we have a seed unique id, it can be present several times, but we only want to add it once
+      ich = rand() % namevector.size();
+    ichosen.insert(ich);
+    chosen_str.insert(namevector[ich]);
+    ichosen_vec.push_back(ich);
   }
 
   // then sort 'em
-  sort(chosen.begin(), chosen.end());
+  sort(ichosen_vec.begin(), ichosen_vec.end());
 
   // and finally make the new vectors
   vector<string> subqueryvec;
   vector<Sequence> subseqs;
-  for(auto &ichosen : chosen) {
-    subqueryvec.push_back(namevector[ichosen]);
-    subseqs.push_back(seq_info_[queries][ichosen]);
+  for(auto &ich : ichosen_vec) {
+    subqueryvec.push_back(namevector[ich]);
+    subseqs.push_back(seq_info_[queries][ich]);
   }
 
   string subqueries(JoinStrings(subqueryvec));
@@ -562,7 +577,7 @@ string &Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents) {
   if(parents != nullptr) {
     string name_with_which_to_replace = FindNaiveSeqNameReplace(parents);
     if(name_with_which_to_replace != "") {
-      naive_seqs_[queries] = GetNaiveSeq(name_with_which_to_replace);  // copy the whole sequence object
+      naive_seqs_[queries] = GetNaiveSeq(name_with_which_to_replace);  // copy the whole sequence object  TODO this doesn't follow/do the turtle thing
       events_[queries] = events_[name_with_which_to_replace];  // also copy the event  // TODO this doesn't set all the event info correctly
       events_[queries].seq_name_ = name_with_which_to_replace;
       return naive_seqs_[queries];
@@ -819,10 +834,8 @@ pair<double, Query> Glomerator::FindHfracMerge(ClusterPath *path) {
   for(Partition::iterator it_a = path->CurrentPartition().begin(); it_a != path->CurrentPartition().end(); ++it_a) {
     for(Partition::iterator it_b = it_a; ++it_b != path->CurrentPartition().end();) {
       string key_a(*it_a), key_b(*it_b);
-      if(args_->seed_unique_id() != "") {
-	if(key_a.find(args_->seed_unique_id()) == string::npos && key_b.find(args_->seed_unique_id()) == string::npos)  // if a seed unique id was set on the command line, and if it's not in either key (which are colon-joined strings of unique_ids)
+      if(args_->seed_unique_id() != "" && SeedMissing(key_a) && SeedMissing(key_b))  // if a seed unique id was set on the command line, and if it's not in either key (which are colon-joined strings of unique_ids)
 	  continue;
-      }
 
       double hfrac = NaiveHfrac(key_a, key_b);
       if(hfrac > args_->hamming_fraction_bound_hi())  // if naive hamming fraction too big, don't even consider merging the pair
@@ -852,10 +865,8 @@ pair<double, Query> Glomerator::FindLRatioMerge(ClusterPath *path) {
   for(Partition::iterator it_a = path->CurrentPartition().begin(); it_a != path->CurrentPartition().end(); ++it_a) {
     for(Partition::iterator it_b = it_a; ++it_b != path->CurrentPartition().end();) {
       string key_a(*it_a), key_b(*it_b);
-      if(args_->seed_unique_id() != "") {
-	if(key_a.find(args_->seed_unique_id()) == string::npos && key_b.find(args_->seed_unique_id()) == string::npos)  // if a seed unique id was set on the command line, and if it's not in either key (which are colon-joined strings of unique_ids)
+      if(args_->seed_unique_id() != "" && SeedMissing(key_a) && SeedMissing(key_b))  // if a seed unique id was set on the command line, and if it's not in either key (which are colon-joined strings of unique_ids)
 	  continue;
-      }
 
       ++n_total_pairs;
 
@@ -912,15 +923,17 @@ void Glomerator::UpdateLogProbTranslationsForAsymetrics(Query &qmerge) {
   if(queries != "") {
     string subqueries(queries);
     while(logprob_asymetric_translations_.count(subqueries)) {
-      cout << "      turtles " << subqueries << "  -->  " << logprob_asymetric_translations_[subqueries] << endl;
+      cout << "                  turtles " << subqueries << "  -->  " << logprob_asymetric_translations_[subqueries] << endl;
       subqueries = logprob_asymetric_translations_[subqueries];
     }
     if(float(CountMembers(queries)) / CountMembers(subqueries) < 2.)  {  // if we haven't added too many new sequences since we last calculated something, we can just reuse things
       cout << "                logprob asymetric translation  " << qmerge.name_ << "  -->  " << subqueries << endl;
       // assert(log_probs_.count(subqueries) || (logprob_name_translations_.count(subqueries) && log_probs_.count(logprob_name_translations_[subqueries])));
       logprob_asymetric_translations_[qmerge.name_] = subqueries;
+    } else {
+      cout << "                  ratio too big for asymetric " << CountMembers(queries) << " " << CountMembers(subqueries) << endl;
     }
-
+    
     // cout << "  translate logprob " << queries << " " << queries_other << endl;
     // logprob_name_translations_[JoinNames(queries, queries_other)] = logprob_name_translations_[queries]; //GetLogProbNameToCalculate(queries);
   }
