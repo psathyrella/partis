@@ -74,7 +74,8 @@ private:
 
   string ChooseSubsetOfNames(string queries, int n_max);
   string GetNaiveSeqNameToCalculate(string actual_queries);  // convert between the actual queries/key we're interested in and the one we're going to calculate
-  pair<string, string> GetLogProbNameToCalculate(string actual_queries, pair<string, string> actual_parents);  // convert between the actual queries/key we're interested in and the one we're going to calculate
+  string GetLogProbNameToCalculate(string queries, int n_max);
+  pair<string, string> GetLogProbPairOfNamesToCalculate(string actual_queries, pair<string, string> actual_parents);  // convert between the actual queries/key we're interested in and the one we're going to calculate
   bool FirstParentBigger(string queries, string queries_other, int nmax);
   string FindNaiveSeqNameReplace(pair<string, string> *parents);
   string &GetNaiveSeq(string key, pair<string, string> *parents=nullptr);
@@ -86,7 +87,7 @@ private:
 
   bool SameLength(vector<Sequence> &seqs, bool debug=false);
   vector<Sequence> MergeSeqVectors(string name_a, string name_b);
-  void UpdateTranslations(string queries, string queries_other);
+  void UpdateLogProbTranslationsForAsymetrics(Query &qmerge);
   Query GetMergedQuery(string name_a, string name_b);
 
   bool LikelihoodRatioTooSmall(double lratio, int candidate_cluster_size);
@@ -107,7 +108,10 @@ private:
 
   map<string, string> naive_seq_name_translations_;
   map<string, pair<string, string> > logprob_name_translations_;
+  map<string, string> logprob_asymetric_translations_;
   map<string, string> logprob_name_subsets_;
+
+  // map<string, pair<string, string> > parents_;
 
   map<string, vector<Sequence> > seq_info_;  // NOTE it would be more memory-efficient to just keep track of vectors of keys here, and have Glomerator keep all the actual info
   map<string, vector<string> > only_genes_;
@@ -125,6 +129,8 @@ private:
   set<string> initial_log_probs_, initial_naive_hfracs_, initial_naive_seqs_;  // keep track of the ones we read from the initial cache file so we can write only the new ones to the output cache file
 
   int n_fwd_calculated_, n_vtb_calculated_, n_hfrac_calculated_, n_hamming_merged_;
+
+  double asym_factor_;
 
   time_t last_status_write_time_;  // last time that we wrote our progress to a file
   FILE *progress_file_;
