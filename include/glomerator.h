@@ -92,6 +92,7 @@ private:
   Query GetMergedQuery(string name_a, string name_b);
 
   bool LikelihoodRatioTooSmall(double lratio, int candidate_cluster_size);
+  Partition GetSeededClusters(Partition &partition);
   pair<double, Query> FindHfracMerge(ClusterPath *path);
   pair<double, Query> FindLRatioMerge(ClusterPath *path);
   pair<double, Query> *ChooseRandomMerge(vector<pair<double, Query> > &potential_merges, smc::rng *rgen);
@@ -105,7 +106,7 @@ private:
   vector<double> initial_logprobs_;
   vector<double> initial_logweights_;
 
-  map<string, set<string> > name_sets_;  // save ourselves splitting the query strings by colons each time we want to see what the members are
+  map<string, bool> seed_missing_;  // also cache the presence of the seed in each cluster
 
   int i_initial_partition_;  // index of the next inital partition to grab (for smc stuff)
 
