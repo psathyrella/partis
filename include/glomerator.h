@@ -83,7 +83,7 @@ private:
   // double NormFactor(string name);
   double GetLogProb(string queries);
   double GetLogProbRatio(string key_a, string key_b);
-  string CalculateNaiveSeq(string key);
+  string CalculateNaiveSeq(string key, RecoEvent *event=nullptr);
   double CalculateLogProb(string queries);
 
   bool SameLength(vector<Sequence> &seqs, bool debug=false);
@@ -124,7 +124,6 @@ private:
   map<string, double> naive_hfracs_;  // NOTE since this uses the joint key, it assumes there's only *one* way to get to a given cluster (this is similar to, but not quite the same as, the situation for log probs and naive seqs)
   map<string, double> lratios_;
   map<string, string> naive_seqs_;
-  map<string, RecoEvent> events_;  // annotations corresponding to the naive seqs. NOTE keeping it separate, at least for now, since I only want the full annotations for the final partition, but I need naive seqs for loads and loads of groups of sequences
   map<string, string> errors_;
 
   set<string> initial_log_probs_, initial_naive_hfracs_, initial_naive_seqs_;  // keep track of the ones we read from the initial cache file so we can write only the new ones to the output cache file
