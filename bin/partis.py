@@ -31,6 +31,7 @@ parser.add_argument('--mimic-data-read-length', action='store_true', help='trim 
 parser.add_argument('--annotation-clustering', help='Perform annotation-based clustering from Vollmers paper')
 parser.add_argument('--rescale-emissions', action='store_true', default=True)
 parser.add_argument('--print-partitions', action='store_true', help='Print partition info in <outfname> and then exit.')
+parser.add_argument('--print-cluster-annotations', action='store_true', help='print annotation for each final cluster')
 # parser.add_argument('--use_mean_at_boundaries', action='store_true', help='see note in hmmwriter')
 parser.add_argument('--annotation-clustering-thresholds', default='0.9', help='colon-separated list of thresholds for annotation-based (e.g. vollmers) clustering')
 parser.add_argument('--naive-hamming-bounds')
@@ -43,7 +44,6 @@ parser.add_argument('--n-partition-steps', type=int, default=99999, help='Instea
 parser.add_argument('--no-random-divvy', action='store_true', help='Don\'t shuffle the order of the input sequences before passing on to ham')  # it's imperative to shuffle if you're partitioning on simulation, or if you're partitioning with more than one process. But it may also be kinda slow.
 parser.add_argument('--naive-hamming', action='store_true', help='agglomerate purely with naive hamming distance, i.e. set the low and high preclustering bounds to the same value')
 parser.add_argument('--naivety', default='M', choices=['M', 'N'])
-parser.add_argument('--print-cluster-annotations', action='store_true', help='print annotation for each final cluster')
 parser.add_argument('--presto-output', action='store_true', help='write output file in presto format')
 parser.add_argument('--only-csv-plots', action='store_true', help='only write csv plots')
 
@@ -63,6 +63,7 @@ if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
     print '    TODO rethink about how many sequences want to go along with the seed sequence to each process'
     print '    TODO make progress file a bit more informative'
     print '    TODO todos in glomerator'
+    print '    TODO is it ok that (apprently) two clusters that contain the seed unique id can end up with the same process? (hmm, on second thought, I think so)'
 
 # input and output stuff
 parser.add_argument('--seqfile', help='input sequence file')

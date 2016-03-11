@@ -258,7 +258,7 @@ void Glomerator::WritePartitions(vector<ClusterPath> &paths) {
 
 // ----------------------------------------------------------------------------------------
 void Glomerator::WriteAnnotations(vector<ClusterPath> &paths) {
-  throw runtime_error("needs updating -- specifically need to make sure that when we replace one naive seq with another, we also replace other things like the event_ info ");
+  cout << "      calculating and writing annotations" << endl;
   ofstream annotation_ofs;
   annotation_ofs.open(args_->annotationfile());
   StreamHeader(annotation_ofs, "viterbi");
@@ -266,15 +266,20 @@ void Glomerator::WriteAnnotations(vector<ClusterPath> &paths) {
   assert(paths.size() == 1);  // would need to update this for smc
   int ipath(0);
   ClusterPath cp(paths[ipath]);
-  for(unsigned ipart=0; ipart<cp.partitions().size(); ++ipart) {  // we don't work out which is the best partition until later (in the python), so darn, I guess I'll just write annotations for all the partitions
-    for(auto &cluster : cp.partitions()[ipart]) {
-      if(events_[cluster].genes_["d"] == "") {  // shouldn't happen any more, but it is a check that could fail at some point
-	cout << "WTF " << cluster << " x" << events_[cluster].naive_seq_ << "x" << endl;
-	assert(0);
-      }
-      vector<RecoEvent> event_list({events_[cluster]});
-      StreamOutput(annotation_ofs, "viterbi", 1, event_list, seq_info_[cluster], 0., "");
+  unsigned ipart(cp.partitions().size() - 1);  // just write the last (best) one. NOTE that we're no longer keeping track of the total log prob of the partition, since a) a bunch (most?) of the time we're merging with naive hfrac and b) we don't need it, anyway
+  for(auto &cluster : cp.partitions()[ipart]) {
+    if(args_->seed_unique_id() != "" && SeedMissing(cluster))
+      continue;
+
+    RecoEvent event;
+    CalculateNaiveSeq(cluster, &event);  // calculate the viterbi path from scratch -- we're doing so much translation crap at this point it's just too hard to keep track of things otherwise
+
+    if(event.genes_["d"] == "") {  // shouldn't happen any more, but it is a check that could fail at some point
+      cout << "WTF " << cluster << " x" << event.naive_seq_ << "x" << endl;
+      assert(0);
     }
+    vector<RecoEvent> event_list({event});
+    StreamOutput(annotation_ofs, "viterbi", 1, event_list, seq_info_[cluster], 0., "");
   }
   annotation_ofs.close();
 }
@@ -583,8 +588,6 @@ string &Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents) {
     string name_with_which_to_replace = FindNaiveSeqNameReplace(parents);
     if(name_with_which_to_replace != "") {
       naive_seqs_[queries] = GetNaiveSeq(name_with_which_to_replace);  // copy the whole sequence object  TODO this doesn't follow/do the turtle thing
-      events_[queries] = events_[name_with_which_to_replace];  // also copy the event  // TODO this doesn't set all the event info correctly
-      events_[queries].seq_name_ = name_with_which_to_replace;
       return naive_seqs_[queries];
     }
   }
@@ -595,7 +598,7 @@ string &Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents) {
     naive_seqs_[queries_to_calc] = CalculateNaiveSeq(queries_to_calc);
 
   if(queries_to_calc != queries) {
-    naive_seqs_[queries] = naive_seqs_[queries_to_calc];  // TODO wait, shouldn't I set events_ and whatnot here?
+    naive_seqs_[queries] = naive_seqs_[queries_to_calc];
   }
 
   return naive_seqs_[queries];
@@ -654,9 +657,9 @@ double Glomerator::GetLogProbRatio(string key_a, string key_b) {
 }
 
 // ----------------------------------------------------------------------------------------
-string Glomerator::CalculateNaiveSeq(string queries) {
-  // NOTE do *not* call this from anywhere except GetNaiveSeq()
-  assert(naive_seqs_.count(queries) == 0);
+string Glomerator::CalculateNaiveSeq(string queries, RecoEvent *event) {
+  if(event == nullptr)  // if we're calling it with <event> set, then we know we're recalculating some things
+    assert(naive_seqs_.count(queries) == 0);
 
   if(seq_info_.count(queries) == 0 || kbinfo_.count(queries) == 0 || only_genes_.count(queries) == 0 || mute_freqs_.count(queries) == 0)
     throw runtime_error("no info for " + queries);
@@ -674,12 +677,11 @@ string Glomerator::CalculateNaiveSeq(string queries) {
       cout << "             expand and run again" << endl;  // note that subsequent runs are much faster than the first one because of chunk caching
   } while(!stop);
 
-  if(result.events_.size() < 1)
-    throw runtime_error("no events for queries " + queries + "\n");
-  events_[queries] = result.events_[0];  // NOTE keeping separate from naive_seqs_ (at least for now) because I only need the full event for the final partition (UPDATE or do I only use it to write annotations)
-  // TODO get events_ on same footing as naive_seqs_
   if(result.boundary_error())
     errors_[queries] = errors_[queries] + ":boundary";
+
+  if(event != nullptr)
+    *event = result.events_[0];
 
   return result.events_[0].naive_seq_;
 }

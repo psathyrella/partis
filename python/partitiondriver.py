@@ -213,8 +213,8 @@ class PartitionDriver(object):
                 print '      print time: %.3f' % (time.time()-start)
             if self.args.print_cluster_annotations:
                 annotations = self.read_annotation_output(self.annotation_fname)
-                for cluster in path.partitions[path.i_best]:
-                    utils.print_reco_event(self.glfo['seqs'], annotations[':'.join(cluster)], extra_str='    ', label='inferred:')
+                # for cluster in path.partitions[path.i_best]:
+                #     utils.print_reco_event(self.glfo['seqs'], annotations[':'.join(cluster)], extra_str='    ', label='inferred:')
             if self.args.outfname is not None:
                 start = time.time()
                 self.write_clusterpaths(self.args.outfname, [path, ], deduplicate_uid=self.args.seed_unique_id)  # [last agglomeration step]
@@ -474,7 +474,7 @@ class PartitionDriver(object):
             cmd_str += ' --smc-particles ' + str(self.args.smc_particles)
         if self.args.rescale_emissions:
             cmd_str += ' --rescale-emissions'
-        if self.args.print_cluster_annotations:
+        if self.args.print_cluster_annotations and n_procs == 1:
             cmd_str += ' --annotationfile ' + self.annotation_fname
         if self.args.action == 'partition':
             cmd_str += ' --cachefile ' + self.hmm_cachefname
@@ -516,8 +516,8 @@ class PartitionDriver(object):
                 print 'couldn\'t find vdb/fwd in:\n%s' % procinfo
                 return 1.  # er, or something?
             total += procinfo['vtb'] + procinfo['fwd']
-        if self.args.debug:
-            print '  n calcd: %d (%.1f per proc)' % (total, float(total) / len(self.n_likelihoods_calculated))
+        # if self.args.debug:
+        print '          n calcd: %d (%.1f per proc)' % (total, float(total) / len(self.n_likelihoods_calculated))
         return float(total) / len(self.n_likelihoods_calculated)
 
     # ----------------------------------------------------------------------------------------
@@ -1225,7 +1225,7 @@ class PartitionDriver(object):
 
         if self.args.action != 'partition':
             if self.args.action == 'run-viterbi' or self.args.action == 'cache-parameters':
-                self.read_annotation_output(self.hmm_outfname, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir)
+                self.read_annotation_output(self.hmm_outfname, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, outfname=self.args.outfname)
             elif self.args.action == 'run-forward':
                 self.read_forward_output(self.hmm_outfname)
 
@@ -1282,7 +1282,7 @@ class PartitionDriver(object):
             os.remove(annotation_fname)
 
     # ----------------------------------------------------------------------------------------
-    def read_annotation_output(self, annotation_fname, count_parameters=False, parameter_out_dir=None):
+    def read_annotation_output(self, annotation_fname, outfname=None, count_parameters=False, parameter_out_dir=None):
         """ Read bcrham annotation output """
         print '    read output'
 
@@ -1366,51 +1366,56 @@ class PartitionDriver(object):
                 print '                %s' % ', '.join(boundary_error_queries)
 
         # write output file
-        if self.args.outfname is not None:
-            self.write_annotations(eroded_annotations)
+        if outfname is not None:
+            self.write_annotations(eroded_annotations, outfname)
 
+        # annotation (VJ CDR3) clustering
         if self.args.annotation_clustering is not None:
-            if self.args.annotation_clustering != 'vollmers':
-                raise Exception('we only handle \'vollmers\' (vj cdr3 0.x) annotation clustering at the moment')
-
-            # initialize output file
-            if self.args.outfname is not None:
-                outfile = open(self.args.outfname, 'w')  # NOTE overwrites annotation info that's already been written to <self.args.outfname>
-                headers = ['n_clusters', 'threshold', 'partition']
-                if not self.args.is_data:
-                    headers += ['adj_mi', 'ccf_under', 'ccf_over']
-                writer = csv.DictWriter(outfile, headers)
-                writer.writeheader()
-
-            # have to copy info to new dict to get d_qr_seq and whatnot
-            annotations_for_vollmers = OrderedDict()
-            for uidstr, line in eroded_annotations.items():
-                if len(line['seqs']) > 1:
-                    raise Exception('can\'t handle multiple seqs')
-                annotations_for_vollmers[uidstr] = utils.synthesize_single_seq_line(line, iseq)
-
-            # perform annotation clustering for each threshold and write to file
-            for thresh in self.args.annotation_clustering_thresholds:
-                partition = annotationclustering.vollmers(annotations_for_vollmers, threshold=thresh, reco_info=self.reco_info)
-                n_clusters = len(partition)
-                if self.args.outfname is not None:
-                    row = {'n_clusters' : n_clusters, 'threshold' : thresh, 'partition' : utils.get_str_from_partition(partition)}
-                    if not self.args.is_data:
-                        true_partition = utils.get_true_partition(self.reco_info)
-                        adj_mi = utils.adjusted_mutual_information(partition, true_partition)
-                        ccfs = utils.new_ccfs_that_need_better_names(partition, true_partition, self.reco_info)
-                        row['adj_mi'] = adj_mi
-                        row['ccf_under'] = ccfs[0]
-                        row['ccf_over'] = ccfs[1]
-                    writer.writerow(row)
-
-            if self.args.outfname is not None:
-                outfile.close()
+            self.deal_with_annotation_clustering(eroded_annotations, outfname)
 
         if not self.args.no_clean:
             os.remove(annotation_fname)
 
         return eroded_annotations
+
+    # ----------------------------------------------------------------------------------------
+    def deal_with_annotation_clustering(annotations, outfname):
+        if self.args.annotation_clustering != 'vollmers':
+            raise Exception('we only handle \'vollmers\' (vj cdr3 0.x) annotation clustering at the moment')
+
+        # initialize output file
+        if outfname is not None:
+            outfile = open(outfname, 'w')  # NOTE overwrites annotation info that's already been written to <outfname>
+            headers = ['n_clusters', 'threshold', 'partition']
+            if not self.args.is_data:
+                headers += ['adj_mi', 'ccf_under', 'ccf_over']
+            writer = csv.DictWriter(outfile, headers)
+            writer.writeheader()
+
+        # have to copy info to new dict to get d_qr_seq and whatnot
+        annotations_for_vollmers = OrderedDict()
+        for uidstr, line in annotations.items():
+            if len(line['seqs']) > 1:
+                raise Exception('can\'t handle multiple seqs')
+            annotations_for_vollmers[uidstr] = utils.synthesize_single_seq_line(line, iseq)
+
+        # perform annotation clustering for each threshold and write to file
+        for thresh in self.args.annotation_clustering_thresholds:
+            partition = annotationclustering.vollmers(annotations_for_vollmers, threshold=thresh, reco_info=self.reco_info)
+            n_clusters = len(partition)
+            if outfname is not None:
+                row = {'n_clusters' : n_clusters, 'threshold' : thresh, 'partition' : utils.get_str_from_partition(partition)}
+                if not self.args.is_data:
+                    true_partition = utils.get_true_partition(self.reco_info)
+                    adj_mi = utils.adjusted_mutual_information(partition, true_partition)
+                    ccfs = utils.new_ccfs_that_need_better_names(partition, true_partition, self.reco_info)
+                    row['adj_mi'] = adj_mi
+                    row['ccf_under'] = ccfs[0]
+                    row['ccf_over'] = ccfs[1]
+                writer.writerow(row)
+
+        if outfname is not None:
+            outfile.close()
 
     # ----------------------------------------------------------------------------------------
     def print_hmm_output(self, line, print_true=False):
