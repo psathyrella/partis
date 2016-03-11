@@ -41,6 +41,8 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> >
       continue;
 
     seq_info_[key] = qry_seq_list[iqry];
+    vector<string> namevec(SplitString(key));
+    name_sets_[key] = set<string>(namevec.begin(), namevec.end());
     only_genes_[key] = args_->str_lists_["only_genes"][iqry];
 
     KSet kmin(args_->integers_["k_v_min"][iqry], args_->integers_["k_d_min"][iqry]);
@@ -398,8 +400,9 @@ string Glomerator::PrintStr(string queries) {
 
 // ----------------------------------------------------------------------------------------
 bool Glomerator::SeedMissing(string queries, string delimiter) {
+  return name_sets_[queries].count(args_->seed_unique_id()) == 0;
   // set<string> queryset(SplitString(queries, delimiter));  // might be faster to look for :uid: and uid: and... hm, wait, that's kind of hard
-  return !InString(args_->seed_unique_id(), queries,  delimiter);
+  // return !InString(args_->seed_unique_id(), queries,  delimiter);
   //// oh, wait this (below) won't work without more checks
   // if(queries.find(delimiter + uid) != string::npos)
   //   return true;
@@ -478,6 +481,7 @@ string Glomerator::ChooseSubsetOfNames(string queries, int n_max) {
   string subqueries(JoinStrings(subqueryvec));
 
   seq_info_[subqueries] = subseqs;
+  name_sets_[subqueries] = set<string>(subqueryvec.begin(), subqueryvec.end());
   kbinfo_[subqueries] = kbinfo_[queries];  // just use the entire/super cluster for this stuff. It's just overly conservative (as long as you keep the mute freqs the same)
   mute_freqs_[subqueries] = mute_freqs_[queries];
   only_genes_[subqueries] = only_genes_[queries];
@@ -781,6 +785,8 @@ Query Glomerator::GetMergedQuery(string name_a, string name_b) {
 
   // NOTE now that I'm adding the merged query to the cache info here, I can maybe get rid of the qmerged entirely
   seq_info_[qmerged.name_] = qmerged.seqs_;
+  vector<string> namevec(SplitString(qmerged.name_));
+  name_sets_[qmerged.name_] = set<string>(namevec.begin(), namevec.end());
   kbinfo_[qmerged.name_] = qmerged.kbounds_;
   mute_freqs_[qmerged.name_] = qmerged.mean_mute_freq_;
   only_genes_[qmerged.name_] = qmerged.only_genes_;

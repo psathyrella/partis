@@ -105,6 +105,8 @@ private:
   vector<double> initial_logprobs_;
   vector<double> initial_logweights_;
 
+  map<string, set<string> > name_sets_;  // save ourselves splitting the query strings by colons each time we want to see what the members are
+
   int i_initial_partition_;  // index of the next inital partition to grab (for smc stuff)
 
   map<string, string> naive_seq_name_translations_;
