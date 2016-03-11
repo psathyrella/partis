@@ -1134,6 +1134,18 @@ def get_seed_info(args, seqfname, n_leaves):
     raise Exception('couldn\'t find seed in cluster between size %d and %d' % (args.seed_cluster_bounds[0], args.seed_cluster_bounds[1]))
 
 # ----------------------------------------------------------------------------------------
+def get_seed_cluster(outfname):
+    cpath = ClusterPath()
+    cpath.readfile(outfname)
+    partition = cpath.partitions[cpath.i_best]
+    queries = None
+    for cluster in partition:
+        if len(cluster) > 1:
+            assert queries is None  # should only be one non-singleton cluster
+            queries = cluster
+    return queries
+
+# ----------------------------------------------------------------------------------------
 def get_outputname(args, label, action, seqfname, hfrac_bounds):
     if args.data:
         outputname = get_outdirname(args, label) + '/data-' + action + '.csv'
@@ -1148,6 +1160,8 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
     cmd = './bin/run-driver.py --label ' + label + ' --action '
     if 'partition' in action:
         cmd += ' partition'
+    elif action == 'annotate-seed-clusters':
+        cmd += ' run-viterbi'
     else:
         cmd += ' ' + action
     cmd += ' --stashdir ' + args.fsdir + ' --old-style-dir-structure'
@@ -1246,6 +1260,11 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
             extras += ['--naive-hamming', '--synthetic-distance-based-partition']
             extras += ['--naive-hamming-bounds', get_str(hfrac_bounds, delimiter=':'), '--no-indels']  # if we allow indels, it gets harder to pad seqs to the same length
             n_procs = max(1, args.n_to_partition / 500)
+    elif action == 'annotate-seed-clusters':
+        outfname = get_outputname(args, label, action, seqfname, hfrac_bounds)
+        queries = get_seed_cluster(get_outputname(args, label, 'seed-partition', seqfname, hfrac_bounds))
+        extras += ['--outfname', outfname, '--queries', ':'.join(queries), '--n-sets', len(queries)]  # override run-driver's outfname
+        n_procs = max(1, args.n_to_partition / 500)
     elif action == 'run-changeo':
         run_changeo(args, label, n_leaves, mut_mult, seqfname)
         return
