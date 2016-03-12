@@ -858,17 +858,18 @@ pair<double, Query> Glomerator::FindHfracMerge(ClusterPath *path) {
   double min_hamming_fraction(INFINITY);
   Query min_hamming_merge;
 
-  Partition outer_clusters(path->CurrentPartition());
-  if(args_->seed_unique_id() != "")
+  Partition outer_clusters(path->CurrentPartition());  // for plain partitioning, outer loop is over everything in the current partition
+  if(args_->seed_unique_id() != "")  // whereas if seed unique id is set, outer loop is only over those clusters that contain the seed
     outer_clusters = GetSeededClusters(path->CurrentPartition());
   for(Partition::iterator it_a = outer_clusters.begin(); it_a != outer_clusters.end(); ++it_a) {
-    Partition::iterator it_b(it_a);
+    Partition::iterator it_b(it_a);  // for plain partitioning, inner loop starts at the position of the outer iterator + 1
     ++it_b;
-    if(args_->seed_unique_id() != "")
+    if(args_->seed_unique_id() != "")  // but if the seed's set, inner loop is over the *entire* current partition (including the seeded clusters). So we also need to skip key_a == key_b below.
       it_b = path->CurrentPartition().begin();
-    for(;true;++it_b) {
+
+    for( ; true; ++it_b) {
       if(args_->seed_unique_id() == "") {
-	if(it_b == outer_clusters.end())
+	if(it_b == outer_clusters.end())  // NOTE you can't replace this with path->CurrentPartition().end() because in this case <it_b> is looping over the *copy* of path->CurrentPartition()
 	  break;
       } else {
 	if(it_b == path->CurrentPartition().end())
@@ -906,16 +907,17 @@ pair<double, Query> Glomerator::FindLRatioMerge(ClusterPath *path) {
   int n_total_pairs(0), n_skipped_hamming(0), n_small_lratios(0), n_inf_factors(0);
 
   Partition outer_clusters(path->CurrentPartition());
-  if(args_->seed_unique_id() != "")
+  if(args_->seed_unique_id() != "")  // see comments in FindHfracMerge
     outer_clusters = GetSeededClusters(path->CurrentPartition());
   for(Partition::iterator it_a = outer_clusters.begin(); it_a != outer_clusters.end(); ++it_a) {
     Partition::iterator it_b(it_a);
     ++it_b;
     if(args_->seed_unique_id() != "")
       it_b = path->CurrentPartition().begin();
-    for(;true;++it_b) {
+
+    for( ; true; ++it_b) {
       if(args_->seed_unique_id() == "") {
-	if(it_b == outer_clusters.end())
+	if(it_b == outer_clusters.end())  // NOTE you can't replace this with path->CurrentPartition().end() because in this case <it_b> is looping over the *copy* of path->CurrentPartition()
 	  break;
       } else {
 	if(it_b == path->CurrentPartition().end())
