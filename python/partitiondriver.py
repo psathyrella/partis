@@ -211,6 +211,8 @@ class PartitionDriver(object):
             if len(self.input_info) < 250:
                 print 'final'
                 start = time.time()
+                # if self.args.seed_unique_id is not None:
+                #     self.remove_duplicate_ids(uids, partition, self.args.seed_unique_id)
                 path.print_partitions(self.reco_info, print_header=True, calc_missing_values='all' if (len(self.input_info) < 500) else 'best')
                 print '      print time: %.3f' % (time.time()-start)
             if self.args.print_cluster_annotations:
@@ -222,16 +224,17 @@ class PartitionDriver(object):
                 self.write_clusterpaths(self.args.outfname, [path, ], deduplicate_uid=self.args.seed_unique_id)  # [last agglomeration step]
                 print '      write time: %.3f' % (time.time()-start)
         else:
-            # self.merge_pairs_of_procs(1)  # DAMMIT why did I have this here? I swear there was a reason but I can't figure it out, and it seems to work without it
-            final_paths = self.smc_info[-1][0]  # [last agglomeration step][first (and only) process in the last step]
-            for path in final_paths:
-                self.check_partition(path.partitions[path.i_best])
-            if self.args.debug:
-                for ipath in range(self.args.smc_particles):
-                    path = final_paths[ipath]
-                    path.print_partition(path.i_best, self.reco_info, extrastr=str(ipath) + ' final')
-            if self.args.outfname is not None:
-                self.write_clusterpaths(self.args.outfname, final_paths)
+            assert False  # deprecated
+            # # self.merge_pairs_of_procs(1)  # DAMMIT why did I have this here? I swear there was a reason but I can't figure it out, and it seems to work without it
+            # final_paths = self.smc_info[-1][0]  # [last agglomeration step][first (and only) process in the last step]
+            # for path in final_paths:
+            #     self.check_partition(path.partitions[path.i_best])
+            # if self.args.debug:
+            #     for ipath in range(self.args.smc_particles):
+            #         path = final_paths[ipath]
+            #         path.print_partition(path.i_best, self.reco_info, extrastr=str(ipath) + ' final')
+            # if self.args.outfname is not None:
+            #     self.write_clusterpaths(self.args.outfname, final_paths)
 
         if self.args.debug and not self.args.is_data:
             tmpglom = Glomerator(self.reco_info)
@@ -250,7 +253,7 @@ class PartitionDriver(object):
         return nclusters
 
     # ----------------------------------------------------------------------------------------
-    def check_partition(self, partition, deduplicate_uid=None):
+    def check_partition(self, partition):
         start = time.time()
         uids = set([uid for cluster in partition for uid in cluster])
         print '    checking partition with %d ids' % len(uids)
@@ -259,9 +262,6 @@ class PartitionDriver(object):
         if len(missing_ids) > 0:
             warnstr = 'queries missing from partition: ' + ' '.join(missing_ids)
             print '  ' + utils.color('red', 'warning') + ' ' + warnstr
-
-        if self.args.seed_unique_id is not None:
-            self.remove_duplicate_ids(uids, partition, self.args.seed_unique_id)
 
         print '      check time: %.3f' % (time.time()-start)
 
@@ -293,10 +293,12 @@ class PartitionDriver(object):
             # assert path.adj_mis[path.i_best] is None
             # assert path.ccfs[path.i_beset][0] is None and path.ccfs[path.i_beset][1] is None
             partition = copy.deepcopy(path.partitions[path.i_best])
-            # need this one to remove duplicates
-            self.check_partition(partition, deduplicate_uid=deduplicate_uid)  # NOTE doesn't set adj mi and whatnot (they'd be wrong if there's duplicates. Actually, I'm distrubed that the duplicates don't seem to cause them to fail)
+            # # need this one to remove duplicates
+            # self.check_partition(partition, deduplicate_uid=deduplicate_uid)  # NOTE doesn't set adj mi and whatnot (they'd be wrong if there's duplicates. Actually, I'm distrubed that the duplicates don't seem to cause them to fail)
             newcp.add_partition(partition, path.logprobs[path.i_best], path.n_procs[path.i_best])
-            newcp.write_partitions(writer=writer, reco_info=self.reco_info, true_partition=true_partition, is_data=self.args.is_data, n_to_write=self.args.n_partitions_to_write, calc_missing_values='best', seed_unique_id=self.args.seed_unique_id)
+            newcp.write_partitions(writer=writer, reco_info=self.reco_info, true_partition=true_partition, is_data=self.args.is_data, n_to_write=self.args.n_partitions_to_write,
+                                   calc_missing_values='none' if deduplicate_uid is not None else 'best',  # don't want to decide whta to do with duplicate seed ids right now... just write what we got and deal later
+                                   seed_unique_id=self.args.seed_unique_id)
         else:
             for ipath in range(len(paths)):
                 paths[ipath].write_partitions(writer=writer, reco_info=self.reco_info, true_partition=true_partition, is_data=self.args.is_data, smc_particles=self.args.smc_particles, path_index=self.args.seed + ipath, n_to_write=self.args.n_partitions_to_write, calc_missing_values='best', seed_unique_id=self.args.seed_unique_id)
