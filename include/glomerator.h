@@ -77,7 +77,7 @@ private:
   string GetNaiveSeqNameToCalculate(string actual_queries);  // convert between the actual queries/key we're interested in and the one we're going to calculate
   string GetLogProbNameToCalculate(string queries, int n_max);
   pair<string, string> GetLogProbPairOfNamesToCalculate(string actual_queries, pair<string, string> actual_parents);  // convert between the actual queries/key we're interested in and the one we're going to calculate
-  bool FirstParentBigger(string queries, string queries_other, int nmax);
+  bool FirstParentMuchBigger(string queries, string queries_other, int nmax);
   string FindNaiveSeqNameReplace(pair<string, string> *parents);
   string &GetNaiveSeq(string key, pair<string, string> *parents=nullptr);
   // double NormFactor(string name);
@@ -113,9 +113,7 @@ private:
   map<string, string> naive_seq_name_translations_;
   map<string, pair<string, string> > logprob_name_translations_;
   map<string, string> logprob_asymetric_translations_;
-  map<string, string> logprob_name_subsets_;
-
-  // map<string, pair<string, string> > parents_;
+  map<string, string> name_subsets_;
 
   map<string, vector<Sequence> > seq_info_;  // NOTE it would be more memory-efficient to just keep track of vectors of keys here, and have Glomerator keep all the actual info
   map<string, vector<string> > only_genes_;
