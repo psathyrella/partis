@@ -44,6 +44,8 @@ class PartitionDriver(object):
         self.n_max_divvy = 100  # if input info is longer than this, divvy with bcrham
         self.n_max_calc_per_process = 200  # if a bcrham process calc'd more than this many fwd + vtb values, don't decrease the number of processes in the next step
 
+        self.unseeded_queries = set()  # all the queries that we *didn't* cluster with the seed uid
+
         self.hmm_infname = self.args.workdir + '/hmm_input.csv'
         self.hmm_cachefname = self.args.workdir + '/hmm_cached_info.csv'
         self.hmm_outfname = self.args.workdir + '/hmm_output.csv'
@@ -131,7 +133,7 @@ class PartitionDriver(object):
         print '        water time: %.3f' % (time.time()-start)
 
         n_procs = self.args.n_procs
-        n_proc_list = []  # list of the number of procs we used for each run
+        self.n_proc_list = []  # list of the number of procs we used for each run
 
         # add initial lists of paths
         if self.args.smc_particles == 1:
@@ -180,24 +182,13 @@ class PartitionDriver(object):
             nclusters = self.get_n_clusters()
             print '--> %d clusters with %d procs' % (nclusters, n_procs)  # write_hmm_input uses the best-minus-ten partition
             self.run_hmm('forward', self.args.parameter_dir, n_procs=n_procs, divvy_with_bcrham=(self.get_n_clusters() > self.n_max_divvy and self.args.no_random_divvy))
-            n_proc_list.append(n_procs)
+            self.n_proc_list.append(n_procs)
 
             print '      partition step time: %.3f' % (time.time()-step_start)
-            if n_procs == 1 or len(n_proc_list) >= self.args.n_partition_steps:
+            if n_procs == 1 or len(self.n_proc_list) >= self.args.n_partition_steps:
                 break
 
-            if self.args.smc_particles == 1:  # for smc, we merge pairs of processes; otherwise, we do some heuristics to come up with a good number of clusters for the next iteration
-                n_calcd_per_process = self.get_n_calculated_per_process()
-                factor = 1.3
-
-                reduce_n_procs = False
-                if n_calcd_per_process < self.n_max_calc_per_process or n_proc_list.count(n_procs) > n_procs:  # if we didn't need to do that many calculations, or if we've already milked this number of procs for most of what it's worth
-                    reduce_n_procs = True
-
-                if reduce_n_procs:
-                    n_procs = int(n_procs / factor)
-            else:
-                n_procs = len(self.smc_info[-1])  # if we're doing smc, the number of particles is determined by the file merging process
+            n_procs = self.get_next_n_procs(n_procs)
 
         print '      loop time: %.3f' % (time.time()-start)
         start = time.time()
@@ -253,12 +244,35 @@ class PartitionDriver(object):
         return nclusters
 
     # ----------------------------------------------------------------------------------------
+    def get_next_n_procs(self, n_procs):
+        if self.args.smc_particles > 1:
+            return len(self.smc_info[-1])  # if we're doing smc, the number of particles is determined by the file merging process
+
+        if self.args.seed_unique_id is not None and len(self.unseeded_queries) > 0:
+            last_seqs_per_proc = int(float(len(self.input_info)) / n_procs)
+            n_remaining_seqs = len(self.input_info) - len(self.unseeded_queries)
+            print '  new n_procs %d = %d / %d' % (max(1, int(float(n_remaining_seqs) / last_seqs_per_proc)), n_remaining_seqs, last_seqs_per_proc)
+            return max(1, int(float(n_remaining_seqs) / last_seqs_per_proc))
+
+        n_calcd_per_process = self.get_n_calculated_per_process()
+        factor = 1.3
+
+        reduce_n_procs = False
+        if n_calcd_per_process < self.n_max_calc_per_process or self.n_proc_list.count(n_procs) > n_procs:  # if we didn't need to do that many calculations, or if we've already milked this number of procs for most of what it's worth
+            reduce_n_procs = True
+
+        if reduce_n_procs:
+            n_procs = int(n_procs / factor)
+
+        return n_procs
+
+    # ----------------------------------------------------------------------------------------
     def check_partition(self, partition):
         start = time.time()
         uids = set([uid for cluster in partition for uid in cluster])
         print '    checking partition with %d ids' % len(uids)
         input_ids = set(self.input_info.keys())  # maybe should switch this to self.sw_info['queries']? at least if we want to not worry about missing failed sw queries
-        missing_ids = input_ids - uids
+        missing_ids = input_ids - uids - self.unseeded_queries
         if len(missing_ids) > 0:
             warnstr = 'queries missing from partition: ' + ' '.join(missing_ids)
             print '  ' + utils.color('red', 'warning') + ' ' + warnstr
@@ -753,23 +767,23 @@ class PartitionDriver(object):
 
         # read single input file
         info = []
-        seed_info = {}
+        seeded_clusters = {}
         with opener('r')(infname) as infile:
             reader = csv.DictReader(infile, delimiter=' ')
             for line in reader:
                 if self.args.seed_unique_id is not None and self.args.seed_unique_id in set(line['names'].split(':')):
-                    if len(seed_info) > 0 and ':' not in line['names']:  # the first time through, we add the seed uid to *every* process. So, when we read those results back in, the procs that didn't merge the seed with anybody will have it as a singleton still, and we only need the singleton once
+                    if len(seeded_clusters) > 0 and ':' not in line['names']:  # the first time through, we add the seed uid to *every* process. So, when we read those results back in, the procs that didn't merge the seed with anybody will have it as a singleton still, and we only need the singleton once
                         continue
-                    seed_info[line['names']] = line
+                    seeded_clusters[line['names']] = line
                     continue  # don't want the seeded clusters mixed in with the non-seeded clusters just yet (see below)
                 info.append(line)
 
         # find the smallest seeded cluster
         if self.args.seed_unique_id is not None:
-            if len(seed_info) == 0:
+            if len(seeded_clusters) == 0:
                 raise Exception('couldn\'t find info for query %s in %s' % (self.args.seed_unique_id, infname))
             smallest_seed_cluster_str = None
-            for unique_id_str in seed_info:
+            for unique_id_str in seeded_clusters:
                 if smallest_seed_cluster_str is None or len(unique_id_str.split(':')) < len(smallest_seed_cluster_str.split(':')):
                     smallest_seed_cluster_str = unique_id_str
 
@@ -803,7 +817,7 @@ class PartitionDriver(object):
         # else:
         #     print 'modulo divvy'
 
-        seed_clusters_to_write = seed_info.keys()  # the keys in <seed_info> that we still need to write
+        seed_clusters_to_write = seeded_clusters.keys()  # the keys in <seeded_clusters> that we still need to write
         for iproc in range(n_procs):
             sub_outfile = get_sub_outfile(iproc, 'a')
             writer = get_writer(sub_outfile)
@@ -812,12 +826,12 @@ class PartitionDriver(object):
             if self.args.seed_unique_id is not None:  # write the seed info line to each file
                 if len(seed_clusters_to_write) > 0:
                     if iproc < n_procs - 1:  # if we're not on the last proc, pop off and write the first one
-                        writer.writerow(seed_info[seed_clusters_to_write.pop(0)])
+                        writer.writerow(seeded_clusters[seed_clusters_to_write.pop(0)])
                     else:
                         while len(seed_clusters_to_write) > 0:  # keep adding 'em until we run out
-                            writer.writerow(seed_info[seed_clusters_to_write.pop(0)])
+                            writer.writerow(seeded_clusters[seed_clusters_to_write.pop(0)])
                 else:  # if we don't have any more that we *need* to write (i.e. that have other seqs in them), just write the shortest one (which will frequently be a singleton)
-                    writer.writerow(seed_info[smallest_seed_cluster_str])
+                    writer.writerow(seeded_clusters[smallest_seed_cluster_str])
 
             # then loop over the non-seeded clusters
             for iquery in range(len(info)):
@@ -1188,6 +1202,14 @@ class PartitionDriver(object):
         else:
             if self.args.action == 'partition':
                 nsets = copy.deepcopy(self.paths[-1].partitions[self.paths[-1].i_best_minus_x])
+                if self.args.seed_unique_id is not None and len(self.n_proc_list) > 0:
+                    for ns in nsets:
+                        if self.args.seed_unique_id not in ns:
+                            assert len(ns) == 1
+                            uid = ns[0]
+                            if uid not in self.unseeded_queries:
+                                self.unseeded_queries.add(uid)
+                    nsets = [ns for ns in nsets if self.args.seed_unique_id in ns]
             else:
                 if self.args.n_sets == 1:  # single vanilla hmm (does the same thing as the below for n=1, but is more transparent)
                     nsets = [[qn] for qn in self.sw_info['queries']]
