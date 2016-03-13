@@ -132,18 +132,20 @@ presto_headers = {
 # ----------------------------------------------------------------------------------------
 forbidden_characters = set([':', ';', ','])  # strings that are not allowed in sequence ids
 
+functional_columns = ['mutated_invariant', 'in_frame', 'stop']
+
 column_configs = {
     'ints' : ('nth_best', 'v_5p_del', 'd_5p_del', 'cdr3_length', 'j_5p_del', 'j_3p_del', 'd_3p_del', 'v_3p_del'),
     'floats' : ('logprob'),
     'literals' : ('indelfos'),
-    'lists' : ('unique_ids', 'seqs', 'aligned_seqs', 'aligned_v_seqs', 'aligned_d_seqs', 'aligned_j_seqs')
+    'lists' : tuple(['unique_ids', 'seqs', 'aligned_seqs', 'aligned_v_seqs', 'aligned_d_seqs', 'aligned_j_seqs'] + [fc + 's' for fc in functional_columns])
 }
 
 # NOTE calling this "columns" is kind of bad, because other things already have similar names. But, sigh, it's probably the best option a.t.m.
 # keep track of all the *@*@$!ing different keys that happen in the <line>/<hmminfo>/whatever dictionaries
 xcolumns = {}
 xcolumns['per_family'] = tuple(['naive_seq', 'cdr3_length', 'cyst_position', 'tryp_position', 'lengths', 'regional_bounds'] + [g + '_gene' for g in regions] + [e + '_del' for e in real_erosions + effective_erosions] + [b + '_insertion' for b in boundaries + effective_boundaries] + [r + '_gl_seq' for r in regions])
-xcolumns['single_per_seq'] = tuple(['seq', 'unique_id', 'indelfo'] + [r + '_qr_seq' for r in regions] + ['aligned_' + r + '_seq' for r in regions])
+xcolumns['single_per_seq'] = tuple(['seq', 'unique_id', 'indelfo'] + [r + '_qr_seq' for r in regions] + ['aligned_' + r + '_seq' for r in regions] + functional_columns)
 xcolumns['multi_per_seq'] = tuple([k + 's' for k in xcolumns['single_per_seq']])
 xcolumns['hmm'] = tuple(['logprob', 'errors', 'nth_best'])
 xcolumns['sw'] = tuple(['k_v', 'k_d', 'all'])
@@ -154,7 +156,7 @@ xall_columns = set([k for cols in xcolumns.values() for k in cols])
 translation_columns = {'indels' : 'indelfo'}  # used to be <key>, now they're <value>
 
 common_implicit_columns = set(['naive_seq', 'cdr3_length', 'cyst_position', 'tryp_position', 'lengths', 'regional_bounds', 'invalid'] + [r + '_gl_seq' for r in regions])
-single_per_seq_implicit_columns = set([r + '_qr_seq' for r in regions] + ['aligned_' + r + '_seq' for r in regions])
+single_per_seq_implicit_columns = set(functional_columns + [r + '_qr_seq' for r in regions] + ['aligned_' + r + '_seq' for r in regions])
 multi_per_seq_implicit_columns = set(list(common_implicit_columns) + [k + 's' for k in single_per_seq_implicit_columns])
 single_per_seq_implicit_columns |= common_implicit_columns  # NOTE careful! kind of a weird initialization sequence here
 
@@ -654,6 +656,26 @@ def add_qr_seqs(line, multi_seq):
             line[region + '_qr_seq'] = get_single_qr_seq(region, line['seq'])
 
 # ----------------------------------------------------------------------------------------
+def add_functional_info(line, multi_seq):
+    def get_single_seq_info(seq, cpos, tpos, cdr3_length):
+        codons_ok = check_both_conserved_codons(seq, cpos, tpos, assert_on_fail=False)
+        in_frame_cdr3 = (cdr3_length % 3 == 0)
+        no_stop_codon = stop_codon_check(seq, cpos)
+        return {'mutated_invariant' : not codons_ok, 'in_frame' : in_frame_cdr3, 'stop' : not no_stop_codon}
+
+    if multi_seq:
+        for fc in functional_columns:
+            line[fc + 's'] = []
+        for iseq in range(len(line['seqs'])):
+            info = get_single_seq_info(line['seqs'][iseq], line['cyst_position'], line['tryp_position'], line['cdr3_length'])
+            for fc in functional_columns:
+                line[fc + 's'].append(info[fc])
+    else:
+        info = get_single_seq_info(line['seq'], line['cyst_position'], line['tryp_position'], line['cdr3_length'])
+        for fc in functional_columns:
+            line[fc] = info[fc]
+
+# ----------------------------------------------------------------------------------------
 def remove_all_implicit_info(line, multi_seq):
     for col in get_implicit_keys(multi_seq):
         if col in line:
@@ -713,6 +735,8 @@ def add_implicit_info(glfo, line, multi_seq, existing_implicit_keys=None, debug=
 
     # add regional query seqs
     add_qr_seqs(line, multi_seq)
+
+    add_functional_info(line, multi_seq)
 
     # set validity (alignment addition can also set invalid)  # TODO clean up this checking stuff
     line['invalid'] = False

@@ -50,8 +50,6 @@ parser.add_argument('--only-csv-plots', action='store_true', help='only write cs
 if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
     print '    TODO make sure all mpl figures are getting closed'
     print '    TODO remove extra assertions from glomerator'
-    print '    TODO in addition to translating from a large cluster to a smaller one, you should also not recalculate just \'cause you add one sequence to a huge cluster (probably do this when making the merged Query object)'
-    print '    TODO fix WriteAnnotations in glomerator (and/i.e. clean up events_ filling, in particular in ReplaceNaiveSeq)'
     print '    TODO make things completely assertion/exception safe, i.e. if you catch one, that causes a failure on that one sequence only'
     print '    TODO todo in reset_effective_erosions_and_effective_insertions()'
     print '    TODO add functional column'
@@ -60,11 +58,10 @@ if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
     print '    TODO wait, why am I first caching all the naive seqs?'
     print '    TODO print size of various cache arrays'
     print '    TODO print time waiting for slurm'
-    print '    TODO rethink about how many sequences want to go along with the seed sequence to each process'
     print '    TODO make progress file a bit more informative'
     print '    TODO todos in glomerator'
-    print '    TODO is it ok that (apprently) two clusters that contain the seed unique id can end up with the same process? (hmm, on second thought, I think so)'
     print '    TODO add seed unique id to testing'
+    print '    TODO add both kinds of translation to testing'
     print '    TODO clean up cluster divvy stuff'
 
 # input and output stuff
