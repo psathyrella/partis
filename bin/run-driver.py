@@ -55,6 +55,8 @@ if args.old_style_dir_structure:  # oh, backwards compatibility, you're such a c
 else:
     param_dir = args.stashdir + '/' + args.label + '/parameters'
 
+assert '--outfname' not in common_args
+
 if 'cache-data-parameters' in args.actions:
     if args.datafname is None or not os.path.exists(args.datafname):
         raise Exception('ERROR datafname d.n.e.: ' + str(args.datafname))

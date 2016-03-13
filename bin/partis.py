@@ -64,6 +64,7 @@ if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
     print '    TODO make progress file a bit more informative'
     print '    TODO todos in glomerator'
     print '    TODO is it ok that (apprently) two clusters that contain the seed unique id can end up with the same process? (hmm, on second thought, I think so)'
+    print '    TODO add seed unique id to testing'
 
 # input and output stuff
 parser.add_argument('--seqfile', help='input sequence file')
