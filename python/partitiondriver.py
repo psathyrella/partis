@@ -267,6 +267,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def remove_duplicate_ids(self, uids, partition, deduplicate_uid):
+        raise Exception('doesn\'t work if the seed id is in multiple clusters (granted, we wanted it to not be...)')
         clids = utils.get_cluster_ids(uids, partition)
         for index_in_clids in range(len(clids[deduplicate_uid])):
             iclust = clids[deduplicate_uid][index_in_clids]
@@ -753,19 +754,17 @@ class PartitionDriver(object):
         # read single input file
         info = []
         seed_info = {}
-        # print '   seed clusters'
         with opener('r')(infname) as infile:
             reader = csv.DictReader(infile, delimiter=' ')
             for line in reader:
-                queries = set(line['names'].split(':'))
-                if self.args.seed_unique_id is not None and self.args.seed_unique_id in queries:
-                    if len(seed_info) > 0 and len(queries) == 1:  # the first time through, we add the seed uid to *every* process. So, when we read those results back in, the procs that didn't merge the seed with anybody will have it as a singleton still, and we only need the singleton once
+                if self.args.seed_unique_id is not None and self.args.seed_unique_id in set(line['names'].split(':')):
+                    if len(seed_info) > 0 and ':' not in line['names']:  # the first time through, we add the seed uid to *every* process. So, when we read those results back in, the procs that didn't merge the seed with anybody will have it as a singleton still, and we only need the singleton once
                         continue
                     seed_info[line['names']] = line
-                    # print '      ', line['names']
-                    continue  # don't want to add it now (see below)
+                    continue  # don't want the seeded clusters mixed in with the non-seeded clusters just yet (see below)
                 info.append(line)
 
+        # find the smallest seeded cluster
         if self.args.seed_unique_id is not None:
             if len(seed_info) == 0:
                 raise Exception('couldn\'t find info for query %s in %s' % (self.args.seed_unique_id, infname))
@@ -773,7 +772,6 @@ class PartitionDriver(object):
             for unique_id_str in seed_info:
                 if smallest_seed_cluster_str is None or len(unique_id_str.split(':')) < len(smallest_seed_cluster_str.split(':')):
                     smallest_seed_cluster_str = unique_id_str
-            # print '    smallest one %s' % smallest_seed_cluster_str
 
         # ----------------------------------------------------------------------------------------
         def get_sub_outfile(siproc, mode):
@@ -810,16 +808,18 @@ class PartitionDriver(object):
             sub_outfile = get_sub_outfile(iproc, 'a')
             writer = get_writer(sub_outfile)
 
+            # first deal with the seeded clusters
             if self.args.seed_unique_id is not None:  # write the seed info line to each file
-                if len(seed_clusters_to_write) == 0:  # if we don't have any more that we *need* to write (i.e. that have other seqs in them), just write the singleton one (well, the shortest, which will probably be a singleton)
-                    writer.writerow(seed_info[smallest_seed_cluster_str])
-                else:  # otherwise, write one (or more) of the ones that we still need to write
-                    if iproc < n_procs - 1:  # if we're not on the last proc
+                if len(seed_clusters_to_write) > 0:
+                    if iproc < n_procs - 1:  # if we're not on the last proc, pop off and write the first one
                         writer.writerow(seed_info[seed_clusters_to_write.pop(0)])
                     else:
                         while len(seed_clusters_to_write) > 0:  # keep adding 'em until we run out
                             writer.writerow(seed_info[seed_clusters_to_write.pop(0)])
+                else:  # if we don't have any more that we *need* to write (i.e. that have other seqs in them), just write the shortest one (which will frequently be a singleton)
+                    writer.writerow(seed_info[smallest_seed_cluster_str])
 
+            # then loop over the non-seeded clusters
             for iquery in range(len(info)):
                 if cluster_divvy:
                     if info[iquery]['names'] not in divvied_queries[iproc]:  # NOTE I think the reason this doesn't seem to be speeding things up is that our hierarhical agglomeration time is dominated by the distance calculation, and that distance calculation time is roughly proportional to the number of sequences in the cluster (i.e. larger clusters take longer)
