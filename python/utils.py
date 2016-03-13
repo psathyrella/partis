@@ -759,6 +759,8 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', label=''):
     if 'unique_ids' in line:  # multi_seq line
         for iseq in range(len(line['unique_ids'])):
             tmpline = synthesize_single_seq_line(line, iseq)
+            if extra_str == 'uid':
+                extra_str = tmpline['unique_id']
             event_str = print_seq_in_reco_event(germlines, tmpline, extra_str=extra_str, label=(label if iseq==0 else ''), one_line=(iseq>0))
     else:
         tmpline = copy.deepcopy(line)
