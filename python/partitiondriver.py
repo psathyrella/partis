@@ -1203,13 +1203,17 @@ class PartitionDriver(object):
             if self.args.action == 'partition':
                 nsets = copy.deepcopy(self.paths[-1].partitions[self.paths[-1].i_best_minus_x])
                 if self.args.seed_unique_id is not None and len(self.n_proc_list) > 0:
+                    seeded_queries = set()
                     for ns in nsets:
-                        if self.args.seed_unique_id not in ns:
+                        if self.args.seed_unique_id in ns:
+                            for uid in ns:  # add each individual query that's been clustered with the seed (but split apart)
+                                seeded_queries.add(uid)
+                        else:
                             assert len(ns) == 1
                             uid = ns[0]
-                            if uid not in self.unseeded_queries:
-                                self.unseeded_queries.add(uid)
-                    nsets = [ns for ns in nsets if self.args.seed_unique_id in ns]
+                            self.unseeded_queries.add(uid)
+                    print '      unseeded len %d' % len(self.unseeded_queries)
+                    nsets = [[qr] for qr in seeded_queries]  # [ns for ns in nsets if self.args.seed_unique_id in ns]
             else:
                 if self.args.n_sets == 1:  # single vanilla hmm (does the same thing as the below for n=1, but is more transparent)
                     nsets = [[qn] for qn in self.sw_info['queries']]
