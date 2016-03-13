@@ -1,46 +1,1991 @@
 TEST              annotate-ref-simu   ./bin/partis.py --action run-viterbi --plotdir test/_new-results/simu-ref-performance --plot-performance --is-simu --seqfile test/reference-results/test/simu.csv --parameter-dir test/reference-results/test/parameters/simu/hmm --seed 1 --n-procs 10 --only-genes IGHV4-61*08:IGHV3-48*01:IGHV5-51*02:IGHV3-69-1*02:IGHV1/OR15-1*04:IGHV3-66*03:IGHV3-23D*01:IGHV3-71*03:IGHV1-2*04:IGHV1-2*02:IGHD3-16*02:IGHD2-2*03:IGHD2-8*01:IGHD3-22*01:IGHD6-13*01:IGHD4-17*01:IGHD6-19*01:IGHD3-10*01:IGHD2-15*01:IGHD2-21*02:IGHJ5*02:IGHJ3*02:IGHJ2*01:IGHJ1*01:IGHJ6*03:IGHJ4*02 --only-csv-plots --outfname test/_new-results/annotate-ref-simu.csv
     TODO make sure all mpl figures are getting closed
     TODO remove extra assertions from glomerator
-    TODO make sure all trace of truncation is removed from ham (including cyst position stuff)
-    TODO in addition to translating from a large cluster to a smaller one, you should also not recalculate just 'cause you add one sequence to a huge cluster
-    TODO fix WriteAnnotations in glomerator (and/i.e. clean up events_ filling, in particular in ReplaceNaiveSeq)
-    TODO besides "replacing" clusters with smaller subsets, you should, when making the merged cluster object, not recalculate unless it's really different
     TODO make things completely assertion/exception safe, i.e. if you catch one, that causes a failure on that one sequence only
+    TODO todo in reset_effective_erosions_and_effective_insertions()
+    TODO add functional column
+    TODO also print how many forward merges
+    TODO stop compiling smc
+    TODO wait, why am I first caching all the naive seqs?
+    TODO print size of various cache arrays
+    TODO print time waiting for slurm
+    TODO make progress file a bit more informative
+    TODO todos in glomerator
+    TODO add seed unique id to testing
+    TODO add both kinds of translation to testing
+    TODO clean up cluster divvy stuff
    adding placeholder alignments for missing genes [91mj[0m[95m1P[0m[93m01[0m [91mj[0m[95m2P[0m[93m01[0m [91mj[0m[95m3P[0m[93m01[0m [91mj[0m[95m3P[0m[93m02[0m
 smith-waterman
-    rewriting germlines from /home/dralph/work/partis-dev/data/imgt to /tmp/dralph/hmms/535826/germline-sets (using 26 genes)
+    rewriting germlines from /home/dralph/work/partis-dev/data/imgt to /tmp/dralph/hmms/142661/germline-sets (using 26 genes)
         processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon
-           997             178              0                          68              85              23               0               2             increasing mismatch score (1 --> 2) and rerunning them
-           178              10              3                           0               5               0               2               0             rerunning for indels
-    skipping performance evaluation of 7534029448258028519 because of indels
-    skipping performance evaluation of 6387888212624103929 because of indels
-            10               8              0                           0               6               0               2               0             increasing mismatch score (2 --> 3) and rerunning them
+          1005             170              0                          61              84              20               0               5             increasing mismatch score (1 --> 2) and rerunning them
+           170               7              0                           0               5               0               1               1             increasing mismatch score (2 --> 3) and rerunning them
 /usr/lib/pymodules/python2.7/matplotlib/pyplot.py:412: RuntimeWarning: More than 20 figures have been opened. Figures created through the pyplot interface (`matplotlib.pyplot.figure`) are retained until explicitly closed and may consume too much memory. (To control this warning, see the rcParam `figure.max_num_figures`).
   max_open_warning, RuntimeWarning)
-             8               2              0                           0               1               0               1               0             increasing mismatch score (3 --> 4) and rerunning them
+             7         all done
   v_gene
-    correct up to allele:  920 / 993  = 0.9265 (-0.918, +0.934)
+    correct up to allele:  957 / 1005 = 0.9522 (-0.945, +0.958)
   d_gene
-    correct up to allele:  812 / 993  = 0.8177 (-0.805, +0.829)
+    correct up to allele:  817 / 1005 = 0.8129 (-0.800, +0.824)
   j_gene
-    correct up to allele:  893 / 993  = 0.8993 (-0.889, +0.908)
-      info for 995      (skipped 0 / 997 = 0.000 unproductive    2 / 997 = 0.002 other ) 
-   [91mwarning[0m 2 missing annotations (1662516315931078001:-8821941325994925903)
+    correct up to allele:  887 / 1005 = 0.8826 (-0.872, +0.892)
+      info for 1005 
 hmm
     writing input
     running
-      hmm run time: 19.162
+      --> proc 3
+        time 13.7744
+
+      --> proc 2
+        time 14.1863
+
+      --> proc 7
+        time 14.7262
+
+      --> proc 8
+        time 14.5332
+
+      --> proc 9
+        time 14.1605
+
+      --> proc 1
+        time 15.3509
+
+      --> proc 4
+        time 15.4104
+
+      --> proc 5
+        time 15.0238
+
+      --> proc 6
+        time 15.914
+
+      --> proc 0
+        time 16.1602
+
+      hmm run time: 18.126
     time to merge csv files: 0.023
     read output
-    skipping performance evaluation of 7534029448258028519 because of indels
-    skipping performance evaluation of 6387888212624103929 because of indels
   v_gene
-    correct up to allele:  823 / 993  = 0.8288 (-0.817, +0.840)
+    correct up to allele:  913 / 1005 = 0.9085 (-0.899, +0.916)
   d_gene
-    correct up to allele:  844 / 993  = 0.8499 (-0.838, +0.860)
+    correct up to allele:  821 / 1005 = 0.8169 (-0.804, +0.828)
   j_gene
-    correct up to allele:  945 / 993  = 0.9517 (-0.944, +0.957)
-    processed 995 sequences in 995 events (0 invalid events)
+    correct up to allele:  934 / 1005 = 0.9294 (-0.921, +0.936)
+    processed 1005 sequences in 1005 events (0 invalid events)
+      total time: 36.631
+TEST              annotate-ref-data   ./bin/partis.py --action run-viterbi --n-max-queries 50 --seqfile test/mishmash.fa --parameter-dir test/reference-results/test/parameters/data/hmm --seed 1 --n-procs 10 --only-genes IGHV4-61*08:IGHV3-48*01:IGHV5-51*02:IGHV3-69-1*02:IGHV1/OR15-1*04:IGHV3-66*03:IGHV3-23D*01:IGHV3-71*03:IGHV1-2*04:IGHV1-2*02:IGHD3-16*02:IGHD2-2*03:IGHD2-8*01:IGHD3-22*01:IGHD6-13*01:IGHD4-17*01:IGHD6-19*01:IGHD3-10*01:IGHD2-15*01:IGHD2-21*02:IGHJ5*02:IGHJ3*02:IGHJ2*01:IGHJ1*01:IGHJ6*03:IGHJ4*02 --only-csv-plots --outfname test/_new-results/annotate-ref-data.csv
+    TODO make sure all mpl figures are getting closed
+    TODO remove extra assertions from glomerator
+    TODO make things completely assertion/exception safe, i.e. if you catch one, that causes a failure on that one sequence only
+    TODO todo in reset_effective_erosions_and_effective_insertions()
+    TODO add functional column
+    TODO also print how many forward merges
+    TODO stop compiling smc
+    TODO wait, why am I first caching all the naive seqs?
+    TODO print size of various cache arrays
+    TODO print time waiting for slurm
+    TODO make progress file a bit more informative
+    TODO todos in glomerator
+    TODO add seed unique id to testing
+    TODO add both kinds of translation to testing
+    TODO clean up cluster divvy stuff
+   adding placeholder alignments for missing genes [91mj[0m[95m1P[0m[93m01[0m [91mj[0m[95m2P[0m[93m01[0m [91mj[0m[95m3P[0m[93m01[0m [91mj[0m[95m3P[0m[93m02[0m
+smith-waterman
+    rewriting germlines from /home/dralph/work/partis-dev/data/imgt to /tmp/dralph/hmms/292235/germline-sets (using 26 genes)
+        processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon
+            50              13              0                           3               8               2               0               0             increasing mismatch score (1 --> 2) and rerunning them
+            13               7              5                           0               1               0               1               0             rerunning for indels
+             7               5              0                           0               1               0               2               2             increasing mismatch score (2 --> 3) and rerunning them
+             5               5              0                           0               0               0               3               2             increasing mismatch score (3 --> 4) and rerunning them
+      info for 45      (skipped 0 / 50 = 0.000 unproductive    5 / 50 = 0.100 other ) 
+   [91mwarning[0m 5 missing annotations (crap-1:crap-3:crap-2:crap-5:crap-4)
+hmm
+    writing input
+    running
+      --> proc 0
+        time 1.80009
+
+      --> proc 2
+        time 1.88603
+
+      --> proc 3
+        time 1.50902
+
+      --> proc 4
+        time 1.96789
+
+      --> proc 5
+        time 1.451
+
+      --> proc 6
+        time 1.79485
+
+      --> proc 7
+        time 1.83772
+
+      --> proc 8
+        time 1.9485
+
+      --> proc 9
+        time 1.23184
+
+      --> proc 1
+        time 2.0887
+
+      hmm run time: 4.089
+    time to merge csv files: 0.015
+    read output
+    processed 45 sequences in 45 events (0 invalid events)
+missing 5 input keys
+      total time: 12.816
+TEST             partition-ref-simu   ./bin/partis.py --action partition --n-max-queries 250 --persistent-cachefname test/_new-results/cache-ref-partition.csv --n-precache-procs 10 --is-simu --seqfile test/reference-results/test/simu.csv --parameter-dir test/reference-results/test/parameters/simu/hmm --seed 1 --n-procs 10 --only-genes IGHV4-61*08:IGHV3-48*01:IGHV5-51*02:IGHV3-69-1*02:IGHV1/OR15-1*04:IGHV3-66*03:IGHV3-23D*01:IGHV3-71*03:IGHV1-2*04:IGHV1-2*02:IGHD3-16*02:IGHD2-2*03:IGHD2-8*01:IGHD3-22*01:IGHD6-13*01:IGHD4-17*01:IGHD6-19*01:IGHD3-10*01:IGHD2-15*01:IGHD2-21*02:IGHJ5*02:IGHJ3*02:IGHJ2*01:IGHJ1*01:IGHJ6*03:IGHJ4*02 --only-csv-plots --outfname test/_new-results/partition-ref-simu.csv
+    TODO make sure all mpl figures are getting closed
+    TODO remove extra assertions from glomerator
+    TODO make things completely assertion/exception safe, i.e. if you catch one, that causes a failure on that one sequence only
+    TODO todo in reset_effective_erosions_and_effective_insertions()
+    TODO add functional column
+    TODO also print how many forward merges
+    TODO stop compiling smc
+    TODO wait, why am I first caching all the naive seqs?
+    TODO print size of various cache arrays
+    TODO print time waiting for slurm
+    TODO make progress file a bit more informative
+    TODO todos in glomerator
+    TODO add seed unique id to testing
+    TODO add both kinds of translation to testing
+    TODO clean up cluster divvy stuff
+   adding placeholder alignments for missing genes [91mj[0m[95m1P[0m[93m01[0m [91mj[0m[95m2P[0m[93m01[0m [91mj[0m[95m3P[0m[93m01[0m [91mj[0m[95m3P[0m[93m02[0m
+smith-waterman
+    rewriting germlines from /home/dralph/work/partis-dev/data/imgt to /tmp/dralph/hmms/144763/germline-sets (using 26 genes)
+        processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon
+           250              38              0                          14              16               7               0               1             increasing mismatch score (1 --> 2) and rerunning them
+            38               2              0                           0               2               0               0               0             increasing mismatch score (2 --> 3) and rerunning them
+             2         all done
+      info for 250 
+        water time: 5.327
+    precache procs 10
+hmm
+    writing input
+      caching all naive sequences
+    running
+      --> proc 0
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.30744
+
+      --> proc 1
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 5.01263
+
+      --> proc 3
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.82826
+
+      --> proc 4
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.8978
+
+      --> proc 5
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.74226
+
+      --> proc 6
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.23873
+
+      --> proc 7
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.75966
+
+      --> proc 8
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.26782
+
+      --> proc 9
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.85943
+
+      --> proc 2
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 5.30266
+
+      hmm run time: 7.092
+    time to merge csv files: 0.015
+--> 250 clusters with 10 procs
+hmm
+    writing input
+  auto hamming bounds:
+      0.110 mutation in test/reference-results/test/parameters/simu/hmm
+       naive hamming bounds: 0.015 0.108
+    running
+      --> proc 9
+        read 0 cached logprobs and 250 naive seqs
+        stop with: inf 0   ham skip 268   small lratios 8   total 276
+         calculated   vtb 0      fwd 16     hamming merged 0      naive hfracs 323
+        time 3.88622
+
+      --> proc 0
+        read 0 cached logprobs and 250 naive seqs
+        stop with: inf 0   ham skip 202   small lratios 8   total 210
+         calculated   vtb 3      fwd 16     hamming merged 0      naive hfracs 386
+        time 5.52387
+
+      --> proc 4
+        read 0 cached logprobs and 250 naive seqs
+        stop with: inf 0   ham skip 205   small lratios 5   total 210
+         calculated   vtb 4      fwd 16     hamming merged 0      naive hfracs 386
+        time 5.95545
+
+      --> proc 5
+        read 0 cached logprobs and 250 naive seqs
+        stop with: inf 0   ham skip 290   small lratios 10   total 300
+         calculated   vtb 0      fwd 20     hamming merged 0      naive hfracs 300
+        time 5.59815
+
+      --> proc 7
+        read 0 cached logprobs and 250 naive seqs
+        stop with: inf 0   ham skip 249   small lratios 4   total 253
+         calculated   vtb 2      fwd 15     hamming merged 0      naive hfracs 345
+        time 5.31429
+
+      --> proc 8
+        read 0 cached logprobs and 250 naive seqs
+        stop with: inf 0   ham skip 225   small lratios 6   total 231
+         calculated   vtb 2      fwd 20     hamming merged 0      naive hfracs 366
+        time 5.83647
+
+      --> proc 1
+        read 0 cached logprobs and 250 naive seqs
+        stop with: inf 0   ham skip 269   small lratios 7   total 276
+         calculated   vtb 0      fwd 17     hamming merged 0      naive hfracs 323
+        time 6.33721
+
+      --> proc 2
+        read 0 cached logprobs and 250 naive seqs
+        stop with: inf 0   ham skip 196   small lratios 14   total 210
+         calculated   vtb 2      fwd 28     hamming merged 0      naive hfracs 386
+        time 8.28579
+
+      --> proc 3
+        read 0 cached logprobs and 250 naive seqs
+        stop with: inf 0   ham skip 201   small lratios 9   total 210
+         calculated   vtb 4      fwd 33     hamming merged 0      naive hfracs 386
+        time 8.89643
+
+      --> proc 6
+        read 0 cached logprobs and 250 naive seqs
+        stop with: inf 0   ham skip 216   small lratios 15   total 231
+         calculated   vtb 2      fwd 27     hamming merged 0      naive hfracs 366
+        time 8.02043
+
+      hmm run time: 10.092
+    time to merge csv files: 0.015
+  merged path 0 with 27 glomeration steps and 224 final clusters
+        read cached glomeration time: 0.015
+      partition step time: 10.346
+          n calcd: 227 (22.7 per proc)
+--> 224 clusters with 7 procs
+hmm
+    writing input
+  auto hamming bounds:
+      0.110 mutation in test/reference-results/test/parameters/simu/hmm
+       naive hamming bounds: 0.015 0.108
+    running
+      --> proc 4
+        read 208 cached logprobs and 276 naive seqs
+        stop with: inf 0   ham skip 321   small lratios 4   total 325
+         calculated   vtb 3      fwd 6      hamming merged 0      naive hfracs 661
+        time 3.97914
+
+      --> proc 1
+        read 208 cached logprobs and 276 naive seqs
+        stop with: inf 0   ham skip 316   small lratios 9   total 325
+         calculated   vtb 5      fwd 19     hamming merged 0      naive hfracs 661
+        time 5.44947
+
+      --> proc 2
+        read 208 cached logprobs and 276 naive seqs
+        stop with: inf 0   ham skip 393   small lratios 13   total 406
+         calculated   vtb 2      fwd 19     hamming merged 0      naive hfracs 583
+        time 5.77695
+
+      --> proc 5
+        read 208 cached logprobs and 276 naive seqs
+        stop with: inf 0   ham skip 394   small lratios 12   total 406
+         calculated   vtb 2      fwd 18     hamming merged 0      naive hfracs 583
+        time 5.73233
+
+      --> proc 3
+        read 208 cached logprobs and 276 naive seqs
+        stop with: inf 0   ham skip 368   small lratios 10   total 378
+         calculated   vtb 3      fwd 18     hamming merged 0      naive hfracs 610
+        time 7.25055
+
+      --> proc 0
+        read 208 cached logprobs and 276 naive seqs
+        stop with: inf 0   ham skip 420   small lratios 15   total 435
+         calculated   vtb 1      fwd 23     hamming merged 0      naive hfracs 555
+        time 9.14007
+
+      --> proc 6
+        read 208 cached logprobs and 276 naive seqs
+        stop with: inf 0   ham skip 378   small lratios 28   total 406
+         calculated   vtb 2      fwd 33     hamming merged 0      naive hfracs 583
+        time 13.2739
+
+      hmm run time: 15.086
+    time to merge csv files: 0.016
+  merged path 0 with 28 glomeration steps and 197 final clusters
+        read cached glomeration time: 0.012
+      partition step time: 15.302
+          n calcd: 154 (22.0 per proc)
+--> 197 clusters with 5 procs
+hmm
+    writing input
+  auto hamming bounds:
+      0.110 mutation in test/reference-results/test/parameters/simu/hmm
+       naive hamming bounds: 0.015 0.108
+    running
+      --> proc 2
+        read 344 cached logprobs and 303 naive seqs
+        stop with: inf 0   ham skip 513   small lratios 15   total 528
+         calculated   vtb 3      fwd 18     hamming merged 0      naive hfracs 948
+        time 7.71882
+
+      --> proc 0
+        read 344 cached logprobs and 303 naive seqs
+        stop with: inf 0   ham skip 545   small lratios 16   total 561
+         calculated   vtb 4      fwd 20     hamming merged 0      naive hfracs 993
+        time 8.00344
+
+      --> proc 1
+        read 344 cached logprobs and 303 naive seqs
+        stop with: inf 0   ham skip 608   small lratios 22   total 630
+         calculated   vtb 1      fwd 27     hamming merged 0      naive hfracs 926
+        time 7.96854
+
+      --> proc 4
+        read 344 cached logprobs and 303 naive seqs
+        stop with: inf 0   ham skip 507   small lratios 21   total 528
+         calculated   vtb 4      fwd 27     hamming merged 0      naive hfracs 948
+        time 7.99891
+
+      --> proc 3
+        read 344 cached logprobs and 303 naive seqs
+        stop with: inf 0   ham skip 567   small lratios 28   total 595
+         calculated   vtb 2      fwd 28     hamming merged 0      naive hfracs 883
+        time 9.65975
+
+      hmm run time: 11.061
+    time to merge csv files: 0.014
+  merged path 0 with 27 glomeration steps and 171 final clusters
+        read cached glomeration time: 0.010
+      partition step time: 11.252
+          n calcd: 134 (26.8 per proc)
+--> 171 clusters with 3 procs
+hmm
+    writing input
+  auto hamming bounds:
+      0.110 mutation in test/reference-results/test/parameters/simu/hmm
+       naive hamming bounds: 0.015 0.108
+    running
+      --> proc 0
+        read 464 cached logprobs and 329 naive seqs
+        stop with: inf 0   ham skip 1290   small lratios 36   total 1326
+         calculated   vtb 3      fwd 28     hamming merged 0      naive hfracs 1861
+        time 9.60001
+
+      --> proc 1
+        read 464 cached logprobs and 329 naive seqs
+        stop with: inf 0   ham skip 1231   small lratios 44   total 1275
+         calculated   vtb 3      fwd 39     hamming merged 0      naive hfracs 1911
+        time 12.9709
+
+      --> proc 2
+        read 464 cached logprobs and 329 naive seqs
+        stop with: inf 0   ham skip 1273   small lratios 53   total 1326
+         calculated   vtb 2      fwd 45     hamming merged 0      naive hfracs 1861
+        time 14.3589
+
+      hmm run time: 16.044
+    time to merge csv files: 0.021
+  merged path 0 with 17 glomeration steps and 155 final clusters
+        read cached glomeration time: 0.107
+      partition step time: 16.319
+          n calcd: 120 (40.0 per proc)
+--> 155 clusters with 2 procs
+hmm
+    writing input
+  auto hamming bounds:
+      0.110 mutation in test/reference-results/test/parameters/simu/hmm
+       naive hamming bounds: 0.015 0.108
+    running
+      --> proc 0
+        read 576 cached logprobs and 345 naive seqs
+        stop with: inf 0   ham skip 2261   small lratios 85   total 2346
+         calculated   vtb 5      fwd 63     hamming merged 0      naive hfracs 3651
+        time 20.6254
+
+      --> proc 1
+        read 576 cached logprobs and 345 naive seqs
+        stop with: inf 0   ham skip 2196   small lratios 82   total 2278
+         calculated   vtb 8      fwd 64     hamming merged 0      naive hfracs 3565
+        time 20.8838
+
+      hmm run time: 22.040
+    time to merge csv files: 0.015
+  merged path 0 with 19 glomeration steps and 137 final clusters
+        read cached glomeration time: 0.008
+      partition step time: 22.191
+          n calcd: 140 (70.0 per proc)
+--> 137 clusters with 1 procs
+hmm
+    writing input
+  auto hamming bounds:
+      0.110 mutation in test/reference-results/test/parameters/simu/hmm
+       naive hamming bounds: 0.015 0.108
+    running
+        read 703 cached logprobs and 363 naive seqs
+        stop with: inf 0   ham skip 6209   small lratios 232   total 6441
+         calculated   vtb 15     fwd 166    hamming merged 0      naive hfracs 12168
+        time 56.6195
+‘test/_new-results/cache-ref-partition.csv.tmp’ -> ‘test/_new-results/cache-ref-partition.csv’
+      hmm run time: 56.740
+  merged path 0 with 24 glomeration steps and 114 final clusters
+        read cached glomeration time: 0.003
+      partition step time: 56.836
+      loop time: 132.247
+    checking partition with 250 ids
+      check time: 0.001
+      write time: 0.023
+    time to merge csv files: 0.092
+      total time: 146.160
+TEST       point-partition-ref-simu   ./bin/partis.py --action partition --naive-hamming --n-max-queries 250 --n-precache-procs 10 --is-simu --seqfile test/reference-results/test/simu.csv --parameter-dir test/reference-results/test/parameters/simu/hmm --seed 1 --n-procs 10 --only-genes IGHV4-61*08:IGHV3-48*01:IGHV5-51*02:IGHV3-69-1*02:IGHV1/OR15-1*04:IGHV3-66*03:IGHV3-23D*01:IGHV3-71*03:IGHV1-2*04:IGHV1-2*02:IGHD3-16*02:IGHD2-2*03:IGHD2-8*01:IGHD3-22*01:IGHD6-13*01:IGHD4-17*01:IGHD6-19*01:IGHD3-10*01:IGHD2-15*01:IGHD2-21*02:IGHJ5*02:IGHJ3*02:IGHJ2*01:IGHJ1*01:IGHJ6*03:IGHJ4*02 --only-csv-plots --outfname test/_new-results/point-partition-ref-simu.csv
+    TODO make sure all mpl figures are getting closed
+    TODO remove extra assertions from glomerator
+    TODO make things completely assertion/exception safe, i.e. if you catch one, that causes a failure on that one sequence only
+    TODO todo in reset_effective_erosions_and_effective_insertions()
+    TODO add functional column
+    TODO also print how many forward merges
+    TODO stop compiling smc
+    TODO wait, why am I first caching all the naive seqs?
+    TODO print size of various cache arrays
+    TODO print time waiting for slurm
+    TODO make progress file a bit more informative
+    TODO todos in glomerator
+    TODO add seed unique id to testing
+    TODO add both kinds of translation to testing
+    TODO clean up cluster divvy stuff
+   adding placeholder alignments for missing genes [91mj[0m[95m1P[0m[93m01[0m [91mj[0m[95m2P[0m[93m01[0m [91mj[0m[95m3P[0m[93m01[0m [91mj[0m[95m3P[0m[93m02[0m
+smith-waterman
+    rewriting germlines from /home/dralph/work/partis-dev/data/imgt to /tmp/dralph/hmms/675869/germline-sets (using 26 genes)
+        processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon
+           250              38              0                          14              16               7               0               1             increasing mismatch score (1 --> 2) and rerunning them
+            38               2              0                           0               2               0               0               0             increasing mismatch score (2 --> 3) and rerunning them
+             2         all done
+      info for 250 
+        water time: 7.387
+    precache procs 10
+hmm
+    writing input
+      caching all naive sequences
+    running
+      --> proc 0
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.27443
+
+      --> proc 3
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.80332
+
+      --> proc 5
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.70431
+
+      --> proc 6
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.11489
+
+      --> proc 7
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.59788
+
+      --> proc 8
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.29388
+
+      --> proc 9
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.86214
+
+      --> proc 1
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.98796
+
+      --> proc 2
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 5.23096
+
+      --> proc 4
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.95431
+
+      hmm run time: 7.097
+    time to merge csv files: 0.015
+--> 250 clusters with 10 procs
+hmm
+    writing input
+  auto hamming bounds:
+      0.110 mutation in test/reference-results/test/parameters/simu/hmm
+       naive hamming bounds: 0.045 0.045
+    running
+      --> proc 1
+        read 0 cached logprobs and 250 naive seqs
+        stop with all 253 / 253 hamming distances greater than 0.0449225
+         calculated   vtb 1      fwd 0      hamming merged 0      naive hfracs 345
+        time 0.888525
+
+      --> proc 5
+        read 0 cached logprobs and 250 naive seqs
+        stop with all 276 / 276 hamming distances greater than 0.0449225
+         calculated   vtb 1      fwd 0      hamming merged 0      naive hfracs 323
+        time 0.974077
+
+      --> proc 0
+        read 0 cached logprobs and 250 naive seqs
+        stop with all 171 / 171 hamming distances greater than 0.0449225
+         calculated   vtb 5      fwd 0      hamming merged 0      naive hfracs 423
+        time 1.56052
+
+      --> proc 2
+        read 0 cached logprobs and 250 naive seqs
+        stop with all 210 / 210 hamming distances greater than 0.0449225
+         calculated   vtb 2      fwd 0      hamming merged 0      naive hfracs 386
+        time 1.25166
+
+      --> proc 3
+        read 0 cached logprobs and 250 naive seqs
+        stop with all 210 / 210 hamming distances greater than 0.0449225
+         calculated   vtb 4      fwd 0      hamming merged 0      naive hfracs 386
+        time 1.67263
+
+      --> proc 6
+        read 0 cached logprobs and 250 naive seqs
+        stop with all 210 / 210 hamming distances greater than 0.0449225
+         calculated   vtb 3      fwd 0      hamming merged 0      naive hfracs 386
+        time 1.19039
+
+      --> proc 7
+        read 0 cached logprobs and 250 naive seqs
+        stop with all 253 / 253 hamming distances greater than 0.0449225
+         calculated   vtb 2      fwd 0      hamming merged 0      naive hfracs 345
+        time 1.36751
+
+      --> proc 8
+        read 0 cached logprobs and 250 naive seqs
+        stop with all 231 / 231 hamming distances greater than 0.0449225
+         calculated   vtb 2      fwd 0      hamming merged 0      naive hfracs 366
+        time 1.21289
+
+      --> proc 9
+        read 0 cached logprobs and 250 naive seqs
+        stop with all 231 / 231 hamming distances greater than 0.0449225
+         calculated   vtb 2      fwd 0      hamming merged 0      naive hfracs 366
+        time 1.03555
+
+      --> proc 4
+        read 0 cached logprobs and 250 naive seqs
+        stop with all 171 / 171 hamming distances greater than 0.0449225
+         calculated   vtb 6      fwd 0      hamming merged 0      naive hfracs 423
+        time 2.44386
+
+      hmm run time: 4.089
+    time to merge csv files: 0.015
+  merged path 0 with 36 glomeration steps and 215 final clusters
+        read cached glomeration time: 0.017
+      partition step time: 4.342
+          n calcd: 28 (2.8 per proc)
+--> 215 clusters with 7 procs
+hmm
+    writing input
+  auto hamming bounds:
+      0.110 mutation in test/reference-results/test/parameters/simu/hmm
+       naive hamming bounds: 0.045 0.045
+    running
+      --> proc 1
+        read 0 cached logprobs and 285 naive seqs
+        stop with all 465 / 465 hamming distances greater than 0.0449225
+         calculated   vtb 0      fwd 0      hamming merged 0      naive hfracs 465
+        time 0.11187
+
+      --> proc 0
+        read 0 cached logprobs and 285 naive seqs
+        stop with all 253 / 253 hamming distances greater than 0.0449225
+         calculated   vtb 6      fwd 0      hamming merged 0      naive hfracs 669
+        time 1.94108
+
+      --> proc 3
+        read 0 cached logprobs and 285 naive seqs
+        stop with all 406 / 406 hamming distances greater than 0.0449225
+         calculated   vtb 2      fwd 0      hamming merged 0      naive hfracs 522
+        time 1.56724
+
+      --> proc 5
+        read 0 cached logprobs and 285 naive seqs
+        stop with all 300 / 300 hamming distances greater than 0.0449225
+         calculated   vtb 1      fwd 0      hamming merged 0      naive hfracs 565
+        time 1.07029
+
+      --> proc 2
+        read 0 cached logprobs and 285 naive seqs
+        stop with all 253 / 253 hamming distances greater than 0.0449225
+         calculated   vtb 7      fwd 0      hamming merged 0      naive hfracs 669
+        time 2.27497
+
+      --> proc 4
+        read 0 cached logprobs and 285 naive seqs
+        stop with all 325 / 325 hamming distances greater than 0.0449225
+         calculated   vtb 4      fwd 0      hamming merged 0      naive hfracs 600
+        time 2.21137
+
+      --> proc 6
+        read 0 cached logprobs and 285 naive seqs
+        stop with all 253 / 253 hamming distances greater than 0.0449225
+         calculated   vtb 7      fwd 0      hamming merged 0      naive hfracs 610
+        time 2.35471
+
+      hmm run time: 4.081
+    time to merge csv files: 0.015
+  merged path 0 with 36 glomeration steps and 180 final clusters
+        read cached glomeration time: 0.014
+      partition step time: 4.296
+          n calcd: 27 (3.9 per proc)
+--> 180 clusters with 5 procs
+hmm
+    writing input
+  auto hamming bounds:
+      0.110 mutation in test/reference-results/test/parameters/simu/hmm
+       naive hamming bounds: 0.045 0.045
+    running
+      --> proc 0
+        read 0 cached logprobs and 320 naive seqs
+        stop with all 528 / 528 hamming distances greater than 0.0449225
+         calculated   vtb 3      fwd 0      hamming merged 0      naive hfracs 729
+        time 1.77248
+
+      --> proc 3
+        read 0 cached logprobs and 320 naive seqs
+        stop with all 528 / 528 hamming distances greater than 0.0449225
+         calculated   vtb 2      fwd 0      hamming merged 0      naive hfracs 729
+        time 1.35777
+
+      --> proc 4
+        read 0 cached logprobs and 320 naive seqs
+        stop with all 528 / 528 hamming distances greater than 0.0449225
+         calculated   vtb 2      fwd 0      hamming merged 0      naive hfracs 729
+        time 1.40835
+
+      --> proc 1
+        read 0 cached logprobs and 320 naive seqs
+        stop with all 435 / 435 hamming distances greater than 0.0449225
+         calculated   vtb 5      fwd 0      hamming merged 0      naive hfracs 819
+        time 2.87554
+
+      --> proc 2
+        read 0 cached logprobs and 320 naive seqs
+        stop with all 406 / 406 hamming distances greater than 0.0449225
+         calculated   vtb 6      fwd 0      hamming merged 0      naive hfracs 847
+        time 3.0434
+
+      hmm run time: 5.049
+    time to merge csv files: 0.015
+  merged path 0 with 23 glomeration steps and 158 final clusters
+        read cached glomeration time: 0.111
+      partition step time: 5.339
+          n calcd: 18 (3.6 per proc)
+--> 158 clusters with 3 procs
+hmm
+    writing input
+  auto hamming bounds:
+      0.110 mutation in test/reference-results/test/parameters/simu/hmm
+       naive hamming bounds: 0.045 0.045
+    running
+      --> proc 2
+        read 0 cached logprobs and 342 naive seqs
+        stop with all 1035 / 1035 hamming distances greater than 0.0449225
+         calculated   vtb 4      fwd 0      hamming merged 0      naive hfracs 1611
+        time 2.46274
+
+      --> proc 0
+        read 0 cached logprobs and 342 naive seqs
+        stop with all 820 / 820 hamming distances greater than 0.0449225
+         calculated   vtb 9      fwd 0      hamming merged 0      naive hfracs 1924
+        time 3.96684
+
+      --> proc 1
+        read 0 cached logprobs and 342 naive seqs
+        stop with all 946 / 946 hamming distances greater than 0.0449225
+         calculated   vtb 7      fwd 0      hamming merged 0      naive hfracs 1801
+        time 3.99054
+
+      hmm run time: 6.033
+    time to merge csv files: 0.015
+  merged path 0 with 28 glomeration steps and 131 final clusters
+        read cached glomeration time: 0.009
+      partition step time: 6.194
+          n calcd: 20 (6.7 per proc)
+--> 131 clusters with 2 procs
+hmm
+    writing input
+  auto hamming bounds:
+      0.110 mutation in test/reference-results/test/parameters/simu/hmm
+       naive hamming bounds: 0.045 0.045
+    running
+      --> proc 0
+        read 0 cached logprobs and 369 naive seqs
+        stop with all 1596 / 1596 hamming distances greater than 0.0449225
+         calculated   vtb 8      fwd 0      hamming merged 0      naive hfracs 2685
+        time 2.78464
+
+      --> proc 1
+        read 0 cached logprobs and 369 naive seqs
+        stop with all 1431 / 1431 hamming distances greater than 0.0449225
+         calculated   vtb 8      fwd 0      hamming merged 0      naive hfracs 2718
+        time 3.26006
+
+      hmm run time: 5.024
+    time to merge csv files: 0.014
+  merged path 0 with 21 glomeration steps and 111 final clusters
+        read cached glomeration time: 0.008
+      partition step time: 5.169
+          n calcd: 16 (8.0 per proc)
+--> 111 clusters with 1 procs
+hmm
+    writing input
+  auto hamming bounds:
+      0.110 mutation in test/reference-results/test/parameters/simu/hmm
+       naive hamming bounds: 0.045 0.045
+    running
+        read 0 cached logprobs and 390 naive seqs
+        stop with all 4186 / 4186 hamming distances greater than 0.0449225
+         calculated   vtb 15     fwd 0      hamming merged 0      naive hfracs 8005
+        time 6.49216
+      hmm run time: 6.575
+  merged path 0 with 20 glomeration steps and 92 final clusters
+        read cached glomeration time: 0.004
+      partition step time: 6.668
+      loop time: 32.007
+    checking partition with 250 ids
+      check time: 0.000
+      write time: 0.012
+      total time: 48.899
+TEST     vsearch-partition-ref-simu   ./bin/partis.py --action partition --naive-vsearch --n-max-queries 250 --n-precache-procs 10 --is-simu --seqfile test/reference-results/test/simu.csv --parameter-dir test/reference-results/test/parameters/simu/hmm --seed 1 --n-procs 10 --only-genes IGHV4-61*08:IGHV3-48*01:IGHV5-51*02:IGHV3-69-1*02:IGHV1/OR15-1*04:IGHV3-66*03:IGHV3-23D*01:IGHV3-71*03:IGHV1-2*04:IGHV1-2*02:IGHD3-16*02:IGHD2-2*03:IGHD2-8*01:IGHD3-22*01:IGHD6-13*01:IGHD4-17*01:IGHD6-19*01:IGHD3-10*01:IGHD2-15*01:IGHD2-21*02:IGHJ5*02:IGHJ3*02:IGHJ2*01:IGHJ1*01:IGHJ6*03:IGHJ4*02 --only-csv-plots --outfname test/_new-results/vsearch-partition-ref-simu.csv
+    TODO make sure all mpl figures are getting closed
+    TODO remove extra assertions from glomerator
+    TODO make things completely assertion/exception safe, i.e. if you catch one, that causes a failure on that one sequence only
+    TODO todo in reset_effective_erosions_and_effective_insertions()
+    TODO add functional column
+    TODO also print how many forward merges
+    TODO stop compiling smc
+    TODO wait, why am I first caching all the naive seqs?
+    TODO print size of various cache arrays
+    TODO print time waiting for slurm
+    TODO make progress file a bit more informative
+    TODO todos in glomerator
+    TODO add seed unique id to testing
+    TODO add both kinds of translation to testing
+    TODO clean up cluster divvy stuff
+   adding placeholder alignments for missing genes [91mj[0m[95m1P[0m[93m01[0m [91mj[0m[95m2P[0m[93m01[0m [91mj[0m[95m3P[0m[93m01[0m [91mj[0m[95m3P[0m[93m02[0m
+smith-waterman
+    rewriting germlines from /home/dralph/work/partis-dev/data/imgt to /tmp/dralph/hmms/380523/germline-sets (using 26 genes)
+        processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon
+           250              38              0                          14              16               7               0               1             increasing mismatch score (1 --> 2) and rerunning them
+            38               2              0                           0               2               0               0               0             increasing mismatch score (2 --> 3) and rerunning them
+             2         all done
+      info for 250 
+        water time: 5.610
+    precache procs 10
+hmm
+    writing input
+      caching all naive sequences
+    running
+      --> proc 0
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.13871
+
+      --> proc 1
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.85063
+
+      --> proc 3
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.65653
+
+      --> proc 4
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.74634
+
+      --> proc 5
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.60155
+
+      --> proc 6
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.12635
+
+      --> proc 7
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.56387
+
+      --> proc 8
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.13014
+
+      --> proc 9
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.74728
+
+      --> proc 2
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 5.08026
+
+      hmm run time: 7.097
+    time to merge csv files: 0.022
+  auto hamming bounds:
+      0.110 mutation in test/reference-results/test/parameters/simu/hmm
+       naive hamming bounds: 0.032 0.032
+    using hfrac bound for vsearch 0.032
+  out:
+    vsearch v1.1.3_linux_x86_64, 62.8GB RAM, 16 cores
+    https://github.com/torognes/vsearch
+    
+    
+  err:
+    Reading file /tmp/dralph/hmms/380523/simu.fasta 0%  Reading file /tmp/dralph/hmms/380523/simu.fasta 0%  Reading file /tmp/dralph/hmms/380523/simu.fasta 1%  Reading file /tmp/dralph/hmms/380523/simu.fasta 2%  Reading file /tmp/dralph/hmms/380523/simu.fasta 3%  Reading file /tmp/dralph/hmms/380523/simu.fasta 4%  Reading file /tmp/dralph/hmms/380523/simu.fasta 4%  Reading file /tmp/dralph/hmms/380523/simu.fasta 5%  Reading file /tmp/dralph/hmms/380523/simu.fasta 6%  Reading file /tmp/dralph/hmms/380523/simu.fasta 7%  Reading file /tmp/dralph/hmms/380523/simu.fasta 8%  Reading file /tmp/dralph/hmms/380523/simu.fasta 8%  Reading file /tmp/dralph/hmms/380523/simu.fasta 9%  Reading file /tmp/dralph/hmms/380523/simu.fasta 10%  Reading file /tmp/dralph/hmms/380523/simu.fasta 11%  Reading file /tmp/dralph/hmms/380523/simu.fasta 12%  Reading file /tmp/dralph/hmms/380523/simu.fasta 12%  Reading file /tmp/dralph/hmms/380523/simu.fasta 13%  Reading file /tmp/dralph/hmms/380523/simu.fasta 14%  Reading file /tmp/dralph/hmms/380523/simu.fasta 15%  Reading file /tmp/dralph/hmms/380523/simu.fasta 16%  Reading file /tmp/dralph/hmms/380523/simu.fasta 16%  Reading file /tmp/dralph/hmms/380523/simu.fasta 17%  Reading file /tmp/dralph/hmms/380523/simu.fasta 18%  Reading file /tmp/dralph/hmms/380523/simu.fasta 19%  Reading file /tmp/dralph/hmms/380523/simu.fasta 20%  Reading file /tmp/dralph/hmms/380523/simu.fasta 20%  Reading file /tmp/dralph/hmms/380523/simu.fasta 21%  Reading file /tmp/dralph/hmms/380523/simu.fasta 22%  Reading file /tmp/dralph/hmms/380523/simu.fasta 23%  Reading file /tmp/dralph/hmms/380523/simu.fasta 24%  Reading file /tmp/dralph/hmms/380523/simu.fasta 24%  Reading file /tmp/dralph/hmms/380523/simu.fasta 25%  Reading file /tmp/dralph/hmms/380523/simu.fasta 26%  Reading file /tmp/dralph/hmms/380523/simu.fasta 27%  Reading file /tmp/dralph/hmms/380523/simu.fasta 28%  Reading file /tmp/dralph/hmms/380523/simu.fasta 28%  Reading file /tmp/dralph/hmms/380523/simu.fasta 29%  Reading file /tmp/dralph/hmms/380523/simu.fasta 30%  Reading file /tmp/dralph/hmms/380523/simu.fasta 31%  Reading file /tmp/dralph/hmms/380523/simu.fasta 32%  Reading file /tmp/dralph/hmms/380523/simu.fasta 32%  Reading file /tmp/dralph/hmms/380523/simu.fasta 33%  Reading file /tmp/dralph/hmms/380523/simu.fasta 34%  Reading file /tmp/dralph/hmms/380523/simu.fasta 35%  Reading file /tmp/dralph/hmms/380523/simu.fasta 36%  Reading file /tmp/dralph/hmms/380523/simu.fasta 36%  Reading file /tmp/dralph/hmms/380523/simu.fasta 37%  Reading file /tmp/dralph/hmms/380523/simu.fasta 38%  Reading file /tmp/dralph/hmms/380523/simu.fasta 39%  Reading file /tmp/dralph/hmms/380523/simu.fasta 40%  Reading file /tmp/dralph/hmms/380523/simu.fasta 40%  Reading file /tmp/dralph/hmms/380523/simu.fasta 41%  Reading file /tmp/dralph/hmms/380523/simu.fasta 42%  Reading file /tmp/dralph/hmms/380523/simu.fasta 43%  Reading file /tmp/dralph/hmms/380523/simu.fasta 44%  Reading file /tmp/dralph/hmms/380523/simu.fasta 44%  Reading file /tmp/dralph/hmms/380523/simu.fasta 45%  Reading file /tmp/dralph/hmms/380523/simu.fasta 46%  Reading file /tmp/dralph/hmms/380523/simu.fasta 47%  Reading file /tmp/dralph/hmms/380523/simu.fasta 48%  Reading file /tmp/dralph/hmms/380523/simu.fasta 48%  Reading file /tmp/dralph/hmms/380523/simu.fasta 49%  Reading file /tmp/dralph/hmms/380523/simu.fasta 50%  Reading file /tmp/dralph/hmms/380523/simu.fasta 51%  Reading file /tmp/dralph/hmms/380523/simu.fasta 52%  Reading file /tmp/dralph/hmms/380523/simu.fasta 52%  Reading file /tmp/dralph/hmms/380523/simu.fasta 53%  Reading file /tmp/dralph/hmms/380523/simu.fasta 54%  Reading file /tmp/dralph/hmms/380523/simu.fasta 55%  Reading file /tmp/dralph/hmms/380523/simu.fasta 56%  Reading file /tmp/dralph/hmms/380523/simu.fasta 56%  Reading file /tmp/dralph/hmms/380523/simu.fasta 57%  Reading file /tmp/dralph/hmms/380523/simu.fasta 58%  Reading file /tmp/dralph/hmms/380523/simu.fasta 59%  Reading file /tmp/dralph/hmms/380523/simu.fasta 60%  Reading file /tmp/dralph/hmms/380523/simu.fasta 60%  Reading file /tmp/dralph/hmms/380523/simu.fasta 61%  Reading file /tmp/dralph/hmms/380523/simu.fasta 62%  Reading file /tmp/dralph/hmms/380523/simu.fasta 63%  Reading file /tmp/dralph/hmms/380523/simu.fasta 64%  Reading file /tmp/dralph/hmms/380523/simu.fasta 64%  Reading file /tmp/dralph/hmms/380523/simu.fasta 65%  Reading file /tmp/dralph/hmms/380523/simu.fasta 66%  Reading file /tmp/dralph/hmms/380523/simu.fasta 67%  Reading file /tmp/dralph/hmms/380523/simu.fasta 68%  Reading file /tmp/dralph/hmms/380523/simu.fasta 68%  Reading file /tmp/dralph/hmms/380523/simu.fasta 69%  Reading file /tmp/dralph/hmms/380523/simu.fasta 70%  Reading file /tmp/dralph/hmms/380523/simu.fasta 71%  Reading file /tmp/dralph/hmms/380523/simu.fasta 72%  Reading file /tmp/dralph/hmms/380523/simu.fasta 72%  Reading file /tmp/dralph/hmms/380523/simu.fasta 73%  Reading file /tmp/dralph/hmms/380523/simu.fasta 74%  Reading file /tmp/dralph/hmms/380523/simu.fasta 75%  Reading file /tmp/dralph/hmms/380523/simu.fasta 76%  Reading file /tmp/dralph/hmms/380523/simu.fasta 76%  Reading file /tmp/dralph/hmms/380523/simu.fasta 77%  Reading file /tmp/dralph/hmms/380523/simu.fasta 78%  Reading file /tmp/dralph/hmms/380523/simu.fasta 79%  Reading file /tmp/dralph/hmms/380523/simu.fasta 80%  Reading file /tmp/dralph/hmms/380523/simu.fasta 80%  Reading file /tmp/dralph/hmms/380523/simu.fasta 81%  Reading file /tmp/dralph/hmms/380523/simu.fasta 82%  Reading file /tmp/dralph/hmms/380523/simu.fasta 83%  Reading file /tmp/dralph/hmms/380523/simu.fasta 84%  Reading file /tmp/dralph/hmms/380523/simu.fasta 84%  Reading file /tmp/dralph/hmms/380523/simu.fasta 85%  Reading file /tmp/dralph/hmms/380523/simu.fasta 86%  Reading file /tmp/dralph/hmms/380523/simu.fasta 87%  Reading file /tmp/dralph/hmms/380523/simu.fasta 88%  Reading file /tmp/dralph/hmms/380523/simu.fasta 88%  Reading file /tmp/dralph/hmms/380523/simu.fasta 89%  Reading file /tmp/dralph/hmms/380523/simu.fasta 90%  Reading file /tmp/dralph/hmms/380523/simu.fasta 91%  Reading file /tmp/dralph/hmms/380523/simu.fasta 92%  Reading file /tmp/dralph/hmms/380523/simu.fasta 92%  Reading file /tmp/dralph/hmms/380523/simu.fasta 93%  Reading file /tmp/dralph/hmms/380523/simu.fasta 94%  Reading file /tmp/dralph/hmms/380523/simu.fasta 95%  Reading file /tmp/dralph/hmms/380523/simu.fasta 96%  Reading file /tmp/dralph/hmms/380523/simu.fasta 96%  Reading file /tmp/dralph/hmms/380523/simu.fasta 97%  Reading file /tmp/dralph/hmms/380523/simu.fasta 98%  Reading file /tmp/dralph/hmms/380523/simu.fasta 99%  Reading file /tmp/dralph/hmms/380523/simu.fasta 100%  Reading file /tmp/dralph/hmms/380523/simu.fasta 100%
+    101250 nt in 250 seqs, min 405, max 405, avg 405
+    Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 1%  Indexing sequences 1%  Indexing sequences 2%  Indexing sequences 2%  Indexing sequences 2%  Indexing sequences 3%  Indexing sequences 3%  Indexing sequences 4%  Indexing sequences 4%  Indexing sequences 4%  Indexing sequences 5%  Indexing sequences 5%  Indexing sequences 6%  Indexing sequences 6%  Indexing sequences 6%  Indexing sequences 7%  Indexing sequences 7%  Indexing sequences 8%  Indexing sequences 8%  Indexing sequences 8%  Indexing sequences 9%  Indexing sequences 9%  Indexing sequences 10%  Indexing sequences 10%  Indexing sequences 10%  Indexing sequences 11%  Indexing sequences 11%  Indexing sequences 12%  Indexing sequences 12%  Indexing sequences 12%  Indexing sequences 13%  Indexing sequences 13%  Indexing sequences 14%  Indexing sequences 14%  Indexing sequences 14%  Indexing sequences 15%  Indexing sequences 15%  Indexing sequences 16%  Indexing sequences 16%  Indexing sequences 16%  Indexing sequences 17%  Indexing sequences 17%  Indexing sequences 18%  Indexing sequences 18%  Indexing sequences 18%  Indexing sequences 19%  Indexing sequences 19%  Indexing sequences 20%  Indexing sequences 20%  Indexing sequences 20%  Indexing sequences 21%  Indexing sequences 21%  Indexing sequences 22%  Indexing sequences 22%  Indexing sequences 22%  Indexing sequences 23%  Indexing sequences 23%  Indexing sequences 24%  Indexing sequences 24%  Indexing sequences 24%  Indexing sequences 25%  Indexing sequences 25%  Indexing sequences 26%  Indexing sequences 26%  Indexing sequences 26%  Indexing sequences 27%  Indexing sequences 27%  Indexing sequences 28%  Indexing sequences 28%  Indexing sequences 28%  Indexing sequences 29%  Indexing sequences 29%  Indexing sequences 30%  Indexing sequences 30%  Indexing sequences 30%  Indexing sequences 31%  Indexing sequences 31%  Indexing sequences 32%  Indexing sequences 32%  Indexing sequences 32%  Indexing sequences 33%  Indexing sequences 33%  Indexing sequences 34%  Indexing sequences 34%  Indexing sequences 34%  Indexing sequences 35%  Indexing sequences 35%  Indexing sequences 36%  Indexing sequences 36%  Indexing sequences 36%  Indexing sequences 37%  Indexing sequences 37%  Indexing sequences 38%  Indexing sequences 38%  Indexing sequences 38%  Indexing sequences 39%  Indexing sequences 39%  Indexing sequences 40%  Indexing sequences 40%  Indexing sequences 40%  Indexing sequences 41%  Indexing sequences 41%  Indexing sequences 42%  Indexing sequences 42%  Indexing sequences 42%  Indexing sequences 43%  Indexing sequences 43%  Indexing sequences 44%  Indexing sequences 44%  Indexing sequences 44%  Indexing sequences 45%  Indexing sequences 45%  Indexing sequences 46%  Indexing sequences 46%  Indexing sequences 46%  Indexing sequences 47%  Indexing sequences 47%  Indexing sequences 48%  Indexing sequences 48%  Indexing sequences 48%  Indexing sequences 49%  Indexing sequences 49%  Indexing sequences 50%  Indexing sequences 50%  Indexing sequences 50%  Indexing sequences 51%  Indexing sequences 51%  Indexing sequences 52%  Indexing sequences 52%  Indexing sequences 52%  Indexing sequences 53%  Indexing sequences 53%  Indexing sequences 54%  Indexing sequences 54%  Indexing sequences 54%  Indexing sequences 55%  Indexing sequences 55%  Indexing sequences 56%  Indexing sequences 56%  Indexing sequences 56%  Indexing sequences 57%  Indexing sequences 57%  Indexing sequences 58%  Indexing sequences 58%  Indexing sequences 58%  Indexing sequences 59%  Indexing sequences 59%  Indexing sequences 60%  Indexing sequences 60%  Indexing sequences 60%  Indexing sequences 61%  Indexing sequences 61%  Indexing sequences 62%  Indexing sequences 62%  Indexing sequences 62%  Indexing sequences 63%  Indexing sequences 63%  Indexing sequences 64%  Indexing sequences 64%  Indexing sequences 64%  Indexing sequences 65%  Indexing sequences 65%  Indexing sequences 66%  Indexing sequences 66%  Indexing sequences 66%  Indexing sequences 67%  Indexing sequences 67%  Indexing sequences 68%  Indexing sequences 68%  Indexing sequences 68%  Indexing sequences 69%  Indexing sequences 69%  Indexing sequences 70%  Indexing sequences 70%  Indexing sequences 70%  Indexing sequences 71%  Indexing sequences 71%  Indexing sequences 72%  Indexing sequences 72%  Indexing sequences 72%  Indexing sequences 73%  Indexing sequences 73%  Indexing sequences 74%  Indexing sequences 74%  Indexing sequences 74%  Indexing sequences 75%  Indexing sequences 75%  Indexing sequences 76%  Indexing sequences 76%  Indexing sequences 76%  Indexing sequences 77%  Indexing sequences 77%  Indexing sequences 78%  Indexing sequences 78%  Indexing sequences 78%  Indexing sequences 79%  Indexing sequences 79%  Indexing sequences 80%  Indexing sequences 80%  Indexing sequences 80%  Indexing sequences 81%  Indexing sequences 81%  Indexing sequences 82%  Indexing sequences 82%  Indexing sequences 82%  Indexing sequences 83%  Indexing sequences 83%  Indexing sequences 84%  Indexing sequences 84%  Indexing sequences 84%  Indexing sequences 85%  Indexing sequences 85%  Indexing sequences 86%  Indexing sequences 86%  Indexing sequences 86%  Indexing sequences 87%  Indexing sequences 87%  Indexing sequences 88%  Indexing sequences 88%  Indexing sequences 88%  Indexing sequences 89%  Indexing sequences 89%  Indexing sequences 90%  Indexing sequences 90%  Indexing sequences 90%  Indexing sequences 91%  Indexing sequences 91%  Indexing sequences 92%  Indexing sequences 92%  Indexing sequences 92%  Indexing sequences 93%  Indexing sequences 93%  Indexing sequences 94%  Indexing sequences 94%  Indexing sequences 94%  Indexing sequences 95%  Indexing sequences 95%  Indexing sequences 96%  Indexing sequences 96%  Indexing sequences 96%  Indexing sequences 97%  Indexing sequences 97%  Indexing sequences 98%  Indexing sequences 98%  Indexing sequences 98%  Indexing sequences 99%  Indexing sequences 99%  Indexing sequences 100%  Indexing sequences 100%
+    Masking 0%  Masking 100%
+    Sorting by length 0%  Sorting by length 100%
+    Counting unique k-mers 0%  Counting unique k-mers 0%  Counting unique k-mers 0%  Counting unique k-mers 1%  Counting unique k-mers 1%  Counting unique k-mers 2%  Counting unique k-mers 2%  Counting unique k-mers 2%  Counting unique k-mers 3%  Counting unique k-mers 3%  Counting unique k-mers 4%  Counting unique k-mers 4%  Counting unique k-mers 4%  Counting unique k-mers 5%  Counting unique k-mers 5%  Counting unique k-mers 6%  Counting unique k-mers 6%  Counting unique k-mers 6%  Counting unique k-mers 7%  Counting unique k-mers 7%  Counting unique k-mers 8%  Counting unique k-mers 8%  Counting unique k-mers 8%  Counting unique k-mers 9%  Counting unique k-mers 9%  Counting unique k-mers 10%  Counting unique k-mers 10%  Counting unique k-mers 10%  Counting unique k-mers 11%  Counting unique k-mers 11%  Counting unique k-mers 12%  Counting unique k-mers 12%  Counting unique k-mers 12%  Counting unique k-mers 13%  Counting unique k-mers 13%  Counting unique k-mers 14%  Counting unique k-mers 14%  Counting unique k-mers 14%  Counting unique k-mers 15%  Counting unique k-mers 15%  Counting unique k-mers 16%  Counting unique k-mers 16%  Counting unique k-mers 16%  Counting unique k-mers 17%  Counting unique k-mers 17%  Counting unique k-mers 18%  Counting unique k-mers 18%  Counting unique k-mers 18%  Counting unique k-mers 19%  Counting unique k-mers 19%  Counting unique k-mers 20%  Counting unique k-mers 20%  Counting unique k-mers 20%  Counting unique k-mers 21%  Counting unique k-mers 21%  Counting unique k-mers 22%  Counting unique k-mers 22%  Counting unique k-mers 22%  Counting unique k-mers 23%  Counting unique k-mers 23%  Counting unique k-mers 24%  Counting unique k-mers 24%  Counting unique k-mers 24%  Counting unique k-mers 25%  Counting unique k-mers 25%  Counting unique k-mers 26%  Counting unique k-mers 26%  Counting unique k-mers 26%  Counting unique k-mers 27%  Counting unique k-mers 27%  Counting unique k-mers 28%  Counting unique k-mers 28%  Counting unique k-mers 28%  Counting unique k-mers 29%  Counting unique k-mers 29%  Counting unique k-mers 30%  Counting unique k-mers 30%  Counting unique k-mers 30%  Counting unique k-mers 31%  Counting unique k-mers 31%  Counting unique k-mers 32%  Counting unique k-mers 32%  Counting unique k-mers 32%  Counting unique k-mers 33%  Counting unique k-mers 33%  Counting unique k-mers 34%  Counting unique k-mers 34%  Counting unique k-mers 34%  Counting unique k-mers 35%  Counting unique k-mers 35%  Counting unique k-mers 36%  Counting unique k-mers 36%  Counting unique k-mers 36%  Counting unique k-mers 37%  Counting unique k-mers 37%  Counting unique k-mers 38%  Counting unique k-mers 38%  Counting unique k-mers 38%  Counting unique k-mers 39%  Counting unique k-mers 39%  Counting unique k-mers 40%  Counting unique k-mers 40%  Counting unique k-mers 40%  Counting unique k-mers 41%  Counting unique k-mers 41%  Counting unique k-mers 42%  Counting unique k-mers 42%  Counting unique k-mers 42%  Counting unique k-mers 43%  Counting unique k-mers 43%  Counting unique k-mers 44%  Counting unique k-mers 44%  Counting unique k-mers 44%  Counting unique k-mers 45%  Counting unique k-mers 45%  Counting unique k-mers 46%  Counting unique k-mers 46%  Counting unique k-mers 46%  Counting unique k-mers 47%  Counting unique k-mers 47%  Counting unique k-mers 48%  Counting unique k-mers 48%  Counting unique k-mers 48%  Counting unique k-mers 49%  Counting unique k-mers 49%  Counting unique k-mers 50%  Counting unique k-mers 50%  Counting unique k-mers 50%  Counting unique k-mers 51%  Counting unique k-mers 51%  Counting unique k-mers 52%  Counting unique k-mers 52%  Counting unique k-mers 52%  Counting unique k-mers 53%  Counting unique k-mers 53%  Counting unique k-mers 54%  Counting unique k-mers 54%  Counting unique k-mers 54%  Counting unique k-mers 55%  Counting unique k-mers 55%  Counting unique k-mers 56%  Counting unique k-mers 56%  Counting unique k-mers 56%  Counting unique k-mers 57%  Counting unique k-mers 57%  Counting unique k-mers 58%  Counting unique k-mers 58%  Counting unique k-mers 58%  Counting unique k-mers 59%  Counting unique k-mers 59%  Counting unique k-mers 60%  Counting unique k-mers 60%  Counting unique k-mers 60%  Counting unique k-mers 61%  Counting unique k-mers 61%  Counting unique k-mers 62%  Counting unique k-mers 62%  Counting unique k-mers 62%  Counting unique k-mers 63%  Counting unique k-mers 63%  Counting unique k-mers 64%  Counting unique k-mers 64%  Counting unique k-mers 64%  Counting unique k-mers 65%  Counting unique k-mers 65%  Counting unique k-mers 66%  Counting unique k-mers 66%  Counting unique k-mers 66%  Counting unique k-mers 67%  Counting unique k-mers 67%  Counting unique k-mers 68%  Counting unique k-mers 68%  Counting unique k-mers 68%  Counting unique k-mers 69%  Counting unique k-mers 69%  Counting unique k-mers 70%  Counting unique k-mers 70%  Counting unique k-mers 70%  Counting unique k-mers 71%  Counting unique k-mers 71%  Counting unique k-mers 72%  Counting unique k-mers 72%  Counting unique k-mers 72%  Counting unique k-mers 73%  Counting unique k-mers 73%  Counting unique k-mers 74%  Counting unique k-mers 74%  Counting unique k-mers 74%  Counting unique k-mers 75%  Counting unique k-mers 75%  Counting unique k-mers 76%  Counting unique k-mers 76%  Counting unique k-mers 76%  Counting unique k-mers 77%  Counting unique k-mers 77%  Counting unique k-mers 78%  Counting unique k-mers 78%  Counting unique k-mers 78%  Counting unique k-mers 79%  Counting unique k-mers 79%  Counting unique k-mers 80%  Counting unique k-mers 80%  Counting unique k-mers 80%  Counting unique k-mers 81%  Counting unique k-mers 81%  Counting unique k-mers 82%  Counting unique k-mers 82%  Counting unique k-mers 82%  Counting unique k-mers 83%  Counting unique k-mers 83%  Counting unique k-mers 84%  Counting unique k-mers 84%  Counting unique k-mers 84%  Counting unique k-mers 85%  Counting unique k-mers 85%  Counting unique k-mers 86%  Counting unique k-mers 86%  Counting unique k-mers 86%  Counting unique k-mers 87%  Counting unique k-mers 87%  Counting unique k-mers 88%  Counting unique k-mers 88%  Counting unique k-mers 88%  Counting unique k-mers 89%  Counting unique k-mers 89%  Counting unique k-mers 90%  Counting unique k-mers 90%  Counting unique k-mers 90%  Counting unique k-mers 91%  Counting unique k-mers 91%  Counting unique k-mers 92%  Counting unique k-mers 92%  Counting unique k-mers 92%  Counting unique k-mers 93%  Counting unique k-mers 93%  Counting unique k-mers 94%  Counting unique k-mers 94%  Counting unique k-mers 94%  Counting unique k-mers 95%  Counting unique k-mers 95%  Counting unique k-mers 96%  Counting unique k-mers 96%  Counting unique k-mers 96%  Counting unique k-mers 97%  Counting unique k-mers 97%  Counting unique k-mers 98%  Counting unique k-mers 98%  Counting unique k-mers 98%  Counting unique k-mers 99%  Counting unique k-mers 99%  Counting unique k-mers 100%  Counting unique k-mers 100%
+    Clustering 0%  Clustering 4%  Clustering 8%  Clustering 12%  Clustering 16%  Clustering 20%  Clustering 24%  Clustering 28%  Clustering 32%  Clustering 36%  Clustering 40%  Clustering 44%  Clustering 48%  Clustering 52%  Clustering 56%  Clustering 60%  Clustering 64%  Clustering 68%  Clustering 72%  Clustering 76%  Clustering 80%  Clustering 84%  Clustering 88%  Clustering 92%  Clustering 96%  Clustering 100%  Clustering 100%
+    Writing clusters 0%  Writing clusters 0%  Writing clusters 0%  Writing clusters 1%  Writing clusters 1%  Writing clusters 2%  Writing clusters 2%  Writing clusters 2%  Writing clusters 3%  Writing clusters 3%  Writing clusters 4%  Writing clusters 4%  Writing clusters 4%  Writing clusters 5%  Writing clusters 5%  Writing clusters 6%  Writing clusters 6%  Writing clusters 6%  Writing clusters 7%  Writing clusters 7%  Writing clusters 8%  Writing clusters 8%  Writing clusters 8%  Writing clusters 9%  Writing clusters 9%  Writing clusters 10%  Writing clusters 10%  Writing clusters 10%  Writing clusters 11%  Writing clusters 11%  Writing clusters 12%  Writing clusters 12%  Writing clusters 12%  Writing clusters 13%  Writing clusters 13%  Writing clusters 14%  Writing clusters 14%  Writing clusters 14%  Writing clusters 15%  Writing clusters 15%  Writing clusters 16%  Writing clusters 16%  Writing clusters 16%  Writing clusters 17%  Writing clusters 17%  Writing clusters 18%  Writing clusters 18%  Writing clusters 18%  Writing clusters 19%  Writing clusters 19%  Writing clusters 20%  Writing clusters 20%  Writing clusters 20%  Writing clusters 21%  Writing clusters 21%  Writing clusters 22%  Writing clusters 22%  Writing clusters 22%  Writing clusters 23%  Writing clusters 23%  Writing clusters 24%  Writing clusters 24%  Writing clusters 24%  Writing clusters 25%  Writing clusters 25%  Writing clusters 26%  Writing clusters 26%  Writing clusters 26%  Writing clusters 27%  Writing clusters 27%  Writing clusters 28%  Writing clusters 28%  Writing clusters 28%  Writing clusters 29%  Writing clusters 29%  Writing clusters 30%  Writing clusters 30%  Writing clusters 30%  Writing clusters 31%  Writing clusters 31%  Writing clusters 32%  Writing clusters 32%  Writing clusters 32%  Writing clusters 33%  Writing clusters 33%  Writing clusters 34%  Writing clusters 34%  Writing clusters 34%  Writing clusters 35%  Writing clusters 35%  Writing clusters 36%  Writing clusters 36%  Writing clusters 36%  Writing clusters 37%  Writing clusters 37%  Writing clusters 38%  Writing clusters 38%  Writing clusters 38%  Writing clusters 39%  Writing clusters 39%  Writing clusters 40%  Writing clusters 40%  Writing clusters 40%  Writing clusters 41%  Writing clusters 41%  Writing clusters 42%  Writing clusters 42%  Writing clusters 42%  Writing clusters 43%  Writing clusters 43%  Writing clusters 44%  Writing clusters 44%  Writing clusters 44%  Writing clusters 45%  Writing clusters 45%  Writing clusters 46%  Writing clusters 46%  Writing clusters 46%  Writing clusters 47%  Writing clusters 47%  Writing clusters 48%  Writing clusters 48%  Writing clusters 48%  Writing clusters 49%  Writing clusters 49%  Writing clusters 50%  Writing clusters 50%  Writing clusters 50%  Writing clusters 51%  Writing clusters 51%  Writing clusters 52%  Writing clusters 52%  Writing clusters 52%  Writing clusters 53%  Writing clusters 53%  Writing clusters 54%  Writing clusters 54%  Writing clusters 54%  Writing clusters 55%  Writing clusters 55%  Writing clusters 56%  Writing clusters 56%  Writing clusters 56%  Writing clusters 57%  Writing clusters 57%  Writing clusters 58%  Writing clusters 58%  Writing clusters 58%  Writing clusters 59%  Writing clusters 59%  Writing clusters 60%  Writing clusters 60%  Writing clusters 60%  Writing clusters 61%  Writing clusters 61%  Writing clusters 62%  Writing clusters 62%  Writing clusters 62%  Writing clusters 63%  Writing clusters 63%  Writing clusters 64%  Writing clusters 64%  Writing clusters 64%  Writing clusters 65%  Writing clusters 65%  Writing clusters 66%  Writing clusters 66%  Writing clusters 66%  Writing clusters 67%  Writing clusters 67%  Writing clusters 68%  Writing clusters 68%  Writing clusters 68%  Writing clusters 69%  Writing clusters 69%  Writing clusters 70%  Writing clusters 70%  Writing clusters 70%  Writing clusters 71%  Writing clusters 71%  Writing clusters 72%  Writing clusters 72%  Writing clusters 72%  Writing clusters 73%  Writing clusters 73%  Writing clusters 74%  Writing clusters 74%  Writing clusters 74%  Writing clusters 75%  Writing clusters 75%  Writing clusters 76%  Writing clusters 76%  Writing clusters 76%  Writing clusters 77%  Writing clusters 77%  Writing clusters 78%  Writing clusters 78%  Writing clusters 78%  Writing clusters 79%  Writing clusters 79%  Writing clusters 80%  Writing clusters 80%  Writing clusters 80%  Writing clusters 81%  Writing clusters 81%  Writing clusters 82%  Writing clusters 82%  Writing clusters 82%  Writing clusters 83%  Writing clusters 83%  Writing clusters 84%  Writing clusters 84%  Writing clusters 84%  Writing clusters 85%  Writing clusters 85%  Writing clusters 86%  Writing clusters 86%  Writing clusters 86%  Writing clusters 87%  Writing clusters 87%  Writing clusters 88%  Writing clusters 88%  Writing clusters 88%  Writing clusters 89%  Writing clusters 89%  Writing clusters 90%  Writing clusters 90%  Writing clusters 90%  Writing clusters 91%  Writing clusters 91%  Writing clusters 92%  Writing clusters 92%  Writing clusters 92%  Writing clusters 93%  Writing clusters 93%  Writing clusters 94%  Writing clusters 94%  Writing clusters 94%  Writing clusters 95%  Writing clusters 95%  Writing clusters 96%  Writing clusters 96%  Writing clusters 96%  Writing clusters 97%  Writing clusters 97%  Writing clusters 98%  Writing clusters 98%  Writing clusters 98%  Writing clusters 99%  Writing clusters 99%  Writing clusters 100%  Writing clusters 100%
+    Clusters: 93 Size min 1, max 19, avg 2.7
+    Singletons: 36, 14.4% of seqs, 38.7% of clusters
+    
+    checking partition with 250 ids
+      check time: 0.000
+      vsearch/swarm time: 1.104
+      total time: 15.170
+TEST          cache-data-parameters   ./bin/run-driver.py --label test --stashdir test/_new-results --action cache-data-parameters --extra-args __seed:1:__n-procs:10:__only-genes:IGHV4-61*08,IGHV3-48*01,IGHV5-51*02,IGHV3-69-1*02,IGHV1/OR15-1*04,IGHV3-66*03,IGHV3-23D*01,IGHV3-71*03,IGHV1-2*04,IGHV1-2*02,IGHD3-16*02,IGHD2-2*03,IGHD2-8*01,IGHD3-22*01,IGHD6-13*01,IGHD4-17*01,IGHD6-19*01,IGHD3-10*01,IGHD2-15*01,IGHD2-21*02,IGHJ5*02,IGHJ3*02,IGHJ2*01,IGHJ1*01,IGHJ6*03,IGHJ4*02:__only-csv-plots --datafname test/mishmash.fa
+RUN ./bin/partis.py --action cache-parameters --seqfile test/mishmash.fa --seed 1 --n-procs 10 --only-genes IGHV4-61*08:IGHV3-48*01:IGHV5-51*02:IGHV3-69-1*02:IGHV1/OR15-1*04:IGHV3-66*03:IGHV3-23D*01:IGHV3-71*03:IGHV1-2*04:IGHV1-2*02:IGHD3-16*02:IGHD2-2*03:IGHD2-8*01:IGHD3-22*01:IGHD6-13*01:IGHD4-17*01:IGHD6-19*01:IGHD3-10*01:IGHD2-15*01:IGHD2-21*02:IGHJ5*02:IGHJ3*02:IGHJ2*01:IGHJ1*01:IGHJ6*03:IGHJ4*02 --only-csv-plots --parameter-dir test/_new-results/test/parameters/data --plotdir test/_new-results/test/plots/data
+    TODO make sure all mpl figures are getting closed
+    TODO remove extra assertions from glomerator
+    TODO make things completely assertion/exception safe, i.e. if you catch one, that causes a failure on that one sequence only
+    TODO todo in reset_effective_erosions_and_effective_insertions()
+    TODO add functional column
+    TODO also print how many forward merges
+    TODO stop compiling smc
+    TODO wait, why am I first caching all the naive seqs?
+    TODO print size of various cache arrays
+    TODO print time waiting for slurm
+    TODO make progress file a bit more informative
+    TODO todos in glomerator
+    TODO add seed unique id to testing
+    TODO add both kinds of translation to testing
+    TODO clean up cluster divvy stuff
+   adding placeholder alignments for missing genes [91mj[0m[95m1P[0m[93m01[0m [91mj[0m[95m2P[0m[93m01[0m [91mj[0m[95m3P[0m[93m01[0m [91mj[0m[95m3P[0m[93m02[0m
+smith-waterman
+    rewriting germlines from /home/dralph/work/partis-dev/data/imgt to /tmp/dralph/hmms/575631/germline-sets (using 26 genes)
+        processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon
+          1394             205              0                          96              86              20               0               3             increasing mismatch score (1 --> 2) and rerunning them
+           205              42             33                           0               8               0               1               0             rerunning for indels
+            42              18              0                           0               9               0               2               7             increasing mismatch score (2 --> 3) and rerunning them
+/usr/lib/pymodules/python2.7/matplotlib/pyplot.py:412: RuntimeWarning: More than 20 figures have been opened. Figures created through the pyplot interface (`matplotlib.pyplot.figure`) are retained until explicitly closed and may consume too much memory. (To control this warning, see the rcParam `figure.max_num_figures`).
+  max_open_warning, RuntimeWarning)
+            18              11              0                           0               2               0               3               6             increasing mismatch score (3 --> 4) and rerunning them
+      info for 1383      (skipped 0 / 1394 = 0.000 unproductive    11 / 1394 = 0.008 other ) 
+   [91mwarning[0m 11 missing annotations (-7011713810090795053:-4832028181938476209:crap-1:crap-3:crap-2:crap-5:crap-4:-9214222141473325301:3650832272176427929:3009114784662815033:-1216833654156218617)
+    writing parameters
+  plotting parameters
+  writing hmms with info from test/_new-results/test/parameters/data/sw
+hmm
+    writing input
+    running
+      --> proc 2
+        time 21.5706
+
+      --> proc 3
+        time 22.8813
+
+      --> proc 5
+        time 22.8747
+
+      --> proc 6
+        time 22.08
+
+      --> proc 8
+        time 22.9971
+
+      --> proc 0
+        time 23.4011
+
+      --> proc 4
+        time 23.8197
+
+      --> proc 7
+        time 23.7679
+
+      --> proc 9
+        time 23.8312
+
+      --> proc 1
+        time 24.674
+
+      hmm run time: 26.280
+    time to merge csv files: 0.043
+    read output
+    writing parameters
+  plotting parameters
+    processed 1381 sequences in 1381 events (2 invalid events)
       1 boundary errors
-missing 2 input keys
-      total time: 49.320
+  writing hmms with info from test/_new-results/test/parameters/data/hmm
+      total time: 81.872
+TEST                       simulate   ./bin/run-driver.py --label test --stashdir test/_new-results --action simulate --extra-args __n-sim-events:500:__n-leaves:2:__mimic-data-read-length:__seed:1:__n-procs:10:__only-genes:IGHV4-61*08,IGHV3-48*01,IGHV5-51*02,IGHV3-69-1*02,IGHV1/OR15-1*04,IGHV3-66*03,IGHV3-23D*01,IGHV3-71*03,IGHV1-2*04,IGHV1-2*02,IGHD3-16*02,IGHD2-2*03,IGHD2-8*01,IGHD3-22*01,IGHD6-13*01,IGHD4-17*01,IGHD6-19*01,IGHD3-10*01,IGHD2-15*01,IGHD2-21*02,IGHJ5*02,IGHJ3*02,IGHJ2*01,IGHJ1*01,IGHJ6*03,IGHJ4*02:__only-csv-plots
+RUN ./bin/partis.py --action simulate --outfname test/_new-results/test/simu.csv --n-sim-events 500 --n-leaves 2 --mimic-data-read-length --seed 1 --n-procs 10 --only-genes IGHV4-61*08:IGHV3-48*01:IGHV5-51*02:IGHV3-69-1*02:IGHV1/OR15-1*04:IGHV3-66*03:IGHV3-23D*01:IGHV3-71*03:IGHV1-2*04:IGHV1-2*02:IGHD3-16*02:IGHD2-2*03:IGHD2-8*01:IGHD3-22*01:IGHD6-13*01:IGHD4-17*01:IGHD6-19*01:IGHD3-10*01:IGHD2-15*01:IGHD2-21*02:IGHJ5*02:IGHJ3*02:IGHJ2*01:IGHJ1*01:IGHJ6*03:IGHJ4*02 --only-csv-plots --parameter-dir test/_new-results/test/parameters/data/hmm
+    TODO make sure all mpl figures are getting closed
+    TODO remove extra assertions from glomerator
+    TODO make things completely assertion/exception safe, i.e. if you catch one, that causes a failure on that one sequence only
+    TODO todo in reset_effective_erosions_and_effective_insertions()
+    TODO add functional column
+    TODO also print how many forward merges
+    TODO stop compiling smc
+    TODO wait, why am I first caching all the naive seqs?
+    TODO print size of various cache arrays
+    TODO print time waiting for slurm
+    TODO make progress file a bit more informative
+    TODO todos in glomerator
+    TODO add seed unique id to testing
+    TODO add both kinds of translation to testing
+    TODO clean up cluster divvy stuff
+simulating
+ERROR bad conserved codons, what the hell?
+try again: 1
+ERROR bad conserved codons, what the hell?
+try again: 1
+ERROR bad conserved codons, what the hell?
+try again: 1
+TEST          cache-simu-parameters   ./bin/run-driver.py --label test --stashdir test/_new-results --action cache-simu-parameters --extra-args __seed:1:__n-procs:10:__only-genes:IGHV4-61*08,IGHV3-48*01,IGHV5-51*02,IGHV3-69-1*02,IGHV1/OR15-1*04,IGHV3-66*03,IGHV3-23D*01,IGHV3-71*03,IGHV1-2*04,IGHV1-2*02,IGHD3-16*02,IGHD2-2*03,IGHD2-8*01,IGHD3-22*01,IGHD6-13*01,IGHD4-17*01,IGHD6-19*01,IGHD3-10*01,IGHD2-15*01,IGHD2-21*02,IGHJ5*02,IGHJ3*02,IGHJ2*01,IGHJ1*01,IGHJ6*03,IGHJ4*02:__only-csv-plots
+RUN ./bin/partis.py --action cache-parameters --seqfile test/_new-results/test/simu.csv --is-simu --seed 1 --n-procs 10 --only-genes IGHV4-61*08:IGHV3-48*01:IGHV5-51*02:IGHV3-69-1*02:IGHV1/OR15-1*04:IGHV3-66*03:IGHV3-23D*01:IGHV3-71*03:IGHV1-2*04:IGHV1-2*02:IGHD3-16*02:IGHD2-2*03:IGHD2-8*01:IGHD3-22*01:IGHD6-13*01:IGHD4-17*01:IGHD6-19*01:IGHD3-10*01:IGHD2-15*01:IGHD2-21*02:IGHJ5*02:IGHJ3*02:IGHJ2*01:IGHJ1*01:IGHJ6*03:IGHJ4*02 --only-csv-plots --parameter-dir test/_new-results/test/parameters/simu --plotdir test/_new-results/test/plots/simu
+    TODO make sure all mpl figures are getting closed
+    TODO remove extra assertions from glomerator
+    TODO make things completely assertion/exception safe, i.e. if you catch one, that causes a failure on that one sequence only
+    TODO todo in reset_effective_erosions_and_effective_insertions()
+    TODO add functional column
+    TODO also print how many forward merges
+    TODO stop compiling smc
+    TODO wait, why am I first caching all the naive seqs?
+    TODO print size of various cache arrays
+    TODO print time waiting for slurm
+    TODO make progress file a bit more informative
+    TODO todos in glomerator
+    TODO add seed unique id to testing
+    TODO add both kinds of translation to testing
+    TODO clean up cluster divvy stuff
+   adding placeholder alignments for missing genes [91mj[0m[95m1P[0m[93m01[0m [91mj[0m[95m2P[0m[93m01[0m [91mj[0m[95m3P[0m[93m01[0m [91mj[0m[95m3P[0m[93m02[0m
+smith-waterman
+    rewriting germlines from /home/dralph/work/partis-dev/data/imgt to /tmp/dralph/hmms/585967/germline-sets (using 26 genes)
+        processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon
+          1005             170              0                          61              84              20               0               5             increasing mismatch score (1 --> 2) and rerunning them
+           170               7              0                           0               5               0               1               1             increasing mismatch score (2 --> 3) and rerunning them
+/usr/lib/pymodules/python2.7/matplotlib/pyplot.py:412: RuntimeWarning: More than 20 figures have been opened. Figures created through the pyplot interface (`matplotlib.pyplot.figure`) are retained until explicitly closed and may consume too much memory. (To control this warning, see the rcParam `figure.max_num_figures`).
+  max_open_warning, RuntimeWarning)
+             7         all done
+      info for 1005 
+    writing parameters
+    writing parameters
+  plotting parameters
+  plotting parameters
+  writing hmms with info from test/_new-results/test/parameters/simu/sw
+hmm
+    writing input
+    running
+      --> proc 3
+        time 14.0933
+
+      --> proc 8
+        time 14.7694
+
+      --> proc 9
+        time 14.7271
+
+      --> proc 2
+        time 15.356
+
+      --> proc 4
+        time 15.9184
+
+      --> proc 5
+        time 15.5869
+
+      --> proc 7
+        time 15.3281
+
+      --> proc 0
+        time 16.3054
+
+      --> proc 1
+        time 16.5219
+
+      --> proc 6
+        time 17.0479
+
+      hmm run time: 18.454
+    time to merge csv files: 0.047
+    read output
+    writing parameters
+  plotting parameters
+    writing parameters
+  plotting parameters
+    processed 1005 sequences in 1005 events (0 invalid events)
+  writing hmms with info from test/_new-results/test/parameters/simu/hmm
+      WARNING IGHV3-48*01 not found in overall gene probs, returning zero
+      WARNING IGHV3-48*01 not found in overall gene probs, returning zero
+      total time: 104.197
+TEST              annotate-new-simu   ./bin/partis.py --action run-viterbi --plotdir test/_new-results/simu-new-performance --plot-performance --is-simu --seqfile test/_new-results/test/simu.csv --parameter-dir test/_new-results/test/parameters/simu/hmm --seed 1 --n-procs 10 --only-genes IGHV4-61*08:IGHV3-48*01:IGHV5-51*02:IGHV3-69-1*02:IGHV1/OR15-1*04:IGHV3-66*03:IGHV3-23D*01:IGHV3-71*03:IGHV1-2*04:IGHV1-2*02:IGHD3-16*02:IGHD2-2*03:IGHD2-8*01:IGHD3-22*01:IGHD6-13*01:IGHD4-17*01:IGHD6-19*01:IGHD3-10*01:IGHD2-15*01:IGHD2-21*02:IGHJ5*02:IGHJ3*02:IGHJ2*01:IGHJ1*01:IGHJ6*03:IGHJ4*02 --only-csv-plots --outfname test/_new-results/annotate-new-simu.csv
+    TODO make sure all mpl figures are getting closed
+    TODO remove extra assertions from glomerator
+    TODO make things completely assertion/exception safe, i.e. if you catch one, that causes a failure on that one sequence only
+    TODO todo in reset_effective_erosions_and_effective_insertions()
+    TODO add functional column
+    TODO also print how many forward merges
+    TODO stop compiling smc
+    TODO wait, why am I first caching all the naive seqs?
+    TODO print size of various cache arrays
+    TODO print time waiting for slurm
+    TODO make progress file a bit more informative
+    TODO todos in glomerator
+    TODO add seed unique id to testing
+    TODO add both kinds of translation to testing
+    TODO clean up cluster divvy stuff
+   adding placeholder alignments for missing genes [91mj[0m[95m1P[0m[93m01[0m [91mj[0m[95m2P[0m[93m01[0m [91mj[0m[95m3P[0m[93m01[0m [91mj[0m[95m3P[0m[93m02[0m
+smith-waterman
+    rewriting germlines from /home/dralph/work/partis-dev/data/imgt to /tmp/dralph/hmms/753776/germline-sets (using 26 genes)
+        processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon
+          1005             170              0                          61              84              20               0               5             increasing mismatch score (1 --> 2) and rerunning them
+           170               7              0                           0               5               0               1               1             increasing mismatch score (2 --> 3) and rerunning them
+/usr/lib/pymodules/python2.7/matplotlib/pyplot.py:412: RuntimeWarning: More than 20 figures have been opened. Figures created through the pyplot interface (`matplotlib.pyplot.figure`) are retained until explicitly closed and may consume too much memory. (To control this warning, see the rcParam `figure.max_num_figures`).
+  max_open_warning, RuntimeWarning)
+             7         all done
+  v_gene
+    correct up to allele:  957 / 1005 = 0.9522 (-0.945, +0.958)
+  d_gene
+    correct up to allele:  817 / 1005 = 0.8129 (-0.800, +0.824)
+  j_gene
+    correct up to allele:  887 / 1005 = 0.8826 (-0.872, +0.892)
+      info for 1005 
+hmm
+    writing input
+    running
+      --> proc 2
+        time 14.4309
+
+      --> proc 3
+        time 14.4636
+
+      --> proc 7
+        time 14.5926
+
+      --> proc 9
+        time 14.2921
+
+      --> proc 1
+        time 15.3093
+
+      --> proc 4
+        time 15.4327
+
+      --> proc 5
+        time 15.6389
+
+      --> proc 6
+        time 15.7116
+
+      --> proc 8
+        time 15.2316
+
+      --> proc 0
+        time 16.797
+
+      hmm run time: 18.123
+    time to merge csv files: 0.025
+    read output
+  v_gene
+    correct up to allele:  913 / 1005 = 0.9085 (-0.899, +0.916)
+  d_gene
+    correct up to allele:  821 / 1005 = 0.8169 (-0.804, +0.828)
+  j_gene
+    correct up to allele:  934 / 1005 = 0.9294 (-0.921, +0.936)
+    processed 1005 sequences in 1005 events (0 invalid events)
+      total time: 37.692
+TEST              annotate-new-data   ./bin/partis.py --action run-viterbi --n-max-queries 50 --seqfile test/mishmash.fa --parameter-dir test/_new-results/test/parameters/data/hmm --seed 1 --n-procs 10 --only-genes IGHV4-61*08:IGHV3-48*01:IGHV5-51*02:IGHV3-69-1*02:IGHV1/OR15-1*04:IGHV3-66*03:IGHV3-23D*01:IGHV3-71*03:IGHV1-2*04:IGHV1-2*02:IGHD3-16*02:IGHD2-2*03:IGHD2-8*01:IGHD3-22*01:IGHD6-13*01:IGHD4-17*01:IGHD6-19*01:IGHD3-10*01:IGHD2-15*01:IGHD2-21*02:IGHJ5*02:IGHJ3*02:IGHJ2*01:IGHJ1*01:IGHJ6*03:IGHJ4*02 --only-csv-plots --outfname test/_new-results/annotate-new-data.csv
+    TODO make sure all mpl figures are getting closed
+    TODO remove extra assertions from glomerator
+    TODO make things completely assertion/exception safe, i.e. if you catch one, that causes a failure on that one sequence only
+    TODO todo in reset_effective_erosions_and_effective_insertions()
+    TODO add functional column
+    TODO also print how many forward merges
+    TODO stop compiling smc
+    TODO wait, why am I first caching all the naive seqs?
+    TODO print size of various cache arrays
+    TODO print time waiting for slurm
+    TODO make progress file a bit more informative
+    TODO todos in glomerator
+    TODO add seed unique id to testing
+    TODO add both kinds of translation to testing
+    TODO clean up cluster divvy stuff
+   adding placeholder alignments for missing genes [91mj[0m[95m1P[0m[93m01[0m [91mj[0m[95m2P[0m[93m01[0m [91mj[0m[95m3P[0m[93m01[0m [91mj[0m[95m3P[0m[93m02[0m
+smith-waterman
+    rewriting germlines from /home/dralph/work/partis-dev/data/imgt to /tmp/dralph/hmms/221309/germline-sets (using 26 genes)
+        processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon
+            50              13              0                           3               8               2               0               0             increasing mismatch score (1 --> 2) and rerunning them
+            13               7              5                           0               1               0               1               0             rerunning for indels
+             7               5              0                           0               1               0               2               2             increasing mismatch score (2 --> 3) and rerunning them
+             5               5              0                           0               0               0               3               2             increasing mismatch score (3 --> 4) and rerunning them
+      info for 45      (skipped 0 / 50 = 0.000 unproductive    5 / 50 = 0.100 other ) 
+   [91mwarning[0m 5 missing annotations (crap-1:crap-3:crap-2:crap-5:crap-4)
+hmm
+    writing input
+    running
+      --> proc 0
+        time 1.59322
+
+      --> proc 1
+        time 1.92735
+
+      --> proc 2
+        time 1.77281
+
+      --> proc 3
+        time 1.35123
+
+      --> proc 4
+        time 1.81702
+
+      --> proc 5
+        time 1.23051
+
+      --> proc 6
+        time 1.67052
+
+      --> proc 7
+        time 1.62095
+
+      --> proc 8
+        time 1.7821
+
+      --> proc 9
+        time 1.06348
+
+      hmm run time: 3.093
+    time to merge csv files: 0.015
+    read output
+    processed 45 sequences in 45 events (0 invalid events)
+missing 5 input keys
+      total time: 12.591
+TEST             partition-new-simu   ./bin/partis.py --action partition --n-max-queries 250 --persistent-cachefname test/_new-results/cache-new-partition.csv --n-precache-procs 10 --is-simu --seqfile test/_new-results/test/simu.csv --parameter-dir test/_new-results/test/parameters/simu/hmm --seed 1 --n-procs 10 --only-genes IGHV4-61*08:IGHV3-48*01:IGHV5-51*02:IGHV3-69-1*02:IGHV1/OR15-1*04:IGHV3-66*03:IGHV3-23D*01:IGHV3-71*03:IGHV1-2*04:IGHV1-2*02:IGHD3-16*02:IGHD2-2*03:IGHD2-8*01:IGHD3-22*01:IGHD6-13*01:IGHD4-17*01:IGHD6-19*01:IGHD3-10*01:IGHD2-15*01:IGHD2-21*02:IGHJ5*02:IGHJ3*02:IGHJ2*01:IGHJ1*01:IGHJ6*03:IGHJ4*02 --only-csv-plots --outfname test/_new-results/partition-new-simu.csv
+    TODO make sure all mpl figures are getting closed
+    TODO remove extra assertions from glomerator
+    TODO make things completely assertion/exception safe, i.e. if you catch one, that causes a failure on that one sequence only
+    TODO todo in reset_effective_erosions_and_effective_insertions()
+    TODO add functional column
+    TODO also print how many forward merges
+    TODO stop compiling smc
+    TODO wait, why am I first caching all the naive seqs?
+    TODO print size of various cache arrays
+    TODO print time waiting for slurm
+    TODO make progress file a bit more informative
+    TODO todos in glomerator
+    TODO add seed unique id to testing
+    TODO add both kinds of translation to testing
+    TODO clean up cluster divvy stuff
+   adding placeholder alignments for missing genes [91mj[0m[95m1P[0m[93m01[0m [91mj[0m[95m2P[0m[93m01[0m [91mj[0m[95m3P[0m[93m01[0m [91mj[0m[95m3P[0m[93m02[0m
+smith-waterman
+    rewriting germlines from /home/dralph/work/partis-dev/data/imgt to /tmp/dralph/hmms/404810/germline-sets (using 26 genes)
+        processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon
+           250              38              0                          14              16               7               0               1             increasing mismatch score (1 --> 2) and rerunning them
+            38               2              0                           0               2               0               0               0             increasing mismatch score (2 --> 3) and rerunning them
+             2         all done
+      info for 250 
+        water time: 6.528
+    precache procs 10
+hmm
+    writing input
+      caching all naive sequences
+    running
+      --> proc 0
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.3279
+
+      --> proc 1
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.99791
+
+      --> proc 3
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.79509
+
+      --> proc 4
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.94253
+
+      --> proc 5
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.73229
+
+      --> proc 6
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.30616
+
+      --> proc 7
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.79024
+
+      --> proc 8
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.29574
+
+      --> proc 9
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.90596
+
+      --> proc 2
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 5.32377
+
+      hmm run time: 7.095
+    time to merge csv files: 0.016
+--> 250 clusters with 10 procs
+hmm
+    writing input
+  auto hamming bounds:
+      0.110 mutation in test/_new-results/test/parameters/simu/hmm
+       naive hamming bounds: 0.015 0.108
+    running
+      --> proc 9
+        read 0 cached logprobs and 250 naive seqs
+        stop with: inf 0   ham skip 268   small lratios 8   total 276
+         calculated   vtb 0      fwd 16     hamming merged 0      naive hfracs 323
+        time 3.67643
+
+      --> proc 7
+        read 0 cached logprobs and 250 naive seqs
+        stop with: inf 0   ham skip 249   small lratios 4   total 253
+         calculated   vtb 2      fwd 15     hamming merged 0      naive hfracs 345
+        time 4.8397
+
+      --> proc 0
+        read 0 cached logprobs and 250 naive seqs
+        stop with: inf 0   ham skip 202   small lratios 8   total 210
+         calculated   vtb 3      fwd 16     hamming merged 0      naive hfracs 386
+        time 5.26689
+
+      --> proc 4
+        read 0 cached logprobs and 250 naive seqs
+        stop with: inf 0   ham skip 205   small lratios 5   total 210
+         calculated   vtb 4      fwd 16     hamming merged 0      naive hfracs 386
+        time 5.67884
+
+      --> proc 5
+        read 0 cached logprobs and 250 naive seqs
+        stop with: inf 0   ham skip 290   small lratios 10   total 300
+         calculated   vtb 0      fwd 20     hamming merged 0      naive hfracs 300
+        time 5.33296
+
+      --> proc 8
+        read 0 cached logprobs and 250 naive seqs
+        stop with: inf 0   ham skip 225   small lratios 6   total 231
+         calculated   vtb 2      fwd 20     hamming merged 0      naive hfracs 366
+        time 5.55654
+
+      --> proc 1
+        read 0 cached logprobs and 250 naive seqs
+        stop with: inf 0   ham skip 269   small lratios 7   total 276
+         calculated   vtb 0      fwd 17     hamming merged 0      naive hfracs 323
+        time 6.10013
+
+      --> proc 6
+        read 0 cached logprobs and 250 naive seqs
+        stop with: inf 0   ham skip 216   small lratios 15   total 231
+         calculated   vtb 2      fwd 27     hamming merged 0      naive hfracs 366
+        time 7.79378
+
+      --> proc 2
+        read 0 cached logprobs and 250 naive seqs
+        stop with: inf 0   ham skip 196   small lratios 14   total 210
+         calculated   vtb 2      fwd 28     hamming merged 0      naive hfracs 386
+        time 8.04589
+
+      --> proc 3
+        read 0 cached logprobs and 250 naive seqs
+        stop with: inf 0   ham skip 201   small lratios 9   total 210
+         calculated   vtb 4      fwd 33     hamming merged 0      naive hfracs 386
+        time 8.48095
+
+      hmm run time: 10.081
+    time to merge csv files: 0.015
+  merged path 0 with 27 glomeration steps and 224 final clusters
+        read cached glomeration time: 0.015
+      partition step time: 10.324
+          n calcd: 227 (22.7 per proc)
+--> 224 clusters with 7 procs
+hmm
+    writing input
+  auto hamming bounds:
+      0.110 mutation in test/_new-results/test/parameters/simu/hmm
+       naive hamming bounds: 0.015 0.108
+    running
+      --> proc 4
+        read 208 cached logprobs and 276 naive seqs
+        stop with: inf 0   ham skip 321   small lratios 4   total 325
+         calculated   vtb 3      fwd 6      hamming merged 0      naive hfracs 661
+        time 3.78571
+
+      --> proc 1
+        read 208 cached logprobs and 276 naive seqs
+        stop with: inf 0   ham skip 316   small lratios 9   total 325
+         calculated   vtb 5      fwd 19     hamming merged 0      naive hfracs 661
+        time 5.36875
+
+      --> proc 2
+        read 208 cached logprobs and 276 naive seqs
+        stop with: inf 0   ham skip 393   small lratios 13   total 406
+         calculated   vtb 2      fwd 19     hamming merged 0      naive hfracs 583
+        time 5.87651
+
+      --> proc 5
+        read 208 cached logprobs and 276 naive seqs
+        stop with: inf 0   ham skip 394   small lratios 12   total 406
+         calculated   vtb 2      fwd 18     hamming merged 0      naive hfracs 583
+        time 5.61011
+
+      --> proc 3
+        read 208 cached logprobs and 276 naive seqs
+        stop with: inf 0   ham skip 368   small lratios 10   total 378
+         calculated   vtb 3      fwd 18     hamming merged 0      naive hfracs 610
+        time 7.34818
+
+      --> proc 0
+        read 208 cached logprobs and 276 naive seqs
+        stop with: inf 0   ham skip 420   small lratios 15   total 435
+         calculated   vtb 1      fwd 23     hamming merged 0      naive hfracs 555
+        time 8.70753
+
+      --> proc 6
+        read 208 cached logprobs and 276 naive seqs
+        stop with: inf 0   ham skip 378   small lratios 28   total 406
+         calculated   vtb 2      fwd 33     hamming merged 0      naive hfracs 583
+        time 13.2492
+
+      hmm run time: 15.091
+    time to merge csv files: 0.015
+  merged path 0 with 28 glomeration steps and 197 final clusters
+        read cached glomeration time: 0.012
+      partition step time: 15.308
+          n calcd: 154 (22.0 per proc)
+--> 197 clusters with 5 procs
+hmm
+    writing input
+  auto hamming bounds:
+      0.110 mutation in test/_new-results/test/parameters/simu/hmm
+       naive hamming bounds: 0.015 0.108
+    running
+      --> proc 2
+        read 344 cached logprobs and 303 naive seqs
+        stop with: inf 0   ham skip 513   small lratios 15   total 528
+         calculated   vtb 3      fwd 18     hamming merged 0      naive hfracs 948
+        time 6.97063
+
+      --> proc 0
+        read 344 cached logprobs and 303 naive seqs
+        stop with: inf 0   ham skip 545   small lratios 16   total 561
+         calculated   vtb 4      fwd 20     hamming merged 0      naive hfracs 993
+        time 7.56453
+
+      --> proc 1
+        read 344 cached logprobs and 303 naive seqs
+        stop with: inf 0   ham skip 608   small lratios 22   total 630
+         calculated   vtb 1      fwd 27     hamming merged 0      naive hfracs 926
+        time 7.40696
+
+      --> proc 4
+        read 344 cached logprobs and 303 naive seqs
+        stop with: inf 0   ham skip 507   small lratios 21   total 528
+         calculated   vtb 4      fwd 27     hamming merged 0      naive hfracs 948
+        time 7.59197
+
+      --> proc 3
+        read 344 cached logprobs and 303 naive seqs
+        stop with: inf 0   ham skip 567   small lratios 28   total 595
+         calculated   vtb 2      fwd 28     hamming merged 0      naive hfracs 883
+        time 8.56709
+
+      hmm run time: 10.054
+    time to merge csv files: 0.015
+  merged path 0 with 27 glomeration steps and 171 final clusters
+        read cached glomeration time: 0.010
+      partition step time: 10.247
+          n calcd: 134 (26.8 per proc)
+--> 171 clusters with 3 procs
+hmm
+    writing input
+  auto hamming bounds:
+      0.110 mutation in test/_new-results/test/parameters/simu/hmm
+       naive hamming bounds: 0.015 0.108
+    running
+      --> proc 0
+        read 464 cached logprobs and 329 naive seqs
+        stop with: inf 0   ham skip 1290   small lratios 36   total 1326
+         calculated   vtb 3      fwd 28     hamming merged 0      naive hfracs 1861
+        time 9.13909
+
+      --> proc 1
+        read 464 cached logprobs and 329 naive seqs
+        stop with: inf 0   ham skip 1231   small lratios 44   total 1275
+         calculated   vtb 3      fwd 39     hamming merged 0      naive hfracs 1911
+        time 12.1415
+
+      --> proc 2
+        read 464 cached logprobs and 329 naive seqs
+        stop with: inf 0   ham skip 1273   small lratios 53   total 1326
+         calculated   vtb 2      fwd 45     hamming merged 0      naive hfracs 1861
+        time 14.224
+
+      hmm run time: 16.046
+    time to merge csv files: 0.022
+  merged path 0 with 17 glomeration steps and 155 final clusters
+        read cached glomeration time: 0.108
+      partition step time: 16.319
+          n calcd: 120 (40.0 per proc)
+--> 155 clusters with 2 procs
+hmm
+    writing input
+  auto hamming bounds:
+      0.110 mutation in test/_new-results/test/parameters/simu/hmm
+       naive hamming bounds: 0.015 0.108
+    running
+      --> proc 0
+        read 576 cached logprobs and 345 naive seqs
+        stop with: inf 0   ham skip 2261   small lratios 85   total 2346
+         calculated   vtb 5      fwd 63     hamming merged 0      naive hfracs 3651
+        time 20.9526
+
+      --> proc 1
+        read 576 cached logprobs and 345 naive seqs
+        stop with: inf 0   ham skip 2196   small lratios 82   total 2278
+         calculated   vtb 8      fwd 64     hamming merged 0      naive hfracs 3565
+        time 20.9461
+
+      hmm run time: 22.041
+    time to merge csv files: 0.017
+  merged path 0 with 19 glomeration steps and 137 final clusters
+        read cached glomeration time: 0.008
+      partition step time: 22.193
+          n calcd: 140 (70.0 per proc)
+--> 137 clusters with 1 procs
+hmm
+    writing input
+  auto hamming bounds:
+      0.110 mutation in test/_new-results/test/parameters/simu/hmm
+       naive hamming bounds: 0.015 0.108
+    running
+        read 703 cached logprobs and 363 naive seqs
+        stop with: inf 0   ham skip 6209   small lratios 232   total 6441
+         calculated   vtb 15     fwd 166    hamming merged 0      naive hfracs 12168
+        time 56.6402
+‘test/_new-results/cache-new-partition.csv.tmp’ -> ‘test/_new-results/cache-new-partition.csv’
+      hmm run time: 56.734
+  merged path 0 with 24 glomeration steps and 114 final clusters
+        read cached glomeration time: 0.004
+      partition step time: 56.830
+      loop time: 131.221
+    checking partition with 250 ids
+      check time: 0.000
+      write time: 0.008
+    time to merge csv files: 0.063
+      total time: 146.549
+TEST       point-partition-new-simu   ./bin/partis.py --action partition --naive-hamming --n-max-queries 250 --n-precache-procs 10 --is-simu --seqfile test/_new-results/test/simu.csv --parameter-dir test/_new-results/test/parameters/simu/hmm --seed 1 --n-procs 10 --only-genes IGHV4-61*08:IGHV3-48*01:IGHV5-51*02:IGHV3-69-1*02:IGHV1/OR15-1*04:IGHV3-66*03:IGHV3-23D*01:IGHV3-71*03:IGHV1-2*04:IGHV1-2*02:IGHD3-16*02:IGHD2-2*03:IGHD2-8*01:IGHD3-22*01:IGHD6-13*01:IGHD4-17*01:IGHD6-19*01:IGHD3-10*01:IGHD2-15*01:IGHD2-21*02:IGHJ5*02:IGHJ3*02:IGHJ2*01:IGHJ1*01:IGHJ6*03:IGHJ4*02 --only-csv-plots --outfname test/_new-results/point-partition-new-simu.csv
+    TODO make sure all mpl figures are getting closed
+    TODO remove extra assertions from glomerator
+    TODO make things completely assertion/exception safe, i.e. if you catch one, that causes a failure on that one sequence only
+    TODO todo in reset_effective_erosions_and_effective_insertions()
+    TODO add functional column
+    TODO also print how many forward merges
+    TODO stop compiling smc
+    TODO wait, why am I first caching all the naive seqs?
+    TODO print size of various cache arrays
+    TODO print time waiting for slurm
+    TODO make progress file a bit more informative
+    TODO todos in glomerator
+    TODO add seed unique id to testing
+    TODO add both kinds of translation to testing
+    TODO clean up cluster divvy stuff
+   adding placeholder alignments for missing genes [91mj[0m[95m1P[0m[93m01[0m [91mj[0m[95m2P[0m[93m01[0m [91mj[0m[95m3P[0m[93m01[0m [91mj[0m[95m3P[0m[93m02[0m
+smith-waterman
+    rewriting germlines from /home/dralph/work/partis-dev/data/imgt to /tmp/dralph/hmms/412371/germline-sets (using 26 genes)
+        processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon
+           250              38              0                          14              16               7               0               1             increasing mismatch score (1 --> 2) and rerunning them
+            38               2              0                           0               2               0               0               0             increasing mismatch score (2 --> 3) and rerunning them
+             2         all done
+      info for 250 
+        water time: 5.326
+    precache procs 10
+hmm
+    writing input
+      caching all naive sequences
+    running
+      --> proc 0
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.34133
+
+      --> proc 1
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.97208
+
+      --> proc 3
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.7581
+
+      --> proc 4
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.91942
+
+      --> proc 5
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.69578
+
+      --> proc 6
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.24408
+
+      --> proc 7
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.73942
+
+      --> proc 8
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.2616
+
+      --> proc 9
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.89622
+
+      --> proc 2
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 5.27474
+
+      hmm run time: 7.085
+    time to merge csv files: 0.015
+--> 250 clusters with 10 procs
+hmm
+    writing input
+  auto hamming bounds:
+      0.110 mutation in test/_new-results/test/parameters/simu/hmm
+       naive hamming bounds: 0.045 0.045
+    running
+      --> proc 1
+        read 0 cached logprobs and 250 naive seqs
+        stop with all 253 / 253 hamming distances greater than 0.0449225
+         calculated   vtb 1      fwd 0      hamming merged 0      naive hfracs 345
+        time 0.716638
+
+      --> proc 5
+        read 0 cached logprobs and 250 naive seqs
+        stop with all 276 / 276 hamming distances greater than 0.0449225
+         calculated   vtb 1      fwd 0      hamming merged 0      naive hfracs 323
+        time 0.7976
+
+      --> proc 9
+        read 0 cached logprobs and 250 naive seqs
+        stop with all 231 / 231 hamming distances greater than 0.0449225
+         calculated   vtb 2      fwd 0      hamming merged 0      naive hfracs 366
+        time 0.864438
+
+      --> proc 0
+        read 0 cached logprobs and 250 naive seqs
+        stop with all 171 / 171 hamming distances greater than 0.0449225
+         calculated   vtb 5      fwd 0      hamming merged 0      naive hfracs 423
+        time 1.40408
+
+      --> proc 2
+        read 0 cached logprobs and 250 naive seqs
+        stop with all 210 / 210 hamming distances greater than 0.0449225
+         calculated   vtb 2      fwd 0      hamming merged 0      naive hfracs 386
+        time 1.07692
+
+      --> proc 3
+        read 0 cached logprobs and 250 naive seqs
+        stop with all 210 / 210 hamming distances greater than 0.0449225
+         calculated   vtb 4      fwd 0      hamming merged 0      naive hfracs 386
+        time 1.50157
+
+      --> proc 6
+        read 0 cached logprobs and 250 naive seqs
+        stop with all 210 / 210 hamming distances greater than 0.0449225
+         calculated   vtb 3      fwd 0      hamming merged 0      naive hfracs 386
+        time 1.02411
+
+      --> proc 7
+        read 0 cached logprobs and 250 naive seqs
+        stop with all 253 / 253 hamming distances greater than 0.0449225
+         calculated   vtb 2      fwd 0      hamming merged 0      naive hfracs 345
+        time 1.19183
+
+      --> proc 8
+        read 0 cached logprobs and 250 naive seqs
+        stop with all 231 / 231 hamming distances greater than 0.0449225
+         calculated   vtb 2      fwd 0      hamming merged 0      naive hfracs 366
+        time 1.04291
+
+      --> proc 4
+        read 0 cached logprobs and 250 naive seqs
+        stop with all 171 / 171 hamming distances greater than 0.0449225
+         calculated   vtb 6      fwd 0      hamming merged 0      naive hfracs 423
+        time 2.51304
+
+      hmm run time: 4.101
+    time to merge csv files: 0.013
+  merged path 0 with 36 glomeration steps and 215 final clusters
+        read cached glomeration time: 0.018
+      partition step time: 4.355
+          n calcd: 28 (2.8 per proc)
+--> 215 clusters with 7 procs
+hmm
+    writing input
+  auto hamming bounds:
+      0.110 mutation in test/_new-results/test/parameters/simu/hmm
+       naive hamming bounds: 0.045 0.045
+    running
+      --> proc 1
+        read 0 cached logprobs and 285 naive seqs
+        stop with all 465 / 465 hamming distances greater than 0.0449225
+         calculated   vtb 0      fwd 0      hamming merged 0      naive hfracs 465
+        time 0.114262
+
+      --> proc 5
+        read 0 cached logprobs and 285 naive seqs
+        stop with all 300 / 300 hamming distances greater than 0.0449225
+         calculated   vtb 1      fwd 0      hamming merged 0      naive hfracs 565
+        time 0.894357
+
+      --> proc 0
+        read 0 cached logprobs and 285 naive seqs
+        stop with all 253 / 253 hamming distances greater than 0.0449225
+         calculated   vtb 6      fwd 0      hamming merged 0      naive hfracs 669
+        time 2.01387
+
+      --> proc 3
+        read 0 cached logprobs and 285 naive seqs
+        stop with all 406 / 406 hamming distances greater than 0.0449225
+         calculated   vtb 2      fwd 0      hamming merged 0      naive hfracs 522
+        time 1.21899
+
+      --> proc 4
+        read 0 cached logprobs and 285 naive seqs
+        stop with all 325 / 325 hamming distances greater than 0.0449225
+         calculated   vtb 4      fwd 0      hamming merged 0      naive hfracs 600
+        time 1.88504
+
+      --> proc 2
+        read 0 cached logprobs and 285 naive seqs
+        stop with all 253 / 253 hamming distances greater than 0.0449225
+         calculated   vtb 7      fwd 0      hamming merged 0      naive hfracs 669
+        time 2.38561
+
+      --> proc 6
+        read 0 cached logprobs and 285 naive seqs
+        stop with all 253 / 253 hamming distances greater than 0.0449225
+         calculated   vtb 7      fwd 0      hamming merged 0      naive hfracs 610
+        time 2.53387
+
+      hmm run time: 4.066
+    time to merge csv files: 0.014
+  merged path 0 with 36 glomeration steps and 180 final clusters
+        read cached glomeration time: 0.014
+      partition step time: 4.281
+          n calcd: 27 (3.9 per proc)
+--> 180 clusters with 5 procs
+hmm
+    writing input
+  auto hamming bounds:
+      0.110 mutation in test/_new-results/test/parameters/simu/hmm
+       naive hamming bounds: 0.045 0.045
+    running
+      --> proc 0
+        read 0 cached logprobs and 320 naive seqs
+        stop with all 528 / 528 hamming distances greater than 0.0449225
+         calculated   vtb 3      fwd 0      hamming merged 0      naive hfracs 729
+        time 1.89404
+
+      --> proc 3
+        read 0 cached logprobs and 320 naive seqs
+        stop with all 528 / 528 hamming distances greater than 0.0449225
+         calculated   vtb 2      fwd 0      hamming merged 0      naive hfracs 729
+        time 1.54085
+
+      --> proc 4
+        read 0 cached logprobs and 320 naive seqs
+        stop with all 528 / 528 hamming distances greater than 0.0449225
+         calculated   vtb 2      fwd 0      hamming merged 0      naive hfracs 729
+        time 1.58024
+
+      --> proc 1
+        read 0 cached logprobs and 320 naive seqs
+        stop with all 435 / 435 hamming distances greater than 0.0449225
+         calculated   vtb 5      fwd 0      hamming merged 0      naive hfracs 819
+        time 2.89685
+
+      --> proc 2
+        read 0 cached logprobs and 320 naive seqs
+        stop with all 406 / 406 hamming distances greater than 0.0449225
+         calculated   vtb 6      fwd 0      hamming merged 0      naive hfracs 847
+        time 2.87245
+
+      hmm run time: 4.054
+    time to merge csv files: 0.014
+  merged path 0 with 23 glomeration steps and 158 final clusters
+        read cached glomeration time: 0.108
+      partition step time: 4.344
+          n calcd: 18 (3.6 per proc)
+--> 158 clusters with 3 procs
+hmm
+    writing input
+  auto hamming bounds:
+      0.110 mutation in test/_new-results/test/parameters/simu/hmm
+       naive hamming bounds: 0.045 0.045
+    running
+      --> proc 2
+        read 0 cached logprobs and 342 naive seqs
+        stop with all 1035 / 1035 hamming distances greater than 0.0449225
+         calculated   vtb 4      fwd 0      hamming merged 0      naive hfracs 1611
+        time 1.49638
+
+      --> proc 0
+        read 0 cached logprobs and 342 naive seqs
+        stop with all 820 / 820 hamming distances greater than 0.0449225
+         calculated   vtb 9      fwd 0      hamming merged 0      naive hfracs 1924
+        time 3.18555
+
+      --> proc 1
+        read 0 cached logprobs and 342 naive seqs
+        stop with all 946 / 946 hamming distances greater than 0.0449225
+         calculated   vtb 7      fwd 0      hamming merged 0      naive hfracs 1801
+        time 3.27625
+
+      hmm run time: 5.027
+    time to merge csv files: 0.014
+  merged path 0 with 28 glomeration steps and 131 final clusters
+        read cached glomeration time: 0.009
+      partition step time: 5.186
+          n calcd: 20 (6.7 per proc)
+--> 131 clusters with 2 procs
+hmm
+    writing input
+  auto hamming bounds:
+      0.110 mutation in test/_new-results/test/parameters/simu/hmm
+       naive hamming bounds: 0.045 0.045
+    running
+      --> proc 0
+        read 0 cached logprobs and 369 naive seqs
+        stop with all 1596 / 1596 hamming distances greater than 0.0449225
+         calculated   vtb 8      fwd 0      hamming merged 0      naive hfracs 2685
+        time 2.72219
+
+      --> proc 1
+        read 0 cached logprobs and 369 naive seqs
+        stop with all 1431 / 1431 hamming distances greater than 0.0449225
+         calculated   vtb 8      fwd 0      hamming merged 0      naive hfracs 2718
+        time 3.21958
+
+      hmm run time: 5.021
+    time to merge csv files: 0.015
+  merged path 0 with 21 glomeration steps and 111 final clusters
+        read cached glomeration time: 0.008
+      partition step time: 5.168
+          n calcd: 16 (8.0 per proc)
+--> 111 clusters with 1 procs
+hmm
+    writing input
+  auto hamming bounds:
+      0.110 mutation in test/_new-results/test/parameters/simu/hmm
+       naive hamming bounds: 0.045 0.045
+    running
+        read 0 cached logprobs and 390 naive seqs
+        stop with all 4186 / 4186 hamming distances greater than 0.0449225
+         calculated   vtb 15     fwd 0      hamming merged 0      naive hfracs 8005
+        time 6.48805
+      hmm run time: 6.550
+  merged path 0 with 20 glomeration steps and 92 final clusters
+        read cached glomeration time: 0.003
+      partition step time: 6.643
+      loop time: 29.977
+    checking partition with 250 ids
+      check time: 0.000
+      write time: 0.009
+      total time: 43.789
+TEST     vsearch-partition-new-simu   ./bin/partis.py --action partition --naive-vsearch --n-max-queries 250 --n-precache-procs 10 --is-simu --seqfile test/_new-results/test/simu.csv --parameter-dir test/_new-results/test/parameters/simu/hmm --seed 1 --n-procs 10 --only-genes IGHV4-61*08:IGHV3-48*01:IGHV5-51*02:IGHV3-69-1*02:IGHV1/OR15-1*04:IGHV3-66*03:IGHV3-23D*01:IGHV3-71*03:IGHV1-2*04:IGHV1-2*02:IGHD3-16*02:IGHD2-2*03:IGHD2-8*01:IGHD3-22*01:IGHD6-13*01:IGHD4-17*01:IGHD6-19*01:IGHD3-10*01:IGHD2-15*01:IGHD2-21*02:IGHJ5*02:IGHJ3*02:IGHJ2*01:IGHJ1*01:IGHJ6*03:IGHJ4*02 --only-csv-plots --outfname test/_new-results/vsearch-partition-new-simu.csv
+    TODO make sure all mpl figures are getting closed
+    TODO remove extra assertions from glomerator
+    TODO make things completely assertion/exception safe, i.e. if you catch one, that causes a failure on that one sequence only
+    TODO todo in reset_effective_erosions_and_effective_insertions()
+    TODO add functional column
+    TODO also print how many forward merges
+    TODO stop compiling smc
+    TODO wait, why am I first caching all the naive seqs?
+    TODO print size of various cache arrays
+    TODO print time waiting for slurm
+    TODO make progress file a bit more informative
+    TODO todos in glomerator
+    TODO add seed unique id to testing
+    TODO add both kinds of translation to testing
+    TODO clean up cluster divvy stuff
+   adding placeholder alignments for missing genes [91mj[0m[95m1P[0m[93m01[0m [91mj[0m[95m2P[0m[93m01[0m [91mj[0m[95m3P[0m[93m01[0m [91mj[0m[95m3P[0m[93m02[0m
+smith-waterman
+    rewriting germlines from /home/dralph/work/partis-dev/data/imgt to /tmp/dralph/hmms/583838/germline-sets (using 26 genes)
+        processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon
+           250              38              0                          14              16               7               0               1             increasing mismatch score (1 --> 2) and rerunning them
+            38               2              0                           0               2               0               0               0             increasing mismatch score (2 --> 3) and rerunning them
+             2         all done
+      info for 250 
+        water time: 5.534
+    precache procs 10
+hmm
+    writing input
+      caching all naive sequences
+    running
+      --> proc 8
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 3.82569
+
+      --> proc 0
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.26339
+
+      --> proc 1
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.85611
+
+      --> proc 2
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.97851
+
+      --> proc 3
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.52327
+
+      --> proc 4
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.6434
+
+      --> proc 5
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.60426
+
+      --> proc 6
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.13043
+
+      --> proc 7
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.37983
+
+      --> proc 9
+        cachefile d.n.e.
+         calculated   vtb 25     fwd 0      hamming merged 0      naive hfracs 0
+        time 4.82421
+
+      hmm run time: 6.076
+    time to merge csv files: 0.014
+  auto hamming bounds:
+      0.110 mutation in test/_new-results/test/parameters/simu/hmm
+       naive hamming bounds: 0.032 0.032
+    using hfrac bound for vsearch 0.032
+  out:
+    vsearch v1.1.3_linux_x86_64, 62.8GB RAM, 16 cores
+    https://github.com/torognes/vsearch
+    
+    
+  err:
+    Reading file /tmp/dralph/hmms/583838/simu.fasta 0%  Reading file /tmp/dralph/hmms/583838/simu.fasta 0%  Reading file /tmp/dralph/hmms/583838/simu.fasta 1%  Reading file /tmp/dralph/hmms/583838/simu.fasta 2%  Reading file /tmp/dralph/hmms/583838/simu.fasta 3%  Reading file /tmp/dralph/hmms/583838/simu.fasta 4%  Reading file /tmp/dralph/hmms/583838/simu.fasta 4%  Reading file /tmp/dralph/hmms/583838/simu.fasta 5%  Reading file /tmp/dralph/hmms/583838/simu.fasta 6%  Reading file /tmp/dralph/hmms/583838/simu.fasta 7%  Reading file /tmp/dralph/hmms/583838/simu.fasta 8%  Reading file /tmp/dralph/hmms/583838/simu.fasta 8%  Reading file /tmp/dralph/hmms/583838/simu.fasta 9%  Reading file /tmp/dralph/hmms/583838/simu.fasta 10%  Reading file /tmp/dralph/hmms/583838/simu.fasta 11%  Reading file /tmp/dralph/hmms/583838/simu.fasta 12%  Reading file /tmp/dralph/hmms/583838/simu.fasta 12%  Reading file /tmp/dralph/hmms/583838/simu.fasta 13%  Reading file /tmp/dralph/hmms/583838/simu.fasta 14%  Reading file /tmp/dralph/hmms/583838/simu.fasta 15%  Reading file /tmp/dralph/hmms/583838/simu.fasta 16%  Reading file /tmp/dralph/hmms/583838/simu.fasta 16%  Reading file /tmp/dralph/hmms/583838/simu.fasta 17%  Reading file /tmp/dralph/hmms/583838/simu.fasta 18%  Reading file /tmp/dralph/hmms/583838/simu.fasta 19%  Reading file /tmp/dralph/hmms/583838/simu.fasta 20%  Reading file /tmp/dralph/hmms/583838/simu.fasta 20%  Reading file /tmp/dralph/hmms/583838/simu.fasta 21%  Reading file /tmp/dralph/hmms/583838/simu.fasta 22%  Reading file /tmp/dralph/hmms/583838/simu.fasta 23%  Reading file /tmp/dralph/hmms/583838/simu.fasta 24%  Reading file /tmp/dralph/hmms/583838/simu.fasta 24%  Reading file /tmp/dralph/hmms/583838/simu.fasta 25%  Reading file /tmp/dralph/hmms/583838/simu.fasta 26%  Reading file /tmp/dralph/hmms/583838/simu.fasta 27%  Reading file /tmp/dralph/hmms/583838/simu.fasta 28%  Reading file /tmp/dralph/hmms/583838/simu.fasta 28%  Reading file /tmp/dralph/hmms/583838/simu.fasta 29%  Reading file /tmp/dralph/hmms/583838/simu.fasta 30%  Reading file /tmp/dralph/hmms/583838/simu.fasta 31%  Reading file /tmp/dralph/hmms/583838/simu.fasta 32%  Reading file /tmp/dralph/hmms/583838/simu.fasta 32%  Reading file /tmp/dralph/hmms/583838/simu.fasta 33%  Reading file /tmp/dralph/hmms/583838/simu.fasta 34%  Reading file /tmp/dralph/hmms/583838/simu.fasta 35%  Reading file /tmp/dralph/hmms/583838/simu.fasta 36%  Reading file /tmp/dralph/hmms/583838/simu.fasta 36%  Reading file /tmp/dralph/hmms/583838/simu.fasta 37%  Reading file /tmp/dralph/hmms/583838/simu.fasta 38%  Reading file /tmp/dralph/hmms/583838/simu.fasta 39%  Reading file /tmp/dralph/hmms/583838/simu.fasta 40%  Reading file /tmp/dralph/hmms/583838/simu.fasta 40%  Reading file /tmp/dralph/hmms/583838/simu.fasta 41%  Reading file /tmp/dralph/hmms/583838/simu.fasta 42%  Reading file /tmp/dralph/hmms/583838/simu.fasta 43%  Reading file /tmp/dralph/hmms/583838/simu.fasta 44%  Reading file /tmp/dralph/hmms/583838/simu.fasta 44%  Reading file /tmp/dralph/hmms/583838/simu.fasta 45%  Reading file /tmp/dralph/hmms/583838/simu.fasta 46%  Reading file /tmp/dralph/hmms/583838/simu.fasta 47%  Reading file /tmp/dralph/hmms/583838/simu.fasta 48%  Reading file /tmp/dralph/hmms/583838/simu.fasta 48%  Reading file /tmp/dralph/hmms/583838/simu.fasta 49%  Reading file /tmp/dralph/hmms/583838/simu.fasta 50%  Reading file /tmp/dralph/hmms/583838/simu.fasta 51%  Reading file /tmp/dralph/hmms/583838/simu.fasta 52%  Reading file /tmp/dralph/hmms/583838/simu.fasta 52%  Reading file /tmp/dralph/hmms/583838/simu.fasta 53%  Reading file /tmp/dralph/hmms/583838/simu.fasta 54%  Reading file /tmp/dralph/hmms/583838/simu.fasta 55%  Reading file /tmp/dralph/hmms/583838/simu.fasta 56%  Reading file /tmp/dralph/hmms/583838/simu.fasta 56%  Reading file /tmp/dralph/hmms/583838/simu.fasta 57%  Reading file /tmp/dralph/hmms/583838/simu.fasta 58%  Reading file /tmp/dralph/hmms/583838/simu.fasta 59%  Reading file /tmp/dralph/hmms/583838/simu.fasta 60%  Reading file /tmp/dralph/hmms/583838/simu.fasta 60%  Reading file /tmp/dralph/hmms/583838/simu.fasta 61%  Reading file /tmp/dralph/hmms/583838/simu.fasta 62%  Reading file /tmp/dralph/hmms/583838/simu.fasta 63%  Reading file /tmp/dralph/hmms/583838/simu.fasta 64%  Reading file /tmp/dralph/hmms/583838/simu.fasta 64%  Reading file /tmp/dralph/hmms/583838/simu.fasta 65%  Reading file /tmp/dralph/hmms/583838/simu.fasta 66%  Reading file /tmp/dralph/hmms/583838/simu.fasta 67%  Reading file /tmp/dralph/hmms/583838/simu.fasta 68%  Reading file /tmp/dralph/hmms/583838/simu.fasta 68%  Reading file /tmp/dralph/hmms/583838/simu.fasta 69%  Reading file /tmp/dralph/hmms/583838/simu.fasta 70%  Reading file /tmp/dralph/hmms/583838/simu.fasta 71%  Reading file /tmp/dralph/hmms/583838/simu.fasta 72%  Reading file /tmp/dralph/hmms/583838/simu.fasta 72%  Reading file /tmp/dralph/hmms/583838/simu.fasta 73%  Reading file /tmp/dralph/hmms/583838/simu.fasta 74%  Reading file /tmp/dralph/hmms/583838/simu.fasta 75%  Reading file /tmp/dralph/hmms/583838/simu.fasta 76%  Reading file /tmp/dralph/hmms/583838/simu.fasta 76%  Reading file /tmp/dralph/hmms/583838/simu.fasta 77%  Reading file /tmp/dralph/hmms/583838/simu.fasta 78%  Reading file /tmp/dralph/hmms/583838/simu.fasta 79%  Reading file /tmp/dralph/hmms/583838/simu.fasta 80%  Reading file /tmp/dralph/hmms/583838/simu.fasta 80%  Reading file /tmp/dralph/hmms/583838/simu.fasta 81%  Reading file /tmp/dralph/hmms/583838/simu.fasta 82%  Reading file /tmp/dralph/hmms/583838/simu.fasta 83%  Reading file /tmp/dralph/hmms/583838/simu.fasta 84%  Reading file /tmp/dralph/hmms/583838/simu.fasta 84%  Reading file /tmp/dralph/hmms/583838/simu.fasta 85%  Reading file /tmp/dralph/hmms/583838/simu.fasta 86%  Reading file /tmp/dralph/hmms/583838/simu.fasta 87%  Reading file /tmp/dralph/hmms/583838/simu.fasta 88%  Reading file /tmp/dralph/hmms/583838/simu.fasta 88%  Reading file /tmp/dralph/hmms/583838/simu.fasta 89%  Reading file /tmp/dralph/hmms/583838/simu.fasta 90%  Reading file /tmp/dralph/hmms/583838/simu.fasta 91%  Reading file /tmp/dralph/hmms/583838/simu.fasta 92%  Reading file /tmp/dralph/hmms/583838/simu.fasta 92%  Reading file /tmp/dralph/hmms/583838/simu.fasta 93%  Reading file /tmp/dralph/hmms/583838/simu.fasta 94%  Reading file /tmp/dralph/hmms/583838/simu.fasta 95%  Reading file /tmp/dralph/hmms/583838/simu.fasta 96%  Reading file /tmp/dralph/hmms/583838/simu.fasta 96%  Reading file /tmp/dralph/hmms/583838/simu.fasta 97%  Reading file /tmp/dralph/hmms/583838/simu.fasta 98%  Reading file /tmp/dralph/hmms/583838/simu.fasta 99%  Reading file /tmp/dralph/hmms/583838/simu.fasta 100%  Reading file /tmp/dralph/hmms/583838/simu.fasta 100%
+    101250 nt in 250 seqs, min 405, max 405, avg 405
+    Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 1%  Indexing sequences 1%  Indexing sequences 2%  Indexing sequences 2%  Indexing sequences 2%  Indexing sequences 3%  Indexing sequences 3%  Indexing sequences 4%  Indexing sequences 4%  Indexing sequences 4%  Indexing sequences 5%  Indexing sequences 5%  Indexing sequences 6%  Indexing sequences 6%  Indexing sequences 6%  Indexing sequences 7%  Indexing sequences 7%  Indexing sequences 8%  Indexing sequences 8%  Indexing sequences 8%  Indexing sequences 9%  Indexing sequences 9%  Indexing sequences 10%  Indexing sequences 10%  Indexing sequences 10%  Indexing sequences 11%  Indexing sequences 11%  Indexing sequences 12%  Indexing sequences 12%  Indexing sequences 12%  Indexing sequences 13%  Indexing sequences 13%  Indexing sequences 14%  Indexing sequences 14%  Indexing sequences 14%  Indexing sequences 15%  Indexing sequences 15%  Indexing sequences 16%  Indexing sequences 16%  Indexing sequences 16%  Indexing sequences 17%  Indexing sequences 17%  Indexing sequences 18%  Indexing sequences 18%  Indexing sequences 18%  Indexing sequences 19%  Indexing sequences 19%  Indexing sequences 20%  Indexing sequences 20%  Indexing sequences 20%  Indexing sequences 21%  Indexing sequences 21%  Indexing sequences 22%  Indexing sequences 22%  Indexing sequences 22%  Indexing sequences 23%  Indexing sequences 23%  Indexing sequences 24%  Indexing sequences 24%  Indexing sequences 24%  Indexing sequences 25%  Indexing sequences 25%  Indexing sequences 26%  Indexing sequences 26%  Indexing sequences 26%  Indexing sequences 27%  Indexing sequences 27%  Indexing sequences 28%  Indexing sequences 28%  Indexing sequences 28%  Indexing sequences 29%  Indexing sequences 29%  Indexing sequences 30%  Indexing sequences 30%  Indexing sequences 30%  Indexing sequences 31%  Indexing sequences 31%  Indexing sequences 32%  Indexing sequences 32%  Indexing sequences 32%  Indexing sequences 33%  Indexing sequences 33%  Indexing sequences 34%  Indexing sequences 34%  Indexing sequences 34%  Indexing sequences 35%  Indexing sequences 35%  Indexing sequences 36%  Indexing sequences 36%  Indexing sequences 36%  Indexing sequences 37%  Indexing sequences 37%  Indexing sequences 38%  Indexing sequences 38%  Indexing sequences 38%  Indexing sequences 39%  Indexing sequences 39%  Indexing sequences 40%  Indexing sequences 40%  Indexing sequences 40%  Indexing sequences 41%  Indexing sequences 41%  Indexing sequences 42%  Indexing sequences 42%  Indexing sequences 42%  Indexing sequences 43%  Indexing sequences 43%  Indexing sequences 44%  Indexing sequences 44%  Indexing sequences 44%  Indexing sequences 45%  Indexing sequences 45%  Indexing sequences 46%  Indexing sequences 46%  Indexing sequences 46%  Indexing sequences 47%  Indexing sequences 47%  Indexing sequences 48%  Indexing sequences 48%  Indexing sequences 48%  Indexing sequences 49%  Indexing sequences 49%  Indexing sequences 50%  Indexing sequences 50%  Indexing sequences 50%  Indexing sequences 51%  Indexing sequences 51%  Indexing sequences 52%  Indexing sequences 52%  Indexing sequences 52%  Indexing sequences 53%  Indexing sequences 53%  Indexing sequences 54%  Indexing sequences 54%  Indexing sequences 54%  Indexing sequences 55%  Indexing sequences 55%  Indexing sequences 56%  Indexing sequences 56%  Indexing sequences 56%  Indexing sequences 57%  Indexing sequences 57%  Indexing sequences 58%  Indexing sequences 58%  Indexing sequences 58%  Indexing sequences 59%  Indexing sequences 59%  Indexing sequences 60%  Indexing sequences 60%  Indexing sequences 60%  Indexing sequences 61%  Indexing sequences 61%  Indexing sequences 62%  Indexing sequences 62%  Indexing sequences 62%  Indexing sequences 63%  Indexing sequences 63%  Indexing sequences 64%  Indexing sequences 64%  Indexing sequences 64%  Indexing sequences 65%  Indexing sequences 65%  Indexing sequences 66%  Indexing sequences 66%  Indexing sequences 66%  Indexing sequences 67%  Indexing sequences 67%  Indexing sequences 68%  Indexing sequences 68%  Indexing sequences 68%  Indexing sequences 69%  Indexing sequences 69%  Indexing sequences 70%  Indexing sequences 70%  Indexing sequences 70%  Indexing sequences 71%  Indexing sequences 71%  Indexing sequences 72%  Indexing sequences 72%  Indexing sequences 72%  Indexing sequences 73%  Indexing sequences 73%  Indexing sequences 74%  Indexing sequences 74%  Indexing sequences 74%  Indexing sequences 75%  Indexing sequences 75%  Indexing sequences 76%  Indexing sequences 76%  Indexing sequences 76%  Indexing sequences 77%  Indexing sequences 77%  Indexing sequences 78%  Indexing sequences 78%  Indexing sequences 78%  Indexing sequences 79%  Indexing sequences 79%  Indexing sequences 80%  Indexing sequences 80%  Indexing sequences 80%  Indexing sequences 81%  Indexing sequences 81%  Indexing sequences 82%  Indexing sequences 82%  Indexing sequences 82%  Indexing sequences 83%  Indexing sequences 83%  Indexing sequences 84%  Indexing sequences 84%  Indexing sequences 84%  Indexing sequences 85%  Indexing sequences 85%  Indexing sequences 86%  Indexing sequences 86%  Indexing sequences 86%  Indexing sequences 87%  Indexing sequences 87%  Indexing sequences 88%  Indexing sequences 88%  Indexing sequences 88%  Indexing sequences 89%  Indexing sequences 89%  Indexing sequences 90%  Indexing sequences 90%  Indexing sequences 90%  Indexing sequences 91%  Indexing sequences 91%  Indexing sequences 92%  Indexing sequences 92%  Indexing sequences 92%  Indexing sequences 93%  Indexing sequences 93%  Indexing sequences 94%  Indexing sequences 94%  Indexing sequences 94%  Indexing sequences 95%  Indexing sequences 95%  Indexing sequences 96%  Indexing sequences 96%  Indexing sequences 96%  Indexing sequences 97%  Indexing sequences 97%  Indexing sequences 98%  Indexing sequences 98%  Indexing sequences 98%  Indexing sequences 99%  Indexing sequences 99%  Indexing sequences 100%  Indexing sequences 100%
+    Masking 0%  Masking 100%
+    Sorting by length 0%  Sorting by length 100%
+    Counting unique k-mers 0%  Counting unique k-mers 0%  Counting unique k-mers 0%  Counting unique k-mers 1%  Counting unique k-mers 1%  Counting unique k-mers 2%  Counting unique k-mers 2%  Counting unique k-mers 2%  Counting unique k-mers 3%  Counting unique k-mers 3%  Counting unique k-mers 4%  Counting unique k-mers 4%  Counting unique k-mers 4%  Counting unique k-mers 5%  Counting unique k-mers 5%  Counting unique k-mers 6%  Counting unique k-mers 6%  Counting unique k-mers 6%  Counting unique k-mers 7%  Counting unique k-mers 7%  Counting unique k-mers 8%  Counting unique k-mers 8%  Counting unique k-mers 8%  Counting unique k-mers 9%  Counting unique k-mers 9%  Counting unique k-mers 10%  Counting unique k-mers 10%  Counting unique k-mers 10%  Counting unique k-mers 11%  Counting unique k-mers 11%  Counting unique k-mers 12%  Counting unique k-mers 12%  Counting unique k-mers 12%  Counting unique k-mers 13%  Counting unique k-mers 13%  Counting unique k-mers 14%  Counting unique k-mers 14%  Counting unique k-mers 14%  Counting unique k-mers 15%  Counting unique k-mers 15%  Counting unique k-mers 16%  Counting unique k-mers 16%  Counting unique k-mers 16%  Counting unique k-mers 17%  Counting unique k-mers 17%  Counting unique k-mers 18%  Counting unique k-mers 18%  Counting unique k-mers 18%  Counting unique k-mers 19%  Counting unique k-mers 19%  Counting unique k-mers 20%  Counting unique k-mers 20%  Counting unique k-mers 20%  Counting unique k-mers 21%  Counting unique k-mers 21%  Counting unique k-mers 22%  Counting unique k-mers 22%  Counting unique k-mers 22%  Counting unique k-mers 23%  Counting unique k-mers 23%  Counting unique k-mers 24%  Counting unique k-mers 24%  Counting unique k-mers 24%  Counting unique k-mers 25%  Counting unique k-mers 25%  Counting unique k-mers 26%  Counting unique k-mers 26%  Counting unique k-mers 26%  Counting unique k-mers 27%  Counting unique k-mers 27%  Counting unique k-mers 28%  Counting unique k-mers 28%  Counting unique k-mers 28%  Counting unique k-mers 29%  Counting unique k-mers 29%  Counting unique k-mers 30%  Counting unique k-mers 30%  Counting unique k-mers 30%  Counting unique k-mers 31%  Counting unique k-mers 31%  Counting unique k-mers 32%  Counting unique k-mers 32%  Counting unique k-mers 32%  Counting unique k-mers 33%  Counting unique k-mers 33%  Counting unique k-mers 34%  Counting unique k-mers 34%  Counting unique k-mers 34%  Counting unique k-mers 35%  Counting unique k-mers 35%  Counting unique k-mers 36%  Counting unique k-mers 36%  Counting unique k-mers 36%  Counting unique k-mers 37%  Counting unique k-mers 37%  Counting unique k-mers 38%  Counting unique k-mers 38%  Counting unique k-mers 38%  Counting unique k-mers 39%  Counting unique k-mers 39%  Counting unique k-mers 40%  Counting unique k-mers 40%  Counting unique k-mers 40%  Counting unique k-mers 41%  Counting unique k-mers 41%  Counting unique k-mers 42%  Counting unique k-mers 42%  Counting unique k-mers 42%  Counting unique k-mers 43%  Counting unique k-mers 43%  Counting unique k-mers 44%  Counting unique k-mers 44%  Counting unique k-mers 44%  Counting unique k-mers 45%  Counting unique k-mers 45%  Counting unique k-mers 46%  Counting unique k-mers 46%  Counting unique k-mers 46%  Counting unique k-mers 47%  Counting unique k-mers 47%  Counting unique k-mers 48%  Counting unique k-mers 48%  Counting unique k-mers 48%  Counting unique k-mers 49%  Counting unique k-mers 49%  Counting unique k-mers 50%  Counting unique k-mers 50%  Counting unique k-mers 50%  Counting unique k-mers 51%  Counting unique k-mers 51%  Counting unique k-mers 52%  Counting unique k-mers 52%  Counting unique k-mers 52%  Counting unique k-mers 53%  Counting unique k-mers 53%  Counting unique k-mers 54%  Counting unique k-mers 54%  Counting unique k-mers 54%  Counting unique k-mers 55%  Counting unique k-mers 55%  Counting unique k-mers 56%  Counting unique k-mers 56%  Counting unique k-mers 56%  Counting unique k-mers 57%  Counting unique k-mers 57%  Counting unique k-mers 58%  Counting unique k-mers 58%  Counting unique k-mers 58%  Counting unique k-mers 59%  Counting unique k-mers 59%  Counting unique k-mers 60%  Counting unique k-mers 60%  Counting unique k-mers 60%  Counting unique k-mers 61%  Counting unique k-mers 61%  Counting unique k-mers 62%  Counting unique k-mers 62%  Counting unique k-mers 62%  Counting unique k-mers 63%  Counting unique k-mers 63%  Counting unique k-mers 64%  Counting unique k-mers 64%  Counting unique k-mers 64%  Counting unique k-mers 65%  Counting unique k-mers 65%  Counting unique k-mers 66%  Counting unique k-mers 66%  Counting unique k-mers 66%  Counting unique k-mers 67%  Counting unique k-mers 67%  Counting unique k-mers 68%  Counting unique k-mers 68%  Counting unique k-mers 68%  Counting unique k-mers 69%  Counting unique k-mers 69%  Counting unique k-mers 70%  Counting unique k-mers 70%  Counting unique k-mers 70%  Counting unique k-mers 71%  Counting unique k-mers 71%  Counting unique k-mers 72%  Counting unique k-mers 72%  Counting unique k-mers 72%  Counting unique k-mers 73%  Counting unique k-mers 73%  Counting unique k-mers 74%  Counting unique k-mers 74%  Counting unique k-mers 74%  Counting unique k-mers 75%  Counting unique k-mers 75%  Counting unique k-mers 76%  Counting unique k-mers 76%  Counting unique k-mers 76%  Counting unique k-mers 77%  Counting unique k-mers 77%  Counting unique k-mers 78%  Counting unique k-mers 78%  Counting unique k-mers 78%  Counting unique k-mers 79%  Counting unique k-mers 79%  Counting unique k-mers 80%  Counting unique k-mers 80%  Counting unique k-mers 80%  Counting unique k-mers 81%  Counting unique k-mers 81%  Counting unique k-mers 82%  Counting unique k-mers 82%  Counting unique k-mers 82%  Counting unique k-mers 83%  Counting unique k-mers 83%  Counting unique k-mers 84%  Counting unique k-mers 84%  Counting unique k-mers 84%  Counting unique k-mers 85%  Counting unique k-mers 85%  Counting unique k-mers 86%  Counting unique k-mers 86%  Counting unique k-mers 86%  Counting unique k-mers 87%  Counting unique k-mers 87%  Counting unique k-mers 88%  Counting unique k-mers 88%  Counting unique k-mers 88%  Counting unique k-mers 89%  Counting unique k-mers 89%  Counting unique k-mers 90%  Counting unique k-mers 90%  Counting unique k-mers 90%  Counting unique k-mers 91%  Counting unique k-mers 91%  Counting unique k-mers 92%  Counting unique k-mers 92%  Counting unique k-mers 92%  Counting unique k-mers 93%  Counting unique k-mers 93%  Counting unique k-mers 94%  Counting unique k-mers 94%  Counting unique k-mers 94%  Counting unique k-mers 95%  Counting unique k-mers 95%  Counting unique k-mers 96%  Counting unique k-mers 96%  Counting unique k-mers 96%  Counting unique k-mers 97%  Counting unique k-mers 97%  Counting unique k-mers 98%  Counting unique k-mers 98%  Counting unique k-mers 98%  Counting unique k-mers 99%  Counting unique k-mers 99%  Counting unique k-mers 100%  Counting unique k-mers 100%
+    Clustering 0%  Clustering 4%  Clustering 8%  Clustering 12%  Clustering 16%  Clustering 20%  Clustering 24%  Clustering 28%  Clustering 32%  Clustering 36%  Clustering 40%  Clustering 44%  Clustering 48%  Clustering 52%  Clustering 56%  Clustering 60%  Clustering 64%  Clustering 68%  Clustering 72%  Clustering 76%  Clustering 80%  Clustering 84%  Clustering 88%  Clustering 92%  Clustering 96%  Clustering 100%  Clustering 100%
+    Writing clusters 0%  Writing clusters 0%  Writing clusters 0%  Writing clusters 1%  Writing clusters 1%  Writing clusters 2%  Writing clusters 2%  Writing clusters 2%  Writing clusters 3%  Writing clusters 3%  Writing clusters 4%  Writing clusters 4%  Writing clusters 4%  Writing clusters 5%  Writing clusters 5%  Writing clusters 6%  Writing clusters 6%  Writing clusters 6%  Writing clusters 7%  Writing clusters 7%  Writing clusters 8%  Writing clusters 8%  Writing clusters 8%  Writing clusters 9%  Writing clusters 9%  Writing clusters 10%  Writing clusters 10%  Writing clusters 10%  Writing clusters 11%  Writing clusters 11%  Writing clusters 12%  Writing clusters 12%  Writing clusters 12%  Writing clusters 13%  Writing clusters 13%  Writing clusters 14%  Writing clusters 14%  Writing clusters 14%  Writing clusters 15%  Writing clusters 15%  Writing clusters 16%  Writing clusters 16%  Writing clusters 16%  Writing clusters 17%  Writing clusters 17%  Writing clusters 18%  Writing clusters 18%  Writing clusters 18%  Writing clusters 19%  Writing clusters 19%  Writing clusters 20%  Writing clusters 20%  Writing clusters 20%  Writing clusters 21%  Writing clusters 21%  Writing clusters 22%  Writing clusters 22%  Writing clusters 22%  Writing clusters 23%  Writing clusters 23%  Writing clusters 24%  Writing clusters 24%  Writing clusters 24%  Writing clusters 25%  Writing clusters 25%  Writing clusters 26%  Writing clusters 26%  Writing clusters 26%  Writing clusters 27%  Writing clusters 27%  Writing clusters 28%  Writing clusters 28%  Writing clusters 28%  Writing clusters 29%  Writing clusters 29%  Writing clusters 30%  Writing clusters 30%  Writing clusters 30%  Writing clusters 31%  Writing clusters 31%  Writing clusters 32%  Writing clusters 32%  Writing clusters 32%  Writing clusters 33%  Writing clusters 33%  Writing clusters 34%  Writing clusters 34%  Writing clusters 34%  Writing clusters 35%  Writing clusters 35%  Writing clusters 36%  Writing clusters 36%  Writing clusters 36%  Writing clusters 37%  Writing clusters 37%  Writing clusters 38%  Writing clusters 38%  Writing clusters 38%  Writing clusters 39%  Writing clusters 39%  Writing clusters 40%  Writing clusters 40%  Writing clusters 40%  Writing clusters 41%  Writing clusters 41%  Writing clusters 42%  Writing clusters 42%  Writing clusters 42%  Writing clusters 43%  Writing clusters 43%  Writing clusters 44%  Writing clusters 44%  Writing clusters 44%  Writing clusters 45%  Writing clusters 45%  Writing clusters 46%  Writing clusters 46%  Writing clusters 46%  Writing clusters 47%  Writing clusters 47%  Writing clusters 48%  Writing clusters 48%  Writing clusters 48%  Writing clusters 49%  Writing clusters 49%  Writing clusters 50%  Writing clusters 50%  Writing clusters 50%  Writing clusters 51%  Writing clusters 51%  Writing clusters 52%  Writing clusters 52%  Writing clusters 52%  Writing clusters 53%  Writing clusters 53%  Writing clusters 54%  Writing clusters 54%  Writing clusters 54%  Writing clusters 55%  Writing clusters 55%  Writing clusters 56%  Writing clusters 56%  Writing clusters 56%  Writing clusters 57%  Writing clusters 57%  Writing clusters 58%  Writing clusters 58%  Writing clusters 58%  Writing clusters 59%  Writing clusters 59%  Writing clusters 60%  Writing clusters 60%  Writing clusters 60%  Writing clusters 61%  Writing clusters 61%  Writing clusters 62%  Writing clusters 62%  Writing clusters 62%  Writing clusters 63%  Writing clusters 63%  Writing clusters 64%  Writing clusters 64%  Writing clusters 64%  Writing clusters 65%  Writing clusters 65%  Writing clusters 66%  Writing clusters 66%  Writing clusters 66%  Writing clusters 67%  Writing clusters 67%  Writing clusters 68%  Writing clusters 68%  Writing clusters 68%  Writing clusters 69%  Writing clusters 69%  Writing clusters 70%  Writing clusters 70%  Writing clusters 70%  Writing clusters 71%  Writing clusters 71%  Writing clusters 72%  Writing clusters 72%  Writing clusters 72%  Writing clusters 73%  Writing clusters 73%  Writing clusters 74%  Writing clusters 74%  Writing clusters 74%  Writing clusters 75%  Writing clusters 75%  Writing clusters 76%  Writing clusters 76%  Writing clusters 76%  Writing clusters 77%  Writing clusters 77%  Writing clusters 78%  Writing clusters 78%  Writing clusters 78%  Writing clusters 79%  Writing clusters 79%  Writing clusters 80%  Writing clusters 80%  Writing clusters 80%  Writing clusters 81%  Writing clusters 81%  Writing clusters 82%  Writing clusters 82%  Writing clusters 82%  Writing clusters 83%  Writing clusters 83%  Writing clusters 84%  Writing clusters 84%  Writing clusters 84%  Writing clusters 85%  Writing clusters 85%  Writing clusters 86%  Writing clusters 86%  Writing clusters 86%  Writing clusters 87%  Writing clusters 87%  Writing clusters 88%  Writing clusters 88%  Writing clusters 88%  Writing clusters 89%  Writing clusters 89%  Writing clusters 90%  Writing clusters 90%  Writing clusters 90%  Writing clusters 91%  Writing clusters 91%  Writing clusters 92%  Writing clusters 92%  Writing clusters 92%  Writing clusters 93%  Writing clusters 93%  Writing clusters 94%  Writing clusters 94%  Writing clusters 94%  Writing clusters 95%  Writing clusters 95%  Writing clusters 96%  Writing clusters 96%  Writing clusters 96%  Writing clusters 97%  Writing clusters 97%  Writing clusters 98%  Writing clusters 98%  Writing clusters 98%  Writing clusters 99%  Writing clusters 99%  Writing clusters 100%  Writing clusters 100%
+    Clusters: 93 Size min 1, max 19, avg 2.7
+    Singletons: 36, 14.4% of seqs, 38.7% of clusters
+    
+    checking partition with 250 ids
+      check time: 0.001
+      vsearch/swarm time: 1.116
+      total time: 14.200
