@@ -394,7 +394,7 @@ string Glomerator::PrintStr(string queries) {
   if(CountMembers(queries) < 10)
     return queries;
   else
-    return to_string(CountMembers(queries));
+    return "len(" + to_string(CountMembers(queries)) + ")";
 }
 
 // ----------------------------------------------------------------------------------------
