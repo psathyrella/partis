@@ -1117,6 +1117,7 @@ def get_seqfile(args, datafname, label, n_leaves, mut_mult):
 def get_seed_info(args, seqfname, n_leaves):
     glfo = utils.read_germline_set(args.datadir)
 
+    print '        getting seed from %s' % seqfname
     start = time.time()
     _, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=False, glfo=glfo)
     print '        seqfileopener time: %.3f' % (time.time()-start)
@@ -1128,7 +1129,7 @@ def get_seed_info(args, seqfname, n_leaves):
     for cluster in true_partition:
         if len(cluster) < args.seed_cluster_bounds[0] or len(cluster) > args.seed_cluster_bounds[1]:
             continue
-        print '  chose seed with size:', len(cluster)
+        print '  chose seed %s for cluster with size %d' % (cluster[0], len(cluster))
         return cluster[0], len(cluster)  # arbitrarily use the first member of the cluster as the seed
 
     raise Exception('couldn\'t find seed in cluster between size %d and %d' % (args.seed_cluster_bounds[0], args.seed_cluster_bounds[1]))
@@ -1263,8 +1264,9 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
     elif action == 'annotate-seed-clusters':
         outfname = get_outputname(args, label, action, seqfname, hfrac_bounds)
         queries = get_seed_cluster(get_outputname(args, label, 'seed-partition', seqfname, hfrac_bounds))
-        extras += ['--outfname', outfname, '--queries', ':'.join(queries), '--n-sets', len(queries)]  # override run-driver's outfname
-        n_procs = max(1, args.n_to_partition / 500)
+        extras += ['--queries=' + ':'.join(queries), '--n-sets', len(queries)]  # override run-driver's outfname
+        cmd += ' --outfname ' + outfname
+        n_procs = max(1, len(queries) / 500)
     elif action == 'run-changeo':
         run_changeo(args, label, n_leaves, mut_mult, seqfname)
         return

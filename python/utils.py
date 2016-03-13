@@ -755,19 +755,17 @@ def add_implicit_info(glfo, line, multi_seq, existing_implicit_keys=None, debug=
                 print '  WARNING pre-existing info %s doesn\'t match new info %s for %s in %s' % (pre_existing_info[ekey], line[ekey], ekey, line['unique_ids'] if multi_seq else line['unique_id'])
 
 # ----------------------------------------------------------------------------------------
-def print_reco_event(germlines, line, one_line=False, extra_str='', label=''):
+def print_reco_event(germlines, line, one_line=False, extra_str='', label='', print_uid=False):
     if 'unique_ids' in line:  # multi_seq line
         for iseq in range(len(line['unique_ids'])):
             tmpline = synthesize_single_seq_line(line, iseq)
-            if extra_str == 'uid':
-                extra_str = tmpline['unique_id']
-            event_str = print_seq_in_reco_event(germlines, tmpline, extra_str=extra_str, label=(label if iseq==0 else ''), one_line=(iseq>0))
+            event_str = print_seq_in_reco_event(germlines, tmpline, extra_str=extra_str, label=(label if iseq==0 else ''), one_line=(iseq>0), print_uid=print_uid)
     else:
         tmpline = copy.deepcopy(line)
         event_str = print_seq_in_reco_event(germlines, tmpline, extra_str=extra_str, label=label, one_line=one_line)
 
 # ----------------------------------------------------------------------------------------
-def print_seq_in_reco_event(germlines, line, extra_str='', label='', one_line=False):
+def print_seq_in_reco_event(germlines, line, extra_str='', label='', one_line=False, print_uid=False):
     """ 
     Print ascii summary of recombination event and mutation.
     If <one_line>, then skip the germline lines, and only print the final_seq line.
@@ -919,6 +917,8 @@ def print_seq_in_reco_event(germlines, line, extra_str='', label='', one_line=Fa
     d_line = color_chars(ambiguous_bases + ['*', ], 'light_blue', d_line)
     vj_line = color_chars(ambiguous_bases + ['*', ], 'light_blue', vj_line)
 
+    if print_uid:
+        extra_str += '%20s' % line['unique_id']
     out_str_list = []
     # insert, d, and vj lines
     if not one_line:
@@ -940,7 +940,10 @@ def print_seq_in_reco_event(germlines, line, extra_str='', label='', one_line=Fa
     j_3p_del_space_str = ' ' * line['j_3p_del']
     final_seq = v_5p_del_space_str + final_seq + j_3p_del_space_str
     final_seq = color_chars(ambiguous_bases + ['*', ], 'light_blue', final_seq)
-    out_str_list.append('%s    %s' % (extra_str, final_seq))
+    out_str_list.append(extra_str)
+    # if print_uid:
+    #     extra_str += '%20s' % line['unique_id']
+    out_str_list.append('    %s' % final_seq)
     out_str_list.append('   %4.2f mut' % (0. if n_total == 0. else float(n_muted) / n_total))
     out_str_list.append('\n')
 
