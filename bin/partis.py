@@ -63,6 +63,7 @@ if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
     print '    TODO add both kinds of translation to testing'
     print '    TODO clean up cluster divvy stuff'
     print '    TODO keep most of the seeded clusters out of things until the end, and also remove non-clonal sequences from consideration alltogether'
+    print '    TODO clean up and comment unseeded cluster removal stuff'
 
 # input and output stuff
 parser.add_argument('--seqfile', help='input sequence file')
@@ -80,7 +81,7 @@ parser.add_argument('--abbreviate', action='store_true', help='abbreviate sequen
 
 # run/batch control
 parser.add_argument('--n-procs', default='1', help='Max/initial number of processes over which to parallelize (Can be colon-separated list: first number is procs for hmm, second (should be smaller) is procs for smith-waterman, hamming, etc.)')
-parser.add_argument('--n-max-procs', default=500, help='never allow more processes than this')
+parser.add_argument('--n-max-procs', default=250, help='never allow more processes than this')
 parser.add_argument('--n-precache-procs', type=int, help='Number of processes to use when precaching naive sequences. Only really useful for testing.')
 parser.add_argument('--slurm', action='store_true', help='Run multiple processes with slurm, otherwise just runs them on local machine. NOTE make sure to set <workdir> to something visible on all batch nodes.')
 parser.add_argument('--queries', help='Colon-separated list of query names to which we restrict ourselves')

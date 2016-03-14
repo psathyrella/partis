@@ -22,7 +22,13 @@ def translate_columns(line, translations):  # NOTE similar to code in utils.get_
             del line[key]
 
 # ----------------------------------------------------------------------------------------
+def get_more_names(potential_names):
+    potential_names += [''.join(ab) for ab in itertools.combinations(potential_names, 2)]
+
+# ----------------------------------------------------------------------------------------
 def abbreviate(used_names, potential_names, unique_id):
+    if len(used_names) >= len(potential_names):
+        get_more_names(potential_names)
     ilet = 0
     new_id = potential_names[ilet]
     while new_id in used_names:  # NOTE this is kind of wasteful, since they're both ordered I could just keep track of which one to use next
@@ -87,8 +93,6 @@ def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, 
     used_names = set()  # for abbreviating
     if abbreviate_names:
         potential_names = list(string.ascii_lowercase)
-        while n_max_queries > len(potential_names):
-            potential_names += [''.join(ab) for ab in itertools.combinations(potential_names, 2)]
     for line in reader:
         if name_column not in line or seq_column not in line:
             raise Exception('mandatory headers \'%s\' and \'%s\' not both present in %s (set with --name-column and --seq-column)' % (name_column, seq_column, fname))
@@ -96,8 +100,6 @@ def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, 
             translate_columns(line, {name_column : internal_name_column, seq_column: internal_seq_column})
         utils.process_input_line(line)
         unique_id = line[internal_name_column]
-        if abbreviate_names:
-            unique_id = abbreviate(used_names, potential_names, unique_id)
         if any(fc in unique_id for fc in utils.forbidden_characters):
             raise Exception('found a forbidden character (one of %s) in sequence id \'%s\' -- sorry, you\'ll have to replace it with something else' % (' '.join(["'" + fc + "'" for fc in utils.forbidden_characters]), unique_id))
 
@@ -109,6 +111,9 @@ def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, 
 
         if unique_id in input_info:
             raise Exception('found id %s twice in file %s' % (unique_id, fname))
+
+        if abbreviate_names:
+            unique_id = abbreviate(used_names, potential_names, unique_id)
 
         if seed_unique_id is not None and unique_id == seed_unique_id:
             found_seed = True
@@ -134,5 +139,5 @@ def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, 
         raise Exception('didn\'t end up pulling any input info out of %s while looking for queries: %s reco_ids: %s\n' % (fname, str(queries), str(reco_ids)))
     if seed_unique_id is not None and not found_seed:
         raise Exception('couldn\'t find seed %s in %s' % (seed_unique_id, fname))
-    
+
     return (input_info, reco_info)
