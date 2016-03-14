@@ -735,7 +735,7 @@ vector<Sequence> Glomerator::MergeSeqVectors(string name_a, string name_b) {
     string name(merged_seqs[is].name());
     if(all_names.count(name)) {
       if(args_->seed_unique_id() == "" || !InString(args_->seed_unique_id(), name))  // if seed id isn't set, or if it is set but it isn't in <name>
-	throw runtime_error("tried to add sequence with name " + name + " twice in Glomerator::MergeSeqVectors()");
+	throw runtime_error("tried to add sequence with name " + name + " twice in Glomerator::MergeSeqVectors()\n    when merging " + name_a + " and " + name_b);
     } else {
       all_names.insert(name);
     }
