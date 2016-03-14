@@ -181,8 +181,8 @@ class PartitionDriver(object):
             step_start = time.time()
             nclusters = self.get_n_clusters()
             print '--> %d clusters with %d procs' % (nclusters, n_procs)  # write_hmm_input uses the best-minus-ten partition
-            self.run_hmm('forward', self.args.parameter_dir, n_procs=n_procs, divvy_with_bcrham=(self.get_n_clusters() > self.n_max_divvy and self.args.no_random_divvy))
             self.n_proc_list.append(n_procs)
+            self.run_hmm('forward', self.args.parameter_dir, n_procs=n_procs, divvy_with_bcrham=(self.get_n_clusters() > self.n_max_divvy and self.args.no_random_divvy))
 
             print '      partition step time: %.3f' % (time.time()-step_start)
             if n_procs == 1 or len(self.n_proc_list) >= self.args.n_partition_steps:
@@ -643,7 +643,7 @@ class PartitionDriver(object):
             raise Exception('bad n_procs %s' % n_procs)
 
         # if not naive_hamming_cluster:  # should already be there
-        self.write_hmm_input(parameter_dir=parameter_in_dir)  # TODO don't keep rewriting it
+        self.write_hmm_input(parameter_in_dir, n_procs)  # TODO don't keep rewriting it
 
         cmd_str = self.get_hmm_cmd_str(algorithm, self.hmm_infname, self.hmm_outfname, parameter_dir=parameter_in_dir, cache_naive_seqs=cache_naive_seqs, n_procs=n_procs)
         if cache_naive_seqs:
@@ -1141,6 +1141,14 @@ class PartitionDriver(object):
                 })
 
     # ----------------------------------------------------------------------------------------
+    def remove_unseeded_clusters(self, n_procs):
+        if len(self.n_proc_list) > 2:
+            return True
+        if n_procs == 1:
+            return True
+        return False
+
+    # ----------------------------------------------------------------------------------------
     def write_to_single_input_file(self, fname, mode, nsets, parameter_dir, skipped_gene_matches, path_index=0, logweight=0.):
         csvfile = opener(mode)(fname)
         header = ['path_index', 'logweight', 'names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'only_genes', 'seqs', 'mute_freqs']  # NOTE logweight is for the whole partition
@@ -1176,7 +1184,7 @@ class PartitionDriver(object):
         csvfile.close()
 
     # ----------------------------------------------------------------------------------------
-    def write_hmm_input(self, parameter_dir):
+    def write_hmm_input(self, parameter_dir, n_procs):
         """ Write input file for bcrham """
         print '    writing input'
 
@@ -1202,7 +1210,9 @@ class PartitionDriver(object):
         else:
             if self.args.action == 'partition':
                 nsets = copy.deepcopy(self.paths[-1].partitions[self.paths[-1].i_best_minus_x])
-                if self.args.seed_unique_id is not None and len(self.n_proc_list) > 0:
+                print '      len n proc', len(self.n_proc_list)
+                if self.args.seed_unique_id is not None and self.remove_unseeded_clusters(n_procs):  # length of n_proc_list is the number of previous clustering steps we've run (i.e. before the one for which we're currently writing input)
+                    print '      ', ' '.join([':'.join(ns) for ns in nsets if self.args.seed_unique_id in ns])
                     seeded_queries = set()
                     for ns in nsets:
                         if self.args.seed_unique_id in ns:
@@ -1213,7 +1223,8 @@ class PartitionDriver(object):
                             uid = ns[0]
                             self.unseeded_queries.add(uid)
                     print '      unseeded len %d' % len(self.unseeded_queries)
-                    nsets = [[qr] for qr in seeded_queries]  # [ns for ns in nsets if self.args.seed_unique_id in ns]
+                    nsets = [[qr] for qr in seeded_queries]  # 
+                    print '      ', nsets
             else:
                 if self.args.n_sets == 1:  # single vanilla hmm (does the same thing as the below for n=1, but is more transparent)
                     nsets = [[qn] for qn in self.sw_info['queries']]
