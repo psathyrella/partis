@@ -44,7 +44,8 @@ class PartitionDriver(object):
         self.n_max_divvy = 100  # if input info is longer than this, divvy with bcrham
         self.n_max_calc_per_process = 200  # if a bcrham process calc'd more than this many fwd + vtb values, don't decrease the number of processes in the next step
 
-        self.unseeded_queries = set()  # all the queries that we *didn't* cluster with the seed uid
+        self.unseeded_clusters = set()  # all the queries that we *didn't* cluster with the seed uid
+        self.time_to_remove_unseeded_clusters = False
 
         self.hmm_infname = self.args.workdir + '/hmm_input.csv'
         self.hmm_cachefname = self.args.workdir + '/hmm_cached_info.csv'
@@ -142,33 +143,20 @@ class PartitionDriver(object):
             assert len(self.paths) == 0
             self.paths.append(cp)
         else:
-            initial_divvied_queries = self.divvy_up_queries(n_procs, [line for line in self.sw_info.values() if 'unique_id' in line], 'unique_id', 'seq')
-            assert len(self.smc_info) == 0
-            self.smc_info.append([])
-            for clusters in initial_divvied_queries:  # one set of <clusters> for each process
-                self.smc_info[-1].append([])
-                for iptl in range(self.args.smc_particles):
-                    cp = ClusterPath()
-                    cp.add_partition([[cl, ] for cl in clusters], logprob=0., n_procs=n_procs)
-                    self.smc_info[-1][-1].append(cp)
+            assert False  # deprecated (but don't remove the commented block)
+            # initial_divvied_queries = self.divvy_up_queries(n_procs, [line for line in self.sw_info.values() if 'unique_id' in line], 'unique_id', 'seq')
+            # assert len(self.smc_info) == 0
+            # self.smc_info.append([])
+            # for clusters in initial_divvied_queries:  # one set of <clusters> for each process
+            #     self.smc_info[-1].append([])
+            #     for iptl in range(self.args.smc_particles):
+            #         cp = ClusterPath()
+            #         cp.add_partition([[cl, ] for cl in clusters], logprob=0., n_procs=n_procs)
+            #         self.smc_info[-1][-1].append(cp)
 
         # cache hmm naive seqs for each single query
         if len(self.sw_info['queries']) > 50 or self.args.naive_vsearch or self.args.naive_swarm:
-            if self.args.n_precache_procs is None:
-                n_seqs = len(self.sw_info['queries'])
-                seqs_per_proc = 500  # 2.5 mins (at something like 0.3 sec/seq)
-                if n_seqs > 3000:
-                    seqs_per_proc *= 2
-                if n_seqs > 10000:
-                    seqs_per_proc *= 1.5
-                n_precache_procs = int(math.ceil(float(n_seqs) / seqs_per_proc))
-                n_precache_procs = min(n_precache_procs, self.args.n_max_procs)  # I can't get more'n a few hundred slots at a time, so it isn't worth using too much more than that
-                if not self.args.slurm and not utils.auto_slurm(self.args.n_procs):  # if we're not on slurm, make sure it's less than the number of cpus
-                    n_precache_procs = min(n_precache_procs, multiprocessing.cpu_count())
-            else:  # allow to override from command line (really just to make testing a bit faster)
-                n_precache_procs = self.args.n_precache_procs
-            print '    precache procs', n_precache_procs
-            self.run_hmm('viterbi', self.args.parameter_dir, n_procs=n_precache_procs, cache_naive_seqs=True)
+            self.run_hmm('viterbi', self.args.parameter_dir, n_procs=self.get_n_precache_procs(), cache_naive_seqs=True)
 
         if self.args.naive_vsearch or self.args.naive_swarm:
             self.cluster_with_naive_vsearch_or_swarm(self.args.parameter_dir)
@@ -181,8 +169,8 @@ class PartitionDriver(object):
             step_start = time.time()
             nclusters = self.get_n_clusters()
             print '--> %d clusters with %d procs' % (nclusters, n_procs)  # write_hmm_input uses the best-minus-ten partition
-            self.n_proc_list.append(n_procs)
             self.run_hmm('forward', self.args.parameter_dir, n_procs=n_procs, divvy_with_bcrham=(self.get_n_clusters() > self.n_max_divvy and self.args.no_random_divvy))
+            self.n_proc_list.append(n_procs)
 
             print '      partition step time: %.3f' % (time.time()-step_start)
             if n_procs == 1 or len(self.n_proc_list) >= self.args.n_partition_steps:
@@ -215,7 +203,7 @@ class PartitionDriver(object):
                 self.write_clusterpaths(self.args.outfname, [path, ], deduplicate_uid=self.args.seed_unique_id)  # [last agglomeration step]
                 print '      write time: %.3f' % (time.time()-start)
         else:
-            assert False  # deprecated
+            assert False  # deprecated (but don't remove the commented block)
             # # self.merge_pairs_of_procs(1)  # DAMMIT why did I have this here? I swear there was a reason but I can't figure it out, and it seems to work without it
             # final_paths = self.smc_info[-1][0]  # [last agglomeration step][first (and only) process in the last step]
             # for path in final_paths:
@@ -248,12 +236,6 @@ class PartitionDriver(object):
         if self.args.smc_particles > 1:
             return len(self.smc_info[-1])  # if we're doing smc, the number of particles is determined by the file merging process
 
-        if self.args.seed_unique_id is not None and len(self.unseeded_queries) > 0:
-            last_seqs_per_proc = int(float(len(self.input_info)) / n_procs)
-            n_remaining_seqs = len(self.input_info) - len(self.unseeded_queries)
-            print '  new n_procs %d = %d / %d' % (max(1, int(float(n_remaining_seqs) / last_seqs_per_proc)), n_remaining_seqs, last_seqs_per_proc)
-            return max(1, int(float(n_remaining_seqs) / last_seqs_per_proc))
-
         n_calcd_per_process = self.get_n_calculated_per_process()
         factor = 1.3
 
@@ -261,10 +243,20 @@ class PartitionDriver(object):
         if n_calcd_per_process < self.n_max_calc_per_process or self.n_proc_list.count(n_procs) > n_procs:  # if we didn't need to do that many calculations, or if we've already milked this number of procs for most of what it's worth
             reduce_n_procs = True
 
+        next_n_procs = n_procs
         if reduce_n_procs:
-            n_procs = int(n_procs / factor)
+            next_n_procs = int(next_n_procs / float(factor))
 
-        return n_procs
+        if self.args.seed_unique_id is not None and (len(self.n_proc_list) > 2 or next_n_procs == 1):
+            print '     time to remove unseeded clusters'
+            self.time_to_remove_unseeded_clusters = True
+            initial_seqs_per_proc = int(float(len(self.input_info)) / self.n_proc_list[0])
+            self.unseeded_clusters = self.get_unseeded_clusters(self.paths[-1].partitions[self.paths[-1].i_best_minus_x])
+            n_remaining_seqs = len(self.input_info) - len(self.unseeded_clusters)
+            next_n_procs = max(1, int(float(n_remaining_seqs) / initial_seqs_per_proc))
+            print '        new n_procs %d = %d / %d' % (next_n_procs, n_remaining_seqs, initial_seqs_per_proc)
+
+        return next_n_procs
 
     # ----------------------------------------------------------------------------------------
     def check_partition(self, partition):
@@ -272,7 +264,7 @@ class PartitionDriver(object):
         uids = set([uid for cluster in partition for uid in cluster])
         print '    checking partition with %d ids' % len(uids)
         input_ids = set(self.input_info.keys())  # maybe should switch this to self.sw_info['queries']? at least if we want to not worry about missing failed sw queries
-        missing_ids = input_ids - uids - self.unseeded_queries
+        missing_ids = input_ids - uids - self.unseeded_clusters
         if len(missing_ids) > 0:
             warnstr = 'queries missing from partition: ' + ' '.join(missing_ids)
             print '  ' + utils.color('red', 'warning') + ' ' + warnstr
@@ -292,6 +284,24 @@ class PartitionDriver(object):
                     n_remaining = 0
                 while cluster.count(deduplicate_uid) > n_remaining:
                     cluster.remove(deduplicate_uid)
+
+    # ----------------------------------------------------------------------------------------
+    def get_n_precache_procs(self):
+        if self.args.n_precache_procs is None:
+            n_seqs = len(self.sw_info['queries'])
+            seqs_per_proc = 500  # 2.5 mins (at something like 0.3 sec/seq)
+            if n_seqs > 3000:
+                seqs_per_proc *= 2
+            if n_seqs > 10000:
+                seqs_per_proc *= 1.5
+            n_precache_procs = int(math.ceil(float(n_seqs) / seqs_per_proc))
+            n_precache_procs = min(n_precache_procs, self.args.n_max_procs)  # I can't get more'n a few hundred slots at a time, so it isn't worth using too much more than that
+            if not self.args.slurm and not utils.auto_slurm(self.args.n_procs):  # if we're not on slurm, make sure it's less than the number of cpus
+                n_precache_procs = min(n_precache_procs, multiprocessing.cpu_count())
+        else:  # allow to override from command line (really just to make testing a bit faster)
+            n_precache_procs = self.args.n_precache_procs
+        print '      precache procs', n_precache_procs
+        return n_precache_procs
 
     # ----------------------------------------------------------------------------------------
     def write_clusterpaths(self, outfname, paths, deduplicate_uid=None):
@@ -1141,12 +1151,25 @@ class PartitionDriver(object):
                 })
 
     # ----------------------------------------------------------------------------------------
-    def remove_unseeded_clusters(self, n_procs):
-        if len(self.n_proc_list) > 2:
-            return True
-        if n_procs == 1:
-            return True
-        return False
+    def get_seeded_clusters(self, nsets):
+        print '      ', ' '.join([':'.join(ns) for ns in nsets if self.args.seed_unique_id in ns])
+        seeded_clusters = set()
+        for ns in nsets:
+            if self.args.seed_unique_id in ns:
+                for uid in ns:  # add each individual query that's been clustered with the seed (but split apart)
+                    seeded_clusters.add(uid)
+        print '      ', ' '.join(seeded_clusters)
+        return seeded_clusters
+
+    # ----------------------------------------------------------------------------------------
+    def get_unseeded_clusters(self, nsets):
+        unseeded_clusters = set()
+        for ns in nsets:
+            if self.args.seed_unique_id not in ns:
+                assert len(ns) == 1
+                uid = ns[0]
+                unseeded_clusters.add(uid)
+        return unseeded_clusters
 
     # ----------------------------------------------------------------------------------------
     def write_to_single_input_file(self, fname, mode, nsets, parameter_dir, skipped_gene_matches, path_index=0, logweight=0.):
@@ -1210,21 +1233,8 @@ class PartitionDriver(object):
         else:
             if self.args.action == 'partition':
                 nsets = copy.deepcopy(self.paths[-1].partitions[self.paths[-1].i_best_minus_x])
-                print '      len n proc', len(self.n_proc_list)
-                if self.args.seed_unique_id is not None and self.remove_unseeded_clusters(n_procs):  # length of n_proc_list is the number of previous clustering steps we've run (i.e. before the one for which we're currently writing input)
-                    print '      ', ' '.join([':'.join(ns) for ns in nsets if self.args.seed_unique_id in ns])
-                    seeded_queries = set()
-                    for ns in nsets:
-                        if self.args.seed_unique_id in ns:
-                            for uid in ns:  # add each individual query that's been clustered with the seed (but split apart)
-                                seeded_queries.add(uid)
-                        else:
-                            assert len(ns) == 1
-                            uid = ns[0]
-                            self.unseeded_queries.add(uid)
-                    print '      unseeded len %d' % len(self.unseeded_queries)
-                    nsets = [[qr] for qr in seeded_queries]  # 
-                    print '      ', nsets
+                if self.args.seed_unique_id is not None and self.time_to_remove_unseeded_clusters:  # length of n_proc_list is the number of previous clustering steps we've run (i.e. before the one for which we're currently writing input)
+                    nsets = [[qr] for qr in self.get_seeded_clusters(nsets)]
             else:
                 if self.args.n_sets == 1:  # single vanilla hmm (does the same thing as the below for n=1, but is more transparent)
                     nsets = [[qn] for qn in self.sw_info['queries']]
