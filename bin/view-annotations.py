@@ -25,5 +25,5 @@ with open(args.infname) as infile:
     reader = csv.DictReader(infile)
     for line in reader:
         utils.process_input_line(line)
-        utils.add_implicit_info(glfo, line, multi_seq=True, existing_implicit_keys=('aligned_d_seqs', 'aligned_j_seqs', 'aligned_v_seqs', 'cdr3_length', 'naive_seq'))
+        utils.add_implicit_info(glfo, line, multi_seq=True, existing_implicit_keys=('aligned_d_seqs', 'aligned_j_seqs', 'aligned_v_seqs', 'cdr3_length', 'naive_seq', 'in_frames', 'mutated_invariants', 'stops'))
         utils.print_reco_event(glfo['seqs'], line, print_uid=True)

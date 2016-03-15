@@ -137,6 +137,7 @@ functional_columns = ['mutated_invariant', 'in_frame', 'stop']
 column_configs = {
     'ints' : ('nth_best', 'v_5p_del', 'd_5p_del', 'cdr3_length', 'j_5p_del', 'j_3p_del', 'd_3p_del', 'v_3p_del'),
     'floats' : ('logprob'),
+    'bools' : tuple([fc + 's' for fc in functional_columns]),
     'literals' : ('indelfos'),
     'lists' : tuple(['unique_ids', 'seqs', 'aligned_seqs', 'aligned_v_seqs', 'aligned_d_seqs', 'aligned_j_seqs'] + [fc + 's' for fc in functional_columns])
 }
@@ -1294,6 +1295,19 @@ def prep_dir(dirname, wildling=None, multilings=None):
             assert False
 
 # ----------------------------------------------------------------------------------------
+def useful_bool(bool_str):
+    if bool_str == 'True':
+        return True
+    elif bool_str == 'False':
+        return False
+    elif bool_str == '1':
+        return True
+    elif bool_str == '0':
+        return False
+    else:
+        raise Exception('couldn\'t convert \'%s\' to bool' % bool_str)
+
+# ----------------------------------------------------------------------------------------
 def process_input_line(info):
     """ 
     Attempt to convert all the keys and values in <info> from str to int.
@@ -1317,6 +1331,8 @@ def process_input_line(info):
             convert_fcn = int
         elif key in ccfg['floats']:
             convert_fcn = float
+        elif key in ccfg['bools']:
+            convert_fcn = useful_bool
         elif key in ccfg['literals']:
             convert_fcn = ast.literal_eval
 
@@ -1510,7 +1526,8 @@ def get_cluster_ids(uids, partition):
 
 # ----------------------------------------------------------------------------------------
 def new_ccfs_that_need_better_names(partition, true_partition, reco_info, seed_unique_id=None):
-    check_intersection_and_complement(partition, true_partition)
+    if seed_unique_id is None:
+        check_intersection_and_complement(partition, true_partition)
     reco_ids = {uid : reco_info[uid]['reco_id'] for cluster in partition for uid in cluster}  # just a teensy lil' optimization
     uids = set([uid for cluster in partition for uid in cluster])
     clids = get_cluster_ids(uids, partition)  # inferred cluster ids
@@ -1534,6 +1551,8 @@ def new_ccfs_that_need_better_names(partition, true_partition, reco_info, seed_u
     mean_clonal_fraction, mean_fraction_present = 0., 0.
     n_uids = 0
     for true_cluster in true_partition:
+        if seed_unique_id is not None and seed_unique_id not in true_cluster:
+            continue
         for uid in true_cluster:
             if seed_unique_id is not None and uid != seed_unique_id:
                 continue

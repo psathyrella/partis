@@ -91,14 +91,16 @@ leaf_mut_hum="--n-leaf-list $nl --mutation-multipliers 1 --humans 021-018"
 # ./bin/compare-partition-methods.py --actions cache-simu-parameters $leaf_mut_hum $xtra --n-simu-to-cache 200000 &
 # istartstoplist="0:250 250:750 750:1500 1500:2500 2500:4000 4000:6500 6500:9500 9500:13500 13500:18500 18500:26000 26000:36000 36000:51000 51000:71000 71000:101000 101000:141000 141000:191000 191000:266000 266000:366000 366000:516000 516000:816000 816000:1316000 1316000:2066000"
 # istartstoplist="0:250 71000:101000 366000:516000 26000:36000 141000:191000 2500:4000 266000:366000 "
-istartstoplist="0:30"  #1000000:1500000"  #0:750000 816000:1316000 516000:816000 26000:36000 366000:516000 71000:101000 0:2000
+# istartstoplist="7:500007 500007:1000007 1000007:1500007" #0:750000 #816000:1316000 516000:816000  1000000:1500000  26000:36000 366000:516000 71000:101000 0:2000 0:30
+istartstoplist="51000:71000" # 71000:101000 101000:141000 141000:191000 191000:266000 266000:366000 366000:516000 516000:816000 816000:1316000 1316000:2066000"
+# istartstoplist="0:500000 500000:800000 800000:950000 950000:1050000 1050000:1125000 1125000:1175000 1175000:1215000 1215000:1245000 1245000:1265000 1265000:1280000 1280000:1290000 1290000:1297500 1297500:1302500 1302500:1306500 1306500:1309500 1309500:1312000 1312000:1313500 1313500:1314500 1314500:1315250 1315250:1315750 1315750:1316000"
 istartstopstr=`echo $istartstoplist | sed -e 's/:/,/g' -e 's/ /:/g'`
 for istartstop in $istartstoplist; do  # see code below to generate these
     # ./bin/compare-partition-methods.py --actions naive-hamming-partition:partition:run-viterbi:vsearch-partition --istartstop $istartstop $leaf_mut_hum $xtra &
     # ./bin/compare-partition-methods.py --actions seed-partition --istartstop $istartstop $leaf_mut_hum $xtra &
     # ./bin/compare-partition-methods.py --actions write-plots --istartstop $istartstop $leaf_mut_hum --expected-methods run-viterbi:partition:naive-hamming-partition:vsearch-partition:synthetic --no-similarity-matrices $xtra &  # --count-distances &
     ./bin/compare-partition-methods.py --actions annotate-seed-clusters --istartstop $istartstop $leaf_mut_hum $xtra  # --count-distances & --no-similarity-matrices 
-    # ./bin/compare-partition-methods.py --actions write-plots --istartstop $istartstop $leaf_mut_hum --expected-methods seed-naive-hamming-partition $xtra --no-similarity-matrices  # --count-distances & --no-similarity-matrices 
+    # ./bin/compare-partition-methods.py --actions write-plots --istartstop $istartstop $leaf_mut_hum --expected-methods seed-partition $xtra --no-similarity-matrices  # --count-distances & --no-similarity-matrices 
     # break
 done
 # ./bin/compare-partition-methods.py --actions compare-subsets --istartstoplist $istartstopstr $leaf_mut_hum --expected-methods vollmers-0.9:mixcr:partition:naive-hamming-partition:vsearch-partition:misassign-0.60-singletons:misassign-distance-0.03 --no-similarity-matrices $xtra &
