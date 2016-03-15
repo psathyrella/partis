@@ -795,9 +795,9 @@ def print_true_events(glfo, reco_info, line, print_uid=False):
         print_reco_event(glfo['seqs'], synthetic_true_line, extra_str='    ', label='true:', print_uid=print_uid)
         true_naive_seqs.append(synthetic_true_line['naive_seq'])
 
-    print ''
+    print '\ntrue vs inferred naive sequences:'
     for tseq in true_naive_seqs:
-        color_mutants(tseq, inferred_naive_seq, print_result=True, print_hfrac=True, ref_label='true naive ')
+        color_mutants(tseq, inferred_naive_seq, print_result=True, print_hfrac=True, ref_label='true ')
     print ''
 
 # ----------------------------------------------------------------------------------------
@@ -964,7 +964,7 @@ def print_seq_in_reco_event(germlines, line, extra_str='', label='', one_line=Fa
     vj_line = color_chars(ambiguous_bases + ['*', ], 'light_blue', vj_line)
 
     if print_uid:
-        extra_str += '%20s' % line['unique_id']
+        extra_str += '%20s ' % line['unique_id']
     out_str_list = []
     # insert, d, and vj lines
     if not one_line:
