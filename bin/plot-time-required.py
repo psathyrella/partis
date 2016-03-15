@@ -17,13 +17,21 @@ args = parser.parse_args()
 args.actions = utils.get_arg_list(args.actions)
 
 fsdir = '/fh/fast/matsen_e/dralph/work/partis-dev/_output'
+simfbase = 'simu-7-leaves-1.0-mutate'
+simfbase_seed = 'simu-2.3-leaves-1.0-mutate-zipf'
 human = '021-018'
 istartstopstr_list_str = '0:250 250:750 750:1500 1500:2500 2500:4000 4000:6500 6500:9500 9500:13500 13500:18500 18500:26000 26000:36000 36000:51000 51000:71000 71000:101000 101000:141000 141000:191000 191000:266000 266000:366000 350000:500000 366000:516000'
+istartstopstr_list_str_seed = '51000:71000 71000:101000 101000:141000 141000:191000 191000:266000 266000:366000 366000:516000 516000:816000 816000:1316000 1316000:2066000 7:500007 500007:1000007 1000007:1500007 7:1000007'
 istartstopstr_list = istartstopstr_list_str.split(' ')
+istartstopstr_list_seed = istartstopstr_list_str_seed.split(' ')
 istartstoplist = []
 for istartstopstr in istartstopstr_list:
     istartstoplist.append([int(iss) for iss in istartstopstr.split(':')])
 n_query_list = [istartstop[1] - istartstop[0] for istartstop in istartstoplist]
+istartstoplist_seed = []
+for istartstopstr in istartstopstr_list_seed:
+    istartstoplist_seed.append([int(iss) for iss in istartstopstr.split(':')])
+n_query_list_seed = [istartstop[1] - istartstop[0] for istartstop in istartstoplist_seed]
 
 timeinfo = OrderedDict()
 # NOTE edited some of these values for current code version Dec 22 2015
@@ -62,7 +70,11 @@ def make_plot():
             continue
         print meth, vals
         interpolate_values(n_query_list, vals)
-        plots[meth] = ax.plot(n_query_list, vals, linewidth=linewidths.get(meth, 4), label=legends.get(meth, meth), color=colors.get(meth, 'grey'), linestyle=linestyles.get(meth, 'solid'), alpha=alphas.get(meth, 1.))  #, markersize=1000)
+        if meth == 'seed-partition':
+            nql = n_query_list_seed
+        else:
+            nql = n_query_list
+        plots[meth] = ax.plot(nql, vals, linewidth=linewidths.get(meth, 4), label=legends.get(meth, meth), color=colors.get(meth, 'grey'), linestyle=linestyles.get(meth, 'solid'), alpha=alphas.get(meth, 1.))  #, markersize=1000)
     
     legend = ax.legend(loc=(.04, .64)) # 'upper left')
     sns.despine()  #trim=True, bottom=True)
@@ -78,8 +90,8 @@ def make_plot():
     plt.savefig(os.getenv('www') + '/partis/clustering/time-required.svg')
     sys.exit()
 
-def get_clock_time(istart, istop, action):
-    logfname = fsdir + '/' + human + '/istartstop-' + str(istart) + '-' + str(istop) + '/_logs/simu-7-leaves-1.0-mutate-' + action + '.out'
+def get_clock_time(istart, istop, action, fbase):
+    logfname = fsdir + '/' + human + '/istartstop-' + str(istart) + '-' + str(istop) + '/_logs/' + fbase + '-' + action + '.out'
     if args.timegrep:
         # check_call(['ls', '-ltrh', logfname])
         try:
@@ -98,7 +110,13 @@ for action in args.actions:
     if action == 'run-viterbi':
         aname = 'vollmers-0.9'
     timeinfo[aname] =  []
-    for istart, istop in istartstoplist:
-        timeinfo[aname].append(get_clock_time(istart, istop, action))
+    if action == 'seed-partition':
+        list_to_use = istartstoplist_seed
+        fbase = simfbase_seed
+    else:
+        list_to_use = istartstoplist
+        fbase = simfbase
+    for istart, istop in list_to_use:
+        timeinfo[aname].append(get_clock_time(istart, istop, action, fbase))
 
 make_plot()

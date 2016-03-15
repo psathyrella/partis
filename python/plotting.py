@@ -889,19 +889,21 @@ def plot_adj_mi_and_co(plotname, plotvals, mut_mult, plotdir, valname, xvar, tit
                   'label' : legends.get(meth, meth),
                   'color' : colors.get(meth, 'grey'),
                   'linestyle' : linestyles.get(meth, 'solid'),
-                  'alpha' : alphas.get(meth, 1.)
+                  'alpha' : alphas.get(meth, 1.),
                   }
         if xvar == 'n_leaves':
             kwargs['fmt'] = '-o'
             plots[meth] = ax.errorbar(xvals, yvals, yerr=yerrs, **kwargs)
         else:  # darn it, the order in the legend gets messed up if I do some as .plot and some as .errorbar
+            kwargs['marker'] = '.'
+            kwargs['markersize'] = 10
             plots[meth] = ax.plot(xvals, yvals, **kwargs)
     
     lx, ly = 1.6, 0.7
     legend = ax.legend(bbox_to_anchor=(lx, ly))
     # legend.get_frame().set_facecolor('white')
     ymin = -0.01
-    ax.set_ylim(ymin, 1.01)
+    ax.set_ylim(ymin, 1.03)
     sns.despine()  #trim=True, bottom=True)
     plt.title(title)
     xtitle = 'mean N leaves' if xvar == 'n_leaves' else 'sample size'
@@ -933,7 +935,7 @@ def plot_adj_mi_and_co(plotname, plotvals, mut_mult, plotdir, valname, xvar, tit
         #     xticks.remove(750)
         # xticks += xvals[-1:]
         # xticks = [100, 5000, 10000, 15000]
-        xticks = [100, 1000, 10000, 200000]
+        xticks = [100, 1000, 10000, 100000, 1000000]
         ax.set_xscale('log')
         ax.set_xlim(0.9 * xvals[0], 1.05 * xvals[-1])
 

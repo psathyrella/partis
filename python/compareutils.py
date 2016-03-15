@@ -79,6 +79,8 @@ def leafmutstr(args, n_leaves, mut_mult, hfrac_bounds=None):
         return_str += '-box'
     if args.zipf:
         return_str += '-zipf'
+    # if args.iseed is not None:
+    #     return_str += '-iseed-' + args.iseed
     return return_str
 
 # ----------------------------------------------------------------------------------------
@@ -1126,10 +1128,14 @@ def get_seed_info(args, seqfname, n_leaves):
     true_partition = utils.get_true_partition(reco_info)
     print '        time to get true partition: %.3f' % (time.time()-start)
 
+    # nth_seed = 0  # don't always take the first one we find
     for cluster in true_partition:
         if len(cluster) < args.seed_cluster_bounds[0] or len(cluster) > args.seed_cluster_bounds[1]:
             continue
-        print '  chose seed %s for cluster with size %d' % (cluster[0], len(cluster))
+        # if args.iseed is not None and args.iseed > nth_seed:
+        #     nth_seed += 1
+        #     continue
+        print '    chose seed %s in cluster %s with size %d' % (cluster[0], reco_info[cluster[0]]['reco_id'], len(cluster))
         return cluster[0], len(cluster)  # arbitrarily use the first member of the cluster as the seed
 
     raise Exception('couldn\'t find seed in cluster between size %d and %d' % (args.seed_cluster_bounds[0], args.seed_cluster_bounds[1]))
@@ -1287,7 +1293,7 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
         return
 
     extras += ['--workdir', args.fsdir.replace('_output', '_tmp') + '/' + str(random.randint(0, 99999))]
-    if action != 'simulate':
+    if action != 'simulate' and not args.no_slurm:
         extras += ['--slurm', ]
 
     print 'TODO put in something to reduce the number of procs for large samples'
