@@ -1245,7 +1245,7 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
         elif 'seed-' in action:
             seed_unique_id, seed_cluster_size = get_seed_info(args, seqfname, n_leaves)
             extras += ['--seed-unique-id', seed_unique_id]
-            seqs_per_proc = 3000 #300
+            seqs_per_proc = 6000
             if args.n_to_partition > 30000:
                 seqs_per_proc *= 3
             n_procs = max(1, args.n_to_partition / seqs_per_proc)
