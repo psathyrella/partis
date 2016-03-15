@@ -1471,12 +1471,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def print_hmm_output(self, line, print_true=False):
         if print_true and not self.args.is_data:  # first print true event (if this is simulation)
-            for uids in utils.get_true_partition(self.reco_info, ids=line['unique_ids']):  # make a multi-seq line that has all the seqs from this clonal family
-                seqs = [self.reco_info[iid]['seq'] for iid in uids]
-                indelfos = [self.reco_info[iid]['indelfo'] for iid in uids]
-                per_seq_info = {'unique_ids' : uids, 'seqs' : seqs, 'indelfos' : indelfos}
-                synthetic_true_line = utils.synthesize_multi_seq_line(self.glfo, self.reco_info[uids[0]], per_seq_info)
-                utils.print_reco_event(self.glfo['seqs'], synthetic_true_line, extra_str='    ', label='true:')
+            utils.print_true_events(self.glfo, self.reco_info, line)
 
         utils.print_reco_event(self.glfo['seqs'], line, extra_str='    ', label='inferred:')
 

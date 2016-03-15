@@ -95,7 +95,7 @@ def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, 
         potential_names = list(string.ascii_lowercase)
     for line in reader:
         if name_column not in line or seq_column not in line:
-            raise Exception('mandatory headers \'%s\' and \'%s\' not both present in %s (set with --name-column and --seq-column)' % (name_column, seq_column, fname))
+            raise Exception('mandatory headers \'%s\' and \'%s\' not both present in %s    (you can set column names with --name-column and --seq-column)' % (name_column, seq_column, fname))
         if name_column != internal_name_column or seq_column != internal_seq_column:
             translate_columns(line, {name_column : internal_name_column, seq_column: internal_seq_column})
         utils.process_input_line(line)

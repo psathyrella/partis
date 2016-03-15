@@ -11,19 +11,21 @@ import utils
 parser = argparse.ArgumentParser()
 parser.add_argument('infname')
 parser.add_argument('--datadir', default='data/imgt')
-# parser.add_argument('--simfname')
+parser.add_argument('--simfname')
 parser.add_argument('--is-data', action='store_true')
 args = parser.parse_args()
 
 glfo = utils.read_germline_set(args.datadir)
 
-# reco_info = None
-# if args.simfname is not None:
-#     input_info, reco_info = get_seqfile_info(args.simfname, args.is_data, glfo=glfo)
+reco_info = None
+if args.simfname is not None:
+    _, reco_info = get_seqfile_info(args.simfname, args.is_data, glfo=glfo)
 
 with open(args.infname) as infile:
     reader = csv.DictReader(infile)
     for line in reader:
         utils.process_input_line(line)
+        if args.simfname is not None:
+            utils.print_true_events(glfo, reco_info, line, print_uid=True)
         utils.add_implicit_info(glfo, line, multi_seq=True, existing_implicit_keys=('aligned_d_seqs', 'aligned_j_seqs', 'aligned_v_seqs', 'cdr3_length', 'naive_seq', 'in_frames', 'mutated_invariants', 'stops'))
         utils.print_reco_event(glfo['seqs'], line, print_uid=True)

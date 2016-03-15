@@ -294,7 +294,7 @@ def color_chars(chars, col, seq):
     return return_str
 
 # ----------------------------------------------------------------------------------------
-def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', post_str=''):
+def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', post_str='', print_hfrac=False):
     assert len(ref_seq) == len(seq)
     return_str = ''
     for inuke in range(len(seq)):
@@ -304,7 +304,9 @@ def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', 
             return_str += color('red', seq[inuke])
     if print_result:
         print '%s%s%s' % (extra_str, ref_label, ref_seq)
-        print '%s%s%s%s' % (extra_str, ' '*len(ref_label), return_str, post_str)
+        print '%s%s%s%s' % (extra_str, ' '*len(ref_label), return_str, post_str),
+        if print_hfrac:
+            print '   hfrac %.3f' % hamming_fraction(ref_seq, seq)
     return return_str
 
 # ----------------------------------------------------------------------------------------
@@ -778,6 +780,24 @@ def add_implicit_info(glfo, line, multi_seq, existing_implicit_keys=None, debug=
         for ekey in existing_implicit_keys:
             if pre_existing_info[ekey] != line[ekey]:
                 print '  WARNING pre-existing info %s doesn\'t match new info %s for %s in %s' % (pre_existing_info[ekey], line[ekey], ekey, line['unique_ids'] if multi_seq else line['unique_id'])
+
+# ----------------------------------------------------------------------------------------
+def print_true_events(glfo, reco_info, line, print_uid=False):
+    """ print the true events which contain the seqs in <line> """
+    inferred_naive_seq = line['naive_seq']
+    true_naive_seqs = []
+    for uids in get_true_partition(reco_info, ids=line['unique_ids']):  # make a multi-seq line that has all the seqs from this clonal family
+        seqs = [reco_info[iid]['seq'] for iid in uids]
+        indelfos = [reco_info[iid]['indelfo'] for iid in uids]
+        per_seq_info = {'unique_ids' : uids, 'seqs' : seqs, 'indelfos' : indelfos}
+        synthetic_true_line = synthesize_multi_seq_line(glfo, reco_info[uids[0]], per_seq_info)
+        print_reco_event(glfo['seqs'], synthetic_true_line, extra_str='    ', label='true:', print_uid=print_uid)
+        true_naive_seqs.append(synthetic_true_line['naive_seq'])
+
+    print ''
+    for tseq in true_naive_seqs:
+        color_mutants(tseq, inferred_naive_seq, print_result=True, print_hfrac=True, ref_label='true naive ')
+    print ''
 
 # ----------------------------------------------------------------------------------------
 def print_reco_event(germlines, line, one_line=False, extra_str='', label='', print_uid=False):
