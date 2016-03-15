@@ -306,7 +306,8 @@ def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', 
         print '%s%s%s' % (extra_str, ref_label, ref_seq)
         print '%s%s%s%s' % (extra_str, ' '*len(ref_label), return_str, post_str),
         if print_hfrac:
-            print '   hfrac %.3f' % hamming_fraction(ref_seq, seq)
+            print '   hfrac %.3f' % hamming_fraction(ref_seq, seq),
+        print ''
     return return_str
 
 # ----------------------------------------------------------------------------------------
