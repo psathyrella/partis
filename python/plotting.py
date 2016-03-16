@@ -19,6 +19,7 @@ from array import array
 from subprocess import check_call
 import re
 from collections import OrderedDict
+import operator
 
 import utils
 import fraction_uncertainty
@@ -882,15 +883,18 @@ def plot_adj_mi_and_co(plotname, plotvals, mut_mult, plotdir, valname, xvar, tit
         'legend.fontsize': 15,})
     plots = {}
     for meth, xyvals in plotvals.items():
-        xvals = xyvals.keys()
-        yvals = [ve[0] for ve in xyvals.values()]
-        yerrs = [ve[1] for ve in xyvals.values()]
+        xyvals = sorted(xyvals, key=operator.itemgetter(0))
+        xvals = [xy[0] for xy in xyvals]  # xyvals.keys()
+        yvals = [ve[1][0] for ve in xyvals]
+        yerrs = [ve[1][1] for ve in xyvals]
         kwargs = {'linewidth' : linewidths.get(meth, 4),
                   'label' : legends.get(meth, meth),
                   'color' : colors.get(meth, 'grey'),
                   'linestyle' : linestyles.get(meth, 'solid'),
                   'alpha' : alphas.get(meth, 1.),
                   }
+        if meth == 'seed-partition':
+            kwargs['linewidth'] = 0
         if xvar == 'n_leaves':
             kwargs['fmt'] = '-o'
             plots[meth] = ax.errorbar(xvals, yvals, yerr=yerrs, **kwargs)
@@ -935,12 +939,14 @@ def plot_adj_mi_and_co(plotname, plotvals, mut_mult, plotdir, valname, xvar, tit
         #     xticks.remove(750)
         # xticks += xvals[-1:]
         # xticks = [100, 5000, 10000, 15000]
-        xticks = [100, 1000, 10000, 100000, 1000000]
+        xticks = [1000, 10000, 100000, 1000000]
         ax.set_xscale('log')
         ax.set_xlim(0.9 * xvals[0], 1.05 * xvals[-1])
 
     xticklabels = xticks if xvar == 'n_leaves' else ['%.0e' % xt for xt in xticks]
     plt.xticks(xticks, xticklabels)
+    # ax.plot([xticks[0], xticks[-1]], [1., 1.], linewidth=1, color='grey')
+    ax.grid(True)
 
     yticks = [yt for yt in [0., .2, .4, .6, .8, 1.] if yt >= ymin]
     yticklabels = [str(yt) for yt in yticks]

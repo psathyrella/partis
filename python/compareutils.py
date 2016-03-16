@@ -679,7 +679,7 @@ def compare_subsets_for_each_leafmut(args, baseplotdir, label, n_leaves, mut_mul
             for metric in metrics:
                 plotvals = OrderedDict()
                 for method, values in per_subset_info[metric].items():
-                    plotvals[method] = OrderedDict([(nseqs , (val, 0.)) for nseqs, val in zip(get_nseq_list(args), values)])
+                    plotvals[method] = [(nseqs , (val, 0.)) for nseqs, val in zip(get_nseq_list(args), values)]
                 metric_plotdir = os.getenv('www') + '/partis/clustering/' + label + '/plots-vs-subsets/metrics'
                 plotname = metric + '-%d-mutation.svg' % mut_mult
                 if args.indels:
@@ -1128,13 +1128,13 @@ def get_seed_info(args, seqfname, n_leaves):
     true_partition = utils.get_true_partition(reco_info)
     print '        time to get true partition: %.3f' % (time.time()-start)
 
-    # nth_seed = 0  # don't always take the first one we find
+    nth_seed = 0  # don't always take the first one we find
     for cluster in true_partition:
         if len(cluster) < args.seed_cluster_bounds[0] or len(cluster) > args.seed_cluster_bounds[1]:
             continue
-        # if args.iseed is not None and args.iseed > nth_seed:
-        #     nth_seed += 1
-        #     continue
+        if args.iseed is not None and int(args.iseed) > nth_seed:
+            nth_seed += 1
+            continue
         print '    chose seed %s in cluster %s with size %d' % (cluster[0], reco_info[cluster[0]]['reco_id'], len(cluster))
         return cluster[0], len(cluster)  # arbitrarily use the first member of the cluster as the seed
 
@@ -1245,7 +1245,7 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
         elif 'seed-' in action:
             seed_unique_id, seed_cluster_size = get_seed_info(args, seqfname, n_leaves)
             extras += ['--seed-unique-id', seed_unique_id]
-            seqs_per_proc = 6000
+            seqs_per_proc = 4500
             if args.n_to_partition > 30000:
                 seqs_per_proc *= 3
             n_procs = max(1, args.n_to_partition / seqs_per_proc)
