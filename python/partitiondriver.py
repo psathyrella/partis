@@ -41,7 +41,6 @@ class PartitionDriver(object):
         self.bcrham_divvied_queries = None
         self.n_likelihoods_calculated = None
 
-        self.n_max_divvy = 100  # if input info is longer than this, divvy with bcrham
         self.n_max_calc_per_process = 200  # if a bcrham process calc'd more than this many fwd + vtb values, don't decrease the number of processes in the next step
 
         self.unseeded_clusters = set()  # all the queries that we *didn't* cluster with the seed uid
@@ -66,6 +65,8 @@ class PartitionDriver(object):
 
         if len(self.input_info) > 1000 and self.args.n_procs == 1:
             print '\nhey there! I see you\'ve got %d sequences spread over %d processes. This will be kinda slow, so it might be a good idea to increase --n-procs (see the manual for suggestions on how many for annotation and partitioning).\n' % (len(self.input_info), self.args.n_procs)
+        if len(self.input_info) > 10000 and self.args.outfname is None:
+            print '\nwarning: running on a lot of sequences without setting --outfname. Which is ok! But there\'ll be no persistent record of the results'
 
     # ----------------------------------------------------------------------------------------
     def clean(self):
@@ -169,7 +170,7 @@ class PartitionDriver(object):
             step_start = time.time()
             nclusters = self.get_n_clusters()
             print '--> %d clusters with %d procs' % (nclusters, n_procs)  # write_hmm_input uses the best-minus-ten partition
-            self.run_hmm('forward', self.args.parameter_dir, n_procs=n_procs, divvy_with_bcrham=(self.get_n_clusters() > self.n_max_divvy and self.args.no_random_divvy))
+            self.run_hmm('forward', self.args.parameter_dir, n_procs=n_procs)
             self.n_proc_list.append(n_procs)
 
             print '      partition step time: %.3f' % (time.time()-step_start)
@@ -550,31 +551,21 @@ class PartitionDriver(object):
         return float(total) / len(self.n_likelihoods_calculated)
 
     # ----------------------------------------------------------------------------------------
-    def execute(self, cmd_str, n_procs, total_naive_hamming_cluster_procs=None):
+    def execute(self, cmd_str, n_procs):
         print '    running'
         start = time.time()
         sys.stdout.flush()
         if n_procs == 1:
-            if total_naive_hamming_cluster_procs is not None:
-                cmd_str = cmd_str.replace('XXX', str(total_naive_hamming_cluster_procs))
             # print cmd_str
             # sys.exit()
             check_call(cmd_str.split())
         else:
 
             # initialize command strings and whatnot
-            if total_naive_hamming_cluster_procs is not None:
-                n_leftover = total_naive_hamming_cluster_procs - (total_naive_hamming_cluster_procs / n_procs) * n_procs
             cmd_strs, workdirs = [], []
             for iproc in range(n_procs):
                 workdirs.append(self.args.workdir + '/hmm-' + str(iproc))
                 cmd_strs.append(cmd_str.replace(self.args.workdir, workdirs[-1]))
-                if total_naive_hamming_cluster_procs is not None:
-                    clusters_this_proc = total_naive_hamming_cluster_procs / n_procs
-                    if n_leftover > 0:
-                        clusters_this_proc += 1
-                        n_leftover -= 1
-                    cmd_strs[-1] = cmd_strs[-1].replace('XXX', str(clusters_this_proc))
 
             # start all the procs for the first time
             procs, n_tries, progress_strings = [], [], []
@@ -637,7 +628,7 @@ class PartitionDriver(object):
         print '      hmm run time: %.3f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
-    def run_hmm(self, algorithm, parameter_in_dir, parameter_out_dir='', count_parameters=False, n_procs=None, cache_naive_seqs=False, divvy_with_bcrham=False):
+    def run_hmm(self, algorithm, parameter_in_dir, parameter_out_dir='', count_parameters=False, n_procs=None, cache_naive_seqs=False):
         """ 
         Run bcrham, possibly with many processes, and parse and interpret the output.
         NOTE the local <n_procs>, which overrides the one from <self.args>
@@ -660,14 +651,7 @@ class PartitionDriver(object):
             print '      caching all naive sequences'
 
         if n_procs > 1 and self.args.smc_particles == 1:  # if we're doing smc (i.e. if > 1), we have to split things up more complicatedly elsewhere
-            if divvy_with_bcrham:
-                print '      bcrham naive hamming clustering'
-                assert '--partition' in cmd_str and algorithm == 'forward'
-                n_divvy_procs = max(1, self.get_n_clusters() / 500)  # number of bcrham procs used to divvy up queries with naive hamming clustering
-                self.split_input(n_divvy_procs, self.hmm_infname, 'hmm', algorithm, cache_naive_seqs, bcrham_naive_hamming_cluster=True)
-                self.execute(cmd_str.replace('--partition', '--naive-hamming-cluster XXX'), n_procs=n_divvy_procs, total_naive_hamming_cluster_procs=n_procs)
-                self.read_naive_hamming_clusters(n_procs=n_divvy_procs)
-            self.split_input(n_procs, self.hmm_infname, 'hmm', algorithm, cache_naive_seqs, bcrham_naive_hamming_cluster=False)
+            self.split_input(n_procs, self.hmm_infname, 'hmm', algorithm, cache_naive_seqs)
 
         self.execute(cmd_str, n_procs)
 
@@ -747,31 +731,7 @@ class PartitionDriver(object):
         return naive_seqs
 
     # ----------------------------------------------------------------------------------------
-    def divvy_up_queries(self, n_procs, info, namekey, seqkey, debug=True):
-        if self.bcrham_divvied_queries is not None:
-            print 'using bcrham_divvied_queries'
-            if len(self.bcrham_divvied_queries) != n_procs:
-                raise Exception('Wrong number of clusters %d for %d procs' % (len(self.bcrham_divvied_queries), n_procs))
-            return self.bcrham_divvied_queries
-
-        print 'no bcrham divvies, divvying with python glomerator'
-        naive_seqs = self.get_sw_naive_seqs(info, namekey, seqkey)
-
-        clust = Glomerator()
-        divvied_queries = clust.naive_seq_glomerate(naive_seqs, n_clusters=n_procs)
-        if debug:
-            print '  divvy lengths'
-            for dq in divvied_queries:
-                print '  ', len(dq),
-            print ''
-
-        if len(divvied_queries) != n_procs:
-            raise Exception('Wrong number of clusters %d for %d procs' % (len(divvied_queries), n_procs))
-
-        return divvied_queries
-
-    # ----------------------------------------------------------------------------------------
-    def split_input(self, n_procs, infname, prefix, algorithm, cache_naive_seqs, bcrham_naive_hamming_cluster):
+    def split_input(self, n_procs, infname, prefix, algorithm, cache_naive_seqs):
         """ Do stuff. Probably correctly. """
         assert self.args.smc_particles == 1
 
@@ -816,16 +776,7 @@ class PartitionDriver(object):
             get_writer(sub_outfile).writeheader()
             sub_outfile.close()  # can't leave 'em all open the whole time 'cause python has the thoroughly unreasonable idea that one oughtn't to have thousands of files open at once
 
-        cluster_divvy = False
-        if self.args.action == 'partition' and algorithm == 'forward':
-            if self.args.no_random_divvy and not cache_naive_seqs and not bcrham_naive_hamming_cluster:
-                cluster_divvy = True
         # self.get_expected_number_of_forward_calculations(info, 'names', 'seqs')
-        if cluster_divvy:  # cluster similar sequences together (otherwise just do it in order)
-            # print 'cluster divvy in split_input'
-            divvied_queries = self.divvy_up_queries(n_procs, info, 'names', 'seqs')
-        # else:
-        #     print 'modulo divvy'
 
         seed_clusters_to_write = seeded_clusters.keys()  # the keys in <seeded_clusters> that we still need to write
         for iproc in range(n_procs):
@@ -845,12 +796,8 @@ class PartitionDriver(object):
 
             # then loop over the non-seeded clusters
             for iquery in range(len(info)):
-                if cluster_divvy:
-                    if info[iquery]['names'] not in divvied_queries[iproc]:  # NOTE I think the reason this doesn't seem to be speeding things up is that our hierarhical agglomeration time is dominated by the distance calculation, and that distance calculation time is roughly proportional to the number of sequences in the cluster (i.e. larger clusters take longer)
-                        continue
-                else:
-                    if iquery % n_procs != iproc:
-                        continue
+                if iquery % n_procs != iproc:
+                    continue
                 writer.writerow(info[iquery])
             sub_outfile.close()
 
@@ -1282,27 +1229,6 @@ class PartitionDriver(object):
 
         if not self.args.no_clean and os.path.exists(self.hmm_infname):
             os.remove(self.hmm_infname)
-
-    # ----------------------------------------------------------------------------------------
-    def read_naive_hamming_clusters(self, n_procs):
-        if n_procs > 1:
-            self.merge_subprocess_files(self.hmm_outfname, n_procs)
-        self.bcrham_divvied_queries = []
-        with opener('r')(self.hmm_outfname) as hmm_csv_outfile:
-            lines = [l.strip() for l in hmm_csv_outfile.readlines()]
-            if len(lines) != n_procs + 1:
-                raise Exception('expected %d lines (%d procs), but got %d!' % (n_procs + 1, n_procs, len(lines)))
-            if lines[0] != 'partition':
-                raise Exception('bad bcrham naive clustering output header: %s' % lines[0])
-            for line in lines[1:]:
-                clusters = line.split('|')
-                self.bcrham_divvied_queries += [cl.split(';') for cl in clusters]
-
-        if not self.args.no_clean:
-            os.remove(self.hmm_outfname)
-
-        print '  read divvies from bcrham:'
-        print '      ', ' '.join([str(len(cl)) for cl in self.bcrham_divvied_queries])
 
     # ----------------------------------------------------------------------------------------
     def check_bcrham_errors(self, line, boundary_error_queries):
