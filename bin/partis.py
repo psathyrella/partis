@@ -61,7 +61,6 @@ if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
     print '    TODO todos in glomerator'
     print '    TODO add seed unique id to testing'
     print '    TODO add both kinds of translation to testing'
-    print '    TODO clean up cluster divvy stuff'
     print '    TODO keep most of the seeded clusters out of things until the end, and also remove non-clonal sequences from consideration alltogether'
     print '    TODO clean up and comment unseeded cluster removal stuff'
 
@@ -156,7 +155,7 @@ if args.slurm and '/tmp' in args.workdir:
     raise Exception('it appears that <workdir> isn\'t set to something visible to all slurm nodes')
 
 if args.smc_particles != 1:
-    raise Exception('sequential monte carlo is not supported at this juncture.')
+    raise Exception('sequential monte carlo is not, at this juncture, supported.')
 
 if args.no_indels and args.gap_open_penalty < 1000:
     print 'forcing gap open to 1000 to prevent indels'
