@@ -878,11 +878,26 @@ def plot_metrics_vs_thresholds(meth, thresholds, info, plotdir, plotfname, title
 
 # ----------------------------------------------------------------------------------------
 def plot_adj_mi_and_co(plotname, plotvals, mut_mult, plotdir, valname, xvar, title=''):
+    # ----------------------------------------------------------------------------------------
+    def remove_some_duplicates(xyvals):
+        hmap = {}
+        newvals = []
+        for x, y in xyvals:
+            if x in hmap and x != 100000 and x != 500000 and x != 1000000:
+                continue
+            newvals.append((x, y))
+            hmap.add(x)
+        return newvals
+
     fig, ax = mpl_init()
     mpl.rcParams.update({
         'legend.fontsize': 15,})
     plots = {}
     for meth, xyvals in plotvals.items():
+
+        # print sorted([xy[0] for xy in xyvals])
+        # xyvals = remove_some_duplicates(xyvals)
+
         xyvals = sorted(xyvals, key=operator.itemgetter(0))
         xvals = [xy[0] for xy in xyvals]  # xyvals.keys()
         yvals = [ve[1][0] for ve in xyvals]
