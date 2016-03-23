@@ -12,8 +12,10 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> >
   n_fwd_calculated_(0),
   n_vtb_calculated_(0),
   n_hfrac_calculated_(0),
-  n_hamming_merged_(0),
+  n_hfrac_merges_(0),
+  n_lratio_merges_(0),
   asym_factor_(4.),
+  current_partition_(nullptr),
   progress_file_(fopen((args_->outfile() + ".progress").c_str(), "w"))
 {
   time(&last_status_write_time_);
@@ -71,6 +73,8 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> >
   if((int)initial_partitions_.size() != args_->smc_particles())
     throw runtime_error("wrong number of initial partitions " + to_string(initial_partitions_.size()) + " (should be " + to_string(args_->smc_particles()) + ")");
 
+  assert((int)initial_partitions_.size() == 1);
+  current_partition_ = &initial_partitions_[0];
   // if(args_->debug())
   //   for(auto &part : initial_partitions_)
   //     PrintPartition(part, "initial");
@@ -78,7 +82,8 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> >
 
 // ----------------------------------------------------------------------------------------
 Glomerator::~Glomerator() {
-  printf("         calculated   vtb %-4d   fwd %-4d   hamming merged %-4d   naive hfracs %d\n", n_vtb_calculated_, n_fwd_calculated_, n_hamming_merged_, n_hfrac_calculated_);
+  // printf("         calculated   vtb %-4d   fwd %-4d   hfracs %-8d     merged   hfrac %-4d   lratio %-4d\n", n_vtb_calculated_, n_fwd_calculated_, n_hfrac_calculated_, n_hfrac_merges_, n_lratio_merges_);
+  cout << ProgressString() << endl;
   if(args_->cachefile() != "")
     WriteCachedLogProbs();
 
@@ -112,8 +117,6 @@ void Glomerator::Cluster() {
   ClusterPath cp(initial_partitions_[0], -INFINITY /*LogProbOfPartition(initial_partitions_[0])*/, initial_logweights_[0]);
   do {
     Merge(&cp);
-    // cout << ClusterSizeString(&cp) << endl;
-    WriteStatus(&cp);
   } while(!cp.finished_);
 
   vector<ClusterPath> paths{cp};
@@ -315,15 +318,24 @@ void Glomerator::PrintPartition(Partition &partition, string extrastr) {
 }
 
 // ----------------------------------------------------------------------------------------
-void Glomerator::WriteStatus(ClusterPath *path) {
+string Glomerator::ProgressString() {
+    char buffer[2000];
+    sprintf(buffer, "         calculated   vtb %-4d  fwd %-4d  hfrac %-8d    merged  hfrac %-4d lratio %-4d", n_vtb_calculated_, n_fwd_calculated_, n_hfrac_calculated_, n_hfrac_merges_, n_lratio_merges_);
+    return string(buffer);
+}
+
+// ----------------------------------------------------------------------------------------
+void Glomerator::WriteStatus() {
   time_t current_time;
   time(&current_time);
-  if(difftime(current_time, last_status_write_time_) > 300) {  // write something every five minutes
-    char buffer[200];
-    strftime(buffer, 200, "%b %d %T", localtime(&current_time));  // %H:%M
-    fprintf(progress_file_, "      %s    %4d clusters    fwd %-4d   vtb %-4d\n", buffer, (int)path->CurrentPartition().size(), n_fwd_calculated_, n_vtb_calculated_);
+  if(difftime(current_time, last_status_write_time_) > 0.1) {  // write something every five minutes
+    char buffer[2000];
+    strftime(buffer, 2000, "%b %d %T", localtime(&current_time));  // %H:%M
+    // fprintf(progress_file_, "      %s    %4d clusters    calcd  fwd %-4d   vtb %-4d   hfrac %-8d    merged  hfrac %-4d\n", buffer, (int)path_->CurrentPartition().size(), n_fwd_calculated_, n_vtb_calculated_);
+    fprintf(progress_file_, "      %s    %4d clusters", buffer, (int)current_partition_->size());
+    fprintf(progress_file_, "   %s", ProgressString().c_str());
 
-    fprintf(progress_file_, "%s\n", ClusterSizeString(path).c_str());
+    fprintf(progress_file_, "     %s\n", ClusterSizeString(current_partition_).c_str());
 
     fflush(progress_file_);
     last_status_write_time_ = current_time;
@@ -347,17 +359,22 @@ int Glomerator::CountMembers(string namestr) {
 }
 
 // ----------------------------------------------------------------------------------------
-string Glomerator::ClusterSizeString(ClusterPath *path) {
+string Glomerator::ClusterSizeString(Partition *partition) {
   vector<int> cluster_sizes;
-  for(auto &cluster : path->CurrentPartition()) {
+  for(auto &cluster : *partition) {
     cluster_sizes.push_back(CountMembers(cluster));
   }
   sort(cluster_sizes.begin(), cluster_sizes.end());
   reverse(cluster_sizes.begin(), cluster_sizes.end());
   string return_str("          clusters: ");
-  for(size_t is=0; is<cluster_sizes.size(); ++is)
-    return_str += " "  + to_string(cluster_sizes[is]);
-  return return_str;
+  int n_singletons(0);
+  for(size_t is=0; is<cluster_sizes.size(); ++is) {
+    if(cluster_sizes[is] == 1)
+      ++n_singletons;
+    else
+      return_str += " "  + to_string(cluster_sizes[is]);
+  }
+  return return_str + "  (" + to_string(n_singletons) + " singletons)";
 }
 
 // ----------------------------------------------------------------------------------------
@@ -691,6 +708,7 @@ string Glomerator::CalculateNaiveSeq(string queries, RecoEvent *event) {
   if(event != nullptr)
     *event = result.events_[0];
 
+  WriteStatus();
   return result.events_[0].naive_seq_;
 }
 
@@ -717,6 +735,7 @@ double Glomerator::CalculateLogProb(string queries) {  // NOTE can modify kbinfo
   if(result.boundary_error() && !result.could_not_expand())  // could_not_expand means the max is at the edge of the sequence -- e.g. k_d min is 1
     errors_[queries] = errors_[queries] + ":boundary";
 
+  WriteStatus();
   return result.total_score();
 }
 
@@ -891,8 +910,11 @@ pair<double, Query> Glomerator::FindHfracMerge(ClusterPath *path) {
     }
   }
 
-  if(args_->debug() && min_hamming_fraction != INFINITY)
-    printf("          hfrac merge  %.3f   %s  %s\n", min_hamming_fraction, PrintStr(min_hamming_merge.parents_.first).c_str(), PrintStr(min_hamming_merge.parents_.second).c_str());
+  if(min_hamming_fraction != INFINITY) {
+    ++n_hfrac_merges_;
+    if(args_->debug())
+      printf("          hfrac merge  %.3f   %s  %s\n", min_hamming_fraction, PrintStr(min_hamming_merge.parents_.first).c_str(), PrintStr(min_hamming_merge.parents_.second).c_str());
+  }
 
   return pair<double, Query>(min_hamming_fraction, min_hamming_merge);
 }
@@ -962,8 +984,11 @@ pair<double, Query> Glomerator::FindLRatioMerge(ClusterPath *path) {
       cout << "        stop with all " << n_inf_factors << " / " << n_total_pairs << " likelihood ratios -inf" << endl;
     else
       cout << "        stop with: inf " << n_inf_factors << "   ham skip " << n_skipped_hamming << "   small lratios " << n_small_lratios << "   total " << n_total_pairs << endl;
-  } else if(args_->debug())
-    printf("          lratio merge  %.3f   %s  %s\n", max_lratio, PrintStr(chosen_qmerge.parents_.first).c_str(), PrintStr(chosen_qmerge.parents_.second).c_str());
+  } else {
+    ++n_lratio_merges_;
+    if(args_->debug())
+      printf("          lratio merge  %.3f   %s  %s\n", max_lratio, PrintStr(chosen_qmerge.parents_.first).c_str(), PrintStr(chosen_qmerge.parents_.second).c_str());
+  }
 
   return pair<double, Query>(max_lratio, chosen_qmerge);
 }
@@ -1012,6 +1037,7 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
   if(path->finished_)
     return;
 
+  WriteStatus();
   Query chosen_qmerge = qpair.second;
 
   assert(seq_info_.count(chosen_qmerge.name_));
@@ -1024,6 +1050,7 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
   new_partition.erase(chosen_qmerge.parents_.second);
   new_partition.insert(chosen_qmerge.name_);
   path->AddPartition(new_partition, -INFINITY);
+  current_partition_ = &path->CurrentPartition();
 
   if(args_->debug()) {
     printf("       merged   %s  %s\n", chosen_qmerge.parents_.first.c_str(), chosen_qmerge.parents_.second.c_str());

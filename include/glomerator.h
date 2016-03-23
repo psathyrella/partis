@@ -59,11 +59,12 @@ private:
   void WriteCachedLogProbs();
 
   void PrintPartition(Partition &clusters, string extrastr);
-  void WriteStatus(ClusterPath *path);  // write some progress info to file
+  string ProgressString();
+  void WriteStatus();  // write some progress info to file
 
   string ParentalString(pair<string, string> *parents);
   int CountMembers(string namestr);
-  string ClusterSizeString(ClusterPath *path);
+  string ClusterSizeString(Partition *partition);
   string JoinNames(string name1, string name2, string delimiter=":");
   string JoinNameStrings(vector<Sequence> &strlist, string delimiter=":");
   string JoinSeqStrings(vector<Sequence> &strlist, string delimiter=":");
@@ -129,10 +130,11 @@ private:
 
   set<string> initial_log_probs_, initial_naive_hfracs_, initial_naive_seqs_;  // keep track of the ones we read from the initial cache file so we can write only the new ones to the output cache file
 
-  int n_fwd_calculated_, n_vtb_calculated_, n_hfrac_calculated_, n_hamming_merged_;
+  int n_fwd_calculated_, n_vtb_calculated_, n_hfrac_calculated_, n_hfrac_merges_, n_lratio_merges_;
 
   double asym_factor_;
 
+  Partition *current_partition_;  // (a.t.m. only used for writing to status file)
   time_t last_status_write_time_;  // last time that we wrote our progress to a file
   FILE *progress_file_;
 };
