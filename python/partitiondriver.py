@@ -124,7 +124,7 @@ class PartitionDriver(object):
     def partition(self):
         """ Partition sequences in <self.input_info> into clonally related lineages """
         if self.args.print_partitions:
-            cp = ClusterPath()
+            cp = ClusterPath(seed_unique_id=self.args.seed_unique_id)
             cp.readfile(self.args.outfname)
             cp.print_partitions(reco_info=self.reco_info, abbreviate=True, n_to_print=100)
             return
@@ -139,7 +139,7 @@ class PartitionDriver(object):
 
         # add initial lists of paths
         if self.args.smc_particles == 1:
-            cp = ClusterPath()
+            cp = ClusterPath(seed_unique_id=self.args.seed_unique_id)
             cp.add_partition([[cl, ] for cl in self.sw_info['queries']], logprob=0., n_procs=n_procs)
             assert len(self.paths) == 0
             self.paths.append(cp)
@@ -217,7 +217,7 @@ class PartitionDriver(object):
             #     self.write_clusterpaths(self.args.outfname, final_paths)
 
         if self.args.debug and not self.args.is_data:
-            tmpglom = Glomerator(self.reco_info)
+            tmpglom = Glomerator(self.reco_info, seed_unique_id=self.args.seed_unique_id)
             tmpglom.print_true_partition()
 
     # ----------------------------------------------------------------------------------------
@@ -306,7 +306,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def write_clusterpaths(self, outfname, paths, deduplicate_uid=None):
-        outfile, writer = paths[0].init_outfile(outfname, self.args.is_data, self.args.smc_particles, seed_unique_id=self.args.seed_unique_id)
+        outfile, writer = paths[0].init_outfile(outfname, self.args.is_data, self.args.smc_particles)
         true_partition = None
         if not self.args.is_data:
             true_partition = utils.get_true_partition(self.reco_info)
@@ -315,7 +315,7 @@ class PartitionDriver(object):
             assert len(paths) == 1
             ipath = 0
             path = self.paths[ipath]
-            newcp = ClusterPath()
+            newcp = ClusterPath(seed_unique_id=self.args.seed_unique_id)
             # assert path.adj_mis[path.i_best] is None
             # assert path.ccfs[path.i_beset][0] is None and path.ccfs[path.i_beset][1] is None
             partition = copy.deepcopy(path.partitions[path.i_best])
@@ -324,10 +324,10 @@ class PartitionDriver(object):
             newcp.add_partition(partition, path.logprobs[path.i_best], path.n_procs[path.i_best])
             newcp.write_partitions(writer=writer, reco_info=self.reco_info, true_partition=true_partition, is_data=self.args.is_data, n_to_write=self.args.n_partitions_to_write,
                                    calc_missing_values='none' if deduplicate_uid is not None else 'best',  # don't want to decide whta to do with duplicate seed ids right now... just write what we got and deal later
-                                   seed_unique_id=self.args.seed_unique_id)
+                                   )
         else:
             for ipath in range(len(paths)):
-                paths[ipath].write_partitions(writer=writer, reco_info=self.reco_info, true_partition=true_partition, is_data=self.args.is_data, smc_particles=self.args.smc_particles, path_index=self.args.seed + ipath, n_to_write=self.args.n_partitions_to_write, calc_missing_values='best', seed_unique_id=self.args.seed_unique_id)
+                paths[ipath].write_partitions(writer=writer, reco_info=self.reco_info, true_partition=true_partition, is_data=self.args.is_data, smc_particles=self.args.smc_particles, path_index=self.args.seed + ipath, n_to_write=self.args.n_partitions_to_write, calc_missing_values='best')
 
         outfile.close()
 
@@ -432,7 +432,7 @@ class PartitionDriver(object):
             true_partition = utils.get_true_partition(self.reco_info)
             adj_mi = utils.adjusted_mutual_information(partition, true_partition)
             ccfs = utils.new_ccfs_that_need_better_names(partition, true_partition, self.reco_info)
-        cp = ClusterPath()
+        cp = ClusterPath(seed_unique_id=self.args.seed_unique_id)
         cp.add_partition(partition, logprob=0.0, n_procs=1, adj_mi=adj_mi, ccfs=ccfs)
         if self.args.outfname is not None:
             self.write_clusterpaths(self.args.outfname, [cp, ])
@@ -889,7 +889,7 @@ class PartitionDriver(object):
                 previous_info = None
                 if len(self.paths) > 1:
                     previous_info = self.paths[-1]
-                glomerer = Glomerator(self.reco_info)
+                glomerer = Glomerator(self.reco_info, seed_unique_id=self.args.seed_unique_id)
                 glomerer.read_cached_agglomeration(infnames, smc_particles=1, previous_info=previous_info, debug=self.args.debug)  #, outfname=self.hmm_outfname)
                 assert len(glomerer.paths) == 1
                 if len(self.paths) > 0:
@@ -933,7 +933,7 @@ class PartitionDriver(object):
             previous_info = None
             if len(self.smc_info) > 2:
                 previous_info = [self.smc_info[-2][iproc] for iproc in group]
-            glomerer = Glomerator(self.reco_info)
+            glomerer = Glomerator(self.reco_info, seed_unique_id=self.args.seed_unique_id)
             paths = glomerer.read_cached_agglomeration(infnames, self.args.smc_particles, previous_info=previous_info, debug=self.args.debug)  #, outfname=self.hmm_outfname)
             self.smc_info[-1].append(paths)
 

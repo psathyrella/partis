@@ -277,6 +277,7 @@ Colors['light_blue'] = '\033[1;34m'
 Colors['green'] = '\033[92m'
 Colors['yellow'] = '\033[93m'
 Colors['red'] = '\033[91m'
+Colors['reverse_video'] = '\033[7m'
 Colors['end'] = '\033[0m'
 
 def color(col, seq):
