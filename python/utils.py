@@ -14,15 +14,15 @@ import itertools
 import csv
 from subprocess import check_output, CalledProcessError
 # from sklearn.metrics.cluster import adjusted_mutual_info_score
-import sklearn.metrics.cluster
+# import sklearn.metrics.cluster
 import numpy
 import multiprocessing
 import shutil
 import copy
+from Bio import SeqIO
 
 from opener import opener
-
-from Bio import SeqIO
+import seqfileopener
 
 #----------------------------------------------------------------------------------------
 # NOTE I also have an eps defined in hmmwriter. Simplicity is the hobgoblin of... no, wait, that's just plain ol' stupid to have two <eps>s defined
@@ -2158,3 +2158,21 @@ def find_genes_that_have_hmms(parameter_dir):
 # ----------------------------------------------------------------------------------------
 def get_empty_indel():
     return {'reversed_seq' : '', 'indels' : []}
+
+# ----------------------------------------------------------------------------------------
+def choose_seed_unique_id(datadir, simfname, seed_cluster_size_low, seed_cluster_size_high, iseed=None, n_max_queries=-1):
+    glfo = read_germline_set(datadir)
+    _, reco_info = seqfileopener.get_seqfile_info(simfname, is_data=False, glfo=glfo, n_max_queries=n_max_queries)
+    true_partition = get_true_partition(reco_info)
+
+    nth_seed = 0  # don't always take the first one we find
+    for cluster in true_partition:
+        if len(cluster) < seed_cluster_size_low or len(cluster) > seed_cluster_size_high:
+            continue
+        if iseed is not None and int(iseed) > nth_seed:
+            nth_seed += 1
+            continue
+        print '    chose seed %s in cluster %s with size %d' % (cluster[0], reco_info[cluster[0]]['reco_id'], len(cluster))
+        return cluster[0], len(cluster)  # arbitrarily use the first member of the cluster as the seed
+
+    raise Exception('couldn\'t find seed in cluster between size %d and %d' % (seed_cluster_size_low, seed_cluster_size_high))

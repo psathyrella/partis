@@ -1117,28 +1117,7 @@ def get_seqfile(args, datafname, label, n_leaves, mut_mult):
 
 # ----------------------------------------------------------------------------------------
 def get_seed_info(args, seqfname, n_leaves):
-    glfo = utils.read_germline_set(args.datadir)
-
-    print '        getting seed from %s' % seqfname
-    start = time.time()
-    _, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=False, glfo=glfo)
-    print '        seqfileopener time: %.3f' % (time.time()-start)
-
-    start = time.time()
-    true_partition = utils.get_true_partition(reco_info)
-    print '        time to get true partition: %.3f' % (time.time()-start)
-
-    nth_seed = 0  # don't always take the first one we find
-    for cluster in true_partition:
-        if len(cluster) < args.seed_cluster_bounds[0] or len(cluster) > args.seed_cluster_bounds[1]:
-            continue
-        if args.iseed is not None and int(args.iseed) > nth_seed:
-            nth_seed += 1
-            continue
-        print '    chose seed %s in cluster %s with size %d' % (cluster[0], reco_info[cluster[0]]['reco_id'], len(cluster))
-        return cluster[0], len(cluster)  # arbitrarily use the first member of the cluster as the seed
-
-    raise Exception('couldn\'t find seed in cluster between size %d and %d' % (args.seed_cluster_bounds[0], args.seed_cluster_bounds[1]))
+    return utils.choose_seed_unique_id(args.datadir, seqfname, args.seed_cluster_bounds[0], args.seed_cluster_bounds[1], args.iseed)
 
 # ----------------------------------------------------------------------------------------
 def get_seed_cluster(outfname):
