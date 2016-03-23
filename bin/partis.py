@@ -63,6 +63,8 @@ if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
     print '    TODO add both kinds of translation to testing'
     print '    TODO keep most of the seeded clusters out of things until the end, and also remove non-clonal sequences from consideration alltogether'
     print '    TODO clean up and comment unseeded cluster removal stuff'
+    print '    TODO clean up logprob of partition stuff in glomerator.cc'
+    print '    TODO clean up duplicate id removal'
 
 # input and output stuff
 parser.add_argument('--seqfile', help='input sequence file')

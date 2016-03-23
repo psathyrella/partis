@@ -190,11 +190,9 @@ class PartitionDriver(object):
             self.check_partition(path.partitions[path.i_best])
             if len(self.input_info) < 250:
                 print 'final'
-                start = time.time()
                 # if self.args.seed_unique_id is not None:
                 #     self.remove_duplicate_ids(uids, partition, self.args.seed_unique_id)
                 path.print_partitions(self.reco_info, print_header=True, calc_missing_values='all' if (len(self.input_info) < 500) else 'best')
-                print '      print time: %.3f' % (time.time()-start)
             if self.args.print_cluster_annotations:
                 annotations = self.read_annotation_output(self.annotation_fname)
                 # for cluster in path.partitions[path.i_best]:
@@ -217,8 +215,12 @@ class PartitionDriver(object):
             #     self.write_clusterpaths(self.args.outfname, final_paths)
 
         if self.args.debug and not self.args.is_data:
-            tmpglom = Glomerator(self.reco_info, seed_unique_id=self.args.seed_unique_id)
-            tmpglom.print_true_partition()
+            true_cp = ClusterPath(seed_unique_id=self.args.seed_unique_id)
+            true_cp.add_partition(utils.get_true_partition(self.reco_info), -1., 1)
+            print 'true:'
+            true_cp.print_partitions(self.reco_info, print_header=False, calc_missing_values='best')
+            # tmpglom = Glomerator(self.reco_info, seed_unique_id=self.args.seed_unique_id)
+            # tmpglom.print_true_partition()
 
     # ----------------------------------------------------------------------------------------
     # get number of clusters based on sum of last paths in <self.smc_info>

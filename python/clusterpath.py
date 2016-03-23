@@ -161,8 +161,7 @@ class ClusterPath(object):
             way_str = ('%.1f' % n_ways) if n_ways < 1e7 else ('%8.1e' % n_ways)
             logweight_str = '%8.3f' % self.logweights[ip]
 
-        print self.get_adj_mi_str(ip),
-        print self.get_ccf_str(ip),
+        print '    ' + self.get_ccf_str(ip),
 
         if self.logweights[ip] is not None and smc_print:
             print '   %10s    %8s   ' % (way_str, logweight_str),
@@ -196,7 +195,6 @@ class ClusterPath(object):
         if print_header:
             print '    %7s %10s   %-7s %5s  %4s' % ('', 'logprob', 'delta', 'clusters', 'n_procs'),
             if reco_info is not None or self.we_have_an_adj_mi:
-                print ' %5s' % ('adj mi'),
                 print ' %5s %5s' % ('purity', 'completeness'),
             if self.logweights[0] is not None and smc_print:
                 print '  %10s  %7s' % ('pot.parents', 'logweight'),
