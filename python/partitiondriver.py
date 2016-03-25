@@ -45,6 +45,7 @@ class PartitionDriver(object):
 
         self.unseeded_clusters = set()  # all the queries that we *didn't* cluster with the seed uid
         self.time_to_remove_unseeded_clusters = False
+        self.already_removed_unseeded_clusters = False
 
         self.hmm_infname = self.args.workdir + '/hmm_input.csv'
         self.hmm_cachefname = self.args.workdir + '/hmm_cached_info.csv'
@@ -251,13 +252,18 @@ class PartitionDriver(object):
             next_n_procs = int(next_n_procs / float(factor))
 
         if self.args.seed_unique_id is not None and (len(self.n_proc_list) > 2 or next_n_procs == 1):
-            print '     time to remove unseeded clusters'
-            self.time_to_remove_unseeded_clusters = True
-            initial_seqs_per_proc = int(float(len(self.input_info)) / self.n_proc_list[0])
-            self.unseeded_clusters = self.get_unseeded_clusters(self.paths[-1].partitions[self.paths[-1].i_best_minus_x])
-            n_remaining_seqs = len(self.input_info) - len(self.unseeded_clusters)
-            next_n_procs = max(1, int(float(n_remaining_seqs) / initial_seqs_per_proc))
-            print '        new n_procs %d = %d / %d' % (next_n_procs, n_remaining_seqs, initial_seqs_per_proc)
+            if not self.already_removed_unseeded_clusters:
+                print '     time to remove unseeded clusters'
+                self.time_to_remove_unseeded_clusters = True
+                initial_seqs_per_proc = int(float(len(self.input_info)) / self.n_proc_list[0])
+                self.unseeded_clusters = self.get_unseeded_clusters(self.paths[-1].partitions[self.paths[-1].i_best_minus_x])
+                n_remaining_seqs = len(self.input_info) - len(self.unseeded_clusters)
+                integer = 3
+                next_n_procs = max(1, integer * int(float(n_remaining_seqs) / initial_seqs_per_proc))  # multiply by something 'cause we're turning off the seed uid for the last few times through
+                print '        new n_procs %d = %d * %d / %d' % (next_n_procs, integer, n_remaining_seqs, initial_seqs_per_proc)
+            else:
+                self.time_to_remove_unseeded_clusters = False
+                print '     already removed unseeded clusters, proceed with n procs %d' % next_n_procs
 
         return next_n_procs
 
@@ -524,7 +530,7 @@ class PartitionDriver(object):
                 cmd_str += ' --hamming-fraction-bound-lo ' + str(hfrac_bounds[0])
                 cmd_str += ' --hamming-fraction-bound-hi ' + str(hfrac_bounds[1])
                 cmd_str += ' --logprob-ratio-threshold ' + str(self.args.logprob_ratio_threshold)
-                if self.args.seed_unique_id is not None:
+                if self.args.seed_unique_id is not None and not (self.already_removed_unseeded_clusters or self.time_to_remove_unseeded_clusters):  # if we're in the last few cycles (i.e. we've removed unseeded clusters) we want bcrham to not know about the seed (this gives more accurate clustering 'cause we're really doing hierarchical agglomeration)
                     cmd_str += ' --seed-unique-id ' + self.args.seed_unique_id
 
         assert len(utils.ambiguous_bases) == 1  # could allow more than one, but it's not implemented a.t.m.
@@ -737,13 +743,15 @@ class PartitionDriver(object):
         """ Do stuff. Probably correctly. """
         assert self.args.smc_particles == 1
 
+        do_seed_bullshit = self.args.seed_unique_id is not None and not (self.already_removed_unseeded_clusters or self.time_to_remove_unseeded_clusters)
+
         # read single input file
         info = []
         seeded_clusters = {}
         with opener('r')(infname) as infile:
             reader = csv.DictReader(infile, delimiter=' ')
             for line in reader:
-                if self.args.seed_unique_id is not None and self.args.seed_unique_id in set(line['names'].split(':')):
+                if do_seed_bullshit and self.args.seed_unique_id in set(line['names'].split(':')):
                     if len(seeded_clusters) > 0 and ':' not in line['names']:  # the first time through, we add the seed uid to *every* process. So, when we read those results back in, the procs that didn't merge the seed with anybody will have it as a singleton still, and we only need the singleton once
                         continue
                     seeded_clusters[line['names']] = line
@@ -751,7 +759,7 @@ class PartitionDriver(object):
                 info.append(line)
 
         # find the smallest seeded cluster
-        if self.args.seed_unique_id is not None:
+        if do_seed_bullshit:
             if len(seeded_clusters) == 0:
                 raise Exception('couldn\'t find info for query %s in %s' % (self.args.seed_unique_id, infname))
             smallest_seed_cluster_str = None
@@ -786,7 +794,7 @@ class PartitionDriver(object):
             writer = get_writer(sub_outfile)
 
             # first deal with the seeded clusters
-            if self.args.seed_unique_id is not None:  # write the seed info line to each file
+            if do_seed_bullshit:  # write the seed info line to each file
                 if len(seed_clusters_to_write) > 0:
                     if iproc < n_procs - 1:  # if we're not on the last proc, pop off and write the first one
                         writer.writerow(seeded_clusters[seed_clusters_to_write.pop(0)])
@@ -1184,6 +1192,7 @@ class PartitionDriver(object):
                 nsets = copy.deepcopy(self.paths[-1].partitions[self.paths[-1].i_best_minus_x])
                 if self.args.seed_unique_id is not None and self.time_to_remove_unseeded_clusters:  # length of n_proc_list is the number of previous clustering steps we've run (i.e. before the one for which we're currently writing input)
                     nsets = [[qr] for qr in self.get_seeded_clusters(nsets)]
+                    self.already_removed_unseeded_clusters = True
             else:
                 if self.args.n_sets == 1:  # single vanilla hmm (does the same thing as the below for n=1, but is more transparent)
                     nsets = [[qn] for qn in self.sw_info['queries']]

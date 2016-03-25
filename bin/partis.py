@@ -65,6 +65,7 @@ if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
     print '    TODO clean up and comment unseeded cluster removal stuff'
     print '    TODO clean up logprob of partition stuff in glomerator.cc'
     print '    TODO clean up duplicate id removal'
+    print '    TODO clean up new paradigm of switch from seed_unique_id to not'
 
 # input and output stuff
 parser.add_argument('--seqfile', help='input sequence file')
