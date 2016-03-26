@@ -28,7 +28,7 @@ class Tester(object):
         self.perfdirs = {st : 'simu-' + st + '-performance' for st in self.stypes}
         if not os.path.exists(self.dirs['new']):
             os.makedirs(self.dirs['new'])
-        simfnames = {st : self.dirs[st] + '/' + self.label + '/simu.csv' for st in self.stypes}
+        self.simfnames = {st : self.dirs[st] + '/' + self.label + '/simu.csv' for st in self.stypes}
         param_dirs = { st : { dt : self.dirs[st] + '/' + self.label + '/parameters/' + dt + '/hmm' for dt in ['simu', 'data']} for st in self.stypes}  # muddafuggincomprehensiongansta
         run_driver = './bin/run-driver.py --label ' + self.label + ' --stashdir ' + self.dirs['new']
         self.common_extras = ['--seed', '1', '--n-procs', '10', '--only-genes', utils.test_only_genes, '--only-csv-plots']
@@ -48,7 +48,7 @@ class Tester(object):
         self.logfname = self.dirs['new'] + '/test.log'
         self.cachefnames = { st : 'cache-' + st + '-partition.csv' for st in self.stypes }
 
-        self.quick_tests = ['annotate-ref-simu']
+        self.quick_tests = ['seed-partition-ref-simu'] #['annotate-ref-simu']
         self.production_tests = ['cache-data-parameters', 'simulate', 'cache-simu-parameters']  # vs "inference" tests. Kind of crappy names, but it's to distinguish these three from all the other ones
 
         self.tests = OrderedDict()
@@ -57,6 +57,8 @@ class Tester(object):
             self.tests['annotate-' + input_stype + '-simu']          = {'extras' : ['--plotdir', self.dirs['new'] + '/' + self.perfdirs[input_stype], '--plot-performance']}
             self.tests['annotate-' + input_stype + '-data']          = {'extras' : ['--n-max-queries', n_data_inference_queries]}
             self.tests['partition-' + input_stype + '-simu']         = {'extras' : ['--n-max-queries', n_partition_queries, '--persistent-cachefname', self.dirs['new'] + '/' + self.cachefnames[input_stype], '--n-precache-procs', '10']}
+            seed_uid, _ = utils.choose_seed_unique_id(args.datadir, self.simfnames[input_stype], 5, 8, n_max_queries=int(n_partition_queries), debug=False)
+            self.tests['seed-partition-' + input_stype + '-simu']    = {'extras' : ['--n-max-queries', 5 * n_partition_queries, '--n-precache-procs', '10', '--seed-unique-id', seed_uid]}
             self.tests['point-partition-' + input_stype + '-simu']   = {'extras' : ['--naive-hamming', '--n-max-queries', n_partition_queries, '--n-precache-procs', '10']}
             self.tests['vsearch-partition-' + input_stype + '-simu'] = {'extras' : ['--naive-vsearch', '--n-max-queries', n_partition_queries, '--n-precache-procs', '10']}
 
@@ -78,7 +80,7 @@ class Tester(object):
                     args['input_stype'] = input_stype
                     if namelist[-1] == 'simu':
                         args['extras'] += ['--is-simu', ]
-                        args['extras'] += ['--seqfile', simfnames[input_stype]]
+                        args['extras'] += ['--seqfile', self.simfnames[input_stype]]
                         args['extras'] += ['--parameter-dir', param_dirs[input_stype]['simu']]
                     elif namelist[-1] == 'data':
                         args['extras'] += ['--seqfile', self.datafname]
@@ -138,6 +140,7 @@ class Tester(object):
                 cmd_str += get_extra_str(info['extras'] + self.common_extras)
                 if action == 'cache-data-parameters':
                     cmd_str += ' --datafname ' + self.datafname
+
             logstr = 'TEST %30s   %s' % (name, cmd_str)
             print logstr
             logfile = open(self.logfname, 'a')
@@ -470,6 +473,7 @@ parser.add_argument('--quick', action='store_true')
 parser.add_argument('--only-ref', action='store_true', help='only run with input_stype of \'ref\'')
 parser.add_argument('--bust-cache', action='store_true', help='copy info from new dir to reference dir, i.e. overwrite old test info')
 parser.add_argument('--make-plots', action='store_true')
+parser.add_argument('--datadir', default='data/imgt')
 args = parser.parse_args()
 
 tester = Tester()

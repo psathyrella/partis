@@ -15,14 +15,13 @@ class ClusterPath(object):
         self.partitions = []  # it would of course be damn nice to glomph these into a class at some point
         self.logprobs = []
         self.n_procs = []
-        self.adj_mis = []
         self.ccfs = []  # pair of floats (not just a float) for each partition
         self.logweights = []
-        self.n_lists = 6  # just to make sure you don't forget
+        self.n_lists = 5  # just to make sure you don't forget
 
         self.best_minus = 30.  # rewind by this many units of log likelihood when merging separate processes (note that this should really depend on the number of sequences)
         self.i_best, self.i_best_minus_x = None, None
-        self.we_have_an_adj_mi = False  # did we read in at least one adj mi value from a file?
+        self.we_have_a_ccf = False  # did we read in at least one adj mi value from a file?
 
         self.seed_unique_id = seed_unique_id
 
@@ -32,7 +31,7 @@ class ClusterPath(object):
         if smc_particles > 1:
             headers += ['path_index', 'logweight']
         if not is_data:
-            headers += ['n_true_clusters', 'adj_mi', 'ccf_under', 'ccf_over']
+            headers += ['n_true_clusters', 'ccf_under', 'ccf_over']
         if self.seed_unique_id is not None:
             headers += ['seed_unique_id', ]
         # headers += 'bad_clusters'  # can also write the clusters that aren't perfect
@@ -51,13 +50,12 @@ class ClusterPath(object):
                 break
 
     # ----------------------------------------------------------------------------------------
-    def add_partition(self, partition, logprob, n_procs, logweight=None, adj_mi=None, ccfs=[None, None]):
+    def add_partition(self, partition, logprob, n_procs, logweight=None, ccfs=[None, None]):
         # NOTE you typically want to allow duplicate (in terms of log prob) partitions, since they can have different n procs
         self.partitions.append(partition)  # NOTE not deep copied
         self.logprobs.append(logprob)
         self.n_procs.append(n_procs)
         self.logweights.append(logweight)
-        self.adj_mis.append(adj_mi)
         if len(ccfs) != 2:
             raise Exception('tried to add partition with ccfs of length %d (%s)' % (len(ccfs), ccfs))
         self.ccfs.append(ccfs)
@@ -74,10 +72,9 @@ class ClusterPath(object):
         self.partitions.pop(0)
         self.logprobs.pop(0)
         self.n_procs.pop(0)
-        self.adj_mis.pop(0)
         self.ccfs.pop(0)
         self.logweights.pop(0)
-        assert self.n_lists == 6  # make sure we didn't add another list and forget to put it in here
+        assert self.n_lists == 5  # make sure we didn't add another list and forget to put it in here
 
     # ----------------------------------------------------------------------------------------
     def readfile(self, fname):
@@ -95,14 +92,11 @@ class ClusterPath(object):
                 raise Exception('path index in lines %d doesn\'t match my initial path index %d' % (int(line['path_index']), self.initial_path_index))
             partitionstr = line['partition'] if 'partition' in line else line['clusters']  # backwards compatibility -- used to be 'clusters' and there's still a few old files floating around
             partition = [cluster_str.split(':') for cluster_str in partitionstr.split(';')]
-            adj_mi = None
-            if 'adj_mi' in line and line['adj_mi'] != '' and float(line['adj_mi']) != -1.:
-                adj_mi = float(line['adj_mi'])
-                self.we_have_an_adj_mi = True
             ccfs = [None, None]
             if 'ccf_under' in line and 'ccf_over' in line and line['ccf_under'] != '' and line['ccf_over'] != '':
                 ccfs = [float(line['ccf_under']), float(line['ccf_over'])]
-            self.add_partition(partition, float(line['logprob']), int(line.get('n_procs', 1)), logweight=float(line.get('logweight', 0)), adj_mi=adj_mi, ccfs=ccfs)
+                self.we_have_a_ccf = True
+            self.add_partition(partition, float(line['logprob']), int(line.get('n_procs', 1)), logweight=float(line.get('logweight', 0)), ccfs=ccfs)
 
     # ----------------------------------------------------------------------------------------
     def calculate_missing_values(self, reco_info, only_ip=None):
@@ -110,35 +104,18 @@ class ClusterPath(object):
             if only_ip is not None and ip != only_ip:
                 continue
 
-            if self.adj_mis[ip] is not None:  # already have it/them
-                assert self.ccfs[ip][0] is not None and self.ccfs[ip][1] is not None
+            if self.ccfs[ip][0] is not None and self.ccfs[ip][1] is not None:  # already have them
                 continue
 
             true_partition = utils.get_true_partition(reco_info, ids=[uid for cluster in self.partitions[ip] for uid in cluster])
-            self.adj_mis[ip] = utils.adjusted_mutual_information(self.partitions[ip], true_partition)
-            assert self.ccfs[ip] == [None, None]
             self.ccfs[ip] = utils.new_ccfs_that_need_better_names(self.partitions[ip], true_partition, reco_info, seed_unique_id=self.seed_unique_id)
-            self.we_have_an_adj_mi = True
-
-    # ----------------------------------------------------------------------------------------
-    def get_adj_mi_str(self, ip):
-        adj_mi_str = ''
-        if self.we_have_an_adj_mi:
-            if self.adj_mis[ip] is None:
-                adj_mi_str = '   -    '
-            else:
-                if self.adj_mis[ip] > 1e-3:
-                    adj_mi_str = '%-5.3f' % self.adj_mis[ip]
-                else:
-                    adj_mi_str = '%-5.0e' % self.adj_mis[ip]
-
-        return '     %5s   ' % (adj_mi_str)
+            self.we_have_a_ccf = True
 
     # ----------------------------------------------------------------------------------------
     def get_ccf_str(self, ip):
         ccf_str = ''
-        if self.we_have_an_adj_mi:
-            if self.ccfs[ip] == [None, None]:  # NOTE if you set a ccf with a tuple instead of a list this'll fail. So don't do that.
+        if self.we_have_a_ccf:
+            if self.ccfs[ip][0] is None and self.ccfs[ip][1] is None:
                 ccf_str = '   -  -    '
             else:
                 ccf_str = ' %5.2f %5.2f    ' % tuple(self.ccfs[ip])
@@ -194,7 +171,7 @@ class ClusterPath(object):
 
         if print_header:
             print '    %7s %10s   %-7s %5s  %4s' % ('', 'logprob', 'delta', 'clusters', 'n_procs'),
-            if reco_info is not None or self.we_have_an_adj_mi:
+            if reco_info is not None or self.we_have_a_ccf:
                 print ' %5s %5s' % ('purity', 'completeness'),
             if self.logweights[0] is not None and smc_print:
                 print '  %10s  %7s' % ('pot.parents', 'logweight'),
@@ -323,11 +300,10 @@ class ClusterPath(object):
                    'n_clusters' : len(part),
                    'n_procs' : self.n_procs[ipart],
                    'partition' : cluster_str}
-            if 'adj_mi' in headers:
+            if 'ccf_under' in headers:
                 if reco_info is not None and calc_missing_values == 'best' and ipart == self.i_best:
                     self.calculate_missing_values(reco_info, only_ip=ipart)
-                if self.adj_mis[ipart] is not None:  # we already calculated it
-                    row['adj_mi'] = self.adj_mis[ipart]
+                if self.ccfs[ipart][0] is not None and self.ccfs[ipart][1] is not None:
                     row['ccf_under'], row['ccf_over'] = self.ccfs[ipart]  # for now assume we calculated the ccfs if we did adj mi
             if 'n_true_clusters' in headers:
                 row['n_true_clusters'] = len(true_partition)
