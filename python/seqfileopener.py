@@ -103,6 +103,9 @@ def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, 
         if any(fc in unique_id for fc in utils.forbidden_characters):
             raise Exception('found a forbidden character (one of %s) in sequence id \'%s\' -- sorry, you\'ll have to replace it with something else' % (' '.join(["'" + fc + "'" for fc in utils.forbidden_characters]), unique_id))
 
+        if abbreviate_names:
+            unique_id = abbreviate(used_names, potential_names, unique_id)
+
         # if command line specified query or reco ids, skip other ones
         if queries is not None and unique_id not in queries:
             continue
@@ -111,9 +114,6 @@ def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, 
 
         if unique_id in input_info:
             raise Exception('found id %s twice in file %s' % (unique_id, fname))
-
-        if abbreviate_names:
-            unique_id = abbreviate(used_names, potential_names, unique_id)
 
         if seed_unique_id is not None and unique_id == seed_unique_id:
             found_seed = True

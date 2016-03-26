@@ -66,6 +66,9 @@ if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
     print '    TODO clean up logprob of partition stuff in glomerator.cc'
     print '    TODO clean up duplicate id removal'
     print '    TODO clean up new paradigm of switch from seed_unique_id to not'
+    print '    TODO see about varying the naive hfrac thresholds -- especially lowering the lower bound (try to do this by exploiting something about the difference between hfrac and lratio [e.g. where the hfrac differences are? or maybe hfrac averaged over the top N annotations?])'
+    print '    TODO     i.e. find what kinds of clones hfrac and lratio disagree on'
+    print '    TODO test on simulation samples that are *hard*, i.e. that all have the same VJ and cdr3 length'
 
 # input and output stuff
 parser.add_argument('--seqfile', help='input sequence file')
