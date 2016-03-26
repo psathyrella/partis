@@ -56,10 +56,9 @@ class Tester(object):
         def add_inference_tests(input_stype):  # if input_stype is 'ref', infer on old simulation and parameters, if it's 'new' use the new ones
             self.tests['annotate-' + input_stype + '-simu']          = {'extras' : ['--plotdir', self.dirs['new'] + '/' + self.perfdirs[input_stype], '--plot-performance']}
             self.tests['annotate-' + input_stype + '-data']          = {'extras' : ['--n-max-queries', n_data_inference_queries]}
-            self.tests['partition-' + input_stype + '-simu']         = {'extras' : ['--n-max-queries', n_partition_queries, '--persistent-cachefname', self.dirs['new'] + '/' + self.cachefnames[input_stype], '--n-precache-procs', '10']}
+            self.tests['partition-' + input_stype + '-simu']         = {'extras' : ['--n-max-queries', n_partition_queries, '--persistent-cachefname', self.dirs['new'] + '/' + self.cachefnames[input_stype], '--n-precache-procs', '10', '--biggest-logprob-cluster-to-calculate', '2', '--biggest-naive-seq-cluster-to-calculate', '2']}
             seed_uid, _ = utils.choose_seed_unique_id(args.datadir, self.simfnames[input_stype], 5, 8, n_max_queries=int(n_partition_queries), debug=False)
             self.tests['seed-partition-' + input_stype + '-simu']    = {'extras' : ['--n-max-queries', 5 * n_partition_queries, '--n-precache-procs', '10', '--seed-unique-id', seed_uid]}
-            self.tests['point-partition-' + input_stype + '-simu']   = {'extras' : ['--naive-hamming', '--n-max-queries', n_partition_queries, '--n-precache-procs', '10']}
             self.tests['vsearch-partition-' + input_stype + '-simu'] = {'extras' : ['--naive-vsearch', '--n-max-queries', n_partition_queries, '--n-precache-procs', '10']}
 
         def add_common_args():
