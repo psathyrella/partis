@@ -108,7 +108,10 @@ void Glomerator::CacheNaiveSeqs() {  // they're written to file in the destructo
 
 // ----------------------------------------------------------------------------------------
 void Glomerator::Cluster() {
-  if(args_->debug()) cout << "   glomerating" << endl;
+  if(args_->debug()) cout << "   hieragloming " << initial_partitions_[0].size() << " clusters";
+  if(args_->seed_unique_id() != "")
+    cout << "  (" << GetSeededClusters(initial_partitions_[0]).size() << " seeded)";
+  cout << endl;
 
   if(args_->logprob_ratio_threshold() == -INFINITY)
     throw runtime_error("logprob ratio threshold not specified");
@@ -923,7 +926,7 @@ pair<double, Query> Glomerator::FindHfracMerge(ClusterPath *path) {
 pair<double, Query> Glomerator::FindLRatioMerge(ClusterPath *path) {
   double max_lratio(-INFINITY);
   Query chosen_qmerge;
-  int n_total_pairs(0), n_skipped_hamming(0), n_small_lratios(0), n_inf_factors(0);
+  int n_total_pairs(0), n_skipped_hamming(0), n_small_lratios(0);
 
   Partition outer_clusters(path->CurrentPartition());
   if(args_->seed_unique_id() != "")  // see comments in FindHfracMerge
@@ -963,9 +966,6 @@ pair<double, Query> Glomerator::FindLRatioMerge(ClusterPath *path) {
 	continue;
       }
 
-      if(lratio == -INFINITY)
-	++n_inf_factors;
-
       if(lratio > max_lratio) {
 	max_lratio = lratio;
 	chosen_qmerge = GetMergedQuery(key_a, key_b);
@@ -973,17 +973,12 @@ pair<double, Query> Glomerator::FindLRatioMerge(ClusterPath *path) {
     }
   }
 
-  // if <path->CurrentPartition()> only has one cluster, if hamming is too large between all remaining clusters, or if remaining likelihood ratios are -INFINITY
-  if(max_lratio == -INFINITY) {
+  if(max_lratio == -INFINITY) {  // if we didn't find any merges that we liked
     path->finished_ = true;
     if(path->CurrentPartition().size() == 1)
       cout << "        stop with partition of size one" << endl;
-    else if(n_skipped_hamming == n_total_pairs)
-      cout << "        stop with all " << n_skipped_hamming << " / " << n_total_pairs << " hamming distances greater than " << args_->hamming_fraction_bound_hi() << endl;
-    else if(n_inf_factors == n_total_pairs)
-      cout << "        stop with all " << n_inf_factors << " / " << n_total_pairs << " likelihood ratios -inf" << endl;
     else
-      cout << "        stop with: inf " << n_inf_factors << "   ham skip " << n_skipped_hamming << "   small lratios " << n_small_lratios << "   total " << n_total_pairs << endl;
+      cout << "        stop with: big hfrac " << n_skipped_hamming << "   small lratio " << n_small_lratios << "   total " << n_total_pairs << endl;
   } else {
     ++n_lratio_merges_;
     if(args_->debug())
