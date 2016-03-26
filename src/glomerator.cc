@@ -108,10 +108,12 @@ void Glomerator::CacheNaiveSeqs() {  // they're written to file in the destructo
 
 // ----------------------------------------------------------------------------------------
 void Glomerator::Cluster() {
-  if(args_->debug()) cout << "   hieragloming " << initial_partitions_[0].size() << " clusters";
-  if(args_->seed_unique_id() != "")
-    cout << "  (" << GetSeededClusters(initial_partitions_[0]).size() << " seeded)";
-  cout << endl;
+  if(args_->debug()) {
+    cout << "   hieragloming " << initial_partitions_[0].size() << " clusters";
+    if(args_->seed_unique_id() != "")
+      cout << "  (" << GetSeededClusters(initial_partitions_[0]).size() << " seeded)";
+    cout << endl;
+  }
 
   if(args_->logprob_ratio_threshold() == -INFINITY)
     throw runtime_error("logprob ratio threshold not specified");
