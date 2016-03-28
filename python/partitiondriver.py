@@ -153,8 +153,7 @@ class PartitionDriver(object):
         start = time.time()
         while n_procs > 0:
             step_start = time.time()
-            nclusters = self.get_n_clusters()
-            print '--> %d clusters with %d procs' % (nclusters, n_procs)  # write_hmm_input uses the best-minus-ten partition
+            print '--> %d clusters with %d procs' % (len(self.cpath.partitions[self.cpath.i_best_minus_x]), n_procs)  # write_hmm_input uses the best-minus-ten partition
             self.run_hmm('forward', self.args.parameter_dir, n_procs=n_procs)
             self.n_proc_list.append(n_procs)
 
@@ -190,10 +189,6 @@ class PartitionDriver(object):
             true_cp.print_partitions(self.reco_info, print_header=False, calc_missing_values='best')
             # tmpglom = Glomerator(self.reco_info, seed_unique_id=self.args.seed_unique_id)
             # tmpglom.print_true_partition()
-
-    # ----------------------------------------------------------------------------------------
-    def get_n_clusters(self):
-        return len(self.cpath.partitions[self.cpath.i_best_minus_x])
 
     # ----------------------------------------------------------------------------------------
     def get_next_n_procs(self, n_procs):
@@ -590,10 +585,7 @@ class PartitionDriver(object):
 
         if n_procs is None:
             n_procs = self.args.n_procs
-        if n_procs < 1 or n_procs > 9999:
-            raise Exception('bad n_procs %s' % n_procs)
 
-        # if not naive_hamming_cluster:  # should already be there
         self.write_hmm_input(parameter_in_dir, n_procs)  # TODO don't keep rewriting it
 
         cmd_str = self.get_hmm_cmd_str(algorithm, self.hmm_infname, self.hmm_outfname, parameter_dir=parameter_in_dir, cache_naive_seqs=cache_naive_seqs, n_procs=n_procs)
