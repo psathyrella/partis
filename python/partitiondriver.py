@@ -92,6 +92,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def run_waterer(self, parameter_dir, write_parameters=False):
+        start = time.time()
         if write_parameters:  # if we're writing parameters, then we don't have any hmm dir to look in
             genes_to_use = self.args.only_genes  # if None, we use all of 'em
         else:  # ...but if we're not writing parameters, then we want to look in the existing parameter dir to see for which genes we have hmms, and then tell sw to only use those
@@ -102,6 +103,7 @@ class PartitionDriver(object):
         waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo, parameter_dir, write_parameters, genes_to_use)
         waterer.run()
         self.sw_info = waterer.info
+        print '        water time: %.3f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
     def cache_parameters(self):
@@ -122,10 +124,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def partition(self):
         """ Partition sequences in <self.input_info> into clonally related lineages """
-        # run smith-waterman
-        start = time.time()
-        self.run_waterer(self.args.parameter_dir)
-        print '        water time: %.3f' % (time.time()-start)
+        self.run_waterer(self.args.parameter_dir)  # run smith-waterman
 
         n_procs = self.args.n_procs
         self.n_proc_list = []  # list of the number of procs we used for each run
@@ -134,7 +133,7 @@ class PartitionDriver(object):
         self.cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
         self.cpath.add_partition([[cl, ] for cl in self.sw_info['queries']], logprob=0., n_procs=n_procs)
 
-        # cache hmm naive seqs for each single query
+        # cache hmm naive seq for each single query
         if len(self.sw_info['queries']) > 50 or self.args.naive_vsearch or self.args.naive_swarm:
             self.run_hmm('viterbi', self.args.parameter_dir, n_procs=self.get_n_precache_procs(), cache_naive_seqs=True)
 
@@ -152,10 +151,10 @@ class PartitionDriver(object):
             self.n_proc_list.append(n_procs)
 
             print '      partition step time: %.3f' % (time.time()-step_start)
-            if n_procs == 1 or len(self.n_proc_list) >= self.args.n_partition_steps:
+            if n_procs == 1:
                 break
 
-            n_procs = self.get_next_n_procs(n_procs)
+            n_procs = self.get_next_n_procs(n_procs, n_proc_list)
 
         print '      loop time: %.3f' % (time.time()-start)
         start = time.time()
@@ -185,24 +184,24 @@ class PartitionDriver(object):
             # tmpglom.print_true_partition()
 
     # ----------------------------------------------------------------------------------------
-    def get_next_n_procs(self, n_procs):
+    def get_next_n_procs(self, n_procs, n_proc_list):
 
         n_calcd_per_process = self.get_n_calculated_per_process()
         factor = 1.3
 
         reduce_n_procs = False
-        if n_calcd_per_process < self.n_max_calc_per_process or self.n_proc_list.count(n_procs) > n_procs:  # if we didn't need to do that many calculations, or if we've already milked this number of procs for most of what it's worth
+        if n_calcd_per_process < self.n_max_calc_per_process or n_proc_list.count(n_procs) > n_procs:  # if we didn't need to do that many calculations, or if we've already milked this number of procs for most of what it's worth
             reduce_n_procs = True
 
         next_n_procs = n_procs
         if reduce_n_procs:
             next_n_procs = int(next_n_procs / float(factor))
 
-        if self.args.seed_unique_id is not None and (len(self.n_proc_list) > 2 or next_n_procs == 1):
+        if self.args.seed_unique_id is not None and (len(n_proc_list) > 2 or next_n_procs == 1):
             if not self.already_removed_unseeded_clusters:
                 print '     time to remove unseeded clusters'
                 self.time_to_remove_unseeded_clusters = True
-                initial_seqs_per_proc = int(float(len(self.input_info)) / self.n_proc_list[0])
+                initial_seqs_per_proc = int(float(len(self.input_info)) / n_proc_list[0])
                 self.unseeded_clusters = self.get_unseeded_clusters(self.cpath.partitions[self.cpath.i_best_minus_x])
                 n_remaining_seqs = len(self.input_info) - len(self.unseeded_clusters)
                 integer = 3
