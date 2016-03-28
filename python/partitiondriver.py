@@ -122,12 +122,6 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def partition(self):
         """ Partition sequences in <self.input_info> into clonally related lineages """
-        if self.args.print_partitions:
-            cp = ClusterPath(seed_unique_id=self.args.seed_unique_id)
-            cp.readfile(self.args.outfname)
-            cp.print_partitions(reco_info=self.reco_info, abbreviate=True, n_to_print=100)
-            return
-
         # run smith-waterman
         start = time.time()
         self.run_waterer(self.args.parameter_dir)

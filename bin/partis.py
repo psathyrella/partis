@@ -30,7 +30,6 @@ parser.add_argument('--mutation-multiplier', type=float, help='Multiply observed
 parser.add_argument('--mimic-data-read-length', action='store_true', help='trim V 5\' and D 3\' to mimic read lengths seen in data')
 parser.add_argument('--annotation-clustering', help='Perform annotation-based clustering from Vollmers paper')
 parser.add_argument('--rescale-emissions', action='store_true', default=True)
-parser.add_argument('--print-partitions', action='store_true', help='Print partition info in <outfname> and then exit.')
 parser.add_argument('--print-cluster-annotations', action='store_true', help='print annotation for each final cluster')
 # parser.add_argument('--use_mean_at_boundaries', action='store_true', help='see note in hmmwriter')
 parser.add_argument('--annotation-clustering-thresholds', default='0.9', help='colon-separated list of thresholds for annotation-based (e.g. vollmers) clustering')
