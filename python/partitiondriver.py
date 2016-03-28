@@ -36,7 +36,6 @@ class PartitionDriver(object):
                                                            name_column=self.args.name_column, seq_column=self.args.seq_column, seed_unique_id=self.args.seed_unique_id,
                                                            abbreviate_names=self.args.abbreviate)
         self.sw_info = None
-        self.paths = []
         self.bcrham_divvied_queries = None
         self.n_likelihoods_calculated = None
 
@@ -138,10 +137,8 @@ class PartitionDriver(object):
         self.n_proc_list = []  # list of the number of procs we used for each run
 
         # add initial lists of paths
-        cp = ClusterPath(seed_unique_id=self.args.seed_unique_id)
-        cp.add_partition([[cl, ] for cl in self.sw_info['queries']], logprob=0., n_procs=n_procs)
-        assert len(self.paths) == 0
-        self.paths.append(cp)
+        self.cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
+        self.cpath.add_partition([[cl, ] for cl in self.sw_info['queries']], logprob=0., n_procs=n_procs)
 
         # cache hmm naive seqs for each single query
         if len(self.sw_info['queries']) > 50 or self.args.naive_vsearch or self.args.naive_swarm:
@@ -171,22 +168,19 @@ class PartitionDriver(object):
         start = time.time()
 
         # deal with final partition
-        assert len(self.paths) == 1
-        ipath = 0
-        path = self.paths[ipath]
-        self.check_partition(path.partitions[path.i_best])
+        self.check_partition(self.cpath.partitions[self.cpath.i_best])
         if len(self.input_info) < 250:
             print 'final'
             # if self.args.seed_unique_id is not None:
             #     self.remove_duplicate_ids(uids, partition, self.args.seed_unique_id)
-            path.print_partitions(self.reco_info, print_header=True, calc_missing_values='all' if (len(self.input_info) < 500) else 'best')
+            self.cpath.print_partitions(self.reco_info, print_header=True, calc_missing_values='all' if (len(self.input_info) < 500) else 'best')
         if self.args.print_cluster_annotations:
             annotations = self.read_annotation_output(self.annotation_fname)
-            # for cluster in path.partitions[path.i_best]:
+            # for cluster in self.cpath.partitions[self.cpath.i_best]:
             #     utils.print_reco_event(self.glfo['seqs'], annotations[':'.join(cluster)], extra_str='    ', label='inferred:')
         if self.args.outfname is not None:
             start = time.time()
-            self.write_clusterpaths(self.args.outfname, [path, ], deduplicate_uid=self.args.seed_unique_id)  # [last agglomeration step]
+            self.write_clusterpaths(self.args.outfname, deduplicate_uid=self.args.seed_unique_id)  # [last agglomeration step]
             print '      write time: %.3f' % (time.time()-start)
 
         if self.args.debug and not self.args.is_data:
@@ -199,7 +193,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def get_n_clusters(self):
-        return len(self.paths[-1].partitions[self.paths[-1].i_best_minus_x])
+        return len(self.cpath.partitions[self.cpath.i_best_minus_x])
 
     # ----------------------------------------------------------------------------------------
     def get_next_n_procs(self, n_procs):
@@ -220,7 +214,7 @@ class PartitionDriver(object):
                 print '     time to remove unseeded clusters'
                 self.time_to_remove_unseeded_clusters = True
                 initial_seqs_per_proc = int(float(len(self.input_info)) / self.n_proc_list[0])
-                self.unseeded_clusters = self.get_unseeded_clusters(self.paths[-1].partitions[self.paths[-1].i_best_minus_x])
+                self.unseeded_clusters = self.get_unseeded_clusters(self.cpath.partitions[self.cpath.i_best_minus_x])
                 n_remaining_seqs = len(self.input_info) - len(self.unseeded_clusters)
                 integer = 3
                 next_n_procs = max(1, integer * int(float(n_remaining_seqs) / initial_seqs_per_proc))  # multiply by something 'cause we're turning off the seed uid for the last few times through
@@ -277,26 +271,19 @@ class PartitionDriver(object):
         return n_precache_procs
 
     # ----------------------------------------------------------------------------------------
-    def write_clusterpaths(self, outfname, paths, deduplicate_uid=None):
-        outfile, writer = paths[0].init_outfile(outfname, self.args.is_data)
+    def write_clusterpaths(self, outfname, deduplicate_uid=None):
+        outfile, writer = self.cpath.init_outfile(outfname, self.args.is_data)
         true_partition = None
         if not self.args.is_data:
             true_partition = utils.get_true_partition(self.reco_info)
 
         if deduplicate_uid is not None:
-            assert len(paths) == 1
-            ipath = 0
-            path = self.paths[ipath]
             newcp = ClusterPath(seed_unique_id=self.args.seed_unique_id)
-            # assert path.ccfs[path.i_beset][0] is None and path.ccfs[path.i_beset][1] is None
-            partition = copy.deepcopy(path.partitions[path.i_best])
-            # # need this one to remove duplicates
-            # self.check_partition(partition, deduplicate_uid=deduplicate_uid)  # NOTE doesn't set adj mi and whatnot (they'd be wrong if there's duplicates. Actually, I'm distrubed that the duplicates don't seem to cause them to fail)
-            newcp.add_partition(partition, path.logprobs[path.i_best], path.n_procs[path.i_best])
+            partition = copy.deepcopy(self.cpath.partitions[self.cpath.i_best])
+            newcp.add_partition(partition, self.cpath.logprobs[self.cpath.i_best], self.cpath.n_procs[self.cpath.i_best])
             newcp.write_partitions(writer=writer, reco_info=self.reco_info, true_partition=true_partition, is_data=self.args.is_data, n_to_write=self.args.n_partitions_to_write, calc_missing_values='best')
         else:
-            for ipath in range(len(paths)):
-                paths[ipath].write_partitions(writer=writer, reco_info=self.reco_info, true_partition=true_partition, is_data=self.args.is_data, path_index=self.args.seed + ipath, n_to_write=self.args.n_partitions_to_write, calc_missing_values='best')
+            self.cpath.write_partitions(writer=writer, reco_info=self.reco_info, true_partition=true_partition, is_data=self.args.is_data, n_to_write=self.args.n_partitions_to_write, calc_missing_values='best')
 
         outfile.close()
 
@@ -849,16 +836,10 @@ class PartitionDriver(object):
                     infnames = [self.hmm_outfname, ]
                 else:
                     infnames = [self.args.workdir + '/hmm-' + str(iproc) + '/' + os.path.basename(self.hmm_outfname) for iproc in range(n_procs)]
-                previous_info = None
-                if len(self.paths) > 1:
-                    previous_info = self.paths[-1]
                 glomerer = Glomerator(self.reco_info, seed_unique_id=self.args.seed_unique_id)
-                glomerer.read_cached_agglomeration(infnames, previous_info=previous_info, debug=self.args.debug)  #, outfname=self.hmm_outfname)
+                glomerer.read_cached_agglomeration(infnames, debug=self.args.debug)  #, outfname=self.hmm_outfname)
                 assert len(glomerer.paths) == 1
-                if len(self.paths) > 0:
-                    assert len(self.paths) == 1  # er, I think
-                    self.paths = []  # should explicitly free memory
-                self.paths.append(glomerer.paths[0])
+                self.cpath = glomerer.paths[0]
         else:
             self.merge_subprocess_files(self.hmm_outfname, n_procs)
 
@@ -1082,7 +1063,7 @@ class PartitionDriver(object):
         skipped_gene_matches = set()
 
         if self.args.action == 'partition':
-            nsets = copy.deepcopy(self.paths[-1].partitions[self.paths[-1].i_best_minus_x])
+            nsets = copy.deepcopy(self.cpath.partitions[self.cpath.i_best_minus_x])
             if self.args.seed_unique_id is not None and self.time_to_remove_unseeded_clusters:  # length of n_proc_list is the number of previous clustering steps we've run (i.e. before the one for which we're currently writing input)
                 nsets = [[qr] for qr in self.get_seeded_clusters(nsets)]
                 self.already_removed_unseeded_clusters = True
