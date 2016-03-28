@@ -381,10 +381,10 @@ class PartitionDriver(object):
         if not self.args.is_data:  # it's ok to always calculate this since it's only ever for one partition
             true_partition = utils.get_true_partition(self.reco_info)
             ccfs = utils.new_ccfs_that_need_better_names(partition, true_partition, self.reco_info)
-        cp = ClusterPath(seed_unique_id=self.args.seed_unique_id)
-        cp.add_partition(partition, logprob=0.0, n_procs=1, ccfs=ccfs)
+        self.cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
+        self.cpath.add_partition(partition, logprob=0.0, n_procs=1, ccfs=ccfs)
         if self.args.outfname is not None:
-            self.write_clusterpaths(self.args.outfname, [cp, ])
+            self.write_clusterpaths(self.args.outfname)
 
         if not self.args.no_clean:
             os.remove(fastafname)

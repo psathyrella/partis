@@ -132,8 +132,8 @@ parser.add_argument('--joint-emission', action='store_true', help='Use informati
 args = parser.parse_args()
 args.only_genes = utils.get_arg_list(args.only_genes)
 args.n_procs = utils.get_arg_list(args.n_procs, intify=True)
-if n_procs < 1 or n_procs > 9999:  # It happened, at least once. You know, probably.
-    raise Exception('bad n_procs %s' % n_procs)
+# if n_procs < 1 or n_procs > 9999:  # It happened, at least once. You know, probably.
+#     raise Exception('bad n_procs %s' % n_procs)
 args.n_fewer_procs = args.n_procs[0] if len(args.n_procs) == 1 else args.n_procs[1]
 args.n_procs = args.n_procs[0]
 
