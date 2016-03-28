@@ -242,7 +242,7 @@ class ClusterPath(object):
             self.logweights[ip] = this_logweight
 
     # ----------------------------------------------------------------------------------------
-    def init_outfile(self, outfname, is_data, smc_particles):
+    def init_outfile(self, outfname, is_data, smc_particles=1):
         outfile = open(outfname, 'w')
         writer = csv.DictWriter(outfile, self.get_headers(is_data, smc_particles))
         writer.writeheader()

@@ -266,7 +266,7 @@ class Glomerator(object):
                     self.paths[0].print_partitions(self.reco_info)
 
     # ----------------------------------------------------------------------------------------
-    def read_cached_agglomeration(self, infnames, smc_particles, previous_info=None, debug=False):
+    def read_cached_agglomeration(self, infnames, smc_particles=1, previous_info=None, debug=False):
         """ Read the partitions output by bcrham. If <all_partitions> is specified, add the info to it """
         start = time.time()
         fileinfos = []

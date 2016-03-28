@@ -37,7 +37,6 @@ class PartitionDriver(object):
                                                            abbreviate_names=self.args.abbreviate)
         self.sw_info = None
         self.paths = []
-        self.smc_info = []
         self.bcrham_divvied_queries = None
         self.n_likelihoods_calculated = None
 
@@ -139,22 +138,10 @@ class PartitionDriver(object):
         self.n_proc_list = []  # list of the number of procs we used for each run
 
         # add initial lists of paths
-        if self.args.smc_particles == 1:
-            cp = ClusterPath(seed_unique_id=self.args.seed_unique_id)
-            cp.add_partition([[cl, ] for cl in self.sw_info['queries']], logprob=0., n_procs=n_procs)
-            assert len(self.paths) == 0
-            self.paths.append(cp)
-        else:
-            assert False  # deprecated (but don't remove the commented block)
-            # initial_divvied_queries = self.divvy_up_queries(n_procs, [line for line in self.sw_info.values() if 'unique_id' in line], 'unique_id', 'seq')
-            # assert len(self.smc_info) == 0
-            # self.smc_info.append([])
-            # for clusters in initial_divvied_queries:  # one set of <clusters> for each process
-            #     self.smc_info[-1].append([])
-            #     for iptl in range(self.args.smc_particles):
-            #         cp = ClusterPath()
-            #         cp.add_partition([[cl, ] for cl in clusters], logprob=0., n_procs=n_procs)
-            #         self.smc_info[-1][-1].append(cp)
+        cp = ClusterPath(seed_unique_id=self.args.seed_unique_id)
+        cp.add_partition([[cl, ] for cl in self.sw_info['queries']], logprob=0., n_procs=n_procs)
+        assert len(self.paths) == 0
+        self.paths.append(cp)
 
         # cache hmm naive seqs for each single query
         if len(self.sw_info['queries']) > 50 or self.args.naive_vsearch or self.args.naive_swarm:
@@ -184,36 +171,23 @@ class PartitionDriver(object):
         start = time.time()
 
         # deal with final partition
-        if self.args.smc_particles == 1:
-            assert len(self.paths) == 1
-            ipath = 0
-            path = self.paths[ipath]
-            self.check_partition(path.partitions[path.i_best])
-            if len(self.input_info) < 250:
-                print 'final'
-                # if self.args.seed_unique_id is not None:
-                #     self.remove_duplicate_ids(uids, partition, self.args.seed_unique_id)
-                path.print_partitions(self.reco_info, print_header=True, calc_missing_values='all' if (len(self.input_info) < 500) else 'best')
-            if self.args.print_cluster_annotations:
-                annotations = self.read_annotation_output(self.annotation_fname)
-                # for cluster in path.partitions[path.i_best]:
-                #     utils.print_reco_event(self.glfo['seqs'], annotations[':'.join(cluster)], extra_str='    ', label='inferred:')
-            if self.args.outfname is not None:
-                start = time.time()
-                self.write_clusterpaths(self.args.outfname, [path, ], deduplicate_uid=self.args.seed_unique_id)  # [last agglomeration step]
-                print '      write time: %.3f' % (time.time()-start)
-        else:
-            assert False  # deprecated (but don't remove the commented block)
-            # # self.merge_pairs_of_procs(1)  # DAMMIT why did I have this here? I swear there was a reason but I can't figure it out, and it seems to work without it
-            # final_paths = self.smc_info[-1][0]  # [last agglomeration step][first (and only) process in the last step]
-            # for path in final_paths:
-            #     self.check_partition(path.partitions[path.i_best])
-            # if self.args.debug:
-            #     for ipath in range(self.args.smc_particles):
-            #         path = final_paths[ipath]
-            #         path.print_partition(path.i_best, self.reco_info, extrastr=str(ipath) + ' final')
-            # if self.args.outfname is not None:
-            #     self.write_clusterpaths(self.args.outfname, final_paths)
+        assert len(self.paths) == 1
+        ipath = 0
+        path = self.paths[ipath]
+        self.check_partition(path.partitions[path.i_best])
+        if len(self.input_info) < 250:
+            print 'final'
+            # if self.args.seed_unique_id is not None:
+            #     self.remove_duplicate_ids(uids, partition, self.args.seed_unique_id)
+            path.print_partitions(self.reco_info, print_header=True, calc_missing_values='all' if (len(self.input_info) < 500) else 'best')
+        if self.args.print_cluster_annotations:
+            annotations = self.read_annotation_output(self.annotation_fname)
+            # for cluster in path.partitions[path.i_best]:
+            #     utils.print_reco_event(self.glfo['seqs'], annotations[':'.join(cluster)], extra_str='    ', label='inferred:')
+        if self.args.outfname is not None:
+            start = time.time()
+            self.write_clusterpaths(self.args.outfname, [path, ], deduplicate_uid=self.args.seed_unique_id)  # [last agglomeration step]
+            print '      write time: %.3f' % (time.time()-start)
 
         if self.args.debug and not self.args.is_data:
             true_cp = ClusterPath(seed_unique_id=self.args.seed_unique_id)
@@ -224,21 +198,11 @@ class PartitionDriver(object):
             # tmpglom.print_true_partition()
 
     # ----------------------------------------------------------------------------------------
-    # get number of clusters based on sum of last paths in <self.smc_info>
     def get_n_clusters(self):
-        if self.args.smc_particles == 1:
-            return len(self.paths[-1].partitions[self.paths[-1].i_best_minus_x])
-
-        nclusters = 0
-        for iproc in range(len(self.smc_info[-1])):  # number of processes
-            path = self.smc_info[-1][iproc][0]  # uses the first smc particle, but the others will be similar
-            nclusters += len(path.partitions[path.i_best_minus_x])
-        return nclusters
+        return len(self.paths[-1].partitions[self.paths[-1].i_best_minus_x])
 
     # ----------------------------------------------------------------------------------------
     def get_next_n_procs(self, n_procs):
-        if self.args.smc_particles > 1:
-            return len(self.smc_info[-1])  # if we're doing smc, the number of particles is determined by the file merging process
 
         n_calcd_per_process = self.get_n_calculated_per_process()
         factor = 1.3
@@ -314,7 +278,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def write_clusterpaths(self, outfname, paths, deduplicate_uid=None):
-        outfile, writer = paths[0].init_outfile(outfname, self.args.is_data, self.args.smc_particles)
+        outfile, writer = paths[0].init_outfile(outfname, self.args.is_data)
         true_partition = None
         if not self.args.is_data:
             true_partition = utils.get_true_partition(self.reco_info)
@@ -332,7 +296,7 @@ class PartitionDriver(object):
             newcp.write_partitions(writer=writer, reco_info=self.reco_info, true_partition=true_partition, is_data=self.args.is_data, n_to_write=self.args.n_partitions_to_write, calc_missing_values='best')
         else:
             for ipath in range(len(paths)):
-                paths[ipath].write_partitions(writer=writer, reco_info=self.reco_info, true_partition=true_partition, is_data=self.args.is_data, smc_particles=self.args.smc_particles, path_index=self.args.seed + ipath, n_to_write=self.args.n_partitions_to_write, calc_missing_values='best')
+                paths[ipath].write_partitions(writer=writer, reco_info=self.reco_info, true_partition=true_partition, is_data=self.args.is_data, path_index=self.args.seed + ipath, n_to_write=self.args.n_partitions_to_write, calc_missing_values='best')
 
         outfile.close()
 
@@ -501,10 +465,6 @@ class PartitionDriver(object):
         if n_procs > 1:  # only cache vals for sequence sets with newly-calculated vals (initial cache file is copied to each subdir)
             cmd_str += ' --only-cache-new-vals'
 
-        if self.args.smc_particles > 1:
-            os.environ['GSL_RNG_TYPE'] = 'ranlux'
-            os.environ['GSL_RNG_SEED'] = str(random.randint(0, 99999))
-            cmd_str += ' --smc-particles ' + str(self.args.smc_particles)
         if self.args.rescale_emissions:
             cmd_str += ' --rescale-emissions'
         if self.args.print_cluster_annotations and n_procs == 1:
@@ -653,7 +613,7 @@ class PartitionDriver(object):
         if cache_naive_seqs:
             print '      caching all naive sequences'
 
-        if n_procs > 1 and self.args.smc_particles == 1:  # if we're doing smc (i.e. if > 1), we have to split things up more complicatedly elsewhere
+        if n_procs > 1:
             self.split_input(n_procs, self.hmm_infname, 'hmm', algorithm, cache_naive_seqs)
 
         self.execute(cmd_str, n_procs)
@@ -736,7 +696,6 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def split_input(self, n_procs, infname, prefix, algorithm, cache_naive_seqs):
         """ Do stuff. Probably correctly. """
-        assert self.args.smc_particles == 1
 
         do_seed_bullshit = self.args.seed_unique_id is not None and not (self.already_removed_unseeded_clusters or self.time_to_remove_unseeded_clusters)
 
@@ -880,8 +839,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def merge_all_hmm_outputs(self, n_procs, cache_naive_seqs):
-        """ Merge any/all output files from subsidiary bcrham processes (used when *not* doing smc) """
-        assert self.args.smc_particles == 1  # have to do things more complicatedly for smc
+        """ Merge any/all output files from subsidiary bcrham processes """
         if self.args.action == 'partition':  # merge partitions from several files
             if n_procs > 1:
                 self.merge_subprocess_files(self.hmm_cachefname, n_procs, include_outfile=True)  # sub cache files only have new info
@@ -895,7 +853,7 @@ class PartitionDriver(object):
                 if len(self.paths) > 1:
                     previous_info = self.paths[-1]
                 glomerer = Glomerator(self.reco_info, seed_unique_id=self.args.seed_unique_id)
-                glomerer.read_cached_agglomeration(infnames, smc_particles=1, previous_info=previous_info, debug=self.args.debug)  #, outfname=self.hmm_outfname)
+                glomerer.read_cached_agglomeration(infnames, previous_info=previous_info, debug=self.args.debug)  #, outfname=self.hmm_outfname)
                 assert len(glomerer.paths) == 1
                 if len(self.paths) > 0:
                     assert len(self.paths) == 1  # er, I think
@@ -915,48 +873,6 @@ class PartitionDriver(object):
                     if os.path.exists(subworkdir + '/' + os.path.basename(self.hmm_outfname)):
                         # print 'removing ', subworkdir + '/' + os.path.basename(self.hmm_outfname)
                         os.remove(subworkdir + '/' + os.path.basename(self.hmm_outfname))
-                    os.rmdir(subworkdir)
-
-    # ----------------------------------------------------------------------------------------
-    def merge_pairs_of_procs(self, n_procs):
-        """ Merge the output from pairs of processes (used when doing smc)"""
-        assert self.args.action == 'partition'
-        assert self.args.smc_particles > 1
-        if n_procs > 1:
-            groups_to_merge = [[i, i+1] for i in range(0, n_procs-1, 2)]  # e.g. for n_procs = 5, we merge the groups [0, 1], [2, 3, 4]
-        else:
-            groups_to_merge = [[], ]
-        if n_procs % 2 != 0:  # if it's odd, add the last proc to the last group
-            groups_to_merge[-1].append(n_procs-1)
-        self.smc_info.append([])
-        for group in groups_to_merge:
-            if n_procs == 1:
-                infnames = [self.hmm_outfname, ]
-            else:
-                infnames = [self.args.workdir + '/hmm-' + str(iproc) + '/' + os.path.basename(self.hmm_outfname) for iproc in group]
-            assert len(self.smc_info[-2]) == n_procs
-            previous_info = None
-            if len(self.smc_info) > 2:
-                previous_info = [self.smc_info[-2][iproc] for iproc in group]
-            glomerer = Glomerator(self.reco_info, seed_unique_id=self.args.seed_unique_id)
-            paths = glomerer.read_cached_agglomeration(infnames, self.args.smc_particles, previous_info=previous_info, debug=self.args.debug)  #, outfname=self.hmm_outfname)
-            self.smc_info[-1].append(paths)
-
-            # ack? self.glomclusters.append(glomerer)
-            # boof? self.list_of_preclusters.append(glomerer.combined_conservative_best_minus_ten_partitions)
-
-        if n_procs > 1:
-            assert False  # TODO I don't think this is right any more...
-            self.merge_subprocess_files(self.hmm_cachefname, n_procs, include_outfile=True)
-            
-        if not self.args.no_clean:
-            if n_procs == 1:
-                os.remove(self.hmm_outfname)
-            else:
-                for iproc in range(n_procs):
-                    subworkdir = self.args.workdir + '/hmm-' + str(iproc)
-                    os.remove(subworkdir + '/' + os.path.basename(self.hmm_infname))
-                    os.remove(subworkdir + '/' + os.path.basename(self.hmm_outfname))
                     os.rmdir(subworkdir)
 
     # ----------------------------------------------------------------------------------------
@@ -1165,49 +1081,31 @@ class PartitionDriver(object):
 
         skipped_gene_matches = set()
 
-        if self.args.smc_particles > 1:
-            assert self.args.action == 'partition'
-            n_procs = len(self.smc_info[-1])
-            for iproc in range(n_procs):
-                if n_procs == 1:
-                    fname = self.hmm_infname
-                else:
-                    subworkdir = self.args.workdir + '/hmm-' + str(iproc)
-                    utils.prep_dir(subworkdir)
-                    if os.path.exists(self.hmm_cachefname):  # copy cachefile to this subdir
-                        check_call(['cp', self.hmm_cachefname, subworkdir + '/'])  # NOTE this is kind of wasteful to write it to each subdirectory (it could be large) but it's cleaner this way, 'cause then the subdirs are independent
-                    fname = subworkdir + '/' + os.path.basename(self.hmm_infname)
-                procinfo = self.smc_info[-1][iproc]  # list of ClusterPaths, one for each smc particle
-                for iptl in range(len(procinfo)):
-                    path = procinfo[iptl]
-                    self.write_to_single_input_file(fname, 'w' if iptl==0 else 'a', list(path.partitions[path.i_best_minus_x]), parameter_dir,  #  list() is important since we may modify <nsets>
-                                                    skipped_gene_matches, path_index=iptl, logweight=path.logweights[path.i_best_minus_x])
+        if self.args.action == 'partition':
+            nsets = copy.deepcopy(self.paths[-1].partitions[self.paths[-1].i_best_minus_x])
+            if self.args.seed_unique_id is not None and self.time_to_remove_unseeded_clusters:  # length of n_proc_list is the number of previous clustering steps we've run (i.e. before the one for which we're currently writing input)
+                nsets = [[qr] for qr in self.get_seeded_clusters(nsets)]
+                self.already_removed_unseeded_clusters = True
         else:
-            if self.args.action == 'partition':
-                nsets = copy.deepcopy(self.paths[-1].partitions[self.paths[-1].i_best_minus_x])
-                if self.args.seed_unique_id is not None and self.time_to_remove_unseeded_clusters:  # length of n_proc_list is the number of previous clustering steps we've run (i.e. before the one for which we're currently writing input)
-                    nsets = [[qr] for qr in self.get_seeded_clusters(nsets)]
-                    self.already_removed_unseeded_clusters = True
+            if self.args.n_sets == 1:  # single vanilla hmm (does the same thing as the below for n=1, but is more transparent)
+                nsets = [[qn] for qn in self.sw_info['queries']]
             else:
-                if self.args.n_sets == 1:  # single vanilla hmm (does the same thing as the below for n=1, but is more transparent)
-                    nsets = [[qn] for qn in self.sw_info['queries']]
-                else:
-                    if self.args.all_combinations:  # run on *every* combination of queries which has length <self.args.n_sets>
-                        nsets = itertools.combinations(self.sw_info['queries'], self.args.n_sets)
-                    else:  # put the first n together, and the second group of n (note that self.sw_info['queries'] is a list)
-                        nsets = []
-                        keylist = [k for k in self.input_info.keys() if k in self.sw_info['queries']]  # we want the queries from sw (to skip failures), but the order from input_info
-                        this_set = []
-                        for iquery in range(len(keylist)):
-                            if iquery % self.args.n_sets == 0:  # every nth query, start a new group
-                                if len(this_set) > 0:
-                                    nsets.append(this_set)
-                                this_set = []
-                            this_set.append(keylist[iquery])
-                        if len(this_set) > 0:
-                            nsets.append(this_set)
+                if self.args.all_combinations:  # run on *every* combination of queries which has length <self.args.n_sets>
+                    nsets = itertools.combinations(self.sw_info['queries'], self.args.n_sets)
+                else:  # put the first n together, and the second group of n (note that self.sw_info['queries'] is a list)
+                    nsets = []
+                    keylist = [k for k in self.input_info.keys() if k in self.sw_info['queries']]  # we want the queries from sw (to skip failures), but the order from input_info
+                    this_set = []
+                    for iquery in range(len(keylist)):
+                        if iquery % self.args.n_sets == 0:  # every nth query, start a new group
+                            if len(this_set) > 0:
+                                nsets.append(this_set)
+                            this_set = []
+                        this_set.append(keylist[iquery])
+                    if len(this_set) > 0:
+                        nsets.append(this_set)
 
-            self.write_to_single_input_file(self.hmm_infname, 'w', nsets, parameter_dir, skipped_gene_matches)
+        self.write_to_single_input_file(self.hmm_infname, 'w', nsets, parameter_dir, skipped_gene_matches)
 
         if self.args.debug and len(skipped_gene_matches) > 0:
             print '    not found in %s, so removing from consideration for hmm (i.e. were only the nth best, but never the best sw match for any query):' % (parameter_dir),
@@ -1218,11 +1116,8 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def read_hmm_output(self, algorithm, n_procs, count_parameters, parameter_out_dir, cache_naive_seqs):
-        if self.args.smc_particles == 1:
-            if self.args.action == 'partition' or n_procs > 1:
-                self.merge_all_hmm_outputs(n_procs, cache_naive_seqs)
-        else:
-            self.merge_pairs_of_procs(n_procs)
+        if self.args.action == 'partition' or n_procs > 1:
+            self.merge_all_hmm_outputs(n_procs, cache_naive_seqs)
 
         # if os.path.exists(self.hmm_cachefname):
         #     self.read_cachefile(self.hmm_cachefname)
