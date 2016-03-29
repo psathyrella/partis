@@ -473,23 +473,6 @@ class PartitionDriver(object):
         def get_cmd_str(iproc):
             return cmd_str.replace(self.args.workdir, get_workdir(iproc))
 
-        # ----------------------------------------------------------------------------------------
-        # deal with a process once it's finished (i.e. check if it failed, and restart if so)
-        def finish_process(iproc):
-            procs[iproc].communicate()
-            utils.process_out_err('', '', extra_str='' if n_procs == 1 else str(iproc), info=self.n_likelihoods_calculated[iproc], subworkdir=get_workdir(iproc))
-            if procs[iproc].returncode == 0 and os.path.exists(get_outfname(iproc)):  # TODO also check cachefile, if necessary
-                procs[iproc] = None  # job succeeded
-            elif n_tries[iproc] > 5:
-                raise Exception('exceeded max number of tries for command\n    %s\nlook for output in %s' % (get_cmd_str(iproc), get_workdir(iproc)))
-            else:
-                print '    rerunning proc %d (exited with %d' % (iproc, procs[iproc].returncode),
-                if not os.path.exists(get_outfname(iproc)):
-                    print ', output %s d.n.e.' % get_outfname(iproc),
-                print ')'
-                procs[iproc] = utils.run_cmd(get_cmd_str(iproc), get_workdir(iproc))
-                n_tries[iproc] += 1
-
         print '    running'
         sys.stdout.flush()
         start = time.time()
@@ -508,7 +491,7 @@ class PartitionDriver(object):
                 if procs[iproc] is None:  # already finished
                     continue
                 if procs[iproc].poll() is not None:  # it's finished
-                    finish_process(iproc)
+                    utils.finish_process(iproc, procs, n_tries, self.n_likelihoods_calculated[iproc], get_workdir(iproc), get_outfname(iproc), get_cmd_str(iproc))
             sys.stdout.flush()
             time.sleep(1)
 

@@ -12,7 +12,7 @@ import glob
 from collections import OrderedDict
 import itertools
 import csv
-from subprocess import check_output, CalledProcessError
+from subprocess import check_output, CalledProcessError, Popen
 # from sklearn.metrics.cluster import adjusted_mutual_info_score
 # import sklearn.metrics.cluster
 import numpy
@@ -1437,10 +1437,27 @@ def print_linsim_output(outstr):
     print '   homogeneity score %f' % linsim_out['metrics']['homogeneity_score']
 
 # ----------------------------------------------------------------------------------------
-def run_cmd(self, cmd_str, workdir):
+def run_cmd(cmd_str, workdir):
     # print cmd_str
     proc = Popen(cmd_str + ' 1>' + workdir + '/out' + ' 2>' + workdir + '/err', shell=True)
     return proc
+
+# ----------------------------------------------------------------------------------------
+# deal with a process once it's finished (i.e. check if it failed, and restart if so)
+def finish_process(iproc, procs, n_tries, info, workdir, outfname, cmd_str):
+    procs[iproc].communicate()
+    process_out_err('', '', extra_str='' if len(procs) == 1 else str(iproc), info=info, subworkdir=workdir)
+    if procs[iproc].returncode == 0 and os.path.exists(outfname):  # TODO also check cachefile, if necessary
+        procs[iproc] = None  # job succeeded
+    elif n_tries[iproc] > 5:
+        raise Exception('exceeded max number of tries for command\n    %s\nlook for output in %s' % (cmd_str, workdir))
+    else:
+        print '    rerunning proc %d (exited with %d' % (iproc, procs[iproc].returncode),
+        if not os.path.exists(outfname):
+            print ', output %s d.n.e.' % outfname,
+        print ')'
+        procs[iproc] = run_cmd(cmd_str, workdir)
+        n_tries[iproc] += 1
 
 # ----------------------------------------------------------------------------------------
 def process_out_err(out, err, extra_str='', info=None, subworkdir=None):
