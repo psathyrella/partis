@@ -103,7 +103,7 @@ class PartitionDriver(object):
         waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo, parameter_dir, write_parameters, genes_to_use)
         waterer.run()
         self.sw_info = waterer.info
-        print '        water time: .1f' % (time.time()-start)
+        print '        water time: %.1f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
     def cache_parameters(self):
@@ -149,7 +149,7 @@ class PartitionDriver(object):
 
             n_procs = self.get_next_n_procs(n_procs, n_proc_list, cpath)
 
-        print '      loop time: .1f' % (time.time()-start)
+        print '      loop time: %.1f' % (time.time()-start)
 
         if self.args.debug:
             print 'final'
@@ -208,7 +208,7 @@ class PartitionDriver(object):
             warnstr = 'queries missing from partition: ' + ' '.join(missing_ids)
             print '  ' + utils.color('red', 'warning') + ' ' + warnstr
 
-        print '      check time: .1f' % (time.time()-start)
+        print '      check time: %.1f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
     def remove_duplicate_ids(self, uids, partition, deduplicate_uid):
@@ -331,7 +331,7 @@ class PartitionDriver(object):
             bound = self.get_naive_hamming_threshold(parameter_dir, 'tight') /  2.  # yay for heuristics! (I did actually optimize this...)
             differences = int(round(mean_length * bound))
             print '        d = mean len * mut freq bound = %f * %f = %f --> %d' % (mean_length, bound, mean_length * bound, differences)
-            print '      swarm average time: .1f' % (time.time()-tmpstart)
+            print '      swarm average time: %.1f' % (time.time()-tmpstart)
             cmd += ' --differences ' + str(differences)
             cmd += ' --uclust-file ' + clusterfname
             check_call(cmd.split())
@@ -367,7 +367,7 @@ class PartitionDriver(object):
             os.remove(fastafname)
             os.remove(clusterfname)
 
-        print '      vsearch/swarm time: .1f' % (time.time()-start)
+        print '      vsearch/swarm time: %.1f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
     def get_naive_hamming_bounds(self, parameter_dir, debug=True):
@@ -547,7 +547,7 @@ class PartitionDriver(object):
                 time.sleep(1)
 
         sys.stdout.flush()
-        print '      time waiting for bcrham: .1f' % (time.time()-start)
+        print '      time waiting for bcrham: %.1f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
     def run_hmm(self, algorithm, parameter_in_dir, parameter_out_dir='', count_parameters=False, n_procs=None, cache_naive_seqs=False, cpath=None):
@@ -576,7 +576,7 @@ class PartitionDriver(object):
         self.execute(cmd_str, n_procs)
 
         new_cpath = self.read_hmm_output(algorithm, n_procs, count_parameters, parameter_out_dir, cache_naive_seqs)
-        print '      hmm step time: .1f' % (time.time()-start)
+        print '      hmm step time: %.1f' % (time.time()-start)
         return new_cpath
 
     # ----------------------------------------------------------------------------------------
@@ -613,7 +613,7 @@ class PartitionDriver(object):
                     assert id_b in cachefo
 
         print 'expected total: %d  (cached: %d) --> %d' % (n_total, n_cached, n_total - n_cached)
-        print '      expected calc time: .1f' % (time.time()-start)
+        print '      expected calc time: %.1f' % (time.time()-start)
         return n_total - n_cached
 
     # ----------------------------------------------------------------------------------------
@@ -794,7 +794,7 @@ class PartitionDriver(object):
                 if infname != outfname:
                     os.remove(infname)
 
-        print '    time to merge csv files: .1f' % (time.time()-start)
+        print '    time to merge csv files: %.1f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
     def merge_all_hmm_outputs(self, n_procs, cache_naive_seqs):
@@ -854,7 +854,7 @@ class PartitionDriver(object):
             writer = HmmWriter(parameter_dir, hmm_dir, gene, self.args.naivety, self.glfo, self.args)
             writer.write()
 
-        # print '    time to write hmms: .1f' % (time.time()-start)
+        # print '    time to write hmms: %.1f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
     def get_existing_hmm_files(self, parameter_dir):
