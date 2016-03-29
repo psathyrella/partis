@@ -126,13 +126,6 @@ class PartitionDriver(object):
         """ Partition sequences in <self.input_info> into clonally related lineages """
         self.run_waterer(self.args.parameter_dir)  # run smith-waterman
 
-        n_procs = self.args.n_procs
-        self.n_proc_list = []  # list of the number of procs we used for each run
-
-        # add initial lists of paths
-        self.cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
-        self.cpath.add_partition([[cl, ] for cl in self.sw_info['queries']], logprob=0., n_procs=n_procs)
-
         # cache hmm naive seq for each single query
         if len(self.sw_info['queries']) > 50 or self.args.naive_vsearch or self.args.naive_swarm:
             self.run_hmm('viterbi', self.args.parameter_dir, n_procs=self.get_n_precache_procs(), cache_naive_seqs=True)
@@ -141,38 +134,35 @@ class PartitionDriver(object):
             self.cluster_with_naive_vsearch_or_swarm(self.args.parameter_dir)
             return
 
-        # ----------------------------------------------------------------------------------------
-        # run that shiznit
+        cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
+        n_procs = self.args.n_procs
+        cpath.add_partition([[cl, ] for cl in self.sw_info['queries']], logprob=0., n_procs=n_procs)
+        n_proc_list = []
         start = time.time()
         while n_procs > 0:
             step_start = time.time()
-            print '--> %d clusters with %d procs' % (len(self.cpath.partitions[self.cpath.i_best_minus_x]), n_procs)  # write_hmm_input uses the best-minus-ten partition
-            self.run_hmm('forward', self.args.parameter_dir, n_procs=n_procs)
-            self.n_proc_list.append(n_procs)
+            print '--> %d clusters with %d procs' % (len(cpath.partitions[cpath.i_best_minus_x]), n_procs)  # write_hmm_input uses the best-minus-ten partition
+            cpath = self.run_hmm('forward', self.args.parameter_dir, n_procs=n_procs, cpath=cpath)
+            n_proc_list.append(n_procs)
 
             print '      partition step time: %.3f' % (time.time()-step_start)
             if n_procs == 1:
                 break
 
-            n_procs = self.get_next_n_procs(n_procs, n_proc_list)
+            n_procs = self.get_next_n_procs(n_procs, n_proc_list, cpath)
 
         print '      loop time: %.3f' % (time.time()-start)
         start = time.time()
 
-        # deal with final partition
-        self.check_partition(self.cpath.partitions[self.cpath.i_best])
+        self.check_partition(cpath.partitions[cpath.i_best])
         if len(self.input_info) < 250:
             print 'final'
-            # if self.args.seed_unique_id is not None:
-            #     self.remove_duplicate_ids(uids, partition, self.args.seed_unique_id)
-            self.cpath.print_partitions(self.reco_info, print_header=True, calc_missing_values='all' if (len(self.input_info) < 500) else 'best')
+            cpath.print_partitions(self.reco_info, print_header=True, calc_missing_values='all' if (len(self.input_info) < 500) else 'best')
         if self.args.print_cluster_annotations:
             annotations = self.read_annotation_output(self.annotation_fname)
-            # for cluster in self.cpath.partitions[self.cpath.i_best]:
-            #     utils.print_reco_event(self.glfo['seqs'], annotations[':'.join(cluster)], extra_str='    ', label='inferred:')
         if self.args.outfname is not None:
             start = time.time()
-            self.write_clusterpaths(self.args.outfname, deduplicate_uid=self.args.seed_unique_id)  # [last agglomeration step]
+            self.write_clusterpaths(self.args.outfname, cpath, deduplicate_uid=self.args.seed_unique_id)  # [last agglomeration step]
             print '      write time: %.3f' % (time.time()-start)
 
         if self.args.debug and not self.args.is_data:
@@ -184,7 +174,7 @@ class PartitionDriver(object):
             # tmpglom.print_true_partition()
 
     # ----------------------------------------------------------------------------------------
-    def get_next_n_procs(self, n_procs, n_proc_list):
+    def get_next_n_procs(self, n_procs, n_proc_list, cpath):
 
         n_calcd_per_process = self.get_n_calculated_per_process()
         factor = 1.3
@@ -202,7 +192,7 @@ class PartitionDriver(object):
                 print '     time to remove unseeded clusters'
                 self.time_to_remove_unseeded_clusters = True
                 initial_seqs_per_proc = int(float(len(self.input_info)) / n_proc_list[0])
-                self.unseeded_clusters = self.get_unseeded_clusters(self.cpath.partitions[self.cpath.i_best_minus_x])
+                self.unseeded_clusters = self.get_unseeded_clusters(cpath.partitions[cpath.i_best_minus_x])
                 n_remaining_seqs = len(self.input_info) - len(self.unseeded_clusters)
                 integer = 3
                 next_n_procs = max(1, integer * int(float(n_remaining_seqs) / initial_seqs_per_proc))  # multiply by something 'cause we're turning off the seed uid for the last few times through
@@ -259,19 +249,19 @@ class PartitionDriver(object):
         return n_precache_procs
 
     # ----------------------------------------------------------------------------------------
-    def write_clusterpaths(self, outfname, deduplicate_uid=None):
-        outfile, writer = self.cpath.init_outfile(outfname, self.args.is_data)
+    def write_clusterpaths(self, outfname, cpath, deduplicate_uid=None):
+        outfile, writer = cpath.init_outfile(outfname, self.args.is_data)
         true_partition = None
         if not self.args.is_data:
             true_partition = utils.get_true_partition(self.reco_info)
 
         if deduplicate_uid is not None:
             newcp = ClusterPath(seed_unique_id=self.args.seed_unique_id)
-            partition = copy.deepcopy(self.cpath.partitions[self.cpath.i_best])
-            newcp.add_partition(partition, self.cpath.logprobs[self.cpath.i_best], self.cpath.n_procs[self.cpath.i_best])
+            partition = copy.deepcopy(cpath.partitions[cpath.i_best])
+            newcp.add_partition(partition, cpath.logprobs[cpath.i_best], cpath.n_procs[cpath.i_best])
             newcp.write_partitions(writer=writer, reco_info=self.reco_info, true_partition=true_partition, is_data=self.args.is_data, n_to_write=self.args.n_partitions_to_write, calc_missing_values='best')
         else:
-            self.cpath.write_partitions(writer=writer, reco_info=self.reco_info, true_partition=true_partition, is_data=self.args.is_data, n_to_write=self.args.n_partitions_to_write, calc_missing_values='best')
+            cpath.write_partitions(writer=writer, reco_info=self.reco_info, true_partition=true_partition, is_data=self.args.is_data, n_to_write=self.args.n_partitions_to_write, calc_missing_values='best')
 
         outfile.close()
 
@@ -374,10 +364,10 @@ class PartitionDriver(object):
         if not self.args.is_data:  # it's ok to always calculate this since it's only ever for one partition
             true_partition = utils.get_true_partition(self.reco_info)
             ccfs = utils.new_ccfs_that_need_better_names(partition, true_partition, self.reco_info)
-        self.cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
-        self.cpath.add_partition(partition, logprob=0.0, n_procs=1, ccfs=ccfs)
+        cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
+        cpath.add_partition(partition, logprob=0.0, n_procs=1, ccfs=ccfs)
         if self.args.outfname is not None:
-            self.write_clusterpaths(self.args.outfname)
+            self.write_clusterpaths(self.args.outfname, cpath)
 
         if not self.args.no_clean:
             os.remove(fastafname)
@@ -566,7 +556,7 @@ class PartitionDriver(object):
         print '      hmm run time: %.3f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
-    def run_hmm(self, algorithm, parameter_in_dir, parameter_out_dir='', count_parameters=False, n_procs=None, cache_naive_seqs=False):
+    def run_hmm(self, algorithm, parameter_in_dir, parameter_out_dir='', count_parameters=False, n_procs=None, cache_naive_seqs=False, cpath=None):
         """ 
         Run bcrham, possibly with many processes, and parse and interpret the output.
         NOTE the local <n_procs>, which overrides the one from <self.args>
@@ -579,7 +569,7 @@ class PartitionDriver(object):
         if n_procs is None:
             n_procs = self.args.n_procs
 
-        self.write_hmm_input(parameter_in_dir, n_procs)  # TODO don't keep rewriting it
+        self.write_hmm_input(algorithm, parameter_in_dir, n_procs, cpath)  # TODO don't keep rewriting it
 
         cmd_str = self.get_hmm_cmd_str(algorithm, self.hmm_infname, self.hmm_outfname, parameter_dir=parameter_in_dir, cache_naive_seqs=cache_naive_seqs, n_procs=n_procs)
         if cache_naive_seqs:
@@ -590,7 +580,8 @@ class PartitionDriver(object):
 
         self.execute(cmd_str, n_procs)
 
-        self.read_hmm_output(algorithm, n_procs, count_parameters, parameter_out_dir, cache_naive_seqs)
+        new_cpath = self.read_hmm_output(algorithm, n_procs, count_parameters, parameter_out_dir, cache_naive_seqs)
+        return cpath
 
     # ----------------------------------------------------------------------------------------
     def read_cachefile(self):
@@ -812,6 +803,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def merge_all_hmm_outputs(self, n_procs, cache_naive_seqs):
         """ Merge any/all output files from subsidiary bcrham processes """
+        cpath = None  # TODO figure out a cleaner way to do this
         if self.args.action == 'partition':  # merge partitions from several files
             if n_procs > 1:
                 self.merge_subprocess_files(self.hmm_cachefname, n_procs, include_outfile=True)  # sub cache files only have new info
@@ -824,22 +816,22 @@ class PartitionDriver(object):
                 glomerer = Glomerator(self.reco_info, seed_unique_id=self.args.seed_unique_id)
                 glomerer.read_cached_agglomeration(infnames, debug=self.args.debug)  #, outfname=self.hmm_outfname)
                 assert len(glomerer.paths) == 1
-                self.cpath = glomerer.paths[0]
+                cpath = glomerer.paths[0]
         else:
             self.merge_subprocess_files(self.hmm_outfname, n_procs)
 
         if not self.args.no_clean:
             if n_procs == 1:
-                # print 'removing ', self.hmm_outfname
                 os.remove(self.hmm_outfname)
             else:
                 for iproc in range(n_procs):
                     subworkdir = self.args.workdir + '/hmm-' + str(iproc)
                     os.remove(subworkdir + '/' + os.path.basename(self.hmm_infname))
                     if os.path.exists(subworkdir + '/' + os.path.basename(self.hmm_outfname)):
-                        # print 'removing ', subworkdir + '/' + os.path.basename(self.hmm_outfname)
                         os.remove(subworkdir + '/' + os.path.basename(self.hmm_outfname))
                     os.rmdir(subworkdir)
+
+        return cpath
 
     # ----------------------------------------------------------------------------------------
     def write_hmms(self, parameter_dir):
@@ -1041,14 +1033,14 @@ class PartitionDriver(object):
         csvfile.close()
 
     # ----------------------------------------------------------------------------------------
-    def write_hmm_input(self, parameter_dir, n_procs):
+    def write_hmm_input(self, algorithm, parameter_dir, n_procs, cpath):
         """ Write input file for bcrham """
         print '    writing input'
 
         skipped_gene_matches = set()
 
-        if self.args.action == 'partition':
-            nsets = copy.deepcopy(self.cpath.partitions[self.cpath.i_best_minus_x])
+        if self.args.action == 'partition' and algorithm == 'forward':
+            nsets = copy.deepcopy(cpath.partitions[cpath.i_best_minus_x])
             if self.args.seed_unique_id is not None and self.time_to_remove_unseeded_clusters:  # length of n_proc_list is the number of previous clustering steps we've run (i.e. before the one for which we're currently writing input)
                 nsets = [[qr] for qr in self.get_seeded_clusters(nsets)]
                 self.already_removed_unseeded_clusters = True
@@ -1082,11 +1074,9 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def read_hmm_output(self, algorithm, n_procs, count_parameters, parameter_out_dir, cache_naive_seqs):
+        cpath = None  # TODO figure out a cleaner way to do this
         if self.args.action == 'partition' or n_procs > 1:
-            self.merge_all_hmm_outputs(n_procs, cache_naive_seqs)
-
-        # if os.path.exists(self.hmm_cachefname):
-        #     self.read_cachefile(self.hmm_cachefname)
+            cpath = self.merge_all_hmm_outputs(n_procs, cache_naive_seqs)
 
         if self.args.action != 'partition':
             if self.args.action == 'run-viterbi' or self.args.action == 'cache-parameters':
@@ -1096,6 +1086,8 @@ class PartitionDriver(object):
 
         if not self.args.no_clean and os.path.exists(self.hmm_infname):
             os.remove(self.hmm_infname)
+
+        return cpath
 
     # ----------------------------------------------------------------------------------------
     def check_bcrham_errors(self, line, boundary_error_queries):

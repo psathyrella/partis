@@ -63,6 +63,7 @@ if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
     print '    TODO see about varying the naive hfrac thresholds -- especially lowering the lower bound (try to do this by exploiting something about the difference between hfrac and lratio [e.g. where the hfrac differences are? or maybe hfrac averaged over the top N annotations?])'
     print '    TODO     i.e. find what kinds of clones hfrac and lratio disagree on'
     print '    TODO test on simulation samples that are *hard*, i.e. that all have the same VJ and cdr3 length'
+    print '    TODO clean up best vs. best_minus_x stuf (and make sure it\'s right)'
 
 # input and output stuff
 parser.add_argument('--seqfile', help='input sequence file')
