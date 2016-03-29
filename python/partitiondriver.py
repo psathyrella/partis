@@ -491,7 +491,7 @@ class PartitionDriver(object):
                 if procs[iproc] is None:  # already finished
                     continue
                 if procs[iproc].poll() is not None:  # it's finished
-                    utils.finish_process(iproc, procs, n_tries, self.n_likelihoods_calculated[iproc], get_workdir(iproc), get_outfname(iproc), get_cmd_str(iproc))
+                    utils.finish_process(iproc, procs, n_tries, get_workdir(iproc), get_outfname(iproc), get_cmd_str(iproc), self.n_likelihoods_calculated[iproc])
             sys.stdout.flush()
             time.sleep(1)
 

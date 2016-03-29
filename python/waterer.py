@@ -63,6 +63,11 @@ class Waterer(object):
             self.my_datadir = self.args.workdir + '/germline-sets'
             self.rewritten_files = utils.rewrite_germline_fasta(self.args.datadir, self.my_datadir, self.genes_to_use)
 
+        os.environ['PATH'] = os.getenv('PWD') + '/packages/samtools:' + os.getenv('PATH')
+        check_output(['which', 'samtools'])
+        if not os.path.exists(self.args.ighutil_dir + '/bin/vdjalign'):
+            raise Exception('ERROR ighutil path d.n.e: ' + self.args.ighutil_dir + '/bin/vdjalign')
+
     # ----------------------------------------------------------------------------------------
     def __del__(self):
         if self.args.outfname is not None:
@@ -143,64 +148,39 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def execute_commands(self, base_infname, base_outfname, n_procs):
+        # ----------------------------------------------------------------------------------------
+        def get_workdir(iproc):
+            if n_procs == 1:
+                return self.args.workdir
+            else:
+                return self.args.workdir + '/sw-' + str(iproc)
+        # ----------------------------------------------------------------------------------------
+        def get_outfname(iproc):
+            return get_workdir(iproc) + '/' + base_outfname
+        # ----------------------------------------------------------------------------------------
+        def get_cmd_str(iproc):
+            return self.get_vdjalign_cmd_str(get_workdir(iproc), base_infname, base_outfname, self.my_datadir, n_procs)
 
-        if n_procs == 1:
-            cmd_str = self.get_vdjalign_cmd_str(self.args.workdir, base_infname, base_outfname, self.my_datadir)
-            proc = Popen(cmd_str.split(), stdout=PIPE, stderr=PIPE)
-            out, err = proc.communicate()
-            utils.process_out_err(out, err)
-            if not self.args.no_clean:
-                os.remove(self.args.workdir + '/' + base_infname)
-        else:
-            shell = True
+        # start all procs for the first time
+        procs, n_tries = [], []
+        for iproc in range(n_procs):
+            procs.append(utils.run_cmd(get_cmd_str(iproc), get_workdir(iproc)))
+            n_tries.append(1)
+            time.sleep(0.1)
 
-            cmd_strs, workdirs = [], []
+        # keep looping over the procs until they're all done
+        while procs.count(None) != len(procs):  # we set each proc to None when it finishes
             for iproc in range(n_procs):
-                workdirs.append(self.args.workdir + '/sw-' + str(iproc))
-                cmd_strs.append(self.get_vdjalign_cmd_str(workdirs[iproc], base_infname, base_outfname, self.my_datadir, n_procs, shell))
+                if procs[iproc] is None:  # already finished
+                    continue
+                if procs[iproc].poll() is not None:  # it's finished
+                    utils.finish_process(iproc, procs, n_tries, get_workdir(iproc), get_outfname(iproc), get_cmd_str(iproc))
+            sys.stdout.flush()
+            time.sleep(1)
 
-            # start all procs for the first time
-            procs, n_tries = [], []
+        if not self.args.no_clean:
             for iproc in range(n_procs):
-                procs.append(Popen(cmd_strs[iproc], shell=shell))
-                n_tries.append(1)
-                time.sleep(0.1)
-
-            # ----------------------------------------------------------------------------------------
-            def get_outfname(iproc):
-                return workdirs[iproc] + '/' + base_outfname
-
-            # ----------------------------------------------------------------------------------------
-            # deal with a process once it's finished (i.e. check if it failed, and restart if so)
-            def finish_process(iproc):
-                procs[iproc].communicate()
-                utils.process_out_err('', '', extra_str=str(iproc), subworkdir=workdirs[iproc])
-                if procs[iproc].returncode == 0 and os.path.exists(get_outfname(iproc)):
-                    procs[iproc] = None  # job succeeded
-                elif n_tries[iproc] > 5:
-                    raise Exception('exceeded max number of tries for command\n    %s\nlook for output in %s' % (cmd_strs[iproc], workdirs[iproc]))
-                else:
-                    print '    rerunning proc %d (exited with %d' % (iproc, procs[iproc].returncode),
-                    if not os.path.exists(get_outfname(iproc)):
-                        print ', output %s d.n.e.' % get_outfname(iproc),
-                    print ')'
-                    procs[iproc] = Popen(cmd_strs[iproc], shell=shell)
-                    n_tries[iproc] += 1
-
-            # keep looping over the procs until they're all done
-            while procs.count(None) != len(procs):  # we set each proc to None when it finishes
-                for iproc in range(n_procs):
-                    if procs[iproc] is None:  # already finished
-                        continue
-                    # read_progress(iproc)
-                    if procs[iproc].poll() is not None:  # it's finished
-                        finish_process(iproc)
-                sys.stdout.flush()
-                time.sleep(1)
-
-            if not self.args.no_clean:
-                for iproc in range(n_procs):
-                    os.remove(workdirs[iproc] + '/' + base_infname)
+                os.remove(get_workdir(iproc) + '/' + base_infname)
 
         sys.stdout.flush()
 
@@ -238,16 +218,12 @@ class Waterer(object):
             raise Exception('didn\'t write %s to %s' % (':'.join(not_written), self.args.workdir))
 
     # ----------------------------------------------------------------------------------------
-    def get_vdjalign_cmd_str(self, workdir, base_infname, base_outfname, datadir, n_procs=None, shell=False):
+    def get_vdjalign_cmd_str(self, workdir, base_infname, base_outfname, datadir, n_procs=None):
         """
         Run smith-waterman alignment (from Connor's ighutils package) on the seqs in <base_infname>, and toss all the top matches into <base_outfname>.
         """
         # large gap-opening penalty: we want *no* gaps in the middle of the alignments
         # match score larger than (negative) mismatch score: we want to *encourage* some level of shm. If they're equal, we tend to end up with short unmutated alignments, which screws everything up
-        os.environ['PATH'] = os.getenv('PWD') + '/packages/samtools:' + os.getenv('PATH')
-        check_output(['which', 'samtools'])
-        if not os.path.exists(self.args.ighutil_dir + '/bin/vdjalign'):
-            raise Exception('ERROR ighutil path d.n.e: ' + self.args.ighutil_dir + '/bin/vdjalign')
         cmd_str = self.args.ighutil_dir + '/bin/vdjalign align-fastq -q'
         if self.args.slurm or utils.auto_slurm(n_procs):
             cmd_str = 'srun ' + cmd_str
@@ -257,9 +233,6 @@ class Waterer(object):
         cmd_str += ' --gap-open ' + str(self.args.gap_open_penalty)  #1000'  #50'
         cmd_str += ' --vdj-dir ' + datadir  # NOTE not necessarily <self.args.datadir>
         cmd_str += ' ' + workdir + '/' + base_infname + ' ' + workdir + '/' + base_outfname
-
-        if shell:
-            cmd_str += ' 1>' + workdir + '/out' + ' 2>' + workdir + '/err'
 
         return cmd_str
 

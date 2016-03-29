@@ -1444,7 +1444,7 @@ def run_cmd(cmd_str, workdir):
 
 # ----------------------------------------------------------------------------------------
 # deal with a process once it's finished (i.e. check if it failed, and restart if so)
-def finish_process(iproc, procs, n_tries, info, workdir, outfname, cmd_str):
+def finish_process(iproc, procs, n_tries, workdir, outfname, cmd_str, info=None):
     procs[iproc].communicate()
     process_out_err('', '', extra_str='' if len(procs) == 1 else str(iproc), info=info, subworkdir=workdir)
     if procs[iproc].returncode == 0 and os.path.exists(outfname):  # TODO also check cachefile, if necessary
