@@ -100,6 +100,7 @@ Glomerator::~Glomerator() {
 
 // ----------------------------------------------------------------------------------------
 void Glomerator::CacheNaiveSeqs() {  // they're written to file in the destructor, so we just need to calculate them here
+  cout << "      caching all naive sequences" << endl;
   for(auto &kv : seq_info_)
     GetNaiveSeq(kv.first);
   ofs_.open(args_->outfile());  // a.t.m. I'm signalling that I finished ok by doing this
@@ -325,7 +326,7 @@ void Glomerator::PrintPartition(Partition &partition, string extrastr) {
 // ----------------------------------------------------------------------------------------
 string Glomerator::ProgressString() {
     char buffer[2000];
-    sprintf(buffer, "         calculated   vtb %-4d  fwd %-4d  hfrac %-8d    merged  hfrac %-4d lratio %-4d", n_vtb_calculated_, n_fwd_calculated_, n_hfrac_calculated_, n_hfrac_merges_, n_lratio_merges_);
+    sprintf(buffer, "        calcd:   vtb %-4d  fwd %-4d  hfrac %-8d    merged:  hfrac %-4d lratio %-4d", n_vtb_calculated_, n_fwd_calculated_, n_hfrac_calculated_, n_hfrac_merges_, n_lratio_merges_);
     return string(buffer);
 }
 
