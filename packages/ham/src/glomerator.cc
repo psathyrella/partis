@@ -334,7 +334,7 @@ string Glomerator::ProgressString() {
 void Glomerator::WriteStatus() {
   time_t current_time;
   time(&current_time);
-  if(difftime(current_time, last_status_write_time_) > 0.1) {  // write something every five minutes
+  if(difftime(current_time, last_status_write_time_) > 300) {  // write something every five minutes
     char buffer[2000];
     strftime(buffer, 2000, "%b %d %T", localtime(&current_time));  // %H:%M
     // fprintf(progress_file_, "      %s    %4d clusters    calcd  fwd %-4d   vtb %-4d   hfrac %-8d    merged  hfrac %-4d\n", buffer, (int)path_->CurrentPartition().size(), n_fwd_calculated_, n_vtb_calculated_);
