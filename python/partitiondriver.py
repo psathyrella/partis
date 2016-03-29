@@ -466,9 +466,6 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def execute(self, cmd_str, n_procs):
-        print '    running'
-        start = time.time()
-        sys.stdout.flush()
         # ----------------------------------------------------------------------------------------
         def get_workdir(iproc):
             if n_procs == 1:
@@ -484,7 +481,7 @@ class PartitionDriver(object):
         # deal with a process once it's finished (i.e. check if it failed, and restart if so)
         def finish_process(iproc):
             procs[iproc].communicate()
-            utils.process_out_err('', '', extra_str=str(iproc), info=self.n_likelihoods_calculated[iproc], subworkdir=get_workdir(iproc))
+            utils.process_out_err('', '', extra_str='' if n_procs == 1 else str(iproc), info=self.n_likelihoods_calculated[iproc], subworkdir=get_workdir(iproc))
             if procs[iproc].returncode == 0 and os.path.exists(get_outfname(iproc)):  # TODO also check cachefile, if necessary
                 procs[iproc] = None  # job succeeded
             elif n_tries[iproc] > 5:
@@ -496,6 +493,10 @@ class PartitionDriver(object):
                 print ')'
                 procs[iproc] = self.execute_iproc(cmd_strs[iproc], workdir=get_workdir(iproc))
                 n_tries[iproc] += 1
+
+        print '    running'
+        sys.stdout.flush()
+        start = time.time()
 
         cmd_strs = [cmd_str.replace(self.args.workdir, get_workdir(iproc)) for iproc in range(n_procs)]
 
@@ -517,8 +518,8 @@ class PartitionDriver(object):
             sys.stdout.flush()
             time.sleep(1)
 
-        sys.stdout.flush()
         print '      time waiting for bcrham: %.1f' % (time.time()-start)
+        sys.stdout.flush()
 
     # ----------------------------------------------------------------------------------------
     def run_hmm(self, algorithm, parameter_in_dir, parameter_out_dir='', count_parameters=False, n_procs=None, cache_naive_seqs=False, cpath=None):

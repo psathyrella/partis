@@ -1437,7 +1437,7 @@ def print_linsim_output(outstr):
     print '   homogeneity score %f' % linsim_out['metrics']['homogeneity_score']
 
 # ----------------------------------------------------------------------------------------
-def process_out_err(out, err, extra_str='0', info=None, subworkdir=None):
+def process_out_err(out, err, extra_str='', info=None, subworkdir=None):
     """ NOTE something in this chain seems to block or truncate or some such nonsense if you make it too big """
     if subworkdir is not None:
         def readfile(fname):
@@ -1479,7 +1479,8 @@ def process_out_err(out, err, extra_str='0', info=None, subworkdir=None):
     print_str += out
 
     if print_str != '':
-        print '      --> proc %s' % extra_str
+        if extra_str != '':
+            print '      --> proc %s' % extra_str
         print print_str
 
 # ----------------------------------------------------------------------------------------
