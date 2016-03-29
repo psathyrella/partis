@@ -36,7 +36,6 @@ class PartitionDriver(object):
                                                            name_column=self.args.name_column, seq_column=self.args.seq_column, seed_unique_id=self.args.seed_unique_id,
                                                            abbreviate_names=self.args.abbreviate)
         self.sw_info = None
-        self.bcrham_divvied_queries = None
         self.n_likelihoods_calculated = None
 
         self.n_max_calc_per_process = 200  # if a bcrham process calc'd more than this many fwd + vtb values, don't decrease the number of processes in the next step
@@ -560,8 +559,6 @@ class PartitionDriver(object):
         self.write_hmm_input(algorithm, parameter_in_dir, n_procs, cpath)  # TODO don't keep rewriting it
 
         cmd_str = self.get_hmm_cmd_str(algorithm, self.hmm_infname, self.hmm_outfname, parameter_dir=parameter_in_dir, cache_naive_seqs=cache_naive_seqs, n_procs=n_procs)
-        if cache_naive_seqs:
-            print '      caching all naive sequences'
 
         if n_procs > 1:
             self.split_input(n_procs, self.hmm_infname, 'hmm', algorithm, cache_naive_seqs)
@@ -647,9 +644,9 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def split_input(self, n_procs, infname, prefix, algorithm, cache_naive_seqs):
-        """ Do stuff. Probably correctly. """
 
-        do_seed_bullshit = self.args.seed_unique_id is not None and not (self.already_removed_unseeded_clusters or self.time_to_remove_unseeded_clusters)
+        # should we pull out the seeded clusters, and carefully re-inject them into each process?
+        separate_seeded_clusters = self.args.seed_unique_id is not None and not (self.already_removed_unseeded_clusters or self.time_to_remove_unseeded_clusters)  # I think I ony actually need one of the latter bools
 
         # read single input file
         info = []
@@ -657,7 +654,7 @@ class PartitionDriver(object):
         with opener('r')(infname) as infile:
             reader = csv.DictReader(infile, delimiter=' ')
             for line in reader:
-                if do_seed_bullshit and self.args.seed_unique_id in set(line['names'].split(':')):
+                if separate_seeded_clusters and self.args.seed_unique_id in set(line['names'].split(':')):
                     if len(seeded_clusters) > 0 and ':' not in line['names']:  # the first time through, we add the seed uid to *every* process. So, when we read those results back in, the procs that didn't merge the seed with anybody will have it as a singleton still, and we only need the singleton once
                         continue
                     seeded_clusters[line['names']] = line
@@ -665,9 +662,9 @@ class PartitionDriver(object):
                 info.append(line)
 
         # find the smallest seeded cluster
-        if do_seed_bullshit:
+        if separate_seeded_clusters:
             if len(seeded_clusters) == 0:
-                raise Exception('couldn\'t find info for query %s in %s' % (self.args.seed_unique_id, infname))
+                raise Exception('couldn\'t find info for seed query %s in %s' % (self.args.seed_unique_id, infname))
             smallest_seed_cluster_str = None
             for unique_id_str in seeded_clusters:
                 if smallest_seed_cluster_str is None or len(unique_id_str.split(':')) < len(smallest_seed_cluster_str.split(':')):
@@ -692,7 +689,7 @@ class PartitionDriver(object):
             get_writer(sub_outfile).writeheader()
             sub_outfile.close()  # can't leave 'em all open the whole time 'cause python has the thoroughly unreasonable idea that one oughtn't to have thousands of files open at once
 
-        # self.get_expected_number_of_forward_calculations(info, 'names', 'seqs')
+        # self.get_expected_number_of_forward_calculations(info, 'names', 'seqs')  # I think this didn't work that well
 
         seed_clusters_to_write = seeded_clusters.keys()  # the keys in <seeded_clusters> that we still need to write
         for iproc in range(n_procs):
@@ -700,7 +697,7 @@ class PartitionDriver(object):
             writer = get_writer(sub_outfile)
 
             # first deal with the seeded clusters
-            if do_seed_bullshit:  # write the seed info line to each file
+            if separate_seeded_clusters:  # write the seed info line to each file
                 if len(seed_clusters_to_write) > 0:
                     if iproc < n_procs - 1:  # if we're not on the last proc, pop off and write the first one
                         writer.writerow(seeded_clusters[seed_clusters_to_write.pop(0)])
@@ -716,9 +713,6 @@ class PartitionDriver(object):
                     continue
                 writer.writerow(info[iquery])
             sub_outfile.close()
-
-        if self.bcrham_divvied_queries is not None:
-            self.bcrham_divvied_queries = None
 
     # ----------------------------------------------------------------------------------------
     def merge_subprocess_files(self, fname, n_procs, include_outfile=False):
@@ -967,13 +961,14 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def get_seeded_clusters(self, nsets):
-        print '      ', ' '.join([':'.join(ns) for ns in nsets if self.args.seed_unique_id in ns])
+        print '      removing unseeded clusters'
+        print '         ', ' '.join([':'.join(ns) for ns in nsets if self.args.seed_unique_id in ns])
         seeded_clusters = set()
         for ns in nsets:
             if self.args.seed_unique_id in ns:
                 for uid in ns:  # add each individual query that's been clustered with the seed (but split apart)
                     seeded_clusters.add(uid)
-        print '      ', ' '.join(seeded_clusters)
+        print '         ', ' '.join(seeded_clusters)
         return seeded_clusters
 
     # ----------------------------------------------------------------------------------------
@@ -987,14 +982,13 @@ class PartitionDriver(object):
         return unseeded_clusters
 
     # ----------------------------------------------------------------------------------------
-    def write_to_single_input_file(self, fname, mode, nsets, parameter_dir, skipped_gene_matches, path_index=0, logweight=0.):
-        csvfile = opener(mode)(fname)
+    def write_to_single_input_file(self, fname, nsets, parameter_dir, skipped_gene_matches, path_index=0, logweight=0.):
+        csvfile = opener('w')(fname)
         header = ['path_index', 'logweight', 'names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'only_genes', 'seqs', 'mute_freqs']  # NOTE logweight is for the whole partition
-        writer = csv.DictWriter(csvfile, header, delimiter=' ')  # NOTE should eventually rewrite arg parser in ham to handle csvs (like in glomerator cache reader)
-        if mode == 'w':
-            writer.writeheader()
+        writer = csv.DictWriter(csvfile, header, delimiter=' ')  # TODO should eventually rewrite arg parser in ham to handle csvs (like in glomerator cache reader)
+        writer.writeheader()
 
-        if not self.args.no_random_divvy:  #randomize_input_order:  # NOTE nsets is a list of *lists* of ids
+        if not self.args.no_random_divvy:  # shuffle nset order (this is important because we want the calculations to be spread uniformly among the n processes)
             random.shuffle(nsets)
 
         if self.args.synthetic_distance_based_partition:
@@ -1002,7 +996,7 @@ class PartitionDriver(object):
 
         genes_with_hmm_files = self.get_existing_hmm_files(parameter_dir)
 
-        for query_name_list in nsets:  # NOTE in principle I think I should remove duplicate singleton <seed_unique_id>s here. But I think they in effect get remove 'cause in bcrham everything's store as hash maps, so any duplicates just overwites the original upon reading its input
+        for query_name_list in nsets:  # NOTE in principle I think I should remove duplicate singleton <seed_unique_id>s here. But I think they in effect get removed 'cause in bcrham everything's stored as hash maps, so any duplicates just overwites the original upon reading its input
             combined_query = self.combine_queries(query_name_list, parameter_dir, genes_with_hmm_files, skipped_gene_matches=skipped_gene_matches)
             if len(combined_query) == 0:  # didn't find all regions
                 continue
@@ -1028,18 +1022,18 @@ class PartitionDriver(object):
 
         skipped_gene_matches = set()
 
-        if self.args.action == 'partition' and algorithm == 'forward':
+        if self.args.action == 'partition' and algorithm == 'forward':  # if we're caching naive seqs before partitioning, we're doing viterbi (and want the block below)
             nsets = copy.deepcopy(cpath.partitions[cpath.i_best_minus_x])
-            if self.args.seed_unique_id is not None and self.time_to_remove_unseeded_clusters:  # length of n_proc_list is the number of previous clustering steps we've run (i.e. before the one for which we're currently writing input)
+            if self.args.seed_unique_id is not None and self.time_to_remove_unseeded_clusters:
                 nsets = [[qr] for qr in self.get_seeded_clusters(nsets)]
                 self.already_removed_unseeded_clusters = True
         else:
-            if self.args.n_sets == 1:  # single vanilla hmm (does the same thing as the below for n=1, but is more transparent)
+            if self.args.n_sets == 1:  # single (non-multi) hmm (does the same thing as the below for n=1, but is more transparent)
                 nsets = [[qn] for qn in self.sw_info['queries']]
             else:
                 if self.args.all_combinations:  # run on *every* combination of queries which has length <self.args.n_sets>
                     nsets = itertools.combinations(self.sw_info['queries'], self.args.n_sets)
-                else:  # put the first n together, and the second group of n (note that self.sw_info['queries'] is a list)
+                else:  # put the first n together, and the second group of n, and so forth (note that self.sw_info['queries'] is a list)
                     nsets = []
                     keylist = [k for k in self.input_info.keys() if k in self.sw_info['queries']]  # we want the queries from sw (to skip failures), but the order from input_info
                     this_set = []
@@ -1052,7 +1046,7 @@ class PartitionDriver(object):
                     if len(this_set) > 0:
                         nsets.append(this_set)
 
-        self.write_to_single_input_file(self.hmm_infname, 'w', nsets, parameter_dir, skipped_gene_matches)
+        self.write_to_single_input_file(self.hmm_infname, nsets, parameter_dir, skipped_gene_matches)
 
         if self.args.debug and len(skipped_gene_matches) > 0:
             print '    not found in %s, so removing from consideration for hmm (i.e. were only the nth best, but never the best sw match for any query):' % (parameter_dir),

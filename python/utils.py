@@ -1463,7 +1463,7 @@ def process_out_err(out, err, extra_str='0', info=None, subworkdir=None):
             print_str += line + '\n'
 
     for line in out.split('\n'):
-        if info is not None and 'calculated' in line:  # keep track of how many vtb and fwd calculations the process made
+        if info is not None and 'calcd:' in line:  # keep track of how many vtb and fwd calculations the process made
             info['vtb'], info['fwd'] = 0, 0
             words = line.split()
             if words[1] == 'vtb' and words[3] == 'fwd':
