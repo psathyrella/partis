@@ -581,7 +581,7 @@ class PartitionDriver(object):
         self.execute(cmd_str, n_procs)
 
         new_cpath = self.read_hmm_output(algorithm, n_procs, count_parameters, parameter_out_dir, cache_naive_seqs)
-        return cpath
+        return new_cpath
 
     # ----------------------------------------------------------------------------------------
     def read_cachefile(self):
