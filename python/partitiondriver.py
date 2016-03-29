@@ -199,16 +199,12 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def check_partition(self, partition):
-        start = time.time()
         uids = set([uid for cluster in partition for uid in cluster])
-        print '    checking partition with %d ids' % len(uids)
         input_ids = set(self.input_info.keys())  # maybe should switch this to self.sw_info['queries']? at least if we want to not worry about missing failed sw queries
         missing_ids = input_ids - uids - self.unseeded_clusters
         if len(missing_ids) > 0:
             warnstr = 'queries missing from partition: ' + ' '.join(missing_ids)
             print '  ' + utils.color('red', 'warning') + ' ' + warnstr
-
-        print '      check time: %.1f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
     def remove_duplicate_ids(self, uids, partition, deduplicate_uid):
@@ -372,14 +368,11 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def get_naive_hamming_bounds(self, parameter_dir, debug=True):
         if self.args.naive_hamming_bounds is not None:  # let the command line override auto bound calculation
-            print '       overriding auto naive hamming bounds: %.3f %.3f' % tuple(self.args.naive_hamming_bounds)
+            print '       naive hfrac bounds: %.3f %.3f' % tuple(self.args.naive_hamming_bounds)
             return self.args.naive_hamming_bounds
 
         mutehist = Hist(fname=parameter_dir + '/all-mean-mute-freqs.csv')
         mute_freq = mutehist.get_mean(ignore_overflows=True)
-        if debug:
-            print '  auto hamming bounds:'
-            print '      %.3f mutation in %s' % (mute_freq, parameter_dir)
 
         # just use a line based on two points (mute_freq, threshold)
         x1, x2 = 0.05, 0.2  # 0.5x, 3x (for 10 leaves)
@@ -398,7 +391,7 @@ class PartitionDriver(object):
             y1, y2 = 0.08, 0.15
             hi = utils.intexterpolate(x1, y1, x2, y2, mute_freq)  # ...and never merge 'em if it's bigger than this
 
-        print '       naive hamming bounds: %.3f %.3f' % (lo, hi)
+        print '       naive hfrac bounds: %.3f %.3f   (%.3f mutation in %s)' % (lo, hi, mute_freq, parameter_dir)
         return [lo, hi]
 
     # ----------------------------------------------------------------------------------------

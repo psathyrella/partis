@@ -231,10 +231,8 @@ class Glomerator(object):
             if smc_particles > 1:
                 self.paths[ipath].set_synthetic_logweight_history(self.reco_info)
             if debug:
-                print '  merged path:'
-                self.paths[ipath].print_partitions(self.reco_info)
-            else:
                 print '  merged path %d with %d glomeration steps and %d final clusters' % (ipath, len(self.paths[ipath].partitions), len(self.paths[ipath].partitions[-1]))
+                self.paths[ipath].print_partitions(self.reco_info)
 
         if smc_particles == 1:  # XX: ...whereas if we're *not* doing smc, we have to add the previous histories *afterward*, since the previous histories are all in one piece
             if previous_info is None:
@@ -273,6 +271,7 @@ class Glomerator(object):
         for fname in infnames:
             fileinfos.append(self.read_file_info(fname, smc_particles))
         self.merge_fileinfos(fileinfos, smc_particles, previous_info=previous_info, debug=debug)
-        print '        read cached glomeration time: %.3f' % (time.time()-start)
+        if debug:
+            print '        read cached glomeration time: %.3f' % (time.time()-start)
 
         return self.paths
