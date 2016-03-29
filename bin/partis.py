@@ -64,6 +64,7 @@ if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
     print '    TODO     i.e. find what kinds of clones hfrac and lratio disagree on'
     print '    TODO test on simulation samples that are *hard*, i.e. that all have the same VJ and cdr3 length'
     print '    TODO clean up best vs. best_minus_x stuf (and make sure it\'s right)'
+    print '    TODO clean up cache_naive_seqs'
 
 # input and output stuff
 parser.add_argument('--seqfile', help='input sequence file')

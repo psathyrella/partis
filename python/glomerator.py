@@ -188,7 +188,7 @@ class Glomerator(object):
         # do the actual process-merging
         for ipath in range(smc_particles):
 
-            if debug:
+            if debug and len(fileinfos) > 1:
                 print 'merge path %d from %d processes:' % (ipath, len(fileinfos))
                 for ifile in range(len(fileinfos)):
                     fileinfos[ifile][ipath].print_partitions(self.reco_info, extrastr=('%d' % (ifile)))

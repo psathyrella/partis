@@ -103,7 +103,7 @@ class PartitionDriver(object):
         waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo, parameter_dir, write_parameters, genes_to_use)
         waterer.run()
         self.sw_info = waterer.info
-        print '        water time: %.3f' % (time.time()-start)
+        print '        water time: .1f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
     def cache_parameters(self):
@@ -134,47 +134,41 @@ class PartitionDriver(object):
             self.cluster_with_naive_vsearch_or_swarm(self.args.parameter_dir)
             return
 
-        cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
         n_procs = self.args.n_procs
-        cpath.add_partition([[cl, ] for cl in self.sw_info['queries']], logprob=0., n_procs=n_procs)
+        cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
+        cpath.add_partition([[cl, ] for cl in self.sw_info['queries']], logprob=0., n_procs=n_procs)  # NOTE sw info excludes failed sequences
         n_proc_list = []
         start = time.time()
         while n_procs > 0:
-            step_start = time.time()
             print '--> %d clusters with %d procs' % (len(cpath.partitions[cpath.i_best_minus_x]), n_procs)  # write_hmm_input uses the best-minus-ten partition
             cpath = self.run_hmm('forward', self.args.parameter_dir, n_procs=n_procs, cpath=cpath)
             n_proc_list.append(n_procs)
 
-            print '      partition step time: %.3f' % (time.time()-step_start)
             if n_procs == 1:
                 break
 
             n_procs = self.get_next_n_procs(n_procs, n_proc_list, cpath)
 
-        print '      loop time: %.3f' % (time.time()-start)
-        start = time.time()
+        print '      loop time: .1f' % (time.time()-start)
 
-        self.check_partition(cpath.partitions[cpath.i_best])
-        if len(self.input_info) < 250:
+        if self.args.debug:
             print 'final'
             cpath.print_partitions(self.reco_info, print_header=True, calc_missing_values='all' if (len(self.input_info) < 500) else 'best')
+            if not self.args.is_data:
+                true_cp = ClusterPath(seed_unique_id=self.args.seed_unique_id)
+                true_cp.add_partition(utils.get_true_partition(self.reco_info), -1., 1)
+                print 'true:'
+                true_cp.print_partitions(self.reco_info, print_header=False, calc_missing_values='best')
+
+        self.check_partition(cpath.partitions[cpath.i_best])
         if self.args.print_cluster_annotations:
             annotations = self.read_annotation_output(self.annotation_fname)
         if self.args.outfname is not None:
-            start = time.time()
             self.write_clusterpaths(self.args.outfname, cpath, deduplicate_uid=self.args.seed_unique_id)  # [last agglomeration step]
-            print '      write time: %.3f' % (time.time()-start)
-
-        if self.args.debug and not self.args.is_data:
-            true_cp = ClusterPath(seed_unique_id=self.args.seed_unique_id)
-            true_cp.add_partition(utils.get_true_partition(self.reco_info), -1., 1)
-            print 'true:'
-            true_cp.print_partitions(self.reco_info, print_header=False, calc_missing_values='best')
-            # tmpglom = Glomerator(self.reco_info, seed_unique_id=self.args.seed_unique_id)
-            # tmpglom.print_true_partition()
 
     # ----------------------------------------------------------------------------------------
     def get_next_n_procs(self, n_procs, n_proc_list, cpath):
+        next_n_procs = n_procs
 
         n_calcd_per_process = self.get_n_calculated_per_process()
         factor = 1.3
@@ -183,22 +177,22 @@ class PartitionDriver(object):
         if n_calcd_per_process < self.n_max_calc_per_process or n_proc_list.count(n_procs) > n_procs:  # if we didn't need to do that many calculations, or if we've already milked this number of procs for most of what it's worth
             reduce_n_procs = True
 
-        next_n_procs = n_procs
         if reduce_n_procs:
             next_n_procs = int(next_n_procs / float(factor))
 
+        # time to remove unseeded clusters?
         if self.args.seed_unique_id is not None and (len(n_proc_list) > 2 or next_n_procs == 1):
-            if not self.already_removed_unseeded_clusters:
+            if not self.already_removed_unseeded_clusters:  # if we didn't already remove the unseeded clusters in a previous step
                 print '     time to remove unseeded clusters'
-                self.time_to_remove_unseeded_clusters = True
+                self.time_to_remove_unseeded_clusters = True  # (they don't actually get removed until we're writing hmm input)
                 initial_seqs_per_proc = int(float(len(self.input_info)) / n_proc_list[0])
                 self.unseeded_clusters = self.get_unseeded_clusters(cpath.partitions[cpath.i_best_minus_x])
                 n_remaining_seqs = len(self.input_info) - len(self.unseeded_clusters)
-                integer = 3
-                next_n_procs = max(1, integer * int(float(n_remaining_seqs) / initial_seqs_per_proc))  # multiply by something 'cause we're turning off the seed uid for the last few times through
+                integer = 3  # multiply by something 'cause we're turning off the seed uid for the last few times through
+                next_n_procs = max(1, integer * int(float(n_remaining_seqs) / initial_seqs_per_proc))
                 print '        new n_procs %d = %d * %d / %d' % (next_n_procs, integer, n_remaining_seqs, initial_seqs_per_proc)
             else:
-                self.time_to_remove_unseeded_clusters = False
+                self.time_to_remove_unseeded_clusters = False  # will already be false after the first time
                 print '     already removed unseeded clusters, proceed with n procs %d' % next_n_procs
 
         return next_n_procs
@@ -214,7 +208,7 @@ class PartitionDriver(object):
             warnstr = 'queries missing from partition: ' + ' '.join(missing_ids)
             print '  ' + utils.color('red', 'warning') + ' ' + warnstr
 
-        print '      check time: %.3f' % (time.time()-start)
+        print '      check time: .1f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
     def remove_duplicate_ids(self, uids, partition, deduplicate_uid):
@@ -337,7 +331,7 @@ class PartitionDriver(object):
             bound = self.get_naive_hamming_threshold(parameter_dir, 'tight') /  2.  # yay for heuristics! (I did actually optimize this...)
             differences = int(round(mean_length * bound))
             print '        d = mean len * mut freq bound = %f * %f = %f --> %d' % (mean_length, bound, mean_length * bound, differences)
-            print '      swarm average time: %.3f' % (time.time()-tmpstart)
+            print '      swarm average time: .1f' % (time.time()-tmpstart)
             cmd += ' --differences ' + str(differences)
             cmd += ' --uclust-file ' + clusterfname
             check_call(cmd.split())
@@ -373,7 +367,7 @@ class PartitionDriver(object):
             os.remove(fastafname)
             os.remove(clusterfname)
 
-        print '      vsearch/swarm time: %.3f' % (time.time()-start)
+        print '      vsearch/swarm time: .1f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
     def get_naive_hamming_bounds(self, parameter_dir, debug=True):
@@ -553,7 +547,7 @@ class PartitionDriver(object):
                 time.sleep(1)
 
         sys.stdout.flush()
-        print '      hmm run time: %.3f' % (time.time()-start)
+        print '      time waiting for bcrham: .1f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
     def run_hmm(self, algorithm, parameter_in_dir, parameter_out_dir='', count_parameters=False, n_procs=None, cache_naive_seqs=False, cpath=None):
@@ -562,6 +556,7 @@ class PartitionDriver(object):
         NOTE the local <n_procs>, which overrides the one from <self.args>
         """
         print 'hmm'
+        start = time.time()
         if len(self.sw_info['queries']) == 0:
             print '  %s no input queries for hmm' % utils.color('red', 'warning')
             return
@@ -581,6 +576,7 @@ class PartitionDriver(object):
         self.execute(cmd_str, n_procs)
 
         new_cpath = self.read_hmm_output(algorithm, n_procs, count_parameters, parameter_out_dir, cache_naive_seqs)
+        print '      hmm step time: .1f' % (time.time()-start)
         return new_cpath
 
     # ----------------------------------------------------------------------------------------
@@ -617,7 +613,7 @@ class PartitionDriver(object):
                     assert id_b in cachefo
 
         print 'expected total: %d  (cached: %d) --> %d' % (n_total, n_cached, n_total - n_cached)
-        print '      expected calc time: %.3f' % (time.time()-start)
+        print '      expected calc time: .1f' % (time.time()-start)
         return n_total - n_cached
 
     # ----------------------------------------------------------------------------------------
@@ -798,7 +794,7 @@ class PartitionDriver(object):
                 if infname != outfname:
                     os.remove(infname)
 
-        print '    time to merge csv files: %.3f' % (time.time()-start)
+        print '    time to merge csv files: .1f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
     def merge_all_hmm_outputs(self, n_procs, cache_naive_seqs):
@@ -858,7 +854,7 @@ class PartitionDriver(object):
             writer = HmmWriter(parameter_dir, hmm_dir, gene, self.args.naivety, self.glfo, self.args)
             writer.write()
 
-        # print '    time to write hmms: %.3f' % (time.time()-start)
+        # print '    time to write hmms: .1f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
     def get_existing_hmm_files(self, parameter_dir):
