@@ -469,74 +469,53 @@ class PartitionDriver(object):
         print '    running'
         start = time.time()
         sys.stdout.flush()
-        if n_procs == 1:
-            # print cmd_str
-            # sys.exit()
-            check_call(cmd_str.split())
-        else:
+        # ----------------------------------------------------------------------------------------
+        def get_workdir(iproc):
+            if n_procs == 1:
+                return self.args.workdir
+            else:
+                return self.args.workdir + '/hmm-' + str(iproc)
 
-            # initialize command strings and whatnot
-            cmd_strs, workdirs = [], []
+        # ----------------------------------------------------------------------------------------
+        def get_outfname(iproc):
+            return self.hmm_outfname.replace(self.args.workdir, get_workdir(iproc))
+
+        # ----------------------------------------------------------------------------------------
+        # deal with a process once it's finished (i.e. check if it failed, and restart if so)
+        def finish_process(iproc):
+            procs[iproc].communicate()
+            utils.process_out_err('', '', extra_str=str(iproc), info=self.n_likelihoods_calculated[iproc], subworkdir=get_workdir(iproc))
+            if procs[iproc].returncode == 0 and os.path.exists(get_outfname(iproc)):  # TODO also check cachefile, if necessary
+                procs[iproc] = None  # job succeeded
+            elif n_tries[iproc] > 5:
+                raise Exception('exceeded max number of tries for command\n    %s\nlook for output in %s' % (cmd_strs[iproc], get_workdir(iproc)))
+            else:
+                print '    rerunning proc %d (exited with %d' % (iproc, procs[iproc].returncode),
+                if not os.path.exists(get_outfname(iproc)):
+                    print ', output %s d.n.e.' % get_outfname(iproc),
+                print ')'
+                procs[iproc] = self.execute_iproc(cmd_strs[iproc], workdir=get_workdir(iproc))
+                n_tries[iproc] += 1
+
+        cmd_strs = [cmd_str.replace(self.args.workdir, get_workdir(iproc)) for iproc in range(n_procs)]
+
+        # start all the procs for the first time
+        procs, n_tries, = [], []
+        self.n_likelihoods_calculated = []
+        for iproc in range(n_procs):
+            procs.append(self.execute_iproc(cmd_strs[iproc], workdir=get_workdir(iproc)))
+            n_tries.append(1)
+            self.n_likelihoods_calculated.append({})
+
+        # keep looping over the procs until they're all done
+        while procs.count(None) != len(procs):  # we set each proc to None when it finishes
             for iproc in range(n_procs):
-                workdirs.append(self.args.workdir + '/hmm-' + str(iproc))
-                cmd_strs.append(cmd_str.replace(self.args.workdir, workdirs[-1]))
-
-            # start all the procs for the first time
-            procs, n_tries, progress_strings = [], [], []
-            self.n_likelihoods_calculated = []
-            for iproc in range(n_procs):
-                # print cmd_strs[iproc]
-                procs.append(self.execute_iproc(cmd_strs[iproc], workdir=workdirs[iproc]))
-                n_tries.append(1)
-                self.n_likelihoods_calculated.append({})
-
-            # ----------------------------------------------------------------------------------------
-            def get_outfname(iproc):
-                return self.hmm_outfname.replace(self.args.workdir, workdirs[iproc])
-            def get_progress_fname(iproc):
-                return get_outfname(iproc) + '.progress'
-
-            # ----------------------------------------------------------------------------------------
-            def read_progress(iproc):
-                """ meh doesn't work very well """
-                if not os.path.exists(get_progress_fname(iproc)):
-                    return
-                with open(get_progress_fname(iproc)) as outfile:
-                    for line in outfile.readlines():
-                        line = line.strip()
-                        if line not in progress_strings:
-                            progress_strings.append(line)
-                            print line
-
-            # ----------------------------------------------------------------------------------------
-            # deal with a process once it's finished (i.e. check if it failed, and restart if so)
-            def finish_process(iproc):
-                # if os.path.exists(get_progress_fname(iproc)):
-                #     os.remove(get_progress_fname(iproc))
-                procs[iproc].communicate()
-                utils.process_out_err('', '', extra_str=str(iproc), info=self.n_likelihoods_calculated[iproc], subworkdir=workdirs[iproc])
-                if procs[iproc].returncode == 0 and os.path.exists(get_outfname(iproc)):  # TODO also check cachefile, if necessary
-                    procs[iproc] = None  # job succeeded
-                elif n_tries[iproc] > 5:
-                    raise Exception('exceeded max number of tries for command\n    %s\nlook for output in %s' % (cmd_strs[iproc], workdirs[iproc]))
-                else:
-                    print '    rerunning proc %d (exited with %d' % (iproc, procs[iproc].returncode),
-                    if not os.path.exists(get_outfname(iproc)):
-                        print ', output %s d.n.e.' % get_outfname(iproc),
-                    print ')'
-                    procs[iproc] = self.execute_iproc(cmd_strs[iproc], workdir=workdirs[iproc])
-                    n_tries[iproc] += 1
-
-            # keep looping over the procs until they're all done
-            while procs.count(None) != len(procs):  # we set each proc to None when it finishes
-                for iproc in range(n_procs):
-                    if procs[iproc] is None:  # already finished
-                        continue
-                    # read_progress(iproc)
-                    if procs[iproc].poll() is not None:  # it's finished
-                        finish_process(iproc)
-                sys.stdout.flush()
-                time.sleep(1)
+                if procs[iproc] is None:  # already finished
+                    continue
+                if procs[iproc].poll() is not None:  # it's finished
+                    finish_process(iproc)
+            sys.stdout.flush()
+            time.sleep(1)
 
         sys.stdout.flush()
         print '      time waiting for bcrham: %.1f' % (time.time()-start)

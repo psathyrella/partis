@@ -54,7 +54,7 @@ if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
     print '    TODO stop compiling smc'
     print '    TODO print time waiting for slurm'
     print '    TODO robustify utils.process_out_err'
-    print '    TODO harmonize n_procs = 1 and > 1 (in particular get process_out_err working for n=1)'
+    print '    TODO harmonize n_procs = 1 and > 1, also in waterer (in particular get process_out_err working for n=1)'
     print '    TODO todos in glomerator'
     print '    TODO clean up and comment unseeded cluster removal stuff'
     print '    TODO clean up logprob of partition stuff in glomerator.cc'
