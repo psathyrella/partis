@@ -1437,6 +1437,12 @@ def print_linsim_output(outstr):
     print '   homogeneity score %f' % linsim_out['metrics']['homogeneity_score']
 
 # ----------------------------------------------------------------------------------------
+def run_cmd(self, cmd_str, workdir):
+    # print cmd_str
+    proc = Popen(cmd_str + ' 1>' + workdir + '/out' + ' 2>' + workdir + '/err', shell=True)
+    return proc
+
+# ----------------------------------------------------------------------------------------
 def process_out_err(out, err, extra_str='', info=None, subworkdir=None):
     """ NOTE something in this chain seems to block or truncate or some such nonsense if you make it too big """
     if subworkdir is not None:

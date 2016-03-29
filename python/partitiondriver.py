@@ -445,12 +445,6 @@ class PartitionDriver(object):
         return cmd_str
 
     # ----------------------------------------------------------------------------------------
-    def execute_iproc(self, cmd_str, workdir):
-        # print cmd_str
-        proc = Popen(cmd_str + ' 1>' + workdir + '/out' + ' 2>' + workdir + '/err', shell=True)
-        return proc
-
-    # ----------------------------------------------------------------------------------------
     def get_n_calculated_per_process(self):
         if self.n_likelihoods_calculated is None:
             return
@@ -472,10 +466,12 @@ class PartitionDriver(object):
                 return self.args.workdir
             else:
                 return self.args.workdir + '/hmm-' + str(iproc)
-
         # ----------------------------------------------------------------------------------------
         def get_outfname(iproc):
             return self.hmm_outfname.replace(self.args.workdir, get_workdir(iproc))
+        # ----------------------------------------------------------------------------------------
+        def get_cmd_str(iproc):
+            return cmd_str.replace(self.args.workdir, get_workdir(iproc))
 
         # ----------------------------------------------------------------------------------------
         # deal with a process once it's finished (i.e. check if it failed, and restart if so)
@@ -485,26 +481,24 @@ class PartitionDriver(object):
             if procs[iproc].returncode == 0 and os.path.exists(get_outfname(iproc)):  # TODO also check cachefile, if necessary
                 procs[iproc] = None  # job succeeded
             elif n_tries[iproc] > 5:
-                raise Exception('exceeded max number of tries for command\n    %s\nlook for output in %s' % (cmd_strs[iproc], get_workdir(iproc)))
+                raise Exception('exceeded max number of tries for command\n    %s\nlook for output in %s' % (get_cmd_str(iproc), get_workdir(iproc)))
             else:
                 print '    rerunning proc %d (exited with %d' % (iproc, procs[iproc].returncode),
                 if not os.path.exists(get_outfname(iproc)):
                     print ', output %s d.n.e.' % get_outfname(iproc),
                 print ')'
-                procs[iproc] = self.execute_iproc(cmd_strs[iproc], workdir=get_workdir(iproc))
+                procs[iproc] = utils.run_cmd(get_cmd_str(iproc), get_workdir(iproc))
                 n_tries[iproc] += 1
 
         print '    running'
         sys.stdout.flush()
         start = time.time()
 
-        cmd_strs = [cmd_str.replace(self.args.workdir, get_workdir(iproc)) for iproc in range(n_procs)]
-
         # start all the procs for the first time
         procs, n_tries, = [], []
         self.n_likelihoods_calculated = []
         for iproc in range(n_procs):
-            procs.append(self.execute_iproc(cmd_strs[iproc], workdir=get_workdir(iproc)))
+            procs.append(utils.run_cmd(get_cmd_str(iproc), get_workdir(iproc)))
             n_tries.append(1)
             self.n_likelihoods_calculated.append({})
 
