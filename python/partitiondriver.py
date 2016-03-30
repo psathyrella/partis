@@ -197,6 +197,19 @@ class PartitionDriver(object):
         return next_n_procs
 
     # ----------------------------------------------------------------------------------------
+    def get_n_calculated_per_process(self):
+        if self.n_likelihoods_calculated is None:
+            return
+        total = 0
+        for procinfo in self.n_likelihoods_calculated:
+            if 'vtb' not in procinfo or 'fwd' not in procinfo:
+                print 'couldn\'t find vdb/fwd in:\n%s' % procinfo
+                return 1.  # er, or something?
+            total += procinfo['vtb'] + procinfo['fwd']
+        print '          n calcd: %d (%.1f per proc)' % (total, float(total) / len(self.n_likelihoods_calculated))
+        return float(total) / len(self.n_likelihoods_calculated)
+
+    # ----------------------------------------------------------------------------------------
     def check_partition(self, partition):
         uids = set([uid for cluster in partition for uid in cluster])
         input_ids = set(self.input_info.keys())  # maybe should switch this to self.sw_info['queries']? at least if we want to not worry about missing failed sw queries
@@ -445,33 +458,20 @@ class PartitionDriver(object):
         return cmd_str
 
     # ----------------------------------------------------------------------------------------
-    def get_n_calculated_per_process(self):
-        if self.n_likelihoods_calculated is None:
-            return
-        total = 0
-        for procinfo in self.n_likelihoods_calculated:
-            if 'vtb' not in procinfo or 'fwd' not in procinfo:
-                print 'couldn\'t find vdb/fwd in:\n%s' % procinfo
-                return 1.  # er, or something?
-            total += procinfo['vtb'] + procinfo['fwd']
-        # if self.args.debug:
-        print '          n calcd: %d (%.1f per proc)' % (total, float(total) / len(self.n_likelihoods_calculated))
-        return float(total) / len(self.n_likelihoods_calculated)
+    def subworkdir(self, iproc, n_procs):
+        if n_procs == 1:
+            return self.args.workdir
+        else:
+            return self.args.workdir + '/hmm-' + str(iproc)
 
     # ----------------------------------------------------------------------------------------
     def execute(self, cmd_str, n_procs):
         # ----------------------------------------------------------------------------------------
-        def get_workdir(iproc):
-            if n_procs == 1:
-                return self.args.workdir
-            else:
-                return self.args.workdir + '/hmm-' + str(iproc)
-        # ----------------------------------------------------------------------------------------
         def get_outfname(iproc):
-            return self.hmm_outfname.replace(self.args.workdir, get_workdir(iproc))
+            return self.hmm_outfname.replace(self.args.workdir, self.subworkdir(iproc, n_procs))
         # ----------------------------------------------------------------------------------------
         def get_cmd_str(iproc):
-            return cmd_str.replace(self.args.workdir, get_workdir(iproc))
+            return cmd_str.replace(self.args.workdir, self.subworkdir(iproc, n_procs))
 
         print '    running'
         sys.stdout.flush()
@@ -481,7 +481,7 @@ class PartitionDriver(object):
         procs, n_tries, = [], []
         self.n_likelihoods_calculated = []
         for iproc in range(n_procs):
-            procs.append(utils.run_cmd(get_cmd_str(iproc), get_workdir(iproc)))
+            procs.append(utils.run_cmd(get_cmd_str(iproc), self.subworkdir(iproc, n_procs)))
             n_tries.append(1)
             self.n_likelihoods_calculated.append({})
 
@@ -491,7 +491,7 @@ class PartitionDriver(object):
                 if procs[iproc] is None:  # already finished
                     continue
                 if procs[iproc].poll() is not None:  # it's finished
-                    utils.finish_process(iproc, procs, n_tries, get_workdir(iproc), get_outfname(iproc), get_cmd_str(iproc), self.n_likelihoods_calculated[iproc])
+                    utils.finish_process(iproc, procs, n_tries, self.subworkdir(iproc, n_procs), get_outfname(iproc), get_cmd_str(iproc), self.n_likelihoods_calculated[iproc])
             sys.stdout.flush()
             time.sleep(1)
 
@@ -518,7 +518,7 @@ class PartitionDriver(object):
         cmd_str = self.get_hmm_cmd_str(algorithm, self.hmm_infname, self.hmm_outfname, parameter_dir=parameter_in_dir, cache_naive_seqs=cache_naive_seqs, n_procs=n_procs)
 
         if n_procs > 1:
-            self.split_input(n_procs, self.hmm_infname, 'hmm', algorithm, cache_naive_seqs)
+            self.split_input(n_procs, self.hmm_infname, algorithm, cache_naive_seqs)
 
         self.execute(cmd_str, n_procs)
 
@@ -600,7 +600,7 @@ class PartitionDriver(object):
         return naive_seqs
 
     # ----------------------------------------------------------------------------------------
-    def split_input(self, n_procs, infname, prefix, algorithm, cache_naive_seqs):
+    def split_input(self, n_procs, infname, algorithm, cache_naive_seqs):
 
         # should we pull out the seeded clusters, and carefully re-inject them into each process?
         separate_seeded_clusters = self.args.seed_unique_id is not None and not (self.already_removed_unseeded_clusters or self.time_to_remove_unseeded_clusters)  # I think I ony actually need one of the latter bools
@@ -629,7 +629,7 @@ class PartitionDriver(object):
 
         # ----------------------------------------------------------------------------------------
         def get_sub_outfile(siproc, mode):
-            subworkdir = self.args.workdir + '/' + prefix + '-' + str(siproc)
+            subworkdir = self.subworkdir(siproc, n_procs)
             if mode == 'w':
                 utils.prep_dir(subworkdir)
                 if os.path.exists(self.hmm_cachefname):  # copy cachefile to this subdir
@@ -675,7 +675,7 @@ class PartitionDriver(object):
     def merge_subprocess_files(self, fname, n_procs, include_outfile=False):
         subfnames = []
         for iproc in range(n_procs):
-            subfnames.append(self.args.workdir + '/hmm-' + str(iproc) + '/' + os.path.basename(fname))
+            subfnames.append(self.subworkdir(iproc, n_procs) + '/' + os.path.basename(fname))
         if include_outfile:  # also merge the output file <fname> (i.e. for the cache files, the sub files only include *new* information, so we need to also merge them with the original file)
             subfnames.append(fname)
         self.merge_files(subfnames, fname, dereplicate=False)
@@ -752,7 +752,7 @@ class PartitionDriver(object):
                 if n_procs == 1:
                     infnames = [self.hmm_outfname, ]
                 else:
-                    infnames = [self.args.workdir + '/hmm-' + str(iproc) + '/' + os.path.basename(self.hmm_outfname) for iproc in range(n_procs)]
+                    infnames = [self.subworkdir(iproc, n_procs) + '/' + os.path.basename(self.hmm_outfname) for iproc in range(n_procs)]
                 glomerer = Glomerator(self.reco_info, seed_unique_id=self.args.seed_unique_id)
                 glomerer.read_cached_agglomeration(infnames, debug=self.args.debug)  #, outfname=self.hmm_outfname)
                 assert len(glomerer.paths) == 1
@@ -765,7 +765,7 @@ class PartitionDriver(object):
                 os.remove(self.hmm_outfname)
             else:
                 for iproc in range(n_procs):
-                    subworkdir = self.args.workdir + '/hmm-' + str(iproc)
+                    subworkdir = self.subworkdir(iproc, n_procs)
                     os.remove(subworkdir + '/' + os.path.basename(self.hmm_infname))
                     if os.path.exists(subworkdir + '/' + os.path.basename(self.hmm_outfname)):
                         os.remove(subworkdir + '/' + os.path.basename(self.hmm_outfname))

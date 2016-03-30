@@ -50,20 +50,16 @@ if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
     print '    TODO remove extra assertions from glomerator'
     print '    TODO make things completely assertion/exception safe, i.e. if you catch one, that causes a failure on that one sequence only'
     print '    TODO todo in reset_effective_erosions_and_effective_insertions()'
-    print '    TODO also print how many forward merges'
     print '    TODO stop compiling smc'
     print '    TODO print time waiting for slurm'
-    print '    TODO robustify utils.process_out_err'
-    print '    TODO harmonize n_procs = 1 and > 1, also in waterer (in particular get process_out_err working for n=1)'
     print '    TODO todos in glomerator'
     print '    TODO clean up and comment unseeded cluster removal stuff'
     print '    TODO clean up logprob of partition stuff in glomerator.cc'
     print '    TODO clean up duplicate id removal'
-    print '    TODO clean up new paradigm of switching from seed_unique_id to not'
     print '    TODO see about varying the naive hfrac thresholds -- especially lowering the lower bound (try to do this by exploiting something about the difference between hfrac and lratio [e.g. where the hfrac differences are? or maybe hfrac averaged over the top N annotations?])'
     print '    TODO     i.e. find what kinds of clones hfrac and lratio disagree on'
     print '    TODO test on simulation samples that are *hard*, i.e. that all have the same VJ and cdr3 length'
-    print '    TODO clean up best vs. best_minus_x stuf (and make sure it\'s right)'
+    print '    TODO clean up best vs. best_minus_x stuff (and make sure it\'s right)'
     print '    TODO clean up cache_naive_seqs'
 
 # input and output stuff
@@ -254,4 +250,4 @@ else:
         raise Exception('ERROR bad action ' + args.action)
 
     parter.clean()
-    print '      total time: %.3f' % (time.time()-start)
+    print '      total time: %.1f' % (time.time()-start)

@@ -147,24 +147,25 @@ class Waterer(object):
         self.info['remaining_queries'] = self.remaining_queries
 
     # ----------------------------------------------------------------------------------------
+    def subworkdir(self, iproc, n_procs):
+        if n_procs == 1:
+            return self.args.workdir
+        else:
+            return self.args.workdir + '/sw-' + str(iproc)
+
+    # ----------------------------------------------------------------------------------------
     def execute_commands(self, base_infname, base_outfname, n_procs):
         # ----------------------------------------------------------------------------------------
-        def get_workdir(iproc):
-            if n_procs == 1:
-                return self.args.workdir
-            else:
-                return self.args.workdir + '/sw-' + str(iproc)
-        # ----------------------------------------------------------------------------------------
         def get_outfname(iproc):
-            return get_workdir(iproc) + '/' + base_outfname
+            return self.subworkdir(iproc, n_procs) + '/' + base_outfname
         # ----------------------------------------------------------------------------------------
         def get_cmd_str(iproc):
-            return self.get_vdjalign_cmd_str(get_workdir(iproc), base_infname, base_outfname, self.my_datadir, n_procs)
+            return self.get_vdjalign_cmd_str(self.subworkdir(iproc, n_procs), base_infname, base_outfname, self.my_datadir, n_procs)
 
         # start all procs for the first time
         procs, n_tries = [], []
         for iproc in range(n_procs):
-            procs.append(utils.run_cmd(get_cmd_str(iproc), get_workdir(iproc)))
+            procs.append(utils.run_cmd(get_cmd_str(iproc), self.subworkdir(iproc, n_procs)))
             n_tries.append(1)
             time.sleep(0.1)
 
@@ -174,13 +175,13 @@ class Waterer(object):
                 if procs[iproc] is None:  # already finished
                     continue
                 if procs[iproc].poll() is not None:  # it's finished
-                    utils.finish_process(iproc, procs, n_tries, get_workdir(iproc), get_outfname(iproc), get_cmd_str(iproc))
+                    utils.finish_process(iproc, procs, n_tries, self.subworkdir(iproc, n_procs), get_outfname(iproc), get_cmd_str(iproc))
             sys.stdout.flush()
             time.sleep(1)
 
         if not self.args.no_clean:
             for iproc in range(n_procs):
-                os.remove(get_workdir(iproc) + '/' + base_infname)
+                os.remove(self.subworkdir(iproc, n_procs) + '/' + base_infname)
 
         sys.stdout.flush()
 
@@ -193,9 +194,8 @@ class Waterer(object):
         if n_procs == 1:  # double check for rounding problems or whatnot
             assert n_queries_per_proc == n_remaining
         for iproc in range(n_procs):
-            workdir = self.args.workdir
+            workdir = self.subworkdir(iproc, n_procs)
             if n_procs > 1:
-                workdir += '/sw-' + str(iproc)
                 utils.prep_dir(workdir)
             with opener('w')(workdir + '/' + base_infname) as sub_infile:
                 iquery = 0
@@ -247,10 +247,7 @@ class Waterer(object):
         n_processed = 0
         self.tmp_queries_read_from_file = set()  # TODO remove this
         for iproc in range(n_procs):
-            workdir = self.args.workdir
-            if n_procs > 1:
-                workdir += '/sw-' + str(iproc)
-            outfname = workdir + '/' + base_outfname
+            outfname = self.subworkdir(iproc, n_procs) + '/' + base_outfname
             with contextlib.closing(pysam.Samfile(outfname)) as bam:
                 grouped = itertools.groupby(iter(bam), operator.attrgetter('qname'))
                 for _, reads in grouped:  # loop over query sequences
@@ -289,9 +286,7 @@ class Waterer(object):
 
         if not self.args.no_clean:
             for iproc in range(n_procs):
-                workdir = self.args.workdir
-                if n_procs > 1:
-                    workdir += '/sw-' + str(iproc)
+                workdir = self.subworkdir(iproc, n_procs)
                 os.remove(workdir + '/' + base_outfname)
                 if n_procs > 1:  # still need the top-level workdir
                     os.rmdir(workdir)

@@ -1485,19 +1485,16 @@ def process_out_err(out, err, extra_str='', info=None, subworkdir=None):
         if len(line.strip()) > 0:
             print_str += line + '\n'
 
-    for line in out.split('\n'):
-        if info is not None and 'calcd:' in line:  # keep track of how many vtb and fwd calculations the process made
-            info['vtb'], info['fwd'] = 0, 0
-            words = line.split()
-            if words[1] == 'vtb' and words[3] == 'fwd':
-                info['vtb'] = int(words[2])
-                info['fwd'] = int(words[4])
-            else:
-                print 'ERROR bad calculated line: %s' % line
-    # if info is not None and ('vtb' not in info or 'fwd' not in info):
-    #     print 'weird, didnt find anything for info:'
-    #     print 'out x', out, 'x'
-    #     print 'err x', err, 'x'
+    if info is not None:  # keep track of how many vtb and fwd calculations the process made
+        info_lines = [ln for ln in out.split('\n') if 'calcd:' in ln]
+        if len(info_lines) != 1:
+            raise Exception('couldn\'t find calcd line in:\n%s' % out)
+        words = info_lines[0].split()
+        try:
+            for ctype in ('vtb', 'fwd'):
+                info[ctype] = int(words[words.index(ctype) + 1])
+        except:
+            raise Exception('couldn\'t find calcd line in:\n%s' % out)
 
     print_str += out
 
