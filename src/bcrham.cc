@@ -86,7 +86,8 @@ void run_algorithm(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> > &qr
     throw runtime_error("ERROR --outfile (" + args.outfile() + ") d.n.e.\n");
   StreamHeader(ofs, args.algorithm());
 
-  // not partitioning
+  int n_vtb_calculated(0), n_fwd_calculated(0);
+
   for(size_t iqry = 0; iqry < qry_seq_list.size(); iqry++) {
     if(args.debug()) cout << "  ---------" << endl;
     KSet kmin(args.integers_["k_v_min"][iqry], args.integers_["k_d_min"][iqry]);
@@ -122,7 +123,12 @@ void run_algorithm(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> > &qr
         assert(result.no_path_);  // if there's some *other* way we can end up with no events, I want to know about it
     }
     StreamOutput(ofs, args.algorithm(), min(size_t(args.n_best_events()), result.events_.size()), result.events_, qry_seqs, logprob, errors);
+    if(args.algorithm() == "viterbi")
+      ++n_vtb_calculated;
+    else if(args.algorithm() == "forward")
+      ++n_fwd_calculated;
   }
+  printf("        calcd:   vtb %-4d  fwd %-4d\n", n_vtb_calculated, n_fwd_calculated);
   ofs.close();
 }
 
