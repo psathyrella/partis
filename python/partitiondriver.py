@@ -1084,6 +1084,8 @@ class PartitionDriver(object):
                         print '      %s padded line invalid' % padded_line['unique_ids']
                     continue
 
+                self.print_hmm_output(padded_line)
+
                 # get a new dict in which we have edited the sequences to swap Ns on either end (after removing fv and jf insertions) for v_5p and j_3p deletions
                 eroded_line = utils.reset_effective_erosions_and_effective_insertions(self.glfo, padded_line)
                 if eroded_line['invalid']:  # not really sure why the eroded line is sometimes invalid when the padded line is not, but it's very rare and I don't really care, either

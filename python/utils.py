@@ -608,11 +608,9 @@ def reset_effective_erosions_and_effective_insertions(glfo, padded_line, debug=F
             insertions_to_remove[-1][bound] = insertion_to_remove
         trimmed_seqs.append(trimmed_seq)
 
-    # arbitrarily use the zeroth sequence
-    tmpiseq = 0
-    if len(trimmed_seqs) > 1:
-        print 'TODO don\'t just use the zeroth sequence'
-    trimmed_seq = trimmed_seqs[tmpiseq]  # TODO right now I'm setting these to the same values for the entire clonal family, but at some point we should allow different sequences to have different read lengths/start positions
+    # arbitrarily use the zeroth sequence (in principle v_5p and j_3p should be per-sequence, not per-rearrangement... but that'd be a mess to implement, since the other deletions are per-rearrangement)
+    tmpiseq = 0  # NOTE this is pretty hackey: we just use the values from the first sequence. But it's actually not that bad -- we can either have some extra pad Ns showing, or chop of some bases.
+    trimmed_seq = trimmed_seqs[tmpiseq]
     final_fv_insertion = final_insertions[tmpiseq]['fv']
     final_jf_insertion = final_insertions[tmpiseq]['jf']
     fv_insertion_to_remove = insertions_to_remove[tmpiseq]['fv']
@@ -620,7 +618,7 @@ def reset_effective_erosions_and_effective_insertions(glfo, padded_line, debug=F
     line['v_5p_del'] = find_first_non_ambiguous_base(trimmed_seq)
     line['j_3p_del'] = len(trimmed_seq) - find_last_non_ambiguous_base_plus_one(trimmed_seq)
 
-    for iseq in range(len(line['seqs'])): # TODO note, though, that this trims *all* the seqs according to the read truncation from the zeroth sequence
+    for iseq in range(len(line['seqs'])):
         line['seqs'][iseq] = trimmed_seqs[iseq][line['v_5p_del'] : ]
         if line['j_3p_del'] > 0:
             line['seqs'][iseq] = line['seqs'][iseq][ : -line['j_3p_del']]
