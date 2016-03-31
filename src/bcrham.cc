@@ -50,7 +50,7 @@ int main(int argc, const char * argv[]) {
     run_algorithm(hmms, gl, qry_seq_list, args);
   }
 
-  printf("        bcrham time: %.1f\n", ((clock() - run_start) / (double)CLOCKS_PER_SEC));
+  printf("        time: bcrham %.1f\n", ((clock() - run_start) / (double)CLOCKS_PER_SEC));
   return 0;
 }
 
