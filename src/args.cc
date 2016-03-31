@@ -32,7 +32,6 @@ Args::Args(int argc, const char * argv[]):
   partition_arg_("", "partition", "", false),
   rescale_emissions_arg_("", "rescale-emissions", "", false),
   cache_naive_seqs_arg_("", "cache-naive-seqs", "cache all naive sequences", false),
-  no_fwd_arg_("", "no-fwd", "don't calculate any forward probs ", false),
   cache_naive_hfracs_arg_("", "cache-naive-hfracs", "cache naive hamming fraction between sequence sets (in addition to log probs and naive seqs)", false),
   only_cache_new_vals_arg_("", "only-cache-new-vals", "only write sequence sets with newly-calculated values to cache file", false),
   str_headers_ {},
@@ -66,7 +65,6 @@ Args::Args(int argc, const char * argv[]):
     cmd.add(random_seed_arg_);
     cmd.add(no_chunk_cache_arg_);
     cmd.add(cache_naive_seqs_arg_);
-    cmd.add(no_fwd_arg_);
     cmd.add(cache_naive_hfracs_arg_);
     cmd.add(only_cache_new_vals_arg_);
     cmd.add(partition_arg_);
