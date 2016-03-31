@@ -163,7 +163,7 @@ class PartitionDriver(object):
         if self.args.print_cluster_annotations:
             annotations = self.read_annotation_output(self.annotation_fname)
         if self.args.outfname is not None:
-            self.write_clusterpaths(self.args.outfname, cpath, deduplicate_uid=self.args.seed_unique_id)  # [last agglomeration step]
+            self.write_clusterpaths(self.args.outfname, cpath)  # [last agglomeration step]
 
     # ----------------------------------------------------------------------------------------
     def get_next_n_procs(self, n_procs, n_proc_list, cpath):
@@ -220,20 +220,6 @@ class PartitionDriver(object):
             print '  ' + utils.color('red', 'warning') + ' ' + warnstr
 
     # ----------------------------------------------------------------------------------------
-    def remove_duplicate_ids(self, uids, partition, deduplicate_uid):
-        raise Exception('doesn\'t work if the seed id is in multiple clusters (granted, we wanted it to not be...)')
-        clids = utils.get_cluster_ids(uids, partition)
-        for index_in_clids in range(len(clids[deduplicate_uid])):
-            iclust = clids[deduplicate_uid][index_in_clids]
-            cluster = partition[iclust]
-            if index_in_clids > 0 or cluster.count(deduplicate_uid) > 1:  # if this isn't the first cluster that it's in, or if it's in this cluster more than once
-                n_remaining = 1  # if there's more than one in this cluster only, then we want to leave one of 'em
-                if index_in_clids > 0:  # if we already found it in another cluster, remove *all* of 'em
-                    n_remaining = 0
-                while cluster.count(deduplicate_uid) > n_remaining:
-                    cluster.remove(deduplicate_uid)
-
-    # ----------------------------------------------------------------------------------------
     def get_n_precache_procs(self):
         if self.args.n_precache_procs is None:
             n_seqs = len(self.sw_info['queries'])
@@ -252,19 +238,13 @@ class PartitionDriver(object):
         return n_precache_procs
 
     # ----------------------------------------------------------------------------------------
-    def write_clusterpaths(self, outfname, cpath, deduplicate_uid=None):
+    def write_clusterpaths(self, outfname, cpath):
         outfile, writer = cpath.init_outfile(outfname, self.args.is_data)
         true_partition = None
         if not self.args.is_data:
             true_partition = utils.get_true_partition(self.reco_info)
 
-        if deduplicate_uid is not None:
-            newcp = ClusterPath(seed_unique_id=self.args.seed_unique_id)
-            partition = copy.deepcopy(cpath.partitions[cpath.i_best])
-            newcp.add_partition(partition, cpath.logprobs[cpath.i_best], cpath.n_procs[cpath.i_best])
-            newcp.write_partitions(writer=writer, reco_info=self.reco_info, true_partition=true_partition, is_data=self.args.is_data, n_to_write=self.args.n_partitions_to_write, calc_missing_values='best')
-        else:
-            cpath.write_partitions(writer=writer, reco_info=self.reco_info, true_partition=true_partition, is_data=self.args.is_data, n_to_write=self.args.n_partitions_to_write, calc_missing_values='best')
+        cpath.write_partitions(writer=writer, reco_info=self.reco_info, true_partition=true_partition, is_data=self.args.is_data, n_to_write=self.args.n_partitions_to_write, calc_missing_values='best')
 
         outfile.close()
 
