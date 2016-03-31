@@ -1,8 +1,6 @@
 import time
 import sys
-import json
 import itertools
-import shutil
 import math
 import os
 import glob
@@ -10,7 +8,7 @@ import csv
 csv.field_size_limit(sys.maxsize)  # make sure we can write very large csv fields
 import random
 from collections import OrderedDict
-from subprocess import Popen, check_call, PIPE, check_output, CalledProcessError
+from subprocess import Popen, check_call, PIPE, CalledProcessError
 import copy
 import multiprocessing
 
@@ -142,10 +140,8 @@ class PartitionDriver(object):
             print '--> %d clusters with %d procs' % (len(cpath.partitions[cpath.i_best_minus_x]), n_procs)  # write_hmm_input uses the best-minus-ten partition
             cpath = self.run_hmm('forward', self.args.parameter_dir, n_procs=n_procs, cpath=cpath)
             n_proc_list.append(n_procs)
-
             if n_procs == 1:
                 break
-
             n_procs = self.get_next_n_procs(n_procs, n_proc_list, cpath)
 
         print '      loop time: %.1f' % (time.time()-start)
@@ -161,7 +157,7 @@ class PartitionDriver(object):
 
         self.check_partition(cpath.partitions[cpath.i_best])
         if self.args.print_cluster_annotations:
-            annotations = self.read_annotation_output(self.annotation_fname)
+            self.read_annotation_output(self.annotation_fname)
         if self.args.outfname is not None:
             self.write_clusterpaths(self.args.outfname, cpath)  # [last agglomeration step]
 
@@ -359,7 +355,7 @@ class PartitionDriver(object):
         print '      vsearch/swarm time: %.1f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
-    def get_naive_hamming_bounds(self, parameter_dir, debug=True):
+    def get_naive_hamming_bounds(self, parameter_dir):
         if self.args.naive_hamming_bounds is not None:  # let the command line override auto bound calculation
             print '       naive hfrac bounds: %.3f %.3f' % tuple(self.args.naive_hamming_bounds)
             return self.args.naive_hamming_bounds
@@ -501,16 +497,16 @@ class PartitionDriver(object):
         if n_procs is None:
             n_procs = self.args.n_procs
 
-        self.write_hmm_input(algorithm, parameter_in_dir, n_procs, cpath)  # TODO don't keep rewriting it
+        self.write_hmm_input(algorithm, parameter_in_dir, cpath)  # TODO don't keep rewriting it
 
         cmd_str = self.get_hmm_cmd_str(algorithm, self.hmm_infname, self.hmm_outfname, parameter_dir=parameter_in_dir, cache_naive_seqs=cache_naive_seqs, n_procs=n_procs)
 
         if n_procs > 1:
-            self.split_input(n_procs, self.hmm_infname, algorithm, cache_naive_seqs)
+            self.split_input(n_procs, self.hmm_infname)
 
         self.execute(cmd_str, n_procs)
 
-        new_cpath = self.read_hmm_output(algorithm, n_procs, count_parameters, parameter_out_dir, cache_naive_seqs)
+        new_cpath = self.read_hmm_output(n_procs, count_parameters, parameter_out_dir, cache_naive_seqs)
         print '      hmm step time: %.1f' % (time.time()-start)
         return new_cpath
 
@@ -533,7 +529,7 @@ class PartitionDriver(object):
             sortedlist = sorted([name1, name2])
             return ':'.join(sortedlist)
 
-        naive_seqs = self.get_sw_naive_seqs(info, namekey, seqkey)
+        naive_seqs = self.get_sw_naive_seqs(info, namekey)
         cachefo = self.read_cachefile()
         n_total, n_cached = 0, 0
         for id_a, id_b in itertools.combinations(naive_seqs.keys(), 2):
@@ -570,13 +566,11 @@ class PartitionDriver(object):
         return sw_naive_seq
 
     # ----------------------------------------------------------------------------------------
-    def get_sw_naive_seqs(self, info, namekey, seqkey):
+    def get_sw_naive_seqs(self, info, namekey):
 
         naive_seqs = {}
         for line in info:
             query = line[namekey]
-            seqstr = line['padded'][seqkey] if 'padded' in line else line[seqkey]
-            # NOTE cached naive seqs should all be the same length
             if len(query.split(':')) == 1:  # ...but if we don't have them, use smith-waterman (should only be for single queries)
                naive_seqs[query] = self.get_padded_sw_naive_seq(query)
             elif len(query.split(':')) > 1:
@@ -588,7 +582,7 @@ class PartitionDriver(object):
         return naive_seqs
 
     # ----------------------------------------------------------------------------------------
-    def split_input(self, n_procs, infname, algorithm, cache_naive_seqs):
+    def split_input(self, n_procs, infname):
 
         # should we pull out the seeded clusters, and carefully re-inject them into each process?
         separate_seeded_clusters = self.args.seed_unique_id is not None and not (self.already_removed_unseeded_clusters or self.time_to_remove_unseeded_clusters)  # I think I ony actually need one of the latter bools
@@ -826,7 +820,7 @@ class PartitionDriver(object):
         return True
 
     # ----------------------------------------------------------------------------------------
-    def combine_queries(self, query_names, parameter_dir, genes_with_hmm_files, skipped_gene_matches=None):
+    def combine_queries(self, query_names, genes_with_hmm_files, skipped_gene_matches=None):
         """ 
         Return the 'logical OR' of the queries in <query_names>, i.e. the maximal extent in k_v/k_d space and OR of only_gene sets.
         """
@@ -938,7 +932,7 @@ class PartitionDriver(object):
         genes_with_hmm_files = self.get_existing_hmm_files(parameter_dir)
 
         for query_name_list in nsets:  # NOTE in principle I think I should remove duplicate singleton <seed_unique_id>s here. But I think they in effect get removed 'cause in bcrham everything's stored as hash maps, so any duplicates just overwites the original upon reading its input
-            combined_query = self.combine_queries(query_name_list, parameter_dir, genes_with_hmm_files, skipped_gene_matches=skipped_gene_matches)
+            combined_query = self.combine_queries(query_name_list, genes_with_hmm_files, skipped_gene_matches=skipped_gene_matches)
             if len(combined_query) == 0:  # didn't find all regions
                 continue
             writer.writerow({
@@ -957,14 +951,14 @@ class PartitionDriver(object):
         csvfile.close()
 
     # ----------------------------------------------------------------------------------------
-    def write_hmm_input(self, algorithm, parameter_dir, n_procs, cpath):
+    def write_hmm_input(self, algorithm, parameter_dir, cpath):
         """ Write input file for bcrham """
         print '    writing input'
 
         skipped_gene_matches = set()
 
         if self.args.action == 'partition' and algorithm == 'forward':  # if we're caching naive seqs before partitioning, we're doing viterbi (and want the block below)
-            nsets = copy.deepcopy(cpath.partitions[cpath.i_best_minus_x])
+            nsets = copy.deepcopy(cpath.partitions[cpath.i_best_minus_x])  # NOTE that a.t.m. i_best and i_best_minus_x are the same, since we're not calculating log probs of partitions (well, we're trying to avoid calculating any extra log probs, which means we usually don't know the log prob of the entire partition)
             if self.args.seed_unique_id is not None and self.time_to_remove_unseeded_clusters:
                 nsets = [[qr] for qr in self.get_seeded_clusters(nsets)]
                 self.already_removed_unseeded_clusters = True
@@ -997,7 +991,7 @@ class PartitionDriver(object):
             print ''
 
     # ----------------------------------------------------------------------------------------
-    def read_hmm_output(self, algorithm, n_procs, count_parameters, parameter_out_dir, cache_naive_seqs):
+    def read_hmm_output(self, n_procs, count_parameters, parameter_out_dir, cache_naive_seqs):
         cpath = None  # TODO figure out a cleaner way to do this
         if self.args.action == 'partition' or n_procs > 1:
             cpath = self.merge_all_hmm_outputs(n_procs, cache_naive_seqs)
@@ -1139,7 +1133,7 @@ class PartitionDriver(object):
         return eroded_annotations
 
     # ----------------------------------------------------------------------------------------
-    def deal_with_annotation_clustering(annotations, outfname):
+    def deal_with_annotation_clustering(self, annotations, outfname):
         if self.args.annotation_clustering != 'vollmers':
             raise Exception('we only handle \'vollmers\' (vj cdr3 0.x) annotation clustering at the moment')
 
@@ -1194,8 +1188,8 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def write_annotations(self, annotations, outfname):
-        outpath = self.args.outfname
-        if self.args.outfname[0] != '/':  # if full output path wasn't specified on the command line
+        outpath = outfname
+        if outpath[0] != '/':  # if full output path wasn't specified on the command line
             outpath = os.getcwd() + '/' + outpath
         outheader = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'seqs', 'aligned_v_seqs', 'aligned_d_seqs', 'aligned_j_seqs', 'naive_seq', 'indelfos']
         outheader += [e + '_del' for e in utils.real_erosions + utils.effective_erosions] + [b + '_insertion' for b in utils.boundaries + utils.effective_boundaries]
