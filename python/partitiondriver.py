@@ -36,7 +36,7 @@ class PartitionDriver(object):
                                                            name_column=self.args.name_column, seq_column=self.args.seq_column, seed_unique_id=self.args.seed_unique_id,
                                                            abbreviate_names=self.args.abbreviate)
         self.sw_info = None
-        self.n_likelihoods_calculated = None
+        self.bcrham_proc_info = None
 
         self.n_max_calc_per_process = 200  # if a bcrham process calc'd more than this many fwd + vtb values, don't decrease the number of processes in the next step
 
@@ -198,16 +198,17 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def get_n_calculated_per_process(self):
-        if self.n_likelihoods_calculated is None:
+        if self.bcrham_proc_info is None:
             return
-        total = 0
-        for procinfo in self.n_likelihoods_calculated:
-            if 'vtb' not in procinfo or 'fwd' not in procinfo:
-                print 'couldn\'t find vdb/fwd in:\n%s' % procinfo
+
+        total = 0.  # sum over each process
+        for procinfo in self.bcrham_proc_info:
+            if 'vtb' not in procinfo['calcd'] or 'fwd' not in procinfo['calcd']:
+                print 'WARNING couldn\'t find vtb/fwd in:\n%s' % procinfo['calcd']  # may as well not fail, it probably just means we lost some stdout somewhere. Which, ok, is bad, but let's say it shouldn't be fatal.
                 return 1.  # er, or something?
-            total += procinfo['vtb'] + procinfo['fwd']
-        print '          n calcd: %d (%.1f per proc)' % (total, float(total) / len(self.n_likelihoods_calculated))
-        return float(total) / len(self.n_likelihoods_calculated)
+            total += procinfo['calcd']['vtb'] + procinfo['calcd']['fwd']
+        print '          n calcd: %d (%.1f per proc)' % (total, float(total) / len(self.bcrham_proc_info))
+        return float(total) / len(self.bcrham_proc_info)
 
     # ----------------------------------------------------------------------------------------
     def check_partition(self, partition):
@@ -465,6 +466,12 @@ class PartitionDriver(object):
             return self.args.workdir + '/hmm-' + str(iproc)
 
     # ----------------------------------------------------------------------------------------
+    def check_wait_times(self, wait_time):
+        max_bcrham_time = max([procinfo['time']['bcrham'] for procinfo in self.bcrham_proc_info])
+        if wait_time / max_bcrham_time > 1.5 and wait_time > 30.:  # if we were waiting for a lot longer than the slowest process took, and if it took long enough for us to care
+            print '    spent much longer waiting for bcrham (%.1fs) than bcrham reported taking (%.1fs)' % (wait_time, max_bcrham_time)
+
+    # ----------------------------------------------------------------------------------------
     def execute(self, cmd_str, n_procs):
         # ----------------------------------------------------------------------------------------
         def get_outfname(iproc):
@@ -479,11 +486,11 @@ class PartitionDriver(object):
 
         # start all the procs for the first time
         procs, n_tries, = [], []
-        self.n_likelihoods_calculated = []
+        self.bcrham_proc_info = []
         for iproc in range(n_procs):
             procs.append(utils.run_cmd(get_cmd_str(iproc), self.subworkdir(iproc, n_procs)))
             n_tries.append(1)
-            self.n_likelihoods_calculated.append({})
+            self.bcrham_proc_info.append({})
 
         # keep looping over the procs until they're all done
         while procs.count(None) != len(procs):  # we set each proc to None when it finishes
@@ -491,11 +498,12 @@ class PartitionDriver(object):
                 if procs[iproc] is None:  # already finished
                     continue
                 if procs[iproc].poll() is not None:  # it's finished
-                    utils.finish_process(iproc, procs, n_tries, self.subworkdir(iproc, n_procs), get_outfname(iproc), get_cmd_str(iproc), self.n_likelihoods_calculated[iproc])
+                    utils.finish_process(iproc, procs, n_tries, self.subworkdir(iproc, n_procs), get_outfname(iproc), get_cmd_str(iproc), self.bcrham_proc_info[iproc])
             sys.stdout.flush()
             time.sleep(1)
 
         print '      time waiting for bcrham: %.1f' % (time.time()-start)
+        self.check_wait_times(time.time()-start)
         sys.stdout.flush()
 
     # ----------------------------------------------------------------------------------------
@@ -687,8 +695,6 @@ class PartitionDriver(object):
         NOTE that <outfname> is overwritten with the zero-length file if it exists, otherwise it is created.
         Some of <infnames> may not exist.
         """
-        start = time.time()
-
         # check_call(['wc', ] + [fn for fn in infnames if fn != outfname])
         # if os.path.exists(outfname):
         #     check_call(['wc', outfname])
@@ -737,8 +743,6 @@ class PartitionDriver(object):
             for infname in infnames:
                 if infname != outfname:
                     os.remove(infname)
-
-        print '    time to merge csv files: %.1f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
     def merge_all_hmm_outputs(self, n_procs, cache_naive_seqs):
@@ -1083,8 +1087,6 @@ class PartitionDriver(object):
                     if self.args.debug:
                         print '      %s padded line invalid' % padded_line['unique_ids']
                     continue
-
-                self.print_hmm_output(padded_line)
 
                 # get a new dict in which we have edited the sequences to swap Ns on either end (after removing fv and jf insertions) for v_5p and j_3p deletions
                 eroded_line = utils.reset_effective_erosions_and_effective_insertions(self.glfo, padded_line)

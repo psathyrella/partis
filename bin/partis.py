@@ -49,8 +49,6 @@ if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
     print '    TODO make sure all mpl figures are getting closed'
     print '    TODO remove extra assertions from glomerator'
     print '    TODO make things completely assertion/exception safe, i.e. if you catch one, that causes a failure on that one sequence only'
-    print '    TODO stop compiling smc'
-    print '    TODO print time waiting for slurm'
     print '    TODO todos in glomerator'
     print '    TODO clean up logprob of partition stuff in glomerator.cc'
     print '    TODO clean up duplicate id removal'

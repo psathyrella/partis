@@ -1484,15 +1484,17 @@ def process_out_err(out, err, extra_str='', info=None, subworkdir=None):
             print_str += line + '\n'
 
     if info is not None:  # keep track of how many vtb and fwd calculations the process made
-        info_lines = [ln for ln in out.split('\n') if 'calcd:' in ln]
-        if len(info_lines) != 1:
-            raise Exception('couldn\'t find calcd line in:\n%s' % out)
-        words = info_lines[0].split()
-        try:
-            for ctype in ('vtb', 'fwd'):
-                info[ctype] = int(words[words.index(ctype) + 1])
-        except:
-            raise Exception('couldn\'t find calcd line in:\n%s' % out)
+        for header, variables in {'calcd' : ['vtb', 'fwd'], 'time' : ['bcrham', ]}.items():
+            info[header] = {}
+            theselines = [ln for ln in out.split('\n') if header + ':' in ln]
+            if len(theselines) != 1:
+                raise Exception('couldn\'t find %s line in:\n%s' % (header, out))
+            words = theselines[0].split()
+            try:
+                for var in variables:  # convention: value corresponding to the string <var> is the word immediately vollowing <var>
+                    info[header][var] = float(words[words.index(var) + 1])
+            except:
+                raise Exception('couldn\'t find %s line in:\n%s' % (header, out))
 
     print_str += out
 
