@@ -125,7 +125,7 @@ class PartitionDriver(object):
 
         # cache hmm naive seq for each single query
         if len(self.sw_info['queries']) > 50 or self.args.naive_vsearch or self.args.naive_swarm:
-            self.run_hmm('viterbi', self.args.parameter_dir, n_procs=self.get_n_precache_procs(), cache_naive_seqs=True)
+            self.run_hmm('viterbi', self.args.parameter_dir, n_procs=self.get_n_precache_procs(), precache_all_naive_seqs=True)
 
         if self.args.naive_vsearch or self.args.naive_swarm:
             self.cluster_with_naive_vsearch_or_swarm(self.args.parameter_dir)
@@ -219,20 +219,20 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def get_n_precache_procs(self):
-        if self.args.n_precache_procs is None:
-            n_seqs = len(self.sw_info['queries'])
-            seqs_per_proc = 500  # 2.5 mins (at something like 0.3 sec/seq)
-            if n_seqs > 3000:
-                seqs_per_proc *= 2
-            if n_seqs > 10000:
-                seqs_per_proc *= 1.5
-            n_precache_procs = int(math.ceil(float(n_seqs) / seqs_per_proc))
-            n_precache_procs = min(n_precache_procs, self.args.n_max_procs)  # I can't get more'n a few hundred slots at a time, so it isn't worth using too much more than that
-            if not self.args.slurm and not utils.auto_slurm(self.args.n_procs):  # if we're not on slurm, make sure it's less than the number of cpus
-                n_precache_procs = min(n_precache_procs, multiprocessing.cpu_count())
-        else:  # allow to override from command line (really just to make testing a bit faster)
-            n_precache_procs = self.args.n_precache_procs
-        print '      precache procs', n_precache_procs
+        if self.args.n_precache_procs is not None:
+            return self.args.n_precache_procs
+
+        n_seqs = len(self.sw_info['queries'])
+        seqs_per_proc = 500  # 2.5 mins (at something like 0.3 sec/seq)
+        if n_seqs > 3000:
+            seqs_per_proc *= 2
+        if n_seqs > 10000:
+            seqs_per_proc *= 1.5
+        n_precache_procs = int(math.ceil(float(n_seqs) / seqs_per_proc))
+        n_precache_procs = min(n_precache_procs, self.args.n_max_procs)  # I can't get more'n a few hundred slots at a time, so it isn't worth using too much more than that
+        if not self.args.slurm and not utils.auto_slurm(self.args.n_procs):  # if we're not on slurm, make sure it's less than the number of cpus
+            n_precache_procs = min(n_precache_procs, multiprocessing.cpu_count())
+
         return n_precache_procs
 
     # ----------------------------------------------------------------------------------------
@@ -386,7 +386,7 @@ class PartitionDriver(object):
         return [lo, hi]
 
     # ----------------------------------------------------------------------------------------
-    def get_hmm_cmd_str(self, algorithm, csv_infname, csv_outfname, parameter_dir, cache_naive_seqs, n_procs):
+    def get_hmm_cmd_str(self, algorithm, csv_infname, csv_outfname, parameter_dir, precache_all_naive_seqs, n_procs):
         """ Return the appropriate bcrham command string """
         cmd_str = os.getenv('PWD') + '/packages/ham/bcrham'
         if self.args.slurm or utils.auto_slurm(n_procs):
@@ -414,7 +414,7 @@ class PartitionDriver(object):
             cmd_str += ' --annotationfile ' + self.annotation_fname
         if self.args.action == 'partition':
             cmd_str += ' --cachefile ' + self.hmm_cachefname
-            if cache_naive_seqs:  # caching all naive sequences before partitioning
+            if precache_all_naive_seqs:
                 cmd_str += ' --cache-naive-seqs'
             else:  # actually partitioning
                 cmd_str += ' --partition'
@@ -456,7 +456,7 @@ class PartitionDriver(object):
         def get_cmd_str(iproc):
             return cmd_str.replace(self.args.workdir, self.subworkdir(iproc, n_procs))
 
-        print '    running'
+        print '    running %d procs' % n_procs
         sys.stdout.flush()
         start = time.time()
 
@@ -483,13 +483,13 @@ class PartitionDriver(object):
         sys.stdout.flush()
 
     # ----------------------------------------------------------------------------------------
-    def run_hmm(self, algorithm, parameter_in_dir, parameter_out_dir='', count_parameters=False, n_procs=None, cache_naive_seqs=False, cpath=None):
+    def run_hmm(self, algorithm, parameter_in_dir, parameter_out_dir='', count_parameters=False, n_procs=None, precache_all_naive_seqs=False, cpath=None):
         """ 
         Run bcrham, possibly with many processes, and parse and interpret the output.
         NOTE the local <n_procs>, which overrides the one from <self.args>
         """
-        print 'hmm'
         start = time.time()
+        print 'hmm'
         if len(self.sw_info['queries']) == 0:
             print '  %s no input queries for hmm' % utils.color('red', 'warning')
             return
@@ -499,14 +499,14 @@ class PartitionDriver(object):
 
         self.write_hmm_input(algorithm, parameter_in_dir, cpath)  # TODO don't keep rewriting it
 
-        cmd_str = self.get_hmm_cmd_str(algorithm, self.hmm_infname, self.hmm_outfname, parameter_dir=parameter_in_dir, cache_naive_seqs=cache_naive_seqs, n_procs=n_procs)
+        cmd_str = self.get_hmm_cmd_str(algorithm, self.hmm_infname, self.hmm_outfname, parameter_dir=parameter_in_dir, precache_all_naive_seqs=precache_all_naive_seqs, n_procs=n_procs)
 
         if n_procs > 1:
             self.split_input(n_procs, self.hmm_infname)
 
         self.execute(cmd_str, n_procs)
 
-        new_cpath = self.read_hmm_output(n_procs, count_parameters, parameter_out_dir, cache_naive_seqs)
+        new_cpath = self.read_hmm_output(n_procs, count_parameters, parameter_out_dir, precache_all_naive_seqs)
         print '      hmm step time: %.1f' % (time.time()-start)
         return new_cpath
 
@@ -719,14 +719,14 @@ class PartitionDriver(object):
                     os.remove(infname)
 
     # ----------------------------------------------------------------------------------------
-    def merge_all_hmm_outputs(self, n_procs, cache_naive_seqs):
+    def merge_all_hmm_outputs(self, n_procs, precache_all_naive_seqs):
         """ Merge any/all output files from subsidiary bcrham processes """
         cpath = None  # TODO figure out a cleaner way to do this
         if self.args.action == 'partition':  # merge partitions from several files
             if n_procs > 1:
                 self.merge_subprocess_files(self.hmm_cachefname, n_procs, include_outfile=True)  # sub cache files only have new info
 
-            if not cache_naive_seqs:
+            if not precache_all_naive_seqs:
                 if n_procs == 1:
                     infnames = [self.hmm_outfname, ]
                 else:
@@ -991,10 +991,10 @@ class PartitionDriver(object):
             print ''
 
     # ----------------------------------------------------------------------------------------
-    def read_hmm_output(self, n_procs, count_parameters, parameter_out_dir, cache_naive_seqs):
+    def read_hmm_output(self, n_procs, count_parameters, parameter_out_dir, precache_all_naive_seqs):
         cpath = None  # TODO figure out a cleaner way to do this
         if self.args.action == 'partition' or n_procs > 1:
-            cpath = self.merge_all_hmm_outputs(n_procs, cache_naive_seqs)
+            cpath = self.merge_all_hmm_outputs(n_procs, precache_all_naive_seqs)
 
         if self.args.action != 'partition':
             if self.args.action == 'run-viterbi' or self.args.action == 'cache-parameters':
