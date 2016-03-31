@@ -296,8 +296,6 @@ void Glomerator::WriteAnnotations(vector<ClusterPath> &paths) {
 
 // ----------------------------------------------------------------------------------------
 double Glomerator::LogProbOfPartition(Partition &partition, bool debug) {
-  if(args_->no_fwd())  // if we're doing pure naive hamming glomeration, we don't want to calculate any forward probs
-    return -INFINITY;
 
   // get log prob of entire partition given by the keys in <partinfo> using the individual log probs in <log_probs>
   double total_log_prob(0.0);

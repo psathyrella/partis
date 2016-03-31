@@ -202,6 +202,8 @@ class PartitionDriver(object):
             if 'vtb' not in procinfo['calcd'] or 'fwd' not in procinfo['calcd']:
                 print 'WARNING couldn\'t find vtb/fwd in:\n%s' % procinfo['calcd']  # may as well not fail, it probably just means we lost some stdout somewhere. Which, ok, is bad, but let's say it shouldn't be fatal.
                 return 1.  # er, or something?
+            if self.args.naive_hamming:
+                assert procinfo['calcd']['fwd'] == 0.
             total += procinfo['calcd']['vtb'] + procinfo['calcd']['fwd']
         print '          n calcd: %d (%.1f per proc)' % (total, float(total) / len(self.bcrham_proc_info))
         return float(total) / len(self.bcrham_proc_info)
@@ -412,8 +414,6 @@ class PartitionDriver(object):
             cmd_str += ' --annotationfile ' + self.annotation_fname
         if self.args.action == 'partition':
             cmd_str += ' --cachefile ' + self.hmm_cachefname
-            if self.args.naive_hamming:
-                cmd_str += ' --no-fwd'  # assume that auto hamming bounds means we're naive hamming clustering (which is a good assumption, since we set the lower and upper bounds to the same thing)
             if cache_naive_seqs:  # caching all naive sequences before partitioning
                 cmd_str += ' --cache-naive-seqs'
             else:  # actually partitioning
@@ -444,7 +444,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def check_wait_times(self, wait_time):
         max_bcrham_time = max([procinfo['time']['bcrham'] for procinfo in self.bcrham_proc_info])
-        if wait_time / max_bcrham_time > 1.5 and wait_time > 30.:  # if we were waiting for a lot longer than the slowest process took, and if it took long enough for us to care
+        if max_bcrham_time > 0. and wait_time / max_bcrham_time > 1.5 and wait_time > 30.:  # if we were waiting for a lot longer than the slowest process took, and if it took long enough for us to care
             print '    spent much longer waiting for bcrham (%.1fs) than bcrham reported taking (%.1fs)' % (wait_time, max_bcrham_time)
 
     # ----------------------------------------------------------------------------------------
