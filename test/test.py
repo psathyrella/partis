@@ -48,7 +48,7 @@ class Tester(object):
         self.logfname = self.dirs['new'] + '/test.log'
         self.cachefnames = { st : 'cache-' + st + '-partition.csv' for st in self.stypes }
 
-        self.quick_tests = ['seed-partition-ref-simu'] #['annotate-ref-simu']
+        self.quick_tests = ['annotate-ref-simu'] #['seed-partition-ref-simu']
         self.production_tests = ['cache-data-parameters', 'simulate', 'cache-simu-parameters']  # vs "inference" tests. Kind of crappy names, but it's to distinguish these three from all the other ones
 
         self.tests = OrderedDict()

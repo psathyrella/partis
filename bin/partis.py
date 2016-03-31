@@ -50,7 +50,6 @@ if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
     print '    TODO remove extra assertions from glomerator'
     print '    TODO make things completely assertion/exception safe, i.e. if you catch one, that causes a failure on that one sequence only'
     print '    TODO todos in glomerator'
-    print '    TODO clean up logprob of partition stuff in glomerator.cc'
     print '    TODO see about varying the naive hfrac thresholds -- especially lowering the lower bound (try to do this by exploiting something about the difference between hfrac and lratio [e.g. where the hfrac differences are? or maybe hfrac averaged over the top N annotations?])'
     print '    TODO     i.e. find what kinds of clones hfrac and lratio disagree on'
     print '    TODO test on simulation samples that are *hard*, i.e. that all have the same VJ and cdr3 length'

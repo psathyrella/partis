@@ -480,8 +480,13 @@ string Glomerator::ChooseSubsetOfNames(string queries, int n_max) {
   set<string> chosen_strs;  // make sure we don't choose seed unique id more than once
   for(size_t iname=0; iname<unsigned(n_max); ++iname) {
     int ich(-1);
-    while(ich < 0 || ichosen.count(ich) || chosen_strs.count(namevector[ich]))  // TODO this could in principle end up as an infinite loop if there's too many copies of the seed unique id
+    int n_tries(0);
+    while(ich < 0 || ichosen.count(ich) || chosen_strs.count(namevector[ich])) {
       ich = rand() % namevector.size();
+      ++n_tries;
+      if(n_tries > 1e6)
+	throw runtime_error("too many tries in Glomerator::ChooseSubsetOfNames() -- maybe too many copies of the seed unique id?");
+    }
     ichosen.insert(ich);
     chosen_strs.insert(namevector[ich]);
     ichosen_vec.push_back(ich);
