@@ -87,7 +87,7 @@ Result DPHandler::Run(vector<Sequence> seqvector, KBounds kbounds, vector<string
   map<KSet, double> best_scores; // best score for each kset (summed over regions)
   map<KSet, double> total_scores; // total score for each kset (summed over regions)
   map<KSet, map<string, string> > best_genes; // map from a kset to its corresponding triplet of best genes
-  if(args_->rescale_emissions()) {  // reset the emission probabilities in the hmms to reflect the frequences in this particular set of sequences
+  if(!args_->dont_rescale_emissions()) {  // reset the emission probabilities in the hmms to reflect the frequences in this particular set of sequences
     assert(overall_mute_freq != -INFINITY);  // make sure the caller remembered to set it
     // NOTE it's super important to *un*set them after you're done
     hmms_.RescaleOverallMuteFreqs(only_genes, overall_mute_freq);
@@ -175,7 +175,7 @@ Result DPHandler::Run(vector<Sequence> seqvector, KBounds kbounds, vector<string
     cout << "    " << seqs.name_str()  << endl;
   }
 
-  if(args_->rescale_emissions())  // if we rescaled them above, re-rescale the overall mean mute freqs
+  if(!args_->dont_rescale_emissions())  // if we rescaled them above, re-rescale the overall mean mute freqs
     hmms_.UnRescaleOverallMuteFreqs(only_genes);
 
   return result;
