@@ -29,7 +29,7 @@ parser.add_argument('--seed', type=int, default=int(time.time()), help='Random s
 parser.add_argument('--mutation-multiplier', type=float, help='Multiply observed branch lengths by some factor when simulating, e.g. if in data it was 0.05, but you want closer to ten percent in your simulation, set this to 2')
 parser.add_argument('--mimic-data-read-length', action='store_true', help='trim V 5\' and D 3\' to mimic read lengths seen in data')
 parser.add_argument('--annotation-clustering', help='Perform annotation-based clustering from Vollmers paper')
-parser.add_argument('--rescale-emissions', action='store_true', default=True)
+parser.add_argument('--dont-rescale-emissions', action='store_true')
 parser.add_argument('--print-cluster-annotations', action='store_true', help='print annotation for each final cluster')
 # parser.add_argument('--use_mean_at_boundaries', action='store_true', help='see note in hmmwriter')
 parser.add_argument('--annotation-clustering-thresholds', default='0.9', help='colon-separated list of thresholds for annotation-based (e.g. vollmers) clustering')
