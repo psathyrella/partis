@@ -44,6 +44,8 @@ Whereas if you'd like to separate them into clonal families, run
 Note that now we're inside the container, we access the fasta file at the original path on your host system, but with `/host` tacked on the front (as we specified in `docker run` above).
 This command by default writes the output csv to the directory that `--infname` came from.
 There's also some example sequences you can run on in `test/example.fa`.
+Also note that partis by default infers its HMM parameters on the fly for each data set; while on larger samples this is substantially more accurate than using population-wide averages, if you have fewer than, say, 50 sequences, it is not a particularly meaningful exercise.
+Until there exists enough public data such that it is possible to build good population-wide parameter priors, the best thing to do in such cases is to find a larger data set that you think is similar (e.g. same patient, so it has the same germline genes) to the one you're interested in, and infer parameters using that larger set.
 Depending on your system, in about ten minutes a single process can probably annotate 5000 sequences or partition a few hundred -- if your ratio of patience to sequences is quite different to this, you should look through the parallelization options below.
 You can also use the approximate naive or vsearch methods by adding the `--fast` or `--really-fast` options, respectively, to `./bin/partition`.
 The naive method is about a factor of ten faster than the full method, while the vsearch method is really reall really fast -- the only significant time will be finding the naive annotations, which scales linearly with the number of sequences so isn't an issue.
