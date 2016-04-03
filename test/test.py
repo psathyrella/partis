@@ -43,12 +43,13 @@ class Tester(object):
         self.eps_vals['precision']      = 0.08
         self.eps_vals['sensitivity']    = 0.08
 
-        n_partition_queries = '250'
+        self.n_partition_queries = '250'
         n_data_inference_queries = '50'
         self.logfname = self.dirs['new'] + '/test.log'
         self.cachefnames = { st : 'cache-' + st + '-partition.csv' for st in self.stypes }
 
-        self.quick_tests = ['annotate-ref-simu'] #['seed-partition-ref-simu']
+        self.quick_tests = ['annotate-ref-simu']
+        # self.quick_tests = ['seed-partition-ref-simu']
         self.production_tests = ['cache-data-parameters', 'simulate', 'cache-simu-parameters']  # vs "inference" tests. Kind of crappy names, but it's to distinguish these three from all the other ones
 
         self.tests = OrderedDict()
@@ -56,10 +57,9 @@ class Tester(object):
         def add_inference_tests(input_stype):  # if input_stype is 'ref', infer on old simulation and parameters, if it's 'new' use the new ones
             self.tests['annotate-' + input_stype + '-simu']          = {'extras' : ['--plotdir', self.dirs['new'] + '/' + self.perfdirs[input_stype], '--plot-performance']}
             self.tests['annotate-' + input_stype + '-data']          = {'extras' : ['--n-max-queries', n_data_inference_queries]}
-            self.tests['partition-' + input_stype + '-simu']         = {'extras' : ['--n-max-queries', n_partition_queries, '--persistent-cachefname', self.dirs['new'] + '/' + self.cachefnames[input_stype], '--n-precache-procs', '10', '--biggest-logprob-cluster-to-calculate', '2', '--biggest-naive-seq-cluster-to-calculate', '2']}
-            seed_uid, _ = utils.choose_seed_unique_id(args.datadir, self.simfnames[input_stype], 5, 8, n_max_queries=int(n_partition_queries), debug=False)
-            self.tests['seed-partition-' + input_stype + '-simu']    = {'extras' : ['--n-max-queries', 5 * n_partition_queries, '--n-precache-procs', '10', '--seed-unique-id', seed_uid]}
-            self.tests['vsearch-partition-' + input_stype + '-simu'] = {'extras' : ['--naive-vsearch', '--n-max-queries', n_partition_queries, '--n-precache-procs', '10']}
+            self.tests['partition-' + input_stype + '-simu']         = {'extras' : ['--n-max-queries', self.n_partition_queries, '--persistent-cachefname', self.dirs['new'] + '/' + self.cachefnames[input_stype], '--n-precache-procs', '10', '--biggest-logprob-cluster-to-calculate', '2', '--biggest-naive-seq-cluster-to-calculate', '2']}
+            self.tests['seed-partition-' + input_stype + '-simu']    = {'extras' : ['--n-max-queries', '-1', '--n-precache-procs', '10']}
+            self.tests['vsearch-partition-' + input_stype + '-simu'] = {'extras' : ['--naive-vsearch', '--n-max-queries', self.n_partition_queries, '--n-precache-procs', '10']}
 
         def add_common_args():
             for ptest, args in self.tests.items():
@@ -117,6 +117,21 @@ class Tester(object):
         self.compare_data_annotation(input_stype='new')
 
     # ----------------------------------------------------------------------------------------
+    def prepare_to_run(self, args, name, info):
+        """ Pre-run stuff that you don't want to do until *right* before you actually run. """
+
+        # delete old partition cache file
+        if name == 'partition-' + info['input_stype'] + '-simu':
+            this_cachefname = self.dirs['new'] + '/' + self.cachefnames[info['input_stype']]
+            if os.path.exists(this_cachefname):
+                check_call(['rm', '-v', this_cachefname])
+
+        # choose a seed uid
+        if name == 'seed-partition-' + info['input_stype'] + '-simu':
+            seed_uid, _ = utils.choose_seed_unique_id(args.datadir, self.simfnames[info['input_stype']], 5, 8, n_max_queries=int(self.n_partition_queries), debug=False)
+            info['extras'] += ['--seed-unique-id', seed_uid]
+
+    # ----------------------------------------------------------------------------------------
     def run(self, args):
         open(self.logfname, 'w').close()
 
@@ -124,11 +139,7 @@ class Tester(object):
             if args.quick and name not in self.quick_tests:
                 continue
 
-            # delete old partition cache file
-            if name == 'partition-' + info['input_stype'] + '-simu':
-                this_cachefname = self.dirs['new'] + '/' + self.cachefnames[info['input_stype']]
-                if os.path.exists(this_cachefname):
-                    check_call(['rm', '-v', this_cachefname])
+            self.prepare_to_run(args, name, info)
 
             action = info['action'] if 'action' in info else name
             cmd_str = info['bin'] + ' --action ' + action
