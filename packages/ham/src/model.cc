@@ -115,6 +115,7 @@ void Model::AddState(State* state) {
 // ----------------------------------------------------------------------------------------
 void Model::RescaleOverallMuteFreq(double overall_mute_freq) {
   assert(overall_mute_freq != -INFINITY);
+  // cout << "rescaling " << name_ << " from " << original_overall_mute_freq_ << " to " << overall_mute_freq << endl;
   for(auto &state : states_) {
     // NOTE it is arguable that the denominator here should be the original mute freq only over the sequences that had
     //  *this* germline gene (rather than over all sequence in the data set). However, it'd be a bunch more work to do
@@ -126,6 +127,7 @@ void Model::RescaleOverallMuteFreq(double overall_mute_freq) {
 
 // ----------------------------------------------------------------------------------------
 void Model::UnRescaleOverallMuteFreq() {
+  // cout << "  unrescaling" << endl;
   for(auto &state : states_)
     state->UnRescaleOverallMuteFreq();
 }

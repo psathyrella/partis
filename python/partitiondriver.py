@@ -408,8 +408,8 @@ class PartitionDriver(object):
         if n_procs > 1:  # only cache vals for sequence sets with newly-calculated vals (initial cache file is copied to each subdir)
             cmd_str += ' --only-cache-new-vals'
 
-        if not self.args.dont_rescale_emissions:
-            cmd_str += ' --rescale-emissions'
+        if self.args.dont_rescale_emissions:
+            cmd_str += ' --dont-rescale-emissions'
         if self.args.print_cluster_annotations and n_procs == 1:
             cmd_str += ' --annotationfile ' + self.annotation_fname
         if self.args.action == 'partition':
