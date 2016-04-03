@@ -451,7 +451,7 @@ class Tester(object):
             diff_hfracs_str = utils.color('red', diff_hfracs_str)
             mean_hfrac_str = utils.color('red', mean_hfrac_str)
 
-        delta_logprobs = []
+        abs_delta_logprobs = []
         n_delta_logprobs = 0
         n_big_delta_logprobs = 0
         logprob_eps = 1e-5
@@ -460,17 +460,17 @@ class Tester(object):
             refval = refcache[vtype][uids]
             newval = newcache[vtype][uids]
             n_delta_logprobs += 1
-            delta_logprob = abs(refval - newval)
-            if delta_logprob > logprob_eps:
+            abs_delta_logprob = abs(refval - newval)
+            if abs_delta_logprob > logprob_eps:
                 n_big_delta_logprobs += 1
-                delta_logprobs.append(delta_logprob)
+                abs_delta_logprobs.append(abs_delta_logprob)
 
         diff_logprob_str = '%3d / %4d' % (n_big_delta_logprobs, n_delta_logprobs)
-        mean_logprob_str = '%.6f' % (numpy.average(delta_logprobs) if len(delta_logprobs) > 0 else 0.)
+        mean_logprob_str = '%.3f' % (numpy.average(abs_delta_logprobs) if len(abs_delta_logprobs) > 0 else 0.)
         if n_big_delta_logprobs > 0:
             diff_logprob_str = utils.color('red', diff_logprob_str)
             mean_logprob_str = utils.color('red', mean_logprob_str)
-        print '                  fraction different     mean difference among differents'
+        print '                  fraction different     mean abs difference among differents'
         print '      naive seqs     %s                      %s      (hamming fraction)' % (diff_hfracs_str, mean_hfrac_str)
         print '      log probs      %s                      %s' % (diff_logprob_str, mean_logprob_str)
         if n_different_length > 0:

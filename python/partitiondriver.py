@@ -464,6 +464,8 @@ class PartitionDriver(object):
         procs, n_tries, = [], []
         self.bcrham_proc_info = []
         for iproc in range(n_procs):
+            # print get_cmd_str(iproc)
+            # sys.exit()
             procs.append(utils.run_cmd(get_cmd_str(iproc), self.subworkdir(iproc, n_procs)))
             n_tries.append(1)
             self.bcrham_proc_info.append({})
