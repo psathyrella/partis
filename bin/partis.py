@@ -46,11 +46,9 @@ parser.add_argument('--presto-output', action='store_true', help='write output f
 parser.add_argument('--only-csv-plots', action='store_true', help='only write csv plots')
 
 if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
-    print '    TODO make sure all mpl figures are getting closed'
-    print '    TODO remove extra assertions from glomerator'
     print '    TODO make things completely assertion/exception safe, i.e. if you catch one, that causes a failure on that one sequence only'
-    print '    TODO see about varying the naive hfrac thresholds -- especially lowering the lower bound (try to do this by exploiting something about the difference between hfrac and lratio [e.g. where the hfrac differences are? or maybe hfrac averaged over the top N annotations?])'
-    print '    TODO     i.e. find what kinds of clones hfrac and lratio disagree on'
+    print '    TODO see about varying the naive hfrac thresholds -- especially lowering the lower bound (try to do this by exploiting something about the difference between hfrac and lratio'
+    print '              [e.g. where the hfrac differences are? or maybe hfrac averaged over the top N annotations?]) i.e. find what kinds of clones hfrac and lratio disagree on'
     print '    TODO test on simulation samples that are *hard*, i.e. that all have the same VJ and cdr3 length'
 
 # input and output stuff
