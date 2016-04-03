@@ -28,9 +28,7 @@ class Waterer(object):
         self.absolute_max_insertion_length = 200  # just ignore them if it's longer than this
 
         self.input_info = input_info
-        self.remaining_queries = set()  # we remove queries from this set when we're satisfied with the current output (in general we may have to rerun some queries with different match/mismatch scores)
-        for query in self.input_info.keys():
-            self.remaining_queries.add(query)
+        self.remaining_queries = set([q for q in self.input_info.keys()])  # we remove queries from this set when we're satisfied with the current output (in general we may have to rerun some queries with different match/mismatch scores)
         self.new_indels = 0  # number of new indels that were kicked up this time through
 
         self.reco_info = reco_info
@@ -65,6 +63,11 @@ class Waterer(object):
             self.my_datadir = self.args.workdir + '/germline-sets'
             self.rewritten_files = utils.rewrite_germline_fasta(self.args.datadir, self.my_datadir, self.genes_to_use)
 
+        os.environ['PATH'] = os.getenv('PWD') + '/packages/samtools:' + os.getenv('PATH')
+        check_output(['which', 'samtools'])
+        if not os.path.exists(self.args.ighutil_dir + '/bin/vdjalign'):
+            raise Exception('ERROR ighutil path d.n.e: ' + self.args.ighutil_dir + '/bin/vdjalign')
+
     # ----------------------------------------------------------------------------------------
     def __del__(self):
         if self.args.outfname is not None:
@@ -89,10 +92,14 @@ class Waterer(object):
         base_outfname = 'query-seqs.bam'
         sys.stdout.flush()
 
+        n_procs = self.args.n_fewer_procs
+        initial_queries_per_proc = float(len(self.remaining_queries)) / n_procs
         while len(self.remaining_queries) > 0:  # we remove queries from <self.remaining_queries> as we're satisfied with their output
-            self.write_vdjalign_input(base_infname, n_procs=self.args.n_fewer_procs)
-            self.execute_commands(base_infname, base_outfname, self.args.n_fewer_procs)
-            self.read_output(base_outfname, n_procs=self.args.n_fewer_procs)
+            if self.nth_try > 1 and float(len(self.remaining_queries)) / n_procs < initial_queries_per_proc:
+                n_procs = int(max(1., float(len(self.remaining_queries)) / initial_queries_per_proc))
+            self.write_vdjalign_input(base_infname, n_procs)
+            self.execute_commands(base_infname, base_outfname, n_procs)
+            self.read_output(base_outfname, n_procs)
             if self.nth_try > 3:
                 break
             self.nth_try += 1  # it's set to 1 before we begin the first try, and increases to 2 just before we start the second try
@@ -140,65 +147,41 @@ class Waterer(object):
         self.info['remaining_queries'] = self.remaining_queries
 
     # ----------------------------------------------------------------------------------------
-    def execute_commands(self, base_infname, base_outfname, n_procs):
-
+    def subworkdir(self, iproc, n_procs):
         if n_procs == 1:
-            cmd_str = self.get_vdjalign_cmd_str(self.args.workdir, base_infname, base_outfname, self.my_datadir)
-            proc = Popen(cmd_str.split(), stdout=PIPE, stderr=PIPE)
-            out, err = proc.communicate()
-            utils.process_out_err(out, err)
-            if not self.args.no_clean:
-                os.remove(self.args.workdir + '/' + base_infname)
+            return self.args.workdir
         else:
-            shell = True
+            return self.args.workdir + '/sw-' + str(iproc)
 
-            cmd_strs, workdirs = [], []
+    # ----------------------------------------------------------------------------------------
+    def execute_commands(self, base_infname, base_outfname, n_procs):
+        # ----------------------------------------------------------------------------------------
+        def get_outfname(iproc):
+            return self.subworkdir(iproc, n_procs) + '/' + base_outfname
+        # ----------------------------------------------------------------------------------------
+        def get_cmd_str(iproc):
+            return self.get_vdjalign_cmd_str(self.subworkdir(iproc, n_procs), base_infname, base_outfname, self.my_datadir, n_procs)
+
+        # start all procs for the first time
+        procs, n_tries = [], []
+        for iproc in range(n_procs):
+            procs.append(utils.run_cmd(get_cmd_str(iproc), self.subworkdir(iproc, n_procs)))
+            n_tries.append(1)
+            time.sleep(0.1)
+
+        # keep looping over the procs until they're all done
+        while procs.count(None) != len(procs):  # we set each proc to None when it finishes
             for iproc in range(n_procs):
-                workdirs.append(self.args.workdir + '/sw-' + str(iproc))
-                cmd_strs.append(self.get_vdjalign_cmd_str(workdirs[iproc], base_infname, base_outfname, self.my_datadir, n_procs, shell))
+                if procs[iproc] is None:  # already finished
+                    continue
+                if procs[iproc].poll() is not None:  # it's finished
+                    utils.finish_process(iproc, procs, n_tries, self.subworkdir(iproc, n_procs), get_outfname(iproc), get_cmd_str(iproc))
+            sys.stdout.flush()
+            time.sleep(1)
 
-            # start all procs for the first time
-            procs, n_tries = [], []
+        if not self.args.no_clean:
             for iproc in range(n_procs):
-                procs.append(Popen(cmd_strs[iproc], shell=shell))
-                n_tries.append(1)
-                time.sleep(0.1)
-
-            # ----------------------------------------------------------------------------------------
-            def get_outfname(iproc):
-                return workdirs[iproc] + '/' + base_outfname
-
-            # ----------------------------------------------------------------------------------------
-            # deal with a process once it's finished (i.e. check if it failed, and restart if so)
-            def finish_process(iproc):
-                procs[iproc].communicate()
-                utils.process_out_err('', '', extra_str=str(iproc), subworkdir=workdirs[iproc])
-                if procs[iproc].returncode == 0 and os.path.exists(get_outfname(iproc)):
-                    procs[iproc] = None  # job succeeded
-                elif n_tries[iproc] > 5:
-                    raise Exception('exceeded max number of tries for command\n    %s\nlook for output in %s' % (cmd_strs[iproc], workdirs[iproc]))
-                else:
-                    print '    rerunning proc %d (exited with %d' % (iproc, procs[iproc].returncode),
-                    if not os.path.exists(get_outfname(iproc)):
-                        print ', output %s d.n.e.' % get_outfname(iproc),
-                    print ')'
-                    procs[iproc] = Popen(cmd_strs[iproc], shell=shell)
-                    n_tries[iproc] += 1
-
-            # keep looping over the procs until they're all done
-            while procs.count(None) != len(procs):  # we set each proc to None when it finishes
-                for iproc in range(n_procs):
-                    if procs[iproc] is None:  # already finished
-                        continue
-                    # read_progress(iproc)
-                    if procs[iproc].poll() is not None:  # it's finished
-                        finish_process(iproc)
-                sys.stdout.flush()
-                time.sleep(1)
-
-            if not self.args.no_clean:
-                for iproc in range(n_procs):
-                    os.remove(workdirs[iproc] + '/' + base_infname)
+                os.remove(self.subworkdir(iproc, n_procs) + '/' + base_infname)
 
         sys.stdout.flush()
 
@@ -207,12 +190,12 @@ class Waterer(object):
         n_remaining = len(self.remaining_queries)
         queries_per_proc = float(n_remaining) / n_procs
         n_queries_per_proc = int(math.ceil(queries_per_proc))
+        written_queries = set()  # make sure we actually write each query TODO remove this when you work out where they're disappearing to
         if n_procs == 1:  # double check for rounding problems or whatnot
             assert n_queries_per_proc == n_remaining
         for iproc in range(n_procs):
-            workdir = self.args.workdir
+            workdir = self.subworkdir(iproc, n_procs)
             if n_procs > 1:
-                workdir += '/sw-' + str(iproc)
                 utils.prep_dir(workdir)
             with opener('w')(workdir + '/' + base_infname) as sub_infile:
                 iquery = 0
@@ -228,19 +211,19 @@ class Waterer(object):
                     if query_name in self.info['indels']:
                         seq = self.info['indels'][query_name]['reversed_seq']  # use the query sequence with shm insertions and deletions reversed
                     sub_infile.write(seq + '\n')
+                    written_queries.add(query_name)
                     iquery += 1
+        not_written = self.remaining_queries - written_queries
+        if len(not_written) > 0:
+            raise Exception('didn\'t write %s to %s' % (':'.join(not_written), self.args.workdir))
 
     # ----------------------------------------------------------------------------------------
-    def get_vdjalign_cmd_str(self, workdir, base_infname, base_outfname, datadir, n_procs=None, shell=False):
+    def get_vdjalign_cmd_str(self, workdir, base_infname, base_outfname, datadir, n_procs=None):
         """
         Run smith-waterman alignment (from Connor's ighutils package) on the seqs in <base_infname>, and toss all the top matches into <base_outfname>.
         """
         # large gap-opening penalty: we want *no* gaps in the middle of the alignments
         # match score larger than (negative) mismatch score: we want to *encourage* some level of shm. If they're equal, we tend to end up with short unmutated alignments, which screws everything up
-        os.environ['PATH'] = os.getenv('PWD') + '/packages/samtools:' + os.getenv('PATH')
-        check_output(['which', 'samtools'])
-        if not os.path.exists(self.args.ighutil_dir + '/bin/vdjalign'):
-            raise Exception('ERROR ighutil path d.n.e: ' + self.args.ighutil_dir + '/bin/vdjalign')
         cmd_str = self.args.ighutil_dir + '/bin/vdjalign align-fastq -q'
         if self.args.slurm or utils.auto_slurm(n_procs):
             cmd_str = 'srun ' + cmd_str
@@ -250,9 +233,6 @@ class Waterer(object):
         cmd_str += ' --gap-open ' + str(self.args.gap_open_penalty)  #1000'  #50'
         cmd_str += ' --vdj-dir ' + datadir  # NOTE not necessarily <self.args.datadir>
         cmd_str += ' ' + workdir + '/' + base_infname + ' ' + workdir + '/' + base_outfname
-
-        if shell:
-            cmd_str += ' 1>' + workdir + '/out' + ' 2>' + workdir + '/err'
 
         return cmd_str
 
@@ -265,21 +245,18 @@ class Waterer(object):
 
         self.new_indels = 0
         n_processed = 0
+        self.tmp_queries_read_from_file = set()  # TODO remove this
         for iproc in range(n_procs):
-            workdir = self.args.workdir
-            if n_procs > 1:
-                workdir += '/sw-' + str(iproc)
-            outfname = workdir + '/' + base_outfname
+            outfname = self.subworkdir(iproc, n_procs) + '/' + base_outfname
             with contextlib.closing(pysam.Samfile(outfname)) as bam:
                 grouped = itertools.groupby(iter(bam), operator.attrgetter('qname'))
                 for _, reads in grouped:  # loop over query sequences
                     self.process_query(bam.references, list(reads), queries_to_rerun)
                     n_processed += 1
 
-            if not self.args.no_clean:
-                os.remove(outfname)
-                if n_procs > 1:  # still need the top-level workdir
-                    os.rmdir(workdir)
+        not_read = self.remaining_queries - self.tmp_queries_read_from_file
+        if len(not_read) > 0:
+            raise Exception('didn\'t read %s from %s' % (':'.join(not_read), self.args.workdir))
 
         if self.nth_try == 1:
             print '        processed       remaining      new-indels          rerun: ' + '      '.join([reason for reason in queries_to_rerun])
@@ -294,8 +271,8 @@ class Waterer(object):
                 n_to_rerun += len(queries_to_rerun[reason])
             print printstr,
             if n_to_rerun + self.new_indels != len(self.remaining_queries):
-                print n_to_rerun, self.new_indels, len(self.remaining_queries)
-                raise Exception('I\'m an exception!')
+                print ''
+                raise Exception('numbers don\'t add up in sw output reader (n_to_rerun + new_indels != remaining_queries): %d + %d != %d   (look in %s)' % (n_to_rerun, self.new_indels, len(self.remaining_queries), self.args.workdir))
             if self.nth_try < 2 or self.new_indels == 0:  # increase the mismatch score if it's the first try, or if there's no new indels
                 print '            increasing mismatch score (%d --> %d) and rerunning them' % (self.args.match_mismatch[1], self.args.match_mismatch[1] + 1)
                 self.args.match_mismatch[1] += 1
@@ -306,6 +283,13 @@ class Waterer(object):
                 assert False
         else:
             print '        all done'
+
+        if not self.args.no_clean:
+            for iproc in range(n_procs):
+                workdir = self.subworkdir(iproc, n_procs)
+                os.remove(workdir + '/' + base_outfname)
+                if n_procs > 1:  # still need the top-level workdir
+                    os.rmdir(workdir)
 
     # ----------------------------------------------------------------------------------------
     def get_choice_prob(self, region, gene):
@@ -383,6 +367,7 @@ class Waterer(object):
         primary = next((r for r in reads if not r.is_secondary), None)
         query_seq = primary.seq
         query_name = primary.qname
+        self.tmp_queries_read_from_file.add(query_name)
         first_match_query_bounds = None  # since sw excises its favorite v match, we have to know this match's boundaries in order to calculate k_d for all the other matches
         all_match_names = {}
         warnings = {}  # ick, this is a messy way to pass stuff around
@@ -514,6 +499,10 @@ class Waterer(object):
             qrbounds[l_gene] = (leftmost_position, leftmost_position + 1)  # swap whatever crummy nonsense d match we have now for a one-base match at the left end of things (things in practice should be left end of j match)
             glbounds[l_gene] = (0, 1)
             status = self.check_boundaries(rpair, qrbounds, glbounds, query_name, query_seq, best, debug)
+            if status == 'overlap':
+                if debug:
+                    print '  \'overlap\' status after synthesizing d match. Setting to \'nonsense\', I can\'t deal with this bullshit'
+                status = 'nonsense'
 
         return status
 
@@ -610,13 +599,11 @@ class Waterer(object):
 
         for region in utils.regions:
             self.info[query_name][region + '_gene'] = best[region]
-            self.info[query_name][region + '_gl_seq'] = best[region + '_gl_seq']
-            self.info[query_name][region + '_qr_seq'] = best[region + '_qr_seq']
             self.info['all_best_matches'].add(best[region])
 
         self.info[query_name]['seq'] = query_seq  # NOTE this is the seq output by vdjalign, i.e. if we reversed any indels it is the reversed sequence
 
-        existing_implicit_keys = tuple(['cdr3_length', 'cyst_position', 'tryp_position'] + [r + '_gl_seq' for r in utils.regions] + [r + '_qr_seq' for r in utils.regions])
+        existing_implicit_keys = tuple(['cdr3_length', 'cyst_position', 'tryp_position'])
         utils.add_implicit_info(self.glfo, self.info[query_name], multi_seq=False, existing_implicit_keys=existing_implicit_keys)
 
         if self.debug:
@@ -744,6 +731,13 @@ class Waterer(object):
         # check for unproductive rearrangements
         codons_ok = utils.check_both_conserved_codons(query_seq, codon_positions['v'], codon_positions['j'], debug=self.debug, extra_str='      ', assert_on_fail=False)
         cdr3_length = codon_positions['j'] - codon_positions['v'] + 3
+
+        if cdr3_length < 6:  # NOTE six is also hardcoded in utils
+            if self.debug:
+                print '      negative cdr3 length %d' % (cdr3_length)
+            queries_to_rerun['invalid-codon'].add(query_name)
+            return
+
         in_frame_cdr3 = (cdr3_length % 3 == 0)
         if self.debug and not in_frame_cdr3:
             print '      out of frame cdr3: %d %% 3 = %d' % (cdr3_length, cdr3_length % 3)

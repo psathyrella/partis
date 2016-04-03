@@ -28,7 +28,7 @@ class Tester(object):
         self.perfdirs = {st : 'simu-' + st + '-performance' for st in self.stypes}
         if not os.path.exists(self.dirs['new']):
             os.makedirs(self.dirs['new'])
-        simfnames = {st : self.dirs[st] + '/' + self.label + '/simu.csv' for st in self.stypes}
+        self.simfnames = {st : self.dirs[st] + '/' + self.label + '/simu.csv' for st in self.stypes}
         param_dirs = { st : { dt : self.dirs[st] + '/' + self.label + '/parameters/' + dt + '/hmm' for dt in ['simu', 'data']} for st in self.stypes}  # muddafuggincomprehensiongansta
         run_driver = './bin/run-driver.py --label ' + self.label + ' --stashdir ' + self.dirs['new']
         self.common_extras = ['--seed', '1', '--n-procs', '10', '--only-genes', utils.test_only_genes, '--only-csv-plots']
@@ -43,12 +43,13 @@ class Tester(object):
         self.eps_vals['precision']      = 0.08
         self.eps_vals['sensitivity']    = 0.08
 
-        n_partition_queries = '250'
+        self.n_partition_queries = '250'
         n_data_inference_queries = '50'
         self.logfname = self.dirs['new'] + '/test.log'
         self.cachefnames = { st : 'cache-' + st + '-partition.csv' for st in self.stypes }
 
         self.quick_tests = ['annotate-ref-simu']
+        # self.quick_tests = ['seed-partition-ref-simu']
         self.production_tests = ['cache-data-parameters', 'simulate', 'cache-simu-parameters']  # vs "inference" tests. Kind of crappy names, but it's to distinguish these three from all the other ones
 
         self.tests = OrderedDict()
@@ -56,9 +57,9 @@ class Tester(object):
         def add_inference_tests(input_stype):  # if input_stype is 'ref', infer on old simulation and parameters, if it's 'new' use the new ones
             self.tests['annotate-' + input_stype + '-simu']          = {'extras' : ['--plotdir', self.dirs['new'] + '/' + self.perfdirs[input_stype], '--plot-performance']}
             self.tests['annotate-' + input_stype + '-data']          = {'extras' : ['--n-max-queries', n_data_inference_queries]}
-            self.tests['partition-' + input_stype + '-simu']         = {'extras' : ['--n-max-queries', n_partition_queries, '--persistent-cachefname', self.dirs['new'] + '/' + self.cachefnames[input_stype], '--n-precache-procs', '10']}
-            self.tests['point-partition-' + input_stype + '-simu']   = {'extras' : ['--naive-hamming', '--n-max-queries', n_partition_queries, '--n-precache-procs', '10']}
-            self.tests['vsearch-partition-' + input_stype + '-simu'] = {'extras' : ['--naive-vsearch', '--n-max-queries', n_partition_queries, '--n-precache-procs', '10']}
+            self.tests['partition-' + input_stype + '-simu']         = {'extras' : ['--n-max-queries', self.n_partition_queries, '--persistent-cachefname', self.dirs['new'] + '/' + self.cachefnames[input_stype], '--n-precache-procs', '10', '--biggest-logprob-cluster-to-calculate', '2', '--biggest-naive-seq-cluster-to-calculate', '2']}
+            self.tests['seed-partition-' + input_stype + '-simu']    = {'extras' : ['--n-max-queries', '-1', '--n-precache-procs', '10']}
+            self.tests['vsearch-partition-' + input_stype + '-simu'] = {'extras' : ['--naive-vsearch', '--n-max-queries', self.n_partition_queries, '--n-precache-procs', '10']}
 
         def add_common_args():
             for ptest, args in self.tests.items():
@@ -78,7 +79,7 @@ class Tester(object):
                     args['input_stype'] = input_stype
                     if namelist[-1] == 'simu':
                         args['extras'] += ['--is-simu', ]
-                        args['extras'] += ['--seqfile', simfnames[input_stype]]
+                        args['extras'] += ['--seqfile', self.simfnames[input_stype]]
                         args['extras'] += ['--parameter-dir', param_dirs[input_stype]['simu']]
                     elif namelist[-1] == 'data':
                         args['extras'] += ['--seqfile', self.datafname]
@@ -116,6 +117,21 @@ class Tester(object):
         self.compare_data_annotation(input_stype='new')
 
     # ----------------------------------------------------------------------------------------
+    def prepare_to_run(self, args, name, info):
+        """ Pre-run stuff that you don't want to do until *right* before you actually run. """
+
+        # delete old partition cache file
+        if name == 'partition-' + info['input_stype'] + '-simu':
+            this_cachefname = self.dirs['new'] + '/' + self.cachefnames[info['input_stype']]
+            if os.path.exists(this_cachefname):
+                check_call(['rm', '-v', this_cachefname])
+
+        # choose a seed uid
+        if name == 'seed-partition-' + info['input_stype'] + '-simu':
+            seed_uid, _ = utils.choose_seed_unique_id(args.datadir, self.simfnames[info['input_stype']], 5, 8, n_max_queries=int(self.n_partition_queries), debug=False)
+            info['extras'] += ['--seed-unique-id', seed_uid]
+
+    # ----------------------------------------------------------------------------------------
     def run(self, args):
         open(self.logfname, 'w').close()
 
@@ -123,11 +139,7 @@ class Tester(object):
             if args.quick and name not in self.quick_tests:
                 continue
 
-            # delete old partition cache file
-            if name == 'partition-' + info['input_stype'] + '-simu':
-                this_cachefname = self.dirs['new'] + '/' + self.cachefnames[info['input_stype']]
-                if os.path.exists(this_cachefname):
-                    check_call(['rm', '-v', this_cachefname])
+            self.prepare_to_run(args, name, info)
 
             action = info['action'] if 'action' in info else name
             cmd_str = info['bin'] + ' --action ' + action
@@ -138,6 +150,7 @@ class Tester(object):
                 cmd_str += get_extra_str(info['extras'] + self.common_extras)
                 if action == 'cache-data-parameters':
                     cmd_str += ' --datafname ' + self.datafname
+
             logstr = 'TEST %30s   %s' % (name, cmd_str)
             print logstr
             logfile = open(self.logfname, 'a')
@@ -375,58 +388,62 @@ class Tester(object):
             # ----------------------------------------------------------------------------------------
     def compare_partition_cachefiles(self, input_stype):
         """ NOTE only writing this for the ref input_stype a.t.m. """
+
+        # ----------------------------------------------------------------------------------------
+        def print_key_differences(vtype, refkeys, newkeys):
+            print '    %s keys' % vtype
+            if len(refkeys - newkeys) > 0 or len(newkeys - refkeys) > 0:
+                if len(refkeys - newkeys) > 0:
+                    print utils.color('red', '      %d only in ref version' % len(refkeys - newkeys))
+                if len(newkeys - refkeys) > 0:
+                    print utils.color('red', '      %d only in new version' % len(newkeys - refkeys))
+                print '      %d in common' % len(refkeys & newkeys)
+            else:
+                print '        %d identical keys in new and ref cache' % len(refkeys)
+
         ptest = 'partition-' + input_stype + '-simu'
         if args.quick and ptest not in self.quick_tests:
             return
 
+        # ----------------------------------------------------------------------------------------
         print '  %s input partition cache file' % input_stype
-
         def readcache(fname):
-            cache = {}
+            cache = {'naive_seqs' : {}, 'logprobs' : {}}
             with open(fname) as cachefile:
                 reader = csv.DictReader(cachefile)
                 for line in reader:
-                    cache[line['unique_ids']] = {'naive_seq' : line['naive_seq'], 'logprob' : float(line['logprob'])}
+                    if line['naive_seq'] != '':
+                        cache['naive_seqs'][line['unique_ids']] = line['naive_seq']
+                    if line['logprob'] != '':
+                        cache['logprobs'][line['unique_ids']] = float(line['logprob'])
             return cache
 
         refcache = readcache(self.dirs['ref'] + '/' + self.cachefnames[input_stype])
         newcache = readcache(self.dirs['new'] + '/' + self.cachefnames[input_stype])
 
         # work out intersection and complement
-        refkeys = set(refcache.keys())
-        newkeys = set(newcache.keys())
-        if len(refkeys - newkeys) > 0 or len(newkeys - refkeys) > 0:
-            if len(refkeys - newkeys) > 0:
-                print utils.color('red', '    %d only in ref version' % len(refkeys - newkeys))
-            if len(newkeys - refkeys) > 0:
-                print utils.color('red', '    %d only in new version' % len(newkeys - refkeys))
-            print '    %d in common' % len(refkeys & newkeys)
-        else:
-            print '      %d identical keys in new and ref cache' % len(refkeys)
+        refkeys, newkeys = {}, {}
+        for vtype in ['naive_seqs', 'logprobs']:
+            refkeys[vtype] = set(refcache[vtype].keys())
+            newkeys[vtype] = set(newcache[vtype].keys())
+            print_key_differences(vtype, refkeys[vtype], newkeys[vtype])
 
-        hammings, delta_logprobs = [], []
-        n_hammings, n_delta_logprobs = 0, 0
-        n_different_length, n_big_hammings, n_big_delta_logprobs = 0, 0, 0
+        hammings = []
+        n_hammings = 0
+        n_different_length, n_big_hammings = 0, 0
         hamming_eps = 0.
-        logprob_eps = 1e-5
-        for uids in refkeys & newkeys:
-            refline = refcache[uids]
-            newline = newcache[uids]
-            if refline['naive_seq'] != '':
-                n_hammings += 1
-                if len(refline['naive_seq']) == len(newline['naive_seq']):
-                    hamming_fraction = utils.hamming_fraction(refline['naive_seq'], newline['naive_seq'])
-                    if hamming_fraction > hamming_eps:
-                        n_big_hammings += 1
-                        hammings.append(hamming_fraction)
-                else:
-                    n_different_length += 1
-            if refline['logprob'] != '':
-                n_delta_logprobs += 1
-                delta_logprob = abs(float(refline['logprob']) - float(newline['logprob']))
-                if delta_logprob > logprob_eps:
-                    n_big_delta_logprobs += 1
-                    delta_logprobs.append(delta_logprob)
+        vtype = 'naive_seqs'
+        for uids in refkeys[vtype] & newkeys[vtype]:
+            refseq = refcache[vtype][uids]
+            newseq = newcache[vtype][uids]
+            n_hammings += 1
+            if len(refseq) == len(newseq):
+                hamming_fraction = utils.hamming_fraction(refseq, newseq)
+                if hamming_fraction > hamming_eps:
+                    n_big_hammings += 1
+                    hammings.append(hamming_fraction)
+            else:
+                n_different_length += 1
 
         diff_hfracs_str = '%3d / %4d' % (n_big_hammings, n_hammings)
         mean_hfrac_str = '%.3f' % (numpy.average(hammings) if len(hammings) > 0 else 0.)
@@ -434,12 +451,26 @@ class Tester(object):
             diff_hfracs_str = utils.color('red', diff_hfracs_str)
             mean_hfrac_str = utils.color('red', mean_hfrac_str)
 
+        abs_delta_logprobs = []
+        n_delta_logprobs = 0
+        n_big_delta_logprobs = 0
+        logprob_eps = 1e-5
+        vtype = 'logprobs'
+        for uids in refkeys[vtype] & newkeys[vtype]:
+            refval = refcache[vtype][uids]
+            newval = newcache[vtype][uids]
+            n_delta_logprobs += 1
+            abs_delta_logprob = abs(refval - newval)
+            if abs_delta_logprob > logprob_eps:
+                n_big_delta_logprobs += 1
+                abs_delta_logprobs.append(abs_delta_logprob)
+
         diff_logprob_str = '%3d / %4d' % (n_big_delta_logprobs, n_delta_logprobs)
-        mean_logprob_str = '%.6f' % (numpy.average(delta_logprobs) if len(delta_logprobs) > 0 else 0.)
+        mean_logprob_str = '%.3f' % (numpy.average(abs_delta_logprobs) if len(abs_delta_logprobs) > 0 else 0.)
         if n_big_delta_logprobs > 0:
             diff_logprob_str = utils.color('red', diff_logprob_str)
             mean_logprob_str = utils.color('red', mean_logprob_str)
-        print '                  fraction different     mean difference among differents'
+        print '                  fraction different     mean abs difference among differents'
         print '      naive seqs     %s                      %s      (hamming fraction)' % (diff_hfracs_str, mean_hfrac_str)
         print '      log probs      %s                      %s' % (diff_logprob_str, mean_logprob_str)
         if n_different_length > 0:
@@ -452,6 +483,7 @@ parser.add_argument('--quick', action='store_true')
 parser.add_argument('--only-ref', action='store_true', help='only run with input_stype of \'ref\'')
 parser.add_argument('--bust-cache', action='store_true', help='copy info from new dir to reference dir, i.e. overwrite old test info')
 parser.add_argument('--make-plots', action='store_true')
+parser.add_argument('--datadir', default='data/imgt')
 args = parser.parse_args()
 
 tester = Tester()

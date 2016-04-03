@@ -44,8 +44,10 @@ parser.add_argument('--istartstoplist')  # list of istartstops for comparisons
 parser.add_argument('--plot-mean-of-subsets', action='store_true')
 parser.add_argument('--humans', required=True)  #'A')
 parser.add_argument('--no-similarity-matrices', action='store_true')
+parser.add_argument('--no-slurm', action='store_true')
 parser.add_argument('--seed-cluster-bounds', default='20:30')
-all_actions = ['cache-data-parameters', 'simulate', 'cache-simu-parameters', 'partition', 'naive-hamming-partition', 'vsearch-partition', 'seed-partition', 'seed-naive-hamming-partition', 'run-viterbi', 'run-changeo', 'run-mixcr', 'run-igscueal', 'synthetic', 'write-plots', 'compare-subsets']
+parser.add_argument('--iseed')
+all_actions = ['cache-data-parameters', 'simulate', 'cache-simu-parameters', 'partition', 'naive-hamming-partition', 'vsearch-partition', 'seed-partition', 'seed-naive-hamming-partition', 'run-viterbi', 'run-changeo', 'run-mixcr', 'run-igscueal', 'synthetic', 'write-plots', 'compare-subsets', 'annotate-seed-clusters']
 parser.add_argument('--actions', required=True)  #, choices=all_actions)  #default=':'.join(all_actions))
 args = parser.parse_args()
 args.actions = utils.get_arg_list(args.actions)

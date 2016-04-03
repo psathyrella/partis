@@ -29,8 +29,8 @@ parser.add_argument('--seed', type=int, default=int(time.time()), help='Random s
 parser.add_argument('--mutation-multiplier', type=float, help='Multiply observed branch lengths by some factor when simulating, e.g. if in data it was 0.05, but you want closer to ten percent in your simulation, set this to 2')
 parser.add_argument('--mimic-data-read-length', action='store_true', help='trim V 5\' and D 3\' to mimic read lengths seen in data')
 parser.add_argument('--annotation-clustering', help='Perform annotation-based clustering from Vollmers paper')
-parser.add_argument('--rescale-emissions', action='store_true', default=True)
-parser.add_argument('--print-partitions', action='store_true', help='Print partition info in <outfname> and then exit.')
+parser.add_argument('--dont-rescale-emissions', action='store_true')
+parser.add_argument('--print-cluster-annotations', action='store_true', help='print annotation for each final cluster')
 # parser.add_argument('--use_mean_at_boundaries', action='store_true', help='see note in hmmwriter')
 parser.add_argument('--annotation-clustering-thresholds', default='0.9', help='colon-separated list of thresholds for annotation-based (e.g. vollmers) clustering')
 parser.add_argument('--naive-hamming-bounds')
@@ -39,22 +39,17 @@ parser.add_argument('--naive-vsearch', action='store_true')
 parser.add_argument('--naive-swarm', action='store_true')
 parser.add_argument('--synthetic-distance-based-partition', action='store_true')
 parser.add_argument('--no-indels', action='store_true', help='Skip smith-waterman matches that include indels. Note that this just *skips* them, you probably also want to increase the gap-open penalty to prevent vdjalign from finding them in the first place.')
-parser.add_argument('--n-partition-steps', type=int, default=99999, help='Instead of proceeding until we reach 1 process, stop after <n> partitioning steps.')
 parser.add_argument('--no-random-divvy', action='store_true', help='Don\'t shuffle the order of the input sequences before passing on to ham')  # it's imperative to shuffle if you're partitioning on simulation, or if you're partitioning with more than one process. But it may also be kinda slow.
 parser.add_argument('--naive-hamming', action='store_true', help='agglomerate purely with naive hamming distance, i.e. set the low and high preclustering bounds to the same value')
 parser.add_argument('--naivety', default='M', choices=['M', 'N'])
-parser.add_argument('--print-cluster-annotations', action='store_true', help='print annotation for each final cluster')
 parser.add_argument('--presto-output', action='store_true', help='write output file in presto format')
 parser.add_argument('--only-csv-plots', action='store_true', help='only write csv plots')
 
 if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
-    print '    TODO make sure all mpl figures are getting closed'
-    print '    TODO add some garbage-ey seqs to mishmash.fa'
-    print '    TODO remove extra assertions from glomerator'
-    print '    TODO make sure all trace of truncation is removed from ham (including cyst position stuff)'
-    print '    TODO in addition to translating from a large cluster to a smaller one, you should also not recalculate just \'cause you add one sequence to a huge cluster'
-    print '    TODO fix WriteAnnotations in glomerator (and/i.e. clean up events_ filling, in particular in ReplaceNaiveSeq)'
-    print '    TODO besides "replacing" clusters with smaller subsets, you should, when making the merged cluster object, not recalculate unless it\'s really different'
+    print '    TODO make things completely assertion/exception safe, i.e. if you catch one, that causes a failure on that one sequence only'
+    print '    TODO see about varying the naive hfrac thresholds -- especially lowering the lower bound (try to do this by exploiting something about the difference between hfrac and lratio'
+    print '              [e.g. where the hfrac differences are? or maybe hfrac averaged over the top N annotations?]) i.e. find what kinds of clones hfrac and lratio disagree on'
+    print '    TODO test on simulation samples that are *hard*, i.e. that all have the same VJ and cdr3 length'
 
 # input and output stuff
 parser.add_argument('--seqfile', help='input sequence file')
@@ -68,10 +63,11 @@ parser.add_argument('--ighutil-dir', default=os.getenv('HOME') + '/.local', help
 parser.add_argument('--workdir', help='Temporary working directory (see also <no-clean>)')
 parser.add_argument('--persistent-cachefname')
 parser.add_argument('--cache-naive-hfracs', action='store_true')
+parser.add_argument('--abbreviate', action='store_true', help='abbreviate sequence ids')
 
 # run/batch control
 parser.add_argument('--n-procs', default='1', help='Max/initial number of processes over which to parallelize (Can be colon-separated list: first number is procs for hmm, second (should be smaller) is procs for smith-waterman, hamming, etc.)')
-parser.add_argument('--n-max-procs', default=500, help='never allow more processes than this')
+parser.add_argument('--n-max-procs', default=250, help='never allow more processes than this')
 parser.add_argument('--n-precache-procs', type=int, help='Number of processes to use when precaching naive sequences. Only really useful for testing.')
 parser.add_argument('--slurm', action='store_true', help='Run multiple processes with slurm, otherwise just runs them on local machine. NOTE make sure to set <workdir> to something visible on all batch nodes.')
 parser.add_argument('--queries', help='Colon-separated list of query names to which we restrict ourselves')
@@ -81,7 +77,8 @@ parser.add_argument('--n-max-queries', type=int, default=-1, help='Maximum numbe
 parser.add_argument('--only-genes', help='Colon-separated list of genes to which to restrict the analysis')
 parser.add_argument('--n-best-events', default=None, help='Number of best events to print (i.e. n-best viterbi paths). Default is set in bcrham.')
 
-parser.add_argument('--biggest-cluster-to-calculate', type=int, default=25, help='start thinking about subsampling before you calculate anything if cluster is bigger than this')
+parser.add_argument('--biggest-naive-seq-cluster-to-calculate', type=int, default=7, help='start thinking about subsampling before you calculate anything if cluster is bigger than this')
+parser.add_argument('--biggest-logprob-cluster-to-calculate', type=int, default=7, help='start thinking about subsampling before you calculate anything if cluster is bigger than this')
 
 # simulation (see also gtr-fname)
 # NOTE see also mutation-multiplier, although that comes into play after the trees are generated
@@ -120,6 +117,8 @@ parser.add_argument('--joint-emission', action='store_true', help='Use informati
 args = parser.parse_args()
 args.only_genes = utils.get_arg_list(args.only_genes)
 args.n_procs = utils.get_arg_list(args.n_procs, intify=True)
+# if n_procs < 1 or n_procs > 9999:  # It happened, at least once. You know, probably.
+#     raise Exception('bad n_procs %s' % n_procs)
 args.n_fewer_procs = args.n_procs[0] if len(args.n_procs) == 1 else args.n_procs[1]
 args.n_procs = args.n_procs[0]
 
@@ -145,7 +144,7 @@ if args.slurm and '/tmp' in args.workdir:
     raise Exception('it appears that <workdir> isn\'t set to something visible to all slurm nodes')
 
 if args.smc_particles != 1:
-    raise Exception('sequential monte carlo is not supported at this juncture.')
+    raise Exception('sequential monte carlo is not, at this juncture, supported.')
 
 if args.no_indels and args.gap_open_penalty < 1000:
     print 'forcing gap open to 1000 to prevent indels'
@@ -225,6 +224,8 @@ else:
         raise Exception('n-max-per-region should be of the form \'x:y:z\', but I got ' + str(args.n_max_per_region))
     if len(args.match_mismatch) != 2:
         raise Exception('match-mismatch should be of the form \'match:mismatch\', but I got ' + str(args.n_max_per_region))
+    if args.seqfile is None:
+        raise Exception('--seqfile is required for this action')
 
     parter = PartitionDriver(args)
 
@@ -238,4 +239,4 @@ else:
         raise Exception('ERROR bad action ' + args.action)
 
     parter.clean()
-    print '      total time: %.3f' % (time.time()-start)
+    print '      total time: %.1f' % (time.time()-start)

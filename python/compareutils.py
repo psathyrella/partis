@@ -79,6 +79,8 @@ def leafmutstr(args, n_leaves, mut_mult, hfrac_bounds=None):
         return_str += '-box'
     if args.zipf:
         return_str += '-zipf'
+    # if args.iseed is not None:
+    #     return_str += '-iseed-' + args.iseed
     return return_str
 
 # ----------------------------------------------------------------------------------------
@@ -537,7 +539,7 @@ def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, all_info,
     _, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=args.data, n_max_queries=args.n_to_partition)
     if args.count_distances:
         for metric in ['logprob', 'naive_hfrac']:
-            make_distance_plots(args, plotdir, label, n_leaves, mut_mult, seqfname.replace('.csv', '-partition-cache.csv'), reco_info, metric)
+            make_distance_plots(args, plotdir, label, n_leaves, mut_mult, get_outputname(args, label, 'partition', seqfname, hfrac_bounds).replace('.csv', '-cache.csv'), reco_info, metric)
         print '\nTODO why am I returning here?'
         return
 
@@ -677,7 +679,7 @@ def compare_subsets_for_each_leafmut(args, baseplotdir, label, n_leaves, mut_mul
             for metric in metrics:
                 plotvals = OrderedDict()
                 for method, values in per_subset_info[metric].items():
-                    plotvals[method] = OrderedDict([(nseqs , (val, 0.)) for nseqs, val in zip(get_nseq_list(args), values)])
+                    plotvals[method] = [(nseqs , (val, 0.)) for nseqs, val in zip(get_nseq_list(args), values)]
                 metric_plotdir = os.getenv('www') + '/partis/clustering/' + label + '/plots-vs-subsets/metrics'
                 plotname = metric + '-%d-mutation.svg' % mut_mult
                 if args.indels:
@@ -1115,23 +1117,19 @@ def get_seqfile(args, datafname, label, n_leaves, mut_mult):
 
 # ----------------------------------------------------------------------------------------
 def get_seed_info(args, seqfname, n_leaves):
-    glfo = utils.read_germline_set(args.datadir)
+    return utils.choose_seed_unique_id(args.datadir, seqfname, args.seed_cluster_bounds[0], args.seed_cluster_bounds[1], args.iseed)
 
-    start = time.time()
-    _, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=False, glfo=glfo)
-    print '        seqfileopener time: %.3f' % (time.time()-start)
-
-    start = time.time()
-    true_partition = utils.get_true_partition(reco_info)
-    print '        time to get true partition: %.3f' % (time.time()-start)
-
-    for cluster in true_partition:
-        if len(cluster) < args.seed_cluster_bounds[0] or len(cluster) > args.seed_cluster_bounds[1]:
-            continue
-        print '  chose seed with size:', len(cluster)
-        return cluster[0], len(cluster)  # arbitrarily use the first member of the cluster as the seed
-
-    assert False  # shouldn't get here
+# ----------------------------------------------------------------------------------------
+def get_seed_cluster(outfname):
+    cpath = ClusterPath()
+    cpath.readfile(outfname)
+    partition = cpath.partitions[cpath.i_best]
+    queries = None
+    for cluster in partition:
+        if len(cluster) > 1:
+            assert queries is None  # should only be one non-singleton cluster
+            queries = cluster
+    return queries
 
 # ----------------------------------------------------------------------------------------
 def get_outputname(args, label, action, seqfname, hfrac_bounds):
@@ -1148,6 +1146,8 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
     cmd = './bin/run-driver.py --label ' + label + ' --action '
     if 'partition' in action:
         cmd += ' partition'
+    elif action == 'annotate-seed-clusters':
+        cmd += ' run-viterbi'
     else:
         cmd += ' ' + action
     cmd += ' --stashdir ' + args.fsdir + ' --old-style-dir-structure'
@@ -1224,7 +1224,7 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
         elif 'seed-' in action:
             seed_unique_id, seed_cluster_size = get_seed_info(args, seqfname, n_leaves)
             extras += ['--seed-unique-id', seed_unique_id]
-            seqs_per_proc = 3000 #300
+            seqs_per_proc = 4500
             if args.n_to_partition > 30000:
                 seqs_per_proc *= 3
             n_procs = max(1, args.n_to_partition / seqs_per_proc)
@@ -1246,6 +1246,12 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
             extras += ['--naive-hamming', '--synthetic-distance-based-partition']
             extras += ['--naive-hamming-bounds', get_str(hfrac_bounds, delimiter=':'), '--no-indels']  # if we allow indels, it gets harder to pad seqs to the same length
             n_procs = max(1, args.n_to_partition / 500)
+    elif action == 'annotate-seed-clusters':
+        outfname = get_outputname(args, label, action, seqfname, hfrac_bounds)
+        queries = get_seed_cluster(get_outputname(args, label, 'seed-partition', seqfname, hfrac_bounds))
+        extras += ['--queries=' + ':'.join(queries), '--n-sets', len(queries)]  # override run-driver's outfname
+        cmd += ' --outfname ' + outfname
+        n_procs = max(1, len(queries) / 500)
     elif action == 'run-changeo':
         run_changeo(args, label, n_leaves, mut_mult, seqfname)
         return
@@ -1266,7 +1272,7 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
         return
 
     extras += ['--workdir', args.fsdir.replace('_output', '_tmp') + '/' + str(random.randint(0, 99999))]
-    if action != 'simulate':
+    if action != 'simulate' and not args.no_slurm:
         extras += ['--slurm', ]
 
     print 'TODO put in something to reduce the number of procs for large samples'

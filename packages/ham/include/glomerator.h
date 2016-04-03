@@ -7,6 +7,7 @@
 #include <iomanip>
 #include <ctime>
 #include <algorithm>
+#include <functional>
 
 #include "smctc.hh"
 #include "args.h"
@@ -27,7 +28,6 @@ public:
   KBounds kbounds_;
   vector<string> only_genes_;
   double mean_mute_freq_;
-  vector<int> cyst_positions_;
   pair<string, string> parents_;  // queries that were joined to make this
 };
 
@@ -41,6 +41,7 @@ public:
   void Merge(ClusterPath *path, smc::rng *rgen=nullptr);
 
   void CacheNaiveSeqs();
+  // NOTE don't remove these (yet, at least)
   // ClusterPair GetClustersToMergeForNaiveSeqGlomerate(set<vector<string> > &clusters, int max_per_cluster, bool merge_whatever_you_got);
   // void PrintClusterSizes(set<vector<string> > &clusters);
   // ClusterPair GetSmallBigClusters(set<vector<string> > &clusters);
@@ -54,32 +55,48 @@ public:
   void WriteAnnotations(vector<ClusterPath> &paths);
 private:
   void ReadCachedLogProbs();
-  void GetSoloLogProb(string key);
-  void PrintPartition(Partition &clusters, string extrastr);
   void WriteCacheLine(ofstream &ofs, string query);
   void WriteCachedLogProbs();
+
+  void PrintPartition(Partition &clusters, string extrastr);
+  string ProgressString();
+  void WriteStatus();  // write some progress info to file
+
   string ParentalString(pair<string, string> *parents);
-  void ReplaceNaiveSeq(string queries, string parentname);
   int CountMembers(string namestr);
-  string ClusterSizeString(ClusterPath *path);
-  void WriteStatus(ClusterPath *path);  // write some progress info to file
-  double NaiveHfrac(string key_a, string key_b);
-  string &GetNaiveSeq(string key, pair<string, string> *parents=nullptr);
-  string GetNaiveSeqNameTranslation(string actual_names, pair<string, string> *parents=nullptr);
-  double GetLogProb(string name);
-  double CalculateLogProb(string name);
-  vector<Sequence> MergeSeqVectors(string name_a, string name_b);
-  bool SameLength(vector<Sequence> &seqs, bool debug=false);
-  Query GetMergedQuery(string name_a, string name_b);
+  string ClusterSizeString(Partition *partition);
   string JoinNames(string name1, string name2, string delimiter=":");
   string JoinNameStrings(vector<Sequence> &strlist, string delimiter=":");
   string JoinSeqStrings(vector<Sequence> &strlist, string delimiter=":");
-  bool LikelihoodRatioTooSmall(double lratio, int candidate_cluster_size);
-  Query ChooseMerge(ClusterPath *path, smc::rng *rgen, double *chosen_lratio);
-  pair<double, Query> *ChooseRandomMerge(vector<pair<double, Query> > &potential_merges, smc::rng *rgen);
+  string PrintStr(string queries);
+  bool SeedMissing(string queries, string delimiter=":");
 
-  pair<string, vector<Sequence> > ChooseSubsetOfNames(string names, int n_max);
-  string GetNameTranslation(string actual_names);  // convert between the actual queries/key we're interested in and the one we're going to calculate
+  double CalculateHfrac(string &seq_a, string &seq_b);
+  double NaiveHfrac(string key_a, string key_b);
+
+  string ChooseSubsetOfNames(string queries, int n_max);
+  string GetNaiveSeqNameToCalculate(string actual_queries);  // convert between the actual queries/key we're interested in and the one we're going to calculate
+  string GetLogProbNameToCalculate(string queries, int n_max);
+  pair<string, string> GetLogProbPairOfNamesToCalculate(string actual_queries, pair<string, string> actual_parents);  // convert between the actual queries/key we're interested in and the one we're going to calculate
+  bool FirstParentMuchBigger(string queries, string queries_other, int nmax);
+  string FindNaiveSeqNameReplace(pair<string, string> *parents);
+  string &GetNaiveSeq(string key, pair<string, string> *parents=nullptr);
+  // double NormFactor(string name);
+  double GetLogProb(string queries);
+  double GetLogProbRatio(string key_a, string key_b);
+  string CalculateNaiveSeq(string key, RecoEvent *event=nullptr);
+  double CalculateLogProb(string queries);
+
+  bool SameLength(vector<Sequence> &seqs, bool debug=false);
+  vector<Sequence> MergeSeqVectors(string name_a, string name_b);
+  void UpdateLogProbTranslationsForAsymetrics(Query &qmerge);
+  Query GetMergedQuery(string name_a, string name_b);
+
+  bool LikelihoodRatioTooSmall(double lratio, int candidate_cluster_size);
+  Partition GetSeededClusters(Partition &partition);
+  pair<double, Query> FindHfracMerge(ClusterPath *path);
+  pair<double, Query> FindLRatioMerge(ClusterPath *path);
+  pair<double, Query> *ChooseRandomMerge(vector<pair<double, Query> > &potential_merges, smc::rng *rgen);
 
   Track *track_;
   Args *args_;
@@ -90,29 +107,34 @@ private:
   vector<double> initial_logprobs_;
   vector<double> initial_logweights_;
 
+  map<string, bool> seed_missing_;  // also cache the presence of the seed in each cluster
+
   int i_initial_partition_;  // index of the next inital partition to grab (for smc stuff)
+
+  map<string, string> naive_seq_name_translations_;
+  map<string, pair<string, string> > logprob_name_translations_;
+  map<string, string> logprob_asymetric_translations_;
+  map<string, string> name_subsets_;
 
   map<string, vector<Sequence> > seq_info_;  // NOTE it would be more memory-efficient to just keep track of vectors of keys here, and have Glomerator keep all the actual info
   map<string, vector<string> > only_genes_;
   map<string, KBounds> kbinfo_;
   map<string, float> mute_freqs_;  // overall mute freq for single sequences, mean overall mute freq for n-sets of sequences
 
-  // map<string, string> key_translations_;  // map between a cluster's actual query string (i.e. colon-separated list of queries) and the one we're using for calculations (which is presumably shorter, to make it faster to calculate things)
-  map<string, string> naive_seq_key_translations_;
-
-  // NOTE the keys for these two maps are colon-separated lists of *query* *sequences*, whereas all the other maps are of query names. This is because we need logprobs and naive seqs for each truncation length
-  // NOTE also that I don't keep track of the order, which I kinda should do since I might be calculating some things twice.
   // These all include cached info from previous runs
   map<string, double> log_probs_;  
   map<string, double> naive_hfracs_;  // NOTE since this uses the joint key, it assumes there's only *one* way to get to a given cluster (this is similar to, but not quite the same as, the situation for log probs and naive seqs)
+  map<string, double> lratios_;
   map<string, string> naive_seqs_;
-  map<string, RecoEvent> events_;  // annotations corresponding to the naive seqs. NOTE keeping it separate, at least for now, since I only want the full annotations for the final partition, but I need naive seqs for loads and loads of groups of sequences
   map<string, string> errors_;
 
   set<string> initial_log_probs_, initial_naive_hfracs_, initial_naive_seqs_;  // keep track of the ones we read from the initial cache file so we can write only the new ones to the output cache file
 
-  int n_fwd_calculated_, n_vtb_calculated_, n_hfrac_calculated_, n_hamming_merged_;
+  int n_fwd_calculated_, n_vtb_calculated_, n_hfrac_calculated_, n_hfrac_merges_, n_lratio_merges_;
 
+  double asym_factor_;
+
+  Partition *current_partition_;  // (a.t.m. only used for writing to status file)
   time_t last_status_write_time_;  // last time that we wrote our progress to a file
   FILE *progress_file_;
 };

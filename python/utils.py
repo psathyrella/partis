@@ -12,17 +12,17 @@ import glob
 from collections import OrderedDict
 import itertools
 import csv
-from subprocess import check_output, CalledProcessError
+from subprocess import check_output, CalledProcessError, Popen
 # from sklearn.metrics.cluster import adjusted_mutual_info_score
-import sklearn.metrics.cluster
+# import sklearn.metrics.cluster
 import numpy
 import multiprocessing
 import shutil
 import copy
+from Bio import SeqIO
 
 from opener import opener
-
-from Bio import SeqIO
+import seqfileopener
 
 #----------------------------------------------------------------------------------------
 # NOTE I also have an eps defined in hmmwriter. Simplicity is the hobgoblin of... no, wait, that's just plain ol' stupid to have two <eps>s defined
@@ -132,18 +132,21 @@ presto_headers = {
 # ----------------------------------------------------------------------------------------
 forbidden_characters = set([':', ';', ','])  # strings that are not allowed in sequence ids
 
+functional_columns = ['mutated_invariant', 'in_frame', 'stop']
+
 column_configs = {
     'ints' : ('nth_best', 'v_5p_del', 'd_5p_del', 'cdr3_length', 'j_5p_del', 'j_3p_del', 'd_3p_del', 'v_3p_del'),
     'floats' : ('logprob'),
+    'bools' : tuple([fc + 's' for fc in functional_columns]),
     'literals' : ('indelfos'),
-    'lists' : ('unique_ids', 'seqs', 'aligned_seqs', 'aligned_v_seqs', 'aligned_d_seqs', 'aligned_j_seqs')
+    'lists' : tuple(['unique_ids', 'seqs', 'aligned_seqs', 'aligned_v_seqs', 'aligned_d_seqs', 'aligned_j_seqs'] + [fc + 's' for fc in functional_columns])
 }
 
 # NOTE calling this "columns" is kind of bad, because other things already have similar names. But, sigh, it's probably the best option a.t.m.
 # keep track of all the *@*@$!ing different keys that happen in the <line>/<hmminfo>/whatever dictionaries
 xcolumns = {}
 xcolumns['per_family'] = tuple(['naive_seq', 'cdr3_length', 'cyst_position', 'tryp_position', 'lengths', 'regional_bounds'] + [g + '_gene' for g in regions] + [e + '_del' for e in real_erosions + effective_erosions] + [b + '_insertion' for b in boundaries + effective_boundaries] + [r + '_gl_seq' for r in regions])
-xcolumns['single_per_seq'] = tuple(['seq', 'unique_id', 'indelfo'] + [r + '_qr_seq' for r in regions] + ['aligned_' + r + '_seq' for r in regions])
+xcolumns['single_per_seq'] = tuple(['seq', 'unique_id', 'indelfo'] + [r + '_qr_seq' for r in regions] + ['aligned_' + r + '_seq' for r in regions] + functional_columns)
 xcolumns['multi_per_seq'] = tuple([k + 's' for k in xcolumns['single_per_seq']])
 xcolumns['hmm'] = tuple(['logprob', 'errors', 'nth_best'])
 xcolumns['sw'] = tuple(['k_v', 'k_d', 'all'])
@@ -154,7 +157,7 @@ xall_columns = set([k for cols in xcolumns.values() for k in cols])
 translation_columns = {'indels' : 'indelfo'}  # used to be <key>, now they're <value>
 
 common_implicit_columns = set(['naive_seq', 'cdr3_length', 'cyst_position', 'tryp_position', 'lengths', 'regional_bounds', 'invalid'] + [r + '_gl_seq' for r in regions])
-single_per_seq_implicit_columns = set([r + '_qr_seq' for r in regions] + ['aligned_' + r + '_seq' for r in regions])
+single_per_seq_implicit_columns = set(functional_columns + [r + '_qr_seq' for r in regions] + ['aligned_' + r + '_seq' for r in regions])
 multi_per_seq_implicit_columns = set(list(common_implicit_columns) + [k + 's' for k in single_per_seq_implicit_columns])
 single_per_seq_implicit_columns |= common_implicit_columns  # NOTE careful! kind of a weird initialization sequence here
 
@@ -274,6 +277,7 @@ Colors['light_blue'] = '\033[1;34m'
 Colors['green'] = '\033[92m'
 Colors['yellow'] = '\033[93m'
 Colors['red'] = '\033[91m'
+Colors['reverse_video'] = '\033[7m'
 Colors['end'] = '\033[0m'
 
 def color(col, seq):
@@ -291,7 +295,7 @@ def color_chars(chars, col, seq):
     return return_str
 
 # ----------------------------------------------------------------------------------------
-def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', post_str=''):
+def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', post_str='', print_hfrac=False):
     assert len(ref_seq) == len(seq)
     return_str = ''
     for inuke in range(len(seq)):
@@ -301,7 +305,10 @@ def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', 
             return_str += color('red', seq[inuke])
     if print_result:
         print '%s%s%s' % (extra_str, ref_label, ref_seq)
-        print '%s%s%s%s' % (extra_str, ' '*len(ref_label), return_str, post_str)
+        print '%s%s%s%s' % (extra_str, ' '*len(ref_label), return_str, post_str),
+        if print_hfrac:
+            print '   hfrac %.3f' % hamming_fraction(ref_seq, seq),
+        print ''
     return return_str
 
 # ----------------------------------------------------------------------------------------
@@ -601,11 +608,9 @@ def reset_effective_erosions_and_effective_insertions(glfo, padded_line, debug=F
             insertions_to_remove[-1][bound] = insertion_to_remove
         trimmed_seqs.append(trimmed_seq)
 
-    # arbitrarily use the zeroth sequence
-    tmpiseq = 0
-    if len(trimmed_seqs) > 1:
-        print 'TODO don\'t just use the zeroth sequence'
-    trimmed_seq = trimmed_seqs[tmpiseq]  # TODO right now I'm setting these to the same values for the entire clonal family, but at some point we should allow different sequences to have different read lengths/start positions
+    # arbitrarily use the zeroth sequence (in principle v_5p and j_3p should be per-sequence, not per-rearrangement... but that'd be a mess to implement, since the other deletions are per-rearrangement)
+    tmpiseq = 0  # NOTE this is pretty hackey: we just use the values from the first sequence. But it's actually not that bad -- we can either have some extra pad Ns showing, or chop of some bases.
+    trimmed_seq = trimmed_seqs[tmpiseq]
     final_fv_insertion = final_insertions[tmpiseq]['fv']
     final_jf_insertion = final_insertions[tmpiseq]['jf']
     fv_insertion_to_remove = insertions_to_remove[tmpiseq]['fv']
@@ -613,7 +618,7 @@ def reset_effective_erosions_and_effective_insertions(glfo, padded_line, debug=F
     line['v_5p_del'] = find_first_non_ambiguous_base(trimmed_seq)
     line['j_3p_del'] = len(trimmed_seq) - find_last_non_ambiguous_base_plus_one(trimmed_seq)
 
-    for iseq in range(len(line['seqs'])): # TODO note, though, that this trims *all* the seqs according to the read truncation from the zeroth sequence
+    for iseq in range(len(line['seqs'])):
         line['seqs'][iseq] = trimmed_seqs[iseq][line['v_5p_del'] : ]
         if line['j_3p_del'] > 0:
             line['seqs'][iseq] = line['seqs'][iseq][ : -line['j_3p_del']]
@@ -652,6 +657,26 @@ def add_qr_seqs(line, multi_seq):
             line[region + '_qr_seqs'] = [get_single_qr_seq(region, seq) for seq in line['seqs']]
         else:  # NOTE sw has already added the qr seq, so we could go back to checking that it's the same (but if it's ever different, it'll probably be some ridiculous pathological non-bcr sequence, so fuck 'em)
             line[region + '_qr_seq'] = get_single_qr_seq(region, line['seq'])
+
+# ----------------------------------------------------------------------------------------
+def add_functional_info(line, multi_seq):
+    def get_single_seq_info(seq, cpos, tpos, cdr3_length):
+        codons_ok = check_both_conserved_codons(seq, cpos, tpos, assert_on_fail=False)
+        in_frame_cdr3 = (cdr3_length % 3 == 0)
+        no_stop_codon = stop_codon_check(seq, cpos)
+        return {'mutated_invariant' : not codons_ok, 'in_frame' : in_frame_cdr3, 'stop' : not no_stop_codon}
+
+    if multi_seq:
+        for fc in functional_columns:
+            line[fc + 's'] = []
+        for iseq in range(len(line['seqs'])):
+            info = get_single_seq_info(line['seqs'][iseq], line['cyst_position'], line['tryp_position'], line['cdr3_length'])
+            for fc in functional_columns:
+                line[fc + 's'].append(info[fc])
+    else:
+        info = get_single_seq_info(line['seq'], line['cyst_position'], line['tryp_position'], line['cdr3_length'])
+        for fc in functional_columns:
+            line[fc] = info[fc]
 
 # ----------------------------------------------------------------------------------------
 def remove_all_implicit_info(line, multi_seq):
@@ -714,6 +739,8 @@ def add_implicit_info(glfo, line, multi_seq, existing_implicit_keys=None, debug=
     # add regional query seqs
     add_qr_seqs(line, multi_seq)
 
+    add_functional_info(line, multi_seq)
+
     # set validity (alignment addition can also set invalid)  # TODO clean up this checking stuff
     line['invalid'] = False
     if multi_seq:
@@ -725,7 +752,7 @@ def add_implicit_info(glfo, line, multi_seq, existing_implicit_keys=None, debug=
             line['invalid'] = True
     if end['j'] != seq_length:
         line['invalid'] = True
-    if line['cdr3_length'] < 6:  # i.e. if cyst and tryp overlap
+    if line['cdr3_length'] < 6:  # i.e. if cyst and tryp overlap  NOTE six is also hardcoded in waterer
         line['invalid'] = True
 
     # add alignment info
@@ -755,17 +782,35 @@ def add_implicit_info(glfo, line, multi_seq, existing_implicit_keys=None, debug=
                 print '  WARNING pre-existing info %s doesn\'t match new info %s for %s in %s' % (pre_existing_info[ekey], line[ekey], ekey, line['unique_ids'] if multi_seq else line['unique_id'])
 
 # ----------------------------------------------------------------------------------------
-def print_reco_event(germlines, line, one_line=False, extra_str='', label=''):
+def print_true_events(glfo, reco_info, line, print_uid=False):
+    """ print the true events which contain the seqs in <line> """
+    inferred_naive_seq = line['naive_seq']
+    true_naive_seqs = []
+    for uids in get_true_partition(reco_info, ids=line['unique_ids']):  # make a multi-seq line that has all the seqs from this clonal family
+        seqs = [reco_info[iid]['seq'] for iid in uids]
+        indelfos = [reco_info[iid]['indelfo'] for iid in uids]
+        per_seq_info = {'unique_ids' : uids, 'seqs' : seqs, 'indelfos' : indelfos}
+        synthetic_true_line = synthesize_multi_seq_line(glfo, reco_info[uids[0]], per_seq_info)
+        print_reco_event(glfo['seqs'], synthetic_true_line, extra_str='    ', label='true:', print_uid=print_uid)
+        true_naive_seqs.append(synthetic_true_line['naive_seq'])
+
+    # print '\ntrue vs inferred naive sequences:'
+    # for tseq in true_naive_seqs:
+    #     color_mutants(tseq, inferred_naive_seq, print_result=True, print_hfrac=True, ref_label='true ')
+    # print ''
+
+# ----------------------------------------------------------------------------------------
+def print_reco_event(germlines, line, one_line=False, extra_str='', label='', print_uid=False):
     if 'unique_ids' in line:  # multi_seq line
         for iseq in range(len(line['unique_ids'])):
             tmpline = synthesize_single_seq_line(line, iseq)
-            event_str = print_seq_in_reco_event(germlines, tmpline, extra_str=extra_str, label=(label if iseq==0 else ''), one_line=(iseq>0))
+            event_str = print_seq_in_reco_event(germlines, tmpline, extra_str=extra_str, label=(label if iseq==0 else ''), one_line=(iseq>0), print_uid=print_uid)
     else:
         tmpline = copy.deepcopy(line)
         event_str = print_seq_in_reco_event(germlines, tmpline, extra_str=extra_str, label=label, one_line=one_line)
 
 # ----------------------------------------------------------------------------------------
-def print_seq_in_reco_event(germlines, line, extra_str='', label='', one_line=False):
+def print_seq_in_reco_event(germlines, line, extra_str='', label='', one_line=False, print_uid=False):
     """ 
     Print ascii summary of recombination event and mutation.
     If <one_line>, then skip the germline lines, and only print the final_seq line.
@@ -917,6 +962,8 @@ def print_seq_in_reco_event(germlines, line, extra_str='', label='', one_line=Fa
     d_line = color_chars(ambiguous_bases + ['*', ], 'light_blue', d_line)
     vj_line = color_chars(ambiguous_bases + ['*', ], 'light_blue', vj_line)
 
+    if print_uid:
+        extra_str += '%20s ' % line['unique_id']
     out_str_list = []
     # insert, d, and vj lines
     if not one_line:
@@ -938,7 +985,10 @@ def print_seq_in_reco_event(germlines, line, extra_str='', label='', one_line=Fa
     j_3p_del_space_str = ' ' * line['j_3p_del']
     final_seq = v_5p_del_space_str + final_seq + j_3p_del_space_str
     final_seq = color_chars(ambiguous_bases + ['*', ], 'light_blue', final_seq)
-    out_str_list.append('%s    %s' % (extra_str, final_seq))
+    out_str_list.append(extra_str)
+    # if print_uid:
+    #     extra_str += '%20s' % line['unique_id']
+    out_str_list.append('    %s' % final_seq)
     out_str_list.append('   %4.2f mut' % (0. if n_total == 0. else float(n_muted) / n_total))
     out_str_list.append('\n')
 
@@ -998,8 +1048,8 @@ def add_missing_alignments(glfo, debug=False):
                     raise Exception('gene %s too long to generate missing alignment' % gene)  # could really just extend all the other alignments here, but fuck it, maybe I won't need to
                 n_dashes = len(alignment_to_use) - len(seq)
                 glfo['aligned-genes'][region][gene] = n_dashes * '-' + seq  # just hack a bunch of dashes on the left
-    if debug:
-        print '   adding placeholder alignments for missing genes %s' % ' '.join([color_gene(g) for g in missing_genes])
+    # if debug:
+    #     print '   adding placeholder alignments for missing genes %s' % ' '.join([color_gene(g) for g in missing_genes])
 
 # ----------------------------------------------------------------------------------------
 def read_codon_positions(csvfname):
@@ -1265,6 +1315,19 @@ def prep_dir(dirname, wildling=None, multilings=None):
             assert False
 
 # ----------------------------------------------------------------------------------------
+def useful_bool(bool_str):
+    if bool_str == 'True':
+        return True
+    elif bool_str == 'False':
+        return False
+    elif bool_str == '1':
+        return True
+    elif bool_str == '0':
+        return False
+    else:
+        raise Exception('couldn\'t convert \'%s\' to bool' % bool_str)
+
+# ----------------------------------------------------------------------------------------
 def process_input_line(info):
     """ 
     Attempt to convert all the keys and values in <info> from str to int.
@@ -1288,6 +1351,8 @@ def process_input_line(info):
             convert_fcn = int
         elif key in ccfg['floats']:
             convert_fcn = float
+        elif key in ccfg['bools']:
+            convert_fcn = useful_bool
         elif key in ccfg['literals']:
             convert_fcn = ast.literal_eval
 
@@ -1370,7 +1435,30 @@ def print_linsim_output(outstr):
     print '   homogeneity score %f' % linsim_out['metrics']['homogeneity_score']
 
 # ----------------------------------------------------------------------------------------
-def process_out_err(out, err, extra_str='0', info=None, subworkdir=None):
+def run_cmd(cmd_str, workdir):
+    # print cmd_str
+    proc = Popen(cmd_str + ' 1>' + workdir + '/out' + ' 2>' + workdir + '/err', shell=True)
+    return proc
+
+# ----------------------------------------------------------------------------------------
+# deal with a process once it's finished (i.e. check if it failed, and restart if so)
+def finish_process(iproc, procs, n_tries, workdir, outfname, cmd_str, info=None):
+    procs[iproc].communicate()
+    process_out_err('', '', extra_str='' if len(procs) == 1 else str(iproc), info=info, subworkdir=workdir)
+    if procs[iproc].returncode == 0 and os.path.exists(outfname):  # TODO also check cachefile, if necessary
+        procs[iproc] = None  # job succeeded
+    elif n_tries[iproc] > 5:
+        raise Exception('exceeded max number of tries for command\n    %s\nlook for output in %s' % (cmd_str, workdir))
+    else:
+        print '    rerunning proc %d (exited with %d' % (iproc, procs[iproc].returncode),
+        if not os.path.exists(outfname):
+            print ', output %s d.n.e.' % outfname,
+        print ')'
+        procs[iproc] = run_cmd(cmd_str, workdir)
+        n_tries[iproc] += 1
+
+# ----------------------------------------------------------------------------------------
+def process_out_err(out, err, extra_str='', info=None, subworkdir=None):
     """ NOTE something in this chain seems to block or truncate or some such nonsense if you make it too big """
     if subworkdir is not None:
         def readfile(fname):
@@ -1395,24 +1483,24 @@ def process_out_err(out, err, extra_str='0', info=None, subworkdir=None):
         if len(line.strip()) > 0:
             print_str += line + '\n'
 
-    for line in out.split('\n'):
-        if info is not None and 'calculated' in line:  # keep track of how many vtb and fwd calculations the process made
-            info['vtb'], info['fwd'] = 0, 0
-            words = line.split()
-            if words[1] == 'vtb' and words[3] == 'fwd':
-                info['vtb'] = int(words[2])
-                info['fwd'] = int(words[4])
-            else:
-                print 'ERROR bad calculated line: %s' % line
-    # if info is not None and ('vtb' not in info or 'fwd' not in info):
-    #     print 'weird, didnt find anything for info:'
-    #     print 'out x', out, 'x'
-    #     print 'err x', err, 'x'
+    if info is not None:  # keep track of how many vtb and fwd calculations the process made
+        for header, variables in {'calcd' : ['vtb', 'fwd'], 'time' : ['bcrham', ]}.items():
+            info[header] = {}
+            theselines = [ln for ln in out.split('\n') if header + ':' in ln]
+            if len(theselines) != 1:
+                raise Exception('couldn\'t find %s line in:\n%s' % (header, out))
+            words = theselines[0].split()
+            try:
+                for var in variables:  # convention: value corresponding to the string <var> is the word immediately vollowing <var>
+                    info[header][var] = float(words[words.index(var) + 1])
+            except:
+                raise Exception('couldn\'t find %s line in:\n%s' % (header, out))
 
     print_str += out
 
     if print_str != '':
-        print '      --> proc %s' % extra_str
+        if extra_str != '':
+            print '      --> proc %s' % extra_str
         print print_str
 
 # ----------------------------------------------------------------------------------------
@@ -1471,10 +1559,21 @@ def get_str_from_partition(partition):
     return partition_str
 
 # ----------------------------------------------------------------------------------------
-def new_ccfs_that_need_better_names(partition, true_partition, reco_info, seed_unique_id=None):
-    check_intersection_and_complement(partition, true_partition)
+def get_cluster_ids(uids, partition):
+    clids = {uid : [] for uid in uids}
+    for iclust in range(len(partition)):
+        for uid in partition[iclust]:
+            if iclust not in clids[uid]:  # in case there's duplicates (from seed unique id)
+                clids[uid].append(iclust)
+    return clids
 
+# ----------------------------------------------------------------------------------------
+def new_ccfs_that_need_better_names(partition, true_partition, reco_info, seed_unique_id=None):
+    if seed_unique_id is None:
+        check_intersection_and_complement(partition, true_partition)
     reco_ids = {uid : reco_info[uid]['reco_id'] for cluster in partition for uid in cluster}  # just a teensy lil' optimization
+    uids = set([uid for cluster in partition for uid in cluster])
+    clids = get_cluster_ids(uids, partition)  # inferred cluster ids
 
     def get_clonal_fraction(uid, inferred_cluster):
         """ Return the fraction of seqs in <uid>'s inferred cluster which are really clonal. """
@@ -1495,10 +1594,14 @@ def new_ccfs_that_need_better_names(partition, true_partition, reco_info, seed_u
     mean_clonal_fraction, mean_fraction_present = 0., 0.
     n_uids = 0
     for true_cluster in true_partition:
+        if seed_unique_id is not None and seed_unique_id not in true_cluster:
+            continue
         for uid in true_cluster:
             if seed_unique_id is not None and uid != seed_unique_id:
                 continue
-            inferred_cluster = partition[find_uid_in_partition(uid, partition)]
+            if len(clids[uid]) != 1:
+                print 'WARNING %s in multiple clusters' % uid
+            inferred_cluster = partition[clids[uid][0]]
             mean_clonal_fraction += get_clonal_fraction(uid, inferred_cluster)
             mean_fraction_present +=  get_fraction_present(uid, inferred_cluster, true_cluster)
             n_uids += 1
@@ -1638,12 +1741,13 @@ def find_uid_in_partition(uid, partition):
 # ----------------------------------------------------------------------------------------
 def check_intersection_and_complement(part_a, part_b):
     """ make sure two partitions have identical uid lists """
-    for cluster in part_a:
-        for uid in cluster:
-            find_uid_in_partition(uid, part_b)
-    for cluster in part_b:  # NOTE we could avoid looping over some of these if we were so inclined
-        for uid in cluster:
-            find_uid_in_partition(uid, part_a)
+
+    uids_a = set([uid for cluster in part_a for uid in cluster])
+    uids_b = set([uid for cluster in part_b for uid in cluster])
+    a_not_b = uids_a - uids_b
+    b_not_a = uids_b - uids_a
+    if len(a_not_b) > 0 or len(b_not_a) > 0:
+        raise Exception('partitions don\'t have the same uids')
 
 # ----------------------------------------------------------------------------------------
 def get_cluster_list_for_sklearn(part_a, part_b):
@@ -2076,3 +2180,22 @@ def find_genes_that_have_hmms(parameter_dir):
 # ----------------------------------------------------------------------------------------
 def get_empty_indel():
     return {'reversed_seq' : '', 'indels' : []}
+
+# ----------------------------------------------------------------------------------------
+def choose_seed_unique_id(datadir, simfname, seed_cluster_size_low, seed_cluster_size_high, iseed=None, n_max_queries=-1, debug=True):
+    glfo = read_germline_set(datadir)
+    _, reco_info = seqfileopener.get_seqfile_info(simfname, is_data=False, glfo=glfo, n_max_queries=n_max_queries)
+    true_partition = get_true_partition(reco_info)
+
+    nth_seed = 0  # don't always take the first one we find
+    for cluster in true_partition:
+        if len(cluster) < seed_cluster_size_low or len(cluster) > seed_cluster_size_high:
+            continue
+        if iseed is not None and int(iseed) > nth_seed:
+            nth_seed += 1
+            continue
+        if debug:
+            print '    chose seed %s in cluster %s with size %d' % (cluster[0], reco_info[cluster[0]]['reco_id'], len(cluster))
+        return cluster[0], len(cluster)  # arbitrarily use the first member of the cluster as the seed
+
+    raise Exception('couldn\'t find seed in cluster between size %d and %d' % (seed_cluster_size_low, seed_cluster_size_high))

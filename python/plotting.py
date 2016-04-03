@@ -19,6 +19,7 @@ from array import array
 from subprocess import check_call
 import re
 from collections import OrderedDict
+import operator
 
 import utils
 import fraction_uncertainty
@@ -877,31 +878,55 @@ def plot_metrics_vs_thresholds(meth, thresholds, info, plotdir, plotfname, title
 
 # ----------------------------------------------------------------------------------------
 def plot_adj_mi_and_co(plotname, plotvals, mut_mult, plotdir, valname, xvar, title=''):
+    # ----------------------------------------------------------------------------------------
+    def remove_some_duplicates(xyvals):
+        hmap = {}
+        newvals = []
+        for x, y in xyvals:
+            if x in hmap and x != 100000 and x != 500000 and x != 1000000:
+                continue
+            newvals.append((x, y))
+            hmap.add(x)
+        return newvals
+
     fig, ax = mpl_init()
     mpl.rcParams.update({
         'legend.fontsize': 15,})
     plots = {}
     for meth, xyvals in plotvals.items():
-        xvals = xyvals.keys()
-        yvals = [ve[0] for ve in xyvals.values()]
-        yerrs = [ve[1] for ve in xyvals.values()]
+
+        # print sorted([xy[0] for xy in xyvals])
+        # xyvals = remove_some_duplicates(xyvals)
+
+        xyvals = sorted(xyvals, key=operator.itemgetter(0))
+        xvals = [xy[0] for xy in xyvals]  # xyvals.keys()
+        yvals = [ve[1][0] for ve in xyvals]
+        yerrs = [ve[1][1] for ve in xyvals]
         kwargs = {'linewidth' : linewidths.get(meth, 4),
                   'label' : legends.get(meth, meth),
                   'color' : colors.get(meth, 'grey'),
                   'linestyle' : linestyles.get(meth, 'solid'),
-                  'alpha' : alphas.get(meth, 1.)
+                  'alpha' : alphas.get(meth, 1.),
                   }
+
+        if meth == 'seed-partition':
+            kwargs['linewidth'] = 0
+            kwargs['alpha'] = 0.5
+
         if xvar == 'n_leaves':
             kwargs['fmt'] = '-o'
             plots[meth] = ax.errorbar(xvals, yvals, yerr=yerrs, **kwargs)
         else:  # darn it, the order in the legend gets messed up if I do some as .plot and some as .errorbar
+            kwargs['marker'] = '.'
+            kwargs['markersize'] = 20
             plots[meth] = ax.plot(xvals, yvals, **kwargs)
     
     lx, ly = 1.6, 0.7
-    legend = ax.legend(bbox_to_anchor=(lx, ly))
+    if len(plotvals) != 1:
+        legend = ax.legend(bbox_to_anchor=(lx, ly))
     # legend.get_frame().set_facecolor('white')
     ymin = -0.01
-    ax.set_ylim(ymin, 1.01)
+    ax.set_ylim(ymin, 1.03)
     sns.despine()  #trim=True, bottom=True)
     plt.title(title)
     xtitle = 'mean N leaves' if xvar == 'n_leaves' else 'sample size'
@@ -933,12 +958,14 @@ def plot_adj_mi_and_co(plotname, plotvals, mut_mult, plotdir, valname, xvar, tit
         #     xticks.remove(750)
         # xticks += xvals[-1:]
         # xticks = [100, 5000, 10000, 15000]
-        xticks = [100, 1000, 10000, 200000]
+        xticks = [1000, 10000, 100000, 1000000]
         ax.set_xscale('log')
-        ax.set_xlim(0.9 * xvals[0], 1.05 * xvals[-1])
+        ax.set_xlim(0.9 * xvals[0], 1.15 * xvals[-1])
 
     xticklabels = xticks if xvar == 'n_leaves' else ['%.0e' % xt for xt in xticks]
     plt.xticks(xticks, xticklabels)
+    # ax.plot([xticks[0], xticks[-1]], [1., 1.], linewidth=1, color='grey')
+    ax.grid(True)
 
     yticks = [yt for yt in [0., .2, .4, .6, .8, 1.] if yt >= ymin]
     yticklabels = [str(yt) for yt in yticks]

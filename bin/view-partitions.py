@@ -10,7 +10,7 @@ from seqfileopener import get_seqfile_info
 import utils
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--infname', required=True)
+parser.add_argument('infname')
 parser.add_argument('--dont-abbreviate', action='store_true', help='Print full seq IDs (otherwise just prints an \'o\')')
 parser.add_argument('--n-to-print', type=int, help='How many partitions to print (centered on the best partition)')
 parser.add_argument('--datadir', default='data/imgt')

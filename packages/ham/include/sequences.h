@@ -11,8 +11,8 @@ class Sequence {
   friend class Sequences;
 public:
   Sequence();  // NOTE don't use this! It's only so I can use stl maps without crashing
-  Sequence(Track* trk, string name, string &undigitized, int cyst_position = -1);
-  Sequence(Track* trk, string name, string &undigitized, size_t pos, size_t len, int untruncated_cyst_position = -1);  // create the subsequence from <pos> of length <len>. NOTE <untruncated_cyst_position> argument refers to the position in <undigitized>, i.e. *before* truncation at <pos>
+  Sequence(Track* trk, string name, string &undigitized);
+  Sequence(Track* trk, string name, string &undigitized, size_t pos, size_t len);  // create the subsequence from <pos> of length <len>
   Sequence(Sequence &rhs, size_t pos, size_t len);
   Sequence(const Sequence &rhs);
   ~Sequence();
@@ -26,7 +26,6 @@ public:
   inline Track* track() const { return track_; }
   inline vector<uint8_t> *seqq() { return &seqq_; }
   inline string undigitized() const { return undigitized_; }
-  inline int cyst_position() const { return cyst_position_; }
   Sequence GetSubSequence(size_t pos, size_t len);
 
   void Print(string separator = " "); // if separator is specified, print it between each element in the sequence
@@ -35,7 +34,6 @@ private:
   void CheckPosLen(string name, string undigitized, size_t pos, size_t len);
   string name_;
   string header_;
-  int cyst_position_;
   string undigitized_;  // undigitized sequence
   Track* track_; // track describing alphabet and type. NOTE we don't own this pointer, i.e. we don't delete it when we die
   vector<uint8_t> seqq_; // digitized Sequence

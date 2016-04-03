@@ -26,6 +26,21 @@ vector<string> SplitString(string argstr, string delimiter) {
 }
 
 // ----------------------------------------------------------------------------------------
+// find if <query> is in the colon-separated list <liststr>
+bool InString(string query, string liststr, string delimiter) {
+  while(true) {
+    size_t i_next_colon(liststr.find(delimiter));  // not necessarily colon, but it does default to that
+    string arg = liststr.substr(0, i_next_colon); // get the next arg in the <delimiter>-separated list
+    if(arg == query)
+      return true;
+    liststr = liststr.substr(i_next_colon + 1); // then excise it from liststr
+    if(i_next_colon == string::npos)
+      break;
+  }
+  return false;  // didn't find it
+}
+
+// ----------------------------------------------------------------------------------------
 string JoinStrings(vector<string> &strlist, string delimiter) {
   string return_str;
   for(size_t is=0; is<strlist.size(); ++is) {

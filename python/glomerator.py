@@ -12,9 +12,10 @@ from clusterpath import ClusterPath
 # ----------------------------------------------------------------------------------------
 class Glomerator(object):
     # ----------------------------------------------------------------------------------------
-    def __init__(self, reco_info=None):
+    def __init__(self, reco_info=None, seed_unique_id=None):
         self.reco_info = reco_info
         self.paths = None
+        self.seed_unique_id = seed_unique_id
 
     # ----------------------------------------------------------------------------------------
     def naive_seq_glomerate(self, naive_seqs, n_clusters, debug=False):
@@ -132,7 +133,7 @@ class Glomerator(object):
                 uids = []
                 path_index = int(line['path_index'])
                 if paths[path_index] is None:  # is this the first line for this path?
-                    paths[path_index] = ClusterPath(int(line['initial_path_index']))  # NOTE I may have screwed up the initial_path_index/path_index distinction here... it's been too long since I wrote the smc stuff and I'm not sure
+                    paths[path_index] = ClusterPath(int(line['initial_path_index']), seed_unique_id=self.seed_unique_id)  # NOTE I may have screwed up the initial_path_index/path_index distinction here... it's been too long since I wrote the smc stuff and I'm not sure
                 else:
                     assert paths[path_index].initial_path_index == int(line['initial_path_index'])
                 lines_list[path_index].append(line)
@@ -151,7 +152,7 @@ class Glomerator(object):
 
     # ----------------------------------------------------------------------------------------
     def merge_fileinfos(self, fileinfos, smc_particles, previous_info=None, debug=False):
-        self.paths = [ClusterPath(None) for _ in range(smc_particles)]  # each path's initial_path_index is None since we're merging paths that, in general, have different initial path indices
+        self.paths = [ClusterPath(None, seed_unique_id=self.seed_unique_id) for _ in range(smc_particles)]  # each path's initial_path_index is None since we're merging paths that, in general, have different initial path indices
 
         # DEAR FUTURE SELF this won't make any sense until you find that picture you took of the white board
         if previous_info is not None and smc_particles > 1:  # if we're doing smc, this has to happen *beforehand*, since the previous paths are separate for each process (cont'd at XX)
@@ -171,7 +172,7 @@ class Glomerator(object):
                     previous_path = previous_info[ifile][initial_path_index]
                     current_path = fileinfos[ifile][ipath]
                     # first_new_logprob = current_path.logprobs[0]
-                    extended_path = ClusterPath(None)
+                    extended_path = ClusterPath(None, seed_unique_id=self.seed_unique_id)
                     for ip in range(len(previous_path.partitions)):
                         # if previous_path.logprobs[ip] >= first_new_logprob:  # skip the merges past which we rewound
                         #     continue
@@ -187,7 +188,7 @@ class Glomerator(object):
         # do the actual process-merging
         for ipath in range(smc_particles):
 
-            if debug:
+            if debug and len(fileinfos) > 1:
                 print 'merge path %d from %d processes:' % (ipath, len(fileinfos))
                 for ifile in range(len(fileinfos)):
                     fileinfos[ifile][ipath].print_partitions(self.reco_info, extrastr=('%d' % (ifile)))
@@ -230,10 +231,8 @@ class Glomerator(object):
             if smc_particles > 1:
                 self.paths[ipath].set_synthetic_logweight_history(self.reco_info)
             if debug:
-                print '  merged path:'
-                self.paths[ipath].print_partitions(self.reco_info)
-            else:
                 print '  merged path %d with %d glomeration steps and %d final clusters' % (ipath, len(self.paths[ipath].partitions), len(self.paths[ipath].partitions[-1]))
+                self.paths[ipath].print_partitions(self.reco_info)
 
         if smc_particles == 1:  # XX: ...whereas if we're *not* doing smc, we have to add the previous histories *afterward*, since the previous histories are all in one piece
             if previous_info is None:
@@ -251,7 +250,7 @@ class Glomerator(object):
                 previous_path = previous_info
                 current_path = self.paths[0]
                 # first_new_logprob = UPDATEME current_path.logprobs[0]
-                extended_path = ClusterPath(None)
+                extended_path = ClusterPath(None, seed_unique_id=self.seed_unique_id)
                 for ip in range(len(previous_path.partitions)):
                     # if previous_path.logprobs[ip] >= first_new_logprob:  # skip the merges past which we rewound
                     #     continue
@@ -265,13 +264,14 @@ class Glomerator(object):
                     self.paths[0].print_partitions(self.reco_info)
 
     # ----------------------------------------------------------------------------------------
-    def read_cached_agglomeration(self, infnames, smc_particles, previous_info=None, debug=False):
+    def read_cached_agglomeration(self, infnames, smc_particles=1, previous_info=None, debug=False):
         """ Read the partitions output by bcrham. If <all_partitions> is specified, add the info to it """
         start = time.time()
         fileinfos = []
         for fname in infnames:
             fileinfos.append(self.read_file_info(fname, smc_particles))
         self.merge_fileinfos(fileinfos, smc_particles, previous_info=previous_info, debug=debug)
-        print '        read cached glomeration time: %.3f' % (time.time()-start)
+        if debug:
+            print '        read cached glomeration time: %.3f' % (time.time()-start)
 
         return self.paths
