@@ -17,8 +17,8 @@ Args::Args(int argc, const char * argv[]):
   algorithm_arg_("", "algorithm", "algorithm to run", true, "", &algo_vals_),
   ambig_base_arg_("", "ambig-base", "ambiguous base", false, "", "string"),
   seed_unique_id_arg_("", "seed-unique-id", "seed unique id", false, "", "string"),
-  hamming_fraction_bound_lo_arg_("", "hamming-fraction-bound-lo", "if hamming fraction for a pair is smaller than this, merge them without running hmm", false, 0.0, "float"),
-  hamming_fraction_bound_hi_arg_("", "hamming-fraction-bound-hi", "if hamming fraction for a pair is larger than this, skip without running hmm", false, 1.0, "float"),
+  hamming_fraction_bound_lo_arg_("", "hamming-fraction-bound-lo", "if hamming fraction for a pair is smaller than this, merge them without calculating lratio", false, 0.0, "float"),
+  hamming_fraction_bound_hi_arg_("", "hamming-fraction-bound-hi", "if hamming fraction for a pair is larger than this, skip without calculating lratio", false, 1.0, "float"),
   logprob_ratio_threshold_arg_("", "logprob-ratio-threshold", "", false, -INFINITY, "float"),
   max_logprob_drop_arg_("", "max-logprob-drop", "stop glomerating when the total logprob has dropped by this much", false, -1.0, "float"),
   debug_arg_("", "debug", "debug level", false, 0, &debug_vals_),
@@ -35,8 +35,8 @@ Args::Args(int argc, const char * argv[]):
   cache_naive_hfracs_arg_("", "cache-naive-hfracs", "cache naive hamming fraction between sequence sets (in addition to log probs and naive seqs)", false),
   only_cache_new_vals_arg_("", "only-cache-new-vals", "only write sequence sets with newly-calculated values to cache file", false),
   str_headers_ {},
-  int_headers_ {"path_index", "k_v_min", "k_v_max", "k_d_min", "k_d_max"},
-  float_headers_ {"logweight"},
+  int_headers_ {"k_v_min", "k_v_max", "k_d_min", "k_d_max"},
+  float_headers_ {},
   str_list_headers_ {"names", "seqs", "only_genes"},  // passed as colon-separated lists of strings
   int_list_headers_ {},  // passed as colon-separated lists of ints
   float_list_headers_ {"mute_freqs"}  // passed as colon-separated lists of floats

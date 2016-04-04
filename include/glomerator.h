@@ -104,8 +104,6 @@ private:
   ofstream ofs_;
 
   vector<Partition> initial_partitions_;
-  vector<double> initial_logprobs_;
-  vector<double> initial_logweights_;
 
   map<string, bool> seed_missing_;  // also cache the presence of the seed in each cluster
 

@@ -22,62 +22,23 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> >
   ReadCachedLogProbs();
 
   Partition tmp_partition;
-  int last_ipath(0);
-  assert(args_->integers_["path_index"].size() == qry_seq_list.size());
   for(size_t iqry = 0; iqry < qry_seq_list.size(); iqry++) {
     string key = SeqNameStr(qry_seq_list[iqry], ":");
 
-    int ipath(args_->integers_["path_index"][iqry]);
-    if(last_ipath != ipath) {  // if we need to push back a new initial partition (i.e. this is a new path/particle) NOTE I'm assuming the the first one will have <path_index> zero
-      assert(0);  // deprecated, I think?
-      initial_partitions_.push_back(tmp_partition);
-      initial_logprobs_.push_back(-INFINITY);  //LogProbOfPartition(tmp_partition));
-      initial_logweights_.push_back(args_->floats_["logweight"][iqry]);  // it's the same for each <iqry> with this <path_index>
-      tmp_partition.clear();
-      last_ipath = ipath;
-    }
-      
     tmp_partition.insert(key);
-
-    if(seq_info_.count(key) > 0)  // already added this cluster to the maps (but it'll appear more than once if it's in multiple paths/particles), so we only need to add the cluster info to <initial_partitions_>
-      continue;
-
     seq_info_[key] = qry_seq_list[iqry];
     seed_missing_[key] = !InString(args_->seed_unique_id(), key);
     only_genes_[key] = args_->str_lists_["only_genes"][iqry];
+    mute_freqs_[key] = avgVector(args_->float_lists_["mute_freqs"][iqry]);
 
     KSet kmin(args_->integers_["k_v_min"][iqry], args_->integers_["k_d_min"][iqry]);
     KSet kmax(args_->integers_["k_v_max"][iqry], args_->integers_["k_d_max"][iqry]);
     KBounds kb(kmin, kmax);
     kbinfo_[key] = kb;
-
-    vector<KBounds> kbvector(seq_info_[key].size(), kbinfo_[key]);
-
-    mute_freqs_[key] = avgVector(args_->float_lists_["mute_freqs"][iqry]);
   }
-  // add the last initial partition (i.e. for the last path/particle)
-  assert(tmp_partition.size() > 0);
   initial_partitions_.push_back(tmp_partition);
-  initial_logprobs_.push_back(-INFINITY);  // LogProbOfPartition(tmp_partition));
-  initial_logweights_.push_back(args_->floats_["logweight"].back());
 
-  // the *first* time, we only get one path/partition from partis, so we push back a bunch of copies
-  if((int)initial_partitions_.size() == 1 && args_->smc_particles() > 1)  {
-    for(int ip=1; ip<args_->smc_particles(); ++ip) {
-      initial_partitions_.push_back(tmp_partition);
-      initial_logprobs_.push_back(-INFINITY);  // LogProbOfPartition(tmp_partition));
-      initial_logweights_.push_back(args_->floats_["logweight"].back());
-    }
-  }
-
-  if((int)initial_partitions_.size() != args_->smc_particles())
-    throw runtime_error("wrong number of initial partitions " + to_string(initial_partitions_.size()) + " (should be " + to_string(args_->smc_particles()) + ")");
-
-  assert((int)initial_partitions_.size() == 1);
   current_partition_ = &initial_partitions_[0];
-  // if(args_->debug())
-  //   for(auto &part : initial_partitions_)
-  //     PrintPartition(part, "initial");
 }
 
 // ----------------------------------------------------------------------------------------
@@ -120,7 +81,7 @@ void Glomerator::Cluster() {
     throw runtime_error("logprob ratio threshold not specified");
 
   assert((int)initial_partitions_.size() == 1);
-  ClusterPath cp(initial_partitions_[0], -INFINITY /*LogProbOfPartition(initial_partitions_[0])*/, initial_logweights_[0]);
+  ClusterPath cp(initial_partitions_[0]);
   do {
     Merge(&cp);
   } while(!cp.finished_);
@@ -133,10 +94,12 @@ void Glomerator::Cluster() {
 
 // ----------------------------------------------------------------------------------------
 Partition Glomerator::GetAnInitialPartition(int &initial_path_index, double &logweight) {
-  initial_path_index = i_initial_partition_;
-  assert(i_initial_partition_ < (int)initial_partitions_.size());
-  logweight = initial_logweights_[i_initial_partition_];
-  return initial_partitions_.at(i_initial_partition_++);
+  assert(0);
+  // initial_path_index = i_initial_partition_;
+  // assert(i_initial_partition_ < (int)initial_partitions_.size());
+  // logweight = initial_logweights_[i_initial_partition_];
+  // return initial_partitions_.at(i_initial_partition_++);
+  return Partition();
 }
 
 // ----------------------------------------------------------------------------------------
@@ -243,14 +206,10 @@ void Glomerator::WriteCachedLogProbs() {
 void Glomerator::WritePartitions(vector<ClusterPath> &paths) {
   ofs_.open(args_->outfile());
   ofs_ << setprecision(20);
-  if(paths.size() > 0)
-    ofs_ << "path_index,initial_path_index,";
-  ofs_ << "partition,logprob,logweight" << endl;
+  ofs_ << "partition,logprob" << endl;
   int ipath(0);
   for(auto &cp : paths) {
     for(unsigned ipart=0; ipart<cp.partitions().size(); ++ipart) {
-      if(paths.size() > 0)
-	ofs_ << ipath << "," << cp.initial_path_index_ << ",";
       int ic(0);
       for(auto &cluster : cp.partitions()[ipart]) {
 	if(ic > 0)
@@ -258,8 +217,7 @@ void Glomerator::WritePartitions(vector<ClusterPath> &paths) {
 	ofs_ << cluster;
 	++ic;
       }
-      ofs_ << "," << cp.logprobs()[ipart]
-	   << "," << cp.logweights()[ipart] << endl;
+      ofs_ << "," << cp.logprobs()[ipart] << endl;
     }
     ++ipath;
   }
