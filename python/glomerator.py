@@ -130,12 +130,12 @@ class Glomerator(object):
             for line in reader:
                 if line['partition'] == '':
                     raise Exception('ERROR null partition (one of the processes probably got passed zero sequences')  # shouldn't happen any more FLW
-                uids = []
-                path_index = int(line['path_index'])
+                path_index = int(line['path_index']) if 'path_index' in line else 0
+                initial_path_index = int(line['initial_path_index']) if 'initial_path_index' in line else 0
                 if paths[path_index] is None:  # is this the first line for this path?
-                    paths[path_index] = ClusterPath(int(line['initial_path_index']), seed_unique_id=self.seed_unique_id)  # NOTE I may have screwed up the initial_path_index/path_index distinction here... it's been too long since I wrote the smc stuff and I'm not sure
+                    paths[path_index] = ClusterPath(initial_path_index, seed_unique_id=self.seed_unique_id)  # NOTE I may have screwed up the initial_path_index/path_index distinction here... it's been too long since I wrote the smc stuff and I'm not sure
                 else:
-                    assert paths[path_index].initial_path_index == int(line['initial_path_index'])
+                    assert paths[path_index].initial_path_index == initial_path_index
                 lines_list[path_index].append(line)
 
         for path_index in range(n_paths):

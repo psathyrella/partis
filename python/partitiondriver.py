@@ -919,9 +919,9 @@ class PartitionDriver(object):
         return unseeded_clusters
 
     # ----------------------------------------------------------------------------------------
-    def write_to_single_input_file(self, fname, nsets, parameter_dir, skipped_gene_matches, path_index=0, logweight=0.):
+    def write_to_single_input_file(self, fname, nsets, parameter_dir, skipped_gene_matches):
         csvfile = opener('w')(fname)
-        header = ['path_index', 'logweight', 'names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'only_genes', 'seqs', 'mute_freqs']  # NOTE logweight is for the whole partition
+        header = ['names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'only_genes', 'seqs', 'mute_freqs']
         writer = csv.DictWriter(csvfile, header, delimiter=' ')  # TODO should eventually rewrite arg parser in ham to handle csvs (like in glomerator cache reader)
         writer.writeheader()
 
@@ -938,8 +938,6 @@ class PartitionDriver(object):
             if len(combined_query) == 0:  # didn't find all regions
                 continue
             writer.writerow({
-                'path_index' : path_index,
-                'logweight' : logweight,  # NOTE same for all lines with the same <path_index> (since they're all from the same partition)
                 'names' : ':'.join([qn for qn in query_name_list]),
                 'k_v_min' : combined_query['k_v']['min'],
                 'k_v_max' : combined_query['k_v']['max'],
