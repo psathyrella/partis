@@ -999,8 +999,7 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
   GetNaiveSeq(chosen_qmerge.name_, &chosen_qmerge.parents_);  // this *needs* to happen here so it has the parental information
   UpdateLogProbTranslationsForAsymetrics(chosen_qmerge);
 
-  // NOTE this will calculate any logprobs that we earlier approximated with translations when we only needed the ratio
-  Partition new_partition(path->CurrentPartition());  // note: CurrentPartition() returns a reference
+  Partition new_partition(path->CurrentPartition());
   new_partition.erase(chosen_qmerge.parents_.first);
   new_partition.erase(chosen_qmerge.parents_.second);
   new_partition.insert(chosen_qmerge.name_);
