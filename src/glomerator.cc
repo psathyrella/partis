@@ -8,7 +8,6 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> >
   args_(args),
   vtb_dph_("viterbi", args_, gl, hmms),
   fwd_dph_("forward", args_, gl, hmms),
-  i_initial_partition_(0),
   n_fwd_calculated_(0),
   n_vtb_calculated_(0),
   n_hfrac_calculated_(0),
@@ -21,11 +20,10 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> >
   time(&last_status_write_time_);
   ReadCachedLogProbs();
 
-  Partition tmp_partition;
   for(size_t iqry = 0; iqry < qry_seq_list.size(); iqry++) {
     string key = SeqNameStr(qry_seq_list[iqry], ":");
 
-    tmp_partition.insert(key);
+    initial_partition_.insert(key);
     seq_info_[key] = qry_seq_list[iqry];
     seed_missing_[key] = !InString(args_->seed_unique_id(), key);
     only_genes_[key] = args_->str_lists_["only_genes"][iqry];
@@ -36,9 +34,8 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> >
     KBounds kb(kmin, kmax);
     kbinfo_[key] = kb;
   }
-  initial_partitions_.push_back(tmp_partition);
 
-  current_partition_ = &initial_partitions_[0];
+  current_partition_ = &initial_partition_;
 }
 
 // ----------------------------------------------------------------------------------------
@@ -71,17 +68,16 @@ void Glomerator::CacheNaiveSeqs() {  // they're written to file in the destructo
 // ----------------------------------------------------------------------------------------
 void Glomerator::Cluster() {
   if(args_->debug()) {
-    cout << "   hieragloming " << initial_partitions_[0].size() << " clusters";
+    cout << "   hieragloming " << initial_partition_.size() << " clusters";
     if(args_->seed_unique_id() != "")
-      cout << "  (" << GetSeededClusters(initial_partitions_[0]).size() << " seeded)";
+      cout << "  (" << GetSeededClusters(initial_partition_).size() << " seeded)";
     cout << endl;
   }
 
   if(args_->logprob_ratio_threshold() == -INFINITY)
     throw runtime_error("logprob ratio threshold not specified");
 
-  assert((int)initial_partitions_.size() == 1);
-  ClusterPath cp(initial_partitions_[0]);
+  ClusterPath cp(initial_partition_);
   do {
     Merge(&cp);
   } while(!cp.finished_);
