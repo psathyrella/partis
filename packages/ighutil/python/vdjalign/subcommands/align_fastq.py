@@ -13,9 +13,12 @@ log = logging.getLogger('vdjalign')
 def sw_to_bam(ref_path, sequence_path, bam_dest, n_threads,
               read_group=None, extra_ref_paths=[],
               match=1, mismatch=1, gap_open=7, gap_extend=1,
-              max_drop=0, min_score=0, bandwidth=150):
+              max_drop=0, min_score=0, bandwidth=150, samtools_dir=None):
     with util.tmpfifo(prefix='pw-to-bam', name='samtools-view-fifo') as fifo_path:
-        cmd1 = ['samtools', 'view', '-@', str(n_threads), '-o', bam_dest, '-Sb', fifo_path]
+        samtool_binary = 'samtools'
+        if samtools_dir is not None:
+            samtool_binary = samtools_dir + '/' + samtool_binary
+        cmd1 = [samtool_binary, 'view', '-@', str(n_threads), '-o', bam_dest, '-Sb', fifo_path]
         log.info(' '.join(cmd1))
         p = subprocess.Popen(cmd1)
         sw.ig_align(ref_path, sequence_path, fifo_path, n_threads=n_threads,
@@ -45,6 +48,7 @@ def fill_targets_alignment_options(p):
                       adaptive) [default: %(default)s]""")
     tgrp.add_argument('--vdj-dir', help="""Directory from which to read
                       germline genes) [default: %(default)s]""")
+    tgrp.add_argument('--samtools-dir', help="""Path to samtools binary.""")
 
     agrp = p.add_argument_group('Alignment options')
     agrp.add_argument('-m', '--match', default=1, type=int, help="""Match score
@@ -78,7 +82,8 @@ def action(a):
                               gap_open=a.gap_open,
                               gap_extend=a.gap_extend,
                               bandwidth=a.bandwidth,
-                              max_drop=a.max_drop)
+                              max_drop=a.max_drop,
+                              samtools_dir=a.samtools_dir)
 
     log.info('aligning')
     with imgt.temp_fasta(a.locus, 'v', a.v_subset, vdj_dir=a.vdj_dir) as vf, \

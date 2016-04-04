@@ -63,8 +63,6 @@ class Waterer(object):
             self.my_datadir = self.args.workdir + '/germline-sets'
             self.rewritten_files = utils.rewrite_germline_fasta(self.args.datadir, self.my_datadir, self.genes_to_use)
 
-        os.environ['PATH'] = os.getenv('PWD') + '/packages/samtools:' + os.getenv('PATH')
-        check_output(['which', 'samtools'])
         if not os.path.exists(self.args.ighutil_dir + '/bin/vdjalign'):
             raise Exception('ERROR ighutil path d.n.e: ' + self.args.ighutil_dir + '/bin/vdjalign')
 
@@ -232,6 +230,7 @@ class Waterer(object):
         cmd_str += ' --match ' + str(match) + ' --mismatch ' + str(mismatch)
         cmd_str += ' --gap-open ' + str(self.args.gap_open_penalty)  #1000'  #50'
         cmd_str += ' --vdj-dir ' + datadir  # NOTE not necessarily <self.args.datadir>
+        cmd_str += ' --samtools-dir ' + os.getenv('PWD') + '/packages/samtools'
         cmd_str += ' ' + workdir + '/' + base_infname + ' ' + workdir + '/' + base_outfname
 
         return cmd_str
