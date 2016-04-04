@@ -103,11 +103,9 @@ private:
   DPHandler vtb_dph_, fwd_dph_;
   ofstream ofs_;
 
-  vector<Partition> initial_partitions_;
+  Partition initial_partition_;
 
   map<string, bool> seed_missing_;  // also cache the presence of the seed in each cluster
-
-  int i_initial_partition_;  // index of the next inital partition to grab (for smc stuff)
 
   map<string, string> naive_seq_name_translations_;
   map<string, pair<string, string> > logprob_name_translations_;
