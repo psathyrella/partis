@@ -35,6 +35,7 @@ class PartitionDriver(object):
                                                            abbreviate_names=self.args.abbreviate)
         self.sw_info = None
         self.bcrham_proc_info = None
+        self.bcrham_failed_queries = set()
 
         self.n_max_calc_per_process = 200  # if a bcrham process calc'd more than this many fwd + vtb values, don't decrease the number of processes in the next step
 
@@ -1008,7 +1009,10 @@ class PartitionDriver(object):
         return cpath
 
     # ----------------------------------------------------------------------------------------
-    def check_bcrham_errors(self, line, boundary_error_queries):
+    def check_for_bcrham_failures(self, line, boundary_error_queries):
+        if 'no_path' in line['errors']:
+            self.bcrham_failed_queries.add(line['unique_ids'])
+            return True
         if line['nth_best'] == 0:  # if this is the first line for this set of uids (i.e. the best viterbi path or only forward score)
             if line['errors'] is not None and 'boundary' in line['errors'].split(':'):
                 boundary_error_queries.append(':'.join([uid for uid in line['unique_ids']]))
@@ -1050,10 +1054,13 @@ class PartitionDriver(object):
         with opener('r')(annotation_fname) as hmm_csv_outfile:
             reader = csv.DictReader(hmm_csv_outfile)
             for padded_line in reader:  # line coming from hmm output is N-padded such that all the seqs are the same length
+                failed = self.check_for_bcrham_failures(padded_line, boundary_error_queries)
+                if failed:
+                    continue
+
                 utils.process_input_line(padded_line)
                 uids = padded_line['unique_ids']
                 padded_line['indelfos'] = [self.sw_info['indels'].get(uid, utils.get_empty_indel()) for uid in uids]
-                self.check_bcrham_errors(padded_line, boundary_error_queries)
 
                 utils.add_implicit_info(self.glfo, padded_line, multi_seq=True)
                 if padded_line['invalid']:
@@ -1114,6 +1121,8 @@ class PartitionDriver(object):
             perfplotter.plot(self.args.plotdir + '/hmm', only_csv=self.args.only_csv_plots)
 
         print '    processed %d sequences in %d events (%d invalid events)' % (n_seqs_processed, n_events_processed, n_invalid_events)
+        if len(self.bcrham_failed_queries) > 0:
+            print '      no valid paths: %s' % ':'.join(self.bcrham_failed_queries)
         if len(boundary_error_queries) > 0:
             print '      %d boundary errors' % len(boundary_error_queries)
             if self.args.debug:

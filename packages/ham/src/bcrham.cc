@@ -109,7 +109,7 @@ void run_algorithm(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> > &qr
       result = dph.Run(qry_seqs, kbounds, args.str_lists_["only_genes"][iqry], mean_mute_freq);
       logprob = result.total_score();
       kbounds = result.better_kbounds();
-      stop = !result.boundary_error() || result.could_not_expand();  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
+      stop = !result.boundary_error() || result.could_not_expand() || result.no_path_;  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
       if(args.debug() && !stop)
         cout << "             expand and run again" << endl;  // note that subsequent runs are much faster than the first one because of chunk caching
       if(result.boundary_error())
@@ -122,7 +122,10 @@ void run_algorithm(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> > &qr
       else
         assert(result.no_path_);  // if there's some *other* way we can end up with no events, I want to know about it
     }
-    StreamOutput(ofs, args.algorithm(), min(size_t(args.n_best_events()), result.events_.size()), result.events_, qry_seqs, logprob, errors);
+    if(result.no_path_)
+      StreamErrorput(ofs, args.algorithm(), qry_seqs, "no_path");
+    else
+      StreamOutput(ofs, args.algorithm(), min(size_t(args.n_best_events()), result.events_.size()), result.events_, qry_seqs, logprob, errors);
     if(args.algorithm() == "viterbi")
       ++n_vtb_calculated;
     else if(args.algorithm() == "forward")

@@ -123,8 +123,8 @@ Result DPHandler::Run(vector<Sequence> seqvector, KBounds kbounds, vector<string
   if(args_->debug() && n_too_long > 0) cout << "      skipped " << n_too_long << " (of " << n_total << ") k sets 'cause they were longer than the sequence (ran " << n_run << ")" << endl;
 
   // return if no valid path
-  if(best_kset.v == 0) {
-    cout << "no valid paths for query " << seqs.name_str() << endl;
+  if(best_kset.v == 0 && best_kset.d == 0) {
+    cout << "    no valid paths for query " << seqs.name_str() << endl;
     result.no_path_ = true;
     return result;
   }

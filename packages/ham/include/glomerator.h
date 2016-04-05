@@ -54,7 +54,7 @@ public:
   void WritePartitions(vector<ClusterPath> &paths);
   void WriteAnnotations(vector<ClusterPath> &paths);
 private:
-  void ReadCachedLogProbs();
+  void ReadCacheFile();
   void WriteCacheLine(ofstream &ofs, string query);
   void WriteCachedLogProbs();
 
@@ -88,6 +88,7 @@ private:
   double CalculateLogProb(string queries);
 
   bool SameLength(vector<Sequence> &seqs, bool debug=false);
+  void AddFailedQuery(string queries, string error_str);
   vector<Sequence> MergeSeqVectors(string name_a, string name_b);
   void UpdateLogProbTranslationsForAsymetrics(Query &qmerge);
   Query GetMergedQuery(string name_a, string name_b);
@@ -123,6 +124,8 @@ private:
   map<string, double> lratios_;
   map<string, string> naive_seqs_;
   map<string, string> errors_;
+
+  set<string> failed_queries_;
 
   set<string> initial_log_probs_, initial_naive_hfracs_, initial_naive_seqs_;  // keep track of the ones we read from the initial cache file so we can write only the new ones to the output cache file
 

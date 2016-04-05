@@ -1437,6 +1437,7 @@ def print_linsim_output(outstr):
 # ----------------------------------------------------------------------------------------
 def run_cmd(cmd_str, workdir):
     # print cmd_str
+    # sys.exit()
     proc = Popen(cmd_str + ' 1>' + workdir + '/out' + ' 2>' + workdir + '/err', shell=True)
     return proc
 
@@ -1488,13 +1489,13 @@ def process_out_err(out, err, extra_str='', info=None, subworkdir=None):
             info[header] = {}
             theselines = [ln for ln in out.split('\n') if header + ':' in ln]
             if len(theselines) != 1:
-                raise Exception('couldn\'t find %s line in:\n%s' % (header, out))
+                raise Exception('couldn\'t find %s line in:\nout:\n%s\nerr:\n%s' % (header, out, err))
             words = theselines[0].split()
             try:
                 for var in variables:  # convention: value corresponding to the string <var> is the word immediately vollowing <var>
                     info[header][var] = float(words[words.index(var) + 1])
             except:
-                raise Exception('couldn\'t find %s line in:\n%s' % (header, out))
+                raise Exception('couldn\'t find %s line in:\nout:\n%s\nerr:\n%s' % (header, out, err))
 
     print_str += out
 

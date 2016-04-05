@@ -18,7 +18,7 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> >
   progress_file_(fopen((args_->outfile() + ".progress").c_str(), "w"))
 {
   time(&last_status_write_time_);
-  ReadCachedLogProbs();
+  ReadCacheFile();
 
   for(size_t iqry = 0; iqry < qry_seq_list.size(); iqry++) {
     string key = SeqNameStr(qry_seq_list[iqry], ":");
@@ -99,7 +99,7 @@ Partition Glomerator::GetAnInitialPartition(int &initial_path_index, double &log
 }
 
 // ----------------------------------------------------------------------------------------
-void Glomerator::ReadCachedLogProbs() {
+void Glomerator::ReadCacheFile() {
   ifstream ifs(args_->cachefile());
   if(!ifs.is_open()) {  // this means we don't have any cached results to start with, but we'll write out what we have at the end of the run to this file
     cout << "        cachefile d.n.e." << endl;
@@ -117,6 +117,7 @@ void Glomerator::ReadCachedLogProbs() {
   assert(headstrs[1].find("logprob") == 0);
   assert(headstrs[2].find("naive_seq") == 0);
   assert(headstrs[3].find("naive_hfrac") == 0);
+  assert(headstrs[4].find("errors") == 0);
 
   // NOTE there can be two lines with the same key (say if in one run we calculated the naive seq, and in a later run calculated the log prob)
   while(getline(ifs, line)) {
@@ -124,6 +125,11 @@ void Glomerator::ReadCachedLogProbs() {
     vector<string> column_list = SplitString(line, ",");
     assert(column_list.size() == 5);
     string query(column_list[0]);
+    string errors(column_list[4]);
+    if(errors.find("no_path") != string::npos) {
+      failed_queries_.insert(query);
+      continue;
+    }
 
     string logprob_str(column_list[1]);
     if(logprob_str.size() > 0) {
@@ -413,6 +419,9 @@ double Glomerator::NaiveHfrac(string key_a, string key_b) {
 
   string &seq_a = GetNaiveSeq(key_a);
   string &seq_b = GetNaiveSeq(key_b);
+  double hfrac(INFINITY);
+  if(failed_queries_.count(key_a) || failed_queries_.count(key_b))
+    return hfrac;
   naive_hfracs_[joint_key] = CalculateHfrac(seq_a, seq_b);
 
   return naive_hfracs_[joint_key];
@@ -660,19 +669,23 @@ string Glomerator::CalculateNaiveSeq(string queries, RecoEvent *event) {
     // assert(SameLength(seq_info_[queries], true));
     result = vtb_dph_.Run(seq_info_[queries], kbinfo_[queries], only_genes_[queries], mute_freqs_[queries]);  // NOTE the sequences in <seq_info_[queries]> should already be the same length, since they've already been merged
     kbinfo_[queries] = result.better_kbounds();
-    stop = !result.boundary_error() || result.could_not_expand();  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
+    stop = !result.boundary_error() || result.could_not_expand() || result.no_path_;  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
     if(args_->debug() && !stop)
       cout << "             expand and run again" << endl;  // note that subsequent runs are much faster than the first one because of chunk caching
   } while(!stop);
 
+  if(result.no_path_) {
+    AddFailedQuery(queries, "no_path");
+    return "";
+  }
   if(result.boundary_error())
     errors_[queries] = errors_[queries] + ":boundary";
 
   if(event != nullptr)
-    *event = result.events_[0];
+    *event = result.events_.at(0);
 
   WriteStatus();
-  return result.events_[0].naive_seq_;
+  return result.events_.at(0).naive_seq_;
 }
 
 // ----------------------------------------------------------------------------------------
@@ -690,16 +703,26 @@ double Glomerator::CalculateLogProb(string queries) {  // NOTE can modify kbinfo
   do {
     result = fwd_dph_.Run(seq_info_[queries], kbinfo_[queries], only_genes_[queries], mute_freqs_[queries]);  // NOTE <only_genes> isn't necessarily <only_genes_[queries]>, since for the denominator calculation we take the OR
     kbinfo_[queries] = result.better_kbounds();
-    stop = !result.boundary_error() || result.could_not_expand();  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
+    stop = !result.boundary_error() || result.could_not_expand() || result.no_path_;  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
     if(args_->debug() && !stop)
       cout << "             expand and run again" << endl;  // note that subsequent runs are much faster than the first one because of chunk caching
   } while(!stop);
 
+  if(result.no_path_) {
+    AddFailedQuery(queries, "no_path");
+    return -INFINITY;
+  }
   if(result.boundary_error() && !result.could_not_expand())  // could_not_expand means the max is at the edge of the sequence -- e.g. k_d min is 1
     errors_[queries] = errors_[queries] + ":boundary";
 
   WriteStatus();
   return result.total_score();
+}
+
+// ----------------------------------------------------------------------------------------
+void Glomerator::AddFailedQuery(string queries, string error_str) {
+    errors_[queries] = errors_[queries] + ":" + error_str;
+    failed_queries_.insert(queries);
 }
 
 // ----------------------------------------------------------------------------------------
@@ -858,6 +881,8 @@ pair<double, Query> Glomerator::FindHfracMerge(ClusterPath *path) {
       string key_a(*it_a), key_b(*it_b);
       if(key_a == key_b)  // otherwise we'd loop over the seeded ones twice
 	continue;
+      if(failed_queries_.count(key_a) || failed_queries_.count(key_b))
+	continue;
 
       double hfrac = NaiveHfrac(key_a, key_b);
       if(hfrac > args_->hamming_fraction_bound_hi())  // if naive hamming fraction too big, don't even consider merging the pair
@@ -909,6 +934,8 @@ pair<double, Query> Glomerator::FindLRatioMerge(ClusterPath *path) {
       string key_a(*it_a), key_b(*it_b);
       if(key_a == key_b)  // otherwise we'd loop over the seeded ones twice
 	continue;
+      if(failed_queries_.count(key_a) || failed_queries_.count(key_b))
+	continue;
 
       ++n_total_pairs;
 
@@ -935,10 +962,10 @@ pair<double, Query> Glomerator::FindLRatioMerge(ClusterPath *path) {
 
   if(max_lratio == -INFINITY) {  // if we didn't find any merges that we liked
     path->finished_ = true;
-    if(path->CurrentPartition().size() == 1)
-      cout << "        stop with partition of size one" << endl;
-    else
-      cout << "        stop with: big hfrac " << n_skipped_hamming << "   small lratio " << n_small_lratios << "   total " << n_total_pairs << endl;
+    cout << "        stop with:  big hfrac " << n_skipped_hamming << "   small lratio " << n_small_lratios << "   total " << n_total_pairs;
+    if(failed_queries_.size() > 0)
+      cout << "   (" << failed_queries_.size() << " failed queries)";
+    cout << endl;
   } else {
     ++n_lratio_merges_;
     if(args_->debug())

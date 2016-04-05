@@ -516,6 +516,39 @@ void StreamHeader(ofstream &ofs, string algorithm) {
 }
 
 // ----------------------------------------------------------------------------------------
+void StreamErrorput(ofstream &ofs, string algorithm, vector<Sequence> &seqs, string errors) {
+  if(algorithm == "viterbi") {
+    ofs  // be very, very careful to change this *and* the csv header above at the same time
+      << ""
+      << "," << SeqNameStr(seqs, ":")
+      << ","
+      << ","
+      << ","
+      << ","
+      << ","
+      << ","
+      << ","
+      << ","
+      << ","
+      << ","
+      << ","
+      << ","
+      << ","
+      << ","
+      << "," << SeqStr(seqs, ":")
+      << "," << errors
+      << endl;
+  } else {
+    ofs
+      << SeqNameStr(seqs, ":")
+      << ","
+      << "," << errors
+      << endl;
+  }
+
+}
+
+// ----------------------------------------------------------------------------------------
 void StreamOutput(ofstream &ofs, string algorithm, size_t n_max, vector<RecoEvent> &events, vector<Sequence> &seqs, double total_score, string errors) {
   if(algorithm == "viterbi") {
     for(size_t ievt = 0; ievt < n_max; ++ievt) {
