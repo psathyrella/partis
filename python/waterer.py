@@ -114,9 +114,9 @@ class Waterer(object):
         n_remaining = len(self.remaining_queries)
         if skipped_unproductive > 0 or n_remaining > 0:
             print '     (skipped',
-            print '%d / %d = %.3f unproductive' % (skipped_unproductive, len(self.input_info), float(skipped_unproductive) / len(self.input_info)),
+            print '%d / %d = %.2f unproductive' % (skipped_unproductive, len(self.input_info), float(skipped_unproductive) / len(self.input_info)),
             if n_remaining > 0:
-                print '   %d / %d = %.3f other' % (n_remaining, len(self.input_info), float(n_remaining) / len(self.input_info)),
+                print '   %d / %d = %.2f other' % (n_remaining, len(self.input_info), float(n_remaining) / len(self.input_info)),
             print ')',
         print ''
         if n_remaining > 0:
@@ -728,7 +728,7 @@ class Waterer(object):
             codon_positions[region] = pos
 
         # check for unproductive rearrangements
-        codons_ok = utils.check_both_conserved_codons(query_seq, codon_positions['v'], codon_positions['j'], debug=self.debug, extra_str='      ', assert_on_fail=False)
+        codons_ok = utils.check_both_conserved_codons(query_seq, codon_positions['v'], codon_positions['j'], assert_on_fail=False)
         cdr3_length = codon_positions['j'] - codon_positions['v'] + 3
 
         if cdr3_length < 6:  # NOTE six is also hardcoded in utils
@@ -738,9 +738,7 @@ class Waterer(object):
             return
 
         in_frame_cdr3 = (cdr3_length % 3 == 0)
-        if self.debug and not in_frame_cdr3:
-            print '      out of frame cdr3: %d %% 3 = %d' % (cdr3_length, cdr3_length % 3)
-        no_stop_codon = utils.stop_codon_check(query_seq, codon_positions['v'], debug=self.debug)
+        no_stop_codon = utils.stop_codon_check(query_seq, codon_positions['v'])
         if not codons_ok or not in_frame_cdr3 or not no_stop_codon:
             if self.debug:
                 print '       unproductive rearrangement:',

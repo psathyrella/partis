@@ -1048,12 +1048,15 @@ class PartitionDriver(object):
         true_pcounter = ParameterCounter(self.glfo['seqs']) if (count_parameters and not self.args.is_data) else None
         perfplotter = PerformancePlotter(self.glfo['seqs'], 'hmm') if self.args.plot_performance else None
 
-        n_seqs_processed, n_events_processed, n_invalid_events = 0, 0, 0
+        n_lines_read, n_seqs_processed, n_events_processed, n_invalid_events = 0, 0, 0, 0
         padded_annotations, eroded_annotations = OrderedDict(), OrderedDict()
         boundary_error_queries = []
         with opener('r')(annotation_fname) as hmm_csv_outfile:
             reader = csv.DictReader(hmm_csv_outfile)
             for padded_line in reader:  # line coming from hmm output is N-padded such that all the seqs are the same length
+
+                n_lines_read += 1
+
                 failed = self.check_for_bcrham_failures(padded_line, boundary_error_queries)
                 if failed:
                     continue
@@ -1066,7 +1069,7 @@ class PartitionDriver(object):
                 if padded_line['invalid']:
                     n_invalid_events += 1
                     if self.args.debug:
-                        print '      %s padded line invalid' % padded_line['unique_ids']
+                        print '      %s padded line invalid' % ':'.join(padded_line['unique_ids'])
                     continue
 
                 # get a new dict in which we have edited the sequences to swap Ns on either end (after removing fv and jf insertions) for v_5p and j_3p deletions
@@ -1120,7 +1123,7 @@ class PartitionDriver(object):
         if perfplotter is not None:
             perfplotter.plot(self.args.plotdir + '/hmm', only_csv=self.args.only_csv_plots)
 
-        print '    processed %d sequences in %d events (%d invalid events)' % (n_seqs_processed, n_events_processed, n_invalid_events)
+        print '        %d lines:  processed %d sequences in %d events (skipped %d invalid events)' % (n_lines_read, n_seqs_processed, n_events_processed, n_invalid_events)
         if len(self.bcrham_failed_queries) > 0:
             print '      no valid paths: %s' % ':'.join(self.bcrham_failed_queries)
         if len(boundary_error_queries) > 0:
