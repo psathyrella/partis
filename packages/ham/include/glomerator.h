@@ -54,7 +54,7 @@ public:
   void WritePartitions(vector<ClusterPath> &paths);
   void WriteAnnotations(vector<ClusterPath> &paths);
 private:
-  void ReadCachedLogProbs();
+  void ReadCacheFile();
   void WriteCacheLine(ofstream &ofs, string query);
   void WriteCachedLogProbs();
 
@@ -88,6 +88,7 @@ private:
   double CalculateLogProb(string queries);
 
   bool SameLength(vector<Sequence> &seqs, bool debug=false);
+  void AddFailedQuery(string queries, string error_str);
   vector<Sequence> MergeSeqVectors(string name_a, string name_b);
   void UpdateLogProbTranslationsForAsymetrics(Query &qmerge);
   Query GetMergedQuery(string name_a, string name_b);
@@ -103,13 +104,9 @@ private:
   DPHandler vtb_dph_, fwd_dph_;
   ofstream ofs_;
 
-  vector<Partition> initial_partitions_;
-  vector<double> initial_logprobs_;
-  vector<double> initial_logweights_;
+  Partition initial_partition_;
 
   map<string, bool> seed_missing_;  // also cache the presence of the seed in each cluster
-
-  int i_initial_partition_;  // index of the next inital partition to grab (for smc stuff)
 
   map<string, string> naive_seq_name_translations_;
   map<string, pair<string, string> > logprob_name_translations_;
@@ -127,6 +124,8 @@ private:
   map<string, double> lratios_;
   map<string, string> naive_seqs_;
   map<string, string> errors_;
+
+  set<string> failed_queries_;
 
   set<string> initial_log_probs_, initial_naive_hfracs_, initial_naive_seqs_;  // keep track of the ones we read from the initial cache file so we can write only the new ones to the output cache file
 

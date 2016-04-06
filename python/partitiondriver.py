@@ -35,6 +35,7 @@ class PartitionDriver(object):
                                                            abbreviate_names=self.args.abbreviate)
         self.sw_info = None
         self.bcrham_proc_info = None
+        self.bcrham_failed_queries = set()
 
         self.n_max_calc_per_process = 200  # if a bcrham process calc'd more than this many fwd + vtb values, don't decrease the number of processes in the next step
 
@@ -61,7 +62,7 @@ class PartitionDriver(object):
 
         if len(self.input_info) > 1000 and self.args.n_procs == 1:
             print '\nhey there! I see you\'ve got %d sequences spread over %d processes. This will be kinda slow, so it might be a good idea to increase --n-procs (see the manual for suggestions on how many for annotation and partitioning).\n' % (len(self.input_info), self.args.n_procs)
-        if len(self.input_info) > 10000 and self.args.outfname is None:
+        if len(self.input_info) > 10000 and self.args.action != 'cache-parameters' and self.args.outfname is None:
             print '\nwarning: running on a lot of sequences without setting --outfname. Which is ok! But there\'ll be no persistent record of the results'
 
     # ----------------------------------------------------------------------------------------
@@ -919,9 +920,9 @@ class PartitionDriver(object):
         return unseeded_clusters
 
     # ----------------------------------------------------------------------------------------
-    def write_to_single_input_file(self, fname, nsets, parameter_dir, skipped_gene_matches, path_index=0, logweight=0.):
+    def write_to_single_input_file(self, fname, nsets, parameter_dir, skipped_gene_matches):
         csvfile = opener('w')(fname)
-        header = ['path_index', 'logweight', 'names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'only_genes', 'seqs', 'mute_freqs']  # NOTE logweight is for the whole partition
+        header = ['names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'only_genes', 'seqs', 'mute_freqs']
         writer = csv.DictWriter(csvfile, header, delimiter=' ')  # TODO should eventually rewrite arg parser in ham to handle csvs (like in glomerator cache reader)
         writer.writeheader()
 
@@ -938,8 +939,6 @@ class PartitionDriver(object):
             if len(combined_query) == 0:  # didn't find all regions
                 continue
             writer.writerow({
-                'path_index' : path_index,
-                'logweight' : logweight,  # NOTE same for all lines with the same <path_index> (since they're all from the same partition)
                 'names' : ':'.join([qn for qn in query_name_list]),
                 'k_v_min' : combined_query['k_v']['min'],
                 'k_v_max' : combined_query['k_v']['max'],
@@ -1010,7 +1009,10 @@ class PartitionDriver(object):
         return cpath
 
     # ----------------------------------------------------------------------------------------
-    def check_bcrham_errors(self, line, boundary_error_queries):
+    def check_for_bcrham_failures(self, line, boundary_error_queries):
+        if 'no_path' in line['errors']:
+            self.bcrham_failed_queries.add(line['unique_ids'])
+            return True
         if line['nth_best'] == 0:  # if this is the first line for this set of uids (i.e. the best viterbi path or only forward score)
             if line['errors'] is not None and 'boundary' in line['errors'].split(':'):
                 boundary_error_queries.append(':'.join([uid for uid in line['unique_ids']]))
@@ -1046,22 +1048,28 @@ class PartitionDriver(object):
         true_pcounter = ParameterCounter(self.glfo['seqs']) if (count_parameters and not self.args.is_data) else None
         perfplotter = PerformancePlotter(self.glfo['seqs'], 'hmm') if self.args.plot_performance else None
 
-        n_seqs_processed, n_events_processed, n_invalid_events = 0, 0, 0
+        n_lines_read, n_seqs_processed, n_events_processed, n_invalid_events = 0, 0, 0, 0
         padded_annotations, eroded_annotations = OrderedDict(), OrderedDict()
         boundary_error_queries = []
         with opener('r')(annotation_fname) as hmm_csv_outfile:
             reader = csv.DictReader(hmm_csv_outfile)
             for padded_line in reader:  # line coming from hmm output is N-padded such that all the seqs are the same length
+
+                n_lines_read += 1
+
+                failed = self.check_for_bcrham_failures(padded_line, boundary_error_queries)
+                if failed:
+                    continue
+
                 utils.process_input_line(padded_line)
                 uids = padded_line['unique_ids']
                 padded_line['indelfos'] = [self.sw_info['indels'].get(uid, utils.get_empty_indel()) for uid in uids]
-                self.check_bcrham_errors(padded_line, boundary_error_queries)
 
                 utils.add_implicit_info(self.glfo, padded_line, multi_seq=True)
                 if padded_line['invalid']:
                     n_invalid_events += 1
                     if self.args.debug:
-                        print '      %s padded line invalid' % padded_line['unique_ids']
+                        print '      %s padded line invalid' % ':'.join(padded_line['unique_ids'])
                     continue
 
                 # get a new dict in which we have edited the sequences to swap Ns on either end (after removing fv and jf insertions) for v_5p and j_3p deletions
@@ -1115,7 +1123,9 @@ class PartitionDriver(object):
         if perfplotter is not None:
             perfplotter.plot(self.args.plotdir + '/hmm', only_csv=self.args.only_csv_plots)
 
-        print '    processed %d sequences in %d events (%d invalid events)' % (n_seqs_processed, n_events_processed, n_invalid_events)
+        print '        %d lines:  processed %d sequences in %d events (skipped %d invalid events)' % (n_lines_read, n_seqs_processed, n_events_processed, n_invalid_events)
+        if len(self.bcrham_failed_queries) > 0:
+            print '      no valid paths: %s' % ':'.join(self.bcrham_failed_queries)
         if len(boundary_error_queries) > 0:
             print '      %d boundary errors' % len(boundary_error_queries)
             if self.args.debug:

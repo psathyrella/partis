@@ -114,9 +114,9 @@ class Waterer(object):
         n_remaining = len(self.remaining_queries)
         if skipped_unproductive > 0 or n_remaining > 0:
             print '     (skipped',
-            print '%d / %d = %.3f unproductive' % (skipped_unproductive, len(self.input_info), float(skipped_unproductive) / len(self.input_info)),
+            print '%d / %d = %.2f unproductive' % (skipped_unproductive, len(self.input_info), float(skipped_unproductive) / len(self.input_info)),
             if n_remaining > 0:
-                print '   %d / %d = %.3f other' % (n_remaining, len(self.input_info), float(n_remaining) / len(self.input_info)),
+                print '   %d / %d = %.2f other' % (n_remaining, len(self.input_info), float(n_remaining) / len(self.input_info)),
             print ')',
         print ''
         if n_remaining > 0:
@@ -469,7 +469,7 @@ class Waterer(object):
         return overlap, available_space
 
     # ----------------------------------------------------------------------------------------
-    def check_boundaries(self, rpair, qrbounds, glbounds, query_name, query_seq, best, debug=False):
+    def check_boundaries(self, rpair, qrbounds, glbounds, query_name, query_seq, best, recursed=False, debug=False):
         # NOTE this duplicates code in shift_overlapping_boundaries(), which makes me cranky, but this setup avoids other things I dislike more
         l_reg = rpair['left']
         r_reg = rpair['right']
@@ -484,20 +484,20 @@ class Waterer(object):
         status = 'ok'
         if overlap > 0:  # positive overlap means they actually overlap
             status = 'overlap'
-        if overlap > available_space:  # call it nonsense if the boundaries are really whack (i.e. there isn't enough space to resolve the overlap) -- we'll presumably either toss the query or rerun with different match/mismatch
+        if overlap > available_space or overlap == 1 and available_space == 1:  # call it nonsense if the boundaries are really whack (i.e. there isn't enough space to resolve the overlap) -- we'll presumably either toss the query or rerun with different match/mismatch
             status = 'nonsense'
 
         if debug:
             print '  overlap status: %s' % status
 
-        if status == 'nonsense' and l_reg == 'd' and self.nth_try > 2:  # on rare occasions with very high mutation, vdjalign refuses to give us a j match that's at all to the right of the d match
+        if not recursed and status == 'nonsense' and l_reg == 'd' and self.nth_try > 2:  # on rare occasions with very high mutation, vdjalign refuses to give us a j match that's at all to the right of the d match
             assert l_reg == 'd' and r_reg == 'j'
             if debug:
                 print '  %s: synthesizing d match' % query_name
             leftmost_position = min(qrbounds[l_gene][0], qrbounds[r_gene][0])
             qrbounds[l_gene] = (leftmost_position, leftmost_position + 1)  # swap whatever crummy nonsense d match we have now for a one-base match at the left end of things (things in practice should be left end of j match)
             glbounds[l_gene] = (0, 1)
-            status = self.check_boundaries(rpair, qrbounds, glbounds, query_name, query_seq, best, debug)
+            status = self.check_boundaries(rpair, qrbounds, glbounds, query_name, query_seq, best, recursed=True, debug=debug)
             if status == 'overlap':
                 if debug:
                     print '  \'overlap\' status after synthesizing d match. Setting to \'nonsense\', I can\'t deal with this bullshit'
@@ -536,9 +536,9 @@ class Waterer(object):
             print '    lengths        portions     '
         while l_portion + r_portion < overlap:
             if debug:
-                print '  %4d %4d      %4d %4d      %s %s' % (l_length, r_length, l_portion, r_portion, '', '')
+                print '  %4d %4d      %4d %4d' % (l_length, r_length, l_portion, r_portion)
             if l_length <= 1 and r_length <= 1:  # don't want to erode match (in practice it'll be the d match) all the way to zero
-                raise Exception('both lengths went to zero for %s: %s %s' % (query_name, qrbounds[l_gene], qrbounds[r_gene]))
+                raise Exception('both lengths went to one without resolving overlap for %s: %s %s' % (query_name, qrbounds[l_gene], qrbounds[r_gene]))
             elif l_length > 1 and r_length > 1:  # if both have length left, alternate back and forth
                 if (l_portion + r_portion) % 2 == 0:
                     l_portion += 1  # give one base to the left
@@ -728,7 +728,7 @@ class Waterer(object):
             codon_positions[region] = pos
 
         # check for unproductive rearrangements
-        codons_ok = utils.check_both_conserved_codons(query_seq, codon_positions['v'], codon_positions['j'], debug=self.debug, extra_str='      ', assert_on_fail=False)
+        codons_ok = utils.check_both_conserved_codons(query_seq, codon_positions['v'], codon_positions['j'], assert_on_fail=False)
         cdr3_length = codon_positions['j'] - codon_positions['v'] + 3
 
         if cdr3_length < 6:  # NOTE six is also hardcoded in utils
@@ -738,9 +738,7 @@ class Waterer(object):
             return
 
         in_frame_cdr3 = (cdr3_length % 3 == 0)
-        if self.debug and not in_frame_cdr3:
-            print '      out of frame cdr3: %d %% 3 = %d' % (cdr3_length, cdr3_length % 3)
-        no_stop_codon = utils.stop_codon_check(query_seq, codon_positions['v'], debug=self.debug)
+        no_stop_codon = utils.stop_codon_check(query_seq, codon_positions['v'])
         if not codons_ok or not in_frame_cdr3 or not no_stop_codon:
             if self.debug:
                 print '       unproductive rearrangement:',

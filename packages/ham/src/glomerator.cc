@@ -8,7 +8,6 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> >
   args_(args),
   vtb_dph_("viterbi", args_, gl, hmms),
   fwd_dph_("forward", args_, gl, hmms),
-  i_initial_partition_(0),
   n_fwd_calculated_(0),
   n_vtb_calculated_(0),
   n_hfrac_calculated_(0),
@@ -19,65 +18,24 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> >
   progress_file_(fopen((args_->outfile() + ".progress").c_str(), "w"))
 {
   time(&last_status_write_time_);
-  ReadCachedLogProbs();
+  ReadCacheFile();
 
-  Partition tmp_partition;
-  int last_ipath(0);
-  assert(args_->integers_["path_index"].size() == qry_seq_list.size());
   for(size_t iqry = 0; iqry < qry_seq_list.size(); iqry++) {
     string key = SeqNameStr(qry_seq_list[iqry], ":");
 
-    int ipath(args_->integers_["path_index"][iqry]);
-    if(last_ipath != ipath) {  // if we need to push back a new initial partition (i.e. this is a new path/particle) NOTE I'm assuming the the first one will have <path_index> zero
-      assert(0);  // deprecated, I think?
-      initial_partitions_.push_back(tmp_partition);
-      initial_logprobs_.push_back(-INFINITY);  //LogProbOfPartition(tmp_partition));
-      initial_logweights_.push_back(args_->floats_["logweight"][iqry]);  // it's the same for each <iqry> with this <path_index>
-      tmp_partition.clear();
-      last_ipath = ipath;
-    }
-      
-    tmp_partition.insert(key);
-
-    if(seq_info_.count(key) > 0)  // already added this cluster to the maps (but it'll appear more than once if it's in multiple paths/particles), so we only need to add the cluster info to <initial_partitions_>
-      continue;
-
+    initial_partition_.insert(key);
     seq_info_[key] = qry_seq_list[iqry];
     seed_missing_[key] = !InString(args_->seed_unique_id(), key);
     only_genes_[key] = args_->str_lists_["only_genes"][iqry];
+    mute_freqs_[key] = avgVector(args_->float_lists_["mute_freqs"][iqry]);
 
     KSet kmin(args_->integers_["k_v_min"][iqry], args_->integers_["k_d_min"][iqry]);
     KSet kmax(args_->integers_["k_v_max"][iqry], args_->integers_["k_d_max"][iqry]);
     KBounds kb(kmin, kmax);
     kbinfo_[key] = kb;
-
-    vector<KBounds> kbvector(seq_info_[key].size(), kbinfo_[key]);
-
-    mute_freqs_[key] = avgVector(args_->float_lists_["mute_freqs"][iqry]);
-  }
-  // add the last initial partition (i.e. for the last path/particle)
-  assert(tmp_partition.size() > 0);
-  initial_partitions_.push_back(tmp_partition);
-  initial_logprobs_.push_back(-INFINITY);  // LogProbOfPartition(tmp_partition));
-  initial_logweights_.push_back(args_->floats_["logweight"].back());
-
-  // the *first* time, we only get one path/partition from partis, so we push back a bunch of copies
-  if((int)initial_partitions_.size() == 1 && args_->smc_particles() > 1)  {
-    for(int ip=1; ip<args_->smc_particles(); ++ip) {
-      initial_partitions_.push_back(tmp_partition);
-      initial_logprobs_.push_back(-INFINITY);  // LogProbOfPartition(tmp_partition));
-      initial_logweights_.push_back(args_->floats_["logweight"].back());
-    }
   }
 
-  if((int)initial_partitions_.size() != args_->smc_particles())
-    throw runtime_error("wrong number of initial partitions " + to_string(initial_partitions_.size()) + " (should be " + to_string(args_->smc_particles()) + ")");
-
-  assert((int)initial_partitions_.size() == 1);
-  current_partition_ = &initial_partitions_[0];
-  // if(args_->debug())
-  //   for(auto &part : initial_partitions_)
-  //     PrintPartition(part, "initial");
+  current_partition_ = &initial_partition_;
 }
 
 // ----------------------------------------------------------------------------------------
@@ -110,17 +68,16 @@ void Glomerator::CacheNaiveSeqs() {  // they're written to file in the destructo
 // ----------------------------------------------------------------------------------------
 void Glomerator::Cluster() {
   if(args_->debug()) {
-    cout << "   hieragloming " << initial_partitions_[0].size() << " clusters";
+    cout << "   hieragloming " << initial_partition_.size() << " clusters";
     if(args_->seed_unique_id() != "")
-      cout << "  (" << GetSeededClusters(initial_partitions_[0]).size() << " seeded)";
+      cout << "  (" << GetSeededClusters(initial_partition_).size() << " seeded)";
     cout << endl;
   }
 
   if(args_->logprob_ratio_threshold() == -INFINITY)
     throw runtime_error("logprob ratio threshold not specified");
 
-  assert((int)initial_partitions_.size() == 1);
-  ClusterPath cp(initial_partitions_[0], -INFINITY /*LogProbOfPartition(initial_partitions_[0])*/, initial_logweights_[0]);
+  ClusterPath cp(initial_partition_);
   do {
     Merge(&cp);
   } while(!cp.finished_);
@@ -133,14 +90,16 @@ void Glomerator::Cluster() {
 
 // ----------------------------------------------------------------------------------------
 Partition Glomerator::GetAnInitialPartition(int &initial_path_index, double &logweight) {
-  initial_path_index = i_initial_partition_;
-  assert(i_initial_partition_ < (int)initial_partitions_.size());
-  logweight = initial_logweights_[i_initial_partition_];
-  return initial_partitions_.at(i_initial_partition_++);
+  assert(0);
+  // initial_path_index = i_initial_partition_;
+  // assert(i_initial_partition_ < (int)initial_partitions_.size());
+  // logweight = initial_logweights_[i_initial_partition_];
+  // return initial_partitions_.at(i_initial_partition_++);
+  return Partition();
 }
 
 // ----------------------------------------------------------------------------------------
-void Glomerator::ReadCachedLogProbs() {
+void Glomerator::ReadCacheFile() {
   ifstream ifs(args_->cachefile());
   if(!ifs.is_open()) {  // this means we don't have any cached results to start with, but we'll write out what we have at the end of the run to this file
     cout << "        cachefile d.n.e." << endl;
@@ -158,6 +117,7 @@ void Glomerator::ReadCachedLogProbs() {
   assert(headstrs[1].find("logprob") == 0);
   assert(headstrs[2].find("naive_seq") == 0);
   assert(headstrs[3].find("naive_hfrac") == 0);
+  assert(headstrs[4].find("errors") == 0);
 
   // NOTE there can be two lines with the same key (say if in one run we calculated the naive seq, and in a later run calculated the log prob)
   while(getline(ifs, line)) {
@@ -165,6 +125,11 @@ void Glomerator::ReadCachedLogProbs() {
     vector<string> column_list = SplitString(line, ",");
     assert(column_list.size() == 5);
     string query(column_list[0]);
+    string errors(column_list[4]);
+    if(errors.find("no_path") != string::npos) {
+      failed_queries_.insert(query);
+      continue;
+    }
 
     string logprob_str(column_list[1]);
     if(logprob_str.size() > 0) {
@@ -243,14 +208,10 @@ void Glomerator::WriteCachedLogProbs() {
 void Glomerator::WritePartitions(vector<ClusterPath> &paths) {
   ofs_.open(args_->outfile());
   ofs_ << setprecision(20);
-  if(paths.size() > 0)
-    ofs_ << "path_index,initial_path_index,";
-  ofs_ << "partition,logprob,logweight" << endl;
+  ofs_ << "partition,logprob" << endl;
   int ipath(0);
   for(auto &cp : paths) {
     for(unsigned ipart=0; ipart<cp.partitions().size(); ++ipart) {
-      if(paths.size() > 0)
-	ofs_ << ipath << "," << cp.initial_path_index_ << ",";
       int ic(0);
       for(auto &cluster : cp.partitions()[ipart]) {
 	if(ic > 0)
@@ -258,8 +219,7 @@ void Glomerator::WritePartitions(vector<ClusterPath> &paths) {
 	ofs_ << cluster;
 	++ic;
       }
-      ofs_ << "," << cp.logprobs()[ipart]
-	   << "," << cp.logweights()[ipart] << endl;
+      ofs_ << "," << cp.logprobs()[ipart] << endl;
     }
     ++ipath;
   }
@@ -459,6 +419,9 @@ double Glomerator::NaiveHfrac(string key_a, string key_b) {
 
   string &seq_a = GetNaiveSeq(key_a);
   string &seq_b = GetNaiveSeq(key_b);
+  double hfrac(INFINITY);
+  if(failed_queries_.count(key_a) || failed_queries_.count(key_b))
+    return hfrac;
   naive_hfracs_[joint_key] = CalculateHfrac(seq_a, seq_b);
 
   return naive_hfracs_[joint_key];
@@ -706,19 +669,23 @@ string Glomerator::CalculateNaiveSeq(string queries, RecoEvent *event) {
     // assert(SameLength(seq_info_[queries], true));
     result = vtb_dph_.Run(seq_info_[queries], kbinfo_[queries], only_genes_[queries], mute_freqs_[queries]);  // NOTE the sequences in <seq_info_[queries]> should already be the same length, since they've already been merged
     kbinfo_[queries] = result.better_kbounds();
-    stop = !result.boundary_error() || result.could_not_expand();  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
+    stop = !result.boundary_error() || result.could_not_expand() || result.no_path_;  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
     if(args_->debug() && !stop)
       cout << "             expand and run again" << endl;  // note that subsequent runs are much faster than the first one because of chunk caching
   } while(!stop);
 
+  if(result.no_path_) {
+    AddFailedQuery(queries, "no_path");
+    return "";
+  }
   if(result.boundary_error())
     errors_[queries] = errors_[queries] + ":boundary";
 
   if(event != nullptr)
-    *event = result.events_[0];
+    *event = result.events_.at(0);
 
   WriteStatus();
-  return result.events_[0].naive_seq_;
+  return result.events_.at(0).naive_seq_;
 }
 
 // ----------------------------------------------------------------------------------------
@@ -736,16 +703,26 @@ double Glomerator::CalculateLogProb(string queries) {  // NOTE can modify kbinfo
   do {
     result = fwd_dph_.Run(seq_info_[queries], kbinfo_[queries], only_genes_[queries], mute_freqs_[queries]);  // NOTE <only_genes> isn't necessarily <only_genes_[queries]>, since for the denominator calculation we take the OR
     kbinfo_[queries] = result.better_kbounds();
-    stop = !result.boundary_error() || result.could_not_expand();  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
+    stop = !result.boundary_error() || result.could_not_expand() || result.no_path_;  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
     if(args_->debug() && !stop)
       cout << "             expand and run again" << endl;  // note that subsequent runs are much faster than the first one because of chunk caching
   } while(!stop);
 
+  if(result.no_path_) {
+    AddFailedQuery(queries, "no_path");
+    return -INFINITY;
+  }
   if(result.boundary_error() && !result.could_not_expand())  // could_not_expand means the max is at the edge of the sequence -- e.g. k_d min is 1
     errors_[queries] = errors_[queries] + ":boundary";
 
   WriteStatus();
   return result.total_score();
+}
+
+// ----------------------------------------------------------------------------------------
+void Glomerator::AddFailedQuery(string queries, string error_str) {
+    errors_[queries] = errors_[queries] + ":" + error_str;
+    failed_queries_.insert(queries);
 }
 
 // ----------------------------------------------------------------------------------------
@@ -904,6 +881,8 @@ pair<double, Query> Glomerator::FindHfracMerge(ClusterPath *path) {
       string key_a(*it_a), key_b(*it_b);
       if(key_a == key_b)  // otherwise we'd loop over the seeded ones twice
 	continue;
+      if(failed_queries_.count(key_a) || failed_queries_.count(key_b))
+	continue;
 
       double hfrac = NaiveHfrac(key_a, key_b);
       if(hfrac > args_->hamming_fraction_bound_hi())  // if naive hamming fraction too big, don't even consider merging the pair
@@ -955,6 +934,8 @@ pair<double, Query> Glomerator::FindLRatioMerge(ClusterPath *path) {
       string key_a(*it_a), key_b(*it_b);
       if(key_a == key_b)  // otherwise we'd loop over the seeded ones twice
 	continue;
+      if(failed_queries_.count(key_a) || failed_queries_.count(key_b))
+	continue;
 
       ++n_total_pairs;
 
@@ -981,10 +962,10 @@ pair<double, Query> Glomerator::FindLRatioMerge(ClusterPath *path) {
 
   if(max_lratio == -INFINITY) {  // if we didn't find any merges that we liked
     path->finished_ = true;
-    if(path->CurrentPartition().size() == 1)
-      cout << "        stop with partition of size one" << endl;
-    else
-      cout << "        stop with: big hfrac " << n_skipped_hamming << "   small lratio " << n_small_lratios << "   total " << n_total_pairs << endl;
+    cout << "        stop with:  big hfrac " << n_skipped_hamming << "   small lratio " << n_small_lratios << "   total " << n_total_pairs;
+    if(failed_queries_.size() > 0)
+      cout << "   (" << failed_queries_.size() << " failed queries)";
+    cout << endl;
   } else {
     ++n_lratio_merges_;
     if(args_->debug())
@@ -1045,8 +1026,7 @@ void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
   GetNaiveSeq(chosen_qmerge.name_, &chosen_qmerge.parents_);  // this *needs* to happen here so it has the parental information
   UpdateLogProbTranslationsForAsymetrics(chosen_qmerge);
 
-  // NOTE this will calculate any logprobs that we earlier approximated with translations when we only needed the ratio
-  Partition new_partition(path->CurrentPartition());  // note: CurrentPartition() returns a reference
+  Partition new_partition(path->CurrentPartition());
   new_partition.erase(chosen_qmerge.parents_.first);
   new_partition.erase(chosen_qmerge.parents_.second);
   new_partition.insert(chosen_qmerge.name_);
