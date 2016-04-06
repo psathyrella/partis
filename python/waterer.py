@@ -484,7 +484,7 @@ class Waterer(object):
         status = 'ok'
         if overlap > 0:  # positive overlap means they actually overlap
             status = 'overlap'
-        if overlap > available_space:  # call it nonsense if the boundaries are really whack (i.e. there isn't enough space to resolve the overlap) -- we'll presumably either toss the query or rerun with different match/mismatch
+        if overlap > available_space or overlap == 1 and available_space == 1:  # call it nonsense if the boundaries are really whack (i.e. there isn't enough space to resolve the overlap) -- we'll presumably either toss the query or rerun with different match/mismatch
             status = 'nonsense'
 
         if debug:
@@ -536,9 +536,9 @@ class Waterer(object):
             print '    lengths        portions     '
         while l_portion + r_portion < overlap:
             if debug:
-                print '  %4d %4d      %4d %4d      %s %s' % (l_length, r_length, l_portion, r_portion, '', '')
+                print '  %4d %4d      %4d %4d' % (l_length, r_length, l_portion, r_portion)
             if l_length <= 1 and r_length <= 1:  # don't want to erode match (in practice it'll be the d match) all the way to zero
-                raise Exception('both lengths went to zero for %s: %s %s' % (query_name, qrbounds[l_gene], qrbounds[r_gene]))
+                raise Exception('both lengths went to one without resolving overlap for %s: %s %s' % (query_name, qrbounds[l_gene], qrbounds[r_gene]))
             elif l_length > 1 and r_length > 1:  # if both have length left, alternate back and forth
                 if (l_portion + r_portion) % 2 == 0:
                     l_portion += 1  # give one base to the left

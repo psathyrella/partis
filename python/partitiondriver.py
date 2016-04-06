@@ -62,7 +62,7 @@ class PartitionDriver(object):
 
         if len(self.input_info) > 1000 and self.args.n_procs == 1:
             print '\nhey there! I see you\'ve got %d sequences spread over %d processes. This will be kinda slow, so it might be a good idea to increase --n-procs (see the manual for suggestions on how many for annotation and partitioning).\n' % (len(self.input_info), self.args.n_procs)
-        if len(self.input_info) > 10000 and self.args.outfname is None:
+        if len(self.input_info) > 10000 and self.args.action != 'cache-parameters' and self.args.outfname is None:
             print '\nwarning: running on a lot of sequences without setting --outfname. Which is ok! But there\'ll be no persistent record of the results'
 
     # ----------------------------------------------------------------------------------------
