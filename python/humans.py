@@ -1,10 +1,18 @@
 import utils
 
-humans = {}
-humans['stanford'] = ['021-018', '021-019', '021-044', '021-048', '021-050', '021-055', '021-057', '021-059', '021-060', '021-061', '021-063', '021-068', '021-071', '021-081', '021-084']
-humans['adaptive'] = ['A', 'B', 'C']
-humans['both'] = humans['stanford'] + humans['adaptive']
+basedatadir = '/fh/fast/matsen_e/data'
 
+datasets = ['vollmers', 'adaptive', 'stern']
+
+humans = {}
+humans['vollmers'] = ['021-018', '021-019', '021-044', '021-048', '021-050', '021-055', '021-057', '021-059', '021-060', '021-061', '021-063', '021-068', '021-071', '021-081', '021-084']
+humans['adaptive'] = ['A', 'B', 'C']
+humans['stern'] = ['SRR1383326', 'SRR1383447', 'SRR1383448', 'SRR1383449', 'SRR1383450', 'SRR1383451', 'SRR1383452', 'SRR1383453', 'SRR1383454', 'SRR1383455', 'SRR1383456', 'SRR1383457', 'SRR1383458', 'SRR1383459', 'SRR1383460', 'SRR1383461', 'SRR1383462', 'SRR1383463', 'SRR1383464', 'SRR1383465', 'SRR1383466', 'SRR1383467', 'SRR1383468', 'SRR1383469', 'SRR1383470', 'SRR1383471', 'SRR1383472', 'SRR1383473', 'SRR1383474', 'SRR1383475', 'SRR1383476', 'SRR1383477']
+
+dataset_dirs = {}
+dataset_dirs['vollmers'] = '2016-04-08-vollmers'
+dataset_dirs['adaptive'] = '2016-04-07-adaptive-billion-read'
+dataset_dirs['stern'] = '2016-01-06-stern-bcell/proc_data'
 colors = {
     'A': '595', 'B': '807', 'C': '834',
     # '021-018': '1', '021-019': '1', '021-044': '1', '021-048': '1', '021-050': '1', '021-055': '1', '021-057': '1', '021-059': '1',
@@ -18,3 +26,14 @@ all_subdirs = [ '.', ] \
               + [ i + '_insertion' for i in utils.boundaries] \
               + [ 'mute-freqs', ] \
               + [ 'mute-freqs/' + r for r in utils.regions ]
+
+def get_fname(dataset, human):
+    basepath = basedatadir + '/' + dataset_dirs[dataset] + '/' + human
+    if dataset == 'adaptive':
+        return basepath + '/shuffled.csv'
+    elif dataset == 'vollmers':
+        return basepath + '/' + human + '_Lineages.fasta'
+    elif dataset == 'stern':
+        return basepath + '_collapse-unique_atleast-2.fastq'
+    else:
+        assert False
