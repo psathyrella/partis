@@ -10,6 +10,7 @@ import utils
 
 # ----------------------------------------------------------------------------------------
 def run_command(cmd_str):
+    cmd_str += ' --print-git-commit'
     print 'RUN', cmd + cmd_str
     sys.stdout.flush()
     check_call([cmd,] + cmd_str.split())

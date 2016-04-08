@@ -829,7 +829,7 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None, log='x'):
     else:
         ax.set_xlim(0.9, xmax)
 
-    if 'stanford' in title:
+    if 'vollmers' in title:
         ymin = 5e-4
     else:
         ymin = 5e-5

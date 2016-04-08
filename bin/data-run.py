@@ -1,33 +1,29 @@
 #!/usr/bin/env python
 import sys
 import os
+from subprocess import check_output
 sys.path.insert(1, './python')
 import humans
 
 fs = '/fh/fast/matsen_e/dralph/work/partis-dev'
 
-for dset in humans.datasets:
-    for hm in humans.humans[dset]:
-        if not os.path.exists(humans.get_fname(dset, hm)):
-            print 'nope', dset, hm
-        else:
-            print 'yep'
-# print humans.get_fname('stern', 'SRR1383472')
-# print humans.get_fname('adaptive', 'A')
-sys.exit()
 
-# human = 'SRR1383472' #SRR1383451 #SRR1383326
-# human += 
-# datadir = 
+dset = 'stern'
+human = 'SRR1383472' #SRR1383451 #SRR1383326
 # outdir = fs + '/_output/' + datadir + '/' + human
-# seqfname = basedatadir + '/' + datadir + '/' + human + '.fastq'
-# nprocs = 30
-
+nprocs = 30
 # human=B
 # seqfname=$fs/data/adaptive/$human/shuffled.csv
 # outdir=$fs/_output/$human-all
 # nprocs=100
 
+outname = 'annotations'
+outfname = os.path.dirname(humans.get_fname(dset, human)) + '/_output/' + outname + '.csv'
+logfbase = os.path.dirname(humans.get_fname(dset, human)) + '/_logs/' + outname
+
+n_queries = humans.get_nseqs(dset, human)
+
+proc = Popen(cmd.split(), stdout=open(logfbase + '.out', 'w'), stderr=open(logfbase + '.err', 'w'))
 # ./bin/partis.py --action cache-parameters --seqfile $seqfname \
 # 		--workdir $fs/_tmp/$RANDOM --n-procs $nprocs --slurm \
 # 		--parameter-dir $outdir/parameters/data &> _tmp/$human.log &

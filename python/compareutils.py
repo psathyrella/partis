@@ -16,7 +16,7 @@ from hist import Hist
 import seqfileopener
 import utils
 import baseutils
-from humans import humans
+import humans
 # from clusterplot import ClusterPlot
 from clusterpath import ClusterPath
 import plotting
@@ -33,9 +33,9 @@ def float_str(float_val):
 
 # ----------------------------------------------------------------------------------------
 def get_dataset(human):
-    if human in humans['adaptive']:
+    if human in humans.humans['adaptive']:
         return 'Adaptive'
-    elif human in humans['stanford']:
+    elif human in humans.humans['vollmers']:
         return 'Vollmers'
     else:
         return 'no data set'
@@ -85,12 +85,16 @@ def leafmutstr(args, n_leaves, mut_mult, hfrac_bounds=None):
 
 # ----------------------------------------------------------------------------------------
 def get_outdirname(args, label, no_subset=False):
-    outdirname = args.fsdir + '/' + label
+    if args.old_output_structure or not args.data:
+        outdirname = args.fsdir + '/' + label
+    else:
+        outdirname = os.path.dirname(humans.get_fname(label)) + '/_output'
     if not no_subset:
         if args.subset is not None:
             outdirname += '/subset-' + str(args.subset)
         if args.istartstop is not None:
             outdirname += '/istartstop-' + get_str(args.istartstop)
+
     return outdirname
 
 # ----------------------------------------------------------------------------------------
@@ -1150,21 +1154,24 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
         cmd += ' run-viterbi'
     else:
         cmd += ' ' + action
-    cmd += ' --stashdir ' + args.fsdir + ' --old-style-dir-structure'
+    cmd += ' --stashdir ' + get_outdirname(args, label).replace('/' + label, '')
+    if args.old_output_structure:
+        cmd += ' --old-style-dir-structure'
 
     extras = []
     seqfname = get_seqfile(args, datafname, label, n_leaves, mut_mult)
     if args.data:
         cmd += ' --datafname ' + seqfname
         # if args.dataset == 'adaptive':
-        extras += ['--skip-unproductive', ]
+        if args.old_output_structure:
+            extras += ['--skip-unproductive', ]
     else:
         cmd += ' --simfname ' + seqfname + ' --is-simu'
 
     n_procs = 1
     n_total_seqs = 1
     if action == 'cache-data-parameters':
-        outfname = args.fsdir + '/' + label + '/data'
+        outfname = get_outdirname(args, label) + '/data'
         extras += ['--n-max-queries', + args.n_data_to_cache]
         n_procs = max(1, args.n_data_to_cache / 500)
         n_total_seqs = args.n_data_to_cache
@@ -1197,7 +1204,12 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
             extras += ['--n-max-queries', + args.n_simu_to_cache]
             n_total_seqs = args.n_simu_to_cache
         n_procs = max(1, n_total_seqs / 1000)
-    elif 'partition' in action or action == 'run-viterbi':
+    elif action == 'run-viterbi':
+        outfname = get_outputname(args, label, action, seqfname, hfrac_bounds)
+        n_total_seqs = args.n_max_queries
+        extras += ['--n-max-queries', args.n_max_queries]
+        n_procs = max(1, n_total_seqs / 1000)
+    elif 'partition' in action:
         outfname = get_outputname(args, label, action, seqfname, hfrac_bounds)
         cmd += ' --outfname ' + outfname
         extras += ['--n-max-queries', args.n_to_partition]
@@ -1236,7 +1248,7 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
                 extras += ['--naive-hamming']
                 if hfrac_bounds is not None:
                     extras += ['--naive-hamming-bounds', get_str(hfrac_bounds, delimiter=':')]
-        elif action == 'run-viterbi':
+        elif action == 'vjcdr3-partition':
             extras += ['--annotation-clustering', 'vollmers', '--annotation-clustering-thresholds', '0.5:0.9']
             # extras += ['--persistent-cachefname', seqfname.replace('.csv', '-naive-seq-cache.csv')]  # useful if you're rerunning a bunch of times
             n_procs = max(1, args.n_to_partition / 500)

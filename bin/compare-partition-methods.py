@@ -7,7 +7,7 @@ import csv
 from subprocess import Popen
 sys.path.insert(1, './python')
 csv.field_size_limit(sys.maxsize)
-from humans import humans
+import humans
 import utils
 import compareutils
 import glob
@@ -34,6 +34,7 @@ parser.add_argument('--count-distances', action='store_true')
 parser.add_argument('--n-leaf-list', default='10')
 parser.add_argument('--hfrac-bound-list')
 parser.add_argument('--subset', type=int)
+parser.add_argument('--n-max-queries')
 parser.add_argument('--n-to-partition', type=int, default=5000)
 parser.add_argument('--n-data-to-cache', type=int, default=100000)
 parser.add_argument('--n-simu-to-cache', type=int, default=-1)
@@ -47,6 +48,7 @@ parser.add_argument('--no-similarity-matrices', action='store_true')
 parser.add_argument('--no-slurm', action='store_true')
 parser.add_argument('--seed-cluster-bounds', default='20:30')
 parser.add_argument('--iseed')
+parser.add_argument('--old-output-structure', action='store_true', help='output paths corresponding to clustering paper, i.e. with everything in /fh/fast/matsen_e/dralph')
 all_actions = ['cache-data-parameters', 'simulate', 'cache-simu-parameters', 'partition', 'naive-hamming-partition', 'vsearch-partition', 'seed-partition', 'seed-naive-hamming-partition', 'run-viterbi', 'run-changeo', 'run-mixcr', 'run-igscueal', 'synthetic', 'write-plots', 'compare-subsets', 'annotate-seed-clusters']
 parser.add_argument('--actions', required=True)  #, choices=all_actions)  #default=':'.join(all_actions))
 args = parser.parse_args()
@@ -86,13 +88,18 @@ if args.bak:
 procs = []
 for human in args.humans:
 
-    if human in humans['stanford']:
-        datadir = '/shared/silo_researcher/Matsen_F/MatsenGrp/data/stanford-lineage/2014-11-17-vollmers'
-        datafname = glob.glob(datadir + '/*' + human + '*')[0]  # should throw an index error if length is less than one... but still, this is hackey
-    elif human in humans['adaptive']:
-        datafname = args.fsdir.replace('_output', 'data') + '/adaptive/' + human + '/shuffled.csv'
+    if args.old_output_structure:
+        if human in humans.humans['vollmers']:
+            datadir = '/shared/silo_researcher/Matsen_F/MatsenGrp/data/stanford-lineage/2014-11-17-vollmers'
+            datafname = glob.glob(datadir + '/*' + human + '*')[0]  # should throw an index error if length is less than one... but still, this is hackey
+        elif human in humans.humans['adaptive']:
+            datafname = args.fsdir.replace('_output', 'data') + '/adaptive/' + human + '/shuffled.csv'
+        else:
+            assert False
     else:
-        assert False
+        datafname = humans.get_fname(human)
+        if args.n_max_queries is None:
+            args.n_max_queries = humans.get_nseqs(human)
 
     label = human
     if args.extra_label_str is not None:

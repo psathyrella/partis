@@ -51,6 +51,7 @@ if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
     print '              [e.g. where the hfrac differences are? or maybe hfrac averaged over the top N annotations?]) i.e. find what kinds of clones hfrac and lratio disagree on'
     print '    TODO test on simulation samples that are *hard*, i.e. that all have the same VJ and cdr3 length'
     print '    TODO hfrac thresholds should maybe depend on how much of which regions (v/d/j) we have'
+    print '    TODO get rid of run-driver (well, merge it into compareutils'
 
 # input and output stuff
 parser.add_argument('--seqfile', help='input sequence file')
@@ -106,6 +107,7 @@ parser.add_argument('--max-logprob-drop', type=float, default=5., help='stop glo
 parser.add_argument('--n-partitions-to-write', type=int, default=100, help='')
 
 parser.add_argument('--version', action='version', help='print version and exit', version='partis %s' % check_output(['git', 'tag']))
+parser.add_argument('--print-git-commit', action='store_true', help='print git commit hash')
 
 # temporary arguments (i.e. will be removed as soon as they're not needed)
 parser.add_argument('--gtrfname', default='data/recombinator/gtr.txt', help='File with list of GTR parameters. Fed into bppseqgen along with the chosen tree')
@@ -122,6 +124,9 @@ args.n_procs = utils.get_arg_list(args.n_procs, intify=True)
 #     raise Exception('bad n_procs %s' % n_procs)
 args.n_fewer_procs = args.n_procs[0] if len(args.n_procs) == 1 else args.n_procs[1]
 args.n_procs = args.n_procs[0]
+
+if args.print_git_commit:
+    print '    git commit %s   (tag %s)' % (check_output(['git', 'rev-parse', 'HEAD']).strip(), check_output(['git', 'tag']).strip())
 
 if args.is_data:  # if <is_data> was set on the command line, print a warning and continue
     print '  NOTE --is-data is no longer needed (it\'s the default; add --is-simu if running on simulation)'

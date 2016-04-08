@@ -1,4 +1,5 @@
 import utils
+from subprocess import check_output
 
 basedatadir = '/fh/fast/matsen_e/data'
 
@@ -27,7 +28,9 @@ all_subdirs = [ '.', ] \
               + [ 'mute-freqs', ] \
               + [ 'mute-freqs/' + r for r in utils.regions ]
 
-def get_fname(dataset, human):
+def get_fname(human, dataset=None):
+    if dataset is None:
+        dataset = get_dataset(human)
     basepath = basedatadir + '/' + dataset_dirs[dataset] + '/' + human
     if dataset == 'adaptive':
         return basepath + '/shuffled.csv'
@@ -37,3 +40,19 @@ def get_fname(dataset, human):
         return basepath + '_collapse-unique_atleast-2.fastq'
     else:
         assert False
+
+def get_nseqs(human, dataset=None):
+    fname = get_fname(human, dataset)
+    n_lines = int(check_output(['wc', '-l', fname]).split()[0])
+    suffix = fname.split('.')[-1]
+    if suffix == 'fasta' or suffix == 'fastq':
+        return n_lines / 2
+    elif suffix == '.csv':
+        return n_lines - 1
+    else:
+        assert False
+
+def get_dataset(human):
+    for dset in datasets:
+        if human in humans[dset]:
+            return dset
