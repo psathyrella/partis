@@ -126,6 +126,7 @@ args.n_fewer_procs = args.n_procs[0] if len(args.n_procs) == 1 else args.n_procs
 args.n_procs = args.n_procs[0]
 
 if args.print_git_commit:
+    print 'RUN ' + ' '.join(sys.argv)
     print '    git commit %s   (tag %s)' % (check_output(['git', 'rev-parse', 'HEAD']).strip(), check_output(['git', 'tag']).strip())
 
 if args.is_data:  # if <is_data> was set on the command line, print a warning and continue
