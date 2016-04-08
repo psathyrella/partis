@@ -17,7 +17,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--datadir', default=os.getcwd() + '/data/imgt', help='Directory from which to read non-sample-specific information (e.g. germline genes)')
 parser.add_argument('--fsdir', default='/fh/fast/matsen_e/' + os.getenv('USER') + '/work/partis-dev/_output')
 parser.add_argument('--mutation-multipliers', default='1')
-parser.add_argument('--data', action='store_true')
+parser.add_argument('--is-simu', action='store_true')
 parser.add_argument('--print-metrics', action='store_true')
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--expected-methods', default='vollmers-0.9:mixcr:changeo:vsearch-partition:naive-hamming-partition:partition')
@@ -35,10 +35,6 @@ parser.add_argument('--n-leaf-list', default='10')
 parser.add_argument('--hfrac-bound-list')
 parser.add_argument('--subset', type=int)
 parser.add_argument('--n-max-queries')
-parser.add_argument('--n-to-partition', type=int, default=5000)
-parser.add_argument('--n-data-to-cache', type=int, default=100000)
-parser.add_argument('--n-simu-to-cache', type=int, default=-1)
-parser.add_argument('--n-sim-seqs', type=int, default=10000)
 parser.add_argument('--n-subsets', type=int)
 parser.add_argument('--istartstop')  # NOTE usual zero indexing
 parser.add_argument('--istartstoplist')  # list of istartstops for comparisons
@@ -49,8 +45,8 @@ parser.add_argument('--no-slurm', action='store_true')
 parser.add_argument('--seed-cluster-bounds', default='20:30')
 parser.add_argument('--iseed')
 parser.add_argument('--old-output-structure', action='store_true', help='output paths corresponding to clustering paper, i.e. with everything in /fh/fast/matsen_e/dralph')
-all_actions = ['cache-data-parameters', 'simulate', 'cache-simu-parameters', 'partition', 'naive-hamming-partition', 'vsearch-partition', 'seed-partition', 'seed-naive-hamming-partition', 'run-viterbi', 'run-changeo', 'run-mixcr', 'run-igscueal', 'synthetic', 'write-plots', 'compare-subsets', 'annotate-seed-clusters']
-parser.add_argument('--actions', required=True)  #, choices=all_actions)  #default=':'.join(all_actions))
+all_actions = ['cache-parameters', 'simulate', 'vjcdr3-partition', 'partition', 'naive-hamming-partition', 'vsearch-partition', 'seed-partition', 'seed-naive-hamming-partition', 'run-viterbi', 'run-changeo', 'run-mixcr', 'run-igscueal', 'synthetic', 'write-plots', 'compare-subsets', 'annotate-seed-clusters']
+parser.add_argument('--actions', required=True, choices=all_actions)  #default=':'.join(all_actions))
 args = parser.parse_args()
 args.actions = utils.get_arg_list(args.actions)
 args.mutation_multipliers = utils.get_arg_list(args.mutation_multipliers, floatify=True)
@@ -64,9 +60,6 @@ args.synthetic_partitions = utils.get_arg_list(args.synthetic_partitions)
 for isp in range(len(args.synthetic_partitions)):  # I really shouldn't have set it up this way
     args.synthetic_partitions[isp] = 'misassign-' + args.synthetic_partitions[isp]
 args.seed_cluster_bounds = utils.get_arg_list(args.seed_cluster_bounds, intify=True)
-
-if 'cache-data-parameters' in args.actions:
-    args.data = True
 
 print 'TODO change name from hfrac_bounds'
 assert args.subset is None or args.istartstop is None  # dosn't make sense to set both of them
@@ -108,7 +101,7 @@ for human in args.humans:
     print 'run', human
     n_leaves, mut_mult = None, None  # values if we're runing on data
     parameterlist = [{'n_leaves' : None, 'mut_mult' : None, 'hfrac_bounds' : None}]
-    if not args.data:
+    if args.is_simu:
         if args.hfrac_bound_list is None:
             parameterlist = [{'n_leaves' : nl, 'mut_mult' : mm, 'hfrac_bounds' : None} for nl in args.n_leaf_list for mm in args.mutation_multipliers]
         else:
@@ -118,7 +111,7 @@ for human in args.humans:
         if action == 'write-plots' or action == 'compare-subsets':
             continue
         print ' ', action
-        if action == 'cache-data-parameters':
+        if action == 'cache-parameters' and not args.is_simu:
             compareutils.execute(args, action, datafname, label, n_leaves, mut_mult, procs)
             continue
 
