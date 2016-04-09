@@ -47,10 +47,10 @@ def get_nseqs(human, dataset=None):
     suffix = fname.split('.')[-1]
     if suffix == 'fasta' or suffix == 'fastq':
         return n_lines / 2
-    elif suffix == '.csv':
+    elif suffix == 'csv':
         return n_lines - 1
     else:
-        assert False
+        raise Exception('bad suffix %s in %s' % (suffix, fname))
 
 def get_dataset(human):
     for dset in datasets:
