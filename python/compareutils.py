@@ -1321,7 +1321,7 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
     # cmd += baseutils.get_extra_str(extras)
     cmd += ' ' + ' '.join([str(e) for e in extras]) + ' --print-git-commit'
     print '   ' + cmd
-    return
+    # return
 
     logbase = get_outdirname(args, label) + '/logs/' + os.path.basename(outfname).replace('.csv', '')
     if action not in logbase:
