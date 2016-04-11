@@ -101,7 +101,7 @@ def get_outdirname(args, label, no_subset=False):
     if args.old_output_structure or args.is_simu:
         outdirname = args.fsdir + '/' + label
     else:
-        outdirname = os.path.dirname(humans.get_outdir(label)) + '/_output'
+        outdirname = humans.get_outdir(label) #+ '/_output'
     if not no_subset:
         if args.subset is not None:
             outdirname += '/subset-' + str(args.subset)
@@ -1321,7 +1321,7 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
     # cmd += baseutils.get_extra_str(extras)
     cmd += ' ' + ' '.join([str(e) for e in extras]) + ' --print-git-commit'
     print '   ' + cmd
-    # return
+    return
 
     logbase = get_outdirname(args, label) + '/logs/' + os.path.basename(outfname).replace('.csv', '')
     if action not in logbase:
