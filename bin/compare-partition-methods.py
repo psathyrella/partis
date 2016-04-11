@@ -61,7 +61,6 @@ for isp in range(len(args.synthetic_partitions)):  # I really shouldn't have set
     args.synthetic_partitions[isp] = 'misassign-' + args.synthetic_partitions[isp]
 args.seed_cluster_bounds = utils.get_arg_list(args.seed_cluster_bounds, intify=True)
 
-print 'TODO change name from hfrac_bounds'
 assert args.subset is None or args.istartstop is None  # dosn't make sense to set both of them
 
 if args.subset is not None:
@@ -73,7 +72,14 @@ if args.istartstop is not None:
 if args.bak:
     args.fsdir = args.fsdir.replace('_output', '_output.bak')
 
-# ----------------------------------------------------------------------------------------
+if 'simulate' in args.actions:
+    if args.n_max_queries is None:
+        raise Exception('you have to specify a number of simulated sequences (use --n-max-queries)')
+    if not args.is_simu:
+        print 'Autoforcing --is-simu, since actions include \'simulate\''
+        args.is_simu = True
+
+# # ----------------------------------------------------------------------------------------
 # compareutils.FOOP()
 # sys.exit()
 
@@ -90,7 +96,7 @@ for human in args.humans:
         else:
             assert False
     else:
-        datafname = humans.get_fname(human)
+        datafname = humans.get_datafname(human)
         if args.n_max_queries is None:
             args.n_max_queries = humans.get_nseqs(human)
 

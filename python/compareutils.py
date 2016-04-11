@@ -25,6 +25,19 @@ changeorandomcrapstr = '_db-pass_parse-select_clone-pass.tab'
 metrics = ['adj_mi', 'ccf_under', 'ccf_over', 'ccf_product']  # NOTE ccf_{under,over} is a deprecated name, they're 'purity' and 'completeness' now
 
 # ----------------------------------------------------------------------------------------
+def FOOP():
+    dset = 'vollmers'
+    for hum in humans.humans[dset]:
+        fromdir = humans.baseprocdatadir + '/' + humans.dataset_dirs[dset] + '/' + hum
+        todir = humans.basedatadir + '/' + humans.dataset_dirs[dset] + '/' + hum
+        if not os.path.exists(todir):
+            os.makedirs(todir)
+        for fname in glob.glob(fromdir + '/*.fasta') + glob.glob(fromdir + '/*.csv.bz2'):
+            cmd = ['mv', '-v', fname, todir + '/']
+            # print ' '.join(cmd)
+            check_call(cmd)
+
+# ----------------------------------------------------------------------------------------
 def float_str(float_val):
     if float_val - int(float_val) == 0.:
         return '%d' % float_val
@@ -88,7 +101,7 @@ def get_outdirname(args, label, no_subset=False):
     if args.old_output_structure or args.is_simu:
         outdirname = args.fsdir + '/' + label
     else:
-        outdirname = os.path.dirname(humans.get_fname(label)) + '/_output'
+        outdirname = os.path.dirname(humans.get_outdir(label)) + '/_output'
     if not no_subset:
         if args.subset is not None:
             outdirname += '/subset-' + str(args.subset)
@@ -1162,7 +1175,7 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
     seqfname = get_seqfile(args, datafname, label, n_leaves, mut_mult)
     cmd += ' --seqfile ' + seqfname
     parameter_dir = get_outdirname(args, label) + '/parameters'
-    if not args.is_simu:
+    if not args.is_simu or action == 'simulate':
         parameter_dir += '/data'
     else:
         parameter_dir += '/' + os.path.basename(os.path.splitext(seqfname)[0])

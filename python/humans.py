@@ -2,6 +2,7 @@ import utils
 from subprocess import check_output
 
 basedatadir = '/fh/fast/matsen_e/data'
+baseprocdatadir = '/fh/fast/matsen_e/processed-data/partis'
 
 datasets = ['vollmers', 'adaptive', 'stern']
 
@@ -28,7 +29,7 @@ all_subdirs = [ '.', ] \
               + [ 'mute-freqs', ] \
               + [ 'mute-freqs/' + r for r in utils.regions ]
 
-def get_fname(human, dataset=None):
+def get_datafname(human, dataset=None):
     if dataset is None:
         dataset = get_dataset(human)
     basepath = basedatadir + '/' + dataset_dirs[dataset] + '/' + human
@@ -41,8 +42,13 @@ def get_fname(human, dataset=None):
     else:
         assert False
 
+def get_outdir(human, dataset=None):
+    if dataset is None:
+        dataset = get_dataset(human)
+    return baseprocdatadir + '/' + dataset_dirs[dataset] + '/' + human
+
 def get_nseqs(human, dataset=None):
-    fname = get_fname(human, dataset)
+    fname = get_datafname(human, dataset)
     n_lines = int(check_output(['wc', '-l', fname]).split()[0])
     suffix = fname.split('.')[-1]
     if suffix == 'fasta' or suffix == 'fastq':
