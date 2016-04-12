@@ -1203,22 +1203,31 @@ class PartitionDriver(object):
         outpath = outfname
         if outpath[0] != '/':  # if full output path wasn't specified on the command line
             outpath = os.getcwd() + '/' + outpath
-        outheader = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'seqs', 'aligned_v_seqs', 'aligned_d_seqs', 'aligned_j_seqs', 'naive_seq', 'indelfos']
-        outheader += [e + '_del' for e in utils.real_erosions + utils.effective_erosions] + [b + '_insertion' for b in utils.boundaries + utils.effective_boundaries]
-        outheader += [fc + 's' for fc in utils.functional_columns]
+        if not self.args.presto_output:
+            outheader = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'seqs', 'aligned_v_seqs', 'aligned_d_seqs', 'aligned_j_seqs', 'naive_seq', 'indelfos']
+            outheader += [e + '_del' for e in utils.real_erosions + utils.effective_erosions] + [b + '_insertion' for b in utils.boundaries + utils.effective_boundaries]
+            outheader += [fc + 's' for fc in utils.functional_columns]
+        else:
+            outheader = utils.presto_headers.values()
         with open(outpath, 'w') as outfile:
-            writer = csv.DictWriter(outfile, utils.presto_headers.values() if self.args.presto_output else outheader)
+            writer = csv.DictWriter(outfile, outheader)
             writer.writeheader()
             missing_input_keys = set(self.input_info.keys())  # all the keys we originially read from the file
             for line in annotations.values():
-                outline = {k : copy.deepcopy(line[k]) for k in outheader}  # in case we modify it
-                for uid in outline['unique_ids']:
+                outline = copy.deepcopy(line)  # in case we modify it
+
+                if self.args.presto_output:
+                    if len(line['indelfos'][0]['indels']) > 0:
+                        raise Exception('can\'t yet pass indels to presto')
+
+                for uid in outline['unique_ids']:  # make a note that we have an annotation for these uids (so we can see if there's any that we're missing)
                     missing_input_keys.remove(uid)
 
                 if self.args.presto_output:
-                    outline = utils.convert_to_presto(self.glfo, outline)
-                else:
-                    outline = utils.get_line_for_output(outline)  # may be kind of silly to replace it, but I don't want to change the original line too much
+                    outline = utils.convert_to_presto(self.glfo, outline, multi_seq=True)
+
+                outline = utils.get_line_for_output(outline)  # convert lists to colon-separated strings and whatnot
+                outline = {k : v for k, v in outline.items() if k in outheader}  # remove the columns we don't want to output
 
                 writer.writerow(outline)
 

@@ -169,16 +169,11 @@ def get_implicit_keys(multi_seq):
         return single_per_seq_implicit_columns
 
 # ----------------------------------------------------------------------------------------
-def convert_to_presto(glfo, line):
+def convert_to_presto(glfo, line, multi_seq):
     """ convert <line> to presto csv format """
-    if len(line['unique_ids']) > 1:
+    if multi_seq and len(line['unique_ids']) > 1:  # has to happen *before* utils.get_line_for_output()
         print line['unique_ids']
         raise Exception('multiple seqs not handled in convert_to_presto')
-
-    if len(line['indelfo']['indels']) > 0:
-        raise Exception('passing indel info to presto requires some more thought')
-    else:
-        del line['indelfo']
 
     single_info = synthesize_single_seq_line(line, iseq=0)
 
@@ -188,6 +183,7 @@ def convert_to_presto(glfo, line):
 
     return presto_line
 
+# ----------------------------------------------------------------------------------------
 # these are the top 10 v and d genes, and top six js, from mishmash.csv. Restricting to these should make testing much more stable and much faster.
 test_only_genes = 'IGHV4-61*08:IGHV3-48*01:IGHV5-51*02:IGHV3-69-1*02:IGHV1/OR15-1*04:IGHV3-66*03:IGHV3-23D*01:IGHV3-71*03:IGHV1-2*04:IGHV1-2*02:IGHD3-16*02:IGHD2-2*03:IGHD2-8*01:IGHD3-22*01:IGHD6-13*01:IGHD4-17*01:IGHD6-19*01:IGHD3-10*01:IGHD2-15*01:IGHD2-21*02:IGHJ5*02:IGHJ3*02:IGHJ2*01:IGHJ1*01:IGHJ6*03:IGHJ4*02'
 
