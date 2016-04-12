@@ -150,9 +150,6 @@ class Recombinator(object):
             total = 0.0
             for line in in_data:
                 # NOTE do *not* assume the file is sorted
-                #
-                # if int(line['cdr3_length']) == -1:
-                #     continue  # couldn't find conserved codons when we were inferring things
                 if self.args.only_genes is not None:  # are we restricting ourselves to a subset of genes?
                     if line['v_gene'] not in self.args.only_genes:
                         continue

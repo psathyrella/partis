@@ -1218,7 +1218,8 @@ class PartitionDriver(object):
 
                 if self.args.presto_output:
                     if len(line['indelfos'][0]['indels']) > 0:
-                        raise Exception('can\'t yet pass indels to presto')
+                        print 'Warning can\'t yet pass indels to presto, so skipping %s' % line['unique_ids']
+                        continue
 
                 for uid in outline['unique_ids']:  # make a note that we have an annotation for these uids (so we can see if there's any that we're missing)
                     missing_input_keys.remove(uid)
@@ -1235,4 +1236,7 @@ class PartitionDriver(object):
             if len(missing_input_keys) > 0:
                 print 'missing %d input keys' % len(missing_input_keys)
                 for uid in missing_input_keys:
-                    writer.writerow({'unique_ids' : uid})
+                    col = 'unique_ids'
+                    if self.args.presto_output:
+                        col = utils.presto_headers['unique_id']
+                    writer.writerow({col : uid})
