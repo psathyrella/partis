@@ -1050,7 +1050,7 @@ def add_missing_alignments(glfo, debug=False):
                 n_dashes = len(alignment_to_use) - len(seq)
                 glfo['aligned-genes'][region][gene] = n_dashes * '-' + seq  # just hack a bunch of dashes on the left
     if True: #debug:
-        print '   adding placeholder alignments for missing genes %s' % ' '.join([color_gene(g) for g in missing_genes])
+        print '   adding nonsense alignments for missing genes %s' % ' '.join([color_gene(g) for g in missing_genes])
 
 # ----------------------------------------------------------------------------------------
 def read_codon_positions(csvfname):

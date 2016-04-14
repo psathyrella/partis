@@ -1209,6 +1209,7 @@ class PartitionDriver(object):
             outheader += [fc + 's' for fc in utils.functional_columns]
         else:
             outheader = utils.presto_headers.values()
+            imgt_gapped_glfo = utils.read_germline_set(self.args.datadir, alignment_dir=self.args.datadir, debug=True)  # use imgt alignments  # TODO remove this
         with open(outpath, 'w') as outfile:
             writer = csv.DictWriter(outfile, outheader)
             writer.writeheader()
@@ -1227,7 +1228,6 @@ class PartitionDriver(object):
                 if self.args.presto_output:
                     # replace the default (erick) alignments with the "imgt-gapped" ones
                     utils.remove_all_implicit_info(outline, multi_seq=True)
-                    imgt_gapped_glfo = utils.read_germline_set(self.args.datadir, alignment_dir=self.args.datadir, debug=True)  # use imgt alignments  # TODO remove this
                     utils.add_implicit_info(imgt_gapped_glfo, outline, multi_seq=True)
 
                     outline = utils.convert_to_presto_headers(outline, multi_seq=True)
