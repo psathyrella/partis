@@ -98,7 +98,10 @@ for human in args.humans:
     else:
         datafname = humans.get_datafname(human)
         if args.n_max_queries is None:
-            args.n_max_queries = humans.get_nseqs(human)
+            if args.istartstop is not None:
+                args.n_max_queries = args.istartstop[1] - args.istartstop[0]
+            else:
+                args.n_max_queries = humans.get_nseqs(human)
 
     label = human
     if args.extra_label_str is not None:
