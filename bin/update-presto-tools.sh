@@ -12,13 +12,14 @@
 #   -h = Display help.
 #
 # Creates Directories:
-#   ~/tmp
+#   $outdir
 
 # Set default parameters
 PROTOTYPES=false
 PASSWORD_PROMPT=true
 USERNAME_PROMPT=true
 
+outdir=$PWD/packages
 
 # Print usage
 usage () {
@@ -64,39 +65,39 @@ fi
 
 
 # Create directories
-mkdir -p $HOME/tmp
+mkdir -p $outdir
 
 # Download bits
 echo -e "\n\nDownloading default branch from repos..."
 echo -e "================================================================================\n"
 curl -# -f -u "${USERNAME}:${PASSWORD}" \
-    https://bitbucket.org/kleinstein/presto/get/default.tar.gz -o $HOME/tmp/presto.tar.gz
+    https://bitbucket.org/kleinstein/presto/get/default.tar.gz -o $outdir/presto.tar.gz
 if [ $? -ne 0 ]; then { echo -e "Download of presto failed." ; exit 1; } fi
 curl -# -f -u "${USERNAME}:${PASSWORD}" \
-    https://bitbucket.org/kleinstein/changeo/get/default.tar.gz -o $HOME/tmp/changeo.tar.gz
+    https://bitbucket.org/kleinstein/changeo/get/default.tar.gz -o $outdir/changeo.tar.gz
 if [ $? -ne 0 ]; then { echo -e "Download of changeo failed." ; exit 1; } fi
 curl -# -f -u "${USERNAME}:${PASSWORD}" \
-    https://bitbucket.org/kleinstein/alakazam/get/default.tar.gz -o $HOME/tmp/alakazam.tar.gz
+    https://bitbucket.org/kleinstein/alakazam/get/default.tar.gz -o $outdir/alakazam.tar.gz
 if [ $? -ne 0 ]; then { echo -e "Download of alakazam failed." ; exit 1; } fi
 curl -# -f -u "${USERNAME}:${PASSWORD}" \
-    https://bitbucket.org/kleinstein/shazam/get/default.tar.gz -o $HOME/tmp/shazam.tar.gz
+    https://bitbucket.org/kleinstein/shazam/get/default.tar.gz -o $outdir/shazam.tar.gz
 if [ $? -ne 0 ]; then { echo -e "Download of shazam failed." ; exit 1; } fi
 curl -# -f -u "${USERNAME}:${PASSWORD}" \
-    https://bitbucket.org/kleinstein/tigger/get/default.tar.gz -o $HOME/tmp/tigger.tar.gz
+    https://bitbucket.org/kleinstein/tigger/get/default.tar.gz -o $outdir/tigger.tar.gz
 if [ $? -ne 0 ]; then { echo -e "Download of tigger failed." ; exit 1; } fi
 
 if $PROTOTYPES; then
     curl -# -f -u "${USERNAME}:${PASSWORD}" \
         https://bitbucket.org/javh/prototype-prestor/get/default.tar.gz \
-        -o $HOME/tmp/prototype-prestor.tar.gz
+        -o $outdir/prototype-prestor.tar.gz
     if [ $? -ne 0 ]; then { echo -e "Download of prototype-prestor failed." ; exit 1; } fi
     curl -# -f -u "${USERNAME}:${PASSWORD}" \
         https://bitbucket.org/javh/prototype-repertoire/get/default.tar.gz \
-        -o $HOME/tmp/prototype-repertoire.tar.gz
+        -o $outdir/prototype-repertoire.tar.gz
     if [ $? -ne 0 ]; then { echo -e "Download of prototype-repertoire failed." ; exit 1; } fi
     curl -# -f -u "${USERNAME}:${PASSWORD}" \
         https://bitbucket.org/javh/prototype-topology/get/default.tar.gz \
-        -o $HOME/tmp/prototype-topology.tar.gz
+        -o $outdir/prototype-topology.tar.gz
     if [ $? -ne 0 ]; then { echo -e "Download of prototype-topology failed." ; exit 1; } fi
 fi
 
@@ -104,17 +105,17 @@ fi
 # Install python tools
 echo -e "\n\nInstalling presto..."
 echo -e "================================================================================\n"
-mkdir -p $HOME/tmp/presto; cd $HOME/tmp/presto
-tar -zxf $HOME/tmp/presto.tar.gz --wildcards --exclude="tests" --strip-components=1 \
-    -C $HOME/tmp/presto
+mkdir -p $outdir/presto; cd $outdir/presto
+tar -zxf $outdir/presto.tar.gz --wildcards --exclude="tests" --strip-components=1 \
+    -C $outdir/presto
 python3 setup.py install --user
 cd -
 
 echo -e "\n\nInstalling changeo..."
 echo -e "================================================================================\n"
-mkdir -p $HOME/tmp/changeo; cd $HOME/tmp/changeo
-tar -zxf $HOME/tmp/changeo.tar.gz --wildcards --exclude="tests" --strip-components=1 \
-    -C $HOME/tmp/changeo
+mkdir -p $outdir/changeo; cd $outdir/changeo
+tar -zxf $outdir/changeo.tar.gz --wildcards --exclude="tests" --strip-components=1 \
+    -C $outdir/changeo
 python3 setup.py install --user
 cd -
 
@@ -122,30 +123,30 @@ cd -
 # Install R packages
 RSCRIPT="options(repos=c(CRAN=\"http://watson.nci.nih.gov/cran_mirror\")); \
          library(roxygen2); library(devtools); \
-         install_deps(\"${HOME}/tmp/package_directory\"); \
-         document(\"${HOME}/tmp/package_directory\"); \
-         build(\"${HOME}/tmp/package_directory\", vignettes=FALSE); \
-         install(\"${HOME}/tmp/package_directory\")"
+         install_deps(\"${outdir}/package_directory\"); \
+         document(\"${outdir}/package_directory\"); \
+         build(\"${outdir}/package_directory\", vignettes=FALSE); \
+         install(\"${outdir}/package_directory\")"
 
 echo -e "\n\nInstalling alakazam..."
 echo -e "================================================================================\n"
-mkdir -p $HOME/tmp/alakazam
-tar -zxf $HOME/tmp/alakazam.tar.gz --wildcards --exclude="tests" --strip-components=1 \
-    -C $HOME/tmp/alakazam
+mkdir -p $outdir/alakazam
+tar -zxf $outdir/alakazam.tar.gz --wildcards --exclude="tests" --strip-components=1 \
+    -C $outdir/alakazam
 Rscript -e "${RSCRIPT//package_directory/alakazam}"
 
 echo -e "\n\nInstalling shazam..."
 echo -e "================================================================================\n"
-mkdir -p $HOME/tmp/shazam
-tar -zxf $HOME/tmp/shazam.tar.gz --wildcards --exclude="tests" --strip-components=1 \
-    -C $HOME/tmp/shazam
+mkdir -p $outdir/shazam
+tar -zxf $outdir/shazam.tar.gz --wildcards --exclude="tests" --strip-components=1 \
+    -C $outdir/shazam
 Rscript -e "${RSCRIPT//package_directory/shazam}"
 
 echo -e "\n\nInstalling tigger..."
 echo -e "================================================================================\n"
-mkdir -p $HOME/tmp/tigger
-tar -zxf $HOME/tmp/tigger.tar.gz --wildcards --exclude="tests" --strip-components=1 \
-    -C $HOME/tmp/tigger
+mkdir -p $outdir/tigger
+tar -zxf $outdir/tigger.tar.gz --wildcards --exclude="tests" --strip-components=1 \
+    -C $outdir/tigger
 Rscript -e "${RSCRIPT//package_directory/tigger}"
 
 
@@ -153,22 +154,22 @@ Rscript -e "${RSCRIPT//package_directory/tigger}"
 if $PROTOTYPES; then
     echo -e "\n\nInstalling prototype-prestor..."
     echo -e "================================================================================\n"
-    mkdir -p $HOME/tmp/prototype-prestor
-    tar -zxf $HOME/tmp/prototype-prestor.tar.gz --wildcards --exclude="tests" \
-        --strip-components=1 -C $HOME/tmp/prototype-prestor
+    mkdir -p $outdir/prototype-prestor
+    tar -zxf $outdir/prototype-prestor.tar.gz --wildcards --exclude="tests" \
+        --strip-components=1 -C $outdir/prototype-prestor
     Rscript -e "${RSCRIPT//package_directory/prototype-prestor}"
 
     echo -e "\n\nInstalling prototype-repertoire..."
     echo -e "================================================================================\n"
-    mkdir -p $HOME/tmp/prototype-repertoire
-    tar -zxf $HOME/tmp/prototype-repertoire.tar.gz --wildcards --exclude="tests" \
-        --strip-components=1 -C $HOME/tmp/prototype-repertoire
+    mkdir -p $outdir/prototype-repertoire
+    tar -zxf $outdir/prototype-repertoire.tar.gz --wildcards --exclude="tests" \
+        --strip-components=1 -C $outdir/prototype-repertoire
     Rscript -e "${RSCRIPT//package_directory/prototype-repertoire}"
 
     echo -e "\n\nInstalling prototype-topology..."
     echo -e "================================================================================\n"
-    mkdir -p $HOME/tmp/prototype-topology
-    tar -zxf $HOME/tmp/prototype-topology.tar.gz --wildcards --exclude="tests" \
-        --strip-components=1 -C $HOME/tmp/prototype-topology
+    mkdir -p $outdir/prototype-topology
+    tar -zxf $outdir/prototype-topology.tar.gz --wildcards --exclude="tests" \
+        --strip-components=1 -C $outdir/prototype-topology
     Rscript -e "${RSCRIPT//package_directory/prototype-topology}"
 fi
