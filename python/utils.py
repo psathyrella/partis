@@ -210,9 +210,12 @@ def get_parameter_fname(column=None, deps=None, column_and_deps=None):
     return outfname
 
 # ----------------------------------------------------------------------------------------
-def rewrite_germline_fasta(input_dir, output_dir, only_genes):
+def rewrite_germline_fasta(input_dir, output_dir, only_genes=None):
     """ rewrite the germline set files in <input_dir> to <output_dir>, only keeping the genes in <only_genes> """
-    print '    rewriting germlines from %s to %s (using %d genes)' % (input_dir, output_dir, len(only_genes))
+    print '    rewriting germlines from %s to %s' % (input_dir, output_dir),
+    if only_genes is not None:
+        print '(using %d genes)' % len(only_genes),
+    print ''
     glfo = read_germline_set(input_dir)
     input_germlines = glfo['seqs']
     input_aligned_genes = glfo['aligned-genes']
@@ -225,7 +228,7 @@ def rewrite_germline_fasta(input_dir, output_dir, only_genes):
         expected_files.append(fname)
         with open(fname, 'w') as outfile:
             for gene in igls[region]:
-                if gene not in only_genes:
+                if only_genes is not None and gene not in only_genes:
                     continue
                 outfile.write('>' + gene + '\n')
                 outfile.write(igls[region][gene] + '\n')
@@ -1027,7 +1030,7 @@ def read_germline_seqs(datadir, only_region=None, aligned=False):
             fname = fname.replace('.fasta', '-aligned.fasta')
         glseqs[region] = OrderedDict()
         for seq_record in SeqIO.parse(fname, 'fasta'):
-            gene_name = seq_record.name
+            gene_name = seq_record.name.split('|')[0]
             seq_str = str(seq_record.seq).upper()
             glseqs[region][gene_name] = seq_str
     return glseqs
@@ -1046,8 +1049,8 @@ def add_missing_alignments(glfo, debug=False):
                     raise Exception('gene %s too long to generate missing alignment' % gene)  # could really just extend all the other alignments here, but fuck it, maybe I won't need to
                 n_dashes = len(alignment_to_use) - len(seq)
                 glfo['aligned-genes'][region][gene] = n_dashes * '-' + seq  # just hack a bunch of dashes on the left
-    # if debug:
-    #     print '   adding placeholder alignments for missing genes %s' % ' '.join([color_gene(g) for g in missing_genes])
+    if True: #debug:
+        print '   adding placeholder alignments for missing genes %s' % ' '.join([color_gene(g) for g in missing_genes])
 
 # ----------------------------------------------------------------------------------------
 def read_codon_positions(csvfname):
