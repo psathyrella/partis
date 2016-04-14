@@ -1097,8 +1097,8 @@ def get_seqfile(args, datafname, label, n_leaves, mut_mult):
         if args.istartstop is None:
             seqfname = datafname
         else:
-            assert False  # needs updating
-            subfname = args.fsdir + '/' + label + '/istartstop-' + get_str(args.istartstop) + '/data.csv'
+            # subfname = args.fsdir + '/' + label + '/istartstop-' + get_str(args.istartstop) + '/data.csv'
+            subfname = get_outdirname(args, label) + '/data.csv'
             slice_file(args, datafname, subfname)
             seqfname = subfname
     else:
@@ -1192,11 +1192,11 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
     n_procs = 1
     n_total_seqs = 1
     if action == 'cache-parameters':
-        cmd += ' --plotdir ' + parameter_dir.replace('parameters', 'plots')
+        # cmd += ' --plotdir ' + parameter_dir.replace('parameters', 'plots')
         if not args.is_simu:
             outfname = get_outdirname(args, label) + '/parameters/data'
-            extras += ['--n-max-queries', + args.n_max_queries]
-            n_procs = max(1, args.n_max_queries / 500)
+            extras += ['--n-max-queries', args.n_max_queries]
+            n_procs = max(1, args.n_max_queries / 1000)
             n_total_seqs = args.n_max_queries
         else:
             outfname = seqfname.replace('.csv', 'parameters')
