@@ -104,8 +104,10 @@ class ParameterCounter(object):
 
     # ----------------------------------------------------------------------------------------
     def plot(self, plotdir, subset_by_gene=False, cyst_positions=None, tryp_positions=None, only_csv=False):
-        print '  plotting parameters'
-        # start = time.time()
+        print '  plotting parameters',
+        sys.stdout.flush()
+        start = time.time()
+
         overall_plotdir = plotdir + '/overall'
         utils.prep_dir(overall_plotdir)  #, multilings=('*.csv', '*.svg'))
         for column in self.counts:
@@ -162,12 +164,13 @@ class ParameterCounter(object):
         if not only_csv:
             plotting.make_html(plotdir)
 
-        # print '    parameter plot time: %.3f' % (time.time()-start)
+        print '(%.1f sec)' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
     def write(self, base_outdir):
-        print '    writing parameters'
-        # start = time.time()
+        print '    writing parameters',
+        sys.stdout.flush()
+        start = time.time()
 
         utils.prep_dir(base_outdir, multilings=('*.csv', '*.svg'))
         # mute_start = time.time()
@@ -203,4 +206,4 @@ class ParameterCounter(object):
                     line['count'] = count
                     out_data.writerow(line)
 
-        # print '    parameter write time: %.3f' % (time.time()-start)
+        print '(%.1f sec)' % (time.time()-start)

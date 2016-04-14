@@ -757,8 +757,9 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def write_hmms(self, parameter_dir):
         """ Write hmm model files to <parameter_dir>/hmms, using information from <parameter_dir> """
-        print '  writing hmms with info from %s' % parameter_dir
-        # start = time.time()
+        print '  writing hmms',
+        start = time.time()
+
         from hmmwriter import HmmWriter
         hmm_dir = parameter_dir + '/hmms'
         utils.prep_dir(hmm_dir, '*.yaml')
@@ -779,7 +780,7 @@ class PartitionDriver(object):
             writer = HmmWriter(parameter_dir, hmm_dir, gene, self.args.naivety, self.glfo, self.args)
             writer.write()
 
-        # print '    time to write hmms: %.1f' % (time.time()-start)
+        print '(%.1f sec)' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
     def get_existing_hmm_files(self, parameter_dir):
@@ -1043,6 +1044,7 @@ class PartitionDriver(object):
     def read_annotation_output(self, annotation_fname, outfname=None, count_parameters=False, parameter_out_dir=None):
         """ Read bcrham annotation output """
         print '    read output'
+        sys.stdout.flush()
 
         pcounter = ParameterCounter(self.glfo['seqs']) if count_parameters else None
         true_pcounter = ParameterCounter(self.glfo['seqs']) if (count_parameters and not self.args.is_data) else None

@@ -125,6 +125,12 @@ args.n_procs = utils.get_arg_list(args.n_procs, intify=True)
 #     raise Exception('bad n_procs %s' % n_procs)
 args.n_fewer_procs = args.n_procs[0] if len(args.n_procs) == 1 else args.n_procs[1]
 args.n_procs = args.n_procs[0]
+if args.n_procs > args.n_max_procs:
+    print 'reducing n procs %d to --n-max-procs %d' % (args.n_procs, args.n_max_procs)
+    args.n_procs = args.n_max_procs
+if args.n_fewer_procs > args.n_max_procs:
+    print 'reducing n procs %d to --n-max-procs %d' % (args.n_fewer_procs, args.n_max_procs)
+    args.n_fewer_procs = args.n_max_procs
 
 if args.print_git_commit:
     print 'RUN ' + ' '.join(sys.argv)
