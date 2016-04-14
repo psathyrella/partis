@@ -59,6 +59,7 @@ parser.add_argument('--name-column', default='unique_id', help='csv column name 
 parser.add_argument('--seq-column', default='seq', help='csv column name for nucleotide sequences')
 parser.add_argument('--parameter-dir', required=True, help='Directory to/from which to write/read sample-specific parameters')
 parser.add_argument('--datadir', default=os.getcwd() + '/data/imgt', help='Directory from which to read non-sample-specific information (e.g. germline genes)')
+parser.add_argument('--alignment-dir', default=os.getcwd() + '/data/fam-alignments')  # TODO remove this
 parser.add_argument('--outfname')
 parser.add_argument('--plotdir', help='Base directory to which to write plots (no plots are written if this isn\'t set)')
 parser.add_argument('--ighutil-dir', default=os.getenv('HOME') + '/.local', help='Path to vdjalign executable. The default is where \'pip install --user\' typically puts things')

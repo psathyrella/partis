@@ -28,7 +28,7 @@ class PartitionDriver(object):
     """ Class to parse input files, start bcrham jobs, and parse/interpret bcrham output for annotation and partitioning """
     def __init__(self, args):
         self.args = args
-        self.glfo = utils.read_germline_set(self.args.datadir, debug=True)
+        self.glfo = utils.read_germline_set(self.args.datadir, alignment_dir=self.args.alignment_dir, debug=True)
 
         self.input_info, self.reco_info = get_seqfile_info(self.args.seqfile, self.args.is_data, self.glfo, self.args.n_max_queries, self.args.queries, self.args.reco_ids,
                                                            name_column=self.args.name_column, seq_column=self.args.seq_column, seed_unique_id=self.args.seed_unique_id,
@@ -1225,7 +1225,12 @@ class PartitionDriver(object):
                     missing_input_keys.remove(uid)
 
                 if self.args.presto_output:
-                    outline = utils.convert_to_presto(self.glfo, outline, multi_seq=True)
+                    # replace the default (erick) alignments with the "imgt-gapped" ones
+                    utils.remove_all_implicit_info(outline, multi_seq=True)
+                    imgt_gapped_glfo = utils.read_germline_set(self.args.datadir, alignment_dir=self.args.datadir, debug=True)  # use imgt alignments  # TODO remove this
+                    utils.add_implicit_info(imgt_gapped_glfo, outline, multi_seq=True)
+
+                    outline = utils.convert_to_presto_headers(outline, multi_seq=True)
 
                 outline = utils.get_line_for_output(outline)  # convert lists to colon-separated strings and whatnot
                 outline = {k : v for k, v in outline.items() if k in outheader}  # remove the columns we don't want to output

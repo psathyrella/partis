@@ -169,7 +169,7 @@ def get_implicit_keys(multi_seq):
         return single_per_seq_implicit_columns
 
 # ----------------------------------------------------------------------------------------
-def convert_to_presto(glfo, line, multi_seq):
+def convert_to_presto_headers(line, multi_seq):
     """ convert <line> to presto csv format """
     if multi_seq and len(line['unique_ids']) > 1:  # has to happen *before* utils.get_line_for_output()
         print line['unique_ids']
@@ -1005,10 +1005,12 @@ def unsanitize_name(name):
     return unsaniname
 
 #----------------------------------------------------------------------------------------
-def read_germline_set(datadir, debug=False):
+def read_germline_set(datadir, alignment_dir=None, debug=False):
     glfo = {}
     glfo['seqs'] = read_germline_seqs(datadir)
-    glfo['aligned-genes'] = read_germline_seqs(datadir, aligned=True)
+    if alignment_dir is None:  # TODO remove this
+        alignment_dir = datadir
+    glfo['aligned-genes'] = read_germline_seqs(alignment_dir, aligned=True)
     add_missing_alignments(glfo, debug)
     for codon in ['cyst', 'tryp']:
         glfo[codon + '-positions'] = read_codon_positions(datadir + '/' + codon + '-positions.csv')
