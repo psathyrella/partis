@@ -20,6 +20,8 @@ class Waterer(object):
     """ Run smith-waterman on the query sequences in <infname> """
     def __init__(self, args, input_info, reco_info, glfo, parameter_dir, write_parameters, genes_to_use):
         print 'smith-waterman'
+        sys.stdout.flush()
+
         self.parameter_dir = parameter_dir
         self.args = args
         self.debug = self.args.debug if self.args.sw_debug is None else self.args.sw_debug
@@ -119,6 +121,7 @@ class Waterer(object):
                 print '   %d / %d = %.2f other' % (n_remaining, len(self.input_info), float(n_remaining) / len(self.input_info)),
             print ')',
         print ''
+        sys.stdout.flush()
         if n_remaining > 0:
             printstr = '   %s %d missing annotations' % (utils.color('red', 'warning'), n_remaining)
             if n_remaining < 15:
