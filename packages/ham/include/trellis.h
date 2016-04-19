@@ -44,8 +44,7 @@ public:
   vector<int> *viterbi_pointers() { return viterbi_pointers_; }
 
   void SwapColumns(vector<double> *&scoring_previous, vector<double> *&scoring_current, bitset<STATE_MAX> &current_states, bitset<STATE_MAX> &next_states);
-  void CacheViterbiVals(size_t position, double dpval, size_t i_st_current);  // if state <i_st_current> is the most likely at <position (i.e. <dpval> is the largest so far), then cache for future retrieval
-  void CacheForwardLogProb(size_t position, double dpval, size_t i_st_current);  // add the logprob corresponding to state <i_st_current> at <position> (<dpval>) to the running cached total
+  void CacheVals(string algorithm, size_t position, double dpval, size_t i_st_current);
   void MiddleVals(string algorithm, vector<double> *scoring_previous, vector<double> *scoring_current, bitset<STATE_MAX> &current_states, bitset<STATE_MAX> &next_states, size_t position);
   void Viterbi();
   void Forward();
