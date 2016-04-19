@@ -202,11 +202,7 @@ void trellis::MiddleLogProbs(vector<double> *scoring_previous, vector<double> *s
       if((*scoring_previous)[i_st_previous] == -INFINITY)  // skip if <i_st_previous> was a dead end, i.e. that row in the previous column had zero probability
 	continue;
       double dp_val = (*scoring_previous)[i_st_previous] + emission_val + hmm_->state(i_st_previous)->transition_logprob(i_st_current);
-      if((*scoring_current)[i_st_current] == -INFINITY) {
-	(*scoring_current)[i_st_current] = dp_val;
-      } else {
-	(*scoring_current)[i_st_current] = AddInLogSpace(dp_val, (*scoring_current)[i_st_current]);
-      }
+      (*scoring_current)[i_st_current] = AddInLogSpace(dp_val, (*scoring_current)[i_st_current]);
       CacheForwardLogProb(position, dp_val, i_st_current);
       next_states |= (*hmm_->state(i_st_current)->to_states());
     }
@@ -217,10 +213,7 @@ void trellis::MiddleLogProbs(vector<double> *scoring_previous, vector<double> *s
 void trellis::CacheForwardLogProb(size_t position, double dpval, size_t i_st_current) {
   double end_trans_val = hmm_->state(i_st_current)->end_transition_logprob();
   double logprob = dpval + end_trans_val;
-  if((*forward_log_probs_)[position] == -INFINITY)
-    (*forward_log_probs_)[position] = logprob;
-  else
-    (*forward_log_probs_)[position] = AddInLogSpace(logprob, (*forward_log_probs_)[position]);
+  (*forward_log_probs_)[position] = AddInLogSpace(logprob, (*forward_log_probs_)[position]);
 }
 
 // ----------------------------------------------------------------------------------------
@@ -286,11 +279,7 @@ void trellis::Forward() {
     double dp_val = (*scoring_previous)[st_previous] + hmm_->state(st_previous)->end_transition_logprob();
     if(dp_val == -INFINITY)
       continue;
-    if(ending_forward_log_prob_ == -INFINITY) {
-      ending_forward_log_prob_ = dp_val;
-    } else {
-      ending_forward_log_prob_ = AddInLogSpace(ending_forward_log_prob_, dp_val);
-    }
+    ending_forward_log_prob_ = AddInLogSpace(ending_forward_log_prob_, dp_val);
   }
 
   delete scoring_previous;
