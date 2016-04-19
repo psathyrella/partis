@@ -86,7 +86,7 @@ Args::Args(int argc, const char * argv[]):
 
   ifstream ifs(infile());
   if(!ifs.is_open())
-    throw runtime_error("ERROR infile (" + infile() + ") d.n.e.\n");
+    throw runtime_error("args.cc: bcrham input file '" + infile() + "' d.n.e.\n");
   string line;
   // get header line
   getline(ifs, line);
@@ -125,7 +125,7 @@ Args::Args(int argc, const char * argv[]):
         ss >> tmpfloat;
         floats_[head].push_back(tmpfloat);
       } else {
-        throw runtime_error("ERROR header " + head + "' not found");
+        throw runtime_error("args.cc: found unexpected header " + head + "' in input file " + infile());
       }
     }
   }
