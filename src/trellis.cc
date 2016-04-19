@@ -73,13 +73,17 @@ double trellis::ending_forward_log_prob(size_t length) {  // NOTE this is the le
 
 // ----------------------------------------------------------------------------------------
 void trellis::Viterbi() {
+  // initialize stored values for chunk caching
+  assert(viterbi_log_probs_  == nullptr);
+  assert(viterbi_pointers_ == nullptr);
+  viterbi_log_probs_ = new vector<double> (seqs_.GetSequenceLength(), -INFINITY);
+  viterbi_pointers_ = new vector<int> (seqs_.GetSequenceLength(), -1);
+
   if(cached_trellis_) {   // ok, rad, we have another trellis with the dp table already filled in, so we can just poach the values we need from there
     traceback_table_ = cached_trellis_->traceback_table();  // note that the table from the cached trellis is larger than we need right now (that's the whole point, after all)
     ending_viterbi_pointer_ = cached_trellis_->viterbi_pointer(seqs_.GetSequenceLength());
     ending_viterbi_log_prob_ = cached_trellis_->ending_viterbi_log_prob(seqs_.GetSequenceLength());
     // and also set things to allow this trellis to be passed as a cached trellis
-    viterbi_log_probs_ = new vector<double> (seqs_.GetSequenceLength(), -INFINITY);
-    viterbi_pointers_ = new vector<int> (seqs_.GetSequenceLength(), -1);
     for(size_t ip = 0; ip < seqs_.GetSequenceLength(); ++ip) {
       (*viterbi_log_probs_)[ip] = cached_trellis_->viterbi_log_probs()->at(ip);
       (*viterbi_pointers_)[ip] = cached_trellis_->viterbi_pointers()->at(ip);
@@ -87,22 +91,18 @@ void trellis::Viterbi() {
     return;
   }
 
-  // initialize stored values for chunk caching
-  viterbi_log_probs_ = new vector<double> (seqs_.GetSequenceLength(), -INFINITY);
-  viterbi_pointers_ = new vector<int> (seqs_.GetSequenceLength(), -1);
-
   assert(!traceback_table_);
   traceback_table_ = new int_2D(seqs_.GetSequenceLength(), vector<int16_t>(hmm_->n_states(), -1));
+
   vector<double> *scoring_current  = new vector<double> (hmm_->n_states(), -INFINITY);  // dp table values in the current column (i.e. at the current position in the query sequence)
   vector<double> *scoring_previous = new vector<double> (hmm_->n_states(), -INFINITY);  // same, but for the previous position
-
   bitset<STATE_MAX> next_states;  // bitset of states which we need to check at the next position (column)
   bitset<STATE_MAX> current_states;  // 
 
   // first calculate log probs for first position in sequence
+  size_t position(0);
   State *init = hmm_->init_state();
   bitset<STATE_MAX> *initial_to_states = hmm_->initial_to_states();
-  size_t position(0);
   for(size_t i_st_current = 0; i_st_current < hmm_->n_states(); ++i_st_current) {
     if(!(*initial_to_states)[i_st_current])  // skip <i_st_current> if there's no transition to it from <init>
       continue;
@@ -118,11 +118,11 @@ void trellis::Viterbi() {
 
   // then loop over the rest of the sequence
   for(size_t position = 1; position < seqs_.GetSequenceLength(); ++position) {
-    // swap <scoring_current> and <scoring_previous>
-    scoring_previous->assign(hmm_->n_states(), -INFINITY);
+    // swap <scoring_current> and <scoring_previous>, and set <scoring_current> values to -INFINITY
     swap_ptr_ = scoring_previous;
     scoring_previous = scoring_current;
     scoring_current = swap_ptr_;
+    scoring_current->assign(hmm_->n_states(), -INFINITY);
 
     // swap the <current_states> and <next_states> bitsets (ie set current_states to the states to which we can transition from *any* of the previous states)
     current_states.reset();
@@ -148,8 +148,8 @@ void trellis::Viterbi() {
           (*scoring_current)[i_st_current] = dpval;  // save this value as the best value we've so far come across
           (*traceback_table_)[position][i_st_current] = st_previous;  // and mark which state it came from for later traceback
         }
-	CacheViterbiVals(position, dpval, i_st_current);
         next_states |= (*hmm_->state(i_st_current)->to_states());  // TODO wait, doesn't this want to be outside the st_previous loop?
+	CacheViterbiVals(position, dpval, i_st_current);
       }
     }
   }
@@ -222,6 +222,7 @@ void trellis::CacheForwardLogProb(size_t position, double dpval, size_t i_st_cur
 void trellis::Forward() {
   assert(forward_log_probs_ == nullptr);  // you can't be too careful
   forward_log_probs_ = new vector<double> (seqs_.GetSequenceLength(), -INFINITY);
+
   if(cached_trellis_) {
     if(!cached_trellis_->forward_log_probs())
       throw runtime_error("ERROR I got a trellis to cache that didn't have any forward information");
@@ -237,9 +238,9 @@ void trellis::Forward() {
   bitset<STATE_MAX> current_states;
 
   // first calculate log probs for first position in sequence
+  size_t position(0);
   State *init = hmm_->init_state();
   bitset<STATE_MAX> *initial_to_states = hmm_->initial_to_states();  // states to which we can transition from the initial state
-  size_t position(0);
   for(size_t i_st_current = 0; i_st_current < hmm_->n_states(); ++i_st_current) {
     if(!(*initial_to_states)[i_st_current])  // skip <i_st_current> if there's no transition to it from <init>
       continue;
@@ -260,7 +261,7 @@ void trellis::Forward() {
     scoring_current = swap_ptr_;
     scoring_current->assign(hmm_->n_states(), -INFINITY);
 
-    // swap <current_states> and <next_states> sets. ie set current_states to the states to which we can transition from *any* of the previous states.
+    // swap the <current_states> and <next_states> bitsets (ie set current_states to the states to which we can transition from *any* of the previous states)
     current_states.reset();
     current_states |= next_states;
     next_states.reset();
