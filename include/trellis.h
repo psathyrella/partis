@@ -62,8 +62,8 @@ private:
   double  ending_forward_log_prob_;
 
   vector<double> *viterbi_log_probs_;  // log prob of best path up to and including each position NOTE includes log prob of transition to end
-  vector<double> *forward_log_probs_;  // log prob of best path up to and including each position NOTE includes log prob of transition to end
-  vector<int> *viterbi_pointers_;  // pointer to the state at which this best log prob occurred
+  vector<double> *forward_log_probs_;  // total log prob of all paths up to and including each position NOTE includes log prob of transition to end
+  vector<int> *viterbi_pointers_;  // pointer to the state at which the best log prob occurred
   vector<double> *swap_ptr_;
 };
 

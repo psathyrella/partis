@@ -86,15 +86,18 @@ void trellis::Viterbi() {
     }
     return;
   }
+
+  // initialize stored values for chunk caching
   viterbi_log_probs_ = new vector<double> (seqs_.GetSequenceLength(), -INFINITY);
   viterbi_pointers_ = new vector<int> (seqs_.GetSequenceLength(), -1);
+
   assert(!traceback_table_);
   traceback_table_ = new int_2D(seqs_.GetSequenceLength(), vector<int16_t>(hmm_->n_states(), -1));
   vector<double> *scoring_current  = new vector<double> (hmm_->n_states(), -INFINITY);  // dp table values in the current column (i.e. at the current position in the query sequence)
   vector<double> *scoring_previous = new vector<double> (hmm_->n_states(), -INFINITY);  // same, but for the previous position
 
-  bitset<STATE_MAX> next_states;
-  bitset<STATE_MAX> current_states;
+  bitset<STATE_MAX> next_states;  // bitset of states which we need to check at the next position (column)
+  bitset<STATE_MAX> current_states;  // 
 
   // first calculate log probs for first position in sequence
   State *init = hmm_->init_state();
@@ -107,13 +110,14 @@ void trellis::Viterbi() {
     if(dp_val == -INFINITY)
       continue;
     (*scoring_current)[st] = dp_val;
-    next_states |= (*hmm_->state(st)->to_states());  // add <st>'s outbound transitions to the list of states to check when we get to the next column. This leaves <next_states> set to the OR of all states to which we can transition from if start from a state to which we can transition from <init>
+    next_states |= (*hmm_->state(st)->to_states());  // add <st>'s outbound transitions to the list of states to check when we get to the next position (column)
     double end_trans_val = hmm_->state(st)->end_transition_logprob();
     if(dp_val + end_trans_val > (*viterbi_log_probs_)[0]) {
       (*viterbi_log_probs_)[0] = dp_val + end_trans_val;
       (*viterbi_pointers_)[0] = st;
     }
   }
+
 
   // then loop over the rest of the sequence
   for(size_t position = 1; position < seqs_.GetSequenceLength(); ++position) {
@@ -123,7 +127,7 @@ void trellis::Viterbi() {
     scoring_previous = scoring_current;
     scoring_current = swap_ptr_;
 
-    // swap <current_states> and <next_states> sets. ie set current_states to the states to which we can transition from *any* of the previous states.
+    // swap the <current_states> and <next_states> bitsets (ie set current_states to the states to which we can transition from *any* of the previous states)
     current_states.reset();
     current_states |= next_states;
     next_states.reset();
@@ -152,7 +156,7 @@ void trellis::Viterbi() {
           (*viterbi_log_probs_)[position] = dp_val + end_trans_val;  // since this is the log prob of *ending* at this point, we have to add on the prob of going to the end state from this state
           (*viterbi_pointers_)[position] = st_current;
         }
-        next_states |= (*hmm_->state(st_current)->to_states());
+        next_states |= (*hmm_->state(st_current)->to_states());  // TODO wait, doesn't this want to be outside the st_previous loop?
       }
     }
   }
@@ -190,7 +194,7 @@ void trellis::MiddleLogProbs(vector<double> *scoring_previous, vector<double> *s
     double emission_val = hmm_->state(i_st_current)->EmissionLogprob(&seqs_, position);
     if(emission_val == -INFINITY)
       continue;
-    bitset<STATE_MAX> *from_trans = hmm_->state(i_st_current)->from_states();  // list of states from which we could've arrive at <i_st_current>
+    bitset<STATE_MAX> *from_trans = hmm_->state(i_st_current)->from_states();  // list of states from which we could've arrived at <i_st_current>
 
     for(size_t i_st_previous = 0; i_st_previous < hmm_->n_states(); ++i_st_previous) {
       if(!(*from_trans)[i_st_previous])
