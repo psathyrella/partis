@@ -72,7 +72,7 @@ double trellis::ending_forward_log_prob(size_t length) {  // NOTE this is the le
 }
 
 // ----------------------------------------------------------------------------------------
-void trellis::MiddleViterbi(vector<double> *scoring_previous, vector<double> *scoring_current, bitset<STATE_MAX> &current_states, bitset<STATE_MAX> &next_states, size_t position) {
+void trellis::MiddleVals(string algorithm, vector<double> *scoring_previous, vector<double> *scoring_current, bitset<STATE_MAX> &current_states, bitset<STATE_MAX> &next_states, size_t position) {
   for(size_t i_st_current = 0; i_st_current < hmm_->n_states(); ++i_st_current) {
     if(!current_states[i_st_current])  // check if transition to this state is allowed from any state through which we passed at the previous position
       continue;
@@ -88,36 +88,19 @@ void trellis::MiddleViterbi(vector<double> *scoring_previous, vector<double> *sc
       if((*scoring_previous)[i_st_previous] == -INFINITY)  // skip if <i_st_previous> was a dead end, i.e. that row in the previous column had zero probability
 	continue;
       double dpval = (*scoring_previous)[i_st_previous] + emission_val + hmm_->state(i_st_previous)->transition_logprob(i_st_current);
-      if(dpval > (*scoring_current)[i_st_current]) {
-	(*scoring_current)[i_st_current] = dpval;  // save this value as the best value we've so far come across
-	(*traceback_table_)[position][i_st_current] = i_st_previous;  // and mark which state it came from for later traceback
+      if(algorithm == "viterbi") {
+	if(dpval > (*scoring_current)[i_st_current]) {
+	  (*scoring_current)[i_st_current] = dpval;  // save this value as the best value we've so far come across
+	  (*traceback_table_)[position][i_st_current] = i_st_previous;  // and mark which state it came from for later traceback
+	}
+	CacheViterbiVals(position, dpval, i_st_current);
+      } else if(algorithm == "forward") {
+	(*scoring_current)[i_st_current] = AddInLogSpace(dpval, (*scoring_current)[i_st_current]);
+	CacheForwardLogProb(position, dpval, i_st_current);
+      } else {
+	assert(0);
       }
-      CacheViterbiVals(position, dpval, i_st_current);
       next_states |= (*hmm_->state(i_st_current)->to_states());  // TODO wait, doesn't this want to be outside the i_st_previous loop?
-    }
-  }
-}
-
-// ----------------------------------------------------------------------------------------
-void trellis::MiddleLogProbs(vector<double> *scoring_previous, vector<double> *scoring_current, bitset<STATE_MAX> &current_states, bitset<STATE_MAX> &next_states, size_t position) {
-  for(size_t i_st_current = 0; i_st_current < hmm_->n_states(); ++i_st_current) {
-    if(!current_states[i_st_current])  // check if transition to this state is allowed from any state through which we passed at the previous position
-      continue;
-
-    double emission_val = hmm_->state(i_st_current)->EmissionLogprob(&seqs_, position);
-    if(emission_val == -INFINITY)
-      continue;
-    bitset<STATE_MAX> *from_trans = hmm_->state(i_st_current)->from_states();  // list of states from which we could've arrived at <i_st_current>
-
-    for(size_t i_st_previous = 0; i_st_previous < hmm_->n_states(); ++i_st_previous) {
-      if(!(*from_trans)[i_st_previous])
-	continue;
-      if((*scoring_previous)[i_st_previous] == -INFINITY)  // skip if <i_st_previous> was a dead end, i.e. that row in the previous column had zero probability
-	continue;
-      double dpval = (*scoring_previous)[i_st_previous] + emission_val + hmm_->state(i_st_previous)->transition_logprob(i_st_current);
-      (*scoring_current)[i_st_current] = AddInLogSpace(dpval, (*scoring_current)[i_st_current]);
-      CacheForwardLogProb(position, dpval, i_st_current);
-      next_states |= (*hmm_->state(i_st_current)->to_states());
     }
   }
 }
@@ -197,7 +180,7 @@ void trellis::Viterbi() {
   // then loop over the rest of the sequence
   for(size_t position = 1; position < seqs_.GetSequenceLength(); ++position) {
     SwapColumns(scoring_previous, scoring_current, current_states, next_states);
-    MiddleViterbi(scoring_previous, scoring_current, current_states, next_states, position);
+    MiddleVals("viterbi", scoring_previous, scoring_current, current_states, next_states, position);
   }
 
   SwapColumns(scoring_previous, scoring_current, current_states, next_states);
@@ -255,7 +238,7 @@ void trellis::Forward() {
   // then loop over the rest of the sequence
   for(position = 1; position < seqs_.GetSequenceLength(); ++position) {
     SwapColumns(scoring_previous, scoring_current, current_states, next_states);
-    MiddleLogProbs(scoring_previous, scoring_current, current_states, next_states, position);
+    MiddleVals("forward", scoring_previous, scoring_current, current_states, next_states, position);
   }
 
   SwapColumns(scoring_previous, scoring_current, current_states, next_states);
