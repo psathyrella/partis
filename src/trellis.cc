@@ -88,19 +88,18 @@ void trellis::MiddleVals(string algorithm, vector<double> *scoring_previous, vec
       if((*scoring_previous)[i_st_previous] == -INFINITY)  // skip if <i_st_previous> was a dead end, i.e. that row in the previous column had zero probability
 	continue;
       double dpval = (*scoring_previous)[i_st_previous] + emission_val + hmm_->state(i_st_previous)->transition_logprob(i_st_current);
-      if(algorithm == "viterbi") {
+      if(algorithm == "viterbi") {  // TODO combinging viterbi and forward in one fcn like this seems to be ~30% slower, so we'll probably need to split them back apart eventually
 	if(dpval > (*scoring_current)[i_st_current]) {
 	  (*scoring_current)[i_st_current] = dpval;  // save this value as the best value we've so far come across
 	  (*traceback_table_)[position][i_st_current] = i_st_previous;  // and mark which state it came from for later traceback
 	}
-	CacheViterbiVals(position, dpval, i_st_current);
       } else if(algorithm == "forward") {
 	(*scoring_current)[i_st_current] = AddInLogSpace(dpval, (*scoring_current)[i_st_current]);
-	CacheForwardLogProb(position, dpval, i_st_current);
       } else {
 	assert(0);
       }
-      next_states |= (*hmm_->state(i_st_current)->to_states());  // TODO wait, doesn't this want to be outside the i_st_previous loop?
+      CacheVals(algorithm, position, dpval, i_st_current);
+      next_states |= (*hmm_->state(i_st_current)->to_states());  // NOTE we want this *inside* the <i_st_previous> loop because we only want to include previous states that are really needed
     }
   }
 }
@@ -120,19 +119,20 @@ void trellis::SwapColumns(vector<double> *&scoring_previous, vector<double> *&sc
 }
 
 // ----------------------------------------------------------------------------------------
-void trellis::CacheViterbiVals(size_t position, double dpval, size_t i_st_current) {
+void trellis::CacheVals(string algorithm, size_t position, double dpval, size_t i_st_current) {
     double end_trans_val = hmm_->state(i_st_current)->end_transition_logprob();
-    if(dpval + end_trans_val > (*viterbi_log_probs_)[position]) {
-      (*viterbi_log_probs_)[position] = dpval + end_trans_val;  // since this is the log prob of *ending* at this point, we have to add on the prob of going to the end state from this state
-      (*viterbi_pointers_)[position] = i_st_current;
+    double logprob = dpval + end_trans_val;
+    // TODO combinging viterbi and forward in one fcn like this seems to be ~30% slower, so we'll probably need to split them back apart eventually
+    if(algorithm == "viterbi") {  // if state <i_st_current> is the most likely at <position (i.e. <dpval> is the largest so far), then cache for future retrieval
+      if(logprob > (*viterbi_log_probs_)[position]) {
+	(*viterbi_log_probs_)[position] = logprob;  // since this is the log prob of *ending* at this point, we have to add on the prob of going to the end state from this state
+	(*viterbi_pointers_)[position] = i_st_current;
+      }
+    } else if(algorithm == "forward") {  // add the logprob corresponding to state <i_st_current> at <position> (<dpval>) to the running cached total
+      (*forward_log_probs_)[position] = AddInLogSpace(logprob, (*forward_log_probs_)[position]);
+    } else {
+      assert(0);
     }
-}
-
-// ----------------------------------------------------------------------------------------
-void trellis::CacheForwardLogProb(size_t position, double dpval, size_t i_st_current) {
-  double end_trans_val = hmm_->state(i_st_current)->end_transition_logprob();
-  double logprob = dpval + end_trans_val;
-  (*forward_log_probs_)[position] = AddInLogSpace(logprob, (*forward_log_probs_)[position]);
 }
 
 // ----------------------------------------------------------------------------------------
@@ -172,7 +172,7 @@ void trellis::Viterbi() {
     if(dpval == -INFINITY)
       continue;
     (*scoring_current)[i_st_current] = dpval;
-    CacheViterbiVals(position, dpval, i_st_current);
+    CacheVals("viterbi", position, dpval, i_st_current);
     next_states |= (*hmm_->state(i_st_current)->to_states());  // add <i_st_current>'s outbound transitions to the list of states to check when we get to the next position (column)
   }
 
@@ -232,7 +232,7 @@ void trellis::Forward() {
       continue;
     (*scoring_current)[i_st_current] = dpval;
     next_states |= (*hmm_->state(i_st_current)->to_states());  // add <i_st_current>'s outbound transitions to the list of states to check when we get to the next column. This leaves <next_states> set to the OR of all states to which we can transition from if start from a state to which we can transition from <init>
-    CacheForwardLogProb(position, dpval, i_st_current);
+    CacheVals("forward", position, dpval, i_st_current);
   }
 
   // then loop over the rest of the sequence
