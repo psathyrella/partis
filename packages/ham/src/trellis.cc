@@ -73,6 +73,16 @@ double trellis::ending_forward_log_prob(size_t length) {  // NOTE this is the le
 
 // ----------------------------------------------------------------------------------------
 void trellis::MiddleVals(string algorithm, vector<double> *scoring_previous, vector<double> *scoring_current, bitset<STATE_MAX> &current_states, bitset<STATE_MAX> &next_states, size_t position) {
+
+  bool viterbi(false);
+  if(algorithm == "viterbi") {  // TODO combinging viterbi and forward in one fcn like this seems to be ~30% slower, so we'll probably need to split them back apart eventually
+    viterbi = true;
+  } else if(algorithm == "forward") {
+    viterbi = false;
+  } else {
+    assert(0);
+  }
+
   for(size_t i_st_current = 0; i_st_current < hmm_->n_states(); ++i_st_current) {
     if(!current_states[i_st_current])  // check if transition to this state is allowed from any state through which we passed at the previous position
       continue;
@@ -88,15 +98,13 @@ void trellis::MiddleVals(string algorithm, vector<double> *scoring_previous, vec
       if((*scoring_previous)[i_st_previous] == -INFINITY)  // skip if <i_st_previous> was a dead end, i.e. that row in the previous column had zero probability
 	continue;
       double dpval = (*scoring_previous)[i_st_previous] + emission_val + hmm_->state(i_st_previous)->transition_logprob(i_st_current);
-      if(algorithm == "viterbi") {  // TODO combinging viterbi and forward in one fcn like this seems to be ~30% slower, so we'll probably need to split them back apart eventually
+      if(viterbi) {
 	if(dpval > (*scoring_current)[i_st_current]) {
 	  (*scoring_current)[i_st_current] = dpval;  // save this value as the best value we've so far come across
 	  (*traceback_table_)[position][i_st_current] = i_st_previous;  // and mark which state it came from for later traceback
 	}
-      } else if(algorithm == "forward") {
-	(*scoring_current)[i_st_current] = AddInLogSpace(dpval, (*scoring_current)[i_st_current]);
       } else {
-	assert(0);
+	(*scoring_current)[i_st_current] = AddInLogSpace(dpval, (*scoring_current)[i_st_current]);
       }
       CacheVals(algorithm, position, dpval, i_st_current);
       next_states |= (*hmm_->state(i_st_current)->to_states());  // NOTE we want this *inside* the <i_st_previous> loop because we only want to include previous states that are really needed
