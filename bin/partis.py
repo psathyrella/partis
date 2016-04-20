@@ -51,7 +51,8 @@ if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
     print '              [e.g. where the hfrac differences are? or maybe hfrac averaged over the top N annotations?]) i.e. find what kinds of clones hfrac and lratio disagree on'
     print '    TODO test on simulation samples that are *hard*, i.e. that all have the same VJ and cdr3 length'
     print '    TODO hfrac thresholds should maybe depend on how much of which regions (v/d/j) we have'
-    print '    TODO get rid of run-driver (well, merge it into compareutils'
+    print '    TODO add progress info for viterbi'
+    print '    TODO add emissions rescaling to bcrham scons test'
 
 # input and output stuff
 parser.add_argument('--seqfile', help='input sequence file')

@@ -1285,7 +1285,7 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
     elif action == 'annotate-seed-clusters':
         outfname = get_outputname(args, label, action, seqfname, hfrac_bounds)
         queries = get_seed_cluster(get_outputname(args, label, 'seed-partition', seqfname, hfrac_bounds))
-        extras += ['--queries=' + ':'.join(queries), '--n-sets', len(queries)]  # override run-driver's outfname
+        extras += ['--queries=' + ':'.join(queries), '--n-sets', len(queries)]
         cmd += ' --outfname ' + outfname
         n_procs = max(1, len(queries) / 500)
     elif action == 'run-changeo':

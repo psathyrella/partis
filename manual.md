@@ -181,11 +181,3 @@ The script `test/test.py` runs quite a few things and compares their outputs to 
 At the moment normal installation (e.g. described above) just runs a quick annotation test to make sure things are installed correctly (`--quick` option).
 You can, however, run all the others if you like, although they're mainly designed to make sure code modifications haven't broken anything.
 
-#### Higher Abstractions
-
-The script `bin/run-driver.py` can help to automate some of these steps.
-The command
-
-```./bin/run-driver.py --label example --datafname test/A-every-100-subset-0.tsv.bz2```
-
-will cache data parameters, run simulation, cache simulation parameters, and then run annotation a final time in order to plot performance.
