@@ -1229,6 +1229,7 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
             extras += ['--n-leaf-distribution', 'zipf']
     elif action == 'run-viterbi':
         outfname = get_outputname(args, label, action, seqfname, hfrac_bounds)
+        cmd += ' --outfname ' + outfname
         n_total_seqs = args.n_max_queries
         extras += ['--n-max-queries', args.n_max_queries]
         n_procs = max(1, n_total_seqs / 1000)
