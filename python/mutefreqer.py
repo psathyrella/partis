@@ -19,6 +19,7 @@ class MuteFreqer(object):
         self.germline_seqs = germline_seqs
         self.calculate_uncertainty = calculate_uncertainty
         self.counts, self.freqs = {}, {}
+        self.tiggervals = {}
         n_bins, xmin, xmax = 200, 0., 1.
         self.mean_rates = {'all':Hist(n_bins, xmin, xmax)}
         for region in utils.regions:
@@ -33,21 +34,27 @@ class MuteFreqer(object):
             self.mean_rates[region].fill(utils.get_mutation_rate(self.germline_seqs, info, restrict_to_region=region))  # per-region mean freq
 
             # per-gene per-position freqs
-            if info[region + '_gene'] not in self.counts:
-                self.counts[info[region + '_gene']] = {}
-            gcounts = self.counts[info[region + '_gene']]  # temporary variable to avoid long dict access
+            gene = info[region + '_gene']
+            if gene not in self.counts:
+                self.counts[gene] = {}
+                self.tiggervals[gene] = {}
+            gcounts = self.counts[gene]  # temporary variable to avoid long dict access
+            gtigger = self.tiggervals[gene]
             germline_seq = info[region + '_gl_seq']
             query_seq = info[region + '_qr_seq']
             assert len(germline_seq) == len(query_seq)
-            for inuke in range(len(germline_seq)):
-                i_germline = inuke + int(info[region + '_5p_del'])  # account for left-side deletions in the indexing
-                if germline_seq[inuke] in utils.ambiguous_bases or query_seq[inuke] in utils.ambiguous_bases:
+            for ipos in range(len(germline_seq)):
+                i_germline = ipos + int(info[region + '_5p_del'])  # account for left-side deletions in the indexing
+                if germline_seq[ipos] in utils.ambiguous_bases or query_seq[ipos] in utils.ambiguous_bases:
                     continue
                 if i_germline not in gcounts:  # if we have not yet observed this position in a query sequence, initialize it
                     gcounts[i_germline] = {n : 0 for n in utils.nukes + ['total', ]}
-                    gcounts[i_germline]['gl_nuke'] = germline_seq[inuke]
+                    gcounts[i_germline]['gl_nuke'] = germline_seq[ipos]
+                    gtigger[i_germline] = {}
                 gcounts[i_germline]['total'] += 1
-                gcounts[i_germline][query_seq[inuke]] += 1  # note that if <query_seq[inuke]> isn't among <utils.nukes>, this will toss a key error
+                gcounts[i_germline][query_seq[ipos]] += 1  # note that if <query_seq[ipos]> isn't among <utils.nukes>, this will toss a key error
+
+                
 
     # ----------------------------------------------------------------------------------------
     def get_uncertainty(self, obs, total):
@@ -123,8 +130,6 @@ class MuteFreqer(object):
         for region in utils.regions:
             self.mean_rates[region].write(mean_freq_outfname.replace('REGION', region))
 
-        self.tiggery()
-
     # ----------------------------------------------------------------------------------------
     def plot(self, base_plotdir, cyst_positions=None, tryp_positions=None, only_csv=False):
         if not self.finalized:
@@ -174,11 +179,3 @@ class MuteFreqer(object):
             outfname = self.outdir + '/' + utils.sanitize_name(gene) + '.csv'
             os.remove(outfname)
         os.rmdir(self.outdir)
-
-    # ----------------------------------------------------------------------------------------
-    def tiggery(self):
-        for gene in self.freqs:
-            print gene
-            for position in sorted(self.freqs[gene].keys()):
-                print '  ', position
-        sys.exit()
