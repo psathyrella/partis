@@ -19,7 +19,6 @@ class MuteFreqer(object):
         self.germline_seqs = germline_seqs
         self.calculate_uncertainty = calculate_uncertainty
         self.counts, self.freqs = {}, {}
-        self.tiggervals = {}
         n_bins, xmin, xmax = 200, 0., 1.
         self.mean_rates = {'all':Hist(n_bins, xmin, xmax)}
         for region in utils.regions:
@@ -31,30 +30,38 @@ class MuteFreqer(object):
         self.mean_rates['all'].fill(utils.get_mutation_rate(self.germline_seqs, info))  # mean freq over whole sequence (excluding insertions)
 
         for region in utils.regions:
-            self.mean_rates[region].fill(utils.get_mutation_rate(self.germline_seqs, info, restrict_to_region=region))  # per-region mean freq
+            regional_freq, len_excluding_ambig = utils.get_mutation_rate(self.germline_seqs, info, restrict_to_region=region, return_len_excluding_ambig=True)
+            n_mutes = regional_freq * len_excluding_ambig  # total number of mutations in the region (for tigger stuff)
+            if abs(n_mutes - int(n_mutes)) > 1e6:
+                raise Exception('n mutated %f not an integer' % n_mutes)
+            n_mutes = int(n_mutes)
+            self.mean_rates[region].fill(regional_freq)  # per-region mean freq
 
             # per-gene per-position freqs
             gene = info[region + '_gene']
             if gene not in self.counts:
                 self.counts[gene] = {}
-                self.tiggervals[gene] = {}
             gcounts = self.counts[gene]  # temporary variable to avoid long dict access
-            gtigger = self.tiggervals[gene]
             germline_seq = info[region + '_gl_seq']
             query_seq = info[region + '_qr_seq']
             assert len(germline_seq) == len(query_seq)
             for ipos in range(len(germline_seq)):
-                i_germline = ipos + int(info[region + '_5p_del'])  # account for left-side deletions in the indexing
+                igl = ipos + int(info[region + '_5p_del'])  # account for left-side deletions in the indexing
                 if germline_seq[ipos] in utils.ambiguous_bases or query_seq[ipos] in utils.ambiguous_bases:
                     continue
-                if i_germline not in gcounts:  # if we have not yet observed this position in a query sequence, initialize it
-                    gcounts[i_germline] = {n : 0 for n in utils.nukes + ['total', ]}
-                    gcounts[i_germline]['gl_nuke'] = germline_seq[ipos]
-                    gtigger[i_germline] = {}
-                gcounts[i_germline]['total'] += 1
-                gcounts[i_germline][query_seq[ipos]] += 1  # note that if <query_seq[ipos]> isn't among <utils.nukes>, this will toss a key error
+                if igl not in gcounts:  # if we have not yet observed this position in a query sequence, initialize it
+                    gcounts[igl] = {n : 0 for n in utils.nukes + ['total', ]}
+                    gcounts[igl]['gl_nuke'] = germline_seq[ipos]
+                    gcounts[igl]['tigger'] = {}
+                gcounts[igl]['total'] += 1
+                gcounts[igl][query_seq[ipos]] += 1  # note that if <query_seq[ipos]> isn't among <utils.nukes>, this will toss a key error
 
-                
+                # tigger stuff
+                if n_mutes not in gcounts[igl]['tigger']:
+                    gcounts[igl]['tigger'][n_mutes] = {'muted' : 0, 'total' : 0}
+                gcounts[igl]['tigger'][n_mutes]['total'] += 1
+                if query_seq[ipos] != germline_seq[ipos]:  # if this position is mutated
+                    gcounts[igl]['tigger'][n_mutes]['muted'] += 1  # mark that we saw this germline position mutated once in a sequence with <n_mutes> regional mutation frequency
 
     # ----------------------------------------------------------------------------------------
     def get_uncertainty(self, obs, total):
@@ -91,6 +98,11 @@ class MuteFreqer(object):
                         n_mutated += ncount  # sum over A,C,G,T
                 freqs[position]['freq'] = float(n_mutated) / total
                 freqs[position]['freq_lo_err'], freqs[position]['freq_hi_err'] = self.get_uncertainty(n_mutated, total)
+
+                freqs[position]['tigger'] = {}
+                for n_mutes in gcounts[position]['tigger']:
+                    freqs[position]['tigger'][n_mutes] = float(gcounts[position]['tigger'][n_mutes]['muted']) / gcounts[position]['tigger'][n_mutes]['total']
+
             self.freqs[gene] = freqs
 
         for hist in self.mean_rates.values():
@@ -142,9 +154,9 @@ class MuteFreqer(object):
             utils.prep_dir(plotdir + '/' + region, multilings=('*.csv', '*.svg'))
             # utils.prep_dir(plotdir + '/' + region + '-per-base/plots', multilings=('*.csv', '*.png'))
 
-        for gene in self.counts:
-            gcounts, freqs = self.counts[gene], self.freqs[gene]
-            sorted_positions = sorted(gcounts.keys())
+        for gene in self.freqs:
+            freqs = self.freqs[gene]
+            sorted_positions = sorted(freqs.keys())
             genehist = Hist(sorted_positions[-1] - sorted_positions[0] + 1, sorted_positions[0] - 0.5, sorted_positions[-1] + 0.5, xtitle='fixme', ytitle='fixme')  #, title=utils.sanitize_name(gene))
             for position in sorted_positions:
                 hi_diff = abs(freqs[position]['freq'] - freqs[position]['freq_hi_err'])
@@ -161,6 +173,7 @@ class MuteFreqer(object):
                 figsize[0] *= 2
             plotting.draw_no_root(genehist, plotdir=plotdir + '/' + utils.get_region(gene), plotname=utils.sanitize_name(gene), errors=True, write_csv=True, xline=xline, figsize=figsize, only_csv=only_csv)
             # paramutils.make_mutefreq_plot(plotdir + '/' + utils.get_region(gene) + '-per-base', utils.sanitize_name(gene), plotting_info)  # needs translation to mpl
+            # plotting.make_tiggger_plot(freqs)
 
         # make mean mute freq hists
         plotting.draw_no_root(self.mean_rates['all'], plotname='all-mean-freq', plotdir=overall_plotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True, only_csv=only_csv)

@@ -1311,12 +1311,7 @@ def prep_dir(dirname, wildling=None, multilings=None):
         os.makedirs(dirname)
     if wildling is not None or multilings is not None:
         if len([fname for fname in os.listdir(dirname) if os.path.isfile(dirname + '/' + fname)]) != 0:  # make sure there's no other files in the dir
-            print 'ERROR files remain in',dirname,'despite wildling',
-            if wildling != None:
-                print wildling
-            if multilings != None:
-                print multilings
-            assert False
+            raise Exception('files remain in %s despite wildling %s or multilings %s' % (dirname, wildling, multilings))
 
 # ----------------------------------------------------------------------------------------
 def useful_bool(bool_str):
@@ -1404,7 +1399,7 @@ def merge_csvs(outfname, csv_list, cleanup=True):
             writer.writerow(line)
 
 # ----------------------------------------------------------------------------------------
-def get_mutation_rate(germlines, line, restrict_to_region='', debug=False):
+def get_mutation_rate(germlines, line, restrict_to_region='', return_len_excluding_ambig=False, debug=False):
     naive_seq = line['naive_seq']  # NOTE this includes the fv and jf insertions
     muted_seq = line['seq']
     if restrict_to_region == '':  # NOTE this is very similar to code in performanceplotter. I should eventually cut it out of there and combine them, but I'm nervous a.t.m. because of all the complications there of having the true *and* inferred sequences so I'm punting
@@ -1424,7 +1419,7 @@ def get_mutation_rate(germlines, line, restrict_to_region='', debug=False):
 
     # print 'restrict %s' % restrict_to_region
     # color_mutants(naive_seq, muted_seq, print_result=True, extra_str='  ')
-    return hamming_fraction(naive_seq, muted_seq)
+    return hamming_fraction(naive_seq, muted_seq, return_len_excluding_ambig=return_len_excluding_ambig)
 
 # ----------------------------------------------------------------------------------------
 def print_linsim_output(outstr):
