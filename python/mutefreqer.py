@@ -70,21 +70,21 @@ class MuteFreqer(object):
         self.n_cached, self.n_not_cached = 0, 0
         for gene in self.counts:
             self.freqs[gene] = {}
-            gcounts, freqs = self.counts[gene], self.freqs[gene]
+            gcounts, gfreqs = self.counts[gene], self.gfreqs[gene]
             for position in sorted(gcounts.keys()):
-                freqs[position] = {}
+                gfreqs[position] = {}
                 n_conserved, n_mutated = 0, 0
                 for nuke in utils.nukes:
                     ncount, total = gcounts[position][nuke], gcounts[position]['total']
                     nuke_freq = float(ncount) / total
-                    freqs[position][nuke] = nuke_freq
-                    freqs[position][nuke + '_lo_err'], freqs[position][nuke + '_hi_err'] = self.get_uncertainty(ncount, total)
+                    gfreqs[position][nuke] = nuke_freq
+                    gfreqs[position][nuke + '_lo_err'], gfreqs[position][nuke + '_hi_err'] = self.get_uncertainty(ncount, total)
                     if nuke == gcounts[position]['gl_nuke']:
                         n_conserved += ncount
                     else:
                         n_mutated += ncount  # sum over A,C,G,T
-                freqs[position]['freq'] = float(n_mutated) / total
-                freqs[position]['freq_lo_err'], freqs[position]['freq_hi_err'] = self.get_uncertainty(n_mutated, total)
+                gfreqs[position]['freq'] = float(n_mutated) / total
+                gfreqs[position]['freq_lo_err'], gfreqs[position]['freq_hi_err'] = self.get_uncertainty(n_mutated, total)
 
         for hist in self.mean_rates.values():
             hist.normalize()
