@@ -173,7 +173,7 @@ class MuteFreqer(object):
                 hi_diff = abs(freqs[position]['freq'] - freqs[position]['freq_hi_err'])
                 lo_diff = abs(freqs[position]['freq'] - freqs[position]['freq_lo_err'])
                 err = 0.5*(hi_diff + lo_diff)
-                genehist.set_ibin(genehist.find_bin(position), gcounts[position]['freq'], error=err)
+                genehist.set_ibin(genehist.find_bin(position), freqs[position]['freq'], error=err)
             xline = None
             figsize = [3, 3]
             if utils.get_region(gene) == 'v' and cyst_positions is not None:
