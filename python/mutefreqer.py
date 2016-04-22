@@ -69,22 +69,22 @@ class MuteFreqer(object):
 
         self.n_cached, self.n_not_cached = 0, 0
         for gene in self.counts:
-            self.freqs[gene] = {}
-            gcounts, gfreqs = self.counts[gene], self.gfreqs[gene]
+            gcounts = self.counts[gene]
+            freqs = {position : {} for position in gcounts}
             for position in sorted(gcounts.keys()):
-                gfreqs[position] = {}
                 n_conserved, n_mutated = 0, 0
                 for nuke in utils.nukes:
                     ncount, total = gcounts[position][nuke], gcounts[position]['total']
                     nuke_freq = float(ncount) / total
-                    gfreqs[position][nuke] = nuke_freq
-                    gfreqs[position][nuke + '_lo_err'], gfreqs[position][nuke + '_hi_err'] = self.get_uncertainty(ncount, total)
+                    freqs[position][nuke] = nuke_freq
+                    freqs[position][nuke + '_lo_err'], freqs[position][nuke + '_hi_err'] = self.get_uncertainty(ncount, total)
                     if nuke == gcounts[position]['gl_nuke']:
                         n_conserved += ncount
                     else:
                         n_mutated += ncount  # sum over A,C,G,T
-                gfreqs[position]['freq'] = float(n_mutated) / total
-                gfreqs[position]['freq_lo_err'], gfreqs[position]['freq_hi_err'] = self.get_uncertainty(n_mutated, total)
+                freqs[position]['freq'] = float(n_mutated) / total
+                freqs[position]['freq_lo_err'], freqs[position]['freq_hi_err'] = self.get_uncertainty(n_mutated, total)
+            self.freqs[gene] = freqs
 
         for hist in self.mean_rates.values():
             hist.normalize()
@@ -122,6 +122,8 @@ class MuteFreqer(object):
         self.mean_rates['all'].write(mean_freq_outfname.replace('REGION', 'all'))  # hackey hackey hackey replacement... *sigh*
         for region in utils.regions:
             self.mean_rates[region].write(mean_freq_outfname.replace('REGION', region))
+
+        self.tiggery()
 
     # ----------------------------------------------------------------------------------------
     def plot(self, base_plotdir, cyst_positions=None, tryp_positions=None, only_csv=False):
@@ -172,3 +174,11 @@ class MuteFreqer(object):
             outfname = self.outdir + '/' + utils.sanitize_name(gene) + '.csv'
             os.remove(outfname)
         os.rmdir(self.outdir)
+
+    # ----------------------------------------------------------------------------------------
+    def tiggery(self):
+        for gene in self.freqs:
+            print gene
+            for position in sorted(self.freqs[gene].keys()):
+                print '  ', position
+        sys.exit()
