@@ -1021,6 +1021,7 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
 
     plt.savefig(plotdir + '/' + plotname + '.svg')
     plt.close()
+    check_call(['chmod', '664', plotdir + '/' + plotname + '.svg'])
 
 # ----------------------------------------------------------------------------------------
 def plot_cluster_similarity_matrix(plotdir, plotname, meth1, partition1, meth2, partition2, n_biggest_clusters, title='', debug=False):
@@ -1108,3 +1109,11 @@ def make_html(plotdir, n_columns=3, extension='svg'):
     with open(htmlfname, 'w') as htmlfile:
         htmlfile.write('\n'.join(lines))
     check_call(['chmod', '664', htmlfname])
+
+# ----------------------------------------------------------------------------------------
+def make_tiggger_plot(gene, freqs, plotdir, plotname):
+    fig, ax = mpl_init()
+    for position in freqs:
+        info = freqs[position]['tigger']
+        ax.plot(info.keys(), info.values(), markersize=20)
+    mpl_finish(ax, plotdir, plotname, xlabel='mutations in %s segment' % utils.get_region(gene), ylabel='position\'s mut freq', xbounds=(0,5))

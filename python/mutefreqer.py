@@ -153,6 +153,7 @@ class MuteFreqer(object):
         for region in utils.regions:
             utils.prep_dir(plotdir + '/' + region, multilings=('*.csv', '*.svg'))
             # utils.prep_dir(plotdir + '/' + region + '-per-base/plots', multilings=('*.csv', '*.png'))
+        utils.prep_dir(plotdir + '/tigger', multilings=('*.csv', '*.svg'))
 
         for gene in self.freqs:
             freqs = self.freqs[gene]
@@ -173,7 +174,7 @@ class MuteFreqer(object):
                 figsize[0] *= 2
             plotting.draw_no_root(genehist, plotdir=plotdir + '/' + utils.get_region(gene), plotname=utils.sanitize_name(gene), errors=True, write_csv=True, xline=xline, figsize=figsize, only_csv=only_csv)
             # paramutils.make_mutefreq_plot(plotdir + '/' + utils.get_region(gene) + '-per-base', utils.sanitize_name(gene), plotting_info)  # needs translation to mpl
-            # plotting.make_tiggger_plot(freqs)
+            plotting.make_tiggger_plot(gene, freqs, plotdir=plotdir + '/tigger', plotname=utils.sanitize_name(gene))
 
         # make mean mute freq hists
         plotting.draw_no_root(self.mean_rates['all'], plotname='all-mean-freq', plotdir=overall_plotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True, only_csv=only_csv)

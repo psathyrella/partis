@@ -115,8 +115,7 @@ class ParameterCounter(object):
                 continue
             values, gene_values = {}, {}
             if len(self.counts[column]) == 0:
-                print 'ERROR no counts in %s' % column
-                assert False
+                raise Exception('no counts in %s' % column)
             for index, count in self.counts[column].iteritems():
                 gene = None
                 if subset_by_gene and ('_del' in column or column == 'vd_insertion' or column == 'dj_insertion'):  # option to subset deletion and (real) insertion plots by gene
