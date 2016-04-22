@@ -26,17 +26,12 @@ class MuteFreqer(object):
         
     # ----------------------------------------------------------------------------------------
     def increment(self, info):
-        # first do overall mute freqs
-        freq = utils.get_mutation_rate(self.germline_seqs, info)
-        self.mean_rates['all'].fill(freq)
+        self.mean_rates['all'].fill(utils.get_mutation_rate(self.germline_seqs, info))  # mean freq over whole sequence (excluding insertions)
 
-        # then per-region stuff
         for region in utils.regions:
-            # per-region mean freqs
-            freq = utils.get_mutation_rate(self.germline_seqs, info, restrict_to_region=region)
-            self.mean_rates[region].fill(freq)
+            self.mean_rates[region].fill(utils.get_mutation_rate(self.germline_seqs, info, restrict_to_region=region))  # per-region mean freq
 
-            # per-gene per-position
+            # per-gene per-position freqs
             if info[region + '_gene'] not in self.counts:
                 self.counts[info[region + '_gene']] = {}
             gcounts = self.counts[info[region + '_gene']]  # temporary variable to avoid long dict access
@@ -51,7 +46,7 @@ class MuteFreqer(object):
                     gcounts[i_germline] = {n : 0 for n in utils.nukes + ['total', ]}
                     gcounts[i_germline]['gl_nuke'] = germline_seq[inuke]
                 gcounts[i_germline]['total'] += 1
-                gcounts[i_germline][query_seq[inuke]] += 1
+                gcounts[i_germline][query_seq[inuke]] += 1  # note that if <query_seq[inuke]> isn't among <utils.nukes>, this will toss a key error
 
     # # ----------------------------------------------------------------------------------------
     # def set_uncertainty(self, nuke_freq, position, nuke, counts, freqs):
