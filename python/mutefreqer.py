@@ -17,7 +17,7 @@ from opener import opener
 class MuteFreqer(object):
     def __init__(self, germline_seqs):  #, base_outdir='', base_plotdir='', write_parameters=True, plot_parameters=True):
         self.germline_seqs = germline_seqs
-        self.counts, self.freqs, self.plotting_info = {}, {}, {}
+        self.counts, self.freqs = {}, {}
         n_bins, xmin, xmax = 200, 0., 1.
         self.mean_rates = {'all':Hist(n_bins, xmin, xmax)}
         for region in utils.regions:
@@ -68,19 +68,15 @@ class MuteFreqer(object):
 
         self.n_cached, self.n_not_cached = 0, 0
         for gene in self.counts:
-            self.freqs[gene], self.plotting_info[gene] = {}, []
-            gcounts, freqs, plotting_info = self.counts[gene], self.freqs[gene], self.plotting_info[gene]
+            self.freqs[gene] = {}
+            gcounts, freqs = self.counts[gene], self.freqs[gene]
             for position in sorted(gcounts.keys()):
                 freqs[position] = {}
-                plotting_info.append({})
-                plotting_info[-1]['name'] = utils.sanitize_name(gene) + '_' + str(position)
-                plotting_info[-1]['nuke_freqs'] = {}
                 n_conserved, n_mutated = 0, 0
                 for nuke in utils.nukes:
                     ncount, total = gcounts[position][nuke], gcounts[position]['total']
                     nuke_freq = float(ncount) / total
                     freqs[position][nuke] = nuke_freq
-                    plotting_info[-1]['nuke_freqs'][nuke] = nuke_freq
                     if calculate_uncertainty:  # it's kinda slow
                         errs = fraction_uncertainty.err(ncount, total)
                         if errs[2]:
@@ -125,7 +121,7 @@ class MuteFreqer(object):
         utils.prep_dir(outdir, '*.csv')
 
         for gene in self.counts:
-            gcounts, freqs, plotting_info = self.counts[gene], self.freqs[gene], self.plotting_info[gene]
+            gcounts, freqs = self.counts[gene], self.freqs[gene]
             outfname = outdir + '/' + utils.sanitize_name(gene) + '.csv'
             with opener('w')(outfname) as outfile:
                 nuke_header = [n + xtra for n in utils.nukes for xtra in ('', '_obs', '_lo_err', '_hi_err')]
@@ -161,7 +157,7 @@ class MuteFreqer(object):
             # utils.prep_dir(plotdir + '/' + region + '-per-base/plots', multilings=('*.csv', '*.png'))
 
         for gene in self.counts:
-            gcounts, freqs, plotting_info = self.counts[gene], self.freqs[gene], self.plotting_info[gene]
+            gcounts, freqs = self.counts[gene], self.freqs[gene]
             sorted_positions = sorted(gcounts.keys())
             genehist = Hist(sorted_positions[-1] - sorted_positions[0] + 1, sorted_positions[0] - 0.5, sorted_positions[-1] + 0.5, xtitle='fixme', ytitle='fixme')  #, title=utils.sanitize_name(gene))
             for position in sorted_positions:
