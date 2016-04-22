@@ -120,7 +120,7 @@ presto_headers = {
     'v_gene' : 'V_CALL',
     'd_gene' : 'D_CALL',
     'j_gene' : 'J_CALL',
-    'aligned_v_seq' : 'SEQUENCE_IMGT',  # TODO is this supposed to be the whole sequence, or just the v bit?
+    'aligned_v_plus_unaligned_dj' : 'SEQUENCE_IMGT',  # TODO is this supposed to be the whole sequence, or just the v bit? UPDATE looks like aligned v, plus the rest of the sequence without any alignment info
     'cdr3_length' : 'JUNCTION_LENGTH'
 }
 
@@ -179,7 +179,10 @@ def convert_to_presto_headers(line, multi_seq):
 
     presto_line = {}
     for head, phead in presto_headers.items():
-        presto_line[phead] = single_info[head]
+        if head == 'aligned_v_plus_unaligned_dj':
+            presto_line[phead] = single_info['aligned_v_seq'] + single_info['vd_insertion'] + single_info['d_qr_seq'] + single_info['dj_insertion'] + single_info['j_qr_seq']
+        else:
+            presto_line[phead] = single_info[head]
 
     return presto_line
 
@@ -1410,7 +1413,7 @@ def get_mutation_rate(germlines, line, restrict_to_region='', debug=False):
         for region in regions:  # can't use the full sequence because we have no idea what the mutations were in the inserts. So have to mash together the three regions
             bounds = line['regional_bounds'][region]
             if bounds[0] < 0 or bounds[1] > len(naive_seq) or bounds[0] > bounds[1]:  # this was happening because I set the bounds for the padded sequences, but then didn't reset them in reset_effective_erosions_and_effective_insertions(). For the time being, the check remains
-                raise Exception('ack! %s %s %s' % (line['unique_id'], bounds, naive_seq))
+                raise Exception('bad regional bounds %s for naive sequence %s with id %s' % (bounds, naive_seq, line['unique_id']))
             mashed_naive_seq += naive_seq[bounds[0] : bounds[1]]
             mashed_muted_seq += muted_seq[bounds[0] : bounds[1]]
     else:
