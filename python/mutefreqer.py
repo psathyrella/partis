@@ -15,8 +15,9 @@ from opener import opener
 
 # ----------------------------------------------------------------------------------------
 class MuteFreqer(object):
-    def __init__(self, germline_seqs):  #, base_outdir='', base_plotdir='', write_parameters=True, plot_parameters=True):
+    def __init__(self, germline_seqs, calculate_uncertainty=True):
         self.germline_seqs = germline_seqs
+        self.calculate_uncertainty = calculate_uncertainty
         self.counts, self.freqs = {}, {}
         n_bins, xmin, xmax = 200, 0., 1.
         self.mean_rates = {'all':Hist(n_bins, xmin, xmax)}
@@ -48,21 +49,21 @@ class MuteFreqer(object):
                 gcounts[i_germline]['total'] += 1
                 gcounts[i_germline][query_seq[inuke]] += 1  # note that if <query_seq[inuke]> isn't among <utils.nukes>, this will toss a key error
 
-    # # ----------------------------------------------------------------------------------------
-    # def set_uncertainty(self, nuke_freq, position, nuke, counts, freqs):
-    #     errs = fraction_uncertainty.err(counts[position][nuke], counts[position]['total'])
-    #     if errs[2]:
-    #         self.n_cached += 1
-    #     else:
-    #         self.n_not_cached += 1
-    #     # print nuke_freq, errs[0], errs[1], '(', counts[position][nuke], ',', counts[position]['total'], ')'
-    #     assert errs[0] <= nuke_freq  # these checks are probably unnecessary. EDIT and totally saved my ass about ten minutes after writing the previous statement
-    #     assert nuke_freq <= errs[1]
-    #     freqs[position][nuke + '_lo_err'] = errs[0]
-    #     freqs[position][nuke + '_hi_err'] = errs[1]
+    # ----------------------------------------------------------------------------------------
+    def get_uncertainty(self, obs, total):
+        if self.calculate_uncertainty:  # it's kinda slow
+            errs = fraction_uncertainty.err(obs, total)
+            if errs[2]:
+                self.n_cached += 1
+            else:
+                self.n_not_cached += 1
+        else:
+            errs = 0., 1.
+
+        return errs[0], errs[1]
 
     # ----------------------------------------------------------------------------------------
-    def finalize(self, calculate_uncertainty=True):
+    def finalize(self):
         """ convert from counts to mut freqs """
         assert not self.finalized
 
@@ -77,38 +78,16 @@ class MuteFreqer(object):
                     ncount, total = gcounts[position][nuke], gcounts[position]['total']
                     nuke_freq = float(ncount) / total
                     freqs[position][nuke] = nuke_freq
-                    if calculate_uncertainty:  # it's kinda slow
-                        errs = fraction_uncertainty.err(ncount, total)
-                        if errs[2]:
-                            self.n_cached += 1
-                        else:
-                            self.n_not_cached += 1
-                        # print nuke_freq, errs[0], errs[1], '(', ncount, ',', total, ')'
-                        assert errs[0] <= nuke_freq  # these checks are probably unnecessary. EDIT and totally saved my ass about ten minutes after writing the previous statement
-                        assert nuke_freq <= errs[1]
-                        freqs[position][nuke + '_lo_err'] = errs[0]
-                        freqs[position][nuke + '_hi_err'] = errs[1]
-                        # self.set_uncertainty(nuke_freq, position, nuke, gcounts, freqs)
-
+                    freqs[position][nuke + '_lo_err'], freqs[position][nuke + '_hi_err'] = self.get_uncertainty(ncount, total)
                     if nuke == gcounts[position]['gl_nuke']:
                         n_conserved += ncount
                     else:
                         n_mutated += ncount  # sum over A,C,G,T
-                    # uncert = fraction_uncertainty.err(obs, total)  # uncertainty for each nuke
                 freqs[position]['freq'] = float(n_mutated) / total
-                mutated_fraction_err = (0.0, 0.0)
-                if calculate_uncertainty:  # it's kinda slow
-                    mutated_fraction_err = fraction_uncertainty.err(n_mutated, total)
-                    if mutated_fraction_err[2]:
-                        self.n_cached += 1
-                    else:
-                        self.n_not_cached += 1
-                freqs[position]['freq_lo_err'] = mutated_fraction_err[0]
-                freqs[position]['freq_hi_err'] = mutated_fraction_err[1]
+                freqs[position]['freq_lo_err'], freqs[position]['freq_hi_err'] = self.get_uncertainty(n_mutated, total)
 
-        self.mean_rates['all'].normalize()  # we expect overflows in mute freq hists, so no need to warn us
-        for region in utils.regions:
-            self.mean_rates[region].normalize()
+        for hist in self.mean_rates.values():
+            hist.normalize()
 
         self.finalized = True
 
