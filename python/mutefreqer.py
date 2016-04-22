@@ -3,6 +3,7 @@
 import sys
 import os
 from subprocess import check_call
+import numpy
 import csv
 
 import plotting
@@ -24,6 +25,8 @@ class MuteFreqer(object):
         for region in utils.regions:
             self.mean_rates[region] = Hist(n_bins, xmin, xmax)
         self.finalized = False
+
+        self.n_max_mutes = 10  # for tigger stuff
         
     # ----------------------------------------------------------------------------------------
     def increment(self, info):
@@ -57,11 +60,12 @@ class MuteFreqer(object):
                 gcounts[igl][query_seq[ipos]] += 1  # note that if <query_seq[ipos]> isn't among <utils.nukes>, this will toss a key error
 
                 # tigger stuff
-                if n_mutes not in gcounts[igl]['tigger']:
-                    gcounts[igl]['tigger'][n_mutes] = {'muted' : 0, 'total' : 0}
-                gcounts[igl]['tigger'][n_mutes]['total'] += 1
-                if query_seq[ipos] != germline_seq[ipos]:  # if this position is mutated
-                    gcounts[igl]['tigger'][n_mutes]['muted'] += 1  # mark that we saw this germline position mutated once in a sequence with <n_mutes> regional mutation frequency
+                if n_mutes != 0:
+                    if n_mutes not in gcounts[igl]['tigger']:
+                        gcounts[igl]['tigger'][n_mutes] = {'muted' : 0, 'total' : 0}
+                    gcounts[igl]['tigger'][n_mutes]['total'] += 1
+                    if query_seq[ipos] != germline_seq[ipos]:  # if this position is mutated
+                        gcounts[igl]['tigger'][n_mutes]['muted'] += 1  # mark that we saw this germline position mutated once in a sequence with <n_mutes> regional mutation frequency
 
     # ----------------------------------------------------------------------------------------
     def get_uncertainty(self, obs, total):
@@ -81,6 +85,8 @@ class MuteFreqer(object):
         """ convert from counts to mut freqs """
         assert not self.finalized
 
+        print '\npos  slope   intercept    total'
+        self.XXX = set()
         self.n_cached, self.n_not_cached = 0, 0
         for gene in self.counts:
             gcounts = self.counts[gene]
@@ -102,6 +108,13 @@ class MuteFreqer(object):
                 freqs[position]['tigger'] = {}
                 for n_mutes in gcounts[position]['tigger']:
                     freqs[position]['tigger'][n_mutes] = float(gcounts[position]['tigger'][n_mutes]['muted']) / gcounts[position]['tigger'][n_mutes]['total']
+                if utils.get_region(gene) == 'j':
+                    xvals = [xv for xv in freqs[position]['tigger'].keys() if xv < self.n_max_mutes]
+                    yvals = freqs[position]['tigger'].values()[ : len(xvals)]
+                    slope, intercept = numpy.polyfit(xvals, yvals, 1)
+                    if intercept > 1./80:
+                        self.XXX.add(position)
+                        print '%3d   %6.3f  %6.3f   %d' % (position, slope, intercept, sum([gcounts[position]['tigger'][nm]['total'] for nm in gcounts[position]['tigger']]))
 
             self.freqs[gene] = freqs
 
@@ -174,7 +187,7 @@ class MuteFreqer(object):
                 figsize[0] *= 2
             plotting.draw_no_root(genehist, plotdir=plotdir + '/' + utils.get_region(gene), plotname=utils.sanitize_name(gene), errors=True, write_csv=True, xline=xline, figsize=figsize, only_csv=only_csv)
             # paramutils.make_mutefreq_plot(plotdir + '/' + utils.get_region(gene) + '-per-base', utils.sanitize_name(gene), plotting_info)  # needs translation to mpl
-            plotting.make_tiggger_plot(gene, freqs, plotdir=plotdir + '/tigger', plotname=utils.sanitize_name(gene))
+            plotting.make_tiggger_plot(gene, freqs, plotdir=plotdir + '/tigger', plotname=utils.sanitize_name(gene), positions=self.XXX)
 
         # make mean mute freq hists
         plotting.draw_no_root(self.mean_rates['all'], plotname='all-mean-freq', plotdir=overall_plotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True, only_csv=only_csv)
