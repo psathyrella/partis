@@ -1111,11 +1111,9 @@ def make_html(plotdir, n_columns=3, extension='svg'):
     check_call(['chmod', '664', htmlfname])
 
 # ----------------------------------------------------------------------------------------
-def make_tiggger_plot(gene, freqs, plotdir, plotname, positions=None):
+def make_tiggger_plot(gene, freqs, plotdir, plotname):
     fig, ax = mpl_init()
     for position in freqs:
-        if positions is not None and position not in positions:
-            continue
         info = freqs[position]['tigger']
         ax.plot(info.keys(), info.values(), markersize=10, linewidth=1, marker='.', label=str(position))
     plt.gcf().subplots_adjust(right=0.75)
