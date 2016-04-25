@@ -106,19 +106,20 @@ class MuteFreqer(object):
                 freqs[position]['freq'] = float(n_mutated) / total
                 freqs[position]['freq_lo_err'], freqs[position]['freq_hi_err'] = self.get_uncertainty(n_mutated, total)
 
-                freqs[position]['tigger'] = {}
-                xvals, yvals = [], []
-                for n_mutes in gcounts[position]['tigger']:
-                    freq = float(gcounts[position]['tigger'][n_mutes]['muted']) / gcounts[position]['tigger'][n_mutes]['total']
-                    freqs[position]['tigger'][n_mutes] = freq
-                    if n_mutes <= self.n_max_mutes:
-                        xvals.append(n_mutes)
-                        yvals.append(freq)
-                slope, intercept = numpy.polyfit(xvals, yvals, 1)
-                if intercept > self.min_y_intercept:
-                    if gene not in self.positions_of_interest:
-                        self.positions_of_interest[gene] = {}
-                    self.positions_of_interest[gene][position] = (slope, intercept)
+                if utils.get_region(gene) != 'd':
+                    freqs[position]['tigger'] = {}
+                    xvals, yvals = [], []
+                    for n_mutes in gcounts[position]['tigger']:
+                        freq = float(gcounts[position]['tigger'][n_mutes]['muted']) / gcounts[position]['tigger'][n_mutes]['total']
+                        freqs[position]['tigger'][n_mutes] = freq
+                        if n_mutes <= self.n_max_mutes:
+                            xvals.append(n_mutes)
+                            yvals.append(freq)
+                    slope, intercept = numpy.polyfit(xvals, yvals, 1)
+                    if intercept > self.min_y_intercept:
+                        if gene not in self.positions_of_interest:
+                            self.positions_of_interest[gene] = {}
+                        self.positions_of_interest[gene][position] = (slope, intercept)
 
             self.freqs[gene] = freqs
 
@@ -199,7 +200,8 @@ class MuteFreqer(object):
                 figsize[0] *= 2
             plotting.draw_no_root(genehist, plotdir=plotdir + '/' + utils.get_region(gene), plotname=utils.sanitize_name(gene), errors=True, write_csv=True, xline=xline, figsize=figsize, only_csv=only_csv)
             # paramutils.make_mutefreq_plot(plotdir + '/' + utils.get_region(gene) + '-per-base', utils.sanitize_name(gene), plotting_info)  # needs translation to mpl
-            plotting.make_tiggger_plot(gene, freqs, plotdir=plotdir + '/tigger', plotname=utils.sanitize_name(gene))
+            if utils.get_region(gene) != 'd':
+                plotting.make_tiggger_plot(gene, freqs, plotdir=plotdir + '/tigger', plotname=utils.sanitize_name(gene))
 
         # make mean mute freq hists
         plotting.draw_no_root(self.mean_rates['all'], plotname='all-mean-freq', plotdir=overall_plotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True, only_csv=only_csv)

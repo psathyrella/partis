@@ -213,7 +213,7 @@ def get_parameter_fname(column=None, deps=None, column_and_deps=None):
     return outfname
 
 # ----------------------------------------------------------------------------------------
-def rewrite_germline_fasta(input_dir, output_dir, only_genes=None):
+def rewrite_germline_fasta(input_dir, output_dir, only_genes=None, snps_to_add=None):
     """ rewrite the germline set files in <input_dir> to <output_dir>, only keeping the genes in <only_genes> """
     print '    rewriting germlines from %s to %s' % (input_dir, output_dir),
     if only_genes is not None:
@@ -223,6 +223,43 @@ def rewrite_germline_fasta(input_dir, output_dir, only_genes=None):
     input_germlines = glfo['seqs']
     input_aligned_genes = glfo['aligned-genes']
     expected_files = []  # list of files that we write here -- if anything else is in the output dir, we barf
+
+    if snps_to_add is not None:
+        for gene in snps_to_add:
+            print '  ', gene
+            snp_positions = set()
+            seq = input_germlines[get_region(gene)][gene]
+            aligned_seq = input_aligned_genes[get_region(gene)][gene]
+            cpos = glfo['cyst-positions'][gene]
+            for _ in range(snps_to_add[gene]):
+                snp_pos = None
+                while snp_pos is None or snp_pos in snp_positions or not check_conserved_cysteine(tmpseq, cpos, debug=True, assert_on_fail=False):
+                    snp_pos = random.randint(10, len(seq) - 15)  # note that randint() is inclusive
+                    tmpseq = seq[: snp_pos] + 'X' + seq[snp_pos + 1 :]  # for checking cyst position
+                snp_positions.add(snp_pos)
+                new_base = None
+                while new_base is None or new_base == seq[snp_pos]:
+                    new_base = nukes[random.randint(0, len(nukes) - 1)]
+                print '      %3d   %s --> %s' % (snp_pos, seq[snp_pos], new_base)
+
+                seq = seq[: snp_pos] + new_base + seq[snp_pos + 1 :]
+
+                igl = 0  # position in unaligned germline seq
+                for ialign in range(len(aligned_seq)):
+                    if aligned_seq[ialign] in gap_chars:
+                        continue
+                    else:
+                        # assert aligned_seq[ialign] == seq[igl]  # won't necessarily be true after the first mutation
+                        if igl == snp_pos:
+                            aligned_seq = aligned_seq[ : ialign] + new_base + aligned_seq[ialign + 1 :]
+                            break
+                        igl += 1
+
+                check_conserved_cysteine(seq, cpos)
+                # color_mutants(input_germlines[get_region(gene)][gene], seq, print_result=True, extra_str='          ')
+                # color_mutants(input_aligned_genes[get_region(gene)][gene], aligned_seq, print_result=True, extra_str='          ')
+                input_germlines[get_region(gene)][gene] = seq
+                input_aligned_genes[get_region(gene)][gene] = aligned_seq
 
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
