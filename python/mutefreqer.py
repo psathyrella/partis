@@ -2,6 +2,7 @@
 
 import sys
 import os
+import math
 from subprocess import check_call
 import numpy
 import csv
@@ -27,10 +28,11 @@ class MuteFreqer(object):
         self.finalized = False
 
         # tigger stuff
-        self.positions_of_interest = {}
-        self.n_max_mutes = 10
+        # self.positions_of_interest = {}
+        self.n_max_mutes = 20
+        self.n_obs_min = 10
         self.min_y_intercept = 1./8
-        
+
     # ----------------------------------------------------------------------------------------
     def increment(self, info):
         self.mean_rates['all'].fill(utils.get_mutation_rate(self.germline_seqs, info))  # mean freq over whole sequence (excluding insertions)
@@ -63,7 +65,7 @@ class MuteFreqer(object):
                 gcounts[igl][query_seq[ipos]] += 1  # note that if <query_seq[ipos]> isn't among <utils.nukes>, this will toss a key error
 
                 # tigger stuff
-                if n_mutes != 0:  # regional sequences with no mutations are uninformative (and screw up the y intercept)
+                if utils.get_region(gene) == 'v':
                     if n_mutes not in gcounts[igl]['tigger']:
                         gcounts[igl]['tigger'][n_mutes] = {'muted' : 0, 'total' : 0}
                     gcounts[igl]['tigger'][n_mutes]['total'] += 1
@@ -82,6 +84,70 @@ class MuteFreqer(object):
             errs = 0., 1.
 
         return errs[0], errs[1]
+
+    # ----------------------------------------------------------------------------------------
+    def tigger_calcs(self, position, gcounts, mean_x_icpt):
+        iterinfo = gcounts['tigger'].items()
+
+        obs = [d['muted'] for nm, d in iterinfo if nm < self.n_max_mutes]
+        if sum(obs) < self.n_obs_min:  # ignore positions with only a few observed mutations
+            return
+
+        lohis = [fraction_uncertainty.err(d['muted'], d['total'], use_beta=True) for nm, d in iterinfo if nm < self.n_max_mutes]
+        errs = [(hi - lo) / 2 for lo, hi, _ in lohis]
+        weights = [1./(e*e) for e in errs]
+
+        freqs = [float(d['muted']) / d['total'] for nm, d in iterinfo if nm < self.n_max_mutes]
+        total = [d['total'] for nm, d in iterinfo if nm < self.n_max_mutes]
+
+        # for i in range(len(freqs)):
+        #     print '  %3d / %3d = %6.2f    %6.2f    %6.2f' % (obs[i], total[i], freqs[i], errs[i], weights[i])
+    
+        n_mutelist = [nm for nm in gcounts['tigger'].keys() if nm < self.n_max_mutes]
+
+        params, cov = numpy.polyfit(n_mutelist, freqs, 1, w=weights, cov=True)
+        slope, slope_err = params[0], math.sqrt(cov[0][0])
+        y_icpt, y_icpt_err = params[1], math.sqrt(cov[1][1])
+    
+        interesting = False
+        if y_icpt + y_icpt_err < 1./8:
+            x_icpt, x_icpt_err = -y_icpt / slope, abs(y_icpt / slope) * math.sqrt((y_icpt_err/y_icpt)**2 + (slope_err/slope)**2)
+            mean_x_icpt['sum'] += x_icpt / x_icpt_err
+            mean_x_icpt['total'] += 1. / x_icpt_err
+        else:
+            x_icpt, x_icpt_err = 0, 0
+            interesting = True
+        print_str = '   %3d   %9.3f +/- %-9.3f   %9.3f +/- %-9.3f   %7.4f +/- %7.4f      %3d / %3d' % (position, x_icpt, x_icpt_err, y_icpt, y_icpt_err, slope, slope_err, sum(obs), sum(total))
+        if interesting:
+            print_str = utils.color('red', print_str)
+        print print_str
+
+        plotinfo = {'n_muted' : n_mutelist, 'freqs' : freqs, 'errs' : errs, 'slope' : slope, 'intercept' : y_icpt}
+        plotting.make_tigger_plot('IGHVX', position, plotinfo)
+        return plotinfo
+
+    # ----------------------------------------------------------------------------------------
+    def finalize_tigger(self):
+        utils.prep_dir(os.getenv('www') + '/partis/tmp', wildling='*.svg')
+        for gene in self.counts:
+            if utils.get_region(gene) != 'v':
+                continue
+            print ''
+            print ' position         x-icpt                  y-icpt                   slope              mut / total'
+            mean_x_icpt = {'sum' : 0., 'total' : 0.}
+            for position in sorted(self.counts[gene].keys()):
+                self.freqs[gene][position]['tigger'] = self.tigger_calcs(position, self.counts[gene][position], mean_x_icpt)
+            print mean_x_icpt
+            print mean_x_icpt['sum'] / mean_x_icpt['total']
+        sys.exit()
+        for gene in self.freqs:
+            if utils.get_region(gene) != 'v':
+                continue
+            info = {p : self.freqs[gene][p]['tigger-fits'] for p in self.freqs[gene]}
+            x_intercepts = [-v['intercept'] / v['slope'] for k, v in info.items() if v['intercept'] is not None and v['intercept'] < 0.3]
+            print sorted(x_intercepts)
+            print sum(x_intercepts) / float(len(x_intercepts))
+            print numpy.median(x_intercepts)
 
     # ----------------------------------------------------------------------------------------
     def finalize(self):
@@ -106,33 +172,26 @@ class MuteFreqer(object):
                 freqs[position]['freq'] = float(n_mutated) / total
                 freqs[position]['freq_lo_err'], freqs[position]['freq_hi_err'] = self.get_uncertainty(n_mutated, total)
 
-                if utils.get_region(gene) != 'd':
-                    freqs[position]['tigger'] = {}
-                    xvals, yvals = [], []
-                    for n_mutes in gcounts[position]['tigger']:
-                        freq = float(gcounts[position]['tigger'][n_mutes]['muted']) / gcounts[position]['tigger'][n_mutes]['total']
-                        freqs[position]['tigger'][n_mutes] = freq
-                        if n_mutes <= self.n_max_mutes:
-                            xvals.append(n_mutes)
-                            yvals.append(freq)
-                    slope, intercept = numpy.polyfit(xvals, yvals, 1)
-                    if intercept > self.min_y_intercept:
-                        if gene not in self.positions_of_interest:
-                            self.positions_of_interest[gene] = {}
-                        self.positions_of_interest[gene][position] = (slope, intercept)
+                # if utils.get_region(gene) == 'v':
+                #     self.tigger_calcs()
 
             self.freqs[gene] = freqs
 
         for hist in self.mean_rates.values():
             hist.normalize()
 
-        if len(self.positions_of_interest) > 0:
-            print '\n    found positions of interest (may indicate alleles not in germline set)'
-            print '          pos    slope   intercept   gene'
-            for gene, info in self.positions_of_interest.items():
-                for position in info:
-                    slope, intercept = info[position]
-                    print '         %3d    %6.3f   %6.3f      %s' % (position, slope, intercept, utils.color_gene(gene))
+        self.finalize_tigger()
+        sys.exit()
+        # if len(self.positions_of_interest) > 0:
+        #     print '\n    found positions of interest (may indicate alleles not in germline set)'
+        #     print '          pos    intercepts   slope   gene'
+        #     print '                  x      y      '
+        #     for gene in self.positions_of_interest:
+        #         for position in self.freqs[gene]:
+        #             tiginfo = self.freqs[gene][position]['tigger']
+        #             m = self.fitinfo[gene][position]['slope']
+        #             b = self.fitinfo[gene][position]['intercept']
+        #             print '         %3d    %6.3f  %6.3f   %6.3f      %s' % (position, -b / m, b, m, utils.color_gene(gene))
 
         self.finalized = True
 
@@ -169,6 +228,14 @@ class MuteFreqer(object):
             self.mean_rates[region].write(mean_freq_outfname.replace('REGION', region))
 
     # ----------------------------------------------------------------------------------------
+    def tigger_plot(self, only_csv=False):
+        if only_csv:  # not implemented
+            return
+        for gene in self.freqs:
+            for position in self.freqs[gene]:
+                plotting.make_tigger_plot(gene, position, self.freqs[gene][position]['tigger'])
+
+    # ----------------------------------------------------------------------------------------
     def plot(self, base_plotdir, cyst_positions=None, tryp_positions=None, only_csv=False):
         if not self.finalized:
             self.finalize()
@@ -200,13 +267,15 @@ class MuteFreqer(object):
                 figsize[0] *= 2
             plotting.draw_no_root(genehist, plotdir=plotdir + '/' + utils.get_region(gene), plotname=utils.sanitize_name(gene), errors=True, write_csv=True, xline=xline, figsize=figsize, only_csv=only_csv)
             # paramutils.make_mutefreq_plot(plotdir + '/' + utils.get_region(gene) + '-per-base', utils.sanitize_name(gene), plotting_info)  # needs translation to mpl
-            if utils.get_region(gene) != 'd':
-                plotting.make_tiggger_plot(gene, freqs, plotdir=plotdir + '/tigger', plotname=utils.sanitize_name(gene))
+            # if utils.get_region(gene) == 'v':
+            #     plotting.make_tigger_plot(gene, freqs, self.positions_of_interest[gene], plotdir=plotdir + '/tigger', plotname=utils.sanitize_name(gene))
 
         # make mean mute freq hists
         plotting.draw_no_root(self.mean_rates['all'], plotname='all-mean-freq', plotdir=overall_plotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True, only_csv=only_csv)
         for region in utils.regions:
             plotting.draw_no_root(self.mean_rates[region], plotname=region+'-mean-freq', plotdir=overall_plotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True, only_csv=only_csv)
+
+        self.tigger_plot(only_csv)
 
         if not only_csv:  # write html file and fix permissiions
             plotting.make_html(overall_plotdir)

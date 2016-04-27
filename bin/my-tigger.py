@@ -27,9 +27,9 @@ cmd_str += ' --only-genes ' + existing_genes
 cmd_str += ' --outfname ' + outdir + '/simu.csv'
 # run(cmd_str)
 
-snps_to_add = {'IGHV3-69-1*02' : 1}
+snps_to_add = {'IGHV3-69-1*02' : 8}
 utils.rewrite_germline_fasta('data/imgt', outdir + '/germlines', only_genes=existing_genes.split(':'), snps_to_add=snps_to_add)
-sys.exit()
+
 # cache-parameters
 cmd_str = 'python -m cProfile -s tottime -o prof.out ' + base_cmd + ' --action cache-parameters'
 cmd_str += ' --seqfile ' + outdir + '/simu.csv'
