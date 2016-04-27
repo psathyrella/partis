@@ -24,6 +24,7 @@ import operator
 import utils
 import plotconfig
 from hist import Hist
+import fraction_uncertainty
 
 from opener import opener
 
@@ -75,8 +76,8 @@ def write_hist_to_file(fname, hist):
 # ----------------------------------------------------------------------------------------
 def make_bool_hist(n_true, n_false, hist_label):
     """ fill a two-bin histogram with the fraction false in the first bin and the fraction true in the second """
-    if 'fraction_uncertainty' not in sys.modules:
-        import fraction_uncertainty
+    # if 'fraction_uncertainty' not in sys.modules:
+    #     import fraction_uncertainty
 
     hist = Hist(2, -0.5, 1.5)
 
@@ -388,8 +389,8 @@ def get_mean_info(hists):
 # ----------------------------------------------------------------------------------------
 def add_gene_calls_vs_mute_freq_plots(args, hists, rebin=1., debug=False):
     print 'TODO what\'s up with rebin rescaling below?'
-    if 'fraction_uncertainty' not in sys.modules:
-        import fraction_uncertainty
+    # if 'fraction_uncertainty' not in sys.modules:
+    #     import fraction_uncertainty
     for idir in range(len(args.names)):
         name = args.names[idir]
         for region in utils.regions:

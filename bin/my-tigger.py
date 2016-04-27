@@ -25,9 +25,9 @@ cmd_str += ' --n-sim-events 100'
 cmd_str += ' --n-procs 5'
 cmd_str += ' --only-genes ' + existing_genes
 cmd_str += ' --outfname ' + outdir + '/simu.csv'
-# run(cmd_str)
+run(cmd_str)
 
-snps_to_add = {'IGHV3-69-1*02' : 8}
+snps_to_add = {'IGHV3-69-1*02' : 3}
 utils.rewrite_germline_fasta('data/imgt', outdir + '/germlines', only_genes=existing_genes.split(':'), snps_to_add=snps_to_add)
 
 # cache-parameters
