@@ -264,6 +264,8 @@ def rewrite_germline_fasta(input_dir, output_dir, only_genes=None, snps_to_add=N
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
+    # color_mutants(input_germlines['v']['IGHV3-71*01'], input_germlines['v']['IGHV3-71*03'], print_result=True)
+
     def write_gl_file(fname, region, igls):
         expected_files.append(fname)
         with open(fname, 'w') as outfile:

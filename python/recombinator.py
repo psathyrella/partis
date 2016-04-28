@@ -202,7 +202,6 @@ class Recombinator(object):
         new_vdj_choice = list(vdj_choice)
         for region in [r for r in utils.regions if r != 'd']:
             new_vdj_choice[utils.index_keys[region + '_gene']] = random.choice(tuple(self.allowed_genes[region]))
-        print new_vdj_choice[:3]
         return tuple(new_vdj_choice)
 
     # ----------------------------------------------------------------------------------------
