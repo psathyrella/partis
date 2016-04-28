@@ -96,6 +96,7 @@ parser.add_argument('--indel-frequency', default=0., type=float, help='fraction 
 # parser.add_argument('--mean-n-indels', default=1, type=int, help='mean number of indels in each sequence which we\'ve already decided has indels (geometric distribution)')
 parser.add_argument('--mean-indel-length', default=5, help='mean length of each indel (geometric distribution)')
 parser.add_argument('--indel-location', choices=[None, 'v', 'cdr3'], help='where to put the indels')
+parser.add_argument('--uniform-vj-choice-probs', action='store_true', help='In simulation, give all possible combinations of allowed v and j germline genes the same probability')
 
 # numerical inputs
 parser.add_argument('--min_observations_to_write', type=int, default=20, help='For hmmwriter.py, if we see a gene version fewer times than this, we sum over other alleles, or other versions, etc. (see hmmwriter)')
