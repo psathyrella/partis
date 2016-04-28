@@ -1031,6 +1031,8 @@ def print_seq_in_reco_event(germlines, line, extra_str='', label='', one_line=Fa
     #     extra_str += '%20s' % line['unique_id']
     out_str_list.append('    %s' % final_seq)
     out_str_list.append('   %4.2f mut' % (0. if n_total == 0. else float(n_muted) / n_total))
+    if 'logprob' in line:
+        out_str_list.append('     %8.2f  logprob' % line['logprob'])
     out_str_list.append('\n')
 
     print ''.join(out_str_list),
