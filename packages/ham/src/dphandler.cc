@@ -134,6 +134,8 @@ Result DPHandler::Run(vector<Sequence> seqvector, KBounds kbounds, vector<string
     reverse(result.events_.begin(), result.events_.end());
   }
 
+  result.check_boundaries(best_kset, kbounds);
+
   // print debug info
   if(args_->debug()) {
     double prob;
@@ -152,17 +154,16 @@ Result DPHandler::Run(vector<Sequence> seqvector, KBounds kbounds, vector<string
     printf("           %s %12.3f   %-25s  %2zuv %2zud %2zuj  %5.1fs   %s\n", alg_str.c_str(), prob, kstr,
 	   only_genes["v"].size(), only_genes["d"].size(), only_genes["j"].size(),  // hmms_.NameString(&only_genes, 30)
 	   cpu_seconds, seqs.name_str(":").c_str());
-  }
 
-  result.check_boundaries(best_kset, kbounds);
-  if(args_->debug() && result.boundary_error()) {   // not necessarily a big deal yet -- the bounds get automatical expanded
-    cout << "             max at boundary:"
-         << " " << best_kset.v << " (" << kbounds.vmin << "-" << kbounds.vmax - 1 << ")"
-         << ", " << best_kset.d << " (" << kbounds.dmin << "-" << kbounds.dmax - 1 << ")"
-         << "    better: " << result.better_kbounds().stringify();
-    if(result.could_not_expand())
-      cout << " (could not expand)     ";
-    cout << "    " << seqs.name_str()  << endl;
+    if(result.boundary_error()) {   // not necessarily a big deal yet -- the bounds get automatical expanded
+      cout << "             max at boundary:"
+	   << " " << best_kset.v << " (" << kbounds.vmin << "-" << kbounds.vmax - 1 << ")"
+	   << ", " << best_kset.d << " (" << kbounds.dmin << "-" << kbounds.dmax - 1 << ")"
+	   << "    better: " << result.better_kbounds().stringify();
+      if(result.could_not_expand())
+	cout << " (could not expand)     ";
+      cout << "    " << seqs.name_str()  << endl;
+    }
   }
 
   if(!args_->dont_rescale_emissions())  // if we rescaled them above, re-rescale the overall mean mute freqs
