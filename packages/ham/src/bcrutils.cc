@@ -508,7 +508,7 @@ string HMMHolder::NameString(map<string, set<string> > *only_genes, int max_to_p
 // ----------------------------------------------------------------------------------------
 void StreamHeader(ofstream &ofs, string algorithm) {
   if(algorithm == "viterbi")
-    ofs << "nth_best,unique_ids,v_gene,d_gene,j_gene,fv_insertion,vd_insertion,dj_insertion,jf_insertion,v_5p_del,v_3p_del,d_5p_del,d_3p_del,j_5p_del,j_3p_del,logprob,seqs,errors" << endl;
+    ofs << "unique_ids,v_gene,d_gene,j_gene,fv_insertion,vd_insertion,dj_insertion,jf_insertion,v_5p_del,v_3p_del,d_5p_del,d_3p_del,j_5p_del,j_3p_del,logprob,seqs,errors" << endl;
   else if(algorithm == "forward")
     ofs << "unique_ids,logprob,errors" << endl;
   else
@@ -549,39 +549,36 @@ void StreamErrorput(ofstream &ofs, string algorithm, vector<Sequence> &seqs, str
 }
 
 // ----------------------------------------------------------------------------------------
-void StreamOutput(ofstream &ofs, string algorithm, size_t n_max, vector<RecoEvent> &events, vector<Sequence> &seqs, double total_score, string errors) {
-  if(algorithm == "viterbi") {
-    for(size_t ievt = 0; ievt < n_max; ++ievt) {
-      RecoEvent *event = &events[ievt];
-      string second_seq_name, second_seq;
-      ofs  // be very, very careful to change this *and* the csv header above at the same time
-	<< ievt
-	<< "," << SeqNameStr(seqs, ":")
-	<< "," << event->genes_["v"]
-	<< "," << event->genes_["d"]
-	<< "," << event->genes_["j"]
-	<< "," << event->insertions_["fv"]
-	<< "," << event->insertions_["vd"]
-	<< "," << event->insertions_["dj"]
-	<< "," << event->insertions_["jf"]
-	<< "," << event->deletions_["v_5p"]
-	<< "," << event->deletions_["v_3p"]
-	<< "," << event->deletions_["d_5p"]
-	<< "," << event->deletions_["d_3p"]
-	<< "," << event->deletions_["j_5p"]
-	<< "," << event->deletions_["j_3p"]
-	<< "," << event->score_
-	<< "," << SeqStr(seqs, ":")
-	<< "," << errors
-	<< endl;
-    }
-  } else {
-    ofs
-      << SeqNameStr(seqs, ":")
-      << "," << total_score
-      << "," << errors
-      << endl;
-  }
+void StreamViterbiOutput(ofstream &ofs, RecoEvent &event, vector<Sequence> &seqs, string errors) {
+  string second_seq_name, second_seq;
+  ofs  // be very, very careful to change this *and* the csv header above at the same time
+    << SeqNameStr(seqs, ":")
+    << "," << event.genes_["v"]
+    << "," << event.genes_["d"]
+    << "," << event.genes_["j"]
+    << "," << event.insertions_["fv"]
+    << "," << event.insertions_["vd"]
+    << "," << event.insertions_["dj"]
+    << "," << event.insertions_["jf"]
+    << "," << event.deletions_["v_5p"]
+    << "," << event.deletions_["v_3p"]
+    << "," << event.deletions_["d_5p"]
+    << "," << event.deletions_["d_3p"]
+    << "," << event.deletions_["j_5p"]
+    << "," << event.deletions_["j_3p"]
+    << "," << event.score_
+    << "," << SeqStr(seqs, ":")
+    << "," << errors
+    << endl;
+}
+
+// ----------------------------------------------------------------------------------------
+void StreamForwardOutput(ofstream &ofs, vector<Sequence> &seqs, double total_score, string errors) {
+  ofs  // be very, very careful to change this *and* the csv header above at the same time
+    << SeqNameStr(seqs, ":")
+    << "," << total_score
+    << "," << errors
+    << endl;
 }
 
 // ----------------------------------------------------------------------------------------

@@ -157,7 +157,8 @@ private:
 
 void StreamHeader(ofstream &ofs, string algorithm);
 void StreamErrorput(ofstream &ofs, string algorithm, vector<Sequence> &seqs, string errors);
-void StreamOutput(ofstream &ofs, string algorithm, size_t n_max, vector<RecoEvent> &events, vector<Sequence> &seqs, double total_score, string errors);
+void StreamViterbiOutput(ofstream &ofs, RecoEvent &event, vector<Sequence> &seqs, string errors);
+void StreamForwardOutput(ofstream &ofs, vector<Sequence> &seqs, double total_score, string errors);
 
 string SeqStr(vector<Sequence> &seqs, string delimiter = " ");
 string SeqNameStr(vector<Sequence> &seqs, string delimiter = " ");

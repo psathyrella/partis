@@ -22,7 +22,6 @@ Args::Args(int argc, const char * argv[]):
   logprob_ratio_threshold_arg_("", "logprob-ratio-threshold", "", false, -INFINITY, "float"),
   max_logprob_drop_arg_("", "max-logprob-drop", "stop glomerating when the total logprob has dropped by this much", false, -1.0, "float"),
   debug_arg_("", "debug", "debug level", false, 0, &debug_vals_),
-  n_best_events_arg_("", "n_best_events", "number of candidate recombination events to write to file", false, 1, "int"),
   smc_particles_arg_("", "smc-particles", "number of particles (paths) to run in sequential monte carlo (do not run smc if < 2)", false, 1, "int"),
   naive_hamming_cluster_arg_("", "naive-hamming-cluster", "cluster sequences using naive hamming distance", false, 0, "int"),
   biggest_naive_seq_cluster_to_calculate_arg_("", "biggest-naive-seq-cluster-to-calculate", "", false, 99999, "int"),
@@ -57,7 +56,6 @@ Args::Args(int argc, const char * argv[]):
     cmd.add(ambig_base_arg_);
     cmd.add(seed_unique_id_arg_);
     cmd.add(debug_arg_);
-    cmd.add(n_best_events_arg_);
     cmd.add(smc_particles_arg_);
     cmd.add(naive_hamming_cluster_arg_);
     cmd.add(biggest_naive_seq_cluster_to_calculate_arg_);

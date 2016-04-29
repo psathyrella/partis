@@ -393,8 +393,6 @@ class PartitionDriver(object):
         if self.args.slurm or utils.auto_slurm(n_procs):
             cmd_str = 'srun ' + cmd_str
         cmd_str += ' --algorithm ' + algorithm
-        if self.args.n_best_events is not None:
-            cmd_str += ' --n_best_events ' + str(int(self.args.n_best_events))
         if self.args.debug > 0:
             cmd_str += ' --debug ' + str(self.args.debug)
         cmd_str += ' --hmmdir ' + os.path.abspath(parameter_dir) + '/hmms'
@@ -1015,11 +1013,10 @@ class PartitionDriver(object):
         if 'no_path' in line['errors']:
             self.bcrham_failed_queries.add(line['unique_ids'])
             return True
-        if line['nth_best'] == 0:  # if this is the first line for this set of uids (i.e. the best viterbi path or only forward score)
-            if line['errors'] is not None and 'boundary' in line['errors'].split(':'):
-                boundary_error_queries.append(':'.join([uid for uid in line['unique_ids']]))
-            else:  # we don't expect anything except boundary errors a.t.m.
-                assert len(line['errors']) == 0
+        if line['errors'] is not None and 'boundary' in line['errors'].split(':'):
+            boundary_error_queries.append(':'.join([uid for uid in line['unique_ids']]))
+        else:  # we don't expect anything except boundary errors a.t.m.
+            assert len(line['errors']) == 0
 
     # ----------------------------------------------------------------------------------------
     def read_forward_output(self, annotation_fname):
@@ -1040,6 +1037,21 @@ class PartitionDriver(object):
 
         if not self.args.no_clean:
             os.remove(annotation_fname)
+
+    # ----------------------------------------------------------------------------------------
+    def get_support(self, annotations):
+        support = OrderedDict()
+        for queries, event_info_list in annotations.items():
+            support[queries] = {r : {} for r in utils.regions}
+            for info in event_info_list:
+                for region in utils.regions:
+                    gene = info[region + '_gene']
+                    if gene not in support[queries][region]:
+                        support[queries][region][gene] = -float('inf')
+                    # if region == 'd':
+                    #     print '    %s:  %f  +   %f --> %f'  % (gene, support[queries][region][gene], info['logprob'], utils.add_in_log_space(support[queries][region][gene], info['logprob']))
+                    support[queries][region][gene] = utils.add_in_log_space(support[queries][region][gene], info['logprob'])
+        return support
 
     # ----------------------------------------------------------------------------------------
     def read_annotation_output(self, annotation_fname, outfname=None, count_parameters=False, parameter_out_dir=None):
@@ -1066,13 +1078,14 @@ class PartitionDriver(object):
 
                 utils.process_input_line(padded_line)
                 uids = padded_line['unique_ids']
+                uidstr = ':'.join(uids)
                 padded_line['indelfos'] = [self.sw_info['indels'].get(uid, utils.get_empty_indel()) for uid in uids]
 
                 utils.add_implicit_info(self.glfo, padded_line, multi_seq=True)
                 if padded_line['invalid']:
                     n_invalid_events += 1
                     if self.args.debug:
-                        print '      %s padded line invalid' % ':'.join(padded_line['unique_ids'])
+                        print '      %s padded line invalid' % uidstr
                     continue
 
                 # get a new dict in which we have edited the sequences to swap Ns on either end (after removing fv and jf insertions) for v_5p and j_3p deletions
@@ -1081,38 +1094,41 @@ class PartitionDriver(object):
                     n_invalid_events += 1
                     continue
 
-                padded_annotations[':'.join(padded_line['unique_ids'])] = padded_line
-                eroded_annotations[':'.join(padded_line['unique_ids'])] = eroded_line
-
                 if self.args.debug:
-                    if padded_line['nth_best'] == 0:  # if this is the first padded_line (i.e. the best viterbi path) for this query (or query pair), print the true event
-                        print '      %s' % ':'.join(uids),
-                        if not self.args.is_data:
-                            print '   %d' % utils.from_same_event(self.reco_info, uids),
-                        print ''
-                    self.print_hmm_output(eroded_line, print_true=(eroded_line['nth_best']==0))
+                    print '      %s' % uidstr
+                    if not self.args.is_data:
+                        print '   %d' % utils.from_same_event(self.reco_info, uids),
+                    print ''
+                    self.print_hmm_output(eroded_line, print_true=True)
 
-                if padded_line['nth_best'] == 0:  # if it's the best match  #  NOTE kinda nervous about removing this: and (padded_line['cdr3_length'] != -1 or not self.args.skip_unproductive):  # if it's productive, or if we're not skipping unproductive rearrangements
+                assert uidstr not in padded_annotations and uidstr not in eroded_annotations
+                padded_annotations[uidstr] = padded_line
+                eroded_annotations[uidstr] = eroded_line
 
-                    n_events_processed += 1
+                n_events_processed += 1
 
+                if pcounter is not None:
+                    pcounter.increment_per_family_params(eroded_line)
+                if true_pcounter is not None:
+                    true_pcounter.increment_per_family_params(self.reco_info[uids[0]])  # NOTE doesn't matter which id you pass it, since they all have the same reco parameters
+
+                for iseq in range(len(uids)):
+                    singlefo = utils.synthesize_single_seq_line(eroded_line, iseq)
                     if pcounter is not None:
-                        pcounter.increment_per_family_params(eroded_line)
+                        pcounter.increment_per_sequence_params(singlefo)
                     if true_pcounter is not None:
-                        true_pcounter.increment_per_family_params(self.reco_info[uids[0]])  # NOTE doesn't matter which id you pass it, since they all have the same reco parameters
+                        true_pcounter.increment_per_sequence_params(self.reco_info[uids[iseq]])
+                    if perfplotter is not None:
+                        if uids[iseq] in self.sw_info['indels']:
+                            print '    skipping performance evaluation of %s because of indels' % uids[iseq]  # I just have no idea how to handle naive hamming fraction when there's indels
+                        else:
+                            perfplotter.evaluate(self.reco_info[uids[iseq]], singlefo, self.sw_info[uids[iseq]]['padded'])
+                    n_seqs_processed += 1
 
-                    for iseq in range(len(uids)):
-                        singlefo = utils.synthesize_single_seq_line(eroded_line, iseq)
-                        if pcounter is not None:
-                            pcounter.increment_per_sequence_params(singlefo)
-                        if true_pcounter is not None:
-                            true_pcounter.increment_per_sequence_params(self.reco_info[uids[iseq]])
-                        if perfplotter is not None:
-                            if uids[iseq] in self.sw_info['indels']:
-                                print '    skipping performance evaluation of %s because of indels' % uids[iseq]  # I just have no idea how to handle naive hamming fraction when there's indels
-                            else:
-                                perfplotter.evaluate(self.reco_info[uids[iseq]], singlefo, self.sw_info[uids[iseq]]['padded'])
-                        n_seqs_processed += 1
+        # # self.get_support(padded_annotations)  # don't need it at the moment, so may as well not do it
+        # eroded_support = self.get_support(eroded_annotations)
+        # for queries, supinfo in eroded_support.items():
+        #     print supinfo
 
         # parameter and performance writing/plotting
         if pcounter is not None:
@@ -1136,7 +1152,7 @@ class PartitionDriver(object):
 
         # write output file
         if outfname is not None:
-            self.write_annotations(eroded_annotations, outfname)
+            self.write_annotations(eroded_annotations, outfname)  # [0] takes the best annotation... if people want other ones later it's easy to change
 
         # annotation (VJ CDR3) clustering
         if self.args.annotation_clustering is not None:
@@ -1144,8 +1160,6 @@ class PartitionDriver(object):
 
         if not self.args.no_clean:
             os.remove(annotation_fname)
-
-        return eroded_annotations
 
     # ----------------------------------------------------------------------------------------
     def deal_with_annotation_clustering(self, annotations, outfname):
