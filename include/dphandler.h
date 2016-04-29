@@ -30,7 +30,6 @@ public:
 private:
   void RunKSet(Sequences &seqs, KSet kset, map<string, set<string> > &only_genes, map<KSet, double> *best_scores, map<KSet, double> *total_scores, map<KSet, map<string, string> > *best_genes);
   void FillTrellis(Sequences query_seqs, vector<string> query_strs, string gene, double *score, string &origin);
-  void PushBackRecoEvent(Sequences &seqs, KSet kset, map<string, string> &best_genes, double score, vector<RecoEvent> *events);
   RecoEvent FillRecoEvent(Sequences &seqs, KSet kset, map<string, string> &best_genes, double score);
   vector<string> GetQueryStrs(Sequences &seqs, KSet kset, string region);
 

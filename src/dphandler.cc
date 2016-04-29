@@ -116,7 +116,7 @@ Result DPHandler::Run(vector<Sequence> seqvector, KBounds kbounds, vector<string
         best_kset = kset;
       }
       if(algorithm_ == "viterbi" && best_scores[kset] != -INFINITY)  // add event to the vector in <result> (we get the event from <paths_>, using <kset> and <best_genes_> as indices)
-        PushBackRecoEvent(seqs, kset, best_genes[kset], best_scores[kset], &result.events_);
+        result.PushBackRecoEvent(FillRecoEvent(seqs, kset, best_genes[kset], best_scores[kset]));
     }
   }
   if(args_->debug() && n_too_long > 0) cout << "      skipped " << n_too_long << " (of " << n_total << ") k sets 'cause they were longer than the sequence (ran " << n_run << ")" << endl;
@@ -128,13 +128,8 @@ Result DPHandler::Run(vector<Sequence> seqvector, KBounds kbounds, vector<string
     return result;
   }
 
-  // sort vector of events by score (i.e. find the best path over ksets)
-  if(algorithm_ == "viterbi") {
-    sort(result.events_.begin(), result.events_.end());
-    reverse(result.events_.begin(), result.events_.end());
-  }
-
-  result.check_boundaries(best_kset, kbounds);
+  if(algorithm_ == "viterbi")
+    result.Finalize(gl_, per_gene_support_, best_kset, kbounds);
 
   // print debug info
   if(args_->debug()) {
@@ -164,6 +159,14 @@ Result DPHandler::Run(vector<Sequence> seqvector, KBounds kbounds, vector<string
 	cout << " (could not expand)     ";
       cout << "    " << seqs.name_str()  << endl;
     }
+
+    // TermColors tc;
+    // cout << "    per-gene support" << endl;
+    // for(auto &region : gl_.regions_) {
+    //   cout << "         " << region << endl;
+    //   for(auto &support : result.per_gene_support_[region])
+    // 	printf("             %5.2f  %10s\n", support.logprob(), tc.ColorGene(support.gene()).c_str());
+    // }
   }
 
   if(!args_->dont_rescale_emissions())  // if we rescaled them above, re-rescale the overall mean mute freqs
@@ -286,12 +289,6 @@ void DPHandler::PrintPath(vector<string> query_strs, string gene, double score, 
 }
 
 // ----------------------------------------------------------------------------------------
-void DPHandler::PushBackRecoEvent(Sequences &seqs, KSet kset, map<string, string> &best_genes, double score, vector<RecoEvent> *events) {
-  RecoEvent event(FillRecoEvent(seqs, kset, best_genes, score));
-  events->push_back(event);
-}
-
-// ----------------------------------------------------------------------------------------
 RecoEvent DPHandler::FillRecoEvent(Sequences &seqs, KSet kset, map<string, string> &best_genes, double score) {
   RecoEvent event;
   vector<string> seq_strs(seqs.n_seqs(), "");  // build up these strings summing over each regions
@@ -328,6 +325,9 @@ RecoEvent DPHandler::FillRecoEvent(Sequences &seqs, KSet kset, map<string, strin
     event.AddAuxiliarySeqs(seqs[iseq].name(), seq_strs[iseq]);
   event.SetScore(score);
   event.SetNaiveSeq(gl_);
+
+  // NOTE we do *not* want to set the event's per_gene_support_, since the event we're filling is only for one kset, while per_gene_support_ should be summed over ksets
+  
   return event;
 }
 

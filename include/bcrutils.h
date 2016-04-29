@@ -21,6 +21,16 @@ namespace ham {
 // Yeah, I would love to put them in a separate dir, but I can't get the darn thing
 // to compile when I do that, so I'm punting on it for the moment.
 
+// class to allow easy sorting of per-gene support vectors
+class SupportPair {
+public:
+  SupportPair(string gene, double logprob) : pr_(gene, logprob) {}
+  bool operator < (const SupportPair &rhs) const { return logprob() < rhs.logprob(); }  // return true if rhs is more likely than self
+  string gene() const { return pr_.first; }
+  double logprob() const { return pr_.second; }
+  pair<string, double> pr_;
+};
+
 // ----------------------------------------------------------------------------------------
 class Insertions {
 public:
@@ -77,6 +87,7 @@ public:
   vector<string> auxiliary_seqs_;
   float score_;
   int cyst_position_, tryp_position_, cdr3_length_;
+  map<string, vector<SupportPair> >  per_gene_support_;  // for each region, a sorted list of (gene, logprob) pairs
 
   bool operator < (const RecoEvent& rhs) const { return (score_ < rhs.score_); }
   void SetGenes(string vgene, string dgene, string jgene) { genes_["v"] = vgene; genes_["d"] = dgene; genes_["j"] = jgene; }
@@ -139,24 +150,32 @@ private:
 // ----------------------------------------------------------------------------------------
 class Result {
 public:
-  Result(KBounds kbounds) : total_score_(-INFINITY), no_path_(false), better_kbounds_(kbounds), boundary_error_(false), could_not_expand_(false) {}
-  void check_boundaries(KSet best, KBounds kbounds);  // and if you find errors, put expanded bounds in better_[kmin,kmax]_
+  Result(KBounds kbounds) : total_score_(-INFINITY), no_path_(false), better_kbounds_(kbounds), boundary_error_(false), could_not_expand_(false), finalized_(false) {}
+  void PushBackRecoEvent(RecoEvent event) { events_.push_back(event); }
+  void Finalize(GermLines &gl, map<string, double> &unsorted_per_gene_support, KSet best_kset, KBounds kbounds);
+  RecoEvent &best_event() { assert(finalized_); return best_event_; }
   bool boundary_error() { return boundary_error_; } // is the best kset on boundary of k space?
   bool could_not_expand() { return could_not_expand_; }
   KBounds better_kbounds() { return better_kbounds_; }
   double total_score() { return total_score_; }
   double total_score_;
   bool no_path_;
-  vector<RecoEvent> events_;
 
 private:
+  void check_boundaries(KSet best, KBounds kbounds);  // and if you find errors, put expanded bounds in better_[kmin,kmax]_
+
   KBounds better_kbounds_;
   bool boundary_error_;
   bool could_not_expand_;
+  bool finalized_;
+
+  vector<RecoEvent> events_;  // one reco event for each kset, sorted by score in Finalize()
+  RecoEvent best_event_;  // most likely event, among those in events_ (this event has its per_gene_support_ set). Set by Finalize().
 };
 
 void StreamHeader(ofstream &ofs, string algorithm);
 void StreamErrorput(ofstream &ofs, string algorithm, vector<Sequence> &seqs, string errors);
+string PerGeneSupportString(string region, vector<SupportPair> &support);
 void StreamViterbiOutput(ofstream &ofs, RecoEvent &event, vector<Sequence> &seqs, string errors);
 void StreamForwardOutput(ofstream &ofs, vector<Sequence> &seqs, double total_score, string errors);
 
