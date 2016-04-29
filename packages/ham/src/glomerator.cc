@@ -681,10 +681,10 @@ string Glomerator::CalculateNaiveSeq(string queries, RecoEvent *event) {
     errors_[queries] = errors_[queries] + ":boundary";
 
   if(event != nullptr)
-    *event = result.events_.at(0);  // NOTE each event in <events_> corresponds to the best path for a single kset (i.e. it is *not* a list of the n best events over all). It is sorted, after being filled, by dphandler
+    *event = result.best_event();
 
   WriteStatus();
-  return result.events_.at(0).naive_seq_;  // NOTE each event in <events_> corresponds to the best path for a single kset (i.e. it is *not* a list of the n best events over all). It is sorted, after being filled, by dphandler
+  return result.best_event().naive_seq_;
 }
 
 // ----------------------------------------------------------------------------------------

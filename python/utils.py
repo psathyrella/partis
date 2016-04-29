@@ -139,13 +139,22 @@ column_configs = {
     'floats' : ('logprob'),
     'bools' : tuple([fc + 's' for fc in functional_columns]),
     'literals' : ('indelfos'),
-    'lists' : tuple(['unique_ids', 'seqs', 'aligned_seqs', 'aligned_v_seqs', 'aligned_d_seqs', 'aligned_j_seqs'] + [fc + 's' for fc in functional_columns])
+    'lists' : tuple(['unique_ids', 'seqs', 'aligned_seqs'] + \
+                    ['aligned_' + r + '_seqs' for r in regions] + \
+                    [r + '_per_gene_support' for r in regions] + \
+                    [fc + 's' for fc in functional_columns]),
+    'lists-of-string-float-pairs' : [r + '_per_gene_support' for r in regions]
 }
 
 # NOTE calling this "columns" is kind of bad, because other things already have similar names. But, sigh, it's probably the best option a.t.m.
 # keep track of all the *@*@$!ing different keys that happen in the <line>/<hmminfo>/whatever dictionaries
 xcolumns = {}
-xcolumns['per_family'] = tuple(['naive_seq', 'cdr3_length', 'cyst_position', 'tryp_position', 'lengths', 'regional_bounds'] + [g + '_gene' for g in regions] + [e + '_del' for e in real_erosions + effective_erosions] + [b + '_insertion' for b in boundaries + effective_boundaries] + [r + '_gl_seq' for r in regions])
+xcolumns['per_family'] = tuple(['naive_seq', 'cdr3_length', 'cyst_position', 'tryp_position', 'lengths', 'regional_bounds'] + \
+                               [g + '_gene' for g in regions] + \
+                               [e + '_del' for e in real_erosions + effective_erosions] + \
+                               [b + '_insertion' for b in boundaries + effective_boundaries] + \
+                               [r + '_gl_seq' for r in regions] + \
+                               [r + '_per_gene_support' for r in regions])
 xcolumns['single_per_seq'] = tuple(['seq', 'unique_id', 'indelfo'] + [r + '_qr_seq' for r in regions] + ['aligned_' + r + '_seq' for r in regions] + functional_columns)
 xcolumns['multi_per_seq'] = tuple([k + 's' for k in xcolumns['single_per_seq']])
 xcolumns['hmm'] = tuple(['logprob', 'errors', 'nth_best'])
@@ -734,6 +743,23 @@ def check_for_forbidden_keys(line, multi_seq):
     for k in line.keys():
         if k in forbidden_keys:
             raise Exception('forbidden key %s in line' % k)
+
+# ----------------------------------------------------------------------------------------
+def process_per_gene_support(line, debug=True):
+    for region in regions:
+        if debug:
+            print region
+        support = OrderedDict()
+        total = 0.
+        for gene, logprob in line[region + '_per_gene_support'].items():
+            if debug:
+                print '   %5.2f   %s' % (logprob, color_gene(gene))
+            prob = math.exp(logprob)
+            support[gene] = prob
+            total += prob
+        for gene in support:
+            support[gene] /= total
+        line[region + '_per_gene_support'] = support
 
 # ----------------------------------------------------------------------------------------
 def add_implicit_info(glfo, line, multi_seq, existing_implicit_keys=None, debug=False):
@@ -1398,6 +1424,8 @@ def process_input_line(info):
 
         if key in ccfg['lists']:
             info[key] = [convert_fcn(val) for val in info[key].split(':')]
+            if key in ccfg['lists-of-string-float-pairs']:  # ok, that's getting a little hackey
+                info[key] = OrderedDict((pairstr.split(';')[0], float(pairstr.split(';')[1])) for pairstr in info[key])
         else:
             info[key] = convert_fcn(info[key])
 
@@ -2240,3 +2268,16 @@ def choose_seed_unique_id(datadir, simfname, seed_cluster_size_low, seed_cluster
         return cluster[0], len(cluster)  # arbitrarily use the first member of the cluster as the seed
 
     raise Exception('couldn\'t find seed in cluster between size %d and %d' % (seed_cluster_size_low, seed_cluster_size_high))
+
+# ----------------------------------------------------------------------------------------
+# Takes two logd values and adds them together, i.e. takes (log a, log b) --> log a+b
+# i.e. a *or* b
+def add_in_log_space(first, second):
+    if first == -float('inf'):
+        return second
+    elif second == -float('inf'):
+        return first
+    elif first > second:
+        return first + math.log(1 + math.exp(second - first))
+    else:
+        return second + math.log(1 + math.exp(first - second))

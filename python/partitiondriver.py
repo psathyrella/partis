@@ -1082,6 +1082,7 @@ class PartitionDriver(object):
                 padded_line['indelfos'] = [self.sw_info['indels'].get(uid, utils.get_empty_indel()) for uid in uids]
 
                 utils.add_implicit_info(self.glfo, padded_line, multi_seq=True)
+                utils.process_per_gene_support(padded_line)  # switch per-gene support from log space to normalized probabilities
                 if padded_line['invalid']:
                     n_invalid_events += 1
                     if self.args.debug:
@@ -1106,6 +1107,11 @@ class PartitionDriver(object):
                 eroded_annotations[uidstr] = eroded_line
 
                 n_events_processed += 1
+
+                for region in utils.regions:
+                    print region
+                    for gene, logprob in eroded_line[region + '_per_gene_support'].items():
+                        print '   %5.3f   %s' % (logprob, utils.color_gene(gene))
 
                 if pcounter is not None:
                     pcounter.increment_per_family_params(eroded_line)

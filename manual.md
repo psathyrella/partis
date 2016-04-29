@@ -157,7 +157,7 @@ Throughout the run, we sample a tree at random from this set for each rearrangem
 If you already have parameters and HMM files cached from a previous run, you can just run the Viterbi algorithm by itself.
 As an example invocation, we could find the 5 most likely annotations for the first sequence in the previous data set
 
-```./bin/partis.py --action run-viterbi --seqfile test/example.fa --is-data --parameter-dir _output/example/data/hmm --n-best-events 5 --n-max-queries 1 --debug 1```
+```./bin/partis.py --action run-viterbi --seqfile test/example.fa --is-data --parameter-dir _output/example/data/hmm --n-max-queries 1 --debug 1```
 
 Here I've kicked the debug level up to 1, so it prints out a colored summary of the candidate rearrangement events.
 If you want to save csv output for later, add `--outfname <outfname>`.

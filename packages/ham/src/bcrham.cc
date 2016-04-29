@@ -119,7 +119,7 @@ void run_algorithm(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> > &qr
     if(result.no_path_)
       StreamErrorput(ofs, args.algorithm(), qry_seqs, "no_path");
     else if(args.algorithm() == "viterbi")
-      StreamViterbiOutput(ofs, result.events_[0], qry_seqs, errors);
+      StreamViterbiOutput(ofs, result.best_event(), qry_seqs, errors);
     else if(args.algorithm() == "forward")
       StreamForwardOutput(ofs, qry_seqs, logprob, errors);
     else
