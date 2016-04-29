@@ -50,7 +50,6 @@ private:
   map<string, map<vector<string>, trellis*> > trellisi_; // collection of the trellises we've calculated, so we can reuse them. eg: trellisi_["IGHV1-18*01"]["ACGGGTCG"] for single hmms, or trellisi_["IGHV1-18*01"][("ACGGGTCG","ATGGTTAG")] for pair hmms
   map<string, map<vector<string>, TracebackPath*> > paths_; // collection of the paths.
   map<string, map<vector<string>, double> > all_scores_;
-  // map<string, double> best_per_gene_scores_;  huh, am I not using this for anything?
 };
 }
 #endif

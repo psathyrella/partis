@@ -27,7 +27,6 @@ void DPHandler::Clear() {
   trellisi_.clear();
   paths_.clear();
   all_scores_.clear();
-  // best_per_gene_scores_.clear();  huh, am I not using this for anything?
 }
 
 // ----------------------------------------------------------------------------------------
@@ -403,13 +402,6 @@ void DPHandler::RunKSet(Sequences &seqs, KSet kset, map<string, set<string> > &o
         regional_best_scores[region] = *gene_score;
         (*best_genes)[kset][region] = gene;
       }
-
-      // // set best per-gene scores
-      // if(best_per_gene_scores_.find(gene) == best_per_gene_scores_.end())  huh, am I not using this for anything?
-      //   best_per_gene_scores_[gene] = -INFINITY;
-      // if(*gene_score > best_per_gene_scores_[gene])
-      //   best_per_gene_scores_[gene] = *gene_score;
-
     }
 
     // return if we didn't find a valid path for this region
@@ -540,14 +532,5 @@ size_t DPHandler::GetErosionLength(string side, vector<string> names, string gen
 
   return length;
 }
-
-// // ----------------------------------------------------------------------------------------
-// void DPHandler::WriteBestGeneProbs(ofstream &ofs, string query_name) {
-//   ofs << query_name << ",";
-//   stringstream ss;
-//   for(auto & gene_map : best_per_gene_scores_)  huh, am I not using this for anything?
-//     ss << gene_map.first << ":" << gene_map.second << ";";
-//   ofs << ss.str().substr(0, ss.str().size() - 1) << endl; // remove the last semicolon
-// }
 
 }
