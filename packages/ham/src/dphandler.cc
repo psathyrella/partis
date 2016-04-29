@@ -379,13 +379,7 @@ void DPHandler::RunKSet(Sequences &seqs, KSet kset, map<string, set<string> > &o
 
     regional_best_scores[region] = -INFINITY;
     regional_total_scores[region] = -INFINITY;
-    size_t igene(0), n_long_erosions(0);
     for(auto & gene : only_genes[region]) {
-      igene++;
-
-      if(query_strs[0].size() < gl_.seqs_[gene].size() - 10)   // entry into the left side of the v hmm is a little hacky, and is governed by a gaussian with width 5 (hmmwriter::fuzz_around_v_left_edge)
-        n_long_erosions++;
-
       double *gene_score(&all_scores_[gene][query_strs]);  // pointed-to value is already set if we have this trellis cached, otherwise not
       bool already_cached = trellisi_.find(gene) != trellisi_.end() && trellisi_[gene].find(query_strs) != trellisi_[gene].end();
       string origin("ARG");
@@ -420,10 +414,8 @@ void DPHandler::RunKSet(Sequences &seqs, KSet kset, map<string, set<string> > &o
 
     // return if we didn't find a valid path for this region
     if((*best_genes)[kset].find(region) == (*best_genes)[kset].end()) {
-      if(args_->debug() == 2) {
-        cout << "                  found no gene for " << region << " so skip"
-             << " (" << n_long_erosions << "/" << igene << " would require more than 10 erosions)" << endl;
-      }
+      if(args_->debug() == 2)
+        cout << "                  found no gene for " << region << " so skip" << endl;
       return;
     }
   }
