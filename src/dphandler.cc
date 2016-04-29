@@ -27,6 +27,7 @@ void DPHandler::Clear() {
   trellisi_.clear();
   paths_.clear();
   all_scores_.clear();
+  per_gene_support_.clear();
 }
 
 // ----------------------------------------------------------------------------------------
@@ -348,6 +349,7 @@ void DPHandler::RunKSet(Sequences &seqs, KSet kset, map<string, set<string> > &o
   (*best_genes)[kset] = map<string, string>();
   map<string, double> regional_best_scores; // the best score for each region
   map<string, double> regional_total_scores; // the total score for each region, i.e. log P_v
+  map<string, double> per_gene_support_this_kset;
   if(args_->debug() == 2) {
     printf("         %3d%3d", (int)kset.v, (int)kset.d);
     if(algorithm_ == "forward")
@@ -395,10 +397,8 @@ void DPHandler::RunKSet(Sequences &seqs, KSet kset, map<string, set<string> > &o
         (*best_genes)[kset][region] = gene;
       }
 
-      // add score to running total (over ksets) for this gene
-      if(per_gene_support_.count(gene) == 0)
-	per_gene_support_[gene] = -INFINITY;
-      per_gene_support_[gene] = AddInLogSpace(per_gene_support_[gene], *gene_score);
+      // watch this space for something pithy
+      per_gene_support_this_kset[gene] = *gene_score;
     }
 
     // return if we didn't find a valid path for this region
@@ -411,6 +411,25 @@ void DPHandler::RunKSet(Sequences &seqs, KSet kset, map<string, set<string> > &o
 
   (*best_scores)[kset] = AddWithMinusInfinities(regional_best_scores["v"], AddWithMinusInfinities(regional_best_scores["d"], regional_best_scores["j"]));  // i.e. best_prob = v_prob * d_prob * j_prob (v *and* d *and* j)
   (*total_scores)[kset] = AddWithMinusInfinities(regional_total_scores["v"], AddWithMinusInfinities(regional_total_scores["d"], regional_total_scores["j"]));
+
+  for(auto & region : gl_.regions_) {
+    for(auto & gene : only_genes[region]) {
+
+      // first multiply the prob for this kset by the *total* for the other two regions
+      double score_this_kset(0);  // not -INFINITY, since we're multiplying probabilities
+      for(auto &tmpreg : gl_.regions_) {
+	if(tmpreg == region)
+	  score_this_kset = AddWithMinusInfinities(score_this_kset, per_gene_support_this_kset[gene]);  // 
+	else
+	  AddWithMinusInfinities(score_this_kset, regional_total_scores[tmpreg]);  // i.e. we sum over genes in the other two regions, but single out this gene in its region
+      }
+
+      // then add it to the running total (over ksets) for this gene
+      if(per_gene_support_.count(gene) == 0)
+	per_gene_support_[gene] = -INFINITY;
+      per_gene_support_[gene] = AddInLogSpace(per_gene_support_[gene], score_this_kset);
+    }
+  }
 }
 
 // ----------------------------------------------------------------------------------------
