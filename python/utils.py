@@ -745,7 +745,7 @@ def check_for_forbidden_keys(line, multi_seq):
             raise Exception('forbidden key %s in line' % k)
 
 # ----------------------------------------------------------------------------------------
-def process_per_gene_support(line, debug=True):
+def process_per_gene_support(line, debug=False):
     for region in regions:
         if debug:
             print region
