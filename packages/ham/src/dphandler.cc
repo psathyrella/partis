@@ -402,6 +402,11 @@ void DPHandler::RunKSet(Sequences &seqs, KSet kset, map<string, set<string> > &o
         regional_best_scores[region] = *gene_score;
         (*best_genes)[kset][region] = gene;
       }
+
+      // add score to running total (over ksets) for this gene
+      if(per_gene_support_.count(gene) == 0)
+	per_gene_support_[gene] = -INFINITY;
+      per_gene_support_[gene] = AddInLogSpace(per_gene_support_[gene], *gene_score);
     }
 
     // return if we didn't find a valid path for this region
