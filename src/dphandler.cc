@@ -134,14 +134,8 @@ Result DPHandler::Run(vector<Sequence> seqvector, KBounds kbounds, vector<string
     reverse(result.events_.begin(), result.events_.end());
     if(args_->debug() == 2) {
       assert(args_->n_best_events() <= (int)result.events_.size());
-      // for(size_t ievt = 0; ievt < args_->n_best_events(); ++ievt) {
-      //   result.events_[ievt].Print(gl_, 0, 0, false, false, "          ");  // man, I wish I had keyword args
-      //   if(seqs.n_seqs() == 2)
-      //     result.events_[ievt].Print(gl_, 0, 0, true, true, "          ");
-      // }
     }
   }
-  // StreamOutput(total_score_);  // NOTE this must happen after sorting in viterbi
 
   // print debug info
   if(args_->debug()) {
