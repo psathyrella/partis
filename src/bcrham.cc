@@ -116,16 +116,15 @@ void run_algorithm(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> > &qr
         errors = "boundary";
     } while(!stop);
 
-    if(args.algorithm() == "viterbi" && size_t(args.n_best_events()) > result.events_.size()) {   // if we were asked for more events than we found
-      if(result.events_.size() > 0)
-        cout << "WARNING asked for " << args.n_best_events() << " events but only found " << result.events_.size() << endl;
-      else
-        assert(result.no_path_);  // if there's some *other* way we can end up with no events, I want to know about it
-    }
     if(result.no_path_)
       StreamErrorput(ofs, args.algorithm(), qry_seqs, "no_path");
+    else if(args.algorithm() == "viterbi")
+      StreamViterbiOutput(ofs, result.events_[0], qry_seqs, errors);
+    else if(args.algorithm() == "forward")
+      StreamForwardOutput(ofs, qry_seqs, logprob, errors);
     else
-      StreamOutput(ofs, args.algorithm(), min(size_t(args.n_best_events()), result.events_.size()), result.events_, qry_seqs, logprob, errors);
+      assert(0);
+
     if(args.algorithm() == "viterbi")
       ++n_vtb_calculated;
     else if(args.algorithm() == "forward")

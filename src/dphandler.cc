@@ -115,7 +115,7 @@ Result DPHandler::Run(vector<Sequence> seqvector, KBounds kbounds, vector<string
         best_score = best_scores[kset];
         best_kset = kset;
       }
-      if(algorithm_ == "viterbi" && best_scores[kset] != -INFINITY)
+      if(algorithm_ == "viterbi" && best_scores[kset] != -INFINITY)  // add event to the vector in <result> (we get the event from <paths_>, using <kset> and <best_genes_> as indices)
         PushBackRecoEvent(seqs, kset, best_genes[kset], best_scores[kset], &result.events_);
     }
   }
@@ -128,13 +128,10 @@ Result DPHandler::Run(vector<Sequence> seqvector, KBounds kbounds, vector<string
     return result;
   }
 
-  // sort vector of events by score, stream info to stderr, and print the top n_best_events_
+  // sort vector of events by score (i.e. find the best path over ksets)
   if(algorithm_ == "viterbi") {
     sort(result.events_.begin(), result.events_.end());
     reverse(result.events_.begin(), result.events_.end());
-    if(args_->debug() == 2) {
-      assert(args_->n_best_events() <= (int)result.events_.size());
-    }
   }
 
   // print debug info
