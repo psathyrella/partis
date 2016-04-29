@@ -78,7 +78,7 @@ public:
   float score_;
   int cyst_position_, tryp_position_, cdr3_length_;
 
-  bool operator < (const RecoEvent& rhs) const { return (score_ < rhs.score_); }  // return true if this event is more likely than the rhs event
+  bool operator < (const RecoEvent& rhs) const { return (score_ < rhs.score_); }
   void SetGenes(string vgene, string dgene, string jgene) { genes_["v"] = vgene; genes_["d"] = dgene; genes_["j"] = jgene; }
   void SetGene(string region, string gene) { genes_[region] = gene; }
   void SetDeletion(string name, size_t len) { deletions_[name] = len; }
