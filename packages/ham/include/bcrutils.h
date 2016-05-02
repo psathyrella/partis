@@ -107,7 +107,12 @@ class KSet {  // pair of k_v,k_d values specifying how to chop up the query sequ
 public:
   KSet(size_t k_v, size_t k_d) : v(k_v), d(k_d) {}
   bool equals(KSet rhs) { return v == rhs.v && d == rhs.d; }
-  bool operator< (const KSet rhs) const { return  v < rhs.v && d < rhs.d; }
+  bool operator< (const KSet rhs) const  // kind of weird, but it's just for std::map
+  {
+    if(v == rhs.v)
+      return d < rhs.d;
+    return v < rhs.v;
+  }
 
   size_t v;
   size_t d;
