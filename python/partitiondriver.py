@@ -1039,21 +1039,6 @@ class PartitionDriver(object):
             os.remove(annotation_fname)
 
     # ----------------------------------------------------------------------------------------
-    def get_support(self, annotations):
-        support = OrderedDict()
-        for queries, event_info_list in annotations.items():
-            support[queries] = {r : {} for r in utils.regions}
-            for info in event_info_list:
-                for region in utils.regions:
-                    gene = info[region + '_gene']
-                    if gene not in support[queries][region]:
-                        support[queries][region][gene] = -float('inf')
-                    # if region == 'd':
-                    #     print '    %s:  %f  +   %f --> %f'  % (gene, support[queries][region][gene], info['logprob'], utils.add_in_log_space(support[queries][region][gene], info['logprob']))
-                    support[queries][region][gene] = utils.add_in_log_space(support[queries][region][gene], info['logprob'])
-        return support
-
-    # ----------------------------------------------------------------------------------------
     def read_annotation_output(self, annotation_fname, outfname=None, count_parameters=False, parameter_out_dir=None):
         """ Read bcrham annotation output """
         print '    read output'
@@ -1108,10 +1093,10 @@ class PartitionDriver(object):
 
                 n_events_processed += 1
 
-                for region in utils.regions:
-                    print region
-                    for gene, logprob in eroded_line[region + '_per_gene_support'].items():
-                        print '   %5.3f   %s' % (logprob, utils.color_gene(gene))
+                # for region in utils.regions:
+                #     print region
+                #     for gene, logprob in eroded_line[region + '_per_gene_support'].items():
+                #         print '   %5.3f   %s' % (logprob, utils.color_gene(gene))
 
                 if pcounter is not None:
                     pcounter.increment_per_family_params(eroded_line)
@@ -1130,11 +1115,6 @@ class PartitionDriver(object):
                         else:
                             perfplotter.evaluate(self.reco_info[uids[iseq]], singlefo, self.sw_info[uids[iseq]]['padded'])
                     n_seqs_processed += 1
-
-        # # self.get_support(padded_annotations)  # don't need it at the moment, so may as well not do it
-        # eroded_support = self.get_support(eroded_annotations)
-        # for queries, supinfo in eroded_support.items():
-        #     print supinfo
 
         # parameter and performance writing/plotting
         if pcounter is not None:
