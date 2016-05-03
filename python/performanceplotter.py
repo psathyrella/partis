@@ -134,18 +134,23 @@ class PerformancePlotter(object):
                 pass
 
     # ----------------------------------------------------------------------------------------
+    def set_bool_column(self, true_line, inf_line, column, overall_mute_freq):
+        if utils.are_alleles(true_line[column], inf_line[column]):
+            self.values[column]['right'] += 1
+            self.hists[column + '_right_vs_mute_freq'].fill(overall_mute_freq)  # NOTE this'll toss a KeyError if you add bool column that aren't [vdj]_gene
+        else:
+            self.values[column]['wrong'] += 1
+            self.hists[column + '_wrong_vs_mute_freq'].fill(overall_mute_freq)
+
+    # ----------------------------------------------------------------------------------------
     def add_partial_fail(self, true_line, line):
 
         overall_mute_freq = utils.get_mutation_rate(self.germlines, true_line)  # true value
 
         for column in self.values:
             if column in bool_columns:
-                if column in line and utils.are_alleles(true_line[column], line[column]):  # NOTE you have to change this below as well!
-                    self.values[column]['right'] += 1
-                    self.hists[column + '_right_vs_mute_freq'].fill(overall_mute_freq)  # NOTE this'll toss a KeyError if you add bool column that aren't [vdj]_gene
-                else:
-                    self.values[column]['wrong'] += 1
-                    self.hists[column + '_wrong_vs_mute_freq'].fill(overall_mute_freq)
+                if column in line:
+                    self.set_bool_column(true_line, line, column, overall_mute_freq)
             else:
                 pass
 
@@ -168,12 +173,7 @@ class PerformancePlotter(object):
             if self.only_correct_gene_fractions and column not in bool_columns:
                 continue
             if column in bool_columns:
-                if utils.are_alleles(true_line[column], inf_line[column]):  # NOTE you have to change this above as well!
-                    self.values[column]['right'] += 1
-                    self.hists[column + '_right_vs_mute_freq'].fill(overall_mute_freq)  # NOTE this'll toss a KeyError if you add bool column that aren't [vdj]_gene
-                else:
-                    self.values[column]['wrong'] += 1
-                    self.hists[column + '_wrong_vs_mute_freq'].fill(overall_mute_freq)
+                self.set_bool_column(true_line, inf_line, column, overall_mute_freq)
             else:
                 trueval, guessval = 0, 0
                 if column[2:] == '_insertion':  # insertion length
