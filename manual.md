@@ -162,6 +162,38 @@ As an example invocation, we could find the 5 most likely annotations for the fi
 Here I've kicked the debug level up to 1, so it prints out a colored summary of the candidate rearrangement events.
 If you want to save csv output for later, add `--outfname <outfname>`.
 
+output formatting:
+
+|   column header        |  description
+|------------------------|----------------------------------------------------------------------------
+| unique_ids             |  colon-separated list of sequence identification strings (of length 1 if multi-hmm isn't used)
+| v_gene		 |  V gene in most likely annotation
+| d_gene		 |  D gene in most likely annotation
+| j_gene		 |  J gene in most likely annotation
+| cdr3_length		 |  CDR3 length of most likely annotation (IMGT scheme, i.e. including both codons in their entirety)
+| seqs			 |  colon-separated list of input sequences (of length 1 if multi-hmm isn't used)
+| naive_seq		 |  naive (unmutated ancestor) sequence corresponding to most likely annotation
+| v_3p_del		 |  length of V 3' deletion in most likely annotation
+| d_5p_del		 |  length of D 5' deletion in most likely annotation
+| d_3p_del		 |  length of D 3' deletion in most likely annotation
+| j_5p_del		 |  length of J 5' deletion in most likely annotation
+| v_5p_del		 |  length of an "effective" V 5' deletion in the most likely annotation, corresponding to a read which does not extend through the entire V segment
+| j_3p_del		 |  length of an "effective" J 3' deletion in the most likely annotation, corresponding to a read which does not extend through the entire J segment
+| vd_insertion		 |  sequence of nucleotides corresponding to the non-templated insertion between the V and D segments
+| dj_insertion		 |  sequence of nucleotides corresponding to the non-templated insertion between the D and J segments
+| fv_insertion		 |  sequence of nucleotides corresponding to any "effective" non-templated insertion on the 5' side of the V (accounts for reads which extend beyond the 5' end of V)
+| jf_insertion		 |  sequence of nucleotides corresponding to any "effective" non-templated insertion on the 3' side of the J (accounts for reads which extend beyond the 3' end of J)
+| mutated_invariants	 |  true if the conserved cysteine or tryptophan (IMGT numbering) were mutated (colon-separated list if multi-hmm)
+| in_frames		 |  true if conserved cysteine and tryptophan (IMGT numbering) are in the same frame (colon-separated list if multi-hmm)
+| stops                  |  true if stop codon was found in the query sequence
+| v_per_gene_support	 |  approximate probability supporting the top V gene matches (colon-separated list of semicolon-separated gene:probability pairs)
+| d_per_gene_support	 |  approximate probability supporting the top D gene matches (colon-separated list of semicolon-separated gene:probability pairs)
+| j_per_gene_support	 |  approximate probability supporting the top J gene matches (colon-separated list of semicolon-separated gene:probability pairs)
+| indelfos		 |  information on any SHM indels that were inferred in the Smith-Waterman step. Written as a literal python dict; can be read in python with `ast.literal_eval(line['indelfo'])`.
+| aligned_v_seqs	 |  do not use. will soon be removed (see #179).
+| aligned_d_seqs	 |  do not use. will soon be removed (see #179).
+| aligned_j_seqs	 |  do not use. will soon be removed (see #179).
+
 ##### `run-forward`: find total probability of sequences
 
 Exactly the same as `run-viterbi`, except with the forward algorithm, i.e. it sums over all possible rearrangement events to get the total log probability of the sequence.
