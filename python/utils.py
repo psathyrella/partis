@@ -750,15 +750,15 @@ def process_per_gene_support(line, debug=False):
         if debug:
             print region
         support = OrderedDict()
-        total = 0.
+        logtotal = float('-inf')
         for gene, logprob in line[region + '_per_gene_support'].items():
-            if debug:
-                print '   %5.2f   %s' % (logprob, color_gene(gene))
-            prob = math.exp(logprob)
-            support[gene] = prob
-            total += prob
+            support[gene] = logprob
+            logtotal = add_in_log_space(logtotal, logprob)
+
         for gene in support:
-            support[gene] /= total
+            if debug:
+                print '   %5.2f     %5.2f   %s' % (support[gene], math.exp(support[gene] - logtotal), color_gene(gene))
+            support[gene] = math.exp(support[gene] - logtotal)
 
         if len(support.keys()) > 0 and support.keys()[0] != line[region + '_gene']:
             print '   WARNING best-supported gene %s not same as viterbi gene %s' % (color_gene(support.keys()[0]), color_gene(line[region + '_gene']))
