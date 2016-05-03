@@ -1093,11 +1093,6 @@ class PartitionDriver(object):
 
                 n_events_processed += 1
 
-                # for region in utils.regions:
-                #     print region
-                #     for gene, logprob in eroded_line[region + '_per_gene_support'].items():
-                #         print '   %5.3f   %s' % (logprob, utils.color_gene(gene))
-
                 if pcounter is not None:
                     pcounter.increment_per_family_params(eroded_line)
                 if true_pcounter is not None:
@@ -1207,7 +1202,9 @@ class PartitionDriver(object):
         if outpath[0] != '/':  # if full output path wasn't specified on the command line
             outpath = os.getcwd() + '/' + outpath
         if not self.args.presto_output:
-            outheader = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'seqs', 'aligned_v_seqs', 'aligned_d_seqs', 'aligned_j_seqs', 'naive_seq', 'indelfos']
+            outheader = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'seqs', 'naive_seq', 'indelfos']
+            outheader += ['aligned_' + r + '_seqs' for r in utils.regions]
+            outheader += [r + '_per_gene_support' for r in utils.regions]
             outheader += [e + '_del' for e in utils.real_erosions + utils.effective_erosions] + [b + '_insertion' for b in utils.boundaries + utils.effective_boundaries]
             outheader += [fc + 's' for fc in utils.functional_columns]
         else:

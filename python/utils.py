@@ -759,6 +759,10 @@ def process_per_gene_support(line, debug=False):
             total += prob
         for gene in support:
             support[gene] /= total
+
+        if len(support.keys()) > 0 and support.keys()[0] != line[region + '_gene']:
+            print '   WARNING best-supported gene %s not same as viterbi gene %s' % (color_gene(support.keys()[0]), color_gene(line[region + '_gene']))
+
         line[region + '_per_gene_support'] = support
 
 # ----------------------------------------------------------------------------------------
@@ -1442,7 +1446,10 @@ def get_line_for_output(info):
     outfo = {}
     for key, val in info.items():
         if key in column_configs['lists']:
-            outfo[key] = ':'.join([str(v) for v in info[key]])
+            if key in column_configs['lists-of-string-float-pairs']:  # ok, that's getting a little hackey
+                outfo[key] = ':'.join([k + ';' + str(v) for k, v in info[key].items()])
+            else:
+                outfo[key] = ':'.join([str(v) for v in info[key]])
         else:
             outfo[key] = str(info[key])
     return outfo
