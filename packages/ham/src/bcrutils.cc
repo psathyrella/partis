@@ -389,12 +389,14 @@ KBounds KBounds::LogicalOr(KBounds rhs) {
 
 // ----------------------------------------------------------------------------------------
 void Result::Finalize(GermLines &gl, map<string, double> &unsorted_per_gene_support, KSet best_kset, KBounds kbounds) {
+  assert(!finalized_);
+
   // sort vector of events by score (i.e. find the best path over ksets)
   sort(events_.begin(), events_.end());
   reverse(events_.begin(), events_.end());
   best_event_ = events_[0];
 
-  // set per-gene support NOTE make sure to do this *after* sorting
+  // set per-gene support (really just rearranging and sorting the values in DPHandler::per_gene_support_) NOTE make sure to do this *after* sorting
   for(auto &region : gl.regions_) {
     vector<SupportPair> support;  // sorted list of (gene, logprob) pairs for this region
     for(auto &pgit : unsorted_per_gene_support) {
@@ -406,8 +408,8 @@ void Result::Finalize(GermLines &gl, map<string, double> &unsorted_per_gene_supp
     }
     sort(support.begin(), support.end());
     reverse(support.begin(), support.end());
-    // NOTE we *only* want the *best* event to have its per-gene support set -- because the ones in <events_> only correspond to one kset, it doesn't make sense to have their per-gene supports set (well, they'd just be trivial since there's nothing to sum over)
-    best_event_.per_gene_support_[region] = support;  // NOTE organization is totally different to DPHandler::per_gene_support_
+    // NOTE we *only* want the *best* event to have its per-gene support set -- because the ones in <events_> only correspond to one kset, it doesn't make sense to have their per-gene supports set (well, they'd just be trivial)
+    best_event_.per_gene_support_[region] = support;  // NOTE organization is totally different to that of DPHandler::per_gene_support_
   }
 
   check_boundaries(best_kset, kbounds);

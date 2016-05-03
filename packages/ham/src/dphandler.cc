@@ -160,14 +160,6 @@ Result DPHandler::Run(vector<Sequence> seqvector, KBounds kbounds, vector<string
 	cout << " (could not expand)     ";
       cout << "    " << seqs.name_str()  << endl;
     }
-
-    // TermColors tc;
-    // cout << "    per-gene support" << endl;
-    // for(auto &region : gl_.regions_) {
-    //   cout << "         " << region << endl;
-    //   for(auto &support : result.per_gene_support_[region])
-    // 	printf("             %5.2f  %10s\n", support.logprob(), tc.ColorGene(support.gene()).c_str());
-    // }
   }
 
   if(!args_->dont_rescale_emissions())  // if we rescaled them above, re-rescale the overall mean mute freqs
@@ -386,12 +378,12 @@ void DPHandler::RunKSet(Sequences &seqs, KSet kset, map<string, set<string> > &o
       if(args_->debug() == 2 && algorithm_ == "viterbi")
         PrintPath(query_strs, gene, *gene_score, origin);
 
-      // set regional total scores
+      // add this score to the regional total score
       regional_total_scores[region] = AddInLogSpace(*gene_score, regional_total_scores[region]);  // (log a, log b) --> log a+b, i.e. here we are summing probabilities in log space, i.e. a *or* b
       if(args_->debug() == 2 && algorithm_ == "forward")
         printf("                %6.0e %9.2f  %7.2f  %s  %s\n", exp(*gene_score), *gene_score, regional_total_scores[region], origin.c_str(), tc.ColorGene(gene).c_str());
 
-      // set best regional scores
+      // set best regional scores (and the best gene for this kset)
       if(*gene_score > regional_best_scores[region]) {
         regional_best_scores[region] = *gene_score;
         (*best_genes)[kset][region] = gene;
@@ -412,22 +404,22 @@ void DPHandler::RunKSet(Sequences &seqs, KSet kset, map<string, set<string> > &o
   (*best_scores)[kset] = AddWithMinusInfinities(regional_best_scores["v"], AddWithMinusInfinities(regional_best_scores["d"], regional_best_scores["j"]));  // i.e. best_prob = v_prob * d_prob * j_prob (v *and* d *and* j)
   (*total_scores)[kset] = AddWithMinusInfinities(regional_total_scores["v"], AddWithMinusInfinities(regional_total_scores["d"], regional_total_scores["j"]));
 
-  for(auto & region : gl_.regions_) {
-    for(auto & gene : only_genes[region]) {
-
+  for(auto &region : gl_.regions_) {  // we have to do this in a separate loop because we need to know what the regional_best_scores are for the other regions
+    for(auto &gene : only_genes[region]) {
       // first multiply the prob for this kset by the *total* for the other two regions
       double score_this_kset(0);  // not -INFINITY, since we're multiplying probabilities
       for(auto &tmpreg : gl_.regions_) {
-	if(tmpreg == region)
-	  score_this_kset = AddWithMinusInfinities(score_this_kset, per_gene_support_this_kset[gene]);  // 
-	else
-	  AddWithMinusInfinities(score_this_kset, regional_total_scores[tmpreg]);  // i.e. we sum over genes in the other two regions, but single out this gene in its region
+      	if(tmpreg == region)
+      	  score_this_kset = AddWithMinusInfinities(score_this_kset, per_gene_support_this_kset[gene]);
+      	else
+      	  score_this_kset = AddWithMinusInfinities(score_this_kset, regional_best_scores[tmpreg]);  // i.e. we use the best genes in the other two regions, but single out this gene in its region
       }
 
-      // then add it to the running total (over ksets) for this gene
       if(per_gene_support_.count(gene) == 0)
-	per_gene_support_[gene] = -INFINITY;
-      per_gene_support_[gene] = AddInLogSpace(per_gene_support_[gene], score_this_kset);
+      	per_gene_support_[gene] = -INFINITY;
+      // per_gene_support_[gene] = AddInLogSpace(per_gene_support_[gene], score_this_kset);  // also, if you do it this way, a large fraction of the events have different viterbi and best-supported d genes
+      if(score_this_kset > per_gene_support_[gene])  // NOTE we could also add up the scores for every kset, but what we want to compare to is the viterbi prob for the best annotation, so this is cleaner and clearer, i.e. it doesn't muddle up viterbi and forward probs
+      	per_gene_support_[gene] = score_this_kset;
     }
   }
 }

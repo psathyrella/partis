@@ -51,7 +51,7 @@ private:
   map<string, map<vector<string>, trellis*> > trellisi_; // collection of the trellises we've calculated, so we can reuse them. eg: trellisi_["IGHV1-18*01"]["ACGGGTCG"] for single hmms, or trellisi_["IGHV1-18*01"][("ACGGGTCG","ATGGTTAG")] for pair hmms
   map<string, map<vector<string>, TracebackPath*> > paths_; // collection of the paths.
   map<string, map<vector<string>, double> > all_scores_;
-  map<string, double> per_gene_support_;  // sum over k space of log probs for each gene
+  map<string, double> per_gene_support_;  // log prob of the best (full) annotation for each gene
 };
 }
 #endif
