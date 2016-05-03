@@ -135,7 +135,7 @@ class PerformancePlotter(object):
 
     # ----------------------------------------------------------------------------------------
     def set_bool_column(self, true_line, inf_line, column, overall_mute_freq):
-        if utils.are_alleles(true_line[column], inf_line[column]):
+        if utils.are_alleles(true_line[column], inf_line[column]):  # NOTE this doesn't require allele to be correct, but set_per_gene_support() does
             self.values[column]['right'] += 1
             self.hists[column + '_right_vs_mute_freq'].fill(overall_mute_freq)  # NOTE this'll toss a KeyError if you add bool column that aren't [vdj]_gene
         else:
@@ -143,7 +143,18 @@ class PerformancePlotter(object):
             self.hists[column + '_wrong_vs_mute_freq'].fill(overall_mute_freq)
 
     # ----------------------------------------------------------------------------------------
+    def set_per_gene_support(self, true_line, inf_line, region):
+        if inf_line[region + '_per_gene_support'].keys()[0] != inf_line[region + '_gene']:
+            print '   WARNING best-supported gene %s not same as viterbi gene %s' % (utils.color_gene(inf_line[region + '_per_gene_support'].keys()[0]), utils.color_gene(inf_line[region + '_gene']))
+        support = inf_line[region + '_per_gene_support'].values()[0]  # sorted, ordered dict with gene : logprob key-val pairs
+        if true_line[region + '_gene'] == inf_line[region + '_gene']:  # NOTE this requires allele to be correct, but set_bool_column() does not
+            self.hists[region + '_allele_right_vs_per_gene_support'].fill(support)
+        else:
+            self.hists[region + '_allele_wrong_vs_per_gene_support'].fill(support)
+
+    # ----------------------------------------------------------------------------------------
     def add_partial_fail(self, true_line, line):
+        # NOTE does not fill all the hists ('cause it kind of can't, right?)
 
         overall_mute_freq = utils.get_mutation_rate(self.germlines, true_line)  # true value
 
@@ -156,13 +167,7 @@ class PerformancePlotter(object):
 
         for region in utils.regions:
             if region + '_per_gene_support' in inf_line:
-                if inf_line[region + '_per_gene_support'].keys()[0] != inf_line[region + '_gene']:
-                    print '   WARNING best-supported gene %s not same as viterbi gene %s' % (utils.color_gene(inf_line[region + '_per_gene_support'].keys()[0]), utils.color_gene(inf_line[region + '_gene']))
-                support = inf_line[region + '_per_gene_support'].values()[0]
-                if true_line[region + '_gene'] == inf_line[region + '_gene']:  # NOTE you have to change this below as well!
-                    self.hists[region + '_allele_right_vs_per_gene_support'].fill(support)
-                else:
-                    self.hists[region + '_allele_wrong_vs_per_gene_support'].fill(support)
+                self.set_per_gene_support(true_line, inf_line, region)
 
     # ----------------------------------------------------------------------------------------
     def evaluate(self, true_line, inf_line, padfo=None):
@@ -199,13 +204,7 @@ class PerformancePlotter(object):
 
         for region in utils.regions:
             if region + '_per_gene_support' in inf_line:
-                if inf_line[region + '_per_gene_support'].keys()[0] != inf_line[region + '_gene']:
-                    print '   WARNING best-supported gene %s not same as viterbi gene %s' % (utils.color_gene(inf_line[region + '_per_gene_support'].keys()[0]), utils.color_gene(inf_line[region + '_gene']))
-                support = inf_line[region + '_per_gene_support'].values()[0]
-                if true_line[region + '_gene'] == inf_line[region + '_gene']:  # NOTE you have to change this below as well!
-                    self.hists[region + '_allele_right_vs_per_gene_support'].fill(support)
-                else:
-                    self.hists[region + '_allele_wrong_vs_per_gene_support'].fill(support)
+                self.set_per_gene_support(true_line, inf_line, region)
 
         for column in self.hists:
             if '_vs_mute_freq' in column or '_per_gene_support' in column:  # fill these above
