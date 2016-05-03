@@ -1425,7 +1425,14 @@ def process_input_line(info):
         if key in ccfg['lists']:
             info[key] = [convert_fcn(val) for val in info[key].split(':')]
             if key in ccfg['lists-of-string-float-pairs']:  # ok, that's getting a little hackey
-                info[key] = OrderedDict((pairstr.split(';')[0], float(pairstr.split(';')[1])) for pairstr in info[key])
+
+                def splitstrpair(pairstr):
+                    pairlist = pairstr.split(';')
+                    if len(pairlist) != 2:
+                        raise Exception('couldn\'t split %s into two pieces with \';\'' % (pairstr))
+                    return (pairlist[0], float(pairlist[1]))
+
+                info[key] = OrderedDict(splitstrpair(pairstr) for pairstr in info[key])
         else:
             info[key] = convert_fcn(info[key])
 

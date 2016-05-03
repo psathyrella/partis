@@ -53,6 +53,7 @@ if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
     print '    TODO hfrac thresholds should maybe depend on how much of which regions (v/d/j) we have'
     print '    TODO add progress info for viterbi'
     print '    TODO add emissions rescaling to bcrham scons test'
+    print '    TODO work out what to do with regional total scores for per-gene support'
 
 # input and output stuff
 parser.add_argument('--seqfile', help='input sequence file')

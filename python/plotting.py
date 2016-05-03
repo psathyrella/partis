@@ -182,7 +182,7 @@ def add_bin_labels_not_in_all_hists(hists):
 
 # ----------------------------------------------------------------------------------------
 def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, scale_errors=None, normalize=False, bounds=None,
-                 figsize=None, shift_overflows=False, colors=None, errors=False, write_csv=False, xline=None, yline=None, linestyles=None,
+                 figsize=None, shift_overflows=False, colors=None, errors=False, write_csv=False, xline=None, yline=None, xyline=None, linestyles=None,
                  linewidths=None, plottitle=None, csv_fname=None, stats='', translegend=(0., 0.), rebin=None,
                  xtitle=None, ytitle=None, markersizes=None, no_labels=False, only_csv=False, alphas=None):
     assert os.path.exists(plotdir)
@@ -285,10 +285,15 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
             alpha = alphas[ih]
         htmp.mpl_plot(ax, color=colors[ih], linewidth=linewidth, linestyle=linestyles[ih], ignore_overflows=True, errors=errors, alpha=alpha, markersize=markersize)
 
+    # TODO combine xline, yline, and xyline (I don't want to go find everwhere that calls this right now)
     if xline is not None:
         ax.plot([xline, xline], [-0.1*ymax, 0.5*ymax], color='black', linestyle='--', linewidth=3)
     if yline is not None:
         print 'TODO fix y line'
+    if xyline is not None:
+        assert len(xyline) == 2
+        assert len(xyline[0]) == 2 and len(xyline[1]) == 2
+        ax.plot([xyline[0][0], xyline[1][0]], [xyline[0][1], xyline[1][1]], color='black', linestyle='--', linewidth=3)
     # if yline is not None:
     #     # if yline < hframe.GetYaxis().GetXmin() or xline > hframe.GetYaxis().GetXmax():  # make sure we got valid a x position for the line
     #     #     print 'WARNING plotting y line at %f out of bounds (%f, %f)' % (float(ymin), hframe.GetYaxis().GetXmin(), hframe.GetYaxis().GetXmax())
