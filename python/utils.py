@@ -1123,7 +1123,8 @@ def add_missing_alignments(glfo, debug=False):
                     raise Exception('gene %s too long to generate missing alignment' % gene)  # could really just extend all the other alignments here, but fuck it, maybe I won't need to
                 n_dashes = len(alignment_to_use) - len(seq)
                 glfo['aligned-genes'][region][gene] = n_dashes * '-' + seq  # just hack a bunch of dashes on the left
-    if True: #debug:
+
+    if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
         print '   adding nonsense alignments for missing genes %s' % ' '.join([color_gene(g) for g in missing_genes])
 
 # ----------------------------------------------------------------------------------------

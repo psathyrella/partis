@@ -109,12 +109,13 @@ And then build:
 
 #### Subcommands
 
-`partis`, in `bin/`, is the script that drives everything.
+`./bin/partis`, is the script that drives everything.
 Every time you invoke it, you choose from a list of actions you want it to perform
 
 ```./bin/partis cache-parameters|run-viterbi|partition|simulate|run-forward```.
 
 Each of these subcommands is described in detail below.
+For more information you can also type `./bin/partis --help` or `./bin/partis <subcommand> --help`.
 
 ##### `cache-parameters`: write out parameter values and HMM model files for a given data set
 
