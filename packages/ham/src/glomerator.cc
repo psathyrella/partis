@@ -248,8 +248,7 @@ void Glomerator::WriteAnnotations(vector<ClusterPath> &paths) {
       cout << "WTF " << cluster << " x" << event.naive_seq_ << "x" << endl;
       assert(0);
     }
-    vector<RecoEvent> event_list({event});
-    StreamOutput(annotation_ofs, "viterbi", 1, event_list, seq_info_[cluster], 0., "");
+    StreamViterbiOutput(annotation_ofs, event, seq_info_[cluster], "");
   }
   annotation_ofs.close();
 }
@@ -682,10 +681,10 @@ string Glomerator::CalculateNaiveSeq(string queries, RecoEvent *event) {
     errors_[queries] = errors_[queries] + ":boundary";
 
   if(event != nullptr)
-    *event = result.events_.at(0);
+    *event = result.best_event();
 
   WriteStatus();
-  return result.events_.at(0).naive_seq_;
+  return result.best_event().naive_seq_;
 }
 
 // ----------------------------------------------------------------------------------------

@@ -22,9 +22,9 @@ from collections import OrderedDict
 import operator
 
 import utils
-import fraction_uncertainty
 import plotconfig
 from hist import Hist
+import fraction_uncertainty
 
 from opener import opener
 
@@ -76,6 +76,9 @@ def write_hist_to_file(fname, hist):
 # ----------------------------------------------------------------------------------------
 def make_bool_hist(n_true, n_false, hist_label):
     """ fill a two-bin histogram with the fraction false in the first bin and the fraction true in the second """
+    # if 'fraction_uncertainty' not in sys.modules:
+    #     import fraction_uncertainty
+
     hist = Hist(2, -0.5, 1.5)
 
     def set_bin(numer, denom, ibin, label):
@@ -179,7 +182,7 @@ def add_bin_labels_not_in_all_hists(hists):
 
 # ----------------------------------------------------------------------------------------
 def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, scale_errors=None, normalize=False, bounds=None,
-                 figsize=None, shift_overflows=False, colors=None, errors=False, write_csv=False, xline=None, yline=None, linestyles=None,
+                 figsize=None, shift_overflows=False, colors=None, errors=False, write_csv=False, xline=None, yline=None, xyline=None, linestyles=None,
                  linewidths=None, plottitle=None, csv_fname=None, stats='', translegend=(0., 0.), rebin=None,
                  xtitle=None, ytitle=None, markersizes=None, no_labels=False, only_csv=False, alphas=None):
     assert os.path.exists(plotdir)
@@ -282,10 +285,15 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
             alpha = alphas[ih]
         htmp.mpl_plot(ax, color=colors[ih], linewidth=linewidth, linestyle=linestyles[ih], ignore_overflows=True, errors=errors, alpha=alpha, markersize=markersize)
 
+    # TODO combine xline, yline, and xyline (I don't want to go find everwhere that calls this right now)
     if xline is not None:
         ax.plot([xline, xline], [-0.1*ymax, 0.5*ymax], color='black', linestyle='--', linewidth=3)
     if yline is not None:
         print 'TODO fix y line'
+    if xyline is not None:
+        assert len(xyline) == 2
+        assert len(xyline[0]) == 2 and len(xyline[1]) == 2
+        ax.plot([xyline[0][0], xyline[1][0]], [xyline[0][1], xyline[1][1]], color='black', linestyle='--', linewidth=3)
     # if yline is not None:
     #     # if yline < hframe.GetYaxis().GetXmin() or xline > hframe.GetYaxis().GetXmax():  # make sure we got valid a x position for the line
     #     #     print 'WARNING plotting y line at %f out of bounds (%f, %f)' % (float(ymin), hframe.GetYaxis().GetXmin(), hframe.GetYaxis().GetXmax())
@@ -386,6 +394,8 @@ def get_mean_info(hists):
 # ----------------------------------------------------------------------------------------
 def add_gene_calls_vs_mute_freq_plots(args, hists, rebin=1., debug=False):
     print 'TODO what\'s up with rebin rescaling below?'
+    # if 'fraction_uncertainty' not in sys.modules:
+    #     import fraction_uncertainty
     for idir in range(len(args.names)):
         name = args.names[idir]
         for region in utils.regions:
@@ -829,7 +839,7 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None, log='x'):
     else:
         ax.set_xlim(0.9, xmax)
 
-    if 'stanford' in title:
+    if 'vollmers' in title:
         ymin = 5e-4
     else:
         ymin = 5e-5
@@ -995,11 +1005,14 @@ def mpl_init(figsize=None, fontsize=20):
     return fig, ax
 
 # ----------------------------------------------------------------------------------------
-def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=None, ybounds=None, leg_loc=(0.04, 0.6), log='', xticks=None, xticklabels=None, no_legend=False):
+def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=None, ybounds=None, leg_loc=(0.04, 0.6), log='', xticks=None, xticklabels=None, no_legend=False, adjust=None):
     # xticks[0] = 0.000001
     if not no_legend:
         legend = ax.legend(loc=leg_loc)
-    plt.gcf().subplots_adjust(bottom=0.14, left=0.18, right=0.95, top=0.92)
+    if adjust is None:
+        plt.gcf().subplots_adjust(bottom=0.14, left=0.18, right=0.95, top=0.92)
+    else:
+        plt.gcf().subplots_adjust(**adjust)
     sns.despine()  #trim=True, bottom=True)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
@@ -1021,6 +1034,7 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
 
     plt.savefig(plotdir + '/' + plotname + '.svg')
     plt.close()
+    check_call(['chmod', '664', plotdir + '/' + plotname + '.svg'])
 
 # ----------------------------------------------------------------------------------------
 def plot_cluster_similarity_matrix(plotdir, plotname, meth1, partition1, meth2, partition2, n_biggest_clusters, title='', debug=False):
@@ -1108,3 +1122,25 @@ def make_html(plotdir, n_columns=3, extension='svg'):
     with open(htmlfname, 'w') as htmlfile:
         htmlfile.write('\n'.join(lines))
     check_call(['chmod', '664', htmlfname])
+
+# ----------------------------------------------------------------------------------------
+def make_tigger_plot(gene, position, values):
+    xmin, xmax = 0, 30
+    fig, ax = mpl_init()
+    ax.errorbar(values['n_muted'], values['freqs'], yerr=values['errs'], markersize=10, linewidth=1, marker='.', label=str(position))
+    linevals = [values['slope']*x + values['intercept'] for x in [0] + values['n_muted']]
+    ax.plot([0] + values['n_muted'], linevals)
+
+    ax.plot([xmin, xmax], [0, 0], linestyle='dashed', alpha=0.5, color='black')
+    mpl_finish(ax, os.getenv('www') + '/partis/tmp', str(position), xlabel='mutations in %s segment' % utils.get_region(gene), ylabel='position\'s mut freq', xbounds=(xmin, xmax), ybounds=(-0.1, 1.05), leg_loc=(0.95, 0.1), adjust={'right' : 0.85})
+
+# # ----------------------------------------------------------------------------------------
+# def make_tigger_plot(gene, freqs, positions_of_interest, plotdir, plotname):
+#     fig, ax = mpl_init()
+#     for position in freqs:
+#         # if position not in positions_of_interest:
+#         #     continue
+#         info = freqs[position]['tigger']
+#         ax.plot(info.keys(), info.values(), markersize=10, linewidth=1, marker='.', label=str(position))
+#     # plt.gcf().subplots_adjust(right=0.75)
+#     mpl_finish(ax, plotdir, plotname, xlabel='mutations in %s segment' % utils.get_region(gene), ylabel='position\'s mut freq', xbounds=(0, 20), ybounds=(0, 1.05), leg_loc=(0.8, 0.1))

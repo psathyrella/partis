@@ -388,6 +388,36 @@ KBounds KBounds::LogicalOr(KBounds rhs) {
 }
 
 // ----------------------------------------------------------------------------------------
+void Result::Finalize(GermLines &gl, map<string, double> &unsorted_per_gene_support, KSet best_kset, KBounds kbounds) {
+  assert(!finalized_);
+
+  // sort vector of events by score (i.e. find the best path over ksets)
+  sort(events_.begin(), events_.end());
+  reverse(events_.begin(), events_.end());
+  best_event_ = events_[0];
+
+  // set per-gene support (really just rearranging and sorting the values in DPHandler::per_gene_support_) NOTE make sure to do this *after* sorting
+  for(auto &region : gl.regions_) {
+    vector<SupportPair> support;  // sorted list of (gene, logprob) pairs for this region
+    for(auto &pgit : unsorted_per_gene_support) {
+      string gene = pgit.first;
+      double logprob = pgit.second;
+      if(gl.GetRegion(gene) != region)
+	continue;
+      support.push_back(SupportPair(gene, logprob));
+    }
+    sort(support.begin(), support.end());
+    reverse(support.begin(), support.end());
+    // NOTE we *only* want the *best* event to have its per-gene support set -- because the ones in <events_> only correspond to one kset, it doesn't make sense to have their per-gene supports set (well, they'd just be trivial)
+    best_event_.per_gene_support_[region] = support;  // NOTE organization is totally different to that of DPHandler::per_gene_support_
+  }
+
+  check_boundaries(best_kset, kbounds);
+
+  finalized_ = true;
+}
+
+// ----------------------------------------------------------------------------------------
 void Result::check_boundaries(KSet best, KBounds kbounds) {
   // if(kbounds.vmax - kbounds.vmin <= 1 || kbounds.dmax - kbounds.dmin <= 2) return; // if k space is very narrow, we expect the max to be on the boundary, so ignore boundary errors
 
@@ -508,7 +538,7 @@ string HMMHolder::NameString(map<string, set<string> > *only_genes, int max_to_p
 // ----------------------------------------------------------------------------------------
 void StreamHeader(ofstream &ofs, string algorithm) {
   if(algorithm == "viterbi")
-    ofs << "nth_best,unique_ids,v_gene,d_gene,j_gene,fv_insertion,vd_insertion,dj_insertion,jf_insertion,v_5p_del,v_3p_del,d_5p_del,d_3p_del,j_5p_del,j_3p_del,logprob,seqs,errors" << endl;
+    ofs << "unique_ids,v_gene,d_gene,j_gene,fv_insertion,vd_insertion,dj_insertion,jf_insertion,v_5p_del,v_3p_del,d_5p_del,d_3p_del,j_5p_del,j_3p_del,logprob,seqs,v_per_gene_support,d_per_gene_support,j_per_gene_support,errors" << endl;
   else if(algorithm == "forward")
     ofs << "unique_ids,logprob,errors" << endl;
   else
@@ -549,39 +579,50 @@ void StreamErrorput(ofstream &ofs, string algorithm, vector<Sequence> &seqs, str
 }
 
 // ----------------------------------------------------------------------------------------
-void StreamOutput(ofstream &ofs, string algorithm, size_t n_max, vector<RecoEvent> &events, vector<Sequence> &seqs, double total_score, string errors) {
-  if(algorithm == "viterbi") {
-    for(size_t ievt = 0; ievt < n_max; ++ievt) {
-      RecoEvent *event = &events[ievt];
-      string second_seq_name, second_seq;
-      ofs  // be very, very careful to change this *and* the csv header above at the same time
-	<< ievt
-	<< "," << SeqNameStr(seqs, ":")
-	<< "," << event->genes_["v"]
-	<< "," << event->genes_["d"]
-	<< "," << event->genes_["j"]
-	<< "," << event->insertions_["fv"]
-	<< "," << event->insertions_["vd"]
-	<< "," << event->insertions_["dj"]
-	<< "," << event->insertions_["jf"]
-	<< "," << event->deletions_["v_5p"]
-	<< "," << event->deletions_["v_3p"]
-	<< "," << event->deletions_["d_5p"]
-	<< "," << event->deletions_["d_3p"]
-	<< "," << event->deletions_["j_5p"]
-	<< "," << event->deletions_["j_3p"]
-	<< "," << event->score_
-	<< "," << SeqStr(seqs, ":")
-	<< "," << errors
-	<< endl;
-    }
-  } else {
-    ofs
-      << SeqNameStr(seqs, ":")
-      << "," << total_score
-      << "," << errors
-      << endl;
+string PerGeneSupportString(string region, vector<SupportPair> &support) {
+  string return_str;
+  for(size_t is=0; is<support.size(); ++is) {
+    if(is > 0)
+      return_str += ":";
+    return_str += support[is].gene() + ";" + to_string(support[is].logprob());
   }
+  return return_str;
+}
+
+// ----------------------------------------------------------------------------------------
+void StreamViterbiOutput(ofstream &ofs, RecoEvent &event, vector<Sequence> &seqs, string errors) {
+  string second_seq_name, second_seq;
+  ofs  // be very, very careful to change this *and* the csv header above at the same time
+    << SeqNameStr(seqs, ":")
+    << "," << event.genes_["v"]
+    << "," << event.genes_["d"]
+    << "," << event.genes_["j"]
+    << "," << event.insertions_["fv"]
+    << "," << event.insertions_["vd"]
+    << "," << event.insertions_["dj"]
+    << "," << event.insertions_["jf"]
+    << "," << event.deletions_["v_5p"]
+    << "," << event.deletions_["v_3p"]
+    << "," << event.deletions_["d_5p"]
+    << "," << event.deletions_["d_3p"]
+    << "," << event.deletions_["j_5p"]
+    << "," << event.deletions_["j_3p"]
+    << "," << event.score_
+    << "," << SeqStr(seqs, ":")
+    << "," << PerGeneSupportString("v", event.per_gene_support_["v"])
+    << "," << PerGeneSupportString("d", event.per_gene_support_["d"])
+    << "," << PerGeneSupportString("j", event.per_gene_support_["j"])
+    << "," << errors
+    << endl;
+}
+
+// ----------------------------------------------------------------------------------------
+void StreamForwardOutput(ofstream &ofs, vector<Sequence> &seqs, double total_score, string errors) {
+  ofs  // be very, very careful to change this *and* the csv header above at the same time
+    << SeqNameStr(seqs, ":")
+    << "," << total_score
+    << "," << errors
+    << endl;
 }
 
 // ----------------------------------------------------------------------------------------

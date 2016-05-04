@@ -120,7 +120,7 @@ presto_headers = {
     'v_gene' : 'V_CALL',
     'd_gene' : 'D_CALL',
     'j_gene' : 'J_CALL',
-    'aligned_v_seq' : 'SEQUENCE_IMGT',  # TODO is this supposed to be the whole sequence, or just the v bit?
+    'aligned_v_plus_unaligned_dj' : 'SEQUENCE_IMGT',  # TODO is this supposed to be the whole sequence, or just the v bit? UPDATE looks like aligned v, plus the rest of the sequence without any alignment info
     'cdr3_length' : 'JUNCTION_LENGTH'
 }
 
@@ -139,13 +139,22 @@ column_configs = {
     'floats' : ('logprob'),
     'bools' : tuple([fc + 's' for fc in functional_columns]),
     'literals' : ('indelfos'),
-    'lists' : tuple(['unique_ids', 'seqs', 'aligned_seqs', 'aligned_v_seqs', 'aligned_d_seqs', 'aligned_j_seqs'] + [fc + 's' for fc in functional_columns])
+    'lists' : tuple(['unique_ids', 'seqs', 'aligned_seqs'] + \
+                    ['aligned_' + r + '_seqs' for r in regions] + \
+                    [r + '_per_gene_support' for r in regions] + \
+                    [fc + 's' for fc in functional_columns]),
+    'lists-of-string-float-pairs' : [r + '_per_gene_support' for r in regions]
 }
 
 # NOTE calling this "columns" is kind of bad, because other things already have similar names. But, sigh, it's probably the best option a.t.m.
 # keep track of all the *@*@$!ing different keys that happen in the <line>/<hmminfo>/whatever dictionaries
 xcolumns = {}
-xcolumns['per_family'] = tuple(['naive_seq', 'cdr3_length', 'cyst_position', 'tryp_position', 'lengths', 'regional_bounds'] + [g + '_gene' for g in regions] + [e + '_del' for e in real_erosions + effective_erosions] + [b + '_insertion' for b in boundaries + effective_boundaries] + [r + '_gl_seq' for r in regions])
+xcolumns['per_family'] = tuple(['naive_seq', 'cdr3_length', 'cyst_position', 'tryp_position', 'lengths', 'regional_bounds'] + \
+                               [g + '_gene' for g in regions] + \
+                               [e + '_del' for e in real_erosions + effective_erosions] + \
+                               [b + '_insertion' for b in boundaries + effective_boundaries] + \
+                               [r + '_gl_seq' for r in regions] + \
+                               [r + '_per_gene_support' for r in regions])
 xcolumns['single_per_seq'] = tuple(['seq', 'unique_id', 'indelfo'] + [r + '_qr_seq' for r in regions] + ['aligned_' + r + '_seq' for r in regions] + functional_columns)
 xcolumns['multi_per_seq'] = tuple([k + 's' for k in xcolumns['single_per_seq']])
 xcolumns['hmm'] = tuple(['logprob', 'errors', 'nth_best'])
@@ -169,25 +178,24 @@ def get_implicit_keys(multi_seq):
         return single_per_seq_implicit_columns
 
 # ----------------------------------------------------------------------------------------
-def convert_to_presto(glfo, line):
+def convert_to_presto_headers(line, multi_seq):
     """ convert <line> to presto csv format """
-    if len(line['unique_ids']) > 1:
+    if multi_seq and len(line['unique_ids']) > 1:  # has to happen *before* utils.get_line_for_output()
         print line['unique_ids']
         raise Exception('multiple seqs not handled in convert_to_presto')
-
-    if len(line['indelfo']['indels']) > 0:
-        raise Exception('passing indel info to presto requires some more thought')
-    else:
-        del line['indelfo']
 
     single_info = synthesize_single_seq_line(line, iseq=0)
 
     presto_line = {}
     for head, phead in presto_headers.items():
-        presto_line[phead] = single_info[head]
+        if head == 'aligned_v_plus_unaligned_dj':
+            presto_line[phead] = single_info['aligned_v_seq'] + single_info['vd_insertion'] + single_info['d_qr_seq'] + single_info['dj_insertion'] + single_info['j_qr_seq']
+        else:
+            presto_line[phead] = single_info[head]
 
     return presto_line
 
+# ----------------------------------------------------------------------------------------
 # these are the top 10 v and d genes, and top six js, from mishmash.csv. Restricting to these should make testing much more stable and much faster.
 test_only_genes = 'IGHV4-61*08:IGHV3-48*01:IGHV5-51*02:IGHV3-69-1*02:IGHV1/OR15-1*04:IGHV3-66*03:IGHV3-23D*01:IGHV3-71*03:IGHV1-2*04:IGHV1-2*02:IGHD3-16*02:IGHD2-2*03:IGHD2-8*01:IGHD3-22*01:IGHD6-13*01:IGHD4-17*01:IGHD6-19*01:IGHD3-10*01:IGHD2-15*01:IGHD2-21*02:IGHJ5*02:IGHJ3*02:IGHJ2*01:IGHJ1*01:IGHJ6*03:IGHJ4*02'
 
@@ -214,22 +222,64 @@ def get_parameter_fname(column=None, deps=None, column_and_deps=None):
     return outfname
 
 # ----------------------------------------------------------------------------------------
-def rewrite_germline_fasta(input_dir, output_dir, only_genes):
+def rewrite_germline_fasta(input_dir, output_dir, only_genes=None, snps_to_add=None):
     """ rewrite the germline set files in <input_dir> to <output_dir>, only keeping the genes in <only_genes> """
-    print '    rewriting germlines from %s to %s (using %d genes)' % (input_dir, output_dir, len(only_genes))
+    print '    rewriting germlines from %s to %s' % (input_dir, output_dir),
+    if only_genes is not None:
+        print '(using %d genes)' % len(only_genes),
+    print ''
     glfo = read_germline_set(input_dir)
     input_germlines = glfo['seqs']
     input_aligned_genes = glfo['aligned-genes']
     expected_files = []  # list of files that we write here -- if anything else is in the output dir, we barf
 
+    if snps_to_add is not None:
+        for gene in snps_to_add:
+            print '  ', gene
+            snp_positions = set()
+            seq = input_germlines[get_region(gene)][gene]
+            aligned_seq = input_aligned_genes[get_region(gene)][gene]
+            cpos = glfo['cyst-positions'][gene]
+            for _ in range(snps_to_add[gene]):
+                snp_pos = None
+                while snp_pos is None or snp_pos in snp_positions or not check_conserved_cysteine(tmpseq, cpos, debug=True, assert_on_fail=False):
+                    snp_pos = random.randint(10, len(seq) - 15)  # note that randint() is inclusive
+                    tmpseq = seq[: snp_pos] + 'X' + seq[snp_pos + 1 :]  # for checking cyst position
+                snp_positions.add(snp_pos)
+                new_base = None
+                while new_base is None or new_base == seq[snp_pos]:
+                    new_base = nukes[random.randint(0, len(nukes) - 1)]
+                print '      %3d   %s --> %s' % (snp_pos, seq[snp_pos], new_base)
+
+                seq = seq[: snp_pos] + new_base + seq[snp_pos + 1 :]
+
+                igl = 0  # position in unaligned germline seq
+                for ialign in range(len(aligned_seq)):
+                    if aligned_seq[ialign] in gap_chars:
+                        continue
+                    else:
+                        # assert aligned_seq[ialign] == seq[igl]  # won't necessarily be true after the first mutation
+                        if igl == snp_pos:
+                            aligned_seq = aligned_seq[ : ialign] + new_base + aligned_seq[ialign + 1 :]
+                            break
+                        igl += 1
+
+                check_conserved_cysteine(seq, cpos)
+                # color_mutants(input_germlines[get_region(gene)][gene], seq, print_result=True, extra_str='          ')
+                # color_mutants(input_aligned_genes[get_region(gene)][gene], aligned_seq, print_result=True, extra_str='          ')
+                input_germlines[get_region(gene)][gene] = seq
+                input_aligned_genes[get_region(gene)][gene] = aligned_seq
+
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
+
+    # color_mutants(input_germlines['v']['IGHV3-71*01'], input_germlines['v']['IGHV3-71*03'], print_result=True)
 
     def write_gl_file(fname, region, igls):
         expected_files.append(fname)
         with open(fname, 'w') as outfile:
             for gene in igls[region]:
-                if gene not in only_genes:
+                if only_genes is not None and gene not in only_genes:
                     continue
                 outfile.write('>' + gene + '\n')
                 outfile.write(igls[region][gene] + '\n')
@@ -695,6 +745,27 @@ def check_for_forbidden_keys(line, multi_seq):
             raise Exception('forbidden key %s in line' % k)
 
 # ----------------------------------------------------------------------------------------
+def process_per_gene_support(line, debug=False):
+    for region in regions:
+        if debug:
+            print region
+        support = OrderedDict()
+        logtotal = float('-inf')
+        for gene, logprob in line[region + '_per_gene_support'].items():
+            support[gene] = logprob
+            logtotal = add_in_log_space(logtotal, logprob)
+
+        for gene in support:
+            if debug:
+                print '   %5.2f     %5.2f   %s' % (support[gene], math.exp(support[gene] - logtotal), color_gene(gene))
+            support[gene] = math.exp(support[gene] - logtotal)
+
+        if len(support.keys()) > 0 and support.keys()[0] != line[region + '_gene']:
+            print '   WARNING best-supported gene %s not same as viterbi gene %s' % (color_gene(support.keys()[0]), color_gene(line[region + '_gene']))
+
+        line[region + '_per_gene_support'] = support
+
+# ----------------------------------------------------------------------------------------
 def add_implicit_info(glfo, line, multi_seq, existing_implicit_keys=None, debug=False):
     """ Add to <line> a bunch of things that are initially only implicit. """
 
@@ -990,6 +1061,8 @@ def print_seq_in_reco_event(germlines, line, extra_str='', label='', one_line=Fa
     #     extra_str += '%20s' % line['unique_id']
     out_str_list.append('    %s' % final_seq)
     out_str_list.append('   %4.2f mut' % (0. if n_total == 0. else float(n_muted) / n_total))
+    if 'logprob' in line:
+        out_str_list.append('     %8.2f  logprob' % line['logprob'])
     out_str_list.append('\n')
 
     print ''.join(out_str_list),
@@ -1009,10 +1082,12 @@ def unsanitize_name(name):
     return unsaniname
 
 #----------------------------------------------------------------------------------------
-def read_germline_set(datadir, debug=False):
+def read_germline_set(datadir, alignment_dir=None, debug=False):
     glfo = {}
     glfo['seqs'] = read_germline_seqs(datadir)
-    glfo['aligned-genes'] = read_germline_seqs(datadir, aligned=True)
+    if alignment_dir is None:  # TODO remove this
+        alignment_dir = datadir
+    glfo['aligned-genes'] = read_germline_seqs(alignment_dir, aligned=True)
     add_missing_alignments(glfo, debug)
     for codon in ['cyst', 'tryp']:
         glfo[codon + '-positions'] = read_codon_positions(datadir + '/' + codon + '-positions.csv')
@@ -1029,7 +1104,7 @@ def read_germline_seqs(datadir, only_region=None, aligned=False):
             fname = fname.replace('.fasta', '-aligned.fasta')
         glseqs[region] = OrderedDict()
         for seq_record in SeqIO.parse(fname, 'fasta'):
-            gene_name = seq_record.name
+            gene_name = seq_record.name.split('|')[0]
             seq_str = str(seq_record.seq).upper()
             glseqs[region][gene_name] = seq_str
     return glseqs
@@ -1048,8 +1123,8 @@ def add_missing_alignments(glfo, debug=False):
                     raise Exception('gene %s too long to generate missing alignment' % gene)  # could really just extend all the other alignments here, but fuck it, maybe I won't need to
                 n_dashes = len(alignment_to_use) - len(seq)
                 glfo['aligned-genes'][region][gene] = n_dashes * '-' + seq  # just hack a bunch of dashes on the left
-    # if debug:
-    #     print '   adding placeholder alignments for missing genes %s' % ' '.join([color_gene(g) for g in missing_genes])
+    if True: #debug:
+        print '   adding nonsense alignments for missing genes %s' % ' '.join([color_gene(g) for g in missing_genes])
 
 # ----------------------------------------------------------------------------------------
 def read_codon_positions(csvfname):
@@ -1307,12 +1382,7 @@ def prep_dir(dirname, wildling=None, multilings=None):
         os.makedirs(dirname)
     if wildling is not None or multilings is not None:
         if len([fname for fname in os.listdir(dirname) if os.path.isfile(dirname + '/' + fname)]) != 0:  # make sure there's no other files in the dir
-            print 'ERROR files remain in',dirname,'despite wildling',
-            if wildling != None:
-                print wildling
-            if multilings != None:
-                print multilings
-            assert False
+            raise Exception('files remain in %s despite wildling %s or multilings %s' % (dirname, wildling, multilings))
 
 # ----------------------------------------------------------------------------------------
 def useful_bool(bool_str):
@@ -1330,8 +1400,7 @@ def useful_bool(bool_str):
 # ----------------------------------------------------------------------------------------
 def process_input_line(info):
     """ 
-    Attempt to convert all the keys and values in <info> from str to int.
-    The keys listed in <list_columns> will be split as colon-separated lists before intification.
+    Attempt to convert all the keys and values in <info> according to the specifications in <column_configs> (e.g. splitting lists, casting to int/float, etc).
     """
 
     ccfg = column_configs  # shorten the name a bit
@@ -1358,6 +1427,15 @@ def process_input_line(info):
 
         if key in ccfg['lists']:
             info[key] = [convert_fcn(val) for val in info[key].split(':')]
+            if key in ccfg['lists-of-string-float-pairs']:  # ok, that's getting a little hackey
+
+                def splitstrpair(pairstr):
+                    pairlist = pairstr.split(';')
+                    if len(pairlist) != 2:
+                        raise Exception('couldn\'t split %s into two pieces with \';\'' % (pairstr))
+                    return (pairlist[0], float(pairlist[1]))
+
+                info[key] = OrderedDict(splitstrpair(pairstr) for pairstr in info[key])
         else:
             info[key] = convert_fcn(info[key])
 
@@ -1367,7 +1445,10 @@ def get_line_for_output(info):
     outfo = {}
     for key, val in info.items():
         if key in column_configs['lists']:
-            outfo[key] = ':'.join([str(v) for v in info[key]])
+            if key in column_configs['lists-of-string-float-pairs']:  # ok, that's getting a little hackey
+                outfo[key] = ':'.join([k + ';' + str(v) for k, v in info[key].items()])
+            else:
+                outfo[key] = ':'.join([str(v) for v in info[key]])
         else:
             outfo[key] = str(info[key])
     return outfo
@@ -1400,7 +1481,7 @@ def merge_csvs(outfname, csv_list, cleanup=True):
             writer.writerow(line)
 
 # ----------------------------------------------------------------------------------------
-def get_mutation_rate(germlines, line, restrict_to_region='', debug=False):
+def get_mutation_rate(germlines, line, restrict_to_region='', return_len_excluding_ambig=False, debug=False):
     naive_seq = line['naive_seq']  # NOTE this includes the fv and jf insertions
     muted_seq = line['seq']
     if restrict_to_region == '':  # NOTE this is very similar to code in performanceplotter. I should eventually cut it out of there and combine them, but I'm nervous a.t.m. because of all the complications there of having the true *and* inferred sequences so I'm punting
@@ -1409,7 +1490,7 @@ def get_mutation_rate(germlines, line, restrict_to_region='', debug=False):
         for region in regions:  # can't use the full sequence because we have no idea what the mutations were in the inserts. So have to mash together the three regions
             bounds = line['regional_bounds'][region]
             if bounds[0] < 0 or bounds[1] > len(naive_seq) or bounds[0] > bounds[1]:  # this was happening because I set the bounds for the padded sequences, but then didn't reset them in reset_effective_erosions_and_effective_insertions(). For the time being, the check remains
-                raise Exception('ack! %s %s %s' % (line['unique_id'], bounds, naive_seq))
+                raise Exception('bad regional bounds %s for naive sequence %s with id %s' % (bounds, naive_seq, line['unique_id']))
             mashed_naive_seq += naive_seq[bounds[0] : bounds[1]]
             mashed_muted_seq += muted_seq[bounds[0] : bounds[1]]
     else:
@@ -1420,7 +1501,7 @@ def get_mutation_rate(germlines, line, restrict_to_region='', debug=False):
 
     # print 'restrict %s' % restrict_to_region
     # color_mutants(naive_seq, muted_seq, print_result=True, extra_str='  ')
-    return hamming_fraction(naive_seq, muted_seq)
+    return hamming_fraction(naive_seq, muted_seq, return_len_excluding_ambig=return_len_excluding_ambig)
 
 # ----------------------------------------------------------------------------------------
 def print_linsim_output(outstr):
@@ -2200,3 +2281,16 @@ def choose_seed_unique_id(datadir, simfname, seed_cluster_size_low, seed_cluster
         return cluster[0], len(cluster)  # arbitrarily use the first member of the cluster as the seed
 
     raise Exception('couldn\'t find seed in cluster between size %d and %d' % (seed_cluster_size_low, seed_cluster_size_high))
+
+# ----------------------------------------------------------------------------------------
+# Takes two logd values and adds them together, i.e. takes (log a, log b) --> log a+b
+# i.e. a *or* b
+def add_in_log_space(first, second):
+    if first == -float('inf'):
+        return second
+    elif second == -float('inf'):
+        return first
+    elif first > second:
+        return first + math.log(1 + math.exp(second - first))
+    else:
+        return second + math.log(1 + math.exp(first - second))

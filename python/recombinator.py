@@ -52,6 +52,7 @@ class Recombinator(object):
 
         # then read stuff that's specific to each person
         self.read_vdj_version_freqs(self.args.parameter_dir + '/' + utils.get_parameter_fname('all'))
+        self.allowed_genes = self.get_allowed_genes(self.args.parameter_dir)  # only really used if <self.args.uniform_vj_choice_probs> is set, but it also checks the sensibility of <self.args.only_genes>
         self.insertion_content_probs = None
         self.read_insertion_content()
         if self.args.naivety == 'M':  # read shm info if non-naive is requested
@@ -143,6 +144,10 @@ class Recombinator(object):
         return True
 
     # ----------------------------------------------------------------------------------------
+    def freqtable_index(self, line):
+        return tuple(line[column] for column in utils.index_columns)
+
+    # ----------------------------------------------------------------------------------------
     def read_vdj_version_freqs(self, fname):
         """ Read the frequencies at which various VDJ combinations appeared in data """
         with opener('r')(fname) as infile:
@@ -150,9 +155,6 @@ class Recombinator(object):
             total = 0.0
             for line in in_data:
                 # NOTE do *not* assume the file is sorted
-                #
-                # if int(line['cdr3_length']) == -1:
-                #     continue  # couldn't find conserved codons when we were inferring things
                 if self.args.only_genes is not None:  # are we restricting ourselves to a subset of genes?
                     if line['v_gene'] not in self.args.only_genes:
                         continue
@@ -161,7 +163,7 @@ class Recombinator(object):
                     if line['j_gene'] not in self.args.only_genes:
                         continue
                 total += float(line['count'])
-                index = tuple(line[column] for column in utils.index_columns)
+                index = self.freqtable_index(line)
                 assert index not in self.version_freq_table
                 self.version_freq_table[index] = float(line['count'])
 
@@ -178,6 +180,31 @@ class Recombinator(object):
         assert len(self.version_freq_table) < 1e8  # if it gets *too* large, choose_vdj_combo() below isn't going to work because of numerical underflow. Note there's nothing special about 1e8, it's just that I'm pretty sure we're fine *up* to that point, and once we get beyond it we should think about doing things differently
 
     # ----------------------------------------------------------------------------------------
+    def get_allowed_genes(self, parameter_dir):
+        allowed_genes = {}
+        for region in [r for r in utils.regions if r != 'd']:
+            genes_in_file = set()
+            with open(parameter_dir + '/' + utils.get_parameter_fname(column=region + '_gene', deps=utils.column_dependencies[region + '_gene'])) as csvfile:
+                reader = csv.DictReader(csvfile)
+                for line in reader:
+                    genes_in_file.add(line[region + '_gene'])
+            allowed_genes[region] = genes_in_file
+            if self.args.only_genes is not None:  # if --only-genes was specified, not only does the gene have to be in the parameter file, but it has to be among --only-genes
+                regional_only_genes = set(g for g in self.args.only_genes if utils.get_region(g) == region)
+                if len(regional_only_genes - genes_in_file) > 0:  # if command line asked for genes that aren't in the file
+                    raise Exception('genes %s specified with --only-genes are not present in %s, so there\'s no information with which to simulate' % (' '.join(regional_only_genes - genes_in_file), parameter_dir))
+                allowed_genes[region] &= regional_only_genes
+        return allowed_genes
+
+    # ----------------------------------------------------------------------------------------
+    def replace_vj_choice_with_uniform(self, vdj_choice):
+        # note that if we allowed uniform d choice as well, we couldn't do it this way because since the d lengths vary by so much, we'd have to also mess around with changing the deletions
+        new_vdj_choice = list(vdj_choice)
+        for region in [r for r in utils.regions if r != 'd']:
+            new_vdj_choice[utils.index_keys[region + '_gene']] = random.choice(tuple(self.allowed_genes[region]))
+        return tuple(new_vdj_choice)
+
+    # ----------------------------------------------------------------------------------------
     def choose_vdj_combo(self, reco_event):
         """ Choose which combination germline variants to use """
         iprob = numpy.random.uniform(0, 1)
@@ -185,7 +212,9 @@ class Recombinator(object):
         for vdj_choice in self.version_freq_table:  # assign each vdj choice a segment of the interval [0,1], and choose the one which contains <iprob>
             sum_prob += self.version_freq_table[vdj_choice]
             if iprob < sum_prob:
-                reco_event.set_vdj_combo(vdj_choice, self.glfo, debug=self.args.debug, mimic_data_read_length=self.args.mimic_data_read_length)  # 
+                if self.args.uniform_vj_choice_probs:
+                    vdj_choice = self.replace_vj_choice_with_uniform(vdj_choice)
+                reco_event.set_vdj_combo(vdj_choice, self.glfo, debug=self.args.debug, mimic_data_read_length=self.args.mimic_data_read_length)
                 return
 
         assert False  # shouldn't fall through to here

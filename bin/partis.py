@@ -51,6 +51,9 @@ if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
     print '              [e.g. where the hfrac differences are? or maybe hfrac averaged over the top N annotations?]) i.e. find what kinds of clones hfrac and lratio disagree on'
     print '    TODO test on simulation samples that are *hard*, i.e. that all have the same VJ and cdr3 length'
     print '    TODO hfrac thresholds should maybe depend on how much of which regions (v/d/j) we have'
+    print '    TODO add progress info for viterbi'
+    print '    TODO add emissions rescaling to bcrham scons test'
+    print '    TODO work out what to do with regional total scores for per-gene support'
 
 # input and output stuff
 parser.add_argument('--seqfile', help='input sequence file')
@@ -58,6 +61,7 @@ parser.add_argument('--name-column', default='unique_id', help='csv column name 
 parser.add_argument('--seq-column', default='seq', help='csv column name for nucleotide sequences')
 parser.add_argument('--parameter-dir', required=True, help='Directory to/from which to write/read sample-specific parameters')
 parser.add_argument('--datadir', default=os.getcwd() + '/data/imgt', help='Directory from which to read non-sample-specific information (e.g. germline genes)')
+parser.add_argument('--alignment-dir', default=os.getcwd() + '/data/fam-alignments')  # TODO remove this
 parser.add_argument('--outfname')
 parser.add_argument('--plotdir', help='Base directory to which to write plots (no plots are written if this isn\'t set)')
 parser.add_argument('--ighutil-dir', default=os.getenv('HOME') + '/.local', help='Path to vdjalign executable. The default is where \'pip install --user\' typically puts things')
@@ -76,7 +80,6 @@ parser.add_argument('--reco-ids', help='Colon-separated list of rearrangement-ev
 parser.add_argument('--seed-unique-id', help='only look for sequences that are clonally related to this unique id')
 parser.add_argument('--n-max-queries', type=int, default=-1, help='Maximum number of query sequences on which to run (except for simulator, where it\'s the number of rearrangement events)')
 parser.add_argument('--only-genes', help='Colon-separated list of genes to which to restrict the analysis')
-parser.add_argument('--n-best-events', default=None, help='Number of best events to print (i.e. n-best viterbi paths). Default is set in bcrham.')
 
 parser.add_argument('--biggest-naive-seq-cluster-to-calculate', type=int, default=7, help='start thinking about subsampling before you calculate anything if cluster is bigger than this')
 parser.add_argument('--biggest-logprob-cluster-to-calculate', type=int, default=7, help='start thinking about subsampling before you calculate anything if cluster is bigger than this')
@@ -93,6 +96,7 @@ parser.add_argument('--indel-frequency', default=0., type=float, help='fraction 
 # parser.add_argument('--mean-n-indels', default=1, type=int, help='mean number of indels in each sequence which we\'ve already decided has indels (geometric distribution)')
 parser.add_argument('--mean-indel-length', default=5, help='mean length of each indel (geometric distribution)')
 parser.add_argument('--indel-location', choices=[None, 'v', 'cdr3'], help='where to put the indels')
+parser.add_argument('--uniform-vj-choice-probs', action='store_true', help='In simulation, give all possible combinations of allowed v and j germline genes the same probability')
 
 # numerical inputs
 parser.add_argument('--min_observations_to_write', type=int, default=20, help='For hmmwriter.py, if we see a gene version fewer times than this, we sum over other alleles, or other versions, etc. (see hmmwriter)')
@@ -106,6 +110,7 @@ parser.add_argument('--max-logprob-drop', type=float, default=5., help='stop glo
 parser.add_argument('--n-partitions-to-write', type=int, default=100, help='')
 
 parser.add_argument('--version', action='version', help='print version and exit', version='partis %s' % check_output(['git', 'tag']))
+parser.add_argument('--print-git-commit', action='store_true', help='print git commit hash')
 
 # temporary arguments (i.e. will be removed as soon as they're not needed)
 parser.add_argument('--gtrfname', default='data/recombinator/gtr.txt', help='File with list of GTR parameters. Fed into bppseqgen along with the chosen tree')
@@ -122,6 +127,16 @@ args.n_procs = utils.get_arg_list(args.n_procs, intify=True)
 #     raise Exception('bad n_procs %s' % n_procs)
 args.n_fewer_procs = args.n_procs[0] if len(args.n_procs) == 1 else args.n_procs[1]
 args.n_procs = args.n_procs[0]
+if args.n_procs > args.n_max_procs:
+    print 'reducing n procs %d to --n-max-procs %d' % (args.n_procs, args.n_max_procs)
+    args.n_procs = args.n_max_procs
+if args.n_fewer_procs > args.n_max_procs:
+    print 'reducing n procs %d to --n-max-procs %d' % (args.n_fewer_procs, args.n_max_procs)
+    args.n_fewer_procs = args.n_max_procs
+
+if args.print_git_commit:
+    print 'RUN ' + ' '.join(sys.argv)
+    print '    git commit %s   (tag %s)' % (check_output(['git', 'rev-parse', 'HEAD']).strip(), check_output(['git', 'tag']).strip())
 
 if args.is_data:  # if <is_data> was set on the command line, print a warning and continue
     print '  NOTE --is-data is no longer needed (it\'s the default; add --is-simu if running on simulation)'
@@ -203,9 +218,11 @@ def run_simulation(args):
 
 if args.action == 'simulate' or args.action == 'generate-trees':
     if args.action == 'generate-trees':
-        from treegenerator import TreeGenerator, Hist
-        treegen = TreeGenerator(args, args.parameter_dir + '/mean-mute-freqs.csv')
-        treegen.generate_trees(args.outfname)
+        from treegenerator import TreeGenerator
+        if args.outfname is None:
+            raise Exception('--outfname not specified')
+        treegen = TreeGenerator(args, args.parameter_dir, args.seed)
+        treegen.generate_trees(args.seed, args.outfname)
         sys.exit(0)
     # if not args.no_clean:
     #     os.rmdir(reco.workdir)

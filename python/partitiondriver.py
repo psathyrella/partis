@@ -28,7 +28,7 @@ class PartitionDriver(object):
     """ Class to parse input files, start bcrham jobs, and parse/interpret bcrham output for annotation and partitioning """
     def __init__(self, args):
         self.args = args
-        self.glfo = utils.read_germline_set(self.args.datadir, debug=True)
+        self.glfo = utils.read_germline_set(self.args.datadir, alignment_dir=self.args.alignment_dir, debug=True)
 
         self.input_info, self.reco_info = get_seqfile_info(self.args.seqfile, self.args.is_data, self.glfo, self.args.n_max_queries, self.args.queries, self.args.reco_ids,
                                                            name_column=self.args.name_column, seq_column=self.args.seq_column, seed_unique_id=self.args.seed_unique_id,
@@ -393,8 +393,6 @@ class PartitionDriver(object):
         if self.args.slurm or utils.auto_slurm(n_procs):
             cmd_str = 'srun ' + cmd_str
         cmd_str += ' --algorithm ' + algorithm
-        if self.args.n_best_events is not None:
-            cmd_str += ' --n_best_events ' + str(int(self.args.n_best_events))
         if self.args.debug > 0:
             cmd_str += ' --debug ' + str(self.args.debug)
         cmd_str += ' --hmmdir ' + os.path.abspath(parameter_dir) + '/hmms'
@@ -402,8 +400,6 @@ class PartitionDriver(object):
         cmd_str += ' --infile ' + csv_infname
         cmd_str += ' --outfile ' + csv_outfname
         cmd_str += ' --random-seed ' + str(self.args.seed)
-        cmd_str += ' --biggest-naive-seq-cluster-to-calculate ' + str(self.args.biggest_naive_seq_cluster_to_calculate)
-        cmd_str += ' --biggest-logprob-cluster-to-calculate ' + str(self.args.biggest_logprob_cluster_to_calculate)
         if self.args.cache_naive_hfracs:
             cmd_str += ' --cache-naive-hfracs'
         if n_procs > 1:  # only cache vals for sequence sets with newly-calculated vals (initial cache file is copied to each subdir)
@@ -427,6 +423,9 @@ class PartitionDriver(object):
                 cmd_str += ' --hamming-fraction-bound-lo ' + str(hfrac_bounds[0])
                 cmd_str += ' --hamming-fraction-bound-hi ' + str(hfrac_bounds[1])
                 cmd_str += ' --logprob-ratio-threshold ' + str(self.args.logprob_ratio_threshold)
+                cmd_str += ' --biggest-naive-seq-cluster-to-calculate ' + str(self.args.biggest_naive_seq_cluster_to_calculate)
+                cmd_str += ' --biggest-logprob-cluster-to-calculate ' + str(self.args.biggest_logprob_cluster_to_calculate)
+
                 if self.args.seed_unique_id is not None and not (self.already_removed_unseeded_clusters or self.time_to_remove_unseeded_clusters):  # if we're in the last few cycles (i.e. we've removed unseeded clusters) we want bcrham to not know about the seed (this gives more accurate clustering 'cause we're really doing hierarchical agglomeration)
                     cmd_str += ' --seed-unique-id ' + self.args.seed_unique_id
 
@@ -446,7 +445,7 @@ class PartitionDriver(object):
     def check_wait_times(self, wait_time):
         max_bcrham_time = max([procinfo['time']['bcrham'] for procinfo in self.bcrham_proc_info])
         if max_bcrham_time > 0. and wait_time / max_bcrham_time > 1.5 and wait_time > 30.:  # if we were waiting for a lot longer than the slowest process took, and if it took long enough for us to care
-            print '    spent much longer waiting for bcrham (%.1fs) than bcrham reported taking (%.1fs)' % (wait_time, max_bcrham_time)
+            print '    spent much longer waiting for bcrham (%.1fs) than bcrham reported taking (max per-proc time %.1fs)' % (wait_time, max_bcrham_time)
 
     # ----------------------------------------------------------------------------------------
     def execute(self, cmd_str, n_procs):
@@ -757,8 +756,9 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def write_hmms(self, parameter_dir):
         """ Write hmm model files to <parameter_dir>/hmms, using information from <parameter_dir> """
-        print '  writing hmms with info from %s' % parameter_dir
-        # start = time.time()
+        print '  writing hmms',
+        start = time.time()
+
         from hmmwriter import HmmWriter
         hmm_dir = parameter_dir + '/hmms'
         utils.prep_dir(hmm_dir, '*.yaml')
@@ -779,7 +779,7 @@ class PartitionDriver(object):
             writer = HmmWriter(parameter_dir, hmm_dir, gene, self.args.naivety, self.glfo, self.args)
             writer.write()
 
-        # print '    time to write hmms: %.1f' % (time.time()-start)
+        print '(%.1f sec)' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
     def get_existing_hmm_files(self, parameter_dir):
@@ -1013,11 +1013,10 @@ class PartitionDriver(object):
         if 'no_path' in line['errors']:
             self.bcrham_failed_queries.add(line['unique_ids'])
             return True
-        if line['nth_best'] == 0:  # if this is the first line for this set of uids (i.e. the best viterbi path or only forward score)
-            if line['errors'] is not None and 'boundary' in line['errors'].split(':'):
-                boundary_error_queries.append(':'.join([uid for uid in line['unique_ids']]))
-            else:  # we don't expect anything except boundary errors a.t.m.
-                assert len(line['errors']) == 0
+        if line['errors'] is not None and 'boundary' in line['errors'].split(':'):
+            boundary_error_queries.append(':'.join([uid for uid in line['unique_ids']]))
+        else:  # we don't expect anything except boundary errors a.t.m.
+            assert len(line['errors']) == 0
 
     # ----------------------------------------------------------------------------------------
     def read_forward_output(self, annotation_fname):
@@ -1043,6 +1042,7 @@ class PartitionDriver(object):
     def read_annotation_output(self, annotation_fname, outfname=None, count_parameters=False, parameter_out_dir=None):
         """ Read bcrham annotation output """
         print '    read output'
+        sys.stdout.flush()
 
         pcounter = ParameterCounter(self.glfo['seqs']) if count_parameters else None
         true_pcounter = ParameterCounter(self.glfo['seqs']) if (count_parameters and not self.args.is_data) else None
@@ -1063,13 +1063,15 @@ class PartitionDriver(object):
 
                 utils.process_input_line(padded_line)
                 uids = padded_line['unique_ids']
+                uidstr = ':'.join(uids)
                 padded_line['indelfos'] = [self.sw_info['indels'].get(uid, utils.get_empty_indel()) for uid in uids]
 
                 utils.add_implicit_info(self.glfo, padded_line, multi_seq=True)
+                utils.process_per_gene_support(padded_line)  # switch per-gene support from log space to normalized probabilities
                 if padded_line['invalid']:
                     n_invalid_events += 1
                     if self.args.debug:
-                        print '      %s padded line invalid' % ':'.join(padded_line['unique_ids'])
+                        print '      %s padded line invalid' % uidstr
                     continue
 
                 # get a new dict in which we have edited the sequences to swap Ns on either end (after removing fv and jf insertions) for v_5p and j_3p deletions
@@ -1078,38 +1080,36 @@ class PartitionDriver(object):
                     n_invalid_events += 1
                     continue
 
-                padded_annotations[':'.join(padded_line['unique_ids'])] = padded_line
-                eroded_annotations[':'.join(padded_line['unique_ids'])] = eroded_line
-
                 if self.args.debug:
-                    if padded_line['nth_best'] == 0:  # if this is the first padded_line (i.e. the best viterbi path) for this query (or query pair), print the true event
-                        print '      %s' % ':'.join(uids),
-                        if not self.args.is_data:
-                            print '   %d' % utils.from_same_event(self.reco_info, uids),
-                        print ''
-                    self.print_hmm_output(eroded_line, print_true=(eroded_line['nth_best']==0))
+                    print '      %s' % uidstr
+                    if not self.args.is_data:
+                        print '   %d' % utils.from_same_event(self.reco_info, uids),
+                    print ''
+                    self.print_hmm_output(eroded_line, print_true=True)
 
-                if padded_line['nth_best'] == 0:  # if it's the best match  #  NOTE kinda nervous about removing this: and (padded_line['cdr3_length'] != -1 or not self.args.skip_unproductive):  # if it's productive, or if we're not skipping unproductive rearrangements
+                assert uidstr not in padded_annotations and uidstr not in eroded_annotations
+                padded_annotations[uidstr] = padded_line
+                eroded_annotations[uidstr] = eroded_line
 
-                    n_events_processed += 1
+                n_events_processed += 1
 
+                if pcounter is not None:
+                    pcounter.increment_per_family_params(eroded_line)
+                if true_pcounter is not None:
+                    true_pcounter.increment_per_family_params(self.reco_info[uids[0]])  # NOTE doesn't matter which id you pass it, since they all have the same reco parameters
+
+                for iseq in range(len(uids)):
+                    singlefo = utils.synthesize_single_seq_line(eroded_line, iseq)
                     if pcounter is not None:
-                        pcounter.increment_per_family_params(eroded_line)
+                        pcounter.increment_per_sequence_params(singlefo)
                     if true_pcounter is not None:
-                        true_pcounter.increment_per_family_params(self.reco_info[uids[0]])  # NOTE doesn't matter which id you pass it, since they all have the same reco parameters
-
-                    for iseq in range(len(uids)):
-                        singlefo = utils.synthesize_single_seq_line(eroded_line, iseq)
-                        if pcounter is not None:
-                            pcounter.increment_per_sequence_params(singlefo)
-                        if true_pcounter is not None:
-                            true_pcounter.increment_per_sequence_params(self.reco_info[uids[iseq]])
-                        if perfplotter is not None:
-                            if uids[iseq] in self.sw_info['indels']:
-                                print '    skipping performance evaluation of %s because of indels' % uids[iseq]  # I just have no idea how to handle naive hamming fraction when there's indels
-                            else:
-                                perfplotter.evaluate(self.reco_info[uids[iseq]], singlefo, self.sw_info[uids[iseq]]['padded'])
-                        n_seqs_processed += 1
+                        true_pcounter.increment_per_sequence_params(self.reco_info[uids[iseq]])
+                    if perfplotter is not None:
+                        if uids[iseq] in self.sw_info['indels']:
+                            print '    skipping performance evaluation of %s because of indels' % uids[iseq]  # I just have no idea how to handle naive hamming fraction when there's indels
+                        else:
+                            perfplotter.evaluate(self.reco_info[uids[iseq]], singlefo, self.sw_info[uids[iseq]]['padded'])
+                    n_seqs_processed += 1
 
         # parameter and performance writing/plotting
         if pcounter is not None:
@@ -1133,7 +1133,7 @@ class PartitionDriver(object):
 
         # write output file
         if outfname is not None:
-            self.write_annotations(eroded_annotations, outfname)
+            self.write_annotations(eroded_annotations, outfname)  # [0] takes the best annotation... if people want other ones later it's easy to change
 
         # annotation (VJ CDR3) clustering
         if self.args.annotation_clustering is not None:
@@ -1141,8 +1141,6 @@ class PartitionDriver(object):
 
         if not self.args.no_clean:
             os.remove(annotation_fname)
-
-        return eroded_annotations
 
     # ----------------------------------------------------------------------------------------
     def deal_with_annotation_clustering(self, annotations, outfname):
@@ -1203,22 +1201,39 @@ class PartitionDriver(object):
         outpath = outfname
         if outpath[0] != '/':  # if full output path wasn't specified on the command line
             outpath = os.getcwd() + '/' + outpath
-        outheader = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'seqs', 'aligned_v_seqs', 'aligned_d_seqs', 'aligned_j_seqs', 'naive_seq', 'indelfos']
-        outheader += [e + '_del' for e in utils.real_erosions + utils.effective_erosions] + [b + '_insertion' for b in utils.boundaries + utils.effective_boundaries]
-        outheader += [fc + 's' for fc in utils.functional_columns]
+        if not self.args.presto_output:
+            outheader = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'seqs', 'naive_seq', 'indelfos']
+            outheader += ['aligned_' + r + '_seqs' for r in utils.regions]
+            outheader += [r + '_per_gene_support' for r in utils.regions]
+            outheader += [e + '_del' for e in utils.real_erosions + utils.effective_erosions] + [b + '_insertion' for b in utils.boundaries + utils.effective_boundaries]
+            outheader += [fc + 's' for fc in utils.functional_columns]
+        else:
+            outheader = utils.presto_headers.values()
+            imgt_gapped_glfo = utils.read_germline_set(self.args.datadir, alignment_dir=self.args.datadir, debug=True)  # use imgt alignments  # TODO remove this
         with open(outpath, 'w') as outfile:
-            writer = csv.DictWriter(outfile, utils.presto_headers.values() if self.args.presto_output else outheader)
+            writer = csv.DictWriter(outfile, outheader)
             writer.writeheader()
             missing_input_keys = set(self.input_info.keys())  # all the keys we originially read from the file
             for line in annotations.values():
-                outline = {k : copy.deepcopy(line[k]) for k in outheader}  # in case we modify it
-                for uid in outline['unique_ids']:
+                outline = copy.deepcopy(line)  # in case we modify it
+
+                if self.args.presto_output:
+                    if len(line['indelfos'][0]['indels']) > 0:
+                        print 'Warning can\'t yet pass indels to presto, so skipping %s' % line['unique_ids']
+                        continue
+
+                for uid in outline['unique_ids']:  # make a note that we have an annotation for these uids (so we can see if there's any that we're missing)
                     missing_input_keys.remove(uid)
 
                 if self.args.presto_output:
-                    outline = utils.convert_to_presto(self.glfo, outline)
-                else:
-                    outline = utils.get_line_for_output(outline)  # may be kind of silly to replace it, but I don't want to change the original line too much
+                    # replace the default (erick) alignments with the "imgt-gapped" ones
+                    utils.remove_all_implicit_info(outline, multi_seq=True)
+                    utils.add_implicit_info(imgt_gapped_glfo, outline, multi_seq=True)
+
+                    outline = utils.convert_to_presto_headers(outline, multi_seq=True)
+
+                outline = utils.get_line_for_output(outline)  # convert lists to colon-separated strings and whatnot
+                outline = {k : v for k, v in outline.items() if k in outheader}  # remove the columns we don't want to output
 
                 writer.writerow(outline)
 
@@ -1226,4 +1241,7 @@ class PartitionDriver(object):
             if len(missing_input_keys) > 0:
                 print 'missing %d input keys' % len(missing_input_keys)
                 for uid in missing_input_keys:
-                    writer.writerow({'unique_ids' : uid})
+                    col = 'unique_ids'
+                    if self.args.presto_output:
+                        col = utils.presto_headers['unique_id']
+                    writer.writerow({col : uid})

@@ -16,13 +16,26 @@ from hist import Hist
 import seqfileopener
 import utils
 import baseutils
-from humans import humans
+import humans
 # from clusterplot import ClusterPlot
 from clusterpath import ClusterPath
 import plotting
 
 changeorandomcrapstr = '_db-pass_parse-select_clone-pass.tab'
 metrics = ['adj_mi', 'ccf_under', 'ccf_over', 'ccf_product']  # NOTE ccf_{under,over} is a deprecated name, they're 'purity' and 'completeness' now
+
+# ----------------------------------------------------------------------------------------
+def FOOP():
+    dset = 'vollmers'
+    for hum in humans.humans[dset]:
+        fromdir = humans.baseprocdatadir + '/' + humans.dataset_dirs[dset] + '/' + hum
+        todir = humans.basedatadir + '/' + humans.dataset_dirs[dset] + '/' + hum
+        if not os.path.exists(todir):
+            os.makedirs(todir)
+        for fname in glob.glob(fromdir + '/*.fasta') + glob.glob(fromdir + '/*.csv.bz2'):
+            cmd = ['mv', '-v', fname, todir + '/']
+            # print ' '.join(cmd)
+            check_call(cmd)
 
 # ----------------------------------------------------------------------------------------
 def float_str(float_val):
@@ -33,16 +46,16 @@ def float_str(float_val):
 
 # ----------------------------------------------------------------------------------------
 def get_dataset(human):
-    if human in humans['adaptive']:
+    if human in humans.humans['adaptive']:
         return 'Adaptive'
-    elif human in humans['stanford']:
+    elif human in humans.humans['vollmers']:
         return 'Vollmers'
     else:
         return 'no data set'
 
 # ----------------------------------------------------------------------------------------
 def get_title(args, label, n_leaves, mut_mult, hfrac_bounds=None):
-    if args.data:
+    if not args.is_simu:
         title = 'data (%s %s)' % (get_dataset(label), label)
     else:
         title = '%s leaves, %sx mutation' % (float_str(n_leaves), float_str(mut_mult))
@@ -85,12 +98,16 @@ def leafmutstr(args, n_leaves, mut_mult, hfrac_bounds=None):
 
 # ----------------------------------------------------------------------------------------
 def get_outdirname(args, label, no_subset=False):
-    outdirname = args.fsdir + '/' + label
+    if args.old_output_structure or args.is_simu:
+        outdirname = args.fsdir + '/' + label
+    else:
+        outdirname = humans.get_outdir(label) #+ '/_output'
     if not no_subset:
         if args.subset is not None:
             outdirname += '/subset-' + str(args.subset)
         if args.istartstop is not None:
             outdirname += '/istartstop-' + get_str(args.istartstop)
+
     return outdirname
 
 # ----------------------------------------------------------------------------------------
@@ -100,7 +117,7 @@ def get_simfname(args, label, n_leaves, mut_mult, no_subset=False):
 # ----------------------------------------------------------------------------------------
 def get_program_workdir(args, program_name, label, n_leaves, mut_mult):
     basedir = '/fh/fast/matsen_e/dralph/work/' + program_name + '/' + label
-    if args.data:
+    if not args.is_simu:
         outdir = basedir + '/data'
     else:
         outdir = basedir + '/' + leafmutstr(args, n_leaves, mut_mult)
@@ -117,7 +134,7 @@ def get_changeo_outdir(args, label, n_leaves, mut_mult):
     else:
         changeo_fsdir = '/fh/fast/matsen_e/dralph/work/changeo/' + label
 
-    if args.data:
+    if not args.is_simu:
         imgtdir = changeo_fsdir + '/data'
     else:
         imgtdir = changeo_fsdir + '/' + leafmutstr(args, n_leaves, mut_mult).replace('-', '_')
@@ -156,7 +173,7 @@ def parse_vollmers(args, info, vollmers_fname, outdir, reco_info, true_partition
             partitionstr = line['partition'] if 'partition' in line else line['clusters']  # backwards compatibility -- used to be 'clusters' and there's still a few old files floating around
             partition = utils.get_partition_from_str(partitionstr)
             metric_vals = None
-            if not args.data:
+            if args.is_simu:
                 utils.check_intersection_and_complement(partition, true_partition)  # good to check at least once... although since we check in partitiondriver, this is really just making sure that write_each_plot_csvs() got the right reco_info
                 metric_vals = {'adj_mi' : float(line['adj_mi'])}
                 if 'ccf_under' in line:  # backward compatibility (didn't used to write it to the file, darn it)
@@ -180,7 +197,7 @@ def parse_changeo(args, info, outfname, csvdir):
     hist = plotting.get_cluster_size_hist(cpath.partitions[cpath.i_best])
     partition = cpath.partitions[cpath.i_best]
     metric_vals = None
-    if not args.data:
+    if args.is_simu:
         ccfs = cpath.ccfs[cpath.i_best]
         metric_vals = {'adj_mi' : cpath.adj_mis[cpath.i_best], 'ccf_under' : ccfs[0], 'ccf_over' : ccfs[1], 'ccf_product' : scipy.stats.hmean(ccfs)}
     deal_with_parse_results(info, csvdir, 'changeo', partition, hist, metric_vals)
@@ -218,7 +235,7 @@ def parse_partis(args, action, info, outfname, outdir, reco_info, true_partition
     partition = cpath.partitions[cpath.i_best]
     vname = action
     metric_vals = None
-    if not args.data:
+    if args.is_simu:
         if 'seed' in action:  # recalculate ccfs for only the seeded cluster
             adj_mi = -1.  # screw it, we don't use this any more
             ccfs = utils.new_ccfs_that_need_better_names(partition, true_partition, reco_info, seed_unique_id=read_seed_unique_id_from_file(outfname))
@@ -529,14 +546,14 @@ def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, all_info,
         plotdir += '/istartstop-' + get_str(args.istartstop)
 
     seqfname = get_seqfile(args, datafname, label, n_leaves, mut_mult)
-    if args.data:
+    if not args.is_simu:
         simfbase = None
         plotname = 'data'
     else:
         simfbase = leafmutstr(args, n_leaves, mut_mult, hfrac_bounds)
         plotname = simfbase
 
-    _, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=args.data, n_max_queries=args.n_to_partition)
+    _, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=not args.is_simu, n_max_queries=args.n_max_queries)
     if args.count_distances:
         for metric in ['logprob', 'naive_hfrac']:
             make_distance_plots(args, plotdir, label, n_leaves, mut_mult, get_outputname(args, label, 'partition', seqfname, hfrac_bounds).replace('.csv', '-cache.csv'), reco_info, metric)
@@ -548,7 +565,7 @@ def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, all_info,
         csvdir += '-hfrac-bounds-' + get_str(hfrac_bounds)
 
     true_partition = None
-    if not args.data:
+    if args.is_simu:
         true_partition = utils.get_true_partition(reco_info)
         parse_true(args, this_info, csvdir, true_partition)
         if 'synthetic' in args.expected_methods:
@@ -573,7 +590,7 @@ def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, all_info,
         parse_partis(args, action, this_info, get_outputname(args, label, action, seqfname, hfrac_bounds), csvdir, reco_info, true_partition)
 
     log = 'x'
-    if args.data:
+    if not args.is_simu:
         log += 'y'
     title = get_title(args, label, n_leaves, mut_mult, hfrac_bounds)
     plotting.plot_cluster_size_hists(plotdir + '/cluster-size-distributions/' + plotname + '.svg', this_info['hists'], title=title, log=log)  #, xmax=n_leaves*6.01
@@ -589,7 +606,7 @@ def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, all_info,
         for meth1, meth2 in itertools.combinations(this_info['partitions'].keys(), 2):
             if '0.5' in meth1 or '0.5' in meth2:  # skip vollmers 0.5
                 continue
-            n_biggest_clusters = 40  # if args.data else 30)
+            n_biggest_clusters = 40  # if not args.is_simu else 30)
             plotting.plot_cluster_similarity_matrix(plotdir + '/similarity-matrices/' + (meth1 + '-' + meth2).replace('partition ', ''), plotname, meth1, this_info['partitions'][meth1], meth2, this_info['partitions'][meth2], n_biggest_clusters=n_biggest_clusters, title=get_title(args, label, n_leaves, mut_mult))
 
 # ----------------------------------------------------------------------------------------
@@ -615,7 +632,7 @@ def compare_subsets(args, label):
             print '  %.1f mutation' % mut_mult
             compare_subsets_for_each_leafmut(args, baseplotdir, label, n_leaves, mut_mult, info)
 
-    if not args.data:
+    if args.is_simu:
         if args.plot_mean_of_subsets:  # plot adj mi and stuff for means over subsets, as a function of n_leaves
             for mut_mult in args.mutation_multipliers:
                 for metric in metrics:
@@ -675,7 +692,7 @@ def compare_subsets_for_each_leafmut(args, baseplotdir, label, n_leaves, mut_mul
     elif args.plot_mean_of_subsets:  # fill this_info with hists of mean over subsets, and plot them
         plot_means_over_subsets(args, label, n_leaves, mut_mult, this_info, per_subset_info, baseplotdir)
     else:  # if we're not averaging over the subsets for each leafmut (and we're not plotting vs thresholds), then we want to plot adj_mi (and whatnot) as a function of subset (presumably each subset is a different size)
-        if not args.data:
+        if args.is_simu:
             for metric in metrics:
                 plotvals = OrderedDict()
                 for method, values in per_subset_info[metric].items():
@@ -693,7 +710,7 @@ def get_expected_methods_to_plot(args, metric=None):
     # if 'synthetic' in args.expected_methods and len(args.synthetic_partitions) > 0:
     # if len(args.synthetic_partitions) > 0:
     #     expected_methods += list(args.synthetic_partitions)
-    if not args.data and metric == 'hists':
+    if args.is_simu and metric == 'hists':
         expected_methods.insert(0, 'true')
 
     return expected_methods
@@ -715,7 +732,7 @@ def read_histfiles_and_co(args, label, n_leaves, mut_mult):
     # ----------------------------------------------------------------------------------------
     def read_values(subdir, method, per_subset_info, hfrac_bounds=None):
         if metric == 'hists':
-            if args.data:
+            if not args.is_simu:
                 raise Exception('I think this needs updating for data')
                 # return = subdir + '/data/hists/' + method + '.csv'
             else:
@@ -734,7 +751,7 @@ def read_histfiles_and_co(args, label, n_leaves, mut_mult):
     per_subset_info = {k : OrderedDict() for k in metrics + ['hists', ]}
     for metric in per_subset_info:
         for method in get_expected_methods_to_plot(args, metric):
-            if metric != 'hists' and (args.data or method == 'true' or method == 'mixcr'):
+            if metric != 'hists' and (not args.is_simu or method == 'true' or method == 'mixcr'):
                 continue
             if method not in per_subset_info[metric]:
                 per_subset_info[metric][method] = []
@@ -763,7 +780,7 @@ def plot_means_over_subsets(args, label, n_leaves, mut_mult, this_info, per_subs
         this_info['hists'][method] = plotting.make_mean_hist(per_subset_info['hists'][method])
     cluster_size_plotdir = baseplotdir + '/means-over-subsets/cluster-size-distributions'
     log = 'x'
-    if args.data:
+    if not args.is_simu:
         title = get_title(args, label, n_leaves, mut_mult)
         plotfname = cluster_size_plotdir + '/data.svg'
         xmax = 10
@@ -776,7 +793,7 @@ def plot_means_over_subsets(args, label, n_leaves, mut_mult, this_info, per_subs
     plotting.plot_cluster_size_hists(plotfname, this_info['hists'], title=title, xmax=xmax, log=log)
     plotting.make_html(cluster_size_plotdir)
 
-    if not args.data:
+    if args.is_simu:
         for metric in metrics:
             # print '   ', metric
             for meth, vals in per_subset_info[metric].items():  # add the mean over subsets to <this_info>
@@ -840,7 +857,7 @@ def run_changeo(args, label, n_leaves, mut_mult, seqfname):
         else:
             print '   hmm... imgtdir not there... maybe we only have the subsets'
 
-    input_info, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=args.data)
+    input_info, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=not args.is_simu)
 
     if args.subset is not None:
         subset_dir = imgtdir + '/subset-' + str(args.subset)
@@ -879,7 +896,7 @@ def run_changeo(args, label, n_leaves, mut_mult, seqfname):
 
     fastafname = os.path.splitext(seqfname)[0] + '.fasta'
     if not os.path.exists(fastafname):
-        utils.csv_to_fasta(seqfname, outfname=fastafname)  #, name_column='name' if args.data else 'unique_id', seq_column='nucleotide' if args.data else 'seq')
+        utils.csv_to_fasta(seqfname, outfname=fastafname)  #, name_column='name' if not args.is_simu else 'unique_id', seq_column='nucleotide' if not args.is_simu else 'seq')
     bindir = '/home/dralph/work/changeo/changeo/bin'
     os.environ['PYTHONPATH'] = bindir.replace('/bin', '')
     start = time.time()
@@ -887,7 +904,7 @@ def run_changeo(args, label, n_leaves, mut_mult, seqfname):
     # cmd = bindir + '/MakeDb.py imgt -h'
     run(cmd)
     cmd = bindir + '/ParseDb.py select -d ' + imgtdir + '_db-pass.tab'
-    if args.data:
+    if not args.is_simu:
         cmd += ' -f FUNCTIONAL -u T'
     else:  # on simulation we don't want to skip any (I'm not forbidding stop codons in simulation)
         cmd += ' -f FUNCTIONAL -u T F'
@@ -913,7 +930,7 @@ def run_changeo(args, label, n_leaves, mut_mult, seqfname):
 
     adj_mi, ccfs = None, [None, None]
     true_partition = None
-    if not args.data:
+    if args.is_simu:
         true_partition = utils.get_true_partition(reco_info)
         # subset_of_true_partition = utils.remove_missing_uids_from_true_partition(true_partition, partition)
         # print 'removed from true: %.3f' % utils.adjusted_mutual_information(subset_of_true_partition, partition)
@@ -923,7 +940,7 @@ def run_changeo(args, label, n_leaves, mut_mult, seqfname):
 
     cpath = ClusterPath()
     cpath.add_partition(partition_with_uids_added, logprob=float('-inf'), n_procs=1, adj_mi=adj_mi, ccfs=ccfs)
-    cpath.write(outfname, is_data=args.data, reco_info=reco_info, true_partition=true_partition)
+    cpath.write(outfname, is_data=not args.is_simu, reco_info=reco_info, true_partition=true_partition)
 
 # ----------------------------------------------------------------------------------------
 def run_mixcr(args, label, n_leaves, mut_mult, seqfname):
@@ -939,8 +956,8 @@ def run_mixcr(args, label, n_leaves, mut_mult, seqfname):
         return
 
     # check_call(['./bin/csv2fasta', seqfname])
-    utils.csv_to_fasta(seqfname, outfname=infname, n_max_lines=args.n_to_partition)  #, name_column='name' if args.data else 'unique_id', seq_column='nucleotide' if args.data else 'seq'
-    # check_call('head -n' + str(2*args.n_to_partition) + ' ' + fastafname + ' >' + infname, shell=True)
+    utils.csv_to_fasta(seqfname, outfname=infname, n_max_lines=args.n_max_queries)  #, name_column='name' if not args.is_simu else 'unique_id', seq_column='nucleotide' if not args.is_simu else 'seq'
+    # check_call('head -n' + str(2*args.n_max_queries) + ' ' + fastafname + ' >' + infname, shell=True)
     # os.remove(seqfname.replace('.csv', '.fa'))
 
     def run(cmdstr):
@@ -976,7 +993,7 @@ def run_igscueal(args, label, n_leaves, mut_mult, seqfname):
     if not os.path.exists(workdir):
         os.makedirs(workdir)
 
-    utils.csv_to_fasta(seqfname, outfname=infname, n_max_lines=args.n_to_partition)  #, name_column='name' if args.data else 'unique_id', seq_column='nucleotide' if args.data else 'seq'
+    utils.csv_to_fasta(seqfname, outfname=infname, n_max_lines=args.n_max_queries)  #, name_column='name' if not args.is_simu else 'unique_id', seq_column='nucleotide' if not args.is_simu else 'seq'
     # write cfg file (.bf)
     sed_cmd = 'sed'
     replacements = {'igscueal_dir' : igscueal_dir,
@@ -1075,23 +1092,23 @@ def slice_file(args, csv_infname, csv_outfname):  # not necessarily csv
 # ----------------------------------------------------------------------------------------
 def get_seqfile(args, datafname, label, n_leaves, mut_mult):
 
-    if args.data:
+    if not args.is_simu:
         assert args.subset is None  # I think it's not implemented
         if args.istartstop is None:
             seqfname = datafname
         else:
-            subfname = args.fsdir + '/' + label + '/istartstop-' + get_str(args.istartstop) + '/data.csv'
+            # subfname = args.fsdir + '/' + label + '/istartstop-' + get_str(args.istartstop) + '/data.csv'
+            subfname = get_outdirname(args, label) + '/data.csv'
             slice_file(args, datafname, subfname)
             seqfname = subfname
     else:
-        if not args.data:
-            assert n_leaves is not None and mut_mult is not None
+        assert n_leaves is not None and mut_mult is not None
         simfname = get_simfname(args, label, n_leaves, mut_mult, no_subset=True)
 
         if args.subset is not None:
             ntot = int(check_output(['wc', '-l', simfname]).split()[0]) - 1
             n_per_subset = int(float(ntot) / args.n_subsets)  # NOTE ignores remainders, i.e. last few sequences
-            args.n_to_partition = n_per_subset  # we use this to set the number of procs (and maybe for other things as well)
+            args.n_max_queries = n_per_subset  # we use this to set the number of procs (and maybe for other things as well)
             subsimfname = simfname.replace(label + '/', label + '/subset-' + str(args.subset) + '/')
             if os.path.exists(subsimfname):
                 pass
@@ -1133,7 +1150,7 @@ def get_seed_cluster(outfname):
 
 # ----------------------------------------------------------------------------------------
 def get_outputname(args, label, action, seqfname, hfrac_bounds):
-    if args.data:
+    if not args.is_simu:
         outputname = get_outdirname(args, label) + '/data-' + action + '.csv'
     else:
         outputname = ('-' + action).join(os.path.splitext(seqfname))
@@ -1143,31 +1160,51 @@ def get_outputname(args, label, action, seqfname, hfrac_bounds):
 
 # ----------------------------------------------------------------------------------------
 def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bounds=None, forced_outfname=None):
-    cmd = './bin/run-driver.py --label ' + label + ' --action '
+    cmd = './bin/partis.py --action'
     if 'partition' in action:
         cmd += ' partition'
     elif action == 'annotate-seed-clusters':
         cmd += ' run-viterbi'
     else:
         cmd += ' ' + action
-    cmd += ' --stashdir ' + args.fsdir + ' --old-style-dir-structure'
+    # cmd += ' --stashdir ' + get_outdirname(args, label).replace('/' + label, '')
+    # if args.old_output_structure:
+    #     cmd += ' --old-style-dir-structure'
 
     extras = []
     seqfname = get_seqfile(args, datafname, label, n_leaves, mut_mult)
-    if args.data:
-        cmd += ' --datafname ' + seqfname
-        # if args.dataset == 'adaptive':
-        extras += ['--skip-unproductive', ]
+    cmd += ' --seqfile ' + seqfname
+    parameter_dir = get_outdirname(args, label) + '/parameters'
+    if not args.is_simu or action == 'simulate':
+        parameter_dir += '/data'
     else:
-        cmd += ' --simfname ' + seqfname + ' --is-simu'
+        parameter_dir += '/' + os.path.basename(os.path.splitext(seqfname)[0])
+    if action != 'cache-parameters':
+        parameter_dir += '/hmm'
+    cmd += ' --parameter-dir ' + parameter_dir
+
+    if not args.is_simu:
+        if args.old_output_structure:
+            extras += ['--skip-unproductive', ]
+    else:
+        cmd += ' --is-simu'
 
     n_procs = 1
     n_total_seqs = 1
-    if action == 'cache-data-parameters':
-        outfname = args.fsdir + '/' + label + '/data'
-        extras += ['--n-max-queries', + args.n_data_to_cache]
-        n_procs = max(1, args.n_data_to_cache / 500)
-        n_total_seqs = args.n_data_to_cache
+    if action == 'cache-parameters':
+        # cmd += ' --plotdir ' + parameter_dir.replace('parameters', 'plots')
+        if not args.is_simu:
+            outfname = get_outdirname(args, label) + '/parameters/data'
+            extras += ['--n-max-queries', args.n_max_queries]
+            n_procs = max(1, args.n_max_queries / 1000)
+            n_total_seqs = args.n_max_queries
+        else:
+            outfname = seqfname.replace('.csv', 'parameters')
+            n_total_seqs = args.n_max_queries
+            if args.n_max_queries != -1:
+                extras += ['--n-max-queries', + args.n_max_queries]
+                n_total_seqs = args.n_max_queries
+            n_procs = max(1, n_total_seqs / 1000)
     elif action == 'simulate':
         n_procs = 10
         outfname = seqfname
@@ -1175,7 +1212,7 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
             mean_leaves = scipy.stats.zipf(n_leaves).mean()
         else:
             mean_leaves = n_leaves
-        n_sim_events = int(float(args.n_sim_seqs) / mean_leaves)
+        n_sim_events = int(float(args.n_max_queries) / mean_leaves)
         extras += ['--n-sim-events', n_sim_events, '--n-trees', n_sim_events / n_procs + 1]
         extras += ['--n-leaves', n_leaves, '--mutation-multiplier', mut_mult]
         if args.indels:
@@ -1190,30 +1227,29 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
             extras += ['--n-leaf-distribution', 'box']
         if args.zipf:
             extras += ['--n-leaf-distribution', 'zipf']
-    elif action == 'cache-simu-parameters':
-        outfname = seqfname.replace('.csv', '')
-        n_total_seqs = args.n_sim_seqs
-        if args.n_simu_to_cache != -1:
-            extras += ['--n-max-queries', + args.n_simu_to_cache]
-            n_total_seqs = args.n_simu_to_cache
-        n_procs = max(1, n_total_seqs / 1000)
-    elif 'partition' in action or action == 'run-viterbi':
+    elif action == 'run-viterbi':
         outfname = get_outputname(args, label, action, seqfname, hfrac_bounds)
         cmd += ' --outfname ' + outfname
-        extras += ['--n-max-queries', args.n_to_partition]
-        n_total_seqs = args.n_to_partition
+        n_total_seqs = args.n_max_queries
+        extras += ['--n-max-queries', args.n_max_queries]
+        n_procs = max(1, n_total_seqs / 1000)
+    elif 'partition' in action:
+        outfname = get_outputname(args, label, action, seqfname, hfrac_bounds)
+        cmd += ' --outfname ' + outfname
+        extras += ['--n-max-queries', args.n_max_queries]
+        n_total_seqs = args.n_max_queries
         if action == 'partition':
             if args.count_distances:
                 extras += ['--cache-naive-hfracs', '--persistent-cachefname', ('-cache').join(os.path.splitext(outfname))]  # '--n-partition-steps', 1,
             if hfrac_bounds is not None:
                 assert hfrac_bounds[0] == hfrac_bounds[1]
                 extras += ['--logprob-ratio-threshold', hfrac_bounds[0]]
-            n_procs = max(1, args.n_to_partition / 300)
+            n_procs = max(1, args.n_max_queries / 300)
         elif action == 'naive-hamming-partition':
             extras += ['--naive-hamming']
             if hfrac_bounds is not None:
                 extras += ['--naive-hamming-bounds', get_str(hfrac_bounds, delimiter=':')]
-            n_procs = max(1, args.n_to_partition / 600)
+            n_procs = max(1, args.n_max_queries / 600)
         elif action == 'vsearch-partition':
             extras += ['--naive-vsearch']
             # extras += ['--persistent-cachefname', seqfname.replace('.csv', '-naive-seq-cache.csv')]  # useful if you're rerunning a bunch of times
@@ -1225,9 +1261,9 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
             seed_unique_id, seed_cluster_size = get_seed_info(args, seqfname, n_leaves)
             extras += ['--seed-unique-id', seed_unique_id]
             seqs_per_proc = 4500
-            if args.n_to_partition > 30000:
+            if args.n_max_queries > 30000:
                 seqs_per_proc *= 3
-            n_procs = max(1, args.n_to_partition / seqs_per_proc)
+            n_procs = max(1, args.n_max_queries / seqs_per_proc)
             if action == 'seed-partition':
                 if hfrac_bounds is not None:
                     assert hfrac_bounds[0] == hfrac_bounds[1]
@@ -1236,20 +1272,20 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
                 extras += ['--naive-hamming']
                 if hfrac_bounds is not None:
                     extras += ['--naive-hamming-bounds', get_str(hfrac_bounds, delimiter=':')]
-        elif action == 'run-viterbi':
+        elif action == 'vjcdr3-partition':
             extras += ['--annotation-clustering', 'vollmers', '--annotation-clustering-thresholds', '0.5:0.9']
             # extras += ['--persistent-cachefname', seqfname.replace('.csv', '-naive-seq-cache.csv')]  # useful if you're rerunning a bunch of times
-            n_procs = max(1, args.n_to_partition / 500)
+            n_procs = max(1, args.n_max_queries / 500)
         elif action == 'synthetic-partition':  # called from generate_synthetic_partitions()
             cmd = cmd.replace(outfname, forced_outfname)
             outfname = forced_outfname  # <outfname> gets used below
             extras += ['--naive-hamming', '--synthetic-distance-based-partition']
             extras += ['--naive-hamming-bounds', get_str(hfrac_bounds, delimiter=':'), '--no-indels']  # if we allow indels, it gets harder to pad seqs to the same length
-            n_procs = max(1, args.n_to_partition / 500)
+            n_procs = max(1, args.n_max_queries / 500)
     elif action == 'annotate-seed-clusters':
         outfname = get_outputname(args, label, action, seqfname, hfrac_bounds)
         queries = get_seed_cluster(get_outputname(args, label, 'seed-partition', seqfname, hfrac_bounds))
-        extras += ['--queries=' + ':'.join(queries), '--n-sets', len(queries)]  # override run-driver's outfname
+        extras += ['--queries=' + ':'.join(queries), '--n-sets', len(queries)]
         cmd += ' --outfname ' + outfname
         n_procs = max(1, len(queries) / 500)
     elif action == 'run-changeo':
@@ -1283,11 +1319,12 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
 
     extras += ['--n-procs', n_proc_str]
 
-    cmd += baseutils.get_extra_str(extras)
+    # cmd += baseutils.get_extra_str(extras)
+    cmd += ' ' + ' '.join([str(e) for e in extras]) + ' --print-git-commit'
     print '   ' + cmd
     # return
 
-    logbase = os.path.dirname(outfname) + '/_logs/' + os.path.basename(outfname).replace('.csv', '')
+    logbase = get_outdirname(args, label) + '/logs/' + os.path.basename(outfname).replace('.csv', '')
     if action not in logbase:
         logbase += '-' + action
 

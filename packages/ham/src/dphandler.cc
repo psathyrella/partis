@@ -27,7 +27,7 @@ void DPHandler::Clear() {
   trellisi_.clear();
   paths_.clear();
   all_scores_.clear();
-  // best_per_gene_scores_.clear();  huh, am I not using this for anything?
+  per_gene_support_.clear();
 }
 
 // ----------------------------------------------------------------------------------------
@@ -116,8 +116,8 @@ Result DPHandler::Run(vector<Sequence> seqvector, KBounds kbounds, vector<string
         best_score = best_scores[kset];
         best_kset = kset;
       }
-      if(algorithm_ == "viterbi" && best_scores[kset] != -INFINITY)
-        PushBackRecoEvent(seqs, kset, best_genes[kset], best_scores[kset], &result.events_);
+      if(algorithm_ == "viterbi" && best_scores[kset] != -INFINITY)  // add event to the vector in <result> (we get the event from <paths_>, using <kset> and <best_genes_> as indices)
+        result.PushBackRecoEvent(FillRecoEvent(seqs, kset, best_genes[kset], best_scores[kset]));
     }
   }
   if(args_->debug() && n_too_long > 0) cout << "      skipped " << n_too_long << " (of " << n_total << ") k sets 'cause they were longer than the sequence (ran " << n_run << ")" << endl;
@@ -129,20 +129,8 @@ Result DPHandler::Run(vector<Sequence> seqvector, KBounds kbounds, vector<string
     return result;
   }
 
-  // sort vector of events by score, stream info to stderr, and print the top n_best_events_
-  if(algorithm_ == "viterbi") {
-    sort(result.events_.begin(), result.events_.end());
-    reverse(result.events_.begin(), result.events_.end());
-    if(args_->debug() == 2) {
-      assert(args_->n_best_events() <= (int)result.events_.size());
-      // for(size_t ievt = 0; ievt < args_->n_best_events(); ++ievt) {
-      //   result.events_[ievt].Print(gl_, 0, 0, false, false, "          ");  // man, I wish I had keyword args
-      //   if(seqs.n_seqs() == 2)
-      //     result.events_[ievt].Print(gl_, 0, 0, true, true, "          ");
-      // }
-    }
-  }
-  // StreamOutput(total_score_);  // NOTE this must happen after sorting in viterbi
+  if(algorithm_ == "viterbi")
+    result.Finalize(gl_, per_gene_support_, best_kset, kbounds);
 
   // print debug info
   if(args_->debug()) {
@@ -162,17 +150,16 @@ Result DPHandler::Run(vector<Sequence> seqvector, KBounds kbounds, vector<string
     printf("           %s %12.3f   %-25s  %2zuv %2zud %2zuj  %5.1fs   %s\n", alg_str.c_str(), prob, kstr,
 	   only_genes["v"].size(), only_genes["d"].size(), only_genes["j"].size(),  // hmms_.NameString(&only_genes, 30)
 	   cpu_seconds, seqs.name_str(":").c_str());
-  }
 
-  result.check_boundaries(best_kset, kbounds);
-  if(args_->debug() && result.boundary_error()) {   // not necessarily a big deal yet -- the bounds get automatical expanded
-    cout << "             max at boundary:"
-         << " " << best_kset.v << " (" << kbounds.vmin << "-" << kbounds.vmax - 1 << ")"
-         << ", " << best_kset.d << " (" << kbounds.dmin << "-" << kbounds.dmax - 1 << ")"
-         << "    better: " << result.better_kbounds().stringify();
-    if(result.could_not_expand())
-      cout << " (could not expand)     ";
-    cout << "    " << seqs.name_str()  << endl;
+    if(result.boundary_error()) {   // not necessarily a big deal yet -- the bounds get automatical expanded
+      cout << "             max at boundary:"
+	   << " " << best_kset.v << " (" << kbounds.vmin << "-" << kbounds.vmax - 1 << ")"
+	   << ", " << best_kset.d << " (" << kbounds.dmin << "-" << kbounds.dmax - 1 << ")"
+	   << "    better: " << result.better_kbounds().stringify();
+      if(result.could_not_expand())
+	cout << " (could not expand)     ";
+      cout << "    " << seqs.name_str()  << endl;
+    }
   }
 
   if(!args_->dont_rescale_emissions())  // if we rescaled them above, re-rescale the overall mean mute freqs
@@ -295,12 +282,6 @@ void DPHandler::PrintPath(vector<string> query_strs, string gene, double score, 
 }
 
 // ----------------------------------------------------------------------------------------
-void DPHandler::PushBackRecoEvent(Sequences &seqs, KSet kset, map<string, string> &best_genes, double score, vector<RecoEvent> *events) {
-  RecoEvent event(FillRecoEvent(seqs, kset, best_genes, score));
-  events->push_back(event);
-}
-
-// ----------------------------------------------------------------------------------------
 RecoEvent DPHandler::FillRecoEvent(Sequences &seqs, KSet kset, map<string, string> &best_genes, double score) {
   RecoEvent event;
   vector<string> seq_strs(seqs.n_seqs(), "");  // build up these strings summing over each regions
@@ -337,6 +318,9 @@ RecoEvent DPHandler::FillRecoEvent(Sequences &seqs, KSet kset, map<string, strin
     event.AddAuxiliarySeqs(seqs[iseq].name(), seq_strs[iseq]);
   event.SetScore(score);
   event.SetNaiveSeq(gl_);
+
+  // NOTE we do *not* want to set the event's per_gene_support_, since the event we're filling is only for one kset, while per_gene_support_ should be summed over ksets
+  
   return event;
 }
 
@@ -357,6 +341,7 @@ void DPHandler::RunKSet(Sequences &seqs, KSet kset, map<string, set<string> > &o
   (*best_genes)[kset] = map<string, string>();
   map<string, double> regional_best_scores; // the best score for each region
   map<string, double> regional_total_scores; // the total score for each region, i.e. log P_v
+  map<string, double> per_gene_support_this_kset;
   if(args_->debug() == 2) {
     printf("         %3d%3d", (int)kset.v, (int)kset.d);
     if(algorithm_ == "forward")
@@ -379,13 +364,7 @@ void DPHandler::RunKSet(Sequences &seqs, KSet kset, map<string, set<string> > &o
 
     regional_best_scores[region] = -INFINITY;
     regional_total_scores[region] = -INFINITY;
-    size_t igene(0), n_long_erosions(0);
     for(auto & gene : only_genes[region]) {
-      igene++;
-
-      if(query_strs[0].size() < gl_.seqs_[gene].size() - 10)   // entry into the left side of the v hmm is a little hacky, and is governed by a gaussian with width 5 (hmmwriter::fuzz_around_v_left_edge)
-        n_long_erosions++;
-
       double *gene_score(&all_scores_[gene][query_strs]);  // pointed-to value is already set if we have this trellis cached, otherwise not
       bool already_cached = trellisi_.find(gene) != trellisi_.end() && trellisi_[gene].find(query_strs) != trellisi_[gene].end();
       string origin("ARG");
@@ -399,37 +378,50 @@ void DPHandler::RunKSet(Sequences &seqs, KSet kset, map<string, set<string> > &o
       if(args_->debug() == 2 && algorithm_ == "viterbi")
         PrintPath(query_strs, gene, *gene_score, origin);
 
-      // set regional total scores
+      // add this score to the regional total score
       regional_total_scores[region] = AddInLogSpace(*gene_score, regional_total_scores[region]);  // (log a, log b) --> log a+b, i.e. here we are summing probabilities in log space, i.e. a *or* b
       if(args_->debug() == 2 && algorithm_ == "forward")
         printf("                %6.0e %9.2f  %7.2f  %s  %s\n", exp(*gene_score), *gene_score, regional_total_scores[region], origin.c_str(), tc.ColorGene(gene).c_str());
 
-      // set best regional scores
+      // set best regional scores (and the best gene for this kset)
       if(*gene_score > regional_best_scores[region]) {
         regional_best_scores[region] = *gene_score;
         (*best_genes)[kset][region] = gene;
       }
 
-      // // set best per-gene scores
-      // if(best_per_gene_scores_.find(gene) == best_per_gene_scores_.end())  huh, am I not using this for anything?
-      //   best_per_gene_scores_[gene] = -INFINITY;
-      // if(*gene_score > best_per_gene_scores_[gene])
-      //   best_per_gene_scores_[gene] = *gene_score;
-
+      // watch this space for something pithy
+      per_gene_support_this_kset[gene] = *gene_score;
     }
 
     // return if we didn't find a valid path for this region
     if((*best_genes)[kset].find(region) == (*best_genes)[kset].end()) {
-      if(args_->debug() == 2) {
-        cout << "                  found no gene for " << region << " so skip"
-             << " (" << n_long_erosions << "/" << igene << " would require more than 10 erosions)" << endl;
-      }
+      if(args_->debug() == 2)
+        cout << "                  found no gene for " << region << " so skip" << endl;
       return;
     }
   }
 
   (*best_scores)[kset] = AddWithMinusInfinities(regional_best_scores["v"], AddWithMinusInfinities(regional_best_scores["d"], regional_best_scores["j"]));  // i.e. best_prob = v_prob * d_prob * j_prob (v *and* d *and* j)
   (*total_scores)[kset] = AddWithMinusInfinities(regional_total_scores["v"], AddWithMinusInfinities(regional_total_scores["d"], regional_total_scores["j"]));
+
+  for(auto &region : gl_.regions_) {  // we have to do this in a separate loop because we need to know what the regional_best_scores are for the other regions
+    for(auto &gene : only_genes[region]) {
+      // first multiply the prob for this kset by the *total* for the other two regions
+      double score_this_kset(0);  // not -INFINITY, since we're multiplying probabilities
+      for(auto &tmpreg : gl_.regions_) {
+      	if(tmpreg == region)
+      	  score_this_kset = AddWithMinusInfinities(score_this_kset, per_gene_support_this_kset[gene]);
+      	else
+      	  score_this_kset = AddWithMinusInfinities(score_this_kset, regional_best_scores[tmpreg]);  // i.e. we use the best genes in the other two regions, but single out this gene in its region
+      }
+
+      if(per_gene_support_.count(gene) == 0)
+      	per_gene_support_[gene] = -INFINITY;
+      // per_gene_support_[gene] = AddInLogSpace(per_gene_support_[gene], score_this_kset);  // also, if you do it this way, a large fraction of the events have different viterbi and best-supported d genes
+      if(score_this_kset > per_gene_support_[gene])  // NOTE we could also add up the scores for every kset, but what we want to compare to is the viterbi prob for the best annotation, so this is cleaner and clearer, i.e. it doesn't muddle up viterbi and forward probs
+      	per_gene_support_[gene] = score_this_kset;
+    }
+  }
 }
 
 // ----------------------------------------------------------------------------------------
@@ -548,14 +540,5 @@ size_t DPHandler::GetErosionLength(string side, vector<string> names, string gen
 
   return length;
 }
-
-// // ----------------------------------------------------------------------------------------
-// void DPHandler::WriteBestGeneProbs(ofstream &ofs, string query_name) {
-//   ofs << query_name << ",";
-//   stringstream ss;
-//   for(auto & gene_map : best_per_gene_scores_)  huh, am I not using this for anything?
-//     ss << gene_map.first << ":" << gene_map.second << ";";
-//   ofs << ss.str().substr(0, ss.str().size() - 1) << endl; // remove the last semicolon
-// }
 
 }

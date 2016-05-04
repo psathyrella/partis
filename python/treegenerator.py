@@ -44,7 +44,6 @@ class TreeGenerator(object):
         self.tree_generator = 'TreeSim'  # other option: ape
         self.branch_lengths = {}
         self.read_mute_freqs(mute_freq_dir)
-        assert self.args.outfname is not None
         random.seed(seed)
         numpy.random.seed(seed)
         if self.args.debug:

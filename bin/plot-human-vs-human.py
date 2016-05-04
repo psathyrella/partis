@@ -12,7 +12,7 @@ raise Exception('needs to be tested since root removal')
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--subdirs', default='all', help='Which variable categories?')
-parser.add_argument('--dataset', choices=('adaptive', 'stanford', 'both'), default='adaptive')
+parser.add_argument('--dataset', choices=('adaptive', 'vollmers', 'both'), default='adaptive')
 args = parser.parse_args()
 if args.subdirs == 'all':
     args.subdirs = all_subdirs

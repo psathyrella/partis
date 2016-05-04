@@ -1,10 +1,13 @@
 import sys
 import utils
+import numpy
 import plotting
 import re
 from hist import Hist
 from subprocess import check_call
 import fraction_uncertainty
+import copy
+import math
 
 # Columns for which we just want to know, Did we guess the right value? (for other columns, we store guess - true)
 bool_columns = ('v_gene', 'd_gene', 'j_gene')
@@ -39,6 +42,8 @@ class PerformancePlotter(object):
         for region in utils.regions:  # plots of correct gene calls vs mute freq
             self.hists[region + '_gene_right_vs_mute_freq'] = Hist(50, 0., 0.4)
             self.hists[region + '_gene_wrong_vs_mute_freq'] = Hist(50, 0., 0.4)
+            self.hists[region + '_allele_right_vs_per_gene_support'] = Hist(25, 0., 1.)  # NOTE these require the correct *allele*, while the other ones don't
+            self.hists[region + '_allele_wrong_vs_per_gene_support'] = Hist(25, 0., 1.)
 
     # ----------------------------------------------------------------------------------------
     def hamming_distance_to_true_naive(self, true_line, line, query_name, restrict_to_region='', normalize=False, padfo=None, debug=False):
@@ -129,20 +134,40 @@ class PerformancePlotter(object):
                 pass
 
     # ----------------------------------------------------------------------------------------
+    def set_bool_column(self, true_line, inf_line, column, overall_mute_freq):
+        if utils.are_alleles(true_line[column], inf_line[column]):  # NOTE this doesn't require allele to be correct, but set_per_gene_support() does
+            self.values[column]['right'] += 1
+            self.hists[column + '_right_vs_mute_freq'].fill(overall_mute_freq)  # NOTE this'll toss a KeyError if you add bool column that aren't [vdj]_gene
+        else:
+            self.values[column]['wrong'] += 1
+            self.hists[column + '_wrong_vs_mute_freq'].fill(overall_mute_freq)
+
+    # ----------------------------------------------------------------------------------------
+    def set_per_gene_support(self, true_line, inf_line, region):
+        if inf_line[region + '_per_gene_support'].keys()[0] != inf_line[region + '_gene']:
+            print '   WARNING best-supported gene %s not same as viterbi gene %s' % (utils.color_gene(inf_line[region + '_per_gene_support'].keys()[0]), utils.color_gene(inf_line[region + '_gene']))
+        support = inf_line[region + '_per_gene_support'].values()[0]  # sorted, ordered dict with gene : logprob key-val pairs
+        if true_line[region + '_gene'] == inf_line[region + '_gene']:  # NOTE this requires allele to be correct, but set_bool_column() does not
+            self.hists[region + '_allele_right_vs_per_gene_support'].fill(support)
+        else:
+            self.hists[region + '_allele_wrong_vs_per_gene_support'].fill(support)
+
+    # ----------------------------------------------------------------------------------------
     def add_partial_fail(self, true_line, line):
+        # NOTE does not fill all the hists ('cause it kind of can't, right?)
 
         overall_mute_freq = utils.get_mutation_rate(self.germlines, true_line)  # true value
 
         for column in self.values:
             if column in bool_columns:
-                if column in line and utils.are_alleles(true_line[column], line[column]):  # NOTE you have to change this below as well!
-                    self.values[column]['right'] += 1
-                    self.hists[column + '_right_vs_mute_freq'].fill(overall_mute_freq)  # NOTE this'll toss a KeyError if you add bool column that aren't [vdj]_gene
-                else:
-                    self.values[column]['wrong'] += 1
-                    self.hists[column + '_wrong_vs_mute_freq'].fill(overall_mute_freq)
+                if column in line:
+                    self.set_bool_column(true_line, line, column, overall_mute_freq)
             else:
                 pass
+
+        for region in utils.regions:
+            if region + '_per_gene_support' in inf_line:
+                self.set_per_gene_support(true_line, inf_line, region)
 
     # ----------------------------------------------------------------------------------------
     def evaluate(self, true_line, inf_line, padfo=None):
@@ -153,12 +178,7 @@ class PerformancePlotter(object):
             if self.only_correct_gene_fractions and column not in bool_columns:
                 continue
             if column in bool_columns:
-                if utils.are_alleles(true_line[column], inf_line[column]):  # NOTE you have to change this above as well!
-                    self.values[column]['right'] += 1
-                    self.hists[column + '_right_vs_mute_freq'].fill(overall_mute_freq)  # NOTE this'll toss a KeyError if you add bool column that aren't [vdj]_gene
-                else:
-                    self.values[column]['wrong'] += 1
-                    self.hists[column + '_wrong_vs_mute_freq'].fill(overall_mute_freq)
+                self.set_bool_column(true_line, inf_line, column, overall_mute_freq)
             else:
                 trueval, guessval = 0, 0
                 if column[2:] == '_insertion':  # insertion length
@@ -182,8 +202,12 @@ class PerformancePlotter(object):
                     self.values[column][diff] = 0
                 self.values[column][diff] += 1
 
+        for region in utils.regions:
+            if region + '_per_gene_support' in inf_line:
+                self.set_per_gene_support(true_line, inf_line, region)
+
         for column in self.hists:
-            if '_vs_mute_freq' in column:  # fill these above
+            if '_vs_mute_freq' in column or '_per_gene_support' in column:  # fill these above
                 continue
             if len(re.findall('[vdj]_', column)) == 1:
                 region = re.findall('[vdj]_', column)[0][0]
@@ -217,6 +241,45 @@ class PerformancePlotter(object):
                 plotting.draw_no_root(hist, plotname=column, plotdir=plotdir, write_csv=True, log=log, only_csv=only_csv)
         for column in self.hists:
             plotting.draw_no_root(self.hists[column], plotname=column, plotdir=plotdir, write_csv=True, log=log, only_csv=only_csv)
+
+        # per-gene support crap
+        for region in utils.regions:
+            if self.hists[region + '_allele_right_vs_per_gene_support'].integral(include_overflows=True) == 0:
+                continue
+            xvals = self.hists[region + '_allele_right_vs_per_gene_support'].get_bin_centers() #ignore_overflows=True)
+            right = self.hists[region + '_allele_right_vs_per_gene_support'].bin_contents
+            wrong = self.hists[region + '_allele_wrong_vs_per_gene_support'].bin_contents
+            yvals = [float(r) / (r + w) if r + w > 0. else 0. for r, w in zip(right, wrong)]
+
+            # remove values corresponding to bins with no entries
+            while yvals.count(0.) > 0:
+                iv = yvals.index(0.)
+                xvals.pop(iv)
+                right.pop(iv)
+                wrong.pop(iv)
+                yvals.pop(iv)
+
+            tmphilos = [fraction_uncertainty.err(r, r + w) for r, w in zip(right, wrong)]
+            yerrs = [err[1] - err[0] for err in tmphilos]
+
+            # fitting a line isn't particularly informative, actually
+            # params, cov = numpy.polyfit(xvals, yvals, 1, w=[1./(e*e) if e > 0. else 0. for e in yerrs], cov=True)
+            # slope, slope_err = params[0], math.sqrt(cov[0][0])
+            # y_icpt, y_icpt_err = params[1], math.sqrt(cov[1][1])
+            # print '%s  slope: %5.2f +/- %5.2f  y-intercept: %5.2f +/- %5.2f' % (region, slope, slope_err, y_icpt, y_icpt_err)
+
+            # print '%s' % region
+            # for iv in range(len(xvals)):
+            #     print '   %5.2f     %5.0f / %5.0f  =  %5.2f   +/-  %.3f' % (xvals[iv], right[iv], right[iv] + wrong[iv], yvals[iv], yerrs[iv])
+
+            fig, ax = plotting.mpl_init()
+
+            ax.errorbar(xvals, yvals, yerr=yerrs, markersize=10, linewidth=1, marker='.')
+            ax.plot((0, 1), (0, 1), color='black', linestyle='--', linewidth=3)  # line with slope 1 and intercept 0
+            # linevals = [slope*x + y_icpt for x in [0] + xvals]  # fitted line
+            # ax.plot([0] + xvals, linevals)
+
+            plotting.mpl_finish(ax, plotdir, region + '_allele_fraction_correct_vs_per_gene_support', xlabel='support', ylabel='fraction correct', xbounds=(-0.1, 1.1), ybounds=(-0.1, 1.1))
 
         if not only_csv:
             plotting.make_html(plotdir)

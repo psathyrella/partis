@@ -30,7 +30,6 @@ public:
 private:
   void RunKSet(Sequences &seqs, KSet kset, map<string, set<string> > &only_genes, map<KSet, double> *best_scores, map<KSet, double> *total_scores, map<KSet, map<string, string> > *best_genes);
   void FillTrellis(Sequences query_seqs, vector<string> query_strs, string gene, double *score, string &origin);
-  void PushBackRecoEvent(Sequences &seqs, KSet kset, map<string, string> &best_genes, double score, vector<RecoEvent> *events);
   RecoEvent FillRecoEvent(Sequences &seqs, KSet kset, map<string, string> &best_genes, double score);
   vector<string> GetQueryStrs(Sequences &seqs, KSet kset, string region);
 
@@ -47,10 +46,12 @@ private:
   GermLines &gl_;
   HMMHolder &hmms_;
 
+  // NOTE BEWARE DRAGONS AND ALL THAT SHIT!
+  // if you add something new here you *must* clear it in Clear(), because we reuse the dphandler for different sequences
   map<string, map<vector<string>, trellis*> > trellisi_; // collection of the trellises we've calculated, so we can reuse them. eg: trellisi_["IGHV1-18*01"]["ACGGGTCG"] for single hmms, or trellisi_["IGHV1-18*01"][("ACGGGTCG","ATGGTTAG")] for pair hmms
   map<string, map<vector<string>, TracebackPath*> > paths_; // collection of the paths.
   map<string, map<vector<string>, double> > all_scores_;
-  // map<string, double> best_per_gene_scores_;  huh, am I not using this for anything?
+  map<string, double> per_gene_support_;  // log prob of the best (full) annotation for each gene
 };
 }
 #endif

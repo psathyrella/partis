@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+raise Exception('needs updating now that I\'ve deleted run-driver.py')
+
 import sys
 import os
 import argparse

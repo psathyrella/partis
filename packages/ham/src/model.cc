@@ -115,6 +115,10 @@ void Model::AddState(State* state) {
 // ----------------------------------------------------------------------------------------
 void Model::RescaleOverallMuteFreq(double overall_mute_freq) {
   assert(overall_mute_freq != -INFINITY);
+
+  if(original_overall_mute_freq_ == 0.0)
+    throw runtime_error("model.cc: tried to rescale overall mut freqs with zero original_overall_mute_freq_");
+
   // cout << "rescaling " << name_ << " from " << original_overall_mute_freq_ << " to " << overall_mute_freq << endl;
   for(auto &state : states_) {
     // NOTE it is arguable that the denominator here should be the original mute freq only over the sequences that had
