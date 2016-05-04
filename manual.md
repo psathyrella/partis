@@ -167,7 +167,6 @@ If you want to save csv output for later, add `--outfname <outfname>`.
 
 output formatting: see `utils.process_input_line()` and `utils.get_line_for_output()` to automate conversion of all these columns.
 
-|------------------------|----------------------------------------------------------------------------
 |   column header        |  description
 |------------------------|----------------------------------------------------------------------------
 | unique_ids             |  colon-separated list of sequence identification strings (of length 1 if multi-hmm isn't used)
