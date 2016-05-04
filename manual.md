@@ -127,10 +127,9 @@ These files are then passed as input to a second, HMM-based, annotation step, wh
 
 The full command you'd need to cache parameters would look like this:
 
-``` ./bin/partis.py --action cache-parameters --seqfile test/example.fa --is-data --parameter-dir _output/example/data```
+``` ./bin/partis.py --action cache-parameters --seqfile test/example.fa --parameter-dir _output/example/data```
 
 `--seqfile` location of input sequences (.[ct]sv, .f[aq]{sta,stq})
-`--is-data` lets it know not to expect simulation information (which would be used for validation purposes).
 `--skip-unproductive` Smith-Waterman step skips sequences that are annotated to be unproductive rearrangements.
 When caching parameters, the parameter csvs from Smith-Waterman and the HMM are put into `/sw` and `/hmm` subdirectories of `--parameter-dir`.
 Within each of these, there are a bunch of csv files with (hopefully) self-explanatory names, e.g. `j_gene-j_5p_del-probs.csv` has counts for J 5' deletions subset by J gene.
@@ -157,13 +156,14 @@ Throughout the run, we sample a tree at random from this set for each rearrangem
 If you already have parameters and HMM files cached from a previous run, you can just run the Viterbi algorithm by itself.
 As an example invocation, we could find the 5 most likely annotations for the first sequence in the previous data set
 
-```./bin/partis.py --action run-viterbi --seqfile test/example.fa --is-data --parameter-dir _output/example/data/hmm --n-max-queries 1 --debug 1```
+```./bin/partis.py --action run-viterbi --seqfile test/example.fa --parameter-dir _output/example/data/hmm --n-max-queries 1 --debug 1```
 
 Here I've kicked the debug level up to 1, so it prints out a colored summary of the candidate rearrangement events.
 If you want to save csv output for later, add `--outfname <outfname>`.
 
-output formatting:
+output formatting: see `utils.process_input_line()` and `utils.get_line_for_output()` to automate conversion of all these columns.
 
+|------------------------|----------------------------------------------------------------------------
 |   column header        |  description
 |------------------------|----------------------------------------------------------------------------
 | unique_ids             |  colon-separated list of sequence identification strings (of length 1 if multi-hmm isn't used)
@@ -185,14 +185,14 @@ output formatting:
 | jf_insertion		 |  sequence of nucleotides corresponding to any "effective" non-templated insertion on the 3' side of the J (accounts for reads which extend beyond the 3' end of J)
 | mutated_invariants	 |  true if the conserved cysteine or tryptophan (IMGT numbering) were mutated (colon-separated list if multi-hmm)
 | in_frames		 |  true if conserved cysteine and tryptophan (IMGT numbering) are in the same frame (colon-separated list if multi-hmm)
-| stops                  |  true if stop codon was found in the query sequence
-| v_per_gene_support	 |  approximate probability supporting the top V gene matches (colon-separated list of semicolon-separated gene:probability pairs)
-| d_per_gene_support	 |  approximate probability supporting the top D gene matches (colon-separated list of semicolon-separated gene:probability pairs)
-| j_per_gene_support	 |  approximate probability supporting the top J gene matches (colon-separated list of semicolon-separated gene:probability pairs)
-| indelfos		 |  information on any SHM indels that were inferred in the Smith-Waterman step. Written as a literal python dict; can be read in python with `ast.literal_eval(line['indelfo'])`.
-| aligned_v_seqs	 |  do not use. will soon be removed (see #179).
-| aligned_d_seqs	 |  do not use. will soon be removed (see #179).
-| aligned_j_seqs	 |  do not use. will soon be removed (see #179).
+| stops                  |  true if stop codon was found in the query sequence (colon-separated list if multi-hmm)
+| v_per_gene_support	 |  approximate probability supporting the top V gene matches (colon-separated list of semicolon-separated gene;probability pairs)
+| d_per_gene_support	 |  approximate probability supporting the top D gene matches (colon-separated list of semicolon-separated gene;probability pairs)
+| j_per_gene_support	 |  approximate probability supporting the top J gene matches (colon-separated list of semicolon-separated gene;probability pairs)
+| indelfos		 |  information on any SHM indels that were inferred in the Smith-Waterman step. Written as a literal python dict; can be read in python with `ast.literal_eval(line['indelfo'])` (colon-separated list if multi-hmm)
+| aligned_v_seqs	 |  do not use. will soon be removed (see issue #179)
+| aligned_d_seqs	 |  do not use. will soon be removed (see issue #179)
+| aligned_j_seqs	 |  do not use. will soon be removed (see issue #179)
 
 ##### `run-forward`: find total probability of sequences
 

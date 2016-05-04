@@ -1400,8 +1400,7 @@ def useful_bool(bool_str):
 # ----------------------------------------------------------------------------------------
 def process_input_line(info):
     """ 
-    Attempt to convert all the keys and values in <info> from str to int.
-    The keys listed in <list_columns> will be split as colon-separated lists before intification.
+    Attempt to convert all the keys and values in <info> according to the specifications in <column_configs> (e.g. splitting lists, casting to int/float, etc).
     """
 
     ccfg = column_configs  # shorten the name a bit
