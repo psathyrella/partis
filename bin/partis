@@ -194,6 +194,8 @@ parent_parser.add_argument('--dont-rescale-emissions', action='store_true')
 parent_parser.add_argument('--version', action='version', help='print version and exit', version='partis %s' % check_output(['git', 'tag']))
 parent_parser.add_argument('--print-git-commit', action='store_true', help='print git commit hash')
 parent_parser.add_argument('--smc-particles', type=int, default=1, help='DEPRECATED Number of particles (clustering paths) to simulate with SMC')
+parent_parser.add_argument('--min-observations-to-write', type=int, default=20, help='For hmmwriter.py, if we see a gene version fewer times than this, we sum over other alleles, or other versions, etc. (see hmmwriter)')
+# parent_parser.add_argument('--use_mean_at_boundaries', action='store_true', help='see note in hmmwriter')
 
 subconfig = {
     'cache-parameters' : {'func' : run_partitiondriver, 'help' : 'Cache parameter values and write hmm model files.'},
@@ -204,8 +206,6 @@ subconfig = {
 }
 
 subargs = {subname : [] for subname in subconfig}
-subargs['cache-parameters'].append({'name' : '--min-observations-to-write', 'kwargs' : {'type' : int, 'default' : 20, 'help' : 'For hmmwriter.py, if we see a gene version fewer times than this, we sum over other alleles, or other versions, etc. (see hmmwriter)'}})
-# subargs['cache-parameters'].append({'--use_mean_at_boundaries', 'action' : 'store_true', 'help' : 'see note in hmmwriter'}})
 subargs['run-viterbi'].append({'name' : '--presto-output', 'kwargs' : {'action' : 'store_true', 'help' : 'write output file in presto format'}})
 subargs['partition'].append({'name' : '--annotation-clustering', 'kwargs' : {'help' : 'Perform annotation-based clustering from Vollmers paper'}})
 subargs['partition'].append({'name' : '--annotation-clustering-thresholds', 'kwargs' : {'default' : '0.9', 'help' : 'colon-separated list of thresholds for annotation-based (e.g. vollmers) clustering'}})
