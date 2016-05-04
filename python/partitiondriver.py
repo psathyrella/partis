@@ -106,6 +106,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def cache_parameters(self):
         """ Infer full parameter sets and write hmm files for sequences from <self.input_info>, first with Smith-Waterman, then using the SW output as seed for the HMM """
+        print 'caching parameters'
         sw_parameter_dir = self.args.parameter_dir + '/sw'
         self.run_waterer(sw_parameter_dir, write_parameters=True)
         self.write_hmms(sw_parameter_dir)
@@ -116,12 +117,14 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def run_algorithm(self, algorithm):
         """ Just run <algorithm> (either 'forward' or 'viterbi') on sequences in <self.input_info> and exit. You've got to already have parameters cached in <self.args.parameter_dir> """
+        print 'running %s' % algorithm
         self.run_waterer(self.args.parameter_dir)
         self.run_hmm(algorithm, parameter_in_dir=self.args.parameter_dir)
 
     # ----------------------------------------------------------------------------------------
     def partition(self):
         """ Partition sequences in <self.input_info> into clonally related lineages """
+        print 'partitioning'
         self.run_waterer(self.args.parameter_dir)  # run smith-waterman
 
         # cache hmm naive seq for each single query
