@@ -1160,7 +1160,7 @@ def get_outputname(args, label, action, seqfname, hfrac_bounds):
 
 # ----------------------------------------------------------------------------------------
 def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bounds=None, forced_outfname=None):
-    cmd = './bin/partis.py --action'
+    cmd = './bin/partis '
     if 'partition' in action:
         cmd += ' partition'
     elif action == 'annotate-seed-clusters':

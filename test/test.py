@@ -19,7 +19,7 @@ from clusterpath import ClusterPath
 class Tester(object):
     # ----------------------------------------------------------------------------------------
     def __init__(self):
-        self.partis = './bin/partis.py'
+        self.partis = './bin/partis'
         self.datafname = 'test/mishmash.fa'  # some data from adaptive, chaim, and vollmers
         self.label = 'test'
 
