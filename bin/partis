@@ -11,6 +11,15 @@ sys.path.insert(1, './python')
 import utils
 
 # ----------------------------------------------------------------------------------------
+def default_parameter_dir(args):
+    if args.seqfile is not None:
+        label = os.path.basename(args.seqfile[ : args.seqfile.rfind('.')])
+    else:
+        label = 'no-need-for-a-name'
+    pdir = '_parameters/' + label
+    return pdir
+
+# ----------------------------------------------------------------------------------------
 def run_simulation(args):
     from recombinator import Recombinator
 
@@ -18,12 +27,14 @@ def run_simulation(args):
         raise Exception('requested more simulated events per process %d / %d = %d than trees %d (you should increase --n-trees)' % (args.n_sim_events, args.n_procs, args.n_sim_events / args.n_procs, args.n_trees))  # doesn't really need to be an exception, but just for now...
     if args.outfname is None:
         raise Exception('have to specify --outfname for simulation')
-    if not os.path.exists(args.parameter_dir):
-        raise Exception('parameter dir %s d.n.e.' % args.parameter_dir)
     if not args.n_sim_events > 0:
         raise Exception('--n-sim-events has to be a positivie number')
     if args.slurm:
         raise Exception('simulator parallelization does not handle slurm')
+    if args.seqfile is not None:
+        print '  NOTE --seqfile is not used when simulating'
+    if args.n_max_queries is not None:
+        print '  NOTE --n-max-queries is not used when simulating (use --n-sim-events to set the simulated number of rearrangemt events)'
 
     def make_events(n_events, iproc, random_ints):
         assert n_events > 0
@@ -41,6 +52,24 @@ def run_simulation(args):
                 itry += 1
 
     print 'simulating'
+
+    used_default_parameter_dir = False
+    if args.parameter_dir is None:
+        args.parameter_dir = default_parameter_dir(args)
+        print '  using default --parameter-dir \'%s\'' % args.parameter_dir
+        used_default_parameter_dir = True
+
+    auto_ran_cache_parameters = False
+    if not os.path.exists(args.parameter_dir):
+        print '  --parameter-dir \'%s\' does not exist, so proceeding to cache a new set of parameters' % args.parameter_dir
+        from partitiondriver import PartitionDriver
+        parter = PartitionDriver(args)
+        parter.cache_parameters()
+        auto_ran_cache_parameters = True
+
+    if used_default_parameter_dir or auto_ran_cache_parameters:  # add the subdirectory, either 'sw' or 'hmm' (probably the latter)
+        args.parameter_dir += '/' + args.parameter_type
+
     n_per_proc = int(float(args.n_sim_events) / args.n_procs)
     all_random_ints = []
     for iproc in range(args.n_procs):  # have to generate these all at once, 'cause each of the subprocesses is going to reset its seed and god knows what happens to our seed at that point
@@ -60,32 +89,47 @@ def run_partitiondriver(args):
     args.reco_ids = utils.get_arg_list(args.reco_ids)
     args.n_max_per_region = utils.get_arg_list(args.n_max_per_region, intify=True)
     args.match_mismatch = utils.get_arg_list(args.match_mismatch, intify=True)
-    
+    args.annotation_clustering_thresholds = utils.get_arg_list(args.annotation_clustering_thresholds, floatify=True)
+    args.naive_hamming_bounds = utils.get_arg_list(args.naive_hamming_bounds, floatify=True)
+    if args.seed_unique_id is not None:
+        args.seed_unique_id = args.seed_unique_id.strip()  # protect against the space you have to put in front of it if it's got an initial minus sign
     if args.sw_debug is None:  # if not explicitly set, set equal to regular debug
         args.sw_debug = args.debug
-
     if len(args.n_max_per_region) != 3:
         raise Exception('n-max-per-region should be of the form \'x:y:z\', but I got ' + str(args.n_max_per_region))
     if len(args.match_mismatch) != 2:
         raise Exception('match-mismatch should be of the form \'match:mismatch\', but I got ' + str(args.n_max_per_region))
     if args.seqfile is None:
-        raise Exception('--seqfile is required for this action')
+        raise Exception('--seqfile is required for %s action' % args.action)
 
     from partitiondriver import PartitionDriver
     parter = PartitionDriver(args)
 
+    used_default_parameter_dir = False
+    if args.parameter_dir is None:
+        args.parameter_dir = default_parameter_dir(args)
+        print '  using default --parameter-dir \'%s\'' % args.parameter_dir
+        used_default_parameter_dir = True
+
     if args.action == 'cache-parameters':
         parter.cache_parameters()
-    elif 'run-' in args.action:
+        return
+
+    auto_ran_cache_parameters = False
+    if not os.path.exists(args.parameter_dir):
+        print '  --parameter-dir \'%s\' does not exist, so proceeding to cache a new set of parameters' % args.parameter_dir
+        parter.cache_parameters()
+        auto_ran_cache_parameters = True
+
+    if used_default_parameter_dir or auto_ran_cache_parameters:  # add the subdirectory, either 'sw' or 'hmm' (probably the latter)
+        args.parameter_dir += '/' + args.parameter_type
+
+    if 'run-' in args.action:
         parter.run_algorithm(args.action.replace('run-', ''))
     elif args.action == 'partition':
-        args.annotation_clustering_thresholds = utils.get_arg_list(args.annotation_clustering_thresholds, floatify=True)
-        args.naive_hamming_bounds = utils.get_arg_list(args.naive_hamming_bounds, floatify=True)
-        if args.seed_unique_id is not None:
-            args.seed_unique_id = args.seed_unique_id.strip()  # protect against the space you have to put in front of it if it's got an initial minus sign
         parter.partition()
     else:
-        raise Exception('ERROR bad action ' + args.action)
+        raise Exception('bad action ' + args.action)
 
     parter.clean()
 
@@ -119,7 +163,8 @@ parent_parser.add_argument('--only-csv-plots', action='store_true', help='only w
 parent_parser.add_argument('--seqfile', help='input sequence file')
 parent_parser.add_argument('--name-column', default='unique_id', help='csv column name for sequence ids')
 parent_parser.add_argument('--seq-column', default='seq', help='csv column name for nucleotide sequences')
-parent_parser.add_argument('--parameter-dir', required=True, help='Directory to/from which to write/read sample-specific parameters')
+parent_parser.add_argument('--parameter-dir', help='Directory to/from which to write/read sample-specific parameters. If not specified, we assume we should cache new parameters.')
+parent_parser.add_argument('--parameter-type', default='hmm', choices=('sw', 'hmm'), help='Use parameters from Smith-Waterman (sw) or the HMM (hmm) subdirectories for inference/simulation?')
 parent_parser.add_argument('--datadir', default=os.getcwd() + '/data/imgt', help='Directory from which to read non-sample-specific information (e.g. germline genes)')
 parent_parser.add_argument('--alignment-dir', default=os.getcwd() + '/data/fam-alignments')  # TODO remove this
 parent_parser.add_argument('--outfname')
@@ -250,7 +295,7 @@ if args.smc_particles != 1:
     raise Exception('sequential monte carlo is not, at this juncture, supported.')
 
 if args.no_indels and args.gap_open_penalty < 1000:
-    print 'forcing gap open to 1000 to prevent indels'
+    print 'forcing --gap-open-penalty to 1000 to prevent indels, since --no-indels was specified (you can also adjust this penalty directly)'
     args.gap_open_penalty = 1000
 
 if args.workdir is None:  # set default here so we know whether it was set by hand or not
@@ -263,8 +308,7 @@ if args.plot_performance:
         raise Exception('can\'t plot performance unless --plotdir is specified')
 
 random.seed(args.seed)
+
 start = time.time()
-
 args.func(args)
-
 print '      total time: %.1f' % (time.time()-start)
