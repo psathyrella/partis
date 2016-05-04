@@ -33,7 +33,7 @@ parser.add_argument('--plotdir')
 
 all_actions = ('cache-data-parameters', 'simulate', 'cache-simu-parameters', 'plot-performance', 'partition', 'run-viterbi')
 default_actions = all_actions[ : -2]
-parser.add_argument('--actions', default=':'.join(default_actions), choices=all_actions, help='Colon-separated list of actions to perform')
+parser.add_argument('actions', default=':'.join(default_actions), choices=all_actions, help='Colon-separated list of actions to perform')
 # parser.add_argument('--n-procs', default=str(max(1, multiprocessing.cpu_count() / 2)))
 
 args = parser.parse_args()

@@ -8,10 +8,10 @@ This manual is organized into the following sections:
 
   * [Quick Start](#quick-start) install/run with Docker
   * [Slow Start](#slow-start) install from scratch
-  * [Details](#details) how to navigate the various `partis.py` subcommands
+  * [Details](#details) how to navigate the various `partis` subcommands
 
 There are also many flags and optional parameters; unless mentioned below these are tautologically beyond the scope of this manual.
-Details concerning their purpose, however, may be gleaned by means of the following incantation: `./bin/partis.py --help`.
+Details concerning their purpose, however, may be gleaned by means of the following incantation: `./bin/partis --help`.
 In general, we will assume that the reader is familiar with the [paper](http://arxiv.org/abs/1503.04224) describing partis.
 
 ### Quick Start
@@ -109,10 +109,10 @@ And then build:
 
 #### Subcommands
 
-`partis.py`, in `bin/`, is the script that drives everything.
+`partis`, in `bin/`, is the script that drives everything.
 Every time you invoke it, you choose from a list of actions you want it to perform
 
-```./bin/partis.py --action cache-parameters|run-viterbi|partition|simulate|run-forward```.
+```./bin/partis cache-parameters|run-viterbi|partition|simulate|run-forward```.
 
 Each of these subcommands is described in detail below.
 
@@ -125,7 +125,7 @@ These files are then passed as input to a second, HMM-based, annotation step, wh
 
 The full command you'd need to cache parameters would look like this:
 
-``` ./bin/partis.py --action cache-parameters --seqfile test/example.fa --parameter-dir _output/example/data```
+``` ./bin/partis cache-parameters --seqfile test/example.fa --parameter-dir _output/example/data```
 
 `--seqfile` location of input sequences (.[ct]sv, .f[aq]{sta,stq})
 `--skip-unproductive` Smith-Waterman step skips sequences that are annotated to be unproductive rearrangements.
@@ -141,7 +141,7 @@ Now that we've got a set of parameters for this data set, we can use it to creat
 This will allow us to test how well our algorithms work on a set of sequences for which we know the correct annotations.
 The basic command to run simulation is
 
-```./bin/partis.py --action simulate --outfname _output/example/simu.csv --parameter-dir _output/example/data/hmm --n-sim-events 50 --n-leaves 5```.
+```./bin/partis simulate --outfname _output/example/simu.csv --parameter-dir _output/example/data/hmm --n-sim-events 50 --n-leaves 5```.
 
 This will spit out simulated sequences to `--outfname` using the parameters we just made in `_output/example/data/hmm`.
 We also specify that we want it to simulate 50 rearrangement events.
@@ -154,7 +154,7 @@ Throughout the run, we sample a tree at random from this set for each rearrangem
 If you already have parameters and HMM files cached from a previous run, you can just run the Viterbi algorithm by itself.
 As an example invocation, we could find the 5 most likely annotations for the first sequence in the previous data set
 
-```./bin/partis.py --action run-viterbi --seqfile test/example.fa --parameter-dir _output/example/data/hmm --n-max-queries 1 --debug 1```
+```./bin/partis run-viterbi --seqfile test/example.fa --parameter-dir _output/example/data/hmm --n-max-queries 1 --debug 1```
 
 Here I've kicked the debug level up to 1, so it prints out a colored summary of the candidate rearrangement events.
 If you want to save csv output for later, add `--outfname <outfname>`.
