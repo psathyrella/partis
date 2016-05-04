@@ -142,7 +142,7 @@ class Tester(object):
             self.prepare_to_run(args, name, info)
 
             action = info['action'] if 'action' in info else name
-            cmd_str = info['bin'] + ' --action ' + action
+            cmd_str = info['bin'] + ' ' + action
             if info['bin'] == self.partis:
                 cmd_str += ' ' + ' '.join(info['extras'] + self.common_extras)
                 cmd_str += ' --outfname ' + self.dirs['new'] + '/' + name + '.csv'
