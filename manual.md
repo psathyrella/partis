@@ -43,10 +43,10 @@ Whereas if you'd like to separate them into clonal families, run
 Note that now we're inside the container, we access the fasta file at the original path on your host system, but with `/host` tacked on the front (as we specified in `docker run` above).
 There's also some example sequences you can run on in `test/example.fa`.
 Depending on your system, in about ten minutes a single process can probably annotate 5000 sequences or partition a few hundred -- if your ratio of patience to sequences is quite different to this, you should look through the parallelization options below.
-You can also use the approximate naive or vsearch methods by adding the `--fast` or `--really-fast` options, respectively, to `./bin/partition`.
-The naive method is about a factor of ten faster than the full method, while the vsearch method is really reall really fast -- the only significant time will be finding the naive annotations, which scales linearly with the number of sequences so isn't an issue.
+You can also use the approximate point/naive or vsearch methods by adding the `--naive-hamming` or `--naive-vsearch` options, respectively.
+The point method is perhaps twice as fast as the full method, while the vsearch method is really reall really fast -- the only significant time will typically be finding the naive annotations, which scales linearly with the number of sequences so isn't usually an issue.
 
-To detach from the docker container without stopping it, hit `ctrl-p ctrl-q`.
+To detach from the docker container without stopping it (and you don't want to stop it!), hit `ctrl-p ctrl-q`.
 
 ###### Docker tips
 Docker containers and images are kinda-sorta like virtual machines, only different, so a few things:
