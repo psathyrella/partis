@@ -16,7 +16,7 @@ parser.add_argument('--sw-debug', type=int, choices=[0, 1, 2], help='debug level
 parser.add_argument('--no-clean', action='store_true', help='Don\'t remove the various temp files')
 
 # basic actions
-parser.add_argument('--action', choices=('cache-parameters', 'run-viterbi', 'run-forward', 'partition', 'simulate', 'generate-trees'), help='What do you want to do?')
+parser.add_argument('--action', choices=('cache-parameters', 'run-viterbi', 'run-forward', 'partition', 'simulate'), help='What do you want to do?')
 
 # finer action control
 parser.add_argument('--n-sets', type=int, default=1, help='Run on sets of sequences of size <n> (i.e. \"k-hmm\")')
@@ -216,14 +216,7 @@ def run_simulation(args):
         time.sleep(1)
     utils.merge_csvs(args.outfname, [args.workdir + '/recombinator-' + str(iproc) + '/' + os.path.basename(args.outfname) for iproc in range(args.n_procs)], cleanup=(not args.no_clean))
 
-if args.action == 'simulate' or args.action == 'generate-trees':
-    if args.action == 'generate-trees':
-        from treegenerator import TreeGenerator
-        if args.outfname is None:
-            raise Exception('--outfname not specified')
-        treegen = TreeGenerator(args, args.parameter_dir, args.seed)
-        treegen.generate_trees(args.seed, args.outfname)
-        sys.exit(0)
+if args.action == 'simulate':
     # if not args.no_clean:
     #     os.rmdir(reco.workdir)
     from recombinator import Recombinator
