@@ -218,9 +218,11 @@ def run_simulation(args):
 
 if args.action == 'simulate' or args.action == 'generate-trees':
     if args.action == 'generate-trees':
-        from treegenerator import TreeGenerator, Hist
-        treegen = TreeGenerator(args, args.parameter_dir + '/mean-mute-freqs.csv')
-        treegen.generate_trees(args.outfname)
+        from treegenerator import TreeGenerator
+        if args.outfname is None:
+            raise Exception('--outfname not specified')
+        treegen = TreeGenerator(args, args.parameter_dir, args.seed)
+        treegen.generate_trees(args.seed, args.outfname)
         sys.exit(0)
     # if not args.no_clean:
     #     os.rmdir(reco.workdir)

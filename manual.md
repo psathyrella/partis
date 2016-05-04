@@ -151,6 +151,8 @@ To get the actual number of sequences, we multiply this by the mean number of le
 At the start of a simulation run, TreeSim generates a set of `--n-trees` trees (default 500 at the moment), and each tree has a number of leaves drawn from an exponential with mean `--n-leaves`.
 Throughout the run, we sample a tree at random from this set for each rearrangement event.
 
+##### `generate-trees`: maybe deprecated?
+
 ##### `run-viterbi`: find most likely annotations
 
 If you already have parameters and HMM files cached from a previous run, you can just run the Viterbi algorithm by itself.
