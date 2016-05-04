@@ -10,15 +10,15 @@ This manual is organized into the following sections:
   * [Slow Start](#slow-start) install from scratch
   * [Details](#details) how to navigate the various `partis` subcommands
 
-There are also many flags and optional parameters; unless mentioned below these are tautologically beyond the scope of this manual.
+There are also many flags and optional parameters; unless mentioned below these are beyond the scope of this manual.
 Details concerning their purpose, however, may be gleaned by means of the following incantation: `./bin/partis --help`.
-In general, we will assume that the reader is familiar with the [paper](http://arxiv.org/abs/1503.04224) describing partis.
+In general, we assume that the reader is familiar with the papers describing [annotation](http://arxiv.org/abs/1503.04224) and [clustering](https://arxiv.org/abs/1603.08127) with partis.
 
 ### Quick Start
 
 Because partis has a lot of dependencies, you'll likely have an easier time of it using the [Docker image](https://registry.hub.docker.com/u/psathyrella/partis/) rather than installing from scratch.
 Docker images are kind of like lightweight virtual machines, and as such all the dependencies are taken care of automatically.
-If, however, you'll be doing a lot of mucking about under the hood, bare installation might be preferable.
+If, however, you'll be doing a lot of mucking about under the hood, bare and dockerless installation might be preferable.
 
 You'll first want install Docker using their [installation instructions](https://docs.docker.com) for your particular system.
 Once Docker's installed, pull the partis image from dockerhub, start up a container from this image and attach yourself to it interactively, and compile:
@@ -28,20 +28,19 @@ sudo docker pull psathyrella/partis
 sudo docker run -it -v /:/host psathyrella/partis /bin/bash
 ./bin/build.sh
 ```
-Depending on your setup, the `sudo` may be unnecessary.
+Depending on your system, the `sudo` may be unnecessary.
 Note the `-v`, which mounts the root of the host filesystem to `/host` inside the container.
 
-Now you can run individual partis commands (described below) and poke around in the code.
-If you just want to annotate a set of BCR sequences, say on your machine at `/path/to/yourseqs.fa`, run
+Now you can run individual partis commands (described [below](#details)) and poke around in the code.
+If you just want to annotate a small set of BCR sequences, say on your machine at `/path/to/yourseqs.fa`, run
 
-```./bin/annotate --infname /host/path/to/yourseqs.fa```.
+```./bin/partis run-viterbi --seqfile /host/path/to/yourseqs.fa --outfname /host/path/to/yourseqs-run-viterbi.csv```.
 
 Whereas if you'd like to separate them into clonal families, run
 
-```./bin/partition --infname /host/path/to/yourseqs.fa```
+```./bin/partis partition --seqfile /host/path/to/yourseqs.fa --outfname /host/path/to/yourseqs-partition.csv```
 
 Note that now we're inside the container, we access the fasta file at the original path on your host system, but with `/host` tacked on the front (as we specified in `docker run` above).
-This command by default writes the output csv to the directory that `--infname` came from.
 There's also some example sequences you can run on in `test/example.fa`.
 Depending on your system, in about ten minutes a single process can probably annotate 5000 sequences or partition a few hundred -- if your ratio of patience to sequences is quite different to this, you should look through the parallelization options below.
 You can also use the approximate naive or vsearch methods by adding the `--fast` or `--really-fast` options, respectively, to `./bin/partition`.
