@@ -27,7 +27,6 @@ Once Docker's installed, pull the partis image from dockerhub, start up a contai
 sudo docker pull psathyrella/partis
 sudo docker run -it -v /:/host psathyrella/partis /bin/bash
 ./bin/build.sh
-export PATH=$PATH:$PWD/packages/samtools
 ```
 Depending on your setup, the `sudo` may be unnecessary.
 Note the `-v`, which mounts the root of the host filesystem to `/host` inside the container.
@@ -104,7 +103,6 @@ And then build:
 
 ```
 ./bin/build.sh
-export PATH=$PATH:$PWD/packages/samtools
 ```
 
 ### Details
@@ -114,7 +112,7 @@ export PATH=$PATH:$PWD/packages/samtools
 `partis.py`, in `bin/`, is the script that drives everything.
 Every time you invoke it, you choose from a list of actions you want it to perform
 
-```./bin/partis.py --action cache-parameters|simulate|run-viterbi|run-forward|partition|build-hmms|generate-trees ```.
+```./bin/partis.py --action cache-parameters|run-viterbi|partition|simulate|run-forward```.
 
 Each of these subcommands is described in detail below.
 
@@ -150,8 +148,6 @@ We also specify that we want it to simulate 50 rearrangement events.
 To get the actual number of sequences, we multiply this by the mean number of leaves per tree (5).
 At the start of a simulation run, TreeSim generates a set of `--n-trees` trees (default 500 at the moment), and each tree has a number of leaves drawn from an exponential with mean `--n-leaves`.
 Throughout the run, we sample a tree at random from this set for each rearrangement event.
-
-##### `generate-trees`: maybe deprecated?
 
 ##### `run-viterbi`: find most likely annotations
 

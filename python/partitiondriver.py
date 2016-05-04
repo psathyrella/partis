@@ -776,7 +776,7 @@ class PartitionDriver(object):
         for gene in gene_list:
             if self.args.debug:
                 print '  %s' % utils.color_gene(gene)
-            writer = HmmWriter(parameter_dir, hmm_dir, gene, self.args.naivety, self.glfo, self.args)
+            writer = HmmWriter(parameter_dir, hmm_dir, gene, self.glfo, self.args)
             writer.write()
 
         print '(%.1f sec)' % (time.time()-start)
