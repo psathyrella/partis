@@ -206,12 +206,18 @@ void Glomerator::WriteCachedLogProbs() {
 
 // ----------------------------------------------------------------------------------------
 void Glomerator::WritePartitions(vector<ClusterPath> &paths) {
+  cout << "        writing partitions" << endl;
   ofs_.open(args_->outfile());
   ofs_ << setprecision(20);
   ofs_ << "partition,logprob" << endl;
   int ipath(0);
   for(auto &cp : paths) {
-    for(unsigned ipart=0; ipart<cp.partitions().size(); ++ipart) {
+    unsigned istart(0);
+    if((int)cp.partitions().size() > args_->n_partitions_to_write())
+      istart = cp.partitions().size() - args_->n_partitions_to_write();
+    for(unsigned ipart=istart; ipart<cp.partitions().size(); ++ipart) {
+      if(args_->write_logprob_for_each_partition())  // only want to calculate this the last time through, i.e. when we're only one process
+	cp.set_logprob(ipart, LogProbOfPartition(cp.partitions()[ipart]));
       int ic(0);
       for(auto &cluster : cp.partitions()[ipart]) {
 	if(ic > 0)

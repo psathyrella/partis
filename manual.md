@@ -170,12 +170,12 @@ By default, this uses the most accurate and slowest method: hierarchical agglome
 Like most clustering algorithms, this scales rather closer than you'd like to quadratically than it does to linearly.
 We thus also have two faster and more approximate methods.
 
-####### `--naive-hamming`
+###### `--naive-hamming`
 
 Use hard boundaries on hamming distance between naive sequences alone, with no likelihood calculation, to cluster with hierarchical agglomeration.
 This is perhaps as much as twice as fast as the full method, but sacrifices significant accuracy because it doesn't know (for example) about the differing probabilities of mutations at different points in the sequence, and because it uses a single, fixed annotation rather than integrating over all likely annotations.
 
-####### `--naive-vsearch`
+###### `--naive-vsearch`
 
 First calculate naive (unmutated ancestor) for each sequence, then pass these into vsearch for very fast, very heuristic clustering.
 The naive sequence calculation is easy to parallelize, so is fast if you have access to a fair number of processors.

@@ -138,6 +138,9 @@ class Glomerator(object):
                     assert paths[path_index].initial_path_index == initial_path_index
                 lines_list[path_index].append(line)
 
+        if paths.count(None) > 0:
+            raise Exception('couldn\'t find the required number of paths in file %s' % infname)
+
         for path_index in range(n_paths):
             paths[path_index].readlines(lines_list[path_index])
 
