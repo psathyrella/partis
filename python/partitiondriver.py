@@ -15,7 +15,6 @@ import multiprocessing
 import utils
 from opener import opener
 from seqfileopener import get_seqfile_info
-import annotationclustering
 from glomerator import Glomerator
 from clusterpath import ClusterPath
 from waterer import Waterer
@@ -60,10 +59,11 @@ class PartitionDriver(object):
             else:  # otherwise create it with just headers
                 pass  # hm, maybe do it in ham
 
-        if len(self.input_info) > 1000 and self.args.n_procs == 1:
-            print '\nhey there! I see you\'ve got %d sequences spread over %d processes. This will be kinda slow, so it might be a good idea to increase --n-procs (see the manual for suggestions on how many for annotation and partitioning).\n' % (len(self.input_info), self.args.n_procs)
-        if len(self.input_info) > 10000 and self.args.action != 'cache-parameters' and self.args.outfname is None:
-            print '\nwarning: running on a lot of sequences without setting --outfname. Which is ok! But there\'ll be no persistent record of the results'
+        if len(self.input_info) > 1000:
+            if self.args.n_procs == 1:
+                print '  note:! running on %d sequences spread over %d processes. This will be kinda slow, so it might be a good idea to set --n-procs N to the number of processors on your local machine, or look into non-local parallelization with --slurm.\n' % (len(self.input_info), self.args.n_procs)
+            if self.args.outfname is None and self.args.action != 'cache-parameters':
+                print '  note: running on a lot of sequences without setting --outfname. Which is ok! But there\'ll be no persistent record of the results'
 
     # ----------------------------------------------------------------------------------------
     def clean(self):
@@ -329,7 +329,7 @@ class PartitionDriver(object):
         else:
             assert False
 
-        # read output
+        # read vsearch/swarm output
         id_clusters = {}
         with open(clusterfname) as clusterfile:
             reader = csv.DictReader(clusterfile, fieldnames=['type', 'cluster_id', '3', '4', '5', '6', '7', 'crap', 'query', 'morecrap'], delimiter='\t')
@@ -511,7 +511,7 @@ class PartitionDriver(object):
 
         self.execute(cmd_str, n_procs)
 
-        new_cpath = self.read_hmm_output(n_procs, count_parameters, parameter_out_dir, precache_all_naive_seqs)
+        new_cpath = self.read_hmm_output(algorithm, n_procs, count_parameters, parameter_out_dir, precache_all_naive_seqs)
         print '      hmm step time: %.1f' % (time.time()-start)
         return new_cpath
 
@@ -995,15 +995,15 @@ class PartitionDriver(object):
             print ''
 
     # ----------------------------------------------------------------------------------------
-    def read_hmm_output(self, n_procs, count_parameters, parameter_out_dir, precache_all_naive_seqs):
+    def read_hmm_output(self, algorithm, n_procs, count_parameters, parameter_out_dir, precache_all_naive_seqs):
         cpath = None  # TODO figure out a cleaner way to do this
         if self.args.action == 'partition' or n_procs > 1:
             cpath = self.merge_all_hmm_outputs(n_procs, precache_all_naive_seqs)
 
-        if self.args.action != 'partition':
-            if self.args.action == 'run-viterbi' or self.args.action == 'cache-parameters':
+        if self.args.action != 'partition' or count_parameters:
+            if algorithm == 'viterbi':
                 self.read_annotation_output(self.hmm_outfname, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, outfname=self.args.outfname)
-            elif self.args.action == 'run-forward':
+            elif algorithm == 'forward':
                 self.read_forward_output(self.hmm_outfname)
 
         if not self.args.no_clean and os.path.exists(self.hmm_infname):
@@ -1167,6 +1167,7 @@ class PartitionDriver(object):
             annotations_for_vollmers[uidstr] = utils.synthesize_single_seq_line(line, iseq)
 
         # perform annotation clustering for each threshold and write to file
+        import annotationclustering
         for thresh in self.args.annotation_clustering_thresholds:
             partition = annotationclustering.vollmers(annotations_for_vollmers, threshold=thresh, reco_info=self.reco_info)
             n_clusters = len(partition)

@@ -121,7 +121,7 @@ def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, 
         input_info[unique_id] = {'unique_id' : unique_id, 'seq' : line[internal_seq_column]}
 
         if n_queries == 0 and is_data and 'v_gene' in line:
-            print 'WARNING found simulation info in %s -- are you sure you didn\'t mean to set --is-simu?' % fname
+            print '  note: found simulation info in %s -- are you sure you didn\'t mean to set --is-simu?' % fname
 
         if not is_data:
             if 'v_gene' not in line:

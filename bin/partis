@@ -9,6 +9,7 @@ import os
 sys.path.insert(1, './python')
 
 import utils
+from partitiondriver import PartitionDriver
 
 # ----------------------------------------------------------------------------------------
 def default_parameter_dir(args):
@@ -16,8 +17,31 @@ def default_parameter_dir(args):
         label = os.path.basename(args.seqfile[ : args.seqfile.rfind('.')])
     else:
         label = 'no-need-for-a-name'
-    pdir = '_parameters/' + label
+    pdir = '_output/' + label
     return pdir
+
+# ----------------------------------------------------------------------------------------
+def check_maybe_auto_cache_parameters(args, parter=None):
+    auto_ran_cache_parameters = False
+    if not os.path.exists(args.parameter_dir):
+        print '  note: --parameter-dir \'%s\' does not exist, so proceeding to cache a new set of parameters' % args.parameter_dir
+        if parter is None:
+            parter = PartitionDriver(args)
+        tmpaction = args.action
+        args.action = 'cache-parameters'  # gets used inside of partitiondriver
+        parter.cache_parameters()
+        args.action = tmpaction
+        auto_ran_cache_parameters = True
+    return auto_ran_cache_parameters
+
+# ----------------------------------------------------------------------------------------
+def set_default_parameter_dir(args):
+    used_default_parameter_dir = False
+    if args.parameter_dir is None:
+        args.parameter_dir = default_parameter_dir(args)
+        print '  note: using default --parameter-dir \'%s\'' % args.parameter_dir
+        used_default_parameter_dir = True
+    return used_default_parameter_dir
 
 # ----------------------------------------------------------------------------------------
 def run_simulation(args):
@@ -53,19 +77,8 @@ def run_simulation(args):
 
     print 'simulating'
 
-    used_default_parameter_dir = False
-    if args.parameter_dir is None:
-        args.parameter_dir = default_parameter_dir(args)
-        print '  using default --parameter-dir \'%s\'' % args.parameter_dir
-        used_default_parameter_dir = True
-
-    auto_ran_cache_parameters = False
-    if not os.path.exists(args.parameter_dir):
-        print '  --parameter-dir \'%s\' does not exist, so proceeding to cache a new set of parameters' % args.parameter_dir
-        from partitiondriver import PartitionDriver
-        parter = PartitionDriver(args)
-        parter.cache_parameters()
-        auto_ran_cache_parameters = True
+    used_default_parameter_dir = set_default_parameter_dir(args)
+    auto_ran_cache_parameters = check_maybe_auto_cache_parameters(args)
 
     if used_default_parameter_dir or auto_ran_cache_parameters:  # add the subdirectory, either 'sw' or 'hmm' (probably the latter)
         args.parameter_dir += '/' + args.parameter_type
@@ -100,26 +113,17 @@ def run_partitiondriver(args):
     if len(args.match_mismatch) != 2:
         raise Exception('match-mismatch should be of the form \'match:mismatch\', but I got ' + str(args.n_max_per_region))
     if args.seqfile is None:
-        raise Exception('--seqfile is required for %s action' % args.action)
+        raise Exception('--seqfile is required for the \'%s\' action' % args.action)
 
-    from partitiondriver import PartitionDriver
     parter = PartitionDriver(args)
 
-    used_default_parameter_dir = False
-    if args.parameter_dir is None:
-        args.parameter_dir = default_parameter_dir(args)
-        print '  using default --parameter-dir \'%s\'' % args.parameter_dir
-        used_default_parameter_dir = True
+    used_default_parameter_dir = set_default_parameter_dir(args)
 
     if args.action == 'cache-parameters':
         parter.cache_parameters()
         return
 
-    auto_ran_cache_parameters = False
-    if not os.path.exists(args.parameter_dir):
-        print '  --parameter-dir \'%s\' does not exist, so proceeding to cache a new set of parameters' % args.parameter_dir
-        parter.cache_parameters()
-        auto_ran_cache_parameters = True
+    auto_ran_cache_parameters = check_maybe_auto_cache_parameters(args, parter)
 
     if used_default_parameter_dir or auto_ran_cache_parameters:  # add the subdirectory, either 'sw' or 'hmm' (probably the latter)
         args.parameter_dir += '/' + args.parameter_type
@@ -133,6 +137,7 @@ def run_partitiondriver(args):
 
     parter.clean()
 
+# ----------------------------------------------------------------------------------------
 if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
     print '    TODO make things completely assertion/exception safe, i.e. if you catch one, that causes a failure on that one sequence only'
     print '    TODO see about varying the naive hfrac thresholds -- especially lowering the lower bound (try to do this by exploiting something about the difference between hfrac and lratio'
@@ -306,9 +311,11 @@ if os.path.exists(args.workdir):
 if args.plot_performance:
     if args.plotdir is None:
         raise Exception('can\'t plot performance unless --plotdir is specified')
+    if not args.is_simu:
+        raise Exception('can\'t plot performance unless --is-simu is set')
 
+# ----------------------------------------------------------------------------------------
 random.seed(args.seed)
-
 start = time.time()
 args.func(args)
 print '      total time: %.1f' % (time.time()-start)
