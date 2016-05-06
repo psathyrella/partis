@@ -1023,7 +1023,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def check_for_bcrham_failures(self, line, boundary_error_queries):
-        if 'no_path' in line['errors']:
+        if line['errors'] is not None and 'no_path' in line['errors']:
             self.bcrham_failed_queries.add(line['unique_ids'])
             return True
         if line['errors'] is not None and 'boundary' in line['errors'].split(':'):
