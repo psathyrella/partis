@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 import sys
-sys.path.insert(1, './python')
 import os
 import matplotlib as mpl
 mpl.use('Agg')
@@ -11,6 +10,10 @@ import numpy
 from subprocess import check_call
 import itertools
 from collections import OrderedDict
+current_script_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '/python')
+if not os.path.exists(current_script_dir):
+    print 'WARNING current script dir %s doesn\'t exist, so python path may not be correctly set' % current_script_dir
+sys.path.insert(1, current_script_dir)
 
 import utils
 import plotting

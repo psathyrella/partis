@@ -7,11 +7,15 @@ control of yamls (e.g. floating point precision) and csvs (e.g. line order)
 import argparse
 import os
 import sys
-sys.path.insert(1, './python')
 import csv
 import re
 import yaml
 from subprocess import check_output
+
+current_script_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '/python')
+if not os.path.exists(current_script_dir):
+    print 'WARNING current script dir %s doesn\'t exist, so python path may not be correctly set' % current_script_dir
+sys.path.insert(1, current_script_dir)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('arg1')

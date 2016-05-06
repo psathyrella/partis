@@ -3,11 +3,15 @@ import csv
 import time
 import sys
 from subprocess import check_output, check_call, Popen
-sys.path.insert(1, './python')
 import random
 from collections import OrderedDict
 import math
 import os
+
+current_script_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '/python')
+if not os.path.exists(current_script_dir):
+    print 'WARNING current script dir %s doesn\'t exist, so python path may not be correctly set' % current_script_dir
+sys.path.insert(1, current_script_dir)
 
 import utils
 import seqfileopener
