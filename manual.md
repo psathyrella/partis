@@ -128,7 +128,8 @@ Finds the Viterbi path (i.e., the most likely annotation/alignment) for each seq
 
 ```./bin/partis run-viterbi --seqfile test/example.fa --outfname _output/example.csv```
 
-The output csv uses the following columns (see `utils.process_input_line()` and `utils.get_line_for_output()` to automate input/output):
+The output csv headers are listed in the table below, and you can view a colored ascii representation of the rearrangement events with `./bin/view-annotations.py <outfname>`.
+In addition, see `utils.process_input_line()` and `utils.get_line_for_output()` can be used to automate input/output.
 
 |   column header        |  description
 |------------------------|----------------------------------------------------------------------------
@@ -165,6 +166,19 @@ The output csv uses the following columns (see `utils.process_input_line()` and 
 Example invocation:
 
 ```./bin/partis partition --seqfile test/example.fa --outfname _output/example.csv```
+
+The output csv file headers are listed in the table below, and you can view a colored ascii representation of the clusters with `./bin/view-partitions.py <outfname>`.
+We write one line for the most likely partition (with the lowest logprob), as well as a number of lines for the surrounding less-likely partitions (set with `--n-partitions-to-write`)
+
+|   column header  |  description
+|------------------|----------------------------------------------------------------------------
+| logprob          |  Total log probability of this partition
+| n_clusters       |  Number of clusters (clonal families in this partition)
+| partition        |  String representing the clusters, where clusters are separated by ; and sequences within clusters by :, e.g. 'a:b;c:d:e'
+| n_procs          |  Number of processes which were simultaneously running for this clusterpath. In practice, final output is usually only written for n_procs = 1
+
+To help visualize the clusters, you can tell it to print the most likely annotations for the final clusters with `--print-cluster-annotations`.
+If you specify both `--print-cluster-annotations` and `--outfname`, the annotations will be written to a file name generated from `--outfname` (which can be viewed as other annotations, with `./bin/view-annotations.py`).
 
 By default, this uses the most accurate and slowest method: hierarchical agglomeration with, first, hamming distance between naive sequences for distant clsuters, and full likelihood calculation for more similar clusters.
 Like most clustering algorithms, this scales rather closer than you'd like to quadratically than it does to linearly.
