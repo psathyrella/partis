@@ -168,7 +168,7 @@ class HMM(object):
 
 # ----------------------------------------------------------------------------------------
 class HmmWriter(object):
-    def __init__(self, base_indir, outdir, gene_name, naivety, glfo, args):
+    def __init__(self, base_indir, outdir, gene_name, glfo, args):
         self.region = utils.get_region(gene_name)
         self.raw_name = gene_name  # i.e. unsanitized
         self.germline_seqs = glfo['seqs']  # all germline alleles
@@ -190,7 +190,6 @@ class HmmWriter(object):
         # self.mean_mute_freq = 0.0
 
         self.outdir = outdir
-        self.naivety = naivety
         self.smallest_entry_index = -1  # keeps track of the first state that has a chance of being entered from init -- we want to start writing (with add_internal_state) from there
 
         # self.insertions = [ insert for insert in utils.index_keys if re.match(self.region + '._insertion', insert) or re.match('.' + self.region + '_insertion', insert)]  OOPS that's not what I want to do
@@ -218,8 +217,7 @@ class HmmWriter(object):
 
         self.read_insertion_info(gene_name, replacement_genes)
 
-        if self.naivety == 'M':  # mutate if not naive
-            self.mute_freqs, self.mute_obs = paramutils.read_mute_info(self.indir, this_gene=gene_name, approved_genes=replacement_genes)
+        self.mute_freqs, self.mute_obs = paramutils.read_mute_info(self.indir, this_gene=gene_name, approved_genes=replacement_genes)
 
         self.track = Track('nukes', utils.nukes)
         self.saniname = utils.sanitize_name(gene_name)

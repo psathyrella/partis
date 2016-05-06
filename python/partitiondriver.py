@@ -15,7 +15,6 @@ import multiprocessing
 import utils
 from opener import opener
 from seqfileopener import get_seqfile_info
-import annotationclustering
 from glomerator import Glomerator
 from clusterpath import ClusterPath
 from waterer import Waterer
@@ -60,10 +59,11 @@ class PartitionDriver(object):
             else:  # otherwise create it with just headers
                 pass  # hm, maybe do it in ham
 
-        if len(self.input_info) > 1000 and self.args.n_procs == 1:
-            print '\nhey there! I see you\'ve got %d sequences spread over %d processes. This will be kinda slow, so it might be a good idea to increase --n-procs (see the manual for suggestions on how many for annotation and partitioning).\n' % (len(self.input_info), self.args.n_procs)
-        if len(self.input_info) > 10000 and self.args.action != 'cache-parameters' and self.args.outfname is None:
-            print '\nwarning: running on a lot of sequences without setting --outfname. Which is ok! But there\'ll be no persistent record of the results'
+        if len(self.input_info) > 1000:
+            if self.args.n_procs == 1:
+                print '  note:! running on %d sequences spread over %d processes. This will be kinda slow, so it might be a good idea to set --n-procs N to the number of processors on your local machine, or look into non-local parallelization with --slurm.\n' % (len(self.input_info), self.args.n_procs)
+            if self.args.outfname is None and self.args.action != 'cache-parameters':
+                print '  note: running on a lot of sequences without setting --outfname. Which is ok! But there\'ll be no persistent record of the results'
 
     # ----------------------------------------------------------------------------------------
     def clean(self):
@@ -106,6 +106,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def cache_parameters(self):
         """ Infer full parameter sets and write hmm files for sequences from <self.input_info>, first with Smith-Waterman, then using the SW output as seed for the HMM """
+        print 'caching parameters'
         sw_parameter_dir = self.args.parameter_dir + '/sw'
         self.run_waterer(sw_parameter_dir, write_parameters=True)
         self.write_hmms(sw_parameter_dir)
@@ -116,12 +117,14 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def run_algorithm(self, algorithm):
         """ Just run <algorithm> (either 'forward' or 'viterbi') on sequences in <self.input_info> and exit. You've got to already have parameters cached in <self.args.parameter_dir> """
+        print 'running %s' % algorithm
         self.run_waterer(self.args.parameter_dir)
         self.run_hmm(algorithm, parameter_in_dir=self.args.parameter_dir)
 
     # ----------------------------------------------------------------------------------------
     def partition(self):
         """ Partition sequences in <self.input_info> into clonally related lineages """
+        print 'partitioning'
         self.run_waterer(self.args.parameter_dir)  # run smith-waterman
 
         # cache hmm naive seq for each single query
@@ -158,7 +161,12 @@ class PartitionDriver(object):
 
         self.check_partition(cpath.partitions[cpath.i_best])
         if self.args.print_cluster_annotations:
-            self.read_annotation_output(self.annotation_fname)
+            outfname = None
+            if self.args.outfname is not None:
+                outfname = self.args.outfname.replace('.csv', '-cluster-annotations.csv')
+                print '    writing cluster annotations to %s' % outfname
+            print '  annotations for final partition:'
+            self.read_annotation_output(self.annotation_fname, outfname=outfname)
         if self.args.outfname is not None:
             self.write_clusterpaths(self.args.outfname, cpath)  # [last agglomeration step]
 
@@ -238,14 +246,16 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def write_clusterpaths(self, outfname, cpath):
-        outfile, writer = cpath.init_outfile(outfname, self.args.is_data)
-        true_partition = None
-        if not self.args.is_data:
-            true_partition = utils.get_true_partition(self.reco_info)
 
-        cpath.write_partitions(writer=writer, reco_info=self.reco_info, true_partition=true_partition, is_data=self.args.is_data, n_to_write=self.args.n_partitions_to_write, calc_missing_values='best')
-
-        outfile.close()
+        if self.args.presto_output:
+            cpath.write_presto_partitions(outfname, self.input_info)
+        else:
+            outfile, writer = cpath.init_outfile(outfname, self.args.is_data)
+            true_partition = None
+            if not self.args.is_data:
+                true_partition = utils.get_true_partition(self.reco_info)
+            cpath.write_partitions(writer=writer, reco_info=self.reco_info, true_partition=true_partition, is_data=self.args.is_data, n_to_write=self.args.n_partitions_to_write, calc_missing_values='best')
+            outfile.close()
 
     # ----------------------------------------------------------------------------------------
     def cluster_with_naive_vsearch_or_swarm(self, parameter_dir):
@@ -326,7 +336,7 @@ class PartitionDriver(object):
         else:
             assert False
 
-        # read output
+        # read vsearch/swarm output
         id_clusters = {}
         with open(clusterfname) as clusterfile:
             reader = csv.DictReader(clusterfile, fieldnames=['type', 'cluster_id', '3', '4', '5', '6', '7', 'crap', 'query', 'morecrap'], delimiter='\t')
@@ -425,6 +435,9 @@ class PartitionDriver(object):
                 cmd_str += ' --logprob-ratio-threshold ' + str(self.args.logprob_ratio_threshold)
                 cmd_str += ' --biggest-naive-seq-cluster-to-calculate ' + str(self.args.biggest_naive_seq_cluster_to_calculate)
                 cmd_str += ' --biggest-logprob-cluster-to-calculate ' + str(self.args.biggest_logprob_cluster_to_calculate)
+                if n_procs == 1:  # if this is the last time through, with one process, we want glomerator.cc to calculate the total logprob of each partition
+                    cmd_str += '  --n-partitions-to-write ' + str(self.args.n_partitions_to_write)  # don't write too many, since calculating the extra logprobs is kind of expensive
+                    cmd_str += '  --write-logprob-for-each-partition'
 
                 if self.args.seed_unique_id is not None and not (self.already_removed_unseeded_clusters or self.time_to_remove_unseeded_clusters):  # if we're in the last few cycles (i.e. we've removed unseeded clusters) we want bcrham to not know about the seed (this gives more accurate clustering 'cause we're really doing hierarchical agglomeration)
                     cmd_str += ' --seed-unique-id ' + self.args.seed_unique_id
@@ -508,7 +521,7 @@ class PartitionDriver(object):
 
         self.execute(cmd_str, n_procs)
 
-        new_cpath = self.read_hmm_output(n_procs, count_parameters, parameter_out_dir, precache_all_naive_seqs)
+        new_cpath = self.read_hmm_output(algorithm, n_procs, count_parameters, parameter_out_dir, precache_all_naive_seqs)
         print '      hmm step time: %.1f' % (time.time()-start)
         return new_cpath
 
@@ -776,7 +789,7 @@ class PartitionDriver(object):
         for gene in gene_list:
             if self.args.debug:
                 print '  %s' % utils.color_gene(gene)
-            writer = HmmWriter(parameter_dir, hmm_dir, gene, self.args.naivety, self.glfo, self.args)
+            writer = HmmWriter(parameter_dir, hmm_dir, gene, self.glfo, self.args)
             writer.write()
 
         print '(%.1f sec)' % (time.time()-start)
@@ -992,15 +1005,15 @@ class PartitionDriver(object):
             print ''
 
     # ----------------------------------------------------------------------------------------
-    def read_hmm_output(self, n_procs, count_parameters, parameter_out_dir, precache_all_naive_seqs):
+    def read_hmm_output(self, algorithm, n_procs, count_parameters, parameter_out_dir, precache_all_naive_seqs):
         cpath = None  # TODO figure out a cleaner way to do this
         if self.args.action == 'partition' or n_procs > 1:
             cpath = self.merge_all_hmm_outputs(n_procs, precache_all_naive_seqs)
 
-        if self.args.action != 'partition':
-            if self.args.action == 'run-viterbi' or self.args.action == 'cache-parameters':
+        if self.args.action != 'partition' or count_parameters:
+            if algorithm == 'viterbi':
                 self.read_annotation_output(self.hmm_outfname, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, outfname=self.args.outfname)
-            elif self.args.action == 'run-forward':
+            elif algorithm == 'forward':
                 self.read_forward_output(self.hmm_outfname)
 
         if not self.args.no_clean and os.path.exists(self.hmm_infname):
@@ -1164,6 +1177,7 @@ class PartitionDriver(object):
             annotations_for_vollmers[uidstr] = utils.synthesize_single_seq_line(line, iseq)
 
         # perform annotation clustering for each threshold and write to file
+        import annotationclustering
         for thresh in self.args.annotation_clustering_thresholds:
             partition = annotationclustering.vollmers(annotations_for_vollmers, threshold=thresh, reco_info=self.reco_info)
             n_clusters = len(partition)

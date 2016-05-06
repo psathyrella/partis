@@ -26,6 +26,7 @@ Args::Args(int argc, const char * argv[]):
   naive_hamming_cluster_arg_("", "naive-hamming-cluster", "cluster sequences using naive hamming distance", false, 0, "int"),
   biggest_naive_seq_cluster_to_calculate_arg_("", "biggest-naive-seq-cluster-to-calculate", "", false, 99999, "int"),
   biggest_logprob_cluster_to_calculate_arg_("", "biggest-logprob-cluster-to-calculate", "", false, 99999, "int"),
+  n_partitions_to_write_arg_("", "n-partitions-to-write", "how many partitions, before the best one, should we write to the output file", false, 99999, "int"),
   random_seed_arg_("", "random-seed", "", false, time(NULL), "unsigned"),
   no_chunk_cache_arg_("", "no-chunk-cache", "don't perform chunk caching?", false),
   partition_arg_("", "partition", "", false),
@@ -33,6 +34,7 @@ Args::Args(int argc, const char * argv[]):
   cache_naive_seqs_arg_("", "cache-naive-seqs", "cache all naive sequences", false),
   cache_naive_hfracs_arg_("", "cache-naive-hfracs", "cache naive hamming fraction between sequence sets (in addition to log probs and naive seqs)", false),
   only_cache_new_vals_arg_("", "only-cache-new-vals", "only write sequence sets with newly-calculated values to cache file", false),
+  write_logprob_for_each_partition_arg_("", "write-logprob-for-each-partition", "By default, we don't know the total logprob of each partition (since many merges are by naive hfrac). This argument tells us that this is the last time through (with one process) and we want to know the total probability of each partition.", false),
   str_headers_ {},
   int_headers_ {"k_v_min", "k_v_max", "k_d_min", "k_d_max"},
   float_headers_ {},
@@ -60,11 +62,13 @@ Args::Args(int argc, const char * argv[]):
     cmd.add(naive_hamming_cluster_arg_);
     cmd.add(biggest_naive_seq_cluster_to_calculate_arg_);
     cmd.add(biggest_logprob_cluster_to_calculate_arg_);
+    cmd.add(n_partitions_to_write_arg_);
     cmd.add(random_seed_arg_);
     cmd.add(no_chunk_cache_arg_);
     cmd.add(cache_naive_seqs_arg_);
     cmd.add(cache_naive_hfracs_arg_);
     cmd.add(only_cache_new_vals_arg_);
+    cmd.add(write_logprob_for_each_partition_arg_);
     cmd.add(partition_arg_);
     cmd.add(dont_rescale_emissions_arg_);
 

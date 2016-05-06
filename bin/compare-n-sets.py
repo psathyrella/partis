@@ -52,7 +52,7 @@ def divide_simulation():
 
 # ----------------------------------------------------------------------------------------
 def run_inference(algorithm):
-    base_cmd = './bin/partis.py --action run-' + algorithm + ' --parameter-dir ' + parameter_dir + '/hmm --plot-performance --is-simu --slurm'
+    base_cmd = './bin/partis run-' + algorithm + ' --parameter-dir ' + parameter_dir + '/hmm --plot-performance --is-simu --slurm'
     for n_set in n_set_list:
         # if n_set == 5:
         #     continue
@@ -203,7 +203,7 @@ def fit_stuff(xvals, yvals):
     
 # ----------------------------------------------------------------------------------------
 def simulate():
-    cmd = './bin/partis.py --action simulate --constant-number-of-leaves --n-sim-events 2000 --n-leaves ' + str(n_set_max) + ' --outfname ' + simfname + ' --parameter-dir ' + parameter_dir + '/hmm --n-procs 10'
+    cmd = './bin/partis simulate --constant-number-of-leaves --n-sim-events 2000 --n-leaves ' + str(n_set_max) + ' --outfname ' + simfname + ' --parameter-dir ' + parameter_dir + '/hmm --n-procs 10'
     Popen(cmd.split())
 
 # simulate()

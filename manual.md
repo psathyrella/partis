@@ -8,17 +8,17 @@ This manual is organized into the following sections:
 
   * [Quick Start](#quick-start) install/run with Docker
   * [Slow Start](#slow-start) install from scratch
-  * [Details](#details) how to navigate the various `partis.py` subcommands
+  * [Details](#details) how to navigate the various `partis` subcommands
 
-There are also many flags and optional parameters; unless mentioned below these are tautologically beyond the scope of this manual.
-Details concerning their purpose, however, may be gleaned by means of the following incantation: `./bin/partis.py --help`.
-In general, we will assume that the reader is familiar with the [paper](http://arxiv.org/abs/1503.04224) describing partis.
+There are also many flags and optional parameters; unless mentioned below these are beyond the scope of this manual.
+Details concerning their purpose, however, may be gleaned by means of the following incantation: `./bin/partis --help`.
+In general, we assume that the reader is familiar with the papers describing [annotation](http://arxiv.org/abs/1503.04224) and [clustering](https://arxiv.org/abs/1603.08127) with partis.
 
 ### Quick Start
 
 Because partis has a lot of dependencies, you'll likely have an easier time of it using the [Docker image](https://registry.hub.docker.com/u/psathyrella/partis/) rather than installing from scratch.
 Docker images are kind of like lightweight virtual machines, and as such all the dependencies are taken care of automatically.
-If, however, you'll be doing a lot of mucking about under the hood, bare installation might be preferable.
+If, however, you'll be doing a lot of mucking about under the hood, bare and dockerless installation might be preferable.
 
 You'll first want install Docker using their [installation instructions](https://docs.docker.com) for your particular system.
 Once Docker's installed, pull the partis image from dockerhub, start up a container from this image and attach yourself to it interactively, and compile:
@@ -27,36 +27,37 @@ Once Docker's installed, pull the partis image from dockerhub, start up a contai
 sudo docker pull psathyrella/partis
 sudo docker run -it -v /:/host psathyrella/partis /bin/bash
 ./bin/build.sh
-export PATH=$PATH:$PWD/packages/samtools
 ```
-Depending on your setup, the `sudo` may be unnecessary.
+Depending on your system, the `sudo` may be unnecessary.
 Note the `-v`, which mounts the root of the host filesystem to `/host` inside the container.
 
-Now you can run individual partis commands (described below) and poke around in the code.
-If you just want to annotate a set of BCR sequences, say on your machine at `/path/to/yourseqs.fa`, run
+Now you can run individual partis commands (described [below](#details)), or poke around in the code.
+If you just want to annotate a small file with BCR sequences, say on your machine at `/path/to/yourseqs.fa`, run
 
-```./bin/annotate --infname /host/path/to/yourseqs.fa```.
+```./bin/partis run-viterbi --seqfile /host/path/to/yourseqs.fa --outfname /host/path/to/yourseqs-run-viterbi.csv```
 
 Whereas if you'd like to separate them into clonal families, run
 
-```./bin/partition --infname /host/path/to/yourseqs.fa```
+```./bin/partis partition --seqfile /host/path/to/yourseqs.fa --outfname /host/path/to/yourseqs-partition.csv```
 
 Note that now we're inside the container, we access the fasta file at the original path on your host system, but with `/host` tacked on the front (as we specified in `docker run` above).
-This command by default writes the output csv to the directory that `--infname` came from.
 There's also some example sequences you can run on in `test/example.fa`.
+
 Also note that partis by default infers its HMM parameters on the fly for each data set; while on larger samples this is substantially more accurate than using population-wide averages, if you have fewer than, say, 50 sequences, it is not a particularly meaningful exercise.
 Until there exists enough public data such that it is possible to build good population-wide parameter priors, the best thing to do in such cases is to find a larger data set that you think is similar (e.g. same patient, so it has the same germline genes) to the one you're interested in, and infer parameters using that larger set.
-Depending on your system, in about ten minutes a single process can probably annotate 5000 sequences or partition a few hundred -- if your ratio of patience to sequences is quite different to this, you should look through the parallelization options below.
-You can also use the approximate naive or vsearch methods by adding the `--fast` or `--really-fast` options, respectively, to `./bin/partition`.
-The naive method is about a factor of ten faster than the full method, while the vsearch method is really reall really fast -- the only significant time will be finding the naive annotations, which scales linearly with the number of sequences so isn't an issue.
 
-To detach from the docker container without stopping it, hit `ctrl-p ctrl-q`.
+Depending on your system, in ten minutes a single process can annotate perhaps 5000 sequences or partition a few hundred.
+To parallelize on your local machine, just add `--n-procs N`.
+You can also use the approximate clustering methods: point/naive (`--naive-hamming`) or vsearch (`--naive-vsearch`).
+The naive-hamming method is perhaps twice as fast as the full method, while the vsearch method is much faster -- it typicallly takes longer to do the pre-annotation to get the naive sequences than it does for vsearch to run.
+
+To detach from the docker container without stopping it (and you don't want to stop it!), hit `ctrl-p ctrl-q`.
 
 ###### Docker tips
 Docker containers and images are kinda-sorta like virtual machines, only different, so a few things:
-  - We use `docker run` above: this creates a new container from (i.e. instance of) the partis image
+  - We use `docker run` above: this creates a new container from (i.e. a new instance of) the partis image
   - If you exit (ctrl-d or `exit`) and then do `docker run` again, that'll create a new container. But most of the time you want to reattach to the one you made before.
-    - to reattach to the same container:
+    - to reattach to the same container (after detaching with `ctrl-p ctrl-q`):
       - run `docker ps -a` (lists all running and stopped containers) to get the right container ID
       - run `docker attach <ID>`
     - Hence the `-it` and `/bin/bash` options we used above for `docker run`: these allocate a pseudo-tty, keep STDIN open, and run bash instead of the default command, without all of which you can't reattach
@@ -106,109 +107,170 @@ And then build:
 
 ```
 ./bin/build.sh
-export PATH=$PATH:$PWD/packages/samtools
 ```
 
 ### Details
 
 #### Subcommands
 
-`partis.py`, in `bin/`, is the script that drives everything.
-Every time you invoke it, you choose from a list of actions you want it to perform
+`./bin/partis` runs everything, and has a number of potential actions:
 
-```./bin/partis.py --action cache-parameters|simulate|run-viterbi|run-forward|partition|build-hmms|generate-trees ```.
+```./bin/partis run-viterbi|partition|cache-parameters|simulate|run-forward```.
 
 Each of these subcommands is described in detail below.
+For more information you can also type `./bin/partis --help` or `./bin/partis <subcommand> --help`.
+
+The fist step in all cases is to infer a set of parameters particular to the input sequence file.
+These are cached as csv and yaml files in `--parameter-dir`, which defaults to a location in the current directory.
+You only need to cache these once, then can use them for all subsequent runs.
+If `--parameter-dir` doesn't exist, partis assumes that it needs to cache parameters, and does that before running the requested action.
+
+##### `run-viterbi`: find most likely annotations/alignments
+
+Finds the Viterbi path (i.e., the most likely annotation/alignment) for each sequence, for example:
+
+```./bin/partis run-viterbi --seqfile test/example.fa --outfname _output/example.csv```
+
+The output csv headers are listed in the table below, and you can view a colored ascii representation of the rearrangement events with `./bin/view-annotations.py <outfname>`.
+In addition, see `utils.process_input_line()` and `utils.get_line_for_output()` can be used to automate input/output.
+
+|   column header        |  description
+|------------------------|----------------------------------------------------------------------------
+| unique_ids             |  colon-separated list of sequence identification strings (of length 1 if multi-hmm isn't used)
+| v_gene         |  V gene in most likely annotation
+| d_gene         |  D gene in most likely annotation
+| j_gene         |  J gene in most likely annotation
+| cdr3_length        |  CDR3 length of most likely annotation (IMGT scheme, i.e. including both codons in their entirety)
+| seqs           |  colon-separated list of input sequences (of length 1 if multi-hmm isn't used)
+| naive_seq      |  naive (unmutated ancestor) sequence corresponding to most likely annotation
+| v_3p_del       |  length of V 3' deletion in most likely annotation
+| d_5p_del       |  length of D 5' deletion in most likely annotation
+| d_3p_del       |  length of D 3' deletion in most likely annotation
+| j_5p_del       |  length of J 5' deletion in most likely annotation
+| v_5p_del       |  length of an "effective" V 5' deletion in the most likely annotation, corresponding to a read which does not extend through the entire V segment
+| j_3p_del       |  length of an "effective" J 3' deletion in the most likely annotation, corresponding to a read which does not extend through the entire J segment
+| vd_insertion       |  sequence of nucleotides corresponding to the non-templated insertion between the V and D segments
+| dj_insertion       |  sequence of nucleotides corresponding to the non-templated insertion between the D and J segments
+| fv_insertion       |  sequence of nucleotides corresponding to any "effective" non-templated insertion on the 5' side of the V (accounts for reads which extend beyond the 5' end of V)
+| jf_insertion       |  sequence of nucleotides corresponding to any "effective" non-templated insertion on the 3' side of the J (accounts for reads which extend beyond the 3' end of J)
+| mutated_invariants     |  true if the conserved cysteine or tryptophan (IMGT numbering) were mutated (colon-separated list if multi-hmm)
+| in_frames      |  true if conserved cysteine and tryptophan (IMGT numbering) are in the same frame (colon-separated list if multi-hmm)
+| stops                  |  true if stop codon was found in the query sequence (colon-separated list if multi-hmm)
+| v_per_gene_support     |  approximate probability supporting the top V gene matches (semicolon-separated list of colon-separated gene:probability pairs)
+| d_per_gene_support     |  approximate probability supporting the top D gene matches (semicolon-separated list of colon-separated gene:probability pairs)
+| j_per_gene_support     |  approximate probability supporting the top J gene matches (semicolon-separated list of colon-separated gene:probability pairs)
+| indelfos       |  information on any SHM indels that were inferred in the Smith-Waterman step. Written as a literal python dict; can be read in python with `ast.literal_eval(line['indelfo'])` (colon-separated list if multi-hmm)
+| aligned_v_seqs     |  do not use. will soon be removed (see issue #179)
+| aligned_d_seqs     |  do not use. will soon be removed (see issue #179)
+| aligned_j_seqs     |  do not use. will soon be removed (see issue #179)
+
+##### `partition`: cluster sequences into clonally-related families
+
+Example invocation:
+
+```./bin/partis partition --seqfile test/example.fa --outfname _output/example.csv```
+
+The output csv file headers are listed in the table below, and you can view a colored ascii representation of the clusters with `./bin/view-partitions.py <outfname>`.
+We write one line for the most likely partition (with the lowest logprob), as well as a number of lines for the surrounding less-likely partitions (set with `--n-partitions-to-write`)
+
+|   column header  |  description
+|------------------|----------------------------------------------------------------------------
+| logprob          |  Total log probability of this partition
+| n_clusters       |  Number of clusters (clonal families in this partition)
+| partition        |  String representing the clusters, where clusters are separated by ; and sequences within clusters by :, e.g. 'a:b;c:d:e'
+| n_procs          |  Number of processes which were simultaneously running for this clusterpath. In practice, final output is usually only written for n_procs = 1
+
+To help visualize the clusters, you can tell it to print the most likely annotations for the final clusters with `--print-cluster-annotations`.
+If you specify both `--print-cluster-annotations` and `--outfname`, the annotations will be written to a file name generated from `--outfname` (which can be viewed as other annotations, with `./bin/view-annotations.py`).
+
+By default, this uses the most accurate and slowest method: hierarchical agglomeration with, first, hamming distance between naive sequences for distant clsuters, and full likelihood calculation for more similar clusters.
+Like most clustering algorithms, this scales rather closer than you'd like to quadratically than it does to linearly.
+We thus also have two faster and more approximate methods.
+
+###### `--naive-hamming`
+
+Use hard boundaries on hamming distance between naive sequences alone, with no likelihood calculation, to cluster with hierarchical agglomeration.
+This is perhaps as much as twice as fast as the full method, but sacrifices significant accuracy because it doesn't know (for example) about the differing probabilities of mutations at different points in the sequence, and because it uses a single, fixed annotation rather than integrating over all likely annotations.
+
+###### `--naive-vsearch`
+
+First calculate naive (unmutated ancestor) for each sequence, then pass these into vsearch for very fast, very heuristic clustering.
+The naive sequence calculation is easy to parallelize, so is fast if you have access to a fair number of processors.
+Vsearch is also very fast, because it makes a large number of heuristic approximations to avoid all-against-all comparison, and thus scales significantly better than quadratically.
+With `--n-procs` around 10 for the vsearch step, this should take only of order minutes for a million sequences.
+Since it's entirely unprincipled, this of course sacrifices significant accuracy; but since we're using inferred naive sequences it's still much, much more accurate than clustering on SHM'd sequences.
 
 ##### `cache-parameters`: write out parameter values and HMM model files for a given data set
+
+The parameter-caching step is run automatically by the other actions if `--parameter-dir` doesn't exist (whether this directory is specified explicitly, or is left as default).
+So you do not, generally, need to run it on its own except for testing.
 
 When presented with a new data set, the first thing we need to do is infer a set of parameters, a task for which we need a preliminary annotation.
 As such, partis first runs ighutil's Smith-Waterman algorithm on the data set.
 The ighutil annotations are used to build and write out a parameter set, which is in turn used to make a set of HMM model files for each observed allele.
 These files are then passed as input to a second, HMM-based, annotation step, which again outputs (more accurate) parameter values and HMM model files.
 
-The full command you'd need to cache parameters would look like this:
+For example:
 
-``` ./bin/partis.py --action cache-parameters --seqfile test/example.fa --parameter-dir _output/example/data```
+``` ./bin/partis cache-parameters --seqfile test/example.fa --parameter-dir _output/example```
 
-`--seqfile` location of input sequences (.[ct]sv, .f[aq]{sta,stq})
-`--skip-unproductive` Smith-Waterman step skips sequences that are annotated to be unproductive rearrangements.
 When caching parameters, the parameter csvs from Smith-Waterman and the HMM are put into `/sw` and `/hmm` subdirectories of `--parameter-dir`.
 Within each of these, there are a bunch of csv files with (hopefully) self-explanatory names, e.g. `j_gene-j_5p_del-probs.csv` has counts for J 5' deletions subset by J gene.
-There is also a `mute-freqs` directory, which has per-position mutation frequencies for each observed allele; and an `hmms` directory, which contains yaml HMM model files for each observed allele.
+The hmm model files go in the `hmms` subdirectory, which contains yaml HMM model files for each observed allele.
 
-When reading parameters, the parameters are read from `--parameter-dir`, so tack on either `/hmm` or `/sw` to what was passed during parameter caching.
+When reading parameters (e.g. with run-viterbi or partition), the parameters are read directly from `--parameter-dir`, so you need to tack on either `/hmm` or `/sw` to what was passed during parameter caching.
 
 ##### `simulate`: make simulated sequences
 
-Now that we've got a set of parameters for this data set, we can use it to create simulated sequences that mimic the data as closely as possible.
-This will allow us to test how well our algorithms work on a set of sequences for which we know the correct annotations.
-The basic command to run simulation is
+For testing purposes, we can use the parameters in `--parameter-dir` to create simulated sequences that mimic the data as closely as possible.
+This allows us to test how well our algorithms work on a set of sequences for which we know the correct annotations and clonal relationships.
+Note that while the parameters describe a very detailed picture of the rearrangement and mutation patterns, we do not (yet!) parametrize either the emipical clonal size distributions or phylogenetic relationships.
+These can, however, be specified from a number of realistic options (see `--help` for the simulate subcommand).
 
-```./bin/partis.py --action simulate --outfname _output/example/simu.csv --parameter-dir _output/example/data/hmm --n-sim-events 50 --n-leaves 5```.
+For example:
+
+```./bin/partis simulate --outfname _output/example/simu.csv --parameter-dir _output/example/data/hmm --n-sim-events 50```.
 
 This will spit out simulated sequences to `--outfname` using the parameters we just made in `_output/example/data/hmm`.
 We also specify that we want it to simulate 50 rearrangement events.
 To get the actual number of sequences, we multiply this by the mean number of leaves per tree (5).
-At the start of a simulation run, TreeSim generates a set of `--n-trees` trees (default 500 at the moment), and each tree has a number of leaves drawn from an exponential with mean `--n-leaves`.
+At the start of a simulation run, TreeSim generates a set of `--n-trees` trees (default 500 at the moment), and each tree has a number of leaves drawn from an exponential (or zipf, or box, or...) with mean/exponent `--n-leaves`.
 Throughout the run, we sample a tree at random from this set for each rearrangement event.
-
-##### `generate-trees`: maybe deprecated?
-
-##### `run-viterbi`: find most likely annotations
-
-If you already have parameters and HMM files cached from a previous run, you can just run the Viterbi algorithm by itself.
-As an example invocation, we could find the 5 most likely annotations for the first sequence in the previous data set
-
-```./bin/partis.py --action run-viterbi --seqfile test/example.fa --parameter-dir _output/example/data/hmm --n-max-queries 1 --debug 1```
-
-Here I've kicked the debug level up to 1, so it prints out a colored summary of the candidate rearrangement events.
-If you want to save csv output for later, add `--outfname <outfname>`.
-
-output formatting: see `utils.process_input_line()` and `utils.get_line_for_output()` to automate conversion of all these columns.
-
-|   column header        |  description
-|------------------------|----------------------------------------------------------------------------
-| unique_ids             |  colon-separated list of sequence identification strings (of length 1 if multi-hmm isn't used)
-| v_gene		 |  V gene in most likely annotation
-| d_gene		 |  D gene in most likely annotation
-| j_gene		 |  J gene in most likely annotation
-| cdr3_length		 |  CDR3 length of most likely annotation (IMGT scheme, i.e. including both codons in their entirety)
-| seqs			 |  colon-separated list of input sequences (of length 1 if multi-hmm isn't used)
-| naive_seq		 |  naive (unmutated ancestor) sequence corresponding to most likely annotation
-| v_3p_del		 |  length of V 3' deletion in most likely annotation
-| d_5p_del		 |  length of D 5' deletion in most likely annotation
-| d_3p_del		 |  length of D 3' deletion in most likely annotation
-| j_5p_del		 |  length of J 5' deletion in most likely annotation
-| v_5p_del		 |  length of an "effective" V 5' deletion in the most likely annotation, corresponding to a read which does not extend through the entire V segment
-| j_3p_del		 |  length of an "effective" J 3' deletion in the most likely annotation, corresponding to a read which does not extend through the entire J segment
-| vd_insertion		 |  sequence of nucleotides corresponding to the non-templated insertion between the V and D segments
-| dj_insertion		 |  sequence of nucleotides corresponding to the non-templated insertion between the D and J segments
-| fv_insertion		 |  sequence of nucleotides corresponding to any "effective" non-templated insertion on the 5' side of the V (accounts for reads which extend beyond the 5' end of V)
-| jf_insertion		 |  sequence of nucleotides corresponding to any "effective" non-templated insertion on the 3' side of the J (accounts for reads which extend beyond the 3' end of J)
-| mutated_invariants	 |  true if the conserved cysteine or tryptophan (IMGT numbering) were mutated (colon-separated list if multi-hmm)
-| in_frames		 |  true if conserved cysteine and tryptophan (IMGT numbering) are in the same frame (colon-separated list if multi-hmm)
-| stops                  |  true if stop codon was found in the query sequence (colon-separated list if multi-hmm)
-| v_per_gene_support	 |  approximate probability supporting the top V gene matches (colon-separated list of semicolon-separated gene;probability pairs)
-| d_per_gene_support	 |  approximate probability supporting the top D gene matches (colon-separated list of semicolon-separated gene;probability pairs)
-| j_per_gene_support	 |  approximate probability supporting the top J gene matches (colon-separated list of semicolon-separated gene;probability pairs)
-| indelfos		 |  information on any SHM indels that were inferred in the Smith-Waterman step. Written as a literal python dict; can be read in python with `ast.literal_eval(line['indelfo'])` (colon-separated list if multi-hmm)
-| aligned_v_seqs	 |  do not use. will soon be removed (see issue #179)
-| aligned_d_seqs	 |  do not use. will soon be removed (see issue #179)
-| aligned_j_seqs	 |  do not use. will soon be removed (see issue #179)
 
 ##### `run-forward`: find total probability of sequences
 
-Exactly the same as `run-viterbi`, except with the forward algorithm, i.e. it sums over all possible rearrangement events to get the total log probability of the sequence.
+Same as `run-viterbi`, except with the forward algorithm, i.e. it sums over all possible rearrangement events to get the total log probability of the sequence.
+Probably mostly useful for testing.
 
 ### Parallelization
 
-Happily enough, sequence annotation lends itself quite readily to independent parallelization.
-You specify the number of processes on your local machine with `--n-procs`.
-If you also throw in the `--slurm` flag, subsidiary processes will be run with slurm (under the hood this just adds 'srun' to the front of the commands -- so if you're inside docker you'll also need to install `srun`).
-Now, partis writes a lot of temporary files to a working directory, which is by default under `/tmp/$USER`.
-If you're running with slurm, though, you need the working directory to be a network mount everybody can see, so if you're slurming you'll need to set `--workdir` to something visible by your batch nodes.
-A suitable choice on our system is `_tmp/$RANDOM`.
+###### In general
+
+The number of processes on your local machine is set with `--n-procs N`.
+Since Smith-Waterman is so much faster than the hmm stuff, depending on your system it can make sense to use fewer process for that step -- you can thus specify a second, smaller number of processes `M` as `--n-procs N:M`.
+
+In order to parallelize over more processes than the local machine can handle, we currently only support slurm.
+This is specified by the flag `--slurm`, which runs all subsidiary processes by tacking `srun` onto the front of the command line.
+Now, partis writes a lot of temporary files to a working directory, which is by default a random name under `/tmp/$USER`.
+If you're running with slurm, though, you need the working directory to be a network mount that everybody can see, so if you're slurming you'll need to set `--workdir` to something visible by your batch nodes.
+A suitable choice on our system is `_tmp/$RANDOM`; note, however, that for large data sets (of order, say a million sequences) i/o operations can become expensive, so one is behooved to use as fast a filesystem as possible.
+
+###### run-viterbi
+
+Sequence annotation (run-viterbi) lends itself quite readily to independent parallelization.
+It should take 0.1-1 second per sequence; if you want it to go faster, just increase `--n-procs`.
+
+###### partition
+
+Clustering, however, really doesn't lend itself at all to independent parallelization -- we need to, at least approximately, compare each sequence to every other one.
+For the full and point partis methods, we get around this by starting with `--n-procs` processes.
+The input sequences are split evenly among these, and each process does all-against-all comparison (with many optimizations to avoid the full likelihood calculation) of all of its allotted sequences.
+The results of this first round are collected and merged together, and then reapportioned among a new, smaller, number of processes.
+This is continued until we arrive at one final process which is comparing all sequences.
+Since at each stage we cache every calculated log probability, while the later steps have more sequences to compare, they also have more cached numbers at their disposal, and so it's possible to make each step take about the same amount of time.
+We currently reduce the number of processes by about 1.6 at each step, as long as the previous step didn't have to calculate too many numbers.
+
+With typical mutation levels, lineage structures, and cluster size distributions (all of which strongly affect clustering time), it's currently best to start with ``--n-procs` set so you have about 300 sequences per process.
 
 #### Testing
 

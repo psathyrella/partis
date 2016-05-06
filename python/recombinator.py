@@ -55,25 +55,25 @@ class Recombinator(object):
         self.allowed_genes = self.get_allowed_genes(self.args.parameter_dir)  # only really used if <self.args.uniform_vj_choice_probs> is set, but it also checks the sensibility of <self.args.only_genes>
         self.insertion_content_probs = None
         self.read_insertion_content()
-        if self.args.naivety == 'M':  # read shm info if non-naive is requested
-            # NOTE I'm not inferring the gtr parameters a.t.m., so I'm just (very wrongly) using the same ones for all individuals
-            with opener('r')(self.args.gtrfname) as gtrfile:  # read gtr parameters
-                reader = csv.DictReader(gtrfile)
-                for line in reader:
-                    parameters = line['parameter'].split('.')
-                    region = parameters[0][3].lower()
-                    assert region == 'v' or region == 'd' or region == 'j'
-                    model = parameters[1].lower()
-                    parameter_name = parameters[2]
-                    assert model in self.mute_models[region]
-                    self.mute_models[region][model][parameter_name] = line['value']
-            treegen = treegenerator.TreeGenerator(args, self.args.parameter_dir, seed=seed)
-            self.treefname = self.workdir + '/trees.tre'
-            treegen.generate_trees(seed, self.treefname)
-            with opener('r')(self.treefname) as treefile:  # read in the trees (and other info) that we just generated
-                self.treeinfo = treefile.readlines()
-            if not self.args.no_clean:
-                os.remove(self.treefname)
+
+        # read shm info NOTE I'm not inferring the gtr parameters a.t.m., so I'm just (very wrongly) using the same ones for all individuals
+        with opener('r')(self.args.gtrfname) as gtrfile:  # read gtr parameters
+            reader = csv.DictReader(gtrfile)
+            for line in reader:
+                parameters = line['parameter'].split('.')
+                region = parameters[0][3].lower()
+                assert region == 'v' or region == 'd' or region == 'j'
+                model = parameters[1].lower()
+                parameter_name = parameters[2]
+                assert model in self.mute_models[region]
+                self.mute_models[region][model][parameter_name] = line['value']
+        treegen = treegenerator.TreeGenerator(args, self.args.parameter_dir, seed=seed)
+        self.treefname = self.workdir + '/trees.tre'
+        treegen.generate_trees(seed, self.treefname)
+        with opener('r')(self.treefname) as treefile:  # read in the trees (and other info) that we just generated
+            self.treeinfo = treefile.readlines()
+        if not self.args.no_clean:
+            os.remove(self.treefname)
 
         if os.path.exists(self.outfname):
             os.remove(self.outfname)
@@ -130,10 +130,7 @@ class Recombinator(object):
             print 'ERROR bad conserved codons, what the hell?'
             return False
 
-        if self.args.naivety == 'M':
-            self.add_mutants(reco_event, irandom)  # toss a bunch of clones: add point mutations
-        else:
-            reco_event.final_seqs.append(reco_event.recombined_seq)
+        self.add_mutants(reco_event, irandom)  # toss a bunch of clones: add point mutations
 
         if self.args.debug:
             reco_event.print_event()

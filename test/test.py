@@ -19,7 +19,7 @@ from clusterpath import ClusterPath
 class Tester(object):
     # ----------------------------------------------------------------------------------------
     def __init__(self):
-        self.partis = './bin/partis.py'
+        self.partis = './bin/partis'
         self.datafname = 'test/mishmash.fa'  # some data from adaptive, chaim, and vollmers
         self.label = 'test'
 
@@ -142,7 +142,7 @@ class Tester(object):
             self.prepare_to_run(args, name, info)
 
             action = info['action'] if 'action' in info else name
-            cmd_str = info['bin'] + ' --action ' + action
+            cmd_str = info['bin'] + ' ' + action
             if info['bin'] == self.partis:
                 cmd_str += ' ' + ' '.join(info['extras'] + self.common_extras)
                 cmd_str += ' --outfname ' + self.dirs['new'] + '/' + name + '.csv'

@@ -41,7 +41,7 @@ def abbreviate(used_names, potential_names, unique_id):
 def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, reco_ids=None, name_column=None, seq_column=None, seed_unique_id=None, abbreviate_names=False):
     """ return list of sequence info from files of several types """
 
-    # WARNING defaults for <name_column> and <seq_column> also set in partis.py (since we call this from places other than partis.py, but we also want people to be able set them from the partis.py command line)
+    # WARNING defaults for <name_column> and <seq_column> also set in partis (since we call this from places other than partis, but we also want people to be able set them from the partis command line)
     internal_name_column = 'unique_id'  # key we use in the internal dictionaries
     internal_seq_column = 'seq'
     if name_column is None:  # header we expect in the file
@@ -121,7 +121,7 @@ def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, 
         input_info[unique_id] = {'unique_id' : unique_id, 'seq' : line[internal_seq_column]}
 
         if n_queries == 0 and is_data and 'v_gene' in line:
-            print 'WARNING found simulation info in %s -- are you sure you didn\'t mean to set --is-simu?' % fname
+            print '  note: found simulation info in %s -- are you sure you didn\'t mean to set --is-simu?' % fname
 
         if not is_data:
             if 'v_gene' not in line:

@@ -2,8 +2,6 @@ from __future__ import unicode_literals
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
-import seaborn as sns  # really #$*$$*!ing slow to import, but only importing part of it doesn't seem to help
-sns.set_style('ticks')
 
 import math
 from scipy.interpolate import interp1d
@@ -766,6 +764,9 @@ alphas = {'true' : 0.6,
 
 # ----------------------------------------------------------------------------------------
 def plot_cluster_size_hists(outfname, hists, title, xmax=None, log='x'):
+    if 'seaborn' not in sys.modules:
+        import seaborn  # really #$*$$*!ing slow to import, but only importing part of it doesn't seem to help
+    sys.modules['seaborn'].set_style('ticks')
 
     fsize = 20
     mpl.rcParams.update({
@@ -831,7 +832,7 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None, log='x'):
 
 
     legend = ax.legend()
-    sns.despine()  #trim=True, bottom=True)
+    sys.modules['seaborn'].despine()  #trim=True, bottom=True)
 
     # xmax = tmpmax
     if xmax is None:
@@ -888,6 +889,10 @@ def plot_metrics_vs_thresholds(meth, thresholds, info, plotdir, plotfname, title
 
 # ----------------------------------------------------------------------------------------
 def plot_adj_mi_and_co(plotname, plotvals, mut_mult, plotdir, valname, xvar, title=''):
+    if 'seaborn' not in sys.modules:
+        import seaborn  # really #$*$$*!ing slow to import, but only importing part of it doesn't seem to help
+    sys.modules['seaborn'].set_style('ticks')
+
     # ----------------------------------------------------------------------------------------
     def remove_some_duplicates(xyvals):
         hmap = {}
@@ -937,7 +942,7 @@ def plot_adj_mi_and_co(plotname, plotvals, mut_mult, plotdir, valname, xvar, tit
     # legend.get_frame().set_facecolor('white')
     ymin = -0.01
     ax.set_ylim(ymin, 1.03)
-    sns.despine()  #trim=True, bottom=True)
+    sys.modules['seaborn'].despine()  #trim=True, bottom=True)
     plt.title(title)
     xtitle = 'mean N leaves' if xvar == 'n_leaves' else 'sample size'
     plt.xlabel(xtitle)
@@ -987,7 +992,9 @@ def plot_adj_mi_and_co(plotname, plotvals, mut_mult, plotdir, valname, xvar, tit
 
 # ----------------------------------------------------------------------------------------
 def mpl_init(figsize=None, fontsize=20):
-    sns.set_style('ticks')
+    if 'seaborn' not in sys.modules:
+        import seaborn  # really #$*$$*!ing slow to import, but only importing part of it doesn't seem to help
+    sys.modules['seaborn'].set_style('ticks')
     fsize = fontsize
     mpl.rcParams.update({
         # 'legend.fontweight': 900,
@@ -1006,6 +1013,8 @@ def mpl_init(figsize=None, fontsize=20):
 
 # ----------------------------------------------------------------------------------------
 def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=None, ybounds=None, leg_loc=(0.04, 0.6), log='', xticks=None, xticklabels=None, no_legend=False, adjust=None):
+    if 'seaborn' not in sys.modules:
+        import seaborn  # really #$*$$*!ing slow to import, but only importing part of it doesn't seem to help
     # xticks[0] = 0.000001
     if not no_legend:
         legend = ax.legend(loc=leg_loc)
@@ -1013,7 +1022,7 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
         plt.gcf().subplots_adjust(bottom=0.14, left=0.18, right=0.95, top=0.92)
     else:
         plt.gcf().subplots_adjust(**adjust)
-    sns.despine()  #trim=True, bottom=True)
+    sys.modules['seaborn'].despine()  #trim=True, bottom=True)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     if 'x' in log:

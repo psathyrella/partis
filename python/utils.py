@@ -1123,7 +1123,8 @@ def add_missing_alignments(glfo, debug=False):
                     raise Exception('gene %s too long to generate missing alignment' % gene)  # could really just extend all the other alignments here, but fuck it, maybe I won't need to
                 n_dashes = len(alignment_to_use) - len(seq)
                 glfo['aligned-genes'][region][gene] = n_dashes * '-' + seq  # just hack a bunch of dashes on the left
-    if True: #debug:
+
+    if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
         print '   adding nonsense alignments for missing genes %s' % ' '.join([color_gene(g) for g in missing_genes])
 
 # ----------------------------------------------------------------------------------------
@@ -1426,16 +1427,18 @@ def process_input_line(info):
             convert_fcn = ast.literal_eval
 
         if key in ccfg['lists']:
-            info[key] = [convert_fcn(val) for val in info[key].split(':')]
             if key in ccfg['lists-of-string-float-pairs']:  # ok, that's getting a little hackey
 
                 def splitstrpair(pairstr):
-                    pairlist = pairstr.split(';')
+                    pairlist = pairstr.split(':')
                     if len(pairlist) != 2:
-                        raise Exception('couldn\'t split %s into two pieces with \';\'' % (pairstr))
+                        raise Exception('couldn\'t split %s into two pieces with \':\'' % (pairstr))
                     return (pairlist[0], float(pairlist[1]))
 
+                info[key] = [convert_fcn(val) for val in info[key].split(';')]
                 info[key] = OrderedDict(splitstrpair(pairstr) for pairstr in info[key])
+            else:
+                info[key] = [convert_fcn(val) for val in info[key].split(':')]
         else:
             info[key] = convert_fcn(info[key])
 
@@ -1446,7 +1449,7 @@ def get_line_for_output(info):
     for key, val in info.items():
         if key in column_configs['lists']:
             if key in column_configs['lists-of-string-float-pairs']:  # ok, that's getting a little hackey
-                outfo[key] = ':'.join([k + ';' + str(v) for k, v in info[key].items()])
+                outfo[key] = ';'.join([k + ':' + str(v) for k, v in info[key].items()])
             else:
                 outfo[key] = ':'.join([str(v) for v in info[key]])
         else:
