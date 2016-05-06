@@ -161,7 +161,11 @@ class PartitionDriver(object):
 
         self.check_partition(cpath.partitions[cpath.i_best])
         if self.args.print_cluster_annotations:
-            self.read_annotation_output(self.annotation_fname)
+            outfname = None
+            if self.args.outfname is not None:
+                outfname = self.args.outfname.replace('.csv', '-cluster-annotations.csv')
+                print '  writing cluster annotations to %s' % outfname
+            self.read_annotation_output(self.annotation_fname, outfname=outfname)
         if self.args.outfname is not None:
             self.write_clusterpaths(self.args.outfname, cpath)  # [last agglomeration step]
 
