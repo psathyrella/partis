@@ -2046,13 +2046,17 @@ def print_heapy(extrastr, heap):
 # ----------------------------------------------------------------------------------------
 def auto_slurm(n_procs):
     """ Return true if we want to force slurm usage, e.g. if there's more processes than cores """
-    try:
-        check_output(['which', 'srun'])
-        slurm_exists = True
-    except CalledProcessError:
-        slurm_exists = False
+
+    def slurm_exists():
+        try:
+            fnull = open(os.devnull, 'w')
+            check_output(['which', 'srun'], stderr=fnull, close_fds=True)
+            return True
+        except CalledProcessError:
+            return False
+
     ncpu = multiprocessing.cpu_count()
-    if slurm_exists and n_procs > ncpu:
+    if n_procs > ncpu and slurm_exists:
         return True
     return False
 

@@ -123,7 +123,7 @@ For more information you can also type `./bin/partis --help` or `./bin/partis <s
 The fist step in all cases is to infer a set of parameters particular to the input sequence file.
 These are cached as csv and yaml files in `--parameter-dir`, which defaults to a location in the current directory.
 You only need to cache these once, then can use them for all subsequent runs.
-If `--parameter-dir` doesn't exist, partis assumes that it needs to cache parameters, and does that before running the requested action.
+If `--parameter-dir` (whether explicitly set or left as default) doesn't exist, partis assumes that it needs to cache parameters, and does that before running the requested action.
 
 ##### `run-viterbi`: find most likely annotations/alignments
 
@@ -132,7 +132,6 @@ Finds the Viterbi path (i.e., the most likely annotation/alignment) for each seq
 ```./bin/partis run-viterbi --seqfile test/example.fa --outfname _output/example.csv```
 
 The output csv headers are listed in the table below, and you can view a colored ascii representation of the rearrangement events with `./bin/view-annotations.py <outfname>`.
-In addition, see `utils.process_input_line()` and `utils.get_line_for_output()` can be used to automate input/output.
 
 |   column header        |  description
 |------------------------|----------------------------------------------------------------------------
@@ -163,6 +162,8 @@ In addition, see `utils.process_input_line()` and `utils.get_line_for_output()` 
 | aligned_v_seqs     |  do not use. will soon be removed (see issue #179)
 | aligned_d_seqs     |  do not use. will soon be removed (see issue #179)
 | aligned_j_seqs     |  do not use. will soon be removed (see issue #179)
+
+Note that `utils.process_input_line()` and `utils.get_line_for_output()` can be used to automate input/output.
 
 ##### `partition`: cluster sequences into clonally-related families
 
