@@ -246,14 +246,16 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def write_clusterpaths(self, outfname, cpath):
-        outfile, writer = cpath.init_outfile(outfname, self.args.is_data)
-        true_partition = None
-        if not self.args.is_data:
-            true_partition = utils.get_true_partition(self.reco_info)
 
-        cpath.write_partitions(writer=writer, reco_info=self.reco_info, true_partition=true_partition, is_data=self.args.is_data, n_to_write=self.args.n_partitions_to_write, calc_missing_values='best')
-
-        outfile.close()
+        if self.args.presto_output:
+            cpath.write_presto_partitions(outfname, self.input_info)
+        else:
+            outfile, writer = cpath.init_outfile(outfname, self.args.is_data)
+            true_partition = None
+            if not self.args.is_data:
+                true_partition = utils.get_true_partition(self.reco_info)
+            cpath.write_partitions(writer=writer, reco_info=self.reco_info, true_partition=true_partition, is_data=self.args.is_data, n_to_write=self.args.n_partitions_to_write, calc_missing_values='best')
+            outfile.close()
 
     # ----------------------------------------------------------------------------------------
     def cluster_with_naive_vsearch_or_swarm(self, parameter_dir):

@@ -316,3 +316,12 @@ class ClusterPath(object):
                 row['seed_unique_id'] = self.seed_unique_id
 
             writer.writerow(row)
+
+    # ----------------------------------------------------------------------------------------
+    def write_presto_partitions(self, outfname, input_info):
+        outfile = open(outfname, 'w')
+        iclust = 0
+        for cluster in self.partitions[self.i_best]:
+            for uid in cluster:
+                outfile.write('>%s|CLONE=%d\n%s\n' % (uid, iclust, input_info[uid]['seq']))
+            iclust += 1

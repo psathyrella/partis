@@ -173,6 +173,7 @@ parent_parser.add_argument('--parameter-type', default='hmm', choices=('sw', 'hm
 parent_parser.add_argument('--datadir', default=os.getcwd() + '/data/imgt', help='Directory from which to read non-sample-specific information (e.g. germline genes)')
 parent_parser.add_argument('--alignment-dir', default=os.getcwd() + '/data/fam-alignments', help='Directory from which to read aligned germline sets. WILL BE REMOVED.')  # TODO remove this
 parent_parser.add_argument('--outfname', help='Output file name.')
+parent_parser.add_argument('--presto-output', action='store_true', help='write output file in presto format')
 parent_parser.add_argument('--plotdir', help='Base directory to which to write plots (no plots are written if this isn\'t set)')
 parent_parser.add_argument('--ighutil-dir', default=os.getenv('HOME') + '/.local', help='Path to vdjalign executable. The default (%(default)s) is where \'pip install --user\' typically puts things')
 parent_parser.add_argument('--workdir', help='Temporary working directory (see also <no-clean>)')
@@ -211,7 +212,6 @@ subconfig = {
 }
 
 subargs = {subname : [] for subname in subconfig}
-subargs['run-viterbi'].append({'name' : '--presto-output', 'kwargs' : {'action' : 'store_true', 'help' : 'write output file in presto format'}})
 
 subargs['partition'].append({'name' : '--naive-hamming', 'kwargs' : {'action' : 'store_true', 'help' : 'agglomerate purely with naive hamming distance, i.e. set the low and high preclustering bounds to the same value'}})
 subargs['partition'].append({'name' : '--naive-vsearch', 'kwargs' : {'action' : 'store_true', 'help' : 'Very fast clustering: infer naive (unmutated ancestor) for each input sequence, then toss it all into vsearch. But, of course, not as accurate as the slower methods.'}})
