@@ -583,8 +583,8 @@ string PerGeneSupportString(string region, vector<SupportPair> &support) {
   string return_str;
   for(size_t is=0; is<support.size(); ++is) {
     if(is > 0)
-      return_str += ":";
-    return_str += support[is].gene() + ";" + to_string(support[is].logprob());
+      return_str += ";";
+    return_str += support[is].gene() + ":" + to_string(support[is].logprob());
   }
   return return_str;
 }
