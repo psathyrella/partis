@@ -8,7 +8,7 @@ import csv
 csv.field_size_limit(sys.maxsize)  # make sure we can write very large csv fields
 import random
 from collections import OrderedDict
-from subprocess import Popen, check_call, PIPE, CalledProcessError
+from subprocess import Popen, check_call, PIPE, CalledProcessError, check_output
 import copy
 import multiprocessing
 
@@ -246,16 +246,17 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def write_clusterpaths(self, outfname, cpath):
+        outfile, writer = cpath.init_outfile(outfname, self.args.is_data)
+        true_partition = None
+        if not self.args.is_data:
+            true_partition = utils.get_true_partition(self.reco_info)
+        cpath.write_partitions(writer=writer, reco_info=self.reco_info, true_partition=true_partition, is_data=self.args.is_data, n_to_write=self.args.n_partitions_to_write, calc_missing_values='best')
+        outfile.close()
 
         if self.args.presto_output:
-            cpath.write_presto_partitions(outfname, self.input_info)
-        else:
-            outfile, writer = cpath.init_outfile(outfname, self.args.is_data)
-            true_partition = None
-            if not self.args.is_data:
-                true_partition = utils.get_true_partition(self.reco_info)
-            cpath.write_partitions(writer=writer, reco_info=self.reco_info, true_partition=true_partition, is_data=self.args.is_data, n_to_write=self.args.n_partitions_to_write, calc_missing_values='best')
-            outfile.close()
+            outstr = check_output(['mv', '-v', self.args.outfname, self.args.outfname + '.partis'])
+            print '    backing up partis output before converting to presto: %s' % outstr.strip()
+            cpath.write_presto_partitions(self.args.outfname, self.input_info)
 
     # ----------------------------------------------------------------------------------------
     def cluster_with_naive_vsearch_or_swarm(self, parameter_dir):
@@ -1023,7 +1024,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def check_for_bcrham_failures(self, line, boundary_error_queries):
-        if 'no_path' in line['errors']:
+        if line['errors'] is not None and 'no_path' in line['errors']:
             self.bcrham_failed_queries.add(line['unique_ids'])
             return True
         if line['errors'] is not None and 'boundary' in line['errors'].split(':'):
@@ -1215,15 +1216,13 @@ class PartitionDriver(object):
         outpath = outfname
         if outpath[0] != '/':  # if full output path wasn't specified on the command line
             outpath = os.getcwd() + '/' + outpath
-        if not self.args.presto_output:
-            outheader = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'seqs', 'naive_seq', 'indelfos']
-            outheader += ['aligned_' + r + '_seqs' for r in utils.regions]
-            outheader += [r + '_per_gene_support' for r in utils.regions]
-            outheader += [e + '_del' for e in utils.real_erosions + utils.effective_erosions] + [b + '_insertion' for b in utils.boundaries + utils.effective_boundaries]
-            outheader += [fc + 's' for fc in utils.functional_columns]
-        else:
-            outheader = utils.presto_headers.values()
-            imgt_gapped_glfo = utils.read_germline_set(self.args.datadir, alignment_dir=self.args.datadir, debug=True)  # use imgt alignments  # TODO remove this
+
+        outheader = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'seqs', 'naive_seq', 'indelfos']
+        outheader += ['aligned_' + r + '_seqs' for r in utils.regions]
+        outheader += [r + '_per_gene_support' for r in utils.regions]
+        outheader += [e + '_del' for e in utils.real_erosions + utils.effective_erosions] + [b + '_insertion' for b in utils.boundaries + utils.effective_boundaries]
+        outheader += [fc + 's' for fc in utils.functional_columns]
+
         with open(outpath, 'w') as outfile:
             writer = csv.DictWriter(outfile, outheader)
             writer.writeheader()
@@ -1231,20 +1230,8 @@ class PartitionDriver(object):
             for line in annotations.values():
                 outline = copy.deepcopy(line)  # in case we modify it
 
-                if self.args.presto_output:
-                    if len(line['indelfos'][0]['indels']) > 0:
-                        print 'Warning can\'t yet pass indels to presto, so skipping %s' % line['unique_ids']
-                        continue
-
                 for uid in outline['unique_ids']:  # make a note that we have an annotation for these uids (so we can see if there's any that we're missing)
                     missing_input_keys.remove(uid)
-
-                if self.args.presto_output:
-                    # replace the default (erick) alignments with the "imgt-gapped" ones
-                    utils.remove_all_implicit_info(outline, multi_seq=True)
-                    utils.add_implicit_info(imgt_gapped_glfo, outline, multi_seq=True)
-
-                    outline = utils.convert_to_presto_headers(outline, multi_seq=True)
 
                 outline = utils.get_line_for_output(outline)  # convert lists to colon-separated strings and whatnot
                 outline = {k : v for k, v in outline.items() if k in outheader}  # remove the columns we don't want to output
@@ -1256,6 +1243,40 @@ class PartitionDriver(object):
                 print 'missing %d input keys' % len(missing_input_keys)
                 for uid in missing_input_keys:
                     col = 'unique_ids'
-                    if self.args.presto_output:
-                        col = utils.presto_headers['unique_id']
                     writer.writerow({col : uid})
+
+        if self.args.presto_output:
+            outstr = check_output(['mv', '-v', self.args.outfname, self.args.outfname + '.partis'])
+            print '    backing up partis output before converting to presto: %s' % outstr.strip()
+
+            outheader = utils.presto_headers.values()
+            imgt_gapped_glfo = utils.read_germline_set(self.args.datadir, alignment_dir=self.args.datadir, debug=True)  # use imgt alignments  # TODO remove this
+            with open(outpath, 'w') as outfile:
+                writer = csv.DictWriter(outfile, outheader)
+                writer.writeheader()
+
+                for line in annotations.values():
+                    outline = copy.deepcopy(line)  # in case we modify it
+
+                    if len(line['indelfos'][0]['indels']) > 0:
+                        print 'Warning can\'t yet pass indels to presto, so skipping %s' % line['unique_ids']
+                        continue
+
+                    # replace the default (erick) alignments with the "imgt-gapped" ones
+                    utils.remove_all_implicit_info(outline, multi_seq=True)
+                    utils.add_implicit_info(imgt_gapped_glfo, outline, multi_seq=True)
+
+                    outline = utils.convert_to_presto_headers(outline, multi_seq=True)
+
+                    outline = utils.get_line_for_output(outline)  # convert lists to colon-separated strings and whatnot
+                    outline = {k : v for k, v in outline.items() if k in outheader}  # remove the columns we don't want to output
+
+                    writer.writerow(outline)
+
+                # and write empty lines for seqs that failed either in sw or the hmm
+                if len(missing_input_keys) > 0:  # NOTE assumes it's already been set by the first loop
+                    print 'missing %d input keys' % len(missing_input_keys)
+                    for uid in missing_input_keys:
+                        col = utils.presto_headers['unique_id']
+                        writer.writerow({col : uid})
+

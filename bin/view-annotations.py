@@ -1,9 +1,13 @@
 #!/usr/bin/env python
 import sys
-sys.path.insert(1, './python')
+import os
 import csv
 csv.field_size_limit(sys.maxsize)  # make sure we can write very large csv fields
 import argparse
+current_script_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '/python')
+if not os.path.exists(current_script_dir):
+    print 'WARNING current script dir %s doesn\'t exist, so python path may not be correctly set' % current_script_dir
+sys.path.insert(1, current_script_dir)
 
 from seqfileopener import get_seqfile_info
 import utils

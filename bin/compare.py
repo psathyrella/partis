@@ -2,8 +2,12 @@
 import argparse
 import json
 import csv
+import os
 import sys
-sys.path.append('python')
+current_script_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '/python')
+if not os.path.exists(current_script_dir):
+    print 'WARNING current script dir %s doesn\'t exist, so python path may not be correctly set' % current_script_dir
+sys.path.insert(1, current_script_dir)
 
 import plotting
 import utils

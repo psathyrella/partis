@@ -78,6 +78,8 @@ class ClusterPath(object):
 
     # ----------------------------------------------------------------------------------------
     def readfile(self, fname):
+        if fname is None:
+            raise Exception('can\'t read NoneType partition file')
         if os.stat(fname).st_size == 0:
             raise Exception('partition file %s has size zero' % fname)
         with opener('r')(fname) as infile:
