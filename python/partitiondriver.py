@@ -131,6 +131,9 @@ class PartitionDriver(object):
         with open(self.args.outfname) as csvfile:
             reader = csv.DictReader(csvfile)
             for line in reader:
+                if line['v_gene'] == '':
+                    print '   %s failed' % line['unique_ids']
+                    continue
                 utils.process_input_line(line)
                 if self.args.seqfile is not None and self.reco_info is not None:
                     utils.print_true_events(self.glfo, self.reco_info, line)
