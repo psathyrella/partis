@@ -537,6 +537,7 @@ string HMMHolder::NameString(map<string, set<string> > *only_genes, int max_to_p
 
 // ----------------------------------------------------------------------------------------
 void StreamHeader(ofstream &ofs, string algorithm) {
+  // NOTE make sure to change this in StreamErrorput() and StreamViterbiOutput() (or StreamForwardOutput()) below!
   if(algorithm == "viterbi")
     ofs << "unique_ids,v_gene,d_gene,j_gene,fv_insertion,vd_insertion,dj_insertion,jf_insertion,v_5p_del,v_3p_del,d_5p_del,d_3p_del,j_5p_del,j_3p_del,logprob,seqs,v_per_gene_support,d_per_gene_support,j_per_gene_support,errors" << endl;
   else if(algorithm == "forward")
@@ -549,8 +550,7 @@ void StreamHeader(ofstream &ofs, string algorithm) {
 void StreamErrorput(ofstream &ofs, string algorithm, vector<Sequence> &seqs, string errors) {
   if(algorithm == "viterbi") {
     ofs  // be very, very careful to change this *and* the csv header above at the same time
-      << ""
-      << "," << SeqNameStr(seqs, ":")
+      << SeqNameStr(seqs, ":")
       << ","
       << ","
       << ","
@@ -566,6 +566,9 @@ void StreamErrorput(ofstream &ofs, string algorithm, vector<Sequence> &seqs, str
       << ","
       << ","
       << "," << SeqStr(seqs, ":")
+      << ","
+      << ","
+      << ","
       << "," << errors
       << endl;
   } else {

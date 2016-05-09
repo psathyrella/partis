@@ -141,6 +141,21 @@ def run_partitiondriver(args):
     parter.clean()
 
 # ----------------------------------------------------------------------------------------
+def view_existing_output(args):
+    if args.outfname is None:
+        raise Exception('--outfname is required for action \'%s\'' % args.action)
+    if not os.path.exists(args.outfname):
+        raise Exception('--outfname \'%s\' does not exist' % args.outfname)
+
+    parter = PartitionDriver(args)
+    if args.action == 'view-annotations':
+        parter.view_existing_annotations()
+    elif args.action == 'view-partitions':
+        parter.view_existing_partitions()
+    else:
+        assert False
+
+# ----------------------------------------------------------------------------------------
 if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
     print '    TODO make things completely assertion/exception safe, i.e. if you catch one, that causes a failure on that one sequence only'
     print '    TODO see about varying the naive hfrac thresholds -- especially lowering the lower bound (try to do this by exploiting something about the difference between hfrac and lratio'
@@ -211,7 +226,9 @@ subconfig = {
     'run-viterbi'      : {'func' : run_partitiondriver, 'help' : 'Annotate (align) sequences in input file, i.e. run the viterbi algorithm, using pre-existing parameter directory.'},
     'partition'        : {'func' : run_partitiondriver, 'help' : 'Partition sequences in input file into clonally-related families using pre-existing parameter directory.'},
     'simulate'         : {'func' : run_simulation,      'help' : 'Generate simulated sequences based on information in pre-existing parameter directory.'},
-    'run-forward'      : {'func' : run_partitiondriver, 'help' : 'Run the forward algorithm on sequences in input file, using pre-existing parameter directory. Not particularly useful except for debugging.'}
+    'run-forward'      : {'func' : run_partitiondriver, 'help' : 'Run the forward algorithm on sequences in input file, using pre-existing parameter directory. Not particularly useful except for debugging.'},
+    'view-annotations' : {'func' : view_existing_output,'help' : 'Print (to std out) the annotations from an existing annotation output csv.'},
+    'view-partitions'  : {'func' : view_existing_output,'help' : 'Print (to std out) the partitions from an existing partition output csv.'}
 }
 
 subargs = {subname : [] for subname in subconfig}
