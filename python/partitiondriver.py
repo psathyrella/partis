@@ -29,9 +29,20 @@ class PartitionDriver(object):
         self.args = args
         self.glfo = utils.read_germline_set(self.args.datadir, alignment_dir=self.args.alignment_dir, debug=True)
 
-        self.input_info, self.reco_info = get_seqfile_info(self.args.seqfile, self.args.is_data, self.glfo, self.args.n_max_queries, self.args.queries, self.args.reco_ids,
-                                                           name_column=self.args.name_column, seq_column=self.args.seq_column, seed_unique_id=self.args.seed_unique_id,
-                                                           abbreviate_names=self.args.abbreviate)
+        self.input_info, self.reco_info = None, None
+        if self.args.seqfile is not None:
+            self.input_info, self.reco_info = get_seqfile_info(self.args.seqfile, self.args.is_data, self.glfo, self.args.n_max_queries, self.args.queries, self.args.reco_ids,
+                                                               name_column=self.args.name_column, seq_column=self.args.seq_column, seed_unique_id=self.args.seed_unique_id,
+                                                               abbreviate_names=self.args.abbreviate)
+            if len(self.input_info) > 1000:
+                if self.args.n_procs == 1:
+                    print '  note:! running on %d sequences spread over %d processes. This will be kinda slow, so it might be a good idea to set --n-procs N to the number of processors on your local machine, or look into non-local parallelization with --slurm.\n' % (len(self.input_info), self.args.n_procs)
+                if self.args.outfname is None and self.args.action != 'cache-parameters':
+                    print '  note: running on a lot of sequences without setting --outfname. Which is ok! But there\'ll be no persistent record of the results'
+        elif self.args.action != 'view-annotations' and self.args.action != 'view-partitions':
+            raise Exception('--seqfile is required for action \'%s\'' % args.action)
+
+
         self.sw_info = None
         self.bcrham_proc_info = None
         self.bcrham_failed_queries = set()
@@ -58,12 +69,6 @@ class PartitionDriver(object):
                 check_call(['cp', '-v', self.args.persistent_cachefname, self.hmm_cachefname])
             else:  # otherwise create it with just headers
                 pass  # hm, maybe do it in ham
-
-        if len(self.input_info) > 1000:
-            if self.args.n_procs == 1:
-                print '  note:! running on %d sequences spread over %d processes. This will be kinda slow, so it might be a good idea to set --n-procs N to the number of processors on your local machine, or look into non-local parallelization with --slurm.\n' % (len(self.input_info), self.args.n_procs)
-            if self.args.outfname is None and self.args.action != 'cache-parameters':
-                print '  note: running on a lot of sequences without setting --outfname. Which is ok! But there\'ll be no persistent record of the results'
 
     # ----------------------------------------------------------------------------------------
     def clean(self):
@@ -120,6 +125,24 @@ class PartitionDriver(object):
         print 'running %s' % algorithm
         self.run_waterer(self.args.parameter_dir)
         self.run_hmm(algorithm, parameter_in_dir=self.args.parameter_dir)
+
+    # ----------------------------------------------------------------------------------------
+    def view_existing_annotations(self):
+        with open(self.args.outfname) as csvfile:
+            reader = csv.DictReader(csvfile)
+            for line in reader:
+                utils.process_input_line(line)
+                if self.args.seqfile is not None and self.reco_info is not None:
+                    utils.print_true_events(self.glfo, self.reco_info, line)
+                utils.add_implicit_info(self.glfo, line, multi_seq=True, existing_implicit_keys=('aligned_d_seqs', 'aligned_j_seqs', 'aligned_v_seqs', 'cdr3_length', 'naive_seq', 'in_frames', 'mutated_invariants', 'stops'))
+                print '    inferred:\n'
+                utils.print_reco_event(self.glfo['seqs'], line)
+
+    # ----------------------------------------------------------------------------------------
+    def view_existing_partitions(self):
+        cp = ClusterPath()
+        cp.readfile(self.args.outfname)
+        cp.print_partitions(abbreviate=self.args.abbreviate, reco_info=self.reco_info)
 
     # ----------------------------------------------------------------------------------------
     def partition(self):

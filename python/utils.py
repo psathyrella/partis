@@ -850,7 +850,7 @@ def add_implicit_info(glfo, line, multi_seq, existing_implicit_keys=None, debug=
     if existing_implicit_keys is not None:
         for ekey in existing_implicit_keys:
             if pre_existing_info[ekey] != line[ekey]:
-                print '  WARNING pre-existing info %s doesn\'t match new info %s for %s in %s' % (pre_existing_info[ekey], line[ekey], ekey, line['unique_ids'] if multi_seq else line['unique_id'])
+                print '  WARNING pre-existing info\n    %s\n    doesn\'t match new info\n    %s\n    for %s in %s' % (pre_existing_info[ekey], line[ekey], ekey, line['unique_ids'] if multi_seq else line['unique_id'])
 
 # ----------------------------------------------------------------------------------------
 def print_true_events(glfo, reco_info, line, print_uid=False):
