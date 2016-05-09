@@ -1023,14 +1023,16 @@ class PartitionDriver(object):
         return cpath
 
     # ----------------------------------------------------------------------------------------
-    def check_for_bcrham_failures(self, line, boundary_error_queries):
-        if line['errors'] is not None and 'no_path' in line['errors']:
+    def check_did_bcrham_fail(self, line, boundary_error_queries):
+        if line['errors'] is None:
+            return False
+        if 'no_path' in line['errors']:
             self.bcrham_failed_queries.add(line['unique_ids'])
             return True
-        if line['errors'] is not None and 'boundary' in line['errors'].split(':'):
+        if 'boundary' in line['errors'].split(':'):
             boundary_error_queries.append(':'.join([uid for uid in line['unique_ids']]))
-        else:  # we don't expect anything except boundary errors a.t.m.
-            assert len(line['errors']) == 0
+            return False  # boundary errors aren't failures, they're just telling us we had to expand the boundaries EDIT oh, wait, or does it mean it couldn't expand them enough?
+        return False
 
     # ----------------------------------------------------------------------------------------
     def read_forward_output(self, annotation_fname):
@@ -1071,7 +1073,7 @@ class PartitionDriver(object):
 
                 n_lines_read += 1
 
-                failed = self.check_for_bcrham_failures(padded_line, boundary_error_queries)
+                failed = self.check_did_bcrham_fail(padded_line, boundary_error_queries)
                 if failed:
                     continue
 
