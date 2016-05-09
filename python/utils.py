@@ -2056,7 +2056,7 @@ def auto_slurm(n_procs):
             return False
 
     ncpu = multiprocessing.cpu_count()
-    if n_procs > ncpu and slurm_exists:
+    if n_procs > ncpu and slurm_exists():
         return True
     return False
 

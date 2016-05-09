@@ -450,11 +450,16 @@ class HmmWriter(object):
                 for line in reader:
                     self.insertion_content_probs[insertion][line[insertion + '_insertion_content']] = int(line['count'])
                     total += int(line['count'])
+                if total == 0.:
+                    print '\n    WARNING zero insertion content probs read from %s, so setting to uniform distribution' % self.indir + '/' + insertion + '_insertion_content.csv'
                 for nuke in utils.nukes:
-                    if nuke not in self.insertion_content_probs[insertion]:
-                        print '    %s not in insertion content probs, adding with zero' % nuke
-                        self.insertion_content_probs[insertion][nuke] = 0
-                    self.insertion_content_probs[insertion][nuke] /= float(total)
+                    if total == 0.:
+                        self.insertion_content_probs[insertion][nuke] = 1. / len(utils.nukes)
+                    else:
+                        if nuke not in self.insertion_content_probs[insertion]:
+                            print '    %s not in insertion content probs, adding with zero' % nuke
+                            self.insertion_content_probs[insertion][nuke] = 0
+                        self.insertion_content_probs[insertion][nuke] /= float(total)
         else:
             self.insertion_content_probs[insertion] = {n : 0.25 for n in utils.nukes}
 

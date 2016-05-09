@@ -7,7 +7,6 @@ import itertools
 import operator
 import pysam
 import contextlib
-from subprocess import check_output, Popen, PIPE
 from collections import OrderedDict
 
 import utils
