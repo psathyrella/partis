@@ -1229,8 +1229,8 @@ class PartitionDriver(object):
             writer = csv.DictWriter(outfile, outheader)
             writer.writeheader()
             missing_input_keys = set(self.input_info.keys())  # all the keys we originially read from the file
-            for line in annotations.values():
-                outline = copy.deepcopy(line)  # in case we modify it
+            for full_line in annotations.values():
+                outline = copy.deepcopy(full_line)  # in case we modify it
 
                 for uid in outline['unique_ids']:  # make a note that we have an annotation for these uids (so we can see if there's any that we're missing)
                     missing_input_keys.remove(uid)
@@ -1257,14 +1257,9 @@ class PartitionDriver(object):
                 writer = csv.DictWriter(outfile, outheader)
                 writer.writeheader()
 
-                for line in annotations.values():
-                    outline = copy.deepcopy(line)  # in case we modify it
+                for full_line in annotations.values():
+                    outline = copy.deepcopy(full_line)  # in case we modify it
 
-                    if len(line['indelfos'][0]['indels']) > 0:
-                        print 'Warning can\'t yet pass indels to presto, so skipping %s' % line['unique_ids']
-                        continue
-
-                    # replace the default (erick) alignments with the "imgt-gapped" ones
                     utils.remove_all_implicit_info(outline, multi_seq=True)
                     utils.add_implicit_info(imgt_gapped_glfo, outline, multi_seq=True)
 
