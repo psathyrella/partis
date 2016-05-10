@@ -131,7 +131,7 @@ Finds the Viterbi path (i.e., the most likely annotation/alignment) for each seq
 
 ```./bin/partis run-viterbi --seqfile test/example.fa --outfname _output/example.csv```
 
-The output csv headers are listed in the table below, and you can view a colored ascii representation of the rearrangement events with `./bin/view-annotations.py <outfname>`.
+The output csv headers are listed in the table below, and you can view a colored ascii representation of the rearrangement events with the `view-annotations` action.
 
 |   column header        |  description
 |------------------------|----------------------------------------------------------------------------
@@ -171,7 +171,7 @@ Example invocation:
 
 ```./bin/partis partition --seqfile test/example.fa --outfname _output/example.csv```
 
-The output csv file headers are listed in the table below, and you can view a colored ascii representation of the clusters with `./bin/view-partitions.py <outfname>`.
+The output csv file headers are listed in the table below, and you can view a colored ascii representation of the clusters with the `view-partitions` action.
 We write one line for the most likely partition (with the lowest logprob), as well as a number of lines for the surrounding less-likely partitions (set with `--n-partitions-to-write`)
 
 |   column header  |  description
@@ -182,7 +182,7 @@ We write one line for the most likely partition (with the lowest logprob), as we
 | n_procs          |  Number of processes which were simultaneously running for this clusterpath. In practice, final output is usually only written for n_procs = 1
 
 To help visualize the clusters, you can tell it to print the most likely annotations for the final clusters with `--print-cluster-annotations`.
-If you specify both `--print-cluster-annotations` and `--outfname`, the annotations will be written to a file name generated from `--outfname` (which can be viewed as other annotations, with `./bin/view-annotations.py`).
+If you specify both `--print-cluster-annotations` and `--outfname`, the annotations will be written to a file name generated from `--outfname` (which can be viewed as other annotations, with `view-annotations`).
 
 By default, this uses the most accurate and slowest method: hierarchical agglomeration with, first, hamming distance between naive sequences for distant clsuters, and full likelihood calculation for more similar clusters.
 Like most clustering algorithms, this scales rather closer than you'd like to quadratically than it does to linearly.
@@ -200,6 +200,18 @@ The naive sequence calculation is easy to parallelize, so is fast if you have ac
 Vsearch is also very fast, because it makes a large number of heuristic approximations to avoid all-against-all comparison, and thus scales significantly better than quadratically.
 With `--n-procs` around 10 for the vsearch step, this should take only of order minutes for a million sequences.
 Since it's entirely unprincipled, this of course sacrifices significant accuracy; but since we're using inferred naive sequences it's still much, much more accurate than clustering on SHM'd sequences.
+
+##### `view-annotations`: Print (to std out) the annotations from an existing annotation output csv.
+
+To, e.g. run on the output csv from the `run-viterbi` action:
+
+``` ./bin/partis view-annotations --outfname run-viterbi-output.csv```
+
+##### `view-partitions`: Print (to std out) the partitions from an existing partition output csv.
+
+To, e.g. run on the output csv from the `partition` action:
+
+``` ./bin/partis view-partitions --outfname partition-output.csv```
 
 ##### `cache-parameters`: write out parameter values and HMM model files for a given data set
 
