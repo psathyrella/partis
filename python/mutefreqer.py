@@ -27,9 +27,12 @@ class MuteFreqer(object):
             self.mean_rates[region] = Hist(n_bins, xmin, xmax)
         self.finalized = False
 
+        self.gene_obs_counts = {}
+
         # tigger stuff
         self.tigger = True
         self.n_max_mutes = 20
+        self.n_max_bins_to_exclude = self.n_max_mutes - 5  # try excluding up to this many bins (on the left) when doing the fit
         self.n_obs_min = 10
         self.min_y_intercept = 1./8
 
@@ -49,6 +52,8 @@ class MuteFreqer(object):
             gene = info[region + '_gene']
             if gene not in self.counts:
                 self.counts[gene] = {}
+                self.gene_obs_counts[gene] = 0
+            self.gene_obs_counts[gene] += 1
             gcounts = self.counts[gene]  # temporary variable to avoid long dict access
             germline_seq = info[region + '_gl_seq']
             query_seq = info[region + '_qr_seq']
@@ -88,73 +93,140 @@ class MuteFreqer(object):
         return errs[0], errs[1]
 
     # ----------------------------------------------------------------------------------------
-    def tigger_calcs(self, position, gcounts, mean_x_icpt):
-        iterinfo = gcounts['tigger'].items()
+    def get_residual_sum(self, xvals, yvals, errs, slope, intercept):
+        def expected(x):
+            return slope * x + intercept
+        residual_sum = sum([(y - expected(x))**2 / err**2 for x, y, err in zip(xvals, yvals, errs)])
+        return residual_sum
+
+    # ----------------------------------------------------------------------------------------
+    def get_chi_squared(self, xvals, yvals, slope, intercept):
+        def expected(x):
+            return slope * x + intercept
+        chi_squared = sum([(y - expected(x))**2 / expected(x) for x, y in zip(xvals, yvals)])
+        return chi_squared
+
+    # # ----------------------------------------------------------------------------------------
+    # def get_r_squared(self, xvals, yvals, slope, intercept):
+    #     ybar = float(sum(yvals)) / len(yvals)
+    #     numer = sum([(slope * x + intercept - ybar)**2 for x in xvals])
+    #     denom = sum([(y - ybar)**2 for y in yvals])
+    #     # print '    %8.3f / %8.3f = %8.3f' % (numer, denom, numer / denom)
+    #     return numer / denom
+
+    # ----------------------------------------------------------------------------------------
+    def get_fit(self, n_mutelist, freqs, weights, errs):
+        if len(n_mutelist) < 3:
+            return {'print_str' : '    %9s +/- %-9s   %7s +/- %7s    %7s' % ('', '', '', '', '')}
+        
+        # if freqs.count(0.) == len(freqs):  # no need to fit if it's all zeros
+        #     slope = 0.
+
+        params, cov = numpy.polyfit(n_mutelist, freqs, 1, w=weights, cov=True)
+        slope, slope_err = params[0], math.sqrt(cov[0][0])
+        y_icpt, y_icpt_err = params[1], math.sqrt(cov[1][1])
+
+        # r_squared = self.get_r_squared(n_mutelist, freqs, slope, y_icpt)
+        # chi_squared = self.get_chi_squared(n_mutelist, freqs, slope, y_icpt)
+        residual_sum = self.get_residual_sum(n_mutelist, freqs, errs, slope, y_icpt)
+    
+        x_icpt, x_icpt_err = 0, 0
+        # interesting = y_icpt - 3*y_icpt_err > self.min_y_intercept  # if y_icpt minus 3 std devs don't get you below the min, it's probably a snp
+        # if interesting:
+        #     x_icpt, x_icpt_err = 0, 0
+        # else:
+        #     x_icpt = -y_icpt / slope
+        #     x_icpt_err = abs(y_icpt / slope) * math.sqrt((y_icpt_err/y_icpt)**2 + (slope_err/slope)**2)
+        #     # err_squared = x_icpt_err * x_icpt_err
+        #     # mean_x_icpt['sum'] += x_icpt / err_squared
+        #     # mean_x_icpt['total'] += 1. / err_squared
+
+        fitfo = {
+            'slope'  : slope,
+            'x_icpt' : x_icpt,
+            'y_icpt' : y_icpt,
+            'slope_err'  : slope_err,
+            'x_icpt_err' : x_icpt_err,
+            'y_icpt_err' : y_icpt_err,
+            # 'r_squared' : r_squared,
+            # 'chi_squared' : chi_squared,
+            'residual_sum' : residual_sum,
+            'print_str' : '    %9.3f +/- %-9.3f   %7.4f +/- %7.4f    %7.4f' % (y_icpt, y_icpt_err, slope, slope_err, float(residual_sum) / (len(n_mutelist) - 1)),
+        }
+
+        return fitfo
+
+    # ----------------------------------------------------------------------------------------
+    def get_tigger_xyvals(self, position, gpcounts):
+        iterinfo = gpcounts['tigger'].items()
 
         obs = [d['muted'] for nm, d in iterinfo if nm < self.n_max_mutes]
-        if sum(obs) < self.n_obs_min:  # ignore positions with only a few observed mutations
-            return None
 
         lohis = [fraction_uncertainty.err(d['muted'], d['total'], use_beta=True) for nm, d in iterinfo if nm < self.n_max_mutes]
         errs = [(hi - lo) / 2 for lo, hi, _ in lohis]
         weights = [1./(e*e) for e in errs]
 
-        freqs = [float(d['muted']) / d['total'] for nm, d in iterinfo if nm < self.n_max_mutes]
+        freqs = [float(d['muted']) / d['total'] if d['total'] > 0 else 0. for nm, d in iterinfo if nm < self.n_max_mutes]
         total = [d['total'] for nm, d in iterinfo if nm < self.n_max_mutes]
+   
+        n_mutelist = [nm for nm in gpcounts['tigger'].keys() if nm < self.n_max_mutes]
 
-        # for i in range(len(freqs)):
-        #     print '  %3d / %3d = %6.2f    %6.2f    %6.2f' % (obs[i], total[i], freqs[i], errs[i], weights[i])
-    
-        n_mutelist = [nm for nm in gcounts['tigger'].keys() if nm < self.n_max_mutes]
+        return {'obs' : obs, 'total' : total, 'n_mutelist' : n_mutelist, 'freqs' : freqs, 'errs' : errs, 'weights' : weights}
 
-        params, cov = numpy.polyfit(n_mutelist, freqs, 1, w=weights, cov=True)
-        slope, slope_err = params[0], math.sqrt(cov[0][0])
-        y_icpt, y_icpt_err = params[1], math.sqrt(cov[1][1])
-    
-        interesting = False
-        if y_icpt + y_icpt_err < 1./8:
-            x_icpt, x_icpt_err = -y_icpt / slope, abs(y_icpt / slope) * math.sqrt((y_icpt_err/y_icpt)**2 + (slope_err/slope)**2)
-            mean_x_icpt['sum'] += x_icpt / x_icpt_err
-            mean_x_icpt['total'] += 1. / x_icpt_err
-        else:
-            x_icpt, x_icpt_err = 0, 0
-            interesting = True
-        print_str = '       %3d   %9.3f +/- %-9.3f   %9.3f +/- %-9.3f   %7.4f +/- %7.4f      %3d / %3d' % (position, x_icpt, x_icpt_err, y_icpt, y_icpt_err, slope, slope_err, sum(obs), sum(total))
-        if interesting:
-            print_str = utils.color('red', print_str)
-        print print_str
+    # # ----------------------------------------------------------------------------------------
+    # def tigger_calcs(self, position, n_mutelist, freqs, weights):
+    #     fitfo = self.get_fit(n_mutelist, freqs, weights)
+    #     # print_str = '       %3d   %9.3f    %9.3f +/- %-9.3f   %9.3f +/- %-9.3f   %7.4f +/- %7.4f      %3d / %3d' % (istart, freqs[istart], fitfo['x_icpt'], fitfo['x_icpt_err'], fitfo['y_icpt'], fitfo['y_icpt_err'], fitfo['slope'], fitfo['slope_err'], sum(obs), sum(total))
+    #     print_str = '       %3d' % istart
+    #     print_str += fitfo['print_str']
+    #     print_str += '    %3d / %3d' % (sum(obs), sum(total))
+    #     if self.is_interesting(fitfo):
+    #         print_str = utils.color('red', print_str)
+    #     print print_str
 
-        plotinfo = {'n_muted' : n_mutelist, 'freqs' : freqs, 'errs' : errs, 'slope' : slope, 'intercept' : y_icpt}
-        return plotinfo
+    #     plotinfo = {'n_muted' : n_mutelist[1:], 'freqs' : freqs[1:], 'errs' : errs[1:], 'slope' : fitfo['slope'], 'intercept' : fitfo['y_icpt']}
+    #     return plotinfo
 
     # ----------------------------------------------------------------------------------------
     def finalize_tigger(self):
+
+        def is_interesting(fitfo):
+            return fitfo['y_icpt'] - 3*fitfo['y_icpt_err'] > self.min_y_intercept  # if y_icpt minus 3 std devs don't get you below the min, it's probably a snp
+
         for gene in self.counts:
             if utils.get_region(gene) != 'v':
                 continue
-            print '\n%s' % gene
-            print '     position         x-icpt                  y-icpt                   slope              mut / total'
-            mean_x_icpt = {'sum' : 0., 'total' : 0.}
-            n_calcd_positions, n_skipped_positions = 0, 0  # positions that didn't have enough observed mutations
-            for position in sorted(self.counts[gene].keys()):
-                self.freqs[gene][position]['tigger'] = self.tigger_calcs(position, self.counts[gene][position], mean_x_icpt)
-                if self.freqs[gene][position]['tigger'] is None:
-                    n_skipped_positions += 1
-                else:
-                    n_calcd_positions += 1
-            print '    %d / %d positions with more than %d observed mutations (i.e. skipped %d positions)' % (n_calcd_positions, n_calcd_positions + n_skipped_positions, self.n_obs_min, n_skipped_positions)
-            print mean_x_icpt
-            if mean_x_icpt['total'] > 0.:
-                print mean_x_icpt['sum'] / mean_x_icpt['total']
+            print '\n%s (observed %d times)' % (gene, self.gene_obs_counts[gene])
 
-        # for gene in self.freqs:
-        #     if utils.get_region(gene) != 'v':
-        #         continue
-        #     info = {p : self.freqs[gene][p]['tigger-fits'] for p in self.freqs[gene]}
-        #     x_intercepts = [-v['intercept'] / v['slope'] for k, v in info.items() if v['intercept'] is not None and v['intercept'] < 0.3]
-        #     print sorted(x_intercepts)
-        #     print sum(x_intercepts) / float(len(x_intercepts))
-        #     print numpy.median(x_intercepts)
+            xyvals = {}
+            for position in sorted(self.counts[gene].keys()):
+                xyvals[position] = self.get_tigger_xyvals(position, self.counts[gene][position])
+
+            for istart in range(1, self.n_max_bins_to_exclude):
+                print 'istart %3d' % istart
+                print '      position            y-icpt                   slope              mut / total'
+                n_calcd_positions, n_skipped_positions = 0, 0  # positions that didn't have enough observed mutations
+                total_residuals, total_ndof = 0, 0
+                for position in sorted(self.counts[gene].keys()):
+                    subxyvals = {k : v[istart:] for k, v in xyvals[position].items()}
+                    if sum(subxyvals['obs']) < self.n_obs_min:  # ignore positions with only a few observed mutations
+                        n_skipped_positions += 1
+                        continue
+
+                    n_calcd_positions += 1
+                    fitfo = self.get_fit(subxyvals['n_mutelist'], subxyvals['freqs'], subxyvals['weights'], subxyvals['errs'])
+                    total_residuals += fitfo['residual_sum']
+                    total_ndof += len(subxyvals['n_mutelist'])
+
+                    print_str = '        %3d   %s       %3d / %3d' % (position, fitfo['print_str'], sum(subxyvals['obs']), sum(subxyvals['total']))
+                    if is_interesting(fitfo):
+                        print_str = utils.color('red', print_str)
+                    print print_str
+                    # self.freqs[gene][position]['tigger'] = 
+
+                print '   %8.3f = %8.3f / %8.3f total residual' % (float(total_residuals) / (total_ndof - 1), total_residuals, total_ndof - 1)
+                print '          %d / %d positions with more than %d observed mutations (i.e. skipped %d positions)' % (n_calcd_positions, n_calcd_positions + n_skipped_positions, self.n_obs_min, n_skipped_positions)
+        sys.exit(1)
 
     # ----------------------------------------------------------------------------------------
     def finalize(self):
@@ -222,15 +294,15 @@ class MuteFreqer(object):
             self.mean_rates[region].write(mean_freq_outfname.replace('REGION', region))
 
     # ----------------------------------------------------------------------------------------
-    def tigger_plot(self, plotdir, only_csv=False):
+    def tigger_plot(self, gene, plotdir, only_csv=False):
         if only_csv:  # not implemented
             return
-        for gene in self.freqs:
-            if utils.get_region(gene) != 'v':
-                continue
-            for position in self.freqs[gene]:
-                if self.freqs[gene][position]['tigger'] is not None:
-                    plotting.make_tigger_plot(plotdir + '/tigger/' + utils.sanitize_name(gene), gene, position, self.freqs[gene][position]['tigger'])
+        if utils.get_region(gene) != 'v':
+            return
+        utils.prep_dir(plotdir, multilings=('*.csv', '*.svg'))
+        for position in self.freqs[gene]:
+            if self.freqs[gene][position]['tigger'] is not None:
+                plotting.make_tigger_plot(plotdir, gene, position, self.freqs[gene][position]['tigger'])
 
     # ----------------------------------------------------------------------------------------
     def plot(self, base_plotdir, cyst_positions=None, tryp_positions=None, only_csv=False):
@@ -243,8 +315,6 @@ class MuteFreqer(object):
         for region in utils.regions:
             utils.prep_dir(plotdir + '/' + region, multilings=('*.csv', '*.svg'))
             # utils.prep_dir(plotdir + '/' + region + '-per-base/plots', multilings=('*.csv', '*.png'))
-        if self.tigger:
-            utils.prep_dir(plotdir + '/tigger', multilings=('*.csv', '*.svg'))
 
         for gene in self.freqs:
             freqs = self.freqs[gene]
@@ -267,13 +337,13 @@ class MuteFreqer(object):
             # per-base plots:
             # paramutils.make_mutefreq_plot(plotdir + '/' + utils.get_region(gene) + '-per-base', utils.sanitize_name(gene), plotting_info)  # needs translation to mpl
 
+            if self.tigger:
+                self.tigger_plot(gene, plotdir + '/tigger/' + utils.sanitize_name(gene), only_csv)
+
         # make mean mute freq hists
         plotting.draw_no_root(self.mean_rates['all'], plotname='all-mean-freq', plotdir=overall_plotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True, only_csv=only_csv)
         for region in utils.regions:
             plotting.draw_no_root(self.mean_rates[region], plotname=region+'-mean-freq', plotdir=overall_plotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True, only_csv=only_csv)
-
-        if self.tigger:
-            self.tigger_plot(plotdir, only_csv)
 
         if not only_csv:  # write html file and fix permissiions
             plotting.make_html(overall_plotdir)

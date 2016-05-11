@@ -1136,9 +1136,9 @@ def make_html(plotdir, n_columns=3, extension='svg'):
 def make_tigger_plot(plotdir, gene, position, values):
     xmin, xmax = 0, 30
     fig, ax = mpl_init()
-    ax.errorbar(values['n_muted'], values['freqs'], yerr=values['errs'], markersize=10, linewidth=1, marker='.', label=str(position))
-    linevals = [values['slope']*x + values['intercept'] for x in [0] + values['n_muted']]
-    ax.plot([0] + values['n_muted'], linevals)
+    ax.errorbar(values['n_mutelist'], values['freqs'], yerr=values['errs'], markersize=10, linewidth=1, marker='.', label=str(position))
+    linevals = [values['slope']*x + values['intercept'] for x in [0] + values['n_mutelist']]
+    ax.plot([0] + values['n_mutelist'], linevals)
 
     ax.plot([xmin, xmax], [0, 0], linestyle='dashed', alpha=0.5, color='black')
     mpl_finish(ax, plotdir, str(position), xlabel='mutations in %s segment' % utils.get_region(gene), ylabel='position\'s mut freq', xbounds=(xmin, xmax), ybounds=(-0.1, 1.05), leg_loc=(0.95, 0.1), adjust={'right' : 0.85})
