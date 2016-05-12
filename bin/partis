@@ -16,8 +16,8 @@ from partitiondriver import PartitionDriver
 
 # ----------------------------------------------------------------------------------------
 def default_parameter_dir(args):
-    if args.seqfile is not None:
-        label = os.path.basename(args.seqfile[ : args.seqfile.rfind('.')])
+    if args.infname is not None:
+        label = os.path.basename(args.infname[ : args.infname.rfind('.')])
     else:
         label = 'no-need-for-a-name'
     pdir = '_output/' + label
@@ -58,8 +58,8 @@ def run_simulation(args):
         raise Exception('--n-sim-events has to be a positivie number')
     if args.slurm:
         raise Exception('simulator parallelization does not handle slurm')
-    if args.seqfile is not None:
-        print '  NOTE --seqfile is not used when simulating'
+    if args.infname is not None:
+        print '  NOTE --infname is not used when simulating'
     if args.n_max_queries != -1:
         print '  NOTE --n-max-queries is not used when simulating (use --n-sim-events to set the simulated number of rearrangemt events)'
 
@@ -115,8 +115,8 @@ def run_partitiondriver(args):
         raise Exception('n-max-per-region should be of the form \'x:y:z\', but I got ' + str(args.n_max_per_region))
     if len(args.match_mismatch) != 2:
         raise Exception('match-mismatch should be of the form \'match:mismatch\', but I got ' + str(args.n_max_per_region))
-    if args.seqfile is None:
-        raise Exception('--seqfile is required for the \'%s\' action' % args.action)
+    if args.infname is None:
+        raise Exception('--infname is required for the \'%s\' action' % args.action)
 
     parter = PartitionDriver(args)
 
@@ -156,17 +156,6 @@ def view_existing_output(args):
         assert False
 
 # ----------------------------------------------------------------------------------------
-if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
-    print '    TODO make things completely assertion/exception safe, i.e. if you catch one, that causes a failure on that one sequence only'
-    print '    TODO see about varying the naive hfrac thresholds -- especially lowering the lower bound (try to do this by exploiting something about the difference between hfrac and lratio'
-    print '              [e.g. where the hfrac differences are? or maybe hfrac averaged over the top N annotations?]) i.e. find what kinds of clones hfrac and lratio disagree on'
-    print '    TODO test on simulation samples that are *hard*, i.e. that all have the same VJ and cdr3 length'
-    print '    TODO hfrac thresholds should maybe depend on how much of which regions (v/d/j) we have'
-    print '    TODO add progress info for viterbi'
-    print '    TODO add emissions rescaling to bcrham scons test'
-    print '    TODO work out what to do with regional total scores for per-gene support'
-
-# ----------------------------------------------------------------------------------------
 rows, columns = [int(v) for v in check_output(['stty', 'size']).split()]  # get actual tty height and width
 formatter_class = lambda prog: argparse.HelpFormatter(prog, max_help_position=columns, width=columns)
 parser = argparse.ArgumentParser(formatter_class=formatter_class)
@@ -183,7 +172,8 @@ parent_parser.add_argument('--seed', type=int, default=int(time.time()), help='R
 parent_parser.add_argument('--no-indels', action='store_true', help='Skip smith-waterman matches that include indels. Note that this just *skips* them, you probably also want to increase the gap-open penalty to prevent vdjalign from finding them in the first place.')
 parent_parser.add_argument('--no-random-divvy', action='store_true', help='Don\'t shuffle the order of the input sequences before passing on to ham')  # it's imperative to shuffle if you're partitioning on simulation, or if you're partitioning with more than one process. But it may also be kinda slow.
 parent_parser.add_argument('--only-csv-plots', action='store_true', help='only write csv plots')
-parent_parser.add_argument('--seqfile', help='input sequence file')
+parent_parser.add_argument('--seqfile', help='DEPRECATED use --infname instead')
+parent_parser.add_argument('--infname', help='input sequence file in .fa, .fq or .csv (if .csv, specify id string and sequence headers with --name-column and --seq-column)')
 parent_parser.add_argument('--name-column', default='unique_id', help='csv column name for sequence ids')
 parent_parser.add_argument('--seq-column', default='seq', help='csv column name for nucleotide sequences')
 parent_parser.add_argument('--parameter-dir', help='Directory to/from which to write/read sample-specific parameters. If not specified, we assume we should cache new parameters.')
@@ -292,6 +282,10 @@ args.only_genes = utils.get_arg_list(args.only_genes)
 args.n_procs = utils.get_arg_list(args.n_procs, intify=True)
 args.n_fewer_procs = args.n_procs[0] if len(args.n_procs) == 1 else args.n_procs[1]
 args.n_procs = args.n_procs[0]
+
+if args.seqfile is not None and args.infname is None:
+    print '  note: moving contents of deprecated option --seqfile into its replacement --infname'
+    args.infname = args.seqfile
 
 # if n_procs < 1 or n_procs > 9999:  # It happened, at least once. You know, probably.
 #     raise Exception('bad n_procs %s' % n_procs)

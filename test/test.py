@@ -79,10 +79,10 @@ class Tester(object):
                     args['input_stype'] = input_stype
                     if namelist[-1] == 'simu':
                         args['extras'] += ['--is-simu', ]
-                        args['extras'] += ['--seqfile', self.simfnames[input_stype]]
+                        args['extras'] += ['--infname', self.simfnames[input_stype]]
                         args['extras'] += ['--parameter-dir', param_dirs[input_stype]['simu']]
                     elif namelist[-1] == 'data':
-                        args['extras'] += ['--seqfile', self.datafname]
+                        args['extras'] += ['--infname', self.datafname]
                         args['extras'] += ['--parameter-dir', param_dirs[input_stype]['data']]
                     else:
                         raise Exception('-'.join(namelist))
