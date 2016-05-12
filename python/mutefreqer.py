@@ -152,8 +152,7 @@ class MuteFreqer(object):
             'y_icpt_err' : y_icpt_err,
             # 'r_squared' : r_squared,
             # 'chi_squared' : chi_squared,
-            'residual_sum' : residual_sum,
-            'ndof' : ndof,
+            'residuals_over_ndof' : float(residual_sum) / ndof,
             'print_str' : '    %9.3f +/- %-9.3f   %7.4f +/- %7.4f    %7.4f' % (y_icpt, y_icpt_err, slope, slope_err, float(residual_sum) / ndof),
         }
 
@@ -176,20 +175,6 @@ class MuteFreqer(object):
 
         return {'obs' : obs, 'total' : total, 'n_mutelist' : n_mutelist, 'freqs' : freqs, 'errs' : errs, 'weights' : weights}
 
-    # # ----------------------------------------------------------------------------------------
-    # def tigger_calcs(self, position, n_mutelist, freqs, weights):
-    #     fitfo = self.get_fit(n_mutelist, freqs, weights)
-    #     # print_str = '       %3d   %9.3f    %9.3f +/- %-9.3f   %9.3f +/- %-9.3f   %7.4f +/- %7.4f      %3d / %3d' % (istart, freqs[istart], fitfo['x_icpt'], fitfo['x_icpt_err'], fitfo['y_icpt'], fitfo['y_icpt_err'], fitfo['slope'], fitfo['slope_err'], sum(obs), sum(total))
-    #     print_str = '       %3d' % istart
-    #     print_str += fitfo['print_str']
-    #     print_str += '    %3d / %3d' % (sum(obs), sum(total))
-    #     if self.is_interesting(fitfo):
-    #         print_str = utils.color('red', print_str)
-    #     print print_str
-
-    #     plotinfo = {'n_muted' : n_mutelist[1:], 'freqs' : freqs[1:], 'errs' : errs[1:], 'slope' : fitfo['slope'], 'intercept' : fitfo['y_icpt']}
-    #     return plotinfo
-
     # ----------------------------------------------------------------------------------------
     def big_y_intercept(self, y_icpt, y_icpt_err):
         return y_icpt - 2*y_icpt_err > self.min_y_intercept  # if y_icpt minus two std devs don't get you below the min, it's probably a snp
@@ -198,7 +183,10 @@ class MuteFreqer(object):
     def find_istart_of_interest(self, residuals, y_icpts, y_icpt_errs, debug=False):
         min_residual_ratio = 5.
         fraction_defining_most = 4. / 5
+        min_bad_fit_val = 5.
+        max_good_fit_val = 2.5
 
+        # ----------------------------------------------------------------------------------------
         def interesting_residuals(istart):
             # require that the fits gets dramatically better at this point
             if residuals[istart-1] / residuals[istart] < min_residual_ratio:
@@ -207,31 +195,32 @@ class MuteFreqer(object):
                 return False
 
             # require that fits are uniformly crappy to left of here
-            crappy_fit_val = 5.
-            if float(sum(residuals[:istart])) / istart < crappy_fit_val:
+            left_residuals = residuals[:istart]
+            if float(sum(left_residuals)) / len(left_residuals) < min_bad_fit_val:
                 if debug:
-                    print '      fits to left aren\'t bad enough: %.2f / %d = %.2f < %.2f' % (float(sum(residuals[:istart])), istart, float(sum(residuals[:istart])) / istart, crappy_fit_val)
+                    print '      fits to left aren\'t bad enough: %.2f / %d = %.2f < %.2f' % (float(sum(left_residuals)), len(left_residuals), float(sum(left_residuals)) / len(left_residuals), min_bad_fit_val)
                 return False
 
             # and uniformly good above here
-            other_crappy_fit_val = 2.5
-            if float(sum(residuals[istart + 1 :])) / (len(residuals) - istart - 1) > other_crappy_fit_val:
+            right_residuals = residuals[istart + 1 :]
+            if float(sum(right_residuals)) / len(right_residuals) > max_good_fit_val:
                 if debug:
-                    print istart
-                    print residuals
-                    print '      fits to right aren\'t good enough: %.2f / %d = %.2f > %.2f' % (float(sum(residuals[istart + 1 :])), (len(residuals) - istart - 1), float(sum(residuals[istart + 1 :])) / (len(residuals) - istart - 1), other_crappy_fit_val)
+                    print '      fits to right aren\'t good enough: %.2f / %d = %.2f > %.2f' % (float(sum(right_residuals)), len(right_residuals), float(sum(right_residuals)) / len(right_residuals), max_good_fit_val)
                 return False
 
             return True
 
+        # ----------------------------------------------------------------------------------------
         def interesting_y_icpts(istart):
+            # require this y intercept to be big
             if not self.big_y_intercept(y_icpts[istart], y_icpt_errs[istart]):
                 if debug:
                     print '      y intercept not big enough %.2f - 2*%.2f = %.2f' % (y_icpts[istart], y_icpt_errs[istart], y_icpts[istart] - 2*y_icpt_errs[istart])
                 return False
 
-            # require that most of the istarts above <istart> also have large y intercepts
+            # require that most of the istarts above here also have large y intercepts
             big_y_list = [self.big_y_intercept(y_icpts[i], y_icpt_errs[i]) for i in range(istart + 1, len(y_icpts))]
+            print float(big_y_list.count(True)), len(big_y_list), float(big_y_list.count(True)) / len(big_y_list)
             if float(big_y_list.count(True)) / len(big_y_list) < fraction_defining_most:
                 if debug:
                     print '      too many small y intercepts to right of here'
@@ -239,6 +228,7 @@ class MuteFreqer(object):
 
             return True
             
+        # ----------------------------------------------------------------------------------------
         istart_of_interest = None
         for istart in range(1, len(residuals)):
             if debug:
@@ -247,7 +237,7 @@ class MuteFreqer(object):
                 if debug:
                     print '      none-type residual'
                 continue
-            if interesting_residuals(istart) and interesting_y_icpts(istart):
+            if interesting_y_icpts(istart) and interesting_residuals(istart):
                 if istart_of_interest is not None:
                     raise Exception('  multiple istarts of interest')
                 istart_of_interest = istart
@@ -256,22 +246,17 @@ class MuteFreqer(object):
 
     # ----------------------------------------------------------------------------------------
     def find_positions_of_interest(self, fitfo, positions, debug=False):
-        for position in positions:
-            residuals, y_icpts, y_icpt_errs = [], [], []
-            for istart in fitfo:
-                # residuals = [f['residual_sum'] for f in fitfo[istart][position] for istart in fitfo]
-                if position in fitfo[istart]:
-                    residuals.append(float(fitfo[istart][position]['residual_sum']) / fitfo[istart][position]['ndof'])
-                    y_icpts.append(fitfo[istart][position]['y_icpt'])
-                    y_icpt_errs.append(fitfo[istart][position]['y_icpt_err'])
-                else:
-                    residuals.append(None)
-                    y_icpts.append(None)
-                    y_icpt_errs.append(None)
 
+        def get_fit_list(pos, key):
+            return [fitfo[istart][pos][key] if pos in fitfo[istart] else None for istart in fitfo]
+
+        for position in positions:
+            if position != 20:
+                continue
             if debug:
                 print position
-            istart_of_interest = self.find_istart_of_interest(residuals, y_icpts, y_icpt_errs, debug=debug)
+            fitlists = {k : get_fit_list(position, k) for k in ['residuals_over_ndof', 'y_icpt', 'y_icpt_err']}
+            istart_of_interest = self.find_istart_of_interest(fitlists['residuals_over_ndof'], fitlists['y_icpt'], fitlists['y_icpt_err'], debug=debug)
             if istart_of_interest is not None:
                 print '  interesting: %d for position %d' % (istart_of_interest, position)
 
@@ -287,10 +272,8 @@ class MuteFreqer(object):
                 continue
             print '\n%s (observed %d times)' % (gene, self.gene_obs_counts[gene])
 
-            xyvals = {}
             positions = sorted(self.counts[gene].keys())
-            for position in positions:
-                xyvals[position] = self.get_tigger_xyvals(position, self.counts[gene][position])
+            xyvals = {pos : self.get_tigger_xyvals(pos, self.counts[gene][pos]) for pos in positions}
 
             fitfo = OrderedDict()
             for istart in range(self.n_max_bins_to_exclude):
@@ -314,7 +297,7 @@ class MuteFreqer(object):
 
                     # self.freqs[gene][position]['tigger'] =
 
-                print '          %d / %d positions with more than %d observed mutations (i.e. skipped %d positions)' % (n_calcd_positions, n_calcd_positions + n_skipped_positions, self.n_obs_min, n_skipped_positions)
+                print '          skipped %d / %d positions (with fewer than %d observed mutations)' % (n_skipped_positions, n_calcd_positions + n_skipped_positions, self.n_obs_min)
 
             self.find_positions_of_interest(fitfo, positions)
 
