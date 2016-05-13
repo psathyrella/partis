@@ -43,8 +43,7 @@ class MuteFreqer(object):
         self.min_y_intercept = 1./8
 
         self.default_slope_bounds = (-0.2, 0.2)
-        self.big_y_icpt_bounds = (0.2, 1.5)
-        # self.default_y_icpt_bounds = 
+        self.big_y_icpt_bounds = (0.3, 1.5)
 
     # ----------------------------------------------------------------------------------------
     def increment(self, info):
@@ -363,16 +362,11 @@ class MuteFreqer(object):
                 score = 0.
                 if len(candidate_snps) > 0:  # mean over variance
                     reslist = [residual_improvement[cs] for cs in candidate_snps]
-                    score = numpy.mean(reslist) / numpy.var(reslist)
-                # median_improvement = 0.
-                # if len(candidate_snps) > 0:
-                #     median_improvement = numpy.median([residual_improvement[cs] for cs in candidate_snps])
+                    score = numpy.mean(reslist) #/ numpy.var(reslist)
                 for cpos in candidate_snps:
                     print '            %3d   %5.2f   (%5.2f / %-5.2f)        %s       %3d / %3d' % (cpos, residual_improvement[cpos], both_residuals[cpos]['zero_icpt'], both_residuals[cpos]['big_icpt'], fitfo[istart][cpos]['print_str'], sum(subxyvals[cpos]['obs']), sum(subxyvals[cpos]['total']))
                 print '    %5.3f' % score
                 istart_rankings[istart] = score
-                # print '    %5.3f' % (median_improvement)
-                # istart_rankings[istart] = median_improvement
 
             sorted_istart_rankings = sorted(istart_rankings.items(), key=operator.itemgetter(1), reverse=True)
             print '  best istarts (number of snps)'
