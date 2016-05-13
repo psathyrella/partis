@@ -33,7 +33,6 @@ class MuteFreqer(object):
         self.gene_obs_counts = {}
 
         # tigger stuff
-        self.big_number = 99999.
         self.small_number = 1e-5
         self.dbg_pos = None #20
         self.tigger = True
@@ -42,7 +41,10 @@ class MuteFreqer(object):
         self.n_max_bins_to_exclude = self.n_max_mutes - 8  # try excluding up to this many bins (on the left) when doing the fit (leaves at least 8 points for fit)
         self.n_obs_min = 10
         self.min_y_intercept = 1./8
-        self.y_icpt_constraint = 0.2
+
+        self.default_slope_bounds = (-0.2, 0.2)
+        self.big_y_icpt_bounds = (0.2, 1.5)
+        # self.default_y_icpt_bounds = 
 
     # ----------------------------------------------------------------------------------------
     def increment(self, info):
@@ -169,16 +171,18 @@ class MuteFreqer(object):
         return fitfo
 
     # ----------------------------------------------------------------------------------------
-    def get_curvefit(self, n_mutelist, freqs, weights, errs, y_icpt_bounds=None):
+    def get_curvefit(self, pos, n_mutelist, freqs, weights, errs, y_icpt_bounds=None):
+        # if pos == 20:
+        #     for l in [n_mutelist, freqs, weights, errs]:
+        #         print '    %25s   %s' % ('', ' '.join(['%8.3f' % r for r in l]))
 
         def func(x, slope, y_icpt):
             return slope*x + y_icpt
 
-        bounds = [[-self.big_number, -self.big_number], [self.big_number, self.big_number]]
+        bounds = (-float('inf'), float('inf'))
         if y_icpt_bounds is not None:
-            bounds[0][1] = y_icpt_bounds[0]
-            bounds[1][1] = y_icpt_bounds[1]
-        params, cov = scipy.optimize.curve_fit(func, n_mutelist, freqs, sigma=weights, bounds=bounds)
+            bounds = [[s, y] for s, y in zip(self.default_slope_bounds, y_icpt_bounds)]
+        params, cov = scipy.optimize.curve_fit(func, n_mutelist, freqs, sigma=errs, bounds=bounds)
         slope, slope_err = params[0], math.sqrt(cov[0][0])
         y_icpt, y_icpt_err = params[1], math.sqrt(cov[1][1])
         residual_sum = self.get_residual_sum(n_mutelist, freqs, errs, slope, y_icpt)
@@ -322,8 +326,10 @@ class MuteFreqer(object):
             if debug:
                 print '          skipping %d / %d positions (with fewer than %d observed mutations)' % (len(positions) - len(positions_to_fit), len(positions), self.n_obs_min)
 
+            istart_rankings = {}
             fitfo = OrderedDict()
             for istart in range(self.n_max_bins_to_exclude):
+                print 'istart %3d' % istart
                 if debug or self.dbg_pos is not None:
                     print 'istart %3d' % istart
                     if istart == 0:
@@ -332,30 +338,46 @@ class MuteFreqer(object):
                 subxyvals = {pos : {k : v[istart:] for k, v in xyvals[pos].items()} for pos in positions_to_fit}
 
                 fitfo[istart] = OrderedDict()
+                both_residuals = {}
                 residual_improvement = {}  # ratio of the fit with zero intercept to the fit with big intercept
                 for pos in positions_to_fit:
-                    zero_icpt_fit = self.get_curvefit(subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['weights'], subxyvals[pos]['errs'], y_icpt_bounds=(0. - self.small_number, 0. + self.small_number))
-                    big_icpt_fit = self.get_curvefit(subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['weights'], subxyvals[pos]['errs'], y_icpt_bounds=(self.y_icpt_constraint, self.big_number))
+                    unconstrained_fit = self.get_curvefit(pos, subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['weights'], subxyvals[pos]['errs'])
+                    zero_icpt_fit = self.get_curvefit(pos, subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['weights'], subxyvals[pos]['errs'], y_icpt_bounds=(0. - self.small_number, 0. + self.small_number))
+                    big_icpt_fit = self.get_curvefit(pos, subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['weights'], subxyvals[pos]['errs'], y_icpt_bounds=self.big_y_icpt_bounds)
                     residual_improvement[pos] = zero_icpt_fit['residuals_over_ndof'] / big_icpt_fit['residuals_over_ndof']
-                    fitfo[istart][pos] = big_icpt_fit
+                    both_residuals[pos] = {'zero_icpt' : zero_icpt_fit['residuals_over_ndof'], 'big_icpt' : big_icpt_fit['residuals_over_ndof']}
+                    # if pos == 20 or pos == 77 or pos == 281:
+                    #     print '    ', pos
+                    #     print '  ', zero_icpt_fit['print_str']
+                    #     print '  ', big_icpt_fit['print_str']
+                    #     # for key in subxyvals[pos]:
+                    #     #     print '    %25s   %s' % (key, ' '.join(['%8.3f' % r for r in subxyvals[pos][key]]))
+                    fitfo[istart][pos] = unconstrained_fit
                     # if debug or pos == self.dbg_pos:
                     #     print '            %3d   %s       %3d / %3d' % (pos, zero_icpt_fit['print_str'], sum(subxyvals[pos]['obs']), sum(subxyvals[pos]['total']))
                     #     print '                  %s                ' % (big_icpt_fit['print_str'])
                     if istart == 0:
                         self.freqs[gene][pos]['tigger'] = fitfo[istart][pos]
-                # normed_residuals = {pos : ffo['residuals_over_ndof'] for pos, ffo in fitfo[istart].items()}
-                # normed_residuals = sorted(normed_residuals.items(), key=operator.itemgetter(1), reverse=True)
-                # print normed_residuals
                 sorted_residual_improvement = sorted(residual_improvement.items(), key=operator.itemgetter(1), reverse=True)
                 candidate_snps = [pos for pos, _ in sorted_residual_improvement[:istart]]
-                mean_improvement = 0.
-                if len(candidate_snps) > 0:
-                    mean_improvement = sum([residual_improvement[cs] for cs in candidate_snps]) / len(candidate_snps)
-                print 'istart  %3d   %5.3f' % (istart, mean_improvement)
+                score = 0.
+                if len(candidate_snps) > 0:  # mean over variance
+                    reslist = [residual_improvement[cs] for cs in candidate_snps]
+                    score = numpy.mean(reslist) / numpy.var(reslist)
+                # median_improvement = 0.
+                # if len(candidate_snps) > 0:
+                #     median_improvement = numpy.median([residual_improvement[cs] for cs in candidate_snps])
                 for cpos in candidate_snps:
-                    print '            %3d   %5.2f    %s       %3d / %3d' % (cpos, residual_improvement[cpos], fitfo[istart][cpos]['print_str'], sum(subxyvals[cpos]['obs']), sum(subxyvals[cpos]['total']))
-                # sys.exit()
+                    print '            %3d   %5.2f   (%5.2f / %-5.2f)        %s       %3d / %3d' % (cpos, residual_improvement[cpos], both_residuals[cpos]['zero_icpt'], both_residuals[cpos]['big_icpt'], fitfo[istart][cpos]['print_str'], sum(subxyvals[cpos]['obs']), sum(subxyvals[cpos]['total']))
+                print '    %5.3f' % score
+                istart_rankings[istart] = score
+                # print '    %5.3f' % (median_improvement)
+                # istart_rankings[istart] = median_improvement
 
+            sorted_istart_rankings = sorted(istart_rankings.items(), key=operator.itemgetter(1), reverse=True)
+            print '  best istarts (number of snps)'
+            for istart, impr in sorted_istart_rankings:
+                print '    %2d  %5.3f' % (istart, impr)
         # sys.exit()
 
     # ----------------------------------------------------------------------------------------

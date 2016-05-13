@@ -33,7 +33,7 @@ cmd_str = base_cmd + ' simulate --parameter-dir ' + original_param_dir + ' --n-s
 cmd_str += ' --only-genes ' + existing_genes + ':' + new_allele
 cmd_str += ' --uniform-vj-choice-probs'
 cmd_str += ' --outfname ' + outdir + '/simu.csv'
-# run(cmd_str)
+run(cmd_str)
 
 snps_to_add = None #{'IGHV3-71*03' : 4} #{'IGHV3-69-1*02' : 3}
 utils.rewrite_germline_fasta('data/imgt', outdir + '/germlines', only_genes=existing_genes.split(':'), snps_to_add=snps_to_add)
