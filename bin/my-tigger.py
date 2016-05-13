@@ -19,7 +19,7 @@ def run(cmd_str):
     sys.stdout.flush()
     check_call(cmd_str.split())
 
-outdir = '_tmp/my-tigger'
+outdir = '_tmp/allele-finder'
 # param_dir = os.getcwd() + '/test/reference-results/test/parameters/simu/hmm'
 original_param_dir = '/fh/fast/matsen_e/dralph/work/partis-dev/_output/021-018/simu-3-leaves-1.0-mutate/hmm'
 base_cmd = './bin/partis'
@@ -36,10 +36,10 @@ cmd_str += ' --outfname ' + outdir + '/simu.csv'
 # run(cmd_str)
 
 snps_to_add = None #{'IGHV3-71*03' : 4} #{'IGHV3-69-1*02' : 3}
-# utils.rewrite_germline_fasta('data/imgt', outdir + '/germlines', only_genes=existing_genes.split(':'), snps_to_add=snps_to_add)
+utils.rewrite_germline_fasta('data/imgt', outdir + '/germlines', only_genes=existing_genes.split(':'), snps_to_add=snps_to_add)
 
 # cache-parameters
-cmd_str = base_cmd + ' cache-parameters --seqfile ' + outdir + '/simu.csv' + ' --n-procs 10'
+cmd_str = base_cmd + ' cache-parameters --infname ' + outdir + '/simu.csv' + ' --n-procs 10'
 cmd_str += ' --datadir ' + outdir + '/germlines'
 cmd_str += ' --only-genes ' + existing_genes
 cmd_str += ' --parameter-dir ' + outdir + '/simu'
@@ -47,7 +47,7 @@ cmd_str += ' --plotdir ' + os.getenv('www') + '/partis/tmp/tigger'
 run(cmd_str)
 
 # annotate
-cmd_str = base_cmd + ' run-viterbi --seqfile ' + outdir + '/simu.csv --n-procs 10'
+cmd_str = base_cmd + ' run-viterbi --infname ' + outdir + '/simu.csv --n-procs 10'
 # cmd_str += ' --presto-output'
 # cmd_str += ' --only-genes ' + existing_genes
 cmd_str += ' --parameter-dir ' + outdir + '/simu'
