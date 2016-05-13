@@ -7,6 +7,8 @@ from subprocess import check_call
 import numpy
 import csv
 from collections import OrderedDict
+import operator
+import scipy
 
 import plotting
 
@@ -31,6 +33,8 @@ class MuteFreqer(object):
         self.gene_obs_counts = {}
 
         # tigger stuff
+        self.big_number = 99999.
+        self.small_number = 1e-5
         self.dbg_pos = None #20
         self.tigger = True
         self.n_max_mutes = 20
@@ -38,6 +42,7 @@ class MuteFreqer(object):
         self.n_max_bins_to_exclude = self.n_max_mutes - 8  # try excluding up to this many bins (on the left) when doing the fit (leaves at least 8 points for fit)
         self.n_obs_min = 10
         self.min_y_intercept = 1./8
+        self.y_icpt_constraint = 0.2
 
     # ----------------------------------------------------------------------------------------
     def increment(self, info):
@@ -164,6 +169,35 @@ class MuteFreqer(object):
         return fitfo
 
     # ----------------------------------------------------------------------------------------
+    def get_curvefit(self, n_mutelist, freqs, weights, errs, y_icpt_bounds=None):
+
+        def func(x, slope, y_icpt):
+            return slope*x + y_icpt
+
+        bounds = [[-self.big_number, -self.big_number], [self.big_number, self.big_number]]
+        if y_icpt_bounds is not None:
+            bounds[0][1] = y_icpt_bounds[0]
+            bounds[1][1] = y_icpt_bounds[1]
+        params, cov = scipy.optimize.curve_fit(func, n_mutelist, freqs, sigma=weights, bounds=bounds)
+        slope, slope_err = params[0], math.sqrt(cov[0][0])
+        y_icpt, y_icpt_err = params[1], math.sqrt(cov[1][1])
+        residual_sum = self.get_residual_sum(n_mutelist, freqs, errs, slope, y_icpt)
+        ndof = len(n_mutelist) - 1
+        fitfo = {
+            'slope'  : slope,
+            'y_icpt' : y_icpt,
+            'slope_err'  : slope_err,
+            'y_icpt_err' : y_icpt_err,
+            'residuals_over_ndof' : float(residual_sum) / ndof,
+            'print_str' : '    %9.3f +/- %-9.3f   %7.4f +/- %7.4f    %7.4f' % (y_icpt, y_icpt_err, slope, slope_err, float(residual_sum) / ndof),
+            'n_mutelist' : n_mutelist,
+            'freqs' : freqs,
+            'errs' : errs
+        }
+
+        return fitfo
+
+    # ----------------------------------------------------------------------------------------
     def get_tigger_xyvals(self, position, gpcounts):
         iterinfo = gpcounts['tigger'].items()
 
@@ -275,14 +309,8 @@ class MuteFreqer(object):
 
         return interesting_positions
 
-    # # ----------------------------------------------------------------------------------------
-    # def simulfit(self, istart, positions_to_fit, subxyvals, debug=False):
-    #     n_snps = istart  # e.g. with 3 snps we start with the fourth position, which is at index 3
-    #     for position in positions_to_fit:
-            
-
     # ----------------------------------------------------------------------------------------
-    def finalize_tigger(self, debug=True):
+    def finalize_tigger(self, debug=False):
         for gene in self.counts:
             if utils.get_region(gene) != 'v':
                 continue
@@ -301,27 +329,32 @@ class MuteFreqer(object):
                     if istart == 0:
                         print '          position            y-icpt                   slope           residuals       mut / total'
 
-                # all_subxyvals = {pos : {k : v[istart:] for pos in positions_to_fit for k, v in xyvals[pos].items()}}
-                # self.simulfit(all_subxyvals, debug=debug)
+                subxyvals = {pos : {k : v[istart:] for k, v in xyvals[pos].items()} for pos in positions_to_fit}
 
                 fitfo[istart] = OrderedDict()
-                for position in positions_to_fit:
-                    subxyvals = {k : v[istart:] for k, v in xyvals[position].items()}
-
-                    fitfo[istart][position] = self.get_fit(subxyvals['n_mutelist'], subxyvals['freqs'], subxyvals['weights'], subxyvals['errs'])
-
-                    if debug or position == self.dbg_pos:
-                        print_str = '            %3d   %s       %3d / %3d' % (position, fitfo[istart][position]['print_str'], sum(subxyvals['obs']), sum(subxyvals['total']))
-                        if self.big_y_intercept(fitfo[istart][position]['y_icpt'], fitfo[istart][position]['y_icpt_err']):
-                            print_str = utils.color('red', print_str)
-                        print print_str
-
+                residual_improvement = {}  # ratio of the fit with zero intercept to the fit with big intercept
+                for pos in positions_to_fit:
+                    zero_icpt_fit = self.get_curvefit(subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['weights'], subxyvals[pos]['errs'], y_icpt_bounds=(0. - self.small_number, 0. + self.small_number))
+                    big_icpt_fit = self.get_curvefit(subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['weights'], subxyvals[pos]['errs'], y_icpt_bounds=(self.y_icpt_constraint, self.big_number))
+                    residual_improvement[pos] = zero_icpt_fit['residuals_over_ndof'] / big_icpt_fit['residuals_over_ndof']
+                    fitfo[istart][pos] = big_icpt_fit
+                    # if debug or pos == self.dbg_pos:
+                    #     print '            %3d   %s       %3d / %3d' % (pos, zero_icpt_fit['print_str'], sum(subxyvals[pos]['obs']), sum(subxyvals[pos]['total']))
+                    #     print '                  %s                ' % (big_icpt_fit['print_str'])
                     if istart == 0:
-                        self.freqs[gene][position]['tigger'] = fitfo[istart][position]
-
-            interesting_positions = self.find_positions_of_interest(fitfo, positions_to_fit, debug=debug)
-            for k, v in interesting_positions.items():
-                print k, v
+                        self.freqs[gene][pos]['tigger'] = fitfo[istart][pos]
+                # normed_residuals = {pos : ffo['residuals_over_ndof'] for pos, ffo in fitfo[istart].items()}
+                # normed_residuals = sorted(normed_residuals.items(), key=operator.itemgetter(1), reverse=True)
+                # print normed_residuals
+                sorted_residual_improvement = sorted(residual_improvement.items(), key=operator.itemgetter(1), reverse=True)
+                candidate_snps = [pos for pos, _ in sorted_residual_improvement[:istart]]
+                mean_improvement = 0.
+                if len(candidate_snps) > 0:
+                    mean_improvement = sum([residual_improvement[cs] for cs in candidate_snps]) / len(candidate_snps)
+                print 'istart  %3d   %5.3f' % (istart, mean_improvement)
+                for cpos in candidate_snps:
+                    print '            %3d   %5.2f    %s       %3d / %3d' % (cpos, residual_improvement[cpos], fitfo[istart][cpos]['print_str'], sum(subxyvals[cpos]['obs']), sum(subxyvals[cpos]['total']))
+                # sys.exit()
 
         # sys.exit()
 
