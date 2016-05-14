@@ -34,11 +34,11 @@ Note the `-v`, which mounts the root of the host filesystem to `/host` inside th
 Now you can run individual partis commands (described [below](#details)), or poke around in the code.
 If you just want to annotate a small file with BCR sequences, say on your machine at `/path/to/yourseqs.fa`, run
 
-```./bin/partis run-viterbi --seqfile /host/path/to/yourseqs.fa --outfname /host/path/to/yourseqs-run-viterbi.csv```
+```./bin/partis run-viterbi --infname /host/path/to/yourseqs.fa --outfname /host/path/to/yourseqs-run-viterbi.csv```
 
 Whereas if you'd like to separate them into clonal families, run
 
-```./bin/partis partition --seqfile /host/path/to/yourseqs.fa --outfname /host/path/to/yourseqs-partition.csv```
+```./bin/partis partition --infname /host/path/to/yourseqs.fa --outfname /host/path/to/yourseqs-partition.csv```
 
 Note that now we're inside the container, we access the fasta file at the original path on your host system, but with `/host` tacked on the front (as we specified in `docker run` above).
 There's also some example sequences you can run on in `test/example.fa`.
@@ -129,7 +129,7 @@ If `--parameter-dir` (whether explicitly set or left as default) doesn't exist, 
 
 Finds the Viterbi path (i.e., the most likely annotation/alignment) for each sequence, for example:
 
-```./bin/partis run-viterbi --seqfile test/example.fa --outfname _output/example.csv```
+```./bin/partis run-viterbi --infname test/example.fa --outfname _output/example.csv```
 
 The output csv headers are listed in the table below, and you can view a colored ascii representation of the rearrangement events with the `view-annotations` action.
 
@@ -169,7 +169,7 @@ Note that `utils.process_input_line()` and `utils.get_line_for_output()` can be 
 
 Example invocation:
 
-```./bin/partis partition --seqfile test/example.fa --outfname _output/example.csv```
+```./bin/partis partition --infname test/example.fa --outfname _output/example.csv```
 
 The output csv file headers are listed in the table below, and you can view a colored ascii representation of the clusters with the `view-partitions` action.
 We write one line for the most likely partition (with the lowest logprob), as well as a number of lines for the surrounding less-likely partitions (set with `--n-partitions-to-write`)
@@ -225,7 +225,7 @@ These files are then passed as input to a second, HMM-based, annotation step, wh
 
 For example:
 
-``` ./bin/partis cache-parameters --seqfile test/example.fa --parameter-dir _output/example```
+``` ./bin/partis cache-parameters --infname test/example.fa --parameter-dir _output/example```
 
 When caching parameters, the parameter csvs from Smith-Waterman and the HMM are put into `/sw` and `/hmm` subdirectories of `--parameter-dir`.
 Within each of these, there are a bunch of csv files with (hopefully) self-explanatory names, e.g. `j_gene-j_5p_del-probs.csv` has counts for J 5' deletions subset by J gene.
