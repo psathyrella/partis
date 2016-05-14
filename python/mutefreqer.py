@@ -325,10 +325,10 @@ class MuteFreqer(object):
             if debug:
                 print '          skipping %d / %d positions (with fewer than %d observed mutations)' % (len(positions) - len(positions_to_fit), len(positions), self.n_obs_min)
 
-            istart_rankings = {}
+            mean_ratios = {}
             fitfo = OrderedDict()
             for istart in range(self.n_max_bins_to_exclude):
-                print 'istart %3d' % istart
+                print '%3d' % istart
                 if debug or self.dbg_pos is not None:
                     print 'istart %3d' % istart
                     if istart == 0:
@@ -345,34 +345,27 @@ class MuteFreqer(object):
                     big_icpt_fit = self.get_curvefit(pos, subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['weights'], subxyvals[pos]['errs'], y_icpt_bounds=self.big_y_icpt_bounds)
                     residual_improvement[pos] = zero_icpt_fit['residuals_over_ndof'] / big_icpt_fit['residuals_over_ndof']
                     both_residuals[pos] = {'zero_icpt' : zero_icpt_fit['residuals_over_ndof'], 'big_icpt' : big_icpt_fit['residuals_over_ndof']}
-                    # if pos == 20 or pos == 77 or pos == 281:
-                    #     print '    ', pos
-                    #     print '  ', zero_icpt_fit['print_str']
-                    #     print '  ', big_icpt_fit['print_str']
-                    #     # for key in subxyvals[pos]:
-                    #     #     print '    %25s   %s' % (key, ' '.join(['%8.3f' % r for r in subxyvals[pos][key]]))
                     fitfo[istart][pos] = unconstrained_fit
-                    # if debug or pos == self.dbg_pos:
-                    #     print '            %3d   %s       %3d / %3d' % (pos, zero_icpt_fit['print_str'], sum(subxyvals[pos]['obs']), sum(subxyvals[pos]['total']))
-                    #     print '                  %s                ' % (big_icpt_fit['print_str'])
                     if istart == 0:
                         self.freqs[gene][pos]['tigger'] = fitfo[istart][pos]
                 sorted_residual_improvement = sorted(residual_improvement.items(), key=operator.itemgetter(1), reverse=True)
                 candidate_snps = [pos for pos, _ in sorted_residual_improvement[:istart]]
-                score = 0.
-                if len(candidate_snps) > 0:  # mean over variance
-                    reslist = [residual_improvement[cs] for cs in candidate_snps]
-                    score = numpy.mean(reslist) #/ numpy.var(reslist)
+                first_non_snp = sorted_residual_improvement[istart][0]
+                candidate_ratio, first_non_snp_ratio, score = 0., 0., 0.
+                if len(candidate_snps) > 0:
+                    candidate_ratio = numpy.mean([residual_improvement[cs] for cs in candidate_snps])
+                    first_non_snp_ratio = residual_improvement[first_non_snp]
+                    score = candidate_ratio / first_non_snp_ratio
                 for cpos in candidate_snps:
                     print '            %3d   %5.2f   (%5.2f / %-5.2f)        %s       %3d / %3d' % (cpos, residual_improvement[cpos], both_residuals[cpos]['zero_icpt'], both_residuals[cpos]['big_icpt'], fitfo[istart][cpos]['print_str'], sum(subxyvals[cpos]['obs']), sum(subxyvals[cpos]['total']))
-                print '    %5.3f' % score
-                istart_rankings[istart] = score
+                print '      next  %3d   %5.2f   (%5.2f / %-5.2f)        %s       %3d / %3d' % (first_non_snp, residual_improvement[first_non_snp], both_residuals[first_non_snp]['zero_icpt'], both_residuals[first_non_snp]['big_icpt'], fitfo[istart][first_non_snp]['print_str'], sum(subxyvals[first_non_snp]['obs']), sum(subxyvals[first_non_snp]['total']))
+                print '    %7.2f   (%5.2f / %-5.2f)' % (score, candidate_ratio, first_non_snp_ratio)
+                mean_ratios[istart] = score
 
-            sorted_istart_rankings = sorted(istart_rankings.items(), key=operator.itemgetter(1), reverse=True)
-            print '  best istarts (number of snps)'
-            for istart, impr in sorted_istart_rankings:
-                print '    %2d  %5.3f' % (istart, impr)
-        # sys.exit()
+            sorted_istart_rankings = sorted(mean_ratios.items(), key=operator.itemgetter(1), reverse=True)
+            print '    snps    ratio'
+            for istart, ratio in sorted_istart_rankings:
+                print '    %2d     %7.2f' % (istart, ratio)
 
     # ----------------------------------------------------------------------------------------
     def finalize(self):
