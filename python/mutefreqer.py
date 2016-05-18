@@ -155,12 +155,13 @@ class MuteFreqer(object):
         return {'obs' : obs, 'total' : total, 'n_mutelist' : n_mutelist, 'freqs' : freqs, 'errs' : errs, 'weights' : weights}
 
     # ----------------------------------------------------------------------------------------
-    def finalize_tigger(self, debug=True):
+    def finalize_tigger(self, debug=False):
         start = time.time()
         for gene in self.counts:
             if utils.get_region(gene) != 'v':
                 continue
-            print '\n%s (observed %d times)' % (utils.color_gene(gene), self.gene_obs_counts[gene])
+            if debug:
+                print '\n%s (observed %d times)' % (utils.color_gene(gene), self.gene_obs_counts[gene])
 
             positions = sorted(self.counts[gene].keys())
             xyvals = {pos : self.get_tigger_xyvals(pos, self.counts[gene][pos]) for pos in positions}
@@ -171,7 +172,7 @@ class MuteFreqer(object):
             for pos in positions_to_fit:
                 self.freqs[gene][pos]['tigger'] = xyvals[pos]
 
-            scores, min_ratios = {}, {}
+            scores, min_ratios, candidates = {}, {}, {}
             for istart in range(1, self.n_max_bins_to_exclude):
                 if debug:
                     if istart == 1:
@@ -200,6 +201,7 @@ class MuteFreqer(object):
                 first_non_snp_ratio = residual_ratios[first_non_snp]
                 scores[istart] = mean_of_candidates - first_non_snp_ratio
                 min_ratios[istart] = min([residual_ratios[cs] for cs in candidate_snps])
+                candidates[istart] = {cp : residual_ratios[cp] for cp in candidate_snps}
 
                 if debug:
                     for pos in candidate_snps + [first_non_snp, ]:
@@ -208,22 +210,26 @@ class MuteFreqer(object):
                                                                                                       residuals[pos]['zero_icpt'], residuals[pos]['big_icpt'], sum(subxyvals[pos]['obs']), sum(subxyvals[pos]['total']), xtrastrs[1])
                     print ' %7.2f   (%5.2f - %-5.2f)       (min %7.2f)' % (scores[istart], mean_of_candidates, first_non_snp_ratio, min_ratios[istart])
 
-            candidate_allele = None
+            candidate_snps = None
             for istart, ratio in sorted(scores.items(), key=operator.itemgetter(1), reverse=True):
-                if candidate_allele is None and ratio > self.min_score and min_ratios[istart] > self.min_candidate_ratio:  # take the biggest score that also has a big enough min candidate ratio
-                    candidate_allele = istart
+                if candidate_snps is None and ratio > self.min_score and min_ratios[istart] > self.min_candidate_ratio:  # take the biggest score that also has a big enough min candidate ratio
+                    candidate_snps = istart
 
             if debug:
                 print '    snps      score     min'
-                for istart, ratio in sorted(scores.items(), key=operator.itemgetter(1), reverse=True):
-                    print_str = '    %2d     %7.2f   %7.2f' % (istart, ratio, min_ratios[istart])
-                    if istart == candidate_allele:
+                for istart, score in sorted(scores.items(), key=operator.itemgetter(1), reverse=True):
+                    print_str = '    %2d     %7.2f   %7.2f' % (istart, score, min_ratios[istart])
+                    if istart == candidate_snps:
                         print_str = utils.color('red', print_str)
                     print print_str
 
+            if candidate_snps is not None:
+                print '\n    found a new allele candidate for %s with %d SNP%s at position%s:' % (utils.color_gene(gene), candidate_snps, 's' if candidate_snps > 1 else '', 's' if candidate_snps > 1 else '')
+                for pos, ratio in candidates[candidate_snps].items():
+                    print '              %3d   %7.2f' % (pos, ratio)
 
-        print '      allele finding time: %.1f' % (time.time()-start)
-        sys.exit()
+        if debug:
+            print '      allele finding time: %.1f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
     def finalize(self):
