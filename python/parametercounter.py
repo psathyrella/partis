@@ -14,7 +14,7 @@ from mutefreqer import MuteFreqer
 class ParameterCounter(object):
     """ class to keep track of how many times we've seen each gene version, erosion length,
     insertion (length and base content), and mutation """
-    def __init__(self, germline_seqs):   #, base_outdir='', plotdir='', write_parameters=True, plot_parameters=True):
+    def __init__(self, germline_seqs, find_new_alleles=False):
         self.reco_total = 0  # total number of recombination events
         self.mute_total = 0  # total number of sequences
         self.counts = {}
@@ -24,7 +24,7 @@ class ParameterCounter(object):
         for bound in utils.boundaries:
             self.counts[bound + '_insertion_content'] = {n : 0 for n in utils.nukes}  # base content of each insertion
         self.counts['seq_content'] = {n : 0 for n in utils.nukes}
-        self.mutefreqer = MuteFreqer(germline_seqs)  #, self.base_outdir, self.plotdir, write_parameters=self.write_parameters, plot_parameters=self.plot_parameters)
+        self.mutefreqer = MuteFreqer(germline_seqs, find_new_alleles=find_new_alleles)
 
     # ----------------------------------------------------------------------------------------
     def clean(self):

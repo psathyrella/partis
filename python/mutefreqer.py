@@ -209,23 +209,23 @@ class MuteFreqer(object):
                                                                                                       residuals[pos]['zero_icpt'], residuals[pos]['big_icpt'], sum(subxyvals[pos]['obs']), sum(subxyvals[pos]['total']), xtrastrs[1])
                     print ' %7.2f   (%5.2f - %-5.2f)       (min %7.2f)' % (scores[istart], mean_of_candidates, first_non_snp_ratio, min_ratios[istart])
 
-            candidate_snps = None
+            n_candidate_snps = None
             for istart, ratio in sorted(scores.items(), key=operator.itemgetter(1), reverse=True):
-                if candidate_snps is None and ratio > self.min_score and min_ratios[istart] > self.min_candidate_ratio:  # take the biggest score that also has a big enough min candidate ratio
-                    candidate_snps = istart
+                if n_candidate_snps is None and ratio > self.min_score and min_ratios[istart] > self.min_candidate_ratio:  # take the biggest score that also has a big enough min candidate ratio
+                    n_candidate_snps = istart
 
             if debug:
                 print '    snps      score     min'
                 for istart, score in sorted(scores.items(), key=operator.itemgetter(1), reverse=True):
                     print_str = '    %2d     %7.2f   %7.2f' % (istart, score, min_ratios[istart])
-                    if istart == candidate_snps:
+                    if istart == n_candidate_snps:
                         print_str = utils.color('red', print_str)
                     print print_str
 
-            if candidate_snps is not None:
-                print '\n    found a new allele candidate for %s with %d SNP%s at position%s:' % (utils.color_gene(gene), candidate_snps, 's' if candidate_snps > 1 else '', 's' if candidate_snps > 1 else '')
-                for pos, ratio in candidates[candidate_snps].items():
-                    print '              %3d   %7.2f' % (pos, ratio)
+            if n_candidate_snps is not None:
+                print '\n    %s found a new allele candidate separated from %s by %d SNP%s at position%s %s' % (utils.color('red', 'note'), utils.color_gene(gene), n_candidate_snps,
+                                                                                                                's' if n_candidate_snps > 1 else '', 's' if n_candidate_snps > 1 else '',
+                                                                                                                ', '.join(['%d' % p for p in candidates[n_candidate_snps]]))
 
         if debug:
             print '      allele finding time: %.1f' % (time.time()-start)

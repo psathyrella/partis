@@ -25,11 +25,11 @@ original_param_dir = '/fh/fast/matsen_e/dralph/work/partis-dev/_output/021-018/s
 base_cmd = './bin/partis'
 
 dj_genes = 'IGHD6-19*01:IGHJ4*02'
-existing_genes = 'IGHV1-18*01' + ':' + dj_genes  # 3-71*01
-new_allele = 'IGHV1-18*04' #3-71*03
+existing_genes = 'IGHV3-71*01' + ':' + dj_genes  # 1-18*01
+new_allele = 'IGHV3-71*03' #1-18*04
 
 # simulate
-cmd_str = base_cmd + ' simulate --parameter-dir ' + original_param_dir + ' --n-sim-events 100 --n-procs 10'
+cmd_str = base_cmd + ' simulate --parameter-dir ' + original_param_dir + ' --n-sim-events 1000 --n-procs 10'
 cmd_str += ' --only-genes ' + existing_genes + ':' + new_allele
 cmd_str += ' --uniform-vj-choice-probs'
 cmd_str += ' --outfname ' + outdir + '/simu.csv'
@@ -39,11 +39,11 @@ snps_to_add = None #{'IGHV3-71*03' : 4} #{'IGHV3-69-1*02' : 3}
 utils.rewrite_germline_fasta('data/imgt', outdir + '/germlines', only_genes=existing_genes.split(':'), snps_to_add=snps_to_add)
 
 # cache-parameters
-cmd_str = base_cmd + ' cache-parameters --infname ' + outdir + '/simu.csv' + ' --n-procs 10'
+cmd_str = base_cmd + ' cache-parameters --infname ' + outdir + '/simu.csv' + ' --n-procs 10 --find-new-alleles'
 cmd_str += ' --datadir ' + outdir + '/germlines'
 cmd_str += ' --only-genes ' + existing_genes
 cmd_str += ' --parameter-dir ' + outdir + '/simu'
-cmd_str += ' --plotdir ' + os.getenv('www') + '/partis/tmp/tigger'
+# cmd_str += ' --plotdir ' + os.getenv('www') + '/partis/tmp/tigger'
 run(cmd_str)
 
 # annotate
