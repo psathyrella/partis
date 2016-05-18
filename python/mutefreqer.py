@@ -9,6 +9,7 @@ import csv
 from collections import OrderedDict
 import operator
 import scipy
+import time
 
 import plotting
 
@@ -35,13 +36,17 @@ class MuteFreqer(object):
         # tigger stuff
         self.small_number = 1e-5
         self.dbg_pos = None #20
-        self.tigger = False
+        self.tigger = True
         self.n_max_mutes = 20
         self.n_max_bins_to_exclude = self.n_max_mutes - 8  # try excluding up to this many bins (on the left) when doing the fit (leaves at least 8 points for fit)
         self.n_obs_min = 10
 
+        self.min_y_intercept = 0.3
         self.default_slope_bounds = (-0.2, 0.2)
-        self.big_y_icpt_bounds = (0.3, 1.5)
+        self.big_y_icpt_bounds = (self.min_y_intercept, 1.5)
+
+        self.min_interesting_score_CHANGE_ME_TO_MINUS = 2  # (mean of candidates) / (first non-candidate) must be greater than this
+        self.min_min_ratio = 2  # each candidate ratio must be greater than this
 
     # ----------------------------------------------------------------------------------------
     def increment(self, info):
@@ -152,6 +157,7 @@ class MuteFreqer(object):
 
     # ----------------------------------------------------------------------------------------
     def finalize_tigger(self, debug=False):
+        start = time.time()
         for gene in self.counts:
             if utils.get_region(gene) != 'v':
                 continue
@@ -163,14 +169,14 @@ class MuteFreqer(object):
             if debug:
                 print '          skipping %d / %d positions (with fewer than %d observed mutations)' % (len(positions) - len(positions_to_fit), len(positions), self.n_obs_min)
 
-            mean_ratios = {}
+            scores, min_ratios = {}, {}
             fitfo = OrderedDict()
             for istart in range(self.n_max_bins_to_exclude):
                 print '%3d' % istart
                 if debug or self.dbg_pos is not None:
                     print 'istart %3d' % istart
                     if istart == 0:
-                        print '          position            y-icpt                   slope           residuals       mut / total'
+                        print '             position            y-icpt                   slope           residuals       mut / total'
 
                 subxyvals = {pos : {k : v[istart:] for k, v in xyvals[pos].items()} for pos in positions_to_fit}
 
@@ -178,33 +184,46 @@ class MuteFreqer(object):
                 both_residuals = {}
                 residual_improvement = {}  # ratio of the fit with zero intercept to the fit with big intercept
                 for pos in positions_to_fit:
+                    if len([f for f in subxyvals[pos]['freqs'] if f > self.min_y_intercept]) == 0:  # skip positions that have no frequencies greater than the min y intercept (note that they could in principle still have a large y intercept, but we don't care)
+                        continue
+
                     unconstrained_fit = self.get_curvefit(pos, subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['weights'], subxyvals[pos]['errs'])
                     zero_icpt_fit = self.get_curvefit(pos, subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['weights'], subxyvals[pos]['errs'], y_icpt_bounds=(0. - self.small_number, 0. + self.small_number))
                     big_icpt_fit = self.get_curvefit(pos, subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['weights'], subxyvals[pos]['errs'], y_icpt_bounds=self.big_y_icpt_bounds)
+
                     residual_improvement[pos] = zero_icpt_fit['residuals_over_ndof'] / big_icpt_fit['residuals_over_ndof']
                     both_residuals[pos] = {'zero_icpt' : zero_icpt_fit['residuals_over_ndof'], 'big_icpt' : big_icpt_fit['residuals_over_ndof']}
                     fitfo[istart][pos] = unconstrained_fit
                     if istart == 0:
                         self.freqs[gene][pos]['tigger'] = fitfo[istart][pos]
+
                 sorted_residual_improvement = sorted(residual_improvement.items(), key=operator.itemgetter(1), reverse=True)
                 candidate_snps = [pos for pos, _ in sorted_residual_improvement[:istart]]
                 first_non_snp = sorted_residual_improvement[istart][0]
-                candidate_ratio, first_non_snp_ratio, score = 0., 0., 0.
+                mean_candidate_ratio, first_non_snp_ratio, min_candidate_ratio, score = 0., 0., 0., 0.
                 if len(candidate_snps) > 0:
-                    candidate_ratio = numpy.mean([residual_improvement[cs] for cs in candidate_snps])
+                    mean_candidate_ratio = numpy.mean([residual_improvement[cs] for cs in candidate_snps])
+                    min_candidate_ratio = min([residual_improvement[cs] for cs in candidate_snps])
                     first_non_snp_ratio = residual_improvement[first_non_snp]
-                    score = candidate_ratio / first_non_snp_ratio
+                    score = mean_candidate_ratio - first_non_snp_ratio
                 for cpos in candidate_snps:
-                    print '            %3d   %5.2f   (%5.2f / %-5.2f)        %s       %3d / %3d' % (cpos, residual_improvement[cpos], both_residuals[cpos]['zero_icpt'], both_residuals[cpos]['big_icpt'], fitfo[istart][cpos]['print_str'], sum(subxyvals[cpos]['obs']), sum(subxyvals[cpos]['total']))
-                print '      next  %3d   %5.2f   (%5.2f / %-5.2f)        %s       %3d / %3d' % (first_non_snp, residual_improvement[first_non_snp], both_residuals[first_non_snp]['zero_icpt'], both_residuals[first_non_snp]['big_icpt'], fitfo[istart][first_non_snp]['print_str'], sum(subxyvals[first_non_snp]['obs']), sum(subxyvals[first_non_snp]['total']))
-                print '    %7.2f   (%5.2f / %-5.2f)' % (score, candidate_ratio, first_non_snp_ratio)
-                mean_ratios[istart] = score
+                    print '               %3d   %5.2f   (%5.2f / %-5.2f)        %s       %3d / %3d' % (cpos, residual_improvement[cpos], both_residuals[cpos]['zero_icpt'], both_residuals[cpos]['big_icpt'], fitfo[istart][cpos]['print_str'], sum(subxyvals[cpos]['obs']), sum(subxyvals[cpos]['total']))
+                print '         next  %3d   %5.2f   (%5.2f / %-5.2f)        %s       %3d / %3d' % (first_non_snp, residual_improvement[first_non_snp], both_residuals[first_non_snp]['zero_icpt'], both_residuals[first_non_snp]['big_icpt'], fitfo[istart][first_non_snp]['print_str'], sum(subxyvals[first_non_snp]['obs']), sum(subxyvals[first_non_snp]['total']))
+                print '    mean %7.2f   (%5.2f / %-5.2f)     min %7.2f' % (score, mean_candidate_ratio, first_non_snp_ratio, min_candidate_ratio)
+                scores[istart] = score
+                min_ratios[istart] = min_candidate_ratio
 
-            sorted_istart_rankings = sorted(mean_ratios.items(), key=operator.itemgetter(1), reverse=True)
-            print 'TODO require all of the candidate snp ratios are >2 or something'
-            print '    snps    ratio'
+            sorted_istart_rankings = sorted(scores.items(), key=operator.itemgetter(1), reverse=True)
+            print '    snps    score     min'
+            found_something_interesting = False
             for istart, ratio in sorted_istart_rankings:
-                print '    %2d     %7.2f' % (istart, ratio)
+                print_str = '    %2d     %7.2f   %7.2f' % (istart, ratio, min_ratios[istart])
+                if not found_something_interesting and ratio > self.min_interesting_score_CHANGE_ME_TO_MINUS and min_ratios[istart] > self.min_min_ratio:
+                    print_str = utils.color('red', print_str)
+                    found_something_interesting = True
+                print print_str
+        print '      allele finding time: %.1f' % (time.time()-start)
+        sys.exit()
 
     # ----------------------------------------------------------------------------------------
     def finalize(self):
