@@ -21,8 +21,9 @@ from opener import opener
 
 # ----------------------------------------------------------------------------------------
 class MuteFreqer(object):
-    def __init__(self, germline_seqs, calculate_uncertainty=True):
+    def __init__(self, germline_seqs, find_new_alleles=False, calculate_uncertainty=True):
         self.germline_seqs = germline_seqs
+        self.find_new_alleles = find_new_alleles
         self.calculate_uncertainty = calculate_uncertainty
         self.counts, self.freqs = {}, {}
         n_bins, xmin, xmax = 200, 0., 1.
@@ -33,19 +34,16 @@ class MuteFreqer(object):
 
         self.gene_obs_counts = {}
 
-        # tigger stuff
+        # allele finding stuff
         self.small_number = 1e-5
-        self.tigger = True
-        self.n_max_mutes = 20
-        self.n_max_bins_to_exclude = self.n_max_mutes - 8  # try excluding up to this many bins (on the left) when doing the fit (leaves at least 8 points for fit)
-        self.n_obs_min = 10
+        self.n_max_mutations_per_segment = 20  # don't look a v segments that have more than this many mutations
+        self.n_max_snps = self.n_max_mutations_per_segment - 8  # try excluding up to this many bins (on the left) when doing the fit (leaves at least 8 points for fit)
+        self.n_obs_min = 10  # don't fit positions that have fewer observed mutations than this
         self.min_non_candidate_positions_to_fit = 5  # always fit at least a few non-candidate positions
-
-        self.min_y_intercept = 0.3
-        self.default_slope_bounds = (-0.2, 0.2)
-        self.big_y_icpt_bounds = (self.min_y_intercept, 1.5)
-
-        self.min_score = 2  # (mean of candidates) - (first non-candidate) must be greater than this
+        self.min_y_intercept = 0.3  # roughly speaking, use this as the boundary between snp and non-snp positions
+        self.default_slope_bounds = (-0.2, 0.2)  # fitting function needs some reasonable bounds from which to start
+        self.big_y_icpt_bounds = (self.min_y_intercept, 1.5)  # snp-candidate positions should fit well when forced to use these bounds, but non-snp positions should fit like &*@!*
+        self.min_score = 2  # (mean ratio over snp candidates) - (first non-candidate ratio) must be greater than this
         self.min_candidate_ratio = 2  # every candidate ratio must be greater than this
 
     # ----------------------------------------------------------------------------------------
@@ -54,7 +52,7 @@ class MuteFreqer(object):
 
         for region in utils.regions:
             regional_freq, len_excluding_ambig = utils.get_mutation_rate(self.germline_seqs, info, restrict_to_region=region, return_len_excluding_ambig=True)
-            n_mutes = regional_freq * len_excluding_ambig  # total number of mutations in the region (for tigger stuff)
+            n_mutes = regional_freq * len_excluding_ambig  # total number of mutations in the region (for allele finding stuff)
             if abs(n_mutes - int(n_mutes)) > 1e6:
                 raise Exception('n mutated %f not an integer' % n_mutes)
             n_mutes = int(n_mutes)
@@ -77,19 +75,19 @@ class MuteFreqer(object):
                 if igl not in gcounts:  # if we have not yet observed this position in a query sequence, initialize it
                     gcounts[igl] = {n : 0 for n in utils.nukes + ['total', ]}
                     gcounts[igl]['gl_nuke'] = germline_seq[ipos]
-                    gcounts[igl]['tigger'] = {}
+                    gcounts[igl]['allele-finding'] = {}
                 gcounts[igl]['total'] += 1
                 gcounts[igl][query_seq[ipos]] += 1  # note that if <query_seq[ipos]> isn't among <utils.nukes>, this will toss a key error
 
-                if self.tigger:
+                if self.find_new_alleles:
                     if igl not in gcounts:
-                        gcounts[igl]['tigger'] = {}
+                        gcounts[igl]['allele-finding'] = {}
                     if utils.get_region(gene) == 'v':
-                        if n_mutes not in gcounts[igl]['tigger']:
-                            gcounts[igl]['tigger'][n_mutes] = {'muted' : 0, 'total' : 0}
-                        gcounts[igl]['tigger'][n_mutes]['total'] += 1
+                        if n_mutes not in gcounts[igl]['allele-finding']:
+                            gcounts[igl]['allele-finding'][n_mutes] = {'muted' : 0, 'total' : 0}
+                        gcounts[igl]['allele-finding'][n_mutes]['total'] += 1
                         if query_seq[ipos] != germline_seq[ipos]:  # if this position is mutated
-                            gcounts[igl]['tigger'][n_mutes]['muted'] += 1  # mark that we saw this germline position mutated once in a sequence with <n_mutes> regional mutation frequency
+                            gcounts[igl]['allele-finding'][n_mutes]['muted'] += 1  # mark that we saw this germline position mutated once in a sequence with <n_mutes> regional mutation frequency
 
     # ----------------------------------------------------------------------------------------
     def get_uncertainty(self, obs, total):
@@ -139,24 +137,24 @@ class MuteFreqer(object):
         return fitfo
 
     # ----------------------------------------------------------------------------------------
-    def get_tigger_xyvals(self, position, gpcounts):
-        iterinfo = gpcounts['tigger'].items()
+    def get_allele_finding_xyvals(self, position, gpcounts):
+        iterinfo = gpcounts['allele-finding'].items()
 
-        obs = [d['muted'] for nm, d in iterinfo if nm < self.n_max_mutes]
+        obs = [d['muted'] for nm, d in iterinfo if nm < self.n_max_mutations_per_segment]
 
-        lohis = [fraction_uncertainty.err(d['muted'], d['total'], use_beta=True) for nm, d in iterinfo if nm < self.n_max_mutes]
+        lohis = [fraction_uncertainty.err(d['muted'], d['total'], use_beta=True) for nm, d in iterinfo if nm < self.n_max_mutations_per_segment]
         errs = [(hi - lo) / 2 for lo, hi, _ in lohis]
         weights = [1./(e*e) for e in errs]
 
-        freqs = [float(d['muted']) / d['total'] if d['total'] > 0 else 0. for nm, d in iterinfo if nm < self.n_max_mutes]
-        total = [d['total'] for nm, d in iterinfo if nm < self.n_max_mutes]
+        freqs = [float(d['muted']) / d['total'] if d['total'] > 0 else 0. for nm, d in iterinfo if nm < self.n_max_mutations_per_segment]
+        total = [d['total'] for nm, d in iterinfo if nm < self.n_max_mutations_per_segment]
    
-        n_mutelist = [nm for nm in gpcounts['tigger'].keys() if nm < self.n_max_mutes]
+        n_mutelist = [nm for nm in gpcounts['allele-finding'].keys() if nm < self.n_max_mutations_per_segment]
 
         return {'obs' : obs, 'total' : total, 'n_mutelist' : n_mutelist, 'freqs' : freqs, 'errs' : errs, 'weights' : weights}
 
     # ----------------------------------------------------------------------------------------
-    def finalize_tigger(self, debug=False):
+    def finalize_allele_finding(self, debug=False):
         start = time.time()
         for gene in self.counts:
             if utils.get_region(gene) != 'v':
@@ -165,16 +163,16 @@ class MuteFreqer(object):
                 print '\n%s (observed %d times)' % (utils.color_gene(gene), self.gene_obs_counts[gene])
 
             positions = sorted(self.counts[gene].keys())
-            xyvals = {pos : self.get_tigger_xyvals(pos, self.counts[gene][pos]) for pos in positions}
+            xyvals = {pos : self.get_allele_finding_xyvals(pos, self.counts[gene][pos]) for pos in positions}
             positions_to_fit = [pos for pos in positions if sum(xyvals[pos]['obs']) > self.n_obs_min]  # ignore positions with only a few observed mutations
             if debug:
                 print '          skipping %d / %d positions (with fewer than %d observed mutations)' % (len(positions) - len(positions_to_fit), len(positions), self.n_obs_min)
 
             for pos in positions_to_fit:
-                self.freqs[gene][pos]['tigger'] = xyvals[pos]
+                self.freqs[gene][pos]['allele-finding'] = xyvals[pos]
 
             scores, min_ratios, candidates = {}, {}, {}
-            for istart in range(1, self.n_max_bins_to_exclude):
+            for istart in range(1, self.n_max_snps):
                 if debug:
                     if istart == 1:
                         print 'snps       position   ratio   (m=0 / m>%5.2f)       muted / obs ' % self.big_y_icpt_bounds[0]
@@ -260,8 +258,8 @@ class MuteFreqer(object):
         for hist in self.mean_rates.values():
             hist.normalize()
 
-        if self.tigger:
-            self.finalize_tigger()
+        if self.find_new_alleles:
+            self.finalize_allele_finding()
 
         self.finalized = True
 
@@ -298,16 +296,16 @@ class MuteFreqer(object):
             self.mean_rates[region].write(mean_freq_outfname.replace('REGION', region))
 
     # ----------------------------------------------------------------------------------------
-    def tigger_plot(self, gene, plotdir, only_csv=False):
+    def allele_finding_plot(self, gene, plotdir, only_csv=False):
         if only_csv:  # not implemented
             return
         if utils.get_region(gene) != 'v':
             return
         utils.prep_dir(plotdir, multilings=('*.csv', '*.svg'))
-        print 'TODO work out if \'tigger\' is supposed to be absent, or None'
+        print 'TODO work out if \'allele-finding\' is supposed to be absent, or None'
         for position in self.freqs[gene]:
-            if 'tigger' in self.freqs[gene][position] and self.freqs[gene][position]['tigger'] is not None:
-                plotting.make_tigger_plot(plotdir, gene, position, self.freqs[gene][position]['tigger'])
+            if 'allele-finding' in self.freqs[gene][position] and self.freqs[gene][position]['allele-finding'] is not None:
+                plotting.make_allele_finding_plot(plotdir, gene, position, self.freqs[gene][position]['allele-finding'])
 
     # ----------------------------------------------------------------------------------------
     def plot(self, base_plotdir, cyst_positions=None, tryp_positions=None, only_csv=False):
@@ -342,8 +340,8 @@ class MuteFreqer(object):
             # per-base plots:
             # paramutils.make_mutefreq_plot(plotdir + '/' + utils.get_region(gene) + '-per-base', utils.sanitize_name(gene), plotting_info)  # needs translation to mpl
 
-            if self.tigger:
-                self.tigger_plot(gene, plotdir + '/tigger/' + utils.sanitize_name(gene), only_csv)
+            if self.find_new_alleles:
+                self.allele_finding_plot(gene, plotdir + '/allele-finding/' + utils.sanitize_name(gene), only_csv)
 
         # make mean mute freq hists
         plotting.draw_no_root(self.mean_rates['all'], plotname='all-mean-freq', plotdir=overall_plotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True, only_csv=only_csv)
