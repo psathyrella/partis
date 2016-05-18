@@ -233,6 +233,10 @@ def rewrite_germline_fasta(input_dir, output_dir, only_genes=None, snps_to_add=N
     input_aligned_genes = glfo['aligned-genes']
     expected_files = []  # list of files that we write here -- if anything else is in the output dir, we barf
 
+    # color_mutants(input_germlines['v']['IGHV1-18*01'], input_germlines['v']['IGHV1-18*03'], print_result=True, extra_str='          ')
+    # color_mutants(input_germlines['v']['IGHV1-18*01'], input_germlines['v']['IGHV1-18*04'], print_result=True, extra_str='          ')
+    # sys.exit()
+
     if snps_to_add is not None:
         for gene in snps_to_add:
             print '  ', gene
@@ -265,7 +269,7 @@ def rewrite_germline_fasta(input_dir, output_dir, only_genes=None, snps_to_add=N
                         igl += 1
 
                 check_conserved_cysteine(seq, cpos)
-                # color_mutants(input_germlines[get_region(gene)][gene], seq, print_result=True, extra_str='          ')
+                color_mutants(input_germlines[get_region(gene)][gene], seq, print_result=True, extra_str='          ')
                 # color_mutants(input_aligned_genes[get_region(gene)][gene], aligned_seq, print_result=True, extra_str='          ')
                 input_germlines[get_region(gene)][gene] = seq
                 input_aligned_genes[get_region(gene)][gene] = aligned_seq
@@ -1124,7 +1128,7 @@ def add_missing_alignments(glfo, debug=False):
                 n_dashes = len(alignment_to_use) - len(seq)
                 glfo['aligned-genes'][region][gene] = n_dashes * '-' + seq  # just hack a bunch of dashes on the left
 
-    if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
+    if len(missing_genes) > 0 and os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
         print '   adding nonsense alignments for missing genes %s' % ' '.join([color_gene(g) for g in missing_genes])
 
 # ----------------------------------------------------------------------------------------
@@ -1573,13 +1577,13 @@ def process_out_err(out, err, extra_str='', info=None, subworkdir=None):
             info[header] = {}
             theselines = [ln for ln in out.split('\n') if header + ':' in ln]
             if len(theselines) != 1:
-                raise Exception('couldn\'t find %s line in:\nout:\n%s\nerr:\n%s' % (header, out, err))
+                raise Exception('couldn\'t find \'%s\' line in:\nstdout:\n%s\nstderr:\n%s' % (header, out, err))
             words = theselines[0].split()
             try:
                 for var in variables:  # convention: value corresponding to the string <var> is the word immediately vollowing <var>
                     info[header][var] = float(words[words.index(var) + 1])
             except:
-                raise Exception('couldn\'t find %s line in:\nout:\n%s\nerr:\n%s' % (header, out, err))
+                raise Exception('couldn\'t find \'%s\' line in:\nstdout:\n%s\nstderr:\n%s' % (header, out, err))
 
     print_str += out
 

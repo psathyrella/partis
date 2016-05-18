@@ -327,10 +327,10 @@ class PartitionDriver(object):
             exit_code = proc.wait()
             joinstr = '\n    '
             if out != '':
-                print '  out:'
+                print '  stdout:'
                 print '    ' + joinstr.join(out.replace('\r', '').split('\n'))
             if err != '':
-                print '  err:'
+                print '  stderr:'
                 print '    ' + joinstr.join(err.replace('\r', '').split('\n'))
             if exit_code != 0:
                 raise Exception('vsearch failed with exit code %d' % exit_code)
