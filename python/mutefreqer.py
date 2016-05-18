@@ -44,8 +44,8 @@ class MuteFreqer(object):
         self.default_slope_bounds = (-0.2, 0.2)
         self.big_y_icpt_bounds = (self.min_y_intercept, 1.5)
 
-        self.min_interesting_score_CHANGE_ME_TO_MINUS = 2  # (mean of candidates) / (first non-candidate) must be greater than this
-        self.min_min_ratio = 2  # each candidate ratio must be greater than this
+        self.min_score = 2  # (mean of candidates) - (first non-candidate) must be greater than this
+        self.min_candidate_ratio = 2  # every candidate ratio must be greater than this
 
     # ----------------------------------------------------------------------------------------
     def increment(self, info):
@@ -172,10 +172,10 @@ class MuteFreqer(object):
                 self.freqs[gene][pos]['tigger'] = xyvals[pos]
 
             scores, min_ratios = {}, {}
-            for istart in range(self.n_max_bins_to_exclude):
+            for istart in range(1, self.n_max_bins_to_exclude):
                 if debug:
-                    if istart == 0:
-                        print '           position  ratio    (m=0 / m>%5.2f)       muted / obs ' % self.big_y_icpt_bounds[0]
+                    if istart == 1:
+                        print 'snps       position   ratio   (m=0 / m>%5.2f)       muted / obs ' % self.big_y_icpt_bounds[0]
                     print '%-3d' % istart
 
                 subxyvals = {pos : {k : v[istart:] for k, v in xyvals[pos].items()} for pos in positions_to_fit}
@@ -192,31 +192,36 @@ class MuteFreqer(object):
                     residuals[pos] = {'zero_icpt' : zero_icpt_fit['residuals_over_ndof'], 'big_icpt' : big_icpt_fit['residuals_over_ndof']}
 
                 residual_ratios = {pos : r['zero_icpt'] / r['big_icpt'] for pos, r in residuals.items()}
-                sorted_ratios = sorted(residual_ratios.items(), key=operator.itemgetter(1), reverse=True)
-                candidate_snps = [pos for pos, _ in sorted_ratios[:istart]]
-                first_non_snp = sorted_ratios[istart][0]
-                mean_candidate_ratio, first_non_snp_ratio, min_candidate_ratio, score = 0., 0., 0., 0.
-                if len(candidate_snps) > 0:
-                    mean_candidate_ratio = numpy.mean([residual_ratios[cs] for cs in candidate_snps])
-                    min_candidate_ratio = min([residual_ratios[cs] for cs in candidate_snps])
-                    first_non_snp_ratio = residual_ratios[first_non_snp]
-                    score = mean_candidate_ratio - first_non_snp_ratio
-                for cpos in candidate_snps:
-                    print '               %3d    %5.2f   (%5.2f / %-5.2f)       %3d / %3d' % (cpos, residual_ratios[cpos], residuals[cpos]['zero_icpt'], residuals[cpos]['big_icpt'], sum(subxyvals[cpos]['obs']), sum(subxyvals[cpos]['total']))
-                print '             [ %3d    %5.2f   (%5.2f / %-5.2f)       %3d / %3d ]' % (first_non_snp, residual_ratios[first_non_snp], residuals[first_non_snp]['zero_icpt'], residuals[first_non_snp]['big_icpt'], sum(subxyvals[first_non_snp]['obs']), sum(subxyvals[first_non_snp]['total']))
-                print '  %7.2f   (%5.2f - %-5.2f)       (min %7.2f)' % (score, mean_candidate_ratio, first_non_snp_ratio, min_candidate_ratio)
-                scores[istart] = score
-                min_ratios[istart] = min_candidate_ratio
+                sorted_ratios = sorted(residual_ratios.items(), key=operator.itemgetter(1), reverse=True)  # sort the positions in decreasing order of residual ratio
+                candidate_snps = [pos for pos, _ in sorted_ratios[:istart]]  # the first <istart> positions are the candidate snps
+                first_non_snp, _ = sorted_ratios[istart]
 
-            sorted_istart_rankings = sorted(scores.items(), key=operator.itemgetter(1), reverse=True)
-            print '    snps    score     min'
-            found_something_interesting = False
-            for istart, ratio in sorted_istart_rankings:
-                print_str = '    %2d     %7.2f   %7.2f' % (istart, ratio, min_ratios[istart])
-                if not found_something_interesting and ratio > self.min_interesting_score_CHANGE_ME_TO_MINUS and min_ratios[istart] > self.min_min_ratio:
-                    print_str = utils.color('red', print_str)
-                    found_something_interesting = True
-                print print_str
+                mean_of_candidates = numpy.mean([residual_ratios[cs] for cs in candidate_snps])
+                first_non_snp_ratio = residual_ratios[first_non_snp]
+                scores[istart] = mean_of_candidates - first_non_snp_ratio
+                min_ratios[istart] = min([residual_ratios[cs] for cs in candidate_snps])
+
+                if debug:
+                    for pos in candidate_snps + [first_non_snp, ]:
+                        xtrastrs = ('[', ']') if pos == first_non_snp else (' ', ' ')
+                        print '             %s %3d    %5.2f   (%5.2f / %-5.2f)       %3d / %3d %s' % (xtrastrs[0], pos, residual_ratios[pos],
+                                                                                                      residuals[pos]['zero_icpt'], residuals[pos]['big_icpt'], sum(subxyvals[pos]['obs']), sum(subxyvals[pos]['total']), xtrastrs[1])
+                    print ' %7.2f   (%5.2f - %-5.2f)       (min %7.2f)' % (scores[istart], mean_of_candidates, first_non_snp_ratio, min_ratios[istart])
+
+            candidate_allele = None
+            for istart, ratio in sorted(scores.items(), key=operator.itemgetter(1), reverse=True):
+                if candidate_allele is None and ratio > self.min_score and min_ratios[istart] > self.min_candidate_ratio:  # take the biggest score that also has a big enough min candidate ratio
+                    candidate_allele = istart
+
+            if debug:
+                print '    snps      score     min'
+                for istart, ratio in sorted(scores.items(), key=operator.itemgetter(1), reverse=True):
+                    print_str = '    %2d     %7.2f   %7.2f' % (istart, ratio, min_ratios[istart])
+                    if istart == candidate_allele:
+                        print_str = utils.color('red', print_str)
+                    print print_str
+
+
         print '      allele finding time: %.1f' % (time.time()-start)
         sys.exit()
 
