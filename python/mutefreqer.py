@@ -39,6 +39,7 @@ class MuteFreqer(object):
         self.n_max_mutes = 20
         self.n_max_bins_to_exclude = self.n_max_mutes - 8  # try excluding up to this many bins (on the left) when doing the fit (leaves at least 8 points for fit)
         self.n_obs_min = 10
+        self.min_non_candidate_positions_to_fit = 5  # always fit at least a few non-candidate positions
 
         self.min_y_intercept = 0.3
         self.default_slope_bounds = (-0.2, 0.2)
@@ -183,8 +184,8 @@ class MuteFreqer(object):
 
                 residuals = {}
                 for pos in positions_to_fit:
-                    # skip positions that have no frequencies greater than the min y intercept (note that they could in principle still have a large y intercept, but we don't really care)
-                    if len([f for f in subxyvals[pos]['freqs'] if f > self.min_y_intercept]) == 0:
+                    # as long as we already have a few non-candidate positions, skip positions that have no frequencies greater than the min y intercept (note that they could in principle still have a large y intercept, but we don't really care)
+                    if len(residuals) > istart + self.min_non_candidate_positions_to_fit and len([f for f in subxyvals[pos]['freqs'] if f > self.min_y_intercept]) == 0:
                         continue
 
                     zero_icpt_fit = self.get_curvefit(pos, subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['errs'], y_icpt_bounds=(0. - self.small_number, 0. + self.small_number))
