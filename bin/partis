@@ -4,7 +4,7 @@ import time
 import random
 import sys
 from multiprocessing import Process, active_children
-from subprocess import check_output
+from subprocess import check_output, CalledProcessError
 import os
 current_script_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '/python')
 if not os.path.exists(current_script_dir):
@@ -156,11 +156,14 @@ def view_existing_output(args):
         assert False
 
 # ----------------------------------------------------------------------------------------
-rows, columns = [int(v) for v in check_output(['stty', 'size']).split()]  # get actual tty height and width
+try:
+    rows, columns = [int(v) for v in check_output(['stty', 'size']).split()]  # get actual tty height and width
+except (OSError, CalledProcessError):
+    rows, columns = 50, 200
 formatter_class = lambda prog: argparse.HelpFormatter(prog, max_help_position=columns, width=columns)
 parser = argparse.ArgumentParser(formatter_class=formatter_class)
 subparsers = parser.add_subparsers(dest='action')
-
+sys.exit()
 parent_parser = argparse.ArgumentParser(add_help=False)
 parent_parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2], help='Debug verbosity level.')
 parent_parser.add_argument('--sw-debug', type=int, choices=[0, 1, 2], help='Debug level for Smith-Waterman.')
