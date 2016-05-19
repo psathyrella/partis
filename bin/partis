@@ -252,7 +252,6 @@ subargs['simulate'].append({'name' : '--indel-frequency', 'kwargs' : {'default' 
 #subargs['simulate'].append({'name' : '--mean-n-indels', 'kwargs' : {'default' : 1, 'type' : int, 'help' : 'mean number of indels in each sequence which we\'ve already decided has indels (geometric distribution)'}})
 subargs['simulate'].append({'name' : '--mean-indel-length', 'kwargs' : {'default' : 5, 'help' : 'mean length of each indel (geometric distribution)'}})
 subargs['simulate'].append({'name' : '--indel-location', 'kwargs' : {'choices' : [None, 'v', 'cdr3'], 'help' : 'where to put the indels'}})
-subargs['simulate'].append({'name' : '--uniform-vj-choice-probs', 'kwargs' : {'action' : 'store_true', 'help' : 'In simulation, give all possible combinations of allowed v and j germline genes the same probability'}})
 # NOTE command to generate gtr parameter file: [stoat] partis/ > zcat /shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_gtr_tr-qi-gi.json.gz | jq .independentParameters | grep -v '[{}]' | sed 's/["\:,]//g' | sed 's/^[ ][ ]*//' | sed 's/ /,/' | sort >data/gtr.txt)
 subargs['simulate'].append({'name' : '--gtrfname', 'kwargs' : {'default' : 'data/recombinator/gtr.txt', 'help' : 'File with list of GTR parameters. Fed into bppseqgen along with the chosen tree. Corresponds to an arbitrary dataset at the moment, but eventually will be inferred per-dataset.'}})
 
