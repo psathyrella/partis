@@ -163,7 +163,7 @@ except (OSError, CalledProcessError):
 formatter_class = lambda prog: argparse.HelpFormatter(prog, max_help_position=columns, width=columns)
 parser = argparse.ArgumentParser(formatter_class=formatter_class)
 subparsers = parser.add_subparsers(dest='action')
-sys.exit()
+
 parent_parser = argparse.ArgumentParser(add_help=False)
 parent_parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2], help='Debug verbosity level.')
 parent_parser.add_argument('--sw-debug', type=int, choices=[0, 1, 2], help='Debug level for Smith-Waterman.')
