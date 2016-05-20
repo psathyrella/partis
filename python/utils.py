@@ -30,7 +30,7 @@ eps = 1.0e-10  # if things that should be 1.0 are this close to 1.0, blithely ke
 def is_normed(probs, this_eps=eps):
     if hasattr(probs, 'keys'):  # if it's a dict, call yourself with a list of the dict's values
         return is_normed([val for key, val in probs.items()])
-    elif hasattr(probs, '__getitem__'):  # if it's a list call yourself with their sum
+    elif hasattr(probs, '__iter__'):  # if it's a list call yourself with their sum
         return is_normed(sum(probs))
     else:  # and if it's a float actually do what you're supposed to do
         return math.fabs(probs - 1.0) < this_eps
@@ -63,6 +63,10 @@ def get_arg_list(arg, intify=False, floatify=False, translation=None, list_of_pa
                 arglist[ia] = translation[arglist[ia]]
 
     return arglist
+
+# ----------------------------------------------------------------------------------------
+scratch_mean_mute_freqs = {'v' : 0.04, 'd' : 0.10, 'j' : 0.07}
+scratch_mean_mute_freqs['all'] = numpy.mean([v for v in scratch_mean_mute_freqs.values()])
 
 # # ----------------------------------------------------------------------------------------
 # hackey_default_gene_versions = {'v':'IGHV3-23*04', 'd':'IGHD3-10*01', 'j':'IGHJ4*02_F'}

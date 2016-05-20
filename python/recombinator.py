@@ -33,13 +33,11 @@ class Recombinator(object):
             self.outfname = self.workdir + '/' + os.path.basename(self.args.outfname)
 
         utils.prep_dir(self.workdir)
-        if not os.path.exists(self.args.parameter_dir):
-            raise Exception('parameter dir ' + self.args.parameter_dir + ' d.n.e')
-
-        # parameters that control recombination, erosion, and whatnot
+        if not self.args.simulate_from_scratch:
+            if self.args.parameter_dir is None or not os.path.exists(self.args.parameter_dir):
+                raise Exception('parameter dir ' + self.args.parameter_dir + ' d.n.e')
 
         self.index_keys = {}  # this is kind of hackey, but I suspect indexing my huge table of freqs with a tuple is better than a dict
-        self.version_freq_table = {}  # list of the probabilities with which each VDJ combo appears in data
         self.mute_models = {}
         # self.treeinfo = []  # list of newick-formatted tree strings with region-specific branch info tacked at the end
         for region in utils.regions:
@@ -47,13 +45,10 @@ class Recombinator(object):
             for model in ['gtr', 'gamma']:
                 self.mute_models[region][model] = {}
 
-        # first read info that doesn't depend on which person we're looking at
         self.glfo = utils.read_germline_set(self.args.datadir)
 
-        # then read stuff that's specific to each person
-        self.read_vdj_version_freqs(self.args.parameter_dir + '/' + utils.get_parameter_fname('all'))
-        self.insertion_content_probs = None
-        self.read_insertion_content()
+        self.version_freq_table = self.read_vdj_version_freqs()  # list of the probabilities with which each VDJ combo appears in data
+        self.insertion_content_probs = self.read_insertion_content()
 
         # read shm info NOTE I'm not inferring the gtr parameters a.t.m., so I'm just (very wrongly) using the same ones for all individuals
         with opener('r')(self.args.gtrfname) as gtrfile:  # read gtr parameters
@@ -81,24 +76,27 @@ class Recombinator(object):
 
     # ----------------------------------------------------------------------------------------
     def read_insertion_content(self):
-        self.insertion_content_probs = {}
+        if self.args.simulate_from_scratch:
+            return {b : {n : 1./len(utils.nukes) for n in utils.nukes} for b in utils.boundaries}
+
+        insertion_content_probs = {}
         for bound in utils.boundaries:
-            self.insertion_content_probs[bound] = {}
+            insertion_content_probs[bound] = {}
             with opener('r')(self.args.parameter_dir + '/' + bound + '_insertion_content.csv') as icfile:
                 reader = csv.DictReader(icfile)
                 total = 0
                 for line in reader:
-                    self.insertion_content_probs[bound][line[bound + '_insertion_content']] = int(line['count'])
+                    insertion_content_probs[bound][line[bound + '_insertion_content']] = int(line['count'])
                     total += int(line['count'])
                 for nuke in utils.nukes:
-                    if nuke not in self.insertion_content_probs[bound]:
+                    if nuke not in insertion_content_probs[bound]:
                         print '    %s not in insertion content probs, adding with zero' % nuke
-                        self.insertion_content_probs[bound][nuke] = 0
-                    self.insertion_content_probs[bound][nuke] /= float(total)
+                        insertion_content_probs[bound][nuke] = 0
+                    insertion_content_probs[bound][nuke] /= float(total)
 
-            assert utils.is_normed(self.insertion_content_probs[bound])
-            # if self.args.debug:
-            #     print '  insertion content for', bound, self.insertion_content_probs[bound]
+            assert utils.is_normed(insertion_content_probs[bound])
+
+        return insertion_content_probs
 
     # ----------------------------------------------------------------------------------------
     def combine(self, irandom):
@@ -144,9 +142,14 @@ class Recombinator(object):
         return tuple(line[column] for column in utils.index_columns)
 
     # ----------------------------------------------------------------------------------------
-    def read_vdj_version_freqs(self, fname):
+    def read_vdj_version_freqs(self):
         """ Read the frequencies at which various VDJ combinations appeared in data """
-        with opener('r')(fname) as infile:
+        if self.args.simulate_from_scratch:
+            return None
+
+
+        version_freq_table = {}
+        with opener('r')(self.args.parameter_dir + '/' + utils.get_parameter_fname('all')) as infile:
             in_data = csv.DictReader(infile)
             total = 0.0
             for line in in_data:
@@ -160,19 +163,20 @@ class Recombinator(object):
                         continue
                 total += float(line['count'])
                 index = self.freqtable_index(line)
-                assert index not in self.version_freq_table
-                self.version_freq_table[index] = float(line['count'])
+                assert index not in version_freq_table
+                version_freq_table[index] = float(line['count'])
 
-        if len(self.version_freq_table) == 0:
+        if len(version_freq_table) == 0:
             raise Exception('didn\'t find any gene combinations in %s' % fname)
 
         # then normalize
         test_total = 0.0
-        for index in self.version_freq_table:
-            self.version_freq_table[index] /= total
-            test_total += self.version_freq_table[index]
+        for index in version_freq_table:
+            version_freq_table[index] /= total
+            test_total += version_freq_table[index]
         assert utils.is_normed(test_total, this_eps=1e-8)
-        assert len(self.version_freq_table) < 1e8  # if it gets *too* large, choose_vdj_combo() below isn't going to work because of numerical underflow. Note there's nothing special about 1e8, it's just that I'm pretty sure we're fine *up* to that point, and once we get beyond it we should think about doing things differently
+        assert len(version_freq_table) < 1e8  # if it gets *too* large, choose_vdj_combo() below isn't going to work because of numerical underflow. Note there's nothing special about 1e8, it's just that I'm pretty sure we're fine *up* to that point, and once we get beyond it we should think about doing things differently
+        return version_freq_table
 
     # ----------------------------------------------------------------------------------------
     def choose_vdj_combo(self, reco_event):
@@ -247,23 +251,45 @@ class Recombinator(object):
             self.insert(boundary, reco_event)
 
     # ----------------------------------------------------------------------------------------
+    def get_mute_freqs(self, region, gene_name, seq, is_insertion=False):
+        if self.args.simulate_from_scratch:
+            mute_distribution = numpy.random.exponential
+
+            if is_insertion:
+                meanfreq = numpy.mean([utils.scratch_mean_mute_freqs[gene_name[i]] for i in range(2)])  # <gene_name> is of form '[vd][dj]_insert' for insertions
+                refseq = seq
+            else:
+                meanfreq = utils.scratch_mean_mute_freqs[region]
+                refseq = self.glfo['seqs'][region][gene_name]
+
+            freqs = mute_distribution(meanfreq, len(refseq))
+            freqdict = {pos : freqs[pos] for pos in range(len(freqs))}
+            freqdict['overall_mean'] = meanfreq
+            return freqdict
+        else:
+            replacement_genes = None
+            if is_insertion:  # use an amalgamation of all the v genes
+                replacement_genes = utils.find_replacement_genes(self.args.parameter_dir, min_counts=-1, all_from_region='v')
+            else:
+                n_occurences = utils.read_overall_gene_probs(self.args.parameter_dir, only_gene=gene_name, normalize=False)  # how many times did we observe this gene in data?
+                if n_occurences < self.args.min_observations_to_write:  # if we didn't see it enough, average over all the genes that find_replacement_genes() gives us
+                    replacement_genes = utils.find_replacement_genes(self.args.parameter_dir, min_counts=self.args.min_observations_to_write, gene_name=gene_name, single_gene=False)
+    
+            mute_freqs, _ = paramutils.read_mute_info(self.args.parameter_dir, this_gene=gene_name, approved_genes=replacement_genes)
+
+        return mute_freqs
+
+    # ----------------------------------------------------------------------------------------
     def write_mute_freqs(self, region, gene_name, seq, reco_event, reco_seq_fname, is_insertion=False):
         """ Read position-by-position mute freqs from disk for <gene_name>, renormalize, then write to a file for bppseqgen. """
-        replacement_genes = None
-        if is_insertion:
-            replacement_genes = utils.find_replacement_genes(self.args.parameter_dir, min_counts=-1, all_from_region='v')
-        else:
-            n_occurences = utils.read_overall_gene_probs(self.args.parameter_dir, only_gene=gene_name, normalize=False)  # how many times did we observe this gene in data?
-            if n_occurences < self.args.min_observations_to_write:  # if we didn't see it enough, average over all the genes that find_replacement_genes() gives us
-                # print '    only saw %s %d times, use info from other genes' % (utils.color_gene(gene_name), n_occurences)
-                replacement_genes = utils.find_replacement_genes(self.args.parameter_dir, min_counts=self.args.min_observations_to_write, gene_name=gene_name, single_gene=False)
+        mute_freqs = self.get_mute_freqs(region, gene_name, seq, is_insertion)
 
-        mute_freqs, mute_counts = paramutils.read_mute_info(self.args.parameter_dir, this_gene=gene_name, approved_genes=replacement_genes)
         rates = []  # list with a relative mutation rate for each position in <seq>
         total = 0.0
         # assert len(mute_freqs) == len(seq)  # only equal length if no erosions NO oh right but mute_freqs only covers areas we could align to...
+        left_erosion_length = dict(reco_event.erosions.items() + reco_event.effective_erosions.items())[region + '_5p']
         for inuke in range(len(seq)):  # append a freq for each nuke
-            position = inuke + dict(reco_event.erosions.items() + reco_event.effective_erosions.items())[region + '_5p']
+            position = inuke + left_erosion_length
             freq = 0.0
             if position in mute_freqs:
                 freq = mute_freqs[position]
