@@ -61,17 +61,16 @@ class RecombinationEvent(object):
     def set_final_cyst_tryp_positions(self, debug=False):
         """ Set tryp position in the final, combined sequence. """
         self.final_cyst_position = self.local_cyst_position - self.effective_erosions['v_5p']
-        self.final_tryp_position = utils.find_tryp_in_joined_seq(self.local_tryp_position,
-                                                                self.eroded_seqs['v'],
-                                                                self.insertions['vd'],
-                                                                self.eroded_seqs['d'],
-                                                                self.insertions['dj'],
-                                                                self.eroded_seqs['j'],
-                                                                self.erosions['j_5p'])
+        self.final_tryp_position = utils.find_tryp_in_joined_seq(self.local_tryp_position, self.eroded_seqs['v'], self.insertions['vd'], self.eroded_seqs['d'], self.insertions['dj'], self.eroded_seqs['j'], self.erosions['j_5p'])
+        self.cdr3_length = self.final_tryp_position - self.final_cyst_position + 3
         if debug:
             print '  final tryptophan position: %d' % self.final_tryp_position
-        utils.check_both_conserved_codons(self.eroded_seqs['v'] + self.insertions['vd'] + self.eroded_seqs['d'] + self.insertions['dj'] + self.eroded_seqs['j'], self.final_cyst_position, self.final_tryp_position)
-        self.cdr3_length = self.final_tryp_position - self.final_cyst_position + 3
+
+        codons_ok = utils.check_both_conserved_codons(self.eroded_seqs['v'] + self.insertions['vd'] + self.eroded_seqs['d'] + self.insertions['dj'] + self.eroded_seqs['j'], self.final_cyst_position, self.final_tryp_position, assert_on_fail=False)
+        if not codons_ok:
+            return False
+
+        return True
 
     # ----------------------------------------------------------------------------------------
     def write_event(self, outfile, irandom=None):
@@ -85,6 +84,7 @@ class RecombinationEvent(object):
             the calling proc tells write_event() that we're writing the <irandom>th event that that calling event is working on. Which effectively
             means we (drastically) reduce the period of our random number generator for hashing in exchange for reproducibility. Should be ok...
         """
+        # columns = ('unique_id', 'reco_id') + tuple(list(utils.index_columns)[:3] + ['cdr3_length', ] + list(utils.index_columns)[3:]) + ('seq', 'indelfo')
         columns = ('unique_id', 'reco_id') + utils.index_columns + ('seq', 'indelfo')
         mode = ''
         if os.path.isfile(outfile):

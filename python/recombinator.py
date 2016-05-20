@@ -37,7 +37,8 @@ class Recombinator(object):
             if self.args.parameter_dir is None or not os.path.exists(self.args.parameter_dir):
                 raise Exception('parameter dir ' + self.args.parameter_dir + ' d.n.e')
 
-        self.index_columns = tuple([ic for ic in utils.index_columns if ic != 'cdr3_length' ])  # cdr3 length is already implicit given the other columns, and it's a hassle to add it
+        # self.index_columns = tuple([ic for ic in utils.index_columns if ic != 'cdr3_length' ])  # cdr3 length is already implicit given the other columns, and it's a hassle to add it
+        self.index_columns = utils.index_columns  # tuple(list(utils.index_columns)[:3] + ['cdr3_length', ] + list(utils.index_columns)[3:]) #
 
         self.index_keys = {}  # this is kind of hackey, but I suspect indexing my huge table of freqs with a tuple is better than a dict
         self.mute_models = {}
@@ -124,10 +125,9 @@ class Recombinator(object):
             print '    insert: %s' % reco_event.insertions['dj']
             print '         j: %s' % reco_event.eroded_seqs['j']
         reco_event.recombined_seq = reco_event.eroded_seqs['v'] + reco_event.insertions['vd'] + reco_event.eroded_seqs['d'] + reco_event.insertions['dj'] + reco_event.eroded_seqs['j']
-        try:
-            reco_event.set_final_cyst_tryp_positions(debug=self.args.debug)
-        except AssertionError:
-            print 'ERROR bad conserved codons, what the hell?'
+        codons_ok = reco_event.set_final_cyst_tryp_positions(debug=self.args.debug)
+        if not codons_ok:
+            print '    unproductive event -- rerunning'  # probably a weirdly long v_3p or j_5p deletion
             return False
 
         self.add_mutants(reco_event, irandom)  # toss a bunch of clones: add point mutations

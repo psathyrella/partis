@@ -74,7 +74,7 @@ def run_simulation(args):
             itry = 0
             while failed:
                 if itry > 0:
-                    print 'try again: %d' % itry
+                    print '          try again: %d' % itry
                 failed = not reco.combine(random_ints[ievt] + itry)
                 itry += 1
 

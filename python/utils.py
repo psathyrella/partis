@@ -91,8 +91,8 @@ conserved_codon_names = {'v':'cyst', 'd':'', 'j':'tryp'}
 # Infrastrucure to allow hashing all the columns together into a dict key.
 # Uses a tuple with the variables that are used to index selection frequencies
 # NOTE fv and jf insertions are *effective* (not real) insertions between v or j and the framework. They allow query sequences that extend beyond the v or j regions
+# index_columns = ('v_gene', 'd_gene', 'j_gene', 'v_5p_del', 'v_3p_del', 'd_5p_del', 'd_3p_del', 'j_5p_del', 'j_3p_del', 'fv_insertion', 'vd_insertion', 'dj_insertion', 'jf_insertion')
 index_columns = ('v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'v_5p_del', 'v_3p_del', 'd_5p_del', 'd_3p_del', 'j_5p_del', 'j_3p_del', 'fv_insertion', 'vd_insertion', 'dj_insertion', 'jf_insertion')
-# not_used_for_simulation = ('fv_insertion', 'jf_insertion', 'v_5p_del')
 index_keys = {}
 for i in range(len(index_columns)):  # dict so we can access them by name instead of by index number
     index_keys[index_columns[i]] = i
@@ -544,9 +544,6 @@ def find_tryp_in_joined_seq(gl_tryp_position_in_j, v_seq, vd_insertion, d_seq, d
     but this fcn assumes that the j *has* been eroded.
     also NOTE <[vdj]_seq> are assumed to already be eroded
     """
-    if debug:
-        print 'checking tryp with: %s, %d - %d = %d' % (j_seq, gl_tryp_position_in_j, j_erosion, gl_tryp_position_in_j - j_erosion)
-    check_conserved_tryptophan(j_seq, gl_tryp_position_in_j - j_erosion)  # make sure tryp is where it's supposed to be
     length_to_left_of_j = len(v_seq + vd_insertion + d_seq + dj_insertion)
     if debug:
         print '  finding tryp position as'
