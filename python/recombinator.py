@@ -37,6 +37,8 @@ class Recombinator(object):
             if self.args.parameter_dir is None or not os.path.exists(self.args.parameter_dir):
                 raise Exception('parameter dir ' + self.args.parameter_dir + ' d.n.e')
 
+        self.index_columns = tuple([ic for ic in utils.index_columns if ic != 'cdr3_length' ])  # cdr3 length is already implicit given the other columns, and it's a hassle to add it
+
         self.index_keys = {}  # this is kind of hackey, but I suspect indexing my huge table of freqs with a tuple is better than a dict
         self.mute_models = {}
         # self.treeinfo = []  # list of newick-formatted tree strings with region-specific branch info tacked at the end
@@ -47,7 +49,8 @@ class Recombinator(object):
 
         self.glfo = utils.read_germline_set(self.args.datadir)
 
-        self.version_freq_table = self.read_vdj_version_freqs()  # list of the probabilities with which each VDJ combo appears in data
+        self.version_freq_table = self.read_vdj_version_freqs()  # list of the probabilities with which each VDJ combo (plus other rearrangement parameters) appears in data
+        self.allowed_genes = self.get_allowed_genes()  # only used if we're simulating from scratch
         self.insertion_content_probs = self.read_insertion_content()
 
         # read shm info NOTE I'm not inferring the gtr parameters a.t.m., so I'm just (very wrongly) using the same ones for all individuals
@@ -138,15 +141,26 @@ class Recombinator(object):
         return True
 
     # ----------------------------------------------------------------------------------------
+    def get_allowed_genes(self):
+        allowed_genes = {r : [] for r in utils.regions}
+        if self.args.only_genes is not None:
+            for gene in self.args.only_genes:
+                allowed_genes[utils.get_region(gene)].append(gene)
+        else:  # just use all the ones in datadir
+            for region in utils.regions:
+                for gene in self.glfo['seqs'][region].keys():
+                    allowed_genes[region].append(gene)
+        return allowed_genes
+
+    # ----------------------------------------------------------------------------------------
     def freqtable_index(self, line):
-        return tuple(line[column] for column in utils.index_columns)
+        return tuple(line[column] for column in self.index_columns)  # NOTE not the same as utils.index_columns
 
     # ----------------------------------------------------------------------------------------
     def read_vdj_version_freqs(self):
         """ Read the frequencies at which various VDJ combinations appeared in data """
         if self.args.simulate_from_scratch:
             return None
-
 
         version_freq_table = {}
         with opener('r')(self.args.parameter_dir + '/' + utils.get_parameter_fname('all')) as infile:
@@ -180,16 +194,34 @@ class Recombinator(object):
 
     # ----------------------------------------------------------------------------------------
     def choose_vdj_combo(self, reco_event):
-        """ Choose which combination germline variants to use """
-        iprob = numpy.random.uniform(0, 1)
-        sum_prob = 0.0
-        for vdj_choice in self.version_freq_table:  # assign each vdj choice a segment of the interval [0,1], and choose the one which contains <iprob>
-            sum_prob += self.version_freq_table[vdj_choice]
-            if iprob < sum_prob:
-                reco_event.set_vdj_combo(vdj_choice, self.glfo, debug=self.args.debug, mimic_data_read_length=self.args.mimic_data_read_length)
-                return
+        """ Choose the set of rearrangement parameters """
 
-        assert False  # shouldn't fall through to here
+        vdj_choice = None
+        if self.args.simulate_from_scratch:  # generate an event from scratch
+            tmpline = {}
+            for region in utils.regions:
+                tmpline[region + '_gene'] = numpy.random.choice(self.allowed_genes[region])
+            for effrode in utils.effective_erosions:
+                tmpline[effrode + '_del'] = 0
+            for effbound in utils.effective_boundaries:
+                tmpline[effbound + '_insertion'] = 0
+            for erosion in utils.real_erosions:
+                tmpline[erosion + '_del'] = numpy.random.geometric(1. / utils.scratch_mean_erosion_lengths[erosion])
+            for bound in utils.boundaries:
+                tmpline[bound + '_insertion'] = numpy.random.geometric(1. / utils.scratch_mean_insertion_lengths[bound])
+            vdj_choice = self.freqtable_index(tmpline)
+        else:  # use real parameters from a directory
+            iprob = numpy.random.uniform(0, 1)
+            sum_prob = 0.0
+            for tmpchoice in self.version_freq_table:  # assign each vdj choice a segment of the interval [0,1], and choose the one which contains <iprob>
+                sum_prob += self.version_freq_table[tmpchoice]
+                if iprob < sum_prob:
+                    vdj_choice = tmpchoice
+                    break
+
+            assert vdj_choice is not None  # shouldn't fall through to here
+
+        reco_event.set_vdj_combo(vdj_choice, self.glfo, debug=self.args.debug, mimic_data_read_length=self.args.mimic_data_read_length)
 
     # ----------------------------------------------------------------------------------------
     def erode(self, erosion, reco_event):
