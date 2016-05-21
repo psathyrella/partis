@@ -67,8 +67,6 @@ class ParameterCounter(object):
         """ increment parameters that are the same for the entire clonal family """
         self.reco_total += 1
 
-        # all_index = self.get_index(info, tuple(list(utils.index_columns)[:3] + ['cdr3_length', ] + list(utils.index_columns)[3:]))
-        # all_index = self.get_index(info, utils.index_columns)
         all_index = self.get_index(info, tuple(list(utils.index_columns) + ['cdr3_length', ]))
         if all_index not in self.counts['all']:
             self.counts['all'][all_index] = 0
@@ -182,8 +180,6 @@ class ParameterCounter(object):
             index = None
             outfname = None
             if column == 'all':
-                # index = tuple(list(utils.index_columns)[:3] + ['cdr3_length', ] + list(utils.index_columns)[3:])
-                index = utils.index_columns
                 index = tuple(list(utils.index_columns) + ['cdr3_length', ])
                 outfname = base_outdir + '/' + utils.get_parameter_fname(column='all')
             elif '_content' in column:
