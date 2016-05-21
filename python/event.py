@@ -85,7 +85,8 @@ class RecombinationEvent(object):
             means we (drastically) reduce the period of our random number generator for hashing in exchange for reproducibility. Should be ok...
         """
         # columns = ('unique_id', 'reco_id') + tuple(list(utils.index_columns)[:3] + ['cdr3_length', ] + list(utils.index_columns)[3:]) + ('seq', 'indelfo')
-        columns = ('unique_id', 'reco_id') + utils.index_columns + ('seq', 'indelfo')
+        # columns = ('unique_id', 'reco_id') + utils.index_columns + ('seq', 'indelfo')
+        columns = ('unique_id', 'reco_id') + utils.index_columns + ('cdr3_length', 'seq', 'indelfo')
         mode = ''
         if os.path.isfile(outfile):
             mode = 'ab'

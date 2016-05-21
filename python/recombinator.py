@@ -38,7 +38,7 @@ class Recombinator(object):
                 raise Exception('parameter dir ' + self.args.parameter_dir + ' d.n.e')
 
         # self.index_columns = tuple([ic for ic in utils.index_columns if ic != 'cdr3_length' ])  # cdr3 length is already implicit given the other columns, and it's a hassle to add it
-        self.index_columns = utils.index_columns  # tuple(list(utils.index_columns)[:3] + ['cdr3_length', ] + list(utils.index_columns)[3:]) #
+        # self.index_columns = utils.index_columns  # tuple(list(utils.index_columns)[:3] + ['cdr3_length', ] + list(utils.index_columns)[3:]) #
 
         self.index_keys = {}  # this is kind of hackey, but I suspect indexing my huge table of freqs with a tuple is better than a dict
         self.mute_models = {}
@@ -154,7 +154,7 @@ class Recombinator(object):
 
     # ----------------------------------------------------------------------------------------
     def freqtable_index(self, line):
-        return tuple(line[column] for column in self.index_columns)  # NOTE not the same as utils.index_columns
+        return tuple(line[column] for column in utils.index_columns)
 
     # ----------------------------------------------------------------------------------------
     def read_vdj_version_freqs(self):
