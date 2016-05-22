@@ -273,7 +273,7 @@ class Hist(object):
         return ''.join(str_list)
 
     # ----------------------------------------------------------------------------------------
-    def mpl_plot(self, ax, ignore_overflows=False, label=None, color='black', alpha=1., linewidth=2, linestyle='-', markersize=None, errors=True):
+    def mpl_plot(self, ax, ignore_overflows=False, label=None, color=None, alpha=None, linewidth=None, linestyle=None, markersize=None, errors=True):
         if self.integral(include_overflows=(not ignore_overflows)) == 0.0:
             # print '   integral is zero in hist::mpl_plot'
             return None
@@ -285,15 +285,20 @@ class Hist(object):
             xvals = self.get_bin_centers()
             yvals = self.bin_contents
             yerrs = self.errors
-        # ax.scatter(xvals, yvals, label=label, color=color, alpha=alpha)
-        # return ax.plot(xvals, yvals, label=label, color=color, alpha=alpha, linewidth=linewidth, linestyle=linestyle)
-        # return ax.plot(xvals, yvals, label=label if label is not None else self.title, color=color, alpha=alpha, linewidth=linewidth, linestyle=linestyle, marker='.', markersize=13)
-        kwargs = {'color' : color,
-                  'alpha' : alpha,
-                  'linewidth' : linewidth,
-                  'linestyle' : linestyle,
-                  'marker' : '.',
-                  'markersize' : 13 if markersize is None else markersize}
+
+        defaults = {'color' : 'black',
+                    'alpha' : 1.,
+                    'linewidth' : 2,
+                    'linestyle' : '-',
+                    'marker' : '.',
+                    'markersize' : 13}
+        kwargs = {}
+        argvars = locals()
+        for arg in defaults:
+            if arg in argvars and argvars[arg] is not None:
+                kwargs[arg] = argvars[arg]
+            else:
+                kwargs[arg] = defaults[arg]
         if label is not None:
             kwargs['label'] = label
         elif self.title != '':
