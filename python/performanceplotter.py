@@ -19,7 +19,7 @@ class PerformancePlotter(object):
         self.name = name
         self.values = {}
         self.only_correct_gene_fractions = only_correct_gene_fractions
-        for column in utils.index_columns:
+        for column in tuple(list(utils.index_columns) + ['cdr3_length', ]):
             if column == 'cdr3_length':  # kind of finicky to figure out what this is, so I don't always set it
                 continue
             self.values[column] = {}

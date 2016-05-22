@@ -148,7 +148,7 @@ class Hist(object):
         return sum_value
 
     # ----------------------------------------------------------------------------------------
-    def normalize(self, include_overflows=True, expect_empty=False, overflow_eps_to_ignore=1e-15):
+    def normalize(self, include_overflows=True, expect_empty=False, expect_overflows=False, overflow_eps_to_ignore=1e-15):
         sum_value = self.integral(include_overflows)
         imin, imax = self.get_bounds(include_overflows)
         if sum_value == 0.0:
@@ -157,7 +157,7 @@ class Hist(object):
             if not expect_empty:
                 print 'WARNING sum zero in Hist::normalize()'
             return
-        if not include_overflows and (self.bin_contents[0]/sum_value > overflow_eps_to_ignore or self.bin_contents[self.n_bins+1]/sum_value > overflow_eps_to_ignore):
+        if not expect_overflows and not include_overflows and (self.bin_contents[0]/sum_value > overflow_eps_to_ignore or self.bin_contents[self.n_bins+1]/sum_value > overflow_eps_to_ignore):
             print 'WARNING under/overflows in Hist::normalize()'
         for ib in range(imin, imax):
             self.bin_contents[ib] /= sum_value
@@ -273,7 +273,7 @@ class Hist(object):
         return ''.join(str_list)
 
     # ----------------------------------------------------------------------------------------
-    def mpl_plot(self, ax, ignore_overflows=False, label=None, color='black', alpha=1., linewidth=2, linestyle='-', markersize=None, errors=True):
+    def mpl_plot(self, ax, ignore_overflows=False, label=None, color=None, alpha=None, linewidth=None, linestyle=None, markersize=None, errors=True):
         if self.integral(include_overflows=(not ignore_overflows)) == 0.0:
             # print '   integral is zero in hist::mpl_plot'
             return None
@@ -285,15 +285,20 @@ class Hist(object):
             xvals = self.get_bin_centers()
             yvals = self.bin_contents
             yerrs = self.errors
-        # ax.scatter(xvals, yvals, label=label, color=color, alpha=alpha)
-        # return ax.plot(xvals, yvals, label=label, color=color, alpha=alpha, linewidth=linewidth, linestyle=linestyle)
-        # return ax.plot(xvals, yvals, label=label if label is not None else self.title, color=color, alpha=alpha, linewidth=linewidth, linestyle=linestyle, marker='.', markersize=13)
-        kwargs = {'color' : color,
-                  'alpha' : alpha,
-                  'linewidth' : linewidth,
-                  'linestyle' : linestyle,
-                  'marker' : '.',
-                  'markersize' : 13 if markersize is None else markersize}
+
+        defaults = {'color' : 'black',
+                    'alpha' : 1.,
+                    'linewidth' : 2,
+                    'linestyle' : '-',
+                    'marker' : '.',
+                    'markersize' : 13}
+        kwargs = {}
+        argvars = locals()
+        for arg in defaults:
+            if arg in argvars and argvars[arg] is not None:
+                kwargs[arg] = argvars[arg]
+            else:
+                kwargs[arg] = defaults[arg]
         if label is not None:
             kwargs['label'] = label
         elif self.title != '':

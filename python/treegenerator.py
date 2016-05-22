@@ -43,7 +43,7 @@ class TreeGenerator(object):
         self.args = args
         self.tree_generator = 'TreeSim'  # other option: ape
         self.branch_lengths = {}
-        self.read_mute_freqs(mute_freq_dir)
+        self.branch_lengths = self.read_mute_freqs(mute_freq_dir)  # for each region (and 'all'), a list of branch lengths and a list of corresponding probabilities (i.e. two lists: bin centers and bin contents). Also, the mean of the hist.
         random.seed(seed)
         numpy.random.seed(seed)
         if self.args.debug:
@@ -58,37 +58,50 @@ class TreeGenerator(object):
         # for consistency with the rest of the code base, we call it <mute_freq> instead of "fraction of observed changes"
         # JC69 formula, from wikipedia
         # NOTE this helps, but is not sufficient, because the mutation rate is super dominated by a relative few very highly mutated positions
-        argument = max(1e-2, 1. - (4./3)* mute_freq)  # HACK arbitrarily cut it off at 0.01 (only affects the the very small fraction with mute_freq higher than about 0.75)
+        argument = max(1e-2, 1. - (4./3)* mute_freq)  # HACK arbitrarily cut it off at 0.01 (only affects the very small fraction with mute_freq higher than about 0.75)
         return -(3./4) * math.log(argument)
+
+    #----------------------------------------------------------------------------------------
+    def get_mute_hist(self, mtype, mute_freq_dir):
+        if self.args.simulate_from_scratch:
+            n_entries = 500
+            length_vals = numpy.random.normal(utils.scratch_mean_mute_freqs[mtype], 0.1*utils.scratch_mean_mute_freqs[mtype], n_entries)
+            length_vals = [abs(lv) for lv in length_vals]
+            hist = Hist(30, 0., 1.)
+            for val in length_vals:
+                hist.fill(val)
+        else:
+            hist = Hist(fname=mute_freq_dir + '/' + mtype + '-mean-mute-freqs.csv')
+
+        return hist
 
     #----------------------------------------------------------------------------------------
     def read_mute_freqs(self, mute_freq_dir):
         # NOTE these are mute freqs, not branch lengths, but it's ok for now
+        branch_lengths = {}
         for mtype in ['all',] + utils.regions:
-            infname = mute_freq_dir + '/' + mtype + '-mean-mute-freqs.csv'
-            self.branch_lengths[mtype] = {}
-            self.branch_lengths[mtype]['lengths'], self.branch_lengths[mtype]['probs'] = [], []
-            mutehist = Hist(fname=infname)
-            self.branch_lengths[mtype]['mean'] = mutehist.get_mean()
+            branch_lengths[mtype] = {n : [] for n in ('lengths', 'probs')}
+            mutehist = self.get_mute_hist(mtype, mute_freq_dir)
+            branch_lengths[mtype]['mean'] = mutehist.get_mean()
 
-            # if mutehist.GetBinContent(0) > 0.0 or mutehist.GetBinContent(mutehist.GetNbinsX()+1) > 0.0:
-            #     print 'WARNING nonzero under/overflow bins read from %s' % infname
-            mutehist.normalize(include_overflows=False, overflow_eps_to_ignore=1e-2)  # if it was written with overflows included, it'll need to be renormalized
+            mutehist.normalize(include_overflows=False, expect_overflows=True)  # if it was written with overflows included, it'll need to be renormalized
             check_sum = 0.0
             for ibin in range(1, mutehist.n_bins + 1):  # ignore under/overflow bins
                 freq = mutehist.get_bin_centers()[ibin]
                 branch_length = self.convert_observed_changes_to_branch_length(float(freq))
                 prob = mutehist.bin_contents[ibin]
-                self.branch_lengths[mtype]['lengths'].append(branch_length)
-                self.branch_lengths[mtype]['probs'].append(prob)
-                check_sum += self.branch_lengths[mtype]['probs'][-1]
+                branch_lengths[mtype]['lengths'].append(branch_length)
+                branch_lengths[mtype]['probs'].append(prob)
+                check_sum += branch_lengths[mtype]['probs'][-1]
             if not utils.is_normed(check_sum):
                 raise Exception('not normalized %f' % check_sum)
 
         if self.args.debug:
             print '  mean branch lengths'
             for mtype in ['all',] + utils.regions:
-                print '     %4s %7.3f (ratio %7.3f)' % (mtype, self.branch_lengths[mtype]['mean'], self.branch_lengths[mtype]['mean'] / self.branch_lengths['all']['mean'])
+                print '     %4s %7.3f (ratio %7.3f)' % (mtype, branch_lengths[mtype]['mean'], branch_lengths[mtype]['mean'] / branch_lengths['all']['mean'])
+
+        return branch_lengths
 
     #----------------------------------------------------------------------------------------
     def add_branch_lengths_and_things(self, treefname, lonely_leaves, ages):

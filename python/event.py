@@ -40,7 +40,6 @@ class RecombinationEvent(object):
             self.original_seqs[region] = self.original_seqs[region].replace('N', utils.int_to_nucleotide(random.randint(0, 3)))  # replace any Ns with a random nuke (a.t.m. use the same nuke for all Ns in a given seq)
         self.local_cyst_position = glfo['cyst-positions'][self.genes['v']]  # cyst position in uneroded v
         self.local_tryp_position = glfo['tryp-positions'][self.genes['j']]  # tryp position within j only
-        self.cdr3_length = int(vdj_combo_label[utils.index_keys['cdr3_length']])
         for boundary in utils.boundaries:
             self.insertion_lengths[boundary] = int(vdj_combo_label[utils.index_keys[boundary + '_insertion']])
         for erosion in utils.real_erosions:
@@ -62,22 +61,16 @@ class RecombinationEvent(object):
     def set_final_cyst_tryp_positions(self, debug=False):
         """ Set tryp position in the final, combined sequence. """
         self.final_cyst_position = self.local_cyst_position - self.effective_erosions['v_5p']
-        self.final_tryp_position = utils.find_tryp_in_joined_seq(self.local_tryp_position,
-                                                                self.eroded_seqs['v'],
-                                                                self.insertions['vd'],
-                                                                self.eroded_seqs['d'],
-                                                                self.insertions['dj'],
-                                                                self.eroded_seqs['j'],
-                                                                self.erosions['j_5p'])
+        self.final_tryp_position = utils.find_tryp_in_joined_seq(self.local_tryp_position, self.eroded_seqs['v'], self.insertions['vd'], self.eroded_seqs['d'], self.insertions['dj'], self.eroded_seqs['j'], self.erosions['j_5p'])
+        self.cdr3_length = self.final_tryp_position - self.final_cyst_position + 3
         if debug:
             print '  final tryptophan position: %d' % self.final_tryp_position
-        # make sure cdr3 length matches the desired length in vdj_combo_label
-        final_cdr3_length = self.final_tryp_position - self.final_cyst_position + 3
-        if debug:
-            print '  final_tryp_position - final_cyst_position + 3 = %d - %d + 3 = %d (should be %d)' % (self.final_tryp_position, self.final_cyst_position, final_cdr3_length, self.cdr3_length)
-        utils.check_both_conserved_codons(self.eroded_seqs['v'] + self.insertions['vd'] + self.eroded_seqs['d'] + self.insertions['dj'] + self.eroded_seqs['j'], self.final_cyst_position, self.final_tryp_position)
-            
-        assert final_cdr3_length == int(self.cdr3_length)
+
+        codons_ok = utils.check_both_conserved_codons(self.eroded_seqs['v'] + self.insertions['vd'] + self.eroded_seqs['d'] + self.insertions['dj'] + self.eroded_seqs['j'], self.final_cyst_position, self.final_tryp_position, assert_on_fail=False)
+        if not codons_ok:
+            return False
+
+        return True
 
     # ----------------------------------------------------------------------------------------
     def write_event(self, outfile, irandom=None):
@@ -91,7 +84,7 @@ class RecombinationEvent(object):
             the calling proc tells write_event() that we're writing the <irandom>th event that that calling event is working on. Which effectively
             means we (drastically) reduce the period of our random number generator for hashing in exchange for reproducibility. Should be ok...
         """
-        columns = ('unique_id', 'reco_id') + utils.index_columns + ('seq', 'indelfo')
+        columns = ('unique_id', 'reco_id') + utils.index_columns + ('cdr3_length', 'seq', 'indelfo')
         mode = ''
         if os.path.isfile(outfile):
             mode = 'ab'

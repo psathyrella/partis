@@ -10,7 +10,6 @@ fi
 echo -e "\n--> building samtools"
 export LEIN_ROOT=1
 cd $basedir/packages/samtools/ && make
-export PATH=$PWD:$PATH
 
 echo -e "\n--> building ighutil"
 cd $basedir/packages/ighutil/ && make -C clj

@@ -30,8 +30,8 @@ class PartitionDriver(object):
         self.glfo = utils.read_germline_set(self.args.datadir, alignment_dir=self.args.alignment_dir, debug=True)
 
         self.input_info, self.reco_info = None, None
-        if self.args.seqfile is not None:
-            self.input_info, self.reco_info = get_seqfile_info(self.args.seqfile, self.args.is_data, self.glfo, self.args.n_max_queries, self.args.queries, self.args.reco_ids,
+        if self.args.infname is not None:
+            self.input_info, self.reco_info = get_seqfile_info(self.args.infname, self.args.is_data, self.glfo, self.args.n_max_queries, self.args.queries, self.args.reco_ids,
                                                                name_column=self.args.name_column, seq_column=self.args.seq_column, seed_unique_id=self.args.seed_unique_id,
                                                                abbreviate_names=self.args.abbreviate)
             if len(self.input_info) > 1000:
@@ -40,7 +40,7 @@ class PartitionDriver(object):
                 if self.args.outfname is None and self.args.action != 'cache-parameters':
                     print '  note: running on a lot of sequences without setting --outfname. Which is ok! But there\'ll be no persistent record of the results'
         elif self.args.action != 'view-annotations' and self.args.action != 'view-partitions':
-            raise Exception('--seqfile is required for action \'%s\'' % args.action)
+            raise Exception('--infname is required for action \'%s\'' % args.action)
 
 
         self.sw_info = None
@@ -135,7 +135,7 @@ class PartitionDriver(object):
                     print '   %s failed' % line['unique_ids']
                     continue
                 utils.process_input_line(line)
-                if self.args.seqfile is not None and self.reco_info is not None:
+                if self.args.infname is not None and self.reco_info is not None:
                     utils.print_true_events(self.glfo, self.reco_info, line)
                 utils.add_implicit_info(self.glfo, line, multi_seq=True, existing_implicit_keys=('aligned_d_seqs', 'aligned_j_seqs', 'aligned_v_seqs', 'cdr3_length', 'naive_seq', 'in_frames', 'mutated_invariants', 'stops'))
                 print '    inferred:\n'
@@ -327,10 +327,10 @@ class PartitionDriver(object):
             exit_code = proc.wait()
             joinstr = '\n    '
             if out != '':
-                print '  out:'
+                print '  stdout:'
                 print '    ' + joinstr.join(out.replace('\r', '').split('\n'))
             if err != '':
-                print '  err:'
+                print '  stderr:'
                 print '    ' + joinstr.join(err.replace('\r', '').split('\n'))
             if exit_code != 0:
                 raise Exception('vsearch failed with exit code %d' % exit_code)

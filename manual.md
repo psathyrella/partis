@@ -34,11 +34,11 @@ Note the `-v`, which mounts the root of the host filesystem to `/host` inside th
 Now you can run individual partis commands (described [below](#details)), or poke around in the code.
 If you just want to annotate a small file with BCR sequences, say on your machine at `/path/to/yourseqs.fa`, run
 
-```./bin/partis run-viterbi --seqfile /host/path/to/yourseqs.fa --outfname /host/path/to/yourseqs-run-viterbi.csv```
+```./bin/partis run-viterbi --infname /host/path/to/yourseqs.fa --outfname /host/path/to/yourseqs-run-viterbi.csv```
 
 Whereas if you'd like to separate them into clonal families, run
 
-```./bin/partis partition --seqfile /host/path/to/yourseqs.fa --outfname /host/path/to/yourseqs-partition.csv```
+```./bin/partis partition --infname /host/path/to/yourseqs.fa --outfname /host/path/to/yourseqs-partition.csv```
 
 Note that now we're inside the container, we access the fasta file at the original path on your host system, but with `/host` tacked on the front (as we specified in `docker run` above).
 There's also some example sequences you can run on in `test/example.fa`.
@@ -77,10 +77,6 @@ You'll need to have recent versions of the following (to see which versions, fol
     - pysam
     - pyyaml
     - cython
-    - networkx
-    - decorator
-    - lxml
-    - bs4 (beautiful soup)
     - pandas
     - seaborn
 
@@ -129,9 +125,9 @@ If `--parameter-dir` (whether explicitly set or left as default) doesn't exist, 
 
 Finds the Viterbi path (i.e., the most likely annotation/alignment) for each sequence, for example:
 
-```./bin/partis run-viterbi --seqfile test/example.fa --outfname _output/example.csv```
+```./bin/partis run-viterbi --infname test/example.fa --outfname _output/example.csv```
 
-The output csv headers are listed in the table below, and you can view a colored ascii representation of the rearrangement events with `./bin/view-annotations.py <outfname>`.
+The output csv headers are listed in the table below, and you can view a colored ascii representation of the rearrangement events with the `view-annotations` action.
 
 |   column header        |  description
 |------------------------|----------------------------------------------------------------------------
@@ -169,9 +165,9 @@ Note that `utils.process_input_line()` and `utils.get_line_for_output()` can be 
 
 Example invocation:
 
-```./bin/partis partition --seqfile test/example.fa --outfname _output/example.csv```
+```./bin/partis partition --infname test/example.fa --outfname _output/example.csv```
 
-The output csv file headers are listed in the table below, and you can view a colored ascii representation of the clusters with `./bin/view-partitions.py <outfname>`.
+The output csv file headers are listed in the table below, and you can view a colored ascii representation of the clusters with the `view-partitions` action.
 We write one line for the most likely partition (with the lowest logprob), as well as a number of lines for the surrounding less-likely partitions (set with `--n-partitions-to-write`)
 
 |   column header  |  description
@@ -182,7 +178,7 @@ We write one line for the most likely partition (with the lowest logprob), as we
 | n_procs          |  Number of processes which were simultaneously running for this clusterpath. In practice, final output is usually only written for n_procs = 1
 
 To help visualize the clusters, you can tell it to print the most likely annotations for the final clusters with `--print-cluster-annotations`.
-If you specify both `--print-cluster-annotations` and `--outfname`, the annotations will be written to a file name generated from `--outfname` (which can be viewed as other annotations, with `./bin/view-annotations.py`).
+If you specify both `--print-cluster-annotations` and `--outfname`, the annotations will be written to a file name generated from `--outfname` (which can be viewed as other annotations, with `view-annotations`).
 
 By default, this uses the most accurate and slowest method: hierarchical agglomeration with, first, hamming distance between naive sequences for distant clsuters, and full likelihood calculation for more similar clusters.
 Like most clustering algorithms, this scales rather closer than you'd like to quadratically than it does to linearly.
@@ -201,6 +197,18 @@ Vsearch is also very fast, because it makes a large number of heuristic approxim
 With `--n-procs` around 10 for the vsearch step, this should take only of order minutes for a million sequences.
 Since it's entirely unprincipled, this of course sacrifices significant accuracy; but since we're using inferred naive sequences it's still much, much more accurate than clustering on SHM'd sequences.
 
+##### `view-annotations`: Print (to std out) the annotations from an existing annotation output csv.
+
+To, e.g. run on the output csv from the `run-viterbi` action:
+
+``` ./bin/partis view-annotations --outfname run-viterbi-output.csv```
+
+##### `view-partitions`: Print (to std out) the partitions from an existing partition output csv.
+
+To, e.g. run on the output csv from the `partition` action:
+
+``` ./bin/partis view-partitions --outfname partition-output.csv```
+
 ##### `cache-parameters`: write out parameter values and HMM model files for a given data set
 
 The parameter-caching step is run automatically by the other actions if `--parameter-dir` doesn't exist (whether this directory is specified explicitly, or is left as default).
@@ -213,7 +221,7 @@ These files are then passed as input to a second, HMM-based, annotation step, wh
 
 For example:
 
-``` ./bin/partis cache-parameters --seqfile test/example.fa --parameter-dir _output/example```
+``` ./bin/partis cache-parameters --infname test/example.fa --parameter-dir _output/example```
 
 When caching parameters, the parameter csvs from Smith-Waterman and the HMM are put into `/sw` and `/hmm` subdirectories of `--parameter-dir`.
 Within each of these, there are a bunch of csv files with (hopefully) self-explanatory names, e.g. `j_gene-j_5p_del-probs.csv` has counts for J 5' deletions subset by J gene.

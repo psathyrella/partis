@@ -30,7 +30,7 @@ eps = 1.0e-10  # if things that should be 1.0 are this close to 1.0, blithely ke
 def is_normed(probs, this_eps=eps):
     if hasattr(probs, 'keys'):  # if it's a dict, call yourself with a list of the dict's values
         return is_normed([val for key, val in probs.items()])
-    elif hasattr(probs, '__getitem__'):  # if it's a list call yourself with their sum
+    elif hasattr(probs, '__iter__'):  # if it's a list call yourself with their sum
         return is_normed(sum(probs))
     else:  # and if it's a float actually do what you're supposed to do
         return math.fabs(probs - 1.0) < this_eps
@@ -64,6 +64,13 @@ def get_arg_list(arg, intify=False, floatify=False, translation=None, list_of_pa
 
     return arglist
 
+# ----------------------------------------------------------------------------------------
+# values used when simulating from scratch
+scratch_mean_mute_freqs = {'v' : 0.04, 'd' : 0.10, 'j' : 0.07}
+scratch_mean_mute_freqs['all'] = numpy.mean([v for v in scratch_mean_mute_freqs.values()])
+scratch_mean_erosion_lengths = {'v_3p' : 2, 'd_5p' : 3, 'd_3p' : 3, 'j_5p' : 4}
+scratch_mean_insertion_lengths = {'vd' : 4, 'dj' : 4}
+
 # # ----------------------------------------------------------------------------------------
 # hackey_default_gene_versions = {'v':'IGHV3-23*04', 'd':'IGHD3-10*01', 'j':'IGHJ4*02_F'}
 # ----------------------------------------------------------------------------------------
@@ -84,8 +91,7 @@ conserved_codon_names = {'v':'cyst', 'd':'', 'j':'tryp'}
 # Infrastrucure to allow hashing all the columns together into a dict key.
 # Uses a tuple with the variables that are used to index selection frequencies
 # NOTE fv and jf insertions are *effective* (not real) insertions between v or j and the framework. They allow query sequences that extend beyond the v or j regions
-index_columns = ('v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'v_5p_del', 'v_3p_del', 'd_5p_del', 'd_3p_del', 'j_5p_del', 'j_3p_del', 'fv_insertion', 'vd_insertion', 'dj_insertion', 'jf_insertion')
-# not_used_for_simulation = ('fv_insertion', 'jf_insertion', 'v_5p_del')
+index_columns = ('v_gene', 'd_gene', 'j_gene', 'v_5p_del', 'v_3p_del', 'd_5p_del', 'd_3p_del', 'j_5p_del', 'j_3p_del', 'fv_insertion', 'vd_insertion', 'dj_insertion', 'jf_insertion')
 index_keys = {}
 for i in range(len(index_columns)):  # dict so we can access them by name instead of by index number
     index_keys[index_columns[i]] = i
@@ -233,6 +239,10 @@ def rewrite_germline_fasta(input_dir, output_dir, only_genes=None, snps_to_add=N
     input_aligned_genes = glfo['aligned-genes']
     expected_files = []  # list of files that we write here -- if anything else is in the output dir, we barf
 
+    # color_mutants(input_germlines['v']['IGHV1-18*01'], input_germlines['v']['IGHV1-18*03'], print_result=True, extra_str='          ')
+    # color_mutants(input_germlines['v']['IGHV1-18*01'], input_germlines['v']['IGHV1-18*04'], print_result=True, extra_str='          ')
+    # sys.exit()
+
     if snps_to_add is not None:
         for gene in snps_to_add:
             print '  ', gene
@@ -265,7 +275,7 @@ def rewrite_germline_fasta(input_dir, output_dir, only_genes=None, snps_to_add=N
                         igl += 1
 
                 check_conserved_cysteine(seq, cpos)
-                # color_mutants(input_germlines[get_region(gene)][gene], seq, print_result=True, extra_str='          ')
+                color_mutants(input_germlines[get_region(gene)][gene], seq, print_result=True, extra_str='          ')
                 # color_mutants(input_aligned_genes[get_region(gene)][gene], aligned_seq, print_result=True, extra_str='          ')
                 input_germlines[get_region(gene)][gene] = seq
                 input_aligned_genes[get_region(gene)][gene] = aligned_seq
@@ -533,9 +543,6 @@ def find_tryp_in_joined_seq(gl_tryp_position_in_j, v_seq, vd_insertion, d_seq, d
     but this fcn assumes that the j *has* been eroded.
     also NOTE <[vdj]_seq> are assumed to already be eroded
     """
-    if debug:
-        print 'checking tryp with: %s, %d - %d = %d' % (j_seq, gl_tryp_position_in_j, j_erosion, gl_tryp_position_in_j - j_erosion)
-    check_conserved_tryptophan(j_seq, gl_tryp_position_in_j - j_erosion)  # make sure tryp is where it's supposed to be
     length_to_left_of_j = len(v_seq + vd_insertion + d_seq + dj_insertion)
     if debug:
         print '  finding tryp position as'
@@ -1124,7 +1131,7 @@ def add_missing_alignments(glfo, debug=False):
                 n_dashes = len(alignment_to_use) - len(seq)
                 glfo['aligned-genes'][region][gene] = n_dashes * '-' + seq  # just hack a bunch of dashes on the left
 
-    if os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
+    if len(missing_genes) > 0 and os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
         print '   adding nonsense alignments for missing genes %s' % ' '.join([color_gene(g) for g in missing_genes])
 
 # ----------------------------------------------------------------------------------------
@@ -1573,13 +1580,13 @@ def process_out_err(out, err, extra_str='', info=None, subworkdir=None):
             info[header] = {}
             theselines = [ln for ln in out.split('\n') if header + ':' in ln]
             if len(theselines) != 1:
-                raise Exception('couldn\'t find %s line in:\nout:\n%s\nerr:\n%s' % (header, out, err))
+                raise Exception('couldn\'t find \'%s\' line in:\nstdout:\n%s\nstderr:\n%s' % (header, out, err))
             words = theselines[0].split()
             try:
                 for var in variables:  # convention: value corresponding to the string <var> is the word immediately vollowing <var>
                     info[header][var] = float(words[words.index(var) + 1])
             except:
-                raise Exception('couldn\'t find %s line in:\nout:\n%s\nerr:\n%s' % (header, out, err))
+                raise Exception('couldn\'t find \'%s\' line in:\nstdout:\n%s\nstderr:\n%s' % (header, out, err))
 
     print_str += out
 
