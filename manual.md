@@ -77,10 +77,6 @@ You'll need to have recent versions of the following (to see which versions, fol
     - pysam
     - pyyaml
     - cython
-    - networkx
-    - decorator
-    - lxml
-    - bs4 (beautiful soup)
     - pandas
     - seaborn
 
