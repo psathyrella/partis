@@ -15,9 +15,6 @@ echo -e "\n--> building ighutil"
 cd $basedir/packages/ighutil/ && make -C clj
 pip install --user ./python
 
-echo -e "\n--> building smctc"
-cd $basedir/packages/smctc/ && make
-
 echo -e "\n--> building ham"
 cd $basedir/packages/ham/ && scons bcrham
 cd $basedir/
