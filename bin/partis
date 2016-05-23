@@ -3,6 +3,7 @@ import argparse
 import time
 import random
 import sys
+import numpy
 from multiprocessing import Process, active_children
 from subprocess import check_output, CalledProcessError
 import os
@@ -89,7 +90,7 @@ def run_simulation(args):
     n_per_proc = int(float(args.n_sim_events) / args.n_procs)
     all_random_ints = []
     for iproc in range(args.n_procs):  # have to generate these all at once, 'cause each of the subprocesses is going to reset its seed and god knows what happens to our seed at that point
-        all_random_ints.append([random.randint(0, sys.maxint) for i in range(n_per_proc)])
+        all_random_ints.append([random.randint(0, numpy.iinfo(numpy.int32).max) for i in range(n_per_proc)])
     for iproc in range(args.n_procs):
         proc = Process(target=make_events, args=(n_per_proc, iproc, all_random_ints[iproc]))
         proc.start()
