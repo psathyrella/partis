@@ -11,7 +11,7 @@ However, StochHMM's overall structure, and its basic idea of reading HMM structu
 (As an aside, we note that the excellent HMMER tool only implements profile HMMs, and thus was not appropriate for our needs.)
 
 From a usability standpoint, ham is distinguished by the use of [YAML](http://yaml.org) config files.
-These are concise plain text (for example, the CPG island XML config in HMMoC is 5961 characters, while examples/cpg.yaml is 440 characters) files which are also eminently scriptable using libraries for a variety of languages.
+These are concise plain text (for example, the CPG island XML config in HMMoC is 5961 characters, while examples/cpg.yaml is 408 characters) files which are also eminently scriptable using libraries for a variety of languages.
 Changing anything in the HMMs just requires editing these text files, then rerunning an existing C++ binary.
 
 In performance tests, we've found ham to be a bit faster and somewhat more memory-efficient than HMMoC.
@@ -50,7 +50,6 @@ states:
     ocean: 0.7
 - name: island
   emissions:
-    track: nucs
     probs:
       A: 0.1
       C: 0.4
@@ -62,7 +61,6 @@ states:
     end: 0.15
 - name: ocean
   emissions:
-    track: nucs
     probs:
       A: 0.25
       C: 0.25
