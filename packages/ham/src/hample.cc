@@ -88,8 +88,14 @@ void CheckChunkCaching(Model &hmm, trellis &trell, Sequences seqs) {
     checktrell.Traceback(checkpath);
     checktrell.Forward();
 
+    if(subtrell.ending_forward_log_prob() == -INFINITY) {
+      cout << "  no valid path for subsequence of length " << length << endl;
+      continue;
+    }
+
     // and finally, make sure they got the same answer
     assert(checkpath.size() == subpath.size());
+    assert(checkpath.size() == length);
     for(size_t ipos = 0; ipos < length; ++ipos) {
       if(checkpath[ipos] != subpath[ipos])
         throw runtime_error("ERROR dp table chunk caching failed -- didn't give the same viterbi path");
