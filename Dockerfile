@@ -21,6 +21,10 @@ RUN apt-get install -y \
     r-base \
     zlib1g-dev
 RUN pip install \
+    numpy \
+    scipy \
+    matplotlib \
+    pandas \
     biopython \
     cython \
     dendropy==3.12.3 \
