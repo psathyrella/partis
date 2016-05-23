@@ -15,7 +15,6 @@
 #include "args.h"
 #include "glomerator.h"
 #include "tclap/CmdLine.h"
-// #include "smctc.hh"
 
 using namespace TCLAP;
 using namespace ham;

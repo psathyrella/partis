@@ -805,7 +805,7 @@ Query Glomerator::GetMergedQuery(string name_a, string name_b) {
 }
 
 // ----------------------------------------------------------------------------------------
-pair<double, Query> *Glomerator::ChooseRandomMerge(vector<pair<double, Query> > &potential_merges, smc::rng *rgen) {
+pair<double, Query> *Glomerator::ChooseRandomMerge(vector<pair<double, Query> > &potential_merges) {
   // first leave log space and normalize. NOTE instead of normalizing, we could just use rng::Uniform(0., total)
   vector<double> ratios;  // NOTE *not* a probability: it's the ratio of the probability together to the probability apart
   double total(0.0);
@@ -818,7 +818,7 @@ pair<double, Query> *Glomerator::ChooseRandomMerge(vector<pair<double, Query> > 
     ratio /= total;
 
   // then choose one at random according to the probs
-  double drawpoint = rgen->Uniform(0., 1.);
+  double drawpoint = 0.;  assert(0); //rgen->Uniform(0., 1.);
   double sum(0.0);
   for(size_t im=0; im<ratios.size(); ++im) {
     sum += ratios[im];
@@ -1015,7 +1015,7 @@ void Glomerator::UpdateLogProbTranslationsForAsymetrics(Query &qmerge) {
 
 // ----------------------------------------------------------------------------------------
 // perform one merge step, i.e. find the two "nearest" clusters and merge 'em (unless we're doing doing smc, in which case we choose a random merge accordingy to their respective nearnesses)
-void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
+void Glomerator::Merge(ClusterPath *path) {
   if(path->finished_)  // already finished this <path>, but we're still iterating 'cause some of the other paths aren't finished
     return;
   pair<double, Query> qpair = FindHfracMerge(path);
