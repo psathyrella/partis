@@ -63,15 +63,15 @@ class TreeGenerator(object):
 
     #----------------------------------------------------------------------------------------
     def get_mute_hist(self, mtype, parameter_dir):
-        if self.args.simulate_from_scratch:
-            n_entries = 500
-            length_vals = numpy.random.normal(utils.scratch_mean_mute_freqs[mtype], 0.1*utils.scratch_mean_mute_freqs[mtype], n_entries)
-            length_vals = [abs(lv) for lv in length_vals]
-            hist = Hist(30, 0., 1.)
-            for val in length_vals:
-                hist.fill(val)
-        else:
-            hist = Hist(fname=parameter_dir + '/' + mtype + '-mean-mute-freqs.csv')
+        # if self.args.simulate_from_scratch:
+        #     n_entries = 500
+        #     length_vals = numpy.random.normal(utils.scratch_mean_mute_freqs[mtype], 0.1*utils.scratch_mean_mute_freqs[mtype], n_entries)
+        #     length_vals = [abs(lv) for lv in length_vals]
+        #     hist = Hist(30, 0., 1.)
+        #     for val in length_vals:
+        #         hist.fill(val)
+        # else:
+        hist = Hist(fname=parameter_dir + '/' + mtype + '-mean-mute-freqs.csv')
 
         return hist
 

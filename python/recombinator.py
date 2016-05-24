@@ -31,11 +31,17 @@ class Recombinator(object):
         else:  # need a separate workdir for each subprocess
             self.workdir = self.args.workdir + '/recombinator-' + sublabel
             self.outfname = self.workdir + '/' + os.path.basename(self.args.outfname)
-
         utils.prep_dir(self.workdir)
-        if not self.args.simulate_from_scratch:
-            if self.args.parameter_dir is None or not os.path.exists(self.args.parameter_dir):
-                raise Exception('parameter dir ' + self.args.parameter_dir + ' d.n.e')
+
+        if not self.args.simulate_partially_from_scratch:
+            parameter_dir = self.args.parameter_dir
+        else:  # we start from scratch, except for the mute freq stuff
+            parameter_dir = self.args.scratch_mute_freq_dir
+        print 'TODO remove this'
+        self.parameter_dir = parameter_dir
+
+        if parameter_dir is None or not os.path.exists(parameter_dir):
+            raise Exception('parameter dir ' + parameter_dir + ' d.n.e')
 
         self.index_keys = {}  # this is kind of hackey, but I suspect indexing my huge table of freqs with a tuple is better than a dict
         self.mute_models = {}
@@ -47,9 +53,9 @@ class Recombinator(object):
 
         self.glfo = utils.read_germline_set(self.args.datadir)
 
-        self.version_freq_table = self.read_vdj_version_freqs()  # list of the probabilities with which each VDJ combo (plus other rearrangement parameters) appears in data
+        self.version_freq_table = self.read_vdj_version_freqs(parameter_dir)  # list of the probabilities with which each VDJ combo (plus other rearrangement parameters) appears in data
         self.allowed_genes = self.get_allowed_genes()  # only used if we're simulating from scratch
-        self.insertion_content_probs = self.read_insertion_content()
+        self.insertion_content_probs = self.read_insertion_content(parameter_dir)
 
         # read shm info NOTE I'm not inferring the gtr parameters a.t.m., so I'm just (very wrongly) using the same ones for all individuals
         with opener('r')(self.args.gtrfname) as gtrfile:  # read gtr parameters
@@ -62,7 +68,7 @@ class Recombinator(object):
                 parameter_name = parameters[2]
                 assert model in self.mute_models[region]
                 self.mute_models[region][model][parameter_name] = line['value']
-        treegen = treegenerator.TreeGenerator(args, self.args.parameter_dir, seed=seed)
+        treegen = treegenerator.TreeGenerator(args, parameter_dir, seed=seed)
         self.treefname = self.workdir + '/trees.tre'
         treegen.generate_trees(seed, self.treefname)
         with opener('r')(self.treefname) as treefile:  # read in the trees (and other info) that we just generated
@@ -76,14 +82,14 @@ class Recombinator(object):
             os.makedirs(os.path.dirname(os.path.abspath(self.outfname)))
 
     # ----------------------------------------------------------------------------------------
-    def read_insertion_content(self):
-        if self.args.simulate_from_scratch:
+    def read_insertion_content(self, parameter_dir):
+        if self.args.simulate_partially_from_scratch:
             return {b : {n : 1./len(utils.nukes) for n in utils.nukes} for b in utils.boundaries}
 
         insertion_content_probs = {}
         for bound in utils.boundaries:
             insertion_content_probs[bound] = {}
-            with opener('r')(self.args.parameter_dir + '/' + bound + '_insertion_content.csv') as icfile:
+            with opener('r')(parameter_dir + '/' + bound + '_insertion_content.csv') as icfile:
                 reader = csv.DictReader(icfile)
                 total = 0
                 for line in reader:
@@ -154,13 +160,13 @@ class Recombinator(object):
         return tuple(line[column] for column in utils.index_columns)
 
     # ----------------------------------------------------------------------------------------
-    def read_vdj_version_freqs(self):
+    def read_vdj_version_freqs(self, parameter_dir):
         """ Read the frequencies at which various VDJ combinations appeared in data """
-        if self.args.simulate_from_scratch:
+        if self.args.simulate_partially_from_scratch:
             return None
 
         version_freq_table = {}
-        with opener('r')(self.args.parameter_dir + '/' + utils.get_parameter_fname('all')) as infile:
+        with opener('r')(parameter_dir + '/' + utils.get_parameter_fname('all')) as infile:
             in_data = csv.DictReader(infile)
             total = 0.0
             for line in in_data:
@@ -194,7 +200,7 @@ class Recombinator(object):
         """ Choose the set of rearrangement parameters """
 
         vdj_choice = None
-        if self.args.simulate_from_scratch:  # generate an event from scratch
+        if self.args.simulate_partially_from_scratch:  # generate an event from scratch
             tmpline = {}
             for region in utils.regions:
                 tmpline[region + '_gene'] = numpy.random.choice(self.allowed_genes[region])
@@ -281,30 +287,32 @@ class Recombinator(object):
 
     # ----------------------------------------------------------------------------------------
     def get_mute_freqs(self, region, gene_name, seq, is_insertion=False):
-        if self.args.simulate_from_scratch:
-            mute_distribution = numpy.random.exponential
+        print 'TODO cache these all at the start'
+        if False:  # doesn't work (well, we need a more realistic mute freq distribution than it gives) self.args.simulate_partially_from_scratch:
+            assert False
+            # mute_distribution = numpy.random.exponential
 
-            if is_insertion:
-                meanfreq = numpy.mean([utils.scratch_mean_mute_freqs[gene_name[i]] for i in range(2)])  # <gene_name> is of form '[vd][dj]_insert' for insertions
-                refseq = seq
-            else:
-                meanfreq = utils.scratch_mean_mute_freqs[region]
-                refseq = self.glfo['seqs'][region][gene_name]
+            # if is_insertion:  # mean of the regions on either side
+            #     meanfreq = numpy.mean([utils.scratch_mean_mute_freqs[gene_name[i]] for i in range(2)])  # <gene_name> is of form '[vd][dj]_insert' for insertions
+            #     length = len(seq)
+            # else:
+            #     meanfreq = utils.scratch_mean_mute_freqs[region]
+            #     length = len(self.glfo['seqs'][region][gene_name])
 
-            freqs = mute_distribution(meanfreq, len(refseq))
-            freqdict = {pos : freqs[pos] for pos in range(len(freqs))}
-            freqdict['overall_mean'] = meanfreq
-            return freqdict
+            # freqs = mute_distribution(meanfreq, length)
+            # freqdict = {pos : freqs[pos] for pos in range(len(freqs))}
+            # freqdict['overall_mean'] = meanfreq
+            # return freqdict
         else:
             replacement_genes = None
             if is_insertion:  # use an amalgamation of all the v genes
-                replacement_genes = utils.find_replacement_genes(self.args.parameter_dir, min_counts=-1, all_from_region='v')
+                replacement_genes = utils.find_replacement_genes(self.parameter_dir, min_counts=-1, all_from_region='v')
             else:
-                n_occurences = utils.read_overall_gene_probs(self.args.parameter_dir, only_gene=gene_name, normalize=False)  # how many times did we observe this gene in data?
+                n_occurences = utils.read_overall_gene_probs(self.parameter_dir, only_gene=gene_name, normalize=False)  # how many times did we observe this gene in data?
                 if n_occurences < self.args.min_observations_to_write:  # if we didn't see it enough, average over all the genes that find_replacement_genes() gives us
-                    replacement_genes = utils.find_replacement_genes(self.args.parameter_dir, min_counts=self.args.min_observations_to_write, gene_name=gene_name, single_gene=False)
+                    replacement_genes = utils.find_replacement_genes(self.parameter_dir, min_counts=self.args.min_observations_to_write, gene_name=gene_name, single_gene=False)
     
-            mute_freqs, _ = paramutils.read_mute_info(self.args.parameter_dir, this_gene=gene_name, approved_genes=replacement_genes)
+            mute_freqs, _ = paramutils.read_mute_info(self.parameter_dir, this_gene=gene_name, approved_genes=replacement_genes)
 
         return mute_freqs
 
