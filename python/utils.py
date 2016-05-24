@@ -66,8 +66,8 @@ def get_arg_list(arg, intify=False, floatify=False, translation=None, list_of_pa
 
 # ----------------------------------------------------------------------------------------
 # values used when simulating from scratch
-scratch_mean_mute_freqs = {'v' : 0.04, 'd' : 0.10, 'j' : 0.07}
-scratch_mean_mute_freqs['all'] = numpy.mean([v for v in scratch_mean_mute_freqs.values()])
+# scratch_mean_mute_freqs = {'v' : 0.03, 'd' : 0.8, 'j' : 0.06}
+# scratch_mean_mute_freqs['all'] = numpy.mean([v for v in scratch_mean_mute_freqs.values()])
 scratch_mean_erosion_lengths = {'v_3p' : 2, 'd_5p' : 3, 'd_3p' : 3, 'j_5p' : 4}
 scratch_mean_insertion_lengths = {'vd' : 4, 'dj' : 4}
 
