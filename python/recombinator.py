@@ -37,8 +37,6 @@ class Recombinator(object):
             parameter_dir = self.args.parameter_dir
         else:  # we start from scratch, except for the mute freq stuff
             parameter_dir = self.args.scratch_mute_freq_dir
-        print 'TODO remove this'
-        self.parameter_dir = parameter_dir
 
         if parameter_dir is None or not os.path.exists(parameter_dir):
             raise Exception('parameter dir ' + parameter_dir + ' d.n.e')
@@ -54,8 +52,9 @@ class Recombinator(object):
         self.glfo = utils.read_germline_set(self.args.datadir)
 
         self.version_freq_table = self.read_vdj_version_freqs(parameter_dir)  # list of the probabilities with which each VDJ combo (plus other rearrangement parameters) appears in data
-        self.allowed_genes = self.get_allowed_genes()  # only used if we're simulating from scratch
+        self.allowed_genes = self.get_allowed_genes()
         self.insertion_content_probs = self.read_insertion_content(parameter_dir)
+        self.all_mute_freqs = self.read_all_mute_freq_stuff(parameter_dir)
 
         # read shm info NOTE I'm not inferring the gtr parameters a.t.m., so I'm just (very wrongly) using the same ones for all individuals
         with opener('r')(self.args.gtrfname) as gtrfile:  # read gtr parameters
@@ -104,6 +103,26 @@ class Recombinator(object):
             assert utils.is_normed(insertion_content_probs[bound])
 
         return insertion_content_probs
+
+
+    # ----------------------------------------------------------------------------------------
+    def read_all_mute_freq_stuff(self, parameter_dir):
+        all_mute_freqs = {}
+
+        for boundary in utils.boundaries:
+            insert_name = boundary + '_insert'
+            replacement_genes = utils.find_replacement_genes(parameter_dir, min_counts=-1, all_from_region='v')
+            all_mute_freqs[insert_name], _ = paramutils.read_mute_info(parameter_dir, this_gene=insert_name, approved_genes=replacement_genes)
+
+        for region in utils.regions:
+            for gene_name in self.allowed_genes[region]:
+                n_occurences = utils.read_overall_gene_probs(parameter_dir, only_gene=gene_name, normalize=False)  # how many times did we observe this gene in data?
+                if n_occurences < self.args.min_observations_to_write:  # if we didn't see it enough, average over all the genes that find_replacement_genes() gives us
+                    replacement_genes = utils.find_replacement_genes(parameter_dir, min_counts=self.args.min_observations_to_write, gene_name=gene_name, single_gene=False)
+
+                all_mute_freqs[gene_name], _ = paramutils.read_mute_info(parameter_dir, this_gene=gene_name, approved_genes=replacement_genes)
+
+        return all_mute_freqs
 
     # ----------------------------------------------------------------------------------------
     def combine(self, irandom):
@@ -286,40 +305,9 @@ class Recombinator(object):
             self.insert(boundary, reco_event)
 
     # ----------------------------------------------------------------------------------------
-    def get_mute_freqs(self, region, gene_name, seq, is_insertion=False):
-        print 'TODO cache these all at the start'
-        if False:  # doesn't work (well, we need a more realistic mute freq distribution than it gives) self.args.simulate_partially_from_scratch:
-            assert False
-            # mute_distribution = numpy.random.exponential
-
-            # if is_insertion:  # mean of the regions on either side
-            #     meanfreq = numpy.mean([utils.scratch_mean_mute_freqs[gene_name[i]] for i in range(2)])  # <gene_name> is of form '[vd][dj]_insert' for insertions
-            #     length = len(seq)
-            # else:
-            #     meanfreq = utils.scratch_mean_mute_freqs[region]
-            #     length = len(self.glfo['seqs'][region][gene_name])
-
-            # freqs = mute_distribution(meanfreq, length)
-            # freqdict = {pos : freqs[pos] for pos in range(len(freqs))}
-            # freqdict['overall_mean'] = meanfreq
-            # return freqdict
-        else:
-            replacement_genes = None
-            if is_insertion:  # use an amalgamation of all the v genes
-                replacement_genes = utils.find_replacement_genes(self.parameter_dir, min_counts=-1, all_from_region='v')
-            else:
-                n_occurences = utils.read_overall_gene_probs(self.parameter_dir, only_gene=gene_name, normalize=False)  # how many times did we observe this gene in data?
-                if n_occurences < self.args.min_observations_to_write:  # if we didn't see it enough, average over all the genes that find_replacement_genes() gives us
-                    replacement_genes = utils.find_replacement_genes(self.parameter_dir, min_counts=self.args.min_observations_to_write, gene_name=gene_name, single_gene=False)
-    
-            mute_freqs, _ = paramutils.read_mute_info(self.parameter_dir, this_gene=gene_name, approved_genes=replacement_genes)
-
-        return mute_freqs
-
-    # ----------------------------------------------------------------------------------------
-    def write_mute_freqs(self, region, gene_name, seq, reco_event, reco_seq_fname, is_insertion=False):
-        """ Read position-by-position mute freqs from disk for <gene_name>, renormalize, then write to a file for bppseqgen. """
-        mute_freqs = self.get_mute_freqs(region, gene_name, seq, is_insertion)
+    def write_mute_freqs(self, region, gene_or_insert_name, seq, reco_event, reco_seq_fname, is_insertion=False):
+        """ Read position-by-position mute freqs from disk for <gene_or_insert_name>, renormalize, then write to a file for bppseqgen. """
+        mute_freqs = self.all_mute_freqs[gene_or_insert_name]
 
         rates = []  # list with a relative mutation rate for each position in <seq>
         total = 0.0
@@ -356,7 +344,7 @@ class Recombinator(object):
         # NOTE I need to find a tool to give me the total branch length of the chosen tree, so I can compare to the number of mutations I see
 
     # ----------------------------------------------------------------------------------------
-    def run_bppseqgen(self, seq, chosen_tree, gene_name, reco_event, seed, is_insertion=False):
+    def run_bppseqgen(self, seq, chosen_tree, gene_or_insert_name, reco_event, seed, is_insertion=False):
         """ Run bppseqgen on sequence
 
         Note that this is in general a piece of the full sequence (say, the V region), since
@@ -367,7 +355,7 @@ class Recombinator(object):
         if is_insertion:
             region = 'v'  # NOTE should really do something other than just use the v model for insertion mutations
         else:
-            region = utils.get_region(gene_name)
+            region = utils.get_region(gene_or_insert_name)
 
         treg = re.compile('t[0-9][0-9]*')  # find number of leaf nodes
         n_leaf_nodes = len(treg.findall(chosen_tree))
@@ -376,9 +364,9 @@ class Recombinator(object):
 
         # write the tree to a tmp file
         if is_insertion:
-            label = gene_name[:2]
+            label = gene_or_insert_name[:2]
         else:
-            label = utils.get_region(gene_name)
+            label = utils.get_region(gene_or_insert_name)
         treefname = self.workdir + '/' + label + '-tree.tre'
         reco_seq_fname = self.workdir + '/' + label + '-start-seq.txt'
         leaf_seq_fname = self.workdir + '/' + label + '-leaf-seqs.fa'
@@ -390,7 +378,7 @@ class Recombinator(object):
             chosen_tree = chosen_tree.replace(leafstr, '(' + leafstr + ',' + leafstr + '):0.0')
         with opener('w')(treefname) as treefile:
             treefile.write(chosen_tree)
-        self.write_mute_freqs(region, gene_name, seq, reco_event, reco_seq_fname, is_insertion=is_insertion)
+        self.write_mute_freqs(region, gene_or_insert_name, seq, reco_event, reco_seq_fname, is_insertion=is_insertion)
 
         # build up the command line
         # docs: http://biopp.univ-montp2.fr/apidoc/bpp-phyl/html/classbpp_1_1GTR.html that page is too darn hard to google
