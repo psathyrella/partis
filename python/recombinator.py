@@ -116,10 +116,10 @@ class Recombinator(object):
 
         for region in utils.regions:
             for gene_name in self.allowed_genes[region]:
+                replacement_genes = None
                 n_occurences = utils.read_overall_gene_probs(parameter_dir, only_gene=gene_name, normalize=False)  # how many times did we observe this gene in data?
                 if n_occurences < self.args.min_observations_to_write:  # if we didn't see it enough, average over all the genes that find_replacement_genes() gives us
                     replacement_genes = utils.find_replacement_genes(parameter_dir, min_counts=self.args.min_observations_to_write, gene_name=gene_name, single_gene=False)
-
                 all_mute_freqs[gene_name], _ = paramutils.read_mute_info(parameter_dir, this_gene=gene_name, approved_genes=replacement_genes)
 
         return all_mute_freqs
