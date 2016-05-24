@@ -39,15 +39,15 @@ def rescale_tree(treestr, factor):
 
 # ----------------------------------------------------------------------------------------
 class TreeGenerator(object):
-    def __init__(self, args, mute_freq_dir, seed):
+    def __init__(self, args, parameter_dir, seed):
         self.args = args
         self.tree_generator = 'TreeSim'  # other option: ape
         self.branch_lengths = {}
-        self.branch_lengths = self.read_mute_freqs(mute_freq_dir)  # for each region (and 'all'), a list of branch lengths and a list of corresponding probabilities (i.e. two lists: bin centers and bin contents). Also, the mean of the hist.
+        self.branch_lengths = self.read_mute_freqs(parameter_dir)  # for each region (and 'all'), a list of branch lengths and a list of corresponding probabilities (i.e. two lists: bin centers and bin contents). Also, the mean of the hist.
         random.seed(seed)
         numpy.random.seed(seed)
         if self.args.debug:
-            print 'generating %d trees from %s' % (self.args.n_trees, mute_freq_dir),
+            print 'generating %d trees from %s' % (self.args.n_trees, parameter_dir),
             if self.args.constant_number_of_leaves:
                 print ' with %s leaves' % str(self.args.n_leaves)
             else:
@@ -62,7 +62,7 @@ class TreeGenerator(object):
         return -(3./4) * math.log(argument)
 
     #----------------------------------------------------------------------------------------
-    def get_mute_hist(self, mtype, mute_freq_dir):
+    def get_mute_hist(self, mtype, parameter_dir):
         if self.args.simulate_from_scratch:
             n_entries = 500
             length_vals = numpy.random.normal(utils.scratch_mean_mute_freqs[mtype], 0.1*utils.scratch_mean_mute_freqs[mtype], n_entries)
@@ -71,17 +71,17 @@ class TreeGenerator(object):
             for val in length_vals:
                 hist.fill(val)
         else:
-            hist = Hist(fname=mute_freq_dir + '/' + mtype + '-mean-mute-freqs.csv')
+            hist = Hist(fname=parameter_dir + '/' + mtype + '-mean-mute-freqs.csv')
 
         return hist
 
     #----------------------------------------------------------------------------------------
-    def read_mute_freqs(self, mute_freq_dir):
+    def read_mute_freqs(self, parameter_dir):
         # NOTE these are mute freqs, not branch lengths, but it's ok for now
         branch_lengths = {}
         for mtype in ['all',] + utils.regions:
             branch_lengths[mtype] = {n : [] for n in ('lengths', 'probs')}
-            mutehist = self.get_mute_hist(mtype, mute_freq_dir)
+            mutehist = self.get_mute_hist(mtype, parameter_dir)
             branch_lengths[mtype]['mean'] = mutehist.get_mean()
 
             mutehist.normalize(include_overflows=False, expect_overflows=True)  # if it was written with overflows included, it'll need to be renormalized
