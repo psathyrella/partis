@@ -226,6 +226,8 @@ class MuteFreqer(object):
                 print '\n    %s found a new allele candidate separated from %s by %d SNP%s at position%s %s' % (utils.color('red', 'note'), utils.color_gene(gene), n_candidate_snps,
                                                                                                                 's' if n_candidate_snps > 1 else '', 's' if n_candidate_snps > 1 else '',
                                                                                                                 ', '.join(['%d' % p for p in candidates[n_candidate_snps]]))
+            else:
+                print '\n    no new alleles found'
 
         if debug:
             print '      allele finding time: %.1f' % (time.time()-start)

@@ -52,9 +52,9 @@ class Recombinator(object):
         self.glfo = utils.read_germline_set(self.args.datadir)
 
         self.version_freq_table = self.read_vdj_version_freqs(parameter_dir)  # list of the probabilities with which each VDJ combo (plus other rearrangement parameters) appears in data
-        self.allowed_genes = self.get_allowed_genes()
+        self.allowed_genes = self.get_allowed_genes(parameter_dir)  # set of genes a) for which we read per-position mutation information and b) from which we choose when running partially from scratch
         self.insertion_content_probs = self.read_insertion_content(parameter_dir)
-        self.all_mute_freqs = self.read_all_mute_freq_stuff(parameter_dir)
+        self.all_mute_freqs = self.read_all_mute_freq_stuff(parameter_dir)  # read per-gene, per-position mute freq info
 
         # read shm info NOTE I'm not inferring the gtr parameters a.t.m., so I'm just (very wrongly) using the same ones for all individuals
         with opener('r')(self.args.gtrfname) as gtrfile:  # read gtr parameters
@@ -163,15 +163,34 @@ class Recombinator(object):
         return True
 
     # ----------------------------------------------------------------------------------------
-    def get_allowed_genes(self):
-        allowed_genes = {r : [] for r in utils.regions}
+    def get_parameter_dir_genes(self, parameter_dir):
+        parameter_dir_genes = set()
+        for region in utils.regions:
+            col = region + '_gene'
+            column_and_deps = [col, ] + utils.column_dependencies[col]
+            with open(parameter_dir + '/' + utils.get_parameter_fname(column_and_deps=column_and_deps)) as infile:
+                reader = csv.DictReader(infile)
+                for line in reader:
+                    parameter_dir_genes.add(line[region + '_gene'])
+        return parameter_dir_genes
+
+    # ----------------------------------------------------------------------------------------
+    def get_allowed_genes(self, parameter_dir):
+        # first get all the genes that are available
+        if self.args.simulate_partially_from_scratch:  # start with all the ones in args.datadir
+            tmplist = [self.glfo['seqs'][r].keys() for r in utils.regions]
+            allowed_set = set([g for glist in tmplist for g in glist])
+        else:  # start with all the ones in the parameter directory
+            allowed_set = self.get_parameter_dir_genes(parameter_dir)
+
+        # then, if specified, require that they're also in args.only_genes
         if self.args.only_genes is not None:
-            for gene in self.args.only_genes:
-                allowed_genes[utils.get_region(gene)].append(gene)
-        else:  # just use all the ones in datadir
-            for region in utils.regions:
-                for gene in self.glfo['seqs'][region].keys():
-                    allowed_genes[region].append(gene)
+            allowed_set = allowed_set & set(self.args.only_genes)
+
+        allowed_genes = {r : [] for r in utils.regions}
+        for gene in allowed_set:
+            allowed_genes[utils.get_region(gene)].append(gene)
+
         return allowed_genes
 
     # ----------------------------------------------------------------------------------------
@@ -181,6 +200,7 @@ class Recombinator(object):
     # ----------------------------------------------------------------------------------------
     def read_vdj_version_freqs(self, parameter_dir):
         """ Read the frequencies at which various VDJ combinations appeared in data """
+        print 'redo this'
         if self.args.simulate_partially_from_scratch:
             return None
 
@@ -188,8 +208,7 @@ class Recombinator(object):
         with opener('r')(parameter_dir + '/' + utils.get_parameter_fname('all')) as infile:
             in_data = csv.DictReader(infile)
             total = 0.0
-            for line in in_data:
-                # NOTE do *not* assume the file is sorted
+            for line in in_data:  # NOTE do *not* assume the file is sorted
                 if self.args.only_genes is not None:  # are we restricting ourselves to a subset of genes?
                     if line['v_gene'] not in self.args.only_genes:
                         continue
@@ -219,7 +238,7 @@ class Recombinator(object):
         """ Choose the set of rearrangement parameters """
 
         vdj_choice = None
-        if self.args.simulate_partially_from_scratch:  # generate an event from scratch
+        if self.args.simulate_partially_from_scratch:  # generate an event without using the parameter directory
             tmpline = {}
             for region in utils.regions:
                 tmpline[region + '_gene'] = numpy.random.choice(self.allowed_genes[region])

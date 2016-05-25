@@ -27,7 +27,7 @@ def default_parameter_dir(args):
 # ----------------------------------------------------------------------------------------
 def check_maybe_auto_cache_parameters(args, parter=None):
     auto_ran_cache_parameters = False
-    if not args.simulate_from_scratch and not os.path.exists(args.parameter_dir):
+    if not args.simulate_partially_from_scratch and not os.path.exists(args.parameter_dir):
         print '  note: --parameter-dir \'%s\' does not exist, so proceeding to cache a new set of parameters' % args.parameter_dir
         if parter is None:
             parter = PartitionDriver(args)
@@ -41,7 +41,7 @@ def check_maybe_auto_cache_parameters(args, parter=None):
 # ----------------------------------------------------------------------------------------
 def set_default_parameter_dir(args):
     used_default_parameter_dir = False
-    if args.parameter_dir is None and not args.simulate_from_scratch:
+    if args.parameter_dir is None and not args.simulate_partially_from_scratch:
         args.parameter_dir = default_parameter_dir(args)
         print '  note: using default --parameter-dir \'%s\'' % args.parameter_dir
         used_default_parameter_dir = True
@@ -258,7 +258,8 @@ subargs['simulate'].append({'name' : '--mean-indel-length', 'kwargs' : {'default
 subargs['simulate'].append({'name' : '--indel-location', 'kwargs' : {'choices' : [None, 'v', 'cdr3'], 'help' : 'where to put the indels'}})
 # NOTE command to generate gtr parameter file: [stoat] partis/ > zcat /shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_gtr_tr-qi-gi.json.gz | jq .independentParameters | grep -v '[{}]' | sed 's/["\:,]//g' | sed 's/^[ ][ ]*//' | sed 's/ /,/' | sort >data/gtr.txt)
 subargs['simulate'].append({'name' : '--gtrfname', 'kwargs' : {'default' : 'data/recombinator/gtr.txt', 'help' : 'File with list of GTR parameters. Fed into bppseqgen along with the chosen tree. Corresponds to an arbitrary dataset at the moment, but eventually will be inferred per-dataset.'}})
-subargs['simulate'].append({'name' : '--simulate-from-scratch', 'kwargs' : {'action' : 'store_true', 'help' : 'Don\'t use an existing parameter directory to describe the repertoire; instead start from scratch.'}})
+subargs['simulate'].append({'name' : '--simulate-partially-from-scratch', 'kwargs' : {'action' : 'store_true', 'help' : 'Don\'t use an existing parameter directory to describe the repertoire; instead start from scratch. Mutation freqs are harder, so for now we use some stuff in data/recombinator/.'}})
+subargs['simulate'].append({'name' : '--scratch-mute-freq-dir', 'kwargs' : {'default' : 'data/recombinator/scratch-parameters', 'help' : 'see --simulate-partially-from-scratch'}})
 
 subparsermap = {}
 for name, vals in subconfig.items():
