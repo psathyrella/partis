@@ -63,6 +63,8 @@ def run_simulation(args):
         print '  NOTE --infname is not used when simulating'
     if args.n_max_queries != -1:
         print '  NOTE --n-max-queries is not used when simulating (use --n-sim-events to set the simulated number of rearrangemt events)'
+    if args.parameter_dir is None and not args.simulate_partially_from_scratch:
+        raise Exception('if --simulate-partially-from-scratch isn\'t set, --parameter-dir should be specified')
 
     def make_events(n_events, iproc, random_ints):
         assert n_events > 0

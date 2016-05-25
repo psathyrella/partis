@@ -51,8 +51,8 @@ class Recombinator(object):
 
         self.glfo = utils.read_germline_set(self.args.datadir)
 
-        self.version_freq_table = self.read_vdj_version_freqs(parameter_dir)  # list of the probabilities with which each VDJ combo (plus other rearrangement parameters) appears in data
         self.allowed_genes = self.get_allowed_genes(parameter_dir)  # set of genes a) for which we read per-position mutation information and b) from which we choose when running partially from scratch
+        self.version_freq_table = self.read_vdj_version_freqs(parameter_dir)  # list of the probabilities with which each VDJ combo (plus other rearrangement parameters) appears in data
         self.insertion_content_probs = self.read_insertion_content(parameter_dir)
         self.all_mute_freqs = self.read_all_mute_freq_stuff(parameter_dir)  # read per-gene, per-position mute freq info
 
@@ -200,7 +200,6 @@ class Recombinator(object):
     # ----------------------------------------------------------------------------------------
     def read_vdj_version_freqs(self, parameter_dir):
         """ Read the frequencies at which various VDJ combinations appeared in data """
-        print 'redo this'
         if self.args.simulate_partially_from_scratch:
             return None
 
@@ -209,13 +208,13 @@ class Recombinator(object):
             in_data = csv.DictReader(infile)
             total = 0.0
             for line in in_data:  # NOTE do *not* assume the file is sorted
-                if self.args.only_genes is not None:  # are we restricting ourselves to a subset of genes?
-                    if line['v_gene'] not in self.args.only_genes:
-                        continue
-                    if line['d_gene'] not in self.args.only_genes:
-                        continue
-                    if line['j_gene'] not in self.args.only_genes:
-                        continue
+                skip = False
+                for region in utils.regions:
+                    if line[region + '_gene'] not in self.allowed_genes[region]:
+                        skip = True
+                        break
+                if skip:
+                    continue
                 total += float(line['count'])
                 index = self.freqtable_index(line)
                 assert index not in version_freq_table
