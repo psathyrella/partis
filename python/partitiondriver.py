@@ -426,7 +426,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def get_hmm_cmd_str(self, algorithm, csv_infname, csv_outfname, parameter_dir, precache_all_naive_seqs, n_procs):
         """ Return the appropriate bcrham command string """
-        cmd_str = os.getenv('PWD') + '/packages/ham/bcrham'
+        cmd_str = self.args.partis_dir + '/packages/ham/bcrham'
         if self.args.slurm or utils.auto_slurm(n_procs):
             cmd_str = 'srun ' + cmd_str
         cmd_str += ' --algorithm ' + algorithm
@@ -1242,7 +1242,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def write_annotations(self, annotations, outfname):
         outpath = outfname
-        if outpath[0] != '/':  # if full output path wasn't specified on the command line
+        if outpath[0] != '/':  # if full output path wasn't specified on the command line, write to current directory
             outpath = os.getcwd() + '/' + outpath
 
         outheader = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'seqs', 'naive_seq', 'indelfos']

@@ -7,10 +7,10 @@ import numpy
 from multiprocessing import Process, active_children
 from subprocess import check_output, CalledProcessError
 import os
-current_script_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '/python')
-if not os.path.exists(current_script_dir):
-    print 'WARNING current script dir %s doesn\'t exist, so python path may not be correctly set' % current_script_dir
-sys.path.insert(1, current_script_dir)
+partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
+if not os.path.exists(partis_dir):
+    print 'WARNING current script dir %s doesn\'t exist, so python path may not be correctly set' % partis_dir
+sys.path.insert(1, partis_dir + '/python')
 
 import utils
 from partitiondriver import PartitionDriver
@@ -184,8 +184,8 @@ parent_parser.add_argument('--name-column', default='unique_id', help='csv colum
 parent_parser.add_argument('--seq-column', default='seq', help='csv column name for nucleotide sequences')
 parent_parser.add_argument('--parameter-dir', help='Directory to/from which to write/read sample-specific parameters. If not specified, we assume we should cache new parameters.')
 parent_parser.add_argument('--parameter-type', default='hmm', choices=('sw', 'hmm'), help='Use parameters from Smith-Waterman (sw) or the HMM (hmm) subdirectories for inference/simulation?')
-parent_parser.add_argument('--datadir', default=os.getcwd() + '/data/imgt', help='Directory from which to read non-sample-specific information (e.g. germline genes)')
-parent_parser.add_argument('--alignment-dir', default=os.getcwd() + '/data/fam-alignments', help='Directory from which to read aligned germline sets. WILL BE REMOVED.')  # TODO remove this
+parent_parser.add_argument('--datadir', default=partis_dir + '/data/imgt', help='Directory from which to read non-sample-specific information (e.g. germline genes)')
+parent_parser.add_argument('--alignment-dir', default=partis_dir + '/data/fam-alignments', help='Directory from which to read aligned germline sets. WILL BE REMOVED.')  # TODO remove this
 parent_parser.add_argument('--outfname', help='Output file name.')
 parent_parser.add_argument('--presto-output', action='store_true', help='write output file in presto format')
 parent_parser.add_argument('--plotdir', help='Base directory to which to write plots (no plots are written if this isn\'t set)')
@@ -211,7 +211,7 @@ parent_parser.add_argument('--n-sets', type=int, default=1, help='Separate seque
 parent_parser.add_argument('--all-combinations', action='store_true', help='Run algorithm on *all* possible combinations of the input queries of length <n-sets> (otherwise, if <n-sets> is set, we run on sequential sets of <n-sets> in the input file).')
 parent_parser.add_argument('--plot-performance', action='store_true', help='Write out plots comparing true and inferred distributions')
 parent_parser.add_argument('--dont-rescale-emissions', action='store_true', help='Don\'t scale each hmm\'s emission probabilities to account for the branch length of each individual sequence.')
-parent_parser.add_argument('--version', action='version', help='print version and exit', version='partis %s' % check_output(['git', 'tag']))
+parent_parser.add_argument('--version', action='version', help='use --print-git-commit instead')  #print version and exit', version='partis %s' % check_output(['git', 'tag']))
 parent_parser.add_argument('--print-git-commit', action='store_true', help='print git commit hash')
 parent_parser.add_argument('--smc-particles', type=int, default=1, help='DEPRECATED Number of particles (clustering paths) to simulate with SMC')
 parent_parser.add_argument('--min-observations-to-write', type=int, default=20, help='For hmmwriter.py, if we see a gene version fewer times than this, we sum over other alleles, or other versions, etc. (see hmmwriter)')
@@ -259,9 +259,9 @@ subargs['simulate'].append({'name' : '--indel-frequency', 'kwargs' : {'default' 
 subargs['simulate'].append({'name' : '--mean-indel-length', 'kwargs' : {'default' : 5, 'help' : 'mean length of each indel (geometric distribution)'}})
 subargs['simulate'].append({'name' : '--indel-location', 'kwargs' : {'choices' : [None, 'v', 'cdr3'], 'help' : 'where to put the indels'}})
 # NOTE command to generate gtr parameter file: [stoat] partis/ > zcat /shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_gtr_tr-qi-gi.json.gz | jq .independentParameters | grep -v '[{}]' | sed 's/["\:,]//g' | sed 's/^[ ][ ]*//' | sed 's/ /,/' | sort >data/gtr.txt)
-subargs['simulate'].append({'name' : '--gtrfname', 'kwargs' : {'default' : 'data/recombinator/gtr.txt', 'help' : 'File with list of GTR parameters. Fed into bppseqgen along with the chosen tree. Corresponds to an arbitrary dataset at the moment, but eventually will be inferred per-dataset.'}})
+subargs['simulate'].append({'name' : '--gtrfname', 'kwargs' : {'default' : partis_dir + '/data/recombinator/gtr.txt', 'help' : 'File with list of GTR parameters. Fed into bppseqgen along with the chosen tree. Corresponds to an arbitrary dataset at the moment, but eventually will be inferred per-dataset.'}})
 subargs['simulate'].append({'name' : '--simulate-partially-from-scratch', 'kwargs' : {'action' : 'store_true', 'help' : 'Don\'t use an existing parameter directory to describe the repertoire; instead start from scratch. Mutation freqs are harder, so for now we use some stuff in data/recombinator/.'}})
-subargs['simulate'].append({'name' : '--scratch-mute-freq-dir', 'kwargs' : {'default' : 'data/recombinator/scratch-parameters', 'help' : 'see --simulate-partially-from-scratch'}})
+subargs['simulate'].append({'name' : '--scratch-mute-freq-dir', 'kwargs' : {'default' : partis_dir + '/data/recombinator/scratch-parameters', 'help' : 'see --simulate-partially-from-scratch'}})
 
 subparsermap = {}
 for name, vals in subconfig.items():
@@ -276,6 +276,8 @@ if '--action' in sys.argv:
     sys.argv.remove('--action')
 
 args = parser.parse_args()
+
+args.partis_dir = partis_dir
 
 # add OR of all arguments to all subparsers to <args>, as None (to avoid having to rewrite a *##!(%ton of other code)
 for name in subconfig:

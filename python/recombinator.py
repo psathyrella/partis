@@ -400,11 +400,10 @@ class Recombinator(object):
 
         # build up the command line
         # docs: http://biopp.univ-montp2.fr/apidoc/bpp-phyl/html/classbpp_1_1GTR.html that page is too darn hard to google
-        bpp_binary = os.getcwd() + '/packages/bpp/bin/bppseqgen'
+        bpp_binary = self.args.partis_dir + '/packages/bpp/bin/bppseqgen'
         if not os.path.exists(bpp_binary):
-            print 'ERROR bpp not found in %s' % os.path.dirname(bpp_binary)
-            assert False
-        command = 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:' + os.getcwd() + '/packages/bpp/lib\n'
+            raise Exception('bpp not found in %s' % os.path.dirname(bpp_binary))
+        command = 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:' + self.args.partis_dir + '/packages/bpp/lib\n'
         command += bpp_binary
         command += ' input.tree.file=' + treefname
         command += ' output.sequence.file=' + leaf_seq_fname
