@@ -66,41 +66,40 @@ def run_simulation(args):
     if args.parameter_dir is None and not args.simulate_partially_from_scratch:
         raise Exception('if --simulate-partially-from-scratch isn\'t set, --parameter-dir should be specified')
 
-    def make_events(n_events, iproc, random_ints):
-        assert n_events > 0
-        # NOTE all the different seeds! this sucks but is necessary
+    # ----------------------------------------------------------------------------------------
+    def make_events(n_events, iproc, random_ints):  # NOTE all the different seeds! this sucks but is necessary to allow reproducibility
         reco = Recombinator(args, seed=args.seed+iproc, sublabel=str(iproc))
         for ievt in range(n_events):
-            # print ievt,
-            # sys.stdout.flush()
-            failed = True
-            itry = 0
-            while failed:
-                if itry > 0:
-                    print '          try again: %d' % itry
-                failed = not reco.combine(random_ints[ievt] + itry)
-                itry += 1
+            reco.combine(random_ints[ievt])
 
     print 'simulating'
-
     used_default_parameter_dir = set_default_parameter_dir(args)
     auto_ran_cache_parameters = check_maybe_auto_cache_parameters(args)
-
     if used_default_parameter_dir or auto_ran_cache_parameters:  # add the subdirectory, either 'sw' or 'hmm' (probably the latter)
         args.parameter_dir += '/' + args.parameter_type
 
     n_per_proc = int(float(args.n_sim_events) / args.n_procs)
+
+    # generate all the random seeds
     all_random_ints = []
-    for iproc in range(args.n_procs):  # have to generate these all at once, 'cause each of the subprocesses is going to reset its seed and god knows what happens to our seed at that point
+    for iproc in range(args.n_procs):  # have to do it all at once, 'cause each of the subprocesses is going to reset its seed and god knows what happens to our seed at that point
         all_random_ints.append([random.randint(0, numpy.iinfo(numpy.int32).max) for i in range(n_per_proc)])
+
+    # start the processes and wait for 'em to finish
     for iproc in range(args.n_procs):
         proc = Process(target=make_events, args=(n_per_proc, iproc, all_random_ints[iproc]))
         proc.start()
     while len(active_children()) > 0:
-        # print ' wait %s' % len(active_children()),
         sys.stdout.flush()
         time.sleep(1)
-    utils.merge_csvs(args.outfname, [args.workdir + '/recombinator-' + str(iproc) + '/' + os.path.basename(args.outfname) for iproc in range(args.n_procs)], cleanup=(not args.no_clean))
+
+    # check and merge output
+    outfnames = [args.workdir + '/recombinator-' + str(iproc) + '/' + os.path.basename(args.outfname) for iproc in range(args.n_procs)]
+    for fname in outfnames:
+        n_events = int(check_output('grep -v unique_id ' + fname + ' | awk -F, \'{print $2}\' | uniq | wc -l', shell=True).split()[0])
+        if n_events < n_per_proc:
+            raise Exception('only found %d events in output file %s' % (nlines - 1, fname))
+    utils.merge_csvs(args.outfname, outfnames, cleanup=(not args.no_clean))
 
 # ----------------------------------------------------------------------------------------
 def run_partitiondriver(args):

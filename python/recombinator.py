@@ -125,7 +125,18 @@ class Recombinator(object):
             self.all_mute_freqs[gene_or_insert_name], _ = paramutils.read_mute_info(self.parameter_dir, this_gene=gene_or_insert_name, approved_genes=replacement_genes)
 
     # ----------------------------------------------------------------------------------------
-    def combine(self, irandom):
+    def combine(self, initial_irandom):
+        """ keep running self.try_to_combine() until you get a good event """
+        failed = True
+        itry = 0
+        while failed:
+            if itry > 0:
+                print '    unproductive event -- rerunning (try %d)  ' % itry  # probably a weirdly long v_3p or j_5p deletion
+            failed = not self.try_to_combine(initial_irandom + itry)
+            itry += 1
+
+    # ----------------------------------------------------------------------------------------
+    def try_to_combine(self, irandom):
         """
         Create a recombination event and write it to disk
         <irandom> is used as the seed for the myriad random number calls.
@@ -149,7 +160,6 @@ class Recombinator(object):
         reco_event.recombined_seq = reco_event.eroded_seqs['v'] + reco_event.insertions['vd'] + reco_event.eroded_seqs['d'] + reco_event.insertions['dj'] + reco_event.eroded_seqs['j']
         codons_ok = reco_event.set_final_cyst_tryp_positions(debug=self.args.debug)
         if not codons_ok:
-            print '    unproductive event -- rerunning'  # probably a weirdly long v_3p or j_5p deletion
             return False
 
         self.add_mutants(reco_event, irandom)  # toss a bunch of clones: add point mutations
