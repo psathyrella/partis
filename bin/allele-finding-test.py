@@ -33,7 +33,7 @@ existing_genes = 'IGHV3-71*01' + ':' + dj_genes  # 1-18*01
 new_allele = 'IGHV3-71*03' #1-18*04
 
 # simulate
-cmd_str = base_cmd + ' simulate --n-sim-events 500 --n-procs 10 --simulate-partially-from-scratch --mutation-multiplier 0.5'
+cmd_str = base_cmd + ' simulate --n-sim-events 1000 --n-procs 10 --simulate-partially-from-scratch --mutation-multiplier 0.5 --only-smith-waterman'
 # cmd_str += ' --parameter-dir ' + original_param_dir
 cmd_str += ' --only-genes ' + existing_genes + ':' + new_allele
 cmd_str += ' --outfname ' + simfname

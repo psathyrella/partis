@@ -107,6 +107,9 @@ class PartitionDriver(object):
         waterer.run()
         self.sw_info = waterer.info
         print '        water time: %.1f' % (time.time()-start)
+        if self.args.only_smith_waterman:
+            print 'exiting after finishing smith-waterman'
+            sys.exit()
 
     # ----------------------------------------------------------------------------------------
     def cache_parameters(self):

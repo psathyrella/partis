@@ -46,6 +46,8 @@ class MuteFreqer(object):
         self.min_score = 2  # (mean ratio over snp candidates) - (first non-candidate ratio) must be greater than this
         self.min_candidate_ratio = 2  # every candidate ratio must be greater than this
 
+        self.positions_to_skip = {}  # we work out which positions not bother fitting in finalize_allele_finding(), but then need to propagate that information to the plotting function
+
     # ----------------------------------------------------------------------------------------
     def increment(self, info):
         self.mean_rates['all'].fill(utils.get_mutation_rate(self.germline_seqs, info))  # mean freq over whole sequence (excluding insertions)
@@ -165,6 +167,7 @@ class MuteFreqer(object):
             positions = sorted(self.counts[gene].keys())
             xyvals = {pos : self.get_allele_finding_xyvals(pos, self.counts[gene][pos]) for pos in positions}
             positions_to_fit = [pos for pos in positions if sum(xyvals[pos]['obs']) > self.n_obs_min]  # ignore positions with only a few observed mutations
+            self.positions_to_skip[gene] = set(positions) - set(positions_to_fit)
             if debug:
                 print '          skipping %d / %d positions (with fewer than %d observed mutations)' % (len(positions) - len(positions_to_fit), len(positions), self.n_obs_min)
 
@@ -184,6 +187,7 @@ class MuteFreqer(object):
                 for pos in positions_to_fit:
                     # as long as we already have a few non-candidate positions, skip positions that have no frequencies greater than the min y intercept (note that they could in principle still have a large y intercept, but we don't really care)
                     if len(residuals) > istart + self.min_non_candidate_positions_to_fit and len([f for f in subxyvals[pos]['freqs'] if f > self.min_y_intercept]) == 0:
+                        self.positions_to_skip[gene].add(pos)
                         continue
 
                     zero_icpt_fit = self.get_curvefit(pos, subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['errs'], y_icpt_bounds=(0. - self.small_number, 0. + self.small_number))
@@ -305,6 +309,8 @@ class MuteFreqer(object):
             return
         utils.prep_dir(plotdir, multilings=('*.csv', '*.svg'))
         for position in self.freqs[gene]:
+            if position in self.positions_to_skip[gene]:
+                continue
             if 'allele-finding' in self.freqs[gene][position] and self.freqs[gene][position]['allele-finding'] is not None:
                 plotting.make_allele_finding_plot(plotdir, gene, position, self.freqs[gene][position]['allele-finding'])
 

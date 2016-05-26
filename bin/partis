@@ -218,6 +218,7 @@ parent_parser.add_argument('--smc-particles', type=int, default=1, help='DEPRECA
 parent_parser.add_argument('--min-observations-to-write', type=int, default=20, help='For hmmwriter.py, if we see a gene version fewer times than this, we sum over other alleles, or other versions, etc. (see hmmwriter)')
 parent_parser.add_argument('--find-new-alleles', action='store_true', help='look for new alleles (separated only by snps from existing alleles)')
 # parent_parser.add_argument('--use_mean_at_boundaries', action='store_true', help='see note in hmmwriter')
+parent_parser.add_argument('--only-smith-waterman', action='store_true', help='Exit after finishing smith-waterman. Doesn\'t write output file (yet).')
 
 subconfig = {
     'cache-parameters' : {'func' : run_partitiondriver, 'help' : 'Cache parameter values and write hmm model files.'},
