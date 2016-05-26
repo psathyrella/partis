@@ -1218,7 +1218,7 @@ def are_same_primary_version(gene1, gene2):
     return True
 
 # ----------------------------------------------------------------------------------------
-def read_overall_gene_probs(indir, only_gene=None, normalize=True):
+def read_overall_gene_probs(indir, only_gene=None, normalize=True, expect_zero_counts=False):
     assert only_gene != ''  # this used to be the default, I just want to make sure I didn't miss a call when I switched to None as the default
     """
     Return the observed counts/probabilities of choosing each gene version.
@@ -1246,7 +1246,8 @@ def read_overall_gene_probs(indir, only_gene=None, normalize=True):
             probs[region][gene] = float(counts[region][gene]) / total
 
     if only_gene is not None and only_gene not in counts[get_region(only_gene)]:
-        print '      WARNING %s not found in overall gene probs, returning zero' % only_gene
+        if not expect_zero_counts:
+            print '      WARNING %s not found in overall gene probs, returning zero' % only_gene
         if normalize:
             return 0.0
         else:

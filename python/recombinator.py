@@ -54,7 +54,8 @@ class Recombinator(object):
         self.allowed_genes = self.get_allowed_genes(parameter_dir)  # set of genes a) for which we read per-position mutation information and b) from which we choose when running partially from scratch
         self.version_freq_table = self.read_vdj_version_freqs(parameter_dir)  # list of the probabilities with which each VDJ combo (plus other rearrangement parameters) appears in data
         self.insertion_content_probs = self.read_insertion_content(parameter_dir)
-        self.all_mute_freqs = self.read_all_mute_freq_stuff(parameter_dir)  # read per-gene, per-position mute freq info
+        self.all_mute_freqs = {}
+        self.parameter_dir = parameter_dir  # damnit, I guess I do need to save this in self
 
         # read shm info NOTE I'm not inferring the gtr parameters a.t.m., so I'm just (very wrongly) using the same ones for all individuals
         with opener('r')(self.args.gtrfname) as gtrfile:  # read gtr parameters
@@ -106,24 +107,22 @@ class Recombinator(object):
 
 
     # ----------------------------------------------------------------------------------------
-    def read_all_mute_freq_stuff(self, parameter_dir):
-        all_mute_freqs = {}
+    def get_mute_freqs(self, gene_or_insert_name):
+        if gene_or_insert_name not in self.all_mute_freqs:
+            self.read_mute_freq_stuff(gene_or_insert_name)
+        return self.all_mute_freqs[gene_or_insert_name]
 
-        for boundary in utils.boundaries:
-            insert_name = boundary + '_insert'
-            replacement_genes = utils.find_replacement_genes(parameter_dir, min_counts=-1, all_from_region='v')
-            all_mute_freqs[insert_name], _ = paramutils.read_mute_info(parameter_dir, this_gene=insert_name, approved_genes=replacement_genes)
-
-
-        gene_counts = utils.read_overall_gene_probs(parameter_dir, normalize=False)
-        for region in utils.regions:
-            for gene_name in self.allowed_genes[region]:
-                replacement_genes = None
-                if gene_counts[region].get(gene_name, 0) < self.args.min_observations_to_write:  # if we didn't see it enough, average over all the genes that find_replacement_genes() gives us NOTE if <gene_name> isn't in the dict, it's because it's <args.datadir> but not in the parameter dir
-                    replacement_genes = utils.find_replacement_genes(parameter_dir, min_counts=self.args.min_observations_to_write, gene_name=gene_name, single_gene=False)
-                all_mute_freqs[gene_name], _ = paramutils.read_mute_info(parameter_dir, this_gene=gene_name, approved_genes=replacement_genes)
-
-        return all_mute_freqs
+    # ----------------------------------------------------------------------------------------
+    def read_mute_freq_stuff(self, gene_or_insert_name):
+        if gene_or_insert_name[:2] in utils.boundaries:
+            replacement_genes = utils.find_replacement_genes(self.parameter_dir, min_counts=-1, all_from_region='v')
+            self.all_mute_freqs[gene_or_insert_name], _ = paramutils.read_mute_info(self.parameter_dir, this_gene=gene_or_insert_name, approved_genes=replacement_genes)
+        else:
+            gene_counts = utils.read_overall_gene_probs(self.parameter_dir, only_gene=gene_or_insert_name, normalize=False, expect_zero_counts=True)
+            replacement_genes = None
+            if gene_counts < self.args.min_observations_to_write:  # if we didn't see it enough, average over all the genes that find_replacement_genes() gives us NOTE if <gene_or_insert_name> isn't in the dict, it's because it's <args.datadir> but not in the parameter dir
+                replacement_genes = utils.find_replacement_genes(self.parameter_dir, min_counts=self.args.min_observations_to_write, gene_name=gene_or_insert_name, single_gene=False)
+            self.all_mute_freqs[gene_or_insert_name], _ = paramutils.read_mute_info(self.parameter_dir, this_gene=gene_or_insert_name, approved_genes=replacement_genes)
 
     # ----------------------------------------------------------------------------------------
     def combine(self, irandom):
@@ -326,7 +325,7 @@ class Recombinator(object):
     # ----------------------------------------------------------------------------------------
     def write_mute_freqs(self, region, gene_or_insert_name, seq, reco_event, reco_seq_fname, is_insertion=False):
         """ Read position-by-position mute freqs from disk for <gene_or_insert_name>, renormalize, then write to a file for bppseqgen. """
-        mute_freqs = self.all_mute_freqs[gene_or_insert_name]
+        mute_freqs = self.get_mute_freqs(gene_or_insert_name)
 
         rates = []  # list with a relative mutation rate for each position in <seq>
         total = 0.0
