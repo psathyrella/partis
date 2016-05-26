@@ -227,7 +227,7 @@ class MuteFreqer(object):
                                                                                                                 's' if n_candidate_snps > 1 else '', 's' if n_candidate_snps > 1 else '',
                                                                                                                 ', '.join(['%d' % p for p in candidates[n_candidate_snps]]))
             else:
-                print '\n    no new alleles found'
+                print '\n      no new alleles found'
 
         if debug:
             print '      allele finding time: %.1f' % (time.time()-start)
@@ -304,7 +304,6 @@ class MuteFreqer(object):
         if utils.get_region(gene) != 'v':
             return
         utils.prep_dir(plotdir, multilings=('*.csv', '*.svg'))
-        print 'TODO work out if \'allele-finding\' is supposed to be absent, or None'
         for position in self.freqs[gene]:
             if 'allele-finding' in self.freqs[gene][position] and self.freqs[gene][position]['allele-finding'] is not None:
                 plotting.make_allele_finding_plot(plotdir, gene, position, self.freqs[gene][position]['allele-finding'])
