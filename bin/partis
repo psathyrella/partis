@@ -96,9 +96,11 @@ def run_simulation(args):
     # check and merge output
     outfnames = [args.workdir + '/recombinator-' + str(iproc) + '/' + os.path.basename(args.outfname) for iproc in range(args.n_procs)]
     for fname in outfnames:
+        if not os.path.exists(fname):
+            raise Exception('output file %s d.n.e.' % fname)
         n_events = int(check_output('grep -v unique_id ' + fname + ' | awk -F, \'{print $2}\' | uniq | wc -l', shell=True).split()[0])
         if n_events < n_per_proc:
-            raise Exception('only found %d events in output file %s' % (nlines - 1, fname))
+            raise Exception('only found %d events (expected %d) in output file %s' % (n_events, n_per_proc, fname))
     utils.merge_csvs(args.outfname, outfnames, cleanup=(not args.no_clean))
 
 # ----------------------------------------------------------------------------------------
