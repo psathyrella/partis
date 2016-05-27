@@ -156,7 +156,26 @@ class MuteFreqer(object):
         return {'obs' : obs, 'total' : total, 'n_mutelist' : n_mutelist, 'freqs' : freqs, 'errs' : errs, 'weights' : weights}
 
     # ----------------------------------------------------------------------------------------
-    def finalize_allele_finding(self, debug=False):
+    def is_a_candidate(self, istart, score, min_snp_ratios, first_non_snp_ratios):
+        if score < self.min_score:  # last snp candidate has to be a lot better than the first non-snp
+            return False
+        if min_snp_ratios[istart] < self.min_candidate_ratio:  # last snp candidate has to be pretty good on its own
+            return False
+        if first_non_snp_ratios[istart] > self.min_candidate_ratio:  # first non-snp candidate has to be pretty bad on its own
+            return False
+
+        return True
+
+    # ----------------------------------------------------------------------------------------
+    def finalize_allele_finding(self, debug=True):
+        def fstr(fval):
+            if fval < 10:
+                return '%.2f' % fval
+            elif fval < 1e4:
+                return '%.0f' % fval
+            else:
+                return '%.0e' % fval
+
         start = time.time()
         for gene in self.counts:
             if utils.get_region(gene) != 'v':
@@ -174,12 +193,12 @@ class MuteFreqer(object):
             for pos in positions_to_fit:
                 self.freqs[gene][pos]['allele-finding'] = xyvals[pos]
 
-            scores, min_ratios, candidates = {}, {}, {}
+            scores, min_snp_ratios, first_non_snp_ratios, candidates = {}, {}, {}, {}
             for istart in range(1, self.n_max_snps):
                 if debug:
                     if istart == 1:
                         print 'snps       position   ratio   (m=0 / m>%5.2f)       muted / obs ' % self.big_y_icpt_bounds[0]
-                    print '%-3d' % istart
+                    print utils.color('reverse_video', utils.color('bold', '%-3d' % istart))
 
                 subxyvals = {pos : {k : v[istart:] for k, v in xyvals[pos].items()} for pos in positions_to_fit}
 
@@ -195,33 +214,36 @@ class MuteFreqer(object):
 
                     residuals[pos] = {'zero_icpt' : zero_icpt_fit['residuals_over_ndof'], 'big_icpt' : big_icpt_fit['residuals_over_ndof']}
 
-                residual_ratios = {pos : r['zero_icpt'] / r['big_icpt'] for pos, r in residuals.items()}
+                residual_ratios = {pos : float('inf') if r['big_icpt'] == 0. else r['zero_icpt'] / r['big_icpt'] for pos, r in residuals.items()}
                 sorted_ratios = sorted(residual_ratios.items(), key=operator.itemgetter(1), reverse=True)  # sort the positions in decreasing order of residual ratio
                 candidate_snps = [pos for pos, _ in sorted_ratios[:istart]]  # the first <istart> positions are the candidate snps
                 first_non_snp, _ = sorted_ratios[istart]
 
-                mean_of_candidates = numpy.mean([residual_ratios[cs] for cs in candidate_snps])
+                min_of_candidates = min([residual_ratios[cs] for cs in candidate_snps])
                 first_non_snp_ratio = residual_ratios[first_non_snp]
-                scores[istart] = mean_of_candidates - first_non_snp_ratio
-                min_ratios[istart] = min([residual_ratios[cs] for cs in candidate_snps])
+                scores[istart] = (min_of_candidates - first_non_snp_ratio) / first_non_snp_ratio
+                min_snp_ratios[istart] = min([residual_ratios[cs] for cs in candidate_snps])
+                first_non_snp_ratios[istart] = first_non_snp_ratio
                 candidates[istart] = {cp : residual_ratios[cp] for cp in candidate_snps}
 
                 if debug:
                     for pos in candidate_snps + [first_non_snp, ]:
                         xtrastrs = ('[', ']') if pos == first_non_snp else (' ', ' ')
-                        print '             %s %3d    %5.2f   (%5.2f / %-5.2f)       %3d / %3d %s' % (xtrastrs[0], pos, residual_ratios[pos],
-                                                                                                      residuals[pos]['zero_icpt'], residuals[pos]['big_icpt'], sum(subxyvals[pos]['obs']), sum(subxyvals[pos]['total']), xtrastrs[1])
-                    print ' %7.2f   (%5.2f - %-5.2f)       (min %7.2f)' % (scores[istart], mean_of_candidates, first_non_snp_ratio, min_ratios[istart])
+                        print '             %s %3d    %5s   (%5s / %-5s)       %3d / %3d %s' % (xtrastrs[0], pos, fstr(residual_ratios[pos]),
+                                                                                               fstr(residuals[pos]['zero_icpt']), fstr(residuals[pos]['big_icpt']),
+                                                                                               sum(subxyvals[pos]['obs']), sum(subxyvals[pos]['total']), xtrastrs[1])
+                    print ' %5s   (%5s - %5s) / %-5s      (min %5s)' % (fstr(scores[istart]), fstr(min_of_candidates), fstr(first_non_snp_ratio), fstr(first_non_snp_ratio), fstr(min_snp_ratios[istart]))
 
             n_candidate_snps = None
-            for istart, ratio in sorted(scores.items(), key=operator.itemgetter(1), reverse=True):
-                if n_candidate_snps is None and ratio > self.min_score and min_ratios[istart] > self.min_candidate_ratio:  # take the biggest score that also has a big enough min candidate ratio
+            for istart, score in sorted(scores.items(), key=operator.itemgetter(1), reverse=True):
+                if n_candidate_snps is None and self.is_a_candidate(istart, score, min_snp_ratios, first_non_snp_ratios):  # take the biggest score that satisfies the various criteria
                     n_candidate_snps = istart
+                    break
 
             if debug:
-                print '    snps      score     min'
+                print '    snps      score       min snp     first non-snp'
                 for istart, score in sorted(scores.items(), key=operator.itemgetter(1), reverse=True):
-                    print_str = '    %2d     %7.2f   %7.2f' % (istart, score, min_ratios[istart])
+                    print_str = '    %2d     %9s   %9s   %9s' % (istart, fstr(score), fstr(min_snp_ratios[istart]), fstr(first_non_snp_ratios[istart]))
                     if istart == n_candidate_snps:
                         print_str = utils.color('red', print_str)
                     print print_str
