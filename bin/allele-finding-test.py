@@ -46,9 +46,10 @@ def run_test(existing_v_genes, new_v_allele, dj_genes):
     # cmd_str += ' --parameter-dir ' + original_param_dir
     cmd_str += ' --only-genes ' + existing_genes #+ ':' + new_v_allele
     cmd_str += ' --outfname ' + simfname
-    run(cmd_str)
-    
-    snps_to_add = {'IGHV3-71*01' : 4}
+    # run(cmd_str)
+
+    print '\n\nyou can add the snps for simulation now!\n\n'
+    snps_to_add = {'IGHV3-71*01' : 1}
     utils.rewrite_germline_fasta('data/imgt', outdir + '/germlines', only_genes=existing_genes.split(':'), snps_to_add=snps_to_add)
     
     # cache-parameters
