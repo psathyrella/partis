@@ -11,14 +11,14 @@ DPHandler::DPHandler(string algorithm, Args *args, GermLines &gl, HMMHolder &hmm
 
 // ----------------------------------------------------------------------------------------
 DPHandler::~DPHandler() {
+  // PrintCachedTrellisSize();
   Clear();
 }
 
 // ----------------------------------------------------------------------------------------
 void DPHandler::Clear() {
-  trellisi_.clear();
-  paths_.clear();
-  all_scores_.clear();
+  // PrintCachedTrellisSize();
+  chunk_cache_info_.clear();
   per_gene_support_.clear();
 }
 
@@ -162,33 +162,32 @@ Result DPHandler::Run(vector<Sequence> seqvector, KBounds kbounds, vector<string
 
 // ----------------------------------------------------------------------------------------
 void DPHandler::PrintCachedTrellisSize() {
-  double str_bytes(0.), tr_bytes(0.), path_bytes(0.);
-  for(auto &kv_a : trellisi_) {
-    string gene(kv_a.first);
-    for(auto &kv_b : trellisi_[gene]) {
-      vector<string> cached_query_strs(kv_b.first);
-      trellis ts(kv_b.second);
-      for(auto &str : cached_query_strs)
-	str_bytes += sizeof(string::value_type) * str.size();
-      tr_bytes += ts.ApproxBytesUsed();
-      path_bytes += sizeof(int) * paths_[gene][cached_query_strs].size();  // size is zero if not set (e.g. for fwd)
-    }
-  }
+  assert(0);
+  // double str_bytes(0.), tr_bytes(0.), path_bytes(0.);
+  // for(auto &kv_a : trellisi_) {
+  //   string gene(kv_a.first);
+  //   for(auto &kv_b : trellisi_[gene]) {
+  //     vector<string> cached_query_strs(kv_b.first);
+  //     trellis ts(kv_b.second);
+  //     for(auto &str : cached_query_strs)
+  // 	str_bytes += sizeof(string::value_type) * str.size();
+  //     tr_bytes += ts.ApproxBytesUsed();
+  //     path_bytes += sizeof(int) * paths_[gene][cached_query_strs].size();  // size is zero if not set (e.g. for fwd)
+  //   }
+  // }
 
-  printf("   TOT %.0e   str %.0e   trellis %.0e     path %.0e\n", tr_bytes + str_bytes + path_bytes, tr_bytes, str_bytes, path_bytes);
+  // printf("   TOT %.0e   str %.0e   trellis %.0e     path %.0e\n", tr_bytes + str_bytes + path_bytes, tr_bytes, str_bytes, path_bytes);
 }
 
 // ----------------------------------------------------------------------------------------
 void DPHandler::FillTrellis(Sequences query_seqs, vector<string> query_strs, string gene, double *score, string &origin) {
   *score = -INFINITY;
   // initialize trellis and path
-  if(trellisi_.find(gene) == trellisi_.end()) {
-    trellisi_[gene] = map<vector<string>, trellis>();
-    paths_[gene] = map<vector<string>, TracebackPath>();
-  }
+  if(chunk_cache_info_.find(gene) == chunk_cache_info_.end())
+    chunk_cache_info_[gene] = map<vector<string>, CacheInfoHolder>();
   origin = "scratch";
   if(!args_->no_chunk_cache()) {   // figure out if we've already got a trellis with a dp table which includes the one we're about to calculate (we should, unless this is the first kset)
-    for(auto &kv : trellisi_[gene]) {
+    for(auto &kv : chunk_cache_info_[gene]) {
       vector<string> cached_query_strs(kv.first);
       if(cached_query_strs.size() != query_strs.size())
 	continue;
@@ -206,34 +205,34 @@ void DPHandler::FillTrellis(Sequences query_seqs, vector<string> query_strs, str
       if(found_match) {
         for(size_t iseq = 0; iseq < cached_query_strs.size(); ++iseq)  // neurotic double check
           assert(cached_query_strs[iseq].find(query_strs[iseq]) == 0);
-        trellisi_[gene][query_strs] = trellis(hmms_.Get(gene, args_->debug()), query_seqs, &trellisi_[gene][cached_query_strs]);  // copy over the required chunk of the old trellis into a new trellis for the current query
+        chunk_cache_info_[gene][query_strs].trellis_ = trellis(hmms_.Get(gene, args_->debug()), query_seqs, &chunk_cache_info_[gene][cached_query_strs].trellis_);  // copy over the required chunk of the old trellis into a new trellis for the current query
         origin = "chunk";
         break;
       }
     }
   }
 
-  if(trellisi_[gene].count(query_strs) == 0)   // if didn't find a suitable chunk cached trellis
-    trellisi_[gene][query_strs] = trellis(hmms_.Get(gene, args_->debug()), query_seqs);
-  trellis *trell = &trellisi_[gene][query_strs]; // this pointer's just to keep the name short
+  if(chunk_cache_info_[gene].count(query_strs) == 0)   // if didn't find a suitable chunk cached trellis
+    chunk_cache_info_[gene][query_strs].trellis_ = trellis(hmms_.Get(gene, args_->debug()), query_seqs);
+  trellis *trell = &chunk_cache_info_[gene][query_strs].trellis_; // this pointer's just to keep the name short
 
   // run the actual dp algorithms
   if(algorithm_ == "viterbi") {
     trell->Viterbi();
     *score = trell->ending_viterbi_log_prob();  // NOTE still need to add the gene choice prob to this score (it's done in RunKSet)
     if(trell->ending_viterbi_log_prob() == -INFINITY) {   // no valid path through hmm
-      paths_[gene][query_strs] = TracebackPath();
+      chunk_cache_info_[gene][query_strs].path_ = TracebackPath();
       if(args_->debug() == 2) cout << "                    arg " << gene << " " << *score << " " << origin << endl;
     } else {
-      paths_[gene][query_strs] = TracebackPath(hmms_.Get(gene, args_->debug()));
-      trell->Traceback(paths_[gene][query_strs]);
-      assert(trell->ending_viterbi_log_prob() == paths_[gene][query_strs].score());  // NOTE it would be better to just not store the darn score in both the places to start with, rather than worry here about them being the same
+      chunk_cache_info_[gene][query_strs].path_ = TracebackPath(hmms_.Get(gene, args_->debug()));
+      trell->Traceback(chunk_cache_info_[gene][query_strs].path_);
+      assert(trell->ending_viterbi_log_prob() == chunk_cache_info_[gene][query_strs].path_.score());  // NOTE it would be better to just not store the darn score in both the places to start with, rather than worry here about them being the same
     }
     assert(fabs(*score) > 1e-200);
-    assert(*score == -INFINITY || paths_[gene][query_strs].size() > 0);
+    assert(*score == -INFINITY || chunk_cache_info_[gene][query_strs].path_.size() > 0);
   } else if(algorithm_ == "forward") {
     trell->Forward();
-    paths_[gene][query_strs] = TracebackPath();  // avoids violating the assumption that paths_ and trellisi_ have the same entries
+    chunk_cache_info_[gene][query_strs].path_ = TracebackPath();  // avoids violating the assumption that paths_ and trellisi_ have the same entries
     *score = trell->ending_forward_log_prob();  // NOTE still need to add the gene choice prob to this score
   } else {
     assert(0);
@@ -246,7 +245,7 @@ void DPHandler::PrintPath(vector<string> query_strs, string gene, double score, 
     // cout << "                    " << gene << " " << score << endl;
     return;
   }
-  vector<string> path_names = paths_[gene][query_strs].name_vector();
+  vector<string> path_names = chunk_cache_info_[gene][query_strs].path_.name_vector();
   if(path_names.size() == 0) {
     if(args_->debug()) cout << "                     " << gene << " has no valid path" << endl;
     return;
@@ -302,7 +301,7 @@ RecoEvent DPHandler::FillRecoEvent(Sequences &seqs, KSet kset, map<string, strin
     }
     assert(best_genes.find(region) != best_genes.end());
     string gene(best_genes[region]);
-    vector<string> path_names = paths_[gene][query_strs].name_vector();
+    vector<string> path_names = chunk_cache_info_[gene][query_strs].path_.name_vector();
     if(path_names.size() == 0) {
       if(args_->debug()) cout << "                     " << gene << " has no valid path" << endl;
       event.SetScore(-INFINITY);
@@ -375,8 +374,8 @@ void DPHandler::RunKSet(Sequences &seqs, KSet kset, map<string, set<string> > &o
     regional_best_scores[region] = -INFINITY;
     regional_total_scores[region] = -INFINITY;
     for(auto & gene : only_genes[region]) {
-      double *gene_score(&all_scores_[gene][query_strs]);  // pointed-to value is already set if we have this trellis cached, otherwise not
-      bool already_cached = trellisi_.find(gene) != trellisi_.end() && trellisi_[gene].find(query_strs) != trellisi_[gene].end();
+      double *gene_score(&chunk_cache_info_[gene][query_strs].score_);  // pointed-to value is already set if we have this trellis cached, otherwise not
+      bool already_cached = chunk_cache_info_.find(gene) != chunk_cache_info_.end() && chunk_cache_info_[gene].find(query_strs) != chunk_cache_info_[gene].end();
       string origin("ARG");
       if(already_cached) {
         origin = "cached";
