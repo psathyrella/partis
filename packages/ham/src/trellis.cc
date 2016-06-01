@@ -26,7 +26,10 @@ string trellis::SizeString() {
 // ----------------------------------------------------------------------------------------
 trellis::trellis(Model* hmm, Sequence seq, trellis *cached_trellis) :
   hmm_(hmm),
-  cached_trellis_(cached_trellis) {
+  cached_trellis_(cached_trellis),
+  scoring_current_(hmm_->n_states(), -INFINITY),
+  scoring_previous_(hmm_->n_states(), -INFINITY)
+{
   seqs_.AddSeq(seq);
   Init();
 }
@@ -35,7 +38,9 @@ trellis::trellis(Model* hmm, Sequence seq, trellis *cached_trellis) :
 trellis::trellis(Model* hmm, Sequences seqs, trellis *cached_trellis) :
   hmm_(hmm),
   seqs_(seqs),
-  cached_trellis_(cached_trellis)
+  cached_trellis_(cached_trellis),
+  scoring_current_(hmm_->n_states(), -INFINITY),
+  scoring_previous_(hmm_->n_states(), -INFINITY)
 {
   Init();
 }
@@ -184,8 +189,10 @@ void trellis::Viterbi() {
   assert(!traceback_table_);
   traceback_table_ = new int_2D(seqs_.GetSequenceLength(), vector<int16_t>(hmm_->n_states(), -1));
 
-  vector<double> *scoring_current  = new vector<double> (hmm_->n_states(), -INFINITY);  // dp table values in the current column (i.e. at the current position in the query sequence)
-  vector<double> *scoring_previous = new vector<double> (hmm_->n_states(), -INFINITY);  // same, but for the previous position
+  vector<double> *scoring_current = &scoring_current_;  // dp table values in the current column (i.e. at the current position in the query sequence)
+  vector<double> *scoring_previous = &scoring_previous_;  // same, but for the previous position
+  scoring_current->assign(scoring_current->size(), -INFINITY);
+  scoring_previous->assign(scoring_previous->size(), -INFINITY);
   bitset<STATE_MAX> next_states, current_states;  // bitset of states which we need to check at the next/current position
 
   // first calculate log probs for first position in sequence
@@ -224,9 +231,6 @@ void trellis::Viterbi() {
       ending_viterbi_pointer_ = st_previous;
     }
   }
-
-  delete scoring_previous;
-  delete scoring_current;
 }
 
 // ----------------------------------------------------------------------------------------
@@ -243,8 +247,10 @@ void trellis::Forward() {
     return;
   }
 
-  vector<double> *scoring_current  = new vector<double> (hmm_->n_states(), -INFINITY);  // dp table values in the current column (i.e. at the current position in the query sequence)
-  vector<double> *scoring_previous = new vector<double> (hmm_->n_states(), -INFINITY);  // same, but for the previous position
+  vector<double> *scoring_current = &scoring_current_;  // dp table values in the current column (i.e. at the current position in the query sequence)
+  vector<double> *scoring_previous = &scoring_previous_;  // same, but for the previous position
+  scoring_current->assign(scoring_current->size(), -INFINITY);
+  scoring_previous->assign(scoring_previous->size(), -INFINITY);
   bitset<STATE_MAX> next_states, current_states;  // bitset of states which we need to check at the next/current position
 
   // first calculate log probs for first position in sequence
@@ -278,9 +284,6 @@ void trellis::Forward() {
       continue;
     ending_forward_log_prob_ = AddInLogSpace(ending_forward_log_prob_, dpval);
   }
-
-  delete scoring_previous;
-  delete scoring_current;
 }
 
 // ----------------------------------------------------------------------------------------

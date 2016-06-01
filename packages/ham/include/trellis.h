@@ -70,7 +70,8 @@ private:
   vector<double> forward_log_probs_;  // total log prob of all paths up to and including each position NOTE includes log prob of transition to end
   vector<int> viterbi_pointers_;  // pointer to the state at which the best log prob occurred
 
-  vector<double> *swap_ptr_;  // doesn't really need to be a member variable, but it's kind of nice
+  vector<double> *swap_ptr_;
+  vector<double> scoring_current_, scoring_previous_;
 };
 
 }
