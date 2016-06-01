@@ -169,7 +169,7 @@ void trellis::CacheVals(string algorithm, size_t position, double dpval, size_t 
 // ----------------------------------------------------------------------------------------
 void trellis::Viterbi() {
   // initialize stored values for chunk caching
-  assert(viterbi_log_probs_.size() == 0);
+  assert(viterbi_log_probs_.size() == 0);  // you can't be too careful
   assert(viterbi_pointers_.size() == 0);
   viterbi_log_probs_.resize(seqs_.GetSequenceLength(), -INFINITY);
   viterbi_pointers_.resize(seqs_.GetSequenceLength(), -1);
@@ -179,7 +179,7 @@ void trellis::Viterbi() {
     ending_viterbi_pointer_ = cached_trellis_->viterbi_pointer(seqs_.GetSequenceLength());
     ending_viterbi_log_prob_ = cached_trellis_->ending_viterbi_log_prob(seqs_.GetSequenceLength());
     // and also set things to allow this trellis to be passed as a cached trellis
-    for(size_t ip = 0; ip < seqs_.GetSequenceLength(); ++ip) {
+    for(size_t ip = 0; ip < seqs_.GetSequenceLength(); ++ip) {  // NOTE we could make this more memory-efficient by not copying over all the vectors, but that would require some re-jiggery
       viterbi_log_probs_[ip] = cached_trellis_->viterbi_log_probs()->at(ip);
       viterbi_pointers_[ip] = cached_trellis_->viterbi_pointers()->at(ip);
     }
@@ -235,6 +235,7 @@ void trellis::Viterbi() {
 
 // ----------------------------------------------------------------------------------------
 void trellis::Forward() {
+  // initialize stored values for chunk caching
   assert(forward_log_probs_.size() == 0);  // you can't be too careful
   forward_log_probs_.resize(seqs_.GetSequenceLength(), -INFINITY);
 
@@ -243,7 +244,7 @@ void trellis::Forward() {
       throw runtime_error("ERROR I got a trellis to cache that didn't have any forward information");
     ending_forward_log_prob_ = cached_trellis_->ending_forward_log_prob(seqs_.GetSequenceLength());
     for(size_t ip = 0; ip < seqs_.GetSequenceLength(); ++ip)  // and also set things to allow this trellis to be passed as a cached trellis
-      forward_log_probs_[ip] = cached_trellis_->forward_log_probs()->at(ip);
+      forward_log_probs_[ip] = cached_trellis_->forward_log_probs()->at(ip);  // NOTE we could make this more memory-efficient by not copying over all the vectors, but that would require some re-jiggery
     return;
   }
 
