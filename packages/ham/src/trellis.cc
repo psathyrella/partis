@@ -35,7 +35,14 @@ trellis::trellis(Model* hmm, Sequence seq, trellis *cached_trellis) :
 trellis::trellis(Model* hmm, Sequences seqs, trellis *cached_trellis) :
   hmm_(hmm),
   seqs_(seqs),
-  cached_trellis_(cached_trellis) {
+  cached_trellis_(cached_trellis)
+{
+  Init();
+}
+
+// ----------------------------------------------------------------------------------------
+trellis::trellis() : hmm_(nullptr), cached_trellis_(nullptr)
+{
   Init();
 }
 

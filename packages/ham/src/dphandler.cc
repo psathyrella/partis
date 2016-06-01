@@ -20,7 +20,7 @@ void DPHandler::Clear() {
   for(auto & gene_map : trellisi_) {  // loop over genes
     string gene(gene_map.first);
     for(auto & query_str_map : gene_map.second) {  // loop query strings for each gene
-      delete query_str_map.second;  // delete the actual trellis
+      // delete query_str_map.second;  // delete the actual trellis
       if(paths_[gene][query_str_map.first])   // set to nullptr if no valid path
         delete paths_[gene][query_str_map.first];  // delete the path corresponding to that trellis
     }
@@ -178,10 +178,10 @@ void DPHandler::PrintCachedTrellisSize() {
     string gene(kv_a.first);
     for(auto &kv_b : trellisi_[gene]) {
       vector<string> cached_query_strs(kv_b.first);
-      trellis *ts(kv_b.second);
+      trellis ts(kv_b.second);
       for(auto &str : cached_query_strs)
 	str_bytes += sizeof(string::value_type) * str.size();
-      tr_bytes += ts->ApproxBytesUsed();
+      tr_bytes += ts.ApproxBytesUsed();
       if(paths_[gene][cached_query_strs] != nullptr)
 	path_bytes += sizeof(int) * paths_[gene][cached_query_strs]->size();
     }
@@ -195,7 +195,7 @@ void DPHandler::FillTrellis(Sequences query_seqs, vector<string> query_strs, str
   *score = -INFINITY;
   // initialize trellis and path
   if(trellisi_.find(gene) == trellisi_.end()) {
-    trellisi_[gene] = map<vector<string>, trellis*>();
+    trellisi_[gene] = map<vector<string>, trellis>();
     paths_[gene] = map<vector<string>, TracebackPath*>();
   }
   origin = "scratch";
@@ -218,16 +218,16 @@ void DPHandler::FillTrellis(Sequences query_seqs, vector<string> query_strs, str
       if(found_match) {
         for(size_t iseq = 0; iseq < cached_query_strs.size(); ++iseq)  // neurotic double check
           assert(cached_query_strs[iseq].find(query_strs[iseq]) == 0);
-        trellisi_[gene][query_strs] = new trellis(hmms_.Get(gene, args_->debug()), query_seqs, trellisi_[gene][cached_query_strs]);  // copy over the required chunk of the old trellis into a new trellis for the current query
+        trellisi_[gene][query_strs] = trellis(hmms_.Get(gene, args_->debug()), query_seqs, &trellisi_[gene][cached_query_strs]);  // copy over the required chunk of the old trellis into a new trellis for the current query
         origin = "chunk";
         break;
       }
     }
   }
 
-  if(!trellisi_[gene][query_strs])   // if didn't find a suitable chunk cached trellis
-    trellisi_[gene][query_strs] = new trellis(hmms_.Get(gene, args_->debug()), query_seqs);
-  trellis *trell(trellisi_[gene][query_strs]); // this pointer's just to keep the name short
+  if(trellisi_[gene].count(query_strs) == 0)   // if didn't find a suitable chunk cached trellis
+    trellisi_[gene][query_strs] = trellis(hmms_.Get(gene, args_->debug()), query_seqs);
+  trellis *trell = &trellisi_[gene][query_strs]; // this pointer's just to keep the name short
 
   // run the actual dp algorithms
   if(algorithm_ == "viterbi") {

@@ -22,6 +22,7 @@ public:
   trellis(Model *hmm, Sequence seq, trellis *cached_trellis = nullptr);
   trellis(Model *hmm, Sequences seqs, trellis *cached_trellis = nullptr);
   void Init();
+  trellis();
   ~trellis();
 
   Model *model() { return hmm_; }
