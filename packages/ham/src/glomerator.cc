@@ -43,15 +43,6 @@ Glomerator::~Glomerator() {
   cout << FinalString() << endl;
   if(args_->cachefile() != "")
     WriteCachedLogProbs();
-
-  // // ----------------------------------------------------------------------------------------
-  // // print memory usage
-  // ifstream smapfs("/proc/self/smaps");
-  // string tmpline;
-  // while(getline(smapfs, tmpline)) {
-  //   cout << "MEM " << tmpline << endl;
-  // }
-  // // ----------------------------------------------------------------------------------------
   fclose(progress_file_);
   remove((args_->outfile() + ".progress").c_str());
 }
@@ -302,6 +293,18 @@ string Glomerator::FinalString() {
 
 // ----------------------------------------------------------------------------------------
 void Glomerator::WriteStatus() {
+
+  // // ----------------------------------------------------------------------------------------
+  // // print memory usage
+  // ifstream smapfs("/proc/self/smaps");
+  // string tmpline;
+  // cout << "contents of /proc/self/smaps:" << endl;
+  // while(getline(smapfs, tmpline)) {
+  //   cout << "MEM " << tmpline << endl;
+  // }
+  // cout << endl;
+  // // ----------------------------------------------------------------------------------------
+
   // cout << CacheSizeString() << endl;
   time_t current_time;
   time(&current_time);
