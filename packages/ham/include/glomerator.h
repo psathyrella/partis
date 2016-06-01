@@ -58,7 +58,8 @@ private:
   void WriteCachedLogProbs();
 
   void PrintPartition(Partition &clusters, string extrastr);
-  string ProgressString();
+  string CacheSizeString();
+  string FinalString();
   void WriteStatus();  // write some progress info to file
 
   string ParentalString(pair<string, string> *parents);

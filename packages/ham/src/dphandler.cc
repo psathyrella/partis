@@ -16,6 +16,7 @@ DPHandler::~DPHandler() {
 
 // ----------------------------------------------------------------------------------------
 void DPHandler::Clear() {
+  // delete trellisi and paths
   for(auto & gene_map : trellisi_) {  // loop over genes
     string gene(gene_map.first);
     for(auto & query_str_map : gene_map.second) {  // loop query strings for each gene
@@ -24,6 +25,8 @@ void DPHandler::Clear() {
         delete paths_[gene][query_str_map.first];  // delete the path corresponding to that trellis
     }
   }
+
+  // clear containing map structures
   trellisi_.clear();
   paths_.clear();
   all_scores_.clear();
@@ -166,6 +169,25 @@ Result DPHandler::Run(vector<Sequence> seqvector, KBounds kbounds, vector<string
     hmms_.UnRescaleOverallMuteFreqs(only_genes);
 
   return result;
+}
+
+// ----------------------------------------------------------------------------------------
+void DPHandler::PrintCachedTrellisSize() {
+  double str_bytes(0.), tr_bytes(0.), path_bytes(0.);
+  for(auto &kv_a : trellisi_) {
+    string gene(kv_a.first);
+    for(auto &kv_b : trellisi_[gene]) {
+      vector<string> cached_query_strs(kv_b.first);
+      trellis *ts(kv_b.second);
+      for(auto &str : cached_query_strs)
+	str_bytes += sizeof(string::value_type) * str.size();
+      tr_bytes += ts->ApproxBytesUsed();
+      if(paths_[gene][cached_query_strs] != nullptr)
+	path_bytes += sizeof(int) * paths_[gene][cached_query_strs]->size();
+    }
+  }
+
+  printf("   TOT %.0e   str %.0e   trellis %.0e     path %.0e\n", tr_bytes + str_bytes + path_bytes, tr_bytes, str_bytes, path_bytes);
 }
 
 // ----------------------------------------------------------------------------------------

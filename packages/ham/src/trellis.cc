@@ -3,6 +3,29 @@
 namespace ham {
 
 // ----------------------------------------------------------------------------------------
+double trellis::ApproxBytesUsed() {
+  double bytes(0.);
+  if(viterbi_log_probs_)
+    bytes += sizeof(double) * viterbi_log_probs_->size();
+  if(forward_log_probs_)
+    bytes += sizeof(double) * forward_log_probs_->size();
+  if(viterbi_pointers_)
+    bytes += sizeof(int) * viterbi_pointers_->size();
+  return bytes;
+}
+
+// ----------------------------------------------------------------------------------------
+string trellis::SizeString() {
+  char buffer[2000];
+  sprintf(buffer, "%8zu  %8zu  %8zu  %8zu",
+	  viterbi_log_probs_ ? viterbi_log_probs_->size() : 0,
+	  forward_log_probs_ ? forward_log_probs_->size() : 0,
+	  viterbi_pointers_ ? viterbi_pointers_->size() : 0,
+	  swap_ptr_ ? swap_ptr_->size() : 0);
+  return string(buffer);
+}
+
+// ----------------------------------------------------------------------------------------
 trellis::trellis(Model* hmm, Sequence seq, trellis *cached_trellis) :
   hmm_(hmm),
   cached_trellis_(cached_trellis) {
@@ -119,6 +142,7 @@ void trellis::SwapColumns(vector<double> *&scoring_previous, vector<double> *&sc
   scoring_previous = scoring_current;
   scoring_current = swap_ptr_;
   scoring_current->assign(hmm_->n_states(), -INFINITY);
+  swap_ptr_ = nullptr;
 
   // swap the <current_states> and <next_states> bitsets (ie set current_states to the states to which we can transition from *any* of the previous states)
   current_states.reset();

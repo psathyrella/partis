@@ -40,12 +40,12 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> >
 
 // ----------------------------------------------------------------------------------------
 Glomerator::~Glomerator() {
-  // printf("         calculated   vtb %-4d   fwd %-4d   hfracs %-8d     merged   hfrac %-4d   lratio %-4d\n", n_vtb_calculated_, n_fwd_calculated_, n_hfrac_calculated_, n_hfrac_merges_, n_lratio_merges_);
-  cout << ProgressString() << endl;
+  cout << FinalString() << endl;
   if(args_->cachefile() != "")
     WriteCachedLogProbs();
 
   // // ----------------------------------------------------------------------------------------
+  // // print memory usage
   // ifstream smapfs("/proc/self/smaps");
   // string tmpline;
   // while(getline(smapfs, tmpline)) {
@@ -287,7 +287,14 @@ void Glomerator::PrintPartition(Partition &partition, string extrastr) {
 }
 
 // ----------------------------------------------------------------------------------------
-string Glomerator::ProgressString() {
+string Glomerator::CacheSizeString() {
+  char buffer[2000];
+  sprintf(buffer, "      %8zu   %8zu   %8zu   %8zu   %8zu", log_probs_.size(), naive_hfracs_.size(), lratios_.size(), naive_seqs_.size(), errors_.size());
+  return string(buffer);
+}
+
+// ----------------------------------------------------------------------------------------
+string Glomerator::FinalString() {
     char buffer[2000];
     sprintf(buffer, "        calcd:   vtb %-4d  fwd %-4d  hfrac %-8d    merged:  hfrac %-4d lratio %-4d", n_vtb_calculated_, n_fwd_calculated_, n_hfrac_calculated_, n_hfrac_merges_, n_lratio_merges_);
     return string(buffer);
@@ -295,6 +302,7 @@ string Glomerator::ProgressString() {
 
 // ----------------------------------------------------------------------------------------
 void Glomerator::WriteStatus() {
+  // cout << CacheSizeString() << endl;
   time_t current_time;
   time(&current_time);
   if(difftime(current_time, last_status_write_time_) > 300) {  // write something every five minutes
@@ -302,7 +310,7 @@ void Glomerator::WriteStatus() {
     strftime(buffer, 2000, "%b %d %T", localtime(&current_time));  // %H:%M
     // fprintf(progress_file_, "      %s    %4d clusters    calcd  fwd %-4d   vtb %-4d   hfrac %-8d    merged  hfrac %-4d\n", buffer, (int)path_->CurrentPartition().size(), n_fwd_calculated_, n_vtb_calculated_);
     fprintf(progress_file_, "      %s    %4d clusters", buffer, (int)current_partition_->size());
-    fprintf(progress_file_, "   %s", ProgressString().c_str());
+    fprintf(progress_file_, "   %s", FinalString().c_str());
 
     fprintf(progress_file_, "     %s\n", ClusterSizeString(current_partition_).c_str());
 

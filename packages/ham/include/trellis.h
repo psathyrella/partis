@@ -50,6 +50,9 @@ public:
   void Forward();
   void Traceback(TracebackPath &path);
 
+  string SizeString();
+  double ApproxBytesUsed();
+
   void Dump();
 private:
   Model *hmm_;
