@@ -7,8 +7,7 @@ double trellis::ApproxBytesUsed() {
   double bytes(0.);
   if(viterbi_log_probs_)
     bytes += sizeof(double) * viterbi_log_probs_->size();
-  if(forward_log_probs_)
-    bytes += sizeof(double) * forward_log_probs_->size();
+  bytes += sizeof(double) * forward_log_probs_.size();
   if(viterbi_pointers_)
     bytes += sizeof(int) * viterbi_pointers_->size();
   return bytes;
@@ -19,7 +18,7 @@ string trellis::SizeString() {
   char buffer[2000];
   sprintf(buffer, "%8zu  %8zu  %8zu  %8zu",
 	  viterbi_log_probs_ ? viterbi_log_probs_->size() : 0,
-	  forward_log_probs_ ? forward_log_probs_->size() : 0,
+	  forward_log_probs_.size(),
 	  viterbi_pointers_ ? viterbi_pointers_->size() : 0,
 	  swap_ptr_ ? swap_ptr_->size() : 0);
   return string(buffer);
@@ -52,7 +51,6 @@ void trellis::Init() {
 
   traceback_table_ = nullptr;
   viterbi_log_probs_ = nullptr;
-  forward_log_probs_ = nullptr;
   viterbi_pointers_ = nullptr;
   swap_ptr_ = nullptr;
 
@@ -65,8 +63,6 @@ void trellis::Init() {
 trellis::~trellis() {
   if(viterbi_log_probs_)
     delete viterbi_log_probs_;
-  if(forward_log_probs_)
-    delete forward_log_probs_;
   if(viterbi_pointers_)
     delete viterbi_pointers_;
   if(traceback_table_ && !cached_trellis_)   // if we have a cached trellis, we used its traceback_table_, so we don't want to delete it
@@ -90,8 +86,7 @@ double trellis::ending_viterbi_log_prob(size_t length) {  // NOTE this is the le
 
 // ----------------------------------------------------------------------------------------
 double trellis::ending_forward_log_prob(size_t length) {  // NOTE this is the length of the sequence, so we return position length - 1
-  assert(length <= forward_log_probs_->size());
-  return forward_log_probs_->at(length - 1);
+  return forward_log_probs_.at(length - 1);
 }
 
 // ----------------------------------------------------------------------------------------
@@ -161,7 +156,7 @@ void trellis::CacheVals(string algorithm, size_t position, double dpval, size_t 
 	(*viterbi_pointers_)[position] = i_st_current;
       }
     } else if(algorithm == "forward") {  // add the logprob corresponding to state <i_st_current> at <position> (<dpval>) to the running cached total
-      (*forward_log_probs_)[position] = AddInLogSpace(logprob, (*forward_log_probs_)[position]);
+      forward_log_probs_[position] = AddInLogSpace(logprob, forward_log_probs_[position]);
     } else {
       assert(0);
     }
@@ -237,15 +232,15 @@ void trellis::Viterbi() {
 
 // ----------------------------------------------------------------------------------------
 void trellis::Forward() {
-  assert(forward_log_probs_ == nullptr);  // you can't be too careful
-  forward_log_probs_ = new vector<double> (seqs_.GetSequenceLength(), -INFINITY);
+  assert(forward_log_probs_.size() == 0);  // you can't be too careful
+  forward_log_probs_.resize(seqs_.GetSequenceLength(), -INFINITY);
 
   if(cached_trellis_) {
     if(!cached_trellis_->forward_log_probs())
       throw runtime_error("ERROR I got a trellis to cache that didn't have any forward information");
     ending_forward_log_prob_ = cached_trellis_->ending_forward_log_prob(seqs_.GetSequenceLength());
     for(size_t ip = 0; ip < seqs_.GetSequenceLength(); ++ip)  // and also set things to allow this trellis to be passed as a cached trellis
-      (*forward_log_probs_)[ip] = cached_trellis_->forward_log_probs()->at(ip);
+      forward_log_probs_[ip] = cached_trellis_->forward_log_probs()->at(ip);
     return;
   }
 
