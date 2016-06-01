@@ -302,6 +302,6 @@ void trellis::Traceback(TracebackPath& path) {
     }
     path.push_back(pointer);
   }
-  assert(path.size() > 0);
+  assert(path.size() > 0);  // NOTE don't remove this! dphandler assumes paths are invalid/not set if path size is zero
 }
 }
