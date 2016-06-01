@@ -5,11 +5,10 @@ namespace ham {
 // ----------------------------------------------------------------------------------------
 double trellis::ApproxBytesUsed() {
   double bytes(0.);
-  if(viterbi_log_probs_)
-    bytes += sizeof(double) * viterbi_log_probs_->size();
+  // NOTE doesn't include traceback table!
+  bytes += sizeof(double) * viterbi_log_probs_.size();
   bytes += sizeof(double) * forward_log_probs_.size();
-  if(viterbi_pointers_)
-    bytes += sizeof(int) * viterbi_pointers_->size();
+  bytes += sizeof(int) * viterbi_pointers_.size();
   return bytes;
 }
 
@@ -17,9 +16,9 @@ double trellis::ApproxBytesUsed() {
 string trellis::SizeString() {
   char buffer[2000];
   sprintf(buffer, "%8zu  %8zu  %8zu  %8zu",
-	  viterbi_log_probs_ ? viterbi_log_probs_->size() : 0,
+	  viterbi_log_probs_.size(),
 	  forward_log_probs_.size(),
-	  viterbi_pointers_ ? viterbi_pointers_->size() : 0,
+	  viterbi_pointers_.size(),
 	  swap_ptr_ ? swap_ptr_->size() : 0);
   return string(buffer);
 }
@@ -50,8 +49,6 @@ void trellis::Init() {
   }
 
   traceback_table_ = nullptr;
-  viterbi_log_probs_ = nullptr;
-  viterbi_pointers_ = nullptr;
   swap_ptr_ = nullptr;
 
   ending_viterbi_log_prob_ = -INFINITY;
@@ -61,10 +58,6 @@ void trellis::Init() {
 
 // ----------------------------------------------------------------------------------------
 trellis::~trellis() {
-  if(viterbi_log_probs_)
-    delete viterbi_log_probs_;
-  if(viterbi_pointers_)
-    delete viterbi_pointers_;
   if(traceback_table_ && !cached_trellis_)   // if we have a cached trellis, we used its traceback_table_, so we don't want to delete it
     delete traceback_table_;
 }
@@ -73,15 +66,14 @@ trellis::~trellis() {
 void trellis::Dump() {
   for(size_t ipos = 0; ipos < seqs_.GetSequenceLength(); ++ipos) {
     cout
-        << setw(12) << hmm_->state((*viterbi_pointers_)[ipos])->name()[0]
-        << setw(12) << (*viterbi_log_probs_)[ipos];
+        << setw(12) << hmm_->state(viterbi_pointers_[ipos])->name()[0]
+        << setw(12) << viterbi_log_probs_[ipos];
     cout << endl;
   }
 }
 // ----------------------------------------------------------------------------------------
 double trellis::ending_viterbi_log_prob(size_t length) {  // NOTE this is the length of the sequence, so we return position length - 1
-  assert(length <= viterbi_log_probs_->size());
-  return viterbi_log_probs_->at(length - 1);
+  return viterbi_log_probs_.at(length - 1);
 }
 
 // ----------------------------------------------------------------------------------------
@@ -151,9 +143,9 @@ void trellis::CacheVals(string algorithm, size_t position, double dpval, size_t 
     double logprob = dpval + end_trans_val;
     // TODO combinging viterbi and forward in one fcn like this seems to be ~30% slower, so we'll probably need to split them back apart eventually
     if(algorithm == "viterbi") {  // if state <i_st_current> is the most likely at <position (i.e. <dpval> is the largest so far), then cache for future retrieval
-      if(logprob > (*viterbi_log_probs_)[position]) {
-	(*viterbi_log_probs_)[position] = logprob;  // since this is the log prob of *ending* at this point, we have to add on the prob of going to the end state from this state
-	(*viterbi_pointers_)[position] = i_st_current;
+      if(logprob > viterbi_log_probs_[position]) {
+	viterbi_log_probs_[position] = logprob;  // since this is the log prob of *ending* at this point, we have to add on the prob of going to the end state from this state
+	viterbi_pointers_[position] = i_st_current;
       }
     } else if(algorithm == "forward") {  // add the logprob corresponding to state <i_st_current> at <position> (<dpval>) to the running cached total
       forward_log_probs_[position] = AddInLogSpace(logprob, forward_log_probs_[position]);
@@ -165,10 +157,10 @@ void trellis::CacheVals(string algorithm, size_t position, double dpval, size_t 
 // ----------------------------------------------------------------------------------------
 void trellis::Viterbi() {
   // initialize stored values for chunk caching
-  assert(viterbi_log_probs_  == nullptr);
-  assert(viterbi_pointers_ == nullptr);
-  viterbi_log_probs_ = new vector<double> (seqs_.GetSequenceLength(), -INFINITY);
-  viterbi_pointers_ = new vector<int> (seqs_.GetSequenceLength(), -1);
+  assert(viterbi_log_probs_.size() == 0);
+  assert(viterbi_pointers_.size() == 0);
+  viterbi_log_probs_.resize(seqs_.GetSequenceLength(), -INFINITY);
+  viterbi_pointers_.resize(seqs_.GetSequenceLength(), -1);
 
   if(cached_trellis_) {   // ok, rad, we have another trellis with the dp table already filled in, so we can just poach the values we need from there
     traceback_table_ = cached_trellis_->traceback_table();  // note that the table from the cached trellis is larger than we need right now (that's the whole point, after all)
@@ -176,8 +168,8 @@ void trellis::Viterbi() {
     ending_viterbi_log_prob_ = cached_trellis_->ending_viterbi_log_prob(seqs_.GetSequenceLength());
     // and also set things to allow this trellis to be passed as a cached trellis
     for(size_t ip = 0; ip < seqs_.GetSequenceLength(); ++ip) {
-      (*viterbi_log_probs_)[ip] = cached_trellis_->viterbi_log_probs()->at(ip);
-      (*viterbi_pointers_)[ip] = cached_trellis_->viterbi_pointers()->at(ip);
+      viterbi_log_probs_[ip] = cached_trellis_->viterbi_log_probs()->at(ip);
+      viterbi_pointers_[ip] = cached_trellis_->viterbi_pointers()->at(ip);
     }
     return;
   }
