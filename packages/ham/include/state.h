@@ -31,6 +31,7 @@ public:
   inline vector<Transition*> *transitions() { return transitions_; }
   inline bitset<STATE_MAX> *to_states() { return &to_states_; }
   inline bitset<STATE_MAX> *from_states() { return &from_states_; }
+  inline vector<size_t> *from_state_indices() { return &from_state_indices_; }
   inline Transition *transition(size_t iter) { return (*transitions_)[iter]; }
   inline Transition *trans_to_end() { return trans_to_end_; }
 
@@ -45,6 +46,8 @@ public:
   inline void SetIndex(size_t val) { index_ = val; }
   void ReorderTransitions(map<string, State*>& state_indices);
 
+  void SetFromStateIndices();
+
   void Print();
 private:
   string name_, germline_nuc_;
@@ -58,6 +61,7 @@ private:
   size_t index_;  // position of this state in the vector model::states_ (set in model::finalize)
   bitset<STATE_MAX> to_states_;
   bitset<STATE_MAX> from_states_;
+  vector<size_t> from_state_indices_;  // same information as <from_states_>, but hopefully faster to iterate over
 };
 
 }

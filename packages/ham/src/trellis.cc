@@ -112,11 +112,9 @@ void trellis::MiddleVals(string algorithm, vector<double> *scoring_previous, vec
     double emission_val = hmm_->state(i_st_current)->EmissionLogprob(&seqs_, position);
     if(emission_val == -INFINITY)
       continue;
-    bitset<STATE_MAX> *from_trans = hmm_->state(i_st_current)->from_states();  // list of states from which we could've arrived at <i_st_current>
 
-    for(size_t i_st_previous = 0; i_st_previous < hmm_->n_states(); ++i_st_previous) {
-      if(!(*from_trans)[i_st_previous])
-	continue;
+    vector<size_t> *from_trans_indices = hmm_->state(i_st_current)->from_state_indices();  // list of states from which we could've arrived at <i_st_current>
+    for(auto &i_st_previous : *from_trans_indices) {
       if((*scoring_previous)[i_st_previous] == -INFINITY)  // skip if <i_st_previous> was a dead end, i.e. that row in the previous column had zero probability
 	continue;
       double dpval = (*scoring_previous)[i_st_previous] + emission_val + hmm_->state(i_st_previous)->transition_logprob(i_st_current);

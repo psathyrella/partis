@@ -189,4 +189,11 @@ void State::ReorderTransitions(map<string, State*> &state_indices) {
   transitions_ = fixed_transitions;
 }
 
+// ----------------------------------------------------------------------------------------
+void State::SetFromStateIndices() {
+  for(size_t istate=0; istate<from_states_.size(); ++istate)
+    if(from_states_[istate])
+      from_state_indices_.push_back(istate);
+}
+
 }

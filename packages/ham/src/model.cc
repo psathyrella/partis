@@ -158,6 +158,8 @@ void Model::Finalize() {
 
   CheckTopology();
 
+  AddMaybeFasterFromStateStuff();  // TODO should really somehow be integrated into FinalizeState() (?)
+
   finalized_ = true;
 }
 
@@ -179,6 +181,14 @@ void Model::FinalizeState(State *st) {
 
   if(st->trans_to_end())
     ending_->AddFromState(st);
+}
+
+// ----------------------------------------------------------------------------------------
+void Model::AddMaybeFasterFromStateStuff() {
+  initial_->SetFromStateIndices();
+  for(size_t i = 0; i < states_.size(); ++i)
+    states_[i]->SetFromStateIndices();
+  ending_->SetFromStateIndices();
 }
 
 // ----------------------------------------------------------------------------------------
