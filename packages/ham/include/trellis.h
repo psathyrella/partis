@@ -44,8 +44,10 @@ public:
   vector<int> *viterbi_pointers() { return &viterbi_pointers_; }
 
   void SwapColumns(vector<double> *&scoring_previous, vector<double> *&scoring_current, bitset<STATE_MAX> &current_states, bitset<STATE_MAX> &next_states);
-  void CacheVals(string algorithm, size_t position, double dpval, size_t i_st_current);
-  void MiddleVals(string algorithm, vector<double> *scoring_previous, vector<double> *scoring_current, bitset<STATE_MAX> &current_states, bitset<STATE_MAX> &next_states, size_t position);
+  void MiddleViterbiVals(vector<double> *scoring_previous, vector<double> *scoring_current, bitset<STATE_MAX> &current_states, bitset<STATE_MAX> &next_states, size_t position);
+  void MiddleForwardVals(vector<double> *scoring_previous, vector<double> *scoring_current, bitset<STATE_MAX> &current_states, bitset<STATE_MAX> &next_states, size_t position);
+  void CacheViterbiVals(size_t position, double dpval, size_t i_st_current);
+  void CacheForwardVals(size_t position, double dpval, size_t i_st_current);
   void Viterbi();
   void Forward();
   void Traceback(TracebackPath &path);
