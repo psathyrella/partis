@@ -17,6 +17,7 @@ public:
   void RescaleOverallMuteFreq(double overall_mute_freq);  // Rescale emissions to reflect <overall_mute_freq>, unless <overall_mute_freq> is -INFINITY, in which case we *re*-rescale them to what they were originally
   void UnRescaleOverallMuteFreq();  // Undo the above
   void Finalize();
+  void AddMaybeFasterFromStateStuff();
 
   string &name() { return name_; }
   Track *track() { return track_; }

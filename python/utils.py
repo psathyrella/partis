@@ -66,8 +66,8 @@ def get_arg_list(arg, intify=False, floatify=False, translation=None, list_of_pa
 
 # ----------------------------------------------------------------------------------------
 # values used when simulating from scratch
-scratch_mean_mute_freqs = {'v' : 0.04, 'd' : 0.10, 'j' : 0.07}
-scratch_mean_mute_freqs['all'] = numpy.mean([v for v in scratch_mean_mute_freqs.values()])
+# scratch_mean_mute_freqs = {'v' : 0.03, 'd' : 0.8, 'j' : 0.06}
+# scratch_mean_mute_freqs['all'] = numpy.mean([v for v in scratch_mean_mute_freqs.values()])
 scratch_mean_erosion_lengths = {'v_3p' : 2, 'd_5p' : 3, 'd_3p' : 3, 'j_5p' : 4}
 scratch_mean_insertion_lengths = {'vd' : 4, 'dj' : 4}
 
@@ -218,8 +218,8 @@ def get_parameter_fname(column=None, deps=None, column_and_deps=None):
     if column == 'all':
         return 'all-probs.csv'
     if column_and_deps is None:
-        assert column is not None and deps is not None
-    if column_and_deps == None:
+        if column is None or deps is None:
+            raise Exception('you have to either pass <column_and_deps>, or else pass both <column> and <deps>')
         column_and_deps = [column]
         column_and_deps.extend(deps)
     outfname = 'probs.csv'
@@ -228,7 +228,7 @@ def get_parameter_fname(column=None, deps=None, column_and_deps=None):
     return outfname
 
 # ----------------------------------------------------------------------------------------
-def rewrite_germline_fasta(input_dir, output_dir, only_genes=None, snps_to_add=None):
+def rewrite_germline_fasta(input_dir, output_dir, only_genes=None, snps_to_add=None, rename_snpd_genes=False):
     """ rewrite the germline set files in <input_dir> to <output_dir>, only keeping the genes in <only_genes> """
     print '    rewriting germlines from %s to %s' % (input_dir, output_dir),
     if only_genes is not None:
@@ -245,7 +245,7 @@ def rewrite_germline_fasta(input_dir, output_dir, only_genes=None, snps_to_add=N
 
     if snps_to_add is not None:
         for gene in snps_to_add:
-            print '  ', gene
+            print '    adding %d snps to %s' % (snps_to_add[gene], gene)
             snp_positions = set()
             seq = input_germlines[get_region(gene)][gene]
             aligned_seq = input_aligned_genes[get_region(gene)][gene]
@@ -274,11 +274,24 @@ def rewrite_germline_fasta(input_dir, output_dir, only_genes=None, snps_to_add=N
                             break
                         igl += 1
 
-                check_conserved_cysteine(seq, cpos)
-                color_mutants(input_germlines[get_region(gene)][gene], seq, print_result=True, extra_str='          ')
-                # color_mutants(input_aligned_genes[get_region(gene)][gene], aligned_seq, print_result=True, extra_str='          ')
-                input_germlines[get_region(gene)][gene] = seq
-                input_aligned_genes[get_region(gene)][gene] = aligned_seq
+            check_conserved_cysteine(seq, cpos)
+            snpd_name = gene
+            if rename_snpd_genes:
+                isnp = 0
+                while snpd_name == gene or snpd_name in input_germlines[get_region(gene)]:  # maybe we already have another snp in there?
+                    if isnp > 99:
+                        raise Exception('that\'s just stupid %d' % isnp)
+                    snpd_name = gene + 'snp%d' % isnp
+                    isnp += 1
+                only_genes.append(snpd_name)
+                if get_region(gene) == 'v':
+                    glfo['cyst-positions'][snpd_name] = glfo['cyst-positions'][gene]
+                elif get_region(gene) == 'j':
+                    glfo['tryp-positions'][snpd_name] = glfo['tryp-positions'][gene]
+            print '    %s   %s' % (input_germlines[get_region(gene)][gene], color_gene(gene))
+            print '    %s   %s' % (color_mutants(input_germlines[get_region(gene)][gene], seq), color_gene(snpd_name))
+            input_germlines[get_region(gene)][snpd_name] = seq
+            input_aligned_genes[get_region(gene)][snpd_name] = aligned_seq
 
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -298,9 +311,15 @@ def rewrite_germline_fasta(input_dir, output_dir, only_genes=None, snps_to_add=N
         write_gl_file(output_dir + '/igh' + region + '.fasta', region, input_germlines)
         write_gl_file(output_dir + '/igh' + region + '-aligned.fasta', region, input_aligned_genes)
 
-    for fname in ['cyst-positions.csv', 'tryp-positions.csv']:
+    for codon in ('cyst', 'tryp'):  # NOTE this might duplicate some stuff in bin/initialize-germline-set.py
+        fname = codon + '-positions.csv'
         expected_files.append(output_dir + '/' + fname)
-        shutil.copyfile(input_dir + '/' + fname, output_dir + '/' + fname)
+        # shutil.copyfile(input_dir + '/' + fname, output_dir + '/' + fname)
+        with open(output_dir + '/' + fname, 'w') as codonfile:
+            writer = csv.DictWriter(codonfile, ('gene', 'istart'))
+            writer.writeheader()
+            for gene, istart in glfo[codon + '-positions'].items():
+                writer.writerow({'gene' : gene, 'istart' : istart})
 
     # make sure there weren't any files lingering in the output dir when we started
     final_file_list = glob.glob(output_dir + '/*')
@@ -1218,7 +1237,28 @@ def are_same_primary_version(gene1, gene2):
     return True
 
 # ----------------------------------------------------------------------------------------
-def read_overall_gene_probs(indir, only_gene='', normalize=True):
+def separate_into_allelic_groups(germline_seqs):
+    allelic_groups = {}
+    for region in regions:
+        allelic_groups[region] = {}
+        for gene in germline_seqs[region]:
+            primary_version, sub_version, allele = split_gene(gene)
+            if primary_version not in allelic_groups[region]:
+                allelic_groups[region][primary_version] = {}
+            if sub_version not in allelic_groups[region][primary_version]:
+                allelic_groups[region][primary_version][sub_version] = []
+            allelic_groups[region][primary_version][sub_version].append(gene)
+    # for r in allelic_groups:
+    #     print r
+    #     for p in allelic_groups[r]:
+    #         print '    %15s' % p
+    #         for s in allelic_groups[r][p]:
+    #             print '        %15s      %s' % (s, allelic_groups[r][p][s])
+    return allelic_groups
+
+# ----------------------------------------------------------------------------------------
+def read_overall_gene_probs(indir, only_gene=None, normalize=True, expect_zero_counts=False):
+    assert only_gene != ''  # this used to be the default, I just want to make sure I didn't miss a call when I switched to None as the default
     """
     Return the observed counts/probabilities of choosing each gene version.
     If <normalize> then return probabilities
@@ -1244,14 +1284,15 @@ def read_overall_gene_probs(indir, only_gene='', normalize=True):
         for gene in counts[region]:
             probs[region][gene] = float(counts[region][gene]) / total
 
-    if only_gene not in counts[get_region(only_gene)]:
-        print '      WARNING %s not found in overall gene probs, returning zero' % only_gene
+    if only_gene is not None and only_gene not in counts[get_region(only_gene)]:
+        if not expect_zero_counts:
+            print '      WARNING %s not found in overall gene probs, returning zero' % only_gene
         if normalize:
             return 0.0
         else:
             return 0
 
-    if only_gene == '':
+    if only_gene is None:
         if normalize:
             return probs
         else:

@@ -5,9 +5,7 @@ import glob
 env = Environment(ENV=os.environ)
 env.Append(CPPFLAGS =  ['-Ofast', '-Wall', '-std=c++0x'])  # '-pg', '-g', 
 env.Append(LINKFLAGS = ['-Ofast', '-std=c++0x'])           # '-pg', '-g', 
-# build_dir = os.getcwd()  # should be packages/ham/_build
-# env.Append(CPPPATH = ['../include', build_dir.replace('_build', 'smctc/include')])  #, '../../../smctc/include'])
-env.Append(CPPPATH = ['../include', '../../smctc/include'])
+env.Append(CPPPATH = ['../include'])
 env.Append(CPPDEFINES={'STATE_MAX':'1024', 'SIZE_MAX':'\(\(size_t\)-1\)', 'UINT16_MAX':'65535', 'PI':'3.1415926535897932', 'EPS':'1e-6'})  # maybe reduce the state max to something reasonable?
 
 binary_names = ['bcrham', 'hample']
@@ -25,5 +23,5 @@ for fname in glob.glob(os.getenv('PWD') + '/src/*.cc'):
 env.Library(target='ham', source=sources)
 
 for bname in binary_names:
-    env.Program(target='../' + bname, source=bname + '.cc', LIBS=['ham', 'yaml-cpp', 'smctc', 'gsl', 'gslcblas'], LIBPATH=['.', 'yaml-cpp', '../../smctc/lib'])
+    env.Program(target='../' + bname, source=bname + '.cc', LIBS=['ham', 'yaml-cpp', 'gsl', 'gslcblas'], LIBPATH=['.', 'yaml-cpp'])
     # env.Program(target='../' + bname, source=bname + '.cc', LIBS=['ham', 'yaml-cpp'], LIBPATH=['.', 'yaml-cpp'])

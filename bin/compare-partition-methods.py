@@ -7,19 +7,20 @@ import csv
 from subprocess import Popen
 csv.field_size_limit(sys.maxsize)
 
-current_script_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '/python')
-if not os.path.exists(current_script_dir):
-    print 'WARNING current script dir %s doesn\'t exist, so python path may not be correctly set' % current_script_dir
-sys.path.insert(1, current_script_dir)
+partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
+if not os.path.exists(partis_dir):
+    print 'WARNING current script dir %s doesn\'t exist, so python path may not be correctly set' % partis_dir
+sys.path.insert(1, partis_dir + '/python')
 
 import humans
 import utils
 import compareutils
 import glob
 
+
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
-parser.add_argument('--datadir', default=os.getcwd() + '/data/imgt', help='Directory from which to read non-sample-specific information (e.g. germline genes)')
+parser.add_argument('--datadir', default=partis_dir + '/data/imgt', help='Directory from which to read non-sample-specific information (e.g. germline genes)')
 parser.add_argument('--fsdir', default='/fh/fast/matsen_e/' + os.getenv('USER') + '/work/partis-dev/_output')
 parser.add_argument('--mutation-multipliers', default='1')
 parser.add_argument('--is-simu', action='store_true')

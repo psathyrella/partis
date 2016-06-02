@@ -112,26 +112,19 @@ void State::UnRescaleOverallMuteFreq() {
 }
 
 // ----------------------------------------------------------------------------------------
-double State::EmissionLogprob(Sequence *seq, size_t pos) {
-  assert(pos < seq->size());
-  if(ambiguous_char_ != "" && (*seq)[pos] == emission_.track()->ambiguous_index())
+double State::EmissionLogprob(uint8_t ch) {
+  if(ambiguous_char_ != "" && ch == emission_.track()->ambiguous_index())
     return ambiguous_emission_logprob_;
   else
-    return emission_.score(seq, pos);
+    return emission_.score(ch);
 }
 
 // ----------------------------------------------------------------------------------------
 double State::EmissionLogprob(Sequences *seqs, size_t pos) {
-  // first set <log_prob> for the emission in the first sequence
-  double log_prob = EmissionLogprob(seqs->get_ptr(0), pos);
-
-  // then loop over the rest of the sequences (if there's any more)
-  for(size_t iseq = 1; iseq < seqs->n_seqs(); ++iseq) {
-    double this_log_prob = EmissionLogprob(seqs->get_ptr(iseq), pos);
-    log_prob = AddWithMinusInfinities(log_prob, this_log_prob);  // add to <log_prob> the emission log prob for the <iseq>th sequence, i.e. prob1 *and* prob2
-  }
-
-  return log_prob;
+  double logprob(0.);  // multiplying probabilities, so initial prob value should be 1.
+  for(size_t iseq=0; iseq<seqs->n_seqs(); ++iseq)
+    logprob = AddWithMinusInfinities(logprob, EmissionLogprob((*seqs->get_ptr(iseq))[pos]));
+  return logprob;
 }
 
 // ----------------------------------------------------------------------------------------
@@ -187,6 +180,13 @@ void State::ReorderTransitions(map<string, State*> &state_indices) {
 
   delete transitions_;
   transitions_ = fixed_transitions;
+}
+
+// ----------------------------------------------------------------------------------------
+void State::SetFromStateIndices() {
+  for(size_t istate=0; istate<from_states_.size(); ++istate)
+    if(from_states_[istate])
+      from_state_indices_.push_back(istate);
 }
 
 }

@@ -232,7 +232,7 @@ class Waterer(object):
         cmd_str += ' --match ' + str(match) + ' --mismatch ' + str(mismatch)
         cmd_str += ' --gap-open ' + str(self.args.gap_open_penalty)  #1000'  #50'
         cmd_str += ' --vdj-dir ' + datadir  # NOTE not necessarily <self.args.datadir>
-        cmd_str += ' --samtools-dir ' + os.getenv('PWD') + '/packages/samtools'
+        cmd_str += ' --samtools-dir ' + self.args.partis_dir + '/packages/samtools'
         cmd_str += ' ' + workdir + '/' + base_infname + ' ' + workdir + '/' + base_outfname
 
         return cmd_str

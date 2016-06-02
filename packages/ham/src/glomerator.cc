@@ -40,18 +40,9 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> >
 
 // ----------------------------------------------------------------------------------------
 Glomerator::~Glomerator() {
-  // printf("         calculated   vtb %-4d   fwd %-4d   hfracs %-8d     merged   hfrac %-4d   lratio %-4d\n", n_vtb_calculated_, n_fwd_calculated_, n_hfrac_calculated_, n_hfrac_merges_, n_lratio_merges_);
-  cout << ProgressString() << endl;
+  cout << FinalString() << endl;
   if(args_->cachefile() != "")
     WriteCachedLogProbs();
-
-  // // ----------------------------------------------------------------------------------------
-  // ifstream smapfs("/proc/self/smaps");
-  // string tmpline;
-  // while(getline(smapfs, tmpline)) {
-  //   cout << "MEM " << tmpline << endl;
-  // }
-  // // ----------------------------------------------------------------------------------------
   fclose(progress_file_);
   remove((args_->outfile() + ".progress").c_str());
 }
@@ -287,7 +278,14 @@ void Glomerator::PrintPartition(Partition &partition, string extrastr) {
 }
 
 // ----------------------------------------------------------------------------------------
-string Glomerator::ProgressString() {
+string Glomerator::CacheSizeString() {
+  char buffer[2000];
+  sprintf(buffer, "      %8zu   %8zu   %8zu   %8zu   %8zu", log_probs_.size(), naive_hfracs_.size(), lratios_.size(), naive_seqs_.size(), errors_.size());
+  return string(buffer);
+}
+
+// ----------------------------------------------------------------------------------------
+string Glomerator::FinalString() {
     char buffer[2000];
     sprintf(buffer, "        calcd:   vtb %-4d  fwd %-4d  hfrac %-8d    merged:  hfrac %-4d lratio %-4d", n_vtb_calculated_, n_fwd_calculated_, n_hfrac_calculated_, n_hfrac_merges_, n_lratio_merges_);
     return string(buffer);
@@ -295,6 +293,19 @@ string Glomerator::ProgressString() {
 
 // ----------------------------------------------------------------------------------------
 void Glomerator::WriteStatus() {
+
+  // // ----------------------------------------------------------------------------------------
+  // // print memory usage
+  // ifstream smapfs("/proc/self/smaps");
+  // string tmpline;
+  // cout << "contents of /proc/self/smaps:" << endl;
+  // while(getline(smapfs, tmpline)) {
+  //   cout << "MEM " << tmpline << endl;
+  // }
+  // cout << endl;
+  // // ----------------------------------------------------------------------------------------
+
+  // cout << CacheSizeString() << endl;
   time_t current_time;
   time(&current_time);
   if(difftime(current_time, last_status_write_time_) > 300) {  // write something every five minutes
@@ -302,7 +313,7 @@ void Glomerator::WriteStatus() {
     strftime(buffer, 2000, "%b %d %T", localtime(&current_time));  // %H:%M
     // fprintf(progress_file_, "      %s    %4d clusters    calcd  fwd %-4d   vtb %-4d   hfrac %-8d    merged  hfrac %-4d\n", buffer, (int)path_->CurrentPartition().size(), n_fwd_calculated_, n_vtb_calculated_);
     fprintf(progress_file_, "      %s    %4d clusters", buffer, (int)current_partition_->size());
-    fprintf(progress_file_, "   %s", ProgressString().c_str());
+    fprintf(progress_file_, "   %s", FinalString().c_str());
 
     fprintf(progress_file_, "     %s\n", ClusterSizeString(current_partition_).c_str());
 
@@ -805,7 +816,7 @@ Query Glomerator::GetMergedQuery(string name_a, string name_b) {
 }
 
 // ----------------------------------------------------------------------------------------
-pair<double, Query> *Glomerator::ChooseRandomMerge(vector<pair<double, Query> > &potential_merges, smc::rng *rgen) {
+pair<double, Query> *Glomerator::ChooseRandomMerge(vector<pair<double, Query> > &potential_merges) {
   // first leave log space and normalize. NOTE instead of normalizing, we could just use rng::Uniform(0., total)
   vector<double> ratios;  // NOTE *not* a probability: it's the ratio of the probability together to the probability apart
   double total(0.0);
@@ -818,7 +829,7 @@ pair<double, Query> *Glomerator::ChooseRandomMerge(vector<pair<double, Query> > 
     ratio /= total;
 
   // then choose one at random according to the probs
-  double drawpoint = rgen->Uniform(0., 1.);
+  double drawpoint = 0.;  assert(0); //rgen->Uniform(0., 1.);
   double sum(0.0);
   for(size_t im=0; im<ratios.size(); ++im) {
     sum += ratios[im];
@@ -1015,7 +1026,7 @@ void Glomerator::UpdateLogProbTranslationsForAsymetrics(Query &qmerge) {
 
 // ----------------------------------------------------------------------------------------
 // perform one merge step, i.e. find the two "nearest" clusters and merge 'em (unless we're doing doing smc, in which case we choose a random merge accordingy to their respective nearnesses)
-void Glomerator::Merge(ClusterPath *path, smc::rng *rgen) {
+void Glomerator::Merge(ClusterPath *path) {
   if(path->finished_)  // already finished this <path>, but we're still iterating 'cause some of the other paths aren't finished
     return;
   pair<double, Query> qpair = FindHfracMerge(path);

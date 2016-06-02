@@ -26,6 +26,7 @@ public:
   Result Run(Sequence seq, KBounds kbounds, vector<string> only_gene_list = {}, double overall_mute_freq = -INFINITY, bool clear_cache = true);
   void StreamOutput(double test);  // print csv event info to stderr
   // void WriteBestGeneProbs(ofstream &ofs, string query_name);
+  void PrintCachedTrellisSize();
 
 private:
   void RunKSet(Sequences &seqs, KSet kset, map<string, set<string> > &only_genes, map<KSet, double> *best_scores, map<KSet, double> *total_scores, map<KSet, map<string, string> > *best_genes);
@@ -48,8 +49,9 @@ private:
 
   // NOTE BEWARE DRAGONS AND ALL THAT SHIT!
   // if you add something new here you *must* clear it in Clear(), because we reuse the dphandler for different sequences
-  map<string, map<vector<string>, trellis*> > trellisi_; // collection of the trellises we've calculated, so we can reuse them. eg: trellisi_["IGHV1-18*01"]["ACGGGTCG"] for single hmms, or trellisi_["IGHV1-18*01"][("ACGGGTCG","ATGGTTAG")] for pair hmms
-  map<string, map<vector<string>, TracebackPath*> > paths_; // collection of the paths.
+  // TODO the vector<string> keys take up a lot of memory, so it would be good to combine these three maps into one. But that's a little tricky since the three maps are filled/initialized/whatever at slightly different times (i.e. I tried to do it once and broke a bunch of shit so reverted)
+  map<string, map<vector<string>, trellis> > trellisi_; // collection of the trellises we've calculated, so we can reuse them. eg: trellisi_["IGHV1-18*01"]["ACGGGTCG"] for single hmms, or trellisi_["IGHV1-18*01"][("ACGGGTCG","ATGGTTAG")] for pair hmms
+  map<string, map<vector<string>, TracebackPath> > paths_; // collection of the paths.
   map<string, map<vector<string>, double> > all_scores_;
   map<string, double> per_gene_support_;  // log prob of the best (full) annotation for each gene
 };

@@ -9,7 +9,6 @@
 #include <algorithm>
 #include <functional>
 
-#include "smctc.hh"
 #include "args.h"
 #include "dphandler.h"
 #include "clusterpath.h"
@@ -38,7 +37,7 @@ public:
   ~Glomerator();
   void Cluster();
   double LogProbOfPartition(Partition &clusters, bool debug=false);
-  void Merge(ClusterPath *path, smc::rng *rgen=nullptr);
+  void Merge(ClusterPath *path);
 
   void CacheNaiveSeqs();
   // NOTE don't remove these (yet, at least)
@@ -59,7 +58,8 @@ private:
   void WriteCachedLogProbs();
 
   void PrintPartition(Partition &clusters, string extrastr);
-  string ProgressString();
+  string CacheSizeString();
+  string FinalString();
   void WriteStatus();  // write some progress info to file
 
   string ParentalString(pair<string, string> *parents);
@@ -97,7 +97,7 @@ private:
   Partition GetSeededClusters(Partition &partition);
   pair<double, Query> FindHfracMerge(ClusterPath *path);
   pair<double, Query> FindLRatioMerge(ClusterPath *path);
-  pair<double, Query> *ChooseRandomMerge(vector<pair<double, Query> > &potential_merges, smc::rng *rgen);
+  pair<double, Query> *ChooseRandomMerge(vector<pair<double, Query> > &potential_merges);
 
   Track *track_;
   Args *args_;
