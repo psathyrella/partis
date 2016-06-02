@@ -1,17 +1,11 @@
 #!/usr/bin/env python
 import sys
 import os
+import random
 from subprocess import check_call
 sys.path.insert(1, './python')
 
 import utils
-# original = 'GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCTTGGTCCAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGTTTCACCTTCAGTGACTACTACATGAGCTGGGTCCGCCAGGCTCCCGGGAAGGGGCTGGAGTGGGTAGGTTTCATTAGAAACAAAGCTAATGGTGGGACAACAGAATAGACCACGTCTGTGAAAGGCAGATTCACAATCTCAAGAGATGATTCCAAAAGCATCACCTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTGTATTACTGTGCGAGAGA'
-# snpd = 'GAGGTGCAGCTGGTGGAGTCGGGGGGAGGCTTGGTCCAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGTTTCACCTTCAGTGACTACTACATGAGCTCGGTCCGCCAGGCTCCCGGGAAGGGGCTGGAGTGGGTAGGTTTCATTAGAAACAAAGCTAATGGTGAGACAACAGAATAGACCACGTCTGTGAAAGGCATATTCACAATCTCAAGAGATGATTCCAAAAGCATCACCTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTGTATTACTGTGCGAGAGA'
-# oh_one = 'GAGGTGCAGCTGGTGGAGTCCGGGGGAGGCTTGGTCCAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTCAGTGACTACTACATGAGCTGGGTCCGCCAGGCTCCCGGGAAGGGGCTGGAGTGGGTAGGTTTCATTAGAAACAAAGCTAATGGTGGGACAACAGAATAGACCACGTCTGTGAAAGGCAGATTCACAATCTCAAGAGATGATTCCAAAAGCATCACCTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCCGTGTATTACTGTGCGAGAGA'
-# utils.color_mutants(original, snpd, print_result=True)
-# print utils.color_mutants(original, oh_one)
-# sys.exit()
-# # python -m cProfile -s tottime -o prof.out ' + 
 
 # ----------------------------------------------------------------------------------------
 def run(cmd_str):
@@ -20,8 +14,6 @@ def run(cmd_str):
     check_call(cmd_str.split())
 
 outdir = '_tmp/allele-finder'
-# param_dir = os.getcwd() + '/test/reference-results/test/parameters/simu/hmm'
-# original_param_dir = '/fh/fast/matsen_e/dralph/work/partis-dev/_output/021-018/simu-3-leaves-1.0-mutate/hmm'
 base_cmd = './bin/partis'
 
 # ----------------------------------------------------------------------------------------
@@ -33,7 +25,10 @@ def get_label(existing_genes, new_allele):
     return '_existing_' + join_gene_names(existing_genes) + '_new_' + join_gene_names(new_allele)
 
 # ----------------------------------------------------------------------------------------
-def run_test(existing_v_genes, new_v_allele, dj_genes):
+def run_test(existing_v_genes, new_v_allele, dj_genes, seed=None):
+    if seed is not None:
+        random.seed(seed)
+
     label = 'test'  #get_label(existing_genes, new_allele)
     simfname = outdir + '/simu-' + label + '.csv'
     outpdir = outdir + '/simu-' + label
@@ -47,9 +42,9 @@ def run_test(existing_v_genes, new_v_allele, dj_genes):
     # simulate
     cmd_str = base_cmd + ' simulate --n-sim-events 1000 --n-procs 10 --simulate-partially-from-scratch --mutation-multiplier 0.5'
     cmd_str += ' --datadir ' + outdir + '/germlines-for-simulation'
-    # cmd_str += ' --parameter-dir ' + original_param_dir
-    # cmd_str += ' --only-genes ' + existing_genes #+ ':' + new_v_allele
     cmd_str += ' --outfname ' + simfname
+    if seed is not None:
+        cmd_str += ' --seed ' + str(seed)
     run(cmd_str)
 
     utils.rewrite_germline_fasta('data/imgt', outdir + '/germlines', only_genes=existing_genes.split(':'))
@@ -60,13 +55,18 @@ def run_test(existing_v_genes, new_v_allele, dj_genes):
     cmd_str += ' --only-genes ' + existing_genes
     cmd_str += ' --parameter-dir ' + outpdir
     cmd_str += ' --plotdir ' + plotdir
+    if seed is not None:
+        cmd_str += ' --seed ' + str(seed)
     run(cmd_str)
 
 # ----------------------------------------------------------------------------------------
 
+seed = 1  # None
 dj_genes = 'IGHD6-19*01:IGHJ4*02'
 existing_v_genes = 'IGHV3-71*01:IGHV3-71*03'  # 1-18*01
 new_v_allele = 'IGHV3-71*03' #1-18*04
+
+run_test(existing_v_genes, new_v_allele, dj_genes, seed=seed)
 
 # glfo = utils.read_germline_set('data/imgt')
 # allelic_groups = utils.separate_into_allelic_groups(glfo['seqs'])
@@ -83,4 +83,3 @@ new_v_allele = 'IGHV3-71*03' #1-18*04
 #         continue
 #     print utils.color_mutants(glfo['seqs']['v']['IGHV3-30*01'], glfo['seqs']['v'][g])
 
-run_test(existing_v_genes, new_v_allele, dj_genes)
