@@ -16,16 +16,6 @@
 
 using namespace std;
 namespace ham {
-
-// ----------------------------------------------------------------------------------------
-class CacheInfoHolder {  // collect the three things into one object because the string keys of the chunk cache map actually take up a lot of space
-public:
-  CacheInfoHolder() {}
-  trellis trellis_;
-  TracebackPath path_;
-  double score_;
-};
-
 // ----------------------------------------------------------------------------------------
 class DPHandler {
 public:
@@ -59,12 +49,9 @@ private:
 
   // NOTE BEWARE DRAGONS AND ALL THAT SHIT!
   // if you add something new here you *must* clear it in Clear(), because we reuse the dphandler for different sequences
-
-  // map<string, map<vector<string>, trellis> > trellisi_; // collection of the trellises we've calculated, so we can reuse them. eg: trellisi_["IGHV1-18*01"]["ACGGGTCG"] for single hmms, or trellisi_["IGHV1-18*01"][("ACGGGTCG","ATGGTTAG")] for pair hmms
-  // map<string, map<vector<string>, TracebackPath> > paths_; // collection of the paths.
-  // map<string, map<vector<string>, double> > all_scores_;
-
-  map<string, map<vector<string>, CacheInfoHolder> > chunk_cache_info_; // collection of the trellises, paths, and scores we've calculated, so we can reuse them. eg: trellisi_["IGHV1-18*01"]["ACGGGTCG"] for single hmms, or trellisi_["IGHV1-18*01"][("ACGGGTCG","ATGGTTAG")] for pair hmms
+  map<string, map<vector<string>, trellis> > trellisi_; // collection of the trellises we've calculated, so we can reuse them. eg: trellisi_["IGHV1-18*01"]["ACGGGTCG"] for single hmms, or trellisi_["IGHV1-18*01"][("ACGGGTCG","ATGGTTAG")] for pair hmms
+  map<string, map<vector<string>, TracebackPath> > paths_; // collection of the paths.
+  map<string, map<vector<string>, double> > all_scores_;
   map<string, double> per_gene_support_;  // log prob of the best (full) annotation for each gene
 };
 }
