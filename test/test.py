@@ -6,6 +6,7 @@ import csv
 import glob
 import math
 import shutil
+import time
 from collections import OrderedDict
 from subprocess import Popen, PIPE, check_call, check_output
 import sys
@@ -35,6 +36,7 @@ class Tester(object):
 
         # check against reference csv file
         self.tiny_eps = 1e-4
+        self.run_times = {}
         self.eps_vals = {}  # fractional difference which we allow for each test type (these were generated with the code in get_typical_variances() above)
         self.eps_vals['v_gene_correct'] = 0.02  # hm, actually, I think I just made the annotation ones up
         self.eps_vals['d_gene_correct'] = 0.02
@@ -111,10 +113,13 @@ class Tester(object):
         self.compare_partition_cachefiles(input_stype='ref')
         self.compare_data_annotation(input_stype='ref')
         self.compare_production_results()
-        print 'new input'
+        if not args.only_ref and not args.quick:
+            print 'new input'
         self.compare_performance(input_stype='new')
         self.compare_partition_cachefiles(input_stype='new')
         self.compare_data_annotation(input_stype='new')
+
+        self.compare_run_times();
 
     # ----------------------------------------------------------------------------------------
     def prepare_to_run(self, args, name, info):
@@ -156,7 +161,9 @@ class Tester(object):
             logfile = open(self.logfname, 'a')
             logfile.write(logstr + '\n')
             logfile.close()
+            start = time.time()
             check_call(cmd_str + ' 1>>' + self.logfname + ' 2>>' + self.logfname, shell=True)
+            self.run_times[name] = time.time() - start  # seconds
 
     # ----------------------------------------------------------------------------------------
     def remove_reference_results(self, expected_content):
@@ -357,6 +364,32 @@ class Tester(object):
                 print '  (%s)' % cmd
                 if err != '':
                     print err
+
+    # ----------------------------------------------------------------------------------------
+    def compare_run_times(self):
+        print 'checking run times'
+
+        old_times = {}
+        with open(self.dirs['ref'] + '/run-times.csv') as oldfile:
+            reader = csv.DictReader(oldfile)
+            for line in reader:
+                old_times[line['name']] = float(line['seconds'])
+
+        newfile = open(self.dirs['new'] + '/run-times.csv', 'w')
+        writer = csv.DictWriter(newfile, ('name', 'seconds'))
+
+        for name, seconds in self.run_times.items():
+            print '  %30s   %7.1f' % (name, old_times[name]),
+            fractional_change = (seconds - old_times[name]) / old_times[name]
+            if abs(fractional_change) > 0.2:
+                print '--> %-5.1f %s' % (seconds, utils.color('red', '(%+.3f)' % fractional_change)),
+            elif abs(fractional_change) > 0.1:
+                print '--> %-5.1f %s' % (seconds, utils.color('yellow', '(%+.3f)' % fractional_change)),
+            else:
+                print '    ok   ',
+            print ''
+
+            writer.writerow({'name' : name, 'seconds' : seconds})
 
     # ----------------------------------------------------------------------------------------
     def make_comparison_plots(self):
