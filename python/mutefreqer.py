@@ -167,7 +167,7 @@ class MuteFreqer(object):
         return True
 
     # ----------------------------------------------------------------------------------------
-    def finalize_allele_finding(self, debug=True):
+    def finalize_allele_finding(self, debug=False):
         def fstr(fval):
             if fval < 10:
                 return '%.2f' % fval
@@ -252,11 +252,29 @@ class MuteFreqer(object):
                     print print_str
 
             if n_candidate_snps is not None:
-                print '\n    %s found a new allele candidate separated from %s by %d SNP%s at position%s %s' % (utils.color('red', 'note'), utils.color_gene(gene), n_candidate_snps,
-                                                                                                                's' if n_candidate_snps > 1 else '', 's' if n_candidate_snps > 1 else '',
-                                                                                                                ', '.join(['%d' % p for p in candidates[n_candidate_snps]]))
+                print '\n    %s found a new allele candidate separated from %s by %d SNP%s at position%s:' % (utils.color('red', 'note'), utils.color_gene(gene), n_candidate_snps,
+                                                                                                              's' if n_candidate_snps > 1 else '', 's' if n_candidate_snps > 1 else '')
+                # figure out what the new nukes are
+                old_seq = self.germline_seqs[utils.get_region(gene)][gene]
+                new_seq = old_seq
+                for pos in sorted(candidates[n_candidate_snps]):
+                    obs_freqs = {nuke : self.freqs[gene][pos][nuke] for nuke in utils.nukes}
+                    sorted_obs_freqs = sorted(obs_freqs.items(), key=operator.itemgetter(1), reverse=True)
+                    original_nuke = self.counts[gene][pos]['gl_nuke']
+                    new_nuke = None
+                    for nuke, freq in sorted_obs_freqs:  # take the most common one that isn't the existing gl nuke
+                        if nuke != original_nuke:
+                            new_nuke = nuke
+                            break
+                    print '                         %3d    %s  -->  %s' % (pos, original_nuke, new_nuke)
+                    assert old_seq[pos] == original_nuke
+                    new_seq = new_seq[:pos] + new_nuke + new_seq[pos+1:]
+                print '          %s   %s' % (old_seq, utils.color_gene(gene))
+                print '          %s   %s' % (utils.color_mutants(old_seq, new_seq), utils.color('yellow', '?????'))
+
             else:
-                print '\n      no new alleles found'
+                if debug:
+                    print '\n      no new alleles found'
 
         if debug:
             print '      allele finding time: %.1f' % (time.time()-start)

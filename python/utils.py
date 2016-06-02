@@ -245,7 +245,7 @@ def rewrite_germline_fasta(input_dir, output_dir, only_genes=None, snps_to_add=N
 
     if snps_to_add is not None:
         for gene in snps_to_add:
-            print '  ', gene
+            print '    adding %d snps to %s' % (snps_to_add[gene], gene)
             snp_positions = set()
             seq = input_germlines[get_region(gene)][gene]
             aligned_seq = input_aligned_genes[get_region(gene)][gene]
