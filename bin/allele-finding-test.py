@@ -41,17 +41,19 @@ def run_test(existing_v_genes, new_v_allele, dj_genes):
 
     existing_genes = existing_v_genes + ':' + dj_genes
 
-    # simulate
-    cmd_str = base_cmd + ' simulate --n-sim-events 500 --n-procs 10 --simulate-partially-from-scratch --mutation-multiplier 0.5'
-    # cmd_str += ' --parameter-dir ' + original_param_dir
-    cmd_str += ' --only-genes ' + existing_genes #+ ':' + new_v_allele
-    cmd_str += ' --outfname ' + simfname
-    # run(cmd_str)
+    snps_to_add = {'IGHV3-71*01' : 4}
+    utils.rewrite_germline_fasta('data/imgt', outdir + '/germlines-for-simulation', only_genes=existing_genes.split(':'), snps_to_add=snps_to_add, rename_snpd_genes=True)
 
-    print '\n\nyou can add the snps for simulation now!\n\n'
-    snps_to_add = {'IGHV3-71*01' : 1}
-    utils.rewrite_germline_fasta('data/imgt', outdir + '/germlines', only_genes=existing_genes.split(':'), snps_to_add=snps_to_add)
-    
+    # simulate
+    cmd_str = base_cmd + ' simulate --n-sim-events 1000 --n-procs 10 --simulate-partially-from-scratch --mutation-multiplier 0.5'
+    cmd_str += ' --datadir ' + outdir + '/germlines-for-simulation'
+    # cmd_str += ' --parameter-dir ' + original_param_dir
+    # cmd_str += ' --only-genes ' + existing_genes #+ ':' + new_v_allele
+    cmd_str += ' --outfname ' + simfname
+    run(cmd_str)
+
+    utils.rewrite_germline_fasta('data/imgt', outdir + '/germlines', only_genes=existing_genes.split(':'))
+
     # cache-parameters
     cmd_str = base_cmd + ' cache-parameters --infname ' + simfname + ' --n-procs 10 --find-new-alleles --only-smith-waterman'
     cmd_str += ' --datadir ' + outdir + '/germlines'

@@ -228,7 +228,7 @@ def get_parameter_fname(column=None, deps=None, column_and_deps=None):
     return outfname
 
 # ----------------------------------------------------------------------------------------
-def rewrite_germline_fasta(input_dir, output_dir, only_genes=None, snps_to_add=None):
+def rewrite_germline_fasta(input_dir, output_dir, only_genes=None, snps_to_add=None, rename_snpd_genes=False):
     """ rewrite the germline set files in <input_dir> to <output_dir>, only keeping the genes in <only_genes> """
     print '    rewriting germlines from %s to %s' % (input_dir, output_dir),
     if only_genes is not None:
@@ -274,11 +274,24 @@ def rewrite_germline_fasta(input_dir, output_dir, only_genes=None, snps_to_add=N
                             break
                         igl += 1
 
-                check_conserved_cysteine(seq, cpos)
-                color_mutants(input_germlines[get_region(gene)][gene], seq, print_result=True, extra_str='          ')
-                # color_mutants(input_aligned_genes[get_region(gene)][gene], aligned_seq, print_result=True, extra_str='          ')
-                input_germlines[get_region(gene)][gene] = seq
-                input_aligned_genes[get_region(gene)][gene] = aligned_seq
+            check_conserved_cysteine(seq, cpos)
+            snpd_name = gene
+            if rename_snpd_genes:
+                isnp = 0
+                while snpd_name == gene or snpd_name in input_germlines[get_region(gene)]:  # maybe we already have another snp in there?
+                    if isnp > 99:
+                        raise Exception('that\'s just stupid %d' % isnp)
+                    snpd_name = gene + 'snp%d' % isnp
+                    isnp += 1
+                only_genes.append(snpd_name)
+                if get_region(gene) == 'v':
+                    glfo['cyst-positions'][snpd_name] = glfo['cyst-positions'][gene]
+                elif get_region(gene) == 'j':
+                    glfo['tryp-positions'][snpd_name] = glfo['tryp-positions'][gene]
+            print '    %s   %s' % (input_germlines[get_region(gene)][gene], color_gene(gene))
+            print '    %s   %s' % (color_mutants(input_germlines[get_region(gene)][gene], seq), color_gene(snpd_name))
+            input_germlines[get_region(gene)][snpd_name] = seq
+            input_aligned_genes[get_region(gene)][snpd_name] = aligned_seq
 
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -298,9 +311,15 @@ def rewrite_germline_fasta(input_dir, output_dir, only_genes=None, snps_to_add=N
         write_gl_file(output_dir + '/igh' + region + '.fasta', region, input_germlines)
         write_gl_file(output_dir + '/igh' + region + '-aligned.fasta', region, input_aligned_genes)
 
-    for fname in ['cyst-positions.csv', 'tryp-positions.csv']:
+    for codon in ('cyst', 'tryp'):  # NOTE this might duplicate some stuff in bin/initialize-germline-set.py
+        fname = codon + '-positions.csv'
         expected_files.append(output_dir + '/' + fname)
-        shutil.copyfile(input_dir + '/' + fname, output_dir + '/' + fname)
+        # shutil.copyfile(input_dir + '/' + fname, output_dir + '/' + fname)
+        with open(output_dir + '/' + fname, 'w') as codonfile:
+            writer = csv.DictWriter(codonfile, ('gene', 'istart'))
+            writer.writeheader()
+            for gene, istart in glfo[codon + '-positions'].items():
+                writer.writerow({'gene' : gene, 'istart' : istart})
 
     # make sure there weren't any files lingering in the output dir when we started
     final_file_list = glob.glob(output_dir + '/*')
