@@ -31,7 +31,7 @@ void LexicalTable::UnReplaceLogProbs() {
 }
 
 // ----------------------------------------------------------------------------------------
-  double LexicalTable::LogProb(Sequence *seq, size_t pos) {  // todo profile and improve checking
+double LexicalTable::LogProb(Sequence *seq, size_t pos) {  // todo profile and improve checking
   assert(pos < (*seq).size());
   assert((*seq)[pos] < log_probs_.size());
   return log_probs_[(*seq)[pos]];

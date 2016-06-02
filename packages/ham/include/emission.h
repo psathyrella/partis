@@ -23,6 +23,7 @@ public:
   ~Emission();
 
   double score(Sequence *seq, size_t pos) { return scores_.LogProb(seq, pos); }
+  inline double score(uint8_t index) { return scores_.LogProb(index); }
   Track *track() { return track_; }
   vector<double> log_probs() { return scores_.log_probs(); }
 

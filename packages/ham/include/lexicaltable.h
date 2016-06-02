@@ -22,7 +22,7 @@ public:
   void SetLogProbs(vector<double> logprobs) { log_probs_ = logprobs; }
   vector<double> log_probs() { return log_probs_; }  // NOTE returns a *copy*
 
-  double LogProb(size_t index) { assert(index < log_probs_.size()); return log_probs_[index]; }
+  inline double LogProb(uint8_t index) { return log_probs_[index]; }
   double LogProb(Sequence *seq, size_t pos);
   Track *track() { return track_; }
 

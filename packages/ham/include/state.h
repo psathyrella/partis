@@ -35,7 +35,7 @@ public:
   inline Transition *transition(size_t iter) { return (*transitions_)[iter]; }
   inline Transition *trans_to_end() { return trans_to_end_; }
 
-  double EmissionLogprob(Sequence *seq, size_t pos);
+  double EmissionLogprob(uint8_t ch);
   double EmissionLogprob(Sequences *seqs, size_t pos);
   inline double transition_logprob(size_t to_state) { return (*transitions_)[to_state]->log_prob(); }
   double end_transition_logprob();
