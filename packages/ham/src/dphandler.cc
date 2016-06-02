@@ -212,12 +212,8 @@ void DPHandler::FillTrellis(Sequences query_seqs, vector<string> query_strs, str
     }
   }
 
-  if(chunk_cache_info_[gene].count(query_strs) == 0) {  // if didn't find a suitable chunk cached trellis
-    chunk_cache_info_[gene][query_strs] = CacheInfoHolder();  // TODO may be kind of wasteful to to create the default trellis
+  if(chunk_cache_info_[gene].count(query_strs) == 0)   // if didn't find a suitable chunk cached trellis
     chunk_cache_info_[gene][query_strs].trellis_ = trellis(hmms_.Get(gene, args_->debug()), query_seqs);
-    // chunk_cache_info_[gene][query_strs].path_ = TracebackPath();  // TODO I think this isn't necessary?
-    // chunk_cache_info_[gene][query_strs].score_ = SOMETHING;  // TODO I think this isn't necessary?
-  }
   trellis *trell = &chunk_cache_info_[gene][query_strs].trellis_; // this pointer's just to keep the name short
 
   // run the actual dp algorithms
@@ -378,12 +374,11 @@ void DPHandler::RunKSet(Sequences &seqs, KSet kset, map<string, set<string> > &o
     regional_best_scores[region] = -INFINITY;
     regional_total_scores[region] = -INFINITY;
     for(auto & gene : only_genes[region]) {
-      double *gene_score(nullptr);  //(&chunk_cache_info_[gene][query_strs].score_);  // pointed-to value is already set if we have this trellis cached, otherwise not
+      double *gene_score(&chunk_cache_info_[gene][query_strs].score_);  // pointed-to value is already set if we have this trellis cached, otherwise not
       bool already_cached = chunk_cache_info_.find(gene) != chunk_cache_info_.end() && chunk_cache_info_[gene].find(query_strs) != chunk_cache_info_[gene].end();
       string origin("ARG");
       if(already_cached) {
         origin = "cached";
-	gene_score = *chunk_cache_info_[gene][query_strs].score_
       } else {
         FillTrellis(subseqs[region], query_strs, gene, gene_score, origin);  // sets *gene_score to uncorrected score
         double gene_choice_score = log(hmms_.Get(gene, args_->debug())->overall_prob());
