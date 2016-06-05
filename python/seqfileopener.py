@@ -93,10 +93,16 @@ def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, 
     used_names = set()  # for abbreviating
     if abbreviate_names:
         potential_names = list(string.ascii_lowercase)
+    iname = None  # line number -- used as sequence id if there isn't a <name_column>
     for line in reader:
-        if name_column not in line or seq_column not in line:
-            raise Exception('mandatory headers \'%s\' and \'%s\' not both present in %s    (you can set column names with --name-column and --seq-column)' % (name_column, seq_column, fname))
+        if seq_column not in line:
+            raise Exception('mandatory header \'%s\' not present in %s (you can set column names with --name-column and --seq-column)' % (seq_column, fname))
+        if name_column not in line and iname is None:
+            iname = 0
         if name_column != internal_name_column or seq_column != internal_seq_column:
+            if iname is not None:
+                line[internal_name_column] = '%09d' % iname
+                iname += 1
             translate_columns(line, {name_column : internal_name_column, seq_column: internal_seq_column})
         utils.process_input_line(line)
         unique_id = line[internal_name_column]

@@ -36,9 +36,9 @@ class Waterer(object):
         self.glfo = glfo
         self.pcounter, self.true_pcounter, self.perfplotter = None, None, None
         if write_parameters:
-            self.pcounter = ParameterCounter(self.glfo['seqs'], find_new_alleles=self.args.find_new_alleles)
+            self.pcounter = ParameterCounter(self.glfo['seqs'], self.args)
             if not self.args.is_data:
-                self.true_pcounter = ParameterCounter(self.glfo['seqs'])
+                self.true_pcounter = ParameterCounter(self.glfo['seqs'], self.args)
         if self.args.plot_performance:
             self.perfplotter = PerformancePlotter(self.glfo['seqs'], 'sw')
         self.info = {}
@@ -122,7 +122,7 @@ class Waterer(object):
         print ''
         sys.stdout.flush()
         if n_remaining > 0:
-            printstr = '   %s %d missing annotations' % (utils.color('red', 'warning'), n_remaining)
+            printstr = '   %s %d missing %s' % (utils.color('red', 'warning'), n_remaining, utils.plural_str('annotation', n_remaining))
             if n_remaining < 15:
                 printstr += ' (' + ':'.join(self.remaining_queries) + ')'
             print printstr

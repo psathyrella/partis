@@ -1089,8 +1089,8 @@ class PartitionDriver(object):
         print '    read output'
         sys.stdout.flush()
 
-        pcounter = ParameterCounter(self.glfo['seqs']) if count_parameters else None
-        true_pcounter = ParameterCounter(self.glfo['seqs']) if (count_parameters and not self.args.is_data) else None
+        pcounter = ParameterCounter(self.glfo['seqs'], self.args) if count_parameters else None
+        true_pcounter = ParameterCounter(self.glfo['seqs'], self.args) if (count_parameters and not self.args.is_data) else None
         perfplotter = PerformancePlotter(self.glfo['seqs'], 'hmm') if self.args.plot_performance else None
 
         n_lines_read, n_seqs_processed, n_events_processed, n_invalid_events = 0, 0, 0, 0

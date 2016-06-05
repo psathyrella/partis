@@ -53,7 +53,7 @@ def run_test(existing_v_genes, new_v_allele, dj_genes, seed=None):
     utils.rewrite_germline_fasta('data/imgt', outdir + '/germlines', only_genes=existing_genes.split(':'))
 
     # cache-parameters
-    cmd_str = base_cmd + ' cache-parameters --infname ' + simfname + ' --n-procs 10 --find-new-alleles --only-smith-waterman'
+    cmd_str = base_cmd + ' cache-parameters --infname ' + simfname + ' --n-procs 10 --find-new-alleles --debug-new-allele-finding --only-smith-waterman'
     cmd_str += ' --datadir ' + outdir + '/germlines'
     cmd_str += ' --only-genes ' + existing_genes
     cmd_str += ' --parameter-dir ' + outpdir
