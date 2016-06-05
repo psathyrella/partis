@@ -241,7 +241,7 @@ To try this, use the `--find-new-alleles` option to the `cache-parameters` actio
 At the moment, since we don't want to modify your germline set without you realizing it, this simply prints out information on any new alleles that it finds.
 If you want to incorporate these alleles into your germline set, just choose a name for the allele and add it to your germline fasta file.
 
-To see how this works, you can run `./bin/find-new-alleles.py`.
+To see how this works, you can also run `./bin/find-new-alleles.py`.
 This generates a hypothetical new allele separated by a few snps from an existing allele, simulates a data set with this allele, then attempts to identify this new allele in the simulated sample.
 
 ##### `simulate`: make simulated sequences
