@@ -21,9 +21,9 @@ from opener import opener
 
 # ----------------------------------------------------------------------------------------
 class MuteFreqer(object):
-    def __init__(self, germline_seqs, find_new_alleles=False, calculate_uncertainty=True):
+    def __init__(self, germline_seqs, args, calculate_uncertainty=True):
         self.germline_seqs = germline_seqs
-        self.find_new_alleles = find_new_alleles
+        self.args = args
         self.calculate_uncertainty = calculate_uncertainty
         self.counts, self.freqs = {}, {}
         n_bins, xmin, xmax = 200, 0., 1.
@@ -81,7 +81,7 @@ class MuteFreqer(object):
                 gcounts[igl]['total'] += 1
                 gcounts[igl][query_seq[ipos]] += 1  # note that if <query_seq[ipos]> isn't among <utils.nukes>, this will toss a key error
 
-                if self.find_new_alleles:
+                if self.args.find_new_alleles:
                     if igl not in gcounts:
                         gcounts[igl]['allele-finding'] = {}
                     if utils.get_region(gene) == 'v':
@@ -172,11 +172,12 @@ class MuteFreqer(object):
             if fval < 10:
                 return '%.2f' % fval
             elif fval < 1e4:
-                return '%.0f' % fval
+                return '%.0f.' % fval
             else:
                 return '%.0e' % fval
 
         start = time.time()
+        gene_results = {'not_enough_obs_to_fit' : set(), 'didnt_find_anything_with_fit' : set(), 'new_allele' : set()}
         for gene in self.counts:
             if utils.get_region(gene) != 'v':
                 continue
@@ -186,7 +187,12 @@ class MuteFreqer(object):
             positions = sorted(self.counts[gene].keys())
             xyvals = {pos : self.get_allele_finding_xyvals(pos, self.counts[gene][pos]) for pos in positions}
             positions_to_fit = [pos for pos in positions if sum(xyvals[pos]['obs']) > self.n_obs_min]  # ignore positions with only a few observed mutations
+            print 'switch to total'
             self.positions_to_skip[gene] = set(positions) - set(positions_to_fit)
+            if len(positions_to_fit) < self.n_max_snps - 1 + self.min_non_candidate_positions_to_fit:
+                if debug:
+                    print '          not enough positions with enough observations to fit %s' % utils.color_gene(gene)
+                    continue
             if debug:
                 print '          skipping %d / %d positions (with fewer than %d observed mutations)' % (len(positions) - len(positions_to_fit), len(positions), self.n_obs_min)
 
@@ -198,7 +204,7 @@ class MuteFreqer(object):
                 if debug:
                     if istart == 1:
                         print 'snps       position   ratio   (m=0 / m>%5.2f)       muted / obs ' % self.big_y_icpt_bounds[0]
-                    print utils.color('reverse_video', utils.color('bold', '%-3d' % istart))
+                    print '%d %s' % (istart, utils.plural_str('snp', istart))
 
                 subxyvals = {pos : {k : v[istart:] for k, v in xyvals[pos].items()} for pos in positions_to_fit}
 
@@ -209,21 +215,30 @@ class MuteFreqer(object):
                         self.positions_to_skip[gene].add(pos)
                         continue
 
+                    # also skip positions that only have a few points to fit (i.e. genes that were very rare, or I guess maybe if they were always eroded past this position)
+                    if len(subxyvals[pos]['n_mutelist']) < 3:
+                        self.positions_to_skip[gene].add(pos)
+                        continue
+
                     zero_icpt_fit = self.get_curvefit(pos, subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['errs'], y_icpt_bounds=(0. - self.small_number, 0. + self.small_number))
                     big_icpt_fit = self.get_curvefit(pos, subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['errs'], y_icpt_bounds=self.big_y_icpt_bounds)
 
                     residuals[pos] = {'zero_icpt' : zero_icpt_fit['residuals_over_ndof'], 'big_icpt' : big_icpt_fit['residuals_over_ndof']}
 
                 if len(residuals) <= istart:  # needs to be at least one longer, so we have the first-non-snp
-                    print '     couldn\'t fit enough positions'
+                    if debug:
+                        print '      not enough observations to do new allele fits for %s' % utils.color_gene(gene)
+                    gene_results['not_enough_obs_to_fit'].add(gene)
                     break
                 residual_ratios = {pos : float('inf') if r['big_icpt'] == 0. else r['zero_icpt'] / r['big_icpt'] for pos, r in residuals.items()}
                 sorted_ratios = sorted(residual_ratios.items(), key=operator.itemgetter(1), reverse=True)  # sort the positions in decreasing order of residual ratio
                 candidate_snps = [pos for pos, _ in sorted_ratios[:istart]]  # the first <istart> positions are the candidate snps
                 first_non_snp, _ = sorted_ratios[istart]
-
                 min_of_candidates = min([residual_ratios[cs] for cs in candidate_snps])
                 first_non_snp_ratio = residual_ratios[first_non_snp]
+                if first_non_snp_ratio == 0.:
+                    print '      resetting first non-snp ratio  %.3f --> %.3f for %s' % (first_non_snp_ratio, self.small_number, utils.color_gene(gene))
+                    first_non_snp_ratio = self.small_number
                 scores[istart] = (min_of_candidates - first_non_snp_ratio) / first_non_snp_ratio
                 min_snp_ratios[istart] = min([residual_ratios[cs] for cs in candidate_snps])
                 first_non_snp_ratios[istart] = first_non_snp_ratio
@@ -231,11 +246,15 @@ class MuteFreqer(object):
 
                 if debug:
                     for pos in candidate_snps + [first_non_snp, ]:
-                        xtrastrs = ('[', ']') if pos == first_non_snp else (' ', ' ')
-                        print '             %s %3d    %5s   (%5s / %-5s)       %3d / %3d %s' % (xtrastrs[0], pos, fstr(residual_ratios[pos]),
-                                                                                               fstr(residuals[pos]['zero_icpt']), fstr(residuals[pos]['big_icpt']),
-                                                                                               sum(subxyvals[pos]['obs']), sum(subxyvals[pos]['total']), xtrastrs[1])
-                    print ' %5s   (%5s - %5s) / %-5s      (min %5s)' % (fstr(scores[istart]), fstr(min_of_candidates), fstr(first_non_snp_ratio), fstr(first_non_snp_ratio), fstr(min_snp_ratios[istart]))
+                        xtrastrs = ('[', '   first non-snp ]') if pos == first_non_snp else (' ', ' ')
+                        print_str = '             %s %3d    %5s   (%5s / %-5s)       %3d / %3d %s' % (xtrastrs[0], pos, fstr(residual_ratios[pos]),
+                                                                                                      fstr(residuals[pos]['zero_icpt']), fstr(residuals[pos]['big_icpt']),
+                                                                                                      sum(subxyvals[pos]['obs']), sum(subxyvals[pos]['total']), xtrastrs[1])
+                        if residual_ratios[pos] > self.min_candidate_ratio:
+                            print_str = utils.color('light_blue', print_str)
+                        print print_str
+
+                    print '    %-5s   =  (%-5s - %5s) / %-5s' % (utils.color('purple', fstr(scores[istart])), fstr(min_of_candidates), fstr(first_non_snp_ratio), fstr(first_non_snp_ratio))
 
             n_candidate_snps = None
             for istart, score in sorted(scores.items(), key=operator.itemgetter(1), reverse=True):
@@ -252,8 +271,9 @@ class MuteFreqer(object):
                     print print_str
 
             if n_candidate_snps is not None:
-                print '\n    %s found a new allele candidate separated from %s by %d SNP%s at position%s:' % (utils.color('red', 'note'), utils.color_gene(gene), n_candidate_snps,
-                                                                                                              's' if n_candidate_snps > 1 else '', 's' if n_candidate_snps > 1 else '')
+                gene_results['new_allele'].add(gene)
+                print '\n    %s found a new allele candidate separated from %s by %d %s at %s:' % (utils.color('red', 'note'), utils.color_gene(gene), n_candidate_snps,
+                                                                                                              utils.plural_str('snp', n_candidate_snps), utils.plural_str('position', n_candidate_snps))
                 # figure out what the new nukes are
                 old_seq = self.germline_seqs[utils.get_region(gene)][gene]
                 new_seq = old_seq
@@ -270,11 +290,12 @@ class MuteFreqer(object):
                     assert old_seq[pos] == original_nuke
                     new_seq = new_seq[:pos] + new_nuke + new_seq[pos+1:]
                 print '          %s   %s' % (old_seq, utils.color_gene(gene))
-                print '          %s   %s' % (utils.color_mutants(old_seq, new_seq), utils.color('yellow', '?????'))
+                print '          %s   %s' % (utils.color_mutants(old_seq, new_seq), utils.color('yellow', 'new'))
 
             else:
+                gene_results['didnt_find_anything_with_fit'].add(gene)
                 if debug:
-                    print '\n      no new alleles found'
+                    print '      no new alleles for %s' % utils.color_gene(gene)
 
         if debug:
             print '      allele finding time: %.1f' % (time.time()-start)
@@ -307,8 +328,8 @@ class MuteFreqer(object):
         for hist in self.mean_rates.values():
             hist.normalize()
 
-        if self.find_new_alleles:
-            self.finalize_allele_finding()
+        if self.args.find_new_alleles:
+            self.finalize_allele_finding(self.args.debug_new_allele_finding)
 
         self.finalized = True
 
@@ -390,7 +411,7 @@ class MuteFreqer(object):
             # per-base plots:
             # paramutils.make_mutefreq_plot(plotdir + '/' + utils.get_region(gene) + '-per-base', utils.sanitize_name(gene), plotting_info)  # needs translation to mpl
 
-            if self.find_new_alleles:
+            if self.args.find_new_alleles:
                 self.allele_finding_plot(gene, plotdir + '/allele-finding/' + utils.sanitize_name(gene), only_csv)
 
         # make mean mute freq hists

@@ -391,6 +391,13 @@ def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', 
     return return_str
 
 # ----------------------------------------------------------------------------------------
+def plural_str(pstr, count):
+    if count == 1:
+        return pstr
+    else:
+        return pstr + 's'
+
+# ----------------------------------------------------------------------------------------
 def summarize_gene_name(gene):
     region = get_region(gene)
     primary_version, sub_version, allele = split_gene(gene)

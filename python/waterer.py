@@ -36,9 +36,9 @@ class Waterer(object):
         self.glfo = glfo
         self.pcounter, self.true_pcounter, self.perfplotter = None, None, None
         if write_parameters:
-            self.pcounter = ParameterCounter(self.glfo['seqs'], find_new_alleles=self.args.find_new_alleles)
+            self.pcounter = ParameterCounter(self.glfo['seqs'], self.args)
             if not self.args.is_data:
-                self.true_pcounter = ParameterCounter(self.glfo['seqs'])
+                self.true_pcounter = ParameterCounter(self.glfo['seqs'], self.args)
         if self.args.plot_performance:
             self.perfplotter = PerformancePlotter(self.glfo['seqs'], 'sw')
         self.info = {}
