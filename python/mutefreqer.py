@@ -39,13 +39,16 @@ class MuteFreqer(object):
         self.small_number = 1e-5
         self.n_max_mutations_per_segment = 20  # don't look a v segments that have more than this many mutations
         self.n_max_snps = self.n_max_mutations_per_segment - 8  # try excluding up to this many bins (on the left) when doing the fit (leaves at least 8 points for fit)
-        self.n_obs_min = 50  # don't fit positions that have fewer observations than this
+        self.n_muted_min = 15  # don't fit positions that have fewer mutations than this
+        self.n_total_min = 15  # ...or fewer total observations than this
+        self.n_five_prime_positions_to_exclude = 5  # skip positions that are too close to the 5' end of V (misassigned insertions look like snps)
         self.min_non_candidate_positions_to_fit = 5  # always fit at least a few non-candidate positions
         self.min_y_intercept = 0.3  # roughly speaking, use this as the boundary between snp and non-snp positions
         self.default_slope_bounds = (-0.2, 0.2)  # fitting function needs some reasonable bounds from which to start
         self.big_y_icpt_bounds = (self.min_y_intercept, 1.5)  # snp-candidate positions should fit well when forced to use these bounds, but non-snp positions should fit like &*@!*
         self.min_score = 2  # (mean ratio over snp candidates) - (first non-candidate ratio) must be greater than this
-        self.min_candidate_ratio = 2  # every candidate ratio must be greater than this
+        self.min_candidate_ratio = 2.25  # every candidate ratio must be greater than this
+        self.max_non_candidate_ratio = 2.  # first non-candidate has to be smaller than this
         self.positions_to_skip = {}  # we work out which positions not bother fitting in finalize_allele_finding(), but then need to propagate that information to the plotting function
         self.new_allele_fname = 'new-alleles.fa'
 
@@ -189,15 +192,15 @@ class MuteFreqer(object):
 
             positions = sorted(self.counts[gene].keys())
             xyvals = {pos : self.get_allele_finding_xyvals(pos, self.counts[gene][pos]) for pos in positions}
-            positions_to_fit = [pos for pos in positions if sum(xyvals[pos]['total']) > self.n_obs_min]  # ignore positions with only a few observations
-            self.positions_to_skip[gene] = set(positions) - set(positions_to_fit)
+            positions_to_fit = [pos for pos in positions if sum(xyvals[pos]['obs']) > self.n_muted_min or sum(xyvals[pos]['total']) > self.n_total_min]  # ignore positions with neither enough mutations or total observations
+            self.positions_to_skip[gene] = set(positions) - set(positions_to_fit)  # NOTE these are the positions that we want to skip for *every* <istart>
             if len(positions_to_fit) < self.n_max_snps - 1 + self.min_non_candidate_positions_to_fit:
                 gene_results['not_enough_obs_to_fit'].add(gene)
                 if debug:
                     print '          not enough positions with enough observations to fit %s' % utils.color_gene(gene)
                     continue
             if debug:
-                print '          skipping %d / %d positions (with fewer than %d observations)' % (len(positions) - len(positions_to_fit), len(positions), self.n_obs_min)
+                print '          skipping %d / %d positions (with fewer than %d mutations and %d observations)' % (len(positions) - len(positions_to_fit), len(positions), self.n_muted_min, self.n_total_min)
 
             for pos in positions_to_fit:
                 self.freqs[gene][pos]['allele-finding'] = xyvals[pos]
@@ -213,15 +216,17 @@ class MuteFreqer(object):
 
                 residuals = {}
                 for pos in positions_to_fit:
+                    # skip positions that are too close to the 5' end of V (misassigned insertions look like snps)
+                    if pos > len(self.germline_seqs[utils.get_region(gene)][gene]) - self.n_five_prime_positions_to_exclude - 1:
+                        continue  # NOTE *don't* add it to <self.positions_to_skip[gene]>, since that says to skip it for *every* <istart>
+
                     # as long as we already have a few non-candidate positions, skip positions that have no frequencies greater than the min y intercept (note that they could in principle still have a large y intercept, but we don't really care)
                     if len(residuals) > istart + self.min_non_candidate_positions_to_fit and len([f for f in subxyvals[pos]['freqs'] if f > self.min_y_intercept]) == 0:
-                        self.positions_to_skip[gene].add(pos)
-                        continue
+                        continue  # NOTE *don't* add it to <self.positions_to_skip[gene]>, since that says to skip it for *every* <istart>
 
                     # also skip positions that only have a few points to fit (i.e. genes that were very rare, or I guess maybe if they were always eroded past this position)
                     if len(subxyvals[pos]['n_mutelist']) < 3:
-                        self.positions_to_skip[gene].add(pos)
-                        continue
+                        continue  # NOTE *don't* add it to <self.positions_to_skip[gene]>, since that says to skip it for *every* <istart>
 
                     zero_icpt_fit = self.get_curvefit(pos, subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['errs'], y_icpt_bounds=(0. - self.small_number, 0. + self.small_number))
                     big_icpt_fit = self.get_curvefit(pos, subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['errs'], y_icpt_bounds=self.big_y_icpt_bounds)
