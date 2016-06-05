@@ -122,7 +122,7 @@ class Waterer(object):
         print ''
         sys.stdout.flush()
         if n_remaining > 0:
-            printstr = '   %s %d missing annotations' % (utils.color('red', 'warning'), n_remaining)
+            printstr = '   %s %d missing %s' % (utils.color('red', 'warning'), n_remaining, utils.plural_str('annotation', n_remaining))
             if n_remaining < 15:
                 printstr += ' (' + ':'.join(self.remaining_queries) + ')'
             print printstr

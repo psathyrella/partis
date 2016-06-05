@@ -38,7 +38,7 @@ class MuteFreqer(object):
         self.new_alleles = {}
         self.small_number = 1e-5
         self.n_max_mutations_per_segment = 20  # don't look a v segments that have more than this many mutations
-        self.n_max_snps = self.n_max_mutations_per_segment - 8  # try excluding up to this many bins (on the left) when doing the fit (leaves at least 8 points for fit)
+        self.n_max_snps = self.n_max_mutations_per_segment - 9  # try excluding up to this many bins (on the left) when doing the fit (leaves at least 9 points for fit)
         self.n_muted_min = 15  # don't fit positions that have fewer mutations than this
         self.n_total_min = 15  # ...or fewer total observations than this
         self.n_five_prime_positions_to_exclude = 5  # skip positions that are too close to the 5' end of V (misassigned insertions look like snps)
@@ -188,7 +188,7 @@ class MuteFreqer(object):
             if utils.get_region(gene) != 'v':
                 continue
             if debug:
-                print '\n%s (observed %d times)' % (utils.color_gene(gene), self.gene_obs_counts[gene])
+                print '\n%s (observed %d %s)' % (utils.color_gene(gene), self.gene_obs_counts[gene], utils.plural_str('time', self.gene_obs_counts[gene]))
 
             positions = sorted(self.counts[gene].keys())
             xyvals = {pos : self.get_allele_finding_xyvals(pos, self.counts[gene][pos]) for pos in positions}
@@ -209,6 +209,7 @@ class MuteFreqer(object):
             for istart in range(1, self.n_max_snps):
                 if debug:
                     if istart == 1:
+                        print '                                 resid. / ndof'
                         print '             position   ratio   (m=0 / m>%5.2f)       muted / obs ' % self.big_y_icpt_bounds[0]
                     print '  %d %s' % (istart, utils.plural_str('snp', istart))
 
@@ -218,15 +219,18 @@ class MuteFreqer(object):
                 for pos in positions_to_fit:
                     # skip positions that are too close to the 5' end of V (misassigned insertions look like snps)
                     if pos > len(self.germline_seqs[utils.get_region(gene)][gene]) - self.n_five_prime_positions_to_exclude - 1:
-                        continue  # NOTE *don't* add it to <self.positions_to_skip[gene]>, since that says to skip it for *every* <istart>
+                        continue
 
                     # as long as we already have a few non-candidate positions, skip positions that have no frequencies greater than the min y intercept (note that they could in principle still have a large y intercept, but we don't really care)
                     if len(residuals) > istart + self.min_non_candidate_positions_to_fit and len([f for f in subxyvals[pos]['freqs'] if f > self.min_y_intercept]) == 0:
-                        continue  # NOTE *don't* add it to <self.positions_to_skip[gene]>, since that says to skip it for *every* <istart>
+                        continue
+
+                    if sum(subxyvals[pos]['total']) < self.n_total_min:
+                        continue
 
                     # also skip positions that only have a few points to fit (i.e. genes that were very rare, or I guess maybe if they were always eroded past this position)
                     if len(subxyvals[pos]['n_mutelist']) < 3:
-                        continue  # NOTE *don't* add it to <self.positions_to_skip[gene]>, since that says to skip it for *every* <istart>
+                        continue
 
                     zero_icpt_fit = self.get_curvefit(pos, subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['errs'], y_icpt_bounds=(0. - self.small_number, 0. + self.small_number))
                     big_icpt_fit = self.get_curvefit(pos, subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['errs'], y_icpt_bounds=self.big_y_icpt_bounds)
@@ -235,7 +239,7 @@ class MuteFreqer(object):
 
                 if len(residuals) <= istart:  # needs to be at least one longer, so we have the first-non-snp
                     if debug:
-                        print '      not enough observed mutations to fit more than %d snps' % (istart - 1)
+                        print '      not enough observations to fit more than %d snps' % (istart - 1)
                     break
                 residual_ratios = {pos : float('inf') if r['big_icpt'] == 0. else r['zero_icpt'] / r['big_icpt'] for pos, r in residuals.items()}
                 sorted_ratios = sorted(residual_ratios.items(), key=operator.itemgetter(1), reverse=True)  # sort the positions in decreasing order of residual ratio
@@ -271,7 +275,7 @@ class MuteFreqer(object):
 
             if debug:
                 print '\n  fit results for each snp hypothesis:'
-                print '    snps      score       min snp     first non-snp'
+                print '    snps      score       min snp     max non-snp'
                 for istart, score in sorted(scores.items(), key=operator.itemgetter(1), reverse=True):
                     print_str = '    %2d     %9s   %9s   %9s' % (istart, fstr(score), fstr(min_snp_ratios[istart]), fstr(first_non_snp_ratios[istart]))
                     if istart == n_candidate_snps:
