@@ -344,6 +344,10 @@ if args.plot_performance:
     if not args.is_simu:
         raise Exception('can\'t plot performance unless --is-simu is set')
 
+if args.find_new_alleles and not args.only_smith_waterman:
+    print '  setting --only-smith-waterman, since you may want to incorporate new alleles into your .fasta before running the hmm'
+    args.only_smith_waterman = True
+
 # ----------------------------------------------------------------------------------------
 random.seed(args.seed)
 start = time.time()
