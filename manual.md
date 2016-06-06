@@ -266,6 +266,15 @@ Throughout the run, we sample a tree at random from this set for each rearrangem
 Same as `run-viterbi`, except with the forward algorithm, i.e. it sums over all possible rearrangement events to get the total log probability of the sequence.
 Probably mostly useful for testing.
 
+### Germline Sets
+
+The default set of germline genes is in `data/imgt`.
+This was downloaded at some point from the imgt web site, and was then modified by removing several genes that had the same sequence as other genes (wtf...).
+As has been described in a number of papers by other folks, it is sensible to view the imgt set as a starting point.
+The first thing to do next is identify any new alleles in the data set at hand -- for this see [allele finding](https://github.com/psathyrella/partis/blob/master/manual.md#finding-new-alleles) above.
+The next step is to reduce the germline set for each data set such that we only consider alleles which are actually present in each individual's germline.
+We haven't done this yet, but we're working on it.
+
 ### Parallelization
 
 ###### In general
