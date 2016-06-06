@@ -165,6 +165,8 @@ class Tester(object):
             check_call(cmd_str + ' 1>>' + self.logfname + ' 2>>' + self.logfname, shell=True)
             self.run_times[name] = time.time() - start  # seconds
 
+        self.write_run_times()
+
     # ----------------------------------------------------------------------------------------
     def remove_reference_results(self, expected_content):
         print '  remove ref files'
@@ -186,6 +188,7 @@ class Tester(object):
     def bust_cache(self):
         test_outputs = [k + '.csv' for k in self.tests.keys() if k not in self.production_tests]
         expected_content = set(test_outputs + self.perfdirs.values() + self.cachefnames.values() + [os.path.basename(self.logfname), self.label])
+        expected_content.add('run-times.csv')
 
         # remove (very, very gingerly) whole reference dir
         self.remove_reference_results(expected_content)
@@ -366,30 +369,40 @@ class Tester(object):
                     print err
 
     # ----------------------------------------------------------------------------------------
+    def write_run_times(self):
+        with open(self.dirs['new'] + '/run-times.csv', 'w') as newfile:
+            writer = csv.DictWriter(newfile, ('name', 'seconds'))
+            writer.writeheader()
+            for name, seconds in self.run_times.items():
+                writer.writerow({'name' : name, 'seconds' : seconds})
+
+    # ----------------------------------------------------------------------------------------
     def compare_run_times(self):
         print 'checking run times'
 
-        old_times = {}
-        with open(self.dirs['ref'] + '/run-times.csv') as oldfile:
-            reader = csv.DictReader(oldfile)
-            for line in reader:
-                old_times[line['name']] = float(line['seconds'])
+        def read_run_times(stype):
+            times[stype] = {}
+            with open(self.dirs[stype] + '/run-times.csv') as timefile:
+                reader = csv.DictReader(timefile)
+                for line in reader:
+                    times[stype][line['name']] = float(line['seconds'])
+        times = {}
+        for stype in self.stypes:
+            read_run_times(stype)
 
-        newfile = open(self.dirs['new'] + '/run-times.csv', 'w')
-        writer = csv.DictWriter(newfile, ('name', 'seconds'))
-
-        for name, seconds in self.run_times.items():
-            print '  %30s   %7.1f' % (name, old_times[name]),
-            fractional_change = (seconds - old_times[name]) / old_times[name]
+        for name in times['ref']:
+            print '  %30s   %7.1f' % (name, times['ref'][name]),
+            if name not in times['new']:
+                print '  no new time for %s' % utils.color('red', name)
+                continue
+            fractional_change = (times['new'][name] - times['ref'][name]) / times['ref'][name]
             if abs(fractional_change) > 0.2:
-                print '--> %-5.1f %s' % (seconds, utils.color('red', '(%+.3f)' % fractional_change)),
+                print '--> %-5.1f %s' % (times['new'][name], utils.color('red', '(%+.3f)' % fractional_change)),
             elif abs(fractional_change) > 0.1:
-                print '--> %-5.1f %s' % (seconds, utils.color('yellow', '(%+.3f)' % fractional_change)),
+                print '--> %-5.1f %s' % (times['new'][name], utils.color('yellow', '(%+.3f)' % fractional_change)),
             else:
                 print '    ok   ',
             print ''
-
-            writer.writerow({'name' : name, 'seconds' : seconds})
 
     # ----------------------------------------------------------------------------------------
     def make_comparison_plots(self):
