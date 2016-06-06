@@ -60,7 +60,7 @@ void trellis::Init() {
       throw runtime_error("ERROR model in cached trellis " + cached_trellis_->model()->name() + " not the same as mine " + hmm_->name());
   }
 
-  traceback_table_ = nullptr;
+  traceback_table_pointer_ = nullptr;
   swap_ptr_ = nullptr;
 
   ending_viterbi_log_prob_ = -INFINITY;
@@ -70,8 +70,6 @@ void trellis::Init() {
 
 // ----------------------------------------------------------------------------------------
 trellis::~trellis() {
-  if(traceback_table_ && !cached_trellis_)   // if we have a cached trellis, we used its traceback_table_, so we don't want to delete it
-    delete traceback_table_;
 }
 
 // ----------------------------------------------------------------------------------------
@@ -109,7 +107,7 @@ void trellis::MiddleViterbiVals(vector<double> *scoring_previous, vector<double>
       double dpval = (*scoring_previous)[i_st_previous] + emission_val + hmm_->state(i_st_previous)->transition_logprob(i_st_current);
       if(dpval > (*scoring_current)[i_st_current]) {
 	(*scoring_current)[i_st_current] = dpval;  // save this value as the best value we've so far come across
-	(*traceback_table_)[position][i_st_current] = i_st_previous;  // and mark which state it came from for later traceback
+	(*traceback_table_pointer_)[position][i_st_current] = i_st_previous;  // and mark which state it came from for later traceback NOTE do *not* use <traceback_table_>, since we want the cached trellis's table if we have a cached trellis)
       }
       CacheViterbiVals(position, dpval, i_st_current);
       next_states |= (*hmm_->state(i_st_current)->to_states());  // NOTE we want this *inside* the <i_st_previous> loop because we only want to include previous states that are really needed
@@ -179,7 +177,7 @@ void trellis::Viterbi() {
   viterbi_pointers_.resize(seqs_.GetSequenceLength(), -1);
 
   if(cached_trellis_) {   // ok, rad, we have another trellis with the dp table already filled in, so we can just poach the values we need from there
-    traceback_table_ = cached_trellis_->traceback_table();  // note that the table from the cached trellis is larger than we need right now (that's the whole point, after all)
+    traceback_table_pointer_ = cached_trellis_->traceback_table_pointer();  // note that the table from the cached trellis is larger than we need right now (that's the whole point, after all)
     ending_viterbi_pointer_ = cached_trellis_->viterbi_pointer(seqs_.GetSequenceLength());
     ending_viterbi_log_prob_ = cached_trellis_->ending_viterbi_log_prob(seqs_.GetSequenceLength());
     // and also set things to allow this trellis to be passed as a cached trellis
@@ -190,8 +188,9 @@ void trellis::Viterbi() {
     return;
   }
 
-  assert(!traceback_table_);
-  traceback_table_ = new int_2D(seqs_.GetSequenceLength(), vector<int16_t>(hmm_->n_states(), -1));
+  traceback_table_ = int_2D(seqs_.GetSequenceLength(), vector<int16_t>(hmm_->n_states(), -1));
+  assert(!traceback_table_pointer_);
+  traceback_table_pointer_ = &traceback_table_;
 
   vector<double> *scoring_current = &scoring_current_;  // dp table values in the current column (i.e. at the current position in the query sequence)
   vector<double> *scoring_previous = &scoring_previous_;  // same, but for the previous position
@@ -294,7 +293,6 @@ void trellis::Forward() {
 // ----------------------------------------------------------------------------------------
 void trellis::Traceback(TracebackPath& path) {
   assert(seqs_.GetSequenceLength() != 0);
-  assert(traceback_table_);
   assert(path.model());
   path.set_model(hmm_);
   if(ending_viterbi_log_prob_ == -INFINITY) return;  // no valid path through this hmm
@@ -303,7 +301,7 @@ void trellis::Traceback(TracebackPath& path) {
 
   int16_t pointer(ending_viterbi_pointer_);
   for(size_t position = seqs_.GetSequenceLength() - 1; position > 0; position--) {
-    pointer = (*traceback_table_)[position][pointer];
+    pointer = (*traceback_table_pointer_)[position][pointer];  // NOTE do *not* use <traceback_table_>, since we want the cached trellis's table if we have a cached trellis)
     if(pointer == -1) {
       cerr << "No valid path at Position: " << position << endl;
       return;

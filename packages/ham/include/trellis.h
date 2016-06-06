@@ -31,7 +31,7 @@ public:
   Sequences seqs() { return seqs_; }
   double ending_forward_log_prob() { return ending_forward_log_prob_; }
   double ending_forward_log_prob(size_t length);
-  int_2D *traceback_table() const { return traceback_table_; }
+  int_2D *traceback_table_pointer() const { return traceback_table_pointer_; }
 
   // NOTE (and beware) this is confusing to subtract one from the length. BUT it is totally on purpose: I want the calling code to be able to just worry about how long its sequence is.
   // In other words, I'm pretty sure we'll have to subtract (or add) 1 *somewhere*, and I've chosen to compartmentalize it into trellis.{h,cc}.
@@ -59,7 +59,8 @@ public:
 private:
   Model *hmm_;
   Sequences seqs_;
-  int_2D *traceback_table_;
+  int_2D *traceback_table_pointer_;  // if we have a cached trellis, this points to the cached trellis's table
+  int_2D traceback_table_;  // if we have a cached trellis, this isn't initialized
 
   trellis *cached_trellis_;  // pointer to another trellis that already has its dp table(s) filled in, the idea being this trellis only needs a subset of that table, so we don't need to calculate anything new for this one
 
