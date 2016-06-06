@@ -6,8 +6,8 @@ namespace ham {
 double Trellis::ApproxBytesUsed() {
   double bytes(0.);
   // NOTE doesn't include traceback table!
-  bytes += sizeof(double) * viterbi_log_probs_.size();
-  bytes += sizeof(double) * forward_log_probs_.size();
+  bytes += sizeof(double) * viterbi_log_probs_pointer_->size();
+  bytes += sizeof(double) * forward_log_probs_pointer_->size();
   bytes += sizeof(int) * viterbi_pointers_.size();
   return bytes;
 }
@@ -16,8 +16,8 @@ double Trellis::ApproxBytesUsed() {
 string Trellis::SizeString() {
   char buffer[2000];
   sprintf(buffer, "%8zu  %8zu  %8zu  %8zu",
-	  viterbi_log_probs_.size(),
-	  forward_log_probs_.size(),
+	  viterbi_log_probs_pointer_->size(),
+	  forward_log_probs_pointer_->size(),
 	  viterbi_pointers_.size(),
 	  swap_ptr_ ? swap_ptr_->size() : 0);
   return string(buffer);
@@ -61,6 +61,9 @@ void Trellis::Init() {
   }
 
   traceback_table_pointer_ = nullptr;
+  viterbi_log_probs_pointer_ = nullptr;
+  forward_log_probs_pointer_ = nullptr;
+  viterbi_pointers_pointer_ = nullptr;
   swap_ptr_ = nullptr;
 
   ending_viterbi_log_prob_ = -INFINITY;
@@ -77,18 +80,9 @@ void Trellis::Dump() {
   for(size_t ipos = 0; ipos < seqs_.GetSequenceLength(); ++ipos) {
     cout
         << setw(12) << hmm_->state(viterbi_pointers_[ipos])->name()[0]
-        << setw(12) << viterbi_log_probs_[ipos];
+        << setw(12) << viterbi_log_probs_pointer_->at(ipos);
     cout << endl;
   }
-}
-// ----------------------------------------------------------------------------------------
-double Trellis::ending_viterbi_log_prob(size_t length) {  // NOTE this is the length of the sequence, so we return position length - 1
-  return viterbi_log_probs_.at(length - 1);
-}
-
-// ----------------------------------------------------------------------------------------
-double Trellis::ending_forward_log_prob(size_t length) {  // NOTE this is the length of the sequence, so we return position length - 1
-  return forward_log_probs_.at(length - 1);
 }
 
 // ----------------------------------------------------------------------------------------
@@ -170,26 +164,22 @@ void Trellis::CacheForwardVals(size_t position, double dpval, size_t i_st_curren
 
 // ----------------------------------------------------------------------------------------
 void Trellis::Viterbi() {
-  // initialize stored values for chunk caching
-  assert(viterbi_log_probs_.size() == 0);  // you can't be too careful
-  assert(viterbi_pointers_.size() == 0);
-  viterbi_log_probs_.resize(seqs_.GetSequenceLength(), -INFINITY);
-  viterbi_pointers_.resize(seqs_.GetSequenceLength(), -1);
-
   if(cached_trellis_) {   // ok, rad, we have another trellis with the dp table already filled in, so we can just poach the values we need from there
     traceback_table_pointer_ = cached_trellis_->traceback_table_pointer();  // note that the table from the cached trellis is larger than we need right now (that's the whole point, after all)
     ending_viterbi_pointer_ = cached_trellis_->viterbi_pointer(seqs_.GetSequenceLength());
     ending_viterbi_log_prob_ = cached_trellis_->ending_viterbi_log_prob(seqs_.GetSequenceLength());
-    // and also set things to allow this trellis to be passed as a cached trellis
-    for(size_t ip = 0; ip < seqs_.GetSequenceLength(); ++ip) {  // NOTE we could make this more memory-efficient by not copying over all the vectors, but that would require some re-jiggery
-      viterbi_log_probs_[ip] = cached_trellis_->viterbi_log_probs()->at(ip);
-      viterbi_pointers_[ip] = cached_trellis_->viterbi_pointers()->at(ip);
-    }
+    viterbi_log_probs_pointer_ = cached_trellis_->viterbi_log_probs_pointer();
+    viterbi_pointers_pointer_ = cached_trellis_->viterbi_pointers_pointer();
     return;
   }
 
+  // initialize stored values for chunk caching
+  viterbi_log_probs_.resize(seqs_.GetSequenceLength(), -INFINITY);
+  viterbi_pointers_.resize(seqs_.GetSequenceLength(), -1);
+  viterbi_log_probs_pointer_ = &viterbi_log_probs_;
+  viterbi_pointers_pointer_ = &viterbi_pointers_;
+
   traceback_table_ = int_2D(seqs_.GetSequenceLength(), vector<int16_t>(hmm_->n_states(), -1));
-  assert(!traceback_table_pointer_);
   traceback_table_pointer_ = &traceback_table_;
 
   vector<double> *scoring_current = &scoring_current_;  // dp table values in the current column (i.e. at the current position in the query sequence)
@@ -238,18 +228,15 @@ void Trellis::Viterbi() {
 
 // ----------------------------------------------------------------------------------------
 void Trellis::Forward() {
-  // initialize stored values for chunk caching
-  assert(forward_log_probs_.size() == 0);  // you can't be too careful
-  forward_log_probs_.resize(seqs_.GetSequenceLength(), -INFINITY);
-
   if(cached_trellis_) {
-    if(!cached_trellis_->forward_log_probs())
-      throw runtime_error("ERROR I got a trellis to cache that didn't have any forward information");
     ending_forward_log_prob_ = cached_trellis_->ending_forward_log_prob(seqs_.GetSequenceLength());
-    for(size_t ip = 0; ip < seqs_.GetSequenceLength(); ++ip)  // and also set things to allow this trellis to be passed as a cached trellis
-      forward_log_probs_[ip] = cached_trellis_->forward_log_probs()->at(ip);  // NOTE we could make this more memory-efficient by not copying over all the vectors, but that would require some re-jiggery
+    forward_log_probs_pointer_ = cached_trellis_->forward_log_probs_pointer();
     return;
   }
+
+  // initialize stored values for chunk caching
+  forward_log_probs_.resize(seqs_.GetSequenceLength(), -INFINITY);
+  forward_log_probs_pointer_ = &forward_log_probs_;
 
   vector<double> *scoring_current = &scoring_current_;  // dp table values in the current column (i.e. at the current position in the query sequence)
   vector<double> *scoring_previous = &scoring_previous_;  // same, but for the previous position

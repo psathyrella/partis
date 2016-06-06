@@ -26,22 +26,20 @@ public:
   ~Trellis();
 
   Model *model() { return hmm_; }
-  double ending_viterbi_log_prob() { return ending_viterbi_log_prob_; }
-  double ending_viterbi_log_prob(size_t length);  // return the log prob of the most probable path of length <length> NOTE this tacks the ending transition log prob onto whatever was in <viterbi_log_prob_>
   Sequences seqs() { return seqs_; }
-  double ending_forward_log_prob() { return ending_forward_log_prob_; }
-  double ending_forward_log_prob(size_t length);
-  int_2D *traceback_table_pointer() const { return traceback_table_pointer_; }
-
+  double ending_viterbi_log_prob() { return ending_viterbi_log_prob_; }  // for full sequence length
+  double ending_forward_log_prob() { return ending_forward_log_prob_; }  // for full sequence length
   // NOTE (and beware) this is confusing to subtract one from the length. BUT it is totally on purpose: I want the calling code to be able to just worry about how long its sequence is.
   // In other words, I'm pretty sure we'll have to subtract (or add) 1 *somewhere*, and I've chosen to compartmentalize it into trellis.{h,cc}.
   // NOTE also that <viterbi_pointers_> *includes* the ending transition probability at each point.
-  size_t viterbi_pointer(size_t length) {  // i.e. the zeroth entry of viterbi_pointers_ corresponds to stopping with sequence of length 1
-    return viterbi_pointers_.at(length - 1);
-  }
-  vector<double> *viterbi_log_probs() { return &viterbi_log_probs_; }
-  vector<double> *forward_log_probs() { return &forward_log_probs_; }
-  vector<int> *viterbi_pointers() { return &viterbi_pointers_; }
+  double ending_viterbi_log_prob(size_t length) { return viterbi_log_probs_pointer_->at(length - 1); } // the most probable path of length <length> NOTE do *not* use <viterbi_log_probs_>
+  double ending_forward_log_prob(size_t length) { return forward_log_probs_pointer_->at(length - 1); } // NOTE do *not* use <forward_log_probs_>
+  size_t viterbi_pointer(size_t length) { return viterbi_pointers_pointer_->at(length - 1); } // i.e. the zeroth entry of viterbi_pointers_ corresponds to stopping with sequence of length 1 NOTE do *not* use <viterbi_pointers_>  
+
+  int_2D *traceback_table_pointer() const { return traceback_table_pointer_; }
+  vector<double> *viterbi_log_probs_pointer() { return viterbi_log_probs_pointer_; }
+  vector<double> *forward_log_probs_pointer() { return forward_log_probs_pointer_; }
+  vector<int> *viterbi_pointers_pointer() { return viterbi_pointers_pointer_; }
 
   void SwapColumns(vector<double> *&scoring_previous, vector<double> *&scoring_current, bitset<STATE_MAX> &current_states, bitset<STATE_MAX> &next_states);
   void MiddleViterbiVals(vector<double> *scoring_previous, vector<double> *scoring_current, bitset<STATE_MAX> &current_states, bitset<STATE_MAX> &next_states, size_t position);
@@ -69,6 +67,9 @@ private:
   double  ending_forward_log_prob_;
 
   // chunk caching stuff
+  vector<double> *viterbi_log_probs_pointer_;  // see notes for traceback_table_
+  vector<double> *forward_log_probs_pointer_;  // see notes for traceback_table_
+  vector<int> *viterbi_pointers_pointer_;  // see notes for traceback_table_ (note that it wasn't *me* that decided to call the viterbi traceback table indices "pointers")
   vector<double> viterbi_log_probs_;  // log prob of best path up to and including each position NOTE includes log prob of transition to end
   vector<double> forward_log_probs_;  // total log prob of all paths up to and including each position NOTE includes log prob of transition to end
   vector<int> viterbi_pointers_;  // pointer to the state at which the best log prob occurred
