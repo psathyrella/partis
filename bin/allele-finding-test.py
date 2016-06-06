@@ -32,7 +32,7 @@ def run_test(existing_v_genes, new_v_allele, dj_genes, seed=None):
     label = 'test'  #get_label(existing_genes, new_allele)
     simfname = outdir + '/simu-' + label + '.csv'
     outpdir = outdir + '/simu-' + label
-    if os.getenv('www') is None:
+    if os.getenv('www') is not None:
         plotdir = os.getenv('www') + '/partis/allele-finding/' + label
     else:
         plotdir = '_www/partis/allele-finding/' + label
