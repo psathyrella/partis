@@ -16,9 +16,7 @@ DPHandler::~DPHandler() {
 
 // ----------------------------------------------------------------------------------------
 void DPHandler::Clear() {
-  trellisi_.clear();
-  paths_.clear();
-  all_scores_.clear();
+  cachefo_.clear();
   per_gene_support_.clear();
 }
 
@@ -108,7 +106,7 @@ Result DPHandler::Run(vector<Sequence> seqvector, KBounds kbounds, vector<string
         best_score = best_scores[kset];
         best_kset = kset;
       }
-      if(algorithm_ == "viterbi" && best_scores[kset] != -INFINITY)  // add event to the vector in <result> (we get the event from <paths_>, using <kset> and <best_genes_> as indices)
+      if(algorithm_ == "viterbi" && best_scores[kset] != -INFINITY)  // add event to the vector in <result> (we get the event from the path in <cachefo_>, using <kset> and <best_genes_> as indices)
         result.PushBackRecoEvent(FillRecoEvent(seqs, kset, best_genes[kset], best_scores[kset]));
     }
   }
@@ -163,15 +161,15 @@ Result DPHandler::Run(vector<Sequence> seqvector, KBounds kbounds, vector<string
 // ----------------------------------------------------------------------------------------
 void DPHandler::PrintCachedTrellisSize() {
   double str_bytes(0.), tr_bytes(0.), path_bytes(0.);
-  for(auto &kv_a : trellisi_) {
+  for(auto &kv_a : cachefo_) {
     string gene(kv_a.first);
-    for(auto &kv_b : trellisi_[gene]) {
+    for(auto &kv_b : cachefo_[gene]) {
       vector<string> cached_query_strs(kv_b.first);
-      trellis ts(kv_b.second);
+      trellis ts(kv_b.second.trellis_);
       for(auto &str : cached_query_strs)
 	str_bytes += sizeof(string::value_type) * str.size();
       tr_bytes += ts.ApproxBytesUsed();
-      path_bytes += sizeof(int) * paths_[gene][cached_query_strs].size();  // size is zero if not set (e.g. for fwd)
+      path_bytes += sizeof(int) * kv_b.second.path_.size();  // size is zero if not set (e.g. for fwd)
     }
   }
 
@@ -179,16 +177,12 @@ void DPHandler::PrintCachedTrellisSize() {
 }
 
 // ----------------------------------------------------------------------------------------
-void DPHandler::FillTrellis(Sequences query_seqs, vector<string> query_strs, string gene, double *score, string &origin) {
-  *score = -INFINITY;
-  // initialize trellis and path
-  if(trellisi_.find(gene) == trellisi_.end()) {
-    trellisi_[gene] = map<vector<string>, trellis>();
-    paths_[gene] = map<vector<string>, TracebackPath>();
-  }
-  origin = "scratch";
+void DPHandler::FillTrellis(Sequences query_seqs, vector<string> query_strs, string gene, string &origin) {
+  Model *model(hmms_.Get(gene, args_->debug()));
+
+  trellis *cached_trellis(nullptr);
   if(!args_->no_chunk_cache()) {   // figure out if we've already got a trellis with a dp table which includes the one we're about to calculate (we should, unless this is the first kset)
-    for(auto &kv : trellisi_[gene]) {
+    for(auto &kv : cachefo_[gene]) {  // there might be a more efficient way to loop through this, but I don't spend a lot of time in this function anyway
       vector<string> cached_query_strs(kv.first);
       if(cached_query_strs.size() != query_strs.size())
 	continue;
@@ -204,40 +198,37 @@ void DPHandler::FillTrellis(Sequences query_seqs, vector<string> query_strs, str
 
       // if they all match, then use it
       if(found_match) {
-        for(size_t iseq = 0; iseq < cached_query_strs.size(); ++iseq)  // neurotic double check
-          assert(cached_query_strs[iseq].find(query_strs[iseq]) == 0);
-        trellisi_[gene][query_strs] = trellis(hmms_.Get(gene, args_->debug()), query_seqs, &trellisi_[gene][cached_query_strs]);  // copy over the required chunk of the old trellis into a new trellis for the current query
-        origin = "chunk";
+	cached_trellis = &cachefo_[gene][cached_query_strs].trellis_;  // will copy over the required chunk of the old trellis into a new trellis for the current query
         break;
       }
     }
   }
 
-  if(trellisi_[gene].count(query_strs) == 0)   // if didn't find a suitable chunk cached trellis
-    trellisi_[gene][query_strs] = trellis(hmms_.Get(gene, args_->debug()), query_seqs);
-  trellis *trell = &trellisi_[gene][query_strs]; // this pointer's just to keep the name short
+  if(cached_trellis == nullptr)   // if we didn't find a suitable chunk cached trellis
+    origin = "scratch";
+  else
+    origin = "chunk";
+
+  cachefo_[gene][query_strs] = CacheFo(model, query_seqs, cached_trellis);
 
   // run the actual dp algorithms
+  trellis *trell = &cachefo_[gene][query_strs].trellis_; // convenience pointer
+  double uncorrected_score;  // still need to tack on the gene choice prob to this score
   if(algorithm_ == "viterbi") {
     trell->Viterbi();
-    *score = trell->ending_viterbi_log_prob();  // NOTE still need to add the gene choice prob to this score (it's done in RunKSet)
-    if(trell->ending_viterbi_log_prob() == -INFINITY) {   // no valid path through hmm
-      paths_[gene][query_strs] = TracebackPath();
-      if(args_->debug() == 2) cout << "                    arg " << gene << " " << *score << " " << origin << endl;
-    } else {
-      paths_[gene][query_strs] = TracebackPath(hmms_.Get(gene, args_->debug()));
-      trell->Traceback(paths_[gene][query_strs]);
-      assert(trell->ending_viterbi_log_prob() == paths_[gene][query_strs].score());  // NOTE it would be better to just not store the darn score in both the places to start with, rather than worry here about them being the same
-    }
-    assert(fabs(*score) > 1e-200);
-    assert(*score == -INFINITY || paths_[gene][query_strs].size() > 0);
+    uncorrected_score = trell->ending_viterbi_log_prob();
+    if(uncorrected_score != -INFINITY)   // if there's a valid path
+      trell->Traceback(cachefo_[gene][query_strs].path_);
   } else if(algorithm_ == "forward") {
     trell->Forward();
-    paths_[gene][query_strs] = TracebackPath();  // avoids violating the assumption that paths_ and trellisi_ have the same entries
-    *score = trell->ending_forward_log_prob();  // NOTE still need to add the gene choice prob to this score
+    uncorrected_score = trell->ending_forward_log_prob();
   } else {
     assert(0);
   }
+
+  // correct the score for gene choice probs
+  double gene_choice_score = log(model->overall_prob());
+  cachefo_[gene][query_strs].score_ = AddWithMinusInfinities(uncorrected_score, gene_choice_score);
 }
 
 // ----------------------------------------------------------------------------------------
@@ -246,7 +237,7 @@ void DPHandler::PrintPath(vector<string> query_strs, string gene, double score, 
     // cout << "                    " << gene << " " << score << endl;
     return;
   }
-  vector<string> path_names = paths_[gene][query_strs].name_vector();
+  vector<string> path_names = cachefo_[gene][query_strs].path_.name_vector();
   if(path_names.size() == 0) {
     if(args_->debug()) cout << "                     " << gene << " has no valid path" << endl;
     return;
@@ -302,7 +293,7 @@ RecoEvent DPHandler::FillRecoEvent(Sequences &seqs, KSet kset, map<string, strin
     }
     assert(best_genes.find(region) != best_genes.end());
     string gene(best_genes[region]);
-    vector<string> path_names = paths_[gene][query_strs].name_vector();
+    vector<string> path_names = cachefo_[gene][query_strs].path_.name_vector();
     if(path_names.size() == 0) {
       if(args_->debug()) cout << "                     " << gene << " has no valid path" << endl;
       event.SetScore(-INFINITY);
@@ -375,32 +366,32 @@ void DPHandler::RunKSet(Sequences &seqs, KSet kset, map<string, set<string> > &o
     regional_best_scores[region] = -INFINITY;
     regional_total_scores[region] = -INFINITY;
     for(auto & gene : only_genes[region]) {
-      double *gene_score(&all_scores_[gene][query_strs]);  // pointed-to value is already set if we have this trellis cached, otherwise not
-      bool already_cached = trellisi_.find(gene) != trellisi_.end() && trellisi_[gene].find(query_strs) != trellisi_[gene].end();
-      string origin("ARG");
-      if(already_cached) {
-        origin = "cached";
+      if(cachefo_.find(gene) == cachefo_.end())
+	cachefo_[gene] = map<vector<string>, CacheFo>();
+
+      string origin;
+      if(cachefo_[gene].find(query_strs) == cachefo_[gene].end()) {
+	FillTrellis(subseqs[region], query_strs, gene, origin);
       } else {
-        FillTrellis(subseqs[region], query_strs, gene, gene_score, origin);  // sets *gene_score to uncorrected score
-        double gene_choice_score = log(hmms_.Get(gene, args_->debug())->overall_prob());
-        *gene_score = AddWithMinusInfinities(*gene_score, gene_choice_score);  // then correct it for gene choice probs
+        origin = "cached";
       }
+      double gene_score(cachefo_[gene][query_strs].score_);
       if(args_->debug() == 2 && algorithm_ == "viterbi")
-        PrintPath(query_strs, gene, *gene_score, origin);
+        PrintPath(query_strs, gene, gene_score, origin);
 
       // add this score to the regional total score
-      regional_total_scores[region] = AddInLogSpace(*gene_score, regional_total_scores[region]);  // (log a, log b) --> log a+b, i.e. here we are summing probabilities in log space, i.e. a *or* b
+      regional_total_scores[region] = AddInLogSpace(gene_score, regional_total_scores[region]);  // (log a, log b) --> log a+b, i.e. here we are summing probabilities in log space, i.e. a *or* b
       if(args_->debug() == 2 && algorithm_ == "forward")
-        printf("                %6.0e %9.2f  %7.2f  %s  %s\n", exp(*gene_score), *gene_score, regional_total_scores[region], origin.c_str(), tc.ColorGene(gene).c_str());
+        printf("                %6.0e %9.2f  %7.2f  %s  %s\n", exp(gene_score), gene_score, regional_total_scores[region], origin.c_str(), tc.ColorGene(gene).c_str());
 
       // set best regional scores (and the best gene for this kset)
-      if(*gene_score > regional_best_scores[region]) {
-        regional_best_scores[region] = *gene_score;
+      if(gene_score > regional_best_scores[region]) {
+        regional_best_scores[region] = gene_score;
         (*best_genes)[kset][region] = gene;
       }
 
       // watch this space for something pithy
-      per_gene_support_this_kset[gene] = *gene_score;
+      per_gene_support_this_kset[gene] = gene_score;
     }
 
     // return if we didn't find a valid path for this region
