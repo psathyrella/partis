@@ -178,7 +178,6 @@ void DPHandler::PrintCachedTrellisSize() {
 
 // ----------------------------------------------------------------------------------------
 void DPHandler::FillTrellis(Sequences query_seqs, vector<string> query_strs, string gene, string &origin) {
-  Model *model(hmms_.Get(gene, args_->debug()));
 
   Trellis *cached_trellis(nullptr);
   if(!args_->no_chunk_cache()) {   // figure out if we've already got a trellis with a dp table which includes the one we're about to calculate (we should, unless this is the first kset)
@@ -209,7 +208,7 @@ void DPHandler::FillTrellis(Sequences query_seqs, vector<string> query_strs, str
   else
     origin = "chunk";
 
-  cachefo_[gene][query_strs] = CacheFo(model, query_seqs, cached_trellis);
+  cachefo_[gene][query_strs] = CacheFo(hmms_.Get(gene, args_->debug()), query_seqs, cached_trellis);
 
   // run the actual dp algorithms
   Trellis *trell = &cachefo_[gene][query_strs].trellis_; // convenience pointer
@@ -227,7 +226,7 @@ void DPHandler::FillTrellis(Sequences query_seqs, vector<string> query_strs, str
   }
 
   // correct the score for gene choice probs
-  double gene_choice_score = log(model->overall_prob());
+  double gene_choice_score = log(hmms_.Get(gene, args_->debug())->overall_prob());
   cachefo_[gene][query_strs].score_ = AddWithMinusInfinities(uncorrected_score, gene_choice_score);
 }
 
