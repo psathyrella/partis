@@ -20,13 +20,13 @@ namespace ham {
 class CacheFo {
 public:
   CacheFo() : score_(-INFINITY) {}
-  CacheFo(Model* model, Sequences query_seqs, trellis *cached_trellis) :
+  CacheFo(Model* model, Sequences query_seqs, Trellis *cached_trellis) :
     score_(-INFINITY),
     trellis_(model, query_seqs, cached_trellis),
     path_(model)
   {}
   double score_;
-  trellis trellis_;
+  Trellis trellis_;
   TracebackPath path_;
 };
 

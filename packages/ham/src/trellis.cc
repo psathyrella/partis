@@ -3,7 +3,7 @@
 namespace ham {
 
 // ----------------------------------------------------------------------------------------
-double trellis::ApproxBytesUsed() {
+double Trellis::ApproxBytesUsed() {
   double bytes(0.);
   // NOTE doesn't include traceback table!
   bytes += sizeof(double) * viterbi_log_probs_.size();
@@ -13,7 +13,7 @@ double trellis::ApproxBytesUsed() {
 }
 
 // ----------------------------------------------------------------------------------------
-string trellis::SizeString() {
+string Trellis::SizeString() {
   char buffer[2000];
   sprintf(buffer, "%8zu  %8zu  %8zu  %8zu",
 	  viterbi_log_probs_.size(),
@@ -24,7 +24,7 @@ string trellis::SizeString() {
 }
 
 // ----------------------------------------------------------------------------------------
-trellis::trellis(Model* hmm, Sequence seq, trellis *cached_trellis) :
+Trellis::Trellis(Model* hmm, Sequence seq, Trellis *cached_trellis) :
   hmm_(hmm),
   cached_trellis_(cached_trellis),
   scoring_current_(hmm_->n_states(), -INFINITY),
@@ -35,7 +35,7 @@ trellis::trellis(Model* hmm, Sequence seq, trellis *cached_trellis) :
 }
 
 // ----------------------------------------------------------------------------------------
-trellis::trellis(Model* hmm, Sequences seqs, trellis *cached_trellis) :
+Trellis::Trellis(Model* hmm, Sequences seqs, Trellis *cached_trellis) :
   hmm_(hmm),
   seqs_(seqs),
   cached_trellis_(cached_trellis),
@@ -46,13 +46,13 @@ trellis::trellis(Model* hmm, Sequences seqs, trellis *cached_trellis) :
 }
 
 // ----------------------------------------------------------------------------------------
-trellis::trellis() : hmm_(nullptr), cached_trellis_(nullptr)
+Trellis::Trellis() : hmm_(nullptr), cached_trellis_(nullptr)
 {
   Init();
 }
 
 // ----------------------------------------------------------------------------------------
-void trellis::Init() {
+void Trellis::Init() {
   if(cached_trellis_) {
     if(seqs_.GetSequenceLength() > cached_trellis_->seqs().GetSequenceLength())
       throw runtime_error("ERROR cached trellis sequence length " + to_string(cached_trellis_->seqs().GetSequenceLength()) + " smaller than mine " + to_string(seqs_.GetSequenceLength()));
@@ -69,11 +69,11 @@ void trellis::Init() {
 }
 
 // ----------------------------------------------------------------------------------------
-trellis::~trellis() {
+Trellis::~Trellis() {
 }
 
 // ----------------------------------------------------------------------------------------
-void trellis::Dump() {
+void Trellis::Dump() {
   for(size_t ipos = 0; ipos < seqs_.GetSequenceLength(); ++ipos) {
     cout
         << setw(12) << hmm_->state(viterbi_pointers_[ipos])->name()[0]
@@ -82,17 +82,17 @@ void trellis::Dump() {
   }
 }
 // ----------------------------------------------------------------------------------------
-double trellis::ending_viterbi_log_prob(size_t length) {  // NOTE this is the length of the sequence, so we return position length - 1
+double Trellis::ending_viterbi_log_prob(size_t length) {  // NOTE this is the length of the sequence, so we return position length - 1
   return viterbi_log_probs_.at(length - 1);
 }
 
 // ----------------------------------------------------------------------------------------
-double trellis::ending_forward_log_prob(size_t length) {  // NOTE this is the length of the sequence, so we return position length - 1
+double Trellis::ending_forward_log_prob(size_t length) {  // NOTE this is the length of the sequence, so we return position length - 1
   return forward_log_probs_.at(length - 1);
 }
 
 // ----------------------------------------------------------------------------------------
-void trellis::MiddleViterbiVals(vector<double> *scoring_previous, vector<double> *scoring_current, bitset<STATE_MAX> &current_states, bitset<STATE_MAX> &next_states, size_t position) {
+void Trellis::MiddleViterbiVals(vector<double> *scoring_previous, vector<double> *scoring_current, bitset<STATE_MAX> &current_states, bitset<STATE_MAX> &next_states, size_t position) {
   for(size_t i_st_current = 0; i_st_current < hmm_->n_states(); ++i_st_current) {
     if(!current_states[i_st_current])  // check if transition to this state is allowed from any state through which we passed at the previous position
       continue;
@@ -116,7 +116,7 @@ void trellis::MiddleViterbiVals(vector<double> *scoring_previous, vector<double>
 }
 
 // ----------------------------------------------------------------------------------------
-void trellis::MiddleForwardVals(vector<double> *scoring_previous, vector<double> *scoring_current, bitset<STATE_MAX> &current_states, bitset<STATE_MAX> &next_states, size_t position) {
+void Trellis::MiddleForwardVals(vector<double> *scoring_previous, vector<double> *scoring_current, bitset<STATE_MAX> &current_states, bitset<STATE_MAX> &next_states, size_t position) {
   for(size_t i_st_current = 0; i_st_current < hmm_->n_states(); ++i_st_current) {
     if(!current_states[i_st_current])  // check if transition to this state is allowed from any state through which we passed at the previous position
       continue;
@@ -137,7 +137,7 @@ void trellis::MiddleForwardVals(vector<double> *scoring_previous, vector<double>
 }
 
 // ----------------------------------------------------------------------------------------
-void trellis::SwapColumns(vector<double> *&scoring_previous, vector<double> *&scoring_current, bitset<STATE_MAX> &current_states, bitset<STATE_MAX> &next_states) {
+void Trellis::SwapColumns(vector<double> *&scoring_previous, vector<double> *&scoring_current, bitset<STATE_MAX> &current_states, bitset<STATE_MAX> &next_states) {
   // swap <scoring_current> and <scoring_previous>, and set <scoring_current> values to -INFINITY
   swap_ptr_ = scoring_previous;
   scoring_previous = scoring_current;
@@ -152,7 +152,7 @@ void trellis::SwapColumns(vector<double> *&scoring_previous, vector<double> *&sc
 }
 
 // ----------------------------------------------------------------------------------------
-void trellis::CacheViterbiVals(size_t position, double dpval, size_t i_st_current) {
+void Trellis::CacheViterbiVals(size_t position, double dpval, size_t i_st_current) {
   double end_trans_val = hmm_->state(i_st_current)->end_transition_logprob();
   double logprob = dpval + end_trans_val;
   if(logprob > viterbi_log_probs_[position]) {
@@ -162,14 +162,14 @@ void trellis::CacheViterbiVals(size_t position, double dpval, size_t i_st_curren
 }
 
 // ----------------------------------------------------------------------------------------
-void trellis::CacheForwardVals(size_t position, double dpval, size_t i_st_current) {
+void Trellis::CacheForwardVals(size_t position, double dpval, size_t i_st_current) {
   double end_trans_val = hmm_->state(i_st_current)->end_transition_logprob();
   double logprob = dpval + end_trans_val;
   forward_log_probs_[position] = AddInLogSpace(logprob, forward_log_probs_[position]);
 }
 
 // ----------------------------------------------------------------------------------------
-void trellis::Viterbi() {
+void Trellis::Viterbi() {
   // initialize stored values for chunk caching
   assert(viterbi_log_probs_.size() == 0);  // you can't be too careful
   assert(viterbi_pointers_.size() == 0);
@@ -237,7 +237,7 @@ void trellis::Viterbi() {
 }
 
 // ----------------------------------------------------------------------------------------
-void trellis::Forward() {
+void Trellis::Forward() {
   // initialize stored values for chunk caching
   assert(forward_log_probs_.size() == 0);  // you can't be too careful
   forward_log_probs_.resize(seqs_.GetSequenceLength(), -INFINITY);
@@ -291,7 +291,7 @@ void trellis::Forward() {
 }
 
 // ----------------------------------------------------------------------------------------
-void trellis::Traceback(TracebackPath& path) {
+void Trellis::Traceback(TracebackPath& path) {
   assert(seqs_.GetSequenceLength() != 0);
   assert(path.model());
   path.set_model(hmm_);

@@ -17,13 +17,13 @@ typedef vector<vector<float> > float_2D;
 typedef vector<vector<double> > double_2D;
 
 // ----------------------------------------------------------------------------------------
-class trellis {
+class Trellis {
 public:
-  trellis(Model *hmm, Sequence seq, trellis *cached_trellis = nullptr);
-  trellis(Model *hmm, Sequences seqs, trellis *cached_trellis = nullptr);
+  Trellis(Model *hmm, Sequence seq, Trellis *cached_trellis = nullptr);
+  Trellis(Model *hmm, Sequences seqs, Trellis *cached_trellis = nullptr);
   void Init();
-  trellis();
-  ~trellis();
+  Trellis();
+  ~Trellis();
 
   Model *model() { return hmm_; }
   double ending_viterbi_log_prob() { return ending_viterbi_log_prob_; }
@@ -62,7 +62,7 @@ private:
   int_2D *traceback_table_pointer_;  // if we have a cached trellis, this points to the cached trellis's table
   int_2D traceback_table_;  // if we have a cached trellis, this isn't initialized
 
-  trellis *cached_trellis_;  // pointer to another trellis that already has its dp table(s) filled in, the idea being this trellis only needs a subset of that table, so we don't need to calculate anything new for this one
+  Trellis *cached_trellis_;  // pointer to another trellis that already has its dp table(s) filled in, the idea being this trellis only needs a subset of that table, so we don't need to calculate anything new for this one
 
   int16_t ending_viterbi_pointer_;
   double  ending_viterbi_log_prob_;

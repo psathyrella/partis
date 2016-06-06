@@ -165,7 +165,7 @@ void DPHandler::PrintCachedTrellisSize() {
     string gene(kv_a.first);
     for(auto &kv_b : cachefo_[gene]) {
       vector<string> cached_query_strs(kv_b.first);
-      trellis ts(kv_b.second.trellis_);
+      Trellis ts(kv_b.second.trellis_);
       for(auto &str : cached_query_strs)
 	str_bytes += sizeof(string::value_type) * str.size();
       tr_bytes += ts.ApproxBytesUsed();
@@ -180,7 +180,7 @@ void DPHandler::PrintCachedTrellisSize() {
 void DPHandler::FillTrellis(Sequences query_seqs, vector<string> query_strs, string gene, string &origin) {
   Model *model(hmms_.Get(gene, args_->debug()));
 
-  trellis *cached_trellis(nullptr);
+  Trellis *cached_trellis(nullptr);
   if(!args_->no_chunk_cache()) {   // figure out if we've already got a trellis with a dp table which includes the one we're about to calculate (we should, unless this is the first kset)
     for(auto &kv : cachefo_[gene]) {  // there might be a more efficient way to loop through this, but I don't spend a lot of time in this function anyway
       vector<string> cached_query_strs(kv.first);
@@ -212,7 +212,7 @@ void DPHandler::FillTrellis(Sequences query_seqs, vector<string> query_strs, str
   cachefo_[gene][query_strs] = CacheFo(model, query_seqs, cached_trellis);
 
   // run the actual dp algorithms
-  trellis *trell = &cachefo_[gene][query_strs].trellis_; // convenience pointer
+  Trellis *trell = &cachefo_[gene][query_strs].trellis_; // convenience pointer
   double uncorrected_score;  // still need to tack on the gene choice prob to this score
   if(algorithm_ == "viterbi") {
     trell->Viterbi();
