@@ -6,7 +6,7 @@ env = Environment(ENV=os.environ)
 env.Append(CPPFLAGS =  ['-Ofast', '-Wall', '-std=c++0x'])  # '-pg', '-g', 
 env.Append(LINKFLAGS = ['-Ofast', '-std=c++0x'])           # '-pg', '-g', 
 env.Append(CPPPATH = ['../include'])
-env.Append(CPPDEFINES={'STATE_MAX':'1024', 'SIZE_MAX':'\(\(size_t\)-1\)', 'UINT16_MAX':'65535', 'PI':'3.1415926535897932', 'EPS':'1e-6'})  # maybe reduce the state max to something reasonable?
+env.Append(CPPDEFINES={'STATE_MAX':'500', 'SIZE_MAX':'\(\(size_t\)-1\)', 'PI':'3.1415926535897932', 'EPS':'1e-6'})  # maybe reduce the state max to something reasonable?
 
 binary_names = ['bcrham', 'hample']
 
