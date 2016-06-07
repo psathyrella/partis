@@ -50,7 +50,6 @@ class MuteFreqer(object):
         self.min_candidate_ratio = 2.25  # every candidate ratio must be greater than this
         self.max_non_candidate_ratio = 2.  # first non-candidate has to be smaller than this
         self.positions_to_skip = {}  # we work out which positions not bother fitting in finalize_allele_finding(), but then need to propagate that information to the plotting function
-        self.new_allele_fname = 'new-alleles.fa'
 
     # ----------------------------------------------------------------------------------------
     def increment(self, info):
@@ -184,7 +183,7 @@ class MuteFreqer(object):
         gene_results = {'not_enough_obs_to_fit' : set(), 'didnt_find_anything_with_fit' : set(), 'new_allele' : set()}
         if debug:
             print '\nlooking for new alleles:'
-        for gene in self.counts:
+        for gene in sorted(self.counts):
             if utils.get_region(gene) != 'v':
                 continue
             if debug:
@@ -199,7 +198,7 @@ class MuteFreqer(object):
                 if debug:
                     print '          not enough positions with enough observations to fit %s' % utils.color_gene(gene)
                     continue
-            if debug:
+            if debug and len(positions) > len(positions_to_fit):
                 print '          skipping %d / %d positions (with fewer than %d mutations and %d observations)' % (len(positions) - len(positions_to_fit), len(positions), self.n_muted_min, self.n_total_min)
 
             for pos in positions_to_fit:
@@ -383,12 +382,14 @@ class MuteFreqer(object):
             self.mean_rates[region].write(mean_freq_outfname.replace('REGION', region))
 
         if self.args.find_new_alleles:
+            if self.args.new_allele_fname is None:
+                self.args.new_allele_fname = outdir + '/new-alleles.fa'
             if len(self.new_alleles) > 0:
-                print '  writing %d new %s to %s' % (len(self.new_alleles), utils.plural_str('allele', len(self.new_alleles)), outdir + '/' + self.new_allele_fname)
-            with open(outdir + '/' + self.new_allele_fname, 'w') as outfile:
+                print '  writing %d new %s to %s' % (len(self.new_alleles), utils.plural_str('allele', len(self.new_alleles)), self.args.new_allele_fname)
+            with open(self.args.new_allele_fname, 'w') as outfile:
                 for gene in self.new_alleles:
                     for new_seq in self.new_alleles[gene]:
-                        outfile.write('>%s\n' % gene.replace(utils.allele(gene), str(abs(hash(new_seq)))))
+                        outfile.write('>%s\n' % gene.replace(utils.allele(gene), utils.get_new_allele_name(self.germline_seqs, gene, new_seq)))
                         outfile.write('%s\n' % new_seq)
 
     # ----------------------------------------------------------------------------------------

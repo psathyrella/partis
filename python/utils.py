@@ -2356,3 +2356,7 @@ def add_in_log_space(first, second):
         return first + math.log(1 + math.exp(second - first))
     else:
         return second + math.log(1 + math.exp(first - second))
+
+# ----------------------------------------------------------------------------------------
+def get_new_allele_name(germline_seqs, gene, new_seq):
+    return str(abs(hash(new_seq)))
