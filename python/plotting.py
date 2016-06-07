@@ -1012,7 +1012,7 @@ def mpl_init(figsize=None, fontsize=20):
     return fig, ax
 
 # ----------------------------------------------------------------------------------------
-def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=None, ybounds=None, leg_loc=(0.04, 0.6), log='', xticks=None, xticklabels=None, no_legend=False, adjust=None):
+def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=None, ybounds=None, leg_loc=(0.04, 0.6), log='', xticks=None, xticklabels=None, no_legend=False, adjust=None, suffix='svg'):
     if 'seaborn' not in sys.modules:
         import seaborn  # really #$*$$*!ing slow to import, but only importing part of it doesn't seem to help
     # xticks[0] = 0.000001
@@ -1041,9 +1041,10 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
     if not os.path.exists(plotdir):
         os.makedirs(plotdir)
 
-    plt.savefig(plotdir + '/' + plotname + '.svg')
+    fullname = plotdir + '/' + plotname + '.' + suffix
+    plt.savefig(fullname)
     plt.close()
-    check_call(['chmod', '664', plotdir + '/' + plotname + '.svg'])
+    check_call(['chmod', '664', fullname])
 
 # ----------------------------------------------------------------------------------------
 def plot_cluster_similarity_matrix(plotdir, plotname, meth1, partition1, meth2, partition2, n_biggest_clusters, title='', debug=False):
@@ -1144,15 +1145,4 @@ def make_allele_finding_plot(plotdir, gene, position, values):
     # ax.plot([0] + values['n_mutelist'], linevals)
 
     ax.plot([xmin, xmax], [0, 0], linestyle='dashed', alpha=0.5, color='black')
-    mpl_finish(ax, plotdir, str(position), xlabel='mutations in %s segment' % utils.get_region(gene), ylabel='position\'s mut freq', xbounds=(xmin, xmax), ybounds=(-0.1, 1.05), leg_loc=(0.95, 0.1), adjust={'right' : 0.85})
-
-# # ----------------------------------------------------------------------------------------
-# def make_tigger_plot(gene, freqs, positions_of_interest, plotdir, plotname):
-#     fig, ax = mpl_init()
-#     for position in freqs:
-#         # if position not in positions_of_interest:
-#         #     continue
-#         info = freqs[position]['tigger']
-#         ax.plot(info.keys(), info.values(), markersize=10, linewidth=1, marker='.', label=str(position))
-#     # plt.gcf().subplots_adjust(right=0.75)
-#     mpl_finish(ax, plotdir, plotname, xlabel='mutations in %s segment' % utils.get_region(gene), ylabel='position\'s mut freq', xbounds=(0, 20), ybounds=(0, 1.05), leg_loc=(0.8, 0.1))
+    mpl_finish(ax, plotdir, str(position), xlabel='mutations in %s segment' % utils.get_region(gene), ylabel='position\'s mut freq', xbounds=(xmin, xmax), ybounds=(-0.1, 1.05), leg_loc=(0.95, 0.1), adjust={'right' : 0.85}, suffix='png')

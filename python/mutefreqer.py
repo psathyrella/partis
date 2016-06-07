@@ -399,11 +399,13 @@ class MuteFreqer(object):
         if utils.get_region(gene) != 'v':
             return
         utils.prep_dir(plotdir, multilings=('*.csv', '*.svg'))
+        start = time.time()
         for position in self.freqs[gene]:
             if position in self.positions_to_skip[gene]:
                 continue
             if 'allele-finding' in self.freqs[gene][position] and self.freqs[gene][position]['allele-finding'] is not None:
                 plotting.make_allele_finding_plot(plotdir, gene, position, self.freqs[gene][position]['allele-finding'])
+        print '      allele finding plot time: %.1f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
     def plot(self, base_plotdir, cyst_positions=None, tryp_positions=None, only_csv=False):
@@ -416,6 +418,12 @@ class MuteFreqer(object):
         for region in utils.regions:
             utils.prep_dir(plotdir + '/' + region, multilings=('*.csv', '*.svg'))
             # utils.prep_dir(plotdir + '/' + region + '-per-base/plots', multilings=('*.csv', '*.png'))
+
+        if self.args.find_new_alleles:
+            for gene in self.freqs:
+                self.allele_finding_plot(gene, plotdir + '/allele-finding/' + utils.sanitize_name(gene), only_csv)
+            if self.args.only_plot_new_alleles:
+                return
 
         for gene in self.freqs:
             freqs = self.freqs[gene]
@@ -437,9 +445,6 @@ class MuteFreqer(object):
             plotting.draw_no_root(genehist, plotdir=plotdir + '/' + utils.get_region(gene), plotname=utils.sanitize_name(gene), errors=True, write_csv=True, xline=xline, figsize=figsize, only_csv=only_csv)
             # per-base plots:
             # paramutils.make_mutefreq_plot(plotdir + '/' + utils.get_region(gene) + '-per-base', utils.sanitize_name(gene), plotting_info)  # needs translation to mpl
-
-            if self.args.find_new_alleles:
-                self.allele_finding_plot(gene, plotdir + '/allele-finding/' + utils.sanitize_name(gene), only_csv)
 
         # make mean mute freq hists
         plotting.draw_no_root(self.mean_rates['all'], plotname='all-mean-freq', plotdir=overall_plotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True, only_csv=only_csv)

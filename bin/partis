@@ -234,6 +234,7 @@ subargs = {subname : [] for subname in subconfig}
 subargs['cache-parameters'].append({'name' : '--find-new-alleles', 'kwargs' : {'action' : 'store_true', 'help' : 'look for new alleles (separated only by snps from existing alleles)'}})
 subargs['cache-parameters'].append({'name' : '--new-allele-fname', 'kwargs' : {'help' : 'fasta fname to which to write any new alleles (default is set in mutefreqer.py, so that it can be put in the parameter-dir)'}})
 subargs['cache-parameters'].append({'name' : '--debug-new-allele-finding', 'kwargs' : {'action' : 'store_true', 'help' : 'print lots of debug info on new allele fits'}})
+subargs['cache-parameters'].append({'name' : '--only-plot-new-alleles', 'kwargs' : {'action' : 'store_true', 'help' : 'dont\'t make the other parameter plots'}})
 
 subargs['partition'].append({'name' : '--naive-hamming', 'kwargs' : {'action' : 'store_true', 'help' : 'agglomerate purely with naive hamming distance, i.e. set the low and high preclustering bounds to the same value'}})
 subargs['partition'].append({'name' : '--naive-vsearch', 'kwargs' : {'action' : 'store_true', 'help' : 'Very fast clustering: infer naive (unmutated ancestor) for each input sequence, then toss it all into vsearch. But, of course, not as accurate as the slower methods.'}})

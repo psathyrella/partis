@@ -111,6 +111,11 @@ class ParameterCounter(object):
 
         overall_plotdir = plotdir + '/overall'
         utils.prep_dir(overall_plotdir)  #, multilings=('*.csv', '*.svg'))
+
+        self.mutefreqer.plot(plotdir, cyst_positions, tryp_positions, only_csv=only_csv)  #, mean_freq_outfname=base_outdir + '/REGION-mean-mute-freqs.csv')  # REGION is replace by each region in the three output files
+        if self.args.only_plot_new_alleles:
+            return
+
         for column in self.counts:
             if column == 'all':
                 continue
@@ -158,8 +163,6 @@ class ParameterCounter(object):
             plotname = column
             hist = plotting.make_hist_from_dict_of_counts(values, var_type, plotname, sort=True)
             plotting.draw_no_root(hist, plotname=plotname, plotdir=overall_plotdir, errors=True, write_csv=True, only_csv=only_csv)
-
-        self.mutefreqer.plot(plotdir, cyst_positions, tryp_positions, only_csv=only_csv)  #, mean_freq_outfname=base_outdir + '/REGION-mean-mute-freqs.csv')  # REGION is replace by each region in the three output files
 
         if not only_csv:
             plotting.make_html(plotdir)
