@@ -20,6 +20,15 @@ from hist import Hist
 from opener import opener
 
 # ----------------------------------------------------------------------------------------
+def fstr(fval):
+    if fval < 10:
+        return '%.2f' % fval
+    elif fval < 1e4:
+        return '%.0f.' % fval
+    else:
+        return '%.0e' % fval
+
+# ----------------------------------------------------------------------------------------
 class MuteFreqer(object):
     def __init__(self, germline_seqs, args, calculate_uncertainty=True):
         self.germline_seqs = germline_seqs
@@ -159,26 +168,74 @@ class MuteFreqer(object):
         return {'obs' : obs, 'total' : total, 'n_mutelist' : n_mutelist, 'freqs' : freqs, 'errs' : errs, 'weights' : weights}
 
     # ----------------------------------------------------------------------------------------
-    def is_a_candidate(self, istart, score, min_snp_ratios, first_non_snp_ratios):
+    def is_a_candidate(self, score, min_snp_ratio, max_non_snp_ratio):
         if score < self.min_score:  # last snp candidate has to be a lot better than the first non-snp
             return False
-        if min_snp_ratios[istart] < self.min_candidate_ratio:  # last snp candidate has to be pretty good on its own
+        if min_snp_ratio < self.min_candidate_ratio:  # last snp candidate has to be pretty good on its own
             return False
-        if first_non_snp_ratios[istart] > self.min_candidate_ratio:  # first non-snp candidate has to be pretty bad on its own
+        if max_non_snp_ratio > self.min_candidate_ratio:  # first non-snp candidate has to be pretty bad on its own
             return False
 
         return True
 
     # ----------------------------------------------------------------------------------------
-    def finalize_allele_finding(self, debug=False):
-        def fstr(fval):
-            if fval < 10:
-                return '%.2f' % fval
-            elif fval < 1e4:
-                return '%.0f.' % fval
-            else:
-                return '%.0e' % fval
+    def fit_istart(self, gene, istart, positions_to_try_to_fit, subxyvals, fitfo, debug=False):
+        residuals = {}
+        for pos in positions_to_try_to_fit:
+            # skip positions that are too close to the 5' end of V (misassigned insertions look like snps)
+            if pos > len(self.germline_seqs[utils.get_region(gene)][gene]) - self.n_five_prime_positions_to_exclude - 1:
+                continue
 
+            # as long as we already have a few non-candidate positions, skip positions that have no frequencies greater than the min y intercept (note that they could in principle still have a large y intercept, but we don't really care)
+            if len(residuals) > istart + self.min_non_candidate_positions_to_fit and len([f for f in subxyvals[pos]['freqs'] if f > self.min_y_intercept]) == 0:
+                continue
+
+            if sum(subxyvals[pos]['total']) < self.n_total_min:
+                continue
+
+            # also skip positions that only have a few points to fit (i.e. genes that were very rare, or I guess maybe if they were always eroded past this position)
+            if len(subxyvals[pos]['n_mutelist']) < 3:
+                continue
+
+            zero_icpt_fit = self.get_curvefit(pos, subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['errs'], y_icpt_bounds=(0. - self.small_number, 0. + self.small_number))
+            big_icpt_fit = self.get_curvefit(pos, subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['errs'], y_icpt_bounds=self.big_y_icpt_bounds)
+
+            residuals[pos] = {'zero_icpt' : zero_icpt_fit['residuals_over_ndof'], 'big_icpt' : big_icpt_fit['residuals_over_ndof']}
+
+            self.fitted_positions[gene].add(pos)  # if we already did the fit for another <istart>, it'll already be in there
+
+        if len(residuals) <= istart:  # needs to be at least one longer, so we have the first-non-snp
+            if debug:
+                print '      not enough observations to fit more than %d snps' % (istart - 1)
+            return
+
+        residual_ratios = {pos : float('inf') if r['big_icpt'] == 0. else r['zero_icpt'] / r['big_icpt'] for pos, r in residuals.items()}
+        sorted_ratios = sorted(residual_ratios.items(), key=operator.itemgetter(1), reverse=True)  # sort the positions in decreasing order of residual ratio
+        candidate_snps = [pos for pos, _ in sorted_ratios[:istart]]  # the first <istart> positions are the "candidate snps"
+        max_non_snp, max_non_snp_ratio = sorted_ratios[istart]  # position and ratio for largest non-candidate
+        min_candidate_ratio = min([residual_ratios[cs] for cs in candidate_snps])
+        if max_non_snp_ratio == 0.:
+            print '      resetting first non-snp ratio  %.3f --> %.3f for %s' % (max_non_snp_ratio, self.small_number, utils.color_gene(gene))
+            max_non_snp_ratio = self.small_number
+        fitfo['scores'][istart] = (min_candidate_ratio - max_non_snp_ratio) / max_non_snp_ratio
+        fitfo['min_snp_ratios'][istart] = min([residual_ratios[cs] for cs in candidate_snps])
+        fitfo['max_non_snp_ratios'][istart] = max_non_snp_ratio
+        fitfo['candidates'][istart] = {cp : residual_ratios[cp] for cp in candidate_snps}
+
+        if debug:
+            for pos in candidate_snps + [max_non_snp, ]:
+                xtrastrs = ('[', ']') if pos == max_non_snp else (' ', ' ')
+                pos_str = '%3s' % str(pos)
+                if residual_ratios[pos] > self.min_candidate_ratio:
+                    pos_str = utils.color('yellow', pos_str)
+                print '               %s %s    %5s   (%5s / %-5s)       %3d / %3d %s' % (xtrastrs[0], pos_str, fstr(residual_ratios[pos]),
+                                                                                       fstr(residuals[pos]['zero_icpt']), fstr(residuals[pos]['big_icpt']),
+                                                                                       sum(subxyvals[pos]['obs']), sum(subxyvals[pos]['total']), xtrastrs[1])
+
+            print '            %38s score: %-5s = (%-5s - %5s) / %-5s' % ('', fstr(fitfo['scores'][istart]), fstr(min_candidate_ratio), fstr(max_non_snp_ratio), fstr(max_non_snp_ratio))
+
+    # ----------------------------------------------------------------------------------------
+    def finalize_allele_finding(self, debug=False):
         start = time.time()
         gene_results = {'not_enough_obs_to_fit' : set(), 'didnt_find_anything_with_fit' : set(), 'new_allele' : set()}
         if debug:
@@ -213,64 +270,13 @@ class MuteFreqer(object):
                     print '  %d %s' % (istart, utils.plural_str('snp', istart))
 
                 subxyvals = {pos : {k : v[istart:] for k, v in xyvals[pos].items()} for pos in positions_to_try_to_fit}
-
-                residuals = {}
-                for pos in positions_to_try_to_fit:
-                    # skip positions that are too close to the 5' end of V (misassigned insertions look like snps)
-                    if pos > len(self.germline_seqs[utils.get_region(gene)][gene]) - self.n_five_prime_positions_to_exclude - 1:
-                        continue
-
-                    # as long as we already have a few non-candidate positions, skip positions that have no frequencies greater than the min y intercept (note that they could in principle still have a large y intercept, but we don't really care)
-                    if len(residuals) > istart + self.min_non_candidate_positions_to_fit and len([f for f in subxyvals[pos]['freqs'] if f > self.min_y_intercept]) == 0:
-                        continue
-
-                    if sum(subxyvals[pos]['total']) < self.n_total_min:
-                        continue
-
-                    # also skip positions that only have a few points to fit (i.e. genes that were very rare, or I guess maybe if they were always eroded past this position)
-                    if len(subxyvals[pos]['n_mutelist']) < 3:
-                        continue
-
-                    zero_icpt_fit = self.get_curvefit(pos, subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['errs'], y_icpt_bounds=(0. - self.small_number, 0. + self.small_number))
-                    big_icpt_fit = self.get_curvefit(pos, subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['errs'], y_icpt_bounds=self.big_y_icpt_bounds)
-
-                    residuals[pos] = {'zero_icpt' : zero_icpt_fit['residuals_over_ndof'], 'big_icpt' : big_icpt_fit['residuals_over_ndof']}
-
-                    self.fitted_positions[gene].add(pos)  # if we fitted for another <istart>, it'll already be in there
-
-                if len(residuals) <= istart:  # needs to be at least one longer, so we have the first-non-snp
-                    if debug:
-                        print '      not enough observations to fit more than %d snps' % (istart - 1)
+                self.fit_istart(gene, istart, positions_to_try_to_fit, subxyvals, fitfo, debug=debug)
+                if istart not in fitfo['scores']:  # if it didn't get filled, we didn't have enough observations to do the fit
                     break
-                residual_ratios = {pos : float('inf') if r['big_icpt'] == 0. else r['zero_icpt'] / r['big_icpt'] for pos, r in residuals.items()}
-                sorted_ratios = sorted(residual_ratios.items(), key=operator.itemgetter(1), reverse=True)  # sort the positions in decreasing order of residual ratio
-                candidate_snps = [pos for pos, _ in sorted_ratios[:istart]]  # the first <istart> positions are the candidate snps
-                first_non_snp, _ = sorted_ratios[istart]
-                min_of_candidates = min([residual_ratios[cs] for cs in candidate_snps])
-                first_non_snp_ratio = residual_ratios[first_non_snp]
-                if first_non_snp_ratio == 0.:
-                    print '      resetting first non-snp ratio  %.3f --> %.3f for %s' % (first_non_snp_ratio, self.small_number, utils.color_gene(gene))
-                    first_non_snp_ratio = self.small_number
-                fitfo['scores'][istart] = (min_of_candidates - first_non_snp_ratio) / first_non_snp_ratio
-                fitfo['min_snp_ratios'][istart] = min([residual_ratios[cs] for cs in candidate_snps])
-                fitfo['max_non_snp_ratios'][istart] = first_non_snp_ratio
-                fitfo['candidates'][istart] = {cp : residual_ratios[cp] for cp in candidate_snps}
-
-                if debug:
-                    for pos in candidate_snps + [first_non_snp, ]:
-                        xtrastrs = ('[', ']') if pos == first_non_snp else (' ', ' ')
-                        pos_str = '%3s' % str(pos)
-                        if residual_ratios[pos] > self.min_candidate_ratio:
-                            pos_str = utils.color('yellow', pos_str)
-                        print '               %s %s    %5s   (%5s / %-5s)       %3d / %3d %s' % (xtrastrs[0], pos_str, fstr(residual_ratios[pos]),
-                                                                                               fstr(residuals[pos]['zero_icpt']), fstr(residuals[pos]['big_icpt']),
-                                                                                               sum(subxyvals[pos]['obs']), sum(subxyvals[pos]['total']), xtrastrs[1])
-
-                    print '            %38s score: %-5s = (%-5s - %5s) / %-5s' % ('', fstr(fitfo['scores'][istart]), fstr(min_of_candidates), fstr(first_non_snp_ratio), fstr(first_non_snp_ratio))
 
             n_candidate_snps = None
             for istart, score in sorted(fitfo['scores'].items(), key=operator.itemgetter(1), reverse=True):
-                if n_candidate_snps is None and self.is_a_candidate(istart, score, fitfo['min_snp_ratios'], fitfo['max_non_snp_ratios']):  # take the biggest score that satisfies the various criteria
+                if n_candidate_snps is None and self.is_a_candidate(score, fitfo['min_snp_ratios'][istart], fitfo['max_non_snp_ratios'][istart]):  # take the biggest score that satisfies the various criteria
                     n_candidate_snps = istart
                     break
 
