@@ -42,14 +42,14 @@ class MuteFreqer(object):
         self.n_muted_min = 15  # don't fit positions that have fewer mutations than this
         self.n_total_min = 15  # ...or fewer total observations than this
         self.n_five_prime_positions_to_exclude = 5  # skip positions that are too close to the 5' end of V (misassigned insertions look like snps)
-        self.min_non_candidate_positions_to_fit = 5  # always fit at least a few non-candidate positions
+        self.min_non_candidate_positions_to_fit = 10  # always fit at least a few non-candidate positions
         self.min_y_intercept = 0.3  # roughly speaking, use this as the boundary between snp and non-snp positions
         self.default_slope_bounds = (-0.2, 0.2)  # fitting function needs some reasonable bounds from which to start
         self.big_y_icpt_bounds = (self.min_y_intercept, 1.5)  # snp-candidate positions should fit well when forced to use these bounds, but non-snp positions should fit like &*@!*
         self.min_score = 2  # (mean ratio over snp candidates) - (first non-candidate ratio) must be greater than this
         self.min_candidate_ratio = 2.25  # every candidate ratio must be greater than this
         self.max_non_candidate_ratio = 2.  # first non-candidate has to be smaller than this
-        self.positions_to_skip = {}  # we work out which positions not bother fitting in finalize_allele_finding(), but then need to propagate that information to the plotting function
+        self.fitted_positions = {}  # positions that, for any <istart>, we have fit info
 
     # ----------------------------------------------------------------------------------------
     def increment(self, info):
@@ -191,17 +191,17 @@ class MuteFreqer(object):
 
             positions = sorted(self.counts[gene].keys())
             xyvals = {pos : self.get_allele_finding_xyvals(pos, self.counts[gene][pos]) for pos in positions}
-            positions_to_fit = [pos for pos in positions if sum(xyvals[pos]['obs']) > self.n_muted_min or sum(xyvals[pos]['total']) > self.n_total_min]  # ignore positions with neither enough mutations or total observations
-            self.positions_to_skip[gene] = set(positions) - set(positions_to_fit)  # NOTE these are the positions that we want to skip for *every* <istart>
-            if len(positions_to_fit) < self.n_max_snps - 1 + self.min_non_candidate_positions_to_fit:
+            positions_to_try_to_fit = [pos for pos in positions if sum(xyvals[pos]['obs']) > self.n_muted_min or sum(xyvals[pos]['total']) > self.n_total_min]  # ignore positions with neither enough mutations or total observations
+            self.fitted_positions[gene] = set()
+            if len(positions_to_try_to_fit) < self.n_max_snps - 1 + self.min_non_candidate_positions_to_fit:
                 gene_results['not_enough_obs_to_fit'].add(gene)
                 if debug:
                     print '          not enough positions with enough observations to fit %s' % utils.color_gene(gene)
                     continue
-            if debug and len(positions) > len(positions_to_fit):
-                print '          skipping %d / %d positions (with fewer than %d mutations and %d observations)' % (len(positions) - len(positions_to_fit), len(positions), self.n_muted_min, self.n_total_min)
+            if debug and len(positions) > len(positions_to_try_to_fit):
+                print '          skipping %d / %d positions (with fewer than %d mutations and %d observations)' % (len(positions) - len(positions_to_try_to_fit), len(positions), self.n_muted_min, self.n_total_min)
 
-            for pos in positions_to_fit:
+            for pos in positions_to_try_to_fit:
                 self.freqs[gene][pos]['allele-finding'] = xyvals[pos]
 
             scores, min_snp_ratios, first_non_snp_ratios, candidates = {}, {}, {}, {}
@@ -212,10 +212,10 @@ class MuteFreqer(object):
                         print '             position   ratio   (m=0 / m>%5.2f)       muted / obs ' % self.big_y_icpt_bounds[0]
                     print '  %d %s' % (istart, utils.plural_str('snp', istart))
 
-                subxyvals = {pos : {k : v[istart:] for k, v in xyvals[pos].items()} for pos in positions_to_fit}
+                subxyvals = {pos : {k : v[istart:] for k, v in xyvals[pos].items()} for pos in positions_to_try_to_fit}
 
                 residuals = {}
-                for pos in positions_to_fit:
+                for pos in positions_to_try_to_fit:
                     # skip positions that are too close to the 5' end of V (misassigned insertions look like snps)
                     if pos > len(self.germline_seqs[utils.get_region(gene)][gene]) - self.n_five_prime_positions_to_exclude - 1:
                         continue
@@ -235,6 +235,8 @@ class MuteFreqer(object):
                     big_icpt_fit = self.get_curvefit(pos, subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['errs'], y_icpt_bounds=self.big_y_icpt_bounds)
 
                     residuals[pos] = {'zero_icpt' : zero_icpt_fit['residuals_over_ndof'], 'big_icpt' : big_icpt_fit['residuals_over_ndof']}
+
+                    self.fitted_positions[gene].add(pos)  # if we fitted for another <istart>, it'll already be in there
 
                 if len(residuals) <= istart:  # needs to be at least one longer, so we have the first-non-snp
                     if debug:
@@ -401,10 +403,11 @@ class MuteFreqer(object):
         utils.prep_dir(plotdir, multilings=('*.csv', '*.svg'))
         start = time.time()
         for position in self.freqs[gene]:
-            if position in self.positions_to_skip[gene]:
+            if position not in self.fitted_positions[gene]:  # we can make plots for the positions we didn't fit, but there's a *lot* of them and they're slow
                 continue
-            if 'allele-finding' in self.freqs[gene][position] and self.freqs[gene][position]['allele-finding'] is not None:
-                plotting.make_allele_finding_plot(plotdir, gene, position, self.freqs[gene][position]['allele-finding'])
+            if 'allele-finding' not in self.freqs[gene][position] or self.freqs[gene][position]['allele-finding'] is None:
+                continue
+            plotting.make_allele_finding_plot(plotdir, gene, position, self.freqs[gene][position]['allele-finding'])
         print '      allele finding plot time: %.1f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
