@@ -204,7 +204,7 @@ class MuteFreqer(object):
             for pos in positions_to_try_to_fit:
                 self.freqs[gene][pos]['allele-finding'] = xyvals[pos]
 
-            scores, min_snp_ratios, first_non_snp_ratios, candidates = {}, {}, {}, {}
+            fitfo = {n : {} for n in ('scores', 'min_snp_ratios', 'max_non_snp_ratios', 'candidates')}
             for istart in range(1, self.n_max_snps):
                 if debug:
                     if istart == 1:
@@ -251,10 +251,10 @@ class MuteFreqer(object):
                 if first_non_snp_ratio == 0.:
                     print '      resetting first non-snp ratio  %.3f --> %.3f for %s' % (first_non_snp_ratio, self.small_number, utils.color_gene(gene))
                     first_non_snp_ratio = self.small_number
-                scores[istart] = (min_of_candidates - first_non_snp_ratio) / first_non_snp_ratio
-                min_snp_ratios[istart] = min([residual_ratios[cs] for cs in candidate_snps])
-                first_non_snp_ratios[istart] = first_non_snp_ratio
-                candidates[istart] = {cp : residual_ratios[cp] for cp in candidate_snps}
+                fitfo['scores'][istart] = (min_of_candidates - first_non_snp_ratio) / first_non_snp_ratio
+                fitfo['min_snp_ratios'][istart] = min([residual_ratios[cs] for cs in candidate_snps])
+                fitfo['max_non_snp_ratios'][istart] = first_non_snp_ratio
+                fitfo['candidates'][istart] = {cp : residual_ratios[cp] for cp in candidate_snps}
 
                 if debug:
                     for pos in candidate_snps + [first_non_snp, ]:
@@ -266,19 +266,19 @@ class MuteFreqer(object):
                                                                                                fstr(residuals[pos]['zero_icpt']), fstr(residuals[pos]['big_icpt']),
                                                                                                sum(subxyvals[pos]['obs']), sum(subxyvals[pos]['total']), xtrastrs[1])
 
-                    print '            %38s score: %-5s = (%-5s - %5s) / %-5s' % ('', fstr(scores[istart]), fstr(min_of_candidates), fstr(first_non_snp_ratio), fstr(first_non_snp_ratio))
+                    print '            %38s score: %-5s = (%-5s - %5s) / %-5s' % ('', fstr(fitfo['scores'][istart]), fstr(min_of_candidates), fstr(first_non_snp_ratio), fstr(first_non_snp_ratio))
 
             n_candidate_snps = None
-            for istart, score in sorted(scores.items(), key=operator.itemgetter(1), reverse=True):
-                if n_candidate_snps is None and self.is_a_candidate(istart, score, min_snp_ratios, first_non_snp_ratios):  # take the biggest score that satisfies the various criteria
+            for istart, score in sorted(fitfo['scores'].items(), key=operator.itemgetter(1), reverse=True):
+                if n_candidate_snps is None and self.is_a_candidate(istart, score, fitfo['min_snp_ratios'], fitfo['max_non_snp_ratios']):  # take the biggest score that satisfies the various criteria
                     n_candidate_snps = istart
                     break
 
             if debug:
                 print '\n  fit results for each snp hypothesis:'
                 print '    snps      score       min snp     max non-snp'
-                for istart, score in sorted(scores.items(), key=operator.itemgetter(1), reverse=True):
-                    print_str = '    %2d     %9s   %9s   %9s' % (istart, fstr(score), fstr(min_snp_ratios[istart]), fstr(first_non_snp_ratios[istart]))
+                for istart, score in sorted(fitfo['scores'].items(), key=operator.itemgetter(1), reverse=True):
+                    print_str = '    %2d     %9s   %9s   %9s' % (istart, fstr(score), fstr(fitfo['min_snp_ratios'][istart]), fstr(fitfo['max_non_snp_ratios'][istart]))
                     if istart == n_candidate_snps:
                         print_str = utils.color('red', print_str)
                     print print_str
@@ -290,7 +290,7 @@ class MuteFreqer(object):
                 # figure out what the new nukes are
                 old_seq = self.germline_seqs[utils.get_region(gene)][gene]
                 new_seq = old_seq
-                for pos in sorted(candidates[n_candidate_snps]):
+                for pos in sorted(fitfo['candidates'][n_candidate_snps]):
                     obs_freqs = {nuke : self.freqs[gene][pos][nuke] for nuke in utils.nukes}
                     sorted_obs_freqs = sorted(obs_freqs.items(), key=operator.itemgetter(1), reverse=True)
                     original_nuke = self.counts[gene][pos]['gl_nuke']
