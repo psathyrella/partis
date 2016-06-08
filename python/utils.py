@@ -247,9 +247,10 @@ def rewrite_germline_fasta(input_dir, output_dir, only_genes=None, snps_to_add=N
     # color_mutants(input_germlines['v']['IGHV1-18*01'], input_germlines['v']['IGHV1-18*04'], print_result=True, extra_str='          ')
     # sys.exit()
 
-    if snps_to_add is not None:  # if of form {'IGHV3-71*01' : (35, None)}, will add a snp at position 35 and at a random location
-        for gene in snps_to_add:
-            print '    adding %d snps to %s' % (len(snps_to_add[gene]), gene)
+    if snps_to_add is not None:  # if of form [{'gene' : 'IGHV3-71*01', 'positions' : (35, None)}, ], will add a snp at position 35 and at a random location
+        for snpinfo in snps_to_add:
+            gene, positions = snpinfo['gene'], snpinfo['positions']
+            print '    adding %d snps to %s' % (len(positions), gene)
             snp_positions = set()
             seq = input_germlines[get_region(gene)][gene]
             aligned_seq = input_aligned_genes[get_region(gene)][gene]
@@ -262,7 +263,7 @@ def rewrite_germline_fasta(input_dir, output_dir, only_genes=None, snps_to_add=N
                     tmpseq = seq[: snp_pos] + 'X' + seq[snp_pos + 1 :]  # for checking cyst position
                 return snp_pos
 
-            for snp_pos in snps_to_add[gene]:
+            for snp_pos in positions:
                 if snp_pos is None:
                     snp_pos = choose_position()
                 snp_positions.add(snp_pos)

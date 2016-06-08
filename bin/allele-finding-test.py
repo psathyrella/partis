@@ -37,12 +37,15 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
     else:
         plotdir = '_www/partis/allele-finding/' + label
 
-    snps_to_add = None  # {'IGHV3-71*01' : 4}
+    snps_to_add = [
+        {'gene' : 'IGHV3-71*01', 'positions' : (30, 40)},
+        {'gene' : 'IGHV3-71*01', 'positions' : (35, 45)}
+    ]
     simulation_genes = simulation_v_genes + ':' + dj_genes
     utils.rewrite_germline_fasta('data/imgt', outdir + '/germlines-for-simulation', only_genes=simulation_genes.split(':'), snps_to_add=snps_to_add, rename_snpd_genes=True)
 
     # simulate
-    cmd_str = base_cmd + ' simulate --n-sim-events 250 --n-procs 10 --simulate-partially-from-scratch --mutation-multiplier 0.5'
+    cmd_str = base_cmd + ' simulate --n-sim-events 5000 --n-procs 10 --simulate-partially-from-scratch --mutation-multiplier 0.5'
     cmd_str += ' --datadir ' + outdir + '/germlines-for-simulation'
     cmd_str += ' --outfname ' + simfname
     if seed is not None:
@@ -65,8 +68,8 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
 
 seed = None  # 1
 dj_genes = 'IGHD6-19*01:IGHJ4*02'
-inference_v_genes = 'IGHV3-71*03' #1-18*04
-simulation_v_genes = inference_v_genes + ':IGHV3-71*01'  # 1-18*01
+inference_v_genes = 'IGHV3-71*01'  #:IGHV1-18*04'
+simulation_v_genes = inference_v_genes  # + ':IGHV3-71*02:IGHV3-71*03'  #:IGHV1-18*01'
 
 run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=seed)
 sys.exit()
@@ -74,6 +77,11 @@ sys.exit()
 # utils.rewrite_germline_fasta('data/imgt', '_tmp/gltest')
 
 glfo = utils.read_germline_set('data/imgt')
+print glfo['seqs']['v']['IGHV3-71*01']
+print utils.color_mutants(glfo['seqs']['v']['IGHV3-71*01'], glfo['seqs']['v']['IGHV3-71*02'])
+print utils.color_mutants(glfo['seqs']['v']['IGHV3-71*01'], glfo['seqs']['v']['IGHV3-71*03'])
+sys.exit()
+
 allelic_groups = utils.separate_into_allelic_groups(glfo['seqs'])
 for gene in allelic_groups['v']['1']['69']:
     print glfo['seqs']['v'][gene]
