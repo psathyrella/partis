@@ -178,6 +178,27 @@ class MuteFreqer(object):
 
         return True
 
+
+    # ----------------------------------------------------------------------------------------
+    def get_positions_to_fit(self, gene, debug=False):
+        self.fitted_positions[gene] = set()
+
+        positions = sorted(self.counts[gene].keys())
+        xyvals = {pos : self.get_allele_finding_xyvals(pos, self.counts[gene][pos]) for pos in positions}
+        positions_to_try_to_fit = [pos for pos in positions if sum(xyvals[pos]['obs']) > self.n_muted_min or sum(xyvals[pos]['total']) > self.n_total_min]  # ignore positions with neither enough mutations or total observations
+        if len(positions_to_try_to_fit) < self.n_max_snps - 1 + self.min_non_candidate_positions_to_fit:
+            gene_results['not_enough_obs_to_fit'].add(gene)
+            if debug:
+                print '          not enough positions with enough observations to fit %s' % utils.color_gene(gene)
+                return None, None
+        if debug and len(positions) > len(positions_to_try_to_fit):
+            print '          skipping %d / %d positions (with fewer than %d mutations and %d observations)' % (len(positions) - len(positions_to_try_to_fit), len(positions), self.n_muted_min, self.n_total_min)
+
+        for pos in positions_to_try_to_fit:
+            self.freqs[gene][pos]['allele-finding'] = xyvals[pos]
+
+        return positions_to_try_to_fit, xyvals
+
     # ----------------------------------------------------------------------------------------
     def fit_istart(self, gene, istart, positions_to_try_to_fit, subxyvals, fitfo, debug=False):
         residuals = {}
@@ -214,10 +235,8 @@ class MuteFreqer(object):
         candidate_snps = [pos for pos, _ in sorted_ratios[:istart]]  # the first <istart> positions are the "candidate snps"
         max_non_snp, max_non_snp_ratio = sorted_ratios[istart]  # position and ratio for largest non-candidate
         min_candidate_ratio = min([residual_ratios[cs] for cs in candidate_snps])
-        if max_non_snp_ratio == 0.:
-            print '      resetting first non-snp ratio  %.3f --> %.3f for %s' % (max_non_snp_ratio, self.small_number, utils.color_gene(gene))
-            max_non_snp_ratio = self.small_number
-        fitfo['scores'][istart] = (min_candidate_ratio - max_non_snp_ratio) / max_non_snp_ratio
+
+        fitfo['scores'][istart] = (min_candidate_ratio - max_non_snp_ratio) / max(self.small_number, max_non_snp_ratio)
         fitfo['min_snp_ratios'][istart] = min([residual_ratios[cs] for cs in candidate_snps])
         fitfo['max_non_snp_ratios'][istart] = max_non_snp_ratio
         fitfo['candidates'][istart] = {cp : residual_ratios[cp] for cp in candidate_snps}
@@ -246,20 +265,9 @@ class MuteFreqer(object):
             if debug:
                 print '\n%s (observed %d %s)' % (utils.color_gene(gene), self.gene_obs_counts[gene], utils.plural_str('time', self.gene_obs_counts[gene]))
 
-            positions = sorted(self.counts[gene].keys())
-            xyvals = {pos : self.get_allele_finding_xyvals(pos, self.counts[gene][pos]) for pos in positions}
-            positions_to_try_to_fit = [pos for pos in positions if sum(xyvals[pos]['obs']) > self.n_muted_min or sum(xyvals[pos]['total']) > self.n_total_min]  # ignore positions with neither enough mutations or total observations
-            self.fitted_positions[gene] = set()
-            if len(positions_to_try_to_fit) < self.n_max_snps - 1 + self.min_non_candidate_positions_to_fit:
-                gene_results['not_enough_obs_to_fit'].add(gene)
-                if debug:
-                    print '          not enough positions with enough observations to fit %s' % utils.color_gene(gene)
-                    continue
-            if debug and len(positions) > len(positions_to_try_to_fit):
-                print '          skipping %d / %d positions (with fewer than %d mutations and %d observations)' % (len(positions) - len(positions_to_try_to_fit), len(positions), self.n_muted_min, self.n_total_min)
-
-            for pos in positions_to_try_to_fit:
-                self.freqs[gene][pos]['allele-finding'] = xyvals[pos]
+            positions_to_try_to_fit, xyvals = self.get_positions_to_fit(gene, debug=debug)
+            if positions_to_try_to_fit is None:
+                continue
 
             fitfo = {n : {} for n in ('scores', 'min_snp_ratios', 'max_non_snp_ratios', 'candidates')}
             for istart in range(1, self.n_max_snps):
