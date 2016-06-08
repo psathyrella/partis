@@ -38,14 +38,16 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
         plotdir = '_www/partis/allele-finding/' + label
 
     snps_to_add = [
-        {'gene' : 'IGHV3-71*01', 'positions' : (30, 40)},
-        {'gene' : 'IGHV3-71*01', 'positions' : (35, 45)}
+        {'gene' : 'IGHV3-71*01', 'positions' : (35, )},
+        {'gene' : 'IGHV3-71*01', 'positions' : (35, 45, 50)},
+        {'gene' : 'IGHV3-71*01', 'positions' : (100, 101)},
+        {'gene' : 'IGHV3-71*01', 'positions' : (80, 180)},
     ]
     simulation_genes = simulation_v_genes + ':' + dj_genes
     utils.rewrite_germline_fasta('data/imgt', outdir + '/germlines-for-simulation', only_genes=simulation_genes.split(':'), snps_to_add=snps_to_add, rename_snpd_genes=True)
 
     # simulate
-    cmd_str = base_cmd + ' simulate --n-sim-events 5000 --n-procs 10 --simulate-partially-from-scratch --mutation-multiplier 0.5'
+    cmd_str = base_cmd + ' simulate --n-sim-events 2000 --n-procs 10 --simulate-partially-from-scratch --mutation-multiplier 0.5'
     cmd_str += ' --datadir ' + outdir + '/germlines-for-simulation'
     cmd_str += ' --outfname ' + simfname
     if seed is not None:

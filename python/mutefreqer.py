@@ -43,7 +43,7 @@ class MuteFreqer(object):
         self.n_total_min = 15  # ...or fewer total observations than this
         self.n_five_prime_positions_to_exclude = 5  # skip positions that are too close to the 5' end of V (misassigned insertions look like snps)
         self.min_non_candidate_positions_to_fit = 10  # always fit at least a few non-candidate positions
-        self.min_y_intercept = 0.3  # roughly speaking, use this as the boundary between snp and non-snp positions
+        self.min_y_intercept = 0.15  # corresponds, roughly, to the expression level of the least common allele to which we have sensitivity
         self.default_slope_bounds = (-0.2, 0.2)  # fitting function needs some reasonable bounds from which to start
         self.big_y_icpt_bounds = (self.min_y_intercept, 1.5)  # snp-candidate positions should fit well when forced to use these bounds, but non-snp positions should fit like &*@!*
         self.min_score = 2  # (mean ratio over snp candidates) - (first non-candidate ratio) must be greater than this
