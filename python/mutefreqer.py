@@ -46,7 +46,7 @@ class MuteFreqer(object):
         # allele finding stuff
         self.new_alleles = {}
         self.small_number = 1e-5
-        self.n_max_mutations_per_segment = 20  # don't look a v segments that have more than this many mutations
+        self.n_max_mutations_per_segment = 14 # 20  # don't look at sequences whose v segments have more than this many mutations
         self.n_max_snps = self.n_max_mutations_per_segment - 9  # try excluding up to this many bins (on the left) when doing the fit (leaves at least 9 points for fit)
         self.n_muted_min = 15  # don't fit positions that have fewer mutations than this
         self.n_total_min = 15  # ...or fewer total observations than this
@@ -56,8 +56,8 @@ class MuteFreqer(object):
         self.default_slope_bounds = (-0.2, 0.2)  # fitting function needs some reasonable bounds from which to start
         self.big_y_icpt_bounds = (self.min_y_intercept, 1.5)  # snp-candidate positions should fit well when forced to use these bounds, but non-snp positions should fit like &*@!*
         self.min_score = 2  # (mean ratio over snp candidates) - (first non-candidate ratio) must be greater than this
-        self.min_candidate_ratio = 2.25  # every candidate ratio must be greater than this
-        self.max_non_candidate_ratio = 2.  # first non-candidate has to be smaller than this
+        self.min_min_candidate_ratio = 2.25  # every candidate ratio must be greater than this
+        # self.max_non_candidate_ratio = 2.  # first non-candidate has to be smaller than this
         self.fitted_positions = {}  # positions that, for any <istart>, we have fit info
 
     # ----------------------------------------------------------------------------------------
@@ -169,12 +169,12 @@ class MuteFreqer(object):
 
     # ----------------------------------------------------------------------------------------
     def is_a_candidate(self, score, min_snp_ratio, max_non_snp_ratio):
-        if score < self.min_score:  # last snp candidate has to be a lot better than the first non-snp
+        # if score < self.min_score:  # last snp candidate has to be a lot better than the first non-snp
+        #     return False
+        if min_snp_ratio < self.min_min_candidate_ratio:  # worst snp candidate has to be pretty good on its own
             return False
-        if min_snp_ratio < self.min_candidate_ratio:  # last snp candidate has to be pretty good on its own
-            return False
-        if max_non_snp_ratio > self.min_candidate_ratio:  # first non-snp candidate has to be pretty bad on its own
-            return False
+        # if max_non_snp_ratio > self.min_min_candidate_ratio:  # first non-snp candidate has to be pretty bad on its own
+        #     return False
 
         return True
 
@@ -245,13 +245,39 @@ class MuteFreqer(object):
             for pos in candidate_snps + [max_non_snp, ]:
                 xtrastrs = ('[', ']') if pos == max_non_snp else (' ', ' ')
                 pos_str = '%3s' % str(pos)
-                if residual_ratios[pos] > self.min_candidate_ratio:
+                if residual_ratios[pos] > self.min_min_candidate_ratio:
                     pos_str = utils.color('yellow', pos_str)
                 print '               %s %s    %5s   (%5s / %-5s)       %3d / %3d %s' % (xtrastrs[0], pos_str, fstr(residual_ratios[pos]),
                                                                                        fstr(residuals[pos]['zero_icpt']), fstr(residuals[pos]['big_icpt']),
                                                                                        sum(subxyvals[pos]['obs']), sum(subxyvals[pos]['total']), xtrastrs[1])
 
             print '            %38s score: %-5s = (%-5s - %5s) / %-5s' % ('', fstr(fitfo['scores'][istart]), fstr(min_candidate_ratio), fstr(max_non_snp_ratio), fstr(max_non_snp_ratio))
+
+    # ----------------------------------------------------------------------------------------
+    def add_new_allele(self, gene, fitfo, n_candidate_snps, debug=False):
+        # figure out what the new nukes are
+        old_seq = self.germline_seqs[utils.get_region(gene)][gene]
+        new_seq = old_seq
+        for pos in sorted(fitfo['candidates'][n_candidate_snps]):
+            obs_freqs = {nuke : self.freqs[gene][pos][nuke] for nuke in utils.nukes}
+            sorted_obs_freqs = sorted(obs_freqs.items(), key=operator.itemgetter(1), reverse=True)
+            original_nuke = self.counts[gene][pos]['gl_nuke']
+            new_nuke = None
+            for nuke, freq in sorted_obs_freqs:  # take the most common one that isn't the existing gl nuke
+                if nuke != original_nuke:
+                    new_nuke = nuke
+                    break
+            print '   %3d  (%s --> %s)' % (pos, original_nuke, new_nuke),
+            assert old_seq[pos] == original_nuke
+            new_seq = new_seq[:pos] + new_nuke + new_seq[pos+1:]
+        print ''
+        print '          %s   %s' % (old_seq, utils.color_gene(gene))
+        print '          %s   %s' % (utils.color_mutants(old_seq, new_seq), utils.color('yellow', 'new'))
+
+        # and add it to the set of new alleles for this gene
+        if gene not in self.new_alleles:
+            self.new_alleles[gene] = set()
+        self.new_alleles[gene].add(new_seq)
 
     # ----------------------------------------------------------------------------------------
     def finalize_allele_finding(self, debug=False):
@@ -282,47 +308,26 @@ class MuteFreqer(object):
                 if istart not in fitfo['scores']:  # if it didn't get filled, we didn't have enough observations to do the fit
                     break
 
-            n_candidate_snps = None
+            istart_candidates = []
             for istart, score in sorted(fitfo['scores'].items(), key=operator.itemgetter(1), reverse=True):
-                if n_candidate_snps is None and self.is_a_candidate(score, fitfo['min_snp_ratios'][istart], fitfo['max_non_snp_ratios'][istart]):  # take the biggest score that satisfies the various criteria
-                    n_candidate_snps = istart
-                    break
+                if self.is_a_candidate(score, fitfo['min_snp_ratios'][istart], fitfo['max_non_snp_ratios'][istart]):
+                    istart_candidates.append(istart)
 
-            if debug:
-                print '\n  fit results for each snp hypothesis:'
-                print '    snps      score       min snp     max non-snp'
-                for istart, score in sorted(fitfo['scores'].items(), key=operator.itemgetter(1), reverse=True):
-                    print_str = '    %2d     %9s   %9s   %9s' % (istart, fstr(score), fstr(fitfo['min_snp_ratios'][istart]), fstr(fitfo['max_non_snp_ratios'][istart]))
-                    if istart == n_candidate_snps:
-                        print_str = utils.color('red', print_str)
-                    print print_str
+            # if debug:
+            #     print '\n  fit results for each snp hypothesis:'
+            #     print '    snps      score       min snp     max non-snp'
+            #     for istart, score in sorted(fitfo['scores'].items(), key=operator.itemgetter(1), reverse=True):
+            #         print_str = '    %2d     %9s   %9s   %9s' % (istart, fstr(score), fstr(fitfo['min_snp_ratios'][istart]), fstr(fitfo['max_non_snp_ratios'][istart]))
+            #         if istart == n_candidate_snps:
+            #             print_str = utils.color('red', print_str)
+            #         print print_str
 
-            if n_candidate_snps is not None:
+            if len(istart_candidates) > 0:
+                n_candidate_snps = min(istart_candidates)  # add the candidate with the smallest number of snps to the germline set, and run again (if the firs 
                 gene_results['new_allele'].add(gene)
                 print '\n    found a new allele candidate separated from %s by %d %s at %s:' % (utils.color_gene(gene), n_candidate_snps,
                                                                                                 utils.plural_str('snp', n_candidate_snps), utils.plural_str('position', n_candidate_snps)),
-                # figure out what the new nukes are
-                old_seq = self.germline_seqs[utils.get_region(gene)][gene]
-                new_seq = old_seq
-                for pos in sorted(fitfo['candidates'][n_candidate_snps]):
-                    obs_freqs = {nuke : self.freqs[gene][pos][nuke] for nuke in utils.nukes}
-                    sorted_obs_freqs = sorted(obs_freqs.items(), key=operator.itemgetter(1), reverse=True)
-                    original_nuke = self.counts[gene][pos]['gl_nuke']
-                    new_nuke = None
-                    for nuke, freq in sorted_obs_freqs:  # take the most common one that isn't the existing gl nuke
-                        if nuke != original_nuke:
-                            new_nuke = nuke
-                            break
-                    print '   %3d  (%s --> %s)' % (pos, original_nuke, new_nuke),
-                    assert old_seq[pos] == original_nuke
-                    new_seq = new_seq[:pos] + new_nuke + new_seq[pos+1:]
-                print ''
-                print '          %s   %s' % (old_seq, utils.color_gene(gene))
-                print '          %s   %s' % (utils.color_mutants(old_seq, new_seq), utils.color('yellow', 'new'))
-                if gene not in self.new_alleles:
-                    self.new_alleles[gene] = set()
-                self.new_alleles[gene].add(new_seq)
-
+                self.add_new_allele(gene, fitfo, n_candidate_snps, debug=debug)
             else:
                 gene_results['didnt_find_anything_with_fit'].add(gene)
                 if debug:
