@@ -231,30 +231,40 @@ def get_parameter_fname(column=None, deps=None, column_and_deps=None):
 def rewrite_germline_fasta(input_dir, output_dir, only_genes=None, snps_to_add=None, rename_snpd_genes=False):
     """ rewrite the germline set files in <input_dir> to <output_dir>, only keeping the genes in <only_genes> """
     print '    rewriting germlines from %s to %s' % (input_dir, output_dir),
-    if only_genes is not None:
-        print '(using %d genes)' % len(only_genes),
-    print ''
     glfo = read_germline_set(input_dir)
     input_germlines = glfo['seqs']
     input_aligned_genes = glfo['aligned-genes']
     expected_files = []  # list of files that we write here -- if anything else is in the output dir, we barf
 
+    if only_genes is not None:
+        for gene in only_genes:
+            if gene not in glfo['seqs'][get_region(gene)]:
+                raise Exception('%s specified in <only_genes>, but not available in %s' % (color_gene(gene), input_dir))
+        print '(using %d genes)' % len(only_genes),
+    print ''
+
     # color_mutants(input_germlines['v']['IGHV1-18*01'], input_germlines['v']['IGHV1-18*03'], print_result=True, extra_str='          ')
     # color_mutants(input_germlines['v']['IGHV1-18*01'], input_germlines['v']['IGHV1-18*04'], print_result=True, extra_str='          ')
     # sys.exit()
 
-    if snps_to_add is not None:
+    if snps_to_add is not None:  # if of form {'IGHV3-71*01' : (35, None)}, will add a snp at position 35 and at a random location
         for gene in snps_to_add:
-            print '    adding %d snps to %s' % (snps_to_add[gene], gene)
+            print '    adding %d snps to %s' % (len(snps_to_add[gene]), gene)
             snp_positions = set()
             seq = input_germlines[get_region(gene)][gene]
             aligned_seq = input_aligned_genes[get_region(gene)][gene]
             cpos = glfo['cyst-positions'][gene]
-            for _ in range(snps_to_add[gene]):
+
+            def choose_position():
                 snp_pos = None
                 while snp_pos is None or snp_pos in snp_positions or not check_conserved_cysteine(tmpseq, cpos, debug=True, assert_on_fail=False):
                     snp_pos = random.randint(10, len(seq) - 15)  # note that randint() is inclusive
                     tmpseq = seq[: snp_pos] + 'X' + seq[snp_pos + 1 :]  # for checking cyst position
+                return snp_pos
+
+            for snp_pos in snps_to_add[gene]:
+                if snp_pos is None:
+                    snp_pos = choose_position()
                 snp_positions.add(snp_pos)
                 new_base = None
                 while new_base is None or new_base == seq[snp_pos]:
@@ -1157,7 +1167,7 @@ def add_missing_alignments(glfo, debug=False):
                 n_dashes = len(alignment_to_use) - len(seq)
                 glfo['aligned-genes'][region][gene] = n_dashes * '-' + seq  # just hack a bunch of dashes on the left
 
-    if len(missing_genes) > 0 and os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
+    if debug and len(missing_genes) > 0 and os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
         print '   adding nonsense alignments for missing genes %s' % ' '.join([color_gene(g) for g in missing_genes])
 
 # ----------------------------------------------------------------------------------------
