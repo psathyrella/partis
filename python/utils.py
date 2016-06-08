@@ -231,7 +231,7 @@ def get_parameter_fname(column=None, deps=None, column_and_deps=None):
 def add_some_snps(snps_to_add, gene, glfo, only_genes, rename_snpd_genes):
     for snpinfo in snps_to_add:
         gene, positions = snpinfo['gene'], snpinfo['positions']
-        print '    adding %d snps to %s' % (len(positions), gene)
+        print '    adding %d %s to %s' % (len(positions), plural_str('snp', len(positions)), gene)
         snp_positions = set()
         seq = glfo['seqs'][get_region(gene)][gene]
         aligned_seq = glfo['aligned-genes'][get_region(gene)][gene]
@@ -301,7 +301,7 @@ def add_new_allele(glfo, newfo, only_genes):
     print '    %s   %s' % (color_mutants(glfo['seqs'][region][template_gene], newfo['seq']), color_gene(new_gene))
 
 # ----------------------------------------------------------------------------------------
-def rewrite_germline_fasta(input_dir, output_dir, only_genes=None, snps_to_add=None, rename_snpd_genes=False, new_alleles=None):
+def rewrite_germline_fasta(input_dir, output_dir, only_genes=None, snps_to_add=None, rename_snpd_genes=False, new_alleles=None, new_allele_fname=None):
     """ rewrite the germline set files in <input_dir> to <output_dir>, only keeping the genes in <only_genes> """
     print '    rewriting germlines from %s to %s' % (input_dir, output_dir),
     glfo = read_germline_set(input_dir)
@@ -315,6 +315,21 @@ def rewrite_germline_fasta(input_dir, output_dir, only_genes=None, snps_to_add=N
 
     if snps_to_add is not None:  # e.g. [{'gene' : 'IGHV3-71*01', 'positions' : (35, None)}, ] will add a snp at position 35 and at a random location
         add_some_snps(snps_to_add, gene, glfo, only_genes, rename_snpd_genes)
+
+    if new_allele_fname is not None:
+        assert new_alleles is None  # can't yet handle both at the same time
+        new_alleles = []
+        for seq_record in SeqIO.parse(new_allele_fname, 'fasta'):
+            gene_name = seq_record.name.split('|')[0]
+            seq_str = str(seq_record.seq).upper()
+            assert '+' in gene_name
+            template_gene = gene_name.split('+')[0]  # e.g. IGHV3-71*01+C159T.G180A
+            new_alleles.append({
+                'template-gene' : template_gene,
+                'gene' : gene_name,
+                'seq' : seq_str,
+                'aligned-seq' : None
+            })
 
     if new_alleles is not None:  # e.g. [{'template-gene' : 'IGHV3-71*01', 'new-seq' : 'ACGTCCCCGT...'}, ]
         for new_allele_info in new_alleles:
@@ -2383,5 +2398,12 @@ def add_in_log_space(first, second):
         return second + math.log(1 + math.exp(first - second))
 
 # ----------------------------------------------------------------------------------------
-def get_new_allele_name(germline_seqs, gene, new_seq):
-    return str(abs(hash(new_seq)))
+def get_mutfo_str(mutfo):
+    return_str_list = []
+    for pos, info in mutfo.items():
+        return_str_list.append(info['original'] + str(pos) + info['new'])
+    return '.'.join(return_str_list)
+
+# ----------------------------------------------------------------------------------------
+def get_new_allele_name(template_gene, mutfo, new_seq):
+    return template_gene + '+' + get_mutfo_str(mutfo)

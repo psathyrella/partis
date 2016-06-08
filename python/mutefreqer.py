@@ -30,9 +30,10 @@ def fstr(fval):
 
 # ----------------------------------------------------------------------------------------
 class MuteFreqer(object):
-    def __init__(self, germline_seqs, args, calculate_uncertainty=True):
+    def __init__(self, germline_seqs, args, datadir=None, calculate_uncertainty=True):  # do *not* use args.datadir
         self.germline_seqs = germline_seqs
         self.args = args
+        self.datadir = datadir  # do *not* use args.datadir
         self.calculate_uncertainty = calculate_uncertainty
         self.counts, self.freqs = {}, {}
         n_bins, xmin, xmax = 200, 0., 1.
@@ -44,7 +45,7 @@ class MuteFreqer(object):
         self.gene_obs_counts = {}
 
         # allele finding stuff
-        self.new_alleles = {}
+        self.new_allele_info = {}
         self.small_number = 1e-5
         self.n_max_mutations_per_segment = 14 # 20  # don't look at sequences whose v segments have more than this many mutations
         self.n_max_snps = self.n_max_mutations_per_segment - 9  # try excluding up to this many bins (on the left) when doing the fit (leaves at least 9 points for fit)
@@ -258,6 +259,7 @@ class MuteFreqer(object):
         # figure out what the new nukes are
         old_seq = self.germline_seqs[utils.get_region(gene)][gene]
         new_seq = old_seq
+        mutfo = {}
         for pos in sorted(fitfo['candidates'][n_candidate_snps]):
             obs_freqs = {nuke : self.freqs[gene][pos][nuke] for nuke in utils.nukes}
             sorted_obs_freqs = sorted(obs_freqs.items(), key=operator.itemgetter(1), reverse=True)
@@ -269,15 +271,23 @@ class MuteFreqer(object):
                     break
             print '   %3d  (%s --> %s)' % (pos, original_nuke, new_nuke),
             assert old_seq[pos] == original_nuke
+            mutfo[pos] = {'original' : original_nuke, 'new' : new_nuke}
             new_seq = new_seq[:pos] + new_nuke + new_seq[pos+1:]
+
+        new_name = utils.get_new_allele_name(gene, mutfo, new_seq)
         print ''
         print '          %s   %s' % (old_seq, utils.color_gene(gene))
-        print '          %s   %s' % (utils.color_mutants(old_seq, new_seq), utils.color('yellow', 'new'))
+        print '          %s   %s' % (utils.color_mutants(old_seq, new_seq), new_name)
 
         # and add it to the set of new alleles for this gene
-        if gene not in self.new_alleles:
-            self.new_alleles[gene] = set()
-        self.new_alleles[gene].add(new_seq)
+        if gene not in self.new_allele_info:
+            self.new_allele_info[gene] = []
+        self.new_allele_info[gene].append({
+            'template-gene' : gene,
+            'gene' : new_name,
+            'seq' : new_seq,
+            'aligned-seq' : None
+        })
 
     # ----------------------------------------------------------------------------------------
     def finalize_allele_finding(self, debug=False):
@@ -332,6 +342,16 @@ class MuteFreqer(object):
                 gene_results['didnt_find_anything_with_fit'].add(gene)
                 if debug:
                     print '  no new alleles'
+        # for template_gene, new_alleles in self.new_allele_infoXXX.items():
+        #     for new_seq in new_alleles:
+        #         allelefo = [{
+        #             'template-gene' : template_gene,
+        #             'gene' : utils.get_new_allele_name(self.germline_seqs, template_gene, new_seq),
+        #             'seq' : new_seq,
+        #             'aligned-seq' : None
+        #         }, ]
+        #         utils.rewrite_germline_fasta(self.datadir, self.datadir, new_alleles=allelefo)  # do *not* use self.args.datadir
+
         if debug:
             print 'found new alleles for %d %s (there were also %d without new alleles, and %d without enough observations to fit)' % (len(gene_results['new_allele']), utils.plural_str('gene', len(gene_results['new_allele'])),
                                                                                                                                        len(gene_results['didnt_find_anything_with_fit']), len(gene_results['not_enough_obs_to_fit']))
@@ -405,13 +425,14 @@ class MuteFreqer(object):
         if self.args.find_new_alleles:
             if self.args.new_allele_fname is None:
                 self.args.new_allele_fname = outdir + '/new-alleles.fa'
-            if len(self.new_alleles) > 0:
-                print '  writing %d new %s to %s' % (len(self.new_alleles), utils.plural_str('allele', len(self.new_alleles)), self.args.new_allele_fname)
+            if len(self.new_allele_info) > 0:
+                n_new_alleles = sum([len(self.new_allele_info[g]) for g in self.new_allele_info])
+                print '  writing %d new %s to %s' % (n_new_alleles, utils.plural_str('allele', n_new_alleles), self.args.new_allele_fname)
             with open(self.args.new_allele_fname, 'w') as outfile:
-                for gene in self.new_alleles:
-                    for new_seq in self.new_alleles[gene]:
-                        outfile.write('>%s\n' % gene.replace(utils.allele(gene), utils.get_new_allele_name(self.germline_seqs, gene, new_seq)))
-                        outfile.write('%s\n' % new_seq)
+                for gene in self.new_allele_info:
+                    for allele_info in self.new_allele_info[gene]:
+                        outfile.write('>%s\n' % allele_info['gene'])
+                        outfile.write('%s\n' % allele_info['seq'])
 
     # ----------------------------------------------------------------------------------------
     def allele_finding_plot(self, gene, plotdir, only_csv=False):

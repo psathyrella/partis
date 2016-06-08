@@ -34,13 +34,6 @@ class Waterer(object):
 
         self.reco_info = reco_info
         self.glfo = glfo
-        self.pcounter, self.true_pcounter, self.perfplotter = None, None, None
-        if write_parameters:
-            self.pcounter = ParameterCounter(self.glfo['seqs'], self.args)
-            if not self.args.is_data:
-                self.true_pcounter = ParameterCounter(self.glfo['seqs'], self.args)
-        if self.args.plot_performance:
-            self.perfplotter = PerformancePlotter(self.glfo['seqs'], 'sw')
         self.info = {}
         self.info['queries'] = []  # list of queries that *passed* sw, i.e. for which we have information
         self.info['all_best_matches'] = set()  # set of all the matches we found (for *all* queries)
@@ -63,6 +56,14 @@ class Waterer(object):
         if self.genes_to_use is not None:
             self.my_datadir = self.args.workdir + '/germline-sets'
             self.rewritten_files = utils.rewrite_germline_fasta(self.args.datadir, self.my_datadir, self.genes_to_use)
+
+        self.pcounter, self.true_pcounter, self.perfplotter = None, None, None
+        if write_parameters:
+            self.pcounter = ParameterCounter(self.glfo['seqs'], self.args, datadir=self.my_datadir)
+            if not self.args.is_data:
+                self.true_pcounter = ParameterCounter(self.glfo['seqs'], self.args)
+        if self.args.plot_performance:
+            self.perfplotter = PerformancePlotter(self.glfo['seqs'], 'sw')
 
         if not os.path.exists(self.args.ighutil_dir + '/bin/vdjalign'):
             raise Exception('ERROR ighutil path d.n.e: ' + self.args.ighutil_dir + '/bin/vdjalign')
