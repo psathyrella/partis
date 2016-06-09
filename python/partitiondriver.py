@@ -130,7 +130,7 @@ class PartitionDriver(object):
         itry = 0
         while itry == 0 or len(self.sw_info['new-alleles']) > 0:
             self.run_waterer(parameter_dir, find_new_alleles=True)
-            utils.rewrite_germline_fasta(self.my_datadir, self.my_datadir, new_allele_info=self.sw_info['new-alleles'], remove_template_genes=(itry == 0))
+            utils.rewrite_germline_fasta(self.my_datadir, self.my_datadir, new_allele_info=self.sw_info['new-alleles'], remove_genes_with_string='TEMPLATE')
             self.glfo = utils.read_germline_set(self.my_datadir, alignment_dir=self.args.alignment_dir)
             itry += 1
 
