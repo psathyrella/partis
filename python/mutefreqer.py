@@ -85,12 +85,15 @@ class MuteFreqer(object):
             assert len(germline_seq) == len(query_seq)
             for ipos in range(len(germline_seq)):
                 igl = ipos + int(info[region + '_5p_del'])  # account for left-side deletions in the indexing
-                if germline_seq[ipos] in utils.ambiguous_bases or query_seq[ipos] in utils.ambiguous_bases:
+
+                if germline_seq[ipos] in utils.ambiguous_bases or query_seq[ipos] in utils.ambiguous_bases:  # skip if either germline or query sequence is ambiguous at this position
                     continue
+
                 if igl not in gcounts:  # if we have not yet observed this position in a query sequence, initialize it
                     gcounts[igl] = {n : 0 for n in utils.nukes + ['total', ]}
                     gcounts[igl]['gl_nuke'] = germline_seq[ipos]
                     gcounts[igl]['allele-finding'] = {}
+
                 gcounts[igl]['total'] += 1
                 gcounts[igl][query_seq[ipos]] += 1  # note that if <query_seq[ipos]> isn't among <utils.nukes>, this will toss a key error
 
@@ -99,10 +102,11 @@ class MuteFreqer(object):
                         gcounts[igl]['allele-finding'] = {}
                     if utils.get_region(gene) == 'v':
                         if n_mutes not in gcounts[igl]['allele-finding']:
-                            gcounts[igl]['allele-finding'][n_mutes] = {'muted' : 0, 'total' : 0}
+                            gcounts[igl]['allele-finding'][n_mutes] = {n : 0 for n in ['muted', 'total'] + utils.nukes}
                         gcounts[igl]['allele-finding'][n_mutes]['total'] += 1
                         if query_seq[ipos] != germline_seq[ipos]:  # if this position is mutated
                             gcounts[igl]['allele-finding'][n_mutes]['muted'] += 1  # mark that we saw this germline position mutated once in a sequence with <n_mutes> regional mutation frequency
+                        gcounts[igl]['allele-finding'][n_mutes][query_seq[ipos]] += 1  # only used to work out what the snp'd base is if there's a new allele
 
     # ----------------------------------------------------------------------------------------
     def get_uncertainty(self, obs, total):
@@ -261,11 +265,11 @@ class MuteFreqer(object):
         new_seq = old_seq
         mutfo = {}
         for pos in sorted(fitfo['candidates'][n_candidate_snps]):
-            obs_freqs = {nuke : self.freqs[gene][pos][nuke] for nuke in utils.nukes}
-            sorted_obs_freqs = sorted(obs_freqs.items(), key=operator.itemgetter(1), reverse=True)
+            obs_counts = {nuke : self.counts[gene][pos]['allele-finding'][n_candidate_snps][nuke] for nuke in utils.nukes}  # NOTE it's super important to only use the counts from sequences with <n_candidate_snps> total mutations
+            sorted_obs_counts = sorted(obs_counts.items(), key=operator.itemgetter(1), reverse=True)
             original_nuke = self.counts[gene][pos]['gl_nuke']
             new_nuke = None
-            for nuke, freq in sorted_obs_freqs:  # take the most common one that isn't the existing gl nuke
+            for nuke, count in sorted_obs_counts:  # take the most common one that isn't the existing gl nuke
                 if nuke != original_nuke:
                     new_nuke = nuke
                     break
