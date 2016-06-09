@@ -30,10 +30,9 @@ def fstr(fval):
 
 # ----------------------------------------------------------------------------------------
 class MuteFreqer(object):
-    def __init__(self, germline_seqs, args, datadir=None, calculate_uncertainty=True):  # do *not* use args.datadir
+    def __init__(self, germline_seqs, args, calculate_uncertainty=True):
         self.germline_seqs = germline_seqs
         self.args = args
-        self.datadir = datadir  # do *not* use args.datadir
         self.calculate_uncertainty = calculate_uncertainty
         self.counts, self.freqs = {}, {}
         n_bins, xmin, xmax = 200, 0., 1.
@@ -346,15 +345,6 @@ class MuteFreqer(object):
                 gene_results['didnt_find_anything_with_fit'].add(gene)
                 if debug:
                     print '  no new alleles'
-        # for template_gene, new_alleles in self.new_allele_infoXXX.items():
-        #     for new_seq in new_alleles:
-        #         allelefo = [{
-        #             'template-gene' : template_gene,
-        #             'gene' : utils.get_new_allele_name(self.germline_seqs, template_gene, new_seq),
-        #             'seq' : new_seq,
-        #             'aligned-seq' : None
-        #         }, ]
-        #         utils.rewrite_germline_fasta(self.datadir, self.datadir, new_alleles=allelefo)  # do *not* use self.args.datadir
 
         if debug:
             print 'found new alleles for %d %s (there were also %d without new alleles, and %d without enough observations to fit)' % (len(gene_results['new_allele']), utils.plural_str('gene', len(gene_results['new_allele'])),

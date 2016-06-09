@@ -52,14 +52,12 @@ class Waterer(object):
 
         # rewrite input germline sets (if needed)
         self.genes_to_use = genes_to_use  # if None, we use all of 'em. NOTE do *not* use self.args.only_genes in this file (see partitiondriver)
-        self.my_datadir = self.args.datadir  # make sure to use *only* use <self.my_datadir> elsewhere
-        if self.genes_to_use is not None:
-            self.my_datadir = self.args.workdir + '/germline-sets'
-            self.rewritten_files = utils.rewrite_germline_fasta(self.args.datadir, self.my_datadir, self.genes_to_use)
+        self.my_datadir = self.args.workdir + '/germline-sets'  # make sure to use *only* use <self.my_datadir> elsewhere in this file
+        self.rewritten_files = utils.rewrite_germline_fasta(self.args.datadir, self.my_datadir, self.genes_to_use)
 
         self.pcounter, self.true_pcounter, self.perfplotter = None, None, None
         if write_parameters:
-            self.pcounter = ParameterCounter(self.glfo['seqs'], self.args, datadir=self.my_datadir)
+            self.pcounter = ParameterCounter(self.glfo['seqs'], self.args)
             if not self.args.is_data:
                 self.true_pcounter = ParameterCounter(self.glfo['seqs'], self.args)
         if self.args.plot_performance:
