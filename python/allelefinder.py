@@ -28,7 +28,7 @@ class AlleleFinder(object):
         self.new_allele_info = []
 
         self.small_number = 1e-5
-        self.n_max_mutations_per_segment = 14 # 20  # don't look at sequences whose v segments have more than this many mutations
+        self.n_max_mutations_per_segment = 15 # 20  # don't look at sequences whose v segments have more than this many mutations
         self.n_max_snps = self.n_max_mutations_per_segment - 9  # try excluding up to this many bins (on the left) when doing the fit (leaves at least 9 points for fit)
         self.n_muted_min = 15  # don't fit positions that have fewer mutations than this
         self.n_total_min = 15  # ...or fewer total observations than this
