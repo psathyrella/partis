@@ -318,6 +318,7 @@ def rewrite_germline_fasta(input_dir, output_dir, only_genes=None, snps_to_add=N
 
     if new_allele_fname is not None:
         assert new_alleles is None  # can't yet handle both at the same time
+        print '        adding new alleles from %s' % new_allele_fname
         new_alleles = []
         for seq_record in SeqIO.parse(new_allele_fname, 'fasta'):
             gene_name = seq_record.name.split('|')[0]

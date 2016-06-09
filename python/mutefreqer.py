@@ -277,7 +277,7 @@ class MuteFreqer(object):
         new_name = utils.get_new_allele_name(gene, mutfo, new_seq)
         print ''
         print '          %s   %s' % (old_seq, utils.color_gene(gene))
-        print '          %s   %s' % (utils.color_mutants(old_seq, new_seq), new_name)
+        print '          %s   %s' % (utils.color_mutants(old_seq, new_seq), utils.color_gene(new_name))
 
         # and add it to the set of new alleles for this gene
         if gene not in self.new_allele_info:
@@ -441,6 +441,7 @@ class MuteFreqer(object):
         if utils.get_region(gene) != 'v':
             return
         utils.prep_dir(plotdir, multilings=('*.csv', '*.svg'))
+        print '\nneed to prep subdirs, too\n'
         start = time.time()
         for position in self.freqs[gene]:
             if position not in self.fitted_positions[gene]:  # we can make plots for the positions we didn't fit, but there's a *lot* of them and they're slow

@@ -38,13 +38,15 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
         plotdir = '_www/partis/allele-finding/' + label
 
     snps_to_add = [
-        {'gene' : 'IGHV3-71*01', 'positions' : (35, )}
+        {'gene' : 'IGHV3-71*01', 'positions' : (35, )},
+        {'gene' : 'IGHV3-71*01', 'positions' : (45, )},
+        {'gene' : 'IGHV3-71*01', 'positions' : (55, )},
+        {'gene' : 'IGHV3-71*01', 'positions' : (65, )},
         # {'gene' : 'IGHV3-71*01', 'positions' : (35, 45, 50)},
         # {'gene' : 'IGHV3-71*01', 'positions' : (100, 101)},
-        # {'gene' : 'IGHV3-71*01', 'positions' : (80, 180)},
     ]
     simulation_genes = simulation_v_genes + ':' + dj_genes
-    # utils.rewrite_germline_fasta('data/imgt', outdir + '/germlines-for-simulation', only_genes=simulation_genes.split(':'), snps_to_add=snps_to_add, rename_snpd_genes=True)
+    utils.rewrite_germline_fasta('data/imgt', outdir + '/germlines-for-simulation', only_genes=simulation_genes.split(':'), snps_to_add=snps_to_add, rename_snpd_genes=True)
 
     # simulate
     cmd_str = base_cmd + ' simulate --n-sim-events 2000 --n-procs 10 --simulate-partially-from-scratch --mutation-multiplier 0.5'
@@ -52,7 +54,7 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
     cmd_str += ' --outfname ' + simfname
     if seed is not None:
         cmd_str += ' --seed ' + str(seed)
-    # run(cmd_str)
+    run(cmd_str)
 
     inference_genes = inference_v_genes + ':' + dj_genes
     utils.rewrite_germline_fasta('data/imgt', outdir + '/germlines-for-inference', only_genes=inference_genes.split(':'))
@@ -67,9 +69,11 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
         run(cmd_str)
 
     new_allele_fname = outdir + '/new-alleles.fa'
+    itry = 0
     while True:
         datadir = outdir + '/germlines-for-inference'
         cache_parameters(datadir)
+        itry += 1
         if os.stat(new_allele_fname).st_size == 0:
             print 'size zero!'
             break
