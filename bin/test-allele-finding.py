@@ -40,7 +40,7 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
     snps_to_add = [
         {'gene' : 'IGHV3-71*01', 'positions' : (35, )},
         {'gene' : 'IGHV3-71*01', 'positions' : (45, )},
-        {'gene' : 'IGHV3-71*01', 'positions' : (35, 45, 20, 50, 77)},
+        # {'gene' : 'IGHV3-71*01', 'positions' : (35, 45, 20, 50, 77)},
         # {'gene' : 'IGHV3-71*01', 'positions' : (35, 60, 50)},
         # {'gene' : 'IGHV1-18*01', 'positions' : (100, 101)},
         # {'gene' : 'IGHV1-18*01', 'positions' : (20, )}

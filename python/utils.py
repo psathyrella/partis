@@ -278,10 +278,10 @@ def add_some_snps(snps_to_add, gene, glfo, only_genes, rename_snpd_genes):
                 snpd_name = get_new_allele_name(gene, mutfo, seq)
                 isnp += 1
         snpfo = {'template-gene' : gene, 'gene' : snpd_name, 'seq' : seq, 'aligned-seq' : aligned_seq}
-        add_new_allele(glfo, snpfo, only_genes)
+        add_new_allele(glfo, snpfo, only_genes, remove_template_genes=False)
 
 # ----------------------------------------------------------------------------------------
-def add_new_allele(glfo, newfo, only_genes):
+def add_new_allele(glfo, newfo, only_genes, remove_template_genes):
     template_gene = newfo['template-gene']
     region = get_region(template_gene)
     if template_gene not in glfo['seqs'][region]:
@@ -302,8 +302,19 @@ def add_new_allele(glfo, newfo, only_genes):
     print '    %s   %s' % (glfo['seqs'][region][template_gene], color_gene(template_gene))
     print '    %s   %s' % (color_mutants(glfo['seqs'][region][template_gene], newfo['seq']), color_gene(new_gene))
 
+    if remove_template_genes:
+        print 'removing', template_gene
+        if only_genes is not None and template_gene in only_genes:
+            only_genes.remove(template_gene)
+        if region == 'v':
+            del glfo['cyst-positions'][template_gene]
+        elif region == 'j':
+            del glfo['tryp-positions'][template_gene]
+        del glfo['seqs'][region][template_gene]
+        del glfo['aligned-genes'][region][template_gene]
+
 # ----------------------------------------------------------------------------------------
-def rewrite_germline_fasta(input_dir, output_dir, only_genes=None, snps_to_add=None, rename_snpd_genes=False, new_allele_info=None, new_allele_fname=None):
+def rewrite_germline_fasta(input_dir, output_dir, only_genes=None, snps_to_add=None, rename_snpd_genes=False, new_allele_info=None, new_allele_fname=None, remove_template_genes=False):
     """ rewrite the germline set files in <input_dir> to <output_dir>, only keeping the genes in <only_genes> """
     print '    rewriting germlines from %s to %s' % (input_dir, output_dir),
     glfo = read_germline_set(input_dir)
@@ -336,7 +347,7 @@ def rewrite_germline_fasta(input_dir, output_dir, only_genes=None, snps_to_add=N
 
     if new_allele_info is not None:  # e.g. [{'template-gene' : 'IGHV3-71*01', 'new-seq' : 'ACGTCCCCGT...'}, ]
         for new_allele_info in new_allele_info:
-            add_new_allele(glfo, new_allele_info, only_genes)
+            add_new_allele(glfo, new_allele_info, only_genes, remove_template_genes)
 
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
