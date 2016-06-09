@@ -46,7 +46,7 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
         # {'gene' : 'IGHV1-18*01', 'positions' : (20, )}
     ]
     simulation_genes = simulation_v_genes + ':' + dj_genes
-    utils.rewrite_germline_fasta('data/imgt', outdir + '/germlines-for-simulation', only_genes=simulation_genes.split(':'), snps_to_add=snps_to_add, rename_snpd_genes=True)
+    # utils.rewrite_germline_fasta('data/imgt', outdir + '/germlines-for-simulation', only_genes=simulation_genes.split(':'), snps_to_add=snps_to_add, rename_snpd_genes=True)
 
     # simulate
     cmd_str = base_cmd + ' simulate --n-sim-events 1000 --n-procs 10 --simulate-partially-from-scratch --mutation-multiplier 0.5'
@@ -54,13 +54,13 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
     cmd_str += ' --outfname ' + simfname
     if seed is not None:
         cmd_str += ' --seed ' + str(seed)
-    run(cmd_str)
+    # run(cmd_str)
 
     inference_genes = inference_v_genes + ':' + dj_genes
     utils.rewrite_germline_fasta('data/imgt', outdir + '/germlines-for-inference', only_genes=inference_genes.split(':'))
 
     def cache_parameters(datadir):
-        cmd_str = base_cmd + ' cache-parameters --infname ' + simfname + ' --n-procs 10 --find-new-alleles --debug-new-allele-finding --only-smith-waterman --new-allele-fname ' + new_allele_fname
+        cmd_str = base_cmd + ' cache-parameters --infname ' + simfname + ' --n-procs 10 --generate-germline-set --debug-new-allele-finding --only-smith-waterman'
         cmd_str += ' --datadir ' + datadir
         cmd_str += ' --parameter-dir ' + outpdir
         cmd_str += ' --plotdir ' + plotdir
@@ -68,17 +68,20 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
             cmd_str += ' --seed ' + str(seed)
         run(cmd_str)
 
-    new_allele_fname = outdir + '/new-alleles.fa'
-    itry = 0
-    while True:
-        datadir = outdir + '/germlines-for-inference'
-        cache_parameters(datadir)
-        itry += 1
-        if os.stat(new_allele_fname).st_size == 0:
-            print 'size zero!'
-            break
-        print '\nneed to remove original genes the first time through (if we found a new allele)\n'
-        utils.rewrite_germline_fasta(datadir, datadir, new_allele_fname=new_allele_fname)
+    datadir = outdir + '/germlines-for-inference'
+    cache_parameters(datadir)
+
+    # new_allele_fname = outdir + '/new-alleles.fa'
+    # itry = 0
+    # while True:
+    #     datadir = outdir + '/germlines-for-inference'
+    #     cache_parameters(datadir)
+    #     itry += 1
+    #     if os.stat(new_allele_fname).st_size == 0:
+    #         print 'size zero!'
+    #         break
+    #     print '\nneed to remove original genes the first time through (if we found a new allele)\n'
+    #     utils.rewrite_germline_fasta(datadir, datadir, new_allele_fname=new_allele_fname)
 
 # ----------------------------------------------------------------------------------------
 

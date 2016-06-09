@@ -27,7 +27,9 @@ class PartitionDriver(object):
     """ Class to parse input files, start bcrham jobs, and parse/interpret bcrham output for annotation and partitioning """
     def __init__(self, args):
         self.args = args
-        self.glfo = utils.read_germline_set(self.args.datadir, alignment_dir=self.args.alignment_dir, debug=True)
+        self.my_datadir = self.args.workdir + '/germline-sets'  # NOTE not the same as <self.args.datadir>
+        self.rewritten_germline_files = utils.rewrite_germline_fasta(self.args.datadir, self.my_datadir)
+        self.glfo = utils.read_germline_set(self.my_datadir, alignment_dir=self.args.alignment_dir, debug=True)
 
         self.input_info, self.reco_info = None, None
         if self.args.infname is not None:
@@ -41,7 +43,6 @@ class PartitionDriver(object):
                     print '  note: running on a lot of sequences without setting --outfname. Which is ok! But there\'ll be no persistent record of the results'
         elif self.args.action != 'view-annotations' and self.args.action != 'view-partitions':
             raise Exception('--infname is required for action \'%s\'' % args.action)
-
 
         self.sw_info = None
         self.bcrham_proc_info = None
@@ -57,6 +58,7 @@ class PartitionDriver(object):
         self.hmm_cachefname = self.args.workdir + '/hmm_cached_info.csv'
         self.hmm_outfname = self.args.workdir + '/hmm_output.csv'
         self.annotation_fname = self.hmm_outfname.replace('.csv', '_annotations.csv')  # TODO won't work in parallel
+        self.new_allele_fname = 'new-alleles.fa'
 
         utils.prep_dir(self.args.workdir)
         if self.args.outfname is not None:
@@ -72,6 +74,14 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def clean(self):
+        assert False  # need to clean up <self.my_datadir>
+
+# ----------------------------------------------------------------------------------------
+        if self.genes_to_use is not None:
+            for fname in self.rewritten_files:
+                os.remove(fname)
+            os.rmdir(self.my_datadir)
+# ----------------------------------------------------------------------------------------
         # merge persistent and current cache files into the persistent cache file
         if self.args.persistent_cachefname is not None:
             lockfname = self.args.persistent_cachefname + '.lock'
@@ -94,28 +104,47 @@ class PartitionDriver(object):
                 raise Exception('workdir (%s) not empty: %s' % (self.args.workdir, ' '.join(os.listdir(self.args.workdir))))  # hm... you get weird recursive exceptions if you get here. Oh, well, it still works
 
     # ----------------------------------------------------------------------------------------
-    def run_waterer(self, parameter_dir, write_parameters=False):
+    def run_waterer(self, parameter_dir, write_parameters=False, find_new_alleles=False):
         start = time.time()
-        if write_parameters:  # if we're writing parameters, then we don't have any hmm dir to look in
+
+        # figure out if we need to tell waterer to only use a subset of genes (by rewriting the data dir)
+        if write_parameters or find_new_alleles:  # if we're writing parameters, then we don't have any hmm dir to look in
             genes_to_use = self.args.only_genes  # if None, we use all of 'em
         else:  # ...but if we're not writing parameters, then we want to look in the existing parameter dir to see for which genes we have hmms, and then tell sw to only use those
             genes_to_use = utils.find_genes_that_have_hmms(parameter_dir)
             if self.args.only_genes is not None:
                 genes_to_use = list(set(genes_to_use) & set(self.args.only_genes))  # we have to have an hmm for it, and it has to be among the genes that were specified on the command line
+        if genes_to_use is not None:
+            self.rewritten_germline_files = utils.rewrite_germline_fasta(self.my_datadir, self.my_datadir, only_genes=genes_to_use)
 
-        waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo, parameter_dir, write_parameters, genes_to_use)
+        waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo, self.my_datadir, parameter_dir, write_parameters=write_parameters, find_new_alleles=find_new_alleles)
         waterer.run()
         self.sw_info = waterer.info
         print '        water time: %.1f' % (time.time()-start)
+        if self.args.only_smith_waterman and not find_new_alleles:
+            print 'exiting after finishing smith-waterman'
+            sys.exit(0)
+
+    # ----------------------------------------------------------------------------------------
+    def generate_germline_set(self, parameter_dir):
+        itry = 0
+        while itry == 0 or len(self.sw_info['new-alleles']) > 0:
+            self.run_waterer(parameter_dir, find_new_alleles=True)
+            utils.rewrite_germline_fasta(self.my_datadir, self.my_datadir, new_allele_info=self.sw_info['new-alleles'])
+            self.glfo = utils.read_germline_set(self.my_datadir, alignment_dir=self.args.alignment_dir)
+            itry += 1
+
         if self.args.only_smith_waterman:
             print 'exiting after finishing smith-waterman'
-            sys.exit()
+            sys.exit(0)
 
     # ----------------------------------------------------------------------------------------
     def cache_parameters(self):
         """ Infer full parameter sets and write hmm files for sequences from <self.input_info>, first with Smith-Waterman, then using the SW output as seed for the HMM """
         print 'caching parameters'
         sw_parameter_dir = self.args.parameter_dir + '/sw'
+        if self.args.generate_germline_set:
+            self.generate_germline_set(sw_parameter_dir)
         self.run_waterer(sw_parameter_dir, write_parameters=True)
         self.write_hmms(sw_parameter_dir)
         parameter_out_dir = self.args.parameter_dir + '/hmm'
@@ -436,7 +465,7 @@ class PartitionDriver(object):
         if self.args.debug > 0:
             cmd_str += ' --debug ' + str(self.args.debug)
         cmd_str += ' --hmmdir ' + os.path.abspath(parameter_dir) + '/hmms'
-        cmd_str += ' --datadir ' + self.args.datadir  # NOTE waterer is using a rewritten datadir in the workdir if <only_genes> is specified... maybe I should switch this as well?
+        cmd_str += ' --datadir ' + self.my_datadir  # NOTE not the same as <self.args.datadir>
         cmd_str += ' --infile ' + csv_infname
         cmd_str += ' --outfile ' + csv_outfname
         cmd_str += ' --random-seed ' + str(self.args.seed)
@@ -497,7 +526,11 @@ class PartitionDriver(object):
             return self.hmm_outfname.replace(self.args.workdir, self.subworkdir(iproc, n_procs))
         # ----------------------------------------------------------------------------------------
         def get_cmd_str(iproc):
-            return cmd_str.replace(self.args.workdir, self.subworkdir(iproc, n_procs))
+            strlist = cmd_str.split()
+            for istr in range(len(strlist)):
+                if strlist[istr] == self.hmm_infname or strlist[istr] == self.hmm_cachefname or strlist[istr] == self.hmm_outfname:
+                    strlist[istr] = strlist[istr].replace(self.args.workdir, self.subworkdir(iproc, n_procs))
+            return ' '.join(strlist)
 
         print '    running %d procs' % n_procs
         sys.stdout.flush()
@@ -844,7 +877,7 @@ class PartitionDriver(object):
                 genes_to_remove.append(gene)
 
         # NOTE that we should be removing genes *only* if we're caching parameters, i.e. if we just ran sw on a data set for the first time.
-        # The issue is that when we first run sw on a data set, it uses all the genes in self.args.datadir.
+        # The issue is that when we first run sw on a data set, it uses all the genes in self.args.datadir.  UPDATE not any more! but don't want to update this comment just yet
         # We then write HMMs for only the genes which were, at least once, a *best* match.
         # But when we're writing the HMM input, we have the N best genes for each sequence, and some of these may not have been a best match at least once.
         # In subsequent runs, however, we already have a parameter dir, so before we run sw we look and see which HMMs we have, and tell sw to only use those, so in this case we shouldn't be removing any.
@@ -1281,7 +1314,7 @@ class PartitionDriver(object):
             print '    backing up partis output before converting to presto: %s' % outstr.strip()
 
             outheader = utils.presto_headers.values()
-            imgt_gapped_glfo = utils.read_germline_set(self.args.datadir, alignment_dir=self.args.datadir, debug=True)  # use imgt alignments  # TODO remove this
+            imgt_gapped_glfo = utils.read_germline_set(self.my_datadir, alignment_dir=self.my_datadir, debug=True)  # use imgt alignments  # TODO remove this
             with open(outpath, 'w') as outfile:
                 writer = csv.DictWriter(outfile, outheader)
                 writer.writeheader()

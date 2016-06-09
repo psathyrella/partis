@@ -301,7 +301,7 @@ def add_new_allele(glfo, newfo, only_genes):
     print '    %s   %s' % (color_mutants(glfo['seqs'][region][template_gene], newfo['seq']), color_gene(new_gene))
 
 # ----------------------------------------------------------------------------------------
-def rewrite_germline_fasta(input_dir, output_dir, only_genes=None, snps_to_add=None, rename_snpd_genes=False, new_alleles=None, new_allele_fname=None):
+def rewrite_germline_fasta(input_dir, output_dir, only_genes=None, snps_to_add=None, rename_snpd_genes=False, new_allele_info=None, new_allele_fname=None):
     """ rewrite the germline set files in <input_dir> to <output_dir>, only keeping the genes in <only_genes> """
     print '    rewriting germlines from %s to %s' % (input_dir, output_dir),
     glfo = read_germline_set(input_dir)
@@ -317,23 +317,23 @@ def rewrite_germline_fasta(input_dir, output_dir, only_genes=None, snps_to_add=N
         add_some_snps(snps_to_add, gene, glfo, only_genes, rename_snpd_genes)
 
     if new_allele_fname is not None:
-        assert new_alleles is None  # can't yet handle both at the same time
+        assert new_allele_info is None  # can't yet handle both at the same time
         print '        adding new alleles from %s' % new_allele_fname
-        new_alleles = []
+        new_allele_info = []
         for seq_record in SeqIO.parse(new_allele_fname, 'fasta'):
             gene_name = seq_record.name.split('|')[0]
             seq_str = str(seq_record.seq).upper()
             assert '+' in gene_name
             template_gene = gene_name.split('+')[0]  # e.g. IGHV3-71*01+C159T.G180A
-            new_alleles.append({
+            new_allele_info.append({
                 'template-gene' : template_gene,
                 'gene' : gene_name,
                 'seq' : seq_str,
                 'aligned-seq' : None
             })
 
-    if new_alleles is not None:  # e.g. [{'template-gene' : 'IGHV3-71*01', 'new-seq' : 'ACGTCCCCGT...'}, ]
-        for new_allele_info in new_alleles:
+    if new_allele_info is not None:  # e.g. [{'template-gene' : 'IGHV3-71*01', 'new-seq' : 'ACGTCCCCGT...'}, ]
+        for new_allele_info in new_allele_info:
             add_new_allele(glfo, new_allele_info, only_genes)
 
     if not os.path.exists(output_dir):
@@ -360,6 +360,8 @@ def rewrite_germline_fasta(input_dir, output_dir, only_genes=None, snps_to_add=N
             writer = csv.DictWriter(codonfile, ('gene', 'istart'))
             writer.writeheader()
             for gene, istart in glfo[codon + '-positions'].items():
+                if only_genes is not None and gene not in only_genes:
+                    continue
                 writer.writerow({'gene' : gene, 'istart' : istart})
 
     # make sure there weren't any files lingering in the output dir when we started

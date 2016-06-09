@@ -13,11 +13,12 @@ import utils
 from opener import opener
 from parametercounter import ParameterCounter
 from performanceplotter import PerformancePlotter
+from allelefinder import AlleleFinder
 
 # ----------------------------------------------------------------------------------------
 class Waterer(object):
     """ Run smith-waterman on the query sequences in <infname> """
-    def __init__(self, args, input_info, reco_info, glfo, parameter_dir, write_parameters, genes_to_use):
+    def __init__(self, args, input_info, reco_info, glfo, my_datadir, parameter_dir, write_parameters=False, find_new_alleles=False):
         print 'smith-waterman'
         sys.stdout.flush()
 
@@ -51,12 +52,12 @@ class Waterer(object):
         self.unproductive_queries = set()
 
         # rewrite input germline sets (if needed)
-        self.genes_to_use = genes_to_use  # if None, we use all of 'em. NOTE do *not* use self.args.only_genes in this file (see partitiondriver)
-        self.my_datadir = self.args.workdir + '/germline-sets'  # make sure to use *only* use <self.my_datadir> elsewhere in this file
-        self.rewritten_files = utils.rewrite_germline_fasta(self.args.datadir, self.my_datadir, self.genes_to_use)
+        self.my_datadir = my_datadir  # NOTE not the same as <self.args.datadir>
 
-        self.pcounter, self.true_pcounter, self.perfplotter = None, None, None
-        if write_parameters:
+        self.alfinder, self.pcounter, self.true_pcounter, self.perfplotter = None, None, None, None
+        if find_new_alleles:  # NOTE *not* the same as <self.args.find_new_alleles>
+            self.alfinder = AlleleFinder(self.glfo, self.args)
+        if write_parameters:  # NOTE *not* the same as <self.args.cache_parameters>
             self.pcounter = ParameterCounter(self.glfo['seqs'], self.args)
             if not self.args.is_data:
                 self.true_pcounter = ParameterCounter(self.glfo['seqs'], self.args)
@@ -70,11 +71,6 @@ class Waterer(object):
     def __del__(self):
         if self.args.outfname is not None:
             self.outfile.close()
-
-        if self.genes_to_use is not None:
-            for fname in self.rewritten_files:
-                os.remove(fname)
-            os.rmdir(self.my_datadir)
 
     # ----------------------------------------------------------------------------------------
     def clean(self):  # NOTE I don't think I'm using this any more (or any of the other clean() fcns?)
@@ -132,6 +128,11 @@ class Waterer(object):
             print 'true annotations for remaining events:'
             for qry in self.remaining_queries:
                 utils.print_reco_event(self.glfo['seqs'], self.reco_info[qry], extra_str='      ', label='true:')
+        if self.alfinder is not None:
+            self.alfinder.write(self.parameter_dir, debug=self.args.debug_new_allele_finding)
+            self.info['new-alleles'] = self.alfinder.new_allele_info
+            if self.args.plotdir is not None:
+                self.alfinder.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
         if self.pcounter is not None:
             self.pcounter.write(self.parameter_dir)
             if self.true_pcounter is not None:
@@ -611,12 +612,12 @@ class Waterer(object):
                 utils.print_reco_event(self.glfo['seqs'], self.reco_info[query_name], extra_str='      ', label='true:')
             utils.print_reco_event(self.glfo['seqs'], self.info[query_name], extra_str='      ', label='inferred:')
 
+        if self.alfinder is not None:
+            self.alfinder.increment(self.info[query_name])
         if self.pcounter is not None:
-            self.pcounter.increment_per_family_params(self.info[query_name])
-            self.pcounter.increment_per_sequence_params(self.info[query_name])
-        if self.true_pcounter is not None:
-            self.true_pcounter.increment_per_family_params(self.reco_info[query_name])
-            self.true_pcounter.increment_per_sequence_params(self.reco_info[query_name])
+            self.pcounter.increment_all_params(self.info[query_name])
+            if self.true_pcounter is not None:
+                self.true_pcounter.increment_all_params(self.reco_info[query_name])
         if self.perfplotter is not None:
             if query_name in self.info['indels']:
                 print '    skipping performance evaluation of %s because of indels' % query_name  # I just have no idea how to handle naive hamming fraction when there's indels
@@ -644,10 +645,6 @@ class Waterer(object):
                 assert qrbounds[0] >= 0
                 assert glbounds[0] >= 0
                 glmatchseq = self.glfo['seqs'][region][gene][glbounds[0]:glbounds[1]]
-
-                # TODO remove this
-                if self.genes_to_use is not None and gene not in self.genes_to_use:
-                    raise Exception('wtf %s not in %s' % (gene, self.genes_to_use))
 
                 match_names[region].append(gene)
 

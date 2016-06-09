@@ -3,18 +3,19 @@ import os
 import csv
 import time
 import sys
-from subprocess import check_call
 
 import utils
 from opener import opener
 import plotting
+from hist import Hist
 from mutefreqer import MuteFreqer
 
 # ----------------------------------------------------------------------------------------
 class ParameterCounter(object):
     """ class to keep track of how many times we've seen each gene version, erosion length,
     insertion (length and base content), and mutation """
-    def __init__(self, germline_seqs, args):
+    def __init__(self, glfo, args):
+        self.glfo = glfo
         self.args = args
         self.reco_total = 0  # total number of recombination events
         self.mute_total = 0  # total number of sequences
@@ -25,12 +26,13 @@ class ParameterCounter(object):
         for bound in utils.boundaries:
             self.counts[bound + '_insertion_content'] = {n : 0 for n in utils.nukes}  # base content of each insertion
         self.counts['seq_content'] = {n : 0 for n in utils.nukes}
-        self.mutefreqer = MuteFreqer(germline_seqs, self.args)
+        self.mfreqer = MuteFreqer(self.glfo)
 
     # ----------------------------------------------------------------------------------------
     def clean(self):
-        """ remove all the parameter files """
-        self.mutefreqer.clean()
+        assert False
+        self.mfreqer.clean()
+
         for column in self.counts:
             if column == 'all':
                 os.remove(self.base_outdir + '/' + utils.get_parameter_fname(column='all'))
@@ -51,13 +53,16 @@ class ParameterCounter(object):
         return tuple(index)
 
     # ----------------------------------------------------------------------------------------
+    def increment_all_params(self, info):
+        self.increment_per_sequence_params(info)
+        self.increment_per_family_params(info)
+
+    # ----------------------------------------------------------------------------------------
     def increment_per_sequence_params(self, info):
         """ increment parameters that differ for each sequence within the clonal family """
         self.mute_total += 1
-        self.mutefreqer.increment(info)
+        self.mfreqer.increment(info)
         seq = info['seq']
-        # if 'indels' in info:
-        #     seq = info['indels']['reversed_seq']  # TODO unhackify this
         for nuke in seq:
             if nuke in utils.ambiguous_bases:
                 continue
@@ -87,23 +92,6 @@ class ParameterCounter(object):
                 self.counts[bound + '_insertion_content'][nuke] += 1
 
     # ----------------------------------------------------------------------------------------
-    def __str__(self):
-        return_str = []
-        print 'hm I think I was too lazy to put \'all\' in this string'
-        print '  or [vdj]_insertion_content or seq_content'
-        for column in self.counts:
-            return_str.append('%s\n' % column)
-            return_str.append('%20s' % column)
-            for dep in utils.column_dependencies[column]:
-                return_str.append('%20s' % dep)
-            return_str.append('\n')
-            for index, count in self.counts[column].iteritems():
-                for val in index:
-                    return_str.append('%20s' % str(val))
-                return_str.append('   %d / %d = %f\n' % (count, self.reco_total, float(count) / self.reco_total))
-        return ''.join(return_str)
-
-    # ----------------------------------------------------------------------------------------
     def plot(self, plotdir, subset_by_gene=False, cyst_positions=None, tryp_positions=None, only_csv=False):
         print '  plotting parameters',
         sys.stdout.flush()
@@ -112,9 +100,7 @@ class ParameterCounter(object):
         overall_plotdir = plotdir + '/overall'
         utils.prep_dir(overall_plotdir)  #, multilings=('*.csv', '*.svg'))
 
-        self.mutefreqer.plot(plotdir, cyst_positions, tryp_positions, only_csv=only_csv)  #, mean_freq_outfname=base_outdir + '/REGION-mean-mute-freqs.csv')  # REGION is replace by each region in the three output files
-        if self.args.only_plot_new_alleles:
-            return
+        self.mfreqer.plot(plotdir, cyst_positions, tryp_positions, only_csv=only_csv)  #, mean_freq_outfname=base_outdir + '/REGION-mean-mute-freqs.csv')  # REGION is replace by each region in the three output files
 
         for column in self.counts:
             if column == 'all':
@@ -176,10 +162,9 @@ class ParameterCounter(object):
         start = time.time()
 
         utils.prep_dir(base_outdir, multilings=('*.csv', '*.svg'))
-        # mute_start = time.time()
-        self.mutefreqer.write(base_outdir, mean_freq_outfname=base_outdir + '/REGION-mean-mute-freqs.csv')  # REGION is replace by each region in the three output files) 
-        # print '      mut freq write time: %.3f' % (time.time() - mute_start)
-        # print ' %d / %d cached' % (self.mutefreqer.n_cached, self.mutefreqer.n_cached + self.mutefreqer.n_not_cached)
+
+        self.mfreqer.write(base_outdir, mean_freq_outfname=base_outdir + '/REGION-mean-mute-freqs.csv')  # REGION is replace by each region in the three output files) 
+
         for column in self.counts:
             index = None
             outfname = None
