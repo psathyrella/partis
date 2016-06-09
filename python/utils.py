@@ -244,6 +244,7 @@ def add_some_snps(snps_to_add, gene, glfo, only_genes, rename_snpd_genes):
                 tmpseq = seq[: snp_pos] + 'X' + seq[snp_pos + 1 :]  # for checking cyst position
             return snp_pos
 
+        mutfo = OrderedDict()
         for snp_pos in positions:
             if snp_pos is None:
                 snp_pos = choose_position()
@@ -252,6 +253,7 @@ def add_some_snps(snps_to_add, gene, glfo, only_genes, rename_snpd_genes):
             while new_base is None or new_base == seq[snp_pos]:
                 new_base = nukes[random.randint(0, len(nukes) - 1)]
             print '      %3d   %s --> %s' % (snp_pos, seq[snp_pos], new_base)
+            mutfo[snp_pos] = {'original' : seq[snp_pos], 'new' : new_base}
 
             seq = seq[: snp_pos] + new_base + seq[snp_pos + 1 :]
 
@@ -272,8 +274,8 @@ def add_some_snps(snps_to_add, gene, glfo, only_genes, rename_snpd_genes):
             isnp = 0
             while snpd_name == gene or snpd_name in glfo['seqs'][get_region(gene)]:  # maybe we already have another snp in there?
                 if isnp > 99:
-                    raise Exception('that\'s just stupid %d' % isnp)
-                snpd_name = gene + 'snp%d' % isnp
+                    raise Exception('%d snps! that\'s just crazy' % isnp)
+                snpd_name = get_new_allele_name(gene, mutfo, seq)
                 isnp += 1
         snpfo = {'template-gene' : gene, 'gene' : snpd_name, 'seq' : seq, 'aligned-seq' : aligned_seq}
         add_new_allele(glfo, snpfo, only_genes)
