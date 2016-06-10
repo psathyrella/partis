@@ -275,7 +275,7 @@ def add_some_snps(snps_to_add, gene, glfo, only_genes, rename_snpd_genes, remove
             while snpd_name == gene or snpd_name in glfo['seqs'][get_region(gene)]:  # maybe we already have another snp in there?
                 if isnp > 99:
                     raise Exception('%d snps! that\'s just crazy' % isnp)
-                snpd_name = get_new_allele_name(gene, mutfo, seq)
+                snpd_name, mutfo = get_new_allele_name_and_change_mutfo(gene, mutfo, seq)
                 isnp += 1
         snpfo = {'template-gene' : gene, 'gene' : snpd_name, 'seq' : seq, 'aligned-seq' : aligned_seq}
         add_new_allele(glfo, snpfo, only_genes, remove_template_genes=remove_template_genes)
@@ -2421,5 +2421,45 @@ def get_mutfo_str(mutfo):
     return '.'.join(return_str_list)
 
 # ----------------------------------------------------------------------------------------
-def get_new_allele_name(template_gene, mutfo, new_seq):
-    return template_gene + '+' + get_mutfo_str(mutfo)
+def get_mutfo(gene_name):
+    allele_list = allele(gene_name).split('+')
+    if len(allele_list) != 2:
+        raise Exception('couldn\'t get snp info from gene name %s' % gene_name)
+    mutfo = {}
+    for mutstr in allele_list[1].split('.'):
+        if len(mutstr) < 3:
+            raise Exception('couldn\'t extract mutation info from %s' % mutstr)
+        original, new = mutstr[0], mutstr[-1]
+        if original not in nukes or new not in nukes:
+            raise Exception('couldn\'t extract mutation info from %s' % mutstr)
+        position = int(mutstr[1:-1])
+        if position not in mutfo:
+            mutfo[position] = {}
+            mutfo[position]['original'] = original  # if it *is* already there, we want to *keep* the old 'original'
+        mutfo[position]['new'] = new
+        if mutfo[position]['new'] == mutfo[position]['original']:  # reverted back to the original base
+            del mutfo[position]
+
+    return mutfo
+
+# ----------------------------------------------------------------------------------------
+def get_new_allele_name_and_change_mutfo(template_gene, mutfo, new_seq):
+    if '+' in allele(template_gene):  # template gene was already snp'd
+        old_mutfo = get_mutfo(template_gene)
+        for position, info in mutfo.items():
+            if position not in old_mutfo:
+                old_mutfo[position] = {}
+                old_mutfo[position]['original'] = info['original']  # if it *is* already there, we want to *keep* the old 'original'
+            old_mutfo[position]['new'] = info['new']
+            if old_mutfo[position]['new'] == old_mutfo[position]['original']:  # reverted back to the original base
+                del old_mutfo[position]
+        final_mutfo = old_mutfo
+        assert len(template_gene.split('+')) == 2
+        template_gene = template_gene.split('+')[0]  # before we did any snp'ing
+    else:
+        final_mutfo = mutfo
+
+    final_name = template_gene
+    if len(final_mutfo) > 0:
+        final_name += '+' + get_mutfo_str(final_mutfo)  # full, but possibly overly verbose
+    return final_name, final_mutfo
