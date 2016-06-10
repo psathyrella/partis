@@ -228,7 +228,7 @@ def get_parameter_fname(column=None, deps=None, column_and_deps=None):
     return outfname
 
 # ----------------------------------------------------------------------------------------
-def add_some_snps(snps_to_add, gene, glfo, only_genes, rename_snpd_genes):
+def add_some_snps(snps_to_add, gene, glfo, only_genes, rename_snpd_genes, remove_template_genes=False):
     for snpinfo in snps_to_add:
         gene, positions = snpinfo['gene'], snpinfo['positions']
         print '    adding %d %s to %s' % (len(positions), plural_str('snp', len(positions)), gene)
@@ -278,7 +278,7 @@ def add_some_snps(snps_to_add, gene, glfo, only_genes, rename_snpd_genes):
                 snpd_name = get_new_allele_name(gene, mutfo, seq)
                 isnp += 1
         snpfo = {'template-gene' : gene, 'gene' : snpd_name, 'seq' : seq, 'aligned-seq' : aligned_seq}
-        add_new_allele(glfo, snpfo, only_genes, remove_template_genes=False)
+        add_new_allele(glfo, snpfo, only_genes, remove_template_genes=remove_template_genes)
 
 # ----------------------------------------------------------------------------------------
 def add_new_allele(glfo, newfo, only_genes, remove_template_genes):
@@ -299,11 +299,11 @@ def add_new_allele(glfo, newfo, only_genes, remove_template_genes):
     else:
         glfo['aligned-genes'][region][new_gene] = newfo['aligned-seq']
 
-    print '    %s   %s' % (glfo['seqs'][region][template_gene], color_gene(template_gene))
-    print '    %s   %s' % (color_mutants(glfo['seqs'][region][template_gene], newfo['seq']), color_gene(new_gene))
+    # print '    %s   %s' % (glfo['seqs'][region][template_gene], color_gene(template_gene))
+    # print '    %s   %s' % (color_mutants(glfo['seqs'][region][template_gene], newfo['seq']), color_gene(new_gene))
 
     if remove_template_genes:
-        print 'removing', template_gene
+        print '  removing %s' % color_gene(template_gene)
         if only_genes is not None and template_gene in only_genes:
             only_genes.remove(template_gene)
         if region == 'v':
