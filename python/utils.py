@@ -228,56 +228,63 @@ def get_parameter_fname(column=None, deps=None, column_and_deps=None):
     return outfname
 
 # ----------------------------------------------------------------------------------------
-def add_some_snps(snps_to_add, gene, glfo, only_genes, rename_snpd_genes, remove_template_genes=False):
+def generate_snpd_gene(gene, cpos, seq, aligned_seq, positions):
+    def choose_position():
+        snp_pos = None
+        while snp_pos is None or snp_pos in snpd_positions or not check_conserved_cysteine(tmpseq, cpos, debug=True, assert_on_fail=False):
+            snp_pos = random.randint(10, len(seq) - 15)  # note that randint() is inclusive
+            tmpseq = seq[: snp_pos] + 'X' + seq[snp_pos + 1 :]  # for checking cyst position
+        return snp_pos
+
+    snpd_positions = set()  # only used if a position wasn't specified (i.e. was None) in <snps_to_add>
+    mutfo = OrderedDict()
+    for snp_pos in positions:
+        if snp_pos is None:
+            snp_pos = choose_position()
+        snpd_positions.add(snp_pos)
+        new_base = None
+        while new_base is None or new_base == seq[snp_pos]:
+            new_base = nukes[random.randint(0, len(nukes) - 1)]
+        print '        %3d   %s --> %s' % (snp_pos, seq[snp_pos], new_base)
+        mutfo[snp_pos] = {'original' : seq[snp_pos], 'new' : new_base}
+
+        seq = seq[: snp_pos] + new_base + seq[snp_pos + 1 :]
+
+        igl = 0  # position in unaligned germline seq
+        for ialign in range(len(aligned_seq)):
+            if aligned_seq[ialign] in gap_chars:
+                continue
+            else:
+                # assert aligned_seq[ialign] == seq[igl]  # won't necessarily be true after the first mutation
+                if igl == snp_pos:
+                    aligned_seq = aligned_seq[ : ialign] + new_base + aligned_seq[ialign + 1 :]
+                    break
+                igl += 1
+
+    check_conserved_cysteine(seq, cpos)
+    snpd_name, mutfo = get_new_allele_name_and_change_mutfo(gene, mutfo, seq)
+    return {'template-gene' : gene, 'gene' : snpd_name, 'seq' : seq, 'aligned-seq' : aligned_seq}
+
+# ----------------------------------------------------------------------------------------
+def add_some_snps(snps_to_add, glfo, only_genes, remove_template_genes=False):
     for snpinfo in snps_to_add:
         gene, positions = snpinfo['gene'], snpinfo['positions']
         print '    adding %d %s to %s' % (len(positions), plural_str('snp', len(positions)), gene)
-        snp_positions = set()
         seq = glfo['seqs'][get_region(gene)][gene]
         aligned_seq = glfo['aligned-genes'][get_region(gene)][gene]
+        assert get_region(gene) == 'v'
         cpos = glfo['cyst-positions'][gene]
 
-        def choose_position():
-            snp_pos = None
-            while snp_pos is None or snp_pos in snp_positions or not check_conserved_cysteine(tmpseq, cpos, debug=True, assert_on_fail=False):
-                snp_pos = random.randint(10, len(seq) - 15)  # note that randint() is inclusive
-                tmpseq = seq[: snp_pos] + 'X' + seq[snp_pos + 1 :]  # for checking cyst position
-            return snp_pos
+        snpfo = None
+        itry = 0
+        while snpfo is None or snpfo['gene'] in glfo['seqs'][get_region(gene)]:
+            if itry > 0:
+                print '      already in glfo, try again'
+                if itry > 99:
+                    raise Exception('too many tries while trying to generate new snps -- did you specify a lot of snps on the same position?')
+            snpfo = generate_snpd_gene(gene, cpos, seq, aligned_seq, positions)
+            itry += 1
 
-        mutfo = OrderedDict()
-        for snp_pos in positions:
-            if snp_pos is None:
-                snp_pos = choose_position()
-            snp_positions.add(snp_pos)
-            new_base = None
-            while new_base is None or new_base == seq[snp_pos]:
-                new_base = nukes[random.randint(0, len(nukes) - 1)]
-            print '      %3d   %s --> %s' % (snp_pos, seq[snp_pos], new_base)
-            mutfo[snp_pos] = {'original' : seq[snp_pos], 'new' : new_base}
-
-            seq = seq[: snp_pos] + new_base + seq[snp_pos + 1 :]
-
-            igl = 0  # position in unaligned germline seq
-            for ialign in range(len(aligned_seq)):
-                if aligned_seq[ialign] in gap_chars:
-                    continue
-                else:
-                    # assert aligned_seq[ialign] == seq[igl]  # won't necessarily be true after the first mutation
-                    if igl == snp_pos:
-                        aligned_seq = aligned_seq[ : ialign] + new_base + aligned_seq[ialign + 1 :]
-                        break
-                    igl += 1
-
-        check_conserved_cysteine(seq, cpos)
-        snpd_name = gene
-        if rename_snpd_genes:
-            isnp = 0
-            while snpd_name == gene or snpd_name in glfo['seqs'][get_region(gene)]:  # maybe we already have another snp in there?
-                if isnp > 99:
-                    raise Exception('%d snps! that\'s just crazy' % isnp)
-                snpd_name, mutfo = get_new_allele_name_and_change_mutfo(gene, mutfo, seq)
-                isnp += 1
-        snpfo = {'template-gene' : gene, 'gene' : snpd_name, 'seq' : seq, 'aligned-seq' : aligned_seq}
         add_new_allele(glfo, snpfo, only_genes, remove_template_genes=remove_template_genes)
 
 # ----------------------------------------------------------------------------------------
@@ -299,8 +306,8 @@ def add_new_allele(glfo, newfo, only_genes, remove_template_genes):
     else:
         glfo['aligned-genes'][region][new_gene] = newfo['aligned-seq']
 
-    # print '    %s   %s' % (glfo['seqs'][region][template_gene], color_gene(template_gene))
-    # print '    %s   %s' % (color_mutants(glfo['seqs'][region][template_gene], newfo['seq']), color_gene(new_gene))
+    print '    %s   %s' % (glfo['seqs'][region][template_gene], color_gene(template_gene))
+    print '    %s   %s' % (color_mutants(glfo['seqs'][region][template_gene], newfo['seq']), color_gene(new_gene))
 
     if remove_template_genes:
         print '  removing %s' % color_gene(template_gene)
@@ -314,40 +321,19 @@ def add_new_allele(glfo, newfo, only_genes, remove_template_genes):
         del glfo['aligned-genes'][region][template_gene]
 
 # ----------------------------------------------------------------------------------------
-def rewrite_germline_fasta(input_dir, output_dir, only_genes=None, snps_to_add=None, rename_snpd_genes=False, new_allele_info=None, new_allele_fname=None, remove_template_genes=False):
+def rewrite_germline_fasta(input_dir, output_dir, only_genes=None, snps_to_add=None, new_allele_info=None, remove_template_genes=False):
     """ rewrite the germline set files in <input_dir> to <output_dir>, only keeping the genes in <only_genes> """
-    print '    rewriting germlines from %s to %s' % (input_dir, output_dir),
+    print '    rewriting germlines from %s to %s' % (input_dir, output_dir)
     glfo = read_germline_set(input_dir)
 
-    if only_genes is not None:
-        for gene in only_genes:
-            if gene not in glfo['seqs'][get_region(gene)]:
-                raise Exception('%s specified in <only_genes>, but not available in %s' % (color_gene(gene), input_dir))
-        print '(using %d genes)' % len(only_genes),
-    print ''
-
     if snps_to_add is not None:  # e.g. [{'gene' : 'IGHV3-71*01', 'positions' : (35, None)}, ] will add a snp at position 35 and at a random location
-        add_some_snps(snps_to_add, gene, glfo, only_genes, rename_snpd_genes)
+        add_some_snps(snps_to_add, glfo, only_genes)
 
-    if new_allele_fname is not None:
-        assert new_allele_info is None  # can't yet handle both at the same time
-        print '        adding new alleles from %s' % new_allele_fname
-        new_allele_info = []
-        for seq_record in SeqIO.parse(new_allele_fname, 'fasta'):
-            gene_name = seq_record.name.split('|')[0]
-            seq_str = str(seq_record.seq).upper()
-            assert '+' in gene_name
-            template_gene = gene_name.split('+')[0]  # e.g. IGHV3-71*01+C159T.G180A
-            new_allele_info.append({
-                'template-gene' : template_gene,
-                'gene' : gene_name,
-                'seq' : seq_str,
-                'aligned-seq' : None
-            })
-
-    if new_allele_info is not None:  # e.g. [{'template-gene' : 'IGHV3-71*01', 'new-seq' : 'ACGTCCCCGT...'}, ]
+    if new_allele_info is not None:  # e.g. [{'template-gene' : 'IGHV3-71*01', 'gene' : 'IGHV3-71*01+C45T', 'seq' : 'ACGTCCCCGT...', 'aligned-seq' : None}, ]
         for new_allele_info in new_allele_info:
             add_new_allele(glfo, new_allele_info, only_genes, remove_template_genes)
+    else:
+        assert not remove_template_genes  # only makes sense if you've specified <new_allele_info>
 
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -2414,14 +2400,24 @@ def add_in_log_space(first, second):
         return second + math.log(1 + math.exp(first - second))
 
 # ----------------------------------------------------------------------------------------
-def get_mutfo_str(mutfo):
+def stringify_mutfo(mutfo):
     return_str_list = []
-    for pos, info in mutfo.items():
-        return_str_list.append(info['original'] + str(pos) + info['new'])
+    for pos in sorted(mutfo.keys()):
+        return_str_list.append(mutfo[pos]['original'] + str(pos) + mutfo[pos]['new'])
     return '.'.join(return_str_list)
 
 # ----------------------------------------------------------------------------------------
-def get_mutfo(gene_name):
+def get_mutfo_from_seq(old_seq, new_seq):
+    mutfo = {}
+    assert len(old_seq) == len(new_seq)
+    for inuke in range(len(old_seq)):
+        assert old_seq[inuke] in nukes and new_seq[inuke] in nukes
+        if new_seq[inuke] != old_seq[inuke]:
+            mutfo[inuke] = {'original' : old_seq[inuke], 'new' : new_seq[inuke]}
+    return mutfo
+
+# ----------------------------------------------------------------------------------------
+def get_mutfo_from_name(gene_name):
     allele_list = allele(gene_name).split('+')
     if len(allele_list) != 2:
         raise Exception('couldn\'t get snp info from gene name %s' % gene_name)
@@ -2445,7 +2441,7 @@ def get_mutfo(gene_name):
 # ----------------------------------------------------------------------------------------
 def get_new_allele_name_and_change_mutfo(template_gene, mutfo, new_seq):
     if '+' in allele(template_gene):  # template gene was already snp'd
-        old_mutfo = get_mutfo(template_gene)
+        old_mutfo = get_mutfo_from_name(template_gene)
         for position, info in mutfo.items():
             if position not in old_mutfo:
                 old_mutfo[position] = {}
@@ -2461,5 +2457,6 @@ def get_new_allele_name_and_change_mutfo(template_gene, mutfo, new_seq):
 
     final_name = template_gene
     if len(final_mutfo) > 0:
-        final_name += '+' + get_mutfo_str(final_mutfo)  # full, but possibly overly verbose
+        assert '+' not in final_name
+        final_name += '+' + stringify_mutfo(final_mutfo)  # full, but possibly overly verbose
     return final_name, final_mutfo

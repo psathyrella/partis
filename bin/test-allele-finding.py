@@ -39,14 +39,14 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
 
     snps_to_add = [
         {'gene' : 'IGHV3-71*01', 'positions' : (35, )},
-        {'gene' : 'IGHV3-71*01', 'positions' : (45, )},
+        # {'gene' : 'IGHV3-71*01', 'positions' : (35, 50)},
         # {'gene' : 'IGHV3-71*01', 'positions' : (35, 45, 20, 50, 77)},
         # {'gene' : 'IGHV3-71*01', 'positions' : (35, 60, 50)},
         # {'gene' : 'IGHV1-18*01', 'positions' : (100, 101)},
         # {'gene' : 'IGHV1-18*01', 'positions' : (20, )}
     ]
     simulation_genes = simulation_v_genes + ':' + dj_genes
-    utils.rewrite_germline_fasta('data/imgt', outdir + '/germlines-for-simulation', only_genes=simulation_genes.split(':'), snps_to_add=snps_to_add, rename_snpd_genes=True)
+    utils.rewrite_germline_fasta('data/imgt', outdir + '/germlines-for-simulation', only_genes=simulation_genes.split(':'), snps_to_add=snps_to_add)
 
     # simulate
     cmd_str = base_cmd + ' simulate --n-sim-events 1000 --n-procs 10 --simulate-partially-from-scratch --mutation-multiplier 0.5'
@@ -73,7 +73,7 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
 
 # ----------------------------------------------------------------------------------------
 
-seed = None  # 1
+seed = 1  # None
 dj_genes = 'IGHD6-19*01:IGHJ4*02'
 inference_v_genes = 'IGHV3-71*01' #:IGHV1-18*01'
 simulation_v_genes = inference_v_genes  # + ':IGHV3-71*02:IGHV3-71*03'  #:IGHV1-18*01'
