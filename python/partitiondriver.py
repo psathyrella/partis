@@ -73,15 +73,11 @@ class PartitionDriver(object):
                 pass  # hm, maybe do it in ham
 
     # ----------------------------------------------------------------------------------------
-    def clean(self):
-        assert False  # need to clean up <self.my_datadir>
+    def __del__(self):
+        for fname in self.rewritten_germline_files:
+            os.remove(fname)
+        os.rmdir(self.my_datadir)
 
-# ----------------------------------------------------------------------------------------
-        if self.genes_to_use is not None:
-            for fname in self.rewritten_files:
-                os.remove(fname)
-            os.rmdir(self.my_datadir)
-# ----------------------------------------------------------------------------------------
         # merge persistent and current cache files into the persistent cache file
         if self.args.persistent_cachefname is not None:
             lockfname = self.args.persistent_cachefname + '.lock'
@@ -121,9 +117,6 @@ class PartitionDriver(object):
         waterer.run()
         self.sw_info = waterer.info
         print '        water time: %.1f' % (time.time()-start)
-        if self.args.only_smith_waterman and not find_new_alleles:
-            print 'exiting after finishing smith-waterman'
-            sys.exit(0)
 
     # ----------------------------------------------------------------------------------------
     def generate_germline_set(self, parameter_dir):
@@ -134,10 +127,6 @@ class PartitionDriver(object):
             self.glfo = utils.read_germline_set(self.my_datadir, alignment_dir=self.args.alignment_dir)
             itry += 1
 
-        if self.args.only_smith_waterman:
-            print 'exiting after finishing smith-waterman'
-            sys.exit(0)
-
     # ----------------------------------------------------------------------------------------
     def cache_parameters(self):
         """ Infer full parameter sets and write hmm files for sequences from <self.input_info>, first with Smith-Waterman, then using the SW output as seed for the HMM """
@@ -145,8 +134,12 @@ class PartitionDriver(object):
         sw_parameter_dir = self.args.parameter_dir + '/sw'
         if self.args.generate_germline_set:
             self.generate_germline_set(sw_parameter_dir)
+            utils.rewrite_germline_fasta(self.my_datadir, self.args.parameter_dir + '/germline-sets')
         self.run_waterer(sw_parameter_dir, write_parameters=True)
         self.write_hmms(sw_parameter_dir)
+        if self.args.only_smith_waterman:
+            return
+
         parameter_out_dir = self.args.parameter_dir + '/hmm'
         self.run_hmm('viterbi', parameter_in_dir=sw_parameter_dir, parameter_out_dir=parameter_out_dir, count_parameters=True)
         self.write_hmms(parameter_out_dir)
@@ -1122,9 +1115,9 @@ class PartitionDriver(object):
         print '    read output'
         sys.stdout.flush()
 
-        pcounter = ParameterCounter(self.glfo['seqs'], self.args) if count_parameters else None
-        true_pcounter = ParameterCounter(self.glfo['seqs'], self.args) if (count_parameters and not self.args.is_data) else None
-        perfplotter = PerformancePlotter(self.glfo['seqs'], 'hmm') if self.args.plot_performance else None
+        pcounter = ParameterCounter(self.glfo, self.args) if count_parameters else None
+        true_pcounter = ParameterCounter(self.glfo, self.args) if (count_parameters and not self.args.is_data) else None
+        perfplotter = PerformancePlotter(self.glfo, 'hmm') if self.args.plot_performance else None
 
         n_lines_read, n_seqs_processed, n_events_processed, n_invalid_events = 0, 0, 0, 0
         padded_annotations, eroded_annotations = OrderedDict(), OrderedDict()

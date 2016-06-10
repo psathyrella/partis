@@ -14,8 +14,8 @@ bool_columns = ('v_gene', 'd_gene', 'j_gene')
 
 class PerformancePlotter(object):
     # ----------------------------------------------------------------------------------------
-    def __init__(self, germlines, name, only_correct_gene_fractions=False):
-        self.germlines = germlines
+    def __init__(self, glfo, name, only_correct_gene_fractions=False):
+        self.glfo = glfo
         self.name = name
         self.values = {}
         self.only_correct_gene_fractions = only_correct_gene_fractions
@@ -156,7 +156,7 @@ class PerformancePlotter(object):
     def add_partial_fail(self, true_line, line):
         # NOTE does not fill all the hists ('cause it kind of can't, right?)
 
-        overall_mute_freq = utils.get_mutation_rate(self.germlines, true_line)  # true value
+        overall_mute_freq = utils.get_mutation_rate(self.glfo['seqs'], true_line)  # true value
 
         for column in self.values:
             if column in bool_columns:
@@ -172,7 +172,7 @@ class PerformancePlotter(object):
     # ----------------------------------------------------------------------------------------
     def evaluate(self, true_line, inf_line, padfo=None):
 
-        overall_mute_freq = utils.get_mutation_rate(self.germlines, true_line)  # true value
+        overall_mute_freq = utils.get_mutation_rate(self.glfo['seqs'], true_line)  # true value
 
         for column in self.values:
             if self.only_correct_gene_fractions and column not in bool_columns:
@@ -213,8 +213,8 @@ class PerformancePlotter(object):
                 region = re.findall('[vdj]_', column)[0][0]
             else:
                 region = ''
-            trueval = utils.get_mutation_rate(self.germlines, true_line, restrict_to_region=region)
-            guessval = utils.get_mutation_rate(self.germlines, inf_line, restrict_to_region=region)
+            trueval = utils.get_mutation_rate(self.glfo['seqs'], true_line, restrict_to_region=region)
+            guessval = utils.get_mutation_rate(self.glfo['seqs'], inf_line, restrict_to_region=region)
             self.hists[column].fill(guessval - trueval)
 
     # ----------------------------------------------------------------------------------------

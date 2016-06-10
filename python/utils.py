@@ -288,7 +288,7 @@ def add_some_snps(snps_to_add, glfo, only_genes, remove_template_genes=False):
         add_new_allele(glfo, snpfo, only_genes, remove_template_genes=remove_template_genes)
 
 # ----------------------------------------------------------------------------------------
-def add_new_allele(glfo, newfo, only_genes, remove_template_genes):
+def add_new_allele(glfo, newfo, only_genes, remove_template_genes, debug=False):
     template_gene = newfo['template-gene']
     region = get_region(template_gene)
     if template_gene not in glfo['seqs'][region]:
@@ -306,8 +306,9 @@ def add_new_allele(glfo, newfo, only_genes, remove_template_genes):
     else:
         glfo['aligned-genes'][region][new_gene] = newfo['aligned-seq']
 
-    print '    %s   %s' % (glfo['seqs'][region][template_gene], color_gene(template_gene))
-    print '    %s   %s' % (color_mutants(glfo['seqs'][region][template_gene], newfo['seq']), color_gene(new_gene))
+    if debug:
+        print '    %s   %s' % (glfo['seqs'][region][template_gene], color_gene(template_gene))
+        print '    %s   %s' % (color_mutants(glfo['seqs'][region][template_gene], newfo['seq']), color_gene(new_gene))
 
     if remove_template_genes:
         print '  removing %s' % color_gene(template_gene)
@@ -321,9 +322,10 @@ def add_new_allele(glfo, newfo, only_genes, remove_template_genes):
         del glfo['aligned-genes'][region][template_gene]
 
 # ----------------------------------------------------------------------------------------
-def rewrite_germline_fasta(input_dir, output_dir, only_genes=None, snps_to_add=None, new_allele_info=None, remove_template_genes=False):
+def rewrite_germline_fasta(input_dir, output_dir, only_genes=None, snps_to_add=None, new_allele_info=None, remove_template_genes=False, debug=False):
     """ rewrite the germline set files in <input_dir> to <output_dir>, only keeping the genes in <only_genes> """
-    print '    rewriting germlines from %s to %s' % (input_dir, output_dir)
+    if debug:
+        print '    rewriting germlines from %s to %s' % (input_dir, output_dir)
     glfo = read_germline_set(input_dir)
 
     if snps_to_add is not None:  # e.g. [{'gene' : 'IGHV3-71*01', 'positions' : (35, None)}, ] will add a snp at position 35 and at a random location

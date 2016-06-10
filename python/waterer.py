@@ -58,11 +58,11 @@ class Waterer(object):
         if find_new_alleles:  # NOTE *not* the same as <self.args.find_new_alleles>
             self.alfinder = AlleleFinder(self.glfo, self.args)
         if write_parameters:  # NOTE *not* the same as <self.args.cache_parameters>
-            self.pcounter = ParameterCounter(self.glfo['seqs'], self.args)
+            self.pcounter = ParameterCounter(self.glfo, self.args)
             if not self.args.is_data:
-                self.true_pcounter = ParameterCounter(self.glfo['seqs'], self.args)
+                self.true_pcounter = ParameterCounter(self.glfo, self.args)
         if self.args.plot_performance:
-            self.perfplotter = PerformancePlotter(self.glfo['seqs'], 'sw')
+            self.perfplotter = PerformancePlotter(self.glfo, 'sw')
 
         if not os.path.exists(self.args.ighutil_dir + '/bin/vdjalign'):
             raise Exception('ERROR ighutil path d.n.e: ' + self.args.ighutil_dir + '/bin/vdjalign')

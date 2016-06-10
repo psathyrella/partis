@@ -142,8 +142,6 @@ def run_partitiondriver(args):
     else:
         raise Exception('bad action ' + args.action)
 
-    parter.clean()
-
 # ----------------------------------------------------------------------------------------
 def view_existing_output(args):
     if args.outfname is None:
@@ -216,7 +214,6 @@ parent_parser.add_argument('--print-git-commit', action='store_true', help='prin
 parent_parser.add_argument('--smc-particles', type=int, default=1, help='DEPRECATED Number of particles (clustering paths) to simulate with SMC')
 parent_parser.add_argument('--min-observations-to-write', type=int, default=20, help='For hmmwriter.py, if we see a gene version fewer times than this, we sum over other alleles, or other versions, etc. (see hmmwriter)')
 # parent_parser.add_argument('--use_mean_at_boundaries', action='store_true', help='see note in hmmwriter')
-parent_parser.add_argument('--only-smith-waterman', action='store_true', help='Exit after finishing smith-waterman. Doesn\'t write output file (yet).')
 
 subconfig = {
     'version'          : {'func' : int, 'help' : 'print version information and exit'},
@@ -234,7 +231,7 @@ subargs = {subname : [] for subname in subconfig}
 subargs['cache-parameters'].append({'name' : '--generate-germline-set', 'kwargs' : {'action' : 'store_true', 'help' : 'look for new alleles (separated only by snps from existing alleles)'}})
 subargs['cache-parameters'].append({'name' : '--new-allele-fname', 'kwargs' : {'help' : 'fasta fname to which to write any new alleles (default is set in mutefreqer.py, so that it can be put in the parameter-dir)'}})
 subargs['cache-parameters'].append({'name' : '--debug-new-allele-finding', 'kwargs' : {'action' : 'store_true', 'help' : 'print lots of debug info on new allele fits'}})
-print '\nTODO need to remove original genes the first time through (if we found a new allele)\n'
+subargs['cache-parameters'].append({'name' : '--only-smith-waterman', 'kwargs' : {'action' : 'store_true', 'help' : 'Exit after finishing smith-waterman. Doesn\'t write output file (yet).'}})
 
 subargs['partition'].append({'name' : '--naive-hamming', 'kwargs' : {'action' : 'store_true', 'help' : 'agglomerate purely with naive hamming distance, i.e. set the low and high preclustering bounds to the same value'}})
 subargs['partition'].append({'name' : '--naive-vsearch', 'kwargs' : {'action' : 'store_true', 'help' : 'Very fast clustering: infer naive (unmutated ancestor) for each input sequence, then toss it all into vsearch. But, of course, not as accurate as the slower methods.'}})
