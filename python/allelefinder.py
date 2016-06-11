@@ -333,6 +333,7 @@ class AlleleFinder(object):
         if not self.finalized:
             self.finalize(debug=debug)
 
+        assert False  # wait, is this what I want?
         if self.args.new_allele_fname is not None:
             n_new_alleles = len(self.new_allele_info)
             print '  writing %d new %s to %s' % (n_new_alleles, utils.plural_str('allele', n_new_alleles), self.args.new_allele_fname)
@@ -352,7 +353,7 @@ class AlleleFinder(object):
         for old_gene_dir in glob.glob(plotdir + '/*'):
             if not os.path.isdir(old_gene_dir):
                 raise Exception('not a directory: %s' % old_gene_dir)
-            utils.prep_dir(old_gene_dir, multilings=('*.csv', '*.svg'))
+            utils.prep_dir(old_gene_dir, wildlings=('*.csv', '*.svg'))
             os.rmdir(old_gene_dir)
 
         if only_csv:  # not implemented

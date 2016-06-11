@@ -17,6 +17,7 @@ class ParameterCounter(object):
     def __init__(self, glfo, args):
         self.glfo = glfo
         self.args = args
+        self.mfreqer = MuteFreqer(self.glfo)
         self.reco_total = 0  # total number of recombination events
         self.mute_total = 0  # total number of sequences
         self.counts = {}
@@ -26,19 +27,6 @@ class ParameterCounter(object):
         for bound in utils.boundaries:
             self.counts[bound + '_insertion_content'] = {n : 0 for n in utils.nukes}  # base content of each insertion
         self.counts['seq_content'] = {n : 0 for n in utils.nukes}
-        self.mfreqer = MuteFreqer(self.glfo)
-
-    # ----------------------------------------------------------------------------------------
-    def clean(self):
-        assert False
-        self.mfreqer.clean()
-
-        for column in self.counts:
-            if column == 'all':
-                os.remove(self.base_outdir + '/' + utils.get_parameter_fname(column='all'))
-            else:
-                index = [column,] + utils.column_dependencies[column]
-                os.remove(self.base_outdir + '/' + utils.get_parameter_fname(column_and_deps=index))
 
     # ----------------------------------------------------------------------------------------
     def get_index(self, info, deps):
@@ -92,15 +80,25 @@ class ParameterCounter(object):
                 self.counts[bound + '_insertion_content'][nuke] += 1
 
     # ----------------------------------------------------------------------------------------
+    def clean_plots(self, plotdir, subset_by_gene):
+        self.mfreqer.clean_plots(plotdir + '/mute-freqs')
+        utils.prep_dir(plotdir + '/overall')  #, multilings=('*.csv', '*.svg'))
+        for column in self.counts:
+            if subset_by_gene and ('_del' in column or column == 'vd_insertion' or column == 'dj_insertion'):  # option to subset deletion and (real) insertion plots by gene
+                thisplotdir = plotdir + '/' + column
+                utils.prep_dir(thisplotdir, wildlings=['*.csv', '*.svg'])
+
+    # ----------------------------------------------------------------------------------------
     def plot(self, plotdir, subset_by_gene=False, cyst_positions=None, tryp_positions=None, only_csv=False):
         print '  plotting parameters',
         sys.stdout.flush()
         start = time.time()
 
-        overall_plotdir = plotdir + '/overall'
-        utils.prep_dir(overall_plotdir)  #, multilings=('*.csv', '*.svg'))
+        self.clean_plots(plotdir, subset_by_gene)
 
-        self.mfreqer.plot(plotdir, cyst_positions, tryp_positions, only_csv=only_csv)  #, mean_freq_outfname=base_outdir + '/REGION-mean-mute-freqs.csv')  # REGION is replace by each region in the three output files
+        self.mfreqer.plot(plotdir + '/mute-freqs', cyst_positions, tryp_positions, only_csv=only_csv)  #, mean_freq_outfname=base_outdir + '/REGION-mean-mute-freqs.csv')  # REGION is replace by each region in the three output files
+
+        overall_plotdir = plotdir + '/overall'
 
         for column in self.counts:
             if column == 'all':
@@ -138,7 +136,6 @@ class ParameterCounter(object):
 
             if subset_by_gene and ('_del' in column or column == 'vd_insertion' or column == 'dj_insertion'):  # option to subset deletion and (real) insertion plots by gene
                 thisplotdir = plotdir + '/' + column
-                utils.prep_dir(thisplotdir, multilings=['*.csv', '*.svg'])
                 for gene in gene_values:
                     plotname = utils.sanitize_name(gene) + '-' + column
                     hist = plotting.make_hist_from_dict_of_counts(gene_values[gene], var_type, plotname, sort=True)
@@ -151,7 +148,7 @@ class ParameterCounter(object):
             plotting.draw_no_root(hist, plotname=plotname, plotdir=overall_plotdir, errors=True, write_csv=True, only_csv=only_csv)
 
         if not only_csv:
-            plotting.make_html(plotdir)
+            plotting.make_html(overall_plotdir)
 
         print '(%.1f sec)' % (time.time()-start)
 
@@ -161,9 +158,9 @@ class ParameterCounter(object):
         sys.stdout.flush()
         start = time.time()
 
-        utils.prep_dir(base_outdir, multilings=('*.csv', '*.svg'))
+        utils.prep_dir(base_outdir, subdirs=('hmms', 'mute-freqs'), wildlings=('*.csv', '*.yaml'))  # it's kind of hackey to specify the /hmms dir here, but as soon as we write the parameters below, the previous yamels are out of date, so it's pretty much necessary
 
-        self.mfreqer.write(base_outdir, mean_freq_outfname=base_outdir + '/REGION-mean-mute-freqs.csv')  # REGION is replace by each region in the three output files) 
+        self.mfreqer.write(base_outdir + '/mute-freqs', mean_freq_outfname=base_outdir + '/REGION-mean-mute-freqs.csv')  # REGION is replace by each region in the three output files) 
 
         for column in self.counts:
             index = None

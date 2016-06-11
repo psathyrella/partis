@@ -27,6 +27,7 @@ class PartitionDriver(object):
     """ Class to parse input files, start bcrham jobs, and parse/interpret bcrham output for annotation and partitioning """
     def __init__(self, args):
         self.args = args
+        utils.prep_dir(self.args.workdir)
         self.my_datadir = self.args.workdir + '/germline-sets'  # NOTE not the same as <self.args.datadir>
         self.rewritten_germline_files = utils.rewrite_germline_fasta(self.args.datadir, self.my_datadir)
         self.glfo = utils.read_germline_set(self.my_datadir, alignment_dir=self.args.alignment_dir, debug=True)
@@ -60,7 +61,6 @@ class PartitionDriver(object):
         self.annotation_fname = self.hmm_outfname.replace('.csv', '_annotations.csv')  # TODO won't work in parallel
         self.new_allele_fname = 'new-alleles.fa'
 
-        utils.prep_dir(self.args.workdir)
         if self.args.outfname is not None:
             outdir = os.path.dirname(self.args.outfname)
             if outdir != '' and not os.path.exists(outdir):

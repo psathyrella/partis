@@ -434,7 +434,7 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
     # print 'TODO move csvs to a subdir not named "plots"'
     # utils.prep_dir(args.outdir + '/plots', multilings=['*.png', '*.svg', '*.csv'])
 
-    utils.prep_dir(args.outdir, multilings=['*.png', '*.svg', '*.csv'])
+    utils.prep_dir(args.outdir, wildlings=['*.png', '*.svg', '*.csv'])
     if args.leaves_per_tree is not None:
         assert len(args.leaves_per_tree) == len(args.plotdirs)
 
@@ -602,7 +602,7 @@ def make_mean_plots(plotdir, subdirs, outdir):
 
     cb = plt.colorbar()
     cb.set_label('mean value')
-    utils.prep_dir(outdir + '/plots', multilings=['*.png', '*.svg', '*.csv'])
+    utils.prep_dir(outdir + '/plots', wildlings=['*.png', '*.svg', '*.csv'])
     plt.savefig(outdir + '/plots/hexmeans.png')
     plt.close()
     plt.clf()

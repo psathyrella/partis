@@ -1467,22 +1467,30 @@ def split_key(key):
     return key.split('.')
 
 # ----------------------------------------------------------------------------------------
-def prep_dir(dirname, wildling=None, multilings=None):
-    """ make <dirname> if it d.n.e., and if shell glob <wildling> is specified, remove existing files which are thereby matched """
-    assert dirname is not None  # would typically happen if <dirname> is from a command line argument
+def prep_dir(dirname, wildlings=None, subdirs=None):
+    """ 
+    Make <dirname> if it d.n.e. 
+    Also, if shell glob <wildling> is specified, remove existing files which are thereby matched.
+    """
+
+    if wildlings is None:
+        wildlings = []
+    elif isinstance(wildlings, basestring):  # allow to pass in just a string, instead of a list of strings
+        wildlings = [wildlings, ]
+
+    if subdirs is not None:  # clean out the subdirs first
+        for subdir in subdirs:
+            prep_dir(dirname + '/' + subdir, wildlings=wildlings)
+
     if os.path.exists(dirname):
-        if wildling is not None:
-            for fname in glob.glob(dirname + '/' + wildling):
+        for wild in wildlings:
+            for fname in glob.glob(dirname + '/' + wild):
                 os.remove(fname)
-        if multilings is not None:  # allow multiple file name suffixes
-            for wild in multilings:
-                for fname in glob.glob(dirname + '/' + wild):
-                    os.remove(fname)
+        remaining_files = [fn for fn in os.listdir(dirname) if subdirs is not None and fn not in subdirs]
+        if len(remaining_files) > 0:  # make sure there's no other files in the dir
+            raise Exception('files %s remain in %s despite wildlings %s' % (' '.join(remaining_files), dirname, wildlings))
     else:
         os.makedirs(dirname)
-    if wildling is not None or multilings is not None:
-        if len([fname for fname in os.listdir(dirname) if os.path.isfile(dirname + '/' + fname)]) != 0:  # make sure there's no other files in the dir
-            raise Exception('files remain in %s despite wildling %s or multilings %s' % (dirname, wildling, multilings))
 
 # ----------------------------------------------------------------------------------------
 def useful_bool(bool_str):

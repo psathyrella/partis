@@ -1,9 +1,11 @@
 import csv
+import os
 
 import fraction_uncertainty
 from hist import Hist
 from opener import opener
 import utils
+import plotting
 
 # ----------------------------------------------------------------------------------------
 class MuteFreqer(object):
@@ -17,17 +19,6 @@ class MuteFreqer(object):
 
         self.finalized = False
         self.n_cached, self.n_not_cached = 0, 0
-
-    # ----------------------------------------------------------------------------------------
-    def clean(self):
-        assert False
-        # ----------------------------------------------------------------------------------------
-        """ remove all the parameter files """
-        for gene in self.mfreqer.counts:
-            outfname = self.outdir + '/' + utils.sanitize_name(gene) + '.csv'
-            os.remove(outfname)
-        os.rmdir(self.outdir)
-        # ----------------------------------------------------------------------------------------
 
     # ----------------------------------------------------------------------------------------
     def increment(self, info):
@@ -104,16 +95,16 @@ class MuteFreqer(object):
         self.finalized = True
 
     # ----------------------------------------------------------------------------------------
-    def plot(self, base_plotdir, cyst_positions=None, tryp_positions=None, only_csv=False):
+    def clean_plots(self, plotdir):
+        for substr in ['overall', ] + utils.regions:  # + [r + '-per-base' for r in utils.regions]:
+            utils.prep_dir(plotdir + '/' + substr, wildlings=('*.csv', '*.svg'))
+
+    # ----------------------------------------------------------------------------------------
+    def plot(self, plotdir, cyst_positions=None, tryp_positions=None, only_csv=False):
         if not self.finalized:
             self.finalize()
 
-        plotdir = base_plotdir + '/mute-freqs'
         overall_plotdir = plotdir + '/overall'
-        utils.prep_dir(overall_plotdir, multilings=('*.csv', '*.svg'))
-        for region in utils.regions:
-            utils.prep_dir(plotdir + '/' + region, multilings=('*.csv', '*.svg'))
-            # utils.prep_dir(plotdir + '/' + region + '-per-base/plots', multilings=('*.csv', '*.png'))
 
         for gene in self.freqs:
             freqs = self.freqs[gene]
@@ -147,12 +138,9 @@ class MuteFreqer(object):
                 plotting.make_html(plotdir + '/' + region, n_columns=1)
 
     # ----------------------------------------------------------------------------------------
-    def write(self, base_outdir, mean_freq_outfname):
+    def write(self, outdir, mean_freq_outfname):
         if not self.finalized:
             self.finalize()
-
-        outdir = base_outdir + '/mute-freqs'
-        utils.prep_dir(outdir, multilings=('*.csv', '*.fa'))
 
         for gene in self.counts:
             gcounts, freqs = self.counts[gene], self.freqs[gene]

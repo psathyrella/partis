@@ -30,7 +30,7 @@ class ModelPlotter(object):
         plot_types = ('transitions', 'emissions')
         for ptype in plot_types:
             plotdir = self.base_plotdir + '/' + ptype + '/plots'
-            utils.prep_dir(plotdir, '*.png')
+            utils.prep_dir(plotdir, wildlings='*.png')
 
         if args.hmmdir != None:
             filelist = glob.glob(args.hmmdir + '/*.yaml')
