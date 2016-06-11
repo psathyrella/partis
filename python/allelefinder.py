@@ -333,7 +333,8 @@ class AlleleFinder(object):
         if not self.finalized:
             self.finalize(debug=debug)
 
-        assert False  # wait, is this what I want?
+        # NOTE may not actually write anything, but a) we need to finalize it somewhere, and b) it makes more sense to rewrite the germline set directory inside partitiondriver
+
         if self.args.new_allele_fname is not None:
             n_new_alleles = len(self.new_allele_info)
             print '  writing %d new %s to %s' % (n_new_alleles, utils.plural_str('allele', n_new_alleles), self.args.new_allele_fname)
@@ -349,12 +350,12 @@ class AlleleFinder(object):
 
         plotdir = base_plotdir + '/allele-finding'
 
-        print '\nneed to make sure subdir preping is ok\n'
-        for old_gene_dir in glob.glob(plotdir + '/*'):
+        for old_gene_dir in glob.glob(plotdir + '/*'):  # has to be a bit more hackey than elsewhere, since we have no way of knowing what genes might have had their own directories written last time we wrote to this dir
             if not os.path.isdir(old_gene_dir):
                 raise Exception('not a directory: %s' % old_gene_dir)
             utils.prep_dir(old_gene_dir, wildlings=('*.csv', '*.svg'))
             os.rmdir(old_gene_dir)
+        utils.prep_dir(plotdir, wildlings=('*.csv', '*.svg'))
 
         if only_csv:  # not implemented
             return

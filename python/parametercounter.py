@@ -158,9 +158,10 @@ class ParameterCounter(object):
         sys.stdout.flush()
         start = time.time()
 
-        utils.prep_dir(base_outdir, subdirs=('hmms', 'mute-freqs'), wildlings=('*.csv', '*.yaml'))  # it's kind of hackey to specify the /hmms dir here, but as soon as we write the parameters below, the previous yamels are out of date, so it's pretty much necessary
+        utils.prep_dir(base_outdir, subdirs=('hmms', 'mute-freqs', 'germline-sets'), wildlings=('*.csv', '*.yaml', '*.fasta'))  # it's kind of hackey to specify the /hmms dir here, but as soon as we write the parameters below, the previous yamels are out of date, so it's pretty much necessary
 
         self.mfreqer.write(base_outdir + '/mute-freqs', mean_freq_outfname=base_outdir + '/REGION-mean-mute-freqs.csv')  # REGION is replace by each region in the three output files) 
+        utils.write_germline_fasta(base_outdir + '/germline-sets', glfo=self.glfo, debug=True)
 
         for column in self.counts:
             index = None

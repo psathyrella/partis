@@ -322,11 +322,15 @@ def add_new_allele(glfo, newfo, only_genes, remove_template_genes, debug=False):
         del glfo['aligned-genes'][region][template_gene]
 
 # ----------------------------------------------------------------------------------------
-def rewrite_germline_fasta(input_dir, output_dir, only_genes=None, snps_to_add=None, new_allele_info=None, remove_template_genes=False, debug=False):
+def write_germline_fasta(output_dir, input_dir=None, glfo=None, only_genes=None, snps_to_add=None, new_allele_info=None, remove_template_genes=False, debug=False):
     """ rewrite the germline set files in <input_dir> to <output_dir>, only keeping the genes in <only_genes> """
-    if debug:
-        print '    rewriting germlines from %s to %s' % (input_dir, output_dir)
-    glfo = read_germline_set(input_dir)
+    if input_dir is not None:
+        glfo = read_germline_set(input_dir)
+        if debug:
+            print '    rewriting germlines from %s to %s' % (input_dir, output_dir)
+    else:
+        assert glfo is not None
+        print '    writing germlines to %s' % output_dir
 
     if snps_to_add is not None:  # e.g. [{'gene' : 'IGHV3-71*01', 'positions' : (35, None)}, ] will add a snp at position 35 and at a random location
         add_some_snps(snps_to_add, glfo, only_genes)
@@ -1488,7 +1492,7 @@ def prep_dir(dirname, wildlings=None, subdirs=None):
                 os.remove(fname)
         remaining_files = [fn for fn in os.listdir(dirname) if subdirs is not None and fn not in subdirs]
         if len(remaining_files) > 0:  # make sure there's no other files in the dir
-            raise Exception('files %s remain in %s despite wildlings %s' % (' '.join(remaining_files), dirname, wildlings))
+            raise Exception('files (%s) remain in %s despite wildlings %s' % (' '.join(['\'' + fn + '\'' for fn in remaining_files]), dirname, wildlings))
     else:
         os.makedirs(dirname)
 

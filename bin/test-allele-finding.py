@@ -46,7 +46,7 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
         # {'gene' : 'IGHV1-18*01', 'positions' : (20, )}
     ]
     simulation_genes = simulation_v_genes + ':' + dj_genes
-    utils.rewrite_germline_fasta('data/imgt', outdir + '/germlines-for-simulation', only_genes=simulation_genes.split(':'), snps_to_add=snps_to_add)
+    utils.write_germline_fasta(outdir + '/germlines-for-simulation', input_dir='data/imgt', only_genes=simulation_genes.split(':'), snps_to_add=snps_to_add)
 
     # simulate
     cmd_str = base_cmd + ' simulate --n-sim-events 1000 --n-procs 10 --simulate-partially-from-scratch --mutation-multiplier 0.5'
@@ -57,7 +57,7 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
     run(cmd_str)
 
     inference_genes = inference_v_genes + ':' + dj_genes
-    utils.rewrite_germline_fasta('data/imgt', outdir + '/germlines-for-inference', only_genes=inference_genes.split(':'))
+    utils.write_germline_fasta(outdir + '/germlines-for-inference', input_dir='data/imgt', only_genes=inference_genes.split(':'))
 
     def cache_parameters(datadir):
         cmd_str = base_cmd + ' cache-parameters --infname ' + simfname + ' --n-procs 10 --generate-germline-set --debug-new-allele-finding --only-smith-waterman'
@@ -81,15 +81,6 @@ simulation_v_genes = inference_v_genes  # + ':IGHV3-71*02:IGHV3-71*03'  #:IGHV1-
 run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=seed)
 sys.exit()
 
-allelefo = [{
-    'template-gene' : 'IGHV3-71*01',
-    'gene' : 'IGHV3-71*5190231349628946907',
-    'seq' : 'GAGGTGCAGCTGGTGGAGTCCGGGGGAGGCTTGGTGCAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTCAGTGACTACTACATGAGCTGGGTCCGCCAGGCTCCCGGGAAGGGGCTGGAGTGGGTAGGTTTCATTAGAAACAAAGCTAATGGTGGGACAACAGAATAGACCACGTCTGTGAAAGGCAGATTCACAATCTCAAGAGATGATTCCAAAAGCATCACCTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCCGTGTATTACTGTGCGAGAGA',
-    'aligned-seq' : None
-}, ]
-allelefo = None
-utils.rewrite_germline_fasta('_tmp/gltest', '_tmp/gltest', new_alleles=allelefo, only_genes=['IGHV3-71*01', ])
-sys.exit()
 glfo = utils.read_germline_set('data/imgt')
 print glfo['seqs']['v']['IGHV3-71*01']
 print utils.color_mutants(glfo['seqs']['v']['IGHV3-71*01'], glfo['seqs']['v']['IGHV3-71*02'])

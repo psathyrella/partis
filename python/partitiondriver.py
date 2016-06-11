@@ -29,7 +29,7 @@ class PartitionDriver(object):
         self.args = args
         utils.prep_dir(self.args.workdir)
         self.my_datadir = self.args.workdir + '/germline-sets'  # NOTE not the same as <self.args.datadir>
-        self.rewritten_germline_files = utils.rewrite_germline_fasta(self.args.datadir, self.my_datadir)
+        self.rewritten_germline_files = utils.write_germline_fasta(self.my_datadir, input_dir=self.args.datadir, only_genes=self.args.only_genes)  # need a copy on disk for vdjalign, if nothing else
         self.glfo = utils.read_germline_set(self.my_datadir, alignment_dir=self.args.alignment_dir, debug=True)
 
         self.input_info, self.reco_info = None, None
@@ -59,7 +59,7 @@ class PartitionDriver(object):
         self.hmm_cachefname = self.args.workdir + '/hmm_cached_info.csv'
         self.hmm_outfname = self.args.workdir + '/hmm_output.csv'
         self.annotation_fname = self.hmm_outfname.replace('.csv', '_annotations.csv')  # TODO won't work in parallel
-        self.new_allele_fname = 'new-alleles.fa'
+        # self.new_allele_fname = 'new-alleles.fa'
 
         if self.args.outfname is not None:
             outdir = os.path.dirname(self.args.outfname)
@@ -102,16 +102,21 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def run_waterer(self, parameter_dir, write_parameters=False, find_new_alleles=False):
         start = time.time()
-
+        
         # figure out if we need to tell waterer to only use a subset of genes (by rewriting the data dir)
         if write_parameters or find_new_alleles:  # if we're writing parameters, then we don't have any hmm dir to look in
-            genes_to_use = self.args.only_genes  # if None, we use all of 'em
+            pass  # er, I think we don't do anything here now?  genes_to_use = self.args.only_genes  # if None, we use all of 'em
         else:  # ...but if we're not writing parameters, then we want to look in the existing parameter dir to see for which genes we have hmms, and then tell sw to only use those
-            genes_to_use = utils.find_genes_that_have_hmms(parameter_dir)
-            if self.args.only_genes is not None:
-                genes_to_use = list(set(genes_to_use) & set(self.args.only_genes))  # we have to have an hmm for it, and it has to be among the genes that were specified on the command line
-        if genes_to_use is not None:
-            self.rewritten_germline_files = utils.rewrite_germline_fasta(self.my_datadir, self.my_datadir, only_genes=genes_to_use)
+            genes_with_hmms = set(utils.find_genes_that_have_hmms(parameter_dir))
+            expected_genes = set([g for r in utils.regions for g in self.glfo['seqs'][r].keys()])
+            if len(genes_with_hmms - expected_genes) > 0:
+                raise Exception('yamels in %s for genes %s that aren\'t in glfo' % (parameter_dir, ' '.join(genes_with_hmms - expected_genes)))
+            if len(expected_genes - genes_with_hmms) > 0:
+                raise Exception('genes %s in glfo that don\'t have yamels in %s' % (' '.join(expected_genes - genes_with_hmms), parameter_dir))
+            # if self.args.only_genes is not None:
+            #     if len(set(self.args.only_genes) - set(genes_to_use)) > 0:
+            #     genes_to_use = list(set(genes_to_use) & set(self.args.only_genes))  # we have to have an hmm for it, and it has to be among the genes that were specified on the command line
+            # utils.write_germline_fasta(self.my_datadir, input_dir=self.my_datadir, only_genes=genes_to_use)
 
         waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo, self.my_datadir, parameter_dir, write_parameters=write_parameters, find_new_alleles=find_new_alleles)
         waterer.run()
@@ -123,7 +128,7 @@ class PartitionDriver(object):
         itry = 0
         while itry == 0 or len(self.sw_info['new-alleles']) > 0:
             self.run_waterer(parameter_dir, find_new_alleles=True)
-            utils.rewrite_germline_fasta(self.my_datadir, self.my_datadir, only_genes=list(self.sw_info['all_best_matches']), new_allele_info=self.sw_info['new-alleles'], remove_template_genes=(itry==0))
+            utils.write_germline_fasta(self.my_datadir, input_dir=self.my_datadir, only_genes=list(self.sw_info['all_best_matches']), new_allele_info=self.sw_info['new-alleles'], remove_template_genes=(itry==0))
             self.glfo = utils.read_germline_set(self.my_datadir, alignment_dir=self.args.alignment_dir)
             itry += 1
 
@@ -134,7 +139,6 @@ class PartitionDriver(object):
         sw_parameter_dir = self.args.parameter_dir + '/sw'
         if self.args.generate_germline_set:
             self.generate_germline_set(sw_parameter_dir)
-            utils.rewrite_germline_fasta(self.my_datadir, self.args.parameter_dir + '/germline-sets')
         self.run_waterer(sw_parameter_dir, write_parameters=True)
         self.write_hmms(sw_parameter_dir)
         if self.args.only_smith_waterman:
