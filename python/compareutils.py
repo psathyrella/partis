@@ -56,7 +56,10 @@ def get_dataset(human):
 # ----------------------------------------------------------------------------------------
 def get_title(args, label, n_leaves, mut_mult, hfrac_bounds=None):
     if not args.is_simu:
-        title = 'data (%s %s)' % (get_dataset(label), label)
+        label_str = label
+        if label in humans.humans['vollmers']:
+            label_str = plotting.label_bullshit_transform(label)
+        title = 'data (%s %s)' % (get_dataset(label), label_str)
     else:
         title = '%s leaves, %sx mutation' % (float_str(n_leaves), float_str(mut_mult))
         if hfrac_bounds is not None:

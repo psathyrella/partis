@@ -755,6 +755,9 @@ alphas = {'true' : 0.6,
           'misassign-distance-0.03' : 0.8
 }
 
+def label_bullshit_transform(label):
+    return '-'.join([hex(int(l)) for l in label.split('-')]).replace('0x', '')
+
 # linewidths['v-true'] = 10
 # linewidths['cdr3-true'] = 10
 # colors['v-true'] = '#006600'
