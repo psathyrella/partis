@@ -1,4 +1,5 @@
 import time
+import copy
 import sys
 import math
 import re
@@ -23,8 +24,6 @@ class Waterer(object):
         sys.stdout.flush()
 
         self.parameter_dir = parameter_dir
-        print parameter_dir
-        print args
         self.args = args
         self.debug = self.args.debug if self.args.sw_debug is None else self.args.sw_debug
 
@@ -34,6 +33,9 @@ class Waterer(object):
         self.input_info = input_info
         self.remaining_queries = set([q for q in self.input_info.keys()])  # we remove queries from this set when we're satisfied with the current output (in general we may have to rerun some queries with different match/mismatch scores)
         self.new_indels = 0  # number of new indels that were kicked up this time through
+
+        self.match_mismatch = copy.deepcopy(self.args.initial_match_mismatch)  # don't want to modify it!
+        self.gap_open_penalty = self.args.gap_open_penalty  # not modifying it now, but just to make sure we don't in the future
 
         self.reco_info = reco_info
         self.glfo = glfo
@@ -221,9 +223,9 @@ class Waterer(object):
         if self.args.slurm or utils.auto_slurm(n_procs):
             cmd_str = 'srun ' + cmd_str
         cmd_str += ' --max-drop 50'
-        match, mismatch = self.args.match_mismatch
+        match, mismatch = self.match_mismatch
         cmd_str += ' --match ' + str(match) + ' --mismatch ' + str(mismatch)
-        cmd_str += ' --gap-open ' + str(self.args.gap_open_penalty)  #1000'  #50'
+        cmd_str += ' --gap-open ' + str(self.gap_open_penalty)
         cmd_str += ' --vdj-dir ' + self.my_datadir
         cmd_str += ' --samtools-dir ' + self.args.partis_dir + '/packages/samtools'
         cmd_str += ' ' + workdir + '/' + base_infname + ' ' + workdir + '/' + base_outfname
@@ -268,8 +270,8 @@ class Waterer(object):
                 print ''
                 raise Exception('numbers don\'t add up in sw output reader (n_to_rerun + new_indels != remaining_queries): %d + %d != %d   (look in %s)' % (n_to_rerun, self.new_indels, len(self.remaining_queries), self.args.workdir))
             if self.nth_try < 2 or self.new_indels == 0:  # increase the mismatch score if it's the first try, or if there's no new indels
-                print '            increasing mismatch score (%d --> %d) and rerunning them' % (self.args.match_mismatch[1], self.args.match_mismatch[1] + 1)
-                self.args.match_mismatch[1] += 1
+                print '            increasing mismatch score (%d --> %d) and rerunning them' % (self.match_mismatch[1], self.match_mismatch[1] + 1)
+                self.match_mismatch[1] += 1
             elif self.new_indels > 0:  # if there were some indels, rerun with the same parameters (but when the input is written the indel will be "reversed' in the sequences that's passed to ighutil)
                 print '            rerunning for indels'
                 self.new_indels = 0
@@ -389,7 +391,7 @@ class Waterer(object):
                 if cpos < 0 or cpos >= len(query_seq):
                     continue
 
-            if 'I' in read.cigarstring or 'D' in read.cigarstring:  # skip indels, and tell the HMM to skip indels (you won't see any unless you decrease the <self.args.gap_open_penalty>)
+            if 'I' in read.cigarstring or 'D' in read.cigarstring:  # skip indels, and tell the HMM to skip indels (you won't see any unless you decrease the <self.gap_open_penalty>)
                 if self.args.no_indels:  # you can forbid indels on the command line
                     continue
                 if self.nth_try < 2:  # we also forbid indels on the first try (we want to increase the mismatch score before we conclude it's "really" an indel)
