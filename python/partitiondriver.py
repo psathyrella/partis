@@ -49,8 +49,6 @@ class PartitionDriver(object):
         self.bcrham_proc_info = None
         self.bcrham_failed_queries = set()
 
-        self.n_max_calc_per_process = 200  # if a bcrham process calc'd more than this many fwd + vtb values, don't decrease the number of processes in the next step
-
         self.unseeded_clusters = set()  # all the queries that we *didn't* cluster with the seed uid
         self.time_to_remove_unseeded_clusters = False
         self.already_removed_unseeded_clusters = False
@@ -225,7 +223,7 @@ class PartitionDriver(object):
         factor = 1.3
 
         reduce_n_procs = False
-        if n_calcd_per_process < self.n_max_calc_per_process or n_proc_list.count(n_procs) > n_procs:  # if we didn't need to do that many calculations, or if we've already milked this number of procs for most of what it's worth
+        if n_calcd_per_process < self.ags.n_max_to_calc_per_process or n_proc_list.count(n_procs) > n_procs:  # if we didn't need to do that many calculations, or if we've already milked this number of procs for most of what it's worth
             reduce_n_procs = True
 
         if reduce_n_procs:
