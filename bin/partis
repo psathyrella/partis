@@ -100,7 +100,7 @@ def run_simulation(args):
         n_events = int(check_output('grep -v unique_id ' + fname + ' | awk -F, \'{print $2}\' | uniq | wc -l', shell=True).split()[0])
         if n_events < n_per_proc:
             raise Exception('only found %d events (expected %d) in output file %s' % (n_events, n_per_proc, fname))
-    utils.merge_csvs(args.outfname, outfnames, cleanup=(not args.no_clean))
+    utils.merge_csvs(args.outfname, outfnames)
 
 # ----------------------------------------------------------------------------------------
 def run_partitiondriver(args):
@@ -168,7 +168,6 @@ subparsers = parser.add_subparsers(dest='action')
 parent_parser = argparse.ArgumentParser(add_help=False)
 parent_parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2], help='Debug verbosity level.')
 parent_parser.add_argument('--sw-debug', type=int, choices=[0, 1, 2], help='Debug level for Smith-Waterman.')
-parent_parser.add_argument('--no-clean', action='store_true', help='Don\'t remove the various temp files')
 parent_parser.add_argument('--is-data', action='store_true', help='deprecated! use --is-simu for simulation')
 parent_parser.add_argument('--is-simu', action='store_true', help='Set if running on simulated sequences')
 parent_parser.add_argument('--skip-unproductive', action='store_true', help='Skip sequences which Smith-Waterman determines to be unproductive (they have stop codons, are out of frame, etc.)')
@@ -188,7 +187,7 @@ parent_parser.add_argument('--outfname', help='Output file name.')
 parent_parser.add_argument('--presto-output', action='store_true', help='write output file in presto format')
 parent_parser.add_argument('--plotdir', help='Base directory to which to write plots (no plots are written if this isn\'t set)')
 parent_parser.add_argument('--ighutil-dir', default=os.getenv('HOME') + '/.local', help='Path to vdjalign executable. The default (%(default)s) is where \'pip install --user\' typically puts things')
-parent_parser.add_argument('--workdir', help='Temporary working directory (see also <no-clean>)')
+parent_parser.add_argument('--workdir', help='Temporary working directory')
 parent_parser.add_argument('--persistent-cachefname', help='Name of file which will be used as an initial cache file (if it exists), and to which all cached info will be written out before exiting.')
 parent_parser.add_argument('--abbreviate', action='store_true', help='Abbreviate/translate sequence ids to improve readability of partition debug output. Uses a, b, c, ..., aa, ab, ...')
 parent_parser.add_argument('--n-procs', default='1', help='Number of processes over which to parallelize (Can be colon-separated list: first number is procs for hmm, second (should be smaller) is procs for smith-waterman)')

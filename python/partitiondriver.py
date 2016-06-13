@@ -59,7 +59,6 @@ class PartitionDriver(object):
         self.hmm_cachefname = self.args.workdir + '/hmm_cached_info.csv'
         self.hmm_outfname = self.args.workdir + '/hmm_output.csv'
         self.annotation_fname = self.hmm_outfname.replace('.csv', '_annotations.csv')  # TODO won't work in parallel
-        # self.new_allele_fname = 'new-alleles.fa'
 
         if self.args.outfname is not None:
             outdir = os.path.dirname(self.args.outfname)
@@ -90,14 +89,13 @@ class PartitionDriver(object):
             self.merge_files(infnames=[self.args.persistent_cachefname, self.hmm_cachefname], outfname=self.args.persistent_cachefname, dereplicate=True)
             lockfile.close()
             os.remove(lockfname)
-        if not self.args.no_clean and os.path.exists(self.hmm_cachefname):
+        if os.path.exists(self.hmm_cachefname):
             os.remove(self.hmm_cachefname)
 
-        if not self.args.no_clean:
-            try:
-                os.rmdir(self.args.workdir)
-            except OSError:
-                raise Exception('workdir (%s) not empty: %s' % (self.args.workdir, ' '.join(os.listdir(self.args.workdir))))  # hm... you get weird recursive exceptions if you get here. Oh, well, it still works
+        try:
+            os.rmdir(self.args.workdir)
+        except OSError:
+            raise Exception('workdir (%s) not empty: %s' % (self.args.workdir, ' '.join(os.listdir(self.args.workdir))))  # hm... you get weird recursive exceptions if you get here. Oh, well, it still works
 
     # ----------------------------------------------------------------------------------------
     def run_waterer(self, parameter_dir, write_parameters=False, find_new_alleles=False):
@@ -411,9 +409,8 @@ class PartitionDriver(object):
         if self.args.outfname is not None:
             self.write_clusterpaths(self.args.outfname, cpath)
 
-        if not self.args.no_clean:
-            os.remove(fastafname)
-            os.remove(clusterfname)
+        os.remove(fastafname)
+        os.remove(clusterfname)
 
         print '      vsearch/swarm time: %.1f' % (time.time()-start)
 
@@ -782,10 +779,9 @@ class PartitionDriver(object):
             check_call('grep -v \'' + header + '\' ' + outfname + ' | sort | uniq >>' + tmpfname, shell=True)
             check_call(['mv', '-v', tmpfname, outfname])
 
-        if not self.args.no_clean:
-            for infname in infnames:
-                if infname != outfname:
-                    os.remove(infname)
+        for infname in infnames:
+            if infname != outfname:
+                os.remove(infname)
 
     # ----------------------------------------------------------------------------------------
     def merge_all_hmm_outputs(self, n_procs, precache_all_naive_seqs):
@@ -807,16 +803,15 @@ class PartitionDriver(object):
         else:
             self.merge_subprocess_files(self.hmm_outfname, n_procs)
 
-        if not self.args.no_clean:
-            if n_procs == 1:
-                os.remove(self.hmm_outfname)
-            else:
-                for iproc in range(n_procs):
-                    subworkdir = self.subworkdir(iproc, n_procs)
-                    os.remove(subworkdir + '/' + os.path.basename(self.hmm_infname))
-                    if os.path.exists(subworkdir + '/' + os.path.basename(self.hmm_outfname)):
-                        os.remove(subworkdir + '/' + os.path.basename(self.hmm_outfname))
-                    os.rmdir(subworkdir)
+        if n_procs == 1:
+            os.remove(self.hmm_outfname)
+        else:
+            for iproc in range(n_procs):
+                subworkdir = self.subworkdir(iproc, n_procs)
+                os.remove(subworkdir + '/' + os.path.basename(self.hmm_infname))
+                if os.path.exists(subworkdir + '/' + os.path.basename(self.hmm_outfname)):
+                    os.remove(subworkdir + '/' + os.path.basename(self.hmm_outfname))
+                os.rmdir(subworkdir)
 
         return cpath
 
@@ -1070,7 +1065,7 @@ class PartitionDriver(object):
             elif algorithm == 'forward':
                 self.read_forward_output(self.hmm_outfname)
 
-        if not self.args.no_clean and os.path.exists(self.hmm_infname):
+        if os.path.exists(self.hmm_infname):
             os.remove(self.hmm_infname)
 
         return cpath
@@ -1104,8 +1099,7 @@ class PartitionDriver(object):
                 for uids, prob in probs.items():
                     writer.writerow({'unique_ids' : uids, 'logprob' : prob})
 
-        if not self.args.no_clean:
-            os.remove(annotation_fname)
+        os.remove(annotation_fname)
 
     # ----------------------------------------------------------------------------------------
     def read_annotation_output(self, annotation_fname, outfname=None, count_parameters=False, parameter_out_dir=None):
@@ -1208,8 +1202,7 @@ class PartitionDriver(object):
         if self.args.annotation_clustering is not None:
             self.deal_with_annotation_clustering(eroded_annotations, outfname)
 
-        if not self.args.no_clean:
-            os.remove(annotation_fname)
+        os.remove(annotation_fname)
 
     # ----------------------------------------------------------------------------------------
     def deal_with_annotation_clustering(self, annotations, outfname):
