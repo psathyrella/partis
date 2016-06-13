@@ -224,7 +224,7 @@ class PartitionDriver(object):
         factor = 1.3
 
         reduce_n_procs = False
-        if n_calcd_per_process < self.ags.n_max_to_calc_per_process or n_proc_list.count(n_procs) > n_procs:  # if we didn't need to do that many calculations, or if we've already milked this number of procs for most of what it's worth
+        if n_calcd_per_process < self.args.n_max_to_calc_per_process or n_proc_list.count(n_procs) > n_procs:  # if we didn't need to do that many calculations, or if we've already milked this number of procs for most of what it's worth
             reduce_n_procs = True
 
         if reduce_n_procs:

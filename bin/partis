@@ -261,7 +261,7 @@ subargs['simulate'].append({'name' : '--indel-location', 'kwargs' : {'choices' :
 subargs['simulate'].append({'name' : '--gtrfname', 'kwargs' : {'default' : partis_dir + '/data/recombinator/gtr.txt', 'help' : 'File with list of GTR parameters. Fed into bppseqgen along with the chosen tree. Corresponds to an arbitrary dataset at the moment, but eventually will be inferred per-dataset.'}})
 subargs['simulate'].append({'name' : '--simulate-partially-from-scratch', 'kwargs' : {'action' : 'store_true', 'help' : 'Don\'t use an existing parameter directory to describe the repertoire; instead start from scratch. Mutation freqs are harder, so for now we use some stuff in data/recombinator/.'}})
 subargs['simulate'].append({'name' : '--scratch-mute-freq-dir', 'kwargs' : {'default' : partis_dir + '/data/recombinator/scratch-parameters', 'help' : 'see --simulate-partially-from-scratch'}})
-print 'TODO read through write_germline_fasta'
+
 subparsermap = {}
 for name, vals in subconfig.items():
     subparsermap[name] = subparsers.add_parser(name, parents=[parent_parser], help=vals['help'], formatter_class=formatter_class)
