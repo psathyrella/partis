@@ -25,8 +25,9 @@ from hist import Hist
 # ----------------------------------------------------------------------------------------
 class PartitionDriver(object):
     """ Class to parse input files, start bcrham jobs, and parse/interpret bcrham output for annotation and partitioning """
-    def __init__(self, args, initial_datadir):
+    def __init__(self, args, action, initial_datadir):
         self.args = args
+        self.current_action = action  # *not* necessarily the same as <self.args.action>
         utils.prep_dir(self.args.workdir)
         self.my_datadir = self.args.workdir + '/' + utils.glfo_dir
         self.rewritten_germline_files = utils.write_germline_fasta(self.my_datadir, input_dir=initial_datadir, only_genes=self.args.only_genes)  # need a copy on disk for vdjalign and bcrham (it may also get modified)
@@ -40,9 +41,9 @@ class PartitionDriver(object):
             if len(self.input_info) > 1000:
                 if self.args.n_procs == 1:
                     print '  note:! running on %d sequences spread over %d processes. This will be kinda slow, so it might be a good idea to set --n-procs N to the number of processors on your local machine, or look into non-local parallelization with --slurm.\n' % (len(self.input_info), self.args.n_procs)
-                if self.args.outfname is None and self.args.action != 'cache-parameters':
+                if self.args.outfname is None and self.current_action != 'cache-parameters':
                     print '  note: running on a lot of sequences without setting --outfname. Which is ok! But there\'ll be no persistent record of the results'
-        elif self.args.action != 'view-annotations' and self.args.action != 'view-partitions':
+        elif self.current_action != 'view-annotations' and self.current_action != 'view-partitions':
             raise Exception('--infname is required for action \'%s\'' % args.action)
 
         self.sw_info = None
@@ -464,7 +465,7 @@ class PartitionDriver(object):
             cmd_str += ' --dont-rescale-emissions'
         if self.args.print_cluster_annotations and n_procs == 1:
             cmd_str += ' --annotationfile ' + self.annotation_fname
-        if self.args.action == 'partition':
+        if self.current_action == 'partition':
             cmd_str += ' --cachefile ' + self.hmm_cachefname
             if precache_all_naive_seqs:
                 cmd_str += ' --cache-naive-seqs'
@@ -785,7 +786,7 @@ class PartitionDriver(object):
     def merge_all_hmm_outputs(self, n_procs, precache_all_naive_seqs):
         """ Merge any/all output files from subsidiary bcrham processes """
         cpath = None  # TODO figure out a cleaner way to do this
-        if self.args.action == 'partition':  # merge partitions from several files
+        if self.current_action == 'partition':  # merge partitions from several files
             if n_procs > 1:
                 self.merge_subprocess_files(self.hmm_cachefname, n_procs, include_outfile=True)  # sub cache files only have new info
 
@@ -1018,7 +1019,7 @@ class PartitionDriver(object):
 
         skipped_gene_matches = set()
 
-        if self.args.action == 'partition' and algorithm == 'forward':  # if we're caching naive seqs before partitioning, we're doing viterbi (and want the block below)
+        if self.current_action == 'partition' and algorithm == 'forward':  # if we're caching naive seqs before partitioning, we're doing viterbi (and want the block below)
             nsets = copy.deepcopy(cpath.partitions[cpath.i_best_minus_x])  # NOTE that a.t.m. i_best and i_best_minus_x are the same, since we're not calculating log probs of partitions (well, we're trying to avoid calculating any extra log probs, which means we usually don't know the log prob of the entire partition)
             if self.args.seed_unique_id is not None and self.time_to_remove_unseeded_clusters:
                 nsets = [[qr] for qr in self.get_seeded_clusters(nsets)]
@@ -1054,10 +1055,10 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def read_hmm_output(self, algorithm, n_procs, count_parameters, parameter_out_dir, precache_all_naive_seqs):
         cpath = None  # TODO figure out a cleaner way to do this
-        if self.args.action == 'partition' or n_procs > 1:
+        if self.current_action == 'partition' or n_procs > 1:
             cpath = self.merge_all_hmm_outputs(n_procs, precache_all_naive_seqs)
 
-        if self.args.action != 'partition' or count_parameters:
+        if self.current_action != 'partition' or count_parameters:
             if algorithm == 'viterbi':
                 self.read_annotation_output(self.hmm_outfname, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, outfname=self.args.outfname)
             elif algorithm == 'forward':

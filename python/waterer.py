@@ -170,9 +170,8 @@ class Waterer(object):
             sys.stdout.flush()
             time.sleep(1)
 
-        if not self.args.no_clean:
-            for iproc in range(n_procs):
-                os.remove(self.subworkdir(iproc, n_procs) + '/' + base_infname)
+        for iproc in range(n_procs):
+            os.remove(self.subworkdir(iproc, n_procs) + '/' + base_infname)
 
         sys.stdout.flush()
 
@@ -276,12 +275,11 @@ class Waterer(object):
         else:
             print '        all done'
 
-        if not self.args.no_clean:
-            for iproc in range(n_procs):
-                workdir = self.subworkdir(iproc, n_procs)
-                os.remove(workdir + '/' + base_outfname)
-                if n_procs > 1:  # still need the top-level workdir
-                    os.rmdir(workdir)
+        for iproc in range(n_procs):
+            workdir = self.subworkdir(iproc, n_procs)
+            os.remove(workdir + '/' + base_outfname)
+            if n_procs > 1:  # still need the top-level workdir
+                os.rmdir(workdir)
 
     # ----------------------------------------------------------------------------------------
     def get_choice_prob(self, region, gene):

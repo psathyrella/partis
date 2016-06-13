@@ -29,11 +29,8 @@ def check_maybe_auto_cache_parameters(args):
     auto_ran_cache_parameters = False
     if not args.simulate_partially_from_scratch and not os.path.exists(args.parameter_dir):
         print '  note: --parameter-dir \'%s\' does not exist, so proceeding to cache a new set of parameters' % args.parameter_dir
-        parter = PartitionDriver(args, args.initial_datadir)  # if we're caching parameters, read initial gl info from <args.initial_datadir> (then the final glfo gets written to the parameter dir)
-        tmpaction = args.action  # this is ugly as hell
-        args.action = 'cache-parameters'  # ... but it gets used inside of partitiondriver, and for the time being we do it this way
+        parter = PartitionDriver(args, 'cache-parameters', args.initial_datadir)  # if we're caching parameters, read initial gl info from <args.initial_datadir> (then the final glfo gets written to the parameter dir)
         parter.cache_parameters()
-        args.action = tmpaction
         auto_ran_cache_parameters = True
     return auto_ran_cache_parameters
 
@@ -124,7 +121,7 @@ def run_partitiondriver(args):
     used_default_parameter_dir = set_default_parameter_dir(args)
 
     if args.action == 'cache-parameters':
-        parter = PartitionDriver(args, args.initial_datadir)  # if we're caching parameters, read initial gl info from <args.initial_datadir> (then the final glfo gets written to the parameter dir)
+        parter = PartitionDriver(args, 'cache-parameters', args.initial_datadir)  # if we're caching parameters, read initial gl info from <args.initial_datadir> (then the final glfo gets written to the parameter dir)
         parter.cache_parameters()
         return
 
@@ -133,7 +130,7 @@ def run_partitiondriver(args):
     if used_default_parameter_dir or auto_ran_cache_parameters:  # add the subdirectory, either 'sw' or 'hmm' (probably the latter)
         args.parameter_dir += '/' + args.parameter_type
 
-    parter = PartitionDriver(args, args.parameter_dir + '/' + utils.glfo_dir)  # ...and if we've already got a parameter dir, read the gl info from there
+    parter = PartitionDriver(args, args.action, args.parameter_dir + '/' + utils.glfo_dir)  # ...and if we've already got a parameter dir, read the gl info from there
     if 'run-' in args.action:
         parter.run_algorithm(args.action.replace('run-', ''))
     elif args.action == 'partition':
@@ -148,7 +145,7 @@ def view_existing_output(args):
     if not os.path.exists(args.outfname):
         raise Exception('--outfname \'%s\' does not exist' % args.outfname)
 
-    parter = PartitionDriver(args, args.initial_datadir)
+    parter = PartitionDriver(args, args.action, args.initial_datadir)
     if args.action == 'view-annotations':
         parter.view_existing_annotations()
     elif args.action == 'view-partitions':

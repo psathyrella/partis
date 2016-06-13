@@ -73,8 +73,7 @@ class Recombinator(object):
         treegen.generate_trees(seed, self.treefname)
         with opener('r')(self.treefname) as treefile:  # read in the trees (and other info) that we just generated
             self.treeinfo = treefile.readlines()
-        if not self.args.no_clean:
-            os.remove(self.treefname)
+        os.remove(self.treefname)
 
         if os.path.exists(self.outfname):
             os.remove(self.outfname)
@@ -444,10 +443,9 @@ class Recombinator(object):
 
         # self.check_tree_simulation(leaf_seq_fname, chosen_tree)
 
-        if not self.args.no_clean:
-            os.remove(reco_seq_fname)  # clean up temp files
-            os.remove(treefname)
-            os.remove(leaf_seq_fname)
+        os.remove(reco_seq_fname)  # clean up temp files
+        os.remove(treefname)
+        os.remove(leaf_seq_fname)
 
         return mutated_seqs
 
@@ -589,8 +587,7 @@ class Recombinator(object):
 
         with opener('w')(os.devnull) as fnull:
             inferred_tree_str = check_output('FastTree -gtr -nt ' + leaf_seq_fname, shell=True, stderr=fnull)
-        if clean_up and not self.args.no_clean:
-            os.remove(leaf_seq_fname)
+        os.remove(leaf_seq_fname)
         chosen_tree = dendropy.Tree.get_from_string(chosen_tree_str, 'newick')
         inferred_tree = dendropy.Tree.get_from_string(inferred_tree_str, 'newick')
         if self.args.debug:
