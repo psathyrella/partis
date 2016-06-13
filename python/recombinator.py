@@ -49,7 +49,7 @@ class Recombinator(object):
             for model in ['gtr', 'gamma']:
                 self.mute_models[region][model] = {}
 
-        self.glfo = utils.read_germline_set(parameter_dir + '/' + utils.glfo_dir)
+        self.glfo = utils.read_germline_set(self.args.initial_datadir)
 
         self.allowed_genes = self.get_allowed_genes(parameter_dir)  # set of genes a) for which we read per-position mutation information and b) from which we choose when running partially from scratch
         self.version_freq_table = self.read_vdj_version_freqs(parameter_dir)  # list of the probabilities with which each VDJ combo (plus other rearrangement parameters) appears in data

@@ -56,11 +56,19 @@ def run_simulation(args):
     if args.slurm:
         raise Exception('simulator parallelization does not handle slurm')
     if args.infname is not None:
-        print '  NOTE --infname is not used when simulating'
+        print '  ntoe: --infname is not used when simulating'
     if args.n_max_queries != -1:
-        print '  NOTE --n-max-queries is not used when simulating (use --n-sim-events to set the simulated number of rearrangemt events)'
+        print '  note: --n-max-queries is not used when simulating (use --n-sim-events to set the simulated number of rearrangemt events)'
     if args.parameter_dir is None and not args.simulate_partially_from_scratch:
-        raise Exception('if --simulate-partially-from-scratch isn\'t set, --parameter-dir should be specified')
+        raise Exception('either --parameter-dir must be specified, or --simulate-partially-from-scratch must be set')
+    if args.simulate_partially_from_scratch and args.parameter_dir is not None:
+        raise Exception('you can\'t specify --parameter-dir if you also set --simulate-partially-from-scratch')
+
+    if args.initial_datadir is None:  # if the gl info dir wasn't explicitly set on the command line, we have to decide what to use
+        if args.parameter_dir is not None:  # if --parameter-dir was explicitly set, assume there's gl info in this --parameter-dir
+            args.initial_datadir = args.parameter_dir + '/' + utils.glfo_dir
+        else:  # otherwise use the default (probably data/imgt)
+            args.initial_datadir = default_initial_datadir
 
     # ----------------------------------------------------------------------------------------
     def make_events(n_events, iproc, random_ints):  # NOTE all the different seeds! this sucks but is necessary to allow reproducibility
@@ -120,6 +128,9 @@ def run_partitiondriver(args):
 
     used_default_parameter_dir = set_default_parameter_dir(args)
 
+    if args.initial_datadir is None:
+        args.initial_datadir = default_initial_datadir
+
     if args.action == 'cache-parameters':
         parter = PartitionDriver(args, 'cache-parameters', args.initial_datadir)  # if we're caching parameters, read initial gl info from <args.initial_datadir> (then the final glfo gets written to the parameter dir)
         parter.cache_parameters()
@@ -162,6 +173,8 @@ formatter_class = lambda prog: argparse.HelpFormatter(prog, max_help_position=co
 parser = argparse.ArgumentParser(formatter_class=formatter_class)
 subparsers = parser.add_subparsers(dest='action')
 
+default_initial_datadir = partis_dir + '/data/imgt'  # I promise, it has to be set here instead of in the argparser, and yes, it freaks me out, too
+
 parent_parser = argparse.ArgumentParser(add_help=False)
 parent_parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2], help='Debug verbosity level.')
 parent_parser.add_argument('--sw-debug', type=int, choices=[0, 1, 2], help='Debug level for Smith-Waterman.')
@@ -178,7 +191,7 @@ parent_parser.add_argument('--name-column', default='unique_id', help='csv colum
 parent_parser.add_argument('--seq-column', default='seq', help='csv column name for nucleotide sequences')
 parent_parser.add_argument('--parameter-dir', help='Directory to/from which to write/read sample-specific parameters. If not specified, we assume we should cache new parameters.')
 parent_parser.add_argument('--parameter-type', default='hmm', choices=('sw', 'hmm'), help='Use parameters from Smith-Waterman (sw) or the HMM (hmm) subdirectories for inference/simulation?')
-parent_parser.add_argument('--initial-datadir', default=partis_dir + '/data/imgt', help='Directory with fastas from which to read germline set. Only used when caching parameters, during which its contents is copied into --parameter-dir, perhaps (i.e. if specified) with modification')
+parent_parser.add_argument('--initial-datadir', help='Directory with fastas from which to read germline set. Only used when caching parameters, during which its contents is copied into --parameter-dir, perhaps (i.e. if specified) with modification. NOTE default is set below, because control flow is too complicated for argparse')
 parent_parser.add_argument('--alignment-dir', default=partis_dir + '/data/fam-alignments', help='Directory from which to read aligned germline sets. WILL BE REMOVED.')  # TODO remove this
 parent_parser.add_argument('--outfname', help='Output file name.')
 parent_parser.add_argument('--presto-output', action='store_true', help='write output file in presto format')

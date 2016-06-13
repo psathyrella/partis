@@ -271,6 +271,11 @@ def generate_snpd_gene(gene, cpos, seq, aligned_seq, positions):
 
 # ----------------------------------------------------------------------------------------
 def add_some_snps(snps_to_add, glfo, only_genes, remove_template_genes=False):
+    """ 
+    Generate some snp'd genes and add them to glfo, specified with <snps_to_add>.
+    e.g. [{'gene' : 'IGHV3-71*01', 'positions' : (35, None)}, ] will add a snp at position 35 and at a random location.
+    The resulting snp'd gene will have a name like IGHV3-71*01+C35T.T47G
+    """
     for snpinfo in snps_to_add:
         gene, positions = snpinfo['gene'], snpinfo['positions']
         print '    adding %d %s to %s' % (len(positions), plural_str('snp', len(positions)), gene)
@@ -293,18 +298,28 @@ def add_some_snps(snps_to_add, glfo, only_genes, remove_template_genes=False):
 
 # ----------------------------------------------------------------------------------------
 def add_new_allele(glfo, newfo, only_genes, remove_template_genes, debug=False):
+    """
+    Add a new allele to <glfo>, specified by <newfo> which is of the
+    form: {'template-gene' : 'IGHV3-71*01', 'gene' : 'IGHV3-71*01+C35T.T47G', 'seq' : 'ACTG yadda yadda CGGGT', 'aligned-seq' : None}
+    If <remove_template_genes>, we also remove 'template-gene' from <glfo>.
+    """
+
     template_gene = newfo['template-gene']
     region = get_region(template_gene)
     if template_gene not in glfo['seqs'][region]:
         raise Exception('unknown template gene %s' % template_gene)
+
     new_gene = newfo['gene']
     if only_genes is not None and new_gene not in only_genes:
         only_genes.append(new_gene)
+
     if region == 'v':
         glfo['cyst-positions'][new_gene] = glfo['cyst-positions'][template_gene]
     elif region == 'j':
         glfo['tryp-positions'][new_gene] = glfo['tryp-positions'][template_gene]
+
     glfo['seqs'][region][new_gene] = newfo['seq']
+
     if newfo['aligned-seq'] is None:
         add_missing_alignments(glfo)
     else:
@@ -315,7 +330,7 @@ def add_new_allele(glfo, newfo, only_genes, remove_template_genes, debug=False):
         print '    %s   %s' % (color_mutants(glfo['seqs'][region][template_gene], newfo['seq']), color_gene(new_gene))
 
     if remove_template_genes:
-        print '  removing %s' % color_gene(template_gene)
+        print '  removing template gene %s from germline set' % color_gene(template_gene)
         if only_genes is not None and template_gene in only_genes:
             only_genes.remove(template_gene)
         if region == 'v':
@@ -328,19 +343,20 @@ def add_new_allele(glfo, newfo, only_genes, remove_template_genes, debug=False):
 # ----------------------------------------------------------------------------------------
 def write_germline_fasta(output_dir, input_dir=None, glfo=None, only_genes=None, snps_to_add=None, new_allele_info=None, remove_template_genes=False, debug=False):
     """ rewrite the germline set files in <input_dir> to <output_dir>, only keeping the genes in <only_genes> """
-    if input_dir is not None:
-        glfo = read_germline_set(input_dir)
-        if debug:
-            print '    rewriting germlines from %s to %s' % (input_dir, output_dir)
-    else:
+    if input_dir is None:
         assert glfo is not None
         if debug:
             print '    writing germlines to %s' % output_dir
+    else:
+        assert glfo is None
+        glfo = read_germline_set(input_dir)
+        if debug:
+            print '    rewriting germlines from %s to %s' % (input_dir, output_dir)
 
-    if snps_to_add is not None:  # e.g. [{'gene' : 'IGHV3-71*01', 'positions' : (35, None)}, ] will add a snp at position 35 and at a random location
+    if snps_to_add is not None:
         add_some_snps(snps_to_add, glfo, only_genes)
 
-    if new_allele_info is not None:  # e.g. [{'template-gene' : 'IGHV3-71*01', 'gene' : 'IGHV3-71*01+C45T', 'seq' : 'ACGTCCCCGT...', 'aligned-seq' : None}, ]
+    if new_allele_info is not None:
         for new_allele_info in new_allele_info:
             add_new_allele(glfo, new_allele_info, only_genes, remove_template_genes)
     else:

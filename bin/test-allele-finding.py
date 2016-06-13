@@ -50,7 +50,7 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
 
     # simulate
     cmd_str = base_cmd + ' simulate --n-sim-events 1000 --n-procs 10 --simulate-partially-from-scratch --mutation-multiplier 0.5'
-    cmd_str += ' --datadir ' + outdir + '/germlines-for-simulation'
+    cmd_str += ' --initial-datadir ' + outdir + '/germlines-for-simulation'
     cmd_str += ' --outfname ' + simfname
     if seed is not None:
         cmd_str += ' --seed ' + str(seed)
@@ -61,7 +61,7 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
 
     def cache_parameters(datadir):
         cmd_str = base_cmd + ' cache-parameters --infname ' + simfname + ' --n-procs 10 --generate-germline-set --debug-new-allele-finding --only-smith-waterman'
-        cmd_str += ' --datadir ' + datadir
+        cmd_str += ' --initial-datadir ' + datadir
         cmd_str += ' --parameter-dir ' + outpdir
         cmd_str += ' --plotdir ' + plotdir
         if seed is not None:
