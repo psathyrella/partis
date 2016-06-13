@@ -43,10 +43,6 @@ class Waterer(object):
         self.info['queries'] = []  # list of queries that *passed* sw, i.e. for which we have information
         self.info['all_best_matches'] = set()  # set of all the matches we found (for *all* queries)
         self.info['indels'] = {}
-        if self.args.apply_choice_probs_in_sw:
-            if self.debug:
-                print '  reading gene choice probs from', parameter_dir
-            self.gene_choice_probs = utils.read_overall_gene_probs(parameter_dir)
 
         self.nth_try = 1
         self.unproductive_queries = set()
@@ -377,8 +373,6 @@ class Waterer(object):
             region = utils.get_region(gene)
             raw_score = read.tags[0][1]  # raw because they don't include the gene choice probs
             score = raw_score
-            if self.args.apply_choice_probs_in_sw:  # NOTE I stopped applying the gene choice probs here because the smith-waterman scores don't correspond to log-probs, so throwing on the gene choice probs was dubious (and didn't seem to work that well)
-                score = self.get_choice_prob(region, gene) * raw_score  # multiply by the probability to choose this gene
             qrbounds = (read.qstart, read.qend)
             glbounds = (read.pos, read.aend)
             if region == 'v' and first_match_query_bounds is None:
@@ -434,12 +428,7 @@ class Waterer(object):
         out_str_list = []
         buff_str = (20 - len(gene)) * ' '
         tmp_val = score
-        if self.args.apply_choice_probs_in_sw and self.get_choice_prob(region, gene) != 0.0:
-            tmp_val = score / self.get_choice_prob(region, gene)
-        if self.args.apply_choice_probs_in_sw:
-            out_str_list.append('%8s%s%s%9.1e * %3.0f = %-6.1f' % (' ', utils.color_gene(gene), buff_str, self.get_choice_prob(region, gene), tmp_val, score))
-        else:
-            out_str_list.append('%8s%s%s%9s%3s %6.0f        ' % (' ', utils.color_gene(gene), '', '', buff_str, score))
+        out_str_list.append('%8s%s%s%9s%3s %6.0f        ' % (' ', utils.color_gene(gene), '', '', buff_str, score))
         out_str_list.append('%4d%4d   %s\n' % (glbounds[0], glbounds[1], self.glfo['seqs'][region][gene][glbounds[0]:glbounds[1]]))
         out_str_list.append('%46s  %4d%4d' % ('', qrbounds[0], qrbounds[1]))
         out_str_list.append('   %s ' % (utils.color_mutants(self.glfo['seqs'][region][gene][glbounds[0]:glbounds[1]], query_seq[qrbounds[0]:qrbounds[1]])))
