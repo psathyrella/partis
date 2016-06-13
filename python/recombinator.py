@@ -49,7 +49,7 @@ class Recombinator(object):
             for model in ['gtr', 'gamma']:
                 self.mute_models[region][model] = {}
 
-        self.glfo = utils.read_germline_set(self.args.datadir)
+        self.glfo = utils.read_germline_set(parameter_dir + '/' + utils.glfo_dir)
 
         self.allowed_genes = self.get_allowed_genes(parameter_dir)  # set of genes a) for which we read per-position mutation information and b) from which we choose when running partially from scratch
         self.version_freq_table = self.read_vdj_version_freqs(parameter_dir)  # list of the probabilities with which each VDJ combo (plus other rearrangement parameters) appears in data
@@ -120,7 +120,7 @@ class Recombinator(object):
         else:
             gene_counts = utils.read_overall_gene_probs(self.parameter_dir, only_gene=gene_or_insert_name, normalize=False, expect_zero_counts=True)
             replacement_genes = None
-            if gene_counts < self.args.min_observations_to_write:  # if we didn't see it enough, average over all the genes that find_replacement_genes() gives us NOTE if <gene_or_insert_name> isn't in the dict, it's because it's <args.datadir> but not in the parameter dir
+            if gene_counts < self.args.min_observations_to_write:  # if we didn't see it enough, average over all the genes that find_replacement_genes() gives us NOTE if <gene_or_insert_name> isn't in the dict, it's because it's <args.datadir> but not in the parameter dir UPDATE not using datadir like this any more, so previous statement may not be true
                 replacement_genes = utils.find_replacement_genes(self.parameter_dir, min_counts=self.args.min_observations_to_write, gene_name=gene_or_insert_name, single_gene=False)
             self.all_mute_freqs[gene_or_insert_name], _ = paramutils.read_mute_info(self.parameter_dir, this_gene=gene_or_insert_name, approved_genes=replacement_genes)
 
@@ -187,7 +187,7 @@ class Recombinator(object):
     # ----------------------------------------------------------------------------------------
     def get_allowed_genes(self, parameter_dir):
         # first get all the genes that are available
-        if self.args.simulate_partially_from_scratch:  # start with all the ones in args.datadir
+        if self.args.simulate_partially_from_scratch:  # start with all of 'em
             tmplist = [self.glfo['seqs'][r].keys() for r in utils.regions]
             allowed_set = set([g for glist in tmplist for g in glist])
         else:  # start with all the ones in the parameter directory

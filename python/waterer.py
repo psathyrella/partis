@@ -23,6 +23,8 @@ class Waterer(object):
         sys.stdout.flush()
 
         self.parameter_dir = parameter_dir
+        print parameter_dir
+        print args
         self.args = args
         self.debug = self.args.debug if self.args.sw_debug is None else self.args.sw_debug
 
@@ -44,15 +46,11 @@ class Waterer(object):
                 print '  reading gene choice probs from', parameter_dir
             self.gene_choice_probs = utils.read_overall_gene_probs(parameter_dir)
 
-        self.outfile = None
-        if self.args.outfname is not None:
-            self.outfile = open(self.args.outfname, 'a')
-
         self.nth_try = 1
         self.unproductive_queries = set()
 
         # rewrite input germline sets (if needed)
-        self.my_datadir = my_datadir  # NOTE not the same as <self.args.datadir>
+        self.my_datadir = my_datadir
 
         self.alfinder, self.pcounter, self.true_pcounter, self.perfplotter = None, None, None, None
         if find_new_alleles:  # NOTE *not* the same as <self.args.find_new_alleles>
@@ -66,11 +64,6 @@ class Waterer(object):
 
         if not os.path.exists(self.args.ighutil_dir + '/bin/vdjalign'):
             raise Exception('ERROR ighutil path d.n.e: ' + self.args.ighutil_dir + '/bin/vdjalign')
-
-    # ----------------------------------------------------------------------------------------
-    def __del__(self):
-        if self.args.outfname is not None:
-            self.outfile.close()
 
     # ----------------------------------------------------------------------------------------
     def clean(self):  # NOTE I don't think I'm using this any more (or any of the other clean() fcns?)
@@ -160,7 +153,7 @@ class Waterer(object):
             return self.subworkdir(iproc, n_procs) + '/' + base_outfname
         # ----------------------------------------------------------------------------------------
         def get_cmd_str(iproc):
-            return self.get_vdjalign_cmd_str(self.subworkdir(iproc, n_procs), base_infname, base_outfname, self.my_datadir, n_procs)
+            return self.get_vdjalign_cmd_str(self.subworkdir(iproc, n_procs), base_infname, base_outfname, n_procs)
 
         # start all procs for the first time
         procs, n_tries = [], []
@@ -218,7 +211,7 @@ class Waterer(object):
             raise Exception('didn\'t write %s to %s' % (':'.join(not_written), self.args.workdir))
 
     # ----------------------------------------------------------------------------------------
-    def get_vdjalign_cmd_str(self, workdir, base_infname, base_outfname, datadir, n_procs=None):
+    def get_vdjalign_cmd_str(self, workdir, base_infname, base_outfname, n_procs=None):
         """
         Run smith-waterman alignment (from Connor's ighutils package) on the seqs in <base_infname>, and toss all the top matches into <base_outfname>.
         """
@@ -231,7 +224,7 @@ class Waterer(object):
         match, mismatch = self.args.match_mismatch
         cmd_str += ' --match ' + str(match) + ' --mismatch ' + str(mismatch)
         cmd_str += ' --gap-open ' + str(self.args.gap_open_penalty)  #1000'  #50'
-        cmd_str += ' --vdj-dir ' + datadir  # NOTE not necessarily <self.args.datadir>
+        cmd_str += ' --vdj-dir ' + self.my_datadir
         cmd_str += ' --samtools-dir ' + self.args.partis_dir + '/packages/samtools'
         cmd_str += ' ' + workdir + '/' + base_infname + ' ' + workdir + '/' + base_outfname
 
@@ -454,11 +447,8 @@ class Waterer(object):
             out_str_list.append('WARNING ' + warnings[gene])
         if skipping:
             out_str_list.append('skipping!')
-        if self.args.outfname is None:
-            print ''.join(out_str_list)
-        else:
-            out_str_list.append('\n')
-            self.outfile.write(''.join(out_str_list))
+
+        print ''.join(out_str_list)
 
     # ----------------------------------------------------------------------------------------
     def get_overlap_and_available_space(self, rpair, best, qrbounds):

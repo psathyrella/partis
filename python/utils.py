@@ -213,6 +213,10 @@ for column, deps in column_dependencies.iteritems():
     tmp_list.extend(deps)
     column_dependency_tuples.append(tuple(tmp_list))
 
+# ----------------------------------------------------------------------------------------
+glfo_dir = 'germline-sets'  # always put germline info into a subdir with this name
+
+# ----------------------------------------------------------------------------------------
 def get_parameter_fname(column=None, deps=None, column_and_deps=None):
     """ return the file name in which we store the information for <column>. Either pass in <column> and <deps> *or* <column_and_deps> """
     if column == 'all':
@@ -330,7 +334,8 @@ def write_germline_fasta(output_dir, input_dir=None, glfo=None, only_genes=None,
             print '    rewriting germlines from %s to %s' % (input_dir, output_dir)
     else:
         assert glfo is not None
-        print '    writing germlines to %s' % output_dir
+        if debug:
+            print '    writing germlines to %s' % output_dir
 
     if snps_to_add is not None:  # e.g. [{'gene' : 'IGHV3-71*01', 'positions' : (35, None)}, ] will add a snp at position 35 and at a random location
         add_some_snps(snps_to_add, glfo, only_genes)

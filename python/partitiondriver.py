@@ -25,12 +25,13 @@ from hist import Hist
 # ----------------------------------------------------------------------------------------
 class PartitionDriver(object):
     """ Class to parse input files, start bcrham jobs, and parse/interpret bcrham output for annotation and partitioning """
-    def __init__(self, args):
+    def __init__(self, args, initial_datadir):
         self.args = args
         utils.prep_dir(self.args.workdir)
-        self.my_datadir = self.args.workdir + '/germline-sets'  # NOTE not the same as <self.args.datadir>
-        self.rewritten_germline_files = utils.write_germline_fasta(self.my_datadir, input_dir=self.args.datadir, only_genes=self.args.only_genes)  # need a copy on disk for vdjalign, if nothing else
-        self.glfo = utils.read_germline_set(self.my_datadir, alignment_dir=self.args.alignment_dir, debug=True)
+        self.my_datadir = self.args.workdir + '/' + utils.glfo_dir
+        self.rewritten_germline_files = utils.write_germline_fasta(self.my_datadir, input_dir=initial_datadir, only_genes=self.args.only_genes)  # need a copy on disk for vdjalign and bcrham (it may also get modified)
+        self.glfo = utils.read_germline_set(self.my_datadir)
+        print len(self.args.only_genes), [len(self.glfo['seqs'][r].keys()) for r in utils.regions]
 
         self.input_info, self.reco_info = None, None
         if self.args.infname is not None:
@@ -102,21 +103,15 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def run_waterer(self, parameter_dir, write_parameters=False, find_new_alleles=False):
         start = time.time()
-        
-        # figure out if we need to tell waterer to only use a subset of genes (by rewriting the data dir)
-        if write_parameters or find_new_alleles:  # if we're writing parameters, then we don't have any hmm dir to look in
-            pass  # er, I think we don't do anything here now?  genes_to_use = self.args.only_genes  # if None, we use all of 'em
-        else:  # ...but if we're not writing parameters, then we want to look in the existing parameter dir to see for which genes we have hmms, and then tell sw to only use those
+
+        # can probably remove this... I just kind of want to know if it happens
+        if not write_parameters and not find_new_alleles:
             genes_with_hmms = set(utils.find_genes_that_have_hmms(parameter_dir))
-            expected_genes = set([g for r in utils.regions for g in self.glfo['seqs'][r].keys()])
+            expected_genes = set([g for r in utils.regions for g in self.glfo['seqs'][r].keys()])  # this'll be the & of the datadir (maybe rewritten, maybe not) and only_genes
             if len(genes_with_hmms - expected_genes) > 0:
-                raise Exception('yamels in %s for genes %s that aren\'t in glfo' % (parameter_dir, ' '.join(genes_with_hmms - expected_genes)))
+                print '  %s yamels in %s for genes %s that aren\'t in glfo' % (utils.color('red', 'warning'), parameter_dir, ' '.join(genes_with_hmms - expected_genes))
             if len(expected_genes - genes_with_hmms) > 0:
-                raise Exception('genes %s in glfo that don\'t have yamels in %s' % (' '.join(expected_genes - genes_with_hmms), parameter_dir))
-            # if self.args.only_genes is not None:
-            #     if len(set(self.args.only_genes) - set(genes_to_use)) > 0:
-            #     genes_to_use = list(set(genes_to_use) & set(self.args.only_genes))  # we have to have an hmm for it, and it has to be among the genes that were specified on the command line
-            # utils.write_germline_fasta(self.my_datadir, input_dir=self.my_datadir, only_genes=genes_to_use)
+                print '  %s genes %s in glfo that don\'t have yamels in %s' % (utils.color('red', 'warning'), ' '.join(expected_genes - genes_with_hmms), parameter_dir)
 
         waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo, self.my_datadir, parameter_dir, write_parameters=write_parameters, find_new_alleles=find_new_alleles)
         waterer.run()
@@ -462,7 +457,7 @@ class PartitionDriver(object):
         if self.args.debug > 0:
             cmd_str += ' --debug ' + str(self.args.debug)
         cmd_str += ' --hmmdir ' + os.path.abspath(parameter_dir) + '/hmms'
-        cmd_str += ' --datadir ' + self.my_datadir  # NOTE not the same as <self.args.datadir>
+        cmd_str += ' --datadir ' + self.my_datadir
         cmd_str += ' --infile ' + csv_infname
         cmd_str += ' --outfile ' + csv_outfname
         cmd_str += ' --random-seed ' + str(self.args.seed)
@@ -874,7 +869,7 @@ class PartitionDriver(object):
                 genes_to_remove.append(gene)
 
         # NOTE that we should be removing genes *only* if we're caching parameters, i.e. if we just ran sw on a data set for the first time.
-        # The issue is that when we first run sw on a data set, it uses all the genes in self.args.datadir.  UPDATE not any more! but don't want to update this comment just yet
+        # The issue is that when we first run sw on a data set, it uses all the genes in datadir.  UPDATE not any more! but don't want to update this comment just yet
         # We then write HMMs for only the genes which were, at least once, a *best* match.
         # But when we're writing the HMM input, we have the N best genes for each sequence, and some of these may not have been a best match at least once.
         # In subsequent runs, however, we already have a parameter dir, so before we run sw we look and see which HMMs we have, and tell sw to only use those, so in this case we shouldn't be removing any.
