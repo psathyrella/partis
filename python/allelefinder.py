@@ -38,9 +38,10 @@ class AlleleFinder(object):
         self.min_y_intercept = 0.15  # corresponds, roughly, to the expression level of the least common allele to which we have sensitivity
         self.default_slope_bounds = (-0.2, 0.2)  # fitting function needs some reasonable bounds from which to start
         self.big_y_icpt_bounds = (self.min_y_intercept, 1.5)  # snp-candidate positions should fit well when forced to use these bounds, but non-snp positions should fit like &*@!*
-        self.min_score = 2  # (mean ratio over snp candidates) - (first non-candidate ratio) must be greater than this
+        # self.min_score = 2  # (mean ratio over snp candidates) - (first non-candidate ratio) must be greater than this
         self.min_min_candidate_ratio = 2.25  # every candidate ratio must be greater than this
         # self.max_non_candidate_ratio = 2.  # first non-candidate has to be smaller than this
+        self.min_snp_big_icpt_residual = 2.  # snp candidates must have a better (smaller residual) big-intercept fit than this
         self.fitted_positions = {}  # positions that, for any <istart>, we have fit info
 
         self.mfreqer = MuteFreqer(glfo)
@@ -150,6 +151,8 @@ class AlleleFinder(object):
         #     return False
         if fitfo['min_snp_ratios'][istart] < self.min_min_candidate_ratio:  # worst snp candidate has to be pretty good on its own
             return False
+        if fitfo['max_snp_big_icpt_residuals'][istart] > self.min_snp_big_icpt_residual:  # each snp position needs to have a bad fit with zero icpt as well as a good fit with big icpt (not just an appropriate ratio of the two) NOTE could clean this up if I end up deciding not to use <scores> at all
+            return False
         # if fitfo['max_non_snp_ratios'][istart] > self.min_min_candidate_ratio:  # first non-snp candidate has to be pretty bad on its own
         #     return False
         for candidate_pos in fitfo['candidates'][istart]:  # return false if any of the candidate positions don't have enough counts with <istart> mutations (probably a homozygous new allele with more than <istart> snps)
@@ -217,6 +220,7 @@ class AlleleFinder(object):
         min_candidate_ratio = min([residual_ratios[cs] for cs in candidate_snps])
 
         fitfo['scores'][istart] = (min_candidate_ratio - max_non_snp_ratio) / max(self.small_number, max_non_snp_ratio)
+        fitfo['max_snp_big_icpt_residuals'][istart] = max([residuals[cs]['big_icpt'] for cs in candidate_snps])
         fitfo['min_snp_ratios'][istart] = min([residual_ratios[cs] for cs in candidate_snps])
         fitfo['max_non_snp_ratios'][istart] = max_non_snp_ratio
         fitfo['candidates'][istart] = {cp : residual_ratios[cp] for cp in candidate_snps}
@@ -234,6 +238,7 @@ class AlleleFinder(object):
                                                                                        sum(subxyvals[pos]['obs']), sum(subxyvals[pos]['total']), xtrastrs[1]),
                 # if debug > 1:
                 #     print '      ', ''.join(['%4d / %-4d' % (subxyvals[pos]['obs'][inm], subxyvals[pos]['total'][inm]) for inm in range(len(subxyvals[pos]['n_mutelist']))])
+                print ''
 
             print '            %38s score: %-5s = (%-5s - %5s) / %-5s' % ('', fstr(fitfo['scores'][istart]), fstr(min_candidate_ratio), fstr(max_non_snp_ratio), fstr(max_non_snp_ratio))
 
@@ -290,7 +295,7 @@ class AlleleFinder(object):
             if positions_to_try_to_fit is None:
                 continue
 
-            fitfo = {n : {} for n in ('scores', 'min_snp_ratios', 'max_non_snp_ratios', 'candidates')}
+            fitfo = {n : {} for n in ('scores', 'min_snp_ratios', 'max_snp_big_icpt_residuals', 'max_non_snp_ratios', 'candidates')}
             for istart in range(1, self.n_max_snps):
                 if debug:
                     if istart == 1:
@@ -367,16 +372,16 @@ class AlleleFinder(object):
         if only_csv:  # not implemented
             return
 
+        start = time.time()
         for gene in self.plotvals:
             if utils.get_region(gene) != 'v':
                 continue
 
-            start = time.time()
             for position in self.plotvals[gene]:
                 if position not in self.fitted_positions[gene]:  # we can make plots for the positions we didn't fit, but there's a *lot* of them and they're slow
                     continue
                 # if 'allele-finding' not in self.TMPxyvals[gene][position] or self.TMPxyvals[gene][position]['allele-finding'] is None:
                 #     continue
                 plotting.make_allele_finding_plot(plotdir + '/' + utils.sanitize_name(gene), gene, position, self.plotvals[gene][position])
-            print '      allele finding plot time: %.1f' % (time.time()-start)
+        print '      allele finding plot time: %.1f' % (time.time()-start)
 
