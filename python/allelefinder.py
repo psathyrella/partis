@@ -30,6 +30,7 @@ class AlleleFinder(object):
         self.small_number = 1e-5
         self.n_max_mutations_per_segment = 20  # don't look at sequences whose v segments have more than this many mutations
         self.n_max_snps = self.n_max_mutations_per_segment - 9  # try excluding up to this many bins (on the left) when doing the fit (leaves at least 9 points for fit)
+        self.max_fit_length = 10  # don't fit more than this many bins for each istart (the first few positions in the fit are the most important, and if we fit too far to the right these important positions get diluted)
         self.n_muted_min = 15  # don't fit positions that have fewer mutations than this
         self.n_total_min = 15  # ...or fewer total observations than this
         self.n_five_prime_positions_to_exclude = 5  # skip positions that are too close to the 5' end of V (misassigned insertions look like snps)
@@ -221,14 +222,18 @@ class AlleleFinder(object):
         fitfo['candidates'][istart] = {cp : residual_ratios[cp] for cp in candidate_snps}
 
         if debug:
+            # if debug > 1:
+            #     print '%70s %s' % ('', ''.join(['%11d' % nm for nm in subxyvals[max_non_snp]['n_mutelist']]))
             for pos in candidate_snps + [max_non_snp, ]:
                 xtrastrs = ('[', ']') if pos == max_non_snp else (' ', ' ')
                 pos_str = '%3s' % str(pos)
                 if residual_ratios[pos] > self.min_min_candidate_ratio:
                     pos_str = utils.color('yellow', pos_str)
-                print '               %s %s    %5s   (%5s / %-5s)       %3d / %3d %s' % (xtrastrs[0], pos_str, fstr(residual_ratios[pos]),
+                print '               %s %s    %5s   (%5s / %-5s)       %4d / %-4d %s' % (xtrastrs[0], pos_str, fstr(residual_ratios[pos]),
                                                                                        fstr(residuals[pos]['zero_icpt']), fstr(residuals[pos]['big_icpt']),
-                                                                                       sum(subxyvals[pos]['obs']), sum(subxyvals[pos]['total']), xtrastrs[1])
+                                                                                       sum(subxyvals[pos]['obs']), sum(subxyvals[pos]['total']), xtrastrs[1]),
+                # if debug > 1:
+                #     print '      ', ''.join(['%4d / %-4d' % (subxyvals[pos]['obs'][inm], subxyvals[pos]['total'][inm]) for inm in range(len(subxyvals[pos]['n_mutelist']))])
 
             print '            %38s score: %-5s = (%-5s - %5s) / %-5s' % ('', fstr(fitfo['scores'][istart]), fstr(min_candidate_ratio), fstr(max_non_snp_ratio), fstr(max_non_snp_ratio))
 
@@ -293,7 +298,7 @@ class AlleleFinder(object):
                         print '             position   ratio   (m=0 / m>%5.2f)       muted / obs ' % self.big_y_icpt_bounds[0]
                     print '  %d %s' % (istart, utils.plural_str('snp', istart))
 
-                subxyvals = {pos : {k : v[istart:] for k, v in xyvals[pos].items()} for pos in positions_to_try_to_fit}
+                subxyvals = {pos : {k : v[istart : istart + self.max_fit_length] for k, v in xyvals[pos].items()} for pos in positions_to_try_to_fit}
                 self.fit_istart(gene, istart, positions_to_try_to_fit, subxyvals, fitfo, debug=debug)
                 if istart not in fitfo['scores']:  # if it didn't get filled, we didn't have enough observations to do the fit
                     break
