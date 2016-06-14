@@ -216,6 +216,7 @@ class AlleleFinder(object):
         fitfo['scores'][istart] = (min_candidate_ratio - max_non_snp_ratio) / max(self.small_number, max_non_snp_ratio)
         fitfo['min_snp_ratios'][istart] = min([residual_ratios[cs] for cs in candidate_snps])
         fitfo['max_non_snp_ratios'][istart] = max_non_snp_ratio
+        assert False  # oh, crap, I think I reversed the key order here
         fitfo['candidates'][istart] = {cp : residual_ratios[cp] for cp in candidate_snps}
 
         if debug:
@@ -237,6 +238,10 @@ class AlleleFinder(object):
         new_seq = old_seq
         mutfo = {}
         for pos in sorted(fitfo['candidates'][n_candidate_snps]):
+            assert False  # oh, crap, I think I reversed the key order here
+            for k in self.counts[gene][pos]:
+                print k, self.counts[gene][pos][k]
+            print self.counts[gene][pos][n_candidate_snps]
             obs_counts = {nuke : self.counts[gene][pos][n_candidate_snps][nuke] for nuke in utils.nukes}  # NOTE it's super important to only use the counts from sequences with <n_candidate_snps> total mutations
             sorted_obs_counts = sorted(obs_counts.items(), key=operator.itemgetter(1), reverse=True)
             original_nuke = self.mfreqer.counts[gene][pos]['gl_nuke']
