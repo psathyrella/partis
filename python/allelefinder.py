@@ -151,8 +151,8 @@ class AlleleFinder(object):
         #     return False
         if fitfo['min_snp_ratios'][istart] < self.min_min_candidate_ratio:  # worst snp candidate has to be pretty good on its own
             return False
-        if fitfo['max_snp_big_icpt_residuals'][istart] > self.min_snp_big_icpt_residual:  # each snp position needs to have a bad fit with zero icpt as well as a good fit with big icpt (not just an appropriate ratio of the two) NOTE could clean this up if I end up deciding not to use <scores> at all
-            return False
+        # if fitfo['max_snp_big_icpt_residuals'][istart] > self.min_snp_big_icpt_residual:  # each snp position needs to have a bad fit with zero icpt as well as a good fit with big icpt (not just an appropriate ratio of the two) UPDATE hm, actually, this isn't a good criterion, maybe because our uncertainties are underestimates, maybe it's better to only use the ratio
+        #     return False
         # if fitfo['max_non_snp_ratios'][istart] > self.min_min_candidate_ratio:  # first non-snp candidate has to be pretty bad on its own
         #     return False
         for candidate_pos in fitfo['candidates'][istart]:  # return false if any of the candidate positions don't have enough counts with <istart> mutations (probably a homozygous new allele with more than <istart> snps)
