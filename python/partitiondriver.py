@@ -98,6 +98,13 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def run_waterer(self, parameter_dir, write_parameters=False, find_new_alleles=False):
+        print 'smith-waterman',
+        if write_parameters:
+            print '  (writing parameters)',
+        if find_new_alleles:
+            print '  (looking for new alleles)',
+        print ''
+        sys.stdout.flush()
         start = time.time()
 
         # can probably remove this... I just kind of want to know if it happens

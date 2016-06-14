@@ -39,14 +39,14 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
 
     snps_to_add = [
         {'gene' : 'IGHV3-71*01', 'positions' : (35, )},
-        # {'gene' : 'IGHV3-71*01', 'positions' : (35, 50)},
+        {'gene' : 'IGHV3-71*01', 'positions' : (35, 50)},
         # {'gene' : 'IGHV3-71*01', 'positions' : (35, 45, 20, 50, 77)},
         # {'gene' : 'IGHV3-71*01', 'positions' : (35, 60, 50)},
-        # {'gene' : 'IGHV1-18*01', 'positions' : (100, 101)},
+        {'gene' : 'IGHV1-18*01', 'positions' : (100, 101)},
         # {'gene' : 'IGHV1-18*01', 'positions' : (20, )}
     ]
     simulation_genes = simulation_v_genes + ':' + dj_genes
-    utils.write_germline_fasta(outdir + '/germlines-for-simulation', input_dir='data/imgt', only_genes=simulation_genes.split(':'), snps_to_add=snps_to_add)
+    utils.write_germline_fasta(outdir + '/germlines-for-simulation', input_dir='data/imgt', only_genes=simulation_genes.split(':'), snps_to_add=snps_to_add, remove_template_genes=True, debug=True)
 
     # simulate
     cmd_str = base_cmd + ' simulate --n-sim-events 1000 --n-procs 10 --simulate-partially-from-scratch --mutation-multiplier 0.5'
@@ -57,13 +57,14 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
     run(cmd_str)
 
     inference_genes = inference_v_genes + ':' + dj_genes
-    utils.write_germline_fasta(outdir + '/germlines-for-inference', input_dir='data/imgt', only_genes=inference_genes.split(':'))
+    utils.write_germline_fasta(outdir + '/germlines-for-inference', input_dir='data/imgt', only_genes=inference_genes.split(':'), debug=True)
 
     def cache_parameters(datadir):
-        cmd_str = base_cmd + ' cache-parameters --infname ' + simfname + ' --n-procs 10 --generate-germline-set --debug-new-allele-finding --only-smith-waterman'
+        cmd_str = base_cmd + ' cache-parameters --infname ' + simfname + ' --n-procs 10 --generate-germline-set --only-smith-waterman'
+        # cmd_str += '  --debug-new-allele-finding'
         cmd_str += ' --initial-datadir ' + datadir
         cmd_str += ' --parameter-dir ' + outpdir
-        cmd_str += ' --plotdir ' + plotdir
+        # cmd_str += ' --plotdir ' + plotdir
         if seed is not None:
             cmd_str += ' --seed ' + str(seed)
         run(cmd_str)

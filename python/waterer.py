@@ -20,9 +20,6 @@ from allelefinder import AlleleFinder
 class Waterer(object):
     """ Run smith-waterman on the query sequences in <infname> """
     def __init__(self, args, input_info, reco_info, glfo, my_datadir, parameter_dir, write_parameters=False, find_new_alleles=False):
-        print 'smith-waterman'
-        sys.stdout.flush()
-
         self.parameter_dir = parameter_dir
         self.args = args
         self.debug = self.args.debug if self.args.sw_debug is None else self.args.sw_debug

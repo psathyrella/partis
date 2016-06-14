@@ -270,31 +270,17 @@ def generate_snpd_gene(gene, cpos, seq, aligned_seq, positions):
     return {'template-gene' : gene, 'gene' : snpd_name, 'seq' : seq, 'aligned-seq' : aligned_seq}
 
 # ----------------------------------------------------------------------------------------
-def add_some_snps(snps_to_add, glfo, only_genes, remove_template_genes=False):
-    """ 
-    Generate some snp'd genes and add them to glfo, specified with <snps_to_add>.
-    e.g. [{'gene' : 'IGHV3-71*01', 'positions' : (35, None)}, ] will add a snp at position 35 and at a random location.
-    The resulting snp'd gene will have a name like IGHV3-71*01+C35T.T47G
-    """
-    for snpinfo in snps_to_add:
-        gene, positions = snpinfo['gene'], snpinfo['positions']
-        print '    adding %d %s to %s' % (len(positions), plural_str('snp', len(positions)), gene)
-        seq = glfo['seqs'][get_region(gene)][gene]
-        aligned_seq = glfo['aligned-genes'][get_region(gene)][gene]
-        assert get_region(gene) == 'v'
-        cpos = glfo['cyst-positions'][gene]
-
-        snpfo = None
-        itry = 0
-        while snpfo is None or snpfo['gene'] in glfo['seqs'][get_region(gene)]:
-            if itry > 0:
-                print '      already in glfo, try again'
-                if itry > 99:
-                    raise Exception('too many tries while trying to generate new snps -- did you specify a lot of snps on the same position?')
-            snpfo = generate_snpd_gene(gene, cpos, seq, aligned_seq, positions)
-            itry += 1
-
-        add_new_allele(glfo, snpfo, only_genes, remove_template_genes=remove_template_genes)
+def remove_gene_from_glfo_and_only_genes(glfo, only_genes, gene):
+    print '  removing template gene %s from germline set' % color_gene(gene)
+    region = get_region(gene)
+    if only_genes is not None and gene in only_genes:
+        only_genes.remove(gene)
+    if region == 'v':
+        del glfo['cyst-positions'][gene]
+    elif region == 'j':
+        del glfo['tryp-positions'][gene]
+    del glfo['seqs'][region][gene]
+    del glfo['aligned-genes'][region][gene]
 
 # ----------------------------------------------------------------------------------------
 def add_new_allele(glfo, newfo, only_genes, remove_template_genes, debug=False):
@@ -326,19 +312,51 @@ def add_new_allele(glfo, newfo, only_genes, remove_template_genes, debug=False):
         glfo['aligned-genes'][region][new_gene] = newfo['aligned-seq']
 
     if debug:
-        print '    %s   %s' % (glfo['seqs'][region][template_gene], color_gene(template_gene))
-        print '    %s   %s' % (color_mutants(glfo['seqs'][region][template_gene], newfo['seq']), color_gene(new_gene))
+        print '        %s   %s' % (glfo['seqs'][region][template_gene], color_gene(template_gene))
+        print '        %s   %s' % (color_mutants(glfo['seqs'][region][template_gene], newfo['seq']), color_gene(new_gene))
 
     if remove_template_genes:
-        print '  removing template gene %s from germline set' % color_gene(template_gene)
-        if only_genes is not None and template_gene in only_genes:
-            only_genes.remove(template_gene)
-        if region == 'v':
-            del glfo['cyst-positions'][template_gene]
-        elif region == 'j':
-            del glfo['tryp-positions'][template_gene]
-        del glfo['seqs'][region][template_gene]
-        del glfo['aligned-genes'][region][template_gene]
+        remove_gene_from_glfo_and_only_genes(glfo, only_genes, template_gene)
+
+# ----------------------------------------------------------------------------------------
+def remove_the_stupid_godamn_template_genes_all_at_once(glfo, only_genes, templates_to_remove):
+    for gene in templates_to_remove:
+        remove_gene_from_glfo_and_only_genes(glfo, only_genes, gene)
+
+# ----------------------------------------------------------------------------------------
+def add_some_snps(snps_to_add, glfo, only_genes, remove_template_genes=False, debug=False):
+    """ 
+    Generate some snp'd genes and add them to glfo, specified with <snps_to_add>.
+    e.g. [{'gene' : 'IGHV3-71*01', 'positions' : (35, None)}, ] will add a snp at position 35 and at a random location.
+    The resulting snp'd gene will have a name like IGHV3-71*01+C35T.T47G
+    """
+
+    templates_to_remove = set()
+
+    for isnp in range(len(snps_to_add)):
+        snpinfo = snps_to_add[isnp]
+        gene, positions = snpinfo['gene'], snpinfo['positions']
+        print '    adding %d %s to %s' % (len(positions), plural_str('snp', len(positions)), gene)
+        seq = glfo['seqs'][get_region(gene)][gene]
+        aligned_seq = glfo['aligned-genes'][get_region(gene)][gene]
+        assert get_region(gene) == 'v'
+        cpos = glfo['cyst-positions'][gene]
+
+        snpfo = None
+        itry = 0
+        while snpfo is None or snpfo['gene'] in glfo['seqs'][get_region(gene)]:
+            if itry > 0:
+                print '      already in glfo, try again'
+                if itry > 99:
+                    raise Exception('too many tries while trying to generate new snps -- did you specify a lot of snps on the same position?')
+            snpfo = generate_snpd_gene(gene, cpos, seq, aligned_seq, positions)
+            itry += 1
+
+        if remove_template_genes:
+            templates_to_remove.add(gene)
+        add_new_allele(glfo, snpfo, only_genes, remove_template_genes=False, debug=debug)  # *don't* remove the templates here, since we don't know if there's another snp later that needs them
+
+    remove_the_stupid_godamn_template_genes_all_at_once(glfo, only_genes, templates_to_remove)  # works fine with zero-length <templates_to_remove>
 
 # ----------------------------------------------------------------------------------------
 def write_germline_fasta(output_dir, input_dir=None, glfo=None, only_genes=None, snps_to_add=None, new_allele_info=None, remove_template_genes=False, debug=False):
@@ -346,20 +364,20 @@ def write_germline_fasta(output_dir, input_dir=None, glfo=None, only_genes=None,
     if input_dir is None:
         assert glfo is not None
         if debug:
-            print '    writing germlines to %s' % output_dir
+            print '  writing germlines to %s' % output_dir
     else:
         assert glfo is None
         glfo = read_germline_set(input_dir)
         if debug:
-            print '    rewriting germlines from %s to %s' % (input_dir, output_dir)
+            print '  rewriting germlines from %s to %s' % (input_dir, output_dir)
 
     if snps_to_add is not None:
-        add_some_snps(snps_to_add, glfo, only_genes)
+        add_some_snps(snps_to_add, glfo, only_genes, remove_template_genes=remove_template_genes, debug=debug)
 
     if new_allele_info is not None:
         for new_allele_info in new_allele_info:
-            add_new_allele(glfo, new_allele_info, only_genes, remove_template_genes)
-    else:
+            add_new_allele(glfo, new_allele_info, only_genes, remove_template_genes=remove_template_genes, debug=debug)
+    elif not snps_to_add:
         assert not remove_template_genes  # only makes sense if you've specified <new_allele_info>
 
     if not os.path.exists(output_dir):
