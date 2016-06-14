@@ -144,16 +144,18 @@ class AlleleFinder(object):
         return {'obs' : obs, 'total' : total, 'n_mutelist' : n_mutelist, 'freqs' : freqs, 'errs' : errs, 'weights' : weights}
 
     # ----------------------------------------------------------------------------------------
-    def is_a_candidate(self, score, min_snp_ratio, max_non_snp_ratio):
+    def is_a_candidate(self, gene, fitfo, istart):
         # if score < self.min_score:  # last snp candidate has to be a lot better than the first non-snp
         #     return False
-        if min_snp_ratio < self.min_min_candidate_ratio:  # worst snp candidate has to be pretty good on its own
+        if fitfo['min_snp_ratios'][istart] < self.min_min_candidate_ratio:  # worst snp candidate has to be pretty good on its own
             return False
-        # if max_non_snp_ratio > self.min_min_candidate_ratio:  # first non-snp candidate has to be pretty bad on its own
+        # if fitfo['max_non_snp_ratios'][istart] > self.min_min_candidate_ratio:  # first non-snp candidate has to be pretty bad on its own
         #     return False
+        for candidate_pos in fitfo['candidates'][istart]:  # return false if any of the candidate positions don't have enough counts with <istart> mutations (probably a homozygous new allele with more than <istart> snps)
+            if istart not in self.counts[gene][candidate_pos] or self.counts[gene][candidate_pos][istart]['total'] < self.n_total_min:
+                return False
 
         return True
-
 
     # ----------------------------------------------------------------------------------------
     def get_positions_to_fit(self, gene, gene_results, debug=False):
@@ -216,7 +218,6 @@ class AlleleFinder(object):
         fitfo['scores'][istart] = (min_candidate_ratio - max_non_snp_ratio) / max(self.small_number, max_non_snp_ratio)
         fitfo['min_snp_ratios'][istart] = min([residual_ratios[cs] for cs in candidate_snps])
         fitfo['max_non_snp_ratios'][istart] = max_non_snp_ratio
-        assert False  # oh, crap, I think I reversed the key order here
         fitfo['candidates'][istart] = {cp : residual_ratios[cp] for cp in candidate_snps}
 
         if debug:
@@ -238,10 +239,6 @@ class AlleleFinder(object):
         new_seq = old_seq
         mutfo = {}
         for pos in sorted(fitfo['candidates'][n_candidate_snps]):
-            assert False  # oh, crap, I think I reversed the key order here
-            for k in self.counts[gene][pos]:
-                print k, self.counts[gene][pos][k]
-            print self.counts[gene][pos][n_candidate_snps]
             obs_counts = {nuke : self.counts[gene][pos][n_candidate_snps][nuke] for nuke in utils.nukes}  # NOTE it's super important to only use the counts from sequences with <n_candidate_snps> total mutations
             sorted_obs_counts = sorted(obs_counts.items(), key=operator.itemgetter(1), reverse=True)
             original_nuke = self.mfreqer.counts[gene][pos]['gl_nuke']
@@ -302,8 +299,8 @@ class AlleleFinder(object):
                     break
 
             istart_candidates = []
-            for istart, score in sorted(fitfo['scores'].items(), key=operator.itemgetter(1), reverse=True):
-                if self.is_a_candidate(score, fitfo['min_snp_ratios'][istart], fitfo['max_non_snp_ratios'][istart]):
+            for istart in fitfo['scores']:
+                if self.is_a_candidate(gene, fitfo, istart):
                     istart_candidates.append(istart)
 
             # if debug:
