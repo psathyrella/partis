@@ -270,8 +270,9 @@ def generate_snpd_gene(gene, cpos, seq, aligned_seq, positions):
     return {'template-gene' : gene, 'gene' : snpd_name, 'seq' : seq, 'aligned-seq' : aligned_seq}
 
 # ----------------------------------------------------------------------------------------
-def remove_gene_from_glfo_and_only_genes(glfo, only_genes, gene):
-    print '  removing template gene %s from germline set' % color_gene(gene)
+def remove_gene_from_glfo_and_only_genes(glfo, only_genes, gene, debug=False):
+    if debug:
+        print '  removing template gene %s from germline set' % color_gene(gene)
     region = get_region(gene)
     if only_genes is not None and gene in only_genes:
         only_genes.remove(gene)
@@ -316,12 +317,12 @@ def add_new_allele(glfo, newfo, only_genes, remove_template_genes, debug=False):
         print '        %s   %s' % (color_mutants(glfo['seqs'][region][template_gene], newfo['seq']), color_gene(new_gene))
 
     if remove_template_genes:
-        remove_gene_from_glfo_and_only_genes(glfo, only_genes, template_gene)
+        remove_gene_from_glfo_and_only_genes(glfo, only_genes, template_gene, debug=True)
 
 # ----------------------------------------------------------------------------------------
 def remove_the_stupid_godamn_template_genes_all_at_once(glfo, only_genes, templates_to_remove):
     for gene in templates_to_remove:
-        remove_gene_from_glfo_and_only_genes(glfo, only_genes, gene)
+        remove_gene_from_glfo_and_only_genes(glfo, only_genes, gene, debug=True)
 
 # ----------------------------------------------------------------------------------------
 def add_some_snps(snps_to_add, glfo, only_genes, remove_template_genes=False, debug=False):
@@ -371,6 +372,12 @@ def write_germline_fasta(output_dir, input_dir=None, glfo=None, only_genes=None,
         if debug:
             print '  rewriting germlines from %s to %s' % (input_dir, output_dir)
 
+    if only_genes is not None:
+        for region in regions:
+            for gene in glfo['seqs'][region]:
+                if gene not in only_genes:
+                    remove_gene_from_glfo_and_only_genes(glfo, only_genes, gene, debug=False)
+
     if snps_to_add is not None:
         add_some_snps(snps_to_add, glfo, only_genes, remove_template_genes=remove_template_genes, debug=debug)
 
@@ -405,7 +412,7 @@ def write_germline_fasta(output_dir, input_dir=None, glfo=None, only_genes=None,
             writer.writeheader()
             for gene, istart in glfo[codon + '-positions'].items():
                 if only_genes is not None and gene not in only_genes:
-                    continue
+                    continue  # can happen if original {cyst,tryp}-position.csv file had genes that weren't in igh[vdj].fasta
                 writer.writerow({'gene' : gene, 'istart' : istart})
 
     # make sure there weren't any files lingering in the output dir when we started

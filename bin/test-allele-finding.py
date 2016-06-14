@@ -76,7 +76,7 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
 
 seed = None  # 1
 dj_genes = 'IGHD6-19*01:IGHJ4*02'
-inference_v_genes = 'IGHV3-71*01' #:IGHV1-18*01'
+inference_v_genes = 'IGHV3-71*01:IGHV1-18*01'
 simulation_v_genes = inference_v_genes  # + ':IGHV3-71*02:IGHV3-71*03'  #:IGHV1-18*01'
 
 run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=seed)
