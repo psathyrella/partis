@@ -122,21 +122,35 @@ class PartitionDriver(object):
         print '        water time: %.1f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
-    def generate_germline_set(self, parameter_dir):
+    def find_new_alleles(self, parameter_dir):
+        """ look for new alleles with sw, write any that you find to the germline set directory in <self.workdir>, add them to <self.glfo>, and repeat until you don't find any. """
+        all_new_allele_info = []
         itry = 0
-        while itry == 0 or len(self.sw_info['new-alleles']) > 0:
+        while True:
             self.run_waterer(parameter_dir, find_new_alleles=True)
-            utils.write_germline_fasta(self.my_datadir, input_dir=self.my_datadir, only_genes=list(self.sw_info['all_best_matches']), new_allele_info=self.sw_info['new-alleles'], remove_template_genes=(itry==0))
+            if len(self.sw_info['new-alleles']) == 0:
+                break
+            all_new_allele_info += self.sw_info['new-alleles']
+            remove_template_genes = itry==0 and self.args.generate_germline_set
+            utils.write_germline_fasta(self.my_datadir, input_dir=self.my_datadir, only_genes=list(self.sw_info['all_best_matches']), new_allele_info=self.sw_info['new-alleles'], remove_template_genes=remove_template_genes)
             self.glfo = utils.read_germline_set(self.my_datadir, alignment_dir=self.args.alignment_dir)
             itry += 1
+
+        if self.args.new_allele_fname is not None:
+            n_new_alleles = len(all_new_allele_info)
+            print '  writing %d new %s to %s' % (n_new_alleles, utils.plural_str('allele', n_new_alleles), self.args.new_allele_fname)
+            with open(self.args.new_allele_fname, 'w') as outfile:
+                for allele_info in all_new_allele_info:
+                    outfile.write('>%s\n' % allele_info['gene'])
+                    outfile.write('%s\n' % allele_info['seq'])
 
     # ----------------------------------------------------------------------------------------
     def cache_parameters(self):
         """ Infer full parameter sets and write hmm files for sequences from <self.input_info>, first with Smith-Waterman, then using the SW output as seed for the HMM """
         print 'caching parameters'
         sw_parameter_dir = self.args.parameter_dir + '/sw'
-        if self.args.generate_germline_set:
-            self.generate_germline_set(sw_parameter_dir)
+        if self.args.find_new_alleles:
+            self.find_new_alleles(sw_parameter_dir)
         self.run_waterer(sw_parameter_dir, write_parameters=True)
         self.write_hmms(sw_parameter_dir)
         if self.args.only_smith_waterman:

@@ -117,7 +117,7 @@ class Waterer(object):
             for qry in self.remaining_queries:
                 utils.print_reco_event(self.glfo['seqs'], self.reco_info[qry], extra_str='      ', label='true:')
         if self.alfinder is not None:
-            self.alfinder.write(self.parameter_dir, debug=self.args.debug_new_allele_finding)  # may not writing anything, but it finalizes it
+            self.alfinder.finalize(debug=self.args.debug_new_allele_finding)
             self.info['new-alleles'] = self.alfinder.new_allele_info
             if self.args.plotdir is not None:
                 self.alfinder.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)

@@ -146,19 +146,20 @@ class AlleleFinder(object):
         return {'obs' : obs, 'total' : total, 'n_mutelist' : n_mutelist, 'freqs' : freqs, 'errs' : errs, 'weights' : weights}
 
     # ----------------------------------------------------------------------------------------
-    def is_a_candidate(self, gene, fitfo, istart):
-        # if score < self.min_score:  # last snp candidate has to be a lot better than the first non-snp
-        #     return False
+    def is_a_candidate(self, gene, fitfo, istart, debug=False):
+        # NOTE I've tried adding a requirement on the actual value of the big-icpt (or, equivalently, small-icpt) fit, but it seems to be better to just use the ratio (probably because stuff is correlated)
         if fitfo['min_snp_ratios'][istart] < self.min_min_candidate_ratio:  # worst snp candidate has to be pretty good on its own
+            if debug:
+                print '    min snp ratio %s too small (less than %s)' % (fstr(fitfo['min_snp_ratios'][istart]), fstr(self.min_min_candidate_ratio))
             return False
-        # if fitfo['max_snp_big_icpt_residuals'][istart] > self.min_snp_big_icpt_residual:  # each snp position needs to have a bad fit with zero icpt as well as a good fit with big icpt (not just an appropriate ratio of the two) UPDATE hm, actually, this isn't a good criterion, maybe because our uncertainties are underestimates, maybe it's better to only use the ratio
-        #     return False
-        # if fitfo['max_non_snp_ratios'][istart] > self.min_min_candidate_ratio:  # first non-snp candidate has to be pretty bad on its own
-        #     return False
         for candidate_pos in fitfo['candidates'][istart]:  # return false if any of the candidate positions don't have enough counts with <istart> mutations (probably a homozygous new allele with more than <istart> snps)
             if istart not in self.counts[gene][candidate_pos] or self.counts[gene][candidate_pos][istart]['total'] < self.n_total_min:
+                if debug:
+                    print '    not enough counts at this position with %d mutations (%s < %s)' % (istart, fstr(self.counts[gene][candidate_pos][istart]['total']), fstr(self.n_total_min))
                 return False
 
+        if debug:
+            print '    candidate'
         return True
 
     # ----------------------------------------------------------------------------------------
@@ -219,10 +220,8 @@ class AlleleFinder(object):
         max_non_snp, max_non_snp_ratio = sorted_ratios[istart]  # position and ratio for largest non-candidate
         min_candidate_ratio = min([residual_ratios[cs] for cs in candidate_snps])
 
-        fitfo['scores'][istart] = (min_candidate_ratio - max_non_snp_ratio) / max(self.small_number, max_non_snp_ratio)
-        fitfo['max_snp_big_icpt_residuals'][istart] = max([residuals[cs]['big_icpt'] for cs in candidate_snps])
+        # fitfo['scores'][istart] = (min_candidate_ratio - max_non_snp_ratio) / max(self.small_number, max_non_snp_ratio)
         fitfo['min_snp_ratios'][istart] = min([residual_ratios[cs] for cs in candidate_snps])
-        fitfo['max_non_snp_ratios'][istart] = max_non_snp_ratio
         fitfo['candidates'][istart] = {cp : residual_ratios[cp] for cp in candidate_snps}
 
         if debug:
@@ -239,8 +238,6 @@ class AlleleFinder(object):
                 # if debug > 1:
                 #     print '      ', ''.join(['%4d / %-4d' % (subxyvals[pos]['obs'][inm], subxyvals[pos]['total'][inm]) for inm in range(len(subxyvals[pos]['n_mutelist']))])
                 print ''
-
-            print '            %38s score: %-5s = (%-5s - %5s) / %-5s' % ('', fstr(fitfo['scores'][istart]), fstr(min_candidate_ratio), fstr(max_non_snp_ratio), fstr(max_non_snp_ratio))
 
     # ----------------------------------------------------------------------------------------
     def add_new_allele(self, gene, fitfo, n_candidate_snps, debug=False):
@@ -295,7 +292,7 @@ class AlleleFinder(object):
             if positions_to_try_to_fit is None:
                 continue
 
-            fitfo = {n : {} for n in ('scores', 'min_snp_ratios', 'max_snp_big_icpt_residuals', 'max_non_snp_ratios', 'candidates')}
+            fitfo = {n : {} for n in ('min_snp_ratios', 'candidates')}
             for istart in range(1, self.n_max_snps):
                 if debug:
                     if istart == 1:
@@ -305,22 +302,18 @@ class AlleleFinder(object):
 
                 subxyvals = {pos : {k : v[istart : istart + self.max_fit_length] for k, v in xyvals[pos].items()} for pos in positions_to_try_to_fit}
                 self.fit_istart(gene, istart, positions_to_try_to_fit, subxyvals, fitfo, debug=debug)
-                if istart not in fitfo['scores']:  # if it didn't get filled, we didn't have enough observations to do the fit
+                if istart not in fitfo['candidates']:  # if it didn't get filled, we didn't have enough observations to do the fit
                     break
 
             istart_candidates = []
-            for istart in fitfo['scores']:
-                if self.is_a_candidate(gene, fitfo, istart):
+            if debug:
+                print '  evaluating each snp hypothesis'
+                print '    snps       min ratio'
+            for istart in fitfo['candidates']:
+                if debug:
+                    print '    %2d     %9s' % (istart, fstr(fitfo['min_snp_ratios'][istart])),
+                if self.is_a_candidate(gene, fitfo, istart, debug=debug):
                     istart_candidates.append(istart)
-
-            # if debug:
-            #     print '\n  fit results for each snp hypothesis:'
-            #     print '    snps      score       min snp     max non-snp'
-            #     for istart, score in sorted(fitfo['scores'].items(), key=operator.itemgetter(1), reverse=True):
-            #         print_str = '    %2d     %9s   %9s   %9s' % (istart, fstr(score), fstr(fitfo['min_snp_ratios'][istart]), fstr(fitfo['max_non_snp_ratios'][istart]))
-            #         if istart == n_candidate_snps:
-            #             print_str = utils.color('red', print_str)
-            #         print print_str
 
             if len(istart_candidates) > 0:
                 n_candidate_snps = min(istart_candidates)  # add the candidate with the smallest number of snps to the germline set, and run again (if the firs
@@ -339,21 +332,6 @@ class AlleleFinder(object):
             print '      allele finding time: %.1f' % (time.time()-start)
 
         self.finalized = True
-
-    # ----------------------------------------------------------------------------------------
-    def write(self, base_outdir, debug=False):
-        if not self.finalized:
-            self.finalize(debug=debug)
-
-        # NOTE may not actually write anything, but a) we need to finalize it somewhere, and b) it makes more sense to rewrite the germline set directory inside partitiondriver
-
-        if self.args.new_allele_fname is not None:
-            n_new_alleles = len(self.new_allele_info)
-            print '  writing %d new %s to %s' % (n_new_alleles, utils.plural_str('allele', n_new_alleles), self.args.new_allele_fname)
-            with open(self.args.new_allele_fname, 'w') as outfile:
-                for allele_info in self.new_allele_info:
-                    outfile.write('>%s\n' % allele_info['gene'])
-                    outfile.write('%s\n' % allele_info['seq'])
 
     # ----------------------------------------------------------------------------------------
     def plot(self, base_plotdir, only_csv=False):
