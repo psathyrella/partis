@@ -1,7 +1,7 @@
 FROM matsengrp/cpp
 
 # ----------------------------------------------------------------------------------------
-RUN apt-get install -y \
+RUN apt-get update && apt-get install -y \
     astyle \
     libgsl0ldbl \
     libgsl0-dev \
