@@ -11,17 +11,17 @@ RUN apt-get install -y \
     python-scipy \
     r-base \
     zlib1g-dev
-RUN pip install \
-    numpy \
-    scipy \
-    matplotlib \
-    pandas \
-    biopython \
-    cython \
-    dendropy==3.12.3 \
-    pysam \
-    pyyaml \
-    seaborn
+RUN pip install numpy  # putting them on different lines allows docker's caching to defeat pip's slowness
+RUN pip install scipy
+RUN pip install matplotlib
+RUN pip install pandas
+RUN pip install biopython
+RUN pip install cython
+RUN pip install dendropy==3.12.3
+RUN pip install pysam
+RUN pip install pyyaml
+RUN pip install seaborn
+
 RUN R --vanilla --slave -e 'install.packages("TreeSim", repos="http://cran.rstudio.com/")'
 
 COPY . /partis
