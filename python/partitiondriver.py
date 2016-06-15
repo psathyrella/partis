@@ -136,6 +136,11 @@ class PartitionDriver(object):
             self.glfo = utils.read_germline_set(self.my_datadir, alignment_dir=self.args.alignment_dir)
             itry += 1
 
+        # remove any V alleles for which we didn't ever find any evidence
+        if self.args.generate_germline_set:
+            assert False  # need to implement this
+            # alleles_with_evidence = 
+
         if self.args.new_allele_fname is not None:
             n_new_alleles = len(all_new_allele_info)
             print '  writing %d new %s to %s' % (n_new_alleles, utils.plural_str('allele', n_new_alleles), self.args.new_allele_fname)
