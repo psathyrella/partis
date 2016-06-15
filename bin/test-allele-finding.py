@@ -39,14 +39,14 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
 
     snps_to_add = [
         {'gene' : 'IGHV3-71*01', 'positions' : (35, )},
-        # {'gene' : 'IGHV3-71*01', 'positions' : (35, 50)},
-        # {'gene' : 'IGHV3-71*01', 'positions' : (35, 45, 20, 50, 77)},
+        {'gene' : 'IGHV3-71*01', 'positions' : (35, 50)},
+        {'gene' : 'IGHV3-71*01', 'positions' : (35, 45, 20, 50, 77)},
         # {'gene' : 'IGHV3-71*01', 'positions' : (35, 60, 50)},
         # {'gene' : 'IGHV1-18*01', 'positions' : (100, 101)},
         # {'gene' : 'IGHV1-18*01', 'positions' : (20, )}
     ]
     simulation_genes = simulation_v_genes + ':' + dj_genes
-    # utils.write_germline_fasta(outdir + '/germlines-for-simulation', input_dir='data/imgt', only_genes=simulation_genes.split(':'), snps_to_add=snps_to_add, debug=True) #, remove_template_genes=True)
+    utils.write_germline_fasta(outdir + '/germlines-for-simulation', input_dir='data/imgt', only_genes=simulation_genes.split(':'), snps_to_add=snps_to_add, debug=True) #, remove_template_genes=True)
 
     # simulate
     cmd_str = base_cmd + ' simulate --n-sim-events 1000 --n-procs 10 --simulate-partially-from-scratch --mutation-multiplier 0.5'
@@ -54,7 +54,7 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
     cmd_str += ' --outfname ' + simfname
     if seed is not None:
         cmd_str += ' --seed ' + str(seed)
-    # run(cmd_str)
+    run(cmd_str)
 
     inference_genes = inference_v_genes + ':' + dj_genes
     utils.write_germline_fasta(outdir + '/germlines-for-inference', input_dir='data/imgt', only_genes=inference_genes.split(':'), debug=True)
@@ -73,7 +73,7 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
 
 # ----------------------------------------------------------------------------------------
 
-seed = None  # 1
+seed = 1  # None
 dj_genes = 'IGHD6-19*01:IGHJ4*02'
 inference_v_genes = 'IGHV3-71*01' #:IGHV1-18*01'
 simulation_v_genes = inference_v_genes  # + ':IGHV3-71*02:IGHV3-71*03'  #:IGHV1-18*01'

@@ -232,17 +232,15 @@ When reading parameters (e.g. with run-viterbi or partition), the parameters are
 ###### Finding New Alleles
 
 By default partis uses the set of germline V, D, and J genes ("germline set") in `data/imgt`.
-If you have another set you'd like to use, you can do so by setting `--datadir`.
-The default set from imgt, as is well known, is missing many real alleles, and as such, annotations for any individual who has these missing alleles will be wrong.
+If you have another set you'd like to use, you can do so by setting `--initial-datadir`.
+The default set from imgt, is missing many real alleles, and as such, annotations for any individual who has these missing alleles will be wrong.
 So we've implemented a method of finding new alleles on the fly when running on a new input data set.
-We basically use the idea from [tigger](http://tigger.readthedocs.io/en/latest/), but generalize and robustify it a bit: in particular, we do something more akin to a simultaneous fit over all positions at once.
+We basically use the idea from [tigger](http://tigger.readthedocs.io/en/latest/), but generalize and robustify it a bit: in particular, we do something more akin to a simultaneous fit, over all positions at once, for each hypothesized number of SNPs.
 
 To try this, use the `--find-new-alleles` option to the `cache-parameters` action.
-At the moment, since we don't want to modify your germline set without you realizing it, this writes any new alleles to `--new-allele-fname` (default value is printed as it's written).
-The new allele names in this file are arbitrary, but in order to avoid collisions, the allele string (after the `*`) is a hash of the new allele's sequence.
-
-To see how this works, you can also run `./bin/find-new-alleles.py`.
-This generates a hypothetical new allele separated by a few snps from an existing allele, simulates a data set with this allele, then attempts to identify this new allele in the simulated sample.
+This will write any new alleles, along with the existing alleles, to a germline set directory in `--parameter-dir`.
+This modified germline set is then used by default when later performing inference with these parameters.
+If you specified, it will also write the new alleles in fasta format to `--new-allele-fname`.
 
 ##### `simulate`: make simulated sequences
 
