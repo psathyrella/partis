@@ -233,7 +233,7 @@ When reading parameters (e.g. with run-viterbi or partition), the parameters are
 
 By default partis uses the set of germline V, D, and J genes ("germline set") in `data/imgt`.
 If you have another set you'd like to use, you can do so by setting `--initial-datadir`.
-The default set from imgt, is missing many real alleles, and as such, annotations for any individual who has these missing alleles will be wrong.
+The default set from imgt is missing many real alleles, and as such, annotations for any individual who has these missing alleles will be wrong.
 So we've implemented a method of finding new alleles on the fly when running on a new input data set.
 We basically use the idea from [tigger](http://tigger.readthedocs.io/en/latest/), but generalize and robustify it a bit: in particular, we do something more akin to a simultaneous fit, over all positions at once, for each hypothesized number of SNPs.
 
@@ -241,6 +241,13 @@ To try this, use the `--find-new-alleles` option to the `cache-parameters` actio
 This will write any new alleles, along with the existing alleles, to a germline set directory in `--parameter-dir`.
 This modified germline set is then used by default when later performing inference with these parameters.
 If you specified, it will also write the new alleles in fasta format to `--new-allele-fname`.
+
+Each individual will also, of course, only have some subset of the alleles in `data/imgt` (or any available germline set).
+This is a pretty straightforward extension of the allele finding -- just start with a "minimal" germline set, run iteratively, and remove anybody that doesn't pop up as a new allele -- but it's still under development (i.e. we need to test it more thoroughly).
+
+Oh, right, and all this new allele talk only applies to V.
+We could probably do the same thing for J, but there don't seem to be much polymorphism, so it's probably not worthwhile.
+Doing it for D is a crazy pipe dream.
 
 ##### `simulate`: make simulated sequences
 
