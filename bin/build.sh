@@ -11,8 +11,8 @@ echo -e "\n--> building samtools"
 export LEIN_ROOT=1
 cd $basedir/packages/samtools/ && make
 
-echo -e "\n--> building ighutil"
-cd $basedir/packages/ighutil/ && make -C clj
+echo -e "\n--> installing ighutil"
+cd $basedir/packages/ighutil/
 pip install --user ./python
 
 echo -e "\n--> building ham"
