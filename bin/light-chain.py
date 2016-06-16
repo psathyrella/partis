@@ -1,0 +1,36 @@
+#!/usr/bin/env python
+import sys
+import os
+import random
+from subprocess import check_call
+sys.path.insert(1, './python')
+
+import utils
+
+# ----------------------------------------------------------------------------------------
+def run(cmd_str):
+    print 'RUN', cmd_str
+    sys.stdout.flush()
+    check_call(cmd_str.split())
+
+outdir = '_tmp/light-chain'
+base_cmd = './bin/partis'
+
+dj_genes = 'IGHD6-19*01:IGHJ4*02'
+v_genes = 'IGHV3-71*01' #:IGHV1-18*01'
+all_genes= v_genes + ':' + dj_genes
+
+# utils.write_germline_fasta(outdir + '/germline-set', input_dir='data/imgt', only_genes=all_genes.split(':'), debug=True)
+
+# simulate
+cmd_str = base_cmd + ' simulate --n-sim-events 10 --simulate-partially-from-scratch --mutation-multiplier 0.5 --debug 1 --n-trees 10'
+cmd_str += ' --initial-datadir ' + outdir + '/germline-set'
+cmd_str += ' --outfname ' + outdir + '/simu.csv'
+# run(cmd_str)
+
+# cache parameters
+cmd_str = base_cmd + ' cache-parameters --debug 1'
+cmd_str += ' --infname ' + outdir + '/simu.csv'
+cmd_str += ' --initial-datadir ' + outdir + '/germline-set'
+cmd_str += ' --outfname ' + 'tmp.csv'
+run(cmd_str)

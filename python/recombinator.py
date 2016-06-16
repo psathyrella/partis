@@ -255,7 +255,11 @@ class Recombinator(object):
             for effbound in utils.effective_boundaries:
                 tmpline[effbound + '_insertion'] = 0
             for erosion in utils.real_erosions:
-                tmpline[erosion + '_del'] = numpy.random.geometric(1. / utils.scratch_mean_erosion_lengths[erosion])
+                # various contortions to avoid eroding the entire gene
+                region = erosion[0]
+                gene_length = len(self.glfo['seqs'][region][tmpline[region + '_gene']])
+                max_erosion = max(0, gene_length - 2)
+                tmpline[erosion + '_del'] = min(max_erosion, numpy.random.geometric(1. / utils.scratch_mean_erosion_lengths[erosion]))
             for bound in utils.boundaries:
                 tmpline[bound + '_insertion'] = numpy.random.geometric(1. / utils.scratch_mean_insertion_lengths[bound])
             vdj_choice = self.freqtable_index(tmpline)

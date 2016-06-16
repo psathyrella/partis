@@ -214,6 +214,15 @@ class Waterer(object):
         cmd_str = self.args.ighutil_dir + '/bin/vdjalign align-fastq -q'
         if self.args.slurm or utils.auto_slurm(n_procs):
             cmd_str = 'srun ' + cmd_str
+        if self.args.chain_weight == 'heavy':
+            cmd_str += ' --locus IGH'
+        elif self.args.chain_weight == 'light':
+            print 'er, IGL?'
+            cmd_str += ' --locus IGK'
+        elif self.args.chain_weight == 'dj':
+            pass
+        else:
+            assert False
         cmd_str += ' --max-drop 50'
         match, mismatch = self.match_mismatch
         cmd_str += ' --match ' + str(match) + ' --mismatch ' + str(mismatch)
