@@ -2,21 +2,18 @@ FROM matsengrp/cpp
 
 # ----------------------------------------------------------------------------------------
 RUN apt-get update && apt-get install -y \
-    astyle \
     libgsl0ldbl \
     libgsl0-dev \
     libncurses5-dev \
     libxml2-dev \
     libxslt1-dev \
-    python-scipy \
-    r-base \
-    zlib1g-dev
+    r-base
 RUN pip install numpy  # putting them on different lines allows docker's caching to defeat pip's slowness
 RUN pip install scipy
+RUN pip install cython
 RUN pip install matplotlib
 RUN pip install pandas
 RUN pip install biopython
-RUN pip install cython
 RUN pip install dendropy==3.12.3
 RUN pip install pysam
 RUN pip install pyyaml
