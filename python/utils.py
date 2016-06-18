@@ -71,10 +71,9 @@ def get_arg_list(arg, intify=False, floatify=False, translation=None, list_of_pa
 scratch_mean_erosion_lengths = {'v_3p' : 2, 'd_5p' : 3, 'd_3p' : 3, 'j_5p' : 4}
 scratch_mean_insertion_lengths = {'vd' : 4, 'dj' : 4}
 
-# # ----------------------------------------------------------------------------------------
-# hackey_default_gene_versions = {'v':'IGHV3-23*04', 'd':'IGHD3-10*01', 'j':'IGHJ4*02_F'}
 # ----------------------------------------------------------------------------------------
 regions = ['v', 'd', 'j']
+chains = ['h', 'k', 'l']
 real_erosions = ['v_3p', 'd_5p', 'd_3p', 'j_5p']
 # NOTE since we now handle v_5p and j_3p deletions by padding with Ns, the hmm does *not* allow actual v_5p and j_3p deletions.
 # This means that while we write parameters for v_5p and j_3p deletions to the parameter dir, these are *not* used in making the
@@ -82,12 +81,10 @@ real_erosions = ['v_3p', 'd_5p', 'd_3p', 'j_5p']
 effective_erosions = ['v_5p', 'j_3p']
 boundaries = ['vd', 'dj']
 effective_boundaries = ['fv', 'jf']
-humans = ['A', 'B', 'C']
 nukes = ['A', 'C', 'G', 'T']
 ambiguous_bases = ['N', ]
 gap_chars = ['.', '-']
-naivities = ['M', 'N']
-conserved_codon_names = {'v':'cyst', 'd':'', 'j':'tryp'}
+conserved_codons = {'v' : 'cyst', 'j' : 'tryp'}  # ['cyst', 'tryp']
 # Infrastrucure to allow hashing all the columns together into a dict key.
 # Uses a tuple with the variables that are used to index selection frequencies
 # NOTE fv and jf insertions are *effective* (not real) insertions between v or j and the framework. They allow query sequences that extend beyond the v or j regions
@@ -95,6 +92,18 @@ index_columns = ('v_gene', 'd_gene', 'j_gene', 'v_5p_del', 'v_3p_del', 'd_5p_del
 index_keys = {}
 for i in range(len(index_columns)):  # dict so we can access them by name instead of by index number
     index_keys[index_columns[i]] = i
+
+# ----------------------------------------------------------------------------------------
+glfo_fasta_fnames = ['ig' + chain + region + algn + '.fasta' for chain in chains for region in regions for algn in ('', '-aligned')]
+glfo_csv_fnames = [cdn + '-positions.csv' for cdn in conserved_codons.values()]
+glfo_fnames = glfo_fasta_fnames + glfo_csv_fnames
+
+# ----------------------------------------------------------------------------------------
+def get_codon(fname):
+    codon = fname.split('-')[0]
+    if codon not in conserved_codons.values():
+        raise Exception('couldn\'t get codon from file name %s' % fname)
+    return codon
 
 # ----------------------------------------------------------------------------------------
 # Info specifying which parameters are assumed to correlate with which others. Taken from mutual
@@ -362,6 +371,8 @@ def add_some_snps(snps_to_add, glfo, only_genes, remove_template_genes=False, de
 # ----------------------------------------------------------------------------------------
 def write_germline_fasta(output_dir, input_dir=None, glfo=None, only_genes=None, snps_to_add=None, new_allele_info=None, remove_template_genes=False, debug=False):
     """ rewrite the germline set files in <input_dir> to <output_dir>, only keeping the genes in <only_genes> """
+
+    # read from input file (if necessary)
     if input_dir is None:
         assert glfo is not None
         if debug:
@@ -378,43 +389,35 @@ def write_germline_fasta(output_dir, input_dir=None, glfo=None, only_genes=None,
                 if gene not in only_genes:
                     remove_gene_from_glfo_and_only_genes(glfo, only_genes, gene, debug=False)
 
+    # add any snps or new alleles
     if snps_to_add is not None:
         add_some_snps(snps_to_add, glfo, only_genes, remove_template_genes=remove_template_genes, debug=debug)
-
     if new_allele_info is not None:
         for new_allele_info in new_allele_info:
             add_new_allele(glfo, new_allele_info, only_genes, remove_template_genes=remove_template_genes, debug=debug)
     elif not snps_to_add:
         assert not remove_template_genes  # only makes sense if you've specified <new_allele_info>
 
+    print 'TODO deal with only genes in all glfo info before here'
+    assert False
+
+    # and finally write output
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    def write_gl_file(fname, region, igls):
-        expected_files.append(fname)
-        with open(fname, 'w') as outfile:
-            for gene in igls[region]:
-                if only_genes is not None and gene not in only_genes:
-                    continue
+    for fname in glfo_fasta_fnames:
+        with open(output_dir + '/' + fname, 'w') as outfile:
+            for gene in glfo['seqs'][get_region('', fname=fname)]:
                 outfile.write('>' + gene + '\n')
-                outfile.write(igls[region][gene] + '\n')
-
-    expected_files = []  # list of files that we write here -- if anything else is in the output dir, we barf
-    for region in regions:
-        write_gl_file(output_dir + '/igh' + region + '.fasta', region, glfo['seqs'])
-        write_gl_file(output_dir + '/igh' + region + '-aligned.fasta', region, glfo['aligned-genes'])
-
-    for codon in ('cyst', 'tryp'):  # NOTE this might duplicate some stuff in bin/initialize-germline-set.py
-        fname = codon + '-positions.csv'
-        expected_files.append(output_dir + '/' + fname)
+                outfile.write(glfo['seqs'][get_region('', fname=fname)][gene] + '\n')
+    # NOTE this might duplicate some stuff in bin/initialize-germline-set.py
+    for fname in glfo_csv_fnames:
         with open(output_dir + '/' + fname, 'w') as codonfile:
             writer = csv.DictWriter(codonfile, ('gene', 'istart'))
             writer.writeheader()
-            for gene, istart in glfo[codon + '-positions'].items():
-                if only_genes is not None and gene not in only_genes:
-                    continue  # can happen if original {cyst,tryp}-position.csv file had genes that weren't in igh[vdj].fasta
+            for gene, istart in glfo[get_codon(fname) + '-positions'].items():
                 writer.writerow({'gene' : gene, 'istart' : istart})
-
+    sys.exit()
     # make sure there weren't any files lingering in the output dir when we started
     final_file_list = glob.glob(output_dir + '/*')
     for fname in final_file_list:
@@ -1209,32 +1212,38 @@ def unsanitize_name(name):
     return unsaniname
 
 #----------------------------------------------------------------------------------------
-def read_germline_set(datadir, alignment_dir=None, debug=False):
+def clean_up_glfo(glfo):
+    """ remove any genes in 'aligned-seqs' and codon position info that aren't in 'seqs' """
+    desired_genes = set([g for r in regions for g in glfo['seqs'][r]])
+    for gene in [g for r in regions for g in glfo['aligned-seqs'][r]]:
+        if gene not in desired_genes:
+            del glfo['aligned-seqs'][get_region(gene)][gene]
+    for codon in conserved_codons.values():
+        for gene in glfo[codon + '-positions'].keys():
+            if gene not in desired_genes:
+                del glfo[codon + '-positions'][gene]
+
+#----------------------------------------------------------------------------------------
+def read_germline_set(datadir, chain='h', debug=False):
     glfo = {}
-    glfo['seqs'] = read_germline_seqs(datadir)
-    if alignment_dir is None:  # TODO remove this
-        alignment_dir = datadir
-    glfo['aligned-genes'] = read_germline_seqs(alignment_dir, aligned=True)
-    add_missing_alignments(glfo, debug)
-    for codon in ['cyst', 'tryp']:
-        glfo[codon + '-positions'] = read_codon_positions(datadir + '/' + codon + '-positions.csv')
+    glfo['seqs'], glfo['aligned-seqs'] = read_germline_seqs(datadir, chain)
+    for fname in glfo_csv_fnames:
+        glfo[get_codon(fname) + '-positions'] = read_codon_positions(datadir + '/' + fname)
+    clean_up_glfo(glfo)
+    add_missing_glfo(glfo, debug)
+    sys.exit()
     return glfo
 
 #----------------------------------------------------------------------------------------
-def read_germline_seqs(datadir, only_region=None, aligned=False):
-    glseqs = {}
-    for region in regions:
-        if only_region is not None and region != only_region:
-            continue
-        fname = datadir + '/igh' + region + '.fasta'
-        if aligned:
-            fname = fname.replace('.fasta', '-aligned.fasta')
-        glseqs[region] = OrderedDict()
-        for seq_record in SeqIO.parse(fname, 'fasta'):
-            gene_name = seq_record.name.split('|')[0]
-            seq_str = str(seq_record.seq).upper()
-            glseqs[region][gene_name] = seq_str
-    return glseqs
+def read_germline_seqs(datadir, chain):
+    seqs, aligned_seqs = {r : OrderedDict() for r in regions}, {r : OrderedDict() for r in regions}
+    for fname in [fn for fn in glfo_fasta_fnames if get_chain(fn) == chain]:
+        infodict = aligned_seqs if 'aligned' in fname else seqs
+        for seq_record in SeqIO.parse(datadir + '/' + fname, 'fasta'):
+            gene = seq_record.name.split('|')[0]
+            seq = str(seq_record.seq).upper()
+            infodict[get_region(gene)][gene] = seq
+    return seqs, aligned_seqs
 
 #----------------------------------------------------------------------------------------
 def add_missing_alignments(glfo, debug=False):
@@ -1266,11 +1275,29 @@ def read_codon_positions(csvfname):
     return positions
 
 # ----------------------------------------------------------------------------------------
-def get_region(gene):
-    """ return v, d, or j of gene"""
-    region = gene[3:4].lower()
-    if 'IGH' not in gene or region not in regions:
-        raise Exception('faulty gene name %s' % gene)
+def get_chain(inputstr):
+    """ return chain weight/locus given gene of file name """
+    if inputstr[:2] == 'IG':  # it's a gene name
+        chain = inputstr[2:3].lower()
+    elif inputstr in glfo_fasta_fnames:  # it's a file name
+        chain = inputstr[2:3]
+    else:
+        raise Exception('couldn\'t figure out if %s was a gene or file name' % inputstr)
+    if chain not in chains:
+        raise Exception('couldn\'t get chain from input string %s' % inputstr)
+    return chain
+
+# ----------------------------------------------------------------------------------------
+def get_region(inputstr):
+    """ return v, d, or j of gene or gl fname """
+    if inputstr[:2] == 'IG':  # it's a gene name
+        region = inputstr[3:4].lower()
+    elif inputstr in glfo_fasta_fnames:  # it's a file name
+        region = inputstr[3:4]
+    else:
+        raise Exception('couldn\'t figure out if %s was a gene or file name' % inputstr)
+    if region not in regions:
+        raise Exception('couldn\'t get region from input string %s' % inputstr)
     return region
 
 # ----------------------------------------------------------------------------------------

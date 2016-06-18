@@ -20,7 +20,8 @@ dj_genes = 'IGHD6-19*01:IGHJ4*02'
 v_genes = 'IGHV3-71*01' #:IGHV1-18*01'
 all_genes= v_genes + ':' + dj_genes
 
-# utils.write_germline_fasta(outdir + '/germline-set', input_dir='data/imgt', only_genes=all_genes.split(':'), debug=True)
+utils.write_germline_fasta(outdir + '/germline-set', input_dir='data/imgt', only_genes=all_genes.split(':'), debug=True)
+sys.exit()
 
 # simulate
 cmd_str = base_cmd + ' simulate --n-sim-events 10 --simulate-partially-from-scratch --mutation-multiplier 0.5 --debug 1 --n-trees 10'
@@ -29,7 +30,7 @@ cmd_str += ' --outfname ' + outdir + '/simu.csv'
 # run(cmd_str)
 
 # cache parameters
-cmd_str = base_cmd + ' cache-parameters --debug 1'
+cmd_str = base_cmd + ' cache-parameters --chain-weight light --light-chain-locus kappa --debug 1'
 cmd_str += ' --infname ' + outdir + '/simu.csv'
 cmd_str += ' --initial-datadir ' + outdir + '/germline-set'
 cmd_str += ' --outfname ' + 'tmp.csv'
