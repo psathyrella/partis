@@ -67,7 +67,7 @@ Docker containers and images are kinda-sorta like virtual machines, only differe
 
 As noted above, for most use cases you'll likely be happier using the [Docker image](https://registry.hub.docker.com/u/psathyrella/partis/).
 But if you're doing lots of development it's nice to be able to work outside of Docker, and installing from scratch isn't really so bad.
-You'll need to have recent versions of a number of debian and python packages, a list of which can be found in the Dockerfile.
+You'll need to have recent versions of a number of debian and python packages, a list of which can be found in the [Dockerfile](https://github.com/psathyrella/partis/blob/master/Dockerfile).
 If you need to sort out versions, follow the Dockerfile chain beginning [here](https://registry.hub.docker.com/u/psathyrella/partis/dockerfile/) and [here](https://github.com/matsengrp/dockerfiles/blob/master/cpp/Dockerfile).
 
 The following packages are also used by partis, but they're included as `git subtree`s in the source code, so you don't need to do anything:

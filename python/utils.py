@@ -12,7 +12,7 @@ import glob
 from collections import OrderedDict
 import itertools
 import csv
-from subprocess import check_output, CalledProcessError, Popen
+from subprocess import check_output, CalledProcessError, Popen, PIPE
 # from sklearn.metrics.cluster import adjusted_mutual_info_score
 # import sklearn.metrics.cluster
 import numpy
@@ -1245,9 +1245,74 @@ def read_germline_seqs(datadir, chain):
             infodict[get_region(gene)][gene] = seq
     return seqs, aligned_seqs
 
+# ----------------------------------------------------------------------------------------
+def get_missing_alignments(glfo, debug=True):
+# ----------------------------------------------------------------------------------------
+    for region in regions:
+        if debug:
+            print region
+        genes_with_alignments = set(glfo['aligned-seqs'][region])
+        genes_without_alignments = set(glfo['seqs'][region]) - set(glfo['aligned-seqs'][region])
+        if len(genes_without_alignments) == 0:
+            if debug:
+                print '  no missing alignments'
+            continue
+
+        if debug:
+            print '  missing alignments for %d genes' % len(genes_without_alignments)
+
+        tmpdir = '/tmp'
+        already_aligned_fname = tmpdir + '/already-aligned.fasta'
+        not_aligned_fname = tmpdir + '/not-aligned.fasta'
+        msa_table_fname = tmpdir + '/msa-table.txt'
+        aligned_and_not_fnamefname = tmpdir + '/all.fa'
+        with open(already_aligned_fname, 'w') as tmpfile, open(msa_table_fname, 'w') as msafile:
+            mysterious_index = 1
+            msa_str = ''
+            for gene in genes_with_alignments:
+                tmpfile.write('>%s\n%s\n' % (gene, glfo['aligned-seqs'][region][gene].replace('.', '-')))
+                msa_str += ' ' + str(mysterious_index)
+                mysterious_index += 1
+            msafile.write('%s # %s\n' % (msa_str, already_aligned_fname))
+        with open(not_aligned_fname, 'w') as tmpfile:
+            for gene in genes_without_alignments:
+                tmpfile.write('>%s\n%s\n' % (gene, glfo['seqs'][region][gene]))
+
+        # ----------------------------------------------------------------------------------------
+        def run(cmd):
+            print 'RUN %s' % cmd
+            proc = Popen(cmd, shell=True, stderr=PIPE)
+            out, err = proc.communicate()  # the commands all redirect stdout to a file
+            err = err.replace('\r', '\n')
+            printstrs = []
+            for errstr in err.split('\n'):  # remove the stupid progress bar things
+                matches = re.findall('[0-9][0-9]* / [0-9][0-9]*', errstr)
+                if len(matches) == 1 and errstr.strip() == matches[0]:
+                    continue
+                printstrs.append(errstr)
+            print 'HERE'
+            print '        ' + '\n        '.join(printstrs)
+
+        cmd = 'cat ' + already_aligned_fname + ' ' + not_aligned_fname + ' >' + aligned_and_not_fnamefname
+        run(cmd)
+        cmd = 'mafft --merge ' + msa_table_fname + ' ' + aligned_and_not_fnamefname  # options=  # "--localpair --maxiterate 1000"
+        run(cmd)
+        sys.exit()
+    
+        # then rewrite aligned file with only new genes, converting to upper case and dots for gaps
+        all_aligned_germlines = utils.read_germline_seqs(tmpdir, only_region='v', aligned=True)['v']
+        write_new_alignments(all_aligned_germlines, all_new_genes)
+    
+        os.remove(already_aligned_fname)
+        os.remove(not_aligned_fname)
+        os.remove(msa_table_fname)
+        os.remove(aligned_and_not_fnamefname)
+# ----------------------------------------------------------------------------------------
+
 #----------------------------------------------------------------------------------------
-def add_missing_alignments(glfo, debug=False):
-    """ Add alignments for any genes in <glfo['seqs']> that aren't there already. """
+def add_missing_glfo(glfo, debug=False):
+    get_missing_alignments(glfo, debug=debug)
+    assert False
     missing_genes = []
     for region in regions:
         for gene in glfo['seqs'][region]:
@@ -1262,6 +1327,8 @@ def add_missing_alignments(glfo, debug=False):
 
     if debug and len(missing_genes) > 0 and os.getenv('USER') is not None and 'ralph' in os.getenv('USER'):
         print '   adding nonsense alignments for missing genes %s' % ' '.join([color_gene(g) for g in missing_genes])
+
+    sys.exit()
 
 # ----------------------------------------------------------------------------------------
 def read_codon_positions(csvfname):

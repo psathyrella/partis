@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y \
     libncurses5-dev \
     libxml2-dev \
     libxslt1-dev \
+    mafft \
     r-base
 RUN pip install numpy  # putting them on different lines allows docker's caching to defeat pip's slowness
 RUN pip install scipy
