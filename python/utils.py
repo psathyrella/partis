@@ -12,7 +12,7 @@ import glob
 from collections import OrderedDict
 import itertools
 import csv
-from subprocess import check_output, CalledProcessError, Popen, PIPE
+from subprocess import check_call, check_output, CalledProcessError, Popen, PIPE
 # from sklearn.metrics.cluster import adjusted_mutual_info_score
 # import sklearn.metrics.cluster
 import numpy
@@ -1247,7 +1247,6 @@ def read_germline_seqs(datadir, chain):
 
 # ----------------------------------------------------------------------------------------
 def get_missing_alignments(glfo, debug=True):
-# ----------------------------------------------------------------------------------------
     for region in regions:
         if debug:
             print region
@@ -1265,7 +1264,8 @@ def get_missing_alignments(glfo, debug=True):
         already_aligned_fname = tmpdir + '/already-aligned.fasta'
         not_aligned_fname = tmpdir + '/not-aligned.fasta'
         msa_table_fname = tmpdir + '/msa-table.txt'
-        aligned_and_not_fnamefname = tmpdir + '/all.fa'
+        aligned_and_not_fnamefname = tmpdir + '/aligned-and-not.fasta'
+        mafft_outfname = tmpdir + '/everybody-aligned.fasta'
         with open(already_aligned_fname, 'w') as tmpfile, open(msa_table_fname, 'w') as msafile:
             mysterious_index = 1
             msa_str = ''
@@ -1278,25 +1278,46 @@ def get_missing_alignments(glfo, debug=True):
             for gene in genes_without_alignments:
                 tmpfile.write('>%s\n%s\n' % (gene, glfo['seqs'][region][gene]))
 
-        # ----------------------------------------------------------------------------------------
-        def run(cmd):
-            print 'RUN %s' % cmd
-            proc = Popen(cmd, shell=True, stderr=PIPE)
-            out, err = proc.communicate()  # the commands all redirect stdout to a file
-            err = err.replace('\r', '\n')
-            printstrs = []
-            for errstr in err.split('\n'):  # remove the stupid progress bar things
-                matches = re.findall('[0-9][0-9]* / [0-9][0-9]*', errstr)
-                if len(matches) == 1 and errstr.strip() == matches[0]:
-                    continue
-                printstrs.append(errstr)
-            print 'HERE'
-            print '        ' + '\n        '.join(printstrs)
+        check_call('cat ' + already_aligned_fname + ' ' + not_aligned_fname + ' >' + aligned_and_not_fnamefname, shell=True)
 
-        cmd = 'cat ' + already_aligned_fname + ' ' + not_aligned_fname + ' >' + aligned_and_not_fnamefname
-        run(cmd)
-        cmd = 'mafft --merge ' + msa_table_fname + ' ' + aligned_and_not_fnamefname  # options=  # "--localpair --maxiterate 1000"
-        run(cmd)
+        # actually run mafft
+        cmd = 'mafft --merge ' + msa_table_fname + ' ' + aligned_and_not_fnamefname + ' >' + mafft_outfname  # options=  # "--localpair --maxiterate 1000"
+        print '    RUN %s' % cmd
+        proc = Popen(cmd, shell=True, stderr=PIPE)
+        _, err = proc.communicate()  # debug info goes to err
+
+        # deal with err (debug info)
+        err = err.replace('\r', '\n')
+        printstrs = []
+        for errstr in err.split('\n'):  # remove the stupid progress bar things
+            matches = re.findall('[0-9][0-9]* / [0-9][0-9]*', errstr)
+            if len(matches) == 1 and errstr.strip() == matches[0]:
+                continue
+            printstrs.append(errstr)
+        print '        ' + '\n        '.join(printstrs)
+
+        # deal with fasta output
+        for seq_record in SeqIO.parse(mafft_outfname, 'fasta'):
+            gene = seq_record.name.split('|')[0]
+            seq = str(seq_record.seq).replace('-', '.').upper()
+            if gene not in glfo['seqs'][region]:  # only really possible if there's a bug in the preceding fifty lines, but oh well, you can't be too careful
+                raise Exception('unexpected gene %s in mafft output' % gene)
+            if gene not in glfo['aligned-seqs'][region]:  # add the new alignment
+                glfo['aligned-seqs'][region][gene] = seq
+            else:  # may as well make sure it matches what's already in there
+                if seq != glfo['aligned-seqs'][region][gene]:
+                    raise Exception('existing alignment for %s doesn\'t match new one\n existing %s\n      new %s' % (gene, glfo['aligned-seqs'][region][gene], seq))
+            
+        # for line in out.split('\n'):
+        #     if len(line) == 0:
+        #         continue
+        #     print 'x', line
+        #     if line[0] == '>':
+        #         mafft_seqs.append({'name' : line.replace('>', ''), 'seq' : ''})
+        #     elif line[0] in 'acgtn-':
+        #         pass
+        #     else:
+        #         raise Exception('couldn\'t parse mafft output:\n%s' % out)
         sys.exit()
     
         # then rewrite aligned file with only new genes, converting to upper case and dots for gaps
@@ -1307,7 +1328,7 @@ def get_missing_alignments(glfo, debug=True):
         os.remove(not_aligned_fname)
         os.remove(msa_table_fname)
         os.remove(aligned_and_not_fnamefname)
-# ----------------------------------------------------------------------------------------
+        os.remove(mafft_outfname)
 
 #----------------------------------------------------------------------------------------
 def add_missing_glfo(glfo, debug=False):
