@@ -156,6 +156,9 @@ def view_existing_output(args):
     if not os.path.exists(args.outfname):
         raise Exception('--outfname \'%s\' does not exist' % args.outfname)
 
+    if args.initial_datadir is None:
+        args.initial_datadir = default_initial_datadir
+
     parter = PartitionDriver(args, args.action, args.initial_datadir)
     if args.action == 'view-annotations':
         parter.view_existing_annotations()
