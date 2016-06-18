@@ -84,6 +84,7 @@ effective_boundaries = ['fv', 'jf']
 nukes = ['A', 'C', 'G', 'T']
 ambiguous_bases = ['N', ]
 gap_chars = ['.', '-']
+expected_characters = set(nukes + ambiguous_bases + gap_chars)
 conserved_codons = {'v' : 'cyst', 'j' : 'tryp'}  # ['cyst', 'tryp']
 # Infrastrucure to allow hashing all the columns together into a dict key.
 # Uses a tuple with the variables that are used to index selection frequencies
@@ -1242,6 +1243,8 @@ def read_germline_seqs(datadir, chain):
         for seq_record in SeqIO.parse(datadir + '/' + fname, 'fasta'):
             gene = seq_record.name.split('|')[0]
             seq = str(seq_record.seq).upper()
+            if len(seq.strip(''.join(expected_characters))) > 0:  # return the empty string if it only contains expected characters
+                raise Exception('unexpected characters in %s (expected %s)' % (seq, ' '.join(expected_characters)))
             infodict[get_region(gene)][gene] = seq
     return seqs, aligned_seqs
 
@@ -1267,9 +1270,14 @@ def get_missing_alignments(glfo, debug=True):
         aligned_and_not_fnamefname = tmpdir + '/aligned-and-not.fasta'
         mafft_outfname = tmpdir + '/everybody-aligned.fasta'
         with open(already_aligned_fname, 'w') as tmpfile, open(msa_table_fname, 'w') as msafile:
+            length = None  # make sure all the alignments are same length
             mysterious_index = 1
             msa_str = ''
             for gene in genes_with_alignments:
+                if length is None:
+                    length = len(glfo['aligned-seqs'][region][gene])
+                elif length != len(glfo['aligned-seqs'][region][gene]):
+                    raise Exception('length of aliged seq %d for %s not same length as the first one %d' % (len(glfo['aligned-seqs'][region][gene]), gene, length))
                 tmpfile.write('>%s\n%s\n' % (gene, glfo['aligned-seqs'][region][gene].replace('.', '-')))
                 msa_str += ' ' + str(mysterious_index)
                 mysterious_index += 1
@@ -1299,36 +1307,22 @@ def get_missing_alignments(glfo, debug=True):
         # deal with fasta output
         for seq_record in SeqIO.parse(mafft_outfname, 'fasta'):
             gene = seq_record.name.split('|')[0]
-            seq = str(seq_record.seq).replace('-', '.').upper()
+            seq = str(seq_record.seq).upper()
             if gene not in glfo['seqs'][region]:  # only really possible if there's a bug in the preceding fifty lines, but oh well, you can't be too careful
                 raise Exception('unexpected gene %s in mafft output' % gene)
             if gene not in glfo['aligned-seqs'][region]:  # add the new alignment
                 glfo['aligned-seqs'][region][gene] = seq
             else:  # may as well make sure it matches what's already in there
-                if seq != glfo['aligned-seqs'][region][gene]:
-                    raise Exception('existing alignment for %s doesn\'t match new one\n existing %s\n      new %s' % (gene, glfo['aligned-seqs'][region][gene], seq))
-            
-        # for line in out.split('\n'):
-        #     if len(line) == 0:
-        #         continue
-        #     print 'x', line
-        #     if line[0] == '>':
-        #         mafft_seqs.append({'name' : line.replace('>', ''), 'seq' : ''})
-        #     elif line[0] in 'acgtn-':
-        #         pass
-        #     else:
-        #         raise Exception('couldn\'t parse mafft output:\n%s' % out)
-        sys.exit()
-    
-        # then rewrite aligned file with only new genes, converting to upper case and dots for gaps
-        all_aligned_germlines = utils.read_germline_seqs(tmpdir, only_region='v', aligned=True)['v']
-        write_new_alignments(all_aligned_germlines, all_new_genes)
-    
+                pass  # oh, wait, I guess they're expected to (sometimes) be different
+                # if seq != glfo['aligned-seqs'][region][gene]:
+                #     raise Exception('existing alignment for %s doesn\'t match new one\n existing %s\n      new %s' % (gene, glfo['aligned-seqs'][region][gene], seq))
+
         os.remove(already_aligned_fname)
         os.remove(not_aligned_fname)
         os.remove(msa_table_fname)
         os.remove(aligned_and_not_fnamefname)
         os.remove(mafft_outfname)
+        sys.exit()
 
 #----------------------------------------------------------------------------------------
 def add_missing_glfo(glfo, debug=False):
