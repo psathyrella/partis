@@ -6,8 +6,8 @@
 
 namespace igsw {
 
-TEST_CASE("Trivial pass", "[trivial]") {
-  REQUIRE(1 == 1);
+  TEST_CASE("Trivial pass", "[trivial]") {
+    REQUIRE(1 == 1);
 }
 
 }

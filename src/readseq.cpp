@@ -1,3 +1,7 @@
+/*Test for checking if data from a fastq file is the same after being parsed.
+Place file "test.fastq" in current working directory or change the path in the
+code. */
+
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
 
@@ -29,6 +33,7 @@ extern "C" void ReadFile() {
   // printf("return value: %d\n", l);
   kseq_destroy(seq); // STEP 5: destroy seq
   gzclose(fp);       // STEP 6: close the file handler
+  fclose(writefp);
 }
 
 std::vector<std::string> OpenFile(std::string filename, bool label) {
@@ -88,8 +93,7 @@ std::vector<std::string> OpenFile(std::string filename, bool label) {
 // }
 
 TEST_CASE("Comparison") {
-  // ReadFile();
-  // sleep(5);
+  ReadFile();
   std::vector<std::string> parsed_vector = OpenFile("readtest.txt", true);
   std::vector<std::string> original_vector = OpenFile("test.fastq", false);
   REQUIRE(original_vector.size() == parsed_vector.size());
