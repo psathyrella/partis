@@ -31,7 +31,7 @@ class PartitionDriver(object):
         utils.prep_dir(self.args.workdir)
         self.my_datadir = self.args.workdir + '/' + utils.glfo_dir
         self.rewritten_germline_files = utils.write_germline_fasta(self.my_datadir, input_dir=initial_datadir, only_genes=self.args.only_genes)  # need a copy on disk for vdjalign and bcrham (it may also get modified)
-        self.glfo = utils.read_germline_set(self.my_datadir)
+        self.glfo = utils.read_germline_set(self.my_datadir, generate_new_alignment=self.args.generate_new_alignment)
 
         self.input_info, self.reco_info = None, None
         if self.args.infname is not None:
