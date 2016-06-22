@@ -71,7 +71,7 @@ class IhhhmmmParser(object):
     def __init__(self, args):
         self.args = args
 
-        self.germline_seqs = utils.read_germline_set(self.args.datadir, remove_N_nukes=True)['seqs']
+        self.germline_seqs = utils.read_glfo(self.args.datadir, remove_N_nukes=True)['seqs']
         self.perfplotter = PerformancePlotter(self.germline_seqs, self.args.plotdir, 'ihhhmmm')
 
         self.details = OrderedDict()

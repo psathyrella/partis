@@ -30,8 +30,8 @@ class PartitionDriver(object):
         self.current_action = action  # *not* necessarily the same as <self.args.action>
         utils.prep_dir(self.args.workdir)
         self.my_datadir = self.args.workdir + '/' + utils.glfo_dir
-        self.rewritten_germline_files = utils.write_germline_fasta(self.my_datadir, input_dir=initial_datadir, only_genes=self.args.only_genes)  # need a copy on disk for vdjalign and bcrham (it may also get modified)
-        self.glfo = utils.read_germline_set(self.my_datadir, generate_new_alignment=self.args.generate_new_alignment)
+        utils.write_glfo(self.my_datadir, input_dir=initial_datadir, only_genes=self.args.only_genes)  # need a copy on disk for vdjalign and bcrham (it may also get modified)
+        self.glfo = utils.read_glfo(self.my_datadir, generate_new_alignment=self.args.generate_new_alignment)
 
         self.input_info, self.reco_info = None, None
         if self.args.infname is not None:
@@ -72,9 +72,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def __del__(self):
-        for fname in self.rewritten_germline_files:
-            os.remove(fname)
-        os.rmdir(self.my_datadir)
+        utils.clean_glfo(self.my_datadir)
 
         # merge persistent and current cache files into the persistent cache file
         if self.args.persistent_cachefname is not None:
@@ -132,8 +130,8 @@ class PartitionDriver(object):
                 break
             all_new_allele_info += self.sw_info['new-alleles']
             remove_template_genes = itry==0 and self.args.generate_germline_set
-            utils.write_germline_fasta(self.my_datadir, input_dir=self.my_datadir, only_genes=list(self.sw_info['all_best_matches']), new_allele_info=self.sw_info['new-alleles'], remove_template_genes=remove_template_genes)
-            self.glfo = utils.read_germline_set(self.my_datadir, alignment_dir=self.args.alignment_dir)
+            utils.write_glfo(self.my_datadir, input_dir=self.my_datadir, only_genes=list(self.sw_info['all_best_matches']), new_allele_info=self.sw_info['new-alleles'], remove_template_genes=remove_template_genes)
+            self.glfo = utils.read_glfo(self.my_datadir, alignment_dir=self.args.alignment_dir)
             itry += 1
 
         # remove any V alleles for which we didn't ever find any evidence
@@ -1323,7 +1321,7 @@ class PartitionDriver(object):
             print '    backing up partis output before converting to presto: %s' % outstr.strip()
 
             outheader = utils.presto_headers.values()
-            imgt_gapped_glfo = utils.read_germline_set(self.my_datadir, alignment_dir=self.my_datadir, debug=True)  # use imgt alignments  # TODO remove this
+            imgt_gapped_glfo = utils.read_glfo(self.my_datadir, alignment_dir=self.my_datadir, debug=True)  # use imgt alignments  # TODO remove this
             with open(outpath, 'w') as outfile:
                 writer = csv.DictWriter(outfile, outheader)
                 writer.writeheader()

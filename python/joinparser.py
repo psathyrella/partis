@@ -173,7 +173,7 @@ class JoinParser(object):
         self.n_max_queries = -1
         self.queries = []
 
-        self.germline_seqs = utils.read_germline_set(datadir, remove_N_nukes=False)['seqs']
+        self.germline_seqs = utils.read_glfo(datadir, remove_N_nukes=False)['seqs']
         assert os.path.exists(os.getenv('www'))
         self.perfplotter = PerformancePlotter(self.germline_seqs, os.getenv('www') + '/partis/joinsolver_performance', 'js')
 

@@ -46,7 +46,7 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
         # {'gene' : 'IGHV1-18*01', 'positions' : (20, )}
     ]
     simulation_genes = simulation_v_genes + ':' + dj_genes
-    utils.write_germline_fasta(outdir + '/germlines-for-simulation', input_dir='data/imgt', only_genes=simulation_genes.split(':'), snps_to_add=snps_to_add, debug=True) #, remove_template_genes=True)
+    utils.write_glfo(outdir + '/germlines-for-simulation', input_dir='data/imgt', only_genes=simulation_genes.split(':'), snps_to_add=snps_to_add, debug=True) #, remove_template_genes=True)
 
     # simulate
     cmd_str = base_cmd + ' simulate --n-sim-events 1000 --n-procs 10 --simulate-partially-from-scratch --mutation-multiplier 0.5'
@@ -57,7 +57,7 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
     run(cmd_str)
 
     inference_genes = inference_v_genes + ':' + dj_genes
-    utils.write_germline_fasta(outdir + '/germlines-for-inference', input_dir='data/imgt', only_genes=inference_genes.split(':'), debug=True)
+    utils.write_glfo(outdir + '/germlines-for-inference', input_dir='data/imgt', only_genes=inference_genes.split(':'), debug=True)
 
     # generate germline set and cache parameters
     cmd_str = base_cmd + ' cache-parameters --infname ' + simfname + ' --n-procs 10 --only-smith-waterman'
@@ -81,7 +81,7 @@ simulation_v_genes = inference_v_genes  # + ':IGHV3-71*02:IGHV3-71*03'  #:IGHV1-
 run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=seed)
 sys.exit()
 
-glfo = utils.read_germline_set('data/imgt')
+glfo = utils.read_glfo('data/imgt')
 print glfo['seqs']['v']['IGHV3-71*01']
 print utils.color_mutants(glfo['seqs']['v']['IGHV3-71*01'], glfo['seqs']['v']['IGHV3-71*02'])
 print utils.color_mutants(glfo['seqs']['v']['IGHV3-71*01'], glfo['seqs']['v']['IGHV3-71*03'])

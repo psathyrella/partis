@@ -58,7 +58,7 @@ for iname in range(len(args.names)):
 
 assert len(args.plotdirs) == len(args.names)
 
-glfo = utils.read_germline_set(args.datadir)
+glfo = utils.read_glfo(args.datadir)
 args.cyst_positions = glfo['cyst-positions']
 args.tryp_positions = glfo['tryp-positions']
 

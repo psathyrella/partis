@@ -24,7 +24,7 @@ xtitles = {
     'indels' : 'fraction of positions indel\'d',
     'subs' : 'substitution fraction'
 }
-glfo = utils.read_germline_set(datadir)
+glfo = utils.read_glfo(datadir)
 vgenes = glfo['aligned-genes']['v'].keys()
 pversions = OrderedDict()
 for vg in vgenes:

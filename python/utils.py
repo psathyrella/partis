@@ -280,18 +280,14 @@ def generate_snpd_gene(gene, cpos, seq, aligned_seq, positions):
     return {'template-gene' : gene, 'gene' : snpd_name, 'seq' : seq, 'aligned-seq' : aligned_seq}
 
 # ----------------------------------------------------------------------------------------
-def remove_gene_from_glfo_and_only_genes(glfo, only_genes, gene, debug=False):
+def remove_gene_from_glfo(glfo, gene, debug=False):
     if debug:
-        print '  removing template gene %s from germline set' % color_gene(gene)
+        print '  removing %s from germline set' % color_gene(gene)
     region = get_region(gene)
-    if only_genes is not None and gene in only_genes:
-        only_genes.remove(gene)
-    if region == 'v':
-        del glfo['cyst-positions'][gene]
-    elif region == 'j':
-        del glfo['tryp-positions'][gene]
+    if region in conserved_codons:
+        del glfo[conserved_codons[region] + '-positions'][gene]
     del glfo['seqs'][region][gene]
-    del glfo['aligned-genes'][region][gene]
+    del glfo['aligned-seqs'][region][gene]
 
 # ----------------------------------------------------------------------------------------
 def add_new_allele(glfo, newfo, only_genes, remove_template_genes, debug=False):
@@ -320,19 +316,24 @@ def add_new_allele(glfo, newfo, only_genes, remove_template_genes, debug=False):
     if newfo['aligned-seq'] is None:
         add_missing_alignments(glfo)
     else:
-        glfo['aligned-genes'][region][new_gene] = newfo['aligned-seq']
+        glfo['aligned-seqs'][region][new_gene] = newfo['aligned-seq']
 
     if debug:
         print '        %s   %s' % (glfo['seqs'][region][template_gene], color_gene(template_gene))
         print '        %s   %s' % (color_mutants(glfo['seqs'][region][template_gene], newfo['seq']), color_gene(new_gene))
 
     if remove_template_genes:
-        remove_gene_from_glfo_and_only_genes(glfo, only_genes, template_gene, debug=True)
+        remove_gene_from_glfo(glfo, template_gene, debug=True)
+        if only_genes is not None and template_gene in only_genes:
+            only_genes.remove(template_gene)
+        
 
 # ----------------------------------------------------------------------------------------
 def remove_the_stupid_godamn_template_genes_all_at_once(glfo, only_genes, templates_to_remove):
     for gene in templates_to_remove:
-        remove_gene_from_glfo_and_only_genes(glfo, only_genes, gene, debug=True)
+        remove_gene_from_glfo(glfo, gene, debug=True)
+        if only_genes is not None and gene in only_genes:
+            only_genes.remove(gene)
 
 # ----------------------------------------------------------------------------------------
 def add_some_snps(snps_to_add, glfo, only_genes, remove_template_genes=False, debug=False):
@@ -349,7 +350,7 @@ def add_some_snps(snps_to_add, glfo, only_genes, remove_template_genes=False, de
         gene, positions = snpinfo['gene'], snpinfo['positions']
         print '    adding %d %s to %s' % (len(positions), plural_str('snp', len(positions)), gene)
         seq = glfo['seqs'][get_region(gene)][gene]
-        aligned_seq = glfo['aligned-genes'][get_region(gene)][gene]
+        aligned_seq = glfo['aligned-seqs'][get_region(gene)][gene]
         assert get_region(gene) == 'v'
         cpos = glfo['cyst-positions'][gene]
 
@@ -370,9 +371,9 @@ def add_some_snps(snps_to_add, glfo, only_genes, remove_template_genes=False, de
     remove_the_stupid_godamn_template_genes_all_at_once(glfo, only_genes, templates_to_remove)  # works fine with zero-length <templates_to_remove>
 
 # ----------------------------------------------------------------------------------------
-def write_germline_fasta(output_dir, input_dir=None, glfo=None, only_genes=None, snps_to_add=None, new_allele_info=None, remove_template_genes=False, debug=False):
+def write_glfo(output_dir, input_dir=None, glfo=None, only_genes=None, snps_to_add=None, new_allele_info=None, remove_template_genes=False, debug=False):
     """ rewrite the germline set files in <input_dir> to <output_dir>, only keeping the genes in <only_genes> """
-
+    raise Exception('need to decide whether to deal with in all chains here')  # probably yes
     # read from input file (if necessary)
     if input_dir is None:
         assert glfo is not None
@@ -380,15 +381,16 @@ def write_germline_fasta(output_dir, input_dir=None, glfo=None, only_genes=None,
             print '  writing germlines to %s' % output_dir
     else:
         assert glfo is None
-        glfo = read_germline_set(input_dir, debug=debug)
+        glfo = read_glfo(input_dir, debug=debug)
         if debug:
             print '  rewriting germlines from %s to %s' % (input_dir, output_dir)
 
     if only_genes is not None:
-        for region in regions:
-            for gene in glfo['seqs'][region]:
-                if gene not in only_genes:
-                    remove_gene_from_glfo_and_only_genes(glfo, only_genes, gene, debug=False)
+        genes_to_remove = set([g for r in regions for g in glfo['seqs'][r]]) - set(only_genes)
+        if debug:
+            print '    removing %d genes that aren\'t in <only_genes>' % len(genes_to_remove)
+        for gene in genes_to_remove:
+            remove_gene_from_glfo(glfo, gene, debug=False)
 
     # add any snps or new alleles
     if snps_to_add is not None:
@@ -399,33 +401,33 @@ def write_germline_fasta(output_dir, input_dir=None, glfo=None, only_genes=None,
     elif not snps_to_add:
         assert not remove_template_genes  # only makes sense if you've specified <new_allele_info>
 
-    print 'TODO deal with only genes in all glfo info before here'
-    assert False
-
     # and finally write output
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
     for fname in glfo_fasta_fnames:
+        glseqfo = glfo['aligned-seqs'] if 'aligned' in fname else glfo['seqs']
         with open(output_dir + '/' + fname, 'w') as outfile:
-            for gene in glfo['seqs'][get_region('', fname=fname)]:
+            for gene in glseqfo[get_region(fname)]:
                 outfile.write('>' + gene + '\n')
-                outfile.write(glfo['seqs'][get_region('', fname=fname)][gene] + '\n')
-    # NOTE this might duplicate some stuff in bin/initialize-germline-set.py
+                outfile.write(glseqfo[get_region(fname)][gene] + '\n')
     for fname in glfo_csv_fnames:
         with open(output_dir + '/' + fname, 'w') as codonfile:
             writer = csv.DictWriter(codonfile, ('gene', 'istart'))
             writer.writeheader()
             for gene, istart in glfo[get_codon(fname) + '-positions'].items():
                 writer.writerow({'gene' : gene, 'istart' : istart})
-    sys.exit()
-    # make sure there weren't any files lingering in the output dir when we started
-    final_file_list = glob.glob(output_dir + '/*')
-    for fname in final_file_list:
-        if fname not in expected_files:
-            raise Exception('unexpected file %s (expected %s)' % (fname, ' '.join(expected_files)))
 
-    return expected_files  # return the rewritten files so they can be deleted if desired
+    # make sure there weren't any files lingering in the output dir when we started
+    unexpected_files = set(glob.glob(output_dir + '/*')) - set([output_dir + '/' + fn for fn in glfo_fnames])
+    if len(unexpected_files) > 0:
+        raise Exception('unexpected file(s) while writing germline set: %s' % (' '.join(unexpected_files)))
+
+# ----------------------------------------------------------------------------------------
+def clean_glfo(datadir):
+    for fname in glfo_fnames:
+        os.remove(datadir + '/' + fname)
+    os.rmdir(datadir)
 
 # ----------------------------------------------------------------------------------------
 def from_same_event(reco_info, query_names):
@@ -1234,12 +1236,13 @@ def clean_up_glfo(glfo):
                 del glfo[codon + '-positions'][gene]
 
 #----------------------------------------------------------------------------------------
-def read_germline_set(datadir, chain='h', generate_new_alignment=False, debug=False):
+def read_glfo(datadir, chain='h', generate_new_alignment=False, debug=False):
+    raise Exception('need to decide whether to read in all chains here')
     glfo = {}
     glfo['seqs'], glfo['aligned-seqs'] = read_germline_seqs(datadir, chain)
     for fname in glfo_csv_fnames:
         glfo[get_codon(fname) + '-positions'] = read_codon_positions(datadir + '/' + fname)
-    clean_up_glfo(glfo)
+    clean_up_glfo(glfo)  # remove any extra info
     add_missing_glfo(glfo, generate_new_alignment=generate_new_alignment, debug=debug)
     return glfo
 
@@ -2412,7 +2415,7 @@ def add_regional_alignments(glfo, line, multi_seq, region, debug=False):
     for iseq in range(len(line['seqs'])):
         qr_seq = line[region + '_qr_seqs'][iseq]
         gl_seq = line[region + '_gl_seq']
-        aligned_gl_seq = glfo['aligned-genes'][region][line[region + '_gene']]
+        aligned_gl_seq = glfo['aligned-seqs'][region][line[region + '_gene']]
         if len(qr_seq) != len(gl_seq):
             line['invalid'] = True
             continue
@@ -2584,7 +2587,7 @@ def get_empty_indel():
 
 # ----------------------------------------------------------------------------------------
 def choose_seed_unique_id(datadir, simfname, seed_cluster_size_low, seed_cluster_size_high, iseed=None, n_max_queries=-1, debug=True):
-    glfo = read_germline_set(datadir)
+    glfo = read_glfo(datadir)
     _, reco_info = seqfileopener.get_seqfile_info(simfname, is_data=False, glfo=glfo, n_max_queries=n_max_queries)
     true_partition = get_true_partition(reco_info)
 
