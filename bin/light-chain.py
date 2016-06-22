@@ -21,7 +21,8 @@ v_genes = 'IGHV3-71*01' #:IGHV1-18*01'
 all_genes= v_genes + ':' + dj_genes
 
 # utils.write_glfo(outdir + '/germline-set', input_dir=outdir + '/imgt', only_genes=all_genes.split(':'), debug=True)
-utils.write_glfo(outdir + '/germline-set', input_dir=outdir + '/imgt', debug=True)
+utils.read_glfo(outdir + '/imgt', debug=True)
+# utils.write_glfo(outdir + '/germline-set', input_dir=outdir + '/imgt', debug=True)
 sys.exit()
 
 # simulate

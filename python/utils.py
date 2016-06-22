@@ -95,9 +95,15 @@ for i in range(len(index_columns)):  # dict so we can access them by name instea
     index_keys[index_columns[i]] = i
 
 # ----------------------------------------------------------------------------------------
-glfo_fasta_fnames = ['ig' + chain + region + algn + '.fasta' for chain in chains for region in regions for algn in ('', '-aligned')]
+# single-chain file names
 glfo_csv_fnames = [cdn + '-positions.csv' for cdn in conserved_codons.values()]
-glfo_fnames = glfo_fasta_fnames + glfo_csv_fnames
+def glfo_fasta_fnames(chain):
+    return ['ig' + chain + region + algn + '.fasta' for region in regions for algn in ('', '-aligned')]
+def glfo_fnames(chain):
+    return glfo_csv_fnames + glfo_fasta_fnames(chain)
+
+# fasta file names including all chains
+all_glfo_fasta_fnames = ['ig' + chain + region + algn + '.fasta' for chain in chains for region in regions for algn in ('', '-aligned')]
 
 # ----------------------------------------------------------------------------------------
 def get_codon(fname):
@@ -405,7 +411,7 @@ def write_glfo(output_dir, input_dir=None, glfo=None, only_genes=None, snps_to_a
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    for fname in glfo_fasta_fnames:
+    for fname in glfo_fasta_fnames(chain):
         glseqfo = glfo['aligned-seqs'] if 'aligned' in fname else glfo['seqs']
         with open(output_dir + '/' + fname, 'w') as outfile:
             for gene in glseqfo[get_region(fname)]:
@@ -1237,21 +1243,24 @@ def clean_up_glfo(glfo):
 
 #----------------------------------------------------------------------------------------
 def read_glfo(datadir, chain='h', generate_new_alignment=False, debug=False):
-    raise Exception('need to decide whether to read in all chains here')
+    if debug:
+        print '  reading %s chain glfo from %s' % (chain, datadir)
     glfo = {}
     glfo['seqs'], glfo['aligned-seqs'] = read_germline_seqs(datadir, chain)
     for fname in glfo_csv_fnames:
-        glfo[get_codon(fname) + '-positions'] = read_codon_positions(datadir + '/' + fname)
+        glfo[get_codon(fname) + '-positions'] = read_codon_positions(datadir + '/' + chain + '/' + fname)
     clean_up_glfo(glfo)  # remove any extra info
     add_missing_glfo(glfo, generate_new_alignment=generate_new_alignment, debug=debug)
+    if debug:
+        print '  read %s' % '  '.join([('%s: %d' % (r, len(glfo['seqs'][r]))) for r in regions])
     return glfo
 
 #----------------------------------------------------------------------------------------
 def read_germline_seqs(datadir, chain):
     seqs, aligned_seqs = {r : OrderedDict() for r in regions}, {r : OrderedDict() for r in regions}
-    for fname in [fn for fn in glfo_fasta_fnames if get_chain(fn) == chain]:
+    for fname in glfo_fasta_fnames(chain):
         infodict = aligned_seqs if 'aligned' in fname else seqs
-        for seq_record in SeqIO.parse(datadir + '/' + fname, 'fasta'):
+        for seq_record in SeqIO.parse(datadir + '/' + chain + '/' + fname, 'fasta'):
             gene = seq_record.name.split('|')[0]
             seq = str(seq_record.seq).upper()
             if len(seq.strip(''.join(expected_characters))) > 0:  # return the empty string if it only contains expected characters
@@ -1365,6 +1374,8 @@ def get_missing_codon_info(glfo, debug=False):
     for region, codon in conserved_codons.items():
         missing_genes = set(glfo['seqs'][region]) - set(glfo[codon + '-positions'])
         if len(missing_genes) == 0:
+            if debug:
+                print '    no missing %s info' % codon
             continue
 
         if debug:
@@ -1391,6 +1402,8 @@ def add_missing_glfo(glfo, generate_new_alignment=False, debug=False):
             get_new_alignments(glfo, debug=debug)
         else:
             raise Exception('missing alignments for %d genes %s' % (len(genes_without_alignments), ' '.join(genes_without_alignments)))
+    elif debug:
+        print '    no missing alignments'
 
     get_missing_codon_info(glfo, debug=debug)
 
@@ -1410,7 +1423,7 @@ def get_chain(inputstr):
     """ return chain weight/locus given gene of file name """
     if inputstr[:2] == 'IG':  # it's a gene name
         chain = inputstr[2:3].lower()
-    elif inputstr in glfo_fasta_fnames:  # it's a file name
+    elif inputstr in all_glfo_fasta_fnames:  # it's a file name
         chain = inputstr[2:3]
     else:
         raise Exception('couldn\'t figure out if %s was a gene or file name' % inputstr)
@@ -1423,7 +1436,7 @@ def get_region(inputstr):
     """ return v, d, or j of gene or gl fname """
     if inputstr[:2] == 'IG':  # it's a gene name
         region = inputstr[3:4].lower()
-    elif inputstr in glfo_fasta_fnames:  # it's a file name
+    elif inputstr in all_glfo_fasta_fnames:  # it's a file name
         region = inputstr[3:4]
     else:
         raise Exception('couldn\'t figure out if %s was a gene or file name' % inputstr)
