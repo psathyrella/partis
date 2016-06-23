@@ -11,6 +11,7 @@ sys.path.insert(1, current_script_dir)
 
 import plotting
 import utils
+import glutils
 from opener import opener
 
 parser = argparse.ArgumentParser()
@@ -58,7 +59,7 @@ for iname in range(len(args.names)):
 
 assert len(args.plotdirs) == len(args.names)
 
-glfo = utils.read_glfo(args.datadir)
+glfo = glutils.read_glfo(args.datadir)
 args.cyst_positions = glfo['cyst-positions']
 args.tryp_positions = glfo['tryp-positions']
 

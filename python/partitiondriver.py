@@ -13,6 +13,7 @@ import copy
 import multiprocessing
 
 import utils
+import glutils
 from opener import opener
 from seqfileopener import get_seqfile_info
 from glomerator import Glomerator
@@ -29,9 +30,9 @@ class PartitionDriver(object):
         self.args = args
         self.current_action = action  # *not* necessarily the same as <self.args.action>
         utils.prep_dir(self.args.workdir)
-        self.my_datadir = self.args.workdir + '/' + utils.glfo_dir
-        utils.write_glfo(self.my_datadir, input_dir=initial_datadir, chain=self.args.chain, only_genes=self.args.only_genes)  # need a copy on disk for vdjalign and bcrham (it may also get modified)
-        self.glfo = utils.read_glfo(self.my_datadir, self.args.chain, generate_new_alignment=self.args.generate_new_alignment)
+        self.my_datadir = self.args.workdir + '/' + glutils.glfo_dir
+        glutils.write_glfo(self.my_datadir, input_dir=initial_datadir, chain=self.args.chain, only_genes=self.args.only_genes)  # need a copy on disk for vdjalign and bcrham (it may also get modified)
+        self.glfo = glutils.read_glfo(self.my_datadir, self.args.chain, generate_new_alignment=self.args.generate_new_alignment)
 
         self.input_info, self.reco_info = None, None
         if self.args.infname is not None:
@@ -72,7 +73,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def __del__(self):
-        utils.remove_glfo_files(self.my_datadir, self.args.chain)
+        glutils.remove_glfo_files(self.my_datadir, self.args.chain)
 
         # merge persistent and current cache files into the persistent cache file
         if self.args.persistent_cachefname is not None:
@@ -129,11 +130,11 @@ class PartitionDriver(object):
             if len(self.sw_info['new-alleles']) == 0:
                 break
             all_new_allele_info += self.sw_info['new-alleles']
-            utils.write_glfo(self.my_datadir, input_dir=self.my_datadir, chain=self.args.chain, debug=True,
-                             only_genes=list(self.sw_info['all_best_matches']),
-                             new_allele_info=self.sw_info['new-alleles'],
-                             remove_template_genes=(itry==0 and self.args.generate_germline_set))
-            self.glfo = utils.read_glfo(self.my_datadir, self.args.chain)
+            glutils.write_glfo(self.my_datadir, input_dir=self.my_datadir, chain=self.args.chain, debug=True,
+                               only_genes=list(self.sw_info['all_best_matches']),
+                               new_allele_info=self.sw_info['new-alleles'],
+                               remove_template_genes=(itry==0 and self.args.generate_germline_set))
+            self.glfo = glutils.read_glfo(self.my_datadir, self.args.chain)
             itry += 1
 
         # remove any V alleles for which we didn't ever find any evidence
@@ -1323,7 +1324,7 @@ class PartitionDriver(object):
             print '    backing up partis output before converting to presto: %s' % outstr.strip()
 
             outheader = utils.presto_headers.values()
-            imgt_gapped_glfo = utils.read_glfo(self.my_datadir, self.args.chain, debug=True)  # use imgt alignments  # TODO remove this
+            imgt_gapped_glfo = glutils.read_glfo(self.my_datadir, self.args.chain, debug=True)  # use imgt alignments  # TODO remove this
             with open(outpath, 'w') as outfile:
                 writer = csv.DictWriter(outfile, outheader)
                 writer.writeheader()

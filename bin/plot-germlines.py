@@ -16,6 +16,7 @@ if not os.path.exists(current_script_dir):
 sys.path.insert(1, current_script_dir)
 
 import utils
+import glutils
 import plotting
 
 # ----------------------------------------------------------------------------------------
@@ -24,7 +25,7 @@ xtitles = {
     'indels' : 'fraction of positions indel\'d',
     'subs' : 'substitution fraction'
 }
-glfo = utils.read_glfo(datadir)
+glfo = glutils.read_glfo(datadir)
 vgenes = glfo['aligned-genes']['v'].keys()
 pversions = OrderedDict()
 for vg in vgenes:

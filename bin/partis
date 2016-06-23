@@ -13,6 +13,7 @@ if not os.path.exists(partis_dir):
 sys.path.insert(1, partis_dir + '/python')
 
 import utils
+import glutils
 from partitiondriver import PartitionDriver
 
 # ----------------------------------------------------------------------------------------
@@ -66,7 +67,7 @@ def run_simulation(args):
 
     if args.initial_datadir is None:  # if the gl info dir wasn't explicitly set on the command line, we have to decide what to use
         if args.parameter_dir is not None:  # if --parameter-dir was explicitly set, assume there's gl info in this --parameter-dir
-            args.initial_datadir = args.parameter_dir + '/' + utils.glfo_dir
+            args.initial_datadir = args.parameter_dir + '/' + glutils.glfo_dir
         else:  # otherwise use the default (probably data/imgt)
             args.initial_datadir = default_initial_datadir
 
@@ -141,7 +142,7 @@ def run_partitiondriver(args):
     if used_default_parameter_dir or auto_ran_cache_parameters:  # add the subdirectory, either 'sw' or 'hmm' (probably the latter)
         args.parameter_dir += '/' + args.parameter_type
 
-    parter = PartitionDriver(args, args.action, args.parameter_dir + '/' + utils.glfo_dir)  # ...and if we've already got a parameter dir, read the gl info from there
+    parter = PartitionDriver(args, args.action, args.parameter_dir + '/' + glutils.glfo_dir)  # ...and if we've already got a parameter dir, read the gl info from there
     if 'run-' in args.action:
         parter.run_algorithm(args.action.replace('run-', ''))
     elif args.action == 'partition':

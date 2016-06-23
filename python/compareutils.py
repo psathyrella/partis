@@ -15,6 +15,7 @@ csv.field_size_limit(sys.maxsize)
 from hist import Hist
 import seqfileopener
 import utils
+import glutils
 import baseutils
 import humans
 # from clusterplot import ClusterPlot
@@ -263,7 +264,7 @@ def get_synthetic_partition_type(stype):
 def generate_synthetic_partitions(args, label, n_leaves, mut_mult, seqfname, base_outfname, datafname, procs):
     _, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=False)
     print 'using heavy chain!'
-    glfo = utils.read_glfo(args.datadir, chain='h')
+    glfo = glutils.read_glfo(args.datadir, chain='h')
     true_partition = utils.get_true_partition(reco_info)
     for stype in args.synthetic_partitions:
         misfrac, mistype, threshold = get_synthetic_partition_type(stype)

@@ -9,6 +9,7 @@ import fraction_uncertainty
 from mutefreqer import MuteFreqer
 import plotting
 import utils
+import glutils
 
 # ----------------------------------------------------------------------------------------
 def fstr(fval):
@@ -259,7 +260,7 @@ class AlleleFinder(object):
             mutfo[pos] = {'original' : original_nuke, 'new' : new_nuke}
             new_seq = new_seq[:pos] + new_nuke + new_seq[pos+1:]
 
-        new_name, mutfo = utils.get_new_allele_name_and_change_mutfo(gene, mutfo, new_seq)
+        new_name, mutfo = glutils.get_new_allele_name_and_change_mutfo(gene, mutfo)
         print ''
         print '          %s   %s' % (old_seq, utils.color_gene(gene))
         print '          %s   %s' % (utils.color_mutants(old_seq, new_seq), utils.color_gene(new_name))

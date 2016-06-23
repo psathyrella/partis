@@ -17,6 +17,7 @@ import dendropy
 from opener import opener
 import paramutils
 import utils
+import glutils
 from event import RecombinationEvent
 
 #----------------------------------------------------------------------------------------
@@ -49,7 +50,7 @@ class Recombinator(object):
             for model in ['gtr', 'gamma']:
                 self.mute_models[region][model] = {}
 
-        self.glfo = utils.read_glfo(self.args.initial_datadir, self.args.chain)
+        self.glfo = glutils.read_glfo(self.args.initial_datadir, self.args.chain)
 
         self.allowed_genes = self.get_allowed_genes(parameter_dir)  # set of genes a) for which we read per-position mutation information and b) from which we choose when running partially from scratch
         self.version_freq_table = self.read_vdj_version_freqs(parameter_dir)  # list of the probabilities with which each VDJ combo (plus other rearrangement parameters) appears in data
