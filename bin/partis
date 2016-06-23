@@ -225,7 +225,7 @@ parent_parser.add_argument('--dont-rescale-emissions', action='store_true', help
 parent_parser.add_argument('--print-git-commit', action='store_true', help='print sys.argv, git commit hash, and tag info')
 parent_parser.add_argument('--smc-particles', type=int, default=1, help='DEPRECATED Number of particles (clustering paths) to simulate with SMC')
 parent_parser.add_argument('--min-observations-to-write', type=int, default=20, help='For hmmwriter.py, if we see a gene version fewer times than this, we sum over other alleles, or other versions, etc. (see hmmwriter)')
-parent_parser.add_argument('--chain', default='heavy', choices=('heavy', 'kappa', 'lambda', 'dj'), help='still under development: Are these heavy chain, kappa or lambda light chain, or heavy chain dj-only sequences?')
+parent_parser.add_argument('--chain', default='h', choices=('h', 'k', 'l'), help='still under development: Are these heavy chain, or kappa or lambda light chain?')
 parent_parser.add_argument('--generate-new-alignment', action='store_true', help='If the aligned germline file is missing genes which are present in the un-aligned file, generate a new alignment that includes everybody (otherwise we fail -- don\'t want to override somebody\'s favorite alignment without their consent).')
 # parent_parser.add_argument('--use_mean_at_boundaries', action='store_true', help='see note in hmmwriter')
 

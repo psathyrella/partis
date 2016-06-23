@@ -377,9 +377,9 @@ def add_some_snps(snps_to_add, glfo, only_genes, remove_template_genes=False, de
     remove_the_stupid_godamn_template_genes_all_at_once(glfo, only_genes, templates_to_remove)  # works fine with zero-length <templates_to_remove>
 
 # ----------------------------------------------------------------------------------------
-def write_glfo(output_dir, input_dir=None, glfo=None, only_genes=None, snps_to_add=None, new_allele_info=None, remove_template_genes=False, debug=False):
+def write_glfo(output_dir, input_dir=None, glfo=None, chain=None, only_genes=None, snps_to_add=None, new_allele_info=None, remove_template_genes=False, generate_new_alignment=False, debug=False):
     """ rewrite the germline set files in <input_dir> to <output_dir>, only keeping the genes in <only_genes> """
-    raise Exception('need to decide whether to deal with in all chains here')  # probably yes
+
     # read from input file (if necessary)
     if input_dir is None:
         assert glfo is not None
@@ -387,7 +387,8 @@ def write_glfo(output_dir, input_dir=None, glfo=None, only_genes=None, snps_to_a
             print '  writing germlines to %s' % output_dir
     else:
         assert glfo is None
-        glfo = read_glfo(input_dir, debug=debug)
+        assert chain is not None
+        glfo = read_glfo(input_dir, chain, generate_new_alignment=generate_new_alignment, debug=debug)
         if debug:
             print '  rewriting germlines from %s to %s' % (input_dir, output_dir)
 
@@ -408,30 +409,31 @@ def write_glfo(output_dir, input_dir=None, glfo=None, only_genes=None, snps_to_a
         assert not remove_template_genes  # only makes sense if you've specified <new_allele_info>
 
     # and finally write output
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    if not os.path.exists(output_dir + '/' + glfo['chain']):
+        os.makedirs(output_dir + '/' + glfo['chain'])
 
-    for fname in glfo_fasta_fnames(chain):
+    for fname in glfo_fasta_fnames(glfo['chain']):
         glseqfo = glfo['aligned-seqs'] if 'aligned' in fname else glfo['seqs']
-        with open(output_dir + '/' + fname, 'w') as outfile:
+        with open(output_dir + '/' + glfo['chain'] + '/' + fname, 'w') as outfile:
             for gene in glseqfo[get_region(fname)]:
                 outfile.write('>' + gene + '\n')
                 outfile.write(glseqfo[get_region(fname)][gene] + '\n')
     for fname in glfo_csv_fnames:
-        with open(output_dir + '/' + fname, 'w') as codonfile:
+        with open(output_dir + '/' + glfo['chain'] + '/' + fname, 'w') as codonfile:
             writer = csv.DictWriter(codonfile, ('gene', 'istart'))
             writer.writeheader()
             for gene, istart in glfo[get_codon(fname) + '-positions'].items():
                 writer.writerow({'gene' : gene, 'istart' : istart})
 
     # make sure there weren't any files lingering in the output dir when we started
-    unexpected_files = set(glob.glob(output_dir + '/*')) - set([output_dir + '/' + fn for fn in glfo_fnames])
+    # NOTE this will ignore the dirs corresponding to any *other* chains (which is what we want now, I think)
+    unexpected_files = set(glob.glob(output_dir + '/' + glfo['chain'] + '/*')) - set([output_dir + '/' + glfo['chain'] + '/' + fn for fn in glfo_fnames(glfo['chain'])])
     if len(unexpected_files) > 0:
         raise Exception('unexpected file(s) while writing germline set: %s' % (' '.join(unexpected_files)))
 
 # ----------------------------------------------------------------------------------------
-def clean_glfo(datadir):
-    for fname in glfo_fnames:
+def remove_glfo_files(datadir):
+    for fname in glfo_fnames(chain):
         os.remove(datadir + '/' + fname)
     os.rmdir(datadir)
 
@@ -511,11 +513,12 @@ def summarize_gene_name(gene):
 
 # ----------------------------------------------------------------------------------------
 def color_gene(gene):
-    """ color gene name (and remove extra characters), eg IGHV3-h*01 --> v3-h1 """
+    """ color gene name (and remove extra characters), eg IGHV3-h*01 --> hv3-h1 """
+    chain = get_chain(gene)
     region = get_region(gene)
     primary_version, sub_version, allele = split_gene(gene)
 
-    return_str =  color('red', region) + color('purple', primary_version)
+    return_str = color('purple', chain) + color('red', region) + color('purple', primary_version)
     if region != 'j':
         return_str += '-' + color('purple', sub_version)
     return_str += color('yellow', allele)
@@ -1230,26 +1233,32 @@ def unsanitize_name(name):
     return unsaniname
 
 #----------------------------------------------------------------------------------------
-def clean_up_glfo(glfo):
+def clean_up_glfo(glfo, debug=False):
     """ remove any genes in 'aligned-seqs' and codon position info that aren't in 'seqs' """
     desired_genes = set([g for r in regions for g in glfo['seqs'][r]])
+    n_aligned_removed = 0
     for gene in [g for r in regions for g in glfo['aligned-seqs'][r]]:
         if gene not in desired_genes:
+            n_aligned_removed += 1
             del glfo['aligned-seqs'][get_region(gene)][gene]
+    n_codon_removed = {c : 0 for c in conserved_codons.values()}
     for codon in conserved_codons.values():
         for gene in glfo[codon + '-positions'].keys():
             if gene not in desired_genes:
+                n_codon_removed[codon] += 1
                 del glfo[codon + '-positions'][gene]
+    if debug:
+        print '    removed %d genes from aligned seqs, %s' % (n_aligned_removed, ' and '.join([('%d from %s positions' % (n_codon_removed[c], c)) for c in conserved_codons.values()]))
 
 #----------------------------------------------------------------------------------------
-def read_glfo(datadir, chain='h', generate_new_alignment=False, debug=False):
+def read_glfo(datadir, chain, generate_new_alignment=False, debug=False):
     if debug:
         print '  reading %s chain glfo from %s' % (chain, datadir)
-    glfo = {}
+    glfo = {'chain' : chain}
     glfo['seqs'], glfo['aligned-seqs'] = read_germline_seqs(datadir, chain)
     for fname in glfo_csv_fnames:
         glfo[get_codon(fname) + '-positions'] = read_codon_positions(datadir + '/' + chain + '/' + fname)
-    clean_up_glfo(glfo)  # remove any extra info
+    clean_up_glfo(glfo, debug=debug)  # remove any extra info
     add_missing_glfo(glfo, generate_new_alignment=generate_new_alignment, debug=debug)
     if debug:
         print '  read %s' % '  '.join([('%s: %d' % (r, len(glfo['seqs'][r]))) for r in regions])
@@ -1285,7 +1294,11 @@ def get_new_alignments(glfo, debug=False):
             continue
 
         if debug:
-            print '  missing alignments for %d genes' % len(genes_without_alignments)
+            print 'existing alignments:'
+            for g, seq in glfo['aligned-seqs']['j'].items():
+                print '    %s   %s' % (seq, color_gene(g))
+            print '  missing alignments for %d genes: %s' % (len(genes_without_alignments), ' '.join([color_gene(g) for g in genes_without_alignments]))
+
 
         # find the longest aligned sequence, so we can pad everybody else with dots on the right out to that length
         biggest_length = None
@@ -1330,6 +1343,8 @@ def get_new_alignments(glfo, debug=False):
                 matches = re.findall('[0-9][0-9]* / [0-9][0-9]*', errstr)
                 if len(matches) == 1 and errstr.strip() == matches[0]:
                     continue
+                if len(errstr) == 0:
+                    continue
                 printstrs.append(errstr)
             print '        ' + '\n        '.join(printstrs)
 
@@ -1340,7 +1355,10 @@ def get_new_alignments(glfo, debug=False):
             if gene not in glfo['seqs'][region]:  # only really possible if there's a bug in the preceding fifty lines, but oh well, you can't be too careful
                 raise Exception('unexpected gene %s in mafft output' % gene)
             glfo['aligned-seqs'][region][gene] = seq  # overwrite the old alignment with the new one
-            print gene, seq
+        if debug:
+            print 'new alignments:'
+            for g, seq in glfo['aligned-seqs']['j'].items():
+                print '    %s   %s  %s' % (seq, color_gene(g), '<--- new' if g in genes_without_alignments else '')
 
         os.remove(already_aligned_fname)
         os.remove(not_aligned_fname)
@@ -1379,18 +1397,27 @@ def get_missing_codon_info(glfo, debug=False):
             continue
 
         if debug:
-            print '    missing %d %s positions' % (len(missing_genes), codon)
+            print '      missing %d %s positions' % (len(missing_genes), codon)
 
         if region == 'j':
             raise Exception('missing tryp position for %s, and we can\'t infer it because tryp positions don\'t reliably align to the same position' % ' '.join(missing_genes))
 
         # existing codon position (this assumes that once aligned, all genes have the same codon position)
-        known_gene, known_pos = glfo[codon + '-positions'].iteritems().next()  # just take the "first" one
-        known_pos_in_alignment = get_pos_in_alignment(codon, glfo['aligned-seqs'][region][known_gene], glfo['seqs'][region][known_gene], known_pos)
+        if len(glfo[codon + '-positions']) > 0:
+            known_gene, known_pos = glfo[codon + '-positions'].iteritems().next()  # just take the "first" one
+            # NOTE for cyst, should be 309 (imgt says 104th codon --> subtract 1 to get zero-indexing, then multiply by three 3 * (104 - 1) = 309
+            known_pos_in_alignment = get_pos_in_alignment(codon, glfo['aligned-seqs'][region][known_gene], glfo['seqs'][region][known_gene], known_pos)
+            if debug:
+                print '      using known position %d (aligned %d) in %s' % (known_pos, known_pos_in_alignment, known_gene)
+        elif codon == 'cyst':
+            known_pos_in_alignment = 309
+            print '      assuming aligned %s position is %d' % (codon, known_pos_in_alignment)
+        else:
+            raise Exception('no existing %s info, and couldn\'t guess it, either' % codon)
 
         for gene in missing_genes:
             unaligned_pos = known_pos_in_alignment - count_gaps(glfo['aligned-seqs'][region][gene], istop=known_pos_in_alignment)
-            print '    adding %s: %d' % (color_gene(gene), unaligned_pos)
+            print '      adding %s: %d' % (color_gene(gene), unaligned_pos)
             check_codon(codon, glfo['seqs'][region][gene], unaligned_pos, debug=True)
             glfo[codon + '-positions'][gene] = unaligned_pos
 
@@ -1401,7 +1428,7 @@ def add_missing_glfo(glfo, generate_new_alignment=False, debug=False):
         if generate_new_alignment:  # replace existing alignment, which is missing some genes, with a new one that includes everybody
             get_new_alignments(glfo, debug=debug)
         else:
-            raise Exception('missing alignments for %d genes %s' % (len(genes_without_alignments), ' '.join(genes_without_alignments)))
+            raise Exception('missing alignments for %d genes %s (set --generate-new-alignments if you want to attempt to figure out new ones)' % (len(genes_without_alignments), ' '.join(genes_without_alignments)))
     elif debug:
         print '    no missing alignments'
 
@@ -1460,28 +1487,28 @@ def are_alleles(gene1, gene2):
 # ----------------------------------------------------------------------------------------
 def split_gene(gene):
     """ returns (primary version, sub version, allele) """
-    # make sure IGH[VDJ] is at the start, and - and * are as expected
-    if gene[:4] != 'IGH' + get_region(gene).upper():
+    # make sure IG[HKL][VDJ] is at the start, and there's a *
+    if gene[:4] != 'IG' + get_chain(gene).upper() + get_region(gene).upper():
         raise Exception('unexpected string in gene name %s' % gene)
-    if '*' not in gene:
-        raise Exception('no \'*\' found in %s' % gene)
+    if gene.count('*') != 1:
+        raise Exception('expected exactly 1 \'*\' in %s but found %d' % (gene, gene.count('*')))
 
     if get_region(gene) == 'j':  # js don't have sub versions
-        primary_version = gene[4 : gene.find('*')]  # the bit between the IGH[VDJ] and the star
+        primary_version = gene[4 : gene.find('*')]  # the bit between the IG[HKL][VDJ] and the star
         sub_version = None
         allele = gene[gene.find('*') + 1 : ]  # the bit after the star
-        if gene != 'IGH' + get_region(gene).upper() + primary_version + '*' + allele:
-            raise Exception('could build gene name %s from %s %s' % (gene, primary_version, allele))
+        if gene != 'IG' + get_chain(gene).upper() + get_region(gene).upper() + primary_version + '*' + allele:
+            raise Exception('couldn\'t build gene name %s from %s %s' % (gene, primary_version, allele))
     else:
-        if '-' not in gene:
-            raise Exception('no \'-\' found in %s' % gene)
+        if gene.count('-') != 1 and gene.count('-') != 2:
+            raise Exception('expected either 1 or 2 \'-\' in %s but found %d' % (gene, gene.count('-')))
         if gene.find('-') >= gene.find('*'):
             raise Exception('found \'*\' before \'-\' in %s' % gene)
-        primary_version = gene[4 : gene.find('-')]  # the bit between the IGH[VDJ] and the first dash (sometimes there's a second dash as well)
+        primary_version = gene[4 : gene.find('-')]  # the bit between the IG[HKL][VDJ] and the first dash (sometimes there's a second dash as well)
         sub_version = gene[gene.find('-') + 1 : gene.find('*')]  # the bit between the first dash and the star
         allele = gene[gene.find('*') + 1 : ]  # the bit after the star
-        if gene != 'IGH' + get_region(gene).upper() + primary_version + '-' + sub_version + '*' + allele:
-            raise Exception('could build gene name %s from %s %s %s' % (gene, primary_version, sub_version, allele))
+        if gene != 'IG' + get_chain(gene).upper() + get_region(gene).upper() + primary_version + '-' + sub_version + '*' + allele:
+            raise Exception('couldn\'t build gene name %s from %s %s %s' % (gene, primary_version, sub_version, allele))
 
     return primary_version, sub_version, allele
 
