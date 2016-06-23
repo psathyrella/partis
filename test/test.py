@@ -391,6 +391,8 @@ class Tester(object):
             read_run_times(stype)
 
         for name in times['ref']:
+            if args.quick and name not in self.quick_tests:
+                continue
             print '  %30s   %7.1f' % (name, times['ref'][name]),
             if name not in times['new']:
                 print '  no new time for %s' % utils.color('red', name)
