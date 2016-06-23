@@ -222,7 +222,6 @@ class Waterer(object):
         cmd_str += ' --vdj-dir ' + self.my_datadir + '/' + self.args.chain
         cmd_str += ' --samtools-dir ' + self.args.partis_dir + '/packages/samtools'
         cmd_str += ' ' + workdir + '/' + base_infname + ' ' + workdir + '/' + base_outfname
-        print cmd_str
         return cmd_str
 
     # ----------------------------------------------------------------------------------------
