@@ -129,9 +129,11 @@ class PartitionDriver(object):
             if len(self.sw_info['new-alleles']) == 0:
                 break
             all_new_allele_info += self.sw_info['new-alleles']
-            remove_template_genes = itry==0 and self.args.generate_germline_set
-            utils.write_glfo(self.my_datadir, input_dir=self.my_datadir, chain=self.args.chain, only_genes=list(self.sw_info['all_best_matches']), new_allele_info=self.sw_info['new-alleles'], remove_template_genes=remove_template_genes)
-            self.glfo = utils.read_glfo(self.my_datadir, self.args.chain, alignment_dir=self.args.alignment_dir)
+            utils.write_glfo(self.my_datadir, input_dir=self.my_datadir, chain=self.args.chain, debug=True,
+                             only_genes=list(self.sw_info['all_best_matches']),
+                             new_allele_info=self.sw_info['new-alleles'],
+                             remove_template_genes=(itry==0 and self.args.generate_germline_set))
+            self.glfo = utils.read_glfo(self.my_datadir, self.args.chain)
             itry += 1
 
         # remove any V alleles for which we didn't ever find any evidence
