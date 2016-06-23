@@ -205,22 +205,6 @@ class Waterer(object):
             raise Exception('didn\'t write %s to %s' % (':'.join(not_written), self.args.workdir))
 
     # ----------------------------------------------------------------------------------------
-    def getlocus(self):
-        if self.args.chain_weight == 'heavy':
-            return 'IGH'
-        elif self.args.chain_weight == 'light':
-            if self.args.light_chain_locus == 'kappa':
-                return 'IGK'
-            elif self.args.light_chain_locus == 'lambda':
-                return 'IGL'
-            else:
-                assert False
-        elif self.args.chain_weight == 'dj':
-            assert False  # not yet implemented
-        else:
-            assert False
-
-    # ----------------------------------------------------------------------------------------
     def get_vdjalign_cmd_str(self, workdir, base_infname, base_outfname, n_procs=None):
         """
         Run smith-waterman alignment (from Connor's ighutils package) on the seqs in <base_infname>, and toss all the top matches into <base_outfname>.
@@ -230,12 +214,12 @@ class Waterer(object):
         cmd_str = self.args.ighutil_dir + '/bin/vdjalign align-fastq -q'
         if self.args.slurm or utils.auto_slurm(n_procs):
             cmd_str = 'srun ' + cmd_str
-        cmd_str += ' --locus ' + self.getlocus()
+        cmd_str += ' --locus ' + 'IG' + self.args.chain.upper()
         cmd_str += ' --max-drop 50'
         match, mismatch = self.match_mismatch
         cmd_str += ' --match ' + str(match) + ' --mismatch ' + str(mismatch)
         cmd_str += ' --gap-open ' + str(self.gap_open_penalty)
-        cmd_str += ' --vdj-dir ' + self.my_datadir
+        cmd_str += ' --vdj-dir ' + self.my_datadir + '/' + self.args.chain
         cmd_str += ' --samtools-dir ' + self.args.partis_dir + '/packages/samtools'
         cmd_str += ' ' + workdir + '/' + base_infname + ' ' + workdir + '/' + base_outfname
         print cmd_str

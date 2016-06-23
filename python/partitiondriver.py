@@ -31,7 +31,7 @@ class PartitionDriver(object):
         utils.prep_dir(self.args.workdir)
         self.my_datadir = self.args.workdir + '/' + utils.glfo_dir
         utils.write_glfo(self.my_datadir, input_dir=initial_datadir, chain=self.args.chain, only_genes=self.args.only_genes)  # need a copy on disk for vdjalign and bcrham (it may also get modified)
-        self.glfo = utils.read_glfo(self.my_datadir, generate_new_alignment=self.args.generate_new_alignment)
+        self.glfo = utils.read_glfo(self.my_datadir, self.args.chain, generate_new_alignment=self.args.generate_new_alignment)
 
         self.input_info, self.reco_info = None, None
         if self.args.infname is not None:
@@ -72,7 +72,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def __del__(self):
-        utils.remove_glfo_files(self.my_datadir)
+        utils.remove_glfo_files(self.my_datadir, self.args.chain)
 
         # merge persistent and current cache files into the persistent cache file
         if self.args.persistent_cachefname is not None:
@@ -130,8 +130,8 @@ class PartitionDriver(object):
                 break
             all_new_allele_info += self.sw_info['new-alleles']
             remove_template_genes = itry==0 and self.args.generate_germline_set
-            utils.write_glfo(self.my_datadir, input_dir=self.my_datadir, chain=args.chain, only_genes=list(self.sw_info['all_best_matches']), new_allele_info=self.sw_info['new-alleles'], remove_template_genes=remove_template_genes)
-            self.glfo = utils.read_glfo(self.my_datadir, alignment_dir=self.args.alignment_dir)
+            utils.write_glfo(self.my_datadir, input_dir=self.my_datadir, chain=self.args.chain, only_genes=list(self.sw_info['all_best_matches']), new_allele_info=self.sw_info['new-alleles'], remove_template_genes=remove_template_genes)
+            self.glfo = utils.read_glfo(self.my_datadir, self.args.chain, lignment_dir=self.args.alignment_dir)
             itry += 1
 
         # remove any V alleles for which we didn't ever find any evidence
@@ -476,7 +476,7 @@ class PartitionDriver(object):
         if self.args.debug > 0:
             cmd_str += ' --debug ' + str(self.args.debug)
         cmd_str += ' --hmmdir ' + os.path.abspath(parameter_dir) + '/hmms'
-        cmd_str += ' --datadir ' + self.my_datadir
+        cmd_str += ' --datadir ' + self.my_datadir + '/' + self.args.chain
         cmd_str += ' --infile ' + csv_infname
         cmd_str += ' --outfile ' + csv_outfname
         cmd_str += ' --random-seed ' + str(self.args.seed)
@@ -1321,7 +1321,7 @@ class PartitionDriver(object):
             print '    backing up partis output before converting to presto: %s' % outstr.strip()
 
             outheader = utils.presto_headers.values()
-            imgt_gapped_glfo = utils.read_glfo(self.my_datadir, alignment_dir=self.my_datadir, debug=True)  # use imgt alignments  # TODO remove this
+            imgt_gapped_glfo = utils.read_glfo(self.my_datadir, self.args.chain, debug=True)  # use imgt alignments  # TODO remove this
             with open(outpath, 'w') as outfile:
                 writer = csv.DictWriter(outfile, outheader)
                 writer.writeheader()

@@ -432,10 +432,11 @@ def write_glfo(output_dir, input_dir=None, glfo=None, chain=None, only_genes=Non
         raise Exception('unexpected file(s) while writing germline set: %s' % (' '.join(unexpected_files)))
 
 # ----------------------------------------------------------------------------------------
-def remove_glfo_files(datadir):
+def remove_glfo_files(datadir, chain):
     for fname in glfo_fnames(chain):
-        os.remove(datadir + '/' + fname)
-    os.rmdir(datadir)
+        os.remove(datadir + '/' + chain + '/' + fname)
+    os.rmdir(datadir + '/' + chain)
+    os.rmdir(datadir)  # at the moment, we should only be running on single-chain stuff, so the only dir with info for more than one chain should be data/imgt
 
 # ----------------------------------------------------------------------------------------
 def from_same_event(reco_info, query_names):
@@ -2627,7 +2628,8 @@ def get_empty_indel():
 
 # ----------------------------------------------------------------------------------------
 def choose_seed_unique_id(datadir, simfname, seed_cluster_size_low, seed_cluster_size_high, iseed=None, n_max_queries=-1, debug=True):
-    glfo = read_glfo(datadir)
+    print 'using heavy chain!'
+    glfo = read_glfo(datadir, 'h')
     _, reco_info = seqfileopener.get_seqfile_info(simfname, is_data=False, glfo=glfo, n_max_queries=n_max_queries)
     true_partition = get_true_partition(reco_info)
 
