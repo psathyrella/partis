@@ -2627,9 +2627,8 @@ def get_empty_indel():
     return {'reversed_seq' : '', 'indels' : []}
 
 # ----------------------------------------------------------------------------------------
-def choose_seed_unique_id(datadir, simfname, seed_cluster_size_low, seed_cluster_size_high, iseed=None, n_max_queries=-1, debug=True):
-    print 'using heavy chain!'
-    glfo = read_glfo(datadir, 'h')
+def choose_seed_unique_id(datadir, chain, simfname, seed_cluster_size_low, seed_cluster_size_high, iseed=None, n_max_queries=-1, debug=True):
+    glfo = read_glfo(datadir, chain)
     _, reco_info = seqfileopener.get_seqfile_info(simfname, is_data=False, glfo=glfo, n_max_queries=n_max_queries)
     true_partition = get_true_partition(reco_info)
 
