@@ -288,7 +288,7 @@ def generate_snpd_gene(gene, cpos, seq, aligned_seq, positions):
 # ----------------------------------------------------------------------------------------
 def remove_gene_from_glfo(glfo, gene, debug=False):
     if debug:
-        print '  removing %s from germline set' % color_gene(gene)
+        print '  removing %s from glfo' % color_gene(gene)
     region = get_region(gene)
     if region in conserved_codons:
         del glfo[conserved_codons[region] + '-positions'][gene]
@@ -320,13 +320,26 @@ def add_new_allele(glfo, newfo, only_genes, remove_template_genes, debug=False):
     glfo['seqs'][region][new_gene] = newfo['seq']
 
     if newfo['aligned-seq'] is None:
-        add_missing_alignments(glfo)
+        # get_new_alignments(glfo, debug=debug)  # don't want to do this -- we'd kind of rather keep the imgt-gapped alignment if we can
+        # just copy the template gene's alignment
+        template_alignment = glfo['aligned-seqs'][region][template_gene]
+        new_alignment = ''
+        assert len(glfo['seqs'][region][new_gene]) == len(glfo['seqs'][region][template_gene])  # only works if they're only separated by snps
+        n_gaps = 0
+        for ipos in range(len(template_alignment)):
+            if template_alignment[ipos] in gap_chars:
+                new_alignment += template_alignment[ipos]
+                n_gaps += 1
+            else:
+                new_alignment += glfo['seqs'][region][new_gene][ipos - n_gaps]
+        glfo['aligned-seqs'][region][new_gene] = new_alignment
     else:
         glfo['aligned-seqs'][region][new_gene] = newfo['aligned-seq']
 
     if debug:
-        print '        %s   %s' % (glfo['seqs'][region][template_gene], color_gene(template_gene))
-        print '        %s   %s' % (color_mutants(glfo['seqs'][region][template_gene], newfo['seq']), color_gene(new_gene))
+        print '    adding new allele to glfo:'
+        print '      template %s   %s' % (glfo['seqs'][region][template_gene], color_gene(template_gene))
+        print '           new %s   %s' % (color_mutants(glfo['seqs'][region][template_gene], newfo['seq']), color_gene(new_gene))
 
     if remove_template_genes:
         remove_gene_from_glfo(glfo, template_gene, debug=True)
@@ -384,13 +397,17 @@ def write_glfo(output_dir, input_dir=None, glfo=None, chain=None, only_genes=Non
     if input_dir is None:
         assert glfo is not None
         if debug:
-            print '  writing germlines to %s' % output_dir
+            print '  writing glfo to %s' % output_dir
     else:
         assert glfo is None
         assert chain is not None
         glfo = read_glfo(input_dir, chain, generate_new_alignment=generate_new_alignment, debug=debug)
         if debug:
-            print '  rewriting germlines from %s to %s' % (input_dir, output_dir)
+            print '  rewriting glfo',
+            if input_dir == output_dir:
+                print 'in %s' % input_dir
+            else:
+                print 'from %s to %s' % (input_dir, output_dir)
 
     if only_genes is not None:
         genes_to_remove = set([g for r in regions for g in glfo['seqs'][r]]) - set(only_genes)
@@ -403,14 +420,15 @@ def write_glfo(output_dir, input_dir=None, glfo=None, chain=None, only_genes=Non
     if snps_to_add is not None:
         add_some_snps(snps_to_add, glfo, only_genes, remove_template_genes=remove_template_genes, debug=debug)
     if new_allele_info is not None:
-        for new_allele_info in new_allele_info:
-            add_new_allele(glfo, new_allele_info, only_genes, remove_template_genes=remove_template_genes, debug=debug)
+        for newfo in new_allele_info:
+            add_new_allele(glfo, newfo, only_genes, remove_template_genes=remove_template_genes, debug=debug)
     elif not snps_to_add:
         assert not remove_template_genes  # only makes sense if you've specified <new_allele_info>
 
     # and finally write output
-    if not os.path.exists(output_dir + '/' + glfo['chain']):
-        os.makedirs(output_dir + '/' + glfo['chain'])
+    if os.path.exists(output_dir + '/' + glfo['chain']):
+        remove_glfo_files(output_dir, glfo['chain'])  # also removes output_dir
+    os.makedirs(output_dir + '/' + glfo['chain'])
 
     for fname in glfo_fasta_fnames(glfo['chain']):
         glseqfo = glfo['aligned-seqs'] if 'aligned' in fname else glfo['seqs']
@@ -1295,10 +1313,10 @@ def get_new_alignments(glfo, debug=False):
             continue
 
         if debug:
-            print 'existing alignments:'
-            for g, seq in glfo['aligned-seqs']['j'].items():
-                print '    %s   %s' % (seq, color_gene(g))
             print '  missing alignments for %d genes: %s' % (len(genes_without_alignments), ' '.join([color_gene(g) for g in genes_without_alignments]))
+            print '  existing alignments:'
+            for g, seq in glfo['aligned-seqs'][region].items():
+                print '    %s   %s' % (seq, color_gene(g))
 
 
         # find the longest aligned sequence, so we can pad everybody else with dots on the right out to that length
@@ -1357,8 +1375,8 @@ def get_new_alignments(glfo, debug=False):
                 raise Exception('unexpected gene %s in mafft output' % gene)
             glfo['aligned-seqs'][region][gene] = seq  # overwrite the old alignment with the new one
         if debug:
-            print 'new alignments:'
-            for g, seq in glfo['aligned-seqs']['j'].items():
+            print '  new alignments:'
+            for g, seq in glfo['aligned-seqs'][region].items():
                 print '    %s   %s  %s' % (seq, color_gene(g), '<--- new' if g in genes_without_alignments else '')
 
         os.remove(already_aligned_fname)
