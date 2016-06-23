@@ -3,8 +3,9 @@
 partis is an HMM-based framework for B-cell receptor sequence annotation, simulation, and clonal family inference.
 It is built on top of the [ham](https://github.com/psathyrella/ham) HMM compiler, and also uses the [ighutil](https://github.com/cmccoy/ighutil) set of Smith-Waterman annotation tools.
 
-* [Manual](https://github.com/psathyrella/partis/blob/master/manual.md)
-* [Docker image](https://hub.docker.com/r/psathyrella/partis/)
+* [manual](https://github.com/psathyrella/partis/blob/master/manual.md)
+* [docker image](https://hub.docker.com/r/psathyrella/partis/)
+* [support forum](https://github.com/psathyrella/partis/issues?utf8=%E2%9C%93&q=)
 
 The following two papers describe the annotation and clonal family inference functionality of partis, respectively:
 

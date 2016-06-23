@@ -14,6 +14,8 @@ There are also many flags and optional parameters; unless mentioned below these 
 Details concerning their purpose, however, may be gleaned by means of the following incantation: `./bin/partis --help`.
 In general, we assume that the reader is familiar with the papers describing [annotation](http://arxiv.org/abs/1503.04224) and [clustering](https://arxiv.org/abs/1603.08127) with partis.
 
+For further information, you can search through past discussions in the [github issues](https://github.com/psathyrella/partis/issues?utf8=%E2%9C%93&q=).
+
 ### Quick Start
 
 Because partis has a lot of dependencies, you'll likely have an easier time of it using the [Docker image](https://registry.hub.docker.com/u/psathyrella/partis/) rather than installing from scratch.
