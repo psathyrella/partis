@@ -940,7 +940,7 @@ class PartitionDriver(object):
                 cpos = swfo['cyst_position']
             k_d = swfo['k_d']  # don't need to adjust k_d for padding
             combo['seqs'].append(seq)
-            combo['mute-freqs'].append(utils.get_mutation_rate(self.glfo['seqs'], swfo))
+            combo['mute-freqs'].append(utils.get_mutation_rate(swfo))
             combo['cyst_positions'].append(cpos)  # TODO use cached hmm values instead of SW
             combo['k_v']['min'] = min(k_v['min'], combo['k_v']['min'])
             combo['k_v']['max'] = max(k_v['max'], combo['k_v']['max'])

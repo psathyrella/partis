@@ -22,7 +22,7 @@ import glutils
 eps = 1.0e-10  # if things that should be 1.0 are this close to 1.0, blithely keep on keepin on. kinda arbitrary, but works for the moment
 def is_normed(probs, this_eps=eps):
     if hasattr(probs, 'keys'):  # if it's a dict, call yourself with a list of the dict's values
-        return is_normed([val for key, val in probs.items()])
+        return is_normed([val for val in probs.values()])
     elif hasattr(probs, '__iter__'):  # if it's a list call yourself with their sum
         return is_normed(sum(probs))
     else:  # and if it's a float actually do what you're supposed to do
@@ -328,7 +328,7 @@ def int_to_nucleotide(number):
         print 'ERROR nucleotide number not in [0,3]'
         sys.exit()
 
-# ----------------------------------------------------------------------------------------                    
+# ----------------------------------------------------------------------------------------
 def check_conserved_cysteine(seq, cyst_position, debug=False, extra_str='', assert_on_fail=True):
     """ Ensure there's a cysteine at <cyst_position> in <seq>. """
     if len(seq) < cyst_position+3:
@@ -403,7 +403,7 @@ def are_conserved_codons_screwed_up(reco_event):
 
 #----------------------------------------------------------------------------------------
 def stop_codon_check(seq, cyst_position, debug=False):
-    """ 
+    """
     Make sure there is no in-frame stop codon, where frame is inferred from <cyst_position>.
     Returns True if no stop codon is found
     """
@@ -484,8 +484,8 @@ def find_tryp_in_joined_seq(gl_tryp_position_in_j, v_seq, vd_insertion, d_seq, d
     return gl_tryp_position_in_j - j_erosion + length_to_left_of_j
 
 # ----------------------------------------------------------------------------------------
-def is_mutated(original, final, n_muted=-1, n_total=-1, also_allow=['*', ]):
-    alphabet = nukes + ambiguous_bases + also_allow
+def is_mutated(original, final, n_muted=-1, n_total=-1):
+    alphabet = nukes + ambiguous_bases
     if original not in alphabet or final not in alphabet:
         raise Exception('bad base (%s or %s) in utils.is_mutated()' % (original, final))
 
@@ -493,9 +493,7 @@ def is_mutated(original, final, n_muted=-1, n_total=-1, also_allow=['*', ]):
     return_str = final
     if original in ambiguous_bases or final in ambiguous_bases:  # don't count Ns in the total
         return return_str, n_muted, n_total
-    # if original in also_allow:
-    #     return color('light_blue', return_str), n_muted, n_total
-        
+
     n_total += 1
     if original != final:
         return_str = color('red', final)
@@ -795,7 +793,6 @@ def add_implicit_info(glfo, line, multi_seq, existing_implicit_keys=None, debug=
 # ----------------------------------------------------------------------------------------
 def print_true_events(glfo, reco_info, line, print_uid=False):
     """ print the true events which contain the seqs in <line> """
-    inferred_naive_seq = line['naive_seq']
     true_naive_seqs = []
     for uids in get_true_partition(reco_info, ids=line['unique_ids']):  # make a multi-seq line that has all the seqs from this clonal family
         seqs = [reco_info[iid]['seq'] for iid in uids]
@@ -807,7 +804,7 @@ def print_true_events(glfo, reco_info, line, print_uid=False):
 
     # print '\ntrue vs inferred naive sequences:'
     # for tseq in true_naive_seqs:
-    #     color_mutants(tseq, inferred_naive_seq, print_result=True, print_hfrac=True, ref_label='true ')
+    #     color_mutants(tseq, line['naive_seq'], print_result=True, print_hfrac=True, ref_label='true ')
     # print ''
 
 # ----------------------------------------------------------------------------------------
@@ -815,14 +812,14 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', label='', pr
     if 'unique_ids' in line:  # multi_seq line
         for iseq in range(len(line['unique_ids'])):
             tmpline = synthesize_single_seq_line(line, iseq)
-            event_str = print_seq_in_reco_event(germlines, tmpline, extra_str=extra_str, label=(label if iseq==0 else ''), one_line=(iseq>0), print_uid=print_uid)
+            print_seq_in_reco_event(germlines, tmpline, extra_str=extra_str, label=(label if iseq==0 else ''), one_line=(iseq>0), print_uid=print_uid)
     else:
         tmpline = copy.deepcopy(line)
-        event_str = print_seq_in_reco_event(germlines, tmpline, extra_str=extra_str, label=label, one_line=one_line)
+        print_seq_in_reco_event(germlines, tmpline, extra_str=extra_str, label=label, one_line=one_line)
 
 # ----------------------------------------------------------------------------------------
 def print_seq_in_reco_event(germlines, line, extra_str='', label='', one_line=False, print_uid=False):
-    """ 
+    """
     Print ascii summary of recombination event and mutation.
     If <one_line>, then skip the germline lines, and only print the final_seq line.
     """
@@ -834,7 +831,7 @@ def print_seq_in_reco_event(germlines, line, extra_str='', label='', one_line=Fa
             reverse_indels = True
         if len(indelfo['indels']) > 1:
             print 'WARNING multiple indels not really handled'
-        add_indels_to_germline_strings(germlines, line, indelfo)
+        add_indels_to_germline_strings(line, indelfo)
 
     # build up the query sequence line, including colors for mutations and conserved codons
     final_seq = ''
@@ -1133,14 +1130,13 @@ def separate_into_allelic_groups(germline_seqs):
 
 # ----------------------------------------------------------------------------------------
 def read_overall_gene_probs(indir, only_gene=None, normalize=True, expect_zero_counts=False):
-    assert only_gene != ''  # this used to be the default, I just want to make sure I didn't miss a call when I switched to None as the default
     """
     Return the observed counts/probabilities of choosing each gene version.
     If <normalize> then return probabilities
     If <only_gene> is specified, just return the prob/count for that gene
     """
-    counts = { region:{} for region in regions }
-    probs = { region:{} for region in regions }
+    counts = {region:{} for region in regions}
+    probs = {region:{} for region in regions}
     for region in regions:
         total = 0
         with opener('r')(indir + '/' + region + '_gene-probs.csv') as infile:  # NOTE note this ignores correlations... which I think is actually ok, but it wouldn't hurt to think through it again at some point
@@ -1234,7 +1230,7 @@ def find_replacement_genes(indir, min_counts, gene_name=None, single_gene=False,
 
         print 'ERROR couldn\'t find genes for %s in %s' % (gene_name, indir)
         assert False
-    
+
     # print '    \nWARNING return default gene %s \'cause I couldn\'t find anything remotely resembling %s' % (color_gene(hackey_default_gene_versions[region]), color_gene(gene_name))
     # return hackey_default_gene_versions[region]
 
@@ -1282,8 +1278,8 @@ def get_key(names):
 
 # ----------------------------------------------------------------------------------------
 def split_key(key):
-    """ 
-    Reverse the action of get_key(). 
+    """
+    Reverse the action of get_key().
     NOTE does not necessarily give a_ and b_ in the same order, though
     NOTE also that b_name may not be the same (if 0), and this just returns strings, even if original names were ints
     """
@@ -1292,8 +1288,8 @@ def split_key(key):
 
 # ----------------------------------------------------------------------------------------
 def prep_dir(dirname, wildlings=None, subdirs=None):
-    """ 
-    Make <dirname> if it d.n.e. 
+    """
+    Make <dirname> if it d.n.e.
     Also, if shell glob <wildling> is specified, remove existing files which are thereby matched.
     """
 
@@ -1331,7 +1327,7 @@ def useful_bool(bool_str):
 
 # ----------------------------------------------------------------------------------------
 def process_input_line(info):
-    """ 
+    """
     Attempt to convert all the keys and values in <info> according to the specifications in <column_configs> (e.g. splitting lists, casting to int/float, etc).
     """
 
@@ -1375,9 +1371,9 @@ def process_input_line(info):
 
 # ----------------------------------------------------------------------------------------
 def get_line_for_output(info):
-    """ Reverse the action of process_input_line() """ 
+    """ Reverse the action of process_input_line() """
     outfo = {}
-    for key, val in info.items():
+    for key in info:
         if key in column_configs['lists']:
             if key in column_configs['lists-of-string-float-pairs']:  # ok, that's getting a little hackey
                 outfo[key] = ';'.join([k + ':' + str(v) for k, v in info[key].items()])
@@ -1415,18 +1411,19 @@ def merge_csvs(outfname, csv_list, cleanup=True):
             writer.writerow(line)
 
 # ----------------------------------------------------------------------------------------
-def get_mutation_rate(germlines, line, restrict_to_region='', return_len_excluding_ambig=False, debug=False):
+def get_mutation_rate(line, restrict_to_region='', return_len_excluding_ambig=False, debug=False):
     naive_seq = line['naive_seq']  # NOTE this includes the fv and jf insertions
     muted_seq = line['seq']
     if restrict_to_region == '':  # NOTE this is very similar to code in performanceplotter. I should eventually cut it out of there and combine them, but I'm nervous a.t.m. because of all the complications there of having the true *and* inferred sequences so I'm punting
-        mashed_naive_seq = ''
-        mashed_muted_seq = ''
-        for region in regions:  # can't use the full sequence because we have no idea what the mutations were in the inserts. So have to mash together the three regions
-            bounds = line['regional_bounds'][region]
-            if bounds[0] < 0 or bounds[1] > len(naive_seq) or bounds[0] > bounds[1]:  # this was happening because I set the bounds for the padded sequences, but then didn't reset them in reset_effective_erosions_and_effective_insertions(). For the time being, the check remains
-                raise Exception('bad regional bounds %s for naive sequence %s with id %s' % (bounds, naive_seq, line['unique_id']))
-            mashed_naive_seq += naive_seq[bounds[0] : bounds[1]]
-            mashed_muted_seq += muted_seq[bounds[0] : bounds[1]]
+        pass  # hm... I guess I wasn't mashing any more, except maybe I thought I still was? in any case, for the moment I'll just comment the code that has no effect.
+        # mashed_naive_seq = ''
+        # mashed_muted_seq = ''
+        # for region in regions:  # can't use the full sequence because we have no idea what the mutations were in the inserts. So have to mash together the three regions
+        #     bounds = line['regional_bounds'][region]
+        #     if bounds[0] < 0 or bounds[1] > len(naive_seq) or bounds[0] > bounds[1]:  # this was happening because I set the bounds for the padded sequences, but then didn't reset them in reset_effective_erosions_and_effective_insertions(). For the time being, the check remains
+        #         raise Exception('bad regional bounds %s for naive sequence %s with id %s' % (bounds, naive_seq, line['unique_id']))
+        #     mashed_naive_seq += naive_seq[bounds[0] : bounds[1]]
+        #     mashed_muted_seq += muted_seq[bounds[0] : bounds[1]]
     else:
         bounds = line['regional_bounds'][restrict_to_region]
         naive_seq = naive_seq[bounds[0] : bounds[1]]
@@ -1436,18 +1433,6 @@ def get_mutation_rate(germlines, line, restrict_to_region='', return_len_excludi
     # print 'restrict %s' % restrict_to_region
     # color_mutants(naive_seq, muted_seq, print_result=True, extra_str='  ')
     return hamming_fraction(naive_seq, muted_seq, return_len_excluding_ambig=return_len_excluding_ambig)
-
-# ----------------------------------------------------------------------------------------
-def print_linsim_output(outstr):
-    import ast
-    linsim_out = ast.literal_eval(outstr)
-    print '       true clusters %d' % linsim_out['true_cluster_count']
-    print '   inferred clusters %d' % linsim_out['inferred_cluster_count']
-    print '  mutual information %f' % linsim_out['metrics']['mi']
-    print '         adjusted mi %f' % linsim_out['metrics']['adjusted_mi']
-    print '       normalized mi %f' % linsim_out['metrics']['normalized_mi']
-    print '  completeness score %f' % linsim_out['metrics']['completeness_score']
-    print '   homogeneity score %f' % linsim_out['metrics']['homogeneity_score']
 
 # ----------------------------------------------------------------------------------------
 def run_cmd(cmd_str, workdir):
@@ -1544,7 +1529,7 @@ def remove_ambiguous_ends(seq):
 
 # ----------------------------------------------------------------------------------------
 def get_true_partition(reco_info, ids=None):
-    """ 
+    """
     Group ids into their true clonal families.
     If <ids> is specified, only do those, otherwise do all of the ones in <reco_info>.
     """
@@ -1599,8 +1584,8 @@ def new_ccfs_that_need_better_names(partition, true_partition, reco_info, seed_u
                 n_clonal += 1
         return float(n_clonal) / len(inferred_cluster)
 
-    def get_fraction_present(uid, inferred_cluster, true_cluster):
-        """ Return the fraction of <uid>'s true clonemates which appear in <uid>'s inferred cluster. """
+    def get_fraction_present(inferred_cluster, true_cluster):
+        """ Return the fraction of the true clonemates in <true_cluster> which appear in <inferred_cluster>. """
         n_present = 0
         for tmpid in true_cluster:  # NOTE this includes the case where tmpid equal to uid
             if tmpid in inferred_cluster:
@@ -1619,7 +1604,7 @@ def new_ccfs_that_need_better_names(partition, true_partition, reco_info, seed_u
                 print 'WARNING %s in multiple clusters' % uid
             inferred_cluster = partition[clids[uid][0]]
             mean_clonal_fraction += get_clonal_fraction(uid, inferred_cluster)
-            mean_fraction_present +=  get_fraction_present(uid, inferred_cluster, true_cluster)
+            mean_fraction_present += get_fraction_present(inferred_cluster, true_cluster)
             n_uids += 1
 
     if n_uids > 1e6:
@@ -1744,7 +1729,7 @@ def partition_similarity_matrix(meth_a, meth_b, partition_a, partition_b, n_bigg
 
 # ----------------------------------------------------------------------------------------
 def find_uid_in_partition(uid, partition):
-    found = False
+    iclust, found = None, False
     for iclust in range(len(partition)):
         if uid in partition[iclust]:
             found = True
@@ -1831,7 +1816,7 @@ def remove_missing_uids_from_true_partition(true_partition, partition_with_missi
 
 # ----------------------------------------------------------------------------------------
 def generate_incorrect_partition(true_partition, misassign_fraction, error_type, debug=False):
-    """ 
+    """
     Generate an incorrect partition from <true_partition>.
     We accomplish this by removing <n_misassigned> seqs at random from their proper cluster, and putting each in either a
     cluster chosen at random from the non-proper clusters (<error_type> 'reassign') or in its own partition (<error_type> 'singleton').
@@ -1885,7 +1870,7 @@ def subset_files(uids, fnames, outdir, uid_header='Sequence ID', delimiter='\t',
                         writer.writerow(line)
 
 # ----------------------------------------------------------------------------------------
-def add_indels_to_germline_strings(germlines, line, indelfo):
+def add_indels_to_germline_strings(line, indelfo):
     """ Add stars to the germline sequences (for ascii printing) if there were SHM insertions. """
 
     if len(indelfo['indels']) > 1:
@@ -1898,7 +1883,7 @@ def add_indels_to_germline_strings(germlines, line, indelfo):
 
     # divide it up into its constituent chunks
     chunks = [line['fv_insertion'], line['v_gl_seq'], line['vd_insertion'], line['d_gl_seq'], line['dj_insertion'], line['j_gl_seq'], line['jf_insertion']]
-    chunknames =  ['fv_insertion', 'v', 'vd_insertion', 'd', 'dj_insertion', 'j', 'jf_insertion']
+    chunknames = ['fv_insertion', 'v', 'vd_insertion', 'd', 'dj_insertion', 'j', 'jf_insertion']
     weirdolist = []  # list of lists, where each entry is the name of the chunk in which we find ourselves
     for ichunk in range(len(chunks)):
         for inuke in range(len(chunks[ichunk])):
@@ -1910,7 +1895,6 @@ def add_indels_to_germline_strings(germlines, line, indelfo):
         line[thischunk + '_gl_seq'] = line[thischunk + '_gl_seq'][ : lastfo['pos'] - offset] + '*' * lastfo['len'] + line[thischunk + '_gl_seq'][lastfo['pos'] - offset : ]
     else:
         print '     unhandled indel within a non-templated insertion'
-        pass
 
 # ----------------------------------------------------------------------------------------
 def undo_indels(indelfo):
@@ -1945,7 +1929,7 @@ def csv_to_fasta(infname, outfname=None, name_column='unique_id', seq_column='se
         delimiter = '\t'
     else:
         assert False
-    
+
     with open(infname) as infile:
         reader = csv.DictReader(infile, delimiter=delimiter)
         with open(outfname, 'w') as outfile:
@@ -2014,7 +1998,7 @@ def synthesize_multi_seq_line(glfo, single_seq_line, per_seq_info):
     add_implicit_info(glfo, hmminfo, multi_seq=True)
     return hmminfo
 
-# ----------------------------------------------------------------------------------------                    
+# ----------------------------------------------------------------------------------------
 def count_gaps(seq, istop=None):
     """ return number of gap characters up to, but not including <istop> """
     if istop is not None:
@@ -2085,13 +2069,12 @@ def add_alignments(glfo, line, multi_seq, debug=False):
 # ----------------------------------------------------------------------------------------
 def intexterpolate(x1, y1, x2, y2, x):
     """ interpolate/extrapolate linearly based on two points in 2-space, returning y-value corresponding to <x> """
-    m = (y2 - y1) / (x2 - x1);
-    b = 0.5 * (y1 + y2 - m*(x1 + x2));
+    m = (y2 - y1) / (x2 - x1)
+    b = 0.5 * (y1 + y2 - m*(x1 + x2))
     # if debug:
     #     for x in [x1, x2]:
     #         print '%f x + %f = %f' % (m, b, m*x + b)
     return m * x + b
-
 
 # ----------------------------------------------------------------------------------------
 def get_padding_parameters(queries, info, glfo, debug=False):

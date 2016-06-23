@@ -22,11 +22,11 @@ class MuteFreqer(object):
 
     # ----------------------------------------------------------------------------------------
     def increment(self, info):
-        self.mean_rates['all'].fill(utils.get_mutation_rate(self.glfo['seqs'], info))  # mean freq over whole sequence (excluding insertions)
+        self.mean_rates['all'].fill(utils.get_mutation_rate(info))  # mean freq over whole sequence (excluding insertions)
 
         for region in utils.regions:
             # first do mean freqs
-            regional_freq = utils.get_mutation_rate(self.glfo['seqs'], info, restrict_to_region=region)
+            regional_freq = utils.get_mutation_rate(info, restrict_to_region=region)
             self.mean_rates[region].fill(regional_freq)  # per-region mean freq
 
             # then do per-gene per-position freqs
