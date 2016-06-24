@@ -124,7 +124,8 @@ class Waterer(object):
                 if self.true_pcounter is not None:
                     self.true_pcounter.plot(self.args.plotdir + '/sw-true', subset_by_gene=True, cyst_positions=self.glfo['cyst-positions'], tryp_positions=self.glfo['tryp-positions'], only_csv=self.args.only_csv_plots)
 
-        self.pad_seqs_to_same_length()  # adds padded info to self.info (returns if stuff has already been padded)
+        self.pad_seqs_to_same_length(debug=True)  # adds padded info to self.info (returns if stuff has already been padded)
+        print 'DO THIS *BEFORE* PARAMETER COUNTING (IF POSSIBLE)'
         self.info['remaining_queries'] = self.remaining_queries
 
     # ----------------------------------------------------------------------------------------
@@ -765,8 +766,9 @@ class Waterer(object):
                     all_j_matches.add(match)
 
         maxima = {'gl_cpos' : None, 'gl_cpos_to_j_end' : None}  #, 'fv_insertion_len' : None, 'jf_insertion_len' : None}
-        print 'FIX BUG HERE!'
+        print 'FIX swfo BUG HERE!'
         for query in self.info['queries']:
+            swfo = self.info[query]
             fvstuff = max(0, len(swfo['fv_insertion']) - swfo['v_5p_del'])  # we always want to pad out to the entire germline sequence, so don't let this go negative
             jfstuff = max(0, len(swfo['jf_insertion']) - swfo['j_3p_del'])
 
@@ -775,7 +777,6 @@ class Waterer(object):
                 if maxima['gl_cpos'] is None or gl_cpos > maxima['gl_cpos']:
                     maxima['gl_cpos'] = gl_cpos
 
-            swfo = self.info[query]
             seq = swfo['seq']
             cpos = swfo['cyst_position']  # cyst position in query sequence (as opposed to gl_cpos, which is in germline allele)
             for j_match in all_j_matches:  # NOTE have to loop over all gl matches, even ones for other sequences, because we want bcrham to be able to compare any sequence to any other
