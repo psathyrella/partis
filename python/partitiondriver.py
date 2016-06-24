@@ -864,8 +864,9 @@ class PartitionDriver(object):
             # # rewrite glfo dir, restricting to genes that we actually saw (and for which we'll have hmms) UPDATE shouldn't need to do this any more
             # glutils.write_glfo(self.my_datadir, input_dir=self.my_datadir, chain=self.args.chain, only_genes=gene_list, debug=True)
             # self.glfo = glutils.read_glfo(self.my_datadir, self.args.chain, debug=True)
+            print 'CLEAN UP THIS'
             for r in utils.regions:
-                for g in glfo['seqs'][r]:
+                for g in self.glfo['seqs'][r]:
                     if g not in gene_list:
                         raise Exception('gene %s in glfo but not in <gene_list>' % g)
         else:

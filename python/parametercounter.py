@@ -163,7 +163,7 @@ class ParameterCounter(object):
 
         self.mfreqer.write(base_outdir + '/mute-freqs', mean_freq_outfname=base_outdir + '/REGION-mean-mute-freqs.csv')  # REGION is replace by each region in the three output files)
         genes_with_counts = [g[0] for r in utils.regions for g in self.counts[r + '_gene'].keys()]
-        glutils.write_glfo(base_outdir + '/' + glutils.glfo_dir, glfo=self.glfo, debug=True)  #, only_genes=genes_with_counts, debug=True)  # write glfo to the parameter dir, restricting to observed genes 
+        glutils.write_glfo(base_outdir + '/' + glutils.glfo_dir, glfo=self.glfo, only_genes=genes_with_counts, debug=True)  # write glfo to the parameter dir, restricting to observed genes 
 
         for column in self.counts:
             index = None
