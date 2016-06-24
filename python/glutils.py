@@ -445,7 +445,10 @@ def add_some_snps(snps_to_add, glfo, only_genes, remove_template_genes=False, de
 
 # ----------------------------------------------------------------------------------------
 def write_glfo(output_dir, input_dir=None, glfo=None, chain=None, only_genes=None, snps_to_add=None, new_allele_info=None, remove_template_genes=False, generate_new_alignment=False, debug=False):
-    """ rewrite the germline set files in <input_dir> to <output_dir>, only keeping the genes in <only_genes> """
+    """
+    Write the germline set info (either from <glfo> or from <input_dir>) to <output_dir> perhaps adding or removing genes.
+    NOTE modifies <glfo> accordingly.
+    """
 
     # read from input file (if necessary)
     if input_dir is None:
