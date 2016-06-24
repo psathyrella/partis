@@ -115,6 +115,10 @@ class Waterer(object):
             self.info['new-alleles'] = self.alfinder.new_allele_info
             if self.args.plotdir is not None:
                 self.alfinder.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
+
+        # add padded info to self.info (returns if stuff has already been padded)
+        self.pad_seqs_to_same_length()  # NOTE this uses *all the gene matches (not just the best ones), so it has to come before we call pcounter.write(), since that fcn rewrites the germlines removing genes that weren't best matches. But NOTE also that I'm not sure what but that the padding actually *needs* all matches (rather than just all *best* matches)
+
         if self.pcounter is not None:
             self.pcounter.write(self.parameter_dir)
             if self.true_pcounter is not None:
@@ -125,8 +129,6 @@ class Waterer(object):
                 if self.true_pcounter is not None:
                     self.true_pcounter.plot(self.args.plotdir + '/sw-true', subset_by_gene=True, cyst_positions=self.glfo['cyst-positions'], tryp_positions=self.glfo['tryp-positions'], only_csv=self.args.only_csv_plots)
 
-        self.pad_seqs_to_same_length(debug=True)  # adds padded info to self.info (returns if stuff has already been padded)
-        print 'DO THIS *BEFORE* PARAMETER COUNTING (IF POSSIBLE)'
         self.info['remaining_queries'] = self.remaining_queries
 
     # ----------------------------------------------------------------------------------------
@@ -758,8 +760,7 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def get_padding_parameters(self, debug=False):
-        maxima = {'gl_cpos' : None, 'gl_cpos_to_j_end' : None}  #, 'fv_insertion_len' : None, 'jf_insertion_len' : None}
-        print 'FIX swfo BUG HERE!'
+        maxima = {'gl_cpos' : None, 'gl_cpos_to_j_end' : None}
         for query in self.info['queries']:
             swfo = self.info[query]
             fvstuff = max(0, len(swfo['fv_insertion']) - swfo['v_5p_del'])  # we always want to pad out to the entire germline sequence, so don't let this go negative
@@ -809,8 +810,7 @@ class Waterer(object):
             if padleft < 0 or padright < 0:
                 raise Exception('bad padding %d %d for %s' % (padleft, padright, query))
 
-            swfo['padded'] = {}
-            padfo = swfo['padded']  # shorthand
+            padfo = {}
             assert len(utils.ambiguous_bases) == 1  # could allow more than one, but it's not implemented a.t.m.
             padfo['seq'] = padleft * utils.ambiguous_bases[0] + seq + padright * utils.ambiguous_bases[0]
             if query in self.info['indels']:
@@ -826,6 +826,7 @@ class Waterer(object):
                 print '     %d --> %d (%d-%d --> %d-%d)' % (len(seq), len(padfo['seq']),
                                                             k_v['min'], k_v['max'],
                                                             padfo['k_v']['min'], padfo['k_v']['max'])
+            swfo['padded'] = padfo
 
         if debug:
             for query in self.info['queries']:
