@@ -778,11 +778,6 @@ class Waterer(object):
                 if maxima['gl_cpos_to_j_end'] is None or gl_cpos_to_j_end > maxima['gl_cpos_to_j_end']:
                     maxima['gl_cpos_to_j_end'] = gl_cpos_to_j_end
 
-            # if maxima['fv_insertion_len'] is None or len(swfo['fv_insertion']) > maxima['fv_insertion_len']:
-            #     maxima['fv_insertion_len'] = len(swfo['fv_insertion'])
-            # if maxima['jf_insertion_len'] is None or len(swfo['jf_insertion']) > maxima['jf_insertion_len']:
-            #     maxima['jf_insertion_len'] = len(swfo['jf_insertion'])
-
         if debug:
             print '    maxima:',
             for k, v in maxima.items():
@@ -809,8 +804,6 @@ class Waterer(object):
                 print 'hm now what do I want to do here?'
             k_v = swfo['k_v']
 
-            # padleft = maxima['fv_insertion_len'] + maxima['gl_cpos'] - cpos  # left padding: biggest germline cpos minus cpos in this sequence
-            # padright = maxima['gl_cpos_to_j_end'] + maxima['jf_insertion_len'] - (len(seq) - cpos)
             padleft = maxima['gl_cpos'] - cpos  # left padding: biggest germline cpos minus cpos in this sequence
             padright = maxima['gl_cpos_to_j_end'] - (len(seq) - cpos)
             if padleft < 0 or padright < 0:
