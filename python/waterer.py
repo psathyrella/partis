@@ -38,7 +38,8 @@ class Waterer(object):
         self.glfo = glfo
         self.info = {}
         self.info['queries'] = []  # list of queries that *passed* sw, i.e. for which we have information
-        self.info['all_best_matches'] = set()  # set of all the matches we found (for *all* queries)
+        self.info['all_best_matches'] = set()  # every gene that was a best match for at least one query
+        self.info['all_matches'] = {r : set() for r in utils.regions}  # every gene that was *any* match for at least one query
         self.info['indels'] = {}
 
         self.nth_try = 1
@@ -537,7 +538,7 @@ class Waterer(object):
         self.info[query_name]['unique_id'] = query_name  # redundant, but used somewhere down the line
         self.info[query_name]['k_v'] = kvals['v']
         self.info[query_name]['k_d'] = kvals['d']
-        self.info[query_name]['all'] = ':'.join(match_names['v'] + match_names['d'] + match_names['j'])
+        self.info[query_name]['all'] = ':'.join(match_names['v'] + match_names['d'] + match_names['j'])  # all gene matches for this query
 
         self.info[query_name]['cdr3_length'] = codon_positions['j'] - codon_positions['v'] + 3  #tryp_position_in_joined_seq - self.cyst_position + 3
         self.info[query_name]['cyst_position'] = codon_positions['v']
@@ -561,6 +562,7 @@ class Waterer(object):
         for region in utils.regions:
             self.info[query_name][region + '_gene'] = best[region]
             self.info['all_best_matches'].add(best[region])
+            self.info['all_matches'][region] |= set(match_names[region])
 
         self.info[query_name]['seq'] = query_seq  # NOTE this is the seq output by vdjalign, i.e. if we reversed any indels it is the reversed sequence
 
@@ -756,15 +758,6 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def get_padding_parameters(self, debug=False):
-        all_v_matches, all_j_matches = set(), set()
-        for query in self.info['queries']:
-            swfo = self.info[query]
-            for match in swfo['all'].split(':'):
-                if utils.get_region(match) == 'v':
-                    all_v_matches.add(match)
-                elif utils.get_region(match) == 'j':
-                    all_j_matches.add(match)
-
         maxima = {'gl_cpos' : None, 'gl_cpos_to_j_end' : None}  #, 'fv_insertion_len' : None, 'jf_insertion_len' : None}
         print 'FIX swfo BUG HERE!'
         for query in self.info['queries']:
@@ -772,14 +765,14 @@ class Waterer(object):
             fvstuff = max(0, len(swfo['fv_insertion']) - swfo['v_5p_del'])  # we always want to pad out to the entire germline sequence, so don't let this go negative
             jfstuff = max(0, len(swfo['jf_insertion']) - swfo['j_3p_del'])
 
-            for v_match in all_v_matches:  # NOTE have to loop over all gl matches, even ones for other sequences, because we want bcrham to be able to compare any sequence to any other
+            for v_match in self.info['all_matches']['v']:  # NOTE have to loop over all gl matches, even ones for other sequences, because we want bcrham to be able to compare any sequence to any other UPDATE but do I really need to use *all* all matches, or would it be ok to just use all *best* matches? not sure...
                 gl_cpos = self.glfo['cyst-positions'][v_match] + fvstuff
                 if maxima['gl_cpos'] is None or gl_cpos > maxima['gl_cpos']:
                     maxima['gl_cpos'] = gl_cpos
 
             seq = swfo['seq']
             cpos = swfo['cyst_position']  # cyst position in query sequence (as opposed to gl_cpos, which is in germline allele)
-            for j_match in all_j_matches:  # NOTE have to loop over all gl matches, even ones for other sequences, because we want bcrham to be able to compare any sequence to any other
+            for j_match in self.info['all_matches']['j']:  # NOTE have to loop over all gl matches, even ones for other sequences, because we want bcrham to be able to compare any sequence to any other UPDATE but do I really need to use *all* all matches, or would it be ok to just use all *best* matches? not sure...
                 # TODO this is totally wrong -- I'm only storing j_3p_del for the best match... but hopefully it'll give enough padding for the moment
                 gl_cpos_to_j_end = len(seq) - cpos + swfo['j_3p_del'] + jfstuff
                 if maxima['gl_cpos_to_j_end'] is None or gl_cpos_to_j_end > maxima['gl_cpos_to_j_end']:
