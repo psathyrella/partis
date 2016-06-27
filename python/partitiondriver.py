@@ -31,9 +31,8 @@ class PartitionDriver(object):
         self.current_action = action  # *not* necessarily the same as <self.args.action>
         utils.prep_dir(self.args.workdir)
         self.my_datadir = self.args.workdir + '/' + glutils.glfo_dir
-        glutils.write_glfo(self.my_datadir, input_dir=initial_datadir, chain=self.args.chain, only_genes=self.args.only_genes)  # need a copy on disk for vdjalign and bcrham (it may also get modified)
-        print 'TODO wait, maybe I don\'t need to read_glfo() as well?'
-        self.glfo = glutils.read_glfo(self.my_datadir, self.args.chain, generate_new_alignment=self.args.generate_new_alignment)
+        self.glfo = glutils.read_glfo(initial_datadir, chain=self.args.chain, only_genes=self.args.only_genes, generate_new_alignment=self.args.generate_new_alignment)
+        glutils.write_glfo(self.my_datadir, self.glfo)  # need a copy on disk for vdjalign and bcrham (note that what we write to <self.my_datadir> in general differs from what's in <initial_datadir>)
 
         self.input_info, self.reco_info = None, None
         if self.args.infname is not None:
@@ -132,12 +131,9 @@ class PartitionDriver(object):
             if len(self.sw_info['new-alleles']) == 0:
                 break
             all_new_allele_info += self.sw_info['new-alleles']
-            glutils.write_glfo(self.my_datadir, input_dir=self.my_datadir, chain=self.args.chain, debug=True,
-                               only_genes=list(self.sw_info['all_best_matches']),
-                               new_allele_info=self.sw_info['new-alleles'],
-                               remove_template_genes=(itry==0 and self.args.generate_germline_set))
-            print 'TODO wait, maybe I don\'t need to read_glfo() as well?'
-            self.glfo = glutils.read_glfo(self.my_datadir, self.args.chain)
+            glutils.restrict_to_genes(self.glfo, list(self.sw_info['all_best_matches']), debug=True)  # NOTE this potentially kind of duplicates the restrict_to_genes() call in parametercounter::write()
+            glutils.add_new_alleles(self.glfo, self.sw_info['new-alleles'], remove_template_genes=(itry==0 and self.args.generate_germline_set), debug=True)
+            glutils.write_glfo(self.my_datadir, self.glfo, debug=True)  # write glfo modifications to disk
             itry += 1
 
         # remove any V alleles for which we didn't ever find any evidence
@@ -864,7 +860,7 @@ class PartitionDriver(object):
             # # rewrite glfo dir, restricting to genes that we actually saw (and for which we'll have hmms) UPDATE shouldn't need to do this any more
             # glutils.write_glfo(self.my_datadir, input_dir=self.my_datadir, chain=self.args.chain, only_genes=gene_list, debug=True)
             # self.glfo = glutils.read_glfo(self.my_datadir, self.args.chain, debug=True)
-            print 'CLEAN UP THIS'
+            print 'CLEAN THIS UP'
             for r in utils.regions:
                 for g in self.glfo['seqs'][r]:
                     if g not in gene_list:
@@ -1213,7 +1209,7 @@ class PartitionDriver(object):
 
         # parameter and performance writing/plotting
         if pcounter is not None:
-            pcounter.write(parameter_out_dir)
+            pcounter.write(parameter_out_dir, self.my_datadir)
             if self.args.plotdir is not None:
                 pcounter.plot(self.args.plotdir + '/hmm', subset_by_gene=True, cyst_positions=self.glfo['cyst-positions'], tryp_positions=self.glfo['tryp-positions'], only_csv=self.args.only_csv_plots)
         if true_pcounter is not None:

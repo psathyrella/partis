@@ -48,7 +48,9 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
         # {'gene' : 'IGHV1-18*01', 'positions' : (20, )}
     ]
     simulation_genes = simulation_v_genes + ':' + dj_genes
-    glutils.write_glfo(outdir + '/germlines-for-simulation', input_dir='data/imgt', chain=chain, only_genes=simulation_genes.split(':'), snps_to_add=snps_to_add, debug=True) #, remove_template_genes=True)
+    sglfo = read_glfo('data/imgt', chain=chain, only_genes=simulation_genes.split(':'), debug=True)
+    glutils.add_some_snps(snps_to_add, sglfo, debug=True)#, remove_template_genes=True)
+    glutils.write_glfo(outdir + '/germlines-for-simulation', sglfo)
 
     # simulate
     cmd_str = base_cmd + ' simulate --n-sim-events 1000 --n-procs 10 --simulate-partially-from-scratch --mutation-multiplier 0.5'
@@ -59,7 +61,8 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
     run(cmd_str)
 
     inference_genes = inference_v_genes + ':' + dj_genes
-    glutils.write_glfo(outdir + '/germlines-for-inference', input_dir='data/imgt', chain=chain, only_genes=inference_genes.split(':'), debug=True)
+    iglfo = read_glfo('data/imgt', chain=chain, only_genes=inference_genes.split(':'), debug=True)
+    glutils.write_glfo(outdir + '/germlines-for-inference', iglfo)
 
     # generate germline set and cache parameters
     cmd_str = base_cmd + ' cache-parameters --infname ' + simfname + ' --n-procs 10 --only-smith-waterman'

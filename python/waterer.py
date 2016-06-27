@@ -120,7 +120,7 @@ class Waterer(object):
         self.pad_seqs_to_same_length()  # NOTE this uses *all the gene matches (not just the best ones), so it has to come before we call pcounter.write(), since that fcn rewrites the germlines removing genes that weren't best matches. But NOTE also that I'm not sure what but that the padding actually *needs* all matches (rather than just all *best* matches)
 
         if self.pcounter is not None:
-            self.pcounter.write(self.parameter_dir)
+            self.pcounter.write(self.parameter_dir, self.my_datadir)
             if self.true_pcounter is not None:
                 assert self.parameter_dir[-1] != '/'
                 self.true_pcounter.write(self.parameter_dir + '-true')

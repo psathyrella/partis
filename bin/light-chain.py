@@ -24,6 +24,7 @@ all_genes= v_genes + ':' + dj_genes
 # glutils.write_glfo(outdir + '/germline-set', input_dir=outdir + '/imgt', only_genes=all_genes.split(':'), debug=True)
 
 # glutils.write_glfo('imgt', chain='l', input_dir='data/imgt', debug=True, generate_new_alignment=True)
+assert False  # needs updating
 glutils.write_glfo('imgt', chain='k', input_dir='imgt', debug=True, generate_new_alignment=True)
 # glutils.write_glfo(outdir + '/germline-set', input_dir=outdir + '/imgt', debug=True)
 sys.exit()

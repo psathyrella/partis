@@ -225,7 +225,7 @@ def read_codon_positions(csvfname):
     return positions
 
 #----------------------------------------------------------------------------------------
-def read_glfo(datadir, chain, generate_new_alignment=False, debug=False):
+def read_glfo(datadir, chain, only_genes=None, generate_new_alignment=False, debug=False):
     if debug:
         print '  reading %s chain glfo from %s' % (chain, datadir)
     glfo = {'chain' : chain}
@@ -234,6 +234,7 @@ def read_glfo(datadir, chain, generate_new_alignment=False, debug=False):
         glfo[utils.get_codon(fname) + '-positions'] = read_codon_positions(datadir + '/' + chain + '/' + fname)
     clean_up_glfo(glfo, debug=debug)  # remove any extra info
     add_missing_glfo(glfo, generate_new_alignment=generate_new_alignment, debug=debug)
+    restrict_to_genes(glfo, only_genes, debug=debug)
     if debug:
         print '  read %s' % '  '.join([('%s: %d' % (r, len(glfo['seqs'][r]))) for r in utils.regions])
     return glfo
@@ -341,7 +342,26 @@ def generate_snpd_gene(gene, cpos, seq, aligned_seq, positions):
     return {'template-gene' : gene, 'gene' : snpd_name, 'seq' : seq, 'aligned-seq' : aligned_seq}
 
 # ----------------------------------------------------------------------------------------
-def remove_gene_from_glfo(glfo, gene, debug=False):
+def restrict_to_genes(glfo, only_genes, debug=False):
+    """ remove from <glfo> any genes which are not in <only_genes> """
+    if only_genes is None:
+        return
+    genes_to_remove = set([g for r in utils.regions for g in glfo['seqs'][r]]) - set(only_genes)
+    if debug:
+        print '    removing %d genes that aren\'t in <only_genes>' % len(genes_to_remove)
+    remove_genes(glfo, genes_to_remove)
+
+# ----------------------------------------------------------------------------------------
+def remove_genes(glfo, genes, debug=False):
+    """ remove <genes> from <glfo> """
+    if debug:
+        print '  removing %s from glfo' % ' '.join([utils.color_gene(g) for g in genes])
+    for gene in genes:
+        remove_gene(glfo, gene)
+
+# ----------------------------------------------------------------------------------------
+def remove_gene(glfo, gene, debug=False):
+    """ remove <gene> from <glfo> """
     if debug:
         print '  removing %s from glfo' % utils.color_gene(gene)
     region = utils.get_region(gene)
@@ -349,6 +369,11 @@ def remove_gene_from_glfo(glfo, gene, debug=False):
         del glfo[utils.conserved_codons[region] + '-positions'][gene]
     del glfo['seqs'][region][gene]
     del glfo['aligned-seqs'][region][gene]
+
+# ----------------------------------------------------------------------------------------
+def add_new_alleles(glfo, newfos, only_genes, remove_template_genes, debug=False):
+    for newfo in newfos:
+        add_new_allele(glfo, newfo, only_genes, remove_template_genes, debug=debug)
 
 # ----------------------------------------------------------------------------------------
 def add_new_allele(glfo, newfo, only_genes, remove_template_genes, debug=False):
@@ -397,14 +422,14 @@ def add_new_allele(glfo, newfo, only_genes, remove_template_genes, debug=False):
         print '           new %s   %s' % (utils.color_mutants(glfo['seqs'][region][template_gene], newfo['seq']), utils.color_gene(new_gene))
 
     if remove_template_genes:
-        remove_gene_from_glfo(glfo, template_gene, debug=True)
+        remove_gene(glfo, template_gene, debug=True)
         if only_genes is not None and template_gene in only_genes:
             only_genes.remove(template_gene)
 
 # ----------------------------------------------------------------------------------------
 def remove_the_stupid_godamn_template_genes_all_at_once(glfo, only_genes, templates_to_remove):
     for gene in templates_to_remove:
-        remove_gene_from_glfo(glfo, gene, debug=True)
+        remove_gene(glfo, gene, debug=True)
         if only_genes is not None and gene in only_genes:
             only_genes.remove(gene)
 
@@ -444,45 +469,9 @@ def add_some_snps(snps_to_add, glfo, only_genes, remove_template_genes=False, de
     remove_the_stupid_godamn_template_genes_all_at_once(glfo, only_genes, templates_to_remove)  # works fine with zero-length <templates_to_remove>
 
 # ----------------------------------------------------------------------------------------
-def write_glfo(output_dir, input_dir=None, glfo=None, chain=None, only_genes=None, snps_to_add=None, new_allele_info=None, remove_template_genes=False, generate_new_alignment=False, debug=False):
-    """
-    Write the germline set info (either from <glfo> or from <input_dir>) to <output_dir> perhaps adding or removing genes.
-    NOTE modifies <glfo> accordingly.
-    """
-
-    # read from input file (if necessary)
-    if input_dir is None:
-        assert glfo is not None
-        if debug:
-            print '  writing glfo to %s' % output_dir
-    else:
-        assert glfo is None
-        assert chain is not None
-        glfo = read_glfo(input_dir, chain, generate_new_alignment=generate_new_alignment, debug=debug)
-        if debug:
-            print '  rewriting glfo',
-            if input_dir == output_dir:
-                print 'in %s' % input_dir
-            else:
-                print 'from %s to %s' % (input_dir, output_dir)
-
-    if only_genes is not None:
-        genes_to_remove = set([g for r in utils.regions for g in glfo['seqs'][r]]) - set(only_genes)
-        if debug:
-            print '    removing %d genes that aren\'t in <only_genes>' % len(genes_to_remove)
-        for gene in genes_to_remove:
-            remove_gene_from_glfo(glfo, gene, debug=False)
-
-    # add any snps or new alleles
-    if snps_to_add is not None:
-        add_some_snps(snps_to_add, glfo, only_genes, remove_template_genes=remove_template_genes, debug=debug)
-    if new_allele_info is not None:
-        for newfo in new_allele_info:
-            add_new_allele(glfo, newfo, only_genes, remove_template_genes=remove_template_genes, debug=debug)
-    elif not snps_to_add:
-        assert not remove_template_genes  # only makes sense if you've specified <new_allele_info>
-
-    # and finally write output
+def write_glfo(XXX=None, output_dir, glfo, debug=False):
+    if debug:
+        print '  writing glfo to %s' % output_dir
     if os.path.exists(output_dir + '/' + glfo['chain']):
         remove_glfo_files(output_dir, glfo['chain'])  # also removes output_dir
     os.makedirs(output_dir + '/' + glfo['chain'])
