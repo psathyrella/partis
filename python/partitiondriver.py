@@ -109,7 +109,7 @@ class PartitionDriver(object):
         # can probably remove this... I just kind of want to know if it happens
         if not write_parameters and not find_new_alleles:
             genes_with_hmms = set(utils.find_genes_that_have_hmms(parameter_dir))
-            expected_genes = set([g for r in utils.regions for g in self.glfo['seqs'][r].keys()])  # this'll be the & of the datadir (maybe rewritten, maybe not) and only_genes
+            expected_genes = set([g for r in utils.regions for g in self.glfo['seqs'][r].keys()])  # this'll be the & of the datadir (maybe rewritten, maybe not)
             if len(genes_with_hmms - expected_genes) > 0:
                 print '  %s yamels in %s for genes %s that aren\'t in glfo' % (utils.color('red', 'warning'), parameter_dir, ' '.join(genes_with_hmms - expected_genes))
             if len(expected_genes - genes_with_hmms) > 0:
@@ -850,29 +850,14 @@ class PartitionDriver(object):
         hmm_dir = parameter_dir + '/hmms'
         utils.prep_dir(hmm_dir, '*.yaml')
 
-        if self.args.only_genes is None:  # make a list of all the genes for which we have counts in <parameter_dir> (a.tm., this is all the genes that appeared as a best match at least once)
-            gene_list = []
-            for region in utils.regions:
-                with opener('r')(parameter_dir + '/' + region + '_gene-probs.csv') as pfile:
-                    reader = csv.DictReader(pfile)
-                    for line in reader:
-                        gene_list.append(line[region + '_gene'])
-            # # rewrite glfo dir, restricting to genes that we actually saw (and for which we'll have hmms) UPDATE shouldn't need to do this any more
-            # glutils.write_glfo(self.my_datadir, input_dir=self.my_datadir, chain=self.args.chain, only_genes=gene_list, debug=True)
-            # self.glfo = glutils.read_glfo(self.my_datadir, self.args.chain, debug=True)
-            print 'CLEAN THIS UP'
-            for r in utils.regions:
-                for g in self.glfo['seqs'][r]:
-                    if g not in gene_list:
-                        raise Exception('gene %s in glfo but not in <gene_list>' % g)
-        else:
-            gene_list = self.args.only_genes
-
-        for gene in gene_list:
-            if self.args.debug:
-                print '  %s' % utils.color_gene(gene)
-            writer = HmmWriter(parameter_dir, hmm_dir, gene, self.glfo, self.args)
-            writer.write()
+        for region in utils.regions:
+            with opener('r')(parameter_dir + '/' + region + '_gene-probs.csv') as pfile:
+                reader = csv.DictReader(pfile)
+                for line in reader:
+                    if self.args.debug:
+                        print '  %s' % utils.color_gene(line[region + '_gene'])
+                    writer = HmmWriter(parameter_dir, hmm_dir, line[region + '_gene'], self.glfo, self.args)
+                    writer.write()
 
         print '(%.1f sec)' % (time.time()-start)
 

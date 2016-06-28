@@ -371,12 +371,12 @@ def remove_gene(glfo, gene, debug=False):
     del glfo['aligned-seqs'][region][gene]
 
 # ----------------------------------------------------------------------------------------
-def add_new_alleles(glfo, newfos, only_genes, remove_template_genes, debug=False):
+def add_new_alleles(glfo, newfos, remove_template_genes, debug=False):
     for newfo in newfos:
-        add_new_allele(glfo, newfo, only_genes, remove_template_genes, debug=debug)
+        add_new_allele(glfo, newfo, remove_template_genes, debug=debug)
 
 # ----------------------------------------------------------------------------------------
-def add_new_allele(glfo, newfo, only_genes, remove_template_genes, debug=False):
+def add_new_allele(glfo, newfo, remove_template_genes, debug=False):
     """
     Add a new allele to <glfo>, specified by <newfo> which is of the
     form: {'template-gene' : 'IGHV3-71*01', 'gene' : 'IGHV3-71*01+C35T.T47G', 'seq' : 'ACTG yadda yadda CGGGT', 'aligned-seq' : None}
@@ -389,8 +389,6 @@ def add_new_allele(glfo, newfo, only_genes, remove_template_genes, debug=False):
         raise Exception('unknown template gene %s' % template_gene)
 
     new_gene = newfo['gene']
-    if only_genes is not None and new_gene not in only_genes:
-        only_genes.append(new_gene)
 
     if region == 'v':
         glfo['cyst-positions'][new_gene] = glfo['cyst-positions'][template_gene]
@@ -423,18 +421,14 @@ def add_new_allele(glfo, newfo, only_genes, remove_template_genes, debug=False):
 
     if remove_template_genes:
         remove_gene(glfo, template_gene, debug=True)
-        if only_genes is not None and template_gene in only_genes:
-            only_genes.remove(template_gene)
 
 # ----------------------------------------------------------------------------------------
-def remove_the_stupid_godamn_template_genes_all_at_once(glfo, only_genes, templates_to_remove):
+def remove_the_stupid_godamn_template_genes_all_at_once(glfo, templates_to_remove):
     for gene in templates_to_remove:
         remove_gene(glfo, gene, debug=True)
-        if only_genes is not None and gene in only_genes:
-            only_genes.remove(gene)
 
 # ----------------------------------------------------------------------------------------
-def add_some_snps(snps_to_add, glfo, only_genes, remove_template_genes=False, debug=False):
+def add_some_snps(snps_to_add, glfo, remove_template_genes=False, debug=False):
     """
     Generate some snp'd genes and add them to glfo, specified with <snps_to_add>.
     e.g. [{'gene' : 'IGHV3-71*01', 'positions' : (35, None)}, ] will add a snp at position 35 and at a random location.
@@ -464,12 +458,12 @@ def add_some_snps(snps_to_add, glfo, only_genes, remove_template_genes=False, de
 
         if remove_template_genes:
             templates_to_remove.add(gene)
-        add_new_allele(glfo, snpfo, only_genes, remove_template_genes=False, debug=debug)  # *don't* remove the templates here, since we don't know if there's another snp later that needs them
+        add_new_allele(glfo, snpfo, remove_template_genes=False, debug=debug)  # *don't* remove the templates here, since we don't know if there's another snp later that needs them
 
-    remove_the_stupid_godamn_template_genes_all_at_once(glfo, only_genes, templates_to_remove)  # works fine with zero-length <templates_to_remove>
+    remove_the_stupid_godamn_template_genes_all_at_once(glfo, templates_to_remove)  # works fine with zero-length <templates_to_remove>
 
 # ----------------------------------------------------------------------------------------
-def write_glfo(XXX=None, output_dir, glfo, debug=False):
+def write_glfo(output_dir, glfo, debug=False):
     if debug:
         print '  writing glfo to %s' % output_dir
     if os.path.exists(output_dir + '/' + glfo['chain']):
