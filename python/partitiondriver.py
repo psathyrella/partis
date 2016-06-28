@@ -58,7 +58,7 @@ class PartitionDriver(object):
         self.hmm_infname = self.args.workdir + '/hmm_input.csv'
         self.hmm_cachefname = self.args.workdir + '/hmm_cached_info.csv'
         self.hmm_outfname = self.args.workdir + '/hmm_output.csv'
-        self.annotation_fname = self.hmm_outfname.replace('.csv', '_annotations.csv')  # TODO won't work in parallel
+        self.annotation_fname = self.hmm_outfname.replace('.csv', '_annotations.csv')
 
         if self.args.outfname is not None:
             outdir = os.path.dirname(self.args.outfname)
@@ -588,7 +588,7 @@ class PartitionDriver(object):
         if n_procs is None:
             n_procs = self.args.n_procs
 
-        self.write_hmm_input(algorithm, parameter_in_dir, cpath)  # TODO don't keep rewriting it
+        self.write_hmm_input(algorithm, parameter_in_dir, cpath)
 
         cmd_str = self.get_hmm_cmd_str(algorithm, self.hmm_infname, self.hmm_outfname, parameter_dir=parameter_in_dir, precache_all_naive_seqs=precache_all_naive_seqs, n_procs=n_procs)
 
@@ -811,7 +811,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def merge_all_hmm_outputs(self, n_procs, precache_all_naive_seqs):
         """ Merge any/all output files from subsidiary bcrham processes """
-        cpath = None  # TODO figure out a cleaner way to do this
+        cpath = None  # it would be nice to figure out a cleaner way to do this
         if self.current_action == 'partition':  # merge partitions from several files
             if n_procs > 1:
                 self.merge_subprocess_files(self.hmm_cachefname, n_procs, include_outfile=True)  # sub cache files only have new info
@@ -917,8 +917,8 @@ class PartitionDriver(object):
             'cyst_positions':[]
         }
 
-        # TODO this whole thing probably ought to use cached hmm info if it's available
-        # TODO this just always uses the SW mutation rate, but I should really update it with the (multi-)hmm-derived ones (same goes for k space boundaries)
+        # Note that this whole thing probably ought to use cached hmm info if it's available.
+        # Also, this just always uses the SW mutation rate, but I should really update it with the (multi-)hmm-derived ones (same goes for k space boundaries)
 
         for name in query_names:
             swfo = self.sw_info[name]
@@ -933,7 +933,7 @@ class PartitionDriver(object):
             k_d = swfo['k_d']  # don't need to adjust k_d for padding
             combo['seqs'].append(seq)
             combo['mute-freqs'].append(utils.get_mutation_rate(swfo))
-            combo['cyst_positions'].append(cpos)  # TODO use cached hmm values instead of SW
+            combo['cyst_positions'].append(cpos)
             combo['k_v']['min'] = min(k_v['min'], combo['k_v']['min'])
             combo['k_v']['max'] = max(k_v['max'], combo['k_v']['max'])
             combo['k_d']['min'] = min(k_d['min'], combo['k_d']['min'])
@@ -1003,7 +1003,7 @@ class PartitionDriver(object):
     def write_to_single_input_file(self, fname, nsets, parameter_dir, skipped_gene_matches):
         csvfile = opener('w')(fname)
         header = ['names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'only_genes', 'seqs', 'mute_freqs']
-        writer = csv.DictWriter(csvfile, header, delimiter=' ')  # TODO should eventually rewrite arg parser in ham to handle csvs (like in glomerator cache reader)
+        writer = csv.DictWriter(csvfile, header, delimiter=' ')
         writer.writeheader()
 
         if not self.args.no_random_divvy:  # shuffle nset order (this is important because we want the calculations to be spread uniformly among the n processes)
@@ -1073,7 +1073,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def read_hmm_output(self, algorithm, n_procs, count_parameters, parameter_out_dir, precache_all_naive_seqs):
-        cpath = None  # TODO figure out a cleaner way to do this
+        cpath = None  # would be nice to figure out a cleaner way to do this
         if self.current_action == 'partition' or n_procs > 1:
             cpath = self.merge_all_hmm_outputs(n_procs, precache_all_naive_seqs)
 
@@ -1316,7 +1316,7 @@ class PartitionDriver(object):
             print '    backing up partis output before converting to presto: %s' % outstr.strip()
 
             outheader = utils.presto_headers.values()
-            imgt_gapped_glfo = self.glfo  # glutils.read_glfo(self.my_datadir, self.args.chain, debug=True)  # use imgt alignments  # TODO remove this
+            imgt_gapped_glfo = self.glfo  # possibly not actually imgt-gapped, if we had to add missing alignments
             with open(outpath, 'w') as outfile:
                 writer = csv.DictWriter(outfile, outheader)
                 writer.writeheader()
