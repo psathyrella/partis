@@ -89,7 +89,8 @@ class Tester(object):
                     else:
                         raise Exception('-'.join(namelist))
 
-        add_inference_tests('ref')
+        if not args.skip_ref:
+            add_inference_tests('ref')
         if not args.only_ref:
             self.tests['cache-data-parameters']  = {'extras' : []}  # ['--skip-unproductive']}
             self.tests['simulate']  = {'extras' : ['--n-sim-events', 500, '--n-leaves', 2, '--mimic-data-read-length']}
@@ -103,23 +104,26 @@ class Tester(object):
     def test(self, args):
         if args.make_plots:
             self.make_comparison_plots()
-            sys.exit(0)
+            return
         if not args.dont_run:
             self.run(args)
-        for version_stype in self.stypes:
-            self.read_performance_info(version_stype)
-        print 'reference input'
-        self.compare_performance(input_stype='ref')
-        self.compare_partition_cachefiles(input_stype='ref')
-        self.compare_data_annotation(input_stype='ref')
-        self.compare_production_results()
+        if not args.skip_ref:
+            self.compare_stuff(input_stype='ref')
         if not args.only_ref and not args.quick:
-            print 'new input'
-        self.compare_performance(input_stype='new')
-        self.compare_partition_cachefiles(input_stype='new')
-        self.compare_data_annotation(input_stype='new')
+            self.compare_production_results()
+            self.compare_stuff(input_stype='new')
 
-        self.compare_run_times();
+        self.compare_run_times()
+
+    # ----------------------------------------------------------------------------------------
+    def compare_stuff(self, input_stype):
+        print '%s input' % input_stype
+        for version_stype in self.stypes:
+            self.read_annotation_performance(version_stype, input_stype)
+            self.read_partition_performance(version_stype, input_stype)
+        self.compare_performance(input_stype)
+        self.compare_partition_cachefiles(input_stype)
+        self.compare_data_annotation(input_stype)
 
     # ----------------------------------------------------------------------------------------
     def prepare_to_run(self, args, name, info):
@@ -213,13 +217,6 @@ class Tester(object):
                     shutil.copy(source_fname, self.dirs['ref'] + '/' + fname.replace('-new-', '-ref-'))
             print '    mv %s   -->  %s/' % (fname, self.dirs['ref'])
             shutil.move(source_fname, self.dirs['ref'] + '/')
-
-    # ----------------------------------------------------------------------------------------
-    # collect summary performance info from a few places in stashdir
-    def read_performance_info(self, version_stype):
-        for input_stype in self.stypes:
-            self.read_annotation_performance(version_stype, input_stype)
-            self.read_partition_performance(version_stype, input_stype)
 
     # ----------------------------------------------------------------------------------------
     def read_annotation_performance(self, version_stype, input_stype, debug=False):
@@ -393,6 +390,8 @@ class Tester(object):
         for name in times['ref']:
             if args.quick and name not in self.quick_tests:
                 continue
+            if args.only_ref and '-ref-' not in name:
+                continue
             print '  %30s   %7.1f' % (name, times['ref'][name]),
             if name not in times['new']:
                 print '  no new time for %s' % utils.color('red', name)
@@ -538,6 +537,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--dont-run', action='store_true', help='don\'t actually run the tests, presumably so you can just check the results ')
 parser.add_argument('--quick', action='store_true')
 parser.add_argument('--only-ref', action='store_true', help='only run with input_stype of \'ref\'')
+parser.add_argument('--skip-ref', action='store_true', help='skip stuff that\'s run by --only-ref')
 parser.add_argument('--bust-cache', action='store_true', help='copy info from new dir to reference dir, i.e. overwrite old test info')
 parser.add_argument('--make-plots', action='store_true')
 parser.add_argument('--datadir', default='data/imgt')

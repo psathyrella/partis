@@ -178,7 +178,7 @@ class PartitionDriver(object):
         parameter_out_dir = self.args.parameter_dir + '/hmm'
         self.run_hmm('viterbi', parameter_in_dir=sw_parameter_dir, parameter_out_dir=parameter_out_dir, count_parameters=True)
         self.write_hmms(parameter_out_dir)
-        print 'maybe?'
+        print '\nmaybe?'
         # glutils.restrict_to_observed_alleles(parameter_out_dir, glfo)  # hm, maybe?
 
     # ----------------------------------------------------------------------------------------
