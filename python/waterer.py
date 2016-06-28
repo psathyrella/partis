@@ -20,7 +20,7 @@ from allelefinder import AlleleFinder
 class Waterer(object):
     """ Run smith-waterman on the query sequences in <infname> """
     def __init__(self, args, input_info, reco_info, glfo, my_datadir, parameter_dir, write_parameters=False, find_new_alleles=False):
-        self.parameter_dir = parameter_dir
+        self.parameter_dir = parameter_dir.rstrip('/')
         self.args = args
         self.debug = self.args.debug if self.args.sw_debug is None else self.args.sw_debug
 
@@ -126,7 +126,6 @@ class Waterer(object):
                     self.true_pcounter.plot(self.args.plotdir + '/sw-true', subset_by_gene=True, cyst_positions=self.glfo['cyst-positions'], tryp_positions=self.glfo['tryp-positions'], only_csv=self.args.only_csv_plots)
             self.pcounter.write(self.parameter_dir, self.my_datadir)
             if self.true_pcounter is not None:
-                assert self.parameter_dir[-1] != '/'
                 self.true_pcounter.write(self.parameter_dir + '-true')
 
         self.info['remaining_queries'] = self.remaining_queries

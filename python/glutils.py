@@ -348,7 +348,7 @@ def restrict_to_genes(glfo, only_genes, debug=False):
         return
     genes_to_remove = set([g for r in utils.regions for g in glfo['seqs'][r]]) - set(only_genes)
     if debug:
-        print '    removing %d genes that aren\'t in <only_genes>' % len(genes_to_remove)
+        print '    removing %d genes that aren\'t in <only_genes> (%s)' % (len(genes_to_remove), ' '.join(genes_to_remove))
     remove_genes(glfo, genes_to_remove)
 
 # ----------------------------------------------------------------------------------------
@@ -463,9 +463,9 @@ def add_some_snps(snps_to_add, glfo, remove_template_genes=False, debug=False):
     remove_the_stupid_godamn_template_genes_all_at_once(glfo, templates_to_remove)  # works fine with zero-length <templates_to_remove>
 
 # ----------------------------------------------------------------------------------------
-def write_glfo(output_dir, glfo, debug=False):
+def write_glfo(output_dir, glfo, only_genes=None, debug=False):
     if debug:
-        print '  writing glfo to %s' % output_dir
+        print '  writing glfo to %s%s' % (output_dir, '' if only_genes is None else ('  (restricting to %d genes)' % len(only_genes)))
     if os.path.exists(output_dir + '/' + glfo['chain']):
         remove_glfo_files(output_dir, glfo['chain'])  # also removes output_dir
     os.makedirs(output_dir + '/' + glfo['chain'])
@@ -474,6 +474,8 @@ def write_glfo(output_dir, glfo, debug=False):
         glseqfo = glfo['aligned-seqs'] if 'aligned' in fname else glfo['seqs']
         with open(output_dir + '/' + glfo['chain'] + '/' + fname, 'w') as outfile:
             for gene in glseqfo[utils.get_region(fname)]:
+                if only_genes is not None and gene not in only_genes:
+                    continue
                 outfile.write('>' + gene + '\n')
                 outfile.write(glseqfo[utils.get_region(fname)][gene] + '\n')
     for fname in glfo_csv_fnames():
@@ -481,6 +483,8 @@ def write_glfo(output_dir, glfo, debug=False):
             writer = csv.DictWriter(codonfile, ('gene', 'istart'))
             writer.writeheader()
             for gene, istart in glfo[utils.get_codon(fname) + '-positions'].items():
+                if only_genes is not None and gene not in only_genes:
+                    continue
                 writer.writerow({'gene' : gene, 'istart' : istart})
 
     # make sure there weren't any files lingering in the output dir when we started

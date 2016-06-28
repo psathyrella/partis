@@ -131,7 +131,7 @@ class PartitionDriver(object):
             if len(self.sw_info['new-alleles']) == 0:
                 break
             all_new_allele_info += self.sw_info['new-alleles']
-            glutils.restrict_to_genes(self.glfo, list(self.sw_info['all_best_matches']), debug=True)  # NOTE this potentially kind of duplicates the restrict_to_genes() call in parametercounter::write()
+            glutils.restrict_to_genes(self.glfo, list(self.sw_info['all_best_matches']), debug=True)
             glutils.add_new_alleles(self.glfo, self.sw_info['new-alleles'], remove_template_genes=(itry==0 and self.args.generate_germline_set), debug=True)
             glutils.write_glfo(self.my_datadir, self.glfo, debug=True)  # write glfo modifications to disk
             itry += 1
@@ -150,6 +150,19 @@ class PartitionDriver(object):
                     outfile.write('%s\n' % allele_info['seq'])
 
     # ----------------------------------------------------------------------------------------
+    def restrict_to_observed_alleles(self, parameter_dir):
+        """ Restrict <self.glfo> to genes observed in <parameter_dir>, and write the changes to <self.my_datadir>. """
+        print '  restricting self.glfo to alleles observed in %s' % parameter_dir
+        only_genes = set()
+        for region in utils.regions:
+            with opener('r')(parameter_dir + '/' + region + '_gene-probs.csv') as pfile:
+                reader = csv.DictReader(pfile)
+                for line in reader:
+                    only_genes.add(line[region + '_gene'])
+        glutils.restrict_to_genes(self.glfo, only_genes, debug=True)
+        glutils.write_glfo(self.my_datadir, self.glfo, debug=True)  # write glfo modifications to disk
+
+    # ----------------------------------------------------------------------------------------
     def cache_parameters(self):
         """ Infer full parameter sets and write hmm files for sequences from <self.input_info>, first with Smith-Waterman, then using the SW output as seed for the HMM """
         print 'caching parameters'
@@ -157,6 +170,7 @@ class PartitionDriver(object):
         if self.args.find_new_alleles:
             self.find_new_alleles(sw_parameter_dir)
         self.run_waterer(sw_parameter_dir, write_parameters=True)
+        self.restrict_to_observed_alleles(sw_parameter_dir)
         self.write_hmms(sw_parameter_dir)
         if self.args.only_smith_waterman:
             return
@@ -164,6 +178,8 @@ class PartitionDriver(object):
         parameter_out_dir = self.args.parameter_dir + '/hmm'
         self.run_hmm('viterbi', parameter_in_dir=sw_parameter_dir, parameter_out_dir=parameter_out_dir, count_parameters=True)
         self.write_hmms(parameter_out_dir)
+        print 'maybe?'
+        # glutils.restrict_to_observed_alleles(parameter_out_dir, glfo)  # hm, maybe?
 
     # ----------------------------------------------------------------------------------------
     def run_algorithm(self, algorithm):
@@ -851,13 +867,9 @@ class PartitionDriver(object):
         utils.prep_dir(hmm_dir, '*.yaml')
 
         for region in utils.regions:
-            with opener('r')(parameter_dir + '/' + region + '_gene-probs.csv') as pfile:
-                reader = csv.DictReader(pfile)
-                for line in reader:
-                    if self.args.debug:
-                        print '  %s' % utils.color_gene(line[region + '_gene'])
-                    writer = HmmWriter(parameter_dir, hmm_dir, line[region + '_gene'], self.glfo, self.args)
-                    writer.write()
+            for gene in self.glfo['seqs'][region]:
+                writer = HmmWriter(parameter_dir, hmm_dir, gene, self.glfo, self.args)
+                writer.write()
 
         print '(%.1f sec)' % (time.time()-start)
 
@@ -885,6 +897,9 @@ class PartitionDriver(object):
         # We then write HMMs for only the genes which were, at least once, a *best* match.
         # But when we're writing the HMM input, we have the N best genes for each sequence, and some of these may not have been a best match at least once.
         # In subsequent runs, however, we already have a parameter dir, so before we run sw we look and see which HMMs we have, and tell sw to only use those, so in this case we shouldn't be removing any.
+
+        if len(genes_to_remove) > 0:
+            print '  %s removing genes %s that don\'t have hmms' % (utils.color('red', 'warning'), ' '.join(genes_to_remove))
 
         # then remove 'em from <gene_list>
         for gene in genes_to_remove:

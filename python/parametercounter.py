@@ -163,10 +163,7 @@ class ParameterCounter(object):
 
         self.mfreqer.write(base_outdir + '/mute-freqs', mean_freq_outfname=base_outdir + '/REGION-mean-mute-freqs.csv')  # REGION is replace by each region in the three output files)
         genes_with_counts = [g[0] for r in utils.regions for g in self.counts[r + '_gene'].keys()]
-        glutils.restrict_to_genes(self.glfo, genes_with_counts, debug=True)  # NOTE this potentially kind of duplicates the restrict_to_genes() call in partitiondriver::find_new_alleles()
-        glutils.write_glfo(base_outdir + '/' + glutils.glfo_dir, self.glfo, debug=True)  # write modified glfo to parameter_dir
-        if my_datadir is not None:  # also write glfo modifications to working directory
-            glutils.write_glfo(my_datadir, self.glfo, debug=True)
+        glutils.write_glfo(base_outdir + '/' + glutils.glfo_dir, self.glfo, only_genes=genes_with_counts, debug=True)
 
         for column in self.counts:
             index = None
