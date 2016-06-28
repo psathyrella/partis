@@ -207,7 +207,7 @@ def add_missing_glfo(glfo, generate_new_alignment=False, debug=False):
         if generate_new_alignment:  # replace existing alignment, which is missing some genes, with a new one that includes everybody
             get_new_alignments(glfo, debug=debug)
         else:
-            raise Exception('missing alignments for %d genes %s (set --generate-new-alignments if you want to attempt to figure out new ones)' % (len(genes_without_alignments), ' '.join(genes_without_alignments)))
+            raise Exception('missing alignments for %d genes %s (set --generate-new-alignment if you want to attempt to figure out new ones)' % (len(genes_without_alignments), ' '.join(genes_without_alignments)))
     elif debug:
         print '    no missing alignments'
 
