@@ -194,7 +194,7 @@ parent_parser.add_argument('--infname', help='input sequence file in .fa, .fq or
 parent_parser.add_argument('--name-column', default='unique_id', help='csv column name for sequence ids')
 parent_parser.add_argument('--seq-column', default='seq', help='csv column name for nucleotide sequences')
 parent_parser.add_argument('--parameter-dir', help='Directory to/from which to write/read sample-specific parameters. If not specified, we assume we should cache new parameters.')
-parent_parser.add_argument('--parameter-type', default='hmm', choices=('sw', 'hmm'), help='Use parameters from Smith-Waterman (sw) or the HMM (hmm) subdirectories for inference/simulation?')
+parent_parser.add_argument('--parameter-type', default='hmm', choices=('sw', 'hmm'), help='Use parameters from Smith-Waterman (sw) or the HMM (hmm) subdirectories for inference/simulation? (you almost certainly want to use the hmm ones -- this option just exists for the sake of transparency)')
 parent_parser.add_argument('--initial-datadir', help='Directory with fastas from which to read germline set. Only used when caching parameters, during which its contents is copied into --parameter-dir, perhaps (i.e. if specified) with modification. NOTE default is set below, because control flow is too complicated for argparse')
 parent_parser.add_argument('--outfname', help='Output file name.')
 parent_parser.add_argument('--presto-output', action='store_true', help='write output file in presto format')
@@ -223,7 +223,7 @@ parent_parser.add_argument('--plot-performance', action='store_true', help='Writ
 parent_parser.add_argument('--dont-rescale-emissions', action='store_true', help='Don\'t scale each hmm\'s emission probabilities to account for the branch length of each individual sequence.')
 parent_parser.add_argument('--print-git-commit', action='store_true', help='print sys.argv, git commit hash, and tag info')
 parent_parser.add_argument('--min-observations-to-write', type=int, default=20, help='For hmmwriter.py, if we see a gene version fewer times than this, we sum over other alleles, or other versions, etc. (see hmmwriter)')
-parent_parser.add_argument('--chain', default='h', choices=('h', 'k', 'l'), help='light chain is under development! only heavy chain works at the moment. Are these heavy chain, or kappa or lambda light chain?')
+parent_parser.add_argument('--chain', default='h', choices=('h', 'k', 'l'), help='light chain is under development! only heavy chain works at the moment. But in the future: Are these heavy chain, or kappa or lambda light chain?')
 parent_parser.add_argument('--generate-new-alignment', action='store_true', help='If the aligned germline file is missing genes which are present in the un-aligned file, generate a new alignment that includes everybody (otherwise we fail -- don\'t want to override somebody\'s favorite alignment without their consent).')
 # parent_parser.add_argument('--use_mean_at_boundaries', action='store_true', help='see note in hmmwriter')
 
