@@ -13,15 +13,16 @@ copied and pasted lines will need to be changed.*/
 #include <zlib.h>
 
 KSEQ_INIT(gzFile, gzread)
-// Populates array with char arrays.
-extern "C" void WriteToArray(char *temp, char **output_seq, int i) {
-  int length = strlen(temp);
-  output_seq[i] = (char *)malloc(sizeof(char) * (length + 1));
-  strcpy(output_seq[i], temp);
+// Appending char array to string.
+std::string CreateString(std::string tag, char *content) {
+  std::string temp = tag;
+  temp.append(content);
+  temp.append("\n");
+  return temp;
 }
 
-// Reads fastq file in and parses it. Calls WriteToArray.
-extern "C" void ReadFile(char file_name[], char **output_seq) {
+// Reads fastq file in and parses it.
+void ReadFile(char file_name[], std::vector<std::string> &output_seq) {
   gzFile fp;
   kseq_t *seq;
   int l;
@@ -31,22 +32,13 @@ extern "C" void ReadFile(char file_name[], char **output_seq) {
   int i = 0;
   int length = 0;
   while ((l = kseq_read(seq)) >= 0) { // read sequence
-    char temp[500]; // longer than the longest line in the fastq file
-    sprintf(temp, "name: @%s\n", seq->name.s);
-    WriteToArray(temp, output_seq, i);
-    i++;
+    output_seq.push_back(CreateString("name: ", seq->name.s));
     if (seq->comment.l) {
-      sprintf(temp, "comment: %s\n", seq->comment.s);
-      WriteToArray(temp, output_seq, i);
-      i++;
+      output_seq.push_back(CreateString("comment: ", seq->comment.s));
     }
-    sprintf(temp, "seq: %s\n", seq->seq.s);
-    WriteToArray(temp, output_seq, i);
-    i++;
+    output_seq.push_back(CreateString("seq: ", seq->seq.s));
     if (seq->qual.l) {
-      sprintf(temp, "qual: %s\n", seq->qual.s);
-      WriteToArray(temp, output_seq, i);
-      i++;
+      output_seq.push_back(CreateString("qual: ", seq->qual.s));
     }
   }
   kseq_destroy(seq); // destroy seq
@@ -72,18 +64,11 @@ void StripLabels(std::vector<std::string> &parsed_vector) {
 
 TEST_CASE("Issue 3: Comparing parsed and original files") {
   char filename[] = "test_data/shorttest.fastq";
-  int output_length = 9; // Number of lines after parsing
-  char *output_seq[output_length];
-  ReadFile(filename, output_seq);
   std::vector<std::string> parsed_vector;
-  for (int i = 0; i < output_length; i++) {
-    const char *temp = output_seq[i];
-    std::string str(temp);
-    parsed_vector.push_back(str);
-  }
+  ReadFile(filename, parsed_vector);
   StripLabels(parsed_vector);
   // Comparing expected values (from shorttest.fastq) to the parsed vector
-  REQUIRE("@GTACTCTGGTTTGTC|PRCONS=20080924-IGHM|CONSCOUNT=17|DUPCOUNT=9" ==
+  REQUIRE("GTACTCTGGTTTGTC|PRCONS=20080924-IGHM|CONSCOUNT=17|DUPCOUNT=9" ==
           parsed_vector[0]);
   REQUIRE("NNNNNNNNNNNNNNNNNNNNNNNTCCTACGCTGGTGAAACCCACACAGACCCTCACGCTGACCTGCAC"
           "GTTCTCTGGGCTCTCACTCAGTACTAGTGAAGTGGCTGTGGGCTGGATCCGTCAGCCCCCAGGAAAGG"
@@ -98,7 +83,7 @@ TEST_CASE("Issue 3: Comparing parsed and original files") {
           "A*EEAEEFFFFFFFE?AFEFEFFECEEFFEEE?ECAA>;"
           "EFEEBECAEFFEEEEEFDDDBFFEDEEEFFFFHHHHHHHHHHHHFFHHHHIHFC<"
           "HEHGDGHGEGFFFDH" == parsed_vector[2]);
-  REQUIRE("@GGTTTGCAATGGTTT|PRCONS=20080924-IGHG|CONSCOUNT=3|DUPCOUNT=2" ==
+  REQUIRE("GGTTTGCAATGGTTT|PRCONS=20080924-IGHG|CONSCOUNT=3|DUPCOUNT=2" ==
           parsed_vector[3]);
   REQUIRE("NNNNNNNNNNNNNNNNNNNNNNNGGGAGGCGTGGTCCAGCCTGGGACGTCCCTGAGACTCTCCTGTGC"
           "AGCGTCTGGATTCACCTTCAGTAGTTATGGCATGCACTGGGTCCGCCAGGCTCCAGGCAAGGGGCTGG"
@@ -114,7 +99,7 @@ TEST_CASE("Issue 3: Comparing parsed and original files") {
           "jkmkkmmmmmmmmmmmmmimmmmmmmkmmmmmmmmmkmkmmmmmmmmmmmmmmmmkmmmmmmmmmmkk"
           "mkmmmmmmmmooomoomokfoooooooooooooooqqponpqqpnloqqqqqqpoooonklpqlooon"
           "oo" == parsed_vector[5]);
-  REQUIRE("@GCGTAGCACCCGTGG|PRCONS=20080924-IGHG|CONSCOUNT=2|DUPCOUNT=1" ==
+  REQUIRE("GCGTAGCACCCGTGG|PRCONS=20080924-IGHG|CONSCOUNT=2|DUPCOUNT=1" ==
           parsed_vector[6]);
   REQUIRE("NNNNNNNNNNNNNNNNNNNNNNNNCCTACGCTGGTGAAACCCACACAGACCCTCACGCTGACCTGCAC"
           "CTTCTCTGGGTTCTCACTCAGCACTGGTGGAGTGGGTGTGGGCTGGATCCGTCAGCCCCCAGGAAAGG"
