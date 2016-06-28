@@ -234,7 +234,7 @@ def read_glfo(datadir, chain, only_genes=None, generate_new_alignment=False, deb
         Germline set directory \'%s\' does not exist.
         This is probably because as of v0.6.0 we switched to per-dataset germline sets, which means the germline set fastas have to be *within* --parameter-dir.
         You will, unfortunately, need to delete your existing --parameter-dir and generate a new one (either explicitly with \'cache-parameters\', or just re-run whatever action you were running, and it'll do it automatically when it can\'t find the directory you deleted).
-        Sorry! We promise this is better in the long term.
+        Sorry! We promise this is better in the long term, though.
         """ % (datadir + '/' + chain))
     # ----------------------------------------------------------------------------------------
 
