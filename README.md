@@ -5,7 +5,7 @@ It is built on top of the [ham](https://github.com/psathyrella/ham) HMM compiler
 
 * [manual](https://github.com/psathyrella/partis/blob/master/manual.md)
 * [docker image](https://hub.docker.com/r/psathyrella/partis/)
-* [support forum](https://github.com/psathyrella/partis/issues?utf8=%E2%9C%93&q=)
+* [support forum](https://groups.google.com/forum/#!forum/partis)
 
 The following two papers describe the annotation and clonal family inference functionality of partis, respectively:
 
@@ -13,5 +13,3 @@ The following two papers describe the annotation and clonal family inference fun
 * Ralph, DK, & Matsen IV, FA (2016). [Likelihood-based Inference of B-cell Clonal Families.](http://arxiv.org/abs/1603.08127) In press, *PLOS Computational Biology*.
 
 partis is free software under the GPL v3.
-
-
