@@ -197,7 +197,10 @@ def get_missing_codon_info(glfo, debug=False):
         for gene in missing_genes:
             unaligned_pos = known_pos_in_alignment - utils.count_gaps(glfo['aligned-seqs'][region][gene], istop=known_pos_in_alignment)
             print '      adding %s: %d' % (utils.color_gene(gene), unaligned_pos)
-            utils.check_codon(codon, glfo['seqs'][region][gene], unaligned_pos, debug=True)
+            seq_to_check = glfo['seqs'][region][gene]
+            if gene == 'IGHV4-39*03':  # in the imgt database, it ends one base short of finishing the cysteine
+                seq_to_check += 'T'
+            utils.check_codon(codon, seq_to_check, unaligned_pos, debug=True)
             glfo[codon + '-positions'][gene] = unaligned_pos
 
 #----------------------------------------------------------------------------------------
@@ -225,6 +228,13 @@ def read_codon_positions(csvfname):
     return positions
 
 #----------------------------------------------------------------------------------------
+def check_codon_positions(glfo):
+    for codon in utils.conserved_codons.values():
+        print codon
+        for gene, istart in glfo[codon + '-positions'].items():
+            utils.check_codon(codon, glfo['seqs'][utils.get_region(gene)][gene], istart, debug=True)
+
+#----------------------------------------------------------------------------------------
 def read_glfo(datadir, chain, only_genes=None, generate_new_alignment=False, debug=False):
 
     # ----------------------------------------------------------------------------------------
@@ -245,12 +255,12 @@ def read_glfo(datadir, chain, only_genes=None, generate_new_alignment=False, deb
     for fname in glfo_csv_fnames():
         glfo[utils.get_codon(fname) + '-positions'] = read_codon_positions(datadir + '/' + chain + '/' + fname)
     clean_up_glfo(glfo, debug=debug)  # remove any extra info
+    check_codon_positions(glfo)
     add_missing_glfo(glfo, generate_new_alignment=generate_new_alignment, debug=debug)
     restrict_to_genes(glfo, only_genes, debug=debug)
     if debug:
         print '  read %s' % '  '.join([('%s: %d' % (r, len(glfo['seqs'][r]))) for r in utils.regions])
     return glfo
-
 
 # ----------------------------------------------------------------------------------------
 def stringify_mutfo(mutfo):
