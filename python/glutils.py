@@ -230,7 +230,6 @@ def read_codon_positions(csvfname):
 #----------------------------------------------------------------------------------------
 def check_codon_positions(glfo):
     for codon in utils.conserved_codons.values():
-        print codon
         for gene, istart in glfo[codon + '-positions'].items():
             utils.check_codon(codon, glfo['seqs'][utils.get_region(gene)][gene], istart, debug=True)
 
@@ -255,7 +254,7 @@ def read_glfo(datadir, chain, only_genes=None, generate_new_alignment=False, deb
     for fname in glfo_csv_fnames():
         glfo[utils.get_codon(fname) + '-positions'] = read_codon_positions(datadir + '/' + chain + '/' + fname)
     clean_up_glfo(glfo, debug=debug)  # remove any extra info
-    check_codon_positions(glfo)
+    # check_codon_positions(glfo)
     add_missing_glfo(glfo, generate_new_alignment=generate_new_alignment, debug=debug)
     restrict_to_genes(glfo, only_genes, debug=debug)
     if debug:
