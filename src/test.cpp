@@ -13,13 +13,6 @@ copied and pasted lines will need to be changed.*/
 #include <zlib.h>
 
 KSEQ_INIT(gzFile, gzread)
-// Appending char array to string.
-std::string CreateString(std::string tag, char *content) {
-  std::string temp = tag;
-  temp.append(content);
-  temp.append("\n");
-  return temp;
-}
 
 // Reads fastq file in and parses it.
 void ReadFile(char file_name[], std::vector<std::string> &output_seq) {
@@ -32,13 +25,13 @@ void ReadFile(char file_name[], std::vector<std::string> &output_seq) {
   int i = 0;
   int length = 0;
   while ((l = kseq_read(seq)) >= 0) { // read sequence
-    output_seq.push_back(CreateString("name: ", seq->name.s));
+    output_seq.push_back(std::string("name: ") + seq->name.s + "\n");
     if (seq->comment.l) {
-      output_seq.push_back(CreateString("comment: ", seq->comment.s));
+      output_seq.push_back(std::string("comment: ") + seq->comment.s + "\n");
     }
-    output_seq.push_back(CreateString("seq: ", seq->seq.s));
+    output_seq.push_back(std::string("seq: ") + seq->seq.s + "\n");
     if (seq->qual.l) {
-      output_seq.push_back(CreateString("qual: ", seq->qual.s));
+      output_seq.push_back(std::string("qual: ") + seq->qual.s + "\n");
     }
   }
   kseq_destroy(seq); // destroy seq
