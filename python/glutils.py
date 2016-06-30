@@ -369,7 +369,7 @@ def restrict_to_genes(glfo, only_genes, debug=False):
         return
     genes_to_remove = set([g for r in utils.regions for g in glfo['seqs'][r]]) - set(only_genes)
     if debug:
-        print '    removing %d genes that aren\'t in <only_genes> (%s)' % (len(genes_to_remove), ' '.join(genes_to_remove))
+        print '    removing %d genes from glfo' % len(genes_to_remove)
     remove_genes(glfo, genes_to_remove)
 
 # ----------------------------------------------------------------------------------------

@@ -152,7 +152,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def restrict_to_observed_alleles(self, parameter_dir):
         """ Restrict <self.glfo> to genes observed in <parameter_dir>, and write the changes to <self.my_datadir>. """
-        print '  restricting self.glfo to alleles observed in %s' % parameter_dir
+        print '  restricting self.glfo (and %s) to alleles observed in %s' % (self.my_datadir, parameter_dir)
         only_genes = set()
         for region in utils.regions:
             with opener('r')(parameter_dir + '/' + region + '_gene-probs.csv') as pfile:
@@ -177,9 +177,8 @@ class PartitionDriver(object):
 
         parameter_out_dir = self.args.parameter_dir + '/hmm'
         self.run_hmm('viterbi', parameter_in_dir=sw_parameter_dir, parameter_out_dir=parameter_out_dir, count_parameters=True)
+        self.restrict_to_observed_alleles(parameter_out_dir)
         self.write_hmms(parameter_out_dir)
-        print '\nmaybe?'
-        # glutils.restrict_to_observed_alleles(parameter_out_dir, glfo)  # hm, maybe?
 
     # ----------------------------------------------------------------------------------------
     def run_algorithm(self, algorithm):
@@ -893,13 +892,14 @@ class PartitionDriver(object):
                 genes_to_remove.append(gene)
 
         # NOTE that we should be removing genes *only* if we're caching parameters, i.e. if we just ran sw on a data set for the first time.
-        # The issue is that when we first run sw on a data set, it uses all the genes in datadir.  UPDATE not any more! but don't want to update this comment just yet
+        # The issue is that when we first run sw on a data set, it uses all the genes in datadir.
         # We then write HMMs for only the genes which were, at least once, a *best* match.
         # But when we're writing the HMM input, we have the N best genes for each sequence, and some of these may not have been a best match at least once.
         # In subsequent runs, however, we already have a parameter dir, so before we run sw we look and see which HMMs we have, and tell sw to only use those, so in this case we shouldn't be removing any.
 
-        if len(genes_to_remove) > 0:
-            print '  %s removing genes %s that don\'t have hmms' % (utils.color('red', 'warning'), ' '.join(genes_to_remove))
+        for gene in genes_to_remove:  # anything that wasn't a best match should've been cleaned out of glfo
+            if gene in self.glfo['seqs'][utils.get_region(gene)]:
+                print '  %s removing gene %s that doesn\'t have an hmm, but is in glfo' % (utils.color('red', 'warning'), gene)
 
         # then remove 'em from <gene_list>
         for gene in genes_to_remove:
