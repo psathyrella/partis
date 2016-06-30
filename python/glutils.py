@@ -25,17 +25,44 @@ def glfo_fnames(chain):
 def all_glfo_fasta_fnames():
     return ['ig' + chain + r + algn + '.fasta' for chain in utils.chains for r in utils.regions for algn in ('', '-aligned')]
 
+imgt_info_indices = ('accession-number', 'gene', 'species', 'functionality', '', '', '', '', '', '', '', '', '')
+functionalities = set(['F', 'ORF', 'P', '(F)'])
+
 #----------------------------------------------------------------------------------------
-def read_germline_seqs(datadir, chain):
+def read_germline_seqs(datadir, chain, skip_pseudogenes):
     seqs, aligned_seqs = {r : OrderedDict() for r in utils.regions}, {r : OrderedDict() for r in utils.regions}
+    fill_in_unaligned_seqs = False
+    n_skipped_pseudogenes = 0
     for fname in glfo_fasta_fnames(chain):
+        if 'aligned' not in fname and not os.path.exists(datadir + '/' + chain + '/' + fname):  # if we have no un-aligned files, it's ok 'cause we can make those from the aligned ones
+            print '      file d.n.e. %s' % fname
+            fill_in_unaligned_seqs = True
+            continue
         infodict = aligned_seqs if 'aligned' in fname else seqs
         for seq_record in SeqIO.parse(datadir + '/' + chain + '/' + fname, 'fasta'):
-            gene = seq_record.name.split('|')[0]
+            linefo = [p.strip() for p in seq_record.description.split('|')]
+            if linefo[0][:2] != 'IG':  # if it's an imgt file, with a bunch of header info and the accession number first
+                gene = linefo[imgt_info_indices.index('gene')]
+                functionality = linefo[imgt_info_indices.index('functionality')]
+                if functionality not in functionalities:
+                    raise Exception('unexpected functionality %s in %s' % (functionality, datadir + '/' + chain + '/' + fname))
+                if skip_pseudogenes and functionality == 'P':
+                    n_skipped_pseudogenes += 1
+                    continue
+            else:  # plain fasta with just the gene name after the '>'
+                gene = linefo[0]
+            utils.split_gene(gene)  # just to check if it's a valid gene name
             seq = str(seq_record.seq).upper()
             if len(seq.strip(''.join(utils.expected_characters))) > 0:  # return the empty string if it only contains expected characters
                 raise Exception('unexpected characters in %s (expected %s)' % (seq, ' '.join(utils.expected_characters)))
             infodict[utils.get_region(gene)][gene] = seq
+    if n_skipped_pseudogenes > 0:
+        print '    skipped %d pseudogenes' % n_skipped_pseudogenes
+    if fill_in_unaligned_seqs:
+        print '  filling unaligned seqs from aligned ones'
+        for region in utils.regions:
+            for gene, seq in aligned_seqs[region].items():
+                seqs[region][gene] = seq.translate(None, ''.join(utils.gap_chars))
     return seqs, aligned_seqs
 
 #----------------------------------------------------------------------------------------
@@ -178,8 +205,15 @@ def get_missing_codon_info(glfo, debug=False):
         if debug:
             print '      missing %d %s positions' % (len(missing_genes), codon)
 
-        if region == 'j':
-            raise Exception('missing tryp position for %s, and we can\'t infer it because tryp positions don\'t reliably align to the same position' % ' '.join(missing_genes))
+        # if region == 'j':
+        #     for gene, seq in glfo['seqs'][region].items():
+        #         tpos = -1
+        #         if gene in glfo['tryp-positions']:
+        #             tpos = glfo['tryp-positions'][gene]
+        #         print seq, gene, tpos
+        #     for gene, seq in glfo['aligned-seqs'][region].items():
+        #         print seq, gene
+        #     raise Exception('missing tryp position for %s, and we can\'t infer it because tryp positions don\'t reliably align to the same position' % ' '.join(missing_genes))
 
         # existing codon position (this assumes that once aligned, all genes have the same codon position)
         if len(glfo[codon + '-positions']) > 0:
@@ -198,7 +232,8 @@ def get_missing_codon_info(glfo, debug=False):
             unaligned_pos = known_pos_in_alignment - utils.count_gaps(glfo['aligned-seqs'][region][gene], istop=known_pos_in_alignment)
             print '      adding %s: %d' % (utils.color_gene(gene), unaligned_pos)
             seq_to_check = glfo['seqs'][region][gene]
-            if gene == 'IGHV4-39*03':  # in the imgt database, it ends one base short of finishing the cysteine
+            if gene == 'IGHV4-39*03' or gene == 'IGHV4-30-4*04':  # in the imgt database, it ends one base short of finishing the cysteine
+                raise Exception('foops')
                 seq_to_check += 'T'
             utils.check_codon(codon, seq_to_check, unaligned_pos, debug=True)
             glfo[codon + '-positions'][gene] = unaligned_pos
@@ -234,7 +269,7 @@ def check_codon_positions(glfo):
             utils.check_codon(codon, glfo['seqs'][utils.get_region(gene)][gene], istart, debug=True)
 
 #----------------------------------------------------------------------------------------
-def read_glfo(datadir, chain, only_genes=None, generate_new_alignment=False, debug=False):
+def read_glfo(datadir, chain, only_genes=None, generate_new_alignment=False, skip_pseudogenes=True, debug=False):
 
     # ----------------------------------------------------------------------------------------
     # warn about backwards compatibility breakage
@@ -250,7 +285,7 @@ def read_glfo(datadir, chain, only_genes=None, generate_new_alignment=False, deb
     if debug:
         print '  reading %s chain glfo from %s' % (chain, datadir)
     glfo = {'chain' : chain}
-    glfo['seqs'], glfo['aligned-seqs'] = read_germline_seqs(datadir, chain)
+    glfo['seqs'], glfo['aligned-seqs'] = read_germline_seqs(datadir, chain, skip_pseudogenes)
     for fname in glfo_csv_fnames():
         glfo[utils.get_codon(fname) + '-positions'] = read_codon_positions(datadir + '/' + chain + '/' + fname)
     clean_up_glfo(glfo, debug=debug)  # remove any extra info
