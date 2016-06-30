@@ -1,19 +1,24 @@
-/*Test for checking if data from a fastq file is the same after being parsed.
-Place file "shorttest.fastq" in current working directory or change the path in
-the code. To test using a different fastq file, file path, length of file, and
-copied and pasted lines will need to be changed.*/
-
+/*
+Tests:
+Issue 2: Tests if Catch is included properly with a trivial test case
+Issue 3: Tests if klib parsing of fastq files is implemented correctly
+Issues 5 and 6: Tests if results from running new ig_align are the same as when
+running old files from ighutil
+*/
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
 
+#include "ig_align/ig_align.h"
 #include "kseq.h"
 #include <fstream>
 #include <iostream>
 #include <stdio.h>
 #include <zlib.h>
 
-KSEQ_INIT(gzFile, gzread)
+// Helper functions
 
+// ISSUE 3
+KSEQ_INIT(gzFile, gzread)
 // Reads fastq file in and parses it.
 void ReadFile(char file_name[], std::vector<std::string> &output_seq) {
   gzFile fp;
@@ -55,7 +60,37 @@ void StripLabels(std::vector<std::string> &parsed_vector) {
   }
 }
 
+// ISSUES 5 AND 6
+
+// The return of OpenFile! Opens a file and writes it to a vector of strings
+// Also removes version numbers
+void OpenFile(std::string filename, std::vector<std::string> &original_file) {
+  std::ifstream test_file;
+  test_file.open(filename.c_str());
+  std::string read_file;
+  if (test_file.is_open()) {
+    while (test_file.good()) {
+      test_file >> read_file;
+      if (read_file.find("VN:") != 0) // Ignores version numbers
+        original_file.push_back(read_file);
+      if (test_file.eof())
+        break;
+      read_file = "";
+    }
+  }
+  test_file.close();
+}
+
+// Test cases
+
+TEST_CASE("Issue 2: Trivial pass", "[trivial]") { REQUIRE(1 == 1); }
+
 TEST_CASE("Issue 3: Comparing parsed and original files") {
+  /*Test for checking if data from a fastq file is the same after being parsed.
+  Place file "shorttest.fastq" in current working directory or change the path
+  in
+  the code. To test using a different fastq file, file path, length of file, and
+  copied and pasted lines will need to be changed.*/
   char filename[] = "test_data/shorttest.fastq";
   std::vector<std::string> parsed_vector;
   ReadFile(filename, parsed_vector);
@@ -110,4 +145,21 @@ TEST_CASE("Issue 3: Comparing parsed and original files") {
           "npolmi" == parsed_vector[8]);
 }
 
-TEST_CASE("Trivial pass", "[trivial]") { REQUIRE(1 == 1); }
+TEST_CASE("Issue 5 and 6: Testing align_reads") {
+  // Compares results from ig_align_main.cpp to those from ighutil.
+  // Run scons in the src/ig_align/ directory before running this command. It
+  // will create the ig_align executable.
+  system("./\"ig_align/ig_align\" -q test_data/short_iglv.fasta -o "
+         "test_data/testoutput.sam -r "
+         "test_data/ighv.fasta -n 2 -x "
+         "\"test_data/ighd.fasta test_data/ighj.fasta\" -m 1 "
+         "-i 1 -g 7 -e 1 -d 0"); // Paths and parameters
+  std::vector<std::string> original_file;
+  OpenFile("test_data/testoutput.sam", original_file);
+  std::vector<std::string> ighutil_file;
+  OpenFile("test_data/vdjalign_output.sam", ighutil_file);
+  REQUIRE(original_file.size() == ighutil_file.size());
+  for (int i = 0; i < original_file.size(); i++) {
+    REQUIRE(original_file[i] == ighutil_file[i]);
+  }
+}
