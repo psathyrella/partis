@@ -25,18 +25,18 @@ def glfo_fnames(chain):
 def all_glfo_fasta_fnames():
     return ['ig' + chain + r + algn + '.fasta' for chain in utils.chains for r in utils.regions for algn in ('', '-aligned')]
 
-imgt_info_indices = ('accession-number', 'gene', 'species', 'functionality', '', '', '', '', '', '', '', '', '')
-functionalities = set(['F', 'ORF', 'P', '(F)'])
+imgt_info_indices = ('accession-number', 'gene', 'species', 'functionality', '', '', '', '', '', '', '', '', '')  # I think this is the right number of entries, but it doesn't really matter
+functionalities = set(['F', 'ORF', 'P', '(F)', '[F]', '[ORF]'])   # not actually sure what the last two mean
 
 #----------------------------------------------------------------------------------------
 def read_germline_seqs(datadir, chain, skip_pseudogenes):
     seqs, aligned_seqs = {r : OrderedDict() for r in utils.regions}, {r : OrderedDict() for r in utils.regions}
-    fill_in_unaligned_seqs = False
+    fill_in_unaligned_seqs = {r : False for r in utils.regions}
     n_skipped_pseudogenes = 0
     for fname in glfo_fasta_fnames(chain):
         if 'aligned' not in fname and not os.path.exists(datadir + '/' + chain + '/' + fname):  # if we have no un-aligned files, it's ok 'cause we can make those from the aligned ones
             print '      file d.n.e. %s' % fname
-            fill_in_unaligned_seqs = True
+            fill_in_unaligned_seqs[utils.get_region(fname)] = True
             continue
         infodict = aligned_seqs if 'aligned' in fname else seqs
         for seq_record in SeqIO.parse(datadir + '/' + chain + '/' + fname, 'fasta'):
@@ -58,9 +58,9 @@ def read_germline_seqs(datadir, chain, skip_pseudogenes):
             infodict[utils.get_region(gene)][gene] = seq
     if n_skipped_pseudogenes > 0:
         print '    skipped %d pseudogenes' % n_skipped_pseudogenes
-    if fill_in_unaligned_seqs:
-        print '  filling unaligned seqs from aligned ones'
-        for region in utils.regions:
+    for region in utils.regions:
+        if fill_in_unaligned_seqs[region]:
+            print '  filling unaligned %s seqs from aligned ones' % region
             for gene, seq in aligned_seqs[region].items():
                 seqs[region][gene] = seq.translate(None, ''.join(utils.gap_chars))
     return seqs, aligned_seqs
@@ -104,7 +104,8 @@ def get_new_alignments(glfo, debug=False):
             print '  existing alignments:'
             for g, seq in glfo['aligned-seqs'][region].items():
                 print '    %s   %s' % (seq, utils.color_gene(g))
-
+        if region == 'v':
+            raise Exception('missing V alignments, and if we run mafft we\'ll no longer have imgt gapping, so you have to add them by hand:\n    %s' % ' '.join([utils.color_gene(g) for g in genes_without_alignments]))
 
         # find the longest aligned sequence, so we can pad everybody else with dots on the right out to that length
         biggest_length = None
@@ -141,7 +142,7 @@ def get_new_alignments(glfo, debug=False):
         proc = Popen(cmd, shell=True, stderr=PIPE)
         _, err = proc.communicate()  # debug info goes to err
 
-        if debug:
+        if debug and False:  # aw, screw it, I don't even know what any of mafft's output means
             # deal with debug info (for err -- out gets redirected to a file)
             err = err.replace('\r', '\n')
             printstrs = []
@@ -206,16 +207,9 @@ def get_missing_codon_info(glfo, debug=False):
             print '      missing %d %s positions' % (len(missing_genes), codon)
 
         # if region == 'j':
-        #     for gene, seq in glfo['seqs'][region].items():
-        #         tpos = -1
-        #         if gene in glfo['tryp-positions']:
-        #             tpos = glfo['tryp-positions'][gene]
-        #         print seq, gene, tpos
-        #     for gene, seq in glfo['aligned-seqs'][region].items():
-        #         print seq, gene
         #     raise Exception('missing tryp position for %s, and we can\'t infer it because tryp positions don\'t reliably align to the same position' % ' '.join(missing_genes))
 
-        # existing codon position (this assumes that once aligned, all genes have the same codon position)
+        # existing codon position (this assumes that once aligned, all genes have the same codon position -- which is only really true for the imgt-gapped alignment)
         if len(glfo[codon + '-positions']) > 0:
             known_gene, known_pos = glfo[codon + '-positions'].iteritems().next()  # just take the "first" one
             # NOTE for cyst, should be 309 (imgt says 104th codon --> subtract 1 to get zero-indexing, then multiply by three 3 * (104 - 1) = 309
@@ -228,15 +222,22 @@ def get_missing_codon_info(glfo, debug=False):
         else:
             raise Exception('no existing %s info, and couldn\'t guess it, either' % codon)
 
+        n_added, n_ok, n_too_short, n_bad_codons = 0, 0, 0, 0
         for gene in missing_genes:
             unaligned_pos = known_pos_in_alignment - utils.count_gaps(glfo['aligned-seqs'][region][gene], istop=known_pos_in_alignment)
-            print '      adding %s: %d' % (utils.color_gene(gene), unaligned_pos)
             seq_to_check = glfo['seqs'][region][gene]
-            if gene == 'IGHV4-39*03' or gene == 'IGHV4-30-4*04':  # in the imgt database, it ends one base short of finishing the cysteine
-                raise Exception('foops')
-                seq_to_check += 'T'
-            utils.check_codon(codon, seq_to_check, unaligned_pos, debug=True)
+            if len(seq_to_check) < unaligned_pos + 3:
+                n_too_short += 1
+            else:
+                try:
+                    utils.check_codon(codon, seq_to_check, unaligned_pos, debug=True)
+                    n_ok += 1
+                except AssertionError:
+                    n_bad_codons += 1
+            n_added += 1
             glfo[codon + '-positions'][gene] = unaligned_pos
+        if debug:
+            print '    added %d %s positions (%d ok, %d seq was too short, %d were \'mutated\')' % (n_added, codon, n_ok, n_too_short, n_bad_codons)
 
 #----------------------------------------------------------------------------------------
 def add_missing_glfo(glfo, generate_new_alignment=False, debug=False):
