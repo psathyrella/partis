@@ -1,2 +1,2 @@
 env = Environment(CPPDEFINES=[], CFLAGS = ['-std=c99', '-g'], CPPPATH=[".", "tclap"])
-env.Program(["ksw.c", "kstring.c", "ig_align.c", 'ig_align_main.cpp'], LIBS=['z', 'pthread'])
+env.Program([ "ig_align.c","ksw.c", "kstring.c", 'ig_align_main.cpp'], LIBS=['z', 'pthread'])
