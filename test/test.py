@@ -32,7 +32,7 @@ class Tester(object):
         self.simfnames = {st : self.dirs[st] + '/' + self.label + '/simu.csv' for st in self.stypes}
         param_dirs = { st : { dt : self.dirs[st] + '/' + self.label + '/parameters/' + dt + '/hmm' for dt in ['simu', 'data']} for st in self.stypes}  # muddafuggincomprehensiongansta
         run_driver = './bin/run-driver.py --label ' + self.label + ' --stashdir ' + self.dirs['new']
-        self.common_extras = ['--seed', '1', '--n-procs', '10', '--only-genes', utils.test_only_genes, '--only-csv-plots']
+        self.common_extras = ['--seed', '1', '--n-procs', '10', '--only-genes', 'TEST', '--only-csv-plots']
 
         # check against reference csv file
         self.tiny_eps = 1e-4

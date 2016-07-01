@@ -103,8 +103,8 @@ def run_simulation(args):
     for fname in outfnames:
         if not os.path.exists(fname):
             raise Exception('output file %s d.n.e.' % fname)
-        n_events = int(check_output('grep -v unique_id ' + fname + ' | awk -F, \'{print $2}\' | uniq | wc -l', shell=True).split()[0])
-        if n_events < n_per_proc:
+        n_events = int(check_output('grep -v unique_id ' + fname + ' | awk -F, \'{print $2}\' | uniq | wc -l', shell=True).split()[0])  # if *adjacent* events have the same rearrangement parameters (and hence reco id), they'll show up as the same event. It has happened!
+        if n_events < n_per_proc - 3:  # give ourselves a little breathing room for adjacent events that have the same rearrangement parameters (it's only happened once, ever, so maybe 3 is enough?)
             raise Exception('only found %d events (expected %d) in output file %s' % (n_events, n_per_proc, fname))
     utils.merge_csvs(args.outfname, outfnames)
 
@@ -304,7 +304,11 @@ for name in subconfig:
         if argname not in args.__dict__:
             args.__dict__[argname] = None
 
+if args.only_genes == 'TEST':
+    args.only_genes = utils.test_only_genes
 args.only_genes = utils.get_arg_list(args.only_genes)
+for gene in args.only_genes:  # make sure they're all at least valid ig genes
+    utils.split_gene(gene)
 args.n_procs = utils.get_arg_list(args.n_procs, intify=True)
 args.n_fewer_procs = args.n_procs[0] if len(args.n_procs) == 1 else args.n_procs[1]
 args.n_procs = args.n_procs[0]

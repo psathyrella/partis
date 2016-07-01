@@ -107,12 +107,12 @@ class RecombinationEvent(object):
             for erosion in utils.effective_erosions:
                 row[erosion + '_del'] = self.effective_erosions[erosion]
             # hash the information that uniquely identifies each recombination event
-            reco_id = ''
+            str_for_reco_id = ''
             for column in row:
                 assert 'unique_id' not in row
                 assert 'seq' not in row
-                reco_id += str(row[column])
-            row['reco_id'] = hash(reco_id)
+                str_for_reco_id += str(row[column])
+            row['reco_id'] = hash(str_for_reco_id)  # note that this will give the same reco id for the same rearrangement parameters (which is what we want, although it can be argued that it would be equally legitimate to do it the other way)
             assert 'fv_insertion' not in row  # well, in principle it's ok if they're there, but in that case I'll need to at least think about updating some things
             assert 'jf_insertion' not in row
             row['fv_insertion'] = ''
@@ -120,14 +120,14 @@ class RecombinationEvent(object):
             # then the stuff that's particular to each mutant/clone
             for imute in range(len(self.final_seqs)):
                 row['seq'] = self.final_seqs[imute]
-                unique_id = ''  # Hash to uniquely identify the sequence.
+                str_for_unique_id = ''  # Hash to uniquely identify the sequence.
                 for column in row:
-                    unique_id += str(row[column])
+                    str_for_unique_id += str(row[column])
                 if irandom is None:  # NOTE see note above
-                    unique_id += str(numpy.random.uniform())
+                    str_for_unique_id += str(numpy.random.uniform())
                 else:
-                    unique_id += str(irandom)
-                row['unique_id'] = hash(unique_id)
+                    str_for_unique_id += str(irandom)
+                row['unique_id'] = hash(str_for_unique_id)
                 row['indelfo'] = self.indelfos[imute]
                 writer.writerow(row)
 
