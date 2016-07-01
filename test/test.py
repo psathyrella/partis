@@ -354,12 +354,12 @@ class Tester(object):
                 if len(differlines) > 0:
                     n_total_files = int(check_output('find ' + self.dirs['ref'] + '/' + fname + ' -type f | wc -l', shell=True))
                     print utils.color('red', '      %d / %d files differ' % (len(differlines), n_total_files)),
-                elif len(onlylines) > 0:
+                if len(onlylines) > 0:
                     for st in self.stypes:
                         theseonlylines = [l for l in onlylines if self.dirs[st] + '/' + fname in l]
                         if len(theseonlylines) > 0:
                             print utils.color('red', '      %d files only in %s' % (len(theseonlylines), st)),
-                else:
+                if differlines == 0 and onlylines == 0:
                     print utils.color('red', '      not sure why, but diff returned %d' % proc.returncode),
                 print '  (%s)' % cmd
                 if err != '':
