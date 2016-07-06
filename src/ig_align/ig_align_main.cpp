@@ -10,23 +10,13 @@
 extern "C" {
 #include "ig_align.h"
 }
+
 // Converts string to char array
 char *ToCharArray(std::string str) {
   char *c_array = new char[str.length() + 1];
   std::strcpy(c_array, str.c_str());
   return c_array;
 }
-
-// Converts string with spaces as delimiters to array of char arrays
-// void PathArray(char **c_array, std::string str) {
-//   char *message = ToCharArray(str);
-//   int i = 0;
-//   c_array[i] = strtok(message, " ");
-//   i++;
-//   while ((c_array[i] = strtok(NULL, " ")) != NULL) {
-//     i++;
-//   }
-// }
 
 // Gets file name from locus and directory.
 std::vector<std::string> GetFileName(std::string vdj_dir, std::string locus) {
@@ -42,7 +32,7 @@ std::vector<std::string> GetFileName(std::string vdj_dir, std::string locus) {
     genes.push_back('j');
   }
   if (locus == "DJ") {
-    // files probably don't start with dj
+    // File name must start with dj for this to work.
     genes.push_back('d');
     genes.push_back('j');
   }
@@ -61,29 +51,13 @@ int main(int argc, const char *argv[]) {
     TCLAP::CmdLine cmd("Aligns reads from fasta files", ' ', "1");
 
     // tclap command line arguments
-    // TCLAP::ValueArg<std::string> ref_path_opt(
-    //     "r", "ref-path", "The path to the reference file", true, "",
-    //     "string");
-    // cmd.add(ref_path_opt);
-    //
-    // TCLAP::ValueArg<int> n_extra_refs_opt("n", "n-extra-refs",
-    //                                       "Number of extra reference files",
-    //                                       false, 0, "int");
-    // cmd.add(n_extra_refs_opt);
-    //
-    // TCLAP::ValueArg<std::string> extra_ref_paths_opt(
-    //     "x", "extra-ref-paths", "The paths to the extra reference files",
-    //     false,
-    //     "", "string (space delimiter)");
-    // cmd.add(extra_ref_paths_opt);
-
-    TCLAP::ValueArg<std::string> qry_path_opt(
-        "q", "query-path", "The path to the query file", true, "", "string");
+    TCLAP::UnlabeledValueArg<std::string> qry_path_opt(
+        "query-path", "The path to the query file", true, "", "string");
     cmd.add(qry_path_opt);
 
-    TCLAP::ValueArg<std::string> output_path_opt("O", "output-path",
-                                                 "The path to the output file",
-                                                 true, "output.sam", "string");
+    TCLAP::UnlabeledValueArg<std::string> output_path_opt(
+        "output-path", "The path to the output file", true, "output.sam",
+        "string");
     cmd.add(output_path_opt);
 
     TCLAP::ValueArg<int> match_opt("m", "match", "Match score: default 2",
@@ -124,8 +98,6 @@ int main(int argc, const char *argv[]) {
     options.push_back("IGH");
     options.push_back("IGL");
     options.push_back("IGK");
-    // the files are probably not going to be named djj.fasta and djd.fasta, so
-    // maybe something else would be better here
     options.push_back("DJ");
     TCLAP::ValuesConstraint<std::string> allowedVals(options);
 
@@ -139,24 +111,7 @@ int main(int argc, const char *argv[]) {
         "string");
     cmd.add(vdj_dir_opt);
 
-    // TCLAP::ValueArg<std::string> locus_opt(
-    //     "l", "locus", "Locus to align reads against: default IGH", false,
-    //     "IGH",
-    //     "string");
-    // cmd.add(locus_opt);
-
     cmd.parse(argc, argv);
-
-    // // ref_path
-    // std::string str_ref_path = ref_path_opt.getValue();
-    // char *ref_path = ToCharArray(str_ref_path);
-    // // n_extra_refs
-    // int n_extra_refs = n_extra_refs_opt.getValue();
-    // // extra_ref_paths
-    // std::string paths = extra_ref_paths_opt.getValue();
-    // char *extra_paths[n_extra_refs + 1];
-    // PathArray(extra_paths, extra_ref_paths_opt.getValue());
-    // const char **extra_ref_paths = (const char **)extra_paths;
 
     // qry_path
     std::string str_qry_path = qry_path_opt.getValue();
@@ -185,6 +140,7 @@ int main(int argc, const char *argv[]) {
     // vdj_dir
     std::string vdj_dir = vdj_dir_opt.getValue();
 
+    // assemble paths
     std::vector<std::string> paths = GetFileName(vdj_dir, locus);
     std::string str_ref_path = paths[0];
     char *ref_path = ToCharArray(str_ref_path);
