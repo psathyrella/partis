@@ -11,13 +11,6 @@ extern "C" {
 #include "ig_align.h"
 }
 
-// Converts string to char array
-char *ToCharArray(std::string str) {
-  char *c_array = new char[str.length() + 1];
-  std::strcpy(c_array, str.c_str());
-  return c_array;
-}
-
 // Gets file name from locus and directory.
 std::vector<std::string> GetFileName(std::string vdj_dir, std::string locus) {
   std::vector<char> genes;
@@ -32,9 +25,9 @@ std::vector<std::string> GetFileName(std::string vdj_dir, std::string locus) {
     genes.push_back('j');
   }
   if (locus == "DJ") {
-    // File name must start with dj for this to work.
     genes.push_back('d');
     genes.push_back('j');
+    locus = "IGH";
   }
   // Converts to lowercase.
   std::transform(locus.begin(), locus.end(), locus.begin(), ::tolower);
@@ -115,10 +108,11 @@ int main(int argc, const char *argv[]) {
 
     // qry_path
     std::string str_qry_path = qry_path_opt.getValue();
-    char *qry_path = ToCharArray(str_qry_path);
+    // char *qry_path = ToCharArray(str_qry_path);
+    char *qry_path = &str_qry_path[0];
     // output_path
     std::string str_out_path = output_path_opt.getValue();
-    char *output_path = ToCharArray(str_out_path);
+    char *output_path = &str_out_path[0];
     // match
     int match = match_opt.getValue();
     // mismatch
@@ -143,13 +137,14 @@ int main(int argc, const char *argv[]) {
     // assemble paths
     std::vector<std::string> paths = GetFileName(vdj_dir, locus);
     std::string str_ref_path = paths[0];
-    char *ref_path = ToCharArray(str_ref_path);
+    // convert to char*
+    char *ref_path = &str_ref_path[0];
 
     int n_extra_refs = paths.size() - 1;
     char *extra_paths[n_extra_refs];
 
     for (int i = 1; i < paths.size(); i++) {
-      extra_paths[i - 1] = ToCharArray(paths[i]);
+      extra_paths[i - 1] = &(paths[i])[0];
     }
     const char **extra_ref_paths = (const char **)extra_paths;
 
