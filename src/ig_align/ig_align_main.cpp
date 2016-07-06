@@ -24,6 +24,8 @@ std::vector<std::string> GetFileName(std::string vdj_dir, std::string locus) {
     genes.push_back('v');
     genes.push_back('j');
   }
+  // DJ rearrangements use the heavy chain genes,
+  // but are incompletely rearranged
   if (locus == "DJ") {
     genes.push_back('d');
     genes.push_back('j');
