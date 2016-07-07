@@ -4,6 +4,8 @@ Issue 2: Tests if Catch is included properly with a trivial test case
 Issue 3: Tests if klib parsing of fastq files is implemented correctly
 Issues 5 and 6: Tests if results from running new ig_align are the same as when
 running old files from ighutil
+Issue 16: Tests if results from running ig_align with new flags are the same as
+the results from ighutil
 */
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
@@ -81,6 +83,18 @@ void OpenFile(std::string filename, std::vector<std::string> &original_file) {
   test_file.close();
 }
 
+// Compares two files to see if they are identcal using TCLAP. Calls OpenFile.
+void CompareFiles(std::string igsw_file, std::string ighutil_file) {
+  std::vector<std::string> original_file;
+  OpenFile(igsw_file, original_file);
+  std::vector<std::string> new_file;
+  OpenFile(ighutil_file, new_file);
+  REQUIRE(original_file.size() == new_file.size());
+  for (int i = 0; i < original_file.size(); i++) {
+    REQUIRE(original_file[i] == new_file[i]);
+  }
+}
+
 // Test cases
 
 TEST_CASE("Issue 2: Trivial pass", "[trivial]") { REQUIRE(1 == 1); }
@@ -149,17 +163,16 @@ TEST_CASE("Issue 5 and 6: Testing align_reads") {
   // Compares results from ig_align_main.cpp to those from ighutil.
   // Run scons in the src/ig_align/ directory before running this command. It
   // will create the ig_align executable.
-  system("./\"ig_align/ig_align\" -q test_data/short_iglv.fasta -o "
-         "test_data/testoutput.sam -r "
-         "test_data/ighv.fasta -n 2 -x "
-         "\"test_data/ighd.fasta test_data/ighj.fasta\" -m 1 "
-         "-i 1 -g 7 -e 1 -d 0"); // Paths and parameters
-  std::vector<std::string> original_file;
-  OpenFile("test_data/testoutput.sam", original_file);
-  std::vector<std::string> ighutil_file;
-  OpenFile("test_data/vdjalign_output.sam", ighutil_file);
-  REQUIRE(original_file.size() == ighutil_file.size());
-  for (int i = 0; i < original_file.size(); i++) {
-    REQUIRE(original_file[i] == ighutil_file[i]);
-  }
+  system("./\"ig_align/ig_align\"  test_data/short_iglv.fasta "
+         "test_data/testoutput.sam -p test_data/ -m 1 -u 1 -o 7 -e 1 -d 0");
+  CompareFiles("test_data/testoutput.sam", "test_data/vdjalign_output.sam");
+}
+
+TEST_CASE("Issue 16: Testing with new flags") {
+  // This requires scons as well.
+  system("./\"ig_align/ig_align\" test_data/16test_100.fastq "
+         "test_data/16test_100output.sam -p test_data/ -m 1 -u 1 -o 7 -e 1 -d "
+         "0");
+  CompareFiles("test_data/16test_100output.sam",
+               "test_data/vdjalign_16test_100output.sam");
 }
