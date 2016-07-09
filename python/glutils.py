@@ -292,6 +292,15 @@ def read_glfo(datadir, chain, only_genes=None, generate_new_alignment=False, ski
     clean_up_glfo(glfo, debug=debug)  # remove any extra info
     # check_codon_positions(glfo)
     add_missing_glfo(glfo, generate_new_alignment=generate_new_alignment, debug=debug)
+
+# ----------------------------------------------------------------------------------------
+    for region in utils.regions:
+        for gene, seq in glfo['seqs'][region].items():
+            filtered_aligned_seg = glfo['aligned-seqs'][region][gene].translate(None, ''.join(utils.gap_chars))
+            if seq != filtered_aligned_seg:
+                raise Exception('aligned and unaligned sequences don\'t match for %s:\n    %s\n    %s' % (utils.color_gene(gene), filtered_aligned_seg, seq))
+# ----------------------------------------------------------------------------------------
+
     restrict_to_genes(glfo, only_genes, debug=debug)
     if debug:
         print '  read %s' % '  '.join([('%s: %d' % (r, len(glfo['seqs'][r]))) for r in utils.regions])
