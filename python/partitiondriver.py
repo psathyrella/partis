@@ -1177,13 +1177,13 @@ class PartitionDriver(object):
             reader = csv.DictReader(hmm_csv_outfile)
             for padded_line in reader:  # line coming from hmm output is N-padded such that all the seqs are the same length
 
+                utils.process_input_line(padded_line)
                 n_lines_read += 1
 
                 failed = self.check_did_bcrham_fail(padded_line, boundary_error_queries)
                 if failed:
                     continue
 
-                utils.process_input_line(padded_line)
                 uids = padded_line['unique_ids']
                 uidstr = ':'.join(uids)
                 padded_line['indelfos'] = [self.sw_info['indels'].get(uid, utils.get_empty_indel()) for uid in uids]
