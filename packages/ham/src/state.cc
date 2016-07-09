@@ -75,7 +75,7 @@ void State::RescaleOverallMuteFreq(double factor) {
   if(germline_nuc_ == ambiguous_char_ || germline_nuc_ == "")  // if the germline state is N, or if this state has no germline (most likely fv or jf insertion)
     return;
 
-  if(factor <= 0.0 || factor > 100.)  // 100. is arbitrary... but it used to be 10. Still seems like it shouldn't be too big? But not sure that it really matters.
+  if(factor <= 0.0 || factor > 15.)  // 15 is pretty much arbitrary, but back when I understood this code I thought it was important that the factor not be too big (which would, I think, indicate that the sequence at hand had a very, very different mutation rate to that used to build the hmm)
     cout << "very large factor in State::RescaleOverallMuteFreq: " << to_string(factor) << endl;
 
   assert(emission_.track()->symbol_index(germline_nuc_) < emission_.track()->alphabet_size());  // this'll throw an exception on the symbol_index call if the germline nuc is bad
