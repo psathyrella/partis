@@ -139,7 +139,7 @@ forbidden_characters = set([':', ';', ','])  # strings that are not allowed in s
 functional_columns = ['mutated_invariant', 'in_frame', 'stop']
 
 column_configs = {
-    'ints' : ('nth_best', 'v_5p_del', 'd_5p_del', 'cdr3_length', 'j_5p_del', 'j_3p_del', 'd_3p_del', 'v_3p_del'),
+    'ints' : ('nth_best', 'v_5p_del', 'd_5p_del', 'cdr3_length', 'j_5p_del', 'j_3p_del', 'd_3p_del', 'v_3p_del'),  # , 'padlefts', 'padrights'),
     'floats' : ('logprob'),
     'bools' : tuple([fc + 's' for fc in functional_columns]),
     'literals' : ('indelfos'),
@@ -147,6 +147,7 @@ column_configs = {
                     ['aligned_' + r + '_seqs' for r in regions] + \
                     [r + '_per_gene_support' for r in regions] + \
                     [fc + 's' for fc in functional_columns]),
+                    # ['padlefts', 'padrights']),
     'lists-of-string-float-pairs' : [r + '_per_gene_support' for r in regions]
 }
 
@@ -159,7 +160,7 @@ xcolumns['per_family'] = tuple(['naive_seq', 'cdr3_length', 'cyst_position', 'tr
                                [b + '_insertion' for b in boundaries + effective_boundaries] + \
                                [r + '_gl_seq' for r in regions] + \
                                [r + '_per_gene_support' for r in regions])
-xcolumns['single_per_seq'] = tuple(['seq', 'unique_id', 'indelfo'] + [r + '_qr_seq' for r in regions] + ['aligned_' + r + '_seq' for r in regions] + functional_columns)
+xcolumns['single_per_seq'] = tuple(['seq', 'unique_id', 'indelfo'] + [r + '_qr_seq' for r in regions] + ['aligned_' + r + '_seq' for r in regions] + functional_columns)  # + ['padleft', 'padright'])
 xcolumns['multi_per_seq'] = tuple([k + 's' for k in xcolumns['single_per_seq']])
 xcolumns['hmm'] = tuple(['logprob', 'errors', 'nth_best'])
 xcolumns['sw'] = tuple(['k_v', 'k_d', 'all'])
@@ -329,6 +330,10 @@ def int_to_nucleotide(number):
     else:
         print 'ERROR nucleotide number not in [0,3]'
         sys.exit()
+
+#----------------------------------------------------------------------------------------
+def remove_gaps(seq):
+    return seq.translate(None, ''.join(gap_chars))
 
 # ----------------------------------------------------------------------------------------
 def check_conserved_cysteine(seq, cyst_position, debug=False, extra_str='', assert_on_fail=True):
@@ -564,7 +569,7 @@ def disambiguate_effective_insertions(bound, line, seq, unique_id, debug=False):
     return trimmed_seq, final_insertion, insertion_to_remove
 
 # ----------------------------------------------------------------------------------------
-def reset_effective_erosions_and_effective_insertions(glfo, padded_line, debug=False):
+def reset_effective_erosions_and_effective_insertions(glfo, padded_line, debug=False):  # , padfo=None
     """
     Ham does not allow (well, no longer allows) v_5p and j_3p deletions -- we instead pad sequences with Ns.
     This means that the info we get from ham always has these effective erosions set to zero, but for downstream
@@ -625,6 +630,11 @@ def reset_effective_erosions_and_effective_insertions(glfo, padded_line, debug=F
 
     line['fv_insertion'] = final_fv_insertion
     line['jf_insertion'] = final_jf_insertion
+
+    # if padfo is None:
+    #     line['padlefts'], line['padrights'] = [0 for _ in range(len(line['seqs']))], [0 for _ in range(len(line['seqs']))]
+    # else:
+    #     line['padlefts'], line['padrights'] = [padfo[uid]['padded']['padleft'] for uid in line['unique_ids']], [padfo[uid]['padded']['padright'] for uid in line['unique_ids']]
 
     add_implicit_info(glfo, line, multi_seq=True)
 
@@ -2009,6 +2019,16 @@ def count_gaps(seq, istop=None):
 
 # ----------------------------------------------------------------------------------------
 def add_regional_alignments(glfo, line, multi_seq, region, debug=False):
+    # ----------------------------------------------------------------------------------------
+    # TODO fix to work if user passes in a fasta with alignments
+    if multi_seq:
+        line['aligned_' + region + '_seqs'] = [None for _ in range(len(line['seqs']))]
+    else:
+        line['aligned_' + region + '_seq'] = ''
+    return
+    # ----------------------------------------------------------------------------------------
+
+    debug = True
     if not multi_seq:  # TODO implement this
         line['aligned_' + region + '_seq'] = 'ack!'
         return
@@ -2030,6 +2050,7 @@ def add_regional_alignments(glfo, line, multi_seq, region, debug=False):
 
         n_gaps = sum([aligned_gl_seq.count(gc) for gc in gap_chars])
         if len(aligned_gl_seq) != line[region + '_5p_del'] + len(gl_seq) + line[region + '_3p_del'] + n_gaps:
+            print len(aligned_gl_seq), line[region + '_5p_del'], len(gl_seq), line[region + '_3p_del'], n_gaps
             line['invalid'] = True
             continue
 

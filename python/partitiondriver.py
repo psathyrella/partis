@@ -31,7 +31,7 @@ class PartitionDriver(object):
         self.current_action = action  # *not* necessarily the same as <self.args.action>
         utils.prep_dir(self.args.workdir)
         self.my_datadir = self.args.workdir + '/' + glutils.glfo_dir
-        self.glfo = glutils.read_glfo(initial_datadir, chain=self.args.chain, only_genes=self.args.only_genes, generate_new_alignment=self.args.generate_new_alignment)
+        self.glfo = glutils.read_glfo(initial_datadir, chain=self.args.chain, only_genes=self.args.only_genes)
         glutils.write_glfo(self.my_datadir, self.glfo)  # need a copy on disk for vdjalign and bcrham (note that what we write to <self.my_datadir> in general differs from what's in <initial_datadir>)
 
         self.input_info, self.reco_info = None, None
@@ -65,11 +65,15 @@ class PartitionDriver(object):
             if outdir != '' and not os.path.exists(outdir):
                 os.makedirs(outdir)
 
-        if self.args.persistent_cachefname is not None:
-            if os.path.exists(self.args.persistent_cachefname):  # if it exists, copy it to workdir
-                check_call(['cp', '-v', self.args.persistent_cachefname, self.hmm_cachefname])
-            else:  # otherwise create it with just headers
-                pass  # hm, maybe do it in ham
+        self.annotation_headers = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'seqs', 'naive_seq', 'indelfos'] \
+                                  + ['aligned_' + r + '_seqs' for r in utils.regions] \
+                                  + [r + '_per_gene_support' for r in utils.regions] \
+                                  + [e + '_del' for e in utils.real_erosions + utils.effective_erosions] + [b + '_insertion' for b in utils.boundaries + utils.effective_boundaries] \
+                                  + [fc + 's' for fc in utils.functional_columns] \
+                                  + ['padlefts', 'padrights']
+
+        self.partition_cachefile_headers = ('unique_ids', 'logprob', 'naive_seq', 'naive_hfrac', 'errors')  # these have to match whatever bcrham is expecting
+        self.deal_with_persistent_cachefile()
 
     # ----------------------------------------------------------------------------------------
     def __del__(self):
@@ -94,6 +98,30 @@ class PartitionDriver(object):
             os.rmdir(self.args.workdir)
         except OSError:
             raise Exception('workdir (%s) not empty: %s' % (self.args.workdir, ' '.join(os.listdir(self.args.workdir))))  # hm... you get weird recursive exceptions if you get here. Oh, well, it still works
+
+    # ----------------------------------------------------------------------------------------
+    def deal_with_persistent_cachefile(self):
+        if self.args.persistent_cachefname is None or not os.path.exists(self.args.persistent_cachefname):  # nothin' to do (ham'll initialize it)
+            return
+
+        with open(self.args.persistent_cachefname) as cachefile:
+            reader = csv.DictReader(cachefile)
+            if set(reader.fieldnames) == set(self.annotation_headers):
+                raise Exception('doesn\'t work yet')
+                print '  parsing annotation output file %s to partition cache file %s' % (self.args.persistent_cachefname, self.hmm_cachefname)
+                with open(self.hmm_cachefname, 'w') as outcachefile:
+                    writer = csv.DictWriter(outcachefile, self.partition_cachefile_headers)
+                    writer.writeheader()
+                    for line in reader:
+                        if line['v_gene'] == '':  # failed
+                            continue
+                        utils.process_input_line(line)
+                        outrow = {'unique_ids' : line['unique_ids'], 'naive_seq' : line['padlefts'][0] * utils.ambiguous_bases[0] + line['naive_seq'] + line['padrights'][0] * utils.ambiguous_bases[0]}
+                        writer.writerow(outrow)
+            elif set(reader.fieldnames) == set(self.partition_cachefile_headers):  # headers are ok, so can just copy straight over
+                check_call(['cp', '-v', self.args.persistent_cachefname, self.hmm_cachefname])
+            else:
+                raise Exception('--persistent-cachefname %s has unexpected header list %s' % (self.args.persistent_cachefname, reader.fieldnames))
 
     # ----------------------------------------------------------------------------------------
     def run_waterer(self, parameter_dir, write_parameters=False, find_new_alleles=False):
@@ -980,11 +1008,9 @@ class PartitionDriver(object):
             print '      cache file exists, not writing fake true naive seqs'
             return
 
-        headers = ['unique_ids', 'logprob', 'naive_seq', 'naive_hfrac', 'cyst_position', 'errors']  # these have to match whatever bcrham is expecting
-
         print '      caching fake true naive seqs'
         with open(self.hmm_cachefname, 'w') as fakecachefile:
-            writer = csv.DictWriter(fakecachefile, headers)
+            writer = csv.DictWriter(fakecachefile, self.partition_cachefile_headers)
             writer.writeheader()
             for query_name_list in nsets:
                 writer.writerow({
@@ -1168,10 +1194,11 @@ class PartitionDriver(object):
                     n_invalid_events += 1
                     if self.args.debug:
                         print '      %s padded line invalid' % uidstr
+                        utils.print_reco_event(self.glfo['seqs'], padded_line, extra_str='    ', label='invalid:')
                     continue
 
                 # get a new dict in which we have edited the sequences to swap Ns on either end (after removing fv and jf insertions) for v_5p and j_3p deletions
-                eroded_line = utils.reset_effective_erosions_and_effective_insertions(self.glfo, padded_line)
+                eroded_line = utils.reset_effective_erosions_and_effective_insertions(self.glfo, padded_line)  #, padfo=self.sw_info)
                 if eroded_line['invalid']:  # not really sure why the eroded line is sometimes invalid when the padded line is not, but it's very rare and I don't really care, either
                     n_invalid_events += 1
                     continue
@@ -1219,9 +1246,12 @@ class PartitionDriver(object):
         if perfplotter is not None:
             perfplotter.plot(self.args.plotdir + '/hmm', only_csv=self.args.only_csv_plots)
 
-        print '        %d lines:  processed %d sequences in %d events (skipped %d invalid events)' % (n_lines_read, n_seqs_processed, n_events_processed, n_invalid_events)
+        print '        %d lines:  processed %d sequences in %d events' % (n_lines_read, n_seqs_processed, n_events_processed)
+        if n_invalid_events > 0:
+            print '          %s skipped %d invalid events' % (utils.color('red', 'warning'), n_invalid_events),
+        print ''
         if len(self.bcrham_failed_queries) > 0:
-            print '      no valid paths: %s' % ':'.join(self.bcrham_failed_queries)
+            print '          %s no valid paths: %s' % (utils.color('red', 'warning'), ':'.join(self.bcrham_failed_queries))
         if len(boundary_error_queries) > 0:
             print '      %d boundary errors' % len(boundary_error_queries)
             if self.args.debug:
@@ -1298,14 +1328,8 @@ class PartitionDriver(object):
         if outpath[0] != '/':  # if full output path wasn't specified on the command line, write to current directory
             outpath = os.getcwd() + '/' + outpath
 
-        outheader = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'seqs', 'naive_seq', 'indelfos']
-        outheader += ['aligned_' + r + '_seqs' for r in utils.regions]
-        outheader += [r + '_per_gene_support' for r in utils.regions]
-        outheader += [e + '_del' for e in utils.real_erosions + utils.effective_erosions] + [b + '_insertion' for b in utils.boundaries + utils.effective_boundaries]
-        outheader += [fc + 's' for fc in utils.functional_columns]
-
         with open(outpath, 'w') as outfile:
-            writer = csv.DictWriter(outfile, outheader)
+            writer = csv.DictWriter(outfile, self.annotation_headers)
             writer.writeheader()
             missing_input_keys = set(self.input_info.keys())  # all the keys we originially read from the file
             for full_line in annotations.values():
@@ -1315,7 +1339,7 @@ class PartitionDriver(object):
                     missing_input_keys.remove(uid)
 
                 outline = utils.get_line_for_output(outline)  # convert lists to colon-separated strings and whatnot
-                outline = {k : v for k, v in outline.items() if k in outheader}  # remove the columns we don't want to output
+                outline = {k : v for k, v in outline.items() if k in self.annotation_headers}  # remove the columns we don't want to output
 
                 writer.writerow(outline)
 
@@ -1330,10 +1354,10 @@ class PartitionDriver(object):
             outstr = check_output(['mv', '-v', self.args.outfname, self.args.outfname + '.partis'])
             print '    backing up partis output before converting to presto: %s' % outstr.strip()
 
-            outheader = utils.presto_headers.values()
+            prestoheader = utils.presto_headers.values()
             imgt_gapped_glfo = self.glfo  # possibly not actually imgt-gapped, if we had to add missing alignments
             with open(outpath, 'w') as outfile:
-                writer = csv.DictWriter(outfile, outheader)
+                writer = csv.DictWriter(outfile, prestoheader)
                 writer.writeheader()
 
                 for full_line in annotations.values():
@@ -1345,7 +1369,7 @@ class PartitionDriver(object):
                     outline = utils.convert_to_presto_headers(outline, multi_seq=True)
 
                     outline = utils.get_line_for_output(outline)  # convert lists to colon-separated strings and whatnot
-                    outline = {k : v for k, v in outline.items() if k in outheader}  # remove the columns we don't want to output
+                    outline = {k : v for k, v in outline.items() if k in prestoheader}  # remove the columns we don't want to output
 
                     writer.writerow(outline)
 

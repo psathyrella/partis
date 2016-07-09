@@ -17,31 +17,27 @@ glfo_dir = 'germline-sets'  # always put germline info into a subdir with this n
 def glfo_csv_fnames():
     return [cdn + '-positions.csv' for cdn in utils.conserved_codons.values()]
 def glfo_fasta_fnames(chain):
-    return ['ig' + chain + r + algn + '.fasta' for r in utils.regions for algn in ('', '-aligned')]
+    return ['ig' + chain + r + '.fasta' for r in utils.regions]
 def glfo_fnames(chain):
     return glfo_csv_fnames() + glfo_fasta_fnames(chain)
 
 # fasta file names including all chains
 def all_glfo_fasta_fnames():
-    return ['ig' + chain + r + algn + '.fasta' for chain in utils.chains for r in utils.regions for algn in ('', '-aligned')]
+    return ['ig' + chain + r + '.fasta' for chain in utils.chains for r in utils.regions]
 
 imgt_info_indices = ('accession-number', 'gene', 'species', 'functionality', '', '', '', '', '', '', '', '', '')  # I think this is the right number of entries, but it doesn't really matter
 functionalities = set(['F', 'ORF', 'P', '(F)', '[F]', '[ORF]'])   # not actually sure what the last two mean
 
 #----------------------------------------------------------------------------------------
 def read_germline_seqs(datadir, chain, skip_pseudogenes):
-    seqs, aligned_seqs = {r : OrderedDict() for r in utils.regions}, {r : OrderedDict() for r in utils.regions}
-    fill_in_unaligned_seqs = {r : False for r in utils.regions}
+    seqs = {r : OrderedDict() for r in utils.regions}
     n_skipped_pseudogenes = 0
     for fname in glfo_fasta_fnames(chain):
-        if 'aligned' not in fname and not os.path.exists(datadir + '/' + chain + '/' + fname):  # if we have no un-aligned files, it's ok 'cause we can make those from the aligned ones
-            print '      file d.n.e. %s' % fname
-            fill_in_unaligned_seqs[utils.get_region(fname)] = True
-            continue
-        infodict = aligned_seqs if 'aligned' in fname else seqs
         for seq_record in SeqIO.parse(datadir + '/' + chain + '/' + fname, 'fasta'):
             linefo = [p.strip() for p in seq_record.description.split('|')]
-            if linefo[0][:2] != 'IG':  # if it's an imgt file, with a bunch of header info and the accession number first
+
+            # first get gene name
+            if linefo[0][:2] != 'IG':  # if it's an imgt file, with a bunch of header info (and the accession number first)
                 gene = linefo[imgt_info_indices.index('gene')]
                 functionality = linefo[imgt_info_indices.index('functionality')]
                 if functionality not in functionalities:
@@ -52,126 +48,106 @@ def read_germline_seqs(datadir, chain, skip_pseudogenes):
             else:  # plain fasta with just the gene name after the '>'
                 gene = linefo[0]
             utils.split_gene(gene)  # just to check if it's a valid gene name
-            seq = str(seq_record.seq).upper()
+            if utils.get_region(gene) != utils.get_region(fname):
+                raise Exception('gene %s from %s has unexpected region %s' % (gene, fname, utils.get_region(gene)))
+
+            # then the sequence
+            seq = utils.remove_gaps(str(seq_record.seq).upper())  # if the fasta has aligned seqs, we want to remove the gap chars
             if len(seq.strip(''.join(utils.expected_characters))) > 0:  # return the empty string if it only contains expected characters
-                raise Exception('unexpected characters in %s (expected %s)' % (seq, ' '.join(utils.expected_characters)))
-            infodict[utils.get_region(gene)][gene] = seq
+                raise Exception('unexpected character %s in %s (expected %s)' % (seq.strip(''.join(utils.expected_characters)), seq, ' '.join(utils.expected_characters)))
+
+            seqs[utils.get_region(gene)][gene] = seq
+
     if n_skipped_pseudogenes > 0:
         print '    skipped %d pseudogenes' % n_skipped_pseudogenes
-    for region in utils.regions:
-        if fill_in_unaligned_seqs[region]:
-            print '  filling unaligned %s seqs from aligned ones' % region
-            for gene, seq in aligned_seqs[region].items():
-                seqs[region][gene] = seq.translate(None, ''.join(utils.gap_chars))
-    return seqs, aligned_seqs
 
-#----------------------------------------------------------------------------------------
-def clean_up_glfo(glfo, debug=False):
-    """ remove any genes in 'aligned-seqs' and codon position info that aren't in 'seqs' """
-    desired_genes = set([g for r in utils.regions for g in glfo['seqs'][r]])
-    n_aligned_removed = 0
-    for gene in [g for r in utils.regions for g in glfo['aligned-seqs'][r]]:
-        if gene not in desired_genes:
-            n_aligned_removed += 1
-            del glfo['aligned-seqs'][utils.get_region(gene)][gene]
-    n_codon_removed = {c : 0 for c in utils.conserved_codons.values()}
-    for codon in utils.conserved_codons.values():
-        for gene in glfo[codon + '-positions'].keys():
-            if gene not in desired_genes:
-                n_codon_removed[codon] += 1
-                del glfo[codon + '-positions'][gene]
-    if debug:
-        print '    removed %d genes from aligned seqs, %s' % (n_aligned_removed, ' and '.join([('%d from %s positions' % (n_codon_removed[c], c)) for c in utils.conserved_codons.values()]))
+    return seqs
 
 # ----------------------------------------------------------------------------------------
-def get_new_alignments(glfo, debug=False):
-    """
-    Pass genes with alignments (from 'aligned-seqs') and those without alignments (anything in 'seqs' that isn't in 'aligned-seqs') into mafft,
-    and replace all existing alignments (i.e. 'aligned-seqs') with the resulting msa.
-    """
-    for region in utils.regions:
-        if debug:
-            print region
-        genes_with_alignments = set(glfo['aligned-seqs'][region])
-        genes_without_alignments = set(glfo['seqs'][region]) - set(glfo['aligned-seqs'][region])
-        if len(genes_without_alignments) == 0:
-            if debug:
-                print '  no missing alignments'
-            continue
+def get_new_alignments(glfo, region, debug=False):
+    aligned_seqs = {}
 
+    genes_with_alignments = set(aligned_seqs)  # used to already have some sequences aligned, and may as well keep around the code to handle that case
+    genes_without_alignments = set(glfo['seqs'][region]) - set(aligned_seqs)
+    if len(genes_without_alignments) == 0:
         if debug:
-            print '  missing alignments for %d genes: %s' % (len(genes_without_alignments), ' '.join([utils.color_gene(g) for g in genes_without_alignments]))
+            print '  no missing %s alignments' % region
+        return
+
+    if debug:
+        print '  missing alignments for %d %s genes' % (len(genes_without_alignments), region)
+        if len(aligned_seqs) > 0:
             print '  existing alignments:'
-            for g, seq in glfo['aligned-seqs'][region].items():
+            for g, seq in aligned_seqs.items():
                 print '    %s   %s' % (seq, utils.color_gene(g))
-        if region == 'v':
-            raise Exception('missing V alignments, and if we run mafft we\'ll no longer have imgt gapping, so you have to add them by hand:\n    %s' % ' '.join([utils.color_gene(g) for g in genes_without_alignments]))
 
-        # find the longest aligned sequence, so we can pad everybody else with dots on the right out to that length
-        biggest_length = None
+    # find the longest aligned sequence, so we can pad everybody else with dots on the right out to that length
+    biggest_length = None
+    for gene in genes_with_alignments:
+        if biggest_length is None or len(aligned_seqs[gene]) > biggest_length:
+            biggest_length = len(aligned_seqs[gene])
+
+    tmpdir = '/tmp'
+    already_aligned_fname = tmpdir + '/already-aligned.fasta'
+    not_aligned_fname = tmpdir + '/not-aligned.fasta'
+    msa_table_fname = tmpdir + '/msa-table.txt'
+    aligned_and_not_fnamefname = tmpdir + '/aligned-and-not.fasta'
+    mafft_outfname = tmpdir + '/everybody-aligned.fasta'
+    with open(already_aligned_fname, 'w') as tmpfile, open(msa_table_fname, 'w') as msafile:
+        mysterious_index = 1
+        msa_str = ''
         for gene in genes_with_alignments:
-            if biggest_length is None or len(glfo['aligned-seqs'][region][gene]) > biggest_length:
-                biggest_length = len(glfo['aligned-seqs'][region][gene])
+            dotstr = '.' * (biggest_length - len(aligned_seqs[gene]))
+            alistr = aligned_seqs[gene] + dotstr
+            tmpfile.write('>%s\n%s\n' % (gene, alistr.replace('.', '-')))
+            msa_str += ' ' + str(mysterious_index)
+            mysterious_index += 1
+        msafile.write('%s # %s\n' % (msa_str, already_aligned_fname))
+    with open(not_aligned_fname, 'w') as tmpfile:
+        for gene in genes_without_alignments:
+            tmpfile.write('>%s\n%s\n' % (gene, glfo['seqs'][region][gene]))
 
-        tmpdir = '/tmp'
-        already_aligned_fname = tmpdir + '/already-aligned.fasta'
-        not_aligned_fname = tmpdir + '/not-aligned.fasta'
-        msa_table_fname = tmpdir + '/msa-table.txt'
-        aligned_and_not_fnamefname = tmpdir + '/aligned-and-not.fasta'
-        mafft_outfname = tmpdir + '/everybody-aligned.fasta'
-        with open(already_aligned_fname, 'w') as tmpfile, open(msa_table_fname, 'w') as msafile:
-            mysterious_index = 1
-            msa_str = ''
-            for gene in genes_with_alignments:
-                dotstr = '.' * (biggest_length - len(glfo['aligned-seqs'][region][gene]))
-                alistr = glfo['aligned-seqs'][region][gene] + dotstr
-                tmpfile.write('>%s\n%s\n' % (gene, alistr.replace('.', '-')))
-                msa_str += ' ' + str(mysterious_index)
-                mysterious_index += 1
-            msafile.write('%s # %s\n' % (msa_str, already_aligned_fname))
-        with open(not_aligned_fname, 'w') as tmpfile:
-            for gene in genes_without_alignments:
-                tmpfile.write('>%s\n%s\n' % (gene, glfo['seqs'][region][gene]))
+    check_call('cat ' + already_aligned_fname + ' ' + not_aligned_fname + ' >' + aligned_and_not_fnamefname, shell=True)
 
-        check_call('cat ' + already_aligned_fname + ' ' + not_aligned_fname + ' >' + aligned_and_not_fnamefname, shell=True)
+    # actually run mafft
+    cmd = 'mafft --merge ' + msa_table_fname + ' ' + aligned_and_not_fnamefname + ' >' + mafft_outfname  # options=  # "--localpair --maxiterate 1000"
+    if debug:
+        print '    RUN %s' % cmd
+    proc = Popen(cmd, shell=True, stderr=PIPE)
+    _, err = proc.communicate()  # debug info goes to err
 
-        # actually run mafft
-        cmd = 'mafft --merge ' + msa_table_fname + ' ' + aligned_and_not_fnamefname + ' >' + mafft_outfname  # options=  # "--localpair --maxiterate 1000"
-        if debug:
-            print '    RUN %s' % cmd
-        proc = Popen(cmd, shell=True, stderr=PIPE)
-        _, err = proc.communicate()  # debug info goes to err
+    if debug and False:  # aw, screw it, I don't even know what any of mafft's output means
+        # deal with debug info (for err -- out gets redirected to a file)
+        err = err.replace('\r', '\n')
+        printstrs = []
+        for errstr in err.split('\n'):  # remove the stupid progress bar things
+            matches = re.findall('[0-9][0-9]* / [0-9][0-9]*', errstr)
+            if len(matches) == 1 and errstr.strip() == matches[0]:
+                continue
+            if len(errstr) == 0:
+                continue
+            printstrs.append(errstr)
+        print '        ' + '\n        '.join(printstrs)
 
-        if debug and False:  # aw, screw it, I don't even know what any of mafft's output means
-            # deal with debug info (for err -- out gets redirected to a file)
-            err = err.replace('\r', '\n')
-            printstrs = []
-            for errstr in err.split('\n'):  # remove the stupid progress bar things
-                matches = re.findall('[0-9][0-9]* / [0-9][0-9]*', errstr)
-                if len(matches) == 1 and errstr.strip() == matches[0]:
-                    continue
-                if len(errstr) == 0:
-                    continue
-                printstrs.append(errstr)
-            print '        ' + '\n        '.join(printstrs)
+    # deal with fasta output
+    for seq_record in SeqIO.parse(mafft_outfname, 'fasta'):
+        gene = seq_record.name.split('|')[0]
+        seq = str(seq_record.seq).upper()
+        if gene not in glfo['seqs'][region]:  # only really possible if there's a bug in the preceding fifty lines, but oh well, you can't be too careful
+            raise Exception('unexpected gene %s in mafft output' % gene)
+        aligned_seqs[gene] = seq  # overwrite the old alignment with the new one
+    if debug and False:  # too damn verbose with all the v genes
+        print '  new alignments:'
+        for g, seq in aligned_seqs.items():
+            print '    %s   %s  %s' % (seq, utils.color_gene(g), '<--- new' if g in genes_without_alignments else '')
 
-        # deal with fasta output
-        for seq_record in SeqIO.parse(mafft_outfname, 'fasta'):
-            gene = seq_record.name.split('|')[0]
-            seq = str(seq_record.seq).upper()
-            if gene not in glfo['seqs'][region]:  # only really possible if there's a bug in the preceding fifty lines, but oh well, you can't be too careful
-                raise Exception('unexpected gene %s in mafft output' % gene)
-            glfo['aligned-seqs'][region][gene] = seq  # overwrite the old alignment with the new one
-        if debug:
-            print '  new alignments:'
-            for g, seq in glfo['aligned-seqs'][region].items():
-                print '    %s   %s  %s' % (seq, utils.color_gene(g), '<--- new' if g in genes_without_alignments else '')
+    os.remove(already_aligned_fname)
+    os.remove(not_aligned_fname)
+    os.remove(msa_table_fname)
+    os.remove(aligned_and_not_fnamefname)
+    os.remove(mafft_outfname)
 
-        os.remove(already_aligned_fname)
-        os.remove(not_aligned_fname)
-        os.remove(msa_table_fname)
-        os.remove(aligned_and_not_fnamefname)
-        os.remove(mafft_outfname)
+    return aligned_seqs
 
 #----------------------------------------------------------------------------------------
 def get_missing_codon_info(glfo, debug=False):
@@ -206,31 +182,39 @@ def get_missing_codon_info(glfo, debug=False):
         if debug:
             print '      missing %d %s positions' % (len(missing_genes), codon)
 
+        aligned_seqs = get_new_alignments(glfo, region, debug=debug)
+
         # if region == 'j':
         #     raise Exception('missing tryp position for %s, and we can\'t infer it because tryp positions don\'t reliably align to the same position' % ' '.join(missing_genes))
 
         # existing codon position (this assumes that once aligned, all genes have the same codon position -- which is only really true for the imgt-gapped alignment)
         if len(glfo[codon + '-positions']) > 0:
-            known_gene, known_pos = glfo[codon + '-positions'].iteritems().next()  # just take the "first" one
-            # NOTE for cyst, should be 309 (imgt says 104th codon --> subtract 1 to get zero-indexing, then multiply by three 3 * (104 - 1) = 309
-            known_pos_in_alignment = get_pos_in_alignment(codon, glfo['aligned-seqs'][region][known_gene], glfo['seqs'][region][known_gene], known_pos)
+            known_gene, known_pos = None, None
+            for gene, pos in glfo[codon + '-positions'].items():  # take the first one for which we have the sequence (NOTE it would be safer to check that they're all the same)
+                if gene in glfo['seqs'][region] and gene in aligned_seqs:
+                    known_gene, known_pos = gene, pos
+                    break
+            if known_gene is None:
+                raise Exception('couldn\'t find a known %s position' % codon)
+            # NOTE for cyst, should be 309 if alignments are imgt [which they used to usually be, but now probably aren't] (imgt says 104th codon --> subtract 1 to get zero-indexing, then multiply by three 3 * (104 - 1) = 309
+            known_pos_in_alignment = get_pos_in_alignment(codon, aligned_seqs[known_gene], glfo['seqs'][region][known_gene], known_pos)
             if debug:
                 print '      using known position %d (aligned %d) in %s' % (known_pos, known_pos_in_alignment, known_gene)
         elif codon == 'cyst':
             known_pos_in_alignment = 309
-            print '      assuming aligned %s position is %d' % (codon, known_pos_in_alignment)
+            print '      assuming aligned %s position is %d (this will %s work if you\'re using imgt alignments)' % (codon, known_pos_in_alignment, utils.color('red', only))
         else:
             raise Exception('no existing %s info, and couldn\'t guess it, either' % codon)
 
         n_added, n_ok, n_too_short, n_bad_codons = 0, 0, 0, 0
         for gene in missing_genes:
-            unaligned_pos = known_pos_in_alignment - utils.count_gaps(glfo['aligned-seqs'][region][gene], istop=known_pos_in_alignment)
+            unaligned_pos = known_pos_in_alignment - utils.count_gaps(aligned_seqs[gene], istop=known_pos_in_alignment)
             seq_to_check = glfo['seqs'][region][gene]
             if len(seq_to_check) < unaligned_pos + 3:
                 n_too_short += 1
             else:
                 try:
-                    utils.check_codon(codon, seq_to_check, unaligned_pos, debug=True)
+                    utils.check_codon(codon, seq_to_check, unaligned_pos, debug=True, extra_str='          ')
                     n_ok += 1
                 except AssertionError:
                     n_bad_codons += 1
@@ -238,19 +222,6 @@ def get_missing_codon_info(glfo, debug=False):
             glfo[codon + '-positions'][gene] = unaligned_pos
         if debug:
             print '    added %d %s positions (%d ok, %d seq was too short, %d were \'mutated\')' % (n_added, codon, n_ok, n_too_short, n_bad_codons)
-
-#----------------------------------------------------------------------------------------
-def add_missing_glfo(glfo, generate_new_alignment=False, debug=False):
-    genes_without_alignments = set([g for r in utils.regions for g in set(glfo['seqs'][r]) - set(glfo['aligned-seqs'][r])])
-    if len(genes_without_alignments) > 0:
-        if generate_new_alignment:  # replace existing alignment, which is missing some genes, with a new one that includes everybody
-            get_new_alignments(glfo, debug=debug)
-        else:
-            raise Exception('missing alignments for %d genes %s (set --generate-new-alignment if you want to attempt to figure out new ones)' % (len(genes_without_alignments), ' '.join(genes_without_alignments)))
-    elif debug:
-        print '    no missing alignments'
-
-    get_missing_codon_info(glfo, debug=debug)
 
 # ----------------------------------------------------------------------------------------
 def read_codon_positions(csvfname):
@@ -264,20 +235,14 @@ def read_codon_positions(csvfname):
     return positions
 
 #----------------------------------------------------------------------------------------
-def check_codon_positions(glfo):
-    for codon in utils.conserved_codons.values():
-        for gene, istart in glfo[codon + '-positions'].items():
-            utils.check_codon(codon, glfo['seqs'][utils.get_region(gene)][gene], istart, debug=True)
-
-#----------------------------------------------------------------------------------------
-def read_glfo(datadir, chain, only_genes=None, generate_new_alignment=False, skip_pseudogenes=True, debug=False):
+def read_glfo(datadir, chain, only_genes=None, skip_pseudogenes=True, debug=False):
 
     # ----------------------------------------------------------------------------------------
     # warn about backwards compatibility breakage
     if not os.path.exists(datadir + '/' + chain):
         raise Exception("""
         Germline set directory \'%s\' does not exist.
-        This is probably because as of v0.6.0 we switched to per-dataset germline sets, which means the germline set fastas have to be *within* --parameter-dir.
+        Unless you\'ve specified a nonexistent --initial-datadir, this is probably because as of v0.6.0 we switched to per-dataset germline sets, which means the germline set fastas have to be *within* --parameter-dir.
         You will, unfortunately, need to delete your existing --parameter-dir and generate a new one (either explicitly with \'cache-parameters\', or just re-run whatever action you were running, and it'll do it automatically when it can\'t find the directory you deleted).
         Sorry! We promise this is better in the long term, though.
         """ % (datadir + '/' + chain))
@@ -286,21 +251,10 @@ def read_glfo(datadir, chain, only_genes=None, generate_new_alignment=False, ski
     if debug:
         print '  reading %s chain glfo from %s' % (chain, datadir)
     glfo = {'chain' : chain}
-    glfo['seqs'], glfo['aligned-seqs'] = read_germline_seqs(datadir, chain, skip_pseudogenes)
+    glfo['seqs'] = read_germline_seqs(datadir, chain, skip_pseudogenes)
     for fname in glfo_csv_fnames():
         glfo[utils.get_codon(fname) + '-positions'] = read_codon_positions(datadir + '/' + chain + '/' + fname)
-    clean_up_glfo(glfo, debug=debug)  # remove any extra info
-    # check_codon_positions(glfo)
-    add_missing_glfo(glfo, generate_new_alignment=generate_new_alignment, debug=debug)
-
-# ----------------------------------------------------------------------------------------
-    for region in utils.regions:
-        for gene, seq in glfo['seqs'][region].items():
-            filtered_aligned_seg = glfo['aligned-seqs'][region][gene].translate(None, ''.join(utils.gap_chars))
-            if seq != filtered_aligned_seg:
-                raise Exception('aligned and unaligned sequences don\'t match for %s:\n    %s\n    %s' % (utils.color_gene(gene), filtered_aligned_seg, seq))
-# ----------------------------------------------------------------------------------------
-
+    get_missing_codon_info(glfo, debug=debug)
     restrict_to_genes(glfo, only_genes, debug=debug)
     if debug:
         print '  read %s' % '  '.join([('%s: %d' % (r, len(glfo['seqs'][r]))) for r in utils.regions])
@@ -369,7 +323,7 @@ def get_new_allele_name_and_change_mutfo(template_gene, mutfo):
     return final_name, final_mutfo
 
 # ----------------------------------------------------------------------------------------
-def generate_snpd_gene(gene, cpos, seq, aligned_seq, positions):
+def generate_snpd_gene(gene, cpos, seq, positions):
     assert utils.get_region(gene) == 'v'  # others not yet handled
     def choose_position():
         snp_pos = None
@@ -392,20 +346,9 @@ def generate_snpd_gene(gene, cpos, seq, aligned_seq, positions):
 
         seq = seq[: snp_pos] + new_base + seq[snp_pos + 1 :]
 
-        igl = 0  # position in unaligned germline seq
-        for ialign in range(len(aligned_seq)):
-            if aligned_seq[ialign] in utils.gap_chars:
-                continue
-            else:
-                # assert aligned_seq[ialign] == seq[igl]  # won't necessarily be true after the first mutation
-                if igl == snp_pos:
-                    aligned_seq = aligned_seq[ : ialign] + new_base + aligned_seq[ialign + 1 :]
-                    break
-                igl += 1
-
     utils.check_conserved_cysteine(seq, cpos)
     snpd_name, mutfo = get_new_allele_name_and_change_mutfo(gene, mutfo)
-    return {'template-gene' : gene, 'gene' : snpd_name, 'seq' : seq, 'aligned-seq' : aligned_seq}
+    return {'template-gene' : gene, 'gene' : snpd_name, 'seq' : seq}
 
 # ----------------------------------------------------------------------------------------
 def restrict_to_genes(glfo, only_genes, debug=False):
@@ -434,7 +377,6 @@ def remove_gene(glfo, gene, debug=False):
     if region in utils.conserved_codons:
         del glfo[utils.conserved_codons[region] + '-positions'][gene]
     del glfo['seqs'][region][gene]
-    del glfo['aligned-seqs'][region][gene]
 
 # ----------------------------------------------------------------------------------------
 def add_new_alleles(glfo, newfos, remove_template_genes, debug=False):
@@ -445,7 +387,7 @@ def add_new_alleles(glfo, newfos, remove_template_genes, debug=False):
 def add_new_allele(glfo, newfo, remove_template_genes, debug=False):
     """
     Add a new allele to <glfo>, specified by <newfo> which is of the
-    form: {'template-gene' : 'IGHV3-71*01', 'gene' : 'IGHV3-71*01+C35T.T47G', 'seq' : 'ACTG yadda yadda CGGGT', 'aligned-seq' : None}
+    form: {'template-gene' : 'IGHV3-71*01', 'gene' : 'IGHV3-71*01+C35T.T47G', 'seq' : 'ACTG yadda yadda CGGGT'}
     If <remove_template_genes>, we also remove 'template-gene' from <glfo>.
     """
 
@@ -462,23 +404,6 @@ def add_new_allele(glfo, newfo, remove_template_genes, debug=False):
         glfo['tryp-positions'][new_gene] = glfo['tryp-positions'][template_gene]
 
     glfo['seqs'][region][new_gene] = newfo['seq']
-
-    if newfo['aligned-seq'] is None:
-        # get_new_alignments(glfo, debug=debug)  # don't want to do this -- we'd kind of rather keep the imgt-gapped alignment if we can
-        # just copy the template gene's alignment
-        template_alignment = glfo['aligned-seqs'][region][template_gene]
-        new_alignment = ''
-        assert len(glfo['seqs'][region][new_gene]) == len(glfo['seqs'][region][template_gene])  # only works if they're only separated by snps
-        n_gaps = 0
-        for ipos in range(len(template_alignment)):
-            if template_alignment[ipos] in utils.gap_chars:
-                new_alignment += template_alignment[ipos]
-                n_gaps += 1
-            else:
-                new_alignment += glfo['seqs'][region][new_gene][ipos - n_gaps]
-        glfo['aligned-seqs'][region][new_gene] = new_alignment
-    else:
-        glfo['aligned-seqs'][region][new_gene] = newfo['aligned-seq']
 
     if debug:
         print '    adding new allele to glfo:'
@@ -508,7 +433,6 @@ def add_some_snps(snps_to_add, glfo, remove_template_genes=False, debug=False):
         gene, positions = snpinfo['gene'], snpinfo['positions']
         print '    adding %d %s to %s' % (len(positions), utils.plural_str('snp', len(positions)), gene)
         seq = glfo['seqs'][utils.get_region(gene)][gene]
-        aligned_seq = glfo['aligned-seqs'][utils.get_region(gene)][gene]
         assert utils.get_region(gene) == 'v'
         cpos = glfo['cyst-positions'][gene]
 
@@ -519,7 +443,7 @@ def add_some_snps(snps_to_add, glfo, remove_template_genes=False, debug=False):
                 print '      already in glfo, try again'
                 if itry > 99:
                     raise Exception('too many tries while trying to generate new snps -- did you specify a lot of snps on the same position?')
-            snpfo = generate_snpd_gene(gene, cpos, seq, aligned_seq, positions)
+            snpfo = generate_snpd_gene(gene, cpos, seq, positions)
             itry += 1
 
         if remove_template_genes:
@@ -537,13 +461,12 @@ def write_glfo(output_dir, glfo, only_genes=None, debug=False):
     os.makedirs(output_dir + '/' + glfo['chain'])
 
     for fname in glfo_fasta_fnames(glfo['chain']):
-        glseqfo = glfo['aligned-seqs'] if 'aligned' in fname else glfo['seqs']
         with open(output_dir + '/' + glfo['chain'] + '/' + fname, 'w') as outfile:
-            for gene in glseqfo[utils.get_region(fname)]:
+            for gene in glfo['seqs'][utils.get_region(fname)]:
                 if only_genes is not None and gene not in only_genes:
                     continue
                 outfile.write('>' + gene + '\n')
-                outfile.write(glseqfo[utils.get_region(fname)][gene] + '\n')
+                outfile.write(glfo['seqs'][utils.get_region(fname)][gene] + '\n')
     for fname in glfo_csv_fnames():
         with open(output_dir + '/' + glfo['chain'] + '/' + fname, 'w') as codonfile:
             writer = csv.DictWriter(codonfile, ('gene', 'istart'))
