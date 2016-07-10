@@ -153,7 +153,7 @@ class RecombinationEvent(object):
         for region in utils.regions:
             print '        %s  %-18s %-3d' % (region, self.genes[region], len(self.original_seqs[region])),
             if region in self.local_codon_positions:
-                print ' (%s: %d)' % (utils.conserved_codons[self.glfo['chain']], self.local_codon_positions[region])
+                print ' (%s: %d)' % (utils.conserved_codons[self.glfo['chain']][region], self.local_codon_positions[region])
             else:
                 print ''
 

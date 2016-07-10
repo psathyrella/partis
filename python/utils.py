@@ -413,46 +413,6 @@ def stop_codon_check(seq, cyst_position, debug=False):
 
     return True  # no stop codon
 
-#----------------------------------------------------------------------------------------
-def is_position_protected(protected_positions, prospective_position):
-    """ Would a mutation at <prospective_position> screw up a protected codon? """
-    for position in protected_positions:
-        if (prospective_position == position or
-            prospective_position == (position + 1) or
-            prospective_position == (position + 2)):
-            return True
-    return False
-
-#----------------------------------------------------------------------------------------
-def would_erode_conserved_codon(reco_event):
-    """ Would any of the erosion <lengths> delete a conserved codon? """
-    lengths = reco_event.erosions
-    # check conserved cysteine
-    if len(reco_event.seqs['v']) - lengths['v_3p'] <= reco_event.cyst_position + 2:
-        print '      about to erode cysteine (%d), try again' % lengths['v_3p']
-        return True  # i.e. it *would* screw it up
-    # check conserved tryptophan
-    if lengths['j_5p'] - 1 >= reco_event.tryp_position:
-        print '      about to erode tryptophan (%d), try again' % lengths['j_5p']
-        return True
-
-    return False  # *whew*, it won't erode either of 'em
-
-#----------------------------------------------------------------------------------------
-def is_erosion_longer_than_seq(reco_event):
-    """ Are any of the proposed erosion <lengths> longer than the seq to be eroded? """
-    lengths = reco_event.erosions
-    if lengths['v_3p'] > len(reco_event.seqs['v']):  # NOTE not actually possible since we already know we didn't erode the cysteine
-        print '      v_3p erosion too long (%d)' % lengths['v_3p']
-        return True
-    if lengths['d_5p'] + lengths['d_3p'] > len(reco_event.seqs['d']):
-        print '      d erosions too long (%d)' % (lengths['d_5p'] + lengths['d_3p'])
-        return True
-    if lengths['j_5p'] > len(reco_event.seqs['j']):  # NOTE also not possible for the same reason
-        print '      j_5p erosion too long (%d)' % lengths['j_5p']
-        return True
-    return False
-
 # ----------------------------------------------------------------------------------------
 def is_mutated(original, final, n_muted=-1, n_total=-1):
     alphabet = nukes + ambiguous_bases
@@ -469,15 +429,6 @@ def is_mutated(original, final, n_muted=-1, n_total=-1):
         return_str = color('red', final)
         n_muted += 1
     return return_str, n_muted, n_total
-
-# ----------------------------------------------------------------------------------------
-def get_v_5p_del(original_seqs, line):
-    # deprecated
-    assert False  # this method will no longer work when I need to get v left *and* j right 'deletions'
-    original_length = len(original_seqs['v']) + len(original_seqs['d']) + len(original_seqs['j'])
-    total_deletion_length = int(line['v_3p_del']) + int(line['d_5p_del']) + int(line['d_3p_del']) + int(line['j_5p_del'])
-    total_insertion_length = len(line['vd_insertion']) + len(line['dj_insertion'])
-    return original_length - total_deletion_length + total_insertion_length - len(line['seq'])
 
 # ----------------------------------------------------------------------------------------
 def disambiguate_effective_insertions(bound, line, seq, unique_id, debug=False):
