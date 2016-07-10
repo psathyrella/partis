@@ -291,6 +291,7 @@ class Tester(object):
 
     # ----------------------------------------------------------------------------------------
     def compare_data_annotation(self, input_stype):
+        # NOTE don't really need to do this for simulation, since for simulation we already compare the performance info
         ptest = 'annotate-' + input_stype + '-data'
         if args.quick and ptest not in self.quick_tests:
             return
