@@ -158,8 +158,8 @@ class Recombinator(object):
             print '    insert: %s' % reco_event.insertions['dj']
             print '         j: %s' % reco_event.eroded_seqs['j']
         reco_event.recombined_seq = reco_event.eroded_seqs['v'] + reco_event.insertions['vd'] + reco_event.eroded_seqs['d'] + reco_event.insertions['dj'] + reco_event.eroded_seqs['j']
-        codons_ok = reco_event.set_final_codon_positions(self.args.chain, debug=self.args.debug)
-        if not codons_ok:
+        reco_event.set_final_codon_positions(debug=self.args.debug)
+        if not utils.both_codons_ok(self.glfo['chain'], reco_event.recombined_seq, reco_event.final_codon_positions, extra_str='      ', debug=self.args.debug):
             return False
 
         self.add_mutants(reco_event, irandom)  # toss a bunch of clones: add point mutations
@@ -497,9 +497,9 @@ class Recombinator(object):
         if self.args.indel_location == None:  # uniform over entire sequence
             pos = random.randint(0, len(seq) - 1)  # this will actually exclude either before the first index or after the last index. No, I don't care.
         elif self.args.indel_location == 'v':  # within the meat of the v
-            pos = random.randint(10, reco_event.final_cyst_position)
+            pos = random.randint(10, reco_event.final_codon_positions['v'])
         elif self.args.indel_location == 'cdr3':  # inside cdr3
-            pos = random.randint(reco_event.final_cyst_position, reco_event.final_tryp_position)
+            pos = random.randint(reco_event.final_codon_positions['v'], reco_event.final_codon_positions['j'])
         else:
             assert False
 
@@ -572,10 +572,6 @@ class Recombinator(object):
         for iseq in range(len(mutes['v'])):
             seq = mutes['v'][iseq] + mutes['vd'][iseq] + mutes['d'][iseq] + mutes['dj'][iseq] + mutes['j'][iseq]  # build final sequence
             seq = reco_event.revert_conserved_codons(seq)  # if mutation screwed up the conserved codons, just switch 'em back to what they were to start with
-
-            assert utils.codon_ok(utils.conserved_codons[self.args.chain]['v'], seq, reco_event.final_cyst_position, debug=True)
-            assert utils.codon_ok(utils.conserved_codons[self.args.chain]['j'], seq, reco_event.final_tryp_position, debug=True)
-
             reco_event.final_seqs.append(seq)  # set final sequnce in reco_event
 
         self.add_shm_indels(reco_event)

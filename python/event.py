@@ -4,6 +4,7 @@ import sys
 import random
 import numpy
 import os
+import copy
 
 from opener import opener
 import utils
@@ -18,8 +19,8 @@ class RecombinationEvent(object):
         self.genes = {}
         self.original_seqs = {}
         self.eroded_seqs = {}
-        self.local_cyst_position, self.final_cyst_position = -1, -1  # the 'local' one is without the v left erosion
-        self.local_tryp_position, self.final_tryp_position = -1, -1  # tryp/phen, whatevers. NOTE the first is the position *within* the j gene *only*, while the second is the tryp position in the final recombined sequence
+        self.local_codon_positions = {r : -1 for r in utils.conserved_codons[glfo['chain']]}  # local: without the v left erosion
+        self.final_codon_positions = {r : -1 for r in utils.conserved_codons[glfo['chain']]}  # final: with it
         self.erosions = {}  # erosion lengths for the event
         self.effective_erosions = {}  # v left and j right erosions
         self.cdr3_length = 0  # NOTE this is the *desired* cdr3_length, i.e. after erosion and insertion
@@ -38,8 +39,8 @@ class RecombinationEvent(object):
             self.genes[region] = vdj_combo_label[utils.index_keys[region + '_gene']]
             self.original_seqs[region] = glfo['seqs'][region][self.genes[region]]
             self.original_seqs[region] = self.original_seqs[region].replace('N', utils.int_to_nucleotide(random.randint(0, 3)))  # replace any Ns with a random nuke (a.t.m. use the same nuke for all Ns in a given seq)
-        self.local_cyst_position = glfo['cyst-positions'][self.genes['v']]  # cyst position in uneroded v
-        self.local_tryp_position = glfo['tryp-positions'][self.genes['j']]  # tryp position within j only
+        for region, codon in utils.conserved_codons[glfo['chain']].items():
+            self.local_codon_positions[region] = glfo[codon + '-positions'][self.genes[region]]  # position in uneroded germline gene
         for boundary in utils.boundaries:
             self.insertion_lengths[boundary] = int(vdj_combo_label[utils.index_keys[boundary + '_insertion']])
         for erosion in utils.real_erosions:
@@ -51,30 +52,18 @@ class RecombinationEvent(object):
                 self.effective_erosions[erosion] = 0
 
         # set the original conserved codon words, so we can revert them if they get mutated
-        self.original_cyst_word = str(self.original_seqs['v'][self.local_cyst_position : self.local_cyst_position + 3 ])
-        self.original_tryp_word = str(self.original_seqs['j'][self.local_tryp_position : self.local_tryp_position + 3 ])
+        self.unmutated_codons = {r : str(self.original_seqs[r][pos : pos + 3 ]) for r, pos in self.local_codon_positions.items()}
 
         if debug:
             self.print_gene_choice()
 
     # ----------------------------------------------------------------------------------------
-    def set_final_codon_positions(self, chain, debug=False):
+    def set_final_codon_positions(self, debug=False):
         """ Set tryp position in the final, combined sequence. """
-        self.final_cyst_position = self.local_cyst_position - self.effective_erosions['v_5p']
-        self.final_tryp_position = utils.find_tryp_in_joined_seq(self.local_tryp_position, self.eroded_seqs['v'], self.insertions['vd'], self.eroded_seqs['d'], self.insertions['dj'], self.eroded_seqs['j'], self.erosions['j_5p'])
-        self.cdr3_length = self.final_tryp_position - self.final_cyst_position + 3
-        if debug:
-            print '  final %s position: %d' % (utils.conserved_codons[chain]['j'], self.final_tryp_position)
-
-        # TODO remove this
-        assert self.recombined_seq == self.eroded_seqs['v'] + self.insertions['vd'] + self.eroded_seqs['d'] + self.insertions['dj'] + self.eroded_seqs['j']
-
-        cyst_ok = utils.codon_ok(utils.conserved_codons[chain]['v'], self.recombined_seq, self.final_cyst_position, extra_str='      ', debug=debug)
-        tryp_ok = utils.codon_ok(utils.conserved_codons[chain]['j'], self.recombined_seq, self.final_tryp_position, extra_str='      ', debug=debug)  # tryp, phen, whatevers
-        if not cyst_ok or not tryp_ok:
-            return False
-
-        return True
+        self.final_codon_positions['v'] = self.local_codon_positions['v'] - self.effective_erosions['v_5p']
+        length_to_left_of_j = len(self.eroded_seqs['v'] + self.insertions['vd'] + self.eroded_seqs['d'] + self.insertions['dj'])
+        self.final_codon_positions['j'] = self.local_codon_positions['j'] - self.erosions['j_5p'] + length_to_left_of_j
+        self.cdr3_length = self.final_codon_positions['j'] - self.final_codon_positions['v'] + 3
 
     # ----------------------------------------------------------------------------------------
     def write_event(self, outfile, irandom=None):
@@ -153,10 +142,9 @@ class RecombinationEvent(object):
         line['seqs'] = self.final_seqs
         line['unique_ids'] = [i for i in range(len(self.final_seqs))]
         line['cdr3_length'] = self.cdr3_length
-        line['cyst_position'] = self.final_cyst_position
-        line['tryp_position'] = self.final_tryp_position
+        line['codon_positions'] = copy.deepcopy(self.final_codon_positions)
         line['indelfos'] = self.indelfos
-        utils.add_implicit_info(self.glfo, line, multi_seq=True, existing_implicit_keys=('cdr3_length', 'cyst_position', 'tryp_position'))
+        utils.add_implicit_info(self.glfo, line, multi_seq=True, existing_implicit_keys=('cdr3_length', 'codon_positions'))
         utils.print_reco_event(self.glfo['seqs'], line)
 
     # ----------------------------------------------------------------------------------------
@@ -164,21 +152,16 @@ class RecombinationEvent(object):
         print '    chose:  gene             length'
         for region in utils.regions:
             print '        %s  %-18s %-3d' % (region, self.genes[region], len(self.original_seqs[region])),
-            if region == 'v':
-                print ' (cysteine: %d)' % self.local_cyst_position
-            elif region == 'j':
-                print ' (tryptophan: %d)' % self.local_tryp_position
+            if region in self.local_codon_positions:
+                print ' (%s: %d)' % (utils.conserved_codons[self.glfo['chain']], self.local_codon_positions[region])
             else:
                 print ''
 
     # ----------------------------------------------------------------------------------------
     def revert_conserved_codons(self, seq):
         """ revert conserved cysteine and tryptophan to their original bases, eg if they were messed up by s.h.m. """
-        cpos = self.final_cyst_position
-        if seq[cpos : cpos + 3] != self.original_cyst_word:
-            seq = seq[:cpos] + self.original_cyst_word + seq[cpos+3:]
-        tpos = self.final_tryp_position
-        if seq[tpos : tpos + 3] != self.original_tryp_word:
-            seq = seq[:tpos] + self.original_tryp_word + seq[tpos+3:]
-
+        for region, pos in self.final_codon_positions.items():
+            if seq[pos : pos + 3] != self.unmutated_codons[region]:
+                seq = seq[:pos] + self.unmutated_codons[region] + seq[pos + 3 :]
+            assert utils.codon_ok(utils.conserved_codons[self.glfo['chain']][region], seq, pos)
         return seq

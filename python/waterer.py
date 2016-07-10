@@ -542,8 +542,7 @@ class Waterer(object):
         self.info[query_name]['all'] = ':'.join(match_names['v'] + match_names['d'] + match_names['j'])  # all gene matches for this query
 
         self.info[query_name]['cdr3_length'] = codon_positions['j'] - codon_positions['v'] + 3  #tryp_position_in_joined_seq - self.cyst_position + 3
-        self.info[query_name]['cyst_position'] = codon_positions['v']
-        self.info[query_name]['tryp_position'] = codon_positions['j']
+        self.info[query_name]['codon_positions'] = copy.deepcopy(codon_positions)
 
         # erosion, insertion, mutation info for best match
         self.info[query_name]['v_5p_del'] = all_germline_bounds[best['v']][0]
@@ -567,7 +566,7 @@ class Waterer(object):
 
         self.info[query_name]['seq'] = query_seq  # NOTE this is the seq output by vdjalign, i.e. if we reversed any indels it is the reversed sequence
 
-        existing_implicit_keys = tuple(['cdr3_length', 'cyst_position', 'tryp_position'])
+        existing_implicit_keys = tuple(['cdr3_length', 'codon_positions'])
         utils.add_implicit_info(self.glfo, self.info[query_name], multi_seq=False, existing_implicit_keys=existing_implicit_keys)
 
         if self.debug:
@@ -771,7 +770,7 @@ class Waterer(object):
                     maxima['gl_cpos'] = gl_cpos
 
             seq = swfo['seq']
-            cpos = swfo['cyst_position']  # cyst position in query sequence (as opposed to gl_cpos, which is in germline allele)
+            cpos = swfo['codon_positions']['v']  # cyst position in query sequence (as opposed to gl_cpos, which is in germline allele)
             for j_match in self.info['all_matches']['j']:  # NOTE have to loop over all gl matches, even ones for other sequences, because we want bcrham to be able to compare any sequence to any other UPDATE but do I really need to use *all* all matches, or would it be ok to just use all *best* matches? not sure...
                 # TODO this is totally wrong -- I'm only storing j_3p_del for the best match... but hopefully it'll give enough padding for the moment
                 gl_cpos_to_j_end = len(seq) - cpos + swfo['j_3p_del'] + jfstuff
@@ -799,7 +798,7 @@ class Waterer(object):
             if 'padded' in swfo:  # already added padded information (we're probably partitioning, and this is not the first step)
                 return
             seq = swfo['seq']
-            cpos = swfo['cyst_position']
+            cpos = swfo['codon_positions']['v']
             if cpos < 0 or cpos >= len(seq):
                 print 'hm now what do I want to do here?'
             k_v = swfo['k_v']
@@ -817,7 +816,7 @@ class Waterer(object):
                     print '    also padding reversed sequence'
                 self.info['indels'][query]['reversed_seq'] = padleft * utils.ambiguous_bases[0] + self.info['indels'][query]['reversed_seq'] + padright * utils.ambiguous_bases[0]
             padfo['k_v'] = {'min' : k_v['min'] + padleft, 'max' : k_v['max'] + padleft}
-            padfo['cyst_position'] = swfo['cyst_position'] + padleft
+            padfo['cyst_position'] = swfo['codon_positions']['v'] + padleft
             padfo['padleft'] = padleft
             padfo['padright'] = padright
             if debug:

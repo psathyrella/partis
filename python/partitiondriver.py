@@ -961,8 +961,7 @@ class PartitionDriver(object):
             'k_d':{'min':99999, 'max':-1},
             'only_genes':[],
             'seqs':[],
-            'mute-freqs':[],
-            'cyst_positions':[]
+            'mute-freqs':[]
         }
 
         # Note that this whole thing probably ought to use cached hmm info if it's available.
@@ -973,15 +972,12 @@ class PartitionDriver(object):
             if 'padded' in swfo:
                 k_v = swfo['padded']['k_v']
                 seq = swfo['padded']['seq']
-                cpos = swfo['padded']['cyst_position']
             else:
                 k_v = swfo['k_v']
                 seq = swfo['seq']
-                cpos = swfo['cyst_position']
             k_d = swfo['k_d']  # don't need to adjust k_d for padding
             combo['seqs'].append(seq)
             combo['mute-freqs'].append(utils.get_mutation_rate(swfo))
-            combo['cyst_positions'].append(cpos)
             combo['k_v']['min'] = min(k_v['min'], combo['k_v']['min'])
             combo['k_v']['max'] = max(k_v['max'], combo['k_v']['max'])
             combo['k_d']['min'] = min(k_d['min'], combo['k_d']['min'])

@@ -163,7 +163,7 @@ column_configs = {
 # NOTE calling this "columns" is kind of bad, because other things already have similar names. But, sigh, it's probably the best option a.t.m.
 # keep track of all the *@*@$!ing different keys that happen in the <line>/<hmminfo>/whatever dictionaries
 xcolumns = {}
-xcolumns['per_family'] = tuple(['naive_seq', 'cdr3_length', 'cyst_position', 'tryp_position', 'lengths', 'regional_bounds'] + \
+xcolumns['per_family'] = tuple(['naive_seq', 'cdr3_length', 'codon_positions', 'lengths', 'regional_bounds'] + \
                                [g + '_gene' for g in regions] + \
                                [e + '_del' for e in real_erosions + effective_erosions] + \
                                [b + '_insertion' for b in boundaries + effective_boundaries] + \
@@ -179,7 +179,7 @@ xall_columns = set([k for cols in xcolumns.values() for k in cols])
 
 translation_columns = {'indels' : 'indelfo'}  # used to be <key>, now they're <value>
 
-common_implicit_columns = set(['naive_seq', 'cdr3_length', 'cyst_position', 'tryp_position', 'lengths', 'regional_bounds', 'invalid'] + [r + '_gl_seq' for r in regions])
+common_implicit_columns = set(['naive_seq', 'cdr3_length', 'codon_positions', 'lengths', 'regional_bounds', 'invalid'] + [r + '_gl_seq' for r in regions])
 single_per_seq_implicit_columns = set(['mut_freq', ] + functional_columns + [r + '_qr_seq' for r in regions] + ['aligned_' + r + '_seq' for r in regions])
 multi_per_seq_implicit_columns = set(list(common_implicit_columns) + [k + 's' for k in single_per_seq_implicit_columns])
 single_per_seq_implicit_columns |= common_implicit_columns  # NOTE careful! kind of a weird initialization sequence here
@@ -452,23 +452,6 @@ def is_erosion_longer_than_seq(reco_event):
         return True
     return False
 
-#----------------------------------------------------------------------------------------
-def find_tryp_in_joined_seq(gl_tryp_position_in_j, v_seq, vd_insertion, d_seq, dj_insertion, j_seq, j_erosion, debug=False):
-    """ Find the <end> tryptophan in a joined sequence.
-
-    Given local tryptophan position in the j region, figure
-    out what position it's at in the final sequence.
-    NOTE gl_tryp_position_in_j is the position *before* the j was eroded,
-    but this fcn assumes that the j *has* been eroded.
-    also NOTE <[vdj]_seq> are assumed to already be eroded
-    """
-    length_to_left_of_j = len(v_seq + vd_insertion + d_seq + dj_insertion)
-    if debug:
-        print '  finding tryp position as'
-        print '    length_to_left_of_j = len(v_seq + vd_insertion + d_seq + dj_insertion) = %d + %d + %d + %d' % (len(v_seq), len(vd_insertion), len(d_seq), len(dj_insertion))
-        print '    result = gl_tryp_position_in_j - j_erosion + length_to_left_of_j = %d - %d + %d = %d' % (gl_tryp_position_in_j, j_erosion, length_to_left_of_j, gl_tryp_position_in_j - j_erosion + length_to_left_of_j)
-    return gl_tryp_position_in_j - j_erosion + length_to_left_of_j
-
 # ----------------------------------------------------------------------------------------
 def is_mutated(original, final, n_muted=-1, n_total=-1):
     alphabet = nukes + ambiguous_bases
@@ -649,11 +632,11 @@ def add_functional_info(chain, line, multi_seq):
         for fc in functional_columns:
             line[fc + 's'] = []
         for iseq in range(len(line['seqs'])):
-            info = get_single_seq_info(line['seqs'][iseq], line['cyst_position'], line['tryp_position'], line['cdr3_length'])
+            info = get_single_seq_info(line['seqs'][iseq], line['codon_positions']['v'], line['codon_positions']['j'], line['cdr3_length'])
             for fc in functional_columns:
                 line[fc + 's'].append(info[fc])
     else:
-        info = get_single_seq_info(line['seq'], line['cyst_position'], line['tryp_position'], line['cdr3_length'])
+        info = get_single_seq_info(line['seq'], line['codon_positions']['v'], line['codon_positions']['j'], line['cdr3_length'])
         for fc in functional_columns:
             line[fc] = info[fc]
 
@@ -725,12 +708,16 @@ def add_implicit_info(glfo, line, multi_seq, existing_implicit_keys=None, aligne
         line['lengths'][region] = length
 
     # add codon-related stuff
-    eroded_gl_cpos = glfo['cyst-positions'][line['v_gene']] - line['v_5p_del'] + len(line['fv_insertion'])  # cysteine position in eroded germline sequence. EDIT darn, actually you *don't* want to subtract off the v left deletion, because that (deleted) base is presumably still present in the query sequence
-    eroded_gl_tpos = glfo['tryp-positions'][line['j_gene']] - line['j_5p_del']
-    line['cyst_position'] = eroded_gl_cpos
-    tpos_in_joined_seq = eroded_gl_tpos + len(line['fv_insertion']) + line['lengths']['v'] + len(line['vd_insertion']) + line['lengths']['d'] + len(line['dj_insertion'])
-    line['tryp_position'] = tpos_in_joined_seq
-    line['cdr3_length'] = tpos_in_joined_seq - eroded_gl_cpos + 3  # i.e. first base of cysteine to last base of tryptophan inclusive
+    line['codon_positions'] = {}
+    for region, codon in conserved_codons[glfo['chain']].items():
+        eroded_gl_pos = glfo[codon + '-positions'][line[region + '_gene']] - line[region + '_5p_del']
+        if region == 'v':
+            line['codon_positions'][region] = eroded_gl_pos + len(line['f' + region + '_insertion'])
+        elif region == 'j':
+            line['codon_positions'][region] = eroded_gl_pos + len(line['fv_insertion']) + line['lengths']['v'] + len(line['vd_insertion']) + line['lengths']['d'] + len(line['dj_insertion'])
+        else:
+            assert False
+    line['cdr3_length'] = line['codon_positions']['j'] - line['codon_positions']['v'] + 3  # i.e. first base of cysteine to last base of tryptophan inclusive
 
     # add naive seq stuff
     line['naive_seq'] = line['fv_insertion'] + line['v_gl_seq'] + line['vd_insertion'] + line['d_gl_seq'] + line['dj_insertion'] + line['j_gl_seq'] + line['jf_insertion']
@@ -897,12 +884,11 @@ def print_seq_in_reco_event(germlines, line, extra_str='', label='', one_line=Fa
                                 new_nuke, n_muted, n_total = line['seq'][inuke], n_muted, n_total + 1
                                 j_right_extra += ' '
 
-        if 'cyst_position' in line and 'tryp_position' in line:
-            for pos in (line['cyst_position'], line['tryp_position']):  # reverse video for the conserved codon positions
-                if indelfo is not None and not reverse_indels:
-                    pos += n_inserted
-                if inuke >= pos and inuke < pos + 3:
-                    new_nuke = '\033[7m' + new_nuke + '\033[m'
+        for region, pos in line['codon_positions'].items():  # reverse video for the conserved codon positions
+            if indelfo is not None and not reverse_indels:
+                pos += n_inserted
+            if inuke >= pos and inuke < pos + 3:
+                new_nuke = '\033[7m' + new_nuke + '\033[m'
 
         final_seq += new_nuke
 

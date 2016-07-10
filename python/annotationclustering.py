@@ -32,8 +32,8 @@ def vollmers(info, threshold, reco_info=None, debug=False):
         return info[uid]['vd_insertion'] + info[uid]['d_qr_seq'] + info[uid]['dj_insertion']
 
     def get_cdr3_seq(uid):
-        cpos = info[uid]['cyst_position']
-        tpos = info[uid]['tryp_position']
+        cpos = info[uid]['codon_positions']['v']
+        tpos = info[uid]['codon_positions']['j']
         assert len(info[uid]['seqs']) == 1
         seq = info[uid]['seqs'][0]
         cdr3_seq = seq[cpos : tpos+3]
