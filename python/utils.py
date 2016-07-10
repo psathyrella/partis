@@ -86,7 +86,8 @@ conserved_codons = {
 codon_table = {
     'cyst' : ['TGT', 'TGC'],
     'tryp' : ['TGG', ],
-    'phen' : ['TTT', 'TTC']
+    'phen' : ['TTT', 'TTC'],
+    'stop' : ['TAG', 'TAA', 'TGA']
 }
 # Infrastrucure to allow hashing all the columns together into a dict key.
 # Uses a tuple with the variables that are used to index selection frequencies
@@ -403,8 +404,8 @@ def stop_codon_check(seq, cyst_position, debug=False):
         ipos -= 3
     # ipos should now bet the index of the start of the first complete codon
     while ipos + 2 < len(seq):  # then jump forward in steps of three bases making sure none of them are stop codons
-        codon = seq[ipos:ipos+3]
-        if codon == 'TAG' or codon == 'TAA' or codon == 'TGA':  # found a stop codon
+        codon = seq[ipos : ipos + 3]
+        if codon in codon_table['stop']:
             if debug:
                 print '      stop codon %s at %d in %s' % (codon, ipos, seq)
             return False
