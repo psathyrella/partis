@@ -66,7 +66,7 @@ class PartitionDriver(object):
             if outdir != '' and not os.path.exists(outdir):
                 os.makedirs(outdir)
 
-        self.annotation_headers = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'seqs', 'naive_seq', 'indelfos'] \
+        self.annotation_headers = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'mut_freqs', 'seqs', 'naive_seq', 'indelfos'] \
                                   + ['aligned_' + r + '_seqs' for r in utils.regions] \
                                   + [r + '_per_gene_support' for r in utils.regions] \
                                   + [e + '_del' for e in utils.real_erosions + utils.effective_erosions] + [b + '_insertion' for b in utils.boundaries + utils.effective_boundaries] \
@@ -1176,7 +1176,7 @@ class PartitionDriver(object):
         perfplotter = PerformancePlotter(self.glfo, 'hmm') if self.args.plot_performance else None
 
         n_lines_read, n_seqs_processed, n_events_processed, n_invalid_events = 0, 0, 0, 0
-        padded_annotations, eroded_annotations = OrderedDict(), OrderedDict()
+        annotations = OrderedDict()
         boundary_error_queries = []
         with opener('r')(annotation_fname) as hmm_csv_outfile:
             reader = csv.DictReader(hmm_csv_outfile)
@@ -1202,32 +1202,35 @@ class PartitionDriver(object):
                         utils.print_reco_event(self.glfo['seqs'], padded_line, extra_str='    ', label='invalid:')
                     continue
 
-                # get a new dict in which we have edited the sequences to swap Ns on either end (after removing fv and jf insertions) for v_5p and j_3p deletions
-                eroded_line = utils.reset_effective_erosions_and_effective_insertions(self.glfo, padded_line, aligned_gl_seqs=self.aligned_gl_seqs)  #, padfo=self.sw_info)
-                if eroded_line['invalid']:  # not really sure why the eroded line is sometimes invalid when the padded line is not, but it's very rare and I don't really care, either
-                    n_invalid_events += 1
-                    continue
+                if len(uids) > 1:  # if there's more than one sequence, we need to use the padded line
+                    line_to_use = padded_line
+                else:  # otherwise, the eroded line is kind of simpler to look at
+                    # get a new dict in which we have edited the sequences to swap Ns on either end (after removing fv and jf insertions) for v_5p and j_3p deletions
+                    eroded_line = utils.reset_effective_erosions_and_effective_insertions(self.glfo, padded_line, aligned_gl_seqs=self.aligned_gl_seqs)  #, padfo=self.sw_info)
+                    if eroded_line['invalid']:  # not really sure why the eroded line is sometimes invalid when the padded line is not, but it's very rare and I don't really care, either
+                        n_invalid_events += 1
+                        continue
+                    line_to_use = eroded_line
 
                 if self.args.debug:
                     print '      %s' % uidstr
                     if not self.args.is_data:
                         print '   %d' % utils.from_same_event(self.reco_info, uids),
                     print ''
-                    self.print_hmm_output(eroded_line, print_true=True)
+                    self.print_hmm_output(line_to_use, print_true=True)
 
-                assert uidstr not in padded_annotations and uidstr not in eroded_annotations
-                padded_annotations[uidstr] = padded_line
-                eroded_annotations[uidstr] = eroded_line
+                assert uidstr not in annotations
+                annotations[uidstr] = line_to_use
 
                 n_events_processed += 1
 
                 if pcounter is not None:
-                    pcounter.increment_per_family_params(eroded_line)
+                    pcounter.increment_per_family_params(line_to_use)
                 if true_pcounter is not None:
                     true_pcounter.increment_per_family_params(self.reco_info[uids[0]])  # NOTE doesn't matter which id you pass it, since they all have the same reco parameters
 
                 for iseq in range(len(uids)):
-                    singlefo = utils.synthesize_single_seq_line(eroded_line, iseq)
+                    singlefo = utils.synthesize_single_seq_line(line_to_use, iseq)
                     if pcounter is not None:
                         pcounter.increment_per_sequence_params(singlefo)
                     if true_pcounter is not None:
@@ -1264,11 +1267,11 @@ class PartitionDriver(object):
 
         # write output file
         if outfname is not None:
-            self.write_annotations(eroded_annotations, outfname)  # [0] takes the best annotation... if people want other ones later it's easy to change
+            self.write_annotations(annotations, outfname)  # [0] takes the best annotation... if people want other ones later it's easy to change
 
         # annotation (VJ CDR3) clustering
         if self.args.annotation_clustering is not None:
-            self.deal_with_annotation_clustering(eroded_annotations, outfname)
+            self.deal_with_annotation_clustering(annotations, outfname)
 
         os.remove(annotation_fname)
 

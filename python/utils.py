@@ -140,10 +140,10 @@ functional_columns = ['mutated_invariant', 'in_frame', 'stop']
 
 column_configs = {
     'ints' : ('nth_best', 'v_5p_del', 'd_5p_del', 'cdr3_length', 'j_5p_del', 'j_3p_del', 'd_3p_del', 'v_3p_del'),  # , 'padlefts', 'padrights'),
-    'floats' : ('logprob'),
+    'floats' : ('logprob', 'mut_freqs'),
     'bools' : tuple([fc + 's' for fc in functional_columns]),
     'literals' : ('indelfos'),
-    'lists' : tuple(['unique_ids', 'seqs', 'aligned_seqs'] + \
+    'lists' : tuple(['unique_ids', 'seqs', 'aligned_seqs', 'mut_freqs'] + \
                     ['aligned_' + r + '_seqs' for r in regions] + \
                     [r + '_per_gene_support' for r in regions] + \
                     [fc + 's' for fc in functional_columns]),
@@ -160,7 +160,7 @@ xcolumns['per_family'] = tuple(['naive_seq', 'cdr3_length', 'cyst_position', 'tr
                                [b + '_insertion' for b in boundaries + effective_boundaries] + \
                                [r + '_gl_seq' for r in regions] + \
                                [r + '_per_gene_support' for r in regions])
-xcolumns['single_per_seq'] = tuple(['seq', 'unique_id', 'indelfo'] + [r + '_qr_seq' for r in regions] + ['aligned_' + r + '_seq' for r in regions] + functional_columns)  # + ['padleft', 'padright'])
+xcolumns['single_per_seq'] = tuple(['seq', 'unique_id', 'indelfo', 'mut_freq'] + [r + '_qr_seq' for r in regions] + ['aligned_' + r + '_seq' for r in regions] + functional_columns)  # + ['padleft', 'padright'])
 xcolumns['multi_per_seq'] = tuple([k + 's' for k in xcolumns['single_per_seq']])
 xcolumns['hmm'] = tuple(['logprob', 'errors', 'nth_best'])
 xcolumns['sw'] = tuple(['k_v', 'k_d', 'all'])
@@ -171,7 +171,7 @@ xall_columns = set([k for cols in xcolumns.values() for k in cols])
 translation_columns = {'indels' : 'indelfo'}  # used to be <key>, now they're <value>
 
 common_implicit_columns = set(['naive_seq', 'cdr3_length', 'cyst_position', 'tryp_position', 'lengths', 'regional_bounds', 'invalid'] + [r + '_gl_seq' for r in regions])
-single_per_seq_implicit_columns = set(functional_columns + [r + '_qr_seq' for r in regions] + ['aligned_' + r + '_seq' for r in regions])
+single_per_seq_implicit_columns = set(['mut_freq', ] + functional_columns + [r + '_qr_seq' for r in regions] + ['aligned_' + r + '_seq' for r in regions])
 multi_per_seq_implicit_columns = set(list(common_implicit_columns) + [k + 's' for k in single_per_seq_implicit_columns])
 single_per_seq_implicit_columns |= common_implicit_columns  # NOTE careful! kind of a weird initialization sequence here
 
@@ -679,6 +679,13 @@ def add_functional_info(line, multi_seq):
             line[fc] = info[fc]
 
 # ----------------------------------------------------------------------------------------
+def add_mute_freqs(line, multi_seq):
+    if multi_seq:
+        line['mut_freqs'] = [hamming_fraction(line['naive_seq'], mature_seq) for mature_seq in line['seqs']]
+    else:
+        line['mut_freq'] = hamming_fraction(line['naive_seq'], line['seq'])
+
+# ----------------------------------------------------------------------------------------
 def remove_all_implicit_info(line, multi_seq):
     for col in get_implicit_keys(multi_seq):
         if col in line:
@@ -761,6 +768,8 @@ def add_implicit_info(glfo, line, multi_seq, existing_implicit_keys=None, aligne
     add_qr_seqs(line, multi_seq)
 
     add_functional_info(line, multi_seq)
+
+    add_mute_freqs(line, multi_seq)
 
     # set validity (alignment addition can also set invalid)  # TODO clean up this checking stuff
     line['invalid'] = False
@@ -1012,7 +1021,10 @@ def print_seq_in_reco_event(germlines, line, extra_str='', label='', one_line=Fa
     # if print_uid:
     #     extra_str += '%20s' % line['unique_id']
     out_str_list.append('    %s' % final_seq)
-    out_str_list.append('   %4.2f mut' % (0. if n_total == 0. else float(n_muted) / n_total))
+    mute_freq = 0. if n_total == 0. else float(n_muted) / n_total
+    if mute_freq != line['mut_freq']:
+        print '%s unequal mut freqs for %s: %f %f' % (color('red', 'warning'), line['unique_id'], mute_freq, line['mut_freq'])
+    out_str_list.append('   %4.2f mut' % mute_freq)
     if 'logprob' in line:
         out_str_list.append('     %8.2f  logprob' % line['logprob'])
     out_str_list.append('\n')
@@ -1429,24 +1441,11 @@ def merge_csvs(outfname, csv_list, cleanup=True):
 def get_mutation_rate(line, restrict_to_region='', return_len_excluding_ambig=False, debug=False):
     naive_seq = line['naive_seq']  # NOTE this includes the fv and jf insertions
     muted_seq = line['seq']
-    if restrict_to_region == '':  # NOTE this is very similar to code in performanceplotter. I should eventually cut it out of there and combine them, but I'm nervous a.t.m. because of all the complications there of having the true *and* inferred sequences so I'm punting
-        pass  # hm... I guess I wasn't mashing any more, except maybe I thought I still was? in any case, for the moment I'll just comment the code that has no effect.
-        # mashed_naive_seq = ''
-        # mashed_muted_seq = ''
-        # for region in regions:  # can't use the full sequence because we have no idea what the mutations were in the inserts. So have to mash together the three regions
-        #     bounds = line['regional_bounds'][region]
-        #     if bounds[0] < 0 or bounds[1] > len(naive_seq) or bounds[0] > bounds[1]:  # this was happening because I set the bounds for the padded sequences, but then didn't reset them in reset_effective_erosions_and_effective_insertions(). For the time being, the check remains
-        #         raise Exception('bad regional bounds %s for naive sequence %s with id %s' % (bounds, naive_seq, line['unique_id']))
-        #     mashed_naive_seq += naive_seq[bounds[0] : bounds[1]]
-        #     mashed_muted_seq += muted_seq[bounds[0] : bounds[1]]
-    else:
+    if restrict_to_region != '':  # NOTE this is very similar to code in performanceplotter. I should eventually cut it out of there and combine them, but I'm nervous a.t.m. because of all the complications there of having the true *and* inferred sequences so I'm punting
         bounds = line['regional_bounds'][restrict_to_region]
         naive_seq = naive_seq[bounds[0] : bounds[1]]
         muted_seq = muted_seq[bounds[0] : bounds[1]]
 
-
-    # print 'restrict %s' % restrict_to_region
-    # color_mutants(naive_seq, muted_seq, print_result=True, extra_str='  ')
     return hamming_fraction(naive_seq, muted_seq, return_len_excluding_ambig=return_len_excluding_ambig)
 
 # ----------------------------------------------------------------------------------------

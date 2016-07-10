@@ -125,7 +125,8 @@ The output csv headers are listed in the table below, and you can view a colored
 | v_gene         |  V gene in most likely annotation
 | d_gene         |  D gene in most likely annotation
 | j_gene         |  J gene in most likely annotation
-| cdr3_length        |  CDR3 length of most likely annotation (IMGT scheme, i.e. including both codons in their entirety)
+| cdr3_length    |  CDR3 length of most likely annotation (IMGT scheme, i.e. including both codons in their entirety)
+| mut_freqs      |  colon-separated list of sequence mutation frequencies (of length 1 if multi-hmm isn't used)
 | seqs           |  colon-separated list of input sequences (of length 1 if multi-hmm isn't used)
 | naive_seq      |  naive (unmutated ancestor) sequence corresponding to most likely annotation
 | v_3p_del       |  length of V 3' deletion in most likely annotation
