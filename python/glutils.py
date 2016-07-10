@@ -404,8 +404,8 @@ def remove_gene(glfo, gene, debug=False):
     if debug:
         print '  removing %s from glfo' % utils.color_gene(gene)
     region = utils.get_region(gene)
-    if region in utils.conserved_codons[chain['chain']]:
-        del glfo[utils.conserved_codons[chain['chain']][region] + '-positions'][gene]
+    if region in utils.conserved_codons[glfo['chain']]:
+        del glfo[utils.conserved_codons[glfo['chain']][region] + '-positions'][gene]
     del glfo['seqs'][region][gene]
 
 # ----------------------------------------------------------------------------------------
