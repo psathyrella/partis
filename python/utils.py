@@ -569,7 +569,7 @@ def disambiguate_effective_insertions(bound, line, seq, unique_id, debug=False):
     return trimmed_seq, final_insertion, insertion_to_remove
 
 # ----------------------------------------------------------------------------------------
-def reset_effective_erosions_and_effective_insertions(glfo, padded_line, debug=False):  # , padfo=None
+def reset_effective_erosions_and_effective_insertions(glfo, padded_line, aligned_gl_seqs=None, debug=False):  # , padfo=None
     """
     Ham does not allow (well, no longer allows) v_5p and j_3p deletions -- we instead pad sequences with Ns.
     This means that the info we get from ham always has these effective erosions set to zero, but for downstream
@@ -636,7 +636,7 @@ def reset_effective_erosions_and_effective_insertions(glfo, padded_line, debug=F
     # else:
     #     line['padlefts'], line['padrights'] = [padfo[uid]['padded']['padleft'] for uid in line['unique_ids']], [padfo[uid]['padded']['padright'] for uid in line['unique_ids']]
 
-    add_implicit_info(glfo, line, multi_seq=True)
+    add_implicit_info(glfo, line, multi_seq=True, aligned_gl_seqs=aligned_gl_seqs)
 
     return line
 
@@ -716,7 +716,7 @@ def process_per_gene_support(line, debug=False):
         line[region + '_per_gene_support'] = support
 
 # ----------------------------------------------------------------------------------------
-def add_implicit_info(glfo, line, multi_seq, existing_implicit_keys=None, debug=False):
+def add_implicit_info(glfo, line, multi_seq, existing_implicit_keys=None, aligned_gl_seqs=None, debug=False):
     """ Add to <line> a bunch of things that are initially only implicit. """
 
     # check for existing and unexpected keys
@@ -777,7 +777,10 @@ def add_implicit_info(glfo, line, multi_seq, existing_implicit_keys=None, debug=
         line['invalid'] = True
 
     # add alignment info
-    add_alignments(glfo, line, multi_seq, debug)
+    if aligned_gl_seqs is None:
+        add_dummy_alignments(line, multi_seq)
+    else:
+        add_alignments(glfo, aligned_gl_seqs, line, multi_seq, debug)
 
     # make sure we didn't add any unexpected columns (this may duplicate the newer check below)
     for k in line.keys():
@@ -2018,26 +2021,24 @@ def count_gaps(seq, istop=None):
     return sum([seq.count(gc) for gc in gap_chars])
 
 # ----------------------------------------------------------------------------------------
-def add_regional_alignments(glfo, line, multi_seq, region, debug=False):
-    # ----------------------------------------------------------------------------------------
-    # TODO fix to work if user passes in a fasta with alignments
-    if multi_seq:
-        line['aligned_' + region + '_seqs'] = [None for _ in range(len(line['seqs']))]
-    else:
-        line['aligned_' + region + '_seq'] = ''
-    return
-    # ----------------------------------------------------------------------------------------
+def add_dummy_alignments(line, multi_seq):
+    for region in regions:
+        if multi_seq:
+            line['aligned_' + region + '_seqs'] = [None for _ in range(len(line['seqs']))]
+        else:
+            line['aligned_' + region + '_seq'] = None
 
-    debug = True
+# ----------------------------------------------------------------------------------------
+def add_regional_alignments(glfo, aligned_gl_seqs, line, multi_seq, region, debug=False):
     if not multi_seq:  # TODO implement this
-        line['aligned_' + region + '_seq'] = 'ack!'
+        line['aligned_' + region + '_seq'] = None
         return
 
     aligned_seqs = []
     for iseq in range(len(line['seqs'])):
         qr_seq = line[region + '_qr_seqs'][iseq]
         gl_seq = line[region + '_gl_seq']
-        aligned_gl_seq = glfo['aligned-seqs'][region][line[region + '_gene']]
+        aligned_gl_seq = aligned_gl_seqs[region][line[region + '_gene']]
         if len(qr_seq) != len(gl_seq):
             line['invalid'] = True
             continue
@@ -2080,14 +2081,14 @@ def add_regional_alignments(glfo, line, multi_seq, region, debug=False):
         aligned_seqs.append(qr_seq)  # TODO is this supposed to be just the v section of the query sequence, or the whole sequence? (if it's the latter, I don't know what to do about alignments)
 
     if line['invalid']:  # this seems to only happening when we simulate with debug 1, and in that case we don't actually do anything with the aligned seqs, so screw it
-        aligned_seqs = [None for _ in range(len(line['seqs']))]
+        # aligned_seqs = [None for _ in range(len(line['seqs']))]
+        raise Exception('failed adding alignment info for %s' % ' '.join(line['unique_ids']))
     line['aligned_' + region + '_seqs'] = aligned_seqs
 
 # ----------------------------------------------------------------------------------------
-def add_alignments(glfo, line, multi_seq, debug=False):
-    """ add dots according to the imgt gapping scheme """
+def add_alignments(glfo, aligned_gl_seqs, line, multi_seq, debug=False):
     for region in regions:
-        add_regional_alignments(glfo, line, multi_seq, region, debug)
+        add_regional_alignments(glfo, aligned_gl_seqs, line, multi_seq, region, debug)
 
 # ----------------------------------------------------------------------------------------
 def intexterpolate(x1, y1, x2, y2, x):

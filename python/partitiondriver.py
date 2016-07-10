@@ -11,6 +11,7 @@ from collections import OrderedDict
 from subprocess import Popen, check_call, PIPE, CalledProcessError, check_output
 import copy
 import multiprocessing
+from Bio import SeqIO
 
 import utils
 import glutils
@@ -74,6 +75,10 @@ class PartitionDriver(object):
 
         self.partition_cachefile_headers = ('unique_ids', 'logprob', 'naive_seq', 'naive_hfrac', 'errors')  # these have to match whatever bcrham is expecting
         self.deal_with_persistent_cachefile()
+
+        self.aligned_gl_seqs = None
+        if self.args.aligned_germline_fname is not None:
+            self.aligned_gl_seqs = glutils.read_aligned_gl_seqs(self.args.aligned_germline_fname, self.glfo)
 
     # ----------------------------------------------------------------------------------------
     def __del__(self):
@@ -1188,7 +1193,7 @@ class PartitionDriver(object):
                 uidstr = ':'.join(uids)
                 padded_line['indelfos'] = [self.sw_info['indels'].get(uid, utils.get_empty_indel()) for uid in uids]
 
-                utils.add_implicit_info(self.glfo, padded_line, multi_seq=True)
+                utils.add_implicit_info(self.glfo, padded_line, multi_seq=True, aligned_gl_seqs=self.aligned_gl_seqs)
                 utils.process_per_gene_support(padded_line)  # switch per-gene support from log space to normalized probabilities
                 if padded_line['invalid']:
                     n_invalid_events += 1
@@ -1198,7 +1203,7 @@ class PartitionDriver(object):
                     continue
 
                 # get a new dict in which we have edited the sequences to swap Ns on either end (after removing fv and jf insertions) for v_5p and j_3p deletions
-                eroded_line = utils.reset_effective_erosions_and_effective_insertions(self.glfo, padded_line)  #, padfo=self.sw_info)
+                eroded_line = utils.reset_effective_erosions_and_effective_insertions(self.glfo, padded_line, aligned_gl_seqs=self.aligned_gl_seqs)  #, padfo=self.sw_info)
                 if eroded_line['invalid']:  # not really sure why the eroded line is sometimes invalid when the padded line is not, but it's very rare and I don't really care, either
                     n_invalid_events += 1
                     continue
@@ -1355,7 +1360,6 @@ class PartitionDriver(object):
             print '    backing up partis output before converting to presto: %s' % outstr.strip()
 
             prestoheader = utils.presto_headers.values()
-            imgt_gapped_glfo = self.glfo  # possibly not actually imgt-gapped, if we had to add missing alignments
             with open(outpath, 'w') as outfile:
                 writer = csv.DictWriter(outfile, prestoheader)
                 writer.writeheader()
@@ -1364,7 +1368,7 @@ class PartitionDriver(object):
                     outline = copy.deepcopy(full_line)  # in case we modify it
 
                     utils.remove_all_implicit_info(outline, multi_seq=True)
-                    utils.add_implicit_info(imgt_gapped_glfo, outline, multi_seq=True)
+                    utils.add_implicit_info(self.glfo, outline, multi_seq=True, aligned_gl_seqs=self.aligned_gl_seqs)
 
                     outline = utils.convert_to_presto_headers(outline, multi_seq=True)
 

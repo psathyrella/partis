@@ -198,6 +198,7 @@ parent_parser.add_argument('--parameter-type', default='hmm', choices=('sw', 'hm
 parent_parser.add_argument('--initial-datadir', help='Directory with fastas from which to read germline set. Only used when caching parameters, during which its contents is copied into --parameter-dir, perhaps (i.e. if specified) with modification. NOTE default is set below, because control flow is too complicated for argparse')
 parent_parser.add_argument('--outfname', help='Output file name.')
 parent_parser.add_argument('--presto-output', action='store_true', help='write output file in presto format')
+parent_parser.add_argument('--aligned-germline-fname', help='fasta file with alignments for each V gene')
 parent_parser.add_argument('--plotdir', help='Base directory to which to write plots (no plots are written if this isn\'t set)')
 parent_parser.add_argument('--ighutil-dir', default=os.getenv('HOME') + '/.local', help='Path to vdjalign executable. The default (%(default)s) is where \'pip install --user\' typically puts things')
 parent_parser.add_argument('--workdir', help='Temporary working directory')
@@ -224,13 +225,12 @@ parent_parser.add_argument('--dont-rescale-emissions', action='store_true', help
 parent_parser.add_argument('--print-git-commit', action='store_true', help='print sys.argv, git commit hash, and tag info')
 parent_parser.add_argument('--min-observations-to-write', type=int, default=20, help='For hmmwriter.py, if we see a gene version fewer times than this, we sum over other alleles, or other versions, etc. (see hmmwriter)')
 parent_parser.add_argument('--chain', default='h', choices=('h', 'k', 'l'), help='light chain is under development! only heavy chain works at the moment. But in the future: Are these heavy chain, or kappa or lambda light chain?')
-parent_parser.add_argument('--generate-new-alignment', action='store_true', help='If the aligned germline file is missing genes which are present in the un-aligned file, generate a new alignment that includes everybody (otherwise we fail -- don\'t want to override somebody\'s favorite alignment without their consent).')
 # parent_parser.add_argument('--use_mean_at_boundaries', action='store_true', help='see note in hmmwriter')
 
 subconfig = {
     'version'          : {'func' : int, 'help' : 'print version information and exit'},
     'cache-parameters' : {'func' : run_partitiondriver, 'help' : 'Cache parameter values and write hmm model files.'},
-    'run-viterbi'      : {'func' : run_partitiondriver, 'help' : 'Annotate (align) sequences in input file, i.e. run the viterbi algorithm, using pre-existing parameter directory.'},
+    'run-viterbi'      : {'func' : run_partitiondriver, 'help' : 'Annotate sequences in input file, i.e. run the viterbi algorithm, using pre-existing parameter directory.'},
     'partition'        : {'func' : run_partitiondriver, 'help' : 'Partition sequences in input file into clonally-related families using pre-existing parameter directory.'},
     'simulate'         : {'func' : run_simulation,      'help' : 'Generate simulated sequences based on information in pre-existing parameter directory.'},
     'run-forward'      : {'func' : run_partitiondriver, 'help' : 'Run the forward algorithm on sequences in input file, using pre-existing parameter directory. Not particularly useful except for debugging.'},
@@ -362,6 +362,12 @@ if args.plot_performance:
         raise Exception('can\'t plot performance unless --plotdir is specified')
     if not args.is_simu:
         raise Exception('can\'t plot performance unless --is-simu is set')
+
+if args.parameter_type != 'hmm':
+    print '  note: using non-default parameter type \'%s\'' % args.parameter_type
+
+if args.presto_output and args.aligned_germline_fname is None:
+    raise Exception('in order to get presto output, you have to set --aligned-germline-fname (a fasta file with germline alignments for every germline gene)')
 
 # ----------------------------------------------------------------------------------------
 random.seed(args.seed)

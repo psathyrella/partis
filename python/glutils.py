@@ -29,39 +29,63 @@ imgt_info_indices = ('accession-number', 'gene', 'species', 'functionality', '',
 functionalities = set(['F', 'ORF', 'P', '(F)', '[F]', '[ORF]'])   # not actually sure what the last two mean
 
 #----------------------------------------------------------------------------------------
-def read_germline_seqs(datadir, chain, skip_pseudogenes):
-    seqs = {r : OrderedDict() for r in utils.regions}
+def read_fasta_file(seqs, fname, skip_pseudogenes, aligned=False):
     n_skipped_pseudogenes = 0
-    for fname in glfo_fasta_fnames(chain):
-        for seq_record in SeqIO.parse(datadir + '/' + chain + '/' + fname, 'fasta'):
-            linefo = [p.strip() for p in seq_record.description.split('|')]
+    for seq_record in SeqIO.parse(fname, 'fasta'):
+        linefo = [p.strip() for p in seq_record.description.split('|')]
 
-            # first get gene name
-            if linefo[0][:2] != 'IG':  # if it's an imgt file, with a bunch of header info (and the accession number first)
-                gene = linefo[imgt_info_indices.index('gene')]
-                functionality = linefo[imgt_info_indices.index('functionality')]
-                if functionality not in functionalities:
-                    raise Exception('unexpected functionality %s in %s' % (functionality, datadir + '/' + chain + '/' + fname))
-                if skip_pseudogenes and functionality == 'P':
-                    n_skipped_pseudogenes += 1
-                    continue
-            else:  # plain fasta with just the gene name after the '>'
-                gene = linefo[0]
-            utils.split_gene(gene)  # just to check if it's a valid gene name
-            if utils.get_region(gene) != utils.get_region(fname):
-                raise Exception('gene %s from %s has unexpected region %s' % (gene, fname, utils.get_region(gene)))
+        # first get gene name
+        if linefo[0][:2] != 'IG':  # if it's an imgt file, with a bunch of header info (and the accession number first)
+            gene = linefo[imgt_info_indices.index('gene')]
+            functionality = linefo[imgt_info_indices.index('functionality')]
+            if functionality not in functionalities:
+                raise Exception('unexpected functionality %s in %s' % (functionality, fname))
+            if skip_pseudogenes and functionality == 'P':
+                n_skipped_pseudogenes += 1
+                continue
+        else:  # plain fasta with just the gene name after the '>'
+            gene = linefo[0]
+        utils.split_gene(gene)  # just to check if it's a valid gene name
+        if not aligned and utils.get_region(gene) != utils.get_region(os.path.basename(fname)):  # if <aligned> is True, file name is expected to be whatever
+            raise Exception('gene %s from %s has unexpected region %s' % (gene, os.path.basename(fname), utils.get_region(gene)))
 
-            # then the sequence
-            seq = utils.remove_gaps(str(seq_record.seq).upper())  # if the fasta has aligned seqs, we want to remove the gap chars
-            if len(seq.strip(''.join(utils.expected_characters))) > 0:  # return the empty string if it only contains expected characters
-                raise Exception('unexpected character %s in %s (expected %s)' % (seq.strip(''.join(utils.expected_characters)), seq, ' '.join(utils.expected_characters)))
+        # then the sequence
+        seq = str(seq_record.seq).upper()
+        if not aligned:
+            seq = utils.remove_gaps(seq)
+        if len(seq.strip(''.join(utils.expected_characters))) > 0:  # return the empty string if it only contains expected characters
+            raise Exception('unexpected character %s in %s (expected %s)' % (seq.strip(''.join(utils.expected_characters)), seq, ' '.join(utils.expected_characters)))
 
-            seqs[utils.get_region(gene)][gene] = seq
+        seqs[utils.get_region(gene)][gene] = seq
 
     if n_skipped_pseudogenes > 0:
         print '    skipped %d pseudogenes' % n_skipped_pseudogenes
 
+#----------------------------------------------------------------------------------------
+def read_germline_seqs(datadir, chain, skip_pseudogenes):
+    seqs = {r : OrderedDict() for r in utils.regions}
+    for fname in glfo_fasta_fnames(chain):
+        read_fasta_file(seqs, datadir + '/' + chain + '/' + fname, skip_pseudogenes)
     return seqs
+
+# ----------------------------------------------------------------------------------------
+def read_aligned_gl_seqs(fname, glfo):
+    aligned_gl_seqs = {r : OrderedDict() for r in utils.regions}
+    read_fasta_file(aligned_gl_seqs, fname, skip_pseudogenes=False, aligned=True)
+
+    # pad all the Vs to the same length (imgt fastas just leave them all unequal lengths on the right of the alignment)
+    max_aligned_length = max([len(seq) for seq in aligned_gl_seqs['v'].values()])
+    for gene in aligned_gl_seqs['v']:
+        n_extra_gaps = max_aligned_length - len(aligned_gl_seqs['v'][gene])
+        aligned_gl_seqs['v'][gene] += n_extra_gaps * utils.gap_chars[0]
+
+    # check that we got all the genes
+    glfo_genes = set([g for r in utils.regions for g in glfo['seqs'][r]])
+    aligned_genes = set([g for r in utils.regions for g in aligned_gl_seqs[r]])
+    if len(glfo_genes - aligned_genes) > 0:
+        raise Exception('missing alignments for %s' % ' '.join(glfo_genes - aligned_genes))
+
+    return aligned_gl_seqs
 
 # ----------------------------------------------------------------------------------------
 def get_new_alignments(glfo, region, debug=False):
@@ -355,6 +379,11 @@ def restrict_to_genes(glfo, only_genes, debug=False):
     """ remove from <glfo> any genes which are not in <only_genes> """
     if only_genes is None:
         return
+
+    only_genes_not_in_glfo = set(only_genes) - set([g for r in utils.regions for g in glfo['seqs'][r]])
+    if len(only_genes_not_in_glfo) > 0:
+        print '  %s genes %s in --only-genes aren\'t in glfo to begin with' % (utils.color('red', 'warning'), ' '.join(only_genes_not_in_glfo))
+
     genes_to_remove = set([g for r in utils.regions for g in glfo['seqs'][r]]) - set(only_genes)
     if debug:
         print '    removing %d genes from glfo' % len(genes_to_remove)
@@ -488,4 +517,3 @@ def remove_glfo_files(datadir, chain):
         os.remove(datadir + '/' + chain + '/' + fname)
     os.rmdir(datadir + '/' + chain)
     os.rmdir(datadir)  # at the moment, we should only be running on single-chain stuff, so the only dir with info for more than one chain should be data/imgt
-
