@@ -19,7 +19,7 @@ class RecombinationEvent(object):
         self.original_seqs = {}
         self.eroded_seqs = {}
         self.local_cyst_position, self.final_cyst_position = -1, -1  # the 'local' one is without the v left erosion
-        self.local_tryp_position, self.final_tryp_position = -1, -1  # NOTE the first is the position *within* the j gene *only*, while the second is the tryp position in the final recombined sequence
+        self.local_tryp_position, self.final_tryp_position = -1, -1  # tryp/phen, whatevers. NOTE the first is the position *within* the j gene *only*, while the second is the tryp position in the final recombined sequence
         self.erosions = {}  # erosion lengths for the event
         self.effective_erosions = {}  # v left and j right erosions
         self.cdr3_length = 0  # NOTE this is the *desired* cdr3_length, i.e. after erosion and insertion
@@ -58,16 +58,20 @@ class RecombinationEvent(object):
             self.print_gene_choice()
 
     # ----------------------------------------------------------------------------------------
-    def set_final_cyst_tryp_positions(self, debug=False):
+    def set_final_codon_positions(self, chain, debug=False):
         """ Set tryp position in the final, combined sequence. """
         self.final_cyst_position = self.local_cyst_position - self.effective_erosions['v_5p']
         self.final_tryp_position = utils.find_tryp_in_joined_seq(self.local_tryp_position, self.eroded_seqs['v'], self.insertions['vd'], self.eroded_seqs['d'], self.insertions['dj'], self.eroded_seqs['j'], self.erosions['j_5p'])
         self.cdr3_length = self.final_tryp_position - self.final_cyst_position + 3
         if debug:
-            print '  final tryptophan position: %d' % self.final_tryp_position
+            print '  final %s position: %d' % (utils.conserved_codons[chain]['j'], self.final_tryp_position)
 
-        codons_ok = utils.check_both_conserved_codons(self.eroded_seqs['v'] + self.insertions['vd'] + self.eroded_seqs['d'] + self.insertions['dj'] + self.eroded_seqs['j'], self.final_cyst_position, self.final_tryp_position, assert_on_fail=False)
-        if not codons_ok:
+        # TODO remove this
+        assert self.recombined_seq == self.eroded_seqs['v'] + self.insertions['vd'] + self.eroded_seqs['d'] + self.insertions['dj'] + self.eroded_seqs['j']
+
+        cyst_ok = utils.codon_ok(utils.conserved_codons[chain]['v'], self.recombined_seq, self.final_cyst_position, extra_str='      ', debug=debug):
+        tryp_ok = utils.codon_ok(utils.conserved_codons[chain]['j'], self.recombined_seq, self.final_tryp_position, extra_str='      ', debug=debug):  # tryp, phen, whatevers
+        if not cyst_ok or not tryp_ok:
             return False
 
         return True

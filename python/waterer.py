@@ -414,7 +414,7 @@ class Waterer(object):
         out_str_list.append('%46s  %4d%4d' % ('', qrbounds[0], qrbounds[1]))
         out_str_list.append('   %s ' % (utils.color_mutants(self.glfo['seqs'][region][gene][glbounds[0]:glbounds[1]], query_seq[qrbounds[0]:qrbounds[1]])))
         if region != 'd':
-            out_str_list.append('(%s %d)' % (utils.conserved_codons[region], codon_pos))
+            out_str_list.append('(%s %d)' % (utils.conserved_codons[self.args.chain][region], codon_pos))
         if warnings[gene] != '':
             out_str_list.append('WARNING ' + warnings[gene])
         if skipping:
@@ -689,7 +689,7 @@ class Waterer(object):
             codon_positions[region] = pos
 
         # check for unproductive rearrangements
-        codons_ok = utils.check_both_conserved_codons(query_seq, codon_positions['v'], codon_positions['j'], assert_on_fail=False)
+        codons_ok = utils.both_codons_ok(self.args.chain, query_seq, codon_positions)
         cdr3_length = codon_positions['j'] - codon_positions['v'] + 3
 
         if cdr3_length < 6:  # NOTE six is also hardcoded in utils

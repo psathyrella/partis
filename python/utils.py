@@ -78,7 +78,16 @@ nukes = ['A', 'C', 'G', 'T']
 ambiguous_bases = ['N', ]
 gap_chars = ['.', '-']
 expected_characters = set(nukes + ambiguous_bases + gap_chars)
-conserved_codons = {'v' : 'cyst', 'j' : 'tryp'}  # ['cyst', 'tryp']
+conserved_codons = {
+    'h' : {'v' : 'cyst', 'j' : 'tryp'},
+    'k' : {'v' : 'cyst', 'j' : 'phen'},
+    'l' : {'v' : 'cyst', 'j' : 'phen'}
+}
+codon_table = {
+    'cyst' : ['TGT', 'TGC'],
+    'tryp' : ['TGG', ],
+    'phen' : ['TTT', 'TTC']
+}
 # Infrastrucure to allow hashing all the columns together into a dict key.
 # Uses a tuple with the variables that are used to index selection frequencies
 # NOTE fv and jf insertions are *effective* (not real) insertions between v or j and the framework. They allow query sequences that extend beyond the v or j regions
@@ -90,7 +99,7 @@ for i in range(len(index_columns)):  # dict so we can access them by name instea
 # ----------------------------------------------------------------------------------------
 def get_codon(fname):
     codon = fname.split('-')[0]
-    if codon not in conserved_codons.values():
+    if codon not in [c for chain in chains for c in conserved_codons[chain].values()]:
         raise Exception('couldn\'t get codon from file name %s' % fname)
     return codon
 
@@ -336,77 +345,47 @@ def remove_gaps(seq):
     return seq.translate(None, ''.join(gap_chars))
 
 # ----------------------------------------------------------------------------------------
-def check_conserved_cysteine(seq, cyst_position, debug=False, extra_str='', assert_on_fail=True):
-    """ Ensure there's a cysteine at <cyst_position> in <seq>. """
-    if len(seq) < cyst_position+3:
+def both_codons_ok(chain, seq, positions, debug=False, extra_str=''):
+    both_ok = True
+    for region, codon in conserved_codons[chain].items():
+        both_ok &= codon_ok(codon, seq, positions[region], debug=debug, extra_str=extra_str)
+    return both_ok
+
+# ----------------------------------------------------------------------------------------
+def codon_ok(codon, seq, position, debug=False, extra_str=''):
+    if len(seq) < position + 3:
         if debug:
-            print '%sseq not long enough in cysteine checker %d %s' % (extra_str, cyst_position, seq)
-        if assert_on_fail:
-            assert False
-        else:
-            return False
-    cyst_word = str(seq[cyst_position:cyst_position+3])
-    if cyst_word != 'TGT' and cyst_word != 'TGC':
+            print '%ssequence length %d less than %s position %d + 3' % (extra_str, len(seq), codon, position)
+        return False
+
+    if seq[position : position + 3] not in codon_table[codon]:
         if debug:
-            print '%scysteine in v is messed up: %s (%s %d)' % (extra_str, cyst_word, seq, cyst_position)
-        if assert_on_fail:
-            assert False
-        else:
-            return False
+            print '%s%s codon %s not among expected codons (%s)' % (extra_str, codon, seq[position : position + 3], ' '.join(codon_table[codon]))
+        return False
 
     return True
 
-# ----------------------------------------------------------------------------------------
-def check_conserved_tryptophan(seq, tryp_position, debug=False, extra_str='', assert_on_fail=True):
-    """ Ensure there's a tryptophan at <tryp_position> in <seq>. """
-    if len(seq) < tryp_position+3:
-        if debug:
-            print '%sseq not long enough in tryp checker %d %s' % (extra_str, tryp_position, seq)
-        if assert_on_fail:
-            assert False
+#----------------------------------------------------------------------------------------
+def check_a_bunch_of_codons(codon, seqons, extra_str='', debug=False):  # seqons: list of (seq, pos) pairs
+    n_total, n_ok, n_too_short, n_bad_codons = 0, 0, 0, 0
+    for seq, pos in seqons:
+        n_total += 1
+        if len(seq) < pos + 3:
+            n_too_short += 1
+        elif codon_ok(codon, seq, pos):
+            n_ok += 1
         else:
-            return False
-    tryp_word = str(seq[tryp_position:tryp_position+3])
-    if tryp_word != 'TGG':
-        if debug:
-            print '%stryptophan in j is messed up: %s (%s %d)' % (extra_str, tryp_word, seq, tryp_position)
-        if assert_on_fail:
-            assert False
-        else:
-            return False
+            n_bad_codons += 1
 
-    return True
-
-# ----------------------------------------------------------------------------------------
-def check_codon(codon, seq, position, debug=False, extra_str='', assert_on_fail=True):
-    if codon == 'cyst':
-        check_conserved_cysteine(seq, position, extra_str=extra_str, assert_on_fail=assert_on_fail, debug=debug)
-    elif codon == 'tryp':
-        check_conserved_tryptophan(seq, position, extra_str=extra_str, assert_on_fail=assert_on_fail, debug=debug)
-    else:
-        assert False
-
-# ----------------------------------------------------------------------------------------
-def check_both_conserved_codons(seq, cyst_position, tryp_position, debug=False, extra_str='', assert_on_fail=True):
-    """ Double check that we conserved the cysteine and the tryptophan. """
-    cyst_ok = check_conserved_cysteine(seq, cyst_position, debug, extra_str=extra_str, assert_on_fail=assert_on_fail)
-    tryp_ok = check_conserved_tryptophan(seq, tryp_position, debug, extra_str=extra_str, assert_on_fail=assert_on_fail)
-    return cyst_ok and tryp_ok
-
-# ----------------------------------------------------------------------------------------
-def are_conserved_codons_screwed_up(reco_event):
-    """ Version that checks all the final seqs in reco_event.
-
-    Returns True if codons are screwed up, or if no sequences have been added.
-    """
-    if len(reco_event.final_seqs) == 0:
-        return True
-    for seq in reco_event.final_seqs:
-        codons_ok = check_both_conserved_codons(seq, reco_event.final_cyst_position, reco_event.final_tryp_position, assert_on_fail=False)
-        if not codons_ok:
-            return True
-
-    return False
+    if debug:
+        print '%s%d %s positions:' % (extra_str, n_total, codon),
+        if n_ok > 0:
+            print '  %d ok' % n_ok,
+        if n_too_short > 0:
+            print '  %d too short' % n_too_short,
+        if n_bad_codons > 0:
+            print '  %d mutated' % n_bad_codons,
+        print ''
 
 #----------------------------------------------------------------------------------------
 def stop_codon_check(seq, cyst_position, debug=False):
@@ -659,9 +638,9 @@ def add_qr_seqs(line, multi_seq):
             line[region + '_qr_seq'] = get_single_qr_seq(region, line['seq'])
 
 # ----------------------------------------------------------------------------------------
-def add_functional_info(line, multi_seq):
+def add_functional_info(chain, line, multi_seq):
     def get_single_seq_info(seq, cpos, tpos, cdr3_length):
-        codons_ok = check_both_conserved_codons(seq, cpos, tpos, assert_on_fail=False)
+        codons_ok = both_codons_ok(chain, seq, {'v' : cpos, 'j' : tpos})
         in_frame_cdr3 = (cdr3_length % 3 == 0)
         no_stop_codon = stop_codon_check(seq, cpos)
         return {'mutated_invariant' : not codons_ok, 'in_frame' : in_frame_cdr3, 'stop' : not no_stop_codon}
@@ -767,7 +746,7 @@ def add_implicit_info(glfo, line, multi_seq, existing_implicit_keys=None, aligne
     # add regional query seqs
     add_qr_seqs(line, multi_seq)
 
-    add_functional_info(line, multi_seq)
+    add_functional_info(glfo['chain'], line, multi_seq)
 
     add_mute_freqs(line, multi_seq)
 

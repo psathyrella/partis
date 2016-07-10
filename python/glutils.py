@@ -14,12 +14,12 @@ import utils
 glfo_dir = 'germline-sets'  # always put germline info into a subdir with this name
 
 # single-chain file names
-def glfo_csv_fnames():
-    return [cdn + '-positions.csv' for cdn in utils.conserved_codons.values()]
+def glfo_csv_fnames(chain):
+    return [cdn + '-positions.csv' for cdn in utils.conserved_codons[chain].values()]
 def glfo_fasta_fnames(chain):
     return ['ig' + chain + r + '.fasta' for r in utils.regions]
 def glfo_fnames(chain):
-    return glfo_csv_fnames() + glfo_fasta_fnames(chain)
+    return glfo_csv_fnames(chain) + glfo_fasta_fnames(chain)
 
 # fasta file names including all chains
 def all_glfo_fasta_fnames():
@@ -99,9 +99,9 @@ def get_new_alignments(glfo, region, debug=False):
         return
 
     if debug:
-        print '  missing alignments for %d %s genes' % (len(genes_without_alignments), region)
+        print '        missing alignments for %d %s genes' % (len(genes_without_alignments), region)
         if len(aligned_seqs) > 0:
-            print '  existing alignments:'
+            print '      existing alignments:'
             for g, seq in aligned_seqs.items():
                 print '    %s   %s' % (seq, utils.color_gene(g))
 
@@ -136,7 +136,7 @@ def get_new_alignments(glfo, region, debug=False):
     # actually run mafft
     cmd = 'mafft --merge ' + msa_table_fname + ' ' + aligned_and_not_fnamefname + ' >' + mafft_outfname  # options=  # "--localpair --maxiterate 1000"
     if debug:
-        print '    RUN %s' % cmd
+        print '          RUN %s' % cmd
     proc = Popen(cmd, shell=True, stderr=PIPE)
     _, err = proc.communicate()  # debug info goes to err
 
@@ -191,16 +191,16 @@ def get_missing_codon_info(glfo, debug=False):
     # ----------------------------------------------------------------------------------------
     def get_pos_in_alignment(codon, aligned_seq, seq, pos):
         """ given <pos> in <seq>, find the codon's position in <aligned_seq> """
-        utils.check_codon(codon, seq, pos, debug=True)
+        assert utils.codon_ok(codon, seq, pos, debug=True)  # this only gets called on the gene with the *known* position, so it shouldn't fail
         pos_in_alignment = pos + get_n_gaps_up_to_pos(aligned_seq, pos)
-        utils.check_codon(codon, aligned_seq, pos_in_alignment, debug=True)
+        assert utils.codon_ok(codon, aligned_seq, pos_in_alignment, debug=True)
         return pos_in_alignment
 
-    for region, codon in utils.conserved_codons.items():
+    for region, codon in utils.conserved_codons[glfo['chain']].items():
         missing_genes = set(glfo['seqs'][region]) - set(glfo[codon + '-positions'])
         if len(missing_genes) == 0:
             if debug:
-                print '    no missing %s info' % codon
+                print '      no missing %s info' % codon
             continue
 
         if debug:
@@ -215,7 +215,7 @@ def get_missing_codon_info(glfo, debug=False):
         if len(glfo[codon + '-positions']) > 0:
             known_gene, known_pos = None, None
             for gene, pos in glfo[codon + '-positions'].items():  # take the first one for which we have the sequence (NOTE it would be safer to check that they're all the same)
-                if gene in glfo['seqs'][region] and gene in aligned_seqs:
+                if gene in glfo['seqs'][region] and gene in aligned_seqs and utils.codon_ok(codon, glfo['seqs'][region][gene], pos):
                     known_gene, known_pos = gene, pos
                     break
             if known_gene is None:
@@ -223,29 +223,25 @@ def get_missing_codon_info(glfo, debug=False):
             # NOTE for cyst, should be 309 if alignments are imgt [which they used to usually be, but now probably aren't] (imgt says 104th codon --> subtract 1 to get zero-indexing, then multiply by three 3 * (104 - 1) = 309
             known_pos_in_alignment = get_pos_in_alignment(codon, aligned_seqs[known_gene], glfo['seqs'][region][known_gene], known_pos)
             if debug:
-                print '      using known position %d (aligned %d) in %s' % (known_pos, known_pos_in_alignment, known_gene)
+                print '        using known position %d (aligned %d) in %s' % (known_pos, known_pos_in_alignment, known_gene)
         elif codon == 'cyst':
             known_pos_in_alignment = 309
             print '      assuming aligned %s position is %d (this will %s work if you\'re using imgt alignments)' % (codon, known_pos_in_alignment, utils.color('red', only))
         else:
             raise Exception('no existing %s info, and couldn\'t guess it, either' % codon)
 
-        n_added, n_ok, n_too_short, n_bad_codons = 0, 0, 0, 0
+        n_added = 0
+        seqons = []  # (seq, pos) pairs
         for gene in missing_genes:
             unaligned_pos = known_pos_in_alignment - utils.count_gaps(aligned_seqs[gene], istop=known_pos_in_alignment)
             seq_to_check = glfo['seqs'][region][gene]
-            if len(seq_to_check) < unaligned_pos + 3:
-                n_too_short += 1
-            else:
-                try:
-                    utils.check_codon(codon, seq_to_check, unaligned_pos, debug=True, extra_str='          ')
-                    n_ok += 1
-                except AssertionError:
-                    n_bad_codons += 1
-            n_added += 1
+            seqons.append((seq_to_check, unaligned_pos))
             glfo[codon + '-positions'][gene] = unaligned_pos
+            n_added += 1
+
+        utils.check_a_bunch_of_codons(codon, seqons, extra_str='          ', debug=True)
         if debug:
-            print '    added %d %s positions (%d ok, %d seq was too short, %d were \'mutated\')' % (n_added, codon, n_ok, n_too_short, n_bad_codons)
+            print '      added %d %s positions' % (n_added, codon)
 
 # ----------------------------------------------------------------------------------------
 def read_codon_positions(csvfname):
@@ -276,10 +272,15 @@ def read_glfo(datadir, chain, only_genes=None, skip_pseudogenes=True, debug=Fals
         print '  reading %s chain glfo from %s' % (chain, datadir)
     glfo = {'chain' : chain}
     glfo['seqs'] = read_germline_seqs(datadir, chain, skip_pseudogenes)
-    for fname in glfo_csv_fnames():
+    for fname in glfo_csv_fnames(chain):
         glfo[utils.get_codon(fname) + '-positions'] = read_codon_positions(datadir + '/' + chain + '/' + fname)
     get_missing_codon_info(glfo, debug=debug)
     restrict_to_genes(glfo, only_genes, debug=debug)
+
+    for region, codon in utils.conserved_codons[glfo['chain']].items():
+        seqons = [(seq, glfo[codon + '-positions'][gene]) for gene, seq in glfo['seqs'][region].items()]  # (seq, pos) pairs
+        utils.check_a_bunch_of_codons(codon, seqons, extra_str='      ', debug=debug)
+
     if debug:
         print '  read %s' % '  '.join([('%s: %d' % (r, len(glfo['seqs'][r]))) for r in utils.regions])
     return glfo
@@ -351,7 +352,7 @@ def generate_snpd_gene(gene, cpos, seq, positions):
     assert utils.get_region(gene) == 'v'  # others not yet handled
     def choose_position():
         snp_pos = None
-        while snp_pos is None or snp_pos in snpd_positions or not utils.check_conserved_cysteine(tmpseq, cpos, debug=True, assert_on_fail=False):
+        while snp_pos is None or snp_pos in snpd_positions or not utils.codon_ok('cyst', tmpseq, cpos, debug=True):
             snp_pos = random.randint(10, len(seq) - 15)  # note that randint() is inclusive
             tmpseq = seq[: snp_pos] + 'X' + seq[snp_pos + 1 :]  # for checking cyst position
         return snp_pos
@@ -370,7 +371,7 @@ def generate_snpd_gene(gene, cpos, seq, positions):
 
         seq = seq[: snp_pos] + new_base + seq[snp_pos + 1 :]
 
-    utils.check_conserved_cysteine(seq, cpos)
+    assert utils.codon_ok('cyst', seq, cpos, debug=True)  # this is probably unnecessary
     snpd_name, mutfo = get_new_allele_name_and_change_mutfo(gene, mutfo)
     return {'template-gene' : gene, 'gene' : snpd_name, 'seq' : seq}
 
@@ -403,8 +404,8 @@ def remove_gene(glfo, gene, debug=False):
     if debug:
         print '  removing %s from glfo' % utils.color_gene(gene)
     region = utils.get_region(gene)
-    if region in utils.conserved_codons:
-        del glfo[utils.conserved_codons[region] + '-positions'][gene]
+    if region in utils.conserved_codons[chain['chain']]:
+        del glfo[utils.conserved_codons[chain['chain']][region] + '-positions'][gene]
     del glfo['seqs'][region][gene]
 
 # ----------------------------------------------------------------------------------------
@@ -496,7 +497,7 @@ def write_glfo(output_dir, glfo, only_genes=None, debug=False):
                     continue
                 outfile.write('>' + gene + '\n')
                 outfile.write(glfo['seqs'][utils.get_region(fname)][gene] + '\n')
-    for fname in glfo_csv_fnames():
+    for fname in glfo_csv_fnames(glfo['chain']):
         with open(output_dir + '/' + glfo['chain'] + '/' + fname, 'w') as codonfile:
             writer = csv.DictWriter(codonfile, ('gene', 'istart'))
             writer.writeheader()

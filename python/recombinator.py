@@ -133,6 +133,7 @@ class Recombinator(object):
             if itry > 0 and self.args.debug:
                 print '    unproductive event -- rerunning (try %d)  ' % itry  # probably a weirdly long v_3p or j_5p deletion
             failed = not self.try_to_combine(initial_irandom + itry)
+            break
             itry += 1
 
     # ----------------------------------------------------------------------------------------
@@ -158,7 +159,7 @@ class Recombinator(object):
             print '    insert: %s' % reco_event.insertions['dj']
             print '         j: %s' % reco_event.eroded_seqs['j']
         reco_event.recombined_seq = reco_event.eroded_seqs['v'] + reco_event.insertions['vd'] + reco_event.eroded_seqs['d'] + reco_event.insertions['dj'] + reco_event.eroded_seqs['j']
-        codons_ok = reco_event.set_final_cyst_tryp_positions(debug=self.args.debug)
+        codons_ok = reco_event.set_final_codon_positions(self.args.chain, debug=self.args.debug)
         if not codons_ok:
             return False
 
@@ -572,9 +573,11 @@ class Recombinator(object):
         for iseq in range(len(mutes['v'])):
             seq = mutes['v'][iseq] + mutes['vd'][iseq] + mutes['d'][iseq] + mutes['dj'][iseq] + mutes['j'][iseq]  # build final sequence
             seq = reco_event.revert_conserved_codons(seq)  # if mutation screwed up the conserved codons, just switch 'em back to what they were to start with
-            reco_event.final_seqs.append(seq)  # set final sequnce in reco_event
 
-        assert not utils.are_conserved_codons_screwed_up(reco_event)
+            assert utils.codon_ok(utils.conserved_codons[self.args.chain]['v'], seq, reco_event.final_cyst_position, debug=True)
+            assert utils.codon_ok(utils.conserved_codons[self.args.chain]['j'], seq, reco_event.final_tryp_position, debug=True)
+
+            reco_event.final_seqs.append(seq)  # set final sequnce in reco_event
 
         self.add_shm_indels(reco_event)
 
