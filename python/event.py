@@ -69,8 +69,8 @@ class RecombinationEvent(object):
         # TODO remove this
         assert self.recombined_seq == self.eroded_seqs['v'] + self.insertions['vd'] + self.eroded_seqs['d'] + self.insertions['dj'] + self.eroded_seqs['j']
 
-        cyst_ok = utils.codon_ok(utils.conserved_codons[chain]['v'], self.recombined_seq, self.final_cyst_position, extra_str='      ', debug=debug):
-        tryp_ok = utils.codon_ok(utils.conserved_codons[chain]['j'], self.recombined_seq, self.final_tryp_position, extra_str='      ', debug=debug):  # tryp, phen, whatevers
+        cyst_ok = utils.codon_ok(utils.conserved_codons[chain]['v'], self.recombined_seq, self.final_cyst_position, extra_str='      ', debug=debug)
+        tryp_ok = utils.codon_ok(utils.conserved_codons[chain]['j'], self.recombined_seq, self.final_tryp_position, extra_str='      ', debug=debug)  # tryp, phen, whatevers
         if not cyst_ok or not tryp_ok:
             return False
 

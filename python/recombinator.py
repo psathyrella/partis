@@ -133,7 +133,6 @@ class Recombinator(object):
             if itry > 0 and self.args.debug:
                 print '    unproductive event -- rerunning (try %d)  ' % itry  # probably a weirdly long v_3p or j_5p deletion
             failed = not self.try_to_combine(initial_irandom + itry)
-            break
             itry += 1
 
     # ----------------------------------------------------------------------------------------
