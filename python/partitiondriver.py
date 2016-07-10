@@ -1214,9 +1214,6 @@ class PartitionDriver(object):
 
                 if self.args.debug:
                     print '      %s' % uidstr
-                    if not self.args.is_data:
-                        print '   %d' % utils.from_same_event(self.reco_info, uids),
-                    print ''
                     self.print_hmm_output(line_to_use, print_true=True)
 
                 assert uidstr not in annotations
