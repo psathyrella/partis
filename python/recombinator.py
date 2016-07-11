@@ -160,8 +160,10 @@ class Recombinator(object):
         reco_event.recombined_seq = reco_event.eroded_seqs['v'] + reco_event.insertions['vd'] + reco_event.eroded_seqs['d'] + reco_event.insertions['dj'] + reco_event.eroded_seqs['j']
         reco_event.set_final_codon_positions(debug=self.args.debug)
         codons_ok = utils.both_codons_ok(self.glfo['chain'], reco_event.recombined_seq, reco_event.final_codon_positions, extra_str='      ', debug=self.args.debug)
+        if not codons_ok:
+            return False
         in_frame = reco_event.cdr3_length % 3 == 0
-        if not codons_ok or not in_frame:
+        if self.args.simulate_partially_from_scratch and not in_frame:
             return False
 
         self.add_mutants(reco_event, irandom)  # toss a bunch of clones: add point mutations
