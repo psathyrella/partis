@@ -386,17 +386,6 @@ class Waterer(object):
                 else:
                     continue
 
-            if qrbounds[1]-qrbounds[0] != glbounds[1]-glbounds[0]:
-                raise Exception('germline match (%d %d) not same length as query match (%d %d)' % (qrbounds[0], qrbounds[1], glbounds[0], glbounds[1]))
-
-            assert qrbounds[1] <= len(query_seq)
-            if glbounds[1] > len(self.glfo['seqs'][region][gene]):
-                print '  ', gene
-                print '  ', glbounds[1], len(self.glfo['seqs'][region][gene])
-                print '  ', self.glfo['seqs'][region][gene]
-            assert glbounds[1] <= len(self.glfo['seqs'][region][gene])
-            assert qrbounds[1]-qrbounds[0] == glbounds[1]-glbounds[0]
-
             # and finally add this match's information
             warnings[gene] = ''
             all_match_names[region].append((score, gene))  # NOTE it is important that this is ordered such that the best match is first
@@ -408,7 +397,7 @@ class Waterer(object):
     # ----------------------------------------------------------------------------------------
     def print_match(self, region, gene, query_seq, score, glbounds, qrbounds, warnings, skipping=False):
         out_str_list = []
-        buff_str = (20 - len(gene)) * ' '
+        buff_str = (19 - len(gene)) * ' '
         out_str_list.append('%8s%s%s%9s%3s %6.0f        ' % (' ', utils.color_gene(gene), '', '', buff_str, score))
         out_str_list.append('%4d%4d   %s\n' % (glbounds[0], glbounds[1], self.glfo['seqs'][region][gene][glbounds[0]:glbounds[1]]))
         out_str_list.append('%46s  %4d%4d' % ('', qrbounds[0], qrbounds[1]))
@@ -600,10 +589,6 @@ class Waterer(object):
             for score, gene in all_match_names[region]:
                 glbounds = all_germline_bounds[gene]
                 qrbounds = all_query_bounds[gene]
-                assert qrbounds[1] <= len(query_seq)  # NOTE I'm putting these up above as well (in process_query), so in time I should remove them from here
-                assert glbounds[1] <= len(self.glfo['seqs'][region][gene])
-                assert qrbounds[0] >= 0
-                assert glbounds[0] >= 0
                 glmatchseq = self.glfo['seqs'][region][gene][glbounds[0]:glbounds[1]]
 
                 match_names[region].append(gene)
