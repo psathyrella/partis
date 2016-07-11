@@ -159,7 +159,9 @@ class Recombinator(object):
             print '         j: %s' % reco_event.eroded_seqs['j']
         reco_event.recombined_seq = reco_event.eroded_seqs['v'] + reco_event.insertions['vd'] + reco_event.eroded_seqs['d'] + reco_event.insertions['dj'] + reco_event.eroded_seqs['j']
         reco_event.set_final_codon_positions(debug=self.args.debug)
-        if not utils.both_codons_ok(self.glfo['chain'], reco_event.recombined_seq, reco_event.final_codon_positions, extra_str='      ', debug=self.args.debug):
+        codons_ok = utils.both_codons_ok(self.glfo['chain'], reco_event.recombined_seq, reco_event.final_codon_positions, extra_str='      ', debug=self.args.debug)
+        in_frame = reco_event.cdr3_length % 3 == 0
+        if not codons_ok or not in_frame:
             return False
 
         self.add_mutants(reco_event, irandom)  # toss a bunch of clones: add point mutations
@@ -248,7 +250,7 @@ class Recombinator(object):
 
         vdj_choice = None
         if self.args.simulate_partially_from_scratch:  # generate an event without using the parameter directory
-            tmpline = {}
+            tmpline = {}  # NOTE has insertion lengths rather than insertion strings (like in all-probs.csv), so can't pass to normal utils <line> functions
             for region in utils.regions:
                 tmpline[region + '_gene'] = numpy.random.choice(self.allowed_genes[region])
             for effrode in utils.effective_erosions:
@@ -262,7 +264,8 @@ class Recombinator(object):
                 max_erosion = max(0, gene_length - 2)
                 tmpline[erosion + '_del'] = min(max_erosion, numpy.random.geometric(1. / utils.scratch_mean_erosion_lengths[erosion]))
             for bound in utils.boundaries:
-                tmpline[bound + '_insertion'] = numpy.random.geometric(1. / utils.scratch_mean_insertion_lengths[bound])
+                mean_length = utils.scratch_mean_insertion_lengths[self.args.chain][bound]
+                tmpline[bound + '_insertion'] = 0 if mean_length == 0 else numpy.random.geometric(1. / mean_length)
             vdj_choice = self.freqtable_index(tmpline)
         else:  # use real parameters from a directory
             iprob = numpy.random.uniform(0, 1)

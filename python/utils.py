@@ -62,7 +62,11 @@ def get_arg_list(arg, intify=False, floatify=False, translation=None, list_of_pa
 # scratch_mean_mute_freqs = {'v' : 0.03, 'd' : 0.8, 'j' : 0.06}
 # scratch_mean_mute_freqs['all'] = numpy.mean([v for v in scratch_mean_mute_freqs.values()])
 scratch_mean_erosion_lengths = {'v_3p' : 2, 'd_5p' : 3, 'd_3p' : 3, 'j_5p' : 4}
-scratch_mean_insertion_lengths = {'vd' : 4, 'dj' : 4}
+scratch_mean_insertion_lengths = {
+    'h': {'vd' : 4, 'dj' : 4},
+    'k': {'vd' : 8, 'dj' : 0},
+    'l': {'vd' : 8, 'dj' : 0}
+}
 
 # ----------------------------------------------------------------------------------------
 regions = ['v', 'd', 'j']
@@ -368,6 +372,7 @@ def codon_ok(codon, seq, position, debug=False, extra_str=''):
 
 #----------------------------------------------------------------------------------------
 def check_a_bunch_of_codons(codon, seqons, extra_str='', debug=False):  # seqons: list of (seq, pos) pairs
+    """ check a list of sequences, and keep track of some statistics """
     n_total, n_ok, n_too_short, n_bad_codons = 0, 0, 0, 0
     for seq, pos in seqons:
         n_total += 1
@@ -911,15 +916,18 @@ def print_seq_in_reco_event(germlines, line, extra_str='', label='', one_line=Fa
     d_line = color_chars(ambiguous_bases + ['*', ], 'light_blue', d_line)
     vj_line = color_chars(ambiguous_bases + ['*', ], 'light_blue', vj_line)
 
+    chain = get_chain(line['v_gene'])  # kind of hackey
+
     if print_uid:
         extra_str += '%20s ' % line['unique_id']
     out_str_list = []
     # insert, d, and vj lines
     if not one_line:
-        out_str_list.append('%s    %s   inserts\n' % (extra_str, insert_line))
+        out_str_list.append('%s    %s   insert%s\n' % (extra_str, insert_line, 's' if chain == 'h' else ''))
         if label != '':
             out_str_list[-1] = extra_str + label + out_str_list[-1][len(extra_str + label) :]
-        out_str_list.append('%s    %s   %s\n' % (extra_str, d_line, color_gene(line['d_gene'])))
+        if chain == 'h':
+            out_str_list.append('%s    %s   %s\n' % (extra_str, d_line, color_gene(line['d_gene'])))
         out_str_list.append('%s    %s   %s %s\n' % (extra_str, vj_line, color_gene(line['v_gene']), color_gene(line['j_gene'])))
 
     # if indelfo is not None:
