@@ -343,10 +343,8 @@ class Waterer(object):
         query_name = primary.qname
         self.tmp_queries_read_from_file.add(query_name)
         first_match_query_bounds = None  # since sw excises its favorite v match, we have to know this match's boundaries in order to calculate k_d for all the other matches
-        all_match_names = {}
+        all_match_names = {r : [] for r in utils.regions}
         warnings = {}  # ick, this is a messy way to pass stuff around
-        for region in utils.regions:
-            all_match_names[region] = []
         all_query_bounds, all_germline_bounds = {}, {}
         for read in reads:  # loop over the matches found for each query sequence
             # set this match's values
@@ -391,6 +389,9 @@ class Waterer(object):
             all_match_names[region].append((score, gene))  # NOTE it is important that this is ordered such that the best match is first
             all_query_bounds[gene] = qrbounds
             all_germline_bounds[gene] = glbounds
+
+        for region in utils.regions:
+            all_match_names[region] = sorted(all_match_names[region], reverse=True)
 
         self.summarize_query(query_name, query_seq, all_match_names, all_query_bounds, all_germline_bounds, warnings, first_match_query_bounds, queries_to_rerun)
 
@@ -577,12 +578,10 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def summarize_query(self, query_name, query_seq, all_match_names, all_query_bounds, all_germline_bounds, warnings, first_match_query_bounds, queries_to_rerun):
-        best, match_names = {}, {}
+        best = {}
         k_v_min, k_d_min = 999, 999
         k_v_max, k_d_max = 0, 0
-        for region in utils.regions:
-            all_match_names[region] = sorted(all_match_names[region], reverse=True)
-            match_names[region] = []
+        match_names = {r : [] for r in utils.regions}
         if self.debug >= 2:
             print query_name
         for region in utils.regions:
@@ -595,13 +594,6 @@ class Waterer(object):
 
                 if self.debug >= 2:
                     self.print_match(region, gene, query_seq, score, glbounds, qrbounds, warnings, skipping=False)
-
-                # if the germline match and the query match aren't the same length, s-w likely added an insert, which we shouldn't get since the gap-open penalty is jacked up so high
-                if len(glmatchseq) != len(query_seq[qrbounds[0]:qrbounds[1]]):  # neurotic double check (um, I think) EDIT hey this totally saved my ass
-                    print 'ERROR %d not same length' % query_name
-                    print glmatchseq, glbounds[0], glbounds[1]
-                    print query_seq[qrbounds[0]:qrbounds[1]]
-                    assert False
 
                 # NOTE since I'm no longer skipping the genes after the first <args.n_max_per_region>, the OR of k-space below is overly conservative. UPDATE not sure if this is still relevant, but I'll move it down here in case I feel like thinking about it later
                 if region == 'v':
