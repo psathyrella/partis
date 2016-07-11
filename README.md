@@ -6,6 +6,8 @@ Smith-Waterman alignment for immunoglobulin sequences.
 
 This is a C++ implementation of the  `vdjalign align-fastq` command in [ighutil](https://github.com/cmccoy/ighutil). This implementation uses the [Smith-Waterman](https://en.wikipedia.org/wiki/Smith%E2%80%93Waterman_algorithm) (SW) alignment algorithm, a simple but effective way to align DNA sequences, as in ighutil.
 
+[Docker Hub Automated Build](https://hub.docker.com/r/matsengrp/ig-sw/builds/)
+
 ## Prerequisites
 
 - [zlib](http://www.zlib.net/)
@@ -13,6 +15,7 @@ This is a C++ implementation of the  `vdjalign align-fastq` command in [ighutil]
 - [pthread (POSIX Thread)](https://computing.llnl.gov/tutorials/pthreads/)
 - C++03-compatible compiler (tested against [g++](https://gcc.gnu.org/) 4.8)
 - a smile
+
 
 ## Running the alignment
 
@@ -28,7 +31,7 @@ To run the sw-alignment, run `./ig-sw` with the appropriate arguments in the sam
 
 ig-sw uses the [tclap](http://tclap.sourceforge.net/) command line interface.
 
-#####Required
+##### Required
 
 | Flag         | Description                              |
 | ------------ | ---------------------------------------- |
@@ -36,7 +39,7 @@ ig-sw uses the [tclap](http://tclap.sourceforge.net/) command line interface.
 | (none)       | The path to the output file              |
 | -p --vdj-dir | Directory from which to read germline genes (ending with /) |
 
-#####Optional
+##### Optional
 
 | Flag            | Description                              | Default Value |
 | :-------------- | ---------------------------------------- | ------------- |
@@ -49,6 +52,7 @@ ig-sw uses the [tclap](http://tclap.sourceforge.net/) command line interface.
 | -s --min-score  | Min score                                | 0             |
 | -b --bandwidth  | Bandwidth                                | 150           |
 | -j --threads    | Number of threads                        | 1`            |
+
 
 ## Workflow
 
