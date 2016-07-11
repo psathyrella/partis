@@ -406,15 +406,13 @@ class Waterer(object):
         self.summarize_query(query_name, query_seq, all_match_names, all_query_bounds, all_germline_bounds, warnings, first_match_query_bounds, queries_to_rerun)
 
     # ----------------------------------------------------------------------------------------
-    def print_match(self, region, gene, query_seq, score, glbounds, qrbounds, codon_pos, warnings, skipping=False):
+    def print_match(self, region, gene, query_seq, score, glbounds, qrbounds, warnings, skipping=False):
         out_str_list = []
         buff_str = (20 - len(gene)) * ' '
         out_str_list.append('%8s%s%s%9s%3s %6.0f        ' % (' ', utils.color_gene(gene), '', '', buff_str, score))
         out_str_list.append('%4d%4d   %s\n' % (glbounds[0], glbounds[1], self.glfo['seqs'][region][gene][glbounds[0]:glbounds[1]]))
         out_str_list.append('%46s  %4d%4d' % ('', qrbounds[0], qrbounds[1]))
         out_str_list.append('   %s ' % (utils.color_mutants(self.glfo['seqs'][region][gene][glbounds[0]:glbounds[1]], query_seq[qrbounds[0]:qrbounds[1]])))
-        if region != 'd':
-            out_str_list.append('(%s %d)' % (utils.conserved_codons[self.args.chain][region], codon_pos))
         if warnings[gene] != '':
             out_str_list.append('WARNING ' + warnings[gene])
         if skipping:
@@ -611,7 +609,7 @@ class Waterer(object):
                 match_names[region].append(gene)
 
                 if self.debug >= 2:
-                    self.print_match(region, gene, query_seq, score, glbounds, qrbounds, -1, warnings, skipping=False)
+                    self.print_match(region, gene, query_seq, score, glbounds, qrbounds, warnings, skipping=False)
 
                 # if the germline match and the query match aren't the same length, s-w likely added an insert, which we shouldn't get since the gap-open penalty is jacked up so high
                 if len(glmatchseq) != len(query_seq[qrbounds[0]:qrbounds[1]]):  # neurotic double check (um, I think) EDIT hey this totally saved my ass
