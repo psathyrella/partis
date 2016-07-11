@@ -13,4 +13,4 @@ ADD . /ig-sw/
 WORKDIR "ig-sw/src/ig_align/"
 RUN ls
 RUN scons
-RUN ./ig_align --help
+RUN ./ig-sw --help

@@ -163,14 +163,14 @@ TEST_CASE("Issue 5 and 6: Testing align_reads") {
   // Compares results from ig_align_main.cpp to those from ighutil.
   // Run scons in the src/ig_align/ directory before running this command. It
   // will create the ig_align executable.
-  system("./\"ig_align/ig_align\"  test_data/short_iglv.fasta "
+  system("./\"ig_align/ig-sw\"  test_data/short_iglv.fasta "
          "test_data/testoutput.sam -p test_data/ -m 1 -u 1 -o 7 -e 1 -d 0");
   CompareFiles("test_data/testoutput.sam", "test_data/vdjalign_output.sam");
 }
 
 TEST_CASE("Issue 16: Testing with new flags") {
   // This requires scons as well.
-  system("./\"ig_align/ig_align\" test_data/16test_100.fastq "
+  system("./\"ig_align/ig-sw\" test_data/16test_100.fastq "
          "test_data/16test_100output.sam -p test_data/ -m 1 -u 1 -o 7 -e 1 -d "
          "0");
   CompareFiles("test_data/16test_100output.sam",

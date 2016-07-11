@@ -4,7 +4,7 @@ Smith-Waterman alignment for immunoglobulin sequences.
 
 ## Introduction
 
-This is a C++ implementation of the  `vdjalign align-fastq` command in [ighutil](https://github.com/matsengrp/ighutil). This implementation uses the [Smith-Waterman](https://en.wikipedia.org/wiki/Smith%E2%80%93Waterman_algorithm) (SW) alignment algorithm, a simple but effective way to align DNA sequences.
+This is a C++ implementation of the  `vdjalign align-fastq` command in [ighutil](https://github.com/cmccoy/ighutil). This implementation uses the [Smith-Waterman](https://en.wikipedia.org/wiki/Smith%E2%80%93Waterman_algorithm) (SW) alignment algorithm, a simple but effective way to align DNA sequences, as in ighutil.
 
 ## Prerequisites
 
@@ -16,15 +16,15 @@ This is a C++ implementation of the  `vdjalign align-fastq` command in [ighutil]
 
 ## Running the alignment
 
-Clone the repository and run `scons` from the  `ig-sw/src/ig_align/` directory. 
+Clone the repository and run `scons` from the  `ig-sw/src/ig_align/` directory.
 
-To run the sw-alignment, run `./ig_align` with the appropriate arguments in the same directory or add a path to the executable.
+To run the sw-alignment, run `./ig-sw` with the appropriate arguments in the same directory or add a path to the executable.
 
 ### Example
 
-`./ig-align -p test_data/ query_file.fasta output_file.sam`
+`./ig-sw -p test_data/ query_file.fasta output_file.sam`
 
-### Arguments 
+### Arguments
 
 ig-sw uses the [tclap](http://tclap.sourceforge.net/) command line interface.
 
@@ -54,5 +54,4 @@ ig-sw uses the [tclap](http://tclap.sourceforge.net/) command line interface.
 
 [ig_align_main.cpp](https://github.com/matsengrp/ig-sw/blob/master/src/ig_align/ig_align_main.cpp) takes in a DNA sequence in [FASTQ format](https://en.wikipedia.org/wiki/FASTQ_format), does alignment, and outputs a file in SAM format.
 
-ig_align_main.cpp calls the `ig_align_reads` function of [ig_align.c](https://github.com/matsengrp/ig-sw/blob/master/src/ig_align/ig_align.c) which heavily utilizes the [klib](https://github.com/attractivechaos/klib) library. 
-
+ig_align_main.cpp calls the `ig_align_reads` function of [ig_align.c](https://github.com/matsengrp/ig-sw/blob/master/src/ig_align/ig_align.c) which heavily utilizes the [klib](https://github.com/attractivechaos/klib) library.
