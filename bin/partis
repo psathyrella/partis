@@ -90,13 +90,15 @@ def run_simulation(args):
     for iproc in range(args.n_procs):  # have to do it all at once, 'cause each of the subprocesses is going to reset its seed and god knows what happens to our seed at that point
         all_random_ints.append([random.randint(0, numpy.iinfo(numpy.int32).max) for i in range(n_per_proc)])
 
-    # start the processes and wait for 'em to finish
-    for iproc in range(args.n_procs):
-        proc = Process(target=make_events, args=(n_per_proc, iproc, all_random_ints[iproc]))
-        proc.start()
-    while len(active_children()) > 0:
-        sys.stdout.flush()
-        time.sleep(1)
+    if args.n_procs == 1:  # multiprocessing is kind of messy
+        make_events(n_per_proc, 0, all_random_ints[0])
+    else:  # start the processes and wait for 'em to finish
+        for iproc in range(args.n_procs):
+            proc = Process(target=make_events, args=(n_per_proc, iproc, all_random_ints[iproc]))
+            proc.start()
+        while len(active_children()) > 0:
+            sys.stdout.flush()
+            time.sleep(1)
 
     # check and merge output
     outfnames = [args.workdir + '/recombinator-' + str(iproc) + '/' + os.path.basename(args.outfname) for iproc in range(args.n_procs)]
