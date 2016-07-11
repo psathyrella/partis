@@ -14,16 +14,20 @@ import utils
 glfo_dir = 'germline-sets'  # always put germline info into a subdir with this name
 
 # single-chain file names
-def glfo_csv_fnames(chain):
-    return [cdn + '-positions.csv' for cdn in utils.conserved_codons[chain].values()]
+extra_fname = 'extras.csv'
 def glfo_fasta_fnames(chain):
-    return ['ig' + chain + r + '.fasta' for r in utils.regions]
+    if chain == 'h':
+        return ['ig' + chain + r + '.fasta' for r in utils.regions]
+    else:
+        return ['ig' + chain + r + '.fasta' for r in utils.regions if r != 'd']
 def glfo_fnames(chain):
-    return glfo_csv_fnames(chain) + glfo_fasta_fnames(chain)
+    return [extra_fname, ] + glfo_fasta_fnames(chain)
 
 # fasta file names including all chains
 def all_glfo_fasta_fnames():
     return ['ig' + chain + r + '.fasta' for chain in utils.chains for r in utils.regions]
+
+csv_headers = ['gene', 'cyst_position', 'tryp_position', 'phen_position', 'aligned_seq']
 
 imgt_info_indices = ('accession-number', 'gene', 'species', 'functionality', '', '', '', '', '', '', '', '', '')  # I think this is the right number of entries, but it doesn't really matter
 functionalities = set(['F', 'ORF', 'P', '(F)', '[F]', '[ORF]'])   # not actually sure what the last two mean
@@ -66,6 +70,8 @@ def read_germline_seqs(datadir, chain, skip_pseudogenes):
     seqs = {r : OrderedDict() for r in utils.regions}
     for fname in glfo_fasta_fnames(chain):
         read_fasta_file(seqs, datadir + '/' + chain + '/' + fname, skip_pseudogenes)
+    if chain != 'h':
+        seqs['d'][utils.dummy_d_gene] = ''
     return seqs
 
 # ----------------------------------------------------------------------------------------
@@ -226,7 +232,7 @@ def get_missing_codon_info(glfo, debug=False):
                 print '        using known position %d (aligned %d) in %s' % (known_pos, known_pos_in_alignment, known_gene)
         elif codon == 'cyst':
             known_pos_in_alignment = 309
-            print '      assuming aligned %s position is %d (this will %s work if you\'re using imgt alignments)' % (codon, known_pos_in_alignment, utils.color('red', only))
+            print '      assuming aligned %s position is %d (this will %s work if you\'re using imgt alignments)' % (codon, known_pos_in_alignment, utils.color('red', 'only'))
         else:
             raise Exception('no existing %s info, and couldn\'t guess it, either' % codon)
 
@@ -244,15 +250,15 @@ def get_missing_codon_info(glfo, debug=False):
             print '      added %d %s positions' % (n_added, codon)
 
 # ----------------------------------------------------------------------------------------
-def read_codon_positions(csvfname):
-    positions = {}
-    with open(csvfname) as csvfile:
+def read_extra_info(glfo, datadir):
+    for codon in utils.conserved_codons[glfo['chain']].values():
+        glfo[codon + '-positions'] = {}
+    with open(datadir + '/' + glfo['chain'] + '/' + extra_fname) as csvfile:
         reader = csv.DictReader(csvfile)
         for line in reader:
-            if line['istart'] == '':  # I don't know how these got in the file, but they should probably be removed
-                continue
-            positions[line['gene']] = int(line['istart'])
-    return positions
+            for codon in utils.conserved_codons[glfo['chain']].values():
+                if line[codon + '_position'] != '':
+                    glfo[codon + '-positions'][line['gene']] = int(line[codon + '_position'])
 
 #----------------------------------------------------------------------------------------
 def read_glfo(datadir, chain, only_genes=None, skip_pseudogenes=True, debug=False):
@@ -272,8 +278,7 @@ def read_glfo(datadir, chain, only_genes=None, skip_pseudogenes=True, debug=Fals
         print '  reading %s chain glfo from %s' % (chain, datadir)
     glfo = {'chain' : chain}
     glfo['seqs'] = read_germline_seqs(datadir, chain, skip_pseudogenes)
-    for fname in glfo_csv_fnames(chain):
-        glfo[utils.get_codon(fname) + '-positions'] = read_codon_positions(datadir + '/' + chain + '/' + fname)
+    read_extra_info(glfo, datadir)
     get_missing_codon_info(glfo, debug=debug)
     restrict_to_genes(glfo, only_genes, debug=debug)
 
@@ -497,14 +502,14 @@ def write_glfo(output_dir, glfo, only_genes=None, debug=False):
                     continue
                 outfile.write('>' + gene + '\n')
                 outfile.write(glfo['seqs'][utils.get_region(fname)][gene] + '\n')
-    for fname in glfo_csv_fnames(glfo['chain']):
-        with open(output_dir + '/' + glfo['chain'] + '/' + fname, 'w') as codonfile:
-            writer = csv.DictWriter(codonfile, ('gene', 'istart'))
-            writer.writeheader()
-            for gene, istart in glfo[utils.get_codon(fname) + '-positions'].items():
+    with open(output_dir + '/' + glfo['chain'] + '/' + extra_fname, 'w') as csvfile:
+        writer = csv.DictWriter(csvfile, csv_headers)
+        writer.writeheader()
+        for region, codon in utils.conserved_codons[glfo['chain']].items():
+            for gene, istart in glfo[codon + '-positions'].items():
                 if only_genes is not None and gene not in only_genes:
                     continue
-                writer.writerow({'gene' : gene, 'istart' : istart})
+                writer.writerow({'gene' : gene, codon + '_position' : istart})
 
     # make sure there weren't any files lingering in the output dir when we started
     # NOTE this will ignore the dirs corresponding to any *other* chains (which is what we want now, I think)

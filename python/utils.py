@@ -68,6 +68,8 @@ scratch_mean_insertion_lengths = {
     'l': {'vd' : 8, 'dj' : 0}
 }
 
+dummy_d_gene = 'IGHDx-x*x'  # for light chain
+
 # ----------------------------------------------------------------------------------------
 regions = ['v', 'd', 'j']
 chains = ['h', 'k', 'l']

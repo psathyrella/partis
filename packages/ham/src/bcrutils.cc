@@ -138,8 +138,8 @@ GermLines::GermLines(string input_dir):
   string line;
   vector<string> header;
 
-  // get cyst info
-  string infname(input_dir + "/cyst-positions.csv");
+  // get cyst/tryp info
+  string infname(input_dir + "/extras.csv");
   ifs.open(infname);
   if(!ifs.is_open())
     throw runtime_error("input file " + infname + " d.n.e.");
@@ -148,35 +148,22 @@ GermLines::GermLines(string input_dir):
   line.erase(remove(line.begin(), line.end(), '\r'), line.end());
   header = (SplitString(line, ","));
   assert(header[0] == "gene");
-  assert(header[1] == "istart");
+  assert(header[1] == "cyst_position");
+  assert(header[2] == "tryp_position");
+  assert(header[3] == "phen_position");
   // get info
   while(getline(ifs, line)) {
     line.erase(remove(line.begin(), line.end(), '\r'), line.end());
     vector<string> info(SplitString(line, ","));
-    assert(info[0].find("IGH") == 0);
-    cyst_positions_[info[0]] = atoi(info[1].c_str());
+    assert(info[0].find("IG") == 0);
+    if(info[1] != "")
+      cyst_positions_[info[0]] = atoi(info[1].c_str());
+    else if(info[2] != "")
+      tryp_positions_[info[0]] = atoi(info[2].c_str());
+    else if(info[3] != "")  // put the phens into tryp_positions_ for now
+      tryp_positions_[info[0]] = atoi(info[3].c_str());
   }
   ifs.close();
-
-  // get tryp info
-  infname = input_dir + "/tryp-positions.csv";
-  ifs.open(infname);
-  if(!ifs.is_open())
-    throw runtime_error("input file " + infname + " d.n.e.");
-  // check header
-  getline(ifs, line);
-  line.erase(remove(line.begin(), line.end(), '\r'), line.end());
-  header = SplitString(line, ",");
-  assert(header[0] == "gene");
-  assert(header[1] == "istart");
-  // get info
-  while(getline(ifs, line)) {
-    line.erase(remove(line.begin(), line.end(), '\r'), line.end());
-    vector<string> info(SplitString(line, ","));
-    assert(info[0].find("IGH") == 0);
-    tryp_positions_[info[0]] = atoi(info[1].c_str());
-  }
-  
 }
 
 // ----------------------------------------------------------------------------------------
