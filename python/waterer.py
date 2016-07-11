@@ -586,22 +586,16 @@ class Waterer(object):
             print query_name
         for region in utils.regions:
             for score, gene in all_match_names[region]:
+                match_names[region].append(gene)
                 glbounds = all_germline_bounds[gene]
                 qrbounds = all_query_bounds[gene]
-                glmatchseq = self.glfo['seqs'][region][gene][glbounds[0]:glbounds[1]]
-
-                match_names[region].append(gene)
-
-                if self.debug >= 2:
-                    self.print_match(region, gene, query_seq, score, glbounds, qrbounds, warnings, skipping=False)
 
                 # NOTE since I'm no longer skipping the genes after the first <args.n_max_per_region>, the OR of k-space below is overly conservative. UPDATE not sure if this is still relevant, but I'll move it down here in case I feel like thinking about it later
                 if region == 'v':
-                    this_k_v = all_query_bounds[gene][1]  # NOTE even if the v match doesn't start at the left hand edge of the query sequence, we still measure k_v from there.
-                                                          # In other words, sw doesn't tell the hmm about it
+                    this_k_v = all_query_bounds[gene][1]  # NOTE even if the v match doesn't start at the left hand edge of the query sequence, we still measure k_v from there. In other words, sw doesn't tell the hmm about it
                     k_v_min = min(this_k_v, k_v_min)
                     k_v_max = max(this_k_v, k_v_max)
-                if region == 'd':
+                elif region == 'd':
                     this_k_d = all_query_bounds[gene][1] - first_match_query_bounds[1]  # end of d minus end of v
                     k_d_min = min(this_k_d, k_d_min)
                     k_d_max = max(this_k_d, k_d_max)
@@ -612,6 +606,9 @@ class Waterer(object):
                     best[region + '_gl_seq'] = self.glfo['seqs'][region][gene][glbounds[0]:glbounds[1]]
                     best[region + '_qr_seq'] = query_seq[qrbounds[0]:qrbounds[1]]
                     best[region + '_score'] = score
+
+                if self.debug >= 2:
+                    self.print_match(region, gene, query_seq, score, glbounds, qrbounds, warnings, skipping=False)
 
         for region in utils.regions:
             if region not in best:
