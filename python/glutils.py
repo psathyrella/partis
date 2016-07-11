@@ -86,7 +86,7 @@ def read_aligned_gl_seqs(fname, glfo):
         aligned_gl_seqs['v'][gene] += n_extra_gaps * utils.gap_chars[0]
 
     # check that we got all the genes
-    glfo_genes = set([g for r in utils.regions for g in glfo['seqs'][r]])
+    glfo_genes = set([g for r in utils.regions for g in glfo['seqs'][r]]) - set([utils.dummy_d_gene, ])
     aligned_genes = set([g for r in utils.regions for g in aligned_gl_seqs[r]])
     if len(glfo_genes - aligned_genes) > 0:
         raise Exception('missing alignments for %s' % ' '.join(glfo_genes - aligned_genes))
@@ -502,6 +502,7 @@ def write_glfo(output_dir, glfo, only_genes=None, debug=False):
                     continue
                 outfile.write('>' + gene + '\n')
                 outfile.write(glfo['seqs'][utils.get_region(fname)][gene] + '\n')
+
     with open(output_dir + '/' + glfo['chain'] + '/' + extra_fname, 'w') as csvfile:
         writer = csv.DictWriter(csvfile, csv_headers)
         writer.writeheader()
