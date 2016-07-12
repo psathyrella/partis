@@ -339,13 +339,13 @@ class Waterer(object):
     # ----------------------------------------------------------------------------------------
     def process_query(self, references, reads, queries_to_rerun):
         primary = next((r for r in reads if not r.is_secondary), None)
-        first_match_query_bounds = None  # since sw excises its favorite v match, we have to know this match's boundaries in order to calculate k_d for all the other matches
         qinfo = {
             'name' : primary.qname,
             'seq' : primary.seq,
             'matches' : {r : [] for r in utils.regions},
             'qrbounds' : {},
-            'glbounds' : {}
+            'glbounds' : {},
+            'first_match_qrbounds' : None  # since sw excises its favorite v match, we have to know this match's boundaries in order to calculate k_d for all the other matches
         }
         self.tmp_queries_read_from_file.add(qinfo['name'])
         for read in reads:  # loop over the matches found for each query sequence
@@ -357,8 +357,8 @@ class Waterer(object):
             score = raw_score
             qrbounds = (read.qstart, read.qend)
             glbounds = (read.pos, read.aend)
-            if region == 'v' and first_match_query_bounds is None:
-                first_match_query_bounds = qrbounds
+            if region == 'v' and qinfo['first_match_qrbounds'] is None:
+                qinfo['first_match_qrbounds'] = qrbounds
 
             # perform a few checks and see if we want to skip this match
             # TODO I wish this wasn't here and I suspect I don't really need it (any more) UPDATE I dunno, this definitely eliminates some stupid (albeit rare) matches
@@ -394,7 +394,7 @@ class Waterer(object):
         for region in utils.regions:
             qinfo['matches'][region] = sorted(qinfo['matches'][region], reverse=True)
 
-        self.summarize_query(qinfo, first_match_query_bounds, queries_to_rerun)
+        self.summarize_query(qinfo, queries_to_rerun)
 
     # ----------------------------------------------------------------------------------------
     def print_match(self, region, gene, score, qseq, glbounds, qrbounds, skipping=False):
@@ -514,7 +514,7 @@ class Waterer(object):
         glbounds[r_gene] = (glbounds[r_gene][0] + r_portion, glbounds[r_gene][1])
 
     # ----------------------------------------------------------------------------------------
-    def add_to_info(self, kvals, qinfo, best, codon_positions):
+    def add_to_info(self, qinfo, best, codon_positions):
         qname = qinfo['name']
         assert qname not in self.info
 
@@ -523,8 +523,11 @@ class Waterer(object):
         self.info['queries'].append(qname)
         self.info[qname] = {}
         self.info[qname]['unique_id'] = qname  # redundant, but used somewhere down the line
-        self.info[qname]['k_v'] = kvals['v']
-        self.info[qname]['k_d'] = kvals['d']
+
+        kbounds = self.get_kbounds(qinfo, best)
+        self.info[qname]['k_v'] = kbounds['v']
+        self.info[qname]['k_d'] = kbounds['d']
+
         self.info[qname]['all'] = ':'.join(match_names['v'] + match_names['d'] + match_names['j'])  # all gene matches for this query
 
         self.info[qname]['cdr3_length'] = codon_positions['j'] - codon_positions['v'] + 3  #tryp_position_in_joined_seq - self.cyst_position + 3
@@ -575,7 +578,7 @@ class Waterer(object):
         self.remaining_queries.remove(qname)
 
     # ----------------------------------------------------------------------------------------
-    def summarize_query(self, qinfo, first_match_query_bounds, queries_to_rerun):
+    def summarize_query(self, qinfo, queries_to_rerun):
         qname = qinfo['name']
         assert qname not in self.info
 
@@ -592,20 +595,6 @@ class Waterer(object):
                     print '      no', region, 'match found for', qname  # TODO if no d match found, we should really just assume entire d was eroded
                 queries_to_rerun['no-match'].add(qname)
                 return
-
-        # get k-space OR
-        k_v_min, k_d_min = 999, 999
-        k_v_max, k_d_max = 0, 0
-        for region in utils.regions:  # NOTE since here I'm not yet skipping genes beyond the first <args.n_max_per_region>, this is overly conservative. Don't really care, though... k space integration is mostly pretty cheap what with chunk caching
-            for score, gene in qinfo['matches'][region]:
-                if region == 'v':
-                    this_k_v = qinfo['qrbounds'][gene][1]  # NOTE even if the v match doesn't start at the left hand edge of the query sequence, we still measure k_v from there. In other words, sw doesn't tell the hmm about it
-                    k_v_min = min(this_k_v, k_v_min)
-                    k_v_max = max(this_k_v, k_v_max)
-                elif region == 'd':
-                    this_k_d = qinfo['qrbounds'][gene][1] - first_match_query_bounds[1]  # end of d minus end of v
-                    k_d_min = min(this_k_d, k_d_min)
-                    k_d_max = max(this_k_d, k_d_max)
 
         best = {r : qinfo['matches'][r][0][1] for r in utils.regions}  # already made sure there's at least one match for each region
 
@@ -689,6 +678,24 @@ class Waterer(object):
             else:
                 pass  # this is here so you don't forget that if neither of the above is true, we fall through and add the query to self.info
 
+        self.add_to_info(qinfo, best, codon_positions)
+
+    # ----------------------------------------------------------------------------------------
+    def get_kbounds(self, qinfo, best, debug=False):
+        # OR of k-space for all the matches
+        k_v_min, k_d_min = 999, 999
+        k_v_max, k_d_max = 0, 0
+        for region in utils.regions:  # NOTE since here I'm not yet skipping genes beyond the first <args.n_max_per_region>, this is overly conservative. Don't really care, though... k space integration is mostly pretty cheap what with chunk caching
+            for score, gene in qinfo['matches'][region]:
+                if region == 'v':
+                    this_k_v = qinfo['qrbounds'][gene][1]  # NOTE even if the v match doesn't start at the left hand edge of the query sequence, we still measure k_v from there. In other words, sw doesn't tell the hmm about it
+                    k_v_min = min(this_k_v, k_v_min)
+                    k_v_max = max(this_k_v, k_v_max)
+                elif region == 'd':
+                    this_k_d = qinfo['qrbounds'][gene][1] - qinfo['first_match_qrbounds'][1]  # end of d minus end of v
+                    k_d_min = min(this_k_d, k_d_min)
+                    k_d_max = max(this_k_d, k_d_max)
+
         # best k_v, k_d:
         k_v = qinfo['qrbounds'][best['v']][1]  # end of v match
         k_d = qinfo['qrbounds'][best['d']][1] - qinfo['qrbounds'][best['v']][1]  # end of d minus end of v
@@ -715,10 +722,10 @@ class Waterer(object):
             print '         k_v: %d [%d-%d)' % (k_v, k_v_min, k_v_max)
             print '         k_d: %d [%d-%d)' % (k_d, k_d_min, k_d_max)
 
-        kvals = {}
-        kvals['v'] = {'best':k_v, 'min':k_v_min, 'max':k_v_max}
-        kvals['d'] = {'best':k_d, 'min':k_d_min, 'max':k_d_max}
-        self.add_to_info(kvals, qinfo, best, codon_positions)
+        kbounds = {}
+        kbounds['v'] = {'best' : k_v, 'min' : k_v_min, 'max' : k_v_max}
+        kbounds['d'] = {'best' : k_d, 'min' : k_d_min, 'max' : k_d_max}
+        return kbounds
 
     # ----------------------------------------------------------------------------------------
     def get_padding_parameters(self, debug=False):
