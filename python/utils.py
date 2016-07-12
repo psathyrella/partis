@@ -1190,7 +1190,8 @@ def find_replacement_genes(indir, min_counts, gene_name=None, single_gene=False,
 
 # ----------------------------------------------------------------------------------------
 def hamming_fraction(seq1, seq2, return_len_excluding_ambig=False, extra_bases=None):
-    assert len(seq1) == len(seq2)
+    if len(seq1) != len(seq2):
+        raise Exception('unequal length sequences %d %d' % (len(seq1), len(seq2)))
     if len(seq1) == 0:
         if return_len_excluding_ambig:
             return 0., 0

@@ -339,16 +339,18 @@ class Waterer(object):
     # ----------------------------------------------------------------------------------------
     def process_query(self, references, reads, queries_to_rerun):
         primary = next((r for r in reads if not r.is_secondary), None)
-        query_seq = primary.seq
-        query_name = primary.qname
-        self.tmp_queries_read_from_file.add(query_name)
         first_match_query_bounds = None  # since sw excises its favorite v match, we have to know this match's boundaries in order to calculate k_d for all the other matches
-        all_matches = {r : [] for r in utils.regions}
-        warnings = {}  # ick, this is a messy way to pass stuff around
-        all_query_bounds, all_germline_bounds = {}, {}
+        qinfo = {
+            'name' : primary.qname,
+            'seq' : primary.seq,
+            'matches' : {r : [] for r in utils.regions},
+            'qr_bounds' : {},
+            'gl_bounds' : {}
+        }
+        self.tmp_queries_read_from_file.add(qinfo['name'])
         for read in reads:  # loop over the matches found for each query sequence
             # set this match's values
-            read.seq = query_seq  # only the first one has read.seq set by default, so we need to set the rest by hand
+            read.seq = qinfo['seq']  # only the first one has read.seq set by default, so we need to set the rest by hand
             gene = references[read.tid]
             region = utils.get_region(gene)
             raw_score = read.tags[0][1]  # raw because they don't include the gene choice probs
@@ -362,7 +364,7 @@ class Waterer(object):
             # TODO I wish this wasn't here and I suspect I don't really need it (any more) UPDATE I dunno, this definitely eliminates some stupid (albeit rare) matches
             if region == 'v':  # skip matches with cpos past the end of the query seq (i.e. eroded a ton on the right side of the v)
                 cpos = self.glfo['cyst-positions'][gene] - glbounds[0] + qrbounds[0]  # position within original germline gene, minus the position in that germline gene at which the match starts, plus the position in the query sequence at which the match starts
-                if cpos < 0 or cpos >= len(query_seq):
+                if cpos < 0 or cpos >= len(qinfo['seq']):
                     continue
 
             if 'I' in read.cigarstring or 'D' in read.cigarstring:  # skip indels, and tell the HMM to skip indels (you won't see any unless you decrease the <self.gap_open_penalty>)
@@ -370,41 +372,38 @@ class Waterer(object):
                     continue
                 if self.nth_try < 2:  # we also forbid indels on the first try (we want to increase the mismatch score before we conclude it's "really" an indel)
                     continue
-                if len(all_matches[region]) == 0:  # if this is the first (best) match for this region, allow indels (otherwise skip the match)
-                    if query_name not in self.info['indels']:
-                        self.info['indels'][query_name] = self.get_indel_info(query_name, read.cigarstring, query_seq[qrbounds[0] : qrbounds[1]], self.glfo['seqs'][region][gene][glbounds[0] : glbounds[1]], gene)
-                        self.info['indels'][query_name]['reversed_seq'] = query_seq[ : qrbounds[0]] + self.info['indels'][query_name]['reversed_seq'] + query_seq[qrbounds[1] : ]
+                if len(qinfo['matches'][region]) == 0:  # if this is the first (best) match for this region, allow indels (otherwise skip the match)
+                    if qinfo['name'] not in self.info['indels']:
+                        self.info['indels'][qinfo['name']] = self.get_indel_info(qinfo['name'], read.cigarstring, qinfo['seq'][qrbounds[0] : qrbounds[1]], self.glfo['seqs'][region][gene][glbounds[0] : glbounds[1]], gene)
+                        self.info['indels'][qinfo['name']]['reversed_seq'] = qinfo['seq'][ : qrbounds[0]] + self.info['indels'][qinfo['name']]['reversed_seq'] + qinfo['seq'][qrbounds[1] : ]
                         self.new_indels += 1
                         # TODO this 'return' used to be after and indented from the else below, and that continue wasn't there. I should make sure this is how I want it
                         return  # don't process this query any further -- since it's now in the indel info it'll get run next time through
                     else:
                         if self.debug:
-                            print '     ignoring subsequent indels for %s' % query_name
+                            print '     ignoring subsequent indels for %s' % qinfo['name']
                         continue  # hopefully there's a later match without indels
                 else:
                     continue
 
             # and finally add this match's information
-            warnings[gene] = ''
-            all_matches[region].append((score, gene))  # NOTE it is important that this is ordered such that the best match is first UPDATE huh, maybe I wrote this before I added the sorted() below?
-            all_query_bounds[gene] = qrbounds
-            all_germline_bounds[gene] = glbounds
+            qinfo['matches'][region].append((score, gene))  # NOTE it is important that this is ordered such that the best match is first UPDATE huh, maybe I wrote this before I added the sorted() below?
+            qinfo['qr_bounds'][gene] = qrbounds
+            qinfo['gl_bounds'][gene] = glbounds
 
         for region in utils.regions:
-            all_matches[region] = sorted(all_matches[region], reverse=True)
+            qinfo['matches'][region] = sorted(qinfo['matches'][region], reverse=True)
 
-        self.summarize_query(query_name, query_seq, all_matches, all_query_bounds, all_germline_bounds, warnings, first_match_query_bounds, queries_to_rerun)
+        self.summarize_query(qinfo, first_match_query_bounds, queries_to_rerun)
 
     # ----------------------------------------------------------------------------------------
-    def print_match(self, region, gene, query_seq, score, glbounds, qrbounds, warnings, skipping=False):
+    def print_match(self, region, gene, score, qseq, glbounds, qrbounds, skipping=False):
         out_str_list = []
         buff_str = (19 - len(gene)) * ' '
         out_str_list.append('%8s%s%s%9s%3s %6.0f        ' % (' ', utils.color_gene(gene), '', '', buff_str, score))
         out_str_list.append('%4d%4d   %s\n' % (glbounds[0], glbounds[1], self.glfo['seqs'][region][gene][glbounds[0]:glbounds[1]]))
         out_str_list.append('%46s  %4d%4d' % ('', qrbounds[0], qrbounds[1]))
-        out_str_list.append('   %s ' % (utils.color_mutants(self.glfo['seqs'][region][gene][glbounds[0]:glbounds[1]], query_seq[qrbounds[0]:qrbounds[1]])))
-        if warnings[gene] != '':
-            out_str_list.append('WARNING ' + warnings[gene])
+        out_str_list.append('   %s ' % (utils.color_mutants(self.glfo['seqs'][region][gene][glbounds[0]:glbounds[1]], qseq[qrbounds[0]:qrbounds[1]])))
         if skipping:
             out_str_list.append('skipping!')
 
@@ -421,7 +420,7 @@ class Waterer(object):
         return overlap, available_space
 
     # ----------------------------------------------------------------------------------------
-    def check_boundaries(self, rpair, qrbounds, glbounds, query_name, query_seq, best, recursed=False, debug=False):
+    def check_boundaries(self, rpair, qname, qrbounds, glbounds, best, recursed=False, debug=False):
         # NOTE this duplicates code in shift_overlapping_boundaries(), which makes me cranky, but this setup avoids other things I dislike more
         l_reg = rpair['left']
         r_reg = rpair['right']
@@ -445,11 +444,11 @@ class Waterer(object):
         if not recursed and status == 'nonsense' and l_reg == 'd' and self.nth_try > 2:  # on rare occasions with very high mutation, vdjalign refuses to give us a j match that's at all to the right of the d match
             assert l_reg == 'd' and r_reg == 'j'
             if debug:
-                print '  %s: synthesizing d match' % query_name
+                print '  %s: synthesizing d match' % qname
             leftmost_position = min(qrbounds[l_gene][0], qrbounds[r_gene][0])
             qrbounds[l_gene] = (leftmost_position, leftmost_position + 1)  # swap whatever crummy nonsense d match we have now for a one-base match at the left end of things (things in practice should be left end of j match)
             glbounds[l_gene] = (0, 1)
-            status = self.check_boundaries(rpair, qrbounds, glbounds, query_name, query_seq, best, recursed=True, debug=debug)
+            status = self.check_boundaries(rpair, qname, qrbounds, glbounds, best, recursed=True, debug=debug)
             if status == 'overlap':
                 if debug:
                     print '  \'overlap\' status after synthesizing d match. Setting to \'nonsense\', I can\'t deal with this bullshit'
@@ -458,7 +457,7 @@ class Waterer(object):
         return status
 
     # ----------------------------------------------------------------------------------------
-    def shift_overlapping_boundaries(self, rpair, qrbounds, glbounds, query_name, query_seq, best, debug=False):
+    def shift_overlapping_boundaries(self, rpair, qname, qrbounds, glbounds, best, debug=False):
         # NOTE this does pretty much the same thing as resolve_overlapping_matches in joinparser.py
         """
         s-w allows d and j matches (and v and d matches) to overlap... which makes no sense, so apportion the disputed territory between the two regions.
@@ -476,7 +475,7 @@ class Waterer(object):
             return
 
         if overlap > available_space:
-            raise Exception('overlap %d bigger than available space %d between %s and %s for %s' % (overlap, available_space, l_reg, r_reg, query_name))
+            raise Exception('overlap %d bigger than available space %d between %s and %s for %s' % (overlap, available_space, l_reg, r_reg, qname))
 
         if debug:
             print '%s%s:  %d-%d overlaps with %d-%d by %d' % (l_reg, r_reg, qrbounds[l_gene][0], qrbounds[l_gene][1], qrbounds[r_gene][0], qrbounds[r_gene][1], overlap)
@@ -490,7 +489,7 @@ class Waterer(object):
             if debug:
                 print '  %4d %4d      %4d %4d' % (l_length, r_length, l_portion, r_portion)
             if l_length <= 1 and r_length <= 1:  # don't want to erode match (in practice it'll be the d match) all the way to zero
-                raise Exception('both lengths went to one without resolving overlap for %s: %s %s' % (query_name, qrbounds[l_gene], qrbounds[r_gene]))
+                raise Exception('both lengths went to one without resolving overlap for %s: %s %s' % (qname, qrbounds[l_gene], qrbounds[r_gene]))
             elif l_length > 1 and r_length > 1:  # if both have length left, alternate back and forth
                 if (l_portion + r_portion) % 2 == 0:
                     l_portion += 1  # give one base to the left
@@ -507,7 +506,7 @@ class Waterer(object):
 
         if debug:
             print '  %4d %4d    %4d %4d      %s %s' % (l_length, r_length, l_portion, r_portion, '', '')
-            print '      %s apportioning %d bases between %s (%d) match and %s (%d) match' % (query_name, overlap, l_reg, l_portion, r_reg, r_portion)
+            print '      %s apportioning %d bases between %s (%d) match and %s (%d) match' % (qname, overlap, l_reg, l_portion, r_reg, r_portion)
         assert l_portion + r_portion == overlap
         qrbounds[l_gene] = (qrbounds[l_gene][0], qrbounds[l_gene][1] - l_portion)
         glbounds[l_gene] = (glbounds[l_gene][0], glbounds[l_gene][1] - l_portion)
@@ -515,153 +514,155 @@ class Waterer(object):
         glbounds[r_gene] = (glbounds[r_gene][0] + r_portion, glbounds[r_gene][1])
 
     # ----------------------------------------------------------------------------------------
-    def add_to_info(self, query_name, query_seq, kvals, all_matches, best, all_germline_bounds, all_query_bounds, codon_positions):
-        assert query_name not in self.info
+    def add_to_info(self, kvals, qinfo, best, codon_positions):
+        qname = qinfo['name']
+        assert qname not in self.info
 
-        match_names = {r : [g for _, g in all_matches[r]] for r in utils.regions}
+        match_names = {r : [g for _, g in qinfo['matches'][r]] for r in utils.regions}
 
-        self.info['queries'].append(query_name)
-        self.info[query_name] = {}
-        self.info[query_name]['unique_id'] = query_name  # redundant, but used somewhere down the line
-        self.info[query_name]['k_v'] = kvals['v']
-        self.info[query_name]['k_d'] = kvals['d']
-        self.info[query_name]['all'] = ':'.join(match_names['v'] + match_names['d'] + match_names['j'])  # all gene matches for this query
+        self.info['queries'].append(qname)
+        self.info[qname] = {}
+        self.info[qname]['unique_id'] = qname  # redundant, but used somewhere down the line
+        self.info[qname]['k_v'] = kvals['v']
+        self.info[qname]['k_d'] = kvals['d']
+        self.info[qname]['all'] = ':'.join(match_names['v'] + match_names['d'] + match_names['j'])  # all gene matches for this query
 
-        self.info[query_name]['cdr3_length'] = codon_positions['j'] - codon_positions['v'] + 3  #tryp_position_in_joined_seq - self.cyst_position + 3
-        self.info[query_name]['codon_positions'] = copy.deepcopy(codon_positions)
+        self.info[qname]['cdr3_length'] = codon_positions['j'] - codon_positions['v'] + 3  #tryp_position_in_joined_seq - self.cyst_position + 3
+        self.info[qname]['codon_positions'] = copy.deepcopy(codon_positions)
 
         # erosion, insertion, mutation info for best match
-        self.info[query_name]['v_5p_del'] = all_germline_bounds[best['v']][0]
-        self.info[query_name]['v_3p_del'] = len(self.glfo['seqs']['v'][best['v']]) - all_germline_bounds[best['v']][1]  # len(germline v) - gl_match_end
-        self.info[query_name]['d_5p_del'] = all_germline_bounds[best['d']][0]
-        self.info[query_name]['d_3p_del'] = len(self.glfo['seqs']['d'][best['d']]) - all_germline_bounds[best['d']][1]
-        self.info[query_name]['j_5p_del'] = all_germline_bounds[best['j']][0]
-        self.info[query_name]['j_3p_del'] = len(self.glfo['seqs']['j'][best['j']]) - all_germline_bounds[best['j']][1]
+        self.info[qname]['v_5p_del'] = qinfo['gl_bounds'][best['v']][0]
+        self.info[qname]['v_3p_del'] = len(self.glfo['seqs']['v'][best['v']]) - qinfo['gl_bounds'][best['v']][1]  # len(germline v) - gl_match_end
+        self.info[qname]['d_5p_del'] = qinfo['gl_bounds'][best['d']][0]
+        self.info[qname]['d_3p_del'] = len(self.glfo['seqs']['d'][best['d']]) - qinfo['gl_bounds'][best['d']][1]
+        self.info[qname]['j_5p_del'] = qinfo['gl_bounds'][best['j']][0]
+        self.info[qname]['j_3p_del'] = len(self.glfo['seqs']['j'][best['j']]) - qinfo['gl_bounds'][best['j']][1]
 
-        self.info[query_name]['fv_insertion'] = query_seq[ : all_query_bounds[best['v']][0]]
-        self.info[query_name]['vd_insertion'] = query_seq[all_query_bounds[best['v']][1] : all_query_bounds[best['d']][0]]
-        self.info[query_name]['dj_insertion'] = query_seq[all_query_bounds[best['d']][1] : all_query_bounds[best['j']][0]]
-        self.info[query_name]['jf_insertion'] = query_seq[all_query_bounds[best['j']][1] : ]
+        self.info[qname]['fv_insertion'] = qinfo['seq'][ : qinfo['qr_bounds'][best['v']][0]]
+        self.info[qname]['vd_insertion'] = qinfo['seq'][qinfo['qr_bounds'][best['v']][1] : qinfo['qr_bounds'][best['d']][0]]
+        self.info[qname]['dj_insertion'] = qinfo['seq'][qinfo['qr_bounds'][best['d']][1] : qinfo['qr_bounds'][best['j']][0]]
+        self.info[qname]['jf_insertion'] = qinfo['seq'][qinfo['qr_bounds'][best['j']][1] : ]
 
-        self.info[query_name]['indelfo'] = self.info['indels'].get(query_name, utils.get_empty_indel())
+        self.info[qname]['indelfo'] = self.info['indels'].get(qname, utils.get_empty_indel())
 
         for region in utils.regions:
-            self.info[query_name][region + '_gene'] = best[region]
+            self.info[qname][region + '_gene'] = best[region]
             self.info['all_best_matches'].add(best[region])
             self.info['all_matches'][region] |= set(match_names[region])
 
-        self.info[query_name]['seq'] = query_seq  # NOTE this is the seq output by vdjalign, i.e. if we reversed any indels it is the reversed sequence
+        self.info[qname]['seq'] = qinfo['seq']  # NOTE this is the seq output by vdjalign, i.e. if we reversed any indels it is the reversed sequence
 
         existing_implicit_keys = tuple(['cdr3_length', 'codon_positions'])
-        utils.add_implicit_info(self.glfo, self.info[query_name], multi_seq=False, existing_implicit_keys=existing_implicit_keys)
+        utils.add_implicit_info(self.glfo, self.info[qname], multi_seq=False, existing_implicit_keys=existing_implicit_keys)
 
         if self.debug:
             if not self.args.is_data:
-                utils.print_reco_event(self.glfo['seqs'], self.reco_info[query_name], extra_str='      ', label='true:')
-            utils.print_reco_event(self.glfo['seqs'], self.info[query_name], extra_str='      ', label='inferred:')
+                utils.print_reco_event(self.glfo['seqs'], self.reco_info[qname], extra_str='      ', label='true:')
+            utils.print_reco_event(self.glfo['seqs'], self.info[qname], extra_str='      ', label='inferred:')
 
         if self.alfinder is not None:
-            self.alfinder.increment(self.info[query_name])
+            self.alfinder.increment(self.info[qname])
         if self.pcounter is not None:
-            self.pcounter.increment_all_params(self.info[query_name])
+            self.pcounter.increment_all_params(self.info[qname])
             if self.true_pcounter is not None:
-                self.true_pcounter.increment_all_params(self.reco_info[query_name])
+                self.true_pcounter.increment_all_params(self.reco_info[qname])
         if self.perfplotter is not None:
-            if query_name in self.info['indels']:
-                print '    skipping performance evaluation of %s because of indels' % query_name  # I just have no idea how to handle naive hamming fraction when there's indels
+            if qname in self.info['indels']:
+                print '    skipping performance evaluation of %s because of indels' % qname  # I just have no idea how to handle naive hamming fraction when there's indels
             else:
-                self.perfplotter.evaluate(self.reco_info[query_name], self.info[query_name])
+                self.perfplotter.evaluate(self.reco_info[qname], self.info[qname])
 
-        self.remaining_queries.remove(query_name)
+        self.remaining_queries.remove(qname)
 
     # ----------------------------------------------------------------------------------------
-    def summarize_query(self, query_name, query_seq, all_matches, all_query_bounds, all_germline_bounds, warnings, first_match_query_bounds, queries_to_rerun):
-        if self.debug >= 2:
-            print query_name
+    def summarize_query(self, qinfo, first_match_query_bounds, queries_to_rerun):
+        qname = qinfo['name']
+        assert qname not in self.info
 
+        if self.debug >= 2:
+            print qname
+            for region in utils.regions:
+                for score, gene in qinfo['matches'][region]:  # sorted by decreasing match quality
+                    self.print_match(region, gene, score, qinfo['seq'], qinfo['gl_bounds'][gene], qinfo['qr_bounds'][gene], skipping=False)
+
+        for region in utils.regions:
+            if len(qinfo['matches'][region]) == 0:  # NOTE could move this to process_query(), but then we wouldn't be able to print matches for the other regions
+                if self.debug:
+                    print '      no', region, 'match found for', qname  # TODO if no d match found, we should really just assume entire d was eroded
+                queries_to_rerun['no-match'].add(qname)
+                return
+
+        # NOTE since here I'm not yet skipping genes beyond the first <args.n_max_per_region>, this OR of k-space is overly conservative. Don't really care, though... k space integration is mostly pretty cheap what with chunk caching            
         k_v_min, k_d_min = 999, 999
         k_v_max, k_d_max = 0, 0
         for region in utils.regions:
-            for score, gene in all_matches[region]:  # sorted by decreasing match quality
-                glbounds = all_germline_bounds[gene]
-                qrbounds = all_query_bounds[gene]
-
-                # NOTE since I'm no longer skipping the genes after the first <args.n_max_per_region>, the OR of k-space below is overly conservative. UPDATE not sure if this is still relevant, but I'll move it down here in case I feel like thinking about it later
+            for score, gene in qinfo['matches'][region]:
                 if region == 'v':
-                    this_k_v = all_query_bounds[gene][1]  # NOTE even if the v match doesn't start at the left hand edge of the query sequence, we still measure k_v from there. In other words, sw doesn't tell the hmm about it
+                    this_k_v = qinfo['qr_bounds'][gene][1]  # NOTE even if the v match doesn't start at the left hand edge of the query sequence, we still measure k_v from there. In other words, sw doesn't tell the hmm about it
                     k_v_min = min(this_k_v, k_v_min)
                     k_v_max = max(this_k_v, k_v_max)
                 elif region == 'd':
-                    this_k_d = all_query_bounds[gene][1] - first_match_query_bounds[1]  # end of d minus end of v
+                    this_k_d = qinfo['qr_bounds'][gene][1] - first_match_query_bounds[1]  # end of d minus end of v
                     k_d_min = min(this_k_d, k_d_min)
                     k_d_max = max(this_k_d, k_d_max)
 
-                if self.debug >= 2:
-                    self.print_match(region, gene, query_seq, score, glbounds, qrbounds, warnings, skipping=False)
-
-        for region in utils.regions:
-            if len(all_matches[region]) == 0:  # NOTE could move this to process_query(), but then we wouldn't be able to print matches for the other regions
-                if self.debug:
-                    print '      no', region, 'match found for', query_name  # TODO if no d match found, we should really just assume entire d was eroded
-                queries_to_rerun['no-match'].add(query_name)
-                return
-
-        best = {r : all_matches[r][0][1] for r in utils.regions}  # already made sure there's at least one match for each region
+        best = {r : qinfo['matches'][r][0][1] for r in utils.regions}  # already made sure there's at least one match for each region
 
         # s-w allows d and j matches to overlap, so we need to apportion the disputed bases
         region_pairs = ({'left':'v', 'right':'d'}, {'left':'d', 'right':'j'})
+        qrbounds, glbounds = qinfo['qr_bounds'], qinfo['gl_bounds']
         for rpair in region_pairs:
-            overlap_status = self.check_boundaries(rpair, all_query_bounds, all_germline_bounds, query_name, query_seq, best)
+            overlap_status = self.check_boundaries(rpair, qname, qrbounds, glbounds, best)
             if overlap_status == 'overlap':
-                self.shift_overlapping_boundaries(rpair, all_query_bounds, all_germline_bounds, query_name, query_seq, best)
+                self.shift_overlapping_boundaries(rpair, qname, qrbounds, glbounds, best)
             elif overlap_status == 'nonsense':
-                queries_to_rerun['nonsense-bounds'].add(query_name)
+                queries_to_rerun['nonsense-bounds'].add(qname)
                 return
             else:
                 assert overlap_status == 'ok'
 
         # check for suspiciously bad annotations
-        vd_insertion = query_seq[all_query_bounds[best['v']][1] : all_query_bounds[best['d']][0]]
-        dj_insertion = query_seq[all_query_bounds[best['d']][1] : all_query_bounds[best['j']][0]]
+        vd_insertion = qinfo['seq'][qinfo['qr_bounds'][best['v']][1] : qinfo['qr_bounds'][best['d']][0]]
+        dj_insertion = qinfo['seq'][qinfo['qr_bounds'][best['d']][1] : qinfo['qr_bounds'][best['j']][0]]
         if self.nth_try < 2:
             if len(vd_insertion) > self.max_insertion_length or len(dj_insertion) > self.max_insertion_length:
                 if self.debug:
-                    print '      suspiciously long insertion in %s, rerunning' % query_name
-                queries_to_rerun['weird-annot.'].add(query_name)
+                    print '      suspiciously long insertion in %s, rerunning' % qname
+                queries_to_rerun['weird-annot.'].add(qname)
                 return
         if len(vd_insertion) > self.absolute_max_insertion_length or len(dj_insertion) > self.absolute_max_insertion_length:
             if self.debug:
-                print '      suspiciously long insertion in %s, rerunning' % query_name
-            queries_to_rerun['weird-annot.'].add(query_name)
+                print '      suspiciously long insertion in %s, rerunning' % qname
+            queries_to_rerun['weird-annot.'].add(qname)
             return
 
-        if self.debug:
-            print query_name
+        if self.debug == 1:
+            print qname
 
         # set and check conserved codon positions
         tmp_gl_positions = {'v' : self.glfo['cyst-positions'], 'j' : self.glfo['tryp-positions']}  # hack hack hack
         codon_positions = {}
         for region in ['v', 'j']:
-            pos = tmp_gl_positions[region][best[region]] - all_germline_bounds[best[region]][0] + all_query_bounds[best[region]][0]  # position within original germline gene, minus the position in that germline gene at which the match starts, plus the position in the query sequence at which the match starts
-            if pos < 0 or pos >= len(query_seq):
+            pos = tmp_gl_positions[region][best[region]] - qinfo['gl_bounds'][best[region]][0] + qinfo['qr_bounds'][best[region]][0]  # position within original germline gene, minus the position in that germline gene at which the match starts, plus the position in the query sequence at which the match starts
+            if pos < 0 or pos >= len(qinfo['seq']):
                 if self.debug:
-                    print '      invalid %s codon position (%d in seq of length %d), rerunning' % (region, pos, len(query_seq))
-                queries_to_rerun['invalid-codon'].add(query_name)
+                    print '      invalid %s codon position (%d in seq of length %d), rerunning' % (region, pos, len(qinfo['seq']))
+                queries_to_rerun['invalid-codon'].add(qname)
                 return
             codon_positions[region] = pos
 
         # check for unproductive rearrangements
-        codons_ok = utils.both_codons_ok(self.args.chain, query_seq, codon_positions)
+        codons_ok = utils.both_codons_ok(self.args.chain, qinfo['seq'], codon_positions)
         cdr3_length = codon_positions['j'] - codon_positions['v'] + 3
 
         if cdr3_length < 6:  # NOTE six is also hardcoded in utils
             if self.debug:
                 print '      negative cdr3 length %d' % (cdr3_length)
-            queries_to_rerun['invalid-codon'].add(query_name)
+            queries_to_rerun['invalid-codon'].add(qname)
             return
 
         in_frame_cdr3 = (cdr3_length % 3 == 0)
-        no_stop_codon = utils.stop_codon_check(query_seq, codon_positions['v'])
+        no_stop_codon = utils.stop_codon_check(qinfo['seq'], codon_positions['v'])
         if not codons_ok or not in_frame_cdr3 or not no_stop_codon:
             if self.debug:
                 print '       unproductive rearrangement:',
@@ -676,20 +677,20 @@ class Waterer(object):
             if self.nth_try < 2 and (not codons_ok or not in_frame_cdr3):  # rerun with higher mismatch score (sometimes unproductiveness is the result of a really screwed up annotation rather than an actual unproductive sequence). Note that stop codons aren't really indicative of screwed up annotations, so they don't count.
                 if self.debug:
                     print '            ...rerunning'
-                queries_to_rerun['unproductive'].add(query_name)
+                queries_to_rerun['unproductive'].add(qname)
                 return
             elif self.args.skip_unproductive:
                 if self.debug:
                     print '            ...skipping'
-                self.unproductive_queries.add(query_name)
-                self.remaining_queries.remove(query_name)
+                self.unproductive_queries.add(qname)
+                self.remaining_queries.remove(qname)
                 return
             else:
                 pass  # this is here so you don't forget that if neither of the above is true, we fall through and add the query to self.info
 
         # best k_v, k_d:
-        k_v = all_query_bounds[best['v']][1]  # end of v match
-        k_d = all_query_bounds[best['d']][1] - all_query_bounds[best['v']][1]  # end of d minus end of v
+        k_v = qinfo['qr_bounds'][best['v']][1]  # end of v match
+        k_d = qinfo['qr_bounds'][best['d']][1] - qinfo['qr_bounds'][best['v']][1]  # end of d minus end of v
 
         if k_d_max < 5:  # since the s-w step matches to the longest possible j and then excises it, this sometimes gobbles up the d, resulting in a very short d alignment.
             if self.debug:
@@ -716,7 +717,7 @@ class Waterer(object):
         kvals = {}
         kvals['v'] = {'best':k_v, 'min':k_v_min, 'max':k_v_max}
         kvals['d'] = {'best':k_d, 'min':k_d_min, 'max':k_d_max}
-        self.add_to_info(query_name, query_seq, kvals, all_matches, best, all_germline_bounds, all_query_bounds, codon_positions=codon_positions)
+        self.add_to_info(kvals, qinfo, best, codon_positions)
 
     # ----------------------------------------------------------------------------------------
     def get_padding_parameters(self, debug=False):
