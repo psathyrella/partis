@@ -420,14 +420,14 @@ class Waterer(object):
         return overlap, available_space
 
     # ----------------------------------------------------------------------------------------
-    def check_boundaries(self, rpair, qname, qrbounds, glbounds, best, recursed=False, debug=False):
+    def check_boundaries(self, rpair, qinfo, best, recursed=False, debug=False):
         # NOTE this duplicates code in shift_overlapping_boundaries(), which makes me cranky, but this setup avoids other things I dislike more
         l_reg = rpair['left']
         r_reg = rpair['right']
         l_gene = best[l_reg]
         r_gene = best[r_reg]
 
-        overlap, available_space = self.get_overlap_and_available_space(rpair, best, qrbounds)
+        overlap, available_space = self.get_overlap_and_available_space(rpair, best, qinfo['qrbounds'])
 
         if debug:
             print '  %s %s    overlap %d    available space %d' % (l_reg, r_reg, overlap, available_space)
@@ -444,11 +444,11 @@ class Waterer(object):
         if not recursed and status == 'nonsense' and l_reg == 'd' and self.nth_try > 2:  # on rare occasions with very high mutation, vdjalign refuses to give us a j match that's at all to the right of the d match
             assert l_reg == 'd' and r_reg == 'j'
             if debug:
-                print '  %s: synthesizing d match' % qname
-            leftmost_position = min(qrbounds[l_gene][0], qrbounds[r_gene][0])
-            qrbounds[l_gene] = (leftmost_position, leftmost_position + 1)  # swap whatever crummy nonsense d match we have now for a one-base match at the left end of things (things in practice should be left end of j match)
-            glbounds[l_gene] = (0, 1)
-            status = self.check_boundaries(rpair, qname, qrbounds, glbounds, best, recursed=True, debug=debug)
+                print '  %s: synthesizing d match' % qinfo['name']
+            leftmost_position = min(qinfo['qrbounds'][l_gene][0], qinfo['qrbounds'][r_gene][0])
+            qinfo['qrbounds'][l_gene] = (leftmost_position, leftmost_position + 1)  # swap whatever crummy nonsense d match we have now for a one-base match at the left end of things (things in practice should be left end of j match)
+            qinfo['glbounds'][l_gene] = (0, 1)
+            status = self.check_boundaries(rpair, qinfo, best, recursed=True, debug=debug)
             if status == 'overlap':
                 if debug:
                     print '  \'overlap\' status after synthesizing d match. Setting to \'nonsense\', I can\'t deal with this bullshit'
@@ -457,7 +457,7 @@ class Waterer(object):
         return status
 
     # ----------------------------------------------------------------------------------------
-    def shift_overlapping_boundaries(self, rpair, qname, qrbounds, glbounds, best, debug=False):
+    def shift_overlapping_boundaries(self, rpair, qinfo, best, debug=False):
         # NOTE this does pretty much the same thing as resolve_overlapping_matches in joinparser.py
         """
         s-w allows d and j matches (and v and d matches) to overlap... which makes no sense, so apportion the disputed territory between the two regions.
@@ -468,20 +468,20 @@ class Waterer(object):
         l_gene = best[l_reg]
         r_gene = best[r_reg]
 
-        overlap, available_space = self.get_overlap_and_available_space(rpair, best, qrbounds)
+        overlap, available_space = self.get_overlap_and_available_space(rpair, best, qinfo['qrbounds'])
 
         if overlap <= 0:  # nothing to do, they're already consistent
             print 'shouldn\'t get here any more if there\'s no overlap'
             return
 
         if overlap > available_space:
-            raise Exception('overlap %d bigger than available space %d between %s and %s for %s' % (overlap, available_space, l_reg, r_reg, qname))
+            raise Exception('overlap %d bigger than available space %d between %s and %s for %s' % (overlap, available_space, l_reg, r_reg, qinfo['name']))
 
         if debug:
-            print '%s%s:  %d-%d overlaps with %d-%d by %d' % (l_reg, r_reg, qrbounds[l_gene][0], qrbounds[l_gene][1], qrbounds[r_gene][0], qrbounds[r_gene][1], overlap)
+            print '%s%s:  %d-%d overlaps with %d-%d by %d' % (l_reg, r_reg, qinfo['qrbounds'][l_gene][0], qinfo['qrbounds'][l_gene][1], qinfo['qrbounds'][r_gene][0], qinfo['qrbounds'][r_gene][1], overlap)
 
-        l_length = qrbounds[l_gene][1] - qrbounds[l_gene][0]  # initial length of lefthand gene match
-        r_length = qrbounds[r_gene][1] - qrbounds[r_gene][0]  # and same for the righthand one
+        l_length = qinfo['qrbounds'][l_gene][1] - qinfo['qrbounds'][l_gene][0]  # initial length of lefthand gene match
+        r_length = qinfo['qrbounds'][r_gene][1] - qinfo['qrbounds'][r_gene][0]  # and same for the righthand one
         l_portion, r_portion = 0, 0  # portion of the initial overlap that we give to each side
         if debug:
             print '    lengths        portions     '
@@ -489,7 +489,7 @@ class Waterer(object):
             if debug:
                 print '  %4d %4d      %4d %4d' % (l_length, r_length, l_portion, r_portion)
             if l_length <= 1 and r_length <= 1:  # don't want to erode match (in practice it'll be the d match) all the way to zero
-                raise Exception('both lengths went to one without resolving overlap for %s: %s %s' % (qname, qrbounds[l_gene], qrbounds[r_gene]))
+                raise Exception('both lengths went to one without resolving overlap for %s: %s %s' % (qinfo['name'], qinfo['qrbounds'][l_gene], qinfo['qrbounds'][r_gene]))
             elif l_length > 1 and r_length > 1:  # if both have length left, alternate back and forth
                 if (l_portion + r_portion) % 2 == 0:
                     l_portion += 1  # give one base to the left
@@ -506,12 +506,12 @@ class Waterer(object):
 
         if debug:
             print '  %4d %4d    %4d %4d      %s %s' % (l_length, r_length, l_portion, r_portion, '', '')
-            print '      %s apportioning %d bases between %s (%d) match and %s (%d) match' % (qname, overlap, l_reg, l_portion, r_reg, r_portion)
+            print '      %s apportioning %d bases between %s (%d) match and %s (%d) match' % (qinfo['name'], overlap, l_reg, l_portion, r_reg, r_portion)
         assert l_portion + r_portion == overlap
-        qrbounds[l_gene] = (qrbounds[l_gene][0], qrbounds[l_gene][1] - l_portion)
-        glbounds[l_gene] = (glbounds[l_gene][0], glbounds[l_gene][1] - l_portion)
-        qrbounds[r_gene] = (qrbounds[r_gene][0] + r_portion, qrbounds[r_gene][1])
-        glbounds[r_gene] = (glbounds[r_gene][0] + r_portion, glbounds[r_gene][1])
+        qinfo['qrbounds'][l_gene] = (qinfo['qrbounds'][l_gene][0], qinfo['qrbounds'][l_gene][1] - l_portion)
+        qinfo['glbounds'][l_gene] = (qinfo['glbounds'][l_gene][0], qinfo['glbounds'][l_gene][1] - l_portion)
+        qinfo['qrbounds'][r_gene] = (qinfo['qrbounds'][r_gene][0] + r_portion, qinfo['qrbounds'][r_gene][1])
+        qinfo['glbounds'][r_gene] = (qinfo['glbounds'][r_gene][0] + r_portion, qinfo['glbounds'][r_gene][1])
 
     # ----------------------------------------------------------------------------------------
     def add_to_info(self, qinfo, best, codon_positions):
@@ -600,11 +600,10 @@ class Waterer(object):
 
         # s-w allows d and j matches to overlap, so we need to apportion the disputed bases
         region_pairs = ({'left':'v', 'right':'d'}, {'left':'d', 'right':'j'})
-        qrbounds, glbounds = qinfo['qrbounds'], qinfo['glbounds']
         for rpair in region_pairs:
-            overlap_status = self.check_boundaries(rpair, qname, qrbounds, glbounds, best)
+            overlap_status = self.check_boundaries(rpair, qinfo, best)
             if overlap_status == 'overlap':
-                self.shift_overlapping_boundaries(rpair, qname, qrbounds, glbounds, best)
+                self.shift_overlapping_boundaries(rpair, qinfo, best)
             elif overlap_status == 'nonsense':
                 queries_to_rerun['nonsense-bounds'].add(qname)
                 return
