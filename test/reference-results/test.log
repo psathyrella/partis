@@ -1,184 +1,5 @@
-TEST          cache-data-parameters   ./bin/run-driver.py --label test --stashdir test/_new-results cache-data-parameters --extra-args __seed:1:__n-procs:10:__only-genes:TEST:__only-csv-plots --datafname test/mishmash.fa
-RUN ./bin/partis.py cache-parameters --seqfile test/mishmash.fa --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --parameter-dir test/_new-results/test/parameters/data --plotdir test/_new-results/test/plots/data --print-git-commit
-get changeo output working again
-  note: moving contents of deprecated option --seqfile into its replacement --infname
-RUN ./bin/partis.py cache-parameters --seqfile test/mishmash.fa --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --parameter-dir test/_new-results/test/parameters/data --plotdir test/_new-results/test/plots/data --print-git-commit
-       tag v0.7.0
-    commit fbcfd6d5f60dcc281cf057edb55435d6ffc94361
-caching parameters
-smith-waterman   (writing parameters) 
-        processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon
-          1394             205              0                          97              90              18               0               0             increasing mismatch score (1 --> 2) and rerunning them
-           205              51             43                           0               6               0               2               0             rerunning for indels
-            51              16              0                           0               7               0               3               6             increasing mismatch score (2 --> 3) and rerunning them
-            16              10              0                           0               1               0               3               6             increasing mismatch score (3 --> 4) and rerunning them
-      info for 1384      (skipped 0 / 1394 = 0.00 unproductive    10 / 1394 = 0.01 other ) 
-   [91mwarning[0m 10 missing annotations (-7011713810090795053:-4832028181938476209:crap-1:crap-2:crap-5:crap-4:-9214222141473325301:3650832272176427929:3009114784662815033:-1216833654156218617)
-  plotting parameters/home/dralph/.local/lib/python2.7/site-packages/matplotlib/pyplot.py:516: RuntimeWarning: More than 20 figures have been opened. Figures created through the pyplot interface (`matplotlib.pyplot.figure`) are retained until explicitly closed and may consume too much memory. (To control this warning, see the rcParam `figure.max_open_warning`).
-  max_open_warning, RuntimeWarning)
- (10.8 sec)
-    writing parameters   writing glfo to test/_new-results/test/parameters/data/sw/germline-sets  (restricting to 25 genes)
-(0.3 sec)
-        water time: 25.3
-  restricting self.glfo (and /tmp/dralph/hmms/138199/germline-sets) to alleles observed in test/_new-results/test/parameters/data/sw
-    removing 0 genes from glfo
-  writing glfo to /tmp/dralph/hmms/138199/germline-sets
-  writing hmms (5.8 sec)
-hmm
-    writing input
-    running 10 procs
-      --> proc 3
-        calcd:   vtb 139   fwd 0   
-        time: bcrham 8.4
-
-      --> proc 9
-        calcd:   vtb 138   fwd 0   
-        time: bcrham 8.6
-
-      --> proc 1
-        calcd:   vtb 139   fwd 0   
-        time: bcrham 9.8
-
-      --> proc 2
-        calcd:   vtb 139   fwd 0   
-        time: bcrham 10.1
-
-      --> proc 5
-        calcd:   vtb 138   fwd 0   
-        time: bcrham 10.5
-
-      --> proc 7
-        calcd:   vtb 138   fwd 0   
-        time: bcrham 10.3
-
-      --> proc 8
-        calcd:   vtb 138   fwd 0   
-        time: bcrham 10.9
-
-      --> proc 0
-        calcd:   vtb 139   fwd 0   
-        time: bcrham 11.6
-
-      --> proc 6
-        calcd:   vtb 138   fwd 0   
-        time: bcrham 11.5
-
-      --> proc 4
-        calcd:   vtb 138   fwd 0   
-        time: bcrham 42.5
-
-      time waiting for bcrham: 44.3
-    read output
-  plotting parameters (10.9 sec)
-    writing parameters   writing glfo to test/_new-results/test/parameters/data/hmm/germline-sets  (restricting to 25 genes)
-(0.2 sec)
-        1384 lines:  processed 1381 sequences in 1381 events
-          [91mwarning[0m skipped 3 invalid events 
-      1 boundary errors
-      hmm step time: 57.9
-  restricting self.glfo (and /tmp/dralph/hmms/138199/germline-sets) to alleles observed in test/_new-results/test/parameters/data/hmm
-    removing 0 genes from glfo
-  writing glfo to /tmp/dralph/hmms/138199/germline-sets
-  writing hmms (6.0 sec)
-      total time: 95.2
-TEST                       simulate   ./bin/run-driver.py --label test --stashdir test/_new-results simulate --extra-args __n-sim-events:500:__n-leaves:2:__mimic-data-read-length:__seed:1:__n-procs:10:__only-genes:TEST:__only-csv-plots
-RUN ./bin/partis.py simulate --outfname test/_new-results/test/simu.csv --n-sim-events 500 --n-leaves 2 --mimic-data-read-length --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --parameter-dir test/_new-results/test/parameters/data/hmm --print-git-commit
-get changeo output working again
-RUN ./bin/partis.py simulate --outfname test/_new-results/test/simu.csv --n-sim-events 500 --n-leaves 2 --mimic-data-read-length --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --parameter-dir test/_new-results/test/parameters/data/hmm --print-git-commit
-       tag v0.7.0
-    commit fbcfd6d5f60dcc281cf057edb55435d6ffc94361
-simulating
-      total time: 7.5
-TEST          cache-simu-parameters   ./bin/run-driver.py --label test --stashdir test/_new-results cache-simu-parameters --extra-args __seed:1:__n-procs:10:__only-genes:TEST:__only-csv-plots
-RUN ./bin/partis.py cache-parameters --seqfile test/_new-results/test/simu.csv --is-simu --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --parameter-dir test/_new-results/test/parameters/simu --plotdir test/_new-results/test/plots/simu --print-git-commit
-get changeo output working again
-  note: moving contents of deprecated option --seqfile into its replacement --infname
-RUN ./bin/partis.py cache-parameters --seqfile test/_new-results/test/simu.csv --is-simu --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --parameter-dir test/_new-results/test/parameters/simu --plotdir test/_new-results/test/plots/simu --print-git-commit
-       tag v0.7.0
-    commit fbcfd6d5f60dcc281cf057edb55435d6ffc94361
-caching parameters
-smith-waterman   (writing parameters) 
-        processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon
-           986             161              0                          81              61              16               0               3             increasing mismatch score (1 --> 2) and rerunning them
-           161              10              1                           0               7               0               1               1             rerunning for indels
-            10              10              0                           0               8               0               1               1             increasing mismatch score (2 --> 3) and rerunning them
-            10               5              0                           0               3               0               1               1             increasing mismatch score (3 --> 4) and rerunning them
-      info for 981      (skipped 0 / 986 = 0.00 unproductive    5 / 986 = 0.01 other ) 
-   [91mwarning[0m 5 missing annotations (-2587837185165607272:5399337040924473871:-2352967368792605025:6347894104918531520:-3033753003325243918)
-  plotting parameters/home/dralph/.local/lib/python2.7/site-packages/matplotlib/pyplot.py:516: RuntimeWarning: More than 20 figures have been opened. Figures created through the pyplot interface (`matplotlib.pyplot.figure`) are retained until explicitly closed and may consume too much memory. (To control this warning, see the rcParam `figure.max_open_warning`).
-  max_open_warning, RuntimeWarning)
- (11.5 sec)
-  plotting parameters (9.1 sec)
-    writing parameters   writing glfo to test/_new-results/test/parameters/simu/sw/germline-sets  (restricting to 25 genes)
-(0.2 sec)
-    writing parameters   writing glfo to test/_new-results/test/parameters/simu/sw-true/germline-sets  (restricting to 25 genes)
-(0.2 sec)
-        water time: 33.1
-  restricting self.glfo (and /tmp/dralph/hmms/961320/germline-sets) to alleles observed in test/_new-results/test/parameters/simu/sw
-    removing 0 genes from glfo
-  writing glfo to /tmp/dralph/hmms/961320/germline-sets
-  writing hmms (8.0 sec)
-hmm
-    writing input
-    running 10 procs
-      --> proc 0
-        calcd:   vtb 99    fwd 0   
-        time: bcrham 5.7
-
-      --> proc 7
-        calcd:   vtb 98    fwd 0   
-        time: bcrham 6.0
-
-      --> proc 8
-        calcd:   vtb 98    fwd 0   
-        time: bcrham 6.0
-
-      --> proc 9
-        calcd:   vtb 98    fwd 0   
-        time: bcrham 5.8
-
-      --> proc 1
-        calcd:   vtb 98    fwd 0   
-        time: bcrham 6.7
-
-      --> proc 2
-        calcd:   vtb 98    fwd 0   
-        time: bcrham 6.2
-
-      --> proc 3
-        calcd:   vtb 98    fwd 0   
-        time: bcrham 6.9
-
-      --> proc 4
-        calcd:   vtb 98    fwd 0   
-        time: bcrham 6.3
-
-      --> proc 5
-        calcd:   vtb 98    fwd 0   
-        time: bcrham 6.1
-
-      --> proc 6
-        calcd:   vtb 98    fwd 0   
-        time: bcrham 6.6
-
-      time waiting for bcrham: 8.3
-    read output
-  plotting parameters (11.9 sec)
-    writing parameters   writing glfo to test/_new-results/test/parameters/simu/hmm/germline-sets  (restricting to 25 genes)
-(0.2 sec)
-  plotting parameters (9.4 sec)
-    writing parameters   writing glfo to test/_new-results/test/parameters/simu/hmm-true/germline-sets  (restricting to 25 genes)
-(0.1 sec)
-        981 lines:  processed 979 sequences in 979 events
-          [91mwarning[0m skipped 2 invalid events 
-      hmm step time: 31.9
-  restricting self.glfo (and /tmp/dralph/hmms/961320/germline-sets) to alleles observed in test/_new-results/test/parameters/simu/hmm
-    removing 0 genes from glfo
-  writing glfo to /tmp/dralph/hmms/961320/germline-sets
-  writing hmms (5.5 sec)
-      total time: 79.0
-TEST              annotate-new-simu   ./bin/partis run-viterbi --plotdir test/_new-results/simu-new-performance --plot-performance --is-simu --infname test/_new-results/test/simu.csv --parameter-dir test/_new-results/test/parameters/simu/hmm --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --outfname test/_new-results/annotate-new-simu.csv
-get changeo output working again
+TEST              annotate-ref-simu   ./bin/partis run-viterbi --plotdir test/_new-results/simu-ref-performance --plot-performance --is-simu --infname test/reference-results/test/simu.csv --parameter-dir test/reference-results/test/parameters/simu/hmm --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --outfname test/_new-results/annotate-ref-simu.csv
+TODO fix j_match/other stuff in get_padding_parameters()
 running viterbi
 smith-waterman 
         processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon
@@ -196,33 +17,33 @@ smith-waterman
     correct up to allele:  857 / 981  = 0.8736 (-0.863, +0.883)
       info for 981      (skipped 0 / 986 = 0.00 unproductive    5 / 986 = 0.01 other ) 
    [91mwarning[0m 5 missing annotations (-2587837185165607272:5399337040924473871:-2352967368792605025:6347894104918531520:-3033753003325243918)
-        water time: 17.9
+        water time: 21.4
 hmm
     writing input
     running 10 procs
-      --> proc 1
-        calcd:   vtb 98    fwd 0   
-        time: bcrham 5.9
-
-      --> proc 4
-        calcd:   vtb 98    fwd 0   
-        time: bcrham 5.9
-
       --> proc 9
         calcd:   vtb 98    fwd 0   
-        time: bcrham 5.4
+        time: bcrham 5.8
 
       --> proc 0
         calcd:   vtb 99    fwd 0   
         time: bcrham 6.3
 
+      --> proc 1
+        calcd:   vtb 98    fwd 0   
+        time: bcrham 6.3
+
       --> proc 2
         calcd:   vtb 98    fwd 0   
-        time: bcrham 6.0
+        time: bcrham 6.6
 
       --> proc 3
         calcd:   vtb 98    fwd 0   
-        time: bcrham 6.9
+        time: bcrham 6.8
+
+      --> proc 4
+        calcd:   vtb 98    fwd 0   
+        time: bcrham 6.4
 
       --> proc 5
         calcd:   vtb 98    fwd 0   
@@ -230,15 +51,15 @@ hmm
 
       --> proc 6
         calcd:   vtb 98    fwd 0   
-        time: bcrham 6.2
+        time: bcrham 6.5
 
       --> proc 7
         calcd:   vtb 98    fwd 0   
-        time: bcrham 6.4
+        time: bcrham 6.3
 
       --> proc 8
         calcd:   vtb 98    fwd 0   
-        time: bcrham 6.5
+        time: bcrham 6.3
 
       time waiting for bcrham: 8.1
     read output
@@ -253,10 +74,10 @@ hmm
         981 lines:  processed 981 sequences in 981 events
 
 missing 5 input keys
-      hmm step time: 14.1
-      total time: 32.6
-TEST              annotate-new-data   ./bin/partis run-viterbi --n-max-queries 50 --infname test/mishmash.fa --parameter-dir test/_new-results/test/parameters/data/hmm --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --outfname test/_new-results/annotate-new-data.csv
-get changeo output working again
+      hmm step time: 14.0
+      total time: 36.0
+TEST              annotate-ref-data   ./bin/partis run-viterbi --n-max-queries 50 --infname test/mishmash.fa --parameter-dir test/reference-results/test/parameters/data/hmm --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --outfname test/_new-results/annotate-ref-data.csv
+TODO fix j_match/other stuff in get_padding_parameters()
 running viterbi
 smith-waterman 
         processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon
@@ -272,7 +93,7 @@ hmm
     running 10 procs
       --> proc 9
         calcd:   vtb 4     fwd 0   
-        time: bcrham 1.0
+        time: bcrham 0.9
 
       --> proc 0
         calcd:   vtb 5     fwd 0   
@@ -280,7 +101,7 @@ hmm
 
       --> proc 1
         calcd:   vtb 5     fwd 0   
-        time: bcrham 1.6
+        time: bcrham 1.5
 
       --> proc 2
         calcd:   vtb 5     fwd 0   
@@ -315,10 +136,10 @@ hmm
         46 lines:  processed 46 sequences in 46 events
 
 missing 4 input keys
-      hmm step time: 3.4
+      hmm step time: 3.3
       total time: 17.0
-TEST             partition-new-simu   ./bin/partis partition --n-max-queries 250 --persistent-cachefname test/_new-results/cache-new-partition.csv --n-precache-procs 10 --biggest-logprob-cluster-to-calculate 2 --biggest-naive-seq-cluster-to-calculate 2 --is-simu --infname test/_new-results/test/simu.csv --parameter-dir test/_new-results/test/parameters/simu/hmm --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --outfname test/_new-results/partition-new-simu.csv
-get changeo output working again
+TEST             partition-ref-simu   ./bin/partis partition --n-max-queries 250 --persistent-cachefname test/_new-results/cache-ref-partition.csv --n-precache-procs 10 --biggest-logprob-cluster-to-calculate 2 --biggest-naive-seq-cluster-to-calculate 2 --is-simu --infname test/reference-results/test/simu.csv --parameter-dir test/reference-results/test/parameters/simu/hmm --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --outfname test/_new-results/partition-ref-simu.csv
+TODO fix j_match/other stuff in get_padding_parameters()
 partitioning
 smith-waterman 
         processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon
@@ -334,49 +155,43 @@ hmm
         cachefile d.n.e.
       caching all naive sequences
         calcd:   vtb 25    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
-        time: bcrham 2.6
+        time: bcrham 2.7
 
       --> proc 2
         cachefile d.n.e.
       caching all naive sequences
         calcd:   vtb 25    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
-        time: bcrham 2.6
+        time: bcrham 2.3
 
       --> proc 3
         cachefile d.n.e.
       caching all naive sequences
         calcd:   vtb 25    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
-        time: bcrham 2.8
+        time: bcrham 2.9
 
       --> proc 4
         cachefile d.n.e.
       caching all naive sequences
         calcd:   vtb 25    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
-        time: bcrham 2.6
+        time: bcrham 2.4
 
       --> proc 5
         cachefile d.n.e.
       caching all naive sequences
         calcd:   vtb 25    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
-        time: bcrham 2.9
+        time: bcrham 2.6
 
       --> proc 6
         cachefile d.n.e.
       caching all naive sequences
         calcd:   vtb 25    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
-        time: bcrham 2.6
-
-      --> proc 7
-        cachefile d.n.e.
-      caching all naive sequences
-        calcd:   vtb 25    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
-        time: bcrham 3.0
+        time: bcrham 2.3
 
       --> proc 8
         cachefile d.n.e.
       caching all naive sequences
         calcd:   vtb 25    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
-        time: bcrham 2.7
+        time: bcrham 2.5
 
       --> proc 9
         cachefile d.n.e.
@@ -388,21 +203,27 @@ hmm
         cachefile d.n.e.
       caching all naive sequences
         calcd:   vtb 25    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
-        time: bcrham 3.2
+        time: bcrham 3.3
+
+      --> proc 7
+        cachefile d.n.e.
+      caching all naive sequences
+        calcd:   vtb 25    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
+        time: bcrham 3.0
 
       time waiting for bcrham: 5.1
       hmm step time: 5.2
 --> 250 clusters with 10 procs
 hmm
     writing input
-       naive hfrac bounds: 0.015 0.115   (0.126 mutation in test/_new-results/test/parameters/simu/hmm)
+       naive hfrac bounds: 0.015 0.115   (0.126 mutation in test/reference-results/test/parameters/simu/hmm)
     running 10 procs
       --> proc 0
         read 0 cached logprobs and 250 naive seqs
         stop with:  big hfrac 197   small lratio 13   total 210
         writing partitions
         calcd:   vtb 1     fwd 26    hfrac 386         merged:  hfrac 4    lratio 0   
-        time: bcrham 3.6
+        time: bcrham 3.7
 
       --> proc 6
         read 0 cached logprobs and 250 naive seqs
@@ -416,14 +237,14 @@ hmm
         stop with:  big hfrac 203   small lratio 7   total 210
         writing partitions
         calcd:   vtb 3     fwd 23    hfrac 386         merged:  hfrac 3    lratio 1   
-        time: bcrham 5.0
+        time: bcrham 4.6
 
       --> proc 2
         read 0 cached logprobs and 250 naive seqs
         stop with:  big hfrac 259   small lratio 17   total 276
         writing partitions
         calcd:   vtb 0     fwd 30    hfrac 323         merged:  hfrac 1    lratio 0   
-        time: bcrham 4.6
+        time: bcrham 4.7
 
       --> proc 4
         read 0 cached logprobs and 250 naive seqs
@@ -437,35 +258,35 @@ hmm
         stop with:  big hfrac 183   small lratio 7   total 190
         writing partitions
         calcd:   vtb 4     fwd 23    hfrac 405         merged:  hfrac 3    lratio 2   
-        time: bcrham 4.8
-
-      --> proc 9
-        read 0 cached logprobs and 250 naive seqs
-        stop with:  big hfrac 179   small lratio 11   total 190
-        writing partitions
-        calcd:   vtb 4     fwd 30    hfrac 405         merged:  hfrac 3    lratio 2   
-        time: bcrham 4.7
+        time: bcrham 4.9
 
       --> proc 3
         read 0 cached logprobs and 250 naive seqs
         stop with:  big hfrac 217   small lratio 14   total 231
         writing partitions
         calcd:   vtb 1     fwd 32    hfrac 366         merged:  hfrac 2    lratio 1   
-        time: bcrham 5.7
+        time: bcrham 5.8
 
       --> proc 7
         read 0 cached logprobs and 250 naive seqs
         stop with:  big hfrac 182   small lratio 8   total 190
         writing partitions
         calcd:   vtb 3     fwd 33    hfrac 405         merged:  hfrac 2    lratio 3   
-        time: bcrham 5.4
+        time: bcrham 5.5
 
       --> proc 8
         read 0 cached logprobs and 250 naive seqs
         stop with:  big hfrac 189   small lratio 21   total 210
         writing partitions
         calcd:   vtb 3     fwd 38    hfrac 386         merged:  hfrac 4    lratio 0   
-        time: bcrham 5.3
+        time: bcrham 5.4
+
+      --> proc 9
+        read 0 cached logprobs and 250 naive seqs
+        stop with:  big hfrac 179   small lratio 11   total 190
+        writing partitions
+        calcd:   vtb 4     fwd 30    hfrac 405         merged:  hfrac 3    lratio 2   
+        time: bcrham 5.2
 
       time waiting for bcrham: 7.1
       hmm step time: 7.3
@@ -473,42 +294,42 @@ hmm
 --> 214 clusters with 7 procs
 hmm
     writing input
-       naive hfrac bounds: 0.015 0.115   (0.126 mutation in test/_new-results/test/parameters/simu/hmm)
+       naive hfrac bounds: 0.015 0.115   (0.126 mutation in test/reference-results/test/parameters/simu/hmm)
     running 7 procs
       --> proc 0
         read 288 cached logprobs and 289 naive seqs
         stop with:  big hfrac 285   small lratio 15   total 300
         writing partitions
         calcd:   vtb 1     fwd 18    hfrac 624         merged:  hfrac 6    lratio 0   
-        time: bcrham 3.6
+        time: bcrham 3.7
 
       --> proc 4
         read 288 cached logprobs and 289 naive seqs
         stop with:  big hfrac 311   small lratio 14   total 325
         writing partitions
         calcd:   vtb 3     fwd 15    hfrac 541         merged:  hfrac 4    lratio 0   
-        time: bcrham 3.8
+        time: bcrham 3.7
 
       --> proc 1
         read 288 cached logprobs and 289 naive seqs
         stop with:  big hfrac 357   small lratio 21   total 378
         writing partitions
         calcd:   vtb 1     fwd 28    hfrac 549         merged:  hfrac 2    lratio 1   
-        time: bcrham 5.4
+        time: bcrham 5.5
 
       --> proc 6
         read 288 cached logprobs and 289 naive seqs
         stop with:  big hfrac 358   small lratio 20   total 378
         writing partitions
         calcd:   vtb 1     fwd 22    hfrac 490         merged:  hfrac 2    lratio 0   
-        time: bcrham 5.5
+        time: bcrham 5.6
 
       --> proc 3
         read 288 cached logprobs and 289 naive seqs
         stop with:  big hfrac 337   small lratio 14   total 351
         writing partitions
         calcd:   vtb 2     fwd 22    hfrac 575         merged:  hfrac 3    lratio 1   
-        time: bcrham 6.1
+        time: bcrham 6.5
 
       --> proc 5
         read 288 cached logprobs and 289 naive seqs
@@ -522,7 +343,7 @@ hmm
         stop with:  big hfrac 313   small lratio 12   total 325
         writing partitions
         calcd:   vtb 4     fwd 31    hfrac 600         merged:  hfrac 2    lratio 3   
-        time: bcrham 7.3
+        time: bcrham 7.8
 
       time waiting for bcrham: 9.1
       hmm step time: 9.3
@@ -530,14 +351,14 @@ hmm
 --> 187 clusters with 5 procs
 hmm
     writing input
-       naive hfrac bounds: 0.015 0.115   (0.126 mutation in test/_new-results/test/parameters/simu/hmm)
+       naive hfrac bounds: 0.015 0.115   (0.126 mutation in test/reference-results/test/parameters/simu/hmm)
     running 5 procs
       --> proc 3
         read 457 cached logprobs and 323 naive seqs
         stop with:  big hfrac 535   small lratio 26   total 561
         writing partitions
         calcd:   vtb 0     fwd 26    hfrac 768         merged:  hfrac 3    lratio 0   
-        time: bcrham 5.9
+        time: bcrham 5.7
 
       --> proc 2
         read 457 cached logprobs and 323 naive seqs
@@ -551,50 +372,50 @@ hmm
         stop with:  big hfrac 496   small lratio 32   total 528
         writing partitions
         calcd:   vtb 2     fwd 32    hfrac 800         merged:  hfrac 4    lratio 0   
-        time: bcrham 7.8
+        time: bcrham 7.6
 
       --> proc 1
         read 457 cached logprobs and 323 naive seqs
         stop with:  big hfrac 393   small lratio 13   total 406
         writing partitions
         calcd:   vtb 7     fwd 30    hfrac 991         merged:  hfrac 7    lratio 2   
-        time: bcrham 8.3
+        time: bcrham 8.2
 
       --> proc 0
         read 457 cached logprobs and 323 naive seqs
         stop with:  big hfrac 506   small lratio 22   total 528
         writing partitions
         calcd:   vtb 2     fwd 38    hfrac 873         merged:  hfrac 2    lratio 3   
-        time: bcrham 11.6
+        time: bcrham 12.1
 
-      time waiting for bcrham: 13.1
-      hmm step time: 13.2
+      time waiting for bcrham: 14.1
+      hmm step time: 14.2
           n calcd: 164 (32.8 per proc)
 --> 159 clusters with 3 procs
 hmm
     writing input
-       naive hfrac bounds: 0.015 0.115   (0.126 mutation in test/_new-results/test/parameters/simu/hmm)
+       naive hfrac bounds: 0.015 0.115   (0.126 mutation in test/reference-results/test/parameters/simu/hmm)
     running 3 procs
-      --> proc 2
-        read 606 cached logprobs and 358 naive seqs
-        stop with:  big hfrac 1130   small lratio 46   total 1176
-        writing partitions
-        calcd:   vtb 2     fwd 44    hfrac 1576        merged:  hfrac 4    lratio 0   
-        time: bcrham 9.5
-
       --> proc 0
         read 606 cached logprobs and 358 naive seqs
         stop with:  big hfrac 1026   small lratio 55   total 1081
         writing partitions
         calcd:   vtb 4     fwd 51    hfrac 1669        merged:  hfrac 5    lratio 1   
-        time: bcrham 10.2
+        time: bcrham 10.8
+
+      --> proc 2
+        read 606 cached logprobs and 358 naive seqs
+        stop with:  big hfrac 1130   small lratio 46   total 1176
+        writing partitions
+        calcd:   vtb 2     fwd 44    hfrac 1576        merged:  hfrac 4    lratio 0   
+        time: bcrham 10.3
 
       --> proc 1
         read 606 cached logprobs and 358 naive seqs
         stop with:  big hfrac 1034   small lratio 47   total 1081
         writing partitions
         calcd:   vtb 3     fwd 46    hfrac 1669        merged:  hfrac 5    lratio 1   
-        time: bcrham 11.1
+        time: bcrham 11.5
 
       time waiting for bcrham: 13.0
       hmm step time: 13.2
@@ -602,43 +423,43 @@ hmm
 --> 143 clusters with 2 procs
 hmm
     writing input
-       naive hfrac bounds: 0.015 0.115   (0.126 mutation in test/_new-results/test/parameters/simu/hmm)
+       naive hfrac bounds: 0.015 0.115   (0.126 mutation in test/reference-results/test/parameters/simu/hmm)
     running 2 procs
+      --> proc 1
+        read 747 cached logprobs and 380 naive seqs
+        stop with:  big hfrac 1864   small lratio 89   total 1953
+        writing partitions
+        calcd:   vtb 4     fwd 80    hfrac 3009        merged:  hfrac 5    lratio 3   
+        time: bcrham 17.4
+
       --> proc 0
         read 747 cached logprobs and 380 naive seqs
         stop with:  big hfrac 1865   small lratio 88   total 1953
         writing partitions
         calcd:   vtb 6     fwd 85    hfrac 3150        merged:  hfrac 7    lratio 2   
-        time: bcrham 20.3
+        time: bcrham 19.8
 
-      --> proc 1
-        read 747 cached logprobs and 380 naive seqs
-        stop with:  big hfrac 1803   small lratio 88   total 1891
-        writing partitions
-        calcd:   vtb 4     fwd 86    hfrac 3070        merged:  hfrac 5    lratio 4   
-        time: bcrham 21.0
-
-      time waiting for bcrham: 23.0
-      hmm step time: 23.2
-          n calcd: 181 (90.5 per proc)
---> 125 clusters with 1 procs
+      time waiting for bcrham: 21.0
+      hmm step time: 21.2
+          n calcd: 175 (87.5 per proc)
+--> 126 clusters with 1 procs
 hmm
     writing input
-       naive hfrac bounds: 0.015 0.115   (0.126 mutation in test/_new-results/test/parameters/simu/hmm)
+       naive hfrac bounds: 0.015 0.115   (0.126 mutation in test/reference-results/test/parameters/simu/hmm)
     running 1 procs
-        read 918 cached logprobs and 404 naive seqs
-        stop with:  big hfrac 5738   small lratio 257   total 5995
+        read 912 cached logprobs and 402 naive seqs
+        stop with:  big hfrac 5847   small lratio 258   total 6105
         writing partitions
-        calcd:   vtb 4     fwd 182   hfrac 9490        merged:  hfrac 11   lratio 4   
-        time: bcrham 42.9
+        calcd:   vtb 4     fwd 182   hfrac 9630        merged:  hfrac 11   lratio 4   
+        time: bcrham 41.0
 
-      time waiting for bcrham: 44.1
-‘test/_new-results/cache-new-partition.csv.tmp’ -> ‘test/_new-results/cache-new-partition.csv’
-      hmm step time: 44.1
-      loop time: 110.3
-      total time: 126.6
-TEST        seed-partition-new-simu   ./bin/partis partition --n-max-queries -1 --n-precache-procs 10 --is-simu --infname test/_new-results/test/simu.csv --parameter-dir test/_new-results/test/parameters/simu/hmm --seed-unique-id 7555332415564803193 --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --outfname test/_new-results/seed-partition-new-simu.csv
-get changeo output working again
+      time waiting for bcrham: 43.1
+‘test/_new-results/cache-ref-partition.csv.tmp’ -> ‘test/_new-results/cache-ref-partition.csv’
+      hmm step time: 43.1
+      loop time: 108.3
+      total time: 124.7
+TEST        seed-partition-ref-simu   ./bin/partis partition --n-max-queries -1 --n-precache-procs 10 --is-simu --infname test/reference-results/test/simu.csv --parameter-dir test/reference-results/test/parameters/simu/hmm --seed-unique-id 7555332415564803193 --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --outfname test/_new-results/seed-partition-ref-simu.csv
+TODO fix j_match/other stuff in get_padding_parameters()
 partitioning
 smith-waterman 
         processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon
@@ -648,7 +469,7 @@ smith-waterman
             10               5              0                           0               3               0               1               1             increasing mismatch score (3 --> 4) and rerunning them
       info for 981      (skipped 0 / 986 = 0.00 unproductive    5 / 986 = 0.01 other ) 
    [91mwarning[0m 5 missing annotations (-2587837185165607272:5399337040924473871:-2352967368792605025:6347894104918531520:-3033753003325243918)
-        water time: 14.6
+        water time: 19.4
 hmm
     writing input
     running 10 procs
@@ -656,68 +477,68 @@ hmm
         cachefile d.n.e.
       caching all naive sequences
         calcd:   vtb 99    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
-        time: bcrham 6.0
-
-      --> proc 8
-        cachefile d.n.e.
-      caching all naive sequences
-        calcd:   vtb 99    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
-        time: bcrham 5.8
+        time: bcrham 6.7
 
       --> proc 1
         cachefile d.n.e.
       caching all naive sequences
         calcd:   vtb 99    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
-        time: bcrham 6.6
-
-      --> proc 2
-        cachefile d.n.e.
-      caching all naive sequences
-        calcd:   vtb 99    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
-        time: bcrham 7.0
-
-      --> proc 3
-        cachefile d.n.e.
-      caching all naive sequences
-        calcd:   vtb 99    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
-        time: bcrham 6.7
-
-      --> proc 4
-        cachefile d.n.e.
-      caching all naive sequences
-        calcd:   vtb 99    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
-        time: bcrham 6.3
-
-      --> proc 5
-        cachefile d.n.e.
-      caching all naive sequences
-        calcd:   vtb 99    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
-        time: bcrham 6.7
-
-      --> proc 6
-        cachefile d.n.e.
-      caching all naive sequences
-        calcd:   vtb 99    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
-        time: bcrham 6.7
+        time: bcrham 6.9
 
       --> proc 7
         cachefile d.n.e.
       caching all naive sequences
         calcd:   vtb 99    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
-        time: bcrham 6.6
+        time: bcrham 6.9
+
+      --> proc 8
+        cachefile d.n.e.
+      caching all naive sequences
+        calcd:   vtb 99    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
+        time: bcrham 6.4
+
+      --> proc 2
+        cachefile d.n.e.
+      caching all naive sequences
+        calcd:   vtb 99    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
+        time: bcrham 7.7
+
+      --> proc 3
+        cachefile d.n.e.
+      caching all naive sequences
+        calcd:   vtb 99    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
+        time: bcrham 7.3
+
+      --> proc 4
+        cachefile d.n.e.
+      caching all naive sequences
+        calcd:   vtb 99    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
+        time: bcrham 7.0
+
+      --> proc 5
+        cachefile d.n.e.
+      caching all naive sequences
+        calcd:   vtb 99    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
+        time: bcrham 7.8
+
+      --> proc 6
+        cachefile d.n.e.
+      caching all naive sequences
+        calcd:   vtb 99    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
+        time: bcrham 7.1
 
       --> proc 9
         cachefile d.n.e.
       caching all naive sequences
         calcd:   vtb 99    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
-        time: bcrham 6.6
+        time: bcrham 7.3
 
-      time waiting for bcrham: 8.1
-      hmm step time: 8.5
+      time waiting for bcrham: 9.1
+      hmm step time: 9.5
 --> 981 clusters with 10 procs
 hmm
     writing input
-       naive hfrac bounds: 0.015 0.115   (0.126 mutation in test/_new-results/test/parameters/simu/hmm)
+       naive hfrac bounds: 0.015 0.115   (0.126 mutation in test/reference-results/test/parameters/simu/hmm)
     running 10 procs
       --> proc 4
         read 0 cached logprobs and 981 naive seqs
@@ -731,71 +552,71 @@ hmm
         stop with:  big hfrac 97   small lratio 1   total 98
         writing partitions
         calcd:   vtb 0     fwd 3     hfrac 98          merged:  hfrac 0    lratio 0   
-        time: bcrham 1.4
-
-      --> proc 1
-        read 0 cached logprobs and 981 naive seqs
-        stop with:  big hfrac 96   small lratio 2   total 98
-        writing partitions
-        calcd:   vtb 0     fwd 5     hfrac 98          merged:  hfrac 0    lratio 0   
         time: bcrham 1.9
-
-      --> proc 2
-        read 0 cached logprobs and 981 naive seqs
-        stop with:  big hfrac 97   small lratio 0   total 97
-        writing partitions
-        calcd:   vtb 1     fwd 3     hfrac 195         merged:  hfrac 0    lratio 1   
-        time: bcrham 1.5
 
       --> proc 5
         read 0 cached logprobs and 981 naive seqs
         stop with:  big hfrac 97   small lratio 0   total 97
         writing partitions
         calcd:   vtb 1     fwd 3     hfrac 195         merged:  hfrac 0    lratio 1   
-        time: bcrham 1.3
+        time: bcrham 1.8
 
       --> proc 6
         read 0 cached logprobs and 981 naive seqs
         stop with:  big hfrac 97   small lratio 0   total 97
         writing partitions
         calcd:   vtb 1     fwd 3     hfrac 195         merged:  hfrac 0    lratio 1   
-        time: bcrham 1.4
+        time: bcrham 1.8
+
+      --> proc 1
+        read 0 cached logprobs and 981 naive seqs
+        stop with:  big hfrac 96   small lratio 2   total 98
+        writing partitions
+        calcd:   vtb 0     fwd 5     hfrac 98          merged:  hfrac 0    lratio 0   
+        time: bcrham 2.3
+
+      --> proc 2
+        read 0 cached logprobs and 981 naive seqs
+        stop with:  big hfrac 97   small lratio 0   total 97
+        writing partitions
+        calcd:   vtb 1     fwd 3     hfrac 195         merged:  hfrac 0    lratio 1   
+        time: bcrham 2.0
 
       --> proc 7
         read 0 cached logprobs and 981 naive seqs
         stop with:  big hfrac 96   small lratio 2   total 98
         writing partitions
         calcd:   vtb 0     fwd 5     hfrac 98          merged:  hfrac 0    lratio 0   
-        time: bcrham 1.7
+        time: bcrham 2.1
 
       --> proc 8
         read 0 cached logprobs and 981 naive seqs
         stop with:  big hfrac 96   small lratio 2   total 98
         writing partitions
         calcd:   vtb 0     fwd 5     hfrac 98          merged:  hfrac 0    lratio 0   
-        time: bcrham 1.8
+        time: bcrham 2.2
 
       --> proc 9
         read 0 cached logprobs and 981 naive seqs
         stop with:  big hfrac 96   small lratio 2   total 98
         writing partitions
         calcd:   vtb 0     fwd 5     hfrac 98          merged:  hfrac 0    lratio 0   
-        time: bcrham 1.8
+        time: bcrham 2.2
 
       --> proc 3
         read 0 cached logprobs and 981 naive seqs
         stop with:  big hfrac 94   small lratio 4   total 98
         writing partitions
         calcd:   vtb 0     fwd 9     hfrac 98          merged:  hfrac 0    lratio 0   
-        time: bcrham 2.9
+        time: bcrham 3.3
 
-      time waiting for bcrham: 4.1
-      hmm step time: 4.6
+      time waiting for bcrham: 5.1
+      hmm step time: 5.6
           n calcd: 44 (4.4 per proc)
 --> 987 clusters with 7 procs
 hmm
     writing input
-       naive hfrac bounds: 0.015 0.115   (0.126 mutation in test/_new-results/test/parameters/simu/hmm)
+       naive hfrac bounds: 0.015 0.115   (0.126 mutation in test/reference-results/test/parameters/simu/hmm)
     running 7 procs
       --> proc 2
         read 33 cached logprobs and 984 naive seqs
@@ -830,29 +651,29 @@ hmm
         stop with:  big hfrac 139   small lratio 1   total 140
         writing partitions
         calcd:   vtb 0     fwd 1     hfrac 140         merged:  hfrac 0    lratio 0   
-        time: bcrham 1.2
+        time: bcrham 1.7
 
       --> proc 3
         read 33 cached logprobs and 984 naive seqs
         stop with:  big hfrac 139   small lratio 1   total 140
         writing partitions
         calcd:   vtb 0     fwd 1     hfrac 140         merged:  hfrac 0    lratio 0   
-        time: bcrham 1.2
+        time: bcrham 1.7
 
       --> proc 0
         read 33 cached logprobs and 984 naive seqs
         stop with:  big hfrac 137   small lratio 3   total 140
         writing partitions
         calcd:   vtb 0     fwd 3     hfrac 140         merged:  hfrac 0    lratio 0   
-        time: bcrham 2.7
+        time: bcrham 2.6
 
       time waiting for bcrham: 4.1
-      hmm step time: 4.5
+      hmm step time: 4.6
           n calcd: 5 (0.7 per proc)
 --> 984 clusters with 5 procs
 hmm
     writing input
-       naive hfrac bounds: 0.015 0.115   (0.126 mutation in test/_new-results/test/parameters/simu/hmm)
+       naive hfrac bounds: 0.015 0.115   (0.126 mutation in test/reference-results/test/parameters/simu/hmm)
     running 5 procs
       --> proc 2
         read 38 cached logprobs and 984 naive seqs
@@ -873,24 +694,24 @@ hmm
         stop with:  big hfrac 195   small lratio 1   total 196
         writing partitions
         calcd:   vtb 0     fwd 1     hfrac 196         merged:  hfrac 0    lratio 0   
-        time: bcrham 1.6
+        time: bcrham 1.2
 
       --> proc 1
         read 38 cached logprobs and 984 naive seqs
         stop with:  big hfrac 194   small lratio 2   total 196
         writing partitions
         calcd:   vtb 0     fwd 2     hfrac 196         merged:  hfrac 0    lratio 0   
-        time: bcrham 1.6
+        time: bcrham 2.3
 
       --> proc 3
         read 38 cached logprobs and 984 naive seqs
         stop with:  big hfrac 191   small lratio 4   total 195
         writing partitions
         calcd:   vtb 0     fwd 4     hfrac 195         merged:  hfrac 0    lratio 0   
-        time: bcrham 2.4
+        time: bcrham 3.0
 
-      time waiting for bcrham: 4.0
-      hmm step time: 4.5
+      time waiting for bcrham: 5.1
+      hmm step time: 5.5
           n calcd: 7 (1.4 per proc)
      time to remove unseeded clusters
         new n_procs 1 = 3 * 9 / 98
@@ -900,21 +721,21 @@ hmm
       removing unseeded clusters
           -2260588365668761368:7555332415564803193 -780990779929292147:7555332415564803193 7555332415564803193 -8499797273555674149:7555332415564803193 7555332415564803193
           -2260588365668761368 7555332415564803193 -8499797273555674149 -780990779929292147
-       naive hfrac bounds: 0.015 0.115   (0.126 mutation in test/_new-results/test/parameters/simu/hmm)
+       naive hfrac bounds: 0.015 0.115   (0.126 mutation in test/reference-results/test/parameters/simu/hmm)
     running 1 procs
         read 45 cached logprobs and 984 naive seqs
         stop with:  big hfrac 0   small lratio 0   total 0
         writing partitions
         calcd:   vtb 3     fwd 3     hfrac 9           merged:  hfrac 2    lratio 1   
-        time: bcrham 2.1
+        time: bcrham 2.6
 
       time waiting for bcrham: 4.0
       hmm step time: 4.0
-      loop time: 17.7
+      loop time: 19.7
   [91mwarning[0m queries missing from partition: -2587837185165607272 6347894104918531520 -2352967368792605025 5399337040924473871 -3033753003325243918
-      total time: 41.3
-TEST     vsearch-partition-new-simu   ./bin/partis partition --naive-vsearch --n-max-queries 250 --n-precache-procs 10 --is-simu --infname test/_new-results/test/simu.csv --parameter-dir test/_new-results/test/parameters/simu/hmm --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --outfname test/_new-results/vsearch-partition-new-simu.csv
-get changeo output working again
+      total time: 49.4
+TEST     vsearch-partition-ref-simu   ./bin/partis partition --naive-vsearch --n-max-queries 250 --n-precache-procs 10 --is-simu --infname test/reference-results/test/simu.csv --parameter-dir test/reference-results/test/parameters/simu/hmm --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --outfname test/_new-results/vsearch-partition-ref-simu.csv
+TODO fix j_match/other stuff in get_padding_parameters()
 partitioning
 smith-waterman 
         processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon
@@ -922,73 +743,73 @@ smith-waterman
             55               1              0                           0               1               0               0               0             increasing mismatch score (2 --> 3) and rerunning them
              1         all done
       info for 250 
-        water time: 10.8
+        water time: 16.9
 hmm
     writing input
     running 10 procs
+      --> proc 0
+        cachefile d.n.e.
+      caching all naive sequences
+        calcd:   vtb 25    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
+        time: bcrham 3.7
+
       --> proc 1
         cachefile d.n.e.
       caching all naive sequences
         calcd:   vtb 25    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
-        time: bcrham 2.6
+        time: bcrham 3.1
 
       --> proc 2
         cachefile d.n.e.
       caching all naive sequences
         calcd:   vtb 25    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
-        time: bcrham 2.6
+        time: bcrham 3.0
 
       --> proc 3
         cachefile d.n.e.
       caching all naive sequences
         calcd:   vtb 25    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
-        time: bcrham 2.8
+        time: bcrham 3.3
 
       --> proc 4
         cachefile d.n.e.
       caching all naive sequences
         calcd:   vtb 25    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
-        time: bcrham 2.6
+        time: bcrham 3.0
 
       --> proc 5
         cachefile d.n.e.
       caching all naive sequences
         calcd:   vtb 25    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
-        time: bcrham 2.8
+        time: bcrham 3.3
 
       --> proc 6
         cachefile d.n.e.
       caching all naive sequences
         calcd:   vtb 25    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
-        time: bcrham 2.5
+        time: bcrham 3.0
 
       --> proc 7
         cachefile d.n.e.
       caching all naive sequences
         calcd:   vtb 25    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
-        time: bcrham 2.9
+        time: bcrham 3.4
 
       --> proc 8
         cachefile d.n.e.
       caching all naive sequences
         calcd:   vtb 25    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
-        time: bcrham 2.7
+        time: bcrham 3.2
 
       --> proc 9
         cachefile d.n.e.
       caching all naive sequences
         calcd:   vtb 25    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
-        time: bcrham 2.6
-
-      --> proc 0
-        cachefile d.n.e.
-      caching all naive sequences
-        calcd:   vtb 25    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
-        time: bcrham 3.2
+        time: bcrham 3.1
 
       time waiting for bcrham: 5.1
       hmm step time: 5.2
-       naive hfrac bounds: 0.035 0.035   (0.126 mutation in test/_new-results/test/parameters/simu/hmm)
+       naive hfrac bounds: 0.035 0.035   (0.126 mutation in test/reference-results/test/parameters/simu/hmm)
     using hfrac bound for vsearch 0.035
   stdout:
     vsearch v1.1.3_linux_x86_64, 62.8GB RAM, 16 cores
@@ -996,7 +817,7 @@ hmm
     
     
   stderr:
-    Reading file /tmp/dralph/hmms/542412/simu.fasta 0%  Reading file /tmp/dralph/hmms/542412/simu.fasta 0%  Reading file /tmp/dralph/hmms/542412/simu.fasta 1%  Reading file /tmp/dralph/hmms/542412/simu.fasta 2%  Reading file /tmp/dralph/hmms/542412/simu.fasta 3%  Reading file /tmp/dralph/hmms/542412/simu.fasta 4%  Reading file /tmp/dralph/hmms/542412/simu.fasta 4%  Reading file /tmp/dralph/hmms/542412/simu.fasta 5%  Reading file /tmp/dralph/hmms/542412/simu.fasta 6%  Reading file /tmp/dralph/hmms/542412/simu.fasta 7%  Reading file /tmp/dralph/hmms/542412/simu.fasta 8%  Reading file /tmp/dralph/hmms/542412/simu.fasta 8%  Reading file /tmp/dralph/hmms/542412/simu.fasta 9%  Reading file /tmp/dralph/hmms/542412/simu.fasta 10%  Reading file /tmp/dralph/hmms/542412/simu.fasta 11%  Reading file /tmp/dralph/hmms/542412/simu.fasta 12%  Reading file /tmp/dralph/hmms/542412/simu.fasta 12%  Reading file /tmp/dralph/hmms/542412/simu.fasta 13%  Reading file /tmp/dralph/hmms/542412/simu.fasta 14%  Reading file /tmp/dralph/hmms/542412/simu.fasta 15%  Reading file /tmp/dralph/hmms/542412/simu.fasta 16%  Reading file /tmp/dralph/hmms/542412/simu.fasta 16%  Reading file /tmp/dralph/hmms/542412/simu.fasta 17%  Reading file /tmp/dralph/hmms/542412/simu.fasta 18%  Reading file /tmp/dralph/hmms/542412/simu.fasta 19%  Reading file /tmp/dralph/hmms/542412/simu.fasta 20%  Reading file /tmp/dralph/hmms/542412/simu.fasta 20%  Reading file /tmp/dralph/hmms/542412/simu.fasta 21%  Reading file /tmp/dralph/hmms/542412/simu.fasta 22%  Reading file /tmp/dralph/hmms/542412/simu.fasta 23%  Reading file /tmp/dralph/hmms/542412/simu.fasta 24%  Reading file /tmp/dralph/hmms/542412/simu.fasta 24%  Reading file /tmp/dralph/hmms/542412/simu.fasta 25%  Reading file /tmp/dralph/hmms/542412/simu.fasta 26%  Reading file /tmp/dralph/hmms/542412/simu.fasta 27%  Reading file /tmp/dralph/hmms/542412/simu.fasta 28%  Reading file /tmp/dralph/hmms/542412/simu.fasta 28%  Reading file /tmp/dralph/hmms/542412/simu.fasta 29%  Reading file /tmp/dralph/hmms/542412/simu.fasta 30%  Reading file /tmp/dralph/hmms/542412/simu.fasta 31%  Reading file /tmp/dralph/hmms/542412/simu.fasta 32%  Reading file /tmp/dralph/hmms/542412/simu.fasta 32%  Reading file /tmp/dralph/hmms/542412/simu.fasta 33%  Reading file /tmp/dralph/hmms/542412/simu.fasta 34%  Reading file /tmp/dralph/hmms/542412/simu.fasta 35%  Reading file /tmp/dralph/hmms/542412/simu.fasta 36%  Reading file /tmp/dralph/hmms/542412/simu.fasta 36%  Reading file /tmp/dralph/hmms/542412/simu.fasta 37%  Reading file /tmp/dralph/hmms/542412/simu.fasta 38%  Reading file /tmp/dralph/hmms/542412/simu.fasta 39%  Reading file /tmp/dralph/hmms/542412/simu.fasta 40%  Reading file /tmp/dralph/hmms/542412/simu.fasta 40%  Reading file /tmp/dralph/hmms/542412/simu.fasta 41%  Reading file /tmp/dralph/hmms/542412/simu.fasta 42%  Reading file /tmp/dralph/hmms/542412/simu.fasta 43%  Reading file /tmp/dralph/hmms/542412/simu.fasta 44%  Reading file /tmp/dralph/hmms/542412/simu.fasta 44%  Reading file /tmp/dralph/hmms/542412/simu.fasta 45%  Reading file /tmp/dralph/hmms/542412/simu.fasta 46%  Reading file /tmp/dralph/hmms/542412/simu.fasta 47%  Reading file /tmp/dralph/hmms/542412/simu.fasta 48%  Reading file /tmp/dralph/hmms/542412/simu.fasta 48%  Reading file /tmp/dralph/hmms/542412/simu.fasta 49%  Reading file /tmp/dralph/hmms/542412/simu.fasta 50%  Reading file /tmp/dralph/hmms/542412/simu.fasta 51%  Reading file /tmp/dralph/hmms/542412/simu.fasta 52%  Reading file /tmp/dralph/hmms/542412/simu.fasta 52%  Reading file /tmp/dralph/hmms/542412/simu.fasta 53%  Reading file /tmp/dralph/hmms/542412/simu.fasta 54%  Reading file /tmp/dralph/hmms/542412/simu.fasta 55%  Reading file /tmp/dralph/hmms/542412/simu.fasta 56%  Reading file /tmp/dralph/hmms/542412/simu.fasta 56%  Reading file /tmp/dralph/hmms/542412/simu.fasta 57%  Reading file /tmp/dralph/hmms/542412/simu.fasta 58%  Reading file /tmp/dralph/hmms/542412/simu.fasta 59%  Reading file /tmp/dralph/hmms/542412/simu.fasta 60%  Reading file /tmp/dralph/hmms/542412/simu.fasta 60%  Reading file /tmp/dralph/hmms/542412/simu.fasta 61%  Reading file /tmp/dralph/hmms/542412/simu.fasta 62%  Reading file /tmp/dralph/hmms/542412/simu.fasta 63%  Reading file /tmp/dralph/hmms/542412/simu.fasta 64%  Reading file /tmp/dralph/hmms/542412/simu.fasta 64%  Reading file /tmp/dralph/hmms/542412/simu.fasta 65%  Reading file /tmp/dralph/hmms/542412/simu.fasta 66%  Reading file /tmp/dralph/hmms/542412/simu.fasta 67%  Reading file /tmp/dralph/hmms/542412/simu.fasta 68%  Reading file /tmp/dralph/hmms/542412/simu.fasta 68%  Reading file /tmp/dralph/hmms/542412/simu.fasta 69%  Reading file /tmp/dralph/hmms/542412/simu.fasta 70%  Reading file /tmp/dralph/hmms/542412/simu.fasta 71%  Reading file /tmp/dralph/hmms/542412/simu.fasta 72%  Reading file /tmp/dralph/hmms/542412/simu.fasta 72%  Reading file /tmp/dralph/hmms/542412/simu.fasta 73%  Reading file /tmp/dralph/hmms/542412/simu.fasta 74%  Reading file /tmp/dralph/hmms/542412/simu.fasta 75%  Reading file /tmp/dralph/hmms/542412/simu.fasta 76%  Reading file /tmp/dralph/hmms/542412/simu.fasta 76%  Reading file /tmp/dralph/hmms/542412/simu.fasta 77%  Reading file /tmp/dralph/hmms/542412/simu.fasta 78%  Reading file /tmp/dralph/hmms/542412/simu.fasta 79%  Reading file /tmp/dralph/hmms/542412/simu.fasta 80%  Reading file /tmp/dralph/hmms/542412/simu.fasta 80%  Reading file /tmp/dralph/hmms/542412/simu.fasta 81%  Reading file /tmp/dralph/hmms/542412/simu.fasta 82%  Reading file /tmp/dralph/hmms/542412/simu.fasta 83%  Reading file /tmp/dralph/hmms/542412/simu.fasta 84%  Reading file /tmp/dralph/hmms/542412/simu.fasta 84%  Reading file /tmp/dralph/hmms/542412/simu.fasta 85%  Reading file /tmp/dralph/hmms/542412/simu.fasta 86%  Reading file /tmp/dralph/hmms/542412/simu.fasta 87%  Reading file /tmp/dralph/hmms/542412/simu.fasta 88%  Reading file /tmp/dralph/hmms/542412/simu.fasta 88%  Reading file /tmp/dralph/hmms/542412/simu.fasta 89%  Reading file /tmp/dralph/hmms/542412/simu.fasta 90%  Reading file /tmp/dralph/hmms/542412/simu.fasta 91%  Reading file /tmp/dralph/hmms/542412/simu.fasta 92%  Reading file /tmp/dralph/hmms/542412/simu.fasta 92%  Reading file /tmp/dralph/hmms/542412/simu.fasta 93%  Reading file /tmp/dralph/hmms/542412/simu.fasta 94%  Reading file /tmp/dralph/hmms/542412/simu.fasta 95%  Reading file /tmp/dralph/hmms/542412/simu.fasta 96%  Reading file /tmp/dralph/hmms/542412/simu.fasta 96%  Reading file /tmp/dralph/hmms/542412/simu.fasta 97%  Reading file /tmp/dralph/hmms/542412/simu.fasta 98%  Reading file /tmp/dralph/hmms/542412/simu.fasta 99%  Reading file /tmp/dralph/hmms/542412/simu.fasta 100%  Reading file /tmp/dralph/hmms/542412/simu.fasta 100%
+    Reading file /tmp/dralph/hmms/820054/simu.fasta 0%  Reading file /tmp/dralph/hmms/820054/simu.fasta 0%  Reading file /tmp/dralph/hmms/820054/simu.fasta 1%  Reading file /tmp/dralph/hmms/820054/simu.fasta 2%  Reading file /tmp/dralph/hmms/820054/simu.fasta 3%  Reading file /tmp/dralph/hmms/820054/simu.fasta 4%  Reading file /tmp/dralph/hmms/820054/simu.fasta 4%  Reading file /tmp/dralph/hmms/820054/simu.fasta 5%  Reading file /tmp/dralph/hmms/820054/simu.fasta 6%  Reading file /tmp/dralph/hmms/820054/simu.fasta 7%  Reading file /tmp/dralph/hmms/820054/simu.fasta 8%  Reading file /tmp/dralph/hmms/820054/simu.fasta 8%  Reading file /tmp/dralph/hmms/820054/simu.fasta 9%  Reading file /tmp/dralph/hmms/820054/simu.fasta 10%  Reading file /tmp/dralph/hmms/820054/simu.fasta 11%  Reading file /tmp/dralph/hmms/820054/simu.fasta 12%  Reading file /tmp/dralph/hmms/820054/simu.fasta 12%  Reading file /tmp/dralph/hmms/820054/simu.fasta 13%  Reading file /tmp/dralph/hmms/820054/simu.fasta 14%  Reading file /tmp/dralph/hmms/820054/simu.fasta 15%  Reading file /tmp/dralph/hmms/820054/simu.fasta 16%  Reading file /tmp/dralph/hmms/820054/simu.fasta 16%  Reading file /tmp/dralph/hmms/820054/simu.fasta 17%  Reading file /tmp/dralph/hmms/820054/simu.fasta 18%  Reading file /tmp/dralph/hmms/820054/simu.fasta 19%  Reading file /tmp/dralph/hmms/820054/simu.fasta 20%  Reading file /tmp/dralph/hmms/820054/simu.fasta 20%  Reading file /tmp/dralph/hmms/820054/simu.fasta 21%  Reading file /tmp/dralph/hmms/820054/simu.fasta 22%  Reading file /tmp/dralph/hmms/820054/simu.fasta 23%  Reading file /tmp/dralph/hmms/820054/simu.fasta 24%  Reading file /tmp/dralph/hmms/820054/simu.fasta 24%  Reading file /tmp/dralph/hmms/820054/simu.fasta 25%  Reading file /tmp/dralph/hmms/820054/simu.fasta 26%  Reading file /tmp/dralph/hmms/820054/simu.fasta 27%  Reading file /tmp/dralph/hmms/820054/simu.fasta 28%  Reading file /tmp/dralph/hmms/820054/simu.fasta 28%  Reading file /tmp/dralph/hmms/820054/simu.fasta 29%  Reading file /tmp/dralph/hmms/820054/simu.fasta 30%  Reading file /tmp/dralph/hmms/820054/simu.fasta 31%  Reading file /tmp/dralph/hmms/820054/simu.fasta 32%  Reading file /tmp/dralph/hmms/820054/simu.fasta 32%  Reading file /tmp/dralph/hmms/820054/simu.fasta 33%  Reading file /tmp/dralph/hmms/820054/simu.fasta 34%  Reading file /tmp/dralph/hmms/820054/simu.fasta 35%  Reading file /tmp/dralph/hmms/820054/simu.fasta 36%  Reading file /tmp/dralph/hmms/820054/simu.fasta 36%  Reading file /tmp/dralph/hmms/820054/simu.fasta 37%  Reading file /tmp/dralph/hmms/820054/simu.fasta 38%  Reading file /tmp/dralph/hmms/820054/simu.fasta 39%  Reading file /tmp/dralph/hmms/820054/simu.fasta 40%  Reading file /tmp/dralph/hmms/820054/simu.fasta 40%  Reading file /tmp/dralph/hmms/820054/simu.fasta 41%  Reading file /tmp/dralph/hmms/820054/simu.fasta 42%  Reading file /tmp/dralph/hmms/820054/simu.fasta 43%  Reading file /tmp/dralph/hmms/820054/simu.fasta 44%  Reading file /tmp/dralph/hmms/820054/simu.fasta 44%  Reading file /tmp/dralph/hmms/820054/simu.fasta 45%  Reading file /tmp/dralph/hmms/820054/simu.fasta 46%  Reading file /tmp/dralph/hmms/820054/simu.fasta 47%  Reading file /tmp/dralph/hmms/820054/simu.fasta 48%  Reading file /tmp/dralph/hmms/820054/simu.fasta 48%  Reading file /tmp/dralph/hmms/820054/simu.fasta 49%  Reading file /tmp/dralph/hmms/820054/simu.fasta 50%  Reading file /tmp/dralph/hmms/820054/simu.fasta 51%  Reading file /tmp/dralph/hmms/820054/simu.fasta 52%  Reading file /tmp/dralph/hmms/820054/simu.fasta 52%  Reading file /tmp/dralph/hmms/820054/simu.fasta 53%  Reading file /tmp/dralph/hmms/820054/simu.fasta 54%  Reading file /tmp/dralph/hmms/820054/simu.fasta 55%  Reading file /tmp/dralph/hmms/820054/simu.fasta 56%  Reading file /tmp/dralph/hmms/820054/simu.fasta 56%  Reading file /tmp/dralph/hmms/820054/simu.fasta 57%  Reading file /tmp/dralph/hmms/820054/simu.fasta 58%  Reading file /tmp/dralph/hmms/820054/simu.fasta 59%  Reading file /tmp/dralph/hmms/820054/simu.fasta 60%  Reading file /tmp/dralph/hmms/820054/simu.fasta 60%  Reading file /tmp/dralph/hmms/820054/simu.fasta 61%  Reading file /tmp/dralph/hmms/820054/simu.fasta 62%  Reading file /tmp/dralph/hmms/820054/simu.fasta 63%  Reading file /tmp/dralph/hmms/820054/simu.fasta 64%  Reading file /tmp/dralph/hmms/820054/simu.fasta 64%  Reading file /tmp/dralph/hmms/820054/simu.fasta 65%  Reading file /tmp/dralph/hmms/820054/simu.fasta 66%  Reading file /tmp/dralph/hmms/820054/simu.fasta 67%  Reading file /tmp/dralph/hmms/820054/simu.fasta 68%  Reading file /tmp/dralph/hmms/820054/simu.fasta 68%  Reading file /tmp/dralph/hmms/820054/simu.fasta 69%  Reading file /tmp/dralph/hmms/820054/simu.fasta 70%  Reading file /tmp/dralph/hmms/820054/simu.fasta 71%  Reading file /tmp/dralph/hmms/820054/simu.fasta 72%  Reading file /tmp/dralph/hmms/820054/simu.fasta 72%  Reading file /tmp/dralph/hmms/820054/simu.fasta 73%  Reading file /tmp/dralph/hmms/820054/simu.fasta 74%  Reading file /tmp/dralph/hmms/820054/simu.fasta 75%  Reading file /tmp/dralph/hmms/820054/simu.fasta 76%  Reading file /tmp/dralph/hmms/820054/simu.fasta 76%  Reading file /tmp/dralph/hmms/820054/simu.fasta 77%  Reading file /tmp/dralph/hmms/820054/simu.fasta 78%  Reading file /tmp/dralph/hmms/820054/simu.fasta 79%  Reading file /tmp/dralph/hmms/820054/simu.fasta 80%  Reading file /tmp/dralph/hmms/820054/simu.fasta 80%  Reading file /tmp/dralph/hmms/820054/simu.fasta 81%  Reading file /tmp/dralph/hmms/820054/simu.fasta 82%  Reading file /tmp/dralph/hmms/820054/simu.fasta 83%  Reading file /tmp/dralph/hmms/820054/simu.fasta 84%  Reading file /tmp/dralph/hmms/820054/simu.fasta 84%  Reading file /tmp/dralph/hmms/820054/simu.fasta 85%  Reading file /tmp/dralph/hmms/820054/simu.fasta 86%  Reading file /tmp/dralph/hmms/820054/simu.fasta 87%  Reading file /tmp/dralph/hmms/820054/simu.fasta 88%  Reading file /tmp/dralph/hmms/820054/simu.fasta 88%  Reading file /tmp/dralph/hmms/820054/simu.fasta 89%  Reading file /tmp/dralph/hmms/820054/simu.fasta 90%  Reading file /tmp/dralph/hmms/820054/simu.fasta 91%  Reading file /tmp/dralph/hmms/820054/simu.fasta 92%  Reading file /tmp/dralph/hmms/820054/simu.fasta 92%  Reading file /tmp/dralph/hmms/820054/simu.fasta 93%  Reading file /tmp/dralph/hmms/820054/simu.fasta 94%  Reading file /tmp/dralph/hmms/820054/simu.fasta 95%  Reading file /tmp/dralph/hmms/820054/simu.fasta 96%  Reading file /tmp/dralph/hmms/820054/simu.fasta 96%  Reading file /tmp/dralph/hmms/820054/simu.fasta 97%  Reading file /tmp/dralph/hmms/820054/simu.fasta 98%  Reading file /tmp/dralph/hmms/820054/simu.fasta 99%  Reading file /tmp/dralph/hmms/820054/simu.fasta 100%  Reading file /tmp/dralph/hmms/820054/simu.fasta 100%
     99500 nt in 250 seqs, min 398, max 398, avg 398
     Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 1%  Indexing sequences 1%  Indexing sequences 2%  Indexing sequences 2%  Indexing sequences 2%  Indexing sequences 3%  Indexing sequences 3%  Indexing sequences 4%  Indexing sequences 4%  Indexing sequences 4%  Indexing sequences 5%  Indexing sequences 5%  Indexing sequences 6%  Indexing sequences 6%  Indexing sequences 6%  Indexing sequences 7%  Indexing sequences 7%  Indexing sequences 8%  Indexing sequences 8%  Indexing sequences 8%  Indexing sequences 9%  Indexing sequences 9%  Indexing sequences 10%  Indexing sequences 10%  Indexing sequences 10%  Indexing sequences 11%  Indexing sequences 11%  Indexing sequences 12%  Indexing sequences 12%  Indexing sequences 12%  Indexing sequences 13%  Indexing sequences 13%  Indexing sequences 14%  Indexing sequences 14%  Indexing sequences 14%  Indexing sequences 15%  Indexing sequences 15%  Indexing sequences 16%  Indexing sequences 16%  Indexing sequences 16%  Indexing sequences 17%  Indexing sequences 17%  Indexing sequences 18%  Indexing sequences 18%  Indexing sequences 18%  Indexing sequences 19%  Indexing sequences 19%  Indexing sequences 20%  Indexing sequences 20%  Indexing sequences 20%  Indexing sequences 21%  Indexing sequences 21%  Indexing sequences 22%  Indexing sequences 22%  Indexing sequences 22%  Indexing sequences 23%  Indexing sequences 23%  Indexing sequences 24%  Indexing sequences 24%  Indexing sequences 24%  Indexing sequences 25%  Indexing sequences 25%  Indexing sequences 26%  Indexing sequences 26%  Indexing sequences 26%  Indexing sequences 27%  Indexing sequences 27%  Indexing sequences 28%  Indexing sequences 28%  Indexing sequences 28%  Indexing sequences 29%  Indexing sequences 29%  Indexing sequences 30%  Indexing sequences 30%  Indexing sequences 30%  Indexing sequences 31%  Indexing sequences 31%  Indexing sequences 32%  Indexing sequences 32%  Indexing sequences 32%  Indexing sequences 33%  Indexing sequences 33%  Indexing sequences 34%  Indexing sequences 34%  Indexing sequences 34%  Indexing sequences 35%  Indexing sequences 35%  Indexing sequences 36%  Indexing sequences 36%  Indexing sequences 36%  Indexing sequences 37%  Indexing sequences 37%  Indexing sequences 38%  Indexing sequences 38%  Indexing sequences 38%  Indexing sequences 39%  Indexing sequences 39%  Indexing sequences 40%  Indexing sequences 40%  Indexing sequences 40%  Indexing sequences 41%  Indexing sequences 41%  Indexing sequences 42%  Indexing sequences 42%  Indexing sequences 42%  Indexing sequences 43%  Indexing sequences 43%  Indexing sequences 44%  Indexing sequences 44%  Indexing sequences 44%  Indexing sequences 45%  Indexing sequences 45%  Indexing sequences 46%  Indexing sequences 46%  Indexing sequences 46%  Indexing sequences 47%  Indexing sequences 47%  Indexing sequences 48%  Indexing sequences 48%  Indexing sequences 48%  Indexing sequences 49%  Indexing sequences 49%  Indexing sequences 50%  Indexing sequences 50%  Indexing sequences 50%  Indexing sequences 51%  Indexing sequences 51%  Indexing sequences 52%  Indexing sequences 52%  Indexing sequences 52%  Indexing sequences 53%  Indexing sequences 53%  Indexing sequences 54%  Indexing sequences 54%  Indexing sequences 54%  Indexing sequences 55%  Indexing sequences 55%  Indexing sequences 56%  Indexing sequences 56%  Indexing sequences 56%  Indexing sequences 57%  Indexing sequences 57%  Indexing sequences 58%  Indexing sequences 58%  Indexing sequences 58%  Indexing sequences 59%  Indexing sequences 59%  Indexing sequences 60%  Indexing sequences 60%  Indexing sequences 60%  Indexing sequences 61%  Indexing sequences 61%  Indexing sequences 62%  Indexing sequences 62%  Indexing sequences 62%  Indexing sequences 63%  Indexing sequences 63%  Indexing sequences 64%  Indexing sequences 64%  Indexing sequences 64%  Indexing sequences 65%  Indexing sequences 65%  Indexing sequences 66%  Indexing sequences 66%  Indexing sequences 66%  Indexing sequences 67%  Indexing sequences 67%  Indexing sequences 68%  Indexing sequences 68%  Indexing sequences 68%  Indexing sequences 69%  Indexing sequences 69%  Indexing sequences 70%  Indexing sequences 70%  Indexing sequences 70%  Indexing sequences 71%  Indexing sequences 71%  Indexing sequences 72%  Indexing sequences 72%  Indexing sequences 72%  Indexing sequences 73%  Indexing sequences 73%  Indexing sequences 74%  Indexing sequences 74%  Indexing sequences 74%  Indexing sequences 75%  Indexing sequences 75%  Indexing sequences 76%  Indexing sequences 76%  Indexing sequences 76%  Indexing sequences 77%  Indexing sequences 77%  Indexing sequences 78%  Indexing sequences 78%  Indexing sequences 78%  Indexing sequences 79%  Indexing sequences 79%  Indexing sequences 80%  Indexing sequences 80%  Indexing sequences 80%  Indexing sequences 81%  Indexing sequences 81%  Indexing sequences 82%  Indexing sequences 82%  Indexing sequences 82%  Indexing sequences 83%  Indexing sequences 83%  Indexing sequences 84%  Indexing sequences 84%  Indexing sequences 84%  Indexing sequences 85%  Indexing sequences 85%  Indexing sequences 86%  Indexing sequences 86%  Indexing sequences 86%  Indexing sequences 87%  Indexing sequences 87%  Indexing sequences 88%  Indexing sequences 88%  Indexing sequences 88%  Indexing sequences 89%  Indexing sequences 89%  Indexing sequences 90%  Indexing sequences 90%  Indexing sequences 90%  Indexing sequences 91%  Indexing sequences 91%  Indexing sequences 92%  Indexing sequences 92%  Indexing sequences 92%  Indexing sequences 93%  Indexing sequences 93%  Indexing sequences 94%  Indexing sequences 94%  Indexing sequences 94%  Indexing sequences 95%  Indexing sequences 95%  Indexing sequences 96%  Indexing sequences 96%  Indexing sequences 96%  Indexing sequences 97%  Indexing sequences 97%  Indexing sequences 98%  Indexing sequences 98%  Indexing sequences 98%  Indexing sequences 99%  Indexing sequences 99%  Indexing sequences 100%  Indexing sequences 100%
     Masking 0%  Masking 100%
@@ -1007,5 +828,1022 @@ hmm
     Clusters: 94 Size min 1, max 14, avg 2.7
     Singletons: 46, 18.4% of seqs, 48.9% of clusters
     
-      vsearch/swarm time: 1.1
-      total time: 17.2
+      vsearch/swarm time: 1.0
+      total time: 23.4
+TEST          cache-data-parameters   ./bin/run-driver.py --label test --stashdir test/_new-results cache-data-parameters --extra-args __seed:1:__n-procs:10:__only-genes:TEST:__only-csv-plots --datafname test/mishmash.fa
+RUN ./bin/partis.py cache-parameters --seqfile test/mishmash.fa --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --parameter-dir test/_new-results/test/parameters/data --plotdir test/_new-results/test/plots/data --print-git-commit
+TODO fix j_match/other stuff in get_padding_parameters()
+  note: moving contents of deprecated option --seqfile into its replacement --infname
+RUN ./bin/partis.py cache-parameters --seqfile test/mishmash.fa --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --parameter-dir test/_new-results/test/parameters/data --plotdir test/_new-results/test/plots/data --print-git-commit
+       tag v0.7.0
+    commit 15911cf93c7db050e1aa4701de8f64440711f3e1
+caching parameters
+smith-waterman   (writing parameters) 
+        processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon
+          1394             205              0                          97              90              18               0               0             increasing mismatch score (1 --> 2) and rerunning them
+           205              51             43                           0               6               0               2               0             rerunning for indels
+            51              16              0                           0               7               0               3               6             increasing mismatch score (2 --> 3) and rerunning them
+            16              10              0                           0               1               0               3               6             increasing mismatch score (3 --> 4) and rerunning them
+      info for 1384      (skipped 0 / 1394 = 0.00 unproductive    10 / 1394 = 0.01 other ) 
+   [91mwarning[0m 10 missing annotations (-7011713810090795053:-4832028181938476209:crap-1:crap-2:crap-5:crap-4:-9214222141473325301:3650832272176427929:3009114784662815033:-1216833654156218617)
+  plotting parameters/home/dralph/.local/lib/python2.7/site-packages/matplotlib/pyplot.py:516: RuntimeWarning: More than 20 figures have been opened. Figures created through the pyplot interface (`matplotlib.pyplot.figure`) are retained until explicitly closed and may consume too much memory. (To control this warning, see the rcParam `figure.max_open_warning`).
+  max_open_warning, RuntimeWarning)
+ (9.9 sec)
+    writing parameters   writing glfo to test/_new-results/test/parameters/data/sw/germline-sets  (restricting to 25 genes)
+(0.2 sec)
+        water time: 27.9
+  restricting self.glfo (and /tmp/dralph/hmms/561429/germline-sets) to alleles observed in test/_new-results/test/parameters/data/sw
+    removing 0 genes from glfo
+  writing glfo to /tmp/dralph/hmms/561429/germline-sets
+  writing hmms (5.6 sec)
+hmm
+    writing input
+    running 10 procs
+      --> proc 1
+        calcd:   vtb 139   fwd 0   
+        time: bcrham 8.2
+
+      --> proc 2
+        calcd:   vtb 139   fwd 0   
+        time: bcrham 8.8
+
+      --> proc 3
+        calcd:   vtb 139   fwd 0   
+        time: bcrham 9.0
+
+      --> proc 7
+        calcd:   vtb 138   fwd 0   
+        time: bcrham 8.9
+
+      --> proc 9
+        calcd:   vtb 138   fwd 0   
+        time: bcrham 8.7
+
+      --> proc 5
+        calcd:   vtb 138   fwd 0   
+        time: bcrham 9.2
+
+      --> proc 6
+        calcd:   vtb 138   fwd 0   
+        time: bcrham 9.9
+
+      --> proc 8
+        calcd:   vtb 138   fwd 0   
+        time: bcrham 9.8
+
+      --> proc 0
+        calcd:   vtb 139   fwd 0   
+        time: bcrham 10.9
+
+      --> proc 4
+        calcd:   vtb 138   fwd 0   
+        time: bcrham 39.1
+
+      time waiting for bcrham: 41.2
+    read output
+  plotting parameters (10.0 sec)
+    writing parameters   writing glfo to test/_new-results/test/parameters/data/hmm/germline-sets  (restricting to 25 genes)
+(0.4 sec)
+        1384 lines:  processed 1381 sequences in 1381 events
+          [91mwarning[0m skipped 3 invalid events 
+      1 boundary errors
+      hmm step time: 54.9
+  restricting self.glfo (and /tmp/dralph/hmms/561429/germline-sets) to alleles observed in test/_new-results/test/parameters/data/hmm
+    removing 0 genes from glfo
+  writing glfo to /tmp/dralph/hmms/561429/germline-sets
+  writing hmms (7.0 sec)
+      total time: 95.7
+TEST                       simulate   ./bin/run-driver.py --label test --stashdir test/_new-results simulate --extra-args __n-sim-events:500:__n-leaves:2:__mimic-data-read-length:__seed:1:__n-procs:10:__only-genes:TEST:__only-csv-plots
+RUN ./bin/partis.py simulate --outfname test/_new-results/test/simu.csv --n-sim-events 500 --n-leaves 2 --mimic-data-read-length --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --parameter-dir test/_new-results/test/parameters/data/hmm --print-git-commit
+TODO fix j_match/other stuff in get_padding_parameters()
+RUN ./bin/partis.py simulate --outfname test/_new-results/test/simu.csv --n-sim-events 500 --n-leaves 2 --mimic-data-read-length --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --parameter-dir test/_new-results/test/parameters/data/hmm --print-git-commit
+       tag v0.7.0
+    commit 15911cf93c7db050e1aa4701de8f64440711f3e1
+simulating
+      total time: 10.5
+TEST          cache-simu-parameters   ./bin/run-driver.py --label test --stashdir test/_new-results cache-simu-parameters --extra-args __seed:1:__n-procs:10:__only-genes:TEST:__only-csv-plots
+RUN ./bin/partis.py cache-parameters --seqfile test/_new-results/test/simu.csv --is-simu --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --parameter-dir test/_new-results/test/parameters/simu --plotdir test/_new-results/test/plots/simu --print-git-commit
+TODO fix j_match/other stuff in get_padding_parameters()
+  note: moving contents of deprecated option --seqfile into its replacement --infname
+RUN ./bin/partis.py cache-parameters --seqfile test/_new-results/test/simu.csv --is-simu --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --parameter-dir test/_new-results/test/parameters/simu --plotdir test/_new-results/test/plots/simu --print-git-commit
+       tag v0.7.0
+    commit 15911cf93c7db050e1aa4701de8f64440711f3e1
+caching parameters
+smith-waterman   (writing parameters) 
+        processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon
+           987             140              0                          60              63              15               0               2             increasing mismatch score (1 --> 2) and rerunning them
+           140               8              4                           0               4               0               0               0             rerunning for indels
+             8               6              0                           0               4               0               0               2             increasing mismatch score (2 --> 3) and rerunning them
+             6               5              0                           0               3               0               0               2             increasing mismatch score (3 --> 4) and rerunning them
+      info for 982      (skipped 0 / 987 = 0.00 unproductive    5 / 987 = 0.01 other ) 
+   [91mwarning[0m 5 missing annotations (-5961929596589397733:2194656423594881498:8619239343301469404:-2026485616802401108:2709627198246020495)
+  plotting parameters/home/dralph/.local/lib/python2.7/site-packages/matplotlib/pyplot.py:516: RuntimeWarning: More than 20 figures have been opened. Figures created through the pyplot interface (`matplotlib.pyplot.figure`) are retained until explicitly closed and may consume too much memory. (To control this warning, see the rcParam `figure.max_open_warning`).
+  max_open_warning, RuntimeWarning)
+ (10.8 sec)
+  plotting parameters (8.6 sec)
+    writing parameters   writing glfo to test/_new-results/test/parameters/simu/sw/germline-sets  (restricting to 25 genes)
+(0.2 sec)
+    writing parameters   writing glfo to test/_new-results/test/parameters/simu/sw-true/germline-sets  (restricting to 25 genes)
+(0.3 sec)
+        water time: 35.3
+  restricting self.glfo (and /tmp/dralph/hmms/135501/germline-sets) to alleles observed in test/_new-results/test/parameters/simu/sw
+    removing 0 genes from glfo
+  writing glfo to /tmp/dralph/hmms/135501/germline-sets
+  writing hmms (5.7 sec)
+hmm
+    writing input
+    running 10 procs
+      --> proc 2
+        calcd:   vtb 98    fwd 0   
+        time: bcrham 5.7
+
+      --> proc 6
+        calcd:   vtb 98    fwd 0   
+        time: bcrham 6.1
+
+      --> proc 0
+        calcd:   vtb 99    fwd 0   
+        time: bcrham 6.8
+
+      --> proc 3
+        calcd:   vtb 98    fwd 0   
+        time: bcrham 6.2
+
+      --> proc 4
+        calcd:   vtb 98    fwd 0   
+        time: bcrham 6.3
+
+      --> proc 7
+        calcd:   vtb 98    fwd 0   
+        time: bcrham 6.2
+
+      --> proc 9
+        calcd:   vtb 98    fwd 0   
+        time: bcrham 6.8
+
+      --> proc 1
+        calcd:   vtb 99    fwd 0   
+        time: bcrham 7.3
+
+      --> proc 5
+        calcd:   vtb 98    fwd 0   
+        time: bcrham 7.2
+
+      --> proc 8
+        calcd:   vtb 98    fwd 0   
+        time: bcrham 7.1
+
+      time waiting for bcrham: 9.3
+    read output
+  plotting parameters (11.3 sec)
+    writing parameters   writing glfo to test/_new-results/test/parameters/simu/hmm/germline-sets  (restricting to 25 genes)
+(0.2 sec)
+  plotting parameters (11.1 sec)
+    writing parameters   writing glfo to test/_new-results/test/parameters/simu/hmm-true/germline-sets  (restricting to 25 genes)
+(0.2 sec)
+        982 lines:  processed 982 sequences in 982 events
+
+      2 boundary errors
+      hmm step time: 34.7
+  restricting self.glfo (and /tmp/dralph/hmms/135501/germline-sets) to alleles observed in test/_new-results/test/parameters/simu/hmm
+    removing 0 genes from glfo
+  writing glfo to /tmp/dralph/hmms/135501/germline-sets
+  writing hmms (6.3 sec)
+      total time: 82.7
+TEST              annotate-new-simu   ./bin/partis run-viterbi --plotdir test/_new-results/simu-new-performance --plot-performance --is-simu --infname test/_new-results/test/simu.csv --parameter-dir test/_new-results/test/parameters/simu/hmm --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --outfname test/_new-results/annotate-new-simu.csv
+TODO fix j_match/other stuff in get_padding_parameters()
+running viterbi
+smith-waterman 
+        processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon
+           987             140              0                          60              63              15               0               2             increasing mismatch score (1 --> 2) and rerunning them
+           140               8              4                           0               4               0               0               0             rerunning for indels
+    skipping performance evaluation of -3416884950970367761 because of indels
+    skipping performance evaluation of -2850286228011292896 because of indels
+             8               6              0                           0               4               0               0               2             increasing mismatch score (2 --> 3) and rerunning them
+/home/dralph/.local/lib/python2.7/site-packages/matplotlib/pyplot.py:516: RuntimeWarning: More than 20 figures have been opened. Figures created through the pyplot interface (`matplotlib.pyplot.figure`) are retained until explicitly closed and may consume too much memory. (To control this warning, see the rcParam `figure.max_open_warning`).
+  max_open_warning, RuntimeWarning)
+             6               5              0                           0               3               0               0               2             increasing mismatch score (3 --> 4) and rerunning them
+  v_gene
+    correct up to allele:  879 / 980  = 0.8969 (-0.887, +0.906)
+  d_gene
+    correct up to allele:  779 / 980  = 0.7949 (-0.782, +0.807)
+  j_gene
+    correct up to allele:  858 / 980  = 0.8755 (-0.865, +0.885)
+      info for 982      (skipped 0 / 987 = 0.00 unproductive    5 / 987 = 0.01 other ) 
+   [91mwarning[0m 5 missing annotations (-5961929596589397733:2194656423594881498:8619239343301469404:-2026485616802401108:2709627198246020495)
+        water time: 20.3
+hmm
+    writing input
+    running 10 procs
+      --> proc 2
+        calcd:   vtb 98    fwd 0   
+        time: bcrham 5.9
+
+      --> proc 3
+        calcd:   vtb 98    fwd 0   
+        time: bcrham 5.9
+
+      --> proc 6
+        calcd:   vtb 98    fwd 0   
+        time: bcrham 5.8
+
+      --> proc 7
+        calcd:   vtb 98    fwd 0   
+        time: bcrham 5.7
+
+      --> proc 0
+        calcd:   vtb 99    fwd 0   
+        time: bcrham 6.7
+
+      --> proc 4
+        calcd:   vtb 98    fwd 0   
+        time: bcrham 6.5
+
+      --> proc 5
+        calcd:   vtb 98    fwd 0   
+        time: bcrham 6.9
+
+      --> proc 9
+        calcd:   vtb 98    fwd 0   
+        time: bcrham 6.1
+
+      --> proc 1
+        calcd:   vtb 99    fwd 0   
+        time: bcrham 7.1
+
+      --> proc 8
+        calcd:   vtb 98    fwd 0   
+        time: bcrham 7.2
+
+      time waiting for bcrham: 9.1
+    read output
+/home/dralph/.local/lib/python2.7/site-packages/matplotlib/axes/_axes.py:519: UserWarning: No labelled objects found. Use label='...' kwarg on individual plots.
+  warnings.warn("No labelled objects found. "
+    skipping performance evaluation of -3416884950970367761 because of indels
+    skipping performance evaluation of -2850286228011292896 because of indels
+  v_gene
+    correct up to allele:  893 / 980  = 0.9112 (-0.902, +0.919)
+  d_gene
+    correct up to allele:  814 / 980  = 0.8306 (-0.818, +0.842)
+  j_gene
+    correct up to allele:  896 / 980  = 0.9143 (-0.905, +0.922)
+        982 lines:  processed 982 sequences in 982 events
+
+      2 boundary errors
+missing 5 input keys
+      hmm step time: 15.2
+      total time: 36.2
+TEST              annotate-new-data   ./bin/partis run-viterbi --n-max-queries 50 --infname test/mishmash.fa --parameter-dir test/_new-results/test/parameters/data/hmm --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --outfname test/_new-results/annotate-new-data.csv
+TODO fix j_match/other stuff in get_padding_parameters()
+running viterbi
+smith-waterman 
+        processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon
+            50              14              0                           3               8               3               0               0             increasing mismatch score (1 --> 2) and rerunning them
+            14               7              5                           0               1               0               1               0             rerunning for indels
+             7               4              0                           0               1               0               2               1             increasing mismatch score (2 --> 3) and rerunning them
+             4               4              0                           0               0               0               3               1             increasing mismatch score (3 --> 4) and rerunning them
+      info for 46      (skipped 0 / 50 = 0.00 unproductive    4 / 50 = 0.08 other ) 
+   [91mwarning[0m 4 missing annotations (crap-1:crap-2:crap-5:crap-4)
+        water time: 13.6
+hmm
+    writing input
+    running 10 procs
+      --> proc 9
+        calcd:   vtb 4     fwd 0   
+        time: bcrham 0.9
+
+      --> proc 0
+        calcd:   vtb 5     fwd 0   
+        time: bcrham 1.3
+
+      --> proc 1
+        calcd:   vtb 5     fwd 0   
+        time: bcrham 1.5
+
+      --> proc 2
+        calcd:   vtb 5     fwd 0   
+        time: bcrham 1.3
+
+      --> proc 3
+        calcd:   vtb 5     fwd 0   
+        time: bcrham 1.6
+
+      --> proc 4
+        calcd:   vtb 5     fwd 0   
+        time: bcrham 1.5
+
+      --> proc 5
+        calcd:   vtb 5     fwd 0   
+        time: bcrham 1.5
+
+      --> proc 6
+        calcd:   vtb 4     fwd 0   
+        time: bcrham 1.3
+
+      --> proc 7
+        calcd:   vtb 4     fwd 0   
+        time: bcrham 1.4
+
+      --> proc 8
+        calcd:   vtb 4     fwd 0   
+        time: bcrham 1.2
+
+      time waiting for bcrham: 3.1
+    read output
+        46 lines:  processed 46 sequences in 46 events
+
+missing 4 input keys
+      hmm step time: 3.3
+      total time: 17.0
+TEST             partition-new-simu   ./bin/partis partition --n-max-queries 250 --persistent-cachefname test/_new-results/cache-new-partition.csv --n-precache-procs 10 --biggest-logprob-cluster-to-calculate 2 --biggest-naive-seq-cluster-to-calculate 2 --is-simu --infname test/_new-results/test/simu.csv --parameter-dir test/_new-results/test/parameters/simu/hmm --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --outfname test/_new-results/partition-new-simu.csv
+TODO fix j_match/other stuff in get_padding_parameters()
+partitioning
+smith-waterman 
+        processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon
+           250              40              0                          15              22               3               0               0             increasing mismatch score (1 --> 2) and rerunning them
+            40               1              1                           0               0               0               0               0             rerunning for indels
+             1         all done
+      info for 250 
+        water time: 10.7
+hmm
+    writing input
+    running 10 procs
+      --> proc 0
+        cachefile d.n.e.
+      caching all naive sequences
+        calcd:   vtb 25    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
+        time: bcrham 2.4
+
+      --> proc 1
+        cachefile d.n.e.
+      caching all naive sequences
+        calcd:   vtb 25    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
+        time: bcrham 2.3
+
+      --> proc 2
+        cachefile d.n.e.
+      caching all naive sequences
+        calcd:   vtb 25    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
+        time: bcrham 2.5
+
+      --> proc 4
+        cachefile d.n.e.
+      caching all naive sequences
+        calcd:   vtb 25    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
+        time: bcrham 2.3
+
+      --> proc 5
+        cachefile d.n.e.
+      caching all naive sequences
+        calcd:   vtb 25    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
+        time: bcrham 2.5
+
+      --> proc 6
+        cachefile d.n.e.
+      caching all naive sequences
+        calcd:   vtb 25    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
+        time: bcrham 2.2
+
+      --> proc 7
+        cachefile d.n.e.
+      caching all naive sequences
+        calcd:   vtb 25    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
+        time: bcrham 2.7
+
+      --> proc 8
+        cachefile d.n.e.
+      caching all naive sequences
+        calcd:   vtb 25    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
+        time: bcrham 2.6
+
+      --> proc 9
+        cachefile d.n.e.
+      caching all naive sequences
+        calcd:   vtb 25    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
+        time: bcrham 2.6
+
+      --> proc 3
+        cachefile d.n.e.
+      caching all naive sequences
+        calcd:   vtb 25    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
+        time: bcrham 3.1
+
+      time waiting for bcrham: 5.1
+      hmm step time: 5.2
+--> 250 clusters with 10 procs
+hmm
+    writing input
+       naive hfrac bounds: 0.015 0.116   (0.128 mutation in test/_new-results/test/parameters/simu/hmm)
+    running 10 procs
+      --> proc 0
+        read 0 cached logprobs and 250 naive seqs
+        stop with:  big hfrac 184   small lratio 6   total 190
+        writing partitions
+        calcd:   vtb 1     fwd 17    hfrac 405         merged:  hfrac 4    lratio 1   
+        time: bcrham 3.0
+
+      --> proc 3
+        read 0 cached logprobs and 250 naive seqs
+        stop with:  big hfrac 206   small lratio 4   total 210
+        writing partitions
+        calcd:   vtb 2     fwd 9     hfrac 386         merged:  hfrac 4    lratio 0   
+        time: bcrham 2.1
+
+      --> proc 8
+        read 0 cached logprobs and 250 naive seqs
+        stop with:  big hfrac 218   small lratio 13   total 231
+        writing partitions
+        calcd:   vtb 1     fwd 21    hfrac 366         merged:  hfrac 3    lratio 0   
+        time: bcrham 3.8
+
+      --> proc 2
+        read 0 cached logprobs and 250 naive seqs
+        stop with:  big hfrac 264   small lratio 12   total 276
+        writing partitions
+        calcd:   vtb 1     fwd 26    hfrac 323         merged:  hfrac 0    lratio 1   
+        time: bcrham 4.2
+
+      --> proc 6
+        read 0 cached logprobs and 250 naive seqs
+        stop with:  big hfrac 238   small lratio 15   total 253
+        writing partitions
+        calcd:   vtb 2     fwd 29    hfrac 345         merged:  hfrac 2    lratio 0   
+        time: bcrham 4.6
+
+      --> proc 9
+        read 0 cached logprobs and 250 naive seqs
+        stop with:  big hfrac 215   small lratio 16   total 231
+        writing partitions
+        calcd:   vtb 1     fwd 32    hfrac 366         merged:  hfrac 2    lratio 1   
+        time: bcrham 4.2
+
+      --> proc 4
+        read 0 cached logprobs and 250 naive seqs
+        stop with:  big hfrac 199   small lratio 11   total 210
+        writing partitions
+        calcd:   vtb 2     fwd 33    hfrac 386         merged:  hfrac 3    lratio 1   
+        time: bcrham 5.8
+
+      --> proc 7
+        read 0 cached logprobs and 250 naive seqs
+        stop with:  big hfrac 175   small lratio 15   total 190
+        writing partitions
+        calcd:   vtb 5     fwd 34    hfrac 405         merged:  hfrac 4    lratio 1   
+        time: bcrham 5.2
+
+      --> proc 1
+        read 0 cached logprobs and 250 naive seqs
+        stop with:  big hfrac 233   small lratio 20   total 253
+        writing partitions
+        calcd:   vtb 2     fwd 40    hfrac 345         merged:  hfrac 1    lratio 1   
+        time: bcrham 7.2
+
+      --> proc 5
+        read 0 cached logprobs and 250 naive seqs
+        stop with:  big hfrac 208   small lratio 23   total 231
+        writing partitions
+        calcd:   vtb 3     fwd 53    hfrac 366         merged:  hfrac 2    lratio 1   
+        time: bcrham 11.0
+
+      time waiting for bcrham: 12.1
+      hmm step time: 12.3
+          n calcd: 314 (31.4 per proc)
+--> 218 clusters with 7 procs
+hmm
+    writing input
+       naive hfrac bounds: 0.015 0.116   (0.128 mutation in test/_new-results/test/parameters/simu/hmm)
+    running 7 procs
+      --> proc 6
+        read 294 cached logprobs and 287 naive seqs
+        stop with:  big hfrac 343   small lratio 8   total 351
+        writing partitions
+        calcd:   vtb 2     fwd 15    hfrac 575         merged:  hfrac 3    lratio 1   
+        time: bcrham 3.4
+
+      --> proc 0
+        read 294 cached logprobs and 287 naive seqs
+        stop with:  big hfrac 309   small lratio 16   total 325
+        writing partitions
+        calcd:   vtb 3     fwd 22    hfrac 661         merged:  hfrac 5    lratio 1   
+        time: bcrham 4.6
+
+      --> proc 2
+        read 294 cached logprobs and 287 naive seqs
+        stop with:  big hfrac 359   small lratio 19   total 378
+        writing partitions
+        calcd:   vtb 0     fwd 21    hfrac 549         merged:  hfrac 3    lratio 0   
+        time: bcrham 4.4
+
+      --> proc 1
+        read 294 cached logprobs and 287 naive seqs
+        stop with:  big hfrac 355   small lratio 23   total 378
+        writing partitions
+        calcd:   vtb 1     fwd 27    hfrac 549         merged:  hfrac 3    lratio 0   
+        time: bcrham 5.1
+
+      --> proc 3
+        read 294 cached logprobs and 287 naive seqs
+        stop with:  big hfrac 322   small lratio 29   total 351
+        writing partitions
+        calcd:   vtb 2     fwd 36    hfrac 575         merged:  hfrac 3    lratio 1   
+        time: bcrham 5.7
+
+      --> proc 5
+        read 294 cached logprobs and 287 naive seqs
+        stop with:  big hfrac 415   small lratio 20   total 435
+        writing partitions
+        calcd:   vtb 1     fwd 26    hfrac 494         merged:  hfrac 1    lratio 0   
+        time: bcrham 5.2
+
+      --> proc 4
+        read 294 cached logprobs and 287 naive seqs
+        stop with:  big hfrac 380   small lratio 26   total 406
+        writing partitions
+        calcd:   vtb 2     fwd 36    hfrac 522         merged:  hfrac 0    lratio 2   
+        time: bcrham 7.2
+
+      time waiting for bcrham: 9.1
+      hmm step time: 9.3
+          n calcd: 194 (27.7 per proc)
+--> 195 clusters with 5 procs
+hmm
+    writing input
+       naive hfrac bounds: 0.015 0.116   (0.128 mutation in test/_new-results/test/parameters/simu/hmm)
+    running 5 procs
+      --> proc 1
+        read 477 cached logprobs and 315 naive seqs
+        stop with:  big hfrac 502   small lratio 26   total 528
+        writing partitions
+        calcd:   vtb 1     fwd 27    hfrac 948         merged:  hfrac 5    lratio 1   
+        time: bcrham 5.7
+
+      --> proc 3
+        read 477 cached logprobs and 315 naive seqs
+        stop with:  big hfrac 537   small lratio 24   total 561
+        writing partitions
+        calcd:   vtb 3     fwd 32    hfrac 916         merged:  hfrac 3    lratio 2   
+        time: bcrham 6.7
+
+      --> proc 4
+        read 477 cached logprobs and 315 naive seqs
+        stop with:  big hfrac 528   small lratio 33   total 561
+        writing partitions
+        calcd:   vtb 1     fwd 35    hfrac 916         merged:  hfrac 5    lratio 0   
+        time: bcrham 6.3
+
+      --> proc 2
+        read 477 cached logprobs and 315 naive seqs
+        stop with:  big hfrac 504   small lratio 24   total 528
+        writing partitions
+        calcd:   vtb 5     fwd 31    hfrac 948         merged:  hfrac 5    lratio 1   
+        time: bcrham 7.2
+
+      --> proc 0
+        read 477 cached logprobs and 315 naive seqs
+        stop with:  big hfrac 659   small lratio 44   total 703
+        writing partitions
+        calcd:   vtb 1     fwd 43    hfrac 778         merged:  hfrac 0    lratio 1   
+        time: bcrham 8.4
+
+      time waiting for bcrham: 10.1
+      hmm step time: 10.2
+          n calcd: 179 (35.8 per proc)
+--> 172 clusters with 3 procs
+hmm
+    writing input
+       naive hfrac bounds: 0.015 0.116   (0.128 mutation in test/_new-results/test/parameters/simu/hmm)
+    running 3 procs
+      --> proc 2
+        read 645 cached logprobs and 341 naive seqs
+        stop with:  big hfrac 1089   small lratio 39   total 1128
+        writing partitions
+        calcd:   vtb 4     fwd 34    hfrac 2055        merged:  hfrac 8    lratio 1   
+        time: bcrham 7.4
+
+      --> proc 1
+        read 645 cached logprobs and 341 naive seqs
+        stop with:  big hfrac 1069   small lratio 59   total 1128
+        writing partitions
+        calcd:   vtb 2     fwd 54    hfrac 2055        merged:  hfrac 8    lratio 1   
+        time: bcrham 11.8
+
+      --> proc 0
+        read 645 cached logprobs and 341 naive seqs
+        stop with:  big hfrac 1109   small lratio 67   total 1176
+        writing partitions
+        calcd:   vtb 7     fwd 84    hfrac 2121        merged:  hfrac 5    lratio 4   
+        time: bcrham 18.4
+
+      time waiting for bcrham: 20.0
+      hmm step time: 20.2
+          n calcd: 185 (61.7 per proc)
+--> 145 clusters with 2 procs
+hmm
+    writing input
+       naive hfrac bounds: 0.015 0.116   (0.128 mutation in test/_new-results/test/parameters/simu/hmm)
+    running 2 procs
+      --> proc 0
+        read 817 cached logprobs and 376 naive seqs
+        stop with:  big hfrac 1879   small lratio 74   total 1953
+        writing partitions
+        calcd:   vtb 1     fwd 72    hfrac 3293        merged:  hfrac 7    lratio 3   
+        time: bcrham 15.3
+
+      --> proc 1
+        read 817 cached logprobs and 376 naive seqs
+        stop with:  big hfrac 1905   small lratio 111   total 2016
+        writing partitions
+        calcd:   vtb 4     fwd 86    hfrac 3088        merged:  hfrac 7    lratio 1   
+        time: bcrham 19.0
+
+      time waiting for bcrham: 21.0
+      hmm step time: 21.2
+          n calcd: 163 (81.5 per proc)
+--> 127 clusters with 1 procs
+hmm
+    writing input
+       naive hfrac bounds: 0.015 0.116   (0.128 mutation in test/_new-results/test/parameters/simu/hmm)
+    running 1 procs
+        read 975 cached logprobs and 399 naive seqs
+        stop with:  big hfrac 5603   small lratio 283   total 5886
+        writing partitions
+        calcd:   vtb 9     fwd 214   hfrac 10098       merged:  hfrac 15   lratio 3   
+        time: bcrham 52.7
+
+      time waiting for bcrham: 54.1
+‘test/_new-results/cache-new-partition.csv.tmp’ -> ‘test/_new-results/cache-new-partition.csv’
+      hmm step time: 54.2
+      loop time: 127.4
+      total time: 143.4
+TEST        seed-partition-new-simu   ./bin/partis partition --n-max-queries -1 --n-precache-procs 10 --is-simu --infname test/_new-results/test/simu.csv --parameter-dir test/_new-results/test/parameters/simu/hmm --seed-unique-id -2089795477781519603 --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --outfname test/_new-results/seed-partition-new-simu.csv
+TODO fix j_match/other stuff in get_padding_parameters()
+partitioning
+smith-waterman 
+        processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon
+           987             140              0                          60              63              15               0               2             increasing mismatch score (1 --> 2) and rerunning them
+           140               8              4                           0               4               0               0               0             rerunning for indels
+             8               6              0                           0               4               0               0               2             increasing mismatch score (2 --> 3) and rerunning them
+             6               5              0                           0               3               0               0               2             increasing mismatch score (3 --> 4) and rerunning them
+      info for 982      (skipped 0 / 987 = 0.00 unproductive    5 / 987 = 0.01 other ) 
+   [91mwarning[0m 5 missing annotations (-5961929596589397733:2194656423594881498:8619239343301469404:-2026485616802401108:2709627198246020495)
+        water time: 14.4
+hmm
+    writing input
+    running 10 procs
+      --> proc 6
+        cachefile d.n.e.
+      caching all naive sequences
+        calcd:   vtb 99    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
+        time: bcrham 5.9
+
+      --> proc 1
+        cachefile d.n.e.
+      caching all naive sequences
+        calcd:   vtb 99    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
+        time: bcrham 6.6
+
+      --> proc 2
+        cachefile d.n.e.
+      caching all naive sequences
+        calcd:   vtb 99    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
+        time: bcrham 7.0
+
+      --> proc 3
+        cachefile d.n.e.
+      caching all naive sequences
+        calcd:   vtb 99    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
+        time: bcrham 6.6
+
+      --> proc 4
+        cachefile d.n.e.
+      caching all naive sequences
+        calcd:   vtb 99    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
+        time: bcrham 6.3
+
+      --> proc 8
+        cachefile d.n.e.
+      caching all naive sequences
+        calcd:   vtb 99    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
+        time: bcrham 6.6
+
+      --> proc 9
+        cachefile d.n.e.
+      caching all naive sequences
+        calcd:   vtb 99    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
+        time: bcrham 6.6
+
+      --> proc 0
+        cachefile d.n.e.
+      caching all naive sequences
+        calcd:   vtb 100   fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
+        time: bcrham 7.6
+
+      --> proc 5
+        cachefile d.n.e.
+      caching all naive sequences
+        calcd:   vtb 99    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
+        time: bcrham 7.4
+
+      --> proc 7
+        cachefile d.n.e.
+      caching all naive sequences
+        calcd:   vtb 99    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
+        time: bcrham 7.4
+
+      time waiting for bcrham: 9.1
+      hmm step time: 9.5
+--> 982 clusters with 10 procs
+hmm
+    writing input
+       naive hfrac bounds: 0.015 0.116   (0.128 mutation in test/_new-results/test/parameters/simu/hmm)
+    running 10 procs
+      --> proc 6
+        read 0 cached logprobs and 982 naive seqs
+        stop with:  big hfrac 90   small lratio 8   total 98
+        writing partitions
+        calcd:   vtb 0     fwd 17    hfrac 98          merged:  hfrac 0    lratio 0   
+        time: bcrham 2.4
+
+      --> proc 7
+        read 0 cached logprobs and 982 naive seqs
+        stop with:  big hfrac 89   small lratio 9   total 98
+        writing partitions
+        calcd:   vtb 0     fwd 19    hfrac 98          merged:  hfrac 0    lratio 0   
+        time: bcrham 2.7
+
+      --> proc 0
+        read 0 cached logprobs and 982 naive seqs
+        stop with:  big hfrac 86   small lratio 13   total 99
+        writing partitions
+        calcd:   vtb 0     fwd 27    hfrac 99          merged:  hfrac 0    lratio 0   
+        time: bcrham 3.7
+
+      --> proc 2
+        read 0 cached logprobs and 982 naive seqs
+        stop with:  big hfrac 87   small lratio 10   total 97
+        writing partitions
+        calcd:   vtb 1     fwd 21    hfrac 195         merged:  hfrac 1    lratio 0   
+        time: bcrham 3.5
+
+      --> proc 4
+        read 0 cached logprobs and 982 naive seqs
+        stop with:  big hfrac 85   small lratio 12   total 97
+        writing partitions
+        calcd:   vtb 1     fwd 25    hfrac 195         merged:  hfrac 1    lratio 0   
+        time: bcrham 3.8
+
+      --> proc 1
+        read 0 cached logprobs and 982 naive seqs
+        stop with:  big hfrac 83   small lratio 14   total 97
+        writing partitions
+        calcd:   vtb 0     fwd 29    hfrac 195         merged:  hfrac 1    lratio 0   
+        time: bcrham 4.2
+
+      --> proc 5
+        read 0 cached logprobs and 982 naive seqs
+        stop with:  big hfrac 83   small lratio 13   total 96
+        writing partitions
+        calcd:   vtb 1     fwd 27    hfrac 291         merged:  hfrac 2    lratio 0   
+        time: bcrham 4.1
+
+      --> proc 3
+        read 0 cached logprobs and 982 naive seqs
+        stop with:  big hfrac 83   small lratio 13   total 96
+        writing partitions
+        calcd:   vtb 2     fwd 27    hfrac 291         merged:  hfrac 2    lratio 0   
+        time: bcrham 5.1
+
+      --> proc 9
+        read 0 cached logprobs and 982 naive seqs
+        stop with:  big hfrac 80   small lratio 18   total 98
+        writing partitions
+        calcd:   vtb 0     fwd 37    hfrac 98          merged:  hfrac 0    lratio 0   
+        time: bcrham 5.0
+
+      --> proc 8
+        read 0 cached logprobs and 982 naive seqs
+        stop with:  big hfrac 76   small lratio 21   total 97
+        writing partitions
+        calcd:   vtb 0     fwd 43    hfrac 195         merged:  hfrac 1    lratio 0   
+        time: bcrham 6.3
+
+      time waiting for bcrham: 8.1
+      hmm step time: 8.6
+          n calcd: 277 (27.7 per proc)
+--> 983 clusters with 7 procs
+hmm
+    writing input
+       naive hfrac bounds: 0.015 0.116   (0.128 mutation in test/_new-results/test/parameters/simu/hmm)
+    running 7 procs
+      --> proc 6
+        read 269 cached logprobs and 990 naive seqs
+        stop with:  big hfrac 128   small lratio 11   total 139
+        writing partitions
+        calcd:   vtb 0     fwd 10    hfrac 139         merged:  hfrac 0    lratio 0   
+        time: bcrham 2.3
+
+      --> proc 1
+        read 269 cached logprobs and 990 naive seqs
+        stop with:  big hfrac 126   small lratio 13   total 139
+        writing partitions
+        calcd:   vtb 0     fwd 13    hfrac 139         merged:  hfrac 0    lratio 0   
+        time: bcrham 3.3
+
+      --> proc 3
+        read 269 cached logprobs and 990 naive seqs
+        stop with:  big hfrac 121   small lratio 18   total 139
+        writing partitions
+        calcd:   vtb 0     fwd 16    hfrac 139         merged:  hfrac 0    lratio 0   
+        time: bcrham 3.8
+
+      --> proc 0
+        read 269 cached logprobs and 990 naive seqs
+        stop with:  big hfrac 118   small lratio 21   total 139
+        writing partitions
+        calcd:   vtb 0     fwd 19    hfrac 139         merged:  hfrac 0    lratio 0   
+        time: bcrham 5.0
+
+      --> proc 2
+        read 269 cached logprobs and 990 naive seqs
+        stop with:  big hfrac 116   small lratio 23   total 139
+        writing partitions
+        calcd:   vtb 0     fwd 18    hfrac 139         merged:  hfrac 0    lratio 0   
+        time: bcrham 4.3
+
+      --> proc 4
+        read 269 cached logprobs and 990 naive seqs
+        stop with:  big hfrac 117   small lratio 22   total 139
+        writing partitions
+        calcd:   vtb 0     fwd 21    hfrac 139         merged:  hfrac 0    lratio 0   
+        time: bcrham 4.1
+
+      --> proc 5
+        read 269 cached logprobs and 990 naive seqs
+        stop with:  big hfrac 117   small lratio 22   total 139
+        writing partitions
+        calcd:   vtb 0     fwd 18    hfrac 139         merged:  hfrac 0    lratio 0   
+        time: bcrham 4.2
+
+      time waiting for bcrham: 6.1
+      hmm step time: 6.5
+          n calcd: 115 (16.4 per proc)
+--> 980 clusters with 5 procs
+hmm
+    writing input
+       naive hfrac bounds: 0.015 0.116   (0.128 mutation in test/_new-results/test/parameters/simu/hmm)
+    running 5 procs
+      --> proc 3
+        read 384 cached logprobs and 990 naive seqs
+        stop with:  big hfrac 175   small lratio 19   total 194
+        writing partitions
+        calcd:   vtb 0     fwd 13    hfrac 194         merged:  hfrac 0    lratio 0   
+        time: bcrham 3.8
+
+      --> proc 0
+        read 384 cached logprobs and 990 naive seqs
+        stop with:  big hfrac 170   small lratio 25   total 195
+        writing partitions
+        calcd:   vtb 0     fwd 19    hfrac 195         merged:  hfrac 0    lratio 0   
+        time: bcrham 5.1
+
+      --> proc 1
+        read 384 cached logprobs and 990 naive seqs
+        stop with:  big hfrac 163   small lratio 32   total 195
+        writing partitions
+        calcd:   vtb 0     fwd 24    hfrac 195         merged:  hfrac 0    lratio 0   
+        time: bcrham 5.0
+
+      --> proc 2
+        read 384 cached logprobs and 990 naive seqs
+        stop with:  big hfrac 163   small lratio 32   total 195
+        writing partitions
+        calcd:   vtb 0     fwd 24    hfrac 195         merged:  hfrac 0    lratio 0   
+        time: bcrham 5.3
+
+      --> proc 4
+        read 384 cached logprobs and 990 naive seqs
+        stop with:  big hfrac 171   small lratio 23   total 194
+        writing partitions
+        calcd:   vtb 0     fwd 24    hfrac 583         merged:  hfrac 1    lratio 0   
+        time: bcrham 6.3
+
+      time waiting for bcrham: 8.1
+      hmm step time: 8.5
+          n calcd: 104 (20.8 per proc)
+     time to remove unseeded clusters
+        new n_procs 1 = 3 * 14 / 98
+--> 978 clusters with 1 procs
+hmm
+    writing input
+      removing unseeded clusters
+          -2089795477781519603:-3815123705623505901:736959539963049837 -2089795477781519603:3823772013124714678 -2089795477781519603:5398347221887569784:3368526175427344883 -2089795477781519603:7907044481218476168 -2089795477781519603:3665995003958585388:-2089795477781519603:6627794472254549626
+          3368526175427344883 3665995003958585388 3823772013124714678 736959539963049837 7907044481218476168 -3815123705623505901 6627794472254549626 -2089795477781519603 5398347221887569784
+       naive hfrac bounds: 0.015 0.116   (0.128 mutation in test/_new-results/test/parameters/simu/hmm)
+    running 1 procs
+        read 488 cached logprobs and 991 naive seqs
+        stop with:  big hfrac 0   small lratio 0   total 0
+        writing partitions
+        calcd:   vtb 2     fwd 9     hfrac 64          merged:  hfrac 8    lratio 0   
+        time: bcrham 2.5
+
+      time waiting for bcrham: 4.0
+      hmm step time: 4.0
+      loop time: 27.7
+  [91mwarning[0m queries missing from partition: 2709627198246020495 -5961929596589397733 2194656423594881498 8619239343301469404 -2026485616802401108
+      total time: 52.3
+TEST     vsearch-partition-new-simu   ./bin/partis partition --naive-vsearch --n-max-queries 250 --n-precache-procs 10 --is-simu --infname test/_new-results/test/simu.csv --parameter-dir test/_new-results/test/parameters/simu/hmm --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --outfname test/_new-results/vsearch-partition-new-simu.csv
+TODO fix j_match/other stuff in get_padding_parameters()
+partitioning
+smith-waterman 
+        processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon
+           250              40              0                          15              22               3               0               0             increasing mismatch score (1 --> 2) and rerunning them
+            40               1              1                           0               0               0               0               0             rerunning for indels
+             1         all done
+      info for 250 
+        water time: 10.7
+hmm
+    writing input
+    running 10 procs
+      --> proc 0
+        cachefile d.n.e.
+      caching all naive sequences
+        calcd:   vtb 25    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
+        time: bcrham 2.6
+
+      --> proc 1
+        cachefile d.n.e.
+      caching all naive sequences
+        calcd:   vtb 25    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
+        time: bcrham 2.6
+
+      --> proc 2
+        cachefile d.n.e.
+      caching all naive sequences
+        calcd:   vtb 25    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
+        time: bcrham 2.5
+
+      --> proc 4
+        cachefile d.n.e.
+      caching all naive sequences
+        calcd:   vtb 25    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
+        time: bcrham 2.5
+
+      --> proc 5
+        cachefile d.n.e.
+      caching all naive sequences
+        calcd:   vtb 25    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
+        time: bcrham 2.5
+
+      --> proc 6
+        cachefile d.n.e.
+      caching all naive sequences
+        calcd:   vtb 25    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
+        time: bcrham 2.4
+
+      --> proc 7
+        cachefile d.n.e.
+      caching all naive sequences
+        calcd:   vtb 25    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
+        time: bcrham 2.7
+
+      --> proc 8
+        cachefile d.n.e.
+      caching all naive sequences
+        calcd:   vtb 25    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
+        time: bcrham 2.8
+
+      --> proc 9
+        cachefile d.n.e.
+      caching all naive sequences
+        calcd:   vtb 25    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
+        time: bcrham 2.6
+
+      --> proc 3
+        cachefile d.n.e.
+      caching all naive sequences
+        calcd:   vtb 25    fwd 0     hfrac 0           merged:  hfrac 0    lratio 0   
+        time: bcrham 3.1
+
+      time waiting for bcrham: 5.1
+      hmm step time: 5.2
+       naive hfrac bounds: 0.036 0.036   (0.128 mutation in test/_new-results/test/parameters/simu/hmm)
+    using hfrac bound for vsearch 0.036
+  stdout:
+    vsearch v1.1.3_linux_x86_64, 62.8GB RAM, 16 cores
+    https://github.com/torognes/vsearch
+    
+    
+  stderr:
+    Reading file /tmp/dralph/hmms/503948/simu.fasta 0%  Reading file /tmp/dralph/hmms/503948/simu.fasta 0%  Reading file /tmp/dralph/hmms/503948/simu.fasta 1%  Reading file /tmp/dralph/hmms/503948/simu.fasta 2%  Reading file /tmp/dralph/hmms/503948/simu.fasta 3%  Reading file /tmp/dralph/hmms/503948/simu.fasta 4%  Reading file /tmp/dralph/hmms/503948/simu.fasta 4%  Reading file /tmp/dralph/hmms/503948/simu.fasta 5%  Reading file /tmp/dralph/hmms/503948/simu.fasta 6%  Reading file /tmp/dralph/hmms/503948/simu.fasta 7%  Reading file /tmp/dralph/hmms/503948/simu.fasta 8%  Reading file /tmp/dralph/hmms/503948/simu.fasta 8%  Reading file /tmp/dralph/hmms/503948/simu.fasta 9%  Reading file /tmp/dralph/hmms/503948/simu.fasta 10%  Reading file /tmp/dralph/hmms/503948/simu.fasta 11%  Reading file /tmp/dralph/hmms/503948/simu.fasta 12%  Reading file /tmp/dralph/hmms/503948/simu.fasta 12%  Reading file /tmp/dralph/hmms/503948/simu.fasta 13%  Reading file /tmp/dralph/hmms/503948/simu.fasta 14%  Reading file /tmp/dralph/hmms/503948/simu.fasta 15%  Reading file /tmp/dralph/hmms/503948/simu.fasta 16%  Reading file /tmp/dralph/hmms/503948/simu.fasta 16%  Reading file /tmp/dralph/hmms/503948/simu.fasta 17%  Reading file /tmp/dralph/hmms/503948/simu.fasta 18%  Reading file /tmp/dralph/hmms/503948/simu.fasta 19%  Reading file /tmp/dralph/hmms/503948/simu.fasta 20%  Reading file /tmp/dralph/hmms/503948/simu.fasta 20%  Reading file /tmp/dralph/hmms/503948/simu.fasta 21%  Reading file /tmp/dralph/hmms/503948/simu.fasta 22%  Reading file /tmp/dralph/hmms/503948/simu.fasta 23%  Reading file /tmp/dralph/hmms/503948/simu.fasta 24%  Reading file /tmp/dralph/hmms/503948/simu.fasta 24%  Reading file /tmp/dralph/hmms/503948/simu.fasta 25%  Reading file /tmp/dralph/hmms/503948/simu.fasta 26%  Reading file /tmp/dralph/hmms/503948/simu.fasta 27%  Reading file /tmp/dralph/hmms/503948/simu.fasta 28%  Reading file /tmp/dralph/hmms/503948/simu.fasta 28%  Reading file /tmp/dralph/hmms/503948/simu.fasta 29%  Reading file /tmp/dralph/hmms/503948/simu.fasta 30%  Reading file /tmp/dralph/hmms/503948/simu.fasta 31%  Reading file /tmp/dralph/hmms/503948/simu.fasta 32%  Reading file /tmp/dralph/hmms/503948/simu.fasta 32%  Reading file /tmp/dralph/hmms/503948/simu.fasta 33%  Reading file /tmp/dralph/hmms/503948/simu.fasta 34%  Reading file /tmp/dralph/hmms/503948/simu.fasta 35%  Reading file /tmp/dralph/hmms/503948/simu.fasta 36%  Reading file /tmp/dralph/hmms/503948/simu.fasta 36%  Reading file /tmp/dralph/hmms/503948/simu.fasta 37%  Reading file /tmp/dralph/hmms/503948/simu.fasta 38%  Reading file /tmp/dralph/hmms/503948/simu.fasta 39%  Reading file /tmp/dralph/hmms/503948/simu.fasta 40%  Reading file /tmp/dralph/hmms/503948/simu.fasta 40%  Reading file /tmp/dralph/hmms/503948/simu.fasta 41%  Reading file /tmp/dralph/hmms/503948/simu.fasta 42%  Reading file /tmp/dralph/hmms/503948/simu.fasta 43%  Reading file /tmp/dralph/hmms/503948/simu.fasta 44%  Reading file /tmp/dralph/hmms/503948/simu.fasta 44%  Reading file /tmp/dralph/hmms/503948/simu.fasta 45%  Reading file /tmp/dralph/hmms/503948/simu.fasta 46%  Reading file /tmp/dralph/hmms/503948/simu.fasta 47%  Reading file /tmp/dralph/hmms/503948/simu.fasta 48%  Reading file /tmp/dralph/hmms/503948/simu.fasta 48%  Reading file /tmp/dralph/hmms/503948/simu.fasta 49%  Reading file /tmp/dralph/hmms/503948/simu.fasta 50%  Reading file /tmp/dralph/hmms/503948/simu.fasta 51%  Reading file /tmp/dralph/hmms/503948/simu.fasta 52%  Reading file /tmp/dralph/hmms/503948/simu.fasta 52%  Reading file /tmp/dralph/hmms/503948/simu.fasta 53%  Reading file /tmp/dralph/hmms/503948/simu.fasta 54%  Reading file /tmp/dralph/hmms/503948/simu.fasta 55%  Reading file /tmp/dralph/hmms/503948/simu.fasta 56%  Reading file /tmp/dralph/hmms/503948/simu.fasta 56%  Reading file /tmp/dralph/hmms/503948/simu.fasta 57%  Reading file /tmp/dralph/hmms/503948/simu.fasta 58%  Reading file /tmp/dralph/hmms/503948/simu.fasta 59%  Reading file /tmp/dralph/hmms/503948/simu.fasta 60%  Reading file /tmp/dralph/hmms/503948/simu.fasta 60%  Reading file /tmp/dralph/hmms/503948/simu.fasta 61%  Reading file /tmp/dralph/hmms/503948/simu.fasta 62%  Reading file /tmp/dralph/hmms/503948/simu.fasta 63%  Reading file /tmp/dralph/hmms/503948/simu.fasta 64%  Reading file /tmp/dralph/hmms/503948/simu.fasta 64%  Reading file /tmp/dralph/hmms/503948/simu.fasta 65%  Reading file /tmp/dralph/hmms/503948/simu.fasta 66%  Reading file /tmp/dralph/hmms/503948/simu.fasta 67%  Reading file /tmp/dralph/hmms/503948/simu.fasta 68%  Reading file /tmp/dralph/hmms/503948/simu.fasta 68%  Reading file /tmp/dralph/hmms/503948/simu.fasta 69%  Reading file /tmp/dralph/hmms/503948/simu.fasta 70%  Reading file /tmp/dralph/hmms/503948/simu.fasta 71%  Reading file /tmp/dralph/hmms/503948/simu.fasta 72%  Reading file /tmp/dralph/hmms/503948/simu.fasta 72%  Reading file /tmp/dralph/hmms/503948/simu.fasta 73%  Reading file /tmp/dralph/hmms/503948/simu.fasta 74%  Reading file /tmp/dralph/hmms/503948/simu.fasta 75%  Reading file /tmp/dralph/hmms/503948/simu.fasta 76%  Reading file /tmp/dralph/hmms/503948/simu.fasta 76%  Reading file /tmp/dralph/hmms/503948/simu.fasta 77%  Reading file /tmp/dralph/hmms/503948/simu.fasta 78%  Reading file /tmp/dralph/hmms/503948/simu.fasta 79%  Reading file /tmp/dralph/hmms/503948/simu.fasta 80%  Reading file /tmp/dralph/hmms/503948/simu.fasta 80%  Reading file /tmp/dralph/hmms/503948/simu.fasta 81%  Reading file /tmp/dralph/hmms/503948/simu.fasta 82%  Reading file /tmp/dralph/hmms/503948/simu.fasta 83%  Reading file /tmp/dralph/hmms/503948/simu.fasta 84%  Reading file /tmp/dralph/hmms/503948/simu.fasta 84%  Reading file /tmp/dralph/hmms/503948/simu.fasta 85%  Reading file /tmp/dralph/hmms/503948/simu.fasta 86%  Reading file /tmp/dralph/hmms/503948/simu.fasta 87%  Reading file /tmp/dralph/hmms/503948/simu.fasta 88%  Reading file /tmp/dralph/hmms/503948/simu.fasta 88%  Reading file /tmp/dralph/hmms/503948/simu.fasta 89%  Reading file /tmp/dralph/hmms/503948/simu.fasta 90%  Reading file /tmp/dralph/hmms/503948/simu.fasta 91%  Reading file /tmp/dralph/hmms/503948/simu.fasta 92%  Reading file /tmp/dralph/hmms/503948/simu.fasta 92%  Reading file /tmp/dralph/hmms/503948/simu.fasta 93%  Reading file /tmp/dralph/hmms/503948/simu.fasta 94%  Reading file /tmp/dralph/hmms/503948/simu.fasta 95%  Reading file /tmp/dralph/hmms/503948/simu.fasta 96%  Reading file /tmp/dralph/hmms/503948/simu.fasta 96%  Reading file /tmp/dralph/hmms/503948/simu.fasta 97%  Reading file /tmp/dralph/hmms/503948/simu.fasta 98%  Reading file /tmp/dralph/hmms/503948/simu.fasta 99%  Reading file /tmp/dralph/hmms/503948/simu.fasta 100%  Reading file /tmp/dralph/hmms/503948/simu.fasta 100%
+    100000 nt in 250 seqs, min 400, max 400, avg 400
+    Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 1%  Indexing sequences 1%  Indexing sequences 2%  Indexing sequences 2%  Indexing sequences 2%  Indexing sequences 3%  Indexing sequences 3%  Indexing sequences 4%  Indexing sequences 4%  Indexing sequences 4%  Indexing sequences 5%  Indexing sequences 5%  Indexing sequences 6%  Indexing sequences 6%  Indexing sequences 6%  Indexing sequences 7%  Indexing sequences 7%  Indexing sequences 8%  Indexing sequences 8%  Indexing sequences 8%  Indexing sequences 9%  Indexing sequences 9%  Indexing sequences 10%  Indexing sequences 10%  Indexing sequences 10%  Indexing sequences 11%  Indexing sequences 11%  Indexing sequences 12%  Indexing sequences 12%  Indexing sequences 12%  Indexing sequences 13%  Indexing sequences 13%  Indexing sequences 14%  Indexing sequences 14%  Indexing sequences 14%  Indexing sequences 15%  Indexing sequences 15%  Indexing sequences 16%  Indexing sequences 16%  Indexing sequences 16%  Indexing sequences 17%  Indexing sequences 17%  Indexing sequences 18%  Indexing sequences 18%  Indexing sequences 18%  Indexing sequences 19%  Indexing sequences 19%  Indexing sequences 20%  Indexing sequences 20%  Indexing sequences 20%  Indexing sequences 21%  Indexing sequences 21%  Indexing sequences 22%  Indexing sequences 22%  Indexing sequences 22%  Indexing sequences 23%  Indexing sequences 23%  Indexing sequences 24%  Indexing sequences 24%  Indexing sequences 24%  Indexing sequences 25%  Indexing sequences 25%  Indexing sequences 26%  Indexing sequences 26%  Indexing sequences 26%  Indexing sequences 27%  Indexing sequences 27%  Indexing sequences 28%  Indexing sequences 28%  Indexing sequences 28%  Indexing sequences 29%  Indexing sequences 29%  Indexing sequences 30%  Indexing sequences 30%  Indexing sequences 30%  Indexing sequences 31%  Indexing sequences 31%  Indexing sequences 32%  Indexing sequences 32%  Indexing sequences 32%  Indexing sequences 33%  Indexing sequences 33%  Indexing sequences 34%  Indexing sequences 34%  Indexing sequences 34%  Indexing sequences 35%  Indexing sequences 35%  Indexing sequences 36%  Indexing sequences 36%  Indexing sequences 36%  Indexing sequences 37%  Indexing sequences 37%  Indexing sequences 38%  Indexing sequences 38%  Indexing sequences 38%  Indexing sequences 39%  Indexing sequences 39%  Indexing sequences 40%  Indexing sequences 40%  Indexing sequences 40%  Indexing sequences 41%  Indexing sequences 41%  Indexing sequences 42%  Indexing sequences 42%  Indexing sequences 42%  Indexing sequences 43%  Indexing sequences 43%  Indexing sequences 44%  Indexing sequences 44%  Indexing sequences 44%  Indexing sequences 45%  Indexing sequences 45%  Indexing sequences 46%  Indexing sequences 46%  Indexing sequences 46%  Indexing sequences 47%  Indexing sequences 47%  Indexing sequences 48%  Indexing sequences 48%  Indexing sequences 48%  Indexing sequences 49%  Indexing sequences 49%  Indexing sequences 50%  Indexing sequences 50%  Indexing sequences 50%  Indexing sequences 51%  Indexing sequences 51%  Indexing sequences 52%  Indexing sequences 52%  Indexing sequences 52%  Indexing sequences 53%  Indexing sequences 53%  Indexing sequences 54%  Indexing sequences 54%  Indexing sequences 54%  Indexing sequences 55%  Indexing sequences 55%  Indexing sequences 56%  Indexing sequences 56%  Indexing sequences 56%  Indexing sequences 57%  Indexing sequences 57%  Indexing sequences 58%  Indexing sequences 58%  Indexing sequences 58%  Indexing sequences 59%  Indexing sequences 59%  Indexing sequences 60%  Indexing sequences 60%  Indexing sequences 60%  Indexing sequences 61%  Indexing sequences 61%  Indexing sequences 62%  Indexing sequences 62%  Indexing sequences 62%  Indexing sequences 63%  Indexing sequences 63%  Indexing sequences 64%  Indexing sequences 64%  Indexing sequences 64%  Indexing sequences 65%  Indexing sequences 65%  Indexing sequences 66%  Indexing sequences 66%  Indexing sequences 66%  Indexing sequences 67%  Indexing sequences 67%  Indexing sequences 68%  Indexing sequences 68%  Indexing sequences 68%  Indexing sequences 69%  Indexing sequences 69%  Indexing sequences 70%  Indexing sequences 70%  Indexing sequences 70%  Indexing sequences 71%  Indexing sequences 71%  Indexing sequences 72%  Indexing sequences 72%  Indexing sequences 72%  Indexing sequences 73%  Indexing sequences 73%  Indexing sequences 74%  Indexing sequences 74%  Indexing sequences 74%  Indexing sequences 75%  Indexing sequences 75%  Indexing sequences 76%  Indexing sequences 76%  Indexing sequences 76%  Indexing sequences 77%  Indexing sequences 77%  Indexing sequences 78%  Indexing sequences 78%  Indexing sequences 78%  Indexing sequences 79%  Indexing sequences 79%  Indexing sequences 80%  Indexing sequences 80%  Indexing sequences 80%  Indexing sequences 81%  Indexing sequences 81%  Indexing sequences 82%  Indexing sequences 82%  Indexing sequences 82%  Indexing sequences 83%  Indexing sequences 83%  Indexing sequences 84%  Indexing sequences 84%  Indexing sequences 84%  Indexing sequences 85%  Indexing sequences 85%  Indexing sequences 86%  Indexing sequences 86%  Indexing sequences 86%  Indexing sequences 87%  Indexing sequences 87%  Indexing sequences 88%  Indexing sequences 88%  Indexing sequences 88%  Indexing sequences 89%  Indexing sequences 89%  Indexing sequences 90%  Indexing sequences 90%  Indexing sequences 90%  Indexing sequences 91%  Indexing sequences 91%  Indexing sequences 92%  Indexing sequences 92%  Indexing sequences 92%  Indexing sequences 93%  Indexing sequences 93%  Indexing sequences 94%  Indexing sequences 94%  Indexing sequences 94%  Indexing sequences 95%  Indexing sequences 95%  Indexing sequences 96%  Indexing sequences 96%  Indexing sequences 96%  Indexing sequences 97%  Indexing sequences 97%  Indexing sequences 98%  Indexing sequences 98%  Indexing sequences 98%  Indexing sequences 99%  Indexing sequences 99%  Indexing sequences 100%  Indexing sequences 100%
+    Masking 0%  Masking 100%
+    Sorting by length 0%  Sorting by length 100%
+    Counting unique k-mers 0%  Counting unique k-mers 0%  Counting unique k-mers 0%  Counting unique k-mers 1%  Counting unique k-mers 1%  Counting unique k-mers 2%  Counting unique k-mers 2%  Counting unique k-mers 2%  Counting unique k-mers 3%  Counting unique k-mers 3%  Counting unique k-mers 4%  Counting unique k-mers 4%  Counting unique k-mers 4%  Counting unique k-mers 5%  Counting unique k-mers 5%  Counting unique k-mers 6%  Counting unique k-mers 6%  Counting unique k-mers 6%  Counting unique k-mers 7%  Counting unique k-mers 7%  Counting unique k-mers 8%  Counting unique k-mers 8%  Counting unique k-mers 8%  Counting unique k-mers 9%  Counting unique k-mers 9%  Counting unique k-mers 10%  Counting unique k-mers 10%  Counting unique k-mers 10%  Counting unique k-mers 11%  Counting unique k-mers 11%  Counting unique k-mers 12%  Counting unique k-mers 12%  Counting unique k-mers 12%  Counting unique k-mers 13%  Counting unique k-mers 13%  Counting unique k-mers 14%  Counting unique k-mers 14%  Counting unique k-mers 14%  Counting unique k-mers 15%  Counting unique k-mers 15%  Counting unique k-mers 16%  Counting unique k-mers 16%  Counting unique k-mers 16%  Counting unique k-mers 17%  Counting unique k-mers 17%  Counting unique k-mers 18%  Counting unique k-mers 18%  Counting unique k-mers 18%  Counting unique k-mers 19%  Counting unique k-mers 19%  Counting unique k-mers 20%  Counting unique k-mers 20%  Counting unique k-mers 20%  Counting unique k-mers 21%  Counting unique k-mers 21%  Counting unique k-mers 22%  Counting unique k-mers 22%  Counting unique k-mers 22%  Counting unique k-mers 23%  Counting unique k-mers 23%  Counting unique k-mers 24%  Counting unique k-mers 24%  Counting unique k-mers 24%  Counting unique k-mers 25%  Counting unique k-mers 25%  Counting unique k-mers 26%  Counting unique k-mers 26%  Counting unique k-mers 26%  Counting unique k-mers 27%  Counting unique k-mers 27%  Counting unique k-mers 28%  Counting unique k-mers 28%  Counting unique k-mers 28%  Counting unique k-mers 29%  Counting unique k-mers 29%  Counting unique k-mers 30%  Counting unique k-mers 30%  Counting unique k-mers 30%  Counting unique k-mers 31%  Counting unique k-mers 31%  Counting unique k-mers 32%  Counting unique k-mers 32%  Counting unique k-mers 32%  Counting unique k-mers 33%  Counting unique k-mers 33%  Counting unique k-mers 34%  Counting unique k-mers 34%  Counting unique k-mers 34%  Counting unique k-mers 35%  Counting unique k-mers 35%  Counting unique k-mers 36%  Counting unique k-mers 36%  Counting unique k-mers 36%  Counting unique k-mers 37%  Counting unique k-mers 37%  Counting unique k-mers 38%  Counting unique k-mers 38%  Counting unique k-mers 38%  Counting unique k-mers 39%  Counting unique k-mers 39%  Counting unique k-mers 40%  Counting unique k-mers 40%  Counting unique k-mers 40%  Counting unique k-mers 41%  Counting unique k-mers 41%  Counting unique k-mers 42%  Counting unique k-mers 42%  Counting unique k-mers 42%  Counting unique k-mers 43%  Counting unique k-mers 43%  Counting unique k-mers 44%  Counting unique k-mers 44%  Counting unique k-mers 44%  Counting unique k-mers 45%  Counting unique k-mers 45%  Counting unique k-mers 46%  Counting unique k-mers 46%  Counting unique k-mers 46%  Counting unique k-mers 47%  Counting unique k-mers 47%  Counting unique k-mers 48%  Counting unique k-mers 48%  Counting unique k-mers 48%  Counting unique k-mers 49%  Counting unique k-mers 49%  Counting unique k-mers 50%  Counting unique k-mers 50%  Counting unique k-mers 50%  Counting unique k-mers 51%  Counting unique k-mers 51%  Counting unique k-mers 52%  Counting unique k-mers 52%  Counting unique k-mers 52%  Counting unique k-mers 53%  Counting unique k-mers 53%  Counting unique k-mers 54%  Counting unique k-mers 54%  Counting unique k-mers 54%  Counting unique k-mers 55%  Counting unique k-mers 55%  Counting unique k-mers 56%  Counting unique k-mers 56%  Counting unique k-mers 56%  Counting unique k-mers 57%  Counting unique k-mers 57%  Counting unique k-mers 58%  Counting unique k-mers 58%  Counting unique k-mers 58%  Counting unique k-mers 59%  Counting unique k-mers 59%  Counting unique k-mers 60%  Counting unique k-mers 60%  Counting unique k-mers 60%  Counting unique k-mers 61%  Counting unique k-mers 61%  Counting unique k-mers 62%  Counting unique k-mers 62%  Counting unique k-mers 62%  Counting unique k-mers 63%  Counting unique k-mers 63%  Counting unique k-mers 64%  Counting unique k-mers 64%  Counting unique k-mers 64%  Counting unique k-mers 65%  Counting unique k-mers 65%  Counting unique k-mers 66%  Counting unique k-mers 66%  Counting unique k-mers 66%  Counting unique k-mers 67%  Counting unique k-mers 67%  Counting unique k-mers 68%  Counting unique k-mers 68%  Counting unique k-mers 68%  Counting unique k-mers 69%  Counting unique k-mers 69%  Counting unique k-mers 70%  Counting unique k-mers 70%  Counting unique k-mers 70%  Counting unique k-mers 71%  Counting unique k-mers 71%  Counting unique k-mers 72%  Counting unique k-mers 72%  Counting unique k-mers 72%  Counting unique k-mers 73%  Counting unique k-mers 73%  Counting unique k-mers 74%  Counting unique k-mers 74%  Counting unique k-mers 74%  Counting unique k-mers 75%  Counting unique k-mers 75%  Counting unique k-mers 76%  Counting unique k-mers 76%  Counting unique k-mers 76%  Counting unique k-mers 77%  Counting unique k-mers 77%  Counting unique k-mers 78%  Counting unique k-mers 78%  Counting unique k-mers 78%  Counting unique k-mers 79%  Counting unique k-mers 79%  Counting unique k-mers 80%  Counting unique k-mers 80%  Counting unique k-mers 80%  Counting unique k-mers 81%  Counting unique k-mers 81%  Counting unique k-mers 82%  Counting unique k-mers 82%  Counting unique k-mers 82%  Counting unique k-mers 83%  Counting unique k-mers 83%  Counting unique k-mers 84%  Counting unique k-mers 84%  Counting unique k-mers 84%  Counting unique k-mers 85%  Counting unique k-mers 85%  Counting unique k-mers 86%  Counting unique k-mers 86%  Counting unique k-mers 86%  Counting unique k-mers 87%  Counting unique k-mers 87%  Counting unique k-mers 88%  Counting unique k-mers 88%  Counting unique k-mers 88%  Counting unique k-mers 89%  Counting unique k-mers 89%  Counting unique k-mers 90%  Counting unique k-mers 90%  Counting unique k-mers 90%  Counting unique k-mers 91%  Counting unique k-mers 91%  Counting unique k-mers 92%  Counting unique k-mers 92%  Counting unique k-mers 92%  Counting unique k-mers 93%  Counting unique k-mers 93%  Counting unique k-mers 94%  Counting unique k-mers 94%  Counting unique k-mers 94%  Counting unique k-mers 95%  Counting unique k-mers 95%  Counting unique k-mers 96%  Counting unique k-mers 96%  Counting unique k-mers 96%  Counting unique k-mers 97%  Counting unique k-mers 97%  Counting unique k-mers 98%  Counting unique k-mers 98%  Counting unique k-mers 98%  Counting unique k-mers 99%  Counting unique k-mers 99%  Counting unique k-mers 100%  Counting unique k-mers 100%
+    Clustering 0%  Clustering 4%  Clustering 8%  Clustering 12%  Clustering 16%  Clustering 20%  Clustering 24%  Clustering 28%  Clustering 32%  Clustering 36%  Clustering 40%  Clustering 44%  Clustering 48%  Clustering 52%  Clustering 56%  Clustering 60%  Clustering 64%  Clustering 68%  Clustering 72%  Clustering 76%  Clustering 80%  Clustering 84%  Clustering 88%  Clustering 92%  Clustering 96%  Clustering 100%  Clustering 100%
+    Writing clusters 0%  Writing clusters 0%  Writing clusters 0%  Writing clusters 1%  Writing clusters 1%  Writing clusters 2%  Writing clusters 2%  Writing clusters 2%  Writing clusters 3%  Writing clusters 3%  Writing clusters 4%  Writing clusters 4%  Writing clusters 4%  Writing clusters 5%  Writing clusters 5%  Writing clusters 6%  Writing clusters 6%  Writing clusters 6%  Writing clusters 7%  Writing clusters 7%  Writing clusters 8%  Writing clusters 8%  Writing clusters 8%  Writing clusters 9%  Writing clusters 9%  Writing clusters 10%  Writing clusters 10%  Writing clusters 10%  Writing clusters 11%  Writing clusters 11%  Writing clusters 12%  Writing clusters 12%  Writing clusters 12%  Writing clusters 13%  Writing clusters 13%  Writing clusters 14%  Writing clusters 14%  Writing clusters 14%  Writing clusters 15%  Writing clusters 15%  Writing clusters 16%  Writing clusters 16%  Writing clusters 16%  Writing clusters 17%  Writing clusters 17%  Writing clusters 18%  Writing clusters 18%  Writing clusters 18%  Writing clusters 19%  Writing clusters 19%  Writing clusters 20%  Writing clusters 20%  Writing clusters 20%  Writing clusters 21%  Writing clusters 21%  Writing clusters 22%  Writing clusters 22%  Writing clusters 22%  Writing clusters 23%  Writing clusters 23%  Writing clusters 24%  Writing clusters 24%  Writing clusters 24%  Writing clusters 25%  Writing clusters 25%  Writing clusters 26%  Writing clusters 26%  Writing clusters 26%  Writing clusters 27%  Writing clusters 27%  Writing clusters 28%  Writing clusters 28%  Writing clusters 28%  Writing clusters 29%  Writing clusters 29%  Writing clusters 30%  Writing clusters 30%  Writing clusters 30%  Writing clusters 31%  Writing clusters 31%  Writing clusters 32%  Writing clusters 32%  Writing clusters 32%  Writing clusters 33%  Writing clusters 33%  Writing clusters 34%  Writing clusters 34%  Writing clusters 34%  Writing clusters 35%  Writing clusters 35%  Writing clusters 36%  Writing clusters 36%  Writing clusters 36%  Writing clusters 37%  Writing clusters 37%  Writing clusters 38%  Writing clusters 38%  Writing clusters 38%  Writing clusters 39%  Writing clusters 39%  Writing clusters 40%  Writing clusters 40%  Writing clusters 40%  Writing clusters 41%  Writing clusters 41%  Writing clusters 42%  Writing clusters 42%  Writing clusters 42%  Writing clusters 43%  Writing clusters 43%  Writing clusters 44%  Writing clusters 44%  Writing clusters 44%  Writing clusters 45%  Writing clusters 45%  Writing clusters 46%  Writing clusters 46%  Writing clusters 46%  Writing clusters 47%  Writing clusters 47%  Writing clusters 48%  Writing clusters 48%  Writing clusters 48%  Writing clusters 49%  Writing clusters 49%  Writing clusters 50%  Writing clusters 50%  Writing clusters 50%  Writing clusters 51%  Writing clusters 51%  Writing clusters 52%  Writing clusters 52%  Writing clusters 52%  Writing clusters 53%  Writing clusters 53%  Writing clusters 54%  Writing clusters 54%  Writing clusters 54%  Writing clusters 55%  Writing clusters 55%  Writing clusters 56%  Writing clusters 56%  Writing clusters 56%  Writing clusters 57%  Writing clusters 57%  Writing clusters 58%  Writing clusters 58%  Writing clusters 58%  Writing clusters 59%  Writing clusters 59%  Writing clusters 60%  Writing clusters 60%  Writing clusters 60%  Writing clusters 61%  Writing clusters 61%  Writing clusters 62%  Writing clusters 62%  Writing clusters 62%  Writing clusters 63%  Writing clusters 63%  Writing clusters 64%  Writing clusters 64%  Writing clusters 64%  Writing clusters 65%  Writing clusters 65%  Writing clusters 66%  Writing clusters 66%  Writing clusters 66%  Writing clusters 67%  Writing clusters 67%  Writing clusters 68%  Writing clusters 68%  Writing clusters 68%  Writing clusters 69%  Writing clusters 69%  Writing clusters 70%  Writing clusters 70%  Writing clusters 70%  Writing clusters 71%  Writing clusters 71%  Writing clusters 72%  Writing clusters 72%  Writing clusters 72%  Writing clusters 73%  Writing clusters 73%  Writing clusters 74%  Writing clusters 74%  Writing clusters 74%  Writing clusters 75%  Writing clusters 75%  Writing clusters 76%  Writing clusters 76%  Writing clusters 76%  Writing clusters 77%  Writing clusters 77%  Writing clusters 78%  Writing clusters 78%  Writing clusters 78%  Writing clusters 79%  Writing clusters 79%  Writing clusters 80%  Writing clusters 80%  Writing clusters 80%  Writing clusters 81%  Writing clusters 81%  Writing clusters 82%  Writing clusters 82%  Writing clusters 82%  Writing clusters 83%  Writing clusters 83%  Writing clusters 84%  Writing clusters 84%  Writing clusters 84%  Writing clusters 85%  Writing clusters 85%  Writing clusters 86%  Writing clusters 86%  Writing clusters 86%  Writing clusters 87%  Writing clusters 87%  Writing clusters 88%  Writing clusters 88%  Writing clusters 88%  Writing clusters 89%  Writing clusters 89%  Writing clusters 90%  Writing clusters 90%  Writing clusters 90%  Writing clusters 91%  Writing clusters 91%  Writing clusters 92%  Writing clusters 92%  Writing clusters 92%  Writing clusters 93%  Writing clusters 93%  Writing clusters 94%  Writing clusters 94%  Writing clusters 94%  Writing clusters 95%  Writing clusters 95%  Writing clusters 96%  Writing clusters 96%  Writing clusters 96%  Writing clusters 97%  Writing clusters 97%  Writing clusters 98%  Writing clusters 98%  Writing clusters 98%  Writing clusters 99%  Writing clusters 99%  Writing clusters 100%  Writing clusters 100%
+    Clusters: 81 Size min 1, max 20, avg 3.1
+    Singletons: 36, 14.4% of seqs, 44.4% of clusters
+    
+      vsearch/swarm time: 0.9
+      total time: 17.0
