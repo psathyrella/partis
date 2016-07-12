@@ -391,11 +391,6 @@ class Waterer(object):
             all_germline_bounds[gene] = glbounds
 
         for region in utils.regions:
-            if len(all_matches[region]) == 0:
-                if self.debug:
-                    print '      no', region, 'match found for', query_name  # TODO if no d match found, we should really just assume entire d was eroded
-                queries_to_rerun['no-match'].add(query_name)
-                return
             all_matches[region] = sorted(all_matches[region], reverse=True)
 
         self.summarize_query(query_name, query_seq, all_matches, all_query_bounds, all_germline_bounds, warnings, first_match_query_bounds, queries_to_rerun)
@@ -519,11 +514,6 @@ class Waterer(object):
         qrbounds[r_gene] = (qrbounds[r_gene][0] + r_portion, qrbounds[r_gene][1])
         glbounds[r_gene] = (glbounds[r_gene][0] + r_portion, glbounds[r_gene][1])
 
-        best[l_reg + '_gl_seq'] = self.glfo['seqs'][l_reg][l_gene][glbounds[l_gene][0] : glbounds[l_gene][1]]
-        best[l_reg + '_qr_seq'] = query_seq[qrbounds[l_gene][0]:qrbounds[l_gene][1]]
-        best[r_reg + '_gl_seq'] = self.glfo['seqs'][r_reg][r_gene][glbounds[r_gene][0] : glbounds[r_gene][1]]
-        best[r_reg + '_qr_seq'] = query_seq[qrbounds[r_gene][0]:qrbounds[r_gene][1]]
-
     # ----------------------------------------------------------------------------------------
     def add_to_info(self, query_name, query_seq, kvals, all_matches, best, all_germline_bounds, all_query_bounds, codon_positions):
         assert query_name not in self.info
@@ -589,7 +579,6 @@ class Waterer(object):
         if self.debug >= 2:
             print query_name
 
-        best = {}
         k_v_min, k_d_min = 999, 999
         k_v_max, k_d_max = 0, 0
         for region in utils.regions:
@@ -607,15 +596,17 @@ class Waterer(object):
                     k_d_min = min(this_k_d, k_d_min)
                     k_d_max = max(this_k_d, k_d_max)
 
-                # check consistency with best match (since the best match is excised in s-w code, and because ham is run with *one* k_v k_d set)
-                if region not in best:
-                    best[region] = gene
-                    # best[region + '_gl_seq'] = self.glfo['seqs'][region][gene][glbounds[0]:glbounds[1]]
-                    # best[region + '_qr_seq'] = query_seq[qrbounds[0]:qrbounds[1]]
-                    # best[region + '_score'] = score
-
                 if self.debug >= 2:
                     self.print_match(region, gene, query_seq, score, glbounds, qrbounds, warnings, skipping=False)
+
+        for region in utils.regions:
+            if len(all_matches[region]) == 0:  # NOTE could move this to process_query(), but then we wouldn't be able to print matches for the other regions
+                if self.debug:
+                    print '      no', region, 'match found for', query_name  # TODO if no d match found, we should really just assume entire d was eroded
+                queries_to_rerun['no-match'].add(query_name)
+                return
+
+        best = {r : all_matches[r][0][1] for r in utils.regions}  # already made sure there's at least one match for each region
 
         # s-w allows d and j matches to overlap, so we need to apportion the disputed bases
         region_pairs = ({'left':'v', 'right':'d'}, {'left':'d', 'right':'j'})
