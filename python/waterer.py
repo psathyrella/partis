@@ -344,8 +344,8 @@ class Waterer(object):
             'name' : primary.qname,
             'seq' : primary.seq,
             'matches' : {r : [] for r in utils.regions},
-            'qr_bounds' : {},
-            'gl_bounds' : {}
+            'qrbounds' : {},
+            'glbounds' : {}
         }
         self.tmp_queries_read_from_file.add(qinfo['name'])
         for read in reads:  # loop over the matches found for each query sequence
@@ -387,9 +387,9 @@ class Waterer(object):
                     continue
 
             # and finally add this match's information
-            qinfo['matches'][region].append((score, gene))  # NOTE it is important that this is ordered such that the best match is first UPDATE huh, maybe I wrote this before I added the sorted() below?
-            qinfo['qr_bounds'][gene] = qrbounds
-            qinfo['gl_bounds'][gene] = glbounds
+            qinfo['matches'][region].append((score, gene))  # NOTE it is important that this is ordered such that the best match is first UPDATE huh, maybe I wrote this before I added the sorted() below? In any case it seems to always be sorted in the bam file, so this is really just a double-check
+            qinfo['qrbounds'][gene] = qrbounds
+            qinfo['glbounds'][gene] = glbounds
 
         for region in utils.regions:
             qinfo['matches'][region] = sorted(qinfo['matches'][region], reverse=True)
@@ -531,17 +531,17 @@ class Waterer(object):
         self.info[qname]['codon_positions'] = copy.deepcopy(codon_positions)
 
         # erosion, insertion, mutation info for best match
-        self.info[qname]['v_5p_del'] = qinfo['gl_bounds'][best['v']][0]
-        self.info[qname]['v_3p_del'] = len(self.glfo['seqs']['v'][best['v']]) - qinfo['gl_bounds'][best['v']][1]  # len(germline v) - gl_match_end
-        self.info[qname]['d_5p_del'] = qinfo['gl_bounds'][best['d']][0]
-        self.info[qname]['d_3p_del'] = len(self.glfo['seqs']['d'][best['d']]) - qinfo['gl_bounds'][best['d']][1]
-        self.info[qname]['j_5p_del'] = qinfo['gl_bounds'][best['j']][0]
-        self.info[qname]['j_3p_del'] = len(self.glfo['seqs']['j'][best['j']]) - qinfo['gl_bounds'][best['j']][1]
+        self.info[qname]['v_5p_del'] = qinfo['glbounds'][best['v']][0]
+        self.info[qname]['v_3p_del'] = len(self.glfo['seqs']['v'][best['v']]) - qinfo['glbounds'][best['v']][1]  # len(germline v) - gl_match_end
+        self.info[qname]['d_5p_del'] = qinfo['glbounds'][best['d']][0]
+        self.info[qname]['d_3p_del'] = len(self.glfo['seqs']['d'][best['d']]) - qinfo['glbounds'][best['d']][1]
+        self.info[qname]['j_5p_del'] = qinfo['glbounds'][best['j']][0]
+        self.info[qname]['j_3p_del'] = len(self.glfo['seqs']['j'][best['j']]) - qinfo['glbounds'][best['j']][1]
 
-        self.info[qname]['fv_insertion'] = qinfo['seq'][ : qinfo['qr_bounds'][best['v']][0]]
-        self.info[qname]['vd_insertion'] = qinfo['seq'][qinfo['qr_bounds'][best['v']][1] : qinfo['qr_bounds'][best['d']][0]]
-        self.info[qname]['dj_insertion'] = qinfo['seq'][qinfo['qr_bounds'][best['d']][1] : qinfo['qr_bounds'][best['j']][0]]
-        self.info[qname]['jf_insertion'] = qinfo['seq'][qinfo['qr_bounds'][best['j']][1] : ]
+        self.info[qname]['fv_insertion'] = qinfo['seq'][ : qinfo['qrbounds'][best['v']][0]]
+        self.info[qname]['vd_insertion'] = qinfo['seq'][qinfo['qrbounds'][best['v']][1] : qinfo['qrbounds'][best['d']][0]]
+        self.info[qname]['dj_insertion'] = qinfo['seq'][qinfo['qrbounds'][best['d']][1] : qinfo['qrbounds'][best['j']][0]]
+        self.info[qname]['jf_insertion'] = qinfo['seq'][qinfo['qrbounds'][best['j']][1] : ]
 
         self.info[qname]['indelfo'] = self.info['indels'].get(qname, utils.get_empty_indel())
 
@@ -583,8 +583,9 @@ class Waterer(object):
             print qname
             for region in utils.regions:
                 for score, gene in qinfo['matches'][region]:  # sorted by decreasing match quality
-                    self.print_match(region, gene, score, qinfo['seq'], qinfo['gl_bounds'][gene], qinfo['qr_bounds'][gene], skipping=False)
+                    self.print_match(region, gene, score, qinfo['seq'], qinfo['glbounds'][gene], qinfo['qrbounds'][gene], skipping=False)
 
+        # do we have a match for each region?
         for region in utils.regions:
             if len(qinfo['matches'][region]) == 0:  # NOTE could move this to process_query(), but then we wouldn't be able to print matches for the other regions
                 if self.debug:
@@ -592,17 +593,17 @@ class Waterer(object):
                 queries_to_rerun['no-match'].add(qname)
                 return
 
-        # NOTE since here I'm not yet skipping genes beyond the first <args.n_max_per_region>, this OR of k-space is overly conservative. Don't really care, though... k space integration is mostly pretty cheap what with chunk caching            
+        # get k-space OR
         k_v_min, k_d_min = 999, 999
         k_v_max, k_d_max = 0, 0
-        for region in utils.regions:
+        for region in utils.regions:  # NOTE since here I'm not yet skipping genes beyond the first <args.n_max_per_region>, this is overly conservative. Don't really care, though... k space integration is mostly pretty cheap what with chunk caching
             for score, gene in qinfo['matches'][region]:
                 if region == 'v':
-                    this_k_v = qinfo['qr_bounds'][gene][1]  # NOTE even if the v match doesn't start at the left hand edge of the query sequence, we still measure k_v from there. In other words, sw doesn't tell the hmm about it
+                    this_k_v = qinfo['qrbounds'][gene][1]  # NOTE even if the v match doesn't start at the left hand edge of the query sequence, we still measure k_v from there. In other words, sw doesn't tell the hmm about it
                     k_v_min = min(this_k_v, k_v_min)
                     k_v_max = max(this_k_v, k_v_max)
                 elif region == 'd':
-                    this_k_d = qinfo['qr_bounds'][gene][1] - first_match_query_bounds[1]  # end of d minus end of v
+                    this_k_d = qinfo['qrbounds'][gene][1] - first_match_query_bounds[1]  # end of d minus end of v
                     k_d_min = min(this_k_d, k_d_min)
                     k_d_max = max(this_k_d, k_d_max)
 
@@ -610,7 +611,7 @@ class Waterer(object):
 
         # s-w allows d and j matches to overlap, so we need to apportion the disputed bases
         region_pairs = ({'left':'v', 'right':'d'}, {'left':'d', 'right':'j'})
-        qrbounds, glbounds = qinfo['qr_bounds'], qinfo['gl_bounds']
+        qrbounds, glbounds = qinfo['qrbounds'], qinfo['glbounds']
         for rpair in region_pairs:
             overlap_status = self.check_boundaries(rpair, qname, qrbounds, glbounds, best)
             if overlap_status == 'overlap':
@@ -622,8 +623,8 @@ class Waterer(object):
                 assert overlap_status == 'ok'
 
         # check for suspiciously bad annotations
-        vd_insertion = qinfo['seq'][qinfo['qr_bounds'][best['v']][1] : qinfo['qr_bounds'][best['d']][0]]
-        dj_insertion = qinfo['seq'][qinfo['qr_bounds'][best['d']][1] : qinfo['qr_bounds'][best['j']][0]]
+        vd_insertion = qinfo['seq'][qinfo['qrbounds'][best['v']][1] : qinfo['qrbounds'][best['d']][0]]
+        dj_insertion = qinfo['seq'][qinfo['qrbounds'][best['d']][1] : qinfo['qrbounds'][best['j']][0]]
         if self.nth_try < 2:
             if len(vd_insertion) > self.max_insertion_length or len(dj_insertion) > self.max_insertion_length:
                 if self.debug:
@@ -643,7 +644,7 @@ class Waterer(object):
         tmp_gl_positions = {'v' : self.glfo['cyst-positions'], 'j' : self.glfo['tryp-positions']}  # hack hack hack
         codon_positions = {}
         for region in ['v', 'j']:
-            pos = tmp_gl_positions[region][best[region]] - qinfo['gl_bounds'][best[region]][0] + qinfo['qr_bounds'][best[region]][0]  # position within original germline gene, minus the position in that germline gene at which the match starts, plus the position in the query sequence at which the match starts
+            pos = tmp_gl_positions[region][best[region]] - qinfo['glbounds'][best[region]][0] + qinfo['qrbounds'][best[region]][0]  # position within original germline gene, minus the position in that germline gene at which the match starts, plus the position in the query sequence at which the match starts
             if pos < 0 or pos >= len(qinfo['seq']):
                 if self.debug:
                     print '      invalid %s codon position (%d in seq of length %d), rerunning' % (region, pos, len(qinfo['seq']))
@@ -689,8 +690,8 @@ class Waterer(object):
                 pass  # this is here so you don't forget that if neither of the above is true, we fall through and add the query to self.info
 
         # best k_v, k_d:
-        k_v = qinfo['qr_bounds'][best['v']][1]  # end of v match
-        k_d = qinfo['qr_bounds'][best['d']][1] - qinfo['qr_bounds'][best['v']][1]  # end of d minus end of v
+        k_v = qinfo['qrbounds'][best['v']][1]  # end of v match
+        k_d = qinfo['qrbounds'][best['d']][1] - qinfo['qrbounds'][best['v']][1]  # end of d minus end of v
 
         if k_d_max < 5:  # since the s-w step matches to the longest possible j and then excises it, this sometimes gobbles up the d, resulting in a very short d alignment.
             if self.debug:
