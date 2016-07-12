@@ -343,7 +343,7 @@ class Waterer(object):
         query_name = primary.qname
         self.tmp_queries_read_from_file.add(query_name)
         first_match_query_bounds = None  # since sw excises its favorite v match, we have to know this match's boundaries in order to calculate k_d for all the other matches
-        all_match_names = {r : [] for r in utils.regions}
+        all_matches = {r : [] for r in utils.regions}
         warnings = {}  # ick, this is a messy way to pass stuff around
         all_query_bounds, all_germline_bounds = {}, {}
         for read in reads:  # loop over the matches found for each query sequence
@@ -370,7 +370,7 @@ class Waterer(object):
                     continue
                 if self.nth_try < 2:  # we also forbid indels on the first try (we want to increase the mismatch score before we conclude it's "really" an indel)
                     continue
-                if len(all_match_names[region]) == 0:  # if this is the first (best) match for this region, allow indels (otherwise skip the match)
+                if len(all_matches[region]) == 0:  # if this is the first (best) match for this region, allow indels (otherwise skip the match)
                     if query_name not in self.info['indels']:
                         self.info['indels'][query_name] = self.get_indel_info(query_name, read.cigarstring, query_seq[qrbounds[0] : qrbounds[1]], self.glfo['seqs'][region][gene][glbounds[0] : glbounds[1]], gene)
                         self.info['indels'][query_name]['reversed_seq'] = query_seq[ : qrbounds[0]] + self.info['indels'][query_name]['reversed_seq'] + query_seq[qrbounds[1] : ]
@@ -386,14 +386,19 @@ class Waterer(object):
 
             # and finally add this match's information
             warnings[gene] = ''
-            all_match_names[region].append((score, gene))  # NOTE it is important that this is ordered such that the best match is first
+            all_matches[region].append((score, gene))  # NOTE it is important that this is ordered such that the best match is first UPDATE huh, maybe I wrote this before I added the sorted() below?
             all_query_bounds[gene] = qrbounds
             all_germline_bounds[gene] = glbounds
 
         for region in utils.regions:
-            all_match_names[region] = sorted(all_match_names[region], reverse=True)
+            if len(all_matches[region]) == 0:
+                if self.debug:
+                    print '      no', region, 'match found for', query_name  # TODO if no d match found, we should really just assume entire d was eroded
+                queries_to_rerun['no-match'].add(query_name)
+                return
+            all_matches[region] = sorted(all_matches[region], reverse=True)
 
-        self.summarize_query(query_name, query_seq, all_match_names, all_query_bounds, all_germline_bounds, warnings, first_match_query_bounds, queries_to_rerun)
+        self.summarize_query(query_name, query_seq, all_matches, all_query_bounds, all_germline_bounds, warnings, first_match_query_bounds, queries_to_rerun)
 
     # ----------------------------------------------------------------------------------------
     def print_match(self, region, gene, query_seq, score, glbounds, qrbounds, warnings, skipping=False):
@@ -520,8 +525,11 @@ class Waterer(object):
         best[r_reg + '_qr_seq'] = query_seq[qrbounds[r_gene][0]:qrbounds[r_gene][1]]
 
     # ----------------------------------------------------------------------------------------
-    def add_to_info(self, query_name, query_seq, kvals, match_names, best, all_germline_bounds, all_query_bounds, codon_positions):
+    def add_to_info(self, query_name, query_seq, kvals, all_matches, best, all_germline_bounds, all_query_bounds, codon_positions):
         assert query_name not in self.info
+
+        match_names = {r : [g for _, g in all_matches[r]] for r in utils.regions}
+
         self.info['queries'].append(query_name)
         self.info[query_name] = {}
         self.info[query_name]['unique_id'] = query_name  # redundant, but used somewhere down the line
@@ -577,16 +585,15 @@ class Waterer(object):
         self.remaining_queries.remove(query_name)
 
     # ----------------------------------------------------------------------------------------
-    def summarize_query(self, query_name, query_seq, all_match_names, all_query_bounds, all_germline_bounds, warnings, first_match_query_bounds, queries_to_rerun):
+    def summarize_query(self, query_name, query_seq, all_matches, all_query_bounds, all_germline_bounds, warnings, first_match_query_bounds, queries_to_rerun):
+        if self.debug >= 2:
+            print query_name
+
         best = {}
         k_v_min, k_d_min = 999, 999
         k_v_max, k_d_max = 0, 0
-        match_names = {r : [] for r in utils.regions}
-        if self.debug >= 2:
-            print query_name
         for region in utils.regions:
-            for score, gene in all_match_names[region]:
-                match_names[region].append(gene)
+            for score, gene in all_matches[region]:  # sorted by decreasing match quality
                 glbounds = all_germline_bounds[gene]
                 qrbounds = all_query_bounds[gene]
 
@@ -603,19 +610,12 @@ class Waterer(object):
                 # check consistency with best match (since the best match is excised in s-w code, and because ham is run with *one* k_v k_d set)
                 if region not in best:
                     best[region] = gene
-                    best[region + '_gl_seq'] = self.glfo['seqs'][region][gene][glbounds[0]:glbounds[1]]
-                    best[region + '_qr_seq'] = query_seq[qrbounds[0]:qrbounds[1]]
-                    best[region + '_score'] = score
+                    # best[region + '_gl_seq'] = self.glfo['seqs'][region][gene][glbounds[0]:glbounds[1]]
+                    # best[region + '_qr_seq'] = query_seq[qrbounds[0]:qrbounds[1]]
+                    # best[region + '_score'] = score
 
                 if self.debug >= 2:
                     self.print_match(region, gene, query_seq, score, glbounds, qrbounds, warnings, skipping=False)
-
-        for region in utils.regions:
-            if region not in best:
-                if self.debug:
-                    print '      no', region, 'match found for', query_name  # NOTE if no d match found, we should really just assume entire d was eroded
-                queries_to_rerun['no-match'].add(query_name)
-                return
 
         # s-w allows d and j matches to overlap, so we need to apportion the disputed bases
         region_pairs = ({'left':'v', 'right':'d'}, {'left':'d', 'right':'j'})
@@ -722,11 +722,10 @@ class Waterer(object):
             print '         k_v: %d [%d-%d)' % (k_v, k_v_min, k_v_max)
             print '         k_d: %d [%d-%d)' % (k_d, k_d_min, k_d_max)
 
-
         kvals = {}
         kvals['v'] = {'best':k_v, 'min':k_v_min, 'max':k_v_max}
         kvals['d'] = {'best':k_d, 'min':k_d_min, 'max':k_d_max}
-        self.add_to_info(query_name, query_seq, kvals, match_names, best, all_germline_bounds, all_query_bounds, codon_positions=codon_positions)
+        self.add_to_info(query_name, query_seq, kvals, all_matches, best, all_germline_bounds, all_query_bounds, codon_positions=codon_positions)
 
     # ----------------------------------------------------------------------------------------
     def get_padding_parameters(self, debug=False):
