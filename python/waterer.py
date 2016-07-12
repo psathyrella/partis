@@ -65,7 +65,7 @@ class Waterer(object):
     def run(self):
         # start = time.time()
         base_infname = 'query-seqs.fa'
-        base_outfname = 'query-seqs.bam'
+        base_outfname = 'query-seqs.sam'
         sys.stdout.flush()
 
         n_procs = self.args.n_fewer_procs
@@ -207,16 +207,15 @@ class Waterer(object):
         """
         # large gap-opening penalty: we want *no* gaps in the middle of the alignments
         # match score larger than (negative) mismatch score: we want to *encourage* some level of shm. If they're equal, we tend to end up with short unmutated alignments, which screws everything up
-        cmd_str = self.args.ighutil_dir + '/bin/vdjalign align-fastq -q'
+        cmd_str = '/partis/packages/ig-sw/src/ig_align/ig-sw'
         if self.args.slurm or utils.auto_slurm(n_procs):
             cmd_str = 'srun ' + cmd_str
-        cmd_str += ' --locus ' + 'IG' + self.args.chain.upper()
-        cmd_str += ' --max-drop 50'
+        cmd_str += ' -l ' + 'IG' + self.args.chain.upper()
+        cmd_str += ' -d 50'
         match, mismatch = self.match_mismatch
-        cmd_str += ' --match ' + str(match) + ' --mismatch ' + str(mismatch)
-        cmd_str += ' --gap-open ' + str(self.gap_open_penalty)
-        cmd_str += ' --vdj-dir ' + self.my_datadir + '/' + self.args.chain
-        cmd_str += ' --samtools-dir ' + self.args.partis_dir + '/packages/samtools'
+        cmd_str += ' -m ' + str(match) + ' -u ' + str(mismatch)
+        cmd_str += ' -o ' + str(self.gap_open_penalty)
+        cmd_str += ' -p ' + self.my_datadir + '/' + self.args.chain + '/'
         cmd_str += ' ' + workdir + '/' + base_infname + ' ' + workdir + '/' + base_outfname
         return cmd_str
 
@@ -232,10 +231,10 @@ class Waterer(object):
         self.tmp_queries_read_from_file = set()  # TODO remove this
         for iproc in range(n_procs):
             outfname = self.subworkdir(iproc, n_procs) + '/' + base_outfname
-            with contextlib.closing(pysam.Samfile(outfname)) as bam:
-                grouped = itertools.groupby(iter(bam), operator.attrgetter('qname'))
+            with contextlib.closing(pysam.Samfile(outfname)) as sam: #changed bam to sam because ig-sw outputs sam files
+                grouped = itertools.groupby(iter(sam), operator.attrgetter('qname'))
                 for _, reads in grouped:  # loop over query sequences
-                    self.process_query(bam.references, list(reads), queries_to_rerun)
+                    self.process_query(sam.references, list(reads), queries_to_rerun)
                     n_processed += 1
 
         not_read = self.remaining_queries - self.tmp_queries_read_from_file
