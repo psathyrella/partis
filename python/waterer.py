@@ -173,7 +173,7 @@ class Waterer(object):
         n_remaining = len(self.remaining_queries)
         queries_per_proc = float(n_remaining) / n_procs
         n_queries_per_proc = int(math.ceil(queries_per_proc))
-        written_queries = set()  # make sure we actually write each query TODO remove this when you work out where they're disappearing to
+        written_queries = set()  # make sure we actually write each query NOTE I should be able to remove this when I work out where they're disappearing to. But they don't seem to be disappearing any more, *sigh*
         if n_procs == 1:  # double check for rounding problems or whatnot
             assert n_queries_per_proc == n_remaining
         for iproc in range(n_procs):
@@ -228,23 +228,23 @@ class Waterer(object):
             queries_to_rerun[reason] = set()
 
         self.new_indels = 0
-        n_processed = 0
-        self.tmp_queries_read_from_file = set()  # TODO remove this
+        queries_read_from_file = set()  # should be able to remove this, eventually
         for iproc in range(n_procs):
             outfname = self.subworkdir(iproc, n_procs) + '/' + base_outfname
             with contextlib.closing(pysam.Samfile(outfname)) as bam:
                 grouped = itertools.groupby(iter(bam), operator.attrgetter('qname'))
                 for _, reads in grouped:  # loop over query sequences
-                    self.process_query(bam.references, list(reads), queries_to_rerun)
-                    n_processed += 1
+                    qinfo = self.read_query(bam.references, list(reads))
+                    self.summarize_query(qinfo, queries_to_rerun)  # returns before adding to <self.info> if it thinks we should rerun the query
+                    queries_read_from_file.add(qinfo['name'])
 
-        not_read = self.remaining_queries - self.tmp_queries_read_from_file
+        not_read = self.remaining_queries - queries_read_from_file
         if len(not_read) > 0:
             raise Exception('didn\'t read %s from %s' % (':'.join(not_read), self.args.workdir))
 
         if self.nth_try == 1:
             print '        processed       remaining      new-indels          rerun: ' + '      '.join([reason for reason in queries_to_rerun])
-        print '      %8d' % n_processed,
+        print '      %8d' % len(queries_read_from_file),
         if len(self.remaining_queries) > 0:
             printstr = '       %8d' % len(self.remaining_queries)
             printstr += '       %8d' % self.new_indels
@@ -337,7 +337,8 @@ class Waterer(object):
         return indelfo
 
     # ----------------------------------------------------------------------------------------
-    def process_query(self, references, reads, queries_to_rerun):
+    def read_query(self, references, reads):
+        """ convert bam crap to python dict """
         primary = next((r for r in reads if not r.is_secondary), None)
         qinfo = {
             'name' : primary.qname,
@@ -345,9 +346,9 @@ class Waterer(object):
             'matches' : {r : [] for r in utils.regions},
             'qrbounds' : {},
             'glbounds' : {},
-            'first_match_qrbounds' : None  # since sw excises its favorite v match, we have to know this match's boundaries in order to calculate k_d for all the other matches
+            'first_match_qrbounds' : None,  # since sw excises its favorite v match, we have to know this match's boundaries in order to calculate k_d for all the other matches
+            'new_indel' : False
         }
-        self.tmp_queries_read_from_file.add(qinfo['name'])
         for read in reads:  # loop over the matches found for each query sequence
             # set this match's values
             read.seq = qinfo['seq']  # only the first one has read.seq set by default, so we need to set the rest by hand
@@ -377,8 +378,8 @@ class Waterer(object):
                         self.info['indels'][qinfo['name']] = self.get_indel_info(qinfo['name'], read.cigarstring, qinfo['seq'][qrbounds[0] : qrbounds[1]], self.glfo['seqs'][region][gene][glbounds[0] : glbounds[1]], gene)
                         self.info['indels'][qinfo['name']]['reversed_seq'] = qinfo['seq'][ : qrbounds[0]] + self.info['indels'][qinfo['name']]['reversed_seq'] + qinfo['seq'][qrbounds[1] : ]
                         self.new_indels += 1
-                        # TODO this 'return' used to be after and indented from the else below, and that continue wasn't there. I should make sure this is how I want it
-                        return  # don't process this query any further -- since it's now in the indel info it'll get run next time through
+                        qinfo['new_indel'] = True
+                        return qinfo  # don't process this query any further -- since it's now in the indel info it'll get run next time through
                     else:
                         if self.debug:
                             print '     ignoring subsequent indels for %s' % qinfo['name']
@@ -394,7 +395,7 @@ class Waterer(object):
         for region in utils.regions:
             qinfo['matches'][region] = sorted(qinfo['matches'][region], reverse=True)
 
-        self.summarize_query(qinfo, queries_to_rerun)
+        return qinfo
 
     # ----------------------------------------------------------------------------------------
     def print_match(self, region, gene, score, qseq, glbounds, qrbounds, skipping=False):
@@ -588,6 +589,11 @@ class Waterer(object):
                 for score, gene in qinfo['matches'][region]:  # sorted by decreasing match quality
                     self.print_match(region, gene, score, qinfo['seq'], qinfo['glbounds'][gene], qinfo['qrbounds'][gene], skipping=False)
 
+        if qinfo['new_indel']:
+            if self.debug:
+                print '    new indel -- rerunning'
+            return
+
         # do we have a match for each region?
         for region in utils.regions:
             if len(qinfo['matches'][region]) == 0:  # NOTE could move this to process_query(), but then we wouldn't be able to print matches for the other regions
@@ -680,12 +686,12 @@ class Waterer(object):
         self.add_to_info(qinfo, best, codon_positions)
 
     # ----------------------------------------------------------------------------------------
-    def get_kbounds(self, qinfo, best, debug=False):
+    def get_kbounds(self, qinfo, best):
         # OR of k-space for all the matches
         k_v_min, k_d_min = 999, 999
         k_v_max, k_d_max = 0, 0
         for region in utils.regions:  # NOTE since here I'm not yet skipping genes beyond the first <args.n_max_per_region>, this is overly conservative. Don't really care, though... k space integration is mostly pretty cheap what with chunk caching
-            for score, gene in qinfo['matches'][region]:
+            for _, gene in qinfo['matches'][region]:
                 if region == 'v':
                     this_k_v = qinfo['qrbounds'][gene][1]  # NOTE even if the v match doesn't start at the left hand edge of the query sequence, we still measure k_v from there. In other words, sw doesn't tell the hmm about it
                     k_v_min = min(this_k_v, k_v_min)
