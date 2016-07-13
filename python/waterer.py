@@ -737,27 +737,27 @@ class Waterer(object):
         maxima = {'gl_cpos' : None, 'gl_cpos_to_j_end' : None}
         for query in self.info['queries']:
             swfo = self.info[query]
-            fvstuff = max(0, len(swfo['fv_insertion']) - swfo['v_5p_del'])  # we always want to pad out to the entire germline sequence, so don't let this go negative
-            jfstuff = max(0, len(swfo['jf_insertion']) - swfo['j_3p_del'])
 
-            for v_match in self.info['all_matches']['v']:  # NOTE have to loop over all gl matches, even ones for other sequences, because we want bcrham to be able to compare any sequence to any other UPDATE but do I really need to use *all* all matches, or would it be ok to just use all *best* matches? not sure...
+            # find biggest cyst position among all gl matches
+            fvstuff = max(0, len(swfo['fv_insertion']) - swfo['v_5p_del'])  # we always want to pad out to the entire germline sequence, so don't let this go negative
+            for v_match in self.info['all_matches']['v']:  # includes matches for *other* sequences, because we want bcrham to be able to compare any sequence to any other (although, could probably use all *best* matches rather than all *all*)
                 gl_cpos = self.glfo['cyst-positions'][v_match] + fvstuff
                 if maxima['gl_cpos'] is None or gl_cpos > maxima['gl_cpos']:
                     maxima['gl_cpos'] = gl_cpos
 
-            seq = swfo['seq']
+            # Since we only store j_3p_del for the best match, we can't loop over all of 'em. But j stuff doesn't vary too much, so it works ok.
             cpos = swfo['codon_positions']['v']  # cyst position in query sequence (as opposed to gl_cpos, which is in germline allele)
-            for j_match in self.info['all_matches']['j']:  # NOTE have to loop over all gl matches, even ones for other sequences, because we want bcrham to be able to compare any sequence to any other UPDATE but do I really need to use *all* all matches, or would it be ok to just use all *best* matches? not sure...
-                # TODO this is totally wrong -- I'm only storing j_3p_del for the best match... but hopefully it'll give enough padding for the moment
-                gl_cpos_to_j_end = len(seq) - cpos + swfo['j_3p_del'] + jfstuff
-                if maxima['gl_cpos_to_j_end'] is None or gl_cpos_to_j_end > maxima['gl_cpos_to_j_end']:
-                    maxima['gl_cpos_to_j_end'] = gl_cpos_to_j_end
+            jfstuff = max(0, len(swfo['jf_insertion']) - swfo['j_3p_del'])
+            gl_cpos_to_j_end = len(swfo['seq']) - cpos + swfo['j_3p_del'] + jfstuff
+            if maxima['gl_cpos_to_j_end'] is None or gl_cpos_to_j_end > maxima['gl_cpos_to_j_end']:
+                maxima['gl_cpos_to_j_end'] = gl_cpos_to_j_end
 
         if debug:
             print '    maxima:',
             for k, v in maxima.items():
                 print '%s %d    ' % (k, v),
             print ''
+
         return maxima
 
     # ----------------------------------------------------------------------------------------
@@ -785,11 +785,8 @@ class Waterer(object):
                 raise Exception('bad padding %d %d for %s' % (padleft, padright, query))
 
             padfo = {}
-            assert len(utils.ambiguous_bases) == 1  # could allow more than one, but it's not implemented a.t.m.
             padfo['seq'] = padleft * utils.ambiguous_bases[0] + seq + padright * utils.ambiguous_bases[0]
-            if query in self.info['indels']:
-                if debug:
-                    print '    also padding reversed sequence'
+            if query in self.info['indels']:  # also pad the reversed sequence
                 self.info['indels'][query]['reversed_seq'] = padleft * utils.ambiguous_bases[0] + self.info['indels'][query]['reversed_seq'] + padright * utils.ambiguous_bases[0]
             padfo['k_v'] = {'min' : k_v['min'] + padleft, 'max' : k_v['max'] + padleft}
             padfo['cyst_position'] = swfo['codon_positions']['v'] + padleft
@@ -797,9 +794,7 @@ class Waterer(object):
             padfo['padright'] = padright
             if debug:
                 print '      pad %d %d   %s' % (padleft, padright, query)
-                print '     %d --> %d (%d-%d --> %d-%d)' % (len(seq), len(padfo['seq']),
-                                                            k_v['min'], k_v['max'],
-                                                            padfo['k_v']['min'], padfo['k_v']['max'])
+                print '     %d --> %d (%d-%d --> %d-%d)' % (len(seq), len(padfo['seq']), k_v['min'], k_v['max'], padfo['k_v']['min'], padfo['k_v']['max'])
             swfo['padded'] = padfo
 
         if debug:
