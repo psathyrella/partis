@@ -13,6 +13,8 @@ import utils
 # ----------------------------------------------------------------------------------------
 glfo_dir = 'germline-sets'  # always put germline info into a subdir with this name
 
+dummy_d_genes = {'k' : 'IGKDx-x*x', 'l' : 'IGLDx-x*x'}  # for light chain
+
 # single-chain file names
 extra_fname = 'extras.csv'
 def glfo_fasta_fnames(chain):
@@ -71,7 +73,7 @@ def read_germline_seqs(datadir, chain, skip_pseudogenes):
     for fname in glfo_fasta_fnames(chain):
         read_fasta_file(seqs, datadir + '/' + chain + '/' + fname, skip_pseudogenes)
     if chain != 'h':
-        seqs['d'][utils.dummy_d_gene] = ''
+        seqs['d'][dummy_d_genes[chain]] = ''
     return seqs
 
 # ----------------------------------------------------------------------------------------
@@ -86,7 +88,7 @@ def read_aligned_gl_seqs(fname, glfo):
         aligned_gl_seqs['v'][gene] += n_extra_gaps * utils.gap_chars[0]
 
     # check that we got all the genes
-    glfo_genes = set([g for r in utils.regions for g in glfo['seqs'][r]]) - set([utils.dummy_d_gene, ])
+    glfo_genes = set([g for r in utils.regions for g in glfo['seqs'][r]]) - set([dummy_d_genes[glfo['chain']], ])
     aligned_genes = set([g for r in utils.regions for g in aligned_gl_seqs[r]])
     if len(glfo_genes - aligned_genes) > 0:
         raise Exception('missing alignments for %s' % ' '.join(glfo_genes - aligned_genes))

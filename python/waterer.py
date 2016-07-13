@@ -11,6 +11,7 @@ import contextlib
 from collections import OrderedDict
 
 import utils
+import glutils
 from opener import opener
 from parametercounter import ParameterCounter
 from performanceplotter import PerformancePlotter
@@ -338,10 +339,11 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def add_dummy_d_match(self, qinfo, debug=True):
-        qinfo['matches']['d'].append((1, utils.dummy_d_gene))
+        dummy_d = glutils.dummy_d_genes[self.args.chain]
+        qinfo['matches']['d'].append((1, dummy_d))
         v_end = qinfo['first_match_qrbounds'][1]
-        qinfo['qrbounds'][utils.dummy_d_gene] = (v_end, v_end)
-        qinfo['glbounds'][utils.dummy_d_gene] = (0, 0)
+        qinfo['qrbounds'][dummy_d] = (v_end, v_end)
+        qinfo['glbounds'][dummy_d] = (0, 0)
 
     # ----------------------------------------------------------------------------------------
     def read_query(self, references, reads):
