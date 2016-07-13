@@ -459,7 +459,6 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def shift_overlapping_boundaries(self, rpair, qinfo, best, debug=False):
-        # NOTE this does pretty much the same thing as resolve_overlapping_matches in joinparser.py
         """
         s-w allows d and j matches (and v and d matches) to overlap... which makes no sense, so apportion the disputed territory between the two regions.
         Note that this still works if, say, v is the entire sequence, i.e. one match is entirely subsumed by another.
@@ -580,6 +579,10 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def summarize_query(self, qinfo, queries_to_rerun):
+        """
+        Fiddle with a few things, but mostly decide whether we're satisfied with the current matches.
+        If not, return without calling add_to_info().
+        """
         qname = qinfo['name']
         assert qname not in self.info
 
