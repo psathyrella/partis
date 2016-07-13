@@ -337,6 +337,13 @@ class Waterer(object):
         return indelfo
 
     # ----------------------------------------------------------------------------------------
+    def add_dummy_d_match(self, qinfo, debug=True):
+        qinfo['matches']['d'].append((1, utils.dummy_d_gene))
+        v_end = qinfo['first_match_qrbounds'][1]
+        qinfo['qrbounds'][utils.dummy_d_gene] = (v_end, v_end)
+        qinfo['glbounds'][utils.dummy_d_gene] = (0, 0)
+
+    # ----------------------------------------------------------------------------------------
     def read_query(self, references, reads):
         """ convert bam crap to python dict """
         primary = next((r for r in reads if not r.is_secondary), None)
@@ -361,7 +368,6 @@ class Waterer(object):
             if region == 'v' and qinfo['first_match_qrbounds'] is None:
                 qinfo['first_match_qrbounds'] = qrbounds
 
-            # perform a few checks and see if we want to skip this match
             # TODO I wish this wasn't here and I suspect I don't really need it (any more) UPDATE I dunno, this definitely eliminates some stupid (albeit rare) matches
             if region == 'v':  # skip matches with cpos past the end of the query seq (i.e. eroded a ton on the right side of the v)
                 cpos = self.glfo['cyst-positions'][gene] - glbounds[0] + qrbounds[0]  # position within original germline gene, minus the position in that germline gene at which the match starts, plus the position in the query sequence at which the match starts
@@ -391,6 +397,9 @@ class Waterer(object):
             qinfo['matches'][region].append((score, gene))  # NOTE it is important that this is ordered such that the best match is first UPDATE huh, maybe I wrote this before I added the sorted() below? In any case it seems to always be sorted in the bam file, so this is really just a double-check
             qinfo['qrbounds'][gene] = qrbounds
             qinfo['glbounds'][gene] = glbounds
+
+        if self.args.chain != 'h':
+            self.add_dummy_d_match(qinfo)
 
         for region in utils.regions:
             qinfo['matches'][region] = sorted(qinfo['matches'][region], reverse=True)
@@ -598,8 +607,8 @@ class Waterer(object):
             return
 
         # do we have a match for each region?
-        for region in utils.regions:
-            if len(qinfo['matches'][region]) == 0:  # NOTE could move this to process_query(), but then we wouldn't be able to print matches for the other regions
+        for region in utils.getregions(self.args.chain):
+            if len(qinfo['matches'][region]) == 0:
                 if self.debug:
                     print '      no', region, 'match found for', qname  # TODO if no d match found, we should really just assume entire d was eroded
                 queries_to_rerun['no-match'].add(qname)
@@ -608,8 +617,7 @@ class Waterer(object):
         best = {r : qinfo['matches'][r][0][1] for r in utils.regions}  # already made sure there's at least one match for each region
 
         # s-w allows d and j matches to overlap, so we need to apportion the disputed bases
-        region_pairs = ({'left':'v', 'right':'d'}, {'left':'d', 'right':'j'})
-        for rpair in region_pairs:
+        for rpair in utils.region_pairs():
             overlap_status = self.check_boundaries(rpair, qinfo, best)
             if overlap_status == 'overlap':
                 self.shift_overlapping_boundaries(rpair, qinfo, best)
@@ -620,23 +628,18 @@ class Waterer(object):
                 assert overlap_status == 'ok'
 
         # check for suspiciously bad annotations
-        vd_insertion = qinfo['seq'][qinfo['qrbounds'][best['v']][1] : qinfo['qrbounds'][best['d']][0]]
-        dj_insertion = qinfo['seq'][qinfo['qrbounds'][best['d']][1] : qinfo['qrbounds'][best['j']][0]]
-        if self.nth_try < 2:
-            if len(vd_insertion) > self.max_insertion_length or len(dj_insertion) > self.max_insertion_length:
+        for rp in utils.region_pairs():
+            insertion_length = qinfo['qrbounds'][best[rp['right']]][0] - qinfo['qrbounds'][best[rp['left']]][1]  # start of right match minus end of left one
+            if insertion_length > self.absolute_max_insertion_length or (self.nth_try < 2 and insertion_length > self.max_insertion_length):
                 if self.debug:
                     print '      suspiciously long insertion in %s, rerunning' % qname
                 queries_to_rerun['weird-annot.'].add(qname)
                 return
-        if len(vd_insertion) > self.absolute_max_insertion_length or len(dj_insertion) > self.absolute_max_insertion_length:
-            if self.debug:
-                print '      suspiciously long insertion in %s, rerunning' % qname
-            queries_to_rerun['weird-annot.'].add(qname)
-            return
 
         if self.debug == 1:
             print qname
 
+        sys.exit()
         # set and check conserved codon positions
         tmp_gl_positions = {'v' : self.glfo['cyst-positions'], 'j' : self.glfo['tryp-positions']}  # hack hack hack
         codon_positions = {}

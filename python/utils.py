@@ -73,6 +73,21 @@ dummy_d_gene = 'IGHDx-x*x'  # for light chain
 # ----------------------------------------------------------------------------------------
 regions = ['v', 'd', 'j']
 chains = ['h', 'k', 'l']
+
+def getregions(chain):
+    if chain == 'h':
+        return regions
+    else:
+        return [r for r in regions if r != 'd']
+
+# def getboundaries(chain):
+#     regions = getregions(chain)
+#     return [regions[i] + regions[i+1] for i in range(len(regions) - 1)]
+# def get_region_pairs(chain):
+#     return [{'left' : bound[0], 'right' : bound[1]} for bound in getboundaries(chain)]
+def region_pairs():
+    return [{'left' : bound[0], 'right' : bound[1]} for bound in boundaries]
+
 real_erosions = ['v_3p', 'd_5p', 'd_3p', 'j_5p']
 # NOTE since we now handle v_5p and j_3p deletions by padding with Ns, the hmm does *not* allow actual v_5p and j_3p deletions.
 # This means that while we write parameters for v_5p and j_3p deletions to the parameter dir, these are *not* used in making the
