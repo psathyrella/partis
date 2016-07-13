@@ -100,7 +100,7 @@ class MuteFreqer(object):
             utils.prep_dir(plotdir + '/' + substr, wildlings=('*.csv', '*.svg'))
 
     # ----------------------------------------------------------------------------------------
-    def plot(self, plotdir, cyst_positions=None, tryp_positions=None, only_csv=False):
+    def plot(self, plotdir, codon_positions=None, only_csv=False):
         if not self.finalized:
             self.finalize()
 
@@ -117,11 +117,11 @@ class MuteFreqer(object):
                 genehist.set_ibin(genehist.find_bin(position), freqs[position]['freq'], error=err)
             xline = None
             figsize = [3, 3]
-            if utils.get_region(gene) == 'v' and cyst_positions is not None:
-                xline = cyst_positions[gene]
+            if codon_positions is not None and utils.get_region(gene) in codon_positions:
+                xline = codon_positions[utils.get_region(gene)][gene]
+            if utils.get_region(gene) == 'v':
                 figsize[0] *= 3.5
-            elif utils.get_region(gene) == 'j' and tryp_positions is not None:
-                xline = tryp_positions[gene]
+            elif utils.get_region(gene) == 'j':
                 figsize[0] *= 2
             plotting.draw_no_root(genehist, plotdir=plotdir + '/' + utils.get_region(gene), plotname=utils.sanitize_name(gene), errors=True, write_csv=True, xline=xline, figsize=figsize, only_csv=only_csv)
             # per-base plots:

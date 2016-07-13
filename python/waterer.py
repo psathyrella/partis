@@ -121,9 +121,9 @@ class Waterer(object):
 
         if self.pcounter is not None:
             if self.args.plotdir is not None:
-                self.pcounter.plot(self.args.plotdir + '/sw', subset_by_gene=True, cyst_positions=self.glfo['cyst-positions'], tryp_positions=self.glfo['tryp-positions'], only_csv=self.args.only_csv_plots)
+                self.pcounter.plot(self.args.plotdir + '/sw', subset_by_gene=True, codon_positions={r : self.glfo[c + '-positions'] for r, c in utils.conserved_codons.items()}, only_csv=self.args.only_csv_plots)
                 if self.true_pcounter is not None:
-                    self.true_pcounter.plot(self.args.plotdir + '/sw-true', subset_by_gene=True, cyst_positions=self.glfo['cyst-positions'], tryp_positions=self.glfo['tryp-positions'], only_csv=self.args.only_csv_plots)
+                    self.true_pcounter.plot(self.args.plotdir + '/sw-true', subset_by_gene=True, codon_positions={r : self.glfo[c + '-positions'] for r, c in utils.conserved_codons.items()}, only_csv=self.args.only_csv_plots)
             self.pcounter.write(self.parameter_dir, self.my_datadir)
             if self.true_pcounter is not None:
                 self.true_pcounter.write(self.parameter_dir + '-true')
@@ -539,7 +539,7 @@ class Waterer(object):
 
         self.info[qname]['all'] = ':'.join(match_names['v'] + match_names['d'] + match_names['j'])  # all gene matches for this query
 
-        self.info[qname]['cdr3_length'] = codon_positions['j'] - codon_positions['v'] + 3  #tryp_position_in_joined_seq - self.cyst_position + 3
+        self.info[qname]['cdr3_length'] = codon_positions['j'] - codon_positions['v'] + 3
         self.info[qname]['codon_positions'] = copy.deepcopy(codon_positions)
 
         # erosion, insertion, mutation info for best match
@@ -639,15 +639,14 @@ class Waterer(object):
         if self.debug == 1:
             print qname
 
-        sys.exit()
         # set and check conserved codon positions
-        tmp_gl_positions = {'v' : self.glfo['cyst-positions'], 'j' : self.glfo['tryp-positions']}  # hack hack hack
         codon_positions = {}
-        for region in ['v', 'j']:
-            pos = tmp_gl_positions[region][best[region]] - qinfo['glbounds'][best[region]][0] + qinfo['qrbounds'][best[region]][0]  # position within original germline gene, minus the position in that germline gene at which the match starts, plus the position in the query sequence at which the match starts
+        for region, codon in utils.conserved_codons[self.args.chain].items():
+            # position within original germline gene, minus the position in that germline gene at which the match starts, plus the position in the query sequence at which the match starts
+            pos = self.glfo[codon + '-positions'][best[region]] - qinfo['glbounds'][best[region]][0] + qinfo['qrbounds'][best[region]][0]
             if pos < 0 or pos >= len(qinfo['seq']):
                 if self.debug:
-                    print '      invalid %s codon position (%d in seq of length %d), rerunning' % (region, pos, len(qinfo['seq']))
+                    print '      invalid %s codon position (%d in seq of length %d), rerunning' % (codon, pos, len(qinfo['seq']))
                 queries_to_rerun['invalid-codon'].add(qname)
                 return
             codon_positions[region] = pos

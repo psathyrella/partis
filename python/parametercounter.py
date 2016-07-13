@@ -90,14 +90,14 @@ class ParameterCounter(object):
                 utils.prep_dir(thisplotdir, wildlings=['*.csv', '*.svg'])
 
     # ----------------------------------------------------------------------------------------
-    def plot(self, plotdir, subset_by_gene=False, cyst_positions=None, tryp_positions=None, only_csv=False):
+    def plot(self, plotdir, subset_by_gene=False, codon_positions=None, only_csv=False):
         print '  plotting parameters',
         sys.stdout.flush()
         start = time.time()
 
         self.clean_plots(plotdir, subset_by_gene)
 
-        self.mfreqer.plot(plotdir + '/mute-freqs', cyst_positions, tryp_positions, only_csv=only_csv)  #, mean_freq_outfname=base_outdir + '/REGION-mean-mute-freqs.csv')  # REGION is replace by each region in the three output files
+        self.mfreqer.plot(plotdir + '/mute-freqs', codon_positions, only_csv=only_csv)  #, mean_freq_outfname=base_outdir + '/REGION-mean-mute-freqs.csv')  # REGION is replace by each region in the three output files
 
         overall_plotdir = plotdir + '/overall'
 
