@@ -11,6 +11,8 @@ RUN apt-get install -y scons gcc g++ zlib1g-dev libpthread-stubs0-dev
 
 ADD . /ig-sw/
 WORKDIR "ig-sw/src/ig_align/"
-RUN ls
 RUN scons
-RUN ./ig-sw --help
+WORKDIR "/ig-sw/src/"
+RUN g++ test.cpp -lz
+RUN ./a.out
+WORKDIR "/ig-sw/"
