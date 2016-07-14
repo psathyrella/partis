@@ -51,7 +51,7 @@ ig-sw uses the [tclap](http://tclap.sourceforge.net/) command line interface.
 | -d --max-drop   | Max drop                                 | 1000          |
 | -s --min-score  | Min score                                | 0             |
 | -b --bandwidth  | Bandwidth                                | 150           |
-| -j --threads    | Number of threads                        | 1`            |
+| -j --threads    | Number of threads                        | 1             |
 
 
 ## Workflow

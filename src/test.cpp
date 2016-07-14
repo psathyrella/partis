@@ -11,7 +11,7 @@ the results from ighutil
 #include "catch.hpp"
 
 #include "ig_align/ig_align.h"
-#include "kseq.h"
+#include "ig_align/kseq.h"
 #include <fstream>
 #include <iostream>
 #include <stdio.h>
