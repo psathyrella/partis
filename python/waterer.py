@@ -58,8 +58,8 @@ class Waterer(object):
         if self.args.plot_performance:
             self.perfplotter = PerformancePlotter(self.glfo, 'sw')
 
-        if not os.path.exists(self.args.ighutil_dir + '/bin/vdjalign'):
-            raise Exception('ERROR ighutil path d.n.e: ' + self.args.ighutil_dir + '/bin/vdjalign')
+        if not os.path.exists(self.args.ig_sw_dir + 'ig-sw'):
+            raise Exception('ERROR ig-sw path d.n.e: ' + self.args.ig_sw_dir + 'ig-sw')
 
     # ----------------------------------------------------------------------------------------
     def run(self):
