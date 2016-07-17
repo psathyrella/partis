@@ -9,6 +9,7 @@ import operator
 import pysam
 import contextlib
 from collections import OrderedDict
+import csv
 
 import utils
 import glutils
@@ -130,6 +131,19 @@ class Waterer(object):
                 self.true_pcounter.write(self.parameter_dir + '-true')
 
         self.info['remaining_queries'] = self.remaining_queries
+
+        if self.args.sw_outfname is not None:
+            with open(self.args.sw_outfname, 'w') as outfile:
+                writer = csv.DictWriter(outfile, utils.annotation_headers)
+                writer.writeheader()
+                missing_input_keys = set(self.input_info.keys())  # all the keys we originially read from the file
+                for query in self.info['queries']:
+                    missing_input_keys.remove(query)
+                    print self.info[query]['padded']
+                    outline = utils.synthesize_multi_seq_line(self.glfo, self.info[query], {'unique_ids' : [query, ], 'seqs' : [self.info[query]['seq'], ], 'indelfos' : [self.info['indels'].get(query, utils.get_empty_indel()), ]})
+                    outline = utils.get_line_for_output(outline)  # convert lists to colon-separated strings and whatnot (doens't modify input dictionary)
+                    outline = {k : v for k, v in outline.items() if k in utils.annotation_headers}  # remove the columns we don't want to output
+                    writer.writerow(outline)
 
     # ----------------------------------------------------------------------------------------
     def subworkdir(self, iproc, n_procs):

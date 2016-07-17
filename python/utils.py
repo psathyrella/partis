@@ -205,6 +205,15 @@ multi_per_seq_implicit_columns = set(list(common_implicit_columns) + [k + 's' fo
 single_per_seq_implicit_columns |= common_implicit_columns  # NOTE careful! kind of a weird initialization sequence here
 
 # ----------------------------------------------------------------------------------------
+annotation_headers = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'mut_freqs', 'seqs', 'naive_seq', 'indelfos'] \
+                     + ['aligned_' + r + '_seqs' for r in regions] \
+                     + [r + '_per_gene_support' for r in regions] \
+                     + [e + '_del' for e in real_erosions + effective_erosions] + [b + '_insertion' for b in boundaries + effective_boundaries] \
+                     + [fc + 's' for fc in functional_columns] \
+                     + ['padlefts', 'padrights']
+partition_cachefile_headers = ('unique_ids', 'logprob', 'naive_seq', 'naive_hfrac', 'errors')  # these have to match whatever bcrham is expecting
+
+# ----------------------------------------------------------------------------------------
 def get_implicit_keys(multi_seq):
     if multi_seq:
         return multi_per_seq_implicit_columns

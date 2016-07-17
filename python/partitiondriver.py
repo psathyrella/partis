@@ -66,14 +66,6 @@ class PartitionDriver(object):
             if outdir != '' and not os.path.exists(outdir):
                 os.makedirs(outdir)
 
-        self.annotation_headers = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'mut_freqs', 'seqs', 'naive_seq', 'indelfos'] \
-                                  + ['aligned_' + r + '_seqs' for r in utils.regions] \
-                                  + [r + '_per_gene_support' for r in utils.regions] \
-                                  + [e + '_del' for e in utils.real_erosions + utils.effective_erosions] + [b + '_insertion' for b in utils.boundaries + utils.effective_boundaries] \
-                                  + [fc + 's' for fc in utils.functional_columns] \
-                                  + ['padlefts', 'padrights']
-
-        self.partition_cachefile_headers = ('unique_ids', 'logprob', 'naive_seq', 'naive_hfrac', 'errors')  # these have to match whatever bcrham is expecting
         self.deal_with_persistent_cachefile()
 
         self.aligned_gl_seqs = None
@@ -111,11 +103,11 @@ class PartitionDriver(object):
 
         with open(self.args.persistent_cachefname) as cachefile:
             reader = csv.DictReader(cachefile)
-            if set(reader.fieldnames) == set(self.annotation_headers):
+            if set(reader.fieldnames) == set(utils.annotation_headers):
                 raise Exception('doesn\'t work yet')
                 print '  parsing annotation output file %s to partition cache file %s' % (self.args.persistent_cachefname, self.hmm_cachefname)
                 with open(self.hmm_cachefname, 'w') as outcachefile:
-                    writer = csv.DictWriter(outcachefile, self.partition_cachefile_headers)
+                    writer = csv.DictWriter(outcachefile, utils.partition_cachefile_headers)
                     writer.writeheader()
                     for line in reader:
                         if line['v_gene'] == '':  # failed
@@ -123,7 +115,7 @@ class PartitionDriver(object):
                         utils.process_input_line(line)
                         outrow = {'unique_ids' : line['unique_ids'], 'naive_seq' : line['padlefts'][0] * utils.ambiguous_bases[0] + line['naive_seq'] + line['padrights'][0] * utils.ambiguous_bases[0]}
                         writer.writerow(outrow)
-            elif set(reader.fieldnames) == set(self.partition_cachefile_headers):  # headers are ok, so can just copy straight over
+            elif set(reader.fieldnames) == set(utils.partition_cachefile_headers):  # headers are ok, so can just copy straight over
                 check_call(['cp', '-v', self.args.persistent_cachefname, self.hmm_cachefname])
             else:
                 raise Exception('--persistent-cachefname %s has unexpected header list %s' % (self.args.persistent_cachefname, reader.fieldnames))
@@ -1011,7 +1003,7 @@ class PartitionDriver(object):
 
         print '      caching fake true naive seqs'
         with open(self.hmm_cachefname, 'w') as fakecachefile:
-            writer = csv.DictWriter(fakecachefile, self.partition_cachefile_headers)
+            writer = csv.DictWriter(fakecachefile, utils.partition_cachefile_headers)
             writer.writeheader()
             for query_name_list in nsets:
                 writer.writerow({
@@ -1330,7 +1322,7 @@ class PartitionDriver(object):
             outpath = os.getcwd() + '/' + outpath
 
         with open(outpath, 'w') as outfile:
-            writer = csv.DictWriter(outfile, self.annotation_headers)
+            writer = csv.DictWriter(outfile, utils.annotation_headers)
             writer.writeheader()
             missing_input_keys = set(self.input_info.keys())  # all the keys we originially read from the file
             for full_line in annotations.values():
@@ -1340,7 +1332,7 @@ class PartitionDriver(object):
                     missing_input_keys.remove(uid)
 
                 outline = utils.get_line_for_output(outline)  # convert lists to colon-separated strings and whatnot
-                outline = {k : v for k, v in outline.items() if k in self.annotation_headers}  # remove the columns we don't want to output
+                outline = {k : v for k, v in outline.items() if k in utils.annotation_headers}  # remove the columns we don't want to output
 
                 writer.writerow(outline)
 
