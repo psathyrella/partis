@@ -123,9 +123,9 @@ class Waterer(object):
 
         if self.pcounter is not None:
             if self.args.plotdir is not None:
-                self.pcounter.plot(self.args.plotdir + '/sw', subset_by_gene=True, codon_positions={r : self.glfo[c + '-positions'] for r, c in utils.conserved_codons.items()}, only_csv=self.args.only_csv_plots)
+                self.pcounter.plot(self.args.plotdir + '/sw', subset_by_gene=True, codon_positions={r : self.glfo[c + '-positions'] for r, c in utils.conserved_codons[self.args.chain].items()}, only_csv=self.args.only_csv_plots)
                 if self.true_pcounter is not None:
-                    self.true_pcounter.plot(self.args.plotdir + '/sw-true', subset_by_gene=True, codon_positions={r : self.glfo[c + '-positions'] for r, c in utils.conserved_codons.items()}, only_csv=self.args.only_csv_plots)
+                    self.true_pcounter.plot(self.args.plotdir + '/sw-true', subset_by_gene=True, codon_positions={r : self.glfo[c + '-positions'] for r, c in utils.conserved_codons[self.args.chain].items()}, only_csv=self.args.only_csv_plots)
             self.pcounter.write(self.parameter_dir, self.my_datadir)
             if self.true_pcounter is not None:
                 self.true_pcounter.write(self.parameter_dir + '-true')
@@ -133,6 +133,7 @@ class Waterer(object):
         self.info['remaining_queries'] = self.remaining_queries
 
         if self.args.sw_outfname is not None:
+            assert False  # TODO fix
             with open(self.args.sw_outfname, 'w') as outfile:
                 writer = csv.DictWriter(outfile, utils.annotation_headers)
                 writer.writeheader()
@@ -205,7 +206,8 @@ class Waterer(object):
                         continue
                     sub_infile.write('>' + query_name + ' NUKES\n')
 
-                    seq = self.input_info[query_name]['seq']
+                    assert len(self.input_info[query_name]['seqs']) == 1  # sw can't handle multiple simultaneous sequences, but it's nice to have the same headers/keys everywhere, so we use the plural versions (with lists) even here
+                    seq = self.input_info[query_name]['seqs'][0]
                     if query_name in self.info['indels']:
                         seq = self.info['indels'][query_name]['reversed_seq']  # use the query sequence with shm insertions and deletions reversed
                     sub_infile.write(seq + '\n')
@@ -347,7 +349,6 @@ class Waterer(object):
             for idl in indelfo['indels']:
                 print '          %10s: %d bases at %d (%s)' % (idl['type'], idl['len'], idl['pos'], idl['seqstr'])
         # utils.undo_indels(indelfo)
-        # print '                       %s' % self.input_info[query_name]['seq']
 
         return indelfo
 
@@ -547,7 +548,7 @@ class Waterer(object):
 
         self.info['queries'].append(qname)
         self.info[qname] = {}
-        self.info[qname]['unique_id'] = qname  # redundant, but used somewhere down the line
+        self.info[qname]['unique_ids'] = [qname, ]  # redundant, but used somewhere down the line
 
         kbounds = self.get_kbounds(qinfo, best)
         self.info[qname]['k_v'] = kbounds['v']
@@ -571,17 +572,17 @@ class Waterer(object):
         self.info[qname]['dj_insertion'] = qinfo['seq'][qinfo['qrbounds'][best['d']][1] : qinfo['qrbounds'][best['j']][0]]
         self.info[qname]['jf_insertion'] = qinfo['seq'][qinfo['qrbounds'][best['j']][1] : ]
 
-        self.info[qname]['indelfo'] = self.info['indels'].get(qname, utils.get_empty_indel())
+        self.info[qname]['indelfos'] = [self.info['indels'].get(qname, utils.get_empty_indel()), ]
 
         for region in utils.regions:
             self.info[qname][region + '_gene'] = best[region]
             self.info['all_best_matches'].add(best[region])
             self.info['all_matches'][region] |= set(match_names[region])
 
-        self.info[qname]['seq'] = qinfo['seq']  # NOTE this is the seq output by vdjalign, i.e. if we reversed any indels it is the reversed sequence
+        self.info[qname]['seqs'] = [qinfo['seq'], ]  # NOTE this is the seq output by vdjalign, i.e. if we reversed any indels it is the reversed sequence
 
         existing_implicit_keys = tuple(['cdr3_length', 'codon_positions'])
-        utils.add_implicit_info(self.glfo, self.info[qname], multi_seq=False, existing_implicit_keys=existing_implicit_keys)
+        utils.add_implicit_info(self.glfo, self.info[qname], multi_seq=True, existing_implicit_keys=existing_implicit_keys)
 
         if self.debug:
             if not self.args.is_data:
@@ -591,9 +592,9 @@ class Waterer(object):
         if self.alfinder is not None:
             self.alfinder.increment(self.info[qname])
         if self.pcounter is not None:
-            self.pcounter.increment_all_params(self.info[qname])
+            self.pcounter.increment(self.info[qname])
             if self.true_pcounter is not None:
-                self.true_pcounter.increment_all_params(self.reco_info[qname])
+                self.true_pcounter.increment(self.reco_info[qname])
         if self.perfplotter is not None:
             if qname in self.info['indels']:
                 print '    skipping performance evaluation of %s because of indels' % qname  # I just have no idea how to handle naive hamming fraction when there's indels
@@ -609,13 +610,14 @@ class Waterer(object):
         If not, return without calling add_to_info().
         """
         qname = qinfo['name']
+        qseq = qinfo['seq']
         assert qname not in self.info
 
         if self.debug >= 2:
             print qname
             for region in utils.regions:
                 for score, gene in qinfo['matches'][region]:  # sorted by decreasing match quality
-                    self.print_match(region, gene, score, qinfo['seq'], qinfo['glbounds'][gene], qinfo['qrbounds'][gene], skipping=False)
+                    self.print_match(region, gene, score, qseq, qinfo['glbounds'][gene], qinfo['qrbounds'][gene], skipping=False)
 
         if qinfo['new_indel']:
             if self.debug:
@@ -660,15 +662,15 @@ class Waterer(object):
         for region, codon in utils.conserved_codons[self.args.chain].items():
             # position within original germline gene, minus the position in that germline gene at which the match starts, plus the position in the query sequence at which the match starts
             pos = self.glfo[codon + '-positions'][best[region]] - qinfo['glbounds'][best[region]][0] + qinfo['qrbounds'][best[region]][0]
-            if pos < 0 or pos >= len(qinfo['seq']):
+            if pos < 0 or pos >= len(qseq):
                 if self.debug:
-                    print '      invalid %s codon position (%d in seq of length %d), rerunning' % (codon, pos, len(qinfo['seq']))
+                    print '      invalid %s codon position (%d in seq of length %d), rerunning' % (codon, pos, len(qseq))
                 queries_to_rerun['invalid-codon'].add(qname)
                 return
             codon_positions[region] = pos
 
         # check for unproductive rearrangements
-        codons_ok = utils.both_codons_ok(self.args.chain, qinfo['seq'], codon_positions)
+        codons_ok = utils.both_codons_ok(self.args.chain, qseq, codon_positions)
         cdr3_length = codon_positions['j'] - codon_positions['v'] + 3
 
         if cdr3_length < 6:  # NOTE six is also hardcoded in utils
@@ -678,7 +680,7 @@ class Waterer(object):
             return
 
         in_frame_cdr3 = (cdr3_length % 3 == 0)
-        no_stop_codon = utils.stop_codon_check(qinfo['seq'], codon_positions['v'])
+        no_stop_codon = utils.stop_codon_check(qseq, codon_positions['v'])
         if not codons_ok or not in_frame_cdr3 or not no_stop_codon:
             if self.debug:
                 print '       unproductive rearrangement:',
@@ -769,7 +771,7 @@ class Waterer(object):
             # Since we only store j_3p_del for the best match, we can't loop over all of 'em. But j stuff doesn't vary too much, so it works ok.
             cpos = swfo['codon_positions']['v']  # cyst position in query sequence (as opposed to gl_cpos, which is in germline allele)
             jfstuff = max(0, len(swfo['jf_insertion']) - swfo['j_3p_del'])
-            gl_cpos_to_j_end = len(swfo['seq']) - cpos + swfo['j_3p_del'] + jfstuff
+            gl_cpos_to_j_end = len(swfo['seqs'][0]) - cpos + swfo['j_3p_del'] + jfstuff
             if maxima['gl_cpos_to_j_end'] is None or gl_cpos_to_j_end > maxima['gl_cpos_to_j_end']:
                 maxima['gl_cpos_to_j_end'] = gl_cpos_to_j_end
 
@@ -794,7 +796,7 @@ class Waterer(object):
             swfo = self.info[query]
             if 'padded' in swfo:  # already added padded information (we're probably partitioning, and this is not the first step)
                 return
-            seq = swfo['seq']
+            seq = swfo['seqs'][0]
             cpos = swfo['codon_positions']['v']
             if cpos < 0 or cpos >= len(seq):
                 print 'hm now what do I want to do here?'

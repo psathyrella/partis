@@ -21,12 +21,12 @@ class MuteFreqer(object):
         self.n_cached, self.n_not_cached = 0, 0
 
     # ----------------------------------------------------------------------------------------
-    def increment(self, info):
-        self.mean_rates['all'].fill(utils.get_mutation_rate(info))  # mean freq over whole sequence (excluding insertions)
+    def increment(self, info, iseq):
+        self.mean_rates['all'].fill(utils.get_mutation_rate(info, iseq))  # mean freq over whole sequence (excluding insertions)
 
         for region in utils.regions:
             # first do mean freqs
-            regional_freq = utils.get_mutation_rate(info, restrict_to_region=region)
+            regional_freq = utils.get_mutation_rate(info, iseq, restrict_to_region=region)
             self.mean_rates[region].fill(regional_freq)  # per-region mean freq
 
             # then do per-gene per-position freqs
@@ -36,8 +36,9 @@ class MuteFreqer(object):
                 self.counts[gene] = {}
             gcts = self.counts[gene]  # shorthand name
 
+            assert len(info[region + '_qr_seqs']) == 1  # not yet handled
             germline_seq = info[region + '_gl_seq']
-            query_seq = info[region + '_qr_seq']
+            query_seq = info[region + '_qr_seqs'][0]
             assert len(germline_seq) == len(query_seq)
 
             for ipos in range(len(germline_seq)):

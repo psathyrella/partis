@@ -435,7 +435,7 @@ class PartitionDriver(object):
             for key in self.sw_info['queries']:
                 # padded sequence is here: self.sw_info[key]['padded']['seq']
                 # but this should be un-padded
-                seq = self.input_info[key]['seq']  # TODO hm, should this be from sw_info?
+                seq = self.input_info[key]['seqs'][0]  # TODO hm, should this be from sw_info?  UPDATE should always be length 1
                 total += float(len(seq))
             mean_length = total / len(self.input_info)  # TODO hm, should this be from sw_info?
             raise Exception('update for new thresholds')
@@ -969,7 +969,7 @@ class PartitionDriver(object):
                 seq = swfo['seq']
             k_d = swfo['k_d']  # don't need to adjust k_d for padding
             combo['seqs'].append(seq)
-            combo['mute-freqs'].append(utils.get_mutation_rate(swfo))
+            combo['mute-freqs'].append(utils.get_mutation_rate(swfo, iseq=0))
             combo['k_v']['min'] = min(k_v['min'], combo['k_v']['min'])
             combo['k_v']['max'] = max(k_v['max'], combo['k_v']['max'])
             combo['k_d']['min'] = min(k_d['min'], combo['k_d']['min'])
@@ -1210,16 +1210,12 @@ class PartitionDriver(object):
                 n_events_processed += 1
 
                 if pcounter is not None:
-                    pcounter.increment_per_family_params(line_to_use)
+                    pcounter.increment(line_to_use)
                 if true_pcounter is not None:
-                    true_pcounter.increment_per_family_params(self.reco_info[uids[0]])  # NOTE doesn't matter which id you pass it, since they all have the same reco parameters
+                    true_pcounter.increment(self.reco_info[uids[0]])  # NOTE doesn't matter which id you pass it, since they all have the same reco parameters
 
                 for iseq in range(len(uids)):
-                    singlefo = utils.synthesize_single_seq_line(line_to_use, iseq)
-                    if pcounter is not None:
-                        pcounter.increment_per_sequence_params(singlefo)
-                    if true_pcounter is not None:
-                        true_pcounter.increment_per_sequence_params(self.reco_info[uids[iseq]])
+                    singlefo = utils.NEW_synthesize_single_seq_line(line_to_use, iseq)
                     if perfplotter is not None:
                         if uids[iseq] in self.sw_info['indels']:
                             print '    skipping performance evaluation of %s because of indels' % uids[iseq]  # I just have no idea how to handle naive hamming fraction when there's indels
@@ -1230,11 +1226,11 @@ class PartitionDriver(object):
         # parameter and performance writing/plotting
         if pcounter is not None:
             if self.args.plotdir is not None:
-                pcounter.plot(self.args.plotdir + '/hmm', subset_by_gene=True, cyst_positions=self.glfo['cyst-positions'], tryp_positions=self.glfo['tryp-positions'], only_csv=self.args.only_csv_plots)
+                pcounter.plot(self.args.plotdir + '/hmm', subset_by_gene=True, codon_positions={r : self.glfo[c + '-positions'] for r, c in utils.conserved_codons[self.args.chain].items()}, only_csv=self.args.only_csv_plots)
             pcounter.write(parameter_out_dir, self.my_datadir)
         if true_pcounter is not None:
             if self.args.plotdir is not None:
-                true_pcounter.plot(self.args.plotdir + '/hmm-true', subset_by_gene=True, cyst_positions=self.glfo['cyst-positions'], tryp_positions=self.glfo['tryp-positions'], only_csv=self.args.only_csv_plots)
+                true_pcounter.plot(self.args.plotdir + '/hmm-true', subset_by_gene=True, codon_positions={r : self.glfo[c + '-positions'] for r, c in utils.conserved_codons[self.args.chain].items()}, only_csv=self.args.only_csv_plots)
             true_pcounter.write(parameter_out_dir + '-true')
         if perfplotter is not None:
             perfplotter.plot(self.args.plotdir + '/hmm', only_csv=self.args.only_csv_plots)
@@ -1307,6 +1303,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def print_performance_info(self, line, perfplotter=None):
+        assert False  # TODO fix
         true_line = self.reco_info[line['unique_id']]
         genes_ok = ['ok'  if (line[region+'_gene'] == true_line[region+'_gene']) else 'no' for region in utils.regions]
         print '         v  d  j   hamming      erosions      insertions'

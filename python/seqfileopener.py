@@ -124,7 +124,7 @@ def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, 
         if seed_unique_id is not None and unique_id == seed_unique_id:
             found_seed = True
 
-        input_info[unique_id] = {'unique_id' : unique_id, 'seq' : line[internal_seq_column]}
+        input_info[unique_id] = {'unique_ids' : [unique_id, ], 'seqs' : [line[internal_seq_column], ]}
 
         if n_queries == 0 and is_data and 'v_gene' in line:
             print '  note: found simulation info in %s -- are you sure you didn\'t mean to set --is-simu?' % fname
@@ -133,9 +133,10 @@ def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, 
             if 'v_gene' not in line:
                 raise Exception('simulation info not found in %s' % fname)
             reco_info[unique_id] = copy.deepcopy(line)
-            reco_info[unique_id]['unique_id'] = unique_id  # in case we're abbreviating
+            utils.TMP_convert_old_sim_headers(reco_info[unique_id])
+            reco_info[unique_id]['unique_ids'] = [unique_id, ]  # in case we're abbreviating
             if glfo is not None:
-                utils.add_implicit_info(glfo, reco_info[unique_id], multi_seq=False, existing_implicit_keys=('cdr3_length', ))  # single seqs, since each seq is on its own line in the file
+                utils.add_implicit_info(glfo, reco_info[unique_id], multi_seq=True, existing_implicit_keys=('cdr3_length', ))
 
         n_queries += 1
         if n_max_queries > 0 and n_queries >= n_max_queries:

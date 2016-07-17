@@ -42,17 +42,17 @@ class ParameterCounter(object):
         return tuple(index)
 
     # ----------------------------------------------------------------------------------------
-    def increment_all_params(self, info):
-        self.increment_per_sequence_params(info)
+    def increment(self, info):
         self.increment_per_family_params(info)
+        for iseq in range(len(info['seqs'])):
+            self.increment_per_sequence_params(info, iseq)
 
     # ----------------------------------------------------------------------------------------
-    def increment_per_sequence_params(self, info):
+    def increment_per_sequence_params(self, info, iseq):
         """ increment parameters that differ for each sequence within the clonal family """
         self.mute_total += 1
-        self.mfreqer.increment(info)
-        seq = info['seq']
-        for nuke in seq:
+        self.mfreqer.increment(info, iseq)
+        for nuke in info['seqs'][iseq]:
             if nuke in utils.ambiguous_bases:
                 continue
             self.counts['seq_content'][nuke] += 1

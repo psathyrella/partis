@@ -182,6 +182,7 @@ column_configs = {
 
 # NOTE calling this "columns" is kind of bad, because other things already have similar names. But, sigh, it's probably the best option a.t.m.
 # keep track of all the *@*@$!ing different keys that happen in the <line>/<hmminfo>/whatever dictionaries
+print 'TODO clean the fuck out of this stuff'
 xcolumns = {}
 xcolumns['per_family'] = tuple(['naive_seq', 'cdr3_length', 'codon_positions', 'lengths', 'regional_bounds'] + \
                                [g + '_gene' for g in regions] + \
@@ -191,6 +192,10 @@ xcolumns['per_family'] = tuple(['naive_seq', 'cdr3_length', 'codon_positions', '
                                [r + '_per_gene_support' for r in regions])
 xcolumns['single_per_seq'] = tuple(['seq', 'unique_id', 'indelfo', 'mut_freq'] + [r + '_qr_seq' for r in regions] + ['aligned_' + r + '_seq' for r in regions] + functional_columns)  # + ['padleft', 'padright'])
 xcolumns['multi_per_seq'] = tuple([k + 's' for k in xcolumns['single_per_seq']])
+xcolumns['per_seq'] = tuple(['seqs', 'unique_ids', 'indelfos', 'mut_freqs'] + \
+                            [r + '_qr_seq' for r in regions] + \
+                            ['aligned_' + r + '_seq' for r in regions] + \
+                            functional_columns)  # + ['padleft', 'padright'])
 xcolumns['hmm'] = tuple(['logprob', 'errors', 'nth_best'])
 xcolumns['sw'] = tuple(['k_v', 'k_d', 'all'])
 xcolumns['extra'] = tuple(['invalid', ])
@@ -203,6 +208,13 @@ common_implicit_columns = set(['naive_seq', 'cdr3_length', 'codon_positions', 'l
 single_per_seq_implicit_columns = set(['mut_freq', ] + functional_columns + [r + '_qr_seq' for r in regions] + ['aligned_' + r + '_seq' for r in regions])
 multi_per_seq_implicit_columns = set(list(common_implicit_columns) + [k + 's' for k in single_per_seq_implicit_columns])
 single_per_seq_implicit_columns |= common_implicit_columns  # NOTE careful! kind of a weird initialization sequence here
+
+# ----------------------------------------------------------------------------------------
+def TMP_convert_old_sim_headers(line):
+    for key in line:
+        if key in xcolumns['single_per_seq']:
+            line[key + 's'] = [line[key], ]
+            del line[key]
 
 # ----------------------------------------------------------------------------------------
 annotation_headers = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'mut_freqs', 'seqs', 'naive_seq', 'indelfos'] \
@@ -766,10 +778,12 @@ def print_true_events(glfo, reco_info, line, print_uid=False):
     """ print the true events which contain the seqs in <line> """
     true_naive_seqs = []
     for uids in get_true_partition(reco_info, ids=line['unique_ids']):  # make a multi-seq line that has all the seqs from this clonal family
-        seqs = [reco_info[iid]['seq'] for iid in uids]
-        indelfos = [reco_info[iid]['indelfo'] for iid in uids]
+        for iid in uids:  # TODO remove this
+            assert len(reco_info[iid]['seqs']) == 1
+        seqs = [reco_info[iid]['seqs'][0] for iid in uids]
+        indelfos = [reco_info[iid]['indelfos'][0] for iid in uids]
         per_seq_info = {'unique_ids' : uids, 'seqs' : seqs, 'indelfos' : indelfos}
-        synthetic_true_line = synthesize_multi_seq_line(glfo, reco_info[uids[0]], per_seq_info)
+        synthetic_true_line = NEW_synthesize_multi_seq_line(glfo, reco_info[uids[0]], per_seq_info)
         print_reco_event(glfo['seqs'], synthetic_true_line, extra_str='    ', label='true:', print_uid=print_uid)
         true_naive_seqs.append(synthetic_true_line['naive_seq'])
 
@@ -1388,9 +1402,9 @@ def merge_csvs(outfname, csv_list, cleanup=True):
             writer.writerow(line)
 
 # ----------------------------------------------------------------------------------------
-def get_mutation_rate(line, restrict_to_region='', return_len_excluding_ambig=False, debug=False):
+def get_mutation_rate(line, iseq, restrict_to_region='', return_len_excluding_ambig=False, debug=False):
     naive_seq = line['naive_seq']  # NOTE this includes the fv and jf insertions
-    muted_seq = line['seq']
+    muted_seq = line['seqs'][iseq]
     if restrict_to_region != '':  # NOTE this is very similar to code in performanceplotter. I should eventually cut it out of there and combine them, but I'm nervous a.t.m. because of all the complications there of having the true *and* inferred sequences so I'm punting
         bounds = line['regional_bounds'][restrict_to_region]
         naive_seq = naive_seq[bounds[0] : bounds[1]]
@@ -1949,6 +1963,14 @@ def synthesize_single_seq_line(line, iseq):
     return hmminfo
 
 # ----------------------------------------------------------------------------------------
+def NEW_synthesize_single_seq_line(line, iseq):
+    """ without modifying <line>, make a copy of it corresponding to a single-sequence event with the <iseq>th sequence """
+    hmminfo = copy.deepcopy(line)  # make a copy of the info, into which we'll insert the sequence-specific stuff
+    for col in xcolumns['multi_per_seq']:
+        hmminfo[col] = [hmminfo[col][iseq], ]
+    return hmminfo
+
+# ----------------------------------------------------------------------------------------
 def synthesize_multi_seq_line(glfo, single_seq_line, per_seq_info):
     """ without modifying <line>, make a multi_seq line from the single seq <line> """
     hmminfo = copy.deepcopy(single_seq_line)
@@ -1960,6 +1982,20 @@ def synthesize_multi_seq_line(glfo, single_seq_line, per_seq_info):
         hmminfo[col] = copy.deepcopy(per_seq_info[col])
         del hmminfo[col[:-1]]  # remove the 's' at the end to get the single seq key
     add_implicit_info(glfo, hmminfo, multi_seq=True)
+    return hmminfo
+
+# ----------------------------------------------------------------------------------------
+def NEW_synthesize_multi_seq_line(glfo, single_seq_line, per_seq_info):
+    """ without modifying <line>, make a multi_seq line from the single seq <line> """
+    hmminfo = copy.deepcopy(single_seq_line)
+    # remove_all_implicit_info(hmminfo, multi_seq=True)
+    non_implicit_columns = set(xcolumns['multi_per_seq']) - multi_per_seq_implicit_columns  # a.t.m. it's just 'seqs' and 'unique_ids' and 'indelfos'
+    if set(per_seq_info.keys()) != non_implicit_columns:
+        raise Exception('passed per_seq_info keys (%s) don\'t match expectation (%s)' % (' '.join(per_seq_info.keys()), ' '.join(non_implicit_columns)))
+    for col in non_implicit_columns:
+        hmminfo[col] = copy.deepcopy(per_seq_info[col])
+        # del hmminfo[col[:-1]]  # remove the 's' at the end to get the single seq key
+    # add_implicit_info(glfo, hmminfo, multi_seq=True)
     return hmminfo
 
 # ----------------------------------------------------------------------------------------

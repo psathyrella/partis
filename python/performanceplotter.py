@@ -46,7 +46,7 @@ class PerformancePlotter(object):
             self.hists[region + '_allele_wrong_vs_per_gene_support'] = Hist(25, 0., 1.)
 
     # ----------------------------------------------------------------------------------------
-    def hamming_distance_to_true_naive(self, true_line, line, query_name, restrict_to_region='', normalize=False, padfo=None, debug=False):
+    def hamming_distance_to_true_naive(self, true_line, line, restrict_to_region='', normalize=False, padfo=None, debug=False):
         """
         Hamming distance between the inferred naive sequence and the tue naive sequence.
         <restrict_to_region> if set, restrict the comparison to the section of the *true* sequence assigned to the given region.
@@ -114,7 +114,7 @@ class PerformancePlotter(object):
             inferred_naive_seq = inferred_naive_seq[bounds[0] : bounds[1]]
 
         if len(true_naive_seq) != len(inferred_naive_seq):
-            raise Exception('still not the same lengths for %s\n  %s\n  %s' % (query_name, true_naive_seq, inferred_naive_seq))
+            raise Exception('still not the same lengths for %s\n  %s\n  %s' % (line['unique_ids'][0], true_naive_seq, inferred_naive_seq))
         fraction, len_excluding_ambig = utils.hamming_fraction(true_naive_seq, inferred_naive_seq, return_len_excluding_ambig=True)
         total_distance = int(fraction * len_excluding_ambig)
         if len(true_naive_seq) == 0:
@@ -156,7 +156,7 @@ class PerformancePlotter(object):
     def add_partial_fail(self, true_line, line):
         # NOTE does not fill all the hists ('cause it kind of can't, right?)
 
-        overall_mute_freq = utils.get_mutation_rate(true_line)  # true value
+        overall_mute_freq = utils.get_mutation_rate(true_line, iseq=0)  # true value
 
         for column in self.values:
             if column in bool_columns:
@@ -172,7 +172,7 @@ class PerformancePlotter(object):
     # ----------------------------------------------------------------------------------------
     def evaluate(self, true_line, inf_line, padfo=None):
 
-        overall_mute_freq = utils.get_mutation_rate(true_line)  # true value
+        overall_mute_freq = utils.get_mutation_rate(true_line, iseq=0)  # true value
 
         for column in self.values:
             if self.only_correct_gene_fractions and column not in bool_columns:
@@ -192,7 +192,7 @@ class PerformancePlotter(object):
                     trueval = 0  # NOTE this is a kind of weird way to do it, since diff ends up as really just the guessval, but it does the job
                     restrict_to_region = column[0].replace('h', '')  # if fist char in <column> is not an 'h', restrict to that region
                     normalize = '_norm' in column
-                    guessval = self.hamming_distance_to_true_naive(true_line, inf_line, inf_line['unique_id'], restrict_to_region=restrict_to_region, normalize=normalize, padfo=padfo)
+                    guessval = self.hamming_distance_to_true_naive(true_line, inf_line, restrict_to_region=restrict_to_region, normalize=normalize, padfo=padfo)
                 else:
                     trueval = int(true_line[column])
                     guessval = int(inf_line[column])
@@ -213,8 +213,8 @@ class PerformancePlotter(object):
                 region = re.findall('[vdj]_', column)[0][0]
             else:
                 region = ''
-            trueval = utils.get_mutation_rate(true_line, restrict_to_region=region)
-            guessval = utils.get_mutation_rate(inf_line, restrict_to_region=region)
+            trueval = utils.get_mutation_rate(true_line, iseq=0, restrict_to_region=region)
+            guessval = utils.get_mutation_rate(inf_line, iseq=0, restrict_to_region=region)
             self.hists[column].fill(guessval - trueval)
 
     # ----------------------------------------------------------------------------------------

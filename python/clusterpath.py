@@ -325,5 +325,6 @@ class ClusterPath(object):
         iclust = 0
         for cluster in self.partitions[self.i_best]:
             for uid in cluster:
-                outfile.write('>%s|CLONE=%d\n%s\n' % (uid, iclust, input_info[uid]['seq']))
+                assert len(input_info[uid]['seqs'][0]) == 1
+                outfile.write('>%s|CLONE=%d\n%s\n' % (uid, iclust, input_info[uid]['seqs'][0]))
             iclust += 1
