@@ -175,8 +175,7 @@ class HmmWriter(object):
         self.germline_seq = self.germline_seqs[self.region][gene_name]  # germline sequence for this hmm
         self.indir = base_indir
         self.args = args
-        self.cyst_positions = glfo['cyst-positions']
-        self.tryp_positions = glfo['tryp-positions']
+        self.codon_positions = {r : glfo[c + '-positions'] for r, c in utils.conserved_codons[args.chain].items()}
 
         # parameters with values that I more or less made up
         self.precision = '16'  # number of digits after the decimal for probabilities
@@ -481,11 +480,11 @@ class HmmWriter(object):
         else:  # but for fv and jf, use the relative germline allele lengths
             lengths = []
             if insertion == 'fv':  # use the mean difference between other V gene cdr3 positions and ours (or zero, if its negative, i.e. if this V gene is really long)
-                our_cpos = self.cyst_positions[self.raw_name]  # cpos of this hmm's gene
+                our_cpos = self.codon_positions['v'][self.raw_name]  # cpos of this hmm's gene
                 if debug:
                     print '  %15s  cpos  delta_cpos' % ''
                 for gene in self.germline_seqs['v']:
-                    cpos = self.cyst_positions[gene]
+                    cpos = self.codon_positions['v'][gene]
                     delta_cpos = cpos - our_cpos
                     if delta_cpos < 0:  # count shorter genes as zeros in the averaging
                         lengths.append(0)
@@ -494,12 +493,12 @@ class HmmWriter(object):
                     if debug:
                         print '  %15s %3d %3d   %3d' % (gene, cpos, delta_cpos, lengths[-1])
             elif insertion == 'jf':
-                our_tpos_to_end = len(self.germline_seq) - self.tryp_positions[self.raw_name]  # tpos of this hmm's gene
+                our_tpos_to_end = len(self.germline_seq) - self.codon_positions['j'][self.raw_name]  # tpos of this hmm's gene
                 if debug:
-                    print '  our tpos to end: %d - %d = %d' % (len(self.germline_seq), self.tryp_positions[self.raw_name], len(self.germline_seq) - self.tryp_positions[self.raw_name])
+                    print '  our tpos to end: %d - %d = %d' % (len(self.germline_seq), self.codon_positions['j'][self.raw_name], len(self.germline_seq) - self.codon_positions['j'][self.raw_name])
                     print '  %15s  tpos-to-end  delta' % ''
                 for gene in self.germline_seqs['j']:
-                    tpos_to_end = len(self.germline_seqs['j'][gene]) - self.tryp_positions[gene]
+                    tpos_to_end = len(self.germline_seqs['j'][gene]) - self.codon_positions['j'][gene]
                     delta_tpos_to_end = tpos_to_end - our_tpos_to_end
                     if delta_tpos_to_end < 0:  # count shorter genes as zeros in the averaging
                         lengths.append(0)
