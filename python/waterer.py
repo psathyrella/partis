@@ -133,18 +133,15 @@ class Waterer(object):
         self.info['remaining_queries'] = self.remaining_queries
 
         if self.args.sw_outfname is not None:
-            assert False  # TODO fix
-            # with open(self.args.sw_outfname, 'w') as outfile:
-            #     writer = csv.DictWriter(outfile, utils.annotation_headers)
-            #     writer.writeheader()
-            #     missing_input_keys = set(self.input_info.keys())  # all the keys we originially read from the file
-            #     for query in self.info['queries']:
-            #         missing_input_keys.remove(query)
-            #         print self.info[query]['padded']
-            #         outline = utils.synthesize_multi_seq_line(self.glfo, self.info[query], {'unique_ids' : [query, ], 'seqs' : [self.info[query]['seq'], ], 'indelfos' : [self.info['indels'].get(query, utils.get_empty_indel()), ]})
-            #         outline = utils.get_line_for_output(outline)  # convert lists to colon-separated strings and whatnot (doens't modify input dictionary)
-            #         outline = {k : v for k, v in outline.items() if k in utils.annotation_headers}  # remove the columns we don't want to output
-            #         writer.writerow(outline)
+            with open(self.args.sw_outfname, 'w') as outfile:
+                writer = csv.DictWriter(outfile, utils.annotation_headers)
+                writer.writeheader()
+                missing_input_keys = set(self.input_info.keys())  # all the keys we originially read from the file
+                for query in self.info['queries']:
+                    missing_input_keys.remove(query)
+                    outline = utils.get_line_for_output(outline)  # convert lists to colon-separated strings and whatnot (doens't modify input dictionary)
+                    outline = {k : v for k, v in outline.items() if k in utils.annotation_headers}  # remove the columns we don't want to output
+                    writer.writerow(outline)
 
     # ----------------------------------------------------------------------------------------
     def subworkdir(self, iproc, n_procs):
@@ -794,12 +791,8 @@ class Waterer(object):
 
         for query in self.info['queries']:
             swfo = self.info[query]
-            if 'padded' in swfo:  # already added padded information (we're probably partitioning, and this is not the first step)
-                return
             seq = swfo['seqs'][0]
             cpos = swfo['codon_positions']['v']
-            if cpos < 0 or cpos >= len(seq):
-                print 'hm now what do I want to do here?'
             k_v = swfo['k_v']
 
             padleft = maxima['gl_cpos'] - cpos  # left padding: biggest germline cpos minus cpos in this sequence

@@ -433,11 +433,9 @@ class PartitionDriver(object):
             tmpstart = time.time()
             total = 0.
             for key in self.sw_info['queries']:
-                # padded sequence is here: self.sw_info[key]['padded']['seq']
-                # but this should be un-padded
-                seq = self.input_info[key]['seqs'][0]  # TODO hm, should this be from sw_info?  UPDATE should always be length 1
+                seq = self.input_info[key]['seqs'][0]
                 total += float(len(seq))
-            mean_length = total / len(self.input_info)  # TODO hm, should this be from sw_info?
+            mean_length = total / len(self.sw_info['queries'])
             raise Exception('update for new thresholds')
             bound = self.get_naive_hamming_threshold(parameter_dir, 'tight') /  2.  # yay for heuristics! (I did actually optimize this...)
             differences = int(round(mean_length * bound))
@@ -949,11 +947,11 @@ class PartitionDriver(object):
         """
 
         combo = {
-            'k_v':{'min':99999, 'max':-1},
-            'k_d':{'min':99999, 'max':-1},
-            'only_genes':[],
-            'seqs':[],
-            'mute-freqs':[]
+            'k_v' : {'min' : 99999, 'max' : -1},
+            'k_d' : {'min' : 99999, 'max' : -1},
+            'only_genes' : [],
+            'seqs' : [],
+            'mute-freqs' : []
         }
 
         # Note that this whole thing probably ought to use cached hmm info if it's available.
@@ -961,13 +959,9 @@ class PartitionDriver(object):
 
         for name in query_names:
             swfo = self.sw_info[name]
-            if 'padded' in swfo:
-                k_v = swfo['padded']['k_v']
-                seq = swfo['padded']['seq']
-            else:
-                k_v = swfo['k_v']
-                seq = swfo['seq']
-            k_d = swfo['k_d']  # don't need to adjust k_d for padding
+            k_v = swfo['padded']['k_v']
+            k_d = swfo['k_d']
+            seq = swfo['padded']['seq']
             combo['seqs'].append(seq)
             combo['mute-freqs'].append(utils.get_mutation_rate(swfo, iseq=0))
             combo['k_v']['min'] = min(k_v['min'], combo['k_v']['min'])
