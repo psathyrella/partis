@@ -133,8 +133,11 @@ def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, 
             if 'v_gene' not in line:
                 raise Exception('simulation info not found in %s' % fname)
             reco_info[unique_id] = copy.deepcopy(line)
-            utils.TMP_convert_old_sim_headers(reco_info[unique_id])
-            reco_info[unique_id]['unique_ids'] = [unique_id, ]  # in case we're abbreviating
+            reco_info[unique_id]['unique_ids'] = [unique_id, ]
+            reco_info[unique_id]['seqs'] = [line[internal_seq_column], ]
+            reco_info[unique_id]['indelfos'] = [line['indelfo'], ]
+            for key in ['unique_id', 'seq', 'indelfo']:
+                del reco_info[unique_id][key]
             if glfo is not None:
                 utils.add_implicit_info(glfo, reco_info[unique_id], existing_implicit_keys=('cdr3_length', ))
 

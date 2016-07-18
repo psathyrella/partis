@@ -204,13 +204,6 @@ implicit_linekeys = set(['naive_seq', 'cdr3_length', 'codon_positions', 'lengths
                        ['mut_freqs', ] + functional_columns + [r + '_qr_seqs' for r in regions] + ['aligned_' + r + '_seqs' for r in regions])
 
 # ----------------------------------------------------------------------------------------
-def TMP_convert_old_sim_headers(line):
-    for key in line:
-        if key in tuple(['seq', 'unique_id', 'indelfo', 'mut_freq'] + [r + '_qr_seq' for r in regions] + ['aligned_' + r + '_seq' for r in regions] + functional_columns):  # + ['padleft', 'padright']):
-            line[key + 's'] = [line[key], ]
-            del line[key]
-
-# ----------------------------------------------------------------------------------------
 annotation_headers = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'mut_freqs', 'seqs', 'naive_seq', 'indelfos'] \
                      + ['aligned_' + r + '_seqs' for r in regions] \
                      + [r + '_per_gene_support' for r in regions] \
