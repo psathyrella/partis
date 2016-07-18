@@ -167,7 +167,7 @@ column_configs = {
     'ints' : ['cdr3_length', ] + [e + '_del' for e in real_erosions + effective_erosions],  # , 'padlefts', 'padrights'),
     'floats' : ['logprob', 'mut_freqs'],
     'bools' : functional_columns,
-    'literals' : ['indelfos', ],
+    'literals' : ['indelfo', 'indelfos'],  # simulation has it singular, annotation output has it plural... and I think it actually makes sense to have it that way
     'lists' : ['unique_ids', 'seqs', 'aligned_seqs', 'mut_freqs'] + ['aligned_' + r + '_seqs' for r in regions] + [r + '_per_gene_support' for r in regions] + functional_columns, # ['padlefts', 'padrights']),
     'lists-of-string-float-pairs' : [r + '_per_gene_support' for r in regions]
 }
@@ -746,7 +746,6 @@ def print_seq_in_reco_event(germlines, line, iseq, extra_str='', label='', one_l
     """
 
     lseq = line['seqs'][iseq]
-
     indelfo = None if line['indelfos'][iseq]['reversed_seq'] == '' else line['indelfos'][iseq]
     reverse_indels = False  # for inferred sequences, we want to un-reverse the indels that we previously reversed in smith-waterman
     if indelfo is not None:
