@@ -29,7 +29,8 @@ def vollmers(info, threshold, reco_info=None, debug=False):
     id_clusters = {}  # map from cluster id to list of query names
 
     def get_d_plus_insertions(uid):
-        return info[uid]['vd_insertion'] + info[uid]['d_qr_seq'] + info[uid]['dj_insertion']
+        assert len(info[uid]['d_qr_seqs']) == 1
+        return info[uid]['vd_insertion'] + info[uid]['d_qr_seqs'][0] + info[uid]['dj_insertion']
 
     def get_cdr3_seq(uid):
         cpos = info[uid]['codon_positions']['v']

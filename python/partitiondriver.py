@@ -1215,7 +1215,7 @@ class PartitionDriver(object):
                     true_pcounter.increment(self.reco_info[uids[0]])  # NOTE doesn't matter which id you pass it, since they all have the same reco parameters
 
                 for iseq in range(len(uids)):
-                    singlefo = utils.NEW_synthesize_single_seq_line(line_to_use, iseq)
+                    singlefo = utils.synthesize_single_seq_line(line_to_use, iseq)
                     if perfplotter is not None:
                         if uids[iseq] in self.sw_info['indels']:
                             print '    skipping performance evaluation of %s because of indels' % uids[iseq]  # I just have no idea how to handle naive hamming fraction when there's indels
@@ -1270,17 +1270,10 @@ class PartitionDriver(object):
             writer = csv.DictWriter(outfile, headers)
             writer.writeheader()
 
-        # have to copy info to new dict to get d_qr_seq and whatnot
-        annotations_for_vollmers = OrderedDict()
-        for uidstr, line in annotations.items():
-            if len(line['seqs']) > 1:
-                raise Exception('can\'t handle multiple seqs')
-            annotations_for_vollmers[uidstr] = utils.synthesize_single_seq_line(line, iseq)
-
         # perform annotation clustering for each threshold and write to file
         import annotationclustering
         for thresh in self.args.annotation_clustering_thresholds:
-            partition = annotationclustering.vollmers(annotations_for_vollmers, threshold=thresh, reco_info=self.reco_info)
+            partition = annotationclustering.vollmers(annotations, threshold=thresh, reco_info=self.reco_info)
             n_clusters = len(partition)
             if outfname is not None:
                 row = {'n_clusters' : n_clusters, 'threshold' : thresh, 'partition' : utils.get_str_from_partition(partition)}
@@ -1355,7 +1348,7 @@ class PartitionDriver(object):
                     utils.remove_all_implicit_info(outline, multi_seq=True)
                     utils.add_implicit_info(self.glfo, outline, multi_seq=True, aligned_gl_seqs=self.aligned_gl_seqs)
 
-                    outline = utils.convert_to_presto_headers(outline, multi_seq=True)
+                    outline = utils.convert_to_presto_headers(outline)
 
                     outline = utils.get_line_for_output(outline)  # convert lists to colon-separated strings and whatnot
                     outline = {k : v for k, v in outline.items() if k in prestoheader}  # remove the columns we don't want to output

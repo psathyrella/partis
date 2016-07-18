@@ -149,7 +149,7 @@ column_dependencies['jf_insertion'] = []
 
 # definitions here: http://clip.med.yale.edu/changeo/manuals/Change-O_Data_Format.pdf
 presto_headers = {
-    'unique_id' : 'SEQUENCE_ID',
+    'unique_ids' : 'SEQUENCE_ID',
     'v_gene' : 'V_CALL',
     'd_gene' : 'D_CALL',
     'j_gene' : 'J_CALL',
@@ -233,25 +233,25 @@ def get_implicit_keys(multi_seq):
         return single_per_seq_implicit_columns
 
 # ----------------------------------------------------------------------------------------
-def convert_to_presto_headers(line, multi_seq):
+def convert_to_presto_headers(line):
     """ convert <line> to presto csv format """
-    if multi_seq and len(line['unique_ids']) > 1:  # has to happen *before* utils.get_line_for_output()
+    if len(line['unique_ids']) > 1:  # has to happen *before* utils.get_line_for_output()
         print line['unique_ids']
-        raise Exception('multiple seqs not handled in convert_to_presto')
-
-    single_info = synthesize_single_seq_line(line, iseq=0)
+        raise Exception('multiple seqs not handled for presto output')
 
     presto_line = {}
     for head, phead in presto_headers.items():
         if head == 'aligned_v_plus_unaligned_dj':
-            presto_line[phead] = single_info['aligned_v_seq'] + single_info['vd_insertion'] + single_info['d_qr_seq'] + single_info['dj_insertion'] + single_info['j_qr_seq']
+            presto_line[phead] = line['aligned_v_seqs'][0] + line['vd_insertion'] + line['d_qr_seqs'][0] + line['dj_insertion'] + line['j_qr_seqs'][0]
+        elif head == 'unique_ids':
+            presto_line[phead] = line[head][0]
         else:
-            presto_line[phead] = single_info[head]
+            presto_line[phead] = line[head]
 
     return presto_line
 
 # ----------------------------------------------------------------------------------------
-# these are the top 10 v and d genes, and top six js, from mishmash.csv. Restricting to these should make testing much more stable and much faster.
+# these are the top 10 v and d genes, and top six js, from mishmash.csv. Restricting to these makes testing much more stable and much faster.
 test_only_genes = 'IGHV3-53*02:IGHV3-7*01:IGHV3-7*03:IGHV3-23D*01:IGHV4-61*08:IGHV3-66*03:IGHV5-51*02:IGHV3-66*01:IGHV3-23D*02:IGHV1-2*02:' + \
                   'IGHD2-2*03:IGHD6-6*01:IGHD2-8*01:IGHD2-21*02:IGHD3-10*01:IGHD3-16*02:IGHD3-22*01:IGHD6-19*01:IGHD2-15*01:' + \
                   'IGHJ6*03:IGHJ6*02:IGHJ2*01:IGHJ1*01:IGHJ5*02:IGHJ4*02'
@@ -783,7 +783,7 @@ def print_true_events(glfo, reco_info, line, print_uid=False):
         seqs = [reco_info[iid]['seqs'][0] for iid in uids]
         indelfos = [reco_info[iid]['indelfos'][0] for iid in uids]
         per_seq_info = {'unique_ids' : uids, 'seqs' : seqs, 'indelfos' : indelfos}
-        synthetic_true_line = NEW_synthesize_multi_seq_line(glfo, reco_info[uids[0]], per_seq_info)
+        synthetic_true_line = synthesize_multi_seq_line(glfo, reco_info[uids[0]], per_seq_info)
         print_reco_event(glfo['seqs'], synthetic_true_line, extra_str='    ', label='true:', print_uid=print_uid)
         true_naive_seqs.append(synthetic_true_line['naive_seq'])
 
@@ -794,25 +794,22 @@ def print_true_events(glfo, reco_info, line, print_uid=False):
 
 # ----------------------------------------------------------------------------------------
 def print_reco_event(germlines, line, one_line=False, extra_str='', label='', print_uid=False):
-    if 'unique_ids' in line:  # multi_seq line
-        for iseq in range(len(line['unique_ids'])):
-            tmpline = synthesize_single_seq_line(line, iseq)
-            print_seq_in_reco_event(germlines, tmpline, extra_str=extra_str, label=(label if iseq==0 else ''), one_line=(iseq>0), print_uid=print_uid)
-    else:
-        tmpline = copy.deepcopy(line)
-        print_seq_in_reco_event(germlines, tmpline, extra_str=extra_str, label=label, one_line=one_line)
+    for iseq in range(len(line['unique_ids'])):
+        print_seq_in_reco_event(germlines, line, iseq, extra_str=extra_str, label=(label if iseq==0 else ''), one_line=(iseq>0), print_uid=print_uid)
 
 # ----------------------------------------------------------------------------------------
-def print_seq_in_reco_event(germlines, line, extra_str='', label='', one_line=False, print_uid=False):
+def print_seq_in_reco_event(germlines, line, iseq, extra_str='', label='', one_line=False, print_uid=False):
     """
     Print ascii summary of recombination event and mutation.
     If <one_line>, then skip the germline lines, and only print the final_seq line.
     """
 
-    indelfo = None if line['indelfo']['reversed_seq'] == '' else line['indelfo']
+    lseq = line['seqs'][iseq]
+
+    indelfo = None if line['indelfos'][iseq]['reversed_seq'] == '' else line['indelfos'][iseq]
     reverse_indels = False  # for inferred sequences, we want to un-reverse the indels that we previously reversed in smith-waterman
     if indelfo is not None:
-        if indelfo['reversed_seq'] == line['seq']:  # if <line> has the reversed sequence in it, then this is an inferred <line>, i.e. we removed the info, then passed the reversed sequence to the sw/hmm, so we need to reverse the indels now in order to get a sequence with indels in it
+        if indelfo['reversed_seq'] == lseq:  # if <line> has the reversed sequence in it, then this is an inferred <line>, i.e. we removed the info, then passed the reversed sequence to the sw/hmm, so we need to reverse the indels now in order to get a sequence with indels in it
             reverse_indels = True
         if len(indelfo['indels']) > 1:
             print 'WARNING multiple indels not really handled'
@@ -823,7 +820,7 @@ def print_seq_in_reco_event(germlines, line, extra_str='', label='', one_line=Fa
     n_muted, n_total = 0, 0
     j_right_extra = ''  # portion of query sequence to right of end of the j match
     n_inserted = 0
-    for inuke in range(len(line['seq'])):
+    for inuke in range(len(lseq)):
         if indelfo is not None:
             lastfo = indelfo['indels'][-1]  # if the "last" (arbitrary but necessary ordering) indel starts here
               # if we're at the position that the insertion started at (before we removed it)
@@ -832,7 +829,7 @@ def print_seq_in_reco_event(germlines, line, extra_str='', label='', one_line=Fa
                 final_seq += lastfo['seqstr']  # put the insertion back into the query sequence
                 n_inserted += len(lastfo['seqstr'])
             elif not reverse_indels and inuke - lastfo['pos'] >= 0 and inuke - lastfo['pos'] < lastfo['len']:
-                final_seq += line['seq'][inuke]
+                final_seq += lseq[inuke]
                 n_inserted += 1
                 continue
             # if inuke > lastfo['pos'] + lastfo['len']:
@@ -854,29 +851,29 @@ def print_seq_in_reco_event(germlines, line, extra_str='', label='', one_line=Fa
         if indelfo is not None and not reverse_indels and lastfo['type'] == 'deletion':
             ilocal -= n_inserted
         if ilocal < len(line['fv_insertion']):  # haven't got to start of v match yet, so just add on the query seq nuke
-            new_nuke, n_muted, n_total = line['seq'][inuke], n_muted, n_total + 1
+            new_nuke, n_muted, n_total = lseq[inuke], n_muted, n_total + 1
         else:
             ilocal -= len(line['fv_insertion'])
             if ilocal < line['lengths']['v']:
-                new_nuke, n_muted, n_total = is_mutated(line['v_gl_seq'][ilocal], line['seq'][inuke], n_muted, n_total)
+                new_nuke, n_muted, n_total = is_mutated(line['v_gl_seq'][ilocal], lseq[inuke], n_muted, n_total)
             else:
                 ilocal -= line['lengths']['v']
                 if ilocal < len(line['vd_insertion']):
-                    new_nuke, n_muted, n_total = is_mutated(line['vd_insertion'][ilocal], line['seq'][inuke], n_muted, n_total)
+                    new_nuke, n_muted, n_total = is_mutated(line['vd_insertion'][ilocal], lseq[inuke], n_muted, n_total)
                 else:
                     ilocal -= len(line['vd_insertion'])
                     if ilocal < line['lengths']['d']:
-                        new_nuke, n_muted, n_total = is_mutated(line['d_gl_seq'][ilocal], line['seq'][inuke], n_muted, n_total)
+                        new_nuke, n_muted, n_total = is_mutated(line['d_gl_seq'][ilocal], lseq[inuke], n_muted, n_total)
                     else:
                         ilocal -= line['lengths']['d']
                         if ilocal < len(line['dj_insertion']):
-                            new_nuke, n_muted, n_total = is_mutated(line['dj_insertion'][ilocal], line['seq'][inuke], n_muted, n_total)
+                            new_nuke, n_muted, n_total = is_mutated(line['dj_insertion'][ilocal], lseq[inuke], n_muted, n_total)
                         else:
                             ilocal -= len(line['dj_insertion'])
                             if ilocal < line['lengths']['j']:
-                                new_nuke, n_muted, n_total = is_mutated(line['j_gl_seq'][ilocal], line['seq'][inuke], n_muted, n_total)
+                                new_nuke, n_muted, n_total = is_mutated(line['j_gl_seq'][ilocal], lseq[inuke], n_muted, n_total)
                             else:
-                                new_nuke, n_muted, n_total = line['seq'][inuke], n_muted, n_total + 1
+                                new_nuke, n_muted, n_total = lseq[inuke], n_muted, n_total + 1
                                 j_right_extra += ' '
 
         for region, pos in line['codon_positions'].items():  # reverse video for the conserved codon positions
@@ -957,7 +954,7 @@ def print_seq_in_reco_event(germlines, line, extra_str='', label='', one_line=Fa
     chain = get_chain(line['v_gene'])  # kind of hackey
 
     if print_uid:
-        extra_str += '%20s ' % line['unique_id']
+        extra_str += '%20s ' % line['unique_ids'][iseq]
     out_str_list = []
     # insert, d, and vj lines
     if not one_line:
@@ -985,8 +982,8 @@ def print_seq_in_reco_event(germlines, line, extra_str='', label='', one_line=Fa
     #     extra_str += '%20s' % line['unique_id']
     out_str_list.append('    %s' % final_seq)
     mute_freq = 0. if n_total == 0. else float(n_muted) / n_total
-    if mute_freq != line['mut_freq']:
-        print '%s unequal mut freqs for %s: %f %f' % (color('red', 'warning'), line['unique_id'], mute_freq, line['mut_freq'])
+    if mute_freq != line['mut_freqs'][iseq]:
+        print '%s unequal mut freqs for %s: %f %f' % (color('red', 'warning'), line['unique_ids'][iseq], mute_freq, line['mut_freqs'][iseq])
     out_str_list.append('   %4.2f mut' % mute_freq)
     if 'logprob' in line:
         out_str_list.append('     %8.2f  logprob' % line['logprob'])
@@ -1957,15 +1954,6 @@ def auto_slurm(n_procs):
 def synthesize_single_seq_line(line, iseq):
     """ without modifying <line>, make a copy of it corresponding to a single-sequence event with the <iseq>th sequence """
     hmminfo = copy.deepcopy(line)  # make a copy of the info, into which we'll insert the sequence-specific stuff
-    for col in xcolumns['single_per_seq']:
-        hmminfo[col] = hmminfo[col + 's'][iseq]
-        del hmminfo[col + 's']
-    return hmminfo
-
-# ----------------------------------------------------------------------------------------
-def NEW_synthesize_single_seq_line(line, iseq):
-    """ without modifying <line>, make a copy of it corresponding to a single-sequence event with the <iseq>th sequence """
-    hmminfo = copy.deepcopy(line)  # make a copy of the info, into which we'll insert the sequence-specific stuff
     for col in xcolumns['multi_per_seq']:
         hmminfo[col] = [hmminfo[col][iseq], ]
     return hmminfo
@@ -1974,28 +1962,11 @@ def NEW_synthesize_single_seq_line(line, iseq):
 def synthesize_multi_seq_line(glfo, single_seq_line, per_seq_info):
     """ without modifying <line>, make a multi_seq line from the single seq <line> """
     hmminfo = copy.deepcopy(single_seq_line)
-    remove_all_implicit_info(hmminfo, multi_seq=False)
-    non_implicit_columns = set(xcolumns['multi_per_seq']) - multi_per_seq_implicit_columns  # a.t.m. it's just 'seq' and 'unique_id'
-    if set(per_seq_info.keys()) != non_implicit_columns:
-        raise Exception('passed per_seq_info keys (%s) don\'t match expectation (%s)' % (' '.join(per_seq_info.keys()), ' '.join(non_implicit_columns)))
-    for col in non_implicit_columns:
-        hmminfo[col] = copy.deepcopy(per_seq_info[col])
-        del hmminfo[col[:-1]]  # remove the 's' at the end to get the single seq key
-    add_implicit_info(glfo, hmminfo, multi_seq=True)
-    return hmminfo
-
-# ----------------------------------------------------------------------------------------
-def NEW_synthesize_multi_seq_line(glfo, single_seq_line, per_seq_info):
-    """ without modifying <line>, make a multi_seq line from the single seq <line> """
-    hmminfo = copy.deepcopy(single_seq_line)
-    # remove_all_implicit_info(hmminfo, multi_seq=True)
     non_implicit_columns = set(xcolumns['multi_per_seq']) - multi_per_seq_implicit_columns  # a.t.m. it's just 'seqs' and 'unique_ids' and 'indelfos'
     if set(per_seq_info.keys()) != non_implicit_columns:
         raise Exception('passed per_seq_info keys (%s) don\'t match expectation (%s)' % (' '.join(per_seq_info.keys()), ' '.join(non_implicit_columns)))
     for col in non_implicit_columns:
         hmminfo[col] = copy.deepcopy(per_seq_info[col])
-        # del hmminfo[col[:-1]]  # remove the 's' at the end to get the single seq key
-    # add_implicit_info(glfo, hmminfo, multi_seq=True)
     return hmminfo
 
 # ----------------------------------------------------------------------------------------
