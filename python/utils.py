@@ -111,7 +111,8 @@ codon_table = {
 # Infrastrucure to allow hashing all the columns together into a dict key.
 # Uses a tuple with the variables that are used to index selection frequencies
 # NOTE fv and jf insertions are *effective* (not real) insertions between v or j and the framework. They allow query sequences that extend beyond the v or j regions
-index_columns = ('v_gene', 'd_gene', 'j_gene', 'v_5p_del', 'v_3p_del', 'd_5p_del', 'd_3p_del', 'j_5p_del', 'j_3p_del', 'fv_insertion', 'vd_insertion', 'dj_insertion', 'jf_insertion')
+index_columns = tuple(['v_gene', 'd_gene', 'j_gene', 'v_5p_del', 'v_3p_del', 'd_5p_del', 'd_3p_del', 'j_5p_del', 'j_3p_del', 'fv_insertion', 'vd_insertion', 'dj_insertion', 'jf_insertion'])
+
 index_keys = {}
 for i in range(len(index_columns)):  # dict so we can access them by name instead of by index number
     index_keys[index_columns[i]] = i
@@ -157,26 +158,17 @@ presto_headers = {
     'cdr3_length' : 'JUNCTION_LENGTH'
 }
 
-# test partition
-# reco_info = {'a' : {'reco_id' : '1'}, 'b' : {'reco_id' : '0'}, 'c' : {'reco_id' : '1'}, 'd' : {'reco_id' : '2'}}
-# partition = [['a'], ['b', 'c', 'd']]
-# true_partition = [['b'], ['a', 'c'], ['d']]
-
 # ----------------------------------------------------------------------------------------
 forbidden_characters = set([':', ';', ','])  # strings that are not allowed in sequence ids
 
 functional_columns = ['mutated_invariants', 'in_frames', 'stops']
 
 column_configs = {
-    'ints' : ('nth_best', 'v_5p_del', 'd_5p_del', 'cdr3_length', 'j_5p_del', 'j_3p_del', 'd_3p_del', 'v_3p_del'),  # , 'padlefts', 'padrights'),
-    'floats' : ('logprob', 'mut_freqs'),
-    'bools' : tuple(functional_columns),
-    'literals' : ('indelfos'),
-    'lists' : tuple(['unique_ids', 'seqs', 'aligned_seqs', 'mut_freqs'] + \
-                    ['aligned_' + r + '_seqs' for r in regions] + \
-                    [r + '_per_gene_support' for r in regions] + \
-                    functional_columns),
-                    # ['padlefts', 'padrights']),
+    'ints' : ['cdr3_length', ] + [e + '_del' for e in real_erosions + effective_erosions],  # , 'padlefts', 'padrights'),
+    'floats' : ['logprob', 'mut_freqs'],
+    'bools' : functional_columns,
+    'literals' : ['indelfos', ],
+    'lists' : ['unique_ids', 'seqs', 'aligned_seqs', 'mut_freqs'] + ['aligned_' + r + '_seqs' for r in regions] + [r + '_per_gene_support' for r in regions] + functional_columns, # ['padlefts', 'padrights']),
     'lists-of-string-float-pairs' : [r + '_per_gene_support' for r in regions]
 }
 
