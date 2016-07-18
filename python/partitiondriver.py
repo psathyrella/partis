@@ -678,21 +678,13 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def get_padded_true_naive_seq(self, qry):
-        true_naive_seq = self.reco_info[qry]['naive_seq']
-        padleft = self.sw_info[qry]['padded']['padleft']  # we're padding the *naive* seq corresponding to qry now, but it'll be the same length as the qry seq
-        padright = self.sw_info[qry]['padded']['padright']
-        assert len(utils.ambiguous_bases) == 1  # could allow more than one, but it's not implemented a.t.m.
-        true_naive_seq = padleft * utils.ambiguous_bases[0] + true_naive_seq + padright * utils.ambiguous_bases[0]
-        return true_naive_seq
+        assert len(self.sw_info[qry]['padlefts']) == 1
+        return self.sw_info[qry]['padlefts'][0] * utils.ambiguous_bases[0] + self.reco_info[qry]['naive_seq'] + self.sw_info[qry]['padrights'][0] * utils.ambiguous_bases[0]
 
     # ----------------------------------------------------------------------------------------
     def get_padded_sw_naive_seq(self, qry):
-        sw_naive_seq = self.sw_info[qry]['naive_seq']
-        padleft = self.sw_info[qry]['padded']['padleft']  # we're padding the *naive* seq corresponding to qry now, but it'll be the same length as the qry seq
-        padright = self.sw_info[qry]['padded']['padright']
-        assert len(utils.ambiguous_bases) == 1  # could allow more than one, but it's not implemented a.t.m.
-        sw_naive_seq = padleft * utils.ambiguous_bases[0] + sw_naive_seq + padright * utils.ambiguous_bases[0]
-        return sw_naive_seq
+        assert len(self.sw_info[qry]['padlefts']) == 1
+        return self.sw_info[qry]['padlefts'][0] * utils.ambiguous_bases[0] + self.sw_info[qry]['naive_seq'] + self.sw_info[qry]['padrights'][0] * utils.ambiguous_bases[0]
 
     # ----------------------------------------------------------------------------------------
     def get_sw_naive_seqs(self, info, namekey):
@@ -959,11 +951,12 @@ class PartitionDriver(object):
 
         for name in query_names:
             swfo = self.sw_info[name]
-            k_v = swfo['padded']['k_v']
+            k_v = swfo['k_v']
             k_d = swfo['k_d']
-            seq = swfo['padded']['seq']
+            assert len(swfo['seqs']) == 1
+            seq = swfo['seqs'][0]
             combo['seqs'].append(seq)
-            combo['mute-freqs'].append(utils.get_mutation_rate(swfo, iseq=0))
+            combo['mute-freqs'].append(utils.hamming_fraction(self.get_padded_sw_naive_seq(name), seq))
             combo['k_v']['min'] = min(k_v['min'], combo['k_v']['min'])
             combo['k_v']['max'] = max(k_v['max'], combo['k_v']['max'])
             combo['k_d']['min'] = min(k_d['min'], combo['k_d']['min'])
@@ -1214,7 +1207,8 @@ class PartitionDriver(object):
                         if uids[iseq] in self.sw_info['indels']:
                             print '    skipping performance evaluation of %s because of indels' % uids[iseq]  # I just have no idea how to handle naive hamming fraction when there's indels
                         else:
-                            perfplotter.evaluate(self.reco_info[uids[iseq]], singlefo, self.sw_info[uids[iseq]]['padded'])
+                            padfo = {'padleft' : self.sw_info[uids[iseq]]['padlefts'][0], 'padright' : self.sw_info[uids[iseq]]['padrights'][0]}
+                            perfplotter.evaluate(self.reco_info[uids[iseq]], singlefo, padfo=padfo)
                     n_seqs_processed += 1
 
         # parameter and performance writing/plotting

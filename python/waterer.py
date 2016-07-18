@@ -576,7 +576,7 @@ class Waterer(object):
             self.info['all_best_matches'].add(best[region])
             self.info['all_matches'][region] |= set(match_names[region])
 
-        self.info[qname]['seqs'] = [qinfo['seq'], ]  # NOTE this is the seq output by vdjalign, i.e. if we reversed any indels it is the reversed sequence
+        self.info[qname]['seqs'] = [qinfo['seq'], ]  # NOTE this is the seq output by vdjalign, i.e. if we reversed any indels it is the reversed sequence, also NOTE many, many things depend on this list being of length one
 
         existing_implicit_keys = tuple(['cdr3_length', 'codon_positions'])
         utils.add_implicit_info(self.glfo, self.info[qname], existing_implicit_keys=existing_implicit_keys)
@@ -791,28 +791,25 @@ class Waterer(object):
 
         for query in self.info['queries']:
             swfo = self.info[query]
-            seq = swfo['seqs'][0]
-            cpos = swfo['codon_positions']['v']
-            k_v = swfo['k_v']
+            assert len(swfo['seqs']) == 1
 
+            cpos = swfo['codon_positions']['v']
             padleft = maxima['gl_cpos'] - cpos  # left padding: biggest germline cpos minus cpos in this sequence
-            padright = maxima['gl_cpos_to_j_end'] - (len(seq) - cpos)
+            padright = maxima['gl_cpos_to_j_end'] - (len(swfo['seqs'][0]) - cpos)
             if padleft < 0 or padright < 0:
                 raise Exception('bad padding %d %d for %s' % (padleft, padright, query))
 
-            padfo = {}
-            padfo['seq'] = padleft * utils.ambiguous_bases[0] + seq + padright * utils.ambiguous_bases[0]
+            swfo['seqs'][0] = padleft * utils.ambiguous_bases[0] + swfo['seqs'][0] + padright * utils.ambiguous_bases[0]
             if query in self.info['indels']:  # also pad the reversed sequence
                 self.info['indels'][query]['reversed_seq'] = padleft * utils.ambiguous_bases[0] + self.info['indels'][query]['reversed_seq'] + padright * utils.ambiguous_bases[0]
-            padfo['k_v'] = {'min' : k_v['min'] + padleft, 'max' : k_v['max'] + padleft}
-            padfo['cyst_position'] = swfo['codon_positions']['v'] + padleft
-            padfo['padleft'] = padleft
-            padfo['padright'] = padright
+            swfo['k_v']['min'] += padleft
+            swfo['k_v']['max'] += padleft
+            swfo['codon_positions']['v'] += padleft
+            swfo['padlefts'] = [padleft, ]
+            swfo['padrights'] = [padright, ]
             if debug:
                 print '      pad %d %d   %s' % (padleft, padright, query)
-                print '     %d --> %d (%d-%d --> %d-%d)' % (len(seq), len(padfo['seq']), k_v['min'], k_v['max'], padfo['k_v']['min'], padfo['k_v']['max'])
-            swfo['padded'] = padfo
 
         if debug:
             for query in self.info['queries']:
-                print '%20s %s' % (query, self.info[query]['padded']['seq'])
+                print '%20s %s' % (query, self.info[query]['seqs'][0])
