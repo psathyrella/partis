@@ -165,17 +165,17 @@ presto_headers = {
 # ----------------------------------------------------------------------------------------
 forbidden_characters = set([':', ';', ','])  # strings that are not allowed in sequence ids
 
-functional_columns = ['mutated_invariant', 'in_frame', 'stop']
+functional_columns = ['mutated_invariants', 'in_frames', 'stops']
 
 column_configs = {
     'ints' : ('nth_best', 'v_5p_del', 'd_5p_del', 'cdr3_length', 'j_5p_del', 'j_3p_del', 'd_3p_del', 'v_3p_del'),  # , 'padlefts', 'padrights'),
     'floats' : ('logprob', 'mut_freqs'),
-    'bools' : tuple([fc + 's' for fc in functional_columns]),
+    'bools' : tuple(functional_columns),
     'literals' : ('indelfos'),
     'lists' : tuple(['unique_ids', 'seqs', 'aligned_seqs', 'mut_freqs'] + \
                     ['aligned_' + r + '_seqs' for r in regions] + \
                     [r + '_per_gene_support' for r in regions] + \
-                    [fc + 's' for fc in functional_columns]),
+                    functional_columns),
                     # ['padlefts', 'padrights']),
     'lists-of-string-float-pairs' : [r + '_per_gene_support' for r in regions]
 }
@@ -190,11 +190,9 @@ xcolumns['per_family'] = tuple(['naive_seq', 'cdr3_length', 'codon_positions', '
                                [b + '_insertion' for b in boundaries + effective_boundaries] + \
                                [r + '_gl_seq' for r in regions] + \
                                [r + '_per_gene_support' for r in regions])
-xcolumns['single_per_seq'] = tuple(['seq', 'unique_id', 'indelfo', 'mut_freq'] + [r + '_qr_seq' for r in regions] + ['aligned_' + r + '_seq' for r in regions] + functional_columns)  # + ['padleft', 'padright'])
-xcolumns['multi_per_seq'] = tuple([k + 's' for k in xcolumns['single_per_seq']])
 xcolumns['per_seq'] = tuple(['seqs', 'unique_ids', 'indelfos', 'mut_freqs'] + \
-                            [r + '_qr_seq' for r in regions] + \
-                            ['aligned_' + r + '_seq' for r in regions] + \
+                            [r + '_qr_seqs' for r in regions] + \
+                            ['aligned_' + r + '_seqs' for r in regions] + \
                             functional_columns)  # + ['padleft', 'padright'])
 xcolumns['hmm'] = tuple(['logprob', 'errors', 'nth_best'])
 xcolumns['sw'] = tuple(['k_v', 'k_d', 'all'])
@@ -202,12 +200,9 @@ xcolumns['extra'] = tuple(['invalid', ])
 xcolumns['simu'] = tuple(['reco_id', ])
 xall_columns = set([k for cols in xcolumns.values() for k in cols])
 
-translation_columns = {'indels' : 'indelfo'}  # used to be <key>, now they're <value>
-
-common_implicit_columns = set(['naive_seq', 'cdr3_length', 'codon_positions', 'lengths', 'regional_bounds', 'invalid'] + [r + '_gl_seq' for r in regions])
-single_per_seq_implicit_columns = set(['mut_freq', ] + functional_columns + [r + '_qr_seq' for r in regions] + ['aligned_' + r + '_seq' for r in regions])
-multi_per_seq_implicit_columns = set(list(common_implicit_columns) + [k + 's' for k in single_per_seq_implicit_columns])
-single_per_seq_implicit_columns |= common_implicit_columns  # NOTE careful! kind of a weird initialization sequence here
+implicit_columns = set(['naive_seq', 'cdr3_length', 'codon_positions', 'lengths', 'regional_bounds', 'invalid'] + \
+                       [r + '_gl_seq' for r in regions] + \
+                       ['mut_freqs', ] + functional_columns + [r + '_qr_seqs' for r in regions] + ['aligned_' + r + '_seqs' for r in regions])
 
 # ----------------------------------------------------------------------------------------
 def TMP_convert_old_sim_headers(line):
@@ -221,7 +216,7 @@ annotation_headers = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length',
                      + ['aligned_' + r + '_seqs' for r in regions] \
                      + [r + '_per_gene_support' for r in regions] \
                      + [e + '_del' for e in real_erosions + effective_erosions] + [b + '_insertion' for b in boundaries + effective_boundaries] \
-                     + [fc + 's' for fc in functional_columns] \
+                     + functional_columns \
                      + ['padlefts', 'padrights']
 partition_cachefile_headers = ('unique_ids', 'logprob', 'naive_seq', 'naive_hfrac', 'errors')  # these have to match whatever bcrham is expecting
 
@@ -610,11 +605,11 @@ def add_functional_info(chain, line):
         return {'mutated_invariant' : not codons_ok, 'in_frame' : in_frame_cdr3, 'stop' : not no_stop_codon}
 
     for fc in functional_columns:
-        line[fc + 's'] = []
+        line[fc] = []
     for iseq in range(len(line['seqs'])):
         info = get_single_seq_info(line['seqs'][iseq], line['codon_positions']['v'], line['codon_positions']['j'], line['cdr3_length'])
         for fc in functional_columns:
-            line[fc + 's'].append(info[fc])
+            line[fc].append(info[fc])
 
 # ----------------------------------------------------------------------------------------
 def add_mute_freqs(line):
@@ -622,16 +617,9 @@ def add_mute_freqs(line):
 
 # ----------------------------------------------------------------------------------------
 def remove_all_implicit_info(line):
-    for col in multi_per_seq_implicit_columns:
+    for col in implicit_columns:
         if col in line:
             del line[col]
-
-# ----------------------------------------------------------------------------------------
-def check_for_forbidden_keys(line):
-    forbidden_keys = xcolumns['single_per_seq']
-    for k in line.keys():
-        if k in forbidden_keys:
-            raise Exception('forbidden key %s in line' % k)
 
 # ----------------------------------------------------------------------------------------
 def process_per_gene_support(line, debug=False):
@@ -665,7 +653,6 @@ def add_implicit_info(glfo, line, existing_implicit_keys=None, aligned_gl_seqs=N
             pre_existing_info[ekey] = copy.deepcopy(line[ekey])
             del line[ekey]
     initial_keys = set(line.keys())  # keep track of the keys that are in <line> to start with (so we know which ones we added)
-    check_for_forbidden_keys(line)
 
     # add the regional germline seqs and their lengths
     line['lengths'] = {}  # length of each match (including erosion)
@@ -731,13 +718,12 @@ def add_implicit_info(glfo, line, existing_implicit_keys=None, aligned_gl_seqs=N
 
     # make sure we added exactly what we expected to
     new_keys = set(line.keys()) - initial_keys
-    these_implicit = multi_per_seq_implicit_columns
-    if len(new_keys - these_implicit) > 0 or len(these_implicit - new_keys) > 0:  # TODO maybe remove this (for performance reasons)
+    if len(new_keys - implicit_columns) > 0 or len(implicit_columns - new_keys) > 0:  # TODO maybe remove this (for performance reasons)
         print ''
         print '           new   %s' % ' '.join(sorted(new_keys))
-        print '      implicit   %s' % ' '.join(sorted(these_implicit))
-        print 'new - implicit:  %s' % (' '.join(sorted(new_keys - these_implicit)))
-        print 'implicit - new:  %s' % (' '.join(sorted(these_implicit - new_keys)))
+        print '      implicit   %s' % ' '.join(sorted(implicit_columns))
+        print 'new - implicit:  %s' % (' '.join(sorted(new_keys - implicit_columns)))
+        print 'implicit - new:  %s' % (' '.join(sorted(implicit_columns - new_keys)))
         print ''
         raise Exception('column/key problems')
 
@@ -1294,12 +1280,6 @@ def process_input_line(info):
     """
 
     ccfg = column_configs  # shorten the name a bit
-
-    # translate old column names (for backwards compatibility on old simulation files)
-    for key in info.keys():
-        if key in translation_columns:
-            info[translation_columns[key]] = info[key]
-            del info[key]
 
     for key in info:
         if key is None:
@@ -1935,7 +1915,7 @@ def synthesize_single_seq_line(line, iseq):
 # ----------------------------------------------------------------------------------------
 def synthesize_multi_seq_line(glfo, single_seq_line, per_seq_info):
     hmminfo = copy.deepcopy(single_seq_line)
-    non_implicit_columns = set(xcolumns['multi_per_seq']) - multi_per_seq_implicit_columns  # a.t.m. it's just 'seqs' and 'unique_ids' and 'indelfos'
+    non_implicit_columns = set(xcolumns['per_seq']) - implicit_columns  # a.t.m. it's just 'seqs' and 'unique_ids' and 'indelfos'
     if set(per_seq_info.keys()) != non_implicit_columns:
         raise Exception('passed per_seq_info keys (%s) don\'t match expectation (%s)' % (' '.join(per_seq_info.keys()), ' '.join(non_implicit_columns)))
     for col in non_implicit_columns:

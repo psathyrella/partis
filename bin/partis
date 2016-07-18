@@ -193,10 +193,6 @@ parent_parser.add_argument('--no-random-divvy', action='store_true', help='Don\'
 parent_parser.add_argument('--only-csv-plots', action='store_true', help='only write csv plots')
 print 'TODO synchronize sim file headers with annotation output files (including tmp fcn in utils)'
 print 'TODO rename and clean up xcolumns'
-print 'TODO remove single-seq stuff from print_reco_event'
-print 'TODO move single seq synthesisis to parametercounter and mutefreqer'
-print 'TODO remove utils.translation_columns'
-print 'TODO all \'assert False\'s that have TODOs'
 print 'TODO add a bunch of new stuff to testing (new alleles, light chain, ...)'
 parent_parser.add_argument('--seqfile', help='DEPRECATED use --infname instead')
 parent_parser.add_argument('--infname', help='input sequence file in .fa, .fq or .csv (if .csv, specify id string and sequence headers with --name-column and --seq-column)')

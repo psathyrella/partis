@@ -1295,17 +1295,6 @@ class PartitionDriver(object):
         utils.print_reco_event(self.glfo['seqs'], line, extra_str='    ', label='inferred:')
 
     # ----------------------------------------------------------------------------------------
-    def print_performance_info(self, line, perfplotter=None):
-        assert False  # TODO fix
-        true_line = self.reco_info[line['unique_id']]
-        genes_ok = ['ok'  if (line[region+'_gene'] == true_line[region+'_gene']) else 'no' for region in utils.regions]
-        print '         v  d  j   hamming      erosions      insertions'
-        print '        %3s%3s%3s' % tuple(genes_ok),
-        print '  %3d' % (perfplotter.hamming_distance_to_true_naive(true_line, line, line['unique_id']) if perfplotter != None else -1),
-        print '   %4d%4d%4d%4d' % tuple([int(line[ero+'_del']) - int(true_line[ero+'_del']) for ero in utils.real_erosions]),
-        print '   %4d%4d' % tuple([len(line[bound+'_insertion']) - len(true_line[bound+'_insertion']) for bound in utils.boundaries])
-
-    # ----------------------------------------------------------------------------------------
     def write_annotations(self, annotations, outfname):
         outpath = outfname
         if outpath[0] != '/':  # if full output path wasn't specified on the command line, write to current directory
