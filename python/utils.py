@@ -207,7 +207,7 @@ implicit_columns = set(['naive_seq', 'cdr3_length', 'codon_positions', 'lengths'
 # ----------------------------------------------------------------------------------------
 def TMP_convert_old_sim_headers(line):
     for key in line:
-        if key in xcolumns['single_per_seq']:
+        if key in tuple(['seq', 'unique_id', 'indelfo', 'mut_freq'] + [r + '_qr_seq' for r in regions] + ['aligned_' + r + '_seq' for r in regions] + functional_columns):  # + ['padleft', 'padright']):
             line[key + 's'] = [line[key], ]
             del line[key]
 
@@ -418,7 +418,7 @@ def check_a_bunch_of_codons(codon, seqons, extra_str='', debug=False):  # seqons
         print ''
 
 #----------------------------------------------------------------------------------------
-def stop_codon_check(seq, cyst_position, debug=False):
+def is_there_a_stop_codon(seq, cyst_position, debug=False):
     """
     Make sure there is no in-frame stop codon, where frame is inferred from <cyst_position>.
     Returns True if no stop codon is found
@@ -426,7 +426,7 @@ def stop_codon_check(seq, cyst_position, debug=False):
     if cyst_position >= len(seq):
         if debug:
             print '      not sure if there\'s a stop codon (invalid cysteine position)'
-        return False  # not sure if there is one, since we have to way to establish the frame
+        return True  # not sure if there is one, since we have to way to establish the frame
     # jump leftward in steps of three until we reach the start of the sequence
     ipos = cyst_position
     while ipos > 2:
@@ -437,10 +437,10 @@ def stop_codon_check(seq, cyst_position, debug=False):
         if codon in codon_table['stop']:
             if debug:
                 print '      stop codon %s at %d in %s' % (codon, ipos, seq)
-            return False
+            return True
         ipos += 3
 
-    return True  # no stop codon
+    return False  # no stop codon
 
 # ----------------------------------------------------------------------------------------
 def is_mutated(original, final, n_muted=-1, n_total=-1):
@@ -598,18 +598,18 @@ def add_qr_seqs(line):
 
 # ----------------------------------------------------------------------------------------
 def add_functional_info(chain, line):
-    def get_single_seq_info(seq, cpos, tpos, cdr3_length):
-        codons_ok = both_codons_ok(chain, seq, {'v' : cpos, 'j' : tpos})
-        in_frame_cdr3 = (cdr3_length % 3 == 0)
-        no_stop_codon = stop_codon_check(seq, cpos)
-        return {'mutated_invariant' : not codons_ok, 'in_frame' : in_frame_cdr3, 'stop' : not no_stop_codon}
+    def get_val(ftype, iseq):
+        if ftype == 'mutated_invariants':
+            return not both_codons_ok(chain, line['seqs'][iseq], line['codon_positions'])
+        elif ftype == 'in_frames':
+            return line['cdr3_length'] % 3 == 0
+        elif ftype == 'stops':
+            return is_there_a_stop_codon(line['seqs'][iseq], line['codon_positions']['v'])
+        else:
+            assert False
 
     for fc in functional_columns:
-        line[fc] = []
-    for iseq in range(len(line['seqs'])):
-        info = get_single_seq_info(line['seqs'][iseq], line['codon_positions']['v'], line['codon_positions']['j'], line['cdr3_length'])
-        for fc in functional_columns:
-            line[fc].append(info[fc])
+        line[fc] = [get_val(fc, iseq) for iseq in range(len(line['seqs']))]
 
 # ----------------------------------------------------------------------------------------
 def add_mute_freqs(line):

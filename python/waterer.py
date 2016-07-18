@@ -680,15 +680,15 @@ class Waterer(object):
             return
 
         in_frame_cdr3 = (cdr3_length % 3 == 0)
-        no_stop_codon = utils.stop_codon_check(qseq, codon_positions['v'])
-        if not codons_ok or not in_frame_cdr3 or not no_stop_codon:
+        stop_codon = utils.is_there_a_stop_codon(qseq, codon_positions['v'])
+        if not codons_ok or not in_frame_cdr3 or stop_codon:
             if self.debug:
                 print '       unproductive rearrangement:',
                 if not codons_ok:
                     print '  bad codons',
                 if not in_frame_cdr3:
                     print '  out of frame cdr3',
-                if not no_stop_codon:
+                if stop_codon:
                     print '  stop codon'
                 print ''
 
