@@ -180,27 +180,26 @@ column_configs = {
     'lists-of-string-float-pairs' : [r + '_per_gene_support' for r in regions]
 }
 
-# NOTE calling this "columns" is kind of bad, because other things already have similar names. But, sigh, it's probably the best option a.t.m.
 # keep track of all the *@*@$!ing different keys that happen in the <line>/<hmminfo>/whatever dictionaries
-print 'TODO clean the fuck out of this stuff'
-xcolumns = {}
-xcolumns['per_family'] = tuple(['naive_seq', 'cdr3_length', 'codon_positions', 'lengths', 'regional_bounds'] + \
-                               [g + '_gene' for g in regions] + \
-                               [e + '_del' for e in real_erosions + effective_erosions] + \
-                               [b + '_insertion' for b in boundaries + effective_boundaries] + \
-                               [r + '_gl_seq' for r in regions] + \
-                               [r + '_per_gene_support' for r in regions])
-xcolumns['per_seq'] = tuple(['seqs', 'unique_ids', 'indelfos', 'mut_freqs'] + \
-                            [r + '_qr_seqs' for r in regions] + \
-                            ['aligned_' + r + '_seqs' for r in regions] + \
-                            functional_columns)  # + ['padleft', 'padright'])
-xcolumns['hmm'] = tuple(['logprob', 'errors', 'nth_best'])
-xcolumns['sw'] = tuple(['k_v', 'k_d', 'all'])
-xcolumns['extra'] = tuple(['invalid', ])
-xcolumns['simu'] = tuple(['reco_id', ])
-xall_columns = set([k for cols in xcolumns.values() for k in cols])
+linekeys = {}
+linekeys['per_family'] = ['naive_seq', 'cdr3_length', 'codon_positions', 'lengths', 'regional_bounds'] + \
+                         [r + '_gene' for r in regions] + \
+                         [e + '_del' for e in real_erosions + effective_erosions] + \
+                         [b + '_insertion' for b in boundaries + effective_boundaries] + \
+                         [r + '_gl_seq' for r in regions] + \
+                         [r + '_per_gene_support' for r in regions]
+linekeys['per_seq'] = ['seqs', 'unique_ids', 'indelfos', 'mut_freqs'] + \
+                      [r + '_qr_seqs' for r in regions] + \
+                      ['aligned_' + r + '_seqs' for r in regions] + \
+                      functional_columns  # + ['padleft', 'padright'])
+linekeys['hmm'] = ['logprob', 'errors']
+linekeys['sw'] = ['k_v', 'k_d', 'all']
+linekeys['extra'] = ['invalid', ]
+linekeys['simu'] = ['reco_id', ]
+all_linekeys = set([k for cols in linekeys.values() for k in cols])
 
-implicit_columns = set(['naive_seq', 'cdr3_length', 'codon_positions', 'lengths', 'regional_bounds', 'invalid'] + \
+# keys that are added by add_implicit_info()
+implicit_linekeys = set(['naive_seq', 'cdr3_length', 'codon_positions', 'lengths', 'regional_bounds', 'invalid'] + \
                        [r + '_gl_seq' for r in regions] + \
                        ['mut_freqs', ] + functional_columns + [r + '_qr_seqs' for r in regions] + ['aligned_' + r + '_seqs' for r in regions])
 
@@ -617,7 +616,7 @@ def add_mute_freqs(line):
 
 # ----------------------------------------------------------------------------------------
 def remove_all_implicit_info(line):
-    for col in implicit_columns:
+    for col in implicit_linekeys:
         if col in line:
             del line[col]
 
@@ -653,6 +652,8 @@ def add_implicit_info(glfo, line, existing_implicit_keys=None, aligned_gl_seqs=N
             pre_existing_info[ekey] = copy.deepcopy(line[ekey])
             del line[ekey]
     initial_keys = set(line.keys())  # keep track of the keys that are in <line> to start with (so we know which ones we added)
+    if len(initial_keys - all_linekeys) > 0:  # make sure there aren't any extra keys to start with
+        raise Exception('unexpected keys %s' % ' '.join(initial_keys - all_linekeys))
 
     # add the regional germline seqs and their lengths
     line['lengths'] = {}  # length of each match (including erosion)
@@ -711,21 +712,16 @@ def add_implicit_info(glfo, line, existing_implicit_keys=None, aligned_gl_seqs=N
     else:
         add_alignments(glfo, aligned_gl_seqs, line, debug)
 
-    # make sure we didn't add any unexpected columns (this may duplicate the newer check below)
-    for k in line.keys():
-        if k not in xall_columns:
-            raise Exception('unexpected key %s' % k)
-
     # make sure we added exactly what we expected to
     new_keys = set(line.keys()) - initial_keys
-    if len(new_keys - implicit_columns) > 0 or len(implicit_columns - new_keys) > 0:  # TODO maybe remove this (for performance reasons)
+    if len(new_keys - implicit_linekeys) > 0 or len(implicit_linekeys - new_keys) > 0:
         print ''
         print '           new   %s' % ' '.join(sorted(new_keys))
-        print '      implicit   %s' % ' '.join(sorted(implicit_columns))
-        print 'new - implicit:  %s' % (' '.join(sorted(new_keys - implicit_columns)))
-        print 'implicit - new:  %s' % (' '.join(sorted(implicit_columns - new_keys)))
+        print '      implicit   %s' % ' '.join(sorted(implicit_linekeys))
+        print 'new - implicit:  %s' % (' '.join(sorted(new_keys - implicit_linekeys)))
+        print 'implicit - new:  %s' % (' '.join(sorted(implicit_linekeys - new_keys)))
         print ''
-        raise Exception('column/key problems')
+        raise Exception('column/key problems (see above)')
 
     # make sure that any pre-existing implicit info matches what we just added
     if existing_implicit_keys is not None:
@@ -1908,17 +1904,17 @@ def auto_slurm(n_procs):
 def synthesize_single_seq_line(line, iseq):
     """ without modifying <line>, make a copy of it corresponding to a single-sequence event with the <iseq>th sequence """
     hmminfo = copy.deepcopy(line)  # make a copy of the info, into which we'll insert the sequence-specific stuff
-    for col in xcolumns['multi_per_seq']:
+    for col in linekeys['per_seq']:
         hmminfo[col] = [hmminfo[col][iseq], ]
     return hmminfo
 
 # ----------------------------------------------------------------------------------------
 def synthesize_multi_seq_line(glfo, single_seq_line, per_seq_info):
     hmminfo = copy.deepcopy(single_seq_line)
-    non_implicit_columns = set(xcolumns['per_seq']) - implicit_columns  # a.t.m. it's just 'seqs' and 'unique_ids' and 'indelfos'
-    if set(per_seq_info.keys()) != non_implicit_columns:
-        raise Exception('passed per_seq_info keys (%s) don\'t match expectation (%s)' % (' '.join(per_seq_info.keys()), ' '.join(non_implicit_columns)))
-    for col in non_implicit_columns:
+    non_implicit_linekeys = set(linekeys['per_seq']) - implicit_linekeys  # a.t.m. it's just 'seqs' and 'unique_ids' and 'indelfos'
+    if set(per_seq_info.keys()) != non_implicit_linekeys:
+        raise Exception('passed per_seq_info keys (%s) don\'t match expectation (%s)' % (' '.join(per_seq_info.keys()), ' '.join(non_implicit_linekeys)))
+    for col in non_implicit_linekeys:
         hmminfo[col] = copy.deepcopy(per_seq_info[col])
     return hmminfo
 
