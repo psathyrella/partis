@@ -582,7 +582,7 @@ class Waterer(object):
         self.info[qname]['seqs'] = [qinfo['seq'], ]  # NOTE this is the seq output by vdjalign, i.e. if we reversed any indels it is the reversed sequence
 
         existing_implicit_keys = tuple(['cdr3_length', 'codon_positions'])
-        utils.add_implicit_info(self.glfo, self.info[qname], multi_seq=True, existing_implicit_keys=existing_implicit_keys)
+        utils.add_implicit_info(self.glfo, self.info[qname], existing_implicit_keys=existing_implicit_keys)
 
         if self.debug:
             if not self.args.is_data:

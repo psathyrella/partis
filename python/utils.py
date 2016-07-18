@@ -226,13 +226,6 @@ annotation_headers = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length',
 partition_cachefile_headers = ('unique_ids', 'logprob', 'naive_seq', 'naive_hfrac', 'errors')  # these have to match whatever bcrham is expecting
 
 # ----------------------------------------------------------------------------------------
-def get_implicit_keys(multi_seq):
-    if multi_seq:
-        return multi_per_seq_implicit_columns
-    else:
-        return single_per_seq_implicit_columns
-
-# ----------------------------------------------------------------------------------------
 def convert_to_presto_headers(line):
     """ convert <line> to presto csv format """
     if len(line['unique_ids']) > 1:  # has to happen *before* utils.get_line_for_output()
@@ -532,11 +525,9 @@ def reset_effective_erosions_and_effective_insertions(glfo, padded_line, aligned
     Note that these effective erosion values will be present in the parameter dir, but are *not* incorporated into
     the hmm yaml files.
     """
-    if 'seqs' not in padded_line:
-        raise Exception('this function should only be called for multi_seq lines')
 
     line = copy.deepcopy(padded_line)
-    remove_all_implicit_info(line, multi_seq=True)
+    remove_all_implicit_info(line)
 
     assert line['v_5p_del'] == 0  # just to be safe
     assert line['j_3p_del'] == 0
@@ -591,12 +582,12 @@ def reset_effective_erosions_and_effective_insertions(glfo, padded_line, aligned
     # else:
     #     line['padlefts'], line['padrights'] = [padfo[uid]['padded']['padleft'] for uid in line['unique_ids']], [padfo[uid]['padded']['padright'] for uid in line['unique_ids']]
 
-    add_implicit_info(glfo, line, multi_seq=True, aligned_gl_seqs=aligned_gl_seqs)
+    add_implicit_info(glfo, line, aligned_gl_seqs=aligned_gl_seqs)
 
     return line
 
 # ----------------------------------------------------------------------------------------
-def add_qr_seqs(line, multi_seq):
+def add_qr_seqs(line):
     """ Add [vdj]_qr_seq, i.e. the sections of the query sequence which are assigned to each region. """
 
     starts = {}
@@ -608,50 +599,36 @@ def add_qr_seqs(line, multi_seq):
         return seq[starts[region] : starts[region] + len(line[region + '_gl_seq'])]
 
     for region in regions:
-        if multi_seq:
-            line[region + '_qr_seqs'] = [get_single_qr_seq(region, seq) for seq in line['seqs']]
-        else:  # NOTE sw has already added the qr seq, so we could go back to checking that it's the same (but if it's ever different, it'll probably be some ridiculous pathological non-bcr sequence, so fuck 'em)
-            line[region + '_qr_seq'] = get_single_qr_seq(region, line['seq'])
+        line[region + '_qr_seqs'] = [get_single_qr_seq(region, seq) for seq in line['seqs']]
 
 # ----------------------------------------------------------------------------------------
-def add_functional_info(chain, line, multi_seq):
+def add_functional_info(chain, line):
     def get_single_seq_info(seq, cpos, tpos, cdr3_length):
         codons_ok = both_codons_ok(chain, seq, {'v' : cpos, 'j' : tpos})
         in_frame_cdr3 = (cdr3_length % 3 == 0)
         no_stop_codon = stop_codon_check(seq, cpos)
         return {'mutated_invariant' : not codons_ok, 'in_frame' : in_frame_cdr3, 'stop' : not no_stop_codon}
 
-    if multi_seq:
+    for fc in functional_columns:
+        line[fc + 's'] = []
+    for iseq in range(len(line['seqs'])):
+        info = get_single_seq_info(line['seqs'][iseq], line['codon_positions']['v'], line['codon_positions']['j'], line['cdr3_length'])
         for fc in functional_columns:
-            line[fc + 's'] = []
-        for iseq in range(len(line['seqs'])):
-            info = get_single_seq_info(line['seqs'][iseq], line['codon_positions']['v'], line['codon_positions']['j'], line['cdr3_length'])
-            for fc in functional_columns:
-                line[fc + 's'].append(info[fc])
-    else:
-        info = get_single_seq_info(line['seq'], line['codon_positions']['v'], line['codon_positions']['j'], line['cdr3_length'])
-        for fc in functional_columns:
-            line[fc] = info[fc]
+            line[fc + 's'].append(info[fc])
 
 # ----------------------------------------------------------------------------------------
-def add_mute_freqs(line, multi_seq):
-    if multi_seq:
-        line['mut_freqs'] = [hamming_fraction(line['naive_seq'], mature_seq) for mature_seq in line['seqs']]
-    else:
-        line['mut_freq'] = hamming_fraction(line['naive_seq'], line['seq'])
+def add_mute_freqs(line):
+    line['mut_freqs'] = [hamming_fraction(line['naive_seq'], mature_seq) for mature_seq in line['seqs']]
 
 # ----------------------------------------------------------------------------------------
-def remove_all_implicit_info(line, multi_seq):
-    for col in get_implicit_keys(multi_seq):
+def remove_all_implicit_info(line):
+    for col in multi_per_seq_implicit_columns:
         if col in line:
             del line[col]
 
 # ----------------------------------------------------------------------------------------
-def check_for_forbidden_keys(line, multi_seq):
-    if multi_seq:
-        forbidden_keys = xcolumns['single_per_seq']
-    else:
-        forbidden_keys = xcolumns['multi_per_seq']
+def check_for_forbidden_keys(line):
+    forbidden_keys = xcolumns['single_per_seq']
     for k in line.keys():
         if k in forbidden_keys:
             raise Exception('forbidden key %s in line' % k)
@@ -678,7 +655,7 @@ def process_per_gene_support(line, debug=False):
         line[region + '_per_gene_support'] = support
 
 # ----------------------------------------------------------------------------------------
-def add_implicit_info(glfo, line, multi_seq, existing_implicit_keys=None, aligned_gl_seqs=None, debug=False):
+def add_implicit_info(glfo, line, existing_implicit_keys=None, aligned_gl_seqs=None, debug=False):
     """ Add to <line> a bunch of things that are initially only implicit. """
 
     # check for existing and unexpected keys
@@ -688,7 +665,7 @@ def add_implicit_info(glfo, line, multi_seq, existing_implicit_keys=None, aligne
             pre_existing_info[ekey] = copy.deepcopy(line[ekey])
             del line[ekey]
     initial_keys = set(line.keys())  # keep track of the keys that are in <line> to start with (so we know which ones we added)
-    check_for_forbidden_keys(line, multi_seq)
+    check_for_forbidden_keys(line)
 
     # add the regional germline seqs and their lengths
     line['lengths'] = {}  # length of each match (including erosion)
@@ -724,18 +701,15 @@ def add_implicit_info(glfo, line, multi_seq, existing_implicit_keys=None, aligne
     line['regional_bounds'] = {r : (start[r], end[r]) for r in regions}
 
     # add regional query seqs
-    add_qr_seqs(line, multi_seq)
+    add_qr_seqs(line)
 
-    add_functional_info(glfo['chain'], line, multi_seq)
+    add_functional_info(glfo['chain'], line)
 
-    add_mute_freqs(line, multi_seq)
+    add_mute_freqs(line)
 
     # set validity (alignment addition can also set invalid)  # TODO clean up this checking stuff
     line['invalid'] = False
-    if multi_seq:
-        seq_length = len(line['seqs'][0])  # they shouldn't be able to be different lengths
-    else:
-        seq_length = len(line['seq'])
+    seq_length = len(line['seqs'][0])  # they shouldn't be able to be different lengths
     for chkreg in regions:
         if start[chkreg] < 0 or end[chkreg] < 0 or end[chkreg] < start[chkreg] or end[chkreg] > seq_length:
             line['invalid'] = True
@@ -746,9 +720,9 @@ def add_implicit_info(glfo, line, multi_seq, existing_implicit_keys=None, aligne
 
     # add alignment info
     if aligned_gl_seqs is None:
-        add_dummy_alignments(line, multi_seq)
+        add_dummy_alignments(line)
     else:
-        add_alignments(glfo, aligned_gl_seqs, line, multi_seq, debug)
+        add_alignments(glfo, aligned_gl_seqs, line, debug)
 
     # make sure we didn't add any unexpected columns (this may duplicate the newer check below)
     for k in line.keys():
@@ -757,7 +731,7 @@ def add_implicit_info(glfo, line, multi_seq, existing_implicit_keys=None, aligne
 
     # make sure we added exactly what we expected to
     new_keys = set(line.keys()) - initial_keys
-    these_implicit = get_implicit_keys(multi_seq)
+    these_implicit = multi_per_seq_implicit_columns
     if len(new_keys - these_implicit) > 0 or len(these_implicit - new_keys) > 0:  # TODO maybe remove this (for performance reasons)
         print ''
         print '           new   %s' % ' '.join(sorted(new_keys))
@@ -771,7 +745,7 @@ def add_implicit_info(glfo, line, multi_seq, existing_implicit_keys=None, aligne
     if existing_implicit_keys is not None:
         for ekey in existing_implicit_keys:
             if pre_existing_info[ekey] != line[ekey]:
-                print '  WARNING pre-existing info\n    %s\n    doesn\'t match new info\n    %s\n    for %s in %s' % (pre_existing_info[ekey], line[ekey], ekey, line['unique_ids'] if multi_seq else line['unique_id'])
+                print '  WARNING pre-existing info\n    %s\n    doesn\'t match new info\n    %s\n    for %s in %s' % (pre_existing_info[ekey], line[ekey], ekey, line['unique_ids'])
 
 # ----------------------------------------------------------------------------------------
 def print_true_events(glfo, reco_info, line, print_uid=False):
@@ -1960,7 +1934,6 @@ def synthesize_single_seq_line(line, iseq):
 
 # ----------------------------------------------------------------------------------------
 def synthesize_multi_seq_line(glfo, single_seq_line, per_seq_info):
-    """ without modifying <line>, make a multi_seq line from the single seq <line> """
     hmminfo = copy.deepcopy(single_seq_line)
     non_implicit_columns = set(xcolumns['multi_per_seq']) - multi_per_seq_implicit_columns  # a.t.m. it's just 'seqs' and 'unique_ids' and 'indelfos'
     if set(per_seq_info.keys()) != non_implicit_columns:
@@ -1977,19 +1950,12 @@ def count_gaps(seq, istop=None):
     return sum([seq.count(gc) for gc in gap_chars])
 
 # ----------------------------------------------------------------------------------------
-def add_dummy_alignments(line, multi_seq):
+def add_dummy_alignments(line):
     for region in regions:
-        if multi_seq:
-            line['aligned_' + region + '_seqs'] = [None for _ in range(len(line['seqs']))]
-        else:
-            line['aligned_' + region + '_seq'] = None
+        line['aligned_' + region + '_seqs'] = [None for _ in range(len(line['seqs']))]
 
 # ----------------------------------------------------------------------------------------
-def add_regional_alignments(glfo, aligned_gl_seqs, line, multi_seq, region, debug=False):
-    if not multi_seq:  # TODO implement this
-        line['aligned_' + region + '_seq'] = None
-        return
-
+def add_regional_alignments(glfo, aligned_gl_seqs, line, region, debug=False):
     aligned_seqs = []
     for iseq in range(len(line['seqs'])):
         qr_seq = line[region + '_qr_seqs'][iseq]
@@ -2042,9 +2008,9 @@ def add_regional_alignments(glfo, aligned_gl_seqs, line, multi_seq, region, debu
     line['aligned_' + region + '_seqs'] = aligned_seqs
 
 # ----------------------------------------------------------------------------------------
-def add_alignments(glfo, aligned_gl_seqs, line, multi_seq, debug=False):
+def add_alignments(glfo, aligned_gl_seqs, line, debug=False):
     for region in regions:
-        add_regional_alignments(glfo, aligned_gl_seqs, line, multi_seq, region, debug)
+        add_regional_alignments(glfo, aligned_gl_seqs, line, region, debug)
 
 # ----------------------------------------------------------------------------------------
 def intexterpolate(x1, y1, x2, y2, x):

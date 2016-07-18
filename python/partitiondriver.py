@@ -223,7 +223,7 @@ class PartitionDriver(object):
                 utils.process_input_line(line)
                 if self.args.infname is not None and self.reco_info is not None:
                     utils.print_true_events(self.glfo, self.reco_info, line)
-                utils.add_implicit_info(self.glfo, line, multi_seq=True, existing_implicit_keys=('aligned_d_seqs', 'aligned_j_seqs', 'aligned_v_seqs', 'cdr3_length', 'naive_seq', 'in_frames', 'mutated_invariants', 'stops'))
+                utils.add_implicit_info(self.glfo, line, existing_implicit_keys=('aligned_d_seqs', 'aligned_j_seqs', 'aligned_v_seqs', 'cdr3_length', 'naive_seq', 'in_frames', 'mutated_invariants', 'stops'))
                 print '    inferred:\n'
                 utils.print_reco_event(self.glfo['seqs'], line)
 
@@ -1181,7 +1181,7 @@ class PartitionDriver(object):
                 uidstr = ':'.join(uids)
                 padded_line['indelfos'] = [self.sw_info['indels'].get(uid, utils.get_empty_indel()) for uid in uids]
 
-                utils.add_implicit_info(self.glfo, padded_line, multi_seq=True, aligned_gl_seqs=self.aligned_gl_seqs)
+                utils.add_implicit_info(self.glfo, padded_line, aligned_gl_seqs=self.aligned_gl_seqs)
                 utils.process_per_gene_support(padded_line)  # switch per-gene support from log space to normalized probabilities
                 if padded_line['invalid']:
                     n_invalid_events += 1
@@ -1345,8 +1345,8 @@ class PartitionDriver(object):
                 for full_line in annotations.values():
                     outline = copy.deepcopy(full_line)  # in case we modify it
 
-                    utils.remove_all_implicit_info(outline, multi_seq=True)
-                    utils.add_implicit_info(self.glfo, outline, multi_seq=True, aligned_gl_seqs=self.aligned_gl_seqs)
+                    utils.remove_all_implicit_info(outline)
+                    utils.add_implicit_info(self.glfo, outline, aligned_gl_seqs=self.aligned_gl_seqs)
 
                     outline = utils.convert_to_presto_headers(outline)
 

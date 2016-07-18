@@ -136,7 +136,7 @@ def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, 
             utils.TMP_convert_old_sim_headers(reco_info[unique_id])
             reco_info[unique_id]['unique_ids'] = [unique_id, ]  # in case we're abbreviating
             if glfo is not None:
-                utils.add_implicit_info(glfo, reco_info[unique_id], multi_seq=True, existing_implicit_keys=('cdr3_length', ))
+                utils.add_implicit_info(glfo, reco_info[unique_id], existing_implicit_keys=('cdr3_length', ))
 
         n_queries += 1
         if n_max_queries > 0 and n_queries >= n_max_queries:
