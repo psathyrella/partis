@@ -730,17 +730,14 @@ def print_seq_in_reco_event(germlines, line, iseq, extra_str='', label='', one_l
         add_indels_to_germline_strings(line, indelfo)
 
     # ----------------------------------------------------------------------------------------
-    def process_position(original, final, counts):
+    def process_position(original, final):
         if original not in expected_characters or final not in expected_characters:
             raise Exception('one of %s %s not among expected characters' % (original, final))
 
         if original in ambiguous_bases or final in ambiguous_bases:  # don't count Ns in the total
             return final
 
-        counts['total'] += 1
-
         if original != final:
-            counts['muted'] += 1
             return color('red', final)
 
         return final
@@ -749,7 +746,6 @@ def print_seq_in_reco_event(germlines, line, iseq, extra_str='', label='', one_l
     j_right_extra = ''  # portion of query sequence to right of end of the j match
     n_inserted = 0
     final_seq = ''
-    counts = {'muted' : 0, 'total' : 0}
     for inuke in range(len(lseq)):
         if indelfo is not None:
             lastfo = indelfo['indels'][-1]  # if the "last" (arbitrary but necessary ordering) indel starts here
@@ -771,8 +767,8 @@ def print_seq_in_reco_event(germlines, line, iseq, extra_str='', label='', one_l
                 n_inserted = - lastfo['len']
 
         new_nuke = ''
-        ilocal = inuke
         key = None
+        ilocal = inuke
         if indelfo is not None and reverse_indels:
             ilocal += n_inserted
         if indelfo is not None and not reverse_indels and lastfo['type'] == 'deletion':
@@ -806,7 +802,7 @@ def print_seq_in_reco_event(germlines, line, iseq, extra_str='', label='', one_l
             original = lseq[inuke]  # dummy value
         else:
             original = line[key][ilocal]
-        new_nuke = process_position(original, lseq[inuke], counts)
+        new_nuke = process_position(original, lseq[inuke])
 
         for region, pos in line['codon_positions'].items():  # reverse video for the conserved codon positions
             if indelfo is not None and not reverse_indels:
@@ -913,10 +909,7 @@ def print_seq_in_reco_event(germlines, line, iseq, extra_str='', label='', one_l
     # if print_uid:
     #     extra_str += '%20s' % line['unique_id']
     out_str_list.append('    %s' % final_seq)
-    mute_freq = 0. if counts['total'] == 0. else float(counts['muted']) / counts['total']
-    if mute_freq != line['mut_freqs'][iseq]:
-        print '%s unequal mut freqs for %s: %f %f' % (color('red', 'warning'), line['unique_ids'][iseq], mute_freq, line['mut_freqs'][iseq])
-    out_str_list.append('   %4.2f mut' % mute_freq)
+    out_str_list.append('   %4.2f mut' % line['mut_freqs'][iseq])
     if 'logprob' in line:
         out_str_list.append('     %8.2f  logprob' % line['logprob'])
     out_str_list.append('\n')
