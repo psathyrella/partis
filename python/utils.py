@@ -167,8 +167,8 @@ column_configs = {
     'ints' : ['cdr3_length', 'padlefts', 'padrights'] + [e + '_del' for e in real_erosions + effective_erosions],
     'floats' : ['logprob', 'mut_freqs'],
     'bools' : functional_columns,
-    'literals' : ['indelfo', 'indelfos', 'k_v', 'k_d'],  # simulation has indelfo[s] singular, annotation output has it plural... and I think it actually makes sense to have it that way
-    'lists' : ['unique_ids', 'seqs', 'aligned_seqs', 'mut_freqs', 'padlefts', 'padrights', 'all_matches'] + ['aligned_' + r + '_seqs' for r in regions] + [r + '_per_gene_support' for r in regions] + functional_columns,
+    'literals' : ['indelfo', 'indelfos', 'k_v', 'k_d', 'all_matches'],  # simulation has indelfo[s] singular, annotation output has it plural... and I think it actually makes sense to have it that way
+    'lists' : ['unique_ids', 'seqs', 'aligned_seqs', 'mut_freqs', 'padlefts', 'padrights'] + ['aligned_' + r + '_seqs' for r in regions] + [r + '_per_gene_support' for r in regions] + functional_columns,
     'lists-of-string-float-pairs' : [r + '_per_gene_support' for r in regions]
 }
 
@@ -717,16 +717,11 @@ def add_implicit_info(glfo, line, existing_implicit_keys=None, aligned_gl_seqs=N
 # ----------------------------------------------------------------------------------------
 def print_true_events(glfo, reco_info, line, print_uid=False):
     """ print the true events which contain the seqs in <line> """
-    true_naive_seqs = []
+    # true_naive_seqs = []
     for uids in get_true_partition(reco_info, ids=line['unique_ids']):  # make a multi-seq line that has all the seqs from this clonal family
-        for iid in uids:  # TODO remove this
-            assert len(reco_info[iid]['seqs']) == 1
-        seqs = [reco_info[iid]['seqs'][0] for iid in uids]
-        indelfos = [reco_info[iid]['indelfos'][0] for iid in uids]
-        per_seq_info = {'unique_ids' : uids, 'seqs' : seqs, 'indelfos' : indelfos}
-        synthetic_true_line = synthesize_multi_seq_line(glfo, reco_info[uids[0]], per_seq_info)
-        print_reco_event(glfo['seqs'], synthetic_true_line, extra_str='    ', label='true:', print_uid=print_uid)
-        true_naive_seqs.append(synthetic_true_line['naive_seq'])
+        multiline = synthesize_multi_seq_line(uids, reco_info)
+        print_reco_event(glfo['seqs'], multiline, extra_str='    ', label='true:', print_uid=print_uid)
+        # true_naive_seqs.append(multiline['naive_seq'])
 
     # print '\ntrue vs inferred naive sequences:'
     # for tseq in true_naive_seqs:
@@ -1893,14 +1888,14 @@ def synthesize_single_seq_line(line, iseq):
     return hmminfo
 
 # ----------------------------------------------------------------------------------------
-def synthesize_multi_seq_line(glfo, single_seq_line, per_seq_info):
-    hmminfo = copy.deepcopy(single_seq_line)
-    non_implicit_linekeys = set(linekeys['per_seq']) - implicit_linekeys  # a.t.m. it's just 'seqs' and 'unique_ids' and 'indelfos'
-    if set(per_seq_info.keys()) != non_implicit_linekeys:
-        raise Exception('passed per_seq_info keys (%s) don\'t match expectation (%s)' % (' '.join(per_seq_info.keys()), ' '.join(non_implicit_linekeys)))
-    for col in non_implicit_linekeys:
-        hmminfo[col] = copy.deepcopy(per_seq_info[col])
-    return hmminfo
+def synthesize_multi_seq_line(uids, reco_info):
+    """ assumes you already added all the implicit info """
+    assert len(uids) > 0
+    outline = copy.deepcopy(reco_info[uids[0]])
+    for col in linekeys['per_seq']:
+        assert [len(reco_info[uid][col]) for uid in uids].count(1) == len(uids)  # make sure they're all length one
+        outline[col] = [copy.deepcopy(reco_info[uid][col][0]) for uid in uids]
+    return outline
 
 # ----------------------------------------------------------------------------------------
 def count_gaps(seq, istop=None):
