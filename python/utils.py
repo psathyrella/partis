@@ -427,23 +427,6 @@ def is_there_a_stop_codon(seq, cyst_position, debug=False):
     return False  # no stop codon
 
 # ----------------------------------------------------------------------------------------
-def is_mutated(original, final, n_muted=-1, n_total=-1):
-    alphabet = nukes + ambiguous_bases
-    if original not in alphabet or final not in alphabet:
-        raise Exception('bad base (%s or %s) in utils.is_mutated()' % (original, final))
-
-    # print '%s %s' % (original, final)
-    return_str = final
-    if original in ambiguous_bases or final in ambiguous_bases:  # don't count Ns in the total
-        return return_str, n_muted, n_total
-
-    n_total += 1
-    if original != final:
-        return_str = color('red', final)
-        n_muted += 1
-    return return_str, n_muted, n_total
-
-# ----------------------------------------------------------------------------------------
 def disambiguate_effective_insertions(bound, line, seq, unique_id, debug=False):
     # These are kinda weird names, but the distinction is important
     # If an insert state with "germline" N emits one of [ACGT], then the hmm will report this as an inserted N. Which is what we want -- we view this as a germline N which "mutated" to [ACGT].
@@ -596,10 +579,6 @@ def add_functional_info(chain, line):
         line[fc] = [get_val(fc, iseq) for iseq in range(len(line['seqs']))]
 
 # ----------------------------------------------------------------------------------------
-def add_mute_freqs(line):
-    line['mut_freqs'] = [hamming_fraction(line['naive_seq'], mature_seq) for mature_seq in line['seqs']]
-
-# ----------------------------------------------------------------------------------------
 def remove_all_implicit_info(line):
     for col in implicit_linekeys:
         if col in line:
@@ -678,7 +657,7 @@ def add_implicit_info(glfo, line, existing_implicit_keys=None, aligned_gl_seqs=N
 
     add_functional_info(glfo['chain'], line)
 
-    add_mute_freqs(line)
+    line['mut_freqs'] = [hamming_fraction(line['naive_seq'], mature_seq) for mature_seq in line['seqs']]
 
     # set validity (alignment addition can also set invalid)  # TODO clean up this checking stuff
     line['invalid'] = False
@@ -750,11 +729,27 @@ def print_seq_in_reco_event(germlines, line, iseq, extra_str='', label='', one_l
             print 'WARNING multiple indels not really handled'
         add_indels_to_germline_strings(line, indelfo)
 
+    # ----------------------------------------------------------------------------------------
+    def process_position(original, final, counts):
+        if original not in expected_characters or final not in expected_characters:
+            raise Exception('one of %s %s not among expected characters' % (original, final))
+
+        if original in ambiguous_bases or final in ambiguous_bases:  # don't count Ns in the total
+            return final
+
+        counts['total'] += 1
+
+        if original != final:
+            counts['muted'] += 1
+            return color('red', final)
+
+        return final
+
     # build up the query sequence line, including colors for mutations and conserved codons
-    final_seq = ''
-    n_muted, n_total = 0, 0
     j_right_extra = ''  # portion of query sequence to right of end of the j match
     n_inserted = 0
+    final_seq = ''
+    counts = {'muted' : 0, 'total' : 0}
     for inuke in range(len(lseq)):
         if indelfo is not None:
             lastfo = indelfo['indels'][-1]  # if the "last" (arbitrary but necessary ordering) indel starts here
@@ -767,49 +762,51 @@ def print_seq_in_reco_event(germlines, line, iseq, extra_str='', label='', one_l
                 final_seq += lseq[inuke]
                 n_inserted += 1
                 continue
-            # if inuke > lastfo['pos'] + lastfo['len']:
-            #     inuke -= lastfo['len']
         if indelfo is not None and lastfo['type'] == 'deletion':
             if reverse_indels and inuke - lastfo['pos'] >= 0 and inuke - lastfo['pos'] < lastfo['len']:  # if we're within the bases that we added to make up for the deletionlen
                 final_seq += color('light_blue', '*')
-                # j_right_extra += ' '
                 continue
             elif not reverse_indels and inuke == lastfo['pos']:
                 final_seq += lastfo['len'] * color('light_blue', '*')
                 n_inserted = - lastfo['len']
-                # j_right_extra += ' ' * lastfo['len']
 
-        new_nuke = ''  # now not necessarily a single base
+        new_nuke = ''
         ilocal = inuke
+        key = None
         if indelfo is not None and reverse_indels:
             ilocal += n_inserted
         if indelfo is not None and not reverse_indels and lastfo['type'] == 'deletion':
             ilocal -= n_inserted
         if ilocal < len(line['fv_insertion']):  # haven't got to start of v match yet, so just add on the query seq nuke
-            new_nuke, n_muted, n_total = lseq[inuke], n_muted, n_total + 1
+            pass
         else:
             ilocal -= len(line['fv_insertion'])
             if ilocal < line['lengths']['v']:
-                new_nuke, n_muted, n_total = is_mutated(line['v_gl_seq'][ilocal], lseq[inuke], n_muted, n_total)
+                key = 'v_gl_seq'
             else:
                 ilocal -= line['lengths']['v']
                 if ilocal < len(line['vd_insertion']):
-                    new_nuke, n_muted, n_total = is_mutated(line['vd_insertion'][ilocal], lseq[inuke], n_muted, n_total)
+                    key = 'vd_insertion'
                 else:
                     ilocal -= len(line['vd_insertion'])
                     if ilocal < line['lengths']['d']:
-                        new_nuke, n_muted, n_total = is_mutated(line['d_gl_seq'][ilocal], lseq[inuke], n_muted, n_total)
+                        key = 'd_gl_seq'
                     else:
                         ilocal -= line['lengths']['d']
                         if ilocal < len(line['dj_insertion']):
-                            new_nuke, n_muted, n_total = is_mutated(line['dj_insertion'][ilocal], lseq[inuke], n_muted, n_total)
+                            key = 'dj_insertion'
                         else:
                             ilocal -= len(line['dj_insertion'])
                             if ilocal < line['lengths']['j']:
-                                new_nuke, n_muted, n_total = is_mutated(line['j_gl_seq'][ilocal], lseq[inuke], n_muted, n_total)
+                                key = 'j_gl_seq'
                             else:
-                                new_nuke, n_muted, n_total = lseq[inuke], n_muted, n_total + 1
                                 j_right_extra += ' '
+
+        if key is None:
+            original = lseq[inuke]  # dummy value
+        else:
+            original = line[key][ilocal]
+        new_nuke = process_position(original, lseq[inuke], counts)
 
         for region, pos in line['codon_positions'].items():  # reverse video for the conserved codon positions
             if indelfo is not None and not reverse_indels:
@@ -916,7 +913,7 @@ def print_seq_in_reco_event(germlines, line, iseq, extra_str='', label='', one_l
     # if print_uid:
     #     extra_str += '%20s' % line['unique_id']
     out_str_list.append('    %s' % final_seq)
-    mute_freq = 0. if n_total == 0. else float(n_muted) / n_total
+    mute_freq = 0. if counts['total'] == 0. else float(counts['muted']) / counts['total']
     if mute_freq != line['mut_freqs'][iseq]:
         print '%s unequal mut freqs for %s: %f %f' % (color('red', 'warning'), line['unique_ids'][iseq], mute_freq, line['mut_freqs'][iseq])
     out_str_list.append('   %4.2f mut' % mute_freq)
@@ -1166,7 +1163,7 @@ def hamming_fraction(seq1, seq2, return_len_excluding_ambig=False, extra_bases=N
         else:
             return 0.
 
-    alphabet = nukes + ambiguous_bases
+    alphabet = nukes + ambiguous_bases  # I think I don't want to allow gap characters here
 
     if extra_bases is not None:
         alphabet += extra_bases
