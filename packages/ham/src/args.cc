@@ -40,7 +40,7 @@ Args::Args(int argc, const char * argv[]):
   float_headers_ {},
   str_list_headers_ {"names", "seqs", "only_genes"},  // passed as colon-separated lists of strings
   int_list_headers_ {},  // passed as colon-separated lists of ints
-  float_list_headers_ {"mute_freqs"}  // passed as colon-separated lists of floats
+  float_list_headers_ {"mut_freqs"}  // passed as colon-separated lists of floats
 {
   try {
     CmdLine cmd("bcrham -- the fantabulous HMM compiler goes to B-Cellville", ' ', "");

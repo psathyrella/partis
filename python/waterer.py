@@ -134,13 +134,13 @@ class Waterer(object):
 
         if self.args.sw_outfname is not None:
             with open(self.args.sw_outfname, 'w') as outfile:
-                writer = csv.DictWriter(outfile, utils.annotation_headers)
+                writer = csv.DictWriter(outfile, utils.annotation_headers + utils.sw_cache_headers)
                 writer.writeheader()
                 missing_input_keys = set(self.input_info.keys())  # all the keys we originially read from the file
                 for query in self.info['queries']:
                     missing_input_keys.remove(query)
-                    outline = utils.get_line_for_output(outline)  # convert lists to colon-separated strings and whatnot (doens't modify input dictionary)
-                    outline = {k : v for k, v in outline.items() if k in utils.annotation_headers}  # remove the columns we don't want to output
+                    outline = utils.get_line_for_output(self.info[query])  # convert lists to colon-separated strings and whatnot (doens't modify input dictionary)
+                    outline = {k : v for k, v in outline.items() if k in utils.annotation_headers + utils.sw_cache_headers}  # remove the columns we don't want to output
                     writer.writerow(outline)
 
     # ----------------------------------------------------------------------------------------
@@ -541,8 +541,6 @@ class Waterer(object):
         qname = qinfo['name']
         assert qname not in self.info
 
-        match_names = {r : [g for _, g in qinfo['matches'][r]] for r in utils.regions}
-
         self.info['queries'].append(qname)
         self.info[qname] = {}
         self.info[qname]['unique_ids'] = [qname, ]  # redundant, but used somewhere down the line
@@ -550,8 +548,6 @@ class Waterer(object):
         kbounds = self.get_kbounds(qinfo, best)
         self.info[qname]['k_v'] = kbounds['v']
         self.info[qname]['k_d'] = kbounds['d']
-
-        self.info[qname]['all'] = ':'.join(match_names['v'] + match_names['d'] + match_names['j'])  # all gene matches for this query
 
         self.info[qname]['cdr3_length'] = codon_positions['j'] - codon_positions['v'] + 3
         self.info[qname]['codon_positions'] = copy.deepcopy(codon_positions)
@@ -571,10 +567,14 @@ class Waterer(object):
 
         self.info[qname]['indelfos'] = [self.info['indels'].get(qname, utils.get_empty_indel()), ]
 
+        self.info[qname]['all_matches'] = {r : [g for _, g in qinfo['matches'][r]] for r in utils.regions}  # get lists with no scores, just the names (still ordered by match quality, though)
         for region in utils.regions:
             self.info[qname][region + '_gene'] = best[region]
+
+        # add this query's matches into the overall gene match sets
+        for region in utils.regions:
             self.info['all_best_matches'].add(best[region])
-            self.info['all_matches'][region] |= set(match_names[region])
+            self.info['all_matches'][region] |= set(self.info[qname]['all_matches'][region])
 
         self.info[qname]['seqs'] = [qinfo['seq'], ]  # NOTE this is the seq output by vdjalign, i.e. if we reversed any indels it is the reversed sequence, also NOTE many, many things depend on this list being of length one
 

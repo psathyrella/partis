@@ -897,12 +897,15 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def remove_genes_with_no_hmm(self, gene_list, skipped_gene_matches, genes_with_hmm_files):
-        """ Check if hmm model file exists, and if not remove gene from <gene_list> """
+        """ return a copy of <gene_list> that only contains genes for which we have hmm model files """
 
         # first get the list of genes for which we don't have hmm files
         genes_to_remove = []  # NOTE there should *only* be genes to remove if we're caching parameters, i.e. if we just ran sw for the first time, so we couldn't tell sw ahead of time which genes to use because we didn't know yet
+        genes_to_use = []
         for gene in gene_list:
-            if gene not in genes_with_hmm_files:
+            if gene in genes_with_hmm_files:
+                genes_to_use.append(gene)
+            else:
                 skipped_gene_matches.add(gene)
                 genes_to_remove.append(gene)
 
@@ -943,7 +946,7 @@ class PartitionDriver(object):
             'k_d' : {'min' : 99999, 'max' : -1},
             'only_genes' : [],
             'seqs' : [],
-            'mute-freqs' : []
+            'mut_freqs' : []
         }
 
         # Note that this whole thing probably ought to use cached hmm info if it's available.
@@ -956,21 +959,24 @@ class PartitionDriver(object):
             assert len(swfo['seqs']) == 1
             seq = swfo['seqs'][0]
             combo['seqs'].append(seq)
-            combo['mute-freqs'].append(utils.hamming_fraction(self.get_padded_sw_naive_seq(name), seq))
+            combo['mut_freqs'].append(utils.hamming_fraction(self.get_padded_sw_naive_seq(name), seq))
             combo['k_v']['min'] = min(k_v['min'], combo['k_v']['min'])
             combo['k_v']['max'] = max(k_v['max'], combo['k_v']['max'])
             combo['k_d']['min'] = min(k_d['min'], combo['k_d']['min'])
             combo['k_d']['max'] = max(k_d['max'], combo['k_d']['max'])
 
             # work out which genes to tell the hmm to use
-            only_genes = swfo['all'].split(':')  # start with all the sw matches for this query
-            self.remove_genes_with_no_hmm(only_genes, skipped_gene_matches, genes_with_hmm_files)  # remove the ones for which we don't have hmm files (we only write hmms for genes that appeared as the best sw match for at least one query, but swfo['all'] in general includes genes that were never the *best* match for any one query)
-            genes_to_use = []
+            genes_to_use = set()
             for region in utils.regions:  # take the best <self.args.n_max_per_region> from each region
-                reg_genes = [g for g in only_genes if utils.get_region(g) == region]
-                n_genes = min(len(reg_genes), self.args.n_max_per_region[utils.regions.index(region)])  # minimum of [the number of gene matches for this region] and [the number we want for this region]
-                for ig in range(n_genes):  # take the first <n_genes> matches (they're ordered by sw match score)
-                    genes_to_use.append(reg_genes[ig])
+                reg_genes = []
+                for gene in swfo['all_matches'][region]:  # ordered by sw match quality
+                    if gene not in genes_with_hmm_files:
+                        skipped_gene_matches.add(gene)
+                        continue
+                    if len(reg_genes) >= self.args.n_max_per_region[utils.regions.index(region)]:
+                        break
+                    reg_genes.append(gene)
+                genes_to_use |= set(reg_genes)
 
             # and finally OR this query's genes into the ones from previous queries
             combo['only_genes'] = list(set(genes_to_use) | set(combo['only_genes']))  # NOTE using the OR of all sets of genes (from all query seqs) like this *really* helps,
@@ -1023,7 +1029,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def write_to_single_input_file(self, fname, nsets, parameter_dir, skipped_gene_matches):
         csvfile = opener('w')(fname)
-        header = ['names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'only_genes', 'seqs', 'mute_freqs']
+        header = ['names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'only_genes', 'seqs', 'mut_freqs']
         writer = csv.DictWriter(csvfile, header, delimiter=' ')
         writer.writeheader()
 
@@ -1047,7 +1053,7 @@ class PartitionDriver(object):
                 'k_d_max' : combined_query['k_d']['max'],
                 'only_genes' : ':'.join(combined_query['only_genes']),
                 'seqs' : ':'.join(combined_query['seqs']),
-                'mute_freqs' : ':'.join([str(f) for f in combined_query['mute-freqs']]),
+                'mut_freqs' : ':'.join([str(f) for f in combined_query['mut_freqs']]),
             })
 
         csvfile.close()
@@ -1283,6 +1289,12 @@ class PartitionDriver(object):
         utils.print_reco_event(self.glfo['seqs'], line, extra_str='    ', label='inferred:')
 
     # ----------------------------------------------------------------------------------------
+    def add_sw_info_to_hmm_outline(self, outline):  # pedantic name is because I suspect in the long term I don't really want to do it this way
+        pass
+        # outline['k_v'] = self.sw_info[outleinfnfn
+        # outline['padlefts']
+
+    # ----------------------------------------------------------------------------------------
     def write_annotations(self, annotations, outfname):
         outpath = outfname
         if outpath[0] != '/':  # if full output path wasn't specified on the command line, write to current directory
@@ -1294,6 +1306,8 @@ class PartitionDriver(object):
             missing_input_keys = set(self.input_info.keys())  # all the keys we originially read from the file
             for full_line in annotations.values():
                 outline = copy.deepcopy(full_line)  # in case we modify it
+
+                self.add_sw_info_to_hmm_outline(outline)
 
                 for uid in outline['unique_ids']:  # make a note that we have an annotation for these uids (so we can see if there's any that we're missing)
                     missing_input_keys.remove(uid)

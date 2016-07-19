@@ -27,7 +27,7 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> >
     seq_info_[key] = qry_seq_list[iqry];
     seed_missing_[key] = !InString(args_->seed_unique_id(), key);
     only_genes_[key] = args_->str_lists_["only_genes"][iqry];
-    mute_freqs_[key] = avgVector(args_->float_lists_["mute_freqs"][iqry]);
+    mute_freqs_[key] = avgVector(args_->float_lists_["mut_freqs"][iqry]);
 
     KSet kmin(args_->integers_["k_v_min"][iqry], args_->integers_["k_d_min"][iqry]);
     KSet kmax(args_->integers_["k_v_max"][iqry], args_->integers_["k_d_max"][iqry]);

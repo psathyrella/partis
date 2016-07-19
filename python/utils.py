@@ -168,7 +168,7 @@ column_configs = {
     'floats' : ['logprob', 'mut_freqs'],
     'bools' : functional_columns,
     'literals' : ['indelfo', 'indelfos', 'k_v', 'k_d'],  # simulation has indelfo[s] singular, annotation output has it plural... and I think it actually makes sense to have it that way
-    'lists' : ['unique_ids', 'seqs', 'aligned_seqs', 'mut_freqs', 'padlefts', 'padrights'] + ['aligned_' + r + '_seqs' for r in regions] + [r + '_per_gene_support' for r in regions] + functional_columns,
+    'lists' : ['unique_ids', 'seqs', 'aligned_seqs', 'mut_freqs', 'padlefts', 'padrights', 'all_matches'] + ['aligned_' + r + '_seqs' for r in regions] + [r + '_per_gene_support' for r in regions] + functional_columns,
     'lists-of-string-float-pairs' : [r + '_per_gene_support' for r in regions]
 }
 
@@ -185,7 +185,7 @@ linekeys['per_seq'] = ['seqs', 'unique_ids', 'indelfos', 'mut_freqs'] + \
                       ['aligned_' + r + '_seqs' for r in regions] + \
                       functional_columns
 linekeys['hmm'] = ['logprob', 'errors']
-linekeys['sw'] = ['k_v', 'k_d', 'all', 'padlefts', 'padrights']
+linekeys['sw'] = ['k_v', 'k_d', 'all_matches', 'padlefts', 'padrights']
 linekeys['extra'] = ['invalid', ]
 linekeys['simu'] = ['reco_id', ]
 all_linekeys = set([k for cols in linekeys.values() for k in cols])
@@ -200,8 +200,8 @@ annotation_headers = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length',
                      + ['aligned_' + r + '_seqs' for r in regions] \
                      + [r + '_per_gene_support' for r in regions] \
                      + [e + '_del' for e in real_erosions + effective_erosions] + [b + '_insertion' for b in boundaries + effective_boundaries] \
-                     + functional_columns \
-                     + ['k_v', 'k_d', 'padlefts', 'padrights']
+                     + functional_columns
+sw_cache_headers = ['k_v', 'k_d', 'padlefts', 'padrights', 'all_matches', 'mut_freqs']
 partition_cachefile_headers = ('unique_ids', 'logprob', 'naive_seq', 'naive_hfrac', 'errors')  # these have to match whatever bcrham is expecting
 
 # ----------------------------------------------------------------------------------------
