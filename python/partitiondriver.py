@@ -223,7 +223,7 @@ class PartitionDriver(object):
                 utils.process_input_line(line)
                 if self.args.infname is not None and self.reco_info is not None:
                     utils.print_true_events(self.glfo, self.reco_info, line)
-                utils.add_implicit_info(self.glfo, line, existing_implicit_keys=('aligned_d_seqs', 'aligned_j_seqs', 'aligned_v_seqs', 'cdr3_length', 'naive_seq', 'in_frames', 'mutated_invariants', 'stops'))
+                utils.add_implicit_info(self.glfo, line, existing_implicit_keys=('aligned_d_seqs', 'aligned_j_seqs', 'aligned_v_seqs', 'cdr3_length', 'naive_seq', 'in_frames', 'mutated_invariants', 'stops', 'mut_freqs'))
                 print '    inferred:\n'
                 utils.print_reco_event(self.glfo['seqs'], line)
 

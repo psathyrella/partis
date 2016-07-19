@@ -1281,13 +1281,16 @@ def get_line_for_output(info):
     """ Reverse the action of process_input_line() """
     outfo = {}
     for key in info:
+        str_fcn = str
+        if key in column_configs['floats']:
+            str_fcn = repr  # keeps it from losing precision (we only care because we want it to match expectation if we read it back in)
         if key in column_configs['lists']:
             if key in column_configs['lists-of-string-float-pairs']:  # ok, that's getting a little hackey
-                outfo[key] = ';'.join([k + ':' + str(v) for k, v in info[key].items()])
+                outfo[key] = ';'.join([k + ':' + str_fcn(v) for k, v in info[key].items()])
             else:
-                outfo[key] = ':'.join([str(v) for v in info[key]])
+                outfo[key] = ':'.join([str_fcn(v) for v in info[key]])
         else:
-            outfo[key] = str(info[key])
+            outfo[key] = str_fcn(info[key])
     return outfo
 
 # ----------------------------------------------------------------------------------------
@@ -1897,7 +1900,7 @@ def count_gaps(seq, istop=None):
 # ----------------------------------------------------------------------------------------
 def add_dummy_alignments(line):
     for region in regions:
-        line['aligned_' + region + '_seqs'] = [None for _ in range(len(line['seqs']))]
+        line['aligned_' + region + '_seqs'] = ['' for _ in range(len(line['seqs']))]
 
 # ----------------------------------------------------------------------------------------
 def add_regional_alignments(glfo, aligned_gl_seqs, line, region, debug=False):
