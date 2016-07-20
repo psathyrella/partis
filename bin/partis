@@ -67,7 +67,7 @@ def run_simulation(args):
 
     if args.initial_datadir is None:  # if the gl info dir wasn't explicitly set on the command line, we have to decide what to use
         if args.parameter_dir is not None:  # if --parameter-dir was explicitly set, assume there's gl info in this --parameter-dir
-            args.initial_datadir = args.parameter_dir + '/' + glutils.glfo_dir
+            args.initial_datadir = args.parameter_dir + '/' + args.parameter_type + '/' + glutils.glfo_dir
         else:  # otherwise use the default (probably data/imgt)
             args.initial_datadir = default_initial_datadir
 
@@ -80,8 +80,6 @@ def run_simulation(args):
     print 'simulating'
     used_default_parameter_dir = set_default_parameter_dir(args)
     auto_ran_cache_parameters = check_maybe_auto_cache_parameters(args)
-    if used_default_parameter_dir or auto_ran_cache_parameters:  # add the subdirectory, either 'sw' or 'hmm' (probably the latter)
-        args.parameter_dir += '/' + args.parameter_type
 
     n_per_proc = int(float(args.n_sim_events) / args.n_procs)
 
@@ -141,10 +139,7 @@ def run_partitiondriver(args):
 
     auto_ran_cache_parameters = check_maybe_auto_cache_parameters(args)
 
-    if used_default_parameter_dir or auto_ran_cache_parameters:  # add the subdirectory, either 'sw' or 'hmm' (probably the latter)
-        args.parameter_dir += '/' + args.parameter_type
-
-    parter = PartitionDriver(args, args.action, args.parameter_dir + '/' + glutils.glfo_dir)  # ...and if we've already got a parameter dir, read the gl info from there
+    parter = PartitionDriver(args, args.action, args.parameter_dir + '/' + args.parameter_type + '/' + glutils.glfo_dir)  # ...and if we've already got a parameter dir, read the gl info from there
     if 'run-' in args.action:
         parter.run_algorithm(args.action.replace('run-', ''))
     elif args.action == 'partition':
@@ -371,6 +366,9 @@ if args.parameter_type != 'hmm':
 
 if args.presto_output and args.aligned_germline_fname is None:
     raise Exception('in order to get presto output, you have to set --aligned-germline-fname (a fasta file with germline alignments for every germline gene)')
+
+if args.parameter_dir is not None:
+    args.parameter_dir = args.parameter_dir.rstrip('/')
 
 # ----------------------------------------------------------------------------------------
 random.seed(args.seed)

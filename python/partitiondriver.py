@@ -56,8 +56,12 @@ class PartitionDriver(object):
         self.time_to_remove_unseeded_clusters = False
         self.already_removed_unseeded_clusters = False
 
-        self.sw_parameter_dir = self.args.parameter_dir + '/sw'
-        # self.sw_cachefname = self.sw_parameter_dir + '/cache-' + repr(abs(hash(''.join(self.input_info.keys())))) + '.csv'  # maybe I shouldn't abs it? collisions are probably still unlikely, and I don't like the extra dash in my file name
+        self.sw_param_dir = self.args.parameter_dir + '/sw'
+        self.hmm_param_dir = self.args.parameter_dir + '/hmm'
+        # self.hmm_param_dir = self.args.parameter_dir + '/hmm'
+
+        # self.sw_cachefname = self.sw_XXXparameter_dir + '/cache-' + repr(abs(hash(''.join(self.input_info.keys())))) + '.csv'  # maybe I shouldn't abs it? collisions are probably still unlikely, and I don't like the extra dash in my file name
+
         self.hmm_infname = self.args.workdir + '/hmm_input.csv'
         self.hmm_cachefname = self.args.workdir + '/hmm_cached_info.csv'
         self.hmm_outfname = self.args.workdir + '/hmm_output.csv'
@@ -123,7 +127,7 @@ class PartitionDriver(object):
                 raise Exception('--persistent-cachefname %s has unexpected header list %s' % (self.args.persistent_cachefname, reader.fieldnames))
 
     # ----------------------------------------------------------------------------------------
-    def run_waterer(self, parameter_dir, write_parameters=False, find_new_alleles=False):
+    def run_waterer(self, write_parameters=False, find_new_alleles=False):
         print 'smith-waterman',
         if write_parameters:
             print '  (writing parameters)',
@@ -135,14 +139,15 @@ class PartitionDriver(object):
 
         # can probably remove this... I just kind of want to know if it happens
         if not write_parameters and not find_new_alleles:
-            genes_with_hmms = set(utils.find_genes_that_have_hmms(parameter_dir))
+            genes_with_hmms = set(utils.find_genes_that_have_hmms(self.args.parameter_dir + '/' + self.args.parameter_type))
             expected_genes = set([g for r in utils.regions for g in self.glfo['seqs'][r].keys()])  # this'll be the & of the datadir (maybe rewritten, maybe not)
             if len(genes_with_hmms - expected_genes) > 0:
-                print '  %s yamels in %s for genes %s that aren\'t in glfo' % (utils.color('red', 'warning'), parameter_dir, ' '.join(genes_with_hmms - expected_genes))
+                print '  %s yamels in %s for genes %s that aren\'t in glfo' % (utils.color('red', 'warning'), parameter_dir + '/' + self.args.parameter_type, ' '.join(genes_with_hmms - expected_genes))
             if len(expected_genes - genes_with_hmms) > 0:
-                print '  %s genes %s in glfo that don\'t have yamels in %s' % (utils.color('red', 'warning'), ' '.join(expected_genes - genes_with_hmms), parameter_dir)
+                print '  %s genes %s in glfo that don\'t have yamels in %s' % (utils.color('red', 'warning'), ' '.join(expected_genes - genes_with_hmms), parameter_dir + '/' + self.args.parameter_type)
 
-        waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo, parameter_dir, None, write_parameters=write_parameters, find_new_alleles=find_new_alleles)
+        parameter_out_dir = self.sw_param_dir if write_parameters else None
+        waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo, cachefname=None, parameter_out_dir=parameter_out_dir, find_new_alleles=find_new_alleles)
         # if os.path.exists(self.sw_cachefname):  # we already ran smith-waterman on this input set, so we can just read the results from the cache file
         #     waterer.read_cachefile()
         # else:
@@ -151,13 +156,13 @@ class PartitionDriver(object):
         print '        water time: %.1f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
-    def find_new_alleles(self, parameter_dir):
+    def find_new_alleles(self):
         """ look for new alleles with sw, write any that you find to the germline set directory in <self.workdir>, add them to <self.glfo>, and repeat until you don't find any. """
         print 'NOTE if args.generate_new_alignment is set, only removes original allele if a new allele is found -- it doesn\'t remove other genes (which may be what we want -- they get in effect removed later when we only write yamels for genes that we actually saw)'
         all_new_allele_info = []
         itry = 0
         while True:
-            self.run_waterer(parameter_dir, find_new_alleles=True)
+            self.run_waterer(find_new_alleles=True)
             if len(self.sw_info['new-alleles']) == 0:
                 break
             all_new_allele_info += self.sw_info['new-alleles']
@@ -180,12 +185,12 @@ class PartitionDriver(object):
                     outfile.write('%s\n' % allele_info['seq'])
 
     # ----------------------------------------------------------------------------------------
-    def restrict_to_observed_alleles(self, parameter_dir):
-        """ Restrict <self.glfo> to genes observed in <parameter_dir>, and write the changes to <self.my_datadir>. """
-        print '  restricting self.glfo (and %s) to alleles observed in %s' % (self.my_datadir, parameter_dir)
+    def restrict_to_observed_alleles(self, subpdir):
+        """ Restrict <self.glfo> to genes observed in <subpdir>, and write the changes to <self.my_datadir>. """
+        print '  restricting self.glfo (and %s) to alleles observed in %s' % (self.my_datadir, subpdir)
         only_genes = set()
         for region in utils.regions:
-            with opener('r')(parameter_dir + '/' + region + '_gene-probs.csv') as pfile:
+            with opener('r')(subpdir + '/' + region + '_gene-probs.csv') as pfile:
                 reader = csv.DictReader(pfile)
                 for line in reader:
                     only_genes.add(line[region + '_gene'])
@@ -197,24 +202,23 @@ class PartitionDriver(object):
         """ Infer full parameter sets and write hmm files for sequences from <self.input_info>, first with Smith-Waterman, then using the SW output as seed for the HMM """
         print 'caching parameters'
         if self.args.find_new_alleles:
-            self.find_new_alleles(self.sw_parameter_dir)
-        self.run_waterer(self.sw_parameter_dir, write_parameters=True)
-        self.restrict_to_observed_alleles(self.sw_parameter_dir)
-        self.write_hmms(self.sw_parameter_dir)
+            self.find_new_alleles()
+        self.run_waterer(write_parameters=True)
+        self.restrict_to_observed_alleles(self.sw_param_dir)
+        self.write_hmms(self.sw_param_dir)
         if self.args.only_smith_waterman:
             return
 
-        parameter_out_dir = self.args.parameter_dir + '/hmm'
-        self.run_hmm('viterbi', parameter_in_dir=self.sw_parameter_dir, parameter_out_dir=parameter_out_dir, count_parameters=True)
-        self.restrict_to_observed_alleles(parameter_out_dir)
-        self.write_hmms(parameter_out_dir)
+        self.run_hmm('viterbi', parameter_in_dir=self.sw_param_dir, parameter_out_dir=self.hmm_param_dir, count_parameters=True)
+        self.restrict_to_observed_alleles(self.hmm_param_dir)
+        self.write_hmms(self.hmm_param_dir)
 
     # ----------------------------------------------------------------------------------------
     def run_algorithm(self, algorithm):
         """ Just run <algorithm> (either 'forward' or 'viterbi') on sequences in <self.input_info> and exit. You've got to already have parameters cached in <self.args.parameter_dir> """
         print 'running %s' % algorithm
-        self.run_waterer(self.args.parameter_dir)
-        self.run_hmm(algorithm, parameter_in_dir=self.args.parameter_dir)
+        self.run_waterer()
+        self.run_hmm(algorithm, parameter_in_dir=self.args.parameter_dir + '/' + self.args.parameter_type)
 
     # ----------------------------------------------------------------------------------------
     def view_existing_annotations(self):
@@ -241,14 +245,14 @@ class PartitionDriver(object):
     def partition(self):
         """ Partition sequences in <self.input_info> into clonally related lineages """
         print 'partitioning'
-        self.run_waterer(self.args.parameter_dir)  # run smith-waterman
+        self.run_waterer()  # run smith-waterman
 
         # cache hmm naive seq for each single query
         if len(self.sw_info['queries']) > 50 or self.args.naive_vsearch or self.args.naive_swarm:
-            self.run_hmm('viterbi', self.args.parameter_dir, n_procs=self.get_n_precache_procs(), precache_all_naive_seqs=True)
+            self.run_hmm('viterbi', self.args.parameter_dir + '/' + self.args.parameter_type, n_procs=self.get_n_precache_procs(), precache_all_naive_seqs=True)
 
         if self.args.naive_vsearch or self.args.naive_swarm:
-            self.cluster_with_naive_vsearch_or_swarm(self.args.parameter_dir)
+            self.cluster_with_naive_vsearch_or_swarm(self.args.parameter_dir + '/' + self.args.parameter_type)
             return
 
         n_procs = self.args.n_procs
@@ -258,7 +262,7 @@ class PartitionDriver(object):
         start = time.time()
         while n_procs > 0:
             print '--> %d clusters with %d procs' % (len(cpath.partitions[cpath.i_best_minus_x]), n_procs)  # write_hmm_input uses the best-minus-ten partition
-            cpath = self.run_hmm('forward', self.args.parameter_dir, n_procs=n_procs, cpath=cpath)
+            cpath = self.run_hmm('forward', self.args.parameter_dir + '/' + self.args.parameter_type, n_procs=n_procs, cpath=cpath)
             n_proc_list.append(n_procs)
             if n_procs == 1:
                 break

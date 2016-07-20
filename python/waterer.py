@@ -21,8 +21,8 @@ from allelefinder import AlleleFinder
 # ----------------------------------------------------------------------------------------
 class Waterer(object):
     """ Run smith-waterman on the query sequences in <infname> """
-    def __init__(self, args, input_info, reco_info, glfo, parameter_dir, cachefname, write_parameters=False, find_new_alleles=False):
-        self.parameter_dir = parameter_dir.rstrip('/')  # NOTE *not* the same as self.args.parameter_dir
+    def __init__(self, args, input_info, reco_info, glfo, cachefname=None, parameter_out_dir=None, find_new_alleles=False):
+        self.parameter_out_dir = parameter_out_dir
         self.cachefname = cachefname
         self.args = args
         self.debug = self.args.debug if self.args.sw_debug is None else self.args.sw_debug
@@ -53,7 +53,7 @@ class Waterer(object):
         self.alfinder, self.pcounter, self.true_pcounter, self.perfplotter = None, None, None, None
         if find_new_alleles:  # NOTE *not* the same as <self.args.find_new_alleles>
             self.alfinder = AlleleFinder(self.glfo, self.args)
-        if write_parameters:  # NOTE *not* the same as <self.args.cache_parameters>
+        if parameter_out_dir is not None:  # NOTE *not* the same as <self.args.cache_parameters>
             self.pcounter = ParameterCounter(self.glfo, self.args)
             if not self.args.is_data:
                 self.true_pcounter = ParameterCounter(self.glfo, self.args)
@@ -120,7 +120,7 @@ class Waterer(object):
         if n_remaining > 0:
             printstr = '   %s %d missing %s' % (utils.color('red', 'warning'), n_remaining, utils.plural_str('annotation', n_remaining))
             if n_remaining < 15:
-                printstr += ' (' + ':'.join(self.remaining_queries) + ')'
+                printstr += ' (' + ' '.join(self.remaining_queries) + ')'
             print printstr
         if self.debug and len(self.info['indels']) > 0:
             print '      indels: %s' % ':'.join(self.info['indels'].keys())
@@ -143,9 +143,9 @@ class Waterer(object):
                 self.pcounter.plot(self.args.plotdir + '/sw', subset_by_gene=True, codon_positions={r : self.glfo[c + '-positions'] for r, c in utils.conserved_codons[self.args.chain].items()}, only_csv=self.args.only_csv_plots)
                 if self.true_pcounter is not None:
                     self.true_pcounter.plot(self.args.plotdir + '/sw-true', subset_by_gene=True, codon_positions={r : self.glfo[c + '-positions'] for r, c in utils.conserved_codons[self.args.chain].items()}, only_csv=self.args.only_csv_plots)
-            self.pcounter.write(self.parameter_dir, self.my_datadir)
+            self.pcounter.write(self.parameter_out_dir, self.my_datadir)
             if self.true_pcounter is not None:
-                self.true_pcounter.write(self.parameter_dir + '-true')
+                self.true_pcounter.write(self.parameter_out_dir + '-true')
 
         self.info['remaining_queries'] = self.remaining_queries
 

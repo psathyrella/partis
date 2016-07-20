@@ -30,7 +30,7 @@ class Tester(object):
         if not os.path.exists(self.dirs['new']):
             os.makedirs(self.dirs['new'])
         self.simfnames = {st : self.dirs[st] + '/' + self.label + '/simu.csv' for st in self.stypes}
-        param_dirs = { st : { dt : self.dirs[st] + '/' + self.label + '/parameters/' + dt + '/hmm' for dt in ['simu', 'data']} for st in self.stypes}  # muddafuggincomprehensiongansta
+        param_dirs = { st : { dt : self.dirs[st] + '/' + self.label + '/parameters/' + dt for dt in ['simu', 'data']} for st in self.stypes}  # muddafuggincomprehensiongansta
         run_driver = './bin/run-driver.py --label ' + self.label + ' --stashdir ' + self.dirs['new']
         self.common_extras = ['--seed', '1', '--n-procs', '10', '--only-genes', 'TEST', '--only-csv-plots']
 
