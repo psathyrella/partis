@@ -116,10 +116,11 @@ For more information you can also type `./bin/partis --help` and `./bin/partis <
 
 The fist step in all cases is to infer a set of parameters particular to the input sequence file.
 These are written to `--parameter-dir`, and then used for all subsequent runs.
-If you don't specify `--parameter-dir`, it defaults to a location in the current directory that amounts to a slight bastardization of your input file path.
-This default amounts to a hopefully-judicious marriage of convenience and cleverness: if your input files have different paths, their parameter directories will get put in different places.
-That said, the consequences of using the wrong parameter directory for a set of sequences are potentially dire, so you need to be aware of where partis is telling you that it's putting parameters.
-For instance, if you run with one bunch of sequences in `path/to/seqs.fa`, their parameters will get written to `_output/path_to_seqs`, but if you then replace those sequences with some others in the same file, partis won't know anything about that and will use the same parameters.
+If you don't specify `--parameter-dir`, it defaults to a location in the current directory that amounts to a slight bastardization of your input file path (parameters for `path/to/seqs.fa` will go in `_output/path_to_seqs/`).
+This default is designed such that with typical workflows, if your input files have different paths, their parameters will go in different places.
+That said, the consequences of using the wrong parameter directory for a set of sequences are potentially dire.
+So if you're doing any monkey business, you need to be aware of where partis is telling you that it's putting parameters (it's printed to stdout).
+For instance, if you run with one bunch of sequences in an input file, and then replace them some other sequences in the same file, partis won't know anything about it and will use the same (now-inappropriate) parameters.
 
 If `--parameter-dir` (whether explicitly set or left as default) doesn't exist, partis assumes that it needs to cache parameters, and does that before running the requested action.
 
