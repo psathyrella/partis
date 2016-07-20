@@ -56,6 +56,8 @@ class PartitionDriver(object):
         self.time_to_remove_unseeded_clusters = False
         self.already_removed_unseeded_clusters = False
 
+        self.sw_parameter_dir = self.args.parameter_dir + '/sw'
+        # self.sw_cachefname = self.sw_parameter_dir + '/cache-' + repr(abs(hash(''.join(self.input_info.keys())))) + '.csv'  # maybe I shouldn't abs it? collisions are probably still unlikely, and I don't like the extra dash in my file name
         self.hmm_infname = self.args.workdir + '/hmm_input.csv'
         self.hmm_cachefname = self.args.workdir + '/hmm_cached_info.csv'
         self.hmm_outfname = self.args.workdir + '/hmm_output.csv'
@@ -140,7 +142,10 @@ class PartitionDriver(object):
             if len(expected_genes - genes_with_hmms) > 0:
                 print '  %s genes %s in glfo that don\'t have yamels in %s' % (utils.color('red', 'warning'), ' '.join(expected_genes - genes_with_hmms), parameter_dir)
 
-        waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo, self.my_datadir, parameter_dir, write_parameters=write_parameters, find_new_alleles=find_new_alleles)
+        waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo, parameter_dir, None, write_parameters=write_parameters, find_new_alleles=find_new_alleles)
+        # if os.path.exists(self.sw_cachefname):  # we already ran smith-waterman on this input set, so we can just read the results from the cache file
+        #     waterer.read_cachefile()
+        # else:
         waterer.run()
         self.sw_info = waterer.info
         print '        water time: %.1f' % (time.time()-start)
@@ -191,17 +196,16 @@ class PartitionDriver(object):
     def cache_parameters(self):
         """ Infer full parameter sets and write hmm files for sequences from <self.input_info>, first with Smith-Waterman, then using the SW output as seed for the HMM """
         print 'caching parameters'
-        sw_parameter_dir = self.args.parameter_dir + '/sw'
         if self.args.find_new_alleles:
-            self.find_new_alleles(sw_parameter_dir)
-        self.run_waterer(sw_parameter_dir, write_parameters=True)
-        self.restrict_to_observed_alleles(sw_parameter_dir)
-        self.write_hmms(sw_parameter_dir)
+            self.find_new_alleles(self.sw_parameter_dir)
+        self.run_waterer(self.sw_parameter_dir, write_parameters=True)
+        self.restrict_to_observed_alleles(self.sw_parameter_dir)
+        self.write_hmms(self.sw_parameter_dir)
         if self.args.only_smith_waterman:
             return
 
         parameter_out_dir = self.args.parameter_dir + '/hmm'
-        self.run_hmm('viterbi', parameter_in_dir=sw_parameter_dir, parameter_out_dir=parameter_out_dir, count_parameters=True)
+        self.run_hmm('viterbi', parameter_in_dir=self.sw_parameter_dir, parameter_out_dir=parameter_out_dir, count_parameters=True)
         self.restrict_to_observed_alleles(parameter_out_dir)
         self.write_hmms(parameter_out_dir)
 

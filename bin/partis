@@ -199,7 +199,7 @@ parent_parser.add_argument('--parameter-dir', help='Directory to/from which to w
 parent_parser.add_argument('--parameter-type', default='hmm', choices=('sw', 'hmm'), help='Use parameters from Smith-Waterman (sw) or the HMM (hmm) subdirectories for inference/simulation? (you should almost certainly use the hmm ones, but sw is occasionally useful for debugging)')
 parent_parser.add_argument('--initial-datadir', help='Directory with fastas from which to read germline set. Only used when caching parameters, during which its contents is copied into --parameter-dir, perhaps (i.e. if specified) with modification. NOTE default is set below, because control flow is too complicated for argparse')
 parent_parser.add_argument('--outfname', help='Output file name.')
-parent_parser.add_argument('--sw-outfname', help='Smith-Waterman Output file name.')
+parent_parser.add_argument('--sw-cachefname', help='Smith-Waterman cache file name (default is set above).')
 parent_parser.add_argument('--presto-output', action='store_true', help='write output file in presto format')
 parent_parser.add_argument('--aligned-germline-fname', help='fasta file with alignments for each V gene')
 parent_parser.add_argument('--plotdir', help='Base directory to which to write plots (no plots are written if this isn\'t set)')

@@ -21,8 +21,9 @@ from allelefinder import AlleleFinder
 # ----------------------------------------------------------------------------------------
 class Waterer(object):
     """ Run smith-waterman on the query sequences in <infname> """
-    def __init__(self, args, input_info, reco_info, glfo, my_datadir, parameter_dir, write_parameters=False, find_new_alleles=False):
-        self.parameter_dir = parameter_dir.rstrip('/')
+    def __init__(self, args, input_info, reco_info, glfo, parameter_dir, cachefname, write_parameters=False, find_new_alleles=False):
+        self.parameter_dir = parameter_dir.rstrip('/')  # NOTE *not* the same as self.args.parameter_dir
+        self.cachefname = cachefname
         self.args = args
         self.debug = self.args.debug if self.args.sw_debug is None else self.args.sw_debug
 
@@ -47,8 +48,7 @@ class Waterer(object):
         self.nth_try = 1
         self.unproductive_queries = set()
 
-        # rewrite input germline sets (if needed)
-        self.my_datadir = my_datadir
+        self.my_datadir = self.args.workdir + '/' + glutils.glfo_dir
 
         self.alfinder, self.pcounter, self.true_pcounter, self.perfplotter = None, None, None, None
         if find_new_alleles:  # NOTE *not* the same as <self.args.find_new_alleles>
@@ -83,6 +83,23 @@ class Waterer(object):
             self.nth_try += 1  # it's set to 1 before we begin the first try, and increases to 2 just before we start the second try
 
         self.finalize()
+
+    # ----------------------------------------------------------------------------------------
+    def read_cachefile(self):
+        with open(self.cachefname) as cachefile:
+            reader = csv.DictReader(cachefile)
+            for line in reader:
+                utils.process_input_line(line)
+                assert len(line['unique_ids']) == 1
+                qname = line['unique_ids'][0]
+                self.info['queries'].append(qname)
+                self.info[qname] = line
+                assert len(line['indelfos']) == 1
+                if line['indelfos'][0]['reversed_seq'] != '':
+                    self.info['indels'][qname] = line['indelfos'][0]
+                for region in utils.regions:  # add this query's matches into the overall gene match sets
+                    self.info['all_best_matches'].add(line[region + '_gene'])
+                    self.info['all_matches'][region] |= set(self.info[qname]['all_matches'][region])
 
     # ----------------------------------------------------------------------------------------
     def finalize(self):
@@ -132,8 +149,9 @@ class Waterer(object):
 
         self.info['remaining_queries'] = self.remaining_queries
 
-        if self.args.sw_outfname is not None:
-            with open(self.args.sw_outfname, 'w') as outfile:
+        if self.cachefname is not None:
+            print '        caching sw results to %s' % self.cachefname
+            with open(self.cachefname, 'w') as outfile:
                 writer = csv.DictWriter(outfile, utils.annotation_headers + utils.sw_cache_headers)
                 writer.writeheader()
                 missing_input_keys = set(self.input_info.keys())  # all the keys we originially read from the file
