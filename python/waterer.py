@@ -102,6 +102,22 @@ class Waterer(object):
                     self.info['all_best_matches'].add(line[region + '_gene'])
                     self.info['all_matches'][region] |= set(self.info[qname]['all_matches'][region])
 
+                for region in utils.regions:  # uh... should do this more cleanly at some point
+                    del line[region + '_per_gene_support']
+
+                if self.perfplotter is not None:
+                    line_for_performance = copy.deepcopy(self.info[qname])
+                    # arg, hack hack hack hack
+                    line_for_performance['seqs'][0] = line_for_performance['seqs'][0][line_for_performance['padlefts'][0] : -line_for_performance['padrights'][0]]
+                    utils.add_implicit_info(self.glfo, line_for_performance, existing_implicit_keys=['cdr3_length', 'naive_seq', 'mut_freqs'] + utils.functional_columns + ['aligned_' + r + '_seqs' for r in utils.regions])
+                    if qname in self.info['indels']:
+                        print '    skipping performance evaluation of %s because of indels' % qname  # I just have no idea how to handle naive hamming fraction when there's indels
+                    else:
+                        self.perfplotter.evaluate(self.reco_info[qname], line_for_performance)
+
+        if self.perfplotter is not None:
+            self.perfplotter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
+
     # ----------------------------------------------------------------------------------------
     def finalize(self, cachefname):
         if self.perfplotter is not None:
