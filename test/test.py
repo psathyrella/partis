@@ -25,13 +25,13 @@ class Tester(object):
         self.label = 'test'
 
         self.stypes = ['ref', 'new']  # I don't know what the 's' stands for
+        self.dtypes = ['data', 'simu']
         self.dirs = {'ref' : 'test/reference-results', 'new' : 'test/_new-results'}
         self.perfdirs = {st : 'simu-' + st + '-performance' for st in self.stypes}
         if not os.path.exists(self.dirs['new']):
             os.makedirs(self.dirs['new'])
         self.simfnames = {st : self.dirs[st] + '/' + self.label + '/simu.csv' for st in self.stypes}
         self.param_dirs = { st : { dt : self.dirs[st] + '/' + self.label + '/parameters/' + dt for dt in ['simu', 'data']} for st in self.stypes}  # muddafuggincomprehensiongansta
-        run_driver = './bin/run-driver.py --label ' + self.label + ' --stashdir ' + self.dirs['new']
         self.common_extras = ['--seed', '1', '--n-procs', '10', '--only-genes', 'TEST', '--only-csv-plots']
 
         # check against reference csv file
@@ -52,7 +52,7 @@ class Tester(object):
 
         self.quick_tests = ['annotate-ref-simu']
         # self.quick_tests = ['seed-partition-ref-simu']
-        self.production_tests = ['cache-data-parameters', 'simulate', 'cache-simu-parameters']  # vs "inference" tests. Kind of crappy names, but it's to distinguish these three from all the other ones
+        self.production_tests = ['cache-parameters-data', 'simulate', 'cache-parameters-simu']  # vs "inference" tests. Kind of crappy names, but it's to distinguish these three from all the other ones
 
         self.tests = OrderedDict()
 
@@ -65,36 +65,44 @@ class Tester(object):
 
         def add_common_args():
             for ptest, args in self.tests.items():
-                if ptest in self.production_tests:
-                    args['bin'] = run_driver
-                    args['input_stype'] = 'n/a'
+                namelist = ptest.split('-')
+                args['bin'] = self.partis
+                if 'annotate' in ptest:
+                    args['action'] = 'run-viterbi'
+                elif 'partition' in ptest:
+                    args['action'] = 'partition'
+                elif 'cache-parameters-' in ptest:
+                    args['action'] = 'cache-parameters'
+                    dtype = namelist[-1]
+                    assert dtype in self.dtypes
+                    args['extras'] += ['--plotdir', self.dirs['new'] + '/' + self.label + '/plots/' + dtype]
                 else:
-                    args['bin'] = self.partis
-                    if 'annotate' in ptest:
-                        args['action'] = 'run-viterbi'
-                    elif 'partition' in ptest:
-                        args['action'] = 'partition'
+                    args['action'] = ptest
 
-                    namelist = ptest.split('-')
+                if ptest in self.production_tests:
+                    input_stype = 'new'  # sort of...
+                else:
                     input_stype = namelist[-2]
                     assert input_stype in self.stypes
-                    args['input_stype'] = input_stype
-                    if namelist[-1] == 'simu':
-                        args['extras'] += ['--is-simu', ]
-                        args['extras'] += ['--infname', self.simfnames[input_stype]]
-                        args['extras'] += ['--parameter-dir', self.param_dirs[input_stype]['simu']]
-                    elif namelist[-1] == 'data':
-                        args['extras'] += ['--infname', self.datafname]
-                        args['extras'] += ['--parameter-dir', self.param_dirs[input_stype]['data']]
-                    else:
-                        raise Exception('-'.join(namelist))
+                args['input_stype'] = input_stype
+                if ptest == 'simulate':
+                    args['extras'] += ['--parameter-dir', self.param_dirs[input_stype]['data']]
+                elif namelist[-1] == 'simu':
+                    args['extras'] += ['--is-simu', ]
+                    args['extras'] += ['--infname', self.simfnames[input_stype]]
+                    args['extras'] += ['--parameter-dir', self.param_dirs[input_stype]['simu']]
+                elif namelist[-1] == 'data':
+                    args['extras'] += ['--infname', self.datafname]
+                    args['extras'] += ['--parameter-dir', self.param_dirs[input_stype]['data']]
+                else:
+                    raise Exception('-'.join(namelist))
 
         if not args.skip_ref:
             add_inference_tests('ref')
         if not args.only_ref:
-            self.tests['cache-data-parameters']  = {'extras' : []}  # ['--skip-unproductive']}
-            self.tests['simulate']  = {'extras' : ['--n-sim-events', 500, '--n-leaves', 2, '--mimic-data-read-length']}
-            self.tests['cache-simu-parameters']  = {'extras' : []}
+            self.tests['cache-parameters-data']  = {'extras' : []}
+            self.tests['simulate']  = {'extras' : ['--n-sim-events', '500', '--n-leaves', '2', '--mimic-data-read-length']}
+            self.tests['cache-parameters-simu']  = {'extras' : []}
             add_inference_tests('new')
         add_common_args()
 
@@ -136,7 +144,7 @@ class Tester(object):
                 check_call(['rm', '-v', this_cachefname])
 
         # delete old sw cache files
-        for dtype in ['data', 'simu']:
+        for dtype in self.dtypes:
             if name == 'cache-' + dtype + '-parameters':
                 globfnames = glob.glob(self.param_dirs['new'][dtype] + '/sw-cache-*.csv')
                 if len(globfnames) == 0:  # not there
@@ -160,15 +168,13 @@ class Tester(object):
 
             self.prepare_to_run(args, name, info)
 
-            action = info['action'] if 'action' in info else name
+            action = info['action']
             cmd_str = info['bin'] + ' ' + action
-            if info['bin'] == self.partis:
-                cmd_str += ' ' + ' '.join(info['extras'] + self.common_extras)
+            cmd_str += ' ' + ' '.join(info['extras'] + self.common_extras)
+            if name == 'simulate':
+                cmd_str += ' --outfname ' + self.simfnames['new']
+            elif 'cache-parameters' not in name:
                 cmd_str += ' --outfname ' + self.dirs['new'] + '/' + name + '.csv'
-            else:
-                cmd_str += get_extra_str(info['extras'] + self.common_extras)
-                if action == 'cache-data-parameters':
-                    cmd_str += ' --datafname ' + self.datafname
 
             logstr = 'TEST %30s   %s' % (name, cmd_str)
             print logstr
