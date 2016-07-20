@@ -76,7 +76,7 @@ if 'cache-data-parameters' in args.actions:
 if 'simulate' in args.actions:
     # simulate based on data parameters
     cmd_str = ' simulate --outfname ' + args.simfname + common_args
-    cmd_str += ' --parameter-dir ' + param_dir + '/data/hmm'
+    cmd_str += ' --parameter-dir ' + param_dir + '/data'
     run_command(cmd_str)
 
 sim_name = os.path.basename(args.simfname).replace('.csv', '')  # 'sim', if simfname is just 'simu.csv'
@@ -90,7 +90,7 @@ if 'cache-simu-parameters' in args.actions:
 
 if 'plot-performance' in args.actions:  # run point estimation on simulation
     cmd_str = ' run-viterbi --plot-performance --seqfile ' + args.simfname + ' --is-simu' + common_args
-    cmd_str += ' --parameter-dir ' + param_dir + '/' + sim_name + '/hmm'
+    cmd_str += ' --parameter-dir ' + param_dir + '/' + sim_name
     cmd_str += ' --plotdir ' + args.plotdir + '/' + sim_name + '-performance'
     run_command(cmd_str)
 
