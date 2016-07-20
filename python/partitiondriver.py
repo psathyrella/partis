@@ -125,7 +125,7 @@ class PartitionDriver(object):
                 raise Exception('--persistent-cachefname %s has unexpected header list %s' % (self.args.persistent_cachefname, reader.fieldnames))
 
     # ----------------------------------------------------------------------------------------
-    def get_cachefname(self):
+    def get_cachefname(self, write_parameters):
         default_cachefname = self.args.parameter_dir + '/sw-cache-' + repr(abs(hash(''.join(self.input_info.keys())))) + '.csv'  # maybe I shouldn't abs it? collisions are probably still unlikely, and I don't like the extra dash in my file name
         if self.args.sw_cachefname is not None:  # if --sw-cachefname was explicitly set, always use that
             return self.args.sw_cachefname
