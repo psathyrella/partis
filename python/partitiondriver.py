@@ -154,7 +154,7 @@ class PartitionDriver(object):
 
         parameter_out_dir = self.sw_param_dir if write_parameters else None
         waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo, parameter_out_dir=parameter_out_dir, find_new_alleles=find_new_alleles)
-        cachefname = self.get_cachefname()
+        cachefname = self.get_cachefname(write_parameters)
         if cachefname is None or not os.path.exists(cachefname):  # run sw if we either don't want to do any caching (None) or if we are planning on writing the results after we run
             waterer.run(cachefname)
         else:
