@@ -118,18 +118,20 @@ The fist step in all cases is to infer a set of parameters particular to the inp
 These are written to `--parameter-dir`, and then used for all subsequent runs.
 If you don't specify `--parameter-dir`, it defaults to a location in the current directory that amounts to a slight bastardization of your input file path (parameters for `path/to/seqs.fa` will go in `_output/path_to_seqs/`).
 This default is designed such that with typical workflows, if your input files have different paths, their parameters will go in different places.
+
 That said, the consequences of using the wrong parameter directory for a set of sequences are potentially dire.
 So if you're doing any monkey business, you need to be aware of where partis is telling you that it's putting parameters (it's printed to stdout).
-For instance, if you run with one bunch of sequences in an input file, and then replace them some other sequences in the same file, partis won't know anything about it and will use the same (now-inappropriate) parameters.
+For instance, if you run with one set of sequences in an input file, and then toss some **other** sequences into the same file, partis won't know anything about it, and will use the same (now-inappropriate) parameters.
 
 If `--parameter-dir` (whether explicitly set or left as default) doesn't exist, partis assumes that it needs to cache parameters, and does that before running the requested action.
 
-Whether caching parameters or running on pre-existing parameters, the hmm needs as input preliminary smith-waterman annotations.
+Whether caching parameters or running on pre-existing parameters, the hmm needs smith-waterman annotations as input.
 While this preliminary smith-waterman step is fairly fast, it's also easy to cache the results so you only have to do it once.
 By default these smith-waterman annotations are written to a csv file in `--parameter-dir` during parameter caching.
-The default filename is a hash of the concatenated input sequence id strings: for technical reasons (they have to all be padded to the same length) the annotation for each sequence is not entirely independent of the other sequences.
+The default filename is a hash of the concatenated input sequence id strings
+(Because all sequences need to be aligned and padded to the same length before partititioning, the smith-waterman annotation information for each sequence depends slightly on all the other sequences in the file, hence the hash.)
 These defaults should ensure that with typical workflows, smith-waterman only runs once.
-If however, you're doing less typical things (running on a subset of sequences in the file), you'll need to specify `--sw-cachefname` explicitly, and it'll write it if it doesn't exist, and read from it if it does.
+If however, you're doing less typical things (running on a subset of sequences in the file), if you want smith-waterman results to be cached you'll need to specify `--sw-cachefname` explicitly, and it'll write it if it doesn't exist, and read from it if it does.
 
 #### run-viterbi
 
