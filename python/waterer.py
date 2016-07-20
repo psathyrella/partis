@@ -21,24 +21,23 @@ from allelefinder import AlleleFinder
 # ----------------------------------------------------------------------------------------
 class Waterer(object):
     """ Run smith-waterman on the query sequences in <infname> """
-    def __init__(self, args, input_info, reco_info, glfo, cachefname=None, parameter_out_dir=None, find_new_alleles=False):
-        self.parameter_out_dir = parameter_out_dir
-        self.cachefname = cachefname
+    def __init__(self, args, input_info, reco_info, glfo, parameter_out_dir=None, find_new_alleles=False):
         self.args = args
+        self.input_info = input_info
+        self.reco_info = reco_info
+        self.glfo = glfo
+        self.parameter_out_dir = parameter_out_dir
         self.debug = self.args.debug if self.args.sw_debug is None else self.args.sw_debug
 
         self.max_insertion_length = 35  # if vdjalign reports an insertion longer than this, rerun the query (typically with different match/mismatch ratio)
         self.absolute_max_insertion_length = 200  # just ignore them if it's longer than this
 
-        self.input_info = input_info
         self.remaining_queries = set([q for q in self.input_info.keys()])  # we remove queries from this set when we're satisfied with the current output (in general we may have to rerun some queries with different match/mismatch scores)
         self.new_indels = 0  # number of new indels that were kicked up this time through
 
         self.match_mismatch = copy.deepcopy(self.args.initial_match_mismatch)  # don't want to modify it!
         self.gap_open_penalty = self.args.gap_open_penalty  # not modifying it now, but just to make sure we don't in the future
 
-        self.reco_info = reco_info
-        self.glfo = glfo
         self.info = {}
         self.info['queries'] = []  # list of queries that *passed* sw, i.e. for which we have information
         self.info['all_best_matches'] = set()  # every gene that was a best match for at least one query
@@ -64,8 +63,8 @@ class Waterer(object):
             raise Exception('ERROR ighutil path d.n.e: ' + self.args.ighutil_dir + '/bin/vdjalign')
 
     # ----------------------------------------------------------------------------------------
-    def run(self):
-        # start = time.time()
+    def run(self, cachefname=None):
+        start = time.time()
         base_infname = 'query-seqs.fa'
         base_outfname = 'query-seqs.bam'
         sys.stdout.flush()
@@ -82,11 +81,13 @@ class Waterer(object):
                 break
             self.nth_try += 1  # it's set to 1 before we begin the first try, and increases to 2 just before we start the second try
 
-        self.finalize()
+        self.finalize(cachefname)
+        print '        water time: %.1f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
-    def read_cachefile(self):
-        with open(self.cachefname) as cachefile:
+    def read_cachefile(self, cachefname):
+        print '        reading cached sw results from %s' % cachefname
+        with open(cachefname) as cachefile:
             reader = csv.DictReader(cachefile)
             for line in reader:
                 utils.process_input_line(line)
@@ -102,10 +103,9 @@ class Waterer(object):
                     self.info['all_matches'][region] |= set(self.info[qname]['all_matches'][region])
 
     # ----------------------------------------------------------------------------------------
-    def finalize(self):
+    def finalize(self, cachefname):
         if self.perfplotter is not None:
             self.perfplotter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
-        # print '    sw time: %.3f' % (time.time()-start)
         print '      info for %d' % len(self.info['queries']),
         skipped_unproductive = len(self.unproductive_queries)
         n_remaining = len(self.remaining_queries)
@@ -149,9 +149,9 @@ class Waterer(object):
 
         self.info['remaining_queries'] = self.remaining_queries
 
-        if self.cachefname is not None:
-            print '        caching sw results to %s' % self.cachefname
-            with open(self.cachefname, 'w') as outfile:
+        if cachefname is not None:
+            print '        caching sw results to %s' % cachefname
+            with open(cachefname, 'w') as outfile:
                 writer = csv.DictWriter(outfile, utils.annotation_headers + utils.sw_cache_headers)
                 writer.writeheader()
                 missing_input_keys = set(self.input_info.keys())  # all the keys we originially read from the file

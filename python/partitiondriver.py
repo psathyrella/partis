@@ -60,8 +60,6 @@ class PartitionDriver(object):
         self.hmm_param_dir = self.args.parameter_dir + '/hmm'
         self.sub_param_dir = self.args.parameter_dir + '/' + self.args.parameter_type
 
-        # self.sw_cachefname = self.sw_XXXparameter_dir + '/cache-' + repr(abs(hash(''.join(self.input_info.keys())))) + '.csv'  # maybe I shouldn't abs it? collisions are probably still unlikely, and I don't like the extra dash in my file name
-
         self.hmm_infname = self.args.workdir + '/hmm_input.csv'
         self.hmm_cachefname = self.args.workdir + '/hmm_cached_info.csv'
         self.hmm_outfname = self.args.workdir + '/hmm_output.csv'
@@ -135,7 +133,6 @@ class PartitionDriver(object):
             print '  (looking for new alleles)',
         print ''
         sys.stdout.flush()
-        start = time.time()
 
         # can probably remove this... I just kind of want to know if it happens
         if not write_parameters and not find_new_alleles:
@@ -146,14 +143,23 @@ class PartitionDriver(object):
             if len(expected_genes - genes_with_hmms) > 0:
                 print '  %s genes %s in glfo that don\'t have yamels in %s' % (utils.color('red', 'warning'), ' '.join(expected_genes - genes_with_hmms), parameter_dir + '/' + self.args.parameter_type)
 
+        # ----------------------------------------------------------------------------------------
+        def default_cachefname():
+            return self.args.parameter_dir + '/sw-cache-' + repr(abs(hash(''.join(self.input_info.keys())))) + '.csv'  # maybe I shouldn't abs it? collisions are probably still unlikely, and I don't like the extra dash in my file name
+
+        cachefname = None
+        if self.args.sw_cachefname is not None:  # if --sw-cachefname was explicitly set, always use that
+            cachefname = self.args.sw_cachefname
+        elif write_parameters or os.path.exists(default_cachefname()):  # otherwise, use the default cachefname if we're either writing parameters (in which case we always want to write results to disk) or if the default already exists (in which case we always want to read it)
+            cachefname = default_cachefname()
+        print 'sw cache file: %s' % cachefname
         parameter_out_dir = self.sw_param_dir if write_parameters else None
-        waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo, cachefname=None, parameter_out_dir=parameter_out_dir, find_new_alleles=find_new_alleles)
-        # if os.path.exists(self.sw_cachefname):  # we already ran smith-waterman on this input set, so we can just read the results from the cache file
-        #     waterer.read_cachefile()
-        # else:
-        waterer.run()
+        waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo, parameter_out_dir=parameter_out_dir, find_new_alleles=find_new_alleles)
+        if cachefname is None or not os.path.exists(cachefname):
+            waterer.run(cachefname)
+        else:
+            waterer.read_cachefile(cachefname)
         self.sw_info = waterer.info
-        print '        water time: %.1f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
     def find_new_alleles(self):
