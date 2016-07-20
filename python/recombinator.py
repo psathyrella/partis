@@ -35,7 +35,7 @@ class Recombinator(object):
         utils.prep_dir(self.workdir)
 
         if not self.args.simulate_partially_from_scratch:
-            parameter_dir = self.args.parameter_dir
+            parameter_dir = self.args.parameter_dir + '/' + self.args.parameter_type
         else:  # we start from scratch, except for the mute freq stuff
             parameter_dir = self.args.scratch_mute_freq_dir
 
