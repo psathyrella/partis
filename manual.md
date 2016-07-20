@@ -123,7 +123,14 @@ For instance, if you run with one bunch of sequences in `path/to/seqs.fa`, their
 
 If `--parameter-dir` (whether explicitly set or left as default) doesn't exist, partis assumes that it needs to cache parameters, and does that before running the requested action.
 
-##### run-viterbi
+Whether caching parameters or running on pre-existing parameters, the hmm needs as input preliminary smith-waterman annotations.
+While this preliminary smith-waterman step is fairly fast, it's also easy to cache the results so you only have to do it once.
+By default these smith-waterman annotations are written to a csv file in `--parameter-dir` during parameter caching.
+The default filename is a hash of the concatenated input sequence id strings: for technical reasons (they have to all be padded to the same length) the annotation for each sequence is not entirely independent of the other sequences.
+These defaults should ensure that with typical workflows, smith-waterman only runs once.
+If however, you're doing less typical things (running on a subset of sequences in the file), you'll need to specify `--sw-cachefname` explicitly, and it'll write it if it doesn't exist, and read from it if it does.
+
+#### run-viterbi
 
 Finds the Viterbi path (i.e., the most likely annotation/alignment) for each sequence, for example:
 
@@ -164,7 +171,7 @@ The output csv headers are listed in the table below, and you can view a colored
 
 Note that `utils.process_input_line()` and `utils.get_line_for_output()` can be used to automate input/output.
 
-##### partition
+#### partition
 
 Example invocation:
 
@@ -187,7 +194,7 @@ By default, this uses the most accurate and slowest method: hierarchical agglome
 Like most clustering algorithms, this scales rather closer than you'd like to quadratically than it does to linearly.
 We thus also have two faster and more approximate methods.
 
-###### approximate methods
+##### approximate methods
 
 *--naive-hamming*
 
@@ -202,19 +209,19 @@ Vsearch is also very fast, because it makes a large number of heuristic approxim
 With `--n-procs` around 10 for the vsearch step, this should take only of order minutes for a million sequences.
 Since it's entirely unprincipled, this of course sacrifices significant accuracy; but since we're using inferred naive sequences it's still much, much more accurate than clustering on SHM'd sequences.
 
-##### view-annotations
+#### view-annotations
 
 To, e.g. run on the output csv from the `run-viterbi` action:
 
 ``` ./bin/partis view-annotations --outfname run-viterbi-output.csv```
 
-##### view-partitions
+#### view-partitions
 
 To, e.g. run on the output csv from the `partition` action:
 
 ``` ./bin/partis view-partitions --outfname partition-output.csv```
 
-##### cache-parameters
+#### cache-parameters
 
 This is run automatically if `--parameter-dir` doesn't exist (whether this directory is specified explicitly, or is left as default).
 So you do not, generally, need to run it on its own.
@@ -234,7 +241,7 @@ The hmm model files go in the `hmms` subdirectory, which contains yaml HMM model
 
 When reading parameters (e.g. with run-viterbi or partition), the parameters are read directly from `--parameter-dir`, so you need to tack on either `/hmm` or `/sw` to what was passed during parameter caching.
 
-###### Finding New Alleles
+##### Finding New Alleles
 
 By default partis uses the set of germline V, D, and J genes ("germline set") in `data/imgt`.
 If you have another set you'd like to use, you can do so by setting `--initial-datadir`.
@@ -254,7 +261,7 @@ Oh, right, and all this new allele talk only applies to V.
 We could probably do the same thing for J, but there don't seem to be much polymorphism, so it's probably not worthwhile.
 Doing it for D is a crazy pipe dream.
 
-##### simulate
+#### simulate
 
 For testing purposes, we can use the parameters in `--parameter-dir` to create simulated sequences that mimic the data as closely as possible.
 This allows us to test how well our algorithms work on a set of sequences for which we know the correct annotations and clonal relationships.
@@ -271,7 +278,7 @@ To get the actual number of sequences, we multiply this by the mean number of le
 At the start of a simulation run, TreeSim generates a set of `--n-trees` trees (default 500 at the moment), and each tree has a number of leaves drawn from an exponential (or zipf, or box, or...) with mean/exponent `--n-leaves`.
 Throughout the run, we sample a tree at random from this set for each rearrangement event.
 
-##### run-forward
+#### run-forward
 
 Same as `run-viterbi`, except with the forward algorithm, i.e. it sums over all possible rearrangement events to get the total log probability of the sequence.
 Probably mostly useful for testing.
