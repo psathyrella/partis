@@ -19,9 +19,10 @@ from partitiondriver import PartitionDriver
 # ----------------------------------------------------------------------------------------
 def default_parameter_dir(args):
     if args.infname is not None:
-        label = os.path.basename(args.infname[ : args.infname.rfind('.')])
+        label = args.infname[ : args.infname.rfind('.')]  # probably ok not to use the full path here
+        label = label.replace('/', '_')
     else:
-        label = 'no-need-for-a-name'
+        label = 'no-need-for-a-name'  # maybe actually don't have a need for one, if there's no input file
     pdir = '_output/' + label
     return pdir
 
