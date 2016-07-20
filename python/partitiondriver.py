@@ -125,6 +125,15 @@ class PartitionDriver(object):
                 raise Exception('--persistent-cachefname %s has unexpected header list %s' % (self.args.persistent_cachefname, reader.fieldnames))
 
     # ----------------------------------------------------------------------------------------
+    def get_cachefname(self):
+        default_cachefname = self.args.parameter_dir + '/sw-cache-' + repr(abs(hash(''.join(self.input_info.keys())))) + '.csv'  # maybe I shouldn't abs it? collisions are probably still unlikely, and I don't like the extra dash in my file name
+        if self.args.sw_cachefname is not None:  # if --sw-cachefname was explicitly set, always use that
+            return self.args.sw_cachefname
+        elif write_parameters or os.path.exists(default_cachefname):  # otherwise, use the default cachefname if we're either writing parameters (in which case we want to write results to disk) or if the default already exists (in which case we want to read it)
+            return default_cachefname
+        return None  # don't want to read or write sw cache files
+
+    # ----------------------------------------------------------------------------------------
     def run_waterer(self, write_parameters=False, find_new_alleles=False):
         print 'smith-waterman',
         if write_parameters:
@@ -143,19 +152,10 @@ class PartitionDriver(object):
             if len(expected_genes - genes_with_hmms) > 0:
                 print '  %s genes %s in glfo that don\'t have yamels in %s' % (utils.color('red', 'warning'), ' '.join(expected_genes - genes_with_hmms), parameter_dir + '/' + self.args.parameter_type)
 
-        # ----------------------------------------------------------------------------------------
-        def default_cachefname():
-            return self.args.parameter_dir + '/sw-cache-' + repr(abs(hash(''.join(self.input_info.keys())))) + '.csv'  # maybe I shouldn't abs it? collisions are probably still unlikely, and I don't like the extra dash in my file name
-
-        cachefname = None
-        if self.args.sw_cachefname is not None:  # if --sw-cachefname was explicitly set, always use that
-            cachefname = self.args.sw_cachefname
-        elif write_parameters or os.path.exists(default_cachefname()):  # otherwise, use the default cachefname if we're either writing parameters (in which case we always want to write results to disk) or if the default already exists (in which case we always want to read it)
-            cachefname = default_cachefname()
-        print 'sw cache file: %s' % cachefname
         parameter_out_dir = self.sw_param_dir if write_parameters else None
         waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo, parameter_out_dir=parameter_out_dir, find_new_alleles=find_new_alleles)
-        if cachefname is None or not os.path.exists(cachefname):
+        cachefname = self.get_cachefname()
+        if cachefname is None or not os.path.exists(cachefname):  # run sw if we either don't want to do any caching (None) or if we are planning on writing the results after we run
             waterer.run(cachefname)
         else:
             waterer.read_cachefile(cachefname)
