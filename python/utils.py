@@ -1247,7 +1247,7 @@ def process_input_line(info):
     ccfg = column_configs  # shorten the name a bit
 
     for key in info:
-        if key is None:
+        if key is None or info[key] == '':
             continue
 
         convert_fcn = pass_fcn  # dummy fcn, just returns the argument
