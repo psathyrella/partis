@@ -86,7 +86,7 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def read_cachefile(self, cachefname):
-        print '        reading cached sw results from %s' % cachefname
+        print '        reading sw results from %s' % cachefname
         with open(cachefname) as cachefile:
             reader = csv.DictReader(cachefile)
             for line in reader:
@@ -150,7 +150,7 @@ class Waterer(object):
         self.info['remaining_queries'] = self.remaining_queries
 
         if cachefname is not None:
-            print '        caching sw results to %s' % cachefname
+            print '        writing sw results to %s' % cachefname
             with open(cachefname, 'w') as outfile:
                 writer = csv.DictWriter(outfile, utils.annotation_headers + utils.sw_cache_headers)
                 writer.writeheader()
