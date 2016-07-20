@@ -1247,7 +1247,11 @@ def process_input_line(info):
     ccfg = column_configs  # shorten the name a bit
 
     for key in info:
-        if key is None or info[key] == '':
+        if key is None:
+            raise Exception('none type key')
+        if info[key] == '':
+            if key in ccfg['lists']:
+                info[key] = ['', ]
             continue
 
         convert_fcn = pass_fcn  # dummy fcn, just returns the argument
