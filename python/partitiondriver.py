@@ -58,7 +58,7 @@ class PartitionDriver(object):
 
         self.sw_param_dir = self.args.parameter_dir + '/sw'
         self.hmm_param_dir = self.args.parameter_dir + '/hmm'
-        # self.hmm_param_dir = self.args.parameter_dir + '/hmm'
+        self.sub_param_dir = self.args.parameter_dir + '/' + self.args.parameter_type
 
         # self.sw_cachefname = self.sw_XXXparameter_dir + '/cache-' + repr(abs(hash(''.join(self.input_info.keys())))) + '.csv'  # maybe I shouldn't abs it? collisions are probably still unlikely, and I don't like the extra dash in my file name
 
@@ -139,7 +139,7 @@ class PartitionDriver(object):
 
         # can probably remove this... I just kind of want to know if it happens
         if not write_parameters and not find_new_alleles:
-            genes_with_hmms = set(utils.find_genes_that_have_hmms(self.args.parameter_dir + '/' + self.args.parameter_type))
+            genes_with_hmms = set(utils.find_genes_that_have_hmms(self.sub_param_dir))
             expected_genes = set([g for r in utils.regions for g in self.glfo['seqs'][r].keys()])  # this'll be the & of the datadir (maybe rewritten, maybe not)
             if len(genes_with_hmms - expected_genes) > 0:
                 print '  %s yamels in %s for genes %s that aren\'t in glfo' % (utils.color('red', 'warning'), parameter_dir + '/' + self.args.parameter_type, ' '.join(genes_with_hmms - expected_genes))
@@ -218,7 +218,7 @@ class PartitionDriver(object):
         """ Just run <algorithm> (either 'forward' or 'viterbi') on sequences in <self.input_info> and exit. You've got to already have parameters cached in <self.args.parameter_dir> """
         print 'running %s' % algorithm
         self.run_waterer()
-        self.run_hmm(algorithm, parameter_in_dir=self.args.parameter_dir + '/' + self.args.parameter_type)
+        self.run_hmm(algorithm, parameter_in_dir=self.sub_param_dir)
 
     # ----------------------------------------------------------------------------------------
     def view_existing_annotations(self):
@@ -249,10 +249,10 @@ class PartitionDriver(object):
 
         # cache hmm naive seq for each single query
         if len(self.sw_info['queries']) > 50 or self.args.naive_vsearch or self.args.naive_swarm:
-            self.run_hmm('viterbi', self.args.parameter_dir + '/' + self.args.parameter_type, n_procs=self.get_n_precache_procs(), precache_all_naive_seqs=True)
+            self.run_hmm('viterbi', self.sub_param_dir, n_procs=self.get_n_precache_procs(), precache_all_naive_seqs=True)
 
         if self.args.naive_vsearch or self.args.naive_swarm:
-            self.cluster_with_naive_vsearch_or_swarm(self.args.parameter_dir + '/' + self.args.parameter_type)
+            self.cluster_with_naive_vsearch_or_swarm(self.sub_param_dir)
             return
 
         n_procs = self.args.n_procs
@@ -262,7 +262,7 @@ class PartitionDriver(object):
         start = time.time()
         while n_procs > 0:
             print '--> %d clusters with %d procs' % (len(cpath.partitions[cpath.i_best_minus_x]), n_procs)  # write_hmm_input uses the best-minus-ten partition
-            cpath = self.run_hmm('forward', self.args.parameter_dir + '/' + self.args.parameter_type, n_procs=n_procs, cpath=cpath)
+            cpath = self.run_hmm('forward', self.sub_param_dir, n_procs=n_procs, cpath=cpath)
             n_proc_list.append(n_procs)
             if n_procs == 1:
                 break
