@@ -8,7 +8,17 @@ This manual is organized into the following sections:
 
   * [Quick Start](#quick-start) install/run with Docker
   * [Slow Start](#slow-start) install from scratch
-  * [Details](#details) how to navigate the various `partis` subcommands
+  * [Subcommands](#subcommands) how to navigate the various `partis` actions
+    - [run-viterbi](#run-viterbi) find most likely annotations/alignments
+	- [partition](#partition) cluster sequences into clonally-related families
+	  - [approximate methods](#approximate-methods)
+	- [view-annotations](#view-annotations) Print (to std out) the annotations from an existing annotation output csv.
+	- [view-partitions](#view-partitions)  Print (to std out) the partitions from an existing partition output csv.
+	- [cache-parameters](#cache-parameters) write parameter values and HMM model files for a given data set
+	  - [finding new alleles](#finding-new-alleles)
+	- [simulate](#simulate) make simulated sequences
+	- [run-forward](#run-forward) find total probability of sequences
+  * [Parallelization](#parallelization)
 
 There are also many flags and optional parameters; unless mentioned below these are beyond the scope of this manual.
 Details concerning their purpose, however, may be gleaned by means of the following incantation: `./bin/partis --help`.
@@ -95,23 +105,25 @@ And then build:
 ./bin/build.sh
 ```
 
-### Details
+### Subcommands
 
-#### Subcommands
+The main script has a number of actions:
 
-`./bin/partis` runs everything, and has a number of potential actions:
+```./bin/partis run-viterbi | partition | view-annotations | view-partitions | cache-parameters | simulate | run-forward```,
 
-```./bin/partis run-viterbi|partition|cache-parameters|simulate|run-forward```.
-
-Each of these subcommands is described in detail below.
-For more information you can also type `./bin/partis --help` or `./bin/partis <subcommand> --help`.
+each of which is described in more detail below.
+For more information you can also type `./bin/partis --help` and `./bin/partis <subcommand> --help`.
 
 The fist step in all cases is to infer a set of parameters particular to the input sequence file.
-These are cached as csv and yaml files in `--parameter-dir`, which defaults to a location in the current directory.
-You only need to cache these once, then can use them for all subsequent runs.
+These are written to `--parameter-dir`, and then used for all subsequent runs.
+If you don't specify `--parameter-dir`, it defaults to a location in the current directory that amounts to a slight bastardization of your input file path.
+This default amounts to a hopefully-judicious marriage of convenience and cleverness: if your input files have different paths, their parameter directories will get put in different places.
+That said, the consequences of using the wrong parameter directory for a set of sequences are potentially dire, so you need to be aware of where partis is telling you that it's putting parameters.
+For instance, if you run with one bunch of sequences in `path/to/seqs.fa`, their parameters will get written to `_output/path_to_seqs`, but if you then replace those sequences with some others in the same file, partis won't know anything about that and will use the same parameters.
+
 If `--parameter-dir` (whether explicitly set or left as default) doesn't exist, partis assumes that it needs to cache parameters, and does that before running the requested action.
 
-##### `run-viterbi`: find most likely annotations/alignments
+##### run-viterbi
 
 Finds the Viterbi path (i.e., the most likely annotation/alignment) for each sequence, for example:
 
@@ -152,7 +164,7 @@ The output csv headers are listed in the table below, and you can view a colored
 
 Note that `utils.process_input_line()` and `utils.get_line_for_output()` can be used to automate input/output.
 
-##### `partition`: cluster sequences into clonally-related families
+##### partition
 
 Example invocation:
 
@@ -175,12 +187,14 @@ By default, this uses the most accurate and slowest method: hierarchical agglome
 Like most clustering algorithms, this scales rather closer than you'd like to quadratically than it does to linearly.
 We thus also have two faster and more approximate methods.
 
-###### `--naive-hamming`
+###### approximate methods
+
+*--naive-hamming*
 
 Use hard boundaries on hamming distance between naive sequences alone, with no likelihood calculation, to cluster with hierarchical agglomeration.
 This is perhaps as much as twice as fast as the full method, but sacrifices significant accuracy because it doesn't know (for example) about the differing probabilities of mutations at different points in the sequence, and because it uses a single, fixed annotation rather than integrating over all likely annotations.
 
-###### `--naive-vsearch`
+*--naive-vsearch*
 
 First calculate naive (unmutated ancestor) for each sequence, then pass these into vsearch for very fast, very heuristic clustering.
 The naive sequence calculation is easy to parallelize, so is fast if you have access to a fair number of processors.
@@ -188,22 +202,22 @@ Vsearch is also very fast, because it makes a large number of heuristic approxim
 With `--n-procs` around 10 for the vsearch step, this should take only of order minutes for a million sequences.
 Since it's entirely unprincipled, this of course sacrifices significant accuracy; but since we're using inferred naive sequences it's still much, much more accurate than clustering on SHM'd sequences.
 
-##### `view-annotations`: Print (to std out) the annotations from an existing annotation output csv.
+##### view-annotations
 
 To, e.g. run on the output csv from the `run-viterbi` action:
 
 ``` ./bin/partis view-annotations --outfname run-viterbi-output.csv```
 
-##### `view-partitions`: Print (to std out) the partitions from an existing partition output csv.
+##### view-partitions
 
 To, e.g. run on the output csv from the `partition` action:
 
 ``` ./bin/partis view-partitions --outfname partition-output.csv```
 
-##### `cache-parameters`: write out parameter values and HMM model files for a given data set
+##### cache-parameters
 
-The parameter-caching step is run automatically by the other actions if `--parameter-dir` doesn't exist (whether this directory is specified explicitly, or is left as default).
-So you do not, generally, need to run it on its own except for testing.
+This is run automatically if `--parameter-dir` doesn't exist (whether this directory is specified explicitly, or is left as default).
+So you do not, generally, need to run it on its own.
 
 When presented with a new data set, the first thing we need to do is infer a set of parameters, a task for which we need a preliminary annotation.
 As such, partis first runs ighutil's Smith-Waterman algorithm on the data set.
@@ -240,7 +254,7 @@ Oh, right, and all this new allele talk only applies to V.
 We could probably do the same thing for J, but there don't seem to be much polymorphism, so it's probably not worthwhile.
 Doing it for D is a crazy pipe dream.
 
-##### `simulate`: make simulated sequences
+##### simulate
 
 For testing purposes, we can use the parameters in `--parameter-dir` to create simulated sequences that mimic the data as closely as possible.
 This allows us to test how well our algorithms work on a set of sequences for which we know the correct annotations and clonal relationships.
@@ -257,7 +271,7 @@ To get the actual number of sequences, we multiply this by the mean number of le
 At the start of a simulation run, TreeSim generates a set of `--n-trees` trees (default 500 at the moment), and each tree has a number of leaves drawn from an exponential (or zipf, or box, or...) with mean/exponent `--n-leaves`.
 Throughout the run, we sample a tree at random from this set for each rearrangement event.
 
-##### `run-forward`: find total probability of sequences
+##### run-forward
 
 Same as `run-viterbi`, except with the forward algorithm, i.e. it sums over all possible rearrangement events to get the total log probability of the sequence.
 Probably mostly useful for testing.
@@ -265,11 +279,13 @@ Probably mostly useful for testing.
 ### Germline Sets
 
 The default set of germline genes is in `data/imgt`.
-This was downloaded at some point from the imgt web site, and was then modified by removing several genes that had the same sequence as other genes (wtf...).
+This was downloaded at some point from the imgt web site, and contains genes they label as F and ORF.
+Maybe also with square brackets around the F.
+It was then modified by removing several genes that had the same sequence as other genes (wtf...).
 As has been described in a number of papers by other folks, it is sensible to view the imgt set as a starting point.
-The first thing to do next is identify any new alleles in the data set at hand -- for this see [allele finding](https://github.com/psathyrella/partis/blob/master/manual.md#finding-new-alleles) above.
+The thing to do next is identify any new alleles in the data set at hand -- for this see [allele finding](https://github.com/psathyrella/partis/blob/master/manual.md#finding-new-alleles) above.
 The next step is to reduce the germline set for each data set such that we only consider alleles which are actually present in each individual's germline.
-We haven't done this yet, but we're working on it.
+This is still under development.
 
 ### Parallelization
 
