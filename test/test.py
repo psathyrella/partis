@@ -145,7 +145,7 @@ class Tester(object):
 
         # delete old sw cache files
         for dtype in self.dtypes:
-            if name == 'cache-' + dtype + '-parameters':
+            if name == 'cache-parameters-' + dtype:
                 globfnames = glob.glob(self.param_dirs['new'][dtype] + '/sw-cache-*.csv')
                 if len(globfnames) == 0:  # not there
                     continue
@@ -173,7 +173,7 @@ class Tester(object):
             cmd_str += ' ' + ' '.join(info['extras'] + self.common_extras)
             if name == 'simulate':
                 cmd_str += ' --outfname ' + self.simfnames['new']
-            elif 'cache-parameters' not in name:
+            elif 'cache-parameters-' not in name:
                 cmd_str += ' --outfname ' + self.dirs['new'] + '/' + name + '.csv'
 
             logstr = 'TEST %30s   %s' % (name, cmd_str)
