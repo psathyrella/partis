@@ -30,7 +30,7 @@ class Tester(object):
         if not os.path.exists(self.dirs['new']):
             os.makedirs(self.dirs['new'])
         self.simfnames = {st : self.dirs[st] + '/' + self.label + '/simu.csv' for st in self.stypes}
-        param_dirs = { st : { dt : self.dirs[st] + '/' + self.label + '/parameters/' + dt for dt in ['simu', 'data']} for st in self.stypes}  # muddafuggincomprehensiongansta
+        self.param_dirs = { st : { dt : self.dirs[st] + '/' + self.label + '/parameters/' + dt for dt in ['simu', 'data']} for st in self.stypes}  # muddafuggincomprehensiongansta
         run_driver = './bin/run-driver.py --label ' + self.label + ' --stashdir ' + self.dirs['new']
         self.common_extras = ['--seed', '1', '--n-procs', '10', '--only-genes', 'TEST', '--only-csv-plots']
 
@@ -82,10 +82,10 @@ class Tester(object):
                     if namelist[-1] == 'simu':
                         args['extras'] += ['--is-simu', ]
                         args['extras'] += ['--infname', self.simfnames[input_stype]]
-                        args['extras'] += ['--parameter-dir', param_dirs[input_stype]['simu']]
+                        args['extras'] += ['--parameter-dir', self.param_dirs[input_stype]['simu']]
                     elif namelist[-1] == 'data':
                         args['extras'] += ['--infname', self.datafname]
-                        args['extras'] += ['--parameter-dir', param_dirs[input_stype]['data']]
+                        args['extras'] += ['--parameter-dir', self.param_dirs[input_stype]['data']]
                     else:
                         raise Exception('-'.join(namelist))
 
@@ -134,6 +134,16 @@ class Tester(object):
             this_cachefname = self.dirs['new'] + '/' + self.cachefnames[info['input_stype']]
             if os.path.exists(this_cachefname):
                 check_call(['rm', '-v', this_cachefname])
+
+        # delete old sw cache files
+        for dtype in ['data', 'simu']:
+            if name == 'cache-' + dtype + '-parameters':
+                globfnames = glob.glob(self.param_dirs['new'][dtype] + '/sw-cache-*.csv')
+                if len(globfnames) == 0:  # not there
+                    continue
+                elif len(globfnames) != 1:
+                    raise Exception('unexpeced sw cache files: %s' % ' '.join(globfnames))
+                check_call(['rm', '-v', globfnames[0]])
 
         # choose a seed uid
         if name == 'seed-partition-' + info['input_stype'] + '-simu':
@@ -341,7 +351,7 @@ class Tester(object):
         if args.quick:
             return
         print 'diffing production results'
-        for fname in ['test/parameters/data', 'test/simu.csv', 'test/parameters/simu/sw-true', 'test/parameters/simu/hmm-true', 'test/parameters/simu/sw', 'test/parameters/simu/hmm']:
+        for fname in ['test/parameters/data', 'test/simu.csv', 'test/parameters/simu']:
             print '    %-30s' % fname,
             cmd = 'diff -qbr ' + ' '.join(self.dirs[st] + '/' + fname for st in self.stypes)
             proc = Popen(cmd.split(), stdout=PIPE, stderr=PIPE)
