@@ -50,7 +50,6 @@ class PartitionDriver(object):
 
         self.sw_info = None
         self.bcrham_proc_info = None
-        self.bcrham_failed_queries = set()
 
         self.unseeded_clusters = set()  # all the queries that we *didn't* cluster with the seed uid
         self.time_to_remove_unseeded_clusters = False
@@ -268,7 +267,7 @@ class PartitionDriver(object):
         start = time.time()
         while n_procs > 0:
             print '--> %d clusters with %d procs' % (len(cpath.partitions[cpath.i_best_minus_x]), n_procs)  # write_hmm_input uses the best-minus-ten partition
-            cpath = self.run_hmm('forward', self.sub_param_dir, n_procs=n_procs, cpath=cpath)
+            cpath = self.run_hmm('forward', self.sub_param_dir, n_procs=n_procs, cpath=cpath, shuffle_input=True)
             n_proc_list.append(n_procs)
             if n_procs == 1:
                 break
@@ -626,7 +625,7 @@ class PartitionDriver(object):
         sys.stdout.flush()
 
     # ----------------------------------------------------------------------------------------
-    def run_hmm(self, algorithm, parameter_in_dir, parameter_out_dir='', count_parameters=False, n_procs=None, precache_all_naive_seqs=False, cpath=None):
+    def run_hmm(self, algorithm, parameter_in_dir, parameter_out_dir='', count_parameters=False, n_procs=None, precache_all_naive_seqs=False, cpath=None, shuffle_input=False):
         """ 
         Run bcrham, possibly with many processes, and parse and interpret the output.
         NOTE the local <n_procs>, which overrides the one from <self.args>
@@ -640,7 +639,7 @@ class PartitionDriver(object):
         if n_procs is None:
             n_procs = self.args.n_procs
 
-        self.write_hmm_input(algorithm, parameter_in_dir, cpath)
+        self.write_hmm_input(algorithm, parameter_in_dir, cpath, shuffle_input=shuffle_input)
 
         cmd_str = self.get_hmm_cmd_str(algorithm, self.hmm_infname, self.hmm_outfname, parameter_dir=parameter_in_dir, precache_all_naive_seqs=precache_all_naive_seqs, n_procs=n_procs)
 
@@ -1041,13 +1040,13 @@ class PartitionDriver(object):
         return unseeded_clusters
 
     # ----------------------------------------------------------------------------------------
-    def write_to_single_input_file(self, fname, nsets, parameter_dir, skipped_gene_matches):
+    def write_to_single_input_file(self, fname, nsets, parameter_dir, skipped_gene_matches, shuffle_input=False):
         csvfile = opener('w')(fname)
         header = ['names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'only_genes', 'seqs', 'mut_freqs']
         writer = csv.DictWriter(csvfile, header, delimiter=' ')
         writer.writeheader()
 
-        if not self.args.no_random_divvy:  # shuffle nset order (this is important because we want the calculations to be spread uniformly among the n processes)
+        if shuffle_input:  # shuffle nset order (this is absolutely critical when clustering with more than one process, in order to redistribute sequences among the several processes)
             random.shuffle(nsets)
 
         if self.args.synthetic_distance_based_partition:
@@ -1073,7 +1072,7 @@ class PartitionDriver(object):
         csvfile.close()
 
     # ----------------------------------------------------------------------------------------
-    def write_hmm_input(self, algorithm, parameter_dir, cpath):
+    def write_hmm_input(self, algorithm, parameter_dir, cpath, shuffle_input=False):
         """ Write input file for bcrham """
         print '    writing input'
 
@@ -1103,7 +1102,7 @@ class PartitionDriver(object):
                     if len(this_set) > 0:
                         nsets.append(this_set)
 
-        self.write_to_single_input_file(self.hmm_infname, nsets, parameter_dir, skipped_gene_matches)
+        self.write_to_single_input_file(self.hmm_infname, nsets, parameter_dir, skipped_gene_matches, shuffle_input=shuffle_input)
 
         if self.args.debug and len(skipped_gene_matches) > 0:
             print '    not found in %s, so removing from consideration for hmm (i.e. were only the nth best, but never the best sw match for any query):' % (parameter_dir),
@@ -1130,16 +1129,20 @@ class PartitionDriver(object):
         return cpath
 
     # ----------------------------------------------------------------------------------------
-    def check_did_bcrham_fail(self, line, boundary_error_queries):
-        if line['errors'] is None:
+    def check_did_bcrham_fail(self, line, errorfo):
+        if line['errors'] == '':  # no problems
             return False
-        if 'no_path' in line['errors']:
-            self.bcrham_failed_queries.add(line['unique_ids'])
-            return True
-        if 'boundary' in line['errors'].split(':'):
-            boundary_error_queries.append(':'.join([uid for uid in line['unique_ids']]))
-            return False  # boundary errors aren't failures, they're just telling us we had to expand the boundaries EDIT oh, wait, or does it mean it couldn't expand them enough?
-        return False
+
+        failed = False
+        for ecode in line['errors'].split(':'):  # I don't think I've ever seen one with more than one, but it could happen
+            if ecode not in errorfo:
+                errorfo[ecode] = set()
+            for uid in line['unique_ids']:
+                errorfo[ecode].add(uid)
+            if ecode == 'no_path':  # boundary errors aren't failures, they're just telling us we had to expand the boundaries EDIT oh, wait, or does it mean it couldn't expand them enough? in any case, we still get an answer
+                failed = True
+
+        return failed
 
     # ----------------------------------------------------------------------------------------
     def read_forward_output(self, annotation_fname):
@@ -1172,7 +1175,7 @@ class PartitionDriver(object):
 
         n_lines_read, n_seqs_processed, n_events_processed, n_invalid_events = 0, 0, 0, 0
         annotations = OrderedDict()
-        boundary_error_queries = []
+        errorfo = {}
         with opener('r')(annotation_fname) as hmm_csv_outfile:
             reader = csv.DictReader(hmm_csv_outfile)
             for padded_line in reader:  # line coming from hmm output is N-padded such that all the seqs are the same length
@@ -1180,7 +1183,7 @@ class PartitionDriver(object):
                 utils.process_input_line(padded_line)
                 n_lines_read += 1
 
-                failed = self.check_did_bcrham_fail(padded_line, boundary_error_queries)
+                failed = self.check_did_bcrham_fail(padded_line, errorfo)
                 if failed:
                     continue
 
@@ -1247,12 +1250,15 @@ class PartitionDriver(object):
         if n_invalid_events > 0:
             print '          %s skipped %d invalid events' % (utils.color('red', 'warning'), n_invalid_events),
         print ''
-        if len(self.bcrham_failed_queries) > 0:
-            print '          %s no valid paths: %s' % (utils.color('red', 'warning'), ':'.join(self.bcrham_failed_queries))
-        if len(boundary_error_queries) > 0:
-            print '      %d boundary errors' % len(boundary_error_queries)
-            if self.args.debug:
-                print '                %s' % ', '.join(boundary_error_queries)
+        for ecode in errorfo:
+            if ecode == 'no_path':
+                print '          %s no valid paths: %s' % (utils.color('red', 'warning'), ' '.join(errorfo[ecode]))
+            elif ecode == 'boundary':
+                print '      %d boundary errors' % len(errorfo[ecode])
+                if self.args.debug:
+                    print '                %s' % ' '.join(errorfo[ecode])
+            else:
+                print '          %s unknown ecode \'%s\': %s' % (utils.color('red', 'warning'), ecode, ' '.join(errorfo[ecode]))
 
         # write output file
         if outfname is not None:

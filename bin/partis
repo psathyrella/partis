@@ -176,7 +176,7 @@ parser = argparse.ArgumentParser(formatter_class=formatter_class)
 subparsers = parser.add_subparsers(dest='action')
 
 default_initial_datadir = partis_dir + '/data/imgt'  # I promise, it has to be set here instead of in the argparser, and yes, it freaks me out, too
-print 'TODO keep sequence order in output annotation results'
+
 parent_parser = argparse.ArgumentParser(add_help=False)
 parent_parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2], help='Debug verbosity level.')
 parent_parser.add_argument('--sw-debug', type=int, choices=[0, 1, 2], help='Debug level for Smith-Waterman.')
@@ -185,7 +185,6 @@ parent_parser.add_argument('--is-simu', action='store_true', help='Set if runnin
 parent_parser.add_argument('--skip-unproductive', action='store_true', help='Skip sequences which Smith-Waterman determines to be unproductive (they have stop codons, are out of frame, etc.)')
 parent_parser.add_argument('--seed', type=int, default=int(time.time()), help='Random seed for use (mostly) by recombinator (to allow reproducibility)')
 parent_parser.add_argument('--no-indels', action='store_true', help='Skip smith-waterman matches that include indels. Note that this just *skips* them, you probably also want to increase the gap-open penalty to prevent vdjalign from finding them in the first place.')
-parent_parser.add_argument('--no-random-divvy', action='store_true', help='Don\'t shuffle the order of the input sequences before passing on to ham')  # it's imperative to shuffle if you're partitioning on simulation, or if you're partitioning with more than one process. But it may also be kinda slow.
 parent_parser.add_argument('--only-csv-plots', action='store_true', help='only write csv plots')
 parent_parser.add_argument('--seqfile', help='DEPRECATED use --infname instead')
 parent_parser.add_argument('--infname', help='input sequence file in .fa, .fq or .csv (if .csv, specify id string and sequence headers with --name-column and --seq-column)')
