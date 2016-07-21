@@ -320,7 +320,8 @@ class Tester(object):
         if n_diff_lines == 0:
             print '      ok'
         else:
-            print utils.color('red', '      %d lines differ' % n_diff_lines),
+            n_total_lines = int(check_output(['wc', '-l', infnames[0]]).split()[0])
+            print utils.color('red', '      %d / %d lines differ' % (n_diff_lines, n_total_lines)),
             print '   (%s)' % cmd
 
     # ----------------------------------------------------------------------------------------
@@ -372,7 +373,11 @@ class Tester(object):
                 print ''
                 if len(differlines) > 0:
                     n_total_files = int(check_output('find ' + self.dirs['ref'] + '/' + fname + ' -type f | wc -l', shell=True))
-                    print utils.color('red', '      %d / %d files differ' % (len(differlines), n_total_files)),
+                    if n_total_files == 1:
+                        assert len(differlines) == 1
+                        print utils.color('red', '      file differs'),
+                    else:
+                        print utils.color('red', '      %d / %d files differ' % (len(differlines), n_total_files)),
                 if len(onlylines) > 0:
                     for st in self.stypes:
                         theseonlylines = [l for l in onlylines if self.dirs[st] + '/' + fname in l]
