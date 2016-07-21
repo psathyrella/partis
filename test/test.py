@@ -34,6 +34,8 @@ class Tester(object):
         self.param_dirs = { st : { dt : self.dirs[st] + '/' + self.label + '/parameters/' + dt for dt in ['simu', 'data']} for st in self.stypes}  # muddafuggincomprehensiongansta
         self.common_extras = ['--seed', '1', '--n-procs', '10', '--only-genes', 'TEST', '--only-csv-plots']
 
+        self.perf_info = { version_stype : OrderedDict() for version_stype in self.stypes }
+
         # check against reference csv file
         self.tiny_eps = 1e-4
         self.run_times = {}
@@ -51,8 +53,7 @@ class Tester(object):
         self.cachefnames = { st : 'cache-' + st + '-partition.csv' for st in self.stypes }
 
         self.quick_tests = ['annotate-ref-simu']
-        # self.quick_tests = ['seed-partition-ref-simu']
-        self.production_tests = ['cache-parameters-data', 'simulate', 'cache-parameters-simu']  # vs "inference" tests. Kind of crappy names, but it's to distinguish these three from all the other ones
+        self.production_tests = ['cache-parameters-data', 'simulate', 'cache-parameters-simu']  # vs "inference" tests. Kind of crappy names, but we need to distinguish these three from all the other ones
 
         self.tests = OrderedDict()
 
@@ -63,40 +64,6 @@ class Tester(object):
             self.tests['seed-partition-' + input_stype + '-simu']    = {'extras' : ['--n-max-queries', '-1', '--n-precache-procs', '10']}
             self.tests['vsearch-partition-' + input_stype + '-simu'] = {'extras' : ['--naive-vsearch', '--n-max-queries', self.n_partition_queries, '--n-precache-procs', '10']}
 
-        def add_common_args():
-            for ptest, args in self.tests.items():
-                namelist = ptest.split('-')
-                args['bin'] = self.partis
-                if 'annotate' in ptest:
-                    args['action'] = 'run-viterbi'
-                elif 'partition' in ptest:
-                    args['action'] = 'partition'
-                elif 'cache-parameters-' in ptest:
-                    args['action'] = 'cache-parameters'
-                    dtype = namelist[-1]
-                    assert dtype in self.dtypes
-                    args['extras'] += ['--plotdir', self.dirs['new'] + '/' + self.label + '/plots/' + dtype]
-                else:
-                    args['action'] = ptest
-
-                if ptest in self.production_tests:
-                    input_stype = 'new'  # sort of...
-                else:
-                    input_stype = namelist[-2]
-                    assert input_stype in self.stypes
-                args['input_stype'] = input_stype
-                if ptest == 'simulate':
-                    args['extras'] += ['--parameter-dir', self.param_dirs[input_stype]['data']]
-                elif namelist[-1] == 'simu':
-                    args['extras'] += ['--is-simu', ]
-                    args['extras'] += ['--infname', self.simfnames[input_stype]]
-                    args['extras'] += ['--parameter-dir', self.param_dirs[input_stype]['simu']]
-                elif namelist[-1] == 'data':
-                    args['extras'] += ['--infname', self.datafname]
-                    args['extras'] += ['--parameter-dir', self.param_dirs[input_stype]['data']]
-                else:
-                    raise Exception('-'.join(namelist))
-
         if not args.skip_ref:
             add_inference_tests('ref')
         if not args.only_ref:
@@ -104,9 +71,40 @@ class Tester(object):
             self.tests['simulate']  = {'extras' : ['--n-sim-events', '500', '--n-leaves', '2', '--mimic-data-read-length']}
             self.tests['cache-parameters-simu']  = {'extras' : []}
             add_inference_tests('new')
-        add_common_args()
 
-        self.perf_info = { version_stype : OrderedDict() for version_stype in self.stypes }
+        # add some arguments
+        for ptest, args in self.tests.items():
+            namelist = ptest.split('-')
+            args['bin'] = self.partis
+            if 'annotate' in ptest:
+                args['action'] = 'run-viterbi'
+            elif 'partition' in ptest:
+                args['action'] = 'partition'
+            elif 'cache-parameters-' in ptest:
+                args['action'] = 'cache-parameters'
+                dtype = namelist[-1]
+                assert dtype in self.dtypes
+                args['extras'] += ['--plotdir', self.dirs['new'] + '/' + self.label + '/plots/' + dtype]
+            else:
+                args['action'] = ptest
+
+            if ptest in self.production_tests:
+                input_stype = 'new'  # sort of...
+            else:
+                input_stype = namelist[-2]
+                assert input_stype in self.stypes
+            args['input_stype'] = input_stype
+            if ptest == 'simulate':
+                args['extras'] += ['--parameter-dir', self.param_dirs[input_stype]['data']]
+            elif namelist[-1] == 'simu':
+                args['extras'] += ['--is-simu', ]
+                args['extras'] += ['--infname', self.simfnames[input_stype]]
+                args['extras'] += ['--parameter-dir', self.param_dirs[input_stype]['simu']]
+            elif namelist[-1] == 'data':
+                args['extras'] += ['--infname', self.datafname]
+                args['extras'] += ['--parameter-dir', self.param_dirs[input_stype]['data']]
+            else:
+                raise Exception('-'.join(namelist))
 
     # ----------------------------------------------------------------------------------------
     def test(self, args):
