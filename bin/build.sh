@@ -11,9 +11,9 @@ echo -e "\n--> building samtools"
 export LEIN_ROOT=1
 cd $basedir/packages/samtools/ && make
 
-echo -e "\n--> installing ighutil"
-cd $basedir/packages/ighutil/
-pip install --user ./python
+echo -e "\n--> building ig-sw"
+cd $basedir/packages/ig-sw/src/ig_align/ && scons
+cd $basedir/
 
 echo -e "\n--> building ham"
 cd $basedir/packages/ham/ && scons bcrham
