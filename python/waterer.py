@@ -58,8 +58,8 @@ class Waterer(object):
         if self.args.plot_performance:
             self.perfplotter = PerformancePlotter(self.glfo, 'sw')
 
-        if not os.path.exists(self.args.ig_sw_dir + 'ig-sw'):
-            raise Exception('ERROR ig-sw path d.n.e: ' + self.args.ig_sw_dir + 'ig-sw')
+        if not os.path.exists(self.args.ig_sw_binary):
+            raise Exception('ig-sw binary d.n.e: %s' % self.args.ig_sw_binary)
 
     # ----------------------------------------------------------------------------------------
     def run(self):
@@ -207,11 +207,11 @@ class Waterer(object):
         """
         # large gap-opening penalty: we want *no* gaps in the middle of the alignments
         # match score larger than (negative) mismatch score: we want to *encourage* some level of shm. If they're equal, we tend to end up with short unmutated alignments, which screws everything up
-        cmd_str = '/partis/packages/ig-sw/src/ig_align/ig-sw'
+        cmd_str = self.args.ig_sw_binary
         if self.args.slurm or utils.auto_slurm(n_procs):
             cmd_str = 'srun ' + cmd_str
-        cmd_str += ' -l ' + 'IG' + self.args.chain.upper()
-        cmd_str += ' -d 50'
+        cmd_str += ' -l ' + 'IG' + self.args.chain.upper()  # locus
+        cmd_str += ' -d 50'  # max drop
         match, mismatch = self.match_mismatch
         cmd_str += ' -m ' + str(match) + ' -u ' + str(mismatch)
         cmd_str += ' -o ' + str(self.gap_open_penalty)
