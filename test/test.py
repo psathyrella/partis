@@ -143,6 +143,10 @@ class Tester(object):
             if os.path.exists(this_cachefname):
                 check_call(['rm', '-v', this_cachefname])
 
+        ref_globfnames = [fn for dtype in self.dtypes for fn in glob.glob(self.param_dirs['ref'][dtype] + '/sw-cache-*.csv')]
+        if len(ref_globfnames) > 0:
+            raise Exception('found reference sw cache files %s -- but you really want ref sw to run from scratch' % ' '.join(ref_globfnames))
+
         # delete old sw cache files
         for dtype in self.dtypes:
             if name == 'cache-parameters-' + dtype:
@@ -150,7 +154,7 @@ class Tester(object):
                 if len(globfnames) == 0:  # not there
                     continue
                 elif len(globfnames) != 1:
-                    raise Exception('unexpeced sw cache files: %s' % ' '.join(globfnames))
+                    raise Exception('unexpected sw cache files: %s' % ' '.join(globfnames))
                 check_call(['rm', '-v', globfnames[0]])
 
         # choose a seed uid
