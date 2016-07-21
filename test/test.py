@@ -73,36 +73,36 @@ class Tester(object):
             add_inference_tests('new')
 
         # add some arguments
-        for ptest, args in self.tests.items():
+        for ptest, argfo in self.tests.items():
             namelist = ptest.split('-')
-            args['bin'] = self.partis
+            argfo['bin'] = self.partis
             if 'annotate' in ptest:
-                args['action'] = 'run-viterbi'
+                argfo['action'] = 'run-viterbi'
             elif 'partition' in ptest:
-                args['action'] = 'partition'
+                argfo['action'] = 'partition'
             elif 'cache-parameters-' in ptest:
-                args['action'] = 'cache-parameters'
+                argfo['action'] = 'cache-parameters'
                 dtype = namelist[-1]
                 assert dtype in self.dtypes
-                args['extras'] += ['--plotdir', self.dirs['new'] + '/' + self.label + '/plots/' + dtype]
+                argfo['extras'] += ['--plotdir', self.dirs['new'] + '/' + self.label + '/plots/' + dtype]
             else:
-                args['action'] = ptest
+                argfo['action'] = ptest
 
             if ptest in self.production_tests:
                 input_stype = 'new'  # sort of...
             else:
                 input_stype = namelist[-2]
                 assert input_stype in self.stypes
-            args['input_stype'] = input_stype
+            argfo['input_stype'] = input_stype
             if ptest == 'simulate':
-                args['extras'] += ['--parameter-dir', self.param_dirs[input_stype]['data']]
+                argfo['extras'] += ['--parameter-dir', self.param_dirs[input_stype]['data']]
             elif namelist[-1] == 'simu':
-                args['extras'] += ['--is-simu', ]
-                args['extras'] += ['--infname', self.simfnames[input_stype]]
-                args['extras'] += ['--parameter-dir', self.param_dirs[input_stype]['simu']]
+                argfo['extras'] += ['--is-simu', ]
+                argfo['extras'] += ['--infname', self.simfnames[input_stype]]
+                argfo['extras'] += ['--parameter-dir', self.param_dirs[input_stype]['simu']]
             elif namelist[-1] == 'data':
-                args['extras'] += ['--infname', self.datafname]
-                args['extras'] += ['--parameter-dir', self.param_dirs[input_stype]['data']]
+                argfo['extras'] += ['--infname', self.datafname]
+                argfo['extras'] += ['--parameter-dir', self.param_dirs[input_stype]['data']]
             else:
                 raise Exception('-'.join(namelist))
 
