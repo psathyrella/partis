@@ -220,7 +220,7 @@ class HmmWriter(object):
 
         self.read_insertion_info(gene_name, replacement_genes)
 
-        self.mute_freqs, self.mute_obs = paramutils.read_mute_info(self.indir, this_gene=gene_name, approved_genes=replacement_genes)
+        self.mute_freqs, self.mute_obs = paramutils.read_mute_info(self.indir, this_gene=gene_name, approved_genes=replacement_genes, chain=self.args.chain)  # actual info in <self.mute_obs> isn't actually used a.t.m.
 
         self.track = Track('nukes', utils.nukes)
         self.saniname = utils.sanitize_name(gene_name)
@@ -393,6 +393,7 @@ class HmmWriter(object):
             self.insertion_probs[insertion] = {}
             if this_gene == glutils.dummy_d_genes[self.args.chain]:
                 self.insertion_probs[insertion][0] = 1.  # always insert zero bases
+                self.insertion_content_probs[insertion] = {n : 0.25 for n in utils.nukes}
                 continue
             deps = utils.column_dependencies[insertion + '_insertion']
             with opener('r')(self.indir + '/' + utils.get_parameter_fname(column=insertion + '_insertion', deps=deps)) as infile:
@@ -442,7 +443,6 @@ class HmmWriter(object):
                 print 'ERROR cannot have all or none of the probability mass in the zero bin:', self.insertion_probs[insertion]
                 assert False
 
-            # self.insertion_content_probs = {}
             self.read_insertion_content(insertion)  # also read the base content of the insertions
 
         if len(genes_used) > 1:  # if length is 1, we will have just used the actual gene
@@ -452,13 +452,14 @@ class HmmWriter(object):
     # ----------------------------------------------------------------------------------------
     def read_insertion_content(self, insertion):
         self.insertion_content_probs[insertion] = {}
-        if insertion in utils.boundaries:  # just return uniform probs for fv and jf insertions
+        if insertion in utils.boundaries:  # i.e. if it's a real insertion
             with opener('r')(self.indir + '/' + insertion + '_insertion_content.csv') as icfile:
                 reader = csv.DictReader(icfile)
                 total = 0
                 for line in reader:
                     self.insertion_content_probs[insertion][line[insertion + '_insertion_content']] = int(line['count'])
                     total += int(line['count'])
+
                 if total == 0.:
                     print '\n    WARNING zero insertion content probs read from %s, so setting to uniform distribution' % self.indir + '/' + insertion + '_insertion_content.csv'
                 for nuke in utils.nukes:
@@ -469,7 +470,7 @@ class HmmWriter(object):
                             print '    %s not in insertion content probs, adding with zero' % nuke
                             self.insertion_content_probs[insertion][nuke] = 0
                         self.insertion_content_probs[insertion][nuke] /= float(total)
-        else:
+        else:  # just return uniform probs for effective (fv and jf) insertions
             self.insertion_content_probs[insertion] = {n : 0.25 for n in utils.nukes}
 
         assert utils.is_normed(self.insertion_content_probs[insertion])

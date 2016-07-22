@@ -2,6 +2,7 @@ import os
 import csv
 import operator
 
+import glutils
 import utils
 from opener import opener
 
@@ -17,12 +18,14 @@ def simplify_state_name(state_name):
         return state_name
 
 # ----------------------------------------------------------------------------------------
-def read_mute_info(indir, this_gene, approved_genes=None):  # NOTE this would probably be more accurate if we made some effort to align the genes before combining all the approved ones
-    if approved_genes == None:
-        approved_genes = [this_gene,]
+def read_mute_info(indir, this_gene, approved_genes=None, chain=None):  # NOTE this would probably be more accurate if we made some effort to align the genes before combining all the approved ones
+    if approved_genes is None:
+        approved_genes = [this_gene, ]
+    if this_gene == glutils.dummy_d_genes[chain]:
+        return {}, {}
     observed_freqs, observed_counts = {}, {}
     total_counts = 0
-    # add an observation for each position, for each gene where we observed that position
+    # add an observation for each position, for each gene where we observed that position NOTE this would be more sensible if they were aligned first
     for gene in approved_genes:
         mutefname = indir + '/mute-freqs/' + utils.sanitize_name(gene) + '.csv'
         if not os.path.exists(mutefname):
