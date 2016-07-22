@@ -1106,7 +1106,7 @@ def read_overall_gene_probs(indir, only_gene=None, normalize=True, expect_zero_c
 
 # ----------------------------------------------------------------------------------------
 def find_replacement_genes(indir, min_counts, gene_name=None, single_gene=False, debug=False, all_from_region=''):
-    if gene_name != None:
+    if gene_name is not None:
         assert all_from_region == ''
         region = get_region(gene_name)
     else:
@@ -1141,8 +1141,7 @@ def find_replacement_genes(indir, min_counts, gene_name=None, single_gene=False,
                         print '    return replacement %s %s' % (list_type, color_gene(vals['gene']))
                     return vals['gene']
 
-        print 'ERROR didn\'t find any genes with at least %d for %s in %s' % (min_counts, gene_name, indir)
-        assert False
+        raise Exception('didn\'t find any genes with at least %d for %s in %s' % (min_counts, gene_name, indir))
     else:
         # return the whole list NOTE we're including here <gene_name>
         if all_from_region != '':
@@ -1158,8 +1157,7 @@ def find_replacement_genes(indir, min_counts, gene_name=None, single_gene=False,
                 if debug:
                     print '      not enough counts in %s' % (list_type + 's')
 
-        print 'ERROR couldn\'t find genes for %s in %s' % (gene_name, indir)
-        assert False
+        raise Exception('couldn\'t find genes for %s in %s' % (gene_name, indir))
 
     # print '    \nWARNING return default gene %s \'cause I couldn\'t find anything remotely resembling %s' % (color_gene(hackey_default_gene_versions[region]), color_gene(gene_name))
     # return hackey_default_gene_versions[region]
