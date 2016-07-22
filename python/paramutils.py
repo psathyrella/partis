@@ -22,7 +22,7 @@ def read_mute_info(indir, this_gene, approved_genes=None, chain=None):  # NOTE t
     if approved_genes is None:
         approved_genes = [this_gene, ]
     if this_gene == glutils.dummy_d_genes[chain]:
-        return {}, {}
+        return {'overall_mean' : 0.5}, {}
     observed_freqs, observed_counts = {}, {}
     total_counts = 0
     # add an observation for each position, for each gene where we observed that position NOTE this would be more sensible if they were aligned first
