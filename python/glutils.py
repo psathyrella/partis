@@ -13,7 +13,7 @@ import utils
 # ----------------------------------------------------------------------------------------
 glfo_dir = 'germline-sets'  # always put germline info into a subdir with this name
 
-dummy_d_genes = {'k' : 'IGKDx-x*x', 'l' : 'IGLDx-x*x'}  # for light chain
+dummy_d_genes = {'h' : None, 'k' : 'IGKDx-x*x', 'l' : 'IGLDx-x*x'}  # for light chain
 
 # single-chain file names
 extra_fname = 'extras.csv'

@@ -9,6 +9,7 @@ import csv
 import time
 
 import utils
+import glutils
 from opener import opener
 import paramutils
 from hist import Hist
@@ -334,6 +335,9 @@ class HmmWriter(object):
             if erosion[0] != self.region:
                 continue
             self.erosion_probs[erosion] = {}
+            if this_gene == glutils.dummy_d_genes[self.args.chain]:
+                self.erosion_probs[erosion][0] = 1.  # always erode zero bases
+                continue
             deps = utils.column_dependencies[erosion + '_del']
             with opener('r')(self.indir + '/' + utils.get_parameter_fname(column=erosion + '_del', deps=deps)) as infile:
                 reader = csv.DictReader(infile)
@@ -387,6 +391,9 @@ class HmmWriter(object):
         genes_used = set()
         for insertion in self.insertions:
             self.insertion_probs[insertion] = {}
+            if this_gene == glutils.dummy_d_genes[self.args.chain]:
+                self.insertion_probs[insertion][0] = 1.  # always insert zero bases
+                continue
             deps = utils.column_dependencies[insertion + '_insertion']
             with opener('r')(self.indir + '/' + utils.get_parameter_fname(column=insertion + '_insertion', deps=deps)) as infile:
                 reader = csv.DictReader(infile)
@@ -405,7 +412,8 @@ class HmmWriter(object):
                     if self.region + '_gene' in line:
                         genes_used.add(line[self.region + '_gene'])
 
-            assert len(self.insertion_probs[insertion]) > 0
+            if len(self.insertion_probs[insertion]) == 0:
+                raise Exception('didn\'t read any %s insertion probs from %s' % (insertion, self.indir + '/' + utils.get_parameter_fname(column=insertion + '_insertion', deps=deps)))
 
             # print '   interpolate insertions'
             interpolate_bins(self.insertion_probs[insertion], self.n_max_to_interpolate, bin_eps=self.eps)  #, max_bin=len(self.germline_seq))  # NOTE that we normalize *after* this
