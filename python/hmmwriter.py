@@ -205,11 +205,14 @@ class HmmWriter(object):
         self.insertion_probs = {}
         self.insertion_content_probs = {}
 
-        self.n_occurences = utils.read_overall_gene_probs(self.indir, only_gene=gene_name, normalize=False)  # how many times did we observe this gene in data?
+        if self.args.debug:
+            print '%s' % utils.color_gene(gene_name)
+
+        self.n_occurences = utils.read_single_gene_count(self.indir, gene_name, debug=self.args.debug)  # how many times did we observe this gene in data?
         replacement_genes = None
         if self.n_occurences < self.args.min_observations_to_write:  # if we didn't see it enough, average over all the genes that find_replacement_genes() gives us
             if self.args.debug:
-                print '    only saw it %d times, use info from other genes' % self.n_occurences
+                print '      didn\'t it %d times, so use info from all other genes' % self.args.min_observations_to_write
             replacement_genes = utils.find_replacement_genes(self.indir, self.args.min_observations_to_write, gene_name, single_gene=False, debug=self.args.debug)
 
         self.read_erosion_info(gene_name, replacement_genes)  # try this exact gene, but...
@@ -351,7 +354,8 @@ class HmmWriter(object):
                     if self.region + '_gene' in line:
                         genes_used.add(line[self.region + '_gene'])
 
-            assert len(self.erosion_probs[erosion]) > 0
+            if len(self.erosion_probs[erosion]) == 0:
+                raise Exception('didn\'t read any %s erosion probs from %s' % (erosion, self.indir + '/' + utils.get_parameter_fname(column=erosion + '_del', deps=deps)))
 
             # do some smoothingy things NOTE that we normalize *after* interpolating
             if erosion in utils.real_erosions:  # for real erosions, don't interpolate if we lots of information about neighboring bins (i.e. we're pretty confident this bin should actually be zero)

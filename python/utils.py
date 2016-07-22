@@ -1041,17 +1041,35 @@ def separate_into_allelic_groups(germline_seqs):
     return allelic_groups
 
 # ----------------------------------------------------------------------------------------
-def read_overall_gene_probs(indir, only_gene=None, normalize=True, expect_zero_counts=False):
+def read_single_gene_count(indir, gene, debug=False):
+    region = get_region(gene)
+    count = 0
+    with opener('r')(indir + '/' + region + '_gene-probs.csv') as infile:  # NOTE this ignores correlations... which I think is actually ok, but it wouldn't hurt to think through it again at some point
+        reader = csv.DictReader(infile)
+        for line in reader:
+            if line[region + '_gene'] == gene:
+                count = int(line['count'])
+                break
+
+    if count == 0 and not expect_zero_counts:
+        print '          %s %s not found in %s_gene-probs.csv, returning zero' % (color('red', 'warning'), gene, region)
+
+    if debug:
+        print '      %d observations of %s' % (count, color_gene(gene))
+
+    return count
+
+# ----------------------------------------------------------------------------------------
+def read_overall_gene_probs(indir, only_gene=None, normalize=True, expect_zero_counts=False, debug=False):
     """
     Return the observed counts/probabilities of choosing each gene version.
     If <normalize> then return probabilities
     If <only_gene> is specified, just return the prob/count for that gene
     """
-    counts = {region:{} for region in regions}
-    probs = {region:{} for region in regions}
+    counts, probs = {r : {} for r in regions}, {r : {} for r in regions}
     for region in regions:
         total = 0
-        with opener('r')(indir + '/' + region + '_gene-probs.csv') as infile:  # NOTE note this ignores correlations... which I think is actually ok, but it wouldn't hurt to think through it again at some point
+        with opener('r')(indir + '/' + region + '_gene-probs.csv') as infile:  # NOTE this ignores correlations... which I think is actually ok, but it wouldn't hurt to think through it again at some point
             reader = csv.DictReader(infile)
             for line in reader:
                 line_count = int(line['count'])
