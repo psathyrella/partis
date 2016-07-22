@@ -215,7 +215,7 @@ class HmmWriter(object):
                 print '      didn\'t it %d times, so use info from all other genes' % self.args.min_observations_to_write
             replacement_genes = utils.find_replacement_genes(self.indir, self.args.min_observations_to_write, gene_name, single_gene=False, debug=self.args.debug)
 
-        self.read_erosion_info(gene_name, replacement_genes)  # try this exact gene, but...
+        self.read_erosion_info(gene_name, replacement_genes)
 
         self.read_insertion_info(gene_name, replacement_genes)
 
@@ -327,8 +327,8 @@ class HmmWriter(object):
     # ----------------------------------------------------------------------------------------
     def read_erosion_info(self, this_gene, approved_genes=None):
         # NOTE that d erosion lengths depend on each other... but I don't think that's modellable with an hmm. At least for the moment we integrate over the other erosion
-        if approved_genes == None:
-            approved_genes = [this_gene,]
+        if approved_genes is None:
+            approved_genes = [this_gene, ]
         genes_used = set()
         for erosion in utils.real_erosions + utils.effective_erosions:
             if erosion[0] != self.region:
@@ -377,15 +377,13 @@ class HmmWriter(object):
                 test_total += self.erosion_probs[erosion][n_eroded]
             assert utils.is_normed(test_total)
 
-        if len(genes_used) > 1:  # if length is 1, we will have just used the actual gene
-            if self.args.debug:
-                print '    erosions used:', ' '.join(genes_used)
+        if len(genes_used) > 1 and self.args.debug:  # if length is 1, we will have just used the actual gene
+            print '    used erosion info from:', ' '.join(genes_used)
 
     # ----------------------------------------------------------------------------------------
     def read_insertion_info(self, this_gene, approved_genes=None):
-        if approved_genes == None:  # if we aren't explicitly passed a list of genes to use, we just use the gene for which we're actually writing the hmm
-            approved_genes = [this_gene,]
-
+        if approved_genes is None:  # if we aren't explicitly passed a list of genes to use, we just use the gene for which we're actually writing the hmm
+            approved_genes = [this_gene, ]
         genes_used = set()
         for insertion in self.insertions:
             self.insertion_probs[insertion] = {}
