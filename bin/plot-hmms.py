@@ -139,4 +139,4 @@ if __name__ == '__main__':
     print '  %s the top line in the emission plots is usually yellow because the three non-germline bases are equally likely, and G comes last when sorted alphabetically' % utils.color('red', 'note')
     if not os.path.exists(args.outdir):
         raise Exception('output directory %s does not exist' % args.outdir)
-    mplot = ModelPlotter(args, os.getenv('www') + '/modelplots')
+    mplot = ModelPlotter(args, args.outdir + '/modelplots')
