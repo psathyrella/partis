@@ -220,7 +220,7 @@ class HmmWriter(object):
 
         self.read_insertion_info(gene_name, replacement_genes)
 
-        self.mute_freqs, self.mute_obs = paramutils.read_mute_info(self.indir, this_gene=gene_name, approved_genes=replacement_genes, chain=self.args.chain)  # actual info in <self.mute_obs> isn't actually used a.t.m.
+        self.mute_freqs, self.mute_obs = paramutils.read_mute_info(self.indir, this_gene=gene_name, chain=self.args.chain, approved_genes=replacement_genes)  # actual info in <self.mute_obs> isn't actually used a.t.m.
 
         self.track = Track('nukes', utils.nukes)
         self.saniname = utils.sanitize_name(gene_name)
@@ -627,7 +627,7 @@ class HmmWriter(object):
                         if self.smallest_entry_index == -1 or inuke < self.smallest_entry_index:  # tells us where we need to start adding internal states (the smallest internal state index we add is the first one that has nonzero transition probability here)
                             self.smallest_entry_index = inuke
                     else:
-                        assert state.name == 'init'  # if there's *no* chance of entering the region, this better *not* be the 'insert_left' state
+                        assert state.name == 'init' or self.raw_name == glutils.dummy_d_genes[self.args.chain]  # if there's *no* chance of entering the region, this better *not* be the 'insert_left' state (UPDATE: or, it can be the dummy d)
 
         if region_entry_prob != 0.0 and not utils.is_normed(total / region_entry_prob):
             raise Exception('normalization problem in add_region_entry_transitions():\n  region_entry_prob: %f   total / region_entry_prob: %f' % (region_entry_prob, total / region_entry_prob))
