@@ -236,6 +236,8 @@ class HmmWriter(object):
         for insertion in self.insertions:
             if insertion == 'jf':
                 continue
+            if self.raw_name == glutils.dummy_d_genes[self.args.chain]:
+                continue
             self.add_lefthand_insert_states(insertion)
         # then write internal states
         assert self.smallest_entry_index >= 0  # should have been set in add_region_entry_transitions
@@ -600,7 +602,7 @@ class HmmWriter(object):
         # If this is an 'init' state, we add a transition to 'insert' with probability the observed probability of a non-zero insertion
         # Whereas if this is an 'insert' state, we add a *self*-transition with probability 1/<mean observed insert length>
         # update: now, we also multiply by the insertion content prob, since we now have four insert states (and can thus no longer use this prob in the emissions)
-        if insertion != '':
+        if insertion != '' and region_entry_prob < 1.0:
             if not insertion in utils.boundaries:
                 nukelist = ['N', ]
             else:
