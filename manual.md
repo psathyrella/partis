@@ -247,8 +247,6 @@ When caching parameters, the parameter csvs from Smith-Waterman and the HMM are 
 Within each of these, there are a bunch of csv files with (hopefully) self-explanatory names, e.g. `j_gene-j_5p_del-probs.csv` has counts for J 5' deletions subset by J gene.
 The hmm model files go in the `hmms` subdirectory, which contains yaml HMM model files for each observed allele.
 
-When reading parameters (e.g. with run-viterbi or partition), the parameters are read directly from `--parameter-dir`, so you need to tack on either `/hmm` or `/sw` to what was passed during parameter caching.
-
 ##### Finding New Alleles
 
 By default partis uses the set of germline V, D, and J genes ("germline set") in `data/imgt`.
@@ -278,11 +276,11 @@ These can, however, be specified from a number of realistic options (see `--help
 
 For example:
 
-```./bin/partis simulate --outfname _output/example/simu.csv --parameter-dir _output/example/data/hmm --n-sim-events 50```.
+```./bin/partis simulate --outfname _output/examle-simu.csv --parameter-dir test/reference-results/test/parameters/data --n-sim-events 50```.
 
-This will spit out simulated sequences to `--outfname` using the parameters we just made in `_output/example/data/hmm`.
+This will spit out simulated sequences to `--outfname` using some test parameters in `test/reference-results`.
 We also specify that we want it to simulate 50 rearrangement events.
-To get the actual number of sequences, we multiply this by the mean number of leaves per tree (5).
+To get the actual number of sequences, we multiply this by the mean number of leaves per tree (set with `--n-leaves`, at the moment with a default of five).
 At the start of a simulation run, TreeSim generates a set of `--n-trees` trees (default 500 at the moment), and each tree has a number of leaves drawn from an exponential (or zipf, or box, or...) with mean/exponent `--n-leaves`.
 Throughout the run, we sample a tree at random from this set for each rearrangement event.
 
