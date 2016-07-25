@@ -147,9 +147,9 @@ class PartitionDriver(object):
             genes_with_hmms = set(utils.find_genes_that_have_hmms(self.sub_param_dir))
             expected_genes = set([g for r in utils.regions for g in self.glfo['seqs'][r].keys()])  # this'll be the & of the datadir (maybe rewritten, maybe not)
             if len(genes_with_hmms - expected_genes) > 0:
-                print '  %s yamels in %s for genes %s that aren\'t in glfo' % (utils.color('red', 'warning'), parameter_dir + '/' + self.args.parameter_type, ' '.join(genes_with_hmms - expected_genes))
+                print '  %s yamels in %s for genes %s that aren\'t in glfo' % (utils.color('red', 'warning'), self.sub_param_dir, ' '.join(genes_with_hmms - expected_genes))
             if len(expected_genes - genes_with_hmms) > 0:
-                print '  %s genes %s in glfo that don\'t have yamels in %s' % (utils.color('red', 'warning'), ' '.join(expected_genes - genes_with_hmms), parameter_dir + '/' + self.args.parameter_type)
+                print '  %s genes %s in glfo that don\'t have yamels in %s' % (utils.color('red', 'warning'), ' '.join(expected_genes - genes_with_hmms), self.sub_param_dir)
 
         parameter_out_dir = self.sw_param_dir if write_parameters else None
         waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo, parameter_out_dir=parameter_out_dir, find_new_alleles=find_new_alleles)
@@ -893,6 +893,9 @@ class PartitionDriver(object):
         hmm_dir = parameter_dir + '/hmms'
         utils.prep_dir(hmm_dir, '*.yaml')
 
+        if self.args.debug:
+            print '    to %s' % parameter_dir + '/hmms'
+
         for region in utils.regions:
             for gene in self.glfo['seqs'][region]:
                 writer = HmmWriter(parameter_dir, hmm_dir, gene, self.glfo, self.args)
@@ -940,7 +943,12 @@ class PartitionDriver(object):
     def all_regions_present(self, gene_list, skipped_gene_matches, query_name, second_query_name=None):
         """ Check that we have at least one gene for each region """
         for region in utils.regions:
-            if 'IGH' + region.upper() not in ':'.join(gene_list):
+            found = False
+            for gene in gene_list:
+                if utils.get_region(gene) == region:
+                    found = True
+                    break
+            if not found:
                 print '       no %s genes in %s for %s %s' % (region, ':'.join(gene_list), query_name, '' if (second_query_name == None) else second_query_name)
                 print '          skipped %s' % (':'.join(skipped_gene_matches))
                 print 'giving up on query'
