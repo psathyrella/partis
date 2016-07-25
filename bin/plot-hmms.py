@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 import os
 import argparse
 from collections import OrderedDict
@@ -9,10 +8,13 @@ import yaml
 import sys
 from subprocess import check_call
 
+partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
+if not os.path.exists(partis_dir):
+    print 'WARNING current script dir %s doesn\'t exist, so python path may not be correctly set' % partis_dir
+sys.path.insert(1, partis_dir + '/python')
 import plotting
 import paramutils
 import utils
-import modelplotter
 
 # ----------------------------------------------------------------------------------------
 def find_state_number(name):
