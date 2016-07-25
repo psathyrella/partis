@@ -186,13 +186,9 @@ class HmmWriter(object):
 
         self.erosion_pseudocount_length = 10  # if we're closer to the end of the gene than this, make sure erosion probability isn't zero
 
-        # self.insert_mute_prob = 0.0
-        # self.mean_mute_freq = 0.0
-
         self.outdir = outdir
         self.smallest_entry_index = -1  # keeps track of the first state that has a chance of being entered from init -- we want to start writing (with add_internal_state) from there
 
-        # self.insertions = [ insert for insert in utils.index_keys if re.match(self.region + '._insertion', insert) or re.match('.' + self.region + '_insertion', insert)]  OOPS that's not what I want to do
         self.insertions = []
         if self.region == 'v':
             self.insertions.append('fv')
@@ -201,10 +197,6 @@ class HmmWriter(object):
         elif self.region == 'j':
             self.insertions.append('dj')
             self.insertions.append('jf')
-
-        self.erosion_probs = {}
-        self.insertion_probs = {}
-        self.insertion_content_probs = {}
 
         if self.args.debug:
             print '%s' % utils.color_gene(gene_name)
@@ -216,9 +208,9 @@ class HmmWriter(object):
                 print '      didn\'t it %d times, so use info from all other genes' % self.args.min_observations_to_write
             replacement_genes = utils.find_replacement_genes(self.indir, self.args.min_observations_to_write, gene_name, single_gene=False, debug=self.args.debug)
 
-        self.read_erosion_info(gene_name, replacement_genes)
+        self.erosion_probs = self.read_erosion_info(gene_name, replacement_genes)
 
-        self.read_insertion_info(gene_name, replacement_genes)
+        self.insertion_probs, self.insertion_content_probs = self.read_insertion_info(gene_name, replacement_genes)
 
         self.mute_freqs, self.mute_obs = paramutils.read_mute_info(self.indir, this_gene=gene_name, chain=self.args.chain, approved_genes=replacement_genes)  # actual info in <self.mute_obs> isn't actually used a.t.m.
 
@@ -330,13 +322,14 @@ class HmmWriter(object):
         # NOTE that d erosion lengths depend on each other... but I don't think that's modellable with an hmm. At least for the moment we integrate over the other erosion
         if approved_genes is None:
             approved_genes = [this_gene, ]
+        eprobs = {}
         genes_used = set()
         for erosion in utils.real_erosions + utils.effective_erosions:
             if erosion[0] != self.region:
                 continue
-            self.erosion_probs[erosion] = {}
+            eprobs[erosion] = {}
             if this_gene == glutils.dummy_d_genes[self.args.chain]:
-                self.erosion_probs[erosion][0] = 1.  # always erode zero bases
+                eprobs[erosion][0] = 1.  # always erode zero bases
                 continue
             deps = utils.column_dependencies[erosion + '_del']
             with opener('r')(self.indir + '/' + utils.get_parameter_fname(column=erosion + '_del', deps=deps)) as infile:
@@ -351,14 +344,14 @@ class HmmWriter(object):
 
                     # then add in this erosion's counts
                     n_eroded = int(line[erosion + '_del'])
-                    if n_eroded not in self.erosion_probs[erosion]:
-                        self.erosion_probs[erosion][n_eroded] = 0.0
-                    self.erosion_probs[erosion][n_eroded] += float(line['count'])
+                    if n_eroded not in eprobs[erosion]:
+                        eprobs[erosion][n_eroded] = 0.0
+                    eprobs[erosion][n_eroded] += float(line['count'])
 
                     if self.region + '_gene' in line:
                         genes_used.add(line[self.region + '_gene'])
 
-            if len(self.erosion_probs[erosion]) == 0:
+            if len(eprobs[erosion]) == 0:
                 raise Exception('didn\'t read any %s erosion probs from %s' % (erosion, self.indir + '/' + utils.get_parameter_fname(column=erosion + '_del', deps=deps)))
 
             # do some smoothingy things NOTE that we normalize *after* interpolating
@@ -367,32 +360,35 @@ class HmmWriter(object):
             else:  # for fake erosions, always interpolate
                 n_max = -1
             # print '   interpolate erosions'
-            interpolate_bins(self.erosion_probs[erosion], n_max, bin_eps=self.eps, max_bin=len(self.germline_seq))
-            self.add_pseudocounts(self.erosion_probs[erosion])
+            interpolate_bins(eprobs[erosion], n_max, bin_eps=self.eps, max_bin=len(self.germline_seq))
+            self.add_pseudocounts(eprobs[erosion])
 
             # and finally, normalize
             total = 0.0
-            for _, val in self.erosion_probs[erosion].iteritems():
+            for _, val in eprobs[erosion].iteritems():
                 total += val
 
             test_total = 0.0
-            for n_eroded in self.erosion_probs[erosion]:
-                self.erosion_probs[erosion][n_eroded] /= total
-                test_total += self.erosion_probs[erosion][n_eroded]
+            for n_eroded in eprobs[erosion]:
+                eprobs[erosion][n_eroded] /= total
+                test_total += eprobs[erosion][n_eroded]
             assert utils.is_normed(test_total)
 
         if len(genes_used) > 1 and self.args.debug:  # if length is 1, we will have just used the actual gene
             print '    used erosion info from:', ' '.join(genes_used)
 
+        return eprobs
+
     # ----------------------------------------------------------------------------------------
     def read_insertion_info(self, this_gene, approved_genes=None):
         if approved_genes is None:  # if we aren't explicitly passed a list of genes to use, we just use the gene for which we're actually writing the hmm
             approved_genes = [this_gene, ]
+        iprobs, icontentprobs = {}, {}
         genes_used = set()
         for insertion in self.insertions:
-            self.insertion_probs[insertion] = {}
+            iprobs[insertion] = {}
             if this_gene == glutils.dummy_d_genes[self.args.chain]:
-                self.insertion_probs[insertion][0] = 1.  # always insert zero bases
+                iprobs[insertion][0] = 1.  # always insert zero bases
                 self.insertion_content_probs[insertion] = {n : 0.25 for n in utils.nukes}
                 continue
             deps = utils.column_dependencies[insertion + '_insertion']
@@ -406,76 +402,80 @@ class HmmWriter(object):
                     # then add in this insertion's counts
                     n_inserted = 0
                     n_inserted = int(line[insertion + '_insertion'])
-                    if n_inserted not in self.insertion_probs[insertion]:
-                        self.insertion_probs[insertion][n_inserted] = 0.0
-                    self.insertion_probs[insertion][n_inserted] += float(line['count'])
+                    if n_inserted not in iprobs[insertion]:
+                        iprobs[insertion][n_inserted] = 0.0
+                    iprobs[insertion][n_inserted] += float(line['count'])
 
                     if self.region + '_gene' in line:
                         genes_used.add(line[self.region + '_gene'])
 
-            if len(self.insertion_probs[insertion]) == 0:
+            if len(iprobs[insertion]) == 0:
                 raise Exception('didn\'t read any %s insertion probs from %s' % (insertion, self.indir + '/' + utils.get_parameter_fname(column=insertion + '_insertion', deps=deps)))
 
             # print '   interpolate insertions'
-            interpolate_bins(self.insertion_probs[insertion], self.n_max_to_interpolate, bin_eps=self.eps)  #, max_bin=len(self.germline_seq))  # NOTE that we normalize *after* this
+            interpolate_bins(iprobs[insertion], self.n_max_to_interpolate, bin_eps=self.eps)  #, max_bin=len(self.germline_seq))  # NOTE that we normalize *after* this
 
-            if 0 not in self.insertion_probs[insertion] or len(self.insertion_probs[insertion]) < 2:  # all hell breaks loose lower down if we haven't got shit in the way of information
+            if 0 not in iprobs[insertion] or len(iprobs[insertion]) < 2:  # all hell breaks loose lower down if we haven't got shit in the way of information
                 if self.args.debug:
                     print '    WARNING adding pseudocount to 1-bin in insertion probs'
-                self.insertion_probs[insertion][0] = 1
-                self.insertion_probs[insertion][1] = 1
+                iprobs[insertion][0] = 1
+                iprobs[insertion][1] = 1
                 if self.args.debug:
-                    print '      ', self.insertion_probs[insertion]
+                    print '      ', iprobs[insertion]
 
-            assert 0 in self.insertion_probs[insertion] and len(self.insertion_probs[insertion]) >= 2  # all hell breaks loose lower down if we haven't got shit in the way of information
+            assert 0 in iprobs[insertion] and len(iprobs[insertion]) >= 2  # all hell breaks loose lower down if we haven't got shit in the way of information
 
             # and finally, normalize
             total = 0.0
-            for _, val in self.insertion_probs[insertion].iteritems():
+            for _, val in iprobs[insertion].iteritems():
                 total += val
             test_total = 0.0
-            for n_inserted in self.insertion_probs[insertion]:
-                self.insertion_probs[insertion][n_inserted] /= total
-                test_total += self.insertion_probs[insertion][n_inserted]
+            for n_inserted in iprobs[insertion]:
+                iprobs[insertion][n_inserted] /= total
+                test_total += iprobs[insertion][n_inserted]
             assert utils.is_normed(test_total)
 
-            if 0 not in self.insertion_probs[insertion] or self.insertion_probs[insertion][0] == 1.0:
-                print 'ERROR cannot have all or none of the probability mass in the zero bin:', self.insertion_probs[insertion]
+            if 0 not in iprobs[insertion] or iprobs[insertion][0] == 1.0:
+                print 'ERROR cannot have all or none of the probability mass in the zero bin:', iprobs[insertion]
                 assert False
 
-            self.read_insertion_content(insertion)  # also read the base content of the insertions
+            icontentprobs[insertion] = self.read_insertion_content(insertion)  # also read the base content of the insertions
 
         if len(genes_used) > 1:  # if length is 1, we will have just used the actual gene
             if self.args.debug:
                 print '    insertions used:', ' '.join(genes_used)
 
+        return iprobs, icontentprobs
+
     # ----------------------------------------------------------------------------------------
     def read_insertion_content(self, insertion):
-        self.insertion_content_probs[insertion] = {}
+        icontentprobs = {}  # NOTE this is only the probs for <insertion>, even though name is the same as in the previous function
         if insertion in utils.boundaries:  # i.e. if it's a real insertion
             with opener('r')(self.indir + '/' + insertion + '_insertion_content.csv') as icfile:
                 reader = csv.DictReader(icfile)
                 total = 0
                 for line in reader:
-                    self.insertion_content_probs[insertion][line[insertion + '_insertion_content']] = int(line['count'])
+                    icontentprobs[line[insertion + '_insertion_content']] = int(line['count'])
                     total += int(line['count'])
 
                 if total == 0.:
                     print '\n    WARNING zero insertion content probs read from %s, so setting to uniform distribution' % self.indir + '/' + insertion + '_insertion_content.csv'
                 for nuke in utils.nukes:
                     if total == 0.:
-                        self.insertion_content_probs[insertion][nuke] = 1. / len(utils.nukes)
+                        icontentprobs[nuke] = 1. / len(utils.nukes)
                     else:
-                        if nuke not in self.insertion_content_probs[insertion]:
+                        if nuke not in icontentprobs:
                             print '    %s not in insertion content probs, adding with zero' % nuke
-                            self.insertion_content_probs[insertion][nuke] = 0
-                        self.insertion_content_probs[insertion][nuke] /= float(total)
+                            icontentprobs[nuke] = 0
+                        icontentprobs[nuke] /= float(total)
         else:  # just return uniform probs for effective (fv and jf) insertions
-            self.insertion_content_probs[insertion] = {n : 0.25 for n in utils.nukes}
+            icontentprobs = {n : 0.25 for n in utils.nukes}
 
-        assert utils.is_normed(self.insertion_content_probs[insertion])
+        assert utils.is_normed(icontentprobs)
         if self.args.debug:
-            print '  insertion content for', insertion, self.insertion_content_probs[insertion]
+            print '  insertion content for', insertion, icontentprobs
+
+        return icontentprobs
 
     # ----------------------------------------------------------------------------------------
     def get_mean_insert_length(self, insertion, debug=False):
