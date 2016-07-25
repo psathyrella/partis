@@ -4,6 +4,7 @@ import operator
 
 import glutils
 import utils
+import plotting
 from opener import opener
 
 # ----------------------------------------------------------------------------------------
@@ -72,57 +73,42 @@ def read_mute_info(indir, this_gene, chain, approved_genes=None):  # NOTE this w
 
 # ----------------------------------------------------------------------------------------
 def make_mutefreq_plot(plotdir, gene_name, positions):
-    raise Exception('needs translation from root to mpl')
-    # nuke_colors = {'A':kRed+1, 'C':kBlue-7, 'G':kOrange-3, 'T':kGreen+2}
+    nuke_colors = {'A' : 'red', 'C' : 'blue', 'G' : 'orange', 'T' : 'green'}
+    fig, ax = plotting.mpl_init()
+    fig.set_size_inches(plotting.plot_ratios[utils.get_region(gene_name)])
 
-    # ibin = 0
-    # drawn_name_texts, lines, vlines, texts = {}, {}, {}, {}
-    # for info in positions:
-    #     posname = info['name']
+    ibin = 0
+    print utils.color_gene(utils.unsanitize_name(gene_name))
+    legend_colors = set()
+    for info in positions:
+        posname = info['name']
 
-    #     # make label below bin
-    #     drawn_name_texts[posname] = TPaveText(-0.5 + ibin, -0.1, 0.5 + ibin, -0.05)
-    #     drawn_name_texts[posname].SetBorderSize(0)
-    #     drawn_name_texts[posname].SetFillColor(0)
-    #     drawn_name_texts[posname].SetFillStyle(0)
-    #     drawn_name_texts[posname].AddText(-0.5 + ibin, -0.075, simplify_state_name(posname))
+        # make label below bin
+        ax.text(-0.5 + ibin, -0.075, simplify_state_name(posname), rotation='vertical', size=8)
 
-    #     total = 0.0
-    #     lines[posname], vlines[posname], texts[posname] = [], [], []
-    #     for nuke, prob in sorted(info['nuke_freqs'].items(), key=operator.itemgetter(1), reverse=True):
-    #         # horizontal line at height total+prob
-    #         lines[posname].append(TLine(-0.5 + ibin, total + prob, 0.5 + ibin, total + prob))
-    #         lines[posname][-1].SetLineWidth(6)
+        total = 0.0
+        alpha = 0.6
+        for nuke, prob in sorted(info['nuke_freqs'].items(), key=operator.itemgetter(1), reverse=True):
+            color = nuke_colors[nuke]
 
-    #         # vertical line from total to total+prob
-    #         vlines[posname].append(TLine(ibin, total, ibin, total + prob))
-    #         vlines[posname][-1].SetLineWidth(6)
-    #         vlines[posname][-1].SetLineColor(nuke_colors[nuke])
+            label_to_use = None
+            if color not in legend_colors:
+                label_to_use = nuke
+                legend_colors.add(color)
 
-    #         # write [ACGT] at midpoint between total and total+prob
-    #         midpoint = 0.5*(prob + 2*total)
-    #         texts[posname].append(TPaveText(-0.5 + ibin, midpoint-0.04, 0.5 + ibin, midpoint + 0.01))
-    #         texts[posname][-1].AddText(-0.5 + ibin, midpoint, nuke)
-    #         texts[posname][-1].SetBorderSize(0)
-    #         texts[posname][-1].SetFillColor(0)
-    #         texts[posname][-1].SetFillStyle(0)
+            # horizontal line at height total+prob
+            ax.plot([-0.5 + ibin, 0.5 + ibin], [total + prob, total + prob], color=color, alpha=alpha, linewidth=3, label=label_to_use)
 
-    #         total += prob
+            # vertical line from total to total + prob
+            ax.plot([ibin, ibin], [total + 0.01, total + prob], color=color, alpha=alpha, linewidth=3)
 
-    #     ibin += 1
+            # # write [ACGT] at midpoint between total and total+prob
+            # midpoint = 0.5*(prob + 2*total)
+            # ... *redacted*
 
-    # cvn = TCanvas('cvn-2', '', 1000, 300)
-    # n_bins = ibin
-    # hframe = TH1D(gene_name + '-emission-frame', utils.unsanitize_name(gene_name), n_bins, -0.5, n_bins - 0.5)
-    # hframe.SetNdivisions(202, 'y')
-    # hframe.SetNdivisions(0, 'x')
-    # hframe.Draw()
+            total += prob
 
-    # for state_name in lines.keys():
-    #     drawn_name_texts[state_name].Draw()
-    #     for itrans in range(len(lines[state_name])):
-    #         # lines[state_name][itrans].Draw()  # hm, maybe don't need the horizontal lines any more
-    #         vlines[state_name][itrans].Draw()
-    #         # texts[state_name][itrans].Draw()  # don't label the bases at the moment, you can tell by the color just fine
+        ibin += 1
 
-    # cvn.SaveAs(plotdir + '/plots/' + gene_name + '.png')
+    ax.get_xaxis().set_visible(False)
+    plotting.mpl_finish(ax, plotdir, gene_name, ybounds=(-0.01, 1.01), xbounds=(-3, len(positions) + 3), leg_loc=(0.95, 0.1), adjust={'left' : 0.1, 'right' : 0.8}, leg_prop={'size' : 8})

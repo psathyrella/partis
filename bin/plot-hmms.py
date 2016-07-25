@@ -20,17 +20,6 @@ import paramutils
 import utils
 
 # ----------------------------------------------------------------------------------------
-def simplify_state_name(state_name):
-    if state_name.find('IG') == 0:
-        return state_name[state_name.rfind('_') + 1 : ]
-    elif state_name == 'insert_left':
-        return 'i_l'
-    elif state_name == 'insert_right':
-        return 'i_r'
-    else:
-        return state_name
-
-# ----------------------------------------------------------------------------------------
 def find_state_number(name):
     assert name.find('IGH') == 0
     state_number = int(name[ name.rfind('_') + 1 : ])
@@ -61,7 +50,7 @@ class ModelPlotter(object):
             with open(infname) as infile:
                 model = yaml.load(infile)
                 self.make_transition_plot(gene_name, model)
-                # self.make_emission_plot(gene_name, model)
+                self.make_emission_plot(gene_name, model)
 
     # ----------------------------------------------------------------------------------------
     def make_transition_plot(self, gene_name, model):
@@ -69,17 +58,17 @@ class ModelPlotter(object):
         fig.set_size_inches(plotting.plot_ratios[utils.get_region(gene_name)])
 
         ibin = 0
-        drawn_name_texts, lines, texts = {}, {}, {}
-        print gene_name
+        print utils.color_gene(utils.unsanitize_name(gene_name))
         legend_colors = set()  # add a color to this the first time you plot it
         for state in model.states:
 
-            ax.text(-0.5 + ibin, -0.075, simplify_state_name(state.name), rotation='vertical', size=8)
+            # bin label
+            ax.text(-0.5 + ibin, -0.075, paramutils.simplify_state_name(state.name), rotation='vertical', size=8)
 
             sorted_to_states = {}
             for name in state.transitions.keys():
                 if name.find('IGH') == 0:
-                    sorted_to_states[name] = int(simplify_state_name(name))
+                    sorted_to_states[name] = int(paramutils.simplify_state_name(name))
                 else:
                     sorted_to_states[name] = name
             sorted_to_states = sorted(sorted_to_states.items(), key=operator.itemgetter(1))
@@ -90,39 +79,39 @@ class ModelPlotter(object):
                 prob = state.transitions[to_state]
 
                 alpha = 0.6
-                style = '-'
+                width = 3
 
                 if 'insert' in str(simple_to_state):
                     label = 'insert'
                     color = '#3498db'  # blue
-                    width = 5
                 elif str(simple_to_state) == 'end':
                     label = 'end'
                     color = 'red'
-                    width = 3
                 else:  # regional/internal states
                     assert to_state.find('IG') == 0
                     label = 'internal'
                     color = 'green'
-                    width = 3
 
                 label_to_use = None
                 if color not in legend_colors:
                     label_to_use = label
                     legend_colors.add(color)
 
-                ax.plot([-0.5 + ibin, 0.5 + ibin], [total + prob, total + prob], color=color, linewidth=width, linestyle=style, alpha=alpha, label=label_to_use)
+                # horizontal line at height total+prob
+                ax.plot([-0.5 + ibin, 0.5 + ibin], [total + prob, total + prob], color=color, linewidth=width, alpha=alpha, label=label_to_use)
+
+                # vertical line from total to total + prob
+                ax.plot([ibin, ibin], [total + 0.01, total + prob], color=color, alpha=alpha, linewidth=width)
 
                 midpoint = 0.5*(prob + 2*total)
-                # ax.text(ibin, midpoint, simplify_state_name(to_state))
+                # ax.text(ibin, midpoint, paramutils.simplify_state_name(to_state))  # nicely labels the midpoint of the chunk between lines, but there isn't really room for it
 
                 total += prob
     
             ibin += 1
 
         ax.get_xaxis().set_visible(False)
-        # plt.gcf().subplots_adjust(bottom=0.36)
-        plotting.mpl_finish(ax, self.base_plotdir + '/transitions', gene_name, ybounds=(-0.01, 1.01), xbounds=(-3, len(model.states) + 3), leg_loc=(0.5, 0.1))
+        plotting.mpl_finish(ax, self.base_plotdir + '/transitions', gene_name, ybounds=(-0.01, 1.01), xbounds=(-3, len(model.states) + 3), leg_loc=(0.95, 0.1), adjust={'left' : 0.1, 'right' : 0.8}, leg_prop={'size' : 8})
 
     # ----------------------------------------------------------------------------------------
     def make_emission_plot(self, gene_name, model):
@@ -147,6 +136,7 @@ parser.add_argument('--outdir', default=os.getenv('www'))
 args = parser.parse_args()
 
 if __name__ == '__main__':
+    print '  %s the top line in the emission plots is usually yellow because the three non-germline bases are equally likely, and G comes last when sorted alphabetically' % utils.color('red', 'note')
     if not os.path.exists(args.outdir):
         raise Exception('output directory %s does not exist' % args.outdir)
     mplot = ModelPlotter(args, os.getenv('www') + '/modelplots')

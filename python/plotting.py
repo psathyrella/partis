@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
@@ -25,6 +26,12 @@ from hist import Hist
 import fraction_uncertainty
 
 from opener import opener
+
+plot_ratios = {
+    'v' : (30, 3),
+    'd' : (8, 4),
+    'j' : (8, 3)
+}
 
 # ----------------------------------------------------------------------------------------
 def set_bins(values, n_bins, is_log_x, xbins, var_type='float'):
@@ -1015,12 +1022,12 @@ def mpl_init(figsize=None, fontsize=20):
     return fig, ax
 
 # ----------------------------------------------------------------------------------------
-def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=None, ybounds=None, leg_loc=(0.04, 0.6), log='', xticks=None, xticklabels=None, no_legend=False, adjust=None, suffix='svg'):
+def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=None, ybounds=None, leg_loc=(0.04, 0.6), leg_prop=None, log='', xticks=None, xticklabels=None, no_legend=False, adjust=None, suffix='svg'):
     if 'seaborn' not in sys.modules:
         import seaborn  # really #$*$$*!ing slow to import, but only importing part of it doesn't seem to help
     # xticks[0] = 0.000001
     if not no_legend:
-        legend = ax.legend(loc=leg_loc)
+        legend = ax.legend(loc=leg_loc, prop=leg_prop)
     if adjust is None:
         plt.gcf().subplots_adjust(bottom=0.14, left=0.18, right=0.95, top=0.92)
     else:
