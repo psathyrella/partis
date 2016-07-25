@@ -1041,7 +1041,7 @@ def separate_into_allelic_groups(germline_seqs):
     return allelic_groups
 
 # ----------------------------------------------------------------------------------------
-def read_single_gene_count(indir, gene, debug=False):
+def read_single_gene_count(indir, gene, expect_zero_counts=False, debug=False):
     region = get_region(gene)
     count = 0
     with opener('r')(indir + '/' + region + '_gene-probs.csv') as infile:  # NOTE this ignores correlations... which I think is actually ok, but it wouldn't hurt to think through it again at some point
