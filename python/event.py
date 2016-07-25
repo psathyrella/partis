@@ -28,8 +28,7 @@ class RecombinationEvent(object):
         self.insertions = {}
         self.recombined_seq = ''  # combined sequence *before* mutations
         self.final_seqs, self.indelfos = [], []
-        self.original_cyst_word = ''
-        self.original_tryp_word = ''
+        self.unmutated_codons = None
 
     # ----------------------------------------------------------------------------------------
     def set_vdj_combo(self, vdj_combo_label, glfo, debug=False, mimic_data_read_length=False):
@@ -50,9 +49,6 @@ class RecombinationEvent(object):
                 self.effective_erosions[erosion] = int(vdj_combo_label[utils.index_keys[erosion + '_del']])
             else:  # otherwise ignore data, and keep the entire v and j genes
                 self.effective_erosions[erosion] = 0
-
-        # set the original conserved codon words, so we can revert them if they get mutated
-        self.unmutated_codons = {r : str(self.original_seqs[r][pos : pos + 3 ]) for r, pos in self.local_codon_positions.items()}
 
         if debug:
             self.print_gene_choice()
@@ -162,6 +158,7 @@ class RecombinationEvent(object):
         """ revert conserved cysteine and tryptophan to their original bases, eg if they were messed up by s.h.m. """
         for region, pos in self.final_codon_positions.items():
             if seq[pos : pos + 3] != self.unmutated_codons[region]:
+                assert len(self.unmutated_codons[region]) == 3
                 seq = seq[:pos] + self.unmutated_codons[region] + seq[pos + 3 :]
             assert utils.codon_ok(utils.conserved_codons[self.glfo['chain']][region], seq, pos)
         return seq

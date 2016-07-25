@@ -159,6 +159,15 @@ class Recombinator(object):
             print '         j: %s' % reco_event.eroded_seqs['j']
         reco_event.recombined_seq = reco_event.eroded_seqs['v'] + reco_event.insertions['vd'] + reco_event.eroded_seqs['d'] + reco_event.insertions['dj'] + reco_event.eroded_seqs['j']
         reco_event.set_final_codon_positions(debug=self.args.debug)
+
+        # set the original conserved codon words, so we can revert them if they get mutated NOTE we do it here, *after* setting the full recombined sequence, so the germline Vs that don't extend through the cysteine don't screw us over
+        reco_event.unmutated_codons = {}
+        for region, codon in utils.conserved_codons[self.args.chain].items():
+            fpos = reco_event.final_codon_positions[region]
+            original_codon = reco_event.recombined_seq[fpos : fpos + 3]
+            reco_event.unmutated_codons[region] = reco_event.recombined_seq[fpos : fpos + 3]
+            # print fpos, original_codon, utils.codon_ok(codon, reco_event.recombined_seq, fpos)
+
         codons_ok = utils.both_codons_ok(self.glfo['chain'], reco_event.recombined_seq, reco_event.final_codon_positions, extra_str='      ', debug=self.args.debug)
         if not codons_ok:
             return False
