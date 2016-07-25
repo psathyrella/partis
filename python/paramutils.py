@@ -8,7 +8,7 @@ from opener import opener
 
 # ----------------------------------------------------------------------------------------
 def simplify_state_name(state_name):
-    if state_name.find('IGH') == 0:
+    if state_name.find('IG') == 0:
         return state_name[state_name.rfind('_') + 1 : ]
     elif state_name == 'insert_left':
         return 'i_l'
@@ -18,7 +18,7 @@ def simplify_state_name(state_name):
         return state_name
 
 # ----------------------------------------------------------------------------------------
-def read_mute_info(indir, this_gene, approved_genes=None, chain=None):  # NOTE this would probably be more accurate if we made some effort to align the genes before combining all the approved ones
+def read_mute_info(indir, this_gene, chain, approved_genes=None):  # NOTE this would probably be more accurate if we made some effort to align the genes before combining all the approved ones
     if approved_genes is None:
         approved_genes = [this_gene, ]
     if this_gene == glutils.dummy_d_genes[chain]:
