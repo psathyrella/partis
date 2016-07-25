@@ -198,6 +198,8 @@ class HmmWriter(object):
             self.insertions.append('dj')
             self.insertions.append('jf')
 
+        assert len(utils.ambiguous_bases) == 1 and utils.ambiguous_bases[0] == 'N'  # maybe need to update some stuff below if this changes
+
         if self.args.debug:
             print '%s' % utils.color_gene(gene_name)
 
@@ -209,17 +211,15 @@ class HmmWriter(object):
             replacement_genes = utils.find_replacement_genes(self.indir, self.args.min_observations_to_write, gene_name, single_gene=False, debug=self.args.debug)
 
         self.erosion_probs = self.read_erosion_info(gene_name, replacement_genes)
-
         self.insertion_probs, self.insertion_content_probs = self.read_insertion_info(gene_name, replacement_genes)
-
         self.mute_freqs, self.mute_obs = paramutils.read_mute_info(self.indir, this_gene=gene_name, chain=self.args.chain, approved_genes=replacement_genes)  # actual info in <self.mute_obs> isn't actually used a.t.m.
 
         self.track = Track('nukes', utils.nukes)
         self.saniname = utils.sanitize_name(gene_name)
         self.hmm = HMM(self.saniname, self.track.getdict())  # pass the track as a dict rather than a Track object to keep the yaml file a bit more readable
         self.hmm.extras['gene_prob'] = max(self.eps, utils.read_overall_gene_probs(self.indir, only_gene=gene_name))  # if we really didn't see this gene at all, take pity on it and kick it an eps
-        mean_freq_hist = Hist(fname=self.indir + '/all-mean-mute-freqs.csv')
-        self.hmm.extras['overall_mute_freq'] = mean_freq_hist.get_mean()
+        tmp_mean_freq_hist = Hist(fname=self.indir + '/all-mean-mute-freqs.csv')
+        self.hmm.extras['overall_mute_freq'] = tmp_mean_freq_hist.get_mean()
 
     # ----------------------------------------------------------------------------------------
     def write(self):
@@ -230,7 +230,7 @@ class HmmWriter(object):
 
     # ----------------------------------------------------------------------------------------
     def add_states(self):
-        # TODO it'd kinda make more sense for the fv and jf insertions to only have one state (rather than 4), but for the moment I'm just leaving with 4 'cause it's easier to leave them the same as the physical insertions
+        # NOTE it'd kinda make more sense for the fv and jf insertions to only have one state (rather than 4), but for the moment I'm just leaving with 4 'cause it's easier to leave them the same as the physical insertions
         self.add_init_state()
         # then left side insertions
         for insertion in self.insertions:
@@ -389,7 +389,7 @@ class HmmWriter(object):
             iprobs[insertion] = {}
             if this_gene == glutils.dummy_d_genes[self.args.chain]:
                 iprobs[insertion][0] = 1.  # always insert zero bases
-                self.insertion_content_probs[insertion] = {n : 0.25 for n in utils.nukes}
+                icontentprobs[insertion] = {n : 0.25 for n in utils.nukes}
                 continue
             deps = utils.column_dependencies[insertion + '_insertion']
             with opener('r')(self.indir + '/' + utils.get_parameter_fname(column=insertion + '_insertion', deps=deps)) as infile:
@@ -577,7 +577,7 @@ class HmmWriter(object):
     # ----------------------------------------------------------------------------------------
     def add_region_entry_transitions(self, state, insertion):
         """
-        Add transitions *into* the v, d, or j regions. Called from either the 'init' state or the 'insert_left' state.
+        Add transitions *into* the v, d, or j regions. Called on either the 'init' state or the 'insert_left' state.
         For v, this is (mostly) the prob that the read doesn't extend all the way to the left side of the v gene.
         For d and j, this is (mostly) the prob to actually erode on the left side.
         The two <mostly>s are there because in both cases, we're starting from *approximate* smith-waterman alignments, so we need to add some fuzz in case the s-w is off.
