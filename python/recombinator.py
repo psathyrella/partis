@@ -272,8 +272,18 @@ class Recombinator(object):
                 # various contortions to avoid eroding the entire gene
                 region = erosion[0]
                 gene_length = len(self.glfo['seqs'][region][tmpline[region + '_gene']])
-                max_erosion = max(0, gene_length - 2)
-                tmpline[erosion + '_del'] = min(max_erosion, numpy.random.geometric(1. / utils.scratch_mean_erosion_lengths[erosion]))
+                if self.args.chain != 'h' and region == 'd':
+                    assert gene_length == 1 and tmpline['d_gene'] == glutils.dummy_d_genes[self.args.chain]
+                    if '5p' in erosion:
+                        tmpline[erosion + '_del'] = 1  # always erode the whole dummy d from the left
+                    else:
+                        tmpline[erosion + '_del'] = 0
+                else:
+                    max_erosion = max(0, gene_length - 2)
+                    tmpline[erosion + '_del'] = min(max_erosion, numpy.random.geometric(1. / utils.scratch_mean_erosion_lengths[erosion]))
+            for region in utils.regions:
+                if tmpline[region + '_5p_del'] + tmpline[region + '_3p_del'] > len(self.glfo['seqs'][region][tmpline[region + '_gene']]):
+                    raise Exception('deletions too long %d %d for %s' % (tmpline[region + '_5p_del'], tmpline[region + '_3p_del'], tmpline['d_gene']))
             for bound in utils.boundaries:
                 mean_length = utils.scratch_mean_insertion_lengths[self.args.chain][bound]
                 tmpline[bound + '_insertion'] = 0 if mean_length == 0 else numpy.random.geometric(1. / mean_length)
