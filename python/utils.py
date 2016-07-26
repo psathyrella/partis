@@ -64,8 +64,8 @@ def get_arg_list(arg, intify=False, floatify=False, translation=None, list_of_pa
 scratch_mean_erosion_lengths = {'v_3p' : 2, 'd_5p' : 3, 'd_3p' : 3, 'j_5p' : 4}
 scratch_mean_insertion_lengths = {
     'h': {'vd' : 4, 'dj' : 4},
-    'k': {'vd' : 8, 'dj' : 0},
-    'l': {'vd' : 8, 'dj' : 0}
+    'k': {'vd' : 0, 'dj' : 8},
+    'l': {'vd' : 0, 'dj' : 8}
 }
 
 # ----------------------------------------------------------------------------------------
@@ -880,16 +880,17 @@ def print_seq_in_reco_event(germlines, line, iseq, extra_str='', label='', one_l
     vj_line = color_chars(ambiguous_bases + ['*', ], 'light_blue', vj_line)
 
     chain = get_chain(line['v_gene'])  # kind of hackey
+    dont_show_d_stuff = chain != 'h' and line['lengths']['d'] == 0 and len(line['vd_insertion']) == 0
 
     if print_uid:
         extra_str += '%20s ' % line['unique_ids'][iseq]
     out_str_list = []
     # insert, d, and vj lines
     if not one_line:
-        out_str_list.append('%s    %s   insert%s\n' % (extra_str, insert_line, 's' if chain == 'h' else ''))
+        out_str_list.append('%s    %s   insert%s\n' % (extra_str, insert_line, '' if dont_show_d_stuff else 's'))
         if label != '':
             out_str_list[-1] = extra_str + label + out_str_list[-1][len(extra_str + label) :]
-        if chain == 'h':
+        if not dont_show_d_stuff:
             out_str_list.append('%s    %s   %s\n' % (extra_str, d_line, color_gene(line['d_gene'])))
         out_str_list.append('%s    %s   %s %s\n' % (extra_str, vj_line, color_gene(line['v_gene']), color_gene(line['j_gene'])))
 
