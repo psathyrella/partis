@@ -11,6 +11,7 @@ from collections import OrderedDict
 from subprocess import Popen, check_call, PIPE, CalledProcessError, check_output
 import copy
 import multiprocessing
+import operator
 from Bio import SeqIO
 
 import utils
@@ -1173,6 +1174,69 @@ class PartitionDriver(object):
         os.remove(annotation_fname)
 
     # ----------------------------------------------------------------------------------------
+    def process_dummy_d_hack(self, line, debug=False):
+        """
+        a.t.m. we force bcrham to give us D of length one for light chains.
+        Here, we delete the dummy D base, and give it to either V, J, or the insertion.
+        """
+        tmpline = copy.deepcopy(line)
+        utils.add_implicit_info(self.glfo, tmpline)
+        if debug:
+            utils.print_reco_event(self.glfo['seqs'], tmpline)
+
+        gl_v_base = None
+        if tmpline['v_3p_del'] > 0:
+            full_v_gl_seq = self.glfo['seqs']['v'][tmpline['v_gene']]
+            gl_v_base = full_v_gl_seq[tmpline['lengths']['v']]
+
+        gl_j_base = None
+        if tmpline['j_5p_del'] > 0 and len(tmpline['dj_insertion']) == 0:
+            full_j_gl_seq = self.glfo['seqs']['j'][tmpline['j_gene']]
+            gl_j_base = full_j_gl_seq[tmpline['j_5p_del'] - 1]
+        if debug:
+            print 'gl_j_base', gl_j_base
+            print 'gl_v_base', gl_v_base
+
+        # take a majority vote as to whom we should give the base
+        votes = {'v' : 0, 'j' : 0, 'dj_insertion' : 0}
+        qr_base_votes = {n : 0 for n in utils.expected_characters}
+        for iseq in range(len(tmpline['seqs'])):
+            d_qr_base = tmpline['d_qr_seqs'][iseq]
+            qr_base_votes[d_qr_base] += 1
+            if d_qr_base == gl_v_base:
+                votes['v'] += 1
+            if d_qr_base == gl_j_base:  # yeah, that's right, you can vote twice
+                votes['j'] += 1
+            if d_qr_base != gl_v_base and d_qr_base != gl_j_base:
+                votes['dj_insertion'] += 1
+
+        sorted_votes = sorted(votes.items(), key=operator.itemgetter(1), reverse=True)
+        winner = sorted_votes[0][0]
+        sorted_qr_base_votes = sorted(qr_base_votes.items(), key=operator.itemgetter(1), reverse=True)
+        qr_base_winner = sorted_qr_base_votes[0][0]
+        if debug:
+            print sorted_votes
+            print sorted_qr_base_votes
+            print ''
+            print ''
+            print 'winner', winner, qr_base_winner
+
+        line['d_5p_del'] = 1  # NOTE we don't modify tmpline, i.e. we modify the line *without* implicit info, 'cause it's simpler
+        if winner == 'v':
+            assert line['v_3p_del'] > 0
+            line['v_3p_del'] -= 1
+        elif winner == 'j':
+            line['j_5p_del'] -= 1
+        else:
+            assert winner == 'dj_insertion'
+            line['dj_insertion'] = qr_base_winner + line['dj_insertion']
+
+        after_line = copy.deepcopy(line)
+        utils.add_implicit_info(self.glfo, after_line)
+        if debug:
+            utils.print_reco_event(self.glfo['seqs'], after_line)
+
+    # ----------------------------------------------------------------------------------------
     def read_annotation_output(self, annotation_fname, outfname=None, count_parameters=False, parameter_out_dir=None):
         """ Read bcrham annotation output """
         print '    read output'
@@ -1199,6 +1263,9 @@ class PartitionDriver(object):
                 uids = padded_line['unique_ids']
                 uidstr = ':'.join(uids)
                 padded_line['indelfos'] = [self.sw_info['indels'].get(uid, utils.get_empty_indel()) for uid in uids]
+
+                if self.args.chain != 'h':
+                    self.process_dummy_d_hack(padded_line)
 
                 utils.add_implicit_info(self.glfo, padded_line, aligned_gl_seqs=self.aligned_gl_seqs)
                 utils.process_per_gene_support(padded_line)  # switch per-gene support from log space to normalized probabilities
