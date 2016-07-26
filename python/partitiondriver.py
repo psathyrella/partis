@@ -529,9 +529,10 @@ class PartitionDriver(object):
         if self.args.debug > 0:
             cmd_str += ' --debug ' + str(self.args.debug)
         cmd_str += ' --hmmdir ' + os.path.abspath(parameter_dir) + '/hmms'
-        cmd_str += ' --datadir ' + self.my_datadir + '/' + self.args.chain
+        cmd_str += ' --datadir ' + self.my_datadir
         cmd_str += ' --infile ' + csv_infname
         cmd_str += ' --outfile ' + csv_outfname
+        cmd_str += ' --chain ' + self.args.chain
         cmd_str += ' --random-seed ' + str(self.args.seed)
         if self.args.cache_naive_hfracs:
             cmd_str += ' --cache-naive-hfracs'

@@ -73,7 +73,7 @@ def read_germline_seqs(datadir, chain, skip_pseudogenes):
     for fname in glfo_fasta_fnames(chain):
         read_fasta_file(seqs, datadir + '/' + chain + '/' + fname, skip_pseudogenes)
     if chain != 'h':
-        seqs['d'][dummy_d_genes[chain]] = 'A'
+        seqs['d'][dummy_d_genes[chain]] = 'A'  # NOTE this choice ('A') is also set in packages/ham/src/bcrutils.cc
     return seqs
 
 # ----------------------------------------------------------------------------------------

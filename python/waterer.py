@@ -775,6 +775,12 @@ class Waterer(object):
         k_v_max += self.args.default_v_fuzz
         k_d_min = max(1, k_d_min - self.args.default_d_fuzz)
         k_d_max += self.args.default_d_fuzz
+
+        if self.args.chain != 'h':
+            k_d = 1
+            k_d_min = 1
+            k_d_max = 2
+
         assert k_v_min > 0 and k_d_min > 0 and k_v_max > 0 and k_d_max > 0
 
         if self.debug:
