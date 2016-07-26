@@ -536,7 +536,7 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
                 figsize = (10, 5)
                 bounds = plotconfig.default_hard_bounds.setdefault(utils.unsanitize_name(varname.replace('-mean-bins', '')), None)
 
-        if 'IGH' in varname:
+        if 'IG' in varname:
             if 'mute-freqs' in args.plotdirs[0]:
                 gene = utils.unsanitize_name(simplevarname)
                 plottitle = gene  # + ' -- mutation frequency'

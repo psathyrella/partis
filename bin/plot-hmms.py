@@ -20,13 +20,6 @@ import paramutils
 import utils
 
 # ----------------------------------------------------------------------------------------
-def find_state_number(name):
-    assert name.find('IGH') == 0
-    state_number = int(name[ name.rfind('_') + 1 : ])
-    assert state_number >= 0 and state_number <= 400
-    return state_number
-
-# ----------------------------------------------------------------------------------------
 class ModelPlotter(object):
     def __init__(self, args, base_plotdir):
         self.base_plotdir = base_plotdir
@@ -54,6 +47,7 @@ class ModelPlotter(object):
 
     # ----------------------------------------------------------------------------------------
     def make_transition_plot(self, gene_name, model):
+        """ NOTE shares a lot with make_mutefreq_plot() in python/paramutils.py """
         fig, ax = plotting.mpl_init()
         fig.set_size_inches(plotting.plot_ratios[utils.get_region(gene_name)])
 
@@ -67,7 +61,7 @@ class ModelPlotter(object):
 
             sorted_to_states = {}
             for name in state.transitions.keys():
-                if name.find('IGH') == 0:
+                if name.find('IG') == 0:
                     sorted_to_states[name] = int(paramutils.simplify_state_name(name))
                 else:
                     sorted_to_states[name] = name

@@ -115,8 +115,8 @@ class ParameterCounter(object):
                     else:
                         region = column[1]
                     assert region in utils.regions
-                    assert 'IGH' + region.upper() in index[1]  # NOTE this is hackey, but it works find now and will fail obviously
-                    gene = index[1]                            #   if I ever change the correlations to be incompatible. so screw it
+                    gene = index[1]  # NOTE this is hackey, but it works find now and will fail obviously if I ever change the correlations to be incompatible. so screw it
+                    utils.split_gene(gene)  # checks validity of gene
                     if gene not in gene_values:
                         gene_values[gene] = {}
 

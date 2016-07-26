@@ -73,6 +73,7 @@ def read_mute_info(indir, this_gene, chain, approved_genes=None):  # NOTE this w
 
 # ----------------------------------------------------------------------------------------
 def make_mutefreq_plot(plotdir, gene_name, positions):
+    """ NOTE shares a lot with make_transition_plot() in bin/plot-hmms.py. """
     nuke_colors = {'A' : 'red', 'C' : 'blue', 'G' : 'orange', 'T' : 'green'}
     fig, ax = plotting.mpl_init()
     fig.set_size_inches(plotting.plot_ratios[utils.get_region(gene_name)])
