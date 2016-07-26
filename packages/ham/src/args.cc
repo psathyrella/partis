@@ -14,6 +14,7 @@ Args::Args(int argc, const char * argv[]):
   outfile_arg_("", "outfile", "output csv file", true, "", "string"),
   annotationfile_arg_("", "annotationfile", "if specified, write annotations for each cluster to here", false, "", "string"),
   cachefile_arg_("", "cachefile", "input (and output) cache log prob csv file", false, "", "string"),
+  chain_arg_("", "chain", "is this heavy (h) or light (k, l) chain?", true, "", "string"),
   algorithm_arg_("", "algorithm", "algorithm to run", true, "", &algo_vals_),
   ambig_base_arg_("", "ambig-base", "ambiguous base", false, "", "string"),
   seed_unique_id_arg_("", "seed-unique-id", "seed unique id", false, "", "string"),
@@ -50,6 +51,7 @@ Args::Args(int argc, const char * argv[]):
     cmd.add(outfile_arg_);
     cmd.add(annotationfile_arg_);
     cmd.add(cachefile_arg_);
+    cmd.add(chain_arg_);
     cmd.add(hamming_fraction_bound_lo_arg_);
     cmd.add(hamming_fraction_bound_hi_arg_);
     cmd.add(logprob_ratio_threshold_arg_);
@@ -85,6 +87,9 @@ Args::Args(int argc, const char * argv[]):
     integers_[head] = vector<int>();
   for(auto & head : float_headers_)
     floats_[head] = vector<double>();
+
+  if(chain() != "h" && chain() != "k" && chain() != "l")
+    throw runtime_error("--chain argument '" + chain() + "' not among h, k, l.");
 
   ifstream ifs(infile());
   if(!ifs.is_open())

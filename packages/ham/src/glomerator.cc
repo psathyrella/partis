@@ -679,7 +679,7 @@ string Glomerator::CalculateNaiveSeq(string queries, RecoEvent *event) {
 
   ++n_vtb_calculated_;
 
-  Result result(kbinfo_[queries]);
+  Result result(kbinfo_[queries], args_->chain());
   bool stop(false);
   do {
     // assert(SameLength(seq_info_[queries], true));
@@ -714,7 +714,7 @@ double Glomerator::CalculateLogProb(string queries) {  // NOTE can modify kbinfo
   
   ++n_fwd_calculated_;
 
-  Result result(kbinfo_[queries]);
+  Result result(kbinfo_[queries], args_->chain());
   bool stop(false);
   do {
     result = fwd_dph_.Run(seq_info_[queries], kbinfo_[queries], only_genes_[queries], mute_freqs_[queries]);  // NOTE <only_genes> isn't necessarily <only_genes_[queries]>, since for the denominator calculation we take the OR

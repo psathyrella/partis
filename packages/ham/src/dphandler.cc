@@ -83,7 +83,7 @@ Result DPHandler::Run(vector<Sequence> seqvector, KBounds kbounds, vector<string
     hmms_.RescaleOverallMuteFreqs(only_genes, overall_mute_freq);
   }
 
-  Result result(kbounds);
+  Result result(kbounds, args_->chain());
 
   // loop over k_v k_d space
   double best_score(-INFINITY);
@@ -130,11 +130,11 @@ Result DPHandler::Run(vector<Sequence> seqvector, KBounds kbounds, vector<string
     if(algorithm_ == "viterbi") {
       prob = best_score;
       alg_str = "vtb";
-      sprintf(kstr, "%zu [%zu-%zu]  %zu [%zu-%zu]", best_kset.v, kbounds.vmin, kbounds.vmax-1, best_kset.d, kbounds.dmin, kbounds.dmax-1);
+      sprintf(kstr, "%zu [%zu-%zu)  %zu [%zu-%zu)", best_kset.v, kbounds.vmin, kbounds.vmax, best_kset.d, kbounds.dmin, kbounds.dmax);
     } else {
       prob = *total_score;
       alg_str = "fwd";
-      sprintf(kstr, "    [%zu-%zu]     [%zu-%zu]", kbounds.vmin, kbounds.vmax-1, kbounds.dmin, kbounds.dmax-1);
+      sprintf(kstr, "    [%zu-%zu)     [%zu-%zu)", kbounds.vmin, kbounds.vmax, kbounds.dmin, kbounds.dmax);
     }
     double cpu_seconds(((clock() - run_start) / (double)CLOCKS_PER_SEC));
     printf("           %s %12.3f   %-25s  %2zuv %2zud %2zuj  %5.1fs   %s\n", alg_str.c_str(), prob, kstr,
@@ -143,8 +143,8 @@ Result DPHandler::Run(vector<Sequence> seqvector, KBounds kbounds, vector<string
 
     if(result.boundary_error()) {   // not necessarily a big deal yet -- the bounds get automatical expanded
       cout << "             max at boundary:"
-	   << " " << best_kset.v << " (" << kbounds.vmin << "-" << kbounds.vmax - 1 << ")"
-	   << ", " << best_kset.d << " (" << kbounds.dmin << "-" << kbounds.dmax - 1 << ")"
+	   << " " << best_kset.v << " [" << kbounds.vmin << "-" << kbounds.vmax  << ")"
+	   << ", " << best_kset.d << " [" << kbounds.dmin << "-" << kbounds.dmax  << ")"
 	   << "    better: " << result.better_kbounds().stringify();
       if(result.could_not_expand())
 	cout << " (could not expand)     ";
@@ -482,7 +482,7 @@ size_t DPHandler::GetErosionLength(string side, vector<string> names, string gen
   bool its_inserts_all_the_way_down(true);
   for(auto & name : names) {
     if(name.find("insert") != 0) {
-      assert(name.find("IGH") == 0);  // Trust but verify, my little ducky, trust but verify.
+      assert(name.find("IG") == 0);  // Trust but verify, my little ducky, trust but verify.
       its_inserts_all_the_way_down = false;
       break;
     }
@@ -522,9 +522,8 @@ size_t DPHandler::GetErosionLength(string side, vector<string> names, string gen
 
   // then find the state number (in the hmm's state numbering scheme) of the state found at that index in the viterbi path
   assert(istate >= 0 && istate < names.size());
-  if(names[istate].find("IGH") != 0)  // start of state name should be IGH[VDJ]
-    throw runtime_error("state not of the form IGH<gene>_<position>: " + names[istate]);
-  assert(names[istate].find("IGH") == 0);  // start of state name should be IGH[VDJ]
+  if(names[istate].find("IG") != 0)  // start of state name should be IG[HKL][VDJ]
+    throw runtime_error("state not of the form IG[HKL]<gene>_<position>: " + names[istate]);
   string state_index_str = names[istate].substr(names[istate].find_last_of("_") + 1);
   size_t state_index = atoi(state_index_str.c_str());
 

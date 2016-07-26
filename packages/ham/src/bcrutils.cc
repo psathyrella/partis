@@ -31,8 +31,10 @@ string TermColors::RedifyIfMuted(char germline_nuc, char nuc) {
 
 // ----------------------------------------------------------------------------------------
 // get region from gene name, e.g. IGHD1-1*01 --> d
+// NOTE GermLines class also has its own GetRegion()
 string TermColors::GetRegion(string gene) {
-  assert(gene.find("IGH") != string::npos);
+  if(gene.find("IG") != 0)
+    throw runtime_error("gene name '" + gene + "' doesn't begin with 'IG'.");
   char region_char(tolower(gene[3]));
   string region(1, region_char);
   assert(region == "v" || region == "d" || region == "j");
@@ -106,15 +108,26 @@ string TermColors::ColorGene(string gene) {
 }
 
 // ========================================================================================
-GermLines::GermLines(string input_dir):
+GermLines::GermLines(string gldir, string chain):
+  chain_(chain),
   regions_({"v", "d", "j"})
 {
+  if(chain_ == "k")
+    dummy_d_gene = "IGKDx-x*x";
+  else if(chain_ == "l")
+    dummy_d_gene = "IGLDx-x*x";
+
   for(auto & region : regions_) {
     names_[region] = vector<string>();
-    string infname(input_dir + "/igh" + region + ".fasta");
+    if(chain != "h" && region == "d") {
+      names_[region].push_back(dummy_d_gene);
+      seqs_[dummy_d_gene] = "A";  // NOTE this choice is also set in python/glutils.py
+      continue;
+    }
+    string infname(gldir + "/" + chain_ + "/ig" + chain_ + region + ".fasta");
     ifstream ifs(infname);
     if(!ifs.is_open())
-      throw runtime_error("input file " + infname + " d.n.e.");
+      throw runtime_error("germline file " + infname + " d.n.e.");
     string line, name, seq;
     while(getline(ifs, line)) {
       if(line[0] == '>') {   // read header lines
@@ -139,10 +152,10 @@ GermLines::GermLines(string input_dir):
   vector<string> header;
 
   // get cyst/tryp info
-  string infname(input_dir + "/extras.csv");
+  string infname(gldir + "/" + chain_ + "/extras.csv");
   ifs.open(infname);
   if(!ifs.is_open())
-    throw runtime_error("input file " + infname + " d.n.e.");
+    throw runtime_error("germline file " + infname + " d.n.e.");
   // check header
   getline(ifs, line);
   line.erase(remove(line.begin(), line.end(), '\r'), line.end());
@@ -182,8 +195,10 @@ string GermLines::SanitizeName(string gene_name) {
 
 // ----------------------------------------------------------------------------------------
 // get region from gene name, e.g. IGHD1-1*01 --> d
+// NOTE TermColors class also has its own GetRegion()
 string GermLines::GetRegion(string gene) {
-  assert(gene.find("IGH") != string::npos);
+  if(gene.find("IG") != 0)
+    throw runtime_error("gene name '" + gene + "' doesn't begin with 'IG'.");
   char region_char(tolower(gene[3]));
   string region(1, region_char);
   assert(region == "v" || region == "d" || region == "j");
@@ -419,11 +434,11 @@ void Result::check_boundaries(KSet best, KBounds kbounds) {
     boundary_error_ = true;
     better_kbounds_.vmax = kbounds.vmax + delta;
   }
-  if(best.d == kbounds.dmin) {
+  if(chain_ == "h" && best.d == kbounds.dmin) {  // for light chains we expect/require k_d = 1 with no fuzz
     boundary_error_ = true;
     better_kbounds_.dmin = max((int)1, (int)kbounds.dmin - delta);
   }
-  if(best.d == kbounds.dmax - 1) {
+  if(chain_ == "h" && best.d == kbounds.dmax - 1) {
     boundary_error_ = true;
     better_kbounds_.dmax = kbounds.dmax + delta;
   }

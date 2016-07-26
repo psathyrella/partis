@@ -63,11 +63,13 @@ public:
 // ----------------------------------------------------------------------------------------
 class GermLines {
 public:
-  GermLines(string input_dir);
+  GermLines(string gldir, string chain);
   string SanitizeName(string gene_name);
   string GetRegion(string gene);
 
+  string chain_;
   vector<string> regions_;
+  string dummy_d_gene;  // for light chain
   map<string, vector<string> > names_;
   map<string, string> seqs_;
   map<string, int> cyst_positions_, tryp_positions_;
@@ -155,7 +157,7 @@ private:
 // ----------------------------------------------------------------------------------------
 class Result {
 public:
-  Result(KBounds kbounds) : total_score_(-INFINITY), no_path_(false), better_kbounds_(kbounds), boundary_error_(false), could_not_expand_(false), finalized_(false) {}
+  Result(KBounds kbounds, string chain) : total_score_(-INFINITY), no_path_(false), chain_(chain), better_kbounds_(kbounds), boundary_error_(false), could_not_expand_(false), finalized_(false) {}
   void PushBackRecoEvent(RecoEvent event) { events_.push_back(event); }
   void Finalize(GermLines &gl, map<string, double> &unsorted_per_gene_support, KSet best_kset, KBounds kbounds);
   RecoEvent &best_event() { assert(finalized_); return best_event_; }
@@ -169,6 +171,7 @@ public:
 private:
   void check_boundaries(KSet best, KBounds kbounds);  // and if you find errors, put expanded bounds in better_[kmin,kmax]_
 
+  string chain_;
   KBounds better_kbounds_;
   bool boundary_error_;
   bool could_not_expand_;

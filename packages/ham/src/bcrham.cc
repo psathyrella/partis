@@ -35,7 +35,7 @@ int main(int argc, const char * argv[]) {
   // init some infrastructure
   vector<string> characters {"A", "C", "G", "T"};
   Track track("NUKES", characters, args.ambig_base());
-  GermLines gl(args.datadir());
+  GermLines gl(args.datadir(), args.chain());
   HMMHolder hmms(args.hmmdir(), gl, &track);
   vector<vector<Sequence> > qry_seq_list(GetSeqs(args, &track));
 
@@ -98,7 +98,7 @@ void run_algorithm(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> > &qr
 
     vector<KBounds> kbvector(qry_seqs.size(), kbounds);
 
-    Result result(kbounds);
+    Result result(kbounds, args.chain());
     double logprob(-INFINITY);
     bool stop(false);
     string errors;
