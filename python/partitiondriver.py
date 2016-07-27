@@ -148,9 +148,9 @@ class PartitionDriver(object):
             genes_with_hmms = set(utils.find_genes_that_have_hmms(self.sub_param_dir))
             expected_genes = set([g for r in utils.regions for g in self.glfo['seqs'][r].keys()])  # this'll be the & of the gldir (maybe rewritten, maybe not)
             if len(genes_with_hmms - expected_genes) > 0:
-                print '  %s yamels in %s for genes %s that aren\'t in glfo' % (utils.color('red', 'warning'), self.sub_param_dir, ' '.join(genes_with_hmms - expected_genes))
+                print '  %s yamels in %s for %d genes that aren\'t in glfo' % (utils.color('red', 'warning'), self.sub_param_dir, len(genes_with_hmms - expected_genes))
             if len(expected_genes - genes_with_hmms) > 0:
-                print '  %s genes %s in glfo that don\'t have yamels in %s' % (utils.color('red', 'warning'), ' '.join(expected_genes - genes_with_hmms), self.sub_param_dir)
+                print '  %s %d genes in glfo that don\'t have yamels in %s' % (utils.color('red', 'warning'), len(expected_genes - genes_with_hmms), self.sub_param_dir)
 
         parameter_out_dir = self.sw_param_dir if write_parameters else None
         waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo, parameter_out_dir=parameter_out_dir, find_new_alleles=find_new_alleles)

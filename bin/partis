@@ -30,7 +30,7 @@ def default_parameter_dir(args):
 def check_maybe_auto_cache_parameters(args, gldir):
     auto_ran_cache_parameters = False
     if not args.simulate_partially_from_scratch and not os.path.exists(args.parameter_dir):
-        print '  note: --parameter-dir \'%s\' does not exist, so proceeding to cache a new set of parameters' % args.parameter_dir
+        print '  parameter dir \'%s\' does not exist, so first caching a new set of parameters, then running action \'%s\'' % (args.parameter_dir, args.action)
         parter = PartitionDriver(args, 'cache-parameters', gldir)  # if we're caching parameters, read initial gl info from <gldir> (then the final glfo gets written to the parameter dir)
         parter.cache_parameters()
         parter.clean()
@@ -42,7 +42,7 @@ def set_default_parameter_dir(args):
     used_default_parameter_dir = False
     if args.parameter_dir is None and not args.simulate_partially_from_scratch:
         args.parameter_dir = default_parameter_dir(args)
-        print '  note: using default --parameter-dir \'%s\'' % args.parameter_dir
+        print '  using default parameter dir \'%s\'' % args.parameter_dir
         used_default_parameter_dir = True
     return used_default_parameter_dir
 
@@ -59,7 +59,7 @@ def run_simulation(args):
     if args.slurm:
         raise Exception('simulator parallelization does not handle slurm')
     if args.infname is not None:
-        print '  ntoe: --infname is not used when simulating'
+        print '  note: --infname is not used when simulating'
     if args.n_max_queries != -1:
         print '  note: --n-max-queries is not used when simulating (use --n-sim-events to set the simulated number of rearrangemt events)'
     if args.parameter_dir is None and not args.simulate_partially_from_scratch:
@@ -186,8 +186,7 @@ parser = argparse.ArgumentParser(formatter_class=formatter_class)
 subparsers = parser.add_subparsers(dest='action')
 
 default_initial_germline_dir = partis_dir + '/data/imgt'  # I promise, it has to be set here instead of in the argparser, and yes, it freaks me out, too
-print 'TODO more obvious check than long germline message if parameter directory doesn\'t exist or have proper format'
-print 'TODO don\'t erode conserved codons when with partial scratch simulation'
+
 parent_parser = argparse.ArgumentParser(add_help=False)
 parent_parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2], help='Debug verbosity level.')
 parent_parser.add_argument('--sw-debug', type=int, choices=[0, 1, 2], help='Debug level for Smith-Waterman.')
@@ -321,7 +320,7 @@ args.n_fewer_procs = args.n_procs[0] if len(args.n_procs) == 1 else args.n_procs
 args.n_procs = args.n_procs[0]
 
 if args.seqfile is not None and args.infname is None:
-    print '  note: moving contents of deprecated option --seqfile into its replacement --infname'
+    print '  moving contents of deprecated option --seqfile into its replacement --infname'
     args.infname = args.seqfile
 
 if args.only_genes is not None:
@@ -373,7 +372,7 @@ if args.plot_performance:
         raise Exception('can\'t plot performance unless --is-simu is set')
 
 if args.parameter_type != 'hmm':
-    print '  note: using non-default parameter type \'%s\'' % args.parameter_type
+    print '  using non-default parameter type \'%s\'' % args.parameter_type
 
 if args.presto_output and args.aligned_germline_fname is None:
     raise Exception('in order to get presto output, you have to set --aligned-germline-fname (a fasta file with germline alignments for every germline gene)')
