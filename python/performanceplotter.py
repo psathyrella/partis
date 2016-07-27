@@ -14,8 +14,7 @@ bool_columns = ('v_gene', 'd_gene', 'j_gene')
 
 class PerformancePlotter(object):
     # ----------------------------------------------------------------------------------------
-    def __init__(self, glfo, name, only_correct_gene_fractions=False):
-        self.glfo = glfo
+    def __init__(self, name, only_correct_gene_fractions=False):
         self.name = name
         self.values = {}
         self.only_correct_gene_fractions = only_correct_gene_fractions

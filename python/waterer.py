@@ -57,7 +57,7 @@ class Waterer(object):
             if not self.args.is_data:
                 self.true_pcounter = ParameterCounter(self.glfo, self.args)
         if self.args.plot_performance:
-            self.perfplotter = PerformancePlotter(self.glfo, 'sw')
+            self.perfplotter = PerformancePlotter('sw')
 
         if not os.path.exists(self.args.ighutil_dir + '/bin/vdjalign'):
             raise Exception('ERROR ighutil path d.n.e: ' + self.args.ighutil_dir + '/bin/vdjalign')
