@@ -763,7 +763,6 @@ def print_seq_in_reco_event(germlines, line, iseq, extra_str='', label='', one_l
     # build up the query sequence line, including colors for mutations and conserved codons
     j_right_extra = ''  # portion of query sequence to right of end of the j match
     n_inserted = 0
-    final_seq = ''
     final_seq_list = []
     for inuke in range(len(lseq)):
         if indelfo is not None:
@@ -771,21 +770,17 @@ def print_seq_in_reco_event(germlines, line, iseq, extra_str='', label='', one_l
               # if we're at the position that the insertion started at (before we removed it)
         if indelfo is not None and lastfo['type'] == 'insertion':
             if reverse_indels and inuke == lastfo['pos']:
-                final_seq += lastfo['seqstr']  # put the insertion back into the query sequence
                 final_seq_list.append(lastfo['seqstr'])  # put the insertion back into the query sequence
                 n_inserted += len(lastfo['seqstr'])
             elif not reverse_indels and inuke - lastfo['pos'] >= 0 and inuke - lastfo['pos'] < lastfo['len']:
-                final_seq += lseq[inuke]
                 final_seq_list.append(lseq[inuke])
                 n_inserted += 1
                 continue
         if indelfo is not None and lastfo['type'] == 'deletion':
             if reverse_indels and inuke - lastfo['pos'] >= 0 and inuke - lastfo['pos'] < lastfo['len']:  # if we're within the bases that we added to make up for the deletionlen
-                final_seq += color('light_blue', '*')
                 final_seq_list.append(color('light_blue', '*'))
                 continue
             elif not reverse_indels and inuke == lastfo['pos']:
-                final_seq += lastfo['len'] * color('light_blue', '*')
                 final_seq_list.append(lastfo['len'] * color('light_blue', '*'))
                 n_inserted = - lastfo['len']
 
@@ -833,7 +828,6 @@ def print_seq_in_reco_event(germlines, line, iseq, extra_str='', label='', one_l
             if inuke >= pos and inuke < pos + 3:
                 new_nuke = '\033[7m' + new_nuke + '\033[m'
 
-        final_seq += new_nuke
         final_seq_list.append(new_nuke)
 
     # check if there isn't enough space for dots in the vj line
@@ -850,8 +844,8 @@ def print_seq_in_reco_event(germlines, line, iseq, extra_str='', label='', one_l
 
         gap_insertion_point = len(line['fv_insertion'] + line['v_gl_seq'])
         gaps_to_add = len(v_3p_del_str + j_5p_del_str) - interior_length
-        gapstr = gaps_to_add * color('blue', '-')
-        final_seq = add_gaps_ignoring_color_characters(final_seq, gap_insertion_point, gapstr)
+        # gapstr = gaps_to_add * color('blue', '-')
+        # final_seq = add_gaps_ignoring_color_characters(final_seq, gap_insertion_point, gapstr)
         final_seq_list = final_seq_list[:gap_insertion_point] + gaps_to_add * [color('blue', '-'), ] + final_seq_list[gap_insertion_point:]
     else:
         v_3p_del_str = '.' * line['v_3p_del']
