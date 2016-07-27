@@ -77,7 +77,7 @@ class PartitionDriver(object):
             self.aligned_gl_seqs = glutils.read_aligned_gl_seqs(self.args.aligned_germline_fname, self.glfo)
 
     # ----------------------------------------------------------------------------------------
-    def __del__(self):
+    def clean(self):
         glutils.remove_glfo_files(self.my_gldir, self.args.chain)
 
         # merge persistent and current cache files into the persistent cache file
@@ -1314,7 +1314,7 @@ class PartitionDriver(object):
         if pcounter is not None:
             if self.args.plotdir is not None:
                 pcounter.plot(self.args.plotdir + '/hmm', subset_by_gene=True, codon_positions={r : self.glfo[c + '-positions'] for r, c in utils.conserved_codons[self.args.chain].items()}, only_csv=self.args.only_csv_plots)
-            pcounter.write(parameter_out_dir, self.my_gldir)
+            pcounter.write(parameter_out_dir)
         if true_pcounter is not None:
             if self.args.plotdir is not None:
                 true_pcounter.plot(self.args.plotdir + '/hmm-true', subset_by_gene=True, codon_positions={r : self.glfo[c + '-positions'] for r, c in utils.conserved_codons[self.args.chain].items()}, only_csv=self.args.only_csv_plots)
