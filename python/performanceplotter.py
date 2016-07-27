@@ -118,7 +118,8 @@ class PerformancePlotter(object):
         fraction, len_excluding_ambig = utils.hamming_fraction(true_naive_seq, inferred_naive_seq, return_len_excluding_ambig=True)
         total_distance = int(fraction * len_excluding_ambig)
         if len(true_naive_seq) == 0:
-            print 'WARNING zero length sequence in hamming_distance_to_true_naive'
+            if not (restrict_to_region == 'd' and utils.get_chain(true_line['v_gene']) != 'h'):
+                print 'WARNING zero length sequence in hamming_distance_to_true_naive'
             return 0
         if normalize:
             return int(100 * (float(total_distance) / len(true_naive_seq)))
