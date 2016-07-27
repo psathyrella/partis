@@ -154,7 +154,7 @@ class ParameterCounter(object):
         print '(%.1f sec)' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
-    def write(self, base_outdir, my_datadir=None):
+    def write(self, base_outdir):
         print '    writing parameters',
         sys.stdout.flush()
         start = time.time()

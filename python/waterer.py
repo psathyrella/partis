@@ -47,7 +47,7 @@ class Waterer(object):
         self.nth_try = 1
         self.unproductive_queries = set()
 
-        self.my_datadir = self.args.workdir + '/' + glutils.glfo_dir
+        self.my_gldir = self.args.workdir + '/' + glutils.glfo_dir
 
         self.alfinder, self.pcounter, self.true_pcounter, self.perfplotter = None, None, None, None
         if find_new_alleles:  # NOTE *not* the same as <self.args.find_new_alleles>
@@ -159,7 +159,7 @@ class Waterer(object):
                 self.pcounter.plot(self.args.plotdir + '/sw', subset_by_gene=True, codon_positions={r : self.glfo[c + '-positions'] for r, c in utils.conserved_codons[self.args.chain].items()}, only_csv=self.args.only_csv_plots)
                 if self.true_pcounter is not None:
                     self.true_pcounter.plot(self.args.plotdir + '/sw-true', subset_by_gene=True, codon_positions={r : self.glfo[c + '-positions'] for r, c in utils.conserved_codons[self.args.chain].items()}, only_csv=self.args.only_csv_plots)
-            self.pcounter.write(self.parameter_out_dir, self.my_datadir)
+            self.pcounter.write(self.parameter_out_dir)
             if self.true_pcounter is not None:
                 self.true_pcounter.write(self.parameter_out_dir + '-true')
 
@@ -263,7 +263,7 @@ class Waterer(object):
         match, mismatch = self.match_mismatch
         cmd_str += ' --match ' + str(match) + ' --mismatch ' + str(mismatch)
         cmd_str += ' --gap-open ' + str(self.gap_open_penalty)
-        cmd_str += ' --vdj-dir ' + self.my_datadir + '/' + self.args.chain
+        cmd_str += ' --vdj-dir ' + self.my_gldir + '/' + self.args.chain
         cmd_str += ' --samtools-dir ' + self.args.partis_dir + '/packages/samtools'
         cmd_str += ' ' + workdir + '/' + base_infname + ' ' + workdir + '/' + base_outfname
         return cmd_str

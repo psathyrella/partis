@@ -20,7 +20,7 @@ import glob
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
-parser.add_argument('--datadir', default=partis_dir + '/data/imgt', help='Directory from which to read non-sample-specific information (e.g. germline genes)')
+parser.add_argument('--gldir', default=partis_dir + '/data/imgt', help='Directory from which to read non-sample-specific information (e.g. germline genes)')
 parser.add_argument('--fsdir', default='/fh/fast/matsen_e/' + os.getenv('USER') + '/work/partis-dev/_output')
 parser.add_argument('--mutation-multipliers', default='1')
 parser.add_argument('--is-simu', action='store_true')

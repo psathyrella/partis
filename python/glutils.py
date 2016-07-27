@@ -68,10 +68,10 @@ def read_fasta_file(seqs, fname, skip_pseudogenes, aligned=False):
         print '    skipped %d pseudogenes' % n_skipped_pseudogenes
 
 #----------------------------------------------------------------------------------------
-def read_germline_seqs(datadir, chain, skip_pseudogenes):
+def read_germline_seqs(gldir, chain, skip_pseudogenes):
     seqs = {r : OrderedDict() for r in utils.regions}
     for fname in glfo_fasta_fnames(chain):
-        read_fasta_file(seqs, datadir + '/' + chain + '/' + fname, skip_pseudogenes)
+        read_fasta_file(seqs, gldir + '/' + chain + '/' + fname, skip_pseudogenes)
     if chain != 'h':
         seqs['d'][dummy_d_genes[chain]] = 'A'  # NOTE this choice ('A') is also set in packages/ham/src/bcrutils.cc
     return seqs
@@ -252,10 +252,10 @@ def get_missing_codon_info(glfo, debug=False):
             print '      added %d %s positions' % (n_added, codon)
 
 # ----------------------------------------------------------------------------------------
-def read_extra_info(glfo, datadir):
+def read_extra_info(glfo, gldir):
     for codon in utils.conserved_codons[glfo['chain']].values():
         glfo[codon + '-positions'] = {}
-    with open(datadir + '/' + glfo['chain'] + '/' + extra_fname) as csvfile:
+    with open(gldir + '/' + glfo['chain'] + '/' + extra_fname) as csvfile:
         reader = csv.DictReader(csvfile)
         for line in reader:
             for codon in utils.conserved_codons[glfo['chain']].values():
@@ -263,24 +263,24 @@ def read_extra_info(glfo, datadir):
                     glfo[codon + '-positions'][line['gene']] = int(line[codon + '_position'])
 
 #----------------------------------------------------------------------------------------
-def read_glfo(datadir, chain, only_genes=None, skip_pseudogenes=True, debug=False):
+def read_glfo(gldir, chain, only_genes=None, skip_pseudogenes=True, debug=False):
 
     # ----------------------------------------------------------------------------------------
     # warn about backwards compatibility breakage
-    if not os.path.exists(datadir + '/' + chain):
+    if not os.path.exists(gldir + '/' + chain):
         raise Exception("""
         Germline set directory \'%s\' does not exist.
-        Unless you\'ve specified a nonexistent --initial-datadir, this is probably because as of v0.6.0 we switched to per-dataset germline sets, which means the germline set fastas have to be *within* --parameter-dir.
+        Unless you\'ve specified a nonexistent --initial-germline-dir, this is probably because as of v0.6.0 we switched to per-dataset germline sets, which means the germline set fastas have to be *within* --parameter-dir.
         You will, unfortunately, need to delete your existing --parameter-dir and generate a new one (either explicitly with \'cache-parameters\', or just re-run whatever action you were running, and it'll do it automatically when it can\'t find the directory you deleted).
         Sorry! We promise this is better in the long term, though.
-        """ % (datadir + '/' + chain))
+        """ % (gldir + '/' + chain))
     # ----------------------------------------------------------------------------------------
 
     if debug:
-        print '  reading %s chain glfo from %s' % (chain, datadir)
+        print '  reading %s chain glfo from %s' % (chain, gldir)
     glfo = {'chain' : chain}
-    glfo['seqs'] = read_germline_seqs(datadir, chain, skip_pseudogenes)
-    read_extra_info(glfo, datadir)
+    glfo['seqs'] = read_germline_seqs(gldir, chain, skip_pseudogenes)
+    read_extra_info(glfo, gldir)
     get_missing_codon_info(glfo, debug=debug)
     restrict_to_genes(glfo, only_genes, debug=debug)
 
@@ -521,8 +521,8 @@ def write_glfo(output_dir, glfo, only_genes=None, debug=False):
         raise Exception('unexpected file(s) while writing germline set: %s' % (' '.join(unexpected_files)))
 
 # ----------------------------------------------------------------------------------------
-def remove_glfo_files(datadir, chain):
+def remove_glfo_files(gldir, chain):
     for fname in glfo_fnames(chain):
-        os.remove(datadir + '/' + chain + '/' + fname)
-    os.rmdir(datadir + '/' + chain)
-    os.rmdir(datadir)  # at the moment, we should only be running on single-chain stuff, so the only dir with info for more than one chain should be data/imgt
+        os.remove(gldir + '/' + chain + '/' + fname)
+    os.rmdir(gldir + '/' + chain)
+    os.rmdir(gldir)  # at the moment, we should only be running on single-chain stuff, so the only dir with info for more than one chain should be data/imgt

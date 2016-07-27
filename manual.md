@@ -250,7 +250,7 @@ The hmm model files go in the `hmms` subdirectory, which contains yaml HMM model
 ##### Finding New Alleles
 
 By default partis uses the set of germline V, D, and J genes ("germline set") in `data/imgt`.
-If you have another set you'd like to use, you can do so by setting `--initial-datadir`.
+If you have another set you'd like to use, you can do so by setting `--initial-germline-dir`.
 The default set from imgt is missing many real alleles, and as such, annotations for any individual who has these missing alleles will be wrong.
 So we've implemented a method of finding new alleles on the fly when running on a new input data set.
 We basically use the idea from [tigger](http://tigger.readthedocs.io/en/latest/), but generalize and robustify it a bit: in particular, we do something more akin to a simultaneous fit, over all positions at once, for each hypothesized number of SNPs.

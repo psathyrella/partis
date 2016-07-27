@@ -28,13 +28,13 @@ from hist import Hist
 # ----------------------------------------------------------------------------------------
 class PartitionDriver(object):
     """ Class to parse input files, start bcrham jobs, and parse/interpret bcrham output for annotation and partitioning """
-    def __init__(self, args, action, initial_datadir):
+    def __init__(self, args, action, initial_germline_dir):
         self.args = args
         self.current_action = action  # *not* necessarily the same as <self.args.action>
         utils.prep_dir(self.args.workdir)
-        self.my_datadir = self.args.workdir + '/' + glutils.glfo_dir
-        self.glfo = glutils.read_glfo(initial_datadir, chain=self.args.chain, only_genes=self.args.only_genes)
-        glutils.write_glfo(self.my_datadir, self.glfo)  # need a copy on disk for vdjalign and bcrham (note that what we write to <self.my_datadir> in general differs from what's in <initial_datadir>)
+        self.my_gldir = self.args.workdir + '/' + glutils.glfo_dir
+        self.glfo = glutils.read_glfo(initial_germline_dir, chain=self.args.chain, only_genes=self.args.only_genes)
+        glutils.write_glfo(self.my_gldir, self.glfo)  # need a copy on disk for vdjalign and bcrham (note that what we write to <self.my_gldir> in general differs from what's in <initial_germline_dir>)
 
         self.input_info, self.reco_info = None, None
         if self.args.infname is not None:
@@ -78,7 +78,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def __del__(self):
-        glutils.remove_glfo_files(self.my_datadir, self.args.chain)
+        glutils.remove_glfo_files(self.my_gldir, self.args.chain)
 
         # merge persistent and current cache files into the persistent cache file
         if self.args.persistent_cachefname is not None:
@@ -146,7 +146,7 @@ class PartitionDriver(object):
         # can probably remove this... I just kind of want to know if it happens
         if not write_parameters and not find_new_alleles:
             genes_with_hmms = set(utils.find_genes_that_have_hmms(self.sub_param_dir))
-            expected_genes = set([g for r in utils.regions for g in self.glfo['seqs'][r].keys()])  # this'll be the & of the datadir (maybe rewritten, maybe not)
+            expected_genes = set([g for r in utils.regions for g in self.glfo['seqs'][r].keys()])  # this'll be the & of the gldir (maybe rewritten, maybe not)
             if len(genes_with_hmms - expected_genes) > 0:
                 print '  %s yamels in %s for genes %s that aren\'t in glfo' % (utils.color('red', 'warning'), self.sub_param_dir, ' '.join(genes_with_hmms - expected_genes))
             if len(expected_genes - genes_with_hmms) > 0:
@@ -174,7 +174,7 @@ class PartitionDriver(object):
             all_new_allele_info += self.sw_info['new-alleles']
             glutils.restrict_to_genes(self.glfo, list(self.sw_info['all_best_matches']), debug=True)
             glutils.add_new_alleles(self.glfo, self.sw_info['new-alleles'], remove_template_genes=(itry==0 and self.args.generate_germline_set), debug=True)
-            glutils.write_glfo(self.my_datadir, self.glfo, debug=True)  # write glfo modifications to disk
+            glutils.write_glfo(self.my_gldir, self.glfo, debug=True)  # write glfo modifications to disk
             itry += 1
 
         # remove any V alleles for which we didn't ever find any evidence
@@ -192,8 +192,8 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def restrict_to_observed_alleles(self, subpdir):
-        """ Restrict <self.glfo> to genes observed in <subpdir>, and write the changes to <self.my_datadir>. """
-        print '  restricting self.glfo (and %s) to alleles observed in %s' % (self.my_datadir, subpdir)
+        """ Restrict <self.glfo> to genes observed in <subpdir>, and write the changes to <self.my_gldir>. """
+        print '  restricting self.glfo (and %s) to alleles observed in %s' % (self.my_gldir, subpdir)
         only_genes = set()
         for region in utils.regions:
             with opener('r')(subpdir + '/' + region + '_gene-probs.csv') as pfile:
@@ -201,7 +201,7 @@ class PartitionDriver(object):
                 for line in reader:
                     only_genes.add(line[region + '_gene'])
         glutils.restrict_to_genes(self.glfo, only_genes, debug=True)
-        glutils.write_glfo(self.my_datadir, self.glfo, debug=True)  # write glfo modifications to disk
+        glutils.write_glfo(self.my_gldir, self.glfo, debug=True)  # write glfo modifications to disk
 
     # ----------------------------------------------------------------------------------------
     def cache_parameters(self):
@@ -530,7 +530,7 @@ class PartitionDriver(object):
         if self.args.debug > 0:
             cmd_str += ' --debug ' + str(self.args.debug)
         cmd_str += ' --hmmdir ' + os.path.abspath(parameter_dir) + '/hmms'
-        cmd_str += ' --datadir ' + self.my_datadir
+        cmd_str += ' --datadir ' + self.my_gldir
         cmd_str += ' --infile ' + csv_infname
         cmd_str += ' --outfile ' + csv_outfname
         cmd_str += ' --chain ' + self.args.chain
@@ -928,7 +928,7 @@ class PartitionDriver(object):
                 genes_to_remove.append(gene)
 
         # NOTE that we should be removing genes *only* if we're caching parameters, i.e. if we just ran sw on a data set for the first time.
-        # The issue is that when we first run sw on a data set, it uses all the genes in datadir.
+        # The issue is that when we first run sw on a data set, it uses all the genes in gldir.
         # We then write HMMs for only the genes which were, at least once, a *best* match.
         # But when we're writing the HMM input, we have the N best genes for each sequence, and some of these may not have been a best match at least once.
         # In subsequent runs, however, we already have a parameter dir, so before we run sw we look and see which HMMs we have, and tell sw to only use those, so in this case we shouldn't be removing any.
@@ -1314,7 +1314,7 @@ class PartitionDriver(object):
         if pcounter is not None:
             if self.args.plotdir is not None:
                 pcounter.plot(self.args.plotdir + '/hmm', subset_by_gene=True, codon_positions={r : self.glfo[c + '-positions'] for r, c in utils.conserved_codons[self.args.chain].items()}, only_csv=self.args.only_csv_plots)
-            pcounter.write(parameter_out_dir, self.my_datadir)
+            pcounter.write(parameter_out_dir, self.my_gldir)
         if true_pcounter is not None:
             if self.args.plotdir is not None:
                 true_pcounter.plot(self.args.plotdir + '/hmm-true', subset_by_gene=True, codon_positions={r : self.glfo[c + '-positions'] for r, c in utils.conserved_codons[self.args.chain].items()}, only_csv=self.args.only_csv_plots)

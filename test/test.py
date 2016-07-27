@@ -157,7 +157,7 @@ class Tester(object):
 
         # choose a seed uid
         if name == 'seed-partition-' + info['input_stype'] + '-simu':
-            seed_uid, _ = utils.choose_seed_unique_id(args.datadir, args.chain, self.simfnames[info['input_stype']], 5, 8, n_max_queries=int(self.n_partition_queries), debug=False)
+            seed_uid, _ = utils.choose_seed_unique_id(args.glfo_dir, args.chain, self.simfnames[info['input_stype']], 5, 8, n_max_queries=int(self.n_partition_queries), debug=False)
             info['extras'] += ['--seed-unique-id', seed_uid]
 
     # ----------------------------------------------------------------------------------------
@@ -564,7 +564,7 @@ parser.add_argument('--only-ref', action='store_true', help='only run with input
 parser.add_argument('--skip-ref', action='store_true', help='skip stuff that\'s run by --only-ref')
 parser.add_argument('--bust-cache', action='store_true', help='copy info from new dir to reference dir, i.e. overwrite old test info')
 parser.add_argument('--make-plots', action='store_true')
-parser.add_argument('--datadir', default='data/imgt')
+parser.add_argument('--glfo-dir', default='data/imgt')
 parser.add_argument('--chain', default='h')
 args = parser.parse_args()
 

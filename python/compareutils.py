@@ -264,7 +264,7 @@ def get_synthetic_partition_type(stype):
 def generate_synthetic_partitions(args, label, n_leaves, mut_mult, seqfname, base_outfname, datafname, procs):
     _, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=False)
     print 'using heavy chain!'
-    glfo = glutils.read_glfo(args.datadir, chain='h')
+    glfo = glutils.read_glfo(args.gldir, chain='h')
     true_partition = utils.get_true_partition(reco_info)
     for stype in args.synthetic_partitions:
         misfrac, mistype, threshold = get_synthetic_partition_type(stype)
@@ -1140,7 +1140,7 @@ def get_seqfile(args, datafname, label, n_leaves, mut_mult):
 
 # ----------------------------------------------------------------------------------------
 def get_seed_info(args, seqfname, n_leaves):
-    return utils.choose_seed_unique_id(args.datadir, seqfname, args.seed_cluster_bounds[0], args.seed_cluster_bounds[1], args.iseed)
+    return utils.choose_seed_unique_id(args.gldir, seqfname, args.seed_cluster_bounds[0], args.seed_cluster_bounds[1], args.iseed)
 
 # ----------------------------------------------------------------------------------------
 def get_seed_cluster(outfname):
