@@ -708,6 +708,24 @@ def print_true_events(glfo, reco_info, line, print_uid=False):
     # print ''
 
 # ----------------------------------------------------------------------------------------
+def add_gaps_ignoring_color_characters(colored_seq, ipos, gapstr):
+    """ add <gapstr> to <colored_seq> at position <ipos>, where <ipos> is the index ignoring characters for bash colors """
+    # NOTE don't really need this any more, I realized I can just use lists of strings to keep track of the indices
+    iwithout = 0  # i.e. without bash color characters
+    for iwith in range(len(colored_seq)):
+        ch = colored_seq[iwith]
+        if iwithout == ipos:  # first position after ipos
+            break
+        if ch in expected_characters:  # i.e. if it isn't a character having to do with bash colors
+            # if iwithout == ipos:  # first position after ipos
+            #     break
+            iwithout += 1
+
+    # print repr(colored_seq[:iwith])
+    # print repr(colored_seq[iwith:])
+    return colored_seq[:iwith] + gapstr + colored_seq[iwith:]
+
+# ----------------------------------------------------------------------------------------
 def print_reco_event(germlines, line, one_line=False, extra_str='', label='', print_uid=False):
     for iseq in range(len(line['unique_ids'])):
         print_seq_in_reco_event(germlines, line, iseq, extra_str=extra_str, label=(label if iseq==0 else ''), one_line=(iseq>0), print_uid=print_uid)
@@ -746,6 +764,7 @@ def print_seq_in_reco_event(germlines, line, iseq, extra_str='', label='', one_l
     j_right_extra = ''  # portion of query sequence to right of end of the j match
     n_inserted = 0
     final_seq = ''
+    final_seq_list = []
     for inuke in range(len(lseq)):
         if indelfo is not None:
             lastfo = indelfo['indels'][-1]  # if the "last" (arbitrary but necessary ordering) indel starts here
@@ -753,17 +772,21 @@ def print_seq_in_reco_event(germlines, line, iseq, extra_str='', label='', one_l
         if indelfo is not None and lastfo['type'] == 'insertion':
             if reverse_indels and inuke == lastfo['pos']:
                 final_seq += lastfo['seqstr']  # put the insertion back into the query sequence
+                final_seq_list.append(lastfo['seqstr'])  # put the insertion back into the query sequence
                 n_inserted += len(lastfo['seqstr'])
             elif not reverse_indels and inuke - lastfo['pos'] >= 0 and inuke - lastfo['pos'] < lastfo['len']:
                 final_seq += lseq[inuke]
+                final_seq_list.append(lseq[inuke])
                 n_inserted += 1
                 continue
         if indelfo is not None and lastfo['type'] == 'deletion':
             if reverse_indels and inuke - lastfo['pos'] >= 0 and inuke - lastfo['pos'] < lastfo['len']:  # if we're within the bases that we added to make up for the deletionlen
                 final_seq += color('light_blue', '*')
+                final_seq_list.append(color('light_blue', '*'))
                 continue
             elif not reverse_indels and inuke == lastfo['pos']:
                 final_seq += lastfo['len'] * color('light_blue', '*')
+                final_seq_list.append(lastfo['len'] * color('light_blue', '*'))
                 n_inserted = - lastfo['len']
 
         new_nuke = ''
@@ -811,6 +834,7 @@ def print_seq_in_reco_event(germlines, line, iseq, extra_str='', label='', one_l
                 new_nuke = '\033[7m' + new_nuke + '\033[m'
 
         final_seq += new_nuke
+        final_seq_list.append(new_nuke)
 
     # check if there isn't enough space for dots in the vj line
     no_space = False
@@ -818,15 +842,20 @@ def print_seq_in_reco_event(germlines, line, iseq, extra_str='', label='', one_l
     if line['v_3p_del'] + line['j_5p_del'] > interior_length:
         no_space = True
 
+    gaps_to_add = 0
     if no_space:
-        v_3p_del_str = '.' + str(line['v_3p_del']) + '.'
-        j_5p_del_str = '.' + str(line['j_5p_del']) + '.'
+        v_3p_del_str = '.' + str(line['v_3p_del']) + '.'  # if line['v_3p_del'] > 0 else ' '
+        j_5p_del_str = '.' + str(line['j_5p_del']) + '.'  # if line['j_5p_del'] > 0 else ' '
         extra_space_because_of_fixed_nospace = max(0, interior_length - len(v_3p_del_str + j_5p_del_str))
-        if len(v_3p_del_str + j_5p_del_str) <= interior_length:  # ok, we've got space now
-            no_space = False
+
+        gap_insertion_point = len(line['fv_insertion'] + line['v_gl_seq'])
+        gaps_to_add = len(v_3p_del_str + j_5p_del_str) - interior_length
+        gapstr = gaps_to_add * color('blue', '-')
+        final_seq = add_gaps_ignoring_color_characters(final_seq, gap_insertion_point, gapstr)
+        final_seq_list = final_seq_list[:gap_insertion_point] + gaps_to_add * [color('blue', '-'), ] + final_seq_list[gap_insertion_point:]
     else:
-        v_3p_del_str = '.'*line['v_3p_del']
-        j_5p_del_str = '.'*line['j_5p_del']
+        v_3p_del_str = '.' * line['v_3p_del']
+        j_5p_del_str = '.' * line['j_5p_del']
         extra_space_because_of_fixed_nospace = 0
 
     eroded_seqs_dots = {}
@@ -838,7 +867,7 @@ def print_seq_in_reco_event(germlines, line, iseq, extra_str='', label='', one_l
     if line['v_5p_del'] > 50:
         v_5p_del_str = '...' + str(line['v_5p_del']) + '...'
 
-    insert_line = ' '*len(line['fv_insertion']) + ' '*line['lengths']['v']
+    insert_line = ' '*len(line['fv_insertion']) + ' '*line['lengths']['v'] + color('blue', '-')*gaps_to_add
     insert_line += ' '*len(v_5p_del_str)
     insert_line += line['vd_insertion']
     insert_line += ' ' * line['lengths']['d']
@@ -850,7 +879,7 @@ def print_seq_in_reco_event(germlines, line, iseq, extra_str='', label='', one_l
 
     germline_d_start = len(line['fv_insertion']) + line['lengths']['v'] + len(line['vd_insertion']) - line['d_5p_del']
     germline_d_end = germline_d_start + len(germlines['d'][line['d_gene']])
-    d_line = ' ' * germline_d_start
+    d_line = ' ' * germline_d_start + color('blue', '-')*gaps_to_add
     d_line += ' '*len(v_5p_del_str)
     d_line += eroded_seqs_dots['d']
     d_line += ' ' * (len(line['j_gl_seq']) + len(line['dj_insertion']) - line['d_3p_del'])
@@ -867,13 +896,6 @@ def print_seq_in_reco_event(germlines, line, iseq, extra_str='', label='', one_l
     vj_line += eroded_seqs_dots['j']
     vj_line += j_right_extra
     # vj_line += ' '*len(line['jf_insertion'])
-
-    # if len(insert_line) != len(d_line) or len(insert_line) != len(vj_line):
-    #     # print '\nERROR lines unequal lengths in event printer -- insertions %d d %d vj %d' % (len(insert_line), len(d_line), len(vj_line)),
-    #     # assert no_space
-    #     if not no_space:
-    #         print 'ERROR no space'
-    #     # print ' ...but we\'re out of space so it\'s expected'
 
     insert_line = color_chars(ambiguous_bases + ['*', ], 'light_blue', insert_line)
     d_line = color_chars(ambiguous_bases + ['*', ], 'light_blue', d_line)
@@ -904,6 +926,7 @@ def print_seq_in_reco_event(germlines, line, iseq, extra_str='', label='', one_l
     # then query sequence
     v_5p_del_space_str = ' '*len(v_5p_del_str)
     j_3p_del_space_str = ' ' * line['j_3p_del']
+    final_seq = ''.join(final_seq_list)
     final_seq = v_5p_del_space_str + final_seq + j_3p_del_space_str
     final_seq = color_chars(ambiguous_bases + ['*', ], 'light_blue', final_seq)
     out_str_list.append(extra_str)
