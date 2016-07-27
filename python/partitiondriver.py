@@ -28,13 +28,13 @@ from hist import Hist
 # ----------------------------------------------------------------------------------------
 class PartitionDriver(object):
     """ Class to parse input files, start bcrham jobs, and parse/interpret bcrham output for annotation and partitioning """
-    def __init__(self, args, action, initial_germline_dir):
+    def __init__(self, args, action, initial_gldir):  # NOTE <initial_gldir> is not, in general, the same as <args.initial_germline_dir>
         self.args = args
         self.current_action = action  # *not* necessarily the same as <self.args.action>
         utils.prep_dir(self.args.workdir)
         self.my_gldir = self.args.workdir + '/' + glutils.glfo_dir
-        self.glfo = glutils.read_glfo(initial_germline_dir, chain=self.args.chain, only_genes=self.args.only_genes)
-        glutils.write_glfo(self.my_gldir, self.glfo)  # need a copy on disk for vdjalign and bcrham (note that what we write to <self.my_gldir> in general differs from what's in <initial_germline_dir>)
+        self.glfo = glutils.read_glfo(initial_gldir, chain=self.args.chain, only_genes=self.args.only_genes)
+        glutils.write_glfo(self.my_gldir, self.glfo)  # need a copy on disk for vdjalign and bcrham (note that what we write to <self.my_gldir> in general differs from what's in <initial_gldir>)
 
         self.input_info, self.reco_info = None, None
         if self.args.infname is not None:

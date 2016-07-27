@@ -27,11 +27,11 @@ def default_parameter_dir(args):
     return pdir
 
 # ----------------------------------------------------------------------------------------
-def check_maybe_auto_cache_parameters(args):
+def check_maybe_auto_cache_parameters(args, gldir):
     auto_ran_cache_parameters = False
     if not args.simulate_partially_from_scratch and not os.path.exists(args.parameter_dir):
         print '  note: --parameter-dir \'%s\' does not exist, so proceeding to cache a new set of parameters' % args.parameter_dir
-        parter = PartitionDriver(args, 'cache-parameters', args.initial_germline_dir)  # if we're caching parameters, read initial gl info from <args.initial_germline_dir> (then the final glfo gets written to the parameter dir)
+        parter = PartitionDriver(args, 'cache-parameters', gldir)  # if we're caching parameters, read initial gl info from <gldir> (then the final glfo gets written to the parameter dir)
         parter.cache_parameters()
         parter.clean()
         auto_ran_cache_parameters = True
@@ -69,13 +69,15 @@ def run_simulation(args):
 
     if args.initial_germline_dir is None:  # if the gl info dir wasn't explicitly set on the command line, we have to decide what to use
         if args.parameter_dir is not None:  # if --parameter-dir was explicitly set, assume there's gl info in this --parameter-dir
-            args.initial_germline_dir = args.parameter_dir + '/' + args.parameter_type + '/' + glutils.glfo_dir
+            gldir = args.parameter_dir + '/' + args.parameter_type + '/' + glutils.glfo_dir
         else:  # otherwise use the default (probably data/imgt)
-            args.initial_germline_dir = default_initial_germline_dir
+            gldir = default_initial_germline_dir
+    else:
+        gldir = args.initial_germline_dir
 
     # ----------------------------------------------------------------------------------------
     def make_events(n_events, iproc, random_ints):  # NOTE all the different seeds! this sucks but is necessary to allow reproducibility
-        reco = Recombinator(args, seed=args.seed+iproc, sublabel=str(iproc))
+        reco = Recombinator(args, gldir, seed=args.seed+iproc, sublabel=str(iproc))
         for ievt in range(n_events):
             reco.combine(random_ints[ievt])
 
@@ -131,18 +133,22 @@ def run_partitiondriver(args):
 
     used_default_parameter_dir = set_default_parameter_dir(args)
 
-    if args.initial_germline_dir is None:
-        args.initial_germline_dir = default_initial_germline_dir
+    gldir = default_initial_germline_dir
+    if args.initial_germline_dir is not None:
+        gldir = args.initial_germline_dir
 
     if args.action == 'cache-parameters':
-        parter = PartitionDriver(args, 'cache-parameters', args.initial_germline_dir)  # if we're caching parameters, read initial gl info from <args.initial_germline_dir> (then the final glfo gets written to the parameter dir)
+        parter = PartitionDriver(args, 'cache-parameters', gldir)  # if we're caching parameters, read initial gl info from <args.initial_germline_dir> (then the final glfo gets written to the parameter dir)
         parter.cache_parameters()
         parter.clean()
         return
 
-    auto_ran_cache_parameters = check_maybe_auto_cache_parameters(args)
+    auto_ran_cache_parameters = check_maybe_auto_cache_parameters(args, gldir)
 
-    parter = PartitionDriver(args, args.action, args.parameter_dir + '/' + args.parameter_type + '/' + glutils.glfo_dir)  # ...and if we've already got a parameter dir, read the gl info from there
+    if args.initial_germline_dir is None:  # unless it was overridden on the command line, use the glfo in the parameter dir
+        gldir = args.parameter_dir + '/' + args.parameter_type + '/' + glutils.glfo_dir
+
+    parter = PartitionDriver(args, args.action, gldir)
     if 'run-' in args.action:
         parter.run_algorithm(args.action.replace('run-', ''))
     elif args.action == 'partition':
