@@ -1182,7 +1182,9 @@ class PartitionDriver(object):
         tmpline = copy.deepcopy(line)
         utils.add_implicit_info(self.glfo, tmpline)
         if debug:
-            utils.print_reco_event(self.glfo['seqs'], tmpline)
+            print ''
+            print '  dummy d hack for %s' % ' '.join(line['unique_ids'])
+            utils.print_reco_event(self.glfo['seqs'], tmpline, extra_str='    ', label='before')
 
         gl_v_base = None
         if tmpline['v_3p_del'] > 0:
@@ -1194,8 +1196,8 @@ class PartitionDriver(object):
             full_j_gl_seq = self.glfo['seqs']['j'][tmpline['j_gene']]
             gl_j_base = full_j_gl_seq[tmpline['j_5p_del'] - 1]
         if debug:
-            print 'gl_j_base', gl_j_base
-            print 'gl_v_base', gl_v_base
+            print '    gl_j_base', gl_j_base
+            print '    gl_v_base', gl_v_base
 
         # take a majority vote as to whom we should give the base
         votes = {'v' : 0, 'j' : 0, 'dj_insertion' : 0}
@@ -1215,11 +1217,9 @@ class PartitionDriver(object):
         sorted_qr_base_votes = sorted(qr_base_votes.items(), key=operator.itemgetter(1), reverse=True)
         qr_base_winner = sorted_qr_base_votes[0][0]
         if debug:
-            print sorted_votes
-            print sorted_qr_base_votes
-            print ''
-            print ''
-            print 'winner', winner, qr_base_winner
+            print '   ', sorted_votes
+            print '   ', sorted_qr_base_votes
+            print '    winner', winner, qr_base_winner
 
         line['d_5p_del'] = 1  # NOTE we don't modify tmpline, i.e. we modify the line *without* implicit info, 'cause it's simpler
         if winner == 'v':
@@ -1234,7 +1234,7 @@ class PartitionDriver(object):
         after_line = copy.deepcopy(line)
         utils.add_implicit_info(self.glfo, after_line)
         if debug:
-            utils.print_reco_event(self.glfo['seqs'], after_line)
+            utils.print_reco_event(self.glfo['seqs'], after_line, extra_str='    ', label='after')
 
     # ----------------------------------------------------------------------------------------
     def read_annotation_output(self, annotation_fname, outfname=None, count_parameters=False, parameter_out_dir=None):
