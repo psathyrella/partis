@@ -39,8 +39,8 @@ class PerformancePlotter(object):
         for region in utils.regions:
             self.hists[region + '_mute_freqs'] = Hist(30, -0.05, 0.05)
         for region in utils.regions:  # plots of correct gene calls vs mute freq
-            self.hists[region + '_gene_right_vs_mute_freq'] = Hist(50, 0., 0.4)
-            self.hists[region + '_gene_wrong_vs_mute_freq'] = Hist(50, 0., 0.4)
+            self.hists[region + '_gene_right_vs_mute_freq'] = Hist(25, 0., 0.4)
+            self.hists[region + '_gene_wrong_vs_mute_freq'] = Hist(25, 0., 0.4)
             self.hists[region + '_allele_right_vs_per_gene_support'] = Hist(25, 0., 1.)  # NOTE these require the correct *allele*, while the other ones don't
             self.hists[region + '_allele_wrong_vs_per_gene_support'] = Hist(25, 0., 1.)
 
@@ -251,7 +251,7 @@ class PerformancePlotter(object):
             hwrong = self.hists[region + '_gene_wrong_vs_mute_freq']
             if hright.integral(include_overflows=True) == 0:
                 continue
-            plotting.make_fraction_plot(hright, hwrong, plotdir, region + '_fraction_correct_vs_mute_freq', xlabel='mut freq', ylabel='fraction correct up to allele', xbounds=(0., 0.5))
+            plotting.make_fraction_plot(hright, hwrong, plotdir, region + '_fraction_correct_vs_mute_freq', xlabel='mut freq', ylabel='fraction correct up to allele', xbounds=(0., 0.5), write_csv=True)
 
         # per-gene support crap
         for region in utils.regions:
@@ -259,7 +259,7 @@ class PerformancePlotter(object):
                 continue
             hright = self.hists[region + '_allele_right_vs_per_gene_support']
             hwrong = self.hists[region + '_allele_wrong_vs_per_gene_support']
-            plotting.make_fraction_plot(hright, hwrong, plotdir, region + '_allele_fraction_correct_vs_per_gene_support', xlabel='support', ylabel='fraction with correct allele', xbounds=(-0.1, 1.1))
+            plotting.make_fraction_plot(hright, hwrong, plotdir, region + '_allele_fraction_correct_vs_per_gene_support', xlabel='support', ylabel='fraction with correct allele', xbounds=(-0.1, 1.1), write_csv=True)
 
         if not only_csv:
             plotting.make_html(plotdir)

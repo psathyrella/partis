@@ -697,6 +697,8 @@ def interpolate_values(xvals, yvals):
                 pass
 
 # ----------------------------------------------------------------------------------------
+# NOTE annotation stuff is in plotconfig.py
+#
 legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
            # 'partition partis' : 'full partis',
            'partition' : 'full partis',
@@ -1158,7 +1160,7 @@ def make_allele_finding_plot(plotdir, gene, position, values):
     mpl_finish(ax, plotdir, str(position), xlabel='mutations in %s segment' % utils.get_region(gene), ylabel='position\'s mut freq', xbounds=(xmin, xmax), ybounds=(-0.1, 1.05), leg_loc=(0.95, 0.1), adjust={'right' : 0.85})
 
 # ----------------------------------------------------------------------------------------
-def make_fraction_plot(hright, hwrong, plotdir, plotname, xlabel, ylabel, xbounds):
+def make_fraction_plot(hright, hwrong, plotdir, plotname, xlabel, ylabel, xbounds, write_csv=False):
     xvals = hright.get_bin_centers() #ignore_overflows=True)
     right = hright.bin_contents
     wrong = hwrong.bin_contents
@@ -1175,11 +1177,14 @@ def make_fraction_plot(hright, hwrong, plotdir, plotname, xlabel, ylabel, xbound
     tmphilos = [fraction_uncertainty.err(r, r + w) for r, w in zip(right, wrong)]
     yerrs = [err[1] - err[0] for err in tmphilos]
 
-    # fitting a line isn't particularly informative, actually
-    # params, cov = numpy.polyfit(xvals, yvals, 1, w=[1./(e*e) if e > 0. else 0. for e in yerrs], cov=True)
-    # slope, slope_err = params[0], math.sqrt(cov[0][0])
-    # y_icpt, y_icpt_err = params[1], math.sqrt(cov[1][1])
-    # print '%s  slope: %5.2f +/- %5.2f  y-intercept: %5.2f +/- %5.2f' % (region, slope, slope_err, y_icpt, y_icpt_err)
+    if write_csv:
+        hist_for_csv = Hist(hright.n_bins, hright.xmin, hright.xmax)
+        bincenters = hright.get_bin_centers()
+        for ibin in range(hright.n_bins):
+            bcenter = bincenters[ibin]
+            if bcenter in xvals:  # if we didn't remove it
+                iy = xvals.index(bcenter)
+                hist_for_csv.set_ibin(ibin, yvals[iy], error=yerrs[iy])
 
     # print '%s' % region
     # for iv in range(len(xvals)):
@@ -1195,3 +1200,6 @@ def make_fraction_plot(hright, hwrong, plotdir, plotname, xlabel, ylabel, xbound
     # ax.plot([0] + xvals, linevals)
 
     mpl_finish(ax, plotdir, plotname, xlabel=xlabel, ylabel=ylabel, xbounds=xbounds, ybounds=(-0.1, 1.1))
+
+    if write_csv:
+        hist_for_csv.write(plotdir + '/' + plotname + '.csv')
