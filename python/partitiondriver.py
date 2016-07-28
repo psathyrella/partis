@@ -1065,6 +1065,12 @@ class PartitionDriver(object):
 
         genes_with_hmm_files = self.get_existing_hmm_files(parameter_dir)
 
+        glfo_genes = set([g for r in utils.regions for g in self.glfo['seqs'][r]])
+        if self.args.only_genes is None and len(genes_with_hmm_files - glfo_genes) > 0:
+            print '  %s hmm files for %s that aren\'t in glfo' % (utils.color('red', 'warning'), ' '.join(genes_with_hmm_files - glfo_genes))
+        if len(glfo_genes - genes_with_hmm_files) > 0:
+            print '  %s no hmm files for glfo genes %s' % (utils.color('red', 'warning'), ' '.join(glfo_genes - genes_with_hmm_files))
+
         for query_name_list in nsets:  # NOTE in principle I think I should remove duplicate singleton <seed_unique_id>s here. But I think they in effect get removed 'cause in bcrham everything's stored as hash maps, so any duplicates just overwites the original upon reading its input
             combined_query = self.combine_queries(query_name_list, genes_with_hmm_files, skipped_gene_matches=skipped_gene_matches)
             if len(combined_query) == 0:  # didn't find all regions
