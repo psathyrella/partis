@@ -148,7 +148,7 @@ class PartitionDriver(object):
         if not write_parameters and not find_new_alleles:
             genes_with_hmms = set(utils.find_genes_that_have_hmms(self.sub_param_dir))
             expected_genes = set([g for r in utils.regions for g in self.glfo['seqs'][r].keys()])  # this'll be the & of the gldir (maybe rewritten, maybe not)
-            if len(genes_with_hmms - expected_genes) > 0:
+            if self.args.only_genes is None and len(genes_with_hmms - expected_genes) > 0:
                 print '  %s yamels in %s for %d genes that aren\'t in glfo' % (utils.color('red', 'warning'), self.sub_param_dir, len(genes_with_hmms - expected_genes))
             if len(expected_genes - genes_with_hmms) > 0:
                 print '  %s %d genes in glfo that don\'t have yamels in %s' % (utils.color('red', 'warning'), len(expected_genes - genes_with_hmms), self.sub_param_dir)
