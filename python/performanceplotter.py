@@ -239,47 +239,27 @@ class PerformancePlotter(object):
                 else:
                     hist.title = 'inferred - true'
                 plotting.draw_no_root(hist, plotname=column, plotdir=plotdir, write_csv=True, log=log, only_csv=only_csv)
+
         for column in self.hists:
+            if '_vs_mute_freq' in column or '_vs_per_gene_support' in column:  # only really care about the fraction, which we plot below
+                continue
             plotting.draw_no_root(self.hists[column], plotname=column, plotdir=plotdir, write_csv=True, log=log, only_csv=only_csv)
+
+        # fraction correct vs mute freq
+        for region in utils.regions:
+            hright = self.hists[region + '_gene_right_vs_mute_freq']
+            hwrong = self.hists[region + '_gene_wrong_vs_mute_freq']
+            if hright.integral(include_overflows=True) == 0:
+                continue
+            plotting.make_fraction_plot(hright, hwrong, plotdir, region + '_fraction_correct_vs_mute_freq', xlabel='mut freq', ylabel='fraction correct up to allele', xbounds=(0., 0.5))
 
         # per-gene support crap
         for region in utils.regions:
             if self.hists[region + '_allele_right_vs_per_gene_support'].integral(include_overflows=True) == 0:
                 continue
-            xvals = self.hists[region + '_allele_right_vs_per_gene_support'].get_bin_centers() #ignore_overflows=True)
-            right = self.hists[region + '_allele_right_vs_per_gene_support'].bin_contents
-            wrong = self.hists[region + '_allele_wrong_vs_per_gene_support'].bin_contents
-            yvals = [float(r) / (r + w) if r + w > 0. else 0. for r, w in zip(right, wrong)]
-
-            # remove values corresponding to bins with no entries
-            while yvals.count(0.) > 0:
-                iv = yvals.index(0.)
-                xvals.pop(iv)
-                right.pop(iv)
-                wrong.pop(iv)
-                yvals.pop(iv)
-
-            tmphilos = [fraction_uncertainty.err(r, r + w) for r, w in zip(right, wrong)]
-            yerrs = [err[1] - err[0] for err in tmphilos]
-
-            # fitting a line isn't particularly informative, actually
-            # params, cov = numpy.polyfit(xvals, yvals, 1, w=[1./(e*e) if e > 0. else 0. for e in yerrs], cov=True)
-            # slope, slope_err = params[0], math.sqrt(cov[0][0])
-            # y_icpt, y_icpt_err = params[1], math.sqrt(cov[1][1])
-            # print '%s  slope: %5.2f +/- %5.2f  y-intercept: %5.2f +/- %5.2f' % (region, slope, slope_err, y_icpt, y_icpt_err)
-
-            # print '%s' % region
-            # for iv in range(len(xvals)):
-            #     print '   %5.2f     %5.0f / %5.0f  =  %5.2f   +/-  %.3f' % (xvals[iv], right[iv], right[iv] + wrong[iv], yvals[iv], yerrs[iv])
-
-            fig, ax = plotting.mpl_init()
-
-            ax.errorbar(xvals, yvals, yerr=yerrs, markersize=10, linewidth=1, marker='.')
-            ax.plot((0, 1), (0, 1), color='black', linestyle='--', linewidth=3)  # line with slope 1 and intercept 0
-            # linevals = [slope*x + y_icpt for x in [0] + xvals]  # fitted line
-            # ax.plot([0] + xvals, linevals)
-
-            plotting.mpl_finish(ax, plotdir, region + '_allele_fraction_correct_vs_per_gene_support', xlabel='support', ylabel='fraction correct', xbounds=(-0.1, 1.1), ybounds=(-0.1, 1.1))
+            hright = self.hists[region + '_allele_right_vs_per_gene_support']
+            hwrong = self.hists[region + '_allele_wrong_vs_per_gene_support']
+            plotting.make_fraction_plot(hright, hwrong, plotdir, region + '_allele_fraction_correct_vs_per_gene_support', xlabel='support', ylabel='fraction with correct allele', xbounds=(-0.1, 1.1))
 
         if not only_csv:
             plotting.make_html(plotdir)

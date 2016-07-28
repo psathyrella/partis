@@ -59,8 +59,8 @@ for iname in range(len(args.names)):
 
 assert len(args.plotdirs) == len(args.names)
 
-glfo = glutils.read_glfo(args.datadir)
-args.cyst_positions = glfo['cyst-positions']
-args.tryp_positions = glfo['tryp-positions']
+# glfo = glutils.read_glfo(args.datadir)
+# args.cyst_positions, args.tryp_positions = glfo['cyst-positions'], glfo['tryp-positions']
+args.tryp_positions, args.tryp_positions = None, None
 
 plotting.compare_directories(args)

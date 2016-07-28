@@ -1156,3 +1156,42 @@ def make_allele_finding_plot(plotdir, gene, position, values):
 
     ax.plot([xmin, xmax], [0, 0], linestyle='dashed', alpha=0.5, color='black')
     mpl_finish(ax, plotdir, str(position), xlabel='mutations in %s segment' % utils.get_region(gene), ylabel='position\'s mut freq', xbounds=(xmin, xmax), ybounds=(-0.1, 1.05), leg_loc=(0.95, 0.1), adjust={'right' : 0.85})
+
+# ----------------------------------------------------------------------------------------
+def make_fraction_plot(hright, hwrong, plotdir, plotname, xlabel, ylabel, xbounds):
+    xvals = hright.get_bin_centers() #ignore_overflows=True)
+    right = hright.bin_contents
+    wrong = hwrong.bin_contents
+    yvals = [float(r) / (r + w) if r + w > 0. else 0. for r, w in zip(right, wrong)]
+
+    # remove values corresponding to bins with no entries
+    while yvals.count(0.) > 0:
+        iv = yvals.index(0.)
+        xvals.pop(iv)
+        right.pop(iv)
+        wrong.pop(iv)
+        yvals.pop(iv)
+
+    tmphilos = [fraction_uncertainty.err(r, r + w) for r, w in zip(right, wrong)]
+    yerrs = [err[1] - err[0] for err in tmphilos]
+
+    # fitting a line isn't particularly informative, actually
+    # params, cov = numpy.polyfit(xvals, yvals, 1, w=[1./(e*e) if e > 0. else 0. for e in yerrs], cov=True)
+    # slope, slope_err = params[0], math.sqrt(cov[0][0])
+    # y_icpt, y_icpt_err = params[1], math.sqrt(cov[1][1])
+    # print '%s  slope: %5.2f +/- %5.2f  y-intercept: %5.2f +/- %5.2f' % (region, slope, slope_err, y_icpt, y_icpt_err)
+
+    # print '%s' % region
+    # for iv in range(len(xvals)):
+    #     print '   %5.2f     %5.0f / %5.0f  =  %5.2f   +/-  %.3f' % (xvals[iv], right[iv], right[iv] + wrong[iv], yvals[iv], yerrs[iv])
+
+    fig, ax = mpl_init()
+
+    ax.errorbar(xvals, yvals, yerr=yerrs, markersize=10, linewidth=1, marker='.')
+
+    if xlabel == 'support':
+        ax.plot((0, 1), (0, 1), color='black', linestyle='--', linewidth=3)  # line with slope 1 and intercept 0
+    # linevals = [slope*x + y_icpt for x in [0] + xvals]  # fitted line
+    # ax.plot([0] + xvals, linevals)
+
+    mpl_finish(ax, plotdir, plotname, xlabel=xlabel, ylabel=ylabel, xbounds=xbounds, ybounds=(-0.1, 1.1))
