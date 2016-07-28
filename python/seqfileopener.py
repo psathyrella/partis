@@ -38,7 +38,7 @@ def abbreviate(used_names, potential_names, unique_id):
     return new_id
 
 # ----------------------------------------------------------------------------------------
-def get_seqfile_info(args, glfo=None):
+def get_seqfile_info(args, glfo=None, simglfo=None):
     """ return list of sequence info from files of several types """
 
     # WARNING defaults for <name_column> and <seq_column> also set in partis (since we call this from places other than partis, but we also want people to be able set them from the partis command line)
@@ -140,7 +140,9 @@ def get_seqfile_info(args, glfo=None):
             reco_info[unique_id]['indelfos'] = [line['indelfo'], ]
             for key in ['unique_id', 'seq', 'indelfo']:
                 del reco_info[unique_id][key]
-            if glfo is not None:
+            if simglfo is not None:
+                utils.add_implicit_info(simglfo, reco_info[unique_id], existing_implicit_keys=('cdr3_length', ))
+            elif glfo is not None:
                 utils.add_implicit_info(glfo, reco_info[unique_id], existing_implicit_keys=('cdr3_length', ))
 
         n_queries += 1

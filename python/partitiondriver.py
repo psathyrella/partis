@@ -34,11 +34,14 @@ class PartitionDriver(object):
         utils.prep_dir(self.args.workdir)
         self.my_gldir = self.args.workdir + '/' + glutils.glfo_dir
         self.glfo = glutils.read_glfo(initial_gldir, chain=self.args.chain, only_genes=self.args.only_genes)
+        self.simglfo = None
+        if self.args.simulation_germline_dir is not None:
+            self.simglfo = glutils.read_glfo(self.args.simulation_germline_dir, chain=self.args.chain)  # NOTE uh, I think I don't want to apply <self.args.only_genes>
         glutils.write_glfo(self.my_gldir, self.glfo)  # need a copy on disk for vdjalign and bcrham (note that what we write to <self.my_gldir> in general differs from what's in <initial_gldir>)
 
         self.input_info, self.reco_info = None, None
         if self.args.infname is not None:
-            self.input_info, self.reco_info = get_seqfile_info(args, self.glfo)
+            self.input_info, self.reco_info = get_seqfile_info(args, self.glfo, self.simglfo)
             if len(self.input_info) > 1000:
                 if self.args.n_procs == 1:
                     print '  note:! running on %d sequences spread over %d processes. This will be kinda slow, so it might be a good idea to set --n-procs N to the number of processors on your local machine, or look into non-local parallelization with --slurm.\n' % (len(self.input_info), self.args.n_procs)
