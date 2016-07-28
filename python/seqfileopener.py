@@ -38,21 +38,23 @@ def abbreviate(used_names, potential_names, unique_id):
     return new_id
 
 # ----------------------------------------------------------------------------------------
-def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, reco_ids=None, name_column=None, seq_column=None, seed_unique_id=None, abbreviate_names=False):
+def get_seqfile_info(args, glfo=None):
     """ return list of sequence info from files of several types """
 
     # WARNING defaults for <name_column> and <seq_column> also set in partis (since we call this from places other than partis, but we also want people to be able set them from the partis command line)
     internal_name_column = 'unique_id'  # key we use in the internal dictionaries
     internal_seq_column = 'seq'
+    name_column = args.name_column
     if name_column is None:  # header we expect in the file
         name_column = internal_name_column
+    seq_column = args.seq_column
     if seq_column is None:
         seq_column = internal_seq_column
 
-    if not is_data and glfo is None:
+    if not args.is_data and glfo is None:
         print '  WARNING glfo is None, so not adding implicit info'
 
-    suffix = os.path.splitext(fname)[1]
+    suffix = os.path.splitext(args.infname)[1]
     if len(re.findall('\.[ct]sv', suffix)) > 0:
         if suffix == '.csv':
             delimiter = ','
@@ -60,7 +62,7 @@ def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, 
             delimiter = '\t'
         else:
             assert False
-        seqfile = opener('r')(fname)
+        seqfile = opener('r')(args.infname)
         reader = csv.DictReader(seqfile, delimiter=delimiter)
     else:
         if suffix == '.fasta' or suffix == '.fa':
@@ -68,35 +70,35 @@ def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, 
         elif suffix == '.fastq' or suffix == '.fq':
              ftype = 'fastq'
         else:
-            raise Exception('couldn\'t handle file extension for %s' % fname)
+            raise Exception('couldn\'t handle file extension for %s' % args.infname)
         reader = []
         n_fasta_queries = 0
-        for seq_record in SeqIO.parse(fname, ftype):
+        for seq_record in SeqIO.parse(args.infname, ftype):
 
             # if command line specified query or reco ids, skip other ones (can't have/don't allow simulation info in a fast[aq])
-            if queries is not None and seq_record.name not in queries:
+            if args.queries is not None and seq_record.name not in args.queries:
                 continue
 
             reader.append({})
             reader[-1][name_column] = seq_record.name
             reader[-1][seq_column] = str(seq_record.seq).upper()
             n_fasta_queries += 1
-            if n_max_queries > 0 and n_fasta_queries >= n_max_queries:
+            if args.n_max_queries > 0 and n_fasta_queries >= args.n_max_queries:
                 break
 
     input_info = OrderedDict()
     reco_info = None
-    if not is_data:
+    if not args.is_data:
         reco_info = OrderedDict()
     n_queries = 0
     found_seed = False
     used_names = set()  # for abbreviating
-    if abbreviate_names:
+    if args.abbreviate:
         potential_names = list(string.ascii_lowercase)
     iname = None  # line number -- used as sequence id if there isn't a <name_column>
     for line in reader:
         if seq_column not in line:
-            raise Exception('mandatory header \'%s\' not present in %s (you can set column names with --name-column and --seq-column)' % (seq_column, fname))
+            raise Exception('mandatory header \'%s\' not present in %s (you can set column names with --name-column and --seq-column)' % (seq_column, args.infname))
         if name_column not in line and iname is None:
             iname = 0
         if name_column != internal_name_column or seq_column != internal_seq_column:
@@ -109,29 +111,29 @@ def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, 
         if any(fc in unique_id for fc in utils.forbidden_characters):
             raise Exception('found a forbidden character (one of %s) in sequence id \'%s\' -- sorry, you\'ll have to replace it with something else' % (' '.join(["'" + fc + "'" for fc in utils.forbidden_characters]), unique_id))
 
-        if abbreviate_names:
+        if args.abbreviate:
             unique_id = abbreviate(used_names, potential_names, unique_id)
 
         # if command line specified query or reco ids, skip other ones
-        if queries is not None and unique_id not in queries:
+        if args.queries is not None and unique_id not in args.queries:
             continue
-        if reco_ids is not None and line['reco_id'] not in reco_ids:
+        if args.reco_ids is not None and line['reco_id'] not in args.reco_ids:
             continue
 
         if unique_id in input_info:
-            raise Exception('found id %s twice in file %s' % (unique_id, fname))
+            raise Exception('found id %s twice in file %s' % (unique_id, args.infname))
 
-        if seed_unique_id is not None and unique_id == seed_unique_id:
+        if args.seed_unique_id is not None and unique_id == args.seed_unique_id:
             found_seed = True
 
         input_info[unique_id] = {'unique_ids' : [unique_id, ], 'seqs' : [line[internal_seq_column], ]}
 
-        if n_queries == 0 and is_data and 'v_gene' in line:
-            print '  note: found simulation info in %s -- are you sure you didn\'t mean to set --is-simu?' % fname
+        if n_queries == 0 and args.is_data and 'v_gene' in line:
+            print '  note: found simulation info in %s -- are you sure you didn\'t mean to set --is-simu?' % args.infname
 
-        if not is_data:
+        if not args.is_data:
             if 'v_gene' not in line:
-                raise Exception('simulation info not found in %s' % fname)
+                raise Exception('simulation info not found in %s' % args.infname)
             reco_info[unique_id] = copy.deepcopy(line)
             reco_info[unique_id]['unique_ids'] = [unique_id, ]
             reco_info[unique_id]['seqs'] = [line[internal_seq_column], ]
@@ -142,12 +144,12 @@ def get_seqfile_info(fname, is_data, glfo=None, n_max_queries=-1, queries=None, 
                 utils.add_implicit_info(glfo, reco_info[unique_id], existing_implicit_keys=('cdr3_length', ))
 
         n_queries += 1
-        if n_max_queries > 0 and n_queries >= n_max_queries:
+        if args.n_max_queries > 0 and n_queries >= args.n_max_queries:
             break
 
     if len(input_info) == 0:
-        raise Exception('didn\'t end up pulling any input info out of %s while looking for queries: %s reco_ids: %s\n' % (fname, str(queries), str(reco_ids)))
-    if seed_unique_id is not None and not found_seed:
-        raise Exception('couldn\'t find seed %s in %s' % (seed_unique_id, fname))
+        raise Exception('didn\'t end up pulling any input info out of %s while looking for queries: %s reco_ids: %s\n' % (args.infname, str(args.queries), str(args.reco_ids)))
+    if args.seed_unique_id is not None and not found_seed:
+        raise Exception('couldn\'t find seed %s in %s' % (args.seed_unique_id, args.infname))
 
     return (input_info, reco_info)
