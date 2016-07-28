@@ -915,34 +915,6 @@ class PartitionDriver(object):
         return genes
 
     # ----------------------------------------------------------------------------------------
-    def remove_genes_with_no_hmm(self, gene_list, skipped_gene_matches, genes_with_hmm_files):
-        """ return a copy of <gene_list> that only contains genes for which we have hmm model files """
-
-        # first get the list of genes for which we don't have hmm files
-        genes_to_remove = []  # NOTE there should *only* be genes to remove if we're caching parameters, i.e. if we just ran sw for the first time, so we couldn't tell sw ahead of time which genes to use because we didn't know yet
-        genes_to_use = []
-        for gene in gene_list:
-            if gene in genes_with_hmm_files:
-                genes_to_use.append(gene)
-            else:
-                skipped_gene_matches.add(gene)
-                genes_to_remove.append(gene)
-
-        # NOTE that we should be removing genes *only* if we're caching parameters, i.e. if we just ran sw on a data set for the first time.
-        # The issue is that when we first run sw on a data set, it uses all the genes in gldir.
-        # We then write HMMs for only the genes which were, at least once, a *best* match.
-        # But when we're writing the HMM input, we have the N best genes for each sequence, and some of these may not have been a best match at least once.
-        # In subsequent runs, however, we already have a parameter dir, so before we run sw we look and see which HMMs we have, and tell sw to only use those, so in this case we shouldn't be removing any.
-
-        for gene in genes_to_remove:  # anything that wasn't a best match should've been cleaned out of glfo
-            if gene in self.glfo['seqs'][utils.get_region(gene)]:
-                print '  %s removing gene %s that doesn\'t have an hmm, but is in glfo' % (utils.color('red', 'warning'), gene)
-
-        # then remove 'em from <gene_list>
-        for gene in genes_to_remove:
-            gene_list.remove(gene)
-
-    # ----------------------------------------------------------------------------------------
     def all_regions_present(self, gene_list, skipped_gene_matches, query_name, second_query_name=None):
         """ Check that we have at least one gene for each region """
         for region in utils.regions:
