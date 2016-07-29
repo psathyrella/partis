@@ -156,9 +156,9 @@ class Waterer(object):
 
         if self.pcounter is not None:
             if self.args.plotdir is not None:
-                self.pcounter.plot(self.args.plotdir + '/sw', subset_by_gene=True, codon_positions={r : self.glfo[c + '-positions'] for r, c in utils.conserved_codons[self.args.chain].items()}, only_csv=self.args.only_csv_plots)
+                self.pcounter.plot(self.args.plotdir + '/sw', codon_positions={r : self.glfo[c + '-positions'] for r, c in utils.conserved_codons[self.args.chain].items()}, only_csv=self.args.only_csv_plots)
                 if self.true_pcounter is not None:
-                    self.true_pcounter.plot(self.args.plotdir + '/sw-true', subset_by_gene=True, codon_positions={r : self.glfo[c + '-positions'] for r, c in utils.conserved_codons[self.args.chain].items()}, only_csv=self.args.only_csv_plots)
+                    self.true_pcounter.plot(self.args.plotdir + '/sw-true', codon_positions={r : self.glfo[c + '-positions'] for r, c in utils.conserved_codons[self.args.chain].items()}, only_csv=self.args.only_csv_plots)
             self.pcounter.write(self.parameter_out_dir)
             if self.true_pcounter is not None:
                 self.true_pcounter.write(self.parameter_out_dir + '-true')

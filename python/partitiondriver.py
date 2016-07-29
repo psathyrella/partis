@@ -1292,11 +1292,11 @@ class PartitionDriver(object):
         # parameter and performance writing/plotting
         if pcounter is not None:
             if self.args.plotdir is not None:
-                pcounter.plot(self.args.plotdir + '/hmm', subset_by_gene=True, codon_positions={r : self.glfo[c + '-positions'] for r, c in utils.conserved_codons[self.args.chain].items()}, only_csv=self.args.only_csv_plots)
+                pcounter.plot(self.args.plotdir + '/hmm', codon_positions={r : self.glfo[c + '-positions'] for r, c in utils.conserved_codons[self.args.chain].items()}, only_csv=self.args.only_csv_plots)
             pcounter.write(parameter_out_dir)
         if true_pcounter is not None:
             if self.args.plotdir is not None:
-                true_pcounter.plot(self.args.plotdir + '/hmm-true', subset_by_gene=True, codon_positions={r : self.glfo[c + '-positions'] for r, c in utils.conserved_codons[self.args.chain].items()}, only_csv=self.args.only_csv_plots)
+                true_pcounter.plot(self.args.plotdir + '/hmm-true', codon_positions={r : self.glfo[c + '-positions'] for r, c in utils.conserved_codons[self.args.chain].items()}, only_csv=self.args.only_csv_plots)
             true_pcounter.write(parameter_out_dir + '-true')
         if perfplotter is not None:
             perfplotter.plot(self.args.plotdir + '/hmm', only_csv=self.args.only_csv_plots)

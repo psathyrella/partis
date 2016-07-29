@@ -81,23 +81,23 @@ class ParameterCounter(object):
                 self.counts[bound + '_insertion_content'][nuke] += 1
 
     # ----------------------------------------------------------------------------------------
-    def clean_plots(self, plotdir, subset_by_gene):
+    def clean_plots(self, plotdir):
         self.mfreqer.clean_plots(plotdir + '/mute-freqs')
         utils.prep_dir(plotdir + '/overall')  #, multilings=('*.csv', '*.svg'))
         for column in self.counts:
-            if subset_by_gene and ('_del' in column or column == 'vd_insertion' or column == 'dj_insertion'):  # option to subset deletion and (real) insertion plots by gene
+            if '_del' in column or column == 'vd_insertion' or column == 'dj_insertion':  # option to subset deletion and (real) insertion plots by gene
                 thisplotdir = plotdir + '/' + column
                 utils.prep_dir(thisplotdir, wildlings=['*.csv', '*.svg'])
 
     # ----------------------------------------------------------------------------------------
-    def plot(self, plotdir, subset_by_gene=False, codon_positions=None, only_csv=False):
+    def plot(self, plotdir, codon_positions=None, only_csv=False):
         print '  plotting parameters',
         sys.stdout.flush()
         start = time.time()
 
-        self.clean_plots(plotdir, subset_by_gene)
+        self.clean_plots(plotdir)
 
-        self.mfreqer.plot(plotdir + '/mute-freqs', codon_positions, only_csv=only_csv)  #, mean_freq_outfname=base_outdir + '/REGION-mean-mute-freqs.csv')  # REGION is replace by each region in the three output files
+        self.mfreqer.plot(plotdir + '/mute-freqs', codon_positions, only_csv=only_csv)
 
         overall_plotdir = plotdir + '/overall'
 
@@ -109,7 +109,7 @@ class ParameterCounter(object):
                 raise Exception('no counts in %s' % column)
             for index, count in self.counts[column].iteritems():
                 gene = None
-                if subset_by_gene and ('_del' in column or column == 'vd_insertion' or column == 'dj_insertion'):  # option to subset deletion and (real) insertion plots by gene
+                if '_del' in column or column == 'vd_insertion' or column == 'dj_insertion':  # option to subset deletion and (real) insertion plots by gene
                     if '_del' in column:
                         region = column[0]
                     else:
@@ -135,7 +135,7 @@ class ParameterCounter(object):
                 except:
                     var_type = 'string'
 
-            if subset_by_gene and ('_del' in column or column == 'vd_insertion' or column == 'dj_insertion'):  # option to subset deletion and (real) insertion plots by gene
+            if '_del' in column or column == 'vd_insertion' or column == 'dj_insertion':  # option to subset deletion and (real) insertion plots by gene
                 thisplotdir = plotdir + '/' + column
                 for gene in gene_values:
                     plotname = utils.sanitize_name(gene) + '-' + column
