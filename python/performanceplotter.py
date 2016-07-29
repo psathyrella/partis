@@ -234,11 +234,8 @@ class PerformancePlotter(object):
                 # TODO this is dumb... I should make the integer-valued ones histograms as well
                 hist = plotting.make_hist_from_dict_of_counts(self.values[column], 'int', self.name + '-' + column, normalize=True)
                 log = ''
-                if column.find('hamming_to_true_naive') >= 0:  # TODO why doesn't this just use the config dicts in plotheaders or wherever?
-                    hist.title = 'hamming distance'
-                else:
-                    hist.title = 'inferred - true'
-                plotting.draw_no_root(hist, plotname=column, plotdir=plotdir, write_csv=True, log=log, only_csv=only_csv)
+                xtitle = 'hamming distance' if 'hamming_to_true_naive' in column else 'inferred - true'
+                plotting.draw_no_root(hist, plotname=column, plotdir=plotdir, write_csv=True, log=log, only_csv=only_csv, xtitle=xtitle)
 
         for column in self.hists:
             if '_vs_mute_freq' in column or '_vs_per_gene_support' in column:  # only really care about the fraction, which we plot below

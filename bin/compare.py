@@ -31,7 +31,6 @@ parser.add_argument('--leaves-per-tree')
 parser.add_argument('--linewidths')
 parser.add_argument('--alphas')
 parser.add_argument('--markersizes')
-parser.add_argument('--calculate-mean-info', action='store_true')
 parser.add_argument('--normalize', action='store_true')
 parser.add_argument('--only-csv-plots', action='store_true')
 parser.add_argument('--strings-to-ignore')  # remove this string from the plot names in each dir (e.g. '-mean-bins') NOTE replaces '_' with '-'

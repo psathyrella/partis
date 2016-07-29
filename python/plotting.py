@@ -356,47 +356,6 @@ def get_unified_bin_hist(hists):
     return Hist(len(low_edges), low_edges[0], low_edges[-1] + dx)
 
 # ----------------------------------------------------------------------------------------
-def get_mean_info(hists):
-    raise Exception('needs to be converted off of root')
-    # assert len(hists) > 0
-    # means, sems, normalized_means = [], [], []
-    # sum_total, total_entries = 0.0, 0.0
-    # bin_values = {}  # map from bin centers to list (over hists) of entries (corresponds to <ibin> in unihist)
-    # bin_labels = {}
-    # unihist = get_unified_bin_hist(hists)  # empty hist with logical OR of bins in <hists> (with some assumptions... shit is complicated yo)
-    # for hist in hists:
-    #     # if hist.Integral() == 0.0:
-    #     #     continue
-    #     means.append(hist.GetMean())
-    #     sems.append(hist.GetMeanError())  # NOTE is this actually right? depends if root uses .Integral() or .GetEntries() in the GetMeanError() call
-    #     sum_total += hist.GetMean() * hist.Integral()
-    #     total_entries += hist.Integral()
-
-    #     for ib in range(1, hist.GetNbinsX()+1):  # NOTE ignoring under/overflows
-    #         ibin = unihist.find_bin(hist.GetBinCenter(ib))
-    #         if ibin not in bin_values:
-    #             bin_values[ibin] = []
-    #             bin_labels[ibin] = hist.GetXaxis().GetBinLabel(ib)
-    #         bin_values[ibin].append(hist.GetBinContent(ib))
-    #         assert bin_labels[ibin] == hist.GetXaxis().GetBinLabel(ib)
-
-    # # find the mean over hists
-    # mean_of_means = 0.0 if total_entries == 0 else sum_total / total_entries
-    # # then "normalize" each human's mean by this mean over humans, and that human's variance
-    # normalized_means = []
-    # for im in range(len(means)):
-    #     if sems[im] > 0.0:
-    #         normalized_means.append((means[im] - mean_of_means) / sems[im])
-    #     else:
-    #         normalized_means.append(0)
-
-    # binlist = sorted(bin_values)  # list of all bin indices that were filled in any hist
-    # for ibin in binlist:  # NOTE this is *not* a weighted mean, i.e. you better have made sure the subsets all have the same sample size
-    #     unihist.set_ibin(ibin, numpy.mean(bin_values[ibin]), error=numpy.std(bin_values[ibin]), label=bin_labels[ibin])
-
-    # return { 'means':means, 'sems':sems, 'normalized_means':normalized_means, 'mean_bin_hist':unihist }
-
-# ----------------------------------------------------------------------------------------
 def add_gene_calls_vs_mute_freq_plots(args, hists, rebin=1., debug=False):
     print 'TODO what\'s up with rebin rescaling below?'
     # if 'fraction_uncertainty' not in sys.modules:
@@ -473,15 +432,6 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
 
         if '_gene' in varname and '_vs_' not in varname:  # for the gene usage frequencies we need to make sure all the plots have the genes in the same order
             all_hists = add_bin_labels_not_in_all_hists(all_hists)
-
-        if args.calculate_mean_info:
-            raise Exception('needs updating (at least to remove plots/ )')
-            meaninfo = get_mean_info(all_hists)
-            all_names.append(varname)
-            all_means.append(meaninfo['means'])
-            all_sems.append(meaninfo['sems'])
-            all_normalized_means.append(meaninfo['normalized_means'])
-            meaninfo['mean_bin_hist'].write(args.outdir + '/plots/' + varname + '-mean-bins.csv')
 
         # bullshit complicated config stuff
         bounds, no_labels, figsize = None, False, None
@@ -567,20 +517,6 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
                      shift_overflows=False, errors=errors, scale_errors=args.scale_errors, rebin=rebin, plottitle=plottitle, colors=args.colors, linestyles=args.linestyles,
                      xtitle=xtitle, ytitle=ytitle, xline=xline, normalize=(args.normalize and '_vs_mute_freq' not in varname),
                      linewidths=linewidths, markersizes=args.markersizes, figsize=figsize, no_labels=no_labels, log=log, translegend=translegend, alphas=args.alphas)
-
-    if args.calculate_mean_info:
-        assert False
-        # write mean info
-        with opener('w')(args.outdir + '/plots/means.csv') as meanfile:
-            writer = csv.DictWriter(meanfile, ('name', 'means', 'sems', 'normalized-means'))
-            writer.writeheader()
-            for ivar in range(len(all_means)):
-                writer.writerow({
-                    'name':all_names[ivar],
-                    'means':':'.join([str(m) for m in all_means[ivar]]),
-                    'sems':':'.join([str(s) for s in all_sems[ivar]]),
-                    'normalized-means':':'.join([str(nm) for nm in all_normalized_means[ivar]])
-                })
 
     if not args.only_csv_plots:
         make_html(args.outdir)

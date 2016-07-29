@@ -1,3 +1,4 @@
+import utils
 
 xtitles = {
     'v_gene' : '',
@@ -40,17 +41,11 @@ plot_titles = {
     'v_hamming_to_true_naive_normed' : 'V Distance to true naive',
     'd_hamming_to_true_naive_normed' : 'D Distance to true naive',
     'j_hamming_to_true_naive_normed' : 'J Distance to true naive',
-    'd_3p_del' : 'D 3\' deletion',
-    'd_5p_del' : 'D 5\' deletion',
-    'dj_insertion' : 'DJ N length',
     'dj_insertion_content' : 'DJ insert base content',
-    'j_5p_del' : 'J 5\' deletion',
     'mute_freqs' : 'sequence mutation freq',
     'v_mute_freqs' : 'V mutation freq',
     'd_mute_freqs' : 'D mutation freq',
     'j_mute_freqs' : 'J mutation freq',
-    'v_3p_del' : 'V 3\' deletion',
-    'vd_insertion' : 'VD N length',
     'vd_insertion_content' : 'VD insert base content',
     'all-mean-freq' : 'sequence mutation freq',
     'v-mean-freq' : 'V mutation freq',
@@ -60,6 +55,12 @@ plot_titles = {
     'd_gene_fraction_vs_mute_freq' : 'D gene',
     'j_gene_fraction_vs_mute_freq' : 'J gene'
 }
+for region in utils.regions:
+    for end in ['5', '3']:
+        plot_titles[region + '_' + end + 'p_del'] = region.upper() + ' ' + end + '\' deletion'
+for boundary in utils.boundaries + utils.effective_boundaries:
+    plot_titles[boundary + '_insertion'] = boundary.upper() + ' N length'
+
 
 true_vs_inferred_hard_bounds = {
     'hamming_to_true_naive' : (-0.5, 19.5),
