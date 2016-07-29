@@ -389,7 +389,7 @@ class Waterer(object):
         qinfo['matches']['d'].append((1, dummy_d))
         v_end = qinfo['first_match_qrbounds'][1]
         qinfo['qrbounds'][dummy_d] = (v_end, v_end)
-        qinfo['glbounds'][dummy_d] = (0, 0)
+        qinfo['glbounds'][dummy_d] = (1, 1)
 
     # ----------------------------------------------------------------------------------------
     def read_query(self, references, reads):
