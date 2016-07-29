@@ -38,6 +38,11 @@ def abbreviate(used_names, potential_names, unique_id):
     return new_id
 
 # ----------------------------------------------------------------------------------------
+def get_seqfile_without_args(infname, is_data, n_max_queries=-1, glfo=None):
+    args = {'infname' : infname, 'is_data' : is_data, 'n_max_queries' : n_max_queries, 'glfo' : glfo}
+    get_seqfile_info(args)
+
+# ----------------------------------------------------------------------------------------
 def get_seqfile_info(args, glfo=None, simglfo=None):
     """ return list of sequence info from files of several types """
 

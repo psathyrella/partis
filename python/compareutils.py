@@ -262,7 +262,7 @@ def get_synthetic_partition_type(stype):
 
 # ----------------------------------------------------------------------------------------
 def generate_synthetic_partitions(args, label, n_leaves, mut_mult, seqfname, base_outfname, datafname, procs):
-    _, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=False)
+    _, reco_info = seqfileopener.get_seqfile_without_args(seqfname, is_data=False)
     print 'using heavy chain!'
     glfo = glutils.read_glfo(args.gldir, chain='h')
     true_partition = utils.get_true_partition(reco_info)
@@ -559,7 +559,7 @@ def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, all_info,
         simfbase = leafmutstr(args, n_leaves, mut_mult, hfrac_bounds)
         plotname = simfbase
 
-    _, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=not args.is_simu, n_max_queries=args.n_max_queries)
+    _, reco_info = seqfileopener.get_seqfile_without_args(seqfname, is_data=not args.is_simu, n_max_queries=args.n_max_queries)
     if args.count_distances:
         for metric in ['logprob', 'naive_hfrac']:
             make_distance_plots(args, plotdir, label, n_leaves, mut_mult, get_outputname(args, label, 'partition', seqfname, hfrac_bounds).replace('.csv', '-cache.csv'), reco_info, metric)
@@ -812,7 +812,7 @@ def plot_means_over_subsets(args, label, n_leaves, mut_mult, this_info, per_subs
 
 # # ----------------------------------------------------------------------------------------
 # def get_misassigned_adj_mis(simfname, misassign_fraction, nseq_list, error_type):
-#     input_info, reco_info = seqfileopener.get_seqfile_info(simfname, is_data=False)
+#     input_info, reco_info = seqfileopener.get_seqfile_without_args(simfname, is_data=False)
 #     n_reps = 1
 #     uid_list = input_info.keys()
 #     new_partitions = {}
@@ -863,7 +863,7 @@ def run_changeo(args, label, n_leaves, mut_mult, seqfname):
         else:
             print '   hmm... imgtdir not there... maybe we only have the subsets'
 
-    input_info, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=not args.is_simu)
+    input_info, reco_info = seqfileopener.get_seqfile_without_args(seqfname, is_data=not args.is_simu)
 
     if args.subset is not None:
         subset_dir = imgtdir + '/subset-' + str(args.subset)
@@ -1080,7 +1080,7 @@ def slice_file(args, csv_infname, csv_outfname):  # not necessarily csv
             assert '/dralph/' in csv_infname
             os.remove(csv_infname)
     elif '.fa' in csv_infname:
-        input_info, _ = seqfileopener.get_seqfile_info(csv_infname, is_data=True)
+        input_info, _ = seqfileopener.get_seqfile_without_args(csv_infname, is_data=True)
         with open(csv_outfname, 'w') as outfile:
             writer = csv.DictWriter(outfile, ('unique_id', 'seq'))
             writer.writeheader()
