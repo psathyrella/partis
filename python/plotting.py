@@ -356,30 +356,6 @@ def get_unified_bin_hist(hists):
     return Hist(len(low_edges), low_edges[0], low_edges[-1] + dx)
 
 # ----------------------------------------------------------------------------------------
-def add_gene_calls_vs_mute_freq_plots(args, hists, rebin=1., debug=False):
-    print 'TODO what\'s up with rebin rescaling below?'
-    # if 'fraction_uncertainty' not in sys.modules:
-    #     import fraction_uncertainty
-    for idir in range(len(args.names)):
-        name = args.names[idir]
-        for region in utils.regions:
-            hright = hists[idir][region + '_gene_right_vs_mute_freq']
-            hwrong = hists[idir][region + '_gene_wrong_vs_mute_freq']
-            hdenom = copy.deepcopy(hright)
-            hdenom.add(hwrong)
-            hfrac = copy.deepcopy(hright)
-            hfrac.divide_by(hdenom)
-            # hfrac.Scale(1. / rebin)  
-            if debug:
-                print name, region
-            for ib in range(hfrac.n_bins + 2):
-                lo, hi, cached = fraction_uncertainty.err(hright.bin_contents[ib], hdenom.bin_contents[ib], for_paper=True)
-                hfrac.errors[ib] = (hi - lo) / 2.
-                if debug:
-                    print '%5d %5d   %.2f   %.3f' % (hright.bin_contents[ib], hdenom.bin_contents[ib], hfrac.bin_contents[ib], (hi - lo) / 2.)
-            hists[idir][region + '_gene_fraction_vs_mute_freq'] = hfrac
-
-# ----------------------------------------------------------------------------------------
 def get_hists_from_dir(dirname, histname, string_to_ignore=None):
     hists = {}
     for fname in glob.glob(dirname + '/*.csv'):
@@ -397,28 +373,15 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
     Read all the histograms stored as .csv files in <args.plotdirs>, and overlay them on a new plot.
     If there's a <varname> that's missing from any dir, we skip that plot entirely and print a warning message.
     """
-    # print 'TODO move csvs to a subdir not named "plots"'
-    # utils.prep_dir(args.outdir + '/plots', multilings=['*.png', '*.svg', '*.csv'])
-
     utils.prep_dir(args.outdir, wildlings=['*.png', '*.svg', '*.csv'])
-    if args.leaves_per_tree is not None:
-        assert len(args.leaves_per_tree) == len(args.plotdirs)
 
     # read hists from <args.plotdirs>
     hists = []
     for idir in range(len(args.plotdirs)):
-        string_to_ignore = None if args.strings_to_ignore is None else args.strings_to_ignore[idir]
-        hist_list = get_hists_from_dir(args.plotdirs[idir], args.names[idir], string_to_ignore=string_to_ignore)
+        hist_list = get_hists_from_dir(args.plotdirs[idir], args.names[idir])
         hists.append(hist_list)
 
     # then loop over all the <varname>s we found
-    all_names, all_means, all_sems, all_normalized_means = [], [], [], []
-    # ----------------------------------------------------------------------------------------
-    # vs_rebin = 2
-    vs_rebin = 1
-    if 'v_gene_right_vs_mute_freq' in hists[0].keys():
-        add_gene_calls_vs_mute_freq_plots(args, hists, rebin=vs_rebin)
-    # ----------------------------------------------------------------------------------------
     for varname, hist in hists[0].items():
         # add the hists
         all_hists = [hist,]
@@ -456,7 +419,6 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
             xtitle = 'bases'
 
         line_width_override = None
-        rebin = args.rebin
         if args.plot_performance:
             if 'hamming_to_true_naive' in varname:
                 xtitle = 'hamming distance'
@@ -467,7 +429,6 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
                 ytitle = 'fraction correct'
                 if varname[0] == 'v' or varname[0] == 'j':
                     translegend = (-0.4, -0.4)
-                rebin = vs_rebin
             else:
                 xtitle = 'inferred - true'
             bounds = plotconfig.true_vs_inferred_hard_bounds.setdefault(varname, None)
@@ -494,12 +455,9 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
                 else:
                     translegend = (0.15, -0.02)
                 xline = None
-                if utils.get_region(gene) == 'v' and args.cyst_positions is not None:
-                    xline = args.cyst_positions[gene]
-                    # normalization_bounds = (int(cyst_positions[gene]) - 70, None)
-                elif utils.get_region(gene) == 'j' and args.tryp_positions is not None:
-                    xline = args.tryp_positions[gene]
-                    # normalization_bounds = (None, int(tryp_positions[gene]) + 5)
+                if args.glfo is not None:
+                    if utils.get_region(gene) in utils.conserved_codons[args.chain]:
+                        xline = args.glfo[utils.conserved_codons[args.chain][utils.get_region(gene)] + '-positions'][gene]
             else:
                 ilastdash = simplevarname.rfind('-')
                 gene = utils.unsanitize_name(simplevarname[:ilastdash])
@@ -509,13 +467,13 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
 
         # draw that little #$*(!
         linewidths = [line_width_override, ] if line_width_override is not None else args.linewidths
-        assert args.leaves_per_tree is None
+        alphas = [0.6 for _ in range(len(all_hists))]
         draw_no_root(all_hists[0], plotname=varname, plotdir=args.outdir, more_hists=all_hists[1:], write_csv=False, stats=extrastats, bounds=bounds,
-                     shift_overflows=False, rebin=rebin, plottitle=plottitle, colors=args.colors, linestyles=args.linestyles,
+                     shift_overflows=False, plottitle=plottitle, colors=args.colors,
                      xtitle=xtitle, ytitle=ytitle, xline=xline, normalize=(args.normalize and '_vs_mute_freq' not in varname),
-                     linewidths=linewidths, markersizes=args.markersizes, figsize=figsize, no_labels=no_labels, log=log, translegend=translegend, alphas=args.alphas)
+                     linewidths=linewidths, alphas=alphas, errors=True,
+                     figsize=figsize, no_labels=no_labels, log=log, translegend=translegend)
 
-    if not args.only_csv_plots:
         make_html(args.outdir)
 
 # ----------------------------------------------------------------------------------------
