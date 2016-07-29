@@ -522,48 +522,6 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
         make_html(args.outdir)
 
 # ----------------------------------------------------------------------------------------
-def make_mean_plots(plotdir, subdirs, outdir):
-    meanlist, variancelist = [], []
-    normalized_means = []
-    for sd in subdirs:
-        with opener('r')(plotdir + '/' + sd + '/plots/means.csv') as meanfile:
-            reader = csv.DictReader(meanfile)
-            for line in reader:
-                means = [ float(m) for m in line['means'].split(':') ]
-                meanlist.append(numpy.mean(means))
-                variancelist.append(numpy.var(means))
-                nmvals = [ float(nm) for nm in line['normalized-means'].split(':') ]
-                normalized_means += nmvals
-
-    # ----------------------------------------------------------------------------------------
-    # first make hexbin plot
-    plt.subplot(111)
-    plt.hexbin(meanlist, variancelist, gridsize=20, cmap=matplotlib.cm.gist_yarg, bins=None)
-    # plt.axis([0, 5, 0, 2])
-    plt.xlabel('mean')
-    plt.ylabel('variance')
-
-    cb = plt.colorbar()
-    cb.set_label('mean value')
-    utils.prep_dir(outdir + '/plots', wildlings=['*.png', '*.svg', '*.csv'])
-    plt.savefig(outdir + '/plots/hexmeans.png')
-    plt.close()
-    plt.clf()
-
-    # ----------------------------------------------------------------------------------------
-    # then make normalized mean plot
-    n, bins, patches = plt.hist(normalized_means, 50)
-    plt.xlabel(r'$(x_i - \mu) / \sigma_i$')
-    plt.title(r'$\sigma=' + str(math.sqrt(numpy.var(normalized_means))) + '$')
-    # plt.axis([-10, 10, 0, 220])
-
-    plt.savefig(outdir + '/plots/means.png')
-    plt.close()
-
-
-    check_call(['./permissify-www', outdir])  # NOTE this should really permissify starting a few directories higher up
-
-# ----------------------------------------------------------------------------------------
 def get_cluster_size_hist(partition, rebin=None):
     sizes = [len(c) for c in partition]
     nbins = max(sizes)
