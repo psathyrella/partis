@@ -11,18 +11,13 @@ xtitles = {
     'v_hamming_to_true_naive_normed' : '% hamming',
     'd_hamming_to_true_naive_normed' : '% hamming',
     'j_hamming_to_true_naive_normed' : '% hamming',
-    'd_3p_del' : 'bases',
-    'd_5p_del' : 'bases',
-    'dj_insertion' : 'bases',
+    'seq_content' : '',
     'dj_insertion_content' : '',
-    'j_5p_del' : 'bases',
+    'vd_insertion_content' : '',
     'mute_freqs' : 'mutation freq',
     'v_mute_freqs' : 'mutation freq',
     'd_mute_freqs' : 'mutation freq',
     'j_mute_freqs' : 'mutation freq',
-    'v_3p_del' : 'bases',
-    'vd_insertion' : 'bases',
-    'vd_insertion_content' : '',
     'all-mean-freq' : 'mutation freq',
     'v-mean-freq' : 'mutation freq',
     'd-mean-freq' : 'mutation freq',
@@ -41,12 +36,13 @@ plot_titles = {
     'v_hamming_to_true_naive_normed' : 'V Distance to true naive',
     'd_hamming_to_true_naive_normed' : 'D Distance to true naive',
     'j_hamming_to_true_naive_normed' : 'J Distance to true naive',
+    'seq_content' : 'sequence base content',
     'dj_insertion_content' : 'DJ insert base content',
+    'vd_insertion_content' : 'VD insert base content',
     'mute_freqs' : 'sequence mutation freq',
     'v_mute_freqs' : 'V mutation freq',
     'd_mute_freqs' : 'D mutation freq',
     'j_mute_freqs' : 'J mutation freq',
-    'vd_insertion_content' : 'VD insert base content',
     'all-mean-freq' : 'sequence mutation freq',
     'v-mean-freq' : 'V mutation freq',
     'd-mean-freq' : 'D mutation freq',
@@ -57,8 +53,10 @@ plot_titles = {
 }
 for region in utils.regions:
     for end in ['5', '3']:
+        xtitles[region + '_' + end + 'p_del'] = 'bases'
         plot_titles[region + '_' + end + 'p_del'] = region.upper() + ' ' + end + '\' deletion'
 for boundary in utils.boundaries + utils.effective_boundaries:
+    xtitles[boundary + '_insertion'] = 'bases'
     plot_titles[boundary + '_insertion'] = boundary.upper() + ' N length'
 
 

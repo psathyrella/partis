@@ -9,6 +9,7 @@ import glutils
 from opener import opener
 import plotting
 from hist import Hist
+import plotconfig
 from mutefreqer import MuteFreqer
 
 # ----------------------------------------------------------------------------------------
@@ -127,16 +128,18 @@ class ParameterCounter(object):
                     gene_values[gene][column_val] += count
 
             var_type = 'string' if column in self.string_columns else 'int'
+            xtitle = plotconfig.xtitles.get(column, column)
+            plottitle = plotconfig.plot_titles.get(column, column)
 
             hist = plotting.make_hist_from_dict_of_counts(values, var_type, column, sort=True)
-            plotting.draw_no_root(hist, plotname=column, plotdir=overall_plotdir, errors=True, write_csv=True, only_csv=only_csv)
+            plotting.draw_no_root(hist, plotname=column, plotdir=overall_plotdir, xtitle=xtitle, plottitle=plottitle, errors=True, write_csv=True, only_csv=only_csv)
 
             if column in self.columns_to_subset_by_gene:
                 thisplotdir = plotdir + '/' + column
                 for gene in gene_values:
                     plotname = utils.sanitize_name(gene) + '-' + column
                     hist = plotting.make_hist_from_dict_of_counts(gene_values[gene], var_type, plotname, sort=True)
-                    plotting.draw_no_root(hist, plotname=plotname, plotdir=thisplotdir, errors=True, write_csv=True, only_csv=only_csv)
+                    plotting.draw_no_root(hist, plotname=plotname, plotdir=thisplotdir, xtitle=xtitle, plottitle=plottitle, errors=True, write_csv=True, only_csv=only_csv)
                 if not only_csv:
                     plotting.make_html(thisplotdir)
 

@@ -897,7 +897,12 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
     if xticks is not None:
         plt.xticks(xticks)
     if xticklabels is not None:
-        ax.set_xticklabels(xticklabels)
+        mean_length = float(sum([len(xl) for xl in xticklabels])) / len(xticklabels)
+        print mean_length
+        if mean_length > 3:
+            ax.set_xticklabels(xticklabels, rotation='vertical', size=8)
+        else:
+            ax.set_xticklabels(xticklabels)
     plt.title(title)
     if not os.path.exists(plotdir):
         os.makedirs(plotdir)
