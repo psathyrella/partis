@@ -15,7 +15,7 @@ class MuteFreqer(object):
 
         self.counts, self.freqs = {}, {}
         n_bins, xmin, xmax = 200, 0., 1.
-        self.mean_rates = {n : Hist(n_bins, xmin, xmax) for n in ['all', ] + utils.regions}
+        self.mean_rates = {n : Hist(n_bins, xmin, xmax, xtitle='mut freq', ytitle='freq', title=n.upper() if n in utils.regions else 'full seq') for n in ['all', ] + utils.regions}
 
         self.finalized = False
         self.n_cached, self.n_not_cached = 0, 0
@@ -110,14 +110,14 @@ class MuteFreqer(object):
         for gene in self.freqs:
             freqs = self.freqs[gene]
             sorted_positions = sorted(freqs.keys())
-            genehist = Hist(sorted_positions[-1] - sorted_positions[0] + 1, sorted_positions[0] - 0.5, sorted_positions[-1] + 0.5, xtitle='fixme', ytitle='fixme')  #, title=utils.sanitize_name(gene))
+            genehist = Hist(sorted_positions[-1] - sorted_positions[0] + 1, sorted_positions[0] - 0.5, sorted_positions[-1] + 0.5, xtitle='position', ytitle='mut freq', title=gene)
             for position in sorted_positions:
                 hi_diff = abs(freqs[position]['freq'] - freqs[position]['freq_hi_err'])
                 lo_diff = abs(freqs[position]['freq'] - freqs[position]['freq_lo_err'])
                 err = 0.5*(hi_diff + lo_diff)
                 genehist.set_ibin(genehist.find_bin(position), freqs[position]['freq'], error=err)
             xline = None
-            figsize = [3, 3]
+            figsize = [7, 4]
             if codon_positions is not None and utils.get_region(gene) in codon_positions:
                 xline = codon_positions[utils.get_region(gene)][gene]
             if utils.get_region(gene) == 'v':
@@ -126,12 +126,12 @@ class MuteFreqer(object):
                 figsize[0] *= 2
             plotting.draw_no_root(genehist, plotdir=plotdir + '/' + utils.get_region(gene), plotname=utils.sanitize_name(gene), errors=True, write_csv=True, xline=xline, figsize=figsize, only_csv=only_csv)
             # per-base plots:
-            # paramutils.make_mutefreq_plot(plotdir + '/' + utils.get_region(gene) + '-per-base', utils.sanitize_name(gene), plotting_info)  # needs translation to mpl
+            # paramutils.make_mutefreq_plot(plotdir + '/' + utils.get_region(gene) + '-per-base', utils.sanitize_name(gene), plotting_info)  # needs translation to mpl UPDATE fcn is fixed, but I can't be bothered uncommenting this at the moment
 
         # make mean mute freq hists
         plotting.draw_no_root(self.mean_rates['all'], plotname='all-mean-freq', plotdir=overall_plotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True, only_csv=only_csv)
         for region in utils.regions:
-            plotting.draw_no_root(self.mean_rates[region], plotname=region+'-mean-freq', plotdir=overall_plotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True, only_csv=only_csv)
+            plotting.draw_no_root(self.mean_rates[region], plotname=region+'-mean-freq', plotdir=overall_plotdir, stats='mean', bounds=(0.0, 0.6 if region == 'd' else 0.4), write_csv=True, only_csv=only_csv)
 
         if not only_csv:  # write html file and fix permissiions
             plotting.make_html(overall_plotdir)

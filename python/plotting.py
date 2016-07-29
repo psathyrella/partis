@@ -267,7 +267,7 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
         # if 'rms' in stats:
         #     htmp.SetTitle(htmp.GetTitle() + (' (%.2f)' % htmp.GetRMS()))
         if 'mean' in stats:
-            htmp.title += ' (%.2f)' % htmp.get_mean()
+            htmp.title += ' (mean %.2f)' % htmp.get_mean()
         if '0-bin' in stats:
             htmp.title += ' (%.2f)' % htmp.bin_contents[1]
         markersize = None
@@ -312,7 +312,7 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
 
     if not only_csv:
         mpl_finish(ax, plotdir, plotname,
-                   title=plotname if plottitle is None else plottitle,
+                   title=hist.title if plottitle is None else plottitle,
                    xlabel=hist.xtitle if xtitle is None else xtitle,
                    ylabel=hist.ytitle if ytitle is None else ytitle,
                    xbounds=[xmin, xmax],
@@ -880,7 +880,7 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
     if not no_legend:
         legend = ax.legend(loc=leg_loc, prop=leg_prop)
     if adjust is None:
-        plt.gcf().subplots_adjust(bottom=0.14, left=0.18, right=0.95, top=0.92)
+        plt.gcf().subplots_adjust(bottom=0.20, left=0.18, right=0.95, top=0.92)
     else:
         plt.gcf().subplots_adjust(**adjust)
     sys.modules['seaborn'].despine()  #trim=True, bottom=True)
