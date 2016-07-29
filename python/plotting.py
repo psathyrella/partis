@@ -457,7 +457,6 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
 
         line_width_override = None
         rebin = args.rebin
-        errors = not args.no_errors
         if args.plot_performance:
             if 'hamming_to_true_naive' in varname:
                 xtitle = 'hamming distance'
@@ -468,7 +467,6 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
                 ytitle = 'fraction correct'
                 if varname[0] == 'v' or varname[0] == 'j':
                     translegend = (-0.4, -0.4)
-                # errors = True
                 rebin = vs_rebin
             else:
                 xtitle = 'inferred - true'
@@ -512,9 +510,8 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
         # draw that little #$*(!
         linewidths = [line_width_override, ] if line_width_override is not None else args.linewidths
         assert args.leaves_per_tree is None
-        # scale_errors = math.sqrt(args.leaves_per_tree[idir]) if args.leaves_per_tree is not None else args.scale_errors
-        draw_no_root(all_hists[0], plotname=varname, plotdir=args.outdir, more_hists=all_hists[1:], write_csv=False, stats=args.stats + ' ' + extrastats, bounds=bounds,
-                     shift_overflows=False, errors=errors, scale_errors=args.scale_errors, rebin=rebin, plottitle=plottitle, colors=args.colors, linestyles=args.linestyles,
+        draw_no_root(all_hists[0], plotname=varname, plotdir=args.outdir, more_hists=all_hists[1:], write_csv=False, stats=extrastats, bounds=bounds,
+                     shift_overflows=False, rebin=rebin, plottitle=plottitle, colors=args.colors, linestyles=args.linestyles,
                      xtitle=xtitle, ytitle=ytitle, xline=xline, normalize=(args.normalize and '_vs_mute_freq' not in varname),
                      linewidths=linewidths, markersizes=args.markersizes, figsize=figsize, no_labels=no_labels, log=log, translegend=translegend, alphas=args.alphas)
 
