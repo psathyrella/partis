@@ -25,9 +25,14 @@ class ParameterCounter(object):
         self.counts['all'] = {}
         for column in utils.column_dependencies:
             self.counts[column] = {}
+        self.string_columns = set([r + '_gene' for r in utils.regions])
         for bound in utils.boundaries:
             self.counts[bound + '_insertion_content'] = {n : 0 for n in utils.nukes}  # base content of each insertion
+            self.string_columns.add(bound + '_insertion_content')
         self.counts['seq_content'] = {n : 0 for n in utils.nukes}
+        self.string_columns.add('seq_content')
+
+        self.columns_to_subset_by_gene = [e + '_del' for e in utils.real_erosions + utils.effective_erosions] + [b + '_insertion' for b in utils.boundaries]
 
     # ----------------------------------------------------------------------------------------
     def get_index(self, info, deps):
@@ -85,7 +90,7 @@ class ParameterCounter(object):
         self.mfreqer.clean_plots(plotdir + '/mute-freqs')
         utils.prep_dir(plotdir + '/overall')  #, multilings=('*.csv', '*.svg'))
         for column in self.counts:
-            if '_del' in column or column == 'vd_insertion' or column == 'dj_insertion':  # option to subset deletion and (real) insertion plots by gene
+            if column in self.columns_to_subset_by_gene:
                 thisplotdir = plotdir + '/' + column
                 utils.prep_dir(thisplotdir, wildlings=['*.csv', '*.svg'])
 
@@ -105,37 +110,28 @@ class ParameterCounter(object):
             if column == 'all':
                 continue
             values, gene_values = {}, {}
-            if len(self.counts[column]) == 0:
-                raise Exception('no counts in %s' % column)
             for index, count in self.counts[column].iteritems():
-                gene = None
-                if '_del' in column or column == 'vd_insertion' or column == 'dj_insertion':  # option to subset deletion and (real) insertion plots by gene
-                    if '_del' in column:
-                        region = column[0]
-                    else:
-                        region = column[1]
-                    assert region in utils.regions
-                    gene = index[1]  # NOTE this is hackey, but it works find now and will fail obviously if I ever change the correlations to be incompatible. so screw it
-                    utils.split_gene(gene)  # checks validity of gene
-                    if gene not in gene_values:
-                        gene_values[gene] = {}
-
                 column_val = index[0]
-                if gene is not None:
-                    if column_val not in gene_values[gene]:
-                        gene_values[gene][column_val] = 0.0
-                    gene_values[gene][column_val] += count
+
                 if column_val not in values:
                     values[column_val] = 0.0
                 values[column_val] += count
 
-                try:  # figure out whether this is an integer or string (only used outside this loop when we make the plots)
-                    int(column_val)
-                    var_type = 'int'
-                except:
-                    var_type = 'string'
+                if column in self.columns_to_subset_by_gene:
+                    gene = index[1]  # NOTE this is hackey, but it works find now and will fail obviously if I ever change the correlations to be incompatible. so screw it
+                    utils.split_gene(gene)  # checks validity of gene
+                    if gene not in gene_values:
+                        gene_values[gene] = {}
+                    if column_val not in gene_values[gene]:
+                        gene_values[gene][column_val] = 0.0
+                    gene_values[gene][column_val] += count
 
-            if '_del' in column or column == 'vd_insertion' or column == 'dj_insertion':  # option to subset deletion and (real) insertion plots by gene
+            var_type = 'string' if column in self.string_columns else 'int'
+
+            hist = plotting.make_hist_from_dict_of_counts(values, var_type, column, sort=True)
+            plotting.draw_no_root(hist, plotname=column, plotdir=overall_plotdir, errors=True, write_csv=True, only_csv=only_csv)
+
+            if column in self.columns_to_subset_by_gene:
                 thisplotdir = plotdir + '/' + column
                 for gene in gene_values:
                     plotname = utils.sanitize_name(gene) + '-' + column
@@ -143,10 +139,6 @@ class ParameterCounter(object):
                     plotting.draw_no_root(hist, plotname=plotname, plotdir=thisplotdir, errors=True, write_csv=True, only_csv=only_csv)
                 if not only_csv:
                     plotting.make_html(thisplotdir)
-
-            plotname = column
-            hist = plotting.make_hist_from_dict_of_counts(values, var_type, plotname, sort=True)
-            plotting.draw_no_root(hist, plotname=plotname, plotdir=overall_plotdir, errors=True, write_csv=True, only_csv=only_csv)
 
         if not only_csv:
             plotting.make_html(overall_plotdir)
