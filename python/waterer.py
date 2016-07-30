@@ -106,14 +106,18 @@ class Waterer(object):
                     del line[region + '_per_gene_support']
 
                 if self.perfplotter is not None:
-                    line_for_performance = copy.deepcopy(self.info[qname])
+                    perfline = copy.deepcopy(self.info[qname])
                     # arg, hack hack hack hack
-                    line_for_performance['seqs'][0] = line_for_performance['seqs'][0][line_for_performance['padlefts'][0] : -line_for_performance['padrights'][0]]
-                    utils.add_implicit_info(self.glfo, line_for_performance, existing_implicit_keys=['cdr3_length', 'naive_seq', 'mut_freqs'] + utils.functional_columns + ['aligned_' + r + '_seqs' for r in utils.regions])
+                    assert len(perfline['seqs']) == 1
+                    perfline['seqs'][0] = perfline['seqs'][0][perfline['padlefts'][0]:]
+                    if perfline['padrights'][0] > 0:
+                        perfline['seqs'][0] = perfline['seqs'][0][:-perfline['padrights'][0]]
+                    assert len(perfline['seqs'][0]) == len(perfline['naive_seq'])
+                    utils.add_implicit_info(self.glfo, perfline, existing_implicit_keys=['cdr3_length', 'naive_seq', 'mut_freqs'] + utils.functional_columns + ['aligned_' + r + '_seqs' for r in utils.regions])
                     if qname in self.info['indels']:
                         print '    skipping performance evaluation of %s because of indels' % qname  # I just have no idea how to handle naive hamming fraction when there's indels
                     else:
-                        self.perfplotter.evaluate(self.reco_info[qname], line_for_performance)
+                        self.perfplotter.evaluate(self.reco_info[qname], perfline)
 
         if self.perfplotter is not None:
             self.perfplotter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
