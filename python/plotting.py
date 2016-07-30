@@ -9,15 +9,9 @@ from scipy.interpolate import interp1d
 import os
 import glob
 import sys
-import stat
-import copy
 import csv
 import numpy
-from scipy import stats
-from array import array
 from subprocess import check_call
-import re
-from collections import OrderedDict
 import operator
 
 import utils
@@ -354,121 +348,6 @@ def get_unified_bin_hist(hists):
                 low_edges.insert(len(low_edges), low_edges[-1] + dx)
 
     return Hist(len(low_edges), low_edges[0], low_edges[-1] + dx)
-
-# ----------------------------------------------------------------------------------------
-def get_hists_from_dir(dirname, histname, string_to_ignore=None):
-    hists = {}
-    for fname in glob.glob(dirname + '/*.csv'):
-        varname = os.path.basename(fname).replace('.csv', '')
-        if string_to_ignore is not None:
-            varname = varname.replace(string_to_ignore, '')
-        hists[varname] = Hist(fname=fname, title=histname)
-    if len(hists) == 0:
-        raise Exception('no csvs in directory %s' % dirname)
-    return hists
-
-# ----------------------------------------------------------------------------------------
-def compare_directories(args, xtitle='', use_hard_bounds=''):
-    """ 
-    Read all the histograms stored as .csv files in <args.plotdirs>, and overlay them on a new plot.
-    If there's a <varname> that's missing from any dir, we skip that plot entirely and print a warning message.
-    """
-    utils.prep_dir(args.outdir, wildlings=['*.png', '*.svg', '*.csv'])
-
-    # read hists from <args.plotdirs>
-    allhists = OrderedDict()
-    allvars = set()  # all variables that appeared in any dir
-    for idir in range(len(args.plotdirs)):
-        dirhists = get_hists_from_dir(args.plotdirs[idir], args.names[idir])
-        allvars |= set(dirhists.keys())
-        allhists[args.names[idir]] = dirhists
-
-    # then loop over all the <varname>s we found
-    for varname in allvars:
-        hlist = [allhists[dname].get(varname, Hist(1, 0, 1)) for dname in allhists]
-
-        if '_gene' in varname and '_vs_' not in varname:  # for the gene usage frequencies we need to make sure all the plots have the genes in the same order
-            hlist = add_bin_labels_not_in_all_hists(hlist)
-
-        # bullshit complicated config stuff
-        bounds, no_labels, figsize = None, False, None
-        translegend = (0.0, -0.2)
-        extrastats, log = '', ''
-        xtitle, ytitle, xline, normalization_bounds = hlist[0].xtitle, hlist[0].ytitle, None, None
-        simplevarname = varname.replace('-mean-bins', '')
-        plottitle = plotconfig.plot_titles[simplevarname] if simplevarname in plotconfig.plot_titles else simplevarname
-
-        if args.normalize:
-            ytitle = 'frequency'
-
-        if 'mute-freqs/v' in args.plotdirs[0] or 'mute-freqs/d' in args.plotdirs[0] or 'mute-freqs/j' in args.plotdirs[0]:
-            assert not args.normalize
-            ytitle = 'mutation freq'
-
-        if '_gene' in varname and '_vs_' not in varname:
-            xtitle = 'allele'
-            if hlist[0].n_bins == 2:
-                extrastats = ' 0-bin'  # print the fraction of entries in the zero bin into the legend (i.e. the fraction correct)
-        else:
-            xtitle = 'bases'
-
-        line_width_override = None
-        if args.plot_performance:
-            if 'hamming_to_true_naive' in varname:
-                xtitle = 'hamming distance'
-                if '_normed' in varname:
-                    xtitle = 'fractional ' + xtitle
-            elif '_vs_mute_freq' in varname:
-                xtitle = 'mutation freq'
-                ytitle = 'fraction correct'
-                if varname[0] == 'v' or varname[0] == 'j':
-                    translegend = (-0.4, -0.4)
-            else:
-                xtitle = 'inferred - true'
-            bounds = plotconfig.true_vs_inferred_hard_bounds.setdefault(varname, None)
-        else:
-            bounds = plotconfig.default_hard_bounds.setdefault(varname.replace('-mean-bins', ''), None)
-            if bounds is None and 'insertion' in varname:
-                bounds = plotconfig.default_hard_bounds.setdefault('all_insertions', None)
-            if '_gene' in varname and '_vs_' not in varname:
-                no_labels = True
-                if 'j_' not in varname:
-                    figsize = (10, 5)
-                line_width_override = 1
-            elif 'mute-freqs/v' in args.plotdirs[0] or 'mute-freqs/j' in args.plotdirs[0]:
-                figsize = (10, 5)
-                bounds = plotconfig.default_hard_bounds.setdefault(utils.unsanitize_name(varname.replace('-mean-bins', '')), None)
-
-        if 'IG' in varname:
-            if 'mute-freqs' in args.plotdirs[0]:
-                gene = utils.unsanitize_name(simplevarname)
-                plottitle = gene  # + ' -- mutation frequency'
-                xtitle = 'position'
-                if utils.get_region(gene) == 'j':
-                    translegend = (0.1, 0.)  #(-0.35, -0.02)
-                else:
-                    translegend = (0.15, -0.02)
-                xline = None
-                if args.glfo is not None:
-                    if utils.get_region(gene) in utils.conserved_codons[args.chain]:
-                        xline = args.glfo[utils.conserved_codons[args.chain][utils.get_region(gene)] + '-positions'][gene]
-            else:
-                ilastdash = simplevarname.rfind('-')
-                gene = utils.unsanitize_name(simplevarname[:ilastdash])
-                base_varname = simplevarname[ilastdash + 1 :]
-                base_plottitle = plotconfig.plot_titles[base_varname] if base_varname in plotconfig.plot_titles else ''
-                plottitle = gene + ' -- ' + base_plottitle
-
-        # draw that little #$*(!
-        linewidths = [line_width_override, ] if line_width_override is not None else args.linewidths
-        alphas = [0.6 for _ in range(len(hlist))]
-        draw_no_root(hlist[0], plotname=varname, plotdir=args.outdir, more_hists=hlist[1:], write_csv=False, stats=extrastats, bounds=bounds,
-                     shift_overflows=False, plottitle=plottitle, colors=args.colors,
-                     xtitle=xtitle, ytitle=ytitle, xline=xline, normalize=(args.normalize and '_vs_mute_freq' not in varname),
-                     linewidths=linewidths, alphas=alphas, errors=True,
-                     figsize=figsize, no_labels=no_labels, log=log, translegend=translegend)
-
-        make_html(args.outdir)
 
 # ----------------------------------------------------------------------------------------
 def get_cluster_size_hist(partition, rebin=None):
