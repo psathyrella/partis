@@ -78,7 +78,7 @@ def make_bool_hist(n_true, n_false, hist_label):
     # if 'fraction_uncertainty' not in sys.modules:
     #     import fraction_uncertainty
 
-    hist = Hist(2, -0.5, 1.5)
+    hist = Hist(2, -0.5, 1.5, ytitle='freq')
 
     def set_bin(numer, denom, ibin, label):
         frac = float(numer) / denom
@@ -263,7 +263,7 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
         if 'mean' in stats:
             htmp.title += ' (mean %.2f)' % htmp.get_mean()
         if '0-bin' in stats:
-            htmp.title += ' (%.2f)' % htmp.bin_contents[1]
+            htmp.title += ' (right %.2f)' % htmp.bin_contents[1]
         markersize = None
         if markersizes is not None:
             imark = ih if len(markersizes) > 1 else 0
@@ -305,8 +305,14 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
         xticklabels = hist.bin_labels
 
     if not only_csv:
+        if plottitle is not None:
+            tmptitle = plottitle
+        elif plotname in plotconfig.plot_titles:
+            tmptitle = plotconfig.plot_titles[plotname]
+        else:
+            tmptitle = hist.title  # hm, maybe shouldn't be hist.title? I think that's usually supposed to be the legend
         mpl_finish(ax, plotdir, plotname,
-                   title=hist.title if plottitle is None else plottitle,  # hm, maybe shouldn't be hist.title? I think that's usually supposed to be the legend
+                   title=tmptitle,
                    xlabel=hist.xtitle if xtitle is None else xtitle,
                    ylabel=hist.ytitle if ytitle is None else ytitle,
                    xbounds=[xmin, xmax],
@@ -887,6 +893,7 @@ def make_allele_finding_plot(plotdir, gene, position, values):
 
 # ----------------------------------------------------------------------------------------
 def make_fraction_plot(hright, hwrong, plotdir, plotname, xlabel, ylabel, xbounds, write_csv=False):
+    # NOTE should really merge this with draw_no_root()
     xvals = hright.get_bin_centers() #ignore_overflows=True)
     right = hright.bin_contents
     wrong = hwrong.bin_contents
@@ -925,7 +932,7 @@ def make_fraction_plot(hright, hwrong, plotdir, plotname, xlabel, ylabel, xbound
     # linevals = [slope*x + y_icpt for x in [0] + xvals]  # fitted line
     # ax.plot([0] + xvals, linevals)
 
-    mpl_finish(ax, plotdir, plotname, xlabel=xlabel, ylabel=ylabel, xbounds=xbounds, ybounds=(-0.1, 1.1))
+    mpl_finish(ax, plotdir, plotname, xlabel=xlabel, ylabel=ylabel, title=plotconfig.plot_titles.get(plotname, plotname), xbounds=xbounds, ybounds=(-0.1, 1.1))
 
     if write_csv:
         hist_for_csv.write(plotdir + '/' + plotname + '.csv')

@@ -1,5 +1,7 @@
 import utils
 
+gene_usage_columns = [r + '_gene' for r in utils.regions]
+
 xtitles = {
     'v_gene' : '',
     'd_gene' : '',
@@ -47,9 +49,12 @@ plot_titles = {
     'v-mean-freq' : 'V mutation freq',
     'd-mean-freq' : 'D mutation freq',
     'j-mean-freq' : 'J mutation freq',
-    'v_gene_fraction_vs_mute_freq' : 'V gene',
-    'd_gene_fraction_vs_mute_freq' : 'D gene',
-    'j_gene_fraction_vs_mute_freq' : 'J gene'
+    'v_fraction_correct_vs_mute_freq' : 'V gene',
+    'd_fraction_correct_vs_mute_freq' : 'D gene',
+    'j_fraction_correct_vs_mute_freq' : 'J gene',
+    'v_allele_fraction_correct_vs_per_gene_support' : 'V gene',
+    'd_allele_fraction_correct_vs_per_gene_support' : 'D gene',
+    'j_allele_fraction_correct_vs_per_gene_support' : 'J gene'
 }
 for region in utils.regions:
     for end in ['5', '3']:

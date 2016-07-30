@@ -35,9 +35,9 @@ class PerformancePlotter(object):
         # self.counts['seq_content'] = {'A':0, 'C':0, 'G':0, 'T':0}
         # n_bins, xmin, xmax = 100, 0.0, 1.0
         self.hists = {}
-        self.hists['mute_freqs'] = Hist(30, -0.05, 0.05)
+        self.hists['mute_freqs'] = Hist(30, -0.05, 0.05, xtitle='inferred - true')
         for region in utils.regions:
-            self.hists[region + '_mute_freqs'] = Hist(30, -0.05, 0.05)
+            self.hists[region + '_mute_freqs'] = Hist(30, -0.05, 0.05, xtitle='inferred - true')
         for region in utils.regions:  # plots of correct gene calls vs mute freq
             self.hists[region + '_gene_right_vs_mute_freq'] = Hist(25, 0., 0.4)
             self.hists[region + '_gene_wrong_vs_mute_freq'] = Hist(25, 0., 0.4)

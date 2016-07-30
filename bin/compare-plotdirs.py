@@ -47,7 +47,7 @@ def compare_directories(args, xtitle=''):
     for varname in allvars:
         hlist = [allhists[dname].get(varname, Hist(1, 0, 1)) for dname in allhists]
 
-        if varname in [r + '_gene' for r in utils.regions]:
+        if varname in plotconfig.gene_usage_columns:
             hlist = plotting.add_bin_labels_not_in_all_hists(hlist)
 
         no_labels = False
@@ -55,25 +55,25 @@ def compare_directories(args, xtitle=''):
         translegend = (0.0, -0.2)
         extrastats, log = '', ''
         xtitle, ytitle = hlist[0].xtitle, hlist[0].ytitle
-        simplevarname = varname.replace('-mean-bins', '')
-        plottitle = plotconfig.plot_titles[simplevarname] if simplevarname in plotconfig.plot_titles else simplevarname
+        if '-mean-bins' in varname:
+            raise Exception('darn, I was hoping I wasn\'t making these plots any more')
+        plottitle = plotconfig.plot_titles[varname] if varname in plotconfig.plot_titles else varname
 
-        if args.normalize:
-            ytitle = 'frequency'
+        ytitle = 'frequency' if args.normalize else 'counts'
 
         if 'mute-freqs/v' in args.plotdirs[0] or 'mute-freqs/d' in args.plotdirs[0] or 'mute-freqs/j' in args.plotdirs[0]:
             assert not args.normalize
             ytitle = 'mutation freq'
 
-        if '_gene' in varname and '_vs_' not in varname:
+        if varname in plotconfig.gene_usage_columns:
             xtitle = 'allele'
             if hlist[0].n_bins == 2:
                 extrastats = ' 0-bin'  # print the fraction of entries in the zero bin into the legend (i.e. the fraction correct)
-        else:
+        elif hlist[0].bin_labels.count('') == hlist[0].n_bins + 2:
             xtitle = 'bases'
 
         line_width_override = None
-        if args.plot_performance:
+        if args.performance_plots:
             if 'hamming_to_true_naive' in varname:
                 xtitle = 'hamming distance'
                 if '_normed' in varname:
@@ -87,21 +87,21 @@ def compare_directories(args, xtitle=''):
                 xtitle = 'inferred - true'
             bounds = plotconfig.true_vs_inferred_hard_bounds.setdefault(varname, None)
         else:
-            bounds = plotconfig.default_hard_bounds.setdefault(varname.replace('-mean-bins', ''), None)
+            bounds = plotconfig.default_hard_bounds.setdefault(varname, None)
             if bounds is None and 'insertion' in varname:
                 bounds = plotconfig.default_hard_bounds.setdefault('all_insertions', None)
-            if '_gene' in varname and '_vs_' not in varname:
+            if varname in plotconfig.gene_usage_columns:
                 no_labels = True
                 if 'j_' not in varname:
                     figsize = (10, 5)
                 line_width_override = 1
             elif 'mute-freqs/v' in args.plotdirs[0] or 'mute-freqs/j' in args.plotdirs[0]:
                 figsize = (10, 5)
-                bounds = plotconfig.default_hard_bounds.setdefault(utils.unsanitize_name(varname.replace('-mean-bins', '')), None)
+                bounds = plotconfig.default_hard_bounds.setdefault(utils.unsanitize_name(varname), None)
 
         if 'IG' in varname:
             if 'mute-freqs' in args.plotdirs[0]:
-                gene = utils.unsanitize_name(simplevarname)
+                gene = utils.unsanitize_name(varname)
                 plottitle = gene  # + ' -- mutation frequency'
                 xtitle = 'position'
                 if utils.get_region(gene) == 'j':
@@ -113,9 +113,9 @@ def compare_directories(args, xtitle=''):
                     if utils.get_region(gene) in utils.conserved_codons[args.chain]:
                         xline = args.glfo[utils.conserved_codons[args.chain][utils.get_region(gene)] + '-positions'][gene]
             else:
-                ilastdash = simplevarname.rfind('-')
-                gene = utils.unsanitize_name(simplevarname[:ilastdash])
-                base_varname = simplevarname[ilastdash + 1 :]
+                ilastdash = varname.rfind('-')
+                gene = utils.unsanitize_name(varname[:ilastdash])
+                base_varname = varname[ilastdash + 1 :]
                 base_plottitle = plotconfig.plot_titles[base_varname] if base_varname in plotconfig.plot_titles else ''
                 plottitle = gene + ' -- ' + base_plottitle
 
@@ -135,7 +135,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--outdir', required=True)
 parser.add_argument('--plotdirs', required=True)
 parser.add_argument('--names', required=True)
-parser.add_argument('--plot-performance', action='store_true')
+parser.add_argument('--performance-plots', action='store_true')
 parser.add_argument('--colors', default='#006600:#cc0000:#990012:#3333ff:#3399ff:#2b65ec:#2b65ec:#808080')
 parser.add_argument('--linewidths', default='5:3:2:2:2')
 parser.add_argument('--gldir', default='data/imgt')
