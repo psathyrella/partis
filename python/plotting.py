@@ -312,7 +312,7 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
 
     if not only_csv:
         mpl_finish(ax, plotdir, plotname,
-                   title=hist.title if plottitle is None else plottitle,
+                   title=hist.title if plottitle is None else plottitle,  # hm, maybe shouldn't be hist.title? I think that's usually supposed to be the legend
                    xlabel=hist.xtitle if xtitle is None else xtitle,
                    ylabel=hist.ytitle if ytitle is None else ytitle,
                    xbounds=[xmin, xmax],
@@ -364,7 +364,7 @@ def get_hists_from_dir(dirname, histname, string_to_ignore=None):
             varname = varname.replace(string_to_ignore, '')
         hists[varname] = Hist(fname=fname, title=histname)
     if len(hists) == 0:
-        raise Exception('ERROR no csvs in %s' % dirname)
+        raise Exception('no csvs in directory %s' % dirname)
     return hists
 
 # ----------------------------------------------------------------------------------------
@@ -376,31 +376,25 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
     utils.prep_dir(args.outdir, wildlings=['*.png', '*.svg', '*.csv'])
 
     # read hists from <args.plotdirs>
-    hists = []
+    allhists = OrderedDict()
+    allvars = set()  # all variables that appeared in any dir
     for idir in range(len(args.plotdirs)):
-        hist_list = get_hists_from_dir(args.plotdirs[idir], args.names[idir])
-        hists.append(hist_list)
+        dirhists = get_hists_from_dir(args.plotdirs[idir], args.names[idir])
+        allvars |= set(dirhists.keys())
+        allhists[args.names[idir]] = dirhists
 
     # then loop over all the <varname>s we found
-    for varname, hist in hists[0].items():
-        # add the hists
-        all_hists = [hist,]
-        missing_hist = False
-        for idir in range(1, len(args.plotdirs)):
-            try:  # add the hist
-                all_hists.append(hists[idir][varname])
-            except KeyError:  # oops, didn't find it in this dir, so skip this variable entirely
-                print args.names[idir], varname
-                all_hists.append(Hist(1, 0, 1))
+    for varname in allvars:
+        hlist = [allhists[dname].get(varname, Hist(1, 0, 1)) for dname in allhists]
 
         if '_gene' in varname and '_vs_' not in varname:  # for the gene usage frequencies we need to make sure all the plots have the genes in the same order
-            all_hists = add_bin_labels_not_in_all_hists(all_hists)
+            hlist = add_bin_labels_not_in_all_hists(hlist)
 
         # bullshit complicated config stuff
         bounds, no_labels, figsize = None, False, None
         translegend = (0.0, -0.2)
         extrastats, log = '', ''
-        xtitle, ytitle, xline, normalization_bounds = hist.xtitle, hist.ytitle, None, None
+        xtitle, ytitle, xline, normalization_bounds = hlist[0].xtitle, hlist[0].ytitle, None, None
         simplevarname = varname.replace('-mean-bins', '')
         plottitle = plotconfig.plot_titles[simplevarname] if simplevarname in plotconfig.plot_titles else simplevarname
 
@@ -413,7 +407,7 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
 
         if '_gene' in varname and '_vs_' not in varname:
             xtitle = 'allele'
-            if hist.n_bins == 2:
+            if hlist[0].n_bins == 2:
                 extrastats = ' 0-bin'  # print the fraction of entries in the zero bin into the legend (i.e. the fraction correct)
         else:
             xtitle = 'bases'
@@ -467,8 +461,8 @@ def compare_directories(args, xtitle='', use_hard_bounds=''):
 
         # draw that little #$*(!
         linewidths = [line_width_override, ] if line_width_override is not None else args.linewidths
-        alphas = [0.6 for _ in range(len(all_hists))]
-        draw_no_root(all_hists[0], plotname=varname, plotdir=args.outdir, more_hists=all_hists[1:], write_csv=False, stats=extrastats, bounds=bounds,
+        alphas = [0.6 for _ in range(len(hlist))]
+        draw_no_root(hlist[0], plotname=varname, plotdir=args.outdir, more_hists=hlist[1:], write_csv=False, stats=extrastats, bounds=bounds,
                      shift_overflows=False, plottitle=plottitle, colors=args.colors,
                      xtitle=xtitle, ytitle=ytitle, xline=xline, normalize=(args.normalize and '_vs_mute_freq' not in varname),
                      linewidths=linewidths, alphas=alphas, errors=True,
@@ -898,7 +892,6 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
         plt.xticks(xticks)
     if xticklabels is not None:
         mean_length = float(sum([len(xl) for xl in xticklabels])) / len(xticklabels)
-        print mean_length
         if mean_length > 3:
             ax.set_xticklabels(xticklabels, rotation='vertical', size=8)
         else:
