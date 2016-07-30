@@ -14,10 +14,10 @@ bool_columns = ('v_gene', 'd_gene', 'j_gene')
 
 class PerformancePlotter(object):
     # ----------------------------------------------------------------------------------------
-    def __init__(self, name, only_correct_gene_fractions=False):
+    def __init__(self, name):
         self.name = name
-        self.values, self.hists = {}, {}
-        self.only_correct_gene_fractions = only_correct_gene_fractions
+        self.values, self.hists = {}, {}  # the dictionary-based approach in <self.values> is nice because you can decide your hist bounds after filling everything
+
         for column in tuple(list(utils.index_columns) + ['cdr3_length', ]):
             if column == 'cdr3_length':  # kind of finicky to figure out what this is, so I don't always set it
                 continue
@@ -25,14 +25,17 @@ class PerformancePlotter(object):
             if column in bool_columns:
                 self.values[column]['right'] = 0
                 self.values[column]['wrong'] = 0
+
         self.values['hamming_to_true_naive'] = {}
         self.hists['hamming_to_true_naive_normed'] = Hist(25, 0., 0.5)
         for region in utils.regions:
             self.values[region + '_hamming_to_true_naive'] = {}
             self.hists[region + '_hamming_to_true_naive_normed'] = Hist(25, 0., 0.5)
+
         self.hists['mute_freqs'] = Hist(30, -0.05, 0.05, xtitle='inferred - true')
         for region in utils.regions:
             self.hists[region + '_mute_freqs'] = Hist(30, -0.05, 0.05, xtitle='inferred - true')
+
         for region in utils.regions:  # plots of correct gene calls vs mute freq
             self.hists[region + '_gene_right_vs_mute_freq'] = Hist(25, 0., 0.4)
             self.hists[region + '_gene_wrong_vs_mute_freq'] = Hist(25, 0., 0.4)
@@ -170,8 +173,6 @@ class PerformancePlotter(object):
         overall_mute_freq = utils.get_mutation_rate(true_line, iseq=0)  # true value
 
         for column in self.values:
-            if self.only_correct_gene_fractions and column not in bool_columns:
-                continue
             if column in bool_columns:
                 self.set_bool_column(true_line, inf_line, column, overall_mute_freq)
             else:
@@ -221,8 +222,6 @@ class PerformancePlotter(object):
     def plot(self, plotdir, only_csv=False):
         utils.prep_dir(plotdir, wildlings=('*.csv', '*.svg'))
         for column in self.values:
-            if self.only_correct_gene_fractions and column not in bool_columns:
-                continue
             if column in bool_columns:
                 right = self.values[column]['right']
                 wrong = self.values[column]['wrong']
@@ -231,8 +230,7 @@ class PerformancePlotter(object):
                 hist = plotting.make_bool_hist(right, wrong, self.name + '-' + column)
                 plotting.draw_no_root(hist, plotname=column, plotdir=plotdir, write_csv=True, stats='0-bin', only_csv=only_csv)
             else:
-                # TODO this is dumb... I should make the integer-valued ones histograms as well
-                hist = plotting.make_hist_from_dict_of_counts(self.values[column], 'int', self.name + '-' + column, normalize=True)
+                hist = plotting.make_hist_from_dict_of_counts(self.values[column], 'int', self.name + '-' + column, normalize=False)
                 log = ''
                 xtitle = 'hamming distance' if 'hamming_to_true_naive' in column else 'inferred - true'
                 plotting.draw_no_root(hist, plotname=column, plotdir=plotdir, write_csv=True, log=log, only_csv=only_csv, xtitle=xtitle)
@@ -240,7 +238,7 @@ class PerformancePlotter(object):
         for column in self.hists:
             if '_vs_mute_freq' in column or '_vs_per_gene_support' in column:  # only really care about the fraction, which we plot below
                 continue
-            plotting.draw_no_root(self.hists[column], plotname=column, plotdir=plotdir, write_csv=True, log=log, only_csv=only_csv)
+            plotting.draw_no_root(self.hists[column], plotname=column, plotdir=plotdir, write_csv=True, log=log, only_csv=only_csv, ytitle='counts')
 
         # fraction correct vs mute freq
         for region in utils.regions:
@@ -250,7 +248,7 @@ class PerformancePlotter(object):
                 continue
             plotting.make_fraction_plot(hright, hwrong, plotdir, region + '_fraction_correct_vs_mute_freq', xlabel='mut freq', ylabel='fraction correct up to allele', xbounds=(0., 0.5), write_csv=True)
 
-        # per-gene support crap
+        # per-gene support stuff
         for region in utils.regions:
             if self.hists[region + '_allele_right_vs_per_gene_support'].integral(include_overflows=True) == 0:
                 continue
