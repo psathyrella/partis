@@ -1,16 +1,19 @@
 import sys
 import utils
 import numpy
-import plotting
 import re
-from hist import Hist
 from subprocess import check_call
-import fraction_uncertainty
 import copy
 import math
 
+import plotconfig
+import plotting
+from hist import Hist
+import fraction_uncertainty
+
 # Columns for which we just want to know, Did we guess the right value? (for other columns, we store guess - true)
-bool_columns = ('v_gene', 'd_gene', 'j_gene')
+bool_columns = plotconfig.gene_usage_columns
+rstrings = ['', ] + [r + '_' for r in utils.regions]
 
 class PerformancePlotter(object):
     # ----------------------------------------------------------------------------------------
@@ -18,28 +21,22 @@ class PerformancePlotter(object):
         self.name = name
         self.values, self.hists = {}, {}  # the dictionary-based approach in <self.values> is nice because you can decide your hist bounds after filling everything
 
-        for column in tuple(list(utils.index_columns) + ['cdr3_length', ]):
-            if column == 'cdr3_length':  # kind of finicky to figure out what this is, so I don't always set it
-                continue
+        for column in utils.index_columns:
             self.values[column] = {}
             if column in bool_columns:
-                self.values[column]['right'] = 0
-                self.values[column]['wrong'] = 0
+                self.values[column] = {'right' : 0, 'wrong' : 0}
 
-        self.values['hamming_to_true_naive'] = {}
-        self.hists['hamming_to_true_naive_normed'] = Hist(25, 0., 0.5)
+        for rstr in rstrings:
+            self.values[rstr + 'hamming_to_true_naive'] = {}
+            self.hists[rstr + 'hamming_to_true_naive_normed'] = Hist(25, 0., 0.5)
+
+        for rstr in rstrings:
+            self.hists[rstr + 'mute_freqs'] = Hist(30, -0.05, 0.05, xtitle='inferred - true')
+
         for region in utils.regions:
-            self.values[region + '_hamming_to_true_naive'] = {}
-            self.hists[region + '_hamming_to_true_naive_normed'] = Hist(25, 0., 0.5)
-
-        self.hists['mute_freqs'] = Hist(30, -0.05, 0.05, xtitle='inferred - true')
-        for region in utils.regions:
-            self.hists[region + '_mute_freqs'] = Hist(30, -0.05, 0.05, xtitle='inferred - true')
-
-        for region in utils.regions:  # plots of correct gene calls vs mute freq
-            self.hists[region + '_gene_right_vs_mute_freq'] = Hist(25, 0., 0.4)
+            self.hists[region + '_gene_right_vs_mute_freq'] = Hist(25, 0., 0.4)  # correct *up* to allele (i.e. you can get the allele wrong)
             self.hists[region + '_gene_wrong_vs_mute_freq'] = Hist(25, 0., 0.4)
-            self.hists[region + '_allele_right_vs_per_gene_support'] = Hist(25, 0., 1.)  # NOTE these require the correct *allele*, while the other ones don't
+            self.hists[region + '_allele_right_vs_per_gene_support'] = Hist(25, 0., 1.)  # whereas these require the *correct* allele
             self.hists[region + '_allele_wrong_vs_per_gene_support'] = Hist(25, 0., 1.)
 
     # ----------------------------------------------------------------------------------------
@@ -174,21 +171,16 @@ class PerformancePlotter(object):
 
         for column in self.values:
             if column in bool_columns:
-                self.set_bool_column(true_line, inf_line, column, overall_mute_freq)
-            else:
+                self.set_bool_column(true_line, inf_line, column, overall_mute_freq)  # this also sets the fraction-correct-vs-mute-freq hists
+            else:  # these should all be integer-valued
                 trueval, guessval = 0, 0
                 if column[2:] == '_insertion':  # insertion length
                     trueval = len(true_line[column])
                     guessval = len(inf_line[column])
-                # elif '_content' in column:
-                #     seq_to_use = inf_line[column[ : column.find('_', 3)]]  # NOTE has to work for seq_content *and* vd_insertion_content, hence the 3
-                #         for nuke in seq_to_use:
-                #             self.counts[col][nuke] += 1
                 elif 'hamming_to_true_naive' in column:
-                    trueval = 0  # NOTE this is a kind of weird way to do it, since diff ends up as really just the guessval, but it does the job
-                    restrict_to_region = column[0].replace('h', '')  # if fist char in <column> is not an 'h', restrict to that region
-                    assert '_norm' not in column  # moved these to <self.hists>
-                    guessval = self.hamming_distance_to_true_naive(true_line, inf_line, normalize=False, restrict_to_region=restrict_to_region, padfo=padfo)
+                    assert '_normed' not in column  # moved these to <self.hists>
+                    trueval = 0
+                    guessval = self.hamming_distance_to_true_naive(true_line, inf_line, normalize=False, restrict_to_region=column[0] if column[0] in utils.regions else '', padfo=padfo)
                 else:
                     trueval = int(true_line[column])
                     guessval = int(inf_line[column])
@@ -203,42 +195,37 @@ class PerformancePlotter(object):
                 self.set_per_gene_support(true_line, inf_line, region)
 
         for column in [c for c in self.hists if 'hamming_to_true' in c]:
-            restrict_to_region = column[0] if column[0] in utils.regions else ''
-            hfrac = self.hamming_distance_to_true_naive(true_line, inf_line, normalize=True, restrict_to_region=restrict_to_region, padfo=padfo)
+            hfrac = self.hamming_distance_to_true_naive(true_line, inf_line, normalize=True, restrict_to_region=column[0] if column[0] in utils.regions else '', padfo=padfo)
             self.hists[column].fill(hfrac)
 
-        for column in [c for c in self.hists if 'mute_freqs' in c]:  # NOTE not '_vs_mute_freq' (plural is important)
-            if '_vs_mute_freq' in column or '_per_gene_support' in column:  # fill these above
-                continue
-            if len(re.findall('[vdj]_', column)) == 1:
-                region = re.findall('[vdj]_', column)[0][0]
-            else:
-                region = ''
-            trueval = utils.get_mutation_rate(true_line, iseq=0, restrict_to_region=region)
+        for rstr in rstrings:
+            column = rstr + 'mute_freqs'
+            region = column[0] if column[0] in utils.regions else ''
+            trueval = utils.get_mutation_rate(true_line, iseq=0, restrict_to_region=region)  # when we're evaluating on multi-seq hmm output, we synthesize single-sequence lines for each sequence
             guessval = utils.get_mutation_rate(inf_line, iseq=0, restrict_to_region=region)
             self.hists[column].fill(guessval - trueval)
 
     # ----------------------------------------------------------------------------------------
     def plot(self, plotdir, only_csv=False):
         utils.prep_dir(plotdir, wildlings=('*.csv', '*.svg'))
+
         for column in self.values:
             if column in bool_columns:
                 right = self.values[column]['right']
                 wrong = self.values[column]['wrong']
-                errs = fraction_uncertainty.err(right, right+wrong)
-                print '  %s\n    correct up to allele: %4d / %-4d = %4.4f (-%.3f, +%.3f)' % (column, right, right+wrong, float(right) / (right + wrong), errs[0], errs[1])
+                lo, hi, _ = fraction_uncertainty.err(right, right + wrong)
                 hist = plotting.make_bool_hist(right, wrong, self.name + '-' + column)
                 plotting.draw_no_root(hist, plotname=column, plotdir=plotdir, write_csv=True, stats='0-bin', only_csv=only_csv)
+                print '  %s\n    correct up to allele: %4d / %-4d = %4.4f (-%.3f, +%.3f)' % (column, right, right+wrong, float(right) / (right + wrong), lo, hi)
             else:
                 hist = plotting.make_hist_from_dict_of_counts(self.values[column], 'int', self.name + '-' + column, normalize=False)
-                log = ''
                 xtitle = 'hamming distance' if 'hamming_to_true_naive' in column else 'inferred - true'
-                plotting.draw_no_root(hist, plotname=column, plotdir=plotdir, write_csv=True, log=log, only_csv=only_csv, xtitle=xtitle)
+                plotting.draw_no_root(hist, plotname=column, plotdir=plotdir, write_csv=True, only_csv=only_csv, xtitle=xtitle)
 
         for column in self.hists:
             if '_vs_mute_freq' in column or '_vs_per_gene_support' in column:  # only really care about the fraction, which we plot below
                 continue
-            plotting.draw_no_root(self.hists[column], plotname=column, plotdir=plotdir, write_csv=True, log=log, only_csv=only_csv, ytitle='counts')
+            plotting.draw_no_root(self.hists[column], plotname=column, plotdir=plotdir, write_csv=True, only_csv=only_csv, ytitle='counts')
 
         # fraction correct vs mute freq
         for region in utils.regions:
