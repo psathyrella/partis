@@ -311,9 +311,15 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
             tmptitle = plotconfig.plot_titles[plotname]
         else:
             tmptitle = hist.title  # hm, maybe shouldn't be hist.title? I think that's usually supposed to be the legend
+        if xtitle is not None:
+            tmpxtitle = xtitle
+        elif plotname in plotconfig.xtitles:
+            tmpxtitle = plotconfig.xtitles[plotname]
+        else:
+            tmpxtitle = hist.xtitle  # hm, maybe shouldn't be hist.title? I think that's usually supposed to be the legend
         mpl_finish(ax, plotdir, plotname,
                    title=tmptitle,
-                   xlabel=hist.xtitle if xtitle is None else xtitle,
+                   xlabel=tmpxtitle,
                    ylabel=hist.ytitle if ytitle is None else ytitle,
                    xbounds=[xmin, xmax],
                    ybounds=[-0.03*ymax, 1.15*ymax],

@@ -24,20 +24,24 @@ xtitles = {
     'v-mean-freq' : 'mutation freq',
     'd-mean-freq' : 'mutation freq',
     'j-mean-freq' : 'mutation freq',
-    
 }
+for rstr in [r + '_' for r in utils.regions] + ['', ]:
+    xtitles[rstr + 'hamming_to_true_naive'] = 'hamming distance'
+for rstr in [r + '_' for r in utils.regions] + ['', ]:
+    xtitles[rstr + 'hamming_to_true_naive_normed'] = 'hamming fraction'
 
 plot_titles = {
     'v_gene' : 'V gene',
     'd_gene' : 'D gene',
     'j_gene' : 'J gene',
-    'hamming_to_true_naive' : 'Distance to true naive',
+    'hamming_to_true_naive' : 'total distance to true naive',
+    'hamming_to_true_naive_normed' : 'total fraction to true naive',
     'v_hamming_to_true_naive' : 'V Distance to true naive',
     'd_hamming_to_true_naive' : 'D Distance to true naive',
     'j_hamming_to_true_naive' : 'J Distance to true naive',
-    'v_hamming_to_true_naive_normed' : 'V Distance to true naive',
-    'd_hamming_to_true_naive_normed' : 'D Distance to true naive',
-    'j_hamming_to_true_naive_normed' : 'J Distance to true naive',
+    'v_hamming_to_true_naive_normed' : 'V fraction to true naive',
+    'd_hamming_to_true_naive_normed' : 'D fraction to true naive',
+    'j_hamming_to_true_naive_normed' : 'J fraction to true naive',
     'seq_content' : 'sequence base content',
     'dj_insertion_content' : 'DJ insert base content',
     'vd_insertion_content' : 'VD insert base content',

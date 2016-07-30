@@ -16,7 +16,7 @@ class PerformancePlotter(object):
     # ----------------------------------------------------------------------------------------
     def __init__(self, name, only_correct_gene_fractions=False):
         self.name = name
-        self.values = {}
+        self.values, self.hists = {}, {}
         self.only_correct_gene_fractions = only_correct_gene_fractions
         for column in tuple(list(utils.index_columns) + ['cdr3_length', ]):
             if column == 'cdr3_length':  # kind of finicky to figure out what this is, so I don't always set it
@@ -26,15 +26,10 @@ class PerformancePlotter(object):
                 self.values[column]['right'] = 0
                 self.values[column]['wrong'] = 0
         self.values['hamming_to_true_naive'] = {}
-        self.values['hamming_to_true_naive_normed'] = {}
+        self.hists['hamming_to_true_naive_normed'] = Hist(25, 0., 0.5)
         for region in utils.regions:
             self.values[region + '_hamming_to_true_naive'] = {}
-            self.values[region + '_hamming_to_true_naive_normed'] = {}
-        # for bound in utils.boundaries:
-        #     self.counts[bound + '_insertion_content'] = {'A':0, 'C':0, 'G':0, 'T':0}  # base content of each insertion
-        # self.counts['seq_content'] = {'A':0, 'C':0, 'G':0, 'T':0}
-        # n_bins, xmin, xmax = 100, 0.0, 1.0
-        self.hists = {}
+            self.hists[region + '_hamming_to_true_naive_normed'] = Hist(25, 0., 0.5)
         self.hists['mute_freqs'] = Hist(30, -0.05, 0.05, xtitle='inferred - true')
         for region in utils.regions:
             self.hists[region + '_mute_freqs'] = Hist(30, -0.05, 0.05, xtitle='inferred - true')
@@ -121,7 +116,7 @@ class PerformancePlotter(object):
                 print 'WARNING zero length sequence in hamming_distance_to_true_naive'
             return 0
         if normalize:
-            return int(100 * (float(total_distance) / len(true_naive_seq)))
+            return float(total_distance) / len(true_naive_seq)
         else:
             return total_distance
 
@@ -191,8 +186,8 @@ class PerformancePlotter(object):
                 elif 'hamming_to_true_naive' in column:
                     trueval = 0  # NOTE this is a kind of weird way to do it, since diff ends up as really just the guessval, but it does the job
                     restrict_to_region = column[0].replace('h', '')  # if fist char in <column> is not an 'h', restrict to that region
-                    normalize = '_norm' in column
-                    guessval = self.hamming_distance_to_true_naive(true_line, inf_line, restrict_to_region=restrict_to_region, normalize=normalize, padfo=padfo)
+                    assert '_norm' not in column  # moved these to <self.hists>
+                    guessval = self.hamming_distance_to_true_naive(true_line, inf_line, normalize=False, restrict_to_region=restrict_to_region, padfo=padfo)
                 else:
                     trueval = int(true_line[column])
                     guessval = int(inf_line[column])
@@ -206,7 +201,12 @@ class PerformancePlotter(object):
             if region + '_per_gene_support' in inf_line:
                 self.set_per_gene_support(true_line, inf_line, region)
 
-        for column in self.hists:
+        for column in [c for c in self.hists if 'hamming_to_true' in c]:
+            restrict_to_region = column[0] if column[0] in utils.regions else ''
+            hfrac = self.hamming_distance_to_true_naive(true_line, inf_line, normalize=True, restrict_to_region=restrict_to_region, padfo=padfo)
+            self.hists[column].fill(hfrac)
+
+        for column in [c for c in self.hists if 'mute_freqs' in c]:  # NOTE not '_vs_mute_freq' (plural is important)
             if '_vs_mute_freq' in column or '_per_gene_support' in column:  # fill these above
                 continue
             if len(re.findall('[vdj]_', column)) == 1:
