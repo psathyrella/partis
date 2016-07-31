@@ -194,15 +194,16 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def restrict_to_observed_alleles(self, subpdir):
         """ Restrict <self.glfo> to genes observed in <subpdir>, and write the changes to <self.my_gldir>. """
-        print '  restricting self.glfo (and %s) to alleles observed in %s' % (self.my_gldir, subpdir)
+        if self.args.debug:
+            print '  restricting self.glfo (and %s) to alleles observed in %s' % (self.my_gldir, subpdir)
         only_genes = set()
         for region in utils.regions:
             with opener('r')(subpdir + '/' + region + '_gene-probs.csv') as pfile:
                 reader = csv.DictReader(pfile)
                 for line in reader:
                     only_genes.add(line[region + '_gene'])
-        glutils.restrict_to_genes(self.glfo, only_genes, debug=True)
-        glutils.write_glfo(self.my_gldir, self.glfo, debug=True)  # write glfo modifications to disk
+        glutils.restrict_to_genes(self.glfo, only_genes, debug=False)
+        glutils.write_glfo(self.my_gldir, self.glfo, debug=False)  # write glfo modifications to disk
 
     # ----------------------------------------------------------------------------------------
     def cache_parameters(self):

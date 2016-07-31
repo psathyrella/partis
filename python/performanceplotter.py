@@ -216,7 +216,7 @@ class PerformancePlotter(object):
                 lo, hi, _ = fraction_uncertainty.err(right, right + wrong)
                 hist = plotting.make_bool_hist(right, wrong, self.name + '-' + column)
                 plotting.draw_no_root(hist, plotname=column, plotdir=plotdir, write_csv=True, stats='0-bin', only_csv=only_csv)
-                print '  %s\n    correct up to allele: %4d / %-4d = %4.4f (-%.3f, +%.3f)' % (column, right, right+wrong, float(right) / (right + wrong), lo, hi)
+                # print '  %s\n    correct up to allele: %4d / %-4d = %4.4f (-%.3f, +%.3f)' % (column, right, right+wrong, float(right) / (right + wrong), lo, hi)
             else:
                 hist = plotting.make_hist_from_dict_of_counts(self.values[column], 'int', self.name + '-' + column, normalize=False)
                 xtitle = 'hamming distance' if 'hamming_to_true_naive' in column else 'inferred - true'
