@@ -334,6 +334,8 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
         else:
             hist.write(csv_fname)
 
+    plt.close()
+
 # ----------------------------------------------------------------------------------------
 def get_unified_bin_hist(hists):
     """ 
@@ -898,7 +900,7 @@ def make_allele_finding_plot(plotdir, gene, position, values):
     mpl_finish(ax, plotdir, str(position), xlabel='mutations in %s segment' % utils.get_region(gene), ylabel='position\'s mut freq', xbounds=(xmin, xmax), ybounds=(-0.1, 1.05), leg_loc=(0.95, 0.1), adjust={'right' : 0.85})
 
 # ----------------------------------------------------------------------------------------
-def make_fraction_plot(hright, hwrong, plotdir, plotname, xlabel, ylabel, xbounds, write_csv=False):
+def make_fraction_plot(hright, hwrong, plotdir, plotname, xlabel, ylabel, xbounds, only_csv=False, write_csv=False):
     # NOTE should really merge this with draw_no_root()
     xvals = hright.get_bin_centers() #ignore_overflows=True)
     right = hright.bin_contents
@@ -915,6 +917,9 @@ def make_fraction_plot(hright, hwrong, plotdir, plotname, xlabel, ylabel, xbound
 
     tmphilos = [fraction_uncertainty.err(r, r + w) for r, w in zip(right, wrong)]
     yerrs = [err[1] - err[0] for err in tmphilos]
+    # print '%s' % region
+    # for iv in range(len(xvals)):
+    #     print '   %5.2f     %5.0f / %5.0f  =  %5.2f   +/-  %.3f' % (xvals[iv], right[iv], right[iv] + wrong[iv], yvals[iv], yerrs[iv])
 
     if write_csv:
         hist_for_csv = Hist(hright.n_bins, hright.xmin, hright.xmax)
@@ -925,20 +930,13 @@ def make_fraction_plot(hright, hwrong, plotdir, plotname, xlabel, ylabel, xbound
                 iy = xvals.index(bcenter)
                 hist_for_csv.set_ibin(ibin, yvals[iy], error=yerrs[iy])
 
-    # print '%s' % region
-    # for iv in range(len(xvals)):
-    #     print '   %5.2f     %5.0f / %5.0f  =  %5.2f   +/-  %.3f' % (xvals[iv], right[iv], right[iv] + wrong[iv], yvals[iv], yerrs[iv])
-
-    fig, ax = mpl_init()
-
-    ax.errorbar(xvals, yvals, yerr=yerrs, markersize=10, linewidth=1, marker='.')
-
-    if xlabel == 'support':
-        ax.plot((0, 1), (0, 1), color='black', linestyle='--', linewidth=3)  # line with slope 1 and intercept 0
-    # linevals = [slope*x + y_icpt for x in [0] + xvals]  # fitted line
-    # ax.plot([0] + xvals, linevals)
-
-    mpl_finish(ax, plotdir, plotname, xlabel=xlabel, ylabel=ylabel, title=plotconfig.plot_titles.get(plotname, plotname), xbounds=xbounds, ybounds=(-0.1, 1.1))
-
-    if write_csv:
         hist_for_csv.write(plotdir + '/' + plotname + '.csv')
+
+    if not only_csv:
+        fig, ax = mpl_init()
+        ax.errorbar(xvals, yvals, yerr=yerrs, markersize=10, linewidth=1, marker='.')
+        if xlabel == 'support':
+            ax.plot((0, 1), (0, 1), color='black', linestyle='--', linewidth=3)  # line with slope 1 and intercept 0
+        mpl_finish(ax, plotdir, plotname, xlabel=xlabel, ylabel=ylabel, title=plotconfig.plot_titles.get(plotname, plotname), xbounds=xbounds, ybounds=(-0.1, 1.1))
+
+    plt.close()
