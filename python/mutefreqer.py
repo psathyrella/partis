@@ -111,7 +111,7 @@ class MuteFreqer(object):
         for gene in self.freqs:
             freqs = self.freqs[gene]
             if len(freqs) == 0:
-                if gene not in glutils.dummy_d_genes:
+                if gene not in glutils.dummy_d_genes.values():
                     print '    %s no mutefreqer obs for %s' % (utils.color('red', 'warning'), utils.color_gene(gene))
                 continue
             sorted_positions = sorted(freqs.keys())
@@ -125,7 +125,7 @@ class MuteFreqer(object):
             figsize = [7, 4]
             if utils.get_region(gene) in utils.conserved_codons[self.glfo['chain']]:
                 codon = utils.conserved_codons[self.glfo['chain']][utils.get_region(gene)]
-                xline = self.glfo[codon + '_positions'][gene]
+                xline = self.glfo[codon + '-positions'][gene]
             if utils.get_region(gene) == 'v':
                 figsize[0] *= 3.5
             elif utils.get_region(gene) == 'j':
