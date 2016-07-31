@@ -28,7 +28,6 @@ class PerformancePlotter(object):
 
         for rstr in rstrings:
             self.values[rstr + 'hamming_to_true_naive'] = {}
-            self.hists[rstr + 'hamming_to_true_naive_normed'] = Hist(25, 0., 0.5)
 
         for rstr in rstrings:
             self.values[rstr + 'muted_bases'] = {}
@@ -179,7 +178,6 @@ class PerformancePlotter(object):
                     trueval = len(true_line[column])
                     guessval = len(inf_line[column])
                 elif 'hamming_to_true_naive' in column:
-                    assert '_normed' not in column  # moved these to <self.hists>
                     trueval = 0
                     guessval = self.hamming_distance_to_true_naive(true_line, inf_line, normalize=False, restrict_to_region=column[0] if column[0] in utils.regions else '', padfo=padfo)
                 elif 'muted_bases' in column:
@@ -200,10 +198,6 @@ class PerformancePlotter(object):
         for region in utils.regions:
             if region + '_per_gene_support' in inf_line:
                 self.set_per_gene_support(true_line, inf_line, region)
-
-        for column in [c for c in self.hists if 'hamming_to_true' in c]:
-            hfrac = self.hamming_distance_to_true_naive(true_line, inf_line, normalize=True, restrict_to_region=column[0] if column[0] in utils.regions else '', padfo=padfo)
-            self.hists[column].fill(hfrac)
 
         for rstr in ['']:  # rstrings:
             column = rstr + 'mute_freqs'
@@ -232,7 +226,7 @@ class PerformancePlotter(object):
         for column in self.hists:
             if '_vs_mute_freq' in column or '_vs_per_gene_support' in column:  # only really care about the fraction, which we plot below
                 continue
-            plotting.draw_no_root(self.hists[column], plotname=column, plotdir=plotdir, write_csv=True, only_csv=only_csv, ytitle='counts', xtitle=None if 'hamming_' in column else 'inferred - true')
+            plotting.draw_no_root(self.hists[column], plotname=column, plotdir=plotdir, write_csv=True, only_csv=only_csv, ytitle='counts', xtitle='inferred - true')
 
         # fraction correct vs mute freq
         for region in utils.regions:

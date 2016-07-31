@@ -10,9 +10,6 @@ xtitles = {
     'v_hamming_to_true_naive' : 'hamming',
     'd_hamming_to_true_naive' : 'hamming',
     'j_hamming_to_true_naive' : 'hamming',
-    'v_hamming_to_true_naive_normed' : '% hamming',
-    'd_hamming_to_true_naive_normed' : '% hamming',
-    'j_hamming_to_true_naive_normed' : '% hamming',
     'seq_content' : '',
     'dj_insertion_content' : '',
     'vd_insertion_content' : '',
@@ -31,21 +28,15 @@ xtitles = {
 }
 for rstr in [r + '_' for r in utils.regions] + ['', ]:
     xtitles[rstr + 'hamming_to_true_naive'] = 'hamming distance'
-for rstr in [r + '_' for r in utils.regions] + ['', ]:
-    xtitles[rstr + 'hamming_to_true_naive_normed'] = 'hamming fraction'
 
 plot_titles = {
     'v_gene' : 'V gene',
     'd_gene' : 'D gene',
     'j_gene' : 'J gene',
     'hamming_to_true_naive' : 'total distance to true naive',
-    'hamming_to_true_naive_normed' : 'total fraction to true naive',
     'v_hamming_to_true_naive' : 'V Distance to true naive',
     'd_hamming_to_true_naive' : 'D Distance to true naive',
     'j_hamming_to_true_naive' : 'J Distance to true naive',
-    'v_hamming_to_true_naive_normed' : 'V fraction to true naive',
-    'd_hamming_to_true_naive_normed' : 'D fraction to true naive',
-    'j_hamming_to_true_naive_normed' : 'J fraction to true naive',
     'seq_content' : 'sequence base content',
     'dj_insertion_content' : 'DJ insert base content',
     'vd_insertion_content' : 'VD insert base content',
@@ -82,9 +73,6 @@ true_vs_inferred_hard_bounds = {
     'v_hamming_to_true_naive' : (-0.5, 8.5),
     'd_hamming_to_true_naive' : (-0.5, 10.5),
     'j_hamming_to_true_naive' : (-0.5, 12.5),
-    'v_hamming_to_true_naive_normed' : (-0.5, 8.5),
-    'd_hamming_to_true_naive_normed' : (-0.5, 50.5),
-    'j_hamming_to_true_naive_normed' : (-0.5, 20),
     'd_3p_del' : (-8.5, 8.5),
     'd_5p_del' : (-8.5, 8.5),
     'dj_insertion' : (-10.5, 15.5),
@@ -103,9 +91,6 @@ default_hard_bounds = {
     'v_hamming_to_true_naive' : (-0.5, 8.5),
     'd_hamming_to_true_naive' : (-0.5, 10.5),
     'j_hamming_to_true_naive' : (-0.5, 12.5),
-    'v_hamming_to_true_naive_normed' : (-0.5, 8.5),
-    'd_hamming_to_true_naive_normed' : (-0.5, 50.5),
-    'j_hamming_to_true_naive_normed' : (-0.5, 20),
     'd_3p_del' : (-1, 15),
     'd_5p_del' : (-1, 18),
     'dj_insertion' : (-1, 13),
