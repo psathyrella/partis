@@ -1378,9 +1378,9 @@ def run_cmd(cmd_str, workdir):
 
 # ----------------------------------------------------------------------------------------
 # deal with a process once it's finished (i.e. check if it failed, and restart if so)
-def finish_process(iproc, procs, n_tries, workdir, outfname, cmd_str, info=None):
+def finish_process(iproc, procs, n_tries, workdir, outfname, cmd_str, info=None, debug=True):
     procs[iproc].communicate()
-    process_out_err('', '', extra_str='' if len(procs) == 1 else str(iproc), info=info, subworkdir=workdir)
+    process_out_err('', '', extra_str='' if len(procs) == 1 else str(iproc), info=info, subworkdir=workdir, debug=debug)
     if procs[iproc].returncode == 0 and os.path.exists(outfname):  # TODO also check cachefile, if necessary
         procs[iproc] = None  # job succeeded
     elif n_tries[iproc] > 5:
@@ -1394,7 +1394,7 @@ def finish_process(iproc, procs, n_tries, workdir, outfname, cmd_str, info=None)
         n_tries[iproc] += 1
 
 # ----------------------------------------------------------------------------------------
-def process_out_err(out, err, extra_str='', info=None, subworkdir=None):
+def process_out_err(out, err, extra_str='', info=None, subworkdir=None, debug=True):
     """ NOTE something in this chain seems to block or truncate or some such nonsense if you make it too big """
     if subworkdir is not None:
         def readfile(fname):
@@ -1434,7 +1434,7 @@ def process_out_err(out, err, extra_str='', info=None, subworkdir=None):
 
     print_str += out
 
-    if print_str != '':
+    if print_str != '' and debug:
         if extra_str != '':
             print '      --> proc %s' % extra_str
         print print_str

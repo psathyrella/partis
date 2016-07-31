@@ -620,7 +620,7 @@ class PartitionDriver(object):
                 if procs[iproc] is None:  # already finished
                     continue
                 if procs[iproc].poll() is not None:  # it's finished
-                    utils.finish_process(iproc, procs, n_tries, self.subworkdir(iproc, n_procs), get_outfname(iproc), get_cmd_str(iproc), self.bcrham_proc_info[iproc])
+                    utils.finish_process(iproc, procs, n_tries, self.subworkdir(iproc, n_procs), get_outfname(iproc), get_cmd_str(iproc), self.bcrham_proc_info[iproc], debug=(self.args.debug or self.current_action=='partition'))
             sys.stdout.flush()
             time.sleep(1)
 
@@ -1304,8 +1304,7 @@ class PartitionDriver(object):
 
         print '        %d lines:  processed %d sequences in %d events' % (n_lines_read, n_seqs_processed, n_events_processed)
         if n_invalid_events > 0:
-            print '          %s skipped %d invalid events' % (utils.color('red', 'warning'), n_invalid_events),
-        print ''
+            print '          %s skipped %d invalid events' % (utils.color('red', 'warning'), n_invalid_events)
         for ecode in errorfo:
             if ecode == 'no_path':
                 print '          %s no valid paths: %s' % (utils.color('red', 'warning'), ' '.join(errorfo[ecode]))
