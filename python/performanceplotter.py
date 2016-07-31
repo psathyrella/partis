@@ -31,7 +31,7 @@ class PerformancePlotter(object):
             self.hists[rstr + 'hamming_to_true_naive_normed'] = Hist(25, 0., 0.5)
 
         for rstr in rstrings:
-            self.hists[rstr + 'mute_freqs'] = Hist(30, -0.05, 0.05, xtitle='inferred - true')
+            self.hists[rstr + 'mute_freqs'] = Hist(30, -0.05, 0.05)
 
         for region in utils.regions:
             self.hists[region + '_gene_right_vs_mute_freq'] = Hist(25, 0., 0.4)  # correct *up* to allele (i.e. you can get the allele wrong)
@@ -225,7 +225,7 @@ class PerformancePlotter(object):
         for column in self.hists:
             if '_vs_mute_freq' in column or '_vs_per_gene_support' in column:  # only really care about the fraction, which we plot below
                 continue
-            plotting.draw_no_root(self.hists[column], plotname=column, plotdir=plotdir, write_csv=True, only_csv=only_csv, ytitle='counts')
+            plotting.draw_no_root(self.hists[column], plotname=column, plotdir=plotdir, write_csv=True, only_csv=only_csv, ytitle='counts', xtitle='inferred - true')
 
         # fraction correct vs mute freq
         for region in utils.regions:
