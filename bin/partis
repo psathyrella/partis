@@ -83,7 +83,7 @@ def run_simulation(args):
 
     print 'simulating'
     used_default_parameter_dir = set_default_parameter_dir(args)
-    auto_ran_cache_parameters = check_maybe_auto_cache_parameters(args)
+    auto_ran_cache_parameters = check_maybe_auto_cache_parameters(args, gldir)
 
     n_per_proc = int(float(args.n_sim_events) / args.n_procs)
 
