@@ -147,8 +147,6 @@ def get_seqfile_info(args, glfo=None, simglfo=None):
                 del reco_info[unique_id][key]
             if simglfo is not None:
                 utils.add_implicit_info(simglfo, reco_info[unique_id], existing_implicit_keys=('cdr3_length', ))
-            elif glfo is not None:
-                utils.add_implicit_info(glfo, reco_info[unique_id], existing_implicit_keys=('cdr3_length', ))
 
         n_queries += 1
         if args.n_max_queries > 0 and n_queries >= args.n_max_queries:

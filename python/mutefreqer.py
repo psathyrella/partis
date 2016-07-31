@@ -102,7 +102,7 @@ class MuteFreqer(object):
             utils.prep_dir(plotdir + '/' + substr, wildlings=('*.csv', '*.svg'))
 
     # ----------------------------------------------------------------------------------------
-    def plot(self, plotdir, codon_positions=None, only_csv=False):
+    def plot(self, plotdir, only_csv=False):
         if not self.finalized:
             self.finalize()
 
@@ -123,8 +123,9 @@ class MuteFreqer(object):
                 genehist.set_ibin(genehist.find_bin(position), freqs[position]['freq'], error=err)
             xline = None
             figsize = [7, 4]
-            if codon_positions is not None and utils.get_region(gene) in codon_positions:
-                xline = codon_positions[utils.get_region(gene)][gene]
+            if utils.get_region(gene) in utils.conserved_codons[self.glfo['chain']]:
+                codon = utils.conserved_codons[self.glfo['chain']][utils.get_region(gene)]
+                xline = self.glfo[codon + '_positions'][gene]
             if utils.get_region(gene) == 'v':
                 figsize[0] *= 3.5
             elif utils.get_region(gene) == 'j':

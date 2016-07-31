@@ -21,11 +21,12 @@ from allelefinder import AlleleFinder
 # ----------------------------------------------------------------------------------------
 class Waterer(object):
     """ Run smith-waterman on the query sequences in <infname> """
-    def __init__(self, args, input_info, reco_info, glfo, parameter_out_dir=None, find_new_alleles=False):
+    def __init__(self, args, input_info, reco_info, glfo, parameter_out_dir=None, find_new_alleles=False, simglfo=None):
         self.args = args
         self.input_info = input_info
         self.reco_info = reco_info
         self.glfo = glfo
+        self.simglfo = simglfo
         self.parameter_out_dir = parameter_out_dir
         self.debug = self.args.debug if self.args.sw_debug is None else self.args.sw_debug
 
@@ -55,7 +56,7 @@ class Waterer(object):
         if parameter_out_dir is not None:  # NOTE *not* the same as <self.args.cache_parameters>
             self.pcounter = ParameterCounter(self.glfo, self.args)
             if not self.args.is_data:
-                self.true_pcounter = ParameterCounter(self.glfo, self.args)
+                self.true_pcounter = ParameterCounter(self.simglfo, self.args)
         if self.args.plot_performance:
             self.perfplotter = PerformancePlotter('sw')
 
@@ -160,9 +161,9 @@ class Waterer(object):
 
         if self.pcounter is not None:
             if self.args.plotdir is not None:
-                self.pcounter.plot(self.args.plotdir + '/sw', codon_positions={r : self.glfo[c + '-positions'] for r, c in utils.conserved_codons[self.args.chain].items()}, only_csv=self.args.only_csv_plots)
+                self.pcounter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
                 if self.true_pcounter is not None:
-                    self.true_pcounter.plot(self.args.plotdir + '/sw-true', codon_positions={r : self.glfo[c + '-positions'] for r, c in utils.conserved_codons[self.args.chain].items()}, only_csv=self.args.only_csv_plots)
+                    self.true_pcounter.plot(self.args.plotdir + '/sw-true', only_csv=self.args.only_csv_plots)
             self.pcounter.write(self.parameter_out_dir)
             if self.true_pcounter is not None:
                 self.true_pcounter.write(self.parameter_out_dir + '-true')

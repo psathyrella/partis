@@ -34,7 +34,7 @@ class PartitionDriver(object):
         utils.prep_dir(self.args.workdir)
         self.my_gldir = self.args.workdir + '/' + glutils.glfo_dir
         self.glfo = glutils.read_glfo(initial_gldir, chain=self.args.chain, only_genes=self.args.only_genes)
-        self.simglfo = None
+        self.simglfo = self.glfo
         if self.args.simulation_germline_dir is not None:
             self.simglfo = glutils.read_glfo(self.args.simulation_germline_dir, chain=self.args.chain)  # NOTE uh, I think I don't want to apply <self.args.only_genes>
         glutils.write_glfo(self.my_gldir, self.glfo)  # need a copy on disk for vdjalign and bcrham (note that what we write to <self.my_gldir> in general differs from what's in <initial_gldir>)
@@ -154,7 +154,7 @@ class PartitionDriver(object):
                 print '  %s %d genes in glfo that don\'t have yamels in %s' % (utils.color('red', 'warning'), len(expected_genes - genes_with_hmms), self.sub_param_dir)
 
         parameter_out_dir = self.sw_param_dir if write_parameters else None
-        waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo, parameter_out_dir=parameter_out_dir, find_new_alleles=find_new_alleles)
+        waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo, parameter_out_dir=parameter_out_dir, find_new_alleles=find_new_alleles, simglfo=self.simglfo)
         cachefname = self.get_cachefname(write_parameters)
         if cachefname is None or not os.path.exists(cachefname):  # run sw if we either don't want to do any caching (None) or if we are planning on writing the results after we run
             waterer.run(cachefname)
@@ -1222,7 +1222,7 @@ class PartitionDriver(object):
         sys.stdout.flush()
 
         pcounter = ParameterCounter(self.glfo, self.args) if count_parameters else None
-        true_pcounter = ParameterCounter(self.glfo, self.args) if (count_parameters and not self.args.is_data) else None
+        true_pcounter = ParameterCounter(self.simglfo, self.args) if (count_parameters and not self.args.is_data) else None
         perfplotter = PerformancePlotter('hmm') if self.args.plot_performance else None
 
         n_lines_read, n_seqs_processed, n_events_processed, n_invalid_events = 0, 0, 0, 0
@@ -1292,11 +1292,11 @@ class PartitionDriver(object):
         # parameter and performance writing/plotting
         if pcounter is not None:
             if self.args.plotdir is not None:
-                pcounter.plot(self.args.plotdir + '/hmm', codon_positions={r : self.glfo[c + '-positions'] for r, c in utils.conserved_codons[self.args.chain].items()}, only_csv=self.args.only_csv_plots)
+                pcounter.plot(self.args.plotdir + '/hmm', only_csv=self.args.only_csv_plots)
             pcounter.write(parameter_out_dir)
         if true_pcounter is not None:
             if self.args.plotdir is not None:
-                true_pcounter.plot(self.args.plotdir + '/hmm-true', codon_positions={r : self.glfo[c + '-positions'] for r, c in utils.conserved_codons[self.args.chain].items()}, only_csv=self.args.only_csv_plots)
+                true_pcounter.plot(self.args.plotdir + '/hmm-true', only_csv=self.args.only_csv_plots)
             true_pcounter.write(parameter_out_dir + '-true')
         if perfplotter is not None:
             perfplotter.plot(self.args.plotdir + '/hmm', only_csv=self.args.only_csv_plots)
