@@ -31,7 +31,8 @@ class PerformancePlotter(object):
             self.hists[rstr + 'hamming_to_true_naive_normed'] = Hist(25, 0., 0.5)
 
         for rstr in rstrings:
-            self.hists[rstr + 'mute_freqs'] = Hist(30, -0.05, 0.05)
+            self.values[rstr + 'muted_bases'] = {}
+        self.hists['mute_freqs'] = Hist(25, -0.04, 0.04)
 
         for region in utils.regions:
             self.hists[region + '_gene_right_vs_mute_freq'] = Hist(25, 0., 0.4)  # correct *up* to allele (i.e. you can get the allele wrong)
@@ -181,6 +182,12 @@ class PerformancePlotter(object):
                     assert '_normed' not in column  # moved these to <self.hists>
                     trueval = 0
                     guessval = self.hamming_distance_to_true_naive(true_line, inf_line, normalize=False, restrict_to_region=column[0] if column[0] in utils.regions else '', padfo=padfo)
+                elif 'muted_bases' in column:
+                    region = column[0] if column[0] in utils.regions else ''
+                    truefreq, truelength = utils.get_mutation_rate(true_line, iseq=0, restrict_to_region=region, return_len_excluding_ambig=True)  # when we're evaluating on multi-seq hmm output, we synthesize single-sequence lines for each sequence
+                    inffreq, inflength = utils.get_mutation_rate(inf_line, iseq=0, restrict_to_region=region, return_len_excluding_ambig=True)
+                    trueval = int(truefreq * truelength)
+                    guessval = int(inffreq * inflength)
                 else:
                     trueval = int(true_line[column])
                     guessval = int(inf_line[column])
@@ -198,7 +205,7 @@ class PerformancePlotter(object):
             hfrac = self.hamming_distance_to_true_naive(true_line, inf_line, normalize=True, restrict_to_region=column[0] if column[0] in utils.regions else '', padfo=padfo)
             self.hists[column].fill(hfrac)
 
-        for rstr in rstrings:
+        for rstr in ['']:  # rstrings:
             column = rstr + 'mute_freqs'
             region = column[0] if column[0] in utils.regions else ''
             trueval = utils.get_mutation_rate(true_line, iseq=0, restrict_to_region=region)  # when we're evaluating on multi-seq hmm output, we synthesize single-sequence lines for each sequence
@@ -225,7 +232,7 @@ class PerformancePlotter(object):
         for column in self.hists:
             if '_vs_mute_freq' in column or '_vs_per_gene_support' in column:  # only really care about the fraction, which we plot below
                 continue
-            plotting.draw_no_root(self.hists[column], plotname=column, plotdir=plotdir, write_csv=True, only_csv=only_csv, ytitle='counts', xtitle='inferred - true')
+            plotting.draw_no_root(self.hists[column], plotname=column, plotdir=plotdir, write_csv=True, only_csv=only_csv, ytitle='counts', xtitle=None if 'hamming_' in column else 'inferred - true')
 
         # fraction correct vs mute freq
         for region in utils.regions:
