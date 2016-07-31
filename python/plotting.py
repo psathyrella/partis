@@ -765,7 +765,9 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
         import seaborn  # really #$*$$*!ing slow to import, but only importing part of it doesn't seem to help
     # xticks[0] = 0.000001
     if not no_legend:
-        legend = ax.legend(loc=leg_loc, prop=leg_prop)
+        handles, labels = ax.get_legend_handles_labels()
+        if len(handles) > 0:
+            legend = ax.legend(handles, labels, loc=leg_loc, prop=leg_prop)
     if adjust is None:
         plt.gcf().subplots_adjust(bottom=0.20, left=0.18, right=0.95, top=0.92)
     else:
