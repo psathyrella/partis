@@ -5,6 +5,7 @@ import fraction_uncertainty
 from hist import Hist
 from opener import opener
 import utils
+import glutils
 import plotting
 
 # ----------------------------------------------------------------------------------------
@@ -109,6 +110,10 @@ class MuteFreqer(object):
 
         for gene in self.freqs:
             freqs = self.freqs[gene]
+            if len(freqs) == 0:
+                if gene not in glutils.dummy_d_genes:
+                    print '    %s no mutefreqer obs for %s' % (utils.color('red', 'warning'), utils.color_gene(gene))
+                continue
             sorted_positions = sorted(freqs.keys())
             genehist = Hist(sorted_positions[-1] - sorted_positions[0] + 1, sorted_positions[0] - 0.5, sorted_positions[-1] + 0.5, xtitle='position', ytitle='mut freq', title=gene)
             for position in sorted_positions:
