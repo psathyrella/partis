@@ -60,14 +60,14 @@ class Waterer(object):
         if self.args.plot_performance:
             self.perfplotter = PerformancePlotter('sw')
 
-        if not os.path.exists(self.args.ighutil_dir + '/bin/vdjalign'):
-            raise Exception('ERROR ighutil path d.n.e: ' + self.args.ighutil_dir + '/bin/vdjalign')
+        if not os.path.exists(self.args.ig_sw_binary):
+            raise Exception('ig-sw binary d.n.e: %s' % self.args.ig_sw_binary)
 
     # ----------------------------------------------------------------------------------------
     def run(self, cachefname=None):
         start = time.time()
         base_infname = 'query-seqs.fa'
-        base_outfname = 'query-seqs.bam'
+        base_outfname = 'query-seqs.sam'
         sys.stdout.flush()
 
         n_procs = self.args.n_fewer_procs
@@ -260,16 +260,15 @@ class Waterer(object):
         """
         # large gap-opening penalty: we want *no* gaps in the middle of the alignments
         # match score larger than (negative) mismatch score: we want to *encourage* some level of shm. If they're equal, we tend to end up with short unmutated alignments, which screws everything up
-        cmd_str = self.args.ighutil_dir + '/bin/vdjalign align-fastq -q'
+        cmd_str = self.args.ig_sw_binary
         if self.args.slurm or utils.auto_slurm(n_procs):
             cmd_str = 'srun ' + cmd_str
-        cmd_str += ' --locus ' + 'IG' + self.args.chain.upper()
-        cmd_str += ' --max-drop 50'
+        cmd_str += ' -l ' + 'IG' + self.args.chain.upper()  # locus
+        cmd_str += ' -d 50'  # max drop
         match, mismatch = self.match_mismatch
-        cmd_str += ' --match ' + str(match) + ' --mismatch ' + str(mismatch)
-        cmd_str += ' --gap-open ' + str(self.gap_open_penalty)
-        cmd_str += ' --vdj-dir ' + self.my_gldir + '/' + self.args.chain
-        cmd_str += ' --samtools-dir ' + self.args.partis_dir + '/packages/samtools'
+        cmd_str += ' -m ' + str(match) + ' -u ' + str(mismatch)
+        cmd_str += ' -o ' + str(self.gap_open_penalty)
+        cmd_str += ' -p ' + self.my_datadir + '/' + self.args.chain + '/'
         cmd_str += ' ' + workdir + '/' + base_infname + ' ' + workdir + '/' + base_outfname
         return cmd_str
 
@@ -284,10 +283,10 @@ class Waterer(object):
         queries_read_from_file = set()  # should be able to remove this, eventually
         for iproc in range(n_procs):
             outfname = self.subworkdir(iproc, n_procs) + '/' + base_outfname
-            with contextlib.closing(pysam.Samfile(outfname)) as bam:
-                grouped = itertools.groupby(iter(bam), operator.attrgetter('qname'))
+            with contextlib.closing(pysam.Samfile(outfname)) as sam:  # changed bam to sam because ig-sw outputs sam files
+                grouped = itertools.groupby(iter(sam), operator.attrgetter('qname'))
                 for _, reads in grouped:  # loop over query sequences
-                    qinfo = self.read_query(bam.references, list(reads))
+                    qinfo = self.read_query(sam.references, list(reads))
                     self.summarize_query(qinfo, queries_to_rerun)  # returns before adding to <self.info> if it thinks we should rerun the query
                     queries_read_from_file.add(qinfo['name'])
 

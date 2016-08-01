@@ -1,7 +1,7 @@
 ### Introduction
 
 Partis is an HMM-based framework for B-cell receptor annotation, simulation, and partitioning.
-It is built on top of the [ham](https://github.com/psathyrella/ham) HMM compiler, and also uses the [ighutil](https://github.com/cmccoy/ighutil) set of Smith-Waterman annotation tools.
+It is built on top of the [ham](https://github.com/psathyrella/ham) HMM compiler, and also uses the [ig-sw](https://github.com/matsengrp/ig-sw) set of Smith-Waterman annotation tools.
 Partis is free software under the GPL v3.
 
 The following two papers describe the annotation and clonal family inference functionality of partis, respectively:
@@ -89,7 +89,7 @@ You'll need to have recent versions of a number of debian and python packages, a
 If you need to sort out versions, follow the Dockerfile chain beginning [here](https://registry.hub.docker.com/u/psathyrella/partis/dockerfile/) and [here](https://github.com/matsengrp/dockerfiles/blob/master/cpp/Dockerfile).
 
 The following packages are also used by partis, but they're included as `git subtree`s in the source code, so you don't need to do anything:
-  - ighutil
+  - ig-sw
   - tclap
   - yaml-cpp
   - ham
@@ -235,8 +235,8 @@ This is run automatically if `--parameter-dir` doesn't exist (whether this direc
 So you do not, generally, need to run it on its own.
 
 When presented with a new data set, the first thing we need to do is infer a set of parameters, a task for which we need a preliminary annotation.
-As such, partis first runs ighutil's Smith-Waterman algorithm on the data set.
-The ighutil annotations are used to build and write out a parameter set, which is in turn used to make a set of HMM model files for each observed allele.
+As such, partis first runs ig-sw's Smith-Waterman algorithm on the data set.
+The smith-waterman annotations are used to build and write out a parameter set, which is in turn used to make a set of HMM model files for each observed allele.
 These files are then passed as input to a second, HMM-based, annotation step, which again outputs (more accurate) parameter values and HMM model files.
 
 For example:
