@@ -54,7 +54,7 @@ class AlleleFinder(object):
 
     # ----------------------------------------------------------------------------------------
     def increment(self, info):
-        self.mfreqer.increment(info)
+        self.mfreqer.increment(info, iseq=0)
 
         for region in utils.regions:
             # leaving this commented block for the moment since this isn't yet part of the testing fwk:
@@ -74,7 +74,8 @@ class AlleleFinder(object):
             gcts = self.counts[gene]  # shorthand name
 
             germline_seq = info[region + '_gl_seq']
-            query_seq = info[region + '_qr_seq']
+            assert len(info['seqs']) == 1
+            query_seq = info[region + '_qr_seqs'][0]
             assert len(germline_seq) == len(query_seq)
 
             for ipos in range(len(germline_seq)):
