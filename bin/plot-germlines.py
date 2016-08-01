@@ -91,7 +91,8 @@ def get_gene_pair_matrix(genelist, difftype):
             s1, s2 = [glfo['aligned-genes']['v'][genelist[index]] for index in [iv, jv]]
             # utils.color_mutants(s1, s2, print_result=True)
             if difftype == 'hamming':
-                fraction, length = utils.hamming_fraction(s1, s2, return_len_excluding_ambig=True, extra_bases='.')
+                assert False  # needs updating
+                # fraction, length = utils.hamming_fraction(s1, s2, return_len_excluding_ambig=True, extra_bases='.')
             elif difftype == 'indels':
                 fraction = indel_difference_fraction(s1, s2)
             elif difftype == 'subs':
@@ -128,7 +129,8 @@ def get_gene_set_mean_matrix(genesets, difftype):
                     s2 = seqs2[is2]
                     # utils.color_mutants(s1, s2, print_result=True, extra_str='    ')
                     if difftype == 'hamming':
-                        fraction, length = utils.hamming_fraction(s1, s2, return_len_excluding_ambig=True, extra_bases='.')
+                        assert False  # needs updating
+                        # fraction, length = utils.hamming_fraction(s1, s2, return_len_excluding_ambig=True, extra_bases='.')
                     elif difftype == 'indels':
                         fraction = indel_difference_fraction(s1, s2)
                     elif difftype == 'subs':

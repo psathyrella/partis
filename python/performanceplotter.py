@@ -109,8 +109,7 @@ class PerformancePlotter(object):
 
         if len(true_naive_seq) != len(inferred_naive_seq):
             raise Exception('still not the same lengths for %s\n  %s\n  %s' % (line['unique_ids'][0], true_naive_seq, inferred_naive_seq))
-        fraction, len_excluding_ambig = utils.hamming_fraction(true_naive_seq, inferred_naive_seq, return_len_excluding_ambig=True)
-        total_distance = int(fraction * len_excluding_ambig)
+        total_distance = utils.hamming_distance(true_naive_seq, inferred_naive_seq)
         if len(true_naive_seq) == 0:
             if not (restrict_to_region == 'd' and utils.get_chain(true_line['v_gene']) != 'h'):
                 print 'WARNING zero length sequence in hamming_distance_to_true_naive'
@@ -182,10 +181,8 @@ class PerformancePlotter(object):
                     guessval = self.hamming_distance_to_true_naive(true_line, inf_line, normalize=False, restrict_to_region=column[0] if column[0] in utils.regions else '', padfo=padfo)
                 elif 'muted_bases' in column:
                     region = column[0] if column[0] in utils.regions else ''
-                    truefreq, truelength = utils.get_mutation_rate(true_line, iseq=0, restrict_to_region=region, return_len_excluding_ambig=True)  # when we're evaluating on multi-seq hmm output, we synthesize single-sequence lines for each sequence
-                    inffreq, inflength = utils.get_mutation_rate(inf_line, iseq=0, restrict_to_region=region, return_len_excluding_ambig=True)
-                    trueval = int(truefreq * truelength)
-                    guessval = int(inffreq * inflength)
+                    trueval = utils.get_n_muted(true_line, iseq=0, restrict_to_region=region)  # when we're evaluating on multi-seq hmm output, we synthesize single-sequence lines for each sequence
+                    guessval = utils.get_n_muted(inf_line, iseq=0, restrict_to_region=region)
                 else:
                     trueval = int(true_line[column])
                     guessval = int(inf_line[column])

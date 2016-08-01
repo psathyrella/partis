@@ -1181,14 +1181,14 @@ def find_replacement_genes(indir, min_counts, gene_name=None, single_gene=False,
     # return hackey_default_gene_versions[region]
 
 # ----------------------------------------------------------------------------------------
-def hamming_fraction(seq1, seq2, return_len_excluding_ambig=False, extra_bases=None):
+def hamming_distance(seq1, seq2, extra_bases=None, return_len_excluding_ambig=False):
     if len(seq1) != len(seq2):
         raise Exception('unequal length sequences %d %d' % (len(seq1), len(seq2)))
     if len(seq1) == 0:
         if return_len_excluding_ambig:
-            return 0., 0
+            return 0, 0
         else:
-            return 0.
+            return 0
 
     alphabet = nukes + ambiguous_bases  # I think I don't want to allow gap characters here
 
@@ -1208,13 +1208,38 @@ def hamming_fraction(seq1, seq2, return_len_excluding_ambig=False, extra_bases=N
         if ch1 != ch2:
             distance += 1
 
+    if return_len_excluding_ambig:
+        return distance, len_excluding_ambig
+    else:
+        return distance
+
+# ----------------------------------------------------------------------------------------
+def hamming_fraction(seq1, seq2, extra_bases=None):
+    distance, len_excluding_ambig = hamming_distance(seq1, seq2, extra_bases=extra_bases, return_len_excluding_ambig=True)
     fraction = 0.
     if len_excluding_ambig > 0:
         fraction = distance / float(len_excluding_ambig)
-    if return_len_excluding_ambig:
-        return fraction, len_excluding_ambig
-    else:
-        return fraction
+    return fraction
+
+# ----------------------------------------------------------------------------------------
+def subset_sequences(line, iseq, restrict_to_region):
+    naive_seq = line['naive_seq']  # NOTE this includes the fv and jf insertions
+    muted_seq = line['seqs'][iseq]
+    if restrict_to_region != '':  # NOTE this is very similar to code in performanceplotter. I should eventually cut it out of there and combine them, but I'm nervous a.t.m. because of all the complications there of having the true *and* inferred sequences so I'm punting
+        bounds = line['regional_bounds'][restrict_to_region]
+        naive_seq = naive_seq[bounds[0] : bounds[1]]
+        muted_seq = muted_seq[bounds[0] : bounds[1]]
+    return naive_seq, muted_seq
+
+# ----------------------------------------------------------------------------------------
+def get_n_muted(line, iseq, restrict_to_region=''):
+    naive_seq, muted_seq = subset_sequences(line, iseq, restrict_to_region)
+    return hamming_distance(naive_seq, muted_seq)
+
+# ----------------------------------------------------------------------------------------
+def get_mutation_rate(line, iseq, restrict_to_region=''):
+    naive_seq, muted_seq = subset_sequences(line, iseq, restrict_to_region)
+    return hamming_fraction(naive_seq, muted_seq)
 
 # ----------------------------------------------------------------------------------------
 def get_key(names):
@@ -1357,17 +1382,6 @@ def merge_csvs(outfname, csv_list, cleanup=True):
         writer.writeheader()
         for line in outfo:
             writer.writerow(line)
-
-# ----------------------------------------------------------------------------------------
-def get_mutation_rate(line, iseq, restrict_to_region='', return_len_excluding_ambig=False, debug=False):
-    naive_seq = line['naive_seq']  # NOTE this includes the fv and jf insertions
-    muted_seq = line['seqs'][iseq]
-    if restrict_to_region != '':  # NOTE this is very similar to code in performanceplotter. I should eventually cut it out of there and combine them, but I'm nervous a.t.m. because of all the complications there of having the true *and* inferred sequences so I'm punting
-        bounds = line['regional_bounds'][restrict_to_region]
-        naive_seq = naive_seq[bounds[0] : bounds[1]]
-        muted_seq = muted_seq[bounds[0] : bounds[1]]
-
-    return hamming_fraction(naive_seq, muted_seq, return_len_excluding_ambig=return_len_excluding_ambig)
 
 # ----------------------------------------------------------------------------------------
 def run_cmd(cmd_str, workdir):

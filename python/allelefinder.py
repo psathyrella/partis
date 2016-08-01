@@ -57,8 +57,10 @@ class AlleleFinder(object):
         self.mfreqer.increment(info)
 
         for region in utils.regions:
-            regional_freq, len_excluding_ambig = utils.get_mutation_rate(info, iseq=0, restrict_to_region=region, return_len_excluding_ambig=True)
-            n_mutes = regional_freq * len_excluding_ambig  # total number of mutations in the region (for allele finding stuff)
+            # leaving this commented block for the moment since this isn't yet part of the testing fwk:
+            # regional_freq, len_excluding_ambig = utils.get_mutation_rate(info, iseq=0, restrict_to_region=region, return_len_excluding_ambig=True)
+            # n_mutes = regional_freq * len_excluding_ambig  # total number of mutations in the region (for allele finding stuff)
+            n_mutes = utils.get_n_muted(info, iseq=0, restrict_to_region=region)
             if abs(n_mutes - int(n_mutes)) > 1e6:
                 raise Exception('n mutated %f not an integer' % n_mutes)
             n_mutes = int(n_mutes)
