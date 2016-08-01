@@ -145,15 +145,14 @@ class Tester(object):
         if len(ref_globfnames) > 0:
             raise Exception('found reference sw cache files %s -- but you really want ref sw to run from scratch' % ' '.join(ref_globfnames))
 
-        # delete old sw cache files
+        # delete any old sw cache files
         for dtype in self.dtypes:
-            if name == 'cache-parameters-' + dtype:
-                globfnames = glob.glob(self.param_dirs['new'][dtype] + '/sw-cache-*.csv')
-                if len(globfnames) == 0:  # not there
-                    continue
-                elif len(globfnames) != 1:
-                    raise Exception('unexpected sw cache files: %s' % ' '.join(globfnames))
-                check_call(['rm', '-v', globfnames[0]])
+            globfnames = glob.glob(self.param_dirs['new'][dtype] + '/sw-cache-*.csv')
+            if len(globfnames) == 0:  # not there
+                continue
+            elif len(globfnames) != 1:
+                raise Exception('unexpected sw cache files: %s' % ' '.join(globfnames))
+            check_call(['rm', '-v', globfnames[0]])
 
         # choose a seed uid
         if name == 'seed-partition-' + info['input_stype'] + '-simu':

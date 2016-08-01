@@ -186,7 +186,6 @@ parser = argparse.ArgumentParser(formatter_class=formatter_class)
 subparsers = parser.add_subparsers(dest='action')
 
 default_initial_germline_dir = partis_dir + '/data/imgt'  # I promise, it has to be set here instead of in the argparser, and yes, it freaks me out, too
-print 'TODO fix sw cache file thing in test.py'
 print 'TODO remove paramutils'
 print 'TODO fix utils.hamming_fraction to not have return_len_excluding_ambig'
 parent_parser = argparse.ArgumentParser(add_help=False)
@@ -207,7 +206,7 @@ parent_parser.add_argument('--parameter-type', default='hmm', choices=('sw', 'hm
 parent_parser.add_argument('--initial-germline-dir', help='Directory with fastas from which to read germline set. Only used when caching parameters, during which its contents is copied into --parameter-dir, perhaps (i.e. if specified) with modification. NOTE default is set below, because control flow is too complicated for argparse')
 parent_parser.add_argument('--simulation-germline-dir', help='Germline directory that was used for simulation (not usually needed, in fact maybe only for performance evaluation)')
 parent_parser.add_argument('--outfname', help='Output file name.')
-parent_parser.add_argument('--sw-cachefname', help='Smith-Waterman cache file name (default is set in partitiondriver, since we have to read the input file first).')
+parent_parser.add_argument('--sw-cachefname', help='Smith-Waterman cache file name. Default is set using a hash of all the input sequence ids (in partitiondriver, since we have to read the input file first).')
 parent_parser.add_argument('--presto-output', action='store_true', help='write output file in presto format')
 parent_parser.add_argument('--aligned-germline-fname', help='fasta file with alignments for each V gene')
 parent_parser.add_argument('--plotdir', help='Base directory to which to write plots (no plots are written if this isn\'t set)')
