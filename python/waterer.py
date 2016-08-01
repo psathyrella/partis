@@ -270,7 +270,6 @@ class Waterer(object):
         cmd_str += ' -o ' + str(self.gap_open_penalty)
         cmd_str += ' -p ' + self.my_gldir + '/' + self.args.chain + '/'  # NOTE needs the trailing slash
         cmd_str += ' ' + workdir + '/' + base_infname + ' ' + workdir + '/' + base_outfname
-        print cmd_str
         return cmd_str
 
     # ----------------------------------------------------------------------------------------
