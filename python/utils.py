@@ -333,7 +333,7 @@ def color_gene(gene):
     primary_version, sub_version, allele = split_gene(gene)
 
     return_str = color('purple', chain) + color('red', region) + color('purple', primary_version)
-    if region != 'j':
+    if sub_version is not None:
         return_str += '-' + color('purple', sub_version)
     return_str += color('yellow', allele)
     return return_str
@@ -996,22 +996,18 @@ def split_gene(gene):
     if gene.count('*') != 1:
         raise Exception('expected exactly 1 \'*\' in %s but found %d' % (gene, gene.count('*')))
 
-    if get_region(gene) == 'j':  # js don't have sub versions
-        primary_version = gene[4 : gene.find('*')]  # the bit between the IG[HKL][VDJ] and the star
-        sub_version = None
-        allele = gene[gene.find('*') + 1 : ]  # the bit after the star
-        if gene != 'IG' + get_chain(gene).upper() + get_region(gene).upper() + primary_version + '*' + allele:
-            raise Exception('couldn\'t build gene name %s from %s %s' % (gene, primary_version, allele))
-    else:
-        if gene.count('-') != 1 and gene.count('-') != 2:
-            raise Exception('expected either 1 or 2 \'-\' in %s but found %d' % (gene, gene.count('-')))
-        if gene.find('-') >= gene.find('*'):
-            raise Exception('found \'*\' before \'-\' in %s' % gene)
+    if '-' in gene and gene.find('-') < gene.find('*'):  # Js (and a few Vs) don't have sub versions
         primary_version = gene[4 : gene.find('-')]  # the bit between the IG[HKL][VDJ] and the first dash (sometimes there's a second dash as well)
         sub_version = gene[gene.find('-') + 1 : gene.find('*')]  # the bit between the first dash and the star
         allele = gene[gene.find('*') + 1 : ]  # the bit after the star
         if gene != 'IG' + get_chain(gene).upper() + get_region(gene).upper() + primary_version + '-' + sub_version + '*' + allele:
             raise Exception('couldn\'t build gene name %s from %s %s %s' % (gene, primary_version, sub_version, allele))
+    else:
+        primary_version = gene[4 : gene.find('*')]  # the bit between the IG[HKL][VDJ] and the star
+        sub_version = None
+        allele = gene[gene.find('*') + 1 : ]  # the bit after the star
+        if gene != 'IG' + get_chain(gene).upper() + get_region(gene).upper() + primary_version + '*' + allele:
+            raise Exception('couldn\'t build gene name %s from %s %s' % (gene, primary_version, allele))
 
     return primary_version, sub_version, allele
 

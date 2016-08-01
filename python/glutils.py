@@ -32,7 +32,8 @@ def all_glfo_fasta_fnames():
 csv_headers = ['gene', 'cyst_position', 'tryp_position', 'phen_position', 'aligned_seq']
 
 imgt_info_indices = ('accession-number', 'gene', 'species', 'functionality', '', '', '', '', '', '', '', '', '')  # I think this is the right number of entries, but it doesn't really matter
-functionalities = set(['F', 'ORF', 'P', '(F)', '[F]', '[ORF]'])   # not actually sure what the last two mean
+functionalities = ['F', 'ORF', 'P', '(F)', '[F]', '[P]', '[ORF]']   # not actually sure what the last few mean
+pseudogene_funcionalities = ['P', '[P]']
 
 #----------------------------------------------------------------------------------------
 def read_fasta_file(seqs, fname, skip_pseudogenes, aligned=False):
@@ -46,7 +47,7 @@ def read_fasta_file(seqs, fname, skip_pseudogenes, aligned=False):
             functionality = linefo[imgt_info_indices.index('functionality')]
             if functionality not in functionalities:
                 raise Exception('unexpected functionality %s in %s' % (functionality, fname))
-            if skip_pseudogenes and functionality == 'P':
+            if skip_pseudogenes and functionality in pseudogene_funcionalities:
                 n_skipped_pseudogenes += 1
                 continue
         else:  # plain fasta with just the gene name after the '>'
@@ -59,6 +60,9 @@ def read_fasta_file(seqs, fname, skip_pseudogenes, aligned=False):
         seq = str(seq_record.seq).upper()
         if not aligned:
             seq = utils.remove_gaps(seq)
+        if 'Y' in seq:
+            print 'replacing %d \'Y\'s witih \'N\'s in %s' % (seq.count('Y'), gene)
+            seq = seq.replace('Y', 'N')
         if len(seq.strip(''.join(utils.expected_characters))) > 0:  # return the empty string if it only contains expected characters
             raise Exception('unexpected character %s in %s (expected %s)' % (seq.strip(''.join(utils.expected_characters)), seq, ' '.join(utils.expected_characters)))
 
@@ -525,4 +529,4 @@ def remove_glfo_files(gldir, chain):
     for fname in glfo_fnames(chain):
         os.remove(gldir + '/' + chain + '/' + fname)
     os.rmdir(gldir + '/' + chain)
-    os.rmdir(gldir)  # at the moment, we should only be running on single-chain stuff, so the only dir with info for more than one chain should be data/imgt
+    os.rmdir(gldir)  # at the moment, we should only be running on single-chain stuff, so the only dir with info for more than one chain should be data/germlines
