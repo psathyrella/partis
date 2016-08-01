@@ -52,9 +52,11 @@
   @abstract  Round an integer to the next closest power-2 integer.
   @param  x  integer to be rounded (in place) @discussion x will be modified.
   */
+#ifndef kroundup32
 #define kroundup32(x)                                                          \
   (--(x), (x) |= (x) >> 1, (x) |= (x) >> 2, (x) |= (x) >> 4, (x) |= (x) >> 8,  \
    (x) |= (x) >> 16, ++(x))
+#endif
 
 KSEQ_INIT(gzFile, gzread);
 
