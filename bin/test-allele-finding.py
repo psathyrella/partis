@@ -48,7 +48,7 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
         # {'gene' : 'IGHV1-18*01', 'positions' : (20, )}
     ]
     simulation_genes = simulation_v_genes + ':' + dj_genes
-    sglfo = glutils.read_glfo('data/imgt', chain=chain, only_genes=simulation_genes.split(':'), debug=True)
+    sglfo = glutils.read_glfo('data/germlines/human', chain=chain, only_genes=simulation_genes.split(':'), debug=True)
     glutils.add_some_snps(snps_to_add, sglfo, remove_template_genes=False, debug=True)
     glutils.write_glfo(outdir + '/germlines-for-simulation', sglfo)
 
@@ -61,7 +61,7 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
     run(cmd_str)
 
     inference_genes = inference_v_genes + ':' + dj_genes
-    iglfo = glutils.read_glfo('data/imgt', chain=chain, only_genes=inference_genes.split(':'), debug=True)
+    iglfo = glutils.read_glfo('data/germlines/human', chain=chain, only_genes=inference_genes.split(':'), debug=True)
     glutils.write_glfo(outdir + '/germlines-for-inference', iglfo)
 
     # generate germline set and cache parameters

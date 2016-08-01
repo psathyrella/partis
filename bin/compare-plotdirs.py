@@ -138,7 +138,7 @@ parser.add_argument('--names', required=True)
 parser.add_argument('--performance-plots', action='store_true')
 parser.add_argument('--colors', default='#006600:#cc0000:#990012:#3333ff:#3399ff:#2b65ec:#2b65ec:#808080')
 parser.add_argument('--linewidths', default='5:3:2:2:2')
-parser.add_argument('--gldir', default='data/imgt')
+parser.add_argument('--gldir', default='data/germlines/human')
 parser.add_argument('--chain', default='h')
 parser.add_argument('--normalize', action='store_true')
 

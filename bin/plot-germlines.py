@@ -20,7 +20,7 @@ import glutils
 import plotting
 
 # ----------------------------------------------------------------------------------------
-datadir = 'data/imgt'
+datadir = 'data/germlines/human'
 xtitles = {
     'indels' : 'fraction of positions indel\'d',
     'subs' : 'substitution fraction'

@@ -70,7 +70,7 @@ def run_simulation(args):
     if args.initial_germline_dir is None:  # if the gl info dir wasn't explicitly set on the command line, we have to decide what to use
         if args.parameter_dir is not None:  # if --parameter-dir was explicitly set, assume there's gl info in this --parameter-dir
             gldir = args.parameter_dir + '/' + args.parameter_type + '/' + glutils.glfo_dir
-        else:  # otherwise use the default (probably data/imgt)
+        else:  # otherwise use the default
             gldir = default_initial_germline_dir
     else:
         gldir = args.initial_germline_dir
@@ -185,8 +185,6 @@ formatter_class = lambda prog: argparse.HelpFormatter(prog, max_help_position=co
 parser = argparse.ArgumentParser(formatter_class=formatter_class)
 subparsers = parser.add_subparsers(dest='action')
 
-default_initial_germline_dir = partis_dir + '/data/imgt'  # I promise, it has to be set here instead of in the argparser, and yes, it freaks me out, too
-
 parent_parser = argparse.ArgumentParser(add_help=False)
 parent_parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2], help='Debug verbosity level.')
 parent_parser.add_argument('--sw-debug', type=int, choices=[0, 1, 2], help='Debug level for Smith-Waterman.')
@@ -234,6 +232,7 @@ parent_parser.add_argument('--dont-rescale-emissions', action='store_true', help
 parent_parser.add_argument('--print-git-commit', action='store_true', help='print sys.argv, git commit hash, and tag info')
 parent_parser.add_argument('--min-observations-to-write', type=int, default=20, help='For hmmwriter.py, if we see a gene version fewer times than this, we sum over other alleles, or other versions, etc. (see hmmwriter)')
 parent_parser.add_argument('--chain', default='h', choices=('h', 'k', 'l'), help='light chain is under development! only heavy chain works at the moment. But in the future: Are these heavy chain, or kappa or lambda light chain?')
+parent_parser.add_argument('--species', default='human', choices=('human', 'mouse'), help='Which species?')
 # parent_parser.add_argument('--use_mean_at_boundaries', action='store_true', help='see note in hmmwriter')
 
 subconfig = {
@@ -380,6 +379,8 @@ if args.presto_output and args.aligned_germline_fname is None:
 
 if args.parameter_dir is not None:
     args.parameter_dir = args.parameter_dir.rstrip('/')
+
+default_initial_germline_dir = partis_dir + '/data/germlines/' + args.species
 
 # ----------------------------------------------------------------------------------------
 random.seed(args.seed)
