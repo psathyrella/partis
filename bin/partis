@@ -187,8 +187,6 @@ subparsers = parser.add_subparsers(dest='action')
 
 default_initial_germline_dir = partis_dir + '/data/imgt'  # I promise, it has to be set here instead of in the argparser, and yes, it freaks me out, too
 print 'TODO remove paramutils'
-print 'TODO fix utils.hamming_fraction to not have return_len_excluding_ambig'
-print 'TODO merge performanceplotter\'s hamming to true naive with fcns in utils'
 parent_parser = argparse.ArgumentParser(add_help=False)
 parent_parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2], help='Debug verbosity level.')
 parent_parser.add_argument('--sw-debug', type=int, choices=[0, 1, 2], help='Debug level for Smith-Waterman.')

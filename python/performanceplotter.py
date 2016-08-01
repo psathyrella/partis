@@ -40,84 +40,14 @@ class PerformancePlotter(object):
             self.hists[region + '_allele_wrong_vs_per_gene_support'] = Hist(25, 0., 1.)
 
     # ----------------------------------------------------------------------------------------
-    def hamming_distance_to_true_naive(self, true_line, line, restrict_to_region='', normalize=False, padfo=None, debug=False):
-        """
-        Hamming distance between the inferred naive sequence and the tue naive sequence.
-        <restrict_to_region> if set, restrict the comparison to the section of the *true* sequence assigned to the given region.
-        NOTE this will not in general correspond to the similarly-assigned region in the inferred naive sequence.
-        if <normalize> divide by sequence length
-        """
-
+    def hamming_to_true_naive(self, true_line, line, restrict_to_region=''):
         true_naive_seq = true_line['naive_seq']
         inferred_naive_seq = line['naive_seq']
-        if len(true_naive_seq) != len(inferred_naive_seq):
-            print '%20s    true      inf' % ''
-            for k in true_line:
-                print '%20s   %s' % (k, true_line[k]),
-                if k in line:
-                    print '   %s' % line[k]
-                else:
-                    print '    NOPE'
-            for k in line:
-                if k not in true_line:
-                    print '  not in true line   %20s    %s' % (k, line[k])
-            raise Exception('%s true and inferred sequences not the same length\n   %s\n   %s\n' % (line['unique_id'], true_naive_seq, inferred_naive_seq))
-
-        # assert False # read through this whole damn thing and make sure it's ok
-
-        left_hack_add_on = ''
-        right_hack_add_on = ''
-        # if len(true_line['seq']) > len(utils.remove_ambiguous_ends(line['seq'], line['fv_insertion'], line['jf_insertion'])):  # ihhhmmm doesn't report the bits of the sequence it erodes off the ends, so we have to add them back on
-        # # if len(true_naive_seq) > len(inferred_naive_seq):  # hm, now why did I use line['seq'] stuff before?
-        #     assert False
-        #     start = true_line['seq'].find(line['seq'])
-        #     assert start >= 0
-        #     end = len(line['seq']) + start
-        #     left_hack_add_on = true_line['seq'][: start]
-        #     right_hack_add_on = true_line['seq'][ end :]
-        #     # extra_penalty = len(left_hack_add_on) + len(right_hack_add_on)
-        #     inferred_naive_seq = 'N'*len(left_hack_add_on) + inferred_naive_seq + 'N'*len(right_hack_add_on)
-        #     if debug:
-        #         print '  adding to inferred naive seq'
-
-
-        if padfo is not None:  # remove N padding from the inferred sequence
-            if debug:
-                print 'removing padfo'
-                print inferred_naive_seq
-            if inferred_naive_seq[padfo['padleft'] : ].count('N') == padfo['padleft']:  # this fails to happen if reset_effective_erosions_and_effective_insertions already removed the Ns
-                inferred_naive_seq = inferred_naive_seq[padfo['padleft'] : ]
-            elif debug:  # NOTE if no debug, we just fall through, which isok
-                print 'tried to remove non Ns!\n   %s\n   padleft %d\n' % (inferred_naive_seq, padfo['padleft'])
-            if padfo['padright'] > 0:
-                if inferred_naive_seq[ : padfo['padright']].count('N') == padfo['padright']:  # this fails to happen if reset_effective_erosions_and_effective_insertions already removed the Ns
-                    inferred_naive_seq = inferred_naive_seq[ : -padfo['padright']]
-                elif debug:  # NOTE if no debug, we just fall through, which isok
-                    print 'tried to remove non Ns!\n   %s\n   padright %d\n' % (inferred_naive_seq, padfo['padright'])
-            if debug:
-                print padfo['padleft'] * ' ' + inferred_naive_seq + padfo['padleft'] * ' '
-
-        bounds = None
-        if restrict_to_region != '':
+        if restrict_to_region != '':  # NOTE very similar to utils.get_n_muted(), except, we want to use the true bounds for both true and naive sequences
             bounds = true_line['regional_bounds'][restrict_to_region]
-            if debug:
-                print 'restrict to %s' % restrict_to_region
-                utils.color_mutants(true_naive_seq, inferred_naive_seq, print_result=True, extra_str='      ')
-                utils.color_mutants(true_naive_seq[bounds[0] : bounds[1]], inferred_naive_seq[bounds[0] : bounds[1]], print_result=True, extra_str='      ' + bounds[0]*' ')
             true_naive_seq = true_naive_seq[bounds[0] : bounds[1]]
             inferred_naive_seq = inferred_naive_seq[bounds[0] : bounds[1]]
-
-        if len(true_naive_seq) != len(inferred_naive_seq):
-            raise Exception('still not the same lengths for %s\n  %s\n  %s' % (line['unique_ids'][0], true_naive_seq, inferred_naive_seq))
-        total_distance = utils.hamming_distance(true_naive_seq, inferred_naive_seq)
-        if len(true_naive_seq) == 0:
-            if not (restrict_to_region == 'd' and utils.get_chain(true_line['v_gene']) != 'h'):
-                print 'WARNING zero length sequence in hamming_distance_to_true_naive'
-            return 0
-        if normalize:
-            return float(total_distance) / len(true_naive_seq)
-        else:
-            return total_distance
+        return utils.hamming_distance(true_naive_seq, inferred_naive_seq)
 
     # ----------------------------------------------------------------------------------------
     def add_fail(self):
@@ -178,7 +108,7 @@ class PerformancePlotter(object):
                     guessval = len(inf_line[column])
                 elif 'hamming_to_true_naive' in column:
                     trueval = 0
-                    guessval = self.hamming_distance_to_true_naive(true_line, inf_line, normalize=False, restrict_to_region=column[0] if column[0] in utils.regions else '', padfo=padfo)
+                    guessval = self.hamming_to_true_naive(true_line, inf_line, restrict_to_region=column[0] if column[0] in utils.regions else '')
                 elif 'muted_bases' in column:
                     region = column[0] if column[0] in utils.regions else ''
                     trueval = utils.get_n_muted(true_line, iseq=0, restrict_to_region=region)  # when we're evaluating on multi-seq hmm output, we synthesize single-sequence lines for each sequence
