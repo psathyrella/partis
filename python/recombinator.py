@@ -279,7 +279,7 @@ class Recombinator(object):
                     else:
                         tmpline[erosion + '_del'] = 0
                 else:
-                    max_erosion = max(0, gene_length - 2)
+                    max_erosion = max(0, gene_length/2 - 2)
                     tmpline[erosion + '_del'] = min(max_erosion, numpy.random.geometric(1. / utils.scratch_mean_erosion_lengths[erosion]))
             for region in utils.regions:
                 if tmpline[region + '_5p_del'] + tmpline[region + '_3p_del'] > len(self.glfo['seqs'][region][tmpline[region + '_gene']]):
