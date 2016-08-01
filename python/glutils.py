@@ -61,7 +61,7 @@ def read_fasta_file(seqs, fname, skip_pseudogenes, aligned=False):
         if not aligned:
             seq = utils.remove_gaps(seq)
         if 'Y' in seq:
-            print 'replacing %d \'Y\'s witih \'N\'s in %s' % (seq.count('Y'), gene)
+            print '      replacing Y --> N (%d of \'em) in %s' % (seq.count('Y'), utils.color_gene(gene))
             seq = seq.replace('Y', 'N')
         if len(seq.strip(''.join(utils.expected_characters))) > 0:  # return the empty string if it only contains expected characters
             raise Exception('unexpected character %s in %s (expected %s)' % (seq.strip(''.join(utils.expected_characters)), seq, ' '.join(utils.expected_characters)))
@@ -69,7 +69,7 @@ def read_fasta_file(seqs, fname, skip_pseudogenes, aligned=False):
         seqs[utils.get_region(gene)][gene] = seq
 
     if n_skipped_pseudogenes > 0:
-        print '    skipped %d pseudogenes' % n_skipped_pseudogenes
+        print '    skipped %d %s pseudogenes (leaving %d)' % (n_skipped_pseudogenes, utils.get_region(os.path.basename(fname)), len(seqs[utils.get_region(os.path.basename(fname))]))
 
 #----------------------------------------------------------------------------------------
 def read_germline_seqs(gldir, chain, skip_pseudogenes):
@@ -219,6 +219,8 @@ def get_missing_codon_info(glfo, debug=False):
             print '      missing %d %s positions' % (len(missing_genes), codon)
 
         aligned_seqs = get_new_alignments(glfo, region, debug=debug)
+        # for g, s in aligned_seqs.items():
+        #     print s, utils.color_gene(g)
 
         # if region == 'j':
         #     raise Exception('missing tryp position for %s, and we can\'t infer it because tryp positions don\'t reliably align to the same position' % ' '.join(missing_genes))
@@ -239,6 +241,7 @@ def get_missing_codon_info(glfo, debug=False):
         elif codon == 'cyst':
             known_pos_in_alignment = 309
             print '      assuming aligned %s position is %d (this will %s work if you\'re using imgt alignments)' % (codon, known_pos_in_alignment, utils.color('red', 'only'))
+            raise Exception('not really using imgt alignments much any more, so this isn\'t really going to work')
         else:
             raise Exception('no existing %s info, and couldn\'t guess it, either' % codon)
 
@@ -250,10 +253,24 @@ def get_missing_codon_info(glfo, debug=False):
             seqons.append((seq_to_check, unaligned_pos))
             glfo[codon + '-positions'][gene] = unaligned_pos
             n_added += 1
+            # if debug:
+            #     tmpseq = aligned_seqs[gene]
+            #     tmppos = known_pos_in_alignment
+            #     print '    %s%s%s   %s    (new)' % (tmpseq[:tmppos], utils.color('reverse_video', tmpseq[tmppos : tmppos + 3]), tmpseq[tmppos + 3:], utils.color_gene(gene))
 
         utils.check_a_bunch_of_codons(codon, seqons, extra_str='          ', debug=True)
         if debug:
             print '      added %d %s positions' % (n_added, codon)
+
+#----------------------------------------------------------------------------------------
+def remove_extraneouse_info(glfo, debug=False):
+    """ remove codon info corresponding to genes that aren't in 'seqs' """
+    for region, codon in utils.conserved_codons[glfo['chain']].items():
+        genes_to_remove = set(glfo[codon + '-positions']) - set(glfo['seqs'][region])
+        if debug:
+            print '    removing %s info for %d genes (leaving %d)' % (codon, len(genes_to_remove), len(glfo[codon + '-positions']) - len(genes_to_remove))
+        for gene in genes_to_remove:
+                del glfo[codon + '-positions'][gene]
 
 # ----------------------------------------------------------------------------------------
 def read_extra_info(glfo, gldir):
@@ -280,6 +297,10 @@ def read_glfo(gldir, chain, only_genes=None, skip_pseudogenes=True, debug=False)
         """ % (gldir + '/' + chain))
     # ----------------------------------------------------------------------------------------
 
+    # for gene, seq in glfo['seqs'][region].items():
+    #     pos = glfo[codon + '-positions'][gene]
+    #     print '    %s%s%s   %s' % (seq[:pos], utils.color('reverse_video', seq[pos : pos + 3]), seq[pos + 3:], utils.color_gene(gene))
+
     if debug:
         print '  reading %s chain glfo from %s' % (chain, gldir)
     glfo = {'chain' : chain}
@@ -294,6 +315,7 @@ def read_glfo(gldir, chain, only_genes=None, skip_pseudogenes=True, debug=False)
 
     if debug:
         print '  read %s' % '  '.join([('%s: %d' % (r, len(glfo['seqs'][r]))) for r in utils.regions])
+
     return glfo
 
 # ----------------------------------------------------------------------------------------
