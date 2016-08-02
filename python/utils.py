@@ -1119,7 +1119,7 @@ def read_overall_gene_probs(indir, only_gene=None, normalize=True, expect_zero_c
             return counts[get_region(only_gene)][only_gene]
 
 # ----------------------------------------------------------------------------------------
-def find_replacement_genes(indir, min_counts, gene_name=None, debug=False, all_from_region=''):
+def find_replacement_genes(param_dir, min_counts, gene_name=None, debug=False, all_from_region=''):
     if gene_name is not None:  # if you specify <gene_name> you shouldn't specify <all_from_region>
         assert all_from_region == ''
         region = get_region(gene_name)
@@ -1131,7 +1131,7 @@ def find_replacement_genes(indir, min_counts, gene_name=None, debug=False, all_f
     lists['allele'] = []  # list of genes that are alleles of <gene_name>
     lists['primary_version'] = []  # same primary version as <gene_name>
     lists['all'] = []  # give up and return everything
-    with opener('r')(indir + '/' + region + '_gene-probs.csv') as infile:  # NOTE note this ignores correlations... which I think is actually ok, but it wouldn't hurt to think through it again at some point
+    with opener('r')(param_dir + '/' + region + '_gene-probs.csv') as infile:  # NOTE note this ignores correlations... which I think is actually ok, but it wouldn't hurt to think through it again at some point
         reader = csv.DictReader(infile)
         for line in reader:
             gene = line[region + '_gene']
@@ -1157,7 +1157,7 @@ def find_replacement_genes(indir, min_counts, gene_name=None, debug=False, all_f
             if debug:
                 print '      not enough counts in %s' % (list_type + 's')
 
-    raise Exception('couldn\'t find genes for %s in %s' % (gene_name, indir))
+    raise Exception('couldn\'t find genes for %s in %s' % (gene_name, param_dir))
 
     # print '    \nWARNING return default gene %s \'cause I couldn\'t find anything remotely resembling %s' % (color_gene(hackey_default_gene_versions[region]), color_gene(gene_name))
     # return hackey_default_gene_versions[region]

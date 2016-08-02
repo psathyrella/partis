@@ -208,7 +208,7 @@ class HmmWriter(object):
         if self.n_occurences < self.args.min_observations_to_write:  # if we didn't see it enough, average over all the genes that find_replacement_genes() gives us
             if self.args.debug:
                 print '      didn\'t it %d times, so use info from all other genes' % self.args.min_observations_to_write
-            replacement_genes = utils.find_replacement_genes(self.indir, self.args.min_observations_to_write, gene_name, single_gene=False, debug=self.args.debug)
+            replacement_genes = utils.find_replacement_genes(self.indir, self.args.min_observations_to_write, gene_name, debug=self.args.debug)
 
         self.erosion_probs = self.read_erosion_info(gene_name, replacement_genes)
         self.insertion_probs, self.insertion_content_probs = self.read_insertion_info(gene_name, replacement_genes)
