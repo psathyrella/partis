@@ -1120,10 +1120,10 @@ def read_overall_gene_probs(indir, only_gene=None, normalize=True, expect_zero_c
 
 # ----------------------------------------------------------------------------------------
 def find_replacement_genes(indir, min_counts, gene_name=None, single_gene=False, debug=False, all_from_region=''):
-    if gene_name is not None:
+    if gene_name is not None:  # if you specify <gene_name> you shouldn't specify <all_from_region>
         assert all_from_region == ''
         region = get_region(gene_name)
-    else:
+    else:  # and vice versa
         assert all_from_region in regions
         assert single_gene == False
         assert min_counts == -1
@@ -1145,9 +1145,8 @@ def find_replacement_genes(indir, min_counts, gene_name=None, single_gene=False,
                     lists['primary_version'].append(vals)
             lists['all'].append(vals)
 
-    if single_gene:
+    if single_gene:  # return the first single replacement gene which has at least <min_counts> counts
         for list_type in lists:
-            # return the first which has at least <min_counts> counts
             lists[list_type].sort(reverse=True, key=lambda vals: vals['count'])  # sort by score
             for vals in lists[list_type]:
                 if vals['count'] >= min_counts:
@@ -1156,8 +1155,7 @@ def find_replacement_genes(indir, min_counts, gene_name=None, single_gene=False,
                     return vals['gene']
 
         raise Exception('didn\'t find any genes with at least %d for %s in %s' % (min_counts, gene_name, indir))
-    else:
-        # return the whole list NOTE we're including here <gene_name>
+    else:  # return the whole list NOTE this includes <gene_name>
         if all_from_region != '':
             return [vals['gene'] for vals in lists['all']]
         for list_type in lists:
