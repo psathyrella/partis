@@ -24,7 +24,6 @@ This manual is organized into the following sections:
 	- [simulate](#simulate) make simulated sequences
 	- [run-forward](#run-forward) find total probability of sequences
   * [Parallelization](#parallelization)
-  * [Default Parameters](#default-parameters)
 
 There are also many flags and optional parameters; unless mentioned below these are beyond the scope of this manual.
 Details concerning their purpose, however, may be gleaned by means of the following incantation: `./bin/partis --help`.
