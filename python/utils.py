@@ -1119,13 +1119,12 @@ def read_overall_gene_probs(indir, only_gene=None, normalize=True, expect_zero_c
             return counts[get_region(only_gene)][only_gene]
 
 # ----------------------------------------------------------------------------------------
-def find_replacement_genes(indir, min_counts, gene_name=None, single_gene=False, debug=False, all_from_region=''):
+def find_replacement_genes(indir, min_counts, gene_name=None, debug=False, all_from_region=''):
     if gene_name is not None:  # if you specify <gene_name> you shouldn't specify <all_from_region>
         assert all_from_region == ''
         region = get_region(gene_name)
     else:  # and vice versa
         assert all_from_region in regions
-        assert single_gene == False
         assert min_counts == -1
         region = all_from_region
     lists = OrderedDict()  # we want to try alleles first, then primary versions, then everything and it's mother
@@ -1145,31 +1144,20 @@ def find_replacement_genes(indir, min_counts, gene_name=None, single_gene=False,
                     lists['primary_version'].append(vals)
             lists['all'].append(vals)
 
-    if single_gene:  # return the first single replacement gene which has at least <min_counts> counts
-        for list_type in lists:
-            lists[list_type].sort(reverse=True, key=lambda vals: vals['count'])  # sort by score
-            for vals in lists[list_type]:
-                if vals['count'] >= min_counts:
-                    if debug:
-                        print '    return replacement %s %s' % (list_type, color_gene(vals['gene']))
-                    return vals['gene']
+    if all_from_region != '':
+        return [vals['gene'] for vals in lists['all']]
+    for list_type in lists:
+        total_counts = sum([vals['count'] for vals in lists[list_type]])
+        if total_counts >= min_counts:
+            return_list = [vals['gene'] for vals in lists[list_type]]
+            if debug:
+                print '      returning all %s for %s (%d genes, %d total counts)' % (list_type + 's', gene_name, len(return_list), total_counts)
+            return return_list
+        else:
+            if debug:
+                print '      not enough counts in %s' % (list_type + 's')
 
-        raise Exception('didn\'t find any genes with at least %d for %s in %s' % (min_counts, gene_name, indir))
-    else:  # return the whole list NOTE this includes <gene_name>
-        if all_from_region != '':
-            return [vals['gene'] for vals in lists['all']]
-        for list_type in lists:
-            total_counts = sum([vals['count'] for vals in lists[list_type]])
-            if total_counts >= min_counts:
-                return_list = [vals['gene'] for vals in lists[list_type]]
-                if debug:
-                    print '      returning all %s for %s (%d genes, %d total counts)' % (list_type + 's', gene_name, len(return_list), total_counts)
-                return return_list
-            else:
-                if debug:
-                    print '      not enough counts in %s' % (list_type + 's')
-
-        raise Exception('couldn\'t find genes for %s in %s' % (gene_name, indir))
+    raise Exception('couldn\'t find genes for %s in %s' % (gene_name, indir))
 
     # print '    \nWARNING return default gene %s \'cause I couldn\'t find anything remotely resembling %s' % (color_gene(hackey_default_gene_versions[region]), color_gene(gene_name))
     # return hackey_default_gene_versions[region]
