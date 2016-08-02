@@ -209,6 +209,17 @@ class PartitionDriver(object):
     def cache_parameters(self):
         """ Infer full parameter sets and write hmm files for sequences from <self.input_info>, first with Smith-Waterman, then using the SW output as seed for the HMM """
         print 'caching parameters'
+        if len(self.input_info) < 5 * self.args.min_observations_to_write:
+            print """
+            %s: number of input sequences (%d) isn\'t very large compared to --min-observations-to-write (%d), i.e. when we write hmm files we\'re going to be doing a lot of interpolation and smoothing.
+            This is not necessarily terrible -- if you really only have %d input sequences, you should, in general, get sensible answers.
+            But, if this is a subset of a larger file, you should cache parameters using the entire file (or at least a random subset of, say, ~50k sequences).
+            Also, if you have another data set that you believe is similar to this small one (e.g. same human, so the germlines are the same), you would will get more accurate results if you cache parameters on that data set, and then run inference using those parameters on this small data set.
+
+            For now, we assume the first case (you actually want to infer parameters on this small data set), so we reduce --min-observations-to-write to 1.
+            """ % (utils.color('red', 'warning'), len(self.input_info), self.args.min_observations_to_write, len(self.input_info))
+            self.args.min_observations_to_write = 1
+
         if self.args.find_new_alleles:
             self.find_new_alleles()
         self.run_waterer(write_parameters=True)

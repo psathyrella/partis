@@ -230,7 +230,7 @@ parent_parser.add_argument('--all-combinations', action='store_true', help='Run 
 parent_parser.add_argument('--plot-performance', action='store_true', help='Write out plots comparing true and inferred distributions')
 parent_parser.add_argument('--dont-rescale-emissions', action='store_true', help='Don\'t scale each hmm\'s emission probabilities to account for the branch length of each individual sequence.')
 parent_parser.add_argument('--print-git-commit', action='store_true', help='print sys.argv, git commit hash, and tag info')
-parent_parser.add_argument('--min-observations-to-write', type=int, default=20, help='For hmmwriter.py, if we see a gene version fewer times than this, we sum over other alleles, or other versions, etc. (see hmmwriter)')
+parent_parser.add_argument('--min-observations-to-write', type=int, default=20, help='When writing hmm model files, if we see a gene version fewer times than this, we average over other alleles, or other primary versions, etc. (see hmmwriter). NOTE default is manipulated in partitiondriver.py')
 parent_parser.add_argument('--chain', default='h', choices=('h', 'k', 'l'), help='light chain is under development! only heavy chain works at the moment. But in the future: Are these heavy chain, or kappa or lambda light chain?')
 parent_parser.add_argument('--species', default='human', choices=('human', 'mouse'), help='Which species?')
 # parent_parser.add_argument('--use_mean_at_boundaries', action='store_true', help='see note in hmmwriter')

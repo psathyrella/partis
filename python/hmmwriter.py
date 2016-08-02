@@ -207,7 +207,7 @@ class HmmWriter(object):
         replacement_genes = None
         if self.n_occurences < self.args.min_observations_to_write:  # if we didn't see it enough, average over all the genes that find_replacement_genes() gives us
             if self.args.debug:
-                print '      didn\'t it %d times, so use info from all other genes' % self.args.min_observations_to_write
+                print '      only saw it %d times (wanted %d), so use info from all other genes' % (self.n_occurences, self.args.min_observations_to_write)
             replacement_genes = utils.find_replacement_genes(self.indir, self.args.min_observations_to_write, gene_name, debug=self.args.debug)
 
         self.erosion_probs = self.read_erosion_info(gene_name, replacement_genes)
@@ -474,8 +474,6 @@ class HmmWriter(object):
             icontentprobs = {n : 0.25 for n in utils.nukes}
 
         assert utils.is_normed(icontentprobs)
-        if self.args.debug:
-            print '  insertion content for', insertion, icontentprobs
 
         return icontentprobs
 
