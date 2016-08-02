@@ -731,11 +731,12 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', label='', pr
         print_seq_in_reco_event(germlines, line, iseq, extra_str=extra_str, label=(label if iseq==0 else ''), one_line=(iseq>0), print_uid=print_uid)
 
 # ----------------------------------------------------------------------------------------
-def print_seq_in_reco_event(germlines, line, iseq, extra_str='', label='', one_line=False, print_uid=False):
+def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label='', one_line=False, print_uid=False):
     """
     Print ascii summary of recombination event and mutation.
     If <one_line>, then skip the germline lines, and only print the final_seq line.
     """
+    line = copy.deepcopy(original_line)  # copy that we can modify without changing <line>
 
     lseq = line['seqs'][iseq]
     indelfo = None if line['indelfos'][iseq]['reversed_seq'] == '' else line['indelfos'][iseq]
@@ -933,6 +934,12 @@ def print_seq_in_reco_event(germlines, line, iseq, extra_str='', label='', one_l
     out_str_list.append('\n')
 
     print ''.join(out_str_list),
+
+    # if copy_of_original_line != original_line:
+    #     for k in copy_of_original_line:
+    #         if copy_of_original_line[k] != original_line[k]:
+    #             print k, copy_of_original_line[k], original_line[k]
+    #     raise Exception('')
 
 #----------------------------------------------------------------------------------------
 def sanitize_name(name):
