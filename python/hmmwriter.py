@@ -181,7 +181,7 @@ class HmmWriter(object):
         # parameters with values that I more or less made up
         self.precision = '16'  # number of digits after the decimal for probabilities
         self.eps = 1e-6  # NOTE I also have an eps defined in utils, and they should in principle be combined
-        self.n_max_to_interpolate = 20
+        self.n_max_to_interpolate = args.min_observations_to_write
         self.min_mean_unphysical_insertion_length = {'fv' : 1.5, 'jf' : 25}  # jf has to be quite a bit bigger, since besides account for the variation in J length from the tryp position to the end, it has to account for the difference in cdr3 lengths
 
         self.erosion_pseudocount_length = 10  # if we're closer to the end of the gene than this, make sure erosion probability isn't zero
