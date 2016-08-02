@@ -24,6 +24,7 @@ This manual is organized into the following sections:
 	- [simulate](#simulate) make simulated sequences
 	- [run-forward](#run-forward) find total probability of sequences
   * [Parallelization](#parallelization)
+  * [Default Parameters](#default-parameters)
 
 There are also many flags and optional parameters; unless mentioned below these are beyond the scope of this manual.
 Details concerning their purpose, however, may be gleaned by means of the following incantation: `./bin/partis --help`.
@@ -329,10 +330,4 @@ Since at each stage we cache every calculated log probability, while the later s
 We currently reduce the number of processes by about 1.6 at each step, as long as the previous step didn't have to calculate too many numbers.
 
 With typical mutation levels, lineage structures, and cluster size distributions (all of which strongly affect clustering time), it's currently best to start with ``--n-procs` set so you have about 300 sequences per process.
-
-#### Testing
-
-The script `test/test.py` runs quite a few things and compares their outputs to reference values.
-At the moment normal installation (e.g. described above) just runs a quick annotation test to make sure things are installed correctly (`--quick` option).
-You can, however, run all the others if you like, although they're mainly designed to make sure code modifications haven't broken anything.
 
