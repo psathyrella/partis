@@ -156,10 +156,10 @@ class AlleleFinder(object):
             if debug:
                 print '    min snp ratio %s too small (less than %s)' % (fstr(fitfo['min_snp_ratios'][istart]), fstr(self.min_min_candidate_ratio))
             return False
-        for candidate_pos in fitfo['candidates'][istart]:  # return false if any of the candidate positions don't have enough counts with <istart> mutations (probably a homozygous new allele with more than <istart> snps)
+        for candidate_pos in fitfo['candidates'][istart]:  # return false if any of the candidate positions don't have enough counts with <istart> mutations (probably a homozygous new allele with more than <istart> snps) UPDATE did I mean heterozygous?
             if istart not in self.counts[gene][candidate_pos] or self.counts[gene][candidate_pos][istart]['total'] < self.n_total_min:
                 if debug:
-                    print '    not enough counts at this position with %d mutations (%s < %s)' % (istart, fstr(self.counts[gene][candidate_pos][istart]['total']), fstr(self.n_total_min))
+                    print '    not enough counts at candidate position %d with %d mutations (%s < %s)' % (candidate_pos, istart, fstr(self.counts[gene][candidate_pos][istart]['total']), fstr(self.n_total_min))
                 return False
 
         if debug:
