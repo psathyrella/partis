@@ -34,7 +34,7 @@ class AlleleFinder(object):
         self.max_fit_length = 10  # don't fit more than this many bins for each istart (the first few positions in the fit are the most important, and if we fit too far to the right these important positions get diluted)
         self.n_muted_min = 15  # don't fit positions that have fewer mutations than this
         self.n_total_min = 15  # ...or fewer total observations than this
-        self.n_five_prime_positions_to_exclude = 5  # skip positions that are too close to the 5' end of V (misassigned insertions look like snps)
+        self.n_three_prime_positions_to_exclude = 5  # skip positions that are too close to the 3' end of V (misassigned insertions look like snps)
         self.min_non_candidate_positions_to_fit = 10  # always fit at least a few non-candidate positions
         self.min_y_intercept = 0.15  # corresponds, roughly, to the expression level of the least common allele to which we have sensitivity
         self.default_slope_bounds = (-0.2, 0.2)  # fitting function needs some reasonable bounds from which to start
@@ -191,8 +191,8 @@ class AlleleFinder(object):
     def fit_istart(self, gene, istart, positions_to_try_to_fit, subxyvals, fitfo, debug=False):
         residuals = {}
         for pos in positions_to_try_to_fit:
-            # skip positions that are too close to the 5' end of V (misassigned insertions look like snps)
-            if pos > len(self.glfo['seqs'][utils.get_region(gene)][gene]) - self.n_five_prime_positions_to_exclude - 1:
+            # skip positions that are too close to the 3' end of V (misassigned insertions look like snps)
+            if pos > len(self.glfo['seqs'][utils.get_region(gene)][gene]) - self.n_three_prime_positions_to_exclude - 1:
                 continue
 
             # as long as we already have a few non-candidate positions, skip positions that have no frequencies greater than the min y intercept (note that they could in principle still have a large y intercept, but we don't really care)
