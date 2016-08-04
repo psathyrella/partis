@@ -1,5 +1,6 @@
 import time
 import math
+import sys
 import os
 import operator
 from subprocess import check_call
@@ -157,8 +158,8 @@ class AlleleFinder(object):
             if istart not in self.counts[gene][candidate_pos] or self.counts[gene][candidate_pos][istart]['total'] < self.n_total_min:
                 if debug:
                     print '    not enough counts at candidate position %d with %d mutations' % (candidate_pos, istart),
-                    if istart in self.coutns[gene][candidate_pos]:
-                        print '(%s < %s)' % fstr(self.counts[gene][candidate_pos][istart]['total']), fstr(self.n_total_min)
+                    if istart in self.counts[gene][candidate_pos]:
+                        print '(%s < %s)' % (fstr(self.counts[gene][candidate_pos][istart]['total']), fstr(self.n_total_min))
                     else:
                         print '(none)'
                 return False
@@ -289,6 +290,7 @@ class AlleleFinder(object):
             if utils.get_region(gene) != 'v':
                 continue
             if debug:
+                sys.stdout.flush()
                 print '\n%s (observed %d %s)' % (utils.color_gene(gene), self.gene_obs_counts[gene], utils.plural_str('time', self.gene_obs_counts[gene]))
 
             positions_to_try_to_fit, xyvals = self.get_positions_to_fit(gene, gene_results, debug=debug)
