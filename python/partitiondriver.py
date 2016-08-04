@@ -66,6 +66,8 @@ class PartitionDriver(object):
         self.hmm_outfname = self.args.workdir + '/hmm_output.csv'
         self.annotation_fname = self.hmm_outfname.replace('.csv', '_annotations.csv')
 
+        self.default_cachefname = self.args.parameter_dir + '/sw-cache-' + repr(abs(hash(''.join(self.input_info.keys())))) + '.csv'  # maybe I shouldn't abs it? collisions are probably still unlikely, and I don't like the extra dash in my file name
+
         if self.args.outfname is not None:
             outdir = os.path.dirname(self.args.outfname)
             if outdir != '' and not os.path.exists(outdir):
@@ -127,11 +129,10 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def get_cachefname(self, write_parameters):
-        default_cachefname = self.args.parameter_dir + '/sw-cache-' + repr(abs(hash(''.join(self.input_info.keys())))) + '.csv'  # maybe I shouldn't abs it? collisions are probably still unlikely, and I don't like the extra dash in my file name
         if self.args.sw_cachefname is not None:  # if --sw-cachefname was explicitly set, always use that
             return self.args.sw_cachefname
-        elif write_parameters or os.path.exists(default_cachefname):  # otherwise, use the default cachefname if we're either writing parameters (in which case we want to write results to disk) or if the default already exists (in which case we want to read it)
-            return default_cachefname
+        elif write_parameters or os.path.exists(self.default_cachefname):  # otherwise, use the default cachefname if we're either writing parameters (in which case we want to write results to disk) or if the default already exists (in which case we want to read it)
+            return self.default_cachefname
         return None  # don't want to read or write sw cache files
 
     # ----------------------------------------------------------------------------------------
@@ -172,6 +173,9 @@ class PartitionDriver(object):
             self.run_waterer(find_new_alleles=True)
             if len(self.sw_info['new-alleles']) == 0:
                 break
+            if os.path.exists(self.default_cachefname):
+                print '    removing sw cache file %s (it has outdated germline info)' % self.default_cachefname
+                os.remove(self.default_cachefname)
             all_new_allele_info += self.sw_info['new-alleles']
             glutils.restrict_to_genes(self.glfo, list(self.sw_info['all_best_matches']), debug=True)
             glutils.add_new_alleles(self.glfo, self.sw_info['new-alleles'], remove_template_genes=(itry==0 and self.args.generate_germline_set), debug=True)
