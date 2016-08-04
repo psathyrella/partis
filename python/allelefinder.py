@@ -156,7 +156,11 @@ class AlleleFinder(object):
         for candidate_pos in fitfo['candidates'][istart]:  # return false if any of the candidate positions don't have enough counts with <istart> mutations (probably a homozygous new allele with more than <istart> snps) UPDATE did I mean heterozygous?
             if istart not in self.counts[gene][candidate_pos] or self.counts[gene][candidate_pos][istart]['total'] < self.n_total_min:
                 if debug:
-                    print '    not enough counts at candidate position %d with %d mutations (%s < %s)' % (candidate_pos, istart, fstr(self.counts[gene][candidate_pos][istart]['total']), fstr(self.n_total_min))
+                    print '    not enough counts at candidate position %d with %d mutations' % (candidate_pos, istart),
+                    if istart in self.coutns[gene][candidate_pos]:
+                        print '(%s < %s)' % fstr(self.counts[gene][candidate_pos][istart]['total']), fstr(self.n_total_min)
+                    else:
+                        print '(none)'
                 return False
 
         if debug:
