@@ -95,6 +95,7 @@ class Waterer(object):
             hackline['seqs'][0] = hackline['seqs'][0][:-hackline['padrights'][0]]
         assert len(hackline['seqs'][0]) == len(hackline['naive_seq'])
         utils.add_implicit_info(self.glfo, hackline, existing_implicit_keys=['cdr3_length', 'naive_seq', 'mut_freqs'] + utils.functional_columns + ['aligned_' + r + '_seqs' for r in utils.regions])
+        return hackline
 
     # ----------------------------------------------------------------------------------------
     def read_cachefile(self, cachefname):
