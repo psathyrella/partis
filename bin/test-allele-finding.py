@@ -40,29 +40,28 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
         plotdir = '_www/partis/allele-finding/' + label
 
     snps_to_add = [
-        # {'gene' : 'IGHV3-71*01', 'positions' : (35, )},
-        # {'gene' : 'IGHV3-71*01', 'positions' : (35, 50)},
-        # {'gene' : 'IGHV3-71*01', 'positions' : (35, 45, 20, 50, 77)},
-        # {'gene' : 'IGHV3-71*01', 'positions' : (35, 60, 50)},
-        {'gene' : 'IGHV1-18*01', 'positions' : (100, 101)},
-        {'gene' : 'IGHV1-18*01', 'positions' : (20, )}
+        # {'gene' : 'IGHV1-18*01', 'positions' : (20, 30)},
+        # {'gene' : 'IGHV1-18*01', 'positions' : (20, 30)},
+        # {'gene' : 'IGHV1-18*01', 'positions' : (20, 30)},
+        # {'gene' : 'IGHV1-18*01', 'positions' : (20, 30)}
+        {'gene' : 'IGHV4-59*01', 'positions' : (50, )}
     ]
-    simulation_genes = simulation_v_genes + ':' + dj_genes
-    sglfo = glutils.read_glfo('data/germlines/human', chain=chain, only_genes=simulation_genes.split(':'), debug=True)
-    glutils.add_some_snps(snps_to_add, sglfo, remove_template_genes=False, debug=True)
-    glutils.write_glfo(outdir + '/germlines/simulation', sglfo)
+    # simulation_genes = simulation_v_genes + ':' + dj_genes
+    # sglfo = glutils.read_glfo('data/germlines/human', chain=chain, only_genes=simulation_genes.split(':'), debug=True)
+    # glutils.add_some_snps(snps_to_add, sglfo, remove_template_genes=False, debug=True)
+    # glutils.write_glfo(outdir + '/germlines/simulation', sglfo)
 
-    # simulate
-    cmd_str = base_cmd + ' simulate --n-sim-events 1000 --n-procs 10 --simulate-partially-from-scratch --mutation-multiplier 0.5'
-    cmd_str += ' --initial-germline-dir ' + outdir + '/germlines/simulation'
-    cmd_str += ' --outfname ' + simfname
-    if seed is not None:
-        cmd_str += ' --seed ' + str(seed)
-    run(cmd_str)
+    # # simulate
+    # cmd_str = base_cmd + ' simulate --n-sim-events 150 --n-procs 10 --simulate-partially-from-scratch --mutation-multiplier 0.5'
+    # cmd_str += ' --initial-germline-dir ' + outdir + '/germlines/simulation'
+    # cmd_str += ' --outfname ' + simfname
+    # if seed is not None:
+    #     cmd_str += ' --seed ' + str(seed)
+    # run(cmd_str)
 
-    inference_genes = inference_v_genes + ':' + dj_genes
-    iglfo = glutils.read_glfo('data/germlines/human', chain=chain, only_genes=inference_genes.split(':'), debug=True)
-    glutils.write_glfo(outdir + '/germlines/inference', iglfo)
+    # inference_genes = inference_v_genes + ':' + dj_genes
+    # iglfo = glutils.read_glfo('data/germlines/human', chain=chain, only_genes=inference_genes.split(':'), debug=True)
+    # glutils.write_glfo(outdir + '/germlines/inference', iglfo)
 
     # generate germline set and cache parameters
     cmd_str = base_cmd + ' cache-parameters --infname ' + simfname + ' --n-procs 10 --only-smith-waterman'
@@ -78,10 +77,10 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
 
 # ----------------------------------------------------------------------------------------
 
-seed = 1  # None
+seed = None  # 1
 dj_genes = 'IGHD6-19*01:IGHJ4*02'
-inference_v_genes = 'IGHV1-18*01'  #pseudogene: IGHV3-71*01' #:
-simulation_v_genes = inference_v_genes  # + ':IGHV3-71*02:IGHV3-71*03'  #:IGHV1-18*01'
+inference_v_genes = 'IGHV4-59*01' #'IGHV1-18*01'
+simulation_v_genes = inference_v_genes  # + IGHV1-18*01'
 
 run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=seed)
 sys.exit()

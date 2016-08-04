@@ -157,7 +157,7 @@ class AlleleFinder(object):
         for candidate_pos in fitfo['candidates'][istart]:  # return false if any of the candidate positions don't have enough counts with <istart> mutations (probably a homozygous new allele with more than <istart> snps) UPDATE did I mean heterozygous?
             if istart not in self.counts[gene][candidate_pos] or self.counts[gene][candidate_pos][istart]['total'] < self.n_total_min:
                 if debug:
-                    print '    not enough counts at candidate position %d with %d mutations' % (candidate_pos, istart),
+                    print '    not enough total counts at candidate position %d with %d mutations' % (candidate_pos, istart),
                     if istart in self.counts[gene][candidate_pos]:
                         print '(%s < %s)' % (fstr(self.counts[gene][candidate_pos][istart]['total']), fstr(self.n_total_min))
                     else:
@@ -228,9 +228,18 @@ class AlleleFinder(object):
         fitfo['min_snp_ratios'][istart] = min([residual_ratios[cs] for cs in candidate_snps])
         fitfo['candidates'][istart] = {cp : residual_ratios[cp] for cp in candidate_snps}
 
+# ----------------------------------------------------------------------------------------
+        print subxyvals[max_non_snp]['n_mutelist']
+        for pos in candidate_snps:
+            if subxyvals[pos]['n_mutelist'] != subxyvals[max_non_snp]['n_mutelist']:
+                print subxyvals[pos]['n_mutelist']
+                print subxyvals[max_non_snp]['n_mutelist']
+                raise Exception('not the same %d %d' % (pos, max_non_snp))
+# ----------------------------------------------------------------------------------------
+
+        raise Exception('fix n_mutelist differences')
         if debug:
-            # if debug > 1:
-            #     print '%70s %s' % ('', ''.join(['%11d' % nm for nm in subxyvals[max_non_snp]['n_mutelist']]))
+            print '%70s %s' % ('', ''.join(['%11d' % nm for nm in subxyvals[max_non_snp]['n_mutelist']]))
             for pos in candidate_snps + [max_non_snp, ]:
                 xtrastrs = ('[', ']') if pos == max_non_snp else (' ', ' ')
                 pos_str = '%3s' % str(pos)
@@ -239,8 +248,7 @@ class AlleleFinder(object):
                 print '               %s %s    %5s   (%5s / %-5s)       %4d / %-4d %s' % (xtrastrs[0], pos_str, fstr(residual_ratios[pos]),
                                                                                        fstr(residuals[pos]['zero_icpt']), fstr(residuals[pos]['big_icpt']),
                                                                                        sum(subxyvals[pos]['obs']), sum(subxyvals[pos]['total']), xtrastrs[1]),
-                # if debug > 1:
-                #     print '      ', ''.join(['%4d / %-4d' % (subxyvals[pos]['obs'][inm], subxyvals[pos]['total'][inm]) for inm in range(len(subxyvals[pos]['n_mutelist']))])
+                print '      ', ''.join(['%4d / %-4d' % (subxyvals[pos]['obs'][inm], subxyvals[pos]['total'][inm]) for inm in range(len(subxyvals[pos]['n_mutelist']))]),
                 print ''
 
     # ----------------------------------------------------------------------------------------
