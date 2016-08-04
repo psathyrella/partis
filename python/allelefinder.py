@@ -169,14 +169,15 @@ class AlleleFinder(object):
 
         positions = sorted(self.mfreqer.counts[gene].keys())
         xyvals = {pos : self.get_allele_finding_xyvals(gene, pos) for pos in positions}
-        positions_to_try_to_fit = [pos for pos in positions if sum(xyvals[pos]['obs']) > self.n_muted_min or sum(xyvals[pos]['total']) > self.n_total_min]  # ignore positions with neither enough mutations or total observations
+        positions_to_try_to_fit = [pos for pos in positions if sum(xyvals[pos]['obs']) > self.n_muted_min or sum(xyvals[pos]['total']) > self.n_total_min]  # ignore positions with neither enough mutations nor total observations
         if len(positions_to_try_to_fit) < self.n_max_snps - 1 + self.min_non_candidate_positions_to_fit:
             gene_results['not_enough_obs_to_fit'].add(gene)
             if debug:
                 print '          not enough positions with enough observations to fit %s' % utils.color_gene(gene)
                 return None, None
         if debug and len(positions) > len(positions_to_try_to_fit):
-            print '          skipping %d / %d positions (with fewer than %d mutations and %d observations)' % (len(positions) - len(positions_to_try_to_fit), len(positions), self.n_muted_min, self.n_total_min)
+            skip_str = ' '.join([str(p) for p in sorted(set(positions) - set(positions_to_try_to_fit))])
+            print '          skipping %d / %d positions (with fewer than %d mutations and %d observations): %s' % (len(positions) - len(positions_to_try_to_fit), len(positions), self.n_muted_min, self.n_total_min, skip_str)
 
         self.plotvals[gene] = {}
         for pos in positions_to_try_to_fit:
@@ -211,6 +212,7 @@ class AlleleFinder(object):
             if debug:
                 print '      not enough observations to fit more than %d snps' % (istart - 1)
             return
+
         residual_ratios = {pos : float('inf') if r['big_icpt'] == 0. else r['zero_icpt'] / r['big_icpt'] for pos, r in residuals.items()}
         sorted_ratios = sorted(residual_ratios.items(), key=operator.itemgetter(1), reverse=True)  # sort the positions in decreasing order of residual ratio
         candidate_snps = [pos for pos, _ in sorted_ratios[:istart]]  # the first <istart> positions are the "candidate snps"
