@@ -234,7 +234,7 @@ parent_parser.add_argument('--min-observations-to-write', type=int, default=20, 
 parent_parser.add_argument('--chain', default='h', choices=('h', 'k', 'l'), help='light chain is under development! only heavy chain works at the moment. But in the future: Are these heavy chain, or kappa or lambda light chain?')
 parent_parser.add_argument('--species', default='human', choices=('human', 'mouse'), help='Which species?')
 # parent_parser.add_argument('--use_mean_at_boundaries', action='store_true', help='see note in hmmwriter')
-
+print 'TODO switch test.py to other germline dir instead of using --only-genes'
 subconfig = {
     'version'          : {'func' : int, 'help' : 'print version information and exit'},
     'cache-parameters' : {'func' : run_partitiondriver, 'help' : 'Cache parameter values and write hmm model files.'},
@@ -353,9 +353,6 @@ elif args.is_simu:
 else:  # if neither was given on the command line, set is_data to True
     args.is_data = True
 
-if args.slurm and '/tmp' in args.workdir:
-    raise Exception('it appears that <workdir> isn\'t set to something visible to all slurm nodes')
-
 if args.no_indels and args.gap_open_penalty < 1000:
     print 'forcing --gap-open-penalty to 1000 to prevent indels, since --no-indels was specified (you can also adjust this penalty directly)'
     args.gap_open_penalty = 1000
@@ -364,6 +361,8 @@ if args.workdir is None:  # set default here so we know whether it was set by ha
     args.workdir = '/tmp/' + os.path.basename(os.getenv('HOME')) + '/hmms/' + str(random.randint(0, 999999))
 if os.path.exists(args.workdir):
     raise Exception('workdir %s already exists' % args.workdir)
+if args.slurm and args.workdir.find('/tmp/') == 0:
+    raise Exception('it appears that <workdir> isn\'t set to something visible to all slurm nodes')
 
 if args.plot_performance:
     if args.plotdir is None:
