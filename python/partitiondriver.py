@@ -136,7 +136,7 @@ class PartitionDriver(object):
         return None  # don't want to read or write sw cache files
 
     # ----------------------------------------------------------------------------------------
-    def run_waterer(self, write_parameters=False, find_new_alleles=False):
+    def run_waterer(self, write_parameters=False, find_new_alleles=False, itry=None):
         print 'smith-waterman',
         if write_parameters:
             print '  (writing parameters)',
@@ -155,7 +155,7 @@ class PartitionDriver(object):
                 print '  %s %d genes in glfo that don\'t have yamels in %s' % (utils.color('red', 'warning'), len(expected_genes - genes_with_hmms), self.sub_param_dir)
 
         parameter_out_dir = self.sw_param_dir if write_parameters else None
-        waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo, parameter_out_dir=parameter_out_dir, find_new_alleles=find_new_alleles, simglfo=self.simglfo)
+        waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo, parameter_out_dir=parameter_out_dir, find_new_alleles=find_new_alleles, simglfo=self.simglfo, itry=itry)
         cachefname = self.get_cachefname(write_parameters)
         if cachefname is None or not os.path.exists(cachefname):  # run sw if we either don't want to do any caching (None) or if we are planning on writing the results after we run
             waterer.run(cachefname)
@@ -170,7 +170,7 @@ class PartitionDriver(object):
         all_new_allele_info = []
         itry = 0
         while True:
-            self.run_waterer(find_new_alleles=True)
+            self.run_waterer(find_new_alleles=True, itry=itry)
             if len(self.sw_info['new-alleles']) == 0:
                 break
             if os.path.exists(self.default_cachefname):

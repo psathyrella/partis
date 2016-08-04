@@ -339,11 +339,13 @@ class AlleleFinder(object):
         self.finalized = True
 
     # ----------------------------------------------------------------------------------------
-    def plot(self, base_plotdir, only_csv=False):
+    def plot(self, base_plotdir, itry=None, only_csv=False):
         if not self.finalized:
             self.finalize(debug=debug)
 
         plotdir = base_plotdir + '/allele-finding'
+        if itry is not None:
+            plotdir = plotdir + '/try-' + str(itry)
 
         for old_gene_dir in glob.glob(plotdir + '/*'):  # has to be a bit more hackey than elsewhere, since we have no way of knowing what genes might have had their own directories written last time we wrote to this dir
             if not os.path.isdir(old_gene_dir):

@@ -21,12 +21,13 @@ from allelefinder import AlleleFinder
 # ----------------------------------------------------------------------------------------
 class Waterer(object):
     """ Run smith-waterman on the query sequences in <infname> """
-    def __init__(self, args, input_info, reco_info, glfo, parameter_out_dir=None, find_new_alleles=False, simglfo=None):
+    def __init__(self, args, input_info, reco_info, glfo, parameter_out_dir=None, find_new_alleles=False, simglfo=None, itry=None):
         self.args = args
         self.input_info = input_info
         self.reco_info = reco_info
         self.glfo = glfo
         self.simglfo = simglfo
+        self.itry = itry
         self.parameter_out_dir = parameter_out_dir
         self.debug = self.args.debug if self.args.sw_debug is None else self.args.sw_debug
 
@@ -134,7 +135,7 @@ class Waterer(object):
         if self.perfplotter is not None:
             self.perfplotter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
 
-        if self.alfinder is not None:
+        if self.alfinder is not None:  # TODO it doesn't really make sense to have this here, since most of the time you don't really want to do allele finding here
             self.alfinder.finalize(debug=self.args.debug_new_allele_finding)
             self.info['new-alleles'] = self.alfinder.new_allele_info
             if self.args.plotdir is not None:
@@ -171,7 +172,7 @@ class Waterer(object):
             self.alfinder.finalize(debug=self.args.debug_new_allele_finding)
             self.info['new-alleles'] = self.alfinder.new_allele_info
             if self.args.plotdir is not None:
-                self.alfinder.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
+                self.alfinder.plot(self.args.plotdir + '/sw', itry=self.itry, only_csv=self.args.only_csv_plots)
 
         # add padded info to self.info (returns if stuff has already been padded)
         self.pad_seqs_to_same_length()  # NOTE this uses *all the gene matches (not just the best ones), so it has to come before we call pcounter.write(), since that fcn rewrites the germlines removing genes that weren't best matches. But NOTE also that I'm not sure what but that the padding actually *needs* all matches (rather than just all *best* matches)
