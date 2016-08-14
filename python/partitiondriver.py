@@ -47,6 +47,7 @@ class PartitionDriver(object):
                     print '  note:! running on %d sequences spread over %d processes. This will be kinda slow, so it might be a good idea to set --n-procs N to the number of processors on your local machine, or look into non-local parallelization with --slurm.\n' % (len(self.input_info), self.args.n_procs)
                 if self.args.outfname is None and self.current_action != 'cache-parameters':
                     print '  note: running on a lot of sequences without setting --outfname. Which is ok! But there\'ll be no persistent record of the results'
+            self.default_cachefname = self.args.parameter_dir + '/sw-cache-' + repr(abs(hash(''.join(self.input_info.keys())))) + '.csv'  # maybe I shouldn't abs it? collisions are probably still unlikely, and I don't like the extra dash in my file name
         elif self.current_action != 'view-annotations' and self.current_action != 'view-partitions':
             raise Exception('--infname is required for action \'%s\'' % args.action)
 
@@ -65,8 +66,6 @@ class PartitionDriver(object):
         self.hmm_cachefname = self.args.workdir + '/hmm_cached_info.csv'
         self.hmm_outfname = self.args.workdir + '/hmm_output.csv'
         self.annotation_fname = self.hmm_outfname.replace('.csv', '_annotations.csv')
-
-        self.default_cachefname = self.args.parameter_dir + '/sw-cache-' + repr(abs(hash(''.join(self.input_info.keys())))) + '.csv'  # maybe I shouldn't abs it? collisions are probably still unlikely, and I don't like the extra dash in my file name
 
         if self.args.outfname is not None:
             outdir = os.path.dirname(self.args.outfname)

@@ -164,6 +164,8 @@ def view_existing_output(args):
     if not os.path.exists(args.outfname):
         raise Exception('--outfname \'%s\' does not exist' % args.outfname)
 
+    set_default_parameter_dir(args)  # all the calls to this function could probably be combined
+
     if args.initial_germline_dir is None:
         args.initial_germline_dir = default_initial_germline_dir
 
