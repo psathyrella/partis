@@ -59,14 +59,11 @@ class AlleleFinder(object):
     def increment(self, info):
         self.mfreqer.increment(info, iseq=0)
 
-        for region in utils.regions:
+        for region in ['v', ]:
             # leaving this commented block for the moment since this isn't yet part of the testing fwk:
             # regional_freq, len_excluding_ambig = utils.get_mutation_rate(info, iseq=0, restrict_to_region=region, return_len_excluding_ambig=True)
             # n_mutes = regional_freq * len_excluding_ambig  # total number of mutations in the region (for allele finding stuff)
             n_mutes = utils.get_n_muted(info, iseq=0, restrict_to_region=region)
-            if abs(n_mutes - int(n_mutes)) > 1e6:
-                raise Exception('n mutated %f not an integer' % n_mutes)
-            n_mutes = int(n_mutes)
 
             gene = info[region + '_gene']
             if gene not in self.counts:
@@ -87,13 +84,12 @@ class AlleleFinder(object):
                 if germline_seq[ipos] in utils.ambiguous_bases or query_seq[ipos] in utils.ambiguous_bases:  # skip if either germline or query sequence is ambiguous at this position
                     continue
 
-                if utils.get_region(gene) == 'v':
-                    if n_mutes not in gcts[igl]:
-                        gcts[igl][n_mutes] = {n : 0 for n in ['muted', 'total'] + utils.nukes}
-                    gcts[igl][n_mutes]['total'] += 1
-                    if query_seq[ipos] != germline_seq[ipos]:  # if this position is mutated
-                        gcts[igl][n_mutes]['muted'] += 1  # mark that we saw this germline position mutated once in a sequence with <n_mutes> regional mutation frequency
-                    gcts[igl][n_mutes][query_seq[ipos]] += 1  # only used to work out what the snp'd base is if there's a new allele
+                if n_mutes not in gcts[igl]:
+                    gcts[igl][n_mutes] = {n : 0 for n in ['muted', 'total'] + utils.nukes}
+                gcts[igl][n_mutes]['total'] += 1
+                if query_seq[ipos] != germline_seq[ipos]:  # if this position is mutated
+                    gcts[igl][n_mutes]['muted'] += 1  # mark that we saw this germline position mutated once in a sequence with <n_mutes> regional mutation frequency
+                gcts[igl][n_mutes][query_seq[ipos]] += 1  # only used to work out what the snp'd base is if there's a new allele
 
     # ----------------------------------------------------------------------------------------
     def get_residual_sum(self, xvals, yvals, errs, slope, intercept):
@@ -237,7 +233,7 @@ class AlleleFinder(object):
                 raise Exception('not the same %d %d' % (pos, max_non_snp))
 # ----------------------------------------------------------------------------------------
 
-        raise Exception('fix n_mutelist differences')
+        # raise Exception('fix n_mutelist differences')
         if debug:
             print '%70s %s' % ('', ''.join(['%11d' % nm for nm in subxyvals[max_non_snp]['n_mutelist']]))
             for pos in candidate_snps + [max_non_snp, ]:
