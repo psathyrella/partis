@@ -180,8 +180,7 @@ class AlleleFinder(object):
         return True
 
     # ----------------------------------------------------------------------------------------
-    def fit_istart(self, gene, istart, positions_to_try_to_fit, subxyvals, debug=False):
-        fitfo = {n : {} for n in ('min_snp_ratios', 'candidates')}
+    def fit_istart(self, gene, istart, positions_to_try_to_fit, subxyvals, fitfo, debug=False):
         residuals = {}
         for pos in positions_to_try_to_fit:
             # require at least a few bins with significant mutation
@@ -212,27 +211,29 @@ class AlleleFinder(object):
         fitfo['candidates'][istart] = {cp : residual_ratios[cp] for cp in candidate_snps}
 
 # ----------------------------------------------------------------------------------------
-        # print subxyvals[max_non_snp]['n_mutelist']
         for pos in candidate_snps:
             if subxyvals[pos]['n_mutelist'] != subxyvals[max_non_snp]['n_mutelist']:
                 print subxyvals[pos]['n_mutelist']
                 print subxyvals[max_non_snp]['n_mutelist']
-                # raise Exception('not the same %d %d' % (pos, max_non_snp))
+                raise Exception('not the same %d %d' % (pos, max_non_snp))
 # ----------------------------------------------------------------------------------------
 
-        # raise Exception('fix n_mutelist differences')
         if debug:
-            print '%70s %s' % ('', ''.join(['%11d' % nm for nm in subxyvals[max_non_snp]['n_mutelist']]))
             for pos in candidate_snps + [max_non_snp, ]:
                 xtrastrs = ('[', ']') if pos == max_non_snp else (' ', ' ')
                 pos_str = '%3s' % str(pos)
                 if residual_ratios[pos] > self.min_min_candidate_ratio:
                     pos_str = utils.color('yellow', pos_str)
-                print '               %s %s    %5s   (%5s / %-5s)       %4d / %-4d %s' % (xtrastrs[0], pos_str, fstr(residual_ratios[pos]),
-                                                                                       fstr(residuals[pos]['zero_icpt']), fstr(residuals[pos]['big_icpt']),
-                                                                                       sum(subxyvals[pos]['obs']), sum(subxyvals[pos]['total']), xtrastrs[1]),
-                print '      ', ''.join(['%4d / %-4d' % (subxyvals[pos]['obs'][inm], subxyvals[pos]['total'][inm]) for inm in range(len(subxyvals[pos]['n_mutelist']))]),
-                print ''
+                print_str = ['               %s %s    %5s   (%5s / %-5s)       %4d / %-4d %s' % (xtrastrs[0], pos_str, fstr(residual_ratios[pos]),
+                                                                                                 fstr(residuals[pos]['zero_icpt']), fstr(residuals[pos]['big_icpt']),
+                                                                                                 sum(subxyvals[pos]['obs']), sum(subxyvals[pos]['total']), xtrastrs[1])]
+                for n_mutes in range(self.n_max_mutations_per_segment + 1):
+                    if n_mutes in subxyvals[pos]['n_mutelist']:
+                        inm = subxyvals[pos]['n_mutelist'].index(n_mutes)
+                        print_str.append('%4d / %-4d' % (subxyvals[pos]['obs'][inm], subxyvals[pos]['total'][inm]))
+                    else:
+                        print_str.append('           ')
+                print ''.join(print_str)
 
     # ----------------------------------------------------------------------------------------
     def add_new_allele(self, gene, fitfo, n_candidate_snps, debug=False):
@@ -297,15 +298,17 @@ class AlleleFinder(object):
                 continue
 
             # loop over each snp hypothesis
+            fitfo = {n : {} for n in ('min_snp_ratios', 'candidates')}
             for istart in range(1, self.n_max_snps):
                 if debug:
                     if istart == 1:
                         print '                                 resid. / ndof'
-                        print '             position   ratio   (m=0 / m>%5.2f)       muted / obs ' % self.big_y_icpt_bounds[0]
+                        print '             position   ratio   (m=0 / m>%5.2f)       muted / obs ' % self.big_y_icpt_bounds[0],
+                        print '%5s %s' % ('', ''.join(['%11d' % nm for nm in range(1, self.n_max_mutations_per_segment + 1)]))
                     print '  %d %s' % (istart, utils.plural_str('snp', istart))
 
                 subxyvals = {pos : {k : v[istart : istart + self.max_fit_length] for k, v in self.xyvals[gene][pos].items()} for pos in positions_to_try_to_fit}
-                fitfo = self.fit_istart(gene, istart, positions_to_try_to_fit, subxyvals, debug=debug)
+                self.fit_istart(gene, istart, positions_to_try_to_fit, subxyvals, fitfo, debug=debug)
                 if istart not in fitfo['candidates']:  # if it didn't get filled, we didn't have enough observations to do the fit
                     break
 
