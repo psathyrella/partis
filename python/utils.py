@@ -326,16 +326,21 @@ def summarize_gene_name(gene):
     return ' '.join([region, primary_version, sub_version, allele])
 
 # ----------------------------------------------------------------------------------------
-def color_gene(gene):
+def color_gene(gene, width=None):
     """ color gene name (and remove extra characters), eg IGHV3-h*01 --> hv3-h1 """
     chain = get_chain(gene)
     region = get_region(gene)
     primary_version, sub_version, allele = split_gene(gene)
 
+    n_chars = len(chain + region + primary_version)  # number of non-special characters
     return_str = color('purple', chain) + color('red', region) + color('purple', primary_version)
     if sub_version is not None:
+        n_chars += 1 + len(sub_version)
         return_str += '-' + color('purple', sub_version)
+    n_chars += len(allele)
     return_str += color('yellow', allele)
+    if width is not None:
+        return_str += (width - n_chars) * ' '
     return return_str
 
 #----------------------------------------------------------------------------------------

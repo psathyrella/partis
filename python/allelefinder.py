@@ -267,20 +267,25 @@ class AlleleFinder(object):
         gene_results = {'not_enough_obs_to_fit' : set(), 'didnt_find_anything_with_fit' : set(), 'new_allele' : set()}
         self.xyvals = {}
         self.fitted_positions = {gene : set() for gene in self.counts}
-        if debug:
-            print '\n%s: looking for new alleles' % utils.color('red', 'try ' + str(self.itry))
+        print '%s: looking for new alleles' % utils.color('red', 'try ' + str(self.itry))
         for gene in sorted(self.counts):
             if debug:
                 sys.stdout.flush()
-                print '\n%s (observed %d %s, %d too highly mutated)' % (utils.color_gene(gene), self.gene_obs_counts[gene], utils.plural_str('time', self.gene_obs_counts[gene]), self.n_too_highly_mutated[gene])
+                print '  %s observed %d %s, %d too highly mutated' % (utils.color_gene(gene, width=15), self.gene_obs_counts[gene], utils.plural_str('time', self.gene_obs_counts[gene]), self.n_too_highly_mutated[gene])
+
+            if self.gene_obs_counts[gene] < self.n_total_min:
+                continue
 
             positions = sorted(self.counts[gene])
             self.xyvals[gene] = {pos : self.get_allele_finding_xyvals(gene, pos) for pos in positions}
             positions_to_try_to_fit = [pos for pos in positions if sum(self.xyvals[gene][pos]['obs']) > self.n_muted_min or sum(self.xyvals[gene][pos]['total']) > self.n_total_min]  # ignore positions with neither enough mutations nor total observations
 
             if debug and len(positions) > len(positions_to_try_to_fit):
-                skip_str = ' '.join([str(p) for p in sorted(set(positions) - set(positions_to_try_to_fit))])
-                print '          skipping %d / %d positions (with fewer than %d mutations and %d observations): %s' % (len(positions) - len(positions_to_try_to_fit), len(positions), self.n_muted_min, self.n_total_min, skip_str)
+                skiplist = [str(p) for p in sorted(set(positions) - set(positions_to_try_to_fit))]
+                skip_str = ''
+                if len(skiplist) < 20:
+                    skip_str = ': ' + ' '.join(skiplist)
+                print '          skipping %d / %d positions (with fewer than %d mutations and %d observations)%s' % (len(positions) - len(positions_to_try_to_fit), len(positions), self.n_muted_min, self.n_total_min, skip_str)
 
             if len(positions_to_try_to_fit) < self.n_max_snps:
                 if debug:
@@ -296,7 +301,7 @@ class AlleleFinder(object):
                         print '                                 resid. / ndof'
                         print '             position   ratio   (m=0 / m>%5.2f)       muted / obs ' % self.big_y_icpt_bounds[0],
                         print '%5s %s' % ('', ''.join(['%11d' % nm for nm in range(1, self.n_max_mutations_per_segment + 1)]))
-                    print '  %d %s' % (istart, utils.plural_str('snp', istart))
+                    print '    %d %s' % (istart, utils.plural_str('snp', istart))
 
                 self.fit_istart(gene, istart, positions_to_try_to_fit, fitfo, debug=debug)
 
@@ -322,7 +327,7 @@ class AlleleFinder(object):
             else:
                 gene_results['didnt_find_anything_with_fit'].add(gene)
                 if debug:
-                    print '  no new alleles'
+                    print '    no new alleles'
 
         if debug:
             print 'found new alleles for %d %s (there were also %d without new alleles, and %d without enough observations to fit)' % (len(gene_results['new_allele']), utils.plural_str('gene', len(gene_results['new_allele'])),
