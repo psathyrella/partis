@@ -27,7 +27,6 @@ class Waterer(object):
         self.reco_info = reco_info
         self.glfo = glfo
         self.simglfo = simglfo
-        self.itry = itry
         self.parameter_out_dir = parameter_out_dir
         self.debug = self.args.debug if self.args.sw_debug is None else self.args.sw_debug
 
@@ -53,7 +52,7 @@ class Waterer(object):
 
         self.alfinder, self.pcounter, self.true_pcounter, self.perfplotter = None, None, None, None
         if find_new_alleles:  # NOTE *not* the same as <self.args.find_new_alleles>
-            self.alfinder = AlleleFinder(self.glfo, self.args)
+            self.alfinder = AlleleFinder(self.glfo, self.args, itry)
         if parameter_out_dir is not None:  # NOTE *not* the same as <self.args.cache_parameters>
             self.pcounter = ParameterCounter(self.glfo, self.args)
             if not self.args.is_data:
@@ -172,7 +171,7 @@ class Waterer(object):
             self.alfinder.finalize(debug=self.args.debug_new_allele_finding)
             self.info['new-alleles'] = self.alfinder.new_allele_info
             if self.args.plotdir is not None:
-                self.alfinder.plot(self.args.plotdir + '/sw', itry=self.itry, only_csv=self.args.only_csv_plots)
+                self.alfinder.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
 
         # add padded info to self.info (returns if stuff has already been padded)
         self.pad_seqs_to_same_length()  # NOTE this uses *all the gene matches (not just the best ones), so it has to come before we call pcounter.write(), since that fcn rewrites the germlines removing genes that weren't best matches. But NOTE also that I'm not sure what but that the padding actually *needs* all matches (rather than just all *best* matches)

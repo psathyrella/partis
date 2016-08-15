@@ -24,9 +24,10 @@ def fstr(fval):
 
 # ----------------------------------------------------------------------------------------
 class AlleleFinder(object):
-    def __init__(self, glfo, args):
+    def __init__(self, glfo, args, itry):
         self.glfo = glfo
         self.args = args
+        self.itry = itry
 
         self.new_allele_info = []
 
@@ -147,9 +148,9 @@ class AlleleFinder(object):
 
         obs = [d['muted'] for d in gcts.values()]
 
-        lohis = [fraction_uncertainty.err(d['muted'], d['total'], use_beta=True) for d in gcts.values()]
+        lohis = [fraction_uncertainty.err(d['muted'], d['total'], use_beta=True) if d['total'] > 0. else (0., 1., None) for d in gcts.values()]  # set uncertainty bounds to (0., 1.) for zero-denominator bins
         errs = [(hi - lo) / 2 for lo, hi, _ in lohis]
-        weights = [1./(e*e) if e > 0. else 0. for e in errs]
+        weights = [1./(e*e) for e in errs]
 
         freqs = [float(d['muted']) / d['total'] if d['total'] > 0 else 0. for d in gcts.values()]
         total = [d['total'] for d in gcts.values()]
@@ -207,14 +208,6 @@ class AlleleFinder(object):
         # fitfo['scores'][istart] = (min_candidate_ratio - max_non_snp_ratio) / max(self.small_number, max_non_snp_ratio)
         fitfo['min_snp_ratios'][istart] = min([residual_ratios[cs] for cs in candidate_snps])
         fitfo['candidates'][istart] = {cp : residual_ratios[cp] for cp in candidate_snps}
-
-# ----------------------------------------------------------------------------------------
-        for pos in candidate_snps:
-            if subxyvals[pos]['n_mutelist'] != subxyvals[max_non_snp]['n_mutelist']:
-                print subxyvals[pos]['n_mutelist']
-                print subxyvals[max_non_snp]['n_mutelist']
-                raise Exception('not the same %d %d' % (pos, max_non_snp))
-# ----------------------------------------------------------------------------------------
 
         if debug:
             for pos in candidate_snps + [max_non_snp, ]:
@@ -275,7 +268,7 @@ class AlleleFinder(object):
         self.xyvals = {}
         self.fitted_positions = {gene : set() for gene in self.counts}
         if debug:
-            print '\nlooking for new alleles:'
+            print '\n%s: looking for new alleles' % utils.color('red', 'try ' + str(self.itry))
         for gene in sorted(self.counts):
             if debug:
                 sys.stdout.flush()
@@ -339,13 +332,13 @@ class AlleleFinder(object):
         self.finalized = True
 
     # ----------------------------------------------------------------------------------------
-    def plot(self, base_plotdir, itry=None, only_csv=False):
+    def plot(self, base_plotdir, only_csv=False):
         if not self.finalized:
             self.finalize(debug=debug)
 
         plotdir = base_plotdir + '/allele-finding'
-        if itry is not None:
-            plotdir = plotdir + '/try-' + str(itry)
+        if self.itry is not None:
+            plotdir = plotdir + '/try-' + str(self.itry)
 
         print '    plotting'
 
@@ -361,13 +354,8 @@ class AlleleFinder(object):
             return
 
         start = time.time()
-        for gene in self.fitted_positions:
-            print '        ', gene,
-
-            for position in self.fitted_positions[gene]:  # we can make plots for the positions we didn't fit, but there's a *lot* of them and they're slow
-                print position,
-                # if 'allele-finding' not in self.TMPxyvals[gene][position] or self.TMPxyvals[gene][position]['allele-finding'] is None:
-                #     continue
+        for gene in self.fitted_positions:  # we can make plots for the positions we didn't fit, but there's a *lot* of them and they're slow
+            for position in self.fitted_positions[gene]:
                 plotting.make_allele_finding_plot(plotdir + '/' + utils.sanitize_name(gene), gene, position, self.xyvals[gene][position])
 
         check_call(['./bin/permissify-www', plotdir])
