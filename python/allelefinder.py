@@ -180,7 +180,8 @@ class AlleleFinder(object):
         return True
 
     # ----------------------------------------------------------------------------------------
-    def fit_istart(self, gene, istart, positions_to_try_to_fit, subxyvals, fitfo, debug=False):
+    def fit_istart(self, gene, istart, positions_to_try_to_fit, subxyvals, debug=False):
+        fitfo = {n : {} for n in ('min_snp_ratios', 'candidates')}
         residuals = {}
         for pos in positions_to_try_to_fit:
             # require at least a few bins with significant mutation
@@ -284,16 +285,18 @@ class AlleleFinder(object):
             positions = sorted(self.counts[gene])
             self.xyvals[gene] = {pos : self.get_allele_finding_xyvals(gene, pos) for pos in positions}
             positions_to_try_to_fit = [pos for pos in positions if sum(self.xyvals[gene][pos]['obs']) > self.n_muted_min or sum(self.xyvals[gene][pos]['total']) > self.n_total_min]  # ignore positions with neither enough mutations nor total observations
+
+            if debug and len(positions) > len(positions_to_try_to_fit):
+                skip_str = ' '.join([str(p) for p in sorted(set(positions) - set(positions_to_try_to_fit))])
+                print '          skipping %d / %d positions (with fewer than %d mutations and %d observations): %s' % (len(positions) - len(positions_to_try_to_fit), len(positions), self.n_muted_min, self.n_total_min, skip_str)
+
             if len(positions_to_try_to_fit) < self.n_max_snps:
                 if debug:
                     print '          not enough positions with enough observations to fit %s' % utils.color_gene(gene)
                 gene_results['not_enough_obs_to_fit'].add(gene)
                 continue
-            if debug and len(positions) > len(positions_to_try_to_fit):
-                skip_str = ' '.join([str(p) for p in sorted(set(positions) - set(positions_to_try_to_fit))])
-                print '          skipping %d / %d positions (with fewer than %d mutations and %d observations): %s' % (len(positions) - len(positions_to_try_to_fit), len(positions), self.n_muted_min, self.n_total_min, skip_str)
 
-            fitfo = {n : {} for n in ('min_snp_ratios', 'candidates')}
+            # loop over each snp hypothesis
             for istart in range(1, self.n_max_snps):
                 if debug:
                     if istart == 1:
@@ -302,7 +305,7 @@ class AlleleFinder(object):
                     print '  %d %s' % (istart, utils.plural_str('snp', istart))
 
                 subxyvals = {pos : {k : v[istart : istart + self.max_fit_length] for k, v in self.xyvals[gene][pos].items()} for pos in positions_to_try_to_fit}
-                self.fit_istart(gene, istart, positions_to_try_to_fit, subxyvals, fitfo, debug=debug)
+                fitfo = self.fit_istart(gene, istart, positions_to_try_to_fit, subxyvals, debug=debug)
                 if istart not in fitfo['candidates']:  # if it didn't get filled, we didn't have enough observations to do the fit
                     break
 
