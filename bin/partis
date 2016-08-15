@@ -239,14 +239,14 @@ parent_parser.add_argument('--chain', default='h', choices=('h', 'k', 'l'), help
 parent_parser.add_argument('--species', default='human', choices=('human', 'mouse'), help='Which species?')
 # parent_parser.add_argument('--use_mean_at_boundaries', action='store_true', help='see note in hmmwriter')
 
-print 'TODO switch test.py to other germline dir instead of using --only-genes'
-print 'TODO think about removing genes that you only saw once or twice (probably only if there\'s also a good match to another gene, and if the data set is large)'
-print 'TODO do I need to delete the sw cache file each time through allele finding? (update: I think it\'s ok, because the cache file doesn\'t get written til after we finish doodling around with allele finding)'
-print 'TODO remove mfreqer from allelefinder'
-print 'TODO also remove \'also skip positions that only have a few points to fit\' thing'
-print 'TODO remove (almost?) all the \'if <> in <>\' bullshit (and *not* in)'
-print 'TODO decide on \'obs\' or \'muted\' as keys'
-print 'TODO print excluded positions'
+# print 'TODO switch test.py to other germline dir instead of using --only-genes'
+# print 'TODO think about removing genes that you only saw once or twice (probably only if there\'s also a good match to another gene, and if the data set is large)'
+# print 'TODO do I need to delete the sw cache file each time through allele finding? (update: I think it\'s ok, because the cache file doesn\'t get written til after we finish doodling around with allele finding)'
+# print 'TODO remove mfreqer from allelefinder'
+# print 'TODO also remove \'also skip positions that only have a few points to fit\' thing'
+# print 'TODO remove (almost?) all the \'if <> in <>\' bullshit (and *not* in)'
+# print 'TODO decide on \'obs\' or \'muted\' as keys'
+# print 'TODO print excluded positions'
 
 subconfig = {
     'version'          : {'func' : int, 'help' : 'print version information and exit'},
