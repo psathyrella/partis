@@ -290,7 +290,7 @@ class AlleleFinder(object):
 
             # loop over each snp hypothesis
             fitfo = {n : {} for n in ('min_snp_ratios', 'candidates')}
-            for istart in range(1, self.n_max_snps):
+            for istart in range(1, self.n_max_snps + 1):
                 if debug:
                     if istart == 1:
                         print '                                 resid. / ndof'
