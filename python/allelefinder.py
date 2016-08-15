@@ -51,7 +51,6 @@ class AlleleFinder(object):
 
         self.n_too_highly_mutated = {}
 
-        self.mfreqer = MuteFreqer(glfo)
         self.gene_obs_counts = {}  # only used for allele-finding
         self.counts = {}
         self.plotvals = {}
@@ -84,8 +83,6 @@ class AlleleFinder(object):
 
     # ----------------------------------------------------------------------------------------
     def increment(self, info):
-        self.mfreqer.increment(info, iseq=0)
-
         for region in ['v', ]:
             gene = info[region + '_gene']
             if gene not in self.counts:
@@ -184,10 +181,10 @@ class AlleleFinder(object):
         return True
 
     # ----------------------------------------------------------------------------------------
-    def get_positions_to_fit(self, gene, gene_results, debug=False):
+    def get_positions_and_xyvals(self, gene, gene_results, debug=False):
         self.fitted_positions[gene] = set()
 
-        positions = sorted(self.mfreqer.counts[gene].keys())
+        positions = sorted(self.counts[gene])
         xyvals = {pos : self.get_allele_finding_xyvals(gene, pos) for pos in positions}
         positions_to_try_to_fit = [pos for pos in positions if sum(xyvals[pos]['obs']) > self.n_muted_min or sum(xyvals[pos]['total']) > self.n_total_min]  # ignore positions with neither enough mutations nor total observations
         if len(positions_to_try_to_fit) < self.n_max_snps:
@@ -212,10 +209,6 @@ class AlleleFinder(object):
             # require at least a few bins with significant mutation
             interesting_bins = [f for f in subxyvals[pos]['freqs'] if f > self.min_y_intercept / 2]
             if len(interesting_bins) < self.min_fit_length:
-                continue
-
-            # also skip positions that only have a few points to fit (i.e. genes that were very rare, or I guess maybe if they were always eroded past this position)
-            if len(subxyvals[pos]['n_mutelist']) < 3:
                 continue
 
             zero_icpt_fit = self.get_curvefit(subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['errs'], y_icpt_bounds=(0. - self.small_number, 0. + self.small_number))
@@ -272,7 +265,7 @@ class AlleleFinder(object):
         for pos in sorted(fitfo['candidates'][n_candidate_snps]):
             obs_counts = {nuke : self.counts[gene][pos][n_candidate_snps][nuke] for nuke in utils.nukes}  # NOTE it's super important to only use the counts from sequences with <n_candidate_snps> total mutations
             sorted_obs_counts = sorted(obs_counts.items(), key=operator.itemgetter(1), reverse=True)
-            original_nuke = self.mfreqer.counts[gene][pos]['gl_nuke']
+            original_nuke = self.glfo['seqs'][utils.get_region(gene)][gene][pos]
             new_nuke = None
             for nuke, _ in sorted_obs_counts:  # take the most common one that isn't the existing gl nuke
                 if nuke != original_nuke:
@@ -300,20 +293,16 @@ class AlleleFinder(object):
     def finalize(self, debug=False):
         assert not self.finalized
 
-        self.mfreqer.finalize()
-
         start = time.time()
         gene_results = {'not_enough_obs_to_fit' : set(), 'didnt_find_anything_with_fit' : set(), 'new_allele' : set()}
         if debug:
             print '\nlooking for new alleles:'
-        for gene in sorted(self.mfreqer.counts):
-            if utils.get_region(gene) != 'v':
-                continue
+        for gene in sorted(self.counts):
             if debug:
                 sys.stdout.flush()
                 print '\n%s (observed %d %s, %d too highly mutated)' % (utils.color_gene(gene), self.gene_obs_counts[gene], utils.plural_str('time', self.gene_obs_counts[gene]), self.n_too_highly_mutated[gene])
 
-            positions_to_try_to_fit, xyvals = self.get_positions_to_fit(gene, gene_results, debug=debug)
+            positions_to_try_to_fit, xyvals = self.get_positions_and_xyvals(gene, gene_results, debug=debug)
             if positions_to_try_to_fit is None:
                 continue
 
