@@ -38,6 +38,7 @@ pseudogene_funcionalities = ['P', '[P]']
 #----------------------------------------------------------------------------------------
 def read_fasta_file(seqs, fname, skip_pseudogenes, aligned=False):
     n_skipped_pseudogenes = 0
+    seq_to_gene_map = {}
     for seq_record in SeqIO.parse(fname, 'fasta'):
         linefo = [p.strip() for p in seq_record.description.split('|')]
 
@@ -55,6 +56,8 @@ def read_fasta_file(seqs, fname, skip_pseudogenes, aligned=False):
         utils.split_gene(gene)  # just to check if it's a valid gene name
         if not aligned and utils.get_region(gene) != utils.get_region(os.path.basename(fname)):  # if <aligned> is True, file name is expected to be whatever
             raise Exception('gene %s from %s has unexpected region %s' % (gene, os.path.basename(fname), utils.get_region(gene)))
+        if gene in seqs[utils.get_region(gene)]:
+            raise Exception('gene name %s appears twice in %s' % (gene, fname))
 
         # then the sequence
         seq = str(seq_record.seq).upper()
@@ -65,8 +68,19 @@ def read_fasta_file(seqs, fname, skip_pseudogenes, aligned=False):
             seq = seq.replace('Y', 'N')
         if len(seq.strip(''.join(utils.expected_characters))) > 0:  # return the empty string if it only contains expected characters
             raise Exception('unexpected character %s in %s (expected %s)' % (seq.strip(''.join(utils.expected_characters)), seq, ' '.join(utils.expected_characters)))
+        if seq not in seq_to_gene_map:
+            seq_to_gene_map[seq] = []
+        seq_to_gene_map[seq].append(gene)
 
         seqs[utils.get_region(gene)][gene] = seq
+
+    tmpcounts = [len(gl) for gl in seq_to_gene_map.values()]  # number of names corresponding to each sequence (should all be ones)
+    if tmpcounts.count(1) != len(tmpcounts):
+        print '  mutliple names in %s for the following sequences:' % fname
+        for seq, genelist in seq_to_gene_map.items():
+            if len(genelist) > 1:
+                print '    %-50s   %s' % (' '.join(genelist), seq)
+        raise Exception('please de-duplicate the fasta and re-run.')
 
     if n_skipped_pseudogenes > 0:
         print '    skipped %d %s pseudogenes (leaving %d)' % (n_skipped_pseudogenes, utils.get_region(os.path.basename(fname)), len(seqs[utils.get_region(os.path.basename(fname))]))

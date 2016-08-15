@@ -731,11 +731,12 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', label='', pr
         print_seq_in_reco_event(germlines, line, iseq, extra_str=extra_str, label=(label if iseq==0 else ''), one_line=(iseq>0), print_uid=print_uid)
 
 # ----------------------------------------------------------------------------------------
-def print_seq_in_reco_event(germlines, line, iseq, extra_str='', label='', one_line=False, print_uid=False):
+def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label='', one_line=False, print_uid=False):
     """
     Print ascii summary of recombination event and mutation.
     If <one_line>, then skip the germline lines, and only print the final_seq line.
     """
+    line = copy.deepcopy(original_line)  # copy that we can modify without changing <line>
 
     lseq = line['seqs'][iseq]
     indelfo = None if line['indelfos'][iseq]['reversed_seq'] == '' else line['indelfos'][iseq]
@@ -934,6 +935,12 @@ def print_seq_in_reco_event(germlines, line, iseq, extra_str='', label='', one_l
 
     print ''.join(out_str_list),
 
+    # if copy_of_original_line != original_line:
+    #     for k in copy_of_original_line:
+    #         if copy_of_original_line[k] != original_line[k]:
+    #             print k, copy_of_original_line[k], original_line[k]
+    #     raise Exception('')
+
 #----------------------------------------------------------------------------------------
 def sanitize_name(name):
     """ Replace characters in gene names that make crappy filenames. """
@@ -1119,20 +1126,19 @@ def read_overall_gene_probs(indir, only_gene=None, normalize=True, expect_zero_c
             return counts[get_region(only_gene)][only_gene]
 
 # ----------------------------------------------------------------------------------------
-def find_replacement_genes(indir, min_counts, gene_name=None, single_gene=False, debug=False, all_from_region=''):
-    if gene_name is not None:
+def find_replacement_genes(param_dir, min_counts, gene_name=None, debug=False, all_from_region=''):
+    if gene_name is not None:  # if you specify <gene_name> you shouldn't specify <all_from_region>
         assert all_from_region == ''
         region = get_region(gene_name)
-    else:
+    else:  # and vice versa
         assert all_from_region in regions
-        assert single_gene == False
         assert min_counts == -1
         region = all_from_region
     lists = OrderedDict()  # we want to try alleles first, then primary versions, then everything and it's mother
     lists['allele'] = []  # list of genes that are alleles of <gene_name>
     lists['primary_version'] = []  # same primary version as <gene_name>
     lists['all'] = []  # give up and return everything
-    with opener('r')(indir + '/' + region + '_gene-probs.csv') as infile:  # NOTE note this ignores correlations... which I think is actually ok, but it wouldn't hurt to think through it again at some point
+    with opener('r')(param_dir + '/' + region + '_gene-probs.csv') as infile:  # NOTE note this ignores correlations... which I think is actually ok, but it wouldn't hurt to think through it again at some point
         reader = csv.DictReader(infile)
         for line in reader:
             gene = line[region + '_gene']
@@ -1145,33 +1151,20 @@ def find_replacement_genes(indir, min_counts, gene_name=None, single_gene=False,
                     lists['primary_version'].append(vals)
             lists['all'].append(vals)
 
-    if single_gene:
-        for list_type in lists:
-            # return the first which has at least <min_counts> counts
-            lists[list_type].sort(reverse=True, key=lambda vals: vals['count'])  # sort by score
-            for vals in lists[list_type]:
-                if vals['count'] >= min_counts:
-                    if debug:
-                        print '    return replacement %s %s' % (list_type, color_gene(vals['gene']))
-                    return vals['gene']
+    if all_from_region != '':
+        return [vals['gene'] for vals in lists['all']]
+    for list_type in lists:
+        total_counts = sum([vals['count'] for vals in lists[list_type]])
+        if total_counts >= min_counts:
+            return_list = [vals['gene'] for vals in lists[list_type]]
+            if debug:
+                print '      returning all %s for %s (%d genes, %d total counts)' % (list_type + 's', gene_name, len(return_list), total_counts)
+            return return_list
+        else:
+            if debug:
+                print '      not enough counts in %s' % (list_type + 's')
 
-        raise Exception('didn\'t find any genes with at least %d for %s in %s' % (min_counts, gene_name, indir))
-    else:
-        # return the whole list NOTE we're including here <gene_name>
-        if all_from_region != '':
-            return [vals['gene'] for vals in lists['all']]
-        for list_type in lists:
-            total_counts = sum([vals['count'] for vals in lists[list_type]])
-            if total_counts >= min_counts:
-                return_list = [vals['gene'] for vals in lists[list_type]]
-                if debug:
-                    print '      returning all %s for %s (%d genes, %d total counts)' % (list_type + 's', gene_name, len(return_list), total_counts)
-                return return_list
-            else:
-                if debug:
-                    print '      not enough counts in %s' % (list_type + 's')
-
-        raise Exception('couldn\'t find genes for %s in %s' % (gene_name, indir))
+    raise Exception('couldn\'t find genes for %s in %s' % (gene_name, param_dir))
 
     # print '    \nWARNING return default gene %s \'cause I couldn\'t find anything remotely resembling %s' % (color_gene(hackey_default_gene_versions[region]), color_gene(gene_name))
     # return hackey_default_gene_versions[region]

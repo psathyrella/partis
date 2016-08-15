@@ -181,7 +181,7 @@ class HmmWriter(object):
         # parameters with values that I more or less made up
         self.precision = '16'  # number of digits after the decimal for probabilities
         self.eps = 1e-6  # NOTE I also have an eps defined in utils, and they should in principle be combined
-        self.n_max_to_interpolate = 20
+        self.n_max_to_interpolate = args.min_observations_to_write
         self.min_mean_unphysical_insertion_length = {'fv' : 1.5, 'jf' : 25}  # jf has to be quite a bit bigger, since besides account for the variation in J length from the tryp position to the end, it has to account for the difference in cdr3 lengths
 
         self.erosion_pseudocount_length = 10  # if we're closer to the end of the gene than this, make sure erosion probability isn't zero
@@ -207,8 +207,8 @@ class HmmWriter(object):
         replacement_genes = None
         if self.n_occurences < self.args.min_observations_to_write:  # if we didn't see it enough, average over all the genes that find_replacement_genes() gives us
             if self.args.debug:
-                print '      didn\'t it %d times, so use info from all other genes' % self.args.min_observations_to_write
-            replacement_genes = utils.find_replacement_genes(self.indir, self.args.min_observations_to_write, gene_name, single_gene=False, debug=self.args.debug)
+                print '      only saw it %d times (wanted %d), so use info from all other genes' % (self.n_occurences, self.args.min_observations_to_write)
+            replacement_genes = utils.find_replacement_genes(self.indir, self.args.min_observations_to_write, gene_name, debug=self.args.debug)
 
         self.erosion_probs = self.read_erosion_info(gene_name, replacement_genes)
         self.insertion_probs, self.insertion_content_probs = self.read_insertion_info(gene_name, replacement_genes)
@@ -474,8 +474,6 @@ class HmmWriter(object):
             icontentprobs = {n : 0.25 for n in utils.nukes}
 
         assert utils.is_normed(icontentprobs)
-        if self.args.debug:
-            print '  insertion content for', insertion, icontentprobs
 
         return icontentprobs
 

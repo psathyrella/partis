@@ -1,7 +1,9 @@
 import time
 import math
+import sys
 import os
 import operator
+from subprocess import check_call
 import scipy
 import glob
 
@@ -34,7 +36,8 @@ class AlleleFinder(object):
         self.max_fit_length = 10  # don't fit more than this many bins for each istart (the first few positions in the fit are the most important, and if we fit too far to the right these important positions get diluted)
         self.n_muted_min = 15  # don't fit positions that have fewer mutations than this
         self.n_total_min = 15  # ...or fewer total observations than this
-        self.n_five_prime_positions_to_exclude = 5  # skip positions that are too close to the 5' end of V (misassigned insertions look like snps)
+        self.n_five_prime_positions_to_exclude = 4  # skip positions that are too close to the 3' end of V (misassigned insertions look like snps)
+        self.n_three_prime_positions_to_exclude = 4  # skip positions that are too close to the 3' end of V (misassigned insertions look like snps)
         self.min_non_candidate_positions_to_fit = 10  # always fit at least a few non-candidate positions
         self.min_y_intercept = 0.15  # corresponds, roughly, to the expression level of the least common allele to which we have sensitivity
         self.default_slope_bounds = (-0.2, 0.2)  # fitting function needs some reasonable bounds from which to start
@@ -67,7 +70,7 @@ class AlleleFinder(object):
 
             gene = info[region + '_gene']
             if gene not in self.counts:
-                self.counts[gene] = {}
+                self.counts[gene] = {igl : {} for igl in range(len(self.glfo['seqs'][region][gene]))}
                 self.gene_obs_counts[gene] = 0
             self.gene_obs_counts[gene] += 1
 
@@ -78,17 +81,12 @@ class AlleleFinder(object):
             query_seq = info[region + '_qr_seqs'][0]
             assert len(germline_seq) == len(query_seq)
 
-            for ipos in range(len(germline_seq)):
+            for ipos in range(self.n_five_prime_positions_to_exclude, len(germline_seq) - self.n_three_prime_positions_to_exclude):
                 igl = ipos + int(info[region + '_5p_del'])  # account for left-side deletions in the indexing
 
                 if germline_seq[ipos] in utils.ambiguous_bases or query_seq[ipos] in utils.ambiguous_bases:  # skip if either germline or query sequence is ambiguous at this position
                     continue
 
-                if igl not in gcts:  # if we have not yet observed this position in a query sequence, initialize it
-                    gcts[igl] = {}
-
-                if igl not in gcts:
-                    gcts[igl] = {}
                 if utils.get_region(gene) == 'v':
                     if n_mutes not in gcts[igl]:
                         gcts[igl][n_mutes] = {n : 0 for n in ['muted', 'total'] + utils.nukes}
@@ -156,10 +154,14 @@ class AlleleFinder(object):
             if debug:
                 print '    min snp ratio %s too small (less than %s)' % (fstr(fitfo['min_snp_ratios'][istart]), fstr(self.min_min_candidate_ratio))
             return False
-        for candidate_pos in fitfo['candidates'][istart]:  # return false if any of the candidate positions don't have enough counts with <istart> mutations (probably a homozygous new allele with more than <istart> snps)
+        for candidate_pos in fitfo['candidates'][istart]:  # return false if any of the candidate positions don't have enough counts with <istart> mutations (probably a homozygous new allele with more than <istart> snps) UPDATE did I mean heterozygous?
             if istart not in self.counts[gene][candidate_pos] or self.counts[gene][candidate_pos][istart]['total'] < self.n_total_min:
                 if debug:
-                    print '    not enough counts at this position with %d mutations (%s < %s)' % (istart, fstr(self.counts[gene][candidate_pos][istart]['total']), fstr(self.n_total_min))
+                    print '    not enough counts at candidate position %d with %d mutations' % (candidate_pos, istart),
+                    if istart in self.counts[gene][candidate_pos]:
+                        print '(%s < %s)' % (fstr(self.counts[gene][candidate_pos][istart]['total']), fstr(self.n_total_min))
+                    else:
+                        print '(none)'
                 return False
 
         if debug:
@@ -172,14 +174,15 @@ class AlleleFinder(object):
 
         positions = sorted(self.mfreqer.counts[gene].keys())
         xyvals = {pos : self.get_allele_finding_xyvals(gene, pos) for pos in positions}
-        positions_to_try_to_fit = [pos for pos in positions if sum(xyvals[pos]['obs']) > self.n_muted_min or sum(xyvals[pos]['total']) > self.n_total_min]  # ignore positions with neither enough mutations or total observations
+        positions_to_try_to_fit = [pos for pos in positions if sum(xyvals[pos]['obs']) > self.n_muted_min or sum(xyvals[pos]['total']) > self.n_total_min]  # ignore positions with neither enough mutations nor total observations
         if len(positions_to_try_to_fit) < self.n_max_snps - 1 + self.min_non_candidate_positions_to_fit:
             gene_results['not_enough_obs_to_fit'].add(gene)
             if debug:
                 print '          not enough positions with enough observations to fit %s' % utils.color_gene(gene)
                 return None, None
         if debug and len(positions) > len(positions_to_try_to_fit):
-            print '          skipping %d / %d positions (with fewer than %d mutations and %d observations)' % (len(positions) - len(positions_to_try_to_fit), len(positions), self.n_muted_min, self.n_total_min)
+            skip_str = ' '.join([str(p) for p in sorted(set(positions) - set(positions_to_try_to_fit))])
+            print '          skipping %d / %d positions (with fewer than %d mutations and %d observations): %s' % (len(positions) - len(positions_to_try_to_fit), len(positions), self.n_muted_min, self.n_total_min, skip_str)
 
         self.plotvals[gene] = {}
         for pos in positions_to_try_to_fit:
@@ -191,9 +194,6 @@ class AlleleFinder(object):
     def fit_istart(self, gene, istart, positions_to_try_to_fit, subxyvals, fitfo, debug=False):
         residuals = {}
         for pos in positions_to_try_to_fit:
-            # skip positions that are too close to the 5' end of V (misassigned insertions look like snps)
-            if pos > len(self.glfo['seqs'][utils.get_region(gene)][gene]) - self.n_five_prime_positions_to_exclude - 1:
-                continue
 
             # as long as we already have a few non-candidate positions, skip positions that have no frequencies greater than the min y intercept (note that they could in principle still have a large y intercept, but we don't really care)
             if len(residuals) > istart + self.min_non_candidate_positions_to_fit and len([f for f in subxyvals[pos]['freqs'] if f > self.min_y_intercept]) == 0:
@@ -290,6 +290,7 @@ class AlleleFinder(object):
             if utils.get_region(gene) != 'v':
                 continue
             if debug:
+                sys.stdout.flush()
                 print '\n%s (observed %d %s)' % (utils.color_gene(gene), self.gene_obs_counts[gene], utils.plural_str('time', self.gene_obs_counts[gene]))
 
             positions_to_try_to_fit, xyvals = self.get_positions_to_fit(gene, gene_results, debug=debug)
@@ -365,5 +366,6 @@ class AlleleFinder(object):
                 # if 'allele-finding' not in self.TMPxyvals[gene][position] or self.TMPxyvals[gene][position]['allele-finding'] is None:
                 #     continue
                 plotting.make_allele_finding_plot(plotdir + '/' + utils.sanitize_name(gene), gene, position, self.plotvals[gene][position])
-        print '      allele finding plot time: %.1f' % (time.time()-start)
 
+        check_call(['./bin/permissify-www', plotdir])
+        print '      allele finding plot time: %.1f' % (time.time()-start)

@@ -86,6 +86,18 @@ class Waterer(object):
         print '        water time: %.1f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
+    def get_hack_line(self, line):
+        hackline = copy.deepcopy(line)
+        # arg, hack hack hack hack
+        assert len(hackline['seqs']) == 1
+        hackline['seqs'][0] = hackline['seqs'][0][hackline['padlefts'][0]:]  # add on left-side padding
+        if hackline['padrights'][0] > 0:  # and right-side padding (being careful of negative-zero-right-slice thing)
+            hackline['seqs'][0] = hackline['seqs'][0][:-hackline['padrights'][0]]
+        assert len(hackline['seqs'][0]) == len(hackline['naive_seq'])
+        utils.add_implicit_info(self.glfo, hackline, existing_implicit_keys=['cdr3_length', 'naive_seq', 'mut_freqs'] + utils.functional_columns + ['aligned_' + r + '_seqs' for r in utils.regions])
+        return hackline
+
+    # ----------------------------------------------------------------------------------------
     def read_cachefile(self, cachefname):
         print '        reading sw results from %s' % cachefname
         with open(cachefname) as cachefile:
@@ -107,21 +119,26 @@ class Waterer(object):
                     del line[region + '_per_gene_support']
 
                 if self.perfplotter is not None:
-                    perfline = copy.deepcopy(self.info[qname])
-                    # arg, hack hack hack hack
-                    assert len(perfline['seqs']) == 1
-                    perfline['seqs'][0] = perfline['seqs'][0][perfline['padlefts'][0]:]
-                    if perfline['padrights'][0] > 0:
-                        perfline['seqs'][0] = perfline['seqs'][0][:-perfline['padrights'][0]]
-                    assert len(perfline['seqs'][0]) == len(perfline['naive_seq'])
-                    utils.add_implicit_info(self.glfo, perfline, existing_implicit_keys=['cdr3_length', 'naive_seq', 'mut_freqs'] + utils.functional_columns + ['aligned_' + r + '_seqs' for r in utils.regions])
+                    hackline = self.get_hack_line(self.info[qname])
                     if qname in self.info['indels']:
                         print '    skipping performance evaluation of %s because of indels' % qname  # I just have no idea how to handle naive hamming fraction when there's indels
                     else:
-                        self.perfplotter.evaluate(self.reco_info[qname], perfline)
+                        self.perfplotter.evaluate(self.reco_info[qname], hackline)
+
+                if self.alfinder is not None:
+                    hackline = self.get_hack_line(self.info[qname])
+                    self.alfinder.increment(hackline)
+
+        # TODO combine incrementation and finalization when reading cache file and when actually running
 
         if self.perfplotter is not None:
             self.perfplotter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
+
+        if self.alfinder is not None:
+            self.alfinder.finalize(debug=self.args.debug_new_allele_finding)
+            self.info['new-alleles'] = self.alfinder.new_allele_info
+            if self.args.plotdir is not None:
+                self.alfinder.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
 
     # ----------------------------------------------------------------------------------------
     def finalize(self, cachefname):
