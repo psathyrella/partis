@@ -53,7 +53,6 @@ class AlleleFinder(object):
 
         self.gene_obs_counts = {}  # only used for allele-finding
         self.counts = {}
-        self.plotvals = {}
 
         self.finalized = False
 
@@ -181,28 +180,6 @@ class AlleleFinder(object):
         return True
 
     # ----------------------------------------------------------------------------------------
-    def get_positions_and_xyvals(self, gene, gene_results, debug=False):
-        self.fitted_positions[gene] = set()
-
-        positions = sorted(self.counts[gene])
-        xyvals = {pos : self.get_allele_finding_xyvals(gene, pos) for pos in positions}
-        positions_to_try_to_fit = [pos for pos in positions if sum(xyvals[pos]['obs']) > self.n_muted_min or sum(xyvals[pos]['total']) > self.n_total_min]  # ignore positions with neither enough mutations nor total observations
-        if len(positions_to_try_to_fit) < self.n_max_snps:
-            gene_results['not_enough_obs_to_fit'].add(gene)
-            if debug:
-                print '          not enough positions with enough observations to fit %s' % utils.color_gene(gene)
-                return None, None
-        if debug and len(positions) > len(positions_to_try_to_fit):
-            skip_str = ' '.join([str(p) for p in sorted(set(positions) - set(positions_to_try_to_fit))])
-            print '          skipping %d / %d positions (with fewer than %d mutations and %d observations): %s' % (len(positions) - len(positions_to_try_to_fit), len(positions), self.n_muted_min, self.n_total_min, skip_str)
-
-        self.plotvals[gene] = {}
-        for pos in positions_to_try_to_fit:
-            self.plotvals[gene][pos] = xyvals[pos]
-
-        return positions_to_try_to_fit, xyvals
-
-    # ----------------------------------------------------------------------------------------
     def fit_istart(self, gene, istart, positions_to_try_to_fit, subxyvals, fitfo, debug=False):
         residuals = {}
         for pos in positions_to_try_to_fit:
@@ -295,6 +272,8 @@ class AlleleFinder(object):
 
         start = time.time()
         gene_results = {'not_enough_obs_to_fit' : set(), 'didnt_find_anything_with_fit' : set(), 'new_allele' : set()}
+        self.xyvals = {}
+        self.fitted_positions = {gene : set() for gene in self.counts}
         if debug:
             print '\nlooking for new alleles:'
         for gene in sorted(self.counts):
@@ -302,9 +281,17 @@ class AlleleFinder(object):
                 sys.stdout.flush()
                 print '\n%s (observed %d %s, %d too highly mutated)' % (utils.color_gene(gene), self.gene_obs_counts[gene], utils.plural_str('time', self.gene_obs_counts[gene]), self.n_too_highly_mutated[gene])
 
-            positions_to_try_to_fit, xyvals = self.get_positions_and_xyvals(gene, gene_results, debug=debug)
-            if positions_to_try_to_fit is None:
+            positions = sorted(self.counts[gene])
+            self.xyvals[gene] = {pos : self.get_allele_finding_xyvals(gene, pos) for pos in positions}
+            positions_to_try_to_fit = [pos for pos in positions if sum(self.xyvals[gene][pos]['obs']) > self.n_muted_min or sum(self.xyvals[gene][pos]['total']) > self.n_total_min]  # ignore positions with neither enough mutations nor total observations
+            if len(positions_to_try_to_fit) < self.n_max_snps:
+                if debug:
+                    print '          not enough positions with enough observations to fit %s' % utils.color_gene(gene)
+                gene_results['not_enough_obs_to_fit'].add(gene)
                 continue
+            if debug and len(positions) > len(positions_to_try_to_fit):
+                skip_str = ' '.join([str(p) for p in sorted(set(positions) - set(positions_to_try_to_fit))])
+                print '          skipping %d / %d positions (with fewer than %d mutations and %d observations): %s' % (len(positions) - len(positions_to_try_to_fit), len(positions), self.n_muted_min, self.n_total_min, skip_str)
 
             fitfo = {n : {} for n in ('min_snp_ratios', 'candidates')}
             for istart in range(1, self.n_max_snps):
@@ -314,7 +301,7 @@ class AlleleFinder(object):
                         print '             position   ratio   (m=0 / m>%5.2f)       muted / obs ' % self.big_y_icpt_bounds[0]
                     print '  %d %s' % (istart, utils.plural_str('snp', istart))
 
-                subxyvals = {pos : {k : v[istart : istart + self.max_fit_length] for k, v in xyvals[pos].items()} for pos in positions_to_try_to_fit}
+                subxyvals = {pos : {k : v[istart : istart + self.max_fit_length] for k, v in self.xyvals[gene][pos].items()} for pos in positions_to_try_to_fit}
                 self.fit_istart(gene, istart, positions_to_try_to_fit, subxyvals, fitfo, debug=debug)
                 if istart not in fitfo['candidates']:  # if it didn't get filled, we didn't have enough observations to do the fit
                     break
@@ -370,16 +357,14 @@ class AlleleFinder(object):
             return
 
         start = time.time()
-        for gene in self.plotvals:
+        for gene in self.fitted_positions:
             print '        ', gene,
 
-            for position in self.plotvals[gene]:
-                if position not in self.fitted_positions[gene]:  # we can make plots for the positions we didn't fit, but there's a *lot* of them and they're slow
-                    continue
+            for position in self.fitted_positions[gene]:  # we can make plots for the positions we didn't fit, but there's a *lot* of them and they're slow
                 print position,
                 # if 'allele-finding' not in self.TMPxyvals[gene][position] or self.TMPxyvals[gene][position]['allele-finding'] is None:
                 #     continue
-                plotting.make_allele_finding_plot(plotdir + '/' + utils.sanitize_name(gene), gene, position, self.plotvals[gene][position])
+                plotting.make_allele_finding_plot(plotdir + '/' + utils.sanitize_name(gene), gene, position, self.xyvals[gene][position])
 
         check_call(['./bin/permissify-www', plotdir])
         print '      allele finding plot time: %.1f' % (time.time()-start)
