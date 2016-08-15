@@ -180,7 +180,9 @@ class AlleleFinder(object):
         return True
 
     # ----------------------------------------------------------------------------------------
-    def fit_istart(self, gene, istart, positions_to_try_to_fit, subxyvals, fitfo, debug=False):
+    def fit_istart(self, gene, istart, positions_to_try_to_fit, fitfo, debug=False):
+        subxyvals = {pos : {k : v[istart : istart + self.max_fit_length] for k, v in self.xyvals[gene][pos].items()} for pos in positions_to_try_to_fit}
+
         residuals = {}
         for pos in positions_to_try_to_fit:
             # require at least a few bins with significant mutation
@@ -307,8 +309,8 @@ class AlleleFinder(object):
                         print '%5s %s' % ('', ''.join(['%11d' % nm for nm in range(1, self.n_max_mutations_per_segment + 1)]))
                     print '  %d %s' % (istart, utils.plural_str('snp', istart))
 
-                subxyvals = {pos : {k : v[istart : istart + self.max_fit_length] for k, v in self.xyvals[gene][pos].items()} for pos in positions_to_try_to_fit}
-                self.fit_istart(gene, istart, positions_to_try_to_fit, subxyvals, fitfo, debug=debug)
+                self.fit_istart(gene, istart, positions_to_try_to_fit, fitfo, debug=debug)
+
                 if istart not in fitfo['candidates']:  # if it didn't get filled, we didn't have enough observations to do the fit
                     break
 
