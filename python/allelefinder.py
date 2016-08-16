@@ -33,27 +33,24 @@ class AlleleFinder(object):
 
         self.small_number = 1e-5
         self.n_max_mutations_per_segment = 20  # don't look at sequences whose v segments have more than this many mutations
-        self.n_max_snps = 10  # try excluding up to this many bins (on the left) when doing the fit (leaves at least 9 points for fit)
-        self.min_fit_length = 5
-        self.max_fit_length = 10  # don't fit more than this many bins for each istart (the first few positions in the fit are the most important, and if we fit too far to the right these important positions get diluted)
-        self.n_muted_min = 10  # don't fit positions that have fewer total mutations than this
+        self.n_max_snps = 10  # max number of snps, i.e. try excluding up to this many bins on the left
+        self.min_fit_length = 5  # don't both fitting an <istart> (i.e. snp hypothesis) if it doesn't have at least this many bins
+        self.max_fit_length = 10  # don't fit more than this many bins for each <istart> (the first few positions in the fit are the most important, and if we fit too far to the right these important positions get diluted)
+        self.n_muted_min = 10  # don't fit positions that have fewer total mutations than this (i.e. summed over bins)
         self.n_total_min = 50  # ...or fewer total observations than this
-        self.n_muted_min_per_bin = 8  # <start>th bin has to have this many mutated sequences
+        self.n_muted_min_per_bin = 8  # <istart>th bin has to have at least this many mutated sequences (i.e. 2-3 sigma from zero)
         self.n_five_prime_positions_to_exclude = 2  # skip positions that are too close to the 5' end of V (depending on sequence method, these can be unreliable. uh, I think?)
         self.n_three_prime_positions_to_exclude = 4  # skip positions that are too close to the 3' end of V (misassigned insertions look like snps)
         self.min_y_intercept = 0.15  # corresponds, roughly, to the expression level of the least common allele to which we have sensitivity
+
         self.default_slope_bounds = (-0.2, 0.2)  # fitting function needs some reasonable bounds from which to start
         self.big_y_icpt_bounds = (self.min_y_intercept, 1.5)  # snp-candidate positions should fit well when forced to use these bounds, but non-snp positions should fit like &*@!*
-        # self.min_score = 2  # (mean ratio over snp candidates) - (first non-candidate ratio) must be greater than this
         self.min_min_candidate_ratio = 2.25  # every candidate ratio must be greater than this
-        # self.max_non_candidate_ratio = 2.  # first non-candidate has to be smaller than this
-        self.min_snp_big_icpt_residual = 2.  # snp candidates must have a better (smaller residual) big-intercept fit than this
-        self.fitted_positions = {}  # positions that, for any <istart>, we have fit info
 
-        self.n_too_highly_mutated = {}
-
-        self.gene_obs_counts = {}  # only used for allele-finding
         self.counts = {}
+        self.fitted_positions = {}  # positions for which, for any <istart>, we have fit info
+        self.n_seqs_too_highly_mutated = {}  # sequences (per-gene) that had more than <self.n_max_mutations_per_segment> mutations
+        self.gene_obs_counts = {}
 
         self.finalized = False
 
@@ -65,7 +62,7 @@ class AlleleFinder(object):
             for istart in range(self.n_max_mutations_per_segment + 1):  # istart and n_mutes are equivalent
                 self.counts[gene][igl][istart] = {n : 0 for n in ['muted', 'total'] + utils.nukes}
         self.gene_obs_counts[gene] = 0
-        self.n_too_highly_mutated[gene] = 0
+        self.n_seqs_too_highly_mutated[gene] = 0
 
     # ----------------------------------------------------------------------------------------
     def get_seqs(self, info, region):
@@ -94,7 +91,7 @@ class AlleleFinder(object):
             n_mutes, germline_seq, query_seq = self.get_seqs(info, region)
 
             if n_mutes > self.n_max_mutations_per_segment:
-                self.n_too_highly_mutated[gene] += 1
+                self.n_seqs_too_highly_mutated[gene] += 1
                 continue
 
             for ipos in range(len(germline_seq)):
@@ -271,7 +268,7 @@ class AlleleFinder(object):
         for gene in sorted(self.counts):
             if debug:
                 sys.stdout.flush()
-                print '  %s observed %d %s, %d too highly mutated' % (utils.color_gene(gene, width=15), self.gene_obs_counts[gene], utils.plural_str('time', self.gene_obs_counts[gene]), self.n_too_highly_mutated[gene])
+                print '  %s observed %d %s, %d too highly mutated' % (utils.color_gene(gene, width=15), self.gene_obs_counts[gene], utils.plural_str('time', self.gene_obs_counts[gene]), self.n_seqs_too_highly_mutated[gene])
 
             if self.gene_obs_counts[gene] < self.n_total_min:
                 continue
