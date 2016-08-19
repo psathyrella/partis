@@ -29,25 +29,26 @@ class AlleleFinder(object):
         self.args = args
         self.itry = itry
 
-        self.new_allele_info = []
-
-        self.small_number = 1e-5
-        self.n_max_mutations_per_segment = 20  # don't look at sequences whose v segments have more than this many mutations
         self.n_max_snps = 10  # max number of snps, i.e. try excluding up to this many bins on the left
+        self.n_max_mutations_per_segment = 20  # don't look at sequences whose v segments have more than this many mutations
         self.min_fit_length = 5  # don't both fitting an <istart> (i.e. snp hypothesis) if it doesn't have at least this many bins
         self.max_fit_length = 10  # don't fit more than this many bins for each <istart> (the first few positions in the fit are the most important, and if we fit too far to the right these important positions get diluted)
+        self.n_five_prime_positions_to_exclude = 2  # skip positions that are too close to the 5' end of V (depending on sequence method, these can be unreliable. uh, I think?)
+        self.n_three_prime_positions_to_exclude = 4  # skip positions that are too close to the 3' end of V (misassigned insertions look like snps)
+
         self.n_muted_min = 10  # don't fit positions that have fewer total mutations than this (i.e. summed over bins)
         self.n_total_min = 50  # ...or fewer total observations than this
         self.n_muted_min_per_bin = 8  # <istart>th bin has to have at least this many mutated sequences (i.e. 2-3 sigma from zero)
-        self.n_five_prime_positions_to_exclude = 2  # skip positions that are too close to the 5' end of V (depending on sequence method, these can be unreliable. uh, I think?)
-        self.n_three_prime_positions_to_exclude = 4  # skip positions that are too close to the 3' end of V (misassigned insertions look like snps)
+
         self.min_y_intercept = 0.15  # corresponds, roughly, to the expression level of the least common allele to which we have sensitivity
+        self.min_min_candidate_ratio = 2.25  # every candidate ratio must be greater than this
 
         self.default_slope_bounds = (-0.2, 0.2)  # fitting function needs some reasonable bounds from which to start
         self.big_y_icpt_bounds = (self.min_y_intercept, 1.5)  # snp-candidate positions should fit well when forced to use these bounds, but non-snp positions should fit like &*@!*
-        self.min_min_candidate_ratio = 2.25  # every candidate ratio must be greater than this
+        self.small_number = 1e-5
 
         self.counts = {}
+        self.new_allele_info = []
         self.fitted_positions = {}  # positions for which, for any <istart>, we have fit info
         self.n_seqs_too_highly_mutated = {}  # sequences (per-gene) that had more than <self.n_max_mutations_per_segment> mutations
         self.gene_obs_counts = {}
@@ -257,6 +258,25 @@ class AlleleFinder(object):
         })
 
     # ----------------------------------------------------------------------------------------
+    def print_skip_debug(self, gene, positions, positions_to_try_to_fit):
+
+        def get_skip_str(skip_positions):
+            skip_str = ''
+            if len(skip_positions) > 0 and len(skip_positions) < 20:
+                skip_str = ' (' + ' '.join([str(p) for p in skip_positions]) + ')'
+            return skip_str
+
+        glseq = self.glfo['seqs'][utils.get_region(gene)][gene]
+        # new_allele_names = [i['gene'] for i in self.new_allele_info]  # should make this less hackey
+        # glseq = self.new_allele_info[gene]['seq'] if gene in new_allele_names else self.glfo['seqs'][utils.get_region(gene)][gene]
+        too_close_to_ends = range(self.n_five_prime_positions_to_exclude) + range(len(glseq) - self.n_three_prime_positions_to_exclude, len(glseq))
+        not_enough_counts = set(positions) - set(positions_to_try_to_fit) - set(too_close_to_ends)  # well, not enough counts, *and* not too close to the ends
+
+        print '          skipping %d / %d positions:' % (len(positions) - len(positions_to_try_to_fit), len(positions)),
+        print '%d were too close to the ends%s' % (len(too_close_to_ends), get_skip_str(too_close_to_ends)),
+        print 'and %d had fewer than %d mutations and fewer than %d observations%s' % (len(not_enough_counts), self.n_muted_min, self.n_total_min, get_skip_str(not_enough_counts))
+
+    # ----------------------------------------------------------------------------------------
     def finalize(self, debug=False):
         assert not self.finalized
 
@@ -278,11 +298,7 @@ class AlleleFinder(object):
             positions_to_try_to_fit = [pos for pos in positions if sum(self.xyvals[gene][pos]['obs']) > self.n_muted_min or sum(self.xyvals[gene][pos]['total']) > self.n_total_min]  # ignore positions with neither enough mutations nor total observations
 
             if debug and len(positions) > len(positions_to_try_to_fit):
-                skiplist = [str(p) for p in sorted(set(positions) - set(positions_to_try_to_fit))]
-                skip_str = ''
-                if len(skiplist) < 20:
-                    skip_str = ': ' + ' '.join(skiplist)
-                print '          skipping %d / %d positions (with fewer than %d mutations and %d observations)%s' % (len(positions) - len(positions_to_try_to_fit), len(positions), self.n_muted_min, self.n_total_min, skip_str)
+                self.print_skip_debug(gene, positions, positions_to_try_to_fit)
 
             if len(positions_to_try_to_fit) < self.n_max_snps:
                 if debug:
