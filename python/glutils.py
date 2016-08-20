@@ -566,3 +566,11 @@ def remove_glfo_files(gldir, chain):
         os.remove(gldir + '/' + chain + '/' + fname)
     os.rmdir(gldir + '/' + chain)
     os.rmdir(gldir)  # at the moment, we should only be running on single-chain stuff, so the only dir with info for more than one chain should be data/germlines
+
+# ----------------------------------------------------------------------------------------
+def write_allele_prevalence_file(region, fname, glfo, prevalence_counts):
+    with open(fname, 'w') as pfile:
+        writer = csv.DictWriter(pfile, (region + '_gene', 'count'))
+        writer.writeheader()
+        for gene in glfo['seqs'][region]:
+            writer.writerow({region + '_gene' : gene, 'count' : prevalence_counts[gene]})

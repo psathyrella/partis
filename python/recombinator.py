@@ -54,6 +54,8 @@ class Recombinator(object):
 
         self.allowed_genes = self.get_allowed_genes(parameter_dir)  # set of genes a) for which we read per-position mutation information and b) from which we choose when running partially from scratch
         self.version_freq_table = self.read_vdj_version_freqs(parameter_dir)  # list of the probabilities with which each VDJ combo (plus other rearrangement parameters) appears in data
+        if self.args.simulate_partially_from_scratch and self.args.allele_prevalence_fnames is not None:
+            self.read_allele_prevalence()
         self.insertion_content_probs = self.read_insertion_content(parameter_dir)
         self.all_mute_freqs = {}
         self.parameter_dir = parameter_dir  # damnit, I guess I do need to save this in self
@@ -80,6 +82,24 @@ class Recombinator(object):
             os.remove(self.outfname)
         elif not os.path.exists(os.path.dirname(os.path.abspath(self.outfname))):
             os.makedirs(os.path.dirname(os.path.abspath(self.outfname)))
+
+    # ----------------------------------------------------------------------------------------
+    def read_allele_prevalence(self):
+        self.allele_prevalence_freqs = {}
+        for region in utils.regions:
+            fname = self.args.allele_prevalence_fnames[utils.regions.index(region)]
+            if fname == '':
+                continue
+            self.allele_prevalence_freqs[region] = {}
+            with open(fname) as countfile:
+                reader = csv.DictReader(countfile)
+                total = 0
+                for line in reader:
+                    self.allele_prevalence_freqs[region][line[region + '_gene']] = float(line['count'])
+                    total += float(line['count'])
+                for gene in self.allele_prevalence_freqs[region]:
+                    self.allele_prevalence_freqs[region][gene] /= total
+                assert utils.is_normed(self.allele_prevalence_freqs[region])
 
     # ----------------------------------------------------------------------------------------
     def read_insertion_content(self, parameter_dir):
@@ -263,7 +283,10 @@ class Recombinator(object):
         if self.args.simulate_partially_from_scratch:  # generate an event without using the parameter directory
             tmpline = {}  # NOTE has insertion lengths rather than insertion strings (like in all-probs.csv), so can't pass to normal utils <line> functions
             for region in utils.regions:
-                tmpline[region + '_gene'] = numpy.random.choice(self.allowed_genes[region])
+                probs = None
+                if region in self.allele_prevalence_freqs:
+                    probs = [self.allele_prevalence_freqs[region][g] for g in self.allowed_genes[region]]
+                tmpline[region + '_gene'] = numpy.random.choice(self.allowed_genes[region], p=probs)
             for effrode in utils.effective_erosions:
                 tmpline[effrode + '_del'] = 0
             for effbound in utils.effective_boundaries:

@@ -237,17 +237,20 @@ parent_parser.add_argument('--chain', default='h', choices=('h', 'k', 'l'), help
 parent_parser.add_argument('--species', default='human', choices=('human', 'mouse'), help='Which species?')
 # parent_parser.add_argument('--use_mean_at_boundaries', action='store_true', help='see note in hmmwriter')
 
-print 'TODO switch test.py to other germline dir instead of using --only-genes'
+# print 'TODO switch test.py to other germline dir instead of using --only-genes'
+# print 'TODO make waterer do the same number of iterations regardless of indels or no indels (?)'
 
-print 'TODO think about removing genes that you only saw once or twice (probably only if there\'s also a good match to another gene, and if the data set is large)'
-print 'TODO do I need to delete the sw cache file each time through allele finding? (update: I think it\'s ok, because the cache file doesn\'t get written til after we finish doodling around with allele finding)'
-print 'TODO also remove \'also skip positions that only have a few points to fit\' thing'
-print 'TODO remove (almost?) all the \'if <> in <>\' bullshit (and *not* in) in allelefinder'
-print 'TODO decide on \'obs\' or \'muted\' as keys'
-print 'TODO print excluded positions'
-print 'TODO make waterer do the same number of iterations regardless of indels or no indels (?)'
-print 'TODO get sw cache reading working with parametercounter, allelefinder, etc.'
-print 'TODO add requirement for mulitple j genes'
+# print 'TODO think about removing genes that you only saw once or twice (probably only if there\'s also a good match to another gene, and if the data set is large)'
+# print 'TODO do I need to delete the sw cache file each time through allele finding? (update: I think it\'s ok, because the cache file doesn\'t get written til after we finish doodling around with allele finding)'
+# print 'TODO also remove \'also skip positions that only have a few points to fit\' thing'
+# print 'TODO remove (almost?) all the \'if <> in <>\' bullshit (and *not* in) in allelefinder'
+# print 'TODO decide on \'obs\' or \'muted\' as keys'
+# print 'TODO get sw cache reading working with parametercounter, allelefinder, etc.'
+# print 'TODO add requirement for mulitple j genes'
+# print 'TODO lower y-icpt bound should really depend on the sample size'
+# print 'TODO test lower-prevalence alleles'
+# print 'TODO add requirement that all positions in multiple-snp alleles are correlated'
+# print 'TODO remove note in partitiondriver find_new_alleles()'
 
 subconfig = {
     'version'          : {'func' : int, 'help' : 'print version information and exit'},
@@ -300,6 +303,7 @@ subargs['simulate'].append({'name' : '--indel-location', 'kwargs' : {'choices' :
 subargs['simulate'].append({'name' : '--gtrfname', 'kwargs' : {'default' : partis_dir + '/data/recombinator/gtr.txt', 'help' : 'File with list of GTR parameters. Fed into bppseqgen along with the chosen tree. Corresponds to an arbitrary dataset at the moment, but eventually will be inferred per-dataset.'}})
 subargs['simulate'].append({'name' : '--simulate-partially-from-scratch', 'kwargs' : {'action' : 'store_true', 'help' : 'Don\'t use an existing parameter directory to describe the repertoire; instead start from scratch. Mutation freqs are harder, so for now we use some stuff in data/recombinator/.'}})
 subargs['simulate'].append({'name' : '--scratch-mute-freq-dir', 'kwargs' : {'default' : partis_dir + '/data/recombinator/scratch-parameters', 'help' : 'see --simulate-partially-from-scratch'}})
+subargs['simulate'].append({'name' : '--allele-prevalence-fnames', 'kwargs' : {'help' : 'colon-separated list of allele count csv files for v, d, and j (can specify less than three, e.g. <v-fname>::)'}})
 
 subparsermap = {}
 for name, vals in subconfig.items():
@@ -332,6 +336,8 @@ args.only_genes = utils.get_arg_list(args.only_genes)
 args.n_procs = utils.get_arg_list(args.n_procs, intify=True)
 args.n_fewer_procs = args.n_procs[0] if len(args.n_procs) == 1 else args.n_procs[1]
 args.n_procs = args.n_procs[0]
+
+args.allele_prevalence_fnames = utils.get_arg_list(args.allele_prevalence_fnames)
 
 if args.seqfile is not None and args.infname is None:
     print '  moving contents of deprecated option --seqfile into its replacement --infname'
