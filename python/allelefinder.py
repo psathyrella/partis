@@ -40,11 +40,10 @@ class AlleleFinder(object):
         self.n_total_min = 50  # ...or fewer total observations than this
         self.n_muted_min_per_bin = 8  # <istart>th bin has to have at least this many mutated sequences (i.e. 2-3 sigma from zero)
 
-        self.min_y_intercept = 0.15  # corresponds, roughly, to the expression level of the least common allele to which we have sensitivity
         self.min_min_candidate_ratio = 2.25  # every candidate ratio must be greater than this
+        self.min_zero_icpt_residual = 2.
 
-        self.default_slope_bounds = (-0.2, 0.2)  # fitting function needs some reasonable bounds from which to start
-        self.big_y_icpt_bounds = (self.min_y_intercept, 1.5)  # snp-candidate positions should fit well when forced to use these bounds, but non-snp positions should fit like &*@!*
+        self.default_slope_bounds = (-0.2, 0.2)  # fitting function needs some reasonable bounds from which to start (I could at some point make slope part of the criteria for candidacy, but it wouldn't add much sensitivity)
         self.small_number = 1e-5
 
         self.counts = {}
@@ -160,6 +159,7 @@ class AlleleFinder(object):
     # ----------------------------------------------------------------------------------------
     def is_a_candidate(self, gene, fitfo, istart, debug=False):
         # NOTE I've tried adding a requirement on the actual value of the big-icpt (or, equivalently, small-icpt) fit, but it seems to be better to just use the ratio (probably because stuff is correlated)
+        # UPDATE nah, I think I really need it
         if fitfo['min_snp_ratios'][istart] < self.min_min_candidate_ratio:  # worst snp candidate has to be pretty good on its own
             if debug:
                 print '    min snp ratio %s too small (less than %s)' % (fstr(fitfo['min_snp_ratios'][istart]), fstr(self.min_min_candidate_ratio))
@@ -180,17 +180,25 @@ class AlleleFinder(object):
 
         residuals = {}
         for pos in positions_to_try_to_fit:
+
+            big_y_icpt = subxyvals[pos]['freqs'][0]  # corresponds, roughly, to the expression level of the least common allele to which we have sensitivity
+            big_y_icpt_err = subxyvals[pos]['errs'][0]  # NOTE <istart> is at index 0
+
+            # require the <istart>th bin to be significantly different than zero
+            if big_y_icpt - big_y_icpt_err < 0.:  # NOTE this can be pretty lenient, because the actual fit will take into account *all* the bins
+                continue
+
             # require at least a few bins with significant mutation
-            interesting_bins = [f for f in subxyvals[pos]['freqs'] if f > self.min_y_intercept / 2]
+            interesting_bins = [f for f in subxyvals[pos]['freqs'] if f > big_y_icpt - 2*big_y_icpt_err]
             if len(interesting_bins) < self.min_fit_length:
                 continue
 
             zero_icpt_fit = self.get_curvefit(subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['errs'], y_icpt_bounds=(0. - self.small_number, 0. + self.small_number))
-            big_icpt_fit = self.get_curvefit(subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['errs'], y_icpt_bounds=self.big_y_icpt_bounds)
-
-            residuals[pos] = {'zero_icpt' : zero_icpt_fit['residuals_over_ndof'], 'big_icpt' : big_icpt_fit['residuals_over_ndof']}
+            big_icpt_fit = self.get_curvefit(subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['errs'], y_icpt_bounds=(big_y_icpt - self.small_number, big_y_icpt + self.small_number))
 
             self.fitted_positions[gene].add(pos)  # if we already did the fit for another <istart>, it'll already be in there
+
+            residuals[pos] = {'zero_icpt' : zero_icpt_fit['residuals_over_ndof'], 'big_icpt' : big_icpt_fit['residuals_over_ndof']}
 
         if len(residuals) <= istart:  # needs to be at least one longer, so we have the first-non-snp
             if debug:
@@ -199,6 +207,8 @@ class AlleleFinder(object):
 
         residual_ratios = {pos : float('inf') if r['big_icpt'] == 0. else r['zero_icpt'] / r['big_icpt'] for pos, r in residuals.items()}
         sorted_ratios = sorted(residual_ratios.items(), key=operator.itemgetter(1), reverse=True)  # sort the positions in decreasing order of residual ratio
+        sorted_ratios = [(pos, r) for pos, r in sorted_ratios if residuals[pos]['zero_icpt'] > self.min_zero_icpt_residual] + \
+                        [(pos, r) for pos, r in sorted_ratios if residuals[pos]['zero_icpt'] <= self.min_zero_icpt_residual]  # and then put all the ones with bad zero-icpt fits at the start
         candidate_snps = [pos for pos, _ in sorted_ratios[:istart]]  # the first <istart> positions are the "candidate snps"
         max_non_snp, max_non_snp_ratio = sorted_ratios[istart]  # position and ratio for largest non-candidate
         min_candidate_ratio = min([residual_ratios[cs] for cs in candidate_snps])
@@ -211,11 +221,11 @@ class AlleleFinder(object):
             for pos in candidate_snps + [max_non_snp, ]:
                 xtrastrs = ('[', ']') if pos == max_non_snp else (' ', ' ')
                 pos_str = '%3s' % str(pos)
-                if residual_ratios[pos] > self.min_min_candidate_ratio:
+                if residual_ratios[pos] > self.min_min_candidate_ratio and residuals[pos]['zero_icpt'] > self.min_zero_icpt_residual:
                     pos_str = utils.color('yellow', pos_str)
-                print_str = ['               %s %s    %5s   (%5s / %-5s)       %4d / %-4d %s' % (xtrastrs[0], pos_str, fstr(residual_ratios[pos]),
-                                                                                                 fstr(residuals[pos]['zero_icpt']), fstr(residuals[pos]['big_icpt']),
-                                                                                                 sum(subxyvals[pos]['obs']), sum(subxyvals[pos]['total']), xtrastrs[1])]
+                print_str = ['               %s %s    %5s   (%5s / %-5s)  %5.3f       %4d / %-4d %s' % (xtrastrs[0], pos_str, fstr(residual_ratios[pos]),
+                                                                                                        fstr(residuals[pos]['zero_icpt']), fstr(residuals[pos]['big_icpt']), subxyvals[pos]['freqs'][0],
+                                                                                                        sum(subxyvals[pos]['obs']), sum(subxyvals[pos]['total']), xtrastrs[1])]
                 for n_mutes in range(self.n_max_mutations_per_segment + 1):
                     if n_mutes in subxyvals[pos]['n_mutelist']:
                         inm = subxyvals[pos]['n_mutelist'].index(n_mutes)
@@ -312,9 +322,9 @@ class AlleleFinder(object):
                 if debug:
                     if istart == 1:
                         print '                                 resid. / ndof'
-                        print '             position   ratio   (m=0 / m>%5.2f)       muted / obs ' % self.big_y_icpt_bounds[0],
+                        print '             position   ratio    (m=0 / m=big)    big        muted / obs ',
                         print '%5s %s' % ('', ''.join(['%11d' % nm for nm in range(1, self.n_max_mutations_per_segment + 1)]))
-                    print '    %d %s' % (istart, utils.plural_str('snp', istart))
+                    print '    %d %s                       ' % (istart, utils.plural_str('snp', istart))
 
                 self.fit_istart(gene, istart, positions_to_try_to_fit, fitfo, debug=debug)
 
