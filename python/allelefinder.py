@@ -158,8 +158,6 @@ class AlleleFinder(object):
 
     # ----------------------------------------------------------------------------------------
     def is_a_candidate(self, gene, fitfo, istart, debug=False):
-        # NOTE I've tried adding a requirement on the actual value of the big-icpt (or, equivalently, small-icpt) fit, but it seems to be better to just use the ratio (probably because stuff is correlated)
-        # UPDATE nah, I think I really need it
         if fitfo['min_snp_ratios'][istart] < self.min_min_candidate_ratio:  # worst snp candidate has to be pretty good on its own
             if debug:
                 print '    min snp ratio %s too small (less than %s)' % (fstr(fitfo['min_snp_ratios'][istart]), fstr(self.min_min_candidate_ratio))
