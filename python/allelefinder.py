@@ -41,7 +41,7 @@ class AlleleFinder(object):
         self.n_muted_min_per_bin = 8  # <istart>th bin has to have at least this many mutated sequences (i.e. 2-3 sigma from zero)
 
         self.min_min_candidate_ratio = 2.25  # every candidate ratio must be greater than this
-        self.min_zero_icpt_residual = 2.
+        self.min_zero_icpt_residual = 2.25
 
         self.default_slope_bounds = (-0.2, 0.2)  # fitting function needs some reasonable bounds from which to start (I could at some point make slope part of the criteria for candidacy, but it wouldn't add much sensitivity)
         self.small_number = 1e-5
