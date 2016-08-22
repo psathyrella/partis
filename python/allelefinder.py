@@ -43,12 +43,14 @@ class AlleleFinder(object):
         self.min_min_candidate_ratio = 2.25  # every candidate ratio must be greater than this
         self.min_zero_icpt_residual = 2.25
 
+        self.min_min_candidate_ratio_to_plot = 1.25  # don't plot positions that're below this (for all <istart>)
+
         self.default_slope_bounds = (-0.2, 0.2)  # fitting function needs some reasonable bounds from which to start (I could at some point make slope part of the criteria for candidacy, but it wouldn't add much sensitivity)
         self.small_number = 1e-5
 
         self.counts = {}
         self.new_allele_info = []
-        self.fitted_positions = {}  # positions for which, for any <istart>, we have fit info
+        self.positions_to_plot = {}
         self.n_seqs_too_highly_mutated = {}  # sequences (per-gene) that had more than <self.n_max_mutations_per_segment> mutations
         self.gene_obs_counts = {}
 
@@ -194,9 +196,10 @@ class AlleleFinder(object):
             zero_icpt_fit = self.get_curvefit(subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['errs'], y_icpt_bounds=(0. - self.small_number, 0. + self.small_number))
             big_icpt_fit = self.get_curvefit(subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['errs'], y_icpt_bounds=(big_y_icpt - self.small_number, big_y_icpt + self.small_number))
 
-            self.fitted_positions[gene].add(pos)  # if we already did the fit for another <istart>, it'll already be in there
-
             residuals[pos] = {'zero_icpt' : zero_icpt_fit['residuals_over_ndof'], 'big_icpt' : big_icpt_fit['residuals_over_ndof']}
+
+            if residuals[pos]['zero_icpt'] / residuals[pos]['big_icpt'] > self.min_min_candidate_ratio_to_plot:
+                self.positions_to_plot[gene].add(pos)  # if we already did the fit for another <istart>, it'll already be in there
 
         if len(residuals) <= istart:  # needs to be at least one longer, so we have the first-non-snp
             if debug:
@@ -291,7 +294,7 @@ class AlleleFinder(object):
         start = time.time()
         gene_results = {'not_enough_obs_to_fit' : set(), 'didnt_find_anything_with_fit' : set(), 'new_allele' : set()}
         self.xyvals = {}
-        self.fitted_positions = {gene : set() for gene in self.counts}
+        self.positions_to_plot = {gene : set() for gene in self.counts}
         print '%s: looking for new alleles' % utils.color('red', 'try ' + str(self.itry))
         for gene in sorted(self.counts):
             if debug:
@@ -380,8 +383,8 @@ class AlleleFinder(object):
             return
 
         start = time.time()
-        for gene in self.fitted_positions:  # we can make plots for the positions we didn't fit, but there's a *lot* of them and they're slow
-            for position in self.fitted_positions[gene]:
+        for gene in self.positions_to_plot:  # we can make plots for the positions we didn't fit, but there's a *lot* of them and they're slow
+            for position in self.positions_to_plot[gene]:
                 plotting.make_allele_finding_plot(plotdir + '/' + utils.sanitize_name(gene), gene, position, self.xyvals[gene][position])
 
         check_call(['./bin/permissify-www', plotdir])
