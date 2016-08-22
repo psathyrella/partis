@@ -17,6 +17,7 @@ from opener import opener
 from parametercounter import ParameterCounter
 from performanceplotter import PerformancePlotter
 from allelefinder import AlleleFinder
+from alleleremover import AlleleRemover
 
 # ----------------------------------------------------------------------------------------
 class Waterer(object):
@@ -50,7 +51,8 @@ class Waterer(object):
 
         self.my_gldir = self.args.workdir + '/' + glutils.glfo_dir
 
-        self.alfinder, self.pcounter, self.true_pcounter, self.perfplotter = None, None, None, None
+        self.alremover, self.alfinder, self.pcounter, self.true_pcounter, self.perfplotter = None, None, None, None, None
+        self.alremover = AlleleRemover(self.glfo, self.args)
         if find_new_alleles:  # NOTE *not* the same as <self.args.find_new_alleles>
             self.alfinder = AlleleFinder(self.glfo, self.args, itry)
         if parameter_out_dir is not None:  # NOTE *not* the same as <self.args.cache_parameters>
@@ -641,6 +643,8 @@ class Waterer(object):
                 utils.print_reco_event(self.glfo['seqs'], self.reco_info[qname], extra_str='      ', label='true:')
             utils.print_reco_event(self.glfo['seqs'], self.info[qname], extra_str='      ', label='inferred:')
 
+        if self.alremover is not None:
+            self.alremover.increment(qinfo, self.info[qname])
         if self.alfinder is not None:
             self.alfinder.increment(self.info[qname])
         if self.pcounter is not None:

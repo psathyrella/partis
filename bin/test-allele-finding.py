@@ -61,7 +61,7 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
         glutils.write_glfo(outdir + '/germlines/simulation', sglfo)
 
         # simulate
-        cmd_str = base_cmd + ' simulate --n-sim-events 2000 --n-procs 10 --simulate-partially-from-scratch --mutation-multiplier 0.5'
+        cmd_str = base_cmd + ' simulate --n-sim-events 5000 --n-procs 10 --simulate-partially-from-scratch --mutation-multiplier 0.5'
         cmd_str += ' --initial-germline-dir ' + outdir + '/germlines/simulation'
         cmd_str += ' --allele-prevalence-fnames ' +  prevalence_fname + '::'
         cmd_str += ' --outfname ' + simfname
