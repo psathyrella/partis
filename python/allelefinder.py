@@ -6,6 +6,7 @@ import operator
 from subprocess import check_call
 import scipy
 import glob
+import numpy
 
 import fraction_uncertainty
 from mutefreqer import MuteFreqer
@@ -178,11 +179,11 @@ class AlleleFinder(object):
     def fit_istart(self, gene, istart, positions_to_try_to_fit, fitfo, debug=False):
         subxyvals = {pos : {k : v[istart : istart + self.max_fit_length] for k, v in self.xyvals[gene][pos].items()} for pos in positions_to_try_to_fit}
 
-        residuals = {}
+        residfo = {}
         for pos in positions_to_try_to_fit:
 
-            big_y_icpt = subxyvals[pos]['freqs'][0]  # corresponds, roughly, to the expression level of the least common allele to which we have sensitivity
-            big_y_icpt_err = subxyvals[pos]['errs'][0]  # NOTE <istart> is at index 0
+            big_y_icpt = numpy.average(subxyvals[pos]['freqs'], weights=subxyvals[pos]['weights'])  # corresponds, roughly, to the expression level of the least common allele to which we have sensitivity NOTE <istart> is at index 0
+            big_y_icpt_err = numpy.std(subxyvals[pos]['freqs'], ddof=1)  # NOTE this "err" is from the variance over bins, and *ignores* the sample statistics of each bin (i.e. it's a little independent of the uncertainties that're used in the fit, which is kind of good [and maybe kind of bad]. It's certainly a little weird to mix uncertainties like this, but it kind of nicely captures [for the purposes of skipping positions, at least, but not the actual fit] cases where the sequences aren't very independent)
 
             # require the <istart>th bin to be significantly different than zero
             if big_y_icpt - big_y_icpt_err < 0.:  # NOTE this can be pretty lenient, because the actual fit will take into account *all* the bins
@@ -196,20 +197,23 @@ class AlleleFinder(object):
             zero_icpt_fit = self.get_curvefit(subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['errs'], y_icpt_bounds=(0. - self.small_number, 0. + self.small_number))
             big_icpt_fit = self.get_curvefit(subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['errs'], y_icpt_bounds=(big_y_icpt - self.small_number, big_y_icpt + self.small_number))
 
-            residuals[pos] = {'zero_icpt' : zero_icpt_fit['residuals_over_ndof'], 'big_icpt' : big_icpt_fit['residuals_over_ndof']}
+            residfo[pos] = {'zero_icpt_resid' : zero_icpt_fit['residuals_over_ndof'],
+                            'big_icpt_resid' : big_icpt_fit['residuals_over_ndof'],
+                            'fixed_y_icpt' : big_y_icpt,
+                            'fixed_y_icpt_err' : big_y_icpt_err}
 
-            if residuals[pos]['zero_icpt'] / residuals[pos]['big_icpt'] > self.min_min_candidate_ratio_to_plot:
-                self.positions_to_plot[gene].add(pos)  # if we already did the fit for another <istart>, it'll already be in there
+            if residfo[pos]['zero_icpt_resid'] / residfo[pos]['big_icpt_resid'] > self.min_min_candidate_ratio_to_plot:
+                self.positions_to_plot[gene].add(pos)  # if we already decided to plot it for another <istart>, it'll already be in there
 
-        if len(residuals) <= istart:  # needs to be at least one longer, so we have the first-non-snp
+        if len(residfo) <= istart:  # needs to be at least one longer, so we have the first-non-snp
             if debug:
                 print '      not enough observations to fit more than %d snps' % (istart - 1)
             return
 
-        residual_ratios = {pos : float('inf') if r['big_icpt'] == 0. else r['zero_icpt'] / r['big_icpt'] for pos, r in residuals.items()}
+        residual_ratios = {pos : float('inf') if r['big_icpt_resid'] == 0. else r['zero_icpt_resid'] / r['big_icpt_resid'] for pos, r in residfo.items()}
         sorted_ratios = sorted(residual_ratios.items(), key=operator.itemgetter(1), reverse=True)  # sort the positions in decreasing order of residual ratio
-        sorted_ratios = [(pos, r) for pos, r in sorted_ratios if residuals[pos]['zero_icpt'] > self.min_zero_icpt_residual] + \
-                        [(pos, r) for pos, r in sorted_ratios if residuals[pos]['zero_icpt'] <= self.min_zero_icpt_residual]  # and then put all the ones with bad zero-icpt fits at the start
+        sorted_ratios = [(pos, r) for pos, r in sorted_ratios if residfo[pos]['zero_icpt_resid'] > self.min_zero_icpt_residual] + \
+                        [(pos, r) for pos, r in sorted_ratios if residfo[pos]['zero_icpt_resid'] <= self.min_zero_icpt_residual]  # and then put all the ones with bad zero-icpt fits at the start
         candidate_snps = [pos for pos, _ in sorted_ratios[:istart]]  # the first <istart> positions are the "candidate snps"
         max_non_snp, max_non_snp_ratio = sorted_ratios[istart]  # position and ratio for largest non-candidate
         min_candidate_ratio = min([residual_ratios[cs] for cs in candidate_snps])
@@ -222,12 +226,14 @@ class AlleleFinder(object):
             for pos in candidate_snps + [max_non_snp, ]:
                 xtrastrs = ('[', ']') if pos == max_non_snp else (' ', ' ')
                 pos_str = '%3s' % str(pos)
-                if residual_ratios[pos] > self.min_min_candidate_ratio and residuals[pos]['zero_icpt'] > self.min_zero_icpt_residual:
+                if residual_ratios[pos] > self.min_min_candidate_ratio and residfo[pos]['zero_icpt_resid'] > self.min_zero_icpt_residual:
                     pos_str = utils.color('yellow', pos_str)
-                print_str = ['               %s %s    %5s   (%5s / %-5s)  %5.3f       %4d / %-4d %s' % (xtrastrs[0], pos_str, fstr(residual_ratios[pos]),
-                                                                                                        fstr(residuals[pos]['zero_icpt']), fstr(residuals[pos]['big_icpt']), subxyvals[pos]['freqs'][0],
-                                                                                                        sum(subxyvals[pos]['obs']), sum(subxyvals[pos]['total']), xtrastrs[1])]
-                for n_mutes in range(self.n_max_mutations_per_segment + 1):
+                print_str = ['               %s %s    %5s   (%5s / %-5s)   %5.3f +/- %5.3f %s' % (xtrastrs[0], pos_str, fstr(residual_ratios[pos]),
+                                                                                                                  fstr(residfo[pos]['zero_icpt_resid']), fstr(residfo[pos]['big_icpt_resid']),
+                                                                                                                  residfo[pos]['fixed_y_icpt'], residfo[pos]['fixed_y_icpt_err'],
+                                                                                                                  xtrastrs[1])]
+                print_str += '    '
+                for n_mutes in range(1, self.n_max_mutations_per_segment + 1):
                     if n_mutes in subxyvals[pos]['n_mutelist']:
                         inm = subxyvals[pos]['n_mutelist'].index(n_mutes)
                         print_str.append('%4d / %-4d' % (subxyvals[pos]['obs'][inm], subxyvals[pos]['total'][inm]))
@@ -323,7 +329,7 @@ class AlleleFinder(object):
                 if debug:
                     if istart == 1:
                         print '                                 resid. / ndof'
-                        print '             position   ratio    (m=0 / m=big)    big        muted / obs ',
+                        print '             position   ratio    (m=0 / m=big)          big',
                         print '%5s %s' % ('', ''.join(['%11d' % nm for nm in range(1, self.n_max_mutations_per_segment + 1)]))
                     print '    %d %s                       ' % (istart, utils.plural_str('snp', istart))
 
