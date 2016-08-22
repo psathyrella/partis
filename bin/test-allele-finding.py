@@ -45,16 +45,16 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
         snps_to_add = [
             # {'gene' : 'IGHV1-18*01', 'positions' : (20, 30)},
             {'gene' : 'IGHV4-59*01', 'positions' : (50, )},
-            {'gene' : 'IGHV4-59*01', 'positions' : (100, )}
+            {'gene' : 'IGHV4-59*01', 'positions' : (50, 200)}
         ]
         glutils.add_some_snps(snps_to_add, sglfo, remove_template_genes=False, debug=True)
         prevalence_fname = outdir + '/v_gene-probs.csv'  # NOTE there's some infrastructure for coming up with this file name automatically in utils.py
         prevalence_counts = {}
         for g in sglfo['seqs']['v']:
-            if '50' in g:
-                prevalence_counts[g] = 5
-            elif '100' in g:
+            if '50' in g and '200' in g:
                 prevalence_counts[g] = 40
+            elif '50' in g:
+                prevalence_counts[g] = 5
             else:
                 prevalence_counts[g] = 40
         glutils.write_allele_prevalence_file('v', prevalence_fname, sglfo, prevalence_counts)
