@@ -243,6 +243,8 @@ class PartitionDriver(object):
         """ Just run <algorithm> (either 'forward' or 'viterbi') on sequences in <self.input_info> and exit. You've got to already have parameters cached in <self.args.parameter_dir> """
         print 'running %s' % algorithm
         self.run_waterer()
+        if self.args.only_smith_waterman:
+            return
         self.run_hmm(algorithm, parameter_in_dir=self.sub_param_dir)
 
     # ----------------------------------------------------------------------------------------

@@ -235,24 +235,20 @@ parent_parser.add_argument('--print-git-commit', action='store_true', help='prin
 parent_parser.add_argument('--min-observations-to-write', type=int, default=20, help='When writing hmm model files, if we see a gene version fewer times than this, we average over other alleles, or other primary versions, etc. (see hmmwriter). NOTE default is manipulated in partitiondriver.py')
 parent_parser.add_argument('--chain', default='h', choices=('h', 'k', 'l'), help='light chain is under development! only heavy chain works at the moment. But in the future: Are these heavy chain, or kappa or lambda light chain?')
 parent_parser.add_argument('--species', default='human', choices=('human', 'mouse'), help='Which species?')
+parent_parser.add_argument('--only-smith-waterman', action='store_true', help='Exit after finishing smith-waterman.')
 # parent_parser.add_argument('--use_mean_at_boundaries', action='store_true', help='see note in hmmwriter')
 
 # print 'TODO switch test.py to other germline dir instead of using --only-genes'
 # print 'TODO make waterer do the same number of iterations regardless of indels or no indels (?)'
 
-# print 'TODO think about removing genes that you only saw once or twice (probably only if there\'s also a good match to another gene, and if the data set is large)'
-# print 'TODO do I need to delete the sw cache file each time through allele finding? (update: I think it\'s ok, because the cache file doesn\'t get written til after we finish doodling around with allele finding)'
 # print 'TODO also remove \'also skip positions that only have a few points to fit\' thing'
 # print 'TODO remove (almost?) all the \'if <> in <>\' bullshit (and *not* in) in allelefinder'
 # print 'TODO decide on \'obs\' or \'muted\' as keys'
 # print 'TODO get sw cache reading working with parametercounter, allelefinder, etc.'
 # print 'TODO add requirement for mulitple j genes'
-# print 'TODO lower y-icpt bound should really depend on the sample size'
-# print 'TODO test lower-prevalence alleles'
-# print 'TODO add requirement that all positions in multiple-snp alleles are correlated'
+# print 'TODO add requirement that all positions in multiple-snp alleles are correlated (?)'
 # print 'TODO remove note in partitiondriver find_new_alleles()'
-# print 'TODO need a new requirement to reduce the number of positions that you fit'
-# print 'TODO do all the plots separately for each potential original snp base?'
+# print 'TODO maybe do all the plots separately for each potential original snp base?'
 
 subconfig = {
     'version'          : {'func' : int, 'help' : 'print version information and exit'},
@@ -271,7 +267,6 @@ subargs['cache-parameters'].append({'name' : '--generate-germline-set', 'kwargs'
 subargs['cache-parameters'].append({'name' : '--find-new-alleles', 'kwargs' : {'action' : 'store_true', 'help' : 'look for new alleles which are separated only by snps from existing alleles, add them to the existing germline set, and write it all to --parameter-dir.'}})
 subargs['cache-parameters'].append({'name' : '--new-allele-fname', 'kwargs' : {'help' : 'fasta fname to which to write any new alleles (they are also written, with existing alleles, to --parameter-dir)'}})
 subargs['cache-parameters'].append({'name' : '--debug-new-allele-finding', 'kwargs' : {'action' : 'store_true', 'help' : 'print lots of debug info on new allele fits'}})
-subargs['cache-parameters'].append({'name' : '--only-smith-waterman', 'kwargs' : {'action' : 'store_true', 'help' : 'Exit after finishing smith-waterman. Doesn\'t write output file (yet).'}})
 
 subargs['partition'].append({'name' : '--naive-hamming', 'kwargs' : {'action' : 'store_true', 'help' : 'agglomerate purely with naive hamming distance, i.e. set the low and high preclustering bounds to the same value'}})
 subargs['partition'].append({'name' : '--naive-vsearch', 'kwargs' : {'action' : 'store_true', 'help' : 'Very fast clustering: infer naive (unmutated ancestor) for each input sequence, then toss it all into vsearch. But, of course, not as accurate as the slower methods.'}})
