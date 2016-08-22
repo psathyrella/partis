@@ -183,7 +183,7 @@ class AlleleFinder(object):
         for pos in positions_to_try_to_fit:
 
             big_y_icpt = numpy.average(subxyvals[pos]['freqs'], weights=subxyvals[pos]['weights'])  # corresponds, roughly, to the expression level of the least common allele to which we have sensitivity NOTE <istart> is at index 0
-            big_y_icpt_err = numpy.std(subxyvals[pos]['freqs'], ddof=1)  # NOTE this "err" is from the variance over bins, and *ignores* the sample statistics of each bin (i.e. it's a little independent of the uncertainties that're used in the fit, which is kind of good [and maybe kind of bad]. It's certainly a little weird to mix uncertainties like this, but it kind of nicely captures [for the purposes of skipping positions, at least, but not the actual fit] cases where the sequences aren't very independent)
+            big_y_icpt_err = numpy.std(subxyvals[pos]['freqs'], ddof=1)  # NOTE this "err" is from the variance over bins, and *ignores* the sample statistics of each bin (i.e. it's a little independent of the uncertainties that're used in the fit, which is kind of good [and maybe kind of bad]. It's certainly a little weird to mix uncertainties like this, but it kind of nicely captures cases where the sequences aren't very independent)
 
             # require the <istart>th bin to be significantly different than zero
             if big_y_icpt - big_y_icpt_err < 0.:  # NOTE this can be pretty lenient, because the actual fit will take into account *all* the bins
@@ -195,7 +195,7 @@ class AlleleFinder(object):
                 continue
 
             zero_icpt_fit = self.get_curvefit(subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['errs'], y_icpt_bounds=(0. - self.small_number, 0. + self.small_number))
-            big_icpt_fit = self.get_curvefit(subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['errs'], y_icpt_bounds=(big_y_icpt - self.small_number, big_y_icpt + self.small_number))
+            big_icpt_fit = self.get_curvefit(subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['errs'], y_icpt_bounds=(big_y_icpt - 1.5*big_y_icpt_err, big_y_icpt + 1.5*big_y_icpt_err))  # we want the bounds to be lenient enough to accomodate non-zero slopes
 
             residfo[pos] = {'zero_icpt_resid' : zero_icpt_fit['residuals_over_ndof'],
                             'big_icpt_resid' : big_icpt_fit['residuals_over_ndof'],
