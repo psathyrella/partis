@@ -135,17 +135,19 @@ class PartitionDriver(object):
         return None  # don't want to read or write sw cache files
 
     # ----------------------------------------------------------------------------------------
-    def run_waterer(self, write_parameters=False, find_new_alleles=False, itry=None):
+    def run_waterer(self, write_parameters=False, remove_less_likely_alleles=False, find_new_alleles=False, itry=None):
         print 'smith-waterman',
         if write_parameters:
             print '  (writing parameters)',
         if find_new_alleles:
             print '  (looking for new alleles)',
+        if remove_less_likely_alleles:
+            print '  (removing less-likely alleles)',
         print ''
         sys.stdout.flush()
 
         # can probably remove this... I just kind of want to know if it happens
-        if not write_parameters and not find_new_alleles:
+        if not write_parameters and not find_new_alleles and not remove_less_likely_alleles:
             genes_with_hmms = set(utils.find_genes_that_have_hmms(self.sub_param_dir))
             expected_genes = set([g for r in utils.regions for g in self.glfo['seqs'][r].keys()])  # this'll be the & of the gldir (maybe rewritten, maybe not)
             if self.args.only_genes is None and len(genes_with_hmms - expected_genes) > 0:
@@ -154,13 +156,19 @@ class PartitionDriver(object):
                 print '  %s %d genes in glfo that don\'t have yamels in %s' % (utils.color('red', 'warning'), len(expected_genes - genes_with_hmms), self.sub_param_dir)
 
         parameter_out_dir = self.sw_param_dir if write_parameters else None
-        waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo, parameter_out_dir=parameter_out_dir, find_new_alleles=find_new_alleles, simglfo=self.simglfo, itry=itry)
+        waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo, count_parameters=(remove_less_likely_alleles or parameter_out_dir is not None), parameter_out_dir=parameter_out_dir, remove_less_likely_alleles=remove_less_likely_alleles, find_new_alleles=find_new_alleles, simglfo=self.simglfo, itry=itry)
         cachefname = self.get_cachefname(write_parameters)
         if cachefname is None or not os.path.exists(cachefname):  # run sw if we either don't want to do any caching (None) or if we are planning on writing the results after we run
             waterer.run(cachefname)
         else:
             waterer.read_cachefile(cachefname)
         self.sw_info = waterer.info
+
+    # ----------------------------------------------------------------------------------------
+    def restrict_to_most_likely_genes(self):
+        self.run_waterer(remove_less_likely_alleles=True)
+        glutils.remove_genes(self.glfo, self.sw_info['genes-to-remove'], debug=True)
+        glutils.write_glfo(self.my_gldir, self.glfo, debug=True)  # write glfo modifications to disk
 
     # ----------------------------------------------------------------------------------------
     def find_new_alleles(self):
@@ -177,14 +185,9 @@ class PartitionDriver(object):
                 os.remove(self.default_cachefname)
             all_new_allele_info += self.sw_info['new-alleles']
             glutils.restrict_to_genes(self.glfo, list(self.sw_info['all_best_matches']))
-            glutils.add_new_alleles(self.glfo, self.sw_info['new-alleles'], remove_template_genes=(itry==0 and self.args.generate_germline_set))
+            glutils.add_new_alleles(self.glfo, self.sw_info['new-alleles'])
             glutils.write_glfo(self.my_gldir, self.glfo)  # write glfo modifications to disk
             itry += 1
-
-        # remove any V alleles for which we didn't ever find any evidence
-        if self.args.generate_germline_set:
-            assert False  # need to implement this
-            # alleles_with_evidence = 
 
         if self.args.new_allele_fname is not None:
             n_new_alleles = len(all_new_allele_info)
@@ -226,7 +229,9 @@ class PartitionDriver(object):
 
             self.args.min_observations_to_write = 1
 
-        if self.args.find_new_alleles:
+        if self.args.generate_germline_set:
+            self.restrict_to_most_likely_genes()
+        if self.args.find_new_alleles or self.args.generate_germline_set:
             self.find_new_alleles()
         self.run_waterer(write_parameters=True)
         self.restrict_to_observed_alleles(self.sw_param_dir)

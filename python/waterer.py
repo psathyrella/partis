@@ -22,11 +22,13 @@ from alleleremover import AlleleRemover
 # ----------------------------------------------------------------------------------------
 class Waterer(object):
     """ Run smith-waterman on the query sequences in <infname> """
-    def __init__(self, args, input_info, reco_info, glfo, parameter_out_dir=None, find_new_alleles=False, simglfo=None, itry=None):
+    def __init__(self, args, input_info, reco_info, glfo, count_parameters=False, parameter_out_dir=None, remove_less_likely_alleles=False, find_new_alleles=False, simglfo=None, itry=None):
         self.args = args
         self.input_info = input_info
         self.reco_info = reco_info
         self.glfo = glfo
+        print 'starting sw with'
+        print '    %d v genes in glfo' % len(glfo['seqs']['v'])
         self.simglfo = simglfo
         self.parameter_out_dir = parameter_out_dir
         self.debug = self.args.debug if self.args.sw_debug is None else self.args.sw_debug
@@ -50,12 +52,15 @@ class Waterer(object):
         self.unproductive_queries = set()
 
         self.my_gldir = self.args.workdir + '/' + glutils.glfo_dir
+        tmpglfo = glutils.read_glfo(self.my_gldir, chain='h')
+        print '    %d v genes in glfo' % len(tmpglfo['seqs']['v'])
 
         self.alremover, self.alfinder, self.pcounter, self.true_pcounter, self.perfplotter = None, None, None, None, None
+        if remove_less_likely_alleles:
+            self.alremover = AlleleRemover(self.glfo, self.args, AlleleFinder(self.glfo, self.args, itry=0))
         if find_new_alleles:  # NOTE *not* the same as <self.args.find_new_alleles>
-            self.alremover = AlleleRemover(self.glfo, self.args)
             self.alfinder = AlleleFinder(self.glfo, self.args, itry)
-        if parameter_out_dir is not None:  # NOTE *not* the same as <self.args.cache_parameters>
+        if count_parameters:  # NOTE *not* the same as <self.args.cache_parameters>
             self.pcounter = ParameterCounter(self.glfo, self.args)
             if not self.args.is_data:
                 self.true_pcounter = ParameterCounter(self.simglfo, self.args)
@@ -133,14 +138,14 @@ class Waterer(object):
 
         # TODO combine incrementation and finalization when reading cache file and when actually running
 
-        if self.perfplotter is not None:
-            self.perfplotter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
+        # if self.perfplotter is not None:
+        #     self.perfplotter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
 
-        if self.alfinder is not None:  # TODO it doesn't really make sense to have this here, since most of the time you don't really want to do allele finding here
-            self.alfinder.finalize(debug=self.args.debug_new_allele_finding)
-            self.info['new-alleles'] = self.alfinder.new_allele_info
-            if self.args.plotdir is not None:
-                self.alfinder.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
+        # if self.alfinder is not None:  # TODO it doesn't really make sense to have this here, since most of the time you don't really want to do allele finding here
+        #     self.alfinder.finalize(debug=self.args.debug_new_allele_finding)
+        #     self.info['new-alleles'] = self.alfinder.new_allele_info
+        #     if self.args.plotdir is not None:
+        #         self.alfinder.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
 
     # ----------------------------------------------------------------------------------------
     def finalize(self, cachefname):
@@ -169,10 +174,6 @@ class Waterer(object):
             print 'true annotations for remaining events:'
             for qry in self.remaining_queries:
                 utils.print_reco_event(self.glfo['seqs'], self.reco_info[qry], extra_str='      ', label='true:')
-        if self.alremover is not None:
-            self.alremover.finalize()
-            if self.args.plotdir is not None:
-                self.alremover.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
         if self.alfinder is not None:
             self.alfinder.finalize(debug=self.args.debug_new_allele_finding)
             self.info['new-alleles'] = self.alfinder.new_allele_info
@@ -187,13 +188,21 @@ class Waterer(object):
                 self.pcounter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
                 if self.true_pcounter is not None:
                     self.true_pcounter.plot(self.args.plotdir + '/sw-true', only_csv=self.args.only_csv_plots)
-            self.pcounter.write(self.parameter_out_dir)
-            if self.true_pcounter is not None:
-                self.true_pcounter.write(self.parameter_out_dir + '-true')
+            if self.parameter_out_dir is not None:
+                self.pcounter.write(self.parameter_out_dir)
+                if self.true_pcounter is not None:
+                    self.true_pcounter.write(self.parameter_out_dir + '-true')
+
+        if self.alremover is not None:
+            assert self.pcounter is not None
+            self.alremover.finalize(self.pcounter, self.info, debug=True)
+            self.info['genes-to-remove'] = self.alremover.genes_to_remove
+            print '    not writing sw cache file, since we have alleles to remove'
+            cachefname = None
 
         self.info['remaining_queries'] = self.remaining_queries
 
-        if cachefname is not None:
+        if cachefname is not None:  # NOTE this can be set to None by <self.alremover>
             print '        writing sw results to %s' % cachefname
             with open(cachefname, 'w') as outfile:
                 writer = csv.DictWriter(outfile, utils.annotation_headers + utils.sw_cache_headers)
@@ -647,8 +656,6 @@ class Waterer(object):
                 utils.print_reco_event(self.glfo['seqs'], self.reco_info[qname], extra_str='      ', label='true:')
             utils.print_reco_event(self.glfo['seqs'], self.info[qname], extra_str='      ', label='inferred:')
 
-        if self.alremover is not None:
-            self.alremover.increment(qinfo, self.info[qname])
         if self.alfinder is not None:
             self.alfinder.increment(self.info[qname])
         if self.pcounter is not None:

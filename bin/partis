@@ -249,6 +249,9 @@ parent_parser.add_argument('--only-smith-waterman', action='store_true', help='E
 # print 'TODO add requirement that all positions in multiple-snp alleles are correlated (?)'
 # print 'TODO remove note in partitiondriver find_new_alleles()'
 # print 'TODO maybe do all the plots separately for each potential original snp base?'
+# print 'TODO when you go to get the imgt name for a new allele, don't forget to take into account that you're ignoring the rightmost few bases'
+# print 'TODO increase n_max_snps'
+# print 'TODO increase n_max_mutations_per_segment, at least for highly-mutated repertoires'
 
 subconfig = {
     'version'          : {'func' : int, 'help' : 'print version information and exit'},
