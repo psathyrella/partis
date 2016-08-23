@@ -52,8 +52,8 @@ class Waterer(object):
         self.my_gldir = self.args.workdir + '/' + glutils.glfo_dir
 
         self.alremover, self.alfinder, self.pcounter, self.true_pcounter, self.perfplotter = None, None, None, None, None
-        self.alremover = AlleleRemover(self.glfo, self.args)
         if find_new_alleles:  # NOTE *not* the same as <self.args.find_new_alleles>
+            self.alremover = AlleleRemover(self.glfo, self.args)
             self.alfinder = AlleleFinder(self.glfo, self.args, itry)
         if parameter_out_dir is not None:  # NOTE *not* the same as <self.args.cache_parameters>
             self.pcounter = ParameterCounter(self.glfo, self.args)
@@ -169,6 +169,10 @@ class Waterer(object):
             print 'true annotations for remaining events:'
             for qry in self.remaining_queries:
                 utils.print_reco_event(self.glfo['seqs'], self.reco_info[qry], extra_str='      ', label='true:')
+        if self.alremover is not None:
+            self.alremover.finalize()
+            if self.args.plotdir is not None:
+                self.alremover.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
         if self.alfinder is not None:
             self.alfinder.finalize(debug=self.args.debug_new_allele_finding)
             self.info['new-alleles'] = self.alfinder.new_allele_info
