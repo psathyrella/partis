@@ -27,8 +27,6 @@ class Waterer(object):
         self.input_info = input_info
         self.reco_info = reco_info
         self.glfo = glfo
-        print 'starting sw with'
-        print '    %d v genes in glfo' % len(glfo['seqs']['v'])
         self.simglfo = simglfo
         self.parameter_out_dir = parameter_out_dir
         self.debug = self.args.debug if self.args.sw_debug is None else self.args.sw_debug
