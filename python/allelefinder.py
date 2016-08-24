@@ -199,9 +199,7 @@ class AlleleFinder(object):
             if big_y_icpt_bounds[0] < 0.:
                 continue
 
-            # require at least a few bins with significant mutation
-            interesting_bins = [f for f in subxyvals[pos]['freqs'] if f > big_y_icpt - 2*big_y_icpt_err]
-            if len(interesting_bins) < self.min_fit_length:
+            if big_y_icpt_bounds[0] == big_y_icpt_bounds[1]:
                 continue
 
             zero_icpt_fit = self.get_curvefit(subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['errs'], y_icpt_bounds=(0., 0.))
