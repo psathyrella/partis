@@ -165,12 +165,6 @@ class PartitionDriver(object):
         self.sw_info = waterer.info
 
     # ----------------------------------------------------------------------------------------
-    def restrict_to_most_likely_genes(self):
-        self.run_waterer(remove_less_likely_alleles=True)
-        glutils.remove_genes(self.glfo, self.sw_info['genes-to-remove'], debug=True)
-        glutils.write_glfo(self.my_gldir, self.glfo, debug=True)  # write glfo modifications to disk
-
-    # ----------------------------------------------------------------------------------------
     def find_new_alleles(self):
         """ look for new alleles with sw, write any that you find to the germline set directory in <self.workdir>, add them to <self.glfo>, and repeat until you don't find any. """
         print 'NOTE if args.generate_new_alignment is set, only removes original allele if a new allele is found -- it doesn\'t remove other genes (which may be what we want -- they get in effect removed later when we only write yamels for genes that we actually saw)'
@@ -230,7 +224,9 @@ class PartitionDriver(object):
             self.args.min_observations_to_write = 1
 
         if self.args.generate_germline_set:
-            self.restrict_to_most_likely_genes()
+            self.run_waterer(remove_less_likely_alleles=True)
+            glutils.remove_genes(self.glfo, self.sw_info['genes-to-remove'], debug=True)
+            glutils.write_glfo(self.my_gldir, self.glfo, debug=True)
         if self.args.find_new_alleles or self.args.generate_germline_set:
             self.find_new_alleles()
         self.run_waterer(write_parameters=True)

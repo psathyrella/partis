@@ -86,8 +86,6 @@ class AlleleRemover(object):
             if hdist < self.alfinder.n_max_snps - 1:
                 if debug:
                     print '      removing %s (too close (%d < %d) to %s' % (utils.color_gene(gene), hdist, self.alfinder.n_max_snps - 1, kgene)
-                    # print '        %s' % glseqs[kgene]
-                    # print '        %s' % utils.color_mutants(glseqs[kgene], glseqs[gene])
                 return False
 
         if easycounts[gene] < self.alfinder.n_total_min:  # if we hardly ever saw it, there's no good reason to believe it wasn't the result of just mutational wandering
@@ -99,7 +97,7 @@ class AlleleRemover(object):
         return True
 
     # ----------------------------------------------------------------------------------------
-    def finalize(self, pcounter, swfo, debug=False):
+    def finalize(self, pcounter, swfo, debug=True):
         assert not self.finalized
         region = 'v'
         sorted_gene_counts = [(deps[0], counts) for deps, counts in sorted(pcounter.counts[region + '_gene'].items(), key=operator.itemgetter(1), reverse=True)]
@@ -126,8 +124,7 @@ class AlleleRemover(object):
                 #     unpadded_line['seqs'][0] = unpadded_line['seqs'][0][ : -unpadded_line['padrights'][0]]
                 # utils.print_reco_event(self.glfo['seqs'], unpadded_line)
 
-        print '  removed the best match for %d / %d queries' % (n_queries_with_removed_genes, len(swfo['queries']))
-
+        print '    removing %d genes with no matches, and %d genes with unconvincing matches (%d / %d queries had their best match removed)' % (len(set(self.glfo['seqs'][region]) - set(easycounts)), len(set(easycounts) - self.genes_to_keep), n_queries_with_removed_genes, len(swfo['queries']))
 
         self.finalized = True
 

@@ -195,7 +195,7 @@ class Waterer(object):
 
         if self.alremover is not None:
             assert self.pcounter is not None
-            self.alremover.finalize(self.pcounter, self.info, debug=True)
+            self.alremover.finalize(self.pcounter, self.info)
             self.info['genes-to-remove'] = self.alremover.genes_to_remove
             print '    not writing sw cache file, since we have alleles to remove'
             cachefname = None
