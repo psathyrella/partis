@@ -16,7 +16,9 @@ import glutils
 
 # ----------------------------------------------------------------------------------------
 def fstr(fval):
-    if fval < 10:
+    if fval is None:
+        return 'none'
+    elif fval < 10:
         return '%.2f' % fval
     elif fval < 1e4:
         return '%.0f.' % fval
@@ -203,18 +205,19 @@ class AlleleFinder(object):
                 continue
 
             zero_icpt_fit = self.get_curvefit(subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['errs'], y_icpt_bounds=(0., 0.))
-            # if zero_icpt_fit['residuals_over_ndof'] < self.min_zero_icpt_residual:  # if the zero-icpt fit was good, there isn't any point in doing the big-icpt one
-            #     continue
 
-            # print big_y_icpt_bounds
-            big_icpt_fit = self.get_curvefit(subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['errs'], y_icpt_bounds=big_y_icpt_bounds)
+            # don't bother with the big-icpt fit if the zero-icpt fit is pretty good
+            if zero_icpt_fit['residuals_over_ndof'] > self.min_zero_icpt_residual:
+                big_icpt_fit = self.get_curvefit(subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['errs'], y_icpt_bounds=big_y_icpt_bounds)
+            else:
+                big_icpt_fit = None
 
             residfo[pos] = {'zero_icpt_resid' : zero_icpt_fit['residuals_over_ndof'],
-                            'big_icpt_resid' : big_icpt_fit['residuals_over_ndof'],
+                            'big_icpt_resid' : None if big_icpt_fit is None else big_icpt_fit['residuals_over_ndof'],
                             'fixed_y_icpt' : big_y_icpt,
                             'fixed_y_icpt_err' : big_y_icpt_err}
 
-            if residfo[pos]['zero_icpt_resid'] / residfo[pos]['big_icpt_resid'] > self.min_min_candidate_ratio_to_plot:
+            if big_icpt_fit is not None and residfo[pos]['zero_icpt_resid'] / residfo[pos]['big_icpt_resid'] > self.min_min_candidate_ratio_to_plot:
                 self.positions_to_plot[gene].add(pos)  # if we already decided to plot it for another <istart>, it'll already be in there
 
         if len(residfo) <= istart:  # needs to be at least one longer, so we have the first-non-snp
@@ -222,7 +225,17 @@ class AlleleFinder(object):
                 print '      not enough observations to fit more than %d snps' % (istart - 1)
             return
 
-        residual_ratios = {pos : float('inf') if r['big_icpt_resid'] == 0. else r['zero_icpt_resid'] / r['big_icpt_resid'] for pos, r in residfo.items()}
+        residual_ratios = {}
+        for pos, rfo in residfo.items():
+            if rfo['big_icpt_resid'] is None:
+                ratio = 0.
+            elif rfo['big_icpt_resid'] == 0.:
+                ratio = float('inf')
+            else:
+                ratio = rfo['zero_icpt_resid'] / rfo['big_icpt_resid']
+            residual_ratios[pos] = ratio
+
+        # residual_ratios = {pos : float('inf') if r['big_icpt_resid'] == 0. else r['zero_icpt_resid'] / r['big_icpt_resid'] for pos, r in residfo.items()}
         sorted_ratios = sorted(residual_ratios.items(), key=operator.itemgetter(1), reverse=True)  # sort the positions in decreasing order of residual ratio
         sorted_ratios = [(pos, r) for pos, r in sorted_ratios if residfo[pos]['zero_icpt_resid'] > self.min_zero_icpt_residual] + \
                         [(pos, r) for pos, r in sorted_ratios if residfo[pos]['zero_icpt_resid'] <= self.min_zero_icpt_residual]  # and then put all the ones with bad zero-icpt fits at the start
