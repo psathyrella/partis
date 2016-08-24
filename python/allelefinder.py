@@ -55,6 +55,8 @@ class AlleleFinder(object):
         self.n_seqs_too_highly_mutated = {}  # sequences (per-gene) that had more than <self.n_max_mutations_per_segment> mutations
         self.gene_obs_counts = {}
 
+        self.n_fits = 0
+
         self.finalized = False
 
     # ----------------------------------------------------------------------------------------
@@ -139,7 +141,7 @@ class AlleleFinder(object):
             'freqs' : freqs,
             'errs' : errs
         }
-
+        self.n_fits += 1
         return fitfo
 
     # ----------------------------------------------------------------------------------------
@@ -184,9 +186,10 @@ class AlleleFinder(object):
 
             big_y_icpt = numpy.average(subxyvals[pos]['freqs'], weights=subxyvals[pos]['weights'])  # corresponds, roughly, to the expression level of the least common allele to which we have sensitivity NOTE <istart> is at index 0
             big_y_icpt_err = numpy.std(subxyvals[pos]['freqs'], ddof=1)  # NOTE this "err" is from the variance over bins, and ignores the sample statistics of each bin. This is a little weird, but good: it captures cases where the points aren't well-fit by a line, either because of multiple alleles with very different prevalences, or because the sequences aren't very independent NOTE the former case is very important)
+            big_y_icpt_bounds = (big_y_icpt - 1.5*big_y_icpt_err, big_y_icpt + 1.5*big_y_icpt_err)  # we want the bounds to be lenient enough to accomodate non-zero slopes (in the future, we could do something cleverer like extrapolating with the slope of the line to x=0)
 
-            # require the <istart>th bin to be significantly different than zero
-            if big_y_icpt - big_y_icpt_err < 0.:  # NOTE this can be pretty lenient, because the actual fit will take into account *all* the bins
+            # if the bounds include zero, there won't be much difference between the two fits
+            if big_y_icpt_bounds[0] < 0.:
                 continue
 
             # require at least a few bins with significant mutation
@@ -195,7 +198,7 @@ class AlleleFinder(object):
                 continue
 
             zero_icpt_fit = self.get_curvefit(subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['errs'], y_icpt_bounds=(0. - self.small_number, 0. + self.small_number))
-            big_icpt_fit = self.get_curvefit(subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['errs'], y_icpt_bounds=(big_y_icpt - 1.5*big_y_icpt_err, big_y_icpt + 1.5*big_y_icpt_err))  # we want the bounds to be lenient enough to accomodate non-zero slopes (in the future, we could do something cleverer like extrapolating with the slope of the line to x=0)
+            big_icpt_fit = self.get_curvefit(subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['errs'], y_icpt_bounds=big_y_icpt_bounds)
 
             residfo[pos] = {'zero_icpt_resid' : zero_icpt_fit['residuals_over_ndof'],
                             'big_icpt_resid' : big_icpt_fit['residuals_over_ndof'],
@@ -362,7 +365,7 @@ class AlleleFinder(object):
         if debug:
             print 'found new alleles for %d %s (there were also %d without new alleles, and %d without enough observations to fit)' % (len(gene_results['new_allele']), utils.plural_str('gene', len(gene_results['new_allele'])),
                                                                                                                                        len(gene_results['didnt_find_anything_with_fit']), len(gene_results['not_enough_obs_to_fit']))
-            print '      allele finding time: %.1f' % (time.time()-start)
+            print '      allele finding time (%d fits): %.1f' % (self.n_fits, time.time()-start)
 
         self.finalized = True
 
