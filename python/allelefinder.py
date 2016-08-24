@@ -192,9 +192,10 @@ class AlleleFinder(object):
 
         residfo = {}
         for pos in positions_to_try_to_fit:
+            pvals = subxyvals[pos]
 
-            big_y_icpt = numpy.average(subxyvals[pos]['freqs'], weights=subxyvals[pos]['weights'])  # corresponds, roughly, to the expression level of the least common allele to which we have sensitivity NOTE <istart> is at index 0
-            big_y_icpt_err = numpy.std(subxyvals[pos]['freqs'], ddof=1)  # NOTE this "err" is from the variance over bins, and ignores the sample statistics of each bin. This is a little weird, but good: it captures cases where the points aren't well-fit by a line, either because of multiple alleles with very different prevalences, or because the sequences aren't very independent NOTE the former case is very important)
+            big_y_icpt = numpy.average(pvals['freqs'], weights=pvals['weights'])  # corresponds, roughly, to the expression level of the least common allele to which we have sensitivity NOTE <istart> is at index 0
+            big_y_icpt_err = numpy.std(pvals['freqs'], ddof=1)  # NOTE this "err" is from the variance over bins, and ignores the sample statistics of each bin. This is a little weird, but good: it captures cases where the points aren't well-fit by a line, either because of multiple alleles with very different prevalences, or because the sequences aren't very independent NOTE the former case is very important)
             big_y_icpt_bounds = (big_y_icpt - 1.5*big_y_icpt_err, big_y_icpt + 1.5*big_y_icpt_err)  # we want the bounds to be lenient enough to accomodate non-zero slopes (in the future, we could do something cleverer like extrapolating with the slope of the line to x=0)
 
             # if the bounds include zero, there won't be much difference between the two fits
@@ -204,11 +205,11 @@ class AlleleFinder(object):
             if big_y_icpt_bounds[0] == big_y_icpt_bounds[1]:
                 continue
 
-            zero_icpt_fit = self.get_curvefit(subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['errs'], y_icpt_bounds=(0., 0.))
+            zero_icpt_fit = self.get_curvefit(pvals['n_mutelist'], pvals['freqs'], pvals['errs'], y_icpt_bounds=(0., 0.))
 
             # don't bother with the big-icpt fit if the zero-icpt fit is pretty good
             if zero_icpt_fit['residuals_over_ndof'] > self.min_zero_icpt_residual:
-                big_icpt_fit = self.get_curvefit(subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['errs'], y_icpt_bounds=big_y_icpt_bounds)
+                big_icpt_fit = self.get_curvefit(pvals['n_mutelist'], pvals['freqs'], pvals['errs'], y_icpt_bounds=big_y_icpt_bounds)
             else:
                 big_icpt_fit = None
 
