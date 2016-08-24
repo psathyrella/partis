@@ -47,7 +47,6 @@ class AlleleFinder(object):
         self.min_min_candidate_ratio_to_plot = 1.25  # don't plot positions that're below this (for all <istart>)
 
         self.default_slope_bounds = (-0.2, 0.2)  # fitting function needs some reasonable bounds from which to start (I could at some point make slope part of the criteria for candidacy, but it wouldn't add much sensitivity)
-        self.small_number = 1e-5
 
         self.counts = {}
         self.new_allele_info = []
@@ -118,18 +117,26 @@ class AlleleFinder(object):
         return residual_sum
 
     # ----------------------------------------------------------------------------------------
-    def get_curvefit(self, n_mutelist, freqs, errs, y_icpt_bounds=None):
-        def func(x, slope, y_icpt):
-            return slope*x + y_icpt
-
-        bounds = (-float('inf'), float('inf'))
-        if y_icpt_bounds is not None:
+    def get_curvefit(self, n_mutelist, freqs, errs, y_icpt_bounds):
+        # bounds = (-float('inf'), float('inf'))
+        if y_icpt_bounds == (0., 0.):
+            def linefunc(x, slope):
+                return slope*x
+            bounds = self.default_slope_bounds
+            params, cov = scipy.optimize.curve_fit(linefunc, n_mutelist, freqs, sigma=errs, bounds=bounds)
+            slope, slope_err = params[0], math.sqrt(cov[0][0])
+            y_icpt, y_icpt_err = 0., 0.
+            ndof = len(n_mutelist) - 1
+        else:
+            def linefunc(x, slope, y_icpt):
+                return slope*x + y_icpt
             bounds = [[s, y] for s, y in zip(self.default_slope_bounds, y_icpt_bounds)]
-        params, cov = scipy.optimize.curve_fit(func, n_mutelist, freqs, sigma=errs, bounds=bounds)
-        slope, slope_err = params[0], math.sqrt(cov[0][0])
-        y_icpt, y_icpt_err = params[1], math.sqrt(cov[1][1])
+            params, cov = scipy.optimize.curve_fit(linefunc, n_mutelist, freqs, sigma=errs, bounds=bounds)
+            slope, slope_err = params[0], math.sqrt(cov[0][0])
+            y_icpt, y_icpt_err = params[1], math.sqrt(cov[1][1])
+            ndof = len(n_mutelist) - 2
+
         residual_sum = self.get_residual_sum(n_mutelist, freqs, errs, slope, y_icpt)
-        ndof = len(n_mutelist) - 1
         fitfo = {
             'slope'  : slope,
             'y_icpt' : y_icpt,
@@ -197,7 +204,11 @@ class AlleleFinder(object):
             if len(interesting_bins) < self.min_fit_length:
                 continue
 
-            zero_icpt_fit = self.get_curvefit(subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['errs'], y_icpt_bounds=(0. - self.small_number, 0. + self.small_number))
+            zero_icpt_fit = self.get_curvefit(subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['errs'], y_icpt_bounds=(0., 0.))
+            # if zero_icpt_fit['residuals_over_ndof'] < self.min_zero_icpt_residual:  # if the zero-icpt fit was good, there isn't any point in doing the big-icpt one
+            #     continue
+
+            # print big_y_icpt_bounds
             big_icpt_fit = self.get_curvefit(subxyvals[pos]['n_mutelist'], subxyvals[pos]['freqs'], subxyvals[pos]['errs'], y_icpt_bounds=big_y_icpt_bounds)
 
             residfo[pos] = {'zero_icpt_resid' : zero_icpt_fit['residuals_over_ndof'],
