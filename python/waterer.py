@@ -50,8 +50,6 @@ class Waterer(object):
         self.unproductive_queries = set()
 
         self.my_gldir = self.args.workdir + '/' + glutils.glfo_dir
-        tmpglfo = glutils.read_glfo(self.my_gldir, chain='h')
-        print '    %d v genes in glfo' % len(tmpglfo['seqs']['v'])
 
         self.alremover, self.alfinder, self.pcounter, self.true_pcounter, self.perfplotter = None, None, None, None, None
         if remove_less_likely_alleles:
