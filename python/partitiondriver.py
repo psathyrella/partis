@@ -178,7 +178,7 @@ class PartitionDriver(object):
                 os.remove(self.default_cachefname)
             all_new_allele_info += self.sw_info['new-alleles']
             glutils.restrict_to_genes(self.glfo, list(self.sw_info['all_best_matches']))
-            glutils.add_new_alleles(self.glfo, self.sw_info['new-alleles'], default_initial_germline_dir=self.args.default_initial_germline_dir)
+            glutils.add_new_alleles(self.glfo, self.sw_info['new-alleles'], default_initial_germline_dir=self.args.default_initial_germline_dir, excluded_positions=self.args.new_allele_excluded_bases)
             glutils.write_glfo(self.my_gldir, self.glfo)  # write glfo modifications to disk
             itry += 1
 

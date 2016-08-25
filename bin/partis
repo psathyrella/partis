@@ -120,6 +120,7 @@ def run_partitiondriver(args):
     args.initial_match_mismatch = utils.get_arg_list(args.initial_match_mismatch, intify=True)
     args.annotation_clustering_thresholds = utils.get_arg_list(args.annotation_clustering_thresholds, floatify=True)
     args.naive_hamming_bounds = utils.get_arg_list(args.naive_hamming_bounds, floatify=True)
+    args.new_allele_excluded_bases = utils.get_arg_list(args.new_allele_excluded_bases, intify=True)
     if args.seed_unique_id is not None:
         args.seed_unique_id = args.seed_unique_id.strip()  # protect against the space you have to put in front of it if it's got an initial minus sign
     if args.sw_debug is None:  # if not explicitly set, set equal to regular debug
@@ -270,6 +271,7 @@ subargs['cache-parameters'].append({'name' : '--generate-germline-set', 'kwargs'
 subargs['cache-parameters'].append({'name' : '--find-new-alleles', 'kwargs' : {'action' : 'store_true', 'help' : 'look for new alleles which are separated only by snps from existing alleles, add them to the existing germline set, and write it all to --parameter-dir.'}})
 subargs['cache-parameters'].append({'name' : '--new-allele-fname', 'kwargs' : {'help' : 'fasta fname to which to write any new alleles (they are also written, with existing alleles, to --parameter-dir)'}})
 subargs['cache-parameters'].append({'name' : '--debug-allele-finding', 'kwargs' : {'action' : 'store_true', 'help' : 'print lots of debug info on new-allele fits'}})
+subargs['cache-parameters'].append({'name' : '--new-allele-excluded-bases', 'kwargs' : {'default' : '2:4', 'help' : 'Colon-separated integer pair: number of 5\' and 3\' bases to exclude from new-allele analysis (misassigned insertions look like snps, and depending on sequencing protocol, the 5\' bases can be unreliable).'}})
 
 subargs['partition'].append({'name' : '--naive-hamming', 'kwargs' : {'action' : 'store_true', 'help' : 'agglomerate purely with naive hamming distance, i.e. set the low and high preclustering bounds to the same value'}})
 subargs['partition'].append({'name' : '--naive-vsearch', 'kwargs' : {'action' : 'store_true', 'help' : 'Very fast clustering: infer naive (unmutated ancestor) for each input sequence, then toss it all into vsearch. But, of course, not as accurate as the slower methods.'}})

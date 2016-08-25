@@ -36,8 +36,6 @@ class AlleleFinder(object):
         self.n_max_mutations_per_segment = 20  # don't look at sequences whose v segments have more than this many mutations
         self.min_fit_length = 5  # don't both fitting an <istart> (i.e. snp hypothesis) if it doesn't have at least this many bins
         self.max_fit_length = 10  # don't fit more than this many bins for each <istart> (the first few positions in the fit are the most important, and if we fit too far to the right these important positions get diluted)
-        self.n_five_prime_positions_to_exclude = 2  # skip positions that are too close to the 5' end of V (depending on sequence method, these can be unreliable. uh, I think?)
-        self.n_three_prime_positions_to_exclude = 4  # skip positions that are too close to the 3' end of V (misassigned insertions look like snps)
 
         self.n_muted_min = 10  # don't fit positions that have fewer total mutations than this (i.e. summed over bins)
         self.n_total_min = 50  # ...or fewer total observations than this
@@ -78,8 +76,8 @@ class AlleleFinder(object):
         assert len(germline_seq) == len(query_seq)
 
         # don't use the leftmost and rightmost few bases
-        germline_seq = germline_seq[self.n_five_prime_positions_to_exclude : -self.n_three_prime_positions_to_exclude]
-        query_seq = query_seq[self.n_five_prime_positions_to_exclude : -self.n_three_prime_positions_to_exclude]
+        germline_seq = germline_seq[self.args.new_allele_excluded_bases[0] : len(germline_seq) - self.args.new_allele_excluded_bases[1]]
+        query_seq = query_seq[self.args.new_allele_excluded_bases[0] : len(query_seq) - self.args.new_allele_excluded_bases[1]]
         n_mutes = utils.hamming_distance(germline_seq, query_seq)
 
         return n_mutes, germline_seq, query_seq
@@ -101,7 +99,7 @@ class AlleleFinder(object):
                 continue
 
             for ipos in range(len(germline_seq)):
-                igl = ipos + int(info[region + '_5p_del']) + self.n_five_prime_positions_to_exclude  # position in original (i.e. complete) germline gene
+                igl = ipos + int(info[region + '_5p_del']) + self.args.new_allele_excluded_bases[0]  # position in original (i.e. complete) germline gene
 
                 if germline_seq[ipos] in utils.ambiguous_bases or query_seq[ipos] in utils.ambiguous_bases:  # skip if either germline or query sequence is ambiguous at this position
                     continue
@@ -313,7 +311,7 @@ class AlleleFinder(object):
         glseq = self.glfo['seqs'][utils.get_region(gene)][gene]
         # new_allele_names = [i['gene'] for i in self.new_allele_info]  # should make this less hackey
         # glseq = self.new_allele_info[gene]['seq'] if gene in new_allele_names else self.glfo['seqs'][utils.get_region(gene)][gene]
-        too_close_to_ends = range(self.n_five_prime_positions_to_exclude) + range(len(glseq) - self.n_three_prime_positions_to_exclude, len(glseq))
+        too_close_to_ends = range(self.args.new_allele_excluded_bases[0]) + range(len(glseq) - self.args.new_allele_excluded_bases[1], len(glseq))
         not_enough_counts = set(positions) - set(positions_to_try_to_fit) - set(too_close_to_ends)  # well, not enough counts, *and* not too close to the ends
 
         print '          skipping %d / %d positions:' % (len(positions) - len(positions_to_try_to_fit), len(positions)),
@@ -383,7 +381,7 @@ class AlleleFinder(object):
 
         if debug:
             if len(self.new_allele_info) > 0:
-                print '  found %d new %s: %s' % (len(self.new_allele_info), utils.plural_str('alleles', len(self.new_allele_info)))
+                print '  found %d new %s: %s' % (len(self.new_allele_info), utils.plural_str('allele', len(self.new_allele_info)), ' '.join([utils.color_gene(nfo['gene']) for nfo in self.new_allele_info]))
             else:
                 print '    no new alleles'
             print '  allele finding time (%d fits): %.1f' % (self.n_fits, time.time()-start)
