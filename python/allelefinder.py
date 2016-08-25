@@ -325,7 +325,6 @@ class AlleleFinder(object):
         assert not self.finalized
 
         start = time.time()
-        gene_results = {'not_enough_obs_to_fit' : set(), 'didnt_find_anything_with_fit' : set(), 'new_allele' : set()}
         self.xyvals = {}
         self.positions_to_plot = {gene : set() for gene in self.counts}
         print '%s: looking for new alleles' % utils.color('red', 'try ' + str(self.itry))
@@ -347,7 +346,6 @@ class AlleleFinder(object):
             if len(positions_to_try_to_fit) < self.n_max_snps:
                 if debug:
                     print '          not enough positions with enough observations to fit %s' % utils.color_gene(gene)
-                gene_results['not_enough_obs_to_fit'].add(gene)
                 continue
 
             # loop over each snp hypothesis
@@ -379,16 +377,13 @@ class AlleleFinder(object):
 
             if len(istart_candidates) > 0:
                 n_candidate_snps = min(istart_candidates)  # add the candidate with the smallest number of snps to the germline set, and run again
-                gene_results['new_allele'].add(gene)
                 print '\n    found a new allele candidate separated from %s by %d %s at %s:' % (utils.color_gene(gene), n_candidate_snps,
                                                                                                 utils.plural_str('snp', n_candidate_snps), utils.plural_str('position', n_candidate_snps)),
                 self.add_new_allele(gene, fitfo, n_candidate_snps, debug=debug)
-            else:
-                gene_results['didnt_find_anything_with_fit'].add(gene)
 
         if debug:
-            if len(gene_results['new_allele']) > 0:
-                print '  found %d new %s: %s' % (len(gene_results['new_allele']), utils.plural_str('alleles', len(gene_results['new_allele'])))
+            if len(self.new_allele_info) > 0:
+                print '  found %d new %s: %s' % (len(self.new_allele_info), utils.plural_str('alleles', len(self.new_allele_info)))
             else:
                 print '    no new alleles'
             print '  allele finding time (%d fits): %.1f' % (self.n_fits, time.time()-start)
