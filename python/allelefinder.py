@@ -239,6 +239,8 @@ class AlleleFinder(object):
         candidate_ratios = {pos : ratio for pos, ratio in candidate_ratios.items() if pos in candidates}
 
         if debug:
+            if len(candidates) > 0:
+                print '    %d %s' % (istart, utils.plural_str('snp', istart))
             for pos in candidates:
                 xtrastrs = (' ', ' ')  #('[', ']') if XXX else (' ', ' ')
                 pos_str = '%3s' % str(pos)
@@ -258,8 +260,8 @@ class AlleleFinder(object):
                 print ''.join(print_str)
 
         if len(candidates) < istart:
-            if debug:
-                print '      not enough candidates (%d < %d)' % (len(candidates), istart)
+            # if debug:
+            #     print '      not enough candidates (%d < %d)' % (len(candidates), istart)
             return
 
         fitfo['min_snp_ratios'][istart] = min(candidate_ratios.values())
@@ -349,15 +351,20 @@ class AlleleFinder(object):
 
             # loop over each snp hypothesis
             fitfo = {n : {} for n in ('min_snp_ratios', 'candidates')}
+            not_enough_candidates = []  # just for dbg printing
             for istart in range(1, self.n_max_snps + 1):
-                if debug:
-                    if istart == 1:
-                        print '                                 resid. / ndof'
-                        print '             position   ratio    (m=0 / m=big)          big',
-                        print '%5s %s' % ('', ''.join(['%11d' % nm for nm in range(1, self.n_max_mutations_per_segment + 1)]))
-                    print '    %d %s                       ' % (istart, utils.plural_str('snp', istart))
+                if debug and istart == 1:
+                    print '                                 resid. / ndof'
+                    print '             position   ratio    (m=0 / m=big)          big',
+                    print '%5s %s' % ('', ''.join(['%11d' % nm for nm in range(1, self.n_max_mutations_per_segment + 1)]))
 
                 self.fit_istart(gene, istart, positions_to_try_to_fit, fitfo, debug=debug)
+
+                if istart not in fitfo['candidates']:  # just for dbg printing
+                    not_enough_candidates.append(istart)
+
+            if debug and len(not_enough_candidates) > 0:
+                print '      not enough candidates for istarts: %s' % ' '.join([str(i) for i in not_enough_candidates])
 
             istart_candidates = []
             if debug:
