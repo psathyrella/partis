@@ -231,7 +231,7 @@ class Waterer(object):
         for iproc in range(n_procs):
             procs.append(utils.run_cmd(get_cmd_str(iproc), self.subworkdir(iproc, n_procs)))
             n_tries.append(1)
-            time.sleep(0.1)
+            time.sleep(0.01)
 
         # keep looping over the procs until they're all done
         while procs.count(None) != len(procs):  # we set each proc to None when it finishes
@@ -241,7 +241,7 @@ class Waterer(object):
                 if procs[iproc].poll() is not None:  # it's finished
                     utils.finish_process(iproc, procs, n_tries, self.subworkdir(iproc, n_procs), get_outfname(iproc), get_cmd_str(iproc))
             sys.stdout.flush()
-            time.sleep(1)
+            time.sleep(0.1)
 
         for iproc in range(n_procs):
             os.remove(self.subworkdir(iproc, n_procs) + '/' + base_infname)
