@@ -430,7 +430,7 @@ def restrict_to_genes(glfo, only_genes, debug=False):
 
     only_genes_not_in_glfo = set(only_genes) - set([g for r in utils.regions for g in glfo['seqs'][r]])
     if len(only_genes_not_in_glfo) > 0:
-        print '  %s genes %s in --only-genes aren\'t in glfo to begin with' % (utils.color('red', 'warning'), ' '.join(only_genes_not_in_glfo))
+        print '  %s genes %s in <only_genes> aren\'t in glfo to begin with' % (utils.color('red', 'warning'), ' '.join(only_genes_not_in_glfo))
 
     genes_to_remove = set([g for r in utils.regions for g in glfo['seqs'][r]]) - set(only_genes)
     if debug:

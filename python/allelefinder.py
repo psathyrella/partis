@@ -298,7 +298,7 @@ class AlleleFinder(object):
             # NOTE <oldname_{gene,seq}> is the old *name* corresponding to the new (snp'd) allele, whereas <old_seq> is the allele from which we inferred the new (snp'd) allele
             for oldname_gene, oldname_seq in self.default_initial_glfo['seqs'][utils.get_region(new_name)].items():
                 if oldname_seq[left : len(oldname_seq) - right] == new_seq[left : len(new_seq) - right]:
-                    print '    using old name %s for new allele %s' % (utils.color_gene(oldname_gene), utils.color_gene(new_name))
+                    print '        using old name %s for new allele %s' % (utils.color_gene(oldname_gene), utils.color_gene(new_name))
                     new_name = oldname_gene
                     new_seq = oldname_seq  # in case the excluded positions are different
                     break
