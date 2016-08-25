@@ -56,6 +56,10 @@ class AlleleFinder(object):
 
         self.n_fits = 0
 
+        self.default_initial_glfo = None
+        if self.args.default_initial_germline_dir is not None:  # if this is set, we want to take any new allele names from this directory's glfo if they're in there
+            self.default_initial_glfo = glutils.read_glfo(self.args.default_initial_germline_dir, glfo['chain'])
+
         self.finalized = False
 
     # ----------------------------------------------------------------------------------------
@@ -285,9 +289,20 @@ class AlleleFinder(object):
             assert old_seq[pos] == original_nuke
             mutfo[pos] = {'original' : original_nuke, 'new' : new_nuke}
             new_seq = new_seq[:pos] + new_nuke + new_seq[pos+1:]
+        print ''
 
         new_name, mutfo = glutils.get_new_allele_name_and_change_mutfo(gene, mutfo)
-        print ''
+        if self.default_initial_glfo is not None:  # if this is set, we want to take the names from this directory's glfo
+            left, right = self.args.new_allele_excluded_bases
+            # see if there's already a name for <new_name>'s sequence
+            # NOTE <oldname_{gene,seq}> is the old *name* corresponding to the new (snp'd) allele, whereas <old_seq> is the allele from which we inferred the new (snp'd) allele
+            for oldname_gene, oldname_seq in self.default_initial_glfo['seqs'][utils.get_region(new_name)].items():
+                if oldname_seq[left : len(oldname_seq) - right] == new_seq[left : len(new_seq) - right]:
+                    print '    using old name %s for new allele %s' % (utils.color_gene(oldname_gene), utils.color_gene(new_name))
+                    new_name = oldname_gene
+                    new_seq = oldname_seq  # in case the excluded positions are different
+                    break
+
         print '          %s   %s' % (old_seq, utils.color_gene(gene))
         print '          %s   %s' % (utils.color_mutants(old_seq, new_seq), utils.color_gene(new_name))
 

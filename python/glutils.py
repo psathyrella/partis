@@ -456,20 +456,17 @@ def remove_gene(glfo, gene, debug=False):
     del glfo['seqs'][region][gene]
 
 # ----------------------------------------------------------------------------------------
-def add_new_alleles(glfo, newfos, remove_template_genes=False, default_initial_germline_dir=None, excluded_positions=None, debug=False):
+def add_new_alleles(glfo, newfos, remove_template_genes=False, debug=False):
     for newfo in newfos:
-        add_new_allele(glfo, newfo, remove_template_genes=remove_template_genes, default_initial_germline_dir=default_initial_germline_dir, excluded_positions=excluded_positions, debug=debug)
+        add_new_allele(glfo, newfo, remove_template_genes=remove_template_genes, debug=debug)
 
 # ----------------------------------------------------------------------------------------
-def add_new_allele(glfo, newfo, remove_template_genes=False, default_initial_germline_dir=None, excluded_positions=None, debug=False):
+def add_new_allele(glfo, newfo, remove_template_genes=False, debug=False):
     """
     Add a new allele to <glfo>, specified by <newfo> which is of the
     form: {'template-gene' : 'IGHV3-71*01', 'gene' : 'IGHV3-71*01+C35T.T47G', 'seq' : 'ACTG yadda yadda CGGGT'}
     If <remove_template_genes>, we also remove 'template-gene' from <glfo>.
     """
-
-    if default_initial_germline_dir is not None:  # if this is set, we want to take the names from this directory's glfo
-        default_initial_glfo = read_glfo(default_initial_germline_dir, glfo['chain'])
 
     template_gene = newfo['template-gene']
     region = utils.get_region(template_gene)
@@ -477,17 +474,6 @@ def add_new_allele(glfo, newfo, remove_template_genes=False, default_initial_ger
         raise Exception('unknown template gene %s' % template_gene)
 
     new_gene = newfo['gene']
-    if default_initial_germline_dir is not None:  # see if there's already a name for <new_gene>'s sequence
-        for old_gene, old_seq in default_initial_glfo['seqs'][utils.get_region(new_gene)].items():
-            if excluded_positions is None:
-                left, right = 0, 0
-            else:
-                left, right = excluded_positions
-            if old_seq[left : len(old_seq) - right] == newfo['seq'][left : len(newfo['seq']) - right]:
-                print '    using old name %s for new allele %s' % (utils.color_gene(old_gene), utils.color_gene(new_gene))
-                new_gene = old_gene
-                newfo['seq'] = old_seq  # in case the excluded positions are different
-                break
 
     if region == 'v':
         glfo['cyst-positions'][new_gene] = glfo['cyst-positions'][template_gene]
