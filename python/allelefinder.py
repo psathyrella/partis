@@ -177,9 +177,10 @@ class AlleleFinder(object):
                 print '    min snp ratio %s too small (less than %s)' % (fstr(fitfo['min_snp_ratios'][istart]), fstr(self.min_min_candidate_ratio))
             return False
         for candidate_pos in fitfo['candidates'][istart]:  # return false if any of the candidate positions don't have enough counts with <istart> mutations (probably a homozygous new allele with more than <istart> snps) UPDATE did I mean heterozygous?
-            if self.counts[gene][candidate_pos][istart]['muted'] < self.n_muted_min_per_bin:
+            n_istart_muted = self.counts[gene][candidate_pos][istart]['muted']
+            if n_istart_muted < self.n_muted_min_per_bin:
                 if debug:
-                    print '    not enough mutated counts at candidate position %d with %d mutations (%s < %s)' % (candidate_pos, istart, fstr(self.counts[gene][candidate_pos][istart]['muted']), fstr(self.n_muted_min_per_bin))
+                    print '    not enough mutated counts at candidate position %d with %d %s (%s < %s)' % (candidate_pos, istart, utils.plural_str('mutations', n_istart_muted), fstr(n_istart_muted), fstr(self.n_muted_min_per_bin))
                 return False
 
         if debug:
@@ -384,13 +385,13 @@ class AlleleFinder(object):
                 self.add_new_allele(gene, fitfo, n_candidate_snps, debug=debug)
             else:
                 gene_results['didnt_find_anything_with_fit'].add(gene)
-                if debug:
-                    print '    no new alleles'
 
         if debug:
-            print 'found new alleles for %d %s (there were also %d without new alleles, and %d without enough observations to fit)' % (len(gene_results['new_allele']), utils.plural_str('gene', len(gene_results['new_allele'])),
-                                                                                                                                       len(gene_results['didnt_find_anything_with_fit']), len(gene_results['not_enough_obs_to_fit']))
-            print '      allele finding time (%d fits): %.1f' % (self.n_fits, time.time()-start)
+            if len(gene_results['new_allele']) > 0:
+                print '  found %d new %s: %s' % (len(gene_results['new_allele']), utils.plural_str('alleles', len(gene_results['new_allele'])))
+            else:
+                print '    no new alleles'
+            print '  allele finding time (%d fits): %.1f' % (self.n_fits, time.time()-start)
 
         self.finalized = True
 

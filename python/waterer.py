@@ -138,7 +138,7 @@ class Waterer(object):
         #     self.perfplotter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
 
         # if self.alfinder is not None:  # TODO it doesn't really make sense to have this here, since most of the time you don't really want to do allele finding here
-        #     self.alfinder.finalize(debug=self.args.debug_new_allele_finding)
+        #     self.alfinder.finalize(debug=self.args.debug_allele_finding)
         #     self.info['new-alleles'] = self.alfinder.new_allele_info
         #     if self.args.plotdir is not None:
         #         self.alfinder.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
@@ -171,7 +171,7 @@ class Waterer(object):
             for qry in self.remaining_queries:
                 utils.print_reco_event(self.glfo['seqs'], self.reco_info[qry], extra_str='      ', label='true:')
         if self.alfinder is not None:
-            self.alfinder.finalize(debug=self.args.debug_new_allele_finding)
+            self.alfinder.finalize(debug=self.args.debug_allele_finding)
             self.info['new-alleles'] = self.alfinder.new_allele_info
             if len(self.info['new-alleles']) > 0:
                 print '    not writing sw cache file, since we have new alleles'
