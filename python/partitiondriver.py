@@ -127,10 +127,10 @@ class PartitionDriver(object):
                 raise Exception('--persistent-cachefname %s has unexpected header list %s' % (self.args.persistent_cachefname, reader.fieldnames))
 
     # ----------------------------------------------------------------------------------------
-    def get_cachefname(self, write_parameters):
+    def get_cachefname(self, write_parameters, find_new_alleles):
         if self.args.sw_cachefname is not None:  # if --sw-cachefname was explicitly set, always use that
             return self.args.sw_cachefname
-        elif write_parameters or os.path.exists(self.default_cachefname):  # otherwise, use the default cachefname if we're either writing parameters (in which case we want to write results to disk) or if the default already exists (in which case we want to read it)
+        elif write_parameters or find_new_alleles or os.path.exists(self.default_cachefname):  # otherwise, use the default cachefname if we're either writing parameters (in which case we want to write results to disk) or if the default already exists (in which case we want to read it)
             return self.default_cachefname
         return None  # don't want to read or write sw cache files
 
@@ -157,7 +157,7 @@ class PartitionDriver(object):
 
         parameter_out_dir = self.sw_param_dir if write_parameters else None
         waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo, count_parameters=(remove_less_likely_alleles or parameter_out_dir is not None), parameter_out_dir=parameter_out_dir, remove_less_likely_alleles=remove_less_likely_alleles, find_new_alleles=find_new_alleles, simglfo=self.simglfo, itry=itry)
-        cachefname = self.get_cachefname(write_parameters)
+        cachefname = self.get_cachefname(write_parameters, find_new_alleles)
         if cachefname is None or not os.path.exists(cachefname):  # run sw if we either don't want to do any caching (None) or if we are planning on writing the results after we run
             waterer.run(cachefname)
         else:

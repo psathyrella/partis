@@ -173,6 +173,9 @@ class Waterer(object):
         if self.alfinder is not None:
             self.alfinder.finalize(debug=self.args.debug_new_allele_finding)
             self.info['new-alleles'] = self.alfinder.new_allele_info
+            if len(self.info['new-alleles']) > 0:
+                print '    not writing sw cache file, since we have new alleles'
+                cachefname = None
             if self.args.plotdir is not None:
                 self.alfinder.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
 
@@ -193,8 +196,9 @@ class Waterer(object):
             assert self.pcounter is not None
             self.alremover.finalize(self.pcounter, self.info)
             self.info['genes-to-remove'] = self.alremover.genes_to_remove
-            print '    not writing sw cache file, since we have alleles to remove'
-            cachefname = None
+            if len(self.info['genes-to-remove']) > 0:
+                print '    not writing sw cache file, since we have alleles to remove'
+                cachefname = None
 
         self.info['remaining_queries'] = self.remaining_queries
 

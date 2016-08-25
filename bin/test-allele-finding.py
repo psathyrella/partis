@@ -39,7 +39,7 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
     else:
         plotdir = '_www/partis/allele-finding/' + label
 
-    if True:
+    if False:
         simulation_genes = simulation_v_genes + ':' + dj_genes
         sglfo = glutils.read_glfo('data/germlines/human', chain=chain, only_genes=simulation_genes.split(':'), debug=True)
         snps_to_add = [
@@ -80,7 +80,7 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
     cmd_str += '  --debug-new-allele-finding'
     cmd_str += ' --initial-germline-dir ' + outdir + '/germlines/inference'
     cmd_str += ' --parameter-dir ' + outpdir
-    cmd_str += ' --plotdir ' + plotdir
+    # cmd_str += ' --plotdir ' + plotdir
     if seed is not None:
         cmd_str += ' --seed ' + str(seed)
     run(cmd_str)
