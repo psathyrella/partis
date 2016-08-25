@@ -200,7 +200,7 @@ class AlleleFinder(object):
     def fit_istart(self, gene, istart, positions_to_try_to_fit, fitfo, debug=False):
         subxyvals = {pos : {k : v[istart : istart + self.max_fit_length] for k, v in self.xyvals[gene][pos].items()} for pos in positions_to_try_to_fit}
 
-        residfo = {}
+        candidate_ratios, residfo = {}, {}  # NOTE <residfo> is really just for dbg printing... but we have to sort before we print, so we need to keep the info around
         for pos in positions_to_try_to_fit:
             pvals = subxyvals[pos]
 
@@ -223,6 +223,7 @@ class AlleleFinder(object):
             # don't bother with the big-icpt fit if the zero-icpt fit is pretty good
             if zero_icpt_fit['residuals_over_ndof'] > self.min_zero_icpt_residual:
                 big_icpt_fit = self.get_curvefit(pvals['n_mutelist'], pvals['freqs'], pvals['errs'], y_icpt_bounds=big_y_icpt_bounds)
+                candidate_ratios[pos] = zero_icpt_fit['residuals_over_ndof'] / big_icpt_fit['residuals_over_ndof'] if big_icpt_fit['residuals_over_ndof'] > 0. else float('inf')
             else:
                 big_icpt_fit = None
 
@@ -234,43 +235,20 @@ class AlleleFinder(object):
             if big_icpt_fit is not None and residfo[pos]['zero_icpt_resid'] / residfo[pos]['big_icpt_resid'] > self.min_min_candidate_ratio_to_plot:
                 self.positions_to_plot[gene].add(pos)  # if we already decided to plot it for another <istart>, it'll already be in there
 
-        if len(residfo) <= istart:  # needs to be at least one longer, so we have the first-non-snp
-            if debug:
-                print '      not enough observations to fit more than %d snps' % (istart - 1)
-            return
-
-        residual_ratios = {}
-        for pos, rfo in residfo.items():
-            if rfo['big_icpt_resid'] is None:
-                ratio = 0.
-            elif rfo['big_icpt_resid'] == 0.:
-                ratio = float('inf')
-            else:
-                ratio = rfo['zero_icpt_resid'] / rfo['big_icpt_resid']
-            residual_ratios[pos] = ratio
-
-        # residual_ratios = {pos : float('inf') if r['big_icpt_resid'] == 0. else r['zero_icpt_resid'] / r['big_icpt_resid'] for pos, r in residfo.items()}
-        sorted_ratios = sorted(residual_ratios.items(), key=operator.itemgetter(1), reverse=True)  # sort the positions in decreasing order of residual ratio
-        sorted_ratios = [(pos, r) for pos, r in sorted_ratios if residfo[pos]['zero_icpt_resid'] > self.min_zero_icpt_residual] + \
-                        [(pos, r) for pos, r in sorted_ratios if residfo[pos]['zero_icpt_resid'] <= self.min_zero_icpt_residual]  # and then put all the ones with bad zero-icpt fits at the start
-        candidate_snps = [pos for pos, _ in sorted_ratios[:istart]]  # the first <istart> positions are the "candidate snps"
-        max_non_snp, max_non_snp_ratio = sorted_ratios[istart]  # position and ratio for largest non-candidate
-        min_candidate_ratio = min([residual_ratios[cs] for cs in candidate_snps])
-
-        # fitfo['scores'][istart] = (min_candidate_ratio - max_non_snp_ratio) / max(self.small_number, max_non_snp_ratio)
-        fitfo['min_snp_ratios'][istart] = min([residual_ratios[cs] for cs in candidate_snps])
-        fitfo['candidates'][istart] = {cp : residual_ratios[cp] for cp in candidate_snps}
+        candidates = [pos for pos, _ in sorted(candidate_ratios.items(), key=operator.itemgetter(1), reverse=True)]  # sort the candidate positions in decreasing order of residual ratio
+        candidates = candidates[:istart]  # remove any extra ones (if we have more than we need)
+        candidate_ratios = {pos : ratio for pos, ratio in candidate_ratios.items() if pos in candidates}
 
         if debug:
-            for pos in candidate_snps + [max_non_snp, ]:
-                xtrastrs = ('[', ']') if pos == max_non_snp else (' ', ' ')
+            for pos in candidates:
+                xtrastrs = (' ', ' ')  #('[', ']') if XXX else (' ', ' ')
                 pos_str = '%3s' % str(pos)
-                if residual_ratios[pos] > self.min_min_candidate_ratio and residfo[pos]['zero_icpt_resid'] > self.min_zero_icpt_residual:
+                if candidate_ratios[pos] > self.min_min_candidate_ratio and residfo[pos]['zero_icpt_resid'] > self.min_zero_icpt_residual:
                     pos_str = utils.color('yellow', pos_str)
-                print_str = ['               %s %s    %5s   (%5s / %-5s)   %5.3f +/- %5.3f %s' % (xtrastrs[0], pos_str, fstr(residual_ratios[pos]),
-                                                                                                                  fstr(residfo[pos]['zero_icpt_resid']), fstr(residfo[pos]['big_icpt_resid']),
-                                                                                                                  residfo[pos]['fixed_y_icpt'], residfo[pos]['fixed_y_icpt_err'],
-                                                                                                                  xtrastrs[1])]
+                print_str = ['               %s %s    %5s   (%5s / %-5s)   %5.3f +/- %5.3f %s' % (xtrastrs[0], pos_str, fstr(candidate_ratios[pos]),
+                                                                                                  fstr(residfo[pos]['zero_icpt_resid']), fstr(residfo[pos]['big_icpt_resid']),
+                                                                                                  residfo[pos]['fixed_y_icpt'], residfo[pos]['fixed_y_icpt_err'],
+                                                                                                  xtrastrs[1])]
                 print_str += '    '
                 for n_mutes in range(1, self.n_max_mutations_per_segment + 1):
                     if n_mutes in subxyvals[pos]['n_mutelist']:
@@ -279,6 +257,14 @@ class AlleleFinder(object):
                     else:
                         print_str.append('           ')
                 print ''.join(print_str)
+
+        if len(candidates) < istart:
+            if debug:
+                print '      not enough candidates (%d < %d)' % (len(candidates), istart)
+            return
+
+        fitfo['min_snp_ratios'][istart] = min(candidate_ratios.values())
+        fitfo['candidates'][istart] = candidate_ratios
 
     # ----------------------------------------------------------------------------------------
     def add_new_allele(self, gene, fitfo, n_candidate_snps, debug=False):
@@ -374,14 +360,11 @@ class AlleleFinder(object):
 
                 self.fit_istart(gene, istart, positions_to_try_to_fit, fitfo, debug=debug)
 
-                if istart not in fitfo['candidates']:  # if it didn't get filled, we didn't have enough observations to do the fit
-                    break
-
             istart_candidates = []
             if debug:
                 print '  evaluating each snp hypothesis'
                 print '    snps       min ratio'
-            for istart in fitfo['candidates']:
+            for istart in fitfo['candidates']:  # not all <istart>s get added to fitfo
                 if debug:
                     print '    %2d     %9s' % (istart, fstr(fitfo['min_snp_ratios'][istart])),
                 if self.is_a_candidate(gene, fitfo, istart, debug=debug):
