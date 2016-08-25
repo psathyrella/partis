@@ -899,7 +899,8 @@ def make_allele_finding_plot(plotdir, gene, position, values):
     # ax.plot([0] + values['n_mutelist'], linevals)
 
     ax.plot([xmin, xmax], [0, 0], linestyle='dashed', alpha=0.5, color='black')
-    mpl_finish(ax, plotdir, str(position), xlabel='mutations in %s segment' % utils.get_region(gene), ylabel='position\'s mut freq', xbounds=(xmin, xmax), ybounds=(-0.1, 1.05), leg_loc=(0.95, 0.1), adjust={'right' : 0.85})
+    ymax = max(values['freqs']) + max(values['errs'])
+    mpl_finish(ax, plotdir, str(position), xlabel='mutations in %s segment' % utils.get_region(gene), ylabel='position\'s mut freq', xbounds=(xmin, xmax), ybounds=(-0.01, ymax), leg_loc=(0.95, 0.1), adjust={'right' : 0.85})
 
 # ----------------------------------------------------------------------------------------
 def make_fraction_plot(hright, hwrong, plotdir, plotname, xlabel, ylabel, xbounds, only_csv=False, write_csv=False):

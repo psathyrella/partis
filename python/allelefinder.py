@@ -187,6 +187,16 @@ class AlleleFinder(object):
         return True
 
     # ----------------------------------------------------------------------------------------
+    def approx_x_icpt(self, pvals):
+        # NOTE ignores weights... but that's ok
+        x, y = pvals['n_mutelist'], pvals['freqs']  # tmp shorthand
+        slopes = [(y[i] - y[i-1]) / (x[i] - x[i-1]) for i in range(1, len(x))]  # only uses adjacent points, and double-counts interior points, but we don't care
+        mean_slope = numpy.average(slopes)
+        mean_xval = numpy.average(pvals['n_mutelist'])
+        mean_yval = numpy.average(pvals['freqs'])
+        return mean_yval - mean_slope * mean_xval
+
+    # ----------------------------------------------------------------------------------------
     def fit_istart(self, gene, istart, positions_to_try_to_fit, fitfo, debug=False):
         subxyvals = {pos : {k : v[istart : istart + self.max_fit_length] for k, v in self.xyvals[gene][pos].items()} for pos in positions_to_try_to_fit}
 
@@ -203,6 +213,9 @@ class AlleleFinder(object):
                 continue
 
             if big_y_icpt_bounds[0] == big_y_icpt_bounds[1]:
+                continue
+
+            if self.approx_x_icpt(pvals) < 0.:
                 continue
 
             zero_icpt_fit = self.get_curvefit(pvals['n_mutelist'], pvals['freqs'], pvals['errs'], y_icpt_bounds=(0., 0.))
