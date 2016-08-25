@@ -167,7 +167,6 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def find_new_alleles(self):
         """ look for new alleles with sw, write any that you find to the germline set directory in <self.workdir>, add them to <self.glfo>, and repeat until you don't find any. """
-        print 'NOTE if args.generate_new_alignment is set, only removes original allele if a new allele is found -- it doesn\'t remove other genes (which may be what we want -- they get in effect removed later when we only write yamels for genes that we actually saw)'
         all_new_allele_info = []
         itry = 0
         while True:

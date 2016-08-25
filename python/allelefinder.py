@@ -366,10 +366,10 @@ class AlleleFinder(object):
             if debug and len(not_enough_candidates) > 0:
                 print '      not enough candidates for istarts: %s' % ' '.join([str(i) for i in not_enough_candidates])
 
-            istart_candidates = []
-            if debug:
+            if debug and len(fitfo['candidates']) > 0:
                 print '  evaluating each snp hypothesis'
                 print '    snps       min ratio'
+            istart_candidates = []
             for istart in fitfo['candidates']:  # note that not all <istart>s get added to fitfo
                 if debug:
                     print '    %2d     %9s' % (istart, fstr(fitfo['min_snp_ratios'][istart])),
@@ -377,7 +377,7 @@ class AlleleFinder(object):
                     istart_candidates.append(istart)
 
             if len(istart_candidates) > 0:
-                n_candidate_snps = min(istart_candidates)  # add the candidate with the smallest number of snps to the germline set, and run again (if the firs
+                n_candidate_snps = min(istart_candidates)  # add the candidate with the smallest number of snps to the germline set, and run again
                 gene_results['new_allele'].add(gene)
                 print '\n    found a new allele candidate separated from %s by %d %s at %s:' % (utils.color_gene(gene), n_candidate_snps,
                                                                                                 utils.plural_str('snp', n_candidate_snps), utils.plural_str('position', n_candidate_snps)),

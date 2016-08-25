@@ -242,13 +242,11 @@ parent_parser.add_argument('--only-smith-waterman', action='store_true', help='E
 # print 'TODO switch test.py to other germline dir instead of using --only-genes'
 # print 'TODO make waterer do the same number of iterations regardless of indels or no indels (?)'
 
-# print 'TODO also remove \'also skip positions that only have a few points to fit\' thing'
 # print 'TODO remove (almost?) all the \'if <> in <>\' bullshit (and *not* in) in allelefinder'
 # print 'TODO decide on \'obs\' or \'muted\' as keys'
 # print 'TODO get sw cache reading working with parametercounter, allelefinder, etc.'
 # print 'TODO add requirement for mulitple j genes'
 # print 'TODO add requirement that all positions in multiple-snp alleles are correlated (?)'
-# print 'TODO remove note in partitiondriver find_new_alleles()'
 # print 'TODO maybe do all the plots separately for each potential original snp base?'
 # print 'TODO when you go to get the imgt name for a new allele, don't forget to take into account that you're ignoring the rightmost few bases'
 # print 'TODO increase n_max_snps'
@@ -268,7 +266,7 @@ subconfig = {
 
 subargs = {subname : [] for subname in subconfig}
 
-subargs['cache-parameters'].append({'name' : '--generate-germline-set', 'kwargs' : {'action' : 'store_true', 'help' : 'still under development: starting from a minimal germline set, dynamically generate the germline set for this data.'}})
+subargs['cache-parameters'].append({'name' : '--generate-germline-set', 'kwargs' : {'action' : 'store_true', 'help' : 'First removes from the germline set all alleles that we can\'t be very sure are really there, then runs new-allele finding both to find new alleles and to re-add any removed alleles for which there is good evidence.'}})
 subargs['cache-parameters'].append({'name' : '--find-new-alleles', 'kwargs' : {'action' : 'store_true', 'help' : 'look for new alleles which are separated only by snps from existing alleles, add them to the existing germline set, and write it all to --parameter-dir.'}})
 subargs['cache-parameters'].append({'name' : '--new-allele-fname', 'kwargs' : {'help' : 'fasta fname to which to write any new alleles (they are also written, with existing alleles, to --parameter-dir)'}})
 subargs['cache-parameters'].append({'name' : '--debug-new-allele-finding', 'kwargs' : {'action' : 'store_true', 'help' : 'print lots of debug info on new allele fits'}})
