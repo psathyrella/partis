@@ -205,6 +205,7 @@ class Waterer(object):
         # ----------------------------------------------------------------------------------------
         def get_cmd_str(iproc):
             return self.get_ig_sw_cmd_str(self.subworkdir(iproc, n_procs), base_infname, base_outfname, n_procs)
+            # return self.get_vdjalign_cmd_str(self.subworkdir(iproc, n_procs), base_infname, base_outfname, n_procs)
 
         # start all procs for the first time
         procs, n_tries = [], []
@@ -260,6 +261,26 @@ class Waterer(object):
         not_written = self.remaining_queries - written_queries
         if len(not_written) > 0:
             raise Exception('didn\'t write %s to %s' % (':'.join(not_written), self.args.workdir))
+
+    # ----------------------------------------------------------------------------------------
+    def get_vdjalign_cmd_str(self, workdir, base_infname, base_outfname, n_procs=None):
+        """
+        Run smith-waterman alignment (from Connor's ighutils package) on the seqs in <base_infname>, and toss all the top matches into <base_outfname>.
+        """
+        # large gap-opening penalty: we want *no* gaps in the middle of the alignments
+        # match score larger than (negative) mismatch score: we want to *encourage* some level of shm. If they're equal, we tend to end up with short unmutated alignments, which screws everything up
+        cmd_str = os.getenv('HOME') + '/.local/bin/vdjalign align-fastq -q'
+        if self.args.slurm or utils.auto_slurm(n_procs):
+            cmd_str = 'srun ' + cmd_str
+        cmd_str += ' --locus ' + 'IG' + self.args.chain.upper()
+        cmd_str += ' --max-drop 50'
+        match, mismatch = self.match_mismatch
+        cmd_str += ' --match ' + str(match) + ' --mismatch ' + str(mismatch)
+        cmd_str += ' --gap-open ' + str(self.gap_open_penalty)
+        cmd_str += ' --vdj-dir ' + self.my_gldir + '/' + self.args.chain
+        cmd_str += ' --samtools-dir ' + self.args.partis_dir + '/packages/samtools'
+        cmd_str += ' ' + workdir + '/' + base_infname + ' ' + workdir + '/' + base_outfname
+        return cmd_str
 
     # ----------------------------------------------------------------------------------------
     def get_ig_sw_cmd_str(self, workdir, base_infname, base_outfname, n_procs=None):
