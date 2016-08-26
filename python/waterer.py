@@ -108,76 +108,61 @@ class Waterer(object):
             for line in reader:
                 utils.process_input_line(line)
                 assert len(line['unique_ids']) == 1
-                qname = line['unique_ids'][0]
-                self.info['queries'].append(qname)
-                self.info[qname] = line
-                assert len(line['indelfos']) == 1
-                if line['indelfos'][0]['reversed_seq'] != '':
-                    self.info['indels'][qname] = line['indelfos'][0]
-                for region in utils.regions:  # add this query's matches into the overall gene match sets
-                    self.info['all_best_matches'].add(line[region + '_gene'])
-                    self.info['all_matches'][region] |= set(self.info[qname]['all_matches'][region])
-
                 for region in utils.regions:  # uh... should do this more cleanly at some point
                     del line[region + '_per_gene_support']
+                hackline = self.get_hack_line(line)  # deals with padding
+                self.add_to_info(hackline)
+                if line['indelfos'][0]['reversed_seq'] != '':
+                    self.info['indels'][line['unique_ids'][0]] = line['indelfos'][0]
 
-                if self.perfplotter is not None:
-                    hackline = self.get_hack_line(self.info[qname])
-                    if qname in self.info['indels']:
-                        print '    skipping performance evaluation of %s because of indels' % qname  # I just have no idea how to handle naive hamming fraction when there's indels
-                    else:
-                        self.perfplotter.evaluate(self.reco_info[qname], hackline)
-
-                if self.alfinder is not None:
-                    hackline = self.get_hack_line(self.info[qname])
-                    self.alfinder.increment(hackline)
-
-        # TODO combine incrementation and finalization when reading cache file and when actually running
-
-        # if self.perfplotter is not None:
-        #     self.perfplotter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
-
-        # if self.alfinder is not None:  # TODO it doesn't really make sense to have this here, since most of the time you don't really want to do allele finding here
-        #     self.alfinder.finalize(debug=self.args.debug_allele_finding)
-        #     self.info['new-alleles'] = self.alfinder.new_allele_info
-        #     if self.args.plotdir is not None:
-        #         self.alfinder.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
+        self.finalize(cachefname=None, just_read_cachefile=True)
 
     # ----------------------------------------------------------------------------------------
-    def finalize(self, cachefname):
+    def finalize(self, cachefname=None, just_read_cachefile=False):
+        print '      info for %d' % len(self.info['queries']),
+
+        if not just_read_cachefile:
+            skipped_unproductive = len(self.unproductive_queries)
+            n_remaining = len(self.remaining_queries)
+            if skipped_unproductive > 0 or n_remaining > 0:
+                print '     (skipped',
+                print '%d / %d = %.2f unproductive' % (skipped_unproductive, len(self.input_info), float(skipped_unproductive) / len(self.input_info)),
+                if n_remaining > 0:
+                    print '   %d / %d = %.2f other' % (n_remaining, len(self.input_info), float(n_remaining) / len(self.input_info)),
+                print ')',
+            print ''
+            if n_remaining > 0:
+                printstr = '   %s %d missing %s' % (utils.color('red', 'warning'), n_remaining, utils.plural_str('annotation', n_remaining))
+                if n_remaining < 15:
+                    printstr += ' (' + ' '.join(self.remaining_queries) + ')'
+                print printstr
+            if self.debug and len(self.info['indels']) > 0:
+                print '      indels: %s' % ':'.join(self.info['indels'].keys())
+            assert len(self.info['queries']) + skipped_unproductive + n_remaining == len(self.input_info)
+            if self.debug and not self.args.is_data and n_remaining > 0:
+                print 'true annotations for remaining events:'
+                for qry in self.remaining_queries:
+                    utils.print_reco_event(self.glfo['seqs'], self.reco_info[qry], extra_str='      ', label='true:')
+
         if self.perfplotter is not None:
             self.perfplotter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
-        print '      info for %d' % len(self.info['queries']),
-        skipped_unproductive = len(self.unproductive_queries)
-        n_remaining = len(self.remaining_queries)
-        if skipped_unproductive > 0 or n_remaining > 0:
-            print '     (skipped',
-            print '%d / %d = %.2f unproductive' % (skipped_unproductive, len(self.input_info), float(skipped_unproductive) / len(self.input_info)),
-            if n_remaining > 0:
-                print '   %d / %d = %.2f other' % (n_remaining, len(self.input_info), float(n_remaining) / len(self.input_info)),
-            print ')',
-        print ''
-        sys.stdout.flush()
-        if n_remaining > 0:
-            printstr = '   %s %d missing %s' % (utils.color('red', 'warning'), n_remaining, utils.plural_str('annotation', n_remaining))
-            if n_remaining < 15:
-                printstr += ' (' + ' '.join(self.remaining_queries) + ')'
-            print printstr
-        if self.debug and len(self.info['indels']) > 0:
-            print '      indels: %s' % ':'.join(self.info['indels'].keys())
-        assert len(self.info['queries']) + skipped_unproductive + n_remaining == len(self.input_info)
-        if self.debug and not self.args.is_data and n_remaining > 0:
-            print 'true annotations for remaining events:'
-            for qry in self.remaining_queries:
-                utils.print_reco_event(self.glfo['seqs'], self.reco_info[qry], extra_str='      ', label='true:')
+
+        if self.alremover is not None:
+            assert self.pcounter is not None
+            self.alremover.finalize(self.pcounter, self.info)
+            self.info['genes-to-remove'] = self.alremover.genes_to_remove
+            if len(self.info['genes-to-remove']) > 0:
+                print '    not writing sw cache file, since we have alleles to remove'
+                cachefname = None
+
         if self.alfinder is not None:
             self.alfinder.finalize(debug=self.args.debug_allele_finding)
             self.info['new-alleles'] = self.alfinder.new_allele_info
-            if len(self.info['new-alleles']) > 0:
-                print '    not writing sw cache file, since we have new alleles'
-                cachefname = None
             if self.args.plotdir is not None:
                 self.alfinder.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
+            if len(self.info['new-alleles']) > 0:
+                print '    not writing sw cache file, since we found new alleles'
+                cachefname = None
 
         # add padded info to self.info (returns if stuff has already been padded)
         self.pad_seqs_to_same_length()  # NOTE this uses *all the gene matches (not just the best ones), so it has to come before we call pcounter.write(), since that fcn rewrites the germlines removing genes that weren't best matches. But NOTE also that I'm not sure what but that the padding actually *needs* all matches (rather than just all *best* matches)
@@ -192,14 +177,6 @@ class Waterer(object):
                 if self.true_pcounter is not None:
                     self.true_pcounter.write(self.parameter_out_dir + '-true')
 
-        if self.alremover is not None:
-            assert self.pcounter is not None
-            self.alremover.finalize(self.pcounter, self.info)
-            self.info['genes-to-remove'] = self.alremover.genes_to_remove
-            if len(self.info['genes-to-remove']) > 0:
-                print '    not writing sw cache file, since we have alleles to remove'
-                cachefname = None
-
         self.info['remaining_queries'] = self.remaining_queries
 
         if cachefname is not None:  # NOTE this can be set to None by <self.alremover>
@@ -213,6 +190,8 @@ class Waterer(object):
                     outline = utils.get_line_for_output(self.info[query])  # convert lists to colon-separated strings and whatnot (doens't modify input dictionary)
                     outline = {k : v for k, v in outline.items() if k in utils.annotation_headers + utils.sw_cache_headers}  # remove the columns we don't want to output
                     writer.writerow(outline)
+
+        sys.stdout.flush()
 
     # ----------------------------------------------------------------------------------------
     def subworkdir(self, iproc, n_procs):
@@ -620,9 +599,6 @@ class Waterer(object):
         infoline['k_v'] = kbounds['v']
         infoline['k_d'] = kbounds['d']
 
-        infoline['cdr3_length'] = codon_positions['j'] - codon_positions['v'] + 3
-        infoline['codon_positions'] = copy.deepcopy(codon_positions)
-
         # erosion, insertion, mutation info for best match
         infoline['v_5p_del'] = qinfo['glbounds'][best['v']][0]
         infoline['v_3p_del'] = len(self.glfo['seqs']['v'][best['v']]) - qinfo['glbounds'][best['v']][1]  # len(germline v) - gl_match_end
@@ -642,6 +618,10 @@ class Waterer(object):
         for region in utils.regions:
             infoline[region + '_gene'] = best[region]
 
+        infoline['cdr3_length'] = codon_positions['j'] - codon_positions['v'] + 3
+        infoline['codon_positions'] = copy.deepcopy(codon_positions)
+        utils.add_implicit_info(self.glfo, infoline, existing_implicit_keys=('cdr3_length', 'codon_positions'))
+
         return infoline
 
     # ----------------------------------------------------------------------------------------
@@ -656,8 +636,6 @@ class Waterer(object):
         for region in utils.regions:
             self.info['all_best_matches'].add(self.info[qname][region + '_gene'])
             self.info['all_matches'][region] |= set(self.info[qname]['all_matches'][region])
-
-        utils.add_implicit_info(self.glfo, self.info[qname], existing_implicit_keys=('cdr3_length', 'codon_positions'))
 
         if self.debug:
             if not self.args.is_data:
