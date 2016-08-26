@@ -428,8 +428,9 @@ class AlleleFinder(object):
                     print '    %2d     %9s' % (istart, fstr(fitfo['min_snp_ratios'][istart])),
                 if self.is_a_candidate(gene, fitfo, istart, debug=debug):
                     if debug and len(istart_candidates) == 0:
-                        print '   %s' % utils.color('yellow', '(best)')
+                        print '   %s' % utils.color('yellow', '(best)'),
                     istart_candidates.append(istart)
+                print ''
 
             if len(istart_candidates) > 0:
                 n_candidate_snps = min(istart_candidates)  # add the candidate with the smallest number of snps to the germline set, and run again
