@@ -43,12 +43,12 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
     if True:
         simulation_genes = simulation_v_genes + ':' + dj_genes
         sglfo = glutils.read_glfo('data/germlines/human', chain=chain, only_genes=simulation_genes.split(':'), debug=True)
-        snps_to_add = [
-            # {'gene' : 'IGHV1-18*01', 'positions' : (20, 30)},
-            {'gene' : 'IGHV4-59*01', 'positions' : (50, )}
-            # {'gene' : 'IGHV4-59*01', 'positions' : (50, 200)}
-        ]
-        glutils.add_some_snps(snps_to_add, sglfo, remove_template_genes=False, debug=True)
+        # snps_to_add = [
+        #     # {'gene' : 'IGHV1-18*01', 'positions' : (20, 30)},
+        #     {'gene' : 'IGHV4-59*01', 'positions' : (50, )}
+        #     # {'gene' : 'IGHV4-59*01', 'positions' : (50, 200)}
+        # ]
+        # glutils.add_some_snps(snps_to_add, sglfo, remove_template_genes=False, debug=True)
         prevalence_fname = outdir + '/v_gene-probs.csv'  # NOTE there's some infrastructure for coming up with this file name automatically in utils.py
         prevalence_counts = {}
         for g in sglfo['seqs']['v']:
@@ -89,7 +89,7 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
 
 seed = None  # 1
 dj_genes = 'IGHD6-19*01:IGHJ4*02'
-inference_v_genes = 'IGHV4-59*01' #'IGHV1-18*01'
+inference_v_genes = 'IGHV4-59*01:IGHV4-59*07' #'IGHV1-18*01'
 simulation_v_genes = inference_v_genes  # + IGHV1-18*01'
 
 run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=seed)

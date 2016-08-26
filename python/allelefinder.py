@@ -271,15 +271,17 @@ class AlleleFinder(object):
         fitfo['candidates'][istart] = candidate_ratios
 
     # ----------------------------------------------------------------------------------------
-    def add_new_allele(self, gene, fitfo, n_candidate_snps, debug=False):
+    def add_new_allele(self, template_gene, fitfo, n_candidate_snps, debug=False):
+        region = utils.get_region(template_gene)
+        chain = self.glfo['chain']
         # figure out what the new nukes are
-        old_seq = self.glfo['seqs'][utils.get_region(gene)][gene]
+        old_seq = self.glfo['seqs'][region][template_gene]
         new_seq = old_seq
         mutfo = {}
         for pos in sorted(fitfo['candidates'][n_candidate_snps]):
-            obs_counts = {nuke : self.counts[gene][pos][n_candidate_snps][nuke] for nuke in utils.nukes}  # NOTE it's super important to only use the counts from sequences with <n_candidate_snps> total mutations
+            obs_counts = {nuke : self.counts[template_gene][pos][n_candidate_snps][nuke] for nuke in utils.nukes}  # NOTE it's super important to only use the counts from sequences with <n_candidate_snps> total mutations
             sorted_obs_counts = sorted(obs_counts.items(), key=operator.itemgetter(1), reverse=True)
-            original_nuke = self.glfo['seqs'][utils.get_region(gene)][gene][pos]
+            original_nuke = self.glfo['seqs'][region][template_gene][pos]
             new_nuke = None
             for nuke, _ in sorted_obs_counts:  # take the most common one that isn't the existing gl nuke
                 if nuke != original_nuke:
@@ -291,24 +293,40 @@ class AlleleFinder(object):
             new_seq = new_seq[:pos] + new_nuke + new_seq[pos+1:]
         print ''
 
-        new_name, mutfo = glutils.get_new_allele_name_and_change_mutfo(gene, mutfo)
-        if self.default_initial_glfo is not None:  # if this is set, we want to take the names from this directory's glfo
+        new_name, mutfo = glutils.get_new_allele_name_and_change_mutfo(template_gene, mutfo)
+        if self.default_initial_glfo is not None:  # if this is set, we want to take the names from this directory's glfo (i.e. see if there's already a name for <new_name>'s sequence)
+            assert region == 'v'  # conserved codon stuff below will have to be changed for j
             left, right = self.args.new_allele_excluded_bases
-            # see if there's already a name for <new_name>'s sequence
-            # NOTE <oldname_{gene,seq}> is the old *name* corresponding to the new (snp'd) allele, whereas <old_seq> is the allele from which we inferred the new (snp'd) allele
-            for oldname_gene, oldname_seq in self.default_initial_glfo['seqs'][utils.get_region(new_name)].items():
-                if oldname_seq[left : len(oldname_seq) - right] == new_seq[left : len(new_seq) - right]:
-                    print '        using old name %s for new allele %s' % (utils.color_gene(oldname_gene), utils.color_gene(new_name))
-                    new_name = oldname_gene
-                    new_seq = oldname_seq  # in case the excluded positions are different
-                    break
+            newpos = self.glfo[utils.conserved_codons[chain][region] + '-positions'][template_gene]  # codon position for template gene should be ok
+            for oldname_gene, oldname_seq in self.default_initial_glfo['seqs'][region].items():  # NOTE <oldname_{gene,seq}> is the old *name* corresponding to the new (snp'd) allele, whereas <old_seq> is the allele from which we inferred the new (snp'd) allele
+                # first see if they match up through the cysteine
+                oldpos = self.default_initial_glfo[utils.conserved_codons[chain][region] + '-positions'][oldname_gene]
+                if oldname_seq[left : oldpos + 3] != new_seq[left : newpos + 3]:
+                    continue
+                # then require that any bases to the right of the cysteine in the new allele match the ones in the old one, *but* allow extra bases in the old one, since we have no sensitivity to determine that
+                bases_to_right_of_cysteine = len(new_seq) - right - (newpos + 3)
+                if bases_to_right_of_cysteine > 0 and oldname_seq[oldpos + 3 : oldpos + 3 + bases_to_right_of_cysteine] != new_seq[newpos + 3 : newpos + 3 + bases_to_right_of_cysteine]:
+                    continue
 
-        print '          %s   %s' % (old_seq, utils.color_gene(gene))
-        print '          %s   %s' % (utils.color_mutants(old_seq, new_seq), utils.color_gene(new_name))
+                print '        using old name %s for new allele %s' % (utils.color_gene(oldname_gene), utils.color_gene(new_name))
+                new_name = oldname_gene
+                new_seq = oldname_seq  # *very* important
+                break
+
+        print '          %s   %s' % (old_seq, utils.color_gene(template_gene))
+        if len(old_seq) > len(new_seq):
+            raise Exception('might be ok? but probably not')
+        len_str = ''
+        if len(new_seq) > len(old_seq):  # i.e if <old_seq> (the template gene) is shorter than the sequence corresponding to the original name for the new allele that we found from it
+            len_str = utils.color('red', new_seq[len(old_seq):])
+            new_seq_for_cf = new_seq[:len(old_seq)]
+        else:
+            new_seq_for_cf = new_seq
+        print '          %s%s   %s' % (utils.color_mutants(old_seq, new_seq_for_cf), len_str, utils.color_gene(new_name))
 
         # and add it to the set of new alleles for this gene
         self.new_allele_info.append({
-            'template-gene' : gene,
+            'template-gene' : template_gene,
             'gene' : new_name,
             'seq' : new_seq,
             'aligned-seq' : None
