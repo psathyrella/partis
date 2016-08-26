@@ -607,49 +607,57 @@ class Waterer(object):
         qinfo['glbounds'][r_gene] = (qinfo['glbounds'][r_gene][0] + r_portion, qinfo['glbounds'][r_gene][1])
 
     # ----------------------------------------------------------------------------------------
-    def add_to_info(self, qinfo, best, codon_positions):
+    def convert_qinfo(self, qinfo, best, codon_positions):
+        """ convert <qinfo> (which is from reading sam files) to format for <self.info> (this is so add_to_info() can be used by the cache file reader, as well) """
         qname = qinfo['name']
         assert qname not in self.info
 
-        self.info['queries'].append(qname)
-        self.info[qname] = {}
-        self.info[qname]['unique_ids'] = [qname, ]  # redundant, but used somewhere down the line
+        infoline = {}
+        infoline['unique_ids'] = [qname, ]  # redundant, but used somewhere down the line
+        infoline['seqs'] = [qinfo['seq'], ]  # NOTE this is the seq output by vdjalign, i.e. if we reversed any indels it is the reversed sequence, also NOTE many, many things depend on this list being of length one
 
         kbounds = self.get_kbounds(qinfo, best)
-        self.info[qname]['k_v'] = kbounds['v']
-        self.info[qname]['k_d'] = kbounds['d']
+        infoline['k_v'] = kbounds['v']
+        infoline['k_d'] = kbounds['d']
 
-        self.info[qname]['cdr3_length'] = codon_positions['j'] - codon_positions['v'] + 3
-        self.info[qname]['codon_positions'] = copy.deepcopy(codon_positions)
+        infoline['cdr3_length'] = codon_positions['j'] - codon_positions['v'] + 3
+        infoline['codon_positions'] = copy.deepcopy(codon_positions)
 
         # erosion, insertion, mutation info for best match
-        self.info[qname]['v_5p_del'] = qinfo['glbounds'][best['v']][0]
-        self.info[qname]['v_3p_del'] = len(self.glfo['seqs']['v'][best['v']]) - qinfo['glbounds'][best['v']][1]  # len(germline v) - gl_match_end
-        self.info[qname]['d_5p_del'] = qinfo['glbounds'][best['d']][0]
-        self.info[qname]['d_3p_del'] = len(self.glfo['seqs']['d'][best['d']]) - qinfo['glbounds'][best['d']][1]
-        self.info[qname]['j_5p_del'] = qinfo['glbounds'][best['j']][0]
-        self.info[qname]['j_3p_del'] = len(self.glfo['seqs']['j'][best['j']]) - qinfo['glbounds'][best['j']][1]
+        infoline['v_5p_del'] = qinfo['glbounds'][best['v']][0]
+        infoline['v_3p_del'] = len(self.glfo['seqs']['v'][best['v']]) - qinfo['glbounds'][best['v']][1]  # len(germline v) - gl_match_end
+        infoline['d_5p_del'] = qinfo['glbounds'][best['d']][0]
+        infoline['d_3p_del'] = len(self.glfo['seqs']['d'][best['d']]) - qinfo['glbounds'][best['d']][1]
+        infoline['j_5p_del'] = qinfo['glbounds'][best['j']][0]
+        infoline['j_3p_del'] = len(self.glfo['seqs']['j'][best['j']]) - qinfo['glbounds'][best['j']][1]
 
-        self.info[qname]['fv_insertion'] = qinfo['seq'][ : qinfo['qrbounds'][best['v']][0]]
-        self.info[qname]['vd_insertion'] = qinfo['seq'][qinfo['qrbounds'][best['v']][1] : qinfo['qrbounds'][best['d']][0]]
-        self.info[qname]['dj_insertion'] = qinfo['seq'][qinfo['qrbounds'][best['d']][1] : qinfo['qrbounds'][best['j']][0]]
-        self.info[qname]['jf_insertion'] = qinfo['seq'][qinfo['qrbounds'][best['j']][1] : ]
+        infoline['fv_insertion'] = qinfo['seq'][ : qinfo['qrbounds'][best['v']][0]]
+        infoline['vd_insertion'] = qinfo['seq'][qinfo['qrbounds'][best['v']][1] : qinfo['qrbounds'][best['d']][0]]
+        infoline['dj_insertion'] = qinfo['seq'][qinfo['qrbounds'][best['d']][1] : qinfo['qrbounds'][best['j']][0]]
+        infoline['jf_insertion'] = qinfo['seq'][qinfo['qrbounds'][best['j']][1] : ]
 
-        self.info[qname]['indelfos'] = [self.info['indels'].get(qname, utils.get_empty_indel()), ]
+        infoline['indelfos'] = [self.info['indels'].get(qname, utils.get_empty_indel()), ]
 
-        self.info[qname]['all_matches'] = {r : [g for _, g in qinfo['matches'][r]] for r in utils.regions}  # get lists with no scores, just the names (still ordered by match quality, though)
+        infoline['all_matches'] = {r : [g for _, g in qinfo['matches'][r]] for r in utils.regions}  # get lists with no scores, just the names (still ordered by match quality, though)
         for region in utils.regions:
-            self.info[qname][region + '_gene'] = best[region]
+            infoline[region + '_gene'] = best[region]
+
+        return infoline
+
+    # ----------------------------------------------------------------------------------------
+    def add_to_info(self, infoline):
+        assert len(infoline['unique_ids'])
+        qname = infoline['unique_ids'][0]
+
+        self.info['queries'].append(qname)
+        self.info[qname] = infoline
 
         # add this query's matches into the overall gene match sets
         for region in utils.regions:
-            self.info['all_best_matches'].add(best[region])
+            self.info['all_best_matches'].add(self.info[qname][region + '_gene'])
             self.info['all_matches'][region] |= set(self.info[qname]['all_matches'][region])
 
-        self.info[qname]['seqs'] = [qinfo['seq'], ]  # NOTE this is the seq output by vdjalign, i.e. if we reversed any indels it is the reversed sequence, also NOTE many, many things depend on this list being of length one
-
-        existing_implicit_keys = tuple(['cdr3_length', 'codon_positions'])
-        utils.add_implicit_info(self.glfo, self.info[qname], existing_implicit_keys=existing_implicit_keys)
+        utils.add_implicit_info(self.glfo, self.info[qname], existing_implicit_keys=('cdr3_length', 'codon_positions'))
 
         if self.debug:
             if not self.args.is_data:
@@ -773,7 +781,8 @@ class Waterer(object):
             else:
                 pass  # this is here so you don't forget that if neither of the above is true, we fall through and add the query to self.info
 
-        self.add_to_info(qinfo, best, codon_positions)
+        infoline = self.convert_qinfo(qinfo, best, codon_positions)
+        self.add_to_info(infoline)
 
     # ----------------------------------------------------------------------------------------
     def get_kbounds(self, qinfo, best):
