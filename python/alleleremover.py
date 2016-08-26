@@ -71,15 +71,19 @@ class AlleleRemover(object):
 
     # ----------------------------------------------------------------------------------------
     def keep_this_gene(self, gene, pcounter, easycounts, debug=False):
-        glseqs = self.glfo['seqs'][utils.get_region(gene)]
-        # meanfreq = pcounter.mfreqer.mean_rates[utils.get_region(gene)].get_mean()
+        region = utils.get_region(gene)
+        assert region == 'v'  # conserved codon stuff below will have to be changed for j
+        glseqs = self.glfo['seqs'][region]
+        codon_positions = self.glfo[utils.conserved_codons[self.glfo['chain']][region] + '-positions']
+        this_seq = glseqs[gene][:codon_positions[gene] + 3]  # only compare up to the conserved cysteine
 
         # don't keep it if it's pretty close to a gene we already have
         nearest_gene, nearest_hdist = None, None
         for kgene in self.genes_to_keep:
-            if len(glseqs[kgene]) != len(glseqs[gene]):
+            kseq = glseqs[kgene][:codon_positions[kgene] + 3]
+            if len(kseq) != len(this_seq):
                 continue
-            hdist = utils.hamming_distance(glseqs[kgene], glseqs[gene])
+            hdist = utils.hamming_distance(kseq, this_seq)
             if nearest_hdist is None or hdist < nearest_hdist:
                 nearest_hdist = hdist
                 nearest_gene = kgene

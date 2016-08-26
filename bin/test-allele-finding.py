@@ -76,9 +76,9 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
     # generate germline set and cache parameters
     cmd_str = base_cmd + ' cache-parameters --infname ' + simfname + ' --n-procs 10 --only-smith-waterman'
     cmd_str += ' --find-new-alleles --new-allele-fname ' + outdir + '/new-alleles.fa'
-    # cmd_str += ' --generate-germline-set'
-    cmd_str += '  --debug-allele-finding'
-    cmd_str += ' --initial-germline-dir ' + outdir + '/germlines/inference'
+    cmd_str += ' --generate-germline-set'
+    cmd_str += ' --debug-allele-finding'
+    # cmd_str += ' --initial-germline-dir ' + outdir + '/germlines/inference'
     cmd_str += ' --parameter-dir ' + outpdir
     # cmd_str += ' --plotdir ' + plotdir
     if seed is not None:
