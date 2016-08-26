@@ -399,7 +399,7 @@ class AlleleFinder(object):
                 print '  found %d new %s: %s' % (len(self.new_allele_info), utils.plural_str('allele', len(self.new_allele_info)), ' '.join([utils.color_gene(nfo['gene']) for nfo in self.new_allele_info]))
             else:
                 print '    no new alleles'
-            print '  allele finding time (%d fits): %.1f' % (self.n_fits, time.time()-start)
+            print '  allele finding: %d fits in %.1f sec' % (self.n_fits, time.time()-start)
 
         self.finalized = True
 
@@ -412,7 +412,8 @@ class AlleleFinder(object):
         if self.itry is not None:
             plotdir = plotdir + '/try-' + str(self.itry)
 
-        print '    plotting'
+        print '    plotting allele finding',
+        sys.stdout.flush()
 
         for old_gene_dir in glob.glob(plotdir + '/*'):  # has to be a bit more hackey than elsewhere, since we have no way of knowing what genes might have had their own directories written last time we wrote to this dir
             if not os.path.isdir(old_gene_dir):
@@ -422,7 +423,7 @@ class AlleleFinder(object):
         utils.prep_dir(plotdir, wildlings=('*.csv', '*.svg'))
 
         if only_csv:  # not implemented
-            print '    only_csv not yet implemented in allelefinder'
+            print '    <only_csv> not yet implemented in allelefinder'
             return
 
         start = time.time()
@@ -431,4 +432,4 @@ class AlleleFinder(object):
                 plotting.make_allele_finding_plot(plotdir + '/' + utils.sanitize_name(gene), gene, position, self.xyvals[gene][position])
 
         check_call(['./bin/permissify-www', plotdir])
-        print '      allele finding plot time: %.1f' % (time.time()-start)
+        print '(%.1f sec)' % (time.time()-start)

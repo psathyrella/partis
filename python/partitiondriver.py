@@ -156,7 +156,11 @@ class PartitionDriver(object):
                 print '  %s %d genes in glfo that don\'t have yamels in %s' % (utils.color('red', 'warning'), len(expected_genes - genes_with_hmms), self.sub_param_dir)
 
         parameter_out_dir = self.sw_param_dir if write_parameters else None
-        waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo, count_parameters=(remove_less_likely_alleles or parameter_out_dir is not None), parameter_out_dir=parameter_out_dir, remove_less_likely_alleles=remove_less_likely_alleles, find_new_alleles=find_new_alleles, simglfo=self.simglfo, itry=itry)
+        waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo,
+                          count_parameters=(remove_less_likely_alleles or parameter_out_dir is not None),
+                          parameter_out_dir=parameter_out_dir, remove_less_likely_alleles=remove_less_likely_alleles, find_new_alleles=find_new_alleles,
+                          plot_performance=(self.args.plot_performance and not remove_less_likely_alleles and not find_new_alleles),
+                          simglfo=self.simglfo, itry=itry)
         cachefname = self.get_cachefname(write_parameters, find_new_alleles)
         if cachefname is None or not os.path.exists(cachefname):  # run sw if we either don't want to do any caching (None) or if we are planning on writing the results after we run
             waterer.run(cachefname)

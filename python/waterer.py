@@ -22,7 +22,7 @@ from alleleremover import AlleleRemover
 # ----------------------------------------------------------------------------------------
 class Waterer(object):
     """ Run smith-waterman on the query sequences in <infname> """
-    def __init__(self, args, input_info, reco_info, glfo, count_parameters=False, parameter_out_dir=None, remove_less_likely_alleles=False, find_new_alleles=False, simglfo=None, itry=None):
+    def __init__(self, args, input_info, reco_info, glfo, count_parameters=False, parameter_out_dir=None, remove_less_likely_alleles=False, find_new_alleles=False, plot_performance=False, simglfo=None, itry=None):
         self.args = args
         self.input_info = input_info
         self.reco_info = reco_info
@@ -60,7 +60,7 @@ class Waterer(object):
             self.pcounter = ParameterCounter(self.glfo, self.args)
             if not self.args.is_data:
                 self.true_pcounter = ParameterCounter(self.simglfo, self.args)
-        if self.args.plot_performance:
+        if plot_performance:  # NOTE *not* the same as <self.args.plot_performance>
             self.perfplotter = PerformancePlotter('sw')
 
         if not os.path.exists(self.args.ig_sw_binary):
@@ -144,42 +144,39 @@ class Waterer(object):
                 for qry in self.remaining_queries:
                     utils.print_reco_event(self.glfo['seqs'], self.reco_info[qry], extra_str='      ', label='true:')
 
-        if self.perfplotter is not None:
-            self.perfplotter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
+        self.info['remaining_queries'] = self.remaining_queries
 
+        found_germline_changes = False
         if self.alremover is not None:
-            assert self.pcounter is not None
             self.alremover.finalize(self.pcounter, self.info)
             self.info['genes-to-remove'] = self.alremover.genes_to_remove
             if len(self.info['genes-to-remove']) > 0:
-                print '    not writing sw cache file, since we have alleles to remove'
-                cachefname = None
-
+                found_germline_changes = True
         if self.alfinder is not None:
             self.alfinder.finalize(debug=self.args.debug_allele_finding)
             self.info['new-alleles'] = self.alfinder.new_allele_info
             if self.args.plotdir is not None:
                 self.alfinder.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
             if len(self.info['new-alleles']) > 0:
-                print '    not writing sw cache file, since we found new alleles'
-                cachefname = None
+                found_germline_changes = True
 
         # add padded info to self.info (returns if stuff has already been padded)
         self.pad_seqs_to_same_length()  # NOTE this uses *all the gene matches (not just the best ones), so it has to come before we call pcounter.write(), since that fcn rewrites the germlines removing genes that weren't best matches. But NOTE also that I'm not sure what but that the padding actually *needs* all matches (rather than just all *best* matches)
 
+        if self.perfplotter is not None:
+            self.perfplotter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
+
         if self.pcounter is not None:
-            if self.args.plotdir is not None:
+            if self.args.plotdir is not None and not found_germline_changes:
                 self.pcounter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
                 if self.true_pcounter is not None:
                     self.true_pcounter.plot(self.args.plotdir + '/sw-true', only_csv=self.args.only_csv_plots)
-            if self.parameter_out_dir is not None:
+            if self.parameter_out_dir is not None and not found_germline_changes:
                 self.pcounter.write(self.parameter_out_dir)
                 if self.true_pcounter is not None:
                     self.true_pcounter.write(self.parameter_out_dir + '-true')
 
-        self.info['remaining_queries'] = self.remaining_queries
-
-        if cachefname is not None:  # NOTE this can be set to None by <self.alremover>
+        if cachefname is not None and not found_germline_changes:  # NOTE this can be set to None by <self.alremover>
             print '        writing sw results to %s' % cachefname
             with open(cachefname, 'w') as outfile:
                 writer = csv.DictWriter(outfile, utils.annotation_headers + utils.sw_cache_headers)
