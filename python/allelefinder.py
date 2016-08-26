@@ -176,17 +176,17 @@ class AlleleFinder(object):
     def is_a_candidate(self, gene, fitfo, istart, debug=False):
         if fitfo['min_snp_ratios'][istart] < self.min_min_candidate_ratio:  # worst snp candidate has to be pretty good on its own
             if debug:
-                print '    min snp ratio %s too small (less than %s)' % (fstr(fitfo['min_snp_ratios'][istart]), fstr(self.min_min_candidate_ratio))
+                print '    min snp ratio %s too small (less than %s)' % (fstr(fitfo['min_snp_ratios'][istart]), fstr(self.min_min_candidate_ratio)),
             return False
         for candidate_pos in fitfo['candidates'][istart]:  # return false if any of the candidate positions don't have enough counts with <istart> mutations (probably a homozygous new allele with more than <istart> snps) UPDATE did I mean heterozygous?
             n_istart_muted = self.counts[gene][candidate_pos][istart]['muted']
             if n_istart_muted < self.n_muted_min_per_bin:
                 if debug:
-                    print '    not enough mutated counts at candidate position %d with %d %s (%s < %s)' % (candidate_pos, istart, utils.plural_str('mutations', n_istart_muted), fstr(n_istart_muted), fstr(self.n_muted_min_per_bin))
+                    print '    not enough mutated counts at candidate position %d with %d %s (%s < %s)' % (candidate_pos, istart, utils.plural_str('mutations', n_istart_muted), fstr(n_istart_muted), fstr(self.n_muted_min_per_bin)),
                 return False
 
         if debug:
-            print '    candidate'
+            print '    candidate',
         return True
 
     # ----------------------------------------------------------------------------------------
@@ -324,7 +324,6 @@ class AlleleFinder(object):
             assert old_seq[pos] == original_nuke
             mutfo[pos] = {'original' : original_nuke, 'new' : new_nuke}
             new_seq = new_seq[:pos] + new_nuke + new_seq[pos+1:]
-        print ''
 
         new_name, mutfo = glutils.get_new_allele_name_and_change_mutfo(template_gene, mutfo)
 
@@ -428,6 +427,8 @@ class AlleleFinder(object):
                 if debug:
                     print '    %2d     %9s' % (istart, fstr(fitfo['min_snp_ratios'][istart])),
                 if self.is_a_candidate(gene, fitfo, istart, debug=debug):
+                    if debug and len(istart_candidates) == 0:
+                        print '   %s' % utils.color('yellow', '(best)')
                     istart_candidates.append(istart)
 
             if len(istart_candidates) > 0:
