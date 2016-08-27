@@ -54,6 +54,7 @@ class Recombinator(object):
 
         self.allowed_genes = self.get_allowed_genes(parameter_dir)  # set of genes a) for which we read per-position mutation information and b) from which we choose when running partially from scratch
         self.version_freq_table = self.read_vdj_version_freqs(parameter_dir)  # list of the probabilities with which each VDJ combo (plus other rearrangement parameters) appears in data
+        self.allele_prevalence_freqs = {}
         if self.args.simulate_partially_from_scratch and self.args.allele_prevalence_fnames is not None:
             self.read_allele_prevalence()
         self.insertion_content_probs = self.read_insertion_content(parameter_dir)
