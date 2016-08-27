@@ -190,13 +190,15 @@ class AlleleFinder(object):
         return True
 
     # ----------------------------------------------------------------------------------------
-    def approx_x_icpt(self, pvals):
+    def approx_x_icpt(self, pvals, debug=False):
         # NOTE ignores weights... but that's ok
         x, y = pvals['n_mutelist'], pvals['freqs']  # tmp shorthand
         slopes = [(y[i] - y[i-1]) / (x[i] - x[i-1]) for i in range(1, len(x))]  # only uses adjacent points, and double-counts interior points, but we don't care
         mean_slope = numpy.average(slopes)
         mean_xval = numpy.average(pvals['n_mutelist'])
         mean_yval = numpy.average(pvals['freqs'])
+        if debug:
+            print ' %.3f - %.3f * %.3f = %.3f' % (mean_yval, mean_slope, mean_xval, mean_yval - mean_slope * mean_xval)
         return mean_yval - mean_slope * mean_xval
 
     # ----------------------------------------------------------------------------------------
