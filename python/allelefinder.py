@@ -33,9 +33,8 @@ class AlleleFinder(object):
         self.itry = itry
 
         self.n_max_snps = 10  # max number of snps, i.e. try excluding up to this many bins on the left
-        self.n_max_mutations_per_segment = 20  # don't look at sequences whose v segments have more than this many mutations
-        self.min_fit_length = 5  # don't both fitting an <istart> (i.e. snp hypothesis) if it doesn't have at least this many bins
-        self.max_fit_length = 10  # don't fit more than this many bins for each <istart> (the first few positions in the fit are the most important, and if we fit too far to the right these important positions get diluted)
+        self.n_max_mutations_per_segment = 30  # don't look at sequences whose v segments have more than this many mutations
+        self.max_fit_length = 20  # don't fit more than this many bins for each <istart> (the first few positions in the fit are the most important, and if we fit too far to the right these important positions get diluted) UPDATE I'm no longer so sure that I shouldn't fit the whole shebang 
 
         self.n_muted_min = 10  # don't fit positions that have fewer total mutations than this (i.e. summed over bins)
         self.n_total_min = 50  # ...or fewer total observations than this
@@ -147,10 +146,7 @@ class AlleleFinder(object):
             'slope_err'  : slope_err,
             'y_icpt_err' : y_icpt_err,
             'residuals_over_ndof' : float(residual_sum) / ndof,
-            'print_str' : '    %9.3f +/- %-9.3f   %7.4f +/- %7.4f    %7.4f' % (y_icpt, y_icpt_err, slope, slope_err, float(residual_sum) / ndof),
-            'n_mutelist' : n_mutelist,
-            'freqs' : freqs,
-            'errs' : errs
+            'y_icpt_bounds' : y_icpt_bounds
         }
         self.n_fits += 1
         return fitfo
@@ -230,31 +226,24 @@ class AlleleFinder(object):
             big_icpt_fit = self.get_curvefit(pvals['n_mutelist'], pvals['freqs'], pvals['errs'], y_icpt_bounds=big_y_icpt_bounds)
 
             candidate_ratios[pos] = zero_icpt_fit['residuals_over_ndof'] / big_icpt_fit['residuals_over_ndof'] if big_icpt_fit['residuals_over_ndof'] > 0. else float('inf')
-
-            residfo[pos] = {'zero_icpt_resid' : zero_icpt_fit['residuals_over_ndof'],
-                            'big_icpt_resid' :  big_icpt_fit['residuals_over_ndof'],
-                            'fixed_y_icpt' : big_y_icpt,
-                            'fixed_y_icpt_err' : big_y_icpt_err}
-
-            if residfo[pos]['zero_icpt_resid'] / residfo[pos]['big_icpt_resid'] > self.min_min_candidate_ratio_to_plot:
+            residfo[pos] = {'zerofo' : zero_icpt_fit, 'bigfo' : big_icpt_fit}
+            if candidate_ratios[pos] > self.min_min_candidate_ratio_to_plot:
                 self.positions_to_plot[gene].add(pos)  # if we already decided to plot it for another <istart>, it'll already be in there
 
         candidates = [pos for pos, _ in sorted(candidate_ratios.items(), key=operator.itemgetter(1), reverse=True)]  # sort the candidate positions in decreasing order of residual ratio
-        candidates = candidates[:istart]  # remove any extra ones (if we have more than we need)
+        candidates = candidates[:istart]  # remove any extra ones
         candidate_ratios = {pos : ratio for pos, ratio in candidate_ratios.items() if pos in candidates}
 
         if debug:
             if len(candidates) > 0:
                 print '    %d %s' % (istart, utils.plural_str('snp', istart))
             for pos in candidates:
-                xtrastrs = (' ', ' ')  #('[', ']') if XXX else (' ', ' ')
                 pos_str = '%3s' % str(pos)
-                if candidate_ratios[pos] > self.min_min_candidate_ratio and residfo[pos]['zero_icpt_resid'] > self.min_zero_icpt_residual:
+                if candidate_ratios[pos] > self.min_min_candidate_ratio and residfo[pos]['zerofo']['residuals_over_ndof'] > self.min_zero_icpt_residual:
                     pos_str = utils.color('yellow', pos_str)
-                print_str = ['               %s %s    %5s   (%5s / %-5s)   %5.3f +/- %5.3f %s' % (xtrastrs[0], pos_str, fstr(candidate_ratios[pos]),
-                                                                                                  fstr(residfo[pos]['zero_icpt_resid']), fstr(residfo[pos]['big_icpt_resid']),
-                                                                                                  residfo[pos]['fixed_y_icpt'], residfo[pos]['fixed_y_icpt_err'],
-                                                                                                  xtrastrs[1])]
+                print_str = ['                 %s    %5s    %5s / %-5s   [%5.3f - %5.3f]' % (pos_str, fstr(candidate_ratios[pos]),
+                                                                                             fstr(residfo[pos]['zerofo']['residuals_over_ndof']), fstr(residfo[pos]['bigfo']['residuals_over_ndof']),
+                                                                                             residfo[pos]['bigfo']['y_icpt_bounds'][0], residfo[pos]['bigfo']['y_icpt_bounds'][1])]
                 print_str += '    '
                 for n_mutes in range(1, self.n_max_mutations_per_segment + 1):
                     if n_mutes in subxyvals[pos]['n_mutelist']:
@@ -265,8 +254,6 @@ class AlleleFinder(object):
                 print ''.join(print_str)
 
         if len(candidates) < istart:
-            # if debug:
-            #     print '      not enough candidates (%d < %d)' % (len(candidates), istart)
             return
 
         fitfo['min_snp_ratios'][istart] = min(candidate_ratios.values())
@@ -410,8 +397,8 @@ class AlleleFinder(object):
             for istart in range(1, self.n_max_snps + 1):
                 if debug and istart == 1:
                     print '                                 resid. / ndof'
-                    print '             position   ratio    (m=0 / m=big)          big',
-                    print '%5s %s' % ('', ''.join(['%11d' % nm for nm in range(1, self.n_max_mutations_per_segment + 1)]))
+                    print '             position   ratio    (m=0 / m=big)      big bounds',
+                    print '%0s %s' % ('', ''.join(['%11d' % nm for nm in range(1, self.n_max_mutations_per_segment + 1)]))
 
                 self.fit_istart(gene, istart, positions_to_try_to_fit, fitfo, debug=debug)
 
