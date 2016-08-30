@@ -315,6 +315,7 @@ subargs['simulate'].append({'name' : '--scratch-mute-freq-dir', 'kwargs' : {'def
 subargs['simulate'].append({'name' : '--generate-germline-set', 'kwargs' : {'action' : 'store_true', 'help' : 'Choose a subset of the available genes to represent this sample\'s germline.'}})
 subargs['simulate'].append({'name' : '--n-genes-per-region', 'kwargs' : {'default' : '25:10:5', 'help' : 'colon-separated list specifying the number of genes/alleles for each region (for use with --generate-germline-set)'}})
 subargs['simulate'].append({'name' : '--n-alleles-per-gene', 'kwargs' : {'default' : '1:2:3:4', 'help' : 'colon-separated list of the allowed allele multiplicity, e.g. \'2:3\' means that for each gene we will choose either two or three alleles (for use with --generate-germline-set)'}})
+subargs['simulate'].append({'name' : '--min-allele-prevalence-freq', 'kwargs' : {'default' : 0.05, 'type' : float, 'help' : 'minimum frequency at which alleles are allowed to occur, e.g. if it\'s 0.01 then each pair of V alleles will have a prevalence ratio between --min-allele-prevalence-freq and 1..'}})
 
 subparsermap = {}
 for name, vals in subconfig.items():

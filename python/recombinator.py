@@ -102,17 +102,17 @@ class Recombinator(object):
 
         # then choose the alleles
         n_alleles = None
-        assert len(genes_to_use[region]) < self.args.n_genes_per_region[region]  # this fcn shouldn't get called unless we actually still need to add some alleles
-        if min(self.args.n_alleles_per_gene) > self.args.n_genes_per_region[region] - len(genes_to_use[region]):  # ain't gonna work if the smallest number of alleles per gene is bigger than the number of genes we still need
+        assert len(genes_to_use) < self.args.n_genes_per_region[region]  # this fcn shouldn't get called unless we actually still need to add some alleles
+        if min(self.args.n_alleles_per_gene) > self.args.n_genes_per_region[region] - len(genes_to_use):  # ain't gonna work if the smallest number of alleles per gene is bigger than the number of genes we still need
             raise Exception('--n-alleles-per-gene \'%s\' is incompatible with --n-genes-per-region \'%s\'' % (self.args.n_alleles_per_gene, self.args.n_genes_per_region))
-        while n_alleles is None or n_alleles > len(allelic_groups[region][primary_version][sub_version]) or n_alleles > self.args.n_genes_per_region[region] - len(genes_to_use[region]):  # keep going 'til we choose an <n_alleles> that's smaller than the number of alleles that we still need
+        while n_alleles is None or n_alleles > len(allelic_groups[region][primary_version][sub_version]) or n_alleles > self.args.n_genes_per_region[region] - len(genes_to_use):  # keep going 'til we choose an <n_alleles> that's smaller than the number of alleles that we still need
             n_alleles = numpy.random.choice(self.args.n_alleles_per_gene)
         new_alleles = set(numpy.random.choice(list(allelic_groups[region][primary_version][sub_version]), size=n_alleles, replace=False))
         if debug:
             print '   %s' % ' '.join([utils.color_gene(g) for g in new_alleles])
 
-        assert len(new_alleles & genes_to_use[region]) == 0  # make sure none of the new alleles are already in <genes_to_use>
-        genes_to_use[region] |= new_alleles  # actually add them to the final set
+        assert len(new_alleles & genes_to_use) == 0  # make sure none of the new alleles are already in <genes_to_use>
+        genes_to_use |= new_alleles  # actually add them to the final set
 
         # remove stuff we've used from <allelic_groups>
         allelic_groups[region][primary_version][sub_version] -= new_alleles
@@ -121,33 +121,36 @@ class Recombinator(object):
             del allelic_groups[region][primary_version]
 
     # ----------------------------------------------------------------------------------------
+    def choose_allele_prevalence_freqs(self, region, debug=False):
+        n_alleles = len(self.glfo['seqs'][region])
+        prevalence_counts = numpy.random.randint(1, int(1. / self.args.min_allele_prevalence_freq), size=n_alleles)  # ensures that each pair of alleles has a prevalence ratio between <self.min_allele_prevalence_freq> and 1. NOTE it's inclusive
+        prevalence_freqs = [float(c) / sum(prevalence_counts) for c in prevalence_counts]
+        self.allele_prevalence_freqs[region] = {g : f for g, f in zip(self.glfo['seqs'][region].keys(), prevalence_freqs)}
+        assert utils.is_normed(self.allele_prevalence_freqs[region])
+        if debug:
+            print '      counts %s' % ' '.join([('%5d' % c) for c in prevalence_counts])
+            print '       freqs %s' % ' '.join([('%5.3f' % c) for c in prevalence_freqs])
+            print '   min ratio %.3f' % (min(prevalence_freqs) / max(prevalence_freqs))
+
+    # ----------------------------------------------------------------------------------------
     def generate_germline_set(self, debug=False):
         """ NOTE removes genes from  <self.glfo> """
+        debug = True
         if debug:
             print '    choosing germline set'
         allelic_groups = utils.separate_into_allelic_groups(self.glfo)
-        genes_to_use = {r : set() for r in utils.regions}
+        self.allele_prevalence_freqs = {r : {} for r in utils.regions}
         for region in utils.regions:
             if debug:
-                print '    %s' % region
-            while len(genes_to_use[region]) < self.args.n_genes_per_region[region]:
+                print '  %s' % region
+            genes_to_use = set()
+            while len(genes_to_use) < self.args.n_genes_per_region[region]:
                 self.choose_some_alleles(region, genes_to_use, allelic_groups, debug=debug)
+            assert len(genes_to_use) == self.args.n_genes_per_region[region]
+            print '      chose %d alleles' % len(genes_to_use)
+            glutils.remove_genes(self.glfo, set(self.glfo['seqs'][region].keys()) - genes_to_use, debug=debug)  # NOTE glutils.restrict_to_genes() isn't on a regional basis
+            self.choose_allele_prevalence_freqs(region, debug=debug)
         sys.exit()
-        # self.allele_prevalence_freqs = {}
-        # for region in utils.regions:
-        #     fname = self.args.allele_prevalence_fnames[utils.regions.index(region)]
-        #     if fname == '':
-        #         continue
-        #     self.allele_prevalence_freqs[region] = {}
-        #     with open(fname) as countfile:
-        #         reader = csv.DictReader(countfile)
-        #         total = 0
-        #         for line in reader:
-        #             self.allele_prevalence_freqs[region][line[region + '_gene']] = float(line['count'])
-        #             total += float(line['count'])
-        #         for gene in self.allele_prevalence_freqs[region]:
-        #             self.allele_prevalence_freqs[region][gene] /= total
-        #         assert utils.is_normed(self.allele_prevalence_freqs[region])
 
     # ----------------------------------------------------------------------------------------
     def read_insertion_content(self, parameter_dir):
