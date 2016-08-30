@@ -23,8 +23,9 @@ from event import RecombinationEvent
 #----------------------------------------------------------------------------------------
 class Recombinator(object):
     """ Simulates the process of VDJ recombination """
-    def __init__(self, args, gldir, seed, sublabel=None):  # NOTE <gldir> is not in general the same as <args.initial_germline_dir>
+    def __init__(self, args, glfo, seed, sublabel=None, allele_prevalence_freqs=None):  # NOTE <gldir> is not in general the same as <args.initial_germline_dir>
         self.args = args
+        self.glfo = glfo
 
         if sublabel == None:
             self.workdir = self.args.workdir + '/recombinator'
@@ -50,11 +51,10 @@ class Recombinator(object):
             for model in ['gtr', 'gamma']:
                 self.mute_models[region][model] = {}
 
-        self.glfo = glutils.read_glfo(gldir, self.args.chain, only_genes=self.args.only_genes)
-
-        self.allele_prevalence_freqs = {}
-        if self.args.simulate_partially_from_scratch and self.args.generate_germline_set:
-            self.allele_prevalence_freqs = glutils.generate_germline_set(self.glfo, self.args.n_genes_per_region, self.args.n_alleles_per_gene, self.args.min_allele_prevalence_freq)
+        if allele_prevalence_freqs is None:
+            self.allele_prevalence_freqs = {}
+        else:
+            self.allele_prevalence_freqs = allele_prevalence_freqs
         self.allowed_genes = self.get_allowed_genes(parameter_dir)  # set of genes a) for which we read per-position mutation information and b) from which we choose when running partially from scratch
         self.version_freq_table = self.read_vdj_version_freqs(parameter_dir)  # list of the probabilities with which each VDJ combo (plus other rearrangement parameters) appears in data
         self.insertion_content_probs = self.read_insertion_content(parameter_dir)

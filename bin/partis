@@ -79,16 +79,20 @@ def run_simulation(args):
             gldir = args.default_initial_germline_dir
     else:
         gldir = args.initial_germline_dir
+    glfo = glutils.read_glfo(gldir, args.chain, only_genes=args.only_genes)
+    allele_prevalence_freqs = None
+    if args.simulate_partially_from_scratch and args.generate_germline_set:
+        allele_prevalence_freqs = glutils.generate_germline_set(glfo, args.n_genes_per_region, args.n_alleles_per_gene, args.min_allele_prevalence_freq)
 
     # ----------------------------------------------------------------------------------------
     def make_events(n_events, iproc, random_ints):  # NOTE all the different seeds! this sucks but is necessary to allow reproducibility
-        reco = Recombinator(args, gldir, seed=args.seed+iproc, sublabel=str(iproc))
+        reco = Recombinator(args, glfo, seed=args.seed+iproc, sublabel=str(iproc), allele_prevalence_freqs=allele_prevalence_freqs)
         for ievt in range(n_events):
             reco.combine(random_ints[ievt])
 
     print 'simulating'
     used_default_parameter_dir = set_default_parameter_dir(args)
-    auto_ran_cache_parameters = check_maybe_auto_cache_parameters(args, gldir)
+    # auto_ran_cache_parameters = check_maybe_auto_cache_parameters(args, gldir)
 
     n_per_proc = int(float(args.n_sim_events) / args.n_procs)
 
@@ -313,7 +317,7 @@ subargs['simulate'].append({'name' : '--gtrfname', 'kwargs' : {'default' : parti
 subargs['simulate'].append({'name' : '--simulate-partially-from-scratch', 'kwargs' : {'action' : 'store_true', 'help' : 'Don\'t use an existing parameter directory to describe the repertoire; instead start from scratch. Mutation freqs are harder, so for now we use some stuff in data/recombinator/.'}})
 subargs['simulate'].append({'name' : '--scratch-mute-freq-dir', 'kwargs' : {'default' : partis_dir + '/data/recombinator/scratch-parameters', 'help' : 'see --simulate-partially-from-scratch'}})
 subargs['simulate'].append({'name' : '--generate-germline-set', 'kwargs' : {'action' : 'store_true', 'help' : 'Choose a subset of the available genes to represent this sample\'s germline.'}})
-subargs['simulate'].append({'name' : '--n-genes-per-region', 'kwargs' : {'default' : '25:10:5', 'help' : 'colon-separated list specifying the number of genes/alleles for each region (for use with --generate-germline-set)'}})
+subargs['simulate'].append({'name' : '--n-genes-per-region', 'kwargs' : {'default' : '5:10:5', 'help' : 'colon-separated list specifying the number of genes/alleles for each region (for use with --generate-germline-set)'}})
 subargs['simulate'].append({'name' : '--n-alleles-per-gene', 'kwargs' : {'default' : '1:2:3:4', 'help' : 'colon-separated list of the allowed allele multiplicity, e.g. \'2:3\' means that for each gene we will choose either two or three alleles (for use with --generate-germline-set)'}})
 subargs['simulate'].append({'name' : '--min-allele-prevalence-freq', 'kwargs' : {'default' : 0.05, 'type' : float, 'help' : 'minimum frequency at which alleles are allowed to occur, e.g. if it\'s 0.01 then each pair of V alleles will have a prevalence ratio between --min-allele-prevalence-freq and 1..'}})
 
