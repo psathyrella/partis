@@ -55,8 +55,8 @@ class Recombinator(object):
         self.allowed_genes = self.get_allowed_genes(parameter_dir)  # set of genes a) for which we read per-position mutation information and b) from which we choose when running partially from scratch
         self.version_freq_table = self.read_vdj_version_freqs(parameter_dir)  # list of the probabilities with which each VDJ combo (plus other rearrangement parameters) appears in data
         self.allele_prevalence_freqs = {}
-        if self.args.simulate_partially_from_scratch and self.args.allele_prevalence_fnames is not None:
-            self.read_allele_prevalence()
+        if self.args.simulate_partially_from_scratch and self.args.generate_germline_set:
+            self.generate_germline_set()
         self.insertion_content_probs = self.read_insertion_content(parameter_dir)
         self.all_mute_freqs = {}
         self.parameter_dir = parameter_dir  # damnit, I guess I do need to save this in self
@@ -85,22 +85,72 @@ class Recombinator(object):
             os.makedirs(os.path.dirname(os.path.abspath(self.outfname)))
 
     # ----------------------------------------------------------------------------------------
-    def read_allele_prevalence(self):
-        self.allele_prevalence_freqs = {}
+    def choose_some_alleles(self, region, genes_to_use, allelic_groups, debug=False):
+        """ choose a gene (i.e. a primary and sub-version) from <allelic_groups>, and its attendant alleles """
+        # NOTE also modifies <allelic_groups>
+
+        # first choose the primary and sub-versions
+        primary_version = numpy.random.choice(allelic_groups[region].keys())  # allow to choose the same primary version more than once
+        sub_version = None
+        if region != 'j':  # ...but not the same sub_version
+            used_sub_versions = [utils.sub_version(g) for g in genes_to_use[region]]
+            while sub_version is None or sub_version in used_sub_versions:
+                if sub_version is not None:  # if this isn't the first time through, re-choose the primary version, in case the one we originally chose doesn't have very many sub-versions or alleles
+                    primary_version = numpy.random.choice(allelic_groups[region].keys())
+                sub_version = numpy.random.choice(allelic_groups[region][primary_version].keys())
+        if debug:
+            print '      %8s %5s' % (primary_version, sub_version),
+
+        # then choose the alleles
+        n_alleles = None
+        assert len(genes_to_use[region]) < self.args.n_genes_per_region[region]  # this fcn shouldn't get called unless we actually still need to add some alleles
+        if min(self.args.n_alleles_per_gene) > self.args.n_genes_per_region[region] - len(genes_to_use[region]):  # ain't gonna work if the smallest number of alleles per gene is bigger than the number of genes we still need
+            raise Exception('--n-alleles-per-gene \'%s\' is incompatible with --n-genes-per-region \'%s\'' % (self.args.n_alleles_per_gene, self.args.n_genes_per_region))
+        while n_alleles is None or n_alleles > len(allelic_groups[region][primary_version][sub_version]) or n_alleles > self.args.n_genes_per_region[region] - len(genes_to_use[region]):  # keep going 'til we choose an <n_alleles> that's smaller than the number of alleles that we still need
+            n_alleles = numpy.random.choice(self.args.n_alleles_per_gene)
+        new_alleles = set(numpy.random.choice(list(allelic_groups[region][primary_version][sub_version]), size=n_alleles, replace=False))
+        if debug:
+            print '   %s' % ' '.join([utils.color_gene(g) for g in new_alleles])
+
+        assert len(new_alleles & genes_to_use[region]) == 0  # make sure none of the new alleles are already in <genes_to_use>
+        genes_to_use[region] |= new_alleles
+
+        # remove stuff we've used from <allelic_groups>
+        allelic_groups[region][primary_version][sub_version] -= new_alleles
+        if len(allelic_groups[region][primary_version][sub_version]) == 0:
+            del allelic_groups[region][primary_version][sub_version]
+        if len(allelic_groups[region][primary_version]) == 0:
+            del allelic_groups[region][primary_version]
+
+    # ----------------------------------------------------------------------------------------
+    def generate_germline_set(self, debug=False):
+        debug = True
+        """ NOTE removes genes from  <self.glfo> """
+        if debug:
+            print '    choosing germline set'
+        allelic_groups = utils.separate_into_allelic_groups(self.glfo)
+        genes_to_use = {r : set() for r in utils.regions}
         for region in utils.regions:
-            fname = self.args.allele_prevalence_fnames[utils.regions.index(region)]
-            if fname == '':
-                continue
-            self.allele_prevalence_freqs[region] = {}
-            with open(fname) as countfile:
-                reader = csv.DictReader(countfile)
-                total = 0
-                for line in reader:
-                    self.allele_prevalence_freqs[region][line[region + '_gene']] = float(line['count'])
-                    total += float(line['count'])
-                for gene in self.allele_prevalence_freqs[region]:
-                    self.allele_prevalence_freqs[region][gene] /= total
-                assert utils.is_normed(self.allele_prevalence_freqs[region])
+            if debug:
+                print '    %s' % region
+            while len(genes_to_use[region]) < self.args.n_genes_per_region[region]:
+                self.choose_some_alleles(region, genes_to_use, allelic_groups, debug=debug)
+        sys.exit()
+        # self.allele_prevalence_freqs = {}
+        # for region in utils.regions:
+        #     fname = self.args.allele_prevalence_fnames[utils.regions.index(region)]
+        #     if fname == '':
+        #         continue
+        #     self.allele_prevalence_freqs[region] = {}
+        #     with open(fname) as countfile:
+        #         reader = csv.DictReader(countfile)
+        #         total = 0
+        #         for line in reader:
+        #             self.allele_prevalence_freqs[region][line[region + '_gene']] = float(line['count'])
+        #             total += float(line['count'])
+        #         for gene in self.allele_prevalence_freqs[region]:
+        #             self.allele_prevalence_freqs[region][gene] /= total
+        #         assert utils.is_normed(self.allele_prevalence_freqs[region])
 
     # ----------------------------------------------------------------------------------------
     def read_insertion_content(self, parameter_dir):

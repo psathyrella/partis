@@ -1047,23 +1047,23 @@ def are_same_primary_version(gene1, gene2):
     return True
 
 # ----------------------------------------------------------------------------------------
-def separate_into_allelic_groups(germline_seqs):
-    allelic_groups = {}
+def separate_into_allelic_groups(glfo, debug=False):
+    allelic_groups = {r : {} for r in regions}
     for region in regions:
-        allelic_groups[region] = {}
-        for gene in germline_seqs[region]:
+        for gene in glfo['seqs'][region]:
             primary_version, sub_version, allele = split_gene(gene)
             if primary_version not in allelic_groups[region]:
                 allelic_groups[region][primary_version] = {}
             if sub_version not in allelic_groups[region][primary_version]:
-                allelic_groups[region][primary_version][sub_version] = []
-            allelic_groups[region][primary_version][sub_version].append(gene)
-    # for r in allelic_groups:
-    #     print r
-    #     for p in allelic_groups[r]:
-    #         print '    %15s' % p
-    #         for s in allelic_groups[r][p]:
-    #             print '        %15s      %s' % (s, allelic_groups[r][p][s])
+                allelic_groups[region][primary_version][sub_version] = set()
+            allelic_groups[region][primary_version][sub_version].add(gene)
+    if debug:
+        for r in allelic_groups:
+            print r
+            for p in allelic_groups[r]:
+                print '    %15s' % p
+                for s in allelic_groups[r][p]:
+                    print '        %15s      %s' % (s, allelic_groups[r][p][s])
     return allelic_groups
 
 # ----------------------------------------------------------------------------------------

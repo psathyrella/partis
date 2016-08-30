@@ -40,47 +40,50 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
     else:
         plotdir = '_www/partis/allele-finding/' + label
 
+    # simulate
     if True:
-        simulation_genes = simulation_v_genes + ':' + dj_genes
-        sglfo = glutils.read_glfo('data/germlines/human', chain=chain, only_genes=simulation_genes.split(':'), debug=True)
-        # snps_to_add = [
-        #     # {'gene' : 'IGHV1-18*01', 'positions' : (20, 30)},
-        #     {'gene' : 'IGHV4-59*01', 'positions' : (50, )}
-        #     # {'gene' : 'IGHV4-59*01', 'positions' : (50, 200)}
-        # ]
-        # glutils.add_some_snps(snps_to_add, sglfo, remove_template_genes=False, debug=True)
-        prevalence_fname = outdir + '/v_gene-probs.csv'  # NOTE there's some infrastructure for coming up with this file name automatically in utils.py
-        prevalence_counts = {}
-        for g in sglfo['seqs']['v']:
-            prevalence_counts[g] = 1
-        glutils.write_allele_prevalence_file('v', prevalence_fname, sglfo, prevalence_counts)
-        glutils.write_glfo(outdir + '/germlines/simulation', sglfo)
+        cmd_str = base_cmd + ' simulate --n-sim-events 500 --n-procs 10 --simulate-partially-from-scratch --mutation-multiplier 0.5 --outfname ' + simfname
 
-        # simulate
-        cmd_str = base_cmd + ' simulate --n-sim-events 500 --n-procs 10 --simulate-partially-from-scratch --mutation-multiplier 0.5'
-        cmd_str += ' --initial-germline-dir ' + outdir + '/germlines/simulation'
-        cmd_str += ' --allele-prevalence-fnames ' +  prevalence_fname + '::'
-        cmd_str += ' --outfname ' + simfname
+        if simulation_v_genes is not None:
+            simulation_genes = simulation_v_genes + ':' + dj_genes
+            sglfo = glutils.read_glfo('data/germlines/human', chain=chain, only_genes=simulation_genes.split(':'), debug=True)
+            # snps_to_add = [{'gene' : 'IGHV4-59*01', 'positions' : (50, 200)}, ]
+            # glutils.add_some_snps(snps_to_add, sglfo, remove_template_genes=False, debug=True)
+            prevalence_fname = outdir + '/v_gene-probs.csv'  # NOTE there's some infrastructure for coming up with this file name automatically in utils.py
+            prevalence_counts = {}
+            for g in sglfo['seqs']['v']:
+                prevalence_counts[g] = 1
+            glutils.write_allele_prevalence_file('v', prevalence_fname, sglfo, prevalence_counts)
+            glutils.write_glfo(outdir + '/germlines/simulation', sglfo)
+            cmd_str += ' --initial-germline-dir ' + outdir + '/germlines/simulation'
+            # cmd_str += ' --allele-prevalence-fnames ' +  prevalence_fname + '::'
+        else:
+            cmd_str += ' --generate-germline-set'
+
         if seed is not None:
             cmd_str += ' --seed ' + str(seed)
         run(cmd_str)
+        sys.exit()
 
-    # inference_genes = inference_v_genes + ':' + dj_genes
-    # iglfo = glutils.read_glfo('data/germlines/human', chain=chain, only_genes=inference_genes.split(':'), debug=True)
-    # glutils.write_glfo(outdir + '/germlines/inference', iglfo)
-
+    # remove any old sw cache files
     sw_cachefiles = glob.glob(outpdir + '/sw-cache-*.csv')
     if len(sw_cachefiles) > 0:
         check_call(['rm', '-v'] + sw_cachefiles)
 
     # generate germline set and cache parameters
-    cmd_str = base_cmd + ' cache-parameters --infname ' + simfname + ' --n-procs 10 --only-smith-waterman'
-    cmd_str += ' --find-new-alleles --new-allele-fname ' + outdir + '/new-alleles.fa'
-    cmd_str += ' --generate-germline-set'
-    cmd_str += ' --debug-allele-finding'
-    # cmd_str += ' --initial-germline-dir ' + outdir + '/germlines/inference'
+    cmd_str = base_cmd + ' cache-parameters --infname ' + simfname + ' --n-procs 10 --only-smith-waterman --debug-allele-finding'
+
+    if inference_v_genes is not None:
+        inference_genes = inference_v_genes + ':' + dj_genes
+        iglfo = glutils.read_glfo('data/germlines/human', chain=chain, only_genes=inference_genes.split(':'), debug=True)
+        glutils.write_glfo(outdir + '/germlines/inference', iglfo)
+        cmd_str += ' --initial-germline-dir ' + outdir + '/germlines/inference'
+        # cmd_str += ' --find-new-alleles'  # --new-allele-fname ' + outdir + '/new-alleles.fa'
+    else:
+        cmd_str += ' --generate-germline-set'
+
     cmd_str += ' --parameter-dir ' + outpdir
-    # cmd_str += ' --plotdir ' + plotdir
+    cmd_str += ' --plotdir ' + plotdir
     if seed is not None:
         cmd_str += ' --seed ' + str(seed)
     run(cmd_str)
@@ -89,25 +92,9 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
 
 seed = None  # 1
 dj_genes = 'IGHD6-19*01:IGHJ4*02'
-inference_v_genes = 'IGHV4-59*01:IGHV4-59*07' #'IGHV1-18*01'
-simulation_v_genes = inference_v_genes  # + IGHV1-18*01'
+inference_v_genes = None  # 'IGHV9-99*01' #'IGHV1-18*01'
+simulation_v_genes = None  # 'IGHV4-59*01:IGHV4-59*04' # + IGHV1-18*01'
 
 run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=seed)
-sys.exit()
 
-allelic_groups = utils.separate_into_allelic_groups(glfo['seqs'])
-for gene in allelic_groups['v']['1']['69']:
-    print glfo['seqs']['v'][gene]
-sys.exit()
-for primary_version in allelic_groups['v']:
-    for sub_version in allelic_groups['v'][primary_version]:
-        if len(allelic_groups['v'][primary_version][sub_version]) == 1:
-            continue
-        print '    %15s   %15s   %s' % (primary_version, sub_version, allelic_groups['v'][primary_version][sub_version])
-
-# print ''
-# print glfo['seqs']['v']['IGHV3-30*01']
-# for g in glfo['seqs']['v']:
-#     if '3-30*' not in g:
-#         continue
-#     print utils.color_mutants(glfo['seqs']['v']['IGHV3-30*01'], glfo['seqs']['v'][g])
+# allelic_groups = utils.separate_into_allelic_groups(glfo['seqs'])
