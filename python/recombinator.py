@@ -52,11 +52,11 @@ class Recombinator(object):
 
         self.glfo = glutils.read_glfo(gldir, self.args.chain, only_genes=self.args.only_genes)
 
-        self.allowed_genes = self.get_allowed_genes(parameter_dir)  # set of genes a) for which we read per-position mutation information and b) from which we choose when running partially from scratch
-        self.version_freq_table = self.read_vdj_version_freqs(parameter_dir)  # list of the probabilities with which each VDJ combo (plus other rearrangement parameters) appears in data
         self.allele_prevalence_freqs = {}
         if self.args.simulate_partially_from_scratch and self.args.generate_germline_set:
             self.generate_germline_set()
+        self.allowed_genes = self.get_allowed_genes(parameter_dir)  # set of genes a) for which we read per-position mutation information and b) from which we choose when running partially from scratch
+        self.version_freq_table = self.read_vdj_version_freqs(parameter_dir)  # list of the probabilities with which each VDJ combo (plus other rearrangement parameters) appears in data
         self.insertion_content_probs = self.read_insertion_content(parameter_dir)
         self.all_mute_freqs = {}
         self.parameter_dir = parameter_dir  # damnit, I guess I do need to save this in self
@@ -135,7 +135,6 @@ class Recombinator(object):
     # ----------------------------------------------------------------------------------------
     def generate_germline_set(self, debug=False):
         """ NOTE removes genes from  <self.glfo> """
-        debug = True
         if debug:
             print '    choosing germline set'
         allelic_groups = utils.separate_into_allelic_groups(self.glfo)
@@ -150,7 +149,6 @@ class Recombinator(object):
             print '      chose %d alleles' % len(genes_to_use)
             glutils.remove_genes(self.glfo, set(self.glfo['seqs'][region].keys()) - genes_to_use, debug=debug)  # NOTE glutils.restrict_to_genes() isn't on a regional basis
             self.choose_allele_prevalence_freqs(region, debug=debug)
-        sys.exit()
 
     # ----------------------------------------------------------------------------------------
     def read_insertion_content(self, parameter_dir):
