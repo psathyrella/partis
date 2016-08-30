@@ -89,15 +89,14 @@ class Recombinator(object):
         """ choose a gene (i.e. a primary and sub-version) from <allelic_groups>, and its attendant alleles """
         # NOTE also modifies <allelic_groups>
 
+        if len(allelic_groups[region]) == 0:
+            raise Exception('ran out of %s alleles (either --n-genes-per-region or --n-alleles-per-gene are probably too big)' % region)
+
         # first choose the primary and sub-versions
-        primary_version = numpy.random.choice(allelic_groups[region].keys())  # allow to choose the same primary version more than once
+        primary_version = numpy.random.choice(allelic_groups[region].keys())
         sub_version = None
-        if region != 'j':  # ...but not the same sub_version
-            used_sub_versions = [utils.sub_version(g) for g in genes_to_use[region]]
-            while sub_version is None or sub_version in used_sub_versions:
-                if sub_version is not None:  # if this isn't the first time through, re-choose the primary version, in case the one we originally chose doesn't have very many sub-versions or alleles
-                    primary_version = numpy.random.choice(allelic_groups[region].keys())
-                sub_version = numpy.random.choice(allelic_groups[region][primary_version].keys())
+        if region != 'j':
+            sub_version = numpy.random.choice(allelic_groups[region][primary_version].keys())
         if debug:
             print '      %8s %5s' % (primary_version, sub_version),
 
@@ -113,18 +112,16 @@ class Recombinator(object):
             print '   %s' % ' '.join([utils.color_gene(g) for g in new_alleles])
 
         assert len(new_alleles & genes_to_use[region]) == 0  # make sure none of the new alleles are already in <genes_to_use>
-        genes_to_use[region] |= new_alleles
+        genes_to_use[region] |= new_alleles  # actually add them to the final set
 
         # remove stuff we've used from <allelic_groups>
         allelic_groups[region][primary_version][sub_version] -= new_alleles
-        if len(allelic_groups[region][primary_version][sub_version]) == 0:
-            del allelic_groups[region][primary_version][sub_version]
+        del allelic_groups[region][primary_version][sub_version]  # remove this sub-version
         if len(allelic_groups[region][primary_version]) == 0:
             del allelic_groups[region][primary_version]
 
     # ----------------------------------------------------------------------------------------
     def generate_germline_set(self, debug=False):
-        debug = True
         """ NOTE removes genes from  <self.glfo> """
         if debug:
             print '    choosing germline set'
