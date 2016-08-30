@@ -40,8 +40,8 @@ class AlleleFinder(object):
         self.n_total_min = 50  # ...or fewer total observations than this
         self.n_muted_min_per_bin = 8  # <istart>th bin has to have at least this many mutated sequences (i.e. 2-3 sigma from zero)
 
-        self.min_min_candidate_ratio = 2.25  # every candidate ratio must be greater than this
-        self.min_zero_icpt_residual = 2.25
+        self.min_min_candidate_ratio = 3.  # every candidate ratio must be greater than this
+        self.min_zero_icpt_residual = 2.5
 
         self.min_min_candidate_ratio_to_plot = 1.25  # don't plot positions that're below this (for all <istart>)
 
