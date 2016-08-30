@@ -54,7 +54,7 @@ class Recombinator(object):
 
         self.allele_prevalence_freqs = {}
         if self.args.simulate_partially_from_scratch and self.args.generate_germline_set:
-            self.generate_germline_set()
+            self.allele_prevalence_freqs = glutils.generate_germline_set(self.glfo, self.args.n_genes_per_region, self.args.n_alleles_per_gene, self.args.min_allele_prevalence_freq)
         self.allowed_genes = self.get_allowed_genes(parameter_dir)  # set of genes a) for which we read per-position mutation information and b) from which we choose when running partially from scratch
         self.version_freq_table = self.read_vdj_version_freqs(parameter_dir)  # list of the probabilities with which each VDJ combo (plus other rearrangement parameters) appears in data
         self.insertion_content_probs = self.read_insertion_content(parameter_dir)
@@ -83,72 +83,6 @@ class Recombinator(object):
             os.remove(self.outfname)
         elif not os.path.exists(os.path.dirname(os.path.abspath(self.outfname))):
             os.makedirs(os.path.dirname(os.path.abspath(self.outfname)))
-
-    # ----------------------------------------------------------------------------------------
-    def choose_some_alleles(self, region, genes_to_use, allelic_groups, debug=False):
-        """ choose a gene (i.e. a primary and sub-version) from <allelic_groups>, and its attendant alleles """
-        # NOTE also modifies <allelic_groups>
-
-        if len(allelic_groups[region]) == 0:
-            raise Exception('ran out of %s alleles (either --n-genes-per-region or --n-alleles-per-gene are probably too big)' % region)
-
-        # first choose the primary and sub-versions
-        primary_version = numpy.random.choice(allelic_groups[region].keys())
-        sub_version = None
-        if region != 'j':
-            sub_version = numpy.random.choice(allelic_groups[region][primary_version].keys())
-        if debug:
-            print '      %8s %5s' % (primary_version, sub_version),
-
-        # then choose the alleles
-        n_alleles = None
-        assert len(genes_to_use) < self.args.n_genes_per_region[region]  # this fcn shouldn't get called unless we actually still need to add some alleles
-        if min(self.args.n_alleles_per_gene) > self.args.n_genes_per_region[region] - len(genes_to_use):  # ain't gonna work if the smallest number of alleles per gene is bigger than the number of genes we still need
-            raise Exception('--n-alleles-per-gene \'%s\' is incompatible with --n-genes-per-region \'%s\'' % (self.args.n_alleles_per_gene, self.args.n_genes_per_region))
-        while n_alleles is None or n_alleles > len(allelic_groups[region][primary_version][sub_version]) or n_alleles > self.args.n_genes_per_region[region] - len(genes_to_use):  # keep going 'til we choose an <n_alleles> that's smaller than the number of alleles that we still need
-            n_alleles = numpy.random.choice(self.args.n_alleles_per_gene)
-        new_alleles = set(numpy.random.choice(list(allelic_groups[region][primary_version][sub_version]), size=n_alleles, replace=False))
-        if debug:
-            print '   %s' % ' '.join([utils.color_gene(g) for g in new_alleles])
-
-        assert len(new_alleles & genes_to_use) == 0  # make sure none of the new alleles are already in <genes_to_use>
-        genes_to_use |= new_alleles  # actually add them to the final set
-
-        # remove stuff we've used from <allelic_groups>
-        allelic_groups[region][primary_version][sub_version] -= new_alleles
-        del allelic_groups[region][primary_version][sub_version]  # remove this sub-version
-        if len(allelic_groups[region][primary_version]) == 0:
-            del allelic_groups[region][primary_version]
-
-    # ----------------------------------------------------------------------------------------
-    def choose_allele_prevalence_freqs(self, region, debug=False):
-        n_alleles = len(self.glfo['seqs'][region])
-        prevalence_counts = numpy.random.randint(1, int(1. / self.args.min_allele_prevalence_freq), size=n_alleles)  # ensures that each pair of alleles has a prevalence ratio between <self.min_allele_prevalence_freq> and 1. NOTE it's inclusive
-        prevalence_freqs = [float(c) / sum(prevalence_counts) for c in prevalence_counts]
-        self.allele_prevalence_freqs[region] = {g : f for g, f in zip(self.glfo['seqs'][region].keys(), prevalence_freqs)}
-        assert utils.is_normed(self.allele_prevalence_freqs[region])
-        if debug:
-            print '      counts %s' % ' '.join([('%5d' % c) for c in prevalence_counts])
-            print '       freqs %s' % ' '.join([('%5.3f' % c) for c in prevalence_freqs])
-            print '   min ratio %.3f' % (min(prevalence_freqs) / max(prevalence_freqs))
-
-    # ----------------------------------------------------------------------------------------
-    def generate_germline_set(self, debug=False):
-        """ NOTE removes genes from  <self.glfo> """
-        if debug:
-            print '    choosing germline set'
-        allelic_groups = utils.separate_into_allelic_groups(self.glfo)
-        self.allele_prevalence_freqs = {r : {} for r in utils.regions}
-        for region in utils.regions:
-            if debug:
-                print '  %s' % region
-            genes_to_use = set()
-            while len(genes_to_use) < self.args.n_genes_per_region[region]:
-                self.choose_some_alleles(region, genes_to_use, allelic_groups, debug=debug)
-            assert len(genes_to_use) == self.args.n_genes_per_region[region]
-            print '      chose %d alleles' % len(genes_to_use)
-            glutils.remove_genes(self.glfo, set(self.glfo['seqs'][region].keys()) - genes_to_use, debug=debug)  # NOTE glutils.restrict_to_genes() isn't on a regional basis
-            self.choose_allele_prevalence_freqs(region, debug=debug)
 
     # ----------------------------------------------------------------------------------------
     def read_insertion_content(self, parameter_dir):
