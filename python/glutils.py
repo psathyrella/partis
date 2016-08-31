@@ -596,7 +596,7 @@ def choose_some_alleles(region, genes_to_use, allelic_groups, n_genes_per_region
     n_alleles = None
     assert len(genes_to_use) < n_genes_per_region[region]  # this fcn shouldn't get called unless we actually still need to add some alleles
     if min(n_alleles_per_gene) > n_genes_per_region[region] - len(genes_to_use):  # ain't gonna work if the smallest number of alleles per gene is bigger than the number of genes we still need
-        raise Exception('--n-alleles-per-gene \'%s\' is incompatible with --n-genes-per-region \'%s\'' % (args.n_alleles_per_gene, args.n_genes_per_region))
+        raise Exception('--n-alleles-per-gene \'%s\' is incompatible with --n-genes-per-region \'%s\'' % (n_alleles_per_gene, n_genes_per_region))
     while n_alleles is None or n_alleles > len(allelic_groups[region][primary_version][sub_version]) or n_alleles > n_genes_per_region[region] - len(genes_to_use):  # keep going 'til we choose an <n_alleles> that's smaller than the number of alleles that we still need
         n_alleles = numpy.random.choice(n_alleles_per_gene)
     new_alleles = set(numpy.random.choice(list(allelic_groups[region][primary_version][sub_version]), size=n_alleles, replace=False))

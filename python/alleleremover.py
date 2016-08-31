@@ -116,7 +116,7 @@ class AlleleRemover(object):
 
         print '  keeping:'
         for gene in [g for g, _ in sorted_gene_counts if g in self.genes_to_keep]:
-            print '    %3d %s' % (easycounts[gene], utils.color_gene(gene))
+            print '    %5d %s' % (easycounts[gene], utils.color_gene(gene))
 
         self.genes_to_remove = set(self.glfo['seqs'][region]) - self.genes_to_keep
 

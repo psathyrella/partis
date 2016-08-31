@@ -38,9 +38,8 @@ class AlleleFinder(object):
 
         self.n_snps_to_switch_to_two_piece_method = 5
 
-        self.n_muted_min = 10  # don't fit positions that have fewer total mutations than this (i.e. summed over bins)
-        self.n_total_min = 50  # ...or fewer total observations than this
-        self.n_muted_min_per_bin = 8  # <istart>th bin has to have at least this many mutated sequences (i.e. 2-3 sigma from zero)
+        self.n_muted_min = 30  # don't fit positions that have fewer total mutations than this (i.e. summed over bins)
+        self.n_total_min = 150  # ...or fewer total observations than this
 
         self.min_min_candidate_ratio = 2.25  # every candidate ratio must be greater than this
         self.min_mean_candidate_ratio = 2.75  # mean of candidate ratios must be greater than this
@@ -182,12 +181,6 @@ class AlleleFinder(object):
             if debug:
                 print '    mean snp ratio %s too small (less than %s)' % (fstr(fitfo['mean_snp_ratios'][istart]), fstr(self.min_mean_candidate_ratio)),
             return False
-        for candidate_pos in fitfo['candidates'][istart]:  # return false if any of the candidate positions don't have enough counts with <istart> mutations
-            n_istart_muted = self.counts[gene][candidate_pos][istart]['muted']
-            if n_istart_muted < self.n_muted_min_per_bin:
-                if debug:
-                    print '    not enough mutated counts at candidate position %d with %d %s (%s < %s)' % (candidate_pos, istart, utils.plural_str('mutations', n_istart_muted), fstr(n_istart_muted), fstr(self.n_muted_min_per_bin)),
-                return False
 
         if debug:
             print '    candidate',
@@ -230,12 +223,14 @@ class AlleleFinder(object):
             postvals = postxyvals[pos]
             bothvals = bothxyvals[pos]
 
+            if sum(postvals['obs']) < self.n_muted_min or sum(postvals['total']) < self.n_total_min:
+                continue
+
             # if rough estimates of the slopes are roughly compatible (or preslope is bigger than postslope), the fits aren't going to tell a very different story
             preslope, preerr = self.approx_slope_and_error(prevals)
             postslope, posterr = self.approx_slope_and_error(postvals)
             fac = 0.5
 
-            # print '    %3d   %5.3f +/- %5.3f   %5.3f +/- %5.3f      %5.3f  %5.3f' % (pos, preslope, preerr, postslope, posterr, preslope + fac*preerr, postslope - fac*posterr)
             if preslope > postslope or preslope + fac*preerr > postslope - fac*posterr:
                 continue
 
@@ -301,6 +296,9 @@ class AlleleFinder(object):
         candidate_ratios, residfo = {}, {}  # NOTE <residfo> is really just for dbg printing... but we have to sort before we print, so we need to keep the info around
         for pos in positions_to_try_to_fit:
             pvals = subxyvals[pos]
+
+            if sum(pvals['obs']) < self.n_muted_min or sum(pvals['total']) < self.n_total_min:
+                continue
 
             big_y_icpt = numpy.average(pvals['freqs'], weights=pvals['weights'])  # corresponds, roughly, to the expression level of the least common allele to which we have sensitivity NOTE <istart> is at index 0
             big_y_icpt_err = numpy.std(pvals['freqs'], ddof=1)  # NOTE this "err" is from the variance over bins, and ignores the sample statistics of each bin. This is a little weird, but good: it captures cases where the points aren't well-fit by a line, either because of multiple alleles with very different prevalences, or because the sequences aren't very independent NOTE the former case is very important)
@@ -378,12 +376,12 @@ class AlleleFinder(object):
 
             print '        using old name %s for new allele %s:' % (utils.color_gene(oldname_gene), utils.color_gene(new_name))
             def print_sequence_chunks(seq, cpos, name):
-                print '            %s %s%s%s%s%s' % (utils.color_gene(name, width=20),
-                                                     utils.color('red', seq[:left]),
-                                                     seq[left : cpos],
-                                                     utils.color('reverse_video', seq[cpos : cpos + 3]),
-                                                     seq[cpos + 3 : cpos + 3 + bases_to_right_of_cysteine],
-                                                     utils.color('red', seq[cpos + 3 + bases_to_right_of_cysteine:]))
+                print '            %s%s%s%s%s   %s' % (utils.color('red', seq[:left]),
+                                                       seq[left : cpos],
+                                                       utils.color('reverse_video', seq[cpos : cpos + 3]),
+                                                       seq[cpos + 3 : cpos + 3 + bases_to_right_of_cysteine],
+                                                       utils.color('red', seq[cpos + 3 + bases_to_right_of_cysteine:]),
+                                                       utils.color_gene(name))
             print_sequence_chunks(oldname_seq, oldpos, oldname_gene)
             print_sequence_chunks(new_seq, newpos, new_name)
 
@@ -431,8 +429,8 @@ class AlleleFinder(object):
         elif len(old_seq) > len(new_seq):
             old_len_str = utils.color('red', old_seq[len(new_seq):])
             old_seq_for_cf = old_seq[:len(new_seq)]
-        print '          %s %s%s' % (utils.color_gene(template_gene, width=20), old_seq_for_cf, old_len_str)
-        print '          %s %s%s' % (utils.color_gene(new_name, width=20), utils.color_mutants(old_seq_for_cf, new_seq_for_cf), new_len_str)
+        print '          %s%s   %s' % (old_seq_for_cf, old_len_str, utils.color_gene(template_gene))
+        print '          %s%s   %s' % (utils.color_mutants(old_seq_for_cf, new_seq_for_cf), new_len_str, utils.color_gene(new_name))
 
         # and add it to the set of new alleles for this gene
         self.new_allele_info.append({
