@@ -265,6 +265,7 @@ parent_parser.add_argument('--only-smith-waterman', action='store_true', help='E
 # print 'TODO clean up alremoval stuff in waterer'
 # print 'TODO finding-old-imgt-name will have to also ignore stuff to right of cysteine'
 # print 'TODO don\'t write non-new new alleles to output new-allele fasta'
+# print 'TODO stop throwing out so many potential events in recombinator (I think it\'s screwing up the v gene ratios)'
 
 subconfig = {
     'version'          : {'func' : int, 'help' : 'print version information and exit'},
