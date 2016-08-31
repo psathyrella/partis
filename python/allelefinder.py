@@ -34,7 +34,9 @@ class AlleleFinder(object):
 
         self.n_max_snps = 10  # max number of snps, i.e. try excluding up to this many bins on the left
         self.n_max_mutations_per_segment = 30  # don't look at sequences whose v segments have more than this many mutations
-        self.max_fit_length = 20  # don't fit more than this many bins for each <istart> (the first few positions in the fit are the most important, and if we fit too far to the right these important positions get diluted) UPDATE I'm no longer so sure that I shouldn't fit the whole shebang 
+        self.max_fit_length = 20  # UPDATE nevermind, I no longer think there's a reason not to fit the whole thing OLD: don't fit more than this many bins for each <istart> (the first few positions in the fit are the most important, and if we fit too far to the right these important positions get diluted) UPDATE I'm no longer so sure that I shouldn't fit the whole shebang 
+
+        self.n_snps_to_switch_to_slope_method = 5
 
         self.n_muted_min = 10  # don't fit positions that have fewer total mutations than this (i.e. summed over bins)
         self.n_total_min = 50  # ...or fewer total observations than this
@@ -46,7 +48,7 @@ class AlleleFinder(object):
 
         self.min_min_candidate_ratio_to_plot = 1.25  # don't plot positions that're below this (for all <istart>)
 
-        self.default_slope_bounds = (-0.2, 0.2)  # fitting function needs some reasonable bounds from which to start (I could at some point make slope part of the criteria for candidacy, but it wouldn't add much sensitivity)
+        self.default_slope_bounds = (-0.1, 0.2)  # fitting function needs some reasonable bounds from which to start (I could at some point make slope part of the criteria for candidacy, but it wouldn't add much sensitivity)
 
         self.counts = {}
         self.new_allele_info = []
@@ -147,6 +149,7 @@ class AlleleFinder(object):
             'slope_err'  : slope_err,
             'y_icpt_err' : y_icpt_err,
             'residuals_over_ndof' : float(residual_sum) / ndof,
+            'ndof' : ndof,
             'y_icpt_bounds' : y_icpt_bounds
         }
         self.n_fits += 1
@@ -203,8 +206,96 @@ class AlleleFinder(object):
         return mean_yval - mean_slope * mean_xval
 
     # ----------------------------------------------------------------------------------------
+    def fit_large_istart(self, gene, istart, positions_to_try_to_fit, fitfo, debug=False):
+        prexyvals = None
+        if istart >= self.n_snps_to_switch_to_slope_method:
+            prexyvals = {pos : {k : v[:istart] for k, v in self.xyvals[gene][pos].items()} for pos in positions_to_try_to_fit}  # arrays up to, but not including, <istart>
+        subxyvals = {pos : {k : v[istart : istart + self.max_fit_length] for k, v in self.xyvals[gene][pos].items()} for pos in positions_to_try_to_fit}  # arrays from <istart> onwards
+
+        bothxyvals = {pos : {k : v[:self.max_fit_length] for k, v in self.xyvals[gene][pos].items()} for pos in positions_to_try_to_fit}  # arrays from <istart> onwards
+
+        candidate_ratios, residfo = {}, {}  # NOTE <residfo> is really just for dbg printing... but we have to sort before we print, so we need to keep the info around
+        for pos in positions_to_try_to_fit:
+            pvals = subxyvals[pos]
+
+            big_y_icpt = numpy.average(pvals['freqs'], weights=pvals['weights'])  # corresponds, roughly, to the expression level of the least common allele to which we have sensitivity NOTE <istart> is at index 0
+            big_y_icpt_err = numpy.std(pvals['freqs'], ddof=1)  # NOTE this "err" is from the variance over bins, and ignores the sample statistics of each bin. This is a little weird, but good: it captures cases where the points aren't well-fit by a line, either because of multiple alleles with very different prevalences, or because the sequences aren't very independent NOTE the former case is very important)
+            big_y_icpt_bounds = (big_y_icpt - 1.5*big_y_icpt_err, big_y_icpt + 1.5*big_y_icpt_err)  # we want the bounds to be lenient enough to accomodate non-zero slopes (in the future, we could do something cleverer like extrapolating with the slope of the line to x=0)
+
+            if prexyvals is not None and istart == 9:
+                prepvals = prexyvals[pos]
+                bothpvals = bothxyvals[pos]
+                onefit = self.get_curvefit(bothpvals['n_mutelist'], bothpvals['freqs'], bothpvals['errs'], y_icpt_bounds=(0., 1.))
+                prefit = self.get_curvefit(prepvals['n_mutelist'], prepvals['freqs'], prepvals['errs'], y_icpt_bounds=(0., 1.))
+                postfit = self.get_curvefit(pvals['n_mutelist'], pvals['freqs'], pvals['errs'], y_icpt_bounds=(0., 1.))
+                twofit_residuals = prefit['residuals_over_ndof'] * prefit['ndof'] + postfit['residuals_over_ndof'] * postfit['ndof']
+                twofit_ndof = prefit['ndof'] + postfit['ndof']
+                twofit_residuals_over_ndof = twofit_residuals / twofit_ndof
+                tmpstr = ''
+                if onefit['residuals_over_ndof'] / twofit_residuals_over_ndof > 2.25:
+                    tmpstr = utils.color('yellow', 'yes')
+                print '   %3d  %5s   %5s / %-5s  %3s  (%5s  %5s)' % (pos, fstr(onefit['residuals_over_ndof'] / twofit_residuals_over_ndof), fstr(onefit['residuals_over_ndof']), fstr(twofit_residuals_over_ndof), tmpstr, fstr(prefit['residuals_over_ndof']), fstr(postfit['residuals_over_ndof']))
+
+                # pre_val_fit = self.get_curvefit(prepvals['n_mutelist'], prepvals['freqs'], prepvals['errs'], y_icpt_bounds=(0., 0.))
+                # post_val_fit = self.get_curvefit(pvals['n_mutelist'], pvals['freqs'], pvals['errs'], y_icpt_bounds=(0., 1.))
+                # different_slopes = pre_val_fit['slope'] + 1.5 * pre_val_fit['slope_err'] < post_val_fit['slope'] - 1.5 * post_val_fit['slope_err']
+                # # TODO add a requirement that all the candidate slopes are consistent both pre and post
+                # print '   %3d  %5.3f +/- %5.3f    %5.3f +/- %5.3f  %s' % (pos, pre_val_fit['slope'], pre_val_fit['slope_err'], post_val_fit['slope'], post_val_fit['slope_err'], different_slopes)
+
+            # if the bounds include zero, there won't be much difference between the two fits
+            if big_y_icpt_bounds[0] <= 0.:
+                continue
+
+            # if a rough estimate of the x-icpt is less than zero, the zero-icpt fit is probably going to be pretty good
+            if self.approx_x_icpt(pvals) < 0.:
+                continue
+
+            zero_icpt_fit = self.get_curvefit(pvals['n_mutelist'], pvals['freqs'], pvals['errs'], y_icpt_bounds=(0., 0.))
+
+            # don't bother with the big-icpt fit if the zero-icpt fit is pretty good
+            if zero_icpt_fit['residuals_over_ndof'] < self.min_zero_icpt_residual:
+                continue
+
+            big_icpt_fit = self.get_curvefit(pvals['n_mutelist'], pvals['freqs'], pvals['errs'], y_icpt_bounds=big_y_icpt_bounds)
+
+            candidate_ratios[pos] = zero_icpt_fit['residuals_over_ndof'] / big_icpt_fit['residuals_over_ndof'] if big_icpt_fit['residuals_over_ndof'] > 0. else float('inf')
+            residfo[pos] = {'zerofo' : zero_icpt_fit, 'bigfo' : big_icpt_fit}
+            if candidate_ratios[pos] > self.min_min_candidate_ratio_to_plot:
+                self.positions_to_plot[gene].add(pos)  # if we already decided to plot it for another <istart>, it'll already be in there
+
+        candidates = [pos for pos, _ in sorted(candidate_ratios.items(), key=operator.itemgetter(1), reverse=True)]  # sort the candidate positions in decreasing order of residual ratio
+        candidates = candidates[:istart]  # remove any extra ones
+        candidate_ratios = {pos : ratio for pos, ratio in candidate_ratios.items() if pos in candidates}
+
+        if debug:
+            if len(candidates) > 0:
+                print '    %d %s' % (istart, utils.plural_str('snp', istart))
+            for pos in candidates:
+                pos_str = '%3s' % str(pos)
+                if candidate_ratios[pos] > self.min_min_candidate_ratio and residfo[pos]['zerofo']['residuals_over_ndof'] > self.min_zero_icpt_residual:
+                    pos_str = utils.color('yellow', pos_str)
+                print_str = ['                 %s    %5s    %5s / %-5s   [%5.3f - %5.3f]' % (pos_str, fstr(candidate_ratios[pos]),
+                                                                                             fstr(residfo[pos]['zerofo']['residuals_over_ndof']), fstr(residfo[pos]['bigfo']['residuals_over_ndof']),
+                                                                                             residfo[pos]['bigfo']['y_icpt_bounds'][0], residfo[pos]['bigfo']['y_icpt_bounds'][1])]
+                print_str += '    '
+                for n_mutes in range(1, self.n_max_mutations_per_segment + 1):
+                    if n_mutes in subxyvals[pos]['n_mutelist']:
+                        inm = subxyvals[pos]['n_mutelist'].index(n_mutes)
+                        print_str.append('%4d / %-4d' % (subxyvals[pos]['obs'][inm], subxyvals[pos]['total'][inm]))
+                    else:
+                        print_str.append('           ')
+                print ''.join(print_str)
+
+        if len(candidates) < istart:
+            return
+
+        fitfo['min_snp_ratios'][istart] = min(candidate_ratios.values())
+        fitfo['mean_snp_ratios'][istart] = numpy.mean(candidate_ratios.values())
+        fitfo['candidates'][istart] = candidate_ratios
+
+    # ----------------------------------------------------------------------------------------
     def fit_istart(self, gene, istart, positions_to_try_to_fit, fitfo, debug=False):
-        subxyvals = {pos : {k : v[istart : istart + self.max_fit_length] for k, v in self.xyvals[gene][pos].items()} for pos in positions_to_try_to_fit}
+        subxyvals = {pos : {k : v[istart : istart + self.max_fit_length] for k, v in self.xyvals[gene][pos].items()} for pos in positions_to_try_to_fit}  # arrays from <istart> onwards
 
         candidate_ratios, residfo = {}, {}  # NOTE <residfo> is really just for dbg printing... but we have to sort before we print, so we need to keep the info around
         for pos in positions_to_try_to_fit:
