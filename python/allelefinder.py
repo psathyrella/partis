@@ -32,7 +32,7 @@ class AlleleFinder(object):
         self.args = args
         self.itry = itry
 
-        self.n_max_snps = 15  # max number of snps, i.e. try excluding up to this many bins on the left
+        self.n_max_snps = 20  # max number of snps, i.e. try excluding up to this many bins on the left
         self.n_max_mutations_per_segment = 30  # don't look at sequences whose v segments have more than this many mutations
         self.max_fit_length = 99999  # UPDATE nevermind, I no longer think there's a reason not to fit the whole thing OLD: don't fit more than this many bins for each <istart> (the first few positions in the fit are the most important, and if we fit too far to the right these important positions get diluted) UPDATE I'm no longer so sure that I shouldn't fit the whole shebang 
 
@@ -46,7 +46,7 @@ class AlleleFinder(object):
         self.min_mean_candidate_ratio = 2.75  # mean of candidate ratios must be greater than this
         self.min_zero_icpt_residual = 2.  # TODO rename this
 
-        self.min_min_candidate_ratio_to_plot = 1.25  # don't plot positions that're below this (for all <istart>)
+        self.min_min_candidate_ratio_to_plot = 1.5  # don't plot positions that're below this (for all <istart>)
 
         self.default_slope_bounds = (-0.1, 0.2)  # fitting function needs some reasonable bounds from which to start (I could at some point make slope part of the criteria for candidacy, but it wouldn't add much sensitivity)
 
