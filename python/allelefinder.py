@@ -40,8 +40,9 @@ class AlleleFinder(object):
         self.n_total_min = 50  # ...or fewer total observations than this
         self.n_muted_min_per_bin = 8  # <istart>th bin has to have at least this many mutated sequences (i.e. 2-3 sigma from zero)
 
-        self.min_min_candidate_ratio = 3.  # every candidate ratio must be greater than this
-        self.min_zero_icpt_residual = 2.5
+        self.min_min_candidate_ratio = 2.25  # every candidate ratio must be greater than this
+        self.min_mean_candidate_ratio = 2.75  # mean of candidate ratios must be greater than this
+        self.min_zero_icpt_residual = 2.
 
         self.min_min_candidate_ratio_to_plot = 1.25  # don't plot positions that're below this (for all <istart>)
 
@@ -174,7 +175,11 @@ class AlleleFinder(object):
             if debug:
                 print '    min snp ratio %s too small (less than %s)' % (fstr(fitfo['min_snp_ratios'][istart]), fstr(self.min_min_candidate_ratio)),
             return False
-        for candidate_pos in fitfo['candidates'][istart]:  # return false if any of the candidate positions don't have enough counts with <istart> mutations (probably a homozygous new allele with more than <istart> snps) UPDATE did I mean heterozygous?
+        if fitfo['mean_snp_ratios'][istart] < self.min_mean_candidate_ratio:  # mean of snp candidate ratios has to be even better
+            if debug:
+                print '    mean snp ratio %s too small (less than %s)' % (fstr(fitfo['mean_snp_ratios'][istart]), fstr(self.min_mean_candidate_ratio)),
+            return False
+        for candidate_pos in fitfo['candidates'][istart]:  # return false if any of the candidate positions don't have enough counts with <istart> mutations
             n_istart_muted = self.counts[gene][candidate_pos][istart]['muted']
             if n_istart_muted < self.n_muted_min_per_bin:
                 if debug:
@@ -257,6 +262,7 @@ class AlleleFinder(object):
             return
 
         fitfo['min_snp_ratios'][istart] = min(candidate_ratios.values())
+        fitfo['mean_snp_ratios'][istart] = numpy.mean(candidate_ratios.values())
         fitfo['candidates'][istart] = candidate_ratios
 
     # ----------------------------------------------------------------------------------------
@@ -392,7 +398,7 @@ class AlleleFinder(object):
                 continue
 
             # loop over each snp hypothesis
-            fitfo = {n : {} for n in ('min_snp_ratios', 'candidates')}
+            fitfo = {n : {} for n in ('min_snp_ratios', 'mean_snp_ratios', 'candidates')}
             not_enough_candidates = []  # just for dbg printing
             for istart in range(1, self.n_max_snps + 1):
                 if debug and istart == 1:

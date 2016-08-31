@@ -107,6 +107,9 @@ class AlleleRemover(object):
         sorted_gene_counts = [(deps[0], counts) for deps, counts in sorted(pcounter.counts[region + '_gene'].items(), key=operator.itemgetter(1), reverse=True)]
         easycounts = {gene : counts for gene, counts in sorted_gene_counts}
 
+        if debug:
+            print '  removing least likely alleles'
+
         for gene, counts in sorted_gene_counts:
             if self.keep_this_gene(gene, pcounter, easycounts, debug=debug):
                 self.genes_to_keep.add(gene)
