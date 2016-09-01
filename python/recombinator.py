@@ -288,7 +288,7 @@ class Recombinator(object):
                 mean_length = utils.scratch_mean_insertion_lengths[self.args.chain][bound]
                 length = 0 if mean_length == 0 else numpy.random.geometric(1. / mean_length)
                 probs = [self.insertion_content_probs[bound][n] for n in utils.nukes]
-                tmpline[bound + '_insertion'] = ''.join(numpy.random.choice(utils.nukes, p=probs))
+                tmpline[bound + '_insertion'] = ''.join(numpy.random.choice(utils.nukes, size=length, p=probs))
 
             gl_seqs = {r : self.glfo['seqs'][r][tmpline[r + '_gene']] for r in utils.regions}  # arg, have to add the 'seqs' by hand so utils.add_implicit_info doesn't barf (this duplicates code later on in recombinator)
             for erosion in utils.real_erosions:
@@ -299,6 +299,8 @@ class Recombinator(object):
                 elif '3p' in erosion:
                     gl_seqs[region] = gl_seqs[region][:len(gl_seqs[region]) - e_length]
             tmpline['seqs'] = [gl_seqs['v'] + tmpline['vd_insertion'] + gl_seqs['d'] + tmpline['dj_insertion'] + gl_seqs['j'], ]
+            print gl_seqs['v'], tmpline['vd_insertion'], gl_seqs['d'], tmpline['dj_insertion'], gl_seqs['j']
+            print tmpline['seqs'][0]
             utils.add_implicit_info(self.glfo, tmpline)
             print '    ', tmpline['in_frames'][0]
             assert len(tmpline['in_frames']) == 1
@@ -310,10 +312,9 @@ class Recombinator(object):
         #     if tmpline[region + '_5p_del'] + tmpline[region + '_3p_del'] > len(self.glfo['seqs'][region][tmpline[region + '_gene']]):
         #         raise Exception('deletions too long %d %d for %s' % (tmpline[region + '_5p_del'], tmpline[region + '_3p_del'], tmpline['d_gene']))
 
-# ----------------------------------------------------------------------------------------
         # convert insertions back to lengths
-# ----------------------------------------------------------------------------------------
-        sys.exit()
+        for bound in utils.boundaries + utils.effective_boundaries:
+            tmpline[bound + '_insertion'] = len(tmpline[bound + '_insertion'])
 
     # ----------------------------------------------------------------------------------------
     def choose_vdj_combo(self, reco_event):
