@@ -439,13 +439,14 @@ def restrict_to_genes(glfo, only_genes, debug=False):
     remove_genes(glfo, genes_to_remove)
 
 # ----------------------------------------------------------------------------------------
-def remove_v_genes_that_dont_extend_through_cysteine(glfo, debug=False):
+def remove_v_genes_with_bad_cysteines(glfo, debug=False):
     prelength = len(glfo['seqs']['v'])
     for gene in glfo['seqs']['v'].keys():
-        if len(glfo['seqs']['v'][gene]) < glfo['cyst-positions'][gene]:
+        # if len(glfo['seqs']['v'][gene]) < glfo['cyst-positions'][gene] + 3:
+        if not utils.codon_ok('cyst', glfo['seqs']['v'][gene], glfo['cyst-positions'][gene], debug=True):
             remove_gene(glfo, gene, debug=debug)
-    if debug:
-        print '  removed %d / %d v genes that didn\'t extend through their cyst position' % (prelength - len(glfo['seqs']['v']), len(glfo['seqs']['v']))
+    if True:  # debug:
+        print '  removed %d / %d v genes with bad cysteines' % (prelength - len(glfo['seqs']['v']), len(glfo['seqs']['v']))
 
 # ----------------------------------------------------------------------------------------
 def remove_genes(glfo, genes, debug=False):
