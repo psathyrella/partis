@@ -319,8 +319,8 @@ subargs['simulate'].append({'name' : '--gtrfname', 'kwargs' : {'default' : parti
 subargs['simulate'].append({'name' : '--simulate-partially-from-scratch', 'kwargs' : {'action' : 'store_true', 'help' : 'Don\'t use an existing parameter directory to describe the repertoire; instead start from scratch. Mutation freqs are harder, so for now we use some stuff in data/recombinator/.'}})
 subargs['simulate'].append({'name' : '--scratch-mute-freq-dir', 'kwargs' : {'default' : partis_dir + '/data/recombinator/scratch-parameters', 'help' : 'see --simulate-partially-from-scratch'}})
 subargs['simulate'].append({'name' : '--generate-germline-set', 'kwargs' : {'action' : 'store_true', 'help' : 'Choose a subset of the available genes to represent this sample\'s germline.'}})
-subargs['simulate'].append({'name' : '--n-genes-per-region', 'kwargs' : {'default' : '5:10:5', 'help' : 'colon-separated list specifying the number of genes/alleles for each region (for use with --generate-germline-set)'}})
-subargs['simulate'].append({'name' : '--n-alleles-per-gene', 'kwargs' : {'default' : '1:2:3:4', 'help' : 'colon-separated list of the allowed allele multiplicity, e.g. \'2:3\' means that for each gene we will choose either two or three alleles (for use with --generate-germline-set)'}})
+subargs['simulate'].append({'name' : '--n-genes-per-region', 'kwargs' : {'default' : '3:10:5', 'help' : 'colon-separated list specifying the number of genes/alleles for each region (for use with --generate-germline-set)'}})
+subargs['simulate'].append({'name' : '--n-alleles-per-gene', 'kwargs' : {'default' : '1:3', 'help' : 'colon-separated list of the allowed allele multiplicity, e.g. \'2:3\' means that for each gene we will choose either two or three alleles (for use with --generate-germline-set)'}})
 subargs['simulate'].append({'name' : '--min-allele-prevalence-freq', 'kwargs' : {'default' : 0.05, 'type' : float, 'help' : 'minimum frequency at which alleles are allowed to occur, e.g. if it\'s 0.01 then each pair of V alleles will have a prevalence ratio between --min-allele-prevalence-freq and 1..'}})
 
 subparsermap = {}
@@ -422,6 +422,7 @@ args.default_initial_germline_dir += '/' + args.species
 
 # ----------------------------------------------------------------------------------------
 random.seed(args.seed)
+numpy.random.seed(args.seed)
 start = time.time()
 args.func(args)
 print '      total time: %.1f' % (time.time()-start)
