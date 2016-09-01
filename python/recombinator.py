@@ -173,6 +173,7 @@ class Recombinator(object):
 
         codons_ok = utils.both_codons_ok(self.glfo['chain'], reco_event.recombined_seq, reco_event.final_codon_positions, extra_str='      ', debug=self.args.debug)
         if not codons_ok:
+            # raise Exception('arg')
             return False
         in_frame = reco_event.cdr3_length % 3 == 0
         if self.args.simulate_partially_from_scratch and not in_frame:
@@ -300,6 +301,10 @@ class Recombinator(object):
                     gl_seqs[region] = gl_seqs[region][:len(gl_seqs[region]) - e_length]
             tmpline['seqs'] = [gl_seqs['v'] + tmpline['vd_insertion'] + gl_seqs['d'] + tmpline['dj_insertion'] + gl_seqs['j'], ]
             utils.add_implicit_info(self.glfo, tmpline)
+            # print tmpline['in_frames'][0]
+            # tmpline['unique_ids'] = ['a', ]
+            # tmpline['indelfos'] = [utils.get_empty_indel(), ]
+            # utils.print_reco_event(self.glfo['seqs'], tmpline)
             assert len(tmpline['in_frames']) == 1
 
         while 'in_frames' not in tmpline or not tmpline['in_frames'][0]:

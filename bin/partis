@@ -99,6 +99,7 @@ def run_simulation(args):
     glfo = glutils.read_glfo(gldir, args.chain, only_genes=args.only_genes)
     allele_prevalence_freqs = None
     if args.simulate_partially_from_scratch and args.generate_germline_set:
+        glutils.remove_v_genes_that_dont_extend_through_cysteine(glfo)
         allele_prevalence_freqs = glutils.generate_germline_set(glfo, args.n_genes_per_region, args.n_alleles_per_gene, args.min_allele_prevalence_freq)  # NOTE removes unused genes from <glfo>
 
     # ----------------------------------------------------------------------------------------
