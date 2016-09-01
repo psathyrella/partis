@@ -443,7 +443,7 @@ def remove_v_genes_with_bad_cysteines(glfo, debug=False):
     prelength = len(glfo['seqs']['v'])
     for gene in glfo['seqs']['v'].keys():
         # if len(glfo['seqs']['v'][gene]) < glfo['cyst-positions'][gene] + 3:
-        if not utils.codon_ok('cyst', glfo['seqs']['v'][gene], glfo['cyst-positions'][gene], debug=True):
+        if not utils.codon_ok('cyst', glfo['seqs']['v'][gene], glfo['cyst-positions'][gene]):
             remove_gene(glfo, gene, debug=debug)
     if True:  # debug:
         print '  removed %d / %d v genes with bad cysteines' % (prelength - len(glfo['seqs']['v']), len(glfo['seqs']['v']))

@@ -173,12 +173,12 @@ class Recombinator(object):
 
         codons_ok = utils.both_codons_ok(self.glfo['chain'], reco_event.recombined_seq, reco_event.final_codon_positions, extra_str='      ', debug=self.args.debug)
         if not codons_ok:
-            if self.args.simulate_partially_from_scratch and self.args.generate_germline_set:
+            if self.args.simulate_partially_from_scratch and self.args.generate_germline_set:  # if you let it try more than once, it screws up the desired allele prevalence ratios
                 raise Exception('arg')
             return False
         in_frame = reco_event.cdr3_length % 3 == 0
         if self.args.simulate_partially_from_scratch and not in_frame:
-            raise Exception('arg 2')
+            raise Exception('arg 2')  # if you let it try more than once, it screws up the desired allele prevalence ratios
             return False
 
         self.add_mutants(reco_event, irandom)  # toss a bunch of clones: add point mutations
