@@ -316,6 +316,8 @@ class Recombinator(object):
         for bound in utils.boundaries + utils.effective_boundaries:
             tmpline[bound + '_insertion'] = len(tmpline[bound + '_insertion'])
 
+        return tmpline
+
     # ----------------------------------------------------------------------------------------
     def choose_vdj_combo(self, reco_event):
         """ Choose the set of rearrangement parameters """
