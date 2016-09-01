@@ -176,6 +176,7 @@ class Recombinator(object):
             return False
         in_frame = reco_event.cdr3_length % 3 == 0
         if self.args.simulate_partially_from_scratch and not in_frame:
+            raise Exception('arg')
             return False
 
         self.add_mutants(reco_event, irandom)  # toss a bunch of clones: add point mutations
@@ -259,41 +260,68 @@ class Recombinator(object):
         return version_freq_table
 
     # ----------------------------------------------------------------------------------------
+    def get_scratchline(self, ):
+        tmpline = {}
+        for region in utils.regions:
+            probs = None
+            if region in self.allele_prevalence_freqs:
+                probs = [self.allele_prevalence_freqs[region][g] for g in self.allowed_genes[region]]
+            tmpline[region + '_gene'] = numpy.random.choice(self.allowed_genes[region], p=probs)
+        for effrode in utils.effective_erosions:
+            tmpline[effrode + '_del'] = 0
+        for effbound in utils.effective_boundaries:
+            tmpline[effbound + '_insertion'] = ''
+
+        # ----------------------------------------------------------------------------------------
+        def try_scratch_erode_insert(tmpline):
+            utils.remove_all_implicit_info(tmpline)
+            for erosion in utils.real_erosions:  # includes various contortions to avoid eroding the entire gene
+                region = erosion[0]
+                gene_length = len(self.glfo['seqs'][region][tmpline[region + '_gene']])
+                if self.args.chain != 'h' and region == 'd':  # light chains dummy d treatment
+                    assert gene_length == 1 and tmpline['d_gene'] == glutils.dummy_d_genes[self.args.chain]
+                    tmpline[erosion + '_del'] = 1 if '5p' in erosion else 0  # always erode the whole dummy d from the left
+                else:
+                    max_erosion = max(0, gene_length/2 - 2)  # now that, son, is a heuristic
+                    tmpline[erosion + '_del'] = min(max_erosion, numpy.random.geometric(1. / utils.scratch_mean_erosion_lengths[erosion]))
+            for bound in utils.boundaries:
+                mean_length = utils.scratch_mean_insertion_lengths[self.args.chain][bound]
+                length = 0 if mean_length == 0 else numpy.random.geometric(1. / mean_length)
+                probs = [self.insertion_content_probs[bound][n] for n in utils.nukes]
+                tmpline[bound + '_insertion'] = ''.join(numpy.random.choice(utils.nukes, p=probs))
+
+            gl_seqs = {r : self.glfo['seqs'][r][tmpline[r + '_gene']] for r in utils.regions}  # arg, have to add the 'seqs' by hand so utils.add_implicit_info doesn't barf (this duplicates code later on in recombinator)
+            for erosion in utils.real_erosions:
+                region = erosion[0]
+                e_length = tmpline[erosion + '_del']
+                if '5p' in erosion:
+                    gl_seqs[region] = gl_seqs[region][e_length:]
+                elif '3p' in erosion:
+                    gl_seqs[region] = gl_seqs[region][:len(gl_seqs[region]) - e_length]
+            tmpline['seqs'] = [gl_seqs['v'] + tmpline['vd_insertion'] + gl_seqs['d'] + tmpline['dj_insertion'] + gl_seqs['j'], ]
+            utils.add_implicit_info(self.glfo, tmpline)
+            print '    ', tmpline['in_frames'][0]
+            assert len(tmpline['in_frames']) == 1
+
+        while 'in_frames' not in tmpline or not tmpline['in_frames'][0]:
+            try_scratch_erode_insert(tmpline)
+
+        # for region in utils.regions:
+        #     if tmpline[region + '_5p_del'] + tmpline[region + '_3p_del'] > len(self.glfo['seqs'][region][tmpline[region + '_gene']]):
+        #         raise Exception('deletions too long %d %d for %s' % (tmpline[region + '_5p_del'], tmpline[region + '_3p_del'], tmpline['d_gene']))
+
+# ----------------------------------------------------------------------------------------
+        # convert insertions back to lengths
+# ----------------------------------------------------------------------------------------
+        sys.exit()
+
+    # ----------------------------------------------------------------------------------------
     def choose_vdj_combo(self, reco_event):
         """ Choose the set of rearrangement parameters """
 
         vdj_choice = None
         if self.args.simulate_partially_from_scratch:  # generate an event without using the parameter directory
-            tmpline = {}  # NOTE has insertion lengths rather than insertion strings (like in all-probs.csv), so can't pass to normal utils <line> functions
-            for region in utils.regions:
-                probs = None
-                if region in self.allele_prevalence_freqs:
-                    probs = [self.allele_prevalence_freqs[region][g] for g in self.allowed_genes[region]]
-                tmpline[region + '_gene'] = numpy.random.choice(self.allowed_genes[region], p=probs)
-            for effrode in utils.effective_erosions:
-                tmpline[effrode + '_del'] = 0
-            for effbound in utils.effective_boundaries:
-                tmpline[effbound + '_insertion'] = 0
-            for erosion in utils.real_erosions:
-                # various contortions to avoid eroding the entire gene
-                region = erosion[0]
-                gene_length = len(self.glfo['seqs'][region][tmpline[region + '_gene']])
-                if self.args.chain != 'h' and region == 'd':
-                    assert gene_length == 1 and tmpline['d_gene'] == glutils.dummy_d_genes[self.args.chain]
-                    if '5p' in erosion:
-                        tmpline[erosion + '_del'] = 1  # always erode the whole dummy d from the left
-                    else:
-                        tmpline[erosion + '_del'] = 0
-                else:
-                    max_erosion = max(0, gene_length/2 - 2)
-                    tmpline[erosion + '_del'] = min(max_erosion, numpy.random.geometric(1. / utils.scratch_mean_erosion_lengths[erosion]))
-            for region in utils.regions:
-                if tmpline[region + '_5p_del'] + tmpline[region + '_3p_del'] > len(self.glfo['seqs'][region][tmpline[region + '_gene']]):
-                    raise Exception('deletions too long %d %d for %s' % (tmpline[region + '_5p_del'], tmpline[region + '_3p_del'], tmpline['d_gene']))
-            for bound in utils.boundaries:
-                mean_length = utils.scratch_mean_insertion_lengths[self.args.chain][bound]
-                tmpline[bound + '_insertion'] = 0 if mean_length == 0 else numpy.random.geometric(1. / mean_length)
-            vdj_choice = self.freqtable_index(tmpline)
+            vdj_choice = self.freqtable_index(self.get_scratchline())
         else:  # use real parameters from a directory
             iprob = numpy.random.uniform(0, 1)
             sum_prob = 0.0
