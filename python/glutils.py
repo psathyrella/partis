@@ -577,38 +577,30 @@ def write_allele_prevalence_file(region, fname, glfo, prevalence_counts):
             writer.writerow({region + '_gene' : gene, 'count' : prevalence_counts[gene]})
 
 # ----------------------------------------------------------------------------------------
-def choose_some_alleles(region, genes_to_use, allelic_groups, n_genes_per_region, n_alleles_per_gene, debug=False):
+def choose_some_alleles(region, genes_to_use, allelic_groups, n_alleles_per_gene, debug=False):
     """ choose a gene (i.e. a primary and sub-version) from <allelic_groups>, and its attendant alleles """
     # NOTE also modifies <allelic_groups>
 
     if len(allelic_groups[region]) == 0:
         raise Exception('ran out of %s alleles (either --n-genes-per-region or --n-alleles-per-gene are probably too big)' % region)
 
-    # first choose the primary and sub-versions
-    primary_version = numpy.random.choice(allelic_groups[region].keys())
-    sub_version = None
-    if region != 'j':
-        sub_version = numpy.random.choice(allelic_groups[region][primary_version].keys())
-    if debug:
-        print '      %8s %5s' % (primary_version, sub_version),
-
-    # then choose the alleles
-    n_alleles = None
-    assert len(genes_to_use) < n_genes_per_region[region]  # this fcn shouldn't get called unless we actually still need to add some alleles
-    if min(n_alleles_per_gene[region]) > n_genes_per_region[region] - len(genes_to_use):  # ain't gonna work if the smallest number of alleles per gene is bigger than the number of genes we still need
-        raise Exception('--n-alleles-per-gene \'%s\' is incompatible with --n-genes-per-region \'%s\'' % (n_alleles_per_gene[region], n_genes_per_region))
-    while n_alleles is None or n_alleles > len(allelic_groups[region][primary_version][sub_version]) or n_alleles > n_genes_per_region[region] - len(genes_to_use):  # keep going 'til we choose an <n_alleles> that's smaller than the number of alleles that we still need
+    available_versions = None
+    while available_versions is None or len(available_versions) == 0:
+        if available_versions is not None:
+            print '  %s couldn\'t find any versions that have %d alleles, so trying again' % (utils.color('red', 'warning'), n_alleles)
         n_alleles = numpy.random.choice(n_alleles_per_gene[region])
+        available_versions = [(pv, subv) for pv in allelic_groups[region] for subv in allelic_groups[region][pv] if len(allelic_groups[region][pv][subv]) >= n_alleles]
+    ichoice = numpy.random.randint(0, len(available_versions) - 1) if len(available_versions) > 1 else 0  # numpy.random.choice() can't handle list of tuples (and barfs if you give it only one thing to choose from)
+    primary_version, sub_version = available_versions[ichoice]
     new_alleles = set(numpy.random.choice(list(allelic_groups[region][primary_version][sub_version]), size=n_alleles, replace=False))
     if debug:
-        print '   %s' % ' '.join([utils.color_gene(g) for g in new_alleles])
+        print '      %8s %5s   %s' % (primary_version, sub_version, ' '.join([utils.color_gene(g) for g in new_alleles]))
 
     assert len(new_alleles & genes_to_use) == 0  # make sure none of the new alleles are already in <genes_to_use>
     genes_to_use |= new_alleles  # actually add them to the final set
 
     # remove stuff we've used from <allelic_groups>
-    allelic_groups[region][primary_version][sub_version] -= new_alleles
-    del allelic_groups[region][primary_version][sub_version]  # remove this sub-version
+    del allelic_groups[region][primary_version][sub_version]  # remove this sub-version (we don't want any more alleles from it)
     if len(allelic_groups[region][primary_version]) == 0:
         del allelic_groups[region][primary_version]
 
@@ -635,12 +627,11 @@ def generate_germline_set(glfo, n_genes_per_region, n_alleles_per_gene, min_alle
         if debug:
             print '  %s' % region
         genes_to_use = set()
-        while len(genes_to_use) < n_genes_per_region[region]:
-            choose_some_alleles(region, genes_to_use, allelic_groups, n_genes_per_region, n_alleles_per_gene, debug=debug)
-        assert len(genes_to_use) == n_genes_per_region[region]
+        for _ in range(n_genes_per_region[region]):
+            choose_some_alleles(region, genes_to_use, allelic_groups, n_alleles_per_gene, debug=debug)
         if debug:
             print '      chose %d alleles' % len(genes_to_use)
-        remove_genes(glfo, set(glfo['seqs'][region].keys()) - genes_to_use, debug=debug)  # NOTE glutils.restrict_to_genes() isn't on a regional basis
+        remove_genes(glfo, set(glfo['seqs'][region].keys()) - genes_to_use)  # NOTE would use glutils.restrict_to_genes() but it isn't on a regional basis
         choose_allele_prevalence_freqs(glfo, allele_prevalence_freqs, region, min_allele_prevalence_freq, debug=debug)
 
     return allele_prevalence_freqs

@@ -1063,7 +1063,7 @@ def separate_into_allelic_groups(glfo, debug=False):
             for p in allelic_groups[r]:
                 print '    %15s' % p
                 for s in allelic_groups[r][p]:
-                    print '        %15s      %s' % (s, allelic_groups[r][p][s])
+                    print '        %15s      %s' % (s, ' '.join([color_gene(g, width=12) for g in allelic_groups[r][p][s]]))
     return allelic_groups
 
 # ----------------------------------------------------------------------------------------
