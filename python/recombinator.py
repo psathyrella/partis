@@ -260,7 +260,7 @@ class Recombinator(object):
         return version_freq_table
 
     # ----------------------------------------------------------------------------------------
-    def get_scratchline(self, ):
+    def get_scratchline(self):
         tmpline = {}
         for region in utils.regions:
             probs = None
