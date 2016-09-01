@@ -161,7 +161,7 @@ class Recombinator(object):
             print '    insert: %s' % reco_event.insertions['dj']
             print '         j: %s' % reco_event.eroded_seqs['j']
         reco_event.recombined_seq = reco_event.eroded_seqs['v'] + reco_event.insertions['vd'] + reco_event.eroded_seqs['d'] + reco_event.insertions['dj'] + reco_event.eroded_seqs['j']
-        reco_event.set_final_codon_positions(debug=self.args.debug)
+        reco_event.set_final_codon_positions()
 
         # set the original conserved codon words, so we can revert them if they get mutated NOTE we do it here, *after* setting the full recombined sequence, so the germline Vs that don't extend through the cysteine don't screw us over
         reco_event.unmutated_codons = {}
@@ -173,11 +173,12 @@ class Recombinator(object):
 
         codons_ok = utils.both_codons_ok(self.glfo['chain'], reco_event.recombined_seq, reco_event.final_codon_positions, extra_str='      ', debug=self.args.debug)
         if not codons_ok:
-            # raise Exception('arg')
+            if self.args.simulate_partially_from_scratch and self.args.generate_germline_set:
+                raise Exception('arg')
             return False
         in_frame = reco_event.cdr3_length % 3 == 0
         if self.args.simulate_partially_from_scratch and not in_frame:
-            raise Exception('arg')
+            raise Exception('arg 2')
             return False
 
         self.add_mutants(reco_event, irandom)  # toss a bunch of clones: add point mutations
@@ -284,6 +285,13 @@ class Recombinator(object):
                     tmpline[erosion + '_del'] = 1 if '5p' in erosion else 0  # always erode the whole dummy d from the left
                 else:
                     max_erosion = max(0, gene_length/2 - 2)  # now that, son, is a heuristic
+                    if region in utils.conserved_codons[self.args.chain]:
+                        codon_pos = self.glfo[utils.conserved_codons[self.args.chain][region] + '-positions'][tmpline[region + '_gene']]
+                        if '3p' in erosion:
+                            n_bases_to_codon = gene_length - codon_pos - 3
+                        elif '5p' in erosion:
+                            n_bases_to_codon = codon_pos
+                        max_erosion = min(max_erosion, n_bases_to_codon)
                     tmpline[erosion + '_del'] = min(max_erosion, numpy.random.geometric(1. / utils.scratch_mean_erosion_lengths[erosion]))
             for bound in utils.boundaries:
                 mean_length = utils.scratch_mean_insertion_lengths[self.args.chain][bound]
@@ -291,7 +299,8 @@ class Recombinator(object):
                 probs = [self.insertion_content_probs[bound][n] for n in utils.nukes]
                 tmpline[bound + '_insertion'] = ''.join(numpy.random.choice(utils.nukes, size=length, p=probs))
 
-            gl_seqs = {r : self.glfo['seqs'][r][tmpline[r + '_gene']] for r in utils.regions}  # arg, have to add the 'seqs' by hand so utils.add_implicit_info doesn't barf (this duplicates code later on in recombinator)
+            # have to add the 'seqs' by hand so utils.add_implicit_info doesn't barf (this duplicates code later on in recombinator)
+            gl_seqs = {r : self.glfo['seqs'][r][tmpline[r + '_gene']] for r in utils.regions}
             for erosion in utils.real_erosions:
                 region = erosion[0]
                 e_length = tmpline[erosion + '_del']
@@ -301,18 +310,10 @@ class Recombinator(object):
                     gl_seqs[region] = gl_seqs[region][:len(gl_seqs[region]) - e_length]
             tmpline['seqs'] = [gl_seqs['v'] + tmpline['vd_insertion'] + gl_seqs['d'] + tmpline['dj_insertion'] + gl_seqs['j'], ]
             utils.add_implicit_info(self.glfo, tmpline)
-            # print tmpline['in_frames'][0]
-            # tmpline['unique_ids'] = ['a', ]
-            # tmpline['indelfos'] = [utils.get_empty_indel(), ]
-            # utils.print_reco_event(self.glfo['seqs'], tmpline)
             assert len(tmpline['in_frames']) == 1
 
         while 'in_frames' not in tmpline or not tmpline['in_frames'][0]:
             try_scratch_erode_insert(tmpline)
-
-        # for region in utils.regions:
-        #     if tmpline[region + '_5p_del'] + tmpline[region + '_3p_del'] > len(self.glfo['seqs'][region][tmpline[region + '_gene']]):
-        #         raise Exception('deletions too long %d %d for %s' % (tmpline[region + '_5p_del'], tmpline[region + '_3p_del'], tmpline['d_gene']))
 
         # convert insertions back to lengths
         for bound in utils.boundaries + utils.effective_boundaries:
