@@ -42,7 +42,7 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
 
     # simulate
     if True:
-        simevents = 10000
+        simevents = 3000
         cmd_str = base_cmd + ' simulate --n-sim-events ' + str(simevents) + ' --n-leaves 1 --constant-number-of-leaves --n-procs 10 --simulate-partially-from-scratch --mutation-multiplier 0.5 --outfname ' + simfname
 
         if simulation_v_genes is not None:
@@ -52,13 +52,7 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
                 {'gene' : 'IGHV4-59*01', 'positions' : (94, 30, 138, 13, 62, 205, 77, 237, 93, 218, 76, 65, 31, 120, 22, 216, 79, 56, 109)},
             ]
             glutils.add_some_snps(snps_to_add, sglfo, debug=True)
-            # prevalence_fname = outdir + '/v_gene-probs.csv'  # NOTE there's some infrastructure for coming up with this file name automatically in utils.py
-            # prevalence_counts = {}
-            # for g in sglfo['seqs']['v']:
-            #     prevalence_counts[g] = 1
-            # glutils.write_allele_prevalence_file('v', prevalence_fname, sglfo, prevalence_counts)
             glutils.write_glfo(outdir + '/germlines/simulation', sglfo)
-            # cmd_str += ' --allele-prevalence-fnames ' +  prevalence_fname + '::'
             cmd_str += ' --initial-germline-dir ' + outdir + '/germlines/simulation'
         else:
             cmd_str += ' --generate-germline-set'
@@ -98,8 +92,8 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
 
 seed = None  # 1
 dj_genes = 'IGHD6-19*01:IGHJ4*02'
-inference_v_genes = None  # 'IGHV4-59*01' #'IGHV1-18*01'
-simulation_v_genes = None  # inference_v_genes # + ':IGHV9-99*02'  # 'IGHV4-59*01:IGHV4-59*04' # + IGHV1-18*01'
+inference_v_genes = 'IGHV4-30-2*05' #'IGHV1-18*01'
+simulation_v_genes = inference_v_genes + ':IGHV4-30-2*03' # + ':IGHV9-99*02'  # 'IGHV4-59*01:IGHV4-59*04' # + IGHV1-18*01'
 
 run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=seed)
 

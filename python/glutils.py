@@ -579,14 +579,6 @@ def remove_glfo_files(gldir, chain):
     os.rmdir(gldir)  # at the moment, we should only be running on single-chain stuff, so the only dir with info for more than one chain should be data/germlines
 
 # ----------------------------------------------------------------------------------------
-def write_allele_prevalence_file(region, fname, glfo, prevalence_counts):
-    with open(fname, 'w') as pfile:
-        writer = csv.DictWriter(pfile, (region + '_gene', 'count'))
-        writer.writeheader()
-        for gene in glfo['seqs'][region]:
-            writer.writerow({region + '_gene' : gene, 'count' : prevalence_counts[gene]})
-
-# ----------------------------------------------------------------------------------------
 def choose_some_alleles(region, genes_to_use, allelic_groups, n_alleles_per_gene, debug=False):
     """ choose a gene (i.e. a primary and sub-version) from <allelic_groups>, and its attendant alleles """
     # NOTE also modifies <allelic_groups>
