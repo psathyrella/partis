@@ -43,7 +43,7 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
     # simulate
     if True:
         simevents = 10000
-        cmd_str = base_cmd + ' simulate --n-sim-events ' + str(simevents) + ' --n-leaves 1 --constant-number-of-leaves --n-trees ' + str(simevents) + ' --n-procs 10 --simulate-partially-from-scratch --mutation-multiplier 0.5 --outfname ' + simfname
+        cmd_str = base_cmd + ' simulate --n-sim-events ' + str(simevents) + ' --n-leaves 1 --constant-number-of-leaves --n-procs 10 --simulate-partially-from-scratch --mutation-multiplier 0.5 --outfname ' + simfname
 
         if simulation_v_genes is not None:
             simulation_genes = simulation_v_genes + ':' + dj_genes
@@ -62,6 +62,8 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
             cmd_str += ' --initial-germline-dir ' + outdir + '/germlines/simulation'
         else:
             cmd_str += ' --generate-germline-set'
+            cmd_str += ' --n-genes-per-region 1:5:3'
+            cmd_str += ' --n-alleles-per-gene 2,3:1,2:1,2'
 
         if seed is not None:
             cmd_str += ' --seed ' + str(seed)
