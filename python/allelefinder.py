@@ -40,6 +40,7 @@ class AlleleFinder(object):
 
         self.n_muted_min = 30  # don't fit positions that have fewer total mutations than this (i.e. summed over bins)
         self.n_total_min = 150  # ...or fewer total observations than this
+        self.n_muted_min_per_bin = 8 # <istart>th bin has to have at least this many mutated sequences (i.e. 2-3 sigma from zero)
 
         self.min_min_candidate_ratio = 2.25  # every candidate ratio must be greater than this
         self.min_mean_candidate_ratio = 2.75  # mean of candidate ratios must be greater than this
@@ -181,6 +182,13 @@ class AlleleFinder(object):
             if debug:
                 print '    mean snp ratio %s too small (less than %s)' % (fstr(fitfo['mean_snp_ratios'][istart]), fstr(self.min_mean_candidate_ratio)),
             return False
+
+        for candidate_pos in fitfo['candidates'][istart]:  # return false if any of the candidate positions don't have enough mutated counts in the <istart>th bin NOTE this is particularly important because it's the handle that tells us it's *this* <istart> that's correct, rather than <istart> + 1
+            n_istart_muted = self.counts[gene][candidate_pos][istart]['muted']
+            if n_istart_muted < self.n_muted_min_per_bin:
+                if debug:
+                    print '    not enough mutated counts at candidate position %d with %d %s (%d < %d)' % (candidate_pos, istart, utils.plural_str('mutations', n_istart_muted), n_istart_muted, self.n_muted_min_per_bin),
+                return False
 
         if debug:
             print '    candidate',
