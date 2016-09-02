@@ -93,12 +93,9 @@ class AlleleFinder(object):
             dcounts[gene][dlen] += 1
         for gene in dcounts:
             self.n_5p_bases_to_exclude[gene] = 0  # for now, at least
-            if debug:
-                print gene
-                for dlen, count in sorted(dcounts[gene].items(), key=operator.itemgetter(0)):
-                    print '   %3d %4d' % (dlen, count)
             observed_deletions = sorted(dcounts[gene].keys())
             if debug:
+                print gene
                 print '  observed deletions %s' % ' '.join([str(d) for d in observed_deletions])
             total_obs = sum(dcounts[gene].values())
             running_sum = 0
