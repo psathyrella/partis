@@ -382,13 +382,13 @@ class AlleleFinder(object):
             if bases_to_right_of_cysteine > 0 and oldname_seq[oldpos + 3 : oldpos + 3 + bases_to_right_of_cysteine] != new_seq[newpos + 3 : newpos + 3 + bases_to_right_of_cysteine]:
                 continue
 
-            print '        using old name %s for new allele %s:' % (utils.color_gene(oldname_gene), utils.color_gene(new_name))
+            print '        using old name %s for new allele %s (blue bases are not considered):' % (utils.color_gene(oldname_gene), utils.color_gene(new_name))
             def print_sequence_chunks(seq, cpos, name):
-                print '            %s%s%s%s%s   %s' % (utils.color('red', seq[:left]),
+                print '            %s%s%s%s%s   %s' % (utils.color('blue', seq[:left]),
                                                        seq[left : cpos],
                                                        utils.color('reverse_video', seq[cpos : cpos + 3]),
                                                        seq[cpos + 3 : cpos + 3 + bases_to_right_of_cysteine],
-                                                       utils.color('red', seq[cpos + 3 + bases_to_right_of_cysteine:]),
+                                                       utils.color('blue', seq[cpos + 3 + bases_to_right_of_cysteine:]),
                                                        utils.color_gene(name))
             print_sequence_chunks(oldname_seq, oldpos, oldname_gene)
             print_sequence_chunks(new_seq, newpos, new_name)

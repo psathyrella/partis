@@ -289,6 +289,10 @@ parent_parser.add_argument('--only-smith-waterman', action='store_true', help='E
 # print 'TODO don\'t write non-new new alleles to output new-allele fasta'
 # print 'TODO stop throwing out so many potential events in recombinator (I think it\'s screwing up the v gene ratios)'
 
+# glfo = glutils.read_glfo('data/germlines/human', 'h')
+# utils.color_mutants(glfo['seqs']['v']['IGHV1-46*03'], glfo['seqs']['v']['IGHV1-46*01'], print_result=True)
+# sys.exit()
+
 subconfig = {
     'version'          : {'func' : int, 'help' : 'print version information and exit'},
     'cache-parameters' : {'func' : run_partitiondriver, 'help' : 'Cache parameter values and write hmm model files.'},
