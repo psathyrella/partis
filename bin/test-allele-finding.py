@@ -48,10 +48,10 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
         if simulation_v_genes is not None:
             simulation_genes = simulation_v_genes + ':' + dj_genes
             sglfo = glutils.read_glfo('data/germlines/human', chain=chain, only_genes=simulation_genes.split(':'), debug=True)
-            snps_to_add = [
-                {'gene' : 'IGHV4-59*01', 'positions' : (94, 30, 138, 13, 62, 205, 77, 237, 93, 218, 76, 65, 31, 120, 22, 216, 79, 56, 109)},
-            ]
-            glutils.add_some_snps(snps_to_add, sglfo, debug=True)
+            # snps_to_add = [
+            #     {'gene' : 'IGHV4-59*01', 'positions' : (94, 30, 138, 13, 62, 205, 77, 237, 93, 218, 76, 65, 31, 120, 22, 216, 79, 56, 109)},
+            # ]
+            # glutils.add_some_snps(snps_to_add, sglfo, debug=True)
             glutils.write_glfo(outdir + '/germlines/simulation', sglfo)
             cmd_str += ' --initial-germline-dir ' + outdir + '/germlines/simulation'
         else:

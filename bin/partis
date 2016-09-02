@@ -291,11 +291,6 @@ parent_parser.add_argument('--only-smith-waterman', action='store_true', help='E
 # print 'TODO see if current method of choosing big-y-icpt still works well for boundary cases'
 # print 'TODO make sure all is well if reall alleles differ to right of cysteine'
 
-# glfo = glutils.read_glfo('data/germlines/human', 'h')
-# base, a1, a2 = '4-30-2', '05', '02'
-# utils.color_mutants(glfo['seqs']['v']['IGHV' + base + '*' + a1], glfo['seqs']['v']['IGHV' + base + '*' + a2], print_result=True, print_isnps=True)
-# sys.exit()
-
 subconfig = {
     'version'          : {'func' : int, 'help' : 'print version information and exit'},
     'cache-parameters' : {'func' : run_partitiondriver, 'help' : 'Cache parameter values and write hmm model files.'},

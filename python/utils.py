@@ -312,7 +312,7 @@ def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', 
         if print_hfrac:
             print '   hfrac %.3f' % hamming_fraction(ref_seq, seq),
         if print_isnps:
-            print '   snps at: %s' % ' '.join([str(i) for i in isnps]),
+            print '   %d snps at: %s' % (len(isnps), ' '.join([str(i) for i in isnps])),
         print ''
     return return_str
 
