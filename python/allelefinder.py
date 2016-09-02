@@ -81,7 +81,7 @@ class AlleleFinder(object):
         self.n_seqs_too_highly_mutated[gene] = 0
 
     # ----------------------------------------------------------------------------------------
-    def set_excluded_bases(self, swfo, debug=False):
+    def set_excluded_bases(self, swfo, debug=True):
         dcounts = {}
         for query in swfo['queries']:
             gene = swfo[query]['v_gene']
@@ -97,17 +97,18 @@ class AlleleFinder(object):
                 print gene
                 for dlen, count in sorted(dcounts[gene].items(), key=operator.itemgetter(0)):
                     print '   %3d %4d' % (dlen, count)
-                print '  observed deletions %s' % ' '.join([str(d) for d in observed_deletions])
             observed_deletions = sorted(dcounts[gene].keys())
+            if debug:
+                print '  observed deletions %s' % ' '.join([str(d) for d in observed_deletions])
             total_obs = sum(dcounts[gene].values())
             running_sum = 0
             for dlen in observed_deletions:
                 if debug:
                     print '    %4d %3d / %3d = %5.3f' % (dlen, float(running_sum), total_obs, float(running_sum) / total_obs)
+                self.n_3p_bases_to_exclude[gene] = dlen  # setting this before the if means that if we fall through (e.g. if there aren't enough sequences to get above the threshold) we'll still have a reasonable default
                 if float(running_sum) / total_obs > 1. - self.fraction_of_seqs_to_exclude:  # if we've already added deletion lengths accounting for most of the sequences, ignore the rest of 'em
                     if debug:
                         print '                 choose', dlen
-                    self.n_3p_bases_to_exclude[gene] = dlen
                     break
                 running_sum += dcounts[gene][dlen]
 
@@ -468,11 +469,13 @@ class AlleleFinder(object):
         old_len_str, new_len_str = '', ''
         old_seq_for_cf, new_seq_for_cf = old_seq, new_seq
         if len(new_seq) > len(old_seq):  # i.e if <old_seq> (the template gene) is shorter than the sequence corresponding to the original name for the new allele that we found from it
-            new_len_str = utils.color('red', new_seq[len(old_seq):])
+            new_len_str = utils.color('blue', new_seq[len(old_seq):])
             new_seq_for_cf = new_seq[:len(old_seq)]
+            print '         %d extra (blue) bases in new seq were not considered' % (len(new_seq) - len(old_seq))
         elif len(old_seq) > len(new_seq):
-            old_len_str = utils.color('red', old_seq[len(new_seq):])
+            old_len_str = utils.color('blue', old_seq[len(new_seq):])
             old_seq_for_cf = old_seq[:len(new_seq)]
+            print '         %d extra (blue) bases in old seq were not considered' % (len(old_seq) - len(new_seq))
         print '          %s%s   %s' % (old_seq_for_cf, old_len_str, utils.color_gene(template_gene))
         print '          %s%s   %s' % (utils.color_mutants(old_seq_for_cf, new_seq_for_cf), new_len_str, utils.color_gene(new_name))
 
