@@ -515,7 +515,7 @@ class AlleleFinder(object):
         for gene in sorted(self.counts):
             if debug:
                 sys.stdout.flush()
-                print '  %s observed %d %s (ignored %d of these that were too highly mutated and %d that had large 3p deletions)' % (utils.color_gene(gene, width=15), self.gene_obs_counts[gene], utils.plural_str('time', self.gene_obs_counts[gene]), self.n_seqs_too_highly_mutated[gene], self.n_big_3p_del_skipped[gene])
+                print '  %s observed %d %s (ignoring %d of these that were too highly mutated, and %d that had 3p deletions larger than %d)' % (utils.color_gene(gene, width=15), self.gene_obs_counts[gene], utils.plural_str('time', self.gene_obs_counts[gene]), self.n_seqs_too_highly_mutated[gene], self.n_big_3p_del_skipped[gene], self.n_3p_bases_to_exclude[gene])
 
             if self.gene_obs_counts[gene] < self.n_total_min:
                 continue
