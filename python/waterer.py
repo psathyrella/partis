@@ -153,6 +153,9 @@ class Waterer(object):
             if len(self.info['genes-to-remove']) > 0:
                 found_germline_changes = True
         if self.alfinder is not None:
+            self.alfinder.set_excluded_bases(self.info)
+            for query in self.info['queries']:
+                self.alfinder.increment(self.info[query])  # it needs to know the distribution of 3p deletions before it can increment, so it has to be here
             self.alfinder.finalize(debug=self.args.debug_allele_finding)
             self.info['new-alleles'] = self.alfinder.new_allele_info
             if self.args.plotdir is not None:
@@ -660,8 +663,6 @@ class Waterer(object):
                 utils.print_reco_event(self.glfo['seqs'], self.reco_info[qname], extra_str='      ', label='true:')
             utils.print_reco_event(self.glfo['seqs'], self.info[qname], extra_str='      ', label='inferred:')
 
-        if self.alfinder is not None:
-            self.alfinder.increment(self.info[qname])
         if self.pcounter is not None:
             self.pcounter.increment(self.info[qname])
             if self.true_pcounter is not None:
