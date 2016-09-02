@@ -604,7 +604,7 @@ def choose_some_alleles(region, genes_to_use, allelic_groups, n_alleles_per_gene
     primary_version, sub_version = available_versions[ichoice]
     new_alleles = set(numpy.random.choice(list(allelic_groups[region][primary_version][sub_version]), size=n_alleles, replace=False))
     if debug:
-        print '      %8s %5s   %s' % (primary_version, sub_version, ' '.join([utils.color_gene(g) for g in new_alleles]))
+        print '      %8s %5s   %s' % (primary_version, sub_version, ' '.join([utils.color_gene(g, width=15) for g in new_alleles]))
 
     assert len(new_alleles & genes_to_use) == 0  # make sure none of the new alleles are already in <genes_to_use>
     genes_to_use |= new_alleles  # actually add them to the final set

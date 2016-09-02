@@ -307,6 +307,7 @@ subargs['cache-parameters'].append({'name' : '--find-new-alleles', 'kwargs' : {'
 subargs['cache-parameters'].append({'name' : '--new-allele-fname', 'kwargs' : {'help' : 'fasta fname to which to write any new alleles (they are also written, with existing alleles, to --parameter-dir)'}})
 subargs['cache-parameters'].append({'name' : '--debug-allele-finding', 'kwargs' : {'action' : 'store_true', 'help' : 'print lots of debug info on new-allele fits'}})
 subargs['cache-parameters'].append({'name' : '--new-allele-excluded-bases', 'kwargs' : {'default' : '2:4', 'help' : 'Colon-separated integer pair: number of 5\' and 3\' bases to exclude from new-allele analysis (misassigned insertions look like snps, and depending on sequencing protocol, the 5\' bases can be unreliable).'}})
+subargs['cache-parameters'].append({'name' : '--n-max-allele-finding-iterations', 'kwargs' : {'type' : int, 'default' : 4, 'help' : 'maximum number of times to look for new alleles'}})
 
 subargs['partition'].append({'name' : '--naive-hamming', 'kwargs' : {'action' : 'store_true', 'help' : 'agglomerate purely with naive hamming distance, i.e. set the low and high preclustering bounds to the same value'}})
 subargs['partition'].append({'name' : '--naive-vsearch', 'kwargs' : {'action' : 'store_true', 'help' : 'Very fast clustering: infer naive (unmutated ancestor) for each input sequence, then toss it all into vsearch. But, of course, not as accurate as the slower methods.'}})
