@@ -253,10 +253,6 @@ class AlleleFinder(object):
             twofit_residuals = prefit['residuals_over_ndof'] * prefit['ndof'] + postfit['residuals_over_ndof'] * postfit['ndof']
             twofit_ndof = prefit['ndof'] + postfit['ndof']
             twofit_residuals_over_ndof = twofit_residuals / twofit_ndof
-            # tmpstr = ''
-            # if onefit['residuals_over_ndof'] / twofit_residuals_over_ndof > 2.25:
-            #     tmpstr = utils.color('yellow', 'yes')
-            # print '   %3d  %5s   %5s / %-5s  %3s  (%-5s  %5s)' % (pos, fstr(onefit['residuals_over_ndof'] / twofit_residuals_over_ndof), fstr(onefit['residuals_over_ndof']), fstr(twofit_residuals_over_ndof), tmpstr, fstr(prefit['residuals_over_ndof']), fstr(postfit['residuals_over_ndof']))
 
             # TODO add a requirement that all the candidate slopes are consistent both pre and post
 
