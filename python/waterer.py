@@ -303,7 +303,15 @@ class Waterer(object):
             with contextlib.closing(pysam.Samfile(outfname)) as sam:  # changed bam to sam because ig-sw outputs sam files
                 grouped = itertools.groupby(iter(sam), operator.attrgetter('qname'))
                 for _, reads in grouped:  # loop over query sequences
-                    qinfo = self.read_query(sam.references, list(reads))
+                    try:
+                        readlist = list(reads)
+                    except:
+                        print 'failed!'
+                        # print 'len', len(readlist)
+                        for thing in reads:
+                            print thing
+                        assert False
+                    qinfo = self.read_query(sam.references, readlist)
                     self.summarize_query(qinfo, queries_to_rerun)  # returns before adding to <self.info> if it thinks we should rerun the query
                     queries_read_from_file.add(qinfo['name'])
 

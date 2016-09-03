@@ -158,6 +158,17 @@ presto_headers = {
     'cdr3_length' : 'JUNCTION_LENGTH'
 }
 
+adaptive_headers = {
+    'seqs' : 'nucleotide',
+    'v_gene' : 'vMaxResolved',
+    'd_gene' : 'dMaxResolved',
+    'j_gene' : 'jMaxResolved',
+    'v_3p_del' : 'vDeletion',
+    'd_5p_del' : 'd5Deletion',
+    'd_3p_del' : 'd3Deletion',
+    'j_5p_del' : 'jDeletion'
+}
+
 # ----------------------------------------------------------------------------------------
 forbidden_characters = set([':', ';', ','])  # strings that are not allowed in sequence ids
 
@@ -203,6 +214,62 @@ annotation_headers = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length',
                      + functional_columns
 sw_cache_headers = ['k_v', 'k_d', 'padlefts', 'padrights', 'all_matches', 'mut_freqs']
 partition_cachefile_headers = ('unique_ids', 'logprob', 'naive_seq', 'naive_hfrac', 'errors')  # these have to match whatever bcrham is expecting
+
+# ----------------------------------------------------------------------------------------
+def convert_from_adaptive_headers(glfo, line, uid=None):
+    newline = {}
+
+    for head, ahead in adaptive_headers.items():
+        newline[head] = line[ahead]
+
+    if uid is not None:
+        newline['unique_ids'] = uid
+
+    for erosion in real_erosions:
+        newline[erosion + '_del'] = int(newline[erosion + '_del'])
+    newline['v_5p_del'] = 0
+    newline['j_3p_del'] = 0
+
+    for region in regions:
+        if newline[region + '_gene'] == 'unresolved':
+            newline[region + '_gene'] = None
+            continue
+        primary_version, sub_version, allele = split_gene(newline[region + '_gene'])
+        primary_version, sub_version = primary_version.lstrip('0'), sub_version.lstrip('0')  # alleles get to keep their leading zero (thank you imgt for being consistent)
+        if region == 'j':  # adaptive calls every j sub_version 1
+            sub_version = None
+        gene = rejoin_gene(glfo['chain'], region, primary_version, sub_version, allele)
+        if gene not in glfo['seqs'][region]:
+            gene = glutils.convert_to_duplicate_name(glfo, gene)
+        if gene not in glfo['seqs'][region]:
+            raise Exception('couldn\'t rebuild gene name from adaptive data: %s' % gene)
+        newline[region + '_gene'] = gene
+
+    print newline['unique_ids']
+    seq = newline['seqs']
+    boundlist = ['vIndex', 'n1Index', 'dIndex', 'n2Index', 'jIndex']
+    for region in regions:
+        istart = int(line[region + 'Index'])
+        istop = int(line[boundlist[boundlist.index(region + 'Index') + 1]]) if region != 'j' else len(seq)
+        print region, istart, istop
+        if istart == -1 or istop == -1:
+            newline[region + '_qr_seq'] = None
+        else:
+            print '  qr ', seq[istart : istop]
+            glseq = glfo['seqs'][region][newline[region + '_gene']]
+            print '  gl ', glseq[newline[region + '_5p_del'] : len(glseq) - newline[region + '_3p_del']]
+            newline[region + '_qr_seq'] = seq[istart : istop]
+        # if boundlist[ib] is None:
+        #     continue
+        # print '%8d   %s' % (bound, seq[int(line[bound])])
+    # istart = int(line[region + 'Index']) + newline[region + '_5p_del']
+    # istop = int(line[region + 'Index']) 
+    # print seq[istart:istop]
+    # print glfo['seqs'][region][gene]
+
+    # still need to convert to integers/lists/whatnot
+
+    return newline
 
 # ----------------------------------------------------------------------------------------
 def convert_to_presto_headers(line):
@@ -1022,6 +1089,14 @@ def split_gene(gene):
             raise Exception('couldn\'t build gene name %s from %s %s' % (gene, primary_version, allele))
 
     return primary_version, sub_version, allele
+
+# ----------------------------------------------------------------------------------------
+def rejoin_gene(chain, region, primary_version, sub_version, allele):
+    """ reverse the action of split_gene() """
+    return_str = 'IG' + chain.upper() + region.upper() + primary_version
+    if sub_version is not None:  # i.e. if it isn't a j
+        return_str += '-' + sub_version
+    return return_str + '*' + allele
 
 # ----------------------------------------------------------------------------------------
 def primary_version(gene):

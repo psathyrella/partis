@@ -35,6 +35,35 @@ imgt_info_indices = ('accession-number', 'gene', 'species', 'functionality', '',
 functionalities = ['F', 'ORF', 'P', '(F)', '[F]', '[P]', '[ORF]']   # not actually sure what the last few mean
 pseudogene_funcionalities = ['P', '[P]']
 
+duplicate_names = {
+    'v' : [
+        set(['IGHV3-23*04', 'IGHV3-23D*02']),
+        set(['IGHV3-30*18', 'IGHV3-30-5*01']),
+        set(['IGHV1-69*01', 'IGHV1-69D*01']),
+        set(['IGHV3-30*02', 'IGHV3-30-5*02']),
+        set(['IGHV3-30*04', 'IGHV3-30-3*03']),
+        set(['IGHV3-23*01', 'IGHV3-23D*01'])],
+    'd' : [
+        set(['IGHD1/OR15-1a*01', 'IGHD1/OR15-1b*01']),
+        set(['IGHD2/OR15-2a*01', 'IGHD2/OR15-2b*01']),
+        set(['IGHD4/OR15-4a*01', 'IGHD4/OR15-4b*01']),
+        set(['IGHD3/OR15-3a*01', 'IGHD3/OR15-3b*01']),
+        set(['IGHD5/OR15-5a*01', 'IGHD5/OR15-5b*01']),
+        set(['IGHD5-18*01', 'IGHD5-5*01']),
+        set(['IGHD4-11*01', 'IGHD4-4*01'])],
+    'j' : []
+}
+
+#----------------------------------------------------------------------------------------
+def convert_to_duplicate_name(glfo, gene):
+    for equivalence_class in duplicate_names[utils.get_region(gene)]:
+        if gene in equivalence_class:
+            for alternate_name in equivalence_class:
+                if alternate_name != gene and alternate_name in glfo['seqs'][utils.get_region(gene)]:
+                    print 'converting %s --> %s' % (gene, alternate_name)
+                    return alternate_name
+    raise Exception('couldn\'t find alternate name for %s' % gene)
+
 #----------------------------------------------------------------------------------------
 def read_fasta_file(seqs, fname, skip_pseudogenes, aligned=False):
     n_skipped_pseudogenes = 0
