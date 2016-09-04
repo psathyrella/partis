@@ -23,7 +23,7 @@ from event import RecombinationEvent
 #----------------------------------------------------------------------------------------
 class Recombinator(object):
     """ Simulates the process of VDJ recombination """
-    def __init__(self, args, glfo, seed, workdir, outfname, allele_prevalence_freqs=None):  # NOTE <gldir> is not in general the same as <args.initial_germline_dir>
+    def __init__(self, args, glfo, seed, workdir, outfname):  # NOTE <gldir> is not in general the same as <args.initial_germline_dir>
         self.args = args
         self.glfo = glfo
 
@@ -48,10 +48,7 @@ class Recombinator(object):
             for model in ['gtr', 'gamma']:
                 self.mute_models[region][model] = {}
 
-        if allele_prevalence_freqs is None:
-            self.allele_prevalence_freqs = {}
-        else:
-            self.allele_prevalence_freqs = allele_prevalence_freqs
+        self.allele_prevalence_freqs = glutils.read_allele_prevalence_freqs(args.allele_prevalence_fname) if args.allele_prevalence_fname is not None else {}
         self.allowed_genes = self.get_allowed_genes(parameter_dir)  # set of genes a) for which we read per-position mutation information and b) from which we choose when running partially from scratch
         self.version_freq_table = self.read_vdj_version_freqs(parameter_dir)  # list of the probabilities with which each VDJ combo (plus other rearrangement parameters) appears in data
         self.insertion_content_probs = self.read_insertion_content(parameter_dir)

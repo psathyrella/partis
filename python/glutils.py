@@ -636,6 +636,30 @@ def choose_some_alleles(region, genes_to_use, allelic_groups, n_alleles_per_gene
         del allelic_groups[region][primary_version]
 
 # ----------------------------------------------------------------------------------------
+def write_allele_prevalence_freqs(allele_prevalence_freqs, fname):
+    # NOTE kinda weird to mash all the regions into one file here (as compared to parametercounter), but it seems to make more sense
+    if not os.path.exists(os.path.dirname(fname)):
+        os.makedirs(os.path.dirname(fname))
+    with open(fname, 'w') as pfile:
+        writer = csv.DictWriter(pfile, ('gene', 'freq'))
+        writer.writeheader()
+        for region in utils.regions:
+            for gene, freq in allele_prevalence_freqs[region].items():
+                writer.writerow({'gene' : gene, 'freq' : freq})
+
+# ----------------------------------------------------------------------------------------
+def read_allele_prevalence_freqs(fname):
+    # NOTE kinda weird to mash all the regions into one file here (as compared to parametercounter), but it seems to make more sense
+    allele_prevalence_freqs = {r : {} for r in utils.regions}
+    with open(fname) as pfile:
+        reader = csv.DictReader(pfile)
+        for line in reader:
+            allele_prevalence_freqs[utils.get_region(line['gene'])][line['gene']] = float(line['freq'])
+    for region in utils.regions:
+        assert utils.is_normed(allele_prevalence_freqs[region])
+    return allele_prevalence_freqs
+
+# ----------------------------------------------------------------------------------------
 def choose_allele_prevalence_freqs(glfo, allele_prevalence_freqs, region, min_allele_prevalence_freq, debug=False):
     n_alleles = len(glfo['seqs'][region])
     prevalence_counts = numpy.random.randint(1, int(1. / min_allele_prevalence_freq), size=n_alleles)  # ensures that each pair of alleles has a prevalence ratio between <min_allele_prevalence_freq> and 1. NOTE it's inclusive
@@ -648,7 +672,7 @@ def choose_allele_prevalence_freqs(glfo, allele_prevalence_freqs, region, min_al
         print '   min ratio %.3f' % (min(prevalence_freqs) / max(prevalence_freqs))
 
 # ----------------------------------------------------------------------------------------
-def generate_germline_set(glfo, n_genes_per_region, n_alleles_per_gene, min_allele_prevalence_freq, debug=True):
+def generate_germline_set(glfo, n_genes_per_region, n_alleles_per_gene, min_allele_prevalence_freq, allele_prevalence_fname, debug=True):
     """ NOTE removes genes from  <glfo> """
     if debug:
         print '    choosing germline set'
@@ -664,5 +688,4 @@ def generate_germline_set(glfo, n_genes_per_region, n_alleles_per_gene, min_alle
             print '      chose %d alleles' % len(genes_to_use)
         remove_genes(glfo, set(glfo['seqs'][region].keys()) - genes_to_use)  # NOTE would use glutils.restrict_to_genes() but it isn't on a regional basis
         choose_allele_prevalence_freqs(glfo, allele_prevalence_freqs, region, min_allele_prevalence_freq, debug=debug)
-
-    return allele_prevalence_freqs
+    write_allele_prevalence_freqs(allele_prevalence_freqs, allele_prevalence_fname)  # NOTE lumps all the regions together, unlike in the parameter dirs
