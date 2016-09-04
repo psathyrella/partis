@@ -1513,6 +1513,8 @@ def merge_csvs(outfname, csv_list, cleanup=True):
 def run_cmd(cmd_str, workdir):
     # print cmd_str
     # sys.exit()
+    if not os.path.exists(workdir):
+        os.makedirs(workdir)
     proc = Popen(cmd_str + ' 1>' + workdir + '/out' + ' 2>' + workdir + '/err', shell=True)
     return proc
 
