@@ -31,7 +31,7 @@ class Recombinator(object):
             self.workdir = self.args.workdir + '/recombinator'
             self.outfname = self.args.outfname
         else:  # need a separate workdir for each subprocess
-            self.workdir = self.args.workdir + '/recombinator-' + sublabel
+            self.workdir = self.args.workdir + '/sub-' + sublabel + '/recombinator'
             self.outfname = self.workdir + '/' + os.path.basename(self.args.outfname)
         utils.prep_dir(self.workdir)
 

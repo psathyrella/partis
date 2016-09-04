@@ -19,6 +19,22 @@ import glutils
 from partitiondriver import PartitionDriver
 
 # ----------------------------------------------------------------------------------------
+def remove_from_arglist(clist, argstr, has_arg=False):
+    if argstr not in clist:
+        return
+    if has_arg:
+        clist.pop(clist.index(argstr) + 1)
+    clist.remove(argstr)
+
+# ----------------------------------------------------------------------------------------
+def replace_in_arglist(clist, argstr, replace_with):
+    if argstr not in clist:
+        clist.append(argstr)
+        clist.append(replace_with)
+    else:
+        clist[clist.index(argstr) + 1] = replace_with
+
+# ----------------------------------------------------------------------------------------
 def default_parameter_dir(args):
     if args.infname is not None:
         label = args.infname[ : args.infname.rfind('.')]  # probably ok not to use the full path here
@@ -79,8 +95,6 @@ def run_simulation(args):
         raise Exception('have to specify --outfname for simulation')
     if not args.n_sim_events > 0:
         raise Exception('--n-sim-events has to be a positivie number')
-    if args.slurm:
-        raise Exception('simulator parallelization does not handle slurm')
     if args.infname is not None:
         print '  note: --infname is not used when simulating'
     if args.n_max_queries != -1:
@@ -108,31 +122,14 @@ def run_simulation(args):
         if subproc:
             clist = copy.deepcopy(sys.argv)
 
-            def remove_from_arglist(clist, argstr, has_arg=False):
-                if argstr not in clist:
-                    return
-                index = clist.index(argstr)
-                if has_arg:
-                    clist = clist[:index] + clist[index + 2:]
-                else:
-                    clist.remove(argstr)
-
-            def replace_in_arglist(clist, argstr, replace_with):
-                if argstr not in clist:
-                    clist.append(argstr)
-                    clist.append(replace_with)
-                else:
-                    index = clist.index(argstr)
-                    clist[index + 1] = replace_with
-
             remove_from_arglist(clist, '--subsimproc')
             replace_in_arglist(clist, '--seed', str(args.seed + iproc))
             remove_from_arglist(clist, '--n-procs', has_arg=True)
             replace_in_arglist(clist, '--workdir', args.workdir + '/sub-' + str(iproc))
-            replace_in_arglist(clist, '--outfname', args.workdir + '/sub-' + str(iproc) + '/' + os.path.basename(args.outfname))
+            replace_in_arglist(clist, '--outfname', args.workdir + '/sub-' + str(iproc) + '/recombinator/' + os.path.basename(args.outfname))
+            replace_in_arglist(clist, '--n-sim-events', str(n_events))
             if args.slurm:
                 clist.insert(0, 'srun')
-            print ' '.join(clist)
             return Popen(clist)
         else:
             reco = Recombinator(args, glfo, seed=args.seed+iproc, sublabel=str(iproc), allele_prevalence_freqs=allele_prevalence_freqs)
@@ -163,7 +160,7 @@ def run_simulation(args):
                     if procs[iproc] is None:  # already finished
                         continue
                     if procs[iproc].poll() is not None:  # it's finished
-                        pass  # utils.finish_process(iproc, procs, n_tries, self.subworkdir(iproc, n_procs), get_outfname(iproc), get_cmd_str(iproc))
+                        procs[iproc] = None  # utils.finish_process(iproc, procs, n_tries, self.subworkdir(iproc, n_procs), get_outfname(iproc), get_cmd_str(iproc))
                 sys.stdout.flush()
                 time.sleep(0.1)
         else:
@@ -175,7 +172,7 @@ def run_simulation(args):
                 time.sleep(1)
 
     # check and merge output
-    outfnames = [args.workdir + '/recombinator-' + str(iproc) + '/' + os.path.basename(args.outfname) for iproc in range(args.n_procs)]
+    outfnames = [args.workdir + '/sub-' + str(iproc) + '/recombinator/' + os.path.basename(args.outfname) for iproc in range(args.n_procs)]
     for fname in outfnames:
         if not os.path.exists(fname):
             raise Exception('output file %s d.n.e.' % fname)
