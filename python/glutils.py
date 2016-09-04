@@ -61,7 +61,7 @@ def convert_to_duplicate_name(glfo, gene):
         if gene in equivalence_class:
             for alternate_name in equivalence_class:
                 if alternate_name != gene and alternate_name in glfo['seqs'][utils.get_region(gene)]:
-                    print 'converting %s --> %s' % (gene, alternate_name)
+                    # print 'converting %s --> %s' % (gene, alternate_name)
                     return alternate_name
     raise Exception('couldn\'t find alternate name for %s' % gene)
 

@@ -216,14 +216,22 @@ sw_cache_headers = ['k_v', 'k_d', 'padlefts', 'padrights', 'all_matches', 'mut_f
 partition_cachefile_headers = ('unique_ids', 'logprob', 'naive_seq', 'naive_hfrac', 'errors')  # these have to match whatever bcrham is expecting
 
 # ----------------------------------------------------------------------------------------
-def convert_from_adaptive_headers(glfo, line, uid=None):
+def generate_dummy_v(d_gene):
+    pv, sv, al = split_gene(d_gene)
+    return 'IGHVd' + pv + '-' + sv + '*' + al
+
+# ----------------------------------------------------------------------------------------
+def convert_from_adaptive_headers(glfo, line, uid=None, only_dj_rearrangements=False):
     newline = {}
+    print_it = False
 
     for head, ahead in adaptive_headers.items():
         newline[head] = line[ahead]
+        if head in column_configs['lists']:
+            newline[head] = [newline[head], ]
 
     if uid is not None:
-        newline['unique_ids'] = uid
+        newline['unique_ids'] = [uid, ]
 
     for erosion in real_erosions:
         newline[erosion + '_del'] = int(newline[erosion + '_del'])
@@ -234,6 +242,20 @@ def convert_from_adaptive_headers(glfo, line, uid=None):
         if newline[region + '_gene'] == 'unresolved':
             newline[region + '_gene'] = None
             continue
+        if region == 'j' and 'P' in newline[region + '_gene']:
+            newline[region + '_gene'] = newline[region + '_gene'].replace('P', '')
+
+        if '*' not in newline[region + '_gene']:
+            # print uid
+            # tmpheads = ['dMaxResolved', 'dFamilyName', 'dGeneName', 'dGeneAllele', 'dFamilyTies', 'dGeneNameTies', 'dGeneAlleleTies']
+            # for h in tmpheads:
+            #     print '   %s: %s' % (h, line[h]),
+            # print ''
+            if line['dGeneAlleleTies'] == '':
+                newline['failed'] = True
+                return newline
+            d_alleles = line['dGeneAlleleTies'].split(',')
+            newline[region + '_gene'] += '*' + d_alleles[0]
         primary_version, sub_version, allele = split_gene(newline[region + '_gene'])
         primary_version, sub_version = primary_version.lstrip('0'), sub_version.lstrip('0')  # alleles get to keep their leading zero (thank you imgt for being consistent)
         if region == 'j':  # adaptive calls every j sub_version 1
@@ -245,29 +267,60 @@ def convert_from_adaptive_headers(glfo, line, uid=None):
             raise Exception('couldn\'t rebuild gene name from adaptive data: %s' % gene)
         newline[region + '_gene'] = gene
 
-    print newline['unique_ids']
-    seq = newline['seqs']
+    seq = newline['seqs'][0]
     boundlist = ['vIndex', 'n1Index', 'dIndex', 'n2Index', 'jIndex']
+    qrbounds, glbounds = {}, {}
     for region in regions:
-        istart = int(line[region + 'Index'])
-        istop = int(line[boundlist[boundlist.index(region + 'Index') + 1]]) if region != 'j' else len(seq)
-        print region, istart, istop
-        if istart == -1 or istop == -1:
-            newline[region + '_qr_seq'] = None
-        else:
-            print '  qr ', seq[istart : istop]
-            glseq = glfo['seqs'][region][newline[region + '_gene']]
-            print '  gl ', glseq[newline[region + '_5p_del'] : len(glseq) - newline[region + '_3p_del']]
-            newline[region + '_qr_seq'] = seq[istart : istop]
-        # if boundlist[ib] is None:
-        #     continue
-        # print '%8d   %s' % (bound, seq[int(line[bound])])
-    # istart = int(line[region + 'Index']) + newline[region + '_5p_del']
-    # istop = int(line[region + 'Index']) 
-    # print seq[istart:istop]
-    # print glfo['seqs'][region][gene]
+        if only_dj_rearrangements and region == 'v':
+            newline['v_gene'] = generate_dummy_v(newline['d_gene'])
+            line['vIndex'] = 0
+            line['n1Index'] = int(line['dIndex']) - 1  # or is it without the -1?
+            glfo['seqs']['v'][newline['v_gene']] = seq[line['vIndex'] : line['n1Index']]
+            glfo['cyst-positions'][newline['v_gene']] = len(glfo['seqs']['v'][newline['v_gene']]) - 3
+        if newline[region + '_gene'] is None:
+            newline['failed'] = True
+            return newline
+        qrb = [int(line[region + 'Index']),
+                    int(line[boundlist[boundlist.index(region + 'Index') + 1]]) if region != 'j' else len(seq)]
+        glseq = glfo['seqs'][region][newline[region + '_gene']]
+        glb = [newline[region + '_5p_del'],
+                    len(glseq) - newline[region + '_3p_del']]
+        if region == 'j' and glb[1] - glb[0] > qrb[1] - qrb[0]:  # extra adaptive stuff on right side of j
+            old = glb[1]
+            glb[1] = glb[0] + qrb[1] - qrb[0]
+            newline['j_3p_del'] = old - glb[1]
 
-    # still need to convert to integers/lists/whatnot
+        if qrb[0] == -1 or qrb[1] == -1 or qrb[1] < qrb[0]:  # should this also be equals?
+            newline['failed'] = True
+            return newline
+        if qrb[1] - qrb[0] != glb[1] - glb[0]:
+            print qrb, glb
+            raise Exception('not the same length')
+        qrbounds[region] = qrb
+        glbounds[region] = glb
+
+    for bound in boundaries:
+        newline[bound + '_insertion'] = seq[qrbounds[bound[0]][1] : qrbounds[bound[1]][0]]  # end of lefthand region to start of righthand region
+
+    newline['fv_insertion'] = ''
+    newline['jf_insertion'] = seq[qrbounds['j'][1]:]
+
+    # print seq
+    # print seq[:qrbounds['d'][0]],
+    # print seq[qrbounds['d'][0] : qrbounds['d'][1]],
+    # print seq[qrbounds['d'][1] : qrbounds['j'][0]],
+    # print seq[qrbounds['j'][0] : qrbounds['j'][1]],
+    # print seq[qrbounds['j'][1] :]
+
+    newline['indelfos'] = [get_empty_indel(), ]
+
+    if print_it:
+        add_implicit_info(glfo, newline)
+        print_reco_event(glfo['seqs'], newline, label=uid)
+
+    # still need to convert to integers/lists/whatnot (?)
+
+    newline['failed'] = False
 
     return newline
 
@@ -682,7 +735,7 @@ def process_per_gene_support(line, debug=False):
         line[region + '_per_gene_support'] = support
 
 # ----------------------------------------------------------------------------------------
-def add_implicit_info(glfo, line, existing_implicit_keys=None, aligned_gl_seqs=None, debug=False):
+def add_implicit_info(glfo, line, existing_implicit_keys=None, aligned_gl_seqs=None):
     """ Add to <line> a bunch of things that are initially only implicit. """
 
     # check for existing and unexpected keys
@@ -750,7 +803,7 @@ def add_implicit_info(glfo, line, existing_implicit_keys=None, aligned_gl_seqs=N
     if aligned_gl_seqs is None:
         add_dummy_alignments(line)
     else:
-        add_alignments(glfo, aligned_gl_seqs, line, debug)
+        add_alignments(glfo, aligned_gl_seqs, line)
 
     # make sure we added exactly what we expected to
     new_keys = set(line.keys()) - initial_keys

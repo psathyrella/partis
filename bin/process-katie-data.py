@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import csv
+import operator
 import sys
 import os
 
@@ -16,23 +17,35 @@ glfo = glutils.read_glfo('data/germlines/human', 'h')
 
 infname = '/fh/fast/matsen_e/data/2016-06-02-katie/VMO_Memory-3/VMO_Memory-3.tsv'
 
+n_failed = 0
+introns = {}
+
 with open(infname) as infile:
     reader = csv.DictReader(infile, delimiter='\t')
     iline = 0
     introns = {}
     for line in reader:
         iline += 1
-        if iline > 10:
+        if iline > 1000:
             break
-        # print '%5s%5s%5s' % (line['vIndex'], line['dIndex'], line['jIndex'])
-        # continue
-        print ''
-        line = utils.convert_from_adaptive_headers(glfo, line, uid='%09d' % iline)
-        if line['v_gene'] is not None:  # for the moment, skip seqs that have v genes
+        if line[utils.adaptive_headers['v_gene']] != 'unresolved':  # for the moment, skip seqs that have v genes
             continue
-        if line['d_gene'] is None or line['j_gene'] is None:
+        line = utils.convert_from_adaptive_headers(glfo, line, uid='%09d' % iline, only_dj_rearrangements=True)
+        if line['failed']:
+            n_failed += 1
             continue
 
-        # seq = line['nucleotide']
-        # d_seq = glfo['seqs']['d'][line['dGeneName']]
-        # dstart = seq.find(
+        d_gene = line['d_gene']
+        if d_gene not in introns:
+            introns[d_gene] = {}
+        iseq = glfo['seqs']['v'][line['v_gene']]
+        if iseq not in introns[d_gene]:
+            introns[d_gene][iseq] = 0
+        introns[d_gene][iseq] += 1
+
+for d_gene, counts in introns.items():
+    print d_gene
+    for seq, count in sorted(counts.items(), key=operator.itemgetter(1), reverse=True):
+        print '    %3d   %s' % (count, seq)
+
+print 'failed: %d' % n_failed
