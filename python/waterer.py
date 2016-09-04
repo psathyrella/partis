@@ -17,11 +17,12 @@ from opener import opener
 from parametercounter import ParameterCounter
 from performanceplotter import PerformancePlotter
 from allelefinder import AlleleFinder
+from alleleremover import AlleleRemover
 
 # ----------------------------------------------------------------------------------------
 class Waterer(object):
     """ Run smith-waterman on the query sequences in <infname> """
-    def __init__(self, args, input_info, reco_info, glfo, parameter_out_dir=None, find_new_alleles=False, simglfo=None, itry=None):
+    def __init__(self, args, input_info, reco_info, glfo, count_parameters=False, parameter_out_dir=None, remove_less_likely_alleles=False, find_new_alleles=False, plot_performance=False, simglfo=None, itry=None):
         self.args = args
         self.input_info = input_info
         self.reco_info = reco_info
@@ -50,14 +51,16 @@ class Waterer(object):
 
         self.my_gldir = self.args.workdir + '/' + glutils.glfo_dir
 
-        self.alfinder, self.pcounter, self.true_pcounter, self.perfplotter = None, None, None, None
+        self.alremover, self.alfinder, self.pcounter, self.true_pcounter, self.perfplotter = None, None, None, None, None
+        if remove_less_likely_alleles:
+            self.alremover = AlleleRemover(self.glfo, self.args, AlleleFinder(self.glfo, self.args, itry=0))
         if find_new_alleles:  # NOTE *not* the same as <self.args.find_new_alleles>
             self.alfinder = AlleleFinder(self.glfo, self.args, itry)
-        if parameter_out_dir is not None:  # NOTE *not* the same as <self.args.cache_parameters>
+        if count_parameters:  # NOTE *not* the same as <self.args.cache_parameters>
             self.pcounter = ParameterCounter(self.glfo, self.args)
             if not self.args.is_data:
                 self.true_pcounter = ParameterCounter(self.simglfo, self.args)
-        if self.args.plot_performance:
+        if plot_performance:  # NOTE *not* the same as <self.args.plot_performance>
             self.perfplotter = PerformancePlotter('sw')
 
         if not os.path.exists(self.args.ig_sw_binary):
@@ -105,89 +108,78 @@ class Waterer(object):
             for line in reader:
                 utils.process_input_line(line)
                 assert len(line['unique_ids']) == 1
-                qname = line['unique_ids'][0]
-                self.info['queries'].append(qname)
-                self.info[qname] = line
-                assert len(line['indelfos']) == 1
-                if line['indelfos'][0]['reversed_seq'] != '':
-                    self.info['indels'][qname] = line['indelfos'][0]
-                for region in utils.regions:  # add this query's matches into the overall gene match sets
-                    self.info['all_best_matches'].add(line[region + '_gene'])
-                    self.info['all_matches'][region] |= set(self.info[qname]['all_matches'][region])
-
                 for region in utils.regions:  # uh... should do this more cleanly at some point
                     del line[region + '_per_gene_support']
+                hackline = self.get_hack_line(line)  # deals with padding
+                self.add_to_info(hackline)
+                if line['indelfos'][0]['reversed_seq'] != '':
+                    self.info['indels'][line['unique_ids'][0]] = line['indelfos'][0]
 
-                if self.perfplotter is not None:
-                    hackline = self.get_hack_line(self.info[qname])
-                    if qname in self.info['indels']:
-                        print '    skipping performance evaluation of %s because of indels' % qname  # I just have no idea how to handle naive hamming fraction when there's indels
-                    else:
-                        self.perfplotter.evaluate(self.reco_info[qname], hackline)
-
-                if self.alfinder is not None:
-                    hackline = self.get_hack_line(self.info[qname])
-                    self.alfinder.increment(hackline)
-
-        # TODO combine incrementation and finalization when reading cache file and when actually running
-
-        if self.perfplotter is not None:
-            self.perfplotter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
-
-        if self.alfinder is not None:  # TODO it doesn't really make sense to have this here, since most of the time you don't really want to do allele finding here
-            self.alfinder.finalize(debug=self.args.debug_new_allele_finding)
-            self.info['new-alleles'] = self.alfinder.new_allele_info
-            if self.args.plotdir is not None:
-                self.alfinder.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
+        self.finalize(cachefname=None, just_read_cachefile=True)
 
     # ----------------------------------------------------------------------------------------
-    def finalize(self, cachefname):
-        if self.perfplotter is not None:
-            self.perfplotter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
+    def finalize(self, cachefname=None, just_read_cachefile=False):
         print '      info for %d' % len(self.info['queries']),
-        skipped_unproductive = len(self.unproductive_queries)
-        n_remaining = len(self.remaining_queries)
-        if skipped_unproductive > 0 or n_remaining > 0:
-            print '     (skipped',
-            print '%d / %d = %.2f unproductive' % (skipped_unproductive, len(self.input_info), float(skipped_unproductive) / len(self.input_info)),
+
+        if not just_read_cachefile:
+            skipped_unproductive = len(self.unproductive_queries)
+            n_remaining = len(self.remaining_queries)
+            if skipped_unproductive > 0 or n_remaining > 0:
+                print '     (skipped',
+                print '%d / %d = %.2f unproductive' % (skipped_unproductive, len(self.input_info), float(skipped_unproductive) / len(self.input_info)),
+                if n_remaining > 0:
+                    print '   %d / %d = %.2f other' % (n_remaining, len(self.input_info), float(n_remaining) / len(self.input_info)),
+                print ')',
+            print ''
             if n_remaining > 0:
-                print '   %d / %d = %.2f other' % (n_remaining, len(self.input_info), float(n_remaining) / len(self.input_info)),
-            print ')',
-        print ''
-        sys.stdout.flush()
-        if n_remaining > 0:
-            printstr = '   %s %d missing %s' % (utils.color('red', 'warning'), n_remaining, utils.plural_str('annotation', n_remaining))
-            if n_remaining < 15:
-                printstr += ' (' + ' '.join(self.remaining_queries) + ')'
-            print printstr
-        if self.debug and len(self.info['indels']) > 0:
-            print '      indels: %s' % ':'.join(self.info['indels'].keys())
-        assert len(self.info['queries']) + skipped_unproductive + n_remaining == len(self.input_info)
-        if self.debug and not self.args.is_data and n_remaining > 0:
-            print 'true annotations for remaining events:'
-            for qry in self.remaining_queries:
-                utils.print_reco_event(self.glfo['seqs'], self.reco_info[qry], extra_str='      ', label='true:')
+                printstr = '   %s %d missing %s' % (utils.color('red', 'warning'), n_remaining, utils.plural_str('annotation', n_remaining))
+                if n_remaining < 15:
+                    printstr += ' (' + ' '.join(self.remaining_queries) + ')'
+                print printstr
+            if self.debug and len(self.info['indels']) > 0:
+                print '      indels: %s' % ':'.join(self.info['indels'].keys())
+            assert len(self.info['queries']) + skipped_unproductive + n_remaining == len(self.input_info)
+            if self.debug and not self.args.is_data and n_remaining > 0:
+                print 'true annotations for remaining events:'
+                for qry in self.remaining_queries:
+                    utils.print_reco_event(self.glfo['seqs'], self.reco_info[qry], extra_str='      ', label='true:')
+
+        self.info['remaining_queries'] = self.remaining_queries
+
+        found_germline_changes = False
+        if self.alremover is not None:
+            self.alremover.finalize(self.pcounter, self.info)
+            self.info['genes-to-remove'] = self.alremover.genes_to_remove
+            if len(self.info['genes-to-remove']) > 0:
+                found_germline_changes = True
         if self.alfinder is not None:
-            self.alfinder.finalize(debug=self.args.debug_new_allele_finding)
+            self.alfinder.set_excluded_bases(self.info)
+            for query in self.info['queries']:
+                self.alfinder.increment(self.info[query])  # it needs to know the distribution of 3p deletions before it can increment, so it has to be here
+            self.alfinder.finalize(debug=self.args.debug_allele_finding)
             self.info['new-alleles'] = self.alfinder.new_allele_info
             if self.args.plotdir is not None:
                 self.alfinder.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
+            if len(self.info['new-alleles']) > 0:
+                found_germline_changes = True
 
         # add padded info to self.info (returns if stuff has already been padded)
         self.pad_seqs_to_same_length()  # NOTE this uses *all the gene matches (not just the best ones), so it has to come before we call pcounter.write(), since that fcn rewrites the germlines removing genes that weren't best matches. But NOTE also that I'm not sure what but that the padding actually *needs* all matches (rather than just all *best* matches)
 
+        if self.perfplotter is not None:
+            self.perfplotter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
+
         if self.pcounter is not None:
-            if self.args.plotdir is not None:
+            if self.args.plotdir is not None and not found_germline_changes:
                 self.pcounter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
                 if self.true_pcounter is not None:
                     self.true_pcounter.plot(self.args.plotdir + '/sw-true', only_csv=self.args.only_csv_plots)
-            self.pcounter.write(self.parameter_out_dir)
-            if self.true_pcounter is not None:
-                self.true_pcounter.write(self.parameter_out_dir + '-true')
+            if self.parameter_out_dir is not None and not found_germline_changes:
+                self.pcounter.write(self.parameter_out_dir)
+                if self.true_pcounter is not None:
+                    self.true_pcounter.write(self.parameter_out_dir + '-true')
 
-        self.info['remaining_queries'] = self.remaining_queries
-
-        if cachefname is not None:
+        if cachefname is not None and not found_germline_changes:  # NOTE this can be set to None by <self.alremover>
             print '        writing sw results to %s' % cachefname
             with open(cachefname, 'w') as outfile:
                 writer = csv.DictWriter(outfile, utils.annotation_headers + utils.sw_cache_headers)
@@ -198,6 +190,8 @@ class Waterer(object):
                     outline = utils.get_line_for_output(self.info[query])  # convert lists to colon-separated strings and whatnot (doens't modify input dictionary)
                     outline = {k : v for k, v in outline.items() if k in utils.annotation_headers + utils.sw_cache_headers}  # remove the columns we don't want to output
                     writer.writerow(outline)
+
+        sys.stdout.flush()
 
     # ----------------------------------------------------------------------------------------
     def subworkdir(self, iproc, n_procs):
@@ -214,13 +208,14 @@ class Waterer(object):
         # ----------------------------------------------------------------------------------------
         def get_cmd_str(iproc):
             return self.get_ig_sw_cmd_str(self.subworkdir(iproc, n_procs), base_infname, base_outfname, n_procs)
+            # return self.get_vdjalign_cmd_str(self.subworkdir(iproc, n_procs), base_infname, base_outfname, n_procs)
 
         # start all procs for the first time
         procs, n_tries = [], []
         for iproc in range(n_procs):
             procs.append(utils.run_cmd(get_cmd_str(iproc), self.subworkdir(iproc, n_procs)))
             n_tries.append(1)
-            time.sleep(0.1)
+            time.sleep(0.01)
 
         # keep looping over the procs until they're all done
         while procs.count(None) != len(procs):  # we set each proc to None when it finishes
@@ -230,7 +225,7 @@ class Waterer(object):
                 if procs[iproc].poll() is not None:  # it's finished
                     utils.finish_process(iproc, procs, n_tries, self.subworkdir(iproc, n_procs), get_outfname(iproc), get_cmd_str(iproc))
             sys.stdout.flush()
-            time.sleep(1)
+            time.sleep(0.1)
 
         for iproc in range(n_procs):
             os.remove(self.subworkdir(iproc, n_procs) + '/' + base_infname)
@@ -269,6 +264,26 @@ class Waterer(object):
         not_written = self.remaining_queries - written_queries
         if len(not_written) > 0:
             raise Exception('didn\'t write %s to %s' % (':'.join(not_written), self.args.workdir))
+
+    # ----------------------------------------------------------------------------------------
+    def get_vdjalign_cmd_str(self, workdir, base_infname, base_outfname, n_procs=None):
+        """
+        Run smith-waterman alignment (from Connor's ighutils package) on the seqs in <base_infname>, and toss all the top matches into <base_outfname>.
+        """
+        # large gap-opening penalty: we want *no* gaps in the middle of the alignments
+        # match score larger than (negative) mismatch score: we want to *encourage* some level of shm. If they're equal, we tend to end up with short unmutated alignments, which screws everything up
+        cmd_str = os.getenv('HOME') + '/.local/bin/vdjalign align-fastq -q'
+        if self.args.slurm or utils.auto_slurm(n_procs):
+            cmd_str = 'srun ' + cmd_str
+        cmd_str += ' --locus ' + 'IG' + self.args.chain.upper()
+        cmd_str += ' --max-drop 50'
+        match, mismatch = self.match_mismatch
+        cmd_str += ' --match ' + str(match) + ' --mismatch ' + str(mismatch)
+        cmd_str += ' --gap-open ' + str(self.gap_open_penalty)
+        cmd_str += ' --vdj-dir ' + self.my_gldir + '/' + self.args.chain
+        cmd_str += ' --samtools-dir ' + self.args.partis_dir + '/packages/samtools'
+        cmd_str += ' ' + workdir + '/' + base_infname + ' ' + workdir + '/' + base_outfname
+        return cmd_str
 
     # ----------------------------------------------------------------------------------------
     def get_ig_sw_cmd_str(self, workdir, base_infname, base_outfname, n_procs=None):
@@ -600,57 +615,62 @@ class Waterer(object):
         qinfo['glbounds'][r_gene] = (qinfo['glbounds'][r_gene][0] + r_portion, qinfo['glbounds'][r_gene][1])
 
     # ----------------------------------------------------------------------------------------
-    def add_to_info(self, qinfo, best, codon_positions):
+    def convert_qinfo(self, qinfo, best, codon_positions):
+        """ convert <qinfo> (which is from reading sam files) to format for <self.info> (this is so add_to_info() can be used by the cache file reader, as well) """
         qname = qinfo['name']
         assert qname not in self.info
 
-        self.info['queries'].append(qname)
-        self.info[qname] = {}
-        self.info[qname]['unique_ids'] = [qname, ]  # redundant, but used somewhere down the line
+        infoline = {}
+        infoline['unique_ids'] = [qname, ]  # redundant, but used somewhere down the line
+        infoline['seqs'] = [qinfo['seq'], ]  # NOTE this is the seq output by vdjalign, i.e. if we reversed any indels it is the reversed sequence, also NOTE many, many things depend on this list being of length one
 
         kbounds = self.get_kbounds(qinfo, best)
-        self.info[qname]['k_v'] = kbounds['v']
-        self.info[qname]['k_d'] = kbounds['d']
-
-        self.info[qname]['cdr3_length'] = codon_positions['j'] - codon_positions['v'] + 3
-        self.info[qname]['codon_positions'] = copy.deepcopy(codon_positions)
+        infoline['k_v'] = kbounds['v']
+        infoline['k_d'] = kbounds['d']
 
         # erosion, insertion, mutation info for best match
-        self.info[qname]['v_5p_del'] = qinfo['glbounds'][best['v']][0]
-        self.info[qname]['v_3p_del'] = len(self.glfo['seqs']['v'][best['v']]) - qinfo['glbounds'][best['v']][1]  # len(germline v) - gl_match_end
-        self.info[qname]['d_5p_del'] = qinfo['glbounds'][best['d']][0]
-        self.info[qname]['d_3p_del'] = len(self.glfo['seqs']['d'][best['d']]) - qinfo['glbounds'][best['d']][1]
-        self.info[qname]['j_5p_del'] = qinfo['glbounds'][best['j']][0]
-        self.info[qname]['j_3p_del'] = len(self.glfo['seqs']['j'][best['j']]) - qinfo['glbounds'][best['j']][1]
+        infoline['v_5p_del'] = qinfo['glbounds'][best['v']][0]
+        infoline['v_3p_del'] = len(self.glfo['seqs']['v'][best['v']]) - qinfo['glbounds'][best['v']][1]  # len(germline v) - gl_match_end
+        infoline['d_5p_del'] = qinfo['glbounds'][best['d']][0]
+        infoline['d_3p_del'] = len(self.glfo['seqs']['d'][best['d']]) - qinfo['glbounds'][best['d']][1]
+        infoline['j_5p_del'] = qinfo['glbounds'][best['j']][0]
+        infoline['j_3p_del'] = len(self.glfo['seqs']['j'][best['j']]) - qinfo['glbounds'][best['j']][1]
 
-        self.info[qname]['fv_insertion'] = qinfo['seq'][ : qinfo['qrbounds'][best['v']][0]]
-        self.info[qname]['vd_insertion'] = qinfo['seq'][qinfo['qrbounds'][best['v']][1] : qinfo['qrbounds'][best['d']][0]]
-        self.info[qname]['dj_insertion'] = qinfo['seq'][qinfo['qrbounds'][best['d']][1] : qinfo['qrbounds'][best['j']][0]]
-        self.info[qname]['jf_insertion'] = qinfo['seq'][qinfo['qrbounds'][best['j']][1] : ]
+        infoline['fv_insertion'] = qinfo['seq'][ : qinfo['qrbounds'][best['v']][0]]
+        infoline['vd_insertion'] = qinfo['seq'][qinfo['qrbounds'][best['v']][1] : qinfo['qrbounds'][best['d']][0]]
+        infoline['dj_insertion'] = qinfo['seq'][qinfo['qrbounds'][best['d']][1] : qinfo['qrbounds'][best['j']][0]]
+        infoline['jf_insertion'] = qinfo['seq'][qinfo['qrbounds'][best['j']][1] : ]
 
-        self.info[qname]['indelfos'] = [self.info['indels'].get(qname, utils.get_empty_indel()), ]
+        infoline['indelfos'] = [self.info['indels'].get(qname, utils.get_empty_indel()), ]
 
-        self.info[qname]['all_matches'] = {r : [g for _, g in qinfo['matches'][r]] for r in utils.regions}  # get lists with no scores, just the names (still ordered by match quality, though)
+        infoline['all_matches'] = {r : [g for _, g in qinfo['matches'][r]] for r in utils.regions}  # get lists with no scores, just the names (still ordered by match quality, though)
         for region in utils.regions:
-            self.info[qname][region + '_gene'] = best[region]
+            infoline[region + '_gene'] = best[region]
+
+        infoline['cdr3_length'] = codon_positions['j'] - codon_positions['v'] + 3
+        infoline['codon_positions'] = copy.deepcopy(codon_positions)
+        utils.add_implicit_info(self.glfo, infoline, existing_implicit_keys=('cdr3_length', 'codon_positions'))
+
+        return infoline
+
+    # ----------------------------------------------------------------------------------------
+    def add_to_info(self, infoline):
+        assert len(infoline['unique_ids'])
+        qname = infoline['unique_ids'][0]
+
+        self.info['queries'].append(qname)
+        self.info[qname] = infoline
 
         # add this query's matches into the overall gene match sets
         for region in utils.regions:
-            self.info['all_best_matches'].add(best[region])
+            self.info['all_best_matches'].add(self.info[qname][region + '_gene'])
             self.info['all_matches'][region] |= set(self.info[qname]['all_matches'][region])
-
-        self.info[qname]['seqs'] = [qinfo['seq'], ]  # NOTE this is the seq output by vdjalign, i.e. if we reversed any indels it is the reversed sequence, also NOTE many, many things depend on this list being of length one
-
-        existing_implicit_keys = tuple(['cdr3_length', 'codon_positions'])
-        utils.add_implicit_info(self.glfo, self.info[qname], existing_implicit_keys=existing_implicit_keys)
 
         if self.debug:
             if not self.args.is_data:
                 utils.print_reco_event(self.glfo['seqs'], self.reco_info[qname], extra_str='      ', label='true:')
             utils.print_reco_event(self.glfo['seqs'], self.info[qname], extra_str='      ', label='inferred:')
 
-        if self.alfinder is not None:
-            self.alfinder.increment(self.info[qname])
         if self.pcounter is not None:
             self.pcounter.increment(self.info[qname])
             if self.true_pcounter is not None:
@@ -766,7 +786,8 @@ class Waterer(object):
             else:
                 pass  # this is here so you don't forget that if neither of the above is true, we fall through and add the query to self.info
 
-        self.add_to_info(qinfo, best, codon_positions)
+        infoline = self.convert_qinfo(qinfo, best, codon_positions)
+        self.add_to_info(infoline)
 
     # ----------------------------------------------------------------------------------------
     def get_kbounds(self, qinfo, best):

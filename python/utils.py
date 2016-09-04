@@ -363,19 +363,23 @@ def color_chars(chars, col, seq):
     return return_str
 
 # ----------------------------------------------------------------------------------------
-def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', post_str='', print_hfrac=False):
+def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', post_str='', print_hfrac=False, print_isnps=False):
     assert len(ref_seq) == len(seq)
     return_str = ''
+    isnps = []
     for inuke in range(len(seq)):
         if inuke >= len(ref_seq) or seq[inuke] == ref_seq[inuke]:
             return_str += seq[inuke]
         else:
             return_str += color('red', seq[inuke])
+            isnps.append(inuke)
     if print_result:
         print '%s%s%s' % (extra_str, ref_label, ref_seq)
         print '%s%s%s%s' % (extra_str, ' '*len(ref_label), return_str, post_str),
         if print_hfrac:
             print '   hfrac %.3f' % hamming_fraction(ref_seq, seq),
+        if print_isnps:
+            print '   %d snps at: %s' % (len(isnps), ' '.join([str(i) for i in isnps])),
         print ''
     return return_str
 
@@ -1122,23 +1126,23 @@ def are_same_primary_version(gene1, gene2):
     return True
 
 # ----------------------------------------------------------------------------------------
-def separate_into_allelic_groups(germline_seqs):
-    allelic_groups = {}
+def separate_into_allelic_groups(glfo, debug=False):
+    allelic_groups = {r : {} for r in regions}
     for region in regions:
-        allelic_groups[region] = {}
-        for gene in germline_seqs[region]:
+        for gene in glfo['seqs'][region]:
             primary_version, sub_version, allele = split_gene(gene)
             if primary_version not in allelic_groups[region]:
                 allelic_groups[region][primary_version] = {}
             if sub_version not in allelic_groups[region][primary_version]:
-                allelic_groups[region][primary_version][sub_version] = []
-            allelic_groups[region][primary_version][sub_version].append(gene)
-    # for r in allelic_groups:
-    #     print r
-    #     for p in allelic_groups[r]:
-    #         print '    %15s' % p
-    #         for s in allelic_groups[r][p]:
-    #             print '        %15s      %s' % (s, allelic_groups[r][p][s])
+                allelic_groups[region][primary_version][sub_version] = set()
+            allelic_groups[region][primary_version][sub_version].add(gene)
+    if debug:
+        for r in allelic_groups:
+            print r
+            for p in allelic_groups[r]:
+                print '    %15s' % p
+                for s in allelic_groups[r][p]:
+                    print '        %15s      %s' % (s, ' '.join([color_gene(g, width=12) for g in allelic_groups[r][p][s]]))
     return allelic_groups
 
 # ----------------------------------------------------------------------------------------

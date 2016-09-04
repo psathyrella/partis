@@ -127,25 +127,27 @@ class PartitionDriver(object):
                 raise Exception('--persistent-cachefname %s has unexpected header list %s' % (self.args.persistent_cachefname, reader.fieldnames))
 
     # ----------------------------------------------------------------------------------------
-    def get_cachefname(self, write_parameters):
+    def get_cachefname(self, write_parameters, find_new_alleles):
         if self.args.sw_cachefname is not None:  # if --sw-cachefname was explicitly set, always use that
             return self.args.sw_cachefname
-        elif write_parameters or os.path.exists(self.default_cachefname):  # otherwise, use the default cachefname if we're either writing parameters (in which case we want to write results to disk) or if the default already exists (in which case we want to read it)
+        elif write_parameters or find_new_alleles or os.path.exists(self.default_cachefname):  # otherwise, use the default cachefname if we're either writing parameters (in which case we want to write results to disk) or if the default already exists (in which case we want to read it)
             return self.default_cachefname
         return None  # don't want to read or write sw cache files
 
     # ----------------------------------------------------------------------------------------
-    def run_waterer(self, write_parameters=False, find_new_alleles=False, itry=None):
+    def run_waterer(self, write_parameters=False, remove_less_likely_alleles=False, find_new_alleles=False, itry=None):
         print 'smith-waterman',
         if write_parameters:
             print '  (writing parameters)',
         if find_new_alleles:
             print '  (looking for new alleles)',
+        if remove_less_likely_alleles:
+            print '  (removing less-likely alleles)',
         print ''
         sys.stdout.flush()
 
         # can probably remove this... I just kind of want to know if it happens
-        if not write_parameters and not find_new_alleles:
+        if not write_parameters and not find_new_alleles and not remove_less_likely_alleles:
             genes_with_hmms = set(utils.find_genes_that_have_hmms(self.sub_param_dir))
             expected_genes = set([g for r in utils.regions for g in self.glfo['seqs'][r].keys()])  # this'll be the & of the gldir (maybe rewritten, maybe not)
             if self.args.only_genes is None and len(genes_with_hmms - expected_genes) > 0:
@@ -154,8 +156,12 @@ class PartitionDriver(object):
                 print '  %s %d genes in glfo that don\'t have yamels in %s' % (utils.color('red', 'warning'), len(expected_genes - genes_with_hmms), self.sub_param_dir)
 
         parameter_out_dir = self.sw_param_dir if write_parameters else None
-        waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo, parameter_out_dir=parameter_out_dir, find_new_alleles=find_new_alleles, simglfo=self.simglfo, itry=itry)
-        cachefname = self.get_cachefname(write_parameters)
+        waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo,
+                          count_parameters=(remove_less_likely_alleles or parameter_out_dir is not None),
+                          parameter_out_dir=parameter_out_dir, remove_less_likely_alleles=remove_less_likely_alleles, find_new_alleles=find_new_alleles,
+                          plot_performance=(self.args.plot_performance and not remove_less_likely_alleles and not find_new_alleles),
+                          simglfo=self.simglfo, itry=itry)
+        cachefname = self.get_cachefname(write_parameters, find_new_alleles)
         if cachefname is None or not os.path.exists(cachefname):  # run sw if we either don't want to do any caching (None) or if we are planning on writing the results after we run
             waterer.run(cachefname)
         else:
@@ -165,7 +171,6 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def find_new_alleles(self):
         """ look for new alleles with sw, write any that you find to the germline set directory in <self.workdir>, add them to <self.glfo>, and repeat until you don't find any. """
-        print 'NOTE if args.generate_new_alignment is set, only removes original allele if a new allele is found -- it doesn\'t remove other genes (which may be what we want -- they get in effect removed later when we only write yamels for genes that we actually saw)'
         all_new_allele_info = []
         itry = 0
         while True:
@@ -176,15 +181,12 @@ class PartitionDriver(object):
                 print '    removing sw cache file %s (it has outdated germline info)' % self.default_cachefname
                 os.remove(self.default_cachefname)
             all_new_allele_info += self.sw_info['new-alleles']
-            glutils.restrict_to_genes(self.glfo, list(self.sw_info['all_best_matches']), debug=True)
-            glutils.add_new_alleles(self.glfo, self.sw_info['new-alleles'], remove_template_genes=(itry==0 and self.args.generate_germline_set), debug=True)
-            glutils.write_glfo(self.my_gldir, self.glfo, debug=True)  # write glfo modifications to disk
+            glutils.restrict_to_genes(self.glfo, list(self.sw_info['all_best_matches']))
+            glutils.add_new_alleles(self.glfo, self.sw_info['new-alleles'])
+            glutils.write_glfo(self.my_gldir, self.glfo)  # write glfo modifications to disk
             itry += 1
-
-        # remove any V alleles for which we didn't ever find any evidence
-        if self.args.generate_germline_set:
-            assert False  # need to implement this
-            # alleles_with_evidence = 
+            if itry >= self.args.n_max_allele_finding_iterations:
+                print '  too many allele finding iterations: %d >= %d' % (itry, self.args.n_max_allele_finding_iterations)
 
         if self.args.new_allele_fname is not None:
             n_new_alleles = len(all_new_allele_info)
@@ -226,7 +228,11 @@ class PartitionDriver(object):
 
             self.args.min_observations_to_write = 1
 
-        if self.args.find_new_alleles:
+        if self.args.generate_germline_set:
+            self.run_waterer(remove_less_likely_alleles=True)
+            glutils.remove_genes(self.glfo, self.sw_info['genes-to-remove'], debug=True)
+            glutils.write_glfo(self.my_gldir, self.glfo, debug=True)
+        if self.args.find_new_alleles or self.args.generate_germline_set:
             self.find_new_alleles()
         self.run_waterer(write_parameters=True)
         self.restrict_to_observed_alleles(self.sw_param_dir)
@@ -243,6 +249,8 @@ class PartitionDriver(object):
         """ Just run <algorithm> (either 'forward' or 'viterbi') on sequences in <self.input_info> and exit. You've got to already have parameters cached in <self.args.parameter_dir> """
         print 'running %s' % algorithm
         self.run_waterer()
+        if self.args.only_smith_waterman:
+            return
         self.run_hmm(algorithm, parameter_in_dir=self.sub_param_dir)
 
     # ----------------------------------------------------------------------------------------

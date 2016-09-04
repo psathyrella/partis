@@ -68,7 +68,7 @@ class Tester(object):
             add_inference_tests('ref')
         if not args.only_ref:
             self.tests['cache-parameters-data']  = {'extras' : []}
-            self.tests['simulate']  = {'extras' : ['--n-sim-events', '500', '--n-leaves', '2', '--mimic-data-read-length']}
+            self.tests['simulate']  = {'extras' : ['--n-sim-events', '500', '--n-trees', '500', '--n-leaves', '2', '--mimic-data-read-length']}
             self.tests['cache-parameters-simu']  = {'extras' : []}
             add_inference_tests('new')
 

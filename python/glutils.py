@@ -2,6 +2,7 @@ import sys
 import os
 import random
 import re
+import numpy
 import glob
 from collections import OrderedDict
 import csv
@@ -246,9 +247,9 @@ def get_missing_codon_info(glfo, debug=False):
     # ----------------------------------------------------------------------------------------
     def get_pos_in_alignment(codon, aligned_seq, seq, pos):
         """ given <pos> in <seq>, find the codon's position in <aligned_seq> """
-        assert utils.codon_ok(codon, seq, pos, debug=True)  # this only gets called on the gene with the *known* position, so it shouldn't fail
+        assert utils.codon_ok(codon, seq, pos, debug=debug)  # this only gets called on the gene with the *known* position, so it shouldn't fail
         pos_in_alignment = pos + get_n_gaps_up_to_pos(aligned_seq, pos)
-        assert utils.codon_ok(codon, aligned_seq, pos_in_alignment, debug=True)
+        assert utils.codon_ok(codon, aligned_seq, pos_in_alignment, debug=debug)
         return pos_in_alignment
 
     for region, codon in utils.conserved_codons[glfo['chain']].items():
@@ -301,7 +302,7 @@ def get_missing_codon_info(glfo, debug=False):
             #     tmppos = known_pos_in_alignment
             #     print '    %s%s%s   %s    (new)' % (tmpseq[:tmppos], utils.color('reverse_video', tmpseq[tmppos : tmppos + 3]), tmpseq[tmppos + 3:], utils.color_gene(gene))
 
-        utils.check_a_bunch_of_codons(codon, seqons, extra_str='          ', debug=True)
+        utils.check_a_bunch_of_codons(codon, seqons, extra_str='          ', debug=debug)
         if debug:
             print '      added %d %s positions' % (n_added, codon)
 
@@ -459,12 +460,22 @@ def restrict_to_genes(glfo, only_genes, debug=False):
 
     only_genes_not_in_glfo = set(only_genes) - set([g for r in utils.regions for g in glfo['seqs'][r]])
     if len(only_genes_not_in_glfo) > 0:
-        print '  %s genes %s in --only-genes aren\'t in glfo to begin with' % (utils.color('red', 'warning'), ' '.join(only_genes_not_in_glfo))
+        print '  %s genes %s in <only_genes> aren\'t in glfo to begin with' % (utils.color('red', 'warning'), ' '.join(only_genes_not_in_glfo))
 
     genes_to_remove = set([g for r in utils.regions for g in glfo['seqs'][r]]) - set(only_genes)
     if debug:
         print '    removing %d genes from glfo' % len(genes_to_remove)
     remove_genes(glfo, genes_to_remove)
+
+# ----------------------------------------------------------------------------------------
+def remove_v_genes_with_bad_cysteines(glfo, debug=False):
+    prelength = len(glfo['seqs']['v'])
+    for gene in glfo['seqs']['v'].keys():
+        # if len(glfo['seqs']['v'][gene]) < glfo['cyst-positions'][gene] + 3:
+        if not utils.codon_ok('cyst', glfo['seqs']['v'][gene], glfo['cyst-positions'][gene]):
+            remove_gene(glfo, gene, debug=debug)
+    if True:  # debug:
+        print '  removed %d / %d v genes with bad cysteines' % (prelength - len(glfo['seqs']['v']), len(glfo['seqs']['v']))
 
 # ----------------------------------------------------------------------------------------
 def remove_genes(glfo, genes, debug=False):
@@ -485,12 +496,12 @@ def remove_gene(glfo, gene, debug=False):
     del glfo['seqs'][region][gene]
 
 # ----------------------------------------------------------------------------------------
-def add_new_alleles(glfo, newfos, remove_template_genes, debug=False):
+def add_new_alleles(glfo, newfos, remove_template_genes=False, debug=False):
     for newfo in newfos:
-        add_new_allele(glfo, newfo, remove_template_genes, debug=debug)
+        add_new_allele(glfo, newfo, remove_template_genes=remove_template_genes, debug=debug)
 
 # ----------------------------------------------------------------------------------------
-def add_new_allele(glfo, newfo, remove_template_genes, debug=False):
+def add_new_allele(glfo, newfo, remove_template_genes=False, debug=False):
     """
     Add a new allele to <glfo>, specified by <newfo> which is of the
     form: {'template-gene' : 'IGHV3-71*01', 'gene' : 'IGHV3-71*01+C35T.T47G', 'seq' : 'ACTG yadda yadda CGGGT'}
@@ -595,3 +606,63 @@ def remove_glfo_files(gldir, chain):
         os.remove(gldir + '/' + chain + '/' + fname)
     os.rmdir(gldir + '/' + chain)
     os.rmdir(gldir)  # at the moment, we should only be running on single-chain stuff, so the only dir with info for more than one chain should be data/germlines
+
+# ----------------------------------------------------------------------------------------
+def choose_some_alleles(region, genes_to_use, allelic_groups, n_alleles_per_gene, debug=False):
+    """ choose a gene (i.e. a primary and sub-version) from <allelic_groups>, and its attendant alleles """
+    # NOTE also modifies <allelic_groups>
+
+    if len(allelic_groups[region]) == 0:
+        raise Exception('ran out of %s alleles (either --n-genes-per-region or --n-alleles-per-gene are probably too big)' % region)
+
+    available_versions = None
+    while available_versions is None or len(available_versions) == 0:
+        if available_versions is not None:
+            print '  %s couldn\'t find any versions that have %d alleles, so trying again' % (utils.color('red', 'warning'), n_alleles)
+        n_alleles = numpy.random.choice(n_alleles_per_gene[region])
+        available_versions = [(pv, subv) for pv in allelic_groups[region] for subv in allelic_groups[region][pv] if len(allelic_groups[region][pv][subv]) >= n_alleles]
+    ichoice = numpy.random.randint(0, len(available_versions) - 1) if len(available_versions) > 1 else 0  # numpy.random.choice() can't handle list of tuples (and barfs if you give it only one thing to choose from)
+    primary_version, sub_version = available_versions[ichoice]
+    new_alleles = set(numpy.random.choice(list(allelic_groups[region][primary_version][sub_version]), size=n_alleles, replace=False))
+    if debug:
+        print '      %8s %5s   %s' % (primary_version, sub_version, ' '.join([utils.color_gene(g, width=15) for g in new_alleles]))
+
+    assert len(new_alleles & genes_to_use) == 0  # make sure none of the new alleles are already in <genes_to_use>
+    genes_to_use |= new_alleles  # actually add them to the final set
+
+    # remove stuff we've used from <allelic_groups>
+    del allelic_groups[region][primary_version][sub_version]  # remove this sub-version (we don't want any more alleles from it)
+    if len(allelic_groups[region][primary_version]) == 0:
+        del allelic_groups[region][primary_version]
+
+# ----------------------------------------------------------------------------------------
+def choose_allele_prevalence_freqs(glfo, allele_prevalence_freqs, region, min_allele_prevalence_freq, debug=False):
+    n_alleles = len(glfo['seqs'][region])
+    prevalence_counts = numpy.random.randint(1, int(1. / min_allele_prevalence_freq), size=n_alleles)  # ensures that each pair of alleles has a prevalence ratio between <min_allele_prevalence_freq> and 1. NOTE it's inclusive
+    prevalence_freqs = [float(c) / sum(prevalence_counts) for c in prevalence_counts]
+    allele_prevalence_freqs[region] = {g : f for g, f in zip(glfo['seqs'][region].keys(), prevalence_freqs)}
+    assert utils.is_normed(allele_prevalence_freqs[region])
+    if debug:
+        print '      counts %s' % ' '.join([('%5d' % c) for c in prevalence_counts])
+        print '       freqs %s' % ' '.join([('%5.3f' % c) for c in prevalence_freqs])
+        print '   min ratio %.3f' % (min(prevalence_freqs) / max(prevalence_freqs))
+
+# ----------------------------------------------------------------------------------------
+def generate_germline_set(glfo, n_genes_per_region, n_alleles_per_gene, min_allele_prevalence_freq, debug=True):
+    """ NOTE removes genes from  <glfo> """
+    if debug:
+        print '    choosing germline set'
+    allelic_groups = utils.separate_into_allelic_groups(glfo)
+    allele_prevalence_freqs = {r : {} for r in utils.regions}
+    for region in utils.regions:
+        if debug:
+            print '  %s' % region
+        genes_to_use = set()
+        for _ in range(n_genes_per_region[region]):
+            choose_some_alleles(region, genes_to_use, allelic_groups, n_alleles_per_gene, debug=debug)
+        if debug:
+            print '      chose %d alleles' % len(genes_to_use)
+        remove_genes(glfo, set(glfo['seqs'][region].keys()) - genes_to_use)  # NOTE would use glutils.restrict_to_genes() but it isn't on a regional basis
+        choose_allele_prevalence_freqs(glfo, allele_prevalence_freqs, region, min_allele_prevalence_freq, debug=debug)
+
+    return allele_prevalence_freqs
