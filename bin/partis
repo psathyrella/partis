@@ -120,7 +120,7 @@ def run_simulation(args):
     # ----------------------------------------------------------------------------------------
     def make_subproc_events(n_events, iproc, workdir, outfname):
         clist = copy.deepcopy(sys.argv)
-        remove_from_arglist(clist, '--subsimproc')
+        # remove_from_arglist(clist, '--subsimproc')
         replace_in_arglist(clist, '--seed', str(args.seed + iproc))
         remove_from_arglist(clist, '--n-procs', has_arg=True)
         replace_in_arglist(clist, '--workdir', workdir)
@@ -194,7 +194,7 @@ def run_simulation(args):
                 raise Exception('only found %d events (expected %d) in output file %s' % (n_events, n_per_proc, fname))
         utils.merge_csvs(args.outfname, outfnames)
 
-    if allele_prevalence_freqs is not None:# check final prevalence freqs
+    if not args.subsimproc and allele_prevalence_freqs is not None:  # check final prevalence freqs
         check_allele_prevalence_freqs(args.outfname, glfo, allele_prevalence_freqs)
 
 # ----------------------------------------------------------------------------------------
