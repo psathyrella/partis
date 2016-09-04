@@ -12,7 +12,8 @@ glfo = glutils.read_glfo('data/germlines/human', 'h')
 # for g, s in glfo['seqs']['v'].items():
 #     print '%s  %3d' % (utils.color_gene(g, width=20), len(s) - glfo['cyst-positions'][g])
 # sys.exit()
-base, a1, a2 = '4-30-2', '05', '03'
+base = '2-70'
+a1, a2 = '12', '01'
 gene1, gene2 = 'IGHV' + base + '*' + a1, 'IGHV' + base + '*' + a2
 seq1 = glfo['seqs']['v'][gene1]
 seq2 = glfo['seqs']['v'][gene2]

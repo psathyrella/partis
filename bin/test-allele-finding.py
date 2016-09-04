@@ -42,8 +42,10 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
 
     # simulate
     if True:
-        simevents = 3000
-        cmd_str = base_cmd + ' simulate --n-sim-events ' + str(simevents) + ' --n-leaves 1 --constant-number-of-leaves --n-procs 10 --simulate-partially-from-scratch --mutation-multiplier 0.5 --outfname ' + simfname
+        simevents = 8000
+        cmd_str = base_cmd + ' simulate --n-sim-events ' + str(simevents) + ' --n-leaves 1 --constant-number-of-leaves --simulate-partially-from-scratch --mutation-multiplier 0.5 --outfname ' + simfname
+        # cmd_str += ' --n-procs 10'
+        cmd_str += ' --subsimproc --slurm --n-procs 30'
 
         if simulation_v_genes is not None:
             simulation_genes = simulation_v_genes + ':' + dj_genes
@@ -92,8 +94,8 @@ def run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=None):
 
 seed = None  # 1
 dj_genes = 'IGHD6-19*01:IGHJ4*02'
-inference_v_genes = 'IGHV4-30-2*05' #'IGHV1-18*01'
-simulation_v_genes = inference_v_genes + ':IGHV4-30-2*03' # + ':IGHV9-99*02'  # 'IGHV4-59*01:IGHV4-59*04' # + IGHV1-18*01'
+inference_v_genes = None #'IGHV4-30-2*05' #'IGHV1-18*01'
+simulation_v_genes = None #inference_v_genes + ':IGHV4-30-2*03' # + ':IGHV9-99*02'  # 'IGHV4-59*01:IGHV4-59*04' # + IGHV1-18*01'
 
 run_test(simulation_v_genes, inference_v_genes, dj_genes, seed=seed)
 
