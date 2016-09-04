@@ -23,16 +23,13 @@ from event import RecombinationEvent
 #----------------------------------------------------------------------------------------
 class Recombinator(object):
     """ Simulates the process of VDJ recombination """
-    def __init__(self, args, glfo, seed, sublabel=None, allele_prevalence_freqs=None):  # NOTE <gldir> is not in general the same as <args.initial_germline_dir>
+    def __init__(self, args, glfo, seed, workdir, outfname, allele_prevalence_freqs=None):  # NOTE <gldir> is not in general the same as <args.initial_germline_dir>
         self.args = args
         self.glfo = glfo
 
-        if sublabel == None:
-            self.workdir = self.args.workdir + '/recombinator'
-            self.outfname = self.args.outfname
-        else:  # need a separate workdir for each subprocess
-            self.workdir = self.args.workdir + '/sub-' + sublabel + '/recombinator'
-            self.outfname = self.workdir + '/' + os.path.basename(self.args.outfname)
+        # NOTE in general *not* the same as <self.args.workdir> and <self.args.outfname>
+        self.workdir = workdir
+        self.outfname = outfname
         utils.prep_dir(self.workdir)
 
         if not self.args.simulate_partially_from_scratch:

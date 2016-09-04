@@ -118,42 +118,52 @@ def run_simulation(args):
         allele_prevalence_freqs = glutils.generate_germline_set(glfo, args.n_genes_per_region, args.n_alleles_per_gene, args.min_allele_prevalence_freq)  # NOTE removes unused genes from <glfo>
 
     # ----------------------------------------------------------------------------------------
-    def make_events(n_events, iproc, random_ints, subproc=False):  # NOTE all the different seeds! this sucks but is necessary to allow reproducibility
-        if subproc:
-            clist = copy.deepcopy(sys.argv)
+    def make_subproc_events(n_events, iproc, workdir, outfname):
+        clist = copy.deepcopy(sys.argv)
+        remove_from_arglist(clist, '--subsimproc')
+        replace_in_arglist(clist, '--seed', str(args.seed + iproc))
+        remove_from_arglist(clist, '--n-procs', has_arg=True)
+        replace_in_arglist(clist, '--workdir', workdir)
+        replace_in_arglist(clist, '--outfname', outfname)
+        replace_in_arglist(clist, '--n-sim-events', str(n_events))
+        if args.slurm:
+            clist.insert(0, 'srun')
+        return Popen(clist)
 
-            remove_from_arglist(clist, '--subsimproc')
-            replace_in_arglist(clist, '--seed', str(args.seed + iproc))
-            remove_from_arglist(clist, '--n-procs', has_arg=True)
-            replace_in_arglist(clist, '--workdir', args.workdir + '/sub-' + str(iproc))
-            replace_in_arglist(clist, '--outfname', args.workdir + '/sub-' + str(iproc) + '/recombinator/' + os.path.basename(args.outfname))
-            replace_in_arglist(clist, '--n-sim-events', str(n_events))
-            if args.slurm:
-                clist.insert(0, 'srun')
-            return Popen(clist)
-        else:
-            reco = Recombinator(args, glfo, seed=args.seed+iproc, sublabel=str(iproc), allele_prevalence_freqs=allele_prevalence_freqs)
-            for ievt in range(n_events):
-                reco.combine(random_ints[ievt])
+    # ----------------------------------------------------------------------------------------
+    def make_events(n_events, iproc, workdir, outfname, random_ints):
+        reco = Recombinator(args, glfo, seed=args.seed+iproc, workdir=workdir, outfname=outfname, allele_prevalence_freqs=allele_prevalence_freqs)
+        for ievt in range(n_events):
+            reco.combine(random_ints[ievt])
 
+# # ----------------------------------------------------------------------------------------
+#         if sublabel == None:
+#             self.workdir = self.args.workdir + '/recombinator'
+#             self.outfname = self.args.outfname
+#         else:  # need a separate workdir for each subprocess
+#             self.workdir = self.args.workdir + '/sub-' + sublabel + '/recombinator'
+#             self.outfname = self.workdir + '/' + os.path.basename(self.args.outfname)
+# # ----------------------------------------------------------------------------------------
     print 'simulating'
     used_default_parameter_dir = set_default_parameter_dir(args)
     # auto_ran_cache_parameters = check_maybe_auto_cache_parameters(args, gldir)
 
     n_per_proc = int(float(args.n_sim_events) / args.n_procs)
 
-    # generate all the random seeds
+    # generate all the random seeds (only used if not slurming)
     all_random_ints = []
     for iproc in range(args.n_procs):  # have to do it all at once, 'cause each of the subprocesses is going to reset its seed and god knows what happens to our seed at that point
         all_random_ints.append([random.randint(0, numpy.iinfo(numpy.int32).max) for i in range(n_per_proc)])
 
     if args.n_procs == 1:  # multiprocessing is kind of messy
-        make_events(n_per_proc, 0, all_random_ints[0])
+        make_events(n_per_proc, 0, args.workdir, args.outfname, all_random_ints[0])
     else:  # start the processes and wait for 'em to finish
+        workdirs = [args.workdir + '/sub-' + str(i) for i in range(args.n_procs)]
+        outfnames = [wd + '/' + os.path.basename(args.outfname) for wd in workdirs]
         if args.subsimproc:
             procs = []
             for iproc in range(args.n_procs):
-                procs.append(make_events(n_per_proc, iproc, all_random_ints[iproc], subproc=True))
+                procs.append(make_subproc_events(n_per_proc, iproc, workdirs[iproc], outfnames[iproc]))
                 time.sleep(0.01)
             while procs.count(None) != len(procs):  # we set each proc to None when it finishes
                 for iproc in range(args.n_procs):
@@ -165,21 +175,20 @@ def run_simulation(args):
                 time.sleep(0.1)
         else:
             for iproc in range(args.n_procs):
-                proc = Process(target=make_events, args=(n_per_proc, iproc, all_random_ints[iproc]))
+                proc = Process(target=make_events, args=(n_per_proc, iproc, workdirs[iproc], outfnames[iproc], all_random_ints[iproc]))
                 proc.start()
             while len(active_children()) > 0:
                 sys.stdout.flush()
                 time.sleep(1)
 
-    # check and merge output
-    outfnames = [args.workdir + '/sub-' + str(iproc) + '/recombinator/' + os.path.basename(args.outfname) for iproc in range(args.n_procs)]
-    for fname in outfnames:
-        if not os.path.exists(fname):
-            raise Exception('output file %s d.n.e.' % fname)
-        n_events = int(check_output('grep -v unique_id ' + fname + ' | awk -F, \'{print $2}\' | uniq | wc -l', shell=True).split()[0])  # if *adjacent* events have the same rearrangement parameters (and hence reco id), they'll show up as the same event. It has happened!
-        if n_events < n_per_proc - 3:  # give ourselves a little breathing room for adjacent events that have the same rearrangement parameters (it's only happened once, ever, so maybe 3 is enough?)
-            raise Exception('only found %d events (expected %d) in output file %s' % (n_events, n_per_proc, fname))
-    utils.merge_csvs(args.outfname, outfnames)
+        # check and merge output
+        for fname in outfnames:
+            if not os.path.exists(fname):
+                raise Exception('output file %s d.n.e.' % fname)
+            n_events = int(check_output('grep -v unique_id ' + fname + ' | awk -F, \'{print $2}\' | uniq | wc -l', shell=True).split()[0])  # if *adjacent* events have the same rearrangement parameters (and hence reco id), they'll show up as the same event. It has happened!
+            if n_events < n_per_proc - 3:  # give ourselves a little breathing room for adjacent events that have the same rearrangement parameters (it's only happened once, ever, so maybe 3 is enough?)
+                raise Exception('only found %d events (expected %d) in output file %s' % (n_events, n_per_proc, fname))
+        utils.merge_csvs(args.outfname, outfnames)
 
     if allele_prevalence_freqs is not None:# check final prevalence freqs
         check_allele_prevalence_freqs(args.outfname, glfo, allele_prevalence_freqs)
