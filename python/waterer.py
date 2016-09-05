@@ -191,19 +191,18 @@ class Waterer(object):
     # ----------------------------------------------------------------------------------------
     def execute_commands(self, base_infname, base_outfname, n_procs):
 
-        def get_cmd_str(iproc, workdir):
-            return self.get_ig_sw_cmd_str(workdir, base_infname, base_outfname, n_procs)
-            # return self.get_vdjalign_cmd_str(subworkdir, base_infname, base_outfname, n_procs)
+        def get_cmd_str(iproc):
+            return self.get_ig_sw_cmd_str(self.subworkdir(iproc, n_procs), base_infname, base_outfname, n_procs)
+            # return self.get_vdjalign_cmd_str(self.subworkdir(iproc, n_procs), base_infname, base_outfname, n_procs)
 
-        workdirs = [self.subworkdir(iproc, n_procs) for iproc in range(n_procs)]
-        cmd_strs = [get_cmd_str(iproc, workdirs[iproc]) for iproc in range(n_procs)]
-        outfnames = [workdirs[iproc] + '/' + base_outfname for iproc in range(n_procs)]
-
-        utils.run_cmds(cmd_strs, workdirs, outfnames, logdirs=workdirs)
+        cmdfos = [{'cmd_str' : get_cmd_str(iproc),
+                   'workdir' : self.subworkdir(iproc, n_procs),
+                   'outfname' : self.subworkdir(iproc, n_procs) + '/' + base_outfname}
+                  for iproc in range(n_procs)]
+        utils.run_cmds(cmdfos)
 
         for iproc in range(n_procs):
             os.remove(self.subworkdir(iproc, n_procs) + '/' + base_infname)
-
         sys.stdout.flush()
 
     # ----------------------------------------------------------------------------------------

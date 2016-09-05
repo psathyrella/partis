@@ -12,7 +12,6 @@ from subprocess import Popen, check_call, PIPE, CalledProcessError, check_output
 import copy
 import multiprocessing
 import operator
-from Bio import SeqIO
 
 import utils
 import glutils
@@ -629,11 +628,13 @@ class PartitionDriver(object):
         sys.stdout.flush()
         start = time.time()
 
-        cmd_strs = [get_cmd_str(iproc) for iproc in range(n_procs)]
-        workdirs = [self.subworkdir(iproc, n_procs) for iproc in range(n_procs)]
-        outfnames = [get_outfname(iproc) for iproc in range(n_procs)]
         self.bcrham_proc_info = [{} for _ in range(n_procs)]
-        utils.run_cmds(cmd_strs, workdirs, outfnames, logdirs=workdirs, infos=self.bcrham_proc_info, debug=(self.args.debug or self.current_action=='partition'))
+        cmdfos = [{'cmd_str' : get_cmd_str(iproc),
+                   'workdir' : self.subworkdir(iproc, n_procs),
+                   'outfname' : get_outfname(iproc),
+                   'dbgfo' : self.bcrham_proc_info[iproc]}
+                  for iproc in range(n_procs)]
+        utils.run_cmds(cmdfos, debug=(self.args.debug or self.current_action=='partition'))
 
         print '      time waiting for bcrham: %.1f' % (time.time()-start)
         self.check_wait_times(time.time()-start)

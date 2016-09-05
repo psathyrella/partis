@@ -126,10 +126,15 @@ def run_simulation(args):
         for ievt in range(n_events):
             reco.combine(random_ints[ievt])
 
+    def get_workdir(iproc):
+        return args.workdir + '/sub-' + str(iproc)
+    def get_outfname(iproc):
+        return get_workdir(iproc) + '/' + os.path.basename(args.outfname)
+
     if not args.im_a_subproc:
         print 'simulating'
 
-    used_default_parameter_dir = set_default_parameter_dir(args)
+    _ = set_default_parameter_dir(args)
 
     n_per_proc = int(float(args.n_sim_events) / args.n_procs)
 
@@ -141,15 +146,16 @@ def run_simulation(args):
     if args.n_procs == 1:  # multiprocessing is kind of messy
         make_events(n_per_proc, 0, args.workdir, args.outfname, all_random_ints[0])
     else:  # start the processes and wait for 'em to finish
-        workdirs = [args.workdir + '/sub-' + str(i) for i in range(args.n_procs)]
-        logdirs = [args.workdir + '/log-' + str(i) for i in range(args.n_procs)]  # have to be different than <workdirs> since ./bin/partis barfs if its workdir already exists (as it should)
-        outfnames = [wd + '/' + os.path.basename(args.outfname) for wd in workdirs]
+        cmdfos = [{'cmd_str' : get_subproc_cmd_str(n_per_proc, iproc, get_workdir(iproc), get_outfname(iproc)) if args.subsimproc else None,
+                   'workdir' : get_workdir(iproc),
+                   'logdir' : args.workdir + '/log-' + str(iproc),  # have to be different than <workdirs> since ./bin/partis barfs if its workdir already exists (as it should)
+                   'outfname' : get_outfname(iproc)}
+                  for iproc in range(args.n_procs)]
         if args.subsimproc:
-            cmd_strs = [get_subproc_cmd_str(n_per_proc, ip, workdirs[ip], outfnames[ip]) for ip in range(args.n_procs)]
-            utils.run_cmds(cmd_strs, workdirs, outfnames, logdirs)
+            utils.run_cmds(cmdfos)
         else:
             for iproc in range(args.n_procs):
-                proc = Process(target=make_events, args=(n_per_proc, iproc, workdirs[iproc], outfnames[iproc], all_random_ints[iproc]))
+                proc = Process(target=make_events, args=(n_per_proc, iproc, cmdfos[iproc]['workdir'], cmdfos[iproc]['outfname'], all_random_ints[iproc]))
                 proc.start()
             while len(active_children()) > 0:
                 sys.stdout.flush()
@@ -157,15 +163,16 @@ def run_simulation(args):
 
         # check and merge output
         n_total_events = 0
-        for fname in outfnames:
+        for iproc in range(args.n_procs):
+            fname = cmdfos[iproc]['outfname']
             if not os.path.exists(fname):
                 raise Exception('output simulation file %s d.n.e.' % fname)
             n_events = int(check_output('grep -v unique_id ' + fname + ' | awk -F, \'{print $2}\' | uniq | wc -l', shell=True).split()[0])  # if *adjacent* events have the same rearrangement parameters (and hence reco id), they'll show up as the same event. It has happened!
             n_total_events += n_events
             if n_events < n_per_proc - 3:  # give ourselves a little breathing room for adjacent events that have the same rearrangement parameters (it's only happened once, ever, so maybe 3 is enough?)
                 raise Exception('only found %d events (expected %d) in output file %s' % (n_events, n_per_proc, fname))
-        utils.merge_csvs(args.outfname, outfnames)
-        print '   read %d events from %d files' % (n_total_events, len(outfnames))
+        utils.merge_csvs(args.outfname, [cmdfos[i]['outfname'] for i in range(args.n_procs)])
+        print '   read %d events from %d files' % (n_total_events, args.n_procs)
 
     if not args.im_a_subproc and args.allele_prevalence_fname is not None:  # check final prevalence freqs
         glutils.check_allele_prevalence_freqs(args.outfname, glfo, args.allele_prevalence_fname, only_region='v')
@@ -174,8 +181,8 @@ def run_simulation(args):
 
     if args.subsimproc:
         glutils.remove_glfo_files(working_gldir, args.chain)
-        for logdir in logdirs:
-            os.rmdir(logdir)
+        for iproc in range(args.n_procs):
+            os.rmdir(cmdfos[iproc]['logdir'])
 
     if not args.im_a_subproc:
         try:
@@ -202,7 +209,7 @@ def run_partitiondriver(args):
     if args.infname is None:
         raise Exception('--infname is required for the \'%s\' action' % args.action)
 
-    used_default_parameter_dir = set_default_parameter_dir(args)
+    _ = set_default_parameter_dir(args)
 
     gldir = args.default_initial_germline_dir
     if args.initial_germline_dir is not None:
@@ -214,7 +221,7 @@ def run_partitiondriver(args):
         parter.clean()
         return
 
-    auto_ran_cache_parameters = check_maybe_auto_cache_parameters(args, gldir)
+    _ = check_maybe_auto_cache_parameters(args, gldir)
 
     if args.initial_germline_dir is None:  # unless it was overridden on the command line, use the glfo in the parameter dir
         gldir = args.parameter_dir + '/' + args.parameter_type + '/' + glutils.glfo_dir

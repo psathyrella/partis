@@ -1517,18 +1517,24 @@ def run_cmd(cmd_str, workdir):
     return proc
 
 # ----------------------------------------------------------------------------------------
-def run_cmds(cmd_strs, workdirs, outfnames, logdirs, infos=None, debug=False):
+def run_cmds(cmdfos, debug=False):
+    for iproc in range(len(cmdfos)):
+        if 'logdir' not in cmdfos[iproc]:
+            cmdfos[iproc]['logdir'] = cmdfos[iproc]['workdir']
+        if 'dbgfo' not in cmdfos[iproc]:
+            cmdfos[iproc]['dbgfo'] = None
+
     procs, n_tries = [], []
-    for iproc in range(len(cmd_strs)):
-        procs.append(run_cmd(cmd_strs[iproc], logdirs[iproc]))
+    for iproc in range(len(cmdfos)):
+        procs.append(run_cmd(cmdfos[iproc]['cmd_str'], cmdfos[iproc]['logdir']))
         n_tries.append(1)
         time.sleep(0.01)
     while procs.count(None) != len(procs):  # we set each proc to None when it finishes
-        for iproc in range(len(cmd_strs)):
+        for iproc in range(len(cmdfos)):
             if procs[iproc] is None:  # already finished
                 continue
             if procs[iproc].poll() is not None:  # it's finished
-                finish_process(iproc, procs, n_tries, logdirs[iproc], outfnames[iproc], cmd_strs[iproc], info=infos[iproc] if infos is not None else None, debug=debug)
+                finish_process(iproc, procs, n_tries, cmdfos[iproc]['logdir'], cmdfos[iproc]['outfname'], cmdfos[iproc]['cmd_str'], info=cmdfos[iproc]['dbgfo'], debug=debug)
         sys.stdout.flush()
         time.sleep(0.1)
 
