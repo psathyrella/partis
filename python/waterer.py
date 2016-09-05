@@ -89,18 +89,6 @@ class Waterer(object):
         print '        water time: %.1f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
-    def get_hack_line(self, line):
-        hackline = copy.deepcopy(line)
-        # arg, hack hack hack hack
-        assert len(hackline['seqs']) == 1
-        hackline['seqs'][0] = hackline['seqs'][0][hackline['padlefts'][0]:]  # add on left-side padding
-        if hackline['padrights'][0] > 0:  # and right-side padding (being careful of negative-zero-right-slice thing)
-            hackline['seqs'][0] = hackline['seqs'][0][:-hackline['padrights'][0]]
-        assert len(hackline['seqs'][0]) == len(hackline['naive_seq'])
-        utils.add_implicit_info(self.glfo, hackline, existing_implicit_keys=['cdr3_length', 'naive_seq', 'mut_freqs'] + utils.functional_columns + ['aligned_' + r + '_seqs' for r in utils.regions])
-        return hackline
-
-    # ----------------------------------------------------------------------------------------
     def read_cachefile(self, cachefname):
         print '        reading sw results from %s' % cachefname
         with open(cachefname) as cachefile:
@@ -110,8 +98,8 @@ class Waterer(object):
                 assert len(line['unique_ids']) == 1
                 for region in utils.regions:  # uh... should do this more cleanly at some point
                     del line[region + '_per_gene_support']
-                hackline = self.get_hack_line(line)  # deals with padding
-                self.add_to_info(hackline)
+                utils.add_implicit_info(self.glfo, line, existing_implicit_keys=['cdr3_length', 'naive_seq', 'mut_freqs'] + utils.functional_columns + ['aligned_' + r + '_seqs' for r in utils.regions])
+                self.add_to_info(line)
                 if line['indelfos'][0]['reversed_seq'] != '':
                     self.info['indels'][line['unique_ids'][0]] = line['indelfos'][0]
 
@@ -889,14 +877,23 @@ class Waterer(object):
             if padleft < 0 or padright < 0:
                 raise Exception('bad padding %d %d for %s' % (padleft, padright, query))
 
-            swfo['seqs'][0] = padleft * utils.ambiguous_bases[0] + swfo['seqs'][0] + padright * utils.ambiguous_bases[0]
+            leftstr = padleft * utils.ambiguous_bases[0]
+            rightstr = padright * utils.ambiguous_bases[0]
+            swfo['fv_insertion'] = leftstr + swfo['fv_insertion']
+            swfo['jf_insertion'] = swfo['jf_insertion'] + rightstr
+            swfo['seqs'][0] = leftstr + swfo['seqs'][0] + rightstr
+            swfo['naive_seq'] = leftstr + swfo['naive_seq'] + rightstr
             if query in self.info['indels']:  # also pad the reversed sequence
-                self.info['indels'][query]['reversed_seq'] = padleft * utils.ambiguous_bases[0] + self.info['indels'][query]['reversed_seq'] + padright * utils.ambiguous_bases[0]
+                self.info['indels'][query]['reversed_seq'] = leftstr + self.info['indels'][query]['reversed_seq'] + rightstr
             swfo['k_v']['min'] += padleft
             swfo['k_v']['max'] += padleft
             swfo['codon_positions']['v'] += padleft
+            swfo['codon_positions']['j'] += padleft
+            for region in utils.regions:
+                swfo['regional_bounds'][region] = tuple([rb + padleft for rb in swfo['regional_bounds'][region]])  # I kind of want to just use a list now, but a.t.m. don't much feel like changing it everywhere else
             swfo['padlefts'] = [padleft, ]
             swfo['padrights'] = [padright, ]
+            utils.add_implicit_info(self.glfo, swfo, existing_implicit_keys=utils.implicit_linekeys)  # check to make sure we modified everything in a consistent manner
             if debug:
                 print '      pad %d %d   %s' % (padleft, padright, query)
 

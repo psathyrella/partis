@@ -724,20 +724,15 @@ class PartitionDriver(object):
         return self.sw_info[qry]['padlefts'][0] * utils.ambiguous_bases[0] + self.reco_info[qry]['naive_seq'] + self.sw_info[qry]['padrights'][0] * utils.ambiguous_bases[0]
 
     # ----------------------------------------------------------------------------------------
-    def get_padded_sw_naive_seq(self, qry):
-        assert len(self.sw_info[qry]['padlefts']) == 1
-        return self.sw_info[qry]['padlefts'][0] * utils.ambiguous_bases[0] + self.sw_info[qry]['naive_seq'] + self.sw_info[qry]['padrights'][0] * utils.ambiguous_bases[0]
-
-    # ----------------------------------------------------------------------------------------
     def get_sw_naive_seqs(self, info, namekey):
 
         naive_seqs = {}
         for line in info:
             query = line[namekey]
             if len(query.split(':')) == 1:  # ...but if we don't have them, use smith-waterman (should only be for single queries)
-               naive_seqs[query] = self.get_padded_sw_naive_seq(query)
+               naive_seqs[query] = self.sw_info[query]['naive_seq']
             elif len(query.split(':')) > 1:
-                naive_seqs[query] = self.get_padded_sw_naive_seq(query.split(':')[0])  # just arbitrarily use the naive seq from the first one. This is ok partly because if we cache the logprob but not the naive seq, that's because we thought about merging two clusters but did not -- so they're naive seqs should be similar. Also, this is just for divvying queries.
+                naive_seqs[query] = self.sw_info[query.split(':')[0]]['naive_seq']  # just arbitrarily use the naive seq from the first one. This is ok partly because if we cache the logprob but not the naive seq, that's because we thought about merging two clusters but did not -- so they're naive seqs should be similar. Also, this is just for divvying queries.
             else:
                 raise Exception('no naive sequence found for ' + str(query))
             if naive_seqs[query] == '':
@@ -981,7 +976,7 @@ class PartitionDriver(object):
             assert len(swfo['seqs']) == 1
             seq = swfo['seqs'][0]
             combo['seqs'].append(seq)
-            combo['mut_freqs'].append(utils.hamming_fraction(self.get_padded_sw_naive_seq(name), seq))
+            combo['mut_freqs'].append(utils.hamming_fraction(self.sw_info[name]['naive_seq'], seq))
             combo['k_v']['min'] = min(k_v['min'], combo['k_v']['min'])
             combo['k_v']['max'] = max(k_v['max'], combo['k_v']['max'])
             combo['k_d']['min'] = min(k_d['min'], combo['k_d']['min'])

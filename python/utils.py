@@ -771,12 +771,12 @@ def add_implicit_info(glfo, line, existing_implicit_keys=None, aligned_gl_seqs=N
     # add naive seq stuff
     line['naive_seq'] = line['fv_insertion'] + line['v_gl_seq'] + line['vd_insertion'] + line['d_gl_seq'] + line['dj_insertion'] + line['j_gl_seq'] + line['jf_insertion']
     start, end = {}, {}  # add naive seq bounds for each region (could stand to make this more concise)
-    start['v'] = 0  # holy fuck, look at that, I start at zero here, but at the end of the fv insertion in add_qr_seqs(). Scary!
-    end['v'] = start['v'] + len(line['fv_insertion'] + line['v_gl_seq'])  # base just after the end of v
+    start['v'] = len(line['fv_insertion'])  # NOTE this duplicates code in add_qr_seqs()
+    end['v'] = start['v'] + len(line['v_gl_seq'])  # base just after the end of v
     start['d'] = end['v'] + len(line['vd_insertion'])
     end['d'] = start['d'] + len(line['d_gl_seq'])
     start['j'] = end['d'] + len(line['dj_insertion'])
-    end['j'] = start['j'] + len(line['j_gl_seq'] + line['jf_insertion'])
+    end['j'] = start['j'] + len(line['j_gl_seq'])
     line['regional_bounds'] = {r : (start[r], end[r]) for r in regions}
 
     # add regional query seqs
@@ -792,7 +792,7 @@ def add_implicit_info(glfo, line, existing_implicit_keys=None, aligned_gl_seqs=N
     for chkreg in regions:
         if start[chkreg] < 0 or end[chkreg] < 0 or end[chkreg] < start[chkreg] or end[chkreg] > seq_length:
             line['invalid'] = True
-    if end['j'] != seq_length:
+    if end['j'] + len(line['jf_insertion']) != seq_length:
         line['invalid'] = True
     if line['cdr3_length'] < 6:  # i.e. if cyst and tryp overlap  NOTE six is also hardcoded in waterer
         line['invalid'] = True
@@ -1307,7 +1307,7 @@ def find_replacement_genes(param_dir, min_counts, gene_name=None, debug=False, a
 # ----------------------------------------------------------------------------------------
 def hamming_distance(seq1, seq2, extra_bases=None, return_len_excluding_ambig=False):
     if len(seq1) != len(seq2):
-        raise Exception('unequal length sequences %d %d' % (len(seq1), len(seq2)))
+        raise Exception('unequal length sequences %d %d:\n  %s\n  %s' % (len(seq1), len(seq2), seq1, seq2))
     if len(seq1) == 0:
         if return_len_excluding_ambig:
             return 0, 0
