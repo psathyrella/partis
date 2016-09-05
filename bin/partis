@@ -145,21 +145,8 @@ def run_simulation(args):
         logdirs = [args.workdir + '/log-' + str(i) for i in range(args.n_procs)]  # have to be different than <workdirs> since ./bin/partis barfs if its workdir already exists (as it should)
         outfnames = [wd + '/' + os.path.basename(args.outfname) for wd in workdirs]
         if args.subsimproc:
-            procs, n_tries = [], []
-            for iproc in range(args.n_procs):
-                cmd_str = get_subproc_cmd_str(n_per_proc, iproc, workdirs[iproc], outfnames[iproc])
-                procs.append(utils.run_cmd(cmd_str, logdirs[iproc]))
-                n_tries.append(1)
-                time.sleep(0.01)
-            while procs.count(None) != len(procs):  # we set each proc to None when it finishes
-                for iproc in range(args.n_procs):
-                    if procs[iproc] is None:  # already finished
-                        continue
-                    if procs[iproc].poll() is not None:  # it's finished
-                        cmd_str = get_subproc_cmd_str(n_per_proc, iproc, workdirs[iproc], outfnames[iproc])
-                        utils.finish_process(iproc, procs, n_tries, logdirs[iproc], outfnames[iproc], cmd_str)
-                sys.stdout.flush()
-                time.sleep(0.1)
+            cmd_strs = [get_subproc_cmd_str(n_per_proc, ip, workdirs[ip], outfnames[ip]) for ip in range(args.n_procs)]
+            utils.run_cmds(cmd_strs, workdirs, outfnames, logdirs)
         else:
             for iproc in range(args.n_procs):
                 proc = Process(target=make_events, args=(n_per_proc, iproc, workdirs[iproc], outfnames[iproc], all_random_ints[iproc]))

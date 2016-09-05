@@ -1,6 +1,4 @@
-""" A few utility functions. At the moment simply functions used in recombinator which do not
-require member variables. """
-
+import time
 import sys
 import os
 import random
@@ -1519,6 +1517,22 @@ def run_cmd(cmd_str, workdir):
     return proc
 
 # ----------------------------------------------------------------------------------------
+def run_cmds(cmd_strs, workdirs, outfnames, logdirs):
+    procs, n_tries = [], []
+    for iproc in range(len(cmd_strs)):
+        procs.append(run_cmd(cmd_strs[iproc], logdirs[iproc]))
+        n_tries.append(1)
+        time.sleep(0.01)
+    while procs.count(None) != len(procs):  # we set each proc to None when it finishes
+        for iproc in range(len(cmd_strs)):
+            if procs[iproc] is None:  # already finished
+                continue
+            if procs[iproc].poll() is not None:  # it's finished
+                finish_process(iproc, procs, n_tries, logdirs[iproc], outfnames[iproc], cmd_strs[iproc])
+        sys.stdout.flush()
+        time.sleep(0.1)
+
+# ----------------------------------------------------------------------------------------
 # deal with a process once it's finished (i.e. check if it failed, and restart if so)
 def finish_process(iproc, procs, n_tries, workdir, outfname, cmd_str, info=None, debug=True):
     procs[iproc].communicate()
@@ -1550,6 +1564,8 @@ def process_out_err(out, err, extra_str='', info=None, subworkdir=None, debug=Tr
 
     print_str = ''
     for line in err.split('\n'):
+        if 'stty: standard input: Inappropriate ioctl for device' in line:
+            continue
         if 'srun: job' in line and 'queued and waiting for resources' in line:
             continue
         if 'srun: job' in line and 'has been allocated resources' in line:
