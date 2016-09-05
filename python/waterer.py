@@ -109,7 +109,9 @@ class Waterer(object):
     def finalize(self, cachefname=None, just_read_cachefile=False):
         print '      info for %d' % len(self.info['queries']),
 
-        if not just_read_cachefile:
+        if just_read_cachefile:  # it's past tense!
+            print ''
+        else:
             skipped_unproductive = len(self.unproductive_queries)
             n_remaining = len(self.remaining_queries)
             if skipped_unproductive > 0 or n_remaining > 0:
