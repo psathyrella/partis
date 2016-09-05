@@ -115,7 +115,8 @@ def run_simulation(args):
         replace_in_arglist(clist, '--outfname', outfname)
         replace_in_arglist(clist, '--n-sim-events', str(n_events))
         replace_in_arglist(clist, '--initial-germline-dir', working_gldir)
-        replace_in_arglist(clist, '--allele-prevalence-fname', args.allele_prevalence_fname)
+        if args.allele_prevalence_fname is not None:
+            replace_in_arglist(clist, '--allele-prevalence-fname', args.allele_prevalence_fname)
         if args.slurm:
             clist.insert(0, 'srun')
         return ' '.join(clist)
