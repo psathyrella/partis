@@ -163,8 +163,8 @@ class Waterer(object):
             if len(self.info['new-alleles']) > 0:
                 found_germline_changes = True
 
-        # add padded info to self.info (returns if stuff has already been padded)
-        self.pad_seqs_to_same_length()  # NOTE this uses *all the gene matches (not just the best ones), so it has to come before we call pcounter.write(), since that fcn rewrites the germlines removing genes that weren't best matches. But NOTE also that I'm not sure what but that the padding actually *needs* all matches (rather than just all *best* matches)
+        if not just_read_cachefile:  # add padded info to self.info (returns if stuff has already been padded)
+            self.pad_seqs_to_same_length()  # NOTE this uses *all the gene matches (not just the best ones), so it has to come before we call pcounter.write(), since that fcn rewrites the germlines removing genes that weren't best matches. But NOTE also that I'm not sure what but that the padding actually *needs* all matches (rather than just all *best* matches)
 
         if self.perfplotter is not None:
             self.perfplotter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
