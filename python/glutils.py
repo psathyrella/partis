@@ -689,3 +689,22 @@ def generate_germline_set(glfo, n_genes_per_region, n_alleles_per_gene, min_alle
         remove_genes(glfo, set(glfo['seqs'][region].keys()) - genes_to_use)  # NOTE would use glutils.restrict_to_genes() but it isn't on a regional basis
         choose_allele_prevalence_freqs(glfo, allele_prevalence_freqs, region, min_allele_prevalence_freq, debug=debug)
     write_allele_prevalence_freqs(allele_prevalence_freqs, allele_prevalence_fname)  # NOTE lumps all the regions together, unlike in the parameter dirs
+
+# ----------------------------------------------------------------------------------------
+def check_allele_prevalence_freqs(outfname, glfo, allele_prevalence_fname, only_region=None):
+    allele_prevalence_freqs = read_allele_prevalence_freqs(allele_prevalence_fname)
+    counts = {r : {g : 0 for g in glfo['seqs'][r]} for r in utils.regions}
+    with open(outfname) as outfile:
+        reader = csv.DictReader(outfile)
+        for line in reader:
+            for region in utils.regions:
+                counts[region][line[region + '_gene']] += 1
+    print '   checking allele prevalence freqs'
+    for region in utils.regions:
+        if only_region is not None and region != only_region:
+            continue
+        total = sum(counts[region].values())
+        print '       %s   obs / tot  =  freq    expected' % region
+        for gene in glfo['seqs'][region]:
+            print '          %4d / %-4d = %.3f    %.3f   %s' % (counts[region][gene], total, float(counts[region][gene]) / total, allele_prevalence_freqs[region][gene], utils.color_gene(gene, width=15))
+

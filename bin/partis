@@ -65,21 +65,6 @@ def set_default_parameter_dir(args):
     return used_default_parameter_dir
 
 # ----------------------------------------------------------------------------------------
-def check_allele_prevalence_freqs(outfname, glfo, allele_prevalence_fname):
-    allele_prevalence_freqs = glutils.read_allele_prevalence_freqs(allele_prevalence_fname)
-    counts = {r : {g : 0 for g in glfo['seqs'][r]} for r in utils.regions}
-    with open(outfname) as outfile:
-        reader = csv.DictReader(outfile)
-        for line in reader:
-            for region in utils.regions:
-                counts[region][line[region + '_gene']] += 1
-    for region in utils.regions:
-        total = sum(counts[region].values())
-        print '   %s   obs / tot  =  freq    expected' % region
-        for gene in glfo['seqs'][region]:
-            print '     %4d / %-4d = %.3f    %.3f   %s' % (counts[region][gene], total, float(counts[region][gene]) / total, allele_prevalence_freqs[region][gene], utils.color_gene(gene, width=15))
-
-# ----------------------------------------------------------------------------------------
 def run_simulation(args):
     # I honestly have no recollection of why I started putting the list getting in the sub functions, maybe I should combine it
     args.n_genes_per_region = utils.get_arg_list(args.n_genes_per_region, intify=True)
@@ -112,7 +97,7 @@ def run_simulation(args):
     else:
         input_gldir = args.initial_germline_dir
     glfo = glutils.read_glfo(input_gldir, args.chain, only_genes=args.only_genes)
-    if args.simulate_partially_from_scratch and args.generate_germline_set:
+    if not args.im_a_subproc and args.simulate_partially_from_scratch and args.generate_germline_set:
         glutils.remove_v_genes_with_bad_cysteines(glfo)
         glutils.generate_germline_set(glfo, args.n_genes_per_region, args.n_alleles_per_gene, args.min_allele_prevalence_freq, args.allele_prevalence_fname)  # NOTE removes unwanted genes from <glfo>
     if args.subsimproc:
@@ -122,8 +107,10 @@ def run_simulation(args):
     # ----------------------------------------------------------------------------------------
     def get_subproc_cmd_str(n_events, iproc, workdir, outfname):
         clist = copy.deepcopy(sys.argv)
-        replace_in_arglist(clist, '--seed', str(args.seed + iproc))
         remove_from_arglist(clist, '--n-procs', has_arg=True)
+        remove_from_arglist(clist, '--subsimproc')
+        clist.append('--im-a-subproc')
+        replace_in_arglist(clist, '--seed', str(args.seed + iproc))
         replace_in_arglist(clist, '--workdir', workdir)
         replace_in_arglist(clist, '--outfname', outfname)
         replace_in_arglist(clist, '--n-sim-events', str(n_events))
@@ -139,7 +126,9 @@ def run_simulation(args):
         for ievt in range(n_events):
             reco.combine(random_ints[ievt])
 
-    print 'simulating'
+    if not args.im_a_subproc:
+        print 'simulating'
+
     used_default_parameter_dir = set_default_parameter_dir(args)
 
     n_per_proc = int(float(args.n_sim_events) / args.n_procs)
@@ -180,21 +169,32 @@ def run_simulation(args):
                 time.sleep(1)
 
         # check and merge output
+        n_total_events = 0
         for fname in outfnames:
             if not os.path.exists(fname):
-                raise Exception('output file %s d.n.e.' % fname)
+                raise Exception('output simulation file %s d.n.e.' % fname)
             n_events = int(check_output('grep -v unique_id ' + fname + ' | awk -F, \'{print $2}\' | uniq | wc -l', shell=True).split()[0])  # if *adjacent* events have the same rearrangement parameters (and hence reco id), they'll show up as the same event. It has happened!
+            n_total_events += n_events
             if n_events < n_per_proc - 3:  # give ourselves a little breathing room for adjacent events that have the same rearrangement parameters (it's only happened once, ever, so maybe 3 is enough?)
                 raise Exception('only found %d events (expected %d) in output file %s' % (n_events, n_per_proc, fname))
         utils.merge_csvs(args.outfname, outfnames)
+        print '   read %d events from %d files' % (n_total_events, len(outfnames))
 
-    if args.allele_prevalence_fname is not None:  # check final prevalence freqs
-        check_allele_prevalence_freqs(args.outfname, glfo, args.allele_prevalence_fname)
+    if not args.im_a_subproc and args.allele_prevalence_fname is not None:  # check final prevalence freqs
+        glutils.check_allele_prevalence_freqs(args.outfname, glfo, args.allele_prevalence_fname, only_region='v')
+        if args.allele_prevalence_fname == default_prevalence_fname:
+            os.remove(default_prevalence_fname)
 
     if args.subsimproc:
         glutils.remove_glfo_files(working_gldir, args.chain)
-        if args.allele_prevalence_fname == default_prevalence_fname:
-            os.remove(default_prevalence_fname)
+        for logdir in logdirs:
+            os.rmdir(logdir)
+
+    if not args.im_a_subproc:
+        try:
+            os.rmdir(args.workdir)
+        except OSError:
+            raise Exception('workdir (%s) not empty: %s' % (args.workdir, ' '.join(os.listdir(args.workdir))))  # hm... you get weird recursive exceptions if you get here. Oh, well, it still works
 
 # ----------------------------------------------------------------------------------------
 def run_partitiondriver(args):
@@ -402,6 +402,7 @@ subargs['simulate'].append({'name' : '--min-allele-prevalence-freq', 'kwargs' : 
 subargs['simulate'].append({'name' : '--allele-prevalence-fname', 'kwargs' : {'help' : 'abandon help all ye who enter here'}})
 
 subargs['simulate'].append({'name' : '--subsimproc', 'kwargs' : {'action' : 'store_true', 'help' : 'set to true if this process has subsidiary simulation processes handled by Popen'}})
+subargs['simulate'].append({'name' : '--im-a-subproc', 'kwargs' : {'action' : 'store_true', 'help' : 'set to true if this is a sub-process handled by --subsimproc'}})
 
 subparsermap = {}
 for name, vals in subconfig.items():
