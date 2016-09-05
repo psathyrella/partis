@@ -1517,7 +1517,7 @@ def run_cmd(cmd_str, workdir):
     return proc
 
 # ----------------------------------------------------------------------------------------
-def run_cmds(cmd_strs, workdirs, outfnames, logdirs):
+def run_cmds(cmd_strs, workdirs, outfnames, logdirs, infos=None, debug=False):
     procs, n_tries = [], []
     for iproc in range(len(cmd_strs)):
         procs.append(run_cmd(cmd_strs[iproc], logdirs[iproc]))
@@ -1528,7 +1528,7 @@ def run_cmds(cmd_strs, workdirs, outfnames, logdirs):
             if procs[iproc] is None:  # already finished
                 continue
             if procs[iproc].poll() is not None:  # it's finished
-                finish_process(iproc, procs, n_tries, logdirs[iproc], outfnames[iproc], cmd_strs[iproc])
+                finish_process(iproc, procs, n_tries, logdirs[iproc], outfnames[iproc], cmd_strs[iproc], info=infos[iproc] if infos is not None else None, debug=debug)
         sys.stdout.flush()
         time.sleep(0.1)
 

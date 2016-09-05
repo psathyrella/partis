@@ -190,30 +190,16 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def execute_commands(self, base_infname, base_outfname, n_procs):
-        # ----------------------------------------------------------------------------------------
-        def get_outfname(iproc):
-            return self.subworkdir(iproc, n_procs) + '/' + base_outfname
-        # ----------------------------------------------------------------------------------------
-        def get_cmd_str(iproc):
-            return self.get_ig_sw_cmd_str(self.subworkdir(iproc, n_procs), base_infname, base_outfname, n_procs)
-            # return self.get_vdjalign_cmd_str(self.subworkdir(iproc, n_procs), base_infname, base_outfname, n_procs)
 
-        # start all procs for the first time
-        procs, n_tries = [], []
-        for iproc in range(n_procs):
-            procs.append(utils.run_cmd(get_cmd_str(iproc), self.subworkdir(iproc, n_procs)))
-            n_tries.append(1)
-            time.sleep(0.01)
+        def get_cmd_str(iproc, workdir):
+            return self.get_ig_sw_cmd_str(workdir, base_infname, base_outfname, n_procs)
+            # return self.get_vdjalign_cmd_str(subworkdir, base_infname, base_outfname, n_procs)
 
-        # keep looping over the procs until they're all done
-        while procs.count(None) != len(procs):  # we set each proc to None when it finishes
-            for iproc in range(n_procs):
-                if procs[iproc] is None:  # already finished
-                    continue
-                if procs[iproc].poll() is not None:  # it's finished
-                    utils.finish_process(iproc, procs, n_tries, self.subworkdir(iproc, n_procs), get_outfname(iproc), get_cmd_str(iproc))
-            sys.stdout.flush()
-            time.sleep(0.1)
+        workdirs = [self.subworkdir(iproc, n_procs) for iproc in range(n_procs)]
+        cmd_strs = [get_cmd_str(iproc, workdirs[iproc]) for iproc in range(n_procs)]
+        outfnames = [workdirs[iproc] + '/' + base_outfname for iproc in range(n_procs)]
+
+        utils.run_cmds(cmd_strs, workdirs, outfnames, logdirs=workdirs)
 
         for iproc in range(n_procs):
             os.remove(self.subworkdir(iproc, n_procs) + '/' + base_infname)

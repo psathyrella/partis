@@ -629,25 +629,11 @@ class PartitionDriver(object):
         sys.stdout.flush()
         start = time.time()
 
-        # start all the procs for the first time
-        procs, n_tries, = [], []
-        self.bcrham_proc_info = []
-        for iproc in range(n_procs):
-            # print get_cmd_str(iproc)
-            # sys.exit()
-            procs.append(utils.run_cmd(get_cmd_str(iproc), self.subworkdir(iproc, n_procs)))
-            n_tries.append(1)
-            self.bcrham_proc_info.append({})
-
-        # keep looping over the procs until they're all done
-        while procs.count(None) != len(procs):  # we set each proc to None when it finishes
-            for iproc in range(n_procs):
-                if procs[iproc] is None:  # already finished
-                    continue
-                if procs[iproc].poll() is not None:  # it's finished
-                    utils.finish_process(iproc, procs, n_tries, self.subworkdir(iproc, n_procs), get_outfname(iproc), get_cmd_str(iproc), self.bcrham_proc_info[iproc], debug=(self.args.debug or self.current_action=='partition'))
-            sys.stdout.flush()
-            time.sleep(1)
+        cmd_strs = [get_cmd_str(iproc) for iproc in range(n_procs)]
+        workdirs = [self.subworkdir(iproc, n_procs) for iproc in range(n_procs)]
+        outfnames = [get_outfname(iproc) for iproc in range(n_procs)]
+        self.bcrham_proc_info = [{} for _ in range(n_procs)]
+        utils.run_cmds(cmd_strs, workdirs, outfnames, logdirs=workdirs, infos=self.bcrham_proc_info, debug=(self.args.debug or self.current_action=='partition'))
 
         print '      time waiting for bcrham: %.1f' % (time.time()-start)
         self.check_wait_times(time.time()-start)
