@@ -91,6 +91,12 @@ class Waterer(object):
     # ----------------------------------------------------------------------------------------
     def read_cachefile(self, cachefname):
         print '        reading sw results from %s' % cachefname
+
+        if os.path.exists(cachefname.replace('.csv', '-glfo')):
+            self.glfo = glutils.read_glfo(cachefname.replace('.csv', '-glfo'), self.args.chain)
+        else:
+            print '    %s didn\'t find a germline info dir along with sw cache file, but trying to read it anyway' % utils.color('red', 'warning')
+
         with open(cachefname) as cachefile:
             reader = csv.DictReader(cachefile)
             for line in reader:
@@ -171,6 +177,7 @@ class Waterer(object):
 
         if cachefname is not None and not found_germline_changes:  # NOTE this can be set to None by <self.alremover>
             print '        writing sw results to %s' % cachefname
+            glutils.write_glfo(cachefname.replace('.csv', '-glfo'), self.glfo)
             with open(cachefname, 'w') as outfile:
                 writer = csv.DictWriter(outfile, utils.annotation_headers + utils.sw_cache_headers)
                 writer.writeheader()

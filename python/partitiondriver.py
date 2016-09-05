@@ -164,7 +164,6 @@ class PartitionDriver(object):
         if cachefname is None or not os.path.exists(cachefname):  # run sw if we either don't want to do any caching (None) or if we are planning on writing the results after we run
             waterer.run(cachefname)
         else:
-            waterer.glfo = glutils.read_glfo(self.sw_param_dir + '/' + glutils.glfo_dir, self.args.chain)  # kind of hackey... but it's ok (handles the case where there's a best-sw match that isn't a best-hmm match)
             waterer.read_cachefile(cachefname)
         self.sw_info = waterer.info
 
