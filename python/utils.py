@@ -270,6 +270,9 @@ def convert_from_adaptive_headers(glfo, line, uid=None, only_dj_rearrangements=F
     qrbounds, glbounds = {}, {}
     for region in regions:
         if only_dj_rearrangements and region == 'v':
+            if newline['d_gene'] is None:
+                newline['failed'] = True
+                return newline
             newline['v_gene'] = generate_dummy_v(newline['d_gene'])
             line['vIndex'] = 0
             line['n1Index'] = int(line['dIndex']) - 1  # or is it without the -1?
@@ -1533,7 +1536,7 @@ def run_cmds(cmdfos, debug=False):
         for iproc in range(len(cmdfos)):
             if procs[iproc] is None:  # already finished
                 continue
-            if procs[iproc].poll() is not None:  # it's finished
+            if procs[iproc].poll() is not None:  # it just finished
                 finish_process(iproc, procs, n_tries, cmdfos[iproc]['logdir'], cmdfos[iproc]['outfname'], cmdfos[iproc]['cmd_str'], info=cmdfos[iproc]['dbgfo'], debug=debug)
         sys.stdout.flush()
         time.sleep(0.1)
