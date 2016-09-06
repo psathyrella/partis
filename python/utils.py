@@ -295,8 +295,8 @@ def convert_from_adaptive_headers(glfo, line, uid=None, only_dj_rearrangements=F
             newline['failed'] = True
             return newline
         if qrb[1] - qrb[0] != glb[1] - glb[0]:
-            print qrb, glb
-            raise Exception('not the same length')
+            newline['failed'] = True
+            return newline
         qrbounds[region] = qrb
         glbounds[region] = glb
 
