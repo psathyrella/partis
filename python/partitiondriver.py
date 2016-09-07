@@ -1309,14 +1309,14 @@ class PartitionDriver(object):
         if perfplotter is not None:
             perfplotter.plot(self.args.plotdir + '/hmm', only_csv=self.args.only_csv_plots)
 
-        print '        %d lines:  processed %d sequences in %d events' % (n_lines_read, n_seqs_processed, n_events_processed)
+        print '        processed %d hmm output lines with %d sequences in %d events' % (n_lines_read, n_seqs_processed, n_events_processed)
         if n_invalid_events > 0:
-            print '          %s skipped %d invalid events' % (utils.color('red', 'warning'), n_invalid_events)
+            print '            %s skipped %d invalid events' % (utils.color('red', 'warning'), n_invalid_events)
         for ecode in errorfo:
             if ecode == 'no_path':
                 print '          %s no valid paths: %s' % (utils.color('red', 'warning'), ' '.join(errorfo[ecode]))
             elif ecode == 'boundary':
-                print '      %d boundary errors' % len(errorfo[ecode])
+                print '          %d boundary warnings' % len(errorfo[ecode])
                 if self.args.debug:
                     print '                %s' % ' '.join(errorfo[ecode])
             else:
@@ -1401,7 +1401,7 @@ class PartitionDriver(object):
 
             # and write empty lines for seqs that failed either in sw or the hmm
             if len(missing_input_keys) > 0:
-                print 'missing %d input keys' % len(missing_input_keys)
+                print '          missing %d input keys when writing hmm output to %s' % (len(missing_input_keys), outfname)
                 for uid in missing_input_keys:
                     col = 'unique_ids'
                     writer.writerow({col : uid})
