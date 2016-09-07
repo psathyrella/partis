@@ -625,8 +625,8 @@ class Waterer(object):
                     qinfo['glbounds'][gene] = (qinfo['glbounds'][gene][0] - len(spurious_bases), qinfo['glbounds'][gene][1])
                     qinfo['qrbounds'][gene] = (qinfo['qrbounds'][gene][0] - len(spurious_bases), qinfo['qrbounds'][gene][1])
                 elif region == 'j':
-                    if gene == best[region]:
-                        assert qinfo['qrbounds'][gene][1] + len(spurious_bases) == len(qinfo['seq'])
+                    # if gene == best[region]:
+                    #     assert qinfo['qrbounds'][gene][1] + len(spurious_bases) == len(qinfo['seq'])
                     qinfo['glbounds'][gene] = (qinfo['glbounds'][gene][0], qinfo['glbounds'][gene][1] + len(spurious_bases))
                     qinfo['qrbounds'][gene] = (qinfo['qrbounds'][gene][0], qinfo['qrbounds'][gene][1] + len(spurious_bases))
                 else:
