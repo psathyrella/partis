@@ -13,6 +13,7 @@ import sys
 sys.path.insert(1, './python')
 from baseutils import get_extra_str
 import utils
+import glutils
 from hist import Hist
 from clusterpath import ClusterPath
 
@@ -155,7 +156,6 @@ class Tester(object):
             check_call(['rm', '-v', globfnames[0]])
             sw_cache_gldir = globfnames[0].replace('.csv', '-glfo')
             glutils.remove_glfo_files(sw_cache_gldir, args.chain)
-            os.rmdir(sw_cache_gldir)
 
         # choose a seed uid
         if name == 'seed-partition-' + info['input_stype'] + '-simu':
