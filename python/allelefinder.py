@@ -33,8 +33,7 @@ class AlleleFinder(object):
         self.itry = itry
 
         self.fraction_of_seqs_to_exclude = 0.01  # exclude the fraction of sequences with largest v_3p deletions whose counts add up to this fraction of total sequences NOTE you don't want to make this too big, because although you'll be removing all the seqs with large 4p deletions, this number also gets used when you're deciding whether your new allele is in the default glfo
-        self.n_5p_bases_to_exclude = {}  # i.e. on all the seqs we keep, we exclude this many bases; and any sequences that have larger deletions than this are not kept
-        self.n_3p_bases_to_exclude = {}
+        self.n_bases_to_exclude = {'5p' : {}, '3p' : {}}  # i.e. on all the seqs we keep, we exclude this many bases; and any sequences that have larger deletions than this are not kept
 
         self.n_max_snps = 20  # max number of snps, i.e. try excluding up to this many bins on the left
         self.n_max_mutations_per_segment = 30  # don't look at sequences whose v segments have more than this many mutations
@@ -59,7 +58,7 @@ class AlleleFinder(object):
         self.positions_to_plot = {}
         self.n_seqs_too_highly_mutated = {}  # sequences (per-gene) that had more than <self.n_max_mutations_per_segment> mutations
         self.gene_obs_counts = {}
-        self.n_big_3p_del_skipped = {}
+        self.n_big_del_skipped = {s : {} for s in self.n_bases_to_exclude}
 
         self.n_fits = 0
 
@@ -79,37 +78,40 @@ class AlleleFinder(object):
             for istart in range(self.n_max_mutations_per_segment + 1):  # istart and n_mutes are equivalent
                 self.counts[gene][igl][istart] = {n : 0 for n in ['muted', 'total'] + utils.nukes}
         self.gene_obs_counts[gene] = 0
-        self.n_big_3p_del_skipped[gene] = 0
+        for side in self.n_big_del_skipped:
+            self.n_big_del_skipped[side][gene] = 0
         self.n_seqs_too_highly_mutated[gene] = 0
 
     # ----------------------------------------------------------------------------------------
     def set_excluded_bases(self, swfo, debug=True):
-        dcounts = {}
-        for query in swfo['queries']:
-            gene = swfo[query]['v_gene']
-            if gene not in dcounts:
-                dcounts[gene] = {}
-            dlen = swfo[query]['v_3p_del']
-            if dlen not in dcounts[gene]:
-                dcounts[gene][dlen] = 0
-            dcounts[gene][dlen] += 1
-        for gene in dcounts:
-            self.n_5p_bases_to_exclude[gene] = 0  # for now, at least
-            observed_deletions = sorted(dcounts[gene].keys())
-            if debug:
-                print gene
-                print '  observed deletions %s' % ' '.join([str(d) for d in observed_deletions])
-            total_obs = sum(dcounts[gene].values())
-            running_sum = 0
-            for dlen in observed_deletions:
+        region = 'v'
+        for side in self.n_bases_to_exclude:
+            dcounts = {}
+            for query in swfo['queries']:
+                gene = swfo[query][region + '_gene']
+                if gene not in dcounts:
+                    dcounts[gene] = {}
+                dlen = swfo[query][region + '_' + side + '_del']
+                if dlen not in dcounts[gene]:
+                    dcounts[gene][dlen] = 0
+                dcounts[gene][dlen] += 1
+
+            for gene in dcounts:
+                observed_deletions = sorted(dcounts[gene].keys())
                 if debug:
-                    print '    %4d %3d / %3d = %5.3f' % (dlen, float(running_sum), total_obs, float(running_sum) / total_obs)
-                self.n_3p_bases_to_exclude[gene] = dlen  # setting this before the if means that if we fall through (e.g. if there aren't enough sequences to get above the threshold) we'll still have a reasonable default
-                if float(running_sum) / total_obs > 1. - self.fraction_of_seqs_to_exclude:  # if we've already added deletion lengths accounting for most of the sequences, ignore the rest of 'em
+                    print gene
+                    print '  observed %s deletions %s' % (side, ' '.join([str(d) for d in observed_deletions]))
+                total_obs = sum(dcounts[gene].values())
+                running_sum = 0
+                for dlen in observed_deletions:
                     if debug:
-                        print '                 choose', dlen
-                    break
-                running_sum += dcounts[gene][dlen]
+                        print '    %4d %3d / %3d = %5.3f' % (dlen, float(running_sum), total_obs, float(running_sum) / total_obs)
+                    self.n_bases_to_exclude[side][gene] = dlen  # setting this before the "if" means that if we fall through (e.g. if there aren't enough sequences to get above the threshold) we'll still have a reasonable default
+                    if float(running_sum) / total_obs > 1. - self.fraction_of_seqs_to_exclude:  # if we've already added deletion lengths accounting for most of the sequences, ignore the rest of 'em
+                        if debug:
+                            print '                 choose', dlen
+                        break
+                    running_sum += dcounts[gene][dlen]
 
     # ----------------------------------------------------------------------------------------
     def get_seqs(self, info, region, gene):
@@ -118,19 +120,23 @@ class AlleleFinder(object):
         query_seq = info[region + '_qr_seqs'][0]
         assert len(germline_seq) == len(query_seq)
 
-        left_exclusion = 0 #max(0, self.n_5p_bases_to_exclude[gene] - info[region + '_5p_del'])  # left exclusion we aren't really using now. If we do use it
-        right_exclusion = self.n_3p_bases_to_exclude[gene] - info[region + '_3p_del']
+        left_exclusion = self.n_bases_to_exclude['5p'][gene] - info[region + '_5p_del']
+        right_exclusion = self.n_bases_to_exclude['3p'][gene] - info[region + '_3p_del']
+        assert left_exclusion >= 0  # internal consistency check -- we should've already removed all the sequences with bigger deletions
         assert right_exclusion >= 0
-
         germline_seq = germline_seq[left_exclusion : len(germline_seq) - right_exclusion]
         query_seq = query_seq[left_exclusion : len(query_seq) - right_exclusion]
-        if region == 'v' and info['v_5p_del'] > 0 and len(info['fv_insertion']) >= info['v_5p_del']:  # remove probably-spurious v_5p deletions (sw is just like that when there's mutation in the first few bases)
-            germline_seq = self.glfo['seqs'][region][gene][:info['v_5p_del']] + germline_seq  # add the first <v_5p_del> bases of the full germline seq
-            query_seq = info['fv_insertion'][len(info['fv_insertion']) - info['v_5p_del']:] + query_seq  # add the last <v_5p_del> bases of the fv_insertion to the query seq
-            assert len(germline_seq) == len(query_seq)
+        # this should be moved waterer:
+        # if region == 'v' and info['v_5p_del'] > 0 and len(info['fv_insertion']) >= info['v_5p_del']:  # remove probably-spurious v_5p deletions (sw is just like that when there's mutation in the first few bases)
+        #     germline_seq = self.glfo['seqs'][region][gene][:info['v_5p_del']] + germline_seq  # add the first <v_5p_del> bases of the full germline seq
+        #     query_seq = info['fv_insertion'][len(info['fv_insertion']) - info['v_5p_del']:] + query_seq  # add the last <v_5p_del> bases of the fv_insertion to the query seq
+        #     assert len(germline_seq) == len(query_seq)
+        #     # NOTE <germline_seq> and <query_seq> no longer correspond to <info>, but that should be ok
+        if gene not in self.reflengths:
+            self.reflengths[gene] = len(query_seq)
+        assert self.reflengths[gene] == len(query_seq)  # just an internal consistency check now -- they should all be identical
 
         n_mutes = utils.hamming_distance(germline_seq, query_seq)
-
         return n_mutes, germline_seq, query_seq
 
     # ----------------------------------------------------------------------------------------
@@ -143,21 +149,26 @@ class AlleleFinder(object):
 
             self.gene_obs_counts[gene] += 1
 
-            if info[region + '_3p_del'] > self.n_3p_bases_to_exclude[gene]:
-                self.n_big_3p_del_skipped[gene] += 1
-                continue  # NOTE this is important, because if there is a snp to the right of the cysteine, all the sequences in which it is removed by the v_3p deletion will be shifted one bin leftward, screwing everything up
+            skip_this = False
+            for side in self.n_bases_to_exclude:  # NOTE this is important, because if there is a snp to the right of the cysteine, all the sequences in which it is removed by the v_3p deletion will be shifted one bin leftward, screwing everything up (same goes now that we're doing the same thing on the left side)
+                if info[region + '_' + side + '_del'] > self.n_bases_to_exclude[side][gene]:
+                    self.n_big_del_skipped[side][gene] += 1
+                    skip_this = True
+                    break  # don't really have to break, but it makes it so the counters add up more nicely
+            if skip_this:
+                continue
 
-            n_mutes, germline_seq, query_seq = self.get_seqs(info, region, gene)  # NOTE not necessarily quite the same as {gl,qr}_seqs in <info>
-            if gene not in self.reflengths:
-                self.reflengths[gene] = len(query_seq)
-            assert self.reflengths[gene] == len(query_seq)  # just an internal consistency check now -- they should all be identical
+            n_mutes, germline_seq, query_seq = self.get_seqs(info, region, gene)  # NOTE no longer necessarily correspond to <info>
+
+            # i.e. do *not* use <info> after this point
 
             if n_mutes > self.n_max_mutations_per_segment:
                 self.n_seqs_too_highly_mutated[gene] += 1
                 continue
 
+            assert len(germline_seq) == len(self.glfo['seqs'][region][gene]) - self.n_bases_to_exclude['5p'][gene] - self.n_bases_to_exclude['3p'][gene]
             for ipos in range(len(germline_seq)):
-                igl = ipos + int(info[region + '_5p_del']) + self.n_5p_bases_to_exclude[gene]  # position in original (i.e. complete) germline gene
+                igl = ipos + self.n_bases_to_exclude['5p'][gene]  # position in original (i.e. complete) germline gene
 
                 if germline_seq[ipos] in utils.ambiguous_bases or query_seq[ipos] in utils.ambiguous_bases:  # skip if either germline or query sequence is ambiguous at this position
                     continue
@@ -420,19 +431,19 @@ class AlleleFinder(object):
         for oldname_gene, oldname_seq in self.default_initial_glfo['seqs'][region].items():  # NOTE <oldname_{gene,seq}> is the old *name* corresponding to the new (snp'd) allele, whereas <old_seq> is the allele from which we inferred the new (snp'd) allele
             # first see if they match up through the cysteine
             oldpos = self.default_initial_glfo[utils.conserved_codons[chain][region] + '-positions'][oldname_gene]
-            if oldname_seq[self.n_5p_bases_to_exclude[template_gene] : oldpos + 3] != new_seq[self.n_5p_bases_to_exclude[template_gene] : newpos + 3]:  # uh, I think we want to use the ones for the template gene
+            if oldname_seq[self.n_bases_to_exclude['5p'][template_gene] : oldpos + 3] != new_seq[self.n_bases_to_exclude['5p'][template_gene] : newpos + 3]:  # uh, I think we want to use the ones for the template gene
                 continue
 
             # then require that any bases in common to the right of the cysteine in the new allele match the ones in the old one (where "in common" means either of them can be longer, since this just changes the insertion length)
-            bases_to_right_of_cysteine = min(len(oldname_seq) - (oldpos + 3), len(new_seq) - self.n_3p_bases_to_exclude[template_gene] - (newpos + 3))
+            bases_to_right_of_cysteine = min(len(oldname_seq) - (oldpos + 3), len(new_seq) - self.n_bases_to_exclude['3p'][template_gene] - (newpos + 3))
 
             if bases_to_right_of_cysteine > 0 and oldname_seq[oldpos + 3 : oldpos + 3 + bases_to_right_of_cysteine] != new_seq[newpos + 3 : newpos + 3 + bases_to_right_of_cysteine]:
                 continue
 
             print '        using old name %s for new allele %s (blue bases are not considered):' % (utils.color_gene(oldname_gene), utils.color_gene(new_name))
             def print_sequence_chunks(seq, cpos, name):
-                print '            %s%s%s%s%s   %s' % (utils.color('blue', seq[:self.n_5p_bases_to_exclude[template_gene]]),
-                                                       seq[self.n_5p_bases_to_exclude[template_gene] : cpos],
+                print '            %s%s%s%s%s   %s' % (utils.color('blue', seq[:self.n_bases_to_exclude['5p'][template_gene]]),
+                                                       seq[self.n_bases_to_exclude['5p'][template_gene] : cpos],
                                                        utils.color('reverse_video', seq[cpos : cpos + 3]),
                                                        seq[cpos + 3 : cpos + 3 + bases_to_right_of_cysteine],
                                                        utils.color('blue', seq[cpos + 3 + bases_to_right_of_cysteine:]),
@@ -509,7 +520,7 @@ class AlleleFinder(object):
         glseq = self.glfo['seqs'][utils.get_region(gene)][gene]
         # new_allele_names = [i['gene'] for i in self.new_allele_info]  # should make this less hackey
         # glseq = self.new_allele_info[gene]['seq'] if gene in new_allele_names else self.glfo['seqs'][utils.get_region(gene)][gene]
-        too_close_to_ends = range(self.n_5p_bases_to_exclude[gene]) + range(len(glseq) - self.n_3p_bases_to_exclude[gene], len(glseq))
+        too_close_to_ends = range(self.n_bases_to_exclude['5p'][gene]) + range(len(glseq) - self.n_bases_to_exclude['3p'][gene], len(glseq))
         not_enough_counts = set(positions) - set(positions_to_try_to_fit) - set(too_close_to_ends)  # well, not enough counts, *and* not too close to the ends
 
         print '          skipping',
@@ -528,7 +539,9 @@ class AlleleFinder(object):
         for gene in sorted(self.counts):
             if debug:
                 sys.stdout.flush()
-                print '  %s observed %d %s (ignoring %d of these that were too highly mutated, and %d that had 3p deletions larger than %d)' % (utils.color_gene(gene, width=15), self.gene_obs_counts[gene], utils.plural_str('time', self.gene_obs_counts[gene]), self.n_seqs_too_highly_mutated[gene], self.n_big_3p_del_skipped[gene], self.n_3p_bases_to_exclude[gene])
+                print '  %s observed %d %s (ignoring %d of these that were too highly mutated,' % (utils.color_gene(gene, width=15), self.gene_obs_counts[gene], utils.plural_str('time', self.gene_obs_counts[gene]), self.n_seqs_too_highly_mutated[gene]),
+                print '%d that had 5p deletions larger than %d,' % (self.n_big_del_skipped['5p'][gene], self.n_bases_to_exclude['5p'][gene]),
+                print 'and %d that had 3p deletions larger than %d)' % (self.n_big_del_skipped['3p'][gene], self.n_bases_to_exclude['3p'][gene])
 
             if self.gene_obs_counts[gene] < self.n_total_min:
                 continue

@@ -96,7 +96,7 @@ def run_test(args):
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
 parser.add_argument('--nosim', action='store_true')
-parser.add_argument('--n-sim-events', type=int, default=300)
+parser.add_argument('--n-sim-events', type=int, default=2000)
 parser.add_argument('--seed', type=int, default=int(time.time()))
 parser.add_argument('--gen-gset', action='store_true')
 parser.add_argument('--dj-genes', default='IGHD6-19*01:IGHJ4*02')
