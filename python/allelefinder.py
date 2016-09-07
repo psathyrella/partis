@@ -126,12 +126,7 @@ class AlleleFinder(object):
         assert right_exclusion >= 0
         germline_seq = germline_seq[left_exclusion : len(germline_seq) - right_exclusion]
         query_seq = query_seq[left_exclusion : len(query_seq) - right_exclusion]
-        # this should be moved waterer:
-        # if region == 'v' and info['v_5p_del'] > 0 and len(info['fv_insertion']) >= info['v_5p_del']:  # remove probably-spurious v_5p deletions (sw is just like that when there's mutation in the first few bases)
-        #     germline_seq = self.glfo['seqs'][region][gene][:info['v_5p_del']] + germline_seq  # add the first <v_5p_del> bases of the full germline seq
-        #     query_seq = info['fv_insertion'][len(info['fv_insertion']) - info['v_5p_del']:] + query_seq  # add the last <v_5p_del> bases of the fv_insertion to the query seq
-        #     assert len(germline_seq) == len(query_seq)
-        #     # NOTE <germline_seq> and <query_seq> no longer correspond to <info>, but that should be ok
+        # NOTE <germline_seq> and <query_seq> no longer correspond to <info>, but that should be ok
         if gene not in self.reflengths:
             self.reflengths[gene] = len(query_seq)
         assert self.reflengths[gene] == len(query_seq)  # just an internal consistency check now -- they should all be identical

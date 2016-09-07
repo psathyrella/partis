@@ -67,9 +67,14 @@ def run_test(args):
         run(cmd_str)
 
     # remove any old sw cache files
-    sw_cachefiles = glob.glob(outpdir + '/sw-cache-*')
+    sw_cachefiles = glob.glob(outpdir + '/sw-cache-*.csv')
     if len(sw_cachefiles) > 0:
-        check_call(['rm', '-rv'] + sw_cachefiles)
+        for cachefname in sw_cachefiles:
+            check_call(['rm', '-v', cachefname])
+            sw_cache_gldir = cachefname.replace('.csv', '-glfo')
+            if os.path.exists(sw_cache_gldir):  # if stuff fails halfway through, you can get one but not the other
+                glutils.remove_glfo_files(sw_cache_gldir, chain)
+                # os.rmdir(sw_cache_gldir)
 
     # generate germline set and cache parameters
     cmd_str = base_cmd + ' cache-parameters --infname ' + simfname + ' --only-smith-waterman --debug-allele-finding'
