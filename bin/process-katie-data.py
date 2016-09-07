@@ -58,10 +58,24 @@ def build_v_gene_set(glfo, introns):
             print '(mean of %.1f mutations among the other %d' % (numpy.average(mutecounts.keys(), weights=mutecounts.values()), sum(mutecounts.values())),
         print ''
 
+    # add the intronic v genes to glfo
+    for d_gene, refseq in refseqs.items():
+        glfo['seqs']['v'][utils.generate_dummy_v(d_gene)] = refseq
+        glfo['cyst-positions'][utils.generate_dummy_v(d_gene)] = len(refseq) - 3
+
+    # write a glfo dir with everything
+    glutils.write_glfo(outdir + '/germlines/imgt-and-intronic', glfo, debug=True)
+
+    # remove the original v genes, and write a glfo dir with just the intronic ones
+    glutils.remove_genes(glfo, [g for g in glfo['seqs']['v'] if 'xDx' not in g], debug=True)
+    glutils.write_glfo(outdir + '/germlines/intronic', glfo, debug=True)
+
+
 # tmpglfo = glutils.read_glfo('tmp-germlines', 'h')
 glfo = glutils.read_glfo('data/germlines/human', 'h')
 
 infname = '/fh/fast/matsen_e/data/2016-06-02-katie/VMO_Memory-3/VMO_Memory-3.tsv'
+outdir = '/fh/fast/matsen_e/processed-data/partis/2016-06-02-katie'
 
 n_failed, n_v_ok, n_total = 0, 0, 0
 introns = {}

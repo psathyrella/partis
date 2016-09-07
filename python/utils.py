@@ -216,7 +216,7 @@ partition_cachefile_headers = ('unique_ids', 'logprob', 'naive_seq', 'naive_hfra
 # ----------------------------------------------------------------------------------------
 def generate_dummy_v(d_gene):
     pv, sv, al = split_gene(d_gene)
-    return 'IGHVd' + pv + '-' + sv + '*' + al
+    return 'IGHVxDx' + pv + '-' + sv + '*' + al
 
 # ----------------------------------------------------------------------------------------
 def convert_from_adaptive_headers(glfo, line, uid=None, only_dj_rearrangements=False):
