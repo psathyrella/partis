@@ -69,6 +69,8 @@ class AlleleFinder(object):
 
         self.finalized = False
 
+        self.reflengths = {}
+
     # ----------------------------------------------------------------------------------------
     def init_gene(self, gene):
         self.counts[gene] = {}
@@ -116,9 +118,17 @@ class AlleleFinder(object):
         query_seq = info[region + '_qr_seqs'][0]
         assert len(germline_seq) == len(query_seq)
 
-        # don't use the leftmost and rightmost few bases
-        germline_seq = germline_seq[self.n_5p_bases_to_exclude[gene] : len(germline_seq) - self.n_3p_bases_to_exclude[gene]]
-        query_seq = query_seq[self.n_5p_bases_to_exclude[gene] : len(query_seq) - self.n_3p_bases_to_exclude[gene]]
+        left_exclusion = 0 #max(0, self.n_5p_bases_to_exclude[gene] - info[region + '_5p_del'])  # left exclusion we aren't really using now. If we do use it
+        right_exclusion = self.n_3p_bases_to_exclude[gene] - info[region + '_3p_del']
+        assert right_exclusion >= 0
+
+        germline_seq = germline_seq[left_exclusion : len(germline_seq) - right_exclusion]
+        query_seq = query_seq[left_exclusion : len(query_seq) - right_exclusion]
+        if region == 'v' and info['v_5p_del'] > 0 and len(info['fv_insertion']) >= info['v_5p_del']:  # remove probably-spurious v_5p deletions (sw is just like that when there's mutation in the first few bases)
+            germline_seq = self.glfo['seqs'][region][gene][:info['v_5p_del']] + germline_seq  # add the first <v_5p_del> bases of the full germline seq
+            query_seq = info['fv_insertion'][len(info['fv_insertion']) - info['v_5p_del']:] + query_seq  # add the last <v_5p_del> bases of the fv_insertion to the query seq
+            assert len(germline_seq) == len(query_seq)
+
         n_mutes = utils.hamming_distance(germline_seq, query_seq)
 
         return n_mutes, germline_seq, query_seq
@@ -137,7 +147,10 @@ class AlleleFinder(object):
                 self.n_big_3p_del_skipped[gene] += 1
                 continue  # NOTE this is important, because if there is a snp to the right of the cysteine, all the sequences in which it is removed by the v_3p deletion will be shifted one bin leftward, screwing everything up
 
-            n_mutes, germline_seq, query_seq = self.get_seqs(info, region, gene)
+            n_mutes, germline_seq, query_seq = self.get_seqs(info, region, gene)  # NOTE not necessarily quite the same as {gl,qr}_seqs in <info>
+            if gene not in self.reflengths:
+                self.reflengths[gene] = len(query_seq)
+            assert self.reflengths[gene] == len(query_seq)  # just an internal consistency check now -- they should all be identical
 
             if n_mutes > self.n_max_mutations_per_segment:
                 self.n_seqs_too_highly_mutated[gene] += 1
