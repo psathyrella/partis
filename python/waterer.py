@@ -599,7 +599,7 @@ class Waterer(object):
         # wait, do I need to change 'first_match_qrbounds' here, as well? not sure...
 
     # ----------------------------------------------------------------------------------------
-    def remove_probably_spurious_deletions(self, qinfo, best, debug=True):  # remove probably-spurious v_5p deletions
+    def remove_probably_spurious_deletions(self, qinfo, best, debug=False):  # remove probably-spurious v_5p and j_3p deletions
         for erosion in utils.effective_erosions:
             region = erosion[0]
             if region == 'v':
@@ -612,23 +612,21 @@ class Waterer(object):
                 assert False
 
             if d_len == 0 or len(insertion) < d_len:
-                print 'a nope', d_len, len(insertion), insertion
                 continue
             spurious_bases = insertion[len(insertion) - d_len:]  # i.e. the last <v_5p_del> bases of the fv insertion (or first <j_3p_del> bases of the jf insertion)
             if spurious_bases.count(utils.ambiguous_bases[0]) == len(spurious_bases):  # don't do it if it's all Ns
-                print 'b nope', spurious_bases
                 continue
             if debug:
-                print 'EXPANDING %s d_len: %d   insertion: %s    spurious: %s' % (region, d_len, insertion, spurious_bases)
+                print 'EXPANDING %s %s d_len: %d   insertion: %s    spurious: %s' % (qinfo['name'], region, d_len, insertion, spurious_bases)
             for gene in [g for g in qinfo['glbounds'] if utils.get_region(g) == region]:  # it's ok to assume glbounds and qrbounds have the same keys
                 if region == 'v':
                     if gene == best[region]:
-                        assert qinfo['glbounds'][gene][0] - len(spurious_bases) == 0  # remove this, too
+                        assert qinfo['glbounds'][gene][0] - len(spurious_bases) == 0
                     qinfo['glbounds'][gene] = (qinfo['glbounds'][gene][0] - len(spurious_bases), qinfo['glbounds'][gene][1])
                     qinfo['qrbounds'][gene] = (qinfo['qrbounds'][gene][0] - len(spurious_bases), qinfo['qrbounds'][gene][1])
                 elif region == 'j':
-                    # if gene == best[region]:
-                    #     assert qinfo['glbounds'][gene][0] - len(spurious_bases) == 0  # remove this, too
+                    if gene == best[region]:
+                        assert qinfo['qrbounds'][gene][1] + len(spurious_bases) == len(qinfo['seq'])
                     qinfo['glbounds'][gene] = (qinfo['glbounds'][gene][0], qinfo['glbounds'][gene][1] + len(spurious_bases))
                     qinfo['qrbounds'][gene] = (qinfo['qrbounds'][gene][0], qinfo['qrbounds'][gene][1] + len(spurious_bases))
                 else:
@@ -745,7 +743,7 @@ class Waterer(object):
             else:
                 assert overlap_status == 'ok'
 
-        # force v 5p and j 3p matches to at least go to the end of the sequence
+        # force v 5p and j 3p matches to (in most cases) go to the end of the sequence
         self.remove_probably_spurious_deletions(qinfo, best)
 
         # check for suspiciously bad annotations
