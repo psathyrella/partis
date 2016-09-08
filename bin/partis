@@ -19,22 +19,6 @@ import glutils
 from partitiondriver import PartitionDriver
 
 # ----------------------------------------------------------------------------------------
-def remove_from_arglist(clist, argstr, has_arg=False):
-    if argstr not in clist:
-        return
-    if has_arg:
-        clist.pop(clist.index(argstr) + 1)
-    clist.remove(argstr)
-
-# ----------------------------------------------------------------------------------------
-def replace_in_arglist(clist, argstr, replace_with):
-    if argstr not in clist:
-        clist.append(argstr)
-        clist.append(replace_with)
-    else:
-        clist[clist.index(argstr) + 1] = replace_with
-
-# ----------------------------------------------------------------------------------------
 def default_parameter_dir(args):
     if args.infname is not None:
         label = args.infname[ : args.infname.rfind('.')]  # probably ok not to use the full path here
@@ -75,6 +59,8 @@ def run_simulation(args):
 
     from recombinator import Recombinator
 
+    if args.slurm and not args.subsimproc:
+        raise Exception('remove that possibility')
     if args.n_trees is None:
         args.n_trees = max(1, int(float(args.n_sim_events) / args.n_procs))
     if args.outfname is None:
@@ -107,16 +93,16 @@ def run_simulation(args):
     # ----------------------------------------------------------------------------------------
     def get_subproc_cmd_str(n_events, iproc, workdir, outfname):
         clist = copy.deepcopy(sys.argv)
-        remove_from_arglist(clist, '--n-procs', has_arg=True)
-        remove_from_arglist(clist, '--subsimproc')
+        utils.remove_from_arglist(clist, '--n-procs', has_arg=True)
+        utils.remove_from_arglist(clist, '--subsimproc')
         clist.append('--im-a-subproc')
-        replace_in_arglist(clist, '--seed', str(args.seed + iproc))
-        replace_in_arglist(clist, '--workdir', workdir)
-        replace_in_arglist(clist, '--outfname', outfname)
-        replace_in_arglist(clist, '--n-sim-events', str(n_events))
-        replace_in_arglist(clist, '--initial-germline-dir', working_gldir)
+        utils.replace_in_arglist(clist, '--seed', str(args.seed + iproc))
+        utils.replace_in_arglist(clist, '--workdir', workdir)
+        utils.replace_in_arglist(clist, '--outfname', outfname)
+        utils.replace_in_arglist(clist, '--n-sim-events', str(n_events))
+        utils.replace_in_arglist(clist, '--initial-germline-dir', working_gldir)
         if args.allele_prevalence_fname is not None:
-            replace_in_arglist(clist, '--allele-prevalence-fname', args.allele_prevalence_fname)
+            utils.replace_in_arglist(clist, '--allele-prevalence-fname', args.allele_prevalence_fname)
         if args.slurm:
             clist.insert(0, 'srun')
         return ' '.join(clist)

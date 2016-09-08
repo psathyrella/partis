@@ -2223,3 +2223,19 @@ def add_in_log_space(first, second):
         return first + math.log(1 + math.exp(second - first))
     else:
         return second + math.log(1 + math.exp(first - second))
+
+# ----------------------------------------------------------------------------------------
+def remove_from_arglist(clist, argstr, has_arg=False):
+    if argstr not in clist:
+        return
+    if has_arg:
+        clist.pop(clist.index(argstr) + 1)
+    clist.remove(argstr)
+
+# ----------------------------------------------------------------------------------------
+def replace_in_arglist(clist, argstr, replace_with):
+    if argstr not in clist:
+        clist.append(argstr)
+        clist.append(replace_with)
+    else:
+        clist[clist.index(argstr) + 1] = replace_with
