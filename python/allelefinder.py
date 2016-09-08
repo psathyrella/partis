@@ -280,14 +280,10 @@ class AlleleFinder(object):
 
     # ----------------------------------------------------------------------------------------
     def consistent(self, v1, v1err, v2, v2err):
-        factor = 1.5  # this is fairly small, since this pre-selection step is designed to catch any that will never have wildly incosistent pre- and post-fits, i.e. that are very very very consistent
-        if v1 < v2:
-            lo, lo_err = v1, v1err
-            hi, hi_err = v2, v2err
-        else:
-            lo, lo_err = v2, v2err
-            hi, hi_err = v1, v1err
-        return lo + factor * lo_err > hi - factor * hi_err
+        factor = 2  # i.e. if both slope and intercept are within <factor> std deviations of each other, don't bother fitting, because the fit isn't going to say they're wildly inconsistent
+        lo, hi = sorted([v1, v2])
+        joint_err = max(v1err, v2err)
+        return lo + factor * joint_err > hi
 
     # ----------------------------------------------------------------------------------------
     def consistent_slope_and_y_icpt(self, vals1, vals2):
