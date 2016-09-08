@@ -229,8 +229,8 @@ class PartitionDriver(object):
 
         if self.args.generate_germline_set:
             self.run_waterer(remove_less_likely_alleles=True)
-            glutils.remove_genes(self.glfo, self.sw_info['genes-to-remove'], debug=True)
-            glutils.write_glfo(self.my_gldir, self.glfo, debug=True)
+            glutils.remove_genes(self.glfo, self.sw_info['genes-to-remove'])
+            glutils.write_glfo(self.my_gldir, self.glfo)
         if self.args.find_new_alleles or self.args.generate_germline_set:
             self.find_new_alleles()
         self.run_waterer(write_parameters=True)
