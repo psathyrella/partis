@@ -23,8 +23,8 @@ class AlleleRemover(object):
         # self.xmin, self.xmax = 0., 1.
         # self.counts = {}
 
-        self.genes_to_keep = set()
-        self.genes_to_remove = set()
+        self.genes_to_keep = None
+        self.genes_to_remove = None
 
         self.finalized = False
 
@@ -110,7 +110,14 @@ class AlleleRemover(object):
         if debug:
             print '  removing least likely alleles'
 
-        for gene, counts in sorted_gene_counts:
+        self.genes_to_keep = set()
+        for igene in range(len(sorted_gene_counts)):
+            gene, counts = sorted_gene_counts[igene]
+            if igene == 0:  # always keep the first one
+                if debug:
+                    print '    keeping first gene %s with %d counts' % (utils.color_gene(gene), counts)
+                self.genes_to_keep.add(gene)
+                continue
             if self.keep_this_gene(gene, pcounter, easycounts, debug=debug):
                 self.genes_to_keep.add(gene)
 
