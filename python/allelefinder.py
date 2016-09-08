@@ -8,6 +8,7 @@ import scipy
 import glob
 import numpy
 
+from hist import Hist
 import fraction_uncertainty
 from mutefreqer import MuteFreqer
 import plotting
@@ -262,14 +263,22 @@ class AlleleFinder(object):
 
     # ----------------------------------------------------------------------------------------
     def approx_fit_vals(self, pvals, debug=False):
-        x, y, w = pvals['n_mutelist'], pvals['freqs'], pvals['weights']  # tmp shorthand
-        pair_weights = [numpy.mean([w[i-1], w[i]]) for i in range(1, len(x))]  # really not the greatest way to do this... *sigh*
-        slopes = [(y[i] - y[i-1]) / (x[i] - x[i-1]) for i in range(1, len(x))]  # only uses adjacent points, and double-counts interior points, but we don't care (we don't use steps of two, because then we'd the last one if it's odd-length)
-        slope = numpy.average(slopes, weights=pair_weights)
-        slope_err = numpy.std(slopes, ddof=1) / math.sqrt(len(x))  # uh, I think <x> gives us the right number of independent measurements. In any case, this is *very* approximate
+        def getslope(i1, i2):
+            return (y[i2] - y[i1]) / (x[i2] - x[i1])
 
-        y_icpts = [y[i] - slope * x[i] for i in range(len(x))]
-        y_icpt = numpy.average(y_icpts, weights=w)
+        x, y, w, e = pvals['n_mutelist'], pvals['freqs'], pvals['weights'], pvals['errs']  # tmp shorthand
+        # uncertainties are kinda complicated if you do the weighted mean
+        # pair_errs = [math.sqrt(e[i-1]**2 + e[i]**2) for i in range(1, len(x))]
+        # pair_weights = [numpy.mean([w[i-1], w[i]]) for i in range(1, len(x))]  # really not the greatest way to do this... *sigh*
+        # total = sum(pair_weights)
+        # pair_weights = [pw / total for pw in pair_weights]  # normalize 'em
+        slopes = [getslope(i-1, i) for i in range(1, len(x))]  # only uses adjacent points, and double-counts interior points, but we don't care (we don't use steps of two, because then we'd the last one if it's odd-length)
+        slope = numpy.average(slopes)  #, weights=pair_weights)
+        slope_err = numpy.std(slopes, ddof=1) / math.sqrt(len(x))  # uh, I think <x> gives us the right number of independent measurements. In any case, this is *very* approximate
+        # slope_err = math.sqrt(sum([pw**2 * pe**2 for pw, pe in zip(pair_weights, pair_errs)]))
+
+        y_icpts = [y[i] - getslope(i-1, i) * x[i] for i in range(1, len(x))]
+        y_icpt = numpy.average(y_icpts)  #, weights=pair_weights)
         y_icpt_err = numpy.std(y_icpts, ddof=1) / math.sqrt(len(x))
 
         if debug:
@@ -279,16 +288,18 @@ class AlleleFinder(object):
         return {'m' : slope, 'm_err' : slope_err, 'b' : y_icpt, 'b_err' : y_icpt_err}
 
     # ----------------------------------------------------------------------------------------
-    def consistent(self, v1, v1err, v2, v2err):
-        factor = 2  # i.e. if both slope and intercept are within <factor> std deviations of each other, don't bother fitting, because the fit isn't going to say they're wildly inconsistent
+    def consistent(self, v1, v1err, v2, v2err, debug=False):
+        factor = 2.  # i.e. if both slope and intercept are within <factor> std deviations of each other, don't bother fitting, because the fit isn't going to say they're wildly inconsistent
         lo, hi = sorted([v1, v2])
         joint_err = max(v1err, v2err)
+        if debug:
+            print '      %6.3f +/- %6.3f   %6.3f +/- %6.3f   -->   %6.3f + %3.1f * %6.3f = %6.3f >? %6.3f   %s' % (v1, v1err, v2, v2err, lo, factor, joint_err, lo + factor * joint_err, hi, lo + factor * joint_err > hi)
         return lo + factor * joint_err > hi
 
     # ----------------------------------------------------------------------------------------
-    def consistent_slope_and_y_icpt(self, vals1, vals2):
-        consistent_slopes = self.consistent(vals1['m'], vals1['m_err'], vals2['m'], vals2['m_err'])
-        consistent_y_icpts = self.consistent(vals1['b'], vals1['b_err'], vals2['b'], vals2['b_err'])
+    def consistent_slope_and_y_icpt(self, vals1, vals2, debug=False):
+        consistent_slopes = self.consistent(vals1['m'], vals1['m_err'], vals2['m'], vals2['m_err'], debug=debug)
+        consistent_y_icpts = self.consistent(vals1['b'], vals1['b_err'], vals2['b'], vals2['b_err'], debug=debug)
         return consistent_slopes and consistent_y_icpts
 
     # ----------------------------------------------------------------------------------------
