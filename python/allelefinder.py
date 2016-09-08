@@ -289,7 +289,7 @@ class AlleleFinder(object):
 
     # ----------------------------------------------------------------------------------------
     def consistent(self, v1, v1err, v2, v2err, debug=False):
-        factor = 2.  # i.e. if both slope and intercept are within <factor> std deviations of each other, don't bother fitting, because the fit isn't going to say they're wildly inconsistent
+        factor = 1.  # i.e. if both slope and intercept are within <factor> std deviations of each other, don't bother fitting, because the fit isn't going to say they're wildly inconsistent
         lo, hi = sorted([v1, v2])
         joint_err = max(v1err, v2err)
         if debug:
