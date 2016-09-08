@@ -266,19 +266,14 @@ class AlleleFinder(object):
         def getslope(i1, i2):
             return (y[i2] - y[i1]) / (x[i2] - x[i1])
 
-        x, y, w, e = pvals['n_mutelist'], pvals['freqs'], pvals['weights'], pvals['errs']  # tmp shorthand
-        # uncertainties are kinda complicated if you do the weighted mean
-        # pair_errs = [math.sqrt(e[i-1]**2 + e[i]**2) for i in range(1, len(x))]
-        # pair_weights = [numpy.mean([w[i-1], w[i]]) for i in range(1, len(x))]  # really not the greatest way to do this... *sigh*
-        # total = sum(pair_weights)
-        # pair_weights = [pw / total for pw in pair_weights]  # normalize 'em
+        # NOTE uncertainties are kinda complicated if you do the weighted mean, so screw it, it works fine with the plain mean
+        x, y = pvals['n_mutelist'], pvals['freqs']  # tmp shorthand
         slopes = [getslope(i-1, i) for i in range(1, len(x))]  # only uses adjacent points, and double-counts interior points, but we don't care (we don't use steps of two, because then we'd the last one if it's odd-length)
-        slope = numpy.average(slopes)  #, weights=pair_weights)
-        slope_err = numpy.std(slopes, ddof=1) / math.sqrt(len(x))  # uh, I think <x> gives us the right number of independent measurements. In any case, this is *very* approximate
-        # slope_err = math.sqrt(sum([pw**2 * pe**2 for pw, pe in zip(pair_weights, pair_errs)]))
+        slope = numpy.average(slopes)
+        slope_err = numpy.std(slopes, ddof=1) / math.sqrt(len(x))
 
         y_icpts = [y[i] - getslope(i-1, i) * x[i] for i in range(1, len(x))]
-        y_icpt = numpy.average(y_icpts)  #, weights=pair_weights)
+        y_icpt = numpy.average(y_icpts)
         y_icpt_err = numpy.std(y_icpts, ddof=1) / math.sqrt(len(x))
 
         if debug:
