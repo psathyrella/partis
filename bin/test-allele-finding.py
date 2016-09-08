@@ -78,6 +78,7 @@ def run_test(args):
 
     # generate germline set and cache parameters
     cmd_str = base_cmd + ' cache-parameters --infname ' + simfname + ' --only-smith-waterman --debug-allele-finding'
+    cmd_str = 'python -m cProfile -s tottime -o prof.out ' + cmd_str
     if args.slurm:
         cmd_str += ' --n-procs 30 --slurm'
     else:
@@ -99,17 +100,15 @@ def run_test(args):
     run(cmd_str)
 
 # ----------------------------------------------------------------------------------------
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--nosim', action='store_true')
 parser.add_argument('--n-sim-events', type=int, default=2000)
 parser.add_argument('--seed', type=int, default=int(time.time()))
 parser.add_argument('--gen-gset', action='store_true')
-parser.add_argument('--dj-genes', default='IGHD6-19*01:IGHJ4*02')
-parser.add_argument('--sim-v-genes', default='IGHV4-39*01')
-parser.add_argument('--inf-v-genes', default='IGHV4-39*06')
+parser.add_argument('--dj-genes', default='IGHD6-19*01:IGHJ4*02', help='.')
+parser.add_argument('--sim-v-genes', default='IGHV4-39*01:IGHV4-39*06', help='.')
+parser.add_argument('--inf-v-genes', default='IGHV4-39*01', help='.')
 parser.add_argument('--slurm', action='store_true')
 args = parser.parse_args()
-if not args.gen_gset is None:
-    args.sim_v_genes += ':' + args.inf_v_genes
 
 run_test(args)

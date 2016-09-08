@@ -300,7 +300,7 @@ class AlleleFinder(object):
         if debug and print_dbg_header:
             print '             position   ratio       (one piece / two pieces)'
 
-        # NOTE I'm including the zero bin here -- do I really want to do that?
+        # NOTE I'm including the zero bin here -- do I really want to do that? UPDATE yes, I think so -- we know there will be zero mutations in that bin, but the number of sequences in it still contains information (uh, I think)
         prexyvals = {pos : {k : v[:istart] for k, v in self.xyvals[gene][pos].items()} for pos in positions_to_try_to_fit}  # arrays up to, but not including, <istart>
         postxyvals = {pos : {k : v[istart : istart + self.max_fit_length] for k, v in self.xyvals[gene][pos].items()} for pos in positions_to_try_to_fit}  # arrays from <istart> onwards
         bothxyvals = {pos : {k : v[:istart + self.max_fit_length] for k, v in self.xyvals[gene][pos].items()} for pos in positions_to_try_to_fit}
@@ -352,7 +352,7 @@ class AlleleFinder(object):
                     pos_str = utils.color('yellow', pos_str)
                 print_str = ['                 %s    %5s            %5s / %-5s               ' % (pos_str, fstr(candidate_ratios[pos]),
                                                                                                   fstr(residfo[pos]['onefo']['residuals_over_ndof']), fstr(residfo[pos]['twofo']['residuals_over_ndof']))]
-                for n_mutes in range(1, self.n_max_mutations_per_segment + 1):
+                for n_mutes in range(self.n_max_mutations_per_segment + 1):
                     if n_mutes in bothxyvals[pos]['n_mutelist']:
                         inm = bothxyvals[pos]['n_mutelist'].index(n_mutes)
                         print_str.append('%4d / %-4d' % (bothxyvals[pos]['obs'][inm], bothxyvals[pos]['total'][inm]))
@@ -371,7 +371,7 @@ class AlleleFinder(object):
     def fit_istart(self, gene, istart, positions_to_try_to_fit, fitfo, print_dbg_header=False, debug=False):
         if debug and print_dbg_header:
             print '             position   ratio    (m=0 / m=big)      big bounds',
-            print '%0s %s' % ('', ''.join(['%11d' % nm for nm in range(1, self.n_max_mutations_per_segment + 1)]))
+            print '%0s %s' % ('', ''.join(['%11d' % nm for nm in range(self.n_max_mutations_per_segment + 1)]))  # NOTE *has* to correspond to line at bottom of fcn below
 
         subxyvals = {pos : {k : v[istart : istart + self.max_fit_length] for k, v in self.xyvals[gene][pos].items()} for pos in positions_to_try_to_fit}  # arrays from <istart> onwards
 
@@ -423,7 +423,7 @@ class AlleleFinder(object):
                                                                                               fstr(residfo[pos]['zerofo']['residuals_over_ndof']), fstr(residfo[pos]['bigfo']['residuals_over_ndof']),
                                                                                               residfo[pos]['bigfo']['y_icpt_bounds'][0], residfo[pos]['bigfo']['y_icpt_bounds'][1])]
                 print_str += '    '
-                for n_mutes in range(1, self.n_max_mutations_per_segment + 1):
+                for n_mutes in range(self.n_max_mutations_per_segment + 1):
                     if n_mutes in subxyvals[pos]['n_mutelist']:
                         inm = subxyvals[pos]['n_mutelist'].index(n_mutes)
                         print_str.append('%4d / %-4d' % (subxyvals[pos]['obs'][inm], subxyvals[pos]['total'][inm]))
