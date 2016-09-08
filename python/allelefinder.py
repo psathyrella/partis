@@ -181,7 +181,11 @@ class AlleleFinder(object):
         return residual_sum
 
     # ----------------------------------------------------------------------------------------
-    def get_curvefit(self, n_mutelist, freqs, errs, y_icpt_bounds):
+    def dbgstr(self, slope, slope_err, y_icpt, y_icpt_err, extra_str=''):
+        return '        %s  m: %5.3f +/- %5.3f   b: %5.3f +/- %5.3f' % (extra_str, slope, slope_err, y_icpt, y_icpt_err)
+
+    # ----------------------------------------------------------------------------------------
+    def get_curvefit(self, n_mutelist, freqs, errs, y_icpt_bounds, debug=False):
         # bounds = (-float('inf'), float('inf'))
         if y_icpt_bounds == (0., 0.):
             def linefunc(x, slope):
@@ -201,6 +205,10 @@ class AlleleFinder(object):
             ndof = len(n_mutelist) - 2
 
         residual_sum = self.get_residual_sum(n_mutelist, freqs, errs, slope, y_icpt)
+
+        if debug:
+            print self.dbgstr(slope, slope_err, y_icpt, y_icpt_err, extra_str='fit')
+
         fitfo = {
             'slope'  : slope,
             'y_icpt' : y_icpt,
@@ -253,32 +261,46 @@ class AlleleFinder(object):
         return True
 
     # ----------------------------------------------------------------------------------------
-    def approx_x_icpt(self, pvals, debug=False):
-        # NOTE ignores weights... but that's ok
-        x, y = pvals['n_mutelist'], pvals['freqs']  # tmp shorthand
-        slopes = [(y[i] - y[i-1]) / (x[i] - x[i-1]) for i in range(1, len(x))]  # only uses adjacent points, and double-counts interior points, but we don't care
-        mean_slope = numpy.average(slopes)
-        mean_xval = numpy.average(pvals['n_mutelist'])
-        mean_yval = numpy.average(pvals['freqs'])
+    def approx_fit_vals(self, pvals, debug=False):
+        x, y, w = pvals['n_mutelist'], pvals['freqs'], pvals['weights']  # tmp shorthand
+        pair_weights = [numpy.mean([w[i-1], w[i]]) for i in range(1, len(x))]  # really not the greatest way to do this... *sigh*
+        slopes = [(y[i] - y[i-1]) / (x[i] - x[i-1]) for i in range(1, len(x))]  # only uses adjacent points, and double-counts interior points, but we don't care (we don't use steps of two, because then we'd the last one if it's odd-length)
+        slope = numpy.average(slopes, weights=pair_weights)
+        slope_err = numpy.std(slopes, ddof=1) / math.sqrt(len(x))  # uh, I think <x> gives us the right number of independent measurements. In any case, this is *very* approximate
+
+        y_icpts = [y[i] - slope * x[i] for i in range(len(x))]
+        y_icpt = numpy.average(y_icpts, weights=w)
+        y_icpt_err = numpy.std(y_icpts, ddof=1) / math.sqrt(len(x))
+
         if debug:
-            print ' %.3f - %.3f * %.3f = %.3f' % (mean_yval, mean_slope, mean_xval, mean_yval - mean_slope * mean_xval)
-        return mean_yval - mean_slope * mean_xval
+            # self.get_curvefit(pvals['n_mutelist'], pvals['freqs'], pvals['errs'], y_icpt_bounds=(-1., 1.), debug=True)
+            print self.dbgstr(slope, slope_err, y_icpt, y_icpt_err, extra_str='apr')
+
+        return {'m' : slope, 'm_err' : slope_err, 'b' : y_icpt, 'b_err' : y_icpt_err}
 
     # ----------------------------------------------------------------------------------------
-    def approx_slope_and_error(self, pvals, debug=False):
-        # NOTE ignores weights... but that's ok
-        x, y, w = pvals['n_mutelist'], pvals['freqs'], pvals['weights']  # tmp shorthand
-        slopes = [(y[i] - y[i-1]) / (x[i] - x[i-1]) for i in range(1, len(x))]  # only uses adjacent points, and double-counts interior points, but we don't care (we don't use steps of two, because then we'd the last one if it's odd-length)
-        weights = [numpy.mean([w[i-1], w[i]]) for i in range(1, len(x))]
-        mean_slope = numpy.average(slopes, weights=weights)
-        err = numpy.std(slopes, ddof=1) / math.sqrt(len(x))  # uh, I think <x> gives us the right number of independent measurements. In any case, this is *very* approximate
-        return mean_slope, err
+    def consistent(self, v1, v1err, v2, v2err):
+        factor = 1.5  # this is fairly small, since this pre-selection step is designed to catch any that will never have wildly incosistent pre- and post-fits, i.e. that are very very very consistent
+        if v1 < v2:
+            lo, lo_err = v1, v1err
+            hi, hi_err = v2, v2err
+        else:
+            lo, lo_err = v2, v2err
+            hi, hi_err = v1, v1err
+        return lo + factor * lo_err > hi - factor * hi_err
+
+    # ----------------------------------------------------------------------------------------
+    def consistent_slope_and_y_icpt(self, vals1, vals2):
+        consistent_slopes = self.consistent(vals1['m'], vals1['m_err'], vals2['m'], vals2['m_err'])
+        consistent_y_icpts = self.consistent(vals1['b'], vals1['b_err'], vals2['b'], vals2['b_err'])
+        return consistent_slopes and consistent_y_icpts
 
     # ----------------------------------------------------------------------------------------
     def fit_two_piece_istart(self, gene, istart, positions_to_try_to_fit, fitfo, print_dbg_header=False, debug=False):
         if debug and print_dbg_header:
             print '             position   ratio       (one piece / two pieces)'
 
+        # NOTE I'm including the zero bin here -- do I really want to do that?
         prexyvals = {pos : {k : v[:istart] for k, v in self.xyvals[gene][pos].items()} for pos in positions_to_try_to_fit}  # arrays up to, but not including, <istart>
         postxyvals = {pos : {k : v[istart : istart + self.max_fit_length] for k, v in self.xyvals[gene][pos].items()} for pos in positions_to_try_to_fit}  # arrays from <istart> onwards
         bothxyvals = {pos : {k : v[:istart + self.max_fit_length] for k, v in self.xyvals[gene][pos].items()} for pos in positions_to_try_to_fit}
@@ -292,22 +314,20 @@ class AlleleFinder(object):
             if sum(postvals['obs']) < self.n_muted_min or sum(postvals['total']) < self.n_total_min:
                 continue
 
-            # if rough estimates of the slopes are roughly compatible (or preslope is bigger than postslope), the fits aren't going to tell a very different story
-            preslope, preerr = self.approx_slope_and_error(prevals)
-            postslope, posterr = self.approx_slope_and_error(postvals)
-            fac = 0.5
-
-            if preslope > postslope or preslope + fac*preerr > postslope - fac*posterr:
+            # if both slope and intercept are quite close to each other, the fits aren't going to say they're wildly inconsistent
+            pre_approx = self.approx_fit_vals(prevals)
+            post_approx = self.approx_fit_vals(postvals)
+            if pre_approx['m'] > post_approx['m'] or self.consistent_slope_and_y_icpt(pre_approx, post_approx):
                 continue
 
-            onefit = self.get_curvefit(bothvals['n_mutelist'], bothvals['freqs'], bothvals['errs'], y_icpt_bounds=(0., 1.))
+            onefit = self.get_curvefit(bothvals['n_mutelist'], bothvals['freqs'], bothvals['errs'], y_icpt_bounds=(-1., 1.))
 
             # don't bother with the two-piece fit if the one-piece fit is pretty good
             if onefit['residuals_over_ndof'] < self.min_zero_icpt_residual:
                 continue
 
-            prefit = self.get_curvefit(prevals['n_mutelist'], prevals['freqs'], prevals['errs'], y_icpt_bounds=(0., 1.))
-            postfit = self.get_curvefit(postvals['n_mutelist'], postvals['freqs'], postvals['errs'], y_icpt_bounds=(0., 1.))
+            prefit = self.get_curvefit(prevals['n_mutelist'], prevals['freqs'], prevals['errs'], y_icpt_bounds=(-1., 1.))
+            postfit = self.get_curvefit(postvals['n_mutelist'], postvals['freqs'], postvals['errs'], y_icpt_bounds=(-1., 1.))
             twofit_residuals = prefit['residuals_over_ndof'] * prefit['ndof'] + postfit['residuals_over_ndof'] * postfit['ndof']
             twofit_ndof = prefit['ndof'] + postfit['ndof']
             twofit_residuals_over_ndof = twofit_residuals / twofit_ndof
@@ -371,7 +391,8 @@ class AlleleFinder(object):
                 continue
 
             # if a rough estimate of the x-icpt is less than zero, the zero-icpt fit is probably going to be pretty good
-            if self.approx_x_icpt(pvals) < 0.:
+            _, _, approx_y_icpt, _ = self.approx_fit_vals(pvals)
+            if approx_y_icpt < 0.:
                 continue
 
             zero_icpt_fit = self.get_curvefit(pvals['n_mutelist'], pvals['freqs'], pvals['errs'], y_icpt_bounds=(0., 0.))
