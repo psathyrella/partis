@@ -53,12 +53,13 @@ def run_test(args):
             cmd_str += ' --n-genes-per-region 1:5:3'
             cmd_str += ' --n-alleles-per-gene 2,3:1,2:1,2'
         else:
-            simulation_genes = args.sim_v_genes + ':' + args.dj_genes
+            simulation_genes = ':'.join(args.sim_v_genes + args.dj_genes)
             sglfo = glutils.read_glfo('data/germlines/human', chain=chain, only_genes=simulation_genes.split(':'), debug=True)
-            # snps_to_add = [
-            #     {'gene' : 'IGHV4-59*01', 'positions' : (94, 30, 138, 13, 62, 205, 77, 237, 93, 218, 76, 65, 31, 120, 22, 216, 79, 56, 109)},
-            # ]
-            # glutils.add_some_snps(snps_to_add, sglfo, debug=True)
+
+            if args.snp_positions is not None:
+                snps_to_add = [{'gene' : g, 'positions' : args.snp_positions} for g in args.sim_v_genes]
+                glutils.add_some_snps(snps_to_add, sglfo, debug=True)
+
             glutils.write_glfo(args.outdir + '/germlines/simulation', sglfo)
             cmd_str += ' --initial-germline-dir ' + args.outdir + '/germlines/simulation'
 
@@ -86,14 +87,14 @@ def run_test(args):
     if args.gen_gset:
         cmd_str += ' --generate-germline-set'
     else:
-        inference_genes = args.inf_v_genes + ':' + args.dj_genes
+        inference_genes = ':'.join(args.inf_v_genes + args.dj_genes)
         iglfo = glutils.read_glfo('data/germlines/human', chain=chain, only_genes=inference_genes.split(':'), debug=True)
         glutils.write_glfo(args.outdir + '/germlines/inference', iglfo)
         cmd_str += ' --initial-germline-dir ' + args.outdir + '/germlines/inference'
         cmd_str += ' --find-new-alleles'  # --new-allele-fname ' + args.outdir + '/new-alleles.fa'
 
     cmd_str += ' --parameter-dir ' + outpdir
-    # cmd_str += ' --plotdir ' + plotdir
+    cmd_str += ' --plotdir ' + plotdir
     if args.seed is not None:
         cmd_str += ' --seed ' + str(args.seed)
     run(cmd_str)
@@ -130,12 +131,17 @@ parser.add_argument('--gen-gset', action='store_true')
 parser.add_argument('--dj-genes', default='IGHD6-19*01:IGHJ4*02', help='.')
 parser.add_argument('--sim-v-genes', default='IGHV4-39*01:IGHV4-39*06', help='.')
 parser.add_argument('--inf-v-genes', default='IGHV4-39*01', help='.')
+parser.add_argument('--snp-positions')
 parser.add_argument('--slurm', action='store_true')
 parser.add_argument('--outdir', default=fsdir + '/partis/allele-finder')
 parser.add_argument('--workdir', default=fsdir + '/_tmp/hmms/' + str(random.randint(0, 999999)))
 parser.add_argument('--comprehensive', action='store_true')
 parser.add_argument('--n-tests', type=int, default=3)
 args = parser.parse_args()
+args.dj_genes = utils.get_arg_list(args.dj_genes)
+args.sim_v_genes = utils.get_arg_list(args.sim_v_genes)
+args.inf_v_genes = utils.get_arg_list(args.inf_v_genes)
+args.snp_positions = utils.get_arg_list(args.snp_positions, intify=True)
 
 if args.comprehensive:
     comprehensive_test(args)
