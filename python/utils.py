@@ -1522,7 +1522,7 @@ def run_cmd(cmd_str, workdir):
     return proc
 
 # ----------------------------------------------------------------------------------------
-def run_cmds(cmdfos, debug=False):
+def run_cmds(cmdfos, debug=None):
     for iproc in range(len(cmdfos)):
         if 'logdir' not in cmdfos[iproc]:
             cmdfos[iproc]['logdir'] = cmdfos[iproc]['workdir']
@@ -1539,19 +1539,19 @@ def run_cmds(cmdfos, debug=False):
             if procs[iproc] is None:  # already finished
                 continue
             if procs[iproc].poll() is not None:  # it just finished
-                finish_process(iproc, procs, n_tries, cmdfos[iproc]['logdir'], cmdfos[iproc]['outfname'], cmdfos[iproc]['cmd_str'], info=cmdfos[iproc]['dbgfo'], debug=debug)
+                finish_process(iproc, procs, n_tries, cmdfos[iproc]['workdir'], cmdfos[iproc]['logdir'], cmdfos[iproc]['outfname'], cmdfos[iproc]['cmd_str'], dbgfo=cmdfos[iproc]['dbgfo'], debug=debug)
         sys.stdout.flush()
         time.sleep(0.1)
 
 # ----------------------------------------------------------------------------------------
 # deal with a process once it's finished (i.e. check if it failed, and restart if so)
-def finish_process(iproc, procs, n_tries, workdir, outfname, cmd_str, info=None, debug=True):
+def finish_process(iproc, procs, n_tries, workdir, logdir, outfname, cmd_str, dbgfo=None, debug=None):
     procs[iproc].communicate()
-    process_out_err('', '', extra_str='' if len(procs) == 1 else str(iproc), info=info, subworkdir=workdir, debug=debug)
+    process_out_err('', '', extra_str='' if len(procs) == 1 else str(iproc), dbgfo=dbgfo, logdir=logdir, debug=debug)
     if procs[iproc].returncode == 0 and os.path.exists(outfname):  # TODO also check cachefile, if necessary
         procs[iproc] = None  # job succeeded
     elif n_tries[iproc] > 5:
-        raise Exception('exceeded max number of tries for command\n    %s\nlook for output in %s' % (cmd_str, workdir))
+        raise Exception('exceeded max number of tries for command\n    %s\nlook for output in %s and %s' % (cmd_str, workdir, logdir))
     else:
         print '    rerunning proc %d (exited with %d' % (iproc, procs[iproc].returncode),
         if not os.path.exists(outfname):
@@ -1561,17 +1561,17 @@ def finish_process(iproc, procs, n_tries, workdir, outfname, cmd_str, info=None,
         n_tries[iproc] += 1
 
 # ----------------------------------------------------------------------------------------
-def process_out_err(out, err, extra_str='', info=None, subworkdir=None, debug=True):
+def process_out_err(out, err, extra_str='', dbgfo=None, logdir=None, debug=None):
     """ NOTE something in this chain seems to block or truncate or some such nonsense if you make it too big """
-    if subworkdir is not None:
+    if logdir is not None:
         def readfile(fname):
             ftmp = open(fname)
             fstr = ''.join(ftmp.readlines())
             ftmp.close()
             os.remove(fname)
             return fstr
-        out = readfile(subworkdir + '/out')
-        err = readfile(subworkdir + '/err')
+        out = readfile(logdir + '/out')
+        err = readfile(logdir + '/err')
 
     print_str = ''
     for line in err.split('\n'):
@@ -1588,25 +1588,33 @@ def process_out_err(out, err, extra_str='', info=None, subworkdir=None, debug=Tr
         if len(line.strip()) > 0:
             print_str += line + '\n'
 
-    if info is not None:  # keep track of how many vtb and fwd calculations the process made
+    if dbgfo is not None:  # keep track of how many vtb and fwd calculations the process made
         for header, variables in {'calcd' : ['vtb', 'fwd'], 'time' : ['bcrham', ]}.items():
-            info[header] = {}
+            dbgfo[header] = {}
             theselines = [ln for ln in out.split('\n') if header + ':' in ln]
             if len(theselines) != 1:
                 raise Exception('couldn\'t find \'%s\' line in:\nstdout:\n%s\nstderr:\n%s' % (header, out, err))
             words = theselines[0].split()
             try:
                 for var in variables:  # convention: value corresponding to the string <var> is the word immediately vollowing <var>
-                    info[header][var] = float(words[words.index(var) + 1])
+                    dbgfo[header][var] = float(words[words.index(var) + 1])
             except:
                 raise Exception('couldn\'t find \'%s\' line in:\nstdout:\n%s\nstderr:\n%s' % (header, out, err))
 
     print_str += out
 
-    if print_str != '' and debug:
-        if extra_str != '':
-            print '      --> proc %s' % extra_str
-        print print_str
+    if print_str != '' and debug is not None:
+        if debug == 'print':
+            if extra_str != '':
+                print '      --> proc %s' % extra_str
+            print print_str
+        elif debug == 'write':
+            logfile = logdir + '/log'
+            print 'writing dbg to %s' % logfile
+            with open(logfile, 'w') as dbgfile:
+                dbgfile.write(print_str)
+        else:
+            assert False
 
 # ----------------------------------------------------------------------------------------
 def find_first_non_ambiguous_base(seq):

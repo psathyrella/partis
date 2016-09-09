@@ -634,7 +634,7 @@ class PartitionDriver(object):
                    'outfname' : get_outfname(iproc),
                    'dbgfo' : self.bcrham_proc_info[iproc]}
                   for iproc in range(n_procs)]
-        utils.run_cmds(cmdfos, debug=(self.args.debug or self.current_action=='partition'))
+        utils.run_cmds(cmdfos, debug='print' if (self.args.debug or self.current_action=='partition') else None)
 
         print '      time waiting for bcrham: %.1f' % (time.time()-start)
         self.check_wait_times(time.time()-start)

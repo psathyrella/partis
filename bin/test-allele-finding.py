@@ -114,12 +114,13 @@ def comprehensive_test(args):
 
     cmdfos = [{'cmd_str' : cmd_str(iproc),
                'workdir' : args.workdir + '/' + str(iproc),
+               'logdir' : args.outdir + '/' + str(iproc),
                'outfname' : args.outdir + '/' + str(iproc)}
         for iproc in range(args.n_tests)]
     for iproc in range(args.n_tests):
         if os.path.exists(cmdfos[iproc]['outfname']):
             check_call(['rm', '-r', cmdfos[iproc]['outfname']])
-    utils.run_cmds(cmdfos, debug=True)
+    utils.run_cmds(cmdfos, debug='write')
 
 # ----------------------------------------------------------------------------------------
 fsdir = '/fh/fast/matsen_e/dralph'

@@ -140,7 +140,7 @@ def run_simulation(args):
                    'outfname' : get_outfname(iproc)}
                   for iproc in range(args.n_procs)]
         if args.subsimproc:
-            utils.run_cmds(cmdfos, debug=False)
+            utils.run_cmds(cmdfos)
         else:
             for iproc in range(args.n_procs):
                 proc = Process(target=make_events, args=(n_per_proc, iproc, cmdfos[iproc]['workdir'], cmdfos[iproc]['outfname'], all_random_ints[iproc]))
