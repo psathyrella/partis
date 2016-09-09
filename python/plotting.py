@@ -888,8 +888,8 @@ def make_html(plotdir, n_columns=3, extension='svg'):
     check_call(['chmod', '664', htmlfname])
 
 # ----------------------------------------------------------------------------------------
-def make_allele_finding_plot(plotdir, gene, position, values):
-    xmin, xmax = 0, 30
+def make_allele_finding_plot(plotdir, gene, position, values, xmax):
+    xmin, xmax = 0, xmax
     fig, ax = mpl_init()
 
     ax.errorbar(values['n_mutelist'], values['freqs'], yerr=values['errs'], markersize=10, linewidth=1, marker='.', label=str(position))

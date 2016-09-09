@@ -99,20 +99,21 @@ class AlleleFinder(object):
 
             for gene in dcounts:
                 observed_deletions = sorted(dcounts[gene].keys())
-                if debug:
-                    print gene
-                    print '  observed %s deletions %s' % (side, ' '.join([str(d) for d in observed_deletions]))
                 total_obs = sum(dcounts[gene].values())
                 running_sum = 0
+                if debug:
+                    print gene
+                    print '  observed %s deletions: %s (counts %s)' % (side, ' '.join([str(d) for d in observed_deletions]), ' '.join([str(c) for c in dcounts[gene].values()]))
+                    print '     len   fraction'
                 for dlen in observed_deletions:
-                    if debug:
-                        print '    %4d %3d / %3d = %5.3f' % (dlen, float(running_sum), total_obs, float(running_sum) / total_obs)
                     self.n_bases_to_exclude[side][gene] = dlen  # setting this before the "if" means that if we fall through (e.g. if there aren't enough sequences to get above the threshold) we'll still have a reasonable default
-                    if float(running_sum) / total_obs > 1. - self.fraction_of_seqs_to_exclude:  # if we've already added deletion lengths accounting for most of the sequences, ignore the rest of 'em
-                        if debug:
-                            print '                 choose', dlen
-                        break
                     running_sum += dcounts[gene][dlen]
+                    if debug:
+                        print '    %4d    %5.3f' % (dlen, float(running_sum) / total_obs)
+                    if float(running_sum) / total_obs > 1. - self.fraction_of_seqs_to_exclude:  # if we've already added deletion lengths accounting for most of the sequences, ignore the rest of 'em
+                        break
+                if debug:
+                    print '     choose', self.n_bases_to_exclude[side][gene]
 
     # ----------------------------------------------------------------------------------------
     def get_seqs(self, info, region, gene):
@@ -643,7 +644,7 @@ class AlleleFinder(object):
         start = time.time()
         for gene in self.positions_to_plot:  # we can make plots for the positions we didn't fit, but there's a *lot* of them and they're slow
             for position in self.positions_to_plot[gene]:
-                plotting.make_allele_finding_plot(plotdir + '/' + utils.sanitize_name(gene), gene, position, self.xyvals[gene][position])
+                plotting.make_allele_finding_plot(plotdir + '/' + utils.sanitize_name(gene), gene, position, self.xyvals[gene][position], xmax=self.n_max_mutations_per_segment)
 
         check_call(['./bin/permissify-www', plotdir])
         print '(%.1f sec)' % (time.time()-start)

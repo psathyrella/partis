@@ -43,7 +43,9 @@ def run_test(args):
 
     # simulate
     if not args.nosim:
-        cmd_str = base_cmd + ' simulate --n-sim-events ' + str(args.n_sim_events) + ' --n-leaves 1 --constant-number-of-leaves --simulate-partially-from-scratch --mutation-multiplier 0.5 --outfname ' + simfname
+        cmd_str = base_cmd + ' simulate --n-sim-events ' + str(args.n_sim_events) + ' --n-leaves 1 --constant-number-of-leaves --simulate-partially-from-scratch --outfname ' + simfname
+        cmd_str += ' --mutation-multiplier ' + str(args.mut_mult)
+
         cmd_str += ' --n-procs ' + str(args.n_procs)
         if args.slurm:
             cmd_str += ' --slurm --subsimproc'
@@ -132,6 +134,7 @@ parser.add_argument('--dj-genes', default='IGHD6-19*01:IGHJ4*02', help='.')
 parser.add_argument('--sim-v-genes', default='IGHV4-39*01:IGHV4-39*06', help='.')
 parser.add_argument('--inf-v-genes', default='IGHV4-39*01', help='.')
 parser.add_argument('--snp-positions')
+parser.add_argument('--mut-mult', type=float, default=0.5)
 parser.add_argument('--slurm', action='store_true')
 parser.add_argument('--outdir', default=fsdir + '/partis/allele-finder')
 parser.add_argument('--workdir', default=fsdir + '/_tmp/hmms/' + str(random.randint(0, 999999)))
