@@ -553,7 +553,7 @@ class AlleleFinder(object):
         start = time.time()
         self.xyvals = {}
         self.positions_to_plot = {gene : set() for gene in self.counts}
-        print '%s: looking for new alleles' % utils.color('red', 'try ' + str(self.itry))
+        print '%s: looking for new alleles' % utils.color('blue', 'try ' + str(self.itry))
         for gene in sorted(self.counts):
             if debug:
                 sys.stdout.flush()

@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+import copy
+import random
 import argparse
 import time
 import sys
@@ -17,7 +19,6 @@ def run(cmd_str):
     sys.stdout.flush()
     check_call(cmd_str.split())
 
-outdir = '_tmp/allele-finder'
 base_cmd = './bin/partis'
 chain = 'h'
 
@@ -33,8 +34,8 @@ def get_label(existing_genes, new_allele):
 def run_test(args):
     print 'seed %d' % args.seed
     label = 'test'  #get_label(existing_genes, new_allele)
-    simfname = outdir + '/simu-' + label + '.csv'
-    outpdir = outdir + '/simu-' + label
+    simfname = args.outdir + '/simu-' + label + '.csv'
+    outpdir = args.outdir + '/simu-' + label
     if os.getenv('www') is not None:
         plotdir = os.getenv('www') + '/partis/allele-finding/' + label
     else:
@@ -43,10 +44,9 @@ def run_test(args):
     # simulate
     if not args.nosim:
         cmd_str = base_cmd + ' simulate --n-sim-events ' + str(args.n_sim_events) + ' --n-leaves 1 --constant-number-of-leaves --simulate-partially-from-scratch --mutation-multiplier 0.5 --outfname ' + simfname
+        cmd_str += ' --n-procs ' + str(args.n_procs)
         if args.slurm:
-            cmd_str += ' --n-procs 30 --slurm'
-        else:
-            cmd_str += ' --n-procs 10'
+            cmd_str += ' --slurm --subsimproc'
 
         if args.gen_gset:
             cmd_str += ' --generate-germline-set'
@@ -59,8 +59,8 @@ def run_test(args):
             #     {'gene' : 'IGHV4-59*01', 'positions' : (94, 30, 138, 13, 62, 205, 77, 237, 93, 218, 76, 65, 31, 120, 22, 216, 79, 56, 109)},
             # ]
             # glutils.add_some_snps(snps_to_add, sglfo, debug=True)
-            glutils.write_glfo(outdir + '/germlines/simulation', sglfo)
-            cmd_str += ' --initial-germline-dir ' + outdir + '/germlines/simulation'
+            glutils.write_glfo(args.outdir + '/germlines/simulation', sglfo)
+            cmd_str += ' --initial-germline-dir ' + args.outdir + '/germlines/simulation'
 
         if args.seed is not None:
             cmd_str += ' --seed ' + str(args.seed)
@@ -78,37 +78,66 @@ def run_test(args):
 
     # generate germline set and cache parameters
     cmd_str = base_cmd + ' cache-parameters --infname ' + simfname + ' --only-smith-waterman --debug-allele-finding'
-    cmd_str = 'python -m cProfile -s tottime -o prof.out ' + cmd_str
+    # cmd_str = 'python -m cProfile -s tottime -o prof.out ' + cmd_str
+    cmd_str += ' --n-procs ' + str(args.n_procs)
     if args.slurm:
-        cmd_str += ' --n-procs 30 --slurm'
-    else:
-        cmd_str += ' --n-procs 10'
+        cmd_str += ' --slurm'
 
     if args.gen_gset:
         cmd_str += ' --generate-germline-set'
     else:
         inference_genes = args.inf_v_genes + ':' + args.dj_genes
         iglfo = glutils.read_glfo('data/germlines/human', chain=chain, only_genes=inference_genes.split(':'), debug=True)
-        glutils.write_glfo(outdir + '/germlines/inference', iglfo)
-        cmd_str += ' --initial-germline-dir ' + outdir + '/germlines/inference'
-        cmd_str += ' --find-new-alleles'  # --new-allele-fname ' + outdir + '/new-alleles.fa'
+        glutils.write_glfo(args.outdir + '/germlines/inference', iglfo)
+        cmd_str += ' --initial-germline-dir ' + args.outdir + '/germlines/inference'
+        cmd_str += ' --find-new-alleles'  # --new-allele-fname ' + args.outdir + '/new-alleles.fa'
 
     cmd_str += ' --parameter-dir ' + outpdir
-    cmd_str += ' --plotdir ' + plotdir
+    # cmd_str += ' --plotdir ' + plotdir
     if args.seed is not None:
         cmd_str += ' --seed ' + str(args.seed)
     run(cmd_str)
 
 # ----------------------------------------------------------------------------------------
+def comprehensive_test(args):
+    def cmd_str(iproc):
+        clist = copy.deepcopy(sys.argv)
+        utils.remove_from_arglist(clist, '--comprehensive')
+        utils.remove_from_arglist(clist, '--n-tests')
+        utils.replace_in_arglist(clist, '--outdir', args.outdir + '/' + str(iproc))
+        utils.replace_in_arglist(clist, '--seed', str(args.seed + iproc))
+        # clist.append('--slurm')
+        return ' '.join(clist)
+
+    cmdfos = [{'cmd_str' : cmd_str(iproc),
+               'workdir' : args.workdir + '/' + str(iproc),
+               'outfname' : args.outdir + '/' + str(iproc)}
+        for iproc in range(args.n_tests)]
+    for iproc in range(args.n_tests):
+        if os.path.exists(cmdfos[iproc]['outfname']):
+            check_call(['rm', '-r', cmdfos[iproc]['outfname']])
+    utils.run_cmds(cmdfos, debug=True)
+
+# ----------------------------------------------------------------------------------------
+fsdir = '/fh/fast/matsen_e/dralph'
+
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--nosim', action='store_true')
-parser.add_argument('--n-sim-events', type=int, default=2000)
+parser.add_argument('--n-sim-events', type=int, default=200)
+parser.add_argument('--n-procs', type=int, default=2)
 parser.add_argument('--seed', type=int, default=int(time.time()))
 parser.add_argument('--gen-gset', action='store_true')
 parser.add_argument('--dj-genes', default='IGHD6-19*01:IGHJ4*02', help='.')
 parser.add_argument('--sim-v-genes', default='IGHV4-39*01:IGHV4-39*06', help='.')
 parser.add_argument('--inf-v-genes', default='IGHV4-39*01', help='.')
 parser.add_argument('--slurm', action='store_true')
+parser.add_argument('--outdir', default=fsdir + '/partis/allele-finder')
+parser.add_argument('--workdir', default=fsdir + '/_tmp/hmms/' + str(random.randint(0, 999999)))
+parser.add_argument('--comprehensive', action='store_true')
+parser.add_argument('--n-tests', type=int, default=3)
 args = parser.parse_args()
 
-run_test(args)
+if args.comprehensive:
+    comprehensive_test(args)
+else:
+    run_test(args)
