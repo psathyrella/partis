@@ -617,7 +617,7 @@ class Waterer(object):
             if spurious_bases.count(utils.ambiguous_bases[0]) == len(spurious_bases):  # don't do it if it's all Ns
                 continue
             if debug:
-                print 'EXPANDING %s %s d_len: %d   insertion: %s    spurious: %s' % (qinfo['name'], region, d_len, insertion, spurious_bases)
+                print 'EXPANDING %s %s d_len: %d   insertion: %s (len %d)   spurious: %s (len %d)' % (qinfo['name'], region, d_len, insertion, len(insertion), spurious_bases, len(spurious_bases))
             for gene in [g for g in qinfo['glbounds'] if utils.get_region(g) == region]:  # it's ok to assume glbounds and qrbounds have the same keys
                 if region == 'v':
                     if gene == best[region]:
