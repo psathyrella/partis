@@ -59,8 +59,9 @@ def run_simulation(args):
 
     from recombinator import Recombinator
 
-    if args.slurm and not args.subsimproc:
-        raise Exception('remove that possibility')
+    if args.slurm and args.n_procs > 1 and not args.subsimproc:
+        print '  %s setting subsimproc' % utils.color('red', 'warning')
+        args.subsimproc = True
     if args.n_trees is None:
         args.n_trees = max(1, int(float(args.n_sim_events) / args.n_procs))
     if args.outfname is None:
@@ -139,7 +140,7 @@ def run_simulation(args):
                    'outfname' : get_outfname(iproc)}
                   for iproc in range(args.n_procs)]
         if args.subsimproc:
-            utils.run_cmds(cmdfos)
+            utils.run_cmds(cmdfos, debug=True)
         else:
             for iproc in range(args.n_procs):
                 proc = Process(target=make_events, args=(n_per_proc, iproc, cmdfos[iproc]['workdir'], cmdfos[iproc]['outfname'], all_random_ints[iproc]))
