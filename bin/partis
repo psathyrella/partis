@@ -305,27 +305,14 @@ parent_parser.add_argument('--species', default='human', choices=('human', 'mous
 parent_parser.add_argument('--only-smith-waterman', action='store_true', help='Exit after finishing smith-waterman.')
 # parent_parser.add_argument('--use_mean_at_boundaries', action='store_true', help='see note in hmmwriter')
 
-# print 'TODO switch test.py to other germline dir instead of using --only-genes'
-# print 'TODO make waterer do the same number of iterations regardless of indels or no indels (?)'
 # print 'TODO would it speed up sw a lot to reduce max-drop?'
-# print 'TODO automatically set n-trees to something reasonable'
-# print 'TODO add something to sw to switch few-base fv insertions to v 5p deletions (see commented block in allelefinder.get_seqs())'
+# print 'TODO rerun on katie data and figure out why big cluster is slowing things down'
 
-# print 'TODO remove (almost?) all the \'if <> in <>\' bullshit (and *not* in) in allelefinder'
-# print 'TODO decide on \'obs\' or \'muted\' as keys'
-# print 'TODO get sw cache reading working with parametercounter, allelefinder, etc.'
 # print 'TODO add requirement for mulitple j genes'
-# print 'TODO add requirement that all positions in multiple-snp alleles are correlated (?)'
-# print 'TODO maybe do all the plots separately for each potential original snp base?'
-# print 'TODO when you go to get the imgt name for a new allele, don't forget to take into account that you're ignoring the rightmost few bases'
-# print 'TODO increase n_max_snps'
-# print 'TODO increase n_max_mutations_per_segment, at least for highly-mutated repertoires'
-# print 'TODO clean up alremoval stuff in waterer'
-# print 'TODO finding-old-imgt-name will have to also ignore stuff to right of cysteine'
-# print 'TODO don\'t write non-new new alleles to output new-allele fasta'
-# print 'TODO stop throwing out so many potential events in recombinator (I think it\'s screwing up the v gene ratios)'
-# print 'TODO see if current method of choosing big-y-icpt still works well for boundary cases'
-# print 'TODO make sure all is well if reall alleles differ to right of cysteine'
+# print 'TODO increase n_max_mutations_per_segment for highly-mutated repertoires'
+# maybe:
+#   add requirement that all positions in multiple-snp alleles are correlated (?)'
+#   do all the plots separately for each potential original snp base (i.e. separate plot for A, C, G, T)?'
 
 subconfig = {
     'version'          : {'func' : int, 'help' : 'print version information and exit'},

@@ -142,7 +142,7 @@ class Waterer(object):
 
         self.info['remaining_queries'] = self.remaining_queries
 
-        found_germline_changes = False
+        found_germline_changes = False  # set to true if either alremover or alfinder found changes to the germline info
         if self.alremover is not None:
             self.alremover.finalize(self.pcounter, self.info)
             self.info['genes-to-remove'] = self.alremover.genes_to_remove
@@ -175,7 +175,7 @@ class Waterer(object):
                 if self.true_pcounter is not None:
                     self.true_pcounter.write(self.parameter_out_dir + '-true')
 
-        if cachefname is not None and not found_germline_changes:  # NOTE this can be set to None by <self.alremover>
+        if cachefname is not None and not found_germline_changes:
             print '        writing sw results to %s' % cachefname
             glutils.write_glfo(cachefname.replace('.csv', '-glfo'), self.glfo)
             with open(cachefname, 'w') as outfile:
