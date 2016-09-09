@@ -197,7 +197,8 @@ void Glomerator::WriteCachedLogProbs() {
 
 // ----------------------------------------------------------------------------------------
 void Glomerator::WritePartitions(vector<ClusterPath> &paths) {
-  cout << "        writing partitions" << endl;
+  if(args_->debug())
+    cout << "        writing partitions" << endl;
   ofs_.open(args_->outfile());
   ofs_ << setprecision(20);
   ofs_ << "partition,logprob" << endl;

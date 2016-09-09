@@ -318,7 +318,7 @@ class PartitionDriver(object):
                 outfname = self.args.outfname.replace('.csv', '-cluster-annotations.csv')
                 print '    writing cluster annotations to %s' % outfname
             print '  annotations for final partition:'
-            self.read_annotation_output(self.annotation_fname, outfname=outfname)
+            self.read_annotation_output(self.annotation_fname, outfname=outfname, print_annotations=True)
         if self.args.outfname is not None:
             self.write_clusterpaths(self.args.outfname, cpath)  # [last agglomeration step]
 
@@ -1224,7 +1224,7 @@ class PartitionDriver(object):
             utils.print_reco_event(self.glfo['seqs'], after_line, extra_str='    ', label='after')
 
     # ----------------------------------------------------------------------------------------
-    def read_annotation_output(self, annotation_fname, outfname=None, count_parameters=False, parameter_out_dir=None):
+    def read_annotation_output(self, annotation_fname, outfname=None, count_parameters=False, parameter_out_dir=None, print_annotations=False):
         """ Read bcrham annotation output """
         print '    read output'
         sys.stdout.flush()
@@ -1273,7 +1273,7 @@ class PartitionDriver(object):
                         continue
                     line_to_use = eroded_line
 
-                if self.args.debug:
+                if self.args.debug or print_annotations:
                     print '      %s' % uidstr
                     self.print_hmm_output(line_to_use, print_true=True)
 
