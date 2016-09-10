@@ -87,6 +87,7 @@ def run_simulation(args):
     if not args.im_a_subproc and args.simulate_partially_from_scratch and args.generate_germline_set:
         glutils.remove_v_genes_with_bad_cysteines(glfo)
         glutils.generate_germline_set(glfo, args.n_genes_per_region, args.n_alleles_per_gene, args.min_allele_prevalence_freq, args.allele_prevalence_fname)  # NOTE removes unwanted genes from <glfo>
+        glutils.write_glfo(args.outfname.replace('.csv', '-glfo'), glfo)
     if args.subsimproc:
         working_gldir = args.workdir + '/' + glutils.glfo_dir
         glutils.write_glfo(working_gldir, glfo)
@@ -140,7 +141,7 @@ def run_simulation(args):
                    'outfname' : get_outfname(iproc)}
                   for iproc in range(args.n_procs)]
         if args.subsimproc:
-            utils.run_cmds(cmdfos)
+            utils.run_cmds(cmdfos, debug='print')
         else:
             for iproc in range(args.n_procs):
                 proc = Process(target=make_events, args=(n_per_proc, iproc, cmdfos[iproc]['workdir'], cmdfos[iproc]['outfname'], all_random_ints[iproc]))

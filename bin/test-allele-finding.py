@@ -106,7 +106,7 @@ def comprehensive_test(args):
     def cmd_str(iproc):
         clist = copy.deepcopy(sys.argv)
         utils.remove_from_arglist(clist, '--comprehensive')
-        utils.remove_from_arglist(clist, '--n-tests')
+        utils.remove_from_arglist(clist, '--n-tests', has_arg=True)
         utils.replace_in_arglist(clist, '--outdir', args.outdir + '/' + str(iproc))
         utils.replace_in_arglist(clist, '--seed', str(args.seed + iproc))
         # clist.append('--slurm')
@@ -120,6 +120,7 @@ def comprehensive_test(args):
     for iproc in range(args.n_tests):
         if os.path.exists(cmdfos[iproc]['outfname']):
             check_call(['rm', '-r', cmdfos[iproc]['outfname']])
+    print '  look for logs in %s' % args.outdir
     utils.run_cmds(cmdfos, debug='write')
 
 # ----------------------------------------------------------------------------------------
