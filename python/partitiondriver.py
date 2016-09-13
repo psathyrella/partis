@@ -1,3 +1,4 @@
+import numpy
 import time
 import sys
 import itertools
@@ -948,9 +949,9 @@ class PartitionDriver(object):
         combo = {
             'k_v' : {'min' : 99999, 'max' : -1},
             'k_d' : {'min' : 99999, 'max' : -1},
+            'mut_freq' : numpy.mean([utils.hamming_fraction(self.sw_info[name]['naive_seq'], self.sw_info[name]['seqs'][0]) for name in query_names]),
             'only_genes' : [],
-            'seqs' : [],
-            'mut_freqs' : []
+            'seqs' : [self.sw_info[name]['seqs'][0] for name in query_names]
         }
 
         # Note that this whole thing probably ought to use cached hmm info if it's available.
@@ -960,10 +961,7 @@ class PartitionDriver(object):
             swfo = self.sw_info[name]
             k_v = swfo['k_v']
             k_d = swfo['k_d']
-            assert len(swfo['seqs']) == 1
-            seq = swfo['seqs'][0]
-            combo['seqs'].append(seq)
-            combo['mut_freqs'].append(utils.hamming_fraction(self.sw_info[name]['naive_seq'], seq))
+            assert len(swfo['seqs']) == 1  # checking that when we filled in 'seqs' all was well
             combo['k_v']['min'] = min(k_v['min'], combo['k_v']['min'])
             combo['k_v']['max'] = max(k_v['max'], combo['k_v']['max'])
             combo['k_d']['min'] = min(k_d['min'], combo['k_d']['min'])
@@ -1033,7 +1031,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def write_to_single_input_file(self, fname, nsets, parameter_dir, skipped_gene_matches, shuffle_input=False):
         csvfile = opener('w')(fname)
-        header = ['names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'only_genes', 'seqs', 'mut_freqs']
+        header = ['names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'mut_freq', 'only_genes', 'seqs']
         writer = csv.DictWriter(csvfile, header, delimiter=' ')
         writer.writeheader()
 
@@ -1061,9 +1059,9 @@ class PartitionDriver(object):
                 'k_v_max' : combined_query['k_v']['max'],
                 'k_d_min' : combined_query['k_d']['min'],
                 'k_d_max' : combined_query['k_d']['max'],
+                'mut_freq' : combined_query['mut_freq'],
                 'only_genes' : ':'.join(combined_query['only_genes']),
-                'seqs' : ':'.join(combined_query['seqs']),
-                'mut_freqs' : ':'.join([str(f) for f in combined_query['mut_freqs']]),
+                'seqs' : ':'.join(combined_query['seqs'])
             })
 
         csvfile.close()
