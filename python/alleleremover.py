@@ -87,9 +87,9 @@ class AlleleRemover(object):
             if nearest_hdist is None or hdist < nearest_hdist:
                 nearest_hdist = hdist
                 nearest_gene = kgene
-            if hdist < self.alfinder.n_max_snps - 1:
+            if hdist < self.args.n_max_snps - 1:
                 if debug:
-                    print '      removing %s with %d counts (too close (%d < %d) to %s' % (utils.color_gene(gene), easycounts[gene], hdist, self.alfinder.n_max_snps - 1, kgene)
+                    print '      removing %s with %d counts (too close (%d < %d) to %s' % (utils.color_gene(gene), easycounts[gene], hdist, self.args.n_max_snps - 1, kgene)
                 return False
 
         if easycounts[gene] < self.alfinder.n_total_min:  # if we hardly ever saw it, there's no good reason to believe it wasn't the result of just mutational wandering

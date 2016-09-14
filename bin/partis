@@ -335,6 +335,8 @@ subargs['cache-parameters'].append({'name' : '--find-new-alleles', 'kwargs' : {'
 subargs['cache-parameters'].append({'name' : '--new-allele-fname', 'kwargs' : {'help' : 'fasta fname to which to write any new alleles (they are also written, with existing alleles, to --parameter-dir)'}})
 subargs['cache-parameters'].append({'name' : '--debug-allele-finding', 'kwargs' : {'action' : 'store_true', 'help' : 'print lots of debug info on new-allele fits'}})
 subargs['cache-parameters'].append({'name' : '--n-max-allele-finding-iterations', 'kwargs' : {'type' : int, 'default' : 4, 'help' : 'maximum number of times to look for new alleles'}})
+subargs['cache-parameters'].append({'name' : '--n-max-snps', 'kwargs' : {'type' : int, 'default' : 15, 'help' : 'when new-allele finding, look for new alleles separated from existing alleles by up to this many SNPs'}})
+subargs['cache-parameters'].append({'name' : '--n-max-mutations-per-segment', 'kwargs' : {'type' : int, 'default' : 30, 'help' : 'when new-allele finding, exclude sequences which have more than this many mutations in the V segment'}})
 
 subargs['partition'].append({'name' : '--naive-hamming', 'kwargs' : {'action' : 'store_true', 'help' : 'agglomerate purely with naive hamming distance, i.e. set the low and high preclustering bounds to the same value'}})
 subargs['partition'].append({'name' : '--naive-vsearch', 'kwargs' : {'action' : 'store_true', 'help' : 'Very fast clustering: infer naive (unmutated ancestor) for each input sequence, then toss it all into vsearch. But, of course, not as accurate as the slower methods.'}})
@@ -475,6 +477,9 @@ if args.parameter_dir is not None:
     args.parameter_dir = args.parameter_dir.rstrip('/')
 
 args.default_initial_germline_dir += '/' + args.species
+
+if args.n_max_snps > args.n_max_mutations_per_segment - 10:
+    raise Exception('--n-max-snps should be at least ten less than --n-max-mutations-per-segment, but I got %d and %d' % (args.n_max_snps, args.n_max_mutations_per_segment))
 
 # ----------------------------------------------------------------------------------------
 random.seed(args.seed)

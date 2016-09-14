@@ -36,8 +36,6 @@ class AlleleFinder(object):
         self.fraction_of_seqs_to_exclude = 0.01  # exclude the fraction of sequences with largest v_3p deletions whose counts add up to this fraction of total sequences NOTE you don't want to make this too big, because although you'll be removing all the seqs with large 4p deletions, this number also gets used when you're deciding whether your new allele is in the default glfo
         self.n_bases_to_exclude = {'5p' : {}, '3p' : {}}  # i.e. on all the seqs we keep, we exclude this many bases; and any sequences that have larger deletions than this are not kept
 
-        self.n_max_snps = 20  # max number of snps, i.e. try excluding up to this many bins on the left
-        self.n_max_mutations_per_segment = 30  # don't look at sequences whose v segments have more than this many mutations
         self.max_fit_length = 99999  # UPDATE nevermind, I no longer think there's a reason not to fit the whole thing OLD: don't fit more than this many bins for each <istart> (the first few positions in the fit are the most important, and if we fit too far to the right these important positions get diluted) UPDATE I'm no longer so sure that I shouldn't fit the whole shebang 
 
         self.n_snps_to_switch_to_two_piece_method = 5
@@ -57,7 +55,7 @@ class AlleleFinder(object):
         self.counts = {}
         self.new_allele_info = []
         self.positions_to_plot = {}
-        self.n_seqs_too_highly_mutated = {}  # sequences (per-gene) that had more than <self.n_max_mutations_per_segment> mutations
+        self.n_seqs_too_highly_mutated = {}  # sequences (per-gene) that had more than <self.args.n_max_mutations_per_segment> mutations
         self.gene_obs_counts = {}
         self.n_big_del_skipped = {s : {} for s in self.n_bases_to_exclude}
 
@@ -76,7 +74,7 @@ class AlleleFinder(object):
         self.counts[gene] = {}
         for igl in range(len(self.glfo['seqs'][utils.get_region(gene)][gene])):
             self.counts[gene][igl] = {}
-            for istart in range(self.n_max_mutations_per_segment + 1):  # istart and n_mutes are equivalent
+            for istart in range(self.args.n_max_mutations_per_segment + 1):  # istart and n_mutes are equivalent
                 self.counts[gene][igl][istart] = {n : 0 for n in ['muted', 'total'] + utils.nukes}
         self.gene_obs_counts[gene] = 0
         for side in self.n_big_del_skipped:
@@ -159,7 +157,7 @@ class AlleleFinder(object):
 
             # i.e. do *not* use <info> after this point
 
-            if n_mutes > self.n_max_mutations_per_segment:
+            if n_mutes > self.args.n_max_mutations_per_segment:
                 self.n_seqs_too_highly_mutated[gene] += 1
                 continue
 
@@ -355,7 +353,7 @@ class AlleleFinder(object):
                     pos_str = utils.color('yellow', pos_str)
                 print_str = ['                 %s    %5s            %5s / %-5s               ' % (pos_str, fstr(candidate_ratios[pos]),
                                                                                                   fstr(residfo[pos]['onefo']['residuals_over_ndof']), fstr(residfo[pos]['twofo']['residuals_over_ndof']))]
-                for n_mutes in range(self.n_max_mutations_per_segment + 1):
+                for n_mutes in range(self.args.n_max_mutations_per_segment + 1):
                     if n_mutes in bothxyvals[pos]['n_mutelist']:
                         inm = bothxyvals[pos]['n_mutelist'].index(n_mutes)
                         print_str.append('%4d / %-4d' % (bothxyvals[pos]['obs'][inm], bothxyvals[pos]['total'][inm]))
@@ -374,7 +372,7 @@ class AlleleFinder(object):
     def fit_istart(self, gene, istart, positions_to_try_to_fit, fitfo, print_dbg_header=False, debug=False):
         if debug and print_dbg_header:
             print '             position   ratio    (m=0 / m=big)      big bounds',
-            print '%0s %s' % ('', ''.join(['%11d' % nm for nm in range(self.n_max_mutations_per_segment + 1)]))  # NOTE *has* to correspond to line at bottom of fcn below
+            print '%0s %s' % ('', ''.join(['%11d' % nm for nm in range(self.args.n_max_mutations_per_segment + 1)]))  # NOTE *has* to correspond to line at bottom of fcn below
 
         subxyvals = {pos : {k : v[istart : istart + self.max_fit_length] for k, v in self.xyvals[gene][pos].items()} for pos in positions_to_try_to_fit}  # arrays from <istart> onwards
 
@@ -426,7 +424,7 @@ class AlleleFinder(object):
                                                                                               fstr(residfo[pos]['zerofo']['residuals_over_ndof']), fstr(residfo[pos]['bigfo']['residuals_over_ndof']),
                                                                                               residfo[pos]['bigfo']['y_icpt_bounds'][0], residfo[pos]['bigfo']['y_icpt_bounds'][1])]
                 print_str += '    '
-                for n_mutes in range(self.n_max_mutations_per_segment + 1):
+                for n_mutes in range(self.args.n_max_mutations_per_segment + 1):
                     if n_mutes in subxyvals[pos]['n_mutelist']:
                         inm = subxyvals[pos]['n_mutelist'].index(n_mutes)
                         print_str.append('%4d / %-4d' % (subxyvals[pos]['obs'][inm], subxyvals[pos]['total'][inm]))
@@ -576,7 +574,7 @@ class AlleleFinder(object):
             if debug and len(positions) > len(positions_to_try_to_fit):
                 self.print_skip_debug(gene, positions, positions_to_try_to_fit)
 
-            if len(positions_to_try_to_fit) < self.n_max_snps:
+            if len(positions_to_try_to_fit) < self.args.n_max_snps:
                 if debug:
                     print '          not enough positions with enough observations to fit %s' % utils.color_gene(gene)
                 continue
@@ -584,7 +582,7 @@ class AlleleFinder(object):
             # loop over each snp hypothesis
             fitfo = {n : {} for n in ('min_snp_ratios', 'mean_snp_ratios', 'candidates')}
             not_enough_candidates = []  # just for dbg printing
-            for istart in range(1, self.n_max_snps + 1):
+            for istart in range(1, self.args.n_max_snps + 1):
                 if istart < self.n_snps_to_switch_to_two_piece_method:
                     self.fit_istart(gene, istart, positions_to_try_to_fit, fitfo, print_dbg_header=(istart==1), debug=debug)
                 else:
@@ -648,7 +646,7 @@ class AlleleFinder(object):
         start = time.time()
         for gene in self.positions_to_plot:  # we can make plots for the positions we didn't fit, but there's a *lot* of them and they're slow
             for position in self.positions_to_plot[gene]:
-                plotting.make_allele_finding_plot(plotdir + '/' + utils.sanitize_name(gene), gene, position, self.xyvals[gene][position], xmax=self.n_max_mutations_per_segment)
+                plotting.make_allele_finding_plot(plotdir + '/' + utils.sanitize_name(gene), gene, position, self.xyvals[gene][position], xmax=self.args.n_max_mutations_per_segment)
 
         check_call(['./bin/permissify-www', plotdir])
         print '(%.1f sec)' % (time.time()-start)
