@@ -500,6 +500,10 @@ class AlleleFinder(object):
         if self.default_initial_glfo is not None:  # if this is set, we want to take the names from this directory's glfo (i.e. see if there's already a name for <new_name>'s sequence)
             new_name, new_seq = self.see_if_new_allele_is_in_default_initial_glfo(new_name, new_seq, template_gene, debug=debug)
 
+        if new_name in self.glfo['seqs'][utils.get_region(template_gene)]:
+            print '    new gene %s already in glfo (probably due to 3p end length issues), so skipping it' % utils.color_gene(new_name)
+            return
+
         print '    found a new allele candidate separated from %s by %d %s at %s:' % (utils.color_gene(template_gene), n_candidate_snps,
                                                                                       utils.plural_str('snp', n_candidate_snps), utils.plural_str('position', n_candidate_snps)),
         for pos in sorted(mutfo):
@@ -558,7 +562,7 @@ class AlleleFinder(object):
         for gene in sorted(self.counts):
             if debug:
                 sys.stdout.flush()
-                print '  %s observed %d %s (ignoring %d of these that were too highly mutated,' % (utils.color_gene(gene, width=15), self.gene_obs_counts[gene], utils.plural_str('time', self.gene_obs_counts[gene]), self.n_seqs_too_highly_mutated[gene]),
+                print '  %s: %d %s (ignoring %d of these that were too highly mutated,' % (utils.color_gene(gene), self.gene_obs_counts[gene], utils.plural_str('observation', self.gene_obs_counts[gene]), self.n_seqs_too_highly_mutated[gene]),
                 print '%d that had 5p deletions larger than %d,' % (self.n_big_del_skipped['5p'][gene], self.n_bases_to_exclude['5p'][gene]),
                 print 'and %d that had 3p deletions larger than %d)' % (self.n_big_del_skipped['3p'][gene], self.n_bases_to_exclude['3p'][gene])
 
