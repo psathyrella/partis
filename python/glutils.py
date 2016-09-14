@@ -1,3 +1,4 @@
+import copy
 import sys
 import os
 import random
@@ -341,10 +342,6 @@ def read_glfo(gldir, chain, only_genes=None, skip_pseudogenes=True, debug=False)
         """ % (gldir + '/' + chain))
     # ----------------------------------------------------------------------------------------
 
-    # for gene, seq in glfo['seqs'][region].items():
-    #     pos = glfo[codon + '-positions'][gene]
-    #     print '    %s%s%s   %s' % (seq[:pos], utils.color('reverse_video', seq[pos : pos + 3]), seq[pos + 3:], utils.color_gene(gene))
-
     if debug:
         print '  reading %s chain glfo from %s' % (chain, gldir)
     glfo = {'chain' : chain}
@@ -454,15 +451,27 @@ def generate_snpd_gene(gene, cpos, seq, positions):
 
 # ----------------------------------------------------------------------------------------
 def restrict_to_genes(glfo, only_genes, debug=False):
-    """ remove from <glfo> any genes which are not in <only_genes> """
+    """
+    Remove from <glfo> any genes which are not in <only_genes>.
+    Any regions in <unrestricted_regions> will be left entirely unrestricted (i.e. there shouldn't be anybody from those regions in <only_genes>.
+    """
     if only_genes is None:
         return
 
-    only_genes_not_in_glfo = set(only_genes) - set([g for r in utils.regions for g in glfo['seqs'][r]])
+    unrestricted_regions = copy.deepcopy(utils.regions)
+    for g in only_genes:
+        if utils.get_region(g) in unrestricted_regions:
+            unrestricted_regions.remove(utils.get_region(g))
+
+    restricted_regions = copy.deepcopy(utils.regions)
+    if len(unrestricted_regions) > 0:
+        restricted_regions = [r for r in utils.regions if r not in unrestricted_regions]
+
+    only_genes_not_in_glfo = set(only_genes) - set([g for r in restricted_regions for g in glfo['seqs'][r]])
     if len(only_genes_not_in_glfo) > 0:
         print '  %s genes %s in <only_genes> aren\'t in glfo to begin with' % (utils.color('red', 'warning'), ' '.join(only_genes_not_in_glfo))
 
-    genes_to_remove = set([g for r in utils.regions for g in glfo['seqs'][r]]) - set(only_genes)
+    genes_to_remove = set([g for r in restricted_regions for g in glfo['seqs'][r]]) - set(only_genes)
     if debug:
         print '    removing %d genes from glfo' % len(genes_to_remove)
     remove_genes(glfo, genes_to_remove)

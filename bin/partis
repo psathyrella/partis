@@ -288,7 +288,7 @@ parent_parser.add_argument('--slurm', action='store_true', help='Run multiple pr
 parent_parser.add_argument('--queries', help='Colon-separated list of query names to which we restrict ourselves')
 parent_parser.add_argument('--reco-ids', help='Colon-separated list of rearrangement-event IDs to which we restrict ourselves')  # or recombination events
 parent_parser.add_argument('--n-max-queries', type=int, default=-1, help='Maximum number of query sequences on which to run (except for simulator, where it\'s the number of rearrangement events)')
-parent_parser.add_argument('--only-genes', help='Colon-separated list of genes to which to restrict the analysis')
+parent_parser.add_argument('--only-genes', help='Colon-separated list of genes to which to restrict the analysis. If any regions (V/D/J) are not represented among these genes, these regions are left unrestricted.')
 parent_parser.add_argument('--n-max-per-region', default='3:5:2', help='Number of best smith-waterman matches (per region, in the format v:d:j) to pass on to the hmm')
 parent_parser.add_argument('--default-v-fuzz', type=int, default=5, help='Size of the k space region over which to sum in the v direction')
 parent_parser.add_argument('--default-d-fuzz', type=int, default=2, help='Size of the k space region over which to sum in the d direction')
@@ -312,6 +312,7 @@ parent_parser.add_argument('--only-smith-waterman', action='store_true', help='E
 
 # print 'TODO add requirement for mulitple j genes'
 # print 'TODO increase n_max_mutations_per_segment for highly-mutated repertoires'
+# print 'TODO still need to remove original (template) genes'
 # maybe:
 #   add requirement that all positions in multiple-snp alleles are correlated (?)'
 #   do all the plots separately for each potential original snp base (i.e. separate plot for A, C, G, T)?'
