@@ -117,6 +117,7 @@ private:
   map<string, vector<string> > only_genes_;
   map<string, KBounds> kbinfo_;
   map<string, float> mute_freqs_;  // overall mute freq for single sequences, mean overall mute freq for n-sets of sequences
+  map<string, size_t> cdr3_lengths_;  // assumes/enforces that it's the same for all members of a cluster
 
   // These all include cached info from previous runs
   map<string, double> log_probs_;  

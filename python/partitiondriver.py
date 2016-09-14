@@ -946,17 +946,20 @@ class PartitionDriver(object):
         Return the 'logical OR' of the queries in <query_names>, i.e. the maximal extent in k_v/k_d space and OR of only_gene sets.
         """
 
-        combo = {
-            'k_v' : {'min' : 99999, 'max' : -1},
-            'k_d' : {'min' : 99999, 'max' : -1},
-            'mut_freq' : numpy.mean([utils.hamming_fraction(self.sw_info[name]['naive_seq'], self.sw_info[name]['seqs'][0]) for name in query_names]),
-            'only_genes' : [],
-            'seqs' : [self.sw_info[name]['seqs'][0] for name in query_names]
-        }
-
         # Note that this whole thing probably ought to use cached hmm info if it's available.
         # Also, this just always uses the SW mutation rate, but I should really update it with the (multi-)hmm-derived ones (same goes for k space boundaries)
 
+        combo = {}
+        combo['seqs'] = [self.sw_info[name]['seqs'][0] for name in query_names]
+        combo['mut_freq'] = numpy.mean([utils.hamming_fraction(self.sw_info[name]['naive_seq'], self.sw_info[name]['seqs'][0]) for name in query_names])
+        cdr3_lengths = [self.sw_info[name]['cdr3_length'] for name in query_names]
+        if cdr3_lengths.count(cdr3_lengths[0]) != len(cdr3_lengths):
+            raise Exception('cdr3 lengths not all the same %s' % ' '.join([str(c) for c in cdr3_lengths]))
+        combo['cdr3_length'] = cdr3_lengths[0]
+
+        combo['k_v'] = {'min' : 99999, 'max' : -1}
+        combo['k_d'] = {'min' : 99999, 'max' : -1}
+        combo['only_genes'] = []
         for name in query_names:
             swfo = self.sw_info[name]
             k_v = swfo['k_v']
@@ -1031,7 +1034,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def write_to_single_input_file(self, fname, nsets, parameter_dir, skipped_gene_matches, shuffle_input=False):
         csvfile = opener('w')(fname)
-        header = ['names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'mut_freq', 'only_genes', 'seqs']
+        header = ['names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'mut_freq', 'cdr3_length', 'only_genes', 'seqs']
         writer = csv.DictWriter(csvfile, header, delimiter=' ')
         writer.writeheader()
 
@@ -1060,6 +1063,7 @@ class PartitionDriver(object):
                 'k_d_min' : combined_query['k_d']['min'],
                 'k_d_max' : combined_query['k_d']['max'],
                 'mut_freq' : combined_query['mut_freq'],
+                'cdr3_length' : combined_query['cdr3_length'],
                 'only_genes' : ':'.join(combined_query['only_genes']),
                 'seqs' : ':'.join(combined_query['seqs'])
             })
