@@ -84,7 +84,7 @@ class AlleleFinder(object):
         self.n_seqs_too_highly_mutated[gene] = 0
 
     # ----------------------------------------------------------------------------------------
-    def set_excluded_bases(self, swfo, debug=True):
+    def set_excluded_bases(self, swfo, debug=False):
         region = 'v'
         for side in self.n_bases_to_exclude:
             dcounts = {}

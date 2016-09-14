@@ -685,9 +685,11 @@ class Waterer(object):
             self.info['all_matches'][region] |= set(self.info[qname]['all_matches'][region])
 
         if self.debug:
+            inf_label = ''
             if not self.args.is_data:
+                inf_label = 'inferred:'
                 utils.print_reco_event(self.glfo['seqs'], self.reco_info[qname], extra_str='      ', label='true:')
-            utils.print_reco_event(self.glfo['seqs'], self.info[qname], extra_str='      ', label='inferred:')
+            utils.print_reco_event(self.glfo['seqs'], self.info[qname], extra_str='      ', label=inf_label)
 
         if self.pcounter is not None:
             self.pcounter.increment(self.info[qname])
@@ -853,11 +855,6 @@ class Waterer(object):
             k_d_max = 2
 
         assert k_v_min > 0 and k_d_min > 0 and k_v_max > 0 and k_d_max > 0
-
-        if self.debug:
-            print '         k_v: %d [%d-%d)' % (k_v, k_v_min, k_v_max)
-            print '         k_d: %d [%d-%d)' % (k_d, k_d_min, k_d_max)
-
         kbounds = {}
         kbounds['v'] = {'best' : k_v, 'min' : k_v_min, 'max' : k_v_max}
         kbounds['d'] = {'best' : k_d, 'min' : k_d_min, 'max' : k_d_max}

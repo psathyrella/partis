@@ -187,6 +187,7 @@ class PartitionDriver(object):
             itry += 1
             if itry >= self.args.n_max_allele_finding_iterations:
                 print '  too many allele finding iterations: %d >= %d' % (itry, self.args.n_max_allele_finding_iterations)
+                break
 
         if self.args.new_allele_fname is not None:
             n_new_alleles = len(all_new_allele_info)
