@@ -47,7 +47,7 @@ class AlleleFinder(object):
         self.min_min_candidate_ratio = 2.25  # every candidate ratio must be greater than this
         self.min_mean_candidate_ratio = 2.75  # mean of candidate ratios must be greater than this
         self.min_bad_fit_residual = 2.
-        self.max_good_fit_residual = 5.
+        self.max_good_fit_residual = 100.  # UPDATE nah, can't get away with it
 
         self.min_min_candidate_ratio_to_plot = 1.5  # don't plot positions that're below this (for all <istart>)
 
