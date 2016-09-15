@@ -60,7 +60,7 @@ def run_test(args):
 
             if args.snp_positions is not None:
                 snps_to_add = [{'gene' : g, 'positions' : args.snp_positions} for g in args.sim_v_genes]
-                glutils.add_some_snps(snps_to_add, sglfo, debug=True)
+                glutils.add_some_snps(snps_to_add, sglfo, debug=True, remove_template_genes=args.remove_template_genes)
 
             glutils.write_glfo(args.outdir + '/germlines/simulation', sglfo)
             cmd_str += ' --initial-germline-dir ' + args.outdir + '/germlines/simulation'
@@ -136,6 +136,7 @@ parser.add_argument('--dj-genes', default='IGHD6-19*01:IGHJ4*02', help='.')
 parser.add_argument('--sim-v-genes', default='IGHV4-39*01:IGHV4-39*06', help='.')
 parser.add_argument('--inf-v-genes', default='IGHV4-39*01', help='.')
 parser.add_argument('--snp-positions')
+parser.add_argument('--remove-template-genes', action='store_true')
 parser.add_argument('--mut-mult', type=float, default=0.5)
 parser.add_argument('--slurm', action='store_true')
 parser.add_argument('--outdir', default=fsdir + '/partis/allele-finder')

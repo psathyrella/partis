@@ -51,6 +51,7 @@ class AlleleFinder(object):
         self.min_min_candidate_ratio_to_plot = 1.5  # don't plot positions that're below this (for all <istart>)
 
         self.default_slope_bounds = (-0.1, 0.2)  # fitting function needs some reasonable bounds from which to start (I could at some point make slope part of the criteria for candidacy, but it wouldn't add much sensitivity)
+        self.unbounded_y_icpt_bounds = (-1., 1.5)
 
         self.counts = {}
         self.new_allele_info = []
@@ -276,7 +277,6 @@ class AlleleFinder(object):
         y_icpt_err = numpy.std(y_icpts, ddof=1) / math.sqrt(len(x))
 
         if debug:
-            # self.get_curvefit(pvals['n_mutelist'], pvals['freqs'], pvals['errs'], y_icpt_bounds=(-1., 1.), debug=True)
             print self.dbgstr(slope, slope_err, y_icpt, y_icpt_err, extra_str='apr')
 
         return {'m' : slope, 'm_err' : slope_err, 'b' : y_icpt, 'b_err' : y_icpt_err}
@@ -295,6 +295,13 @@ class AlleleFinder(object):
         consistent_slopes = self.consistent(vals1['m'], vals1['m_err'], vals2['m'], vals2['m_err'], debug=debug)
         consistent_y_icpts = self.consistent(vals1['b'], vals1['b_err'], vals2['b'], vals2['b_err'], debug=debug)
         return consistent_slopes and consistent_y_icpts
+
+    # ----------------------------------------------------------------------------------------
+    def empty_pre_bins(self, gene, istart, positions_to_try_to_fit, debug=False):
+        """ return true if fewer than <istart> positions have enough entries in the bins before <istart> """
+        prexyvals = {pos : {k : v[:istart] for k, v in self.xyvals[gene][pos].items()} for pos in positions_to_try_to_fit}  # arrays up to, but not including, <istart>
+        good_positions = [pos for pos in positions_to_try_to_fit if sum(prexyvals[pos]['total']) > self.n_total_min]  # almost the same as the line where we get <positions_to_try_to_fit>, except now it's only the bins before <istart>
+        return len(good_positions) < istart
 
     # ----------------------------------------------------------------------------------------
     def fit_two_piece_istart(self, gene, istart, positions_to_try_to_fit, fitfo, print_dbg_header=False, debug=False):
@@ -321,14 +328,14 @@ class AlleleFinder(object):
             if pre_approx['m'] > post_approx['m'] or self.consistent_slope_and_y_icpt(pre_approx, post_approx):
                 continue
 
-            onefit = self.get_curvefit(bothvals['n_mutelist'], bothvals['freqs'], bothvals['errs'], y_icpt_bounds=(-1., 1.))
+            onefit = self.get_curvefit(bothvals['n_mutelist'], bothvals['freqs'], bothvals['errs'], y_icpt_bounds=self.unbounded_y_icpt_bounds)
 
             # don't bother with the two-piece fit if the one-piece fit is pretty good
             if onefit['residuals_over_ndof'] < self.min_zero_icpt_residual:
                 continue
 
-            prefit = self.get_curvefit(prevals['n_mutelist'], prevals['freqs'], prevals['errs'], y_icpt_bounds=(-1., 1.))
-            postfit = self.get_curvefit(postvals['n_mutelist'], postvals['freqs'], postvals['errs'], y_icpt_bounds=(-1., 1.))
+            prefit = self.get_curvefit(prevals['n_mutelist'], prevals['freqs'], prevals['errs'], y_icpt_bounds=self.unbounded_y_icpt_bounds)
+            postfit = self.get_curvefit(postvals['n_mutelist'], postvals['freqs'], postvals['errs'], y_icpt_bounds=self.unbounded_y_icpt_bounds)
             twofit_residuals = prefit['residuals_over_ndof'] * prefit['ndof'] + postfit['residuals_over_ndof'] * postfit['ndof']
             twofit_ndof = prefit['ndof'] + postfit['ndof']
             twofit_residuals_over_ndof = twofit_residuals / twofit_ndof
@@ -583,7 +590,7 @@ class AlleleFinder(object):
             fitfo = {n : {} for n in ('min_snp_ratios', 'mean_snp_ratios', 'candidates')}
             not_enough_candidates = []  # just for dbg printing
             for istart in range(1, self.args.n_max_snps + 1):
-                if istart < self.n_snps_to_switch_to_two_piece_method:
+                if istart < self.n_snps_to_switch_to_two_piece_method or self.empty_pre_bins(gene, istart, positions_to_try_to_fit, debug=debug):
                     self.fit_istart(gene, istart, positions_to_try_to_fit, fitfo, print_dbg_header=(istart==1), debug=debug)
                 else:
                     self.fit_two_piece_istart(gene, istart, positions_to_try_to_fit, fitfo, print_dbg_header=(istart==self.n_snps_to_switch_to_two_piece_method), debug=debug)

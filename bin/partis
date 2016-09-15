@@ -312,7 +312,7 @@ parent_parser.add_argument('--only-smith-waterman', action='store_true', help='E
 
 # print 'TODO add requirement for mulitple j genes'
 # print 'TODO increase n_max_mutations_per_segment for highly-mutated repertoires'
-# print 'TODO still need to remove original (template) genes'
+# print 'TODO still need to remove original (template) genes, at least when the new gene is not among the imgt ones'
 # maybe:
 #   add requirement that all positions in multiple-snp alleles are correlated (?)'
 #   do all the plots separately for each potential original snp base (i.e. separate plot for A, C, G, T)?'
@@ -478,8 +478,9 @@ if args.parameter_dir is not None:
 
 args.default_initial_germline_dir += '/' + args.species
 
-if args.n_max_snps > args.n_max_mutations_per_segment - 10:
-    raise Exception('--n-max-snps should be at least ten less than --n-max-mutations-per-segment, but I got %d and %d' % (args.n_max_snps, args.n_max_mutations_per_segment))
+if args.n_max_snps is not None and args.n_max_mutations_per_segment is not None:
+    if args.n_max_snps > args.n_max_mutations_per_segment - 10:
+        raise Exception('--n-max-snps should be at least ten less than --n-max-mutations-per-segment, but I got %d and %d' % (args.n_max_snps, args.n_max_mutations_per_segment))
 
 # ----------------------------------------------------------------------------------------
 random.seed(args.seed)
