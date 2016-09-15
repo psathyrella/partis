@@ -154,6 +154,7 @@ class Waterer(object):
                 self.alfinder.increment(self.info[query])  # it needs to know the distribution of 3p deletions before it can increment, so it has to be here
             self.alfinder.finalize(debug=self.args.debug_allele_finding)
             self.info['new-alleles'] = self.alfinder.new_allele_info
+            self.info['alleles-with-evidence'] = self.alfinder.alleles_with_evidence
             if self.args.plotdir is not None:
                 self.alfinder.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
             if len(self.info['new-alleles']) > 0:

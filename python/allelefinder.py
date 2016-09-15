@@ -58,7 +58,7 @@ class AlleleFinder(object):
         self.new_allele_info = []
         self.positions_to_plot = {}
         self.n_seqs_too_highly_mutated = {}  # sequences (per-gene) that had more than <self.args.n_max_mutations_per_segment> mutations
-        self.gene_obs_counts = {}
+        self.gene_obs_counts, self.unmutated_gene_obs_counts = {}, {}
         self.n_big_del_skipped = {s : {} for s in self.n_bases_to_exclude}
 
         self.n_fits = 0
@@ -70,6 +70,7 @@ class AlleleFinder(object):
         self.finalized = False
 
         self.reflengths = {}
+        self.alleles_with_evidence = set()
 
     # ----------------------------------------------------------------------------------------
     def init_gene(self, gene):
@@ -79,6 +80,7 @@ class AlleleFinder(object):
             for istart in range(self.args.n_max_mutations_per_segment + 1):  # istart and n_mutes are equivalent
                 self.counts[gene][igl][istart] = {n : 0 for n in ['muted', 'total'] + utils.nukes}
         self.gene_obs_counts[gene] = 0
+        self.unmutated_gene_obs_counts[gene] = 0
         for side in self.n_big_del_skipped:
             self.n_big_del_skipped[side][gene] = 0
         self.n_seqs_too_highly_mutated[gene] = 0
@@ -156,6 +158,8 @@ class AlleleFinder(object):
                 continue
 
             n_mutes, germline_seq, query_seq = self.get_seqs(info, region, gene)  # NOTE no longer necessarily correspond to <info>
+            if n_mutes == 0:
+                self.unmutated_gene_obs_counts[gene] += 1
 
             # i.e. do *not* use <info> after this point
 
@@ -505,7 +509,7 @@ class AlleleFinder(object):
                 if nuke != original_nuke:
                     new_nuke = nuke
                     print sorted_obs_counts
-                    print 'chose %s' % new_nuke
+                    print 'chose %s for %d' % (new_nuke, pos)
                     break
             assert old_seq[pos] == original_nuke
             mutfo[pos] = {'original' : original_nuke, 'new' : new_nuke}
@@ -578,7 +582,9 @@ class AlleleFinder(object):
         for gene in sorted(self.counts):
             if debug:
                 sys.stdout.flush()
-                print '  %s: %d %s (ignoring %d of these that were too highly mutated,' % (utils.color_gene(gene), self.gene_obs_counts[gene], utils.plural_str('observation', self.gene_obs_counts[gene]), self.n_seqs_too_highly_mutated[gene]),
+                print ' %s: %d %s (%d unmutated)' % (utils.color_gene(gene), self.gene_obs_counts[gene], utils.plural_str('observation', self.gene_obs_counts[gene]), self.unmutated_gene_obs_counts[gene])
+                print '          skipping',
+                print '%d seqs that are too highly mutated,' % self.n_seqs_too_highly_mutated[gene],
                 print '%d that had 5p deletions larger than %d,' % (self.n_big_del_skipped['5p'][gene], self.n_bases_to_exclude['5p'][gene]),
                 print 'and %d that had 3p deletions larger than %d)' % (self.n_big_del_skipped['3p'][gene], self.n_bases_to_exclude['3p'][gene])
 
@@ -596,6 +602,9 @@ class AlleleFinder(object):
                 if debug:
                     print '          not enough positions with enough observations to fit %s' % utils.color_gene(gene)
                 continue
+
+            if self.unmutated_gene_obs_counts[gene] > self.n_total_min:
+                self.alleles_with_evidence.add(gene)
 
             # loop over each snp hypothesis
             fitfo = {n : {} for n in ('min_snp_ratios', 'mean_snp_ratios', 'candidates')}

@@ -172,7 +172,7 @@ class PartitionDriver(object):
     def find_new_alleles(self):
         """ look for new alleles with sw, write any that you find to the germline set directory in <self.workdir>, add them to <self.glfo>, and repeat until you don't find any. """
         all_new_allele_info = []
-        alleles_with_explicit_evidence = set()
+        alleles_with_evidence = set()
         itry = 0
         while True:
             self.run_waterer(find_new_alleles=True, itry=itry)
@@ -183,12 +183,13 @@ class PartitionDriver(object):
                 os.remove(self.default_cachefname)
 
             all_new_allele_info += self.sw_info['new-alleles']
-            alleles_with_explicit_evidence |= set([alfo['gene'] for alfo in self.sw_info['new-alleles']])
+            alleles_with_evidence |= self.sw_info['alleles-with-evidence']
+            self.sw_info['alleles-with-evidence']
             glutils.restrict_to_genes(self.glfo, list(self.sw_info['all_best_matches']))
             glutils.add_new_alleles(self.glfo, self.sw_info['new-alleles'])
             if self.args.generate_germline_set:
                 for alfo in self.sw_info['new-alleles']:
-                    if '+' in alfo['gene'] and alfo['template-gene'] not in alleles_with_explicit_evidence:  # if the new allele is actually new (i.e. not in imgt), and if we never had explicit evidence for the template gene (i.e. it was just the best match we had) then remove the template gene
+                    if '+' in alfo['gene'] and alfo['template-gene'] not in alleles_with_evidence:  # if the new allele is actually new (i.e. not in imgt), and if we never had explicit evidence for the template gene (i.e. it was just the best match we had) then remove the template gene
                         print '    removing template gene %s' % utils.color_gene(alfo['template-gene'])
                         glutils.remove_gene(self.glfo, alfo['template-gene'])
             glutils.write_glfo(self.my_gldir, self.glfo)  # write glfo modifications to disk
