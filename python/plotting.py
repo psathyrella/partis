@@ -888,15 +888,15 @@ def make_html(plotdir, n_columns=3, extension='svg'):
     check_call(['chmod', '664', htmlfname])
 
 # ----------------------------------------------------------------------------------------
-def make_allele_finding_plot(plotdir, gene, position, values, xmax):
+def make_allele_finding_plot(plotdir, gene, position, values, xmax, linefo=None):
     xmin, xmax = 0, xmax
     fig, ax = mpl_init()
 
     ax.errorbar(values['n_mutelist'], values['freqs'], yerr=values['errs'], markersize=15, linewidth=2, marker='.')  #, title='position ' + str(position))
 
-    # fitted line
-    # linevals = [values['slope']*x + values['y_icpt'] for x in [0] + values['n_mutelist']]
-    # ax.plot([0] + values['n_mutelist'], linevals)
+    if linefo is not None:  # fitted line
+        linevals = [linefo['slope']*x + linefo['y_icpt'] for x in [0] + values['n_mutelist']]
+        ax.plot([0] + values['n_mutelist'], linevals)
 
     ax.plot([xmin, xmax], [0, 0], linestyle='dashed', alpha=0.5, color='black')
     ymax = max(values['freqs']) + max(values['errs'])

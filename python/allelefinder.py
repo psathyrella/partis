@@ -46,7 +46,8 @@ class AlleleFinder(object):
 
         self.min_min_candidate_ratio = 2.25  # every candidate ratio must be greater than this
         self.min_mean_candidate_ratio = 2.75  # mean of candidate ratios must be greater than this
-        self.min_zero_icpt_residual = 2.  # TODO rename this
+        self.min_bad_fit_residual = 2.
+        self.max_good_fit_residual = 5.
 
         self.min_min_candidate_ratio_to_plot = 1.5  # don't plot positions that're below this (for all <istart>)
 
@@ -331,7 +332,7 @@ class AlleleFinder(object):
             onefit = self.get_curvefit(bothvals['n_mutelist'], bothvals['freqs'], bothvals['errs'], y_icpt_bounds=self.unbounded_y_icpt_bounds)
 
             # don't bother with the two-piece fit if the one-piece fit is pretty good
-            if onefit['residuals_over_ndof'] < self.min_zero_icpt_residual:
+            if onefit['residuals_over_ndof'] < self.min_bad_fit_residual:
                 continue
 
             prefit = self.get_curvefit(prevals['n_mutelist'], prevals['freqs'], prevals['errs'], y_icpt_bounds=self.unbounded_y_icpt_bounds)
@@ -340,7 +341,11 @@ class AlleleFinder(object):
             twofit_ndof = prefit['ndof'] + postfit['ndof']
             twofit_residuals_over_ndof = twofit_residuals / twofit_ndof
 
-            # TODO add a requirement that all the candidate slopes are consistent both pre and post
+            # TODO add a requirement that all the candidate slopes are consistent both pre and post (?)
+
+            # two-piece fit should actually be at least ok
+            if twofit_residuals_over_ndof > self.max_good_fit_residual:
+                continue
 
             candidate_ratios[pos] = onefit['residuals_over_ndof'] / twofit_residuals_over_ndof if twofit_residuals_over_ndof > 0. else float('inf')
             residfo[pos] = {'onefo' : onefit, 'prefo' : prefit, 'postfo' : postfit, 'twofo' : {'residuals_over_ndof' : twofit_residuals_over_ndof}}
@@ -356,7 +361,7 @@ class AlleleFinder(object):
                 print '    %d %s' % (istart, utils.plural_str('snp', istart))
             for pos in candidates:
                 pos_str = '%3s' % str(pos)
-                if candidate_ratios[pos] > self.min_min_candidate_ratio and residfo[pos]['onefo']['residuals_over_ndof'] > self.min_zero_icpt_residual:
+                if candidate_ratios[pos] > self.min_min_candidate_ratio and residfo[pos]['onefo']['residuals_over_ndof'] > self.min_bad_fit_residual:
                     pos_str = utils.color('yellow', pos_str)
                 print_str = ['                 %s    %5s            %5s / %-5s               ' % (pos_str, fstr(candidate_ratios[pos]),
                                                                                                   fstr(residfo[pos]['onefo']['residuals_over_ndof']), fstr(residfo[pos]['twofo']['residuals_over_ndof']))]
@@ -406,10 +411,14 @@ class AlleleFinder(object):
             zero_icpt_fit = self.get_curvefit(pvals['n_mutelist'], pvals['freqs'], pvals['errs'], y_icpt_bounds=(0., 0.))
 
             # don't bother with the big-icpt fit if the zero-icpt fit is pretty good
-            if zero_icpt_fit['residuals_over_ndof'] < self.min_zero_icpt_residual:
+            if zero_icpt_fit['residuals_over_ndof'] < self.min_bad_fit_residual:
                 continue
 
             big_icpt_fit = self.get_curvefit(pvals['n_mutelist'], pvals['freqs'], pvals['errs'], y_icpt_bounds=big_y_icpt_bounds)
+
+            # big-icpt fit should actually be at least ok
+            if big_icpt_fit['residuals_over_ndof'] > self.max_good_fit_residual:
+                continue
 
             candidate_ratios[pos] = zero_icpt_fit['residuals_over_ndof'] / big_icpt_fit['residuals_over_ndof'] if big_icpt_fit['residuals_over_ndof'] > 0. else float('inf')
             residfo[pos] = {'zerofo' : zero_icpt_fit, 'bigfo' : big_icpt_fit}
@@ -425,7 +434,7 @@ class AlleleFinder(object):
                 print '    %d %s' % (istart, utils.plural_str('snp', istart))
             for pos in candidates:
                 pos_str = '%3s' % str(pos)
-                if candidate_ratios[pos] > self.min_min_candidate_ratio and residfo[pos]['zerofo']['residuals_over_ndof'] > self.min_zero_icpt_residual:
+                if candidate_ratios[pos] > self.min_min_candidate_ratio and residfo[pos]['zerofo']['residuals_over_ndof'] > self.min_bad_fit_residual:
                     pos_str = utils.color('yellow', pos_str)
                 print_str = ['                 %s    %5s    %5s / %-5s   [%5.3f - %5.3f] ' % (pos_str, fstr(candidate_ratios[pos]),
                                                                                               fstr(residfo[pos]['zerofo']['residuals_over_ndof']), fstr(residfo[pos]['bigfo']['residuals_over_ndof']),
@@ -495,6 +504,8 @@ class AlleleFinder(object):
             for nuke, _ in sorted_obs_counts:  # take the most common one that isn't the existing gl nuke
                 if nuke != original_nuke:
                     new_nuke = nuke
+                    print sorted_obs_counts
+                    print 'chose %s' % new_nuke
                     break
             assert old_seq[pos] == original_nuke
             mutfo[pos] = {'original' : original_nuke, 'new' : new_nuke}
