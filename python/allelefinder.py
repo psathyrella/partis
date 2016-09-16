@@ -524,8 +524,6 @@ class AlleleFinder(object):
             for nuke, _ in sorted_obs_counts:  # take the most common one that isn't the existing gl nuke
                 if nuke != original_nuke:
                     new_nuke = nuke
-                    print sorted_obs_counts
-                    print 'chose %s for %d' % (new_nuke, pos)
                     break
             assert old_seq[pos] == original_nuke
             mutfo[pos] = {'original' : original_nuke, 'new' : new_nuke}
