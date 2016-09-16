@@ -1,7 +1,8 @@
 FROM matsengrp/cpp
 
 # ----------------------------------------------------------------------------------------
-RUN apt-get update --fix-missing && apt-get install -y \
+RUN sed -i 's/httpredir/ftp.us/' /etc/apt/sources.list
+RUN apt-get update && apt-get install -y \
     libgsl0ldbl \
     libgsl0-dev \
     libncurses5-dev \
