@@ -33,8 +33,9 @@ class AlleleFinder(object):
         self.args = args
         self.itry = itry
 
-        self.fraction_of_seqs_to_exclude = 0.01  # exclude the fraction of sequences with largest v_3p deletions whose counts add up to this fraction of total sequences NOTE you don't want to make this too big, because although you'll be removing all the seqs with large 4p deletions, this number also gets used when you're deciding whether your new allele is in the default glfo
+        self.fraction_of_seqs_to_exclude = 0.01  # exclude the fraction of sequences with largest v_{5,3}p deletions whose counts add up to this fraction of total sequences NOTE you don't want to make this too big, because although you'll be removing all the seqs with large 4p deletions, this number also gets used when you're deciding whether your new allele is in the default glfo
         self.n_bases_to_exclude = {'5p' : {}, '3p' : {}}  # i.e. on all the seqs we keep, we exclude this many bases; and any sequences that have larger deletions than this are not kept
+        self.genes_to_exclude = set()  # genes that, with the above restrictions, are entirely excluded
 
         self.max_fit_length = 99999  # UPDATE nevermind, I no longer think there's a reason not to fit the whole thing OLD: don't fit more than this many bins for each <istart> (the first few positions in the fit are the most important, and if we fit too far to the right these important positions get diluted) UPDATE I'm no longer so sure that I shouldn't fit the whole shebang 
 
@@ -103,19 +104,30 @@ class AlleleFinder(object):
                 observed_deletions = sorted(dcounts[gene].keys())
                 total_obs = sum(dcounts[gene].values())
                 running_sum = 0
-                if debug:
+                if debug > 1:
                     print gene
                     print '  observed %s deletions: %s (counts %s)' % (side, ' '.join([str(d) for d in observed_deletions]), ' '.join([str(c) for c in dcounts[gene].values()]))
                     print '     len   fraction'
                 for dlen in observed_deletions:
                     self.n_bases_to_exclude[side][gene] = dlen  # setting this before the "if" means that if we fall through (e.g. if there aren't enough sequences to get above the threshold) we'll still have a reasonable default
                     running_sum += dcounts[gene][dlen]
-                    if debug:
+                    if debug > 1:
                         print '    %4d    %5.3f' % (dlen, float(running_sum) / total_obs)
                     if float(running_sum) / total_obs > 1. - self.fraction_of_seqs_to_exclude:  # if we've already added deletion lengths accounting for most of the sequences, ignore the rest of 'em
                         break
-                if debug:
+                if debug > 1:
                     print '     choose', self.n_bases_to_exclude[side][gene]
+
+        # print choices and check consistency
+        if debug:
+            print '    exclusions:  5p   3p'
+        for gene in dcounts:
+            if debug:
+                print '                %3d  %3d  %s' % (self.n_bases_to_exclude['5p'][gene], self.n_bases_to_exclude['3p'][gene], utils.color_gene(gene, width=15)),
+            if self.n_bases_to_exclude['5p'][gene] + self.n_bases_to_exclude['3p'][gene] >= len(self.glfo['seqs'][utils.get_region(gene)][gene]):
+                self.genes_to_exclude.add(gene)
+                print '%s excluding from analysis'utils.color('red', 'too long:'),
+            print ''
 
     # ----------------------------------------------------------------------------------------
     def get_seqs(self, info, region, gene):
@@ -128,6 +140,8 @@ class AlleleFinder(object):
         right_exclusion = self.n_bases_to_exclude['3p'][gene] - info[region + '_3p_del']
         assert left_exclusion >= 0  # internal consistency check -- we should've already removed all the sequences with bigger deletions
         assert right_exclusion >= 0
+        if left_exclusion + right_exclusion >= len(germline_seq):
+            raise Exception('excluded all bases for %s: %d + %d >= %d' % (info['unique_ids'], left_exclusion, right_exclusion, len(germline_seq)))
         germline_seq = germline_seq[left_exclusion : len(germline_seq) - right_exclusion]
         query_seq = query_seq[left_exclusion : len(query_seq) - right_exclusion]
         # NOTE <germline_seq> and <query_seq> no longer correspond to <info>, but that should be ok
@@ -142,6 +156,8 @@ class AlleleFinder(object):
     def increment(self, info):
         for region in ['v', ]:
             gene = info[region + '_gene']
+            if gene in self.genes_to_exclude:
+                continue
             if gene not in self.counts:
                 self.init_gene(gene)
             gcts = self.counts[gene]  # shorthand name
