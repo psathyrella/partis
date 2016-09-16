@@ -126,7 +126,7 @@ class AlleleFinder(object):
                 print '                %3d  %3d  %s' % (self.n_bases_to_exclude['5p'][gene], self.n_bases_to_exclude['3p'][gene], utils.color_gene(gene, width=15)),
             if self.n_bases_to_exclude['5p'][gene] + self.n_bases_to_exclude['3p'][gene] >= len(self.glfo['seqs'][utils.get_region(gene)][gene]):
                 self.genes_to_exclude.add(gene)
-                print '%s excluding from analysis'utils.color('red', 'too long:'),
+                print '%s excluding from analysis' % utils.color('red', 'too long:'),
             print ''
 
     # ----------------------------------------------------------------------------------------
