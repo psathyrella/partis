@@ -25,6 +25,7 @@ class AlleleRemover(object):
 
         self.genes_to_keep = None
         self.genes_to_remove = None
+        self.dbg_strings = {}
 
         self.finalized = False
 
@@ -88,16 +89,14 @@ class AlleleRemover(object):
                 nearest_hdist = hdist
                 nearest_gene = kgene
             if hdist < self.args.n_max_snps - 1:
-                if debug:
-                    print '      removing %s with %d counts (too close (%d < %d) to %s' % (utils.color_gene(gene), easycounts[gene], hdist, self.args.n_max_snps - 1, kgene)
+                self.dbg_strings[gene] = 'too close (%d < %d) to %s' % (easycounts[gene], hdist, self.args.n_max_snps - 1, kgene)
                 return False
 
         if easycounts[gene] < self.alfinder.n_total_min:  # if we hardly ever saw it, there's no good reason to believe it wasn't the result of just mutational wandering
-            print '      removing %s not enough counts (%d < %d)' % (utils.color_gene(gene), easycounts[gene], self.alfinder.n_total_min)
+            self.dbg_strings[gene] = 'not enough counts (%d < %d)' % (easycounts[gene], self.alfinder.n_total_min)
             return False
 
-        if debug:
-            print '    keeping %s: nearest gene %s %s' % (utils.color_gene(gene), nearest_gene, nearest_hdist)
+        self.dbg_strings[gene] = 'nearest gene %s %s' % (nearest_gene, nearest_hdist)
         return True
 
     # ----------------------------------------------------------------------------------------
@@ -114,8 +113,7 @@ class AlleleRemover(object):
         for igene in range(len(sorted_gene_counts)):
             gene, counts = sorted_gene_counts[igene]
             if igene == 0:  # always keep the first one
-                if debug:
-                    print '    keeping first gene %s with %d counts' % (utils.color_gene(gene), counts)
+                self.dbg_strings[gene] = 'first gene'
                 self.genes_to_keep.add(gene)
                 continue
             if self.keep_this_gene(gene, pcounter, easycounts, debug=debug):
@@ -123,9 +121,13 @@ class AlleleRemover(object):
 
         print '  keeping:'
         for gene in [g for g, _ in sorted_gene_counts if g in self.genes_to_keep]:
-            print '    %5d %s' % (easycounts[gene], utils.color_gene(gene))
+            print '    %5d  %s  %s' % (easycounts[gene], utils.color_gene(gene, width=15), self.dbg_strings[gene])
 
         self.genes_to_remove = set(self.glfo['seqs'][region]) - self.genes_to_keep
+
+        print '  removing:'
+        for gene in [g for g, _ in sorted_gene_counts if g in self.genes_to_remove]:
+            print '    %5d  %s  %s' % (easycounts[gene], utils.color_gene(gene, width=15), self.dbg_strings[gene])
 
         n_queries_with_removed_genes = 0
         for query in swfo['queries']:
