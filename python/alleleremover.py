@@ -89,7 +89,7 @@ class AlleleRemover(object):
                 nearest_hdist = hdist
                 nearest_gene = kgene
             if hdist < self.args.n_max_snps - 1:
-                self.dbg_strings[gene] = 'too close (%d < %d) to %s' % (easycounts[gene], hdist, self.args.n_max_snps - 1, kgene)
+                self.dbg_strings[gene] = 'too close (%d < %d) to %s' % (hdist, self.args.n_max_snps - 1, kgene)
                 return False
 
         if easycounts[gene] < self.alfinder.n_total_min:  # if we hardly ever saw it, there's no good reason to believe it wasn't the result of just mutational wandering
