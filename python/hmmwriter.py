@@ -169,13 +169,14 @@ class HMM(object):
 
 # ----------------------------------------------------------------------------------------
 class HmmWriter(object):
-    def __init__(self, base_indir, outdir, gene_name, glfo, args):
+    def __init__(self, base_indir, outdir, gene_name, glfo, args, debug=False):
         self.region = utils.get_region(gene_name)
         self.raw_name = gene_name  # i.e. unsanitized
         self.germline_seqs = glfo['seqs']  # all germline alleles
         self.germline_seq = self.germline_seqs[self.region][gene_name]  # germline sequence for this hmm
         self.indir = base_indir
         self.args = args
+        self.debug = debug
         self.codon_positions = {r : glfo[c + '-positions'] for r, c in utils.conserved_codons[args.chain].items()}
 
         # parameters with values that I more or less made up
@@ -200,15 +201,15 @@ class HmmWriter(object):
 
         assert len(utils.ambiguous_bases) == 1 and utils.ambiguous_bases[0] == 'N'  # maybe need to update some stuff below if this changes
 
-        if self.args.debug:
+        if self.debug:
             print '%s' % utils.color_gene(gene_name)
 
-        self.n_occurences = utils.read_single_gene_count(self.indir, gene_name, debug=self.args.debug)  # how many times did we observe this gene in data?
+        self.n_occurences = utils.read_single_gene_count(self.indir, gene_name, debug=self.debug)  # how many times did we observe this gene in data?
         replacement_genes = None
         if self.n_occurences < self.args.min_observations_to_write:  # if we didn't see it enough, average over all the genes that find_replacement_genes() gives us
-            if self.args.debug:
+            if self.debug:
                 print '      only saw it %d times (wanted %d), so use info from all other genes' % (self.n_occurences, self.args.min_observations_to_write)
-            replacement_genes = utils.find_replacement_genes(self.indir, self.args.min_observations_to_write, gene_name, debug=self.args.debug)
+            replacement_genes = utils.find_replacement_genes(self.indir, self.args.min_observations_to_write, gene_name, debug=self.debug)
 
         self.erosion_probs = self.read_erosion_info(gene_name, replacement_genes)
         self.insertion_probs, self.insertion_content_probs = self.read_insertion_info(gene_name, replacement_genes)
@@ -376,7 +377,7 @@ class HmmWriter(object):
                 test_total += eprobs[erosion][n_eroded]
             assert utils.is_normed(test_total)
 
-        if len(genes_used) > 1 and self.args.debug:  # if length is 1, we will have just used the actual gene
+        if len(genes_used) > 1 and self.debug:  # if length is 1, we will have just used the actual gene
             print '    used erosion info from:', ' '.join(genes_used)
 
         return eprobs
@@ -418,11 +419,11 @@ class HmmWriter(object):
             interpolate_bins(iprobs[insertion], self.n_max_to_interpolate, bin_eps=self.eps)  #, max_bin=len(self.germline_seq))  # NOTE that we normalize *after* this
 
             if 0 not in iprobs[insertion] or len(iprobs[insertion]) < 2:  # all hell breaks loose lower down if we haven't got shit in the way of information
-                if self.args.debug:
+                if self.debug:
                     print '    WARNING adding pseudocount to 1-bin in insertion probs'
                 iprobs[insertion][0] = 1
                 iprobs[insertion][1] = 1
-                if self.args.debug:
+                if self.debug:
                     print '      ', iprobs[insertion]
 
             assert 0 in iprobs[insertion] and len(iprobs[insertion]) >= 2  # all hell breaks loose lower down if we haven't got shit in the way of information
@@ -444,7 +445,7 @@ class HmmWriter(object):
             icontentprobs[insertion] = self.read_insertion_content(insertion)  # also read the base content of the insertions
 
         if len(genes_used) > 1:  # if length is 1, we will have just used the actual gene
-            if self.args.debug:
+            if self.debug:
                 print '    insertions used:', ' '.join(genes_used)
 
         return iprobs, icontentprobs
@@ -460,7 +461,7 @@ class HmmWriter(object):
                     icontentprobs[line[insertion + '_insertion_content']] = int(line['count'])
                     total += int(line['count'])
 
-                if total == 0.:
+                if total == 0. and self.debug:
                     print '\n    WARNING zero insertion content probs read from %s, so setting to uniform distribution' % self.indir + '/' + insertion + '_insertion_content.csv'
                 for nuke in utils.nukes:
                     if total == 0.:
@@ -538,7 +539,7 @@ class HmmWriter(object):
         if mean_length > 0.0:
             inverse_length = 1.0 / mean_length
         if insertion != 'fv' and insertion != 'jf' and mean_length < 1.0:
-            if self.args.debug:
+            if self.debug:
                 print '      small mean insert length %f' % mean_length
 
         return inverse_length
@@ -557,7 +558,7 @@ class HmmWriter(object):
             self_transition_prob = non_zero_sum / float(non_zero_sum + self.insertion_probs[insertion][0])  # NOTE this otter be less than 1, since we only get here if the mean length is less than 1
             assert self_transition_prob >= 0.0 and self_transition_prob <= 1.0
             if insertion != 'fv' and insertion != 'jf':  # we pretty much expect this for unphysical insertions
-                if self.args.debug:
+                if self.debug:
                     print '    WARNING using insert self-transition probability hack for %s insertion p(>0) / p(0) = %f / %f = %f' % (insertion, non_zero_sum, non_zero_sum + self.insertion_probs[insertion][0], self_transition_prob)
                     print '      ', self.insertion_probs[insertion]
             return self_transition_prob
