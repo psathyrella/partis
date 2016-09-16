@@ -149,7 +149,7 @@ class Waterer(object):
             if len(self.info['genes-to-remove']) > 0:
                 found_germline_changes = True
         if self.alfinder is not None:
-            self.alfinder.set_excluded_bases(self.info)
+            self.alfinder.set_excluded_bases(self.info, debug=self.args.debug_allele_finding)
             for query in self.info['queries']:
                 self.alfinder.increment(self.info[query])  # it needs to know the distribution of 3p deletions before it can increment, so it has to be here
             self.alfinder.finalize(debug=self.args.debug_allele_finding)
