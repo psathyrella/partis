@@ -889,7 +889,7 @@ def make_html(plotdir, n_columns=3, extension='svg'):
 
 # ----------------------------------------------------------------------------------------
 def make_allele_finding_plot(plotdir, gene, position, values, xmax, linefo=None):
-    xmin, xmax = 0, xmax
+    xmin, xmax = -0.3, xmax
     fig, ax = mpl_init()
 
     ax.errorbar(values['n_mutelist'], values['freqs'], yerr=values['errs'], markersize=15, linewidth=2, marker='.')  #, title='position ' + str(position))

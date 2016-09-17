@@ -203,8 +203,8 @@ class AlleleFinder(object):
         return residual_sum
 
     # ----------------------------------------------------------------------------------------
-    def dbgstr(self, slope, slope_err, y_icpt, y_icpt_err, extra_str=''):
-        return '        %s  m: %5.3f +/- %5.3f   b: %5.3f +/- %5.3f' % (extra_str, slope, slope_err, y_icpt, y_icpt_err)
+    def dbgstr(self, slope, slope_err, y_icpt, y_icpt_err, resid, ndof, extra_str=''):
+        return '        %s  m: %5.3f +/- %5.3f   b: %5.3f +/- %5.3f     %5.3f / %-3d = %5.3f' % (extra_str, slope, slope_err, y_icpt, y_icpt_err, resid, ndof, float(resid) / ndof)
 
     # ----------------------------------------------------------------------------------------
     def get_curvefit(self, n_mutelist, freqs, errs, y_icpt_bounds, debug=False):
@@ -229,7 +229,7 @@ class AlleleFinder(object):
         residual_sum = self.get_residual_sum(n_mutelist, freqs, errs, slope, y_icpt)
 
         if debug:
-            print self.dbgstr(slope, slope_err, y_icpt, y_icpt_err, extra_str='fit')
+            print self.dbgstr(slope, slope_err, y_icpt, y_icpt_err, float(residual_sum), ndof, extra_str='fit')
 
         fitfo = {
             'slope'  : slope,
@@ -298,7 +298,7 @@ class AlleleFinder(object):
         y_icpt_err = numpy.std(y_icpts, ddof=1) / math.sqrt(len(x))
 
         if debug:
-            print self.dbgstr(slope, slope_err, y_icpt, y_icpt_err, extra_str='apr')
+            print self.dbgstr(slope, slope_err, y_icpt, y_icpt_err, 1., 1, extra_str='apr')
 
         return {'m' : slope, 'm_err' : slope_err, 'b' : y_icpt, 'b_err' : y_icpt_err}
 
