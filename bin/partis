@@ -246,12 +246,10 @@ def view_existing_output(args):
     parter.clean()
 
 # ----------------------------------------------------------------------------------------
-try:
-    rows, columns = [int(v) for v in check_output(['stty', 'size']).split()]  # get actual tty height and width
-except (OSError, CalledProcessError):
-    rows, columns = 50, 200
-formatter_class = lambda prog: argparse.HelpFormatter(prog, max_help_position=columns, width=columns)
-parser = argparse.ArgumentParser(formatter_class=formatter_class)
+class MultiplyInheritedFormatter(argparse.RawTextHelpFormatter, argparse.ArgumentDefaultsHelpFormatter):
+    pass
+formatter_class = MultiplyInheritedFormatter
+parser = argparse.ArgumentParser(formatter_class=MultiplyInheritedFormatter)
 subparsers = parser.add_subparsers(dest='action')
 
 parent_parser = argparse.ArgumentParser(add_help=False)
@@ -381,7 +379,7 @@ subargs['simulate'].append({'name' : '--im-a-subproc', 'kwargs' : {'action' : 's
 
 subparsermap = {}
 for name, vals in subconfig.items():
-    subparsermap[name] = subparsers.add_parser(name, parents=[parent_parser], help=vals['help'], formatter_class=formatter_class)
+    subparsermap[name] = subparsers.add_parser(name, parents=[parent_parser], help=vals['help'], formatter_class=MultiplyInheritedFormatter)
     subparsermap[name].set_defaults(func=vals['func'])
     for argconf in subargs[name]:
         subparsermap[name].add_argument(argconf['name'], **argconf['kwargs'])
