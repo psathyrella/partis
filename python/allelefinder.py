@@ -244,6 +244,43 @@ class AlleleFinder(object):
         return fitfo
 
     # ----------------------------------------------------------------------------------------
+    def get_reweights(self, gene, position, debug=False):
+        """
+        Reweight mutation frequencies to correct for bin-to-bin variations in allele prevalence (due to non-flat mutation frequency distributions).
+        I.e. reweight to maintain linearity in the presence of super-non-continuous mutation frequency distributions.
+        I don't think it's right yet, although it kind of works.
+        In any case, shit works fine without reweighting, so I don't feel like dealing with the complication a.t.m. (especially don't want to deal with correcting the uncertainties for reweighting).
+        """
+        gcts = self.counts[gene][position]  # shorthand name
+        overall_nuke_totals = {n : 0 for n in utils.nukes}
+        per_bin_nuke_totals = {n_muted : {n : 0 for n in utils.nukes} for n_muted in gcts}
+        for n_muted in gcts:
+            for nuke in utils.nukes:
+                overall_nuke_totals[nuke] += gcts[n_muted][nuke]
+                per_bin_nuke_totals[n_muted][nuke] += gcts[n_muted][nuke]
+        freqs = [float(d['muted']) / d['total'] if d['total'] > 0 else 0. for d in gcts.values()]
+        if debug:
+            print ' ', ' '.join(['%5d' % n for n in gcts])
+            for nuke in utils.nukes:
+                print nuke, ' '.join(['%5d' % gcts[n][nuke] for n in gcts]), overall_nuke_totals[nuke]
+            print ' ', ' '.join(['%5.3f' % f for f in freqs])
+
+        reweighted_freqs = []
+        for n_muted in gcts:
+            freq, total = 0., 0.
+            for nuke in utils.nukes:
+                reweight = 0.
+                if per_bin_nuke_totals[n_muted][nuke] > 0:
+                    reweight = float(overall_nuke_totals[nuke]) / per_bin_nuke_totals[n_muted][nuke]
+                total += reweight * gcts[n_muted][nuke]
+                if nuke != self.glfo['seqs'][utils.get_region(gene)][gene][position]:
+                    freq += reweight * gcts[n_muted][nuke]
+            reweighted_freqs.append(freq / total if total > 0. else 0.)
+        if debug:
+            print ' ', ' '.join(['%5.3f' % f for f in reweighted_freqs])
+        return reweighted_freqs
+
+    # ----------------------------------------------------------------------------------------
     def get_allele_finding_xyvals(self, gene, position):
         gcts = self.counts[gene][position]  # shorthand name
 
