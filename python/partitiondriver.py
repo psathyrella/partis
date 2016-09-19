@@ -965,7 +965,7 @@ class PartitionDriver(object):
         combo['mut_freq'] = numpy.mean([utils.hamming_fraction(self.sw_info[name]['naive_seq'], self.sw_info[name]['seqs'][0]) for name in query_names])
         cdr3_lengths = [self.sw_info[name]['cdr3_length'] for name in query_names]
         if cdr3_lengths.count(cdr3_lengths[0]) != len(cdr3_lengths):
-            raise Exception('cdr3 lengths not all the same %s' % ' '.join([str(c) for c in cdr3_lengths]))
+            print '%s cdr3 lengths not all the same %s' % (utils.color('red', 'warning'), ' '.join([str(c) for c in cdr3_lengths]))
         combo['cdr3_length'] = cdr3_lengths[0]
 
         combo['k_v'] = {'min' : 99999, 'max' : -1}

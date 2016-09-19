@@ -330,17 +330,8 @@ def read_extra_info(glfo, gldir):
 
 #----------------------------------------------------------------------------------------
 def read_glfo(gldir, chain, only_genes=None, skip_pseudogenes=True, debug=False):
-
-    # ----------------------------------------------------------------------------------------
-    # warn about backwards compatibility breakage
     if not os.path.exists(gldir + '/' + chain):
-        raise Exception("""
-        Germline set directory \'%s\' does not exist.
-        Unless you\'ve specified a nonexistent --initial-germline-dir, this is probably because as of v0.6.0 we switched to per-dataset germline sets, which means the germline set fastas have to be *within* --parameter-dir.
-        You will, unfortunately, need to delete your existing --parameter-dir and generate a new one (either explicitly with \'cache-parameters\', or just re-run whatever action you were running, and it'll do it automatically when it can\'t find the directory you deleted).
-        Sorry! We promise this is better in the long term, though.
-        """ % (gldir + '/' + chain))
-    # ----------------------------------------------------------------------------------------
+        raise Exception('germline set directory \'%s\' does not exist (maybe --parameter-dir is corrupted, maybe crashed while writing parameters?)' % (gldir + '/' + chain))
 
     if debug:
         print '  reading %s chain glfo from %s' % (chain, gldir)
