@@ -71,12 +71,12 @@ class AlleleRemover(object):
         #     self.counts[best_gene]['second'].fill(second_smallest_hfrac)
 
     # ----------------------------------------------------------------------------------------
-    def keep_this_gene(self, gene, pcounter, easycounts, debug=False):
-        region = utils.get_region(gene)
+    def keep_this_gene(self, this_gene, pcounter, easycounts, debug=False):
+        region = utils.get_region(this_gene)
         assert region == 'v'  # conserved codon stuff below will have to be changed for j
         glseqs = self.glfo['seqs'][region]
         codon_positions = self.glfo[utils.conserved_codons[self.glfo['chain']][region] + '-positions']
-        this_seq = glseqs[gene][:codon_positions[gene] + 3]  # only compare up to the conserved cysteine
+        this_seq = glseqs[this_gene][:codon_positions[this_gene] + 3]  # only compare up to the conserved cysteine
 
         # don't keep it if it's pretty close to a gene we already have
         nearest_gene, nearest_hdist = None, None
@@ -89,14 +89,14 @@ class AlleleRemover(object):
                 nearest_hdist = hdist
                 nearest_gene = kgene
             if hdist < self.args.n_max_snps - 1:
-                self.dbg_strings[gene] = 'too close (%d < %d) to %s' % (hdist, self.args.n_max_snps - 1, kgene)
+                self.dbg_strings[this_gene] = 'too close (%d < %d) to %s' % (hdist, self.args.n_max_snps - 1, kgene)
                 return False
 
-        if easycounts[gene] < self.alfinder.n_total_min:  # if we hardly ever saw it, there's no good reason to believe it wasn't the result of just mutational wandering
-            self.dbg_strings[gene] = 'not enough counts (%d < %d)' % (easycounts[gene], self.alfinder.n_total_min)
+        if easycounts[this_gene] < self.alfinder.n_total_min:  # if we hardly ever saw it, there's no good reason to believe it wasn't the result of just mutational wandering
+            self.dbg_strings[this_gene] = 'not enough counts (%d < %d)' % (easycounts[this_gene], self.alfinder.n_total_min)
             return False
 
-        self.dbg_strings[gene] = 'nearest gene %s %s' % (nearest_gene, nearest_hdist)
+        self.dbg_strings[this_gene] = 'nearest gene %s %s' % (nearest_gene, nearest_hdist)
         return True
 
     # ----------------------------------------------------------------------------------------
