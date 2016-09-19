@@ -213,38 +213,32 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
     if bounds is not None:
         xmin, xmax = bounds
 
-    assert not shift_overflows  # TODO implement this inside of Hist
-    # if shift_overflows:
-    #     for htmp in hists:
-    #         if htmp == None:
-    #             continue
-    #         underflows, overflows = 0.0, 0.0
-    #         first_shown_bin, last_shown_bin = -1, -1
-    #         for ib in range(0, htmp.GetXaxis().GetNbins()+2):
-    #             if htmp.GetXaxis().GetBinCenter(ib) <= xmin:
-    #                 underflows += htmp.GetBinContent(ib)
-    #                 htmp.SetBinContent(ib, 0.0)
-    #             elif first_shown_bin == -1:
-    #                 first_shown_bin = ib
-    #             else:
-    #                 break
-    #         for ib in reversed(range(0, htmp.GetXaxis().GetNbins()+2)):
-    #             if htmp.GetXaxis().GetBinCenter(ib) >= xmax:
-    #                 overflows += htmp.GetBinContent(ib)
-    #                 htmp.SetBinContent(ib, 0.0)
-    #             elif last_shown_bin == -1:
-    #                 last_shown_bin = ib
-    #             else:
-    #                 break
+    if shift_overflows:
+        for htmp in hists:
+            if htmp is None:
+                continue
+            underflows, overflows = 0.0, 0.0
+            first_shown_bin, last_shown_bin = -1, -1
+            bin_centers = htmp.get_bin_centers(ignore_overflows=False)
+            for ib in range(0, htmp.n_bins + 2):
+                if bin_centers[ib] <= xmin:
+                    underflows += htmp.bin_contents[ib]
+                    htmp.set_ibin(ib, 0.0)
+                elif first_shown_bin == -1:
+                    first_shown_bin = ib
+                else:
+                    break
+            for ib in reversed(range(0, htmp.n_bins + 2)):
+                if bin_centers[ib] >= xmax:
+                    overflows += htmp.bin_contents[ib]
+                    htmp.set_ibin(ib, 0.0)
+                elif last_shown_bin == -1:
+                    last_shown_bin = ib
+                else:
+                    break
 
-    #         if 'd_hamming' in plotname:
-    #             print htmp.GetTitle()
-    #             print '  underflow', underflows, htmp.GetBinContent(first_shown_bin)
-    #             print '  overflow', overflows, htmp.GetBinContent(last_shown_bin)
-    #             print '  first', htmp.GetXaxis().GetBinCenter(first_shown_bin)
-    #             print '  last', htmp.GetXaxis().GetBinCenter(last_shown_bin)
-    #         htmp.SetBinContent(first_shown_bin, underflows + htmp.GetBinContent(first_shown_bin))
-    #         htmp.SetBinContent(last_shown_bin, overflows + htmp.GetBinContent(last_shown_bin))
+            htmp.set_ibin(first_shown_bin, underflows + htmp.bin_contents[first_shown_bin])
+            htmp.set_ibin(last_shown_bin, overflows + htmp.bin_contents[last_shown_bin])
 
     if colors is None:  # fiddle here http://stackoverflow.com/questions/22408237/named-colors-in-matplotlib
         assert len(hists) < 5
