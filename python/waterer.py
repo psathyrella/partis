@@ -362,10 +362,10 @@ class Waterer(object):
             codestr += length * code
             if code == 'I':  # advance qr seq but not gl seq
                 indelfo['indels'].append({'type' : 'insertion', 'pos' : qpos, 'len' : length, 'seqstr' : ''})  # insertion begins at <pos>
-                tmp_indices += [len(indelfo['indels']) - 1  for _ in range(length)]# indel index corresponding to this position in the alignment
+                tmp_indices += [len(indelfo['indels']) - 1  for _ in range(length)]  # indel index corresponding to this position in the alignment
             elif code == 'D':  # advance qr seq but not gl seq
                 indelfo['indels'].append({'type' : 'deletion', 'pos' : qpos, 'len' : length, 'seqstr' : ''})  # first deleted base is <pos> (well, first base which is in the position of the first deleted base)
-                tmp_indices += [len(indelfo['indels']) - 1  for _ in range(length)]# indel index corresponding to this position in the alignment
+                tmp_indices += [len(indelfo['indels']) - 1  for _ in range(length)]  # indel index corresponding to this position in the alignment
             else:
                 tmp_indices += [None  for _ in range(length)]  # indel index corresponding to this position in the alignment
             qpos += length
@@ -406,7 +406,6 @@ class Waterer(object):
             print '          %20s %s' % ('query', qrprintstr)
             for idl in indelfo['indels']:
                 print '          %10s: %d bases at %d (%s)' % (idl['type'], idl['len'], idl['pos'], idl['seqstr'])
-        # utils.undo_indels(indelfo)
 
         return indelfo
 

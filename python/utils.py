@@ -2017,23 +2017,6 @@ def add_indels_to_germline_strings(line, indelfo):
         print '     unhandled indel within a non-templated insertion'
 
 # ----------------------------------------------------------------------------------------
-def undo_indels(indelfo):
-    """ not finished """
-    rseq = indelfo['reversed_seq']
-    oseq = rseq  # original sequence
-    for i_indel in range(len(indelfo['indels']) - 1, 0, -1):
-    # for i_indel in range(len(indelfo['indels'])):
-        idl = indelfo['indels'][i_indel]
-        if idl['type'] == 'insertion':
-            oseq = oseq[ : idl['pos']] + idl['seqstr'] + oseq[idl['pos'] : ]
-        elif idl['type'] == 'deletion':
-            if rseq[idl['pos'] : idl['pos'] + idl['len']] != idl['seqstr']:
-                raise Exception('found %s instead of expected insertion (%s)' % (rseq[idl['pos'] : idl['pos'] + idl['len']], idl['seqstr']))
-            oseq = oseq[ : idl['pos']] + oseq[idl['pos'] + idl['len'] : ]
-    # print '              reversed %s' % rseq
-    # print '              original %s' % oseq
-
-# ----------------------------------------------------------------------------------------
 def csv_to_fasta(infname, outfname=None, name_column='unique_id', seq_column='seq', n_max_lines=None):
     if not os.path.exists(infname):
         raise Exception('input file %s d.n.e.' % infname)
