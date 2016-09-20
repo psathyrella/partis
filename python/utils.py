@@ -653,8 +653,18 @@ def reset_effective_erosions_and_effective_insertions(glfo, padded_line, aligned
     final_jf_insertion = final_insertions[TMPiseq]['jf']
     fv_insertion_to_remove = insertions_to_remove[TMPiseq]['fv']
     jf_insertion_to_remove = insertions_to_remove[TMPiseq]['jf']
-    line['v_5p_del'] = find_first_non_ambiguous_base(trimmed_seq)
-    line['j_3p_del'] = len(trimmed_seq) - find_last_non_ambiguous_base_plus_one(trimmed_seq)
+
+    def max_effective_erosion(erosion):
+        region = erosion[0]
+        gl_len = len(glfo['seqs'][region][line[region + '_gene']])
+        if '5p' in erosion:
+            other_del = line[region + '_3p_del']
+        elif '3p' in erosion:
+            other_del = line[region + '_5p_del']
+        return gl_len - other_del - 1
+
+    line['v_5p_del'] = min(max_effective_erosion('v_5p'), find_first_non_ambiguous_base(trimmed_seq))
+    line['j_3p_del'] = min(max_effective_erosion('j_3p'), len(trimmed_seq) - find_last_non_ambiguous_base_plus_one(trimmed_seq))
 
     for iseq in range(len(line['seqs'])):
         # de-pad the seqs
@@ -681,16 +691,15 @@ def reset_effective_erosions_and_effective_insertions(glfo, padded_line, aligned
     # else:
     #     line['padlefts'], line['padrights'] = [padfo[uid]['padded']['padleft'] for uid in line['unique_ids']], [padfo[uid]['padded']['padright'] for uid in line['unique_ids']]
 
+    # NOTE fixed the problem we were actually seeing, so this shouldn't fail any more, but I'll leave it in for a bit just in case
     try:
         add_implicit_info(glfo, line, aligned_gl_seqs=aligned_gl_seqs)
     except:
         print '%s failed adding implicit info to \'%s\'' % (color('red', 'error'), ':'.join(line['unique_ids']))
-        print 'trimmed: %s' % trimmed_seq
-        print 'last: %d' % find_last_non_ambiguous_base_plus_one(trimmed_seq)
-        print 'padded:'
+        print color('red', 'padded:')
         for k, v in padded_line.items():
             print '%20s  %s' % (k, v)
-        print 'eroded:'
+        print color('red', 'eroded:')
         for k, v in line.items():
             print '%20s  %s' % (k, v)
         line['invalid'] = True
@@ -775,6 +784,8 @@ def add_implicit_info(glfo, line, existing_implicit_keys=None, aligned_gl_seqs=N
         del_5p = line[region + '_5p_del']
         del_3p = line[region + '_3p_del']
         length = len(uneroded_gl_seq) - del_5p - del_3p  # eroded length
+        if length < 0:
+            raise Exception('invalid %s lengths passed to add_implicit_info()\n    gl seq: %d  5p: %d  3p: %d' % (region, len(uneroded_gl_seq), del_5p, del_3p))
         line[region + '_gl_seq'] = uneroded_gl_seq[del_5p : del_5p + length]
         line['lengths'][region] = length
 
@@ -792,15 +803,6 @@ def add_implicit_info(glfo, line, existing_implicit_keys=None, aligned_gl_seqs=N
 
     # add naive seq stuff
     line['naive_seq'] = line['fv_insertion'] + line['v_gl_seq'] + line['vd_insertion'] + line['d_gl_seq'] + line['dj_insertion'] + line['j_gl_seq'] + line['jf_insertion']
-# ----------------------------------------------------------------------------------------
-    for mseq in line['seqs']:
-        if len(mseq) != len(line['naive_seq']):
-            print '%s naive sequence length not the same as mature sequence for %s' % (color('red', 'error'), ':'.join(line['unique_ids']))
-            for k, v in line.items():
-                print '%20s  %s' % (k, v)
-            line['invalid'] = True
-            return
-# ----------------------------------------------------------------------------------------
 
     start, end = {}, {}  # add naive seq bounds for each region (could stand to make this more concise)
     start['v'] = len(line['fv_insertion'])  # NOTE this duplicates code in add_qr_seqs()
@@ -818,7 +820,7 @@ def add_implicit_info(glfo, line, existing_implicit_keys=None, aligned_gl_seqs=N
 
     line['mut_freqs'] = [hamming_fraction(line['naive_seq'], mature_seq) for mature_seq in line['seqs']]
 
-    # set validity (alignment addition can also set invalid)  # TODO clean up this checking stuff
+    # set validity (alignment addition [below] can also set invalid)  # TODO clean up this checking stuff
     line['invalid'] = False
     seq_length = len(line['seqs'][0])  # they shouldn't be able to be different lengths
     for chkreg in regions:
