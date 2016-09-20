@@ -606,7 +606,9 @@ def disambiguate_effective_insertions(bound, line, seq, unique_id, debug=False):
         else:
             trimmed_seq = seq
     if debug:
-        print '    %s insertion   final %s   to_remove %s    trimmed_seq %s' % (bound, final_insertion, insertion_to_remove, trimmed_seq)
+        print '     %s      final: %s' % (color('blue', bound), final_insertion)
+        print '         to_remove: %s' % insertion_to_remove
+        print '       trimmed_seq: %s' % trimmed_seq
 
     return trimmed_seq, final_insertion, insertion_to_remove
 
@@ -628,11 +630,12 @@ def reset_effective_erosions_and_effective_insertions(glfo, padded_line, aligned
 
     if debug:
         print 'resetting effective erosions'
-        print '     %s' % line['seqs'][0]
+        print '     start: %s' % line['seqs'][0]
 
     # first remove effective (fv and jf) insertions
     trimmed_seqs = []
-    final_insertions, insertions_to_remove = [], []
+    final_insertions = []  # the effective insertions that will remain in the final info
+    insertions_to_remove = []  # the effective insertions that we'll be removing, so which won't be in the final info
     for iseq in range(len(line['seqs'])):
         trimmed_seq = line['seqs'][iseq]
         final_insertions.append({})
@@ -644,20 +647,22 @@ def reset_effective_erosions_and_effective_insertions(glfo, padded_line, aligned
         trimmed_seqs.append(trimmed_seq)
 
     # arbitrarily use the zeroth sequence (in principle v_5p and j_3p should be per-sequence, not per-rearrangement... but that'd be a mess to implement, since the other deletions are per-rearrangement)
-    tmpiseq = 0  # NOTE this is pretty hackey: we just use the values from the first sequence. But it's actually not that bad -- we can either have some extra pad Ns showing, or chop of some bases.
-    trimmed_seq = trimmed_seqs[tmpiseq]
-    final_fv_insertion = final_insertions[tmpiseq]['fv']
-    final_jf_insertion = final_insertions[tmpiseq]['jf']
-    fv_insertion_to_remove = insertions_to_remove[tmpiseq]['fv']
-    jf_insertion_to_remove = insertions_to_remove[tmpiseq]['jf']
+    TMPiseq = 0  # NOTE this is pretty hackey: we just use the values from the first sequence. But it's actually not that bad -- we can either have some extra pad Ns showing, or chop off some bases.
+    trimmed_seq = trimmed_seqs[TMPiseq]
+    final_fv_insertion = final_insertions[TMPiseq]['fv']
+    final_jf_insertion = final_insertions[TMPiseq]['jf']
+    fv_insertion_to_remove = insertions_to_remove[TMPiseq]['fv']
+    jf_insertion_to_remove = insertions_to_remove[TMPiseq]['jf']
     line['v_5p_del'] = find_first_non_ambiguous_base(trimmed_seq)
     line['j_3p_del'] = len(trimmed_seq) - find_last_non_ambiguous_base_plus_one(trimmed_seq)
 
     for iseq in range(len(line['seqs'])):
+        # de-pad the seqs
         line['seqs'][iseq] = trimmed_seqs[iseq][line['v_5p_del'] : ]
         if line['j_3p_del'] > 0:
             line['seqs'][iseq] = line['seqs'][iseq][ : -line['j_3p_del']]
 
+        # if necessary, also de-pad the indel-reversed seqs
         if line['indelfos'][iseq]['reversed_seq'] != '':
             rseq = line['indelfos'][iseq]['reversed_seq']
             rseq = rseq[len(fv_insertion_to_remove) + line['v_5p_del'] : ]
