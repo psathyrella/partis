@@ -218,6 +218,10 @@ class AlleleFinder(object):
             y_icpt, y_icpt_err = 0., 0.
             ndof = len(n_mutelist) - 1
         else:
+            if y_icpt_bounds[0] == y_icpt_bounds[1]:
+                print 'tweaking bounds: %5.3f-%5.3f -->' % (y_icpt_bounds[0], y_icpt_bounds[1]),
+                y_icpt_bounds = (y_icpt_bounds[0] + utils.eps, y_icpt_bounds[1] - utils.eps)
+                print '%5.3f-%5.3f' % (y_icpt_bounds[0], y_icpt_bounds[1])
             def linefunc(x, slope, y_icpt):
                 return slope*x + y_icpt
             bounds = [[s, y] for s, y in zip(self.default_slope_bounds, y_icpt_bounds)]
