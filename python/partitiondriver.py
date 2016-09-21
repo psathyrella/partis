@@ -189,7 +189,7 @@ class PartitionDriver(object):
             glutils.add_new_alleles(self.glfo, self.sw_info['new-alleles'])
             if self.args.generate_germline_set:
                 for alfo in self.sw_info['new-alleles']:
-                    if alfo['template-gene'] not in alleles_with_evidence:  # if the new allele is actually new (i.e. not in imgt), and if we never had explicit evidence for the template gene (i.e. it was just the best match we had) then remove the template gene
+                    if alfo['template-gene'] not in alleles_with_evidence:  # XXX [update comment] if the new allele is actually new (i.e. not in imgt), and if we never had explicit evidence for the template gene (i.e. it was just the best match we had) then remove the template gene
                         print '    removing template gene %s' % utils.color_gene(alfo['template-gene'])
                         glutils.remove_gene(self.glfo, alfo['template-gene'])
             glutils.write_glfo(self.my_gldir, self.glfo)  # write glfo modifications to disk
@@ -1262,7 +1262,7 @@ class PartitionDriver(object):
 
                 uids = padded_line['unique_ids']
                 uidstr = ':'.join(uids)
-                padded_line['indelfos'] = [self.sw_info['indels'].get(uid, utils.get_empty_indel()) for uid in uids]
+                padded_line['indelfos'] = [self.sw_info['indels'].get(uid, utils.get_empty_indel()) for uid in uids]  # reminder: hmm was given a sequence with any indels reversed (i.e. <self.sw_info['indels'][uid]['reverersed_seq']>)
 
                 if self.args.chain != 'h':
                     self.process_dummy_d_hack(padded_line)

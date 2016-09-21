@@ -654,7 +654,7 @@ def reset_effective_erosions_and_effective_insertions(glfo, padded_line, aligned
     fv_insertion_to_remove = insertions_to_remove[TMPiseq]['fv']
     jf_insertion_to_remove = insertions_to_remove[TMPiseq]['jf']
 
-    def max_effective_erosion(erosion):
+    def max_effective_erosion(erosion):  # don't "erode" more than there is left to erode
         region = erosion[0]
         gl_len = len(glfo['seqs'][region][line[region + '_gene']])
         if '5p' in erosion:
