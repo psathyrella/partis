@@ -519,6 +519,8 @@ class AlleleFinder(object):
     # ----------------------------------------------------------------------------------------
     def see_if_new_allele_is_in_default_initial_glfo(self, new_name, new_seq, template_gene, debug=False):
         region = utils.get_region(template_gene)
+        if new_name in self.default_initial_glfo['seqs'][region]:  # if we removed an existing allele and then re-added it, it'll already be in the default glfo, so there's nothing for us to do in this fcn
+            return new_name, new_seq
         chain = self.glfo['chain']
         assert region == 'v'  # conserved codon stuff below will have to be changed for j
         newpos = self.glfo[utils.conserved_codons[chain][region] + '-positions'][template_gene]  # codon position for template gene should be ok

@@ -247,25 +247,32 @@ When caching parameters, the parameter csvs from Smith-Waterman and the HMM are 
 Within each of these, there are a bunch of csv files with (hopefully) self-explanatory names, e.g. `j_gene-j_5p_del-probs.csv` has counts for J 5' deletions subset by J gene.
 The hmm model files go in the `hmms` subdirectory, which contains yaml HMM model files for each observed allele.
 
-##### Finding New Alleles
+##### New alleles and germline sets
 
-By default partis uses the set of germline V, D, and J genes ("germline set") in `data/imgt`.
+By default partis uses the set of germline V, D, and J genes (the "germline set") in `data/germlines`, which is from imgt.
 If you have another set you'd like to use, you can do so by setting `--initial-germline-dir`.
-The default set from imgt is missing many real alleles, and as such, annotations for any individual who has these missing alleles will be wrong.
-So we've implemented a method of finding new alleles on the fly when running on a new input data set.
-We basically use the idea from [tigger](http://tigger.readthedocs.io/en/latest/), but generalize and robustify it a bit: in particular, we do something more akin to a simultaneous fit, over all positions at once, for each hypothesized number of SNPs.
+The default set from imgt is missing many alleles that occur in real populations, and, as such, annotations for any individual who has these missing alleles will be wrong.
+We've thus included a method of finding new alleles, on the fly, for each individual data set.
 
 To try this, use the `--find-new-alleles` option to the `cache-parameters` action.
 This will write any new alleles, along with the existing alleles, to a germline set directory in `--parameter-dir`.
-This modified germline set is then used by default when later performing inference with these parameters.
-If you specified, it will also write the new alleles in fasta format to `--new-allele-fname`.
+This modified germline set is then used by default in later runs when performing inference with these parameters.
+If specified, it will also write the new alleles in fasta format to `--new-allele-fname`.
 
-Each individual will also, of course, only have some subset of the alleles in `data/imgt` (or any available germline set).
-This is a pretty straightforward extension of the allele finding -- just start with a "minimal" germline set, run iteratively, and remove anybody that doesn't pop up as a new allele -- but it's still under development (i.e. we need to test it more thoroughly).
+Finding previously unknown alleles in your sample, though, is only half of the germline set problem.
+The other half is figuring out which of the alleles in the default set are *not* present in your sample.
+Widely varying allele prevalence frequencies, together with rampant gene duplication and deletion in the BCR locuses mean that simple threshold-based approaches (e.g. remove alleles that occur at less than 1% frequency, or always keep the best two alleles) do not work.
+The effectiveness of the above allele-finding algorithm, however, lets us adopt a different approach.
+We first remove any alleles for which there is not very strong evidence.
+This amounts, very roughly, to keeping the most common allele for each gene.
+We then go through several rounds of allele-finding, during which any needlessly-removed alleles, together with any previously unknown alleles, are iteratively added to the germline set.
+To try this, specify the `--generate-germline-set` option for `cache-parameters`.
 
-Oh, right, and all this new allele talk only applies to V.
-We could probably do the same thing for J, but there don't seem to be much polymorphism, so it's probably not worthwhile.
-Doing it for D is a crazy pipe dream.
+A paper describing these methods is in preparation.
+
+Also, all this new allele talk so far only applies to V.
+We could probably do the same thing for J, but there doesn't seem to be much polymorphism, so it's probably not worthwhile.
+Doing it for D is probably not realistic.
 
 #### simulate
 
@@ -288,17 +295,6 @@ Throughout the run, we sample a tree at random from this set for each rearrangem
 
 Same as `run-viterbi`, except with the forward algorithm, i.e. it sums over all possible rearrangement events to get the total log probability of the sequence.
 Probably mostly useful for testing.
-
-### Germline Sets
-
-The default set of germline genes is in `data/imgt`.
-This was downloaded at some point from the imgt web site, and contains genes they label as F and ORF.
-Maybe also with square brackets around the F.
-It was then modified by removing several genes that had the same sequence as other genes (wtf...).
-As has been described in a number of papers by other folks, it is sensible to view the imgt set as a starting point.
-The thing to do next is identify any new alleles in the data set at hand -- for this see [allele finding](https://github.com/psathyrella/partis/blob/master/manual.md#finding-new-alleles) above.
-The next step is to reduce the germline set for each data set such that we only consider alleles which are actually present in each individual's germline.
-This is still under development.
 
 ### Parallelization
 
