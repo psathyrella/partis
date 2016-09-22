@@ -48,7 +48,7 @@ class AlleleFinder(object):
         self.min_min_candidate_ratio = 2.25  # every candidate ratio must be greater than this
         self.min_mean_candidate_ratio = 2.75  # mean of candidate ratios must be greater than this
         self.min_bad_fit_residual = 2.
-        self.max_good_fit_residual = 100.  # UPDATE nah, can't get away with it
+        self.max_good_fit_residual = 2.5  # NOTE don't assume linearity for high mutation
 
         self.min_min_candidate_ratio_to_plot = 1.5  # don't plot positions that're below this (for all <istart>)
 
@@ -203,17 +203,23 @@ class AlleleFinder(object):
         return residual_sum
 
     # ----------------------------------------------------------------------------------------
-    def dbgstr(self, fitfo, extra_str=''):  # NOTE pass <resid_over_ndof> so the calling function has to decide what to do if <ndof> is zero
-        return '        %s  m: %5.3f +/- %5.3f   b: %5.3f +/- %5.3f     %5.3f / %-3d = %5.3f' % (extra_str, fitfo['slope'], fitfo['slope_err'], fitfo['y_icpt'], fitfo['y_icpt_err'],
-                                                                                                 fitfo['residual_sum'], fitfo['ndof'], fitfo['residuals_over_ndof'])
+    def dbgstr(self, fitfo, extra_str='', pvals=None):
+        return_strs = []
+        if pvals is not None:
+            return_strs.append(' '.join(['%5d' % n for n in pvals['n_mutelist']]))
+            return_strs.append(' '.join(['%5.3f' % f for f in pvals['freqs']]))
+            return_strs.append(' '.join(['%5.3f' % e for e in pvals['errs']]))
+        return_strs.append('        %s  m: %5.3f +/- %5.3f   b: %5.3f +/- %5.3f     %5.3f / %-3d = %5.3f' % (extra_str, fitfo['slope'], fitfo['slope_err'], fitfo['y_icpt'], fitfo['y_icpt_err'],
+                                                                                                             fitfo['residual_sum'], fitfo['ndof'], fitfo['residuals_over_ndof']))
+        return '\n'.join(return_strs)
 
     # ----------------------------------------------------------------------------------------
     def default_fitfo(self, ndof=0, y_icpt_bounds=None):
         fitfo = {
             'slope'  : 0.,
             'y_icpt' : 0.,
-            'slope_err'  : 0.,
-            'y_icpt_err' : 0.,
+            'slope_err'  : float('inf'),
+            'y_icpt_err' : float('inf'),
             'residual_sum' : 0.,
             'ndof' : ndof,
             'residuals_over_ndof' : 0.,  # NOTE not necessarily just the one over the other
@@ -257,7 +263,7 @@ class AlleleFinder(object):
             fitfo['residuals_over_ndof'] = 0.
 
         if debug:
-            print self.dbgstr(fitfo, extra_str='fit')
+            print self.dbgstr(fitfo, extra_str='fit', pvals=pvals)
 
         return fitfo
 
@@ -342,32 +348,40 @@ class AlleleFinder(object):
         # NOTE uncertainties are kinda complicated if you do the weighted mean, so screw it, it works fine with the plain mean
         fitfo = self.default_fitfo()
 
-        def getslope(i1, i2):
-            return (y[i2] - y[i1]) / (x[i2] - x[i1])
+        def getslope(i1, i2, shift=False):
+            if not shift:
+                yv = y
+            else:
+                yv = [y[i] + (-1) ** (i%2) * e[i] for i in range(len(y))]  # shift alternately up or down by the uncertainty
+            return (yv[i2] - yv[i1]) / (x[i2] - x[i1])
 
-        x, y = pvals['n_mutelist'], pvals['freqs']  # tmp shorthand
+        x, y, e = pvals['n_mutelist'], pvals['freqs'], pvals['errs']  # tmp shorthand
         assert len(x) > 0
         if len(x) == 1:
             if fixed_y_icpt is None:
-                raise Exception('can\'t handle single point with floating y-icpt')
+                return fitfo  # just leave the default values
+                # raise Exception('can\'t handle single point with floating y-icpt')
             if x[0] > 0.:  # <x[0]> can't be able to be negative, but if it's zero, then the fit values aren't well-defined
                 fitfo['slope'] = (y[0] - fixed_y_icpt) / (x[0] - 0.)
         else:
             slopes = [getslope(i-1, i) for i in range(1, len(x))]  # only uses adjacent points, and double-counts interior points, but we don't care (we don't use steps of two, because then we'd the last one if it's odd-length)
+            if len(x) == 2:  # add two points, shifting each direction by each point's uncertainty
+                slopes.append(getslope(0, 1, shift=True))
+                # slopes.append((y[1] - e[1] - (y[0] + e[0])) / (x[1] - x[0]))
             fitfo['slope'] = numpy.average(slopes)
-            if len(x) > 2:
-                fitfo['slope_err'] = numpy.std(slopes, ddof=1) / math.sqrt(len(x))
+            fitfo['slope_err'] = numpy.std(slopes, ddof=1) / math.sqrt(len(x))
 
         if fixed_y_icpt is None:
             y_icpts = [y[i] - getslope(i-1, i) * x[i] for i in range(1, len(x))]
             fitfo['y_icpt'] = numpy.average(y_icpts)
+            if len(x) == 2:
+                y_icpts.append(y[1] - getslope(0, 1, shift=True) * x[1])
+            fitfo['y_icpt_err'] = numpy.std(y_icpts, ddof=1) / math.sqrt(len(x))
         else:
             fitfo['y_icpt'] = fixed_y_icpt
-        if len(x) > 2:
-            fitfo['y_icpt_err'] = numpy.std(y_icpts, ddof=1) / math.sqrt(len(x))
 
         if debug:
-            print self.dbgstr(fitfo, extra_str='apr')
+            print self.dbgstr(fitfo, extra_str='apr', pvals=pvals)
 
         return fitfo
 
@@ -414,15 +428,31 @@ class AlleleFinder(object):
             prevals = prexyvals[pos]
             postvals = postxyvals[pos]
             bothvals = bothxyvals[pos]
+            big_y_icpt, big_y_icpt_err = self.get_big_y(postvals)
+            big_y_icpt_bounds = (big_y_icpt - 1.5*big_y_icpt_err, big_y_icpt + 1.5*big_y_icpt_err)  # we want the bounds to be lenient enough to accomodate non-zero slopes (in the future, we could do something cleverer like extrapolating with the slope of the line to x=0)
 
             if sum(postvals['obs']) < self.n_muted_min or sum(postvals['total']) < self.n_total_min:
                 continue
 
             # if both slope and intercept are quite close to each other, the fits aren't going to say they're wildly inconsistent
-            pre_approx = self.approx_fit_vals(prevals)
-            post_approx = self.approx_fit_vals(postvals)
-            if pre_approx['slope'] > post_approx['slope'] or self.consistent_slope_and_y_icpt(pre_approx, post_approx):
-                continue
+            if istart < self.n_snps_to_switch_to_two_piece_method:
+                # if the bounds include zero, there won't be much difference between the two fits
+                if big_y_icpt_bounds[0] <= 0.:
+                    continue
+
+                # if there's only two points in <prevals>, we can't use the bad fit there to tell us this isn't a candidate, so we just check to see if the <istart - 1>th freq is really high
+                if istart == 2 and bothvals['freqs'][istart - 1] > big_y_icpt - 1.5 * big_y_icpt_err:
+                    continue
+
+                # if a rough estimate of the x-icpt is less than zero, the zero-icpt fit is probably going to be pretty good
+                approx_fitfo = self.approx_fit_vals(postvals)
+                if approx_fitfo['y_icpt'] < 0.:
+                    continue
+            else:
+                pre_approx = self.approx_fit_vals(prevals)
+                post_approx = self.approx_fit_vals(postvals)
+                if pre_approx['slope'] > post_approx['slope'] or self.consistent_slope_and_y_icpt(pre_approx, post_approx):
+                    continue
 
             onefit = self.get_curvefit(bothvals, y_icpt_bounds=self.unbounded_y_icpt_bounds)
 
@@ -430,9 +460,8 @@ class AlleleFinder(object):
             if onefit['residuals_over_ndof'] < self.min_bad_fit_residual:
                 continue
 
-            prefit = self.get_curvefit(prevals, y_icpt_bounds=self.unbounded_y_icpt_bounds)
-            big_y_icpt, big_y_icpt_err = self.get_big_y(postvals)
-            postfit = self.get_curvefit(postvals, y_icpt_bounds=(big_y_icpt - 1.5*big_y_icpt_err, big_y_icpt + 1.5*big_y_icpt_err))  # self.unbounded_y_icpt_bounds)
+            prefit = self.get_curvefit(prevals, y_icpt_bounds=self.unbounded_y_icpt_bounds, debug=(istart == 2 and pos == 35))
+            postfit = self.get_curvefit(postvals, y_icpt_bounds=big_y_icpt_bounds, debug=(istart == 2 and pos == 35))  # self.unbounded_y_icpt_bounds)
             twofit_residuals = prefit['residuals_over_ndof'] * prefit['ndof'] + postfit['residuals_over_ndof'] * postfit['ndof']
             twofit_ndof = prefit['ndof'] + postfit['ndof']
             twofit_residuals_over_ndof = twofit_residuals / twofit_ndof
@@ -440,7 +469,8 @@ class AlleleFinder(object):
             # TODO add a requirement that all the candidate slopes are consistent both pre and post (?)
 
             # two-piece fit should actually be at least ok
-            if twofit_residuals_over_ndof > self.max_good_fit_residual:
+            # if twofit_residuals_over_ndof > self.max_good_fit_residual:
+            if istart < self.n_snps_to_switch_to_two_piece_method and prefit['residuals_over_ndof'] > self.max_good_fit_residual:
                 continue
 
             candidate_ratios[pos] = onefit['residuals_over_ndof'] / twofit_residuals_over_ndof if twofit_residuals_over_ndof > 0. else float('inf')
@@ -499,8 +529,8 @@ class AlleleFinder(object):
                 continue
 
             # if a rough estimate of the x-icpt is less than zero, the zero-icpt fit is probably going to be pretty good
-            _, _, approx_y_icpt, _ = self.approx_fit_vals(pvals)
-            if approx_y_icpt < 0.:
+            approx_fitfo = self.approx_fit_vals(pvals)
+            if approx_fitfo['y_icpt'] < 0.:
                 continue
 
             zero_icpt_fit = self.get_curvefit(pvals, y_icpt_bounds=(0., 0.))
@@ -511,9 +541,9 @@ class AlleleFinder(object):
 
             big_icpt_fit = self.get_curvefit(pvals, y_icpt_bounds=big_y_icpt_bounds)
 
-            # big-icpt fit should actually be at least ok
-            if big_icpt_fit['residuals_over_ndof'] > self.max_good_fit_residual:
-                continue
+            # # big-icpt fit should actually be at least ok
+            # if big_icpt_fit['residuals_over_ndof'] > self.max_good_fit_residual:
+            #     continue
 
             candidate_ratios[pos] = zero_icpt_fit['residuals_over_ndof'] / big_icpt_fit['residuals_over_ndof'] if big_icpt_fit['residuals_over_ndof'] > 0. else float('inf')
             residfo[pos] = {'zerofo' : zero_icpt_fit, 'bigfo' : big_icpt_fit}
@@ -664,17 +694,17 @@ class AlleleFinder(object):
 
     # ----------------------------------------------------------------------------------------
     def finalize(self, debug=False):
-        pvals = {}
-        pvals['n_mutelist'] = [1, 2]
-        pvals['freqs'] = [0.01, 0.03]
-        pvals['errs'] = [0.015, 0.02]
-        bounds = (0., 0.)
-        # bounds = self.unbounded_y_icpt_bounds
-        # _ = self.approx_fit_vals(pvals, fixed_y_icpt=(bounds[0] if bounds[0] == bounds[1] else None), debug=True)
-        fitfo = self.get_curvefit(pvals, y_icpt_bounds=bounds, debug=True)
-        print self.n_fits
-        plotting.make_allele_finding_plot(os.getenv('www') + '/partis/tmp', 'IGHVx-x*x', 0, pvals, xmax=pvals['n_mutelist'][-1], linefo=fitfo)
-        sys.exit()
+        # pvals = {}
+        # pvals['n_mutelist'] = [1, 2]
+        # pvals['freqs'] = [0.01, 0.03]
+        # pvals['errs'] = [0.015, 0.02]
+        # bounds = (0., 0.)
+        # # bounds = self.unbounded_y_icpt_bounds
+        # # _ = self.approx_fit_vals(pvals, fixed_y_icpt=(bounds[0] if bounds[0] == bounds[1] else None), debug=True)
+        # fitfo = self.get_curvefit(pvals, y_icpt_bounds=bounds, debug=True)
+        # print self.n_fits
+        # plotting.make_allele_finding_plot(os.getenv('www') + '/partis/tmp', 'IGHVx-x*x', 0, pvals, xmax=pvals['n_mutelist'][-1], linefo=fitfo)
+        # sys.exit()
         assert not self.finalized
 
         start = time.time()
@@ -713,10 +743,9 @@ class AlleleFinder(object):
             not_enough_candidates = []  # just for dbg printing
             for istart in range(1, self.args.n_max_snps + 1):
                 # if istart < self.n_snps_to_switch_to_two_piece_method or self.empty_pre_bins(gene, istart, positions_to_try_to_fit, debug=debug):
-                if istart < 3:
-                    self.fit_istart(gene, istart, positions_to_try_to_fit, fitfo, print_dbg_header=(istart==1), debug=debug)
-                else:
-                    self.fit_two_piece_istart(gene, istart, positions_to_try_to_fit, fitfo, print_dbg_header=(istart==self.n_snps_to_switch_to_two_piece_method), debug=debug)
+                #     self.fit_istart(gene, istart, positions_to_try_to_fit, fitfo, print_dbg_header=(istart==1), debug=debug)
+                # else:
+                self.fit_two_piece_istart(gene, istart, positions_to_try_to_fit, fitfo, print_dbg_header=(istart==self.n_snps_to_switch_to_two_piece_method), debug=debug)
 
                 if istart not in fitfo['candidates']:  # just for dbg printing
                     not_enough_candidates.append(istart)
