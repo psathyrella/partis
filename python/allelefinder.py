@@ -766,8 +766,14 @@ class AlleleFinder(object):
                 print ''
 
             if len(istart_candidates) > 0:
-                n_candidate_snps = max(istart_candidates)
-                self.add_new_allele(gene, fitfo, n_candidate_snps, debug=debug)
+                # first take the biggest one, then if there's any others that have entirely non-overlapping positions, we don't need to re-run
+                already_used_positions = set()
+                for istart in sorted(istart_candidates, reverse=True):
+                    these_positions = set(fitfo['candidates'][istart])
+                    if len(these_positions & already_used_positions) > 0:
+                        continue
+                    already_used_positions |= these_positions
+                    self.add_new_allele(gene, fitfo, istart, debug=debug)
 
         if debug:
             if len(self.new_allele_info) > 0:
