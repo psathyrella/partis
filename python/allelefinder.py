@@ -350,33 +350,32 @@ class AlleleFinder(object):
 
         def getslope(i1, i2, shift=False):
             if not shift:
-                yv = y
+                tmp_y = yv
             else:
-                yv = [y[i] + (-1) ** (i%2) * e[i] for i in range(len(y))]  # shift alternately up or down by the uncertainty
-            return (yv[i2] - yv[i1]) / (x[i2] - x[i1])
+                tmp_y = [yv[i] + (-1) ** (i%2) * ev[i] for i in range(len(yv))]  # shift alternately up or down by the uncertainty
+            return (tmp_y[i2] - tmp_y[i1]) / (xv[i2] - xv[i1])
 
-        x, y, e = pvals['n_mutelist'], pvals['freqs'], pvals['errs']  # tmp shorthand
-        assert len(x) > 0
-        if len(x) == 1:
+        xv, yv, ev = pvals['n_mutelist'], pvals['freqs'], pvals['errs']  # tmp shorthand
+        assert len(xv) > 0
+        if len(xv) == 1:
             if fixed_y_icpt is None:
                 return fitfo  # just leave the default values
                 # raise Exception('can\'t handle single point with floating y-icpt')
-            if x[0] > 0.:  # <x[0]> can't be able to be negative, but if it's zero, then the fit values aren't well-defined
-                fitfo['slope'] = (y[0] - fixed_y_icpt) / (x[0] - 0.)
+            if xv[0] > 0.:  # <xv[0]> can't be able to be negative, but if it's zero, then the fit values aren't well-defined
+                fitfo['slope'] = (yv[0] - fixed_y_icpt) / (xv[0] - 0.)
         else:
-            slopes = [getslope(i-1, i) for i in range(1, len(x))]  # only uses adjacent points, and double-counts interior points, but we don't care (we don't use steps of two, because then we'd the last one if it's odd-length)
-            if len(x) == 2:  # add two points, shifting each direction by each point's uncertainty
+            slopes = [getslope(i-1, i) for i in range(1, len(xv))]  # only uses adjacent points, and double-counts interior points, but we don't care (we don't use steps of two, because then we'd the last one if it's odd-length)
+            if len(xv) == 2:  # add two points, shifting each direction by each point's uncertainty
                 slopes.append(getslope(0, 1, shift=True))
-                # slopes.append((y[1] - e[1] - (y[0] + e[0])) / (x[1] - x[0]))
             fitfo['slope'] = numpy.average(slopes)
-            fitfo['slope_err'] = numpy.std(slopes, ddof=1) / math.sqrt(len(x))
+            fitfo['slope_err'] = numpy.std(slopes, ddof=1) / math.sqrt(len(xv))
 
         if fixed_y_icpt is None:
-            y_icpts = [y[i] - getslope(i-1, i) * x[i] for i in range(1, len(x))]
+            y_icpts = [yv[i] - getslope(i-1, i) * xv[i] for i in range(1, len(xv))]
             fitfo['y_icpt'] = numpy.average(y_icpts)
-            if len(x) == 2:
-                y_icpts.append(y[1] - getslope(0, 1, shift=True) * x[1])
-            fitfo['y_icpt_err'] = numpy.std(y_icpts, ddof=1) / math.sqrt(len(x))
+            if len(xv) == 2:
+                y_icpts.append(yv[1] - getslope(0, 1, shift=True) * xv[1])
+            fitfo['y_icpt_err'] = numpy.std(y_icpts, ddof=1) / math.sqrt(len(xv))
         else:
             fitfo['y_icpt'] = fixed_y_icpt
 
