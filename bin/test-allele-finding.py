@@ -59,7 +59,7 @@ def run_test(args):
             sglfo = glutils.read_glfo('data/germlines/human', chain=chain, only_genes=simulation_genes.split(':'), debug=True)
 
             if args.snp_positions is not None:
-                snps_to_add = [{'gene' : g, 'positions' : args.snp_positions} for g in args.sim_v_genes]
+                snps_to_add = [{'gene' : args.sim_v_genes[ig], 'positions' : args.snp_positions[ig]} for ig in range(len(args.sim_v_genes))]
                 glutils.add_some_snps(snps_to_add, sglfo, debug=True, remove_template_genes=args.remove_template_genes)
 
             glutils.write_glfo(args.outdir + '/germlines/simulation', sglfo)
@@ -147,7 +147,11 @@ args = parser.parse_args()
 args.dj_genes = utils.get_arg_list(args.dj_genes)
 args.sim_v_genes = utils.get_arg_list(args.sim_v_genes)
 args.inf_v_genes = utils.get_arg_list(args.inf_v_genes)
-args.snp_positions = utils.get_arg_list(args.snp_positions, intify=True)
+args.snp_positions = utils.get_arg_list(args.snp_positions)
+if args.snp_positions is not None:
+    args.snp_positions = [[int(p) for p in pos_str.split(',')] for pos_str in args.snp_positions]
+    assert len(args.snp_positions) == len(args.sim_v_genes)
+    # args.snp_positions = {args.sim_v_genes[ig] : args.snp_positions[ig] for ig in range(len(args.sim_v_genes))}
 
 if args.comprehensive:
     comprehensive_test(args)
