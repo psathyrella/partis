@@ -37,7 +37,7 @@ class AlleleFinder(object):
         self.n_bases_to_exclude = {'5p' : {}, '3p' : {}}  # i.e. on all the seqs we keep, we exclude this many bases; and any sequences that have larger deletions than this are not kept
         self.genes_to_exclude = set()  # genes that, with the above restrictions, are entirely excluded
 
-        self.max_fit_length = 99999  # UPDATE nevermind, I no longer think there's a reason not to fit the whole thing OLD: don't fit more than this many bins for each <istart> (the first few positions in the fit are the most important, and if we fit too far to the right these important positions get diluted) UPDATE I'm no longer so sure that I shouldn't fit the whole shebang 
+        self.max_fit_length = 20
 
         self.n_snps_to_switch_to_two_piece_method = 5
 
@@ -453,14 +453,14 @@ class AlleleFinder(object):
                 if pre_approx['slope'] > post_approx['slope'] or self.consistent_slope_and_y_icpt(pre_approx, post_approx):
                     continue
 
-            onefit = self.get_curvefit(bothvals, y_icpt_bounds=self.unbounded_y_icpt_bounds)
+            onefit = self.get_curvefit(bothvals, y_icpt_bounds=(0., 0.))  # self.unbounded_y_icpt_bounds)
 
             # don't bother with the two-piece fit if the one-piece fit is pretty good
             if onefit['residuals_over_ndof'] < self.min_bad_fit_residual:
                 continue
 
-            prefit = self.get_curvefit(prevals, y_icpt_bounds=self.unbounded_y_icpt_bounds, debug=(istart == 2 and pos == 35))
-            postfit = self.get_curvefit(postvals, y_icpt_bounds=big_y_icpt_bounds, debug=(istart == 2 and pos == 35))  # self.unbounded_y_icpt_bounds)
+            prefit = self.get_curvefit(prevals, y_icpt_bounds=(0., 0.))  # self.unbounded_y_icpt_bounds)
+            postfit = self.get_curvefit(postvals, y_icpt_bounds=big_y_icpt_bounds)  # self.unbounded_y_icpt_bounds)
             twofit_residuals = prefit['residuals_over_ndof'] * prefit['ndof'] + postfit['residuals_over_ndof'] * postfit['ndof']
             twofit_ndof = prefit['ndof'] + postfit['ndof']
             twofit_residuals_over_ndof = twofit_residuals / twofit_ndof
@@ -742,6 +742,7 @@ class AlleleFinder(object):
             not_enough_candidates = []  # just for dbg printing
             for istart in range(1, self.args.n_max_snps + 1):
                 # if istart < self.n_snps_to_switch_to_two_piece_method or self.empty_pre_bins(gene, istart, positions_to_try_to_fit, debug=debug):
+                # if istart < 2:
                 #     self.fit_istart(gene, istart, positions_to_try_to_fit, fitfo, print_dbg_header=(istart==1), debug=debug)
                 # else:
                 self.fit_two_piece_istart(gene, istart, positions_to_try_to_fit, fitfo, print_dbg_header=(istart==self.n_snps_to_switch_to_two_piece_method), debug=debug)
