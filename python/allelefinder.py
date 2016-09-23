@@ -413,6 +413,17 @@ class AlleleFinder(object):
         return big_y_icpt, big_y_icpt_err
 
     # ----------------------------------------------------------------------------------------
+    def very_different_bin_totals(self, pvals, istart):
+        # i.e. if there's a homozygous new allele at <istart> + 1
+        joint_total_err = max(math.sqrt(pvals['total'][istart - 1]), math.sqrt(pvals['total'][istart]))
+        return pvals['total'][istart] - pvals['total'][istart - 1] > 3 * joint_total_err  # it the total (denominator) is very different between the two bins
+
+    # ----------------------------------------------------------------------------------------
+    def big_discontinuity(self, pvals, istart):
+        joint_err = max(pvals['errs'][istart - 1], pvals['errs'][istart])
+        return pvals['freqs'][istart] - pvals['freqs'][istart - 1] > 3 * joint_err
+
+    # ----------------------------------------------------------------------------------------
     def fit_two_piece_istart(self, gene, istart, positions_to_try_to_fit, fitfo, print_dbg_header=False, debug=False):
         if debug and print_dbg_header:
             print '             position   ratio       (one piece / two pieces)  ',
@@ -437,8 +448,7 @@ class AlleleFinder(object):
                 continue
 
             # if there isn't a three-sigma jump at <istart> the two fits aren't going to be that different
-            joint_err = max(bothvals['errs'][istart - 1], bothvals['errs'][istart])
-            if bothvals['freqs'][istart] - bothvals['freqs'][istart - 1] < 3 * joint_err:
+            if not self.big_discontinuity(bothvals, istart) and not self.very_different_bin_totals(bothvals, istart):
                 continue
 
             # if both slope and intercept are quite close to each other, the fits aren't going to say they're wildly inconsistent
@@ -770,8 +780,8 @@ class AlleleFinder(object):
                 if debug:
                     print '    %2d     %9s' % (istart, fstr(fitfo['min_snp_ratios'][istart])),
                 if self.is_a_candidate(gene, fitfo, istart, debug=debug):
-                    if debug and len(istart_candidates) == 0:
-                        print '   %s' % utils.color('yellow', '(best)'),
+                    # if debug and len(istart_candidates) == 0:
+                    #     print '   %s' % utils.color('yellow', '(best)'),
                     istart_candidates.append(istart)
                 print ''
 
