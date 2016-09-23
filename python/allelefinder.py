@@ -229,8 +229,18 @@ class AlleleFinder(object):
         return fitfo
 
     # ----------------------------------------------------------------------------------------
+    def get_tmp_fitvals(self, pvals):
+        n_mutelist, freqs, errs = [], [], []
+        for im in range(len(pvals['n_mutelist'])):
+            if pvals['total'][im] > 0:
+                n_mutelist.append(pvals['n_mutelist'][im])
+                freqs.append(pvals['freqs'][im])
+                errs.append(pvals['errs'][im])
+        return n_mutelist, freqs, errs
+
+    # ----------------------------------------------------------------------------------------
     def get_curvefit(self, pvals, y_icpt_bounds, debug=False):
-        n_mutelist, freqs, errs = pvals['n_mutelist'], pvals['freqs'], pvals['errs']
+        n_mutelist, freqs, errs = self.get_tmp_fitvals(pvals)  # this is probably kind of slow
         if y_icpt_bounds[0] == y_icpt_bounds[1]:  # fixed y-icpt
             fitfo = self.default_fitfo(len(n_mutelist) - 1, y_icpt_bounds)
             fitfo['y_icpt'] = y_icpt_bounds[0]
@@ -264,7 +274,7 @@ class AlleleFinder(object):
             fitfo['residuals_over_ndof'] = 0.
 
         if debug:
-            print self.dbgstr(fitfo, extra_str='fit', pvals=pvals)
+            print self.dbgstr(fitfo, extra_str='fit', pvals={'n_mutelist' : n_mutelist, 'freqs' : freqs, 'errs': errs})  # not necessarily the same as <pvals>
 
         return fitfo
 
@@ -449,6 +459,7 @@ class AlleleFinder(object):
 
         candidate_ratios, residfo = {}, {}  # NOTE <residfo> is really just for dbg printing... but we have to sort before we print, so we need to keep the info around
         for pos in positions_to_try_to_fit:
+            dbg = False  # (pos==95 and istart==7)
             prevals = prexyvals[pos]
             postvals = postxyvals[pos]
             bothvals = bothxyvals[pos]
@@ -477,25 +488,28 @@ class AlleleFinder(object):
                 if approx_fitfo['y_icpt'] < 0.:
                     continue
             else:
-                pass
-                # pre_approx = self.approx_fit_vals(prevals)
-                # post_approx = self.approx_fit_vals(postvals)
-                # if pre_approx['slope'] > post_approx['slope'] or self.consistent_slope_and_y_icpt(pre_approx, post_approx):
-                #     continue
+                pre_approx = self.approx_fit_vals(prevals)
+                post_approx = self.approx_fit_vals(postvals)
+                if pre_approx['slope'] > post_approx['slope'] or self.consistent_slope_and_y_icpt(pre_approx, post_approx):
+                    continue
 
-            onefit = self.get_curvefit(bothvals, y_icpt_bounds=(0., 0.))  # self.unbounded_y_icpt_bounds)
+            onefit = self.get_curvefit(bothvals, y_icpt_bounds=(0., 0.), debug=dbg)  # self.unbounded_y_icpt_bounds)
 
             # don't bother with the two-piece fit if the one-piece fit is pretty good
             if onefit['residuals_over_ndof'] < self.min_bad_fit_residual:
                 continue
 
-            prefit = self.get_curvefit(prevals, y_icpt_bounds=(0., 0.))  # self.unbounded_y_icpt_bounds)
-            postfit = self.get_curvefit(postvals, y_icpt_bounds=big_y_icpt_bounds)  # self.unbounded_y_icpt_bounds)
+            prefit = self.get_curvefit(prevals, y_icpt_bounds=(0., 0.), debug=dbg)  # self.unbounded_y_icpt_bounds)
+            postfit = self.get_curvefit(postvals, y_icpt_bounds=big_y_icpt_bounds, debug=dbg)  # self.unbounded_y_icpt_bounds)
             twofit_residuals = prefit['residuals_over_ndof'] * prefit['ndof'] + postfit['residuals_over_ndof'] * postfit['ndof']
             twofit_ndof = prefit['ndof'] + postfit['ndof']
             twofit_residuals_over_ndof = twofit_residuals / twofit_ndof
 
             # TODO add a requirement that all the candidate slopes are consistent both pre and post (?)
+
+            # at least for large <istart> pre-slope should be smaller than post-slope
+            if istart >= self.n_snps_to_switch_to_two_piece_method and pre_approx['slope'] > post_approx['slope']:
+                continue
 
             # pre-<istart> should actually be a good line, at least for small <istart>
             if istart < self.n_snps_to_switch_to_two_piece_method and prefit['residuals_over_ndof'] > self.max_good_fit_residual:
