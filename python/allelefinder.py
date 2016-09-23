@@ -413,15 +413,25 @@ class AlleleFinder(object):
         return big_y_icpt, big_y_icpt_err
 
     # ----------------------------------------------------------------------------------------
-    def very_different_bin_totals(self, pvals, istart):
+    def very_different_bin_totals(self, pvals, istart, debug=False):
         # i.e. if there's a homozygous new allele at <istart> + 1
+        factor = 2.  # i.e. check everything that's more than <factor> sigma away
         joint_total_err = max(math.sqrt(pvals['total'][istart - 1]), math.sqrt(pvals['total'][istart]))
-        return pvals['total'][istart] - pvals['total'][istart - 1] > 3 * joint_total_err  # it the total (denominator) is very different between the two bins
+        last_total = pvals['total'][istart - 1]
+        istart_total = pvals['total'][istart]
+        if debug:
+            print '    different bin totals: %.0f - %.0f = %.0f ?> %.1f * %5.3f = %5.3f'  % (istart_total, last_total, istart_total - last_total, factor, joint_total_err, factor * joint_total_err)
+        return istart_total - last_total > factor * joint_total_err  # it the total (denominator) is very different between the two bins
 
     # ----------------------------------------------------------------------------------------
-    def big_discontinuity(self, pvals, istart):
-        joint_err = max(pvals['errs'][istart - 1], pvals['errs'][istart])
-        return pvals['freqs'][istart] - pvals['freqs'][istart - 1] > 3 * joint_err
+    def big_discontinuity(self, pvals, istart, debug=False):
+        factor = 2.  # i.e. check everything that's more than <factor> sigma away
+        joint_freq_err = max(pvals['errs'][istart - 1], pvals['errs'][istart])
+        last_freq = pvals['freqs'][istart - 1]
+        istart_freq = pvals['freqs'][istart]
+        if debug:
+            print '    discontinuity: %5.3f - %5.3f = %5.3f ?> %.1f * %5.3f = %5.3f'  % (istart_freq, last_freq, istart_freq - last_freq, factor, joint_freq_err, factor * joint_freq_err)
+        return istart_freq - last_freq > factor * joint_freq_err
 
     # ----------------------------------------------------------------------------------------
     def fit_two_piece_istart(self, gene, istart, positions_to_try_to_fit, fitfo, print_dbg_header=False, debug=False):
@@ -447,7 +457,7 @@ class AlleleFinder(object):
             if sum(postvals['obs']) < self.n_muted_min or sum(postvals['total']) < self.n_total_min:
                 continue
 
-            # if there isn't a three-sigma jump at <istart> the two fits aren't going to be that different
+            # if the discontinuity is less than <factor> sigma, and the bin totals are closer than <factor> sigma, skip it
             if not self.big_discontinuity(bothvals, istart) and not self.very_different_bin_totals(bothvals, istart):
                 continue
 
