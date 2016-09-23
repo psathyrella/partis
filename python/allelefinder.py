@@ -436,6 +436,11 @@ class AlleleFinder(object):
             if sum(postvals['obs']) < self.n_muted_min or sum(postvals['total']) < self.n_total_min:
                 continue
 
+            # if there isn't a three-sigma jump at <istart> the two fits aren't going to be that different
+            joint_err = max(bothvals['errs'][istart - 1], bothvals['errs'][istart])
+            if bothvals['freqs'][istart] - bothvals['freqs'][istart - 1] < 3 * joint_err:
+                continue
+
             # if both slope and intercept are quite close to each other, the fits aren't going to say they're wildly inconsistent
             if istart < self.n_snps_to_switch_to_two_piece_method:
                 # if the bounds include zero, there won't be much difference between the two fits
@@ -451,15 +456,11 @@ class AlleleFinder(object):
                 if approx_fitfo['y_icpt'] < 0.:
                     continue
             else:
+                pass
                 # pre_approx = self.approx_fit_vals(prevals)
                 # post_approx = self.approx_fit_vals(postvals)
                 # if pre_approx['slope'] > post_approx['slope'] or self.consistent_slope_and_y_icpt(pre_approx, post_approx):
                 #     continue
-
-                # if there isn't a three-sigma jump at <istart> the two fits aren't going to be that different
-                joint_err = max(bothvals['errs'][istart - 1], bothvals['errs'][istart])
-                if bothvals['freqs'][istart] - bothvals['freqs'][istart - 1] < 3 * joint_err:
-                    continue
 
             onefit = self.get_curvefit(bothvals, y_icpt_bounds=(0., 0.))  # self.unbounded_y_icpt_bounds)
 
