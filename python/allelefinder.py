@@ -37,7 +37,7 @@ class AlleleFinder(object):
         self.n_bases_to_exclude = {'5p' : {}, '3p' : {}}  # i.e. on all the seqs we keep, we exclude this many bases; and any sequences that have larger deletions than this are not kept
         self.genes_to_exclude = set()  # genes that, with the above restrictions, are entirely excluded
 
-        self.max_fit_length = 20
+        self.max_fit_length = 10
 
         self.n_snps_to_switch_to_two_piece_method = 5
 
@@ -415,12 +415,15 @@ class AlleleFinder(object):
     # ----------------------------------------------------------------------------------------
     def fit_two_piece_istart(self, gene, istart, positions_to_try_to_fit, fitfo, print_dbg_header=False, debug=False):
         if debug and print_dbg_header:
-            print '             position   ratio       (one piece / two pieces)'
+            print '             position   ratio       (one piece / two pieces)  ',
+            print '%0s %s' % ('', ''.join(['%11d' % nm for nm in range(self.args.n_max_mutations_per_segment + 1)]))  # NOTE *has* to correspond to line at bottom of fcn below
 
         # NOTE I'm including the zero bin here -- do I really want to do that? UPDATE yes, I think so -- we know there will be zero mutations in that bin, but the number of sequences in it still contains information (uh, I think)
-        prexyvals = {pos : {k : v[:istart] for k, v in self.xyvals[gene][pos].items()} for pos in positions_to_try_to_fit}  # arrays up to, but not including, <istart>
-        postxyvals = {pos : {k : v[istart : istart + self.max_fit_length] for k, v in self.xyvals[gene][pos].items()} for pos in positions_to_try_to_fit}  # arrays from <istart> onwards
-        bothxyvals = {pos : {k : v[:istart + self.max_fit_length] for k, v in self.xyvals[gene][pos].items()} for pos in positions_to_try_to_fit}
+        min_ibin = max(0, istart - self.max_fit_length)
+        max_ibin = min(self.args.n_max_mutations_per_segment, istart + self.max_fit_length)
+        prexyvals = {pos : {k : v[min_ibin : istart] for k, v in self.xyvals[gene][pos].items()} for pos in positions_to_try_to_fit}  # arrays up to, but not including, <istart>
+        postxyvals = {pos : {k : v[istart : max_ibin] for k, v in self.xyvals[gene][pos].items()} for pos in positions_to_try_to_fit}  # arrays from <istart> onwards
+        bothxyvals = {pos : {k : v[min_ibin : max_ibin] for k, v in self.xyvals[gene][pos].items()} for pos in positions_to_try_to_fit}
 
         candidate_ratios, residfo = {}, {}  # NOTE <residfo> is really just for dbg printing... but we have to sort before we print, so we need to keep the info around
         for pos in positions_to_try_to_fit:
