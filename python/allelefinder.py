@@ -451,9 +451,14 @@ class AlleleFinder(object):
                 if approx_fitfo['y_icpt'] < 0.:
                     continue
             else:
-                pre_approx = self.approx_fit_vals(prevals)
-                post_approx = self.approx_fit_vals(postvals)
-                if pre_approx['slope'] > post_approx['slope'] or self.consistent_slope_and_y_icpt(pre_approx, post_approx):
+                # pre_approx = self.approx_fit_vals(prevals)
+                # post_approx = self.approx_fit_vals(postvals)
+                # if pre_approx['slope'] > post_approx['slope'] or self.consistent_slope_and_y_icpt(pre_approx, post_approx):
+                #     continue
+
+                # if there isn't a three-sigma jump at <istart> the two fits aren't going to be that different
+                joint_err = max(bothvals['errs'][istart - 1], bothvals['errs'][istart])
+                if bothvals['freqs'][istart] - bothvals['freqs'][istart - 1] < 3 * joint_err:
                     continue
 
             onefit = self.get_curvefit(bothvals, y_icpt_bounds=(0., 0.))  # self.unbounded_y_icpt_bounds)
