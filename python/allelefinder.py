@@ -48,7 +48,8 @@ class AlleleFinder(object):
         self.min_min_candidate_ratio = 2.25  # every candidate ratio must be greater than this
         self.min_mean_candidate_ratio = 2.75  # mean of candidate ratios must be greater than this
         self.min_bad_fit_residual = 2.
-        self.max_good_fit_residual = 2.5  # NOTE don't assume linearity for high mutation
+        self.max_good_fit_residual = 2.5
+        self.max_ok_fit_residual = 10.
 
         self.min_min_candidate_ratio_to_plot = 1.5  # don't plot positions that're below this (for all <istart>)
 
@@ -496,9 +497,12 @@ class AlleleFinder(object):
 
             # TODO add a requirement that all the candidate slopes are consistent both pre and post (?)
 
-            # two-piece fit should actually be at least ok
-            # if twofit_residuals_over_ndof > self.max_good_fit_residual:
+            # pre-<istart> should actually be a good line, at least for small <istart>
             if istart < self.n_snps_to_switch_to_two_piece_method and prefit['residuals_over_ndof'] > self.max_good_fit_residual:
+                continue
+
+            # <istart> and above should be a kinda-sort-ok line
+            if postfit['residuals_over_ndof'] > self.max_ok_fit_residual:
                 continue
 
             candidate_ratios[pos] = onefit['residuals_over_ndof'] / twofit_residuals_over_ndof if twofit_residuals_over_ndof > 0. else float('inf')
