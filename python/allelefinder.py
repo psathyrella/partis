@@ -56,7 +56,7 @@ class AlleleFinder(object):
         self.default_slope_bounds = (-0.1, 0.2)  # fitting function needs some reasonable bounds from which to start (I could at some point make slope part of the criteria for candidacy, but it wouldn't add much sensitivity)
         self.unbounded_y_icpt_bounds = (-1., 1.5)
 
-        self.counts = {}
+        self.counts, self.fitfos = {}, {}
         self.new_allele_info = []
         self.positions_to_plot = {}
         self.n_seqs_too_highly_mutated = {}  # sequences (per-gene) that had more than <self.args.n_max_mutations_per_segment> mutations
@@ -350,6 +350,19 @@ class AlleleFinder(object):
                     print '    not enough mutated counts at candidate position %d with %d %s (%d < %d)' % (candidate_pos, istart, utils.plural_str('mutations', n_istart_muted), n_istart_muted, self.n_muted_min_per_bin),
                 return False
 
+            # make sure all the snp positions have similar fits
+            thisfo = self.fitfos[gene]['fitfos'][istart][candidate_pos]
+            for other_pos in fitfo['candidates'][istart]:  # also loops over itself, but I don't care
+                otherfo = self.fitfos[gene]['fitfos'][istart][other_pos]
+                if not self.consistent_slope_and_y_icpt(thisfo['postfo'], otherfo['postfo']):
+                    if debug:
+                        print '    positions %d and %d have inconsistent post-istart fits' % (candidate_pos, other_pos)
+                    return False
+                if istart >= self.n_snps_to_switch_to_two_piece_method and self.consistent_slope_and_y_icpt(thisfo['prefo'], otherfo['prefo']):  # only check the prefits for fairly large <istart>
+                    if debug:
+                        print '    positions %d and %d have inconsistent pre-istart fits' % (candidate_pos, other_pos)
+                    return False
+
         if debug:
             print '    candidate',
         return True
@@ -445,7 +458,7 @@ class AlleleFinder(object):
         return istart_freq - last_freq > factor * joint_freq_err
 
     # ----------------------------------------------------------------------------------------
-    def fit_two_piece_istart(self, gene, istart, positions_to_try_to_fit, fitfo, print_dbg_header=False, debug=False):
+    def fit_two_piece_istart(self, gene, istart, positions_to_try_to_fit, print_dbg_header=False, debug=False):
         if debug and print_dbg_header:
             print '             position   ratio       (one piece / two pieces)  ',
             print '%0s %s' % ('', ''.join(['%11d' % nm for nm in range(self.args.n_max_mutations_per_segment + 1)]))  # NOTE *has* to correspond to line at bottom of fcn below
@@ -459,7 +472,7 @@ class AlleleFinder(object):
 
         candidate_ratios, residfo = {}, {}  # NOTE <residfo> is really just for dbg printing... but we have to sort before we print, so we need to keep the info around
         for pos in positions_to_try_to_fit:
-            dbg = False  # (pos==95 and istart==7)
+            dbg = False  # (pos==14 and istart==5)
             prevals = prexyvals[pos]
             postvals = postxyvals[pos]
             bothvals = bothxyvals[pos]
@@ -490,7 +503,7 @@ class AlleleFinder(object):
             else:
                 pre_approx = self.approx_fit_vals(prevals)
                 post_approx = self.approx_fit_vals(postvals)
-                if pre_approx['slope'] > post_approx['slope'] or self.consistent_slope_and_y_icpt(pre_approx, post_approx):
+                if pre_approx['slope'] > post_approx['slope']:  #  or self.consistent_slope_and_y_icpt(pre_approx, post_approx):  # UPDATE really don't want to require inconsistent slope and y-icpt
                     continue
 
             onefit = self.get_curvefit(bothvals, y_icpt_bounds=(0., 0.), debug=dbg)  # self.unbounded_y_icpt_bounds)
@@ -504,8 +517,6 @@ class AlleleFinder(object):
             twofit_residuals = prefit['residuals_over_ndof'] * prefit['ndof'] + postfit['residuals_over_ndof'] * postfit['ndof']
             twofit_ndof = prefit['ndof'] + postfit['ndof']
             twofit_residuals_over_ndof = twofit_residuals / twofit_ndof
-
-            # TODO add a requirement that all the candidate slopes are consistent both pre and post (?)
 
             # at least for large <istart> pre-slope should be smaller than post-slope
             if istart >= self.n_snps_to_switch_to_two_piece_method and pre_approx['slope'] > post_approx['slope']:
@@ -548,9 +559,10 @@ class AlleleFinder(object):
         if len(candidates) < istart:
             return
 
-        fitfo['min_snp_ratios'][istart] = min(candidate_ratios.values())
-        fitfo['mean_snp_ratios'][istart] = numpy.mean(candidate_ratios.values())
-        fitfo['candidates'][istart] = candidate_ratios
+        self.fitfos[gene]['min_snp_ratios'][istart] = min(candidate_ratios.values())
+        self.fitfos[gene]['mean_snp_ratios'][istart] = numpy.mean(candidate_ratios.values())
+        self.fitfos[gene]['candidates'][istart] = candidate_ratios
+        self.fitfos[gene]['fitfos'][istart] = residfo
 
     # ----------------------------------------------------------------------------------------
     def fit_istart(self, gene, istart, positions_to_try_to_fit, fitfo, print_dbg_header=False, debug=False):
@@ -715,6 +727,7 @@ class AlleleFinder(object):
             'template-gene' : template_gene,
             'gene' : new_name,
             'seq' : new_seq,
+            'snp-positions' : mutfo.keys(),
             'aligned-seq' : None
         })
 
@@ -740,17 +753,6 @@ class AlleleFinder(object):
 
     # ----------------------------------------------------------------------------------------
     def finalize(self, debug=False):
-        # pvals = {}
-        # pvals['n_mutelist'] = [1, 2]
-        # pvals['freqs'] = [0.01, 0.03]
-        # pvals['errs'] = [0.015, 0.02]
-        # bounds = (0., 0.)
-        # # bounds = self.unbounded_y_icpt_bounds
-        # # _ = self.approx_fit_vals(pvals, fixed_y_icpt=(bounds[0] if bounds[0] == bounds[1] else None), debug=True)
-        # fitfo = self.get_curvefit(pvals, y_icpt_bounds=bounds, debug=True)
-        # print self.n_fits
-        # plotting.make_allele_finding_plot(os.getenv('www') + '/partis/tmp', 'IGHVx-x*x', 0, pvals, xmax=pvals['n_mutelist'][-1], linefo=fitfo)
-        # sys.exit()
         assert not self.finalized
 
         start = time.time()
@@ -785,29 +787,25 @@ class AlleleFinder(object):
                 self.alleles_with_evidence.add(gene)
 
             # loop over each snp hypothesis
-            fitfo = {n : {} for n in ('min_snp_ratios', 'mean_snp_ratios', 'candidates')}
+            self.fitfos[gene] = {n : {} for n in ('min_snp_ratios', 'mean_snp_ratios', 'candidates', 'fitfos')}
             not_enough_candidates = []  # just for dbg printing
             for istart in range(1, self.args.n_max_snps + 1):
-                # if istart < self.n_snps_to_switch_to_two_piece_method or self.empty_pre_bins(gene, istart, positions_to_try_to_fit, debug=debug):
-                # if istart < 2:
-                #     self.fit_istart(gene, istart, positions_to_try_to_fit, fitfo, print_dbg_header=(istart==1), debug=debug)
-                # else:
-                self.fit_two_piece_istart(gene, istart, positions_to_try_to_fit, fitfo, print_dbg_header=(istart==self.n_snps_to_switch_to_two_piece_method), debug=debug)
+                self.fit_two_piece_istart(gene, istart, positions_to_try_to_fit, print_dbg_header=(istart==self.n_snps_to_switch_to_two_piece_method), debug=debug)
 
-                if istart not in fitfo['candidates']:  # just for dbg printing
+                if istart not in self.fitfos[gene]['candidates']:  # just for dbg printing
                     not_enough_candidates.append(istart)
 
             if debug and len(not_enough_candidates) > 0:
                 print '      not enough candidates for istarts: %s' % ' '.join([str(i) for i in not_enough_candidates])
 
-            if debug and len(fitfo['candidates']) > 0:
+            if debug and len(self.fitfos[gene]['candidates']) > 0:
                 print '  evaluating each snp hypothesis'
                 print '    snps       min ratio'
             istart_candidates = []
-            for istart in fitfo['candidates']:  # note that not all <istart>s get added to fitfo
+            for istart in self.fitfos[gene]['candidates']:  # note that not all <istart>s get added to self.fitfos[gene]
                 if debug:
-                    print '    %2d     %9s' % (istart, fstr(fitfo['min_snp_ratios'][istart])),
-                if self.is_a_candidate(gene, fitfo, istart, debug=debug):
+                    print '    %2d     %9s' % (istart, fstr(self.fitfos[gene]['min_snp_ratios'][istart])),
+                if self.is_a_candidate(gene, self.fitfos[gene], istart, debug=debug):
                     # if debug and len(istart_candidates) == 0:
                     #     print '   %s' % utils.color('yellow', '(best)'),
                     istart_candidates.append(istart)
@@ -816,11 +814,11 @@ class AlleleFinder(object):
             # first take the biggest one, then if there's any others that have entirely non-overlapping positions, we don't need to re-run
             already_used_positions = set()
             for istart in sorted(istart_candidates, reverse=True):
-                these_positions = set(fitfo['candidates'][istart])
+                these_positions = set(self.fitfos[gene]['candidates'][istart])
                 if len(these_positions & already_used_positions) > 0:
                     continue
                 already_used_positions |= these_positions
-                self.add_new_allele(gene, fitfo, istart, debug=debug)
+                self.add_new_allele(gene, self.fitfos[gene], istart, debug=debug)
 
         if debug:
             if len(self.new_allele_info) > 0:
@@ -855,9 +853,16 @@ class AlleleFinder(object):
             return
 
         start = time.time()
+        template_genes = [newfo['template-gene'] for newfo in self.new_allele_info]
         for gene in self.positions_to_plot:  # we can make plots for the positions we didn't fit, but there's a *lot* of them and they're slow
+            snp_positions = [] if gene not in template_genes else self.new_allele_info[template_genes.index(gene)]['snp-positions']
             for position in self.positions_to_plot[gene]:
-                plotting.make_allele_finding_plot(plotdir + '/' + utils.sanitize_name(gene), gene, position, self.xyvals[gene][position], xmax=self.args.n_max_mutations_per_segment)
+                linefo, linefo2 = None, None
+                if position in snp_positions:
+                    fitfo = self.fitfos[gene]['fitfos'][len(snp_positions)][position]
+                    linefo = fitfo['prefo']
+                    linefo2 = fitfo['postfo']
+                plotting.make_allele_finding_plot(plotdir + '/' + utils.sanitize_name(gene), gene, position, self.xyvals[gene][position], xmax=self.args.n_max_mutations_per_segment, linefo=linefo, linefo2=linefo2)
 
         check_call(['./bin/permissify-www', plotdir])
         print '(%.1f sec)' % (time.time()-start)

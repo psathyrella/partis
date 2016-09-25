@@ -882,7 +882,7 @@ def make_html(plotdir, n_columns=3, extension='svg'):
     check_call(['chmod', '664', htmlfname])
 
 # ----------------------------------------------------------------------------------------
-def make_allele_finding_plot(plotdir, gene, position, values, xmax, linefo=None):
+def make_allele_finding_plot(plotdir, gene, position, values, xmax, linefo=None, linefo2=None):
     xmin, xmax = -0.3, xmax
     fig, ax = mpl_init()
 
@@ -890,7 +890,10 @@ def make_allele_finding_plot(plotdir, gene, position, values, xmax, linefo=None)
 
     if linefo is not None:  # fitted line
         linevals = [linefo['slope']*x + linefo['y_icpt'] for x in [0] + values['n_mutelist']]
-        ax.plot([0] + values['n_mutelist'], linevals)
+        ax.plot([0] + values['n_mutelist'], linevals, color='red')
+    if linefo2 is not None:  # fitted line
+        linevals2 = [linefo2['slope']*x + linefo2['y_icpt'] for x in [0] + values['n_mutelist']]
+        ax.plot([0] + values['n_mutelist'], linevals2, color='red')
 
     ax.plot([xmin, xmax], [0, 0], linestyle='dashed', alpha=0.5, color='black')
     ymax = max(values['freqs']) + max(values['errs'])
