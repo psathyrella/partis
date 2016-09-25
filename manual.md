@@ -259,15 +259,6 @@ This will write any new alleles, along with the existing alleles, to a germline 
 This modified germline set is then used by default in later runs when performing inference with these parameters.
 If specified, it will also write the new alleles in fasta format to `--new-allele-fname`.
 
-Finding previously unknown alleles in your sample, though, is only half of the germline set problem.
-The other half is figuring out which of the alleles in the default set are *not* present in your sample.
-Widely varying allele prevalence frequencies, together with rampant gene duplication and deletion in the BCR locuses mean that simple threshold-based approaches (e.g. remove alleles that occur at less than 1% frequency, or always keep the best two alleles) do not work.
-The effectiveness of the above allele-finding algorithm, however, lets us adopt a different approach.
-We first remove any alleles for which there is not very strong evidence.
-This amounts, very roughly, to keeping the most common allele for each gene.
-We then go through several rounds of allele-finding, during which any needlessly-removed alleles, together with any previously unknown alleles, are iteratively added to the germline set.
-To try this, specify the `--generate-germline-set` option for `cache-parameters`.
-
 These methods are best described as 'beta', although they generally yield good results on realistic data sets.
 If you encounter any idiosyncracies, it would be much appreciated if you could open an issue on github.
 Also, it would greatly help our validation efforts in general, if you have any public, processed data sets, if you could pass us a link so we can add them to our database.
