@@ -215,7 +215,7 @@ class AlleleFinder(object):
         return '\n'.join(return_strs)
 
     # ----------------------------------------------------------------------------------------
-    def default_fitfo(self, ndof=0, y_icpt_bounds=None):
+    def default_fitfo(self, ndof=0, y_icpt_bounds=None, xvals=None, yvals=None, errs=None):
         fitfo = {
             'slope'  : 0.,
             'y_icpt' : 0.,
@@ -224,7 +224,10 @@ class AlleleFinder(object):
             'residual_sum' : 0.,
             'ndof' : ndof,
             'residuals_over_ndof' : 0.,  # NOTE not necessarily just the one over the other
-            'y_icpt_bounds' : y_icpt_bounds if y_icpt_bounds is not None else self.unbounded_y_icpt_bounds
+            'y_icpt_bounds' : y_icpt_bounds if y_icpt_bounds is not None else self.unbounded_y_icpt_bounds,
+            'xvals' : xvals,
+            'yvals' : yvals,
+            'errs' : errs
         }
         return fitfo
 
@@ -242,7 +245,7 @@ class AlleleFinder(object):
     def get_curvefit(self, pvals, y_icpt_bounds, debug=False):
         n_mutelist, freqs, errs = self.get_tmp_fitvals(pvals)  # this is probably kind of slow
         if y_icpt_bounds[0] == y_icpt_bounds[1]:  # fixed y-icpt
-            fitfo = self.default_fitfo(len(n_mutelist) - 1, y_icpt_bounds)
+            fitfo = self.default_fitfo(len(n_mutelist) - 1, y_icpt_bounds, xvals=n_mutelist, yvals=freqs, errs=errs)
             fitfo['y_icpt'] = y_icpt_bounds[0]
             if fitfo['ndof'] > 0:
                 def linefunc(x, slope):
@@ -254,7 +257,7 @@ class AlleleFinder(object):
             elif fitfo['ndof'] == 0:
                 fitfo = self.approx_fit_vals(pvals, fixed_y_icpt=fitfo['y_icpt'], debug=debug)
         else:  # floating y-icpt
-            fitfo = self.default_fitfo(len(n_mutelist) - 2, y_icpt_bounds)
+            fitfo = self.default_fitfo(len(n_mutelist) - 2, y_icpt_bounds, xvals=n_mutelist, yvals=freqs, errs=errs)
             if fitfo['ndof'] > 0:
                 def linefunc(x, slope, y_icpt):
                     return slope*x + y_icpt
@@ -857,12 +860,11 @@ class AlleleFinder(object):
         for gene in self.positions_to_plot:  # we can make plots for the positions we didn't fit, but there's a *lot* of them and they're slow
             snp_positions = [] if gene not in template_genes else self.new_allele_info[template_genes.index(gene)]['snp-positions']
             for position in self.positions_to_plot[gene]:
-                linefo, linefo2 = None, None
+                fitfos = None
+                # snp_positions = [10, 11, 12, 13, 14]
                 if position in snp_positions:
-                    fitfo = self.fitfos[gene]['fitfos'][len(snp_positions)][position]
-                    linefo = fitfo['prefo']
-                    linefo2 = fitfo['postfo']
-                plotting.make_allele_finding_plot(plotdir + '/' + utils.sanitize_name(gene), gene, position, self.xyvals[gene][position], xmax=self.args.n_max_mutations_per_segment, linefo=linefo, linefo2=linefo2)
+                    fitfos = self.fitfos[gene]['fitfos'][len(snp_positions)][position]
+                plotting.make_allele_finding_plot(plotdir + '/' + utils.sanitize_name(gene), gene, position, self.xyvals[gene][position], xmax=self.args.n_max_mutations_per_segment, fitfos=fitfos)
 
         check_call(['./bin/permissify-www', plotdir])
         print '(%.1f sec)' % (time.time()-start)
