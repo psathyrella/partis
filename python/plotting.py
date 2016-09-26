@@ -891,6 +891,8 @@ def make_allele_finding_plot(plotdir, gene, position, values, xmax, fitfos=None)
     if fitfos is not None:  # fitted lines
         colors = {'prefo' : 'red', 'postfo' : 'red', 'onefo' : 'green'}
         for ftype in colors:
+            if fitfos[ftype]['xvals'] is None:  # not really sure why this happens... probably zero-point fits?
+                continue
             linevals = [fitfos[ftype]['slope']*x + fitfos[ftype]['y_icpt'] for x in fitfos[ftype]['xvals']]
             ax.plot(fitfos[ftype]['xvals'], linevals, color=colors[ftype])
 
