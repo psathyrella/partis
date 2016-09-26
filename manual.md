@@ -17,6 +17,7 @@ This manual is organized into the following sections:
     - [run-viterbi](#run-viterbi) find most likely annotations/alignments
 	- [partition](#partition) cluster sequences into clonally-related families
 	  - [approximate methods](#approximate-methods)
+	  - [cluster annotations](#cluster-annotations)
 	- [view-annotations](#view-annotations) Print (to std out) the annotations from an existing annotation output csv.
 	- [view-partitions](#view-partitions)  Print (to std out) the partitions from an existing partition output csv.
 	- [cache-parameters](#cache-parameters) write parameter values and HMM model files for a given data set
@@ -195,9 +196,6 @@ We write one line for the most likely partition (with the lowest logprob), as we
 | partition        |  String representing the clusters, where clusters are separated by ; and sequences within clusters by :, e.g. 'a:b;c:d:e'
 | n_procs          |  Number of processes which were simultaneously running for this clusterpath. In practice, final output is usually only written for n_procs = 1
 
-To help visualize the clusters, you can tell it to print the most likely annotations for the final clusters with `--print-cluster-annotations`.
-If you specify both `--print-cluster-annotations` and `--outfname`, the annotations will be written to a file name generated from `--outfname` (which can be viewed as other annotations, with `view-annotations`).
-
 By default, this uses the most accurate and slowest method: hierarchical agglomeration with, first, hamming distance between naive sequences for distant clsuters, and full likelihood calculation for more similar clusters.
 Like most clustering algorithms, this scales rather closer than you'd like to quadratically than it does to linearly.
 We thus also have two faster and more approximate methods.
@@ -216,6 +214,17 @@ The naive sequence calculation is easy to parallelize, so is fast if you have ac
 Vsearch is also very fast, because it makes a large number of heuristic approximations to avoid all-against-all comparison, and thus scales significantly better than quadratically.
 With `--n-procs` around 10 for the vsearch step, this should take only of order minutes for a million sequences.
 Since it's entirely unprincipled, this of course sacrifices significant accuracy; but since we're using inferred naive sequences it's still much, much more accurate than clustering on SHM'd sequences.
+
+##### cluster annotations
+
+You can access the most likely annotation for each final cluster in several ways.
+If you just want to view an ascii-art printout of the annotations as clustering finishes, specify `--print-cluster-annotations`
+If you specify both `--print-cluster-annotations` and `--outfname`, these annotations will be written to the file `<--outfname>.replace('.csv', '-cluster-annotations.csv')`.
+This file can be viewed with `view-annotations` (see below).
+Finally, to annotate an arbitrary collection of sequences using simultaneous multi-HMM inference (which is much more accurate than annotating the sequences individually), you can combine the `--queries` and `--n-sets` arguments.
+For instance, if you knew that three sequences `a`, `b`, and `c` were clonal, you could run:
+
+``` ./bin/partis run-viterbi --infname in.fa --queries a:b:c --n-sets 3 --outfname out.csv```
 
 #### view-annotations
 
