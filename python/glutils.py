@@ -577,7 +577,7 @@ def add_some_snps(snps_to_add, glfo, remove_template_genes=False, debug=False):
 
     remove_the_stupid_godamn_template_genes_all_at_once(glfo, templates_to_remove)  # works fine with zero-length <templates_to_remove>
 
-    return added_snp_names
+    return added_snp_names  # need the order of the names so we can get allele prevalence freqs from the command line right
 
 # ----------------------------------------------------------------------------------------
 def write_glfo(output_dir, glfo, only_genes=None, debug=False):

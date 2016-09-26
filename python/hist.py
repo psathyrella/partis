@@ -122,6 +122,10 @@ class Hist(object):
         # NOTE includes under/overflows by default
         ibin_start = 0 if xbounds is None else self.find_bin(xbounds[0])
         ibin_end = self.n_bins + 2 if xbounds is None else self.find_bin(xbounds[1])
+
+        if ibin_start == ibin_end:
+            return self.bin_contents[ibin_start]
+
         ymax = None
         for ibin in range(ibin_start, ibin_end):
             if ymax is None or self.bin_contents[ibin] > ymax:
