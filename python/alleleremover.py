@@ -188,7 +188,8 @@ class AlleleRemover(object):
                 #     unpadded_line['seqs'][0] = unpadded_line['seqs'][0][ : -unpadded_line['padrights'][0]]
                 # utils.print_reco_event(self.glfo['seqs'], unpadded_line)
 
-        print '    removing %d genes with no matches, and %d genes with unconvincing matches (%d / %d queries had their best match removed)' % (len(set(self.glfo['seqs'][self.region]) - set(easycounts)), len(set(easycounts) - self.genes_to_keep), n_queries_with_removed_genes, len(swfo['queries']))
+        print '    keeping %d %s genes' % (len(self.genes_to_keep), self.region)
+        print '    removing %d %s genes: %d with no matches, %d with unconvincing matches (%d / %d queries had their best match removed)' % (len(self.genes_to_remove), self.region, len(set(self.glfo['seqs'][self.region]) - set(easycounts)), len(set(easycounts) - self.genes_to_keep), n_queries_with_removed_genes, len(swfo['queries']))
 
         self.finalized = True
 
