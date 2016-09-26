@@ -1,3 +1,4 @@
+import tempfile
 import copy
 import sys
 import os
@@ -168,7 +169,7 @@ def get_new_alignments(glfo, region, debug=False):
         if biggest_length is None or len(aligned_seqs[gene]) > biggest_length:
             biggest_length = len(aligned_seqs[gene])
 
-    tmpdir = '/tmp'
+    tmpdir = tempfile.mkdtemp()
     already_aligned_fname = tmpdir + '/already-aligned.fasta'
     not_aligned_fname = tmpdir + '/not-aligned.fasta'
     msa_table_fname = tmpdir + '/msa-table.txt'
@@ -227,6 +228,7 @@ def get_new_alignments(glfo, region, debug=False):
     os.remove(msa_table_fname)
     os.remove(aligned_and_not_fnamefname)
     os.remove(mafft_outfname)
+    os.rmdir(tmpdir)
 
     return aligned_seqs
 
