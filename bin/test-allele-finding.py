@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import numpy
 import copy
 import random
 import argparse
@@ -56,11 +57,20 @@ def run_test(args):
             cmd_str += ' --n-alleles-per-gene 2,3:1,2:1,2'
         else:
             simulation_genes = ':'.join(args.sim_v_genes + args.dj_genes)
-            sglfo = glutils.read_glfo('data/germlines/human', chain=chain, only_genes=simulation_genes.split(':'), debug=True)
+            sglfo = glutils.read_glfo('data/germlines/human', chain=chain, only_genes=simulation_genes.split(':'))
 
+            added_snp_names = None
             if args.snp_positions is not None:
                 snps_to_add = [{'gene' : args.sim_v_genes[ig], 'positions' : args.snp_positions[ig]} for ig in range(len(args.sim_v_genes))]
-                glutils.add_some_snps(snps_to_add, sglfo, debug=True, remove_template_genes=args.remove_template_genes)
+                added_snp_names = glutils.add_some_snps(snps_to_add, sglfo, debug=True, remove_template_genes=args.remove_template_genes)
+
+            if args.allele_prevalence_freqs is not None:
+                if len(args.allele_prevalence_freqs) != len(sglfo['seqs']['v']):
+                    raise Exception('--allele-prevalence-freqs not the right length')
+                gene_list = sorted(sglfo['seqs']['v']) if added_snp_names is None else list(set(args.sim_v_genes)) + added_snp_names
+                prevalence_freqs = {'v' : {g : f for g, f in zip(gene_list, args.allele_prevalence_freqs)}, 'd' : {}, 'j' : {}}
+                glutils.write_allele_prevalence_freqs(prevalence_freqs, args.workdir + '/allele-prevalence-freqs.csv')
+                cmd_str += ' --allele-prevalence-fname ' + args.workdir + '/allele-prevalence-freqs.csv'
 
             glutils.write_glfo(args.outdir + '/germlines/simulation', sglfo)
             cmd_str += ' --initial-germline-dir ' + args.outdir + '/germlines/simulation'
@@ -143,15 +153,21 @@ parser.add_argument('--outdir', default=fsdir + '/partis/allele-finder')
 parser.add_argument('--workdir', default=fsdir + '/_tmp/hmms/' + str(random.randint(0, 999999)))
 parser.add_argument('--comprehensive', action='store_true')
 parser.add_argument('--n-tests', type=int, default=3)
+parser.add_argument('--allele-prevalence-freqs')
 args = parser.parse_args()
 args.dj_genes = utils.get_arg_list(args.dj_genes)
 args.sim_v_genes = utils.get_arg_list(args.sim_v_genes)
 args.inf_v_genes = utils.get_arg_list(args.inf_v_genes)
 args.snp_positions = utils.get_arg_list(args.snp_positions)
+args.allele_prevalence_freqs = utils.get_arg_list(args.allele_prevalence_freqs, floatify=True)
 if args.snp_positions is not None:
     args.snp_positions = [[int(p) for p in pos_str.split(',')] for pos_str in args.snp_positions]
     assert len(args.snp_positions) == len(args.sim_v_genes)
     # args.snp_positions = {args.sim_v_genes[ig] : args.snp_positions[ig] for ig in range(len(args.sim_v_genes))}
+
+if args.seed is not None:
+    random.seed(args.seed)
+    numpy.random.seed(args.seed)
 
 if args.comprehensive:
     comprehensive_test(args)
