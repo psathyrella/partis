@@ -218,9 +218,8 @@ Since it's entirely unprincipled, this of course sacrifices significant accuracy
 ##### cluster annotations
 
 You can access the most likely annotation for each final cluster in several ways.
-If you just want to view an ascii-art printout of the annotations as clustering finishes, specify `--print-cluster-annotations`
+If you just want to view an ascii-art printout of the annotations, specify `--print-cluster-annotations`.
 If you specify both `--print-cluster-annotations` and `--outfname`, these annotations will be written to the file `<--outfname>.replace('.csv', '-cluster-annotations.csv')`.
-This file can be viewed with `view-annotations` (see below).
 Finally, to annotate an arbitrary collection of sequences using simultaneous multi-HMM inference (which is much more accurate than annotating the sequences individually), you can combine the `--queries` and `--n-sets` arguments.
 For instance, if you knew that three sequences `a`, `b`, and `c` were clonal, you could run:
 
