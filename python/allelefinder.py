@@ -1,3 +1,4 @@
+import itertools
 import time
 import math
 import sys
@@ -53,7 +54,7 @@ class AlleleFinder(object):
 
         self.min_min_candidate_ratio_to_plot = 1.5  # don't plot positions that're below this (for all <istart>)
 
-        self.default_slope_bounds = (-0.1, 0.2)  # fitting function needs some reasonable bounds from which to start (I could at some point make slope part of the criteria for candidacy, but it wouldn't add much sensitivity)
+        self.default_slope_bounds = (-0.1, 1.)  # fitting function needs some reasonable bounds from which to start (I could at some point make slope part of the criteria for candidacy, but it wouldn't add much sensitivity)
         self.unbounded_y_icpt_bounds = (-1., 1.5)
 
         self.counts, self.fitfos = {}, {}
@@ -197,11 +198,13 @@ class AlleleFinder(object):
                 gcts[igl][n_mutes][query_seq[ipos]] += 1  # if there's a new allele, we need this to work out what the snp'd base is
 
     # ----------------------------------------------------------------------------------------
-    def get_residual_sum(self, xvals, yvals, errs, slope, intercept):
+    def get_residual_sum(self, xvals, yvals, errs, slope, intercept, debug=False):
         def expected(x):
             return slope * x + intercept
-        residual_sum = sum([(y - expected(x))**2 / err**2 for x, y, err in zip(xvals, yvals, errs)])
-        return residual_sum
+        residuals = [(y - expected(x))**2 / err**2 for x, y, err in zip(xvals, yvals, errs)]
+        if debug:
+            print 'resid: ' + ' '.join(['%5.3f' % r for r in residuals])
+        return sum(residuals)
 
     # ----------------------------------------------------------------------------------------
     def dbgstr(self, fitfo, extra_str='', pvals=None):
@@ -346,24 +349,26 @@ class AlleleFinder(object):
                 print '    mean snp ratio %s too small (less than %s)' % (fstr(fitfo['mean_snp_ratios'][istart]), fstr(self.min_mean_candidate_ratio)),
             return False
 
-        for candidate_pos in fitfo['candidates'][istart]:  # return false if any of the candidate positions don't have enough mutated counts in the <istart>th bin NOTE this is particularly important because it's the handle that tells us it's *this* <istart> that's correct, rather than <istart> + 1
+        # return false if any of the candidate positions don't have enough mutated counts in the <istart>th bin NOTE this is particularly important because it's the handle that tells us it's *this* <istart> that's correct, rather than <istart> + 1
+        for candidate_pos in fitfo['candidates'][istart]:
             n_istart_muted = self.counts[gene][candidate_pos][istart]['muted']
             if n_istart_muted < self.n_muted_min_per_bin:
                 if debug:
                     print '    not enough mutated counts at candidate position %d with %d %s (%d < %d)' % (candidate_pos, istart, utils.plural_str('mutations', n_istart_muted), n_istart_muted, self.n_muted_min_per_bin),
                 return False
 
-            # make sure all the snp positions have similar fits
-            thisfo = self.fitfos[gene]['fitfos'][istart][candidate_pos]
-            for other_pos in fitfo['candidates'][istart]:  # also loops over itself, but I don't care
-                otherfo = self.fitfos[gene]['fitfos'][istart][other_pos]
-                if not self.consistent_slope_and_y_icpt(thisfo['postfo'], otherfo['postfo']):
+        # return false if any of the candidate positions don't have enough mutated counts in the <istart>th bin NOTE this is particularly important because it's the handle that tells us it's *this* <istart> that's correct, rather than <istart> + 1
+        if istart >= self.n_snps_to_switch_to_two_piece_method:
+            for pos_1, pos_2 in itertools.combinations(fitfo['candidates'][istart], 2):
+                # make sure all the snp positions have similar fits
+                fitfo_1, fitfo_2 = self.fitfos[gene]['fitfos'][istart][pos_1], self.fitfos[gene]['fitfos'][istart][pos_2]
+                if not self.consistent_slope_and_y_icpt(2.5, fitfo_1['postfo'], fitfo_2['postfo']):  # NOTE this has to be very permissive, since with multiple new alleles at the same position the y-icpt (at least) is expected to be quite different
                     if debug:
-                        print '    positions %d and %d have inconsistent post-istart fits' % (candidate_pos, other_pos)
+                        print '    positions %d and %d have inconsistent post-istart fits' % (pos_1, pos_2)
                     return False
-                if istart >= self.n_snps_to_switch_to_two_piece_method and self.consistent_slope_and_y_icpt(thisfo['prefo'], otherfo['prefo']):  # only check the prefits for fairly large <istart>
+                if not self.consistent_slope_and_y_icpt(2.5, fitfo_1['prefo'], fitfo_2['prefo']):
                     if debug:
-                        print '    positions %d and %d have inconsistent pre-istart fits' % (candidate_pos, other_pos)
+                        print '    positions %d and %d have inconsistent pre-istart fits' % (pos_1, pos_2)
                     return False
 
         if debug:
@@ -412,8 +417,8 @@ class AlleleFinder(object):
         return fitfo
 
     # ----------------------------------------------------------------------------------------
-    def consistent(self, v1, v1err, v2, v2err, debug=False):
-        factor = 0.75  # i.e. if both slope and intercept are within <factor> std deviations of each other, don't bother fitting, because the fit isn't going to say they're wildly inconsistent
+    def consistent(self, factor, v1, v1err, v2, v2err, debug=False):
+        # i.e. if both slope and intercept are within <factor> std deviations of each other, don't bother fitting, because the fit isn't going to say they're wildly inconsistent
         lo, hi = sorted([v1, v2])
         joint_err = max(v1err, v2err)
         if debug:
@@ -421,9 +426,9 @@ class AlleleFinder(object):
         return lo + factor * joint_err > hi
 
     # ----------------------------------------------------------------------------------------
-    def consistent_slope_and_y_icpt(self, vals1, vals2, debug=False):
-        consistent_slopes = self.consistent(vals1['slope'], vals1['slope_err'], vals2['slope'], vals2['slope_err'], debug=debug)
-        consistent_y_icpts = self.consistent(vals1['y_icpt'], vals1['y_icpt_err'], vals2['y_icpt'], vals2['y_icpt_err'], debug=debug)
+    def consistent_slope_and_y_icpt(self, factor, vals1, vals2, debug=False):
+        consistent_slopes = self.consistent(factor, vals1['slope'], vals1['slope_err'], vals2['slope'], vals2['slope_err'], debug=debug)
+        consistent_y_icpts = self.consistent(factor, vals1['y_icpt'], vals1['y_icpt_err'], vals2['y_icpt'], vals2['y_icpt_err'], debug=debug)
         return consistent_slopes and consistent_y_icpts
 
     # ----------------------------------------------------------------------------------------
@@ -475,7 +480,9 @@ class AlleleFinder(object):
 
         candidate_ratios, residfo = {}, {}  # NOTE <residfo> is really just for dbg printing... but we have to sort before we print, so we need to keep the info around
         for pos in positions_to_try_to_fit:
-            dbg = False  # (pos==14 and istart==5)
+            dbg = False #(pos in [10, 11] and istart==2)
+            if dbg:
+                print 'pos %d' % pos
             prevals = prexyvals[pos]
             postvals = postxyvals[pos]
             bothvals = bothxyvals[pos]
@@ -495,11 +502,11 @@ class AlleleFinder(object):
                 if big_y_icpt_bounds[0] <= 0.:
                     continue
 
-                # if there's only two points in <prevals>, we can't use the bad fit there to tell us this isn't a candidate, so we just check to see if the <istart - 1>th freq is really high
+                # if there's only two points in <prevals>, we can't use the bad fit there to tell us this isn't a candidate, so we check and skip if the <istart - 1>th freq isn't really low
                 if istart == 2 and bothvals['freqs'][istart - 1] > big_y_icpt - 1.5 * big_y_icpt_err:
                     continue
 
-                # if a rough estimate of the x-icpt is less than zero, the zero-icpt fit is probably going to be pretty good
+                # if a rough estimate of the y-icpt is less than zero, the zero-icpt fit is probably going to be pretty good
                 approx_fitfo = self.approx_fit_vals(postvals)
                 if approx_fitfo['y_icpt'] < 0.:
                     continue
@@ -522,7 +529,7 @@ class AlleleFinder(object):
             twofit_residuals_over_ndof = twofit_residuals / twofit_ndof
 
             # at least for large <istart> pre-slope should be smaller than post-slope
-            if istart >= self.n_snps_to_switch_to_two_piece_method and pre_approx['slope'] > post_approx['slope']:
+            if istart >= self.n_snps_to_switch_to_two_piece_method and prefit['slope'] > postfit['slope']:
                 continue
 
             # pre-<istart> should actually be a good line, at least for small <istart>
@@ -535,7 +542,7 @@ class AlleleFinder(object):
 
             candidate_ratios[pos] = onefit['residuals_over_ndof'] / twofit_residuals_over_ndof if twofit_residuals_over_ndof > 0. else float('inf')
             residfo[pos] = {'onefo' : onefit, 'prefo' : prefit, 'postfo' : postfit, 'twofo' : {'residuals_over_ndof' : twofit_residuals_over_ndof}}
-            if candidate_ratios[pos] > self.min_min_candidate_ratio_to_plot:
+            if dbg or candidate_ratios[pos] > self.min_min_candidate_ratio_to_plot:
                 self.positions_to_plot[gene].add(pos)  # if we already decided to plot it for another <istart>, it'll already be in there
 
         candidates = [pos for pos, _ in sorted(candidate_ratios.items(), key=operator.itemgetter(1), reverse=True)]  # sort the candidate positions in decreasing order of residual ratio
@@ -807,9 +814,11 @@ class AlleleFinder(object):
             istart_candidates = []
             for istart in self.fitfos[gene]['candidates']:  # note that not all <istart>s get added to self.fitfos[gene]
                 if debug:
-                    print '    %2d     %9s' % (istart, fstr(self.fitfos[gene]['min_snp_ratios'][istart]))
+                    print '    %2d     %9s' % (istart, fstr(self.fitfos[gene]['min_snp_ratios'][istart])),
                 if self.is_a_candidate(gene, self.fitfos[gene], istart, debug=debug):
                     istart_candidates.append(istart)
+                if debug:
+                    print ''
 
             # first take the biggest one, then if there's any others that have entirely non-overlapping positions, we don't need to re-run
             already_used_positions = set()

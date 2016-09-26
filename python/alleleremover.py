@@ -143,7 +143,7 @@ class AlleleRemover(object):
                 gfo = gclass[ig]
                 if float(gfo['counts']) / total_counts < self.args.min_allele_prevalence_fraction:
                     pass
-                if ig == 0:  # keep the first one
+                elif ig == 0:  # keep the first one
                     self.genes_to_keep.add(gfo['gene'])
                     n_from_this_class += 1
                 elif utils.hamming_distance(gclass[0]['seq'], gclass[ig]['seq']) == 0:  # don't keep it if it's indistinguishable from the most common one (the matches are probably mostly really the best one)

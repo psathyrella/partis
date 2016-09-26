@@ -260,7 +260,7 @@ class Recombinator(object):
         tmpline = {}
         for region in utils.regions:
             probs = None
-            if region in self.allele_prevalence_freqs:
+            if region in self.allele_prevalence_freqs and len(self.allele_prevalence_freqs[region]) > 0:  # should really change it so it has to be the one or the other
                 probs = [self.allele_prevalence_freqs[region][g] for g in self.allowed_genes[region]]
             tmpline[region + '_gene'] = numpy.random.choice(self.allowed_genes[region], p=probs)
         for effrode in utils.effective_erosions:
