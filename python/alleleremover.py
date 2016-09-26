@@ -127,34 +127,36 @@ class AlleleRemover(object):
         assert not self.finalized
         sorted_gene_counts = [(deps[0], counts) for deps, counts in sorted(pcounter.counts[self.region + '_gene'].items(), key=operator.itemgetter(1), reverse=True)]
         easycounts = {gene : counts for gene, counts in sorted_gene_counts}
+        total_counts = sum([counts for counts in easycounts.values()])
 
         if debug:
-            print '  removing least likely alleles'
+            print '  removing least likely alleles (%d total counts)' % total_counts
 
         self.genes_to_keep = set()
 
-        print '   %20s  %5s   %s  %s' % ('', 'counts', 'keep?', '')
+        print '   %20s  %5s  %5s   %s  %s' % ('', 'counts', 'snps', 'keep?', '')
         class_counts = self.separate_into_classes(sorted_gene_counts, easycounts)
         for gclass in class_counts:
             print ''
             n_from_this_class = 0
             for ig in range(len(gclass)):
                 gfo = gclass[ig]
-                if ig == 0:  # always keep the first one
+                if float(gfo['counts']) / total_counts < self.args.min_allele_prevalence_fraction:
+                    pass
+                if ig == 0:  # keep the first one
                     self.genes_to_keep.add(gfo['gene'])
                     n_from_this_class += 1
-                    dbg_str = 'first     '
                 elif utils.hamming_distance(gclass[0]['seq'], gclass[ig]['seq']) == 0:  # don't keep it if it's indistinguishable from the most common one (the matches are probably mostly really the best one)
                     pass
-                    dbg_str = 'indisting.'
                 elif n_from_this_class < self.args.n_alleles_per_gene:  # always keep the most common <self.args.n_alleles_per_gene> in each class
                     self.genes_to_keep.add(gfo['gene'])
                     n_from_this_class += 1
-                    dbg_str = '%dth best' % (n_from_this_class + 1)
-                else:
-                    dbg_str = 'too infrequent'
+                else:  # don't keep it
+                    pass
 
-                print '   %20s  %5d    %5s    %s' % (utils.color_gene(gfo['gene'], width=20), gfo['counts'], utils.color('yellow', 'x') if gfo['gene'] in self.genes_to_keep else ' ', utils.color_mutants(gclass[0]['seq'], gfo['seq']))
+                snpstr = ' ' if ig == 0 else '%d' % utils.hamming_distance(gclass[0]['seq'], gfo['seq'])
+                keepstr = utils.color('yellow', 'x', width=5) if gfo['gene'] in self.genes_to_keep else '     '
+                print '   %20s  %5d  %5s  %s    %s' % (utils.color_gene(gfo['gene'], width=20), gfo['counts'], snpstr, keepstr, utils.color_mutants(gclass[0]['seq'], gfo['seq']))
 
         # for igene in range(len(sorted_gene_counts)):
         #     gene, counts = sorted_gene_counts[igene]
