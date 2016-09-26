@@ -124,11 +124,11 @@ class AlleleFinder(object):
             print '    exclusions:  5p   3p'
         for gene in dcounts:
             if debug:
-                print '                %3d  %3d  %s' % (self.n_bases_to_exclude['5p'][gene], self.n_bases_to_exclude['3p'][gene], utils.color_gene(gene, width=15)),
+                print '                %3d  %3d  %s' % (self.n_bases_to_exclude['5p'][gene], self.n_bases_to_exclude['3p'][gene], utils.color_gene(gene, width=15))
             if self.n_bases_to_exclude['5p'][gene] + self.n_bases_to_exclude['3p'][gene] >= len(self.glfo['seqs'][utils.get_region(gene)][gene]):
                 self.genes_to_exclude.add(gene)
-                print '%s excluding from analysis' % utils.color('red', 'too long:'),
-            print ''
+                print '%s excluding from analysis' % utils.color('red', 'too long:')
+            # print ''
 
     # ----------------------------------------------------------------------------------------
     def get_seqs(self, info, region, gene):
@@ -807,12 +807,9 @@ class AlleleFinder(object):
             istart_candidates = []
             for istart in self.fitfos[gene]['candidates']:  # note that not all <istart>s get added to self.fitfos[gene]
                 if debug:
-                    print '    %2d     %9s' % (istart, fstr(self.fitfos[gene]['min_snp_ratios'][istart])),
+                    print '    %2d     %9s' % (istart, fstr(self.fitfos[gene]['min_snp_ratios'][istart]))
                 if self.is_a_candidate(gene, self.fitfos[gene], istart, debug=debug):
-                    # if debug and len(istart_candidates) == 0:
-                    #     print '   %s' % utils.color('yellow', '(best)'),
                     istart_candidates.append(istart)
-                print ''
 
             # first take the biggest one, then if there's any others that have entirely non-overlapping positions, we don't need to re-run
             already_used_positions = set()
