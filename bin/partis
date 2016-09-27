@@ -308,6 +308,7 @@ parent_parser.add_argument('--only-smith-waterman', action='store_true', help='E
 # print 'TODO add flag to disable cdr3 preclustering'
 # print 'TODO make sure mutation rate is ok with large fv/jf insertions'
 # print 'TODO check super-high mutation sequences in kate data (esp multiple indel handling)'
+# print 'TODO make at least allele removal default behavior'
 
 # print 'TODO all alleles (including new ones) should have roughly the same mut freq distribution (especially at low mutation)'
 # print 'TODO add a requirement to alleleremover to do with the number of unmutated exemplars (and clean up allele finding loop in partitiondriver)'
@@ -339,7 +340,7 @@ subargs['cache-parameters'].append({'name' : '--generate-germline-set', 'kwargs'
 subargs['cache-parameters'].append({'name' : '--find-new-alleles', 'kwargs' : {'action' : 'store_true', 'help' : 'look for new alleles which are separated only by snps from existing alleles, add them to the existing germline set, and write it all to --parameter-dir.'}})
 subargs['cache-parameters'].append({'name' : '--new-allele-fname', 'kwargs' : {'help' : 'fasta fname to which to write any new alleles (they are also written, with existing alleles, to --parameter-dir)'}})
 subargs['cache-parameters'].append({'name' : '--debug-allele-finding', 'kwargs' : {'action' : 'store_true', 'help' : 'print lots of debug info on new-allele fits'}})
-subargs['cache-parameters'].append({'name' : '--n-max-allele-finding-iterations', 'kwargs' : {'type' : int, 'default' : 4, 'help' : 'maximum number of times to look for new alleles'}})
+subargs['cache-parameters'].append({'name' : '--n-max-allele-finding-iterations', 'kwargs' : {'type' : int, 'default' : 2, 'help' : 'maximum number of times to look for new alleles'}})
 subargs['cache-parameters'].append({'name' : '--n-max-snps', 'kwargs' : {'type' : int, 'default' : 8, 'help' : 'when new-allele finding, look for new alleles separated from existing alleles by up to this many SNPs'}})
 subargs['cache-parameters'].append({'name' : '--n-max-mutations-per-segment', 'kwargs' : {'type' : int, 'default' : 30, 'help' : 'when new-allele finding, exclude sequences which have more than this many mutations in the V segment'}})
 subargs['cache-parameters'].append({'name' : '--n-alleles-per-gene', 'kwargs' : {'type' : int, 'default' : 2, 'help' : 'number of alleles to assume per gene when removing spurious alleles during parameter caching'}})

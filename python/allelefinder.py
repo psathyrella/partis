@@ -447,7 +447,7 @@ class AlleleFinder(object):
     # ----------------------------------------------------------------------------------------
     def very_different_bin_totals(self, pvals, istart, debug=False):
         # i.e. if there's a homozygous new allele at <istart> + 1
-        factor = 2.  # i.e. check everything that's more than <factor> sigma away
+        factor = 2.  # i.e. check everything that's more than <factor> sigma away UPDATE this will have to change -- totals per bin vary too much
         joint_total_err = max(math.sqrt(pvals['total'][istart - 1]), math.sqrt(pvals['total'][istart]))
         last_total = pvals['total'][istart - 1]
         istart_total = pvals['total'][istart]
@@ -793,7 +793,7 @@ class AlleleFinder(object):
                     print '          not enough positions with enough observations to fit %s' % utils.color_gene(gene)
                 continue
 
-            if self.unmutated_gene_obs_counts[gene] > self.n_total_min:
+            if self.unmutated_gene_obs_counts[gene] > self.n_total_min:  # UPDATE this will have to change to accomodate repertoires with very few unmutated sequences
                 self.alleles_with_evidence.add(gene)
 
             # loop over each snp hypothesis
