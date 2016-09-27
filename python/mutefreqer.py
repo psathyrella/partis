@@ -23,7 +23,7 @@ class MuteFreqer(object):
         self.finalized = False
         self.n_cached, self.n_not_cached = 0, 0
 
-        self.subplotdirs = ['overall', ] + ['per-gene/' + r for r in utils.regions]  # + ['per-gene-per-position/' + r for r in utils.regions]  # + ['per-gene-per-position--per-base' for r in utils.regions]:
+        self.subplotdirs = ['overall', ] + ['per-gene/' + r for r in utils.regions] + ['per-gene-per-position/' + r for r in utils.regions]  # + ['per-gene-per-position--per-base' for r in utils.regions]:
 
     # ----------------------------------------------------------------------------------------
     def increment(self, info, iseq):
@@ -141,8 +141,8 @@ class MuteFreqer(object):
             elif utils.get_region(gene) == 'j':
                 figsize[0] *= 2
             plotting.draw_no_root(self.per_gene_mean_rates[gene], plotdir=plotdir + '/per-gene/' + utils.get_region(gene), plotname=utils.sanitize_name(gene), errors=True, write_csv=True, only_csv=only_csv, shift_overflows=True)
-            # # per-position plots:
-            # plotting.draw_no_root(genehist, plotdir=plotdir + '/per-gene-per-position/' + utils.get_region(gene), plotname=utils.sanitize_name(gene), errors=True, write_csv=True, xline=xline, figsize=figsize, only_csv=only_csv, shift_overflows=True)
+            # per-position plots:
+            plotting.draw_no_root(genehist, plotdir=plotdir + '/per-gene-per-position/' + utils.get_region(gene), plotname=utils.sanitize_name(gene), errors=True, write_csv=True, xline=xline, figsize=figsize, only_csv=only_csv, shift_overflows=True)
             # # per-position, per-base plots:
             # paramutils.make_mutefreq_plot(plotdir + '/' + utils.get_region(gene) + '-per-base', utils.sanitize_name(gene), plotting_info)  # needs translation to mpl UPDATE fcn is fixed, but I can't be bothered uncommenting this at the moment
 

@@ -868,7 +868,7 @@ class AlleleFinder(object):
             for position in self.positions_to_plot[gene]:
                 fitfos = None
                 # snp_positions = [10, 11, 12, 13, 14]
-                if position in snp_positions:
+                if position in snp_positions and len(snp_positions) in self.fitfos[gene]['fitfos'] and position in self.fitfos[gene]['fitfos'][len(snp_positions)]:  # not sure why I need the second and third one
                     fitfos = self.fitfos[gene]['fitfos'][len(snp_positions)][position]
                 plotting.make_allele_finding_plot(plotdir + '/' + utils.sanitize_name(gene), gene, position, self.xyvals[gene][position], xmax=self.args.n_max_mutations_per_segment, fitfos=fitfos)
 
