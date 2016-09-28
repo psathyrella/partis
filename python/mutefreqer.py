@@ -15,7 +15,7 @@ class MuteFreqer(object):
         self.calculate_uncertainty = calculate_uncertainty
 
         self.counts, self.freqs = {}, {}  # per-gene, per-position counts/rates
-        self.n_bins, self.xmin, self.xmax = 80, 0., 0.4
+        self.n_bins, self.xmin, self.xmax = 40, 0., 0.4
         self.mean_rates = {n : Hist(self.n_bins, self.xmin, self.xmax, xtitle='mut freq', ytitle='freq', title=n.upper() if n in utils.regions else 'full seq')
                            for n in ['all', ] + utils.regions}
         self.per_gene_mean_rates = {}

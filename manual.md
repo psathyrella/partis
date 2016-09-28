@@ -25,6 +25,7 @@ This manual is organized into the following sections:
 	- [simulate](#simulate) make simulated sequences
 	- [run-forward](#run-forward) find total probability of sequences
   * [Parallelization](#parallelization)
+  * [Text output and logging](#text-output-and-logging)
 
 There are also many flags and optional parameters; unless mentioned below these are beyond the scope of this manual.
 Details concerning their purpose, however, may be gleaned by means of the following incantation: `./bin/partis --help`.
@@ -328,3 +329,9 @@ We currently reduce the number of processes by about 1.6 at each step, as long a
 
 With typical mutation levels, lineage structures, and cluster size distributions (all of which strongly affect clustering time), it's currently best to start with ``--n-procs` set so you have about 300 sequences per process.
 
+#### Text output and logging
+
+to properly display the ansi color codes which are liberally sprinkled throughout std output:
+  - less -r
+  - M-x display-ansi-colors (emacs)
+  - should already work in bash
