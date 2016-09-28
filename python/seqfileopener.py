@@ -26,6 +26,12 @@ def get_more_names(potential_names):
     potential_names += [''.join(ab) for ab in itertools.combinations(potential_names, 2)]
 
 # ----------------------------------------------------------------------------------------
+def add_seed_seq(args, input_info, reco_info, is_data):
+    input_info[args.seed_unique_id] = {'unique_ids' : [args.seed_unique_id, ], 'seqs' : [args.seed_seq, ]}
+    if not is_data:
+        reco_info[args.seed_unique_id] = 'unknown!'  # hopefully more obvious than a key error
+
+# ----------------------------------------------------------------------------------------
 def abbreviate(used_names, potential_names, unique_id):
     if len(used_names) >= len(potential_names):
         get_more_names(potential_names)
@@ -152,8 +158,17 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, s
 
     if args is not None:
         if len(input_info) == 0:
-            raise Exception('didn\'t end up pulling any input info out of %s while looking for queries: %s reco_ids: %s\n' % (infname, str(args.queries), str(args.reco_ids)))
-        if args.seed_unique_id is not None and not found_seed:
-            raise Exception('couldn\'t find seed %s in %s' % (args.seed_unique_id, infname))
+            raise Exception('didn\'t find the specified --queries (%s) or --reco-ids (%s) in %s' % (str(args.queries), str(args.reco_ids), infname))
+        if args.seed_unique_id is not None:
+            if found_seed:
+                if args.seed_seq is not None and input_info[args.seed_unique_id]['seqs'][0] != args.seed_seq:
+                    raise Exception('incompatible --seed-unique-id and --seed-seq (i.e. the sequence in %s corresponding to %s wasn\'t %s)' % (infname, args.seed_unique_id, args.seed_seq))
+            else:
+                if args.seed_seq is None:
+                    raise Exception('couldn\'t find seed unique id %s in %s' % (args.seed_unique_id, infname))
+                add_seed_seq(args, input_info, reco_info, is_data)
+        elif args.seed_seq is not None:
+            args.seed_unique_id = 'seed-seq'
+            add_seed_seq(args, input_info, reco_info, is_data)
 
     return input_info, reco_info
