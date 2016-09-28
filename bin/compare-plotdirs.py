@@ -45,7 +45,7 @@ def compare_directories(args, xtitle=''):
 
     # then loop over all the <varname>s we found
     for varname in allvars:
-        hlist = [allhists[dname].get(varname, Hist(1, 0, 1)) for dname in allhists]
+        hlist = [allhists[dname].get(varname, Hist(1, 0, 1, title='null')) for dname in allhists]
 
         if varname in plotconfig.gene_usage_columns:
             hlist = plotting.add_bin_labels_not_in_all_hists(hlist)
@@ -153,6 +153,9 @@ for iname in range(len(args.names)):
 if len(args.plotdirs) != len(args.names):
     raise Exception('poorly formatted args:\n  %s\n  %s' % (' '.join(args.plotdirs), ' '.join(args.names)))
 
-args.glfo = glutils.read_glfo(args.gldir, args.chain)
+# if args.gldir is not 'none':
+args.glfo = None
+if os.path.exists(args.gldir):
+    args.glfo = glutils.read_glfo(args.gldir, args.chain)
 
 compare_directories(args)

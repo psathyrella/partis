@@ -195,6 +195,8 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
     xmin, xmax, ymax = None, None, None
     ih = 0
     for htmp in hists:
+        if htmp.title == 'null':  # empty hists
+            continue
         if scale_errors is not None:
             factor = float(scale_errors[0]) if len(scale_errors) == 1 else float(scale_errors[ih])
             for ibin in range(htmp.n_bins+2):
