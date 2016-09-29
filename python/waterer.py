@@ -861,6 +861,36 @@ class Waterer(object):
         return kbounds
 
     # ----------------------------------------------------------------------------------------
+    def remove_framework_insertions(self, debug=False):
+        for query in self.info['queries']:
+            swfo = self.info[query]
+            assert len(swfo['seqs']) == 1
+            if query in self.info['indels']:
+                if self.info['indels'][query] != swfo['indelfos'][0]:
+                    print '%s indelfos not equal for %s' % (utils.color('red', 'warning'), query)
+                if swfo['indelfos'][0]['reversed_seq'] != swfo['seqs'][0]:
+                    print '%s reversed seq not same as seq:\n%s\n%s' % (utils.color('red', 'warning'), swfo['indelfos'][0]['reversed_seq'], swfo['seqs'][0])
+
+            # utils.print_reco_event(self.glfo['seqs'], swfo)
+
+            utils.remove_all_implicit_info(swfo)
+            fv_len = len(swfo['fv_insertion'])
+            jf_len = len(swfo['jf_insertion'])
+
+            swfo['seqs'][0] = swfo['seqs'][0][fv_len : len(swfo['seqs'][0]) - jf_len]
+            swfo['indelfos'][0]['reversed_seq'] = swfo['seqs'][0]
+            for indel in reversed(swfo['indelfos'][0]['indels']):
+                indel['pos'] -= fv_len
+            swfo['k_v']['min'] -= fv_len
+            swfo['k_v']['max'] -= fv_len
+            swfo['fv_insertion'] = ''
+            swfo['jf_insertion'] = ''
+
+            utils.add_implicit_info(self.glfo, swfo)
+            # utils.print_reco_event(self.glfo['seqs'], swfo)
+            # sys.exit()
+
+    # ----------------------------------------------------------------------------------------
     def get_padding_parameters(self, debug=False):
         maxima = {'gl_cpos' : None, 'gl_cpos_to_j_end' : None}
         for query in self.info['queries']:
@@ -895,6 +925,9 @@ class Waterer(object):
         Next, pads all sequences further out (if necessary) such as to eliminate all v_5p and j_3p deletions.
         """
 
+        if not self.args.dont_remove_framework_insertions:
+            self.remove_framework_insertions(debug=debug)
+
         maxima = self.get_padding_parameters(debug=debug)
 
         for query in self.info['queries']:
@@ -912,7 +945,7 @@ class Waterer(object):
             swfo['fv_insertion'] = leftstr + swfo['fv_insertion']
             swfo['jf_insertion'] = swfo['jf_insertion'] + rightstr
             swfo['seqs'][0] = leftstr + swfo['seqs'][0] + rightstr
-            swfo['naive_seq'] = leftstr + swfo['naive_seq'] + rightstr
+            swfo['naive_seq'] = leftstr + swfo['naive_seq'] + rightstr  # NOTE I should eventually rewrite this to remove all implicit info, then change things, then re-add implicit info (like in remove_framework_insertions)
             if query in self.info['indels']:  # also pad the reversed sequence
                 self.info['indels'][query]['reversed_seq'] = leftstr + self.info['indels'][query]['reversed_seq'] + rightstr
             swfo['k_v']['min'] += padleft

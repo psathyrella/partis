@@ -23,7 +23,7 @@ if args.alleles is None:
     args.alleles = [utils.allele(g) for g in glfo['seqs'][args.region] if args.base == utils.primary_version(g) + '-' + utils.sub_version(g)]
 else:
     args.alleles = utils.get_arg_list(args.alleles)
-    args.other_genes = utils.get_arg_list(args.other_genes)
+args.other_genes = utils.get_arg_list(args.other_genes)
 
 # for g, s in glfo['seqs']['v'].items():
 #     print '%s  %3d' % (utils.color_gene(g, width=20), len(s) - glfo['cyst-positions'][g])

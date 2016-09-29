@@ -909,7 +909,7 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
         if indelfo['reversed_seq'] == lseq:  # if <line> has the reversed sequence in it, then this is an inferred <line>, i.e. we removed the info, then passed the reversed sequence to the sw/hmm, so we need to reverse the indels now in order to get a sequence with indels in it
             reverse_indels = True
         if len(indelfo['indels']) > 1:
-            print 'WARNING multiple indels not really handled'
+            print '%s can\'t yet print multiple indels' % color('red', 'warning')
         add_indels_to_germline_strings(line, indelfo)
 
     # ----------------------------------------------------------------------------------------
@@ -929,10 +929,10 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     j_right_extra = ''  # portion of query sequence to right of end of the j match
     n_inserted = 0
     final_seq_list = []
+    if indelfo is not None:
+        lastfo = indelfo['indels'][-1]  # if the "last" (arbitrary but necessary ordering) indel starts here
     for inuke in range(len(lseq)):
-        if indelfo is not None:
-            lastfo = indelfo['indels'][-1]  # if the "last" (arbitrary but necessary ordering) indel starts here
-              # if we're at the position that the insertion started at (before we removed it)
+        # if we're at the position that the insertion started at (before we removed it)
         if indelfo is not None and lastfo['type'] == 'insertion':
             if reverse_indels and inuke == lastfo['pos']:
                 final_seq_list.append(lastfo['seqstr'])  # put the insertion back into the query sequence
