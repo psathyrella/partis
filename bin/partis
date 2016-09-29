@@ -307,30 +307,19 @@ parent_parser.add_argument('--only-smith-waterman', action='store_true', help='E
 
 # print 'TODO am I not using translation when getting the log prob for the final partition?'
 # print 'TODO add flag to disable cdr3 preclustering'
-# print 'TODO check super-high mutation sequences in kate data (esp multiple indel handling)'
-# print 'TODO make at least allele removal default behavior'
+# print 'TODO make a basic version of germline set generation into default behaviour'
 # print 'TODO fix multiple-indel printing'
 
-# print 'TODO all alleles (including new ones) should have roughly the same mut freq distribution (especially at low mutation)'
-# print 'TODO add a requirement to alleleremover to do with the number of unmutated exemplars (and clean up allele finding loop in partitiondriver)'
-# print 'TODO y-icpt (i.e. allele prevalence) could also go into the decision about whether to remove the template gene or not'
-# print 'TODO collapse at least the largest clones before inferring new alleles'
-# print 'TODO is there a linear scipy fcn that's faster than curve fit?'
-# print 'TODO finish switch from fitfo to self.fitfos'
-# print 'TODO clean up dbg headers'
-# maybe:
-#   add requirement that all positions in multiple-snp alleles are correlated (?)'
-#   do all the plots separately for each potential original snp base (i.e. separate plot for A, C, G, T)?'
-#   add requirement for mulitple j genes for new alleles (?)'
-#   increase n_max_mutations_per_segment for highly-mutated repertoires (?)'
-# trevor:
-#     I still wonder what the performance would be of a k-means-style clustering algorithm.
-#     Some number of initial germline seeds (perhaps from the database).
-#     Each read attaches to its closest seed.
-#     Each seed updates its sequence to be the consensus of the attached reads.
-#     Iterate.
-#     Exactly k-means.
-#     Would have to do this for multiple gene counts k and compare fit, but should be doable
+# allele crap:
+#     all alleles (including new ones) should have roughly the same mut freq distribution (especially at low mutation)'
+#     collapse at least the largest clones before inferring new alleles'
+#     finish switch from fitfo to self.fitfos'
+#     maybe:
+#       y-icpt (i.e. allele prevalence) could also go into the decision about whether to remove the template gene or not'
+#       add requirement that all positions in multiple-snp alleles are correlated (?)'
+#       do all the plots separately for each potential original snp base (i.e. separate plot for A, C, G, T)?'
+#       add requirement for mulitple j genes for new alleles (?)'
+#       increase n_max_mutations_per_segment for highly-mutated repertoires (?)'
 
 subconfig = {
     'version'          : {'func' : int, 'help' : 'print version information and exit'},

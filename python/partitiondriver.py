@@ -301,7 +301,12 @@ class PartitionDriver(object):
 
         n_procs = self.args.n_procs
         cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
-        cpath.add_partition([[cl, ] for cl in self.sw_info['queries']], logprob=0., n_procs=n_procs)  # NOTE sw info excludes failed sequences
+        if self.args.seed_unique_id is None:
+            nsets = [[q, ] for q in self.sw_info['queries']]
+        else:
+            seed_cdr3_length = self.sw_info[self.args.seed_unique_id]['cdr3_length']
+            nsets = [[q, ] for q in self.sw_info['queries'] if self.sw_info[q]['cdr3_length'] == seed_cdr3_length]
+        cpath.add_partition(nsets, logprob=0., n_procs=n_procs)  # NOTE sw info excludes failed sequences
         n_proc_list = []
         start = time.time()
         while n_procs > 0:
@@ -1090,9 +1095,10 @@ class PartitionDriver(object):
 
         if self.current_action == 'partition' and algorithm == 'forward':  # if we're caching naive seqs before partitioning, we're doing viterbi (and want the block below)
             nsets = copy.deepcopy(cpath.partitions[cpath.i_best_minus_x])  # NOTE that a.t.m. i_best and i_best_minus_x are the same, since we're not calculating log probs of partitions (well, we're trying to avoid calculating any extra log probs, which means we usually don't know the log prob of the entire partition)
-            if self.args.seed_unique_id is not None and self.time_to_remove_unseeded_clusters:
-                nsets = [[qr] for qr in self.get_seeded_clusters(nsets)]
-                self.already_removed_unseeded_clusters = True
+            if self.args.seed_unique_id is not None:
+                if self.time_to_remove_unseeded_clusters:
+                    nsets = [[qr] for qr in self.get_seeded_clusters(nsets)]
+                    self.already_removed_unseeded_clusters = True
         else:
             if self.args.n_sets == 1:  # single (non-multi) hmm (does the same thing as the below for n=1, but is more transparent)
                 nsets = [[qn] for qn in self.sw_info['queries']]
