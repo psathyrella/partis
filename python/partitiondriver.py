@@ -302,11 +302,11 @@ class PartitionDriver(object):
         n_procs = self.args.n_procs
         cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
         if self.args.seed_unique_id is None:
-            nsets = [[q, ] for q in self.sw_info['queries']]
+            initial_nsets = [[q, ] for q in self.sw_info['queries']]
         else:
             seed_cdr3_length = self.sw_info[self.args.seed_unique_id]['cdr3_length']
-            nsets = [[q, ] for q in self.sw_info['queries'] if self.sw_info[q]['cdr3_length'] == seed_cdr3_length]
-        cpath.add_partition(nsets, logprob=0., n_procs=n_procs)  # NOTE sw info excludes failed sequences
+            initial_nsets = [[q, ] for q in self.sw_info['queries'] if self.sw_info[q]['cdr3_length'] == seed_cdr3_length]
+        cpath.add_partition(initial_nsets, logprob=0., n_procs=n_procs)  # NOTE sw info excludes failed sequences
         n_proc_list = []
         start = time.time()
         while n_procs > 0:
@@ -315,7 +315,7 @@ class PartitionDriver(object):
             n_proc_list.append(n_procs)
             if n_procs == 1:
                 break
-            n_procs = self.get_next_n_procs(n_procs, n_proc_list, cpath)
+            n_procs = self.get_next_n_procs(n_procs, n_proc_list, cpath, initial_nseqs=len(initial_nsets))
 
         print '      loop time: %.1f' % (time.time()-start)
 
@@ -340,7 +340,7 @@ class PartitionDriver(object):
             self.write_clusterpaths(self.args.outfname, cpath)  # [last agglomeration step]
 
     # ----------------------------------------------------------------------------------------
-    def get_next_n_procs(self, n_procs, n_proc_list, cpath):
+    def get_next_n_procs(self, n_procs, n_proc_list, cpath, initial_nseqs):
         next_n_procs = n_procs
 
         n_calcd_per_process = self.get_n_calculated_per_process()
@@ -358,9 +358,9 @@ class PartitionDriver(object):
             if not self.already_removed_unseeded_clusters:  # if we didn't already remove the unseeded clusters in a previous step
                 print '     time to remove unseeded clusters'
                 self.time_to_remove_unseeded_clusters = True  # (they don't actually get removed until we're writing hmm input)
-                initial_seqs_per_proc = int(float(len(self.input_info)) / n_proc_list[0])
+                initial_seqs_per_proc = int(float(initial_nseqs) / n_proc_list[0])
                 self.unseeded_clusters = self.get_unseeded_clusters(cpath.partitions[cpath.i_best_minus_x])
-                n_remaining_seqs = len(self.input_info) - len(self.unseeded_clusters)
+                n_remaining_seqs = initial_nseqs - len(self.unseeded_clusters)
                 integer = 3  # multiply by something 'cause we're turning off the seed uid for the last few times through
                 next_n_procs = max(1, integer * int(float(n_remaining_seqs) / initial_seqs_per_proc))
                 print '        new n_procs %d = %d * %d / %d' % (next_n_procs, integer, n_remaining_seqs, initial_seqs_per_proc)
