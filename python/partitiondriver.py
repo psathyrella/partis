@@ -293,7 +293,7 @@ class PartitionDriver(object):
 
         # cache hmm naive seq for each single query
         if len(self.sw_info['queries']) > 50 or self.args.naive_vsearch or self.args.naive_swarm:
-            self.run_hmm('viterbi', self.sub_param_dir, n_procs=self.get_n_precache_procs(), precache_all_naive_seqs=True)
+            self.run_hmm('viterbi', self.sub_param_dir, n_procs=self.get_n_precache_procs(len(self.sw_info['queries'])), precache_all_naive_seqs=True)
 
         if self.args.naive_vsearch or self.args.naive_swarm:
             self.cluster_with_naive_vsearch_or_swarm(self.sub_param_dir)
@@ -301,12 +301,8 @@ class PartitionDriver(object):
 
         n_procs = self.args.n_procs
         cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
-        if self.args.seed_unique_id is None:
-            initial_nsets = [[q, ] for q in self.sw_info['queries']]
-        else:
-            seed_cdr3_length = self.sw_info[self.args.seed_unique_id]['cdr3_length']  # NOTE should probably remove this now that it's in waterer
-            initial_nsets = [[q, ] for q in self.sw_info['queries'] if self.sw_info[q]['cdr3_length'] == seed_cdr3_length]
-        cpath.add_partition(initial_nsets, logprob=0., n_procs=n_procs)  # NOTE sw info excludes failed sequences
+        initial_nsets = [[q, ] for q in self.sw_info['queries']]
+        cpath.add_partition(initial_nsets, logprob=0., n_procs=n_procs)  # NOTE sw info excludes failed sequences (and maybe also sequences with different cdr3 length)
         n_proc_list = []
         start = time.time()
         while n_procs > 0:
@@ -396,11 +392,11 @@ class PartitionDriver(object):
             print '  ' + utils.color('red', 'warning') + ' ' + warnstr
 
     # ----------------------------------------------------------------------------------------
-    def get_n_precache_procs(self):
+    def get_n_precache_procs(self, initial_nseqs):
         if self.args.n_precache_procs is not None:
             return self.args.n_precache_procs
 
-        n_seqs = len(self.sw_info['queries'])
+        n_seqs = initial_nseqs
         seqs_per_proc = 500  # 2.5 mins (at something like 0.3 sec/seq)
         if n_seqs > 3000:
             seqs_per_proc *= 2

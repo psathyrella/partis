@@ -1590,6 +1590,9 @@ def finish_process(iproc, procs, n_tries, workdir, logdir, outfname, cmd_str, db
             print ', missing output %s' % outfname,
         print ')'
         if os.path.exists(logdir + '/err'):
+            print '        out tail:'
+            errstr = check_output(['tail', logdir + '/out'])
+            print '\n'.join(['            ' + l for l in errstr.split('\n')])
             print '        err tail:'
             errstr = check_output(['tail', logdir + '/err'])
             print '\n'.join(['            ' + l for l in errstr.split('\n')])
