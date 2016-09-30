@@ -47,7 +47,7 @@ class Waterer(object):
         self.info['indels'] = {}  # NOTE if we find shm indels in a sequence, we store the indel info in here, and rerun sw with the reversed sequence (i.e. <self.info> contains the sw inference on the reversed sequence -- if you want the original sequence, get that from <self.input_info>)
 
         self.nth_try = 1
-        self.unproductive_queries = set()
+        self.skipped_unproductive_queries, self.kept_unproductive_queries = set(), set()
 
         self.my_gldir = self.args.workdir + '/' + glutils.glfo_dir
 
@@ -113,29 +113,21 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def finalize(self, cachefname=None, just_read_cachefile=False):
-        print '      info for %d' % len(self.info['queries']),
+        print '      info for %d / %d    (kept %d unproductive)' % (len(self.info['queries']), len(self.input_info), len(self.kept_unproductive_queries))
 
         if just_read_cachefile:  # it's past tense!
             print ''
         else:
-            skipped_unproductive = len(self.unproductive_queries)
-            n_remaining = len(self.remaining_queries)
-            if skipped_unproductive > 0 or n_remaining > 0:
-                print '     (skipped',
-                print '%d / %d = %.2f unproductive' % (skipped_unproductive, len(self.input_info), float(skipped_unproductive) / len(self.input_info)),
-                if n_remaining > 0:
-                    print '   %d / %d = %.2f other' % (n_remaining, len(self.input_info), float(n_remaining) / len(self.input_info)),
-                print ')',
-            print ''
-            if n_remaining > 0:
-                printstr = '   %s %d missing %s' % (utils.color('red', 'warning'), n_remaining, utils.plural_str('annotation', n_remaining))
-                if n_remaining < 15:
-                    printstr += ' (' + ' '.join(self.remaining_queries) + ')'
-                print printstr
+            if len(self.skipped_unproductive_queries) > 0:
+                print '         skipped %d unproductive' % len(self.skipped_unproductive_queries)
+            if len(self.remaining_queries) > 0:
+                # printstr = '   %s %d missing %s' % (utils.color('red', 'warning'), len(self.remaining_queries), utils.plural_str('annotation', len(self.remaining_queries)))
+                if len(self.remaining_queries) < 15:
+                    print '            missing annotations: ' + ' '.join(self.remaining_queries)
             if self.debug and len(self.info['indels']) > 0:
                 print '      indels: %s' % ':'.join(self.info['indels'].keys())
-            assert len(self.info['queries']) + skipped_unproductive + n_remaining == len(self.input_info)
-            if self.debug and not self.args.is_data and n_remaining > 0:
+            assert len(self.info['queries']) + len(self.skipped_unproductive_queries) + len(self.remaining_queries) == len(self.input_info)
+            if self.debug and not self.args.is_data and len(self.remaining_queries) > 0:
                 print 'true annotations for remaining events:'
                 for qry in self.remaining_queries:
                     utils.print_reco_event(self.glfo['seqs'], self.reco_info[qry], extra_str='      ', label='true:')
@@ -228,12 +220,11 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def write_vdjalign_input(self, base_infname, n_procs):
-        n_remaining = len(self.remaining_queries)
-        queries_per_proc = float(n_remaining) / n_procs
+        queries_per_proc = float(len(self.remaining_queries)) / n_procs
         n_queries_per_proc = int(math.ceil(queries_per_proc))
         written_queries = set()  # make sure we actually write each query NOTE I should be able to remove this when I work out where they're disappearing to. But they don't seem to be disappearing any more, *sigh*
         if n_procs == 1:  # double check for rounding problems or whatnot
-            assert n_queries_per_proc == n_remaining
+            assert n_queries_per_proc == len(self.remaining_queries)
         for iproc in range(n_procs):
             workdir = self.subworkdir(iproc, n_procs)
             if n_procs > 1:
@@ -241,7 +232,7 @@ class Waterer(object):
             with opener('w')(workdir + '/' + base_infname) as sub_infile:
                 iquery = 0
                 for query_name in self.remaining_queries:  # NOTE this is wasteful to loop of all the remaining queries for each process... but maybe not that wasteful
-                    if iquery >= n_remaining:
+                    if iquery >= len(self.remaining_queries):
                         break
                     if iquery < iproc*n_queries_per_proc or iquery >= (iproc + 1)*n_queries_per_proc:  # not for this process
                         iquery += 1
@@ -301,7 +292,7 @@ class Waterer(object):
     # ----------------------------------------------------------------------------------------
     def read_output(self, base_outfname, n_procs=1):
         queries_to_rerun = OrderedDict()  # This is to keep track of every query that we don't add to self.info (i.e. it does *not* include unproductive queries that we ignore/skip entirely because we were told to by a command line argument)
-                                          # ...whereas <self.unproductive_queries> is to keep track of the queries that were definitively unproductive (i.e. we removed them from self.remaining_queries) when we were told to skip unproductives by a command line argument
+                                          # ...whereas <self.skipped_unproductive_queries> is to keep track of the queries that were definitively unproductive (i.e. we removed them from self.remaining_queries) when we were told to skip unproductives by a command line argument
         for reason in ['unproductive', 'no-match', 'weird-annot.', 'nonsense-bounds', 'invalid-codon']:
             queries_to_rerun[reason] = set()
 
@@ -712,6 +703,8 @@ class Waterer(object):
             else:
                 self.perfplotter.evaluate(self.reco_info[qname], self.info[qname])
 
+        if not utils.is_functional(self.info[qname]):
+            self.kept_unproductive_queries.add(qname)
         self.remaining_queries.remove(qname)
 
     # ----------------------------------------------------------------------------------------
@@ -795,7 +788,7 @@ class Waterer(object):
 
         in_frame_cdr3 = (cdr3_length % 3 == 0)
         stop_codon = utils.is_there_a_stop_codon(qseq, codon_positions['v'])
-        if not codons_ok or not in_frame_cdr3 or stop_codon:
+        if not codons_ok or not in_frame_cdr3 or stop_codon:  # TODO should use the new utils.is_functional() here
             if self.debug:
                 print '       unproductive rearrangement:',
                 if not codons_ok:
@@ -814,7 +807,7 @@ class Waterer(object):
             elif self.args.skip_unproductive:
                 if self.debug:
                     print '            ...skipping'
-                self.unproductive_queries.add(qname)
+                self.skipped_unproductive_queries.add(qname)
                 self.remaining_queries.remove(qname)
                 return
             else:

@@ -725,6 +725,16 @@ def add_qr_seqs(line):
         line[region + '_qr_seqs'] = [get_single_qr_seq(region, seq) for seq in line['seqs']]
 
 # ----------------------------------------------------------------------------------------
+def is_functional(line, debug=False):
+    if True in line['mutated_invariants']:
+        return False
+    if False in line['in_frames']:
+        return False
+    if True in line['stops']:
+        return False
+    return True
+
+# ----------------------------------------------------------------------------------------
 def add_functional_info(chain, line):
     def get_val(ftype, iseq):
         if ftype == 'mutated_invariants':
