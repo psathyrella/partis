@@ -184,7 +184,7 @@ class PartitionDriver(object):
                 print '    removing sw cache file %s (it has outdated germline info)' % self.default_cachefname
                 os.remove(self.default_cachefname)
 
-            self.all_new_allele_info += self.sw_info['new-alleles']
+            self.all_new_allele_info += [afo for afo in self.sw_info['new-alleles'] if '+' in afo['gene']]
             # alleles_with_evidence |= self.sw_info['alleles-with-evidence']
             glutils.restrict_to_genes(self.glfo, list(self.sw_info['all_best_matches']))
             glutils.add_new_alleles(self.glfo, self.sw_info['new-alleles'])
@@ -257,7 +257,7 @@ class PartitionDriver(object):
         self.write_hmms(self.hmm_param_dir)
 
         if len(self.all_new_allele_info) > 0:
-            print '  %d new alleles written to {sw,hmm}/%s subdirs of parameter dir %s' % (len(self.all_new_allele_info), glutils.glfo_dir, self.args.parameter_dir)
+            print '  %d new allele%s written to {sw,hmm}/%s subdirs of parameter dir %s' % (len(self.all_new_allele_info), utils.plural_str('', len(self.all_new_allele_info)), glutils.glfo_dir, self.args.parameter_dir)
 
     # ----------------------------------------------------------------------------------------
     def run_algorithm(self, algorithm):

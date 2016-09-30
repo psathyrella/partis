@@ -134,7 +134,7 @@ class AlleleRemover(object):
 
         self.genes_to_keep = set()
 
-        print '   %20s  %5s  %5s   %s  %s' % ('', 'counts', 'snps', 'keep?', '')
+        print '       %20s  %5s  %5s   %s  %s' % ('', 'counts', 'snps', 'keep?', '')
         class_counts = self.separate_into_classes(sorted_gene_counts, easycounts)
         for gclass in class_counts:
             print ''

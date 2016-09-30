@@ -772,7 +772,7 @@ class AlleleFinder(object):
         print '%s: looking for new alleles' % utils.color('blue', 'try ' + str(self.itry))
         if not self.args.always_find_new_alleles:  # NOTE this is (on purpose) summed over all genes -- genes with homozygous unknown alleles would always fail this criterion
             binline, contents_line = self.overall_mute_counts.horizontal_print(bin_centers=True, bin_decimals=0, contents_decimals=0)
-            print '             n muted in v' + binline
+            print '             n muted in v' + binline + '(and up)'
             print '                   counts' + contents_line
             total = int(self.overall_mute_counts.integral(include_overflows=True))  # underflow bin is zero mutations, and we want overflow, too NOTE why the fuck isn't this quite equal to sum(self.gene_obs_counts.values())?
             for n_mutes in range(self.args.n_max_snps):

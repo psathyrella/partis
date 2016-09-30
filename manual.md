@@ -268,13 +268,13 @@ The V alleles in the initial germline set which were the best match for at least
 To a first approximation, these classes are the same as imgt gene designations, i.e. the bit before the `*`.
 Within each class, we then keep only the most common `--n-alleles-per-gene` alleles (default 2) which are distinguishable from each other in expressed samples (e.g. which don't differ by one base at codon 108).
 This amounts to the application of a strong diploid prior.
-Which, of course, is not particularly well-justified given the extensive and well-documented gene deletion and duplication in the BCR locus.
+Which, of course, is not particularly well-justified given the extensive gene deletion and duplication in the BCR locus, and the fact that typical SHM levels are much larger than the typical inter-V-gene distance in the imgt repertoire.
 But, it is a reasonable first approximation.
 And, more importantly, it is vastly more accurate than simply keeping every single allele which is a best match.
 
-Second, we re-run smith-waterman with this reduced V germline set, and apply a new method for finding any previously unknown V alleles.
+Second, we re-run smith-waterman using this reduced V germline set, and apply a new method for finding any previously unknown V alleles, or V alleles which were over-aggressively pruned in the previous step.
 This method is too complex to describe here in detail, but can perhaps best be described as a principled, hypothesis-testing-based generalization of the [tigger](https://www.ncbi.nlm.nih.gov/pubmed/25675496) method.
-The entire resulting germline set is written to a subdirectory of the `--parameter-dir`, and is used in subsequent runs instead of the initial germline set.
+The entire resulting germline set is written to a subdirectory of `--parameter-dir`, and is used in subsequent runs instead of the initial germline set.
 
 We could probably do the same thing for J, but there doesn't seem to be much polymorphism, so it's probably not worthwhile.
 Doing it for D is probably not realistic.
@@ -335,7 +335,7 @@ With typical mutation levels, lineage structures, and cluster size distributions
 
 #### Text output and logging
 
-to properly display the ansi color codes which are liberally sprinkled throughout std output:
-  - less -r
+to properly display the ansi color codes in stdout:
+  - less -RS (S disables line wrapping)
   - M-x display-ansi-colors (emacs)
   - should already work in bash
