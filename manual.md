@@ -21,7 +21,7 @@ This manual is organized into the following sections:
 	- [view-annotations](#view-annotations) Print (to std out) the annotations from an existing annotation output csv.
 	- [view-partitions](#view-partitions)  Print (to std out) the partitions from an existing partition output csv.
 	- [cache-parameters](#cache-parameters) write parameter values and HMM model files for a given data set
-	  - [finding new alleles](#finding-new-alleles)
+	  - [germline sets](#germline-sets)
 	- [simulate](#simulate) make simulated sequences
 	- [run-forward](#run-forward) find total probability of sequences
   * [Parallelization](#parallelization)
@@ -256,26 +256,30 @@ When caching parameters, the parameter csvs from Smith-Waterman and the HMM are 
 Within each of these, there are a bunch of csv files with (hopefully) self-explanatory names, e.g. `j_gene-j_5p_del-probs.csv` has counts for J 5' deletions subset by J gene.
 The hmm model files go in the `hmms` subdirectory, which contains yaml HMM model files for each observed allele.
 
-##### New alleles and germline sets
+##### germline sets
 
 By default partis uses the set of germline V, D, and J genes (the "germline set") in `data/germlines`, which is from imgt.
 If you have another set you'd like to use, you can do so by setting `--initial-germline-dir`.
-The default set from imgt is missing many alleles that occur in real populations, and, as such, annotations for any individual who has these missing alleles will be wrong.
-We've thus included a method of finding new alleles, on the fly, for each individual data set.
+A number of studies have shown that, at least for V genes, this set (and all others) is both missing many alleles which occur in real populations and contains many alleles which do not occur in any real sample.
+In addition, any individual sample will contain only a small fraction of the genes and alleles in the default germline set.
 
-To try this, use the `--find-new-alleles` option to the `cache-parameters` action.
-This will write any new alleles, along with the existing alleles, to a germline set directory in `--parameter-dir`.
-This modified germline set is then used by default in later runs when performing inference with these parameters.
-If specified, it will also write the new alleles in fasta format to `--new-allele-fname`.
+By default partis handles these problems when caching parameters with a two step process during the preliminary smith-waterman annotation.
+The V alleles in the initial germline set which were the best match for at least one sequence, and which accounted for more than `--min-allele-prevalence-fraction` (default 0.0005) of the repertoire, are then divided into classes, such that all alleles within each class are the same length, and separated by less than `--n-max-snps` (default 8) SNPs.
+To a first approximation, these classes are the same as imgt gene designations, i.e. the bit before the `*`.
+Within each class, we then keep only the most common `--n-alleles-per-gene` alleles (default 2) which are distinguishable from each other in expressed samples (e.g. which don't differ by one base at codon 108).
+This amounts to the application of a strong diploid prior.
+Which, of course, is not particularly well-justified given the extensive and well-documented gene deletion and duplication in the BCR locus.
+But, it is a reasonable first approximation.
+And, more importantly, it is vastly more accurate than simply keeping every single allele which is a best match.
 
-These methods are best described as 'beta', although they generally yield good results on realistic data sets.
-If you encounter any idiosyncracies, it would be much appreciated if you could open an issue on github.
-Also, it would greatly help our validation efforts in general, if you have any public, processed data sets, if you could pass us a link so we can add them to our database.
-A paper describing these methods is in preparation.
+Second, we re-run smith-waterman with this reduced V germline set, and apply a new method for finding any previously unknown V alleles.
+This method is too complex to describe here in detail, but can perhaps best be described as a principled, hypothesis-testing-based generalization of the [tigger](https://www.ncbi.nlm.nih.gov/pubmed/25675496) method.
+The entire resulting germline set is written to a subdirectory of the `--parameter-dir`, and is used in subsequent runs instead of the initial germline set.
 
-Also, all this new allele talk so far only applies to V.
 We could probably do the same thing for J, but there doesn't seem to be much polymorphism, so it's probably not worthwhile.
 Doing it for D is probably not realistic.
+
+You can disable all of this germline set manipulation, i.e. just use the initial germline set (either imgt, or `--initial-germline-dir`), by specifying `--dont-remove-unlikely-alleles` and `--dont-find-new-alleles`.
 
 #### simulate
 

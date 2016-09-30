@@ -58,6 +58,8 @@ class PartitionDriver(object):
         self.time_to_remove_unseeded_clusters = False
         self.already_removed_unseeded_clusters = False
 
+        self.all_new_allele_info = []
+
         self.sw_param_dir = self.args.parameter_dir + '/sw'
         self.hmm_param_dir = self.args.parameter_dir + '/hmm'
         self.sub_param_dir = self.args.parameter_dir + '/' + self.args.parameter_type
@@ -171,8 +173,8 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def find_new_alleles(self):
         """ look for new alleles with sw, write any that you find to the germline set directory in <self.workdir>, add them to <self.glfo>, and repeat until you don't find any. """
-        all_new_allele_info = []
-        alleles_with_evidence = set()
+        assert len(self.all_new_allele_info) == 0
+        # alleles_with_evidence = set()
         itry = 0
         while True:
             self.run_waterer(find_new_alleles=True, itry=itry)
@@ -182,9 +184,8 @@ class PartitionDriver(object):
                 print '    removing sw cache file %s (it has outdated germline info)' % self.default_cachefname
                 os.remove(self.default_cachefname)
 
-            all_new_allele_info += self.sw_info['new-alleles']
-            alleles_with_evidence |= self.sw_info['alleles-with-evidence']
-            # self.sw_info['alleles-with-evidence']
+            self.all_new_allele_info += self.sw_info['new-alleles']
+            # alleles_with_evidence |= self.sw_info['alleles-with-evidence']
             glutils.restrict_to_genes(self.glfo, list(self.sw_info['all_best_matches']))
             glutils.add_new_alleles(self.glfo, self.sw_info['new-alleles'])
             # if self.args.generate_germline_set:
@@ -196,19 +197,19 @@ class PartitionDriver(object):
 
             itry += 1
             if itry >= self.args.n_max_allele_finding_iterations:
-                print '  too many allele finding iterations: %d >= %d' % (itry, self.args.n_max_allele_finding_iterations)
                 break
 
         if self.args.new_allele_fname is not None:
-            n_new_alleles = len(all_new_allele_info)
+            n_new_alleles = len(self.all_new_allele_info)
             print '  writing %d new %s to %s' % (n_new_alleles, utils.plural_str('allele', n_new_alleles), self.args.new_allele_fname)
             with open(self.args.new_allele_fname, 'w') as outfile:
-                for allele_info in all_new_allele_info:
+                for allele_info in self.all_new_allele_info:
                     outfile.write('>%s\n' % allele_info['gene'])
                     outfile.write('%s\n' % allele_info['seq'])
 
     # ----------------------------------------------------------------------------------------
     def restrict_to_observed_alleles(self, subpdir):
+        # TODO do I still need this now I'm using alleleremover?
         """ Restrict <self.glfo> to genes observed in <subpdir>, and write the changes to <self.my_gldir>. """
         if self.args.debug:
             print '  restricting self.glfo (and %s) to alleles observed in %s' % (self.my_gldir, subpdir)
@@ -239,11 +240,11 @@ class PartitionDriver(object):
 
             self.args.min_observations_to_write = 1
 
-        if self.args.generate_germline_set:
+        if not self.args.dont_remove_unlikely_alleles:
             self.run_waterer(remove_less_likely_alleles=True)
             glutils.remove_genes(self.glfo, self.sw_info['genes-to-remove'])
             glutils.write_glfo(self.my_gldir, self.glfo)
-        if self.args.find_new_alleles or self.args.generate_germline_set:
+        if not self.args.dont_find_new_alleles:
             self.find_new_alleles()
         self.run_waterer(write_parameters=True)
         self.restrict_to_observed_alleles(self.sw_param_dir)
@@ -254,6 +255,9 @@ class PartitionDriver(object):
         self.run_hmm('viterbi', parameter_in_dir=self.sw_param_dir, parameter_out_dir=self.hmm_param_dir, count_parameters=True)
         self.restrict_to_observed_alleles(self.hmm_param_dir)
         self.write_hmms(self.hmm_param_dir)
+
+        if len(self.all_new_allele_info) > 0:
+            print '  %d new alleles written to {sw,hmm}/%s subdirs of parameter dir %s' % (len(self.all_new_allele_info), glutils.glfo_dir, self.args.parameter_dir)
 
     # ----------------------------------------------------------------------------------------
     def run_algorithm(self, algorithm):

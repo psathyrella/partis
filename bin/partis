@@ -340,16 +340,16 @@ subconfig = {
 
 subargs = {subname : [] for subname in subconfig}
 
-subargs['cache-parameters'].append({'name' : '--generate-germline-set', 'kwargs' : {'action' : 'store_true', 'help' : 'Still under development. First removes from the germline set all alleles that we can\'t be very sure are really there, then runs new-allele finding both to find new alleles and to re-add any removed alleles for which there is good evidence.'}})
-subargs['cache-parameters'].append({'name' : '--find-new-alleles', 'kwargs' : {'action' : 'store_true', 'help' : 'look for new alleles which are separated only by snps from existing alleles, add them to the existing germline set, and write it all to --parameter-dir.'}})
-subargs['cache-parameters'].append({'name' : '--new-allele-fname', 'kwargs' : {'help' : 'fasta fname to which to write any new alleles (they are also written, with existing alleles, to --parameter-dir)'}})
+subargs['cache-parameters'].append({'name' : '--dont-remove-unlikely-alleles', 'kwargs' : {'action' : 'store_true', 'help' : 'assign each sequence to its closest germline match, even if this would imply an unrealistically large number of alleles per gene in this sample'}})
+subargs['cache-parameters'].append({'name' : '--dont-find-new-alleles', 'kwargs' : {'action' : 'store_true', 'help' : 'only use alleles which are in the initial germline set'}})
+subargs['cache-parameters'].append({'name' : '--always-find-new-alleles', 'kwargs' : {'action' : 'store_true', 'help' : 'By default we only look for new alleles if a repertoire\'s mutation rate is amenable to reasonable new-allele sensitivity (i.e. if it\'s not crazy high). This overrides that.'}})
+subargs['cache-parameters'].append({'name' : '--new-allele-fname', 'kwargs' : {'help' : 'fasta fname to which to write any new alleles (they are also written, together with existing alleles, to --parameter-dir)'}})
 subargs['cache-parameters'].append({'name' : '--debug-allele-finding', 'kwargs' : {'action' : 'store_true', 'help' : 'print lots of debug info on new-allele fits'}})
-subargs['cache-parameters'].append({'name' : '--n-max-allele-finding-iterations', 'kwargs' : {'type' : int, 'default' : 2, 'help' : 'maximum number of times to look for new alleles'}})
+subargs['cache-parameters'].append({'name' : '--n-max-allele-finding-iterations', 'kwargs' : {'type' : int, 'default' : 1, 'help' : 'maximum number of times to look for new alleles'}})
 subargs['cache-parameters'].append({'name' : '--n-max-snps', 'kwargs' : {'type' : int, 'default' : 8, 'help' : 'when new-allele finding, look for new alleles separated from existing alleles by up to this many SNPs'}})
 subargs['cache-parameters'].append({'name' : '--n-max-mutations-per-segment', 'kwargs' : {'type' : int, 'default' : 30, 'help' : 'when new-allele finding, exclude sequences which have more than this many mutations in the V segment'}})
 subargs['cache-parameters'].append({'name' : '--n-alleles-per-gene', 'kwargs' : {'type' : int, 'default' : 2, 'help' : 'number of alleles to assume per gene when removing spurious alleles during parameter caching'}})
 subargs['cache-parameters'].append({'name' : '--min-allele-prevalence-fraction', 'kwargs' : {'type' : float, 'default' : 0.0005, 'help' : 'Remove any alleles that represent less than this fraction of the repertoire.'}})
-subargs['cache-parameters'].append({'name' : '--always-find-new-alleles', 'kwargs' : {'action' : 'store_true', 'help' : 'By default we only look for new alleles if a repertoire\'s mutation rate is amenable to reasonable new-allele sensitivity (i.e. if it\'s not crazy high). This overrides that.'}})
 
 subargs['partition'].append({'name' : '--naive-hamming', 'kwargs' : {'action' : 'store_true', 'help' : 'agglomerate purely with naive hamming distance, i.e. set the low and high preclustering bounds to the same value'}})
 subargs['partition'].append({'name' : '--naive-vsearch', 'kwargs' : {'action' : 'store_true', 'help' : 'Very fast clustering: infer naive (unmutated ancestor) for each input sequence, then toss it all into vsearch. But, of course, not as accurate as the slower methods.'}})
