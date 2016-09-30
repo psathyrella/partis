@@ -44,7 +44,8 @@ class AlleleFinder(object):
 
         self.n_muted_min = 30  # don't fit positions that have fewer total mutations than this (i.e. summed over bins)
         self.n_total_min = 150  # ...or fewer total observations than this
-        self.n_muted_min_per_bin = 8 # <istart>th bin has to have at least this many mutated sequences (i.e. 2-3 sigma from zero)
+        self.n_muted_min_per_bin = 8  # <istart>th bin has to have at least this many mutated sequences (i.e. 2-3 sigma from zero)
+        self.min_fraction_per_bin = 0.01  # require that every bin (i.e. n_muted) from 0 through <self.args.max_n_snps> has at least 1% of the total (unless overridden)
 
         self.min_min_candidate_ratio = 2.25  # every candidate ratio must be greater than this
         self.min_mean_candidate_ratio = 2.75  # mean of candidate ratios must be greater than this
@@ -61,7 +62,9 @@ class AlleleFinder(object):
         self.new_allele_info = []
         self.positions_to_plot = {}
         self.n_seqs_too_highly_mutated = {}  # sequences (per-gene) that had more than <self.args.n_max_mutations_per_segment> mutations
-        self.gene_obs_counts, self.unmutated_gene_obs_counts = {}, {}
+        self.gene_obs_counts = {}
+        self.overall_mute_counts = Hist(self.args.n_max_mutations_per_segment + 1, 0.5, self.args.n_max_mutations_per_segment - 0.5)  # i.e. 0th (underflow) bin corresponds to zero mutations
+        self.per_gene_mute_counts = {}  # crappy name -- this is the denominator for each position in <self.counts>. Which is usually the same for most positions, but it's cleaner to keep it separate than choose one of 'em.
         self.n_big_del_skipped = {s : {} for s in self.n_bases_to_exclude}
 
         self.n_fits = 0
@@ -83,7 +86,7 @@ class AlleleFinder(object):
             for istart in range(self.args.n_max_mutations_per_segment + 1):  # istart and n_mutes are equivalent
                 self.counts[gene][igl][istart] = {n : 0 for n in ['muted', 'total'] + utils.nukes}
         self.gene_obs_counts[gene] = 0
-        self.unmutated_gene_obs_counts[gene] = 0
+        self.per_gene_mute_counts[gene] = Hist(self.args.n_max_mutations_per_segment + 1, 0.5, self.args.n_max_mutations_per_segment - 0.5)  # i.e. 0th (underflow) bin corresponds to zero mutations
         for side in self.n_big_del_skipped:
             self.n_big_del_skipped[side][gene] = 0
         self.n_seqs_too_highly_mutated[gene] = 0
@@ -176,8 +179,8 @@ class AlleleFinder(object):
                 continue
 
             n_mutes, germline_seq, query_seq = self.get_seqs(info, region, gene)  # NOTE no longer necessarily correspond to <info>
-            if n_mutes == 0:
-                self.unmutated_gene_obs_counts[gene] += 1
+            self.overall_mute_counts.fill(n_mutes)  # NOTE this is almost the same as the hists in mutefreqer.py, except those divide by sequence length, and more importantly, they don't make sure all the sequences are the same length (i.e. the base exclusions stuff)
+            self.per_gene_mute_counts[gene].fill(n_mutes)  # NOTE this is almost the same as the hists in mutefreqer.py, except those divide by sequence length, and more importantly, they don't make sure all the sequences are the same length (i.e. the base exclusions stuff)
 
             # i.e. do *not* use <info> after this point
 
@@ -765,6 +768,19 @@ class AlleleFinder(object):
     def finalize(self, debug=False):
         assert not self.finalized
 
+        region = 'v'
+        if not self.args.always_find_new_alleles:  # NOTE this is (on purpose) summed over all genes -- genes with homozygous unknown alleles would always fail this criterion
+            binline, contents_line = self.overall_mute_counts.horizontal_print(bin_centers=True, bin_decimals=0, contents_decimals=0)
+            print '             n muted in v' + binline
+            print '                   counts' + contents_line
+            total = int(self.overall_mute_counts.integral(include_overflows=True))  # underflow bin is zero mutations, and we want overflow, too NOTE why the fuck isn't this quite equal to sum(self.gene_obs_counts.values())?
+            for n_mutes in range(self.args.n_max_snps):
+                if self.overall_mute_counts.bin_contents[n_mutes] / float(total) < self.min_fraction_per_bin:
+                    print '        not looking for new alleles: not enough counts (%d / %d = %.3f < %.3f)' % (self.overall_mute_counts.bin_contents[n_mutes], total, self.overall_mute_counts.bin_contents[n_mutes] / float(total), self.min_fraction_per_bin),
+                    print 'with %d %s mutations (override this with --always-find-new-alleles, or by reducing --n-max-snps)' % (n_mutes, region)
+                    self.finalized = True
+                    return
+
         start = time.time()
         self.xyvals = {}
         self.positions_to_plot = {gene : set() for gene in self.counts}
@@ -772,7 +788,7 @@ class AlleleFinder(object):
         for gene in sorted(self.counts):
             if debug:
                 sys.stdout.flush()
-                print ' %s: %d %s (%d unmutated)' % (utils.color_gene(gene), self.gene_obs_counts[gene], utils.plural_str('observation', self.gene_obs_counts[gene]), self.unmutated_gene_obs_counts[gene])
+                print ' %s: %d %s (%d unmutated)' % (utils.color_gene(gene), self.gene_obs_counts[gene], utils.plural_str('observation', self.gene_obs_counts[gene]), self.per_gene_mute_counts[gene].bin_contents[0])
                 print '          skipping',
                 print '%d seqs that are too highly mutated,' % self.n_seqs_too_highly_mutated[gene],
                 print '%d that had 5p deletions larger than %d,' % (self.n_big_del_skipped['5p'][gene], self.n_bases_to_exclude['5p'][gene]),
@@ -793,7 +809,7 @@ class AlleleFinder(object):
                     print '          not enough positions with enough observations to fit %s' % utils.color_gene(gene)
                 continue
 
-            if self.unmutated_gene_obs_counts[gene] > self.n_total_min:  # UPDATE this will have to change to accomodate repertoires with very few unmutated sequences
+            if self.per_gene_mute_counts[gene].bin_contents[0] > self.n_total_min:  # UPDATE this will have to change to accomodate repertoires with very few unmutated sequences
                 self.alleles_with_evidence.add(gene)
 
             # loop over each snp hypothesis

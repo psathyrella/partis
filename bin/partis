@@ -347,6 +347,7 @@ subargs['cache-parameters'].append({'name' : '--n-max-snps', 'kwargs' : {'type' 
 subargs['cache-parameters'].append({'name' : '--n-max-mutations-per-segment', 'kwargs' : {'type' : int, 'default' : 30, 'help' : 'when new-allele finding, exclude sequences which have more than this many mutations in the V segment'}})
 subargs['cache-parameters'].append({'name' : '--n-alleles-per-gene', 'kwargs' : {'type' : int, 'default' : 2, 'help' : 'number of alleles to assume per gene when removing spurious alleles during parameter caching'}})
 subargs['cache-parameters'].append({'name' : '--min-allele-prevalence-fraction', 'kwargs' : {'type' : float, 'default' : 0.0005, 'help' : 'Remove any alleles that represent less than this fraction of the repertoire.'}})
+subargs['cache-parameters'].append({'name' : '--always-find-new-alleles', 'kwargs' : {'action' : 'store_true', 'help' : 'By default we only look for new alleles if a repertoire\'s mutation rate is amenable to reasonable new-allele sensitivity (i.e. if it\'s not crazy high). This overrides that.'}})
 
 subargs['partition'].append({'name' : '--naive-hamming', 'kwargs' : {'action' : 'store_true', 'help' : 'agglomerate purely with naive hamming distance, i.e. set the low and high preclustering bounds to the same value'}})
 subargs['partition'].append({'name' : '--naive-vsearch', 'kwargs' : {'action' : 'store_true', 'help' : 'Very fast clustering: infer naive (unmutated ancestor) for each input sequence, then toss it all into vsearch. But, of course, not as accurate as the slower methods.'}})

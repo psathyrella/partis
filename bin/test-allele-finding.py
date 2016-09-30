@@ -90,7 +90,7 @@ def run_test(args):
                 # os.rmdir(sw_cache_gldir)
 
     # generate germline set and cache parameters
-    cmd_str = base_cmd + ' cache-parameters --infname ' + simfname + ' --only-smith-waterman --debug-allele-finding'
+    cmd_str = base_cmd + ' cache-parameters --infname ' + simfname + ' --only-smith-waterman --debug-allele-finding --always-find-new-alleles'
     # cmd_str = 'python -m cProfile -s tottime -o prof.out ' + cmd_str
     cmd_str += ' --n-procs ' + str(args.n_procs)
     if args.slurm:
