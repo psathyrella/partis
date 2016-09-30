@@ -1550,7 +1550,7 @@ def run_cmd(cmd_str, workdir):
     # sys.exit()
     if not os.path.exists(workdir):
         os.makedirs(workdir)
-    proc = Popen(cmd_str + ' 1>' + workdir + '/out' + ' 2>' + workdir + '/err', shell=True)
+    proc = Popen(cmd_str.split(), stdout=open(workdir + '/out', 'w'), stderr=open(workdir + '/err', 'w'))
     return proc
 
 # ----------------------------------------------------------------------------------------
@@ -1585,7 +1585,7 @@ def finish_process(iproc, procs, n_tries, workdir, logdir, outfname, cmd_str, db
     elif n_tries[iproc] > 5:
         raise Exception('exceeded max number of tries for command\n    %s\nlook for output in %s and %s' % (cmd_str, workdir, logdir))
     else:
-        print '    rerunning proc %d (exited with %d' % (iproc, procs[iproc].returncode),
+        print '    rerunning proc %d (n tries %d, exited with %d' % (n_tries[iproc], iproc, procs[iproc].returncode),
         if not os.path.exists(outfname):
             print ', missing output %s' % outfname,
         print ')'
