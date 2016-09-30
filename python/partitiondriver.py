@@ -304,7 +304,7 @@ class PartitionDriver(object):
         if self.args.seed_unique_id is None:
             initial_nsets = [[q, ] for q in self.sw_info['queries']]
         else:
-            seed_cdr3_length = self.sw_info[self.args.seed_unique_id]['cdr3_length']
+            seed_cdr3_length = self.sw_info[self.args.seed_unique_id]['cdr3_length']  # NOTE should probably remove this now that it's in waterer
             initial_nsets = [[q, ] for q in self.sw_info['queries'] if self.sw_info[q]['cdr3_length'] == seed_cdr3_length]
         cpath.add_partition(initial_nsets, logprob=0., n_procs=n_procs)  # NOTE sw info excludes failed sequences
         n_proc_list = []
