@@ -909,7 +909,7 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
         if indelfo['reversed_seq'] == lseq:  # if <line> has the reversed sequence in it, then this is an inferred <line>, i.e. we removed the info, then passed the reversed sequence to the sw/hmm, so we need to reverse the indels now in order to get a sequence with indels in it
             reverse_indels = True
         if len(indelfo['indels']) > 1:
-            print '%s can\'t yet print multiple indels' % color('red', 'warning')
+            print '        %s can\'t yet print multiple indels' % color('yellow', 'warning')
         add_indels_to_germline_strings(line, indelfo)
 
     # ----------------------------------------------------------------------------------------
