@@ -63,7 +63,7 @@ class AlleleFinder(object):
         self.positions_to_plot = {}
         self.n_seqs_too_highly_mutated = {}  # sequences (per-gene) that had more than <self.args.n_max_mutations_per_segment> mutations
         self.gene_obs_counts = {}
-        self.overall_mute_counts = Hist(self.args.n_max_mutations_per_segment + 1, 0.5, self.args.n_max_mutations_per_segment - 0.5)  # i.e. 0th (underflow) bin corresponds to zero mutations
+        self.overall_mute_counts = Hist(self.args.n_max_mutations_per_segment - 1, 0.5, self.args.n_max_mutations_per_segment - 0.5)  # i.e. 0th (underflow) bin corresponds to zero mutations
         self.per_gene_mute_counts = {}  # crappy name -- this is the denominator for each position in <self.counts>. Which is usually the same for most positions, but it's cleaner to keep it separate than choose one of 'em.
         self.n_big_del_skipped = {s : {} for s in self.n_bases_to_exclude}
 
@@ -86,7 +86,7 @@ class AlleleFinder(object):
             for istart in range(self.args.n_max_mutations_per_segment + 1):  # istart and n_mutes are equivalent
                 self.counts[gene][igl][istart] = {n : 0 for n in ['muted', 'total'] + utils.nukes}
         self.gene_obs_counts[gene] = 0
-        self.per_gene_mute_counts[gene] = Hist(self.args.n_max_mutations_per_segment + 1, 0.5, self.args.n_max_mutations_per_segment - 0.5)  # i.e. 0th (underflow) bin corresponds to zero mutations
+        self.per_gene_mute_counts[gene] = Hist(self.args.n_max_mutations_per_segment - 1, 0.5, self.args.n_max_mutations_per_segment - 0.5)  # i.e. 0th (underflow) bin corresponds to zero mutations
         for side in self.n_big_del_skipped:
             self.n_big_del_skipped[side][gene] = 0
         self.n_seqs_too_highly_mutated[gene] = 0
@@ -769,6 +769,7 @@ class AlleleFinder(object):
         assert not self.finalized
 
         region = 'v'
+        print '%s: looking for new alleles' % utils.color('blue', 'try ' + str(self.itry))
         if not self.args.always_find_new_alleles:  # NOTE this is (on purpose) summed over all genes -- genes with homozygous unknown alleles would always fail this criterion
             binline, contents_line = self.overall_mute_counts.horizontal_print(bin_centers=True, bin_decimals=0, contents_decimals=0)
             print '             n muted in v' + binline
@@ -784,7 +785,6 @@ class AlleleFinder(object):
         start = time.time()
         self.xyvals = {}
         self.positions_to_plot = {gene : set() for gene in self.counts}
-        print '%s: looking for new alleles' % utils.color('blue', 'try ' + str(self.itry))
         for gene in sorted(self.counts):
             if debug:
                 sys.stdout.flush()

@@ -156,7 +156,7 @@ class AlleleRemover(object):
 
                 snpstr = ' ' if ig == 0 else '%d' % utils.hamming_distance(gclass[0]['seq'], gfo['seq'])
                 keepstr = utils.color('yellow', 'x', width=5) if gfo['gene'] in self.genes_to_keep else '     '
-                print '   %20s  %5d  %5s  %s    %s' % (utils.color_gene(gfo['gene'], width=20), gfo['counts'], snpstr, keepstr, utils.color_mutants(gclass[0]['seq'], gfo['seq']))
+                print '       %20s  %5d  %5s  %s' % (utils.color_gene(gfo['gene'], width=20), gfo['counts'], snpstr, keepstr) #, utils.color_mutants(gclass[0]['seq'], gfo['seq']))
 
         # for igene in range(len(sorted_gene_counts)):
         #     gene, counts = sorted_gene_counts[igene]

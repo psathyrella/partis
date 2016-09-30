@@ -313,6 +313,8 @@ parent_parser.add_argument('--only-smith-waterman', action='store_true', help='E
 # print 'TODO arg, have to do seed cdr3 length removal stuff before padding'
 # why the fuck is the hmm input file sometimes not there?
 # don't warn about queries missing from partition if they've been removed because of --seed-unique-id
+# don't print the whole damn partition when you're removing unseeded clusters
+# n_procs maybe needs to take into account the sometimes-drastic increase in n-clusters after you remove unseeded clusters
 
 # allele crap:
 #     all alleles (including new ones) should have roughly the same mut freq distribution (especially at low mutation)'
