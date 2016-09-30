@@ -7,7 +7,7 @@ import math
 import glob
 from collections import OrderedDict
 import csv
-from subprocess import check_output, CalledProcessError, Popen
+from subprocess import check_call, check_output, CalledProcessError, Popen
 import multiprocessing
 import copy
 
@@ -1579,16 +1579,20 @@ def run_cmds(cmdfos, debug=None):
 # deal with a process once it's finished (i.e. check if it failed, and restart if so)
 def finish_process(iproc, procs, n_tries, workdir, logdir, outfname, cmd_str, dbgfo=None, debug=None):
     procs[iproc].communicate()
-    process_out_err('', '', extra_str='' if len(procs) == 1 else str(iproc), dbgfo=dbgfo, logdir=logdir, debug=debug)
     if procs[iproc].returncode == 0 and os.path.exists(outfname):  # TODO also check cachefile, if necessary
+        process_out_err('', '', extra_str='' if len(procs) == 1 else str(iproc), dbgfo=dbgfo, logdir=logdir, debug=debug)
         procs[iproc] = None  # job succeeded
     elif n_tries[iproc] > 5:
         raise Exception('exceeded max number of tries for command\n    %s\nlook for output in %s and %s' % (cmd_str, workdir, logdir))
     else:
         print '    rerunning proc %d (exited with %d' % (iproc, procs[iproc].returncode),
         if not os.path.exists(outfname):
-            print ', output %s d.n.e.' % outfname,
+            print ', missing output %s' % outfname,
         print ')'
+        if os.path.exists(logdir + '/err'):
+            print '        err tail:'
+            errstr = check_output(['tail', logdir + '/err'])
+            print '\n'.join(['            ' + l for l in errstr.split('\n')])
         procs[iproc] = run_cmd(cmd_str, workdir)
         n_tries[iproc] += 1
 

@@ -358,7 +358,7 @@ class PartitionDriver(object):
             if not self.already_removed_unseeded_clusters:  # if we didn't already remove the unseeded clusters in a previous step
                 print '     time to remove unseeded clusters'
                 self.time_to_remove_unseeded_clusters = True  # (they don't actually get removed until we're writing hmm input)
-                initial_seqs_per_proc = int(float(initial_nseqs) / n_proc_list[0])
+                initial_seqs_per_proc = max(1, int(float(initial_nseqs) / n_proc_list[0]))
                 self.unseeded_clusters = self.get_unseeded_clusters(cpath.partitions[cpath.i_best_minus_x])
                 n_remaining_seqs = initial_nseqs - len(self.unseeded_clusters)
                 integer = 3  # multiply by something 'cause we're turning off the seed uid for the last few times through
@@ -392,7 +392,7 @@ class PartitionDriver(object):
         input_ids = set(self.input_info.keys())  # maybe should switch this to self.sw_info['queries']? at least if we want to not worry about missing failed sw queries
         missing_ids = input_ids - uids - self.unseeded_clusters
         if len(missing_ids) > 0:
-            warnstr = 'queries missing from partition: ' + ' '.join(missing_ids)
+            warnstr = 'queries missing from partition: ' + str(len(missing_ids))
             print '  ' + utils.color('red', 'warning') + ' ' + warnstr
 
     # ----------------------------------------------------------------------------------------
