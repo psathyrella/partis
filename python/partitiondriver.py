@@ -653,9 +653,9 @@ class PartitionDriver(object):
         if sum(summaryfo['read-cache'].values()) == 0:
             print '                no/empty cache file'
         else:
-            print '          read from cache:  naive-seqs %3d   logprobs %3d' % (summaryfo['read-cache']['naive-seqs'], summaryfo['read-cache']['logprobs'])
-        print '                    calcd:         vtb %3d        fwd %3d' % (summaryfo['calcd']['vtb'], summaryfo['calcd']['fwd'])
-        print '                   merged:       hfrac %3d     lratio %3d' % (summaryfo['merged']['hfrac'], summaryfo['merged']['lratio'])
+            print '          read from cache:  naive-seqs %8d   logprobs %8d' % (summaryfo['read-cache']['naive-seqs'], summaryfo['read-cache']['logprobs'])
+        print '                    calcd:         vtb %8d        fwd %8d' % (summaryfo['calcd']['vtb'], summaryfo['calcd']['fwd'])
+        print '                   merged:       hfrac %8d     lratio %8d' % (summaryfo['merged']['hfrac'], summaryfo['merged']['lratio'])
         if len(self.bcrham_proc_info) == 1:
             print '                     time:  %.1f sec' % summaryfo['time']['bcrham'][0]
         else:

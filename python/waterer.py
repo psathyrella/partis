@@ -153,7 +153,7 @@ class Waterer(object):
                 found_germline_changes = True
 
         if self.args.seed_unique_id is not None:  # TODO I should really get the seed cdr3 length before running anything, and then not add seqs with different cdr3 length to start with, so those other sequences' gene matches don't get mixed in
-            tmp_old_length = len(self.info['queries'])
+            initial_n_queries = len(self.info['queries'])
             seed_cdr3_length = self.info[self.args.seed_unique_id]['cdr3_length']  # NOTE should probably remove this now that it's in waterer
             for query in copy.deepcopy(self.info['queries']):
                 if self.info[query]['cdr3_length'] != seed_cdr3_length:
@@ -161,7 +161,7 @@ class Waterer(object):
                     self.info['queries'].remove(query)
                     if query in self.info['indels']:
                         del self.info['indels'][query]
-            print '      removed %d / %d sequences with cdr3 length different from seed sequence' % (tmp_old_length - len(self.info['queries']), len(self.info['queries']))
+            print '      removed %d / %d sequences with cdr3 length different from seed sequence' % (initial_n_queries - len(self.info['queries']), initial_n_queries)
 
         if not just_read_cachefile:  # add padded info to self.info (returns if stuff has already been padded)
             self.pad_seqs_to_same_length()  # NOTE this uses *all the gene matches (not just the best ones), so it has to come before we call pcounter.write(), since that fcn rewrites the germlines removing genes that weren't best matches. But NOTE also that I'm not sure what but that the padding actually *needs* all matches (rather than just all *best* matches)
