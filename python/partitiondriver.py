@@ -306,6 +306,7 @@ class PartitionDriver(object):
         print 'hmm'
         # cache hmm naive seq for each single query
         if len(self.sw_info['queries']) > 50 or self.args.naive_vsearch or self.args.naive_swarm:
+            print '--> caching all naive sequences'
             self.run_hmm('viterbi', self.sub_param_dir, n_procs=self.get_n_precache_procs(len(self.sw_info['queries'])), precache_all_naive_seqs=True)
 
         if self.args.naive_vsearch or self.args.naive_swarm:
@@ -572,7 +573,7 @@ class PartitionDriver(object):
             y1, y2 = 0.08, 0.15
             hi = utils.intexterpolate(x1, y1, x2, y2, mute_freq)  # ...and never merge 'em if it's bigger than this
 
-        print '       naive hfrac bounds: %.3f %.3f   (%.3f mean mutation in %s)' % (lo, hi, mute_freq, parameter_dir)
+        print '       naive hfrac bounds: %.3f %.3f   (%.3f mean mutation in parameter dir %s)' % (lo, hi, mute_freq, parameter_dir)
         self.cached_naive_hamming_bounds = (lo, hi)
         return self.cached_naive_hamming_bounds
 
@@ -1123,7 +1124,8 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def write_hmm_input(self, algorithm, parameter_dir, cpath, shuffle_input=False):
         """ Write input file for bcrham """
-        print '    writing input'
+        if self.args.debug:
+            print '    writing input'
 
         skipped_gene_matches = set()
 
