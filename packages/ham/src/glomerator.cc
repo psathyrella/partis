@@ -95,6 +95,7 @@ void Glomerator::ReadCacheFile() {
   ifstream ifs(args_->cachefile());
   if(!ifs.is_open()) {  // this means we don't have any cached results to start with, but we'll write out what we have at the end of the run to this file
     cout << "        cachefile d.n.e." << endl;
+    cout << "        read-cache:  logprobs 0   naive-seqs 0" << endl;
     return;
   }
   string line;
@@ -142,7 +143,7 @@ void Glomerator::ReadCacheFile() {
       initial_naive_seqs_.insert(query);
     }
   }
-  cout << "        read " << log_probs_.size() << " cached logprobs and " << naive_seqs_.size() << " naive seqs" << endl;
+  cout << "        read-cache:  logprobs " << log_probs_.size() << "   naive-seqs " << naive_seqs_.size() << endl;
 }
 
 // ----------------------------------------------------------------------------------------
@@ -289,7 +290,7 @@ string Glomerator::CacheSizeString() {
 // ----------------------------------------------------------------------------------------
 string Glomerator::FinalString() {
     char buffer[2000];
-    sprintf(buffer, "        calcd:   vtb %-4d  fwd %-4d  hfrac %-8d    merged:  hfrac %-4d lratio %-4d", n_vtb_calculated_, n_fwd_calculated_, n_hfrac_calculated_, n_hfrac_merges_, n_lratio_merges_);
+    sprintf(buffer, "        calcd:   vtb %-4d  fwd %-4d  hfrac %-8d\n        merged:  hfrac %-4d lratio %-4d", n_vtb_calculated_, n_fwd_calculated_, n_hfrac_calculated_, n_hfrac_merges_, n_lratio_merges_);
     return string(buffer);
 }
 
@@ -991,7 +992,7 @@ pair<double, Query> Glomerator::FindLRatioMerge(ClusterPath *path) {
 
   if(max_lratio == -INFINITY) {  // if we didn't find any merges that we liked
     path->finished_ = true;
-    cout << "        stop with:  big hfrac " << n_skipped_hamming << "   small lratio " << n_small_lratios << "   total " << n_total_pairs;
+    cout << "        stop-with:   big-hfrac " << n_skipped_hamming << "   small-lratio " << n_small_lratios << "   total " << n_total_pairs;
     if(failed_queries_.size() > 0)
       cout << "   (" << failed_queries_.size() << " failed queries)";
     cout << endl;

@@ -212,6 +212,17 @@ annotation_headers = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length',
                      + functional_columns
 sw_cache_headers = ['k_v', 'k_d', 'padlefts', 'padrights', 'all_matches', 'mut_freqs']
 partition_cachefile_headers = ('unique_ids', 'logprob', 'naive_seq', 'naive_hfrac', 'errors')  # these have to match whatever bcrham is expecting
+bcrham_dbgstrs = {  # corresponds to stdout from glomerator.cc
+    'read-cache' : ['logprobs', 'naive-seqs'],
+    'calcd' : ['vtb', 'fwd', 'hfrac'],
+    'merged' : ['hfrac', 'lratio'],
+    'time' : ['bcrham', ]
+}
+bcrham_dbgstr_types = {
+    'sum' : ['calcd', 'merged'],  # for these ones, sum over all procs
+    'same' : ['read-cache', ],  # check that these are the same for all procs
+    'min-max' : ['time', ]
+}
 
 # ----------------------------------------------------------------------------------------
 def generate_dummy_v(d_gene):
@@ -448,6 +459,13 @@ def plural_str(pstr, count):
         return pstr
     else:
         return pstr + 's'
+
+# ----------------------------------------------------------------------------------------
+def plural(count):  # TODO should combine these
+    if count == 1:
+        return ''
+    else:
+        return 's'
 
 # ----------------------------------------------------------------------------------------
 def summarize_gene_name(gene):
@@ -1638,7 +1656,7 @@ def process_out_err(out, err, extra_str='', dbgfo=None, logdir=None, debug=None)
             print_str += line + '\n'
 
     if dbgfo is not None:  # keep track of how many vtb and fwd calculations the process made
-        for header, variables in {'calcd' : ['vtb', 'fwd'], 'time' : ['bcrham', ]}.items():
+        for header, variables in bcrham_dbgstrs.items():
             dbgfo[header] = {}
             theselines = [ln for ln in out.split('\n') if header + ':' in ln]
             if len(theselines) != 1:
@@ -1664,6 +1682,39 @@ def process_out_err(out, err, extra_str='', dbgfo=None, logdir=None, debug=None)
                 dbgfile.write(print_str)
         else:
             assert False
+
+# ----------------------------------------------------------------------------------------
+def summarize_bcrham_dbgstrs(dbgfos):
+    def defval(dbgcat):
+        if dbgcat in bcrham_dbgstr_types['sum']:
+            return 0.
+        elif dbgcat in bcrham_dbgstr_types['same']:
+            return None
+        elif dbgcat in bcrham_dbgstr_types['min-max']:
+            return []
+        else:
+            assert False
+
+    summaryfo = {dbgcat : {vtype : defval(dbgcat) for vtype in tlist} for dbgcat, tlist in bcrham_dbgstrs.items()}
+    for procfo in dbgfos:
+        for dbgcat in bcrham_dbgstr_types['same']:
+            for vtype in bcrham_dbgstrs[dbgcat]:
+                if summaryfo[dbgcat][vtype] is None:
+                    summaryfo[dbgcat][vtype] = procfo[dbgcat][vtype]
+                if procfo[dbgcat][vtype] != summaryfo[dbgcat][vtype]:
+                    print '        %s bcrham procs had different \'%s\' \'%s\' info: %d vs %d' % (color('red', 'warning'), vtype, dbgcat, procfo[dbgcat][vtype], summaryfo[dbgcat][vtype])
+        for dbgcat in bcrham_dbgstr_types['sum']:
+            for vtype in bcrham_dbgstrs[dbgcat]:
+                summaryfo[dbgcat][vtype] += procfo[dbgcat][vtype]
+        for dbgcat in bcrham_dbgstr_types['min-max']:
+            for vtype in bcrham_dbgstrs[dbgcat]:
+                summaryfo[dbgcat][vtype].append(procfo[dbgcat][vtype])
+
+    for dbgcat in bcrham_dbgstr_types['min-max']:
+        for vtype in bcrham_dbgstrs[dbgcat]:
+            summaryfo[dbgcat][vtype] = min(summaryfo[dbgcat][vtype]), max(summaryfo[dbgcat][vtype])
+
+    return summaryfo
 
 # ----------------------------------------------------------------------------------------
 def find_first_non_ambiguous_base(seq):

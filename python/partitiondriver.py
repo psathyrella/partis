@@ -76,6 +76,8 @@ class PartitionDriver(object):
 
         self.deal_with_persistent_cachefile()
 
+        self.cached_naive_hamming_bounds = self.args.naive_hamming_bounds  # just so we don't get them every iteration through the clustering loop
+
         self.aligned_gl_seqs = None
         if self.args.aligned_germline_fname is not None:
             self.aligned_gl_seqs = glutils.read_aligned_gl_seqs(self.args.aligned_germline_fname, self.glfo)
@@ -271,10 +273,12 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def view_existing_annotations(self):
         with open(self.args.outfname) as csvfile:
+            failed_queries = set()
             reader = csv.DictReader(csvfile)
             for line in reader:
                 if line['v_gene'] == '':
-                    print '   %s failed' % line['unique_ids']
+                    # print '   %s failed' % line['unique_ids']
+                    failed_queries.add(line['unique_ids'])
                     continue
                 utils.process_input_line(line)
                 if self.args.infname is not None and self.reco_info is not None:
@@ -282,6 +286,8 @@ class PartitionDriver(object):
                 utils.add_implicit_info(self.glfo, line, existing_implicit_keys=('aligned_d_seqs', 'aligned_j_seqs', 'aligned_v_seqs', 'cdr3_length', 'naive_seq', 'in_frames', 'mutated_invariants', 'stops', 'mut_freqs'))
                 print '    inferred:\n'
                 utils.print_reco_event(self.glfo['seqs'], line)
+        if len(failed_queries) > 0:
+            print '%d failed queries' % len(failed_queries)
 
     # ----------------------------------------------------------------------------------------
     def view_existing_partitions(self):
@@ -378,9 +384,9 @@ class PartitionDriver(object):
         total = 0.  # sum over each process
         for procinfo in self.bcrham_proc_info:
             if 'vtb' not in procinfo['calcd'] or 'fwd' not in procinfo['calcd']:
-                print 'WARNING couldn\'t find vtb/fwd in:\n%s' % procinfo['calcd']  # may as well not fail, it probably just means we lost some stdout somewhere. Which, ok, is bad, but let's say it shouldn't be fatal.
+                print '%s couldn\'t find vtb/fwd in:\n%s' % (utils.color('red', 'warning'), procinfo['calcd'])  # may as well not fail, it probably just means we lost some stdout somewhere. Which, ok, is bad, but let's say it shouldn't be fatal.
                 return 1.  # er, or something?
-            if self.args.naive_hamming:
+            if self.args.naive_hamming:  # make sure we didn't accidentally calculate some fwds
                 assert procinfo['calcd']['fwd'] == 0.
             total += procinfo['calcd']['vtb'] + procinfo['calcd']['fwd']
         print '          n calcd: %d (%.1f per proc)' % (total, float(total) / len(self.bcrham_proc_info))
@@ -536,9 +542,12 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def get_naive_hamming_bounds(self, parameter_dir):
-        if self.args.naive_hamming_bounds is not None:  # let the command line override auto bound calculation
-            print '       naive hfrac bounds: %.3f %.3f' % tuple(self.args.naive_hamming_bounds)
-            return self.args.naive_hamming_bounds
+        if self.cached_naive_hamming_bounds is not None:  # only run the stuff below once
+            return self.cached_naive_hamming_bounds
+
+        # if self.args.naive_hamming_bounds is not None:  # let the command line override auto bound calculation
+        #     print '       naive hfrac bounds: %.3f %.3f' % tuple(self.args.naive_hamming_bounds)
+        #     return self.args.naive_hamming_bounds
 
         mutehist = Hist(fname=parameter_dir + '/all-mean-mute-freqs.csv')
         mute_freq = mutehist.get_mean(ignore_overflows=True)
@@ -560,8 +569,9 @@ class PartitionDriver(object):
             y1, y2 = 0.08, 0.15
             hi = utils.intexterpolate(x1, y1, x2, y2, mute_freq)  # ...and never merge 'em if it's bigger than this
 
-        print '       naive hfrac bounds: %.3f %.3f   (%.3f mutation in %s)' % (lo, hi, mute_freq, parameter_dir)
-        return [lo, hi]
+        print '       naive hfrac bounds: %.3f %.3f   (%.3f mean mutation in %s)' % (lo, hi, mute_freq, parameter_dir)
+        self.cached_naive_hamming_bounds  = (lo, hi)
+        return self.cached_naive_hamming_bounds
 
     # ----------------------------------------------------------------------------------------
     def get_hmm_cmd_str(self, algorithm, csv_infname, csv_outfname, parameter_dir, precache_all_naive_seqs, n_procs):
@@ -623,6 +633,23 @@ class PartitionDriver(object):
             return self.args.workdir + '/hmm-' + str(iproc)
 
     # ----------------------------------------------------------------------------------------
+    def print_partition_dbgfo(self):
+        if self.bcrham_proc_info is None:
+            return
+        summaryfo = utils.summarize_bcrham_dbgstrs(self.bcrham_proc_info)
+
+        if sum(summaryfo['read-cache'].values()) == 0:
+            print '                no/empty cache file'
+        else:
+            print '          read from cache:  naive-seqs %3d   logprobs %3d' % (summaryfo['read-cache']['naive-seqs'], summaryfo['read-cache']['logprobs'])
+        print '                    calcd:         vtb %3d        fwd %3d' % (summaryfo['calcd']['vtb'], summaryfo['calcd']['fwd'])
+        print '                   merged:       hfrac %3d     lratio %3d' % (summaryfo['merged']['hfrac'], summaryfo['merged']['lratio'])
+        if len(self.bcrham_proc_info) == 1:
+            print '                     time:  %.1f sec' % summaryfo['time']['bcrham'][0]
+        else:
+            print '             min max time:  %.1f   %.1f sec' % (summaryfo['time']['bcrham'][0], summaryfo['time']['bcrham'][1])
+
+    # ----------------------------------------------------------------------------------------
     def check_wait_times(self, wait_time):
         max_bcrham_time = max([procinfo['time']['bcrham'] for procinfo in self.bcrham_proc_info])
         if max_bcrham_time > 0. and wait_time / max_bcrham_time > 1.5 and wait_time > 30.:  # if we were waiting for a lot longer than the slowest process took, and if it took long enough for us to care
@@ -641,7 +668,7 @@ class PartitionDriver(object):
                     strlist[istr] = strlist[istr].replace(self.args.workdir, self.subworkdir(iproc, n_procs))
             return ' '.join(strlist)
 
-        print '    running %d procs' % n_procs
+        print '    running %d proc%s' % (n_procs, utils.plural(n_procs))
         sys.stdout.flush()
         start = time.time()
 
@@ -651,7 +678,8 @@ class PartitionDriver(object):
                    'outfname' : get_outfname(iproc),
                    'dbgfo' : self.bcrham_proc_info[iproc]}
                   for iproc in range(n_procs)]
-        utils.run_cmds(cmdfos, debug='print' if (self.args.debug or self.current_action=='partition') else None)
+        utils.run_cmds(cmdfos)  # , debug='print' if (self.args.debug or self.current_action=='partition') else None)
+        self.print_partition_dbgfo()
 
         print '      time waiting for bcrham: %.1f' % (time.time()-start)
         self.check_wait_times(time.time()-start)
@@ -1026,15 +1054,20 @@ class PartitionDriver(object):
                 })
 
     # ----------------------------------------------------------------------------------------
-    def get_seeded_clusters(self, nsets):
-        print '      removing unseeded clusters'
-        print '         ', ' '.join([':'.join(ns) for ns in nsets if self.args.seed_unique_id in ns])
+    def get_seeded_clusters(self, nsets, debug=False):
         seeded_clusters = set()
         for ns in nsets:
             if self.args.seed_unique_id in ns:
                 for uid in ns:  # add each individual query that's been clustered with the seed (but split apart)
                     seeded_clusters.add(uid)
-        print '         ', ' '.join(seeded_clusters)
+
+        if debug:
+            print 'TODO print how many sequences & clusters you\'re removing/leaving here'
+            print '      removing unseeded clusters (and splitting all clusters into singletons)'
+            if len(nsets) < 100:
+                print '         ', ' '.join([':'.join(ns) for ns in nsets if self.args.seed_unique_id in ns])
+                print '         ', ' '.join(seeded_clusters)
+
         return seeded_clusters
 
     # ----------------------------------------------------------------------------------------
@@ -1097,7 +1130,7 @@ class PartitionDriver(object):
             nsets = copy.deepcopy(cpath.partitions[cpath.i_best_minus_x])  # NOTE that a.t.m. i_best and i_best_minus_x are the same, since we're not calculating log probs of partitions (well, we're trying to avoid calculating any extra log probs, which means we usually don't know the log prob of the entire partition)
             if self.args.seed_unique_id is not None:
                 if self.time_to_remove_unseeded_clusters:
-                    nsets = [[qr] for qr in self.get_seeded_clusters(nsets)]
+                    nsets = [[qr] for qr in self.get_seeded_clusters(nsets, debug=True)]
                     self.already_removed_unseeded_clusters = True
         else:
             if self.args.n_sets == 1:  # single (non-multi) hmm (does the same thing as the below for n=1, but is more transparent)

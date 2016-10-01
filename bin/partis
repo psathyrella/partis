@@ -315,6 +315,11 @@ parent_parser.add_argument('--only-smith-waterman', action='store_true', help='E
 # don't warn about queries missing from partition if they've been removed because of --seed-unique-id
 # don't print the whole damn partition when you're removing unseeded clusters
 # n_procs maybe needs to take into account the sometimes-drastic increase in n-clusters after you remove unseeded clusters
+# fix nonetype argument bullshit when auto-caching-parameters (maybe best to call a ./bin/partis subprocess?)
+# why is fail job output out of order with succeeded output in log files?
+# how the fuck is stuff re-trying 10 times?
+# each partition step should summarize how it changed the cluster count (and maybe stop printing the output for each process?)
+# print \'seed\' in cluster annotations
 
 # allele crap:
 #     all alleles (including new ones) should have roughly the same mut freq distribution (especially at low mutation)'

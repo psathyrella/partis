@@ -331,11 +331,11 @@ This is continued until we arrive at one final process which is comparing all se
 Since at each stage we cache every calculated log probability, while the later steps have more sequences to compare, they also have more cached numbers at their disposal, and so it's possible to make each step take about the same amount of time.
 We currently reduce the number of processes by about 1.6 at each step, as long as the previous step didn't have to calculate too many numbers.
 
-With typical mutation levels, lineage structures, and cluster size distributions (all of which strongly affect clustering time), it's currently best to start with ``--n-procs` set so you have about 300 sequences per process.
+With typical mutation levels, lineage structures, and cluster size distributions (all of which strongly affect clustering time), it's currently best to start with `--n-procs` set so you have about 300 sequences per process.
 
 #### Text output and logging
 
-to properly display the ansi color codes in stdout:
-  - less -RS (S disables line wrapping)
-  - M-x display-ansi-colors (emacs)
-  - should already work in bash
+  - to properly display the ansi color codes in stdoutput:
+    - less -RS (S disables line wrapping)
+    - M-x display-ansi-colors (emacs)
+  - it's typically best to view the ascii annotation outputs by making your text size as small as necessary to fit it all on your screen (typically ctrl-<minus>). You don't usually need to view individual bases, and you can zoom back in for the rest of the stdout.
