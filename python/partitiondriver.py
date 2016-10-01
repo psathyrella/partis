@@ -374,7 +374,9 @@ class PartitionDriver(object):
                 if len(unseeded_clusters) != len(unseeded_seqs):
                     print '%s unseeded clusters not all singletons' % utils.color('red', 'warning')
                 cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
-                cpath.add_partition([[uid, ] for sclust in seeded_clusters for uid in sclust], -1., 1)
+                seeded_singletons = [self.args.seed_unique_id, ] + [[uid, ] for sclust in seeded_clusters for uid in sclust if uid != self.args.seed_unique_id]
+                cpath.add_partition(seeded_singletons, -1., 1)
+                cpath.print_partitions()
                 n_remaining_seqs = len(cpath.partitions[cpath.i_best_minus_x])  #                 n_remaining_seqs = initial_nseqs - len(unseeded_seqs)
                 self.already_removed_unseeded_seqs = True
                 print '      removing %d sequences in unseeded clusters, and splitting %d seeded clusters into %d singletons' % (len(unseeded_seqs), len(seeded_clusters), n_remaining_seqs)
@@ -650,12 +652,13 @@ class PartitionDriver(object):
             return
         summaryfo = utils.summarize_bcrham_dbgstrs(self.bcrham_proc_info)
 
+        pwidth = str(len(str(len(self.input_info))))  # close enough
         if sum(summaryfo['read-cache'].values()) == 0:
             print '                no/empty cache file'
         else:
-            print '          read from cache:  naive-seqs %8d   logprobs %8d' % (summaryfo['read-cache']['naive-seqs'], summaryfo['read-cache']['logprobs'])
-        print '                    calcd:         vtb %8d        fwd %8d' % (summaryfo['calcd']['vtb'], summaryfo['calcd']['fwd'])
-        print '                   merged:       hfrac %8d     lratio %8d' % (summaryfo['merged']['hfrac'], summaryfo['merged']['lratio'])
+            print ('          read from cache:  naive-seqs %' + pwidth + 'd   logprobs %' + pwidth + 'd') % (summaryfo['read-cache']['naive-seqs'], summaryfo['read-cache']['logprobs'])
+        print ('                    calcd:         vtb %' + pwidth + 'd        fwd %' + pwidth + 'd') % (summaryfo['calcd']['vtb'], summaryfo['calcd']['fwd'])
+        print ('                   merged:       hfrac %' + pwidth + 'd     lratio %' + pwidth + 'd') % (summaryfo['merged']['hfrac'], summaryfo['merged']['lratio'])
         if len(self.bcrham_proc_info) == 1:
             print '                     time:  %.1f sec' % summaryfo['time']['bcrham'][0]
         else:
