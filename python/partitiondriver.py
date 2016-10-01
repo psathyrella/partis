@@ -254,6 +254,7 @@ class PartitionDriver(object):
         if self.args.only_smith_waterman:
             return
 
+        print 'hmm'
         self.run_hmm('viterbi', parameter_in_dir=self.sw_param_dir, parameter_out_dir=self.hmm_param_dir, count_parameters=True)
         self.restrict_to_observed_alleles(self.hmm_param_dir)
         self.write_hmms(self.hmm_param_dir)
@@ -268,6 +269,7 @@ class PartitionDriver(object):
         self.run_waterer()
         if self.args.only_smith_waterman:
             return
+        print 'hmm'
         self.run_hmm(algorithm, parameter_in_dir=self.sub_param_dir)
 
     # ----------------------------------------------------------------------------------------
@@ -301,6 +303,7 @@ class PartitionDriver(object):
         print 'partitioning'
         self.run_waterer()  # run smith-waterman
 
+        print 'hmm'
         # cache hmm naive seq for each single query
         if len(self.sw_info['queries']) > 50 or self.args.naive_vsearch or self.args.naive_swarm:
             self.run_hmm('viterbi', self.sub_param_dir, n_procs=self.get_n_precache_procs(len(self.sw_info['queries'])), precache_all_naive_seqs=True)
@@ -389,7 +392,7 @@ class PartitionDriver(object):
             if self.args.naive_hamming:  # make sure we didn't accidentally calculate some fwds
                 assert procinfo['calcd']['fwd'] == 0.
             total += procinfo['calcd']['vtb'] + procinfo['calcd']['fwd']
-        print '          n calcd: %d (%.1f per proc)' % (total, float(total) / len(self.bcrham_proc_info))
+        print '          vtb + fwd calcd: %d (%.1f per proc)' % (total, float(total) / len(self.bcrham_proc_info))
         return float(total) / len(self.bcrham_proc_info)
 
     # ----------------------------------------------------------------------------------------
@@ -570,7 +573,7 @@ class PartitionDriver(object):
             hi = utils.intexterpolate(x1, y1, x2, y2, mute_freq)  # ...and never merge 'em if it's bigger than this
 
         print '       naive hfrac bounds: %.3f %.3f   (%.3f mean mutation in %s)' % (lo, hi, mute_freq, parameter_dir)
-        self.cached_naive_hamming_bounds  = (lo, hi)
+        self.cached_naive_hamming_bounds = (lo, hi)
         return self.cached_naive_hamming_bounds
 
     # ----------------------------------------------------------------------------------------
@@ -647,7 +650,7 @@ class PartitionDriver(object):
         if len(self.bcrham_proc_info) == 1:
             print '                     time:  %.1f sec' % summaryfo['time']['bcrham'][0]
         else:
-            print '             min max time:  %.1f   %.1f sec' % (summaryfo['time']['bcrham'][0], summaryfo['time']['bcrham'][1])
+            print '             min-max time:  %.1f - %.1f sec' % (summaryfo['time']['bcrham'][0], summaryfo['time']['bcrham'][1])
 
     # ----------------------------------------------------------------------------------------
     def check_wait_times(self, wait_time):
@@ -692,7 +695,6 @@ class PartitionDriver(object):
         NOTE the local <n_procs>, which overrides the one from <self.args>
         """
         start = time.time()
-        print 'hmm'
         if len(self.sw_info['queries']) == 0:
             print '  %s no input queries for hmm' % utils.color('red', 'warning')
             return
@@ -1062,7 +1064,6 @@ class PartitionDriver(object):
                     seeded_clusters.add(uid)
 
         if debug:
-            print 'TODO print how many sequences & clusters you\'re removing/leaving here'
             print '      removing unseeded clusters (and splitting all clusters into singletons)'
             if len(nsets) < 100:
                 print '         ', ' '.join([':'.join(ns) for ns in nsets if self.args.seed_unique_id in ns])

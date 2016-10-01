@@ -320,6 +320,11 @@ parent_parser.add_argument('--only-smith-waterman', action='store_true', help='E
 # how the fuck is stuff re-trying 10 times?
 # each partition step should summarize how it changed the cluster count (and maybe stop printing the output for each process?)
 # print \'seed\' in cluster annotations
+#  print how many sequences & clusters you\'re removing/leaving when you remove unseeded clusters
+# print_reco_event:
+#    - don't print logprob by default
+#    - uid on each line
+#    - maybe simulation line shouldn't be associated with a particular inferred line (see above)
 
 # allele crap:
 #     all alleles (including new ones) should have roughly the same mut freq distribution (especially at low mutation)'
