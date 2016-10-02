@@ -696,7 +696,8 @@ class PartitionDriver(object):
                    'dbgfo' : self.bcrham_proc_info[iproc]}
                   for iproc in range(n_procs)]
         utils.run_cmds(cmdfos, debug='print' if self.args.debug else None)
-        self.print_partition_dbgfo()
+        if self.current_action == 'partition':
+            self.print_partition_dbgfo()
 
         self.check_wait_times(time.time()-start)
         sys.stdout.flush()

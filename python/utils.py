@@ -1659,14 +1659,16 @@ def process_out_err(out, err, extra_str='', dbgfo=None, logdir=None, debug=None)
         for header, variables in bcrham_dbgstrs.items():
             dbgfo[header] = {}
             theselines = [ln for ln in out.split('\n') if header + ':' in ln]
-            if len(theselines) != 1:
-                raise Exception('couldn\'t find \'%s\' line in:\nstdout:\n%s\nstderr:\n%s' % (header, out, err))
+            if len(theselines) == 0:
+                continue
+            if len(theselines) > 1:
+                raise Exception('too many lines with dbgfo for \'%s\' in:\nstdout:\n%s\nstderr:\n%s' % (header, out, err))
             words = theselines[0].split()
-            try:
-                for var in variables:  # convention: value corresponding to the string <var> is the word immediately vollowing <var>
+            for var in variables:  # convention: value corresponding to the string <var> is the word immediately vollowing <var>
+                if var in  words:
                     dbgfo[header][var] = float(words[words.index(var) + 1])
-            except:
-                raise Exception('couldn\'t find \'%s\' line in:\nstdout:\n%s\nstderr:\n%s' % (header, out, err))
+                else:
+                    dbgfo[header][var] = None  # e.g. if we're running viterbi there won't be an hfrac number
 
     print_str += out
 
