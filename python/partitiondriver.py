@@ -384,6 +384,7 @@ class PartitionDriver(object):
                 next_n_procs = int_factor * max(1, int(float(n_remaining_seqs) / initial_seqs_per_proc))
                 if not self.args.slurm and not utils.auto_slurm(self.args.n_procs):  # not really sure that <self.args.n_procs> belongs here, but I'll leave it that way to be consistent with <self.get_n_precache_procs()>
                     next_n_procs = min(next_n_procs, multiprocessing.cpu_count())
+                next_n_procs = min(next_n_procs, self.args.n_procs)  # don't let it be bigger than whatever was initially specified
                 print '        new n_procs %d = %d * %d / %d' % (next_n_procs, int_factor, n_remaining_seqs, initial_seqs_per_proc)
 
         return next_n_procs, cpath, unseeded_seqs
