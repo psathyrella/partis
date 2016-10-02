@@ -305,27 +305,22 @@ parent_parser.add_argument('--species', default='human', choices=('human', 'mous
 parent_parser.add_argument('--only-smith-waterman', action='store_true', help='Exit after finishing smith-waterman.')
 # parent_parser.add_argument('--use_mean_at_boundaries', action='store_true', help='see note in hmmwriter')
 
-# print 'TODO am I not using translation when getting the log prob for the final partition?'
-# print 'TODO add flag to disable cdr3 preclustering'
-# print 'TODO make a basic version of germline set generation into default behaviour'
-# print 'TODO fix multiple-indel printing'
-# print 'TODO make padding specific to each cdr3 subclass'
-# print 'TODO arg, have to do seed cdr3 length removal stuff before padding'
-# why the fuck is the hmm input file sometimes not there?
+# am I not using translation when getting the log prob for the final partition?'
+# add flag to disable cdr3 preclustering'
+# make padding specific to each cdr3 subclass'
 # don't warn about queries missing from partition if they've been removed because of --seed-unique-id
-# don't print the whole damn partition when you're removing unseeded clusters
-# n_procs maybe needs to take into account the sometimes-drastic increase in n-clusters after you remove unseeded clusters
 # fix nonetype argument bullshit when auto-caching-parameters (maybe best to call a ./bin/partis subprocess?)
+# is best-minus-x stuff still working?
+
 # why is fail job output out of order with succeeded output in log files?
 # how the fuck is stuff re-trying 10 times?
-# each partition step should summarize how it changed the cluster count (and maybe stop printing the output for each process?)
-# print \'seed\' in cluster annotations
-#  print how many sequences & clusters you\'re removing/leaving when you remove unseeded clusters
-# is best-minus-x stuff still working?
+
 # print_reco_event:
 #    - don't print logprob by default
 #    - uid on each line
-#    - maybe simulation line shouldn't be associated with a particular inferred line (see above)
+#    - maybe simulation line shouldn't be associated with a particular inferred line (see below)
+#    - print \'seed\' in cluster annotations
+#    - fix multiple-indel printing'
 
 # allele crap:
 #     all alleles (including new ones) should have roughly the same mut freq distribution (especially at low mutation)'

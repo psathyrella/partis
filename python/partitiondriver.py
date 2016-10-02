@@ -304,7 +304,7 @@ class PartitionDriver(object):
         print 'hmm'
         # cache hmm naive seq for each single query
         if len(self.sw_info['queries']) > 50 or self.args.naive_vsearch or self.args.naive_swarm:
-            print '--> caching all naive sequences'
+            print '--> caching all %d naive sequences' % len(self.sw_info['queries'])
             self.run_hmm('viterbi', self.sub_param_dir, n_procs=self.get_n_precache_procs(len(self.sw_info['queries'])), precache_all_naive_seqs=True)
 
         if self.args.naive_vsearch or self.args.naive_swarm:
@@ -319,7 +319,7 @@ class PartitionDriver(object):
         n_proc_list = []
         start = time.time()
         while n_procs > 0:
-            print '--> %d clusters with %d procs' % (len(cpath.partitions[cpath.i_best_minus_x]), n_procs)  # write_hmm_input uses the best-minus-x partition
+            print '--> %d clusters with %d proc%s' % (len(cpath.partitions[cpath.i_best_minus_x]), n_procs, utils.plural(n_procs))  # write_hmm_input uses the best-minus-x partition
             cpath = self.run_hmm('forward', self.sub_param_dir, n_procs=n_procs, cpath=cpath, shuffle_input=True)
             n_proc_list.append(n_procs)
             if n_procs == 1:
@@ -374,15 +374,16 @@ class PartitionDriver(object):
                 if len(unseeded_clusters) != len(unseeded_seqs):
                     print '%s unseeded clusters not all singletons' % utils.color('red', 'warning')
                 cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
-                seeded_singletons = [self.args.seed_unique_id, ] + [[uid, ] for sclust in seeded_clusters for uid in sclust if uid != self.args.seed_unique_id]
+                seeded_singletons = [[self.args.seed_unique_id, ], ] + [[uid, ] for sclust in seeded_clusters for uid in sclust if uid != self.args.seed_unique_id]
                 cpath.add_partition(seeded_singletons, -1., 1)
-                cpath.print_partitions()
-                n_remaining_seqs = len(cpath.partitions[cpath.i_best_minus_x])  #                 n_remaining_seqs = initial_nseqs - len(unseeded_seqs)
+                n_remaining_seqs = len(cpath.partitions[cpath.i_best_minus_x])
                 self.already_removed_unseeded_seqs = True
                 print '      removing %d sequences in unseeded clusters, and splitting %d seeded clusters into %d singletons' % (len(unseeded_seqs), len(seeded_clusters), n_remaining_seqs)
                 int_factor = 3  # multiply by something 'cause we're turning off the seed uid for the last few times through
                 initial_seqs_per_proc = max(1, int(float(initial_nseqs) / n_proc_list[0]))
-                next_n_procs = max(1, int_factor * int(float(n_remaining_seqs) / initial_seqs_per_proc))
+                next_n_procs = int_factor * max(1, int(float(n_remaining_seqs) / initial_seqs_per_proc))
+                if not self.args.slurm and not utils.auto_slurm(self.args.n_procs):  # not really sure that <self.args.n_procs> belongs here, but I'll leave it that way to be consistent with <self.get_n_precache_procs()>
+                    next_n_procs = min(next_n_procs, multiprocessing.cpu_count())
                 print '        new n_procs %d = %d * %d / %d' % (next_n_procs, int_factor, n_remaining_seqs, initial_seqs_per_proc)
 
         return next_n_procs, cpath, unseeded_seqs
