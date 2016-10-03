@@ -179,6 +179,11 @@ The output csv headers are listed in the table below, and you can view a colored
 
 Note that `utils.process_input_line()` and `utils.get_line_for_output()` can be used to automate input/output.
 
+Annotation with `run-viterbi` is the algorithm of choice for annotating sequences where the clonal relationship is different i.e. no sequence in the dataset are from the same germinal center, and therefore are not related by having the same naive sequence. Examples of such datasets could be pooled datasets with BCR sequences from many individuals, where clonal relationship cannot be present.
+
+However for many applications sequence data is created unspecifically for a large amount of BCRs and will contain many sequences being from the same germinal center, hence also sharing the same naive sequence. Using this prior knowledge can greatly improve inference of VDJ gene combination and reconstruction of the naive sequence, and therefore when datasets allow for partitioning, the annotations from the partitioning algorithm should be preferred over the `run-viterbi` results.
+
+
 #### partition
 
 Example invocation:
@@ -216,6 +221,10 @@ The naive sequence calculation is easy to parallelize, so is fast if you have ac
 Vsearch is also very fast, because it makes a large number of heuristic approximations to avoid all-against-all comparison, and thus scales significantly better than quadratically.
 With `--n-procs` around 10 for the vsearch step, this should take only of order minutes for a million sequences.
 Since it's entirely unprincipled, this of course sacrifices significant accuracy; but since we're using inferred naive sequences it's still much, much more accurate than clustering on SHM'd sequences.
+
+##### extracting annotations for each partition
+Since this algorithm partition sequences into clonal families, the sequences in each cluster/partition all share many of the same annotations from their last common ancestor, called the naive sequence. Annotations that are shared include VDJ gene combination and inferred naive sequence. In the partitioning algorithm the naive sequence of a partition is a joint estimate based on information from all the members of the given partition, and this results is much stronger than those on a single sequence done with `run-viterbi`. To print the maximum likelihood estimate of the cluster annotations use the `--print-cluster-annotations` together with the `--outfname` command, then the cluster annotations will be printed alongside the partitions in a file named similar as the partitions but with `-cluster-annotations` before the file extension.
+
 
 #### view-annotations
 
