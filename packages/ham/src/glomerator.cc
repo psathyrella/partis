@@ -210,7 +210,7 @@ void Glomerator::WritePartitions(vector<ClusterPath> &paths) {
     if((int)cp.partitions().size() > args_->n_partitions_to_write())
       istart = cp.partitions().size() - args_->n_partitions_to_write();
     for(unsigned ipart=istart; ipart<cp.partitions().size(); ++ipart) {
-      if(args_->write_logprob_for_each_partition())  // only want to calculate this the last time through, i.e. when we're only one process
+      if(args_->write_logprob_for_each_partition())  // only want to calculate this the last time through, i.e. when we're only one process NOTE this calculation can change the clustering (if we did an hfrac merge that logprob thinks we shouldn't have merged, when the python reads the partitions it'll notice this and choose the unmerged partition)
 	cp.set_logprob(ipart, LogProbOfPartition(cp.partitions()[ipart]));
       int ic(0);
       for(auto &cluster : cp.partitions()[ipart]) {
@@ -236,8 +236,10 @@ void Glomerator::WriteAnnotations(vector<ClusterPath> &paths) {
   assert(paths.size() == 1);  // would need to update this for smc
   int ipath(0);
   ClusterPath cp(paths[ipath]);
-  unsigned ipart(cp.partitions().size() - 1);  // just write the last (best) one. NOTE that we're no longer keeping track of the total log prob of the partition, since a) a bunch (most?) of the time we're merging with naive hfrac and b) we don't need it, anyway
-  for(auto &cluster : cp.partitions()[ipart]) {
+  // unsigned ipart(cp.partitions().size() - 1);
+  // for(auto &cluster : cp.partitions()[ipart]) {
+  // NOTE we're no longer calculating the logprob for *every* partition, but in Glomerator::WritePartitions() we *do* calculate them if we're told to (i.e. the last time through), and this can make it so the last partition isn't the most likely
+  for(auto &cluster : cp.partitions()[cp.i_best()]) {
     if(args_->seed_unique_id() != "" && SeedMissing(cluster))
       continue;
 
