@@ -834,6 +834,9 @@ def add_implicit_info(glfo, line, existing_implicit_keys=None, aligned_gl_seqs=N
 
     # add naive seq stuff
     line['naive_seq'] = line['fv_insertion'] + line['v_gl_seq'] + line['vd_insertion'] + line['d_gl_seq'] + line['dj_insertion'] + line['j_gl_seq'] + line['jf_insertion']
+    for iseq in range(len(line['seqs'])):
+        if len(line['naive_seq']) != len(line['seqs'][iseq]):
+            raise Exception('naive and matures sequences different lengths %d %d for %s' % (len(line['naive_seq']), len(line['seqs'][iseq]), ' '.join(line['unique_ids'])))
 
     start, end = {}, {}  # add naive seq bounds for each region (could stand to make this more concise)
     start['v'] = len(line['fv_insertion'])  # NOTE this duplicates code in add_qr_seqs()

@@ -1331,8 +1331,7 @@ class PartitionDriver(object):
                         if uids[iseq] in self.sw_info['indels']:
                             print '    skipping performance evaluation of %s because of indels' % uids[iseq]  # I just have no idea how to handle naive hamming fraction when there's indels
                         else:
-                            padfo = {'padleft' : self.sw_info[uids[iseq]]['padlefts'][0], 'padright' : self.sw_info[uids[iseq]]['padrights'][0]}
-                            perfplotter.evaluate(self.reco_info[uids[iseq]], singlefo, padfo=padfo)
+                            perfplotter.evaluate(self.reco_info[uids[iseq]], singlefo)
                     n_seqs_processed += 1
 
         # parameter and performance writing/plotting

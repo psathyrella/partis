@@ -613,22 +613,21 @@ class Waterer(object):
             else:
                 assert False
 
-            if d_len == 0 or len(insertion) < d_len:
+            if d_len == 0 or len(insertion) == 0:
                 continue
-            spurious_bases = insertion[len(insertion) - d_len:]  # i.e. the last <v_5p_del> bases of the fv insertion (or first <j_3p_del> bases of the jf insertion)
+            if len(insertion) >= d_len:
+                spurious_bases = insertion[len(insertion) - d_len:]  # i.e. the last <v_5p_del> bases of the fv insertion (or first <j_3p_del> bases of the jf insertion)
+            else:
+                spurious_bases = insertion  # the whole damn thing
             if spurious_bases.count(utils.ambiguous_bases[0]) == len(spurious_bases):  # don't do it if it's all Ns
                 continue
             if debug:
                 print 'EXPANDING %s %s d_len: %d   insertion: %s (len %d)   spurious: %s (len %d)' % (qinfo['name'], region, d_len, insertion, len(insertion), spurious_bases, len(spurious_bases))
             for gene in [g for g in qinfo['glbounds'] if utils.get_region(g) == region]:  # it's ok to assume glbounds and qrbounds have the same keys
                 if region == 'v':
-                    if gene == best[region]:
-                        assert qinfo['glbounds'][gene][0] - len(spurious_bases) == 0
                     qinfo['glbounds'][gene] = (qinfo['glbounds'][gene][0] - len(spurious_bases), qinfo['glbounds'][gene][1])
                     qinfo['qrbounds'][gene] = (qinfo['qrbounds'][gene][0] - len(spurious_bases), qinfo['qrbounds'][gene][1])
                 elif region == 'j':
-                    # if gene == best[region]:
-                    #     assert qinfo['qrbounds'][gene][1] + len(spurious_bases) == len(qinfo['seq'])
                     qinfo['glbounds'][gene] = (qinfo['glbounds'][gene][0], qinfo['glbounds'][gene][1] + len(spurious_bases))
                     qinfo['qrbounds'][gene] = (qinfo['qrbounds'][gene][0], qinfo['qrbounds'][gene][1] + len(spurious_bases))
                 else:
@@ -876,13 +875,13 @@ class Waterer(object):
                     print '%s reversed seq not same as seq:\n%s\n%s' % (utils.color('red', 'warning'), swfo['indelfos'][0]['reversed_seq'], swfo['seqs'][0])
 
             # utils.print_reco_event(self.glfo['seqs'], swfo)
-
             utils.remove_all_implicit_info(swfo)
             fv_len = len(swfo['fv_insertion'])
             jf_len = len(swfo['jf_insertion'])
 
             swfo['seqs'][0] = swfo['seqs'][0][fv_len : len(swfo['seqs'][0]) - jf_len]
-            swfo['indelfos'][0]['reversed_seq'] = swfo['seqs'][0]
+            if swfo['indelfos'][0]['reversed_seq'] != '':
+                swfo['indelfos'][0]['reversed_seq'] = swfo['seqs'][0]
             for indel in reversed(swfo['indelfos'][0]['indels']):
                 indel['pos'] -= fv_len
             swfo['k_v']['min'] -= fv_len
@@ -892,7 +891,20 @@ class Waterer(object):
 
             utils.add_implicit_info(self.glfo, swfo)
             # utils.print_reco_event(self.glfo['seqs'], swfo)
-            # sys.exit()
+
+            # *sigh* not super happy about it, but I think the best way to handle this is to also remove these bases from the simulation info
+            if self.reco_info is not None:
+                raise Exception('needs fixing (and maybe actually shouldn\'t be fixed)')
+                simfo = self.reco_info[query]
+                utils.remove_all_implicit_info(simfo)
+                simfo['seqs'][0] = simfo['seqs'][0][fv_len : len(simfo['seqs'][0]) - jf_len]
+                if simfo['indelfos'][0]['reversed_seq'] != '':
+                    simfo['indelfos'][0]['reversed_seq'] = simfo['seqs'][0]
+                for indel in reversed(simfo['indelfos'][0]['indels']):
+                    indel['pos'] -= fv_len
+                simfo['fv_insertion'] = ''
+                simfo['jf_insertion'] = ''
+                utils.add_implicit_info(self.glfo, simfo)
 
     # ----------------------------------------------------------------------------------------
     def get_padding_parameters(self, debug=False):
@@ -929,7 +941,7 @@ class Waterer(object):
         Next, pads all sequences further out (if necessary) such as to eliminate all v_5p and j_3p deletions.
         """
 
-        if not self.args.dont_remove_framework_insertions:
+        if not self.args.dont_remove_framework_insertions and self.reco_info is None:  # don't want to do this on simulation -- it's too much trouble to keep things consistent with the simulation info
             self.remove_framework_insertions(debug=debug)
 
         maxima = self.get_padding_parameters(debug=debug)
