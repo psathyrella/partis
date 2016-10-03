@@ -37,11 +37,11 @@ Args::Args(int argc, const char * argv[]):
   only_cache_new_vals_arg_("", "only-cache-new-vals", "only write sequence sets with newly-calculated values to cache file", false),
   write_logprob_for_each_partition_arg_("", "write-logprob-for-each-partition", "By default, we don't know the total logprob of each partition (since many merges are by naive hfrac). This argument tells us that this is the last time through (with one process) and we want to know the total probability of each partition.", false),
   str_headers_ {},
-  int_headers_ {"k_v_min", "k_v_max", "k_d_min", "k_d_max"},
-  float_headers_ {},
+  int_headers_ {"k_v_min", "k_v_max", "k_d_min", "k_d_max", "cdr3_length"},
+  float_headers_ {"mut_freq"},
   str_list_headers_ {"names", "seqs", "only_genes"},  // passed as colon-separated lists of strings
   int_list_headers_ {},  // passed as colon-separated lists of ints
-  float_list_headers_ {"mut_freqs"}  // passed as colon-separated lists of floats
+  float_list_headers_ {}  // passed as colon-separated lists of floats
 {
   try {
     CmdLine cmd("bcrham -- the fantabulous HMM compiler goes to B-Cellville", ' ', "");

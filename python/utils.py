@@ -1,6 +1,4 @@
-""" A few utility functions. At the moment simply functions used in recombinator which do not
-require member variables. """
-
+import time
 import sys
 import os
 import random
@@ -158,6 +156,17 @@ presto_headers = {
     'cdr3_length' : 'JUNCTION_LENGTH'
 }
 
+adaptive_headers = {
+    'seqs' : 'nucleotide',
+    'v_gene' : 'vMaxResolved',
+    'd_gene' : 'dMaxResolved',
+    'j_gene' : 'jMaxResolved',
+    'v_3p_del' : 'vDeletion',
+    'd_5p_del' : 'd5Deletion',
+    'd_3p_del' : 'd3Deletion',
+    'j_5p_del' : 'jDeletion'
+}
+
 # ----------------------------------------------------------------------------------------
 forbidden_characters = set([':', ';', ','])  # strings that are not allowed in sequence ids
 
@@ -203,6 +212,118 @@ annotation_headers = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length',
                      + functional_columns
 sw_cache_headers = ['k_v', 'k_d', 'padlefts', 'padrights', 'all_matches', 'mut_freqs']
 partition_cachefile_headers = ('unique_ids', 'logprob', 'naive_seq', 'naive_hfrac', 'errors')  # these have to match whatever bcrham is expecting
+
+# ----------------------------------------------------------------------------------------
+def generate_dummy_v(d_gene):
+    pv, sv, al = split_gene(d_gene)
+    return 'IGHVxDx' + pv + '-' + sv + '*' + al
+
+# ----------------------------------------------------------------------------------------
+def convert_from_adaptive_headers(glfo, line, uid=None, only_dj_rearrangements=False):
+    newline = {}
+    print_it = False
+
+    for head, ahead in adaptive_headers.items():
+        newline[head] = line[ahead]
+        if head in column_configs['lists']:
+            newline[head] = [newline[head], ]
+
+    if uid is not None:
+        newline['unique_ids'] = [uid, ]
+
+    for erosion in real_erosions:
+        newline[erosion + '_del'] = int(newline[erosion + '_del'])
+    newline['v_5p_del'] = 0
+    newline['j_3p_del'] = 0
+
+    for region in regions:
+        if newline[region + '_gene'] == 'unresolved':
+            newline[region + '_gene'] = None
+            continue
+        if region == 'j' and 'P' in newline[region + '_gene']:
+            newline[region + '_gene'] = newline[region + '_gene'].replace('P', '')
+
+        if '*' not in newline[region + '_gene']:
+            # print uid
+            # tmpheads = ['dMaxResolved', 'dFamilyName', 'dGeneName', 'dGeneAllele', 'dFamilyTies', 'dGeneNameTies', 'dGeneAlleleTies']
+            # for h in tmpheads:
+            #     print '   %s: %s' % (h, line[h]),
+            # print ''
+            if line['dGeneAlleleTies'] == '':
+                newline['failed'] = True
+                return newline
+            d_alleles = line['dGeneAlleleTies'].split(',')
+            newline[region + '_gene'] += '*' + d_alleles[0]
+        primary_version, sub_version, allele = split_gene(newline[region + '_gene'])
+        primary_version, sub_version = primary_version.lstrip('0'), sub_version.lstrip('0')  # alleles get to keep their leading zero (thank you imgt for being consistent)
+        if region == 'j':  # adaptive calls every j sub_version 1
+            sub_version = None
+        gene = rejoin_gene(glfo['chain'], region, primary_version, sub_version, allele)
+        if gene not in glfo['seqs'][region]:
+            gene = glutils.convert_to_duplicate_name(glfo, gene)
+        if gene not in glfo['seqs'][region]:
+            raise Exception('couldn\'t rebuild gene name from adaptive data: %s' % gene)
+        newline[region + '_gene'] = gene
+
+    seq = newline['seqs'][0]
+    boundlist = ['vIndex', 'n1Index', 'dIndex', 'n2Index', 'jIndex']
+    qrbounds, glbounds = {}, {}
+    for region in regions:
+        if only_dj_rearrangements and region == 'v':
+            if newline['d_gene'] is None:
+                newline['failed'] = True
+                return newline
+            newline['v_gene'] = generate_dummy_v(newline['d_gene'])
+            line['vIndex'] = 0
+            line['n1Index'] = int(line['dIndex']) - 1  # or is it without the -1?
+            glfo['seqs']['v'][newline['v_gene']] = seq[line['vIndex'] : line['n1Index']]
+            glfo['cyst-positions'][newline['v_gene']] = len(glfo['seqs']['v'][newline['v_gene']]) - 3
+        if newline[region + '_gene'] is None:
+            newline['failed'] = True
+            return newline
+        qrb = [int(line[region + 'Index']),
+                    int(line[boundlist[boundlist.index(region + 'Index') + 1]]) if region != 'j' else len(seq)]
+        glseq = glfo['seqs'][region][newline[region + '_gene']]
+        glb = [newline[region + '_5p_del'],
+                    len(glseq) - newline[region + '_3p_del']]
+        if region == 'j' and glb[1] - glb[0] > qrb[1] - qrb[0]:  # extra adaptive stuff on right side of j
+            old = glb[1]
+            glb[1] = glb[0] + qrb[1] - qrb[0]
+            newline['j_3p_del'] = old - glb[1]
+
+        if qrb[0] == -1 or qrb[1] == -1 or qrb[1] < qrb[0]:  # should this also be equals?
+            newline['failed'] = True
+            return newline
+        if qrb[1] - qrb[0] != glb[1] - glb[0]:
+            newline['failed'] = True
+            return newline
+        qrbounds[region] = qrb
+        glbounds[region] = glb
+
+    for bound in boundaries:
+        newline[bound + '_insertion'] = seq[qrbounds[bound[0]][1] : qrbounds[bound[1]][0]]  # end of lefthand region to start of righthand region
+
+    newline['fv_insertion'] = ''
+    newline['jf_insertion'] = seq[qrbounds['j'][1]:]
+
+    # print seq
+    # print seq[:qrbounds['d'][0]],
+    # print seq[qrbounds['d'][0] : qrbounds['d'][1]],
+    # print seq[qrbounds['d'][1] : qrbounds['j'][0]],
+    # print seq[qrbounds['j'][0] : qrbounds['j'][1]],
+    # print seq[qrbounds['j'][1] :]
+
+    newline['indelfos'] = [get_empty_indel(), ]
+
+    if print_it:
+        add_implicit_info(glfo, newline)
+        print_reco_event(glfo['seqs'], newline, label=uid)
+
+    # still need to convert to integers/lists/whatnot (?)
+
+    newline['failed'] = False
+
+    return newline
 
 # ----------------------------------------------------------------------------------------
 def convert_to_presto_headers(line):
@@ -296,19 +417,25 @@ def color_chars(chars, col, seq):
     return return_str
 
 # ----------------------------------------------------------------------------------------
-def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', post_str='', print_hfrac=False):
+def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', post_str='', print_hfrac=False, print_isnps=False):
     assert len(ref_seq) == len(seq)
     return_str = ''
+    isnps = []
     for inuke in range(len(seq)):
         if inuke >= len(ref_seq) or seq[inuke] == ref_seq[inuke]:
             return_str += seq[inuke]
         else:
             return_str += color('red', seq[inuke])
+            isnps.append(inuke)
+    if print_isnps:
+        return_str += '   %d snps at: %s' % (len(isnps), ' '.join([str(i) for i in isnps]))
     if print_result:
         print '%s%s%s' % (extra_str, ref_label, ref_seq)
         print '%s%s%s%s' % (extra_str, ' '*len(ref_label), return_str, post_str),
         if print_hfrac:
             print '   hfrac %.3f' % hamming_fraction(ref_seq, seq),
+        # if print_isnps:
+        #     print '   %d snps at: %s' % (len(isnps), ' '.join([str(i) for i in isnps])),
         print ''
     return return_str
 
@@ -479,7 +606,9 @@ def disambiguate_effective_insertions(bound, line, seq, unique_id, debug=False):
         else:
             trimmed_seq = seq
     if debug:
-        print '    %s insertion   final %s   to_remove %s    trimmed_seq %s' % (bound, final_insertion, insertion_to_remove, trimmed_seq)
+        print '     %s      final: %s' % (color('blue', bound), final_insertion)
+        print '         to_remove: %s' % insertion_to_remove
+        print '       trimmed_seq: %s' % trimmed_seq
 
     return trimmed_seq, final_insertion, insertion_to_remove
 
@@ -501,11 +630,12 @@ def reset_effective_erosions_and_effective_insertions(glfo, padded_line, aligned
 
     if debug:
         print 'resetting effective erosions'
-        print '     %s' % line['seqs'][0]
+        print '     start: %s' % line['seqs'][0]
 
     # first remove effective (fv and jf) insertions
     trimmed_seqs = []
-    final_insertions, insertions_to_remove = [], []
+    final_insertions = []  # the effective insertions that will remain in the final info
+    insertions_to_remove = []  # the effective insertions that we'll be removing, so which won't be in the final info
     for iseq in range(len(line['seqs'])):
         trimmed_seq = line['seqs'][iseq]
         final_insertions.append({})
@@ -517,20 +647,32 @@ def reset_effective_erosions_and_effective_insertions(glfo, padded_line, aligned
         trimmed_seqs.append(trimmed_seq)
 
     # arbitrarily use the zeroth sequence (in principle v_5p and j_3p should be per-sequence, not per-rearrangement... but that'd be a mess to implement, since the other deletions are per-rearrangement)
-    tmpiseq = 0  # NOTE this is pretty hackey: we just use the values from the first sequence. But it's actually not that bad -- we can either have some extra pad Ns showing, or chop of some bases.
-    trimmed_seq = trimmed_seqs[tmpiseq]
-    final_fv_insertion = final_insertions[tmpiseq]['fv']
-    final_jf_insertion = final_insertions[tmpiseq]['jf']
-    fv_insertion_to_remove = insertions_to_remove[tmpiseq]['fv']
-    jf_insertion_to_remove = insertions_to_remove[tmpiseq]['jf']
-    line['v_5p_del'] = find_first_non_ambiguous_base(trimmed_seq)
-    line['j_3p_del'] = len(trimmed_seq) - find_last_non_ambiguous_base_plus_one(trimmed_seq)
+    TMPiseq = 0  # NOTE this is pretty hackey: we just use the values from the first sequence. But it's actually not that bad -- we can either have some extra pad Ns showing, or chop off some bases.
+    trimmed_seq = trimmed_seqs[TMPiseq]
+    final_fv_insertion = final_insertions[TMPiseq]['fv']
+    final_jf_insertion = final_insertions[TMPiseq]['jf']
+    fv_insertion_to_remove = insertions_to_remove[TMPiseq]['fv']
+    jf_insertion_to_remove = insertions_to_remove[TMPiseq]['jf']
+
+    def max_effective_erosion(erosion):
+        region = erosion[0]
+        gl_len = len(glfo['seqs'][region][line[region + '_gene']])
+        if '5p' in erosion:
+            other_del = line[region + '_3p_del']
+        elif '3p' in erosion:
+            other_del = line[region + '_5p_del']
+        return gl_len - other_del - 1
+
+    line['v_5p_del'] = min(max_effective_erosion('v_5p'), find_first_non_ambiguous_base(trimmed_seq))
+    line['j_3p_del'] = min(max_effective_erosion('j_3p'), len(trimmed_seq) - find_last_non_ambiguous_base_plus_one(trimmed_seq))
 
     for iseq in range(len(line['seqs'])):
+        # de-pad the seqs
         line['seqs'][iseq] = trimmed_seqs[iseq][line['v_5p_del'] : ]
         if line['j_3p_del'] > 0:
             line['seqs'][iseq] = line['seqs'][iseq][ : -line['j_3p_del']]
 
+        # if necessary, also de-pad the indel-reversed seqs
         if line['indelfos'][iseq]['reversed_seq'] != '':
             rseq = line['indelfos'][iseq]['reversed_seq']
             rseq = rseq[len(fv_insertion_to_remove) + line['v_5p_del'] : ]
@@ -549,7 +691,18 @@ def reset_effective_erosions_and_effective_insertions(glfo, padded_line, aligned
     # else:
     #     line['padlefts'], line['padrights'] = [padfo[uid]['padded']['padleft'] for uid in line['unique_ids']], [padfo[uid]['padded']['padright'] for uid in line['unique_ids']]
 
-    add_implicit_info(glfo, line, aligned_gl_seqs=aligned_gl_seqs)
+    # NOTE fixed the problem we were actually seeing, so this shouldn't fail any more, but I'll leave it in for a bit just in case
+    try:
+        add_implicit_info(glfo, line, aligned_gl_seqs=aligned_gl_seqs)
+    except:
+        print '%s failed adding implicit info to \'%s\'' % (color('red', 'error'), ':'.join(line['unique_ids']))
+        print color('red', 'padded:')
+        for k, v in padded_line.items():
+            print '%20s  %s' % (k, v)
+        print color('red', 'eroded:')
+        for k, v in line.items():
+            print '%20s  %s' % (k, v)
+        line['invalid'] = True
 
     return line
 
@@ -611,7 +764,7 @@ def process_per_gene_support(line, debug=False):
         line[region + '_per_gene_support'] = support
 
 # ----------------------------------------------------------------------------------------
-def add_implicit_info(glfo, line, existing_implicit_keys=None, aligned_gl_seqs=None, debug=False):
+def add_implicit_info(glfo, line, existing_implicit_keys=None, aligned_gl_seqs=None):
     """ Add to <line> a bunch of things that are initially only implicit. """
 
     # check for existing and unexpected keys
@@ -631,6 +784,8 @@ def add_implicit_info(glfo, line, existing_implicit_keys=None, aligned_gl_seqs=N
         del_5p = line[region + '_5p_del']
         del_3p = line[region + '_3p_del']
         length = len(uneroded_gl_seq) - del_5p - del_3p  # eroded length
+        if length < 0:
+            raise Exception('invalid %s lengths passed to add_implicit_info()\n    gl seq: %d  5p: %d  3p: %d' % (region, len(uneroded_gl_seq), del_5p, del_3p))
         line[region + '_gl_seq'] = uneroded_gl_seq[del_5p : del_5p + length]
         line['lengths'][region] = length
 
@@ -648,13 +803,14 @@ def add_implicit_info(glfo, line, existing_implicit_keys=None, aligned_gl_seqs=N
 
     # add naive seq stuff
     line['naive_seq'] = line['fv_insertion'] + line['v_gl_seq'] + line['vd_insertion'] + line['d_gl_seq'] + line['dj_insertion'] + line['j_gl_seq'] + line['jf_insertion']
+
     start, end = {}, {}  # add naive seq bounds for each region (could stand to make this more concise)
-    start['v'] = 0  # holy fuck, look at that, I start at zero here, but at the end of the fv insertion in add_qr_seqs(). Scary!
-    end['v'] = start['v'] + len(line['fv_insertion'] + line['v_gl_seq'])  # base just after the end of v
+    start['v'] = len(line['fv_insertion'])  # NOTE this duplicates code in add_qr_seqs()
+    end['v'] = start['v'] + len(line['v_gl_seq'])  # base just after the end of v
     start['d'] = end['v'] + len(line['vd_insertion'])
     end['d'] = start['d'] + len(line['d_gl_seq'])
     start['j'] = end['d'] + len(line['dj_insertion'])
-    end['j'] = start['j'] + len(line['j_gl_seq'] + line['jf_insertion'])
+    end['j'] = start['j'] + len(line['j_gl_seq'])
     line['regional_bounds'] = {r : (start[r], end[r]) for r in regions}
 
     # add regional query seqs
@@ -664,13 +820,13 @@ def add_implicit_info(glfo, line, existing_implicit_keys=None, aligned_gl_seqs=N
 
     line['mut_freqs'] = [hamming_fraction(line['naive_seq'], mature_seq) for mature_seq in line['seqs']]
 
-    # set validity (alignment addition can also set invalid)  # TODO clean up this checking stuff
+    # set validity (alignment addition [below] can also set invalid)  # TODO clean up this checking stuff
     line['invalid'] = False
     seq_length = len(line['seqs'][0])  # they shouldn't be able to be different lengths
     for chkreg in regions:
         if start[chkreg] < 0 or end[chkreg] < 0 or end[chkreg] < start[chkreg] or end[chkreg] > seq_length:
             line['invalid'] = True
-    if end['j'] != seq_length:
+    if end['j'] + len(line['jf_insertion']) != seq_length:
         line['invalid'] = True
     if line['cdr3_length'] < 6:  # i.e. if cyst and tryp overlap  NOTE six is also hardcoded in waterer
         line['invalid'] = True
@@ -679,7 +835,7 @@ def add_implicit_info(glfo, line, existing_implicit_keys=None, aligned_gl_seqs=N
     if aligned_gl_seqs is None:
         add_dummy_alignments(line)
     else:
-        add_alignments(glfo, aligned_gl_seqs, line, debug)
+        add_alignments(glfo, aligned_gl_seqs, line)
 
     # make sure we added exactly what we expected to
     new_keys = set(line.keys()) - initial_keys
@@ -1024,6 +1180,14 @@ def split_gene(gene):
     return primary_version, sub_version, allele
 
 # ----------------------------------------------------------------------------------------
+def rejoin_gene(chain, region, primary_version, sub_version, allele):
+    """ reverse the action of split_gene() """
+    return_str = 'IG' + chain.upper() + region.upper() + primary_version
+    if sub_version is not None:  # i.e. if it isn't a j
+        return_str += '-' + sub_version
+    return return_str + '*' + allele
+
+# ----------------------------------------------------------------------------------------
 def primary_version(gene):
     return split_gene(gene)[0]
 
@@ -1047,23 +1211,23 @@ def are_same_primary_version(gene1, gene2):
     return True
 
 # ----------------------------------------------------------------------------------------
-def separate_into_allelic_groups(germline_seqs):
-    allelic_groups = {}
+def separate_into_allelic_groups(glfo, debug=False):
+    allelic_groups = {r : {} for r in regions}
     for region in regions:
-        allelic_groups[region] = {}
-        for gene in germline_seqs[region]:
+        for gene in glfo['seqs'][region]:
             primary_version, sub_version, allele = split_gene(gene)
             if primary_version not in allelic_groups[region]:
                 allelic_groups[region][primary_version] = {}
             if sub_version not in allelic_groups[region][primary_version]:
-                allelic_groups[region][primary_version][sub_version] = []
-            allelic_groups[region][primary_version][sub_version].append(gene)
-    # for r in allelic_groups:
-    #     print r
-    #     for p in allelic_groups[r]:
-    #         print '    %15s' % p
-    #         for s in allelic_groups[r][p]:
-    #             print '        %15s      %s' % (s, allelic_groups[r][p][s])
+                allelic_groups[region][primary_version][sub_version] = set()
+            allelic_groups[region][primary_version][sub_version].add(gene)
+    if debug:
+        for r in allelic_groups:
+            print r
+            for p in allelic_groups[r]:
+                print '    %15s' % p
+                for s in allelic_groups[r][p]:
+                    print '        %15s      %s' % (s, ' '.join([color_gene(g, width=12) for g in allelic_groups[r][p][s]]))
     return allelic_groups
 
 # ----------------------------------------------------------------------------------------
@@ -1177,7 +1341,7 @@ def find_replacement_genes(param_dir, min_counts, gene_name=None, debug=False, a
 # ----------------------------------------------------------------------------------------
 def hamming_distance(seq1, seq2, extra_bases=None, return_len_excluding_ambig=False):
     if len(seq1) != len(seq2):
-        raise Exception('unequal length sequences %d %d' % (len(seq1), len(seq2)))
+        raise Exception('unequal length sequences %d %d:\n  %s\n  %s' % (len(seq1), len(seq2), seq1, seq2))
     if len(seq1) == 0:
         if return_len_excluding_ambig:
             return 0, 0
@@ -1381,18 +1545,42 @@ def merge_csvs(outfname, csv_list, cleanup=True):
 def run_cmd(cmd_str, workdir):
     # print cmd_str
     # sys.exit()
+    if not os.path.exists(workdir):
+        os.makedirs(workdir)
     proc = Popen(cmd_str + ' 1>' + workdir + '/out' + ' 2>' + workdir + '/err', shell=True)
     return proc
 
 # ----------------------------------------------------------------------------------------
+def run_cmds(cmdfos, debug=None):
+    for iproc in range(len(cmdfos)):
+        if 'logdir' not in cmdfos[iproc]:
+            cmdfos[iproc]['logdir'] = cmdfos[iproc]['workdir']
+        if 'dbgfo' not in cmdfos[iproc]:
+            cmdfos[iproc]['dbgfo'] = None
+
+    procs, n_tries = [], []
+    for iproc in range(len(cmdfos)):
+        procs.append(run_cmd(cmdfos[iproc]['cmd_str'], cmdfos[iproc]['logdir']))
+        n_tries.append(1)
+        time.sleep(0.01)
+    while procs.count(None) != len(procs):  # we set each proc to None when it finishes
+        for iproc in range(len(cmdfos)):
+            if procs[iproc] is None:  # already finished
+                continue
+            if procs[iproc].poll() is not None:  # it just finished
+                finish_process(iproc, procs, n_tries, cmdfos[iproc]['workdir'], cmdfos[iproc]['logdir'], cmdfos[iproc]['outfname'], cmdfos[iproc]['cmd_str'], dbgfo=cmdfos[iproc]['dbgfo'], debug=debug)
+        sys.stdout.flush()
+        time.sleep(0.1)
+
+# ----------------------------------------------------------------------------------------
 # deal with a process once it's finished (i.e. check if it failed, and restart if so)
-def finish_process(iproc, procs, n_tries, workdir, outfname, cmd_str, info=None, debug=True):
+def finish_process(iproc, procs, n_tries, workdir, logdir, outfname, cmd_str, dbgfo=None, debug=None):
     procs[iproc].communicate()
-    process_out_err('', '', extra_str='' if len(procs) == 1 else str(iproc), info=info, subworkdir=workdir, debug=debug)
+    process_out_err('', '', extra_str='' if len(procs) == 1 else str(iproc), dbgfo=dbgfo, logdir=logdir, debug=debug)
     if procs[iproc].returncode == 0 and os.path.exists(outfname):  # TODO also check cachefile, if necessary
         procs[iproc] = None  # job succeeded
     elif n_tries[iproc] > 5:
-        raise Exception('exceeded max number of tries for command\n    %s\nlook for output in %s' % (cmd_str, workdir))
+        raise Exception('exceeded max number of tries for command\n    %s\nlook for output in %s and %s' % (cmd_str, workdir, logdir))
     else:
         print '    rerunning proc %d (exited with %d' % (iproc, procs[iproc].returncode),
         if not os.path.exists(outfname):
@@ -1402,20 +1590,22 @@ def finish_process(iproc, procs, n_tries, workdir, outfname, cmd_str, info=None,
         n_tries[iproc] += 1
 
 # ----------------------------------------------------------------------------------------
-def process_out_err(out, err, extra_str='', info=None, subworkdir=None, debug=True):
+def process_out_err(out, err, extra_str='', dbgfo=None, logdir=None, debug=None):
     """ NOTE something in this chain seems to block or truncate or some such nonsense if you make it too big """
-    if subworkdir is not None:
+    if logdir is not None:
         def readfile(fname):
             ftmp = open(fname)
             fstr = ''.join(ftmp.readlines())
             ftmp.close()
             os.remove(fname)
             return fstr
-        out = readfile(subworkdir + '/out')
-        err = readfile(subworkdir + '/err')
+        out = readfile(logdir + '/out')
+        err = readfile(logdir + '/err')
 
     print_str = ''
     for line in err.split('\n'):
+        if 'stty: standard input: Inappropriate ioctl for device' in line:
+            continue
         if 'srun: job' in line and 'queued and waiting for resources' in line:
             continue
         if 'srun: job' in line and 'has been allocated resources' in line:
@@ -1427,25 +1617,33 @@ def process_out_err(out, err, extra_str='', info=None, subworkdir=None, debug=Tr
         if len(line.strip()) > 0:
             print_str += line + '\n'
 
-    if info is not None:  # keep track of how many vtb and fwd calculations the process made
+    if dbgfo is not None:  # keep track of how many vtb and fwd calculations the process made
         for header, variables in {'calcd' : ['vtb', 'fwd'], 'time' : ['bcrham', ]}.items():
-            info[header] = {}
+            dbgfo[header] = {}
             theselines = [ln for ln in out.split('\n') if header + ':' in ln]
             if len(theselines) != 1:
                 raise Exception('couldn\'t find \'%s\' line in:\nstdout:\n%s\nstderr:\n%s' % (header, out, err))
             words = theselines[0].split()
             try:
                 for var in variables:  # convention: value corresponding to the string <var> is the word immediately vollowing <var>
-                    info[header][var] = float(words[words.index(var) + 1])
+                    dbgfo[header][var] = float(words[words.index(var) + 1])
             except:
                 raise Exception('couldn\'t find \'%s\' line in:\nstdout:\n%s\nstderr:\n%s' % (header, out, err))
 
     print_str += out
 
-    if print_str != '' and debug:
-        if extra_str != '':
-            print '      --> proc %s' % extra_str
-        print print_str
+    if print_str != '' and debug is not None:
+        if debug == 'print':
+            if extra_str != '':
+                print '      --> proc %s' % extra_str
+            print print_str
+        elif debug == 'write':
+            logfile = logdir + '/log'
+            print 'writing dbg to %s' % logfile
+            with open(logfile, 'w') as dbgfile:
+                dbgfile.write(print_str)
+        else:
+            assert False
 
 # ----------------------------------------------------------------------------------------
 def find_first_non_ambiguous_base(seq):
@@ -1840,23 +2038,6 @@ def add_indels_to_germline_strings(line, indelfo):
         print '     unhandled indel within a non-templated insertion'
 
 # ----------------------------------------------------------------------------------------
-def undo_indels(indelfo):
-    """ not finished """
-    rseq = indelfo['reversed_seq']
-    oseq = rseq  # original sequence
-    for i_indel in range(len(indelfo['indels']) - 1, 0, -1):
-    # for i_indel in range(len(indelfo['indels'])):
-        idl = indelfo['indels'][i_indel]
-        if idl['type'] == 'insertion':
-            oseq = oseq[ : idl['pos']] + idl['seqstr'] + oseq[idl['pos'] : ]
-        elif idl['type'] == 'deletion':
-            if rseq[idl['pos'] : idl['pos'] + idl['len']] != idl['seqstr']:
-                raise Exception('found %s instead of expected insertion (%s)' % (rseq[idl['pos'] : idl['pos'] + idl['len']], idl['seqstr']))
-            oseq = oseq[ : idl['pos']] + oseq[idl['pos'] + idl['len'] : ]
-    # print '              reversed %s' % rseq
-    # print '              original %s' % oseq
-
-# ----------------------------------------------------------------------------------------
 def csv_to_fasta(infname, outfname=None, name_column='unique_id', seq_column='seq', n_max_lines=None):
     if not os.path.exists(infname):
         raise Exception('input file %s d.n.e.' % infname)
@@ -2064,3 +2245,19 @@ def add_in_log_space(first, second):
         return first + math.log(1 + math.exp(second - first))
     else:
         return second + math.log(1 + math.exp(first - second))
+
+# ----------------------------------------------------------------------------------------
+def remove_from_arglist(clist, argstr, has_arg=False):
+    if argstr not in clist:
+        return
+    if has_arg:
+        clist.pop(clist.index(argstr) + 1)
+    clist.remove(argstr)
+
+# ----------------------------------------------------------------------------------------
+def replace_in_arglist(clist, argstr, replace_with):
+    if argstr not in clist:
+        clist.append(argstr)
+        clist.append(replace_with)
+    else:
+        clist[clist.index(argstr) + 1] = replace_with

@@ -58,11 +58,9 @@ int main(int argc, const char * argv[]) {
 vector<vector<Sequence> > GetSeqs(Args &args, Track *trk) {
   vector<vector<Sequence> > all_seqs;
   assert(args.str_lists_["names"].size() == args.str_lists_["seqs"].size());
-  assert(args.str_lists_["names"].size() == args.float_lists_["mut_freqs"].size());
   for(size_t iqry = 0; iqry < args.str_lists_["names"].size(); ++iqry) { // loop over queries, where each query can be composed of one, two, or k sequences
     vector<Sequence> seqs;
     assert(args.str_lists_["names"][iqry].size() == args.str_lists_["seqs"][iqry].size());
-    assert(args.str_lists_["names"][iqry].size() == args.float_lists_["mut_freqs"][iqry].size());
     for(size_t iseq = 0; iseq < args.str_lists_["names"][iqry].size(); ++iseq) { // loop over each sequence in that query
       Sequence sq(trk, args.str_lists_["names"][iqry][iseq], args.str_lists_["seqs"][iqry][iseq]);
       seqs.push_back(sq);
@@ -93,8 +91,6 @@ void run_algorithm(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> > &qr
     KSet kmax(args.integers_["k_v_max"][iqry], args.integers_["k_d_max"][iqry]);
     KBounds kbounds(kmin, kmax);
     vector<Sequence> qry_seqs(qry_seq_list[iqry]);
-    vector<double> mute_freqs(args.float_lists_["mut_freqs"][iqry]);
-    double mean_mute_freq(avgVector(mute_freqs));
 
     vector<KBounds> kbvector(qry_seqs.size(), kbounds);
 
@@ -105,7 +101,7 @@ void run_algorithm(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> > &qr
     do {
       errors = "";
       if(args.debug()) cout << "       ----" << endl;
-      result = dph.Run(qry_seqs, kbounds, args.str_lists_["only_genes"][iqry], mean_mute_freq);
+      result = dph.Run(qry_seqs, kbounds, args.str_lists_["only_genes"][iqry], args.floats_["mut_freq"][iqry]);
       logprob = result.total_score();
       kbounds = result.better_kbounds();
       stop = !result.boundary_error() || result.could_not_expand() || result.no_path_;  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length

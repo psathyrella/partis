@@ -13,6 +13,7 @@ import sys
 sys.path.insert(1, './python')
 from baseutils import get_extra_str
 import utils
+import glutils
 from hist import Hist
 from clusterpath import ClusterPath
 
@@ -68,7 +69,7 @@ class Tester(object):
             add_inference_tests('ref')
         if not args.only_ref:
             self.tests['cache-parameters-data']  = {'extras' : []}
-            self.tests['simulate']  = {'extras' : ['--n-sim-events', '500', '--n-leaves', '2', '--mimic-data-read-length']}
+            self.tests['simulate']  = {'extras' : ['--n-sim-events', '500', '--n-trees', '500', '--n-leaves', '2', '--mimic-data-read-length']}
             self.tests['cache-parameters-simu']  = {'extras' : []}
             add_inference_tests('new')
 
@@ -141,7 +142,7 @@ class Tester(object):
             if os.path.exists(this_cachefname):
                 check_call(['rm', '-v', this_cachefname])
 
-        ref_globfnames = [fn for dtype in self.dtypes for fn in glob.glob(self.param_dirs['ref'][dtype] + '/sw-cache-*.csv')]
+        ref_globfnames = [fn for dtype in self.dtypes for fn in glob.glob(self.param_dirs['ref'][dtype] + '/sw-cache-*')]
         if len(ref_globfnames) > 0:
             raise Exception('found reference sw cache files %s -- but you really want ref sw to run from scratch' % ' '.join(ref_globfnames))
 
@@ -153,6 +154,8 @@ class Tester(object):
             elif len(globfnames) != 1:
                 raise Exception('unexpected sw cache files: %s' % ' '.join(globfnames))
             check_call(['rm', '-v', globfnames[0]])
+            sw_cache_gldir = globfnames[0].replace('.csv', '-glfo')
+            glutils.remove_glfo_files(sw_cache_gldir, args.chain)
 
         # choose a seed uid
         if name == 'seed-partition-' + info['input_stype'] + '-simu':

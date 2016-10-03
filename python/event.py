@@ -54,7 +54,7 @@ class RecombinationEvent(object):
             self.print_gene_choice()
 
     # ----------------------------------------------------------------------------------------
-    def set_final_codon_positions(self, debug=False):
+    def set_final_codon_positions(self):
         """ Set tryp position in the final, combined sequence. """
         self.final_codon_positions['v'] = self.local_codon_positions['v'] - self.effective_erosions['v_5p']
         length_to_left_of_j = len(self.eroded_seqs['v'] + self.insertions['vd'] + self.eroded_seqs['d'] + self.insertions['dj'])

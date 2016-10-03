@@ -1,6 +1,7 @@
 FROM matsengrp/cpp
 
 # ----------------------------------------------------------------------------------------
+RUN sed -i 's/httpredir/ftp.us/' /etc/apt/sources.list
 RUN apt-get update && apt-get install -y \
     libgsl0ldbl \
     libgsl0-dev \

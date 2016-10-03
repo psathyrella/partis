@@ -1,3 +1,4 @@
+import numpy
 import time
 import sys
 import itertools
@@ -12,7 +13,6 @@ from subprocess import Popen, check_call, PIPE, CalledProcessError, check_output
 import copy
 import multiprocessing
 import operator
-from Bio import SeqIO
 
 import utils
 import glutils
@@ -127,25 +127,27 @@ class PartitionDriver(object):
                 raise Exception('--persistent-cachefname %s has unexpected header list %s' % (self.args.persistent_cachefname, reader.fieldnames))
 
     # ----------------------------------------------------------------------------------------
-    def get_cachefname(self, write_parameters):
+    def get_cachefname(self, write_parameters, find_new_alleles):
         if self.args.sw_cachefname is not None:  # if --sw-cachefname was explicitly set, always use that
             return self.args.sw_cachefname
-        elif write_parameters or os.path.exists(self.default_cachefname):  # otherwise, use the default cachefname if we're either writing parameters (in which case we want to write results to disk) or if the default already exists (in which case we want to read it)
+        elif write_parameters or find_new_alleles or os.path.exists(self.default_cachefname):  # otherwise, use the default cachefname if we're either writing parameters (in which case we want to write results to disk) or if the default already exists (in which case we want to read it)
             return self.default_cachefname
         return None  # don't want to read or write sw cache files
 
     # ----------------------------------------------------------------------------------------
-    def run_waterer(self, write_parameters=False, find_new_alleles=False, itry=None):
+    def run_waterer(self, write_parameters=False, remove_less_likely_alleles=False, find_new_alleles=False, itry=None):
         print 'smith-waterman',
         if write_parameters:
             print '  (writing parameters)',
         if find_new_alleles:
             print '  (looking for new alleles)',
+        if remove_less_likely_alleles:
+            print '  (removing less-likely alleles)',
         print ''
         sys.stdout.flush()
 
-        # can probably remove this... I just kind of want to know if it happens
-        if not write_parameters and not find_new_alleles:
+        # can probably remove this... I just kind of want to know if it happens EDIT hell no don't remove this
+        if not write_parameters and not find_new_alleles and not remove_less_likely_alleles:
             genes_with_hmms = set(utils.find_genes_that_have_hmms(self.sub_param_dir))
             expected_genes = set([g for r in utils.regions for g in self.glfo['seqs'][r].keys()])  # this'll be the & of the gldir (maybe rewritten, maybe not)
             if self.args.only_genes is None and len(genes_with_hmms - expected_genes) > 0:
@@ -154,8 +156,12 @@ class PartitionDriver(object):
                 print '  %s %d genes in glfo that don\'t have yamels in %s' % (utils.color('red', 'warning'), len(expected_genes - genes_with_hmms), self.sub_param_dir)
 
         parameter_out_dir = self.sw_param_dir if write_parameters else None
-        waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo, parameter_out_dir=parameter_out_dir, find_new_alleles=find_new_alleles, simglfo=self.simglfo, itry=itry)
-        cachefname = self.get_cachefname(write_parameters)
+        waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo,
+                          count_parameters=(remove_less_likely_alleles or parameter_out_dir is not None),
+                          parameter_out_dir=parameter_out_dir, remove_less_likely_alleles=remove_less_likely_alleles, find_new_alleles=find_new_alleles,
+                          plot_performance=(self.args.plot_performance and not remove_less_likely_alleles and not find_new_alleles),
+                          simglfo=self.simglfo, itry=itry)
+        cachefname = self.get_cachefname(write_parameters, find_new_alleles)
         if cachefname is None or not os.path.exists(cachefname):  # run sw if we either don't want to do any caching (None) or if we are planning on writing the results after we run
             waterer.run(cachefname)
         else:
@@ -165,8 +171,8 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def find_new_alleles(self):
         """ look for new alleles with sw, write any that you find to the germline set directory in <self.workdir>, add them to <self.glfo>, and repeat until you don't find any. """
-        print 'NOTE if args.generate_new_alignment is set, only removes original allele if a new allele is found -- it doesn\'t remove other genes (which may be what we want -- they get in effect removed later when we only write yamels for genes that we actually saw)'
         all_new_allele_info = []
+        alleles_with_evidence = set()
         itry = 0
         while True:
             self.run_waterer(find_new_alleles=True, itry=itry)
@@ -175,16 +181,23 @@ class PartitionDriver(object):
             if os.path.exists(self.default_cachefname):
                 print '    removing sw cache file %s (it has outdated germline info)' % self.default_cachefname
                 os.remove(self.default_cachefname)
-            all_new_allele_info += self.sw_info['new-alleles']
-            glutils.restrict_to_genes(self.glfo, list(self.sw_info['all_best_matches']), debug=True)
-            glutils.add_new_alleles(self.glfo, self.sw_info['new-alleles'], remove_template_genes=(itry==0 and self.args.generate_germline_set), debug=True)
-            glutils.write_glfo(self.my_gldir, self.glfo, debug=True)  # write glfo modifications to disk
-            itry += 1
 
-        # remove any V alleles for which we didn't ever find any evidence
-        if self.args.generate_germline_set:
-            assert False  # need to implement this
-            # alleles_with_evidence = 
+            all_new_allele_info += self.sw_info['new-alleles']
+            alleles_with_evidence |= self.sw_info['alleles-with-evidence']
+            # self.sw_info['alleles-with-evidence']
+            glutils.restrict_to_genes(self.glfo, list(self.sw_info['all_best_matches']))
+            glutils.add_new_alleles(self.glfo, self.sw_info['new-alleles'])
+            if self.args.generate_germline_set:
+                for alfo in self.sw_info['new-alleles']:
+                    if alfo['template-gene'] not in alleles_with_evidence:  # if the new allele is actually new (i.e. not in imgt), and if we never had explicit evidence for the template gene (i.e. it was just the best match we had) then remove the template gene
+                        print '    removing template gene %s' % utils.color_gene(alfo['template-gene'])
+                        glutils.remove_gene(self.glfo, alfo['template-gene'])
+            glutils.write_glfo(self.my_gldir, self.glfo)  # write glfo modifications to disk
+
+            itry += 1
+            if itry >= self.args.n_max_allele_finding_iterations:
+                print '  too many allele finding iterations: %d >= %d' % (itry, self.args.n_max_allele_finding_iterations)
+                break
 
         if self.args.new_allele_fname is not None:
             n_new_alleles = len(all_new_allele_info)
@@ -226,7 +239,11 @@ class PartitionDriver(object):
 
             self.args.min_observations_to_write = 1
 
-        if self.args.find_new_alleles:
+        if self.args.generate_germline_set:
+            self.run_waterer(remove_less_likely_alleles=True)
+            glutils.remove_genes(self.glfo, self.sw_info['genes-to-remove'])
+            glutils.write_glfo(self.my_gldir, self.glfo)
+        if self.args.find_new_alleles or self.args.generate_germline_set:
             self.find_new_alleles()
         self.run_waterer(write_parameters=True)
         self.restrict_to_observed_alleles(self.sw_param_dir)
@@ -243,6 +260,8 @@ class PartitionDriver(object):
         """ Just run <algorithm> (either 'forward' or 'viterbi') on sequences in <self.input_info> and exit. You've got to already have parameters cached in <self.args.parameter_dir> """
         print 'running %s' % algorithm
         self.run_waterer()
+        if self.args.only_smith_waterman:
+            return
         self.run_hmm(algorithm, parameter_in_dir=self.sub_param_dir)
 
     # ----------------------------------------------------------------------------------------
@@ -311,7 +330,7 @@ class PartitionDriver(object):
                 outfname = self.args.outfname.replace('.csv', '-cluster-annotations.csv')
                 print '    writing cluster annotations to %s' % outfname
             print '  annotations for final partition:'
-            self.read_annotation_output(self.annotation_fname, outfname=outfname)
+            self.read_annotation_output(self.annotation_fname, outfname=outfname, print_annotations=True)
         if self.args.outfname is not None:
             self.write_clusterpaths(self.args.outfname, cpath)  # [last agglomeration step]
 
@@ -621,25 +640,13 @@ class PartitionDriver(object):
         sys.stdout.flush()
         start = time.time()
 
-        # start all the procs for the first time
-        procs, n_tries, = [], []
-        self.bcrham_proc_info = []
-        for iproc in range(n_procs):
-            # print get_cmd_str(iproc)
-            # sys.exit()
-            procs.append(utils.run_cmd(get_cmd_str(iproc), self.subworkdir(iproc, n_procs)))
-            n_tries.append(1)
-            self.bcrham_proc_info.append({})
-
-        # keep looping over the procs until they're all done
-        while procs.count(None) != len(procs):  # we set each proc to None when it finishes
-            for iproc in range(n_procs):
-                if procs[iproc] is None:  # already finished
-                    continue
-                if procs[iproc].poll() is not None:  # it's finished
-                    utils.finish_process(iproc, procs, n_tries, self.subworkdir(iproc, n_procs), get_outfname(iproc), get_cmd_str(iproc), self.bcrham_proc_info[iproc], debug=(self.args.debug or self.current_action=='partition'))
-            sys.stdout.flush()
-            time.sleep(1)
+        self.bcrham_proc_info = [{} for _ in range(n_procs)]
+        cmdfos = [{'cmd_str' : get_cmd_str(iproc),
+                   'workdir' : self.subworkdir(iproc, n_procs),
+                   'outfname' : get_outfname(iproc),
+                   'dbgfo' : self.bcrham_proc_info[iproc]}
+                  for iproc in range(n_procs)]
+        utils.run_cmds(cmdfos, debug='print' if (self.args.debug or self.current_action=='partition') else None)
 
         print '      time waiting for bcrham: %.1f' % (time.time()-start)
         self.check_wait_times(time.time()-start)
@@ -716,20 +723,15 @@ class PartitionDriver(object):
         return self.sw_info[qry]['padlefts'][0] * utils.ambiguous_bases[0] + self.reco_info[qry]['naive_seq'] + self.sw_info[qry]['padrights'][0] * utils.ambiguous_bases[0]
 
     # ----------------------------------------------------------------------------------------
-    def get_padded_sw_naive_seq(self, qry):
-        assert len(self.sw_info[qry]['padlefts']) == 1
-        return self.sw_info[qry]['padlefts'][0] * utils.ambiguous_bases[0] + self.sw_info[qry]['naive_seq'] + self.sw_info[qry]['padrights'][0] * utils.ambiguous_bases[0]
-
-    # ----------------------------------------------------------------------------------------
     def get_sw_naive_seqs(self, info, namekey):
 
         naive_seqs = {}
         for line in info:
             query = line[namekey]
             if len(query.split(':')) == 1:  # ...but if we don't have them, use smith-waterman (should only be for single queries)
-               naive_seqs[query] = self.get_padded_sw_naive_seq(query)
+               naive_seqs[query] = self.sw_info[query]['naive_seq']
             elif len(query.split(':')) > 1:
-                naive_seqs[query] = self.get_padded_sw_naive_seq(query.split(':')[0])  # just arbitrarily use the naive seq from the first one. This is ok partly because if we cache the logprob but not the naive seq, that's because we thought about merging two clusters but did not -- so they're naive seqs should be similar. Also, this is just for divvying queries.
+                naive_seqs[query] = self.sw_info[query.split(':')[0]]['naive_seq']  # just arbitrarily use the naive seq from the first one. This is ok partly because if we cache the logprob but not the naive seq, that's because we thought about merging two clusters but did not -- so they're naive seqs should be similar. Also, this is just for divvying queries.
             else:
                 raise Exception('no naive sequence found for ' + str(query))
             if naive_seqs[query] == '':
@@ -955,25 +957,25 @@ class PartitionDriver(object):
         Return the 'logical OR' of the queries in <query_names>, i.e. the maximal extent in k_v/k_d space and OR of only_gene sets.
         """
 
-        combo = {
-            'k_v' : {'min' : 99999, 'max' : -1},
-            'k_d' : {'min' : 99999, 'max' : -1},
-            'only_genes' : [],
-            'seqs' : [],
-            'mut_freqs' : []
-        }
-
         # Note that this whole thing probably ought to use cached hmm info if it's available.
         # Also, this just always uses the SW mutation rate, but I should really update it with the (multi-)hmm-derived ones (same goes for k space boundaries)
 
+        combo = {}
+        combo['seqs'] = [self.sw_info[name]['seqs'][0] for name in query_names]
+        combo['mut_freq'] = numpy.mean([utils.hamming_fraction(self.sw_info[name]['naive_seq'], self.sw_info[name]['seqs'][0]) for name in query_names])
+        cdr3_lengths = [self.sw_info[name]['cdr3_length'] for name in query_names]
+        if cdr3_lengths.count(cdr3_lengths[0]) != len(cdr3_lengths):
+            print '%s cdr3 lengths not all the same %s' % (utils.color('red', 'warning'), ' '.join([str(c) for c in cdr3_lengths]))
+        combo['cdr3_length'] = cdr3_lengths[0]
+
+        combo['k_v'] = {'min' : 99999, 'max' : -1}
+        combo['k_d'] = {'min' : 99999, 'max' : -1}
+        combo['only_genes'] = []
         for name in query_names:
             swfo = self.sw_info[name]
             k_v = swfo['k_v']
             k_d = swfo['k_d']
-            assert len(swfo['seqs']) == 1
-            seq = swfo['seqs'][0]
-            combo['seqs'].append(seq)
-            combo['mut_freqs'].append(utils.hamming_fraction(self.get_padded_sw_naive_seq(name), seq))
+            assert len(swfo['seqs']) == 1  # checking that when we filled in 'seqs' all was well
             combo['k_v']['min'] = min(k_v['min'], combo['k_v']['min'])
             combo['k_v']['max'] = max(k_v['max'], combo['k_v']['max'])
             combo['k_d']['min'] = min(k_d['min'], combo['k_d']['min'])
@@ -1043,7 +1045,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def write_to_single_input_file(self, fname, nsets, parameter_dir, skipped_gene_matches, shuffle_input=False):
         csvfile = opener('w')(fname)
-        header = ['names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'only_genes', 'seqs', 'mut_freqs']
+        header = ['names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'mut_freq', 'cdr3_length', 'only_genes', 'seqs']
         writer = csv.DictWriter(csvfile, header, delimiter=' ')
         writer.writeheader()
 
@@ -1071,9 +1073,10 @@ class PartitionDriver(object):
                 'k_v_max' : combined_query['k_v']['max'],
                 'k_d_min' : combined_query['k_d']['min'],
                 'k_d_max' : combined_query['k_d']['max'],
+                'mut_freq' : combined_query['mut_freq'],
+                'cdr3_length' : combined_query['cdr3_length'],
                 'only_genes' : ':'.join(combined_query['only_genes']),
-                'seqs' : ':'.join(combined_query['seqs']),
-                'mut_freqs' : ':'.join([str(f) for f in combined_query['mut_freqs']]),
+                'seqs' : ':'.join(combined_query['seqs'])
             })
 
         csvfile.close()
@@ -1234,7 +1237,7 @@ class PartitionDriver(object):
             utils.print_reco_event(self.glfo['seqs'], after_line, extra_str='    ', label='after')
 
     # ----------------------------------------------------------------------------------------
-    def read_annotation_output(self, annotation_fname, outfname=None, count_parameters=False, parameter_out_dir=None):
+    def read_annotation_output(self, annotation_fname, outfname=None, count_parameters=False, parameter_out_dir=None, print_annotations=False):
         """ Read bcrham annotation output """
         print '    read output'
         sys.stdout.flush()
@@ -1283,7 +1286,7 @@ class PartitionDriver(object):
                         continue
                     line_to_use = eroded_line
 
-                if self.args.debug:
+                if self.args.debug or print_annotations:
                     print '      %s' % uidstr
                     self.print_hmm_output(line_to_use, print_true=True)
 
@@ -1319,14 +1322,14 @@ class PartitionDriver(object):
         if perfplotter is not None:
             perfplotter.plot(self.args.plotdir + '/hmm', only_csv=self.args.only_csv_plots)
 
-        print '        %d lines:  processed %d sequences in %d events' % (n_lines_read, n_seqs_processed, n_events_processed)
+        print '        processed %d hmm output lines with %d sequences in %d events' % (n_lines_read, n_seqs_processed, n_events_processed)
         if n_invalid_events > 0:
-            print '          %s skipped %d invalid events' % (utils.color('red', 'warning'), n_invalid_events)
+            print '            %s skipped %d invalid events' % (utils.color('red', 'warning'), n_invalid_events)
         for ecode in errorfo:
             if ecode == 'no_path':
                 print '          %s no valid paths: %s' % (utils.color('red', 'warning'), ' '.join(errorfo[ecode]))
             elif ecode == 'boundary':
-                print '      %d boundary errors' % len(errorfo[ecode])
+                print '          %d boundary warnings' % len(errorfo[ecode])
                 if self.args.debug:
                     print '                %s' % ' '.join(errorfo[ecode])
             else:
@@ -1411,7 +1414,7 @@ class PartitionDriver(object):
 
             # and write empty lines for seqs that failed either in sw or the hmm
             if len(missing_input_keys) > 0:
-                print 'missing %d input keys' % len(missing_input_keys)
+                print '          missing %d input keys when writing hmm output to %s' % (len(missing_input_keys), outfname)
                 for uid in missing_input_keys:
                     col = 'unique_ids'
                     writer.writerow({col : uid})

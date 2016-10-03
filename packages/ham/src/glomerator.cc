@@ -27,7 +27,8 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> >
     seq_info_[key] = qry_seq_list[iqry];
     seed_missing_[key] = !InString(args_->seed_unique_id(), key);
     only_genes_[key] = args_->str_lists_["only_genes"][iqry];
-    mute_freqs_[key] = avgVector(args_->float_lists_["mut_freqs"][iqry]);
+    mute_freqs_[key] = args_->floats_["mut_freq"][iqry];
+    cdr3_lengths_[key] = args_->integers_["cdr3_length"][iqry];
 
     KSet kmin(args_->integers_["k_v_min"][iqry], args_->integers_["k_d_min"][iqry]);
     KSet kmax(args_->integers_["k_v_max"][iqry], args_->integers_["k_d_max"][iqry]);
@@ -197,7 +198,8 @@ void Glomerator::WriteCachedLogProbs() {
 
 // ----------------------------------------------------------------------------------------
 void Glomerator::WritePartitions(vector<ClusterPath> &paths) {
-  cout << "        writing partitions" << endl;
+  if(args_->debug())
+    cout << "        writing partitions" << endl;
   ofs_.open(args_->outfile());
   ofs_ << setprecision(20);
   ofs_ << "partition,logprob" << endl;
@@ -488,6 +490,7 @@ string Glomerator::ChooseSubsetOfNames(string queries, int n_max) {
   seed_missing_[subqueries] = !InString(args_->seed_unique_id(), subqueries);
   kbinfo_[subqueries] = kbinfo_[queries];  // just use the entire/super cluster for this stuff. It's just overly conservative (as long as you keep the mute freqs the same)
   mute_freqs_[subqueries] = mute_freqs_[queries];
+  cdr3_lengths_[subqueries] = cdr3_lengths_[queries];
   only_genes_[subqueries] = only_genes_[queries];
 
   if(args_->debug())
@@ -650,7 +653,7 @@ double Glomerator::GetLogProbRatio(string key_a, string key_b) {
   pair<string, string> parents_to_calc = GetLogProbPairOfNamesToCalculate(joint_name, full_qmerged.parents_);
   string key_a_to_calc = parents_to_calc.first;
   string key_b_to_calc = parents_to_calc.second;
-  Query qmerged_to_calc = GetMergedQuery(key_a_to_calc, key_b_to_calc);  // NOTE also enters the merged query's info into seq_info_, kbinfo_, mute_freqs_, and only_genes_
+  Query qmerged_to_calc = GetMergedQuery(key_a_to_calc, key_b_to_calc);  // NOTE also enters the merged query's info into seq_info_, kbinfo_, mute_freqs_, cdr3_lengths_, and only_genes_
 
   double log_prob_a = GetLogProb(key_a_to_calc);
   double log_prob_b = GetLogProb(key_b_to_calc);
@@ -810,6 +813,10 @@ Query Glomerator::GetMergedQuery(string name_a, string name_b) {
   seed_missing_[qmerged.name_] = !InString(args_->seed_unique_id(), qmerged.name_);
   kbinfo_[qmerged.name_] = qmerged.kbounds_;
   mute_freqs_[qmerged.name_] = qmerged.mean_mute_freq_;
+
+  if(cdr3_lengths_[name_a] != cdr3_lengths_[name_b])
+    throw runtime_error("cdr3 lengths different for " + name_a + " and " + name_b + " (" + to_string(cdr3_lengths_[name_a]) + " " + to_string(cdr3_lengths_[name_b]) + ")");
+  cdr3_lengths_[qmerged.name_] = cdr3_lengths_[name_a];
   only_genes_[qmerged.name_] = qmerged.only_genes_;
   
   return qmerged;
@@ -900,6 +907,9 @@ pair<double, Query> Glomerator::FindHfracMerge(ClusterPath *path) {
       if(failed_queries_.count(key_a) || failed_queries_.count(key_b))
 	continue;
 
+      if(cdr3_lengths_[key_a] != cdr3_lengths_[key_b])
+      	continue;
+
       double hfrac = NaiveHfrac(key_a, key_b);
       if(hfrac > args_->hamming_fraction_bound_hi())  // if naive hamming fraction too big, don't even consider merging the pair
 	continue;
@@ -909,7 +919,7 @@ pair<double, Query> Glomerator::FindHfracMerge(ClusterPath *path) {
 
       if(hfrac < min_hamming_fraction) {
 	  min_hamming_fraction = hfrac;
-	  min_hamming_merge = GetMergedQuery(key_a, key_b);  // NOTE also enters the merged query's info into seq_info_, kbinfo_, mute_freqs_, and only_genes_
+	  min_hamming_merge = GetMergedQuery(key_a, key_b);  // NOTE also enters the merged query's info into seq_info_, kbinfo_, mute_freqs_, cdr3_lengths_, and only_genes_
       }
     }
   }
@@ -954,6 +964,9 @@ pair<double, Query> Glomerator::FindLRatioMerge(ClusterPath *path) {
 	continue;
 
       ++n_total_pairs;
+
+      if(cdr3_lengths_[key_a] != cdr3_lengths_[key_b])
+      	continue;
 
       double hfrac = NaiveHfrac(key_a, key_b);
       if(hfrac > args_->hamming_fraction_bound_hi()) {  // if naive hamming fraction too big, don't even consider merging the pair

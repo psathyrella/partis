@@ -17,11 +17,12 @@ from opener import opener
 from parametercounter import ParameterCounter
 from performanceplotter import PerformancePlotter
 from allelefinder import AlleleFinder
+from alleleremover import AlleleRemover
 
 # ----------------------------------------------------------------------------------------
 class Waterer(object):
     """ Run smith-waterman on the query sequences in <infname> """
-    def __init__(self, args, input_info, reco_info, glfo, parameter_out_dir=None, find_new_alleles=False, simglfo=None, itry=None):
+    def __init__(self, args, input_info, reco_info, glfo, count_parameters=False, parameter_out_dir=None, remove_less_likely_alleles=False, find_new_alleles=False, plot_performance=False, simglfo=None, itry=None):
         self.args = args
         self.input_info = input_info
         self.reco_info = reco_info
@@ -43,21 +44,23 @@ class Waterer(object):
         self.info['queries'] = []  # list of queries that *passed* sw, i.e. for which we have information
         self.info['all_best_matches'] = set()  # every gene that was a best match for at least one query
         self.info['all_matches'] = {r : set() for r in utils.regions}  # every gene that was *any* match for at least one query
-        self.info['indels'] = {}
+        self.info['indels'] = {}  # NOTE if we find shm indels in a sequence, we store the indel info in here, and rerun sw with the reversed sequence (i.e. <self.info> contains the sw inference on the reversed sequence -- if you want the original sequence, get that from <self.input_info>)
 
         self.nth_try = 1
         self.unproductive_queries = set()
 
         self.my_gldir = self.args.workdir + '/' + glutils.glfo_dir
 
-        self.alfinder, self.pcounter, self.true_pcounter, self.perfplotter = None, None, None, None
+        self.alremover, self.alfinder, self.pcounter, self.true_pcounter, self.perfplotter = None, None, None, None, None
+        if remove_less_likely_alleles:
+            self.alremover = AlleleRemover(self.glfo, self.args, AlleleFinder(self.glfo, self.args, itry=0))
         if find_new_alleles:  # NOTE *not* the same as <self.args.find_new_alleles>
             self.alfinder = AlleleFinder(self.glfo, self.args, itry)
-        if parameter_out_dir is not None:  # NOTE *not* the same as <self.args.cache_parameters>
+        if count_parameters:  # NOTE *not* the same as <self.args.cache_parameters>
             self.pcounter = ParameterCounter(self.glfo, self.args)
             if not self.args.is_data:
                 self.true_pcounter = ParameterCounter(self.simglfo, self.args)
-        if self.args.plot_performance:
+        if plot_performance:  # NOTE *not* the same as <self.args.plot_performance>
             self.perfplotter = PerformancePlotter('sw')
 
         if not os.path.exists(self.args.ig_sw_binary):
@@ -86,109 +89,96 @@ class Waterer(object):
         print '        water time: %.1f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
-    def get_hack_line(self, line):
-        hackline = copy.deepcopy(line)
-        # arg, hack hack hack hack
-        assert len(hackline['seqs']) == 1
-        hackline['seqs'][0] = hackline['seqs'][0][hackline['padlefts'][0]:]  # add on left-side padding
-        if hackline['padrights'][0] > 0:  # and right-side padding (being careful of negative-zero-right-slice thing)
-            hackline['seqs'][0] = hackline['seqs'][0][:-hackline['padrights'][0]]
-        assert len(hackline['seqs'][0]) == len(hackline['naive_seq'])
-        utils.add_implicit_info(self.glfo, hackline, existing_implicit_keys=['cdr3_length', 'naive_seq', 'mut_freqs'] + utils.functional_columns + ['aligned_' + r + '_seqs' for r in utils.regions])
-        return hackline
-
-    # ----------------------------------------------------------------------------------------
     def read_cachefile(self, cachefname):
         print '        reading sw results from %s' % cachefname
+
+        if os.path.exists(cachefname.replace('.csv', '-glfo')):
+            self.glfo = glutils.read_glfo(cachefname.replace('.csv', '-glfo'), self.args.chain)
+        else:
+            print '    %s didn\'t find a germline info dir along with sw cache file, but trying to read it anyway' % utils.color('red', 'warning')
+
         with open(cachefname) as cachefile:
             reader = csv.DictReader(cachefile)
             for line in reader:
                 utils.process_input_line(line)
                 assert len(line['unique_ids']) == 1
-                qname = line['unique_ids'][0]
-                self.info['queries'].append(qname)
-                self.info[qname] = line
-                assert len(line['indelfos']) == 1
-                if line['indelfos'][0]['reversed_seq'] != '':
-                    self.info['indels'][qname] = line['indelfos'][0]
-                for region in utils.regions:  # add this query's matches into the overall gene match sets
-                    self.info['all_best_matches'].add(line[region + '_gene'])
-                    self.info['all_matches'][region] |= set(self.info[qname]['all_matches'][region])
-
                 for region in utils.regions:  # uh... should do this more cleanly at some point
                     del line[region + '_per_gene_support']
+                utils.add_implicit_info(self.glfo, line, existing_implicit_keys=['cdr3_length', 'naive_seq', 'mut_freqs'] + utils.functional_columns + ['aligned_' + r + '_seqs' for r in utils.regions])
+                self.add_to_info(line)
+                if line['indelfos'][0]['reversed_seq'] != '':
+                    self.info['indels'][line['unique_ids'][0]] = line['indelfos'][0]
 
-                if self.perfplotter is not None:
-                    hackline = self.get_hack_line(self.info[qname])
-                    if qname in self.info['indels']:
-                        print '    skipping performance evaluation of %s because of indels' % qname  # I just have no idea how to handle naive hamming fraction when there's indels
-                    else:
-                        self.perfplotter.evaluate(self.reco_info[qname], hackline)
-
-                if self.alfinder is not None:
-                    hackline = self.get_hack_line(self.info[qname])
-                    self.alfinder.increment(hackline)
-
-        # TODO combine incrementation and finalization when reading cache file and when actually running
-
-        if self.perfplotter is not None:
-            self.perfplotter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
-
-        if self.alfinder is not None:  # TODO it doesn't really make sense to have this here, since most of the time you don't really want to do allele finding here
-            self.alfinder.finalize(debug=self.args.debug_new_allele_finding)
-            self.info['new-alleles'] = self.alfinder.new_allele_info
-            if self.args.plotdir is not None:
-                self.alfinder.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
+        self.finalize(cachefname=None, just_read_cachefile=True)
 
     # ----------------------------------------------------------------------------------------
-    def finalize(self, cachefname):
-        if self.perfplotter is not None:
-            self.perfplotter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
+    def finalize(self, cachefname=None, just_read_cachefile=False):
         print '      info for %d' % len(self.info['queries']),
-        skipped_unproductive = len(self.unproductive_queries)
-        n_remaining = len(self.remaining_queries)
-        if skipped_unproductive > 0 or n_remaining > 0:
-            print '     (skipped',
-            print '%d / %d = %.2f unproductive' % (skipped_unproductive, len(self.input_info), float(skipped_unproductive) / len(self.input_info)),
+
+        if just_read_cachefile:  # it's past tense!
+            print ''
+        else:
+            skipped_unproductive = len(self.unproductive_queries)
+            n_remaining = len(self.remaining_queries)
+            if skipped_unproductive > 0 or n_remaining > 0:
+                print '     (skipped',
+                print '%d / %d = %.2f unproductive' % (skipped_unproductive, len(self.input_info), float(skipped_unproductive) / len(self.input_info)),
+                if n_remaining > 0:
+                    print '   %d / %d = %.2f other' % (n_remaining, len(self.input_info), float(n_remaining) / len(self.input_info)),
+                print ')',
+            print ''
             if n_remaining > 0:
-                print '   %d / %d = %.2f other' % (n_remaining, len(self.input_info), float(n_remaining) / len(self.input_info)),
-            print ')',
-        print ''
-        sys.stdout.flush()
-        if n_remaining > 0:
-            printstr = '   %s %d missing %s' % (utils.color('red', 'warning'), n_remaining, utils.plural_str('annotation', n_remaining))
-            if n_remaining < 15:
-                printstr += ' (' + ' '.join(self.remaining_queries) + ')'
-            print printstr
-        if self.debug and len(self.info['indels']) > 0:
-            print '      indels: %s' % ':'.join(self.info['indels'].keys())
-        assert len(self.info['queries']) + skipped_unproductive + n_remaining == len(self.input_info)
-        if self.debug and not self.args.is_data and n_remaining > 0:
-            print 'true annotations for remaining events:'
-            for qry in self.remaining_queries:
-                utils.print_reco_event(self.glfo['seqs'], self.reco_info[qry], extra_str='      ', label='true:')
-        if self.alfinder is not None:
-            self.alfinder.finalize(debug=self.args.debug_new_allele_finding)
-            self.info['new-alleles'] = self.alfinder.new_allele_info
-            if self.args.plotdir is not None:
-                self.alfinder.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
-
-        # add padded info to self.info (returns if stuff has already been padded)
-        self.pad_seqs_to_same_length()  # NOTE this uses *all the gene matches (not just the best ones), so it has to come before we call pcounter.write(), since that fcn rewrites the germlines removing genes that weren't best matches. But NOTE also that I'm not sure what but that the padding actually *needs* all matches (rather than just all *best* matches)
-
-        if self.pcounter is not None:
-            if self.args.plotdir is not None:
-                self.pcounter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
-                if self.true_pcounter is not None:
-                    self.true_pcounter.plot(self.args.plotdir + '/sw-true', only_csv=self.args.only_csv_plots)
-            self.pcounter.write(self.parameter_out_dir)
-            if self.true_pcounter is not None:
-                self.true_pcounter.write(self.parameter_out_dir + '-true')
+                printstr = '   %s %d missing %s' % (utils.color('red', 'warning'), n_remaining, utils.plural_str('annotation', n_remaining))
+                if n_remaining < 15:
+                    printstr += ' (' + ' '.join(self.remaining_queries) + ')'
+                print printstr
+            if self.debug and len(self.info['indels']) > 0:
+                print '      indels: %s' % ':'.join(self.info['indels'].keys())
+            assert len(self.info['queries']) + skipped_unproductive + n_remaining == len(self.input_info)
+            if self.debug and not self.args.is_data and n_remaining > 0:
+                print 'true annotations for remaining events:'
+                for qry in self.remaining_queries:
+                    utils.print_reco_event(self.glfo['seqs'], self.reco_info[qry], extra_str='      ', label='true:')
 
         self.info['remaining_queries'] = self.remaining_queries
 
-        if cachefname is not None:
+        found_germline_changes = False  # set to true if either alremover or alfinder found changes to the germline info
+        if self.alremover is not None:
+            self.alremover.finalize(self.pcounter, self.info)
+            self.info['genes-to-remove'] = self.alremover.genes_to_remove
+            if len(self.info['genes-to-remove']) > 0:
+                found_germline_changes = True
+        if self.alfinder is not None:
+            self.alfinder.set_excluded_bases(self.info, debug=self.args.debug_allele_finding)
+            for query in self.info['queries']:
+                self.alfinder.increment(self.info[query])  # it needs to know the distribution of 3p deletions before it can increment, so it has to be here
+            self.alfinder.finalize(debug=self.args.debug_allele_finding)
+            self.info['new-alleles'] = self.alfinder.new_allele_info
+            self.info['alleles-with-evidence'] = self.alfinder.alleles_with_evidence
+            if self.args.plotdir is not None:
+                self.alfinder.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
+            if len(self.info['new-alleles']) > 0:
+                found_germline_changes = True
+
+        if not just_read_cachefile:  # add padded info to self.info (returns if stuff has already been padded)
+            self.pad_seqs_to_same_length()  # NOTE this uses *all the gene matches (not just the best ones), so it has to come before we call pcounter.write(), since that fcn rewrites the germlines removing genes that weren't best matches. But NOTE also that I'm not sure what but that the padding actually *needs* all matches (rather than just all *best* matches)
+
+        if self.perfplotter is not None:
+            self.perfplotter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
+
+        if self.pcounter is not None:
+            if self.args.plotdir is not None and not found_germline_changes:
+                self.pcounter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
+                if self.true_pcounter is not None:
+                    self.true_pcounter.plot(self.args.plotdir + '/sw-true', only_csv=self.args.only_csv_plots)
+            if self.parameter_out_dir is not None and not found_germline_changes:
+                self.pcounter.write(self.parameter_out_dir)
+                if self.true_pcounter is not None:
+                    self.true_pcounter.write(self.parameter_out_dir + '-true')
+
+        if cachefname is not None and not found_germline_changes:
             print '        writing sw results to %s' % cachefname
+            glutils.write_glfo(cachefname.replace('.csv', '-glfo'), self.glfo)
             with open(cachefname, 'w') as outfile:
                 writer = csv.DictWriter(outfile, utils.annotation_headers + utils.sw_cache_headers)
                 writer.writeheader()
@@ -199,6 +189,8 @@ class Waterer(object):
                     outline = {k : v for k, v in outline.items() if k in utils.annotation_headers + utils.sw_cache_headers}  # remove the columns we don't want to output
                     writer.writerow(outline)
 
+        sys.stdout.flush()
+
     # ----------------------------------------------------------------------------------------
     def subworkdir(self, iproc, n_procs):
         if n_procs == 1:
@@ -208,33 +200,19 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def execute_commands(self, base_infname, base_outfname, n_procs):
-        # ----------------------------------------------------------------------------------------
-        def get_outfname(iproc):
-            return self.subworkdir(iproc, n_procs) + '/' + base_outfname
-        # ----------------------------------------------------------------------------------------
+
         def get_cmd_str(iproc):
             return self.get_ig_sw_cmd_str(self.subworkdir(iproc, n_procs), base_infname, base_outfname, n_procs)
+            # return self.get_vdjalign_cmd_str(self.subworkdir(iproc, n_procs), base_infname, base_outfname, n_procs)
 
-        # start all procs for the first time
-        procs, n_tries = [], []
-        for iproc in range(n_procs):
-            procs.append(utils.run_cmd(get_cmd_str(iproc), self.subworkdir(iproc, n_procs)))
-            n_tries.append(1)
-            time.sleep(0.1)
-
-        # keep looping over the procs until they're all done
-        while procs.count(None) != len(procs):  # we set each proc to None when it finishes
-            for iproc in range(n_procs):
-                if procs[iproc] is None:  # already finished
-                    continue
-                if procs[iproc].poll() is not None:  # it's finished
-                    utils.finish_process(iproc, procs, n_tries, self.subworkdir(iproc, n_procs), get_outfname(iproc), get_cmd_str(iproc))
-            sys.stdout.flush()
-            time.sleep(1)
+        cmdfos = [{'cmd_str' : get_cmd_str(iproc),
+                   'workdir' : self.subworkdir(iproc, n_procs),
+                   'outfname' : self.subworkdir(iproc, n_procs) + '/' + base_outfname}
+                  for iproc in range(n_procs)]
+        utils.run_cmds(cmdfos)
 
         for iproc in range(n_procs):
             os.remove(self.subworkdir(iproc, n_procs) + '/' + base_infname)
-
         sys.stdout.flush()
 
     # ----------------------------------------------------------------------------------------
@@ -271,6 +249,26 @@ class Waterer(object):
             raise Exception('didn\'t write %s to %s' % (':'.join(not_written), self.args.workdir))
 
     # ----------------------------------------------------------------------------------------
+    def get_vdjalign_cmd_str(self, workdir, base_infname, base_outfname, n_procs=None):
+        """
+        Run smith-waterman alignment (from Connor's ighutils package) on the seqs in <base_infname>, and toss all the top matches into <base_outfname>.
+        """
+        # large gap-opening penalty: we want *no* gaps in the middle of the alignments
+        # match score larger than (negative) mismatch score: we want to *encourage* some level of shm. If they're equal, we tend to end up with short unmutated alignments, which screws everything up
+        cmd_str = os.getenv('HOME') + '/.local/bin/vdjalign align-fastq -q'
+        if self.args.slurm or utils.auto_slurm(n_procs):
+            cmd_str = 'srun ' + cmd_str
+        cmd_str += ' --locus ' + 'IG' + self.args.chain.upper()
+        cmd_str += ' --max-drop 50'
+        match, mismatch = self.match_mismatch
+        cmd_str += ' --match ' + str(match) + ' --mismatch ' + str(mismatch)
+        cmd_str += ' --gap-open ' + str(self.gap_open_penalty)
+        cmd_str += ' --vdj-dir ' + self.my_gldir + '/' + self.args.chain
+        cmd_str += ' --samtools-dir ' + self.args.partis_dir + '/packages/samtools'
+        cmd_str += ' ' + workdir + '/' + base_infname + ' ' + workdir + '/' + base_outfname
+        return cmd_str
+
+    # ----------------------------------------------------------------------------------------
     def get_ig_sw_cmd_str(self, workdir, base_infname, base_outfname, n_procs=None):
         """
         Run smith-waterman alignment (from Connor's ighutils package) on the seqs in <base_infname>, and toss all the top matches into <base_outfname>.
@@ -303,7 +301,15 @@ class Waterer(object):
             with contextlib.closing(pysam.Samfile(outfname)) as sam:  # changed bam to sam because ig-sw outputs sam files
                 grouped = itertools.groupby(iter(sam), operator.attrgetter('qname'))
                 for _, reads in grouped:  # loop over query sequences
-                    qinfo = self.read_query(sam.references, list(reads))
+                    try:
+                        readlist = list(reads)
+                    except:
+                        print 'failed!'
+                        # print 'len', len(readlist)
+                        for thing in reads:
+                            print thing
+                        assert False
+                    qinfo = self.read_query(sam.references, readlist)
                     self.summarize_query(qinfo, queries_to_rerun)  # returns before adding to <self.info> if it thinks we should rerun the query
                     queries_read_from_file.add(qinfo['name'])
 
@@ -356,10 +362,10 @@ class Waterer(object):
             codestr += length * code
             if code == 'I':  # advance qr seq but not gl seq
                 indelfo['indels'].append({'type' : 'insertion', 'pos' : qpos, 'len' : length, 'seqstr' : ''})  # insertion begins at <pos>
-                tmp_indices += [len(indelfo['indels']) - 1  for _ in range(length)]# indel index corresponding to this position in the alignment
+                tmp_indices += [len(indelfo['indels']) - 1  for _ in range(length)]  # indel index corresponding to this position in the alignment
             elif code == 'D':  # advance qr seq but not gl seq
                 indelfo['indels'].append({'type' : 'deletion', 'pos' : qpos, 'len' : length, 'seqstr' : ''})  # first deleted base is <pos> (well, first base which is in the position of the first deleted base)
-                tmp_indices += [len(indelfo['indels']) - 1  for _ in range(length)]# indel index corresponding to this position in the alignment
+                tmp_indices += [len(indelfo['indels']) - 1  for _ in range(length)]  # indel index corresponding to this position in the alignment
             else:
                 tmp_indices += [None  for _ in range(length)]  # indel index corresponding to this position in the alignment
             qpos += length
@@ -400,7 +406,6 @@ class Waterer(object):
             print '          %20s %s' % ('query', qrprintstr)
             for idl in indelfo['indels']:
                 print '          %10s: %d bases at %d (%s)' % (idl['type'], idl['len'], idl['pos'], idl['seqstr'])
-        # utils.undo_indels(indelfo)
 
         return indelfo
 
@@ -591,58 +596,101 @@ class Waterer(object):
         qinfo['qrbounds'][r_gene] = (qinfo['qrbounds'][r_gene][0] + r_portion, qinfo['qrbounds'][r_gene][1])
         qinfo['glbounds'][r_gene] = (qinfo['glbounds'][r_gene][0] + r_portion, qinfo['glbounds'][r_gene][1])
 
+        # wait, do I need to change 'first_match_qrbounds' here, as well? not sure...
+
     # ----------------------------------------------------------------------------------------
-    def add_to_info(self, qinfo, best, codon_positions):
+    def remove_probably_spurious_deletions(self, qinfo, best, debug=False):  # remove probably-spurious v_5p and j_3p deletions
+        for erosion in utils.effective_erosions:
+            region = erosion[0]
+            if region == 'v':
+                d_len = qinfo['glbounds'][best['v']][0]  # NOTE corresponds to *best* match (but it's what we subtract from everybody's bounds)
+                insertion = qinfo['seq'][ : qinfo['qrbounds'][best['v']][0]]
+            elif region == 'j':
+                d_len = len(self.glfo['seqs']['j'][best['j']]) - qinfo['glbounds'][best['j']][1]  # NOTE corresponds to *best* match (but it's what we subtract from everybody's bounds)
+                insertion = qinfo['seq'][qinfo['qrbounds'][best['j']][1] : ]
+            else:
+                assert False
+
+            if d_len == 0 or len(insertion) < d_len:
+                continue
+            spurious_bases = insertion[len(insertion) - d_len:]  # i.e. the last <v_5p_del> bases of the fv insertion (or first <j_3p_del> bases of the jf insertion)
+            if spurious_bases.count(utils.ambiguous_bases[0]) == len(spurious_bases):  # don't do it if it's all Ns
+                continue
+            if debug:
+                print 'EXPANDING %s %s d_len: %d   insertion: %s (len %d)   spurious: %s (len %d)' % (qinfo['name'], region, d_len, insertion, len(insertion), spurious_bases, len(spurious_bases))
+            for gene in [g for g in qinfo['glbounds'] if utils.get_region(g) == region]:  # it's ok to assume glbounds and qrbounds have the same keys
+                if region == 'v':
+                    if gene == best[region]:
+                        assert qinfo['glbounds'][gene][0] - len(spurious_bases) == 0
+                    qinfo['glbounds'][gene] = (qinfo['glbounds'][gene][0] - len(spurious_bases), qinfo['glbounds'][gene][1])
+                    qinfo['qrbounds'][gene] = (qinfo['qrbounds'][gene][0] - len(spurious_bases), qinfo['qrbounds'][gene][1])
+                elif region == 'j':
+                    # if gene == best[region]:
+                    #     assert qinfo['qrbounds'][gene][1] + len(spurious_bases) == len(qinfo['seq'])
+                    qinfo['glbounds'][gene] = (qinfo['glbounds'][gene][0], qinfo['glbounds'][gene][1] + len(spurious_bases))
+                    qinfo['qrbounds'][gene] = (qinfo['qrbounds'][gene][0], qinfo['qrbounds'][gene][1] + len(spurious_bases))
+                else:
+                    assert False
+
+    # ----------------------------------------------------------------------------------------
+    def convert_qinfo(self, qinfo, best, codon_positions):
+        """ convert <qinfo> (which is from reading sam files) to format for <self.info> (this is so add_to_info() can be used by the cache file reader, as well) """
         qname = qinfo['name']
         assert qname not in self.info
 
-        self.info['queries'].append(qname)
-        self.info[qname] = {}
-        self.info[qname]['unique_ids'] = [qname, ]  # redundant, but used somewhere down the line
+        infoline = {}
+        infoline['unique_ids'] = [qname, ]  # redundant, but used somewhere down the line
+        infoline['seqs'] = [qinfo['seq'], ]  # NOTE this is the seq output by vdjalign, i.e. if we reversed any indels it is the reversed sequence, also NOTE many, many things depend on this list being of length one
 
         kbounds = self.get_kbounds(qinfo, best)
-        self.info[qname]['k_v'] = kbounds['v']
-        self.info[qname]['k_d'] = kbounds['d']
-
-        self.info[qname]['cdr3_length'] = codon_positions['j'] - codon_positions['v'] + 3
-        self.info[qname]['codon_positions'] = copy.deepcopy(codon_positions)
+        infoline['k_v'] = kbounds['v']
+        infoline['k_d'] = kbounds['d']
 
         # erosion, insertion, mutation info for best match
-        self.info[qname]['v_5p_del'] = qinfo['glbounds'][best['v']][0]
-        self.info[qname]['v_3p_del'] = len(self.glfo['seqs']['v'][best['v']]) - qinfo['glbounds'][best['v']][1]  # len(germline v) - gl_match_end
-        self.info[qname]['d_5p_del'] = qinfo['glbounds'][best['d']][0]
-        self.info[qname]['d_3p_del'] = len(self.glfo['seqs']['d'][best['d']]) - qinfo['glbounds'][best['d']][1]
-        self.info[qname]['j_5p_del'] = qinfo['glbounds'][best['j']][0]
-        self.info[qname]['j_3p_del'] = len(self.glfo['seqs']['j'][best['j']]) - qinfo['glbounds'][best['j']][1]
+        infoline['v_5p_del'] = qinfo['glbounds'][best['v']][0]
+        infoline['v_3p_del'] = len(self.glfo['seqs']['v'][best['v']]) - qinfo['glbounds'][best['v']][1]  # len(germline v) - gl_match_end
+        infoline['d_5p_del'] = qinfo['glbounds'][best['d']][0]
+        infoline['d_3p_del'] = len(self.glfo['seqs']['d'][best['d']]) - qinfo['glbounds'][best['d']][1]
+        infoline['j_5p_del'] = qinfo['glbounds'][best['j']][0]
+        infoline['j_3p_del'] = len(self.glfo['seqs']['j'][best['j']]) - qinfo['glbounds'][best['j']][1]
 
-        self.info[qname]['fv_insertion'] = qinfo['seq'][ : qinfo['qrbounds'][best['v']][0]]
-        self.info[qname]['vd_insertion'] = qinfo['seq'][qinfo['qrbounds'][best['v']][1] : qinfo['qrbounds'][best['d']][0]]
-        self.info[qname]['dj_insertion'] = qinfo['seq'][qinfo['qrbounds'][best['d']][1] : qinfo['qrbounds'][best['j']][0]]
-        self.info[qname]['jf_insertion'] = qinfo['seq'][qinfo['qrbounds'][best['j']][1] : ]
+        infoline['fv_insertion'] = qinfo['seq'][ : qinfo['qrbounds'][best['v']][0]]
+        infoline['vd_insertion'] = qinfo['seq'][qinfo['qrbounds'][best['v']][1] : qinfo['qrbounds'][best['d']][0]]
+        infoline['dj_insertion'] = qinfo['seq'][qinfo['qrbounds'][best['d']][1] : qinfo['qrbounds'][best['j']][0]]
+        infoline['jf_insertion'] = qinfo['seq'][qinfo['qrbounds'][best['j']][1] : ]
 
-        self.info[qname]['indelfos'] = [self.info['indels'].get(qname, utils.get_empty_indel()), ]
+        infoline['indelfos'] = [self.info['indels'].get(qname, utils.get_empty_indel()), ]
 
-        self.info[qname]['all_matches'] = {r : [g for _, g in qinfo['matches'][r]] for r in utils.regions}  # get lists with no scores, just the names (still ordered by match quality, though)
+        infoline['all_matches'] = {r : [g for _, g in qinfo['matches'][r]] for r in utils.regions}  # get lists with no scores, just the names (still ordered by match quality, though)
         for region in utils.regions:
-            self.info[qname][region + '_gene'] = best[region]
+            infoline[region + '_gene'] = best[region]
+
+        infoline['cdr3_length'] = codon_positions['j'] - codon_positions['v'] + 3
+        infoline['codon_positions'] = copy.deepcopy(codon_positions)
+        utils.add_implicit_info(self.glfo, infoline, existing_implicit_keys=('cdr3_length', 'codon_positions'))
+
+        return infoline
+
+    # ----------------------------------------------------------------------------------------
+    def add_to_info(self, infoline):
+        assert len(infoline['unique_ids'])
+        qname = infoline['unique_ids'][0]
+
+        self.info['queries'].append(qname)
+        self.info[qname] = infoline
 
         # add this query's matches into the overall gene match sets
         for region in utils.regions:
-            self.info['all_best_matches'].add(best[region])
+            self.info['all_best_matches'].add(self.info[qname][region + '_gene'])
             self.info['all_matches'][region] |= set(self.info[qname]['all_matches'][region])
 
-        self.info[qname]['seqs'] = [qinfo['seq'], ]  # NOTE this is the seq output by vdjalign, i.e. if we reversed any indels it is the reversed sequence, also NOTE many, many things depend on this list being of length one
-
-        existing_implicit_keys = tuple(['cdr3_length', 'codon_positions'])
-        utils.add_implicit_info(self.glfo, self.info[qname], existing_implicit_keys=existing_implicit_keys)
-
         if self.debug:
+            inf_label = ''
             if not self.args.is_data:
+                inf_label = 'inferred:'
                 utils.print_reco_event(self.glfo['seqs'], self.reco_info[qname], extra_str='      ', label='true:')
-            utils.print_reco_event(self.glfo['seqs'], self.info[qname], extra_str='      ', label='inferred:')
+            utils.print_reco_event(self.glfo['seqs'], self.info[qname], extra_str='      ', label=inf_label)
 
-        if self.alfinder is not None:
-            self.alfinder.increment(self.info[qname])
         if self.pcounter is not None:
             self.pcounter.increment(self.info[qname])
             if self.true_pcounter is not None:
@@ -696,6 +744,9 @@ class Waterer(object):
                 return
             else:
                 assert overlap_status == 'ok'
+
+        # force v 5p and j 3p matches to (in most cases) go to the end of the sequence
+        self.remove_probably_spurious_deletions(qinfo, best)
 
         # check for suspiciously bad annotations
         for rp in utils.region_pairs():
@@ -758,7 +809,8 @@ class Waterer(object):
             else:
                 pass  # this is here so you don't forget that if neither of the above is true, we fall through and add the query to self.info
 
-        self.add_to_info(qinfo, best, codon_positions)
+        infoline = self.convert_qinfo(qinfo, best, codon_positions)
+        self.add_to_info(infoline)
 
     # ----------------------------------------------------------------------------------------
     def get_kbounds(self, qinfo, best):
@@ -803,11 +855,6 @@ class Waterer(object):
             k_d_max = 2
 
         assert k_v_min > 0 and k_d_min > 0 and k_v_max > 0 and k_d_max > 0
-
-        if self.debug:
-            print '         k_v: %d [%d-%d)' % (k_v, k_v_min, k_v_max)
-            print '         k_d: %d [%d-%d)' % (k_d, k_d_min, k_d_max)
-
         kbounds = {}
         kbounds['v'] = {'best' : k_v, 'min' : k_v_min, 'max' : k_v_max}
         kbounds['d'] = {'best' : k_d, 'min' : k_d_min, 'max' : k_d_max}
@@ -860,14 +907,23 @@ class Waterer(object):
             if padleft < 0 or padright < 0:
                 raise Exception('bad padding %d %d for %s' % (padleft, padright, query))
 
-            swfo['seqs'][0] = padleft * utils.ambiguous_bases[0] + swfo['seqs'][0] + padright * utils.ambiguous_bases[0]
+            leftstr = padleft * utils.ambiguous_bases[0]
+            rightstr = padright * utils.ambiguous_bases[0]
+            swfo['fv_insertion'] = leftstr + swfo['fv_insertion']
+            swfo['jf_insertion'] = swfo['jf_insertion'] + rightstr
+            swfo['seqs'][0] = leftstr + swfo['seqs'][0] + rightstr
+            swfo['naive_seq'] = leftstr + swfo['naive_seq'] + rightstr
             if query in self.info['indels']:  # also pad the reversed sequence
-                self.info['indels'][query]['reversed_seq'] = padleft * utils.ambiguous_bases[0] + self.info['indels'][query]['reversed_seq'] + padright * utils.ambiguous_bases[0]
+                self.info['indels'][query]['reversed_seq'] = leftstr + self.info['indels'][query]['reversed_seq'] + rightstr
             swfo['k_v']['min'] += padleft
             swfo['k_v']['max'] += padleft
             swfo['codon_positions']['v'] += padleft
+            swfo['codon_positions']['j'] += padleft
+            for region in utils.regions:
+                swfo['regional_bounds'][region] = tuple([rb + padleft for rb in swfo['regional_bounds'][region]])  # I kind of want to just use a list now, but a.t.m. don't much feel like changing it everywhere else
             swfo['padlefts'] = [padleft, ]
             swfo['padrights'] = [padright, ]
+            utils.add_implicit_info(self.glfo, swfo, existing_implicit_keys=utils.implicit_linekeys)  # check to make sure we modified everything in a consistent manner
             if debug:
                 print '      pad %d %d   %s' % (padleft, padright, query)
 

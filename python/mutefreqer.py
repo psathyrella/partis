@@ -14,12 +14,16 @@ class MuteFreqer(object):
         self.glfo = glfo
         self.calculate_uncertainty = calculate_uncertainty
 
-        self.counts, self.freqs = {}, {}
-        n_bins, xmin, xmax = 200, 0., 1.
-        self.mean_rates = {n : Hist(n_bins, xmin, xmax, xtitle='mut freq', ytitle='freq', title=n.upper() if n in utils.regions else 'full seq') for n in ['all', ] + utils.regions}
+        self.counts, self.freqs = {}, {}  # per-gene, per-position counts/rates
+        self.n_bins, self.xmin, self.xmax = 80, 0., 0.4
+        self.mean_rates = {n : Hist(self.n_bins, self.xmin, self.xmax, xtitle='mut freq', ytitle='freq', title=n.upper() if n in utils.regions else 'full seq')
+                           for n in ['all', ] + utils.regions}
+        self.per_gene_mean_rates = {}
 
         self.finalized = False
         self.n_cached, self.n_not_cached = 0, 0
+
+        self.subplotdirs = ['overall', ] + ['per-gene/' + r for r in utils.regions]  # + ['per-gene-per-position/' + r for r in utils.regions]  # + ['per-gene-per-position--per-base' for r in utils.regions]:
 
     # ----------------------------------------------------------------------------------------
     def increment(self, info, iseq):
@@ -27,14 +31,18 @@ class MuteFreqer(object):
 
         for region in utils.regions:
             # first do mean freqs
-            regional_freq = utils.get_mutation_rate(info, iseq, restrict_to_region=region)
+            regional_freq = utils.get_mutation_rate(info, iseq, restrict_to_region=region)  # NOTE It might really make more sense to exclude the last few bases next to NTIs here, like I do in allelefinder
             self.mean_rates[region].fill(regional_freq)  # per-region mean freq
 
-            # then do per-gene per-position freqs
+            # then do per-gene and per-gene, per-position freqs
             gene = info[region + '_gene']
-
             if gene not in self.counts:
                 self.counts[gene] = {}
+                self.per_gene_mean_rates[gene] = Hist(self.n_bins, self.xmin, self.xmax, xtitle='mut freq', ytitle='freq', title=gene)
+            self.per_gene_mean_rates[gene].fill(regional_freq)
+            if gene == 'IGHV1-69*14':
+                self.per_gene_mean_rates[gene].fill(0.7)
+
             gcts = self.counts[gene]  # shorthand name
 
             assert len(info[region + '_qr_seqs']) == 1  # not yet handled
@@ -93,12 +101,14 @@ class MuteFreqer(object):
 
         for hist in self.mean_rates.values():
             hist.normalize()
+        for hist in self.per_gene_mean_rates.values():
+            hist.normalize()
 
         self.finalized = True
 
     # ----------------------------------------------------------------------------------------
     def clean_plots(self, plotdir):
-        for substr in ['overall', ] + utils.regions:  # + [r + '-per-base' for r in utils.regions]:
+        for substr in self.subplotdirs:
             utils.prep_dir(plotdir + '/' + substr, wildlings=('*.csv', '*.svg'))
 
     # ----------------------------------------------------------------------------------------
@@ -130,19 +140,20 @@ class MuteFreqer(object):
                 figsize[0] *= 3.5
             elif utils.get_region(gene) == 'j':
                 figsize[0] *= 2
-            plotting.draw_no_root(genehist, plotdir=plotdir + '/' + utils.get_region(gene), plotname=utils.sanitize_name(gene), errors=True, write_csv=True, xline=xline, figsize=figsize, only_csv=only_csv)
-            # per-base plots:
+            plotting.draw_no_root(self.per_gene_mean_rates[gene], plotdir=plotdir + '/per-gene/' + utils.get_region(gene), plotname=utils.sanitize_name(gene), errors=True, write_csv=True, only_csv=only_csv, shift_overflows=True)
+            # # per-position plots:
+            # plotting.draw_no_root(genehist, plotdir=plotdir + '/per-gene-per-position/' + utils.get_region(gene), plotname=utils.sanitize_name(gene), errors=True, write_csv=True, xline=xline, figsize=figsize, only_csv=only_csv, shift_overflows=True)
+            # # per-position, per-base plots:
             # paramutils.make_mutefreq_plot(plotdir + '/' + utils.get_region(gene) + '-per-base', utils.sanitize_name(gene), plotting_info)  # needs translation to mpl UPDATE fcn is fixed, but I can't be bothered uncommenting this at the moment
 
         # make mean mute freq hists
-        plotting.draw_no_root(self.mean_rates['all'], plotname='all-mean-freq', plotdir=overall_plotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True, only_csv=only_csv)
+        plotting.draw_no_root(self.mean_rates['all'], plotname='all-mean-freq', plotdir=overall_plotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True, only_csv=only_csv, shift_overflows=True)
         for region in utils.regions:
-            plotting.draw_no_root(self.mean_rates[region], plotname=region+'-mean-freq', plotdir=overall_plotdir, stats='mean', bounds=(0.0, 0.6 if region == 'd' else 0.4), write_csv=True, only_csv=only_csv)
+            plotting.draw_no_root(self.mean_rates[region], plotname=region+'-mean-freq', plotdir=overall_plotdir, stats='mean', bounds=(0.0, 0.6 if region == 'd' else 0.4), write_csv=True, only_csv=only_csv, shift_overflows=True)
 
         if not only_csv:  # write html file and fix permissiions
-            plotting.make_html(overall_plotdir)
-            for region in utils.regions:
-                plotting.make_html(plotdir + '/' + region, n_columns=1)
+            for substr in self.subplotdirs:
+                plotting.make_html(plotdir + '/' + substr)
 
     # ----------------------------------------------------------------------------------------
     def write(self, outdir, mean_freq_outfname):

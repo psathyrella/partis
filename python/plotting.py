@@ -213,38 +213,32 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
     if bounds is not None:
         xmin, xmax = bounds
 
-    assert not shift_overflows  # TODO implement this inside of Hist
-    # if shift_overflows:
-    #     for htmp in hists:
-    #         if htmp == None:
-    #             continue
-    #         underflows, overflows = 0.0, 0.0
-    #         first_shown_bin, last_shown_bin = -1, -1
-    #         for ib in range(0, htmp.GetXaxis().GetNbins()+2):
-    #             if htmp.GetXaxis().GetBinCenter(ib) <= xmin:
-    #                 underflows += htmp.GetBinContent(ib)
-    #                 htmp.SetBinContent(ib, 0.0)
-    #             elif first_shown_bin == -1:
-    #                 first_shown_bin = ib
-    #             else:
-    #                 break
-    #         for ib in reversed(range(0, htmp.GetXaxis().GetNbins()+2)):
-    #             if htmp.GetXaxis().GetBinCenter(ib) >= xmax:
-    #                 overflows += htmp.GetBinContent(ib)
-    #                 htmp.SetBinContent(ib, 0.0)
-    #             elif last_shown_bin == -1:
-    #                 last_shown_bin = ib
-    #             else:
-    #                 break
+    if shift_overflows:
+        for htmp in hists:
+            if htmp is None:
+                continue
+            underflows, overflows = 0.0, 0.0
+            first_shown_bin, last_shown_bin = -1, -1
+            bin_centers = htmp.get_bin_centers(ignore_overflows=False)
+            for ib in range(0, htmp.n_bins + 2):
+                if bin_centers[ib] <= xmin:
+                    underflows += htmp.bin_contents[ib]
+                    htmp.set_ibin(ib, 0.0)
+                elif first_shown_bin == -1:
+                    first_shown_bin = ib
+                else:
+                    break
+            for ib in reversed(range(0, htmp.n_bins + 2)):
+                if bin_centers[ib] >= xmax:
+                    overflows += htmp.bin_contents[ib]
+                    htmp.set_ibin(ib, 0.0)
+                elif last_shown_bin == -1:
+                    last_shown_bin = ib
+                else:
+                    break
 
-    #         if 'd_hamming' in plotname:
-    #             print htmp.GetTitle()
-    #             print '  underflow', underflows, htmp.GetBinContent(first_shown_bin)
-    #             print '  overflow', overflows, htmp.GetBinContent(last_shown_bin)
-    #             print '  first', htmp.GetXaxis().GetBinCenter(first_shown_bin)
-    #             print '  last', htmp.GetXaxis().GetBinCenter(last_shown_bin)
-    #         htmp.SetBinContent(first_shown_bin, underflows + htmp.GetBinContent(first_shown_bin))
-    #         htmp.SetBinContent(last_shown_bin, overflows + htmp.GetBinContent(last_shown_bin))
+            htmp.set_ibin(first_shown_bin, underflows + htmp.bin_contents[first_shown_bin])
+            htmp.set_ibin(last_shown_bin, overflows + htmp.bin_contents[last_shown_bin])
 
     if colors is None:  # fiddle here http://stackoverflow.com/questions/22408237/named-colors-in-matplotlib
         assert len(hists) < 5
@@ -888,18 +882,19 @@ def make_html(plotdir, n_columns=3, extension='svg'):
     check_call(['chmod', '664', htmlfname])
 
 # ----------------------------------------------------------------------------------------
-def make_allele_finding_plot(plotdir, gene, position, values):
-    xmin, xmax = 0, 30
+def make_allele_finding_plot(plotdir, gene, position, values, xmax, linefo=None):
+    xmin, xmax = -0.3, xmax
     fig, ax = mpl_init()
 
-    ax.errorbar(values['n_mutelist'], values['freqs'], yerr=values['errs'], markersize=10, linewidth=1, marker='.', label=str(position))
+    ax.errorbar(values['n_mutelist'], values['freqs'], yerr=values['errs'], markersize=15, linewidth=2, marker='.')  #, title='position ' + str(position))
 
-    # fitted line
-    # linevals = [values['slope']*x + values['y_icpt'] for x in [0] + values['n_mutelist']]
-    # ax.plot([0] + values['n_mutelist'], linevals)
+    if linefo is not None:  # fitted line
+        linevals = [linefo['slope']*x + linefo['y_icpt'] for x in [0] + values['n_mutelist']]
+        ax.plot([0] + values['n_mutelist'], linevals)
 
     ax.plot([xmin, xmax], [0, 0], linestyle='dashed', alpha=0.5, color='black')
-    mpl_finish(ax, plotdir, str(position), xlabel='mutations in %s segment' % utils.get_region(gene), ylabel='position\'s mut freq', xbounds=(xmin, xmax), ybounds=(-0.1, 1.05), leg_loc=(0.95, 0.1), adjust={'right' : 0.85})
+    ymax = max(values['freqs']) + max(values['errs'])
+    mpl_finish(ax, plotdir, str(position), xlabel='mutations in %s segment' % utils.get_region(gene), ylabel='position\'s mut freq', xbounds=(xmin, xmax), ybounds=(-0.01, ymax), leg_loc=(0.95, 0.1), adjust={'right' : 0.85}, title='position ' + str(position) + ' in ' + gene)
 
 # ----------------------------------------------------------------------------------------
 def make_fraction_plot(hright, hwrong, plotdir, plotname, xlabel, ylabel, xbounds, only_csv=False, write_csv=False):
