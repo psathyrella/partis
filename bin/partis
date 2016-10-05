@@ -7,7 +7,7 @@ import sys
 import csv
 import numpy
 from multiprocessing import Process, active_children
-from subprocess import check_output, CalledProcessError
+from subprocess import check_call, check_output, CalledProcessError
 import os
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
 if not os.path.exists(partis_dir):
@@ -33,6 +33,9 @@ def check_maybe_auto_cache_parameters(args, gldir):
     auto_ran_cache_parameters = False
     if not args.simulate_partially_from_scratch and not os.path.exists(args.parameter_dir):
         print '  parameter dir \'%s\' does not exist, so first caching a new set of parameters, then running action \'%s\'' % (args.parameter_dir, args.action)
+        # if sys.argv[1] != args.action:
+        #     raise Exception('action %s not at position index 1 %s' % (args.action, sys.argv[1]))
+        # check_call(sys.argv[:1] + ['cache-parameters', ] + sys.argv[2:])
         parter = PartitionDriver(args, 'cache-parameters', gldir)  # if we're caching parameters, read initial gl info from <gldir> (then the final glfo gets written to the parameter dir)
         parter.cache_parameters()
         parter.clean()
@@ -289,8 +292,8 @@ parent_parser.add_argument('--reco-ids', help='Colon-separated list of rearrange
 parent_parser.add_argument('--n-max-queries', type=int, default=-1, help='Maximum number of query sequences on which to run (except for simulator, where it\'s the number of rearrangement events)')
 parent_parser.add_argument('--only-genes', help='Colon-separated list of genes to which to restrict the analysis. If any regions (V/D/J) are not represented among these genes, these regions are left unrestricted.')
 parent_parser.add_argument('--n-max-per-region', default='3:5:2', help='Number of best smith-waterman matches (per region, in the format v:d:j) to pass on to the hmm')
-parent_parser.add_argument('--default-v-fuzz', type=int, default=5, help='Size of the k space region over which to sum in the v direction')
-parent_parser.add_argument('--default-d-fuzz', type=int, default=2, help='Size of the k space region over which to sum in the d direction')
+parent_parser.add_argument('--default-v-fuzz', type=int, default=2, help='Size of the k space region over which to sum in the v direction, for each single gene match (we take the OR of the bounds over all matches, though, which generally makes the space much bigger)')
+parent_parser.add_argument('--default-d-fuzz', type=int, default=2, help='Size of the k space region over which to sum in the d direction, for each single gene match (we take the OR of the bounds over all matches, though, which generally makes the space much bigger)')
 parent_parser.add_argument('--gap-open-penalty', type=int, default=30, help='Penalty for indel creation in Smith-Waterman step.')
 parent_parser.add_argument('--initial-match-mismatch', default='5:1', help='Initial match:mismatch scores for smith-waterman (we run several iterations, increasing mismatch each time).')
 parent_parser.add_argument('--max-logprob-drop', type=float, default=5., help='stop glomerating when the total logprob has dropped by this much')
@@ -306,11 +309,16 @@ parent_parser.add_argument('--only-smith-waterman', action='store_true', help='E
 # parent_parser.add_argument('--use_mean_at_boundaries', action='store_true', help='see note in hmmwriter')
 
 # am I not using translation when getting the log prob for the final partition?'
-# add flag to disable cdr3 preclustering'
-# make padding specific to each cdr3 subclass'
+# add flag to disable cdr3 preclustering UPDATE actually I think it makes more sense to "allow" shm i indels within cdr3 after doing all the rest of the partitioning'
+# make padding specific to each cdr3 subclass UPDATE maybe not worthwhile? doesn't seem to be an exorbitant amount of padding any more'
 # don't warn about queries missing from partition if they've been removed because of --seed-unique-id
 # fix nonetype argument bullshit when auto-caching-parameters (maybe best to call a ./bin/partis subprocess?)
 # is best-minus-x stuff still working?
+# need to do allele removal for j (and maybe d?)
+# seed with naive sequences
+# don't write unseeded uids to output file when seed partitioning
+# n_max_per_region needs to be enforced in waterer when getting OR kbounds (should probably actually switch to discarding the extra matches immediately in waterer)
+# remove duplicates before writing partition output (?)
 
 # why is fail job output out of order with succeeded output in log files?
 # how the fuck is stuff re-trying 10 times?
@@ -321,6 +329,7 @@ parent_parser.add_argument('--only-smith-waterman', action='store_true', help='E
 #    - maybe simulation line shouldn't be associated with a particular inferred line (see below)
 #    - print \'seed\' in cluster annotations
 #    - fix multiple-indel printing'
+#    - just print the length for large fv/jf insertions
 
 # allele crap:
 #     all alleles (including new ones) should have roughly the same mut freq distribution (especially at low mutation)'

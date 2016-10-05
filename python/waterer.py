@@ -817,19 +817,27 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def get_kbounds(self, qinfo, best):
-        # OR of k-space for all the matches
+        # OR of k-space for the best <self.args.n_max_per_region> matches
         k_v_min, k_d_min = 999, 999
         k_v_max, k_d_max = 0, 0
-        for region in utils.regions:  # NOTE since here I'm not yet skipping genes beyond the first <args.n_max_per_region>, this is overly conservative. Don't really care, though... k space integration is mostly pretty cheap what with chunk caching
-            for _, gene in qinfo['matches'][region]:
-                if region == 'v':
-                    this_k_v = qinfo['qrbounds'][gene][1]  # NOTE even if the v match doesn't start at the left hand edge of the query sequence, we still measure k_v from there. In other words, sw doesn't tell the hmm about it
-                    k_v_min = min(this_k_v, k_v_min)
-                    k_v_max = max(this_k_v, k_v_max)
-                elif region == 'd':
-                    this_k_d = qinfo['qrbounds'][gene][1] - qinfo['first_match_qrbounds'][1]  # end of d minus end of v
-                    k_d_min = min(this_k_d, k_d_min)
-                    k_d_max = max(this_k_d, k_d_max)
+
+        # k_v
+        tmpreg = 'v'
+        n_v_genes = min(self.args.n_max_per_region[utils.regions.index(tmpreg)], len(qinfo['matches'][tmpreg]))
+        for igene in range(n_v_genes):
+            _, gene = qinfo['matches'][tmpreg][igene]
+            this_k_v = qinfo['qrbounds'][gene][1]  # NOTE even if the v match doesn't start at the left hand edge of the query sequence, we still measure k_v from there. In other words, sw doesn't tell the hmm about it
+            k_v_min = min(this_k_v, k_v_min)
+            k_v_max = max(this_k_v, k_v_max)
+
+        # k_d
+        tmpreg = 'd'
+        n_d_genes = min(self.args.n_max_per_region[utils.regions.index(tmpreg)], len(qinfo['matches'][tmpreg]))
+        for igene in range(n_d_genes):
+            _, gene = qinfo['matches'][tmpreg][igene]
+            this_k_d = qinfo['qrbounds'][gene][1] - qinfo['first_match_qrbounds'][1]  # end of d minus end of v
+            k_d_min = min(this_k_d, k_d_min)
+            k_d_max = max(this_k_d, k_d_max)
 
         # best k_v, k_d:
         k_v = qinfo['qrbounds'][best['v']][1]  # end of v match
@@ -884,8 +892,8 @@ class Waterer(object):
                 swfo['indelfos'][0]['reversed_seq'] = swfo['seqs'][0]
             for indel in reversed(swfo['indelfos'][0]['indels']):
                 indel['pos'] -= fv_len
-            swfo['k_v']['min'] -= fv_len
-            swfo['k_v']['max'] -= fv_len
+            for key in swfo['k_v']:
+                swfo['k_v'][key] -= fv_len
             swfo['fv_insertion'] = ''
             swfo['jf_insertion'] = ''
 
@@ -964,8 +972,8 @@ class Waterer(object):
             swfo['naive_seq'] = leftstr + swfo['naive_seq'] + rightstr  # NOTE I should eventually rewrite this to remove all implicit info, then change things, then re-add implicit info (like in remove_framework_insertions)
             if query in self.info['indels']:  # also pad the reversed sequence
                 self.info['indels'][query]['reversed_seq'] = leftstr + self.info['indels'][query]['reversed_seq'] + rightstr
-            swfo['k_v']['min'] += padleft
-            swfo['k_v']['max'] += padleft
+            for key in swfo['k_v']:
+                swfo['k_v'][key] += padleft
             swfo['codon_positions']['v'] += padleft
             swfo['codon_positions']['j'] += padleft
             for region in utils.regions:
