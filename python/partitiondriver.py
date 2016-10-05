@@ -1055,6 +1055,9 @@ class PartitionDriver(object):
     def write_fake_cache_file(self, nsets):
         """ Write a fake cache file which, instead of the inferred naive sequences, has the *true* naive sequences. Used to generate synthetic partitions. """
 
+        if self.reco_info is None:
+            raise Exception('can\'t write fake cache file for --synthetic-distance-based-partition unless --is-simu is specified (and there\'s sim info in the input csv)')
+
         if os.path.exists(self.hmm_cachefname):
             print '      cache file exists, not writing fake true naive seqs'
             return
