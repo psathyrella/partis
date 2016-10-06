@@ -1616,17 +1616,23 @@ def finish_process(iproc, procs, n_tries, workdir, logdir, outfname, cmd_str, db
     elif n_tries[iproc] > 5:
         raise Exception('exceeded max number of tries for command\n    %s\nlook for output in %s and %s' % (cmd_str, workdir, logdir))
     else:
-        print '    rerunning proc %d (n tries %d, exited with %d' % (n_tries[iproc], iproc, procs[iproc].returncode),
-        if not os.path.exists(outfname):
-            print ', missing output %s' % outfname,
-        print ')'
-        if os.path.exists(logdir + '/err'):
-            print '        out tail:'
-            errstr = check_output(['tail', logdir + '/out'])
-            print '\n'.join(['            ' + l for l in errstr.split('\n')])
-            print '        err tail:'
-            errstr = check_output(['tail', logdir + '/err'])
-            print '\n'.join(['            ' + l for l in errstr.split('\n')])
+        print '    proc %d failed on try %d: exited with %d, output %s' % (iproc, n_tries[iproc], procs[iproc].returncode, 'exists' if os.path.exists(outfname) else 'dne')
+        for strtype in ['out', 'err']:
+            if os.path.exists(logdir + '/' + strtype) and os.stat(logdir + '/' + strtype).st_size > 0:
+                print '        %s tail:' % strtype
+                logstr = check_output(['tail', logdir + '/' + strtype])
+                print '\n'.join(['            ' + l for l in logstr.split('\n')])
+        if cmd_str.split()[0] == 'srun' and os.path.exists(logdir + '/err'):
+            jobid = check_output(['head', '-n1', logdir + '/err']).split()[2]
+            try:
+                nodelist = check_output(['squeue', '--job', jobid, '--states=all', '--format', '%N']).split()[1]
+            except:
+                print '      couldn\'t get node list for job %s' % jobid
+            try:
+                print '        sshing to %s' % nodelist
+                check_call('ssh -o StrictHostKeyChecking=no ' + nodelist + ' ps -eo pcpu,pmem,user,stime,args --sort pmem | tail -n30', shell=True)
+            except:
+                print '        failed'
         procs[iproc] = run_cmd(cmd_str, workdir)
         n_tries[iproc] += 1
 
