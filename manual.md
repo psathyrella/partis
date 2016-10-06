@@ -11,8 +11,8 @@ The following two papers describe the annotation and clonal family inference fun
 
 This manual is organized into the following sections:
 
-  * [Quick Start](#quick-start) install/run with Docker
-  * [Slow Start](#slow-start) install from scratch
+  * [Installation with Docker](#installation-with-docker)
+  * [Installation from scratch](#installation-from-scratch)
   * [Subcommands](#subcommands) how to navigate the various `partis` actions
     - [run-viterbi](#run-viterbi) find most likely annotations/alignments
 	- [partition](#partition) cluster sequences into clonally-related families
@@ -34,11 +34,11 @@ In general, we assume that the reader is familiar with the papers describing [an
 To ask questions, or search through past discussions, please use the [google group](https://groups.google.com/forum/#!forum/partis).
 For specific issues with the software, e.g. bug reports or feature requests, on the other hand, [submit an issue](https://github.com/psathyrella/partis/issues?utf8=%E2%9C%93&q=) on github.
 
-### Quick Start
+### Installation with Docker
 
-Because partis has a lot of dependencies, you'll likely have an easier time of it using the [Docker image](https://registry.hub.docker.com/u/psathyrella/partis/) rather than installing from scratch.
+The easiest way to install partis is with the [Docker image](https://registry.hub.docker.com/u/psathyrella/partis/).
 Docker images are kind of like lightweight virtual machines, and as such all the dependencies are taken care of automatically.
-If, however, you'll be doing a lot of mucking about under the hood, bare and dockerless installation might be preferable.
+If, however, you'll be doing a lot of mucking about under the hood, plain installation might be preferable (see [Installation from scratch](#installation-from-scratch) below).
 
 You'll first want install Docker using their [installation instructions](https://docs.docker.com) for your particular system.
 Once Docker's installed, pull the partis image from dockerhub, start up a container from this image and attach yourself to it interactively, and compile:
@@ -83,21 +83,25 @@ Docker containers and images are kinda-sorta like virtual machines, only differe
     - Hence the `-it` and `/bin/bash` options we used above for `docker run`: these allocate a pseudo-tty, keep STDIN open, and run bash instead of the default command, without all of which you can't reattach
     - the Docker docs are good, but googling on stackoverflow is frequently better
 
-### Slow Start
+### Installation from scratch
 
-As noted above, for most use cases you'll likely be happier using the [Docker image](https://registry.hub.docker.com/u/psathyrella/partis/).
-But if you're doing lots of development it's nice to be able to work outside of Docker, and installing from scratch isn't really so bad.
-You'll need to have recent versions of a number of debian and python packages, a list of which can be found in the [Dockerfile](https://github.com/psathyrella/partis/blob/master/Dockerfile).
+Given the wide variety of different systems that are out there, installing without Docker comes with no guarantees.
+That said, you should be able to get partis running on recent versions of ubuntu with a few `apt-get` and `pip` commands.
+If you use os-x you're likely to be more familiar than us with whether or not that statement will also apply to you.
+
+Basically, you just need to install the dependencies listed in the [Dockerfile](https://github.com/psathyrella/partis/blob/master/Dockerfile), plus a few extras.
+
+```
+sudo apt-get install python-pip scons libboost-all-dev
+```
+```
+sudo apt-get install  <stuff in Dockerfile>
+```
+```
+pip install --user <stuff in Dockerfile>
+```
+
 If you need to sort out versions, follow the Dockerfile chain beginning [here](https://registry.hub.docker.com/u/psathyrella/partis/dockerfile/) and [here](https://github.com/matsengrp/dockerfiles/blob/master/cpp/Dockerfile).
-
-The following packages are also used by partis, but they're included as `git subtree`s in the source code, so you don't need to do anything:
-  - ig-sw
-  - tclap
-  - yaml-cpp
-  - ham
-  - samtools
-  - bppseqgen
-  - vsearch
 
 Once you've got all the necessary things on your system, you can proceed to clone the repository:
 
@@ -272,14 +276,14 @@ Which, of course, is not particularly well-justified given the extensive gene de
 But, it is a reasonable first approximation.
 And, more importantly, it is vastly more accurate than simply keeping every single allele which is a best match.
 
-Second, we re-run smith-waterman using this reduced V germline set, and apply a new method for finding any previously unknown V alleles, or V alleles which were over-aggressively pruned in the previous step.
+Second, if `--find-new-alleles` is specified, we re-run smith-waterman using this reduced V germline set, and apply a new method for finding any previously unknown V alleles, or V alleles which were over-aggressively pruned in the previous step.
 This method is too complex to describe here in detail, but can perhaps best be described as a principled, hypothesis-testing-based generalization of the [tigger](https://www.ncbi.nlm.nih.gov/pubmed/25675496) method.
 The entire resulting germline set is written to a subdirectory of `--parameter-dir`, and is used in subsequent runs instead of the initial germline set.
 
 We could probably do the same thing for J, but there doesn't seem to be much polymorphism, so it's probably not worthwhile.
 Doing it for D is probably not realistic.
 
-You can disable all of this germline set manipulation, i.e. just use the initial germline set (either imgt, or `--initial-germline-dir`), by specifying `--dont-remove-unlikely-alleles` and `--dont-find-new-alleles`.
+You can disable the allele-removal step with `--dont-remove-unlikely-alleles`.
 
 #### simulate
 
@@ -336,6 +340,6 @@ With typical mutation levels, lineage structures, and cluster size distributions
 #### Text output and logging
 
   - to properly display the ansi color codes in stdoutput:
-    - less -RS (S disables line wrapping)
+    - less -RS (S disables line wrapping -- use left/right arrows to move side-to-side)
     - M-x display-ansi-colors (emacs)
   - it's typically best to view the ascii annotation outputs by making your text size as small as necessary to fit it all on your screen (typically ctrl-<minus>). You don't usually need to view individual bases, and you can zoom back in for the rest of the stdout.
