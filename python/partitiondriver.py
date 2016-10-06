@@ -1432,7 +1432,10 @@ class PartitionDriver(object):
                 self.add_sw_info_to_hmm_outline(outline)
 
                 for uid in outline['unique_ids']:  # make a note that we have an annotation for these uids (so we can see if there's any that we're missing)
-                    missing_input_keys.remove(uid)
+                    if uid in missing_input_keys:
+                        missing_input_keys.remove(uid)
+                    else:
+                        print '%s uid %s not found in missing_input_keys'  % (utils.color('red', 'warning'), uid)
 
                 outline = utils.get_line_for_output(outline)  # convert lists to colon-separated strings and whatnot
                 outline = {k : v for k, v in outline.items() if k in utils.annotation_headers}  # remove the columns we don't want to output
