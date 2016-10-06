@@ -13,6 +13,7 @@ This manual is organized into the following sections:
 
   * [Installation with Docker](#installation-with-docker)
   * [Installation from scratch](#installation-from-scratch)
+  * [Quick start](#quick-start)
   * [Subcommands](#subcommands) how to navigate the various `partis` actions
     - [run-viterbi](#run-viterbi) find most likely annotations/alignments
 	- [partition](#partition) cluster sequences into clonally-related families
@@ -38,7 +39,7 @@ For specific issues with the software, e.g. bug reports or feature requests, on 
 
 The easiest way to install partis is with the [Docker image](https://registry.hub.docker.com/u/psathyrella/partis/).
 Docker images are kind of like lightweight virtual machines, and as such all the dependencies are taken care of automatically.
-If, however, you'll be doing a lot of mucking about under the hood, plain installation might be preferable (see [Installation from scratch](#installation-from-scratch) below).
+If, however, you'll be mucking about under the hood, or you just don't want to deal with Docker, plain installation might be preferable (see [Installation from scratch](#installation-from-scratch) below).
 
 You'll first want install Docker using their [installation instructions](https://docs.docker.com) for your particular system.
 Once Docker's installed, pull the partis image from dockerhub, start up a container from this image and attach yourself to it interactively, and compile:
@@ -50,26 +51,6 @@ sudo docker run -it -v /:/host psathyrella/partis /bin/bash
 ```
 Depending on your system, the `sudo` may be unnecessary.
 Note the `-v`, which mounts the root of the host filesystem to `/host` inside the container.
-
-Now you can run individual partis commands (described [below](#details)), or poke around in the code.
-If you just want to annotate a small file with BCR sequences, say on your machine at `/path/to/yourseqs.fa`, run
-
-```./bin/partis run-viterbi --infname /host/path/to/yourseqs.fa --outfname /host/path/to/yourseqs-run-viterbi.csv```
-
-Whereas if you'd like to separate them into clonal families, run
-
-```./bin/partis partition --infname /host/path/to/yourseqs.fa --outfname /host/path/to/yourseqs-partition.csv```
-
-Note that now we're inside the container, we access the fasta file at the original path on your host system, but with `/host` tacked on the front (as we specified in `docker run` above).
-There's also some example sequences you can run on in `test/example.fa`.
-
-Also note that partis by default infers its HMM parameters on the fly for each data set; while on larger samples this is substantially more accurate than using population-wide averages, if you have fewer than, say, 50 sequences, it is not a particularly meaningful exercise.
-Until there exists enough public data such that it is possible to build good population-wide parameter priors, the best thing to do in such cases is to find a larger data set that you think is similar (e.g. same patient, so it has the same germline genes) to the one you're interested in, and infer parameters using that larger set.
-
-Depending on your system, in ten minutes a single process can annotate perhaps 5000 sequences or partition a few hundred.
-To parallelize on your local machine, just add `--n-procs N`.
-You can also use the approximate clustering methods: point/naive (`--naive-hamming`) or vsearch (`--naive-vsearch`).
-The naive-hamming method is perhaps twice as fast as the full method, while the vsearch method is much faster -- it typicallly takes longer to do the pre-annotation to get the naive sequences than it does for vsearch to run.
 
 To detach from the docker container without stopping it (and you don't want to stop it!), hit `ctrl-p ctrl-q`.
 
@@ -115,6 +96,27 @@ And then build:
 ```
 ./bin/build.sh
 ```
+
+### Quick start
+
+Once you have it installed, you can run individual partis commands (described [below](#subcommands)), or poke around in the code.
+If you just want to annotate a small file with BCR sequences, say on your machine at `/path/to/yourseqs.fa`, run
+
+```./bin/partis run-viterbi --infname /host/path/to/yourseqs.fa --outfname /path/to/yourseqs-run-viterbi.csv```
+
+If you're using Docker, and you mounted your host filesystem as described above, this (and the commands below) should instead be `--outfname /host/path/to/yourseqs-run-viterbi.csv`.
+
+Whereas if you'd like to separate them into clonal families, run
+
+```./bin/partis partition --infname /host/path/to/yourseqs.fa --outfname /path/to/yourseqs-partition.csv```
+
+There's some example sequences you can run on in `test/example.fa`.
+
+To parallelize on your local machine, just add `--n-procs N`.
+You can also use the approximate clustering methods: point/naive (`--naive-hamming`) or vsearch (`--naive-vsearch`).
+The naive-hamming method is perhaps twice as fast as the full method, while the vsearch method is much faster -- it typicallly takes longer to do the pre-annotation to get the naive sequences than it does for vsearch to run.
+Run times depend on your system, as well as the repertoire structure of your sample.
+Typically, though, in 15 minutes with 30 processes you can annotate 100 thousand sequences, or partition 10 thousand.
 
 ### Subcommands
 
