@@ -70,16 +70,13 @@ Given the wide variety of different systems that are out there, installing witho
 That said, you should be able to get partis running on recent versions of ubuntu with a few `apt-get` and `pip` commands.
 If you use os-x you're likely to be more familiar than us with whether or not that statement will also apply to you.
 
-Basically, you just need to install the dependencies listed in the [Dockerfile](https://github.com/psathyrella/partis/blob/master/Dockerfile), plus a few extras.
+Basically, you just need to install a few extra packages, and then the dependencies listed in the [Dockerfile](https://github.com/psathyrella/partis/blob/master/Dockerfile).
 
 ```
 sudo apt-get install python-pip scons libboost-all-dev
-```
-```
-sudo apt-get install  <stuff in Dockerfile>
-```
-```
+sudo apt-get install <stuff in Dockerfile>
 pip install --user <stuff in Dockerfile>
+R --vanilla --slave -e 'install.packages("TreeSim", repos="http://cran.rstudio.com/")'
 ```
 
 If you need to sort out versions, follow the Dockerfile chain beginning [here](https://registry.hub.docker.com/u/psathyrella/partis/dockerfile/) and [here](https://github.com/matsengrp/dockerfiles/blob/master/cpp/Dockerfile).
@@ -99,22 +96,22 @@ And then build:
 
 ### Quick start
 
-Once you have it installed, you can run individual partis commands (described [below](#subcommands)), or poke around in the code.
-If you just want to annotate a small file with BCR sequences, say on your machine at `/path/to/yourseqs.fa`, run
+Once you have partis installed, if you want to annotate a small file with BCR sequences, perhaps located at `/path/to/yourseqs.fa`, run
 
-```./bin/partis run-viterbi --infname /host/path/to/yourseqs.fa --outfname /path/to/yourseqs-run-viterbi.csv```
+```./bin/partis run-viterbi --infname /path/to/yourseqs.fa --outfname /path/to/yourseqs-run-viterbi.csv```
 
-If you're using Docker, and you mounted your host filesystem as described above, this (and the commands below) should instead be `--outfname /host/path/to/yourseqs-run-viterbi.csv`.
+If you're using Docker, and you mounted your host filesystem as described above, you should replace each `/path/to` with `/host/path/to`.
 
 Whereas if you'd like to separate them into clonal families, run
 
-```./bin/partis partition --infname /host/path/to/yourseqs.fa --outfname /path/to/yourseqs-partition.csv```
+```./bin/partis partition --infname /path/to/yourseqs.fa --outfname /path/to/yourseqs-partition.csv```
+
+Where, again, tack `/host` on the front of if you're inside Docker.
 
 There's some example sequences you can run on in `test/example.fa`.
 
 To parallelize on your local machine, just add `--n-procs N`.
 You can also use the approximate clustering methods: point/naive (`--naive-hamming`) or vsearch (`--naive-vsearch`).
-The naive-hamming method is perhaps twice as fast as the full method, while the vsearch method is much faster -- it typicallly takes longer to do the pre-annotation to get the naive sequences than it does for vsearch to run.
 Run times depend on your system, as well as the repertoire structure of your sample.
 Typically, though, in 15 minutes with 30 processes you can annotate 100 thousand sequences, or partition 10 thousand.
 
