@@ -123,21 +123,22 @@ class AlleleRemover(object):
         return True
 
     # ----------------------------------------------------------------------------------------
-    def finalize(self, pcounter, swfo, debug=True):
+    def finalize(self, pcounter, swfo, debug=False):
         assert not self.finalized
         sorted_gene_counts = [(deps[0], counts) for deps, counts in sorted(pcounter.counts[self.region + '_gene'].items(), key=operator.itemgetter(1), reverse=True)]
         easycounts = {gene : counts for gene, counts in sorted_gene_counts}
         total_counts = sum([counts for counts in easycounts.values()])
 
-        if debug:
-            print '  removing least likely alleles (%d total counts)' % total_counts
-
         self.genes_to_keep = set()
 
-        print '       %20s  %5s  %5s   %s  %s' % ('', 'counts', 'snps', 'keep?', '')
+        if debug:
+            print '  removing least likely alleles (%d total counts)' % total_counts
+            print '       %20s  %5s  %5s   %s  %s' % ('', 'counts', 'snps', 'keep?', '')
+
         class_counts = self.separate_into_classes(sorted_gene_counts, easycounts)
         for gclass in class_counts:
-            print ''
+            if debug:
+                print ''
             n_from_this_class = 0
             for ig in range(len(gclass)):
                 gfo = gclass[ig]
@@ -154,9 +155,10 @@ class AlleleRemover(object):
                 else:  # don't keep it
                     pass
 
-                snpstr = ' ' if ig == 0 else '%d' % utils.hamming_distance(gclass[0]['seq'], gfo['seq'])
-                keepstr = utils.color('yellow', 'x', width=5) if gfo['gene'] in self.genes_to_keep else '     '
-                print '       %20s  %5d  %5s  %s' % (utils.color_gene(gfo['gene'], width=20), gfo['counts'], snpstr, keepstr) #, utils.color_mutants(gclass[0]['seq'], gfo['seq']))
+                if debug:
+                    snpstr = ' ' if ig == 0 else '%d' % utils.hamming_distance(gclass[0]['seq'], gfo['seq'])
+                    keepstr = utils.color('yellow', 'x', width=5) if gfo['gene'] in self.genes_to_keep else '     '
+                    print '       %20s  %5d  %5s  %s' % (utils.color_gene(gfo['gene'], width=20), gfo['counts'], snpstr, keepstr) #, utils.color_mutants(gclass[0]['seq'], gfo['seq']))
 
         # for igene in range(len(sorted_gene_counts)):
         #     gene, counts = sorted_gene_counts[igene]
