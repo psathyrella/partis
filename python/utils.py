@@ -1673,7 +1673,7 @@ def process_out_err(out, err, extra_str='', dbgfo=None, logdir=None, debug=None)
 
     if dbgfo is not None:  # keep track of how many vtb and fwd calculations the process made
         for header, variables in bcrham_dbgstrs.items():
-            dbgfo[header] = {}
+            dbgfo[header] = {var : None for var in variables}
             theselines = [ln for ln in out.split('\n') if header + ':' in ln]
             if len(theselines) == 0:
                 continue
@@ -1683,8 +1683,6 @@ def process_out_err(out, err, extra_str='', dbgfo=None, logdir=None, debug=None)
             for var in variables:  # convention: value corresponding to the string <var> is the word immediately vollowing <var>
                 if var in  words:
                     dbgfo[header][var] = float(words[words.index(var) + 1])
-                else:
-                    dbgfo[header][var] = None  # e.g. if we're running viterbi there won't be an hfrac number
 
     print_str += out
 
