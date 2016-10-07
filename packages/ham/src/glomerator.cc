@@ -42,8 +42,7 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> >
 // ----------------------------------------------------------------------------------------
 Glomerator::~Glomerator() {
   cout << FinalString() << endl;
-  if(args_->cachefile() != "")
-    WriteCachedLogProbs();
+  WriteCacheFile();
   fclose(progress_file_);
   remove((args_->outfile() + ".progress").c_str());
 }
@@ -92,12 +91,15 @@ Partition Glomerator::GetAnInitialPartition(int &initial_path_index, double &log
 
 // ----------------------------------------------------------------------------------------
 void Glomerator::ReadCacheFile() {
-  ifstream ifs(args_->cachefile());
-  if(!ifs.is_open()) {  // this means we don't have any cached results to start with, but we'll write out what we have at the end of the run to this file
-    cout << "        cachefile d.n.e." << endl;
+  if(args_->input_cachefname() == "") {
     cout << "        read-cache:  logprobs 0   naive-seqs 0" << endl;
     return;
   }
+
+  ifstream ifs(args_->input_cachefname());
+  if(!ifs.is_open())
+    throw runtime_error("input cache file " + args_->input_cachefname() + " dne\n");
+
   string line;
   // check the header is right (no cached info)
   if(!getline(ifs, line)) {
@@ -164,12 +166,15 @@ void Glomerator::WriteCacheLine(ofstream &ofs, string query) {
 }
 
 // ----------------------------------------------------------------------------------------
-void Glomerator::WriteCachedLogProbs() {
-  ofstream log_prob_ofs(args_->cachefile());
-  if(!log_prob_ofs.is_open())
-    throw runtime_error("ERROR cache file (" + args_->cachefile() + ") d.n.e.\n");
-  log_prob_ofs << "unique_ids,logprob,naive_seq,naive_hfrac,errors" << endl;
+void Glomerator::WriteCacheFile() {
+  if(args_->output_cachefname() == "")
+    return;
 
+  ofstream log_prob_ofs(args_->output_cachefname());
+  if(!log_prob_ofs.is_open())
+    throw runtime_error("couldn't open output cache file " + args_->output_cachefname() + "\n");
+
+  log_prob_ofs << "unique_ids,logprob,naive_seq,naive_hfrac,errors" << endl;
   log_prob_ofs << setprecision(20);
 
   set<string> keys_to_cache;

@@ -55,7 +55,7 @@ public:
 private:
   void ReadCacheFile();
   void WriteCacheLine(ofstream &ofs, string query);
-  void WriteCachedLogProbs();
+  void WriteCacheFile();
 
   void PrintPartition(Partition &clusters, string extrastr);
   string CacheSizeString();

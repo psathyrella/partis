@@ -13,7 +13,8 @@ Args::Args(int argc, const char * argv[]):
   infile_arg_("", "infile", "input (whitespace-separated) file", true, "", "string"),
   outfile_arg_("", "outfile", "output csv file", true, "", "string"),
   annotationfile_arg_("", "annotationfile", "if specified, write annotations for each cluster to here", false, "", "string"),
-  cachefile_arg_("", "cachefile", "input (and output) cache log prob csv file", false, "", "string"),
+  input_cachefname_arg_("", "input-cachefname", "input cached log prob/naive seq csv file", false, "", "string"),
+  output_cachefname_arg_("", "output-cachefname", "output cached log prob/naive seq csv file", false, "", "string"),
   chain_arg_("", "chain", "is this heavy (h) or light (k, l) chain?", true, "", "string"),
   algorithm_arg_("", "algorithm", "algorithm to run", true, "", &algo_vals_),
   ambig_base_arg_("", "ambig-base", "ambiguous base", false, "", "string"),
@@ -23,7 +24,6 @@ Args::Args(int argc, const char * argv[]):
   logprob_ratio_threshold_arg_("", "logprob-ratio-threshold", "", false, -INFINITY, "float"),
   max_logprob_drop_arg_("", "max-logprob-drop", "stop glomerating when the total logprob has dropped by this much", false, -1.0, "float"),
   debug_arg_("", "debug", "debug level", false, 0, &debug_vals_),
-  smc_particles_arg_("", "smc-particles", "number of particles (paths) to run in sequential monte carlo (do not run smc if < 2)", false, 1, "int"),
   naive_hamming_cluster_arg_("", "naive-hamming-cluster", "cluster sequences using naive hamming distance", false, 0, "int"),
   biggest_naive_seq_cluster_to_calculate_arg_("", "biggest-naive-seq-cluster-to-calculate", "", false, 99999, "int"),
   biggest_logprob_cluster_to_calculate_arg_("", "biggest-logprob-cluster-to-calculate", "", false, 99999, "int"),
@@ -50,7 +50,8 @@ Args::Args(int argc, const char * argv[]):
     cmd.add(infile_arg_);
     cmd.add(outfile_arg_);
     cmd.add(annotationfile_arg_);
-    cmd.add(cachefile_arg_);
+    cmd.add(input_cachefname_arg_);
+    cmd.add(output_cachefname_arg_);
     cmd.add(chain_arg_);
     cmd.add(hamming_fraction_bound_lo_arg_);
     cmd.add(hamming_fraction_bound_hi_arg_);
@@ -60,7 +61,6 @@ Args::Args(int argc, const char * argv[]):
     cmd.add(ambig_base_arg_);
     cmd.add(seed_unique_id_arg_);
     cmd.add(debug_arg_);
-    cmd.add(smc_particles_arg_);
     cmd.add(naive_hamming_cluster_arg_);
     cmd.add(biggest_naive_seq_cluster_to_calculate_arg_);
     cmd.add(biggest_logprob_cluster_to_calculate_arg_);

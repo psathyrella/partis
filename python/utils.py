@@ -1607,6 +1607,11 @@ def run_cmds(cmdfos, debug=None):
         time.sleep(0.1)
 
 # ----------------------------------------------------------------------------------------
+def pad_lines(linestr, padwidth=8):
+    lines = [padwidth * ' ' + l for l in linestr.split('\n')]
+    return '\n'.join(lines)
+
+# ----------------------------------------------------------------------------------------
 # deal with a process once it's finished (i.e. check if it failed, and restart if so)
 def finish_process(iproc, procs, n_tries, workdir, logdir, outfname, cmd_str, dbgfo=None, debug=None):
     procs[iproc].communicate()
@@ -1630,9 +1635,11 @@ def finish_process(iproc, procs, n_tries, workdir, logdir, outfname, cmd_str, db
                 print '      couldn\'t get node list for job %s' % jobid
             try:
                 print '        sshing to %s' % nodelist
-                check_call('ssh -o StrictHostKeyChecking=no ' + nodelist + ' ps -eo pcpu,pmem,user,stime,args --sort pmem | tail -n30', shell=True)
+                outstr = check_output('ssh -o StrictHostKeyChecking=no ' + nodelist + ' ps -eo pcpu,pmem,user,stime,args --sort pmem | tail', shell=True)
+                print pad_lines(outstr, padwidth=12)
             except:
                 print '        failed'
+        print '    restarting proc %d' % iproc
         procs[iproc] = run_cmd(cmd_str, workdir)
         n_tries[iproc] += 1
 

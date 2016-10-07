@@ -28,8 +28,6 @@ void run_algorithm(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> > &qr
 int main(int argc, const char * argv[]) {
   clock_t run_start(clock());
   Args args(argc, argv);
-  if(args.smc_particles() > 1)
-    assert(0);  // see commented code below
   srand(args.random_seed());
 
   // init some infrastructure

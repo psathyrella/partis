@@ -308,6 +308,18 @@ parent_parser.add_argument('--only-smith-waterman', action='store_true', help='E
 # n_max_per_region needs to be enforced in waterer when getting OR kbounds (should probably actually switch to discarding the extra matches immediately in waterer)
 # remove duplicates before writing partition output (?)
 
+# test new gldir/cache-parameters stuff in bin/partis (also make sure it actually removed the warnings)
+
+# large cluster annotations seem to be way too willing to use ridiculously long insertions (e.g. in /fh/fast/matsen_e/processed-data/partis/kate-qrs-2016-09-09/seeds/QB850.402-Vh/Hs-LN1-5RACE-IgG-cluster-annotations.csv)
+
+# force failure if we expect hmm cache file and it's not there
+
+# bad problems in
+#   - /fh/fast/matsen_e/processed-data/partis/kate-qrs-2016-09-09/seeds/QB850.021-Vh/Hs-LN1-5RACE-IgG.log
+#   - /fh/fast/matsen_e/processed-data/partis/kate-qrs-2016-09-09/seeds/QB850.017-Vh/Hs-LN1-5RACE-IgG.log
+#   - /fh/fast/matsen_e/processed-data/partis/kate-qrs-2016-09-09/seeds/QB850.405-Vh/Hs-LN1-5RACE-IgG.log
+#   - plus a bunch of others
+
 # why is fail job output out of order with succeeded output in log files?
 
 # bryan's super-short-read sample

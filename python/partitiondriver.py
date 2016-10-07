@@ -379,9 +379,10 @@ class PartitionDriver(object):
                 n_remaining_seqs = len(cpath.partitions[cpath.i_best_minus_x])
                 self.already_removed_unseeded_seqs = True
                 print '      removing %d sequences in unseeded clusters, and splitting %d seeded clusters into %d singletons' % (len(unseeded_seqs), len(seeded_clusters), n_remaining_seqs)
-                int_factor = 3  # multiply by something 'cause we're turning off the seed uid for the last few times through
                 initial_seqs_per_proc = max(1, int(float(initial_nseqs) / n_proc_list[0]))
-                next_n_procs = int_factor * max(1, int(float(n_remaining_seqs) / initial_seqs_per_proc))
+                next_n_procs = max(1, int(float(n_remaining_seqs) / initial_seqs_per_proc))
+                if n_remaining_seqs > 20:
+                    next_n_procs *= 3  # multiply by something 'cause we're turning off the seed uid for the last few times through
                 if not self.args.slurm and not utils.auto_slurm(self.args.n_procs):  # not really sure that <self.args.n_procs> belongs here, but I'll leave it that way to be consistent with <self.get_n_precache_procs()>
                     next_n_procs = min(next_n_procs, multiprocessing.cpu_count())
                 next_n_procs = min(next_n_procs, self.args.n_procs)  # don't let it be bigger than whatever was initially specified
@@ -614,7 +615,9 @@ class PartitionDriver(object):
         if self.args.print_cluster_annotations and n_procs == 1:
             cmd_str += ' --annotationfile ' + self.annotation_fname
         if self.current_action == 'partition':
-            cmd_str += ' --cachefile ' + self.hmm_cachefname
+            if os.path.exists(self.hmm_cachefname):
+                cmd_str += ' --input-cachefname ' + self.hmm_cachefname
+            cmd_str += ' --output-cachefname ' + self.hmm_cachefname
             if precache_all_naive_seqs:
                 cmd_str += ' --cache-naive-seqs'
             else:  # actually partitioning
