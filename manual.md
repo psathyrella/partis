@@ -262,7 +262,7 @@ The hmm model files go in the `hmms` subdirectory, which contains yaml HMM model
 ##### germline sets
 
 By default partis uses the set of germline V, D, and J genes (the "germline set") in `data/germlines`, which is from imgt.
-If you have another set you'd like to use, you can do so by setting `--initial-germline-dir`.
+If you have another set you'd like to use, you can do so by setting the `--initial-germline-dir` option to cache-parameters.
 A number of studies have shown that, at least for V genes, this set (and all others) is both missing many alleles which occur in real populations and contains many alleles which do not occur in any real sample.
 In addition, any individual sample will contain only a small fraction of the genes and alleles in the default germline set.
 

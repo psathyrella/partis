@@ -244,7 +244,7 @@ class PartitionDriver(object):
             self.run_waterer(remove_less_likely_alleles=True)
             glutils.remove_genes(self.glfo, self.sw_info['genes-to-remove'])
             glutils.write_glfo(self.my_gldir, self.glfo)
-        if not self.args.dont_find_new_alleles:
+        if self.args.find_new_alleles:
             self.find_new_alleles()
         self.run_waterer(write_parameters=True)
         self.restrict_to_observed_alleles(self.sw_param_dir)
