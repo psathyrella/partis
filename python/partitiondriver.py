@@ -379,14 +379,14 @@ class PartitionDriver(object):
                 n_remaining_seqs = len(cpath.partitions[cpath.i_best_minus_x])
                 self.already_removed_unseeded_seqs = True
                 print '      removing %d sequences in unseeded clusters, and splitting %d seeded clusters into %d singletons' % (len(unseeded_seqs), len(seeded_clusters), n_remaining_seqs)
-                initial_seqs_per_proc = max(1, int(float(initial_nseqs) / n_proc_list[0]))
-                next_n_procs = max(1, int(float(n_remaining_seqs) / initial_seqs_per_proc))
+                int_initial_seqs_per_proc = max(1, int(float(initial_nseqs) / n_proc_list[0]))
+                next_n_procs = max(1, int(float(n_remaining_seqs) / int_initial_seqs_per_proc))
                 if n_remaining_seqs > 20:
                     next_n_procs *= 3  # multiply by something 'cause we're turning off the seed uid for the last few times through
                 if not self.args.slurm and not utils.auto_slurm(self.args.n_procs):  # not really sure that <self.args.n_procs> belongs here, but I'll leave it that way to be consistent with <self.get_n_precache_procs()>
                     next_n_procs = min(next_n_procs, multiprocessing.cpu_count())
                 next_n_procs = min(next_n_procs, self.args.n_procs)  # don't let it be bigger than whatever was initially specified
-                print '        new n_procs %d = %d * %d / %d' % (next_n_procs, int_factor, n_remaining_seqs, initial_seqs_per_proc)
+                print '        new n_procs %d (initial seqs/proc: %.2f   new seqs/proc: %.2f' % (next_n_procs, float(initial_nseqs) / n_proc_list[0], float(n_remaining_seqs) / next_n_procs)
 
         return next_n_procs, cpath, unseeded_seqs
 
