@@ -190,6 +190,8 @@ void StreamForwardOutput(ofstream &ofs, vector<Sequence> &seqs, double total_sco
 string SeqStr(vector<Sequence> &seqs, string delimiter = " ");
 string SeqNameStr(vector<Sequence> &seqs, string delimiter = " ");
 
+void runps();
+
 }
 
 #endif

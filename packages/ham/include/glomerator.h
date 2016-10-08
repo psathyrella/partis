@@ -8,6 +8,7 @@
 #include <ctime>
 #include <algorithm>
 #include <functional>
+#include <pthread.h>
 
 #include "args.h"
 #include "dphandler.h"

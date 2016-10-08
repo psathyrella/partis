@@ -650,4 +650,16 @@ string SeqNameStr(vector<Sequence> &seqs, string delimiter) {
   return name_str;
 }
 
+// ----------------------------------------------------------------------------------------
+void runps() {
+  const int MAX_BUFFER = 255;
+  char buffer[MAX_BUFFER];
+  FILE *fstr = popen("ps -eo rss,pcpu,pmem,user,stime,args --sort pmem | grep bcrham | grep -v grep", "r");
+  string outstr;
+  while (fgets(buffer, MAX_BUFFER, fstr) != NULL)
+    outstr.append(buffer);
+  pclose(fstr);
+  cout << endl << "ps: " << endl << outstr << endl;
+}
+
 }
