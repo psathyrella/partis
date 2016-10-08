@@ -72,8 +72,6 @@ vector<vector<Sequence> > GetSeqs(Args &args, Track *trk) {
 // ----------------------------------------------------------------------------------------
 void run_algorithm(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> > &qry_seq_list, Args &args) {
 
-  DPHandler dph(args.algorithm(), &args, gl, hmms);
-
   // write csv output headers
   ofstream ofs;
   ofs.open(args.outfile());
@@ -92,6 +90,7 @@ void run_algorithm(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> > &qr
 
     vector<KBounds> kbvector(qry_seqs.size(), kbounds);
 
+    DPHandler dph(args.algorithm(), &args, gl, hmms);
     Result result(kbounds, args.chain());
     double logprob(-INFINITY);
     bool stop(false);
@@ -99,7 +98,7 @@ void run_algorithm(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> > &qr
     do {
       errors = "";
       if(args.debug()) cout << "       ----" << endl;
-      result = dph.Run(qry_seqs, kbounds, args.str_lists_["only_genes"][iqry], args.floats_["mut_freq"][iqry]);
+      result = dph.Run(qry_seqs, kbounds, args.str_lists_["only_genes"][iqry], args.floats_["mut_freq"][iqry]);  // NOTE in principle I should tell it not to clear the cache, now that I'm not reusing dphandlers
       logprob = result.total_score();
       kbounds = result.better_kbounds();
       stop = !result.boundary_error() || result.could_not_expand() || result.no_path_;  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length

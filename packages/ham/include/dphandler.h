@@ -62,7 +62,7 @@ private:
   HMMHolder &hmms_;
 
   // NOTE BEWARE DRAGONS AND ALL THAT SHIT!
-  // if you add something new here you *must* clear it in Clear(), because we reuse the dphandler for different sequences
+  // if you add something new here you *must* clear it in Clear(), because we reuse the dphandler for different sequences UPDATE kind of don't do that any more
   map<string, map<vector<string>, CacheFo> > cachefo_; // collection of the trellises, paths, and scores that  we've calculated, so we can reuse them. eg: cachefo_["IGHV1-18*01"]["ACGGGTCG"] for single hmms, or cachefo_["IGHV1-18*01"][("ACGGGTCG","ATGGTTAG")] for pair hmms
   map<string, double> per_gene_support_;  // log prob of the best (full) annotation for each gene
 };

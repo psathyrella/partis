@@ -6,8 +6,8 @@ namespace ham {
 Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> > &qry_seq_list, Args *args, Track *track) :
   track_(track),
   args_(args),
-  vtb_dph_("viterbi", args_, gl, hmms),
-  fwd_dph_("forward", args_, gl, hmms),
+  gl_(gl),
+  hmms_(hmms),
   n_fwd_calculated_(0),
   n_vtb_calculated_(0),
   n_hfrac_calculated_(0),
@@ -702,11 +702,11 @@ string Glomerator::CalculateNaiveSeq(string queries, RecoEvent *event) {
 
   ++n_vtb_calculated_;
 
+  DPHandler dph("viterbi", args_, gl_, hmms_);
   Result result(kbinfo_[queries], args_->chain());
   bool stop(false);
   do {
-    // assert(SameLength(seq_info_[queries], true));
-    result = vtb_dph_.Run(seq_info_[queries], kbinfo_[queries], only_genes_[queries], mute_freqs_[queries]);  // NOTE the sequences in <seq_info_[queries]> should already be the same length, since they've already been merged
+    result = dph.Run(seq_info_[queries], kbinfo_[queries], only_genes_[queries], mute_freqs_[queries]);  // NOTE in principle I should tell it not to clear the cache, now that I'm not reusing dphandlers
     kbinfo_[queries] = result.better_kbounds();
     stop = !result.boundary_error() || result.could_not_expand() || result.no_path_;  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
     if(args_->debug() && !stop)
@@ -737,10 +737,11 @@ double Glomerator::CalculateLogProb(string queries) {  // NOTE can modify kbinfo
   
   ++n_fwd_calculated_;
 
+  DPHandler dph("forward", args_, gl_, hmms_);
   Result result(kbinfo_[queries], args_->chain());
   bool stop(false);
   do {
-    result = fwd_dph_.Run(seq_info_[queries], kbinfo_[queries], only_genes_[queries], mute_freqs_[queries]);  // NOTE <only_genes> isn't necessarily <only_genes_[queries]>, since for the denominator calculation we take the OR
+    result = dph.Run(seq_info_[queries], kbinfo_[queries], only_genes_[queries], mute_freqs_[queries]);  // NOTE in principle I should tell it not to clear the cache, now that I'm not reusing dphandlers
     kbinfo_[queries] = result.better_kbounds();
     stop = !result.boundary_error() || result.could_not_expand() || result.no_path_;  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
     if(args_->debug() && !stop)

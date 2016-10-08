@@ -102,7 +102,8 @@ private:
 
   Track *track_;
   Args *args_;
-  DPHandler vtb_dph_, fwd_dph_;
+  GermLines &gl_;
+  HMMHolder &hmms_;
   ofstream ofs_;
 
   Partition initial_partition_;
