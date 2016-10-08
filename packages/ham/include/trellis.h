@@ -13,8 +13,6 @@ using namespace std;
 namespace ham {
 
 typedef vector<vector<int16_t> > int_2D;
-typedef vector<vector<float> > float_2D;
-typedef vector<vector<double> > double_2D;
 
 // ----------------------------------------------------------------------------------------
 class Trellis {
