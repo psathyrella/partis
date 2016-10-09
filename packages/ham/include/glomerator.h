@@ -51,8 +51,8 @@ public:
   // Also sets arguments <initial_path_index> and <logweight> to correspond to the returned partition.
   Partition GetAnInitialPartition(int &initial_path_index, double &logweight);
 
-  void WritePartitions(vector<ClusterPath> &paths);
-  void WriteAnnotations(vector<ClusterPath> &paths);
+  void WritePartitions(ClusterPath &cp);
+  void WriteAnnotations(ClusterPath &cp);
 private:
   void ReadCacheFile();
   void WriteCacheLine(ofstream &ofs, string query);
@@ -116,6 +116,9 @@ private:
   map<string, string> name_subsets_;
 
   map<string, vector<Sequence> > seq_info_;  // NOTE it would be more memory-efficient to just keep track of vectors of keys here, and have Glomerator keep all the actual info
+  // places to look
+  //  - seq_info_ I'm looking at you
+  //  - something that gets created when I consider a merge, but don't actually do the merge
   map<string, vector<string> > only_genes_;
   map<string, KBounds> kbinfo_;
   map<string, float> mute_freqs_;  // overall mute freq for single sequences, mean overall mute freq for n-sets of sequences
