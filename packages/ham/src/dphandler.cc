@@ -17,7 +17,6 @@ DPHandler::~DPHandler() {
 // ----------------------------------------------------------------------------------------
 void DPHandler::Clear() {
   scratch_cachefo_.clear();
-  chunk_cachefo_.clear();
   paths_.clear();
   scores_.clear();
   per_gene_support_.clear();
@@ -207,14 +206,13 @@ void DPHandler::FillTrellis(KSet kset, Sequences query_seqs, vector<string> quer
     }
   }
 
-  Trellis *trell(nullptr);  // convenience pointer
+  Trellis tmptrell(hmms_.Get(gene, args_->debug()), query_seqs, cached_trellis);  // NOTE chunk cached trellisi don't get kept around -- we should be able to always just go back to the original one
+  Trellis *trell(&tmptrell);  // convenience pointer
   if(cached_trellis == nullptr) {   // if we didn't find a suitable chunk cached trellis
     scratch_cachefo_[gene][query_strs] = Trellis(hmms_.Get(gene, args_->debug()), query_seqs);
-    trell = &scratch_cachefo_[gene][query_strs];  // can clean this up once I get it working, I just want to make sure declaring a trellis a couple lines earlier doesn't make an extra copy and slow things down
+    trell = &scratch_cachefo_[gene][query_strs];
     origin = "scratch";
   } else {
-    chunk_cachefo_[gene][kset] = Trellis(hmms_.Get(gene, args_->debug()), query_seqs, cached_trellis);  // huh, I think there's actually no reason to keep these around -- we've got the paths and scores, and we don't even look in chunk_cachefo_ for caches, right?
-    trell = &chunk_cachefo_[gene][kset];
     origin = "chunk";
   }
 
@@ -344,7 +342,6 @@ vector<string> DPHandler::GetQueryStrs(Sequences &seqs, KSet kset, string region
 // ----------------------------------------------------------------------------------------
 KSet DPHandler::FindPartialCacheMatch(string region, string gene, KSet kset) {
   // this is just to avoid having to store all the query string vectors (they get big)
-  // NOTE <scores_> and <paths_> have precises the same entries, but <chunk_cachefo_> does not
   if(scores_[gene].find(kset) != scores_[gene].end())  // the exact same kset shouldn't actually be in there (except maybe if we're rerunning with expanded boundaries?) but I think we may as well check
     return kset;
   if(region == "v") {
@@ -366,7 +363,6 @@ KSet DPHandler::FindPartialCacheMatch(string region, string gene, KSet kset) {
 void DPHandler::InitCache(string gene) {
   if(scores_.find(gene) == scores_.end()) {
     scratch_cachefo_[gene] = map<vector<string>, Trellis>();
-    chunk_cachefo_[gene] = map<KSet, Trellis>();
     paths_[gene] = map<KSet, TracebackPath>();
     scores_[gene] = map<KSet, double>();
   }

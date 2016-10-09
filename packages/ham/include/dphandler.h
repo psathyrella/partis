@@ -52,9 +52,8 @@ private:
 
   // NOTE BEWARE DRAGONS AND ALL THAT SHIT!
   // if you add something new here you *must* clear it in Clear(), because we reuse the dphandler for different sequences UPDATE kind of don't do that any more
-  // NOTE also that the vector<string> key can take up a ton of memory for multi-hmms with large k
+  // NOTE also that the vector<string> key can take up a ton of memory for multi-hmms with large k UPDATE dammit, no, I don't think that's where the memory was going
   map<string, map<vector<string>, Trellis> > scratch_cachefo_;  // collection of the trellises that  we've calculated from scratch, so we can reuse them. eg: scratch_cachefo_["IGHV1-18*01"]["ACGGGTCG"] for single hmms, or scratch_cachefo_["IGHV1-18*01"][("ACGGGTCG","ATGGTTAG")] for pair hmms
-  map<string, map<KSet, Trellis> > chunk_cachefo_;  // ones that were chunk cached
   map<string, map<KSet, TracebackPath> > paths_;
   map<string, map<KSet, double> > scores_;
   map<string, double> per_gene_support_;  // log prob of the best (full) annotation for each gene
