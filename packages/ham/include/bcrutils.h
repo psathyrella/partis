@@ -108,6 +108,7 @@ public:
 class KSet {  // pair of k_v,k_d values specifying how to chop up the query sequence into v+insert, d+insert, j []
 public:
   KSet(size_t k_v, size_t k_d) : v(k_v), d(k_d) {}
+  bool isnull() { return v == 0 && d == 0; }
   bool equals(KSet rhs) { return v == rhs.v && d == rhs.d; }
   bool operator< (const KSet rhs) const  // kind of weird, but it's just for std::map
   {

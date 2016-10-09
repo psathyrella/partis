@@ -312,9 +312,30 @@ parent_parser.add_argument('--only-smith-waterman', action='store_true', help='E
 
 # large cluster annotations seem to be way too willing to use ridiculously long insertions (e.g. in /fh/fast/matsen_e/processed-data/partis/kate-qrs-2016-09-09/seeds/QB850.402-Vh/Hs-LN1-5RACE-IgG-cluster-annotations.csv)
 
+# stop calling Clear() on dphandler (see notes on the Run() calls)
+
+# I suspect I should sometimes allow translation to allow more than seven/five/whatever simultaneous sequences
+
+# see how much all the translation bullshit actually helps
+
+# get ham scons test working again
+
+# (see if you can) fix thing at line 213 in dphandler.cc
+
+# don't keep chunk_cachefo_ around (?)
+
 # bryan's super-short-read sample
 #  - better insertion mutation rate?
 #  - print cdr3 mutation rate (and maybe also make plots without dividing by length?)
+
+# memory usage:
+#  - run-viterbi also shows monotonically-increasing behavior (i.e. it's probably the cached trellisi in dphandler, not the cached stuff in glomerator)
+#  - at least with run-viterbi, it successfully deallocates most everything between vtb calculations (this may or may not have been true when I was reusing dphandlers)
+#  - only seems to use a hundred MB or so on single sequences (it goes up, but it also goes down) -- multi-hmm is the culprit
+#  - because it's (at least now) deallocating between queries, I think this isn't a fragmentation problem -- I think the dphandler's cachefo_ is just huge when there's many sequences
+#  - i think i could switch to running all the ksets of each gene at once, but this would involve a lot of careful rewriting in dphandler
+#  - first see if you can cache fewer
+
 
 # print_reco_event:
 #    - don't print logprob by default
