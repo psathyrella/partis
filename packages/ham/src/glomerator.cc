@@ -22,18 +22,17 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> >
 
   for(size_t iqry = 0; iqry < qry_seq_list.size(); iqry++) {
     string key = SeqNameStr(qry_seq_list[iqry], ":");
-
-    initial_partition_.insert(key);
-    seq_info_[key] = qry_seq_list[iqry];
-    seed_missing_[key] = !InString(args_->seed_unique_id(), key);
-    only_genes_[key] = args_->str_lists_["only_genes"][iqry];
-    mute_freqs_[key] = args_->floats_["mut_freq"][iqry];
-    cdr3_lengths_[key] = args_->integers_["cdr3_length"][iqry];
-
     KSet kmin(args_->integers_["k_v_min"][iqry], args_->integers_["k_d_min"][iqry]);
     KSet kmax(args_->integers_["k_v_max"][iqry], args_->integers_["k_d_max"][iqry]);
-    KBounds kb(kmin, kmax);
-    kbinfo_[key] = kb;
+
+    initial_partition_.insert(key);
+    cachefo_[key] = Query(key,
+			  qry_seq_list[iqry],
+			  !InString(args_->seed_unique_id(), key),
+			  args_->str_lists_["only_genes"][iqry],
+			  KBounds(kmin, kmax),
+			  args_->floats_["mut_freq"][iqry],
+			  args_->integers_["cdr3_length"][iqry]);
   }
 
   current_partition_ = &initial_partition_;
@@ -55,14 +54,13 @@ Glomerator::~Glomerator() {
 //   cout << "fwd dph" << endl;
 //   fwd_dph_.Clear();
 //   sleep(1);
-//   // seq_info_.shrink_to_fit();
 // // ----------------------------------------------------------------------------------------
 }
 
 // ----------------------------------------------------------------------------------------
 void Glomerator::CacheNaiveSeqs() {  // they're written to file in the destructor, so we just need to calculate them here
   cout << "      caching all naive sequences" << endl;
-  for(auto &kv : seq_info_)
+  for(auto &kv : cachefo_)
     GetNaiveSeq(kv.first);
   ofs_.open(args_->outfile());  // a.t.m. I'm signalling that I finished ok by doing this
   ofs_.close();
@@ -257,7 +255,7 @@ void Glomerator::WriteAnnotations(ClusterPath &cp) {
       cout << "WTF " << cluster << " x" << event.naive_seq_ << "x" << endl;
       assert(0);
     }
-    StreamViterbiOutput(annotation_ofs, event, seq_info_[cluster], "");
+    StreamViterbiOutput(annotation_ofs, event, cachefo(cluster).seqs_, "");
   }
   annotation_ofs.close();
 }
@@ -408,7 +406,7 @@ string Glomerator::PrintStr(string queries) {
 
 // ----------------------------------------------------------------------------------------
 bool Glomerator::SeedMissing(string queries, string delimiter) {
-  return seed_missing_[queries];  // NOTE after refactoring the double loops, we probably don't really need to cache all these any more
+  return cachefo(queries).seed_missing_;  // NOTE after refactoring the double loops, we probably don't really need to cache all these any more
   // set<string> queryset(SplitString(queries, delimiter));  // might be faster to look for :uid: and uid: and... hm, wait, that's kind of hard
   // return !InString(args_->seed_unique_id(), queries,  delimiter);
   //// oh, wait this (below) won't work without more checks
@@ -460,7 +458,7 @@ string Glomerator::ChooseSubsetOfNames(string queries, int n_max) {
   if(name_subsets_.count(queries))
     return name_subsets_[queries];
 
-  assert(seq_info_.count(queries));
+  // assert(seq_info_.count(queries) || tmp_cachefo_.count(queries));
   vector<string> namevector(SplitString(queries, ":"));
 
   srand(hash<string>{}(queries));  // make sure we get the same subset each time we pass in the same queries (well, if there's different thresholds for naive_seqs annd logprobs they'll each get their own [very correlated] subset)
@@ -486,22 +484,25 @@ string Glomerator::ChooseSubsetOfNames(string queries, int n_max) {
   // then sort 'em
   sort(ichosen_vec.begin(), ichosen_vec.end());
 
+  Query &cacheref = cachefo(queries);
+
   // and finally make the new vectors
   vector<string> subqueryvec;
   vector<Sequence> subseqs;
   for(auto &ich : ichosen_vec) {
     subqueryvec.push_back(namevector[ich]);
-    subseqs.push_back(seq_info_[queries][ich]);
+    subseqs.push_back(cacheref.seqs_[ich]);
   }
 
   string subqueries(JoinStrings(subqueryvec));
 
-  seq_info_[subqueries] = subseqs;
-  seed_missing_[subqueries] = !InString(args_->seed_unique_id(), subqueries);
-  kbinfo_[subqueries] = kbinfo_[queries];  // just use the entire/super cluster for this stuff. It's just overly conservative (as long as you keep the mute freqs the same)
-  mute_freqs_[subqueries] = mute_freqs_[queries];
-  cdr3_lengths_[subqueries] = cdr3_lengths_[queries];
-  only_genes_[subqueries] = only_genes_[queries];
+  tmp_cachefo_[subqueries] = Query(subqueries,
+				   subseqs,
+				   !InString(args_->seed_unique_id(), subqueries),
+				   cacheref.only_genes_,
+				   cacheref.kbounds_,
+				   cacheref.mute_freq_,
+				   cacheref.cdr3_length_);
 
   if(args_->debug())
     cout << "                chose subset  " << queries << "  -->  " << subqueries << endl;
@@ -659,11 +660,11 @@ double Glomerator::GetLogProbRatio(string key_a, string key_b) {
   if(lratios_.count(joint_name))  // NOTE as in other places, this assumes there's only *one* way to get to a given joint name (or at least that we'll get about the same answer each different way)
     return lratios_[joint_name];
 
-  Query full_qmerged = GetMergedQuery(key_a, key_b);  // have to make this to get seq_info_ and whatnot filled up
+  Query full_qmerged = GetMergedQuery(key_a, key_b, false);
   pair<string, string> parents_to_calc = GetLogProbPairOfNamesToCalculate(joint_name, full_qmerged.parents_);
   string key_a_to_calc = parents_to_calc.first;
   string key_b_to_calc = parents_to_calc.second;
-  Query qmerged_to_calc = GetMergedQuery(key_a_to_calc, key_b_to_calc);  // NOTE also enters the merged query's info into seq_info_, kbinfo_, mute_freqs_, cdr3_lengths_, and only_genes_
+  Query qmerged_to_calc = GetMergedQuery(key_a_to_calc, key_b_to_calc, false);
 
   double log_prob_a = GetLogProb(key_a_to_calc);
   double log_prob_b = GetLogProb(key_b_to_calc);
@@ -687,17 +688,18 @@ string Glomerator::CalculateNaiveSeq(string queries, RecoEvent *event) {
   if(event == nullptr)  // if we're calling it with <event> set, then we know we're recalculating some things
     assert(naive_seqs_.count(queries) == 0);
 
-  if(seq_info_.count(queries) == 0 || kbinfo_.count(queries) == 0 || only_genes_.count(queries) == 0 || mute_freqs_.count(queries) == 0)
-    throw runtime_error("no info for " + queries);
+  // if(seq_info_.count(queries) == 0 && tmp_cachefo_.count(queries) == 0)
+  //   throw runtime_error("no info for " + queries);
 
   ++n_vtb_calculated_;
 
   DPHandler dph("viterbi", args_, gl_, hmms_);
-  Result result(kbinfo_[queries], args_->chain());
+  Query &cacheref = cachefo(queries);
+  Result result(cacheref.kbounds_, args_->chain());
   bool stop(false);
   do {
-    result = dph.Run(seq_info_[queries], kbinfo_[queries], only_genes_[queries], mute_freqs_[queries]);  // NOTE in principle I should tell it not to clear the cache, now that I'm not reusing dphandlers
-    kbinfo_[queries] = result.better_kbounds();
+    result = dph.Run(cacheref.seqs_, cacheref.kbounds_, cacheref.only_genes_, cacheref.mute_freq_);
+    cacheref.kbounds_ = result.better_kbounds();
     stop = !result.boundary_error() || result.could_not_expand() || result.no_path_;  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
     if(args_->debug() && !stop)
       cout << "             expand and run again" << endl;  // note that subsequent runs are much faster than the first one because of chunk caching
@@ -722,17 +724,18 @@ double Glomerator::CalculateLogProb(string queries) {  // NOTE can modify kbinfo
   // NOTE do *not* call this from anywhere except GetLogProb()
   assert(log_probs_.count(queries) == 0);
 
-  if(seq_info_.count(queries) == 0 || kbinfo_.count(queries) == 0 || only_genes_.count(queries) == 0 || mute_freqs_.count(queries) == 0)
-    throw runtime_error("no info for " + queries);
+  // if(seq_info_.count(queries) == 0 && tmp_cachefo_.count(queries) == 0)
+  //   throw runtime_error("no info for " + queries);
   
   ++n_fwd_calculated_;
 
   DPHandler dph("forward", args_, gl_, hmms_);
-  Result result(kbinfo_[queries], args_->chain());
+  Query &cacheref = cachefo(queries);
+  Result result(cacheref.kbounds_, args_->chain());
   bool stop(false);
   do {
-    result = dph.Run(seq_info_[queries], kbinfo_[queries], only_genes_[queries], mute_freqs_[queries]);  // NOTE in principle I should tell it not to clear the cache, now that I'm not reusing dphandlers
-    kbinfo_[queries] = result.better_kbounds();
+    result = dph.Run(cacheref.seqs_, cacheref.kbounds_, cacheref.only_genes_, cacheref.mute_freq_);
+    cacheref.kbounds_ = result.better_kbounds();
     stop = !result.boundary_error() || result.could_not_expand() || result.no_path_;  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
     if(args_->debug() && !stop)
       cout << "             expand and run again" << endl;  // note that subsequent runs are much faster than the first one because of chunk caching
@@ -759,10 +762,12 @@ void Glomerator::AddFailedQuery(string queries, string error_str) {
 vector<Sequence> Glomerator::MergeSeqVectors(string name_a, string name_b) {
   // first merge the two vectors
   vector<Sequence> merged_seqs;  // NOTE doesn't work if you preallocate and use std::vector::insert(). No, I have no *@#*($!#ing idea why
-  for(size_t is=0; is<seq_info_[name_a].size(); ++is)
-    merged_seqs.push_back(seq_info_[name_a][is]);
-  for(size_t is=0; is<seq_info_[name_b].size(); ++is)
-    merged_seqs.push_back(seq_info_[name_b][is]);
+  vector<Sequence> &a_seqs(cachefo(name_a).seqs_);
+  vector<Sequence> &b_seqs(cachefo(name_b).seqs_);
+  for(size_t is=0; is<a_seqs.size(); ++is)
+    merged_seqs.push_back(a_seqs[is]);
+  for(size_t is=0; is<b_seqs.size(); ++is)
+    merged_seqs.push_back(b_seqs[is]);
 
   // then make sure we don't have the same sequence twice
   set<string> all_names;
@@ -803,34 +808,57 @@ bool Glomerator::SameLength(vector<Sequence> &seqs, bool debug) {
 }  
 
 // ----------------------------------------------------------------------------------------
-Query Glomerator::GetMergedQuery(string name_a, string name_b) {
-  Query qmerged;
-  qmerged.name_ = JoinNames(name_a, name_b);  // sorts name_a and name_b, but *doesn't* sort within them
-  qmerged.seqs_ = MergeSeqVectors(name_a, name_b);
-
-  assert(SameLength(seq_info_[name_a]));  // all the seqs for name_a should already be the same length
-  assert(SameLength(seq_info_[name_b]));  // ...same for name_b
-
-  qmerged.kbounds_ = kbinfo_[name_a].LogicalOr(kbinfo_[name_b]);
-
-  qmerged.only_genes_ = only_genes_[name_a];
-  for(auto &g : only_genes_[name_b])  // NOTE this will add duplicates (that's no big deal, though) OPTIMIZATION
-    qmerged.only_genes_.push_back(g);
-  qmerged.mean_mute_freq_ = (seq_info_[name_a].size()*mute_freqs_[name_a] + seq_info_[name_b].size()*mute_freqs_[name_b]) / double(qmerged.seqs_.size());  // simple weighted average (doesn't account for different sequence lengths)
-  qmerged.parents_ = pair<string, string>(name_a, name_b);
-
-  // NOTE now that I'm adding the merged query to the cache info here, I can maybe get rid of the qmerged entirely
-  seq_info_[qmerged.name_] = qmerged.seqs_;
-  seed_missing_[qmerged.name_] = !InString(args_->seed_unique_id(), qmerged.name_);
-  kbinfo_[qmerged.name_] = qmerged.kbounds_;
-  mute_freqs_[qmerged.name_] = qmerged.mean_mute_freq_;
-
-  if(cdr3_lengths_[name_a] != cdr3_lengths_[name_b])
-    throw runtime_error("cdr3 lengths different for " + name_a + " and " + name_b + " (" + to_string(cdr3_lengths_[name_a]) + " " + to_string(cdr3_lengths_[name_b]) + ")");
-  cdr3_lengths_[qmerged.name_] = cdr3_lengths_[name_a];
-  only_genes_[qmerged.name_] = qmerged.only_genes_;
+void Glomerator::AddToTmpCache(string query) {
+  vector<Sequence> seqs;
   
-  return qmerged;
+  tmp_cachefo_[query] = Query(query,
+			      
+}
+
+// ----------------------------------------------------------------------------------------
+void Glomerator::AddToCache(Query &query) {
+  cachefo_[query.name_] = query;
+}
+
+// ----------------------------------------------------------------------------------------
+Query Glomerator::GetMergedQuery(string name_a, string name_b, bool add_to_cache) {
+  string joint_name = JoinNames(name_a, name_b);  // sorts name_a and name_b, but *doesn't* sort within them
+  if(cachefo_.find(joint_name) != cachefo_.end())
+    return cachefo_[joint_name];
+  if(tmp_cachefo_.find(joint_name) != tmp_cachefo_.end())
+    return tmp_cachefo_[joint_name];
+
+  Query &ref_a = cachefo(name_a);
+  Query &ref_b = cachefo(name_b);
+
+// ----------------------------------------------------------------------------------------
+  // fixme!
+  // assert(SameLength(seq_info_[name_a]));  // all the seqs for name_a should already be the same length
+  // assert(SameLength(seq_info_[name_b]));  // ...same for name_b
+// ----------------------------------------------------------------------------------------
+
+  vector<string> joint_only_genes = ref_a.only_genes_;
+  for(auto &g : ref_b.only_genes_) {
+    if(find(joint_only_genes.begin(), joint_only_genes.end(), g) == joint_only_genes.end())
+      joint_only_genes.push_back(g);
+  }
+
+  if(ref_a.cdr3_length_ != ref_b.cdr3_length_)
+    throw runtime_error("cdr3 lengths different for " + name_a + " and " + name_b + " (" + to_string(ref_a.cdr3_length_) + " " + to_string(ref_b.cdr3_length_) + ")");
+
+  // NOTE now that I'm adding the merged query to the cache info here, I can maybe get rid of the qmerged entirely UPDATE I have no idea if this is still relevant
+  tmp_cachefo_[joint_name] = Query(joint_name,
+				   MergeSeqVectors(name_a, name_b),
+				   !InString(args_->seed_unique_id(), joint_name),
+				   joint_only_genes,
+				   ref_a.kbounds_.LogicalOr(ref_b.kbounds_),
+				   (ref_a.seqs_.size()*ref_a.mute_freq_ + ref_b.seqs_.size()*ref_b.mute_freq_) / double(ref_a.seqs_.size() + ref_b.seqs_.size()),  // simple weighted average (doesn't account for different sequence lengths)
+				   ref_a.cdr3_length_,
+				   name_a,
+				   name_b
+				   );
+  
+  return tmp_cachefo_[joint_name];
 }
 
 // ----------------------------------------------------------------------------------------
@@ -918,7 +946,7 @@ pair<double, Query> Glomerator::FindHfracMerge(ClusterPath *path) {
       if(failed_queries_.count(key_a) || failed_queries_.count(key_b))
 	continue;
 
-      if(cdr3_lengths_[key_a] != cdr3_lengths_[key_b])
+      if(cachefo(key_a).cdr3_length_ != cachefo(key_b).cdr3_length_)
       	continue;
 
       double hfrac = NaiveHfrac(key_a, key_b);
@@ -930,7 +958,7 @@ pair<double, Query> Glomerator::FindHfracMerge(ClusterPath *path) {
 
       if(hfrac < min_hamming_fraction) {
 	  min_hamming_fraction = hfrac;
-	  min_hamming_merge = GetMergedQuery(key_a, key_b);  // NOTE also enters the merged query's info into seq_info_, kbinfo_, mute_freqs_, cdr3_lengths_, and only_genes_
+	  min_hamming_merge = GetMergedQuery(key_a, key_b, false);
       }
     }
   }
@@ -976,7 +1004,7 @@ pair<double, Query> Glomerator::FindLRatioMerge(ClusterPath *path) {
 
       ++n_total_pairs;
 
-      if(cdr3_lengths_[key_a] != cdr3_lengths_[key_b])
+      if(cachefo(key_a).cdr3_length_ != cachefo(key_b).cdr3_length_)
       	continue;
 
       double hfrac = NaiveHfrac(key_a, key_b);
@@ -995,7 +1023,7 @@ pair<double, Query> Glomerator::FindLRatioMerge(ClusterPath *path) {
 
       if(lratio > max_lratio) {
 	max_lratio = lratio;
-	chosen_qmerge = GetMergedQuery(key_a, key_b);
+	chosen_qmerge = GetMergedQuery(key_a, key_b, false);
       }
     }
   }
@@ -1062,7 +1090,7 @@ void Glomerator::Merge(ClusterPath *path) {
   WriteStatus();
   Query chosen_qmerge = qpair.second;
 
-  assert(seq_info_.count(chosen_qmerge.name_));
+  AddToCache(chosen_qmerge);
   GetNaiveSeq(chosen_qmerge.name_, &chosen_qmerge.parents_);  // this *needs* to happen here so it has the parental information
   UpdateLogProbTranslationsForAsymetrics(chosen_qmerge);
 
@@ -1070,12 +1098,14 @@ void Glomerator::Merge(ClusterPath *path) {
   new_partition.erase(chosen_qmerge.parents_.first);
   new_partition.erase(chosen_qmerge.parents_.second);
   new_partition.insert(chosen_qmerge.name_);
-  path->AddPartition(new_partition, -INFINITY);
+  path->AddPartition(new_partition, -INFINITY, args_->n_partitions_to_write());
   current_partition_ = &path->CurrentPartition();
 
   if(args_->debug()) {
     printf("       merged   %s  %s\n", chosen_qmerge.parents_.first.c_str(), chosen_qmerge.parents_.second.c_str());
   }
+
+  tmp_cachefo_.clear();
 }
 
 // NOTE don't remove these (yet, at least)

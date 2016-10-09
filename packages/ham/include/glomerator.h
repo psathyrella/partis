@@ -23,11 +23,29 @@ typedef pair<vector<string>, vector<string> > ClusterPair;
 // ----------------------------------------------------------------------------------------
 class Query {
 public:
+  Query() {}
+  Query(string name, vector<Sequence> seqs, bool seed_missing, vector<string> only_genes, KBounds kbounds, float mute_freq, size_t cdr3_length, string p1="", string p2="") :
+    name_(name),
+    seqs_(seqs),
+    seed_missing_(seed_missing),
+    only_genes_(only_genes),
+    kbounds_(kbounds),
+    mute_freq_(mute_freq),
+    cdr3_length_(cdr3_length)
+  {
+    // if(cdr3_length > 300)
+    //   throw runtime_error("cdr3 length too big " + to_string(cdr3_length_) + " for " + name + "\n");
+    if(p1 != "" and p2 != "")
+      parents_ = pair<string, string>(p1, p2);
+  }
+
   string name_;
   vector<Sequence> seqs_;
-  KBounds kbounds_;
+  bool seed_missing_;
   vector<string> only_genes_;
-  double mean_mute_freq_;
+  KBounds kbounds_;
+  float mute_freq_;
+  size_t cdr3_length_;
   pair<string, string> parents_;  // queries that were joined to make this
 };
 
@@ -88,11 +106,22 @@ private:
   string CalculateNaiveSeq(string key, RecoEvent *event=nullptr);
   double CalculateLogProb(string queries);
 
+  Query &cachefo(string queries) {
+    if(cachefo_.find(queries) != cachefo_.end())
+      return cachefo_[queries];
+    else if(tmp_cachefo_.find(queries) != tmp_cachefo_.end())
+      return tmp_cachefo_[queries];
+    else
+      throw runtime_error(queries + " not found in either cache\n");
+  }
+
   bool SameLength(vector<Sequence> &seqs, bool debug=false);
   void AddFailedQuery(string queries, string error_str);
   vector<Sequence> MergeSeqVectors(string name_a, string name_b);
   void UpdateLogProbTranslationsForAsymetrics(Query &qmerge);
-  Query GetMergedQuery(string name_a, string name_b);
+  void AddToTmpCache(string query);
+  void AddToCache(Query &query);
+  Query GetMergedQuery(string name_a, string name_b, bool add_to_cache);
 
   bool LikelihoodRatioTooSmall(double lratio, int candidate_cluster_size);
   Partition GetSeededClusters(Partition &partition);
@@ -108,21 +137,23 @@ private:
 
   Partition initial_partition_;
 
-  map<string, bool> seed_missing_;  // also cache the presence of the seed in each cluster
-
   map<string, string> naive_seq_name_translations_;
   map<string, pair<string, string> > logprob_name_translations_;
   map<string, string> logprob_asymetric_translations_;
   map<string, string> name_subsets_;
 
-  map<string, vector<Sequence> > seq_info_;  // NOTE it would be more memory-efficient to just keep track of vectors of keys here, and have Glomerator keep all the actual info
-  // places to look
-  //  - seq_info_ I'm looking at you
-  //  - something that gets created when I consider a merge, but don't actually do the merge
-  map<string, vector<string> > only_genes_;
-  map<string, KBounds> kbinfo_;
-  map<string, float> mute_freqs_;  // overall mute freq for single sequences, mean overall mute freq for n-sets of sequences
-  map<string, size_t> cdr3_lengths_;  // assumes/enforces that it's the same for all members of a cluster
+  // ----------------------------------------------------------------------------------------
+  // cache info for clusters we've actually merged
+  // map<string, vector<Sequence> > seq_info_;  // NOTE it would be more memory-efficient to just keep track of vectors of keys here, and have Glomerator keep all the actual info
+  // map<string, bool> seed_missing_;  // also cache the presence of the seed in each cluster
+  // map<string, vector<string> > only_genes_;
+  // map<string, KBounds> kbinfo_;
+  // map<string, float> mute_freqs_;  // overall mute freq for single sequences, mean overall mute freq for n-sets of sequences
+  // map<string, size_t> cdr3_lengths_;  // assumes/enforces that it's the same for all members of a cluster
+  map<string, Query> cachefo_;
+  // ----------------------------------------------------------------------------------------
+  // cache info for clusters we're only considering merging
+  map<string, Query> tmp_cachefo_;
 
   // These all include cached info from previous runs
   map<string, double> log_probs_;  

@@ -24,7 +24,7 @@ void ClusterPath::set_logprob(size_t il, double logprob) {
 }
 
 // ----------------------------------------------------------------------------------------
-void ClusterPath::AddPartition(Partition partition, double logprob)  { // , double max_drop) {
+void ClusterPath::AddPartition(Partition partition, double logprob, size_t n_max_partitions)  { // , double max_drop) {
   partitions_.push_back(partition);
   logprobs_.push_back(logprob);
 
@@ -46,6 +46,13 @@ void ClusterPath::AddPartition(Partition partition, double logprob)  { // , doub
   //   cout << "        stopping after drop " << max_log_prob_of_partition_ << " --> " << logprob << endl;
   //   finished_ = true;  // NOTE this will not play well with multiple maxima, but I'm pretty sure we shouldn't be getting those
   // }
+
+  if(n_max_partitions > 0 && partitions_.size() > n_max_partitions) {  // NOTE we don't check here that we're not removing the best partition
+    cout << "   removing! " << partitions_.size() << endl;
+    partitions_.pop_front();
+    logprobs_.pop_front();
+  }
+
 }
 
 // ----------------------------------------------------------------------------------------
