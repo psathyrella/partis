@@ -632,8 +632,8 @@ class PartitionDriver(object):
                 cmd_str += ' --logprob-ratio-threshold ' + str(self.args.logprob_ratio_threshold)
                 cmd_str += ' --biggest-naive-seq-cluster-to-calculate ' + str(self.args.biggest_naive_seq_cluster_to_calculate)
                 cmd_str += ' --biggest-logprob-cluster-to-calculate ' + str(self.args.biggest_logprob_cluster_to_calculate)
+                cmd_str += '  --n-partitions-to-write ' + str(self.args.n_partitions_to_write)  # don't write too many, since calculating the extra logprobs is kind of expensive
                 if n_procs == 1:  # if this is the last time through, with one process, we want glomerator.cc to calculate the total logprob of each partition
-                    cmd_str += '  --n-partitions-to-write ' + str(self.args.n_partitions_to_write)  # don't write too many, since calculating the extra logprobs is kind of expensive
                     cmd_str += '  --write-logprob-for-each-partition'
 
                 if self.args.seed_unique_id is not None and not self.already_removed_unseeded_seqs:  # if we're in the last few cycles (i.e. we've removed unseeded clusters) we want bcrham to not know about the seed (this gives more accurate clustering 'cause we're really doing hierarchical agglomeration)
