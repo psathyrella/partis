@@ -184,12 +184,19 @@ private:
 
 void StreamHeader(ofstream &ofs, string algorithm);
 void StreamErrorput(ofstream &ofs, string algorithm, vector<Sequence> &seqs, string errors);
+void StreamErrorput(ofstream &ofs, string algorithm, vector<Sequence*> &pseqs, string errors);
 string PerGeneSupportString(string region, vector<SupportPair> &support);
 void StreamViterbiOutput(ofstream &ofs, RecoEvent &event, vector<Sequence> &seqs, string errors);
+void StreamViterbiOutput(ofstream &ofs, RecoEvent &event, vector<Sequence*> &pseqs, string errors);
 void StreamForwardOutput(ofstream &ofs, vector<Sequence> &seqs, double total_score, string errors);
+void StreamForwardOutput(ofstream &ofs, vector<Sequence*> &pseqs, double total_score, string errors);
 
+string SeqStr(vector<Sequence*> &pseqs, string delimiter = " ");
 string SeqStr(vector<Sequence> &seqs, string delimiter = " ");
+string SeqNameStr(vector<Sequence*> &pseqs, string delimiter = " ");
 string SeqNameStr(vector<Sequence> &seqs, string delimiter = " ");
+
+vector<Sequence> GetSeqVector(vector<Sequence*> pseqvector);
 
 void runps();
 

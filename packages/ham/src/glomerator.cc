@@ -26,8 +26,11 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> >
     KSet kmax(args_->integers_["k_v_max"][iqry], args_->integers_["k_d_max"][iqry]);
 
     initial_partition_.insert(key);
+    for(auto &seq_vec : qry_seq_list)
+      for(auto &seq : seq_vec)
+	single_seqs_[seq.name()] = seq;
     cachefo_[key] = Query(key,
-			  qry_seq_list[iqry],
+			  GetSeqs(key),
 			  !InString(args_->seed_unique_id(), key),
 			  args_->str_lists_["only_genes"][iqry],
 			  KBounds(kmin, kmax),
@@ -375,23 +378,23 @@ string Glomerator::JoinNames(string name1, string name2, string delimiter) {
 }
 
 // ----------------------------------------------------------------------------------------
-string Glomerator::JoinNameStrings(vector<Sequence> &strlist, string delimiter) {
+string Glomerator::JoinNameStrings(vector<Sequence*> &strlist, string delimiter) {
   string return_str;
   for(size_t is=0; is<strlist.size(); ++is) {
     if(is > 0)
       return_str += delimiter;
-    return_str += strlist[is].name();
+    return_str += strlist[is]->name();
   }
   return return_str;
 }
 
 // ----------------------------------------------------------------------------------------
-string Glomerator::JoinSeqStrings(vector<Sequence> &strlist, string delimiter) {
+string Glomerator::JoinSeqStrings(vector<Sequence*> &strlist, string delimiter) {
   string return_str;
   for(size_t is=0; is<strlist.size(); ++is) {
     if(is > 0)
       return_str += delimiter;
-    return_str += strlist[is].undigitized();
+    return_str += strlist[is]->undigitized();
   }
   return return_str;
 }
@@ -488,16 +491,13 @@ string Glomerator::ChooseSubsetOfNames(string queries, int n_max) {
 
   // and finally make the new vectors
   vector<string> subqueryvec;
-  vector<Sequence> subseqs;
-  for(auto &ich : ichosen_vec) {
+  for(auto &ich : ichosen_vec)
     subqueryvec.push_back(namevector[ich]);
-    subseqs.push_back(cacheref.seqs_[ich]);
-  }
 
   string subqueries(JoinStrings(subqueryvec));
 
   tmp_cachefo_[subqueries] = Query(subqueries,
-				   subseqs,
+				   GetSeqs(subqueries),
 				   !InString(args_->seed_unique_id(), subqueries),
 				   cacheref.only_genes_,
 				   cacheref.kbounds_,
@@ -660,11 +660,11 @@ double Glomerator::GetLogProbRatio(string key_a, string key_b) {
   if(lratios_.count(joint_name))  // NOTE as in other places, this assumes there's only *one* way to get to a given joint name (or at least that we'll get about the same answer each different way)
     return lratios_[joint_name];
 
-  Query full_qmerged = GetMergedQuery(key_a, key_b, false);
+  Query full_qmerged = GetMergedQuery(key_a, key_b);
   pair<string, string> parents_to_calc = GetLogProbPairOfNamesToCalculate(joint_name, full_qmerged.parents_);
   string key_a_to_calc = parents_to_calc.first;
   string key_b_to_calc = parents_to_calc.second;
-  Query qmerged_to_calc = GetMergedQuery(key_a_to_calc, key_b_to_calc, false);
+  Query qmerged_to_calc = GetMergedQuery(key_a_to_calc, key_b_to_calc);
 
   double log_prob_a = GetLogProb(key_a_to_calc);
   double log_prob_b = GetLogProb(key_b_to_calc);
@@ -759,40 +759,14 @@ void Glomerator::AddFailedQuery(string queries, string error_str) {
 }
 
 // ----------------------------------------------------------------------------------------
-vector<Sequence> Glomerator::MergeSeqVectors(string name_a, string name_b) {
-  // first merge the two vectors
-  vector<Sequence> merged_seqs;  // NOTE doesn't work if you preallocate and use std::vector::insert(). No, I have no *@#*($!#ing idea why
-  vector<Sequence> &a_seqs(cachefo(name_a).seqs_);
-  vector<Sequence> &b_seqs(cachefo(name_b).seqs_);
-  for(size_t is=0; is<a_seqs.size(); ++is)
-    merged_seqs.push_back(a_seqs[is]);
-  for(size_t is=0; is<b_seqs.size(); ++is)
-    merged_seqs.push_back(b_seqs[is]);
-
-  // then make sure we don't have the same sequence twice
-  set<string> all_names;
-  for(size_t is=0; is<merged_seqs.size(); ++is) {
-    string name(merged_seqs[is].name());
-    // if(all_names.count(name)) {
-    //   if(args_->seed_unique_id() == "" || !InString(args_->seed_unique_id(), name))  // if seed id isn't set, or if it is set but it isn't in <name>
-    // 	throw runtime_error("tried to add sequence with name " + name + " twice in Glomerator::MergeSeqVectors()\n    when merging " + name_a + " and " + name_b);
-    // } else {
-      all_names.insert(name);
-    // }
-  }
-
-  return merged_seqs;
-}
-
-// ----------------------------------------------------------------------------------------
-bool Glomerator::SameLength(vector<Sequence> &seqs, bool debug) {
+bool Glomerator::SameLength(vector<Sequence*> &seqs, bool debug) {
   // are all the seqs in <seqs> the same length?
   bool same(true);
   int len(-1);
   for(auto &seq : seqs) {
     if(len < 0)
-      len = (int)seq.size();
-    if(len != (int)seq.size()) {
+      len = (int)seq->size();
+    if(len != (int)seq->size()) {
       same = false;
       break;
     }
@@ -808,20 +782,35 @@ bool Glomerator::SameLength(vector<Sequence> &seqs, bool debug) {
 }  
 
 // ----------------------------------------------------------------------------------------
+vector<Sequence*> Glomerator::GetSeqs(string query) {
+  vector<string> queryvec(SplitString(query));
+  vector<Sequence*> seqs(queryvec.size());
+  for(size_t is=0; is<queryvec.size(); ++is) {
+    if(single_seqs_.find(queryvec[is]) == single_seqs_.end())
+      throw runtime_error("couldn't find query " + query + " in single seq vector");
+    seqs[is] = &single_seqs_[queryvec[is]];
+    if(seqs[is] == nullptr)
+      throw runtime_error("null ptr to sequence for query " + query);
+  }
+  return seqs;
+}
+
+// ----------------------------------------------------------------------------------------
 void Glomerator::AddToTmpCache(string query) {
-  vector<Sequence> seqs;
-  
-  tmp_cachefo_[query] = Query(query,
+  // tmp_cachefo_[query] = Query(query,
+  // 			      GetSeqs(query),
+  // 			      !InString(args_->seed_unique_id(), query),
+  // 			      ref_a.kbounds_.LogicalOr(ref_b.kbounds_),
 			      
 }
 
 // ----------------------------------------------------------------------------------------
-void Glomerator::AddToCache(Query &query) {
-  cachefo_[query.name_] = query;
-}
+Query Glomerator::GetMergedQuery(string name_a, string name_b) {
+  // if(!check_cache(name_a))
+  //   AddToTmpCache(name_a);
+  // if(!check_cache(name_b))
+  //   AddToTmpCache(name_b);
 
-// ----------------------------------------------------------------------------------------
-Query Glomerator::GetMergedQuery(string name_a, string name_b, bool add_to_cache) {
   string joint_name = JoinNames(name_a, name_b);  // sorts name_a and name_b, but *doesn't* sort within them
   if(cachefo_.find(joint_name) != cachefo_.end())
     return cachefo_[joint_name];
@@ -830,12 +819,6 @@ Query Glomerator::GetMergedQuery(string name_a, string name_b, bool add_to_cache
 
   Query &ref_a = cachefo(name_a);
   Query &ref_b = cachefo(name_b);
-
-// ----------------------------------------------------------------------------------------
-  // fixme!
-  // assert(SameLength(seq_info_[name_a]));  // all the seqs for name_a should already be the same length
-  // assert(SameLength(seq_info_[name_b]));  // ...same for name_b
-// ----------------------------------------------------------------------------------------
 
   vector<string> joint_only_genes = ref_a.only_genes_;
   for(auto &g : ref_b.only_genes_) {
@@ -848,7 +831,7 @@ Query Glomerator::GetMergedQuery(string name_a, string name_b, bool add_to_cache
 
   // NOTE now that I'm adding the merged query to the cache info here, I can maybe get rid of the qmerged entirely UPDATE I have no idea if this is still relevant
   tmp_cachefo_[joint_name] = Query(joint_name,
-				   MergeSeqVectors(name_a, name_b),
+				   GetSeqs(joint_name),
 				   !InString(args_->seed_unique_id(), joint_name),
 				   joint_only_genes,
 				   ref_a.kbounds_.LogicalOr(ref_b.kbounds_),
@@ -958,7 +941,7 @@ pair<double, Query> Glomerator::FindHfracMerge(ClusterPath *path) {
 
       if(hfrac < min_hamming_fraction) {
 	  min_hamming_fraction = hfrac;
-	  min_hamming_merge = GetMergedQuery(key_a, key_b, false);
+	  min_hamming_merge = GetMergedQuery(key_a, key_b);
       }
     }
   }
@@ -1023,7 +1006,7 @@ pair<double, Query> Glomerator::FindLRatioMerge(ClusterPath *path) {
 
       if(lratio > max_lratio) {
 	max_lratio = lratio;
-	chosen_qmerge = GetMergedQuery(key_a, key_b, false);
+	chosen_qmerge = GetMergedQuery(key_a, key_b);
       }
     }
   }
@@ -1090,7 +1073,7 @@ void Glomerator::Merge(ClusterPath *path) {
   WriteStatus();
   Query chosen_qmerge = qpair.second;
 
-  AddToCache(chosen_qmerge);
+  cachefo_[chosen_qmerge.name_] = chosen_qmerge;
   GetNaiveSeq(chosen_qmerge.name_, &chosen_qmerge.parents_);  // this *needs* to happen here so it has the parental information
   UpdateLogProbTranslationsForAsymetrics(chosen_qmerge);
 
@@ -1105,7 +1088,7 @@ void Glomerator::Merge(ClusterPath *path) {
     printf("       merged   %s  %s\n", chosen_qmerge.parents_.first.c_str(), chosen_qmerge.parents_.second.c_str());
   }
 
-  tmp_cachefo_.clear();
+  // tmp_cachefo_.clear();
 }
 
 // NOTE don't remove these (yet, at least)

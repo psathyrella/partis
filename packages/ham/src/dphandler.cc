@@ -53,6 +53,12 @@ Result DPHandler::Run(Sequence seq, KBounds kbounds, vector<string> only_gene_li
 }
 
 // ----------------------------------------------------------------------------------------
+Result DPHandler::Run(vector<Sequence*> pseqvector, KBounds kbounds, vector<string> only_gene_list, double overall_mute_freq, bool clear_cache) {
+  vector<Sequence> seqvector(GetSeqVector(pseqvector));
+  return Run(seqvector, kbounds, only_gene_list, overall_mute_freq, clear_cache);
+}
+
+// ----------------------------------------------------------------------------------------
 Result DPHandler::Run(vector<Sequence> seqvector, KBounds kbounds, vector<string> only_gene_list, double overall_mute_freq, bool clear_cache) {
   clock_t run_start(clock());
 

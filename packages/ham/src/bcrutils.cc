@@ -549,6 +549,12 @@ void StreamHeader(ofstream &ofs, string algorithm) {
 }
 
 // ----------------------------------------------------------------------------------------
+void StreamErrorput(ofstream &ofs, string algorithm, vector<Sequence*> &pseqs, string errors) {
+  vector<Sequence> seqs(GetSeqVector(pseqs));
+  StreamErrorput(ofs, algorithm, seqs, errors);
+}
+
+// ----------------------------------------------------------------------------------------
 void StreamErrorput(ofstream &ofs, string algorithm, vector<Sequence> &seqs, string errors) {
   if(algorithm == "viterbi") {
     ofs  // be very, very careful to change this *and* the csv header above at the same time
@@ -595,6 +601,12 @@ string PerGeneSupportString(string region, vector<SupportPair> &support) {
 }
 
 // ----------------------------------------------------------------------------------------
+void StreamViterbiOutput(ofstream &ofs, RecoEvent &event, vector<Sequence*> &pseqs, string errors) {
+  vector<Sequence> seqs(GetSeqVector(pseqs));
+  StreamViterbiOutput(ofs, event, seqs, errors);
+}
+
+// ----------------------------------------------------------------------------------------
 void StreamViterbiOutput(ofstream &ofs, RecoEvent &event, vector<Sequence> &seqs, string errors) {
   string second_seq_name, second_seq;
   ofs  // be very, very careful to change this *and* the csv header above at the same time
@@ -622,12 +634,24 @@ void StreamViterbiOutput(ofstream &ofs, RecoEvent &event, vector<Sequence> &seqs
 }
 
 // ----------------------------------------------------------------------------------------
+void StreamForwardOutput(ofstream &ofs, vector<Sequence*> &pseqs, double total_score, string errors) {
+  vector<Sequence> seqs(GetSeqVector(pseqs));
+  StreamForwardOutput(ofs, seqs, total_score, errors);
+}
+
+// ----------------------------------------------------------------------------------------
 void StreamForwardOutput(ofstream &ofs, vector<Sequence> &seqs, double total_score, string errors) {
   ofs  // be very, very careful to change this *and* the csv header above at the same time
     << SeqNameStr(seqs, ":")
     << "," << total_score
     << "," << errors
     << endl;
+}
+
+// ----------------------------------------------------------------------------------------
+string SeqStr(vector<Sequence*> &pseqs, string delimiter) {
+  vector<Sequence> seqs(GetSeqVector(pseqs));
+  return SeqStr(seqs, delimiter);
 }
 
 // ----------------------------------------------------------------------------------------
@@ -641,6 +665,12 @@ string SeqStr(vector<Sequence> &seqs, string delimiter) {
 }
 
 // ----------------------------------------------------------------------------------------
+string SeqNameStr(vector<Sequence*> pseqs, string delimiter) {
+  vector<Sequence> seqs(GetSeqVector(pseqs));
+  return SeqNameStr(seqs, delimiter);
+}
+
+// ----------------------------------------------------------------------------------------
 string SeqNameStr(vector<Sequence> &seqs, string delimiter) {
   string name_str;
   for(size_t iseq = 0; iseq < seqs.size(); ++iseq) {
@@ -648,6 +678,17 @@ string SeqNameStr(vector<Sequence> &seqs, string delimiter) {
     name_str += seqs[iseq].name();
   }
   return name_str;
+}
+
+// ----------------------------------------------------------------------------------------
+vector<Sequence> GetSeqVector(vector<Sequence*> pseqvector) {
+  vector<Sequence> seqvector(pseqvector.size());
+  for(size_t is=0; is<pseqvector.size(); ++is) {
+    if(pseqvector[is] == nullptr)
+      throw runtime_error("null sequence pointer in vector of length " + to_string(pseqvector.size()));
+    seqvector[is] = *pseqvector[is];
+  }
+  return seqvector;
 }
 
 // ----------------------------------------------------------------------------------------
