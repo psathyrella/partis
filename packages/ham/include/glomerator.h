@@ -118,20 +118,14 @@ private:
       throw false;
   }
 
-  Query &cachefo(string queries) {
-    if(cachefo_.find(queries) != cachefo_.end())
-      return cachefo_[queries];
-    else if(tmp_cachefo_.find(queries) != tmp_cachefo_.end())
-      return tmp_cachefo_[queries];
-    else
-      throw runtime_error(queries + " not found in either cache\n");
-  }
+  Query &cachefo(string queries);
 
   bool SameLength(vector<Sequence*> &seqs, bool debug=false);
   void AddFailedQuery(string queries, string error_str);
   void UpdateLogProbTranslationsForAsymetrics(Query &qmerge);
   vector<Sequence*> GetSeqs(string query);
-  void AddToTmpCache(string query);
+  void MoveSubsetsFromTmpCache(string query);
+  void CopyToPermanentCache(string translated_query, string superquery);
   Query GetMergedQuery(string name_a, string name_b);
 
   bool LikelihoodRatioTooSmall(double lratio, int candidate_cluster_size);
@@ -154,6 +148,7 @@ private:
   map<string, string> name_subsets_;
 
   map<string, Sequence> single_seqs_;  // only place that we keep the actual sequences (rather than pointers/references)
+  map<string, Query> single_seq_cachefo_;  // keep some (approximate) single-sequence info to help us build missing cache entries
   map<string, Query> cachefo_;  // cache info for clusters we've actually merged
   map<string, Query> tmp_cachefo_;  // cache info for clusters we're only considering merging
 

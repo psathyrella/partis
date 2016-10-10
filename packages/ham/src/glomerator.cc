@@ -26,9 +26,21 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> >
     KSet kmax(args_->integers_["k_v_max"][iqry], args_->integers_["k_d_max"][iqry]);
 
     initial_partition_.insert(key);
+
     for(auto &seq_vec : qry_seq_list)
       for(auto &seq : seq_vec)
 	single_seqs_[seq.name()] = seq;
+
+    for(auto &uid : SplitString(key)) {
+      single_seq_cachefo_[uid] = Query(uid,  // NOTE these are not necessarily the same as they would be (well, were) for the single seqs -- e.g. only_genes is now the OR for all the sequences
+				       GetSeqs(uid),
+				       !InString(args_->seed_unique_id(), uid),
+				       args_->str_lists_["only_genes"][iqry],
+				       KBounds(kmin, kmax),
+				       args_->floats_["mut_freq"][iqry],
+				       args_->integers_["cdr3_length"][iqry]);
+    }
+
     cachefo_[key] = Query(key,
 			  GetSeqs(key),
 			  !InString(args_->seed_unique_id(), key),
@@ -139,7 +151,7 @@ void Glomerator::ReadCacheFile() {
     }
 
     string logprob_str(column_list[1]);
-    if(logprob_str.size() > 0) {
+    if(logprob_str.size() > 0) {  // NOTE <query> might already be in <log_probs_> (see above), but this won't replace it unless it's actually set in the file (we could also check that they're similar, but since we don't expect them to always be identical, that would be complicated)
       log_probs_[query] = stof(logprob_str);
       initial_log_probs_.insert(query);
     }
@@ -759,6 +771,50 @@ void Glomerator::AddFailedQuery(string queries, string error_str) {
 }
 
 // ----------------------------------------------------------------------------------------
+Query &Glomerator::cachefo(string queries) {
+  if(cachefo_.find(queries) != cachefo_.end())
+    return cachefo_[queries];
+  else if(tmp_cachefo_.find(queries) != tmp_cachefo_.end())
+    return tmp_cachefo_[queries];
+  else {
+    // throw runtime_error(queries + " not found in either cache\n");
+    cout << "hackadd to tmp cache " << queries << endl;
+    set<string> only_gene_set;
+    KBounds kbounds;
+    double mute_freq_total(0.);
+    size_t cdr3_length(0);
+    vector<string> tmpvec(SplitString(queries));
+    for(size_t is=0; is<tmpvec.size(); ++is) {
+      Query &scache(single_seq_cachefo_[tmpvec[is]]);
+      only_gene_set.insert(scache.only_genes_.begin(), scache.only_genes_.end());
+      if(is==0)
+	kbounds = scache.kbounds_;
+      else
+	kbounds = kbounds.LogicalOr(scache.kbounds_);
+      mute_freq_total += scache.mute_freq_;
+      if(is==0)
+	cdr3_length = scache.cdr3_length_;
+      if(cdr3_length != scache.cdr3_length_)
+	throw runtime_error("cdr3 length mismatch " + to_string(cdr3_length) + " " + to_string(scache.cdr3_length_) + " for single query " + tmpvec[is] + " within " + queries);
+
+      cout << "    " << kbounds.stringify() << "   " << mute_freq_total << "   " << cdr3_length << "   ";
+      for(auto &g : only_gene_set)
+	cout << " " << g;
+      cout << endl;
+    }
+
+    tmp_cachefo_[queries] = Query(queries,
+				  GetSeqs(queries),
+				  !InString(args_->seed_unique_id(), queries),
+				  vector<string>(only_gene_set.begin(), only_gene_set.end()),
+				  kbounds,
+				  mute_freq_total / tmpvec.size(),
+				  cdr3_length);
+    return tmp_cachefo_[queries];
+  }
+}
+
+// ----------------------------------------------------------------------------------------
 bool Glomerator::SameLength(vector<Sequence*> &seqs, bool debug) {
   // are all the seqs in <seqs> the same length?
   bool same(true);
@@ -796,20 +852,51 @@ vector<Sequence*> Glomerator::GetSeqs(string query) {
 }
 
 // ----------------------------------------------------------------------------------------
-void Glomerator::AddToTmpCache(string query) {
-  // tmp_cachefo_[query] = Query(query,
-  // 			      GetSeqs(query),
-  // 			      !InString(args_->seed_unique_id(), query),
-  // 			      ref_a.kbounds_.LogicalOr(ref_b.kbounds_),
-			      
+// when we're adding <query> to the permament cache in <cachefo_>, if it's been translated we also need it's subsets in <cachefo_>
+void Glomerator::MoveSubsetsFromTmpCache(string query) {
+  if(naive_seq_name_translations_.find(query) != naive_seq_name_translations_.end()) {
+    string tquery(naive_seq_name_translations_[query]);
+    cout << "naive seq nt " << tquery << endl;
+    CopyToPermanentCache(tquery, query);
+  }
+
+  if(logprob_name_translations_.find(query) != logprob_name_translations_.end()) {
+    pair<string, string> tpair(logprob_name_translations_[query]);
+    cout << "logprob nt for: " << query << "    " << tpair.first << " " << tpair.second << endl;
+    CopyToPermanentCache(tpair.first, query);
+    CopyToPermanentCache(tpair.second, query);
+  }
+
+  if(logprob_asymetric_translations_.find(query) != logprob_asymetric_translations_.end()) {
+    string tquery(logprob_asymetric_translations_[query]);
+    cout << "logprob asym t " << tquery << endl;
+    CopyToPermanentCache(tquery, query);
+  }
+}
+
+// ----------------------------------------------------------------------------------------
+// Copy the entry for <translated_query> from <tmp_cachefo_> to <cachefo_>, unless it isn't there, in which case we reconstruct roughly what it should have been using <superquery> (the query for which <translated_query> is a translation).
+// e.g. if <translated_query> is "is:hm" then <superquery> might be "az:fh:fi:is:fj:hm".
+void Glomerator::CopyToPermanentCache(string translated_query, string superquery) {
+  if(tmp_cachefo_.find(translated_query) != tmp_cachefo_.end()) {
+    cachefo_[translated_query] = tmp_cachefo_[translated_query];
+  } else {  // I think that if we don't have it even in the tmp cache, that we won't ever need the query info (I think it means to we already calculated everything for it) but it makes things more consistent and safer to make sure it's in the permanenet cache
+    Query &supercache(cachefo(superquery));
+    cout << "scratchy! " << superquery << " --> " << translated_query << endl;
+    cachefo_[translated_query] = Query(translated_query,
+				       GetSeqs(translated_query),
+				       !InString(args_->seed_unique_id(), translated_query),
+				       supercache.only_genes_,
+				       supercache.kbounds_,
+				       supercache.mute_freq_,
+				       supercache.cdr3_length_);
+				       // supercache.parents_.first,
+				       // supercache.parents_.second);
+  }
 }
 
 // ----------------------------------------------------------------------------------------
 Query Glomerator::GetMergedQuery(string name_a, string name_b) {
-  // if(!check_cache(name_a))
-  //   AddToTmpCache(name_a);
-  // if(!check_cache(name_b))
-  //   AddToTmpCache(name_b);
 
   string joint_name = JoinNames(name_a, name_b);  // sorts name_a and name_b, but *doesn't* sort within them
   if(cachefo_.find(joint_name) != cachefo_.end())
@@ -1076,6 +1163,7 @@ void Glomerator::Merge(ClusterPath *path) {
   cachefo_[chosen_qmerge.name_] = chosen_qmerge;
   GetNaiveSeq(chosen_qmerge.name_, &chosen_qmerge.parents_);  // this *needs* to happen here so it has the parental information
   UpdateLogProbTranslationsForAsymetrics(chosen_qmerge);
+  MoveSubsetsFromTmpCache(chosen_qmerge.name_);
 
   Partition new_partition(path->CurrentPartition());
   new_partition.erase(chosen_qmerge.parents_.first);
@@ -1088,7 +1176,11 @@ void Glomerator::Merge(ClusterPath *path) {
     printf("       merged   %s  %s\n", chosen_qmerge.parents_.first.c_str(), chosen_qmerge.parents_.second.c_str());
   }
 
-  // tmp_cachefo_.clear();
+  cout << "removing from tmp cache\n    ";
+  for(auto &kv : tmp_cachefo_)
+    cout << " " << kv.first;
+  cout << endl;
+  tmp_cachefo_.clear();  // NOTE I could simplify some other things if I only cleared the stuff from <tmp_cachefo_> that I thought I wouldn't later need.
 }
 
 // NOTE don't remove these (yet, at least)

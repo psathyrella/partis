@@ -48,7 +48,6 @@ void ClusterPath::AddPartition(Partition partition, double logprob, size_t n_max
   // }
 
   if(n_max_partitions > 0 && partitions_.size() > n_max_partitions) {  // NOTE we don't check here that we're not removing the best partition
-    cout << "   removing! " << partitions_.size() << endl;
     partitions_.pop_front();
     logprobs_.pop_front();
   }
