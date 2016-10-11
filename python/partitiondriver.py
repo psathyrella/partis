@@ -30,7 +30,7 @@ class PartitionDriver(object):
     """ Class to parse input files, start bcrham jobs, and parse/interpret bcrham output for annotation and partitioning """
     def __init__(self, args, action, initial_gldir):  # NOTE <initial_gldir> is not, in general, the same as <args.initial_germline_dir>
         self.args = args
-        self.current_action = action  # *not* necessarily the same as <self.args.action> UPDATE I think I'm not using this any more, and so can remove it (since when partis.py needs to auto-cache parameters it now calls a subprocess)
+        self.current_action = action  # *not* necessarily the same as <self.args.action>
         utils.prep_dir(self.args.workdir)
         self.my_gldir = self.args.workdir + '/' + glutils.glfo_dir
         self.glfo = glutils.read_glfo(initial_gldir, chain=self.args.chain, only_genes=self.args.only_genes)
@@ -338,13 +338,8 @@ class PartitionDriver(object):
                 true_cp.print_partitions(self.reco_info, print_header=False, calc_missing_values='best')
 
         self.check_partition(cpath.partitions[cpath.i_best], other_clusters=unseeded_seqs)
-        if self.args.print_cluster_annotations:
-            outfname = None
-            if self.args.outfname is not None:
-                outfname = self.args.outfname.replace('.csv', '-cluster-annotations.csv')
-                print '    writing cluster annotations to %s' % outfname
-            print '  annotations for final partition:'
-            self.read_annotation_output(self.annotation_fname, outfname=outfname, print_annotations=True)
+        if self.args.print_cluster_annotations:  # NOTE we now do this as a separate hmm step so that we can parallelize it
+            self.get_cluster_annotations(cpath.partitions[cpath.i_best])
         if self.args.outfname is not None:
             self.write_clusterpaths(self.args.outfname, cpath)  # [last agglomeration step]
 
@@ -449,6 +444,22 @@ class PartitionDriver(object):
             outstr = check_output(['mv', '-v', self.args.outfname, self.args.outfname + '.partis'])
             print '    backing up partis output before converting to presto: %s' % outstr.strip()
             cpath.write_presto_partitions(self.args.outfname, self.input_info)
+
+    # ----------------------------------------------------------------------------------------
+    def get_cluster_annotations(self, partition):
+        action_cache = self.current_action
+        self.current_action = 'run-viterbi'
+        n_procs = min(self.args.n_procs, len(partition))  # we want as many procs as possible, since the large clusters can take a long time (depending on if we're translating...), but in general we treat <self.args.n_procs> as the maximum allowable number of processes
+        self.run_hmm('viterbi', self.sub_param_dir, n_procs=n_procs, partition=partition, read_output=False)  # it would be nice to rearrange <self.read_hmm_output()> so I could remove this option
+        outfname = None
+        if self.args.outfname is not None:
+            outfname = self.args.outfname.replace('.csv', '-cluster-annotations.csv')
+            print '    writing cluster annotations to %s' % outfname
+        print '  annotations for final partition:'
+        self.read_annotation_output(self.hmm_outfname, outfname=outfname, print_annotations=True)
+        if os.path.exists(self.hmm_infname):
+            os.remove(self.hmm_infname)
+        self.current_action = action_cache
 
     # ----------------------------------------------------------------------------------------
     def cluster_with_naive_vsearch_or_swarm(self, parameter_dir):
@@ -612,8 +623,6 @@ class PartitionDriver(object):
 
         if self.args.dont_rescale_emissions:
             cmd_str += ' --dont-rescale-emissions'
-        if self.args.print_cluster_annotations and n_procs == 1:
-            cmd_str += ' --annotationfile ' + self.annotation_fname
         if self.current_action == 'partition':
             if os.path.exists(self.hmm_cachefname):
                 cmd_str += ' --input-cachefname ' + self.hmm_cachefname
@@ -706,7 +715,7 @@ class PartitionDriver(object):
         sys.stdout.flush()
 
     # ----------------------------------------------------------------------------------------
-    def run_hmm(self, algorithm, parameter_in_dir, parameter_out_dir='', count_parameters=False, n_procs=None, precache_all_naive_seqs=False, partition=None, shuffle_input=False):
+    def run_hmm(self, algorithm, parameter_in_dir, parameter_out_dir='', count_parameters=False, n_procs=None, precache_all_naive_seqs=False, partition=None, shuffle_input=False, read_output=True):
         """ 
         Run bcrham, possibly with many processes, and parse and interpret the output.
         NOTE the local <n_procs>, which overrides the one from <self.args>
@@ -728,7 +737,10 @@ class PartitionDriver(object):
 
         self.execute(cmd_str, n_procs)
 
-        new_cpath = self.read_hmm_output(algorithm, n_procs, count_parameters, parameter_out_dir, precache_all_naive_seqs)
+        new_cpath = None
+        if read_output:
+            new_cpath = self.read_hmm_output(algorithm, n_procs, count_parameters, parameter_out_dir, precache_all_naive_seqs)
+
         print '      hmm step time: %.1f' % (time.time()-start)
         return new_cpath
 
