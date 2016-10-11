@@ -716,7 +716,7 @@ string Glomerator::CalculateNaiveSeq(string queries, RecoEvent *event) {
   Result result(cacheref.kbounds_, args_->chain());
   bool stop(false);
   do {
-    result = dph.Run(cacheref.seqs_, cacheref.kbounds_, cacheref.only_genes_, cacheref.mute_freq_);
+    result = dph.Run(cacheref.seqs_, cacheref.kbounds_, cacheref.only_genes_, cacheref.mute_freq_, false);
     cacheref.kbounds_ = result.better_kbounds();
     stop = !result.boundary_error() || result.could_not_expand() || result.no_path_;  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
     if(args_->debug() && !stop)
@@ -752,7 +752,7 @@ double Glomerator::CalculateLogProb(string queries) {  // NOTE can modify kbinfo
   Result result(cacheref.kbounds_, args_->chain());
   bool stop(false);
   do {
-    result = dph.Run(cacheref.seqs_, cacheref.kbounds_, cacheref.only_genes_, cacheref.mute_freq_);
+    result = dph.Run(cacheref.seqs_, cacheref.kbounds_, cacheref.only_genes_, cacheref.mute_freq_, false);  // I think I don't actually check for improving kbounds when I'm running forward a.t.m., in which case this loop wouldn't really do anything
     cacheref.kbounds_ = result.better_kbounds();
     stop = !result.boundary_error() || result.could_not_expand() || result.no_path_;  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
     if(args_->debug() && !stop)
@@ -1181,12 +1181,9 @@ void Glomerator::Merge(ClusterPath *path) {
 
   if(args_->debug()) {
     printf("       merged   %s  %s\n", chosen_qmerge.parents_.first.c_str(), chosen_qmerge.parents_.second.c_str());
+    cout << "          removing " << tmp_cachefo_.size() << " entries from tmp cache" << endl;
   }
 
-  cout << "        removing from tmp cache\n            ";
-  for(auto &kv : tmp_cachefo_)
-    cout << " " << kv.first;
-  cout << endl;
   tmp_cachefo_.clear();  // NOTE I could simplify some other things if I only cleared the stuff from <tmp_cachefo_> that I thought I wouldn't later need.
 }
 

@@ -82,7 +82,7 @@ void run_algorithm(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> > &qr
   int n_vtb_calculated(0), n_fwd_calculated(0);
 
   for(size_t iqry = 0; iqry < qry_seq_list.size(); iqry++) {
-    if(args.debug()) cout << "  ---------" << endl;
+    if(args.debug() > 1) cout << "  ---------" << endl;
     KSet kmin(args.integers_["k_v_min"][iqry], args.integers_["k_d_min"][iqry]);
     KSet kmax(args.integers_["k_v_max"][iqry], args.integers_["k_d_max"][iqry]);
     KBounds kbounds(kmin, kmax);
@@ -97,8 +97,8 @@ void run_algorithm(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> > &qr
     string errors;
     do {
       errors = "";
-      if(args.debug()) cout << "       ----" << endl;
-      result = dph.Run(qry_seqs, kbounds, args.str_lists_["only_genes"][iqry], args.floats_["mut_freq"][iqry]);  // NOTE in principle I should tell it not to clear the cache, now that I'm not reusing dphandlers
+      if(args.debug() > 1) cout << "       ----" << endl;
+      result = dph.Run(qry_seqs, kbounds, args.str_lists_["only_genes"][iqry], args.floats_["mut_freq"][iqry], false);  // NOTE in principle I should tell it not to clear the cache, now that I'm not reusing dphandlers
       logprob = result.total_score();
       kbounds = result.better_kbounds();
       stop = !result.boundary_error() || result.could_not_expand() || result.no_path_;  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length

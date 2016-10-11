@@ -80,7 +80,7 @@ Result DPHandler::Run(vector<Sequence> seqvector, KBounds kbounds, vector<string
 
   assert(kbounds.vmax > kbounds.vmin && kbounds.dmax > kbounds.dmin); // make sure max values for k_v and k_d are greater than their min values
   assert(kbounds.vmin > 0 && kbounds.dmin > 0);  // you get the loveliest little seg fault if you accidentally pass in zero for a lower bound
-  if(clear_cache)  // default is true, and you pobably want to leave it that way
+  if(clear_cache)  // default is true, and be VERY FUCKING CAREFUL if you change that
     Clear();  // delete all existing trellisi, paths, and logprobs NOTE in principal it kinda ought to be faster to keep everything cached between calls to Run()... but in practice there's a fair bit of overhead to keeping all that stuff hanging around, and it's much more efficient to do the caching in Glomerator (which we already do). So, in sum, it's generally faster to Clear() right here. One exception is if you, say, run viterbi on the same sequence fifty times in a row... then you want to keep the cache around. But why would you do that? In practice the only time you're running on the same sequence many times is in Glomerator, and there we're already doing caching more efficiently at a higher level.
   map<KSet, double> best_scores; // best score for each kset (summed over regions)
   map<KSet, double> total_scores; // total score for each kset (summed over regions)
@@ -145,7 +145,7 @@ Result DPHandler::Run(vector<Sequence> seqvector, KBounds kbounds, vector<string
       sprintf(kstr, "    [%zu-%zu)     [%zu-%zu)", kbounds.vmin, kbounds.vmax, kbounds.dmin, kbounds.dmax);
     }
     double cpu_seconds(((clock() - run_start) / (double)CLOCKS_PER_SEC));
-    printf("           %s %12.3f   %-25s  %2zuv %2zud %2zuj  %5.1fs   %s\n", alg_str.c_str(), prob, kstr,
+    printf("           %s %12.3f   %-25s  %2zuv %2zud %2zuj  %5.2fs   %s\n", alg_str.c_str(), prob, kstr,
 	   only_genes["v"].size(), only_genes["d"].size(), only_genes["j"].size(),  // hmms_.NameString(&only_genes, 30)
 	   cpu_seconds, seqs.name_str(":").c_str());
 
