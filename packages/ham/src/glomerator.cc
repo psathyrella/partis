@@ -900,7 +900,7 @@ void Glomerator::CopyToPermanentCache(string translated_query, string superquery
 }
 
 // ----------------------------------------------------------------------------------------
-Query Glomerator::GetMergedQuery(string name_a, string name_b) {
+Query &Glomerator::GetMergedQuery(string name_a, string name_b) {
 
   string joint_name = JoinNames(name_a, name_b);  // sorts name_a and name_b, but *doesn't* sort within them
   if(cachefo_.find(joint_name) != cachefo_.end())

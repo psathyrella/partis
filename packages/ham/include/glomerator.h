@@ -126,7 +126,7 @@ private:
   vector<Sequence*> GetSeqs(string query);
   void MoveSubsetsFromTmpCache(string query);
   void CopyToPermanentCache(string translated_query, string superquery);
-  Query GetMergedQuery(string name_a, string name_b);
+  Query &GetMergedQuery(string name_a, string name_b);
 
   bool LikelihoodRatioTooSmall(double lratio, int candidate_cluster_size);
   Partition GetSeededClusters(Partition &partition);
