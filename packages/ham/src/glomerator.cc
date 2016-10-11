@@ -228,6 +228,7 @@ void Glomerator::WriteCacheFile() {
 
 // ----------------------------------------------------------------------------------------
 void Glomerator::WritePartitions(ClusterPath &cp) {
+  clock_t run_start(clock());
   if(args_->debug())
     cout << "        writing partitions" << endl;
   ofs_.open(args_->outfile());
@@ -249,10 +250,13 @@ void Glomerator::WritePartitions(ClusterPath &cp) {
     ofs_ << "," << cp.logprobs()[ipart] << endl;
   }
   ofs_.close();
+  if(args_->write_logprob_for_each_partition())
+    printf("        partition writing time (probably includes calculating a bunch of new logprobs) %.1f\n", ((clock() - run_start) / (double)CLOCKS_PER_SEC));
 }
 
 // ----------------------------------------------------------------------------------------
 void Glomerator::WriteAnnotations(ClusterPath &cp) {
+  clock_t run_start(clock());
   cout << "      calculating and writing annotations" << endl;
   ofstream annotation_ofs;
   annotation_ofs.open(args_->annotationfile());
@@ -264,6 +268,7 @@ void Glomerator::WriteAnnotations(ClusterPath &cp) {
       continue;
 
     RecoEvent event;
+    // NOTE this does *no* translation and *no* caching whatsoever (i.e. I may need to change that)
     CalculateNaiveSeq(cluster, &event);  // calculate the viterbi path from scratch -- we're doing so much translation crap at this point it's just too hard to keep track of things otherwise
 
     if(event.genes_["d"] == "") {  // shouldn't happen any more, but it is a check that could fail at some point
@@ -273,6 +278,7 @@ void Glomerator::WriteAnnotations(ClusterPath &cp) {
     StreamViterbiOutput(annotation_ofs, event, cachefo(cluster).seqs_, "");
   }
   annotation_ofs.close();
+  printf("        annotation writing time (probably includes a bunch of new vtb calculations) %.1f\n", ((clock() - run_start) / (double)CLOCKS_PER_SEC));
 }
 
 // ----------------------------------------------------------------------------------------
@@ -776,9 +782,9 @@ Query &Glomerator::cachefo(string queries) {
     return cachefo_[queries];
   else if(tmp_cachefo_.find(queries) != tmp_cachefo_.end())
     return tmp_cachefo_[queries];
-  else {
+  else {  // if this is happening very frequently you've fucked up
     // throw runtime_error(queries + " not found in either cache\n");
-    cout << "hackadd to tmp cache " << queries << endl;
+    // cout << "hackadd to tmp cache " << queries << endl;
     set<string> only_gene_set;
     KBounds kbounds;
     double mute_freq_total(0.);
@@ -797,11 +803,12 @@ Query &Glomerator::cachefo(string queries) {
       if(cdr3_length != scache.cdr3_length_)
 	throw runtime_error("cdr3 length mismatch " + to_string(cdr3_length) + " " + to_string(scache.cdr3_length_) + " for single query " + tmpvec[is] + " within " + queries);
 
-      cout << "    " << kbounds.stringify() << "   " << mute_freq_total << "   " << cdr3_length << "   ";
-      for(auto &g : only_gene_set)
-	cout << " " << g;
-      cout << endl;
+      // cout << "    " << tmpvec[is] << "    " << kbounds.stringify() << "   " << scache.mute_freq_ << "   " << cdr3_length << "   ";
+      // for(auto &g : only_gene_set)
+      // 	cout << " " << g;
+      // cout << endl;
     }
+    // cout << "        final mute freq " << mute_freq_total / tmpvec.size() << endl;
 
     tmp_cachefo_[queries] = Query(queries,
 				  GetSeqs(queries),
@@ -856,20 +863,20 @@ vector<Sequence*> Glomerator::GetSeqs(string query) {
 void Glomerator::MoveSubsetsFromTmpCache(string query) {
   if(naive_seq_name_translations_.find(query) != naive_seq_name_translations_.end()) {
     string tquery(naive_seq_name_translations_[query]);
-    cout << "naive seq nt " << tquery << endl;
+    // cout << "naive seq nt " << tquery << endl;
     CopyToPermanentCache(tquery, query);
   }
 
   if(logprob_name_translations_.find(query) != logprob_name_translations_.end()) {
     pair<string, string> tpair(logprob_name_translations_[query]);
-    cout << "logprob nt for: " << query << "    " << tpair.first << " " << tpair.second << endl;
+    // cout << "logprob nt for: " << query << "    " << tpair.first << " " << tpair.second << endl;
     CopyToPermanentCache(tpair.first, query);
     CopyToPermanentCache(tpair.second, query);
   }
 
   if(logprob_asymetric_translations_.find(query) != logprob_asymetric_translations_.end()) {
     string tquery(logprob_asymetric_translations_[query]);
-    cout << "logprob asym t " << tquery << endl;
+    // cout << "logprob asym t " << tquery << endl;
     CopyToPermanentCache(tquery, query);
   }
 }
@@ -882,7 +889,7 @@ void Glomerator::CopyToPermanentCache(string translated_query, string superquery
     cachefo_[translated_query] = tmp_cachefo_[translated_query];
   } else {  // I think that if we don't have it even in the tmp cache, that we won't ever need the query info (I think it means to we already calculated everything for it) but it makes things more consistent and safer to make sure it's in the permanenet cache
     Query &supercache(cachefo(superquery));
-    cout << "scratchy! " << superquery << " --> " << translated_query << endl;
+    // cout << "scratchy! " << superquery << " --> " << translated_query << endl;
     cachefo_[translated_query] = Query(translated_query,
 				       GetSeqs(translated_query),
 				       !InString(args_->seed_unique_id(), translated_query),
@@ -1176,7 +1183,7 @@ void Glomerator::Merge(ClusterPath *path) {
     printf("       merged   %s  %s\n", chosen_qmerge.parents_.first.c_str(), chosen_qmerge.parents_.second.c_str());
   }
 
-  cout << "removing from tmp cache\n    ";
+  cout << "        removing from tmp cache\n            ";
   for(auto &kv : tmp_cachefo_)
     cout << " " << kv.first;
   cout << endl;
