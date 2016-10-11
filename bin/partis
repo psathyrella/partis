@@ -301,18 +301,18 @@ parent_parser.add_argument('--only-smith-waterman', action='store_true', help='E
 # make padding specific to each cdr3 subclass UPDATE maybe not worthwhile? doesn't seem to be an exorbitant amount of padding any more'
 # don't warn about queries missing from partition if they've been removed because of --seed-unique-id
 # fix nonetype argument bullshit when auto-caching-parameters (maybe best to call a ./bin/partis subprocess?)
-# is best-minus-x stuff still working?
+# is best-minus-x stuff still working? (I'm almost certain not -- I'm only calculating the partition log prob the last time through, so all the other times I can't rewind at all. I need to check that this isn't leading to too much over-mergin)
+#   - maybe increase --n-partitions-to-write if you get this working?
 # need to do allele removal for j (and maybe d?)
 # seed with naive sequences
 # don't write unseeded uids to output file when seed partitioning
 # n_max_per_region needs to be enforced in waterer when getting OR kbounds (should probably actually switch to discarding the extra matches immediately in waterer)
 # remove duplicates before writing partition output (?)
 
+
 # test new gldir/cache-parameters stuff in bin/partis (also make sure it actually removed the warnings)
 
 # large cluster annotations seem to be way too willing to use ridiculously long insertions (e.g. in /fh/fast/matsen_e/processed-data/partis/kate-qrs-2016-09-09/seeds/QB850.402-Vh/Hs-LN1-5RACE-IgG-cluster-annotations.csv)
-
-# stop calling Clear() on dphandler (see notes on the Run() calls)
 
 # I suspect I should sometimes allow translation to allow more than seven/five/whatever simultaneous sequences
 
@@ -320,10 +320,7 @@ parent_parser.add_argument('--only-smith-waterman', action='store_true', help='E
 
 # get ham scons test working again
 
-# (see if you can) fix thing at line 213 in dphandler.cc
-
-# remove vector<clusterpath> bullshit
-
+# ----------------------------------------------------------------------------------------
 # switch all the c++ map.count() calls to map.find()
 
 # I think I might need to clear tmp_cachefo_ in more places
@@ -337,6 +334,12 @@ parent_parser.add_argument('--only-smith-waterman', action='store_true', help='E
 # semi-duplicate hmm cache file lines: need to make sure that e.g. if there's a line with just the logprob, and a line with just the naive seq, we OR them (in python and c++)
 
 # switch only_genes in c++ to a set
+
+# remove idential sequences after cutting of fwk insertions
+
+# do cluster annotation printing in a separate c++ step
+
+# may be worthwhile to switch from colon-string hash map scheme to something shorter
 
 # print something when you start writing partitions and annotations in glomerator so you can tell how much time you spend with the extra vtb and fwd calculations
 
@@ -367,9 +370,10 @@ parent_parser.add_argument('--only-smith-waterman', action='store_true', help='E
 #    - just print the length for large fv/jf insertions
 
 # testing:
-#  - maybe use larger sample sizes
+#  - larger sample sizes
 #  - at least make sure the seed cluster is big
 #  - move testing off --only-genes
+#  - bigger n-max-cluster-to-calc values
 
 # allele crap:
 #     all alleles (including new ones) should have roughly the same mut freq distribution (especially at low mutation)'
