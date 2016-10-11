@@ -335,7 +335,7 @@ subargs['partition'].append({'name' : '--cache-naive-hfracs', 'kwargs' : {'actio
 subargs['partition'].append({'name' : '--n-precache-procs', 'kwargs' : {'type' : int, 'help' : 'Number of processes to use when precaching naive sequences. Default is set based on some heuristics, and should typically only be overridden for testing.'}})
 subargs['partition'].append({'name' : '--biggest-naive-seq-cluster-to-calculate', 'kwargs' : {'type' : int, 'default' : 7, 'help' : 'start thinking about subsampling before you calculate anything if cluster is bigger than this'}})
 subargs['partition'].append({'name' : '--biggest-logprob-cluster-to-calculate', 'kwargs' : {'type' : int, 'default' : 7, 'help' : 'start thinking about subsampling before you calculate anything if cluster is bigger than this'}})
-subargs['partition'].append({'name' : '--n-partitions-to-write', 'kwargs' : {'type' : int, 'default' : 5, 'help' : 'Number of partitions (surrounding the best partition) to write to output file.'}})
+subargs['partition'].append({'name' : '--n-partitions-to-write', 'kwargs' : {'type' : int, 'default' : 10, 'help' : 'Number of partitions (surrounding the best partition) to write to output file.'}})
 subargs['partition'].append({'name' : '--naive-swarm', 'kwargs' : {'action' : 'store_true', 'help' : 'Use swarm instead of vsearch, which the developer recommends. Didn\'t seem to help much, and needs more work to optimize threshold, so DO NOT USE.'}})
 
 subargs['simulate'].append({'name' : '--mutation-multiplier', 'kwargs' : {'type' : float, 'help' : 'Multiply observed branch lengths by some factor when simulating, e.g. if in data it was 0.05, but you want closer to ten percent in your simulation, set this to 2'}})
