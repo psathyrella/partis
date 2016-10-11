@@ -296,7 +296,7 @@ parent_parser.add_argument('--species', default='human', choices=('human', 'mous
 parent_parser.add_argument('--only-smith-waterman', action='store_true', help='Exit after finishing smith-waterman.')
 # parent_parser.add_argument('--use_mean_at_boundaries', action='store_true', help='see note in hmmwriter')
 
-# am I not using translation when getting the log prob for the final partition?'
+# am I not using translation when getting the log prob for the final partition? UPDATE I think not, and I think I need to, at least a little bit (I also have caching there turned off, which I think is also not really a good idea)
 # add flag to disable cdr3 preclustering UPDATE actually I think it makes more sense to "allow" shm i indels within cdr3 after doing all the rest of the partitioning'
 # make padding specific to each cdr3 subclass UPDATE maybe not worthwhile? doesn't seem to be an exorbitant amount of padding any more'
 # don't warn about queries missing from partition if they've been removed because of --seed-unique-id
@@ -322,6 +322,30 @@ parent_parser.add_argument('--only-smith-waterman', action='store_true', help='E
 
 # (see if you can) fix thing at line 213 in dphandler.cc
 
+# remove vector<clusterpath> bullshit
+
+# switch all the c++ map.count() calls to map.find()
+
+# I think I might need to clear tmp_cachefo_ in more places
+
+# AddToCache doesn't need to exist
+
+# GetMergedQuery should return a reference
+
+# glomerator should use all (well mostly) vector<Sequence&>
+
+# semi-duplicate hmm cache file lines: need to make sure that e.g. if there's a line with just the logprob, and a line with just the naive seq, we OR them (in python and c++)
+
+# switch only_genes in c++ to a set
+
+# print something when you start writing partitions and annotations in glomerator so you can tell how much time you spend with the extra vtb and fwd calculations
+
+# kbounds logical or should check if/handle case where one of them is unset
+
+# check hack add function on larger list of queries
+
+# add a max number of new inferred alleles per gene
+
 # bryan's super-short-read sample
 #  - better insertion mutation rate?
 #  - print cdr3 mutation rate (and maybe also make plots without dividing by length?)
@@ -333,7 +357,6 @@ parent_parser.add_argument('--only-smith-waterman', action='store_true', help='E
 #  - because it's (at least now) deallocating between queries, I think this isn't a fragmentation problem -- I think the dphandler's cachefo_ is just huge when there's many sequences
 #  - i think i could switch to running all the ksets of each gene at once, but this would involve a lot of careful rewriting in dphandler
 #  - first see if you can cache fewer
-
 
 # print_reco_event:
 #    - don't print logprob by default
