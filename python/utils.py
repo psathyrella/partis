@@ -1639,6 +1639,8 @@ def finish_process(iproc, procs, n_tries, workdir, logdir, outfname, cmd_str, db
                 print pad_lines(outstr, padwidth=12)
             except:
                 print '        failed'
+        # print cmd_str
+        # sys.exit()
         print '    restarting proc %d' % iproc
         procs[iproc] = run_cmd(cmd_str, workdir)
         n_tries[iproc] += 1
