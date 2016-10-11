@@ -268,8 +268,7 @@ void Glomerator::WriteAnnotations(ClusterPath &cp) {
       continue;
 
     RecoEvent event;
-    // NOTE this does *no* translation and *no* caching whatsoever (i.e. I may need to change that)
-    CalculateNaiveSeq(cluster, &event);  // calculate the viterbi path from scratch -- we're doing so much translation crap at this point it's just too hard to keep track of things otherwise
+    CalculateNaiveSeq(GetNaiveSeqNameToCalculate(cluster), &event);  // calculate the viterbi path from scratch to get the <event> set (should probably at some point start caching the events earlier)
 
     if(event.genes_["d"] == "") {  // shouldn't happen any more, but it is a check that could fail at some point
       cout << "WTF " << cluster << " x" << event.naive_seq_ << "x" << endl;
@@ -283,14 +282,12 @@ void Glomerator::WriteAnnotations(ClusterPath &cp) {
 
 // ----------------------------------------------------------------------------------------
 double Glomerator::LogProbOfPartition(Partition &partition, bool debug) {
-
   // get log prob of entire partition given by the keys in <partinfo> using the individual log probs in <log_probs>
   double total_log_prob(0.0);
   if(debug)
     cout << "LogProbOfPartition: " << endl;
   for(auto &key : partition) {
-    // assert(SameLength(seq_info_[key], true));
-    double log_prob = GetLogProb(key);
+    double log_prob = GetLogProb(key);  // NOTE do *not* do any translation here -- we need the actual probability of the whole partition, to compare to the other partitions, so we need each and every sequence in each cluster (i.e. if you wanted to do translation, you'd have to coordinate the ignored sequences among the different partitions)
     if(debug)
       cout << "  " << log_prob << "  " << key << endl;
     total_log_prob = AddWithMinusInfinities(total_log_prob, log_prob);
@@ -656,7 +653,7 @@ string &Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents) {
 // }
 
 // ----------------------------------------------------------------------------------------
-double Glomerator::GetLogProb(string queries) {
+double Glomerator::GetLogProb(string queries) {  // NOTE this does *no* translation, so you better have done that already before you call it if you want it done
   if(log_probs_.count(queries))  // already did it
     return log_probs_[queries];
 
