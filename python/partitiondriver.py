@@ -450,12 +450,13 @@ class PartitionDriver(object):
         action_cache = self.current_action
         self.current_action = 'run-viterbi'
         n_procs = min(self.args.n_procs, len(partition))  # we want as many procs as possible, since the large clusters can take a long time (depending on if we're translating...), but in general we treat <self.args.n_procs> as the maximum allowable number of processes
+        print '--> getting annotations for final partition'
         self.run_hmm('viterbi', self.sub_param_dir, n_procs=n_procs, partition=partition, read_output=False)  # it would be nice to rearrange <self.read_hmm_output()> so I could remove this option
         outfname = None
         if self.args.outfname is not None:
             outfname = self.args.outfname.replace('.csv', '-cluster-annotations.csv')
-            print '    writing cluster annotations to %s' % outfname
-        print '  annotations for final partition:'
+            print '      writing cluster annotations to %s' % outfname
+        _ = self.merge_all_hmm_outputs(n_procs, precache_all_naive_seqs=False)
         self.read_annotation_output(self.hmm_outfname, outfname=outfname, print_annotations=True)
         if os.path.exists(self.hmm_infname):
             os.remove(self.hmm_infname)
@@ -835,7 +836,7 @@ class PartitionDriver(object):
             subworkdir = self.subworkdir(siproc, n_procs)
             if mode == 'w':
                 utils.prep_dir(subworkdir)
-                if os.path.exists(self.hmm_cachefname):  # copy cachefile to this subdir
+                if self.current_action == 'partition' and os.path.exists(self.hmm_cachefname):  # copy cachefile to this subdir (first clause is just for so when we're getting cluster annotations we don't copy over the cache files)
                     check_call(['cp', self.hmm_cachefname, subworkdir + '/'])
             return open(subworkdir + '/' + os.path.basename(infname), mode)
 
