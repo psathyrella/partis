@@ -30,7 +30,7 @@ class PartitionDriver(object):
     """ Class to parse input files, start bcrham jobs, and parse/interpret bcrham output for annotation and partitioning """
     def __init__(self, args, action, initial_gldir):  # NOTE <initial_gldir> is not, in general, the same as <args.initial_germline_dir>
         self.args = args
-        self.current_action = action  # *not* necessarily the same as <self.args.action>
+        self.current_action = action  # *not* necessarily the same as <self.args.action> UPDATE I think I'm not using this any more, and so can remove it (since when partis.py needs to auto-cache parameters it now calls a subprocess)
         utils.prep_dir(self.args.workdir)
         self.my_gldir = self.args.workdir + '/' + glutils.glfo_dir
         self.glfo = glutils.read_glfo(initial_gldir, chain=self.args.chain, only_genes=self.args.only_genes)
@@ -320,7 +320,7 @@ class PartitionDriver(object):
         start = time.time()
         while n_procs > 0:
             print '--> %d clusters with %d proc%s' % (len(cpath.partitions[cpath.i_best_minus_x]), n_procs, utils.plural(n_procs))  # write_hmm_input uses the best-minus-x partition
-            cpath = self.run_hmm('forward', self.sub_param_dir, n_procs=n_procs, cpath=cpath, shuffle_input=True)
+            cpath = self.run_hmm('forward', self.sub_param_dir, n_procs=n_procs, partition=cpath.partitions[cpath.i_best_minus_x], shuffle_input=True)  # NOTE that a.t.m. i_best and i_best_minus_x are usually the same, since we're usually not calculating log probs of partitions (well, we're trying to avoid calculating any extra log probs, which means we usually don't know the log prob of the entire partition)
             n_proc_list.append(n_procs)
             if n_procs == 1:
                 break
@@ -633,7 +633,7 @@ class PartitionDriver(object):
                 cmd_str += ' --biggest-naive-seq-cluster-to-calculate ' + str(self.args.biggest_naive_seq_cluster_to_calculate)
                 cmd_str += ' --biggest-logprob-cluster-to-calculate ' + str(self.args.biggest_logprob_cluster_to_calculate)
                 cmd_str += '  --n-partitions-to-write ' + str(self.args.n_partitions_to_write)  # don't write too many, since calculating the extra logprobs is kind of expensive
-                if n_procs == 1:  # if this is the last time through, with one process, we want glomerator.cc to calculate the total logprob of each partition
+                if n_procs == 1:  # if this is the last time through, with one process, we want glomerator.cc to calculate the total logprob of each partition NOTE this is quite expensive, since we have to turn off translation entirely
                     cmd_str += '  --write-logprob-for-each-partition'
 
                 if self.args.seed_unique_id is not None and not self.already_removed_unseeded_seqs:  # if we're in the last few cycles (i.e. we've removed unseeded clusters) we want bcrham to not know about the seed (this gives more accurate clustering 'cause we're really doing hierarchical agglomeration)
@@ -706,7 +706,7 @@ class PartitionDriver(object):
         sys.stdout.flush()
 
     # ----------------------------------------------------------------------------------------
-    def run_hmm(self, algorithm, parameter_in_dir, parameter_out_dir='', count_parameters=False, n_procs=None, precache_all_naive_seqs=False, cpath=None, shuffle_input=False):
+    def run_hmm(self, algorithm, parameter_in_dir, parameter_out_dir='', count_parameters=False, n_procs=None, precache_all_naive_seqs=False, partition=None, shuffle_input=False):
         """ 
         Run bcrham, possibly with many processes, and parse and interpret the output.
         NOTE the local <n_procs>, which overrides the one from <self.args>
@@ -719,7 +719,7 @@ class PartitionDriver(object):
         if n_procs is None:
             n_procs = self.args.n_procs
 
-        self.write_hmm_input(algorithm, parameter_in_dir, cpath, shuffle_input=shuffle_input)
+        self.write_hmm_input(algorithm, parameter_in_dir, partition, shuffle_input=shuffle_input)
 
         cmd_str = self.get_hmm_cmd_str(algorithm, self.hmm_infname, self.hmm_outfname, parameter_dir=parameter_in_dir, precache_all_naive_seqs=precache_all_naive_seqs, n_procs=n_procs)
 
@@ -919,7 +919,7 @@ class PartitionDriver(object):
         if dereplicate:
             tmpfname = outfname + '.tmp'
             check_call('echo ' + header + ' >' + tmpfname, shell=True)
-            check_call('grep -v \'' + header + '\' ' + outfname + ' | sort | uniq >>' + tmpfname, shell=True)
+            check_call('grep -v \'' + header + '\' ' + outfname + ' | sort | uniq >>' + tmpfname, shell=True)  # NOTE there can be multiple lines with the same uid string, but this is ok -- the c++ handles it
             check_call(['mv', '-v', tmpfname, outfname])
 
         for infname in infnames:
@@ -1115,15 +1115,15 @@ class PartitionDriver(object):
         csvfile.close()
 
     # ----------------------------------------------------------------------------------------
-    def write_hmm_input(self, algorithm, parameter_dir, cpath, shuffle_input=False):
+    def write_hmm_input(self, algorithm, parameter_dir, partition, shuffle_input=False):
         """ Write input file for bcrham """
         if self.args.debug:
             print '    writing input'
 
         skipped_gene_matches = set()
 
-        if self.current_action == 'partition' and algorithm == 'forward':  # if we're caching naive seqs before partitioning, we're doing viterbi (and want the block below)
-            nsets = copy.deepcopy(cpath.partitions[cpath.i_best_minus_x])  # NOTE that a.t.m. i_best and i_best_minus_x are the same, since we're not calculating log probs of partitions (well, we're trying to avoid calculating any extra log probs, which means we usually don't know the log prob of the entire partition)
+        if partition is not None:
+            nsets = copy.deepcopy(partition)
         else:
             if self.args.n_sets == 1:  # single (non-multi) hmm (does the same thing as the below for n=1, but is more transparent)
                 nsets = [[qn] for qn in self.sw_info['queries']]
