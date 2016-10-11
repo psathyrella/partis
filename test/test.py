@@ -544,6 +544,7 @@ class Tester(object):
             n_delta_logprobs += 1
             abs_delta_logprob = abs(refval - newval)
             if abs_delta_logprob > logprob_eps:
+                # print '%s  %s  ref  %f  new %f' % (vtype, uids, refval, newval)
                 n_big_delta_logprobs += 1
                 abs_delta_logprobs.append(abs_delta_logprob)
 
