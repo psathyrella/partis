@@ -1,0 +1,62 @@
+# maybe
+#  - make padding specific to each cdr3 subclass UPDATE maybe not worthwhile? doesn't seem to be an exorbitant amount of padding any more'
+# lower priority
+#  - large cluster annotations seem to be way too willing to use ridiculously long insertions (e.g. in /fh/fast/matsen_e/processed-data/partis/kate-qrs-2016-09-09/seeds/QB850.402-Vh/Hs-LN1-5RACE-IgG-cluster-annotations.csv)
+
+# don't warn about queries missing from partition if they've been removed because of --seed-unique-id
+# don't write unseeded uids to output file when seed partitioning
+
+# is best-minus-x stuff still working? (I'm almost certain not -- I'm only calculating the partition log prob the last time through, so all the other times I can't rewind at all. I need to check that this isn't leading to too much over-mergin)
+#   - maybe increase --n-partitions-to-write if you get this working?
+
+# need to do allele removal for j (and maybe d?)
+
+# test new gldir/cache-parameters stuff in bin/partis (also make sure it actually removed the warnings)
+
+# increase default max clusters to calculate for logprob and naive seq
+
+# get ham scons test working again
+
+# remove identicial sequences after cutting off fwk insertions (check for seed id and --queries and whatnot)
+
+# do cluster annotation printing in a separate c++ step
+
+# add a max number of new inferred alleles per gene
+
+# bryan's super-short-read sample
+#  - better insertion mutation rate?
+#  - print cdr3 mutation rate (and maybe also make plots without dividing by length?)
+
+# ----------------------------------------------------------------------------------------
+# print_reco_event:
+#    - don't print logprob by default
+#    - uid on each line
+#    - maybe simulation line shouldn't be associated with a particular inferred line (see below)
+#    - print \'seed\' in cluster annotations
+#    - fix multiple-indel printing'
+#    - just print the length for large fv/jf insertions
+
+# testing:
+#  - larger sample sizes
+#  - at least make sure the seed cluster is big
+#  - move testing off --only-genes
+#  - bigger n-max-cluster-to-calc values
+
+# allele crap:
+#     all alleles (including new ones) should have roughly the same mut freq distribution (especially at low mutation)'
+#     collapse at least the largest clones before inferring new alleles'
+#     finish switch from fitfo to self.fitfos'
+#     maybe:
+#       y-icpt (i.e. allele prevalence) could also go into the decision about whether to remove the template gene or not'
+#       add requirement that all positions in multiple-snp alleles are correlated (?)'
+#       do all the plots separately for each potential original snp base (i.e. separate plot for A, C, G, T)?'
+#       add requirement for mulitple j genes for new alleles (?)'
+#       increase n_max_mutations_per_segment for highly-mutated repertoires (?)'
+
+# optimization
+#  - go through glomerator (and maybe dphandler) and make sure everything that should be a reference or a pointer is one
+#  - switch all the c++ map.count() calls to map.find()
+#  - switch only_genes in c++ to a set
+#  - may be worthwhile to switch from colon-string hash map scheme to something shorter
+#  - kbounds logical or should check if/handle case where one of them is unset (ok not really an optimization, but it's not very important atm)
+#  - i think i could switch to running all the ksets of each gene at once (which would drastically reduce the dphandler trellis cache size, since we'd only need to keep one gene at a time), but this would involve a lot of careful rewriting in dphandler
