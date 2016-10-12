@@ -159,7 +159,8 @@ class Waterer(object):
                 if self.info[query]['cdr3_length'] != seed_cdr3_length:
                     self.remove_query(query)
             n_removed = initial_n_queries - len(self.info['queries'])
-            print '      removed %d / %d = %.2f sequences with cdr3 length different from seed sequence' % (n_removed, initial_n_queries, float(n_removed) / initial_n_queries)
+            if n_removed > 0:
+                print '      removed %d / %d = %.2f sequences with cdr3 length different from seed sequence' % (n_removed, initial_n_queries, float(n_removed) / initial_n_queries)
 
         if not just_read_cachefile:  # add padded info to self.info (returns if stuff has already been padded)
             self.pad_seqs_to_same_length()  # NOTE this uses *all the gene matches (not just the best ones), so it has to come before we call pcounter.write(), since that fcn rewrites the germlines removing genes that weren't best matches. But NOTE also that I'm not sure what but that the padding actually *needs* all matches (rather than just all *best* matches)
@@ -922,22 +923,31 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def remove_duplicate_sequences(self, debug=False):
-        seed_seq = 'XXX'
+        uids_to_pre_keep = set()  # add these uids/seqs before looping through all the queries
         if self.args.seed_unique_id is not None:
-            if self.args.seed_unique_id not in self.info:
-                raise Exception('seed uid %s not in sw info' % self.args.seed_unique_id)
-            assert len(self.info[self.args.seed_unique_id]['seqs']) == 1
-            seed_seq = self.info[self.args.seed_unique_id]['seqs'][0]
+            uids_to_pre_keep.add(self.args.seed_unique_id)
+        if self.args.queries is not None:
+            uids_to_pre_keep |= set(self.args.queries)
+
         seqs_to_keep = set()
-        n_kept, n_removed = 0, 0
+        for utpk in uids_to_pre_keep:
+            if utpk not in self.info:
+                raise Exception('required uid %s not in sw info (from either --seed-unique-id or --queries)' % utpk)
+            assert len(self.info[utpk]['seqs']) == 1
+            seqs_to_keep.add(self.info[utpk]['seqs'][0])
+
+        n_kept, n_removed = len(uids_to_pre_keep), 0
         for query in copy.deepcopy(self.info['queries']):
+            if query in uids_to_pre_keep:  # already added it
+                continue
             seq = self.info[query]['seqs'][0]
-            if seq in seqs_to_keep or (self.args.seed_unique_id is not None and query != self.args.seed_unique_id and seq == seed_seq):
+            if seq in seqs_to_keep:
                 self.remove_query(query)
                 n_removed += 1
             else:
                 seqs_to_keep.add(seq)
                 n_kept += 1
+
         if n_removed > 0:
             print '      removed %d / %d = %.2f duplicate sequences (after trimming framework insertions)' % (n_removed, n_removed + n_kept, n_removed / float(n_removed + n_kept))
 
