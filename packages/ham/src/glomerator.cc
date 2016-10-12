@@ -256,6 +256,7 @@ void Glomerator::WritePartitions(ClusterPath &cp) {
 
 // ----------------------------------------------------------------------------------------
 void Glomerator::WriteAnnotations(ClusterPath &cp) {
+  cout << "DEPRECATED" << endl;  // for somewhat technical reasons -- it still basically works (see notes in partitiondriver.py)
   clock_t run_start(clock());
   cout << "      calculating and writing annotations" << endl;
   ofstream annotation_ofs;
@@ -1182,6 +1183,7 @@ void Glomerator::Merge(ClusterPath *path) {
   }
 
   tmp_cachefo_.clear();  // NOTE I could simplify some other things if I only cleared the stuff from <tmp_cachefo_> that I thought I wouldn't later need.
+  naive_hfracs_.clear();
 }
 
 // NOTE don't remove these (yet, at least)
