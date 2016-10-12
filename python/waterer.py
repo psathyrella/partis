@@ -136,7 +136,7 @@ class Waterer(object):
 
         found_germline_changes = False  # set to true if either alremover or alfinder found changes to the germline info
         if self.alremover is not None:
-            self.alremover.finalize(self.pcounter, self.info)
+            self.alremover.finalize(self.pcounter, self.info, debug=self.args.debug_allele_finding)
             self.info['genes-to-remove'] = self.alremover.genes_to_remove
             if len(self.info['genes-to-remove']) > 0:
                 found_germline_changes = True
@@ -349,6 +349,8 @@ class Waterer(object):
             os.remove(workdir + '/' + base_outfname)
             if n_procs > 1:  # still need the top-level workdir
                 os.rmdir(workdir)
+
+        sys.stdout.flush()
 
     # ----------------------------------------------------------------------------------------
     def get_indel_info(self, query_name, cigarstr, qrseq, glseq, gene):

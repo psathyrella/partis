@@ -90,20 +90,21 @@ def run_test(args):
                 # os.rmdir(sw_cache_gldir)
 
     # generate germline set and cache parameters
-    cmd_str = base_cmd + ' cache-parameters --infname ' + simfname + ' --only-smith-waterman --debug-allele-finding --always-find-new-alleles'
+    cmd_str = base_cmd + ' cache-parameters --infname ' + simfname + ' --only-smith-waterman --debug-allele-finding --always-find-new-alleles --n-max-allele-finding-iterations 2'
     # cmd_str = 'python -m cProfile -s tottime -o prof.out ' + cmd_str
     cmd_str += ' --n-procs ' + str(args.n_procs)
     if args.slurm:
         cmd_str += ' --slurm'
 
     if args.gen_gset:
-        cmd_str += ' --generate-germline-set'
+        cmd_str += ' --find-new-alleles'
     else:
         inference_genes = ':'.join(args.inf_v_genes + args.dj_genes)
         iglfo = glutils.read_glfo('data/germlines/human', chain=chain, only_genes=inference_genes.split(':'), debug=True)
         glutils.write_glfo(args.outdir + '/germlines/inference', iglfo)
         cmd_str += ' --initial-germline-dir ' + args.outdir + '/germlines/inference'
-        cmd_str += ' --find-new-alleles'  # --new-allele-fname ' + args.outdir + '/new-alleles.fa'
+        cmd_str += ' --find-new-alleles --dont-remove-unlikely-alleles'  # --new-allele-fname ' + args.outdir + '/new-alleles.fa'
+        # cmd_str += ' --n-max-snps 12'
 
     cmd_str += ' --parameter-dir ' + outpdir
     cmd_str += ' --plotdir ' + plotdir

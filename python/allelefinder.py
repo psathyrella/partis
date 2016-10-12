@@ -45,7 +45,7 @@ class AlleleFinder(object):
         self.n_muted_min = 30  # don't fit positions that have fewer total mutations than this (i.e. summed over bins)
         self.n_total_min = 150  # ...or fewer total observations than this
         self.n_muted_min_per_bin = 8  # <istart>th bin has to have at least this many mutated sequences (i.e. 2-3 sigma from zero)
-        self.min_fraction_per_bin = 0.01  # require that every bin (i.e. n_muted) from 0 through <self.args.max_n_snps> has at least 1% of the total (unless overridden)
+        self.min_fraction_per_bin = 0.005  # require that every bin (i.e. n_muted) from 0 through <self.args.max_n_snps> has at least 1% of the total (unless overridden)
 
         self.min_min_candidate_ratio = 2.25  # every candidate ratio must be greater than this
         self.min_mean_candidate_ratio = 2.75  # mean of candidate ratios must be greater than this
@@ -839,11 +839,16 @@ class AlleleFinder(object):
 
             # first take the biggest one, then if there's any others that have entirely non-overlapping positions, we don't need to re-run
             already_used_positions = set()
+            n_new_alleles_for_this_gene = 0  # kinda messy way to implement this
             for istart in sorted(istart_candidates, reverse=True):
+                if n_new_alleles_for_this_gene > self.args.n_max_new_alleles_per_gene_per_iteration:
+                    print '    skipping any additional new alleles for this gene (already have %d)' % n_new_alleles_for_this_gene
+                    break
                 these_positions = set(self.fitfos[gene]['candidates'][istart])
                 if len(these_positions & already_used_positions) > 0:
                     continue
                 already_used_positions |= these_positions
+                n_new_alleles_for_this_gene += 1
                 self.add_new_allele(gene, self.fitfos[gene], istart, debug=debug)
 
         if debug:
