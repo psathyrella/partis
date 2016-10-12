@@ -157,11 +157,9 @@ class Waterer(object):
             seed_cdr3_length = self.info[self.args.seed_unique_id]['cdr3_length']  # NOTE should probably remove this now that it's in waterer
             for query in copy.deepcopy(self.info['queries']):
                 if self.info[query]['cdr3_length'] != seed_cdr3_length:
-                    del self.info[query]  # this still leaves this query's gene matches in <self.info> (there may also be other traces of it)
-                    self.info['queries'].remove(query)
-                    if query in self.info['indels']:
-                        del self.info['indels'][query]
-            print '      removed %d / %d sequences with cdr3 length different from seed sequence' % (initial_n_queries - len(self.info['queries']), initial_n_queries)
+                    self.remove_query(query)
+            n_removed = initial_n_queries - len(self.info['queries'])
+            print '      removed %d / %d = %.2f sequences with cdr3 length different from seed sequence' % (n_removed, initial_n_queries, float(n_removed) / initial_n_queries)
 
         if not just_read_cachefile:  # add padded info to self.info (returns if stuff has already been padded)
             self.pad_seqs_to_same_length()  # NOTE this uses *all the gene matches (not just the best ones), so it has to come before we call pcounter.write(), since that fcn rewrites the germlines removing genes that weren't best matches. But NOTE also that I'm not sure what but that the padding actually *needs* all matches (rather than just all *best* matches)
@@ -410,6 +408,14 @@ class Waterer(object):
                 print '          %10s: %d bases at %d (%s)' % (idl['type'], idl['len'], idl['pos'], idl['seqstr'])
 
         return indelfo
+
+    # ----------------------------------------------------------------------------------------
+    def remove_query(self, query):
+        # NOTE you're iterating over a deep copy of <self.info['queries']>, right? you better be!
+        del self.info[query]  # this still leaves this query's gene matches in <self.info> (there may also be other traces of it)
+        self.info['queries'].remove(query)
+        if query in self.info['indels']:
+            del self.info['indels'][query]
 
     # ----------------------------------------------------------------------------------------
     def add_dummy_d_match(self, qinfo, debug=True):
@@ -872,7 +878,7 @@ class Waterer(object):
         return kbounds
 
     # ----------------------------------------------------------------------------------------
-    def remove_framework_insertions(self, debug=False):
+    def remove_framework_insertions(self, debug=True):
         for query in self.info['queries']:
             swfo = self.info[query]
             assert len(swfo['seqs']) == 1
@@ -915,6 +921,27 @@ class Waterer(object):
                 utils.add_implicit_info(self.glfo, simfo)
 
     # ----------------------------------------------------------------------------------------
+    def remove_duplicate_sequences(self, debug=False):
+        seed_seq = 'XXX'
+        if self.args.seed_unique_id is not None:
+            if self.args.seed_unique_id not in self.info:
+                raise Exception('seed uid %s not in sw info' % self.args.seed_unique_id)
+            assert len(self.info[self.args.seed_unique_id]['seqs']) == 1
+            seed_seq = self.info[self.args.seed_unique_id]['seqs'][0]
+        seqs_to_keep = set()
+        n_kept, n_removed = 0, 0
+        for query in copy.deepcopy(self.info['queries']):
+            seq = self.info[query]['seqs'][0]
+            if seq in seqs_to_keep or (self.args.seed_unique_id is not None and query != self.args.seed_unique_id and seq == seed_seq):
+                self.remove_query(query)
+                n_removed += 1
+            else:
+                seqs_to_keep.add(seq)
+                n_kept += 1
+        if n_removed > 0:
+            print '      removed %d / %d = %.2f duplicate sequences (after trimming framework insertions)' % (n_removed, n_removed + n_kept, n_removed / float(n_removed + n_kept))
+
+    # ----------------------------------------------------------------------------------------
     def get_padding_parameters(self, debug=False):
         maxima = {'gl_cpos' : None, 'gl_cpos_to_j_end' : None}
         for query in self.info['queries']:
@@ -951,6 +978,7 @@ class Waterer(object):
 
         if not self.args.dont_remove_framework_insertions and self.reco_info is None:  # don't want to do this on simulation -- it's too much trouble to keep things consistent with the simulation info
             self.remove_framework_insertions(debug=debug)
+            self.remove_duplicate_sequences(debug=debug)
 
         maxima = self.get_padding_parameters(debug=debug)
 

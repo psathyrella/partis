@@ -1635,7 +1635,7 @@ def finish_process(iproc, procs, n_tries, workdir, logdir, outfname, cmd_str, db
                 print '      couldn\'t get node list for job %s' % jobid
             try:
                 print '        sshing to %s' % nodelist
-                outstr = check_output('ssh -o StrictHostKeyChecking=no ' + nodelist + ' ps -eo pcpu,pmem,user,stime,args --sort pmem | tail', shell=True)
+                outstr = check_output('ssh -o StrictHostKeyChecking=no ' + nodelist + ' ps -eo pcpu,pmem,rss,cputime:12,stime:7,user,args:100 --sort pmem | tail', shell=True)
                 print pad_lines(outstr, padwidth=12)
             except:
                 print '        failed'
