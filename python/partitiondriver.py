@@ -456,7 +456,8 @@ class PartitionDriver(object):
         if self.args.outfname is not None:
             outfname = self.args.outfname.replace('.csv', '-cluster-annotations.csv')
             print '      writing cluster annotations to %s' % outfname
-        _ = self.merge_all_hmm_outputs(n_procs, precache_all_naive_seqs=False)
+        if n_procs > 1:
+            _ = self.merge_all_hmm_outputs(n_procs, precache_all_naive_seqs=False)
         self.read_annotation_output(self.hmm_outfname, outfname=outfname, print_annotations=True)
         if os.path.exists(self.hmm_infname):
             os.remove(self.hmm_infname)
@@ -921,7 +922,10 @@ class PartitionDriver(object):
 
         assert header != ''
 
-        cmd = 'cat ' + ' '.join([fn for fn in infnames if fn != outfname]) + ' | grep -v \'' + header + '\''
+        non_out_infnames = [fn for fn in infnames if fn != outfname]
+        if len(non_out_infnames) == 0:
+            raise Exception('merge_files() called with <infnames> consisting only of <outfname>')
+        cmd = 'cat ' + ' '.join(non_out_infnames) + ' | grep -v \'' + header + '\''
         cmd += ' >>' + outfname
         try:
             check_call(cmd, shell=True)
