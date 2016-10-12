@@ -169,6 +169,10 @@ def run_simulation(args):
 
 # ----------------------------------------------------------------------------------------
 def run_partitiondriver(args):
+    args.istartstop = utils.get_arg_list(args.istartstop, intify=True)
+    if args.istartstop is not None:
+        if args.istartstop[0] >= args.istartstop[1] or args.istartstop[0] < 0:
+            raise Exception('invalid --istartstop specification: %d %d' % (args.istartstop[0], args.istartstop[1]))
     args.queries = utils.get_arg_list(args.queries)
     args.reco_ids = utils.get_arg_list(args.reco_ids)
     args.n_max_per_region = utils.get_arg_list(args.n_max_per_region, intify=True)
@@ -280,6 +284,7 @@ parent_parser.add_argument('--slurm', action='store_true', help='Run multiple pr
 parent_parser.add_argument('--queries', help='Colon-separated list of query names to which we restrict ourselves')
 parent_parser.add_argument('--reco-ids', help='Colon-separated list of rearrangement-event IDs to which we restrict ourselves')  # or recombination events
 parent_parser.add_argument('--n-max-queries', type=int, default=-1, help='Maximum number of query sequences on which to run (except for simulator, where it\'s the number of rearrangement events)')
+parent_parser.add_argument('--istartstop', help='Start and stop line indices for input sequence file (with python slice conventions, e.g. if set to \'2:4\' will skip the zeroth and first sequences, and then take the following two sequences, and then skip all subsequence sequences). Applied before any other input filters, e.g. --n-max-queries, --queries, --reco-ids, etc.')
 parent_parser.add_argument('--only-genes', help='Colon-separated list of genes to which to restrict the analysis. If any regions (V/D/J) are not represented among these genes, these regions are left unrestricted.')
 parent_parser.add_argument('--n-max-per-region', default='3:5:2', help='Number of best smith-waterman matches (per region, in the format v:d:j) to pass on to the hmm')
 parent_parser.add_argument('--default-v-fuzz', type=int, default=2, help='Size of the k space region over which to sum in the v direction, for each single gene match (we take the OR of the bounds over all matches, though, which generally makes the space much bigger)')

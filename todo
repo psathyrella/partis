@@ -3,24 +3,24 @@
 #   /home/dralph/work/partis-dev/packages/ham/bcrham --algorithm forward --hmmdir /fh/fast/matsen_e/processed-data/partis/kate-qrs-2016-09-09/Hs-LN1-5RACE-IgG/hmm/hmms --datadir _tmp/gizmo/germline-sets --infile _tmp/gizmo/hmm-9/hmm_input.csv --outfile hmm_output.csv --chain h --random-seed 1475874596 --only-cache-new-vals --input-cachefname _tmp/gizmo/hmm-9/hmm_cached_info.csv --output-cachefname tmp-cache.csv --partition --max-logprob-drop 5.0 --hamming-fraction-bound-lo 0.015 --hamming-fraction-bound-hi 0.08762028181 --logprob-ratio-threshold 18.0 --biggest-naive-seq-cluster-to-calculate 7 --biggest-logprob-cluster-to-calculate 7 --seed-unique-id QB850.405-Vh --ambig-base N
 
 # ----------------------------------------------------------------------------------------
+
 # is best-minus-x stuff still working? (I'm almost certain not -- I'm only calculating the partition log prob the last time through, so all the other times I can't rewind at all. I need to check that this isn't leading to too much over-mergin)
-#   - maybe increase --n-partitions-to-write if you get this working?
 
 # need to do allele removal for j (and maybe d?)
 
-# increase default max clusters to calculate for logprob and naive seq
+# increase default max-clusters-to-calculate for logprob and naive seq
+
+# improve n_precache_proc calculator (expecially for large samples)
 
 # get ham scons test working again
 
-# add only-big-clusters option
+# add only-big-clusters option (well, probably make it the default, and allow to deactivate with --accurate-singletons)
 
 # go through a careful round of partition validation on larger samples
 
 # why are so many sequences in e.g. /fh/fast/matsen_e/data/kate-qrs-2016-09-09/processed_data/Hs-LN1-5RACE-IgK/03_fastx_out/Hs-LN1-5RACE-IgK.trimmed.noN.collapsed.fasta unproductive?
 
 # purity/completeness should take account of the fact that we remove duplicate sequences (and simulation should probably just forbid/remove duplicates) UPDATE oh wait but we're not removing duplicates in simulation
-
-# 
 
 # bryan's super-short-read sample
 #  - better insertion mutation rate?
@@ -39,7 +39,7 @@
 #  - bigger n-max-cluster-to-calc values
 #  - can probably remove data stuff (UPDATE no, need to test .fa treatment and some code blocks -- but it can be a very small number of sequences)
 
-# germline set  generation:
+# germline set generation:
 #     all alleles (including new ones) should have roughly the same mut freq distribution (especially at low mutation)'
 #     collapse at least the largest clones before inferring new alleles'
 #     finish switch from fitfo to self.fitfos'
@@ -54,6 +54,7 @@
 # optimization
 #  - go through glomerator (and maybe dphandler) and make sure everything that should be a reference or a pointer is one
 #  - switch all the c++ map.count() calls to map.find()
+#  - figure out a way to call naive_hfracs_.clear() without killing cpu usage
 #  - switch only_genes in c++ to a set
 #  - may be worthwhile to switch from colon-string hash map scheme to something shorter
 #  - kbounds logical or should check if/handle case where one of them is unset (ok not really an optimization, but it's not very important atm)

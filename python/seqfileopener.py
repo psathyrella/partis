@@ -98,13 +98,20 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, s
     reco_info = None
     if not is_data:
         reco_info = OrderedDict()
-    n_queries = 0
+    n_queries_added = 0
     found_seed = False
     used_names = set()  # for abbreviating
     if args is not None and args.abbreviate:
         potential_names = list(string.ascii_lowercase)
     iname = None  # line number -- used as sequence id if there isn't a <name_column>
+    iline = -1
     for line in reader:
+        iline += 1
+        if args is not None and args.istartstop is not None:
+            if iline < args.istartstop[0]:
+                continue
+            if iline >= args.istartstop[1]:
+                break
         if seq_column not in line:
             raise Exception('mandatory header \'%s\' not present in %s (you can set column names with --name-column and --seq-column)' % (seq_column, infname))
         if name_column not in line and iname is None:
@@ -137,7 +144,7 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, s
 
         input_info[unique_id] = {'unique_ids' : [unique_id, ], 'seqs' : [line[internal_seq_column], ]}
 
-        if n_queries == 0 and is_data and 'v_gene' in line:
+        if n_queries_added == 0 and is_data and 'v_gene' in line:
             print '  note: found simulation info in %s -- are you sure you didn\'t mean to set --is-simu?' % infname
 
         if not is_data:
@@ -152,11 +159,15 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, s
             if simglfo is not None:
                 utils.add_implicit_info(simglfo, reco_info[unique_id], existing_implicit_keys=('cdr3_length', ))
 
-        n_queries += 1
-        if n_max_queries > 0 and n_queries >= n_max_queries:
+        n_queries_added += 1
+        if n_max_queries > 0 and n_queries_added >= n_max_queries:
             break
 
     if args is not None:
+        if args.istartstop is not None:
+            n_lines_in_file = iline + 1
+            if n_lines_in_file < args.istartstop[1]:
+                raise Exception('--istartstop upper bound %d larger than number of lines in file %d' % (args.istartstop[1], n_lines_in_file))
         if len(input_info) == 0:
             raise Exception('didn\'t find the specified --queries (%s) or --reco-ids (%s) in %s' % (str(args.queries), str(args.reco_ids), infname))
         if args.queries is not None:
