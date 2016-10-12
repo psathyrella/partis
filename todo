@@ -1,7 +1,8 @@
-# don't warn about queries missing from partition if they've been removed because of --seed-unique-id
+# ----------------------------------------------------------------------------------------
+# was using 25% and talking 5-6 minutes, now at 8.5% and 2.5 minutes (goes down to 0.8% and 2.5 minutes if you clear naive_hfracs_ every time you merge):
+#   /home/dralph/work/partis-dev/packages/ham/bcrham --algorithm forward --hmmdir /fh/fast/matsen_e/processed-data/partis/kate-qrs-2016-09-09/Hs-LN1-5RACE-IgG/hmm/hmms --datadir _tmp/gizmo/germline-sets --infile _tmp/gizmo/hmm-9/hmm_input.csv --outfile hmm_output.csv --chain h --random-seed 1475874596 --only-cache-new-vals --input-cachefname _tmp/gizmo/hmm-9/hmm_cached_info.csv --output-cachefname tmp-cache.csv --partition --max-logprob-drop 5.0 --hamming-fraction-bound-lo 0.015 --hamming-fraction-bound-hi 0.08762028181 --logprob-ratio-threshold 18.0 --biggest-naive-seq-cluster-to-calculate 7 --biggest-logprob-cluster-to-calculate 7 --seed-unique-id QB850.405-Vh --ambig-base N
 
-# don't write unseeded uids to output file when seed partitioning
-
+# ----------------------------------------------------------------------------------------
 # is best-minus-x stuff still working? (I'm almost certain not -- I'm only calculating the partition log prob the last time through, so all the other times I can't rewind at all. I need to check that this isn't leading to too much over-mergin)
 #   - maybe increase --n-partitions-to-write if you get this working?
 
@@ -16,6 +17,8 @@
 # go through a careful round of partition validation on larger samples
 
 # why are so many sequences in e.g. /fh/fast/matsen_e/data/kate-qrs-2016-09-09/processed_data/Hs-LN1-5RACE-IgK/03_fastx_out/Hs-LN1-5RACE-IgK.trimmed.noN.collapsed.fasta unproductive?
+
+# purity/completeness should take account of the fact that we remove duplicate sequences (and simulation should probably just forbid/remove duplicates) UPDATE oh wait but we're not removing duplicates in simulation
 
 # bryan's super-short-read sample
 #  - better insertion mutation rate?

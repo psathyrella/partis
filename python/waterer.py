@@ -988,6 +988,7 @@ class Waterer(object):
         Next, pads all sequences further out (if necessary) such as to eliminate all v_5p and j_3p deletions.
         """
 
+        # NOTE that an additional reason not to do this in simulation is that it will screw up the purity/completeness calculation
         if not self.args.dont_remove_framework_insertions and self.reco_info is None:  # don't want to do this on simulation -- it's too much trouble to keep things consistent with the simulation info
             self.remove_framework_insertions(debug=debug)
             self.remove_duplicate_sequences(debug=debug)
