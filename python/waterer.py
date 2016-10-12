@@ -160,7 +160,7 @@ class Waterer(object):
                     self.remove_query(query)
             n_removed = initial_n_queries - len(self.info['queries'])
             if n_removed > 0:
-                print '      removed %d / %d = %.2f sequences with cdr3 length different from seed sequence' % (n_removed, initial_n_queries, float(n_removed) / initial_n_queries)
+                print '      removed %d / %d = %.2f sequences with cdr3 length different from seed sequence (leaving %d)' % (n_removed, initial_n_queries, float(n_removed) / initial_n_queries, len(self.info['queries']))
 
         if not just_read_cachefile:  # add padded info to self.info (returns if stuff has already been padded)
             self.pad_seqs_to_same_length()  # NOTE this uses *all the gene matches (not just the best ones), so it has to come before we call pcounter.write(), since that fcn rewrites the germlines removing genes that weren't best matches. But NOTE also that I'm not sure what but that the padding actually *needs* all matches (rather than just all *best* matches)
@@ -951,7 +951,7 @@ class Waterer(object):
                 n_kept += 1
 
         if n_removed > 0:
-            print '      removed %d / %d = %.2f duplicate sequences (after trimming framework insertions)' % (n_removed, n_removed + n_kept, n_removed / float(n_removed + n_kept))
+            print '      removed %d / %d = %.2f duplicate sequences after trimming framework insertions (leaving %d)' % (n_removed, n_removed + n_kept, n_removed / float(n_removed + n_kept), len(self.info['queries']))
 
     # ----------------------------------------------------------------------------------------
     def get_padding_parameters(self, debug=False):

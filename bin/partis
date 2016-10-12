@@ -316,7 +316,7 @@ subargs['cache-parameters'].append({'name' : '--find-new-alleles', 'kwargs' : {'
 subargs['cache-parameters'].append({'name' : '--always-find-new-alleles', 'kwargs' : {'action' : 'store_true', 'help' : 'By default we only look for new alleles if a repertoire\'s mutation rate is amenable to reasonable new-allele sensitivity (i.e. if it\'s not crazy high). This overrides that.'}})
 subargs['cache-parameters'].append({'name' : '--new-allele-fname', 'kwargs' : {'help' : 'fasta fname to which to write any new alleles (they are also written, together with existing alleles, to --parameter-dir)'}})
 subargs['cache-parameters'].append({'name' : '--debug-allele-finding', 'kwargs' : {'action' : 'store_true', 'help' : 'print lots of debug info on new-allele fits'}})
-subargs['cache-parameters'].append({'name' : '--n-max-allele-finding-iterations', 'kwargs' : {'type' : int, 'default' : 1, 'help' : 'maximum number of times to look for new alleles'}})
+subargs['cache-parameters'].append({'name' : '--n-max-allele-finding-iterations', 'kwargs' : {'type' : int, 'default' : 2, 'help' : 'maximum number of times to look for new alleles'}})
 subargs['cache-parameters'].append({'name' : '--n-max-new-alleles-per-gene-per-iteration', 'kwargs' : {'type' : int, 'default' : 2, 'help' : 'with an option name that long...'}})
 subargs['cache-parameters'].append({'name' : '--n-max-snps', 'kwargs' : {'type' : int, 'default' : 8, 'help' : 'when new-allele finding, look for new alleles separated from existing alleles by up to this many SNPs'}})
 subargs['cache-parameters'].append({'name' : '--n-max-mutations-per-segment', 'kwargs' : {'type' : int, 'default' : 30, 'help' : 'when new-allele finding, exclude sequences which have more than this many mutations in the V segment'}})
