@@ -109,10 +109,10 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, s
             raise Exception('mandatory header \'%s\' not present in %s (you can set column names with --name-column and --seq-column)' % (seq_column, infname))
         if name_column not in line and iname is None:
             iname = 0
+        if iname is not None:
+            line[internal_name_column] = '%09d' % iname
+            iname += 1
         if name_column != internal_name_column or seq_column != internal_seq_column:
-            if iname is not None:
-                line[internal_name_column] = '%09d' % iname
-                iname += 1
             translate_columns(line, {name_column : internal_name_column, seq_column: internal_seq_column})
         utils.process_input_line(line)
         unique_id = line[internal_name_column]
@@ -159,6 +159,13 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, s
     if args is not None:
         if len(input_info) == 0:
             raise Exception('didn\'t find the specified --queries (%s) or --reco-ids (%s) in %s' % (str(args.queries), str(args.reco_ids), infname))
+        if args.queries is not None:
+            missing_queries = set(args.queries) - set(input_info)
+            extra_queries = set(input_info) - set(args.queries)  # this is just checking for a bug in the code just above here...
+            if len(missing_queries) > 0:
+                raise Exception('didn\'t find some of the specified --queries: %s' % ' '.join(missing_queries))
+            if len(extra_queries) > 0:
+                raise Exception('extracted uids %s that weren\'t specified with --queries' % ' '.join(extra_queries))
         if args.seed_unique_id is not None:
             if found_seed:
                 if args.seed_seq is not None and input_info[args.seed_unique_id]['seqs'][0] != args.seed_seq:
