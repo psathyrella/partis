@@ -416,9 +416,14 @@ Colors['end'] = '\033[0m'
 def color(col, seq, width=None):
     return_str = Colors[col] + seq + Colors['end']
     if width is not None:  # make sure final string prints to correct width
-        n_spaces = max(0, width - len(seq))
+        n_spaces = max(0, width - len(seq))  # if specified <width> is greater than uncolored length of <seq>, pad with spaces so that when the colors show up properly the colored sequences prints with width <width>
         return_str = n_spaces * ' ' + return_str
     return return_str
+
+def len_excluding_colors(seq):
+    for color_code in Colors.values():
+        seq = seq.replace(color_code, '')
+    return len(seq)
 
 # ----------------------------------------------------------------------------------------
 def color_chars(chars, col, seq):
@@ -889,12 +894,12 @@ def add_implicit_info(glfo, line, existing_implicit_keys=None, aligned_gl_seqs=N
                 print '  WARNING pre-existing info\n    %s\n    doesn\'t match new info\n    %s\n    for %s in %s' % (pre_existing_info[ekey], line[ekey], ekey, line['unique_ids'])
 
 # ----------------------------------------------------------------------------------------
-def print_true_events(glfo, reco_info, line, print_uid=False):
+def print_true_events(glfo, reco_info, line):
     """ print the true events which contain the seqs in <line> """
     # true_naive_seqs = []
     for uids in get_true_partition(reco_info, ids=line['unique_ids']):  # make a multi-seq line that has all the seqs from this clonal family
         multiline = synthesize_multi_seq_line(uids, reco_info)
-        print_reco_event(glfo['seqs'], multiline, extra_str='    ', label='true:', print_uid=print_uid)
+        print_reco_event(glfo['seqs'], multiline, extra_str='    ', label=color('green', 'true:'))
         # true_naive_seqs.append(multiline['naive_seq'])
 
     # print '\ntrue vs inferred naive sequences:'
@@ -921,12 +926,12 @@ def add_gaps_ignoring_color_characters(colored_seq, ipos, gapstr):
     return colored_seq[:iwith] + gapstr + colored_seq[iwith:]
 
 # ----------------------------------------------------------------------------------------
-def print_reco_event(germlines, line, one_line=False, extra_str='', label='', print_uid=False):
+def print_reco_event(germlines, line, one_line=False, extra_str='', label='', seed_uid=None):
     for iseq in range(len(line['unique_ids'])):
-        print_seq_in_reco_event(germlines, line, iseq, extra_str=extra_str, label=(label if iseq==0 else ''), one_line=(iseq>0), print_uid=print_uid)
+        print_seq_in_reco_event(germlines, line, iseq, extra_str=extra_str, label=(label if iseq==0 else ''), one_line=(iseq>0), seed_uid=seed_uid)
 
 # ----------------------------------------------------------------------------------------
-def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label='', one_line=False, print_uid=False):
+def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label='', one_line=False, seed_uid=None):
     """
     Print ascii summary of recombination event and mutation.
     If <one_line>, then skip the germline lines, and only print the final_seq line.
@@ -1094,14 +1099,12 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     chain = get_chain(line['v_gene'])  # kind of hackey
     dont_show_d_stuff = chain != 'h' and line['lengths']['d'] == 0 and len(line['vd_insertion']) == 0
 
-    if print_uid:
-        extra_str += '%20s ' % line['unique_ids'][iseq]
     out_str_list = []
     # insert, d, and vj lines
     if not one_line:
         out_str_list.append('%s    %s   insert%s\n' % (extra_str, insert_line, '' if dont_show_d_stuff else 's'))
         if label != '':
-            out_str_list[-1] = extra_str + label + out_str_list[-1][len(extra_str + label) :]
+            out_str_list[-1] = extra_str + label + out_str_list[-1][len_excluding_colors(extra_str + label) :]
         if not dont_show_d_stuff:
             out_str_list.append('%s    %s   %s\n' % (extra_str, d_line, color_gene(line['d_gene'])))
         out_str_list.append('%s    %s   %s %s\n' % (extra_str, vj_line, color_gene(line['v_gene']), color_gene(line['j_gene'])))
@@ -1120,12 +1123,15 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     final_seq = v_5p_del_space_str + final_seq + j_3p_del_space_str
     final_seq = color_chars(ambiguous_bases + ['*', ], 'light_blue', final_seq)
     out_str_list.append(extra_str)
-    # if print_uid:
-    #     extra_str += '%20s' % line['unique_id']
     out_str_list.append('    %s' % final_seq)
+    uid_width = max([len(uid) for uid in line['unique_ids']])
+    uidstr = ('   %' + str(uid_width) + 's') % line['unique_ids'][iseq]
+    if seed_uid is not None and line['unique_ids'][iseq] == seed_uid:
+        uidstr = color('red', uidstr)
+    out_str_list.append(uidstr)
     out_str_list.append('   %4.2f mut' % line['mut_freqs'][iseq])
-    if 'logprob' in line:
-        out_str_list.append('     %8.2f  logprob' % line['logprob'])
+    # if 'logprob' in line:
+    #     out_str_list.append('     %8.2f  logprob' % line['logprob'])
     out_str_list.append('\n')
 
     print ''.join(out_str_list),

@@ -1336,7 +1336,6 @@ class PartitionDriver(object):
                     line_to_use = eroded_line
 
                 if self.args.debug or print_annotations:
-                    print '      %s' % uidstr
                     self.print_hmm_output(line_to_use, print_true=True)
 
                 assert uidstr not in annotations
@@ -1429,7 +1428,7 @@ class PartitionDriver(object):
         if print_true and not self.args.is_data:  # first print true event (if this is simulation)
             utils.print_true_events(self.glfo, self.reco_info, line)
 
-        utils.print_reco_event(self.glfo['seqs'], line, extra_str='    ', label='inferred:')
+        utils.print_reco_event(self.glfo['seqs'], line, extra_str='    ', label='inferred:', seed_uid=self.args.seed_unique_id)
 
     # ----------------------------------------------------------------------------------------
     def write_annotations(self, annotations, outfname):
