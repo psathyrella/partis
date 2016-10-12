@@ -1183,7 +1183,10 @@ void Glomerator::Merge(ClusterPath *path) {
   }
 
   tmp_cachefo_.clear();  // NOTE I could simplify some other things if I only cleared the stuff from <tmp_cachefo_> that I thought I wouldn't later need.
-  naive_hfracs_.clear();
+  // naive_hfracs_.clear();  // so, this can reduce memory usage a *lot* for no cpu hit in (usually, I think) later steps, but in (usually, I think) earlier steps it can be prohibitively slower (I think, when early on you're doing a ton of hfrac merges)
+  //  - bottom line, I think I'll need to buckle down and measure memory usage, decide how much I'm allowed to use, and only clear the caches that I need to
+  //  - but also, it'd probably (maybe?) be ok to clear this cache after a logprob merge, since that would mean we're probably through with all the naive hfrac merges
+  //  - or at least remove info for clusters we've merged out of existence
 }
 
 // NOTE don't remove these (yet, at least)
