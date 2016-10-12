@@ -1621,10 +1621,16 @@ def pad_lines(linestr, padwidth=8):
 # deal with a process once it's finished (i.e. check if it failed, and restart if so)
 def finish_process(iproc, procs, n_tries, workdir, logdir, outfname, cmd_str, dbgfo=None, debug=None):
     procs[iproc].communicate()
-    if procs[iproc].returncode == 0 and os.path.exists(outfname):  # TODO also check cachefile, if necessary
-        process_out_err('', '', extra_str='' if len(procs) == 1 else str(iproc), dbgfo=dbgfo, logdir=logdir, debug=debug)
-        procs[iproc] = None  # job succeeded
-    elif n_tries[iproc] > 5:
+    if procs[iproc].returncode == 0:
+        if not os.path.exists(outfname):
+            print '      proc %d succeded but its output isn\'t there, so sleeping for a bit...' % iproc
+            time.sleep(0.5)
+        if os.path.exists(outfname):
+            process_out_err('', '', extra_str='' if len(procs) == 1 else str(iproc), dbgfo=dbgfo, logdir=logdir, debug=debug)
+            procs[iproc] = None  # job succeeded
+            return
+
+    if n_tries[iproc] > 5:
         raise Exception('exceeded max number of tries for command\n    %s\nlook for output in %s and %s' % (cmd_str, workdir, logdir))
     else:
         print '    proc %d failed on try %d: exited with %d, output %s' % (iproc, n_tries[iproc], procs[iproc].returncode, 'exists' if os.path.exists(outfname) else 'dne')
