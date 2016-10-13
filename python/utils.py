@@ -1630,10 +1630,15 @@ def finish_process(iproc, procs, n_tries, workdir, logdir, outfname, cmd_str, db
             procs[iproc] = None  # job succeeded
             return
 
+    # handle failure
     if n_tries[iproc] > 5:
         raise Exception('exceeded max number of tries for command\n    %s\nlook for output in %s and %s' % (cmd_str, workdir, logdir))
     else:
-        print '    proc %d failed on try %d: exited with %d, output %s' % (iproc, n_tries[iproc], procs[iproc].returncode, 'exists' if os.path.exists(outfname) else 'dne')
+        print '    proc %d try %d' % (iproc, n_tries[iproc]),
+        if procs[iproc].returncode == 0 and not os.path.exists(outfname):  # don't really need both the clauses
+            print 'succeded but output is missing'
+        else:
+            print 'failed with %d (output %s)' % (procs[iproc].returncode, 'exists' if os.path.exists(outfname) else 'is missing')
         for strtype in ['out', 'err']:
             if os.path.exists(logdir + '/' + strtype) and os.stat(logdir + '/' + strtype).st_size > 0:
                 print '        %s tail:' % strtype
