@@ -560,25 +560,28 @@ def check_a_bunch_of_codons(codon, seqons, extra_str='', debug=False):  # seqons
         print ''
 
 #----------------------------------------------------------------------------------------
-def is_there_a_stop_codon(seq, cyst_position, debug=False):
+def is_there_a_stop_codon(seq, fv_insertion, jf_insertion, cyst_position, debug=False):
+    # it would be nicer to write this just taking a <line> as input, but I want to be able to call it from waterer.py before I've converted <qinfo> to a <line>
     """
     Make sure there is no in-frame stop codon, where frame is inferred from <cyst_position>.
     Returns True if no stop codon is found
     """
-    if cyst_position >= len(seq):
+    coding_seq = seq[len(fv_insertion) : len(seq) - len(jf_insertion)]
+    coding_cpos = cyst_position - len(fv_insertion)
+    if coding_cpos >= len(coding_seq):
         if debug:
             print '      not sure if there\'s a stop codon (invalid cysteine position)'
         return True  # not sure if there is one, since we have to way to establish the frame
     # jump leftward in steps of three until we reach the start of the sequence
-    ipos = cyst_position
+    ipos = coding_cpos
     while ipos > 2:
         ipos -= 3
     # ipos should now bet the index of the start of the first complete codon
-    while ipos + 2 < len(seq):  # then jump forward in steps of three bases making sure none of them are stop codons
-        codon = seq[ipos : ipos + 3]
+    while ipos + 2 < len(coding_seq):  # then jump forward in steps of three bases making sure none of them are stop codons
+        codon = coding_seq[ipos : ipos + 3]
         if codon in codon_table['stop']:
             if debug:
-                print '      stop codon %s at %d in %s' % (codon, ipos, seq)
+                print '      stop codon %s at %d in %s' % (codon, ipos, coding_seq)
             return True
         ipos += 3
 
@@ -765,7 +768,7 @@ def add_functional_info(chain, line):
         elif ftype == 'in_frames':
             return line['cdr3_length'] % 3 == 0
         elif ftype == 'stops':
-            return is_there_a_stop_codon(line['seqs'][iseq], line['codon_positions']['v'])
+            return is_there_a_stop_codon(line['seqs'][iseq], line['fv_insertion'], line['jf_insertion'], line['codon_positions']['v'])
         else:
             assert False
 

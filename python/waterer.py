@@ -795,7 +795,7 @@ class Waterer(object):
             return
 
         in_frame_cdr3 = (cdr3_length % 3 == 0)
-        stop_codon = utils.is_there_a_stop_codon(qseq, codon_positions['v'])
+        stop_codon = utils.is_there_a_stop_codon(qseq, fv_insertion=qseq[ : qinfo['qrbounds'][best['v']][0]], jf_insertion=qseq[qinfo['qrbounds'][best['j']][1] : ], cyst_position=codon_positions['v'])
         if not codons_ok or not in_frame_cdr3 or stop_codon:  # TODO should use the new utils.is_functional() here
             if self.debug:
                 print '       unproductive rearrangement:',
