@@ -122,6 +122,10 @@ class Hist(object):
         # NOTE includes under/overflows by default
         ibin_start = 0 if xbounds is None else self.find_bin(xbounds[0])
         ibin_end = self.n_bins + 2 if xbounds is None else self.find_bin(xbounds[1])
+
+        if ibin_start == ibin_end:
+            return self.bin_contents[ibin_start]
+
         ymax = None
         for ibin in range(ibin_start, ibin_end):
             if ymax is None or self.bin_contents[ibin] > ymax:
@@ -261,8 +265,17 @@ class Hist(object):
         print 'TODO implement Hist::rebin()'
 
     # ----------------------------------------------------------------------------------------
+    def horizontal_print(self, bin_centers=False, bin_decimals=4, contents_decimals=3):
+        bin_format_str = '%7.' + str(bin_decimals) + 'f'
+        contents_format_str = '%7.' + str(contents_decimals) + 'f'
+        binlist = self.get_bin_centers() if bin_centers else self.low_edges
+        binline = ''.join([bin_format_str % b for b in binlist])
+        contentsline = ''.join([contents_format_str % c for c in self.bin_contents])
+        return [binline, contentsline]
+
+    # ----------------------------------------------------------------------------------------
     def __str__(self):
-        str_list = []
+        str_list = ['    %7s  %12s'  % ('low edge', 'contents'), '\n', ]
         for ib in range(len(self.low_edges)):
             str_list += ['    %7.4f  %12.3f'  % (self.low_edges[ib], self.bin_contents[ib]), ]
             if ib == 0:

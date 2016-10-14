@@ -195,6 +195,8 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
     xmin, xmax, ymax = None, None, None
     ih = 0
     for htmp in hists:
+        if htmp.title == 'null':  # empty hists
+            continue
         if scale_errors is not None:
             factor = float(scale_errors[0]) if len(scale_errors) == 1 else float(scale_errors[ih])
             for ibin in range(htmp.n_bins+2):
@@ -882,15 +884,19 @@ def make_html(plotdir, n_columns=3, extension='svg'):
     check_call(['chmod', '664', htmlfname])
 
 # ----------------------------------------------------------------------------------------
-def make_allele_finding_plot(plotdir, gene, position, values, xmax, linefo=None):
+def make_allele_finding_plot(plotdir, gene, position, values, xmax, fitfos=None):
     xmin, xmax = -0.3, xmax
     fig, ax = mpl_init()
 
     ax.errorbar(values['n_mutelist'], values['freqs'], yerr=values['errs'], markersize=15, linewidth=2, marker='.')  #, title='position ' + str(position))
 
-    if linefo is not None:  # fitted line
-        linevals = [linefo['slope']*x + linefo['y_icpt'] for x in [0] + values['n_mutelist']]
-        ax.plot([0] + values['n_mutelist'], linevals)
+    if fitfos is not None:  # fitted lines
+        colors = {'prefo' : 'red', 'postfo' : 'red', 'onefo' : 'green'}
+        for ftype in colors:
+            if fitfos[ftype]['xvals'] is None:  # not really sure why this happens... probably zero-point fits?
+                continue
+            linevals = [fitfos[ftype]['slope']*x + fitfos[ftype]['y_icpt'] for x in fitfos[ftype]['xvals']]
+            ax.plot(fitfos[ftype]['xvals'], linevals, color=colors[ftype])
 
     ax.plot([xmin, xmax], [0, 0], linestyle='dashed', alpha=0.5, color='black')
     ymax = max(values['freqs']) + max(values['errs'])

@@ -26,6 +26,8 @@ class AlleleRemover(object):
         self.genes_to_keep = None
         self.genes_to_remove = None
         self.dbg_strings = {}
+        self.region = 'v'
+        self.codon_positions = self.glfo[utils.conserved_codons[self.glfo['chain']][self.region] + '-positions']
 
         self.finalized = False
 
@@ -71,17 +73,39 @@ class AlleleRemover(object):
         #     self.counts[best_gene]['second'].fill(second_smallest_hfrac)
 
     # ----------------------------------------------------------------------------------------
+    def separate_into_classes(self, sorted_gene_counts, easycounts):
+        class_counts = []
+        for gene, counts in sorted_gene_counts:
+            seq = self.glfo['seqs'][self.region][gene][:self.codon_positions[gene] + 3]
+            add_new_class = True
+            for gclass in class_counts:
+                for gfo in gclass:
+                    if len(gfo['seq']) != len(seq):
+                        continue
+                    hdist = utils.hamming_distance(gfo['seq'], seq)
+                    if hdist < self.args.n_max_snps - 1:  # if this gene is close to any gene in the class, add it to this class
+                        add_new_class = False
+                        class_counts[class_counts.index(gclass)].append({'gene' : gene, 'counts' : counts, 'seq' : seq})
+                        break
+                if not add_new_class:
+                    break
+
+            if add_new_class:
+                class_counts.append([{'gene' : gene, 'counts' : counts, 'seq' : seq}, ])
+
+        return class_counts
+
+    # ----------------------------------------------------------------------------------------
     def keep_this_gene(self, this_gene, pcounter, easycounts, debug=False):
-        region = utils.get_region(this_gene)
-        assert region == 'v'  # conserved codon stuff below will have to be changed for j
-        glseqs = self.glfo['seqs'][region]
-        codon_positions = self.glfo[utils.conserved_codons[self.glfo['chain']][region] + '-positions']
-        this_seq = glseqs[this_gene][:codon_positions[this_gene] + 3]  # only compare up to the conserved cysteine
+        assert self.region == 'v'  # conserved codon stuff below will have to be changed for j
+        glseqs = self.glfo['seqs'][self.region]
+        this_seq = glseqs[this_gene][:self.codon_positions[this_gene] + 3]  # only compare up to the conserved cysteine
 
         # don't keep it if it's pretty close to a gene we already have
+        n_close_genes = 0
         nearest_gene, nearest_hdist = None, None
         for kgene in self.genes_to_keep:
-            kseq = glseqs[kgene][:codon_positions[kgene] + 3]
+            kseq = glseqs[kgene][:self.codon_positions[kgene] + 3]
             if len(kseq) != len(this_seq):
                 continue
             hdist = utils.hamming_distance(kseq, this_seq)
@@ -89,8 +113,7 @@ class AlleleRemover(object):
                 nearest_hdist = hdist
                 nearest_gene = kgene
             if hdist < self.args.n_max_snps - 1:
-                self.dbg_strings[this_gene] = 'too close (%d < %d) to %s' % (hdist, self.args.n_max_snps - 1, kgene)
-                return False
+                n_close_genes += 1
 
         if easycounts[this_gene] < self.alfinder.n_total_min:  # if we hardly ever saw it, there's no good reason to believe it wasn't the result of just mutational wandering
             self.dbg_strings[this_gene] = 'not enough counts (%d < %d)' % (easycounts[this_gene], self.alfinder.n_total_min)
@@ -100,39 +123,66 @@ class AlleleRemover(object):
         return True
 
     # ----------------------------------------------------------------------------------------
-    def finalize(self, pcounter, swfo, debug=True):
+    def finalize(self, pcounter, swfo, debug=False):
         assert not self.finalized
-        region = 'v'
-        sorted_gene_counts = [(deps[0], counts) for deps, counts in sorted(pcounter.counts[region + '_gene'].items(), key=operator.itemgetter(1), reverse=True)]
+        sorted_gene_counts = [(deps[0], counts) for deps, counts in sorted(pcounter.counts[self.region + '_gene'].items(), key=operator.itemgetter(1), reverse=True)]
         easycounts = {gene : counts for gene, counts in sorted_gene_counts}
-
-        if debug:
-            print '  removing least likely alleles'
+        total_counts = sum([counts for counts in easycounts.values()])
 
         self.genes_to_keep = set()
-        for igene in range(len(sorted_gene_counts)):
-            gene, counts = sorted_gene_counts[igene]
-            if igene == 0:  # always keep the first one
-                self.dbg_strings[gene] = 'first gene'
-                self.genes_to_keep.add(gene)
-                continue
-            if self.keep_this_gene(gene, pcounter, easycounts, debug=debug):
-                self.genes_to_keep.add(gene)
 
-        print '  keeping:'
-        for gene in [g for g, _ in sorted_gene_counts if g in self.genes_to_keep]:
-            print '    %5d  %s  %s' % (easycounts[gene], utils.color_gene(gene, width=15), self.dbg_strings[gene])
+        if debug:
+            print '  removing least likely alleles (%d total counts)' % total_counts
+            print '       %20s  %5s  %5s   %s  %s' % ('', 'counts', 'snps', 'keep?', '')
 
-        self.genes_to_remove = set(self.glfo['seqs'][region]) - self.genes_to_keep
+        class_counts = self.separate_into_classes(sorted_gene_counts, easycounts)
+        for gclass in class_counts:
+            if debug:
+                print ''
+            n_from_this_class = 0
+            for ig in range(len(gclass)):
+                gfo = gclass[ig]
+                if float(gfo['counts']) / total_counts < self.args.min_allele_prevalence_fraction:  # always skip everybody that's super uncommon
+                    pass
+                elif ig == 0:  # keep the first one from this class
+                    self.genes_to_keep.add(gfo['gene'])
+                    n_from_this_class += 1
+                elif utils.hamming_distance(gclass[0]['seq'], gclass[ig]['seq']) == 0:  # don't keep it if it's indistinguishable from the most common one (the matches are probably mostly really the best one)
+                    pass
+                elif n_from_this_class < self.args.n_alleles_per_gene:  # always keep the most common <self.args.n_alleles_per_gene> in each class
+                    self.genes_to_keep.add(gfo['gene'])
+                    n_from_this_class += 1
+                else:  # don't keep it
+                    pass
 
-        print '  removing:'
-        for gene in [g for g, _ in sorted_gene_counts if g in self.genes_to_remove]:
-            print '    %5d  %s  %s' % (easycounts[gene], utils.color_gene(gene, width=15), self.dbg_strings[gene])
+                if debug:
+                    snpstr = ' ' if ig == 0 else '%d' % utils.hamming_distance(gclass[0]['seq'], gfo['seq'])
+                    keepstr = utils.color('yellow', 'x', width=5) if gfo['gene'] in self.genes_to_keep else '     '
+                    print '       %20s  %5d  %5s  %s' % (utils.color_gene(gfo['gene'], width=20), gfo['counts'], snpstr, keepstr) #, utils.color_mutants(gclass[0]['seq'], gfo['seq']))
+
+        # for igene in range(len(sorted_gene_counts)):
+        #     gene, counts = sorted_gene_counts[igene]
+        #     if igene == 0:  # always keep the first one
+        #         self.dbg_strings[gene] = 'first gene'
+        #         self.genes_to_keep.add(gene)
+        #         continue
+        #     if self.keep_this_gene(gene, pcounter, easycounts, debug=debug):
+        #         self.genes_to_keep.add(gene)
+
+        # print '  keeping:'
+        # for gene in [g for g, _ in sorted_gene_counts if g in self.genes_to_keep]:
+        #     print '    %5d  %s  %s' % (easycounts[gene], utils.color_gene(gene, width=15), self.dbg_strings[gene])
+
+        self.genes_to_remove = set(self.glfo['seqs'][self.region]) - self.genes_to_keep
+
+        # print '  removing:'
+        # for gene in [g for g, _ in sorted_gene_counts if g in self.genes_to_remove]:
+        #     print '    %5d  %s  %s' % (easycounts[gene], utils.color_gene(gene, width=15), self.dbg_strings[gene])
 
         n_queries_with_removed_genes = 0
         for query in swfo['queries']:
             line = swfo[query]
-            if line[region + '_gene'] in self.genes_to_remove:
+            if line[self.region + '_gene'] in self.genes_to_remove:
                 n_queries_with_removed_genes += 1
                 # unpadded_line = copy.deepcopy(line)
                 # unpadded_line['seqs'][0] = unpadded_line['seqs'][0][unpadded_line['padlefts'][0] : ]
@@ -140,7 +190,8 @@ class AlleleRemover(object):
                 #     unpadded_line['seqs'][0] = unpadded_line['seqs'][0][ : -unpadded_line['padrights'][0]]
                 # utils.print_reco_event(self.glfo['seqs'], unpadded_line)
 
-        print '    removing %d genes with no matches, and %d genes with unconvincing matches (%d / %d queries had their best match removed)' % (len(set(self.glfo['seqs'][region]) - set(easycounts)), len(set(easycounts) - self.genes_to_keep), n_queries_with_removed_genes, len(swfo['queries']))
+        print '    keeping %d %s genes' % (len(self.genes_to_keep), self.region)
+        print '    removing %d %s genes: %d with no matches, %d with unconvincing matches (%d / %d queries had their best match removed)' % (len(self.genes_to_remove), self.region, len(set(self.glfo['seqs'][self.region]) - set(easycounts)), len(set(easycounts) - self.genes_to_keep), n_queries_with_removed_genes, len(swfo['queries']))
 
         self.finalized = True
 

@@ -129,7 +129,8 @@ class Glomerator(object):
             reader = csv.DictReader(csvfile)
             for line in reader:
                 if line['partition'] == '':
-                    raise Exception('ERROR null partition (one of the processes probably got passed zero sequences')  # shouldn't happen any more FLW
+                    print '    %s null partition (one of the processes probably got passed zero sequences)' % utils.color('red', 'warning')
+                    return paths
                 path_index = int(line['path_index']) if 'path_index' in line else 0
                 initial_path_index = int(line['initial_path_index']) if 'initial_path_index' in line else 0
                 if paths[path_index] is None:  # is this the first line for this path?
@@ -272,7 +273,10 @@ class Glomerator(object):
         start = time.time()
         fileinfos = []
         for fname in infnames:
-            fileinfos.append(self.read_file_info(fname, smc_particles))
+            paths = self.read_file_info(fname, smc_particles)
+            if paths.count(None) == len(paths):
+                continue
+            fileinfos.append(paths)
         self.merge_fileinfos(fileinfos, smc_particles, previous_info=previous_info, debug=debug)
         if debug:
             print '        read cached glomeration time: %.3f' % (time.time()-start)

@@ -6,8 +6,8 @@ namespace ham {
 Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> > &qry_seq_list, Args *args, Track *track) :
   track_(track),
   args_(args),
-  vtb_dph_("viterbi", args_, gl, hmms),
-  fwd_dph_("forward", args_, gl, hmms),
+  gl_(gl),
+  hmms_(hmms),
   n_fwd_calculated_(0),
   n_vtb_calculated_(0),
   n_hfrac_calculated_(0),
@@ -22,18 +22,32 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> >
 
   for(size_t iqry = 0; iqry < qry_seq_list.size(); iqry++) {
     string key = SeqNameStr(qry_seq_list[iqry], ":");
-
-    initial_partition_.insert(key);
-    seq_info_[key] = qry_seq_list[iqry];
-    seed_missing_[key] = !InString(args_->seed_unique_id(), key);
-    only_genes_[key] = args_->str_lists_["only_genes"][iqry];
-    mute_freqs_[key] = args_->floats_["mut_freq"][iqry];
-    cdr3_lengths_[key] = args_->integers_["cdr3_length"][iqry];
-
     KSet kmin(args_->integers_["k_v_min"][iqry], args_->integers_["k_d_min"][iqry]);
     KSet kmax(args_->integers_["k_v_max"][iqry], args_->integers_["k_d_max"][iqry]);
-    KBounds kb(kmin, kmax);
-    kbinfo_[key] = kb;
+
+    initial_partition_.insert(key);
+
+    for(auto &seq_vec : qry_seq_list)
+      for(auto &seq : seq_vec)
+	single_seqs_[seq.name()] = seq;
+
+    for(auto &uid : SplitString(key)) {
+      single_seq_cachefo_[uid] = Query(uid,  // NOTE these are not necessarily the same as they would be (well, were) for the single seqs -- e.g. only_genes is now the OR for all the sequences
+				       GetSeqs(uid),
+				       !InString(args_->seed_unique_id(), uid),
+				       args_->str_lists_["only_genes"][iqry],
+				       KBounds(kmin, kmax),
+				       args_->floats_["mut_freq"][iqry],
+				       args_->integers_["cdr3_length"][iqry]);
+    }
+
+    cachefo_[key] = Query(key,
+			  GetSeqs(key),
+			  !InString(args_->seed_unique_id(), key),
+			  args_->str_lists_["only_genes"][iqry],
+			  KBounds(kmin, kmax),
+			  args_->floats_["mut_freq"][iqry],
+			  args_->integers_["cdr3_length"][iqry]);
   }
 
   current_partition_ = &initial_partition_;
@@ -42,16 +56,26 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> >
 // ----------------------------------------------------------------------------------------
 Glomerator::~Glomerator() {
   cout << FinalString() << endl;
-  if(args_->cachefile() != "")
-    WriteCachedLogProbs();
+  WriteCacheFile();
   fclose(progress_file_);
   remove((args_->outfile() + ".progress").c_str());
+
+// // ----------------------------------------------------------------------------------------
+//   runps();
+//   cout << "vtb dph" << endl;
+//   vtb_dph_.Clear();
+//   sleep(1);
+//   runps();
+//   cout << "fwd dph" << endl;
+//   fwd_dph_.Clear();
+//   sleep(1);
+// // ----------------------------------------------------------------------------------------
 }
 
 // ----------------------------------------------------------------------------------------
 void Glomerator::CacheNaiveSeqs() {  // they're written to file in the destructor, so we just need to calculate them here
   cout << "      caching all naive sequences" << endl;
-  for(auto &kv : seq_info_)
+  for(auto &kv : cachefo_)
     GetNaiveSeq(kv.first);
   ofs_.open(args_->outfile());  // a.t.m. I'm signalling that I finished ok by doing this
   ofs_.close();
@@ -74,10 +98,9 @@ void Glomerator::Cluster() {
     Merge(&cp);
   } while(!cp.finished_);
 
-  vector<ClusterPath> paths{cp};
-  WritePartitions(paths);
+  WritePartitions(cp);
   if(args_->annotationfile() != "")
-    WriteAnnotations(paths);
+    WriteAnnotations(cp);
 }
 
 // ----------------------------------------------------------------------------------------
@@ -92,11 +115,15 @@ Partition Glomerator::GetAnInitialPartition(int &initial_path_index, double &log
 
 // ----------------------------------------------------------------------------------------
 void Glomerator::ReadCacheFile() {
-  ifstream ifs(args_->cachefile());
-  if(!ifs.is_open()) {  // this means we don't have any cached results to start with, but we'll write out what we have at the end of the run to this file
-    cout << "        cachefile d.n.e." << endl;
+  if(args_->input_cachefname() == "") {
+    cout << "        read-cache:  logprobs 0   naive-seqs 0" << endl;
     return;
   }
+
+  ifstream ifs(args_->input_cachefname());
+  if(!ifs.is_open())
+    throw runtime_error("input cache file " + args_->input_cachefname() + " dne\n");
+
   string line;
   // check the header is right (no cached info)
   if(!getline(ifs, line)) {
@@ -124,7 +151,7 @@ void Glomerator::ReadCacheFile() {
     }
 
     string logprob_str(column_list[1]);
-    if(logprob_str.size() > 0) {
+    if(logprob_str.size() > 0) {  // NOTE <query> might already be in <log_probs_> (see above), but this won't replace it unless it's actually set in the file (we could also check that they're similar, but since we don't expect them to always be identical, that would be complicated)
       log_probs_[query] = stof(logprob_str);
       initial_log_probs_.insert(query);
     }
@@ -142,7 +169,7 @@ void Glomerator::ReadCacheFile() {
       initial_naive_seqs_.insert(query);
     }
   }
-  cout << "        read " << log_probs_.size() << " cached logprobs and " << naive_seqs_.size() << " naive seqs" << endl;
+  cout << "        read-cache:  logprobs " << log_probs_.size() << "   naive-seqs " << naive_seqs_.size() << endl;
 }
 
 // ----------------------------------------------------------------------------------------
@@ -163,12 +190,15 @@ void Glomerator::WriteCacheLine(ofstream &ofs, string query) {
 }
 
 // ----------------------------------------------------------------------------------------
-void Glomerator::WriteCachedLogProbs() {
-  ofstream log_prob_ofs(args_->cachefile());
-  if(!log_prob_ofs.is_open())
-    throw runtime_error("ERROR cache file (" + args_->cachefile() + ") d.n.e.\n");
-  log_prob_ofs << "unique_ids,logprob,naive_seq,naive_hfrac,errors" << endl;
+void Glomerator::WriteCacheFile() {
+  if(args_->output_cachefname() == "")
+    return;
 
+  ofstream log_prob_ofs(args_->output_cachefname());
+  if(!log_prob_ofs.is_open())
+    throw runtime_error("couldn't open output cache file " + args_->output_cachefname() + "\n");
+
+  log_prob_ofs << "unique_ids,logprob,naive_seq,naive_hfrac,errors" << endl;
   log_prob_ofs << setprecision(20);
 
   set<string> keys_to_cache;
@@ -197,71 +227,68 @@ void Glomerator::WriteCachedLogProbs() {
 }
 
 // ----------------------------------------------------------------------------------------
-void Glomerator::WritePartitions(vector<ClusterPath> &paths) {
+void Glomerator::WritePartitions(ClusterPath &cp) {
+  clock_t run_start(clock());
   if(args_->debug())
     cout << "        writing partitions" << endl;
   ofs_.open(args_->outfile());
   ofs_ << setprecision(20);
   ofs_ << "partition,logprob" << endl;
-  int ipath(0);
-  for(auto &cp : paths) {
-    unsigned istart(0);
-    if((int)cp.partitions().size() > args_->n_partitions_to_write())
-      istart = cp.partitions().size() - args_->n_partitions_to_write();
-    for(unsigned ipart=istart; ipart<cp.partitions().size(); ++ipart) {
-      if(args_->write_logprob_for_each_partition())  // only want to calculate this the last time through, i.e. when we're only one process
-	cp.set_logprob(ipart, LogProbOfPartition(cp.partitions()[ipart]));
-      int ic(0);
-      for(auto &cluster : cp.partitions()[ipart]) {
-	if(ic > 0)
-	  ofs_ << ";";
-	ofs_ << cluster;
-	++ic;
-      }
-      ofs_ << "," << cp.logprobs()[ipart] << endl;
+  unsigned istart(0);
+  if((int)cp.partitions().size() > args_->n_partitions_to_write())
+    istart = cp.partitions().size() - args_->n_partitions_to_write();
+  for(unsigned ipart=istart; ipart<cp.partitions().size(); ++ipart) {
+    if(args_->write_logprob_for_each_partition())  // only want to calculate this the last time through, i.e. when we're only one process NOTE this calculation can change the clustering (if we did an hfrac merge that logprob thinks we shouldn't have merged, when the python reads the partitions it'll notice this and choose the unmerged partition)
+      cp.set_logprob(ipart, LogProbOfPartition(cp.partitions()[ipart]));
+    int ic(0);
+    for(auto &cluster : cp.partitions()[ipart]) {
+      if(ic > 0)
+	ofs_ << ";";
+      ofs_ << cluster;
+      ++ic;
     }
-    ++ipath;
+    ofs_ << "," << cp.logprobs()[ipart] << endl;
   }
   ofs_.close();
+  if(args_->write_logprob_for_each_partition())
+    printf("        partition writing time (probably includes calculating a bunch of new logprobs) %.1f\n", ((clock() - run_start) / (double)CLOCKS_PER_SEC));
 }
 
 // ----------------------------------------------------------------------------------------
-void Glomerator::WriteAnnotations(vector<ClusterPath> &paths) {
+void Glomerator::WriteAnnotations(ClusterPath &cp) {
+  cout << "DEPRECATED" << endl;  // for somewhat technical reasons -- it still basically works (see notes in partitiondriver.py)
+  clock_t run_start(clock());
   cout << "      calculating and writing annotations" << endl;
   ofstream annotation_ofs;
   annotation_ofs.open(args_->annotationfile());
   StreamHeader(annotation_ofs, "viterbi");
 
-  assert(paths.size() == 1);  // would need to update this for smc
-  int ipath(0);
-  ClusterPath cp(paths[ipath]);
-  unsigned ipart(cp.partitions().size() - 1);  // just write the last (best) one. NOTE that we're no longer keeping track of the total log prob of the partition, since a) a bunch (most?) of the time we're merging with naive hfrac and b) we don't need it, anyway
-  for(auto &cluster : cp.partitions()[ipart]) {
+  // NOTE we're no longer calculating the logprob for *every* partition, but in Glomerator::WritePartitions() we *do* calculate them if we're told to (i.e. the last time through), and this can make it so the last partition isn't the most likely
+  for(auto &cluster : cp.partitions()[cp.i_best()]) {
     if(args_->seed_unique_id() != "" && SeedMissing(cluster))
       continue;
 
     RecoEvent event;
-    CalculateNaiveSeq(cluster, &event);  // calculate the viterbi path from scratch -- we're doing so much translation crap at this point it's just too hard to keep track of things otherwise
+    CalculateNaiveSeq(GetNaiveSeqNameToCalculate(cluster), &event);  // calculate the viterbi path from scratch to get the <event> set (should probably at some point start caching the events earlier)
 
     if(event.genes_["d"] == "") {  // shouldn't happen any more, but it is a check that could fail at some point
       cout << "WTF " << cluster << " x" << event.naive_seq_ << "x" << endl;
       assert(0);
     }
-    StreamViterbiOutput(annotation_ofs, event, seq_info_[cluster], "");
+    StreamViterbiOutput(annotation_ofs, event, cachefo(cluster).seqs_, "");
   }
   annotation_ofs.close();
+  printf("        annotation writing time (probably includes a bunch of new vtb calculations) %.1f\n", ((clock() - run_start) / (double)CLOCKS_PER_SEC));
 }
 
 // ----------------------------------------------------------------------------------------
 double Glomerator::LogProbOfPartition(Partition &partition, bool debug) {
-
   // get log prob of entire partition given by the keys in <partinfo> using the individual log probs in <log_probs>
   double total_log_prob(0.0);
   if(debug)
     cout << "LogProbOfPartition: " << endl;
   for(auto &key : partition) {
-    // assert(SameLength(seq_info_[key], true));
-    double log_prob = GetLogProb(key);
+    double log_prob = GetLogProb(key);  // NOTE do *not* do any translation here -- we need the actual probability of the whole partition, to compare to the other partitions, so we need each and every sequence in each cluster (i.e. if you wanted to do translation, you'd have to coordinate the ignored sequences among the different partitions)
     if(debug)
       cout << "  " << log_prob << "  " << key << endl;
     total_log_prob = AddWithMinusInfinities(total_log_prob, log_prob);
@@ -289,7 +316,7 @@ string Glomerator::CacheSizeString() {
 // ----------------------------------------------------------------------------------------
 string Glomerator::FinalString() {
     char buffer[2000];
-    sprintf(buffer, "        calcd:   vtb %-4d  fwd %-4d  hfrac %-8d    merged:  hfrac %-4d lratio %-4d", n_vtb_calculated_, n_fwd_calculated_, n_hfrac_calculated_, n_hfrac_merges_, n_lratio_merges_);
+    sprintf(buffer, "        calcd:   vtb %-4d  fwd %-4d  hfrac %-8d\n        merged:  hfrac %-4d lratio %-4d", n_vtb_calculated_, n_fwd_calculated_, n_hfrac_calculated_, n_hfrac_merges_, n_lratio_merges_);
     return string(buffer);
 }
 
@@ -367,23 +394,23 @@ string Glomerator::JoinNames(string name1, string name2, string delimiter) {
 }
 
 // ----------------------------------------------------------------------------------------
-string Glomerator::JoinNameStrings(vector<Sequence> &strlist, string delimiter) {
+string Glomerator::JoinNameStrings(vector<Sequence*> &strlist, string delimiter) {
   string return_str;
   for(size_t is=0; is<strlist.size(); ++is) {
     if(is > 0)
       return_str += delimiter;
-    return_str += strlist[is].name();
+    return_str += strlist[is]->name();
   }
   return return_str;
 }
 
 // ----------------------------------------------------------------------------------------
-string Glomerator::JoinSeqStrings(vector<Sequence> &strlist, string delimiter) {
+string Glomerator::JoinSeqStrings(vector<Sequence*> &strlist, string delimiter) {
   string return_str;
   for(size_t is=0; is<strlist.size(); ++is) {
     if(is > 0)
       return_str += delimiter;
-    return_str += strlist[is].undigitized();
+    return_str += strlist[is]->undigitized();
   }
   return return_str;
 }
@@ -398,7 +425,7 @@ string Glomerator::PrintStr(string queries) {
 
 // ----------------------------------------------------------------------------------------
 bool Glomerator::SeedMissing(string queries, string delimiter) {
-  return seed_missing_[queries];  // NOTE after refactoring the double loops, we probably don't really need to cache all these any more
+  return cachefo(queries).seed_missing_;  // NOTE after refactoring the double loops, we probably don't really need to cache all these any more
   // set<string> queryset(SplitString(queries, delimiter));  // might be faster to look for :uid: and uid: and... hm, wait, that's kind of hard
   // return !InString(args_->seed_unique_id(), queries,  delimiter);
   //// oh, wait this (below) won't work without more checks
@@ -450,7 +477,7 @@ string Glomerator::ChooseSubsetOfNames(string queries, int n_max) {
   if(name_subsets_.count(queries))
     return name_subsets_[queries];
 
-  assert(seq_info_.count(queries));
+  // assert(seq_info_.count(queries) || tmp_cachefo_.count(queries));
   vector<string> namevector(SplitString(queries, ":"));
 
   srand(hash<string>{}(queries));  // make sure we get the same subset each time we pass in the same queries (well, if there's different thresholds for naive_seqs annd logprobs they'll each get their own [very correlated] subset)
@@ -476,22 +503,22 @@ string Glomerator::ChooseSubsetOfNames(string queries, int n_max) {
   // then sort 'em
   sort(ichosen_vec.begin(), ichosen_vec.end());
 
+  Query &cacheref = cachefo(queries);
+
   // and finally make the new vectors
   vector<string> subqueryvec;
-  vector<Sequence> subseqs;
-  for(auto &ich : ichosen_vec) {
+  for(auto &ich : ichosen_vec)
     subqueryvec.push_back(namevector[ich]);
-    subseqs.push_back(seq_info_[queries][ich]);
-  }
 
   string subqueries(JoinStrings(subqueryvec));
 
-  seq_info_[subqueries] = subseqs;
-  seed_missing_[subqueries] = !InString(args_->seed_unique_id(), subqueries);
-  kbinfo_[subqueries] = kbinfo_[queries];  // just use the entire/super cluster for this stuff. It's just overly conservative (as long as you keep the mute freqs the same)
-  mute_freqs_[subqueries] = mute_freqs_[queries];
-  cdr3_lengths_[subqueries] = cdr3_lengths_[queries];
-  only_genes_[subqueries] = only_genes_[queries];
+  tmp_cachefo_[subqueries] = Query(subqueries,
+				   GetSeqs(subqueries),
+				   !InString(args_->seed_unique_id(), subqueries),
+				   cacheref.only_genes_,
+				   cacheref.kbounds_,
+				   cacheref.mute_freq_,
+				   cacheref.cdr3_length_);
 
   if(args_->debug())
     cout << "                chose subset  " << queries << "  -->  " << subqueries << endl;
@@ -627,7 +654,7 @@ string &Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents) {
 // }
 
 // ----------------------------------------------------------------------------------------
-double Glomerator::GetLogProb(string queries) {
+double Glomerator::GetLogProb(string queries) {  // NOTE this does *no* translation, so you better have done that already before you call it if you want it done
   if(log_probs_.count(queries))  // already did it
     return log_probs_[queries];
 
@@ -649,11 +676,11 @@ double Glomerator::GetLogProbRatio(string key_a, string key_b) {
   if(lratios_.count(joint_name))  // NOTE as in other places, this assumes there's only *one* way to get to a given joint name (or at least that we'll get about the same answer each different way)
     return lratios_[joint_name];
 
-  Query full_qmerged = GetMergedQuery(key_a, key_b);  // have to make this to get seq_info_ and whatnot filled up
+  Query full_qmerged = GetMergedQuery(key_a, key_b);
   pair<string, string> parents_to_calc = GetLogProbPairOfNamesToCalculate(joint_name, full_qmerged.parents_);
   string key_a_to_calc = parents_to_calc.first;
   string key_b_to_calc = parents_to_calc.second;
-  Query qmerged_to_calc = GetMergedQuery(key_a_to_calc, key_b_to_calc);  // NOTE also enters the merged query's info into seq_info_, kbinfo_, mute_freqs_, cdr3_lengths_, and only_genes_
+  Query qmerged_to_calc = GetMergedQuery(key_a_to_calc, key_b_to_calc);
 
   double log_prob_a = GetLogProb(key_a_to_calc);
   double log_prob_b = GetLogProb(key_b_to_calc);
@@ -677,17 +704,18 @@ string Glomerator::CalculateNaiveSeq(string queries, RecoEvent *event) {
   if(event == nullptr)  // if we're calling it with <event> set, then we know we're recalculating some things
     assert(naive_seqs_.count(queries) == 0);
 
-  if(seq_info_.count(queries) == 0 || kbinfo_.count(queries) == 0 || only_genes_.count(queries) == 0 || mute_freqs_.count(queries) == 0)
-    throw runtime_error("no info for " + queries);
+  // if(seq_info_.count(queries) == 0 && tmp_cachefo_.count(queries) == 0)
+  //   throw runtime_error("no info for " + queries);
 
   ++n_vtb_calculated_;
 
-  Result result(kbinfo_[queries], args_->chain());
+  DPHandler dph("viterbi", args_, gl_, hmms_);
+  Query &cacheref = cachefo(queries);
+  Result result(cacheref.kbounds_, args_->chain());
   bool stop(false);
   do {
-    // assert(SameLength(seq_info_[queries], true));
-    result = vtb_dph_.Run(seq_info_[queries], kbinfo_[queries], only_genes_[queries], mute_freqs_[queries]);  // NOTE the sequences in <seq_info_[queries]> should already be the same length, since they've already been merged
-    kbinfo_[queries] = result.better_kbounds();
+    result = dph.Run(cacheref.seqs_, cacheref.kbounds_, cacheref.only_genes_, cacheref.mute_freq_, false);
+    cacheref.kbounds_ = result.better_kbounds();
     stop = !result.boundary_error() || result.could_not_expand() || result.no_path_;  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
     if(args_->debug() && !stop)
       cout << "             expand and run again" << endl;  // note that subsequent runs are much faster than the first one because of chunk caching
@@ -712,16 +740,18 @@ double Glomerator::CalculateLogProb(string queries) {  // NOTE can modify kbinfo
   // NOTE do *not* call this from anywhere except GetLogProb()
   assert(log_probs_.count(queries) == 0);
 
-  if(seq_info_.count(queries) == 0 || kbinfo_.count(queries) == 0 || only_genes_.count(queries) == 0 || mute_freqs_.count(queries) == 0)
-    throw runtime_error("no info for " + queries);
+  // if(seq_info_.count(queries) == 0 && tmp_cachefo_.count(queries) == 0)
+  //   throw runtime_error("no info for " + queries);
   
   ++n_fwd_calculated_;
 
-  Result result(kbinfo_[queries], args_->chain());
+  DPHandler dph("forward", args_, gl_, hmms_);
+  Query &cacheref = cachefo(queries);
+  Result result(cacheref.kbounds_, args_->chain());
   bool stop(false);
   do {
-    result = fwd_dph_.Run(seq_info_[queries], kbinfo_[queries], only_genes_[queries], mute_freqs_[queries]);  // NOTE <only_genes> isn't necessarily <only_genes_[queries]>, since for the denominator calculation we take the OR
-    kbinfo_[queries] = result.better_kbounds();
+    result = dph.Run(cacheref.seqs_, cacheref.kbounds_, cacheref.only_genes_, cacheref.mute_freq_, false);  // I think I don't actually check for improving kbounds when I'm running forward a.t.m., in which case this loop wouldn't really do anything
+    cacheref.kbounds_ = result.better_kbounds();
     stop = !result.boundary_error() || result.could_not_expand() || result.no_path_;  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
     if(args_->debug() && !stop)
       cout << "             expand and run again" << endl;  // note that subsequent runs are much faster than the first one because of chunk caching
@@ -745,38 +775,59 @@ void Glomerator::AddFailedQuery(string queries, string error_str) {
 }
 
 // ----------------------------------------------------------------------------------------
-vector<Sequence> Glomerator::MergeSeqVectors(string name_a, string name_b) {
-  // first merge the two vectors
-  vector<Sequence> merged_seqs;  // NOTE doesn't work if you preallocate and use std::vector::insert(). No, I have no *@#*($!#ing idea why
-  for(size_t is=0; is<seq_info_[name_a].size(); ++is)
-    merged_seqs.push_back(seq_info_[name_a][is]);
-  for(size_t is=0; is<seq_info_[name_b].size(); ++is)
-    merged_seqs.push_back(seq_info_[name_b][is]);
+Query &Glomerator::cachefo(string queries) {
+  if(cachefo_.find(queries) != cachefo_.end())
+    return cachefo_[queries];
+  else if(tmp_cachefo_.find(queries) != tmp_cachefo_.end())
+    return tmp_cachefo_[queries];
+  else {  // if this is happening very frequently you've fucked up
+    // throw runtime_error(queries + " not found in either cache\n");
+    // cout << "hackadd to tmp cache " << queries << endl;
+    set<string> only_gene_set;
+    KBounds kbounds;
+    double mute_freq_total(0.);
+    size_t cdr3_length(0);
+    vector<string> tmpvec(SplitString(queries));
+    for(size_t is=0; is<tmpvec.size(); ++is) {
+      Query &scache(single_seq_cachefo_[tmpvec[is]]);
+      only_gene_set.insert(scache.only_genes_.begin(), scache.only_genes_.end());
+      if(is==0)
+	kbounds = scache.kbounds_;
+      else
+	kbounds = kbounds.LogicalOr(scache.kbounds_);
+      mute_freq_total += scache.mute_freq_;
+      if(is==0)
+	cdr3_length = scache.cdr3_length_;
+      if(cdr3_length != scache.cdr3_length_)
+	throw runtime_error("cdr3 length mismatch " + to_string(cdr3_length) + " " + to_string(scache.cdr3_length_) + " for single query " + tmpvec[is] + " within " + queries);
 
-  // then make sure we don't have the same sequence twice
-  set<string> all_names;
-  for(size_t is=0; is<merged_seqs.size(); ++is) {
-    string name(merged_seqs[is].name());
-    // if(all_names.count(name)) {
-    //   if(args_->seed_unique_id() == "" || !InString(args_->seed_unique_id(), name))  // if seed id isn't set, or if it is set but it isn't in <name>
-    // 	throw runtime_error("tried to add sequence with name " + name + " twice in Glomerator::MergeSeqVectors()\n    when merging " + name_a + " and " + name_b);
-    // } else {
-      all_names.insert(name);
-    // }
+      // cout << "    " << tmpvec[is] << "    " << kbounds.stringify() << "   " << scache.mute_freq_ << "   " << cdr3_length << "   ";
+      // for(auto &g : only_gene_set)
+      // 	cout << " " << g;
+      // cout << endl;
+    }
+    // cout << "        final mute freq " << mute_freq_total / tmpvec.size() << endl;
+
+    tmp_cachefo_[queries] = Query(queries,
+				  GetSeqs(queries),
+				  !InString(args_->seed_unique_id(), queries),
+				  vector<string>(only_gene_set.begin(), only_gene_set.end()),
+				  kbounds,
+				  mute_freq_total / tmpvec.size(),
+				  cdr3_length);
+    return tmp_cachefo_[queries];
   }
-
-  return merged_seqs;
 }
 
 // ----------------------------------------------------------------------------------------
-bool Glomerator::SameLength(vector<Sequence> &seqs, bool debug) {
+bool Glomerator::SameLength(vector<Sequence*> &seqs, bool debug) {
   // are all the seqs in <seqs> the same length?
   bool same(true);
   int len(-1);
   for(auto &seq : seqs) {
     if(len < 0)
-      len = (int)seq.size();
-    if(len != (int)seq.size()) {
+      len = (int)seq->size();
+    if(len != (int)seq->size()) {
       same = false;
       break;
     }
@@ -792,34 +843,97 @@ bool Glomerator::SameLength(vector<Sequence> &seqs, bool debug) {
 }  
 
 // ----------------------------------------------------------------------------------------
-Query Glomerator::GetMergedQuery(string name_a, string name_b) {
-  Query qmerged;
-  qmerged.name_ = JoinNames(name_a, name_b);  // sorts name_a and name_b, but *doesn't* sort within them
-  qmerged.seqs_ = MergeSeqVectors(name_a, name_b);
+vector<Sequence*> Glomerator::GetSeqs(string query) {
+  vector<string> queryvec(SplitString(query));
+  vector<Sequence*> seqs(queryvec.size());
+  for(size_t is=0; is<queryvec.size(); ++is) {
+    if(single_seqs_.find(queryvec[is]) == single_seqs_.end())
+      throw runtime_error("couldn't find query " + query + " in single seq vector");
+    seqs[is] = &single_seqs_[queryvec[is]];
+    if(seqs[is] == nullptr)
+      throw runtime_error("null ptr to sequence for query " + query);
+  }
+  return seqs;
+}
 
-  assert(SameLength(seq_info_[name_a]));  // all the seqs for name_a should already be the same length
-  assert(SameLength(seq_info_[name_b]));  // ...same for name_b
+// ----------------------------------------------------------------------------------------
+// when we're adding <query> to the permament cache in <cachefo_>, if it's been translated we also need it's subsets in <cachefo_>
+void Glomerator::MoveSubsetsFromTmpCache(string query) {
+  if(naive_seq_name_translations_.find(query) != naive_seq_name_translations_.end()) {
+    string tquery(naive_seq_name_translations_[query]);
+    // cout << "naive seq nt " << tquery << endl;
+    CopyToPermanentCache(tquery, query);
+  }
 
-  qmerged.kbounds_ = kbinfo_[name_a].LogicalOr(kbinfo_[name_b]);
+  if(logprob_name_translations_.find(query) != logprob_name_translations_.end()) {
+    pair<string, string> tpair(logprob_name_translations_[query]);
+    // cout << "logprob nt for: " << query << "    " << tpair.first << " " << tpair.second << endl;
+    CopyToPermanentCache(tpair.first, query);
+    CopyToPermanentCache(tpair.second, query);
+  }
 
-  qmerged.only_genes_ = only_genes_[name_a];
-  for(auto &g : only_genes_[name_b])  // NOTE this will add duplicates (that's no big deal, though) OPTIMIZATION
-    qmerged.only_genes_.push_back(g);
-  qmerged.mean_mute_freq_ = (seq_info_[name_a].size()*mute_freqs_[name_a] + seq_info_[name_b].size()*mute_freqs_[name_b]) / double(qmerged.seqs_.size());  // simple weighted average (doesn't account for different sequence lengths)
-  qmerged.parents_ = pair<string, string>(name_a, name_b);
+  if(logprob_asymetric_translations_.find(query) != logprob_asymetric_translations_.end()) {
+    string tquery(logprob_asymetric_translations_[query]);
+    // cout << "logprob asym t " << tquery << endl;
+    CopyToPermanentCache(tquery, query);
+  }
+}
 
-  // NOTE now that I'm adding the merged query to the cache info here, I can maybe get rid of the qmerged entirely
-  seq_info_[qmerged.name_] = qmerged.seqs_;
-  seed_missing_[qmerged.name_] = !InString(args_->seed_unique_id(), qmerged.name_);
-  kbinfo_[qmerged.name_] = qmerged.kbounds_;
-  mute_freqs_[qmerged.name_] = qmerged.mean_mute_freq_;
+// ----------------------------------------------------------------------------------------
+// Copy the entry for <translated_query> from <tmp_cachefo_> to <cachefo_>, unless it isn't there, in which case we reconstruct roughly what it should have been using <superquery> (the query for which <translated_query> is a translation).
+// e.g. if <translated_query> is "is:hm" then <superquery> might be "az:fh:fi:is:fj:hm".
+void Glomerator::CopyToPermanentCache(string translated_query, string superquery) {
+  if(tmp_cachefo_.find(translated_query) != tmp_cachefo_.end()) {
+    cachefo_[translated_query] = tmp_cachefo_[translated_query];
+  } else {  // I think that if we don't have it even in the tmp cache, that we won't ever need the query info (I think it means to we already calculated everything for it) but it makes things more consistent and safer to make sure it's in the permanenet cache
+    Query &supercache(cachefo(superquery));
+    // cout << "scratchy! " << superquery << " --> " << translated_query << endl;
+    cachefo_[translated_query] = Query(translated_query,
+				       GetSeqs(translated_query),
+				       !InString(args_->seed_unique_id(), translated_query),
+				       supercache.only_genes_,
+				       supercache.kbounds_,
+				       supercache.mute_freq_,
+				       supercache.cdr3_length_);
+				       // supercache.parents_.first,
+				       // supercache.parents_.second);
+  }
+}
 
-  if(cdr3_lengths_[name_a] != cdr3_lengths_[name_b])
-    throw runtime_error("cdr3 lengths different for " + name_a + " and " + name_b + " (" + to_string(cdr3_lengths_[name_a]) + " " + to_string(cdr3_lengths_[name_b]) + ")");
-  cdr3_lengths_[qmerged.name_] = cdr3_lengths_[name_a];
-  only_genes_[qmerged.name_] = qmerged.only_genes_;
+// ----------------------------------------------------------------------------------------
+Query &Glomerator::GetMergedQuery(string name_a, string name_b) {
+
+  string joint_name = JoinNames(name_a, name_b);  // sorts name_a and name_b, but *doesn't* sort within them
+  if(cachefo_.find(joint_name) != cachefo_.end())
+    return cachefo_[joint_name];
+  if(tmp_cachefo_.find(joint_name) != tmp_cachefo_.end())
+    return tmp_cachefo_[joint_name];
+
+  Query &ref_a = cachefo(name_a);
+  Query &ref_b = cachefo(name_b);
+
+  vector<string> joint_only_genes = ref_a.only_genes_;
+  for(auto &g : ref_b.only_genes_) {
+    if(find(joint_only_genes.begin(), joint_only_genes.end(), g) == joint_only_genes.end())
+      joint_only_genes.push_back(g);
+  }
+
+  if(ref_a.cdr3_length_ != ref_b.cdr3_length_)
+    throw runtime_error("cdr3 lengths different for " + name_a + " and " + name_b + " (" + to_string(ref_a.cdr3_length_) + " " + to_string(ref_b.cdr3_length_) + ")");
+
+  // NOTE now that I'm adding the merged query to the cache info here, I can maybe get rid of the qmerged entirely UPDATE I have no idea if this is still relevant
+  tmp_cachefo_[joint_name] = Query(joint_name,
+				   GetSeqs(joint_name),
+				   !InString(args_->seed_unique_id(), joint_name),
+				   joint_only_genes,
+				   ref_a.kbounds_.LogicalOr(ref_b.kbounds_),
+				   (ref_a.seqs_.size()*ref_a.mute_freq_ + ref_b.seqs_.size()*ref_b.mute_freq_) / double(ref_a.seqs_.size() + ref_b.seqs_.size()),  // simple weighted average (doesn't account for different sequence lengths)
+				   ref_a.cdr3_length_,
+				   name_a,
+				   name_b
+				   );
   
-  return qmerged;
+  return tmp_cachefo_[joint_name];
 }
 
 // ----------------------------------------------------------------------------------------
@@ -907,7 +1021,7 @@ pair<double, Query> Glomerator::FindHfracMerge(ClusterPath *path) {
       if(failed_queries_.count(key_a) || failed_queries_.count(key_b))
 	continue;
 
-      if(cdr3_lengths_[key_a] != cdr3_lengths_[key_b])
+      if(cachefo(key_a).cdr3_length_ != cachefo(key_b).cdr3_length_)
       	continue;
 
       double hfrac = NaiveHfrac(key_a, key_b);
@@ -919,7 +1033,7 @@ pair<double, Query> Glomerator::FindHfracMerge(ClusterPath *path) {
 
       if(hfrac < min_hamming_fraction) {
 	  min_hamming_fraction = hfrac;
-	  min_hamming_merge = GetMergedQuery(key_a, key_b);  // NOTE also enters the merged query's info into seq_info_, kbinfo_, mute_freqs_, cdr3_lengths_, and only_genes_
+	  min_hamming_merge = GetMergedQuery(key_a, key_b);
       }
     }
   }
@@ -965,7 +1079,7 @@ pair<double, Query> Glomerator::FindLRatioMerge(ClusterPath *path) {
 
       ++n_total_pairs;
 
-      if(cdr3_lengths_[key_a] != cdr3_lengths_[key_b])
+      if(cachefo(key_a).cdr3_length_ != cachefo(key_b).cdr3_length_)
       	continue;
 
       double hfrac = NaiveHfrac(key_a, key_b);
@@ -991,7 +1105,7 @@ pair<double, Query> Glomerator::FindLRatioMerge(ClusterPath *path) {
 
   if(max_lratio == -INFINITY) {  // if we didn't find any merges that we liked
     path->finished_ = true;
-    cout << "        stop with:  big hfrac " << n_skipped_hamming << "   small lratio " << n_small_lratios << "   total " << n_total_pairs;
+    cout << "        stop-with:   big-hfrac " << n_skipped_hamming << "   small-lratio " << n_small_lratios << "   total " << n_total_pairs;
     if(failed_queries_.size() > 0)
       cout << "   (" << failed_queries_.size() << " failed queries)";
     cout << endl;
@@ -1051,20 +1165,28 @@ void Glomerator::Merge(ClusterPath *path) {
   WriteStatus();
   Query chosen_qmerge = qpair.second;
 
-  assert(seq_info_.count(chosen_qmerge.name_));
+  cachefo_[chosen_qmerge.name_] = chosen_qmerge;
   GetNaiveSeq(chosen_qmerge.name_, &chosen_qmerge.parents_);  // this *needs* to happen here so it has the parental information
   UpdateLogProbTranslationsForAsymetrics(chosen_qmerge);
+  MoveSubsetsFromTmpCache(chosen_qmerge.name_);
 
   Partition new_partition(path->CurrentPartition());
   new_partition.erase(chosen_qmerge.parents_.first);
   new_partition.erase(chosen_qmerge.parents_.second);
   new_partition.insert(chosen_qmerge.name_);
-  path->AddPartition(new_partition, -INFINITY);
+  path->AddPartition(new_partition, -INFINITY, args_->n_partitions_to_write());
   current_partition_ = &path->CurrentPartition();
 
   if(args_->debug()) {
     printf("       merged   %s  %s\n", chosen_qmerge.parents_.first.c_str(), chosen_qmerge.parents_.second.c_str());
+    cout << "          removing " << tmp_cachefo_.size() << " entries from tmp cache" << endl;
   }
+
+  tmp_cachefo_.clear();  // NOTE I could simplify some other things if I only cleared the stuff from <tmp_cachefo_> that I thought I wouldn't later need.
+  // naive_hfracs_.clear();  // so, this can reduce memory usage a *lot* for no cpu hit in (usually, I think) later steps, but in (usually, I think) earlier steps it can be prohibitively slower (I think, when early on you're doing a ton of hfrac merges)
+  //  - bottom line, I think I'll need to buckle down and measure memory usage, decide how much I'm allowed to use, and only clear the caches that I need to
+  //  - but also, it'd probably (maybe?) be ok to clear this cache after a logprob merge, since that would mean we're probably through with all the naive hfrac merges
+  //  - or at least remove info for clusters we've merged out of existence
 }
 
 // NOTE don't remove these (yet, at least)

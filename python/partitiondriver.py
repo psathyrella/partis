@@ -54,9 +54,10 @@ class PartitionDriver(object):
         self.sw_info = None
         self.bcrham_proc_info = None
 
-        self.unseeded_clusters = set()  # all the queries that we *didn't* cluster with the seed uid
-        self.time_to_remove_unseeded_clusters = False
-        self.already_removed_unseeded_clusters = False
+        self.already_removed_unseeded_seqs = False  # can probably clean up so I only have one of these now
+        self.unseeded_seqs = None  # all the queries that we *didn't* cluster with the seed uid
+
+        self.all_new_allele_info = []
 
         self.sw_param_dir = self.args.parameter_dir + '/sw'
         self.hmm_param_dir = self.args.parameter_dir + '/hmm'
@@ -73,6 +74,8 @@ class PartitionDriver(object):
                 os.makedirs(outdir)
 
         self.deal_with_persistent_cachefile()
+
+        self.cached_naive_hamming_bounds = self.args.naive_hamming_bounds  # just so we don't get them every iteration through the clustering loop
 
         self.aligned_gl_seqs = None
         if self.args.aligned_germline_fname is not None:
@@ -171,8 +174,8 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def find_new_alleles(self):
         """ look for new alleles with sw, write any that you find to the germline set directory in <self.workdir>, add them to <self.glfo>, and repeat until you don't find any. """
-        all_new_allele_info = []
-        alleles_with_evidence = set()
+        assert len(self.all_new_allele_info) == 0
+        # alleles_with_evidence = set()
         itry = 0
         while True:
             self.run_waterer(find_new_alleles=True, itry=itry)
@@ -182,33 +185,32 @@ class PartitionDriver(object):
                 print '    removing sw cache file %s (it has outdated germline info)' % self.default_cachefname
                 os.remove(self.default_cachefname)
 
-            all_new_allele_info += self.sw_info['new-alleles']
-            alleles_with_evidence |= self.sw_info['alleles-with-evidence']
-            # self.sw_info['alleles-with-evidence']
+            self.all_new_allele_info += [afo for afo in self.sw_info['new-alleles'] if '+' in afo['gene']]
+            # alleles_with_evidence |= self.sw_info['alleles-with-evidence']
             glutils.restrict_to_genes(self.glfo, list(self.sw_info['all_best_matches']))
             glutils.add_new_alleles(self.glfo, self.sw_info['new-alleles'])
-            if self.args.generate_germline_set:
-                for alfo in self.sw_info['new-alleles']:
-                    if alfo['template-gene'] not in alleles_with_evidence:  # if the new allele is actually new (i.e. not in imgt), and if we never had explicit evidence for the template gene (i.e. it was just the best match we had) then remove the template gene
-                        print '    removing template gene %s' % utils.color_gene(alfo['template-gene'])
-                        glutils.remove_gene(self.glfo, alfo['template-gene'])
+            # if self.args.generate_germline_set:
+            #     for alfo in self.sw_info['new-alleles']:
+            #         if alfo['template-gene'] not in alleles_with_evidence:  # XXX [update comment] if the new allele is actually new (i.e. not in imgt), and if we never had explicit evidence for the template gene (i.e. it was just the best match we had) then remove the template gene
+            #             print '    removing template gene %s' % utils.color_gene(alfo['template-gene'])
+            #             glutils.remove_gene(self.glfo, alfo['template-gene'])
             glutils.write_glfo(self.my_gldir, self.glfo)  # write glfo modifications to disk
 
             itry += 1
             if itry >= self.args.n_max_allele_finding_iterations:
-                print '  too many allele finding iterations: %d >= %d' % (itry, self.args.n_max_allele_finding_iterations)
                 break
 
         if self.args.new_allele_fname is not None:
-            n_new_alleles = len(all_new_allele_info)
+            n_new_alleles = len(self.all_new_allele_info)
             print '  writing %d new %s to %s' % (n_new_alleles, utils.plural_str('allele', n_new_alleles), self.args.new_allele_fname)
             with open(self.args.new_allele_fname, 'w') as outfile:
-                for allele_info in all_new_allele_info:
+                for allele_info in self.all_new_allele_info:
                     outfile.write('>%s\n' % allele_info['gene'])
                     outfile.write('%s\n' % allele_info['seq'])
 
     # ----------------------------------------------------------------------------------------
     def restrict_to_observed_alleles(self, subpdir):
+        # TODO do I still need this now I'm using alleleremover?
         """ Restrict <self.glfo> to genes observed in <subpdir>, and write the changes to <self.my_gldir>. """
         if self.args.debug:
             print '  restricting self.glfo (and %s) to alleles observed in %s' % (self.my_gldir, subpdir)
@@ -239,11 +241,11 @@ class PartitionDriver(object):
 
             self.args.min_observations_to_write = 1
 
-        if self.args.generate_germline_set:
+        if not self.args.dont_remove_unlikely_alleles:
             self.run_waterer(remove_less_likely_alleles=True)
             glutils.remove_genes(self.glfo, self.sw_info['genes-to-remove'])
             glutils.write_glfo(self.my_gldir, self.glfo)
-        if self.args.find_new_alleles or self.args.generate_germline_set:
+        if self.args.find_new_alleles:
             self.find_new_alleles()
         self.run_waterer(write_parameters=True)
         self.restrict_to_observed_alleles(self.sw_param_dir)
@@ -251,9 +253,13 @@ class PartitionDriver(object):
         if self.args.only_smith_waterman:
             return
 
+        print 'hmm'
         self.run_hmm('viterbi', parameter_in_dir=self.sw_param_dir, parameter_out_dir=self.hmm_param_dir, count_parameters=True)
         self.restrict_to_observed_alleles(self.hmm_param_dir)
         self.write_hmms(self.hmm_param_dir)
+
+        if len(self.all_new_allele_info) > 0:
+            print '  %d new allele%s written to {sw,hmm}/%s subdirs of parameter dir %s' % (len(self.all_new_allele_info), utils.plural_str('', len(self.all_new_allele_info)), glutils.glfo_dir, self.args.parameter_dir)
 
     # ----------------------------------------------------------------------------------------
     def run_algorithm(self, algorithm):
@@ -262,15 +268,18 @@ class PartitionDriver(object):
         self.run_waterer()
         if self.args.only_smith_waterman:
             return
+        print 'hmm'
         self.run_hmm(algorithm, parameter_in_dir=self.sub_param_dir)
 
     # ----------------------------------------------------------------------------------------
     def view_existing_annotations(self):
         with open(self.args.outfname) as csvfile:
+            failed_queries = set()
             reader = csv.DictReader(csvfile)
             for line in reader:
                 if line['v_gene'] == '':
-                    print '   %s failed' % line['unique_ids']
+                    # print '   %s failed' % line['unique_ids']
+                    failed_queries.add(line['unique_ids'])
                     continue
                 utils.process_input_line(line)
                 if self.args.infname is not None and self.reco_info is not None:
@@ -278,6 +287,8 @@ class PartitionDriver(object):
                 utils.add_implicit_info(self.glfo, line, existing_implicit_keys=('aligned_d_seqs', 'aligned_j_seqs', 'aligned_v_seqs', 'cdr3_length', 'naive_seq', 'in_frames', 'mutated_invariants', 'stops', 'mut_freqs'))
                 print '    inferred:\n'
                 utils.print_reco_event(self.glfo['seqs'], line)
+        if len(failed_queries) > 0:
+            print '%d failed queries' % len(failed_queries)
 
     # ----------------------------------------------------------------------------------------
     def view_existing_partitions(self):
@@ -291,9 +302,11 @@ class PartitionDriver(object):
         print 'partitioning'
         self.run_waterer()  # run smith-waterman
 
+        print 'hmm'
         # cache hmm naive seq for each single query
         if len(self.sw_info['queries']) > 50 or self.args.naive_vsearch or self.args.naive_swarm:
-            self.run_hmm('viterbi', self.sub_param_dir, n_procs=self.get_n_precache_procs(), precache_all_naive_seqs=True)
+            print '--> caching all %d naive sequences' % len(self.sw_info['queries'])
+            self.run_hmm('viterbi', self.sub_param_dir, n_procs=self.get_n_precache_procs(len(self.sw_info['queries'])), precache_all_naive_seqs=True)
 
         if self.args.naive_vsearch or self.args.naive_swarm:
             self.cluster_with_naive_vsearch_or_swarm(self.sub_param_dir)
@@ -301,16 +314,18 @@ class PartitionDriver(object):
 
         n_procs = self.args.n_procs
         cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
-        cpath.add_partition([[cl, ] for cl in self.sw_info['queries']], logprob=0., n_procs=n_procs)  # NOTE sw info excludes failed sequences
+        initial_nsets = [[q, ] for q in self.sw_info['queries']]
+        cpath.add_partition(initial_nsets, logprob=0., n_procs=n_procs)  # NOTE sw info excludes failed sequences (and maybe also sequences with different cdr3 length)
+        assert self.unseeded_seqs == None
         n_proc_list = []
         start = time.time()
         while n_procs > 0:
-            print '--> %d clusters with %d procs' % (len(cpath.partitions[cpath.i_best_minus_x]), n_procs)  # write_hmm_input uses the best-minus-ten partition
-            cpath = self.run_hmm('forward', self.sub_param_dir, n_procs=n_procs, cpath=cpath, shuffle_input=True)
+            print '--> %d clusters with %d proc%s' % (len(cpath.partitions[cpath.i_best_minus_x]), n_procs, utils.plural(n_procs))  # write_hmm_input uses the best-minus-x partition
+            cpath = self.run_hmm('forward', self.sub_param_dir, n_procs=n_procs, partition=cpath.partitions[cpath.i_best_minus_x], shuffle_input=True)  # NOTE that a.t.m. i_best and i_best_minus_x are usually the same, since we're usually not calculating log probs of partitions (well, we're trying to avoid calculating any extra log probs, which means we usually don't know the log prob of the entire partition)
             n_proc_list.append(n_procs)
             if n_procs == 1:
                 break
-            n_procs = self.get_next_n_procs(n_procs, n_proc_list, cpath)
+            n_procs, cpath = self.get_next_n_procs_and_whatnot(n_proc_list, cpath, len(initial_nsets))
 
         print '      loop time: %.1f' % (time.time()-start)
 
@@ -323,47 +338,53 @@ class PartitionDriver(object):
                 print 'true:'
                 true_cp.print_partitions(self.reco_info, print_header=False, calc_missing_values='best')
 
-        self.check_partition(cpath.partitions[cpath.i_best])
-        if self.args.print_cluster_annotations:
-            outfname = None
-            if self.args.outfname is not None:
-                outfname = self.args.outfname.replace('.csv', '-cluster-annotations.csv')
-                print '    writing cluster annotations to %s' % outfname
-            print '  annotations for final partition:'
-            self.read_annotation_output(self.annotation_fname, outfname=outfname, print_annotations=True)
+        self.check_partition(cpath.partitions[cpath.i_best], other_clusters=self.unseeded_seqs)
+        if self.args.print_cluster_annotations:  # NOTE we now do this as a separate hmm step so that we can parallelize it
+            self.get_cluster_annotations(cpath.partitions[cpath.i_best])
         if self.args.outfname is not None:
             self.write_clusterpaths(self.args.outfname, cpath)  # [last agglomeration step]
 
     # ----------------------------------------------------------------------------------------
-    def get_next_n_procs(self, n_procs, n_proc_list, cpath):
-        next_n_procs = n_procs
+    def get_next_n_procs_and_whatnot(self, n_proc_list, cpath, initial_nseqs):
+        last_n_procs = n_proc_list[-1]
+        next_n_procs = last_n_procs
 
         n_calcd_per_process = self.get_n_calculated_per_process()
-        factor = 1.3
 
         reduce_n_procs = False
-        if n_calcd_per_process < self.args.n_max_to_calc_per_process or n_proc_list.count(n_procs) > n_procs:  # if we didn't need to do that many calculations, or if we've already milked this number of procs for most of what it's worth
+        if n_calcd_per_process < self.args.n_max_to_calc_per_process or n_proc_list.count(last_n_procs) > last_n_procs:  # if we didn't need to do that many calculations, or if we've already milked this number of procs for most of what it's worth
             reduce_n_procs = True
 
+        factor = 1.3
         if reduce_n_procs:
             next_n_procs = int(next_n_procs / float(factor))
 
         # time to remove unseeded clusters?
         if self.args.seed_unique_id is not None and (len(n_proc_list) > 2 or next_n_procs == 1):
-            if not self.already_removed_unseeded_clusters:  # if we didn't already remove the unseeded clusters in a previous step
-                print '     time to remove unseeded clusters'
-                self.time_to_remove_unseeded_clusters = True  # (they don't actually get removed until we're writing hmm input)
-                initial_seqs_per_proc = int(float(len(self.input_info)) / n_proc_list[0])
-                self.unseeded_clusters = self.get_unseeded_clusters(cpath.partitions[cpath.i_best_minus_x])
-                n_remaining_seqs = len(self.input_info) - len(self.unseeded_clusters)
-                integer = 3  # multiply by something 'cause we're turning off the seed uid for the last few times through
-                next_n_procs = max(1, integer * int(float(n_remaining_seqs) / initial_seqs_per_proc))
-                print '        new n_procs %d = %d * %d / %d' % (next_n_procs, integer, n_remaining_seqs, initial_seqs_per_proc)
-            else:
-                self.time_to_remove_unseeded_clusters = False  # will already be false after the first time
-                print '     already removed unseeded clusters, proceed with n procs %d' % next_n_procs
+            if self.unseeded_seqs is None:  # if we didn't already remove the unseeded clusters in a previous step
+                partition = cpath.partitions[cpath.i_best_minus_x]
+                seeded_cluster_indices = [ic for ic in range(len(partition)) if self.args.seed_unique_id in partition[ic]]
+                seeded_clusters = [partition[ic] for ic in seeded_cluster_indices]
+                unseeded_clusters = [partition[ic] for ic in range(len(partition)) if ic not in seeded_cluster_indices]
+                self.unseeded_seqs = [uid for uclust in unseeded_clusters for uid in uclust]  # they should actually all be singletons, since we shouldn't have merged anything that wasn't seeded
+                if len(unseeded_clusters) != len(self.unseeded_seqs):
+                    print '%s unseeded clusters not all singletons' % utils.color('red', 'warning')
+                cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
+                seeded_singletons = [[self.args.seed_unique_id, ], ] + [[uid, ] for sclust in seeded_clusters for uid in sclust if uid != self.args.seed_unique_id]
+                cpath.add_partition(seeded_singletons, -1., 1)
+                n_remaining_seqs = len(cpath.partitions[cpath.i_best_minus_x])
+                self.already_removed_unseeded_seqs = True
+                print '      removing %d sequences in unseeded clusters, and splitting %d seeded clusters into %d singletons' % (len(self.unseeded_seqs), len(seeded_clusters), n_remaining_seqs)
+                int_initial_seqs_per_proc = max(1, int(float(initial_nseqs) / n_proc_list[0]))
+                next_n_procs = max(1, int(float(n_remaining_seqs) / int_initial_seqs_per_proc))
+                if n_remaining_seqs > 20:
+                    next_n_procs *= 3  # multiply by something 'cause we're turning off the seed uid for the last few times through
+                if not self.args.slurm and not utils.auto_slurm(self.args.n_procs):  # not really sure that <self.args.n_procs> belongs here, but I'll leave it that way to be consistent with <self.get_n_precache_procs()>
+                    next_n_procs = min(next_n_procs, multiprocessing.cpu_count())
+                next_n_procs = min(next_n_procs, self.args.n_procs)  # don't let it be bigger than whatever was initially specified
+                print '        new n_procs %d (initial seqs/proc: %.2f   new seqs/proc: %.2f' % (next_n_procs, float(initial_nseqs) / n_proc_list[0], float(n_remaining_seqs) / next_n_procs)
 
-        return next_n_procs
+        return next_n_procs, cpath
 
     # ----------------------------------------------------------------------------------------
     def get_n_calculated_per_process(self):
@@ -373,29 +394,32 @@ class PartitionDriver(object):
         total = 0.  # sum over each process
         for procinfo in self.bcrham_proc_info:
             if 'vtb' not in procinfo['calcd'] or 'fwd' not in procinfo['calcd']:
-                print 'WARNING couldn\'t find vtb/fwd in:\n%s' % procinfo['calcd']  # may as well not fail, it probably just means we lost some stdout somewhere. Which, ok, is bad, but let's say it shouldn't be fatal.
+                print '%s couldn\'t find vtb/fwd in:\n%s' % (utils.color('red', 'warning'), procinfo['calcd'])  # may as well not fail, it probably just means we lost some stdout somewhere. Which, ok, is bad, but let's say it shouldn't be fatal.
                 return 1.  # er, or something?
-            if self.args.naive_hamming:
+            if self.args.naive_hamming:  # make sure we didn't accidentally calculate some fwds
                 assert procinfo['calcd']['fwd'] == 0.
             total += procinfo['calcd']['vtb'] + procinfo['calcd']['fwd']
-        print '          n calcd: %d (%.1f per proc)' % (total, float(total) / len(self.bcrham_proc_info))
+        if self.args.debug:
+            print '          vtb + fwd calcd: %d (%.1f per proc)' % (total, float(total) / len(self.bcrham_proc_info))
         return float(total) / len(self.bcrham_proc_info)
 
     # ----------------------------------------------------------------------------------------
-    def check_partition(self, partition):
+    def check_partition(self, partition, other_clusters=None):
         uids = set([uid for cluster in partition for uid in cluster])
-        input_ids = set(self.input_info.keys())  # maybe should switch this to self.sw_info['queries']? at least if we want to not worry about missing failed sw queries
-        missing_ids = input_ids - uids - self.unseeded_clusters
+        input_ids = set(self.sw_info['queries'])  # note that this does not include queries that were removed in sw
+        missing_ids = input_ids - uids
+        if other_clusters is not None:
+            missing_ids -= set(other_clusters)
         if len(missing_ids) > 0:
-            warnstr = 'queries missing from partition: ' + ' '.join(missing_ids)
+            warnstr = 'queries missing from partition: ' + str(len(missing_ids))
             print '  ' + utils.color('red', 'warning') + ' ' + warnstr
 
     # ----------------------------------------------------------------------------------------
-    def get_n_precache_procs(self):
+    def get_n_precache_procs(self, initial_nseqs):
         if self.args.n_precache_procs is not None:
             return self.args.n_precache_procs
 
-        n_seqs = len(self.sw_info['queries'])
+        n_seqs = initial_nseqs
         seqs_per_proc = 500  # 2.5 mins (at something like 0.3 sec/seq)
         if n_seqs > 3000:
             seqs_per_proc *= 2
@@ -421,6 +445,24 @@ class PartitionDriver(object):
             outstr = check_output(['mv', '-v', self.args.outfname, self.args.outfname + '.partis'])
             print '    backing up partis output before converting to presto: %s' % outstr.strip()
             cpath.write_presto_partitions(self.args.outfname, self.input_info)
+
+    # ----------------------------------------------------------------------------------------
+    def get_cluster_annotations(self, partition):
+        action_cache = self.current_action
+        self.current_action = 'run-viterbi'
+        n_procs = min(self.args.n_procs, len(partition))  # we want as many procs as possible, since the large clusters can take a long time (depending on if we're translating...), but in general we treat <self.args.n_procs> as the maximum allowable number of processes
+        print '--> getting annotations for final partition'
+        self.run_hmm('viterbi', self.sub_param_dir, n_procs=n_procs, partition=partition, read_output=False)  # it would be nice to rearrange <self.read_hmm_output()> so I could remove this option
+        outfname = None
+        if self.args.outfname is not None:
+            outfname = self.args.outfname.replace('.csv', '-cluster-annotations.csv')
+            print '      writing cluster annotations to %s' % outfname
+        if n_procs > 1:
+            _ = self.merge_all_hmm_outputs(n_procs, precache_all_naive_seqs=False)
+        self.read_annotation_output(self.hmm_outfname, outfname=outfname, print_annotations=True)
+        if os.path.exists(self.hmm_infname):
+            os.remove(self.hmm_infname)
+        self.current_action = action_cache
 
     # ----------------------------------------------------------------------------------------
     def cluster_with_naive_vsearch_or_swarm(self, parameter_dir):
@@ -531,9 +573,12 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def get_naive_hamming_bounds(self, parameter_dir):
-        if self.args.naive_hamming_bounds is not None:  # let the command line override auto bound calculation
-            print '       naive hfrac bounds: %.3f %.3f' % tuple(self.args.naive_hamming_bounds)
-            return self.args.naive_hamming_bounds
+        if self.cached_naive_hamming_bounds is not None:  # only run the stuff below once
+            return self.cached_naive_hamming_bounds
+
+        # if self.args.naive_hamming_bounds is not None:  # let the command line override auto bound calculation
+        #     print '       naive hfrac bounds: %.3f %.3f' % tuple(self.args.naive_hamming_bounds)
+        #     return self.args.naive_hamming_bounds
 
         mutehist = Hist(fname=parameter_dir + '/all-mean-mute-freqs.csv')
         mute_freq = mutehist.get_mean(ignore_overflows=True)
@@ -555,8 +600,9 @@ class PartitionDriver(object):
             y1, y2 = 0.08, 0.15
             hi = utils.intexterpolate(x1, y1, x2, y2, mute_freq)  # ...and never merge 'em if it's bigger than this
 
-        print '       naive hfrac bounds: %.3f %.3f   (%.3f mutation in %s)' % (lo, hi, mute_freq, parameter_dir)
-        return [lo, hi]
+        print '       naive hfrac bounds: %.3f %.3f   (%.3f mean mutation in parameter dir %s)' % (lo, hi, mute_freq, parameter_dir)
+        self.cached_naive_hamming_bounds = (lo, hi)
+        return self.cached_naive_hamming_bounds
 
     # ----------------------------------------------------------------------------------------
     def get_hmm_cmd_str(self, algorithm, csv_infname, csv_outfname, parameter_dir, precache_all_naive_seqs, n_procs):
@@ -580,10 +626,10 @@ class PartitionDriver(object):
 
         if self.args.dont_rescale_emissions:
             cmd_str += ' --dont-rescale-emissions'
-        if self.args.print_cluster_annotations and n_procs == 1:
-            cmd_str += ' --annotationfile ' + self.annotation_fname
         if self.current_action == 'partition':
-            cmd_str += ' --cachefile ' + self.hmm_cachefname
+            if os.path.exists(self.hmm_cachefname):
+                cmd_str += ' --input-cachefname ' + self.hmm_cachefname
+            cmd_str += ' --output-cachefname ' + self.hmm_cachefname
             if precache_all_naive_seqs:
                 cmd_str += ' --cache-naive-seqs'
             else:  # actually partitioning
@@ -598,11 +644,11 @@ class PartitionDriver(object):
                 cmd_str += ' --logprob-ratio-threshold ' + str(self.args.logprob_ratio_threshold)
                 cmd_str += ' --biggest-naive-seq-cluster-to-calculate ' + str(self.args.biggest_naive_seq_cluster_to_calculate)
                 cmd_str += ' --biggest-logprob-cluster-to-calculate ' + str(self.args.biggest_logprob_cluster_to_calculate)
-                if n_procs == 1:  # if this is the last time through, with one process, we want glomerator.cc to calculate the total logprob of each partition
-                    cmd_str += '  --n-partitions-to-write ' + str(self.args.n_partitions_to_write)  # don't write too many, since calculating the extra logprobs is kind of expensive
+                cmd_str += '  --n-partitions-to-write ' + str(self.args.n_partitions_to_write)  # don't write too many, since calculating the extra logprobs is kind of expensive
+                if n_procs == 1:  # if this is the last time through, with one process, we want glomerator.cc to calculate the total logprob of each partition NOTE this is quite expensive, since we have to turn off translation entirely
                     cmd_str += '  --write-logprob-for-each-partition'
 
-                if self.args.seed_unique_id is not None and not (self.already_removed_unseeded_clusters or self.time_to_remove_unseeded_clusters):  # if we're in the last few cycles (i.e. we've removed unseeded clusters) we want bcrham to not know about the seed (this gives more accurate clustering 'cause we're really doing hierarchical agglomeration)
+                if self.args.seed_unique_id is not None and not self.already_removed_unseeded_seqs:  # if we're in the last few cycles (i.e. we've removed unseeded clusters) we want bcrham to not know about the seed (this gives more accurate clustering 'cause we're really doing hierarchical agglomeration)
                     cmd_str += ' --seed-unique-id ' + self.args.seed_unique_id
 
         assert len(utils.ambiguous_bases) == 1  # could allow more than one, but it's not implemented a.t.m.
@@ -616,6 +662,24 @@ class PartitionDriver(object):
             return self.args.workdir
         else:
             return self.args.workdir + '/hmm-' + str(iproc)
+
+    # ----------------------------------------------------------------------------------------
+    def print_partition_dbgfo(self):
+        if self.bcrham_proc_info is None:
+            return
+        summaryfo = utils.summarize_bcrham_dbgstrs(self.bcrham_proc_info)
+
+        pwidth = str(len(str(len(self.input_info))))  # close enough
+        if sum(summaryfo['read-cache'].values()) == 0:
+            print '                no/empty cache file'
+        else:
+            print ('          read from cache:  naive-seqs %' + pwidth + 'd   logprobs %' + pwidth + 'd') % (summaryfo['read-cache']['naive-seqs'], summaryfo['read-cache']['logprobs'])
+        print ('                    calcd:         vtb %' + pwidth + 'd        fwd %' + pwidth + 'd') % (summaryfo['calcd']['vtb'], summaryfo['calcd']['fwd'])
+        print ('                   merged:       hfrac %' + pwidth + 'd     lratio %' + pwidth + 'd') % (summaryfo['merged']['hfrac'], summaryfo['merged']['lratio'])
+        if len(self.bcrham_proc_info) == 1:
+            print '                     time:  %.1f sec' % summaryfo['time']['bcrham'][0]
+        else:
+            print '             min-max time:  %.1f - %.1f sec' % (summaryfo['time']['bcrham'][0], summaryfo['time']['bcrham'][1])
 
     # ----------------------------------------------------------------------------------------
     def check_wait_times(self, wait_time):
@@ -636,7 +700,7 @@ class PartitionDriver(object):
                     strlist[istr] = strlist[istr].replace(self.args.workdir, self.subworkdir(iproc, n_procs))
             return ' '.join(strlist)
 
-        print '    running %d procs' % n_procs
+        print '    running %d proc%s' % (n_procs, utils.plural(n_procs))
         sys.stdout.flush()
         start = time.time()
 
@@ -646,20 +710,20 @@ class PartitionDriver(object):
                    'outfname' : get_outfname(iproc),
                    'dbgfo' : self.bcrham_proc_info[iproc]}
                   for iproc in range(n_procs)]
-        utils.run_cmds(cmdfos, debug='print' if (self.args.debug or self.current_action=='partition') else None)
+        utils.run_cmds(cmdfos, debug='print' if self.args.debug else None)
+        if self.current_action == 'partition':
+            self.print_partition_dbgfo()
 
-        print '      time waiting for bcrham: %.1f' % (time.time()-start)
         self.check_wait_times(time.time()-start)
         sys.stdout.flush()
 
     # ----------------------------------------------------------------------------------------
-    def run_hmm(self, algorithm, parameter_in_dir, parameter_out_dir='', count_parameters=False, n_procs=None, precache_all_naive_seqs=False, cpath=None, shuffle_input=False):
+    def run_hmm(self, algorithm, parameter_in_dir, parameter_out_dir='', count_parameters=False, n_procs=None, precache_all_naive_seqs=False, partition=None, shuffle_input=False, read_output=True):
         """ 
         Run bcrham, possibly with many processes, and parse and interpret the output.
         NOTE the local <n_procs>, which overrides the one from <self.args>
         """
         start = time.time()
-        print 'hmm'
         if len(self.sw_info['queries']) == 0:
             print '  %s no input queries for hmm' % utils.color('red', 'warning')
             return
@@ -667,7 +731,7 @@ class PartitionDriver(object):
         if n_procs is None:
             n_procs = self.args.n_procs
 
-        self.write_hmm_input(algorithm, parameter_in_dir, cpath, shuffle_input=shuffle_input)
+        self.write_hmm_input(algorithm, parameter_in_dir, partition, shuffle_input=shuffle_input)
 
         cmd_str = self.get_hmm_cmd_str(algorithm, self.hmm_infname, self.hmm_outfname, parameter_dir=parameter_in_dir, precache_all_naive_seqs=precache_all_naive_seqs, n_procs=n_procs)
 
@@ -676,7 +740,10 @@ class PartitionDriver(object):
 
         self.execute(cmd_str, n_procs)
 
-        new_cpath = self.read_hmm_output(algorithm, n_procs, count_parameters, parameter_out_dir, precache_all_naive_seqs)
+        new_cpath = None
+        if read_output:
+            new_cpath = self.read_hmm_output(algorithm, n_procs, count_parameters, parameter_out_dir, precache_all_naive_seqs)
+
         print '      hmm step time: %.1f' % (time.time()-start)
         return new_cpath
 
@@ -742,7 +809,7 @@ class PartitionDriver(object):
     def split_input(self, n_procs, infname):
 
         # should we pull out the seeded clusters, and carefully re-inject them into each process?
-        separate_seeded_clusters = self.args.seed_unique_id is not None and not (self.already_removed_unseeded_clusters or self.time_to_remove_unseeded_clusters)  # I think I ony actually need one of the latter bools
+        separate_seeded_clusters = self.args.seed_unique_id is not None and not self.already_removed_unseeded_seqs
 
         # read single input file
         info = []
@@ -771,7 +838,7 @@ class PartitionDriver(object):
             subworkdir = self.subworkdir(siproc, n_procs)
             if mode == 'w':
                 utils.prep_dir(subworkdir)
-                if os.path.exists(self.hmm_cachefname):  # copy cachefile to this subdir
+                if self.current_action == 'partition' and os.path.exists(self.hmm_cachefname):  # copy cachefile to this subdir (first clause is just for so when we're getting cluster annotations we don't copy over the cache files)
                     check_call(['cp', self.hmm_cachefname, subworkdir + '/'])
             return open(subworkdir + '/' + os.path.basename(infname), mode)
 
@@ -856,7 +923,10 @@ class PartitionDriver(object):
 
         assert header != ''
 
-        cmd = 'cat ' + ' '.join([fn for fn in infnames if fn != outfname]) + ' | grep -v \'' + header + '\''
+        non_out_infnames = [fn for fn in infnames if fn != outfname]
+        if len(non_out_infnames) == 0:
+            raise Exception('merge_files() called with <infnames> consisting only of <outfname>')
+        cmd = 'cat ' + ' '.join(non_out_infnames) + ' | grep -v \'' + header + '\''
         cmd += ' >>' + outfname
         try:
             check_call(cmd, shell=True)
@@ -867,7 +937,7 @@ class PartitionDriver(object):
         if dereplicate:
             tmpfname = outfname + '.tmp'
             check_call('echo ' + header + ' >' + tmpfname, shell=True)
-            check_call('grep -v \'' + header + '\' ' + outfname + ' | sort | uniq >>' + tmpfname, shell=True)
+            check_call('grep -v \'' + header + '\' ' + outfname + ' | sort | uniq >>' + tmpfname, shell=True)  # NOTE there can be multiple lines with the same uid string, but this is ok -- the c++ handles it
             check_call(['mv', '-v', tmpfname, outfname])
 
         for infname in infnames:
@@ -1006,6 +1076,9 @@ class PartitionDriver(object):
     def write_fake_cache_file(self, nsets):
         """ Write a fake cache file which, instead of the inferred naive sequences, has the *true* naive sequences. Used to generate synthetic partitions. """
 
+        if self.reco_info is None:
+            raise Exception('can\'t write fake cache file for --synthetic-distance-based-partition unless --is-simu is specified (and there\'s sim info in the input csv)')
+
         if os.path.exists(self.hmm_cachefname):
             print '      cache file exists, not writing fake true naive seqs'
             return
@@ -1019,28 +1092,6 @@ class PartitionDriver(object):
                     'unique_ids' : ':'.join([qn for qn in query_name_list]),
                     'naive_seq' : self.get_padded_true_naive_seq(query_name_list[0])  # NOTE just using the first one... but a.t.m. I think I'll only run this fcn the first time through when they're all singletons, anyway
                 })
-
-    # ----------------------------------------------------------------------------------------
-    def get_seeded_clusters(self, nsets):
-        print '      removing unseeded clusters'
-        print '         ', ' '.join([':'.join(ns) for ns in nsets if self.args.seed_unique_id in ns])
-        seeded_clusters = set()
-        for ns in nsets:
-            if self.args.seed_unique_id in ns:
-                for uid in ns:  # add each individual query that's been clustered with the seed (but split apart)
-                    seeded_clusters.add(uid)
-        print '         ', ' '.join(seeded_clusters)
-        return seeded_clusters
-
-    # ----------------------------------------------------------------------------------------
-    def get_unseeded_clusters(self, nsets):
-        unseeded_clusters = set()
-        for ns in nsets:
-            if self.args.seed_unique_id not in ns:
-                assert len(ns) == 1
-                uid = ns[0]
-                unseeded_clusters.add(uid)
-        return unseeded_clusters
 
     # ----------------------------------------------------------------------------------------
     def write_to_single_input_file(self, fname, nsets, parameter_dir, skipped_gene_matches, shuffle_input=False):
@@ -1082,17 +1133,15 @@ class PartitionDriver(object):
         csvfile.close()
 
     # ----------------------------------------------------------------------------------------
-    def write_hmm_input(self, algorithm, parameter_dir, cpath, shuffle_input=False):
+    def write_hmm_input(self, algorithm, parameter_dir, partition, shuffle_input=False):
         """ Write input file for bcrham """
-        print '    writing input'
+        if self.args.debug:
+            print '    writing input'
 
         skipped_gene_matches = set()
 
-        if self.current_action == 'partition' and algorithm == 'forward':  # if we're caching naive seqs before partitioning, we're doing viterbi (and want the block below)
-            nsets = copy.deepcopy(cpath.partitions[cpath.i_best_minus_x])  # NOTE that a.t.m. i_best and i_best_minus_x are the same, since we're not calculating log probs of partitions (well, we're trying to avoid calculating any extra log probs, which means we usually don't know the log prob of the entire partition)
-            if self.args.seed_unique_id is not None and self.time_to_remove_unseeded_clusters:
-                nsets = [[qr] for qr in self.get_seeded_clusters(nsets)]
-                self.already_removed_unseeded_clusters = True
+        if partition is not None:
+            nsets = copy.deepcopy(partition)
         else:
             if self.args.n_sets == 1:  # single (non-multi) hmm (does the same thing as the below for n=1, but is more transparent)
                 nsets = [[qn] for qn in self.sw_info['queries']]
@@ -1262,7 +1311,7 @@ class PartitionDriver(object):
 
                 uids = padded_line['unique_ids']
                 uidstr = ':'.join(uids)
-                padded_line['indelfos'] = [self.sw_info['indels'].get(uid, utils.get_empty_indel()) for uid in uids]
+                padded_line['indelfos'] = [self.sw_info['indels'].get(uid, utils.get_empty_indel()) for uid in uids]  # reminder: hmm was given a sequence with any indels reversed (i.e. <self.sw_info['indels'][uid]['reverersed_seq']>)
 
                 if self.args.chain != 'h':
                     self.process_dummy_d_hack(padded_line)
@@ -1287,7 +1336,6 @@ class PartitionDriver(object):
                     line_to_use = eroded_line
 
                 if self.args.debug or print_annotations:
-                    print '      %s' % uidstr
                     self.print_hmm_output(line_to_use, print_true=True)
 
                 assert uidstr not in annotations
@@ -1306,8 +1354,7 @@ class PartitionDriver(object):
                         if uids[iseq] in self.sw_info['indels']:
                             print '    skipping performance evaluation of %s because of indels' % uids[iseq]  # I just have no idea how to handle naive hamming fraction when there's indels
                         else:
-                            padfo = {'padleft' : self.sw_info[uids[iseq]]['padlefts'][0], 'padright' : self.sw_info[uids[iseq]]['padrights'][0]}
-                            perfplotter.evaluate(self.reco_info[uids[iseq]], singlefo, padfo=padfo)
+                            perfplotter.evaluate(self.reco_info[uids[iseq]], singlefo)
                     n_seqs_processed += 1
 
         # parameter and performance writing/plotting
@@ -1381,13 +1428,10 @@ class PartitionDriver(object):
         if print_true and not self.args.is_data:  # first print true event (if this is simulation)
             utils.print_true_events(self.glfo, self.reco_info, line)
 
-        utils.print_reco_event(self.glfo['seqs'], line, extra_str='    ', label='inferred:')
-
-    # ----------------------------------------------------------------------------------------
-    def add_sw_info_to_hmm_outline(self, outline):  # pedantic name is because I suspect in the long term I don't really want to do it this way
-        pass
-        # outline['k_v'] = self.sw_info[outleinfnfn
-        # outline['padlefts']
+        label = 'inferred:'
+        if self.args.seed_unique_id is not None and self.args.seed_unique_id in line['unique_ids']:
+            label += '   (found %d sequences clonal to seed %s)' % (len(line['unique_ids']), self.args.seed_unique_id)
+        utils.print_reco_event(self.glfo['seqs'], line, extra_str='    ', label=label, seed_uid=self.args.seed_unique_id)
 
     # ----------------------------------------------------------------------------------------
     def write_annotations(self, annotations, outfname):
@@ -1398,14 +1442,18 @@ class PartitionDriver(object):
         with open(outpath, 'w') as outfile:
             writer = csv.DictWriter(outfile, utils.annotation_headers)
             writer.writeheader()
-            missing_input_keys = set(self.input_info.keys())  # all the keys we originially read from the file
+            missing_input_keys = set(self.sw_info['queries'])  # all the keys we originially read from the file
+            if self.unseeded_seqs is not None:
+                missing_input_keys -= set(self.unseeded_seqs)
+
             for full_line in annotations.values():
                 outline = copy.deepcopy(full_line)  # in case we modify it
 
-                self.add_sw_info_to_hmm_outline(outline)
-
                 for uid in outline['unique_ids']:  # make a note that we have an annotation for these uids (so we can see if there's any that we're missing)
-                    missing_input_keys.remove(uid)
+                    if uid in missing_input_keys:
+                        missing_input_keys.remove(uid)
+                    else:
+                        print '%s uid %s not found in missing_input_keys'  % (utils.color('red', 'warning'), uid)
 
                 outline = utils.get_line_for_output(outline)  # convert lists to colon-separated strings and whatnot
                 outline = {k : v for k, v in outline.items() if k in utils.annotation_headers}  # remove the columns we don't want to output

@@ -108,6 +108,7 @@ public:
 class KSet {  // pair of k_v,k_d values specifying how to chop up the query sequence into v+insert, d+insert, j []
 public:
   KSet(size_t k_v, size_t k_d) : v(k_v), d(k_d) {}
+  bool isnull() { return v == 0 && d == 0; }
   bool equals(KSet rhs) { return v == rhs.v && d == rhs.d; }
   bool operator< (const KSet rhs) const  // kind of weird, but it's just for std::map
   {
@@ -183,12 +184,21 @@ private:
 
 void StreamHeader(ofstream &ofs, string algorithm);
 void StreamErrorput(ofstream &ofs, string algorithm, vector<Sequence> &seqs, string errors);
+void StreamErrorput(ofstream &ofs, string algorithm, vector<Sequence*> &pseqs, string errors);
 string PerGeneSupportString(string region, vector<SupportPair> &support);
 void StreamViterbiOutput(ofstream &ofs, RecoEvent &event, vector<Sequence> &seqs, string errors);
+void StreamViterbiOutput(ofstream &ofs, RecoEvent &event, vector<Sequence*> &pseqs, string errors);
 void StreamForwardOutput(ofstream &ofs, vector<Sequence> &seqs, double total_score, string errors);
+void StreamForwardOutput(ofstream &ofs, vector<Sequence*> &pseqs, double total_score, string errors);
 
+string SeqStr(vector<Sequence*> &pseqs, string delimiter = " ");
 string SeqStr(vector<Sequence> &seqs, string delimiter = " ");
+string SeqNameStr(vector<Sequence*> &pseqs, string delimiter = " ");
 string SeqNameStr(vector<Sequence> &seqs, string delimiter = " ");
+
+vector<Sequence> GetSeqVector(vector<Sequence*> pseqvector);
+
+void runps();
 
 }
 

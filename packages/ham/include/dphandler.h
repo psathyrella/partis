@@ -16,19 +16,6 @@
 
 using namespace std;
 namespace ham {
-// ----------------------------------------------------------------------------------------
-class CacheFo {
-public:
-  CacheFo() : score_(-INFINITY) {}
-  CacheFo(Model* model, Sequences query_seqs, Trellis *cached_trellis) :
-    score_(-INFINITY),
-    trellis_(model, query_seqs, cached_trellis),
-    path_(model)
-  {}
-  double score_;
-  Trellis trellis_;
-  TracebackPath path_;
-};
 
 // ----------------------------------------------------------------------------------------
 class DPHandler {
@@ -36,19 +23,22 @@ public:
   DPHandler(string algorithm, Args *args, GermLines &gl, HMMHolder &hmms);
   ~DPHandler();
   void Clear();
-  Result Run(vector<Sequence> seqvector, KBounds kbounds, vector<string> only_gene_list = {}, double overall_mute_freq = -INFINITY, bool clear_cache = true);  // run all over the kspace specified by bounds in kmin and kmax
+  Result Run(vector<Sequence*> pseqvector, KBounds kbounds, vector<string> only_gene_list = {}, double overall_mute_freq = -INFINITY, bool clear_cache = true);  // run all over the kspace specified by bounds in kmin and kmax
+  Result Run(vector<Sequence> seqvector, KBounds kbounds, vector<string> only_gene_list = {}, double overall_mute_freq = -INFINITY, bool clear_cache = true);
   Result Run(Sequence seq, KBounds kbounds, vector<string> only_gene_list = {}, double overall_mute_freq = -INFINITY, bool clear_cache = true);
-  void StreamOutput(double test);  // print csv event info to stderr
+  // void StreamOutput(double test);  // print csv event info to stderr
   // void WriteBestGeneProbs(ofstream &ofs, string query_name);
   void PrintCachedTrellisSize();
 
 private:
   void RunKSet(Sequences &seqs, KSet kset, map<string, set<string> > &only_genes, map<KSet, double> *best_scores, map<KSet, double> *total_scores, map<KSet, map<string, string> > *best_genes);
-  void FillTrellis(Sequences query_seqs, vector<string> query_strs, string gene, string &origin);
+  KSet FindPartialCacheMatch(string region, string gene, KSet kset);
+  void InitCache(string gene);
+  void FillTrellis(KSet kset, Sequences query_seqs, vector<string> query_strs, string gene, string &origin);
   RecoEvent FillRecoEvent(Sequences &seqs, KSet kset, map<string, string> &best_genes, double score);
   vector<string> GetQueryStrs(Sequences &seqs, KSet kset, string region);
 
-  void PrintPath(vector<string> query_strs, string gene, double score, string extra_str = "");
+  void PrintPath(KSet kset, vector<string> query_strs, string gene, double score, string extra_str = "");
   Sequences GetSubSeqs(Sequences &seqs, KSet kset, string region);
   map<string, Sequences> GetSubSeqs(Sequences &seqs, KSet kset);  // get the subsequences for the v, d, and j regions given a k_v and k_d
   void SetInsertions(string region, vector<string> path_names, RecoEvent *event);
@@ -62,8 +52,11 @@ private:
   HMMHolder &hmms_;
 
   // NOTE BEWARE DRAGONS AND ALL THAT SHIT!
-  // if you add something new here you *must* clear it in Clear(), because we reuse the dphandler for different sequences
-  map<string, map<vector<string>, CacheFo> > cachefo_; // collection of the trellises, paths, and scores that  we've calculated, so we can reuse them. eg: cachefo_["IGHV1-18*01"]["ACGGGTCG"] for single hmms, or cachefo_["IGHV1-18*01"][("ACGGGTCG","ATGGTTAG")] for pair hmms
+  // if you add something new here you *must* clear it in Clear(), because we reuse the dphandler for different sequences UPDATE kind of don't do that any more
+  // NOTE also that the vector<string> key can take up a ton of memory for multi-hmms with large k UPDATE dammit, no, I don't think that's where the memory was going
+  map<string, map<vector<string>, Trellis> > scratch_cachefo_;  // collection of the trellises that  we've calculated from scratch, so we can reuse them. eg: scratch_cachefo_["IGHV1-18*01"]["ACGGGTCG"] for single hmms, or scratch_cachefo_["IGHV1-18*01"][("ACGGGTCG","ATGGTTAG")] for pair hmms
+  map<string, map<KSet, TracebackPath> > paths_;
+  map<string, map<KSet, double> > scores_;
   map<string, double> per_gene_support_;  // log prob of the best (full) annotation for each gene
 };
 }

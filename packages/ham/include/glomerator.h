@@ -8,6 +8,7 @@
 #include <ctime>
 #include <algorithm>
 #include <functional>
+#include <pthread.h>
 
 #include "args.h"
 #include "dphandler.h"
@@ -22,11 +23,32 @@ typedef pair<vector<string>, vector<string> > ClusterPair;
 // ----------------------------------------------------------------------------------------
 class Query {
 public:
+  Query() {}
+  Query(string name, vector<Sequence*> seqs, bool seed_missing, vector<string> only_genes, KBounds kbounds, float mute_freq, size_t cdr3_length, string p1="", string p2="") :
+    name_(name),
+    seqs_(seqs),
+    seed_missing_(seed_missing),
+    only_genes_(only_genes),
+    kbounds_(kbounds),
+    mute_freq_(mute_freq),
+    cdr3_length_(cdr3_length)
+  {
+    // if(cdr3_length > 300)
+    //   throw runtime_error("cdr3 length too big " + to_string(cdr3_length_) + " for " + name + "\n");
+    if(p1 != "" and p2 != "")
+      parents_ = pair<string, string>(p1, p2);
+    for(auto *pseq : seqs)
+      if(pseq == nullptr)
+	throw runtime_error("null sequence pointer passed to Query constructor for " + name);
+  }
+
   string name_;
-  vector<Sequence> seqs_;
-  KBounds kbounds_;
+  vector<Sequence*> seqs_;
+  bool seed_missing_;
   vector<string> only_genes_;
-  double mean_mute_freq_;
+  KBounds kbounds_;
+  float mute_freq_;
+  size_t cdr3_length_;
   pair<string, string> parents_;  // queries that were joined to make this
 };
 
@@ -50,12 +72,12 @@ public:
   // Also sets arguments <initial_path_index> and <logweight> to correspond to the returned partition.
   Partition GetAnInitialPartition(int &initial_path_index, double &logweight);
 
-  void WritePartitions(vector<ClusterPath> &paths);
-  void WriteAnnotations(vector<ClusterPath> &paths);
+  void WritePartitions(ClusterPath &cp);
+  void WriteAnnotations(ClusterPath &cp);
 private:
   void ReadCacheFile();
   void WriteCacheLine(ofstream &ofs, string query);
-  void WriteCachedLogProbs();
+  void WriteCacheFile();
 
   void PrintPartition(Partition &clusters, string extrastr);
   string CacheSizeString();
@@ -66,8 +88,8 @@ private:
   int CountMembers(string namestr);
   string ClusterSizeString(Partition *partition);
   string JoinNames(string name1, string name2, string delimiter=":");
-  string JoinNameStrings(vector<Sequence> &strlist, string delimiter=":");
-  string JoinSeqStrings(vector<Sequence> &strlist, string delimiter=":");
+  string JoinNameStrings(vector<Sequence*> &strlist, string delimiter=":");
+  string JoinSeqStrings(vector<Sequence*> &strlist, string delimiter=":");
   string PrintStr(string queries);
   bool SeedMissing(string queries, string delimiter=":");
 
@@ -87,11 +109,24 @@ private:
   string CalculateNaiveSeq(string key, RecoEvent *event=nullptr);
   double CalculateLogProb(string queries);
 
-  bool SameLength(vector<Sequence> &seqs, bool debug=false);
+  bool check_cache(string queries) {
+    if(cachefo_.find(queries) != cachefo_.end())
+      return true;
+    else if(tmp_cachefo_.find(queries) != tmp_cachefo_.end())
+      return true;
+    else
+      throw false;
+  }
+
+  Query &cachefo(string queries);
+
+  bool SameLength(vector<Sequence*> &seqs, bool debug=false);
   void AddFailedQuery(string queries, string error_str);
-  vector<Sequence> MergeSeqVectors(string name_a, string name_b);
   void UpdateLogProbTranslationsForAsymetrics(Query &qmerge);
-  Query GetMergedQuery(string name_a, string name_b);
+  vector<Sequence*> GetSeqs(string query);
+  void MoveSubsetsFromTmpCache(string query);
+  void CopyToPermanentCache(string translated_query, string superquery);
+  Query &GetMergedQuery(string name_a, string name_b);
 
   bool LikelihoodRatioTooSmall(double lratio, int candidate_cluster_size);
   Partition GetSeededClusters(Partition &partition);
@@ -101,23 +136,21 @@ private:
 
   Track *track_;
   Args *args_;
-  DPHandler vtb_dph_, fwd_dph_;
+  GermLines &gl_;
+  HMMHolder &hmms_;
   ofstream ofs_;
 
   Partition initial_partition_;
-
-  map<string, bool> seed_missing_;  // also cache the presence of the seed in each cluster
 
   map<string, string> naive_seq_name_translations_;
   map<string, pair<string, string> > logprob_name_translations_;
   map<string, string> logprob_asymetric_translations_;
   map<string, string> name_subsets_;
 
-  map<string, vector<Sequence> > seq_info_;  // NOTE it would be more memory-efficient to just keep track of vectors of keys here, and have Glomerator keep all the actual info
-  map<string, vector<string> > only_genes_;
-  map<string, KBounds> kbinfo_;
-  map<string, float> mute_freqs_;  // overall mute freq for single sequences, mean overall mute freq for n-sets of sequences
-  map<string, size_t> cdr3_lengths_;  // assumes/enforces that it's the same for all members of a cluster
+  map<string, Sequence> single_seqs_;  // only place that we keep the actual sequences (rather than pointers/references)
+  map<string, Query> single_seq_cachefo_;  // keep some (approximate) single-sequence info to help us build missing cache entries
+  map<string, Query> cachefo_;  // cache info for clusters we've actually merged
+  map<string, Query> tmp_cachefo_;  // cache info for clusters we're only considering merging
 
   // These all include cached info from previous runs
   map<string, double> log_probs_;  

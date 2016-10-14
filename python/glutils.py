@@ -1,3 +1,4 @@
+import tempfile
 import copy
 import sys
 import os
@@ -168,7 +169,7 @@ def get_new_alignments(glfo, region, debug=False):
         if biggest_length is None or len(aligned_seqs[gene]) > biggest_length:
             biggest_length = len(aligned_seqs[gene])
 
-    tmpdir = '/tmp'
+    tmpdir = tempfile.mkdtemp()
     already_aligned_fname = tmpdir + '/already-aligned.fasta'
     not_aligned_fname = tmpdir + '/not-aligned.fasta'
     msa_table_fname = tmpdir + '/msa-table.txt'
@@ -227,6 +228,7 @@ def get_new_alignments(glfo, region, debug=False):
     os.remove(msa_table_fname)
     os.remove(aligned_and_not_fnamefname)
     os.remove(mafft_outfname)
+    os.rmdir(tmpdir)
 
     return aligned_seqs
 
@@ -488,12 +490,16 @@ def remove_genes(glfo, genes, debug=False):
 # ----------------------------------------------------------------------------------------
 def remove_gene(glfo, gene, debug=False):
     """ remove <gene> from <glfo> """
-    if debug:
-        print '  removing %s from glfo' % utils.color_gene(gene)
     region = utils.get_region(gene)
-    if region in utils.conserved_codons[glfo['chain']]:
-        del glfo[utils.conserved_codons[glfo['chain']][region] + '-positions'][gene]
-    del glfo['seqs'][region][gene]
+    if gene in glfo['seqs'][region]:
+        if debug:
+            print '  removing %s from glfo' % utils.color_gene(gene)
+        del glfo['seqs'][region][gene]
+        if region in utils.conserved_codons[glfo['chain']]:
+            del glfo[utils.conserved_codons[glfo['chain']][region] + '-positions'][gene]
+    else:
+        if debug:
+            print '  can\'t remove %s from glfo, it\'s not there' % utils.color_gene(gene)
 
 # ----------------------------------------------------------------------------------------
 def add_new_alleles(glfo, newfos, remove_template_genes=False, debug=False):
@@ -545,6 +551,7 @@ def add_some_snps(snps_to_add, glfo, remove_template_genes=False, debug=False):
 
     templates_to_remove = set()
 
+    added_snp_names = []
     for isnp in range(len(snps_to_add)):
         snpinfo = snps_to_add[isnp]
         gene, positions = snpinfo['gene'], snpinfo['positions']
@@ -566,8 +573,11 @@ def add_some_snps(snps_to_add, glfo, remove_template_genes=False, debug=False):
         if remove_template_genes:
             templates_to_remove.add(gene)
         add_new_allele(glfo, snpfo, remove_template_genes=False, debug=debug)  # *don't* remove the templates here, since we don't know if there's another snp later that needs them
+        added_snp_names.append(snpfo['gene'])
 
     remove_the_stupid_godamn_template_genes_all_at_once(glfo, templates_to_remove)  # works fine with zero-length <templates_to_remove>
+
+    return added_snp_names  # need the order of the names so we can get allele prevalence freqs from the command line right
 
 # ----------------------------------------------------------------------------------------
 def write_glfo(output_dir, glfo, only_genes=None, debug=False):
@@ -648,7 +658,7 @@ def write_allele_prevalence_freqs(allele_prevalence_freqs, fname):
                 writer.writerow({'gene' : gene, 'freq' : freq})
 
 # ----------------------------------------------------------------------------------------
-def read_allele_prevalence_freqs(fname):
+def read_allele_prevalence_freqs(fname, debug=False):
     # NOTE kinda weird to mash all the regions into one file here (as compared to parametercounter), but it seems to make more sense
     allele_prevalence_freqs = {r : {} for r in utils.regions}
     with open(fname) as pfile:
@@ -656,6 +666,11 @@ def read_allele_prevalence_freqs(fname):
         for line in reader:
             allele_prevalence_freqs[utils.get_region(line['gene'])][line['gene']] = float(line['freq'])
     for region in utils.regions:
+        if len(allele_prevalence_freqs[region]) == 0:
+            continue
+        if debug:
+            for gene, freq in allele_prevalence_freqs[region].items():
+                print '%14.8f   %s' % (freq, utils.color_gene(gene))
         assert utils.is_normed(allele_prevalence_freqs[region])
     return allele_prevalence_freqs
 

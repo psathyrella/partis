@@ -26,6 +26,12 @@ def get_more_names(potential_names):
     potential_names += [''.join(ab) for ab in itertools.combinations(potential_names, 2)]
 
 # ----------------------------------------------------------------------------------------
+def add_seed_seq(args, input_info, reco_info, is_data):
+    input_info[args.seed_unique_id] = {'unique_ids' : [args.seed_unique_id, ], 'seqs' : [args.seed_seq, ]}
+    if not is_data:
+        reco_info[args.seed_unique_id] = 'unknown!'  # hopefully more obvious than a key error
+
+# ----------------------------------------------------------------------------------------
 def abbreviate(used_names, potential_names, unique_id):
     if len(used_names) >= len(potential_names):
         get_more_names(potential_names)
@@ -92,21 +98,28 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, s
     reco_info = None
     if not is_data:
         reco_info = OrderedDict()
-    n_queries = 0
+    n_queries_added = 0
     found_seed = False
     used_names = set()  # for abbreviating
     if args is not None and args.abbreviate:
         potential_names = list(string.ascii_lowercase)
     iname = None  # line number -- used as sequence id if there isn't a <name_column>
+    iline = -1
     for line in reader:
+        iline += 1
+        if args is not None and args.istartstop is not None:
+            if iline < args.istartstop[0]:
+                continue
+            if iline >= args.istartstop[1]:
+                break
         if seq_column not in line:
             raise Exception('mandatory header \'%s\' not present in %s (you can set column names with --name-column and --seq-column)' % (seq_column, infname))
         if name_column not in line and iname is None:
             iname = 0
+        if iname is not None:
+            line[internal_name_column] = '%09d' % iname
+            iname += 1
         if name_column != internal_name_column or seq_column != internal_seq_column:
-            if iname is not None:
-                line[internal_name_column] = '%09d' % iname
-                iname += 1
             translate_columns(line, {name_column : internal_name_column, seq_column: internal_seq_column})
         utils.process_input_line(line)
         unique_id = line[internal_name_column]
@@ -131,7 +144,7 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, s
 
         input_info[unique_id] = {'unique_ids' : [unique_id, ], 'seqs' : [line[internal_seq_column], ]}
 
-        if n_queries == 0 and is_data and 'v_gene' in line:
+        if n_queries_added == 0 and is_data and 'v_gene' in line:
             print '  note: found simulation info in %s -- are you sure you didn\'t mean to set --is-simu?' % infname
 
         if not is_data:
@@ -146,14 +159,34 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, s
             if simglfo is not None:
                 utils.add_implicit_info(simglfo, reco_info[unique_id], existing_implicit_keys=('cdr3_length', ))
 
-        n_queries += 1
-        if n_max_queries > 0 and n_queries >= n_max_queries:
+        n_queries_added += 1
+        if n_max_queries > 0 and n_queries_added >= n_max_queries:
             break
 
     if args is not None:
+        if args.istartstop is not None:
+            n_lines_in_file = iline + 1
+            if n_lines_in_file < args.istartstop[1]:
+                raise Exception('--istartstop upper bound %d larger than number of lines in file %d' % (args.istartstop[1], n_lines_in_file))
         if len(input_info) == 0:
-            raise Exception('didn\'t end up pulling any input info out of %s while looking for queries: %s reco_ids: %s\n' % (infname, str(args.queries), str(args.reco_ids)))
-        if args.seed_unique_id is not None and not found_seed:
-            raise Exception('couldn\'t find seed %s in %s' % (args.seed_unique_id, infname))
+            raise Exception('didn\'t find the specified --queries (%s) or --reco-ids (%s) in %s' % (str(args.queries), str(args.reco_ids), infname))
+        if args.queries is not None:
+            missing_queries = set(args.queries) - set(input_info)
+            extra_queries = set(input_info) - set(args.queries)  # this is just checking for a bug in the code just above here...
+            if len(missing_queries) > 0:
+                raise Exception('didn\'t find some of the specified --queries: %s' % ' '.join(missing_queries))
+            if len(extra_queries) > 0:
+                raise Exception('extracted uids %s that weren\'t specified with --queries' % ' '.join(extra_queries))
+        if args.seed_unique_id is not None:
+            if found_seed:
+                if args.seed_seq is not None and input_info[args.seed_unique_id]['seqs'][0] != args.seed_seq:
+                    raise Exception('incompatible --seed-unique-id and --seed-seq (i.e. the sequence in %s corresponding to %s wasn\'t %s)' % (infname, args.seed_unique_id, args.seed_seq))
+            else:
+                if args.seed_seq is None:
+                    raise Exception('couldn\'t find seed unique id %s in %s' % (args.seed_unique_id, infname))
+                add_seed_seq(args, input_info, reco_info, is_data)
+        elif args.seed_seq is not None:
+            args.seed_unique_id = 'seed-seq'
+            add_seed_seq(args, input_info, reco_info, is_data)
 
     return input_info, reco_info

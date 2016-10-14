@@ -16,12 +16,14 @@ glfo = glutils.read_glfo('data/germlines/human', 'h')
 parser = argparse.ArgumentParser()
 parser.add_argument('--base', required=True)
 parser.add_argument('--alleles')
+parser.add_argument('--other-genes')
 parser.add_argument('--region', default='v')
 args = parser.parse_args()
 if args.alleles is None:
     args.alleles = [utils.allele(g) for g in glfo['seqs'][args.region] if args.base == utils.primary_version(g) + '-' + utils.sub_version(g)]
 else:
     args.alleles = utils.get_arg_list(args.alleles)
+args.other_genes = utils.get_arg_list(args.other_genes)
 
 # for g, s in glfo['seqs']['v'].items():
 #     print '%s  %3d' % (utils.color_gene(g, width=20), len(s) - glfo['cyst-positions'][g])
@@ -32,6 +34,8 @@ else:
 # gene1, gene2 = 'IGHV' + base + '*' + a1, 'IGHV' + base + '*' + a2
 
 genes = ['IGH' + args.region.upper() + args.base + '*' + al for al in args.alleles]
+if args.other_genes is not None:
+    genes += args.other_genes
 
 def print_str(gene, seq):
     return '%s   %s' % (utils.color_gene(gene, width=15), seq)

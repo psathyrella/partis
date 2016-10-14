@@ -129,6 +129,9 @@ parser.add_argument('--infiles')
 parser.add_argument('--outdir', default=os.getenv('www'))
 args = parser.parse_args()
 
+if args.hmmdir is None and args.infile is None:
+    raise Exception('arg')
+
 if __name__ == '__main__':
     print '  %s the top line in the emission plots is usually yellow because the three non-germline bases are equally likely, and G comes last when sorted alphabetically' % utils.color('red', 'note')
     if not os.path.exists(args.outdir):

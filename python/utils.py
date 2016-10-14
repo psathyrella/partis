@@ -7,7 +7,7 @@ import math
 import glob
 from collections import OrderedDict
 import csv
-from subprocess import check_output, CalledProcessError, Popen
+from subprocess import check_call, check_output, CalledProcessError, Popen
 import multiprocessing
 import copy
 
@@ -212,6 +212,17 @@ annotation_headers = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length',
                      + functional_columns
 sw_cache_headers = ['k_v', 'k_d', 'padlefts', 'padrights', 'all_matches', 'mut_freqs']
 partition_cachefile_headers = ('unique_ids', 'logprob', 'naive_seq', 'naive_hfrac', 'errors')  # these have to match whatever bcrham is expecting
+bcrham_dbgstrs = {  # corresponds to stdout from glomerator.cc
+    'read-cache' : ['logprobs', 'naive-seqs'],
+    'calcd' : ['vtb', 'fwd', 'hfrac'],
+    'merged' : ['hfrac', 'lratio'],
+    'time' : ['bcrham', ]
+}
+bcrham_dbgstr_types = {
+    'sum' : ['calcd', 'merged'],  # for these ones, sum over all procs
+    'same' : ['read-cache', ],  # check that these are the same for all procs
+    'min-max' : ['time', ]
+}
 
 # ----------------------------------------------------------------------------------------
 def generate_dummy_v(d_gene):
@@ -402,9 +413,17 @@ Colors['red'] = '\033[91m'
 Colors['reverse_video'] = '\033[7m'
 Colors['end'] = '\033[0m'
 
-def color(col, seq):
-    assert col in Colors
-    return Colors[col] + seq + Colors['end']
+def color(col, seq, width=None):
+    return_str = Colors[col] + seq + Colors['end']
+    if width is not None:  # make sure final string prints to correct width
+        n_spaces = max(0, width - len(seq))  # if specified <width> is greater than uncolored length of <seq>, pad with spaces so that when the colors show up properly the colored sequences prints with width <width>
+        return_str = n_spaces * ' ' + return_str
+    return return_str
+
+def len_excluding_colors(seq):
+    for color_code in Colors.values():
+        seq = seq.replace(color_code, '')
+    return len(seq)
 
 # ----------------------------------------------------------------------------------------
 def color_chars(chars, col, seq):
@@ -445,6 +464,13 @@ def plural_str(pstr, count):
         return pstr
     else:
         return pstr + 's'
+
+# ----------------------------------------------------------------------------------------
+def plural(count):  # TODO should combine these
+    if count == 1:
+        return ''
+    else:
+        return 's'
 
 # ----------------------------------------------------------------------------------------
 def summarize_gene_name(gene):
@@ -534,25 +560,28 @@ def check_a_bunch_of_codons(codon, seqons, extra_str='', debug=False):  # seqons
         print ''
 
 #----------------------------------------------------------------------------------------
-def is_there_a_stop_codon(seq, cyst_position, debug=False):
+def is_there_a_stop_codon(seq, fv_insertion, jf_insertion, cyst_position, debug=False):
+    # it would be nicer to write this just taking a <line> as input, but I want to be able to call it from waterer.py before I've converted <qinfo> to a <line>
     """
     Make sure there is no in-frame stop codon, where frame is inferred from <cyst_position>.
     Returns True if no stop codon is found
     """
-    if cyst_position >= len(seq):
+    coding_seq = seq[len(fv_insertion) : len(seq) - len(jf_insertion)]
+    coding_cpos = cyst_position - len(fv_insertion)
+    if coding_cpos >= len(coding_seq):
         if debug:
             print '      not sure if there\'s a stop codon (invalid cysteine position)'
         return True  # not sure if there is one, since we have to way to establish the frame
     # jump leftward in steps of three until we reach the start of the sequence
-    ipos = cyst_position
+    ipos = coding_cpos
     while ipos > 2:
         ipos -= 3
     # ipos should now bet the index of the start of the first complete codon
-    while ipos + 2 < len(seq):  # then jump forward in steps of three bases making sure none of them are stop codons
-        codon = seq[ipos : ipos + 3]
+    while ipos + 2 < len(coding_seq):  # then jump forward in steps of three bases making sure none of them are stop codons
+        codon = coding_seq[ipos : ipos + 3]
         if codon in codon_table['stop']:
             if debug:
-                print '      stop codon %s at %d in %s' % (codon, ipos, seq)
+                print '      stop codon %s at %d in %s' % (codon, ipos, coding_seq)
             return True
         ipos += 3
 
@@ -654,7 +683,7 @@ def reset_effective_erosions_and_effective_insertions(glfo, padded_line, aligned
     fv_insertion_to_remove = insertions_to_remove[TMPiseq]['fv']
     jf_insertion_to_remove = insertions_to_remove[TMPiseq]['jf']
 
-    def max_effective_erosion(erosion):
+    def max_effective_erosion(erosion):  # don't "erode" more than there is left to erode
         region = erosion[0]
         gl_len = len(glfo['seqs'][region][line[region + '_gene']])
         if '5p' in erosion:
@@ -722,6 +751,16 @@ def add_qr_seqs(line):
         line[region + '_qr_seqs'] = [get_single_qr_seq(region, seq) for seq in line['seqs']]
 
 # ----------------------------------------------------------------------------------------
+def is_functional(line, debug=False):
+    if True in line['mutated_invariants']:
+        return False
+    if False in line['in_frames']:
+        return False
+    if True in line['stops']:
+        return False
+    return True
+
+# ----------------------------------------------------------------------------------------
 def add_functional_info(chain, line):
     def get_val(ftype, iseq):
         if ftype == 'mutated_invariants':
@@ -729,7 +768,7 @@ def add_functional_info(chain, line):
         elif ftype == 'in_frames':
             return line['cdr3_length'] % 3 == 0
         elif ftype == 'stops':
-            return is_there_a_stop_codon(line['seqs'][iseq], line['codon_positions']['v'])
+            return is_there_a_stop_codon(line['seqs'][iseq], line['fv_insertion'], line['jf_insertion'], line['codon_positions']['v'])
         else:
             assert False
 
@@ -803,6 +842,9 @@ def add_implicit_info(glfo, line, existing_implicit_keys=None, aligned_gl_seqs=N
 
     # add naive seq stuff
     line['naive_seq'] = line['fv_insertion'] + line['v_gl_seq'] + line['vd_insertion'] + line['d_gl_seq'] + line['dj_insertion'] + line['j_gl_seq'] + line['jf_insertion']
+    for iseq in range(len(line['seqs'])):
+        if len(line['naive_seq']) != len(line['seqs'][iseq]):
+            raise Exception('naive and matures sequences different lengths %d %d for %s' % (len(line['naive_seq']), len(line['seqs'][iseq]), ' '.join(line['unique_ids'])))
 
     start, end = {}, {}  # add naive seq bounds for each region (could stand to make this more concise)
     start['v'] = len(line['fv_insertion'])  # NOTE this duplicates code in add_qr_seqs()
@@ -855,12 +897,12 @@ def add_implicit_info(glfo, line, existing_implicit_keys=None, aligned_gl_seqs=N
                 print '  WARNING pre-existing info\n    %s\n    doesn\'t match new info\n    %s\n    for %s in %s' % (pre_existing_info[ekey], line[ekey], ekey, line['unique_ids'])
 
 # ----------------------------------------------------------------------------------------
-def print_true_events(glfo, reco_info, line, print_uid=False):
+def print_true_events(glfo, reco_info, line):
     """ print the true events which contain the seqs in <line> """
     # true_naive_seqs = []
     for uids in get_true_partition(reco_info, ids=line['unique_ids']):  # make a multi-seq line that has all the seqs from this clonal family
         multiline = synthesize_multi_seq_line(uids, reco_info)
-        print_reco_event(glfo['seqs'], multiline, extra_str='    ', label='true:', print_uid=print_uid)
+        print_reco_event(glfo['seqs'], multiline, extra_str='    ', label=color('green', 'true:'))
         # true_naive_seqs.append(multiline['naive_seq'])
 
     # print '\ntrue vs inferred naive sequences:'
@@ -887,12 +929,12 @@ def add_gaps_ignoring_color_characters(colored_seq, ipos, gapstr):
     return colored_seq[:iwith] + gapstr + colored_seq[iwith:]
 
 # ----------------------------------------------------------------------------------------
-def print_reco_event(germlines, line, one_line=False, extra_str='', label='', print_uid=False):
+def print_reco_event(germlines, line, one_line=False, extra_str='', label='', seed_uid=None):
     for iseq in range(len(line['unique_ids'])):
-        print_seq_in_reco_event(germlines, line, iseq, extra_str=extra_str, label=(label if iseq==0 else ''), one_line=(iseq>0), print_uid=print_uid)
+        print_seq_in_reco_event(germlines, line, iseq, extra_str=extra_str, label=(label if iseq==0 else ''), one_line=(iseq>0), seed_uid=seed_uid)
 
 # ----------------------------------------------------------------------------------------
-def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label='', one_line=False, print_uid=False):
+def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label='', one_line=False, seed_uid=None):
     """
     Print ascii summary of recombination event and mutation.
     If <one_line>, then skip the germline lines, and only print the final_seq line.
@@ -906,7 +948,7 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
         if indelfo['reversed_seq'] == lseq:  # if <line> has the reversed sequence in it, then this is an inferred <line>, i.e. we removed the info, then passed the reversed sequence to the sw/hmm, so we need to reverse the indels now in order to get a sequence with indels in it
             reverse_indels = True
         if len(indelfo['indels']) > 1:
-            print 'WARNING multiple indels not really handled'
+            print '        %s can\'t yet print multiple indels' % color('yellow', 'warning')
         add_indels_to_germline_strings(line, indelfo)
 
     # ----------------------------------------------------------------------------------------
@@ -926,10 +968,10 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     j_right_extra = ''  # portion of query sequence to right of end of the j match
     n_inserted = 0
     final_seq_list = []
+    if indelfo is not None:
+        lastfo = indelfo['indels'][-1]  # if the "last" (arbitrary but necessary ordering) indel starts here
     for inuke in range(len(lseq)):
-        if indelfo is not None:
-            lastfo = indelfo['indels'][-1]  # if the "last" (arbitrary but necessary ordering) indel starts here
-              # if we're at the position that the insertion started at (before we removed it)
+        # if we're at the position that the insertion started at (before we removed it)
         if indelfo is not None and lastfo['type'] == 'insertion':
             if reverse_indels and inuke == lastfo['pos']:
                 final_seq_list.append(lastfo['seqstr'])  # put the insertion back into the query sequence
@@ -1060,14 +1102,12 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     chain = get_chain(line['v_gene'])  # kind of hackey
     dont_show_d_stuff = chain != 'h' and line['lengths']['d'] == 0 and len(line['vd_insertion']) == 0
 
-    if print_uid:
-        extra_str += '%20s ' % line['unique_ids'][iseq]
     out_str_list = []
     # insert, d, and vj lines
     if not one_line:
         out_str_list.append('%s    %s   insert%s\n' % (extra_str, insert_line, '' if dont_show_d_stuff else 's'))
         if label != '':
-            out_str_list[-1] = extra_str + label + out_str_list[-1][len(extra_str + label) :]
+            out_str_list[-1] = extra_str + label + out_str_list[-1][len_excluding_colors(extra_str + label) :]
         if not dont_show_d_stuff:
             out_str_list.append('%s    %s   %s\n' % (extra_str, d_line, color_gene(line['d_gene'])))
         out_str_list.append('%s    %s   %s %s\n' % (extra_str, vj_line, color_gene(line['v_gene']), color_gene(line['j_gene'])))
@@ -1086,12 +1126,15 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     final_seq = v_5p_del_space_str + final_seq + j_3p_del_space_str
     final_seq = color_chars(ambiguous_bases + ['*', ], 'light_blue', final_seq)
     out_str_list.append(extra_str)
-    # if print_uid:
-    #     extra_str += '%20s' % line['unique_id']
     out_str_list.append('    %s' % final_seq)
+    uid_width = max([len(uid) for uid in line['unique_ids']])
+    uidstr = ('   %' + str(uid_width) + 's') % line['unique_ids'][iseq]
+    if seed_uid is not None and line['unique_ids'][iseq] == seed_uid:
+        uidstr = color('red', uidstr)
+    out_str_list.append(uidstr)
     out_str_list.append('   %4.2f mut' % line['mut_freqs'][iseq])
-    if 'logprob' in line:
-        out_str_list.append('     %8.2f  logprob' % line['logprob'])
+    # if 'logprob' in line:
+    #     out_str_list.append('     %8.2f  logprob' % line['logprob'])
     out_str_list.append('\n')
 
     print ''.join(out_str_list),
@@ -1547,7 +1590,7 @@ def run_cmd(cmd_str, workdir):
     # sys.exit()
     if not os.path.exists(workdir):
         os.makedirs(workdir)
-    proc = Popen(cmd_str + ' 1>' + workdir + '/out' + ' 2>' + workdir + '/err', shell=True)
+    proc = Popen(cmd_str.split(), stdout=open(workdir + '/out', 'w'), stderr=open(workdir + '/err', 'w'))
     return proc
 
 # ----------------------------------------------------------------------------------------
@@ -1573,19 +1616,52 @@ def run_cmds(cmdfos, debug=None):
         time.sleep(0.1)
 
 # ----------------------------------------------------------------------------------------
+def pad_lines(linestr, padwidth=8):
+    lines = [padwidth * ' ' + l for l in linestr.split('\n')]
+    return '\n'.join(lines)
+
+# ----------------------------------------------------------------------------------------
 # deal with a process once it's finished (i.e. check if it failed, and restart if so)
 def finish_process(iproc, procs, n_tries, workdir, logdir, outfname, cmd_str, dbgfo=None, debug=None):
     procs[iproc].communicate()
-    process_out_err('', '', extra_str='' if len(procs) == 1 else str(iproc), dbgfo=dbgfo, logdir=logdir, debug=debug)
-    if procs[iproc].returncode == 0 and os.path.exists(outfname):  # TODO also check cachefile, if necessary
-        procs[iproc] = None  # job succeeded
-    elif n_tries[iproc] > 5:
+    if procs[iproc].returncode == 0:
+        if not os.path.exists(outfname):
+            print '      proc %d succeded but its output isn\'t there, so sleeping for a bit...' % iproc
+            time.sleep(0.5)
+        if os.path.exists(outfname):
+            process_out_err('', '', extra_str='' if len(procs) == 1 else str(iproc), dbgfo=dbgfo, logdir=logdir, debug=debug)
+            procs[iproc] = None  # job succeeded
+            return
+
+    # handle failure
+    if n_tries[iproc] > 5:
         raise Exception('exceeded max number of tries for command\n    %s\nlook for output in %s and %s' % (cmd_str, workdir, logdir))
     else:
-        print '    rerunning proc %d (exited with %d' % (iproc, procs[iproc].returncode),
-        if not os.path.exists(outfname):
-            print ', output %s d.n.e.' % outfname,
-        print ')'
+        print '    proc %d try %d' % (iproc, n_tries[iproc]),
+        if procs[iproc].returncode == 0 and not os.path.exists(outfname):  # don't really need both the clauses
+            print 'succeded but output is missing'
+        else:
+            print 'failed with %d (output %s)' % (procs[iproc].returncode, 'exists' if os.path.exists(outfname) else 'is missing')
+        for strtype in ['out', 'err']:
+            if os.path.exists(logdir + '/' + strtype) and os.stat(logdir + '/' + strtype).st_size > 0:
+                print '        %s tail:' % strtype
+                logstr = check_output(['tail', logdir + '/' + strtype])
+                print '\n'.join(['            ' + l for l in logstr.split('\n')])
+        if cmd_str.split()[0] == 'srun' and os.path.exists(logdir + '/err'):
+            jobid = check_output(['head', '-n1', logdir + '/err']).split()[2]
+            try:
+                nodelist = check_output(['squeue', '--job', jobid, '--states=all', '--format', '%N']).split()[1]
+            except:
+                print '      couldn\'t get node list for job %s' % jobid
+            try:
+                print '        sshing to %s' % nodelist
+                outstr = check_output('ssh -o StrictHostKeyChecking=no ' + nodelist + ' ps -eo pcpu,pmem,rss,cputime:12,stime:7,user,args:100 --sort pmem | tail', shell=True)
+                print pad_lines(outstr, padwidth=12)
+            except:
+                print '        failed'
+        # print cmd_str
+        # sys.exit()
+        print '    restarting proc %d' % iproc
         procs[iproc] = run_cmd(cmd_str, workdir)
         n_tries[iproc] += 1
 
@@ -1618,17 +1694,17 @@ def process_out_err(out, err, extra_str='', dbgfo=None, logdir=None, debug=None)
             print_str += line + '\n'
 
     if dbgfo is not None:  # keep track of how many vtb and fwd calculations the process made
-        for header, variables in {'calcd' : ['vtb', 'fwd'], 'time' : ['bcrham', ]}.items():
-            dbgfo[header] = {}
+        for header, variables in bcrham_dbgstrs.items():
+            dbgfo[header] = {var : None for var in variables}
             theselines = [ln for ln in out.split('\n') if header + ':' in ln]
-            if len(theselines) != 1:
-                raise Exception('couldn\'t find \'%s\' line in:\nstdout:\n%s\nstderr:\n%s' % (header, out, err))
+            if len(theselines) == 0:
+                continue
+            if len(theselines) > 1:
+                raise Exception('too many lines with dbgfo for \'%s\' in:\nstdout:\n%s\nstderr:\n%s' % (header, out, err))
             words = theselines[0].split()
-            try:
-                for var in variables:  # convention: value corresponding to the string <var> is the word immediately vollowing <var>
+            for var in variables:  # convention: value corresponding to the string <var> is the word immediately vollowing <var>
+                if var in  words:
                     dbgfo[header][var] = float(words[words.index(var) + 1])
-            except:
-                raise Exception('couldn\'t find \'%s\' line in:\nstdout:\n%s\nstderr:\n%s' % (header, out, err))
 
     print_str += out
 
@@ -1644,6 +1720,39 @@ def process_out_err(out, err, extra_str='', dbgfo=None, logdir=None, debug=None)
                 dbgfile.write(print_str)
         else:
             assert False
+
+# ----------------------------------------------------------------------------------------
+def summarize_bcrham_dbgstrs(dbgfos):
+    def defval(dbgcat):
+        if dbgcat in bcrham_dbgstr_types['sum']:
+            return 0.
+        elif dbgcat in bcrham_dbgstr_types['same']:
+            return None
+        elif dbgcat in bcrham_dbgstr_types['min-max']:
+            return []
+        else:
+            assert False
+
+    summaryfo = {dbgcat : {vtype : defval(dbgcat) for vtype in tlist} for dbgcat, tlist in bcrham_dbgstrs.items()}
+    for procfo in dbgfos:
+        for dbgcat in bcrham_dbgstr_types['same']:
+            for vtype in bcrham_dbgstrs[dbgcat]:
+                if summaryfo[dbgcat][vtype] is None:
+                    summaryfo[dbgcat][vtype] = procfo[dbgcat][vtype]
+                if procfo[dbgcat][vtype] != summaryfo[dbgcat][vtype]:
+                    print '        %s bcrham procs had different \'%s\' \'%s\' info: %d vs %d' % (color('red', 'warning'), vtype, dbgcat, procfo[dbgcat][vtype], summaryfo[dbgcat][vtype])
+        for dbgcat in bcrham_dbgstr_types['sum']:
+            for vtype in bcrham_dbgstrs[dbgcat]:
+                summaryfo[dbgcat][vtype] += procfo[dbgcat][vtype]
+        for dbgcat in bcrham_dbgstr_types['min-max']:
+            for vtype in bcrham_dbgstrs[dbgcat]:
+                summaryfo[dbgcat][vtype].append(procfo[dbgcat][vtype])
+
+    for dbgcat in bcrham_dbgstr_types['min-max']:
+        for vtype in bcrham_dbgstrs[dbgcat]:
+            summaryfo[dbgcat][vtype] = min(summaryfo[dbgcat][vtype]), max(summaryfo[dbgcat][vtype])
+
+    return summaryfo
 
 # ----------------------------------------------------------------------------------------
 def find_first_non_ambiguous_base(seq):

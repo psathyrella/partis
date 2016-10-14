@@ -47,7 +47,7 @@ class Waterer(object):
         self.info['indels'] = {}  # NOTE if we find shm indels in a sequence, we store the indel info in here, and rerun sw with the reversed sequence (i.e. <self.info> contains the sw inference on the reversed sequence -- if you want the original sequence, get that from <self.input_info>)
 
         self.nth_try = 1
-        self.unproductive_queries = set()
+        self.skipped_unproductive_queries, self.kept_unproductive_queries = set(), set()
 
         self.my_gldir = self.args.workdir + '/' + glutils.glfo_dir
 
@@ -113,29 +113,21 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def finalize(self, cachefname=None, just_read_cachefile=False):
-        print '      info for %d' % len(self.info['queries']),
+        print '      info for %d / %d    (kept %d unproductive)' % (len(self.info['queries']), len(self.input_info), len(self.kept_unproductive_queries))
 
         if just_read_cachefile:  # it's past tense!
             print ''
         else:
-            skipped_unproductive = len(self.unproductive_queries)
-            n_remaining = len(self.remaining_queries)
-            if skipped_unproductive > 0 or n_remaining > 0:
-                print '     (skipped',
-                print '%d / %d = %.2f unproductive' % (skipped_unproductive, len(self.input_info), float(skipped_unproductive) / len(self.input_info)),
-                if n_remaining > 0:
-                    print '   %d / %d = %.2f other' % (n_remaining, len(self.input_info), float(n_remaining) / len(self.input_info)),
-                print ')',
-            print ''
-            if n_remaining > 0:
-                printstr = '   %s %d missing %s' % (utils.color('red', 'warning'), n_remaining, utils.plural_str('annotation', n_remaining))
-                if n_remaining < 15:
-                    printstr += ' (' + ' '.join(self.remaining_queries) + ')'
-                print printstr
+            if len(self.skipped_unproductive_queries) > 0:
+                print '         skipped %d unproductive' % len(self.skipped_unproductive_queries)
+            if len(self.remaining_queries) > 0:
+                # printstr = '   %s %d missing %s' % (utils.color('red', 'warning'), len(self.remaining_queries), utils.plural_str('annotation', len(self.remaining_queries)))
+                if len(self.remaining_queries) < 15:
+                    print '            missing annotations: ' + ' '.join(self.remaining_queries)
             if self.debug and len(self.info['indels']) > 0:
                 print '      indels: %s' % ':'.join(self.info['indels'].keys())
-            assert len(self.info['queries']) + skipped_unproductive + n_remaining == len(self.input_info)
-            if self.debug and not self.args.is_data and n_remaining > 0:
+            assert len(self.info['queries']) + len(self.skipped_unproductive_queries) + len(self.remaining_queries) == len(self.input_info)
+            if self.debug and not self.args.is_data and len(self.remaining_queries) > 0:
                 print 'true annotations for remaining events:'
                 for qry in self.remaining_queries:
                     utils.print_reco_event(self.glfo['seqs'], self.reco_info[qry], extra_str='      ', label='true:')
@@ -144,7 +136,7 @@ class Waterer(object):
 
         found_germline_changes = False  # set to true if either alremover or alfinder found changes to the germline info
         if self.alremover is not None:
-            self.alremover.finalize(self.pcounter, self.info)
+            self.alremover.finalize(self.pcounter, self.info, debug=self.args.debug_allele_finding)
             self.info['genes-to-remove'] = self.alremover.genes_to_remove
             if len(self.info['genes-to-remove']) > 0:
                 found_germline_changes = True
@@ -159,6 +151,16 @@ class Waterer(object):
                 self.alfinder.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
             if len(self.info['new-alleles']) > 0:
                 found_germline_changes = True
+
+        if self.args.seed_unique_id is not None:  # TODO I should really get the seed cdr3 length before running anything, and then not add seqs with different cdr3 length to start with, so those other sequences' gene matches don't get mixed in
+            initial_n_queries = len(self.info['queries'])
+            seed_cdr3_length = self.info[self.args.seed_unique_id]['cdr3_length']  # NOTE should probably remove this now that it's in waterer
+            for query in copy.deepcopy(self.info['queries']):
+                if self.info[query]['cdr3_length'] != seed_cdr3_length:
+                    self.remove_query(query)
+            n_removed = initial_n_queries - len(self.info['queries'])
+            if n_removed > 0:
+                print '      removed %d / %d = %.2f sequences with cdr3 length different from seed sequence (leaving %d)' % (n_removed, initial_n_queries, float(n_removed) / initial_n_queries, len(self.info['queries']))
 
         if not just_read_cachefile:  # add padded info to self.info (returns if stuff has already been padded)
             self.pad_seqs_to_same_length()  # NOTE this uses *all the gene matches (not just the best ones), so it has to come before we call pcounter.write(), since that fcn rewrites the germlines removing genes that weren't best matches. But NOTE also that I'm not sure what but that the padding actually *needs* all matches (rather than just all *best* matches)
@@ -217,12 +219,11 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def write_vdjalign_input(self, base_infname, n_procs):
-        n_remaining = len(self.remaining_queries)
-        queries_per_proc = float(n_remaining) / n_procs
+        queries_per_proc = float(len(self.remaining_queries)) / n_procs
         n_queries_per_proc = int(math.ceil(queries_per_proc))
         written_queries = set()  # make sure we actually write each query NOTE I should be able to remove this when I work out where they're disappearing to. But they don't seem to be disappearing any more, *sigh*
         if n_procs == 1:  # double check for rounding problems or whatnot
-            assert n_queries_per_proc == n_remaining
+            assert n_queries_per_proc == len(self.remaining_queries)
         for iproc in range(n_procs):
             workdir = self.subworkdir(iproc, n_procs)
             if n_procs > 1:
@@ -230,7 +231,7 @@ class Waterer(object):
             with opener('w')(workdir + '/' + base_infname) as sub_infile:
                 iquery = 0
                 for query_name in self.remaining_queries:  # NOTE this is wasteful to loop of all the remaining queries for each process... but maybe not that wasteful
-                    if iquery >= n_remaining:
+                    if iquery >= len(self.remaining_queries):
                         break
                     if iquery < iproc*n_queries_per_proc or iquery >= (iproc + 1)*n_queries_per_proc:  # not for this process
                         iquery += 1
@@ -290,7 +291,7 @@ class Waterer(object):
     # ----------------------------------------------------------------------------------------
     def read_output(self, base_outfname, n_procs=1):
         queries_to_rerun = OrderedDict()  # This is to keep track of every query that we don't add to self.info (i.e. it does *not* include unproductive queries that we ignore/skip entirely because we were told to by a command line argument)
-                                          # ...whereas <self.unproductive_queries> is to keep track of the queries that were definitively unproductive (i.e. we removed them from self.remaining_queries) when we were told to skip unproductives by a command line argument
+                                          # ...whereas <self.skipped_unproductive_queries> is to keep track of the queries that were definitively unproductive (i.e. we removed them from self.remaining_queries) when we were told to skip unproductives by a command line argument
         for reason in ['unproductive', 'no-match', 'weird-annot.', 'nonsense-bounds', 'invalid-codon']:
             queries_to_rerun[reason] = set()
 
@@ -348,6 +349,8 @@ class Waterer(object):
             os.remove(workdir + '/' + base_outfname)
             if n_procs > 1:  # still need the top-level workdir
                 os.rmdir(workdir)
+
+        sys.stdout.flush()
 
     # ----------------------------------------------------------------------------------------
     def get_indel_info(self, query_name, cigarstr, qrseq, glseq, gene):
@@ -408,6 +411,14 @@ class Waterer(object):
                 print '          %10s: %d bases at %d (%s)' % (idl['type'], idl['len'], idl['pos'], idl['seqstr'])
 
         return indelfo
+
+    # ----------------------------------------------------------------------------------------
+    def remove_query(self, query):
+        # NOTE you're iterating over a deep copy of <self.info['queries']>, right? you better be!
+        del self.info[query]  # this still leaves this query's gene matches in <self.info> (there may also be other traces of it)
+        self.info['queries'].remove(query)
+        if query in self.info['indels']:
+            del self.info['indels'][query]
 
     # ----------------------------------------------------------------------------------------
     def add_dummy_d_match(self, qinfo, debug=True):
@@ -611,22 +622,21 @@ class Waterer(object):
             else:
                 assert False
 
-            if d_len == 0 or len(insertion) < d_len:
+            if d_len == 0 or len(insertion) == 0:
                 continue
-            spurious_bases = insertion[len(insertion) - d_len:]  # i.e. the last <v_5p_del> bases of the fv insertion (or first <j_3p_del> bases of the jf insertion)
+            if len(insertion) >= d_len:
+                spurious_bases = insertion[len(insertion) - d_len:]  # i.e. the last <v_5p_del> bases of the fv insertion (or first <j_3p_del> bases of the jf insertion)
+            else:
+                spurious_bases = insertion  # the whole damn thing
             if spurious_bases.count(utils.ambiguous_bases[0]) == len(spurious_bases):  # don't do it if it's all Ns
                 continue
             if debug:
                 print 'EXPANDING %s %s d_len: %d   insertion: %s (len %d)   spurious: %s (len %d)' % (qinfo['name'], region, d_len, insertion, len(insertion), spurious_bases, len(spurious_bases))
             for gene in [g for g in qinfo['glbounds'] if utils.get_region(g) == region]:  # it's ok to assume glbounds and qrbounds have the same keys
                 if region == 'v':
-                    if gene == best[region]:
-                        assert qinfo['glbounds'][gene][0] - len(spurious_bases) == 0
                     qinfo['glbounds'][gene] = (qinfo['glbounds'][gene][0] - len(spurious_bases), qinfo['glbounds'][gene][1])
                     qinfo['qrbounds'][gene] = (qinfo['qrbounds'][gene][0] - len(spurious_bases), qinfo['qrbounds'][gene][1])
                 elif region == 'j':
-                    # if gene == best[region]:
-                    #     assert qinfo['qrbounds'][gene][1] + len(spurious_bases) == len(qinfo['seq'])
                     qinfo['glbounds'][gene] = (qinfo['glbounds'][gene][0], qinfo['glbounds'][gene][1] + len(spurious_bases))
                     qinfo['qrbounds'][gene] = (qinfo['qrbounds'][gene][0], qinfo['qrbounds'][gene][1] + len(spurious_bases))
                 else:
@@ -701,6 +711,8 @@ class Waterer(object):
             else:
                 self.perfplotter.evaluate(self.reco_info[qname], self.info[qname])
 
+        if not utils.is_functional(self.info[qname]):
+            self.kept_unproductive_queries.add(qname)
         self.remaining_queries.remove(qname)
 
     # ----------------------------------------------------------------------------------------
@@ -783,8 +795,8 @@ class Waterer(object):
             return
 
         in_frame_cdr3 = (cdr3_length % 3 == 0)
-        stop_codon = utils.is_there_a_stop_codon(qseq, codon_positions['v'])
-        if not codons_ok or not in_frame_cdr3 or stop_codon:
+        stop_codon = utils.is_there_a_stop_codon(qseq, fv_insertion=qseq[ : qinfo['qrbounds'][best['v']][0]], jf_insertion=qseq[qinfo['qrbounds'][best['j']][1] : ], cyst_position=codon_positions['v'])
+        if not codons_ok or not in_frame_cdr3 or stop_codon:  # TODO should use the new utils.is_functional() here
             if self.debug:
                 print '       unproductive rearrangement:',
                 if not codons_ok:
@@ -803,7 +815,7 @@ class Waterer(object):
             elif self.args.skip_unproductive:
                 if self.debug:
                     print '            ...skipping'
-                self.unproductive_queries.add(qname)
+                self.skipped_unproductive_queries.add(qname)
                 self.remaining_queries.remove(qname)
                 return
             else:
@@ -814,19 +826,27 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def get_kbounds(self, qinfo, best):
-        # OR of k-space for all the matches
+        # OR of k-space for the best <self.args.n_max_per_region> matches
         k_v_min, k_d_min = 999, 999
         k_v_max, k_d_max = 0, 0
-        for region in utils.regions:  # NOTE since here I'm not yet skipping genes beyond the first <args.n_max_per_region>, this is overly conservative. Don't really care, though... k space integration is mostly pretty cheap what with chunk caching
-            for _, gene in qinfo['matches'][region]:
-                if region == 'v':
-                    this_k_v = qinfo['qrbounds'][gene][1]  # NOTE even if the v match doesn't start at the left hand edge of the query sequence, we still measure k_v from there. In other words, sw doesn't tell the hmm about it
-                    k_v_min = min(this_k_v, k_v_min)
-                    k_v_max = max(this_k_v, k_v_max)
-                elif region == 'd':
-                    this_k_d = qinfo['qrbounds'][gene][1] - qinfo['first_match_qrbounds'][1]  # end of d minus end of v
-                    k_d_min = min(this_k_d, k_d_min)
-                    k_d_max = max(this_k_d, k_d_max)
+
+        # k_v
+        tmpreg = 'v'
+        n_v_genes = min(self.args.n_max_per_region[utils.regions.index(tmpreg)], len(qinfo['matches'][tmpreg]))
+        for igene in range(n_v_genes):
+            _, gene = qinfo['matches'][tmpreg][igene]
+            this_k_v = qinfo['qrbounds'][gene][1]  # NOTE even if the v match doesn't start at the left hand edge of the query sequence, we still measure k_v from there. In other words, sw doesn't tell the hmm about it
+            k_v_min = min(this_k_v, k_v_min)
+            k_v_max = max(this_k_v, k_v_max)
+
+        # k_d
+        tmpreg = 'd'
+        n_d_genes = min(self.args.n_max_per_region[utils.regions.index(tmpreg)], len(qinfo['matches'][tmpreg]))
+        for igene in range(n_d_genes):
+            _, gene = qinfo['matches'][tmpreg][igene]
+            this_k_d = qinfo['qrbounds'][gene][1] - qinfo['first_match_qrbounds'][1]  # end of d minus end of v
+            k_d_min = min(this_k_d, k_d_min)
+            k_d_max = max(this_k_d, k_d_max)
 
         # best k_v, k_d:
         k_v = qinfo['qrbounds'][best['v']][1]  # end of v match
@@ -859,6 +879,79 @@ class Waterer(object):
         kbounds['v'] = {'best' : k_v, 'min' : k_v_min, 'max' : k_v_max}
         kbounds['d'] = {'best' : k_d, 'min' : k_d_min, 'max' : k_d_max}
         return kbounds
+
+    # ----------------------------------------------------------------------------------------
+    def remove_framework_insertions(self, debug=True):
+        for query in self.info['queries']:
+            swfo = self.info[query]
+            assert len(swfo['seqs']) == 1
+            if query in self.info['indels']:
+                if self.info['indels'][query] != swfo['indelfos'][0]:
+                    print '%s indelfos not equal for %s' % (utils.color('red', 'warning'), query)
+                if swfo['indelfos'][0]['reversed_seq'] != swfo['seqs'][0]:
+                    print '%s reversed seq not same as seq:\n%s\n%s' % (utils.color('red', 'warning'), swfo['indelfos'][0]['reversed_seq'], swfo['seqs'][0])
+
+            # utils.print_reco_event(self.glfo['seqs'], swfo)
+            utils.remove_all_implicit_info(swfo)
+            fv_len = len(swfo['fv_insertion'])
+            jf_len = len(swfo['jf_insertion'])
+
+            swfo['seqs'][0] = swfo['seqs'][0][fv_len : len(swfo['seqs'][0]) - jf_len]
+            if swfo['indelfos'][0]['reversed_seq'] != '':
+                swfo['indelfos'][0]['reversed_seq'] = swfo['seqs'][0]
+            for indel in reversed(swfo['indelfos'][0]['indels']):
+                indel['pos'] -= fv_len
+            for key in swfo['k_v']:
+                swfo['k_v'][key] -= fv_len
+            swfo['fv_insertion'] = ''
+            swfo['jf_insertion'] = ''
+
+            utils.add_implicit_info(self.glfo, swfo)
+            # utils.print_reco_event(self.glfo['seqs'], swfo)
+
+            # *sigh* not super happy about it, but I think the best way to handle this is to also remove these bases from the simulation info
+            if self.reco_info is not None:
+                raise Exception('needs fixing (and maybe actually shouldn\'t be fixed)')
+                simfo = self.reco_info[query]
+                utils.remove_all_implicit_info(simfo)
+                simfo['seqs'][0] = simfo['seqs'][0][fv_len : len(simfo['seqs'][0]) - jf_len]
+                if simfo['indelfos'][0]['reversed_seq'] != '':
+                    simfo['indelfos'][0]['reversed_seq'] = simfo['seqs'][0]
+                for indel in reversed(simfo['indelfos'][0]['indels']):
+                    indel['pos'] -= fv_len
+                simfo['fv_insertion'] = ''
+                simfo['jf_insertion'] = ''
+                utils.add_implicit_info(self.glfo, simfo)
+
+    # ----------------------------------------------------------------------------------------
+    def remove_duplicate_sequences(self, debug=False):
+        uids_to_pre_keep = set()  # add these uids/seqs before looping through all the queries
+        if self.args.seed_unique_id is not None:
+            uids_to_pre_keep.add(self.args.seed_unique_id)
+        if self.args.queries is not None:
+            uids_to_pre_keep |= set(self.args.queries)
+
+        seqs_to_keep = set()
+        for utpk in uids_to_pre_keep:
+            if utpk not in self.info:
+                raise Exception('required uid %s not in sw info (from either --seed-unique-id or --queries)' % utpk)
+            assert len(self.info[utpk]['seqs']) == 1
+            seqs_to_keep.add(self.info[utpk]['seqs'][0])
+
+        n_kept, n_removed = len(uids_to_pre_keep), 0
+        for query in copy.deepcopy(self.info['queries']):
+            if query in uids_to_pre_keep:  # already added it
+                continue
+            seq = self.info[query]['seqs'][0]
+            if seq in seqs_to_keep:
+                self.remove_query(query)
+                n_removed += 1
+            else:
+                seqs_to_keep.add(seq)
+                n_kept += 1
+
+        if n_removed > 0:
+            print '      removed %d / %d = %.2f duplicate sequences after trimming framework insertions (leaving %d)' % (n_removed, n_removed + n_kept, n_removed / float(n_removed + n_kept), len(self.info['queries']))
 
     # ----------------------------------------------------------------------------------------
     def get_padding_parameters(self, debug=False):
@@ -895,6 +988,11 @@ class Waterer(object):
         Next, pads all sequences further out (if necessary) such as to eliminate all v_5p and j_3p deletions.
         """
 
+        # NOTE that an additional reason not to do this in simulation is that it will screw up the purity/completeness calculation
+        if not self.args.dont_remove_framework_insertions and self.reco_info is None:  # don't want to do this on simulation -- it's too much trouble to keep things consistent with the simulation info
+            self.remove_framework_insertions(debug=debug)
+            self.remove_duplicate_sequences(debug=debug)
+
         maxima = self.get_padding_parameters(debug=debug)
 
         for query in self.info['queries']:
@@ -912,11 +1010,11 @@ class Waterer(object):
             swfo['fv_insertion'] = leftstr + swfo['fv_insertion']
             swfo['jf_insertion'] = swfo['jf_insertion'] + rightstr
             swfo['seqs'][0] = leftstr + swfo['seqs'][0] + rightstr
-            swfo['naive_seq'] = leftstr + swfo['naive_seq'] + rightstr
+            swfo['naive_seq'] = leftstr + swfo['naive_seq'] + rightstr  # NOTE I should eventually rewrite this to remove all implicit info, then change things, then re-add implicit info (like in remove_framework_insertions)
             if query in self.info['indels']:  # also pad the reversed sequence
                 self.info['indels'][query]['reversed_seq'] = leftstr + self.info['indels'][query]['reversed_seq'] + rightstr
-            swfo['k_v']['min'] += padleft
-            swfo['k_v']['max'] += padleft
+            for key in swfo['k_v']:
+                swfo['k_v'][key] += padleft
             swfo['codon_positions']['v'] += padleft
             swfo['codon_positions']['j'] += padleft
             for region in utils.regions:
@@ -924,6 +1022,7 @@ class Waterer(object):
             swfo['padlefts'] = [padleft, ]
             swfo['padrights'] = [padright, ]
             utils.add_implicit_info(self.glfo, swfo, existing_implicit_keys=utils.implicit_linekeys)  # check to make sure we modified everything in a consistent manner
+
             if debug:
                 print '      pad %d %d   %s' % (padleft, padright, query)
 

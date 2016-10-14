@@ -7,7 +7,7 @@ import sys
 import csv
 import numpy
 from multiprocessing import Process, active_children
-from subprocess import check_output, CalledProcessError
+from subprocess import check_call, check_output, CalledProcessError
 import os
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
 if not os.path.exists(partis_dir):
@@ -29,24 +29,10 @@ def default_parameter_dir(args):
     return pdir
 
 # ----------------------------------------------------------------------------------------
-def check_maybe_auto_cache_parameters(args, gldir):
-    auto_ran_cache_parameters = False
-    if not args.simulate_partially_from_scratch and not os.path.exists(args.parameter_dir):
-        print '  parameter dir \'%s\' does not exist, so first caching a new set of parameters, then running action \'%s\'' % (args.parameter_dir, args.action)
-        parter = PartitionDriver(args, 'cache-parameters', gldir)  # if we're caching parameters, read initial gl info from <gldir> (then the final glfo gets written to the parameter dir)
-        parter.cache_parameters()
-        parter.clean()
-        auto_ran_cache_parameters = True
-    return auto_ran_cache_parameters
-
-# ----------------------------------------------------------------------------------------
 def set_default_parameter_dir(args):
-    used_default_parameter_dir = False
     if args.parameter_dir is None and not args.simulate_partially_from_scratch:
         args.parameter_dir = default_parameter_dir(args)
         print '  using default parameter dir \'%s\'' % args.parameter_dir
-        used_default_parameter_dir = True
-    return used_default_parameter_dir
 
 # ----------------------------------------------------------------------------------------
 def run_simulation(args):
@@ -72,6 +58,8 @@ def run_simulation(args):
         raise Exception('either --parameter-dir must be specified, or --simulate-partially-from-scratch must be set')
     if args.simulate_partially_from_scratch and args.parameter_dir is not None:
         raise Exception('you can\'t specify --parameter-dir if you also set --simulate-partially-from-scratch')
+    if args.parameter_dir is not None and args.initial_germline_dir is not None:
+        raise Exception('you can\'t specify both --parameter-dir and --inital-germline-dir')
     default_prevalence_fname = args.workdir + '/allele-prevalence.csv'
     if args.generate_germline_set and args.allele_prevalence_fname is None:
         args.allele_prevalence_fname = default_prevalence_fname
@@ -123,7 +111,7 @@ def run_simulation(args):
     if not args.im_a_subproc:
         print 'simulating'
 
-    _ = set_default_parameter_dir(args)
+    set_default_parameter_dir(args)
 
     n_per_proc = int(float(args.n_sim_events) / args.n_procs)
 
@@ -181,6 +169,10 @@ def run_simulation(args):
 
 # ----------------------------------------------------------------------------------------
 def run_partitiondriver(args):
+    args.istartstop = utils.get_arg_list(args.istartstop, intify=True)
+    if args.istartstop is not None:
+        if args.istartstop[0] >= args.istartstop[1] or args.istartstop[0] < 0:
+            raise Exception('invalid --istartstop specification: %d %d' % (args.istartstop[0], args.istartstop[1]))
     args.queries = utils.get_arg_list(args.queries)
     args.reco_ids = utils.get_arg_list(args.reco_ids)
     args.n_max_per_region = utils.get_arg_list(args.n_max_per_region, intify=True)
@@ -188,7 +180,9 @@ def run_partitiondriver(args):
     args.annotation_clustering_thresholds = utils.get_arg_list(args.annotation_clustering_thresholds, floatify=True)
     args.naive_hamming_bounds = utils.get_arg_list(args.naive_hamming_bounds, floatify=True)
     if args.seed_unique_id is not None:
-        args.seed_unique_id = args.seed_unique_id.strip()  # protect against the space you have to put in front of it if it's got an initial minus sign
+        args.seed_unique_id = args.seed_unique_id.strip()  # protect against the space you may put in front of it if it's got an initial minus sign (better way is to use an equals sign)
+        if args.queries is not None and args.seed_unique_id not in args.queries:
+            raise Exception('seed uid %s not in --queries %s' % (args.seed_unique_id, ' '.join(args.queries)))
     if args.sw_debug is None:  # if not explicitly set, set equal to regular debug
         args.sw_debug = args.debug
     if len(args.n_max_per_region) != 3:
@@ -198,24 +192,28 @@ def run_partitiondriver(args):
     if args.infname is None:
         raise Exception('--infname is required for the \'%s\' action' % args.action)
 
-    _ = set_default_parameter_dir(args)
-
-    gldir = args.default_initial_germline_dir
-    if args.initial_germline_dir is not None:
-        gldir = args.initial_germline_dir
+    set_default_parameter_dir(args)
 
     if args.action == 'cache-parameters':
-        parter = PartitionDriver(args, 'cache-parameters', gldir)  # if we're caching parameters, read initial gl info from <args.initial_germline_dir> (then the final glfo gets written to the parameter dir)
+        parter = PartitionDriver(args, 'cache-parameters', args.default_initial_germline_dir if args.initial_germline_dir is None else args.initial_germline_dir)  # if we're caching parameters, read initial gl info from <args.initial_germline_dir> (then the final glfo gets written to the parameter dir)
         parter.cache_parameters()
         parter.clean()
         return
 
-    _ = check_maybe_auto_cache_parameters(args, gldir)
+    if not os.path.exists(args.parameter_dir):
+        print '  parameter dir \'%s\' does not exist, so first caching a new set of parameters' % args.parameter_dir
+        newargv = copy.deepcopy(sys.argv)
+        cache_parameter_arg_names = [argconf['name'] for argconf in subargs['cache-parameters']]
+        for argconf in subargs[args.action]:  # remove args that make sense for <args.action>, but not for parameter caching
+            if argconf['name'] in newargv and argconf not in cache_parameter_arg_names:
+                index = newargv.index(argconf['name'])
+                newargv.remove(argconf['name'])
+                if 'action' not in argconf['kwargs'] or argconf['kwargs']['action'] != 'store_true':  # also remove the argument's argument
+                    newargv.pop(index)
+        newargv = newargv[:1] + ['cache-parameters', ] + newargv[2:]
+        check_call(newargv)
 
-    if args.initial_germline_dir is None:  # unless it was overridden on the command line, use the glfo in the parameter dir
-        gldir = args.parameter_dir + '/' + args.parameter_type + '/' + glutils.glfo_dir
-
-    parter = PartitionDriver(args, args.action, gldir)
+    parter = PartitionDriver(args, args.action, args.parameter_dir + '/' + args.parameter_type + '/' + glutils.glfo_dir)
     if 'run-' in args.action:
         parter.run_algorithm(args.action.replace('run-', ''))
     elif args.action == 'partition':
@@ -267,7 +265,6 @@ parent_parser.add_argument('--name-column', default='unique_id', help='csv colum
 parent_parser.add_argument('--seq-column', default='seq', help='csv column name for nucleotide sequences')
 parent_parser.add_argument('--parameter-dir', help='Directory to/from which to write/read sample-specific parameters. If not specified, a default location is used (and printed to std out). If it does not exist, we infer parameters before proceeding to the desired action.')
 parent_parser.add_argument('--parameter-type', default='hmm', choices=('sw', 'hmm'), help='Use parameters from Smith-Waterman (sw) or the HMM (hmm) subdirectories for inference/simulation? (you should almost certainly use the hmm ones, but sw is occasionally useful for debugging)')
-parent_parser.add_argument('--initial-germline-dir', help='Directory with fastas from which to read germline set. Only used when caching parameters, during which its contents is copied into --parameter-dir, perhaps (i.e. if specified) with modification. NOTE default is set below, because control flow is too complicated for argparse')
 parent_parser.add_argument('--default-initial-germline-dir', default=partis_dir + '/data/germlines', help='for internal use only')
 parent_parser.add_argument('--simulation-germline-dir', help='Germline directory that was used for simulation (not usually needed, in fact maybe only for performance evaluation)')
 parent_parser.add_argument('--outfname', help='Output file name.')
@@ -279,17 +276,19 @@ parent_parser.add_argument('--ig-sw-binary', default=partis_dir + '/packages/ig-
 parent_parser.add_argument('--workdir', help='Temporary working directory')
 parent_parser.add_argument('--persistent-cachefname', help='Name of file which will be used as an initial cache file (if it exists), and to which all cached info will be written out before exiting.')
 parent_parser.add_argument('--abbreviate', action='store_true', help='Abbreviate/translate sequence ids to improve readability of partition debug output. Uses a, b, c, ..., aa, ab, ...')
+parent_parser.add_argument('--dont-remove-framework-insertions', action='store_true', help='')
 parent_parser.add_argument('--n-procs', default='1', help='Number of processes over which to parallelize (Can be colon-separated list: first number is procs for hmm, second (should be smaller) is procs for smith-waterman)')
-parent_parser.add_argument('--n-max-procs', default=250, help='Never allow more processes than this (default %(default)d)')
+parent_parser.add_argument('--n-max-procs', default=100, help='Never allow more processes than this (default %(default)d)')
 parent_parser.add_argument('--n-max-to-calc-per-process', default=200, help='if a bcrham process calc\'d more than this many fwd + vtb values, don\'t decrease the number of processes in the next step (default %(default)d)')
 parent_parser.add_argument('--slurm', action='store_true', help='Run multiple processes with slurm, otherwise just runs them on local machine. NOTE make sure to set <workdir> to something visible on all batch nodes.')
 parent_parser.add_argument('--queries', help='Colon-separated list of query names to which we restrict ourselves')
 parent_parser.add_argument('--reco-ids', help='Colon-separated list of rearrangement-event IDs to which we restrict ourselves')  # or recombination events
 parent_parser.add_argument('--n-max-queries', type=int, default=-1, help='Maximum number of query sequences on which to run (except for simulator, where it\'s the number of rearrangement events)')
+parent_parser.add_argument('--istartstop', help='Start and stop line indices for input sequence file (with python slice conventions, e.g. if set to \'2:4\' will skip the zeroth and first sequences, and then take the following two sequences, and then skip all subsequence sequences). Applied before any other input filters, e.g. --n-max-queries, --queries, --reco-ids, etc.')
 parent_parser.add_argument('--only-genes', help='Colon-separated list of genes to which to restrict the analysis. If any regions (V/D/J) are not represented among these genes, these regions are left unrestricted.')
 parent_parser.add_argument('--n-max-per-region', default='3:5:2', help='Number of best smith-waterman matches (per region, in the format v:d:j) to pass on to the hmm')
-parent_parser.add_argument('--default-v-fuzz', type=int, default=5, help='Size of the k space region over which to sum in the v direction')
-parent_parser.add_argument('--default-d-fuzz', type=int, default=2, help='Size of the k space region over which to sum in the d direction')
+parent_parser.add_argument('--default-v-fuzz', type=int, default=2, help='Size of the k space region over which to sum in the v direction, for each single gene match (we take the OR of the bounds over all matches, though, which generally makes the space much bigger)')
+parent_parser.add_argument('--default-d-fuzz', type=int, default=2, help='Size of the k space region over which to sum in the d direction, for each single gene match (we take the OR of the bounds over all matches, though, which generally makes the space much bigger)')
 parent_parser.add_argument('--gap-open-penalty', type=int, default=30, help='Penalty for indel creation in Smith-Waterman step.')
 parent_parser.add_argument('--initial-match-mismatch', default='5:1', help='Initial match:mismatch scores for smith-waterman (we run several iterations, increasing mismatch each time).')
 parent_parser.add_argument('--max-logprob-drop', type=float, default=5., help='stop glomerating when the total logprob has dropped by this much')
@@ -304,20 +303,6 @@ parent_parser.add_argument('--species', default='human', choices=('human', 'mous
 parent_parser.add_argument('--only-smith-waterman', action='store_true', help='Exit after finishing smith-waterman.')
 # parent_parser.add_argument('--use_mean_at_boundaries', action='store_true', help='see note in hmmwriter')
 
-# print 'TODO rerun on katie data and figure out why big cluster is slowing things down'
-# print 'TODO am I not using translation when getting the log prob for the final partition?'
-# print 'TODO add flag to disable cdr3 preclustering'
-
-# print 'TODO add requirement for mulitple j genes'
-# print 'TODO increase n_max_mutations_per_segment for highly-mutated repertoires'
-# print 'TODO still need to remove original (template) genes, at least when the new gene is not among the imgt ones'
-# print 'TODO all alleles (including new ones) should have roughly the same mut freq distribution (especially at low mutation)'
-# print 'TODO add a requirement to alleleremover to do with the number of unmutated exemplars (and clean up allele finding loop in partitiondriver)'
-# print 'TODO y-icpt (i.e. allele prevalence) could also go into the decision about whether to remove the template gene or not'
-# maybe:
-#   add requirement that all positions in multiple-snp alleles are correlated (?)'
-#   do all the plots separately for each potential original snp base (i.e. separate plot for A, C, G, T)?'
-
 subconfig = {
     'version'          : {'func' : int, 'help' : 'print version information and exit'},
     'cache-parameters' : {'func' : run_partitiondriver, 'help' : 'Cache parameter values and write hmm model files.'},
@@ -331,28 +316,34 @@ subconfig = {
 
 subargs = {subname : [] for subname in subconfig}
 
-subargs['cache-parameters'].append({'name' : '--generate-germline-set', 'kwargs' : {'action' : 'store_true', 'help' : 'First removes from the germline set all alleles that we can\'t be very sure are really there, then runs new-allele finding both to find new alleles and to re-add any removed alleles for which there is good evidence.'}})
-subargs['cache-parameters'].append({'name' : '--find-new-alleles', 'kwargs' : {'action' : 'store_true', 'help' : 'look for new alleles which are separated only by snps from existing alleles, add them to the existing germline set, and write it all to --parameter-dir.'}})
-subargs['cache-parameters'].append({'name' : '--new-allele-fname', 'kwargs' : {'help' : 'fasta fname to which to write any new alleles (they are also written, with existing alleles, to --parameter-dir)'}})
+subargs['cache-parameters'].append({'name' : '--dont-remove-unlikely-alleles', 'kwargs' : {'action' : 'store_true', 'help' : 'assign each sequence to its closest germline match, even if this would imply an unrealistically large number of alleles per gene in this sample'}})
+subargs['cache-parameters'].append({'name' : '--find-new-alleles', 'kwargs' : {'action' : 'store_true', 'help' : 'look for alleles which do not appear in the default germline set'}})
+subargs['cache-parameters'].append({'name' : '--always-find-new-alleles', 'kwargs' : {'action' : 'store_true', 'help' : 'By default we only look for new alleles if a repertoire\'s mutation rate is amenable to reasonable new-allele sensitivity (i.e. if it\'s not crazy high). This overrides that.'}})
+subargs['cache-parameters'].append({'name' : '--new-allele-fname', 'kwargs' : {'help' : 'fasta fname to which to write any new alleles (they are also written, together with existing alleles, to --parameter-dir)'}})
 subargs['cache-parameters'].append({'name' : '--debug-allele-finding', 'kwargs' : {'action' : 'store_true', 'help' : 'print lots of debug info on new-allele fits'}})
-subargs['cache-parameters'].append({'name' : '--n-max-allele-finding-iterations', 'kwargs' : {'type' : int, 'default' : 4, 'help' : 'maximum number of times to look for new alleles'}})
-subargs['cache-parameters'].append({'name' : '--n-max-snps', 'kwargs' : {'type' : int, 'default' : 15, 'help' : 'when new-allele finding, look for new alleles separated from existing alleles by up to this many SNPs'}})
+subargs['cache-parameters'].append({'name' : '--n-max-allele-finding-iterations', 'kwargs' : {'type' : int, 'default' : 2, 'help' : 'maximum number of times to look for new alleles'}})
+subargs['cache-parameters'].append({'name' : '--n-max-new-alleles-per-gene-per-iteration', 'kwargs' : {'type' : int, 'default' : 2, 'help' : 'with an option name that long...'}})
+subargs['cache-parameters'].append({'name' : '--n-max-snps', 'kwargs' : {'type' : int, 'default' : 8, 'help' : 'when new-allele finding, look for new alleles separated from existing alleles by up to this many SNPs'}})
 subargs['cache-parameters'].append({'name' : '--n-max-mutations-per-segment', 'kwargs' : {'type' : int, 'default' : 30, 'help' : 'when new-allele finding, exclude sequences which have more than this many mutations in the V segment'}})
+subargs['cache-parameters'].append({'name' : '--n-alleles-per-gene', 'kwargs' : {'type' : int, 'default' : 2, 'help' : 'number of alleles to assume per gene when removing spurious alleles during parameter caching'}})
+subargs['cache-parameters'].append({'name' : '--min-allele-prevalence-fraction', 'kwargs' : {'type' : float, 'default' : 0.0005, 'help' : 'Remove any alleles that represent less than this fraction of the repertoire.'}})
+subargs['cache-parameters'].append({'name' : '--initial-germline-dir', 'kwargs' : {'help' : 'Directory with fastas from which to read germline set. Only used when caching parameters, during which its contents is copied into --parameter-dir, perhaps (i.e. if specified) with modification. NOTE default is set below, because control flow is too complicated for argparse'}})
 
 subargs['partition'].append({'name' : '--naive-hamming', 'kwargs' : {'action' : 'store_true', 'help' : 'agglomerate purely with naive hamming distance, i.e. set the low and high preclustering bounds to the same value'}})
 subargs['partition'].append({'name' : '--naive-vsearch', 'kwargs' : {'action' : 'store_true', 'help' : 'Very fast clustering: infer naive (unmutated ancestor) for each input sequence, then toss it all into vsearch. But, of course, not as accurate as the slower methods.'}})
 subargs['partition'].append({'name' : '--seed-unique-id', 'kwargs' : {'help' : 'Only look for sequences that are clonally related to this unique id. Much much much faster than partitioning the entire dataset.'}})
+subargs['partition'].append({'name' : '--seed-seq', 'kwargs' : {'help' : 'same as --seed-unique-id, but specifies a sequence that doesn\'t have to be in the original file'}})
 subargs['partition'].append({'name' : '--annotation-clustering', 'kwargs' : {'help' : 'Perform annotation-based clustering: group together sequences with the same V and J, same CDR3 length, and 90%% cdr identity. Very, very inaccurate.'}})
 subargs['partition'].append({'name' : '--annotation-clustering-thresholds', 'kwargs' : {'default' : '0.9', 'help' : 'colon-separated list of thresholds for annotation-based (e.g. vollmers) clustering'}})
-subargs['partition'].append({'name' : '--print-cluster-annotations', 'kwargs' : {'action' : 'store_true', 'help' : 'print annotation for each final cluster'}})
+subargs['partition'].append({'name' : '--print-cluster-annotations', 'kwargs' : {'action' : 'store_true', 'help' : 'Print annotation for each final cluster. If --outfname is also specified, then the cluster annotations are written to <args.outfname.replace(\'.csv\', \'-cluster-annotations.csv\')>'}})
 subargs['partition'].append({'name' : '--naive-hamming-bounds', 'kwargs' : {'help' : 'Clustering bounds (lo:hi colon-separated pair) on naive sequence hamming distance. If not specified, the bounds are set based on the per-dataset mutation levels. For most purposes should be left at the defaults.'}})
 subargs['partition'].append({'name' : '--logprob-ratio-threshold', 'kwargs' : {'type' : float, 'default' : 18., 'help' : 'reaches a min value of <this> minus five for large clusters.'}})
 subargs['partition'].append({'name' : '--synthetic-distance-based-partition', 'kwargs' : {'action' : 'store_true', 'help' : 'Use simulation truth info to create a synthetic distance-based partition (for validation).'}})
 subargs['partition'].append({'name' : '--cache-naive-hfracs', 'kwargs' : {'action' : 'store_true', 'help' : 'In addition to naive sequences and log probabilities, also cache naive hamming fractions between cluster pairs. Only really useful for plotting or testing.'}})
 subargs['partition'].append({'name' : '--n-precache-procs', 'kwargs' : {'type' : int, 'help' : 'Number of processes to use when precaching naive sequences. Default is set based on some heuristics, and should typically only be overridden for testing.'}})
-subargs['partition'].append({'name' : '--biggest-naive-seq-cluster-to-calculate', 'kwargs' : {'type' : int, 'default' : 7, 'help' : 'start thinking about subsampling before you calculate anything if cluster is bigger than this'}})
-subargs['partition'].append({'name' : '--biggest-logprob-cluster-to-calculate', 'kwargs' : {'type' : int, 'default' : 7, 'help' : 'start thinking about subsampling before you calculate anything if cluster is bigger than this'}})
-subargs['partition'].append({'name' : '--n-partitions-to-write', 'kwargs' : {'type' : int, 'default' : 5, 'help' : 'Number of partitions (surrounding the best partition) to write to output file.'}})
+subargs['partition'].append({'name' : '--biggest-naive-seq-cluster-to-calculate', 'kwargs' : {'type' : int, 'default' : 15, 'help' : 'start thinking about subsampling before you calculate anything if cluster is bigger than this'}})
+subargs['partition'].append({'name' : '--biggest-logprob-cluster-to-calculate', 'kwargs' : {'type' : int, 'default' : 15, 'help' : 'start thinking about subsampling before you calculate anything if cluster is bigger than this'}})
+subargs['partition'].append({'name' : '--n-partitions-to-write', 'kwargs' : {'type' : int, 'default' : 10, 'help' : 'Number of partitions (surrounding the best partition) to write to output file.'}})
 subargs['partition'].append({'name' : '--naive-swarm', 'kwargs' : {'action' : 'store_true', 'help' : 'Use swarm instead of vsearch, which the developer recommends. Didn\'t seem to help much, and needs more work to optimize threshold, so DO NOT USE.'}})
 
 subargs['simulate'].append({'name' : '--mutation-multiplier', 'kwargs' : {'type' : float, 'help' : 'Multiply observed branch lengths by some factor when simulating, e.g. if in data it was 0.05, but you want closer to ten percent in your simulation, set this to 2'}})
@@ -376,6 +367,7 @@ subargs['simulate'].append({'name' : '--n-genes-per-region', 'kwargs' : {'defaul
 subargs['simulate'].append({'name' : '--n-alleles-per-gene', 'kwargs' : {'default' : '1,2,3:1,2:1,2', 'help' : 'colon-separated list of comma-separated lists of the allowed allele multiplicities for each region, e.g. \'2:1,2:1,2\' means that for each gene we will choose two alleles for V, and either 1 or 2 for D and J (for use with --generate-germline-set)'}})
 subargs['simulate'].append({'name' : '--min-allele-prevalence-freq', 'kwargs' : {'default' : 0.1, 'type' : float, 'help' : 'minimum frequency at which alleles are allowed to occur, e.g. if it\'s 0.01 then each pair of V alleles will have a prevalence ratio between --min-allele-prevalence-freq and 1..'}})
 subargs['simulate'].append({'name' : '--allele-prevalence-fname', 'kwargs' : {'help' : 'abandon help all ye who enter here'}})
+subargs['simulate'].append({'name' : '--initial-germline-dir', 'kwargs' : {'help' : 'Directory with fastas from which to read germline set. Only used when caching parameters, during which its contents is copied into --parameter-dir, perhaps (i.e. if specified) with modification. NOTE default is set below, because control flow is too complicated for argparse'}})
 
 subargs['simulate'].append({'name' : '--subsimproc', 'kwargs' : {'action' : 'store_true', 'help' : 'set to true if this process has subsidiary simulation processes handled by Popen'}})
 subargs['simulate'].append({'name' : '--im-a-subproc', 'kwargs' : {'action' : 'store_true', 'help' : 'set to true if this is a sub-process handled by --subsimproc'}})

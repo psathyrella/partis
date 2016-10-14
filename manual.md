@@ -11,19 +11,22 @@ The following two papers describe the annotation and clonal family inference fun
 
 This manual is organized into the following sections:
 
-  * [Quick Start](#quick-start) install/run with Docker
-  * [Slow Start](#slow-start) install from scratch
+  * [Installation with Docker](#installation-with-docker)
+  * [Installation from scratch](#installation-from-scratch)
+  * [Quick start](#quick-start)
   * [Subcommands](#subcommands) how to navigate the various `partis` actions
     - [run-viterbi](#run-viterbi) find most likely annotations/alignments
 	- [partition](#partition) cluster sequences into clonally-related families
-	  - [approximate methods](#approximate-methods)
+	  - [faster methods](#faster-methods)
+	  - [cluster annotations](#cluster-annotations)
 	- [view-annotations](#view-annotations) Print (to std out) the annotations from an existing annotation output csv.
 	- [view-partitions](#view-partitions)  Print (to std out) the partitions from an existing partition output csv.
 	- [cache-parameters](#cache-parameters) write parameter values and HMM model files for a given data set
-	  - [finding new alleles](#finding-new-alleles)
+	  - [germline sets](#germline-sets)
 	- [simulate](#simulate) make simulated sequences
 	- [run-forward](#run-forward) find total probability of sequences
   * [Parallelization](#parallelization)
+  * [Text output and logging](#text-output-and-logging)
 
 There are also many flags and optional parameters; unless mentioned below these are beyond the scope of this manual.
 Details concerning their purpose, however, may be gleaned by means of the following incantation: `./bin/partis --help`.
@@ -32,11 +35,11 @@ In general, we assume that the reader is familiar with the papers describing [an
 To ask questions, or search through past discussions, please use the [google group](https://groups.google.com/forum/#!forum/partis).
 For specific issues with the software, e.g. bug reports or feature requests, on the other hand, [submit an issue](https://github.com/psathyrella/partis/issues?utf8=%E2%9C%93&q=) on github.
 
-### Quick Start
+### Installation with Docker
 
-Because partis has a lot of dependencies, you'll likely have an easier time of it using the [Docker image](https://registry.hub.docker.com/u/psathyrella/partis/) rather than installing from scratch.
+The easiest way to install partis is with the [Docker image](https://registry.hub.docker.com/u/psathyrella/partis/).
 Docker images are kind of like lightweight virtual machines, and as such all the dependencies are taken care of automatically.
-If, however, you'll be doing a lot of mucking about under the hood, bare and dockerless installation might be preferable.
+If, however, you'll be mucking about under the hood, or you just don't want to deal with Docker, plain installation might be preferable (see [Installation from scratch](#installation-from-scratch) below).
 
 You'll first want install Docker using their [installation instructions](https://docs.docker.com) for your particular system.
 Once Docker's installed, pull the partis image from dockerhub, start up a container from this image and attach yourself to it interactively, and compile:
@@ -48,26 +51,6 @@ sudo docker run -it -v /:/host psathyrella/partis /bin/bash
 ```
 Depending on your system, the `sudo` may be unnecessary.
 Note the `-v`, which mounts the root of the host filesystem to `/host` inside the container.
-
-Now you can run individual partis commands (described [below](#details)), or poke around in the code.
-If you just want to annotate a small file with BCR sequences, say on your machine at `/path/to/yourseqs.fa`, run
-
-```./bin/partis run-viterbi --infname /host/path/to/yourseqs.fa --outfname /host/path/to/yourseqs-run-viterbi.csv```
-
-Whereas if you'd like to separate them into clonal families, run
-
-```./bin/partis partition --infname /host/path/to/yourseqs.fa --outfname /host/path/to/yourseqs-partition.csv```
-
-Note that now we're inside the container, we access the fasta file at the original path on your host system, but with `/host` tacked on the front (as we specified in `docker run` above).
-There's also some example sequences you can run on in `test/example.fa`.
-
-Also note that partis by default infers its HMM parameters on the fly for each data set; while on larger samples this is substantially more accurate than using population-wide averages, if you have fewer than, say, 50 sequences, it is not a particularly meaningful exercise.
-Until there exists enough public data such that it is possible to build good population-wide parameter priors, the best thing to do in such cases is to find a larger data set that you think is similar (e.g. same patient, so it has the same germline genes) to the one you're interested in, and infer parameters using that larger set.
-
-Depending on your system, in ten minutes a single process can annotate perhaps 5000 sequences or partition a few hundred.
-To parallelize on your local machine, just add `--n-procs N`.
-You can also use the approximate clustering methods: point/naive (`--naive-hamming`) or vsearch (`--naive-vsearch`).
-The naive-hamming method is perhaps twice as fast as the full method, while the vsearch method is much faster -- it typicallly takes longer to do the pre-annotation to get the naive sequences than it does for vsearch to run.
 
 To detach from the docker container without stopping it (and you don't want to stop it!), hit `ctrl-p ctrl-q`.
 
@@ -81,21 +64,22 @@ Docker containers and images are kinda-sorta like virtual machines, only differe
     - Hence the `-it` and `/bin/bash` options we used above for `docker run`: these allocate a pseudo-tty, keep STDIN open, and run bash instead of the default command, without all of which you can't reattach
     - the Docker docs are good, but googling on stackoverflow is frequently better
 
-### Slow Start
+### Installation from scratch
 
-As noted above, for most use cases you'll likely be happier using the [Docker image](https://registry.hub.docker.com/u/psathyrella/partis/).
-But if you're doing lots of development it's nice to be able to work outside of Docker, and installing from scratch isn't really so bad.
-You'll need to have recent versions of a number of debian and python packages, a list of which can be found in the [Dockerfile](https://github.com/psathyrella/partis/blob/master/Dockerfile).
+Given the wide variety of different systems that are out there, installing without Docker comes with no guarantees.
+That said, you should be able to get partis running on recent versions of ubuntu with a few `apt-get` and `pip` commands.
+If you use os-x you're likely to be more familiar than us with whether or not that statement will also apply to you.
+
+Basically, you just need to install a few extra packages, and then the dependencies listed in the [Dockerfile](https://github.com/psathyrella/partis/blob/master/Dockerfile).
+
+```
+sudo apt-get install python-pip scons libboost-all-dev
+sudo apt-get install <stuff in Dockerfile>
+pip install --user <stuff in Dockerfile>
+R --vanilla --slave -e 'install.packages("TreeSim", repos="http://cran.rstudio.com/")'
+```
+
 If you need to sort out versions, follow the Dockerfile chain beginning [here](https://registry.hub.docker.com/u/psathyrella/partis/dockerfile/) and [here](https://github.com/matsengrp/dockerfiles/blob/master/cpp/Dockerfile).
-
-The following packages are also used by partis, but they're included as `git subtree`s in the source code, so you don't need to do anything:
-  - ig-sw
-  - tclap
-  - yaml-cpp
-  - ham
-  - samtools
-  - bppseqgen
-  - vsearch
 
 Once you've got all the necessary things on your system, you can proceed to clone the repository:
 
@@ -109,6 +93,27 @@ And then build:
 ```
 ./bin/build.sh
 ```
+
+### Quick start
+
+Once you have partis installed, if you want to annotate a small file with BCR sequences, perhaps located at `/path/to/yourseqs.fa`, run
+
+```./bin/partis run-viterbi --infname /path/to/yourseqs.fa --outfname /path/to/yourseqs-run-viterbi.csv```
+
+If you're using Docker, and you mounted your host filesystem as described above, you should replace each `/path/to` with `/host/path/to`.
+
+Whereas if you'd like to separate them into clonal families, run
+
+```./bin/partis partition --infname /path/to/yourseqs.fa --outfname /path/to/yourseqs-partition.csv```
+
+Where, again, tack `/host` on the front of if you're inside Docker.
+
+There's some example sequences you can run on in `test/example.fa`.
+
+To parallelize on your local machine, just add `--n-procs N`.
+You can also use the approximate clustering methods: point/naive (`--naive-hamming`) or vsearch (`--naive-vsearch`).
+Run times depend on your system, as well as the repertoire structure of your sample.
+Typically, though, in 15 minutes with 30 processes you can annotate 100 thousand sequences, or partition 10 thousand.
 
 ### Subcommands
 
@@ -200,34 +205,56 @@ We write one line for the most likely partition (with the lowest logprob), as we
 | partition        |  String representing the clusters, where clusters are separated by ; and sequences within clusters by :, e.g. 'a:b;c:d:e'
 | n_procs          |  Number of processes which were simultaneously running for this clusterpath. In practice, final output is usually only written for n_procs = 1
 
-To help visualize the clusters, you can tell it to print the most likely annotations for the final clusters with `--print-cluster-annotations`.
-If you specify both `--print-cluster-annotations` and `--outfname`, the annotations will be written to a file name generated from `--outfname` (which can be viewed as other annotations, with `view-annotations`).
-
 By default, this uses the most accurate and slowest method: hierarchical agglomeration with, first, hamming distance between naive sequences for distant clsuters, and full likelihood calculation for more similar clusters.
 Like most clustering algorithms, this scales rather closer than you'd like to quadratically than it does to linearly.
 We thus also have two faster and more approximate methods.
 
-##### approximate methods
+##### faster methods
+
+*--seed-unique-id*
+
+Only looks for sequences which are clonally related to the sequence id specified by `--seed-unique-id` (you can also specify `--seed-seq`).
+Because this completely avoids the all-against-all comparisons which render full data set partitioning depressingly close to quadratic in sample size, it is vastly faster
+It is an excellent option if you have, ahead of time, sequences about which you are particularly interested.
+You can also combine it with, for instance `--naive-vsearch`, by seeding with sequences from particularly interesting (probably large) clusters from that approximate method.
+
+*--naive-vsearch*
+
+First calculates naive (unmutated ancestor) for each sequence, then passes these into vsearch for very fast, very heuristic clustering.
+The initial naive sequence calculation is easy to parallelize, so is fast if you have access to a fair number of processors.
+Vsearch is also very fast, because it makes a large number of heuristic approximations to avoid all-against-all comparison, and thus scales significantly better than quadratically.
+With `--n-procs` around 10 for the vsearch step, this should take only of order minutes for a million sequences.
+If your sample is too large to comfortably partition with the default method using your computational resources, one option is to run naive vsearch clustering, and use clusters from this step in which you're particularly interested to seed `--seed-unique-id`.
 
 *--naive-hamming*
 
 Use hard boundaries on hamming distance between naive sequences alone, with no likelihood calculation, to cluster with hierarchical agglomeration.
 This is perhaps as much as twice as fast as the full method, but sacrifices significant accuracy because it doesn't know (for example) about the differing probabilities of mutations at different points in the sequence, and because it uses a single, fixed annotation rather than integrating over all likely annotations.
 
-*--naive-vsearch*
+##### cluster annotations
 
-First calculate naive (unmutated ancestor) for each sequence, then pass these into vsearch for very fast, very heuristic clustering.
-The naive sequence calculation is easy to parallelize, so is fast if you have access to a fair number of processors.
-Vsearch is also very fast, because it makes a large number of heuristic approximations to avoid all-against-all comparison, and thus scales significantly better than quadratically.
-With `--n-procs` around 10 for the vsearch step, this should take only of order minutes for a million sequences.
-Since it's entirely unprincipled, this of course sacrifices significant accuracy; but since we're using inferred naive sequences it's still much, much more accurate than clustering on SHM'd sequences.
+You can access the most likely annotation for each final cluster in several ways.
+If you just want to view an ascii-art printout of the final cluster annotations, specify `--print-cluster-annotations`.
+If you specify both `--print-cluster-annotations` and `--outfname`, these annotations will be written to the file `<--outfname>.replace('.csv', '-cluster-annotations.csv')`.
 
-##### extracting annotations for each partition
-Since this algorithm partition sequences into clonal families, the sequences in each cluster/partition all share many of the same annotations from their last common ancestor, called the naive sequence. Annotations that are shared include VDJ gene combination and inferred naive sequence. In the partitioning algorithm the naive sequence of a partition is a joint estimate based on information from all the members of the given partition, and this results is much stronger than those on a single sequence done with `run-viterbi`. To print the maximum likelihood estimate of the cluster annotations use the `--print-cluster-annotations` together with the `--outfname` command, then the cluster annotations will be printed alongside the partitions in a file named similar as the partitions but with `-cluster-annotations` before the file extension.
+To annotate an arbitrary collection of sequences using simultaneous multi-HMM inference (which is much, much more accurate than annotating the sequences individually), you can combine the `--queries` and `--n-sets` arguments.
+For instance, if you knew from partitioning that three sequences `a`, `b`, and `c` were clonal, you could run:
 
-##### the curse of memory consumption
-Given that clustering algorithms scales computationally rather badly with more datapoints, a lot of effort have been put into optimizing the computation time of this algorithm. The tradeoff was made between memory and CPU time because many of the distances that are used to build up the clusters are reused again and again. Caching some of the distances in memory will save tremendous amount of CPU time, but it also comes with the downside of high memory consumption, which then has the same scaling problem with more sequences. The amount of memory necessary for a run is not easy to calculate because it depends on many things such as mutational frequency, sequence length sequence similarities etc. however some users have reported running datasets with up to 50,000 sequences taking up between 100Gb to 300Gb RAM. Decreasing the dataset size by various means can therefore be a good idea. If the all the clonal families are believed to be highly represented in the dataset then simply taking a random subset could suffice, otherwise filtering, pre-clustering and other techniques can be used.
+``` ./bin/partis run-viterbi --infname in.fa --queries a:b:c --n-sets 3 --outfname abc-annotation.csv```
 
+##### cpu and memory usage
+Because, at least to a first approximation, accurate clustering entails all-against-all comparison, partitioning is in a fundamentally different computational regime than are single-sequence problems such as annotation.
+In order to arrive at a method that can be useful in practice, we have tried to combat this inherent difficulty with a number of different levels of both approximations and caching, several of which are described in the papers.
+As in many such cases, this frequently amounts to an attempt to make judicious compromises between cpu and memory usage which are appropriate in each individual circumstance.
+Because the computational difficulty of the clustering problem is entirely dependent on the detailed structure of each repertoire, however, it is not always possible to make the optimal choice ahead of time.
+For instance, five hundred thousand sequences from a repertoire that consists almost entirely of a single, highly-mutated clone will have very different computational requirements (more!) to one which is more evenly spread among different naive rearrangements and has more typical mutation levels.
+
+Which is a roundabout way of saying: if you find that the sample which you'd like to run on is taking forever with the number of cores you have available, or if it's exhausting your available memory, you have a few options.
+First, consider whether it's possible to run separately on independent subsamples of your full sample -- if you divide into ten subsets, each one will typically run a hundred times faster.
+You can then, for instance, pull from these ten sub-partitions only the clusters you're interested in (e.g. the biggest ones) and run only on those with the `--queries` option.
+Another option, as mentioned above, is to run the very fast but somewhat less accurate `--naive-vsearch` method on the full sample, and then either pass only the most interesting clusters into the full algorithm (using `--queries`), or use `--seed-unique-id` with some sequences from the most interesting clusters.
+
+We're working to include these two strategies as command line options, but want to do some more validation before we settle on the particulars which are best for a general use case.
 
 #### view-annotations
 
@@ -259,25 +286,30 @@ When caching parameters, the parameter csvs from Smith-Waterman and the HMM are 
 Within each of these, there are a bunch of csv files with (hopefully) self-explanatory names, e.g. `j_gene-j_5p_del-probs.csv` has counts for J 5' deletions subset by J gene.
 The hmm model files go in the `hmms` subdirectory, which contains yaml HMM model files for each observed allele.
 
-##### Finding New Alleles
+##### germline sets
 
-By default partis uses the set of germline V, D, and J genes ("germline set") in `data/imgt`.
-If you have another set you'd like to use, you can do so by setting `--initial-germline-dir`.
-The default set from imgt is missing many real alleles, and as such, annotations for any individual who has these missing alleles will be wrong.
-So we've implemented a method of finding new alleles on the fly when running on a new input data set.
-We basically use the idea from [tigger](http://tigger.readthedocs.io/en/latest/), but generalize and robustify it a bit: in particular, we do something more akin to a simultaneous fit, over all positions at once, for each hypothesized number of SNPs.
+By default partis uses the set of germline V, D, and J genes (the "germline set") in `data/germlines`, which is from imgt.
+If you have another set you'd like to use, you can do so by setting the `--initial-germline-dir` option to cache-parameters.
+A number of studies have shown that, at least for V genes, this set (and all others) is both missing many alleles which occur in real populations and contains many alleles which do not occur in any real sample.
+In addition, any individual sample will contain only a small fraction of the genes and alleles in the default germline set.
 
-To try this, use the `--find-new-alleles` option to the `cache-parameters` action.
-This will write any new alleles, along with the existing alleles, to a germline set directory in `--parameter-dir`.
-This modified germline set is then used by default when later performing inference with these parameters.
-If you specified, it will also write the new alleles in fasta format to `--new-allele-fname`.
+By default partis handles these problems when caching parameters with a two step process during the preliminary smith-waterman annotation.
+The V alleles in the initial germline set which were the best match for at least one sequence, and which accounted for more than `--min-allele-prevalence-fraction` (default 0.0005) of the repertoire, are then divided into classes, such that all alleles within each class are the same length, and separated by less than `--n-max-snps` (default 8) SNPs.
+To a first approximation, these classes are the same as imgt gene designations, i.e. the bit before the `*`.
+Within each class, we then keep only the most common `--n-alleles-per-gene` alleles (default 2) which are distinguishable from each other in expressed samples (e.g. which don't differ by one base at codon 108).
+This amounts to the application of a strong diploid prior.
+Which, of course, is not particularly well-justified given the extensive gene deletion and duplication in the BCR locus, and the fact that typical SHM levels are much larger than the typical inter-V-gene distance in the imgt repertoire.
+But, it is a reasonable first approximation.
+And, more importantly, it is vastly more accurate than simply keeping every single allele which is a best match.
 
-Each individual will also, of course, only have some subset of the alleles in `data/imgt` (or any available germline set).
-This is a pretty straightforward extension of the allele finding -- just start with a "minimal" germline set, run iteratively, and remove anybody that doesn't pop up as a new allele -- but it's still under development (i.e. we need to test it more thoroughly).
+Second, if `--find-new-alleles` is specified, we re-run smith-waterman using this reduced V germline set, and apply a new method for finding any previously unknown V alleles, or V alleles which were over-aggressively pruned in the previous step.
+This method is too complex to describe here in detail, but can perhaps best be described as a principled, hypothesis-testing-based generalization of the [tigger](https://www.ncbi.nlm.nih.gov/pubmed/25675496) method.
+The entire resulting germline set is written to a subdirectory of `--parameter-dir`, and is used in subsequent runs instead of the initial germline set.
 
-Oh, right, and all this new allele talk only applies to V.
-We could probably do the same thing for J, but there don't seem to be much polymorphism, so it's probably not worthwhile.
-Doing it for D is a crazy pipe dream.
+We could probably do the same thing for J, but there doesn't seem to be much polymorphism, so it's probably not worthwhile.
+Doing it for D is probably not realistic.
+
+You can disable the allele-removal step with `--dont-remove-unlikely-alleles`.
 
 #### simulate
 
@@ -300,17 +332,6 @@ Throughout the run, we sample a tree at random from this set for each rearrangem
 
 Same as `run-viterbi`, except with the forward algorithm, i.e. it sums over all possible rearrangement events to get the total log probability of the sequence.
 Probably mostly useful for testing.
-
-### Germline Sets
-
-The default set of germline genes is in `data/imgt`.
-This was downloaded at some point from the imgt web site, and contains genes they label as F and ORF.
-Maybe also with square brackets around the F.
-It was then modified by removing several genes that had the same sequence as other genes (wtf...).
-As has been described in a number of papers by other folks, it is sensible to view the imgt set as a starting point.
-The thing to do next is identify any new alleles in the data set at hand -- for this see [allele finding](https://github.com/psathyrella/partis/blob/master/manual.md#finding-new-alleles) above.
-The next step is to reduce the germline set for each data set such that we only consider alleles which are actually present in each individual's germline.
-This is still under development.
 
 ### Parallelization
 
@@ -340,5 +361,11 @@ This is continued until we arrive at one final process which is comparing all se
 Since at each stage we cache every calculated log probability, while the later steps have more sequences to compare, they also have more cached numbers at their disposal, and so it's possible to make each step take about the same amount of time.
 We currently reduce the number of processes by about 1.6 at each step, as long as the previous step didn't have to calculate too many numbers.
 
-With typical mutation levels, lineage structures, and cluster size distributions (all of which strongly affect clustering time), it's currently best to start with ``--n-procs` set so you have about 300 sequences per process.
+With typical mutation levels, lineage structures, and cluster size distributions (all of which strongly affect clustering time), it's currently best to start with `--n-procs` set so you have about 300 sequences per process.
 
+#### Text output and logging
+
+  - to properly display the ansi color codes in stdoutput:
+    - less -RS (S disables line wrapping -- use left/right arrows to move side-to-side)
+    - M-x display-ansi-colors (emacs)
+  - it's typically best to view the ascii annotation outputs by making your text size as small as necessary to fit it all on your screen (typically ctrl-<minus>). You don't usually need to view individual bases, and you can zoom back in for the rest of the stdout.
