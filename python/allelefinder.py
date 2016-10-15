@@ -841,7 +841,7 @@ class AlleleFinder(object):
             already_used_positions = set()
             n_new_alleles_for_this_gene = 0  # kinda messy way to implement this
             for istart in sorted(istart_candidates, reverse=True):
-                if n_new_alleles_for_this_gene > self.args.n_max_new_alleles_per_gene_per_iteration:
+                if n_new_alleles_for_this_gene >= self.args.n_max_new_alleles_per_gene_per_iteration:
                     print '    skipping any additional new alleles for this gene (already have %d)' % n_new_alleles_for_this_gene
                     break
                 these_positions = set(self.fitfos[gene]['candidates'][istart])

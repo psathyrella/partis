@@ -1635,7 +1635,9 @@ def finish_process(iproc, procs, n_tries, workdir, logdir, outfname, cmd_str, db
 
     # handle failure
     if n_tries[iproc] > 5:
-        raise Exception('exceeded max number of tries for command\n    %s\nlook for output in %s and %s' % (cmd_str, workdir, logdir))
+        failstr = 'exceeded max number of tries for cmd\n    %s\nlook for output in %s and %s' % (cmd_str, workdir, logdir)
+        print failstr
+        raise Exception(failstr)
     else:
         print '    proc %d try %d' % (iproc, n_tries[iproc]),
         if procs[iproc].returncode == 0 and not os.path.exists(outfname):  # don't really need both the clauses
