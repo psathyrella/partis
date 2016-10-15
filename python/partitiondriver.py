@@ -1070,6 +1070,10 @@ class PartitionDriver(object):
         if not self.all_regions_present(combo['only_genes'], skipped_gene_matches, query_names):
             return {}
 
+        for kb in ['k_v', 'k_d']:
+            if combo[kb]['min'] <= 0 or combo[kb]['min'] >= combo[kb]['max']:
+                raise Exception('nonsense k bounds for %s (v: %d %d  d: %d %d)' % (':'.join(query_names), combo['k_v']['min'], combo['k_v']['max'], combo['k_d']['min'], combo['k_d']['max']))
+
         return combo
 
     # ----------------------------------------------------------------------------------------
