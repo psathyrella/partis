@@ -113,7 +113,9 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def finalize(self, cachefname=None, just_read_cachefile=False):
-        print '      info for %d / %d    (kept %d unproductive)' % (len(self.info['queries']), len(self.input_info), len(self.kept_unproductive_queries))
+        print '      info for %d / %d = %.3f' % (len(self.info['queries']), len(self.input_info), float(len(self.info['queries'])) / len(self.input_info))
+        if len(self.kept_unproductive_queries) > 0:
+            print '      kept %d (%.3f) unproductive' % (len(self.kept_unproductive_queries), float(len(self.kept_unproductive_queries)) / len(self.input_info))
 
         if just_read_cachefile:  # it's past tense!
             print ''
