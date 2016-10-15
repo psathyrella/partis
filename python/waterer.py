@@ -645,7 +645,7 @@ class Waterer(object):
                     assert False
 
     # ----------------------------------------------------------------------------------------
-    def convert_qinfo(self, qinfo, best, codon_positions):
+    def convert_qinfo(self, qinfo, best, codon_positions, kbounds):
         """ convert <qinfo> (which is from reading sam files) to format for <self.info> (this is so add_to_info() can be used by the cache file reader, as well) """
         qname = qinfo['name']
         assert qname not in self.info
@@ -654,7 +654,6 @@ class Waterer(object):
         infoline['unique_ids'] = [qname, ]  # redundant, but used somewhere down the line
         infoline['seqs'] = [qinfo['seq'], ]  # NOTE this is the seq output by vdjalign, i.e. if we reversed any indels it is the reversed sequence, also NOTE many, many things depend on this list being of length one
 
-        kbounds = self.get_kbounds(qinfo, best)
         infoline['k_v'] = kbounds['v']
         infoline['k_d'] = kbounds['d']
 
@@ -823,7 +822,14 @@ class Waterer(object):
             else:
                 pass  # this is here so you don't forget that if neither of the above is true, we fall through and add the query to self.info
 
-        infoline = self.convert_qinfo(qinfo, best, codon_positions)
+        kbounds = self.get_kbounds(qinfo, best)
+        if kbounds is None:
+            if self.debug:
+                print '      nonsense kbounds for %s, rerunning' % qname
+            queries_to_rerun['weird-annot.'].add(qname)
+            return
+
+        infoline = self.convert_qinfo(qinfo, best, codon_positions, kbounds)
         self.add_to_info(infoline)
 
     # ----------------------------------------------------------------------------------------
@@ -872,10 +878,9 @@ class Waterer(object):
             k_d_min = 1
             k_d_max = 2
 
-        if k_v_min >= k_v_max:
-            raise Exception('%s nonsense k_v bounds for %s (%d %d)' % (utils.color('red', 'error'), qinfo['name'], k_v_min, k_v_max))
-        if k_d_min >= k_d_max:
-            raise Exception('%s nonsense k_d bounds for %s (%d %d)' % (utils.color('red', 'error'), qinfo['name'], k_d_min, k_d_max))
+        if k_v_min <= 0 or k_d_min <= 0 or k_v_min >= k_v_max or k_d_min >= k_d_max:
+            print '%s nonsense k bounds for %s (v: %d %d  d: %d %d)' % (utils.color('red', 'error'), qinfo['name'], k_v_min, k_v_max, k_d_min, k_d_max)
+            return None
 
         best_k_v = qinfo['qrbounds'][best['v']][1]  # end of v match
         best_k_d = qinfo['qrbounds'][best['d']][1] - qinfo['qrbounds'][best['v']][1]  # end of d minus end of v
