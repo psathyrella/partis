@@ -828,7 +828,7 @@ class Waterer(object):
     def get_kbounds(self, qinfo, best):
         # OR of k-space for the best <self.args.n_max_per_region> matches
         k_v_min, k_d_min = 999, 999
-        k_v_max, k_d_max = 0, 0
+        k_v_max, k_d_max = 1, 1
 
         # k_v
         tmpreg = 'v'
@@ -848,10 +848,6 @@ class Waterer(object):
             k_d_min = min(this_k_d, k_d_min)
             k_d_max = max(this_k_d, k_d_max)
 
-        # best k_v, k_d:
-        k_v = qinfo['qrbounds'][best['v']][1]  # end of v match
-        k_d = qinfo['qrbounds'][best['d']][1] - qinfo['qrbounds'][best['v']][1]  # end of d minus end of v
-
         if k_d_max < 5:  # since the s-w step matches to the longest possible j and then excises it, this sometimes gobbles up the d, resulting in a very short d alignment.
             if self.debug:
                 print '  expanding k_d'
@@ -860,11 +856,11 @@ class Waterer(object):
         if 'IGHJ4*' in best['j'] and self.glfo['seqs']['d'][best['d']][-5:] == 'ACTAC':  # the end of some d versions is the same as the start of some j versions, so the s-w frequently kicks out the 'wrong' alignment
             if self.debug:
                 print '  doubly expanding k_d'
-            if k_d_max-k_d_min < 8:
+            if k_d_max - k_d_min < 8:
                 k_d_min -= 5
                 k_d_max += 2
 
-        k_v_min = max(1, k_v_min - self.args.default_v_fuzz)  # ok, so I don't *actually* want it to be zero... oh, well
+        k_v_min = max(1, k_v_min - self.args.default_v_fuzz)
         k_v_max += self.args.default_v_fuzz
         k_d_min = max(1, k_d_min - self.args.default_d_fuzz)
         k_d_max += self.args.default_d_fuzz
@@ -874,10 +870,15 @@ class Waterer(object):
             k_d_min = 1
             k_d_max = 2
 
-        assert k_v_min > 0 and k_d_min > 0 and k_v_max > 0 and k_d_max > 0
-        kbounds = {}
-        kbounds['v'] = {'best' : k_v, 'min' : k_v_min, 'max' : k_v_max}
-        kbounds['d'] = {'best' : k_d, 'min' : k_d_min, 'max' : k_d_max}
+        if k_v_min >= k_v_max:
+            raise Exception('%s nonsense k_v bounds for %s (%d %d)' % (utils.color('red', 'error'), qinfo['name'], k_v_min, k_v_max))
+        if k_d_min >= k_d_max:
+            raise Exception('%s nonsense k_d bounds for %s (%d %d)' % (utils.color('red', 'error'), qinfo['name'], k_d_min, k_d_max))
+
+        best_k_v = qinfo['qrbounds'][best['v']][1]  # end of v match
+        best_k_d = qinfo['qrbounds'][best['d']][1] - qinfo['qrbounds'][best['v']][1]  # end of d minus end of v
+        kbounds = {'v' : {'best' : best_k_v, 'min' : k_v_min, 'max' : k_v_max},
+                   'd' : {'best' : best_k_d, 'min' : k_d_min, 'max' : k_d_max}}
         return kbounds
 
     # ----------------------------------------------------------------------------------------

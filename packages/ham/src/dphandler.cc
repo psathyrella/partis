@@ -78,8 +78,8 @@ Result DPHandler::Run(vector<Sequence> seqvector, KBounds kbounds, vector<string
         throw runtime_error("ERROR dphandler didn't get any genes for " + region + " region");
   }
 
-  assert(kbounds.vmax > kbounds.vmin && kbounds.dmax > kbounds.dmin); // make sure max values for k_v and k_d are greater than their min values
-  assert(kbounds.vmin > 0 && kbounds.dmin > 0);  // you get the loveliest little seg fault if you accidentally pass in zero for a lower bound
+  if(kbounds.vmin == 0 || kbounds.dmin == 0 || kbounds.vmax <= kbounds.vmin || kbounds.dmax <= kbounds.dmin) // make sure max values for k_v and k_d are greater than their min values (it at least used to seg fault if you passed in one of them as zero)
+    throw runtime_error("k bounds trivial, nonsensical, or include zero (v: " + to_string(kbounds.vmin) + " " + to_string(kbounds.vmax) + "  d: " + to_string(kbounds.dmin) + " " + to_string(kbounds.dmax) + ")");
   if(clear_cache)  // default is true, and be VERY FUCKING CAREFUL if you change that
     Clear();  // delete all existing trellisi, paths, and logprobs NOTE in principal it kinda ought to be faster to keep everything cached between calls to Run()... but in practice there's a fair bit of overhead to keeping all that stuff hanging around, and it's much more efficient to do the caching in Glomerator (which we already do). So, in sum, it's generally faster to Clear() right here. One exception is if you, say, run viterbi on the same sequence fifty times in a row... then you want to keep the cache around. But why would you do that? In practice the only time you're running on the same sequence many times is in Glomerator, and there we're already doing caching more efficiently at a higher level.
   map<KSet, double> best_scores; // best score for each kset (summed over regions)
