@@ -126,14 +126,17 @@ class ModelPlotter(object):
 parser = argparse.ArgumentParser()
 parser.add_argument('--hmmdir')
 parser.add_argument('--infiles')
-parser.add_argument('--outdir', default=os.getenv('www'))
+parser.add_argument('--outdir', required=True)
 args = parser.parse_args()
 
-if args.hmmdir is None and args.infile is None:
-    raise Exception('arg')
+if not os.path.exists(args.outdir):
+    os.makedirs(args.outdir)
+
+if args.hmmdir is None and args.infiles is None:
+    raise Exception('have to specify either --hmmdir or --infiles')
 
 if __name__ == '__main__':
     print '  %s the top line in the emission plots is usually yellow because the three non-germline bases are equally likely, and G comes last when sorted alphabetically' % utils.color('red', 'note')
     if not os.path.exists(args.outdir):
         raise Exception('output directory %s does not exist' % args.outdir)
-    mplot = ModelPlotter(args, args.outdir + '/modelplots')
+    mplot = ModelPlotter(args, args.outdir) # + '/modelplots')
