@@ -43,7 +43,7 @@ class Waterer(object):
         self.info = {}
         self.info['queries'] = []  # list of queries that *passed* sw, i.e. for which we have information
         self.info['all_best_matches'] = set()  # every gene that was a best match for at least one query
-        self.info['all_matches'] = {r : set() for r in utils.regions}  # every gene that was *any* match for at least one query
+        self.info['all_matches'] = {r : set() for r in utils.regions}  # every gene that was *any* match (up to <self.args.n_max_per_region[ireg]>) for at least one query NOTE there is also an 'all_matches' in each query's info
         self.info['indels'] = {}  # NOTE if we find shm indels in a sequence, we store the indel info in here, and rerun sw with the reversed sequence (i.e. <self.info> contains the sw inference on the reversed sequence -- if you want the original sequence, get that from <self.input_info>)
 
         self.nth_try = 1
@@ -423,7 +423,7 @@ class Waterer(object):
             del self.info['indels'][query]
 
     # ----------------------------------------------------------------------------------------
-    def add_dummy_d_match(self, qinfo, first_v_qr_end, debug=True):
+    def add_dummy_d_match(self, qinfo, first_v_qr_end):
         dummy_d = glutils.dummy_d_genes[self.args.chain]
         qinfo['matches']['d'].append((1, dummy_d))
         qinfo['qrbounds'][dummy_d] = (first_v_qr_end, first_v_qr_end)
@@ -455,6 +455,10 @@ class Waterer(object):
             last_scores[region] = score
 
             # NOTE it is very important not to ever skip the best match for a region, since we need its qrbounds later to know how much was trimmed
+
+            if len(qinfo['matches'][region]) >= self.args.n_max_per_region[utils.regions.index(region)]:
+                assert len(qinfo['matches'][region]) == self.args.n_max_per_region[utils.regions.index(region)]  # there better not be a way to get more than we asked for
+                continue
 
             if 'I' in read.cigarstring or 'D' in read.cigarstring:  # shm indels!
                 if len(qinfo['matches'][region]) > 0:  # skip any gene matches with indels after the first one for each region (if we want to handle [i.e. reverse] an indel, we will have stored the indel info for the first match, and we'll be rerunning)
@@ -672,7 +676,7 @@ class Waterer(object):
         # add this query's matches into the overall gene match sets
         for region in utils.regions:
             self.info['all_best_matches'].add(self.info[qname][region + '_gene'])
-            self.info['all_matches'][region] |= set(self.info[qname]['all_matches'][region])
+            self.info['all_matches'][region] |= set(self.info[qname]['all_matches'][region])  # NOTE there's an 'all_matches' in this query's info, and also in <self.info>
 
         if self.debug:
             inf_label = ''
@@ -833,13 +837,13 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def get_kbounds(self, qinfo, best):
-        # OR of k-space for the best <self.args.n_max_per_region> matches
+        # OR of k-space for the best <self.args.n_max_per_region[ireg]> matches
         k_v_min, k_d_min = 999, 999
         k_v_max, k_d_max = 1, 1
 
         # k_v
         tmpreg = 'v'
-        n_v_genes = min(self.args.n_max_per_region[utils.regions.index(tmpreg)], len(qinfo['matches'][tmpreg]))
+        n_v_genes = min(self.args.n_max_per_region[utils.regions.index(tmpreg)], len(qinfo['matches'][tmpreg]))  # NOTE don't need the n_max_per_region thing any more
         for igene in range(n_v_genes):
             _, gene = qinfo['matches'][tmpreg][igene]
             this_k_v = qinfo['qrbounds'][gene][1]  # NOTE even if the v match doesn't start at the left hand edge of the query sequence, we still measure k_v from there. In other words, sw doesn't tell the hmm about it
@@ -848,7 +852,7 @@ class Waterer(object):
 
         # k_d
         tmpreg = 'd'
-        n_d_genes = min(self.args.n_max_per_region[utils.regions.index(tmpreg)], len(qinfo['matches'][tmpreg]))
+        n_d_genes = min(self.args.n_max_per_region[utils.regions.index(tmpreg)], len(qinfo['matches'][tmpreg]))  # NOTE don't need the n_max_per_region thing any more
         for igene in range(n_d_genes):
             _, gene = qinfo['matches'][tmpreg][igene]
             this_k_d = qinfo['qrbounds'][gene][1] - qinfo['qrbounds'][best['v']][1]  # end of d minus end of first/best v
@@ -893,7 +897,7 @@ class Waterer(object):
         return kbounds
 
     # ----------------------------------------------------------------------------------------
-    def remove_framework_insertions(self, debug=True):
+    def remove_framework_insertions(self, debug=False):
         for query in self.info['queries']:
             swfo = self.info[query]
             assert len(swfo['seqs']) == 1
@@ -974,7 +978,8 @@ class Waterer(object):
 
             # find biggest cyst position among all gl matches
             fvstuff = max(0, len(swfo['fv_insertion']) - swfo['v_5p_del'])  # we always want to pad out to the entire germline sequence, so don't let this go negative
-            for v_match in self.info['all_matches']['v']:  # includes matches for *other* sequences, because we want bcrham to be able to compare any sequence to any other (although, could probably use all *best* matches rather than all *all*)
+            # loop over all matches for all sequences (up to n_max_per_region), because we want bcrham to be able to compare any sequence to any other (although, could probably use all *best* matches rather than all *all* UPDATE no, I kinda think not)
+            for v_match in self.info['all_matches']['v']:
                 gl_cpos = self.glfo['cyst-positions'][v_match] + fvstuff
                 if maxima['gl_cpos'] is None or gl_cpos > maxima['gl_cpos']:
                     maxima['gl_cpos'] = gl_cpos

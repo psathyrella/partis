@@ -1056,15 +1056,9 @@ class PartitionDriver(object):
             # work out which genes to tell the hmm to use
             genes_to_use = set()
             for region in utils.regions:  # take the best <self.args.n_max_per_region> from each region
-                reg_genes = []
-                for gene in swfo['all_matches'][region]:  # ordered by sw match quality
-                    if gene not in genes_with_hmm_files:
-                        skipped_gene_matches.add(gene)
-                        continue
-                    if len(reg_genes) >= self.args.n_max_per_region[utils.regions.index(region)]:
-                        break
-                    reg_genes.append(gene)
-                genes_to_use |= set(reg_genes)
+                tmp_matches = swfo['all_matches'][region]  # all matches for this query, ordered by sw match quality (with n_max_per_region already applied)
+                skipped_gene_matches |= set([g for g in tmp_matches if g not in genes_with_hmm_files])
+                genes_to_use |= set([g for g in tmp_matches if g in genes_with_hmm_files])
 
             # and finally OR this query's genes into the ones from previous queries
             combo['only_genes'] = list(set(genes_to_use) | set(combo['only_genes']))  # NOTE using the OR of all sets of genes (from all query seqs) like this *really* helps,
@@ -1437,6 +1431,8 @@ class PartitionDriver(object):
         label = 'inferred:'
         if self.args.seed_unique_id is not None and self.args.seed_unique_id in line['unique_ids']:
             label += '   (found %d sequences clonal to seed %s)' % (len(line['unique_ids']), self.args.seed_unique_id)
+        if len(line['unique_ids']) > 1:  # make it easier to cut and paste for --queries
+            label += '    ' + ':'.join(line['unique_ids'])
         utils.print_reco_event(self.glfo['seqs'], line, extra_str='    ', label=label, seed_uid=self.args.seed_unique_id)
 
     # ----------------------------------------------------------------------------------------

@@ -28,6 +28,8 @@
 
 # non-slurm batch systems
 
+# move dummy d adding in waterer to summarize_query()
+
 # laura:
 #  - add naive sequence to .fa
 #  - include other seed sequences in final clusters
@@ -52,6 +54,7 @@
 #    - just print the length for large fv/jf insertions
 
 # testing:
+#  - don't run inference stuff on new parameters -- it should be fine to just run the new parameters (?)
 #  - larger sample sizes
 #  - at least make sure the seed cluster is big
 #  - move testing off --only-genes
@@ -81,6 +84,7 @@
 #  - may be worthwhile to switch from colon-string hash map scheme to something shorter
 #  - kbounds logical or should check if/handle case where one of them is unset (ok not really an optimization, but it's not very important atm)
 #  - i think i could switch to running all the ksets of each gene at once (which would drastically reduce the dphandler trellis cache size, since we'd only need to keep one gene at a time), but this would involve a lot of careful rewriting in dphandler
+#  - can v_match loop in get_padding_parameters() go outside the query loop?
 
 # maybe
 #  - make padding specific to each cdr3 subclass UPDATE maybe not worthwhile? doesn't seem to be an exorbitant amount of padding any more'
