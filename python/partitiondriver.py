@@ -556,6 +556,8 @@ class PartitionDriver(object):
                     uid = uid[:-2]
                 id_clusters[cluster_id].append(uid)
         partition = id_clusters.values()
+        queries_without_annotations = set(self.input_info) - set(self.sw_info['queries'])
+        partition += [[q, ] for q in queries_without_annotations]  # just add the missing ones as singletons
         self.check_partition(partition)
         ccfs = [None, None]
         if not self.args.is_data:  # it's ok to always calculate this since it's only ever for one partition

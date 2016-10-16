@@ -294,7 +294,7 @@ class Waterer(object):
     def read_output(self, base_outfname, n_procs=1):
         queries_to_rerun = OrderedDict()  # This is to keep track of every query that we don't add to self.info (i.e. it does *not* include unproductive queries that we ignore/skip entirely because we were told to by a command line argument)
                                           # ...whereas <self.skipped_unproductive_queries> is to keep track of the queries that were definitively unproductive (i.e. we removed them from self.remaining_queries) when we were told to skip unproductives by a command line argument
-        for reason in ['unproductive', 'no-match', 'weird-annot.', 'nonsense-bounds', 'invalid-codon']:
+        for reason in ['unproductive', 'no-match', 'weird-annot.', 'nonsense-bounds', 'invalid-codon', 'indel-fails']:
             queries_to_rerun[reason] = set()
 
         self.new_indels = 0
@@ -423,11 +423,10 @@ class Waterer(object):
             del self.info['indels'][query]
 
     # ----------------------------------------------------------------------------------------
-    def add_dummy_d_match(self, qinfo, debug=True):
+    def add_dummy_d_match(self, qinfo, first_v_qr_end, debug=True):
         dummy_d = glutils.dummy_d_genes[self.args.chain]
         qinfo['matches']['d'].append((1, dummy_d))
-        v_end = qinfo['first_match_qrbounds'][1]
-        qinfo['qrbounds'][dummy_d] = (v_end, v_end)
+        qinfo['qrbounds'][dummy_d] = (first_v_qr_end, first_v_qr_end)
         qinfo['glbounds'][dummy_d] = (1, 1)
 
     # ----------------------------------------------------------------------------------------
@@ -440,56 +439,38 @@ class Waterer(object):
             'matches' : {r : [] for r in utils.regions},
             'qrbounds' : {},
             'glbounds' : {},
-            'first_match_qrbounds' : None,  # since sw excises its favorite v match, we have to know this match's boundaries in order to calculate k_d for all the other matches
-            'new_indel' : False
+            'new_indels' : {}
         }
+
+        last_scores = {r : None for r in utils.regions}
         for read in reads:  # loop over the matches found for each query sequence
-            # set this match's values
             read.seq = qinfo['seq']  # only the first one has read.seq set by default, so we need to set the rest by hand
             gene = references[read.tid]
             region = utils.get_region(gene)
-            raw_score = read.tags[0][1]  # raw because they don't include the gene choice probs
-            score = raw_score
             qrbounds = (read.qstart, read.qend)
             glbounds = (read.pos, read.aend)
-            if region == 'v' and qinfo['first_match_qrbounds'] is None:
-                qinfo['first_match_qrbounds'] = qrbounds
+            score = read.tags[0][1]
+            if last_scores[region] is not None and score > last_scores[region]:
+                raise Exception('[sb]am file from smith-waterman not ordered by match score')
+            last_scores[region] = score
 
-            # TODO I wish this wasn't here and I suspect I don't really need it (any more) UPDATE I dunno, this definitely eliminates some stupid (albeit rare) matches
-            if region == 'v':  # skip matches with cpos past the end of the query seq (i.e. eroded a ton on the right side of the v)
-                cpos = self.glfo['cyst-positions'][gene] - glbounds[0] + qrbounds[0]  # position within original germline gene, minus the position in that germline gene at which the match starts, plus the position in the query sequence at which the match starts
-                if cpos < 0 or cpos >= len(qinfo['seq']):
-                    continue
+            # NOTE it is very important not to ever skip the best match for a region, since we need its qrbounds later to know how much was trimmed
 
-            if 'I' in read.cigarstring or 'D' in read.cigarstring:  # skip indels, and tell the HMM to skip indels (you won't see any unless you decrease the <self.gap_open_penalty>)
-                if self.args.no_indels:  # you can forbid indels on the command line
+            if 'I' in read.cigarstring or 'D' in read.cigarstring:  # shm indels!
+                if len(qinfo['matches'][region]) > 0:  # skip any gene matches with indels after the first one for each region (if we want to handle [i.e. reverse] an indel, we will have stored the indel info for the first match, and we'll be rerunning)
                     continue
-                if self.nth_try < 2:  # we also forbid indels on the first try (we want to increase the mismatch score before we conclude it's "really" an indel)
-                    continue
-                if len(qinfo['matches'][region]) == 0:  # if this is the first (best) match for this region, allow indels (otherwise skip the match)
-                    if qinfo['name'] not in self.info['indels']:
-                        self.info['indels'][qinfo['name']] = self.get_indel_info(qinfo['name'], read.cigarstring, qinfo['seq'][qrbounds[0] : qrbounds[1]], self.glfo['seqs'][region][gene][glbounds[0] : glbounds[1]], gene)
-                        self.info['indels'][qinfo['name']]['reversed_seq'] = qinfo['seq'][ : qrbounds[0]] + self.info['indels'][qinfo['name']]['reversed_seq'] + qinfo['seq'][qrbounds[1] : ]
-                        self.new_indels += 1
-                        qinfo['new_indel'] = True
-                        return qinfo  # don't process this query any further -- since it's now in the indel info it'll get run next time through
-                    else:
-                        if self.debug:
-                            print '     ignoring subsequent indels for %s' % qinfo['name']
-                        continue  # hopefully there's a later match without indels
-                else:
-                    continue
+                assert region not in qinfo['new_indels']  # only to double-check the continue just above
+                qinfo['new_indels'][region] = self.get_indel_info(qinfo['name'], read.cigarstring, qinfo['seq'][qrbounds[0] : qrbounds[1]], self.glfo['seqs'][region][gene][glbounds[0] : glbounds[1]], gene)
+                qinfo['new_indels'][region]['reversed_seq'] = qinfo['seq'][ : qrbounds[0]] + qinfo['new_indels'][region]['reversed_seq'] + qinfo['seq'][qrbounds[1] : ]
 
             # and finally add this match's information
-            qinfo['matches'][region].append((score, gene))  # NOTE it is important that this is ordered such that the best match is first UPDATE huh, maybe I wrote this before I added the sorted() below? In any case it seems to always be sorted in the bam file, so this is really just a double-check
+            qinfo['matches'][region].append((score, gene))  # NOTE it is important that this is ordered such that the best match is first
             qinfo['qrbounds'][gene] = qrbounds
             qinfo['glbounds'][gene] = glbounds
 
         if self.args.chain != 'h':
-            self.add_dummy_d_match(qinfo)
-
-        for region in utils.regions:
-            qinfo['matches'][region] = sorted(qinfo['matches'][region], reverse=True)
+            _, first_v_match = qinfo['matches']['v'][0]
+            self.add_dummy_d_match(qinfo, first_v_qr_end=qinfo['qrbounds'][first_v_match][1])
 
         return qinfo
 
@@ -609,8 +590,6 @@ class Waterer(object):
         qinfo['qrbounds'][r_gene] = (qinfo['qrbounds'][r_gene][0] + r_portion, qinfo['qrbounds'][r_gene][1])
         qinfo['glbounds'][r_gene] = (qinfo['glbounds'][r_gene][0] + r_portion, qinfo['glbounds'][r_gene][1])
 
-        # wait, do I need to change 'first_match_qrbounds' here, as well? not sure...
-
     # ----------------------------------------------------------------------------------------
     def remove_probably_spurious_deletions(self, qinfo, best, debug=False):  # remove probably-spurious v_5p and j_3p deletions
         for erosion in utils.effective_erosions:
@@ -726,17 +705,6 @@ class Waterer(object):
         qseq = qinfo['seq']
         assert qname not in self.info
 
-        if self.debug >= 2:
-            print qname
-            for region in utils.regions:
-                for score, gene in qinfo['matches'][region]:  # sorted by decreasing match quality
-                    self.print_match(region, gene, score, qseq, qinfo['glbounds'][gene], qinfo['qrbounds'][gene], skipping=False)
-
-        if qinfo['new_indel']:
-            if self.debug:
-                print '    new indel -- rerunning'
-            return
-
         # do we have a match for each region?
         for region in utils.getregions(self.args.chain):
             if len(qinfo['matches'][region]) == 0:
@@ -746,6 +714,37 @@ class Waterer(object):
                 return
 
         best = {r : qinfo['matches'][r][0][1] for r in utils.regions}  # already made sure there's at least one match for each region
+
+        if len(qinfo['new_indels']) > 0:  # if any of the best matches had new indels this time through (in practice: only v or j best matches)
+            if self.nth_try < 2:
+                if self.debug:
+                    print '      don\'t allow indels the first try'
+                queries_to_rerun['indel-fails'].add(qname)
+                return
+
+            if qname in self.info['indels']:
+                if self.debug:
+                    print '      don\'t allow more than one cycle of indels'
+                queries_to_rerun['indel-fails'].add(qname)
+                return
+
+            # NOTE (probably) important to look for v indels first (since a.t.m. we only take the first one)
+            for region in [r for r in ['v', 'j', 'd'] if r in qinfo['new_indels']]:  # TODO this doesn't allow indels in more than one region
+                self.info['indels'][qinfo['name']] = qinfo['new_indels'][region]  # the next time through, when we're writing ig-sw input, we look to see if each query is in <self.info['indels']>, and if it is we pass ig-sw the reversed sequence
+                self.info['indels'][qinfo['name']]['reversed_seq'] = qinfo['new_indels'][region]['reversed_seq']
+                self.new_indels += 1
+                if self.debug:
+                    print '      new indel in best %s match' % region
+                return
+
+            print '%s fell through indel block for %s' % (utils.color('red', 'warning'), qname)
+            return  # otherwise something's weird/wrong, so we want to re-run (I think we actually can't fall through to here)
+
+        if self.debug >= 2:
+            print qname
+            for region in utils.regions:
+                for score, gene in qinfo['matches'][region]:  # sorted by decreasing match quality
+                    self.print_match(region, gene, score, qseq, qinfo['glbounds'][gene], qinfo['qrbounds'][gene], skipping=False)
 
         # s-w allows d and j matches to overlap, so we need to apportion the disputed bases
         for rpair in utils.region_pairs():
@@ -852,14 +851,15 @@ class Waterer(object):
         n_d_genes = min(self.args.n_max_per_region[utils.regions.index(tmpreg)], len(qinfo['matches'][tmpreg]))
         for igene in range(n_d_genes):
             _, gene = qinfo['matches'][tmpreg][igene]
-            this_k_d = qinfo['qrbounds'][gene][1] - qinfo['first_match_qrbounds'][1]  # end of d minus end of v
+            this_k_d = qinfo['qrbounds'][gene][1] - qinfo['qrbounds'][best['v']][1]  # end of d minus end of first/best v
             k_d_min = min(this_k_d, k_d_min)
             k_d_max = max(this_k_d, k_d_max)
 
         if k_d_max < 5:  # since the s-w step matches to the longest possible j and then excises it, this sometimes gobbles up the d, resulting in a very short d alignment.
-            if self.debug:
-                print '  expanding k_d'
+            old_val = k_d_max
             k_d_max = max(8, k_d_max)
+            if self.debug:
+                print '    increasing k_d_max: %d --> %d' % (old_val, k_d_max)
 
         if 'IGHJ4*' in best['j'] and self.glfo['seqs']['d'][best['d']][-5:] == 'ACTAC':  # the end of some d versions is the same as the start of some j versions, so the s-w frequently kicks out the 'wrong' alignment
             if self.debug:
@@ -878,12 +878,14 @@ class Waterer(object):
             k_d_min = 1
             k_d_max = 2
 
+        best_k_v = qinfo['qrbounds'][best['v']][1]  # end of v match
+        best_k_d = qinfo['qrbounds'][best['d']][1] - qinfo['qrbounds'][best['v']][1]  # end of d minus end of v
+        if best_k_v < k_v_min or best_k_v > k_v_max or best_k_d < k_d_min or best_k_d > k_d_max:
+            raise Exception('inconsistent best kset for %s' % qinfo['name'])
         if k_v_min <= 0 or k_d_min <= 0 or k_v_min >= k_v_max or k_d_min >= k_d_max:
             print '%s nonsense k bounds for %s (v: %d %d  d: %d %d)' % (utils.color('red', 'error'), qinfo['name'], k_v_min, k_v_max, k_d_min, k_d_max)
             return None
 
-        best_k_v = qinfo['qrbounds'][best['v']][1]  # end of v match
-        best_k_d = qinfo['qrbounds'][best['d']][1] - qinfo['qrbounds'][best['v']][1]  # end of d minus end of v
         kbounds = {'v' : {'best' : best_k_v, 'min' : k_v_min, 'max' : k_v_max},
                    'd' : {'best' : best_k_d, 'min' : k_d_min, 'max' : k_d_max}}
         return kbounds
@@ -942,7 +944,8 @@ class Waterer(object):
         seqs_to_keep = set()
         for utpk in uids_to_pre_keep:
             if utpk not in self.info:
-                raise Exception('required uid %s not in sw info (from either --seed-unique-id or --queries)' % utpk)
+                print 'requested uid %s not in sw info (probably failed above)' % utpk
+                continue
             assert len(self.info[utpk]['seqs']) == 1
             seqs_to_keep.add(self.info[utpk]['seqs'][0])
 

@@ -22,9 +22,15 @@
 
 # large cluster annotations seem to be way too willing to use ridiculously long insertions (e.g. in /fh/fast/matsen_e/processed-data/partis/kate-qrs-2016-09-09/seeds/QB850.402-Vh/Hs-LN1-5RACE-IgG-cluster-annotations.csv)
 
-# update manual
+# turn per-base mutation rates on
 
-# send changelog mail
+# look at #215
+
+# non-slurm batch systems
+
+# laura:
+#  - add naive sequence to .fa
+#  - include other seed sequences in final clusters
 
 # figure out bcrham procs reading different cache files:
 #  - /fh/fast/matsen_e/processed-data/partis/kate-qrs-2016-09-09/seeds/QA255.067-Vh/Hs-LN2-5RACE-IgG-new.log
@@ -52,6 +58,7 @@
 #  - bigger n-max-cluster-to-calc values
 #  - can probably remove data stuff (UPDATE no, need to test .fa treatment and some code blocks -- but it can be a very small number of sequences)
 #  - should switch to more typical workflow with no separate cache-parameters step
+#  - needs at least a little light chain action
 
 # germline set generation:
 #     all alleles (including new ones) should have roughly the same mut freq distribution (especially at low mutation)'
@@ -66,6 +73,7 @@
 #       increase n_max_mutations_per_segment for highly-mutated repertoires (?)'
 
 # optimization
+#  - could maybe switch to only checking the most likely j frame
 #  - go through glomerator (and maybe dphandler) and make sure everything that should be a reference or a pointer is one
 #  - switch all the c++ map.count() calls to map.find()
 #  - figure out a way to call naive_hfracs_.clear() without killing cpu usage
