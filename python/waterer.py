@@ -855,33 +855,35 @@ class Waterer(object):
             k_d_min = min(this_k_d, k_d_min)
             k_d_max = max(this_k_d, k_d_max)
 
-        if k_d_max < 5:  # since the s-w step matches to the longest possible j and then excises it, this sometimes gobbles up the d, resulting in a very short d alignment.
-            old_val = k_d_max
-            k_d_max = max(8, k_d_max)
-            if self.debug:
-                print '    increasing k_d_max: %d --> %d' % (old_val, k_d_max)
+        if self.args.chain == 'h':
+            if k_d_max < 5:  # since the s-w step matches to the longest possible j and then excises it, this sometimes gobbles up the d, resulting in a very short d alignment.
+                old_val = k_d_max
+                k_d_max = max(8, k_d_max)
+                if self.debug:
+                    print '    increasing k_d_max: %d --> %d' % (old_val, k_d_max)
 
-        if 'IGHJ4*' in best['j'] and self.glfo['seqs']['d'][best['d']][-5:] == 'ACTAC':  # the end of some d versions is the same as the start of some j versions, so the s-w frequently kicks out the 'wrong' alignment
-            if self.debug:
-                print '  doubly expanding k_d'
-            if k_d_max - k_d_min < 8:
-                k_d_min -= 5
-                k_d_max += 2
+            if 'IGHJ4*' in best['j'] and self.glfo['seqs']['d'][best['d']][-5:] == 'ACTAC':  # the end of some d versions is the same as the start of some j versions, so the s-w frequently kicks out the 'wrong' alignment
+                if self.debug:
+                    print '  doubly expanding k_d'
+                if k_d_max - k_d_min < 8:
+                    k_d_min -= 5
+                    k_d_max += 2
 
         k_v_min = max(1, k_v_min - self.args.default_v_fuzz)
         k_v_max += self.args.default_v_fuzz
         k_d_min = max(1, k_d_min - self.args.default_d_fuzz)
         k_d_max += self.args.default_d_fuzz
 
+        best_k_v = qinfo['qrbounds'][best['v']][1]  # end of v match
+        best_k_d = qinfo['qrbounds'][best['d']][1] - qinfo['qrbounds'][best['v']][1]  # end of d minus end of v
+
         if self.args.chain != 'h':
-            k_d = 1
+            best_k_d = 1
             k_d_min = 1
             k_d_max = 2
 
-        best_k_v = qinfo['qrbounds'][best['v']][1]  # end of v match
-        best_k_d = qinfo['qrbounds'][best['d']][1] - qinfo['qrbounds'][best['v']][1]  # end of d minus end of v
         if best_k_v < k_v_min or best_k_v > k_v_max or best_k_d < k_d_min or best_k_d > k_d_max:
-            raise Exception('inconsistent best kset for %s' % qinfo['name'])
+            raise Exception('inconsistent best kset for %s (v: %d (%d %d)  d: %d (%d %d)' % (qinfo['name'], best_k_v, k_v_min, k_v_max, best_k_d, k_d_min, k_d_max))
         if k_v_min <= 0 or k_d_min <= 0 or k_v_min >= k_v_max or k_d_min >= k_d_max:
             print '%s nonsense k bounds for %s (v: %d %d  d: %d %d)' % (utils.color('red', 'error'), qinfo['name'], k_v_min, k_v_max, k_d_min, k_d_max)
             return None
