@@ -45,8 +45,8 @@ class Tester(object):
         self.eps_vals['d_gene_correct'] = 0.02
         self.eps_vals['j_gene_correct'] = 0.02
         self.eps_vals['mean_hamming']   = 0.1
-        self.eps_vals['precision']      = 0.08
-        self.eps_vals['sensitivity']    = 0.08
+        self.eps_vals['purity']         = 0.08
+        self.eps_vals['completeness']   = 0.08
 
         self.n_partition_queries = '250'
         n_data_inference_queries = '50'
@@ -298,16 +298,16 @@ class Tester(object):
             return
         if debug:
             print '  version %s input %s partitioning' % (version_stype, input_stype)
-            print '  precision      sensitivity        test                    description'
+            print '  purity         completeness        test                    description'
         for ptest in ptest_list:
             cp = ClusterPath(-1)
             cp.readfile(self.dirs[version_stype] + '/' + ptest + '.csv')
             ccfs = cp.ccfs[cp.i_best]
             if None in ccfs:
                 raise Exception('none type ccf read from %s' % self.dirs[version_stype] + '/' + ptest + '.csv')
-            self.perf_info[version_stype][ptest + '-precision'], self.perf_info[version_stype][ptest + '-sensitivity'] = ccfs
+            self.perf_info[version_stype][ptest + '-purity'], self.perf_info[version_stype][ptest + '-completeness'] = ccfs
             if debug:
-                print '    %5.2f          %5.2f      %-28s   to true partition' % (self.perf_info[version_stype][ptest + '-precision'], self.perf_info[version_stype][ptest + '-sensitivity'], ptest)
+                print '    %5.2f          %5.2f      %-28s   to true partition' % (self.perf_info[version_stype][ptest + '-purity'], self.perf_info[version_stype][ptest + '-completeness'], ptest)
 
     # ----------------------------------------------------------------------------------------
     def compare_data_annotation(self, input_stype):
