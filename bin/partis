@@ -56,6 +56,8 @@ def run_simulation(args):
         print '  note: --n-max-queries is not used when simulating (use --n-sim-events to set the simulated number of rearrangemt events)'
     if args.parameter_dir is None and not args.simulate_partially_from_scratch:
         raise Exception('either --parameter-dir must be specified, or --simulate-partially-from-scratch must be set')
+    if args.flat_mute_freq and not args.simulate_partially_from_scratch:
+        raise Exception('can\'t use a flat mute freq without --simulate-partially-from-scratch (actually maybe it\'s possible, but a few things would need to be changed)')
     if args.simulate_partially_from_scratch and args.parameter_dir is not None:
         raise Exception('you can\'t specify --parameter-dir if you also set --simulate-partially-from-scratch')
     if args.parameter_dir is not None and args.initial_germline_dir is not None:
@@ -361,6 +363,7 @@ subargs['simulate'].append({'name' : '--indel-location', 'kwargs' : {'choices' :
 # NOTE command to generate gtr parameter file: [stoat] partis/ > zcat /shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_gtr_tr-qi-gi.json.gz | jq .independentParameters | grep -v '[{}]' | sed 's/["\:,]//g' | sed 's/^[ ][ ]*//' | sed 's/ /,/' | sort >data/gtr.txt)
 subargs['simulate'].append({'name' : '--gtrfname', 'kwargs' : {'default' : partis_dir + '/data/recombinator/gtr.txt', 'help' : 'File with list of GTR parameters. Fed into bppseqgen along with the chosen tree. Corresponds to an arbitrary dataset at the moment, but eventually will be inferred per-dataset.'}})
 subargs['simulate'].append({'name' : '--simulate-partially-from-scratch', 'kwargs' : {'action' : 'store_true', 'help' : 'Don\'t use an existing parameter directory to describe the repertoire; instead start from scratch. Mutation freqs are harder, so for now we use some stuff in data/recombinator/.'}})
+subargs['simulate'].append({'name' : '--flat-mute-freq', 'kwargs' : {'type' : float, 'help' : 'impose a constant mutation frequency across all positions for all regions and inserts'}})
 subargs['simulate'].append({'name' : '--scratch-mute-freq-dir', 'kwargs' : {'default' : partis_dir + '/data/recombinator/scratch-parameters', 'help' : 'see --simulate-partially-from-scratch'}})
 subargs['simulate'].append({'name' : '--generate-germline-set', 'kwargs' : {'action' : 'store_true', 'help' : 'Choose a subset of the available genes to represent this sample\'s germline.'}})
 subargs['simulate'].append({'name' : '--n-genes-per-region', 'kwargs' : {'default' : '15:5:3', 'help' : 'colon-separated list specifying the number of genes (not alleles -- i.e. the *total* number of alleles is this times the number of alleles per gene) for each region (for use with --generate-germline-set)'}})

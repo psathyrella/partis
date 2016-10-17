@@ -32,10 +32,11 @@ class Recombinator(object):
         self.outfname = outfname
         utils.prep_dir(self.workdir)
 
-        if not self.args.simulate_partially_from_scratch:
+        if self.args.simulate_partially_from_scratch:
+            # NOTE not used if you're flat-mute-freqing
+            parameter_dir = self.args.scratch_mute_freq_dir  # if you make up mute freqs from scratch, unless you're really carefuly you tend to get nonsense results for a lot of things (e.g. allele finding)
+        else:
             parameter_dir = self.args.parameter_dir + '/' + self.args.parameter_type
-        else:  # we start from scratch, except for the mute freq stuff
-            parameter_dir = self.args.scratch_mute_freq_dir
 
         if parameter_dir is None or not os.path.exists(parameter_dir):
             raise Exception('parameter dir ' + parameter_dir + ' d.n.e')
@@ -111,7 +112,9 @@ class Recombinator(object):
 
     # ----------------------------------------------------------------------------------------
     def read_mute_freq_stuff(self, gene_or_insert_name):
-        if gene_or_insert_name[:2] in utils.boundaries:
+        if self.args.simulate_partially_from_scratch and self.args.flat_mute_freq:
+            self.all_mute_freqs[gene_or_insert_name] = {'overall_mean' : self.args.flat_mute_freq}
+        elif gene_or_insert_name[:2] in utils.boundaries:
             replacement_genes = utils.find_replacement_genes(self.parameter_dir, min_counts=-1, all_from_region='v')
             self.all_mute_freqs[gene_or_insert_name], _ = paramutils.read_mute_info(self.parameter_dir, this_gene=gene_or_insert_name, chain=self.args.chain, approved_genes=replacement_genes)
         else:

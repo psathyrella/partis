@@ -1428,11 +1428,11 @@ class PartitionDriver(object):
         if print_true and not self.args.is_data:  # first print true event (if this is simulation)
             utils.print_true_events(self.glfo, self.reco_info, line)
 
+        if len(line['unique_ids']) > 1:  # make it easier to cut and paste for --queries
+            print '          ' + ':'.join(line['unique_ids'])
         label = 'inferred:'
         if self.args.seed_unique_id is not None and self.args.seed_unique_id in line['unique_ids']:
             label += '   (found %d sequences clonal to seed %s)' % (len(line['unique_ids']), self.args.seed_unique_id)
-        if len(line['unique_ids']) > 1:  # make it easier to cut and paste for --queries
-            label += '    ' + ':'.join(line['unique_ids'])
         utils.print_reco_event(self.glfo['seqs'], line, extra_str='    ', label=label, seed_uid=self.args.seed_unique_id)
 
     # ----------------------------------------------------------------------------------------

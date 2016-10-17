@@ -136,7 +136,7 @@ class RecombinationEvent(object):
         line['fv_insertion'] = ''
         line['jf_insertion'] = ''
         line['seqs'] = self.final_seqs
-        line['unique_ids'] = [i for i in range(len(self.final_seqs))]
+        line['unique_ids'] = [str(i) for i in range(len(self.final_seqs))]
         line['cdr3_length'] = self.cdr3_length
         line['codon_positions'] = copy.deepcopy(self.final_codon_positions)
         line['indelfos'] = self.indelfos

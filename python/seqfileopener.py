@@ -179,8 +179,9 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, s
                 raise Exception('extracted uids %s that weren\'t specified with --queries' % ' '.join(extra_queries))
         if args.seed_unique_id is not None:
             if found_seed:
-                if args.seed_seq is not None and input_info[args.seed_unique_id]['seqs'][0] != args.seed_seq:
-                    raise Exception('incompatible --seed-unique-id and --seed-seq (i.e. the sequence in %s corresponding to %s wasn\'t %s)' % (infname, args.seed_unique_id, args.seed_seq))
+                if args.seed_seq is not None:  # and input_info[args.seed_unique_id]['seqs'][0] != args.seed_seq:
+                    # raise Exception('incompatible --seed-unique-id and --seed-seq (i.e. the sequence in %s corresponding to %s wasn\'t %s)' % (infname, args.seed_unique_id, args.seed_seq))
+                    raise Exception('--seed-seq was specified, but --seed-unique-id was also present in input file')
             else:
                 if args.seed_seq is None:
                     raise Exception('couldn\'t find seed unique id %s in %s' % (args.seed_unique_id, infname))
