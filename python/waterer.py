@@ -31,8 +31,8 @@ class Waterer(object):
         self.parameter_out_dir = parameter_out_dir
         self.debug = self.args.debug if self.args.sw_debug is None else self.args.sw_debug
 
-        self.max_insertion_length = 35  # if vdjalign reports an insertion longer than this, rerun the query (typically with different match/mismatch ratio)
-        self.absolute_max_insertion_length = 200  # just ignore them if it's longer than this
+        self.max_insertion_length = 35  # if an insertion is longer than this, we skip the proposed annotation (i.e. rerun it)
+        self.absolute_max_insertion_length = 120  # but if it's longer than this, we always skip the annotation
 
         self.remaining_queries = set([q for q in self.input_info.keys()])  # we remove queries from this set when we're satisfied with the current output (in general we may have to rerun some queries with different match/mismatch scores)
         self.new_indels = 0  # number of new indels that were kicked up this time through
@@ -294,7 +294,7 @@ class Waterer(object):
     def read_output(self, base_outfname, n_procs=1):
         queries_to_rerun = OrderedDict()  # This is to keep track of every query that we don't add to self.info (i.e. it does *not* include unproductive queries that we ignore/skip entirely because we were told to by a command line argument)
                                           # ...whereas <self.skipped_unproductive_queries> is to keep track of the queries that were definitively unproductive (i.e. we removed them from self.remaining_queries) when we were told to skip unproductives by a command line argument
-        for reason in ['unproductive', 'no-match', 'weird-annot.', 'nonsense-bounds', 'invalid-codon', 'indel-fails']:
+        for reason in ['unproductive', 'no-match', 'weird-annot.', 'nonsense-bounds', 'invalid-codon', 'indel-fails', 'super-high-mutation']:
             queries_to_rerun[reason] = set()
 
         self.new_indels = 0
@@ -490,6 +490,23 @@ class Waterer(object):
             out_str_list.append('skipping!')
 
         print ''.join(out_str_list)
+
+    # ----------------------------------------------------------------------------------------
+    def super_high_mutation(self, qinfo, best):
+        gl_seqs, qr_seqs = [], []
+        for region in ['v', 'j']:  # insertion mutation rates are meaningless, and we expect D to frequently be really high
+            gl_bounds = qinfo['glbounds'][best[region]]
+            gl_seqs.append(self.glfo['seqs'][region][best[region]][gl_bounds[0] : gl_bounds[1]])
+            qr_bounds = qinfo['qrbounds'][best[region]]
+            qr_seqs.append(qinfo['seq'][qr_bounds[0] : qr_bounds[1]])
+
+        vj_mute_freq = utils.hamming_fraction(''.join(gl_seqs), ''.join(qr_seqs))
+        if vj_mute_freq > self.args.max_vj_mut_freq:
+            if self.debug:
+                print '      super high vj mutation (%.3f > %.3f)' % (vj_mute_freq, self.args.max_vj_mut_freq)
+            return True
+        else:
+            return False
 
     # ----------------------------------------------------------------------------------------
     def get_overlap_and_available_space(self, rpair, best, qrbounds):
@@ -749,6 +766,10 @@ class Waterer(object):
             for region in utils.regions:
                 for score, gene in qinfo['matches'][region]:  # sorted by decreasing match quality
                     self.print_match(region, gene, score, qseq, qinfo['glbounds'][gene], qinfo['qrbounds'][gene], skipping=False)
+
+        if self.super_high_mutation(qinfo, best):
+            queries_to_rerun['super-high-mutation'].add(qname)
+            return
 
         # s-w allows d and j matches to overlap, so we need to apportion the disputed bases
         for rpair in utils.region_pairs():
