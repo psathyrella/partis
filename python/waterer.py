@@ -405,12 +405,12 @@ class Waterer(object):
             iqr += 1
             igl += 1
 
-        if self.debug:
-            print '\n      indels in %s' % query_name
-            print '          %20s %s' % (gene, glprintstr)
-            print '          %20s %s' % ('query', qrprintstr)
-            for idl in indelfo['indels']:
-                print '          %10s: %d bases at %d (%s)' % (idl['type'], idl['len'], idl['pos'], idl['seqstr'])
+        dbg_str_list = ['      indels in %s' % query_name,
+                        '          %20s %s' % (gene, glprintstr),
+                        '          %20s %s' % ('query', qrprintstr)]
+        for idl in indelfo['indels']:
+            dbg_str_list.append('          %10s: %d bases at %d (%s)' % (idl['type'], idl['len'], idl['pos'], idl['seqstr']))
+        indelfo['dbg_str'] = '\n'.join(dbg_str_list)
 
         return indelfo
 
@@ -739,13 +739,13 @@ class Waterer(object):
         if len(qinfo['new_indels']) > 0:  # if any of the best matches had new indels this time through (in practice: only v or j best matches)
             if self.nth_try < 2:
                 if self.debug:
-                    print '      don\'t allow indels the first try'
+                    print 's-w called some indels, but we don\'t allow them first try (rerun with different match/mismatch)'
                 queries_to_rerun['indel-fails'].add(qname)
                 return
 
             if qname in self.info['indels']:
                 if self.debug:
-                    print '      don\'t allow more than one cycle of indels'
+                    print '      s-w called indels after already calling some before -- but we don\'t allow multiple cycles'
                 queries_to_rerun['indel-fails'].add(qname)
                 return
 
@@ -755,7 +755,7 @@ class Waterer(object):
                 self.info['indels'][qinfo['name']]['reversed_seq'] = qinfo['new_indels'][region]['reversed_seq']
                 self.new_indels += 1
                 if self.debug:
-                    print '      new indel in best %s match' % region
+                    print self.info['indels'][qinfo['name']]['dbg_str']
                 return
 
             print '%s fell through indel block for %s' % (utils.color('red', 'warning'), qname)
