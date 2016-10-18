@@ -993,7 +993,21 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def get_padding_parameters(self, debug=False):
-        maxima = {'gl_cpos' : None, 'gl_cpos_to_j_end' : None}
+        padnames = ['gl_cpos', 'gl_cpos_to_j_end']
+
+        def get_empty_maxima():
+            return {pn : None for pn in padnames}
+
+        def check_set_maxima(name, val, cdr3):
+            if maxima[name] is None or val > maxima[name]:
+                maxima[name] = val
+            if cdr3 not in per_cdr3_maxima:
+                per_cdr3_maxima[cdr3] = get_empty_maxima()
+            if per_cdr3_maxima[cdr3][name] is None or val > per_cdr3_maxima[cdr3][name]:
+                per_cdr3_maxima[cdr3][name] = val
+
+        maxima = get_empty_maxima()
+        per_cdr3_maxima = {}
         for query in self.info['queries']:
             swfo = self.info[query]
 
@@ -1002,23 +1016,29 @@ class Waterer(object):
             # loop over all matches for all sequences (up to n_max_per_region), because we want bcrham to be able to compare any sequence to any other (although, could probably use all *best* matches rather than all *all* UPDATE no, I kinda think not)
             for v_match in self.info['all_matches']['v']:
                 gl_cpos = self.glfo['cyst-positions'][v_match] + fvstuff
-                if maxima['gl_cpos'] is None or gl_cpos > maxima['gl_cpos']:
-                    maxima['gl_cpos'] = gl_cpos
+                check_set_maxima('gl_cpos', gl_cpos, swfo['cdr3_length'])
 
             # Since we only store j_3p_del for the best match, we can't loop over all of 'em. But j stuff doesn't vary too much, so it works ok.
             cpos = swfo['codon_positions']['v']  # cyst position in query sequence (as opposed to gl_cpos, which is in germline allele)
             jfstuff = max(0, len(swfo['jf_insertion']) - swfo['j_3p_del'])
             gl_cpos_to_j_end = len(swfo['seqs'][0]) - cpos + swfo['j_3p_del'] + jfstuff
-            if maxima['gl_cpos_to_j_end'] is None or gl_cpos_to_j_end > maxima['gl_cpos_to_j_end']:
-                maxima['gl_cpos_to_j_end'] = gl_cpos_to_j_end
+            check_set_maxima('gl_cpos_to_j_end', gl_cpos_to_j_end, swfo['cdr3_length'])
 
         if debug:
             print '    maxima:',
-            for k, v in maxima.items():
-                print '%s %d    ' % (k, v),
+            for k in padnames:
+                print '%s %d    ' % (k, maxima[k]),
             print ''
 
-        return maxima
+            print '    per-cdr3 maxima:'
+            print '         %s  %s  %s' % ('cdr3', padnames[0], padnames[1])
+            for cdr3 in per_cdr3_maxima:
+                print '         %3d' % cdr3,
+                for k in padnames:
+                    print '   %d    ' % (per_cdr3_maxima[cdr3][k]),
+                print ''
+
+        return maxima, per_cdr3_maxima
 
     # ----------------------------------------------------------------------------------------
     def pad_seqs_to_same_length(self, debug=False):
@@ -1027,20 +1047,26 @@ class Waterer(object):
         Next, pads all sequences further out (if necessary) such as to eliminate all v_5p and j_3p deletions.
         """
 
+        cluster_different_cdr3_lengths = False  # if you want glomerator.cc to try to cluster different cdr3 lengths, you need to pass it *everybody* with the same N padding... but then you're padding way more than you need to on almost every sequence, which is really wasteful and sometimes confuses bcrham
+
         # NOTE that an additional reason not to do this in simulation is that it will screw up the purity/completeness calculation
         if not self.args.dont_remove_framework_insertions and self.reco_info is None:  # don't want to do this on simulation -- it's too much trouble to keep things consistent with the simulation info
             self.remove_framework_insertions(debug=debug)
             self.remove_duplicate_sequences(debug=debug)
 
-        maxima = self.get_padding_parameters(debug=debug)
+        maxima, per_cdr3_maxima = self.get_padding_parameters(debug=debug)
 
         for query in self.info['queries']:
             swfo = self.info[query]
             assert len(swfo['seqs']) == 1
 
             cpos = swfo['codon_positions']['v']
-            padleft = maxima['gl_cpos'] - cpos  # left padding: biggest germline cpos minus cpos in this sequence
-            padright = maxima['gl_cpos_to_j_end'] - (len(swfo['seqs'][0]) - cpos)
+            if cluster_different_cdr3_lengths:
+                padleft = maxima['gl_cpos'] - cpos  # left padding: biggest germline cpos minus cpos in this sequence
+                padright = maxima['gl_cpos_to_j_end'] - (len(swfo['seqs'][0]) - cpos)
+            else:
+                padleft = per_cdr3_maxima[swfo['cdr3_length']]['gl_cpos'] - cpos  # left padding: biggest germline cpos minus cpos in this sequence
+                padright = per_cdr3_maxima[swfo['cdr3_length']]['gl_cpos_to_j_end'] - (len(swfo['seqs'][0]) - cpos)
             if padleft < 0 or padright < 0:
                 raise Exception('bad padding %d %d for %s' % (padleft, padright, query))
 
@@ -1067,4 +1093,4 @@ class Waterer(object):
 
         if debug:
             for query in self.info['queries']:
-                print '%20s %s' % (query, self.info[query]['seqs'][0])
+                print '%20s %3d %s' % (query, self.info[query]['cdr3_length'], self.info[query]['seqs'][0])

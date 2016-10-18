@@ -301,6 +301,8 @@ class PartitionDriver(object):
         """ Partition sequences in <self.input_info> into clonally related lineages """
         print 'partitioning'
         self.run_waterer()  # run smith-waterman
+        if self.args.only_smith_waterman:
+            return
 
         print 'hmm'
         # cache hmm naive seq for each single query
