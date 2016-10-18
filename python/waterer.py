@@ -645,7 +645,7 @@ class Waterer(object):
                     assert False
 
     # ----------------------------------------------------------------------------------------
-    def convert_qinfo(self, qinfo, best, codon_positions, kbounds):
+    def convert_qinfo(self, qinfo, best, codon_positions, kbounds, boundsbounds, relpos):
         """ convert <qinfo> (which is from reading sam files) to format for <self.info> (this is so add_to_info() can be used by the cache file reader, as well) """
         qname = qinfo['name']
         assert qname not in self.info
@@ -656,6 +656,9 @@ class Waterer(object):
 
         infoline['k_v'] = kbounds['v']
         infoline['k_d'] = kbounds['d']
+
+        infoline['boundsbounds'] = boundsbounds
+        infoline['relpos'] = relpos
 
         # erosion, insertion, mutation info for best match
         infoline['v_5p_del'] = qinfo['glbounds'][best['v']][0]
@@ -852,8 +855,10 @@ class Waterer(object):
                 print '      nonsense kbounds for %s, rerunning' % qname
             queries_to_rerun['weird-annot.'].add(qname)
             return
+        boundsbounds = self.get_boundsbounds(qinfo)
+        relpos = self.get_relpos(qinfo)
 
-        infoline = self.convert_qinfo(qinfo, best, codon_positions, kbounds)
+        infoline = self.convert_qinfo(qinfo, best, codon_positions, kbounds, boundsbounds, relpos)
         self.add_to_info(infoline)
 
     # ----------------------------------------------------------------------------------------
@@ -916,6 +921,33 @@ class Waterer(object):
         kbounds = {'v' : {'best' : best_k_v, 'min' : k_v_min, 'max' : k_v_max},
                    'd' : {'best' : best_k_d, 'min' : k_d_min, 'max' : k_d_max}}
         return kbounds
+
+    # ----------------------------------------------------------------------------------------
+    def get_boundsbounds(self, qinfo):
+        """
+        This is the moral equivalent of get_kbounds in that we are looking for
+        reasonable starting and stopping points for germline gene matches to
+        the query sequence. However, it's not nearly as fancy yet.
+        """
+        boundsbounds = {}
+
+        # NOTE this is skipping the n_max_per_region thing above, which may or may not be necessary.
+        for region in qinfo['matches']:
+            # The zip makes a tuple list: [left hand bounds, right hand bounds]
+            bounds_l = zip(*[qinfo['qrbounds'][match_gene[1]] for match_gene in qinfo['matches'][region]])
+            boundsbounds[region] = (min(bounds_l[0]), max(bounds_l[1]))
+
+        return boundsbounds
+
+    # ----------------------------------------------------------------------------------------
+    def get_relpos(self, qinfo):
+        """
+        The `relpos` describes the relative position of the query to each
+        matched gene according to SW. It is the query-level position of the
+        start of germline gene if it hadn't been trimmed at all.
+        """
+        qrbounds = qinfo['qrbounds']
+        return {gene: qrbounds[gene][0] - glbound[0] for gene, glbound in qinfo['glbounds'].items()}
 
     # ----------------------------------------------------------------------------------------
     def remove_framework_insertions(self, debug=False):

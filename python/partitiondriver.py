@@ -13,6 +13,7 @@ from subprocess import Popen, check_call, PIPE, CalledProcessError, check_output
 import copy
 import multiprocessing
 import operator
+import json
 
 import utils
 import glutils
@@ -1052,6 +1053,14 @@ class PartitionDriver(object):
             combo['k_v']['max'] = max(k_v['max'], combo['k_v']['max'])
             combo['k_d']['min'] = min(k_d['min'], combo['k_d']['min'])
             combo['k_d']['max'] = max(k_d['max'], combo['k_d']['max'])
+            # Note that boundsbounds is updated below.
+            combo['relpos'] = {}
+            for gene, pos in swfo['relpos'].items():
+                if gene in combo['relpos']:
+                    # Eventually we will have to do some smart error handling here when we get the same germline aligned two different ways for two sequences in a cluster.
+                    assert(combo['relpos'][gene] == pos)
+                else:
+                    combo['relpos'][gene] = pos
 
             # work out which genes to tell the hmm to use
             genes_to_use = set()
@@ -1062,6 +1071,11 @@ class PartitionDriver(object):
 
             # and finally OR this query's genes into the ones from previous queries
             combo['only_genes'] = list(set(genes_to_use) | set(combo['only_genes']))  # NOTE using the OR of all sets of genes (from all query seqs) like this *really* helps,
+
+        combo['boundsbounds'] = {}
+        for region in self.sw_info['all_matches']:
+            bounds_l = zip(*[self.sw_info[name]['boundsbounds'][region] for name in query_names])
+            combo['boundsbounds'][region] = (min(bounds_l[0]), max(bounds_l[1]))
 
         if not self.all_regions_present(combo['only_genes'], skipped_gene_matches, query_names):
             return {}
@@ -1096,9 +1110,10 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def write_to_single_input_file(self, fname, nsets, parameter_dir, skipped_gene_matches, shuffle_input=False):
         csvfile = opener('w')(fname)
-        header = ['names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'mut_freq', 'cdr3_length', 'only_genes', 'seqs']
+        header = ['names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'mut_freq', 'cdr3_length', 'only_genes', 'seqs', 'boundsbounds', 'relpos']
         writer = csv.DictWriter(csvfile, header, delimiter=' ')
         writer.writeheader()
+        json_separators=(',', ':')
 
         if shuffle_input:  # shuffle nset order (this is absolutely critical when clustering with more than one process, in order to redistribute sequences among the several processes)
             random.shuffle(nsets)
@@ -1127,7 +1142,10 @@ class PartitionDriver(object):
                 'mut_freq' : combined_query['mut_freq'],
                 'cdr3_length' : combined_query['cdr3_length'],
                 'only_genes' : ':'.join(combined_query['only_genes']),
-                'seqs' : ':'.join(combined_query['seqs'])
+                'seqs' : ':'.join(combined_query['seqs']),
+                # Eventually we may use a special serialization, but JSON for now.
+                'boundsbounds' : json.dumps(combined_query['boundsbounds'], separators=json_separators),
+                'relpos' : json.dumps(combined_query['relpos'], separators=json_separators)
             })
 
         csvfile.close()
