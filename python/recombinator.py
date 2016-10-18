@@ -32,9 +32,8 @@ class Recombinator(object):
         self.outfname = outfname
         utils.prep_dir(self.workdir)
 
-        if self.args.simulate_partially_from_scratch:
-            # NOTE not used if you're flat-mute-freqing
-            parameter_dir = self.args.scratch_mute_freq_dir  # if you make up mute freqs from scratch, unless you're really carefuly you tend to get nonsense results for a lot of things (e.g. allele finding)
+        if self.args.rearrange_from_scratch:
+            parameter_dir = self.args.scratch_mute_freq_dir  # if you make up mute freqs from scratch, unless you're really careful you tend to get nonsense results for a lot of things (e.g. allele finding)
         else:
             parameter_dir = self.args.parameter_dir + '/' + self.args.parameter_type
 
@@ -81,7 +80,7 @@ class Recombinator(object):
 
     # ----------------------------------------------------------------------------------------
     def read_insertion_content(self, parameter_dir):
-        if self.args.simulate_partially_from_scratch:
+        if self.args.rearrange_from_scratch:
             return {b : {n : 1./len(utils.nukes) for n in utils.nukes} for b in utils.boundaries}
 
         insertion_content_probs = {}
@@ -112,7 +111,7 @@ class Recombinator(object):
 
     # ----------------------------------------------------------------------------------------
     def read_mute_freq_stuff(self, gene_or_insert_name):
-        if self.args.simulate_partially_from_scratch and self.args.flat_mute_freq:
+        if self.args.mutate_from_scratch:
             self.all_mute_freqs[gene_or_insert_name] = {'overall_mean' : self.args.flat_mute_freq}
         elif gene_or_insert_name[:2] in utils.boundaries:
             replacement_genes = utils.find_replacement_genes(self.parameter_dir, min_counts=-1, all_from_region='v')
@@ -170,11 +169,11 @@ class Recombinator(object):
 
         codons_ok = utils.both_codons_ok(self.glfo['chain'], reco_event.recombined_seq, reco_event.final_codon_positions, extra_str='      ', debug=self.args.debug)
         if not codons_ok:
-            if self.args.simulate_partially_from_scratch and self.args.generate_germline_set:  # if you let it try more than once, it screws up the desired allele prevalence ratios
+            if self.args.rearrange_from_scratch and self.args.generate_germline_set:  # if you let it try more than once, it screws up the desired allele prevalence ratios
                 raise Exception('arg')
             return False
         in_frame = reco_event.cdr3_length % 3 == 0
-        if self.args.simulate_partially_from_scratch and not in_frame:
+        if self.args.rearrange_from_scratch and not in_frame:
             raise Exception('arg 2')  # if you let it try more than once, it screws up the desired allele prevalence ratios
             return False
 
@@ -203,7 +202,7 @@ class Recombinator(object):
     # ----------------------------------------------------------------------------------------
     def get_allowed_genes(self, parameter_dir):
         # first get all the genes that are available
-        if self.args.simulate_partially_from_scratch:  # start with all of 'em
+        if self.args.rearrange_from_scratch:  # start with all of 'em
             tmplist = [self.glfo['seqs'][r].keys() for r in utils.regions]
             allowed_set = set([g for glist in tmplist for g in glist])
         else:  # start with all the ones in the parameter directory
@@ -226,7 +225,7 @@ class Recombinator(object):
     # ----------------------------------------------------------------------------------------
     def read_vdj_version_freqs(self, parameter_dir):
         """ Read the frequencies at which various VDJ combinations appeared in data """
-        if self.args.simulate_partially_from_scratch:
+        if self.args.rearrange_from_scratch:
             return None
 
         version_freq_table = {}
@@ -323,7 +322,7 @@ class Recombinator(object):
         """ Choose the set of rearrangement parameters """
 
         vdj_choice = None
-        if self.args.simulate_partially_from_scratch:  # generate an event without using the parameter directory
+        if self.args.rearrange_from_scratch:  # generate an event without using the parameter directory
             vdj_choice = self.freqtable_index(self.get_scratchline())
         else:  # use real parameters from a directory
             iprob = numpy.random.uniform(0, 1)

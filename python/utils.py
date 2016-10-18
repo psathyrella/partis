@@ -798,7 +798,7 @@ def process_per_gene_support(line, debug=False):
             support[gene] = math.exp(support[gene] - logtotal)
 
         if len(support.keys()) > 0 and support.keys()[0] != line[region + '_gene']:
-            print '   WARNING best-supported gene %s not same as viterbi gene %s' % (color_gene(support.keys()[0]), color_gene(line[region + '_gene']))
+            print '   %s best-supported gene %s not same as viterbi gene %s' % (color('yellow', 'warning'), color_gene(support.keys()[0]), color_gene(line[region + '_gene']))
 
         line[region + '_per_gene_support'] = support
 
@@ -2125,8 +2125,8 @@ def subset_files(uids, fnames, outdir, uid_header='Sequence ID', delimiter='\t',
 def add_indels_to_germline_strings(line, indelfo):
     """ Add stars to the germline sequences (for ascii printing) if there were SHM insertions. """
 
-    if len(indelfo['indels']) > 1:
-        print '    WARNING found %d indels, but we can only handle 1' % len(indelfo['indels'])
+    # if len(indelfo['indels']) > 1:
+    #     print '    WARNING found %d indels, but we can only handle 1' % len(indelfo['indels'])
 
     lastfo = indelfo['indels'][-1]
 

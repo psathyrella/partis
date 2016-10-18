@@ -63,15 +63,19 @@ class TreeGenerator(object):
 
     #----------------------------------------------------------------------------------------
     def get_mute_hist(self, mtype, parameter_dir):
-        # if self.args.simulate_from_scratch:
-        #     n_entries = 500
-        #     length_vals = numpy.random.normal(utils.scratch_mean_mute_freqs[mtype], 0.1*utils.scratch_mean_mute_freqs[mtype], n_entries)
-        #     length_vals = [abs(lv) for lv in length_vals]
-        #     hist = Hist(30, 0., 1.)
-        #     for val in length_vals:
-        #         hist.fill(val)
-        # else:
-        hist = Hist(fname=parameter_dir + '/' + mtype + '-mean-mute-freqs.csv')
+        if self.args.mutate_from_scratch:
+            n_entries = 500
+            length_vals = [v for v in numpy.random.exponential(self.args.flat_mute_freq, n_entries)]  # count doesn't work on numpy.ndarray objects
+            max_val = 0.8  # 0.5 is arbitrary, but you shouldn't be calling this with anything that gets a significant number anywhere near there, anyway
+            if length_vals.count(max_val):
+                print '%s lots of really high mutation rates treegenerator::get_mute_hist()' % utils.color('yellow', 'warning')
+            length_vals = [min(v, max_val) for v in length_vals]
+            hist = Hist(30, 0., max_val)
+            for val in length_vals:
+                hist.fill(val)
+            hist.normalize()
+        else:
+            hist = Hist(fname=parameter_dir + '/' + mtype + '-mean-mute-freqs.csv')
 
         return hist
 

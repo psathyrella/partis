@@ -4,6 +4,10 @@
 
 # ----------------------------------------------------------------------------------------
 
+# fix waterer debug fails-to-rerun so they print uid
+
+# try to incorporate cdr3 length class stuff into loop optimizations in bcrham
+
 # is best-minus-x stuff still working? (I'm almost certain not -- I'm only calculating the partition log prob the last time through, so all the other times I can't rewind at all. I need to check that this isn't leading to too much over-mergin)
 
 # need to do allele removal for j (and maybe d?)
@@ -72,6 +76,7 @@
 #  - can probably remove data stuff (UPDATE no, need to test .fa treatment and some code blocks -- but it can be a very small number of sequences)
 #  - should switch to more typical workflow with no separate cache-parameters step
 #  - needs at least a little light chain action
+#  - make sure there's some multiple indels in the testing file
 
 # germline set generation:
 #     all alleles (including new ones) should have roughly the same mut freq distribution (especially at low mutation)'
