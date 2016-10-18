@@ -479,7 +479,7 @@ class PartitionDriver(object):
 
         # make a fasta file
         fastafname = self.args.workdir + '/simu.fasta'
-                
+
         # if not os.path.exists(fastafname):
         if self.args.naive_swarm:
             print '    NOTE: replacing N with A for input to swarm'
@@ -514,7 +514,7 @@ class PartitionDriver(object):
                 print '    ' + joinstr.join(err.replace('\r', '').split('\n'))
             if exit_code != 0:
                 raise Exception('vsearch failed with exit code %d' % exit_code)
-    
+
         elif self.args.naive_swarm:
             clusterfname = self.args.workdir + '/swarm-clusters.txt'
             cmd = './bin/swarm-2.1.1-linux-x86_64 ' + fastafname
@@ -721,7 +721,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def run_hmm(self, algorithm, parameter_in_dir, parameter_out_dir='', count_parameters=False, n_procs=None, precache_all_naive_seqs=False, partition=None, shuffle_input=False, read_output=True):
-        """ 
+        """
         Run bcrham, possibly with many processes, and parse and interpret the output.
         NOTE the local <n_procs>, which overrides the one from <self.args>
         """
@@ -890,7 +890,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def merge_files(self, infnames, outfname, dereplicate):
-        """ 
+        """
         Merge <infnames> into <outfname>.
         NOTE that <outfname> is overwritten with the zero-length file if it exists, otherwise it is created.
         Some of <infnames> may not exist.
@@ -1025,7 +1025,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def combine_queries(self, query_names, genes_with_hmm_files, skipped_gene_matches=None):
-        """ 
+        """
         Return the 'logical OR' of the queries in <query_names>, i.e. the maximal extent in k_v/k_d space and OR of only_gene sets.
         """
 
