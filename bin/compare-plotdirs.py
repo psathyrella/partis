@@ -95,8 +95,8 @@ def compare_directories(args, xtitle=''):
                 if 'j_' not in varname:
                     figsize = (10, 5)
                 line_width_override = 1
-            elif 'mute-freqs/v' in args.plotdirs[0] or 'mute-freqs/j' in args.plotdirs[0]:
-                figsize = (10, 5)
+            elif 'per-gene-per-position/v' in args.plotdirs[0]:
+                figsize = (20, 5)
                 bounds = plotconfig.default_hard_bounds.setdefault(utils.unsanitize_name(varname), None)
 
         if 'IG' in varname:

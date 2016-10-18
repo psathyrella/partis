@@ -493,10 +493,15 @@ class Recombinator(object):
         command = command.rstrip(',')
         command += '\)'
         # NOTE should I use the "equilibrium frequencies" option?
-        command += ' rate_distribution=\'Gamma(n=4,alpha=' + self.mute_models[region]['gamma']['alpha']+ ')\''
-        command += ' input.infos.states=state'
-        command += ' input.infos=' + reco_seq_fname
-        command += ' input.infos.rates=rate'
+        if self.args.mutate_from_scratch:
+            if self.args.flat_mute_freq:
+                command += ' rate_distribution=\'Constant\''
+            else:
+                command += ' rate_distribution=\'Gamma(n=4,alpha=' + self.mute_models[region]['gamma']['alpha']+ ')\''
+        else:
+            command += ' input.infos.states=state'
+            command += ' input.infos=' + reco_seq_fname
+            command += ' input.infos.rates=rate'
         check_output(command, shell=True)
 
         mutated_seqs = []
