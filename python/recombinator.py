@@ -479,11 +479,14 @@ class Recombinator(object):
             raise Exception('bpp not found in %s' % os.path.dirname(bpp_binary))
         command = 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:' + self.args.partis_dir + '/packages/bpp/lib\n'
         command += bpp_binary
+        command += ' input.infos=' + reco_seq_fname  # input file
+        command += ' input.infos.rates=rate'  # column name in input file
+        command += ' input.infos.states=state'  # column name in input file
         command += ' input.tree.file=' + treefname
         command += ' output.sequence.file=' + leaf_seq_fname
         command += ' number_of_sites=' + str(len(seq))
         command += ' input.tree.format=Newick'
-        command += ' output.sequence.format=Fasta\(\)'
+        command += ' output.sequence.format=Fasta'
         command += ' alphabet=DNA'
         command += ' --seed=' + str(seed)
         command += ' model=GTR\('
@@ -498,10 +501,6 @@ class Recombinator(object):
                 command += ' rate_distribution=\'Constant\''
             else:
                 command += ' rate_distribution=\'Gamma(n=4,alpha=' + self.mute_models[region]['gamma']['alpha']+ ')\''
-        else:
-            command += ' input.infos.states=state'
-            command += ' input.infos=' + reco_seq_fname
-            command += ' input.infos.rates=rate'
         check_output(command, shell=True)
 
         mutated_seqs = []
