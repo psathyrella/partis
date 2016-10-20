@@ -931,11 +931,16 @@ class Waterer(object):
         """
         boundsbounds = {}
 
+        # NOTE we will want to use command-line-derived fuzz, but this will do for now.
+        def span(l):
+            return (max(0, min(l)-2), max(l)+2)
+
         # NOTE this is skipping the n_max_per_region thing above, which may or may not be necessary.
         for region in qinfo['matches']:
             # The zip makes a tuple list: [left hand bounds, right hand bounds]
             bounds_l = zip(*[qinfo['qrbounds'][match_gene[1]] for match_gene in qinfo['matches'][region]])
-            boundsbounds[region] = (min(bounds_l[0]), max(bounds_l[1]))
+            boundsbounds[region+'_l'] = span(bounds_l[0])
+            boundsbounds[region+'_r'] = span(bounds_l[1])
 
         return boundsbounds
 

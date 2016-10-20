@@ -1073,9 +1073,9 @@ class PartitionDriver(object):
             combo['only_genes'] = list(set(genes_to_use) | set(combo['only_genes']))  # NOTE using the OR of all sets of genes (from all query seqs) like this *really* helps,
 
         combo['boundsbounds'] = {}
-        for region in self.sw_info['all_matches']:
-            bounds_l = zip(*[self.sw_info[name]['boundsbounds'][region] for name in query_names])
-            combo['boundsbounds'][region] = (min(bounds_l[0]), max(bounds_l[1]))
+        for region_side in self.sw_info[query_names[0]]['boundsbounds']:
+            bounds_l = zip(*[self.sw_info[name]['boundsbounds'][region_side] for name in query_names])
+            combo['boundsbounds'][region_side] = (min(bounds_l[0]), max(bounds_l[1]))
 
         if not self.all_regions_present(combo['only_genes'], skipped_gene_matches, query_names):
             return {}
