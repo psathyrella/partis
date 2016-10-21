@@ -111,7 +111,7 @@ class Recombinator(object):
 
     # ----------------------------------------------------------------------------------------
     def read_mute_freq_stuff(self, gene_or_insert_name):
-        if self.args.mutate_from_scratch:
+        if self.args.mutate_from_scratch:  # XXX GODDAMMIT i remember putting this 'xxx' here for a reason and I have no fucking clue what it was
             self.all_mute_freqs[gene_or_insert_name] = {'overall_mean' : self.args.flat_mute_freq}
         elif gene_or_insert_name[:2] in utils.boundaries:
             replacement_genes = utils.find_replacement_genes(self.parameter_dir, min_counts=-1, all_from_region='v')
@@ -429,11 +429,16 @@ class Recombinator(object):
 
         # write the input file for bppseqgen, one base per line
         with opener('w')(reco_seq_fname) as reco_seq_file:
-            reco_seq_file.write('state\trate\n')
+            # NOTE really not sure why this doesn't really [seems to require an "extra" column] work with csv.DictWriter, but it doesn't -- bppseqgen barfs (I think maybe it expects a different newline character? don't feel like working it out)
+            headstr = 'state'
+            if not self.args.mutate_from_scratch:
+                headstr += '\trate'
+            reco_seq_file.write(headstr + '\n')
             for inuke in range(len(seq)):
-                reco_seq_file.write('%s\t%.15f\n' % (seq[inuke], rates[inuke]))
-
-        # NOTE I need to find a tool to give me the total branch length of the chosen tree, so I can compare to the number of mutations I see
+                linestr = seq[inuke]
+                if not self.args.mutate_from_scratch:
+                    linestr += '\t%f' % rates[inuke]
+                reco_seq_file.write(linestr + '\n')
 
     # ----------------------------------------------------------------------------------------
     def run_bppseqgen(self, seq, chosen_tree, gene_or_insert_name, reco_event, seed, is_insertion=False):
@@ -480,27 +485,30 @@ class Recombinator(object):
         command = 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:' + self.args.partis_dir + '/packages/bpp/lib\n'
         command += bpp_binary
         command += ' input.infos=' + reco_seq_fname  # input file
-        command += ' input.infos.rates=rate'  # column name in input file
-        command += ' input.infos.states=state'  # column name in input file
+        command += ' input.infos.states=state'  # column name in input file BEWARE bio++ undocumented defaults (i.e. look in the source code)
         command += ' input.tree.file=' + treefname
         command += ' output.sequence.file=' + leaf_seq_fname
-        command += ' number_of_sites=' + str(len(seq))
         command += ' input.tree.format=Newick'
         command += ' output.sequence.format=Fasta'
         command += ' alphabet=DNA'
         command += ' --seed=' + str(seed)
-        command += ' model=GTR\('
-        for par in self.mute_models[region]['gtr']:
-            val = self.mute_models[region]['gtr'][par]
-            command += par + '=' + val + ','
-        command = command.rstrip(',')
-        command += '\)'
         # NOTE should I use the "equilibrium frequencies" option?
         if self.args.mutate_from_scratch:
-            if self.args.flat_mute_freq:
+            command += ' model=JC69'
+            command += ' input.infos.rates=none'  # column name in input file BEWARE bio++ undocumented defaults (i.e. look in the source code)
+            if self.args.flat_mute_freq is not None:
+                # command += ' rate_distribution=\'Gamma(n=1,alpha=1)\''
                 command += ' rate_distribution=\'Constant\''
             else:
                 command += ' rate_distribution=\'Gamma(n=4,alpha=' + self.mute_models[region]['gamma']['alpha']+ ')\''
+        else:
+            command += ' model=GTR\('
+            for par in self.mute_models[region]['gtr']:
+                val = self.mute_models[region]['gtr'][par]
+                command += par + '=' + val + ','
+            command = command.rstrip(',')
+            command += '\)'
+            command += ' input.infos.rates=rate'  # column name in input file
         check_output(command, shell=True)
 
         mutated_seqs = []

@@ -1,61 +1,44 @@
-# ----------------------------------------------------------------------------------------
-# was using 25% and taking 5-6 minutes, now at 8.5% and 2.5 minutes (goes down to 0.8% and 2.5 minutes if you clear naive_hfracs_ every time you merge):
-#   /home/dralph/work/partis-dev/packages/ham/bcrham --algorithm forward --hmmdir /fh/fast/matsen_e/processed-data/partis/kate-qrs-2016-09-09/Hs-LN1-5RACE-IgG/hmm/hmms --datadir _tmp/gizmo/germline-sets --infile _tmp/gizmo/hmm-9/hmm_input.csv --outfile hmm_output.csv --chain h --random-seed 1475874596 --only-cache-new-vals --input-cachefname _tmp/gizmo/hmm-9/hmm_cached_info.csv --output-cachefname tmp-cache.csv --partition --max-logprob-drop 5.0 --hamming-fraction-bound-lo 0.015 --hamming-fraction-bound-hi 0.08762028181 --logprob-ratio-threshold 18.0 --biggest-naive-seq-cluster-to-calculate 7 --biggest-logprob-cluster-to-calculate 7 --seed-unique-id QB850.405-Vh --ambig-base N
+# print_reco_event:
+#    - maybe simulation line shouldn't be associated with a particular inferred line (see below)
+#    - fix multiple-indel printing'
+#    - just print the length for large fv/jf insertions
 
-# ----------------------------------------------------------------------------------------
-
-# fix waterer debug fails-to-rerun so they print uid
-
-# try to incorporate cdr3 length class stuff into loop optimizations in bcrham
-
-# is best-minus-x stuff still working? (I'm almost certain not -- I'm only calculating the partition log prob the last time through, so all the other times I can't rewind at all. I need to check that this isn't leading to too much over-mergin)
-
-# simulation
-#  - paralelelize bppseqgen calls
-#  - try to combine vd and dj with other things so you only need three calls
-
-# look at the stuff in really-super-slow-kate-job/
-
-# need to do allele removal for j (and maybe d?)
-
-# improve n_precache_proc calculator (expecially for large samples)
+# large cluster annotations seem to be way too willing to use ridiculously long insertions (e.g. in
+#  - /fh/fast/matsen_e/processed-data/partis/kate-qrs-2016-09-09/seeds/QB850.402-Vh/Hs-LN1-5RACE-IgG-cluster-annotations.csv)
+#  - /fh/fast/matsen_e/processed-data/partis/kate-qrs-2016-09-09/seeds/QB850.001-Vh/Hs-LN1-5RACE-IgG.log
+#  - /fh/fast/matsen_e/processed-data/partis/kate-qrs-2016-09-09/seeds/QB850.417-Vh/Hs-LN1-5RACE-IgG.log
 
 # fix ham scons test
-
-# rerun on other data sets
-
+# improve n_precache_proc calculator (expecially for large samples)
+# auto-set clustering step procs (at least when seed partitioning, since you don't know before you remove other cdr3 lengths how many you'll have)
+# fix waterer debug fails-to-rerun so they print uid
+# is best-minus-x stuff still working? (I'm almost certain not -- I'm only calculating the partition log prob the last time through, so all the other times I can't rewind at all. I need to check that this isn't leading to too much over-mergin)
 # add only-big-clusters option (well, probably make it the default, and allow to deactivate with --accurate-singletons)
 
-# go through a careful round of partition validation on larger samples (including light chain)
+# partition/annotation validation
+#  - go through a careful round of partition validation on larger samples (including light chain)
+#  - double-check purity/completeness usage (should maybe take account of the fact that we remove duplicate sequences (and simulation should probably just forbid/remove duplicates) UPDATE oh wait but we're not removing duplicates in simulation)
+#  -rerun on other data sets
 
-# purity/completeness should maybe take account of the fact that we remove duplicate sequences (and simulation should probably just forbid/remove duplicates) UPDATE oh wait but we're not removing duplicates in simulation
+# make sure allele finding can't add the same sequence coming from different alleles
 
-# large cluster annotations seem to be way too willing to use ridiculously long insertions (e.g. in /fh/fast/matsen_e/processed-data/partis/kate-qrs-2016-09-09/seeds/QB850.402-Vh/Hs-LN1-5RACE-IgG-cluster-annotations.csv)
-#  - UPDATE maybe not, after kbound updates
+# simulation
+#  - make sure scratch rearrangement allows 0-length deletions (pretty sure it doesn't)
+#  - use cmd.split() when calling bppseqgen so you don't have to escape special characters
+#  - figure out whether GTR with current parameter setup actually makes sense to use
+#  - update bio++, then worry about it
+#  - paralelelize bppseqgen calls
+#  - try to combine vd and dj with other things so you only need three calls
+#  - --simulate-partially-from-scratch throws the out-of-frame exception if you don't use the allele finding testing --initial-germline-dir
 
 # turn per-base mutation rates on
-
-# look at #215
-
-# can you get away with not padding in sw cache file (i.e. pad when you read it)?
-
-# --simulate-partially-from-scratch throws the out-of-frame exception if you don't use the allele finding testing --initial-germline-dir
-
 # non-slurm batch systems
-
 # allow indels in both V and J at the same time (?)
-
 # move dummy d adding in waterer to summarize_query()
 
-# laura:
-#  - add naive sequence to .fa
-#  - include other seed sequences in final clusters
-
-# figure out bcrham procs reading different cache files:
-#  - /fh/fast/matsen_e/processed-data/partis/kate-qrs-2016-09-09/seeds/QA255.067-Vh/Hs-LN2-5RACE-IgG-new.log
-#  - /fh/fast/matsen_e/processed-data/partis/kate-qrs-2016-09-09/seeds/QB850.022-Vh/Hs-LN1-5RACE-IgG-new.log
-#  - /fh/fast/matsen_e/processed-data/partis/kate-qrs-2016-09-09/seeds/QB850.144-Vh/Hs-LN4-5RACE-IgG-new.log
-#  - /fh/fast/matsen_e/processed-data/partis/kate-qrs-2016-09-09/seeds/QB850.405-Vh/Hs-LN1-5RACE-IgG-new.log
+# ?
+#  - look at the stuff in _tmp/really-super-slow-kate-job/
+#  - need to do allele removal for j (and maybe d?)
 
 # figure out queries missing from missing_ids
 #  - /fh/fast/matsen_e/processed-data/partis/kate-qrs-2016-09-09/seeds/QA255.016-Vh/Hs-LN3-5RACE-IgG-new.log
@@ -68,10 +51,6 @@
 #  - are mutation rates in J to left of tryp too high? (they're much higher than in the rest of J)
 #  - try with no-indels?
 
-# print_reco_event:
-#    - maybe simulation line shouldn't be associated with a particular inferred line (see below)
-#    - fix multiple-indel printing'
-#    - just print the length for large fv/jf insertions
 
 # testing:
 #  - don't run inference stuff on new parameters -- it should be fine to just run the new parameters (?)
@@ -105,6 +84,7 @@
 #  - may be worthwhile to switch from colon-string hash map scheme to something shorter
 #  - kbounds logical or should check if/handle case where one of them is unset (ok not really an optimization, but it's not very important atm)
 #  - i think i could switch to running all the ksets of each gene at once (which would drastically reduce the dphandler trellis cache size, since we'd only need to keep one gene at a time), but this would involve a lot of careful rewriting in dphandler
+#  - try to incorporate cdr3 length class stuff into loop optimizations in bcrham
 #  - can v_match loop in get_padding_parameters() go outside the query loop?
 
 # maybe
