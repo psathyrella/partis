@@ -478,50 +478,37 @@ class Recombinator(object):
             treefile.write(chosen_tree)
         self.write_mute_freqs(region, gene_or_insert_name, seq, reco_event, reco_seq_fname, is_insertion=is_insertion)
 
+        env = os.environ.copy()
+        env["LD_LIBRARY_PATH"] += ':' + self.args.partis_dir + '/packages/bpp/lib'
+
         # build up the command line
         # docs: http://biopp.univ-montp2.fr/apidoc/bpp-phyl/html/classbpp_1_1GTR.html that page is too darn hard to google
         bpp_binary = self.args.partis_dir + '/packages/bpp/bin/bppseqgen'
         if not os.path.exists(bpp_binary):
             raise Exception('bpp not found in %s' % os.path.dirname(bpp_binary))
 
-        env = os.environ.copy()
-        env["LD_LIBRARY_PATH"] += ':' + self.args.partis_dir + '/packages/bpp/lib'
-        # env = 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:' + self.args.partis_dir + '/packages/bpp/lib\n'
-
-        command = bpp_binary
-        command += ' input.infos=' + reco_seq_fname  # input file
-        command += ' input.infos.states=state'  # column name in input file BEWARE bio++ undocumented defaults (i.e. look in the source code)
-        command += ' input.tree.file=' + treefname
-        command += ' output.sequence.file=' + leaf_seq_fname
-        command += ' input.tree.format=Newick'
-        command += ' output.sequence.format=Fasta'
+        command = bpp_binary  # NOTE should I use the "equilibrium frequencies" option?
         command += ' alphabet=DNA'
         command += ' --seed=' + str(seed)
-        # NOTE should I use the "equilibrium frequencies" option?
+        command += ' input.infos=' + reco_seq_fname  # input file (specifies initial "state" for each position, and possibly also the mutation rate at that position)
+        command += ' input.infos.states=state'  # column name in input file BEWARE bio++ undocumented defaults (i.e. look in the source code)
+        command += ' input.tree.file=' + treefname
+        command += ' input.tree.format=Newick'
+        command += ' output.sequence.file=' + leaf_seq_fname
+        command += ' output.sequence.format=Fasta'
         if self.args.mutate_from_scratch:
             command += ' model=JC69'
-            command += ' input.infos.rates=none'  # column name in input file BEWARE bio++ undocumented defaults (i.e. look in the source code)
+            command += ' input.infos.rates=none'  # BEWARE bio++ undocumented defaults (i.e. look in the source code)
             if self.args.flat_mute_freq is not None:
-                # command += ' rate_distribution=\'Gamma(n=1,alpha=1)\''
                 command += ' rate_distribution=Constant'
             else:
                 command += ' rate_distribution=Gamma(n=4,alpha=' + self.mute_models[region]['gamma']['alpha']+ ')'
         else:
-            command += ' model=GTR('
-            for par in self.mute_models[region]['gtr']:
-                val = self.mute_models[region]['gtr'][par]
-                command += par + '=' + val + ','
-            command = command.rstrip(',')
-            command += ')'
             command += ' input.infos.rates=rate'  # column name in input file
+            pvpairs = [p + '=' + v for p, v in self.mute_models[region]['gtr'].items()]
+            command += ' model=GTR(' + ','.join(pvpairs) + ')'
 
         return {'cmd_str' : command, 'outfname' : leaf_seq_fname, 'workdir' : workdir, 'other-files' : [reco_seq_fname, treefname], 'env' : env}
-
-# # ----------------------------------------------------------------------------------------
-
-#         check_output(command, shell=True)
-
-# # ----------------------------------------------------------------------------------------
 
     # ----------------------------------------------------------------------------------------
     def read_bppseqgen_output(self, cmdfo, n_leaf_nodes):
