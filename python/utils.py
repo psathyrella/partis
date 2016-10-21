@@ -1585,12 +1585,12 @@ def merge_csvs(outfname, csv_list, cleanup=True):
             writer.writerow(line)
 
 # ----------------------------------------------------------------------------------------
-def run_cmd(cmd_str, workdir):
+def run_cmd(cmd_str, workdir, env=None):
     # print cmd_str
     # sys.exit()
     if not os.path.exists(workdir):
         os.makedirs(workdir)
-    proc = Popen(cmd_str.split(), stdout=open(workdir + '/out', 'w'), stderr=open(workdir + '/err', 'w'))
+    proc = Popen(cmd_str.split(), stdout=open(workdir + '/out', 'w'), stderr=open(workdir + '/err', 'w'), env=env)
     return proc
 
 # ----------------------------------------------------------------------------------------
@@ -1600,10 +1600,12 @@ def run_cmds(cmdfos, debug=None):
             cmdfos[iproc]['logdir'] = cmdfos[iproc]['workdir']
         if 'dbgfo' not in cmdfos[iproc]:
             cmdfos[iproc]['dbgfo'] = None
+        if 'env' not in cmdfos[iproc]:
+            cmdfos[iproc]['env'] = None
 
     procs, n_tries = [], []
     for iproc in range(len(cmdfos)):
-        procs.append(run_cmd(cmdfos[iproc]['cmd_str'], cmdfos[iproc]['logdir']))
+        procs.append(run_cmd(cmdfos[iproc]['cmd_str'], cmdfos[iproc]['logdir'], env=cmdfos[iproc]['env']))
         n_tries.append(1)
         time.sleep(0.01)
     while procs.count(None) != len(procs):  # we set each proc to None when it finishes

@@ -441,32 +441,33 @@ class Recombinator(object):
                 reco_seq_file.write(linestr + '\n')
 
     # ----------------------------------------------------------------------------------------
-    def run_bppseqgen(self, seq, chosen_tree, gene_or_insert_name, reco_event, seed, is_insertion=False):
+    def prepare_bppseqgen(self, seq, chosen_tree, n_leaf_nodes, gene_or_insert_name, reco_event, seed, is_insertion=False):
         """ Run bppseqgen on sequence
 
         Note that this is in general a piece of the full sequence (say, the V region), since
         we have different mutation models for different regions. Returns a list of mutated
         sequences.
         """
+
+        if len(seq) == 0:  # zero length insertion (or d)
+            return None
+
         region = ''
         if is_insertion:
             region = 'v'  # NOTE should really do something other than just use the v model for insertion mutations
         else:
             region = utils.get_region(gene_or_insert_name)
 
-        treg = re.compile('t[0-9][0-9]*')  # find number of leaf nodes
-        n_leaf_nodes = len(treg.findall(chosen_tree))
-        if len(seq) == 0:  # zero length insertion (or d)
-            return ['' for _ in range(n_leaf_nodes)]  # return an empty string for each leaf node
-
         # write the tree to a tmp file
         if is_insertion:
             label = gene_or_insert_name[:2]
         else:
             label = utils.get_region(gene_or_insert_name)
-        treefname = self.workdir + '/' + label + '-tree.tre'
-        reco_seq_fname = self.workdir + '/' + label + '-start-seq.txt'
-        leaf_seq_fname = self.workdir + '/' + label + '-leaf-seqs.fa'
+        workdir = self.workdir + '/' + label
+        treefname = workdir + '/' + label + '-tree.tre'
+        os.makedirs(workdir)
+        reco_seq_fname = workdir + '/' + label + '-start-seq.txt'
+        leaf_seq_fname = workdir + '/' + label + '-leaf-seqs.fa'
         if n_leaf_nodes == 1:  # add an extra leaf to one-leaf trees so bppseqgen doesn't barf (we'll ignore it later)
             lreg = re.compile('t1:[0-9]\.[0-9][0-9]*')
             leafstr = lreg.findall(chosen_tree)
@@ -482,8 +483,12 @@ class Recombinator(object):
         bpp_binary = self.args.partis_dir + '/packages/bpp/bin/bppseqgen'
         if not os.path.exists(bpp_binary):
             raise Exception('bpp not found in %s' % os.path.dirname(bpp_binary))
-        command = 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:' + self.args.partis_dir + '/packages/bpp/lib\n'
-        command += bpp_binary
+
+        env = os.environ.copy()
+        env["LD_LIBRARY_PATH"] += ':' + self.args.partis_dir + '/packages/bpp/lib'
+        # env = 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:' + self.args.partis_dir + '/packages/bpp/lib\n'
+
+        command = bpp_binary
         command += ' input.infos=' + reco_seq_fname  # input file
         command += ' input.infos.states=state'  # column name in input file BEWARE bio++ undocumented defaults (i.e. look in the source code)
         command += ' input.tree.file=' + treefname
@@ -498,32 +503,39 @@ class Recombinator(object):
             command += ' input.infos.rates=none'  # column name in input file BEWARE bio++ undocumented defaults (i.e. look in the source code)
             if self.args.flat_mute_freq is not None:
                 # command += ' rate_distribution=\'Gamma(n=1,alpha=1)\''
-                command += ' rate_distribution=\'Constant\''
+                command += ' rate_distribution=Constant'
             else:
-                command += ' rate_distribution=\'Gamma(n=4,alpha=' + self.mute_models[region]['gamma']['alpha']+ ')\''
+                command += ' rate_distribution=Gamma(n=4,alpha=' + self.mute_models[region]['gamma']['alpha']+ ')'
         else:
-            command += ' model=GTR\('
+            command += ' model=GTR('
             for par in self.mute_models[region]['gtr']:
                 val = self.mute_models[region]['gtr'][par]
                 command += par + '=' + val + ','
             command = command.rstrip(',')
-            command += '\)'
+            command += ')'
             command += ' input.infos.rates=rate'  # column name in input file
-        check_output(command, shell=True)
 
+        return {'cmd_str' : command, 'outfname' : leaf_seq_fname, 'workdir' : workdir, 'other-files' : [reco_seq_fname, treefname], 'env' : env}
+
+# # ----------------------------------------------------------------------------------------
+
+#         check_output(command, shell=True)
+
+# # ----------------------------------------------------------------------------------------
+
+    # ----------------------------------------------------------------------------------------
+    def read_bppseqgen_output(self, cmdfo, n_leaf_nodes):
         mutated_seqs = []
-        for seq_record in SeqIO.parse(leaf_seq_fname, "fasta"):  # get the leaf node sequences from the file that bppseqgen wrote
+        for seq_record in SeqIO.parse(cmdfo['outfname'], "fasta"):  # get the leaf node sequences from the file that bppseqgen wrote
             mutated_seqs.append(str(seq_record.seq))
-            if n_leaf_nodes == 1:  # skip the extra leaf we added above
+            if n_leaf_nodes == 1:  # skip the extra leaf we added earlier
                 break
         assert n_leaf_nodes == len(mutated_seqs)
-
         # self.check_tree_simulation(leaf_seq_fname, chosen_tree)
-
-        os.remove(reco_seq_fname)  # clean up temp files
-        os.remove(treefname)
-        os.remove(leaf_seq_fname)
-
+        os.remove(cmdfo['outfname'])
+        for otherfname in cmdfo['other-files']:
+            os.remove(otherfname)
+        os.rmdir(cmdfo['workdir'])
         return mutated_seqs
 
     # ----------------------------------------------------------------------------------------
@@ -633,13 +645,33 @@ class Recombinator(object):
             print '    with branch length ratios ', ', '.join(['%s %f' % (region, branch_length_ratios[region]) for region in utils.regions])
 
         scaled_trees = self.get_rescaled_trees(chosen_tree, branch_length_ratios)
-        # NOTE would be nice to parallelize this
-        mutes = {}
+# ----------------------------------------------------------------------------------------
+        treg = re.compile('t[0-9][0-9]*')
+        n_leaf_nodes = len(treg.findall(chosen_tree))
+        TMPstrs, cmdfos = [], []
         for region in utils.regions:
-            mutes[region] = self.run_bppseqgen(reco_event.eroded_seqs[region], scaled_trees[region], reco_event.genes[region], reco_event, seed=irandom, is_insertion=False)
-        mutes['vd'] = self.run_bppseqgen(reco_event.insertions['vd'], scaled_trees['v'], 'vd_insert', reco_event, seed=irandom, is_insertion=True)  # NOTE would be nice to use a better mutation model for the insertions
-        mutes['dj'] = self.run_bppseqgen(reco_event.insertions['dj'], scaled_trees['j'], 'dj_insert', reco_event, seed=irandom, is_insertion=True)
+            TMPstrs.append(region)
+            cmdfos.append(self.prepare_bppseqgen(reco_event.eroded_seqs[region], scaled_trees[region], n_leaf_nodes, reco_event.genes[region], reco_event, seed=irandom, is_insertion=False))
+        TMPstrs.append('vd')
+        cmdfos.append(self.prepare_bppseqgen(reco_event.insertions['vd'], scaled_trees['v'], n_leaf_nodes, 'vd_insert', reco_event, seed=irandom, is_insertion=True))  # NOTE would be nice to use a better mutation model for the insertions
+        TMPstrs.append('dj')
+        cmdfos.append(self.prepare_bppseqgen(reco_event.insertions['dj'], scaled_trees['j'], n_leaf_nodes, 'dj_insert', reco_event, seed=irandom, is_insertion=True))
 
+        utils.run_cmds([cfo for cfo in cmdfos if cfo is not None])
+
+        mutes = {}
+        for itmp in range(len(TMPstrs)):
+            if cmdfos[itmp] is None:
+                mutes[TMPstrs[itmp]] = ['' for _ in range(n_leaf_nodes)]  # return an empty string for each leaf node
+            else:
+                mutes[TMPstrs[itmp]] = self.read_bppseqgen_output(cmdfos[itmp], n_leaf_nodes)
+
+        # for region in utils.regions:
+        #     mutes[region] = self.run_bppseqgen(reco_event.eroded_seqs[region], scaled_trees[region], n_leaf_nodes, reco_event.genes[region], reco_event, seed=irandom, is_insertion=False)
+        # mutes['vd'] = self.run_bppseqgen(reco_event.insertions['vd'], scaled_trees['v'], n_leaf_nodes, 'vd_insert', reco_event, seed=irandom, is_insertion=True)  # NOTE would be nice to use a better mutation model for the insertions
+        # mutes['dj'] = self.run_bppseqgen(reco_event.insertions['dj'], scaled_trees['j'], n_leaf_nodes, 'dj_insert', reco_event, seed=irandom, is_insertion=True)
+
+# ----------------------------------------------------------------------------------------
         assert len(reco_event.final_seqs) == 0
         for iseq in range(len(mutes['v'])):
             seq = mutes['v'][iseq] + mutes['vd'][iseq] + mutes['d'][iseq] + mutes['dj'][iseq] + mutes['j'][iseq]  # build final sequence
