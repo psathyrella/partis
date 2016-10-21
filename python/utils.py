@@ -1594,7 +1594,7 @@ def run_cmd(cmd_str, workdir, env=None):
     return proc
 
 # ----------------------------------------------------------------------------------------
-def run_cmds(cmdfos, debug=None):
+def run_cmds(cmdfos, sleep=True, debug=None):  # set sleep to False if you're commands are going to run really really really quickly
     for iproc in range(len(cmdfos)):
         if 'logdir' not in cmdfos[iproc]:
             cmdfos[iproc]['logdir'] = cmdfos[iproc]['workdir']
@@ -1607,7 +1607,8 @@ def run_cmds(cmdfos, debug=None):
     for iproc in range(len(cmdfos)):
         procs.append(run_cmd(cmdfos[iproc]['cmd_str'], cmdfos[iproc]['logdir'], env=cmdfos[iproc]['env']))
         n_tries.append(1)
-        time.sleep(0.01)
+        if sleep:
+            time.sleep(0.01)
     while procs.count(None) != len(procs):  # we set each proc to None when it finishes
         for iproc in range(len(cmdfos)):
             if procs[iproc] is None:  # already finished
@@ -1615,7 +1616,8 @@ def run_cmds(cmdfos, debug=None):
             if procs[iproc].poll() is not None:  # it just finished
                 finish_process(iproc, procs, n_tries, cmdfos[iproc]['workdir'], cmdfos[iproc]['logdir'], cmdfos[iproc]['outfname'], cmdfos[iproc]['cmd_str'], dbgfo=cmdfos[iproc]['dbgfo'], debug=debug)
         sys.stdout.flush()
-        time.sleep(0.1)
+        if sleep:
+            time.sleep(0.1)
 
 # ----------------------------------------------------------------------------------------
 def pad_lines(linestr, padwidth=8):
