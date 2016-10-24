@@ -15,11 +15,15 @@
 # is best-minus-x stuff still working? (I'm almost certain not -- I'm only calculating the partition log prob the last time through, so all the other times I can't rewind at all. I need to check that this isn't leading to too much over-mergin)
 # add only-big-clusters option (well, probably make it the default, and allow to deactivate with --accurate-singletons)
 
+# make sure new cdr3 length splitting in vsearch partitioning isn't really slow
+
 # partition/annotation validation
 #  - go through a careful round of partition validation on larger samples (including light chain)
 #  - double-check purity/completeness usage (should maybe take account of the fact that we remove duplicate sequences (and simulation should probably just forbid/remove duplicates) UPDATE oh wait but we're not removing duplicates in simulation)
-#  -rerun on other data sets
+#  - decide what you really want to do for ccf stuff and check_partition()
+#  - rerun on other data sets
 
+# should probably start writing cluster annotations by default
 # make sure allele finding can't add the same sequence coming from different alleles
 
 # simulation

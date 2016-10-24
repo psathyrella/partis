@@ -311,25 +311,9 @@ class PartitionDriver(object):
             self.run_hmm('viterbi', self.sub_param_dir, n_procs=self.get_n_precache_procs(len(self.sw_info['queries'])), precache_all_naive_seqs=True)
 
         if self.args.naive_vsearch or self.args.naive_swarm:
-            self.cluster_with_naive_vsearch_or_swarm(self.sub_param_dir)
-            return
-
-        n_procs = self.args.n_procs
-        cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
-        initial_nsets = [[q, ] for q in self.sw_info['queries']]
-        cpath.add_partition(initial_nsets, logprob=0., n_procs=n_procs)  # NOTE sw info excludes failed sequences (and maybe also sequences with different cdr3 length)
-        assert self.unseeded_seqs == None
-        n_proc_list = []
-        start = time.time()
-        while n_procs > 0:
-            print '--> %d clusters with %d proc%s' % (len(cpath.partitions[cpath.i_best_minus_x]), n_procs, utils.plural(n_procs))  # write_hmm_input uses the best-minus-x partition
-            cpath = self.run_hmm('forward', self.sub_param_dir, n_procs=n_procs, partition=cpath.partitions[cpath.i_best_minus_x], shuffle_input=True)  # NOTE that a.t.m. i_best and i_best_minus_x are usually the same, since we're usually not calculating log probs of partitions (well, we're trying to avoid calculating any extra log probs, which means we usually don't know the log prob of the entire partition)
-            n_proc_list.append(n_procs)
-            if n_procs == 1:
-                break
-            n_procs, cpath = self.get_next_n_procs_and_whatnot(n_proc_list, cpath, len(initial_nsets))
-
-        print '      loop time: %.1f' % (time.time()-start)
+            cpath = self.cluster_with_naive_vsearch_or_swarm(self.sub_param_dir)
+        else:
+            cpath = self.cluster_with_bcrham()
 
         if self.args.debug:
             print 'final'
@@ -341,8 +325,7 @@ class PartitionDriver(object):
                 true_cp.print_partitions(self.reco_info, print_header=False, calc_missing_values='best')
 
         self.check_partition(cpath.partitions[cpath.i_best], other_clusters=self.unseeded_seqs)
-        if self.args.print_cluster_annotations:  # NOTE we now do this as a separate hmm step so that we can parallelize it
-            self.get_cluster_annotations(cpath.partitions[cpath.i_best])
+        self.get_cluster_annotations(cpath.partitions[cpath.i_best])
         if self.args.outfname is not None:
             self.write_clusterpaths(self.args.outfname, cpath)  # [last agglomeration step]
 
@@ -406,6 +389,26 @@ class PartitionDriver(object):
         return float(total) / len(self.bcrham_proc_info)
 
     # ----------------------------------------------------------------------------------------
+    def cluster_with_bcrham(self):
+        n_procs = self.args.n_procs
+        cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
+        initial_nsets = [[q, ] for q in self.sw_info['queries']]
+        cpath.add_partition(initial_nsets, logprob=0., n_procs=n_procs)  # NOTE sw info excludes failed sequences (and maybe also sequences with different cdr3 length)
+        assert self.unseeded_seqs == None
+        n_proc_list = []
+        start = time.time()
+        while n_procs > 0:
+            print '--> %d clusters with %d proc%s' % (len(cpath.partitions[cpath.i_best_minus_x]), n_procs, utils.plural(n_procs))  # write_hmm_input uses the best-minus-x partition
+            cpath = self.run_hmm('forward', self.sub_param_dir, n_procs=n_procs, partition=cpath.partitions[cpath.i_best_minus_x], shuffle_input=True)  # NOTE that a.t.m. i_best and i_best_minus_x are usually the same, since we're usually not calculating log probs of partitions (well, we're trying to avoid calculating any extra log probs, which means we usually don't know the log prob of the entire partition)
+            n_proc_list.append(n_procs)
+            if n_procs == 1:
+                break
+            n_procs, cpath = self.get_next_n_procs_and_whatnot(n_proc_list, cpath, len(initial_nsets))
+
+        print '      loop time: %.1f' % (time.time()-start)
+        return cpath
+
+    # ----------------------------------------------------------------------------------------
     def check_partition(self, partition, other_clusters=None):
         uids = set([uid for cluster in partition for uid in cluster])
         input_ids = set(self.sw_info['queries'])  # note that this does not include queries that were removed in sw
@@ -455,13 +458,9 @@ class PartitionDriver(object):
         n_procs = min(self.args.n_procs, len(partition))  # we want as many procs as possible, since the large clusters can take a long time (depending on if we're translating...), but in general we treat <self.args.n_procs> as the maximum allowable number of processes
         print '--> getting annotations for final partition'
         self.run_hmm('viterbi', self.sub_param_dir, n_procs=n_procs, partition=partition, read_output=False)  # it would be nice to rearrange <self.read_hmm_output()> so I could remove this option
-        outfname = None
-        if self.args.outfname is not None:
-            outfname = self.args.outfname.replace('.csv', '-cluster-annotations.csv')
-            print '      writing cluster annotations to %s' % outfname
         if n_procs > 1:
             _ = self.merge_all_hmm_outputs(n_procs, precache_all_naive_seqs=False)
-        self.read_annotation_output(self.hmm_outfname, outfname=outfname, print_annotations=True)
+        self.read_annotation_output(self.hmm_outfname, outfname=self.args.cluster_annotation_fname)
         if os.path.exists(self.hmm_infname):
             os.remove(self.hmm_infname)
         self.current_action = action_cache
@@ -558,22 +557,45 @@ class PartitionDriver(object):
                     uid = uid[:-2]
                 id_clusters[cluster_id].append(uid)
         partition = id_clusters.values()
-        queries_without_annotations = set(self.input_info) - set(self.sw_info['queries'])
-        partition += [[q, ] for q in queries_without_annotations]  # just add the missing ones as singletons
-        self.check_partition(partition)
+
+        # split up clusters that have different cdr3 lengths (partly because it's probably more accurate, partly because otherwise things'll crash when we try to get the cluster annotations)
+        def cdr3len(q):
+            return self.sw_info[q]['cdr3_length']
+        new_partition = []
+        for cluster in partition:
+            tmpcluster = copy.deepcopy(cluster)
+            new_clusters = []
+            cdr3_lengths = [cdr3len(q) for q in tmpcluster]
+            while cdr3_lengths.count(cdr3_lengths[0]) != len(cdr3_lengths):
+                # print '  before'
+                # print '    ', ' '.join(tmpcluster), ' '.join([str(l) for l in cdr3_lengths])
+                new_clusters.append([tmpcluster[iq] for iq in range(len(tmpcluster)) if cdr3_lengths[iq] == cdr3_lengths[0]])  # split out everybody with the same cdr3 length as the first one
+                tmpcluster = [tmpcluster[iq] for iq in range(len(tmpcluster)) if cdr3_lengths[iq] != cdr3_lengths[0]]  # and keep everybody with any other cdr3 lengths in tmpcluster
+                assert len(tmpcluster) > 0
+                cdr3_lengths = [cdr3len(q) for q in tmpcluster]
+            new_partition.append(tmpcluster)
+            if len(new_clusters) > 0:
+                new_partition += new_clusters
+                # print '    after ', ' '.join(tmpcluster), ' '.join([str(l) for l in cdr3_lengths])
+                # for nc in new_clusters:
+                #     print '        ', ' '.join(nc)
+        partition = new_partition
+
         ccfs = [None, None]
         if not self.args.is_data:  # it's ok to always calculate this since it's only ever for one partition
+            queries_without_annotations = set(self.input_info) - set(self.sw_info['queries'])
+            partition += [[q, ] for q in queries_without_annotations]  # just add the missing ones as singletons
+            self.check_partition(partition)
             true_partition = utils.get_true_partition(self.reco_info)
             ccfs = utils.new_ccfs_that_need_better_names(partition, true_partition, self.reco_info)
         cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
         cpath.add_partition(partition, logprob=0.0, n_procs=1, ccfs=ccfs)
-        if self.args.outfname is not None:
-            self.write_clusterpaths(self.args.outfname, cpath)
 
         os.remove(fastafname)
         os.remove(clusterfname)
 
         print '      vsearch/swarm time: %.1f' % (time.time()-start)
+        return cpath
 
     # ----------------------------------------------------------------------------------------
     def get_naive_hamming_bounds(self, parameter_dir):

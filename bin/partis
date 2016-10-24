@@ -269,7 +269,8 @@ parent_parser.add_argument('--parameter-dir', help='Directory to/from which to w
 parent_parser.add_argument('--parameter-type', default='hmm', choices=('sw', 'hmm'), help='Use parameters from Smith-Waterman (sw) or the HMM (hmm) subdirectories for inference/simulation? (you should almost certainly use the hmm ones, but sw is occasionally useful for debugging)')
 parent_parser.add_argument('--default-initial-germline-dir', default=partis_dir + '/data/germlines', help='for internal use only')
 parent_parser.add_argument('--simulation-germline-dir', help='Germline directory that was used for simulation (not usually needed, in fact maybe only for performance evaluation)')
-parent_parser.add_argument('--outfname', help='Output file name.')
+parent_parser.add_argument('--outfname', help='output file name')
+parent_parser.add_argument('--cluster-annotation-fname', help='output file for cluster annotations (default is <--outfname>-cluster-annotations.csv)')
 parent_parser.add_argument('--sw-cachefname', help='Smith-Waterman cache file name. Default is set using a hash of all the input sequence ids (in partitiondriver, since we have to read the input file first).')
 parent_parser.add_argument('--presto-output', action='store_true', help='write output file in presto format')
 parent_parser.add_argument('--aligned-germline-fname', help='fasta file with alignments for each V gene')
@@ -385,6 +386,7 @@ for name, vals in subconfig.items():
         subparsermap[name].add_argument(argconf['name'], **argconf['kwargs'])
 
 # ----------------------------------------------------------------------------------------
+# deprecation info
 if '--action' in sys.argv:
     print '  NOTE we\'ve switched --action to a positional argument, so you can remove \'--action\' from your command line'
     sys.argv.remove('--action')
@@ -408,6 +410,9 @@ args.only_genes = utils.get_arg_list(args.only_genes)
 args.n_procs = utils.get_arg_list(args.n_procs, intify=True)
 args.n_fewer_procs = args.n_procs[0] if len(args.n_procs) == 1 else args.n_procs[1]
 args.n_procs = args.n_procs[0]
+
+if args.print_cluster_annotations:
+    print '  note: --print-cluster-annotations is deprecated (cluster annotations are now written by default, and they\'re printed to stdout if --debug is greater than zero)'
 
 if args.seqfile is not None and args.infname is None:
     print '  moving contents of deprecated option --seqfile into its replacement --infname'
@@ -458,6 +463,10 @@ else:
     args.workdir = args.workdir.rstrip('/')
 if os.path.exists(args.workdir):
     raise Exception('workdir %s already exists' % args.workdir)
+
+if args.cluster_annotation_fname is None and args.outfname is not None:
+    assert '.csv' in args.outfname
+    args.cluster_annotation_fname = args.outfname.replace('.csv', '-cluster-annotations.csv')
 
 if args.plot_performance:
     if args.plotdir is None:
