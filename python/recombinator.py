@@ -288,10 +288,10 @@ class Recombinator(object):
                         elif '5p' in erosion:
                             n_bases_to_codon = codon_pos
                         max_erosion = min(max_erosion, n_bases_to_codon)
-                    tmpline[erosion + '_del'] = min(max_erosion, numpy.random.geometric(1. / utils.scratch_mean_erosion_lengths[erosion]))
+                    tmpline[erosion + '_del'] = min(max_erosion, numpy.random.geometric(1. / utils.scratch_mean_erosion_lengths[erosion]) - 1)
             for bound in utils.boundaries:
                 mean_length = utils.scratch_mean_insertion_lengths[self.args.chain][bound]
-                length = 0 if mean_length == 0 else numpy.random.geometric(1. / mean_length)
+                length = 0 if mean_length == 0 else numpy.random.geometric(1. / mean_length) - 1
                 probs = [self.insertion_content_probs[bound][n] for n in utils.nukes]
                 tmpline[bound + '_insertion'] = ''.join(numpy.random.choice(utils.nukes, size=length, p=probs))
 

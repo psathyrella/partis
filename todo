@@ -15,6 +15,8 @@
 # is best-minus-x stuff still working? (I'm almost certain not -- I'm only calculating the partition log prob the last time through, so all the other times I can't rewind at all. I need to check that this isn't leading to too much over-mergin)
 # add only-big-clusters option (well, probably make it the default, and allow to deactivate with --accurate-singletons)
 
+# clean up vsearch out/err
+
 # make sure new cdr3 length splitting in vsearch partitioning isn't really slow
 
 # partition/annotation validation
@@ -27,12 +29,7 @@
 # make sure allele finding can't add the same sequence coming from different alleles
 
 # simulation
-#  - make sure scratch rearrangement allows 0-length deletions (pretty sure it doesn't)
-#  - use cmd.split() when calling bppseqgen so you don't have to escape special characters
 #  - figure out whether GTR with current parameter setup actually makes sense to use
-#  - update bio++, then worry about it
-#  - paralelelize bppseqgen calls
-#  - try to combine vd and dj with other things so you only need three calls
 #  - --simulate-partially-from-scratch throws the out-of-frame exception if you don't use the allele finding testing --initial-germline-dir
 
 # turn per-base mutation rates on
