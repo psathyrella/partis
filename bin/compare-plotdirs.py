@@ -55,6 +55,8 @@ def compare_directories(args, xtitle=''):
         translegend = (0.0, -0.2)
         extrastats, log = '', ''
         xtitle, ytitle = hlist[0].xtitle, hlist[0].ytitle
+        if xtitle == '':  # arg, plotting.py thinks default should be None, hist.py thinks it's ''
+            xtitle = None
         if '-mean-bins' in varname:
             raise Exception('darn, I was hoping I wasn\'t making these plots any more')
         plottitle = plotconfig.plot_titles[varname] if varname in plotconfig.plot_titles else varname
@@ -69,8 +71,8 @@ def compare_directories(args, xtitle=''):
             xtitle = 'allele'
             if hlist[0].n_bins == 2:
                 extrastats = ' 0-bin'  # print the fraction of entries in the zero bin into the legend (i.e. the fraction correct)
-        elif hlist[0].bin_labels.count('') == hlist[0].n_bins + 2:
-            xtitle = 'bases'
+        # elif hlist[0].bin_labels.count('') == hlist[0].n_bins + 2:
+        #     xtitle = '???'
 
         line_width_override = None
         if args.performance_plots:

@@ -105,9 +105,9 @@ class Waterer(object):
                 for region in utils.regions:  # uh... should do this more cleanly at some point
                     del line[region + '_per_gene_support']
                 utils.add_implicit_info(self.glfo, line, existing_implicit_keys=['cdr3_length', 'naive_seq', 'mut_freqs'] + utils.functional_columns + ['aligned_' + r + '_seqs' for r in utils.regions])
-                self.add_to_info(line)
                 if line['indelfos'][0]['reversed_seq'] != '':
                     self.info['indels'][line['unique_ids'][0]] = line['indelfos'][0]
+                self.add_to_info(line)
 
         self.finalize(cachefname=None, just_read_cachefile=True)
 

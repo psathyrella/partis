@@ -25,6 +25,9 @@ xtitles = {
     'v-mean-freq' : 'mutation freq',
     'd-mean-freq' : 'mutation freq',
     'j-mean-freq' : 'mutation freq',
+    'v_fraction_correct_vs_mute_freq' : 'mut freq',
+    'd_fraction_correct_vs_mute_freq' : 'mut freq',
+    'j_fraction_correct_vs_mute_freq' : 'mut freq'
 }
 for rstr in [r + '_' for r in utils.regions] + ['', ]:
     xtitles[rstr + 'hamming_to_true_naive'] = 'hamming distance'
