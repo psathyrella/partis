@@ -707,21 +707,23 @@ class HmmWriter(object):
             assert inuke >= 0
             assert germline_nuke != ''
 
-            # if this is the leftmost base in d or j, or if it's rightmost in v or d, use the overall mean mute freq (because we don't really have a handle for inferring it)
-            # if self.args.use_mean_at_boundaries:
-            #     if (inuke == 0 and (self.region == 'd' or self.region == 'j')) or (inuke == len(self.germline_seq)-1 and (self.region == 'v' or self.region == 'd')):
-            #         mute_freq = self.mute_freqs['overall_mean']
-
-            mute_freq = self.mute_freqs['overall_mean']
-
-            # then calculate the probability
-            assert mute_freq != 1.0 and mute_freq != 0.0
             if germline_nuke in utils.ambiguous_bases:
                 prob = 1. / len(utils.nukes)
             else:
-                # first figure out the mutation frequency we're going to use
-                if inuke in self.mute_freqs:  # if we found this base in this gene version in the data parameter file
+                # if this is the leftmost base in d or j, or if it's rightmost in v or d, use the overall mean mute freq (because we don't really have a handle for inferring it)
+                is_boundary_base = False
+                if inuke == 0 and (self.region == 'd' or self.region == 'j'):
+                    is_boundary_base = True
+                if inuke == len(self.germline_seq) - 1 and (self.region == 'v' or self.region == 'd'):
+                    is_boundary_base = True
+
+                if not is_boundary_base and inuke in self.mute_freqs:  # if we found this base in this gene version in the data parameter file
                     mute_freq = self.mute_freqs[inuke]
+                else:
+                    mute_freq = self.mute_freqs['overall_mean']
+
+                assert mute_freq != 1.0 and mute_freq != 0.0
+
                 if nuke1 == germline_nuke:  # NOTE that if mute_freq is 1.0 this gives zero
                     prob = 1.0 - mute_freq
                 else:
