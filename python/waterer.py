@@ -881,7 +881,8 @@ class Waterer(object):
             this_k_v = qinfo['qrbounds'][gene][1]  # NOTE even if the v match doesn't start at the left hand edge of the query sequence, we still measure k_v from there. In other words, sw doesn't tell the hmm about it
             k_v_min = min(this_k_v, k_v_min)
             k_v_max = max(this_k_v, k_v_max)
-            print '    %s %d %d' % (utils.color_gene(gene, width=15), k_v_min, k_v_max)
+            if debug:
+                print '    %s %d %d' % (utils.color_gene(gene, width=15), k_v_min, k_v_max)
 
         # k_d
         tmpreg = 'd'
@@ -891,54 +892,36 @@ class Waterer(object):
             this_k_d = qinfo['qrbounds'][gene][1] - qinfo['qrbounds'][best['v']][1]  # end of d minus end of first/best v
             k_d_min = min(this_k_d, k_d_min)
             k_d_max = max(this_k_d, k_d_max)
-            print '    %s %d %d' % (utils.color_gene(gene, width=15), k_d_min, k_d_max)
-
-        # if self.args.chain == 'h':
-# ----------------------------------------------------------------------------------------
-            # # make the actual expanding here a bit more intelligent (and maybe don't do this)
-            # if k_d_max < 5:  # since the s-w step matches to the longest possible j and then excises it, this sometimes gobbles up the d, resulting in a very short d alignment.
-            #     old_val = k_d_max
-            #     k_d_max = max(8, k_d_max)
-            #     if self.debug:
-            #         print '    increasing k_d_max: %d --> %d' % (old_val, k_d_max)
-# ----------------------------------------------------------------------------------------
-            # # make the actual expanding here a bit more intelligent
-            # if 'IGHJ4*' in best['j'] and self.glfo['seqs']['d'][best['d']][-5:] == 'ACTAC':  # the end of some d versions is the same as the start of some j versions, so the s-w frequently kicks out the 'wrong' alignment
-            #     if self.debug:
-            #         print '  doubly expanding k_d'
-            #     if k_d_max - k_d_min < 8:
-            #         k_d_min -= 5
-            #         k_d_max += 2
-# ----------------------------------------------------------------------------------------
-
-# ----------------------------------------------------------------------------------------
-        # k_v_min = max(1, k_v_min - self.args.default_v_fuzz)
-        # k_v_max += self.args.default_v_fuzz
-        # k_d_min = max(1, k_d_min - self.args.default_d_fuzz)
-        # k_d_max += self.args.default_d_fuzz
-# ----------------------------------------------------------------------------------------
+            if debug:
+                print '    %s %d %d' % (utils.color_gene(gene, width=15), k_d_min, k_d_max)
 
         n_matched_to_break = 4
 
-        print 'k_v_min --- %d' % k_v_min
+        if debug:
+            print 'k_v_min --- %d' % k_v_min
         # first make sure the hmm will check for cases in which sw over-expanded v
         n_matched = 0  # if <n_matched_to_break> bases match, assume we're definitely within the germline
         qrseq, glseq = line['v_qr_seqs'][0], line['v_gl_seq']
         if k_v_min > len(line['v_qr_seqs'][0]):
-            print 'k_v_min too big %d %d' % (k_v_min, len(line['v_qr_seqs'][0]))
+            if debug:
+                print 'k_v_min too big %d %d' % (k_v_min, len(line['v_qr_seqs'][0]))
             return None
         icheck = k_v_min
         while k_v_min > codon_positions['v'] + 3:  # i.e. stop when the last v base is the last base of the cysteine
             icheck -= 1
-            print '    check %d' % icheck
+            if debug:
+                print '    check %d' % icheck
             if qrseq[icheck] == glseq[icheck]:
                 n_matched += 1
-                print '      match number %d' % n_matched
+                if debug:
+                    print '      match number %d' % n_matched
                 if n_matched >= n_matched_to_break:
-                    print '      break on %d matches' % n_matched_to_break
+                    if debug:
+                        print '      break on %d matches' % n_matched_to_break
                     break
             else:  # set <k_v_min> to <icheck>, i.e. move first possible d/dj insert base to index <icheck>
-                print '      set k_v_min to %d' % icheck
+                if debug:
+                    print '      set k_v_min to %d' % icheck
                 k_v_min = icheck
                 n_matched = 0
 
@@ -947,52 +930,41 @@ class Waterer(object):
         k_v_min_CHK = k_v_min  # make sure we don't accidentally change it
         n_matched = 0  # if <n_matched_to_break> bases match, assume we're definitely within the germline
         qrseq, glseq = line['j_qr_seqs'][0], line['j_gl_seq']
-        # if k_v_min + k_d_max > len(line['v_qr_seqs'][0]):
-        #     print 'k_v_min too big %d %d' % (k_v_min, len(line['v_qr_seqs'][0]))
-        #     return None
         j_start = line['regional_bounds']['j'][0]
         icheck = k_d_max  # <icheck> is what we're considering changing k_d_max to
-        print 'k_d_max --- %d' % k_d_max
+        if debug:
+            print 'k_d_max --- %d' % k_d_max
         while k_v_min + k_d_max < codon_positions['j']:  # i.e. stop when the first j/dj base is the first base of the tryp (even for the smallest k_v)
             icheck += 1
-            print '    check %d' % icheck
+            if debug:
+                print '    check %d' % icheck
             if k_v_min + icheck < j_start:  # make sure we're at least as far as the start of the j (i.e. let the hmm arbitrate between d match and dj insertion)
-                print '      not yet to start of j (%d + %d < %d)' % (k_v_min, icheck, j_start)
+                if debug:
+                    print '      not yet to start of j (%d + %d < %d)' % (k_v_min, icheck, j_start)
                 k_d_max = icheck + 1
             elif qrseq[k_v_min + icheck - j_start] == glseq[k_v_min + icheck - j_start]:
                 n_matched += 1
-                print '      match number %d' % n_matched
+                if debug:
+                    print '      match number %d' % n_matched
                 if n_matched >= n_matched_to_break:
-                    print '      break on %d matches' % n_matched_to_break
+                    if debug:
+                        print '      break on %d matches' % n_matched_to_break
                     break
             else:  # set <k_v_min> to <icheck>, i.e. move first possible d/dj insert base to index <icheck>
-                print '      set k_d_max to %d' % (icheck + 1)
+                if debug:
+                    print '      set k_d_max to %d' % (icheck + 1)
                 k_d_max = icheck + 1  # i.e. if <icheck> doesn't match, we want the first d/dj base to be the *next* one (whereas for k_v, if <icheck> didn't match, we wanted <icheck> to be the first d/vd match)
                 n_matched = 0
 
         assert k_v_min_CHK == k_v_min
 
-        # I think there isn't any reason to increase k_v_max or decrease k_d_min -- sw already pretty much expands the v and j matches as far as it can (i.e. these fuzzing algorithms are mostly trying to decide if the last region to be matched by sw (d) should've been given more bases)
-
-        # # always make sure the hmm will check d matches all the way to tryp (since sw does a much worse job of adjudicating dj boundary)
-        # # (and do the same for cpos)
-        # if self.args.chain == 'h':
-        #     max_d_bound = k_v_max + k_d_max
-        #     tpos = codon_positions['j']
-        #     if max_d_bound < tpos:
-        #         k_d_max = tpos - k_v_max
-
-        #     cpos = codon_positions['v']
-        #     if k_v_min > cpos + 3:
-        #         k_v_min = cpos + 3
+        # NOTE I think there isn't any reason to increase k_v_max or decrease k_d_min -- sw already pretty much expands the v and j matches as far as it can (i.e. these fuzzing algorithms are mostly trying to decide if the last region to be matched by sw (d) should've been given more bases)
 
         # ----------------------------------------------------------------------------------------
         # switch to usual indexing conventions, i.e. that start with min and do not include max NOTE would maybe be clearer to do this more coherently
         # NOTE i.e. k_v_max means different things before and after here
         # ----------------------------------------------------------------------------------------
-        # if k_v_min == k_v_max:
         k_v_max += 1
-        # if k_d_min == k_d_max:
         k_d_max += 1
 
         best_k_v = qinfo['qrbounds'][best['v']][1]  # end of v match
@@ -1011,10 +983,11 @@ class Waterer(object):
 
         kbounds = {'v' : {'best' : best_k_v, 'min' : k_v_min, 'max' : k_v_max},
                    'd' : {'best' : best_k_d, 'min' : k_d_min, 'max' : k_d_max}}
-        for region in sorted(kbounds, reverse=True):
-            rkb = kbounds[region]
-            print '  k_%s %d [%d-%d)' % (region, rkb['best'], rkb['min'], rkb['max']),
-        print ''
+        if self.debug:
+            for region in sorted(kbounds, reverse=True):
+                rkb = kbounds[region]
+                print '  k_%s %d [%d-%d)' % (region, rkb['best'], rkb['min'], rkb['max']),
+            print ''
         return kbounds
 
     # ----------------------------------------------------------------------------------------
