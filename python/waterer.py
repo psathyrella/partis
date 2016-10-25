@@ -958,7 +958,7 @@ class Waterer(object):
             print '    check %d' % icheck
             if k_v_min + icheck < j_start:  # make sure we're at least as far as the start of the j (i.e. let the hmm arbitrate between d match and dj insertion)
                 print '      not yet to start of j (%d + %d < %d)' % (k_v_min, icheck, j_start)
-                k_d_max = icheck
+                k_d_max = icheck + 1
             elif qrseq[k_v_min + icheck - j_start] == glseq[k_v_min + icheck - j_start]:
                 n_matched += 1
                 print '      match number %d' % n_matched

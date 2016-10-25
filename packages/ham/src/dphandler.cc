@@ -150,13 +150,13 @@ Result DPHandler::Run(vector<Sequence> seqvector, KBounds kbounds, vector<string
 	   cpu_seconds, seqs.name_str(":").c_str());
 
     if(result.boundary_error()) {   // not necessarily a big deal yet -- the bounds get automatical expanded
-      cout << "             max at boundary:"
-	   << " " << best_kset.v << " [" << kbounds.vmin << "-" << kbounds.vmax  << ")"
-	   << ", " << best_kset.d << " [" << kbounds.dmin << "-" << kbounds.dmax  << ")"
-	   << "    better: " << result.better_kbounds().stringify();
-      if(result.could_not_expand())
-	cout << " (could not expand)     ";
-      cout << "    " << seqs.name_str()  << endl;
+      // cout << "             max at boundary:"
+      // 	   << " " << best_kset.v << " [" << kbounds.vmin << "-" << kbounds.vmax  << ")"
+      // 	   << ", " << best_kset.d << " [" << kbounds.dmin << "-" << kbounds.dmax  << ")"
+      // 	   << "    better: " << result.better_kbounds().stringify();
+      // if(result.could_not_expand())
+      // 	cout << " (could not expand)     ";
+      // cout << "    " << seqs.name_str()  << endl;
     }
   }
 
