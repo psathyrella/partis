@@ -134,6 +134,9 @@ class PartitionDriver(object):
         if self.args.sw_cachefname is not None:  # if --sw-cachefname was explicitly set, always use that
             return self.args.sw_cachefname
         elif write_parameters or find_new_alleles or os.path.exists(self.default_cachefname):  # otherwise, use the default cachefname if we're either writing parameters (in which case we want to write results to disk) or if the default already exists (in which case we want to read it)
+            if write_parameters and os.path.exists(self.default_cachefname):
+                print '  removing old sw cache file %s' % self.default_cachefname
+                os.remove(self.default_cachefname)
             return self.default_cachefname
         return None  # don't want to read or write sw cache files
 

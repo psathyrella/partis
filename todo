@@ -16,6 +16,11 @@
 # add only-big-clusters option (well, probably make it the default, and allow to deactivate with --accurate-singletons)
 
 # clean up vsearch out/err
+# remove old parameters (e.g. qinfo) to get_kbounds)
+# make sure new kbounds stuff works with fv/jf insertions
+# deverbosify new kbounds stuff
+# add cdr3 mutation accuracy and cdr3 hamming to true naive
+# kate data
 
 # make sure new cdr3 length splitting in vsearch partitioning isn't really slow
 
@@ -63,6 +68,7 @@
 #  - should switch to more typical workflow with no separate cache-parameters step
 #  - needs at least a little light chain action
 #  - make sure there's some multiple indels in the testing file
+#  - add mutation-freq accuracy to metrics
 
 # germline set generation:
 #     all alleles (including new ones) should have roughly the same mut freq distribution (especially at low mutation)'
@@ -87,6 +93,10 @@
 #  - i think i could switch to running all the ksets of each gene at once (which would drastically reduce the dphandler trellis cache size, since we'd only need to keep one gene at a time), but this would involve a lot of careful rewriting in dphandler
 #  - try to incorporate cdr3 length class stuff into loop optimizations in bcrham
 #  - can v_match loop in get_padding_parameters() go outside the query loop?
+#  - might make more sense to have the real insertions on the right side of v and d (instead of left side of d and j), since then we could easily skip k sets that didn't match the most likely frame (note that this would involve being really careful about all the places in the c++ and python where it assumes they're where they are now)
+#  - it might make more sense to ditch the whole k_v k_d parameterization, since since it inherently suggests a rectangular region of k-space, which doesn't take account of the fact that we know beforehand that we shouldn't really be checking everything in that rectangular region
+#    - maybe a stopgap would be to increment/decrement k_v/k_d in tandem?
+#    - would make more sense to have per-gene kbounds
 
 # maybe
 #  - make padding specific to each cdr3 subclass UPDATE maybe not worthwhile? doesn't seem to be an exorbitant amount of padding any more
