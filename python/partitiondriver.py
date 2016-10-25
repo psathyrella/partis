@@ -503,7 +503,7 @@ class PartitionDriver(object):
             print '    using hfrac bound for vsearch %.3f' % bound
             id_fraction = 1. - bound
             clusterfname = self.args.workdir + '/vsearch-clusters.txt'
-            cmd = './bin/vsearch-1.1.3-linux-x86_64 --threads ' + str(self.args.n_procs) + ' --uc ' + clusterfname + ' --cluster_fast ' + fastafname + ' --id ' + str(id_fraction) + ' --maxaccept 0 --maxreject 0'
+            cmd = self.args.partis_dir + '/bin/vsearch-1.1.3-linux-x86_64 --threads ' + str(self.args.n_procs) + ' --uc ' + clusterfname + ' --cluster_fast ' + fastafname + ' --id ' + str(id_fraction) + ' --maxaccept 0 --maxreject 0'
             if self.args.slurm or utils.auto_slurm(self.args.n_procs):
                 cmd = 'srun --cpus-per-task ' + str(self.args.n_procs) + ' ' + cmd
             proc = Popen(cmd.split(), stdout=PIPE, stderr=PIPE)
