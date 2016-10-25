@@ -716,7 +716,7 @@ string Glomerator::CalculateNaiveSeq(string queries, RecoEvent *event) {
   do {
     result = dph.Run(cacheref.seqs_, cacheref.kbounds_, cacheref.only_genes_, cacheref.mute_freq_, false);
     cacheref.kbounds_ = result.better_kbounds();
-    stop = !result.boundary_error() || result.could_not_expand() || result.no_path_;  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
+    stop = true;  // !result.boundary_error() || result.could_not_expand() || result.no_path_;  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
     if(args_->debug() && !stop)
       cout << "             expand and run again" << endl;  // note that subsequent runs are much faster than the first one because of chunk caching
   } while(!stop);
@@ -752,7 +752,7 @@ double Glomerator::CalculateLogProb(string queries) {  // NOTE can modify kbinfo
   do {
     result = dph.Run(cacheref.seqs_, cacheref.kbounds_, cacheref.only_genes_, cacheref.mute_freq_, false);  // I think I don't actually check for improving kbounds when I'm running forward a.t.m., in which case this loop wouldn't really do anything
     cacheref.kbounds_ = result.better_kbounds();
-    stop = !result.boundary_error() || result.could_not_expand() || result.no_path_;  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
+    stop = true;  // !result.boundary_error() || result.could_not_expand() || result.no_path_;  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
     if(args_->debug() && !stop)
       cout << "             expand and run again" << endl;  // note that subsequent runs are much faster than the first one because of chunk caching
   } while(!stop);

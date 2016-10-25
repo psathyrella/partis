@@ -101,7 +101,7 @@ void run_algorithm(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> > &qr
       result = dph.Run(qry_seqs, kbounds, args.str_lists_["only_genes"][iqry], args.floats_["mut_freq"][iqry], false);  // NOTE in principle I should tell it not to clear the cache, now that I'm not reusing dphandlers
       logprob = result.total_score();
       kbounds = result.better_kbounds();
-      stop = !result.boundary_error() || result.could_not_expand() || result.no_path_;  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
+      stop = true;  // !result.boundary_error() || result.could_not_expand() || result.no_path_;  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
       if(args.debug() && !stop)
         cout << "             expand and run again" << endl;  // note that subsequent runs are much faster than the first one because of chunk caching
       if(result.boundary_error())
