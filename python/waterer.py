@@ -679,6 +679,19 @@ class Waterer(object):
         return infoline
 
     # ----------------------------------------------------------------------------------------
+    def check_simulation_kbounds(self, line, true_line):
+        true_kbounds = {'v' : {}, 'd' : {}}
+        true_kbounds['v']['best'] = true_line['regional_bounds']['v'][1]
+        true_kbounds['d']['best'] = true_line['regional_bounds']['d'][1] - true_line['regional_bounds']['v'][1]
+
+        def print_kbound_warning():
+            print '  %s true kset (%s) not within kbounds (%s) for %s' % (utils.color('red', 'warning'), utils.get_kbound_str(true_kbounds), utils.get_kbound_str({r : line['k_' + r] for r in true_kbounds}), ':'.join(line['unique_ids']))
+
+        for region in true_kbounds:
+            if true_kbounds[region]['best'] < line['k_' + region]['min'] or true_kbounds[region]['best'] >= line['k_' + region]['max']:
+                print_kbound_warning()
+
+    # ----------------------------------------------------------------------------------------
     def add_to_info(self, infoline):
         assert len(infoline['unique_ids'])
         qname = infoline['unique_ids'][0]
@@ -690,6 +703,10 @@ class Waterer(object):
         for region in utils.regions:
             self.info['all_best_matches'].add(self.info[qname][region + '_gene'])
             self.info['all_matches'][region] |= set(self.info[qname]['all_matches'][region])  # NOTE there's an 'all_matches' in this query's info, and also in <self.info>
+
+        # everything this is flagging seems to be cases where the insertion (or the overlapping germline region) is the same as the germline base, i.e. the kbound getter is working
+        # if not self.args.is_data:
+        #     self.check_simulation_kbounds(self.info[qname], self.reco_info[qname])
 
         if self.debug:
             inf_label = ''
@@ -851,7 +868,7 @@ class Waterer(object):
             queries_to_rerun['weird-annot.'].add(qname)
             return
 
-        # TODO don't use qinfo after here
+        # TODO don't use qinfo in get_kbounds()
         kbounds = self.get_kbounds(infoline, qinfo, best, codon_positions)
         if kbounds is None:
             if self.debug:
@@ -895,7 +912,7 @@ class Waterer(object):
             if debug:
                 print '    %s %d %d' % (utils.color_gene(gene, width=15), k_d_min, k_d_max)
 
-        n_matched_to_break = 4
+        n_matched_to_break = 3
 
         if debug:
             print 'k_v_min --- %d' % k_v_min
@@ -907,7 +924,7 @@ class Waterer(object):
                 print 'k_v_min too big %d %d' % (k_v_min, len(line['v_qr_seqs'][0]))
             return None
         icheck = k_v_min
-        while k_v_min > codon_positions['v'] + 3:  # i.e. stop when the last v base is the last base of the cysteine
+        while icheck > codon_positions['v'] + 3:  # i.e. stop when the last v base is the last base of the cysteine
             icheck -= 1
             if debug:
                 print '    check %d' % icheck
@@ -934,7 +951,7 @@ class Waterer(object):
         icheck = k_d_max  # <icheck> is what we're considering changing k_d_max to
         if debug:
             print 'k_d_max --- %d' % k_d_max
-        while k_v_min + k_d_max < codon_positions['j']:  # i.e. stop when the first j/dj base is the first base of the tryp (even for the smallest k_v)
+        while k_v_min + icheck + 1 < codon_positions['j']:  # i.e. stop when the first j/dj base is the first base of the tryp (even for the smallest k_v)
             icheck += 1
             if debug:
                 print '    check %d' % icheck
@@ -950,7 +967,7 @@ class Waterer(object):
                     if debug:
                         print '      break on %d matches' % n_matched_to_break
                     break
-            else:  # set <k_v_min> to <icheck>, i.e. move first possible d/dj insert base to index <icheck>
+            else:  # set <k_d_max> to <icheck>, i.e. move first possible d/dj insert base to index <icheck>
                 if debug:
                     print '      set k_d_max to %d' % (icheck + 1)
                 k_d_max = icheck + 1  # i.e. if <icheck> doesn't match, we want the first d/dj base to be the *next* one (whereas for k_v, if <icheck> didn't match, we wanted <icheck> to be the first d/vd match)
@@ -958,11 +975,40 @@ class Waterer(object):
 
         assert k_v_min_CHK == k_v_min
 
+        k_v_max_CHK = k_v_max  # make sure we don't accidentally change it
+        n_matched = 0  # if <n_matched_to_break> bases match, assume we're definitely within the germline
+        qrseq, glseq = line['d_qr_seqs'][0], line['d_gl_seq']
+        d_start = line['regional_bounds']['d'][0]
+        icheck = k_d_min  # <icheck> is what we're considering changing k_d_min to
+        if debug:
+            print 'k_d_min --- %d' % k_d_min
+        while k_v_max + icheck > d_start:
+            icheck -= 1
+            if debug:
+                print '    check %d' % icheck
+            if qrseq[k_v_max + icheck - d_start] == glseq[k_v_max + icheck - d_start]:  # note that it's <k_v_max> here, since even with the longest k_v we want to make sure to check as short of a d as we mean to
+                n_matched += 1
+                if debug:
+                    print '      match number %d' % n_matched
+                if n_matched >= n_matched_to_break:
+                    if debug:
+                        print '      break on %d matches' % n_matched_to_break
+                    break
+            else:  # set <k_d_min> to <icheck>, i.e. move first possible d/dj insert base to index <icheck>
+                if debug:
+                    print '      set k_d_min to %d' % icheck
+                k_d_min = icheck
+                n_matched = 0
+
+        assert k_v_max_CHK == k_v_max
+
+
         # NOTE I think there isn't any reason to increase k_v_max or decrease k_d_min -- sw already pretty much expands the v and j matches as far as it can (i.e. these fuzzing algorithms are mostly trying to decide if the last region to be matched by sw (d) should've been given more bases)
+        # UPDATE not so sure, maybe I should, but it's not so important
 
         # ----------------------------------------------------------------------------------------
         # switch to usual indexing conventions, i.e. that start with min and do not include max NOTE would maybe be clearer to do this more coherently
-        # NOTE i.e. k_v_max means different things before and after here
+        # NOTE i.e. k_[vd]_max means different things before here and after here
         # ----------------------------------------------------------------------------------------
         k_v_max += 1
         k_d_max += 1
@@ -976,18 +1022,16 @@ class Waterer(object):
             k_d_max = 2
 
         if best_k_v < k_v_min or best_k_v > k_v_max or best_k_d < k_d_min or best_k_d > k_d_max:
-            raise Exception('inconsistent best kset for %s (v: %d (%d %d)  d: %d (%d %d)' % (qinfo['name'], best_k_v, k_v_min, k_v_max, best_k_d, k_d_min, k_d_max))
+            print '  %s inconsistent best kset for %s (v: %d (%d %d)  d: %d (%d %d)' % (utils.color('red', 'error'), qinfo['name'], best_k_v, k_v_min, k_v_max, best_k_d, k_d_min, k_d_max)
+            return None
         if k_v_min <= 0 or k_d_min <= 0 or k_v_min >= k_v_max or k_d_min >= k_d_max:
-            print '%s nonsense k bounds for %s (v: %d %d  d: %d %d)' % (utils.color('red', 'error'), qinfo['name'], k_v_min, k_v_max, k_d_min, k_d_max)
+            print '  %s nonsense k bounds for %s (v: %d %d  d: %d %d)' % (utils.color('red', 'error'), qinfo['name'], k_v_min, k_v_max, k_d_min, k_d_max)
             return None
 
         kbounds = {'v' : {'best' : best_k_v, 'min' : k_v_min, 'max' : k_v_max},
                    'd' : {'best' : best_k_d, 'min' : k_d_min, 'max' : k_d_max}}
         if self.debug:
-            for region in sorted(kbounds, reverse=True):
-                rkb = kbounds[region]
-                print '  k_%s %d [%d-%d)' % (region, rkb['best'], rkb['min'], rkb['max']),
-            print ''
+            print '    %s' % utils.get_kbound_str(kbounds)
         return kbounds
 
     # ----------------------------------------------------------------------------------------

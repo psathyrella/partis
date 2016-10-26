@@ -2376,3 +2376,14 @@ def replace_in_arglist(clist, argstr, replace_with):
         clist.append(replace_with)
     else:
         clist[clist.index(argstr) + 1] = replace_with
+
+# ----------------------------------------------------------------------------------------
+def get_kbound_str(kbounds):
+    return_str = []
+    for region in ['v', 'd']:
+        rkb = kbounds[region]
+        return_str.append('k_%s %d' % (region, rkb['best']))
+        if 'min' in rkb and 'max' in rkb:
+            return_str.append(' [%s-%s)' % (str(rkb.get('min', ' ')), str(rkb.get('max', ' '))))
+        return_str.append('  ')
+    return ''.join(return_str).strip()
