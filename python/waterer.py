@@ -886,31 +886,11 @@ class Waterer(object):
         #  - k_v is index of first d/dj insert base (i.e. length of v match)
         #  - k_v + k_d is index of first j/dj insert base (i.e. length of v + vd insert + d match)
 
-        # first take the OR of k-space for the best <self.args.n_max_per_region[ireg]> matches
-        k_v_min, k_d_min = 999, 999
-        k_v_max, k_d_max = 1, 1
+        best_k_v = qinfo['qrbounds'][best['v']][1]  # end of v match
+        best_k_d = qinfo['qrbounds'][best['d']][1] - qinfo['qrbounds'][best['v']][1]  # end of d minus end of v
 
-        # k_v
-        tmpreg = 'v'
-        n_v_genes = min(self.args.n_max_per_region[utils.regions.index(tmpreg)], len(qinfo['matches'][tmpreg]))  # NOTE don't need the n_max_per_region thing any more
-        for igene in range(n_v_genes):
-            _, gene = qinfo['matches'][tmpreg][igene]
-            this_k_v = qinfo['qrbounds'][gene][1]  # NOTE even if the v match doesn't start at the left hand edge of the query sequence, we still measure k_v from there. In other words, sw doesn't tell the hmm about it
-            k_v_min = min(this_k_v, k_v_min)
-            k_v_max = max(this_k_v, k_v_max)
-            if debug:
-                print '    %s %d %d' % (utils.color_gene(gene, width=15), k_v_min, k_v_max)
-
-        # k_d
-        tmpreg = 'd'
-        n_d_genes = min(self.args.n_max_per_region[utils.regions.index(tmpreg)], len(qinfo['matches'][tmpreg]))  # NOTE don't need the n_max_per_region thing any more
-        for igene in range(n_d_genes):
-            _, gene = qinfo['matches'][tmpreg][igene]
-            this_k_d = qinfo['qrbounds'][gene][1] - qinfo['qrbounds'][best['v']][1]  # end of d minus end of first/best v
-            k_d_min = min(this_k_d, k_d_min)
-            k_d_max = max(this_k_d, k_d_max)
-            if debug:
-                print '    %s %d %d' % (utils.color_gene(gene, width=15), k_d_min, k_d_max)
+        k_v_min, k_v_max = best_k_v, best_k_v
+        k_d_min, k_d_max = best_k_d, best_k_d
 
         n_matched_to_break = 3
 
@@ -1002,9 +982,33 @@ class Waterer(object):
 
         assert k_v_max_CHK == k_v_max
 
-
         # NOTE I think there isn't any reason to increase k_v_max or decrease k_d_min -- sw already pretty much expands the v and j matches as far as it can (i.e. these fuzzing algorithms are mostly trying to decide if the last region to be matched by sw (d) should've been given more bases)
         # UPDATE not so sure, maybe I should, but it's not so important
+
+        # also take the OR of k-space for the best <self.args.n_max_per_region[ireg]> matches (note that this happens after the expanding above because that expanding can break if it gets bounds from other matches)
+
+        # k_v
+        tmpreg = 'v'
+        n_v_genes = min(self.args.n_max_per_region[utils.regions.index(tmpreg)], len(qinfo['matches'][tmpreg]))  # NOTE don't need the n_max_per_region thing any more
+        for igene in range(n_v_genes):
+            _, gene = qinfo['matches'][tmpreg][igene]
+            this_k_v = qinfo['qrbounds'][gene][1]  # NOTE even if the v match doesn't start at the left hand edge of the query sequence, we still measure k_v from there. In other words, sw doesn't tell the hmm about it
+            k_v_min = min(this_k_v, k_v_min)
+            k_v_max = max(this_k_v, k_v_max)
+            if debug:
+                print '    %s %d %d' % (utils.color_gene(gene, width=15), k_v_min, k_v_max)
+
+        # k_d
+        tmpreg = 'd'
+        n_d_genes = min(self.args.n_max_per_region[utils.regions.index(tmpreg)], len(qinfo['matches'][tmpreg]))  # NOTE don't need the n_max_per_region thing any more
+        for igene in range(n_d_genes):
+            _, gene = qinfo['matches'][tmpreg][igene]
+            this_k_d = qinfo['qrbounds'][gene][1] - qinfo['qrbounds'][best['v']][1]  # end of d minus end of first/best v
+            k_d_min = min(this_k_d, k_d_min)
+            k_d_max = max(this_k_d, k_d_max)
+            if debug:
+                print '    %s %d %d' % (utils.color_gene(gene, width=15), k_d_min, k_d_max)
+
 
         # ----------------------------------------------------------------------------------------
         # switch to usual indexing conventions, i.e. that start with min and do not include max NOTE would maybe be clearer to do this more coherently
@@ -1012,9 +1016,6 @@ class Waterer(object):
         # ----------------------------------------------------------------------------------------
         k_v_max += 1
         k_d_max += 1
-
-        best_k_v = qinfo['qrbounds'][best['v']][1]  # end of v match
-        best_k_d = qinfo['qrbounds'][best['d']][1] - qinfo['qrbounds'][best['v']][1]  # end of d minus end of v
 
         if self.args.chain != 'h':
             best_k_d = 1
