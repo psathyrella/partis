@@ -13,7 +13,7 @@ smith-waterman
              3         all done
       info for 989 / 989 = 1.000
       kept 445 (0.450) unproductive
-        water time: 7.1
+        water time: 7.3
 hmm
     running 10 procs
     read output
@@ -22,9 +22,9 @@ hmm
     skipping performance evaluation of 4220838451894163641 because of indels
     skipping performance evaluation of 8955669359401423438 because of indels
         processed 989 hmm output lines with 989 sequences in 989 events
-          3 boundary warnings
-      hmm step time: 8.3
-      total time: 16.1
+          957 boundary warnings
+      hmm step time: 8.0
+      total time: 16.0
 TEST              annotate-ref-data   ./bin/partis run-viterbi --n-max-queries 50 --infname test/mishmash.fa --parameter-dir test/reference-results/test/parameters/data --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --outfname test/_new-results/annotate-ref-data.csv
   [91mwarning[0m genes IGHV3-53*02 in <only_genes> aren't in glfo to begin with
 running viterbi
@@ -43,8 +43,9 @@ hmm
     running 10 procs
     read output
         processed 41 hmm output lines with 41 sequences in 41 events
-      hmm step time: 2.1
-      total time: 3.2
+          38 boundary warnings
+      hmm step time: 2.0
+      total time: 3.1
 TEST             partition-ref-simu   ./bin/partis partition --n-max-queries 250 --persistent-cachefname test/_new-results/cache-ref-partition.csv --n-precache-procs 10 --biggest-logprob-cluster-to-calculate 2 --biggest-naive-seq-cluster-to-calculate 2 --is-simu --infname test/reference-results/test/simu.csv --parameter-dir test/reference-results/test/parameters/simu --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --outfname test/_new-results/partition-ref-simu.csv
   [91mwarning[0m genes IGHV3-53*02 in <only_genes> aren't in glfo to begin with
 partitioning
@@ -61,59 +62,60 @@ hmm
                 no/empty cache file
                     calcd:         vtb 250        fwd   0
                    merged:       hfrac   0     lratio   0
-             min-max time:  1.5 - 2.0 sec
-      hmm step time: 2.4
+             min-max time:  1.4 - 1.9 sec
+      hmm step time: 2.3
 --> 250 clusters with 10 procs
        naive hfrac bounds: 0.015 0.111   (0.117 mean mutation in parameter dir test/reference-results/test/parameters/simu/hmm)
     running 10 procs
           read from cache:  naive-seqs 250   logprobs   0
-                    calcd:         vtb  15        fwd 103
-                   merged:       hfrac  22     lratio   2
-             min-max time:  0.9 - 2.1 sec
-      hmm step time: 2.6
---> 226 clusters with 7 procs
+                    calcd:         vtb  16        fwd  97
+                   merged:       hfrac  24     lratio   1
+             min-max time:  0.9 - 2.2 sec
+      hmm step time: 2.7
+--> 225 clusters with 7 procs
     running 7 procs
-          read from cache:  naive-seqs 277   logprobs 103
-                    calcd:         vtb  15        fwd  57
-                   merged:       hfrac  29     lratio   1
-             min-max time:  1.3 - 2.0 sec
-      hmm step time: 2.3
---> 196 clusters with 5 procs
+          read from cache:  naive-seqs 278   logprobs  97
+                    calcd:         vtb  17        fwd  76
+                   merged:       hfrac  27     lratio   3
+             min-max time:  1.1 - 2.2 sec
+      hmm step time: 2.5
+--> 195 clusters with 5 procs
     running 5 procs
-          read from cache:  naive-seqs 309   logprobs 160
-                    calcd:         vtb  12        fwd  69
-                   merged:       hfrac  17     lratio   4
-             min-max time:  1.5 - 3.2 sec
+          read from cache:  naive-seqs 315   logprobs 173
+                    calcd:         vtb  15        fwd  67
+                   merged:       hfrac  21     lratio   3
+             min-max time:  1.7 - 3.2 sec
       hmm step time: 3.5
---> 175 clusters with 3 procs
+--> 171 clusters with 3 procs
     running 3 procs
-          read from cache:  naive-seqs 334   logprobs 229
-                    calcd:         vtb  11        fwd  82
-                   merged:       hfrac  17     lratio   6
-             min-max time:  2.8 - 4.4 sec
-      hmm step time: 4.6
---> 152 clusters with 2 procs
+          read from cache:  naive-seqs 343   logprobs 240
+                    calcd:         vtb  10        fwd  61
+                   merged:       hfrac  13     lratio   2
+             min-max time:  2.2 - 4.7 sec
+      hmm step time: 4.9
+--> 156 clusters with 2 procs
     running 2 procs
-          read from cache:  naive-seqs 363   logprobs 311
-                    calcd:         vtb   8        fwd  66
-                   merged:       hfrac  19     lratio   0
-             min-max time:  3.8 - 4.5 sec
-      hmm step time: 4.8
---> 133 clusters with 1 proc
+          read from cache:  naive-seqs 364   logprobs 301
+                    calcd:         vtb  11        fwd  62
+                   merged:       hfrac  23     lratio   4
+             min-max time:  4.4 - 5.0 sec
+      hmm step time: 5.3
+--> 129 clusters with 1 proc
     running 1 proc
-          read from cache:  naive-seqs 384   logprobs 377
-                    calcd:         vtb  12        fwd 127
-                   merged:       hfrac  17     lratio   4
-                     time:  11.7 sec
-      hmm step time: 12.0
-      loop time: 29.8
+          read from cache:  naive-seqs 396   logprobs 363
+                    calcd:         vtb  10        fwd 138
+                   merged:       hfrac  11     lratio   4
+                     time:  16.5 sec
+      hmm step time: 16.8
+      loop time: 35.7
 --> getting annotations for final partition
     running 10 procs
-      hmm step time: 2.6
+      hmm step time: 2.4
     read output
 ‘test/_new-results/cache-ref-partition.csv.tmp’ -> ‘test/_new-results/cache-ref-partition.csv’
-        processed 112 hmm output lines with 250 sequences in 112 events
-      total time: 36.7
+        processed 115 hmm output lines with 250 sequences in 115 events
+          203 boundary warnings
+      total time: 42.1
 TEST        seed-partition-ref-simu   ./bin/partis partition --n-max-queries -1 --n-precache-procs 10 --is-simu --infname test/reference-results/test/simu.csv --parameter-dir test/reference-results/test/parameters/simu --seed-unique-id 1274966731847979240 --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --outfname test/_new-results/seed-partition-ref-simu.csv
   [91mwarning[0m genes IGHV3-53*02 in <only_genes> aren't in glfo to begin with
 partitioning
@@ -133,60 +135,60 @@ hmm
                 no/empty cache file
                     calcd:         vtb 160        fwd   0
                    merged:       hfrac   0     lratio   0
-             min-max time:  1.2 - 1.4 sec
-      hmm step time: 1.8
+             min-max time:  1.1 - 1.5 sec
+      hmm step time: 1.9
 --> 151 clusters with 10 procs
        naive hfrac bounds: 0.015 0.111   (0.117 mean mutation in parameter dir test/reference-results/test/parameters/simu/hmm)
     running 10 procs
           read from cache:  naive-seqs 151   logprobs   0
-                    calcd:         vtb  22        fwd 148
-                   merged:       hfrac  24     lratio   0
-             min-max time:  1.2 - 1.8 sec
-      hmm step time: 2.2
---> 136 clusters with 7 procs
+                    calcd:         vtb  20        fwd 160
+                   merged:       hfrac  21     lratio   1
+             min-max time:  1.4 - 3.1 sec
+      hmm step time: 3.5
+--> 138 clusters with 7 procs
     running 7 procs
-          read from cache:  naive-seqs 175   logprobs 148
-                    calcd:         vtb   2        fwd  64
+          read from cache:  naive-seqs 173   logprobs 160
+                    calcd:         vtb   2        fwd  66
                    merged:       hfrac   3     lratio   0
-             min-max time:  0.9 - 3.7 sec
-      hmm step time: 4.0
---> 133 clusters with 5 procs
+             min-max time:  1.1 - 5.1 sec
+      hmm step time: 5.5
+--> 135 clusters with 5 procs
     running 5 procs
-          read from cache:  naive-seqs 178   logprobs 212
-                    calcd:         vtb   2        fwd  58
+          read from cache:  naive-seqs 176   logprobs 226
+                    calcd:         vtb   1        fwd  60
                    merged:       hfrac   2     lratio   0
-             min-max time:  0.9 - 5.6 sec
-      hmm step time: 5.9
-      removing 126 sequences in unseeded clusters, and splitting 5 seeded clusters into 25 singletons
-        new n_procs 3 (initial seqs/proc: 15.10   new seqs/proc: 8.33
---> 25 clusters with 3 procs
+             min-max time:  1.8 - 5.5 sec
+      hmm step time: 5.7
+      removing 128 sequences in unseeded clusters, and splitting 5 seeded clusters into 23 singletons
+        new n_procs 3 (initial seqs/proc: 15.10   new seqs/proc: 7.67
+--> 23 clusters with 3 procs
     running 3 procs
-          read from cache:  naive-seqs 180   logprobs 270
-                    calcd:         vtb  19        fwd   3
-                   merged:       hfrac  21     lratio   0
-             min-max time:  1.0 - 1.3 sec
-      hmm step time: 1.5
+          read from cache:  naive-seqs 178   logprobs 286
+                    calcd:         vtb  19        fwd   2
+                   merged:       hfrac  19     lratio   0
+             min-max time:  1.1 - 1.5 sec
+      hmm step time: 1.7
 --> 4 clusters with 2 procs
     running 2 procs
-          read from cache:  naive-seqs 201   logprobs 273
-                    calcd:         vtb   1        fwd   0
-                   merged:       hfrac   1     lratio   0
-             min-max time:  0.0 - 0.9 sec
-      hmm step time: 1.1
---> 3 clusters with 1 proc
-    running 1 proc
-          read from cache:  naive-seqs 202   logprobs 273
-                    calcd:         vtb   1        fwd   3
+          read from cache:  naive-seqs 197   logprobs 288
+                    calcd:         vtb   2        fwd   0
                    merged:       hfrac   2     lratio   0
-                     time:  1.3 sec
-      hmm step time: 1.5
-      loop time: 16.3
+             min-max time:  1.0 - 1.1 sec
+      hmm step time: 1.3
+--> 2 clusters with 1 proc
+    running 1 proc
+          read from cache:  naive-seqs 199   logprobs 288
+                    calcd:         vtb   1        fwd   3
+                   merged:       hfrac   1     lratio   0
+                     time:  2.1 sec
+      hmm step time: 2.2
+      loop time: 20.0
 --> getting annotations for final partition
     running 1 proc
-      hmm step time: 0.9
+      hmm step time: 1.3
     read output
-        processed 1 hmm output lines with 25 sequences in 1 events
-      total time: 22.3
+        processed 1 hmm output lines with 23 sequences in 1 events
+      total time: 26.5
 TEST     vsearch-partition-ref-simu   ./bin/partis partition --naive-vsearch --n-max-queries 250 --n-precache-procs 10 --is-simu --infname test/reference-results/test/simu.csv --parameter-dir test/reference-results/test/parameters/simu --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --outfname test/_new-results/vsearch-partition-ref-simu.csv
   [91mwarning[0m genes IGHV3-53*02 in <only_genes> aren't in glfo to begin with
 partitioning
@@ -203,8 +205,8 @@ hmm
                 no/empty cache file
                     calcd:         vtb 250        fwd   0
                    merged:       hfrac   0     lratio   0
-             min-max time:  1.4 - 1.9 sec
-      hmm step time: 2.2
+             min-max time:  1.3 - 1.9 sec
+      hmm step time: 2.3
        naive hfrac bounds: 0.033 0.033   (0.117 mean mutation in parameter dir test/reference-results/test/parameters/simu/hmm)
     using hfrac bound for vsearch 0.033
   stdout:
@@ -213,7 +215,7 @@ hmm
     
     
   stderr:
-    Reading file /tmp/dralph/hmms/883109/simu.fasta 0%  Reading file /tmp/dralph/hmms/883109/simu.fasta 0%  Reading file /tmp/dralph/hmms/883109/simu.fasta 1%  Reading file /tmp/dralph/hmms/883109/simu.fasta 2%  Reading file /tmp/dralph/hmms/883109/simu.fasta 3%  Reading file /tmp/dralph/hmms/883109/simu.fasta 4%  Reading file /tmp/dralph/hmms/883109/simu.fasta 4%  Reading file /tmp/dralph/hmms/883109/simu.fasta 5%  Reading file /tmp/dralph/hmms/883109/simu.fasta 6%  Reading file /tmp/dralph/hmms/883109/simu.fasta 7%  Reading file /tmp/dralph/hmms/883109/simu.fasta 8%  Reading file /tmp/dralph/hmms/883109/simu.fasta 8%  Reading file /tmp/dralph/hmms/883109/simu.fasta 9%  Reading file /tmp/dralph/hmms/883109/simu.fasta 10%  Reading file /tmp/dralph/hmms/883109/simu.fasta 11%  Reading file /tmp/dralph/hmms/883109/simu.fasta 12%  Reading file /tmp/dralph/hmms/883109/simu.fasta 12%  Reading file /tmp/dralph/hmms/883109/simu.fasta 13%  Reading file /tmp/dralph/hmms/883109/simu.fasta 14%  Reading file /tmp/dralph/hmms/883109/simu.fasta 15%  Reading file /tmp/dralph/hmms/883109/simu.fasta 16%  Reading file /tmp/dralph/hmms/883109/simu.fasta 16%  Reading file /tmp/dralph/hmms/883109/simu.fasta 17%  Reading file /tmp/dralph/hmms/883109/simu.fasta 18%  Reading file /tmp/dralph/hmms/883109/simu.fasta 19%  Reading file /tmp/dralph/hmms/883109/simu.fasta 20%  Reading file /tmp/dralph/hmms/883109/simu.fasta 20%  Reading file /tmp/dralph/hmms/883109/simu.fasta 21%  Reading file /tmp/dralph/hmms/883109/simu.fasta 22%  Reading file /tmp/dralph/hmms/883109/simu.fasta 23%  Reading file /tmp/dralph/hmms/883109/simu.fasta 24%  Reading file /tmp/dralph/hmms/883109/simu.fasta 24%  Reading file /tmp/dralph/hmms/883109/simu.fasta 25%  Reading file /tmp/dralph/hmms/883109/simu.fasta 26%  Reading file /tmp/dralph/hmms/883109/simu.fasta 27%  Reading file /tmp/dralph/hmms/883109/simu.fasta 28%  Reading file /tmp/dralph/hmms/883109/simu.fasta 28%  Reading file /tmp/dralph/hmms/883109/simu.fasta 29%  Reading file /tmp/dralph/hmms/883109/simu.fasta 30%  Reading file /tmp/dralph/hmms/883109/simu.fasta 31%  Reading file /tmp/dralph/hmms/883109/simu.fasta 32%  Reading file /tmp/dralph/hmms/883109/simu.fasta 32%  Reading file /tmp/dralph/hmms/883109/simu.fasta 33%  Reading file /tmp/dralph/hmms/883109/simu.fasta 34%  Reading file /tmp/dralph/hmms/883109/simu.fasta 35%  Reading file /tmp/dralph/hmms/883109/simu.fasta 36%  Reading file /tmp/dralph/hmms/883109/simu.fasta 36%  Reading file /tmp/dralph/hmms/883109/simu.fasta 37%  Reading file /tmp/dralph/hmms/883109/simu.fasta 38%  Reading file /tmp/dralph/hmms/883109/simu.fasta 39%  Reading file /tmp/dralph/hmms/883109/simu.fasta 40%  Reading file /tmp/dralph/hmms/883109/simu.fasta 40%  Reading file /tmp/dralph/hmms/883109/simu.fasta 41%  Reading file /tmp/dralph/hmms/883109/simu.fasta 42%  Reading file /tmp/dralph/hmms/883109/simu.fasta 43%  Reading file /tmp/dralph/hmms/883109/simu.fasta 44%  Reading file /tmp/dralph/hmms/883109/simu.fasta 44%  Reading file /tmp/dralph/hmms/883109/simu.fasta 45%  Reading file /tmp/dralph/hmms/883109/simu.fasta 46%  Reading file /tmp/dralph/hmms/883109/simu.fasta 47%  Reading file /tmp/dralph/hmms/883109/simu.fasta 47%  Reading file /tmp/dralph/hmms/883109/simu.fasta 48%  Reading file /tmp/dralph/hmms/883109/simu.fasta 49%  Reading file /tmp/dralph/hmms/883109/simu.fasta 50%  Reading file /tmp/dralph/hmms/883109/simu.fasta 51%  Reading file /tmp/dralph/hmms/883109/simu.fasta 52%  Reading file /tmp/dralph/hmms/883109/simu.fasta 52%  Reading file /tmp/dralph/hmms/883109/simu.fasta 53%  Reading file /tmp/dralph/hmms/883109/simu.fasta 54%  Reading file /tmp/dralph/hmms/883109/simu.fasta 55%  Reading file /tmp/dralph/hmms/883109/simu.fasta 56%  Reading file /tmp/dralph/hmms/883109/simu.fasta 56%  Reading file /tmp/dralph/hmms/883109/simu.fasta 57%  Reading file /tmp/dralph/hmms/883109/simu.fasta 58%  Reading file /tmp/dralph/hmms/883109/simu.fasta 59%  Reading file /tmp/dralph/hmms/883109/simu.fasta 60%  Reading file /tmp/dralph/hmms/883109/simu.fasta 60%  Reading file /tmp/dralph/hmms/883109/simu.fasta 61%  Reading file /tmp/dralph/hmms/883109/simu.fasta 62%  Reading file /tmp/dralph/hmms/883109/simu.fasta 63%  Reading file /tmp/dralph/hmms/883109/simu.fasta 64%  Reading file /tmp/dralph/hmms/883109/simu.fasta 64%  Reading file /tmp/dralph/hmms/883109/simu.fasta 65%  Reading file /tmp/dralph/hmms/883109/simu.fasta 66%  Reading file /tmp/dralph/hmms/883109/simu.fasta 67%  Reading file /tmp/dralph/hmms/883109/simu.fasta 68%  Reading file /tmp/dralph/hmms/883109/simu.fasta 68%  Reading file /tmp/dralph/hmms/883109/simu.fasta 69%  Reading file /tmp/dralph/hmms/883109/simu.fasta 70%  Reading file /tmp/dralph/hmms/883109/simu.fasta 71%  Reading file /tmp/dralph/hmms/883109/simu.fasta 72%  Reading file /tmp/dralph/hmms/883109/simu.fasta 73%  Reading file /tmp/dralph/hmms/883109/simu.fasta 73%  Reading file /tmp/dralph/hmms/883109/simu.fasta 74%  Reading file /tmp/dralph/hmms/883109/simu.fasta 75%  Reading file /tmp/dralph/hmms/883109/simu.fasta 76%  Reading file /tmp/dralph/hmms/883109/simu.fasta 77%  Reading file /tmp/dralph/hmms/883109/simu.fasta 77%  Reading file /tmp/dralph/hmms/883109/simu.fasta 78%  Reading file /tmp/dralph/hmms/883109/simu.fasta 79%  Reading file /tmp/dralph/hmms/883109/simu.fasta 80%  Reading file /tmp/dralph/hmms/883109/simu.fasta 80%  Reading file /tmp/dralph/hmms/883109/simu.fasta 81%  Reading file /tmp/dralph/hmms/883109/simu.fasta 82%  Reading file /tmp/dralph/hmms/883109/simu.fasta 83%  Reading file /tmp/dralph/hmms/883109/simu.fasta 84%  Reading file /tmp/dralph/hmms/883109/simu.fasta 84%  Reading file /tmp/dralph/hmms/883109/simu.fasta 85%  Reading file /tmp/dralph/hmms/883109/simu.fasta 86%  Reading file /tmp/dralph/hmms/883109/simu.fasta 87%  Reading file /tmp/dralph/hmms/883109/simu.fasta 88%  Reading file /tmp/dralph/hmms/883109/simu.fasta 88%  Reading file /tmp/dralph/hmms/883109/simu.fasta 89%  Reading file /tmp/dralph/hmms/883109/simu.fasta 90%  Reading file /tmp/dralph/hmms/883109/simu.fasta 91%  Reading file /tmp/dralph/hmms/883109/simu.fasta 92%  Reading file /tmp/dralph/hmms/883109/simu.fasta 92%  Reading file /tmp/dralph/hmms/883109/simu.fasta 93%  Reading file /tmp/dralph/hmms/883109/simu.fasta 94%  Reading file /tmp/dralph/hmms/883109/simu.fasta 95%  Reading file /tmp/dralph/hmms/883109/simu.fasta 96%  Reading file /tmp/dralph/hmms/883109/simu.fasta 96%  Reading file /tmp/dralph/hmms/883109/simu.fasta 97%  Reading file /tmp/dralph/hmms/883109/simu.fasta 98%  Reading file /tmp/dralph/hmms/883109/simu.fasta 99%  Reading file /tmp/dralph/hmms/883109/simu.fasta 100%  Reading file /tmp/dralph/hmms/883109/simu.fasta 100%
+    Reading file /tmp/dralph/hmms/500537/simu.fasta 0%  Reading file /tmp/dralph/hmms/500537/simu.fasta 0%  Reading file /tmp/dralph/hmms/500537/simu.fasta 1%  Reading file /tmp/dralph/hmms/500537/simu.fasta 2%  Reading file /tmp/dralph/hmms/500537/simu.fasta 3%  Reading file /tmp/dralph/hmms/500537/simu.fasta 4%  Reading file /tmp/dralph/hmms/500537/simu.fasta 4%  Reading file /tmp/dralph/hmms/500537/simu.fasta 5%  Reading file /tmp/dralph/hmms/500537/simu.fasta 6%  Reading file /tmp/dralph/hmms/500537/simu.fasta 7%  Reading file /tmp/dralph/hmms/500537/simu.fasta 8%  Reading file /tmp/dralph/hmms/500537/simu.fasta 8%  Reading file /tmp/dralph/hmms/500537/simu.fasta 9%  Reading file /tmp/dralph/hmms/500537/simu.fasta 10%  Reading file /tmp/dralph/hmms/500537/simu.fasta 11%  Reading file /tmp/dralph/hmms/500537/simu.fasta 12%  Reading file /tmp/dralph/hmms/500537/simu.fasta 12%  Reading file /tmp/dralph/hmms/500537/simu.fasta 13%  Reading file /tmp/dralph/hmms/500537/simu.fasta 14%  Reading file /tmp/dralph/hmms/500537/simu.fasta 15%  Reading file /tmp/dralph/hmms/500537/simu.fasta 16%  Reading file /tmp/dralph/hmms/500537/simu.fasta 16%  Reading file /tmp/dralph/hmms/500537/simu.fasta 17%  Reading file /tmp/dralph/hmms/500537/simu.fasta 18%  Reading file /tmp/dralph/hmms/500537/simu.fasta 19%  Reading file /tmp/dralph/hmms/500537/simu.fasta 20%  Reading file /tmp/dralph/hmms/500537/simu.fasta 20%  Reading file /tmp/dralph/hmms/500537/simu.fasta 21%  Reading file /tmp/dralph/hmms/500537/simu.fasta 22%  Reading file /tmp/dralph/hmms/500537/simu.fasta 23%  Reading file /tmp/dralph/hmms/500537/simu.fasta 24%  Reading file /tmp/dralph/hmms/500537/simu.fasta 24%  Reading file /tmp/dralph/hmms/500537/simu.fasta 25%  Reading file /tmp/dralph/hmms/500537/simu.fasta 26%  Reading file /tmp/dralph/hmms/500537/simu.fasta 27%  Reading file /tmp/dralph/hmms/500537/simu.fasta 28%  Reading file /tmp/dralph/hmms/500537/simu.fasta 28%  Reading file /tmp/dralph/hmms/500537/simu.fasta 29%  Reading file /tmp/dralph/hmms/500537/simu.fasta 30%  Reading file /tmp/dralph/hmms/500537/simu.fasta 31%  Reading file /tmp/dralph/hmms/500537/simu.fasta 32%  Reading file /tmp/dralph/hmms/500537/simu.fasta 32%  Reading file /tmp/dralph/hmms/500537/simu.fasta 33%  Reading file /tmp/dralph/hmms/500537/simu.fasta 34%  Reading file /tmp/dralph/hmms/500537/simu.fasta 35%  Reading file /tmp/dralph/hmms/500537/simu.fasta 36%  Reading file /tmp/dralph/hmms/500537/simu.fasta 36%  Reading file /tmp/dralph/hmms/500537/simu.fasta 37%  Reading file /tmp/dralph/hmms/500537/simu.fasta 38%  Reading file /tmp/dralph/hmms/500537/simu.fasta 39%  Reading file /tmp/dralph/hmms/500537/simu.fasta 40%  Reading file /tmp/dralph/hmms/500537/simu.fasta 40%  Reading file /tmp/dralph/hmms/500537/simu.fasta 41%  Reading file /tmp/dralph/hmms/500537/simu.fasta 42%  Reading file /tmp/dralph/hmms/500537/simu.fasta 43%  Reading file /tmp/dralph/hmms/500537/simu.fasta 44%  Reading file /tmp/dralph/hmms/500537/simu.fasta 44%  Reading file /tmp/dralph/hmms/500537/simu.fasta 45%  Reading file /tmp/dralph/hmms/500537/simu.fasta 46%  Reading file /tmp/dralph/hmms/500537/simu.fasta 47%  Reading file /tmp/dralph/hmms/500537/simu.fasta 47%  Reading file /tmp/dralph/hmms/500537/simu.fasta 48%  Reading file /tmp/dralph/hmms/500537/simu.fasta 49%  Reading file /tmp/dralph/hmms/500537/simu.fasta 50%  Reading file /tmp/dralph/hmms/500537/simu.fasta 51%  Reading file /tmp/dralph/hmms/500537/simu.fasta 52%  Reading file /tmp/dralph/hmms/500537/simu.fasta 52%  Reading file /tmp/dralph/hmms/500537/simu.fasta 53%  Reading file /tmp/dralph/hmms/500537/simu.fasta 54%  Reading file /tmp/dralph/hmms/500537/simu.fasta 55%  Reading file /tmp/dralph/hmms/500537/simu.fasta 56%  Reading file /tmp/dralph/hmms/500537/simu.fasta 56%  Reading file /tmp/dralph/hmms/500537/simu.fasta 57%  Reading file /tmp/dralph/hmms/500537/simu.fasta 58%  Reading file /tmp/dralph/hmms/500537/simu.fasta 59%  Reading file /tmp/dralph/hmms/500537/simu.fasta 60%  Reading file /tmp/dralph/hmms/500537/simu.fasta 60%  Reading file /tmp/dralph/hmms/500537/simu.fasta 61%  Reading file /tmp/dralph/hmms/500537/simu.fasta 62%  Reading file /tmp/dralph/hmms/500537/simu.fasta 63%  Reading file /tmp/dralph/hmms/500537/simu.fasta 64%  Reading file /tmp/dralph/hmms/500537/simu.fasta 64%  Reading file /tmp/dralph/hmms/500537/simu.fasta 65%  Reading file /tmp/dralph/hmms/500537/simu.fasta 66%  Reading file /tmp/dralph/hmms/500537/simu.fasta 67%  Reading file /tmp/dralph/hmms/500537/simu.fasta 68%  Reading file /tmp/dralph/hmms/500537/simu.fasta 68%  Reading file /tmp/dralph/hmms/500537/simu.fasta 69%  Reading file /tmp/dralph/hmms/500537/simu.fasta 70%  Reading file /tmp/dralph/hmms/500537/simu.fasta 71%  Reading file /tmp/dralph/hmms/500537/simu.fasta 72%  Reading file /tmp/dralph/hmms/500537/simu.fasta 73%  Reading file /tmp/dralph/hmms/500537/simu.fasta 73%  Reading file /tmp/dralph/hmms/500537/simu.fasta 74%  Reading file /tmp/dralph/hmms/500537/simu.fasta 75%  Reading file /tmp/dralph/hmms/500537/simu.fasta 76%  Reading file /tmp/dralph/hmms/500537/simu.fasta 77%  Reading file /tmp/dralph/hmms/500537/simu.fasta 77%  Reading file /tmp/dralph/hmms/500537/simu.fasta 78%  Reading file /tmp/dralph/hmms/500537/simu.fasta 79%  Reading file /tmp/dralph/hmms/500537/simu.fasta 80%  Reading file /tmp/dralph/hmms/500537/simu.fasta 80%  Reading file /tmp/dralph/hmms/500537/simu.fasta 81%  Reading file /tmp/dralph/hmms/500537/simu.fasta 82%  Reading file /tmp/dralph/hmms/500537/simu.fasta 83%  Reading file /tmp/dralph/hmms/500537/simu.fasta 84%  Reading file /tmp/dralph/hmms/500537/simu.fasta 84%  Reading file /tmp/dralph/hmms/500537/simu.fasta 85%  Reading file /tmp/dralph/hmms/500537/simu.fasta 86%  Reading file /tmp/dralph/hmms/500537/simu.fasta 87%  Reading file /tmp/dralph/hmms/500537/simu.fasta 88%  Reading file /tmp/dralph/hmms/500537/simu.fasta 88%  Reading file /tmp/dralph/hmms/500537/simu.fasta 89%  Reading file /tmp/dralph/hmms/500537/simu.fasta 90%  Reading file /tmp/dralph/hmms/500537/simu.fasta 91%  Reading file /tmp/dralph/hmms/500537/simu.fasta 92%  Reading file /tmp/dralph/hmms/500537/simu.fasta 92%  Reading file /tmp/dralph/hmms/500537/simu.fasta 93%  Reading file /tmp/dralph/hmms/500537/simu.fasta 94%  Reading file /tmp/dralph/hmms/500537/simu.fasta 95%  Reading file /tmp/dralph/hmms/500537/simu.fasta 96%  Reading file /tmp/dralph/hmms/500537/simu.fasta 96%  Reading file /tmp/dralph/hmms/500537/simu.fasta 97%  Reading file /tmp/dralph/hmms/500537/simu.fasta 98%  Reading file /tmp/dralph/hmms/500537/simu.fasta 99%  Reading file /tmp/dralph/hmms/500537/simu.fasta 100%  Reading file /tmp/dralph/hmms/500537/simu.fasta 100%
     92952 nt in 250 seqs, min 349, max 400, avg 372
     Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 1%  Indexing sequences 1%  Indexing sequences 2%  Indexing sequences 2%  Indexing sequences 2%  Indexing sequences 3%  Indexing sequences 3%  Indexing sequences 4%  Indexing sequences 4%  Indexing sequences 4%  Indexing sequences 5%  Indexing sequences 5%  Indexing sequences 6%  Indexing sequences 6%  Indexing sequences 6%  Indexing sequences 7%  Indexing sequences 7%  Indexing sequences 8%  Indexing sequences 8%  Indexing sequences 8%  Indexing sequences 9%  Indexing sequences 9%  Indexing sequences 10%  Indexing sequences 10%  Indexing sequences 10%  Indexing sequences 11%  Indexing sequences 11%  Indexing sequences 12%  Indexing sequences 12%  Indexing sequences 12%  Indexing sequences 13%  Indexing sequences 13%  Indexing sequences 14%  Indexing sequences 14%  Indexing sequences 14%  Indexing sequences 15%  Indexing sequences 15%  Indexing sequences 16%  Indexing sequences 16%  Indexing sequences 16%  Indexing sequences 17%  Indexing sequences 17%  Indexing sequences 18%  Indexing sequences 18%  Indexing sequences 18%  Indexing sequences 19%  Indexing sequences 19%  Indexing sequences 20%  Indexing sequences 20%  Indexing sequences 20%  Indexing sequences 21%  Indexing sequences 21%  Indexing sequences 22%  Indexing sequences 22%  Indexing sequences 22%  Indexing sequences 23%  Indexing sequences 23%  Indexing sequences 24%  Indexing sequences 24%  Indexing sequences 24%  Indexing sequences 25%  Indexing sequences 25%  Indexing sequences 26%  Indexing sequences 26%  Indexing sequences 26%  Indexing sequences 27%  Indexing sequences 27%  Indexing sequences 28%  Indexing sequences 28%  Indexing sequences 28%  Indexing sequences 29%  Indexing sequences 29%  Indexing sequences 30%  Indexing sequences 30%  Indexing sequences 30%  Indexing sequences 31%  Indexing sequences 31%  Indexing sequences 32%  Indexing sequences 32%  Indexing sequences 32%  Indexing sequences 33%  Indexing sequences 33%  Indexing sequences 34%  Indexing sequences 34%  Indexing sequences 34%  Indexing sequences 35%  Indexing sequences 35%  Indexing sequences 36%  Indexing sequences 36%  Indexing sequences 36%  Indexing sequences 37%  Indexing sequences 37%  Indexing sequences 38%  Indexing sequences 38%  Indexing sequences 38%  Indexing sequences 39%  Indexing sequences 39%  Indexing sequences 40%  Indexing sequences 40%  Indexing sequences 40%  Indexing sequences 41%  Indexing sequences 41%  Indexing sequences 42%  Indexing sequences 42%  Indexing sequences 42%  Indexing sequences 43%  Indexing sequences 43%  Indexing sequences 44%  Indexing sequences 44%  Indexing sequences 44%  Indexing sequences 45%  Indexing sequences 45%  Indexing sequences 46%  Indexing sequences 46%  Indexing sequences 46%  Indexing sequences 47%  Indexing sequences 47%  Indexing sequences 48%  Indexing sequences 48%  Indexing sequences 48%  Indexing sequences 49%  Indexing sequences 49%  Indexing sequences 50%  Indexing sequences 50%  Indexing sequences 50%  Indexing sequences 51%  Indexing sequences 51%  Indexing sequences 52%  Indexing sequences 52%  Indexing sequences 52%  Indexing sequences 53%  Indexing sequences 53%  Indexing sequences 54%  Indexing sequences 54%  Indexing sequences 54%  Indexing sequences 55%  Indexing sequences 55%  Indexing sequences 56%  Indexing sequences 56%  Indexing sequences 56%  Indexing sequences 57%  Indexing sequences 57%  Indexing sequences 58%  Indexing sequences 58%  Indexing sequences 58%  Indexing sequences 59%  Indexing sequences 59%  Indexing sequences 60%  Indexing sequences 60%  Indexing sequences 60%  Indexing sequences 61%  Indexing sequences 61%  Indexing sequences 62%  Indexing sequences 62%  Indexing sequences 62%  Indexing sequences 63%  Indexing sequences 63%  Indexing sequences 64%  Indexing sequences 64%  Indexing sequences 64%  Indexing sequences 65%  Indexing sequences 65%  Indexing sequences 66%  Indexing sequences 66%  Indexing sequences 66%  Indexing sequences 67%  Indexing sequences 67%  Indexing sequences 68%  Indexing sequences 68%  Indexing sequences 68%  Indexing sequences 69%  Indexing sequences 69%  Indexing sequences 70%  Indexing sequences 70%  Indexing sequences 70%  Indexing sequences 71%  Indexing sequences 71%  Indexing sequences 72%  Indexing sequences 72%  Indexing sequences 72%  Indexing sequences 73%  Indexing sequences 73%  Indexing sequences 74%  Indexing sequences 74%  Indexing sequences 74%  Indexing sequences 75%  Indexing sequences 75%  Indexing sequences 76%  Indexing sequences 76%  Indexing sequences 76%  Indexing sequences 77%  Indexing sequences 77%  Indexing sequences 78%  Indexing sequences 78%  Indexing sequences 78%  Indexing sequences 79%  Indexing sequences 79%  Indexing sequences 80%  Indexing sequences 80%  Indexing sequences 80%  Indexing sequences 81%  Indexing sequences 81%  Indexing sequences 82%  Indexing sequences 82%  Indexing sequences 82%  Indexing sequences 83%  Indexing sequences 83%  Indexing sequences 84%  Indexing sequences 84%  Indexing sequences 84%  Indexing sequences 85%  Indexing sequences 85%  Indexing sequences 86%  Indexing sequences 86%  Indexing sequences 86%  Indexing sequences 87%  Indexing sequences 87%  Indexing sequences 88%  Indexing sequences 88%  Indexing sequences 88%  Indexing sequences 89%  Indexing sequences 89%  Indexing sequences 90%  Indexing sequences 90%  Indexing sequences 90%  Indexing sequences 91%  Indexing sequences 91%  Indexing sequences 92%  Indexing sequences 92%  Indexing sequences 92%  Indexing sequences 93%  Indexing sequences 93%  Indexing sequences 94%  Indexing sequences 94%  Indexing sequences 94%  Indexing sequences 95%  Indexing sequences 95%  Indexing sequences 96%  Indexing sequences 96%  Indexing sequences 96%  Indexing sequences 97%  Indexing sequences 97%  Indexing sequences 98%  Indexing sequences 98%  Indexing sequences 98%  Indexing sequences 99%  Indexing sequences 99%  Indexing sequences 100%  Indexing sequences 100%
     Masking 0%  Masking 100%
@@ -221,15 +223,16 @@ hmm
     Counting unique k-mers 0%  Counting unique k-mers 0%  Counting unique k-mers 0%  Counting unique k-mers 1%  Counting unique k-mers 1%  Counting unique k-mers 2%  Counting unique k-mers 2%  Counting unique k-mers 2%  Counting unique k-mers 3%  Counting unique k-mers 3%  Counting unique k-mers 4%  Counting unique k-mers 4%  Counting unique k-mers 4%  Counting unique k-mers 5%  Counting unique k-mers 5%  Counting unique k-mers 6%  Counting unique k-mers 6%  Counting unique k-mers 6%  Counting unique k-mers 7%  Counting unique k-mers 7%  Counting unique k-mers 8%  Counting unique k-mers 8%  Counting unique k-mers 8%  Counting unique k-mers 9%  Counting unique k-mers 9%  Counting unique k-mers 10%  Counting unique k-mers 10%  Counting unique k-mers 10%  Counting unique k-mers 11%  Counting unique k-mers 11%  Counting unique k-mers 12%  Counting unique k-mers 12%  Counting unique k-mers 12%  Counting unique k-mers 13%  Counting unique k-mers 13%  Counting unique k-mers 14%  Counting unique k-mers 14%  Counting unique k-mers 14%  Counting unique k-mers 15%  Counting unique k-mers 15%  Counting unique k-mers 16%  Counting unique k-mers 16%  Counting unique k-mers 16%  Counting unique k-mers 17%  Counting unique k-mers 17%  Counting unique k-mers 18%  Counting unique k-mers 18%  Counting unique k-mers 18%  Counting unique k-mers 19%  Counting unique k-mers 19%  Counting unique k-mers 20%  Counting unique k-mers 20%  Counting unique k-mers 20%  Counting unique k-mers 21%  Counting unique k-mers 21%  Counting unique k-mers 22%  Counting unique k-mers 22%  Counting unique k-mers 22%  Counting unique k-mers 23%  Counting unique k-mers 23%  Counting unique k-mers 24%  Counting unique k-mers 24%  Counting unique k-mers 24%  Counting unique k-mers 25%  Counting unique k-mers 25%  Counting unique k-mers 26%  Counting unique k-mers 26%  Counting unique k-mers 26%  Counting unique k-mers 27%  Counting unique k-mers 27%  Counting unique k-mers 28%  Counting unique k-mers 28%  Counting unique k-mers 28%  Counting unique k-mers 29%  Counting unique k-mers 29%  Counting unique k-mers 30%  Counting unique k-mers 30%  Counting unique k-mers 30%  Counting unique k-mers 31%  Counting unique k-mers 31%  Counting unique k-mers 32%  Counting unique k-mers 32%  Counting unique k-mers 32%  Counting unique k-mers 33%  Counting unique k-mers 33%  Counting unique k-mers 34%  Counting unique k-mers 34%  Counting unique k-mers 34%  Counting unique k-mers 35%  Counting unique k-mers 35%  Counting unique k-mers 36%  Counting unique k-mers 36%  Counting unique k-mers 36%  Counting unique k-mers 37%  Counting unique k-mers 37%  Counting unique k-mers 38%  Counting unique k-mers 38%  Counting unique k-mers 38%  Counting unique k-mers 39%  Counting unique k-mers 39%  Counting unique k-mers 40%  Counting unique k-mers 40%  Counting unique k-mers 40%  Counting unique k-mers 41%  Counting unique k-mers 41%  Counting unique k-mers 42%  Counting unique k-mers 42%  Counting unique k-mers 42%  Counting unique k-mers 43%  Counting unique k-mers 43%  Counting unique k-mers 44%  Counting unique k-mers 44%  Counting unique k-mers 44%  Counting unique k-mers 45%  Counting unique k-mers 45%  Counting unique k-mers 46%  Counting unique k-mers 46%  Counting unique k-mers 46%  Counting unique k-mers 47%  Counting unique k-mers 47%  Counting unique k-mers 48%  Counting unique k-mers 48%  Counting unique k-mers 48%  Counting unique k-mers 49%  Counting unique k-mers 49%  Counting unique k-mers 50%  Counting unique k-mers 50%  Counting unique k-mers 50%  Counting unique k-mers 51%  Counting unique k-mers 51%  Counting unique k-mers 52%  Counting unique k-mers 52%  Counting unique k-mers 52%  Counting unique k-mers 53%  Counting unique k-mers 53%  Counting unique k-mers 54%  Counting unique k-mers 54%  Counting unique k-mers 54%  Counting unique k-mers 55%  Counting unique k-mers 55%  Counting unique k-mers 56%  Counting unique k-mers 56%  Counting unique k-mers 56%  Counting unique k-mers 57%  Counting unique k-mers 57%  Counting unique k-mers 58%  Counting unique k-mers 58%  Counting unique k-mers 58%  Counting unique k-mers 59%  Counting unique k-mers 59%  Counting unique k-mers 60%  Counting unique k-mers 60%  Counting unique k-mers 60%  Counting unique k-mers 61%  Counting unique k-mers 61%  Counting unique k-mers 62%  Counting unique k-mers 62%  Counting unique k-mers 62%  Counting unique k-mers 63%  Counting unique k-mers 63%  Counting unique k-mers 64%  Counting unique k-mers 64%  Counting unique k-mers 64%  Counting unique k-mers 65%  Counting unique k-mers 65%  Counting unique k-mers 66%  Counting unique k-mers 66%  Counting unique k-mers 66%  Counting unique k-mers 67%  Counting unique k-mers 67%  Counting unique k-mers 68%  Counting unique k-mers 68%  Counting unique k-mers 68%  Counting unique k-mers 69%  Counting unique k-mers 69%  Counting unique k-mers 70%  Counting unique k-mers 70%  Counting unique k-mers 70%  Counting unique k-mers 71%  Counting unique k-mers 71%  Counting unique k-mers 72%  Counting unique k-mers 72%  Counting unique k-mers 72%  Counting unique k-mers 73%  Counting unique k-mers 73%  Counting unique k-mers 74%  Counting unique k-mers 74%  Counting unique k-mers 74%  Counting unique k-mers 75%  Counting unique k-mers 75%  Counting unique k-mers 76%  Counting unique k-mers 76%  Counting unique k-mers 76%  Counting unique k-mers 77%  Counting unique k-mers 77%  Counting unique k-mers 78%  Counting unique k-mers 78%  Counting unique k-mers 78%  Counting unique k-mers 79%  Counting unique k-mers 79%  Counting unique k-mers 80%  Counting unique k-mers 80%  Counting unique k-mers 80%  Counting unique k-mers 81%  Counting unique k-mers 81%  Counting unique k-mers 82%  Counting unique k-mers 82%  Counting unique k-mers 82%  Counting unique k-mers 83%  Counting unique k-mers 83%  Counting unique k-mers 84%  Counting unique k-mers 84%  Counting unique k-mers 84%  Counting unique k-mers 85%  Counting unique k-mers 85%  Counting unique k-mers 86%  Counting unique k-mers 86%  Counting unique k-mers 86%  Counting unique k-mers 87%  Counting unique k-mers 87%  Counting unique k-mers 88%  Counting unique k-mers 88%  Counting unique k-mers 88%  Counting unique k-mers 89%  Counting unique k-mers 89%  Counting unique k-mers 90%  Counting unique k-mers 90%  Counting unique k-mers 90%  Counting unique k-mers 91%  Counting unique k-mers 91%  Counting unique k-mers 92%  Counting unique k-mers 92%  Counting unique k-mers 92%  Counting unique k-mers 93%  Counting unique k-mers 93%  Counting unique k-mers 94%  Counting unique k-mers 94%  Counting unique k-mers 94%  Counting unique k-mers 95%  Counting unique k-mers 95%  Counting unique k-mers 96%  Counting unique k-mers 96%  Counting unique k-mers 96%  Counting unique k-mers 97%  Counting unique k-mers 97%  Counting unique k-mers 98%  Counting unique k-mers 98%  Counting unique k-mers 98%  Counting unique k-mers 99%  Counting unique k-mers 99%  Counting unique k-mers 100%  Counting unique k-mers 100%
     Clustering 0%  Clustering 4%  Clustering 9%  Clustering 13%  Clustering 17%  Clustering 21%  Clustering 25%  Clustering 29%  Clustering 33%  Clustering 37%  Clustering 41%  Clustering 45%  Clustering 49%  Clustering 53%  Clustering 57%  Clustering 61%  Clustering 65%  Clustering 69%  Clustering 73%  Clustering 77%  Clustering 81%  Clustering 85%  Clustering 89%  Clustering 92%  Clustering 96%  Clustering 100%  Clustering 100%
     Writing clusters 0%  Writing clusters 0%  Writing clusters 0%  Writing clusters 1%  Writing clusters 1%  Writing clusters 2%  Writing clusters 2%  Writing clusters 2%  Writing clusters 3%  Writing clusters 3%  Writing clusters 4%  Writing clusters 4%  Writing clusters 4%  Writing clusters 5%  Writing clusters 5%  Writing clusters 6%  Writing clusters 6%  Writing clusters 6%  Writing clusters 7%  Writing clusters 7%  Writing clusters 8%  Writing clusters 8%  Writing clusters 8%  Writing clusters 9%  Writing clusters 9%  Writing clusters 10%  Writing clusters 10%  Writing clusters 10%  Writing clusters 11%  Writing clusters 11%  Writing clusters 12%  Writing clusters 12%  Writing clusters 12%  Writing clusters 13%  Writing clusters 13%  Writing clusters 14%  Writing clusters 14%  Writing clusters 14%  Writing clusters 15%  Writing clusters 15%  Writing clusters 16%  Writing clusters 16%  Writing clusters 16%  Writing clusters 17%  Writing clusters 17%  Writing clusters 18%  Writing clusters 18%  Writing clusters 18%  Writing clusters 19%  Writing clusters 19%  Writing clusters 20%  Writing clusters 20%  Writing clusters 20%  Writing clusters 21%  Writing clusters 21%  Writing clusters 22%  Writing clusters 22%  Writing clusters 22%  Writing clusters 23%  Writing clusters 23%  Writing clusters 24%  Writing clusters 24%  Writing clusters 24%  Writing clusters 25%  Writing clusters 25%  Writing clusters 26%  Writing clusters 26%  Writing clusters 26%  Writing clusters 27%  Writing clusters 27%  Writing clusters 28%  Writing clusters 28%  Writing clusters 28%  Writing clusters 29%  Writing clusters 29%  Writing clusters 30%  Writing clusters 30%  Writing clusters 30%  Writing clusters 31%  Writing clusters 31%  Writing clusters 32%  Writing clusters 32%  Writing clusters 32%  Writing clusters 33%  Writing clusters 33%  Writing clusters 34%  Writing clusters 34%  Writing clusters 34%  Writing clusters 35%  Writing clusters 35%  Writing clusters 36%  Writing clusters 36%  Writing clusters 36%  Writing clusters 37%  Writing clusters 37%  Writing clusters 38%  Writing clusters 38%  Writing clusters 38%  Writing clusters 39%  Writing clusters 39%  Writing clusters 40%  Writing clusters 40%  Writing clusters 40%  Writing clusters 41%  Writing clusters 41%  Writing clusters 42%  Writing clusters 42%  Writing clusters 42%  Writing clusters 43%  Writing clusters 43%  Writing clusters 44%  Writing clusters 44%  Writing clusters 44%  Writing clusters 45%  Writing clusters 45%  Writing clusters 46%  Writing clusters 46%  Writing clusters 46%  Writing clusters 47%  Writing clusters 47%  Writing clusters 48%  Writing clusters 48%  Writing clusters 48%  Writing clusters 49%  Writing clusters 49%  Writing clusters 50%  Writing clusters 50%  Writing clusters 50%  Writing clusters 51%  Writing clusters 51%  Writing clusters 52%  Writing clusters 52%  Writing clusters 52%  Writing clusters 53%  Writing clusters 53%  Writing clusters 54%  Writing clusters 54%  Writing clusters 54%  Writing clusters 55%  Writing clusters 55%  Writing clusters 56%  Writing clusters 56%  Writing clusters 56%  Writing clusters 57%  Writing clusters 57%  Writing clusters 58%  Writing clusters 58%  Writing clusters 58%  Writing clusters 59%  Writing clusters 59%  Writing clusters 60%  Writing clusters 60%  Writing clusters 60%  Writing clusters 61%  Writing clusters 61%  Writing clusters 62%  Writing clusters 62%  Writing clusters 62%  Writing clusters 63%  Writing clusters 63%  Writing clusters 64%  Writing clusters 64%  Writing clusters 64%  Writing clusters 65%  Writing clusters 65%  Writing clusters 66%  Writing clusters 66%  Writing clusters 66%  Writing clusters 67%  Writing clusters 67%  Writing clusters 68%  Writing clusters 68%  Writing clusters 68%  Writing clusters 69%  Writing clusters 69%  Writing clusters 70%  Writing clusters 70%  Writing clusters 70%  Writing clusters 71%  Writing clusters 71%  Writing clusters 72%  Writing clusters 72%  Writing clusters 72%  Writing clusters 73%  Writing clusters 73%  Writing clusters 74%  Writing clusters 74%  Writing clusters 74%  Writing clusters 75%  Writing clusters 75%  Writing clusters 76%  Writing clusters 76%  Writing clusters 76%  Writing clusters 77%  Writing clusters 77%  Writing clusters 78%  Writing clusters 78%  Writing clusters 78%  Writing clusters 79%  Writing clusters 79%  Writing clusters 80%  Writing clusters 80%  Writing clusters 80%  Writing clusters 81%  Writing clusters 81%  Writing clusters 82%  Writing clusters 82%  Writing clusters 82%  Writing clusters 83%  Writing clusters 83%  Writing clusters 84%  Writing clusters 84%  Writing clusters 84%  Writing clusters 85%  Writing clusters 85%  Writing clusters 86%  Writing clusters 86%  Writing clusters 86%  Writing clusters 87%  Writing clusters 87%  Writing clusters 88%  Writing clusters 88%  Writing clusters 88%  Writing clusters 89%  Writing clusters 89%  Writing clusters 90%  Writing clusters 90%  Writing clusters 90%  Writing clusters 91%  Writing clusters 91%  Writing clusters 92%  Writing clusters 92%  Writing clusters 92%  Writing clusters 93%  Writing clusters 93%  Writing clusters 94%  Writing clusters 94%  Writing clusters 94%  Writing clusters 95%  Writing clusters 95%  Writing clusters 96%  Writing clusters 96%  Writing clusters 96%  Writing clusters 97%  Writing clusters 97%  Writing clusters 98%  Writing clusters 98%  Writing clusters 98%  Writing clusters 99%  Writing clusters 99%  Writing clusters 100%  Writing clusters 100%
-    Clusters: 89 Size min 1, max 12, avg 2.8
-    Singletons: 35, 14.0% of seqs, 39.3% of clusters
+    Clusters: 93 Size min 1, max 12, avg 2.7
+    Singletons: 40, 16.0% of seqs, 43.0% of clusters
     
-      vsearch/swarm time: 0.9
+      vsearch/swarm time: 0.6
 --> getting annotations for final partition
     running 10 procs
-      hmm step time: 2.5
+      hmm step time: 2.7
     read output
-        processed 104 hmm output lines with 250 sequences in 104 events
+        processed 108 hmm output lines with 250 sequences in 108 events
+          189 boundary warnings
       total time: 7.4
 TEST          cache-parameters-data   ./bin/partis cache-parameters --plotdir test/_new-results/test/plots/data --infname test/mishmash.fa --parameter-dir test/_new-results/test/parameters/data --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots
 caching parameters
@@ -244,7 +247,7 @@ smith-waterman   (removing less-likely alleles)
     keeping 9 v genes
     removing 1 v genes: 0 with no matches, 1 with unconvincing matches (61 / 1322 queries had their best match removed)
       removed 25 / 1322 = 0.02 duplicate sequences after trimming framework insertions (leaving 1297)
-        water time: 5.9
+        water time: 5.5
 smith-waterman   (writing parameters) 
         processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon      indel-fails      super-high-mutation
           1394             263              0                          88              53               0               0               0              67              55             increasing mismatch score (1 --> 2) and rerunning them
@@ -254,94 +257,99 @@ smith-waterman   (writing parameters)
       info for 1322 / 1394 = 0.948
       kept 398 (0.286) unproductive
       removed 25 / 1322 = 0.02 duplicate sequences after trimming framework insertions (leaving 1297)
-  plotting parameters (13.4 sec)
+  plotting parameters (12.8 sec)
     writing parameters (0.2 sec)
         writing sw results to test/_new-results/test/parameters/data/sw-cache-42567064353669083.csv
-        water time: 19.6
-  writing hmms (5.0 sec)
+        water time: 18.8
+  writing hmms (6.4 sec)
 hmm
     running 10 procs
     read output
-  plotting parameters (9.5 sec)
+  plotting parameters (11.3 sec)
     writing parameters (0.2 sec)
         processed 1297 hmm output lines with 1292 sequences in 1292 events
             [91mwarning[0m skipped 5 invalid events
-          3 boundary warnings
-      hmm step time: 16.4
-  writing hmms (4.6 sec)
-      total time: 51.6
+          1279 boundary warnings
+      hmm step time: 18.7
+  writing hmms (5.1 sec)
+      total time: 54.6
 TEST                       simulate   ./bin/partis simulate --n-sim-events 500 --n-trees 500 --n-leaves 2 --mimic-data-read-length --parameter-dir test/_new-results/test/parameters/data --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --outfname test/_new-results/test/simu.csv
   [91mwarning[0m genes IGHV3-53*02 in <only_genes> aren't in glfo to begin with
 simulating
    read 500 events from 10 files
-      total time: 5.5
+      total time: 5.4
 TEST          cache-parameters-simu   ./bin/partis cache-parameters --plotdir test/_new-results/test/plots/simu --is-simu --infname test/_new-results/test/simu.csv --parameter-dir test/_new-results/test/parameters/simu --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots
 caching parameters
 smith-waterman   (removing less-likely alleles) 
         processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon      indel-fails      super-high-mutation
-           989             158              0                          46              83               0               0               0              13              16             increasing mismatch score (1 --> 2) and rerunning them
-           158               7              4                           0               3               0               0               0               0               0             rerunning for indels
-             7               3              0                           0               3               0               0               0               0               0             increasing mismatch score (2 --> 3) and rerunning them
-             3         all done
-      info for 989 / 989 = 1.000
-      kept 445 (0.450) unproductive
-    keeping 9 v genes
-    removing 1 v genes: 0 with no matches, 1 with unconvincing matches (21 / 989 queries had their best match removed)
+           986             136              0                          43              63               0               0               0              19              11             increasing mismatch score (1 --> 2) and rerunning them
+           136              12              6                           0               4               0               0               0               0               2             rerunning for indels
+            12               8              0                           0               4               0               0               0               0               4             increasing mismatch score (2 --> 3) and rerunning them
+             8               2              0                           0               0               0               0               0               2               0             increasing mismatch score (3 --> 4) and rerunning them
+      info for 984 / 986 = 0.998
+      kept 430 (0.436) unproductive
+            missing annotations: 8868955707896282661 -4335524723127089957
+    keeping 8 v genes
+    removing 2 v genes: 1 with no matches, 1 with unconvincing matches (27 / 984 queries had their best match removed)
         water time: 4.2
 smith-waterman   (writing parameters) 
         processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon      indel-fails      super-high-mutation
-           989             157              0                          46              83               0               0               0              12              16             increasing mismatch score (1 --> 2) and rerunning them
-           157               7              4                           0               3               0               0               0               0               0             rerunning for indels
-             7               3              0                           0               3               0               0               0               0               0             increasing mismatch score (2 --> 3) and rerunning them
-             3         all done
-      info for 989 / 989 = 1.000
-      kept 445 (0.450) unproductive
-  plotting parameters (11.7 sec)
-  plotting parameters (10.2 sec)
+           986             136              0                          43              63               0               0               0              19              11             increasing mismatch score (1 --> 2) and rerunning them
+           136              12              6                           0               4               0               0               0               0               2             rerunning for indels
+            12               8              0                           0               4               0               0               0               0               4             increasing mismatch score (2 --> 3) and rerunning them
+             8               2              0                           0               0               0               0               0               2               0             increasing mismatch score (3 --> 4) and rerunning them
+      info for 984 / 986 = 0.998
+      kept 430 (0.436) unproductive
+            missing annotations: 8868955707896282661 -4335524723127089957
+  plotting parameters (10.9 sec)
+  plotting parameters (9.3 sec)
     writing parameters (0.2 sec)
     writing parameters (0.2 sec)
-        writing sw results to test/_new-results/test/parameters/simu/sw-cache-1819390491717422298.csv
-        water time: 26.4
-  writing hmms (5.6 sec)
+        writing sw results to test/_new-results/test/parameters/simu/sw-cache-4925594607402993713.csv
+        water time: 24.7
+  writing hmms (4.4 sec)
 hmm
     running 10 procs
     read output
-  plotting parameters (9.4 sec)
-    writing parameters (0.2 sec)
   plotting parameters (9.7 sec)
-    writing parameters (0.1 sec)
-        processed 989 hmm output lines with 989 sequences in 989 events
-          3 boundary warnings
-      hmm step time: 26.1
-  writing hmms (4.6 sec)
-      total time: 67.7
+    writing parameters (0.3 sec)
+  plotting parameters (9.5 sec)
+    writing parameters (0.2 sec)
+        processed 984 hmm output lines with 984 sequences in 984 events
+          957 boundary warnings
+      hmm step time: 25.6
+  writing hmms (4.5 sec)
+      total time: 64.1
 TEST              annotate-new-simu   ./bin/partis run-viterbi --plotdir test/_new-results/simu-new-performance --plot-performance --is-simu --infname test/_new-results/test/simu.csv --parameter-dir test/_new-results/test/parameters/simu --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --outfname test/_new-results/annotate-new-simu.csv
-  [91mwarning[0m genes IGHV3-53*02 in <only_genes> aren't in glfo to begin with
+  [91mwarning[0m genes IGHV3-53*02 IGHV3-23D*02 in <only_genes> aren't in glfo to begin with
 running viterbi
 smith-waterman 
         processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon      indel-fails      super-high-mutation
-           989             157              0                          46              83               0               0               0              12              16             increasing mismatch score (1 --> 2) and rerunning them
-           157               7              4                           0               3               0               0               0               0               0             rerunning for indels
-    skipping performance evaluation of -1979053974082239020 because of indels
-    skipping performance evaluation of -7527563060713875821 because of indels
-    skipping performance evaluation of 4220838451894163641 because of indels
-    skipping performance evaluation of 8955669359401423438 because of indels
-             7               3              0                           0               3               0               0               0               0               0             increasing mismatch score (2 --> 3) and rerunning them
-             3         all done
-      info for 989 / 989 = 1.000
-      kept 445 (0.450) unproductive
-        water time: 7.1
+           986             136              0                          43              63               0               0               0              19              11             increasing mismatch score (1 --> 2) and rerunning them
+           136              12              6                           0               4               0               0               0               0               2             rerunning for indels
+    skipping performance evaluation of -7716116374022045105 because of indels
+    skipping performance evaluation of -899452001370928572 because of indels
+    skipping performance evaluation of -1970667886209414092 because of indels
+    skipping performance evaluation of -2123800050303696497 because of indels
+            12               8              0                           0               4               0               0               0               0               4             increasing mismatch score (2 --> 3) and rerunning them
+             8               2              0                           0               0               0               0               0               2               0             increasing mismatch score (3 --> 4) and rerunning them
+      info for 984 / 986 = 0.998
+      kept 430 (0.436) unproductive
+            missing annotations: 8868955707896282661 -4335524723127089957
+        water time: 7.2
 hmm
     running 10 procs
     read output
-    skipping performance evaluation of -1979053974082239020 because of indels
-    skipping performance evaluation of -7527563060713875821 because of indels
-    skipping performance evaluation of 4220838451894163641 because of indels
-    skipping performance evaluation of 8955669359401423438 because of indels
-        processed 989 hmm output lines with 989 sequences in 989 events
-          3 boundary warnings
-      hmm step time: 7.9
-      total time: 15.8
+    skipping performance evaluation of -7716116374022045105 because of indels
+    skipping performance evaluation of -899452001370928572 because of indels
+    skipping performance evaluation of -1970667886209414092 because of indels
+    skipping performance evaluation of -2123800050303696497 because of indels
+        processed 984 hmm output lines with 983 sequences in 983 events
+            [91mwarning[0m skipped 1 invalid events
+          950 boundary warnings
+          missing 1 input keys when writing hmm output to test/_new-results/annotate-new-simu.csv
+      hmm step time: 8.1
+      total time: 16.0
 TEST              annotate-new-data   ./bin/partis run-viterbi --n-max-queries 50 --infname test/mishmash.fa --parameter-dir test/_new-results/test/parameters/data --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --outfname test/_new-results/annotate-new-data.csv
   [91mwarning[0m genes IGHV3-53*02 in <only_genes> aren't in glfo to begin with
 running viterbi
@@ -355,174 +363,197 @@ smith-waterman
       kept 10 (0.200) unproductive
             missing annotations: crap-1 crap-3 crap-2 crap-5 crap-4 -2126437327330379358
       removed 3 / 44 = 0.07 duplicate sequences after trimming framework insertions (leaving 41)
-        water time: 1.1
+        water time: 1.2
 hmm
     running 10 procs
     read output
         processed 41 hmm output lines with 41 sequences in 41 events
-      hmm step time: 1.6
-      total time: 2.8
+          39 boundary warnings
+      hmm step time: 1.9
+      total time: 3.1
 TEST             partition-new-simu   ./bin/partis partition --n-max-queries 250 --persistent-cachefname test/_new-results/cache-new-partition.csv --n-precache-procs 10 --biggest-logprob-cluster-to-calculate 2 --biggest-naive-seq-cluster-to-calculate 2 --is-simu --infname test/_new-results/test/simu.csv --parameter-dir test/_new-results/test/parameters/simu --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --outfname test/_new-results/partition-new-simu.csv
-  [91mwarning[0m genes IGHV3-53*02 in <only_genes> aren't in glfo to begin with
+  [91mwarning[0m genes IGHV3-53*02 IGHV3-23D*02 in <only_genes> aren't in glfo to begin with
 partitioning
 smith-waterman 
         processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon      indel-fails      super-high-mutation
-           250              32              0                           4              21               0               0               0               4               3             increasing mismatch score (1 --> 2) and rerunning them
-            32         all done
-      info for 250 / 250 = 1.000
-      kept 113 (0.452) unproductive
-        water time: 1.1
+           250              31              0                           9              13               0               0               0               7               2             increasing mismatch score (1 --> 2) and rerunning them
+            31               2              2                           0               0               0               0               0               0               0             rerunning for indels
+             2               2              0                           0               0               0               0               0               0               2             increasing mismatch score (2 --> 3) and rerunning them
+             2               2              0                           0               0               0               0               0               2               0             increasing mismatch score (3 --> 4) and rerunning them
+      info for 248 / 250 = 0.992
+      kept 122 (0.488) unproductive
+            missing annotations: 8868955707896282661 -4335524723127089957
+        water time: 1.4
 hmm
---> caching all 250 naive sequences
+--> caching all 248 naive sequences
     running 10 procs
                 no/empty cache file
-                    calcd:         vtb 250        fwd   0
+                    calcd:         vtb 248        fwd   0
                    merged:       hfrac   0     lratio   0
              min-max time:  1.6 - 2.2 sec
-      hmm step time: 2.5
---> 250 clusters with 10 procs
-       naive hfrac bounds: 0.015 0.111   (0.117 mean mutation in parameter dir test/_new-results/test/parameters/simu/hmm)
+      hmm step time: 2.7
+--> 248 clusters with 10 procs
+       naive hfrac bounds: 0.015 0.111   (0.116 mean mutation in parameter dir test/_new-results/test/parameters/simu/hmm)
     running 10 procs
-          read from cache:  naive-seqs 250   logprobs   0
-                    calcd:         vtb  15        fwd 103
-                   merged:       hfrac  22     lratio   2
-             min-max time:  1.0 - 2.1 sec
-      hmm step time: 2.3
---> 226 clusters with 7 procs
+          read from cache:  naive-seqs 248   logprobs   0
+                    calcd:         vtb  23        fwd 160
+                   merged:       hfrac  26     lratio   3
+             min-max time:  0.7 - 2.1 sec
+      hmm step time: 2.6
+--> 219 clusters with 7 procs
     running 7 procs
-          read from cache:  naive-seqs 277   logprobs 103
-                    calcd:         vtb  15        fwd  57
-                   merged:       hfrac  29     lratio   1
-             min-max time:  1.3 - 1.8 sec
-      hmm step time: 2.1
---> 196 clusters with 5 procs
+          read from cache:  naive-seqs 278   logprobs 160
+                    calcd:         vtb  13        fwd 116
+                   merged:       hfrac  20     lratio   6
+             min-max time:  1.6 - 2.9 sec
+      hmm step time: 3.2
+--> 193 clusters with 5 procs
     running 5 procs
-          read from cache:  naive-seqs 309   logprobs 160
-                    calcd:         vtb  12        fwd  69
-                   merged:       hfrac  17     lratio   4
-             min-max time:  1.8 - 3.5 sec
-      hmm step time: 3.8
---> 175 clusters with 3 procs
+          read from cache:  naive-seqs 309   logprobs 276
+                    calcd:         vtb  14        fwd  83
+                   merged:       hfrac  20     lratio   5
+             min-max time:  1.3 - 4.8 sec
+      hmm step time: 5.2
+--> 168 clusters with 3 procs
     running 3 procs
-          read from cache:  naive-seqs 334   logprobs 229
-                    calcd:         vtb  11        fwd  82
-                   merged:       hfrac  17     lratio   6
-             min-max time:  2.7 - 4.7 sec
-      hmm step time: 5.0
---> 152 clusters with 2 procs
+          read from cache:  naive-seqs 340   logprobs 359
+                    calcd:         vtb  10        fwd  87
+                   merged:       hfrac  15     lratio   7
+             min-max time:  3.1 - 4.4 sec
+      hmm step time: 4.6
+--> 146 clusters with 2 procs
     running 2 procs
-          read from cache:  naive-seqs 363   logprobs 311
-                    calcd:         vtb   8        fwd  66
-                   merged:       hfrac  19     lratio   0
-             min-max time:  3.9 - 4.6 sec
-      hmm step time: 4.8
---> 133 clusters with 1 proc
+          read from cache:  naive-seqs 366   logprobs 446
+                    calcd:         vtb   5        fwd  90
+                   merged:       hfrac   9     lratio   5
+             min-max time:  4.9 - 6.1 sec
+      hmm step time: 6.3
+--> 132 clusters with 1 proc
     running 1 proc
-          read from cache:  naive-seqs 384   logprobs 377
-                    calcd:         vtb  12        fwd 127
-                   merged:       hfrac  17     lratio   4
-                     time:  11.8 sec
-      hmm step time: 12.0
-      loop time: 30.0
+          read from cache:  naive-seqs 385   logprobs 536
+                    calcd:         vtb  11        fwd 134
+                   merged:       hfrac  15     lratio   3
+                     time:  15.0 sec
+      hmm step time: 15.3
+      loop time: 37.2
 --> getting annotations for final partition
     running 10 procs
-      hmm step time: 2.8
+      hmm step time: 1.9
     read output
 ‘test/_new-results/cache-new-partition.csv.tmp’ -> ‘test/_new-results/cache-new-partition.csv’
-        processed 112 hmm output lines with 250 sequences in 112 events
-      total time: 37.4
-TEST        seed-partition-new-simu   ./bin/partis partition --n-max-queries -1 --n-precache-procs 10 --is-simu --infname test/_new-results/test/simu.csv --parameter-dir test/_new-results/test/parameters/simu --seed-unique-id 1274966731847979240 --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --outfname test/_new-results/seed-partition-new-simu.csv
-  [91mwarning[0m genes IGHV3-53*02 in <only_genes> aren't in glfo to begin with
+        processed 114 hmm output lines with 248 sequences in 114 events
+          208 boundary warnings
+      total time: 44.0
+TEST        seed-partition-new-simu   ./bin/partis partition --n-max-queries -1 --n-precache-procs 10 --is-simu --infname test/_new-results/test/simu.csv --parameter-dir test/_new-results/test/parameters/simu --seed-unique-id -7567050942218985505 --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --outfname test/_new-results/seed-partition-new-simu.csv
+  [91mwarning[0m genes IGHV3-53*02 IGHV3-23D*02 in <only_genes> aren't in glfo to begin with
 partitioning
 smith-waterman 
         processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon      indel-fails      super-high-mutation
-           989             157              0                          46              83               0               0               0              12              16             increasing mismatch score (1 --> 2) and rerunning them
-           157               7              4                           0               3               0               0               0               0               0             rerunning for indels
-             7               3              0                           0               3               0               0               0               0               0             increasing mismatch score (2 --> 3) and rerunning them
-             3         all done
-      info for 989 / 989 = 1.000
-      kept 445 (0.450) unproductive
-      removed 838 / 989 = 0.85 sequences with cdr3 length different from seed sequence (leaving 151)
-        water time: 2.6
+           986             136              0                          43              63               0               0               0              19              11             increasing mismatch score (1 --> 2) and rerunning them
+           136              12              6                           0               4               0               0               0               0               2             rerunning for indels
+            12               8              0                           0               4               0               0               0               0               4             increasing mismatch score (2 --> 3) and rerunning them
+             8               2              0                           0               0               0               0               0               2               0             increasing mismatch score (3 --> 4) and rerunning them
+      info for 984 / 986 = 0.998
+      kept 430 (0.436) unproductive
+            missing annotations: 8868955707896282661 -4335524723127089957
+      removed 809 / 984 = 0.82 sequences with cdr3 length different from seed sequence (leaving 175)
+        water time: 2.4
 hmm
---> caching all 151 naive sequences
+--> caching all 175 naive sequences
     running 10 procs
                 no/empty cache file
-                    calcd:         vtb 160        fwd   0
+                    calcd:         vtb 184        fwd   0
                    merged:       hfrac   0     lratio   0
-             min-max time:  1.2 - 1.5 sec
-      hmm step time: 1.9
---> 151 clusters with 10 procs
-       naive hfrac bounds: 0.015 0.111   (0.117 mean mutation in parameter dir test/_new-results/test/parameters/simu/hmm)
+             min-max time:  1.0 - 1.3 sec
+      hmm step time: 1.6
+--> 175 clusters with 10 procs
+       naive hfrac bounds: 0.015 0.111   (0.116 mean mutation in parameter dir test/_new-results/test/parameters/simu/hmm)
     running 10 procs
-          read from cache:  naive-seqs 151   logprobs   0
-                    calcd:         vtb  22        fwd 148
-                   merged:       hfrac  24     lratio   0
-             min-max time:  1.2 - 1.7 sec
-      hmm step time: 2.2
---> 136 clusters with 7 procs
+          read from cache:  naive-seqs 175   logprobs   0
+                    calcd:         vtb  31        fwd 138
+                   merged:       hfrac  32     lratio   0
+             min-max time:  1.2 - 2.3 sec
+      hmm step time: 2.7
+--> 152 clusters with 7 procs
     running 7 procs
-          read from cache:  naive-seqs 175   logprobs 148
-                    calcd:         vtb   2        fwd  64
-                   merged:       hfrac   3     lratio   0
-             min-max time:  1.0 - 3.1 sec
+          read from cache:  naive-seqs 207   logprobs 138
+                    calcd:         vtb   2        fwd  61
+                   merged:       hfrac   2     lratio   0
+             min-max time:  1.1 - 3.3 sec
       hmm step time: 3.6
---> 133 clusters with 5 procs
+--> 149 clusters with 5 procs
     running 5 procs
-          read from cache:  naive-seqs 178   logprobs 212
-                    calcd:         vtb   2        fwd  58
+          read from cache:  naive-seqs 209   logprobs 199
+                    calcd:         vtb   3        fwd  51
+                   merged:       hfrac   3     lratio   0
+             min-max time:  1.4 - 2.5 sec
+      hmm step time: 2.8
+      removing 141 sequences in unseeded clusters, and splitting 5 seeded clusters into 34 singletons
+        new n_procs 6 (initial seqs/proc: 17.50   new seqs/proc: 5.67
+--> 34 clusters with 6 procs
+    running 6 procs
+          read from cache:  naive-seqs 212   logprobs 250
+                    calcd:         vtb  27        fwd   0
+                   merged:       hfrac  28     lratio   0
+             min-max time:  0.8 - 0.9 sec
+      hmm step time: 1.2
+--> 6 clusters with 4 procs
+    running 4 procs
+          read from cache:  naive-seqs 240   logprobs 250
+                    calcd:         vtb   2        fwd   0
                    merged:       hfrac   2     lratio   0
-             min-max time:  0.9 - 5.0 sec
-      hmm step time: 5.3
-      removing 126 sequences in unseeded clusters, and splitting 5 seeded clusters into 25 singletons
-        new n_procs 3 (initial seqs/proc: 15.10   new seqs/proc: 8.33
---> 25 clusters with 3 procs
+             min-max time:  0.0 - 0.6 sec
+      hmm step time: 0.8
+--> 4 clusters with 3 procs
     running 3 procs
-          read from cache:  naive-seqs 180   logprobs 270
-                    calcd:         vtb  19        fwd   3
-                   merged:       hfrac  21     lratio   0
-             min-max time:  0.5 - 0.9 sec
-      hmm step time: 1.1
---> 4 clusters with 2 procs
-    running 2 procs
-          read from cache:  naive-seqs 201   logprobs 273
-                    calcd:         vtb   1        fwd   0
+          read from cache:  naive-seqs 242   logprobs 250
+                    calcd:         vtb   0        fwd   0
                    merged:       hfrac   1     lratio   0
-             min-max time:  0.0 - 0.4 sec
-      hmm step time: 0.7
---> 3 clusters with 1 proc
+             min-max time:  0.0 - 0.0 sec
+      hmm step time: 0.2
+--> 3 clusters with 2 procs
+    running 2 procs
+          read from cache:  naive-seqs 243   logprobs 250
+                    calcd:         vtb   0        fwd   0
+                   merged:       hfrac   1     lratio   0
+             min-max time:  0.0 - 0.0 sec
+      hmm step time: 0.2
+--> 2 clusters with 1 proc
     running 1 proc
-          read from cache:  naive-seqs 202   logprobs 273
+          read from cache:  naive-seqs 244   logprobs 250
                     calcd:         vtb   1        fwd   3
-                   merged:       hfrac   2     lratio   0
-                     time:  1.7 sec
-      hmm step time: 1.8
-      loop time: 14.7
+                   merged:       hfrac   1     lratio   0
+                     time:  1.9 sec
+      hmm step time: 2.1
+      loop time: 13.7
 --> getting annotations for final partition
     running 1 proc
-      hmm step time: 0.6
+      hmm step time: 1.3
     read output
-        processed 1 hmm output lines with 25 sequences in 1 events
-      total time: 20.4
+        processed 1 hmm output lines with 34 sequences in 1 events
+      total time: 19.8
 TEST     vsearch-partition-new-simu   ./bin/partis partition --naive-vsearch --n-max-queries 250 --n-precache-procs 10 --is-simu --infname test/_new-results/test/simu.csv --parameter-dir test/_new-results/test/parameters/simu --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --outfname test/_new-results/vsearch-partition-new-simu.csv
-  [91mwarning[0m genes IGHV3-53*02 in <only_genes> aren't in glfo to begin with
+  [91mwarning[0m genes IGHV3-53*02 IGHV3-23D*02 in <only_genes> aren't in glfo to begin with
 partitioning
 smith-waterman 
         processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon      indel-fails      super-high-mutation
-           250              32              0                           4              21               0               0               0               4               3             increasing mismatch score (1 --> 2) and rerunning them
-            32         all done
-      info for 250 / 250 = 1.000
-      kept 113 (0.452) unproductive
-        water time: 1.1
+           250              31              0                           9              13               0               0               0               7               2             increasing mismatch score (1 --> 2) and rerunning them
+            31               2              2                           0               0               0               0               0               0               0             rerunning for indels
+             2               2              0                           0               0               0               0               0               0               2             increasing mismatch score (2 --> 3) and rerunning them
+             2               2              0                           0               0               0               0               0               2               0             increasing mismatch score (3 --> 4) and rerunning them
+      info for 248 / 250 = 0.992
+      kept 122 (0.488) unproductive
+            missing annotations: 8868955707896282661 -4335524723127089957
+        water time: 1.4
 hmm
---> caching all 250 naive sequences
+--> caching all 248 naive sequences
     running 10 procs
                 no/empty cache file
-                    calcd:         vtb 250        fwd   0
+                    calcd:         vtb 248        fwd   0
                    merged:       hfrac   0     lratio   0
-             min-max time:  1.5 - 2.0 sec
-      hmm step time: 2.3
-       naive hfrac bounds: 0.033 0.033   (0.117 mean mutation in parameter dir test/_new-results/test/parameters/simu/hmm)
+             min-max time:  1.3 - 1.6 sec
+      hmm step time: 2.0
+       naive hfrac bounds: 0.033 0.033   (0.116 mean mutation in parameter dir test/_new-results/test/parameters/simu/hmm)
     using hfrac bound for vsearch 0.033
   stdout:
     vsearch v1.1.3_linux_x86_64, 62.8GB RAM, 16 cores
@@ -530,21 +561,22 @@ hmm
     
     
   stderr:
-    Reading file /tmp/dralph/hmms/164256/simu.fasta 0%  Reading file /tmp/dralph/hmms/164256/simu.fasta 0%  Reading file /tmp/dralph/hmms/164256/simu.fasta 1%  Reading file /tmp/dralph/hmms/164256/simu.fasta 2%  Reading file /tmp/dralph/hmms/164256/simu.fasta 3%  Reading file /tmp/dralph/hmms/164256/simu.fasta 4%  Reading file /tmp/dralph/hmms/164256/simu.fasta 4%  Reading file /tmp/dralph/hmms/164256/simu.fasta 5%  Reading file /tmp/dralph/hmms/164256/simu.fasta 6%  Reading file /tmp/dralph/hmms/164256/simu.fasta 7%  Reading file /tmp/dralph/hmms/164256/simu.fasta 8%  Reading file /tmp/dralph/hmms/164256/simu.fasta 8%  Reading file /tmp/dralph/hmms/164256/simu.fasta 9%  Reading file /tmp/dralph/hmms/164256/simu.fasta 10%  Reading file /tmp/dralph/hmms/164256/simu.fasta 11%  Reading file /tmp/dralph/hmms/164256/simu.fasta 12%  Reading file /tmp/dralph/hmms/164256/simu.fasta 12%  Reading file /tmp/dralph/hmms/164256/simu.fasta 13%  Reading file /tmp/dralph/hmms/164256/simu.fasta 14%  Reading file /tmp/dralph/hmms/164256/simu.fasta 15%  Reading file /tmp/dralph/hmms/164256/simu.fasta 16%  Reading file /tmp/dralph/hmms/164256/simu.fasta 16%  Reading file /tmp/dralph/hmms/164256/simu.fasta 17%  Reading file /tmp/dralph/hmms/164256/simu.fasta 18%  Reading file /tmp/dralph/hmms/164256/simu.fasta 19%  Reading file /tmp/dralph/hmms/164256/simu.fasta 20%  Reading file /tmp/dralph/hmms/164256/simu.fasta 20%  Reading file /tmp/dralph/hmms/164256/simu.fasta 21%  Reading file /tmp/dralph/hmms/164256/simu.fasta 22%  Reading file /tmp/dralph/hmms/164256/simu.fasta 23%  Reading file /tmp/dralph/hmms/164256/simu.fasta 24%  Reading file /tmp/dralph/hmms/164256/simu.fasta 24%  Reading file /tmp/dralph/hmms/164256/simu.fasta 25%  Reading file /tmp/dralph/hmms/164256/simu.fasta 26%  Reading file /tmp/dralph/hmms/164256/simu.fasta 27%  Reading file /tmp/dralph/hmms/164256/simu.fasta 28%  Reading file /tmp/dralph/hmms/164256/simu.fasta 28%  Reading file /tmp/dralph/hmms/164256/simu.fasta 29%  Reading file /tmp/dralph/hmms/164256/simu.fasta 30%  Reading file /tmp/dralph/hmms/164256/simu.fasta 31%  Reading file /tmp/dralph/hmms/164256/simu.fasta 32%  Reading file /tmp/dralph/hmms/164256/simu.fasta 32%  Reading file /tmp/dralph/hmms/164256/simu.fasta 33%  Reading file /tmp/dralph/hmms/164256/simu.fasta 34%  Reading file /tmp/dralph/hmms/164256/simu.fasta 35%  Reading file /tmp/dralph/hmms/164256/simu.fasta 36%  Reading file /tmp/dralph/hmms/164256/simu.fasta 36%  Reading file /tmp/dralph/hmms/164256/simu.fasta 37%  Reading file /tmp/dralph/hmms/164256/simu.fasta 38%  Reading file /tmp/dralph/hmms/164256/simu.fasta 39%  Reading file /tmp/dralph/hmms/164256/simu.fasta 40%  Reading file /tmp/dralph/hmms/164256/simu.fasta 40%  Reading file /tmp/dralph/hmms/164256/simu.fasta 41%  Reading file /tmp/dralph/hmms/164256/simu.fasta 42%  Reading file /tmp/dralph/hmms/164256/simu.fasta 43%  Reading file /tmp/dralph/hmms/164256/simu.fasta 44%  Reading file /tmp/dralph/hmms/164256/simu.fasta 44%  Reading file /tmp/dralph/hmms/164256/simu.fasta 45%  Reading file /tmp/dralph/hmms/164256/simu.fasta 46%  Reading file /tmp/dralph/hmms/164256/simu.fasta 47%  Reading file /tmp/dralph/hmms/164256/simu.fasta 47%  Reading file /tmp/dralph/hmms/164256/simu.fasta 48%  Reading file /tmp/dralph/hmms/164256/simu.fasta 49%  Reading file /tmp/dralph/hmms/164256/simu.fasta 50%  Reading file /tmp/dralph/hmms/164256/simu.fasta 51%  Reading file /tmp/dralph/hmms/164256/simu.fasta 52%  Reading file /tmp/dralph/hmms/164256/simu.fasta 52%  Reading file /tmp/dralph/hmms/164256/simu.fasta 53%  Reading file /tmp/dralph/hmms/164256/simu.fasta 54%  Reading file /tmp/dralph/hmms/164256/simu.fasta 55%  Reading file /tmp/dralph/hmms/164256/simu.fasta 56%  Reading file /tmp/dralph/hmms/164256/simu.fasta 56%  Reading file /tmp/dralph/hmms/164256/simu.fasta 57%  Reading file /tmp/dralph/hmms/164256/simu.fasta 58%  Reading file /tmp/dralph/hmms/164256/simu.fasta 59%  Reading file /tmp/dralph/hmms/164256/simu.fasta 60%  Reading file /tmp/dralph/hmms/164256/simu.fasta 60%  Reading file /tmp/dralph/hmms/164256/simu.fasta 61%  Reading file /tmp/dralph/hmms/164256/simu.fasta 62%  Reading file /tmp/dralph/hmms/164256/simu.fasta 63%  Reading file /tmp/dralph/hmms/164256/simu.fasta 64%  Reading file /tmp/dralph/hmms/164256/simu.fasta 64%  Reading file /tmp/dralph/hmms/164256/simu.fasta 65%  Reading file /tmp/dralph/hmms/164256/simu.fasta 66%  Reading file /tmp/dralph/hmms/164256/simu.fasta 67%  Reading file /tmp/dralph/hmms/164256/simu.fasta 68%  Reading file /tmp/dralph/hmms/164256/simu.fasta 68%  Reading file /tmp/dralph/hmms/164256/simu.fasta 69%  Reading file /tmp/dralph/hmms/164256/simu.fasta 70%  Reading file /tmp/dralph/hmms/164256/simu.fasta 71%  Reading file /tmp/dralph/hmms/164256/simu.fasta 72%  Reading file /tmp/dralph/hmms/164256/simu.fasta 73%  Reading file /tmp/dralph/hmms/164256/simu.fasta 73%  Reading file /tmp/dralph/hmms/164256/simu.fasta 74%  Reading file /tmp/dralph/hmms/164256/simu.fasta 75%  Reading file /tmp/dralph/hmms/164256/simu.fasta 76%  Reading file /tmp/dralph/hmms/164256/simu.fasta 77%  Reading file /tmp/dralph/hmms/164256/simu.fasta 77%  Reading file /tmp/dralph/hmms/164256/simu.fasta 78%  Reading file /tmp/dralph/hmms/164256/simu.fasta 79%  Reading file /tmp/dralph/hmms/164256/simu.fasta 80%  Reading file /tmp/dralph/hmms/164256/simu.fasta 80%  Reading file /tmp/dralph/hmms/164256/simu.fasta 81%  Reading file /tmp/dralph/hmms/164256/simu.fasta 82%  Reading file /tmp/dralph/hmms/164256/simu.fasta 83%  Reading file /tmp/dralph/hmms/164256/simu.fasta 84%  Reading file /tmp/dralph/hmms/164256/simu.fasta 84%  Reading file /tmp/dralph/hmms/164256/simu.fasta 85%  Reading file /tmp/dralph/hmms/164256/simu.fasta 86%  Reading file /tmp/dralph/hmms/164256/simu.fasta 87%  Reading file /tmp/dralph/hmms/164256/simu.fasta 88%  Reading file /tmp/dralph/hmms/164256/simu.fasta 88%  Reading file /tmp/dralph/hmms/164256/simu.fasta 89%  Reading file /tmp/dralph/hmms/164256/simu.fasta 90%  Reading file /tmp/dralph/hmms/164256/simu.fasta 91%  Reading file /tmp/dralph/hmms/164256/simu.fasta 92%  Reading file /tmp/dralph/hmms/164256/simu.fasta 92%  Reading file /tmp/dralph/hmms/164256/simu.fasta 93%  Reading file /tmp/dralph/hmms/164256/simu.fasta 94%  Reading file /tmp/dralph/hmms/164256/simu.fasta 95%  Reading file /tmp/dralph/hmms/164256/simu.fasta 96%  Reading file /tmp/dralph/hmms/164256/simu.fasta 96%  Reading file /tmp/dralph/hmms/164256/simu.fasta 97%  Reading file /tmp/dralph/hmms/164256/simu.fasta 98%  Reading file /tmp/dralph/hmms/164256/simu.fasta 99%  Reading file /tmp/dralph/hmms/164256/simu.fasta 100%  Reading file /tmp/dralph/hmms/164256/simu.fasta 100%
-    92952 nt in 250 seqs, min 349, max 400, avg 372
-    Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 1%  Indexing sequences 1%  Indexing sequences 2%  Indexing sequences 2%  Indexing sequences 2%  Indexing sequences 3%  Indexing sequences 3%  Indexing sequences 4%  Indexing sequences 4%  Indexing sequences 4%  Indexing sequences 5%  Indexing sequences 5%  Indexing sequences 6%  Indexing sequences 6%  Indexing sequences 6%  Indexing sequences 7%  Indexing sequences 7%  Indexing sequences 8%  Indexing sequences 8%  Indexing sequences 8%  Indexing sequences 9%  Indexing sequences 9%  Indexing sequences 10%  Indexing sequences 10%  Indexing sequences 10%  Indexing sequences 11%  Indexing sequences 11%  Indexing sequences 12%  Indexing sequences 12%  Indexing sequences 12%  Indexing sequences 13%  Indexing sequences 13%  Indexing sequences 14%  Indexing sequences 14%  Indexing sequences 14%  Indexing sequences 15%  Indexing sequences 15%  Indexing sequences 16%  Indexing sequences 16%  Indexing sequences 16%  Indexing sequences 17%  Indexing sequences 17%  Indexing sequences 18%  Indexing sequences 18%  Indexing sequences 18%  Indexing sequences 19%  Indexing sequences 19%  Indexing sequences 20%  Indexing sequences 20%  Indexing sequences 20%  Indexing sequences 21%  Indexing sequences 21%  Indexing sequences 22%  Indexing sequences 22%  Indexing sequences 22%  Indexing sequences 23%  Indexing sequences 23%  Indexing sequences 24%  Indexing sequences 24%  Indexing sequences 24%  Indexing sequences 25%  Indexing sequences 25%  Indexing sequences 26%  Indexing sequences 26%  Indexing sequences 26%  Indexing sequences 27%  Indexing sequences 27%  Indexing sequences 28%  Indexing sequences 28%  Indexing sequences 28%  Indexing sequences 29%  Indexing sequences 29%  Indexing sequences 30%  Indexing sequences 30%  Indexing sequences 30%  Indexing sequences 31%  Indexing sequences 31%  Indexing sequences 32%  Indexing sequences 32%  Indexing sequences 32%  Indexing sequences 33%  Indexing sequences 33%  Indexing sequences 34%  Indexing sequences 34%  Indexing sequences 34%  Indexing sequences 35%  Indexing sequences 35%  Indexing sequences 36%  Indexing sequences 36%  Indexing sequences 36%  Indexing sequences 37%  Indexing sequences 37%  Indexing sequences 38%  Indexing sequences 38%  Indexing sequences 38%  Indexing sequences 39%  Indexing sequences 39%  Indexing sequences 40%  Indexing sequences 40%  Indexing sequences 40%  Indexing sequences 41%  Indexing sequences 41%  Indexing sequences 42%  Indexing sequences 42%  Indexing sequences 42%  Indexing sequences 43%  Indexing sequences 43%  Indexing sequences 44%  Indexing sequences 44%  Indexing sequences 44%  Indexing sequences 45%  Indexing sequences 45%  Indexing sequences 46%  Indexing sequences 46%  Indexing sequences 46%  Indexing sequences 47%  Indexing sequences 47%  Indexing sequences 48%  Indexing sequences 48%  Indexing sequences 48%  Indexing sequences 49%  Indexing sequences 49%  Indexing sequences 50%  Indexing sequences 50%  Indexing sequences 50%  Indexing sequences 51%  Indexing sequences 51%  Indexing sequences 52%  Indexing sequences 52%  Indexing sequences 52%  Indexing sequences 53%  Indexing sequences 53%  Indexing sequences 54%  Indexing sequences 54%  Indexing sequences 54%  Indexing sequences 55%  Indexing sequences 55%  Indexing sequences 56%  Indexing sequences 56%  Indexing sequences 56%  Indexing sequences 57%  Indexing sequences 57%  Indexing sequences 58%  Indexing sequences 58%  Indexing sequences 58%  Indexing sequences 59%  Indexing sequences 59%  Indexing sequences 60%  Indexing sequences 60%  Indexing sequences 60%  Indexing sequences 61%  Indexing sequences 61%  Indexing sequences 62%  Indexing sequences 62%  Indexing sequences 62%  Indexing sequences 63%  Indexing sequences 63%  Indexing sequences 64%  Indexing sequences 64%  Indexing sequences 64%  Indexing sequences 65%  Indexing sequences 65%  Indexing sequences 66%  Indexing sequences 66%  Indexing sequences 66%  Indexing sequences 67%  Indexing sequences 67%  Indexing sequences 68%  Indexing sequences 68%  Indexing sequences 68%  Indexing sequences 69%  Indexing sequences 69%  Indexing sequences 70%  Indexing sequences 70%  Indexing sequences 70%  Indexing sequences 71%  Indexing sequences 71%  Indexing sequences 72%  Indexing sequences 72%  Indexing sequences 72%  Indexing sequences 73%  Indexing sequences 73%  Indexing sequences 74%  Indexing sequences 74%  Indexing sequences 74%  Indexing sequences 75%  Indexing sequences 75%  Indexing sequences 76%  Indexing sequences 76%  Indexing sequences 76%  Indexing sequences 77%  Indexing sequences 77%  Indexing sequences 78%  Indexing sequences 78%  Indexing sequences 78%  Indexing sequences 79%  Indexing sequences 79%  Indexing sequences 80%  Indexing sequences 80%  Indexing sequences 80%  Indexing sequences 81%  Indexing sequences 81%  Indexing sequences 82%  Indexing sequences 82%  Indexing sequences 82%  Indexing sequences 83%  Indexing sequences 83%  Indexing sequences 84%  Indexing sequences 84%  Indexing sequences 84%  Indexing sequences 85%  Indexing sequences 85%  Indexing sequences 86%  Indexing sequences 86%  Indexing sequences 86%  Indexing sequences 87%  Indexing sequences 87%  Indexing sequences 88%  Indexing sequences 88%  Indexing sequences 88%  Indexing sequences 89%  Indexing sequences 89%  Indexing sequences 90%  Indexing sequences 90%  Indexing sequences 90%  Indexing sequences 91%  Indexing sequences 91%  Indexing sequences 92%  Indexing sequences 92%  Indexing sequences 92%  Indexing sequences 93%  Indexing sequences 93%  Indexing sequences 94%  Indexing sequences 94%  Indexing sequences 94%  Indexing sequences 95%  Indexing sequences 95%  Indexing sequences 96%  Indexing sequences 96%  Indexing sequences 96%  Indexing sequences 97%  Indexing sequences 97%  Indexing sequences 98%  Indexing sequences 98%  Indexing sequences 98%  Indexing sequences 99%  Indexing sequences 99%  Indexing sequences 100%  Indexing sequences 100%
+    Reading file /tmp/dralph/hmms/332009/simu.fasta 0%  Reading file /tmp/dralph/hmms/332009/simu.fasta 0%  Reading file /tmp/dralph/hmms/332009/simu.fasta 1%  Reading file /tmp/dralph/hmms/332009/simu.fasta 2%  Reading file /tmp/dralph/hmms/332009/simu.fasta 3%  Reading file /tmp/dralph/hmms/332009/simu.fasta 4%  Reading file /tmp/dralph/hmms/332009/simu.fasta 4%  Reading file /tmp/dralph/hmms/332009/simu.fasta 5%  Reading file /tmp/dralph/hmms/332009/simu.fasta 6%  Reading file /tmp/dralph/hmms/332009/simu.fasta 7%  Reading file /tmp/dralph/hmms/332009/simu.fasta 8%  Reading file /tmp/dralph/hmms/332009/simu.fasta 9%  Reading file /tmp/dralph/hmms/332009/simu.fasta 9%  Reading file /tmp/dralph/hmms/332009/simu.fasta 10%  Reading file /tmp/dralph/hmms/332009/simu.fasta 11%  Reading file /tmp/dralph/hmms/332009/simu.fasta 12%  Reading file /tmp/dralph/hmms/332009/simu.fasta 13%  Reading file /tmp/dralph/hmms/332009/simu.fasta 13%  Reading file /tmp/dralph/hmms/332009/simu.fasta 14%  Reading file /tmp/dralph/hmms/332009/simu.fasta 15%  Reading file /tmp/dralph/hmms/332009/simu.fasta 16%  Reading file /tmp/dralph/hmms/332009/simu.fasta 17%  Reading file /tmp/dralph/hmms/332009/simu.fasta 17%  Reading file /tmp/dralph/hmms/332009/simu.fasta 18%  Reading file /tmp/dralph/hmms/332009/simu.fasta 19%  Reading file /tmp/dralph/hmms/332009/simu.fasta 20%  Reading file /tmp/dralph/hmms/332009/simu.fasta 21%  Reading file /tmp/dralph/hmms/332009/simu.fasta 21%  Reading file /tmp/dralph/hmms/332009/simu.fasta 22%  Reading file /tmp/dralph/hmms/332009/simu.fasta 23%  Reading file /tmp/dralph/hmms/332009/simu.fasta 24%  Reading file /tmp/dralph/hmms/332009/simu.fasta 25%  Reading file /tmp/dralph/hmms/332009/simu.fasta 25%  Reading file /tmp/dralph/hmms/332009/simu.fasta 26%  Reading file /tmp/dralph/hmms/332009/simu.fasta 27%  Reading file /tmp/dralph/hmms/332009/simu.fasta 28%  Reading file /tmp/dralph/hmms/332009/simu.fasta 29%  Reading file /tmp/dralph/hmms/332009/simu.fasta 29%  Reading file /tmp/dralph/hmms/332009/simu.fasta 30%  Reading file /tmp/dralph/hmms/332009/simu.fasta 31%  Reading file /tmp/dralph/hmms/332009/simu.fasta 32%  Reading file /tmp/dralph/hmms/332009/simu.fasta 33%  Reading file /tmp/dralph/hmms/332009/simu.fasta 33%  Reading file /tmp/dralph/hmms/332009/simu.fasta 34%  Reading file /tmp/dralph/hmms/332009/simu.fasta 35%  Reading file /tmp/dralph/hmms/332009/simu.fasta 36%  Reading file /tmp/dralph/hmms/332009/simu.fasta 37%  Reading file /tmp/dralph/hmms/332009/simu.fasta 38%  Reading file /tmp/dralph/hmms/332009/simu.fasta 38%  Reading file /tmp/dralph/hmms/332009/simu.fasta 39%  Reading file /tmp/dralph/hmms/332009/simu.fasta 40%  Reading file /tmp/dralph/hmms/332009/simu.fasta 41%  Reading file /tmp/dralph/hmms/332009/simu.fasta 42%  Reading file /tmp/dralph/hmms/332009/simu.fasta 42%  Reading file /tmp/dralph/hmms/332009/simu.fasta 43%  Reading file /tmp/dralph/hmms/332009/simu.fasta 44%  Reading file /tmp/dralph/hmms/332009/simu.fasta 45%  Reading file /tmp/dralph/hmms/332009/simu.fasta 46%  Reading file /tmp/dralph/hmms/332009/simu.fasta 46%  Reading file /tmp/dralph/hmms/332009/simu.fasta 47%  Reading file /tmp/dralph/hmms/332009/simu.fasta 48%  Reading file /tmp/dralph/hmms/332009/simu.fasta 49%  Reading file /tmp/dralph/hmms/332009/simu.fasta 50%  Reading file /tmp/dralph/hmms/332009/simu.fasta 50%  Reading file /tmp/dralph/hmms/332009/simu.fasta 51%  Reading file /tmp/dralph/hmms/332009/simu.fasta 52%  Reading file /tmp/dralph/hmms/332009/simu.fasta 53%  Reading file /tmp/dralph/hmms/332009/simu.fasta 54%  Reading file /tmp/dralph/hmms/332009/simu.fasta 54%  Reading file /tmp/dralph/hmms/332009/simu.fasta 55%  Reading file /tmp/dralph/hmms/332009/simu.fasta 56%  Reading file /tmp/dralph/hmms/332009/simu.fasta 57%  Reading file /tmp/dralph/hmms/332009/simu.fasta 58%  Reading file /tmp/dralph/hmms/332009/simu.fasta 59%  Reading file /tmp/dralph/hmms/332009/simu.fasta 59%  Reading file /tmp/dralph/hmms/332009/simu.fasta 60%  Reading file /tmp/dralph/hmms/332009/simu.fasta 61%  Reading file /tmp/dralph/hmms/332009/simu.fasta 62%  Reading file /tmp/dralph/hmms/332009/simu.fasta 63%  Reading file /tmp/dralph/hmms/332009/simu.fasta 63%  Reading file /tmp/dralph/hmms/332009/simu.fasta 64%  Reading file /tmp/dralph/hmms/332009/simu.fasta 65%  Reading file /tmp/dralph/hmms/332009/simu.fasta 66%  Reading file /tmp/dralph/hmms/332009/simu.fasta 67%  Reading file /tmp/dralph/hmms/332009/simu.fasta 67%  Reading file /tmp/dralph/hmms/332009/simu.fasta 68%  Reading file /tmp/dralph/hmms/332009/simu.fasta 69%  Reading file /tmp/dralph/hmms/332009/simu.fasta 70%  Reading file /tmp/dralph/hmms/332009/simu.fasta 71%  Reading file /tmp/dralph/hmms/332009/simu.fasta 71%  Reading file /tmp/dralph/hmms/332009/simu.fasta 72%  Reading file /tmp/dralph/hmms/332009/simu.fasta 73%  Reading file /tmp/dralph/hmms/332009/simu.fasta 74%  Reading file /tmp/dralph/hmms/332009/simu.fasta 75%  Reading file /tmp/dralph/hmms/332009/simu.fasta 75%  Reading file /tmp/dralph/hmms/332009/simu.fasta 76%  Reading file /tmp/dralph/hmms/332009/simu.fasta 77%  Reading file /tmp/dralph/hmms/332009/simu.fasta 78%  Reading file /tmp/dralph/hmms/332009/simu.fasta 79%  Reading file /tmp/dralph/hmms/332009/simu.fasta 79%  Reading file /tmp/dralph/hmms/332009/simu.fasta 80%  Reading file /tmp/dralph/hmms/332009/simu.fasta 81%  Reading file /tmp/dralph/hmms/332009/simu.fasta 82%  Reading file /tmp/dralph/hmms/332009/simu.fasta 83%  Reading file /tmp/dralph/hmms/332009/simu.fasta 84%  Reading file /tmp/dralph/hmms/332009/simu.fasta 84%  Reading file /tmp/dralph/hmms/332009/simu.fasta 85%  Reading file /tmp/dralph/hmms/332009/simu.fasta 86%  Reading file /tmp/dralph/hmms/332009/simu.fasta 87%  Reading file /tmp/dralph/hmms/332009/simu.fasta 88%  Reading file /tmp/dralph/hmms/332009/simu.fasta 88%  Reading file /tmp/dralph/hmms/332009/simu.fasta 89%  Reading file /tmp/dralph/hmms/332009/simu.fasta 90%  Reading file /tmp/dralph/hmms/332009/simu.fasta 91%  Reading file /tmp/dralph/hmms/332009/simu.fasta 92%  Reading file /tmp/dralph/hmms/332009/simu.fasta 92%  Reading file /tmp/dralph/hmms/332009/simu.fasta 93%  Reading file /tmp/dralph/hmms/332009/simu.fasta 94%  Reading file /tmp/dralph/hmms/332009/simu.fasta 95%  Reading file /tmp/dralph/hmms/332009/simu.fasta 96%  Reading file /tmp/dralph/hmms/332009/simu.fasta 96%  Reading file /tmp/dralph/hmms/332009/simu.fasta 97%  Reading file /tmp/dralph/hmms/332009/simu.fasta 98%  Reading file /tmp/dralph/hmms/332009/simu.fasta 99%  Reading file /tmp/dralph/hmms/332009/simu.fasta 100%  Reading file /tmp/dralph/hmms/332009/simu.fasta 100%
+    92538 nt in 248 seqs, min 349, max 401, avg 373
+    Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 1%  Indexing sequences 1%  Indexing sequences 2%  Indexing sequences 2%  Indexing sequences 2%  Indexing sequences 3%  Indexing sequences 3%  Indexing sequences 4%  Indexing sequences 4%  Indexing sequences 4%  Indexing sequences 5%  Indexing sequences 5%  Indexing sequences 6%  Indexing sequences 6%  Indexing sequences 6%  Indexing sequences 7%  Indexing sequences 7%  Indexing sequences 8%  Indexing sequences 8%  Indexing sequences 8%  Indexing sequences 9%  Indexing sequences 9%  Indexing sequences 10%  Indexing sequences 10%  Indexing sequences 10%  Indexing sequences 11%  Indexing sequences 11%  Indexing sequences 12%  Indexing sequences 12%  Indexing sequences 12%  Indexing sequences 13%  Indexing sequences 13%  Indexing sequences 14%  Indexing sequences 14%  Indexing sequences 15%  Indexing sequences 15%  Indexing sequences 15%  Indexing sequences 16%  Indexing sequences 16%  Indexing sequences 17%  Indexing sequences 17%  Indexing sequences 17%  Indexing sequences 18%  Indexing sequences 18%  Indexing sequences 19%  Indexing sequences 19%  Indexing sequences 19%  Indexing sequences 20%  Indexing sequences 20%  Indexing sequences 21%  Indexing sequences 21%  Indexing sequences 21%  Indexing sequences 22%  Indexing sequences 22%  Indexing sequences 23%  Indexing sequences 23%  Indexing sequences 23%  Indexing sequences 24%  Indexing sequences 24%  Indexing sequences 25%  Indexing sequences 25%  Indexing sequences 25%  Indexing sequences 26%  Indexing sequences 26%  Indexing sequences 27%  Indexing sequences 27%  Indexing sequences 27%  Indexing sequences 28%  Indexing sequences 28%  Indexing sequences 29%  Indexing sequences 29%  Indexing sequences 29%  Indexing sequences 30%  Indexing sequences 30%  Indexing sequences 31%  Indexing sequences 31%  Indexing sequences 31%  Indexing sequences 32%  Indexing sequences 32%  Indexing sequences 33%  Indexing sequences 33%  Indexing sequences 33%  Indexing sequences 34%  Indexing sequences 34%  Indexing sequences 35%  Indexing sequences 35%  Indexing sequences 35%  Indexing sequences 36%  Indexing sequences 36%  Indexing sequences 37%  Indexing sequences 37%  Indexing sequences 38%  Indexing sequences 38%  Indexing sequences 38%  Indexing sequences 39%  Indexing sequences 39%  Indexing sequences 40%  Indexing sequences 40%  Indexing sequences 40%  Indexing sequences 41%  Indexing sequences 41%  Indexing sequences 42%  Indexing sequences 42%  Indexing sequences 42%  Indexing sequences 43%  Indexing sequences 43%  Indexing sequences 44%  Indexing sequences 44%  Indexing sequences 44%  Indexing sequences 45%  Indexing sequences 45%  Indexing sequences 46%  Indexing sequences 46%  Indexing sequences 46%  Indexing sequences 47%  Indexing sequences 47%  Indexing sequences 48%  Indexing sequences 48%  Indexing sequences 48%  Indexing sequences 49%  Indexing sequences 49%  Indexing sequences 50%  Indexing sequences 50%  Indexing sequences 50%  Indexing sequences 51%  Indexing sequences 51%  Indexing sequences 52%  Indexing sequences 52%  Indexing sequences 52%  Indexing sequences 53%  Indexing sequences 53%  Indexing sequences 54%  Indexing sequences 54%  Indexing sequences 54%  Indexing sequences 55%  Indexing sequences 55%  Indexing sequences 56%  Indexing sequences 56%  Indexing sequences 56%  Indexing sequences 57%  Indexing sequences 57%  Indexing sequences 58%  Indexing sequences 58%  Indexing sequences 58%  Indexing sequences 59%  Indexing sequences 59%  Indexing sequences 60%  Indexing sequences 60%  Indexing sequences 60%  Indexing sequences 61%  Indexing sequences 61%  Indexing sequences 62%  Indexing sequences 62%  Indexing sequences 62%  Indexing sequences 63%  Indexing sequences 63%  Indexing sequences 64%  Indexing sequences 64%  Indexing sequences 65%  Indexing sequences 65%  Indexing sequences 65%  Indexing sequences 66%  Indexing sequences 66%  Indexing sequences 67%  Indexing sequences 67%  Indexing sequences 67%  Indexing sequences 68%  Indexing sequences 68%  Indexing sequences 69%  Indexing sequences 69%  Indexing sequences 69%  Indexing sequences 70%  Indexing sequences 70%  Indexing sequences 71%  Indexing sequences 71%  Indexing sequences 71%  Indexing sequences 72%  Indexing sequences 72%  Indexing sequences 73%  Indexing sequences 73%  Indexing sequences 73%  Indexing sequences 74%  Indexing sequences 74%  Indexing sequences 75%  Indexing sequences 75%  Indexing sequences 75%  Indexing sequences 76%  Indexing sequences 76%  Indexing sequences 77%  Indexing sequences 77%  Indexing sequences 77%  Indexing sequences 78%  Indexing sequences 78%  Indexing sequences 79%  Indexing sequences 79%  Indexing sequences 79%  Indexing sequences 80%  Indexing sequences 80%  Indexing sequences 81%  Indexing sequences 81%  Indexing sequences 81%  Indexing sequences 82%  Indexing sequences 82%  Indexing sequences 83%  Indexing sequences 83%  Indexing sequences 83%  Indexing sequences 84%  Indexing sequences 84%  Indexing sequences 85%  Indexing sequences 85%  Indexing sequences 85%  Indexing sequences 86%  Indexing sequences 86%  Indexing sequences 87%  Indexing sequences 87%  Indexing sequences 88%  Indexing sequences 88%  Indexing sequences 88%  Indexing sequences 89%  Indexing sequences 89%  Indexing sequences 90%  Indexing sequences 90%  Indexing sequences 90%  Indexing sequences 91%  Indexing sequences 91%  Indexing sequences 92%  Indexing sequences 92%  Indexing sequences 92%  Indexing sequences 93%  Indexing sequences 93%  Indexing sequences 94%  Indexing sequences 94%  Indexing sequences 94%  Indexing sequences 95%  Indexing sequences 95%  Indexing sequences 96%  Indexing sequences 96%  Indexing sequences 96%  Indexing sequences 97%  Indexing sequences 97%  Indexing sequences 98%  Indexing sequences 98%  Indexing sequences 98%  Indexing sequences 99%  Indexing sequences 99%  Indexing sequences 100%  Indexing sequences 100%
     Masking 0%  Masking 100%
     Sorting by length 0%  Sorting by length 100%
-    Counting unique k-mers 0%  Counting unique k-mers 0%  Counting unique k-mers 0%  Counting unique k-mers 1%  Counting unique k-mers 1%  Counting unique k-mers 2%  Counting unique k-mers 2%  Counting unique k-mers 2%  Counting unique k-mers 3%  Counting unique k-mers 3%  Counting unique k-mers 4%  Counting unique k-mers 4%  Counting unique k-mers 4%  Counting unique k-mers 5%  Counting unique k-mers 5%  Counting unique k-mers 6%  Counting unique k-mers 6%  Counting unique k-mers 6%  Counting unique k-mers 7%  Counting unique k-mers 7%  Counting unique k-mers 8%  Counting unique k-mers 8%  Counting unique k-mers 8%  Counting unique k-mers 9%  Counting unique k-mers 9%  Counting unique k-mers 10%  Counting unique k-mers 10%  Counting unique k-mers 10%  Counting unique k-mers 11%  Counting unique k-mers 11%  Counting unique k-mers 12%  Counting unique k-mers 12%  Counting unique k-mers 12%  Counting unique k-mers 13%  Counting unique k-mers 13%  Counting unique k-mers 14%  Counting unique k-mers 14%  Counting unique k-mers 14%  Counting unique k-mers 15%  Counting unique k-mers 15%  Counting unique k-mers 16%  Counting unique k-mers 16%  Counting unique k-mers 16%  Counting unique k-mers 17%  Counting unique k-mers 17%  Counting unique k-mers 18%  Counting unique k-mers 18%  Counting unique k-mers 18%  Counting unique k-mers 19%  Counting unique k-mers 19%  Counting unique k-mers 20%  Counting unique k-mers 20%  Counting unique k-mers 20%  Counting unique k-mers 21%  Counting unique k-mers 21%  Counting unique k-mers 22%  Counting unique k-mers 22%  Counting unique k-mers 22%  Counting unique k-mers 23%  Counting unique k-mers 23%  Counting unique k-mers 24%  Counting unique k-mers 24%  Counting unique k-mers 24%  Counting unique k-mers 25%  Counting unique k-mers 25%  Counting unique k-mers 26%  Counting unique k-mers 26%  Counting unique k-mers 26%  Counting unique k-mers 27%  Counting unique k-mers 27%  Counting unique k-mers 28%  Counting unique k-mers 28%  Counting unique k-mers 28%  Counting unique k-mers 29%  Counting unique k-mers 29%  Counting unique k-mers 30%  Counting unique k-mers 30%  Counting unique k-mers 30%  Counting unique k-mers 31%  Counting unique k-mers 31%  Counting unique k-mers 32%  Counting unique k-mers 32%  Counting unique k-mers 32%  Counting unique k-mers 33%  Counting unique k-mers 33%  Counting unique k-mers 34%  Counting unique k-mers 34%  Counting unique k-mers 34%  Counting unique k-mers 35%  Counting unique k-mers 35%  Counting unique k-mers 36%  Counting unique k-mers 36%  Counting unique k-mers 36%  Counting unique k-mers 37%  Counting unique k-mers 37%  Counting unique k-mers 38%  Counting unique k-mers 38%  Counting unique k-mers 38%  Counting unique k-mers 39%  Counting unique k-mers 39%  Counting unique k-mers 40%  Counting unique k-mers 40%  Counting unique k-mers 40%  Counting unique k-mers 41%  Counting unique k-mers 41%  Counting unique k-mers 42%  Counting unique k-mers 42%  Counting unique k-mers 42%  Counting unique k-mers 43%  Counting unique k-mers 43%  Counting unique k-mers 44%  Counting unique k-mers 44%  Counting unique k-mers 44%  Counting unique k-mers 45%  Counting unique k-mers 45%  Counting unique k-mers 46%  Counting unique k-mers 46%  Counting unique k-mers 46%  Counting unique k-mers 47%  Counting unique k-mers 47%  Counting unique k-mers 48%  Counting unique k-mers 48%  Counting unique k-mers 48%  Counting unique k-mers 49%  Counting unique k-mers 49%  Counting unique k-mers 50%  Counting unique k-mers 50%  Counting unique k-mers 50%  Counting unique k-mers 51%  Counting unique k-mers 51%  Counting unique k-mers 52%  Counting unique k-mers 52%  Counting unique k-mers 52%  Counting unique k-mers 53%  Counting unique k-mers 53%  Counting unique k-mers 54%  Counting unique k-mers 54%  Counting unique k-mers 54%  Counting unique k-mers 55%  Counting unique k-mers 55%  Counting unique k-mers 56%  Counting unique k-mers 56%  Counting unique k-mers 56%  Counting unique k-mers 57%  Counting unique k-mers 57%  Counting unique k-mers 58%  Counting unique k-mers 58%  Counting unique k-mers 58%  Counting unique k-mers 59%  Counting unique k-mers 59%  Counting unique k-mers 60%  Counting unique k-mers 60%  Counting unique k-mers 60%  Counting unique k-mers 61%  Counting unique k-mers 61%  Counting unique k-mers 62%  Counting unique k-mers 62%  Counting unique k-mers 62%  Counting unique k-mers 63%  Counting unique k-mers 63%  Counting unique k-mers 64%  Counting unique k-mers 64%  Counting unique k-mers 64%  Counting unique k-mers 65%  Counting unique k-mers 65%  Counting unique k-mers 66%  Counting unique k-mers 66%  Counting unique k-mers 66%  Counting unique k-mers 67%  Counting unique k-mers 67%  Counting unique k-mers 68%  Counting unique k-mers 68%  Counting unique k-mers 68%  Counting unique k-mers 69%  Counting unique k-mers 69%  Counting unique k-mers 70%  Counting unique k-mers 70%  Counting unique k-mers 70%  Counting unique k-mers 71%  Counting unique k-mers 71%  Counting unique k-mers 72%  Counting unique k-mers 72%  Counting unique k-mers 72%  Counting unique k-mers 73%  Counting unique k-mers 73%  Counting unique k-mers 74%  Counting unique k-mers 74%  Counting unique k-mers 74%  Counting unique k-mers 75%  Counting unique k-mers 75%  Counting unique k-mers 76%  Counting unique k-mers 76%  Counting unique k-mers 76%  Counting unique k-mers 77%  Counting unique k-mers 77%  Counting unique k-mers 78%  Counting unique k-mers 78%  Counting unique k-mers 78%  Counting unique k-mers 79%  Counting unique k-mers 79%  Counting unique k-mers 80%  Counting unique k-mers 80%  Counting unique k-mers 80%  Counting unique k-mers 81%  Counting unique k-mers 81%  Counting unique k-mers 82%  Counting unique k-mers 82%  Counting unique k-mers 82%  Counting unique k-mers 83%  Counting unique k-mers 83%  Counting unique k-mers 84%  Counting unique k-mers 84%  Counting unique k-mers 84%  Counting unique k-mers 85%  Counting unique k-mers 85%  Counting unique k-mers 86%  Counting unique k-mers 86%  Counting unique k-mers 86%  Counting unique k-mers 87%  Counting unique k-mers 87%  Counting unique k-mers 88%  Counting unique k-mers 88%  Counting unique k-mers 88%  Counting unique k-mers 89%  Counting unique k-mers 89%  Counting unique k-mers 90%  Counting unique k-mers 90%  Counting unique k-mers 90%  Counting unique k-mers 91%  Counting unique k-mers 91%  Counting unique k-mers 92%  Counting unique k-mers 92%  Counting unique k-mers 92%  Counting unique k-mers 93%  Counting unique k-mers 93%  Counting unique k-mers 94%  Counting unique k-mers 94%  Counting unique k-mers 94%  Counting unique k-mers 95%  Counting unique k-mers 95%  Counting unique k-mers 96%  Counting unique k-mers 96%  Counting unique k-mers 96%  Counting unique k-mers 97%  Counting unique k-mers 97%  Counting unique k-mers 98%  Counting unique k-mers 98%  Counting unique k-mers 98%  Counting unique k-mers 99%  Counting unique k-mers 99%  Counting unique k-mers 100%  Counting unique k-mers 100%
-    Clustering 0%  Clustering 4%  Clustering 9%  Clustering 13%  Clustering 17%  Clustering 21%  Clustering 25%  Clustering 29%  Clustering 33%  Clustering 37%  Clustering 41%  Clustering 45%  Clustering 49%  Clustering 53%  Clustering 57%  Clustering 61%  Clustering 65%  Clustering 69%  Clustering 73%  Clustering 77%  Clustering 81%  Clustering 85%  Clustering 89%  Clustering 92%  Clustering 96%  Clustering 100%  Clustering 100%
-    Writing clusters 0%  Writing clusters 0%  Writing clusters 0%  Writing clusters 1%  Writing clusters 1%  Writing clusters 2%  Writing clusters 2%  Writing clusters 2%  Writing clusters 3%  Writing clusters 3%  Writing clusters 4%  Writing clusters 4%  Writing clusters 4%  Writing clusters 5%  Writing clusters 5%  Writing clusters 6%  Writing clusters 6%  Writing clusters 6%  Writing clusters 7%  Writing clusters 7%  Writing clusters 8%  Writing clusters 8%  Writing clusters 8%  Writing clusters 9%  Writing clusters 9%  Writing clusters 10%  Writing clusters 10%  Writing clusters 10%  Writing clusters 11%  Writing clusters 11%  Writing clusters 12%  Writing clusters 12%  Writing clusters 12%  Writing clusters 13%  Writing clusters 13%  Writing clusters 14%  Writing clusters 14%  Writing clusters 14%  Writing clusters 15%  Writing clusters 15%  Writing clusters 16%  Writing clusters 16%  Writing clusters 16%  Writing clusters 17%  Writing clusters 17%  Writing clusters 18%  Writing clusters 18%  Writing clusters 18%  Writing clusters 19%  Writing clusters 19%  Writing clusters 20%  Writing clusters 20%  Writing clusters 20%  Writing clusters 21%  Writing clusters 21%  Writing clusters 22%  Writing clusters 22%  Writing clusters 22%  Writing clusters 23%  Writing clusters 23%  Writing clusters 24%  Writing clusters 24%  Writing clusters 24%  Writing clusters 25%  Writing clusters 25%  Writing clusters 26%  Writing clusters 26%  Writing clusters 26%  Writing clusters 27%  Writing clusters 27%  Writing clusters 28%  Writing clusters 28%  Writing clusters 28%  Writing clusters 29%  Writing clusters 29%  Writing clusters 30%  Writing clusters 30%  Writing clusters 30%  Writing clusters 31%  Writing clusters 31%  Writing clusters 32%  Writing clusters 32%  Writing clusters 32%  Writing clusters 33%  Writing clusters 33%  Writing clusters 34%  Writing clusters 34%  Writing clusters 34%  Writing clusters 35%  Writing clusters 35%  Writing clusters 36%  Writing clusters 36%  Writing clusters 36%  Writing clusters 37%  Writing clusters 37%  Writing clusters 38%  Writing clusters 38%  Writing clusters 38%  Writing clusters 39%  Writing clusters 39%  Writing clusters 40%  Writing clusters 40%  Writing clusters 40%  Writing clusters 41%  Writing clusters 41%  Writing clusters 42%  Writing clusters 42%  Writing clusters 42%  Writing clusters 43%  Writing clusters 43%  Writing clusters 44%  Writing clusters 44%  Writing clusters 44%  Writing clusters 45%  Writing clusters 45%  Writing clusters 46%  Writing clusters 46%  Writing clusters 46%  Writing clusters 47%  Writing clusters 47%  Writing clusters 48%  Writing clusters 48%  Writing clusters 48%  Writing clusters 49%  Writing clusters 49%  Writing clusters 50%  Writing clusters 50%  Writing clusters 50%  Writing clusters 51%  Writing clusters 51%  Writing clusters 52%  Writing clusters 52%  Writing clusters 52%  Writing clusters 53%  Writing clusters 53%  Writing clusters 54%  Writing clusters 54%  Writing clusters 54%  Writing clusters 55%  Writing clusters 55%  Writing clusters 56%  Writing clusters 56%  Writing clusters 56%  Writing clusters 57%  Writing clusters 57%  Writing clusters 58%  Writing clusters 58%  Writing clusters 58%  Writing clusters 59%  Writing clusters 59%  Writing clusters 60%  Writing clusters 60%  Writing clusters 60%  Writing clusters 61%  Writing clusters 61%  Writing clusters 62%  Writing clusters 62%  Writing clusters 62%  Writing clusters 63%  Writing clusters 63%  Writing clusters 64%  Writing clusters 64%  Writing clusters 64%  Writing clusters 65%  Writing clusters 65%  Writing clusters 66%  Writing clusters 66%  Writing clusters 66%  Writing clusters 67%  Writing clusters 67%  Writing clusters 68%  Writing clusters 68%  Writing clusters 68%  Writing clusters 69%  Writing clusters 69%  Writing clusters 70%  Writing clusters 70%  Writing clusters 70%  Writing clusters 71%  Writing clusters 71%  Writing clusters 72%  Writing clusters 72%  Writing clusters 72%  Writing clusters 73%  Writing clusters 73%  Writing clusters 74%  Writing clusters 74%  Writing clusters 74%  Writing clusters 75%  Writing clusters 75%  Writing clusters 76%  Writing clusters 76%  Writing clusters 76%  Writing clusters 77%  Writing clusters 77%  Writing clusters 78%  Writing clusters 78%  Writing clusters 78%  Writing clusters 79%  Writing clusters 79%  Writing clusters 80%  Writing clusters 80%  Writing clusters 80%  Writing clusters 81%  Writing clusters 81%  Writing clusters 82%  Writing clusters 82%  Writing clusters 82%  Writing clusters 83%  Writing clusters 83%  Writing clusters 84%  Writing clusters 84%  Writing clusters 84%  Writing clusters 85%  Writing clusters 85%  Writing clusters 86%  Writing clusters 86%  Writing clusters 86%  Writing clusters 87%  Writing clusters 87%  Writing clusters 88%  Writing clusters 88%  Writing clusters 88%  Writing clusters 89%  Writing clusters 89%  Writing clusters 90%  Writing clusters 90%  Writing clusters 90%  Writing clusters 91%  Writing clusters 91%  Writing clusters 92%  Writing clusters 92%  Writing clusters 92%  Writing clusters 93%  Writing clusters 93%  Writing clusters 94%  Writing clusters 94%  Writing clusters 94%  Writing clusters 95%  Writing clusters 95%  Writing clusters 96%  Writing clusters 96%  Writing clusters 96%  Writing clusters 97%  Writing clusters 97%  Writing clusters 98%  Writing clusters 98%  Writing clusters 98%  Writing clusters 99%  Writing clusters 99%  Writing clusters 100%  Writing clusters 100%
-    Clusters: 89 Size min 1, max 12, avg 2.8
-    Singletons: 35, 14.0% of seqs, 39.3% of clusters
+    Counting unique k-mers 0%  Counting unique k-mers 0%  Counting unique k-mers 0%  Counting unique k-mers 1%  Counting unique k-mers 1%  Counting unique k-mers 2%  Counting unique k-mers 2%  Counting unique k-mers 2%  Counting unique k-mers 3%  Counting unique k-mers 3%  Counting unique k-mers 4%  Counting unique k-mers 4%  Counting unique k-mers 4%  Counting unique k-mers 5%  Counting unique k-mers 5%  Counting unique k-mers 6%  Counting unique k-mers 6%  Counting unique k-mers 6%  Counting unique k-mers 7%  Counting unique k-mers 7%  Counting unique k-mers 8%  Counting unique k-mers 8%  Counting unique k-mers 8%  Counting unique k-mers 9%  Counting unique k-mers 9%  Counting unique k-mers 10%  Counting unique k-mers 10%  Counting unique k-mers 10%  Counting unique k-mers 11%  Counting unique k-mers 11%  Counting unique k-mers 12%  Counting unique k-mers 12%  Counting unique k-mers 12%  Counting unique k-mers 13%  Counting unique k-mers 13%  Counting unique k-mers 14%  Counting unique k-mers 14%  Counting unique k-mers 15%  Counting unique k-mers 15%  Counting unique k-mers 15%  Counting unique k-mers 16%  Counting unique k-mers 16%  Counting unique k-mers 17%  Counting unique k-mers 17%  Counting unique k-mers 17%  Counting unique k-mers 18%  Counting unique k-mers 18%  Counting unique k-mers 19%  Counting unique k-mers 19%  Counting unique k-mers 19%  Counting unique k-mers 20%  Counting unique k-mers 20%  Counting unique k-mers 21%  Counting unique k-mers 21%  Counting unique k-mers 21%  Counting unique k-mers 22%  Counting unique k-mers 22%  Counting unique k-mers 23%  Counting unique k-mers 23%  Counting unique k-mers 23%  Counting unique k-mers 24%  Counting unique k-mers 24%  Counting unique k-mers 25%  Counting unique k-mers 25%  Counting unique k-mers 25%  Counting unique k-mers 26%  Counting unique k-mers 26%  Counting unique k-mers 27%  Counting unique k-mers 27%  Counting unique k-mers 27%  Counting unique k-mers 28%  Counting unique k-mers 28%  Counting unique k-mers 29%  Counting unique k-mers 29%  Counting unique k-mers 29%  Counting unique k-mers 30%  Counting unique k-mers 30%  Counting unique k-mers 31%  Counting unique k-mers 31%  Counting unique k-mers 31%  Counting unique k-mers 32%  Counting unique k-mers 32%  Counting unique k-mers 33%  Counting unique k-mers 33%  Counting unique k-mers 33%  Counting unique k-mers 34%  Counting unique k-mers 34%  Counting unique k-mers 35%  Counting unique k-mers 35%  Counting unique k-mers 35%  Counting unique k-mers 36%  Counting unique k-mers 36%  Counting unique k-mers 37%  Counting unique k-mers 37%  Counting unique k-mers 38%  Counting unique k-mers 38%  Counting unique k-mers 38%  Counting unique k-mers 39%  Counting unique k-mers 39%  Counting unique k-mers 40%  Counting unique k-mers 40%  Counting unique k-mers 40%  Counting unique k-mers 41%  Counting unique k-mers 41%  Counting unique k-mers 42%  Counting unique k-mers 42%  Counting unique k-mers 42%  Counting unique k-mers 43%  Counting unique k-mers 43%  Counting unique k-mers 44%  Counting unique k-mers 44%  Counting unique k-mers 44%  Counting unique k-mers 45%  Counting unique k-mers 45%  Counting unique k-mers 46%  Counting unique k-mers 46%  Counting unique k-mers 46%  Counting unique k-mers 47%  Counting unique k-mers 47%  Counting unique k-mers 48%  Counting unique k-mers 48%  Counting unique k-mers 48%  Counting unique k-mers 49%  Counting unique k-mers 49%  Counting unique k-mers 50%  Counting unique k-mers 50%  Counting unique k-mers 50%  Counting unique k-mers 51%  Counting unique k-mers 51%  Counting unique k-mers 52%  Counting unique k-mers 52%  Counting unique k-mers 52%  Counting unique k-mers 53%  Counting unique k-mers 53%  Counting unique k-mers 54%  Counting unique k-mers 54%  Counting unique k-mers 54%  Counting unique k-mers 55%  Counting unique k-mers 55%  Counting unique k-mers 56%  Counting unique k-mers 56%  Counting unique k-mers 56%  Counting unique k-mers 57%  Counting unique k-mers 57%  Counting unique k-mers 58%  Counting unique k-mers 58%  Counting unique k-mers 58%  Counting unique k-mers 59%  Counting unique k-mers 59%  Counting unique k-mers 60%  Counting unique k-mers 60%  Counting unique k-mers 60%  Counting unique k-mers 61%  Counting unique k-mers 61%  Counting unique k-mers 62%  Counting unique k-mers 62%  Counting unique k-mers 62%  Counting unique k-mers 63%  Counting unique k-mers 63%  Counting unique k-mers 64%  Counting unique k-mers 64%  Counting unique k-mers 65%  Counting unique k-mers 65%  Counting unique k-mers 65%  Counting unique k-mers 66%  Counting unique k-mers 66%  Counting unique k-mers 67%  Counting unique k-mers 67%  Counting unique k-mers 67%  Counting unique k-mers 68%  Counting unique k-mers 68%  Counting unique k-mers 69%  Counting unique k-mers 69%  Counting unique k-mers 69%  Counting unique k-mers 70%  Counting unique k-mers 70%  Counting unique k-mers 71%  Counting unique k-mers 71%  Counting unique k-mers 71%  Counting unique k-mers 72%  Counting unique k-mers 72%  Counting unique k-mers 73%  Counting unique k-mers 73%  Counting unique k-mers 73%  Counting unique k-mers 74%  Counting unique k-mers 74%  Counting unique k-mers 75%  Counting unique k-mers 75%  Counting unique k-mers 75%  Counting unique k-mers 76%  Counting unique k-mers 76%  Counting unique k-mers 77%  Counting unique k-mers 77%  Counting unique k-mers 77%  Counting unique k-mers 78%  Counting unique k-mers 78%  Counting unique k-mers 79%  Counting unique k-mers 79%  Counting unique k-mers 79%  Counting unique k-mers 80%  Counting unique k-mers 80%  Counting unique k-mers 81%  Counting unique k-mers 81%  Counting unique k-mers 81%  Counting unique k-mers 82%  Counting unique k-mers 82%  Counting unique k-mers 83%  Counting unique k-mers 83%  Counting unique k-mers 83%  Counting unique k-mers 84%  Counting unique k-mers 84%  Counting unique k-mers 85%  Counting unique k-mers 85%  Counting unique k-mers 85%  Counting unique k-mers 86%  Counting unique k-mers 86%  Counting unique k-mers 87%  Counting unique k-mers 87%  Counting unique k-mers 88%  Counting unique k-mers 88%  Counting unique k-mers 88%  Counting unique k-mers 89%  Counting unique k-mers 89%  Counting unique k-mers 90%  Counting unique k-mers 90%  Counting unique k-mers 90%  Counting unique k-mers 91%  Counting unique k-mers 91%  Counting unique k-mers 92%  Counting unique k-mers 92%  Counting unique k-mers 92%  Counting unique k-mers 93%  Counting unique k-mers 93%  Counting unique k-mers 94%  Counting unique k-mers 94%  Counting unique k-mers 94%  Counting unique k-mers 95%  Counting unique k-mers 95%  Counting unique k-mers 96%  Counting unique k-mers 96%  Counting unique k-mers 96%  Counting unique k-mers 97%  Counting unique k-mers 97%  Counting unique k-mers 98%  Counting unique k-mers 98%  Counting unique k-mers 98%  Counting unique k-mers 99%  Counting unique k-mers 99%  Counting unique k-mers 100%  Counting unique k-mers 100%
+    Clustering 0%  Clustering 4%  Clustering 8%  Clustering 13%  Clustering 17%  Clustering 21%  Clustering 25%  Clustering 29%  Clustering 33%  Clustering 37%  Clustering 41%  Clustering 45%  Clustering 49%  Clustering 54%  Clustering 58%  Clustering 62%  Clustering 66%  Clustering 70%  Clustering 74%  Clustering 78%  Clustering 81%  Clustering 85%  Clustering 89%  Clustering 93%  Clustering 97%  Clustering 100%  Clustering 100%
+    Writing clusters 0%  Writing clusters 0%  Writing clusters 0%  Writing clusters 1%  Writing clusters 1%  Writing clusters 2%  Writing clusters 2%  Writing clusters 2%  Writing clusters 3%  Writing clusters 3%  Writing clusters 4%  Writing clusters 4%  Writing clusters 4%  Writing clusters 5%  Writing clusters 5%  Writing clusters 6%  Writing clusters 6%  Writing clusters 6%  Writing clusters 7%  Writing clusters 7%  Writing clusters 8%  Writing clusters 8%  Writing clusters 8%  Writing clusters 9%  Writing clusters 9%  Writing clusters 10%  Writing clusters 10%  Writing clusters 10%  Writing clusters 11%  Writing clusters 11%  Writing clusters 12%  Writing clusters 12%  Writing clusters 12%  Writing clusters 13%  Writing clusters 13%  Writing clusters 14%  Writing clusters 14%  Writing clusters 15%  Writing clusters 15%  Writing clusters 15%  Writing clusters 16%  Writing clusters 16%  Writing clusters 17%  Writing clusters 17%  Writing clusters 17%  Writing clusters 18%  Writing clusters 18%  Writing clusters 19%  Writing clusters 19%  Writing clusters 19%  Writing clusters 20%  Writing clusters 20%  Writing clusters 21%  Writing clusters 21%  Writing clusters 21%  Writing clusters 22%  Writing clusters 22%  Writing clusters 23%  Writing clusters 23%  Writing clusters 23%  Writing clusters 24%  Writing clusters 24%  Writing clusters 25%  Writing clusters 25%  Writing clusters 25%  Writing clusters 26%  Writing clusters 26%  Writing clusters 27%  Writing clusters 27%  Writing clusters 27%  Writing clusters 28%  Writing clusters 28%  Writing clusters 29%  Writing clusters 29%  Writing clusters 29%  Writing clusters 30%  Writing clusters 30%  Writing clusters 31%  Writing clusters 31%  Writing clusters 31%  Writing clusters 32%  Writing clusters 32%  Writing clusters 33%  Writing clusters 33%  Writing clusters 33%  Writing clusters 34%  Writing clusters 34%  Writing clusters 35%  Writing clusters 35%  Writing clusters 35%  Writing clusters 36%  Writing clusters 36%  Writing clusters 37%  Writing clusters 37%  Writing clusters 38%  Writing clusters 38%  Writing clusters 38%  Writing clusters 39%  Writing clusters 39%  Writing clusters 40%  Writing clusters 40%  Writing clusters 40%  Writing clusters 41%  Writing clusters 41%  Writing clusters 42%  Writing clusters 42%  Writing clusters 42%  Writing clusters 43%  Writing clusters 43%  Writing clusters 44%  Writing clusters 44%  Writing clusters 44%  Writing clusters 45%  Writing clusters 45%  Writing clusters 46%  Writing clusters 46%  Writing clusters 46%  Writing clusters 47%  Writing clusters 47%  Writing clusters 48%  Writing clusters 48%  Writing clusters 48%  Writing clusters 49%  Writing clusters 49%  Writing clusters 50%  Writing clusters 50%  Writing clusters 50%  Writing clusters 51%  Writing clusters 51%  Writing clusters 52%  Writing clusters 52%  Writing clusters 52%  Writing clusters 53%  Writing clusters 53%  Writing clusters 54%  Writing clusters 54%  Writing clusters 54%  Writing clusters 55%  Writing clusters 55%  Writing clusters 56%  Writing clusters 56%  Writing clusters 56%  Writing clusters 57%  Writing clusters 57%  Writing clusters 58%  Writing clusters 58%  Writing clusters 58%  Writing clusters 59%  Writing clusters 59%  Writing clusters 60%  Writing clusters 60%  Writing clusters 60%  Writing clusters 61%  Writing clusters 61%  Writing clusters 62%  Writing clusters 62%  Writing clusters 62%  Writing clusters 63%  Writing clusters 63%  Writing clusters 64%  Writing clusters 64%  Writing clusters 65%  Writing clusters 65%  Writing clusters 65%  Writing clusters 66%  Writing clusters 66%  Writing clusters 67%  Writing clusters 67%  Writing clusters 67%  Writing clusters 68%  Writing clusters 68%  Writing clusters 69%  Writing clusters 69%  Writing clusters 69%  Writing clusters 70%  Writing clusters 70%  Writing clusters 71%  Writing clusters 71%  Writing clusters 71%  Writing clusters 72%  Writing clusters 72%  Writing clusters 73%  Writing clusters 73%  Writing clusters 73%  Writing clusters 74%  Writing clusters 74%  Writing clusters 75%  Writing clusters 75%  Writing clusters 75%  Writing clusters 76%  Writing clusters 76%  Writing clusters 77%  Writing clusters 77%  Writing clusters 77%  Writing clusters 78%  Writing clusters 78%  Writing clusters 79%  Writing clusters 79%  Writing clusters 79%  Writing clusters 80%  Writing clusters 80%  Writing clusters 81%  Writing clusters 81%  Writing clusters 81%  Writing clusters 82%  Writing clusters 82%  Writing clusters 83%  Writing clusters 83%  Writing clusters 83%  Writing clusters 84%  Writing clusters 84%  Writing clusters 85%  Writing clusters 85%  Writing clusters 85%  Writing clusters 86%  Writing clusters 86%  Writing clusters 87%  Writing clusters 87%  Writing clusters 88%  Writing clusters 88%  Writing clusters 88%  Writing clusters 89%  Writing clusters 89%  Writing clusters 90%  Writing clusters 90%  Writing clusters 90%  Writing clusters 91%  Writing clusters 91%  Writing clusters 92%  Writing clusters 92%  Writing clusters 92%  Writing clusters 93%  Writing clusters 93%  Writing clusters 94%  Writing clusters 94%  Writing clusters 94%  Writing clusters 95%  Writing clusters 95%  Writing clusters 96%  Writing clusters 96%  Writing clusters 96%  Writing clusters 97%  Writing clusters 97%  Writing clusters 98%  Writing clusters 98%  Writing clusters 98%  Writing clusters 99%  Writing clusters 99%  Writing clusters 100%  Writing clusters 100%
+    Clusters: 100 Size min 1, max 16, avg 2.5
+    Singletons: 49, 19.8% of seqs, 49.0% of clusters
     
-      vsearch/swarm time: 0.8
+      vsearch/swarm time: 0.7
 --> getting annotations for final partition
     running 10 procs
-      hmm step time: 2.2
+      hmm step time: 2.4
     read output
-        processed 104 hmm output lines with 250 sequences in 104 events
+        processed 111 hmm output lines with 248 sequences in 111 events
+          202 boundary warnings
       total time: 7.3
