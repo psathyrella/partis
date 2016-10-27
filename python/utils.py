@@ -1599,6 +1599,9 @@ def run_cmd(cmdfo, batch_system=None, batch_options=None):
     cmd_str = cmdfo['cmd_str']  # don't want to modify the str in <cmdfo>
     # print cmd_str
     # sys.exit()
+
+    fout = cmdfo['logdir'] + '/out'
+    ferr = cmdfo['logdir'] + '/err'
     prefix = None
     if batch_system is not None:
         if batch_system == 'slurm':
@@ -1606,9 +1609,9 @@ def run_cmd(cmdfo, batch_system=None, batch_options=None):
             if 'threads' in cmdfo:
                 prefix += ' --cpus-per-task %d' % cmdfo['threads']
         elif batch_system == 'sge':
-            prefix = 'qsub -sync y -b y -V'
-            if 'threads' in cmdfo:
-                print '  note: threads per task reservation not implemented for sge'
+            prefix = 'qsub -sync y -b y -V -o ' + fout + ' -e ' + ferr
+            fout = None
+            ferr = None
         else:
             assert False
         if batch_options is not None:
@@ -1618,7 +1621,11 @@ def run_cmd(cmdfo, batch_system=None, batch_options=None):
 
     if not os.path.exists(cmdfo['logdir']):
         os.makedirs(cmdfo['logdir'])
-    proc = Popen(cmd_str.split(), stdout=open(cmdfo['logdir'] + '/out', 'w'), stderr=open(cmdfo['logdir'] + '/err', 'w'), env=cmdfo['env'])
+
+    proc = Popen(cmd_str.split(),
+                 stdout=None if fout is None else open(fout, 'w'),
+                 stderr=None if ferr is None else open(ferr, 'w'),
+                 env=cmdfo['env'])
     return proc
 
 # ----------------------------------------------------------------------------------------
