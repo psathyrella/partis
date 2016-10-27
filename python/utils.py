@@ -1615,7 +1615,7 @@ def run_cmd(cmdfo, batch_system=None, batch_options=None):
             prefix += ' ' + batch_options
     if prefix is not None:
         cmd_str = prefix + ' ' + cmd_str
-
+    print cmd_str
     if not os.path.exists(cmdfo['logdir']):
         os.makedirs(cmdfo['logdir'])
     proc = Popen(cmd_str.split(), stdout=open(cmdfo['logdir'] + '/out', 'w'), stderr=open(cmdfo['logdir'] + '/err', 'w'), env=cmdfo['env'])
@@ -1675,11 +1675,12 @@ def finish_process(iproc, procs, n_tries, cmdfo, dbgfo=None, batch_system=None, 
                 logstr = check_output(['tail', cmdfo['logdir'] + '/' + strtype])
                 print '\n'.join(['            ' + l for l in logstr.split('\n')])
         if batch_system is not None and os.path.exists(cmdfo['logdir'] + '/err'):  # cmdfo['cmd_str'].split()[0] == 'srun' and 
-            jobid = check_output(['head', '-n1', cmdfo['logdir'] + '/err']).split()[2]
+            jobid = ''
             try:
+                jobid = check_output(['head', '-n1', cmdfo['logdir'] + '/err']).split()[2]
                 nodelist = check_output(['squeue', '--job', jobid, '--states=all', '--format', '%N']).split()[1]
             except:
-                print '      couldn\'t get node list for job %s' % jobid
+                print '      couldn\'t get node list for jobid \'%s\'' % jobid
             try:
                 print '        sshing to %s' % nodelist
                 outstr = check_output('ssh -o StrictHostKeyChecking=no ' + nodelist + ' ps -eo pcpu,pmem,rss,cputime:12,stime:7,user,args:100 --sort pmem | tail', shell=True)
