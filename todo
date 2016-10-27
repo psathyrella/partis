@@ -1,6 +1,5 @@
 # now
 #  - non-slurm batch systems
-#  - collapse clones before gl inference
 #  - read
 
 # print_reco_event:
@@ -79,6 +78,7 @@
 #  - needs at least a little light chain action
 #  - make sure there's some multiple indels in the testing file
 #  - add mutation-freq accuracy to metrics
+#  - can probably stop deleting sw cache files
 
 # germline set generation:
 #     all alleles (including new ones) should have roughly the same mut freq distribution (especially at low mutation)'
@@ -107,6 +107,3 @@
 #  - it might make more sense to ditch the whole k_v k_d parameterization, since since it inherently suggests a rectangular region of k-space, which doesn't take account of the fact that we know beforehand that we shouldn't really be checking everything in that rectangular region
 #    - maybe a stopgap would be to increment/decrement k_v/k_d in tandem?
 #    - would make more sense to have per-gene kbounds
-
-# maybe
-#  - make padding specific to each cdr3 subclass UPDATE maybe not worthwhile? doesn't seem to be an exorbitant amount of padding any more
