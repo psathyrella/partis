@@ -44,7 +44,7 @@ def run_test(args):
 
     # simulate
     if not args.nosim:
-        cmd_str = base_cmd + ' simulate --n-sim-events ' + str(args.n_sim_events) + ' --n-leaves 1 --constant-number-of-leaves --simulate-partially-from-scratch --outfname ' + simfname
+        cmd_str = base_cmd + ' simulate --n-sim-events ' + str(args.n_sim_events) + ' --n-leaves ' + str(args.n_leaves) + ' --constant-number-of-leaves --rearrange-from-scratch --outfname ' + simfname
         cmd_str += ' --mutation-multiplier ' + str(args.mut_mult)
 
         cmd_str += ' --n-procs ' + str(args.n_procs)
@@ -139,7 +139,8 @@ fsdir = '/fh/fast/matsen_e/dralph'
 
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--nosim', action='store_true')
-parser.add_argument('--n-sim-events', type=int, default=200)
+parser.add_argument('--n-sim-events', type=int, default=20)
+parser.add_argument('--n-leaves', type=int, default=1)
 parser.add_argument('--n-procs', type=int, default=2)
 parser.add_argument('--seed', type=int, default=int(time.time()))
 parser.add_argument('--gen-gset', action='store_true')

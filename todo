@@ -1,3 +1,8 @@
+# now
+#  - non-slurm batch systems
+#  - collapse clones before gl inference
+#  - read
+
 # print_reco_event:
 #    - maybe simulation line shouldn't be associated with a particular inferred line (see below)
 #    - fix multiple-indel printing'
@@ -22,10 +27,11 @@
 # add kbounds to validation plots (i.e. flag queries for which kbounds didn't include true kset)
 # add cdr3 mutation accuracy and cdr3 hamming to true naive
 # kate data
-
 # run on data in  `/fh/fast/matsen_e/processed-data/cft/2016-10-21-rubelt-heritable-influence`.
-
 # make sure new cdr3 length splitting in vsearch partitioning isn't really slow
+# fix fuckup where vsearch partition gets its ccfs
+
+# d right side mutation is still fucked
 
 # partition/annotation validation
 #  - go through a careful round of partition validation on larger samples (including light chain)
