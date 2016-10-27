@@ -261,7 +261,7 @@ class Waterer(object):
         # large gap-opening penalty: we want *no* gaps in the middle of the alignments
         # match score larger than (negative) mismatch score: we want to *encourage* some level of shm. If they're equal, we tend to end up with short unmutated alignments, which screws everything up
         cmd_str = os.getenv('HOME') + '/.local/bin/vdjalign align-fastq -q'
-        if self.args.slurm or utils.auto_slurm(n_procs):
+        if self.args.slurm:
             cmd_str = 'srun ' + cmd_str
         cmd_str += ' --locus ' + 'IG' + self.args.chain.upper()
         cmd_str += ' --max-drop 50'
@@ -281,7 +281,7 @@ class Waterer(object):
         # large gap-opening penalty: we want *no* gaps in the middle of the alignments
         # match score larger than (negative) mismatch score: we want to *encourage* some level of shm. If they're equal, we tend to end up with short unmutated alignments, which screws everything up
         cmd_str = self.args.ig_sw_binary
-        if self.args.slurm or utils.auto_slurm(n_procs):
+        if self.args.slurm:
             cmd_str = 'srun ' + cmd_str
         cmd_str += ' -l ' + 'IG' + self.args.chain.upper()  # locus
         cmd_str += ' -d 50'  # max drop

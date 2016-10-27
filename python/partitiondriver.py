@@ -382,7 +382,7 @@ class PartitionDriver(object):
                 next_n_procs = max(1, int(float(n_remaining_seqs) / int_initial_seqs_per_proc))
                 if n_remaining_seqs > 20:
                     next_n_procs *= 3  # multiply by something 'cause we're turning off the seed uid for the last few times through
-                if not self.args.slurm and not utils.auto_slurm(self.args.n_procs):  # not really sure that <self.args.n_procs> belongs here, but I'll leave it that way to be consistent with <self.get_n_precache_procs()>
+                if not self.args.slurm:
                     next_n_procs = min(next_n_procs, multiprocessing.cpu_count())
                 next_n_procs = min(next_n_procs, self.args.n_procs)  # don't let it be bigger than whatever was initially specified
                 print '        new n_procs %d (initial seqs/proc: %.2f   new seqs/proc: %.2f' % (next_n_procs, float(initial_nseqs) / n_proc_list[0], float(n_remaining_seqs) / next_n_procs)
@@ -450,7 +450,7 @@ class PartitionDriver(object):
             seqs_per_proc *= 1.5
         n_precache_procs = int(math.ceil(float(n_seqs) / seqs_per_proc))
         n_precache_procs = min(n_precache_procs, self.args.n_max_procs)  # I can't get more'n a few hundred slots at a time, so it isn't worth using too much more than that
-        if not self.args.slurm and not utils.auto_slurm(self.args.n_procs):  # if we're not on slurm, make sure it's less than the number of cpus
+        if not self.args.slurm:  # if we're not on slurm, make sure it's less than the number of cpus
             n_precache_procs = min(n_precache_procs, multiprocessing.cpu_count())
 
         return n_precache_procs
@@ -524,7 +524,7 @@ class PartitionDriver(object):
             id_fraction = 1. - bound
             clusterfname = self.args.workdir + '/vsearch-clusters.txt'
             cmd = self.args.partis_dir + '/bin/vsearch-1.1.3-linux-x86_64 --threads ' + str(self.args.n_procs) + ' --uc ' + clusterfname + ' --cluster_fast ' + fastafname + ' --id ' + str(id_fraction) + ' --maxaccept 0 --maxreject 0'
-            if self.args.slurm or utils.auto_slurm(self.args.n_procs):
+            if self.args.slurm:
                 cmd = 'srun --cpus-per-task ' + str(self.args.n_procs) + ' ' + cmd
             print '    running %s' % cmd
             proc = Popen(cmd.split(), stdout=PIPE, stderr=PIPE)
@@ -659,7 +659,7 @@ class PartitionDriver(object):
     def get_hmm_cmd_str(self, algorithm, csv_infname, csv_outfname, parameter_dir, precache_all_naive_seqs, n_procs):
         """ Return the appropriate bcrham command string """
         cmd_str = self.args.partis_dir + '/packages/ham/bcrham'
-        if self.args.slurm or utils.auto_slurm(n_procs):
+        if self.args.slurm:
             cmd_str = 'srun ' + cmd_str
         cmd_str += ' --algorithm ' + algorithm
         if self.args.debug > 0:
