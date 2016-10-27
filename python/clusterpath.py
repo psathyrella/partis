@@ -50,7 +50,9 @@ class ClusterPath(object):
                 break
 
     # ----------------------------------------------------------------------------------------
-    def add_partition(self, partition, logprob, n_procs, logweight=None, ccfs=[None, None]):
+    def add_partition(self, partition, logprob, n_procs, logweight=None, ccfs=None):
+        if ccfs is None:
+            ccfs = [None, None]
         # NOTE you typically want to allow duplicate (in terms of log prob) partitions, since they can have different n procs
         self.partitions.append(partition)  # NOTE not deep copied
         self.logprobs.append(logprob)
@@ -59,6 +61,8 @@ class ClusterPath(object):
         if len(ccfs) != 2:
             raise Exception('tried to add partition with ccfs of length %d (%s)' % (len(ccfs), ccfs))
         self.ccfs.append(ccfs)
+        if ccfs.count(None) != len(ccfs):
+            self.we_have_a_ccf = True
         # set this as the best partition if 1) we haven't set i_best yet 2) this partition is more likely than i_best 3) i_best is set for a larger number of procs or 4) logprob is infinite (i.e. it's probably point/vsearch partis)
         # NOTE we always treat the most recent partition with infinite logprob as the best
         if self.i_best is None or logprob > self.logprobs[self.i_best] or n_procs < self.n_procs[self.i_best] or math.isinf(logprob):
@@ -123,6 +127,8 @@ class ClusterPath(object):
                 ccf_str = '   -  -    '
             else:
                 ccf_str = ' %5.2f %5.2f    ' % tuple(self.ccfs[ip])
+        else:  # TODO clean this up
+            ccf_str = '   -  -    '
 
         return ccf_str
 

@@ -29,10 +29,11 @@ def fstr(fval):
 
 # ----------------------------------------------------------------------------------------
 class AlleleFinder(object):
-    def __init__(self, glfo, args, itry):
+    def __init__(self, glfo, args, itry, cpath=None):
         self.glfo = glfo
         self.args = args
         self.itry = itry
+        self.cpath = cpath
 
         self.fraction_of_seqs_to_exclude = 0.01  # exclude the fraction of sequences with largest v_{5,3}p deletions whose counts add up to this fraction of total sequences NOTE you don't want to make this too big, because although you'll be removing all the seqs with large 4p deletions, this number also gets used when you're deciding whether your new allele is in the default glfo
         self.n_bases_to_exclude = {'5p' : {}, '3p' : {}}  # i.e. on all the seqs we keep, we exclude this many bases; and any sequences that have larger deletions than this are not kept

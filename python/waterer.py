@@ -22,7 +22,7 @@ from alleleremover import AlleleRemover
 # ----------------------------------------------------------------------------------------
 class Waterer(object):
     """ Run smith-waterman on the query sequences in <infname> """
-    def __init__(self, args, input_info, reco_info, glfo, count_parameters=False, parameter_out_dir=None, remove_less_likely_alleles=False, find_new_alleles=False, plot_performance=False, simglfo=None, itry=None):
+    def __init__(self, args, input_info, reco_info, glfo, count_parameters=False, parameter_out_dir=None, remove_less_likely_alleles=False, find_new_alleles=False, plot_performance=False, simglfo=None, itry=None, cpath=None):
         self.args = args
         self.input_info = input_info
         self.reco_info = reco_info
@@ -45,6 +45,7 @@ class Waterer(object):
         self.info['all_best_matches'] = set()  # every gene that was a best match for at least one query
         self.info['all_matches'] = {r : set() for r in utils.regions}  # every gene that was *any* match (up to <self.args.n_max_per_region[ireg]>) for at least one query NOTE there is also an 'all_matches' in each query's info
         self.info['indels'] = {}  # NOTE if we find shm indels in a sequence, we store the indel info in here, and rerun sw with the reversed sequence (i.e. <self.info> contains the sw inference on the reversed sequence -- if you want the original sequence, get that from <self.input_info>)
+        self.info['mute-freqs'] = None  # kind of hackey... but it's to allow us to keep this info around when we don't want to keep the whole waterer object around, and we don't want to write all the parameters to disk
 
         self.nth_try = 1
         self.skipped_unproductive_queries, self.kept_unproductive_queries = set(), set()
@@ -55,7 +56,7 @@ class Waterer(object):
         if remove_less_likely_alleles:
             self.alremover = AlleleRemover(self.glfo, self.args, AlleleFinder(self.glfo, self.args, itry=0))
         if find_new_alleles:  # NOTE *not* the same as <self.args.find_new_alleles>
-            self.alfinder = AlleleFinder(self.glfo, self.args, itry)
+            self.alfinder = AlleleFinder(self.glfo, self.args, itry, cpath)
         if count_parameters:  # NOTE *not* the same as <self.args.cache_parameters>
             self.pcounter = ParameterCounter(self.glfo, self.args)
             if not self.args.is_data:
@@ -171,6 +172,7 @@ class Waterer(object):
             self.perfplotter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
 
         if self.pcounter is not None:
+            self.info['mute-freqs'] = {rstr : self.pcounter.mfreqer.mean_rates[rstr].get_mean() for rstr in ['all', ] + utils.regions}
             if self.args.plotdir is not None and not found_germline_changes:
                 self.pcounter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
                 if self.true_pcounter is not None:

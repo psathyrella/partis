@@ -129,19 +129,19 @@ class PartitionDriver(object):
             else:
                 raise Exception('--persistent-cachefname %s has unexpected header list %s' % (self.args.persistent_cachefname, reader.fieldnames))
 
-    # ----------------------------------------------------------------------------------------
-    def get_cachefname(self, write_parameters, diddle_with_glfo):
-        if self.args.sw_cachefname is not None:  # if --sw-cachefname was explicitly set, always use that
-            return self.args.sw_cachefname
-        elif write_parameters or diddle_with_glfo or os.path.exists(self.default_cachefname):  # otherwise, use the default cachefname if we're either writing parameters (in which case we want to write results to disk) or if the default already exists (in which case we want to read it)
-            if (write_parameters or diddle_with_glfo) and os.path.exists(self.default_cachefname):
-                print '  removing old sw cache file %s' % self.default_cachefname
-                os.remove(self.default_cachefname)
-            return self.default_cachefname
-        return None  # don't want to read or write sw cache files
+    # # ----------------------------------------------------------------------------------------
+    # def get_cachefname(self, write_parameters, diddle_with_glfo):
+    #     if self.args.sw_cachefname is not None:  # if --sw-cachefname was explicitly set, always use that
+    #         return self.args.sw_cachefname
+    #     elif write_parameters or diddle_with_glfo or os.path.exists(self.default_cachefname):  # otherwise, use the default cachefname if we're either writing parameters (in which case we want to write results to disk) or if the default already exists (in which case we want to read it)
+    #         if (write_parameters or diddle_with_glfo) and os.path.exists(self.default_cachefname):
+    #             print '  removing old sw cache file %s' % self.default_cachefname
+    #             os.remove(self.default_cachefname)
+    #         return self.default_cachefname
+    #     return None  # don't want to read or write sw cache files
 
     # ----------------------------------------------------------------------------------------
-    def run_waterer(self, write_parameters=False, remove_less_likely_alleles=False, find_new_alleles=False, itry=None):
+    def run_waterer(self, write_parameters=False, remove_less_likely_alleles=False, find_new_alleles=False, itry=None, write_cachefile=False, look_for_cachefile=False):
         print 'smith-waterman',
         if write_parameters:
             print '  (writing parameters)',
@@ -167,11 +167,18 @@ class PartitionDriver(object):
                           parameter_out_dir=parameter_out_dir, remove_less_likely_alleles=remove_less_likely_alleles, find_new_alleles=find_new_alleles,
                           plot_performance=(self.args.plot_performance and not remove_less_likely_alleles and not find_new_alleles),
                           simglfo=self.simglfo, itry=itry)
-        cachefname = self.get_cachefname(write_parameters, diddle_with_glfo=find_new_alleles or remove_less_likely_alleles)
-        if cachefname is None or not os.path.exists(cachefname):  # run sw if we either don't want to do any caching (None) or if we are planning on writing the results after we run
-            waterer.run(cachefname)
-        else:
+        # cachefname = self.get_cachefname(write_parameters, diddle_with_glfo=find_new_alleles or remove_less_likely_alleles)
+        cachefname = self.default_cachefname if self.args.sw_cachefname is None else self.args.sw_cachefname
+        if not look_for_cachefile and os.path.exists(cachefname):  # i.e. if we're not explicitly told to look for it, and it's there, then it's probably out of date
+            print '  removing old sw cache file %s' % cachefname
+            os.remove(cachefname)
+            if os.path.exists(cachefname.replace('.csv', '-glfo')):
+                print '    and %s' % cachefname.replace('.csv', '-glfo')
+                glutils.remove_glfo_files(cachefname.replace('.csv', '-glfo'), self.args.chain)
+        if look_for_cachefile and os.path.exists(cachefname):  # run sw if we either don't want to do any caching (None) or if we are planning on writing the results after we run
             waterer.read_cachefile(cachefname)
+        else:
+            waterer.run(cachefname if write_cachefile else None)
         self.sw_info = waterer.info
 
     # ----------------------------------------------------------------------------------------
@@ -181,6 +188,7 @@ class PartitionDriver(object):
         # alleles_with_evidence = set()
         itry = 0
         while True:
+            cpath = self.cluster_with_naive_vsearch_or_swarm(read_hmm_cachefile=False)
             self.run_waterer(find_new_alleles=True, itry=itry)
             if len(self.sw_info['new-alleles']) == 0:
                 break
@@ -250,7 +258,7 @@ class PartitionDriver(object):
             glutils.write_glfo(self.my_gldir, self.glfo)
         if self.args.find_new_alleles:
             self.find_new_alleles()
-        self.run_waterer(write_parameters=True)
+        self.run_waterer(write_parameters=True, write_cachefile=True)
         self.restrict_to_observed_alleles(self.sw_param_dir)
         self.write_hmms(self.sw_param_dir)
         if self.args.only_smith_waterman:
@@ -268,7 +276,7 @@ class PartitionDriver(object):
     def run_algorithm(self, algorithm):
         """ Just run <algorithm> (either 'forward' or 'viterbi') on sequences in <self.input_info> and exit. You've got to already have parameters cached in <self.args.parameter_dir> """
         print 'running %s' % algorithm
-        self.run_waterer()
+        self.run_waterer(look_for_cachefile=True)
         if self.args.only_smith_waterman:
             return
         print 'hmm'
@@ -303,7 +311,7 @@ class PartitionDriver(object):
     def partition(self):
         """ Partition sequences in <self.input_info> into clonally related lineages """
         print 'partitioning'
-        self.run_waterer()  # run smith-waterman
+        self.run_waterer(look_for_cachefile=True)  # run smith-waterman
         if self.args.only_smith_waterman:
             return
 
@@ -314,7 +322,7 @@ class PartitionDriver(object):
             self.run_hmm('viterbi', self.sub_param_dir, n_procs=self.get_n_precache_procs(len(self.sw_info['queries'])), precache_all_naive_seqs=True)
 
         if self.args.naive_vsearch or self.args.naive_swarm:
-            cpath = self.cluster_with_naive_vsearch_or_swarm(self.sub_param_dir)
+            cpath = self.cluster_with_naive_vsearch_or_swarm(parameter_dir=self.sub_param_dir)
         else:
             cpath = self.cluster_with_bcrham()
 
@@ -469,21 +477,25 @@ class PartitionDriver(object):
         self.current_action = action_cache
 
     # ----------------------------------------------------------------------------------------
-    def cluster_with_naive_vsearch_or_swarm(self, parameter_dir):
+    def cluster_with_naive_vsearch_or_swarm(self, parameter_dir=None, read_hmm_cachefile=True):
         start = time.time()
 
-        # read cached bcrham naive seqs
-        naive_seqs = {}
-        with open(self.hmm_cachefname) as cachefile:
-            reader = csv.DictReader(cachefile)
-            for line in reader:
-                unique_ids = line['unique_ids'].split(':')
-                assert len(unique_ids) == 1
-                unique_id = unique_ids[0]
-                naive_seqs[unique_id] = line['naive_seq']
+        if read_hmm_cachefile:
+            assert parameter_dir is not None
+            naive_seqs = {}
+            with open(self.hmm_cachefname) as cachefile:
+                reader = csv.DictReader(cachefile)
+                for line in reader:
+                    unique_ids = line['unique_ids'].split(':')
+                    assert len(unique_ids) == 1
+                    unique_id = unique_ids[0]
+                    naive_seqs[unique_id] = line['naive_seq']
+        else:
+            assert parameter_dir is None  # i.e. get mut freq from sw info
+            naive_seqs = {q : self.sw_info[q]['naive_seq'] for q in self.sw_info['queries']}
 
         # make a fasta file
-        fastafname = self.args.workdir + '/simu.fasta'
+        fastafname = self.args.workdir + '/naive-seqs.fasta'
                 
         # if not os.path.exists(fastafname):
         if self.args.naive_swarm:
@@ -496,11 +508,11 @@ class PartitionDriver(object):
                     naive_seq = naive_seq.replace('N', 'A')
                 fastafile.write('>' + query + '\n' + naive_seq + '\n')
 
-        if self.args.naive_vsearch:
-            # bound = self.get_naive_hamming_threshold(parameter_dir, 'tight') /  2.  # yay for heuristics! (I did actually optimize this...)
-            # hfrac_bounds = self.get_naive_hamming_bounds(parameter_dir)
-            # bound = hfrac_bounds[0] / 2.  # lo and hi are the same
-            bound = self.get_naive_hamming_bounds(parameter_dir)[0]  # lo and hi are the same
+        if self.args.naive_vsearch or not read_hmm_cachefile:
+            if read_hmm_cachefile:
+                bound = self.get_naive_hamming_bounds(parameter_dir)[0]  # lo and hi are the same
+            else:
+                bound = self.get_naive_hamming_bounds(parameter_dir=None, overall_mute_freq=self.sw_info['mute-freqs']['all'])[0]  # lo and hi are the same
             print '    using hfrac bound for vsearch %.3f' % bound
             id_fraction = 1. - bound
             clusterfname = self.args.workdir + '/vsearch-clusters.txt'
@@ -602,16 +614,17 @@ class PartitionDriver(object):
         return cpath
 
     # ----------------------------------------------------------------------------------------
-    def get_naive_hamming_bounds(self, parameter_dir):
+    def get_naive_hamming_bounds(self, parameter_dir=None, overall_mute_freq=None):
         if self.cached_naive_hamming_bounds is not None:  # only run the stuff below once
             return self.cached_naive_hamming_bounds
 
-        # if self.args.naive_hamming_bounds is not None:  # let the command line override auto bound calculation
-        #     print '       naive hfrac bounds: %.3f %.3f' % tuple(self.args.naive_hamming_bounds)
-        #     return self.args.naive_hamming_bounds
-
-        mutehist = Hist(fname=parameter_dir + '/all-mean-mute-freqs.csv')
-        mute_freq = mutehist.get_mean(ignore_overflows=True)
+        if parameter_dir is not None:
+            assert overall_mute_freq is None
+            mutehist = Hist(fname=parameter_dir + '/all-mean-mute-freqs.csv')
+            mute_freq = mutehist.get_mean(ignore_overflows=True)  # TODO should I not ignore overflows here? or should I ignore them when I set waterer.info['mute-freqs']?
+        else:
+            assert overall_mute_freq is not None
+            mute_freq = overall_mute_freq
 
         # just use a line based on two points (mute_freq, threshold)
         x1, x2 = 0.05, 0.2  # 0.5x, 3x (for 10 leaves)
