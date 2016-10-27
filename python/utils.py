@@ -1602,19 +1602,20 @@ def run_cmd(cmdfo, batch_system=None, batch_options=None):
     prefix = None
     if batch_system is not None:
         if batch_system == 'slurm':
-            prefix = 'slurm'
+            prefix = 'srun'
             if 'threads' in cmdfo:
                 prefix += ' --cpus-per-task %d' % cmdfo['threads']
         elif batch_system == 'sge':
             prefix = 'qsub -sync y -b y -V'
-            if batch_options is not None:
-                prefix += ' ' + batch_options
             if 'threads' in cmdfo:
                 print '  note: threads per task reservation not implemented for sge'
         else:
             assert False
+        if batch_options is not None:
+            prefix += ' ' + batch_options
     if prefix is not None:
         cmd_str = prefix + ' ' + cmd_str
+
     if not os.path.exists(cmdfo['logdir']):
         os.makedirs(cmdfo['logdir'])
     proc = Popen(cmd_str.split(), stdout=open(cmdfo['logdir'] + '/out', 'w'), stderr=open(cmdfo['logdir'] + '/err', 'w'), env=cmdfo['env'])
