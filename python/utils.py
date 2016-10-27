@@ -1606,7 +1606,9 @@ def run_cmd(cmdfo, batch_system=None):
             else:
                 cmd_str = 'srun ' + cmd_str
         elif batch_system == 'sge':
-            cmd_str = 'XXXsrun ' + cmd_str
+            if 'threads' in cmdfo:
+                print '  note: threads per task reservation not implemented for sge'
+            cmd_str = 'qsub -sync y -b y -V ' + cmd_str
         else:
             assert False
     if not os.path.exists(cmdfo['logdir']):
