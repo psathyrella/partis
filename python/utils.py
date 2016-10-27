@@ -1615,7 +1615,7 @@ def run_cmd(cmdfo, batch_system=None, batch_options=None):
             prefix += ' ' + batch_options
     if prefix is not None:
         cmd_str = prefix + ' ' + cmd_str
-    print cmd_str
+
     if not os.path.exists(cmdfo['logdir']):
         os.makedirs(cmdfo['logdir'])
     proc = Popen(cmd_str.split(), stdout=open(cmdfo['logdir'] + '/out', 'w'), stderr=open(cmdfo['logdir'] + '/err', 'w'), env=cmdfo['env'])
