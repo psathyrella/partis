@@ -173,11 +173,11 @@ class Waterer(object):
 
         if self.pcounter is not None:
             self.info['mute-freqs'] = {rstr : self.pcounter.mfreqer.mean_rates[rstr].get_mean() for rstr in ['all', ] + utils.regions}
-            if self.args.plotdir is not None and not found_germline_changes:
-                self.pcounter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
-                if self.true_pcounter is not None:
-                    self.true_pcounter.plot(self.args.plotdir + '/sw-true', only_csv=self.args.only_csv_plots)
             if self.parameter_out_dir is not None and not found_germline_changes:
+                if self.args.plotdir is not None:
+                    self.pcounter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
+                    if self.true_pcounter is not None:
+                        self.true_pcounter.plot(self.args.plotdir + '/sw-true', only_csv=self.args.only_csv_plots)
                 self.pcounter.write(self.parameter_out_dir)
                 if self.true_pcounter is not None:
                     self.true_pcounter.write(self.parameter_out_dir + '-true')

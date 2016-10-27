@@ -75,10 +75,11 @@ class AlleleFinder(object):
             self.default_initial_glfo = glutils.read_glfo(self.args.default_initial_germline_dir, glfo['chain'])
 
         self.n_excluded_clonal_queries = {}
+        self.n_seqs_over_all_clones = None
         self.single_query_per_clone = None  # one query from each clonal family
         if cpath is not None:
             self.single_query_per_clone = [random.choice(cluster) for cluster in cpath.partitions[cpath.i_best]]  # since we're doing this before running sw (these clusters are from a previous sw run, presumably one that removed unlikely alleles), it's possible some of these won't show up this time through. But, we need to know which queries to count as we're incrementing, and while for allelefinder that happens *after* we've finalized sw, we also have to run vsearch, which is easier to do from partitiondriver...
-            print '    restricting allele finder to one sequence from each of %d clones' % len(self.single_query_per_clone)
+            self.n_seqs_over_all_clones = sum([len(c) for c in cpath.partitions[cpath.i_best]])
 
         self.finalized = False
 
@@ -174,12 +175,11 @@ class AlleleFinder(object):
                 continue
             if gene not in self.counts:
                 self.init_gene(gene)
-            gcts = self.counts[gene]  # shorthand name
-
-            self.gene_obs_counts[gene] += 1
             if self.single_query_per_clone is not None and info['unique_ids'][0] not in self.single_query_per_clone:
                 self.n_excluded_clonal_queries[gene] += 1
                 return
+
+            self.gene_obs_counts[gene] += 1
 
             skip_this = False
             for side in self.n_bases_to_exclude:  # NOTE this is important, because if there is a snp to the right of the cysteine, all the sequences in which it is removed by the v_3p deletion will be shifted one bin leftward, screwing everything up (same goes now that we're doing the same thing on the left side)
@@ -207,10 +207,10 @@ class AlleleFinder(object):
                 if germline_seq[ipos] in utils.ambiguous_bases or query_seq[ipos] in utils.ambiguous_bases:  # skip if either germline or query sequence is ambiguous at this position
                     continue
 
-                gcts[igl][n_mutes]['total'] += 1
+                self.counts[gene][igl][n_mutes]['total'] += 1
                 if query_seq[ipos] != germline_seq[ipos]:  # if this position is mutated
-                    gcts[igl][n_mutes]['muted'] += 1  # mark that we saw this germline position mutated once in a sequence with <n_mutes> regional mutation frequency
-                gcts[igl][n_mutes][query_seq[ipos]] += 1  # if there's a new allele, we need this to work out what the snp'd base is
+                    self.counts[gene][igl][n_mutes]['muted'] += 1  # mark that we saw this germline position mutated once in a sequence with <n_mutes> regional mutation frequency
+                self.counts[gene][igl][n_mutes][query_seq[ipos]] += 1  # if there's a new allele, we need this to work out what the snp'd base is
 
     # ----------------------------------------------------------------------------------------
     def get_residual_sum(self, xvals, yvals, errs, slope, intercept, debug=False):
@@ -782,6 +782,8 @@ class AlleleFinder(object):
 
         region = 'v'
         print '%s: looking for new alleles' % utils.color('blue', 'try ' + str(self.itry))
+        if self.single_query_per_clone is not None:
+            print '    %d clones among %d sequences, restricting to one sequence from each clone' % (len(self.single_query_per_clone), self.n_seqs_over_all_clones)
         if not self.args.always_find_new_alleles:  # NOTE this is (on purpose) summed over all genes -- genes with homozygous unknown alleles would always fail this criterion
             binline, contents_line = self.overall_mute_counts.horizontal_print(bin_centers=True, bin_decimals=0, contents_decimals=0)
             print '             n muted in v' + binline + '(and up)'
@@ -800,7 +802,7 @@ class AlleleFinder(object):
         for gene in sorted(self.counts):
             if debug:
                 sys.stdout.flush()
-                print ' %s: %d / %d unmutated / total observations (excluded %d clonal sequences)' % (utils.color_gene(gene), self.per_gene_mute_counts[gene].bin_contents[0], self.gene_obs_counts[gene], self.n_excluded_clonal_queries[gene])
+                print ' %s: %d / %d unmutated observations (excluded %d clonal sequences)' % (utils.color_gene(gene), self.per_gene_mute_counts[gene].bin_contents[0], self.gene_obs_counts[gene], self.n_excluded_clonal_queries[gene])
                 print '          skipping',
                 print '%d seqs that are too highly mutated,' % self.n_seqs_too_highly_mutated[gene],
                 print '%d that had 5p deletions larger than %d,' % (self.n_big_del_skipped['5p'][gene], self.n_bases_to_exclude['5p'][gene]),

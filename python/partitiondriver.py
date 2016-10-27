@@ -141,7 +141,7 @@ class PartitionDriver(object):
     #     return None  # don't want to read or write sw cache files
 
     # ----------------------------------------------------------------------------------------
-    def run_waterer(self, write_parameters=False, remove_less_likely_alleles=False, find_new_alleles=False, itry=None, write_cachefile=False, look_for_cachefile=False, cpath=None):
+    def run_waterer(self, count_parameters=False, write_parameters=False, remove_less_likely_alleles=False, find_new_alleles=False, itry=None, write_cachefile=False, look_for_cachefile=False, cpath=None):
         print 'smith-waterman',
         if write_parameters:
             print '  (writing parameters)',
@@ -153,7 +153,7 @@ class PartitionDriver(object):
         sys.stdout.flush()
 
         # can probably remove this... I just kind of want to know if it happens EDIT hell no don't remove this
-        if not write_parameters and not find_new_alleles and not remove_less_likely_alleles:
+        if not count_parameters and not find_new_alleles and not remove_less_likely_alleles and os.path.exists(self.sub_param_dir + '/hmms'):
             genes_with_hmms = set(utils.find_genes_that_have_hmms(self.sub_param_dir))
             expected_genes = set([g for r in utils.regions for g in self.glfo['seqs'][r].keys()])  # this'll be the & of the gldir (maybe rewritten, maybe not)
             if self.args.only_genes is None and len(genes_with_hmms - expected_genes) > 0:
@@ -161,11 +161,12 @@ class PartitionDriver(object):
             if len(expected_genes - genes_with_hmms) > 0:
                 print '  %s %d genes in glfo that don\'t have yamels in %s' % (utils.color('red', 'warning'), len(expected_genes - genes_with_hmms), self.sub_param_dir)
 
-        parameter_out_dir = self.sw_param_dir if write_parameters else None
         input_info = self.input_info if self.sw_info is None else {q : self.input_info[q] for q in self.sw_info['queries']}  # pick up info on failed queries if this isn't the first sw run
         waterer = Waterer(self.args, input_info, self.reco_info, self.glfo,
-                          count_parameters=(remove_less_likely_alleles or parameter_out_dir is not None),
-                          parameter_out_dir=parameter_out_dir, remove_less_likely_alleles=remove_less_likely_alleles, find_new_alleles=find_new_alleles,
+                          count_parameters=count_parameters,  # (remove_less_likely_alleles or parameter_out_dir is not None),
+                          parameter_out_dir=self.sw_param_dir if write_parameters else None,
+                          remove_less_likely_alleles=remove_less_likely_alleles,
+                          find_new_alleles=find_new_alleles,
                           plot_performance=(self.args.plot_performance and not remove_less_likely_alleles and not find_new_alleles),
                           simglfo=self.simglfo, itry=itry, cpath=cpath)
         # cachefname = self.get_cachefname(write_parameters, diddle_with_glfo=find_new_alleles or remove_less_likely_alleles)
@@ -188,8 +189,13 @@ class PartitionDriver(object):
         assert len(self.all_new_allele_info) == 0
         # alleles_with_evidence = set()
         itry = 0
+        cpath = None
         while True:
-            cpath = self.cluster_with_naive_vsearch_or_swarm(read_hmm_cachefile=False)
+            if self.sw_info is None:
+                print '  note: didn\'t remove unlikely alleles, but we\'re trying to find new alleles, so we need to run sw an extra time beforehand to get naive sequences'
+                self.run_waterer(count_parameters=True)
+            if cpath is None:  # only do it the first time through
+                cpath = self.cluster_with_naive_vsearch_or_swarm(read_hmm_cachefile=False)
             self.run_waterer(find_new_alleles=True, itry=itry, cpath=cpath)
             if len(self.sw_info['new-alleles']) == 0:
                 break
@@ -254,12 +260,12 @@ class PartitionDriver(object):
             self.args.min_observations_to_write = 1
 
         if not self.args.dont_remove_unlikely_alleles:
-            self.run_waterer(remove_less_likely_alleles=True)
+            self.run_waterer(remove_less_likely_alleles=True, count_parameters=True)
             glutils.remove_genes(self.glfo, self.sw_info['genes-to-remove'])
             glutils.write_glfo(self.my_gldir, self.glfo)
         if self.args.find_new_alleles:
             self.find_new_alleles()
-        self.run_waterer(write_parameters=True, write_cachefile=True)
+        self.run_waterer(count_parameters=True, write_parameters=True, write_cachefile=True)
         self.restrict_to_observed_alleles(self.sw_param_dir)
         self.write_hmms(self.sw_param_dir)
         if self.args.only_smith_waterman:
@@ -520,6 +526,7 @@ class PartitionDriver(object):
             cmd = self.args.partis_dir + '/bin/vsearch-1.1.3-linux-x86_64 --threads ' + str(self.args.n_procs) + ' --uc ' + clusterfname + ' --cluster_fast ' + fastafname + ' --id ' + str(id_fraction) + ' --maxaccept 0 --maxreject 0'
             if self.args.slurm or utils.auto_slurm(self.args.n_procs):
                 cmd = 'srun --cpus-per-task ' + str(self.args.n_procs) + ' ' + cmd
+            print '    running %s' % cmd
             proc = Popen(cmd.split(), stdout=PIPE, stderr=PIPE)
             out, err = proc.communicate()
             exit_code = proc.wait()
