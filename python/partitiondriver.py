@@ -44,7 +44,7 @@ class PartitionDriver(object):
             self.input_info, self.reco_info = seqfileopener.get_seqfile_info(self.args.infname, self.args.is_data, n_max_queries=self.args.n_max_queries, args=self.args, glfo=self.glfo, simglfo=self.simglfo)
             if len(self.input_info) > 1000:
                 if self.args.n_procs == 1:
-                    print '  note:! running on %d sequences spread over %d processes. This will be kinda slow, so it might be a good idea to set --n-procs N to the number of processors on your local machine, or look into non-local parallelization with --slurm.\n' % (len(self.input_info), self.args.n_procs)
+                    print '  note:! running on %d sequences spread over %d processes. This will be kinda slow, so it might be a good idea to set --n-procs N to the number of processors on your local machine, or look into non-local parallelization with --batch-system.\n' % (len(self.input_info), self.args.n_procs)
                 if self.args.outfname is None and self.current_action != 'cache-parameters':
                     print '  note: running on a lot of sequences without setting --outfname. Which is ok! But there\'ll be no persistent record of the results'
             self.default_cachefname = self.args.parameter_dir + '/sw-cache-' + repr(abs(hash(''.join(self.input_info.keys())))) + '.csv'  # maybe I shouldn't abs it? collisions are probably still unlikely, and I don't like the extra dash in my file name
@@ -382,7 +382,7 @@ class PartitionDriver(object):
                 next_n_procs = max(1, int(float(n_remaining_seqs) / int_initial_seqs_per_proc))
                 if n_remaining_seqs > 20:
                     next_n_procs *= 3  # multiply by something 'cause we're turning off the seed uid for the last few times through
-                if not self.args.slurm:
+                if self.args.batch_system is None:
                     next_n_procs = min(next_n_procs, multiprocessing.cpu_count())
                 next_n_procs = min(next_n_procs, self.args.n_procs)  # don't let it be bigger than whatever was initially specified
                 print '        new n_procs %d (initial seqs/proc: %.2f   new seqs/proc: %.2f' % (next_n_procs, float(initial_nseqs) / n_proc_list[0], float(n_remaining_seqs) / next_n_procs)
@@ -450,7 +450,7 @@ class PartitionDriver(object):
             seqs_per_proc *= 1.5
         n_precache_procs = int(math.ceil(float(n_seqs) / seqs_per_proc))
         n_precache_procs = min(n_precache_procs, self.args.n_max_procs)  # I can't get more'n a few hundred slots at a time, so it isn't worth using too much more than that
-        if not self.args.slurm:  # if we're not on slurm, make sure it's less than the number of cpus
+        if self.args.batch_system is None:  # if we're not on a batch system, make sure it's less than the number of cpus
             n_precache_procs = min(n_precache_procs, multiprocessing.cpu_count())
 
         return n_precache_procs
@@ -524,23 +524,12 @@ class PartitionDriver(object):
             id_fraction = 1. - bound
             clusterfname = self.args.workdir + '/vsearch-clusters.txt'
             cmd = self.args.partis_dir + '/bin/vsearch-1.1.3-linux-x86_64 --threads ' + str(self.args.n_procs) + ' --uc ' + clusterfname + ' --cluster_fast ' + fastafname + ' --id ' + str(id_fraction) + ' --maxaccept 0 --maxreject 0'
-            if self.args.slurm:
-                cmd = 'srun --cpus-per-task ' + str(self.args.n_procs) + ' ' + cmd
             print '    running %s' % cmd
-            proc = Popen(cmd.split(), stdout=PIPE, stderr=PIPE)
-            out, err = proc.communicate()
-            exit_code = proc.wait()
-            if exit_code != 0:
-                joinstr = '\n    '
-                if out != '':
-                    print '  stdout:'
-                    print '    ' + joinstr.join(out.replace('\r', '').split('\n'))
-                if err != '':
-                    print '  stderr:'
-                    print '    ' + joinstr.join(err.replace('\r', '').split('\n'))
-                raise Exception('vsearch failed with exit code %d' % exit_code)
+            cmdfos = [{'cmd_str' : cmd, 'outfname' : clusterfname, 'workdir' : self.args.workdir, 'threads' : self.args.n_procs}, ]
+            utils.run_cmds(cmdfos, batch_system=self.args.batch_system)
     
         elif self.args.naive_swarm:
+            raise Exception('needs updating')
             clusterfname = self.args.workdir + '/swarm-clusters.txt'
             cmd = './bin/swarm-2.1.1-linux-x86_64 ' + fastafname
             cmd += ' -t 5'  # five threads TODO set this more intelligently
@@ -659,8 +648,6 @@ class PartitionDriver(object):
     def get_hmm_cmd_str(self, algorithm, csv_infname, csv_outfname, parameter_dir, precache_all_naive_seqs, n_procs):
         """ Return the appropriate bcrham command string """
         cmd_str = self.args.partis_dir + '/packages/ham/bcrham'
-        if self.args.slurm:
-            cmd_str = 'srun ' + cmd_str
         cmd_str += ' --algorithm ' + algorithm
         if self.args.debug > 0:
             cmd_str += ' --debug ' + str(self.args.debug)
@@ -761,7 +748,7 @@ class PartitionDriver(object):
                    'outfname' : get_outfname(iproc),
                    'dbgfo' : self.bcrham_proc_info[iproc]}
                   for iproc in range(n_procs)]
-        utils.run_cmds(cmdfos, debug='print' if self.args.debug else None)
+        utils.run_cmds(cmdfos, batch_system=self.args.batch_system, debug='print' if self.args.debug else None)
         if self.current_action == 'partition':
             self.print_partition_dbgfo()
 

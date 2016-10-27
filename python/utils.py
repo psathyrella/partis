@@ -1585,27 +1585,41 @@ def merge_csvs(outfname, csv_list, cleanup=True):
             writer.writerow(line)
 
 # ----------------------------------------------------------------------------------------
-def run_cmd(cmd_str, workdir, env=None):
-    # print cmd_str
-    # sys.exit()
-    if not os.path.exists(workdir):
-        os.makedirs(workdir)
-    proc = Popen(cmd_str.split(), stdout=open(workdir + '/out', 'w'), stderr=open(workdir + '/err', 'w'), env=env)
-    return proc
-
-# ----------------------------------------------------------------------------------------
-def run_cmds(cmdfos, sleep=True, debug=None):  # set sleep to False if you're commands are going to run really really really quickly
+def set_cmdfo_defaults(cmdfos):
     for iproc in range(len(cmdfos)):
-        if 'logdir' not in cmdfos[iproc]:
+        if 'logdir' not in cmdfos[iproc]:  # if logdirs aren't specified, then log files go in the workdirs
             cmdfos[iproc]['logdir'] = cmdfos[iproc]['workdir']
         if 'dbgfo' not in cmdfos[iproc]:
             cmdfos[iproc]['dbgfo'] = None
         if 'env' not in cmdfos[iproc]:
             cmdfos[iproc]['env'] = None
 
+# ----------------------------------------------------------------------------------------
+def run_cmd(cmdfo, batch_system=None):
+    cmd_str = cmdfo['cmd_str']  # don't want to modify the str in <cmdfo>
+    # print cmd_str
+    # sys.exit()
+    if batch_system is not None:
+        if batch_system == 'slurm':
+            if 'threads' in cmdfo:
+                cmd_str = ('srun --cpus-per-task %d ' % cmdfo['threads']) + cmd_str
+            else:
+                cmd_str = 'srun ' + cmd_str
+        elif batch_system == 'sge':
+            cmd_str = 'XXXsrun ' + cmd_str
+        else:
+            assert False
+    if not os.path.exists(cmdfo['logdir']):
+        os.makedirs(cmdfo['logdir'])
+    proc = Popen(cmd_str.split(), stdout=open(cmdfo['logdir'] + '/out', 'w'), stderr=open(cmdfo['logdir'] + '/err', 'w'), env=cmdfo['env'])
+    return proc
+
+# ----------------------------------------------------------------------------------------
+def run_cmds(cmdfos, sleep=True, batch_system=None, debug=None):  # set sleep to False if you're commands are going to run really really really quickly
+    set_cmdfo_defaults(cmdfos)
     procs, n_tries = [], []
     for iproc in range(len(cmdfos)):
-        procs.append(run_cmd(cmdfos[iproc]['cmd_str'], cmdfos[iproc]['logdir'], env=cmdfos[iproc]['env']))
+        procs.append(run_cmd(cmdfos[iproc], batch_system=batch_system))
         n_tries.append(1)
         if sleep:
             time.sleep(0.01)
@@ -1614,7 +1628,7 @@ def run_cmds(cmdfos, sleep=True, debug=None):  # set sleep to False if you're co
             if procs[iproc] is None:  # already finished
                 continue
             if procs[iproc].poll() is not None:  # it just finished
-                finish_process(iproc, procs, n_tries, cmdfos[iproc]['workdir'], cmdfos[iproc]['logdir'], cmdfos[iproc]['outfname'], cmdfos[iproc]['cmd_str'], dbgfo=cmdfos[iproc]['dbgfo'], debug=debug)
+                finish_process(iproc, procs, n_tries, cmdfos[iproc], dbgfo=cmdfos[iproc]['dbgfo'], batch_system=batch_system, debug=debug)
         sys.stdout.flush()
         if sleep:
             time.sleep(0.1)
@@ -1626,35 +1640,35 @@ def pad_lines(linestr, padwidth=8):
 
 # ----------------------------------------------------------------------------------------
 # deal with a process once it's finished (i.e. check if it failed, and restart if so)
-def finish_process(iproc, procs, n_tries, workdir, logdir, outfname, cmd_str, dbgfo=None, debug=None):
+def finish_process(iproc, procs, n_tries, cmdfo, dbgfo=None, batch_system=None, debug=None):
     procs[iproc].communicate()
     if procs[iproc].returncode == 0:
-        if not os.path.exists(outfname):
+        if not os.path.exists(cmdfo['outfname']):
             print '      proc %d succeded but its output isn\'t there, so sleeping for a bit...' % iproc
             time.sleep(0.5)
-        if os.path.exists(outfname):
-            process_out_err('', '', extra_str='' if len(procs) == 1 else str(iproc), dbgfo=dbgfo, logdir=logdir, debug=debug)
+        if os.path.exists(cmdfo['outfname']):
+            process_out_err('', '', extra_str='' if len(procs) == 1 else str(iproc), dbgfo=dbgfo, logdir=cmdfo['logdir'], debug=debug)
             procs[iproc] = None  # job succeeded
             return
 
     # handle failure
     if n_tries[iproc] > 5:
-        failstr = 'exceeded max number of tries for cmd\n    %s\nlook for output in %s and %s' % (cmd_str, workdir, logdir)
+        failstr = 'exceeded max number of tries for cmd\n    %s\nlook for output in %s and %s' % (cmdfo['cmd_str'], cmdfo['workdir'], cmdfo['logdir'])
         print failstr
         raise Exception(failstr)
     else:
         print '    proc %d try %d' % (iproc, n_tries[iproc]),
-        if procs[iproc].returncode == 0 and not os.path.exists(outfname):  # don't really need both the clauses
+        if procs[iproc].returncode == 0 and not os.path.exists(cmdfo['outfname']):  # don't really need both the clauses
             print 'succeded but output is missing'
         else:
-            print 'failed with %d (output %s)' % (procs[iproc].returncode, 'exists' if os.path.exists(outfname) else 'is missing')
+            print 'failed with %d (output %s)' % (procs[iproc].returncode, 'exists' if os.path.exists(cmdfo['outfname']) else 'is missing')
         for strtype in ['out', 'err']:
-            if os.path.exists(logdir + '/' + strtype) and os.stat(logdir + '/' + strtype).st_size > 0:
+            if os.path.exists(cmdfo['logdir'] + '/' + strtype) and os.stat(cmdfo['logdir'] + '/' + strtype).st_size > 0:
                 print '        %s tail:' % strtype
-                logstr = check_output(['tail', logdir + '/' + strtype])
+                logstr = check_output(['tail', cmdfo['logdir'] + '/' + strtype])
                 print '\n'.join(['            ' + l for l in logstr.split('\n')])
-        if cmd_str.split()[0] == 'srun' and os.path.exists(logdir + '/err'):
-            jobid = check_output(['head', '-n1', logdir + '/err']).split()[2]
+        if batch_system is not None and os.path.exists(cmdfo['logdir'] + '/err'):  # cmdfo['cmd_str'].split()[0] == 'srun' and 
+            jobid = check_output(['head', '-n1', cmdfo['logdir'] + '/err']).split()[2]
             try:
                 nodelist = check_output(['squeue', '--job', jobid, '--states=all', '--format', '%N']).split()[1]
             except:
@@ -1665,10 +1679,10 @@ def finish_process(iproc, procs, n_tries, workdir, logdir, outfname, cmd_str, db
                 print pad_lines(outstr, padwidth=12)
             except:
                 print '        failed'
-        # print cmd_str
+        # print cmdfo['cmd_str']
         # sys.exit()
         print '    restarting proc %d' % iproc
-        procs[iproc] = run_cmd(cmd_str, workdir)
+        procs[iproc] = run_cmd(cmdfo, batch_system=batch_system)
         n_tries[iproc] += 1
 
 # ----------------------------------------------------------------------------------------

@@ -215,7 +215,7 @@ class Waterer(object):
                    'workdir' : self.subworkdir(iproc, n_procs),
                    'outfname' : self.subworkdir(iproc, n_procs) + '/' + base_outfname}
                   for iproc in range(n_procs)]
-        utils.run_cmds(cmdfos)
+        utils.run_cmds(cmdfos, batch_system=self.args.batch_system)
 
         for iproc in range(n_procs):
             os.remove(self.subworkdir(iproc, n_procs) + '/' + base_infname)
@@ -261,8 +261,6 @@ class Waterer(object):
         # large gap-opening penalty: we want *no* gaps in the middle of the alignments
         # match score larger than (negative) mismatch score: we want to *encourage* some level of shm. If they're equal, we tend to end up with short unmutated alignments, which screws everything up
         cmd_str = os.getenv('HOME') + '/.local/bin/vdjalign align-fastq -q'
-        if self.args.slurm:
-            cmd_str = 'srun ' + cmd_str
         cmd_str += ' --locus ' + 'IG' + self.args.chain.upper()
         cmd_str += ' --max-drop 50'
         match, mismatch = self.match_mismatch
@@ -281,8 +279,6 @@ class Waterer(object):
         # large gap-opening penalty: we want *no* gaps in the middle of the alignments
         # match score larger than (negative) mismatch score: we want to *encourage* some level of shm. If they're equal, we tend to end up with short unmutated alignments, which screws everything up
         cmd_str = self.args.ig_sw_binary
-        if self.args.slurm:
-            cmd_str = 'srun ' + cmd_str
         cmd_str += ' -l ' + 'IG' + self.args.chain.upper()  # locus
         cmd_str += ' -d 50'  # max drop
         match, mismatch = self.match_mismatch

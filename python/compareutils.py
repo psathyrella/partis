@@ -1315,7 +1315,7 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
 
     extras += ['--workdir', args.fsdir.replace('_output', '_tmp') + '/' + str(random.randint(0, 99999))]
     if action != 'simulate' and not args.no_slurm:
-        extras += ['--slurm', ]
+        extras += ['--batch-system', 'slurm' ]
 
     print 'TODO put in something to reduce the number of procs for large samples'
     n_procs = min(500, n_procs)  # can't get more than a few hundred slots at once, anyway

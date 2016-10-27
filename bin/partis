@@ -45,7 +45,7 @@ def run_simulation(args):
 
     from recombinator import Recombinator
 
-    if args.slurm and args.n_procs > 1 and not args.subsimproc:
+    if args.batch_system is not None and args.n_procs > 1 and not args.subsimproc:
         print '  %s setting subsimproc' % utils.color('red', 'warning')
         args.subsimproc = True
     if args.n_trees is None:
@@ -95,7 +95,7 @@ def run_simulation(args):
         utils.replace_in_arglist(clist, '--initial-germline-dir', working_gldir)
         if args.allele_prevalence_fname is not None:
             utils.replace_in_arglist(clist, '--allele-prevalence-fname', args.allele_prevalence_fname)
-        if args.slurm:
+        if args.batch_system is not None:
             clist.insert(0, 'srun')
         return ' '.join(clist)
 
@@ -283,7 +283,7 @@ parent_parser.add_argument('--dont-remove-framework-insertions', action='store_t
 parent_parser.add_argument('--n-procs', default='1', help='Number of processes over which to parallelize (Can be colon-separated list: first number is procs for hmm, second (should be smaller) is procs for smith-waterman)')
 parent_parser.add_argument('--n-max-procs', default=100, help='Never allow more processes than this (default %(default)d)')
 parent_parser.add_argument('--n-max-to-calc-per-process', default=200, help='if a bcrham process calc\'d more than this many fwd + vtb values, don\'t decrease the number of processes in the next step (default %(default)d)')
-parent_parser.add_argument('--slurm', action='store_true', help='Run multiple processes with slurm, otherwise just runs them on local machine. NOTE make sure to set <workdir> to something visible on all batch nodes.')
+parent_parser.add_argument('--batch-system', choices=['slurm', 'sge'], help='batch system with which to attempt paralellization')
 parent_parser.add_argument('--queries', help='Colon-separated list of query names to which we restrict ourselves')
 parent_parser.add_argument('--reco-ids', help='Colon-separated list of rearrangement-event IDs to which we restrict ourselves')  # or recombination events
 parent_parser.add_argument('--n-max-queries', type=int, default=-1, help='Maximum number of query sequences on which to run (except for simulator, where it\'s the number of rearrangement events)')
@@ -450,12 +450,12 @@ if args.no_indels and args.gap_open_penalty < 1000:
     args.gap_open_penalty = 1000
 
 if args.workdir is None:  # set default here so we know whether it was set by hand or not
-    if args.slurm and os.path.exists('/fh/fast/matsen_e'):
+    if args.batch_system is not None and os.path.exists('/fh/fast/matsen_e'):
         args.workdir = '/fh/fast/matsen_e/dralph/_tmp/hmms/' + str(random.randint(0, 999999))
     else:
         args.workdir = '/tmp/' + os.path.basename(os.getenv('HOME')) + '/hmms/' + str(random.randint(0, 999999))
-        if args.slurm:
-            print '  %s: using slurm with default --workdir (%s) -- if this isn\'t visible to the batch nodes on your system, you\'ll need to change it' % (utils.color('red', 'warning'), args.workdir)
+        if args.batch_system is not None:
+            print '  %s: using batch system %s with default --workdir (%s) -- if this isn\'t visible to the batch nodes on your system, you\'ll need to change it' % (utils.color('red', 'warning'), args.batch_system, args.workdir)
 else:
     args.workdir = args.workdir.rstrip('/')
 if os.path.exists(args.workdir):

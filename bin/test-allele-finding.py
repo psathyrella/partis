@@ -49,7 +49,7 @@ def run_test(args):
 
         cmd_str += ' --n-procs ' + str(args.n_procs)
         if args.slurm:
-            cmd_str += ' --slurm --subsimproc'
+            cmd_str += ' --batch-system slurm --subsimproc'
 
         if args.gen_gset:
             cmd_str += ' --generate-germline-set'
@@ -94,7 +94,7 @@ def run_test(args):
     # cmd_str = 'python -m cProfile -s tottime -o prof.out ' + cmd_str
     cmd_str += ' --n-procs ' + str(args.n_procs)
     if args.slurm:
-        cmd_str += ' --slurm'
+        cmd_str += ' --batch-system slurm'
 
     if args.gen_gset:
         cmd_str += ' --find-new-alleles'
