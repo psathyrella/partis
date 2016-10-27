@@ -130,11 +130,11 @@ class PartitionDriver(object):
                 raise Exception('--persistent-cachefname %s has unexpected header list %s' % (self.args.persistent_cachefname, reader.fieldnames))
 
     # ----------------------------------------------------------------------------------------
-    def get_cachefname(self, write_parameters, find_new_alleles):
+    def get_cachefname(self, write_parameters, diddle_with_glfo):
         if self.args.sw_cachefname is not None:  # if --sw-cachefname was explicitly set, always use that
             return self.args.sw_cachefname
-        elif write_parameters or find_new_alleles or os.path.exists(self.default_cachefname):  # otherwise, use the default cachefname if we're either writing parameters (in which case we want to write results to disk) or if the default already exists (in which case we want to read it)
-            if write_parameters and os.path.exists(self.default_cachefname):
+        elif write_parameters or diddle_with_glfo or os.path.exists(self.default_cachefname):  # otherwise, use the default cachefname if we're either writing parameters (in which case we want to write results to disk) or if the default already exists (in which case we want to read it)
+            if (write_parameters or diddle_with_glfo) and os.path.exists(self.default_cachefname):
                 print '  removing old sw cache file %s' % self.default_cachefname
                 os.remove(self.default_cachefname)
             return self.default_cachefname
@@ -167,7 +167,7 @@ class PartitionDriver(object):
                           parameter_out_dir=parameter_out_dir, remove_less_likely_alleles=remove_less_likely_alleles, find_new_alleles=find_new_alleles,
                           plot_performance=(self.args.plot_performance and not remove_less_likely_alleles and not find_new_alleles),
                           simglfo=self.simglfo, itry=itry)
-        cachefname = self.get_cachefname(write_parameters, find_new_alleles)
+        cachefname = self.get_cachefname(write_parameters, diddle_with_glfo=find_new_alleles or remove_less_likely_alleles)
         if cachefname is None or not os.path.exists(cachefname):  # run sw if we either don't want to do any caching (None) or if we are planning on writing the results after we run
             waterer.run(cachefname)
         else:
@@ -471,7 +471,8 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def cluster_with_naive_vsearch_or_swarm(self, parameter_dir):
         start = time.time()
-        # read cached naive seqs
+
+        # read cached bcrham naive seqs
         naive_seqs = {}
         with open(self.hmm_cachefname) as cachefile:
             reader = csv.DictReader(cachefile)
@@ -587,10 +588,10 @@ class PartitionDriver(object):
         ccfs = [None, None]
         if not self.args.is_data:  # it's ok to always calculate this since it's only ever for one partition
             queries_without_annotations = set(self.input_info) - set(self.sw_info['queries'])
-            partition += [[q, ] for q in queries_without_annotations]  # just add the missing ones as singletons
-            self.check_partition(partition)
+            tmp_partition = copy.deepcopy(partition) + [[q, ] for q in queries_without_annotations]  # just add the missing ones as singletons
+            self.check_partition(tmp_partition)
             true_partition = utils.get_true_partition(self.reco_info)
-            ccfs = utils.new_ccfs_that_need_better_names(partition, true_partition, self.reco_info)
+            ccfs = utils.new_ccfs_that_need_better_names(tmp_partition, true_partition, self.reco_info)
         cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
         cpath.add_partition(partition, logprob=0.0, n_procs=1, ccfs=ccfs)
 
