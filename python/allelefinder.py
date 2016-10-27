@@ -1,3 +1,4 @@
+import random
 import itertools
 import time
 import math
@@ -33,7 +34,6 @@ class AlleleFinder(object):
         self.glfo = glfo
         self.args = args
         self.itry = itry
-        self.cpath = cpath
 
         self.fraction_of_seqs_to_exclude = 0.01  # exclude the fraction of sequences with largest v_{5,3}p deletions whose counts add up to this fraction of total sequences NOTE you don't want to make this too big, because although you'll be removing all the seqs with large 4p deletions, this number also gets used when you're deciding whether your new allele is in the default glfo
         self.n_bases_to_exclude = {'5p' : {}, '3p' : {}}  # i.e. on all the seqs we keep, we exclude this many bases; and any sequences that have larger deletions than this are not kept
@@ -74,6 +74,12 @@ class AlleleFinder(object):
         if self.args.default_initial_germline_dir is not None:  # if this is set, we want to take any new allele names from this directory's glfo if they're in there
             self.default_initial_glfo = glutils.read_glfo(self.args.default_initial_germline_dir, glfo['chain'])
 
+        self.n_excluded_clonal_queries = {}
+        self.single_query_per_clone = None  # one query from each clonal family
+        if cpath is not None:
+            self.single_query_per_clone = [random.choice(cluster) for cluster in cpath.partitions[cpath.i_best]]  # since we're doing this before running sw (these clusters are from a previous sw run, presumably one that removed unlikely alleles), it's possible some of these won't show up this time through. But, we need to know which queries to count as we're incrementing, and while for allelefinder that happens *after* we've finalized sw, we also have to run vsearch, which is easier to do from partitiondriver...
+            print '    restricting allele finder to one sequence from each of %d clones' % len(self.single_query_per_clone)
+
         self.finalized = False
 
         self.reflengths = {}
@@ -91,6 +97,7 @@ class AlleleFinder(object):
         for side in self.n_big_del_skipped:
             self.n_big_del_skipped[side][gene] = 0
         self.n_seqs_too_highly_mutated[gene] = 0
+        self.n_excluded_clonal_queries[gene] = 0
 
     # ----------------------------------------------------------------------------------------
     def set_excluded_bases(self, swfo, debug=False):
@@ -170,6 +177,9 @@ class AlleleFinder(object):
             gcts = self.counts[gene]  # shorthand name
 
             self.gene_obs_counts[gene] += 1
+            if self.single_query_per_clone is not None and info['unique_ids'][0] not in self.single_query_per_clone:
+                self.n_excluded_clonal_queries[gene] += 1
+                return
 
             skip_this = False
             for side in self.n_bases_to_exclude:  # NOTE this is important, because if there is a snp to the right of the cysteine, all the sequences in which it is removed by the v_3p deletion will be shifted one bin leftward, screwing everything up (same goes now that we're doing the same thing on the left side)
@@ -790,7 +800,7 @@ class AlleleFinder(object):
         for gene in sorted(self.counts):
             if debug:
                 sys.stdout.flush()
-                print ' %s: %d %s (%d unmutated)' % (utils.color_gene(gene), self.gene_obs_counts[gene], utils.plural_str('observation', self.gene_obs_counts[gene]), self.per_gene_mute_counts[gene].bin_contents[0])
+                print ' %s: %d / %d unmutated / total observations (excluded %d clonal sequences)' % (utils.color_gene(gene), self.per_gene_mute_counts[gene].bin_contents[0], self.gene_obs_counts[gene], self.n_excluded_clonal_queries[gene])
                 print '          skipping',
                 print '%d seqs that are too highly mutated,' % self.n_seqs_too_highly_mutated[gene],
                 print '%d that had 5p deletions larger than %d,' % (self.n_big_del_skipped['5p'][gene], self.n_bases_to_exclude['5p'][gene]),

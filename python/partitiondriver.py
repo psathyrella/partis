@@ -141,7 +141,7 @@ class PartitionDriver(object):
     #     return None  # don't want to read or write sw cache files
 
     # ----------------------------------------------------------------------------------------
-    def run_waterer(self, write_parameters=False, remove_less_likely_alleles=False, find_new_alleles=False, itry=None, write_cachefile=False, look_for_cachefile=False):
+    def run_waterer(self, write_parameters=False, remove_less_likely_alleles=False, find_new_alleles=False, itry=None, write_cachefile=False, look_for_cachefile=False, cpath=None):
         print 'smith-waterman',
         if write_parameters:
             print '  (writing parameters)',
@@ -162,11 +162,12 @@ class PartitionDriver(object):
                 print '  %s %d genes in glfo that don\'t have yamels in %s' % (utils.color('red', 'warning'), len(expected_genes - genes_with_hmms), self.sub_param_dir)
 
         parameter_out_dir = self.sw_param_dir if write_parameters else None
-        waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo,
+        input_info = self.input_info if self.sw_info is None else {q : self.input_info[q] for q in self.sw_info['queries']}  # pick up info on failed queries if this isn't the first sw run
+        waterer = Waterer(self.args, input_info, self.reco_info, self.glfo,
                           count_parameters=(remove_less_likely_alleles or parameter_out_dir is not None),
                           parameter_out_dir=parameter_out_dir, remove_less_likely_alleles=remove_less_likely_alleles, find_new_alleles=find_new_alleles,
                           plot_performance=(self.args.plot_performance and not remove_less_likely_alleles and not find_new_alleles),
-                          simglfo=self.simglfo, itry=itry)
+                          simglfo=self.simglfo, itry=itry, cpath=cpath)
         # cachefname = self.get_cachefname(write_parameters, diddle_with_glfo=find_new_alleles or remove_less_likely_alleles)
         cachefname = self.default_cachefname if self.args.sw_cachefname is None else self.args.sw_cachefname
         if not look_for_cachefile and os.path.exists(cachefname):  # i.e. if we're not explicitly told to look for it, and it's there, then it's probably out of date
@@ -189,7 +190,7 @@ class PartitionDriver(object):
         itry = 0
         while True:
             cpath = self.cluster_with_naive_vsearch_or_swarm(read_hmm_cachefile=False)
-            self.run_waterer(find_new_alleles=True, itry=itry)
+            self.run_waterer(find_new_alleles=True, itry=itry, cpath=cpath)
             if len(self.sw_info['new-alleles']) == 0:
                 break
             if os.path.exists(self.default_cachefname):
@@ -522,14 +523,14 @@ class PartitionDriver(object):
             proc = Popen(cmd.split(), stdout=PIPE, stderr=PIPE)
             out, err = proc.communicate()
             exit_code = proc.wait()
-            joinstr = '\n    '
-            if out != '':
-                print '  stdout:'
-                print '    ' + joinstr.join(out.replace('\r', '').split('\n'))
-            if err != '':
-                print '  stderr:'
-                print '    ' + joinstr.join(err.replace('\r', '').split('\n'))
             if exit_code != 0:
+                joinstr = '\n    '
+                if out != '':
+                    print '  stdout:'
+                    print '    ' + joinstr.join(out.replace('\r', '').split('\n'))
+                if err != '':
+                    print '  stderr:'
+                    print '    ' + joinstr.join(err.replace('\r', '').split('\n'))
                 raise Exception('vsearch failed with exit code %d' % exit_code)
     
         elif self.args.naive_swarm:
