@@ -215,7 +215,7 @@ class Waterer(object):
                    'workdir' : self.subworkdir(iproc, n_procs),
                    'outfname' : self.subworkdir(iproc, n_procs) + '/' + base_outfname}
                   for iproc in range(n_procs)]
-        utils.run_cmds(cmdfos, batch_system=self.args.batch_system)
+        utils.run_cmds(cmdfos, batch_system=self.args.batch_system, batch_options=self.args.batch_options)
 
         for iproc in range(n_procs):
             os.remove(self.subworkdir(iproc, n_procs) + '/' + base_infname)

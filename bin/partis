@@ -131,7 +131,7 @@ def run_simulation(args):
                    'outfname' : get_outfname(iproc)}
                   for iproc in range(args.n_procs)]
         if args.subsimproc:
-            utils.run_cmds(cmdfos, debug='print')
+            utils.run_cmds(cmdfos, batch_system=args.batch_system, batch_options=args.batch_options, debug='print')
         else:
             for iproc in range(args.n_procs):
                 proc = Process(target=make_events, args=(n_per_proc, iproc, cmdfos[iproc]['workdir'], cmdfos[iproc]['outfname'], all_random_ints[iproc]))
@@ -284,6 +284,7 @@ parent_parser.add_argument('--n-procs', default='1', help='Number of processes o
 parent_parser.add_argument('--n-max-procs', default=100, help='Never allow more processes than this (default %(default)d)')
 parent_parser.add_argument('--n-max-to-calc-per-process', default=200, help='if a bcrham process calc\'d more than this many fwd + vtb values, don\'t decrease the number of processes in the next step (default %(default)d)')
 parent_parser.add_argument('--batch-system', choices=['slurm', 'sge'], help='batch system with which to attempt paralellization')
+parent_parser.add_argument('--batch-options', help='additional options to apply to --batch-system')
 parent_parser.add_argument('--queries', help='Colon-separated list of query names to which we restrict ourselves')
 parent_parser.add_argument('--reco-ids', help='Colon-separated list of rearrangement-event IDs to which we restrict ourselves')  # or recombination events
 parent_parser.add_argument('--n-max-queries', type=int, default=-1, help='Maximum number of query sequences on which to run (except for simulator, where it\'s the number of rearrangement events)')

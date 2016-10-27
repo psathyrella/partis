@@ -1595,33 +1595,37 @@ def set_cmdfo_defaults(cmdfos):
             cmdfos[iproc]['env'] = None
 
 # ----------------------------------------------------------------------------------------
-def run_cmd(cmdfo, batch_system=None):
+def run_cmd(cmdfo, batch_system=None, batch_options=None):
     cmd_str = cmdfo['cmd_str']  # don't want to modify the str in <cmdfo>
     # print cmd_str
     # sys.exit()
+    prefix = None
     if batch_system is not None:
         if batch_system == 'slurm':
+            prefix = 'slurm'
             if 'threads' in cmdfo:
-                cmd_str = ('srun --cpus-per-task %d ' % cmdfo['threads']) + cmd_str
-            else:
-                cmd_str = 'srun ' + cmd_str
+                prefix += ' --cpus-per-task %d' % cmdfo['threads']
         elif batch_system == 'sge':
+            prefix = 'qsub -sync y -b y -V'
+            if batch_options is not None:
+                prefix += ' ' + batch_options
             if 'threads' in cmdfo:
                 print '  note: threads per task reservation not implemented for sge'
-            cmd_str = 'qsub -sync y -b y -V ' + cmd_str
         else:
             assert False
+    if prefix is not None:
+        cmd_str = prefix + ' ' + cmd_str
     if not os.path.exists(cmdfo['logdir']):
         os.makedirs(cmdfo['logdir'])
     proc = Popen(cmd_str.split(), stdout=open(cmdfo['logdir'] + '/out', 'w'), stderr=open(cmdfo['logdir'] + '/err', 'w'), env=cmdfo['env'])
     return proc
 
 # ----------------------------------------------------------------------------------------
-def run_cmds(cmdfos, sleep=True, batch_system=None, debug=None):  # set sleep to False if you're commands are going to run really really really quickly
+def run_cmds(cmdfos, sleep=True, batch_system=None, batch_options=None, debug=None):  # set sleep to False if you're commands are going to run really really really quickly
     set_cmdfo_defaults(cmdfos)
     procs, n_tries = [], []
     for iproc in range(len(cmdfos)):
-        procs.append(run_cmd(cmdfos[iproc], batch_system=batch_system))
+        procs.append(run_cmd(cmdfos[iproc], batch_system=batch_system, batch_options=batch_options))
         n_tries.append(1)
         if sleep:
             time.sleep(0.01)
@@ -1630,7 +1634,7 @@ def run_cmds(cmdfos, sleep=True, batch_system=None, debug=None):  # set sleep to
             if procs[iproc] is None:  # already finished
                 continue
             if procs[iproc].poll() is not None:  # it just finished
-                finish_process(iproc, procs, n_tries, cmdfos[iproc], dbgfo=cmdfos[iproc]['dbgfo'], batch_system=batch_system, debug=debug)
+                finish_process(iproc, procs, n_tries, cmdfos[iproc], dbgfo=cmdfos[iproc]['dbgfo'], batch_system=batch_system, batch_options=batch_options, debug=debug)
         sys.stdout.flush()
         if sleep:
             time.sleep(0.1)
@@ -1642,7 +1646,7 @@ def pad_lines(linestr, padwidth=8):
 
 # ----------------------------------------------------------------------------------------
 # deal with a process once it's finished (i.e. check if it failed, and restart if so)
-def finish_process(iproc, procs, n_tries, cmdfo, dbgfo=None, batch_system=None, debug=None):
+def finish_process(iproc, procs, n_tries, cmdfo, dbgfo=None, batch_system=None, batch_options=None, debug=None):
     procs[iproc].communicate()
     if procs[iproc].returncode == 0:
         if not os.path.exists(cmdfo['outfname']):
@@ -1684,7 +1688,7 @@ def finish_process(iproc, procs, n_tries, cmdfo, dbgfo=None, batch_system=None, 
         # print cmdfo['cmd_str']
         # sys.exit()
         print '    restarting proc %d' % iproc
-        procs[iproc] = run_cmd(cmdfo, batch_system=batch_system)
+        procs[iproc] = run_cmd(cmdfo, batch_system=batch_system, batch_options=batch_options)
         n_tries[iproc] += 1
 
 # ----------------------------------------------------------------------------------------

@@ -526,7 +526,7 @@ class PartitionDriver(object):
             cmd = self.args.partis_dir + '/bin/vsearch-1.1.3-linux-x86_64 --threads ' + str(self.args.n_procs) + ' --uc ' + clusterfname + ' --cluster_fast ' + fastafname + ' --id ' + str(id_fraction) + ' --maxaccept 0 --maxreject 0'
             print '    running %s' % cmd
             cmdfos = [{'cmd_str' : cmd, 'outfname' : clusterfname, 'workdir' : self.args.workdir, 'threads' : self.args.n_procs}, ]
-            utils.run_cmds(cmdfos, batch_system=self.args.batch_system)
+            utils.run_cmds(cmdfos, batch_system=self.args.batch_system, batch_options=self.args.batch_options)
     
         elif self.args.naive_swarm:
             raise Exception('needs updating')
@@ -748,7 +748,7 @@ class PartitionDriver(object):
                    'outfname' : get_outfname(iproc),
                    'dbgfo' : self.bcrham_proc_info[iproc]}
                   for iproc in range(n_procs)]
-        utils.run_cmds(cmdfos, batch_system=self.args.batch_system, debug='print' if self.args.debug else None)
+        utils.run_cmds(cmdfos, batch_system=self.args.batch_system, batch_options=self.args.batch_options, debug='print' if self.args.debug else None)
         if self.current_action == 'partition':
             self.print_partition_dbgfo()
 
