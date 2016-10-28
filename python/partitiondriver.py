@@ -191,10 +191,10 @@ class PartitionDriver(object):
         itry = 0
         cpath = None
         while True:
-            if self.sw_info is None:
-                print '  note: didn\'t remove unlikely alleles, but we\'re trying to find new alleles, so we need to run sw an extra time beforehand to get naive sequences'
-                self.run_waterer(count_parameters=True)
-            if cpath is None:  # only do it the first time through
+            if cpath is None and not self.args.dont_collapse_clones:  # only do it the first time through
+                if self.sw_info is None:
+                    print '  note: didn\'t remove unlikely alleles, but we\'re trying to find new alleles, so we need to run sw an extra time beforehand to get naive sequences'
+                    self.run_waterer(count_parameters=True)
                 cpath = self.cluster_with_naive_vsearch_or_swarm(read_hmm_cachefile=False)
             self.run_waterer(find_new_alleles=True, itry=itry, cpath=cpath)
             if len(self.sw_info['new-alleles']) == 0:
