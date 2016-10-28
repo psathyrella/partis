@@ -32,16 +32,15 @@ def default_parameter_dir(args):
 def set_default_parameter_dir(args):
     if args.parameter_dir is None and not args.rearrange_from_scratch and not args.mutate_from_scratch:
         args.parameter_dir = default_parameter_dir(args)
-        print '  using default parameter dir \'%s\'' % args.parameter_dir
 
 # ----------------------------------------------------------------------------------------
 def run_simulation(args):
     # I honestly have no recollection of why I started putting the list getting in the sub functions, maybe I should combine it
     args.n_genes_per_region = utils.get_arg_list(args.n_genes_per_region, intify=True)
     args.n_genes_per_region = {r : args.n_genes_per_region[utils.regions.index(r)] for r in utils.regions}  # convert to dict for easier access
-    args.n_alleles_per_gene = utils.get_arg_list(args.n_alleles_per_gene)
-    assert len(args.n_alleles_per_gene) == len(utils.regions)
-    args.n_alleles_per_gene = {utils.regions[i] : [int(n) for n in args.n_alleles_per_gene[i].split(',')] for i in range(len(utils.regions))}
+    args.n_sim_alleles_per_gene = utils.get_arg_list(args.n_sim_alleles_per_gene)
+    assert len(args.n_sim_alleles_per_gene) == len(utils.regions)
+    args.n_sim_alleles_per_gene = {utils.regions[i] : [int(n) for n in args.n_sim_alleles_per_gene[i].split(',')] for i in range(len(utils.regions))}
 
     from recombinator import Recombinator
 
@@ -76,7 +75,7 @@ def run_simulation(args):
     glfo = glutils.read_glfo(input_gldir, args.chain, only_genes=args.only_genes)
     if not args.im_a_subproc and args.rearrange_from_scratch and args.generate_germline_set:
         glutils.remove_v_genes_with_bad_cysteines(glfo)
-        glutils.generate_germline_set(glfo, args.n_genes_per_region, args.n_alleles_per_gene, args.min_allele_prevalence_freq, args.allele_prevalence_fname)  # NOTE removes unwanted genes from <glfo>
+        glutils.generate_germline_set(glfo, args.n_genes_per_region, args.n_sim_alleles_per_gene, args.min_sim_allele_prevalence_freq, args.allele_prevalence_fname)  # NOTE removes unwanted genes from <glfo>
         glutils.write_glfo(args.outfname.replace('.csv', '-glfo'), glfo)
     if args.subsimproc:
         working_gldir = args.workdir + '/' + glutils.glfo_dir
@@ -203,15 +202,13 @@ def run_partitiondriver(args):
         return
 
     if not os.path.exists(args.parameter_dir):
-        print '  parameter dir \'%s\' does not exist, so first caching a new set of parameters' % args.parameter_dir
+        print '  parameter dir \'%s\' does not exist, so caching a new set of parameters before running action \'%s\'' % (args.parameter_dir, args.action)
         newargv = copy.deepcopy(sys.argv)
-        cache_parameter_arg_names = [argconf['name'] for argconf in subargs['cache-parameters']]
-        for argconf in subargs[args.action]:  # remove args that make sense for <args.action>, but not for parameter caching
-            if argconf['name'] in newargv and argconf not in cache_parameter_arg_names:
-                index = newargv.index(argconf['name'])
-                newargv.remove(argconf['name'])
-                if 'action' not in argconf['kwargs'] or argconf['kwargs']['action'] != 'store_true':  # also remove the argument's argument
-                    newargv.pop(index)
+        for argconf in [ac for ac in subargs[args.action] if ac['name'] in newargv]:  # remove args that only make sense for <args.action>
+            index = newargv.index(argconf['name'])
+            newargv.remove(argconf['name'])
+            if 'action' not in argconf['kwargs'] or argconf['kwargs']['action'] != 'store_true':  # also remove the argument's argument
+                newargv.pop(index)
         newargv = newargv[:1] + ['cache-parameters', ] + newargv[2:]
         check_call(newargv)
 
@@ -304,6 +301,21 @@ parent_parser.add_argument('--min-observations-to-write', type=int, default=20, 
 parent_parser.add_argument('--chain', default='h', choices=('h', 'k', 'l'), help='light chain is under development! only heavy chain works at the moment. But in the future: Are these heavy chain, or kappa or lambda light chain?')
 parent_parser.add_argument('--species', default='human', choices=('human', 'mouse'), help='Which species?')
 parent_parser.add_argument('--only-smith-waterman', action='store_true', help='Exit after finishing smith-waterman.')
+# ----------------------------------------------------------------------------------------
+# cache-parameters options:
+parent_parser.add_argument('--dont-remove-unlikely-alleles', action='store_true', help='assign each sequence to its closest germline match, even if this would imply an unrealistically large number of alleles per gene in this sample')
+parent_parser.add_argument('--find-new-alleles', action='store_true', help='look for alleles which do not appear in the default germline set')
+parent_parser.add_argument('--always-find-new-alleles', action='store_true', help='By default we only look for new alleles if a repertoire\'s mutation rate is amenable to reasonable new-allele sensitivity (i.e. if it\'s not crazy high). This overrides that.')
+parent_parser.add_argument('--new-allele-fname', help='fasta fname to which to write any new alleles (they are also written, together with existing alleles, to --parameter-dir)')
+parent_parser.add_argument('--debug-allele-finding', action='store_true', help='print lots of debug info on new-allele fits')
+parent_parser.add_argument('--n-max-allele-finding-iterations', type=int, default=2, help='maximum number of times to look for new alleles')
+parent_parser.add_argument('--n-max-new-alleles-per-gene-per-iteration', type=int, default=2, help='with an option name that long...')
+parent_parser.add_argument('--n-max-snps', type=int, default=8, help='when new-allele finding, look for new alleles separated from existing alleles by up to this many SNPs')
+parent_parser.add_argument('--n-max-mutations-per-segment', type=int, default=30, help='when new-allele finding, exclude sequences which have more than this many mutations in the V segment')
+parent_parser.add_argument('--n-alleles-per-gene', type=int, default=2, help='number of alleles to assume per gene when removing spurious alleles during parameter caching')
+parent_parser.add_argument('--min-allele-prevalence-fraction', type=float, default=0.0005, help='Remove any alleles that represent less than this fraction of the repertoire.')
+parent_parser.add_argument('--initial-germline-dir', help='Directory with fastas from which to read germline set. Only used when caching parameters, during which its contents is copied into --parameter-dir, perhaps (i.e. if specified) with modification. NOTE default is set below, because control flow is too complicated for argparse')
+# ----------------------------------------------------------------------------------------
 
 subconfig = {
     'version'          : {'func' : int, 'help' : 'print version information and exit'},
@@ -317,19 +329,6 @@ subconfig = {
 }
 
 subargs = {subname : [] for subname in subconfig}
-
-subargs['cache-parameters'].append({'name' : '--dont-remove-unlikely-alleles', 'kwargs' : {'action' : 'store_true', 'help' : 'assign each sequence to its closest germline match, even if this would imply an unrealistically large number of alleles per gene in this sample'}})
-subargs['cache-parameters'].append({'name' : '--find-new-alleles', 'kwargs' : {'action' : 'store_true', 'help' : 'look for alleles which do not appear in the default germline set'}})
-subargs['cache-parameters'].append({'name' : '--always-find-new-alleles', 'kwargs' : {'action' : 'store_true', 'help' : 'By default we only look for new alleles if a repertoire\'s mutation rate is amenable to reasonable new-allele sensitivity (i.e. if it\'s not crazy high). This overrides that.'}})
-subargs['cache-parameters'].append({'name' : '--new-allele-fname', 'kwargs' : {'help' : 'fasta fname to which to write any new alleles (they are also written, together with existing alleles, to --parameter-dir)'}})
-subargs['cache-parameters'].append({'name' : '--debug-allele-finding', 'kwargs' : {'action' : 'store_true', 'help' : 'print lots of debug info on new-allele fits'}})
-subargs['cache-parameters'].append({'name' : '--n-max-allele-finding-iterations', 'kwargs' : {'type' : int, 'default' : 2, 'help' : 'maximum number of times to look for new alleles'}})
-subargs['cache-parameters'].append({'name' : '--n-max-new-alleles-per-gene-per-iteration', 'kwargs' : {'type' : int, 'default' : 2, 'help' : 'with an option name that long...'}})
-subargs['cache-parameters'].append({'name' : '--n-max-snps', 'kwargs' : {'type' : int, 'default' : 8, 'help' : 'when new-allele finding, look for new alleles separated from existing alleles by up to this many SNPs'}})
-subargs['cache-parameters'].append({'name' : '--n-max-mutations-per-segment', 'kwargs' : {'type' : int, 'default' : 30, 'help' : 'when new-allele finding, exclude sequences which have more than this many mutations in the V segment'}})
-subargs['cache-parameters'].append({'name' : '--n-alleles-per-gene', 'kwargs' : {'type' : int, 'default' : 2, 'help' : 'number of alleles to assume per gene when removing spurious alleles during parameter caching'}})
-subargs['cache-parameters'].append({'name' : '--min-allele-prevalence-fraction', 'kwargs' : {'type' : float, 'default' : 0.0005, 'help' : 'Remove any alleles that represent less than this fraction of the repertoire.'}})
-subargs['cache-parameters'].append({'name' : '--initial-germline-dir', 'kwargs' : {'help' : 'Directory with fastas from which to read germline set. Only used when caching parameters, during which its contents is copied into --parameter-dir, perhaps (i.e. if specified) with modification. NOTE default is set below, because control flow is too complicated for argparse'}})
 
 subargs['partition'].append({'name' : '--naive-hamming', 'kwargs' : {'action' : 'store_true', 'help' : 'agglomerate purely with naive hamming distance, i.e. set the low and high preclustering bounds to the same value'}})
 subargs['partition'].append({'name' : '--naive-vsearch', 'kwargs' : {'action' : 'store_true', 'help' : 'Very fast clustering: infer naive (unmutated ancestor) for each input sequence, then toss it all into vsearch. But, of course, not as accurate as the slower methods.'}})
@@ -368,10 +367,9 @@ subargs['simulate'].append({'name' : '--flat-mute-freq', 'kwargs' : {'type' : fl
 subargs['simulate'].append({'name' : '--scratch-mute-freq-dir', 'kwargs' : {'default' : partis_dir + '/data/recombinator/scratch-parameters', 'help' : 'see --simulate-partially-from-scratch'}})
 subargs['simulate'].append({'name' : '--generate-germline-set', 'kwargs' : {'action' : 'store_true', 'help' : 'Choose a subset of the available genes to represent this sample\'s germline.'}})
 subargs['simulate'].append({'name' : '--n-genes-per-region', 'kwargs' : {'default' : '15:5:3', 'help' : 'colon-separated list specifying the number of genes (not alleles -- i.e. the *total* number of alleles is this times the number of alleles per gene) for each region (for use with --generate-germline-set)'}})
-subargs['simulate'].append({'name' : '--n-alleles-per-gene', 'kwargs' : {'default' : '1,2,3:1,2:1,2', 'help' : 'colon-separated list of comma-separated lists of the allowed allele multiplicities for each region, e.g. \'2:1,2:1,2\' means that for each gene we will choose two alleles for V, and either 1 or 2 for D and J (for use with --generate-germline-set)'}})
-subargs['simulate'].append({'name' : '--min-allele-prevalence-freq', 'kwargs' : {'default' : 0.1, 'type' : float, 'help' : 'minimum frequency at which alleles are allowed to occur, e.g. if it\'s 0.01 then each pair of V alleles will have a prevalence ratio between --min-allele-prevalence-freq and 1..'}})
+subargs['simulate'].append({'name' : '--n-sim-alleles-per-gene', 'kwargs' : {'default' : '1,2,3:1,2:1,2', 'help' : 'colon-separated list of comma-separated lists of the allowed allele multiplicities for each region, e.g. \'2:1,2:1,2\' means that for each gene we will choose two alleles for V, and either 1 or 2 for D and J (for use with --generate-germline-set)'}})
+subargs['simulate'].append({'name' : '--min-sim-allele-prevalence-freq', 'kwargs' : {'default' : 0.1, 'type' : float, 'help' : 'minimum frequency at which alleles are allowed to occur, e.g. if it\'s 0.01 then each pair of V alleles will have a prevalence ratio between --min-allele-prevalence-freq and 1..'}})
 subargs['simulate'].append({'name' : '--allele-prevalence-fname', 'kwargs' : {'help' : 'abandon help all ye who enter here'}})
-subargs['simulate'].append({'name' : '--initial-germline-dir', 'kwargs' : {'help' : 'Directory with fastas from which to read germline set. Only used when caching parameters, during which its contents is copied into --parameter-dir, perhaps (i.e. if specified) with modification. NOTE default is set below, because control flow is too complicated for argparse'}})
 
 subargs['simulate'].append({'name' : '--subsimproc', 'kwargs' : {'action' : 'store_true', 'help' : 'set to true if this process has subsidiary simulation processes handled by Popen'}})
 subargs['simulate'].append({'name' : '--im-a-subproc', 'kwargs' : {'action' : 'store_true', 'help' : 'set to true if this is a sub-process handled by --subsimproc'}})
