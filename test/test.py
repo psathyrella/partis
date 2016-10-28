@@ -114,6 +114,8 @@ class Tester(object):
             return
         if not args.dont_run:
             self.run(args)
+        if args.dry_run:
+            return
         if not args.skip_ref:
             self.compare_stuff(input_stype='ref')
         if not args.only_ref and not args.quick:
@@ -182,6 +184,8 @@ class Tester(object):
 
             logstr = 'TEST %30s   %s' % (name, cmd_str)
             print logstr
+            if args.dry_run:
+                continue
             logfile = open(self.logfname, 'a')
             logfile.write(logstr + '\n')
             logfile.close()
@@ -561,7 +565,8 @@ class Tester(object):
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
-parser.add_argument('--dont-run', action='store_true', help='don\'t actually run the tests, presumably so you can just check the results ')
+parser.add_argument('--dont-run', action='store_true', help='don\'t actually run anything, just check the results')
+parser.add_argument('--dry-run', action='store_true', help='do all preparations to run, but don\'t actually run the commands, and don\'t check results')
 parser.add_argument('--quick', action='store_true')
 parser.add_argument('--only-ref', action='store_true', help='only run with input_stype of \'ref\'')
 parser.add_argument('--skip-ref', action='store_true', help='skip stuff that\'s run by --only-ref')

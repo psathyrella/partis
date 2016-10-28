@@ -195,7 +195,7 @@ class PartitionDriver(object):
                 if self.sw_info is None:
                     print '  note: didn\'t remove unlikely alleles, but we\'re trying to find new alleles, so we need to run sw an extra time beforehand to get naive sequences'
                     self.run_waterer(count_parameters=True)
-                cpath = self.cluster_with_naive_vsearch_or_swarm(read_hmm_cachefile=False)
+                cpath = self.cluster_with_naive_vsearch_or_swarm(read_hmm_cachefile=False, allele_finding_collapse=True)
             self.run_waterer(find_new_alleles=True, itry=itry, cpath=cpath)
             if len(self.sw_info['new-alleles']) == 0:
                 break
@@ -484,7 +484,81 @@ class PartitionDriver(object):
         self.current_action = action_cache
 
     # ----------------------------------------------------------------------------------------
-    def cluster_with_naive_vsearch_or_swarm(self, parameter_dir=None, read_hmm_cachefile=True):
+    def run_swarm(self, naive_seqs, threshold, outfname):
+        raise Exception('needs updating/fixing')
+        # # ----------------------------------------------------------------------------------------
+        # if self.args.naive_swarm:
+        #     print '    NOTE: replacing N with A for input to swarm'
+        # with open(fastafname, 'w') as fastafile:
+        #     for query, naive_seq in naive_seqs.items():
+        #         if self.args.naive_swarm:
+        #             query += '_1'
+        #             naive_seq = utils.remove_ambiguous_ends(naive_seq)
+        #             naive_seq = naive_seq.replace('N', 'A')
+        #         fastafile.write('>' + query + '\n' + naive_seq + '\n')
+        # # ----------------------------------------------------------------------------------------
+        #     clusterfname = self.args.workdir + '/swarm-clusters.txt'
+        #     cmd = './bin/swarm-2.1.1-linux-x86_64 ' + fastafname
+        #     cmd += ' -t 5'  # five threads TODO set this more intelligently
+        #     # cmd += ' -f'
+        #     cmd += ' --match-reward ' + str(self.args.match_mismatch[0])
+        #     cmd += ' --mismatch-penalty ' + str(self.args.match_mismatch[1])
+        #     cmd += ' --gap-opening-penalty ' + str(self.args.gap_open_penalty)
+        #     # cmd += ' --gap-extension-penalty'
+        #     tmpstart = time.time()
+        #     total = 0.
+        #     for key in self.sw_info['queries']:
+        #         seq = self.input_info[key]['seqs'][0]
+        #         total += float(len(seq))
+        #     mean_length = total / len(self.sw_info['queries'])
+        #     raise Exception('update for new thresholds')
+        #     bound = self.get_naive_hamming_threshold(parameter_dir, 'tight') /  2.  # yay for heuristics! (I did actually optimize this...)
+        #     differences = int(round(mean_length * bound))
+        #     print '        d = mean len * mut freq bound = %f * %f = %f --> %d' % (mean_length, bound, mean_length * bound, differences)
+        #     print '      swarm average time: %.1f' % (time.time()-tmpstart)
+        #     cmd += ' --differences ' + str(differences)
+        #     cmd += ' --uclust-file ' + clusterfname
+        #     check_call(cmd.split())
+        # # ----------------------------------------------------------------------------------------
+
+    # ----------------------------------------------------------------------------------------
+    def run_vsearch(self, naive_seqs, threshold):
+        # write input
+        infname = self.args.workdir + '/naive-seqs.fasta'
+        outfname = self.args.workdir + '/vsearch-clusters.txt'
+        with open(infname, 'w') as fastafile:
+            for query, naive_seq in naive_seqs.items():
+                fastafile.write('>' + query + '\n' + naive_seq + '\n')
+
+        # run
+        id_fraction = 1. - threshold
+        cmd = self.args.partis_dir + '/bin/vsearch-1.1.3-linux-x86_64 --threads ' + str(self.args.n_procs) + ' --uc ' + outfname + ' --cluster_fast ' + infname + ' --id ' + str(id_fraction) + ' --maxaccept 0 --maxreject 0'
+        print '    running %s' % cmd
+        cmdfos = [{'cmd_str' : cmd, 'outfname' : outfname, 'workdir' : self.args.workdir, 'threads' : self.args.n_procs}, ]
+        utils.run_cmds(cmdfos, batch_system=self.args.batch_system, batch_options=self.args.batch_options)
+
+        # read output
+        id_clusters = {}
+        with open(outfname) as clusterfile:
+            reader = csv.DictReader(clusterfile, fieldnames=['type', 'cluster_id', '3', '4', '5', '6', '7', 'crap', 'query', 'morecrap'], delimiter='\t')
+            for line in reader:
+                if line['type'] == 'C':  # batshit output format: some lines are a cluster, and some are a query sequence. Skip the cluster ones.
+                    continue
+                cluster_id = int(line['cluster_id'])
+                if cluster_id not in id_clusters:
+                    id_clusters[cluster_id] = []
+                uid = line['query']
+                if self.args.naive_swarm and uid[-2:] == '_1':  # remove (dummy) abundance information
+                    uid = uid[:-2]
+                id_clusters[cluster_id].append(uid)
+        partition = id_clusters.values()
+
+        os.remove(infname)
+        os.remove(outfname)
+        return partition
+
+    # ----------------------------------------------------------------------------------------
+    def cluster_with_naive_vsearch_or_swarm(self, parameter_dir=None, read_hmm_cachefile=True, allele_finding_collapse=False):
         start = time.time()
 
         if read_hmm_cachefile:
@@ -501,75 +575,14 @@ class PartitionDriver(object):
             assert parameter_dir is None  # i.e. get mut freq from sw info
             naive_seqs = {q : self.sw_info[q]['naive_seq'] for q in self.sw_info['queries']}
 
-        # make a fasta file
-        fastafname = self.args.workdir + '/naive-seqs.fasta'
-                
-        # if not os.path.exists(fastafname):
-        if self.args.naive_swarm:
-            print '    NOTE: replacing N with A for input to swarm'
-        with open(fastafname, 'w') as fastafile:
-            for query, naive_seq in naive_seqs.items():
-                if self.args.naive_swarm:
-                    query += '_1'
-                    naive_seq = utils.remove_ambiguous_ends(naive_seq)
-                    naive_seq = naive_seq.replace('N', 'A')
-                fastafile.write('>' + query + '\n' + naive_seq + '\n')
-
-        if self.args.naive_vsearch or not read_hmm_cachefile:
-            if read_hmm_cachefile:
-                bound = self.get_naive_hamming_bounds(parameter_dir)[0]  # lo and hi are the same
-            else:
-                bound = self.get_naive_hamming_bounds(parameter_dir=None, overall_mute_freq=self.sw_info['mute-freqs']['all'])[0]  # lo and hi are the same
-            print '    using hfrac bound for vsearch %.3f' % bound
-            id_fraction = 1. - bound
-            clusterfname = self.args.workdir + '/vsearch-clusters.txt'
-            cmd = self.args.partis_dir + '/bin/vsearch-1.1.3-linux-x86_64 --threads ' + str(self.args.n_procs) + ' --uc ' + clusterfname + ' --cluster_fast ' + fastafname + ' --id ' + str(id_fraction) + ' --maxaccept 0 --maxreject 0'
-            print '    running %s' % cmd
-            cmdfos = [{'cmd_str' : cmd, 'outfname' : clusterfname, 'workdir' : self.args.workdir, 'threads' : self.args.n_procs}, ]
-            utils.run_cmds(cmdfos, batch_system=self.args.batch_system, batch_options=self.args.batch_options)
-    
-        elif self.args.naive_swarm:
-            raise Exception('needs updating')
-            clusterfname = self.args.workdir + '/swarm-clusters.txt'
-            cmd = './bin/swarm-2.1.1-linux-x86_64 ' + fastafname
-            cmd += ' -t 5'  # five threads TODO set this more intelligently
-            # cmd += ' -f'
-            cmd += ' --match-reward ' + str(self.args.match_mismatch[0])
-            cmd += ' --mismatch-penalty ' + str(self.args.match_mismatch[1])
-            cmd += ' --gap-opening-penalty ' + str(self.args.gap_open_penalty)
-            # cmd += ' --gap-extension-penalty'
-            tmpstart = time.time()
-            total = 0.
-            for key in self.sw_info['queries']:
-                seq = self.input_info[key]['seqs'][0]
-                total += float(len(seq))
-            mean_length = total / len(self.sw_info['queries'])
-            raise Exception('update for new thresholds')
-            bound = self.get_naive_hamming_threshold(parameter_dir, 'tight') /  2.  # yay for heuristics! (I did actually optimize this...)
-            differences = int(round(mean_length * bound))
-            print '        d = mean len * mut freq bound = %f * %f = %f --> %d' % (mean_length, bound, mean_length * bound, differences)
-            print '      swarm average time: %.1f' % (time.time()-tmpstart)
-            cmd += ' --differences ' + str(differences)
-            cmd += ' --uclust-file ' + clusterfname
-            check_call(cmd.split())
+        if read_hmm_cachefile:
+            threshold = self.get_naive_hamming_bounds(parameter_dir)[0]  # lo and hi are the same
         else:
-            assert False
-
-        # read vsearch/swarm output
-        id_clusters = {}
-        with open(clusterfname) as clusterfile:
-            reader = csv.DictReader(clusterfile, fieldnames=['type', 'cluster_id', '3', '4', '5', '6', '7', 'crap', 'query', 'morecrap'], delimiter='\t')
-            for line in reader:
-                if line['type'] == 'C':  # batshit output format: some lines are a cluster, and some are a query sequence. Skip the cluster ones.
-                    continue
-                cluster_id = int(line['cluster_id'])
-                if cluster_id not in id_clusters:
-                    id_clusters[cluster_id] = []
-                uid = line['query']
-                if self.args.naive_swarm and uid[-2:] == '_1':  # remove (dummy) abundance information
-                    uid = uid[:-2]
-                id_clusters[cluster_id].append(uid)
-        partition = id_clusters.values()
+            threshold = self.get_naive_hamming_bounds(parameter_dir=None, overall_mute_freq=self.sw_info['mute-freqs']['all'])[0]  # lo and hi are the same
+        if allele_finding_collapse:  # if we're using this to collapse clonal sequences for allele finding, we don't mind undermerging so much, since we are only collapsing to get fairly independent mutations, and the mutations within a cluster are less than 100% correlated
+            threshold /= 3.
+        print '    using hfrac bound for vsearch %.3f' % threshold
+        partition = self.run_vsearch(naive_seqs, threshold)
 
         # split up clusters that have different cdr3 lengths (partly because it's probably more accurate, partly because otherwise things'll crash when we try to get the cluster annotations)
         def cdr3len(q):
@@ -604,10 +617,7 @@ class PartitionDriver(object):
         cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
         cpath.add_partition(partition, logprob=0.0, n_procs=1, ccfs=ccfs)
 
-        os.remove(fastafname)
-        os.remove(clusterfname)
-
-        print '      vsearch/swarm time: %.1f' % (time.time()-start)
+        print '      vsearch time: %.1f' % (time.time()-start)
         return cpath
 
     # ----------------------------------------------------------------------------------------
