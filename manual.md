@@ -336,13 +336,11 @@ Probably mostly useful for testing.
 ###### In general
 
 The number of processes on your local machine is set with `--n-procs N`.
-Since Smith-Waterman is so much faster than the hmm stuff, depending on your system it can make sense to use fewer process for that step -- you can thus specify a second, smaller number of processes `M` as `--n-procs N:M`.
 
-In order to parallelize over more processes than the local machine can handle, we currently only support slurm.
-This is specified by the flag `--slurm`, which runs all subsidiary processes by tacking `srun` onto the front of the command line.
-Now, partis writes a lot of temporary files to a working directory, which is by default a random name under `/tmp/$USER`.
-If you're running with slurm, though, you need the working directory to be a network mount that everybody can see, so if you're slurming you'll need to set `--workdir` to something visible by your batch nodes.
-A suitable choice on our system is `_tmp/$RANDOM`; note, however, that for large data sets (of order, say a million sequences) i/o operations can become expensive, so one is behooved to use as fast a filesystem as possible.
+In order to parallelize over more processes than the local machine can handle, we currently support slurm and sge: specify one or the other with `--batch-system`.
+The default options for each should work, but if you need to add extras (for instance to reserve particular memory requirements) use `--batch-options`, e.g. `--batch-options="--foo bar"`.
+By default, partis writes its temporary files to a working directory of the form `/tmp/$USER/hmms/$RANDOM`.
+If you're running on a batch system, though, you need the working directory to be a network mount that every node can see; set this with `--workdir`, e.g. `--workdir /path/to/nfs/$USER/hmms/$RANDOM`.
 
 ###### run-viterbi
 
