@@ -81,16 +81,17 @@
 #  - can probably stop deleting sw cache files
 
 # germline set generation:
-#     all alleles (including new ones) should have roughly the same mut freq distribution (especially at low mutation)'
-#     collapse at least the largest clones before inferring new alleles'
-#     finish switch from fitfo to self.fitfos'
-#     try trevor's k-means-style-ish clustering idea
-#     maybe:
-#       y-icpt (i.e. allele prevalence) could also go into the decision about whether to remove the template gene or not'
-#       add requirement that all positions in multiple-snp alleles are correlated (?)'
-#       do all the plots separately for each potential original snp base (i.e. separate plot for A, C, G, T)?'
-#       add requirement for mulitple j genes for new alleles (?)'
-#       increase n_max_mutations_per_segment for highly-mutated repertoires (?)'
+# all alleles (including new ones) should have roughly the same mut freq distribution (especially at low mutation)'
+# maybe remove bounds for as many fits as you can (i.e. don't pass bounds keyword to curvefit)
+# collapse at least the largest clones before inferring new alleles'
+# finish switch from fitfo to self.fitfos'
+# try trevor's k-means-style-ish clustering idea
+# maybe:
+#   y-icpt (i.e. allele prevalence) could also go into the decision about whether to remove the template gene or not'
+#   add requirement that all positions in multiple-snp alleles are correlated (?)'
+#   do all the plots separately for each potential original snp base (i.e. separate plot for A, C, G, T)?'
+#   add requirement for mulitple j genes for new alleles (?)'
+#   increase n_max_mutations_per_segment for highly-mutated repertoires (?)'
 
 # optimization
 #  - could maybe switch to only checking the most likely j frame
