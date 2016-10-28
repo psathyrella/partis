@@ -533,7 +533,6 @@ class PartitionDriver(object):
         # run
         id_fraction = 1. - threshold
         cmd = self.args.partis_dir + '/bin/vsearch-1.1.3-linux-x86_64 --threads ' + str(self.args.n_procs) + ' --uc ' + outfname + ' --cluster_fast ' + infname + ' --id ' + str(id_fraction) + ' --maxaccept 0 --maxreject 0'
-        print '    running %s' % cmd
         cmdfos = [{'cmd_str' : cmd, 'outfname' : outfname, 'workdir' : self.args.workdir, 'threads' : self.args.n_procs}, ]
         utils.run_cmds(cmdfos, batch_system=self.args.batch_system, batch_options=self.args.batch_options)
 
@@ -561,51 +560,47 @@ class PartitionDriver(object):
     def cluster_with_naive_vsearch_or_swarm(self, parameter_dir=None, read_hmm_cachefile=True, allele_finding_collapse=False):
         start = time.time()
 
+        naive_seq_list = []
         if read_hmm_cachefile:
             assert parameter_dir is not None
-            naive_seqs = {}
+            threshold = self.get_naive_hamming_bounds(parameter_dir)[0]  # lo and hi are the same
             with open(self.hmm_cachefname) as cachefile:
                 reader = csv.DictReader(cachefile)
                 for line in reader:
                     unique_ids = line['unique_ids'].split(':')
                     assert len(unique_ids) == 1
-                    unique_id = unique_ids[0]
-                    naive_seqs[unique_id] = line['naive_seq']
+                    naive_seq_list.append((unique_ids[0], line['naive_seq']))
         else:
             assert parameter_dir is None  # i.e. get mut freq from sw info
-            naive_seqs = {q : self.sw_info[q]['naive_seq'] for q in self.sw_info['queries']}
-
-        if read_hmm_cachefile:
-            threshold = self.get_naive_hamming_bounds(parameter_dir)[0]  # lo and hi are the same
-        else:
             threshold = self.get_naive_hamming_bounds(parameter_dir=None, overall_mute_freq=self.sw_info['mute-freqs']['all'])[0]  # lo and hi are the same
+            naive_seq_list = [(q, self.sw_info[q]['naive_seq']) for q in self.sw_info['queries']]
+
+        all_naive_seqs = {}
+        naive_seq_hashes = {}  # k, v = hash(naive_seq), [uid1, uid2, uid3...]
+        for uid, naive_seq in naive_seq_list:
+            hashstr = str(hash(naive_seq))
+            if hashstr not in naive_seq_hashes:  # first sequence that has this naive
+                cdr3_length = self.sw_info[uid]['cdr3_length']
+                if cdr3_length not in all_naive_seqs:
+                    all_naive_seqs[cdr3_length] = {}
+                all_naive_seqs[cdr3_length][hashstr] = naive_seq  # i.e. vsearch gets a hash of the naive seq (which maps to a list of uids with that naive sequence) instead of the uid
+                naive_seq_hashes[hashstr] = []
+            naive_seq_hashes[hashstr].append(uid)
+        print '        collapsed %d sequences into %d unique naive sequences' % (len(naive_seq_list), len(naive_seq_hashes))
+
         if allele_finding_collapse:  # if we're using this to collapse clonal sequences for allele finding, we don't mind undermerging so much, since we are only collapsing to get fairly independent mutations, and the mutations within a cluster are less than 100% correlated
             threshold /= 3.
         print '    using hfrac bound for vsearch %.3f' % threshold
-        partition = self.run_vsearch(naive_seqs, threshold)
 
-        # split up clusters that have different cdr3 lengths (partly because it's probably more accurate, partly because otherwise things'll crash when we try to get the cluster annotations)
-        def cdr3len(q):
-            return self.sw_info[q]['cdr3_length']
-        new_partition = []
-        for cluster in partition:
-            tmpcluster = copy.deepcopy(cluster)
-            new_clusters = []
-            cdr3_lengths = [cdr3len(q) for q in tmpcluster]
-            while cdr3_lengths.count(cdr3_lengths[0]) != len(cdr3_lengths):
-                # print '  before'
-                # print '    ', ' '.join(tmpcluster), ' '.join([str(l) for l in cdr3_lengths])
-                new_clusters.append([tmpcluster[iq] for iq in range(len(tmpcluster)) if cdr3_lengths[iq] == cdr3_lengths[0]])  # split out everybody with the same cdr3 length as the first one
-                tmpcluster = [tmpcluster[iq] for iq in range(len(tmpcluster)) if cdr3_lengths[iq] != cdr3_lengths[0]]  # and keep everybody with any other cdr3 lengths in tmpcluster
-                assert len(tmpcluster) > 0
-                cdr3_lengths = [cdr3len(q) for q in tmpcluster]
-            new_partition.append(tmpcluster)
-            if len(new_clusters) > 0:
-                new_partition += new_clusters
-                # print '    after ', ' '.join(tmpcluster), ' '.join([str(l) for l in cdr3_lengths])
-                # for nc in new_clusters:
-                #     print '        ', ' '.join(nc)
-        partition = new_partition
+        partition = []
+        print '    running vsearch %d times (once for each cdr3 length class):' % len(all_naive_seqs),
+        for cdr3_length, sub_naive_seqs in all_naive_seqs.items():
+            sub_hash_partition = self.run_vsearch(sub_naive_seqs, threshold)
+            sub_uid_partition = [[uid for hashstr in hashcluster for uid in naive_seq_hashes[hashstr]] for hashcluster in sub_hash_partition]
+            partition += sub_uid_partition
+            print '.',
+            sys.stdout.flush()
+        print ''
 
         ccfs = [None, None]
         if not self.args.is_data:  # it's ok to always calculate this since it's only ever for one partition

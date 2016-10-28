@@ -1,5 +1,6 @@
 # now
-#  - non-slurm batch systems
+#  - conda
+#  - vsearch optimizations
 #  - read
 
 # print_reco_event:
@@ -79,6 +80,7 @@
 #  - make sure there's some multiple indels in the testing file
 #  - add mutation-freq accuracy to metrics
 #  - can probably stop deleting sw cache files
+#  - also start using persistent cache files so you're not re-calculating the naive sequences at every step
 
 # germline set generation:
 # all alleles (including new ones) should have roughly the same mut freq distribution (especially at low mutation)'
@@ -94,7 +96,7 @@
 #   increase n_max_mutations_per_segment for highly-mutated repertoires (?)'
 
 # optimization
-#  - could maybe switch to only checking the most likely j frame
+#  - could maybe switch to only checking the most likely j frame (maybe by moving backwards through j hmm?)
 #  - go through glomerator (and maybe dphandler) and make sure everything that should be a reference or a pointer is one
 #  - switch all the c++ map.count() calls to map.find()
 #  - figure out a way to call naive_hfracs_.clear() without killing cpu usage
