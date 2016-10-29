@@ -8,7 +8,7 @@ from opener import opener
 
 # ----------------------------------------------------------------------------------------
 class ClusterPath(object):
-    def __init__(self, initial_path_index=0, seed_unique_id=None):
+    def __init__(self, initial_path_index=0, seed_unique_id=None, partition=None):
         self.initial_path_index = initial_path_index  # NOTE this is set to None if it's nonsensical, e.g. if we're merging several paths with different indices
 
         # NOTE make *damn* sure if you add another list here that you also take care of it in remove_first_partition()
@@ -24,6 +24,9 @@ class ClusterPath(object):
         self.we_have_a_ccf = False  # did we read in at least one adj mi value from a file?
 
         self.seed_unique_id = seed_unique_id
+
+        if partition is not None:
+            self.add_partition(partition, logprob=0., n_procs=1)
 
     # ----------------------------------------------------------------------------------------
     def get_headers(self, is_data, smc_particles):

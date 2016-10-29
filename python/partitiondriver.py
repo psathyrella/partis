@@ -141,7 +141,7 @@ class PartitionDriver(object):
     #     return None  # don't want to read or write sw cache files
 
     # ----------------------------------------------------------------------------------------
-    def run_waterer(self, count_parameters=False, write_parameters=False, remove_less_likely_alleles=False, find_new_alleles=False, itry=None, write_cachefile=False, look_for_cachefile=False, cpath=None):
+    def run_waterer(self, count_parameters=False, write_parameters=False, remove_less_likely_alleles=False, find_new_alleles=False, itry=None, write_cachefile=False, look_for_cachefile=False):
         print 'smith-waterman',
         if write_parameters:
             print '  (writing parameters)',
@@ -168,7 +168,7 @@ class PartitionDriver(object):
                           remove_less_likely_alleles=remove_less_likely_alleles,
                           find_new_alleles=find_new_alleles,
                           plot_performance=(self.args.plot_performance and not remove_less_likely_alleles and not find_new_alleles),
-                          simglfo=self.simglfo, itry=itry, cpath=cpath)
+                          simglfo=self.simglfo, itry=itry)
         # cachefname = self.get_cachefname(write_parameters, diddle_with_glfo=find_new_alleles or remove_less_likely_alleles)
         cachefname = self.default_cachefname if self.args.sw_cachefname is None else self.args.sw_cachefname
         if not look_for_cachefile and os.path.exists(cachefname):  # i.e. if we're not explicitly told to look for it, and it's there, then it's probably out of date
@@ -189,14 +189,8 @@ class PartitionDriver(object):
         assert len(self.all_new_allele_info) == 0
         # alleles_with_evidence = set()
         itry = 0
-        cpath = None
         while True:
-            if cpath is None and not self.args.dont_collapse_clones:  # only do it the first time through
-                if self.sw_info is None:
-                    print '  note: didn\'t remove unlikely alleles, but we\'re trying to find new alleles, so we need to run sw an extra time beforehand to get naive sequences'
-                    self.run_waterer(count_parameters=True)
-                cpath = self.cluster_with_naive_vsearch_or_swarm(read_hmm_cachefile=False, allele_finding_collapse=True)
-            self.run_waterer(find_new_alleles=True, itry=itry, cpath=cpath)
+            self.run_waterer(find_new_alleles=True, itry=itry)
             if len(self.sw_info['new-alleles']) == 0:
                 break
             if os.path.exists(self.default_cachefname):
@@ -575,18 +569,7 @@ class PartitionDriver(object):
             threshold = self.get_naive_hamming_bounds(parameter_dir=None, overall_mute_freq=self.sw_info['mute-freqs']['all'])[0]  # lo and hi are the same
             naive_seq_list = [(q, self.sw_info[q]['naive_seq']) for q in self.sw_info['queries']]
 
-        all_naive_seqs = {}
-        naive_seq_hashes = {}  # k, v = hash(naive_seq), [uid1, uid2, uid3...]
-        for uid, naive_seq in naive_seq_list:
-            hashstr = str(hash(naive_seq))
-            if hashstr not in naive_seq_hashes:  # first sequence that has this naive
-                cdr3_length = self.sw_info[uid]['cdr3_length']
-                if cdr3_length not in all_naive_seqs:
-                    all_naive_seqs[cdr3_length] = {}
-                all_naive_seqs[cdr3_length][hashstr] = naive_seq  # i.e. vsearch gets a hash of the naive seq (which maps to a list of uids with that naive sequence) instead of the uid
-                naive_seq_hashes[hashstr] = []
-            naive_seq_hashes[hashstr].append(uid)
-        print '        collapsed %d sequences into %d unique naive sequences' % (len(naive_seq_list), len(naive_seq_hashes))
+        all_naive_seqs, naive_seq_hashes = utils.collapse_naive_seqs(naive_seq_list, self.sw_info)
 
         if allele_finding_collapse:  # if we're using this to collapse clonal sequences for allele finding, we don't mind undermerging so much, since we are only collapsing to get fairly independent mutations, and the mutations within a cluster are less than 100% correlated
             threshold /= 3.

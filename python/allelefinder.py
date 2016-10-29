@@ -30,7 +30,7 @@ def fstr(fval):
 
 # ----------------------------------------------------------------------------------------
 class AlleleFinder(object):
-    def __init__(self, glfo, args, itry, cpath=None):
+    def __init__(self, glfo, args, itry):
         self.glfo = glfo
         self.args = args
         self.itry = itry
@@ -79,10 +79,8 @@ class AlleleFinder(object):
         self.n_excluded_clonal_queries = {}
         self.n_seqs_over_all_clones = None
         self.single_query_per_clone = None  # one query from each clonal family
-        if cpath is not None:
-            self.single_query_per_clone = [random.choice(cluster) for cluster in cpath.partitions[cpath.i_best]]  # since we're doing this before running sw (these clusters are from a previous sw run, presumably one that removed unlikely alleles), it's possible some of these won't show up this time through. But, we need to know which queries to count as we're incrementing, and while for allelefinder that happens *after* we've finalized sw, we also have to run vsearch, which is easier to do from partitiondriver...
-            self.n_seqs_over_all_clones = sum([len(c) for c in cpath.partitions[cpath.i_best]])
 
+        self.prepared_to_finalize = False
         self.finalized = False
 
         self.reflengths = {}
@@ -101,6 +99,17 @@ class AlleleFinder(object):
             self.n_big_del_skipped[side][gene] = 0
         self.n_seqs_too_highly_mutated[gene] = 0
         self.n_excluded_clonal_queries[gene] = 0
+
+    # ----------------------------------------------------------------------------------------
+    def prepare_to_finalize(self, swfo, cpath=None, debug=False):
+        assert not self.prepared_to_finalize
+
+        self.set_excluded_bases(swfo, debug=debug)
+        if cpath is not None:
+            self.single_query_per_clone = [random.choice(cluster) for cluster in cpath.partitions[cpath.i_best]]  # since we're doing this before running sw (these clusters are from a previous sw run, presumably one that removed unlikely alleles), it's possible some of these won't show up this time through. But, we need to know which queries to count as we're incrementing, and while for allelefinder that happens *after* we've finalized sw, we also have to run vsearch, which is easier to do from partitiondriver...
+            self.n_seqs_over_all_clones = sum([len(c) for c in cpath.partitions[cpath.i_best]])
+
+        self.prepared_to_finalize = True
 
     # ----------------------------------------------------------------------------------------
     def set_excluded_bases(self, swfo, debug=False):
@@ -828,6 +837,7 @@ class AlleleFinder(object):
 
     # ----------------------------------------------------------------------------------------
     def finalize(self, debug=False):
+        assert self.prepared_to_finalize
         assert not self.finalized
 
         region = 'v'

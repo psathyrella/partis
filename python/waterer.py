@@ -18,11 +18,12 @@ from parametercounter import ParameterCounter
 from performanceplotter import PerformancePlotter
 from allelefinder import AlleleFinder
 from alleleremover import AlleleRemover
+from clusterpath import ClusterPath
 
 # ----------------------------------------------------------------------------------------
 class Waterer(object):
     """ Run smith-waterman on the query sequences in <infname> """
-    def __init__(self, args, input_info, reco_info, glfo, count_parameters=False, parameter_out_dir=None, remove_less_likely_alleles=False, find_new_alleles=False, plot_performance=False, simglfo=None, itry=None, cpath=None):
+    def __init__(self, args, input_info, reco_info, glfo, count_parameters=False, parameter_out_dir=None, remove_less_likely_alleles=False, find_new_alleles=False, plot_performance=False, simglfo=None, itry=None):
         self.args = args
         self.input_info = input_info
         self.reco_info = reco_info
@@ -56,7 +57,7 @@ class Waterer(object):
         if remove_less_likely_alleles:
             self.alremover = AlleleRemover(self.glfo, self.args, AlleleFinder(self.glfo, self.args, itry=0))
         if find_new_alleles:  # NOTE *not* the same as <self.args.find_new_alleles>
-            self.alfinder = AlleleFinder(self.glfo, self.args, itry, cpath)
+            self.alfinder = AlleleFinder(self.glfo, self.args, itry)
         if count_parameters:  # NOTE *not* the same as <self.args.cache_parameters>
             self.pcounter = ParameterCounter(self.glfo, self.args)
             if not self.args.is_data:
@@ -144,7 +145,11 @@ class Waterer(object):
             if len(self.info['genes-to-remove']) > 0:
                 found_germline_changes = True
         if self.alfinder is not None:
-            self.alfinder.set_excluded_bases(self.info, debug=self.args.debug_allele_finding)
+            cpath = None
+            if not self.args.dont_collapse_clones:
+                naive_seq_list = [(q, self.info[q]['naive_seq']) for q in self.info['queries']]
+                cpath = ClusterPath(partition=utils.get_partition_from_collapsed_naive_seqs(naive_seq_list, self.info))
+            self.alfinder.prepare_to_finalize(self.info, cpath=cpath, debug=self.args.debug_allele_finding)
             for query in self.info['queries']:
                 self.alfinder.increment(self.info[query])  # it needs to know the distribution of 3p deletions before it can increment, so it has to be here
             self.alfinder.finalize(debug=self.args.debug_allele_finding)
