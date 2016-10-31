@@ -297,7 +297,11 @@ class PartitionDriver(object):
                 if self.args.infname is not None and self.reco_info is not None:
                     utils.print_true_events(self.glfo, self.reco_info, line)
                 utils.add_implicit_info(self.glfo, line, existing_implicit_keys=('aligned_d_seqs', 'aligned_j_seqs', 'aligned_v_seqs', 'cdr3_length', 'naive_seq', 'in_frames', 'mutated_invariants', 'stops', 'mut_freqs'))
-                print '    inferred:\n'
+                print '    inferred:',
+                if len(line['unique_ids']) > 1:
+                    print '   %s' % ':'.join(line['unique_ids'])
+                else:
+                    print ''
                 utils.print_reco_event(self.glfo['seqs'], line)
         if len(failed_queries) > 0:
             print '%d failed queries' % len(failed_queries)
