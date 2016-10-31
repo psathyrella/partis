@@ -551,7 +551,7 @@ class PartitionDriver(object):
         return partition
 
     # ----------------------------------------------------------------------------------------
-    def cluster_with_naive_vsearch_or_swarm(self, parameter_dir=None, read_hmm_cachefile=True, allele_finding_collapse=False):
+    def cluster_with_naive_vsearch_or_swarm(self, parameter_dir=None, read_hmm_cachefile=True):
         start = time.time()
 
         naive_seq_list = []
@@ -571,8 +571,6 @@ class PartitionDriver(object):
 
         all_naive_seqs, naive_seq_hashes = utils.collapse_naive_seqs(naive_seq_list, self.sw_info)
 
-        if allele_finding_collapse:  # if we're using this to collapse clonal sequences for allele finding, we don't mind undermerging so much, since we are only collapsing to get fairly independent mutations, and the mutations within a cluster are less than 100% correlated
-            threshold /= 3.
         print '    using hfrac bound for vsearch %.3f' % threshold
 
         partition = []

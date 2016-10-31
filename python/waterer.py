@@ -871,7 +871,9 @@ class Waterer(object):
             queries_to_rerun['weird-annot.'].add(qname)
             return
 
+# ----------------------------------------------------------------------------------------
         # TODO don't use qinfo in get_kbounds()
+# ----------------------------------------------------------------------------------------
         kbounds = self.get_kbounds(infoline, qinfo, best, codon_positions)
         if kbounds is None:
             if self.debug:
@@ -895,16 +897,17 @@ class Waterer(object):
         k_v_min, k_v_max = best_k_v, best_k_v
         k_d_min, k_d_max = best_k_d, best_k_d
 
-        n_matched_to_break = 3
+        n_matched_to_break = 3  # once we see this many consecutive unmutated bases, assume we're actually within a germline v/d/j match
 
+        # first make sure the hmm will check for cases in which sw over-expanded v
         if debug:
             print 'k_v_min --- %d' % k_v_min
-        # first make sure the hmm will check for cases in which sw over-expanded v
         n_matched = 0  # if <n_matched_to_break> bases match, assume we're definitely within the germline
-        qrseq, glseq = line['v_qr_seqs'][0], line['v_gl_seq']
-        if k_v_min > len(line['v_qr_seqs'][0]):
+        qrseq = line['fv_insertion'] + line['v_qr_seqs'][0]
+        glseq = line['fv_insertion'] + line['v_gl_seq']
+        if k_v_min > len(qrseq):
             if debug:
-                print 'k_v_min too big %d %d' % (k_v_min, len(line['v_qr_seqs'][0]))
+                print 'k_v_min too big %d %d' % (k_v_min, len(qrseq))
             return None
         icheck = k_v_min
         while icheck > codon_positions['v'] + 3:  # i.e. stop when the last v base is the last base of the cysteine
@@ -927,13 +930,13 @@ class Waterer(object):
 
 
         # then make sure the hmm will check for cases in which sw over-expanded j
+        if debug:
+            print 'k_d_max --- %d' % k_d_max
         k_v_min_CHK = k_v_min  # make sure we don't accidentally change it
         n_matched = 0  # if <n_matched_to_break> bases match, assume we're definitely within the germline
         qrseq, glseq = line['j_qr_seqs'][0], line['j_gl_seq']
         j_start = line['regional_bounds']['j'][0]
         icheck = k_d_max  # <icheck> is what we're considering changing k_d_max to
-        if debug:
-            print 'k_d_max --- %d' % k_d_max
         while k_v_min + icheck + 1 < codon_positions['j']:  # i.e. stop when the first j/dj base is the first base of the tryp (even for the smallest k_v)
             icheck += 1
             if debug:
@@ -958,13 +961,13 @@ class Waterer(object):
 
         assert k_v_min_CHK == k_v_min
 
+        if debug:
+            print 'k_d_min --- %d' % k_d_min
         k_v_max_CHK = k_v_max  # make sure we don't accidentally change it
         n_matched = 0  # if <n_matched_to_break> bases match, assume we're definitely within the germline
         qrseq, glseq = line['d_qr_seqs'][0], line['d_gl_seq']
         d_start = line['regional_bounds']['d'][0]
         icheck = k_d_min  # <icheck> is what we're considering changing k_d_min to
-        if debug:
-            print 'k_d_min --- %d' % k_d_min
         while k_v_max + icheck > d_start:
             icheck -= 1
             if debug:
