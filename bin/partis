@@ -451,7 +451,7 @@ if args.no_indels and args.gap_open_penalty < 1000:
 
 if args.workdir is None:  # set default here so we know whether it was set by hand or not
     if args.batch_system is not None and os.path.exists('/fh/fast/matsen_e'):
-        args.workdir = '/fh/fast/matsen_e/dralph/_tmp/hmms/' + str(random.randint(0, 999999))
+        args.workdir = '/fh/fast/matsen_e/' + os.path.basename(os.getenv('HOME')) + '/_tmp/hmms/' + str(random.randint(0, 999999))
     else:
         args.workdir = '/tmp/' + os.path.basename(os.getenv('HOME')) + '/hmms/' + str(random.randint(0, 999999))
         if args.batch_system is not None:
