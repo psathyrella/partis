@@ -688,7 +688,7 @@ class Waterer(object):
         true_kbounds['d']['best'] = true_line['regional_bounds']['d'][1] - true_line['regional_bounds']['v'][1]
 
         def print_kbound_warning():
-            print '  %s true kset (%s) not within kbounds (%s) for %s' % (utils.color('red', 'warning'), utils.get_kbound_str(true_kbounds), utils.get_kbound_str({r : line['k_' + r] for r in true_kbounds}), ':'.join(line['unique_ids']))
+            print '  %s true kset (%s) not within kbounds (%s) for %s' % (utils.color('red', 'warning'), utils.kbound_str(true_kbounds), utils.kbound_str({r : line['k_' + r] for r in true_kbounds}), ':'.join(line['unique_ids']))
 
         for region in true_kbounds:
             if true_kbounds[region]['best'] < line['k_' + region]['min'] or true_kbounds[region]['best'] >= line['k_' + region]['max']:
@@ -871,10 +871,7 @@ class Waterer(object):
             queries_to_rerun['weird-annot.'].add(qname)
             return
 
-# ----------------------------------------------------------------------------------------
-        # TODO don't use qinfo in get_kbounds()
-# ----------------------------------------------------------------------------------------
-        kbounds = self.get_kbounds(infoline, qinfo, best, codon_positions)
+        kbounds = self.get_kbounds(infoline, qinfo, best, codon_positions)  # gets the boundaries of the non-best matches from <qinfo>
         if kbounds is None:
             if self.debug:
                 print '      nonsense kbounds for %s, rerunning' % qname
@@ -891,8 +888,8 @@ class Waterer(object):
         #  - k_v is index of first d/dj insert base (i.e. length of v match)
         #  - k_v + k_d is index of first j/dj insert base (i.e. length of v + vd insert + d match)
 
-        best_k_v = qinfo['qrbounds'][best['v']][1]  # end of v match
-        best_k_d = qinfo['qrbounds'][best['d']][1] - qinfo['qrbounds'][best['v']][1]  # end of d minus end of v
+        best_k_v = line['regional_bounds']['v'][1]  # end of v match
+        best_k_d = line['regional_bounds']['d'][1] - line['regional_bounds']['v'][1]  # end of d minus end of v
 
         k_v_min, k_v_max = best_k_v, best_k_v
         k_d_min, k_d_max = best_k_d, best_k_d
@@ -1017,7 +1014,7 @@ class Waterer(object):
 
 
         # ----------------------------------------------------------------------------------------
-        # switch to usual indexing conventions, i.e. that start with min and do not include max NOTE would maybe be clearer to do this more coherently
+        # switch to usual indexing conventions, i.e. that start with min and do not include max NOTE would be clearer to do this more coherently
         # NOTE i.e. k_[vd]_max means different things before here and after here
         # ----------------------------------------------------------------------------------------
         k_v_max += 1
@@ -1038,7 +1035,7 @@ class Waterer(object):
         kbounds = {'v' : {'best' : best_k_v, 'min' : k_v_min, 'max' : k_v_max},
                    'd' : {'best' : best_k_d, 'min' : k_d_min, 'max' : k_d_max}}
         if self.debug:
-            print '    %s' % utils.get_kbound_str(kbounds)
+            print '    %s' % utils.kbound_str(kbounds)
         return kbounds
 
     # ----------------------------------------------------------------------------------------

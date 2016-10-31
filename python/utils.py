@@ -2407,7 +2407,7 @@ def replace_in_arglist(clist, argstr, replace_with):
         clist[clist.index(argstr) + 1] = replace_with
 
 # ----------------------------------------------------------------------------------------
-def get_kbound_str(kbounds):
+def kbound_str(kbounds):
     return_str = []
     for region in ['v', 'd']:
         rkb = kbounds[region]
