@@ -301,8 +301,8 @@ parent_parser.add_argument('--min-observations-to-write', type=int, default=20, 
 parent_parser.add_argument('--chain', default='h', choices=('h', 'k', 'l'), help='light chain is under development! only heavy chain works at the moment. But in the future: Are these heavy chain, or kappa or lambda light chain?')
 parent_parser.add_argument('--species', default='human', choices=('human', 'mouse'), help='Which species?')
 parent_parser.add_argument('--only-smith-waterman', action='store_true', help='Exit after finishing smith-waterman.')
-# ----------------------------------------------------------------------------------------
-# cache-parameters options:
+parent_parser.add_argument('--initial-germline-dir', help='Directory with fastas from which to read germline set. Only used when caching parameters, during which its contents is copied into --parameter-dir, perhaps (i.e. if specified) with modification. NOTE default is set below, because control flow is too complicated for argparse')
+# allele finding:
 parent_parser.add_argument('--dont-remove-unlikely-alleles', action='store_true', help='assign each sequence to its closest germline match, even if this would imply an unrealistically large number of alleles per gene in this sample')
 parent_parser.add_argument('--find-new-alleles', action='store_true', help='look for alleles which do not appear in the default germline set')
 parent_parser.add_argument('--always-find-new-alleles', action='store_true', help='By default we only look for new alleles if a repertoire\'s mutation rate is amenable to reasonable new-allele sensitivity (i.e. if it\'s not crazy high). This overrides that.')
@@ -313,9 +313,10 @@ parent_parser.add_argument('--n-max-allele-finding-iterations', type=int, defaul
 parent_parser.add_argument('--n-max-new-alleles-per-gene-per-iteration', type=int, default=2, help='with an option name that long...')
 parent_parser.add_argument('--n-max-snps', type=int, default=8, help='when new-allele finding, look for new alleles separated from existing alleles by up to this many SNPs')
 parent_parser.add_argument('--n-max-mutations-per-segment', type=int, default=30, help='when new-allele finding, exclude sequences which have more than this many mutations in the V segment')
+# allele removal:
 parent_parser.add_argument('--n-alleles-per-gene', type=int, default=2, help='number of alleles to assume per gene when removing spurious alleles during parameter caching')
 parent_parser.add_argument('--min-allele-prevalence-fraction', type=float, default=0.0005, help='Remove any alleles that represent less than this fraction of the repertoire.')
-parent_parser.add_argument('--initial-germline-dir', help='Directory with fastas from which to read germline set. Only used when caching parameters, during which its contents is copied into --parameter-dir, perhaps (i.e. if specified) with modification. NOTE default is set below, because control flow is too complicated for argparse')
+parent_parser.add_argument('--n-max-total-alleles', type=int, help='maximum number of alleles per segment to allow when removing alleles (presumably just used for testing).')
 # ----------------------------------------------------------------------------------------
 
 subconfig = {

@@ -142,18 +142,21 @@ class AlleleRemover(object):
             n_from_this_class = 0
             for ig in range(len(gclass)):
                 gfo = gclass[ig]
+                if self.args.n_max_total_alleles is not None and len(self.genes_to_keep) >= self.args.n_max_total_alleles:  # command line can specify the total number of alleles
+                    break
+
                 if float(gfo['counts']) / total_counts < self.args.min_allele_prevalence_fraction:  # always skip everybody that's super uncommon
                     pass
                 elif ig == 0:  # keep the first one from this class
                     self.genes_to_keep.add(gfo['gene'])
                     n_from_this_class += 1
                 elif utils.hamming_distance(gclass[0]['seq'], gclass[ig]['seq']) == 0:  # don't keep it if it's indistinguishable from the most common one (the matches are probably mostly really the best one)
-                    pass
+                    pass  # don't keep it
                 elif n_from_this_class < self.args.n_alleles_per_gene:  # always keep the most common <self.args.n_alleles_per_gene> in each class
                     self.genes_to_keep.add(gfo['gene'])
                     n_from_this_class += 1
-                else:  # don't keep it
-                    pass
+                else:
+                    pass  # don't keep it
 
                 if debug:
                     snpstr = ' ' if ig == 0 else '%d' % utils.hamming_distance(gclass[0]['seq'], gfo['seq'])
