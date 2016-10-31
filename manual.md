@@ -66,31 +66,28 @@ Docker containers and images are kinda-sorta like virtual machines, only differe
 
 ### Installation from scratch
 
-Given the wide variety of different systems that are out there, installing without Docker comes with no guarantees.
-That said, you should be able to get partis running on recent versions of ubuntu with a few `apt-get` and `pip` commands.
-If you use os-x you're likely to be more familiar than us with whether or not that statement will also apply to you.
+Given the wide variety of hardware and operating systems, installing without Docker comes with no guarantees.
+That said, you should be able to get partis running with just a few `apt-get` and `pip` commands, at least on recent versions of ubuntu.
+We haven't tried on os-x, but if you do, let us know -- especially if you find any tricks.
+This docker-free approach is frequently a lot faster (if you already have numpy and scipy installed, for instance, you don't have to wait for docker to compile and install them from scratch).
+You also don't have to deal with the additional complications of being inside docker, perhaps most importantly docker's likely incompatibility with you batch queueing system.
 
-Basically, you just need to install a few extra packages, and then the dependencies listed in the [Dockerfile](https://github.com/psathyrella/partis/blob/master/Dockerfile).
+Basically, you just need to install a few extra packages in addition to the dependencies listed in the [Dockerfile](https://github.com/psathyrella/partis/blob/master/Dockerfile):
 
 ```
 sudo apt-get install python-pip scons libboost-all-dev
-sudo apt-get install <stuff in Dockerfile>
+sudo apt-get install <stuff in Dockerfile>  # sorry, if we copy it here we'll inevitably forget to update it...
 pip install --user <stuff in Dockerfile>
-R --vanilla --slave -e 'install.packages("TreeSim", repos="http://cran.rstudio.com/")'
+R --vanilla --slave -e 'install.packages("TreeSim", repos="http://cran.rstudio.com/")'  # optional -- only used for simulation
 ```
 
-If you need to sort out versions, follow the Dockerfile chain beginning [here](https://registry.hub.docker.com/u/psathyrella/partis/dockerfile/) and [here](https://github.com/matsengrp/dockerfiles/blob/master/cpp/Dockerfile).
+If you need to sort out versions (unlikely, especially if you start from 16.04, since that's what we're running), follow the Dockerfile chain beginning [here](https://registry.hub.docker.com/u/psathyrella/partis/dockerfile/) and [here](https://github.com/matsengrp/dockerfiles/blob/master/cpp/Dockerfile).
 
-Once you've got all the necessary things on your system, you can proceed to clone the repository:
+Once you've got all the necessary things on your system, you can proceed to clone the repository and compile:
 
 ```
 git clone git@github.com:psathyrella/partis
 cd partis
-```
-
-And then build:
-
-```
 ./bin/build.sh
 ```
 
