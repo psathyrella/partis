@@ -336,6 +336,7 @@ The number of processes on your local machine is set with `--n-procs N`.
 
 In order to parallelize over more processes than the local machine can handle, we currently support slurm and sge: specify one or the other with `--batch-system`.
 The default options for each should work, but if you need to add extras (for instance to reserve particular memory requirements) use `--batch-options`, e.g. `--batch-options="--foo bar"`.
+Note that you should not specify stdout/stderr locations (`-e` or `-o`) for sge -- we add these options automatically because we need to be able to parse them for each job.
 By default, partis writes its temporary files to a working directory of the form `/tmp/$USER/hmms/$RANDOM`.
 If you're running on a batch system, though, you need the working directory to be a network mount that every node can see; set this with `--workdir`, e.g. `--workdir /path/to/nfs/$USER/hmms/$RANDOM`.
 

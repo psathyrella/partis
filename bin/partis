@@ -461,6 +461,10 @@ else:
 if os.path.exists(args.workdir):
     raise Exception('workdir %s already exists' % args.workdir)
 
+if args.batch_system == 'sge' and args.batch_options is not None:
+    if '-e' in args.batch_options or '-o' in args.batch_options:
+        print '%s --batch-options contains \'-e\' or \'-o\', but we add these automatically since we need to be able to parse each job\'s stdout and stderr. You can control the directory under which they\'re written with --workdir (which is currently %s).' % (utils.color('red', 'warning'), args.workdir)
+
 if args.cluster_annotation_fname is None and args.outfname is not None:
     assert '.csv' in args.outfname
     args.cluster_annotation_fname = args.outfname.replace('.csv', '-cluster-annotations.csv')
