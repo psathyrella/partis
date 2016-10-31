@@ -70,7 +70,7 @@ Given the wide variety of hardware and operating systems, installing without Doc
 That said, you should be able to get partis running with just a few `apt-get` and `pip` commands, at least on recent versions of ubuntu.
 We haven't tried on os-x, but if you do, let us know -- especially if you find any tricks.
 This docker-free approach is frequently a lot faster (if you already have numpy and scipy installed, for instance, you don't have to wait for docker to compile and install them from scratch).
-You also don't have to deal with the additional complications of being inside docker, perhaps most importantly docker's likely incompatibility with you batch queueing system.
+You also don't have to deal with the additional complications of being inside docker, perhaps most importantly docker's likely incompatibility with your batch queueing system.
 
 Basically, you just need to install a few extra packages in addition to the dependencies listed in the [Dockerfile](https://github.com/psathyrella/partis/blob/master/Dockerfile):
 
