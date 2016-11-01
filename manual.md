@@ -75,13 +75,12 @@ You also don't have to deal with the additional complications of being inside do
 Basically, you just need to install a few extra packages in addition to the dependencies listed in the [Dockerfile](https://github.com/psathyrella/partis/blob/master/Dockerfile):
 
 ```
-sudo apt-get install python-pip scons libboost-all-dev
-sudo apt-get install <stuff in Dockerfile>  # sorry, if we copy it here we'll inevitably forget to update it...
-pip install --user <stuff in Dockerfile>
+sudo apt-get install python-pip scons libboost-all-dev libgsl0ldbl libgsl0-dev libncurses5-dev libxml2-dev libxslt1-dev mafft r-base
+pip install --user numpy scipy matplotlib pandas biopython dendropy==3.12.3 pysam pyyaml seaborn
 R --vanilla --slave -e 'install.packages("TreeSim", repos="http://cran.rstudio.com/")'  # optional -- only used for simulation
 ```
 
-If you need to sort out versions (unlikely, especially if you start from 16.04, since that's what we're running), follow the Dockerfile chain beginning [here](https://registry.hub.docker.com/u/psathyrella/partis/dockerfile/) and [here](https://github.com/matsengrp/dockerfiles/blob/master/cpp/Dockerfile).
+If you need to sort out versions (unlikely, especially if you start from 14.04/16.04, since that's what we're running), follow the Dockerfile chain beginning [here](https://registry.hub.docker.com/u/psathyrella/partis/dockerfile/) and [here](https://github.com/matsengrp/dockerfiles/blob/master/cpp/Dockerfile).
 
 Once you've got all the necessary things on your system, you can proceed to clone the repository and compile:
 
