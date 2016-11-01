@@ -33,7 +33,8 @@ class Tester(object):
             os.makedirs(self.dirs['new'])
         self.simfnames = {st : self.dirs[st] + '/' + self.label + '/simu.csv' for st in self.stypes}
         self.param_dirs = { st : { dt : self.dirs[st] + '/' + self.label + '/parameters/' + dt for dt in ['simu', 'data']} for st in self.stypes}  # muddafuggincomprehensiongansta
-        self.common_extras = ['--seed', '1', '--n-procs', '10', '--only-genes', 'TEST', '--only-csv-plots']
+        self.common_extras = ['--seed', '1', '--n-procs', '10']
+        self.parameter_caching_extras = ['--n-max-total-alleles', '10', '--n-alleles-per-gene', '1']
 
         self.perf_info = { version_stype : OrderedDict() for version_stype in self.stypes }
 
@@ -48,8 +49,8 @@ class Tester(object):
         self.eps_vals['purity']         = 0.08
         self.eps_vals['completeness']   = 0.08
 
-        self.n_partition_queries = '250'
-        n_data_inference_queries = '50'
+        self.n_partition_queries = '500'
+        # n_data_inference_queries = '50'
         self.logfname = self.dirs['new'] + '/test.log'
         self.cachefnames = { st : 'cache-' + st + '-partition.csv' for st in self.stypes }
 
@@ -59,18 +60,18 @@ class Tester(object):
         self.tests = OrderedDict()
 
         def add_inference_tests(input_stype):  # if input_stype is 'ref', infer on old simulation and parameters, if it's 'new' use the new ones
-            self.tests['annotate-' + input_stype + '-simu']          = {'extras' : ['--plotdir', self.dirs['new'] + '/' + self.perfdirs[input_stype], '--plot-performance']}
-            self.tests['annotate-' + input_stype + '-data']          = {'extras' : ['--n-max-queries', n_data_inference_queries]}
-            self.tests['partition-' + input_stype + '-simu']         = {'extras' : ['--n-max-queries', self.n_partition_queries, '--persistent-cachefname', self.dirs['new'] + '/' + self.cachefnames[input_stype], '--n-precache-procs', '10', '--biggest-logprob-cluster-to-calculate', '2', '--biggest-naive-seq-cluster-to-calculate', '2']}
-            self.tests['seed-partition-' + input_stype + '-simu']    = {'extras' : ['--n-max-queries', '-1', '--n-precache-procs', '10']}
-            self.tests['vsearch-partition-' + input_stype + '-simu'] = {'extras' : ['--naive-vsearch', '--n-max-queries', self.n_partition_queries, '--n-precache-procs', '10']}
+            self.tests['annotate-' + input_stype + '-simu']          = {'extras' : ['--plot-performance', ]}
+            # self.tests['annotate-' + input_stype + '-data']          = {'extras' : ['--n-max-queries', n_data_inference_queries]}  # don't really need this as long as we're caching parameters on data
+            self.tests['partition-' + input_stype + '-simu']         = {'extras' : ['--n-max-queries', self.n_partition_queries, '--n-precache-procs', '10', '--biggest-logprob-cluster-to-calculate', '5', '--biggest-naive-seq-cluster-to-calculate', '5']}
+            self.tests['seed-partition-' + input_stype + '-simu']    = {'extras' : ['--n-max-queries', self.n_partition_queries]}
+            self.tests['vsearch-partition-' + input_stype + '-simu'] = {'extras' : ['--naive-vsearch', '--n-max-queries', self.n_partition_queries]}
 
         if not args.skip_ref:
             add_inference_tests('ref')
         if not args.only_ref:
-            self.tests['cache-parameters-data']  = {'extras' : []}
-            self.tests['simulate']  = {'extras' : ['--n-sim-events', '500', '--n-trees', '500', '--n-leaves', '2', '--mimic-data-read-length']}
-            self.tests['cache-parameters-simu']  = {'extras' : []}
+            self.tests['cache-parameters-data']  = {'extras' : [ostr for ostr in self.parameter_caching_extras]}  # list comprehension to make sure it's a copy
+            self.tests['simulate']  = {'extras' : ['--n-sim-events', '500', '--n-trees', '500', '--n-leaves', '5']}
+            self.tests['cache-parameters-simu']  = {'extras' : [ostr for ostr in self.parameter_caching_extras]}  # list comprehension to make sure it's a copy
             add_inference_tests('new')
 
         # add some arguments
@@ -81,11 +82,15 @@ class Tester(object):
                 argfo['action'] = 'run-viterbi'
             elif 'partition' in ptest:
                 argfo['action'] = 'partition'
+                argfo['extras'] += ['--persistent-cachefname', self.dirs['new'] + '/' + self.cachefnames[input_stype]]
+                if 'seed-' in ptest or 'vsearch-' in ptest:
+                    argfo['extras'] += ['--dont-precache-naive-seqs', ]
             elif 'cache-parameters-' in ptest:
                 argfo['action'] = 'cache-parameters'
                 dtype = namelist[-1]
                 assert dtype in self.dtypes
-                argfo['extras'] += ['--plotdir', self.dirs['new'] + '/' + self.label + '/plots/' + dtype]
+                if args.make_plots:
+                    argfo['extras'] += ['--plotdir', self.dirs['new'] + '/' + self.label + '/plots/' + dtype]
             else:
                 argfo['action'] = ptest
 
@@ -94,6 +99,10 @@ class Tester(object):
             else:
                 input_stype = namelist[-2]
                 assert input_stype in self.stypes
+
+            if '--plot-performance' in argfo['extras']:
+                argfo['extras'] += ['--plotdir', self.dirs['new'] + '/' + self.perfdirs[input_stype], '--only-csv-plots']
+
             argfo['input_stype'] = input_stype
             if ptest == 'simulate':
                 argfo['extras'] += ['--parameter-dir', self.param_dirs[input_stype]['data']]
@@ -109,7 +118,7 @@ class Tester(object):
 
     # ----------------------------------------------------------------------------------------
     def test(self, args):
-        if args.make_plots:
+        if args.comparison_plots:
             self.make_comparison_plots()
             return
         if not args.dont_run:
@@ -144,24 +153,24 @@ class Tester(object):
             if os.path.exists(this_cachefname):
                 check_call(['rm', '-v', this_cachefname])
 
-        ref_globfnames = [fn for dtype in self.dtypes for fn in glob.glob(self.param_dirs['ref'][dtype] + '/sw-cache-*')]
-        if len(ref_globfnames) > 0:
-            raise Exception('found reference sw cache files %s -- but you really want ref sw to run from scratch' % ' '.join(ref_globfnames))
+        # ref_globfnames = [fn for dtype in self.dtypes for fn in glob.glob(self.param_dirs['ref'][dtype] + '/sw-cache-*')]
+        # if len(ref_globfnames) > 0:
+        #     raise Exception('found reference sw cache files %s -- but you really want ref sw to run from scratch' % ' '.join(ref_globfnames))
 
-        # delete any old sw cache files
-        for dtype in self.dtypes:
-            globfnames = glob.glob(self.param_dirs['new'][dtype] + '/sw-cache-*.csv')
-            if len(globfnames) == 0:  # not there
-                continue
-            elif len(globfnames) != 1:
-                raise Exception('unexpected sw cache files: %s' % ' '.join(globfnames))
-            check_call(['rm', '-v', globfnames[0]])
-            sw_cache_gldir = globfnames[0].replace('.csv', '-glfo')
-            glutils.remove_glfo_files(sw_cache_gldir, args.chain)
+        # # delete any old sw cache files
+        # for dtype in self.dtypes:
+        #     globfnames = glob.glob(self.param_dirs['new'][dtype] + '/sw-cache-*.csv')
+        #     if len(globfnames) == 0:  # not there
+        #         continue
+        #     elif len(globfnames) != 1:
+        #         raise Exception('unexpected sw cache files: %s' % ' '.join(globfnames))
+        #     check_call(['rm', '-v', globfnames[0]])
+        #     sw_cache_gldir = globfnames[0].replace('.csv', '-glfo')
+        #     glutils.remove_glfo_files(sw_cache_gldir, args.chain)
 
         # choose a seed uid
         if name == 'seed-partition-' + info['input_stype'] + '-simu':
-            seed_uid, _ = utils.choose_seed_unique_id(args.glfo_dir, args.chain, self.simfnames[info['input_stype']], 5, 8, n_max_queries=int(self.n_partition_queries), debug=False)
+            seed_uid, _ = utils.choose_seed_unique_id(args.glfo_dir, args.chain, self.simfnames[info['input_stype']], 10, 20, n_max_queries=int(self.n_partition_queries), debug=False)
             info['extras'] += ['--seed-unique-id', seed_uid]
 
     # ----------------------------------------------------------------------------------------
@@ -182,7 +191,7 @@ class Tester(object):
             elif 'cache-parameters-' not in name:
                 cmd_str += ' --outfname ' + self.dirs['new'] + '/' + name + '.csv'
 
-            logstr = 'TEST %30s   %s' % (name, cmd_str)
+            logstr = '%s   %s' % (utils.color('green', name, width=30, padside='right'), cmd_str)
             print logstr
             if args.dry_run:
                 continue
@@ -571,6 +580,7 @@ parser.add_argument('--quick', action='store_true')
 parser.add_argument('--only-ref', action='store_true', help='only run with input_stype of \'ref\'')
 parser.add_argument('--skip-ref', action='store_true', help='skip stuff that\'s run by --only-ref')
 parser.add_argument('--bust-cache', action='store_true', help='copy info from new dir to reference dir, i.e. overwrite old test info')
+parser.add_argument('--comparison-plots', action='store_true')
 parser.add_argument('--make-plots', action='store_true')
 parser.add_argument('--glfo-dir', default='data/germlines/human')
 parser.add_argument('--chain', default='h')

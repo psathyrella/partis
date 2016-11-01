@@ -1,4 +1,5 @@
 # now
+#  - figure out how to handle duplicate reco ids (i.e. rearrangement space saturateion) in testing fwk, and in ccf calculation)
 #  - read
 
 # print_reco_event:
@@ -50,21 +51,11 @@
 #  - /fh/fast/matsen_e/processed-data/partis/kate-qrs-2016-09-09/seeds/QA255.067-Vh/Hs-LN2-5RACE-IgG-new.log
 
 # testing:
-#  - make sure large fv/jf insertions are included
-#  - don't run inference stuff on new parameters -- it should be fine to just run the new parameters (?)
-#  - larger sample sizes
-#  - at least make sure the seed cluster is big
-#  - move testing off --only-genes
-#  - bigger n-max-cluster-to-calc values
-#  - can probably remove data stuff (UPDATE no, need to test .fa treatment and some code blocks -- but it can be a very small number of sequences)
-#  - should switch to more typical workflow with no separate cache-parameters step
 #  - needs at least a little light chain action
 #  - make sure there's some multiple indels in the testing file
 #  - add mutation-freq accuracy to metrics
-#  - can probably stop deleting sw cache files
-#  - also start using persistent cache files so you're not re-calculating the naive sequences at every step
 
-# germline set generation:
+# allele finding/germline set generation:
 # all alleles (including new ones) should have roughly the same mut freq distribution (especially at low mutation)'
 # maybe remove bounds for as many fits as you can (i.e. don't pass bounds keyword to curvefit)
 # collapse at least the largest clones before inferring new alleles'
