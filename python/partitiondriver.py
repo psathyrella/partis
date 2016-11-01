@@ -322,7 +322,7 @@ class PartitionDriver(object):
 
         print 'hmm'
         # cache hmm naive seq for each single query
-        if len(self.sw_info['queries']) > 50 or self.args.naive_vsearch or self.args.naive_swarm:
+        if not self.args.dont_precache_naive_seqs and (len(self.sw_info['queries']) > 50 or self.args.naive_vsearch or self.args.naive_swarm):
             print '--> caching all %d naive sequences' % len(self.sw_info['queries'])
             self.run_hmm('viterbi', self.sub_param_dir, n_procs=self.get_n_precache_procs(len(self.sw_info['queries'])), precache_all_naive_seqs=True)
 
@@ -562,12 +562,17 @@ class PartitionDriver(object):
         if read_hmm_cachefile:
             assert parameter_dir is not None
             threshold = self.get_naive_hamming_bounds(parameter_dir)[0]  # lo and hi are the same
+            cached_naive_seqs = {}
             with open(self.hmm_cachefname) as cachefile:
                 reader = csv.DictReader(cachefile)
                 for line in reader:
                     unique_ids = line['unique_ids'].split(':')
-                    assert len(unique_ids) == 1
-                    naive_seq_list.append((unique_ids[0], line['naive_seq']))
+                    if len(unique_ids) == 1:  # if it's a cache file left over from a previous partitioning, there'll be clusters in it, too
+                        cached_naive_seqs[unique_ids[0]] = line['naive_seq']
+            for uid in self.sw_info['queries']:
+                if uid not in cached_naive_seqs:
+                    raise Exception('naive sequence for %s not found in %s' % (uid, self.hmm_cachefname))
+                naive_seq_list.append((uid, cached_naive_seqs[uid]))
         else:
             assert parameter_dir is None  # i.e. get mut freq from sw info
             threshold = self.get_naive_hamming_bounds(parameter_dir=None, overall_mute_freq=self.sw_info['mute-freqs']['all'])[0]  # lo and hi are the same
