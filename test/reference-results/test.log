@@ -1,527 +1,477 @@
-TEST              annotate-ref-simu   ./bin/partis run-viterbi --plotdir test/_new-results/simu-ref-performance --plot-performance --is-simu --infname test/reference-results/test/simu.csv --parameter-dir test/reference-results/test/parameters/simu --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --outfname test/_new-results/annotate-ref-simu.csv
-  [91mwarning[0m genes IGHV3-53*02 IGHV3-23D*02 in <only_genes> aren't in glfo to begin with
+[92mannotate-ref-simu[0m                ./bin/partis run-viterbi --plot-performance --plotdir test/_new-results/simu-ref-performance --only-csv-plots --is-simu --infname test/reference-results/test/simu.csv --parameter-dir test/reference-results/test/parameters/simu --seed 1 --n-procs 10 --outfname test/_new-results/annotate-ref-simu.csv
 running viterbi
 smith-waterman 
-        processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon      indel-fails      super-high-mutation
-           987             149              0                          57              64               0               0               0              14              14             increasing mismatch score (1 --> 2) and rerunning them
-           149              11              8                           0               2               0               0               0               0               1             rerunning for indels
-    skipping performance evaluation of 8252605888804303045 because of indels
-    skipping performance evaluation of -8331534330745128434 because of indels
-    skipping performance evaluation of -2265224275238653025 because of indels
-    skipping performance evaluation of -6447582060343002003 because of indels
-    skipping performance evaluation of -2392033179338613840 because of indels
-    skipping performance evaluation of 4906059137631317612 because of indels
-    skipping performance evaluation of 8577348894248045804 because of indels
-            11               4              0                           0               2               0               0               0               0               2             increasing mismatch score (2 --> 3) and rerunning them
-    skipping performance evaluation of -8293075871046746695 because of indels
-             4         all done
-      info for 987 / 987 = 1.000
-      kept 447 (0.453) unproductive
-        water time: 7.1
+        reading sw results from test/reference-results/test/parameters/simu/sw-cache-1322062163857542082.csv
+    skipping performance evaluation of 3487231672735233493 because of indels
+    skipping performance evaluation of 5962723961317650904 because of indels
+    skipping performance evaluation of 5510337452557258507 because of indels
+    skipping performance evaluation of -1548138802524758186 because of indels
+    skipping performance evaluation of 3024713464457479496 because of indels
+    skipping performance evaluation of -5474113946347005906 because of indels
+      info for 2429 / 2429 = 1.000
+      kept 1678 (0.691) unproductive
+
+        water time: 9.2
 hmm
     running 10 procs
     read output
-    skipping performance evaluation of -2392033179338613840 because of indels
-    skipping performance evaluation of 4906059137631317612 because of indels
-    skipping performance evaluation of 8577348894248045804 because of indels
-    skipping performance evaluation of 8252605888804303045 because of indels
-    skipping performance evaluation of -8293075871046746695 because of indels
-    skipping performance evaluation of -8331534330745128434 because of indels
-    skipping performance evaluation of -2265224275238653025 because of indels
-    skipping performance evaluation of -6447582060343002003 because of indels
-        processed 987 hmm output lines with 983 sequences in 983 events
-            [91mwarning[0m skipped 4 invalid events
-          953 boundary warnings
-          missing 4 input keys when writing hmm output to test/_new-results/annotate-ref-simu.csv
-      hmm step time: 8.3
-      total time: 16.0
-TEST              annotate-ref-data   ./bin/partis run-viterbi --n-max-queries 50 --infname test/mishmash.fa --parameter-dir test/reference-results/test/parameters/data --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --outfname test/_new-results/annotate-ref-data.csv
-  [91mwarning[0m genes IGHV3-53*02 in <only_genes> aren't in glfo to begin with
-running viterbi
-smith-waterman 
-        processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon      indel-fails      super-high-mutation
-            50              16              0                           2               6               0               0               0               6               2             increasing mismatch score (1 --> 2) and rerunning them
-            16               8              5                           0               1               0               0               0               0               2             rerunning for indels
-             8               6              0                           0               1               0               0               0               0               5             increasing mismatch score (2 --> 3) and rerunning them
-             6               6              0                           0               0               0               2               0               1               3             increasing mismatch score (3 --> 4) and rerunning them
-      info for 44 / 50 = 0.880
-      kept 10 (0.200) unproductive
-            missing annotations: crap-1 crap-3 crap-2 crap-5 crap-4 -2126437327330379358
-      removed 3 / 44 = 0.07 duplicate sequences after trimming framework insertions (leaving 41)
-        water time: 1.2
-hmm
-    running 10 procs
-    read output
-        processed 41 hmm output lines with 41 sequences in 41 events
-          40 boundary warnings
-      hmm step time: 1.8
-      total time: 3.1
-TEST             partition-ref-simu   ./bin/partis partition --n-max-queries 250 --persistent-cachefname test/_new-results/cache-ref-partition.csv --n-precache-procs 10 --biggest-logprob-cluster-to-calculate 2 --biggest-naive-seq-cluster-to-calculate 2 --is-simu --infname test/reference-results/test/simu.csv --parameter-dir test/reference-results/test/parameters/simu --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --outfname test/_new-results/partition-ref-simu.csv
-  [91mwarning[0m genes IGHV3-53*02 IGHV3-23D*02 in <only_genes> aren't in glfo to begin with
+    skipping performance evaluation of 3487231672735233493 because of indels
+    skipping performance evaluation of 5962723961317650904 because of indels
+    skipping performance evaluation of 5510337452557258507 because of indels
+    skipping performance evaluation of -1548138802524758186 because of indels
+    skipping performance evaluation of 3024713464457479496 because of indels
+    skipping performance evaluation of -5474113946347005906 because of indels
+        processed 2429 hmm output lines with 2429 sequences in 2429 events
+          2411 boundary warnings
+      hmm step time: 19.5
+      total time: 30.6
+[92mpartition-ref-simu[0m               ./bin/partis partition --n-max-queries 500 --n-precache-procs 10 --biggest-logprob-cluster-to-calculate 5 --biggest-naive-seq-cluster-to-calculate 5 --persistent-cachefname test/_new-results/cache-ref-partition.csv --is-simu --infname test/reference-results/test/simu.csv --parameter-dir test/reference-results/test/parameters/simu --seed 1 --n-procs 10 --outfname test/_new-results/partition-ref-simu.csv
 partitioning
 smith-waterman 
         processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon      indel-fails      super-high-mutation
-           250              34              0                          11              14               0               0               0               7               2             increasing mismatch score (1 --> 2) and rerunning them
-            34               6              5                           0               1               0               0               0               0               0             rerunning for indels
-             6               2              0                           0               1               0               0               0               0               1             increasing mismatch score (2 --> 3) and rerunning them
-             2         all done
-      info for 250 / 250 = 1.000
-      kept 98 (0.392) unproductive
-        water time: 1.4
+           500               7              0                           6               0               0               0               0               1               0             increasing mismatch score (1 --> 2) and rerunning them
+             7         all done
+      info for 500 / 500 = 1.000
+      kept 354 (0.708) unproductive
+        water time: 2.0
 hmm
---> caching all 250 naive sequences
+--> caching all 500 naive sequences
     running 10 procs
                 no/empty cache file
-                    calcd:         vtb 250        fwd   0
+                    calcd:         vtb 500        fwd   0
                    merged:       hfrac   0     lratio   0
-             min-max time:  1.4 - 1.7 sec
-      hmm step time: 2.2
---> 250 clusters with 10 procs
-       naive hfrac bounds: 0.015 0.111   (0.116 mean mutation in parameter dir test/reference-results/test/parameters/simu/hmm)
+             min-max time:  3.3 - 3.8 sec
+      hmm step time: 4.5
+--> 500 clusters with 10 procs
+       naive hfrac bounds: 0.015 0.112   (0.118 mean mutation in parameter dir test/reference-results/test/parameters/simu/hmm)
     running 10 procs
-          read from cache:  naive-seqs 250   logprobs   0
-                    calcd:         vtb  19        fwd 139
-                   merged:       hfrac  23     lratio   2
-             min-max time:  1.3 - 2.7 sec
-      hmm step time: 3.2
---> 225 clusters with 7 procs
+          read from cache:  naive-seqs 500   logprobs   0
+                    calcd:         vtb 103        fwd 436
+                   merged:       hfrac 148     lratio  22
+             min-max time:  4.6 - 8.0 sec
+      hmm step time: 8.6
+--> 330 clusters with 7 procs
     running 7 procs
-          read from cache:  naive-seqs 277   logprobs 139
-                    calcd:         vtb  14        fwd  92
-                   merged:       hfrac  24     lratio   5
-             min-max time:  1.6 - 2.8 sec
-      hmm step time: 3.2
---> 196 clusters with 5 procs
+          read from cache:  naive-seqs 670   logprobs 436
+                    calcd:         vtb  50        fwd 216
+                   merged:       hfrac  60     lratio  16
+             min-max time:  4.9 - 7.7 sec
+      hmm step time: 8.4
+--> 254 clusters with 5 procs
     running 5 procs
-          read from cache:  naive-seqs 311   logprobs 231
-                    calcd:         vtb   7        fwd  94
-                   merged:       hfrac  15     lratio   1
-             min-max time:  1.9 - 3.5 sec
-      hmm step time: 4.0
---> 180 clusters with 3 procs
+          read from cache:  naive-seqs 750   logprobs 652
+                    calcd:         vtb  40        fwd 160
+                   merged:       hfrac  45     lratio  13
+             min-max time:  4.2 - 9.3 sec
+      hmm step time: 9.8
+--> 196 clusters with 3 procs
     running 3 procs
-          read from cache:  naive-seqs 331   logprobs 325
-                    calcd:         vtb  15        fwd  99
-                   merged:       hfrac  16     lratio   6
-             min-max time:  4.3 - 6.9 sec
-      hmm step time: 7.2
---> 158 clusters with 2 procs
+          read from cache:  naive-seqs 814   logprobs 812
+                    calcd:         vtb  25        fwd 122
+                   merged:       hfrac  41     lratio   8
+             min-max time:  6.6 - 10.3 sec
+      hmm step time: 10.9
+--> 147 clusters with 2 procs
     running 2 procs
-          read from cache:  naive-seqs 362   logprobs 424
-                    calcd:         vtb  16        fwd 103
-                   merged:       hfrac  19     lratio   6
-             min-max time:  6.4 - 7.3 sec
-      hmm step time: 7.6
---> 133 clusters with 1 proc
+          read from cache:  naive-seqs 869   logprobs 934
+                    calcd:         vtb  18        fwd  84
+                   merged:       hfrac  21     lratio   6
+             min-max time:  9.9 - 11.5 sec
+      hmm step time: 12.0
+--> 120 clusters with 1 proc
     running 1 proc
-          read from cache:  naive-seqs 396   logprobs 527
-                    calcd:         vtb   6        fwd 140
-                   merged:       hfrac  13     lratio   1
-                     time:  16.0 sec
-      hmm step time: 16.2
-      loop time: 41.5
+          read from cache:  naive-seqs 904   logprobs 1018
+                    calcd:         vtb  17        fwd 139
+                   merged:       hfrac  21     lratio   9
+                     time:  26.4 sec
+      hmm step time: 27.2
+      loop time: 76.8
 --> getting annotations for final partition
     running 10 procs
-      hmm step time: 1.9
+      hmm step time: 3.5
     read output
 ‘test/_new-results/cache-ref-partition.csv.tmp’ -> ‘test/_new-results/cache-ref-partition.csv’
-        processed 119 hmm output lines with 250 sequences in 119 events
-          193 boundary warnings
-      total time: 47.5
-TEST        seed-partition-ref-simu   ./bin/partis partition --n-max-queries -1 --n-precache-procs 10 --is-simu --infname test/reference-results/test/simu.csv --parameter-dir test/reference-results/test/parameters/simu --seed-unique-id -7739170383431049857 --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --outfname test/_new-results/seed-partition-ref-simu.csv
-  [91mwarning[0m genes IGHV3-53*02 IGHV3-23D*02 in <only_genes> aren't in glfo to begin with
+        processed 90 hmm output lines with 500 sequences in 90 events
+          419 boundary warnings
+      total time: 87.7
+[92mseed-partition-ref-simu[0m          ./bin/partis partition --n-max-queries 500 --persistent-cachefname test/_new-results/cache-ref-partition.csv --dont-precache-naive-seqs --is-simu --infname test/reference-results/test/simu.csv --parameter-dir test/reference-results/test/parameters/simu --seed-unique-id -5283256933048951557 --seed 1 --n-procs 10 --outfname test/_new-results/seed-partition-ref-simu.csv
+‘test/_new-results/cache-ref-partition.csv’ -> ‘/tmp/dralph/hmms/372480/hmm_cached_info.csv’
 partitioning
 smith-waterman 
         processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon      indel-fails      super-high-mutation
-           987             149              0                          57              64               0               0               0              14              14             increasing mismatch score (1 --> 2) and rerunning them
-           149              11              8                           0               2               0               0               0               0               1             rerunning for indels
-            11               4              0                           0               2               0               0               0               0               2             increasing mismatch score (2 --> 3) and rerunning them
-             4         all done
-      info for 987 / 987 = 1.000
-      kept 447 (0.453) unproductive
-      removed 927 / 987 = 0.94 sequences with cdr3 length different from seed sequence (leaving 60)
-        water time: 2.5
+           500               7              0                           6               0               0               0               0               1               0             increasing mismatch score (1 --> 2) and rerunning them
+             7         all done
+      info for 500 / 500 = 1.000
+      kept 354 (0.708) unproductive
+      removed 368 / 500 = 0.74 sequences with cdr3 length different from seed sequence (leaving 132)
+        water time: 1.8
 hmm
---> caching all 60 naive sequences
+--> 132 clusters with 10 procs
+       naive hfrac bounds: 0.015 0.112   (0.118 mean mutation in parameter dir test/reference-results/test/parameters/simu/hmm)
     running 10 procs
-                no/empty cache file
-                    calcd:         vtb  69        fwd   0
-                   merged:       hfrac   0     lratio   0
-             min-max time:  1.0 - 1.3 sec
-      hmm step time: 1.5
---> 60 clusters with 10 procs
-       naive hfrac bounds: 0.015 0.111   (0.116 mean mutation in parameter dir test/reference-results/test/parameters/simu/hmm)
-    running 10 procs
-          read from cache:  naive-seqs  60   logprobs   0
-                    calcd:         vtb   2        fwd  46
-                   merged:       hfrac   1     lratio   1
-             min-max time:  0.7 - 1.6 sec
-      hmm step time: 1.8
---> 67 clusters with 7 procs
+          read from cache:  naive-seqs 939   logprobs 1157
+                    calcd:         vtb  17        fwd  37
+                   merged:       hfrac  25     lratio   1
+             min-max time:  0.9 - 1.7 sec
+      hmm step time: 2.2
+--> 115 clusters with 7 procs
     running 7 procs
-          read from cache:  naive-seqs  62   logprobs  37
-                    calcd:         vtb   0        fwd   3
-                   merged:       hfrac   0     lratio   0
+          read from cache:  naive-seqs 965   logprobs 1194
+                    calcd:         vtb   1        fwd  16
+                   merged:       hfrac   3     lratio   0
              min-max time:  0.0 - 1.7 sec
-      hmm step time: 2.1
---> 64 clusters with 5 procs
+      hmm step time: 2.2
+--> 112 clusters with 5 procs
     running 5 procs
-          read from cache:  naive-seqs  62   logprobs  40
-                    calcd:         vtb   0        fwd   1
-                   merged:       hfrac   0     lratio   0
-             min-max time:  0.0 - 0.9 sec
-      hmm step time: 1.2
-      removing 57 sequences in unseeded clusters, and splitting 5 seeded clusters into 3 singletons
-        new n_procs 1 (initial seqs/proc: 6.00   new seqs/proc: 3.00
---> 3 clusters with 1 proc
-    running 1 proc
-          read from cache:  naive-seqs  62   logprobs  41
-                    calcd:         vtb   2        fwd   2
-                   merged:       hfrac   1     lratio   1
-                     time:  1.1 sec
-      hmm step time: 1.2
-      loop time: 6.3
---> getting annotations for final partition
-    running 1 proc
-      hmm step time: 0.8
-    read output
-        processed 1 hmm output lines with 3 sequences in 1 events
-          3 boundary warnings
-      total time: 11.9
-TEST     vsearch-partition-ref-simu   ./bin/partis partition --naive-vsearch --n-max-queries 250 --n-precache-procs 10 --is-simu --infname test/reference-results/test/simu.csv --parameter-dir test/reference-results/test/parameters/simu --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --outfname test/_new-results/vsearch-partition-ref-simu.csv
-  [91mwarning[0m genes IGHV3-53*02 IGHV3-23D*02 in <only_genes> aren't in glfo to begin with
-partitioning
-smith-waterman 
-        processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon      indel-fails      super-high-mutation
-           250              34              0                          11              14               0               0               0               7               2             increasing mismatch score (1 --> 2) and rerunning them
-            34               6              5                           0               1               0               0               0               0               0             rerunning for indels
-             6               2              0                           0               1               0               0               0               0               1             increasing mismatch score (2 --> 3) and rerunning them
-             2         all done
-      info for 250 / 250 = 1.000
-      kept 98 (0.392) unproductive
-        water time: 1.3
-hmm
---> caching all 250 naive sequences
-    running 10 procs
-                no/empty cache file
-                    calcd:         vtb 250        fwd   0
-                   merged:       hfrac   0     lratio   0
-             min-max time:  1.5 - 1.8 sec
-      hmm step time: 2.3
-       naive hfrac bounds: 0.033 0.033   (0.116 mean mutation in parameter dir test/reference-results/test/parameters/simu/hmm)
-        collapsed 250 sequences into 193 unique naive sequences
-    using hfrac bound for vsearch 0.033
-    running vsearch 28 times (once for each cdr3 length class): . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
-      vsearch time: 6.4
---> getting annotations for final partition
-    running 10 procs
-      hmm step time: 2.1
-    read output
-        processed 111 hmm output lines with 250 sequences in 111 events
-          187 boundary warnings
-      total time: 12.8
-TEST          cache-parameters-data   ./bin/partis cache-parameters --plotdir test/_new-results/test/plots/data --infname test/mishmash.fa --parameter-dir test/_new-results/test/parameters/data --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots
-caching parameters
-smith-waterman   (removing less-likely alleles) 
-        processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon      indel-fails      super-high-mutation
-          1394             264              0                          88              53               0               0               0              67              56             increasing mismatch score (1 --> 2) and rerunning them
-           264             108             57                           0               5               0               0               1               0              45             rerunning for indels
-           108              77              0                           0               5               0               0               1               0              71             increasing mismatch score (2 --> 3) and rerunning them
-            77              72              3                           0               0               0               2               5               4              58             rerunning for indels
-      info for 1322 / 1394 = 0.948
-      kept 398 (0.286) unproductive
-    keeping 9 v genes
-    removing 1 v genes: 0 with no matches, 1 with unconvincing matches (61 / 1322 queries had their best match removed)
-      removed 25 / 1322 = 0.02 duplicate sequences after trimming framework insertions (leaving 1297)
-        water time: 5.8
-smith-waterman   (writing parameters) 
-        processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon      indel-fails      super-high-mutation
-          1297             189              0                          88              45               0               0               0              48               8             increasing mismatch score (1 --> 2) and rerunning them
-           189              34             29                           0               3               0               0               0               0               2             rerunning for indels
-            34               5              0                           0               3               0               0               0               0               2             increasing mismatch score (2 --> 3) and rerunning them
-             5         all done
-      info for 1297 / 1297 = 1.000
-      kept 391 (0.301) unproductive
-  plotting parameters (20.5 sec)
-    writing parameters (0.2 sec)
-        writing sw results to test/_new-results/test/parameters/data/sw-cache-42567064353669083.csv
-        water time: 25.0
-  writing hmms (6.2 sec)
-hmm
-    running 10 procs
-    read output
-  plotting parameters (9.6 sec)
-    writing parameters (0.3 sec)
-        processed 1297 hmm output lines with 1292 sequences in 1292 events
-            [91mwarning[0m skipped 5 invalid events
-          1279 boundary warnings
-      hmm step time: 16.8
-  writing hmms (4.8 sec)
-      total time: 58.8
-TEST                       simulate   ./bin/partis simulate --n-sim-events 500 --n-trees 500 --n-leaves 2 --mimic-data-read-length --parameter-dir test/_new-results/test/parameters/data --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --outfname test/_new-results/test/simu.csv
-  [91mwarning[0m genes IGHV3-53*02 in <only_genes> aren't in glfo to begin with
-simulating
-   read 499 events from 10 files
-      total time: 6.5
-TEST          cache-parameters-simu   ./bin/partis cache-parameters --plotdir test/_new-results/test/plots/simu --is-simu --infname test/_new-results/test/simu.csv --parameter-dir test/_new-results/test/parameters/simu --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots
-caching parameters
-smith-waterman   (removing less-likely alleles) 
-        processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon      indel-fails      super-high-mutation
-           987             147              0                          57              62               0               0               0              14              14             increasing mismatch score (1 --> 2) and rerunning them
-           147              10              7                           0               2               0               0               0               0               1             rerunning for indels
-            10               4              0                           0               2               0               0               0               0               2             increasing mismatch score (2 --> 3) and rerunning them
-             4         all done
-      info for 987 / 987 = 1.000
-      kept 446 (0.452) unproductive
-    keeping 8 v genes
-    removing 2 v genes: 1 with no matches, 1 with unconvincing matches (17 / 987 queries had their best match removed)
-        water time: 3.8
-smith-waterman   (writing parameters) 
-        processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon      indel-fails      super-high-mutation
-           987             149              0                          57              64               0               0               0              14              14             increasing mismatch score (1 --> 2) and rerunning them
-           149              11              8                           0               2               0               0               0               0               1             rerunning for indels
-            11               4              0                           0               2               0               0               0               0               2             increasing mismatch score (2 --> 3) and rerunning them
-             4         all done
-      info for 987 / 987 = 1.000
-      kept 447 (0.453) unproductive
-  plotting parameters (15.6 sec)
-  plotting parameters (9.6 sec)
-    writing parameters (0.1 sec)
-    writing parameters (0.1 sec)
-        writing sw results to test/_new-results/test/parameters/simu/sw-cache-1986867370823996947.csv
-        water time: 28.9
-  writing hmms (4.5 sec)
-hmm
-    running 10 procs
-    read output
-  plotting parameters (9.9 sec)
-    writing parameters (0.2 sec)
-  plotting parameters (10.2 sec)
-    writing parameters (0.1 sec)
-        processed 987 hmm output lines with 987 sequences in 987 events
-          951 boundary warnings
-      hmm step time: 26.2
-  writing hmms (4.3 sec)
-      total time: 68.5
-TEST              annotate-new-simu   ./bin/partis run-viterbi --plotdir test/_new-results/simu-new-performance --plot-performance --is-simu --infname test/_new-results/test/simu.csv --parameter-dir test/_new-results/test/parameters/simu --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --outfname test/_new-results/annotate-new-simu.csv
-  [91mwarning[0m genes IGHV3-53*02 IGHV3-23D*02 in <only_genes> aren't in glfo to begin with
-running viterbi
-smith-waterman 
-        processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon      indel-fails      super-high-mutation
-           987             149              0                          57              64               0               0               0              14              14             increasing mismatch score (1 --> 2) and rerunning them
-           149              11              8                           0               2               0               0               0               0               1             rerunning for indels
-    skipping performance evaluation of 8252605888804303045 because of indels
-    skipping performance evaluation of -8331534330745128434 because of indels
-    skipping performance evaluation of -2265224275238653025 because of indels
-    skipping performance evaluation of -6447582060343002003 because of indels
-    skipping performance evaluation of -2392033179338613840 because of indels
-    skipping performance evaluation of 4906059137631317612 because of indels
-    skipping performance evaluation of 8577348894248045804 because of indels
-            11               4              0                           0               2               0               0               0               0               2             increasing mismatch score (2 --> 3) and rerunning them
-    skipping performance evaluation of -8293075871046746695 because of indels
-             4         all done
-      info for 987 / 987 = 1.000
-      kept 447 (0.453) unproductive
-        water time: 7.1
-hmm
-    running 10 procs
-    read output
-    skipping performance evaluation of -2392033179338613840 because of indels
-    skipping performance evaluation of 4906059137631317612 because of indels
-    skipping performance evaluation of 8577348894248045804 because of indels
-    skipping performance evaluation of 8252605888804303045 because of indels
-    skipping performance evaluation of -8293075871046746695 because of indels
-    skipping performance evaluation of -8331534330745128434 because of indels
-    skipping performance evaluation of -2265224275238653025 because of indels
-    skipping performance evaluation of -6447582060343002003 because of indels
-        processed 987 hmm output lines with 983 sequences in 983 events
-            [91mwarning[0m skipped 4 invalid events
-          953 boundary warnings
-          missing 4 input keys when writing hmm output to test/_new-results/annotate-new-simu.csv
-      hmm step time: 7.9
-      total time: 15.8
-TEST              annotate-new-data   ./bin/partis run-viterbi --n-max-queries 50 --infname test/mishmash.fa --parameter-dir test/_new-results/test/parameters/data --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --outfname test/_new-results/annotate-new-data.csv
-  [91mwarning[0m genes IGHV3-53*02 in <only_genes> aren't in glfo to begin with
-running viterbi
-smith-waterman 
-        processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon      indel-fails      super-high-mutation
-            50              16              0                           2               6               0               0               0               6               2             increasing mismatch score (1 --> 2) and rerunning them
-            16               8              5                           0               1               0               0               0               0               2             rerunning for indels
-             8               6              0                           0               1               0               0               0               0               5             increasing mismatch score (2 --> 3) and rerunning them
-             6               6              0                           0               0               0               2               0               1               3             increasing mismatch score (3 --> 4) and rerunning them
-      info for 44 / 50 = 0.880
-      kept 10 (0.200) unproductive
-            missing annotations: crap-1 crap-3 crap-2 crap-5 crap-4 -2126437327330379358
-      removed 3 / 44 = 0.07 duplicate sequences after trimming framework insertions (leaving 41)
-        water time: 1.2
-hmm
-    running 10 procs
-    read output
-        processed 41 hmm output lines with 41 sequences in 41 events
-          40 boundary warnings
-      hmm step time: 1.9
-      total time: 3.1
-TEST             partition-new-simu   ./bin/partis partition --n-max-queries 250 --persistent-cachefname test/_new-results/cache-new-partition.csv --n-precache-procs 10 --biggest-logprob-cluster-to-calculate 2 --biggest-naive-seq-cluster-to-calculate 2 --is-simu --infname test/_new-results/test/simu.csv --parameter-dir test/_new-results/test/parameters/simu --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --outfname test/_new-results/partition-new-simu.csv
-  [91mwarning[0m genes IGHV3-53*02 IGHV3-23D*02 in <only_genes> aren't in glfo to begin with
-partitioning
-smith-waterman 
-        processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon      indel-fails      super-high-mutation
-           250              34              0                          11              14               0               0               0               7               2             increasing mismatch score (1 --> 2) and rerunning them
-            34               6              5                           0               1               0               0               0               0               0             rerunning for indels
-             6               2              0                           0               1               0               0               0               0               1             increasing mismatch score (2 --> 3) and rerunning them
-             2         all done
-      info for 250 / 250 = 1.000
-      kept 98 (0.392) unproductive
-        water time: 1.4
-hmm
---> caching all 250 naive sequences
-    running 10 procs
-                no/empty cache file
-                    calcd:         vtb 250        fwd   0
-                   merged:       hfrac   0     lratio   0
-             min-max time:  1.5 - 2.1 sec
-      hmm step time: 2.5
---> 250 clusters with 10 procs
-       naive hfrac bounds: 0.015 0.111   (0.116 mean mutation in parameter dir test/_new-results/test/parameters/simu/hmm)
-    running 10 procs
-          read from cache:  naive-seqs 250   logprobs   0
-                    calcd:         vtb  19        fwd 139
-                   merged:       hfrac  23     lratio   2
-             min-max time:  1.2 - 2.9 sec
-      hmm step time: 3.4
---> 225 clusters with 7 procs
-    running 7 procs
-          read from cache:  naive-seqs 277   logprobs 139
-                    calcd:         vtb  14        fwd  92
-                   merged:       hfrac  24     lratio   5
-             min-max time:  1.5 - 2.7 sec
-      hmm step time: 3.1
---> 196 clusters with 5 procs
-    running 5 procs
-          read from cache:  naive-seqs 311   logprobs 231
-                    calcd:         vtb   7        fwd  94
-                   merged:       hfrac  15     lratio   1
-             min-max time:  2.0 - 3.3 sec
-      hmm step time: 3.8
---> 180 clusters with 3 procs
+          read from cache:  naive-seqs 968   logprobs 1210
+                    calcd:         vtb   1        fwd  16
+                   merged:       hfrac   2     lratio   0
+             min-max time:  0.9 - 2.5 sec
+      hmm step time: 2.9
+      removing 105 sequences in unseeded clusters, and splitting 5 seeded clusters into 27 singletons
+        new n_procs 6 (initial seqs/proc: 13.20   new seqs/proc: 4.50
+--> 27 clusters with 6 procs
+    running 6 procs
+          read from cache:  naive-seqs 970   logprobs 1226
+                    calcd:         vtb  15        fwd   0
+                   merged:       hfrac  21     lratio   0
+             min-max time:  0.6 - 1.0 sec
+      hmm step time: 1.4
+--> 6 clusters with 4 procs
+    running 4 procs
+          read from cache:  naive-seqs 991   logprobs 1226
+                    calcd:         vtb   2        fwd   0
+                   merged:       hfrac   2     lratio   0
+             min-max time:  0.0 - 1.1 sec
+      hmm step time: 1.4
+--> 4 clusters with 3 procs
     running 3 procs
-          read from cache:  naive-seqs 331   logprobs 325
-                    calcd:         vtb  15        fwd  99
-                   merged:       hfrac  16     lratio   6
-             min-max time:  3.2 - 6.1 sec
-      hmm step time: 6.3
---> 158 clusters with 2 procs
+          read from cache:  naive-seqs 993   logprobs 1226
+                    calcd:         vtb   0        fwd   0
+                   merged:       hfrac   1     lratio   0
+             min-max time:  0.0 - 0.0 sec
+      hmm step time: 0.3
+--> 3 clusters with 2 procs
     running 2 procs
-          read from cache:  naive-seqs 362   logprobs 424
-                    calcd:         vtb  16        fwd 103
-                   merged:       hfrac  19     lratio   6
-             min-max time:  6.1 - 7.1 sec
-      hmm step time: 7.3
---> 133 clusters with 1 proc
+          read from cache:  naive-seqs 994   logprobs 1226
+                    calcd:         vtb   1        fwd   0
+                   merged:       hfrac   1     lratio   0
+             min-max time:  0.0 - 1.2 sec
+      hmm step time: 1.4
+--> 2 clusters with 1 proc
     running 1 proc
-          read from cache:  naive-seqs 396   logprobs 527
-                    calcd:         vtb   6        fwd 140
-                   merged:       hfrac  13     lratio   1
-                     time:  19.0 sec
-      hmm step time: 19.3
-      loop time: 43.2
+          read from cache:  naive-seqs 995   logprobs 1226
+                    calcd:         vtb   1        fwd   3
+                   merged:       hfrac   1     lratio   0
+                     time:  1.8 sec
+      hmm step time: 2.0
+      loop time: 13.9
+--> getting annotations for final partition
+    running 1 proc
+      hmm step time: 1.3
+    read output
+‘test/_new-results/cache-ref-partition.csv.tmp’ -> ‘test/_new-results/cache-ref-partition.csv’
+        processed 1 hmm output lines with 27 sequences in 1 events
+      total time: 17.8
+[92mvsearch-partition-ref-simu[0m       ./bin/partis partition --naive-vsearch --n-max-queries 500 --persistent-cachefname test/_new-results/cache-ref-partition.csv --dont-precache-naive-seqs --is-simu --infname test/reference-results/test/simu.csv --parameter-dir test/reference-results/test/parameters/simu --seed 1 --n-procs 10 --outfname test/_new-results/vsearch-partition-ref-simu.csv
+‘test/_new-results/cache-ref-partition.csv’ -> ‘/tmp/dralph/hmms/89017/hmm_cached_info.csv’
+partitioning
+smith-waterman 
+        processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon      indel-fails      super-high-mutation
+           500               7              0                           6               0               0               0               0               1               0             increasing mismatch score (1 --> 2) and rerunning them
+             7         all done
+      info for 500 / 500 = 1.000
+      kept 354 (0.708) unproductive
+        water time: 2.1
+hmm
+       naive hfrac bounds: 0.034 0.034   (0.118 mean mutation in parameter dir test/reference-results/test/parameters/simu/hmm)
+        collapsed 500 sequences into 282 unique naive sequences
+    using hfrac bound for vsearch 0.034
+    running vsearch 20 times (once for each cdr3 length class): . . . . . . . . . . . . . . . . . . . . 
+      vsearch time: 4.8
 --> getting annotations for final partition
     running 10 procs
-      hmm step time: 2.1
+      hmm step time: 3.1
+    read output
+‘test/_new-results/cache-ref-partition.csv.tmp’ -> ‘test/_new-results/cache-ref-partition.csv’
+        processed 106 hmm output lines with 500 sequences in 106 events
+          409 boundary warnings
+      total time: 11.8
+[92mcache-parameters-data[0m            ./bin/partis cache-parameters --n-max-total-alleles 10 --n-alleles-per-gene 1 --infname test/mishmash.fa --parameter-dir test/_new-results/test/parameters/data --seed 1 --n-procs 10
+caching parameters
+smith-waterman   (removing less-likely alleles) 
+  removing old sw cache file test/_new-results/test/parameters/data/sw-cache-7465598398907330838.csv
+    and test/_new-results/test/parameters/data/sw-cache-7465598398907330838-glfo
+        processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon      indel-fails      super-high-mutation
+          1412             311              0                          85              81               0               0               0              89              56             increasing mismatch score (1 --> 2) and rerunning them
+           311             120             74                           0               5               0               0               0               0              41             rerunning for indels
+           120              73              0                           0               5               0               0               2               0              66             increasing mismatch score (2 --> 3) and rerunning them
+            73              70              8                           0               0               0               1               4               2              55             rerunning for indels
+      info for 1342 / 1412 = 0.950
+      kept 408 (0.289) unproductive
+    keeping 10 v genes
+    removing 277 v genes: 107 with no matches, 170 with unconvincing matches (797 / 1342 queries had their best match removed)
+      removed 25 / 1342 = 0.02 duplicate sequences after trimming framework insertions (leaving 1317)
+        water time: 21.9
+smith-waterman   (writing parameters) 
+        processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon      indel-fails      super-high-mutation
+          1317             250              0                          85              72               0               0               0              82              11             increasing mismatch score (1 --> 2) and rerunning them
+           250              77             67                           0               6               0               0               1               0               3             rerunning for indels
+            77              12              0                           0               6               0               0               1               1               4             increasing mismatch score (2 --> 3) and rerunning them
+            12               4              0                           0               0               0               0               1               1               2             increasing mismatch score (3 --> 4) and rerunning them
+      info for 1313 / 1317 = 0.997
+      kept 398 (0.302) unproductive
+            missing annotations: 6880877555932742798 04-A-M_3755036 1851.d7 3701080585566436353
+        writing sw results to test/_new-results/test/parameters/data/sw-cache-7465598398907330838.csv
+    writing parameters (2.7 sec)
+        water time: 9.2
+  writing hmms (17.3 sec)
+hmm
+    running 10 procs
+    read output
+    writing parameters (2.9 sec)
+        processed 1313 hmm output lines with 1311 sequences in 1311 events
+            [91mwarning[0m skipped 2 invalid events
+          1292 boundary warnings
+      hmm step time: 11.5
+  writing hmms (15.3 sec)
+      total time: 75.7
+[92msimulate[0m                         ./bin/partis simulate --n-sim-events 500 --n-trees 500 --n-leaves 5 --parameter-dir test/_new-results/test/parameters/data --seed 1 --n-procs 10 --outfname test/_new-results/test/simu.csv
+simulating
+   read 500 events from 10 files
+      total time: 9.5
+[92mcache-parameters-simu[0m            ./bin/partis cache-parameters --n-max-total-alleles 10 --n-alleles-per-gene 1 --is-simu --infname test/_new-results/test/simu.csv --parameter-dir test/_new-results/test/parameters/simu --seed 1 --n-procs 10
+caching parameters
+smith-waterman   (removing less-likely alleles) 
+  removing old sw cache file test/_new-results/test/parameters/simu/sw-cache-1322062163857542082.csv
+    and test/_new-results/test/parameters/simu/sw-cache-1322062163857542082-glfo
+        processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon      indel-fails      super-high-mutation
+          2429             111              0                         102               0               0               0               0               9               0             increasing mismatch score (1 --> 2) and rerunning them
+           111               6              6                           0               0               0               0               0               0               0             rerunning for indels
+             6         all done
+      info for 2429 / 2429 = 1.000
+      kept 1678 (0.691) unproductive
+    keeping 10 v genes
+    removing 277 v genes: 251 with no matches, 26 with unconvincing matches (299 / 2429 queries had their best match removed)
+        water time: 28.0
+smith-waterman   (writing parameters) 
+        processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon      indel-fails      super-high-mutation
+          2429             111              0                         102               0               0               0               0               9               0             increasing mismatch score (1 --> 2) and rerunning them
+           111               6              6                           0               0               0               0               0               0               0             rerunning for indels
+             6         all done
+      info for 2429 / 2429 = 1.000
+      kept 1678 (0.691) unproductive
+        writing sw results to test/_new-results/test/parameters/simu/sw-cache-1322062163857542082.csv
+    writing parameters (2.3 sec)
+    writing parameters (2.4 sec)
+        water time: 13.7
+  writing hmms (11.4 sec)
+hmm
+    running 10 procs
+    read output
+    writing parameters (2.1 sec)
+    writing parameters (2.3 sec)
+        processed 2429 hmm output lines with 2429 sequences in 2429 events
+          2417 boundary warnings
+      hmm step time: 17.1
+  writing hmms (15.7 sec)
+      total time: 87.6
+[92mannotate-new-simu[0m                ./bin/partis run-viterbi --plot-performance --plotdir test/_new-results/simu-new-performance --only-csv-plots --is-simu --infname test/_new-results/test/simu.csv --parameter-dir test/_new-results/test/parameters/simu --seed 1 --n-procs 10 --outfname test/_new-results/annotate-new-simu.csv
+running viterbi
+smith-waterman 
+        reading sw results from test/_new-results/test/parameters/simu/sw-cache-1322062163857542082.csv
+    skipping performance evaluation of 3487231672735233493 because of indels
+    skipping performance evaluation of 5962723961317650904 because of indels
+    skipping performance evaluation of 5510337452557258507 because of indels
+    skipping performance evaluation of -1548138802524758186 because of indels
+    skipping performance evaluation of 3024713464457479496 because of indels
+    skipping performance evaluation of -5474113946347005906 because of indels
+      info for 2429 / 2429 = 1.000
+      kept 1678 (0.691) unproductive
+
+        water time: 6.8
+hmm
+    running 10 procs
+    read output
+    skipping performance evaluation of 3487231672735233493 because of indels
+    skipping performance evaluation of 5962723961317650904 because of indels
+    skipping performance evaluation of 5510337452557258507 because of indels
+    skipping performance evaluation of -1548138802524758186 because of indels
+    skipping performance evaluation of 3024713464457479496 because of indels
+    skipping performance evaluation of -5474113946347005906 because of indels
+        processed 2429 hmm output lines with 2429 sequences in 2429 events
+          2411 boundary warnings
+      hmm step time: 13.7
+      total time: 21.8
+[92mpartition-new-simu[0m               ./bin/partis partition --n-max-queries 500 --n-precache-procs 10 --biggest-logprob-cluster-to-calculate 5 --biggest-naive-seq-cluster-to-calculate 5 --persistent-cachefname test/_new-results/cache-new-partition.csv --is-simu --infname test/_new-results/test/simu.csv --parameter-dir test/_new-results/test/parameters/simu --seed 1 --n-procs 10 --outfname test/_new-results/partition-new-simu.csv
+partitioning
+smith-waterman 
+        processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon      indel-fails      super-high-mutation
+           500               7              0                           6               0               0               0               0               1               0             increasing mismatch score (1 --> 2) and rerunning them
+             7         all done
+      info for 500 / 500 = 1.000
+      kept 354 (0.708) unproductive
+        water time: 1.7
+hmm
+--> caching all 500 naive sequences
+    running 10 procs
+                no/empty cache file
+                    calcd:         vtb 500        fwd   0
+                   merged:       hfrac   0     lratio   0
+             min-max time:  2.0 - 2.4 sec
+      hmm step time: 3.0
+--> 500 clusters with 10 procs
+       naive hfrac bounds: 0.015 0.112   (0.118 mean mutation in parameter dir test/_new-results/test/parameters/simu/hmm)
+    running 10 procs
+          read from cache:  naive-seqs 500   logprobs   0
+                    calcd:         vtb 103        fwd 436
+                   merged:       hfrac 148     lratio  22
+             min-max time:  3.6 - 7.1 sec
+      hmm step time: 7.8
+--> 330 clusters with 7 procs
+    running 7 procs
+          read from cache:  naive-seqs 670   logprobs 436
+                    calcd:         vtb  50        fwd 216
+                   merged:       hfrac  60     lratio  16
+             min-max time:  4.2 - 7.0 sec
+      hmm step time: 7.4
+--> 254 clusters with 5 procs
+    running 5 procs
+          read from cache:  naive-seqs 750   logprobs 652
+                    calcd:         vtb  40        fwd 160
+                   merged:       hfrac  45     lratio  13
+             min-max time:  3.6 - 9.3 sec
+      hmm step time: 9.9
+--> 196 clusters with 3 procs
+    running 3 procs
+          read from cache:  naive-seqs 814   logprobs 812
+                    calcd:         vtb  25        fwd 122
+                   merged:       hfrac  41     lratio   8
+             min-max time:  7.5 - 10.0 sec
+      hmm step time: 10.6
+--> 147 clusters with 2 procs
+    running 2 procs
+          read from cache:  naive-seqs 869   logprobs 934
+                    calcd:         vtb  18        fwd  84
+                   merged:       hfrac  21     lratio   6
+             min-max time:  9.5 - 9.6 sec
+      hmm step time: 10.1
+--> 120 clusters with 1 proc
+    running 1 proc
+          read from cache:  naive-seqs 904   logprobs 1018
+                    calcd:         vtb  17        fwd 139
+                   merged:       hfrac  21     lratio   9
+                     time:  24.6 sec
+      hmm step time: 25.0
+      loop time: 70.9
+--> getting annotations for final partition
+    running 10 procs
+      hmm step time: 2.8
     read output
 ‘test/_new-results/cache-new-partition.csv.tmp’ -> ‘test/_new-results/cache-new-partition.csv’
-        processed 119 hmm output lines with 250 sequences in 119 events
-          193 boundary warnings
-      total time: 49.9
-TEST        seed-partition-new-simu   ./bin/partis partition --n-max-queries -1 --n-precache-procs 10 --is-simu --infname test/_new-results/test/simu.csv --parameter-dir test/_new-results/test/parameters/simu --seed-unique-id -7739170383431049857 --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --outfname test/_new-results/seed-partition-new-simu.csv
-  [91mwarning[0m genes IGHV3-53*02 IGHV3-23D*02 in <only_genes> aren't in glfo to begin with
+        processed 90 hmm output lines with 500 sequences in 90 events
+          419 boundary warnings
+      total time: 79.3
+[92mseed-partition-new-simu[0m          ./bin/partis partition --n-max-queries 500 --persistent-cachefname test/_new-results/cache-new-partition.csv --dont-precache-naive-seqs --is-simu --infname test/_new-results/test/simu.csv --parameter-dir test/_new-results/test/parameters/simu --seed-unique-id -5283256933048951557 --seed 1 --n-procs 10 --outfname test/_new-results/seed-partition-new-simu.csv
+‘test/_new-results/cache-new-partition.csv’ -> ‘/tmp/dralph/hmms/695719/hmm_cached_info.csv’
 partitioning
 smith-waterman 
         processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon      indel-fails      super-high-mutation
-           987             149              0                          57              64               0               0               0              14              14             increasing mismatch score (1 --> 2) and rerunning them
-           149              11              8                           0               2               0               0               0               0               1             rerunning for indels
-            11               4              0                           0               2               0               0               0               0               2             increasing mismatch score (2 --> 3) and rerunning them
-             4         all done
-      info for 987 / 987 = 1.000
-      kept 447 (0.453) unproductive
-      removed 927 / 987 = 0.94 sequences with cdr3 length different from seed sequence (leaving 60)
-        water time: 2.5
+           500               7              0                           6               0               0               0               0               1               0             increasing mismatch score (1 --> 2) and rerunning them
+             7         all done
+      info for 500 / 500 = 1.000
+      kept 354 (0.708) unproductive
+      removed 368 / 500 = 0.74 sequences with cdr3 length different from seed sequence (leaving 132)
+        water time: 1.8
 hmm
---> caching all 60 naive sequences
+--> 132 clusters with 10 procs
+       naive hfrac bounds: 0.015 0.112   (0.118 mean mutation in parameter dir test/_new-results/test/parameters/simu/hmm)
     running 10 procs
-                no/empty cache file
-                    calcd:         vtb  69        fwd   0
-                   merged:       hfrac   0     lratio   0
-             min-max time:  1.1 - 1.4 sec
-      hmm step time: 1.7
---> 60 clusters with 10 procs
-       naive hfrac bounds: 0.015 0.111   (0.116 mean mutation in parameter dir test/_new-results/test/parameters/simu/hmm)
-    running 10 procs
-          read from cache:  naive-seqs  60   logprobs   0
-                    calcd:         vtb   2        fwd  46
-                   merged:       hfrac   1     lratio   1
-             min-max time:  0.6 - 1.8 sec
-      hmm step time: 2.1
---> 67 clusters with 7 procs
+          read from cache:  naive-seqs 939   logprobs 1157
+                    calcd:         vtb  17        fwd  37
+                   merged:       hfrac  25     lratio   1
+             min-max time:  0.6 - 1.2 sec
+      hmm step time: 1.6
+--> 115 clusters with 7 procs
     running 7 procs
-          read from cache:  naive-seqs  62   logprobs  37
-                    calcd:         vtb   0        fwd   3
-                   merged:       hfrac   0     lratio   0
-             min-max time:  0.0 - 1.2 sec
-      hmm step time: 1.5
---> 64 clusters with 5 procs
+          read from cache:  naive-seqs 965   logprobs 1194
+                    calcd:         vtb   1        fwd  16
+                   merged:       hfrac   3     lratio   0
+             min-max time:  0.0 - 1.8 sec
+      hmm step time: 2.2
+--> 112 clusters with 5 procs
     running 5 procs
-          read from cache:  naive-seqs  62   logprobs  40
-                    calcd:         vtb   0        fwd   1
-                   merged:       hfrac   0     lratio   0
-             min-max time:  0.0 - 0.7 sec
-      hmm step time: 0.9
-      removing 57 sequences in unseeded clusters, and splitting 5 seeded clusters into 3 singletons
-        new n_procs 1 (initial seqs/proc: 6.00   new seqs/proc: 3.00
---> 3 clusters with 1 proc
+          read from cache:  naive-seqs 968   logprobs 1210
+                    calcd:         vtb   1        fwd  16
+                   merged:       hfrac   2     lratio   0
+             min-max time:  0.8 - 1.4 sec
+      hmm step time: 1.8
+      removing 105 sequences in unseeded clusters, and splitting 5 seeded clusters into 27 singletons
+        new n_procs 6 (initial seqs/proc: 13.20   new seqs/proc: 4.50
+--> 27 clusters with 6 procs
+    running 6 procs
+          read from cache:  naive-seqs 970   logprobs 1226
+                    calcd:         vtb  15        fwd   0
+                   merged:       hfrac  21     lratio   0
+             min-max time:  0.9 - 1.1 sec
+      hmm step time: 1.4
+--> 6 clusters with 4 procs
+    running 4 procs
+          read from cache:  naive-seqs 991   logprobs 1226
+                    calcd:         vtb   2        fwd   0
+                   merged:       hfrac   2     lratio   0
+             min-max time:  0.0 - 1.0 sec
+      hmm step time: 1.2
+--> 4 clusters with 3 procs
+    running 3 procs
+          read from cache:  naive-seqs 993   logprobs 1226
+                    calcd:         vtb   0        fwd   0
+                   merged:       hfrac   1     lratio   0
+             min-max time:  0.0 - 0.0 sec
+      hmm step time: 0.3
+--> 3 clusters with 2 procs
+    running 2 procs
+          read from cache:  naive-seqs 994   logprobs 1226
+                    calcd:         vtb   1        fwd   0
+                   merged:       hfrac   1     lratio   0
+             min-max time:  0.0 - 1.0 sec
+      hmm step time: 1.3
+--> 2 clusters with 1 proc
     running 1 proc
-          read from cache:  naive-seqs  62   logprobs  41
-                    calcd:         vtb   2        fwd   2
-                   merged:       hfrac   1     lratio   1
-                     time:  1.4 sec
-      hmm step time: 1.5
-      loop time: 6.0
+          read from cache:  naive-seqs 995   logprobs 1226
+                    calcd:         vtb   1        fwd   3
+                   merged:       hfrac   1     lratio   0
+                     time:  1.6 sec
+      hmm step time: 1.8
+      loop time: 11.7
 --> getting annotations for final partition
     running 1 proc
-      hmm step time: 0.4
+      hmm step time: 1.7
     read output
-        processed 1 hmm output lines with 3 sequences in 1 events
-          3 boundary warnings
-      total time: 11.3
-TEST     vsearch-partition-new-simu   ./bin/partis partition --naive-vsearch --n-max-queries 250 --n-precache-procs 10 --is-simu --infname test/_new-results/test/simu.csv --parameter-dir test/_new-results/test/parameters/simu --seed 1 --n-procs 10 --only-genes TEST --only-csv-plots --outfname test/_new-results/vsearch-partition-new-simu.csv
-  [91mwarning[0m genes IGHV3-53*02 IGHV3-23D*02 in <only_genes> aren't in glfo to begin with
+‘test/_new-results/cache-new-partition.csv.tmp’ -> ‘test/_new-results/cache-new-partition.csv’
+        processed 1 hmm output lines with 27 sequences in 1 events
+      total time: 15.9
+[92mvsearch-partition-new-simu[0m       ./bin/partis partition --naive-vsearch --n-max-queries 500 --persistent-cachefname test/_new-results/cache-new-partition.csv --dont-precache-naive-seqs --is-simu --infname test/_new-results/test/simu.csv --parameter-dir test/_new-results/test/parameters/simu --seed 1 --n-procs 10 --outfname test/_new-results/vsearch-partition-new-simu.csv
+‘test/_new-results/cache-new-partition.csv’ -> ‘/tmp/dralph/hmms/369014/hmm_cached_info.csv’
 partitioning
 smith-waterman 
         processed       remaining      new-indels          rerun: unproductive      no-match      weird-annot.      nonsense-bounds      invalid-codon      indel-fails      super-high-mutation
-           250              34              0                          11              14               0               0               0               7               2             increasing mismatch score (1 --> 2) and rerunning them
-            34               6              5                           0               1               0               0               0               0               0             rerunning for indels
-             6               2              0                           0               1               0               0               0               0               1             increasing mismatch score (2 --> 3) and rerunning them
-             2         all done
-      info for 250 / 250 = 1.000
-      kept 98 (0.392) unproductive
-        water time: 1.4
+           500               7              0                           6               0               0               0               0               1               0             increasing mismatch score (1 --> 2) and rerunning them
+             7         all done
+      info for 500 / 500 = 1.000
+      kept 354 (0.708) unproductive
+        water time: 2.3
 hmm
---> caching all 250 naive sequences
-    running 10 procs
-                no/empty cache file
-                    calcd:         vtb 250        fwd   0
-                   merged:       hfrac   0     lratio   0
-             min-max time:  1.3 - 1.6 sec
-      hmm step time: 2.0
-       naive hfrac bounds: 0.033 0.033   (0.116 mean mutation in parameter dir test/_new-results/test/parameters/simu/hmm)
-        collapsed 250 sequences into 193 unique naive sequences
-    using hfrac bound for vsearch 0.033
-    running vsearch 28 times (once for each cdr3 length class): . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
-      vsearch time: 6.4
+       naive hfrac bounds: 0.034 0.034   (0.118 mean mutation in parameter dir test/_new-results/test/parameters/simu/hmm)
+        collapsed 500 sequences into 282 unique naive sequences
+    using hfrac bound for vsearch 0.034
+    running vsearch 20 times (once for each cdr3 length class): . . . . . . . . . . . . . . . . . . . . 
+      vsearch time: 4.8
 --> getting annotations for final partition
     running 10 procs
-      hmm step time: 2.0
+      hmm step time: 3.0
     read output
-        processed 111 hmm output lines with 250 sequences in 111 events
-          187 boundary warnings
-      total time: 12.2
+‘test/_new-results/cache-new-partition.csv.tmp’ -> ‘test/_new-results/cache-new-partition.csv’
+        processed 106 hmm output lines with 500 sequences in 106 events
+          409 boundary warnings
+      total time: 11.4

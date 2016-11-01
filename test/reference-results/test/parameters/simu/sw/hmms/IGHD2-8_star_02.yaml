@@ -1,0 +1,296 @@
+!!python/object:hmmwriter.HMM
+extras: {gene_prob: 0.02387813915191437, overall_mute_freq: 0.11771305063812271}
+name: IGHD2-8_star_02
+states:
+- !!python/object:hmmwriter.State
+  emissions: null
+  extras: {}
+  name: init
+  transitions: {IGHD2-8_star_02_0: 0.07791519434628975, IGHD2-8_star_02_1: 0.02597173144876325, IGHD2-8_star_02_10: 0.003710247349823321, IGHD2-8_star_02_11: 0.022261484098939927,
+    IGHD2-8_star_02_12: 0.018551236749116608, IGHD2-8_star_02_13: 0.014840989399293285, IGHD2-8_star_02_14: 0.011130742049469964, IGHD2-8_star_02_15: 0.007420494699646642,
+    IGHD2-8_star_02_16: 0.003710247349823321, IGHD2-8_star_02_17: 0.0034783568904593644, IGHD2-8_star_02_18: 0.0032464664310954063, IGHD2-8_star_02_19: 0.0030145759717314486,
+    IGHD2-8_star_02_2: 0.003710247349823321, IGHD2-8_star_02_20: 0.002782685512367491, IGHD2-8_star_02_21: 0.0025507950530035337, IGHD2-8_star_02_22: 0.002318904593639576,
+    IGHD2-8_star_02_23: 0.0020870141342756183, IGHD2-8_star_02_24: 0.0018551236749116606, IGHD2-8_star_02_25: 0.0016232332155477031, IGHD2-8_star_02_26: 0.0013913427561837455,
+    IGHD2-8_star_02_27: 0.001159452296819788, IGHD2-8_star_02_28: 0.0009275618374558303, IGHD2-8_star_02_29: 0.0006956713780918727, IGHD2-8_star_02_3: 0.009275618374558304,
+    IGHD2-8_star_02_30: 0.00046378091872791515, IGHD2-8_star_02_4: 0.014840989399293285, IGHD2-8_star_02_5: 0.01236749116607774, IGHD2-8_star_02_6: 0.009893992932862191,
+    IGHD2-8_star_02_7: 0.007420494699646642, IGHD2-8_star_02_8: 0.037102473498233215, IGHD2-8_star_02_9: 0.02040636042402827, insert_left_A: 0.1008508022774327,
+    insert_left_C: 0.23568286010056197, insert_left_G: 0.1975284679089027, insert_left_T: 0.13781286971310264}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.7896140072118467, C: 0.07012866426271776, G: 0.07012866426271776, T: 0.07012866426271776}
+    track: nukes
+  extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: A}
+  name: insert_left_A
+  transitions: {IGHD2-8_star_02_0: 0.10959499864093501, IGHD2-8_star_02_1: 0.03653166621364501, IGHD2-8_star_02_10: 0.005218809459092143, IGHD2-8_star_02_11: 0.03131285675455286,
+    IGHD2-8_star_02_12: 0.026094047295460717, IGHD2-8_star_02_13: 0.020875237836368573, IGHD2-8_star_02_14: 0.01565642837727643, IGHD2-8_star_02_15: 0.010437618918184286,
+    IGHD2-8_star_02_16: 0.005218809459092143, IGHD2-8_star_02_17: 0.004892633867898885, IGHD2-8_star_02_18: 0.004566458276705626, IGHD2-8_star_02_19: 0.004240282685512366,
+    IGHD2-8_star_02_2: 0.005218809459092143, IGHD2-8_star_02_20: 0.003914107094319107, IGHD2-8_star_02_21: 0.003587931503125849, IGHD2-8_star_02_22: 0.0032617559119325896,
+    IGHD2-8_star_02_23: 0.002935580320739331, IGHD2-8_star_02_24: 0.0026094047295460716, IGHD2-8_star_02_25: 0.002283229138352813, IGHD2-8_star_02_26: 0.0019570535471595536,
+    IGHD2-8_star_02_27: 0.0016308779559662948, IGHD2-8_star_02_28: 0.0013047023647730358, IGHD2-8_star_02_29: 0.0009785267735797768, IGHD2-8_star_02_3: 0.013047023647730359,
+    IGHD2-8_star_02_30: 0.0006523511823865179, IGHD2-8_star_02_4: 0.020875237836368573, IGHD2-8_star_02_5: 0.017396031530307148, IGHD2-8_star_02_6: 0.013916825224245716,
+    IGHD2-8_star_02_7: 0.010437618918184286, IGHD2-8_star_02_8: 0.052188094590921434, IGHD2-8_star_02_9: 0.028703452025006793, insert_left_A: 0.08082497212931997,
+    insert_left_C: 0.18888358018792806, insert_left_G: 0.15830546265328876, insert_left_T: 0.11044752349100177}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.07012866426271776, C: 0.7896140072118467, G: 0.07012866426271776, T: 0.07012866426271776}
+    track: nukes
+  extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: C}
+  name: insert_left_C
+  transitions: {IGHD2-8_star_02_0: 0.10959499864093501, IGHD2-8_star_02_1: 0.03653166621364501, IGHD2-8_star_02_10: 0.005218809459092143, IGHD2-8_star_02_11: 0.03131285675455286,
+    IGHD2-8_star_02_12: 0.026094047295460717, IGHD2-8_star_02_13: 0.020875237836368573, IGHD2-8_star_02_14: 0.01565642837727643, IGHD2-8_star_02_15: 0.010437618918184286,
+    IGHD2-8_star_02_16: 0.005218809459092143, IGHD2-8_star_02_17: 0.004892633867898885, IGHD2-8_star_02_18: 0.004566458276705626, IGHD2-8_star_02_19: 0.004240282685512366,
+    IGHD2-8_star_02_2: 0.005218809459092143, IGHD2-8_star_02_20: 0.003914107094319107, IGHD2-8_star_02_21: 0.003587931503125849, IGHD2-8_star_02_22: 0.0032617559119325896,
+    IGHD2-8_star_02_23: 0.002935580320739331, IGHD2-8_star_02_24: 0.0026094047295460716, IGHD2-8_star_02_25: 0.002283229138352813, IGHD2-8_star_02_26: 0.0019570535471595536,
+    IGHD2-8_star_02_27: 0.0016308779559662948, IGHD2-8_star_02_28: 0.0013047023647730358, IGHD2-8_star_02_29: 0.0009785267735797768, IGHD2-8_star_02_3: 0.013047023647730359,
+    IGHD2-8_star_02_30: 0.0006523511823865179, IGHD2-8_star_02_4: 0.020875237836368573, IGHD2-8_star_02_5: 0.017396031530307148, IGHD2-8_star_02_6: 0.013916825224245716,
+    IGHD2-8_star_02_7: 0.010437618918184286, IGHD2-8_star_02_8: 0.052188094590921434, IGHD2-8_star_02_9: 0.028703452025006793, insert_left_A: 0.08082497212931997,
+    insert_left_C: 0.18888358018792806, insert_left_G: 0.15830546265328876, insert_left_T: 0.11044752349100177}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.07012866426271776, C: 0.07012866426271776, G: 0.7896140072118467, T: 0.07012866426271776}
+    track: nukes
+  extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: G}
+  name: insert_left_G
+  transitions: {IGHD2-8_star_02_0: 0.10959499864093501, IGHD2-8_star_02_1: 0.03653166621364501, IGHD2-8_star_02_10: 0.005218809459092143, IGHD2-8_star_02_11: 0.03131285675455286,
+    IGHD2-8_star_02_12: 0.026094047295460717, IGHD2-8_star_02_13: 0.020875237836368573, IGHD2-8_star_02_14: 0.01565642837727643, IGHD2-8_star_02_15: 0.010437618918184286,
+    IGHD2-8_star_02_16: 0.005218809459092143, IGHD2-8_star_02_17: 0.004892633867898885, IGHD2-8_star_02_18: 0.004566458276705626, IGHD2-8_star_02_19: 0.004240282685512366,
+    IGHD2-8_star_02_2: 0.005218809459092143, IGHD2-8_star_02_20: 0.003914107094319107, IGHD2-8_star_02_21: 0.003587931503125849, IGHD2-8_star_02_22: 0.0032617559119325896,
+    IGHD2-8_star_02_23: 0.002935580320739331, IGHD2-8_star_02_24: 0.0026094047295460716, IGHD2-8_star_02_25: 0.002283229138352813, IGHD2-8_star_02_26: 0.0019570535471595536,
+    IGHD2-8_star_02_27: 0.0016308779559662948, IGHD2-8_star_02_28: 0.0013047023647730358, IGHD2-8_star_02_29: 0.0009785267735797768, IGHD2-8_star_02_3: 0.013047023647730359,
+    IGHD2-8_star_02_30: 0.0006523511823865179, IGHD2-8_star_02_4: 0.020875237836368573, IGHD2-8_star_02_5: 0.017396031530307148, IGHD2-8_star_02_6: 0.013916825224245716,
+    IGHD2-8_star_02_7: 0.010437618918184286, IGHD2-8_star_02_8: 0.052188094590921434, IGHD2-8_star_02_9: 0.028703452025006793, insert_left_A: 0.08082497212931997,
+    insert_left_C: 0.18888358018792806, insert_left_G: 0.15830546265328876, insert_left_T: 0.11044752349100177}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.07012866426271776, C: 0.07012866426271776, G: 0.07012866426271776, T: 0.7896140072118467}
+    track: nukes
+  extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: T}
+  name: insert_left_T
+  transitions: {IGHD2-8_star_02_0: 0.10959499864093501, IGHD2-8_star_02_1: 0.03653166621364501, IGHD2-8_star_02_10: 0.005218809459092143, IGHD2-8_star_02_11: 0.03131285675455286,
+    IGHD2-8_star_02_12: 0.026094047295460717, IGHD2-8_star_02_13: 0.020875237836368573, IGHD2-8_star_02_14: 0.01565642837727643, IGHD2-8_star_02_15: 0.010437618918184286,
+    IGHD2-8_star_02_16: 0.005218809459092143, IGHD2-8_star_02_17: 0.004892633867898885, IGHD2-8_star_02_18: 0.004566458276705626, IGHD2-8_star_02_19: 0.004240282685512366,
+    IGHD2-8_star_02_2: 0.005218809459092143, IGHD2-8_star_02_20: 0.003914107094319107, IGHD2-8_star_02_21: 0.003587931503125849, IGHD2-8_star_02_22: 0.0032617559119325896,
+    IGHD2-8_star_02_23: 0.002935580320739331, IGHD2-8_star_02_24: 0.0026094047295460716, IGHD2-8_star_02_25: 0.002283229138352813, IGHD2-8_star_02_26: 0.0019570535471595536,
+    IGHD2-8_star_02_27: 0.0016308779559662948, IGHD2-8_star_02_28: 0.0013047023647730358, IGHD2-8_star_02_29: 0.0009785267735797768, IGHD2-8_star_02_3: 0.013047023647730359,
+    IGHD2-8_star_02_30: 0.0006523511823865179, IGHD2-8_star_02_4: 0.020875237836368573, IGHD2-8_star_02_5: 0.017396031530307148, IGHD2-8_star_02_6: 0.013916825224245716,
+    IGHD2-8_star_02_7: 0.010437618918184286, IGHD2-8_star_02_8: 0.052188094590921434, IGHD2-8_star_02_9: 0.028703452025006793, insert_left_A: 0.08082497212931997,
+    insert_left_C: 0.18888358018792806, insert_left_G: 0.15830546265328876, insert_left_T: 0.11044752349100177}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.9756445, C: 0.008118499999999999, G: 0.008118499999999999, T: 0.008118499999999999}
+    track: nukes
+  extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: A}
+  name: IGHD2-8_star_02_0
+  transitions: {IGHD2-8_star_02_1: 0.9910514541387024, end: 0.008948545861297537}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.011904761904761904, C: 0.011904761904761904, G: 0.9642857142857143, T: 0.011904761904761904}
+    track: nukes
+  extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: G}
+  name: IGHD2-8_star_02_1
+  transitions: {IGHD2-8_star_02_2: 0.9906040268456375, end: 0.009395973154362415}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.14942528735632182, C: 0.14942528735632182, G: 0.5517241379310345, T: 0.14942528735632182}
+    track: nukes
+  extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: G}
+  name: IGHD2-8_star_02_2
+  transitions: {IGHD2-8_star_02_3: 0.9901565995525727, end: 0.009843400447427294}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.896551724137931, C: 0.034482758620689655, G: 0.034482758620689655, T: 0.034482758620689655}
+    track: nukes
+  extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: A}
+  name: IGHD2-8_star_02_3
+  transitions: {IGHD2-8_star_02_4: 0.9897091722595078, end: 0.01029082774049217}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.050505050505050504, C: 0.050505050505050504, G: 0.050505050505050504, T: 0.8484848484848485}
+    track: nukes
+  extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: T}
+  name: IGHD2-8_star_02_4
+  transitions: {IGHD2-8_star_02_5: 0.9892617449664429, end: 0.010738255033557048}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.8484848484848485, C: 0.050505050505050504, G: 0.050505050505050504, T: 0.050505050505050504}
+    track: nukes
+  extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: A}
+  name: IGHD2-8_star_02_5
+  transitions: {IGHD2-8_star_02_6: 0.9888143176733781, end: 0.011185682326621925}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.052083333333333336, C: 0.052083333333333336, G: 0.052083333333333336, T: 0.84375}
+    track: nukes
+  extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: T}
+  name: IGHD2-8_star_02_6
+  transitions: {IGHD2-8_star_02_7: 0.9888143176733781, end: 0.011185682326621925}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.05882352941176471, C: 0.05882352941176471, G: 0.05882352941176471, T: 0.8235294117647058}
+    track: nukes
+  extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: T}
+  name: IGHD2-8_star_02_7
+  transitions: {IGHD2-8_star_02_8: 0.9888143176733781, end: 0.011185682326621925}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.030303030303030304, C: 0.030303030303030304, G: 0.9090909090909091, T: 0.030303030303030304}
+    track: nukes
+  extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: G}
+  name: IGHD2-8_star_02_8
+  transitions: {IGHD2-8_star_02_9: 0.9888143176733781, end: 0.011185682326621925}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.10077519379844961, C: 0.10077519379844961, G: 0.10077519379844961, T: 0.6976744186046512}
+    track: nukes
+  extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: T}
+  name: IGHD2-8_star_02_9
+  transitions: {IGHD2-8_star_02_10: 0.9832214765100671, end: 0.016778523489932886}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.8181818181818181, C: 0.060606060606060615, G: 0.060606060606060615, T: 0.060606060606060615}
+    track: nukes
+  extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: A}
+  name: IGHD2-8_star_02_10
+  transitions: {IGHD2-8_star_02_11: 0.9776286353467561, end: 0.02237136465324385}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.013333333333333334, C: 0.96, G: 0.013333333333333334, T: 0.013333333333333334}
+    track: nukes
+  extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: C}
+  name: IGHD2-8_star_02_11
+  transitions: {IGHD2-8_star_02_12: 0.9720357941834452, end: 0.027964205816554812}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.03636363636363636, C: 0.03636363636363636, G: 0.03636363636363636, T: 0.8909090909090909}
+    track: nukes
+  extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: T}
+  name: IGHD2-8_star_02_12
+  transitions: {IGHD2-8_star_02_13: 0.9664429530201343, end: 0.03355704697986577}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.05454545454545454, C: 0.05454545454545454, G: 0.8363636363636364, T: 0.05454545454545454}
+    track: nukes
+  extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: G}
+  name: IGHD2-8_star_02_13
+  transitions: {IGHD2-8_star_02_14: 0.9608501118568232, end: 0.03914988814317674}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.07272727272727272, C: 0.07272727272727272, G: 0.7818181818181819, T: 0.07272727272727272}
+    track: nukes
+  extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: G}
+  name: IGHD2-8_star_02_14
+  transitions: {IGHD2-8_star_02_15: 0.9552572706935123, end: 0.0447427293064877}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.11764705882352942, C: 0.11764705882352942, G: 0.11764705882352942, T: 0.6470588235294117}
+    track: nukes
+  extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: T}
+  name: IGHD2-8_star_02_15
+  transitions: {IGHD2-8_star_02_16: 0.9888143176733781, end: 0.011185682326621925}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.09803921568627451, C: 0.09803921568627451, G: 0.7058823529411764, T: 0.09803921568627451}
+    track: nukes
+  extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: G}
+  name: IGHD2-8_star_02_16
+  transitions: {IGHD2-8_star_02_17: 0.9888143176733781, end: 0.011185682326621925}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.06666666666666667, C: 0.06666666666666667, G: 0.8, T: 0.06666666666666667}
+    track: nukes
+  extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: G}
+  name: IGHD2-8_star_02_17
+  transitions: {IGHD2-8_star_02_18: 0.7539149888143176, end: 0.24608501118568235}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.09523809523809523, C: 0.09523809523809523, G: 0.09523809523809523, T: 0.7142857142857143}
+    track: nukes
+  extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: T}
+  name: IGHD2-8_star_02_18
+  transitions: {IGHD2-8_star_02_19: 0.9888143176733781, end: 0.011185682326621925}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.07407407407407406, C: 0.07407407407407406, G: 0.7777777777777778, T: 0.07407407407407406}
+    track: nukes
+  extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: G}
+  name: IGHD2-8_star_02_19
+  transitions: {IGHD2-8_star_02_20: 0.9888143176733781, end: 0.011185682326621925}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.13580246913580243, C: 0.13580246913580243, G: 0.13580246913580243, T: 0.5925925925925927}
+    track: nukes
+  extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: T}
+  name: IGHD2-8_star_02_20
+  transitions: {IGHD2-8_star_02_21: 0.9888143176733781, end: 0.011185682326621925}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.6538461538461539, C: 0.11538461538461538, G: 0.11538461538461538, T: 0.11538461538461538}
+    track: nukes
+  extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: A}
+  name: IGHD2-8_star_02_21
+  transitions: {IGHD2-8_star_02_22: 0.9664429530201343, end: 0.03355704697986577}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.17391304347826086, C: 0.17391304347826086, G: 0.17391304347826086, T: 0.4782608695652174}
+    track: nukes
+  extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: T}
+  name: IGHD2-8_star_02_22
+  transitions: {IGHD2-8_star_02_23: 0.9776286353467561, end: 0.02237136465324385}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.15942028985507248, C: 0.15942028985507248, G: 0.5217391304347826, T: 0.15942028985507248}
+    track: nukes
+  extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: G}
+  name: IGHD2-8_star_02_23
+  transitions: {IGHD2-8_star_02_24: 0.9888143176733781, end: 0.011185682326621925}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.06060606060606061, C: 0.8181818181818181, G: 0.06060606060606061, T: 0.06060606060606061}
+    track: nukes
+  extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: C}
+  name: IGHD2-8_star_02_24
+  transitions: {IGHD2-8_star_02_25: 0.9888143176733781, end: 0.011185682326621925}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.06349206349206349, C: 0.06349206349206349, G: 0.06349206349206349, T: 0.8095238095238095}
+    track: nukes
+  extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: T}
+  name: IGHD2-8_star_02_25
+  transitions: {IGHD2-8_star_02_26: 0.9105145413870246, end: 0.0894854586129754}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.46153846153846156, C: 0.1794871794871795, G: 0.1794871794871795, T: 0.1794871794871795}
+    track: nukes
+  extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: A}
+  name: IGHD2-8_star_02_26
+  transitions: {IGHD2-8_star_02_27: 0.9776286353467561, end: 0.02237136465324385}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.06060606060606061, C: 0.06060606060606061, G: 0.06060606060606061, T: 0.8181818181818181}
+    track: nukes
+  extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: T}
+  name: IGHD2-8_star_02_27
+  transitions: {IGHD2-8_star_02_28: 0.9552572706935123, end: 0.0447427293064877}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.4545454545454546, C: 0.1818181818181818, G: 0.1818181818181818, T: 0.1818181818181818}
+    track: nukes
+  extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: A}
+  name: IGHD2-8_star_02_28
+  transitions: {IGHD2-8_star_02_29: 0.9328859060402684, end: 0.06711409395973154}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.26666666666666666, C: 0.19999999999999996, G: 0.26666666666666666, T: 0.26666666666666666}
+    track: nukes
+  extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: C}
+  name: IGHD2-8_star_02_29
+  transitions: {IGHD2-8_star_02_30: 0.9384787472035794, end: 0.06152125279642059}
+- !!python/object:hmmwriter.State
+  emissions:
+    probs: {A: 0.027886166666666667, C: 0.9163415, G: 0.027886166666666667, T: 0.027886166666666667}
+    track: nukes
+  extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: C}
+  name: IGHD2-8_star_02_30
+  transitions: {end: 1.0}
+tracks:
+  nukes: [A, C, G, T]
