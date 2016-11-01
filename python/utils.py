@@ -413,11 +413,16 @@ Colors['red'] = '\033[91m'
 Colors['reverse_video'] = '\033[7m'
 Colors['end'] = '\033[0m'
 
-def color(col, seq, width=None):
+def color(col, seq, width=None, padside='left'):
     return_str = Colors[col] + seq + Colors['end']
     if width is not None:  # make sure final string prints to correct width
         n_spaces = max(0, width - len(seq))  # if specified <width> is greater than uncolored length of <seq>, pad with spaces so that when the colors show up properly the colored sequences prints with width <width>
-        return_str = n_spaces * ' ' + return_str
+        if padside == 'left':
+            return_str = n_spaces * ' ' + return_str
+        elif padside == 'right':
+            return_str = return_str + n_spaces * ' '
+        else:
+            assert False
     return return_str
 
 def len_excluding_colors(seq):

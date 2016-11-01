@@ -92,6 +92,7 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def read_cachefile(self, cachefname):
+        start = time.time()
         print '        reading sw results from %s' % cachefname
 
         if os.path.exists(cachefname.replace('.csv', '-glfo')):
@@ -112,6 +113,7 @@ class Waterer(object):
                 self.add_to_info(line)
 
         self.finalize(cachefname=None, just_read_cachefile=True)
+        print '        water time: %.1f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
     def finalize(self, cachefname=None, just_read_cachefile=False):
@@ -170,8 +172,21 @@ class Waterer(object):
             if n_removed > 0:
                 print '      removed %d / %d = %.2f sequences with cdr3 length different from seed sequence (leaving %d)' % (n_removed, initial_n_queries, float(n_removed) / initial_n_queries, len(self.info['queries']))
 
-        if not just_read_cachefile:  # add padded info to self.info (returns if stuff has already been padded)
-            self.pad_seqs_to_same_length()  # NOTE this uses *all the gene matches (not just the best ones), so it has to come before we call pcounter.write(), since that fcn rewrites the germlines removing genes that weren't best matches. But NOTE also that I'm not sure what but that the padding actually *needs* all matches (rather than just all *best* matches)
+        # want to do this *before* we pad sequences, so that when we read the cache file we're reading unpadded sequences and can pad them below
+        if cachefname is not None and not found_germline_changes:
+            print '        writing sw results to %s' % cachefname
+            glutils.write_glfo(cachefname.replace('.csv', '-glfo'), self.glfo)
+            with open(cachefname, 'w') as outfile:
+                writer = csv.DictWriter(outfile, utils.annotation_headers + utils.sw_cache_headers)
+                writer.writeheader()
+                missing_input_keys = set(self.input_info.keys())  # all the keys we originially read from the file
+                for query in self.info['queries']:
+                    missing_input_keys.remove(query)
+                    outline = utils.get_line_for_output(self.info[query])  # convert lists to colon-separated strings and whatnot (doens't modify input dictionary)
+                    outline = {k : v for k, v in outline.items() if k in utils.annotation_headers + utils.sw_cache_headers}  # remove the columns we don't want to output
+                    writer.writerow(outline)
+
+        self.pad_seqs_to_same_length()  # NOTE this uses all the gene matches (not just the best ones), so it has to come before we call pcounter.write(), since that fcn rewrites the germlines removing genes that weren't best matches. But NOTE also that I'm not sure what but that the padding actually *needs* all matches (rather than just all *best* matches)
 
         if self.perfplotter is not None:
             self.perfplotter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
@@ -186,19 +201,6 @@ class Waterer(object):
                 self.pcounter.write(self.parameter_out_dir)
                 if self.true_pcounter is not None:
                     self.true_pcounter.write(self.parameter_out_dir + '-true')
-
-        if cachefname is not None and not found_germline_changes:
-            print '        writing sw results to %s' % cachefname
-            glutils.write_glfo(cachefname.replace('.csv', '-glfo'), self.glfo)
-            with open(cachefname, 'w') as outfile:
-                writer = csv.DictWriter(outfile, utils.annotation_headers + utils.sw_cache_headers)
-                writer.writeheader()
-                missing_input_keys = set(self.input_info.keys())  # all the keys we originially read from the file
-                for query in self.info['queries']:
-                    missing_input_keys.remove(query)
-                    outline = utils.get_line_for_output(self.info[query])  # convert lists to colon-separated strings and whatnot (doens't modify input dictionary)
-                    outline = {k : v for k, v in outline.items() if k in utils.annotation_headers + utils.sw_cache_headers}  # remove the columns we don't want to output
-                    writer.writerow(outline)
 
         sys.stdout.flush()
 
