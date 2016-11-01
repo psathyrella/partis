@@ -104,8 +104,8 @@ void run_algorithm(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> > &qr
       stop = true;  // !result.boundary_error() || result.could_not_expand() || result.no_path_;  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
       if(args.debug() && !stop)
         cout << "             expand and run again" << endl;  // note that subsequent runs are much faster than the first one because of chunk caching
-      if(result.boundary_error())
-        errors = "boundary";
+      // if(result.boundary_error())
+      //   errors = "boundary";
     } while(!stop);
 
     if(result.no_path_)

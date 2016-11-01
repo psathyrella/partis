@@ -725,8 +725,8 @@ string Glomerator::CalculateNaiveSeq(string queries, RecoEvent *event) {
     AddFailedQuery(queries, "no_path");
     return "";
   }
-  if(result.boundary_error())
-    errors_[queries] = errors_[queries] + ":boundary";
+  // if(result.boundary_error())
+  //   errors_[queries] = errors_[queries] + ":boundary";
 
   if(event != nullptr)
     *event = result.best_event();
@@ -761,8 +761,8 @@ double Glomerator::CalculateLogProb(string queries) {  // NOTE can modify kbinfo
     AddFailedQuery(queries, "no_path");
     return -INFINITY;
   }
-  if(result.boundary_error() && !result.could_not_expand())  // could_not_expand means the max is at the edge of the sequence -- e.g. k_d min is 1
-    errors_[queries] = errors_[queries] + ":boundary";
+  // if(result.boundary_error() && !result.could_not_expand())  // could_not_expand means the max is at the edge of the sequence -- e.g. k_d min is 1
+  //   errors_[queries] = errors_[queries] + ":boundary";
 
   WriteStatus();
   return result.total_score();
