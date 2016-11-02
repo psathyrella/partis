@@ -371,7 +371,8 @@ class PartitionDriver(object):
                 if len(unseeded_clusters) != len(self.unseeded_seqs):
                     print '%s unseeded clusters not all singletons' % utils.color('red', 'warning')
                 cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
-                seeded_singletons = [[self.args.seed_unique_id, ], ] + [[uid, ] for sclust in seeded_clusters for uid in sclust if uid != self.args.seed_unique_id]
+                seeded_singleton_set = set([uid for sclust in seeded_clusters for uid in sclust])  # in case there's duplicates
+                seeded_singletons = [[uid, ] for uid in seeded_singleton_set]
                 cpath.add_partition(seeded_singletons, -1., 1)
                 n_remaining_seqs = len(cpath.partitions[cpath.i_best_minus_x])
                 self.already_removed_unseeded_seqs = True
@@ -1475,7 +1476,7 @@ class PartitionDriver(object):
         with open(outpath, 'w') as outfile:
             writer = csv.DictWriter(outfile, utils.annotation_headers)
             writer.writeheader()
-            missing_input_keys = set(self.sw_info['queries'])  # all the keys we originially read from the file
+            missing_input_keys = set(self.sw_info['queries'])  # all the queries for which we had decent sw annotations
             if self.unseeded_seqs is not None:
                 missing_input_keys -= set(self.unseeded_seqs)
 
