@@ -902,18 +902,18 @@ def add_implicit_info(glfo, line, existing_implicit_keys=None, aligned_gl_seqs=N
                 print '  WARNING pre-existing info\n    %s\n    doesn\'t match new info\n    %s\n    for %s in %s' % (pre_existing_info[ekey], line[ekey], ekey, line['unique_ids'])
 
 # ----------------------------------------------------------------------------------------
-def print_true_events(glfo, reco_info, line):
+def print_true_events(glfo, reco_info, line, print_naive_seqs=False):
     """ print the true events which contain the seqs in <line> """
-    # true_naive_seqs = []
+    true_naive_seqs = []
     for uids in get_true_partition(reco_info, ids=line['unique_ids']):  # make a multi-seq line that has all the seqs from this clonal family
         multiline = synthesize_multi_seq_line(uids, reco_info)
         print_reco_event(glfo['seqs'], multiline, extra_str='    ', label=color('green', 'true:'))
-        # true_naive_seqs.append(multiline['naive_seq'])
+        true_naive_seqs.append(multiline['naive_seq'])
 
-    # print '\ntrue vs inferred naive sequences:'
-    # for tseq in true_naive_seqs:
-    #     color_mutants(tseq, line['naive_seq'], print_result=True, print_hfrac=True, ref_label='true ')
-    # print ''
+    if print_naive_seqs:
+        print '      naive sequences:'
+        for tseq in true_naive_seqs:
+            color_mutants(tseq, line['naive_seq'], print_result=True, print_hfrac=True, ref_label='true ', extra_str='          ')
 
 # ----------------------------------------------------------------------------------------
 def add_gaps_ignoring_color_characters(colored_seq, ipos, gapstr):
@@ -1851,7 +1851,7 @@ def get_str_from_partition(partition):
 
 # ----------------------------------------------------------------------------------------
 def get_cluster_ids(uids, partition):
-    clids = {uid : [] for uid in uids}
+    clids = {uid : [] for uid in uids}  # almost always list of length one with index (in <partition>) of the uid's cluster
     for iclust in range(len(partition)):
         for uid in partition[iclust]:
             if iclust not in clids[uid]:  # in case there's duplicates (from seed unique id)
@@ -1864,13 +1864,13 @@ def new_ccfs_that_need_better_names(partition, true_partition, reco_info, seed_u
         check_intersection_and_complement(partition, true_partition)
     reco_ids = {uid : reco_info[uid]['reco_id'] for cluster in partition for uid in cluster}  # just a teensy lil' optimization
     uids = set([uid for cluster in partition for uid in cluster])
-    clids = get_cluster_ids(uids, partition)  # inferred cluster ids
+    clids = get_cluster_ids(uids, partition)  # map of {uid : (index of cluster in <partition> in which that uid occurs)} (well, list of indices, in case there's duplicates)
 
     def get_clonal_fraction(uid, inferred_cluster):
         """ Return the fraction of seqs in <uid>'s inferred cluster which are really clonal. """
         n_clonal = 0
         for tmpid in inferred_cluster:  # NOTE this includes the case where tmpid equal to uid
-            if reco_ids[tmpid] == reco_ids[uid]:
+            if reco_ids[tmpid] == reco_ids[uid]:  # reminder (see event.py) reco ids depend only on rearrangement parameters, i.e. two different rearrangement events with the same rearrangement parameters have the same reco id
                 n_clonal += 1
         return float(n_clonal) / len(inferred_cluster)
 
@@ -1892,7 +1892,7 @@ def new_ccfs_that_need_better_names(partition, true_partition, reco_info, seed_u
                 continue
             if len(clids[uid]) != 1:
                 print 'WARNING %s in multiple clusters' % uid
-            inferred_cluster = partition[clids[uid][0]]
+            inferred_cluster = partition[clids[uid][0]]  # we only look at the first cluster in which it appears
             mean_clonal_fraction += get_clonal_fraction(uid, inferred_cluster)
             mean_fraction_present += get_fraction_present(inferred_cluster, true_cluster)
             n_uids += 1
