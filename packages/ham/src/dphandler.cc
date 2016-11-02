@@ -445,9 +445,11 @@ void DPHandler::RunKSet(Sequences &seqs, KSet kset, map<string, set<string> > &o
     }
   }
 
+  // store the results
   (*best_scores)[kset] = AddWithMinusInfinities(regional_best_scores["v"], AddWithMinusInfinities(regional_best_scores["d"], regional_best_scores["j"]));  // i.e. best_prob = v_prob * d_prob * j_prob (v *and* d *and* j)
   (*total_scores)[kset] = AddWithMinusInfinities(regional_total_scores["v"], AddWithMinusInfinities(regional_total_scores["d"], regional_total_scores["j"]));
 
+  // work out per-gene support
   for(auto &region : gl_.regions_) {  // we have to do this in a separate loop because we need to know what the regional_best_scores are for the other regions
     for(auto &gene : only_genes[region]) {
       // first multiply the prob for this kset by the *total* for the other two regions
