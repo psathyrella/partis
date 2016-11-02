@@ -101,7 +101,7 @@ class RecombinationEvent(object):
                 assert 'unique_id' not in row
                 assert 'seq' not in row
                 str_for_reco_id += str(row[column])
-            row['reco_id'] = hash(str_for_reco_id)  # note that this will give the same reco id for the same rearrangement parameters (which is what we want, although it can be argued that it would be equally legitimate to do it the other way)
+            row['reco_id'] = hash(str_for_reco_id)  # note that this gives the same reco id for the same rearrangement parameters, even if they come from a separate rearrangement event
             assert 'fv_insertion' not in row  # well, in principle it's ok if they're there, but in that case I'll need to at least think about updating some things
             assert 'jf_insertion' not in row
             row['fv_insertion'] = ''

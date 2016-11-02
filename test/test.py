@@ -141,7 +141,7 @@ class Tester(object):
             self.read_partition_performance(version_stype, input_stype)
         self.compare_performance(input_stype)
         self.compare_partition_cachefiles(input_stype)
-        self.compare_data_annotation(input_stype)
+        # self.compare_data_annotation(input_stype)
 
     # ----------------------------------------------------------------------------------------
     def prepare_to_run(self, args, name, info):
@@ -585,6 +585,8 @@ parser.add_argument('--make-plots', action='store_true')
 parser.add_argument('--glfo-dir', default='data/germlines/human')
 parser.add_argument('--chain', default='h')
 args = parser.parse_args()
+if not args.only_ref and not args.skip_ref:
+    print '%s even if you\'re about to bust the cache, there\'s probably not really a reason to be running the ref *and* non-ref stuff' % utils.color('yellow', 'warning')
 
 tester = Tester()
 if args.bust_cache:

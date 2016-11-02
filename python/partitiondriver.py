@@ -1459,7 +1459,7 @@ class PartitionDriver(object):
         if print_true and not self.args.is_data:  # first print true event (if this is simulation)
             utils.print_true_events(self.glfo, self.reco_info, line)
 
-        if len(line['unique_ids']) > 1:  # make it easier to cut and paste for --queries
+        if len(line['unique_ids']) > 1:  # make it easier to cut and paste for --queries (it'd be nice if this could go on the same line as 'inferred:', but then for really big clusters it pushes the 'inserts' label out of alignment
             print '          ' + ':'.join(line['unique_ids'])
         label = 'inferred:'
         if self.args.seed_unique_id is not None and self.args.seed_unique_id in line['unique_ids']:
