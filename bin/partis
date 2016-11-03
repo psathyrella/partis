@@ -6,6 +6,10 @@ import random
 import sys
 import csv
 import numpy
+try:
+    import colored_traceback.always
+except ImportError:
+    pass
 from multiprocessing import Process, active_children
 from subprocess import check_call, check_output, CalledProcessError
 import os
@@ -292,13 +296,13 @@ parent_parser.add_argument('--gap-open-penalty', type=int, default=30, help='Pen
 parent_parser.add_argument('--initial-match-mismatch', default='5:1', help='Initial match:mismatch scores for smith-waterman (we run several iterations, increasing mismatch each time).')
 parent_parser.add_argument('--max-logprob-drop', type=float, default=5., help='stop glomerating when the total logprob has dropped by this much')
 parent_parser.add_argument('--max-vj-mut-freq', type=float, default=0.4, help='skip sequences whose mutation rates in V and J are greater than this (it\'s really not possible to get meaningful smith-waterman matches above this)')
-parent_parser.add_argument('--n-sets', type=int, default=1, help='Separate sequences into sets of size <n> before passing to hmm (i.e. \"k-hmm\").')
-parent_parser.add_argument('--all-combinations', action='store_true', help='Run algorithm on *all* possible combinations of the input queries of length <n-sets> (otherwise, if <n-sets> is set, we run on sequential sets of <n-sets> in the input file).')
+parent_parser.add_argument('--n-simultaneous-seqs', type=int, help='Number of simultaneous sequences on which to run the multi-HMM (e.g. 2 for a pair hmm)')
+parent_parser.add_argument('--simultaneous-true-clonal-seqs', action='store_true', help='Run true clonal sequences together simultaneously with the multi-HMM.')
 parent_parser.add_argument('--plot-performance', action='store_true', help='Write out plots comparing true and inferred distributions')
 parent_parser.add_argument('--dont-rescale-emissions', action='store_true', help='Don\'t scale each hmm\'s emission probabilities to account for the branch length of each individual sequence.')
 parent_parser.add_argument('--print-git-commit', action='store_true', help='print sys.argv, git commit hash, and tag info')
 parent_parser.add_argument('--min-observations-to-write', type=int, default=20, help='When writing hmm model files, if we see a gene version fewer times than this, we average over other alleles, or other primary versions, etc. (see hmmwriter). NOTE default is manipulated in partitiondriver.py')
-parent_parser.add_argument('--chain', default='h', choices=('h', 'k', 'l'), help='light chain is under development! only heavy chain works at the moment. But in the future: Are these heavy chain, or kappa or lambda light chain?')
+parent_parser.add_argument('--chain', default='h', choices=('h', 'k', 'l'), help='Are these heavy chain, or kappa or lambda light chain?')
 parent_parser.add_argument('--species', default='human', choices=('human', 'mouse'), help='Which species?')
 parent_parser.add_argument('--only-smith-waterman', action='store_true', help='Exit after finishing smith-waterman.')
 parent_parser.add_argument('--initial-germline-dir', help='Directory with fastas from which to read germline set. Only used when caching parameters, during which its contents is copied into --parameter-dir, perhaps (i.e. if specified) with modification. NOTE default is set below, because control flow is too complicated for argparse')
@@ -446,6 +450,12 @@ elif args.is_simu:
     pass  # args.is_data = False
 else:  # if neither was given on the command line, set is_data to True
     args.is_data = True
+
+if args.simultaneous_true_clonal_seqs:
+    if args.is_data:
+        raise Exception('can only pass true clonal families to multi-hmm together on simulation and with --is-simu set')
+    if args.n_simultaneous_seqs is not None:
+        raise Exception('can\'t specify both --n-simultaneous-seqs and --simultaneous-true-clonal-seqs')
 
 if args.no_indels and args.gap_open_penalty < 1000:
     print 'forcing --gap-open-penalty to 1000 to prevent indels, since --no-indels was specified (you can also adjust this penalty directly)'

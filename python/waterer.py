@@ -122,7 +122,7 @@ class Waterer(object):
             print '      kept %d (%.3f) unproductive' % (len(self.kept_unproductive_queries), float(len(self.kept_unproductive_queries)) / len(self.input_info))
 
         if just_read_cachefile:  # it's past tense!
-            print ''
+            pass #print ''
         else:
             if len(self.skipped_unproductive_queries) > 0:
                 print '         skipped %d unproductive' % len(self.skipped_unproductive_queries)
@@ -1173,7 +1173,7 @@ class Waterer(object):
         cluster_different_cdr3_lengths = False  # if you want glomerator.cc to try to cluster different cdr3 lengths, you need to pass it *everybody* with the same N padding... but then you're padding way more than you need to on almost every sequence, which is really wasteful and sometimes confuses bcrham
 
         # NOTE that an additional reason not to do this in simulation is that it will screw up the purity/completeness calculation
-        if not self.args.dont_remove_framework_insertions and self.reco_info is None:  # don't want to do this on simulation -- it's too much trouble to keep things consistent with the simulation info
+        if not self.args.dont_remove_framework_insertions and self.args.is_data:  # don't want to do this on simulation -- it's too much trouble to keep things consistent with the simulation info
             self.remove_framework_insertions(debug=debug)
             self.remove_duplicate_sequences(debug=debug)
 

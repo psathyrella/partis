@@ -2,6 +2,7 @@ import time
 import sys
 import os
 import random
+import itertools
 import ast
 import math
 import glob
@@ -1650,7 +1651,7 @@ def run_cmds(cmdfos, sleep=True, batch_system=None, batch_options=None, debug=No
                 finish_process(iproc, procs, n_tries, cmdfos[iproc], dbgfo=cmdfos[iproc]['dbgfo'], batch_system=batch_system, batch_options=batch_options, debug=debug)
         sys.stdout.flush()
         if sleep:
-            time.sleep(0.1)
+            time.sleep(0.01)
 
 # ----------------------------------------------------------------------------------------
 def pad_lines(linestr, padwidth=8):
@@ -1820,20 +1821,14 @@ def remove_ambiguous_ends(seq):
 # ----------------------------------------------------------------------------------------
 def get_true_partition(reco_info, ids=None):
     """
-    Group ids into their true clonal families.
+    Group queries into their true clonal families.
     If <ids> is specified, only do those, otherwise do all of the ones in <reco_info>.
     """
     if ids is None:
-        id_list = reco_info.keys()
-    else:
-        id_list = ids
-    true_partition = {}
-    for uid in id_list:
-        rid = reco_info[uid]['reco_id']
-        if rid not in true_partition:
-            true_partition[rid] = []
-        true_partition[rid].append(uid)
-    return true_partition.values()
+        ids = reco_info.keys()
+    def keyfunc(q):
+        return reco_info[q]['reco_id']
+    return [list(group) for _, group in itertools.groupby(sorted(ids, key=keyfunc), key=keyfunc)]  # sort 'em beforehand so all the ones with the same reco id are consecutive (if there are non-consecutive ones with the same reco id, it means there were independent events with the same rearrangment parameters)
 
 # ----------------------------------------------------------------------------------------
 def get_partition_from_str(partition_str):

@@ -19,6 +19,7 @@ RUN pip install dendropy==3.12.3
 RUN pip install pysam
 RUN pip install pyyaml
 RUN pip install seaborn
+RUN pip install colored_traceback
 
 RUN R --vanilla --slave -e 'install.packages("TreeSim", repos="http://cran.rstudio.com/")'
 

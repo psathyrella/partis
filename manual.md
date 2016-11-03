@@ -76,7 +76,7 @@ Basically, you just need to install a few extra packages in addition to the depe
 
 ```
 sudo apt-get install python-pip scons libboost-all-dev libgsl0ldbl libgsl0-dev libncurses5-dev libxml2-dev libxslt1-dev mafft r-base
-pip install --user numpy scipy matplotlib pandas biopython dendropy==3.12.3 pysam pyyaml seaborn
+pip install --user numpy scipy matplotlib pandas biopython dendropy==3.12.3 pysam pyyaml seaborn colored_traceback
 R --vanilla --slave -e 'install.packages("TreeSim", repos="http://cran.rstudio.com/")'  # optional -- only used for simulation
 ```
 
@@ -231,10 +231,10 @@ This is perhaps as much as twice as fast as the full method, but sacrifices sign
 
 If --outfname is set, in addition to the clusters in that file, the most likely annotation for each final cluster are written to --cluster-annotation-fname (default `<--outfname>.replace('.csv', '-cluster-annotations.csv')`).
 
-To annotate an arbitrary collection of sequences using simultaneous multi-HMM inference (which is much, much more accurate than annotating the sequences individually), you can combine the `--queries` and `--n-sets` arguments.
+To annotate an arbitrary collection of sequences using simultaneous multi-HMM inference (which is much, much more accurate than annotating the sequences individually), you can combine the `--queries` and `--n-simultaneous-seqs` arguments.
 For instance, if you knew from partitioning that three sequences `a`, `b`, and `c` were clonal, you could run:
 
-``` ./bin/partis run-viterbi --infname in.fa --queries a:b:c --n-sets 3 --outfname abc-annotation.csv```
+``` ./bin/partis run-viterbi --infname in.fa --queries a:b:c --n-simultaneous-seqs 3 --outfname abc-annotation.csv```
 
 ##### cpu and memory usage
 Because, at least to a first approximation, accurate clustering entails all-against-all comparison, partitioning is in a fundamentally different computational regime than are single-sequence problems such as annotation.

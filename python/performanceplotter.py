@@ -44,7 +44,7 @@ class PerformancePlotter(object):
         true_naive_seq = true_line['naive_seq']
         inferred_naive_seq = line['naive_seq']
         if len(true_naive_seq) != len(inferred_naive_seq):
-            raise Exception('different length true and inferred naive seqs for %s:\n%s\n%s' % (' '.join(line['unique_ids']), true_line['naive_seq'], line['naive_seq']))
+            raise Exception('different length true and inferred naive seqs for %s\n  %s\n  %s' % (' '.join(line['unique_ids']), true_line['naive_seq'], line['naive_seq']))
         if restrict_to_region != '':  # NOTE very similar to utils.get_n_muted(), except, we want to use the true bounds for both true and naive sequences
             bounds = true_line['regional_bounds'][restrict_to_region]
             true_naive_seq = true_naive_seq[bounds[0] : bounds[1]]

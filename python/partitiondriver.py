@@ -415,7 +415,7 @@ class PartitionDriver(object):
         n_proc_list = []
         start = time.time()
         while n_procs > 0:
-            print '--> %d clusters with %d proc%s' % (len(cpath.partitions[cpath.i_best_minus_x]), n_procs, utils.plural(n_procs))  # write_hmm_input uses the best-minus-x partition
+            print '--> %d clusters with %d proc%s' % (len(cpath.partitions[cpath.i_best_minus_x]), n_procs, utils.plural(n_procs))
             cpath = self.run_hmm('forward', self.sub_param_dir, n_procs=n_procs, partition=cpath.partitions[cpath.i_best_minus_x], shuffle_input=True)  # NOTE that a.t.m. i_best and i_best_minus_x are usually the same, since we're usually not calculating log probs of partitions (well, we're trying to avoid calculating any extra log probs, which means we usually don't know the log prob of the entire partition)
             n_proc_list.append(n_procs)
             if n_procs == 1:
@@ -765,7 +765,7 @@ class PartitionDriver(object):
         if n_procs is None:
             n_procs = self.args.n_procs
 
-        self.write_hmm_input(algorithm, parameter_in_dir, partition, shuffle_input=shuffle_input)
+        self.prepare_for_hmm(algorithm, parameter_in_dir, partition, shuffle_input=shuffle_input)
 
         cmd_str = self.get_hmm_cmd_str(algorithm, self.hmm_infname, self.hmm_outfname, parameter_dir=parameter_in_dir, precache_all_naive_seqs=precache_all_naive_seqs, n_procs=n_procs)
 
@@ -1069,7 +1069,7 @@ class PartitionDriver(object):
         combo['mut_freq'] = numpy.mean([utils.hamming_fraction(self.sw_info[name]['naive_seq'], self.sw_info[name]['seqs'][0]) for name in query_names])
         cdr3_lengths = [self.sw_info[name]['cdr3_length'] for name in query_names]
         if cdr3_lengths.count(cdr3_lengths[0]) != len(cdr3_lengths):
-            print '%s cdr3 lengths not all the same %s' % (utils.color('red', 'warning'), ' '.join([str(c) for c in cdr3_lengths]))
+            print '%s cdr3 lengths not all the same for %s (%s)' % (utils.color('red', 'warning'), ' '.join(query_names), ' '.join([str(c) for c in cdr3_lengths]))
         combo['cdr3_length'] = cdr3_lengths[0]
 
         combo['k_v'] = {'min' : 99999, 'max' : -1}
@@ -1165,36 +1165,27 @@ class PartitionDriver(object):
         csvfile.close()
 
     # ----------------------------------------------------------------------------------------
-    def write_hmm_input(self, algorithm, parameter_dir, partition, shuffle_input=False):
+    def prepare_for_hmm(self, algorithm, parameter_dir, partition, shuffle_input=False):
         """ Write input file for bcrham """
         if self.args.debug:
             print '    writing input'
 
-        skipped_gene_matches = set()
-
         if partition is not None:
-            nsets = copy.deepcopy(partition)
+            nsets = copy.deepcopy(partition)  # needs to be a deep copy so we can shuffle the order
         else:
-            if self.args.n_sets == 1:  # single (non-multi) hmm (does the same thing as the below for n=1, but is more transparent)
-                nsets = [[qn] for qn in self.sw_info['queries']]
+            qlist = [q for q in self.input_info if q in self.sw_info['queries']]  # we want the queries from sw (to skip failures), but the order from input_info
+            if self.args.simultaneous_true_clonal_seqs:
+                assert self.args.n_simultaneous_seqs is None and not self.args.is_data  # are both already checked in ./bin/partis
+                nsets = utils.get_true_partition(self.reco_info, ids=qlist)
+            elif self.args.n_simultaneous_seqs is None:  # plain ol' singletons
+                nsets = [[q] for q in qlist]
             else:
-                if self.args.all_combinations:  # run on *every* combination of queries which has length <self.args.n_sets>
-                    nsets = itertools.combinations(self.sw_info['queries'], self.args.n_sets)
-                else:  # put the first n together, and the second group of n, and so forth (note that self.sw_info['queries'] is a list)
-                    nsets = []
-                    keylist = [k for k in self.input_info.keys() if k in self.sw_info['queries']]  # we want the queries from sw (to skip failures), but the order from input_info
-                    this_set = []
-                    for iquery in range(len(keylist)):
-                        if iquery % self.args.n_sets == 0:  # every nth query, start a new group
-                            if len(this_set) > 0:
-                                nsets.append(this_set)
-                            this_set = []
-                        this_set.append(keylist[iquery])
-                    if len(this_set) > 0:
-                        nsets.append(this_set)
+                nlen = self.args.n_simultaneous_seqs  # shorthand
+                # nsets = [qlist[iq : min(iq + nlen, len(qlist))] for iq in range(0, len(qlist), nlen)]  # this way works fine, but it's hard to get right 'cause it's hard to understand 
+                nsets = [list(group) for _, group in itertools.groupby(qlist, key=lambda q: qlist.index(q) / nlen)]  # integer division
 
-        self.write_to_single_input_file(self.hmm_infname, nsets, parameter_dir, skipped_gene_matches, shuffle_input=shuffle_input)
-
+        skipped_gene_matches = set()
+        self.write_to_single_input_file(self.hmm_infname, nsets, parameter_dir, skipped_gene_matches, shuffle_input=shuffle_input)  # single file gets split up later if we've got more than one process
         if self.args.debug and len(skipped_gene_matches) > 0:
             print '    not found in %s, so removing from consideration for hmm (i.e. were only the nth best, but never the best sw match for any query):' % (parameter_dir),
             for region in utils.regions:
@@ -1374,20 +1365,21 @@ class PartitionDriver(object):
                 annotations[uidstr] = line_to_use
 
                 n_events_processed += 1
+                n_seqs_processed += len(uids)
 
                 if pcounter is not None:
                     pcounter.increment(line_to_use)
                 if true_pcounter is not None:
                     true_pcounter.increment(self.reco_info[uids[0]])  # NOTE doesn't matter which id you pass it, since they all have the same reco parameters
 
-                for iseq in range(len(uids)):
-                    singlefo = utils.synthesize_single_seq_line(line_to_use, iseq)
-                    if perfplotter is not None:
+                if perfplotter is not None:
+                    for iseq in range(len(uids)):
+                        singlefo = utils.synthesize_single_seq_line(line_to_use, iseq)
+                        singlefo = utils.reset_effective_erosions_and_effective_insertions(self.glfo, singlefo)
                         if uids[iseq] in self.sw_info['indels']:
                             print '    skipping performance evaluation of %s because of indels' % uids[iseq]  # I just have no idea how to handle naive hamming fraction when there's indels
                         else:
                             perfplotter.evaluate(self.reco_info[uids[iseq]], singlefo)
-                    n_seqs_processed += 1
 
         # parameter and performance writing/plotting
         if pcounter is not None:
