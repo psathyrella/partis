@@ -397,7 +397,7 @@ void DPHandler::RunKSet(Sequences &seqs, KSet kset, map<string, set<string> > &o
       if(algorithm_ == "viterbi") {
         cout << "                " << region << " query " << tc.ColorChars(hmms_.track()->ambiguous_char()[0], "light_blue", query_strs[0]) << endl;
         for(size_t is = 1; is < query_strs.size(); ++is)
-          cout << "              " << region << " query " << tc.ColorChars(hmms_.track()->ambiguous_char()[0], "light_blue", tc.ColorMutants("purple", query_strs[is], "", query_strs, hmms_.track()->ambiguous_char())) << endl;  // use the first query_str as reference sequence... could just as well use any other
+          cout << "                " << region << " query " << tc.ColorChars(hmms_.track()->ambiguous_char()[0], "light_blue", tc.ColorMutants("purple", query_strs[is], "", query_strs, hmms_.track()->ambiguous_char())) << endl;  // use the first query_str as reference sequence... could just as well use any other
       } else {
         cout << "              " << region << endl;
       }
