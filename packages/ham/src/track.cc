@@ -25,6 +25,7 @@ void Track::AddSymbols(vector<string> &symbols) {
 
 // ----------------------------------------------------------------------------------------
 uint8_t Track::symbol_index(const string &symbol) {
+  // TODO I don't think I'm using this ambiguous treatment any more? in any case ambiguous_char_ doesn't seem to always be set
   if(ambiguous_char_ != "" && symbol == ambiguous_char_)
     return ambiguous_index_;  // NOTE a.t.m. this is hardcoded to 254
   if(symbol_indices_.count(symbol) == 0)
