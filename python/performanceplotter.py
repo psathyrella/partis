@@ -39,6 +39,9 @@ class PerformancePlotter(object):
             self.hists[region + '_allele_right_vs_per_gene_support'] = Hist(25, 0., 1.)  # whereas these require the *correct* allele
             self.hists[region + '_allele_wrong_vs_per_gene_support'] = Hist(25, 0., 1.)
 
+        self.subplotdirs = ['gene-call', 'mutation', 'boundaries']
+        self.n_plot_columns = {'gene-call' : 3, 'mutation' : 3, 'boundaries' : 4}
+
     # ----------------------------------------------------------------------------------------
     def hamming_to_true_naive(self, true_line, line, restrict_to_region=''):
         true_naive_seq = true_line['naive_seq']
@@ -137,7 +140,8 @@ class PerformancePlotter(object):
 
     # ----------------------------------------------------------------------------------------
     def plot(self, plotdir, only_csv=False):
-        utils.prep_dir(plotdir, wildlings=('*.csv', '*.svg'))
+        for substr in self.subplotdirs:
+            utils.prep_dir(plotdir + '/' + substr, wildlings=('*.csv', '*.svg'))
 
         for column in self.values:
             if column in bool_columns:
@@ -145,17 +149,25 @@ class PerformancePlotter(object):
                 wrong = self.values[column]['wrong']
                 lo, hi, _ = fraction_uncertainty.err(right, right + wrong)
                 hist = plotting.make_bool_hist(right, wrong, self.name + '-' + column)
-                plotting.draw_no_root(hist, plotname=column, plotdir=plotdir, write_csv=True, stats='0-bin', only_csv=only_csv)
+                plotting.draw_no_root(hist, plotname=column, plotdir=plotdir + '/gene-call', write_csv=True, stats='0-bin', only_csv=True)
                 # print '  %s\n    correct up to allele: %4d / %-4d = %4.4f (-%.3f, +%.3f)' % (column, right, right+wrong, float(right) / (right + wrong), lo, hi)
             else:
                 hist = plotting.make_hist_from_dict_of_counts(self.values[column], 'int', self.name + '-' + column, normalize=False)
-                xtitle = 'hamming distance' if 'hamming_to_true_naive' in column else 'inferred - true'
-                plotting.draw_no_root(hist, plotname=column, plotdir=plotdir, write_csv=True, only_csv=only_csv, xtitle=xtitle)
+                if 'hamming_to_true_naive' in column:
+                    xtitle = 'hamming distance'
+                    tmpplotdir = plotdir + '/mutation'
+                else:
+                    xtitle = 'inferred - true'
+                    if 'muted' in column:
+                        tmpplotdir = plotdir + '/mutation'
+                    else:
+                        tmpplotdir = plotdir + '/boundaries'
+                plotting.draw_no_root(hist, plotname=column, plotdir=tmpplotdir, write_csv=True, only_csv=only_csv, xtitle=xtitle, shift_overflows=True)
 
         for column in self.hists:
             if '_vs_mute_freq' in column or '_vs_per_gene_support' in column:  # only really care about the fraction, which we plot below
                 continue
-            plotting.draw_no_root(self.hists[column], plotname=column, plotdir=plotdir, write_csv=True, only_csv=only_csv, ytitle='counts', xtitle='inferred - true')
+            plotting.draw_no_root(self.hists[column], plotname=column, plotdir=plotdir + '/mutation', write_csv=True, only_csv=only_csv, ytitle='counts', xtitle='inferred - true', shift_overflows=True)
 
         # fraction correct vs mute freq
         for region in utils.regions:
@@ -163,7 +175,7 @@ class PerformancePlotter(object):
             hwrong = self.hists[region + '_gene_wrong_vs_mute_freq']
             if hright.integral(include_overflows=True) == 0:
                 continue
-            plotting.make_fraction_plot(hright, hwrong, plotdir, region + '_fraction_correct_vs_mute_freq', xlabel='mut freq', ylabel='fraction correct up to allele', xbounds=(0., 0.5), only_csv=only_csv, write_csv=True)
+            plotting.make_fraction_plot(hright, hwrong, plotdir + '/gene-call', region + '_fraction_correct_vs_mute_freq', xlabel='mut freq', ylabel='fraction correct up to allele', xbounds=(0., 0.5), only_csv=only_csv, write_csv=True)
 
         # per-gene support stuff
         for region in utils.regions:
@@ -171,7 +183,8 @@ class PerformancePlotter(object):
                 continue
             hright = self.hists[region + '_allele_right_vs_per_gene_support']
             hwrong = self.hists[region + '_allele_wrong_vs_per_gene_support']
-            plotting.make_fraction_plot(hright, hwrong, plotdir, region + '_allele_fraction_correct_vs_per_gene_support', xlabel='support', ylabel='fraction with correct allele', xbounds=(-0.1, 1.1), only_csv=only_csv, write_csv=True)
+            plotting.make_fraction_plot(hright, hwrong, plotdir + '/gene-call', region + '_allele_fraction_correct_vs_per_gene_support', xlabel='support', ylabel='fraction with correct allele', xbounds=(-0.1, 1.1), only_csv=only_csv, write_csv=True)
 
-        if not only_csv:
-            plotting.make_html(plotdir)
+        if not only_csv:  # write html file and fix permissiions
+            for substr in self.subplotdirs:
+                plotting.make_html(plotdir + '/' + substr, n_columns=self.n_plot_columns[substr])

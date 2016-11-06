@@ -867,13 +867,27 @@ def make_html(plotdir, n_columns=3, extension='svg'):
              '<table border="0" cellspacing="5" width="100%">', 
              '<tr>']
 
-    fnames = sorted(glob.glob(plotdir + '/*.' + extension))
-    for ifn in range(len(fnames)):
-        if ifn > 0 and ifn % n_columns == 0:
-            lines += ['</tr>', '<tr>']
-        fname = os.path.basename(fnames[ifn])
+    def add_newline(lines):
+        lines += ['</tr>', '<tr>']
+    def add_fname(lines, fname):
         line = '<td width="25%"><a target="_blank" href="' + dirname + '/' + fname + '"><img src="' + dirname + '/' + fname + '" alt="' + dirname + '/' + fname + '" width="100%"></a></td>"'
         lines.append(line)
+
+    fnames = sorted(glob.glob(plotdir + '/*.' + extension))
+
+    # first do all the ones that have '[vdj]_' at the start, so they're lined up nicely in group of three
+    for v_fn in [fn for fn in fnames if os.path.basename(fn).find('v_') == 0]:
+        for region in utils.regions:
+            this_fn = v_fn.replace('v_', region + '_')
+            add_fname(lines, os.path.basename(this_fn))
+            fnames.remove(this_fn)
+        add_newline(lines)
+
+    # then do all the others
+    for ifn in range(len(fnames)):
+        if ifn > 0 and ifn % n_columns == 0:
+            add_newline(lines)
+        add_fname(lines, os.path.basename(fnames[ifn]))
 
     lines += ['</tr>',
               '</table>',
