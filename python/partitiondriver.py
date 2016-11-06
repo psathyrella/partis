@@ -1375,7 +1375,8 @@ class PartitionDriver(object):
                 if perfplotter is not None:
                     for iseq in range(len(uids)):
                         singlefo = utils.synthesize_single_seq_line(line_to_use, iseq)
-                        singlefo = utils.reset_effective_erosions_and_effective_insertions(self.glfo, singlefo)
+                        if len(singlefo['naive_seq']) != len(self.reco_info[uids[iseq]]['naive_seq']):  # this seems to mostly depend on if it's the multi-hmm or not (but the real problem is that different js are different lengths)
+                            singlefo = utils.reset_effective_erosions_and_effective_insertions(self.glfo, singlefo)
                         if uids[iseq] in self.sw_info['indels']:
                             print '    skipping performance evaluation of %s because of indels' % uids[iseq]  # I just have no idea how to handle naive hamming fraction when there's indels
                         else:
