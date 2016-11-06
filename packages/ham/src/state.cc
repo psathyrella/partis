@@ -124,21 +124,23 @@ double State::EmissionLogprob(Sequences *seqs, size_t pos) {
   double logprob(0.);  // multiplying probabilities, so initial prob value should be 1.
   for(size_t iseq=0; iseq<seqs->n_seqs(); ++iseq)
     logprob = AddWithMinusInfinities(logprob, EmissionLogprob((*seqs->get_ptr(iseq))[pos]));
-// ----------------------------------------------------------------------------------------
-  // double logprob(0.);  // multiplying probabilities, so initial prob value should be 1.
-  // set<uint8_t> used_bases;  // bases we've already seen
-  // for(size_t iseq=0; iseq<seqs->n_seqs(); ++iseq) {
-  //   uint8_t ichar = (*seqs->get_ptr(iseq))[pos];
-  //   if(used_bases.find(ichar) != used_bases.end()) {  // if we've seen this base before, use the germline probability
-  //     if(germline_nuc_ == ambiguous_char_)
-  // 	ichar = emission_.track()->ambiguous_index();
-  //     else
-  // 	ichar = emission_.track()->symbol_index(germline_nuc_);
-  //   }
-  //   logprob = AddWithMinusInfinities(logprob, EmissionLogprob(ichar));
-  //   used_bases.insert((*seqs->get_ptr(iseq))[pos]);
-  // }
-// ----------------------------------------------------------------------------------------
+
+// // ----------------------------------------------------------------------------------------
+//   // potential way of accounting for shared mutations (i.e. moving off the star-tree assumption). The main practical problem it attempts to fix is over-long insertions/deletions. Unfortunately in this form it fixes this problem but, in aggregate, casues other inaccuracies that overshadow it.
+//   set<uint8_t> used_bases;  // bases we've already seen
+//   for(size_t iseq=0; iseq<seqs->n_seqs(); ++iseq) {
+//     uint8_t ichar = (*seqs->get_ptr(iseq))[pos];
+//     if(used_bases.find(ichar) != used_bases.end()) {  // if we've seen this base before, use the germline probability
+//       if(germline_nuc_ == ambiguous_char_)
+//         ichar = emission_.track()->ambiguous_index();
+//       else
+//         ichar = emission_.track()->symbol_index(germline_nuc_);
+//     }
+//     logprob = AddWithMinusInfinities(logprob, EmissionLogprob(ichar));
+//     used_bases.insert((*seqs->get_ptr(iseq))[pos]);
+//   }
+// // ----------------------------------------------------------------------------------------
+
   return logprob;
 }
 
