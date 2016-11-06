@@ -17,7 +17,6 @@ import operator
 import utils
 import plotconfig
 from hist import Hist
-import fraction_uncertainty
 
 from opener import opener
 
@@ -75,8 +74,8 @@ def write_hist_to_file(fname, hist):
 # ----------------------------------------------------------------------------------------
 def make_bool_hist(n_true, n_false, hist_label):
     """ fill a two-bin histogram with the fraction false in the first bin and the fraction true in the second """
-    # if 'fraction_uncertainty' not in sys.modules:
-    #     import fraction_uncertainty
+    if 'fraction_uncertainty' not in sys.modules:
+        import fraction_uncertainty
 
     hist = Hist(2, -0.5, 1.5, ytitle='freq')
 
@@ -880,6 +879,8 @@ def make_html(plotdir, n_columns=3, extension='svg'):
         for region in utils.regions:
             this_fn = v_fn.replace('v_', region + '_')
             add_fname(lines, os.path.basename(this_fn))
+            if this_fn not in fnames:
+                print this_fn
             fnames.remove(this_fn)
         add_newline(lines)
 
@@ -920,6 +921,9 @@ def make_allele_finding_plot(plotdir, gene, position, values, xmax, fitfos=None)
 
 # ----------------------------------------------------------------------------------------
 def make_fraction_plot(hright, hwrong, plotdir, plotname, xlabel, ylabel, xbounds, only_csv=False, write_csv=False):
+    if 'fraction_uncertainty' not in sys.modules:
+        import fraction_uncertainty
+
     # NOTE should really merge this with draw_no_root()
     xvals = hright.get_bin_centers() #ignore_overflows=True)
     right = hright.bin_contents

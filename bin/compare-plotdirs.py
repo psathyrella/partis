@@ -24,113 +24,112 @@ def get_hists_from_dir(dirname, histname, string_to_ignore=None):
             varname = varname.replace(string_to_ignore, '')
         hists[varname] = Hist(fname=fname, title=histname)
     if len(hists) == 0:
-        raise Exception('no csvs in directory %s' % dirname)
+        raise Exception('no csvs in %s' % dirname)
     return hists
 
-# ----------------------------------------------------------------------------------------
-def compare_directories(args, xtitle=''):
-    """ 
-    Read all the histograms stored as .csv files in <args.plotdirs>, and overlay them on a new plot.
-    If there's a <varname> that's missing from any dir, we skip that plot entirely and print a warning message.
-    """
-    utils.prep_dir(args.outdir, wildlings=['*.png', '*.svg', '*.csv'])
 
-    # read hists from <args.plotdirs>
+# ----------------------------------------------------------------------------------------
+def compare_directories(args, plotdirlist, outdir):
+    utils.prep_dir(outdir, wildlings=['*.png', '*.svg', '*.csv'])
+
+    # read hists from <plotdirlist>
     allhists = OrderedDict()
     allvars = set()  # all variables that appeared in any dir
-    for idir in range(len(args.plotdirs)):
-        dirhists = get_hists_from_dir(args.plotdirs[idir], args.names[idir])
+    for idir in range(len(plotdirlist)):
+        dirhists = get_hists_from_dir(plotdirlist[idir], args.names[idir])
         allvars |= set(dirhists.keys())
         allhists[args.names[idir]] = dirhists
-
     # then loop over all the <varname>s we found
     for varname in allvars:
         hlist = [allhists[dname].get(varname, Hist(1, 0, 1, title='null')) for dname in allhists]
+        plot_single_variable(args, varname, hlist, outdir, pathnameclues=plotdirlist[0])
 
-        if varname in plotconfig.gene_usage_columns:
-            hlist = plotting.add_bin_labels_not_in_all_hists(hlist)
+    plotting.make_html(outdir)
 
-        no_labels = False
-        xline, bounds, figsize = None, None, None
-        translegend = (0.0, -0.2)
-        extrastats, log = '', ''
-        xtitle, ytitle = hlist[0].xtitle, hlist[0].ytitle
-        if xtitle == '':  # arg, plotting.py thinks default should be None, hist.py thinks it's ''
-            xtitle = None
-        if '-mean-bins' in varname:
-            raise Exception('darn, I was hoping I wasn\'t making these plots any more')
-        plottitle = plotconfig.plot_titles[varname] if varname in plotconfig.plot_titles else varname
+# ----------------------------------------------------------------------------------------
+def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
+     if varname in plotconfig.gene_usage_columns:
+         hlist = plotting.add_bin_labels_not_in_all_hists(hlist)
 
-        ytitle = 'frequency' if args.normalize else 'counts'
+     no_labels = False
+     xline, bounds, figsize = None, None, None
+     translegend = (0.0, -0.2)
+     extrastats, log = '', ''
+     xtitle, ytitle = hlist[0].xtitle, hlist[0].ytitle
+     if xtitle == '':  # arg, plotting.py thinks default should be None, hist.py thinks it's ''
+         xtitle = None
+     if '-mean-bins' in varname:
+         raise Exception('darn, I was hoping I wasn\'t making these plots any more')
+     plottitle = plotconfig.plot_titles[varname] if varname in plotconfig.plot_titles else varname
 
-        if 'mute-freqs/v' in args.plotdirs[0] or 'mute-freqs/d' in args.plotdirs[0] or 'mute-freqs/j' in args.plotdirs[0]:
-            assert not args.normalize
-            ytitle = 'mutation freq'
+     ytitle = 'frequency' if args.normalize else 'counts'
 
-        if varname in plotconfig.gene_usage_columns:
-            xtitle = 'allele'
-            if hlist[0].n_bins == 2:
-                extrastats = ' 0-bin'  # print the fraction of entries in the zero bin into the legend (i.e. the fraction correct)
-        # elif hlist[0].bin_labels.count('') == hlist[0].n_bins + 2:
-        #     xtitle = '???'
+     if 'mute-freqs/v' in pathnameclues or 'mute-freqs/d' in pathnameclues or 'mute-freqs/j' in pathnameclues:
+         assert not args.normalize
+         ytitle = 'mutation freq'
 
-        line_width_override = None
-        if args.performance_plots:
-            if 'hamming_to_true_naive' in varname:
-                xtitle = 'hamming distance'
-                if '_normed' in varname:
-                    xtitle = 'fractional ' + xtitle
-            elif '_vs_mute_freq' in varname:
-                xtitle = 'mutation freq'
-                ytitle = 'fraction correct'
-                if varname[0] == 'v' or varname[0] == 'j':
-                    translegend = (-0.4, -0.4)
-            else:
-                xtitle = 'inferred - true'
-            bounds = plotconfig.true_vs_inferred_hard_bounds.setdefault(varname, None)
-        else:
-            bounds = plotconfig.default_hard_bounds.setdefault(varname, None)
-            if bounds is None and 'insertion' in varname:
-                bounds = plotconfig.default_hard_bounds.setdefault('all_insertions', None)
-            if varname in plotconfig.gene_usage_columns:
-                no_labels = True
-                if 'j_' not in varname:
-                    figsize = (10, 5)
-                line_width_override = 1
-            elif 'per-gene-per-position/v' in args.plotdirs[0]:
-                figsize = (20, 5)
-                bounds = plotconfig.default_hard_bounds.setdefault(utils.unsanitize_name(varname), None)
+     if varname in plotconfig.gene_usage_columns:
+         xtitle = 'allele'
+         if hlist[0].n_bins == 2:
+             extrastats = ' 0-bin'  # print the fraction of entries in the zero bin into the legend (i.e. the fraction correct)
+     # elif hlist[0].bin_labels.count('') == hlist[0].n_bins + 2:
+     #     xtitle = '???'
 
-        if 'IG' in varname:
-            if 'mute-freqs' in args.plotdirs[0]:
-                gene = utils.unsanitize_name(varname)
-                plottitle = gene  # + ' -- mutation frequency'
-                xtitle = 'position'
-                if utils.get_region(gene) == 'j':
-                    translegend = (0.1, 0.)  #(-0.35, -0.02)
-                else:
-                    translegend = (0.15, -0.02)
-                xline = None
-                if args.glfo is not None:
-                    if utils.get_region(gene) in utils.conserved_codons[args.chain]:
-                        xline = args.glfo[utils.conserved_codons[args.chain][utils.get_region(gene)] + '-positions'][gene]
-            else:
-                ilastdash = varname.rfind('-')
-                gene = utils.unsanitize_name(varname[:ilastdash])
-                base_varname = varname[ilastdash + 1 :]
-                base_plottitle = plotconfig.plot_titles[base_varname] if base_varname in plotconfig.plot_titles else ''
-                plottitle = gene + ' -- ' + base_plottitle
+     line_width_override = None
+     if args.performance_plots:
+         if 'hamming_to_true_naive' in varname:
+             xtitle = 'hamming distance'
+             if '_normed' in varname:
+                 xtitle = 'fractional ' + xtitle
+         elif '_vs_mute_freq' in varname:
+             xtitle = 'mutation freq'
+             ytitle = 'fraction correct'
+             if varname[0] == 'v' or varname[0] == 'j':
+                 translegend = (-0.4, -0.4)
+         else:
+             xtitle = 'inferred - true'
+         bounds = plotconfig.true_vs_inferred_hard_bounds.setdefault(varname, None)
+     else:
+         bounds = plotconfig.default_hard_bounds.setdefault(varname, None)
+         if bounds is None and 'insertion' in varname:
+             bounds = plotconfig.default_hard_bounds.setdefault('all_insertions', None)
+         if varname in plotconfig.gene_usage_columns:
+             no_labels = True
+             if 'j_' not in varname:
+                 figsize = (10, 5)
+             line_width_override = 1
+         elif 'per-gene-per-position/v' in pathnameclues:
+             figsize = (20, 5)
+             bounds = plotconfig.default_hard_bounds.setdefault(utils.unsanitize_name(varname), None)
 
-        # draw that little #$*(!
-        linewidths = [line_width_override, ] if line_width_override is not None else args.linewidths
-        alphas = [0.6 for _ in range(len(hlist))]
-        plotting.draw_no_root(hlist[0], plotname=varname, plotdir=args.outdir, more_hists=hlist[1:], write_csv=False, stats=extrastats, bounds=bounds,
-                              shift_overflows=False, plottitle=plottitle, colors=args.colors,
-                              xtitle=xtitle, ytitle=ytitle, xline=xline, normalize=(args.normalize and '_vs_mute_freq' not in varname),
-                              linewidths=linewidths, alphas=alphas, errors=True,
-                              figsize=figsize, no_labels=no_labels, log=log, translegend=translegend)
+     if 'IG' in varname:
+         if 'mute-freqs' in pathnameclues:
+             gene = utils.unsanitize_name(varname)
+             plottitle = gene  # + ' -- mutation frequency'
+             xtitle = 'position'
+             if utils.get_region(gene) == 'j':
+                 translegend = (0.1, 0.)  #(-0.35, -0.02)
+             else:
+                 translegend = (0.15, -0.02)
+             xline = None
+             if args.glfo is not None:
+                 if utils.get_region(gene) in utils.conserved_codons[args.chain]:
+                     xline = args.glfo[utils.conserved_codons[args.chain][utils.get_region(gene)] + '-positions'][gene]
+         else:
+             ilastdash = varname.rfind('-')
+             gene = utils.unsanitize_name(varname[:ilastdash])
+             base_varname = varname[ilastdash + 1 :]
+             base_plottitle = plotconfig.plot_titles[base_varname] if base_varname in plotconfig.plot_titles else ''
+             plottitle = gene + ' -- ' + base_plottitle
 
-        plotting.make_html(args.outdir)
+     # draw that little #$*(!
+     linewidths = [line_width_override, ] if line_width_override is not None else args.linewidths
+     alphas = [0.6 for _ in range(len(hlist))]
+     plotting.draw_no_root(hlist[0], plotname=varname, plotdir=outdir, more_hists=hlist[1:], write_csv=False, stats=extrastats, bounds=bounds,
+                           shift_overflows=True, plottitle=plottitle, colors=args.colors,
+                           xtitle=xtitle, ytitle=ytitle, xline=xline, normalize=(args.normalize and '_vs_mute_freq' not in varname),
+                           linewidths=linewidths, alphas=alphas, errors=True,
+                           figsize=figsize, no_labels=no_labels, log=log, translegend=translegend)
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
@@ -152,6 +151,11 @@ args.linewidths = utils.get_arg_list(args.linewidths)
 for iname in range(len(args.names)):
     args.names[iname] = args.names[iname].replace('@', ' ')
 
+# if you just pass in one parent directory, we assume <args.names> contains the desired subdirs
+if len(args.plotdirs) == 1:
+    parentdir = args.plotdirs[0]
+    args.plotdirs = [parentdir + '/' + n for n in args.names]
+
 if len(args.plotdirs) != len(args.names):
     raise Exception('poorly formatted args:\n  %s\n  %s' % (' '.join(args.plotdirs), ' '.join(args.names)))
 
@@ -160,4 +164,15 @@ args.glfo = None
 if os.path.exists(args.gldir):
     args.glfo = glutils.read_glfo(args.gldir, args.chain)
 
-compare_directories(args)
+# figure out if there's subdirs we need to deal with
+listof_plotdirlists, listof_outdirs = [], []
+firstdir = args.plotdirs[0]
+if len(glob.glob(firstdir + '/*.csv')) > 0:  # add the parent dirs if they've got csvs
+    listof_plotdirlists.append(args.plotdirs)
+    listof_outdirs.append(args.outdir)
+for subdir in [d for d in os.listdir(firstdir) if os.path.isdir(firstdir + '/' + d)]:
+    listof_plotdirlists.append([d + '/' + subdir for d in args.plotdirs])
+    listof_outdirs.append(args.outdir + '/' + subdir)
+
+for dlist, outdir in zip(listof_plotdirlists, listof_outdirs):
+    compare_directories(args, dlist, outdir)
