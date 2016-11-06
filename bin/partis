@@ -6,10 +6,7 @@ import random
 import sys
 import csv
 import numpy
-try:
-    import colored_traceback.always
-except ImportError:
-    pass
+import colored_traceback.always
 from multiprocessing import Process, active_children
 from subprocess import check_call, check_output, CalledProcessError
 import os

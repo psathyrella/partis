@@ -8,9 +8,11 @@ import math
 import shutil
 import time
 from collections import OrderedDict
-from subprocess import Popen, PIPE, check_call, check_output
+from subprocess import Popen, PIPE, check_call, check_output, CalledProcessError
+import colored_traceback.always
 import sys
 sys.path.insert(1, './python')
+
 from baseutils import get_extra_str
 import utils
 import glutils
@@ -199,7 +201,13 @@ class Tester(object):
             logfile.write(logstr + '\n')
             logfile.close()
             start = time.time()
-            check_call(cmd_str + ' 1>>' + self.logfname + ' 2>>' + self.logfname, shell=True)
+            try:
+                check_call(cmd_str + ' 1>>' + self.logfname + ' 2>>' + self.logfname, shell=True)
+            except CalledProcessError, err:
+                # print err  # this just says it exited with code != 0
+                print '  log tail:'
+                print utils.pad_lines(check_output(['tail', self.logfname]))
+                sys.exit(1)  #raise Exception('exited with error')
             self.run_times[name] = time.time() - start  # seconds
 
         self.write_run_times()

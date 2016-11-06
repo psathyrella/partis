@@ -81,7 +81,7 @@ def make_bool_hist(n_true, n_false, hist_label):
 
     def set_bin(numer, denom, ibin, label):
         frac = float(numer) / denom
-        bounds = fraction_uncertainty.err(numer, denom, use_beta=True)
+        bounds = sys.modules['fraction_uncertainty'].err(numer, denom, use_beta=True)
         err = max(abs(frac - bounds[0]), abs(frac - bounds[1]))
         hist.set_ibin(ibin, frac, error=err, label=label)
 
@@ -938,7 +938,7 @@ def make_fraction_plot(hright, hwrong, plotdir, plotname, xlabel, ylabel, xbound
         wrong.pop(iv)
         yvals.pop(iv)
 
-    tmphilos = [fraction_uncertainty.err(r, r + w) for r, w in zip(right, wrong)]
+    tmphilos = [sys.modules['fraction_uncertainty'].err(r, r + w) for r, w in zip(right, wrong)]
     yerrs = [err[1] - err[0] for err in tmphilos]
     # print '%s' % region
     # for iv in range(len(xvals)):
