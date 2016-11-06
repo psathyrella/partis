@@ -62,7 +62,7 @@ class Tester(object):
         self.tests = OrderedDict()
 
         def add_inference_tests(input_stype):  # if input_stype is 'ref', infer on old simulation and parameters, if it's 'new' use the new ones
-            self.tests['annotate-' + input_stype + '-simu']          = {'extras' : ['--plot-performance', ]}
+            self.tests['annotate-' + input_stype + '-simu']          = {'extras' : ['--plot-performance', '--simulation-germline-dir', 'data/germlines/human']}
             # self.tests['annotate-' + input_stype + '-data']          = {'extras' : ['--n-max-queries', n_data_inference_queries]}  # don't really need this as long as we're caching parameters on data
             self.tests['partition-' + input_stype + '-simu']         = {'extras' : ['--n-max-queries', self.n_partition_queries, '--n-precache-procs', '10', '--biggest-logprob-cluster-to-calculate', '5', '--biggest-naive-seq-cluster-to-calculate', '5']}
             self.tests['seed-partition-' + input_stype + '-simu']    = {'extras' : ['--n-max-queries', self.n_partition_queries]}
@@ -207,7 +207,7 @@ class Tester(object):
                 # print err  # this just says it exited with code != 0
                 print '  log tail:'
                 print utils.pad_lines(check_output(['tail', self.logfname]))
-                sys.exit(1)  #raise Exception('exited with error')
+                sys.exit(1)  # raise Exception('exited with error')
             self.run_times[name] = time.time() - start  # seconds
 
         self.write_run_times()
