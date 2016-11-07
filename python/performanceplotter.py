@@ -13,7 +13,6 @@ import fraction_uncertainty
 
 # Columns for which we just want to know, Did we guess the right value? (for other columns, we store guess - true)
 bool_columns = plotconfig.gene_usage_columns
-rstrings = ['', 'cdr3_'] + [r + '_' for r in utils.regions]
 
 class PerformancePlotter(object):
     # ----------------------------------------------------------------------------------------
@@ -26,13 +25,13 @@ class PerformancePlotter(object):
             if column in bool_columns:
                 self.values[column] = {'right' : 0, 'wrong' : 0}
 
-        for rstr in rstrings:
+        for rstr in plotconfig.rstrings:
             self.values[rstr + 'hamming_to_true_naive'] = {}
 
-        for rstr in rstrings:
+        for rstr in plotconfig.rstrings:
             self.values[rstr + 'muted_bases'] = {}
         self.hists['mute_freqs'] = Hist(25, -0.04, 0.04)  # only do mutation frequency for the whole sequence
-
+        # NOTE this hist bounds here are intended to be super inclusive, whereas in compare-plotdirs.py we apply the more-restrictive ones from plotconfig.py (we still shift overflows here, where appropriate, though)
         for region in utils.regions:
             self.hists[region + '_gene_right_vs_mute_freq'] = Hist(25, 0., 0.4)  # correct *up* to allele (i.e. you can get the allele wrong)
             self.hists[region + '_gene_wrong_vs_mute_freq'] = Hist(25, 0., 0.4)
@@ -40,7 +39,6 @@ class PerformancePlotter(object):
             self.hists[region + '_allele_wrong_vs_per_gene_support'] = Hist(25, 0., 1.)
 
         self.subplotdirs = ['gene-call', 'mutation', 'boundaries']
-        self.n_plot_columns = {'gene-call' : 3, 'mutation' : 3, 'boundaries' : 4}
 
     # ----------------------------------------------------------------------------------------
     def hamming_to_true_naive(self, true_line, line, restrict_to_region=''):
@@ -152,8 +150,7 @@ class PerformancePlotter(object):
                 wrong = self.values[column]['wrong']
                 lo, hi, _ = fraction_uncertainty.err(right, right + wrong)
                 hist = plotting.make_bool_hist(right, wrong, self.name + '-' + column)
-                plotting.draw_no_root(hist, plotname=column, plotdir=plotdir + '/gene-call', write_csv=True, stats='0-bin', only_csv=True)
-                # print '  %s\n    correct up to allele: %4d / %-4d = %4.4f (-%.3f, +%.3f)' % (column, right, right+wrong, float(right) / (right + wrong), lo, hi)
+                plotting.draw_no_root(hist, plotname=column, plotdir=plotdir + '/gene-call', write_csv=True, stats='0-bin', only_csv=only_csv)
             else:
                 hist = plotting.make_hist_from_dict_of_counts(self.values[column], 'int', self.name + '-' + column, normalize=False)
                 if 'hamming_to_true_naive' in column:
@@ -190,4 +187,4 @@ class PerformancePlotter(object):
 
         if not only_csv:  # write html file and fix permissiions
             for substr in self.subplotdirs:
-                plotting.make_html(plotdir + '/' + substr, n_columns=self.n_plot_columns[substr])
+                plotting.make_html(plotdir + '/' + substr, n_columns=4)

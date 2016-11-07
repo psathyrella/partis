@@ -1,5 +1,6 @@
 import utils
 
+rstrings = ['', 'cdr3_'] + [r + '_' for r in utils.regions]
 gene_usage_columns = [r + '_gene' for r in utils.regions]
 
 xtitles = {
@@ -76,21 +77,34 @@ for boundary in utils.boundaries + utils.effective_boundaries:
 
 
 true_vs_inferred_hard_bounds = {
-    'hamming_to_true_naive' : (-0.5, 19.5),
-    'v_hamming_to_true_naive' : (-0.5, 8.5),
-    'd_hamming_to_true_naive' : (-0.5, 10.5),
-    'j_hamming_to_true_naive' : (-0.5, 12.5),
-    'd_3p_del' : (-8.5, 8.5),
-    'd_5p_del' : (-8.5, 8.5),
-    'dj_insertion' : (-10.5, 15.5),
-    'j_5p_del' : (-10.5, 15.5),
-    'mute_freqs' : (-.05, .05),  # NOTE make sure you know where the decimal place is here!
+    # gene call
+    'XXX_allele_fraction_correct_vs_per_gene_support' : (0., 1.),
+    'XXX_fraction_correct_vs_mute_freq' :  (0, 1./3),
+    # mutation
+    'v_hamming_to_true_naive' : (-0.5, 4.5),
+    'd_hamming_to_true_naive' : (-0.5, 5.5),
+    'j_hamming_to_true_naive' : (-0.5, 5.5),
+    'cdr3_hamming_to_true_naive' : (-0.5, 10.5),
+    'hamming_to_true_naive' : (-0.5, 10.5),
+    'v_muted_bases' : (-2.5, 2.5),
+    'd_muted_bases' : (-4.5, 4.5),
+    'j_muted_bases' : (-5.5, 5.5),
+    'cdr3_muted_bases' : (-4.5, 4.5),
+    'mute_freqs' : (-.015, .015),  # NOTE make sure you know where the decimal place is here!
+    'muted_bases' : (-5.5, 5.5),
+    # boundaries
     'v_3p_del' : (-3.5, 3.5),
+    'd_5p_del' : (-8.5, 8.5),
+    'd_3p_del' : (-8.5, 8.5),
+    'j_5p_del' : (-10.5, 15.5),
     'vd_insertion' : (-8.5, 8.5),
-    'v_gene_fraction_vs_mute_freq' : (0, 1./3),
-    'd_gene_fraction_vs_mute_freq' : (0, 1./3),
-    'j_gene_fraction_vs_mute_freq' : (0, 1./3)
+    'dj_insertion' : (-10.5, 15.5)
 }
+for name, bounds in true_vs_inferred_hard_bounds.items():
+    if name.find('XXX_') == 0:
+        for rstr in rstrings:  # adds some we don't need, but that's ok
+            true_vs_inferred_hard_bounds[name.replace('XXX_', rstr)] = bounds
+        del true_vs_inferred_hard_bounds[name]
 
 default_hard_bounds = {
     # 'hamming_to_true_naive' : (-0.5, 19.5),

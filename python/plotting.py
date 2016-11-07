@@ -179,6 +179,41 @@ def add_bin_labels_not_in_all_hists(hists):
     return finalhists
 
 # ----------------------------------------------------------------------------------------
+def shift_hist_overflows(hists, xmin, xmax):
+    for htmp in hists:
+        if htmp is None:
+            continue
+        underflows, overflows = 0., 0.
+        under_err2, over_err2 = 0., 0.  # sum of squared errors
+        first_shown_bin, last_shown_bin = -1, -1
+        bin_centers = htmp.get_bin_centers(ignore_overflows=False)
+        for ib in range(0, htmp.n_bins + 2):
+            if bin_centers[ib] <= xmin:
+                underflows += htmp.bin_contents[ib]
+                under_err2 += htmp.errors[ib]**2
+                htmp.set_ibin(ib, 0., error=0.)
+            elif first_shown_bin == -1:
+                first_shown_bin = ib
+            else:
+                break
+        for ib in reversed(range(0, htmp.n_bins + 2)):
+            if bin_centers[ib] >= xmax:
+                overflows += htmp.bin_contents[ib]
+                over_err2 += htmp.errors[ib]**2
+                htmp.set_ibin(ib, 0., error=0.)
+            elif last_shown_bin == -1:
+                last_shown_bin = ib
+            else:
+                break
+
+        htmp.set_ibin(first_shown_bin,
+                      underflows + htmp.bin_contents[first_shown_bin],
+                      error=math.sqrt(under_err2 + htmp.errors[first_shown_bin]**2))
+        htmp.set_ibin(last_shown_bin,
+                      overflows + htmp.bin_contents[last_shown_bin],
+                      error=math.sqrt(over_err2 + htmp.errors[last_shown_bin]**2))
+
+# ----------------------------------------------------------------------------------------
 def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, scale_errors=None, normalize=False, bounds=None,
                  figsize=None, shift_overflows=False, colors=None, errors=False, write_csv=False, xline=None, yline=None, xyline=None, linestyles=None,
                  linewidths=None, plottitle=None, csv_fname=None, stats='', translegend=(0., 0.), rebin=None,
@@ -192,13 +227,12 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
         hists = hists + more_hists
 
     xmin, xmax, ymax = None, None, None
-    ih = 0
     for htmp in hists:
         if htmp.title == 'null':  # empty hists
             continue
         if scale_errors is not None:
-            factor = float(scale_errors[0]) if len(scale_errors) == 1 else float(scale_errors[ih])
-            for ibin in range(htmp.n_bins+2):
+            factor = float(scale_errors[0]) if len(scale_errors) == 1 else float(scale_errors[hists.index(htmp)])
+            for ibin in range(htmp.n_bins + 2):
                 htmp.errors[ibin] *= factor
         if normalize:  # NOTE removed <normalization_bounds> option, hopefully I'm not using it any more
             htmp.normalize()
@@ -209,52 +243,25 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
         if xmax is None or htmp.xmax > xmax:
             xmax = htmp.xmax
 
-        ih += 1
-
     if bounds is not None:
         xmin, xmax = bounds
 
     if shift_overflows:
-        for htmp in hists:
-            if htmp is None:
-                continue
-            underflows, overflows = 0.0, 0.0
-            first_shown_bin, last_shown_bin = -1, -1
-            bin_centers = htmp.get_bin_centers(ignore_overflows=False)
-            for ib in range(0, htmp.n_bins + 2):
-                if bin_centers[ib] <= xmin:
-                    underflows += htmp.bin_contents[ib]
-                    htmp.set_ibin(ib, 0.0)
-                elif first_shown_bin == -1:
-                    first_shown_bin = ib
-                else:
-                    break
-            for ib in reversed(range(0, htmp.n_bins + 2)):
-                if bin_centers[ib] >= xmax:
-                    overflows += htmp.bin_contents[ib]
-                    htmp.set_ibin(ib, 0.0)
-                elif last_shown_bin == -1:
-                    last_shown_bin = ib
-                else:
-                    break
-
-            htmp.set_ibin(first_shown_bin, underflows + htmp.bin_contents[first_shown_bin])
-            htmp.set_ibin(last_shown_bin, overflows + htmp.bin_contents[last_shown_bin])
+        assert '_vs_per_gene_support' not in plotname and '_fraction_correct_vs_mute_freq' not in plotname and plotname.find('_gene') != 1  # really, really, really don't want to shift overflows for these
+        shift_hist_overflows(hists, xmin, xmax)
 
     if colors is None:  # fiddle here http://stackoverflow.com/questions/22408237/named-colors-in-matplotlib
-        assert len(hists) < 5
-        colors = ('royalblue', 'darkred', 'green', 'darkorange')
-    else:
-        assert len(hists) <= len(colors)
+        colors = ['royalblue', 'darkred', 'green', 'darkorange']
+    while len(colors) < len(hists):
+        print 'warning: fewer colors than hists, so repeating them'
+        colors += colors
     if linestyles is None:
-        linestyles = ['-' for _ in range(len(hists))]
-    else:
-        assert len(hists) <= len(linestyles)
+        linestyles = []
+    while len(linestyles) < len(hists):
+        linestyles.append('-')
 
     for ih in range(len(hists)):
         htmp = hists[ih]
-        # if 'rms' in stats:
-        #     htmp.SetTitle(htmp.GetTitle() + (' (%.2f)' % htmp.GetRMS()))
         if 'mean' in stats:
             htmp.title += ' (mean %.2f)' % htmp.get_mean()
         if '0-bin' in stats:
@@ -270,8 +277,6 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
         else:
             ilw = ih if len(linewidths) > 1 else 0
             linewidth = linewidths[ilw]
-        if no_labels:
-            htmp.bin_labels = ['' for _ in htmp.bin_labels]
         if rebin is not None:
             htmp.rebin(rebin)
         alpha = 1.
@@ -295,6 +300,8 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
     #     yl.Draw()
 
     xticks, xticklabels = None, None
+    # if no_labels:
+    #     htmp.bin_labels = ['' for _ in htmp.bin_labels]
     if hist.bin_labels.count('') != len(hist.bin_labels):
         xticks = hist.get_bin_centers()
         xticklabels = hist.bin_labels
@@ -403,7 +410,7 @@ def make_mean_hist(hists, debug=False):
     if debug:
         print '   mean',
     for ib in range(len(binlist)):
-        meanhist.set_ibin(ib, binvals[binlist[ib]])
+        meanhist.set_ibin(ib, binvals[binlist[ib]], error=0.)
         if debug:
             print '   ', meanhist.low_edges[ib], meanhist.bin_contents[ib],
     if debug:
@@ -876,8 +883,10 @@ def make_html(plotdir, n_columns=3, extension='svg'):
 
     # first do all the ones that have '[vdj]_' at the start, so they're lined up nicely in group of three
     for v_fn in [fn for fn in fnames if os.path.basename(fn).find('v_') == 0]:
-        for region in utils.regions:
+        for region in utils.regions + ['cdr3', ]:
             this_fn = v_fn.replace('v_', region + '_')
+            if this_fn not in fnames:
+                continue
             add_fname(lines, os.path.basename(this_fn))
             if this_fn not in fnames:
                 print this_fn

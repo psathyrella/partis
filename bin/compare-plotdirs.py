@@ -86,6 +86,9 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
             ytitle = 'fraction correct'
             if varname[0] == 'v' or varname[0] == 'j':
                 translegend = (-0.4, -0.4)
+        elif varname.find('_gene') == 1:
+            xtitle = ''
+            ytitle = 'fraction correct'
         else:
             xtitle = 'inferred - true'
         bounds = plotconfig.true_vs_inferred_hard_bounds.setdefault(varname, None)
@@ -126,7 +129,7 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
     linewidths = [line_width_override, ] if line_width_override is not None else args.linewidths
     alphas = [0.6 for _ in range(len(hlist))]
     plotting.draw_no_root(hlist[0], plotname=varname, plotdir=outdir, more_hists=hlist[1:], write_csv=False, stats=extrastats, bounds=bounds,
-                          shift_overflows=True, plottitle=plottitle, colors=args.colors,
+                          shift_overflows=(os.path.basename(outdir) != 'gene-call'), plottitle=plottitle, colors=args.colors,
                           xtitle=xtitle, ytitle=ytitle, xline=xline, normalize=(args.normalize and '_vs_mute_freq' not in varname),
                           linewidths=linewidths, alphas=alphas, errors=True,
                           figsize=figsize, no_labels=no_labels, log=log, translegend=translegend)

@@ -81,13 +81,15 @@ class Hist(object):
             assert len(self.errors) == len(self.low_edges)
 
     # ----------------------------------------------------------------------------------------
-    def set_ibin(self, ibin, value, error=None, label=''):
+    def set_ibin(self, ibin, value, error, label=None):
         """ set <ibin>th bin to <value> """
         self.bin_contents[ibin] = value
-        if error is not None:
-            assert self.errors is not None  # you shouldn't have set sumw2 to True in the constructor
+        if self.errors is None and error is not None:
+            raise Exception('attempted to set ibin error with none type <self.errors>')
+        else:
             self.errors[ibin] = error
-        self.bin_labels[ibin] = label
+        if label is not None:
+            self.bin_labels[ibin] = label
 
     # ----------------------------------------------------------------------------------------
     def fill_ibin(self, ibin, weight=1.0):
@@ -278,15 +280,18 @@ class Hist(object):
         str_list = ['    %7s  %12s'  % ('low edge', 'contents'), '\n', ]
         for ib in range(len(self.low_edges)):
             str_list += ['    %7.4f  %12.3f'  % (self.low_edges[ib], self.bin_contents[ib]), ]
+            if self.bin_labels.count('') != len(self.bin_labels):
+                str_list += ['%12s' % self.bin_labels[ib]]
             if ib == 0:
-                str_list += ['   under']
+                str_list += ['   (under)']
             if ib == len(self.low_edges) - 1:
-                str_list += ['   over']
+                str_list += ['   (over)']
             str_list += ['\n']
         return ''.join(str_list)
 
     # ----------------------------------------------------------------------------------------
     def mpl_plot(self, ax, ignore_overflows=False, label=None, color=None, alpha=None, linewidth=None, linestyle=None, markersize=None, errors=True):
+        # note: bin labels are/have to be handled elsewhere
         if self.integral(include_overflows=(not ignore_overflows)) == 0.0:
             # print '   integral is zero in hist::mpl_plot'
             return None
