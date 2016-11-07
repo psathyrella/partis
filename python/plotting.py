@@ -300,9 +300,7 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
     #     yl.Draw()
 
     xticks, xticklabels = None, None
-    # if no_labels:
-    #     htmp.bin_labels = ['' for _ in htmp.bin_labels]
-    if hist.bin_labels.count('') != len(hist.bin_labels):
+    if not no_labels and hist.bin_labels.count('') != len(hist.bin_labels):
         xticks = hist.get_bin_centers()
         xticklabels = hist.bin_labels
 
