@@ -1433,7 +1433,12 @@ def subset_sequences(line, iseq, restrict_to_region):
     naive_seq = line['naive_seq']  # NOTE this includes the fv and jf insertions
     muted_seq = line['seqs'][iseq]
     if restrict_to_region != '':  # NOTE this is very similar to code in performanceplotter. I should eventually cut it out of there and combine them, but I'm nervous a.t.m. because of all the complications there of having the true *and* inferred sequences so I'm punting
-        bounds = line['regional_bounds'][restrict_to_region]
+        if restrict_to_region in regions:
+            bounds = line['regional_bounds'][restrict_to_region]
+        elif restrict_to_region == 'cdr3':
+            bounds = (line['codon_positions']['v'], line['codon_positions']['j'] + 3)
+        else:
+            assert False
         naive_seq = naive_seq[bounds[0] : bounds[1]]
         muted_seq = muted_seq[bounds[0] : bounds[1]]
     return naive_seq, muted_seq

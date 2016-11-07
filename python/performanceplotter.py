@@ -13,7 +13,7 @@ import fraction_uncertainty
 
 # Columns for which we just want to know, Did we guess the right value? (for other columns, we store guess - true)
 bool_columns = plotconfig.gene_usage_columns
-rstrings = ['', ] + [r + '_' for r in utils.regions]
+rstrings = ['', 'cdr3_'] + [r + '_' for r in utils.regions]
 
 class PerformancePlotter(object):
     # ----------------------------------------------------------------------------------------
@@ -31,7 +31,7 @@ class PerformancePlotter(object):
 
         for rstr in rstrings:
             self.values[rstr + 'muted_bases'] = {}
-        self.hists['mute_freqs'] = Hist(25, -0.04, 0.04)
+        self.hists['mute_freqs'] = Hist(25, -0.04, 0.04)  # only do mutation frequency for the whole sequence
 
         for region in utils.regions:
             self.hists[region + '_gene_right_vs_mute_freq'] = Hist(25, 0., 0.4)  # correct *up* to allele (i.e. you can get the allele wrong)
@@ -49,7 +49,12 @@ class PerformancePlotter(object):
         if len(true_naive_seq) != len(inferred_naive_seq):
             raise Exception('different length true and inferred naive seqs for %s\n  %s\n  %s' % (' '.join(line['unique_ids']), true_line['naive_seq'], line['naive_seq']))
         if restrict_to_region != '':  # NOTE very similar to utils.get_n_muted(), except, we want to use the true bounds for both true and naive sequences
-            bounds = true_line['regional_bounds'][restrict_to_region]
+            if restrict_to_region in utils.regions:
+                bounds = true_line['regional_bounds'][restrict_to_region]
+            elif restrict_to_region == 'cdr3':
+                bounds = (true_line['codon_positions']['v'], true_line['codon_positions']['j'] + 3)
+            else:
+                assert False
             true_naive_seq = true_naive_seq[bounds[0] : bounds[1]]
             inferred_naive_seq = inferred_naive_seq[bounds[0] : bounds[1]]
         return utils.hamming_distance(true_naive_seq, inferred_naive_seq)
@@ -112,12 +117,13 @@ class PerformancePlotter(object):
                     trueval = len(true_line[column])
                     guessval = len(inf_line[column])
                 elif 'hamming_to_true_naive' in column:
+                    restrict_to_region = column.replace('hamming_to_true_naive', '').replace('_', '')
                     trueval = 0
-                    guessval = self.hamming_to_true_naive(true_line, inf_line, restrict_to_region=column[0] if column[0] in utils.regions else '')
+                    guessval = self.hamming_to_true_naive(true_line, inf_line, restrict_to_region=restrict_to_region)
                 elif 'muted_bases' in column:
-                    region = column[0] if column[0] in utils.regions else ''
-                    trueval = utils.get_n_muted(true_line, iseq=0, restrict_to_region=region)  # when we're evaluating on multi-seq hmm output, we synthesize single-sequence lines for each sequence
-                    guessval = utils.get_n_muted(inf_line, iseq=0, restrict_to_region=region)
+                    restrict_to_region = column.replace('muted_bases', '').replace('_', '')
+                    trueval = utils.get_n_muted(true_line, iseq=0, restrict_to_region=restrict_to_region)  # when we're evaluating on multi-seq hmm output, we synthesize single-sequence lines for each sequence
+                    guessval = utils.get_n_muted(inf_line, iseq=0, restrict_to_region=restrict_to_region)
                 else:
                     trueval = int(true_line[column])
                     guessval = int(inf_line[column])
@@ -131,12 +137,9 @@ class PerformancePlotter(object):
             if region + '_per_gene_support' in inf_line:
                 self.set_per_gene_support(true_line, inf_line, region)
 
-        for rstr in ['']:  # rstrings:
-            column = rstr + 'mute_freqs'
-            region = column[0] if column[0] in utils.regions else ''
-            trueval = utils.get_mutation_rate(true_line, iseq=0, restrict_to_region=region)  # when we're evaluating on multi-seq hmm output, we synthesize single-sequence lines for each sequence
-            guessval = utils.get_mutation_rate(inf_line, iseq=0, restrict_to_region=region)
-            self.hists[column].fill(guessval - trueval)
+        tmptrueval = utils.get_mutation_rate(true_line, iseq=0, restrict_to_region='')  # when we're evaluating on multi-seq hmm output, we synthesize single-sequence lines for each sequence
+        tmpguessval = utils.get_mutation_rate(inf_line, iseq=0, restrict_to_region='')
+        self.hists['mute_freqs'].fill(tmpguessval - tmptrueval)
 
     # ----------------------------------------------------------------------------------------
     def plot(self, plotdir, only_csv=False):
