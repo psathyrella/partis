@@ -35,7 +35,7 @@ class Tester(object):
             os.makedirs(self.dirs['new'])
         self.simfnames = {st : self.dirs[st] + '/' + self.label + '/simu.csv' for st in self.stypes}
         self.param_dirs = { st : { dt : self.dirs[st] + '/' + self.label + '/parameters/' + dt for dt in ['simu', 'data']} for st in self.stypes}  # muddafuggincomprehensiongansta
-        self.common_extras = ['--seed', '1', '--n-procs', '10']
+        self.common_extras = ['--seed', '1', '--n-procs', '10', '--simulation-germline-dir', 'data/germlines/human']
         self.parameter_caching_extras = ['--n-max-total-alleles', '10', '--n-alleles-per-gene', '1']
 
         self.perf_info = { version_stype : OrderedDict() for version_stype in self.stypes }
@@ -62,7 +62,7 @@ class Tester(object):
         self.tests = OrderedDict()
 
         def add_inference_tests(input_stype):  # if input_stype is 'ref', infer on old simulation and parameters, if it's 'new' use the new ones
-            self.tests['annotate-' + input_stype + '-simu']          = {'extras' : ['--plot-performance', '--simulation-germline-dir', 'data/germlines/human']}
+            self.tests['annotate-' + input_stype + '-simu']          = {'extras' : ['--plot-performance', ]}
             # self.tests['annotate-' + input_stype + '-data']          = {'extras' : ['--n-max-queries', n_data_inference_queries]}  # don't really need this as long as we're caching parameters on data
             self.tests['partition-' + input_stype + '-simu']         = {'extras' : ['--n-max-queries', self.n_partition_queries, '--n-precache-procs', '10', '--biggest-logprob-cluster-to-calculate', '5', '--biggest-naive-seq-cluster-to-calculate', '5']}
             self.tests['seed-partition-' + input_stype + '-simu']    = {'extras' : ['--n-max-queries', self.n_partition_queries]}
