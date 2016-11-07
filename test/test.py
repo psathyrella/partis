@@ -172,7 +172,7 @@ class Tester(object):
 
         # choose a seed uid
         if name == 'seed-partition-' + info['input_stype'] + '-simu':
-            seed_uid, _ = utils.choose_seed_unique_id(args.glfo_dir, args.chain, self.simfnames[info['input_stype']], 10, 20, n_max_queries=int(self.n_partition_queries), debug=False)
+            seed_uid, _ = utils.choose_seed_unique_id(args.glfo_dir, args.chain, self.simfnames[info['input_stype']], 5, 8, n_max_queries=int(self.n_partition_queries), debug=False)
             info['extras'] += ['--seed-unique-id', seed_uid]
 
     # ----------------------------------------------------------------------------------------
@@ -291,13 +291,13 @@ class Tester(object):
 
             # fraction of genes correct
             for region in utils.regions:
-                fraction_correct = read_performance_file(perfdir + '/' + method + '/' + region + '_gene.csv', 'contents', only_ibin=1)
+                fraction_correct = read_performance_file(perfdir + '/' + method + '/gene-call/' + region + '_gene.csv', 'contents', only_ibin=1)
                 if debug:
                     print '      %s %.3f' % (region, fraction_correct)
                 self.perf_info[version_stype][input_stype + '-' + method + '-' + region + '_gene_correct'] = fraction_correct
 
             # hamming fraction
-            hamming_hist = Hist(fname=perfdir + '/' + method + '/hamming_to_true_naive.csv')
+            hamming_hist = Hist(fname=perfdir + '/' + method + '/mutation/hamming_to_true_naive.csv')
             if debug:
                 print '      mean hamming %.2f' % hamming_hist.get_mean()
             self.perf_info[version_stype][input_stype + '-' + method + '-mean_hamming'] = hamming_hist.get_mean()
