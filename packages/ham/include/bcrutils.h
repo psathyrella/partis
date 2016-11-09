@@ -82,11 +82,7 @@ public:
   map<string, string> genes_;
   map<string, size_t> deletions_;
   map<string, string> insertions_;
-  string seq_name_;
-  string seq_;
   string naive_seq_;
-  vector<string> auxiliary_seq_names_;
-  vector<string> auxiliary_seqs_;
   float score_;
   int cyst_position_, tryp_position_, cdr3_length_;
   map<string, vector<SupportPair> >  per_gene_support_;  // for each region, a sorted list of (gene, logprob) pairs
@@ -96,9 +92,7 @@ public:
   void SetGene(string region, string gene) { genes_[region] = gene; }
   void SetDeletion(string name, size_t len) { deletions_[name] = len; }
   void SetInsertion(string name, string insertion) { insertions_[name] = insertion; }
-  void SetSeq(string seq_name, string seq) { seq_name_ = seq_name; seq_ = seq; }
   void SetNaiveSeq(GermLines &gl);  // NOTE this probably duplicates some code in Print() below, but I don't want to mess with that code at the moment (doesn't really get used any more)
-  void AddAuxiliarySeqs(string name, string seq);  // NOTE this class should in general be treated as representing a *single* event with a *single* sequence. It's just that we allow the possiblity here of attaching auxiliary sequences, but e.g. the insertions should *not* be assumed to correspond to these other sequences
   void SetScore(double score) { score_ = score; }
   void Clear() { genes_.clear(); deletions_.clear(); insertions_.clear(); }
   void Print(GermLines &germlines, size_t cyst_position = 0, size_t final_tryp_position = 0, bool one_line = false, string extra_indent = "");

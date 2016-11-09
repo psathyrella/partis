@@ -325,9 +325,6 @@ RecoEvent DPHandler::FillRecoEvent(Sequences &seqs, KSet kset, map<string, strin
       seq_strs[iseq] += query_strs[iseq];
   }
 
-  event.SetSeq(seqs[0].name(), seq_strs[0]);
-  for(size_t iseq = 1; iseq < seq_strs.size(); ++iseq)
-    event.AddAuxiliarySeqs(seqs[iseq].name(), seq_strs[iseq]);
   event.SetScore(score);
   event.SetNaiveSeq(gl_);
 
