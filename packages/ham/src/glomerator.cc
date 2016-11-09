@@ -712,6 +712,10 @@ string Glomerator::CalculateNaiveSeq(string queries, RecoEvent *event) {
   DPHandler dph("viterbi", args_, gl_, hmms_);
   Query &cacheref = cachefo(queries);
   Result result = dph.Run(cacheref.seqs_, cacheref.kbounds_, cacheref.only_genes_, cacheref.mute_freq_);
+  if(FishyMultiSeqAnnotation(SplitString(queries).size(), result.best_event())) {  // jeez, don't I have the number of queries stashed some place?
+    Sequence naive_seq(track_, "naive-seq", result.best_event().naive_seq_);
+    result = dph.Run(naive_seq, cacheref.kbounds_, cacheref.only_genes_, cacheref.mute_freq_);
+  }
   if(result.no_path_) {
     AddFailedQuery(queries, "no_path");
     return "";

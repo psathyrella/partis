@@ -534,6 +534,18 @@ string SeqNameStr(vector<Sequence> &seqs, string delimiter) {
 }
 
 // ----------------------------------------------------------------------------------------
+bool FishyMultiSeqAnnotation(size_t n_seqs, RecoEvent &event) {
+  if(n_seqs < 3)
+    return false;
+  vector<string> real_deletions{"v_3p", "d_5p", "d_3p", "j_5p"};
+  for(auto &delname : real_deletions) {
+    if(event.deletions_[delname] > 2)
+      return true;
+  }
+  return false;
+}
+
+// ----------------------------------------------------------------------------------------
 vector<Sequence> GetSeqVector(vector<Sequence*> pseqvector) {
   vector<Sequence> seqvector(pseqvector.size());
   for(size_t is=0; is<pseqvector.size(); ++is) {

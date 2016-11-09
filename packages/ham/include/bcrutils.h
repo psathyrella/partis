@@ -190,6 +190,10 @@ string SeqStr(vector<Sequence> &seqs, string delimiter = " ");
 string SeqNameStr(vector<Sequence*> &pseqs, string delimiter = " ");
 string SeqNameStr(vector<Sequence> &seqs, string delimiter = " ");
 
+// The star-tree assumption causes a systematic bias towards too-long insertions/deletions (since each mutation in each sequence is viewed as the result of an independent mutation event).
+// Since the accuracy of the inferred naive sequence does not suffer from significant inaccuracy as a result of this, though (it's largely just taking the consensus sequence in these situations), we can get a better annotation by rerunning with just the naive sequence as input.
+bool FishyMultiSeqAnnotation(size_t n_seqs, RecoEvent &event);
+
 vector<Sequence> GetSeqVector(vector<Sequence*> pseqvector);
 
 void runps();
