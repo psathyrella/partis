@@ -711,7 +711,7 @@ string Glomerator::CalculateNaiveSeq(string queries, RecoEvent *event) {
 
   DPHandler dph("viterbi", args_, gl_, hmms_);
   Query &cacheref = cachefo(queries);
-  Result result = dph.Run(cacheref.seqs_, cacheref.kbounds_, cacheref.only_genes_, cacheref.mute_freq_, false);
+  Result result = dph.Run(cacheref.seqs_, cacheref.kbounds_, cacheref.only_genes_, cacheref.mute_freq_);
   if(result.no_path_) {
     AddFailedQuery(queries, "no_path");
     return "";
@@ -736,7 +736,7 @@ double Glomerator::CalculateLogProb(string queries) {  // NOTE can modify kbinfo
 
   DPHandler dph("forward", args_, gl_, hmms_);
   Query &cacheref = cachefo(queries);
-  Result result = dph.Run(cacheref.seqs_, cacheref.kbounds_, cacheref.only_genes_, cacheref.mute_freq_, false);
+  Result result = dph.Run(cacheref.seqs_, cacheref.kbounds_, cacheref.only_genes_, cacheref.mute_freq_);
   if(result.no_path_) {
     AddFailedQuery(queries, "no_path");
     return -INFINITY;

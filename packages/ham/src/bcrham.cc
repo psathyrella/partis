@@ -89,7 +89,7 @@ void run_algorithm(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> > &qr
     vector<Sequence> qry_seqs(qry_seq_list[iqry]);
 
     DPHandler dph(args.algorithm(), &args, gl, hmms);
-    Result result = dph.Run(qry_seqs, kbounds, args.str_lists_["only_genes"][iqry], args.floats_["mut_freq"][iqry], false);
+    Result result = dph.Run(qry_seqs, kbounds, args.str_lists_["only_genes"][iqry], args.floats_["mut_freq"][iqry]);
     if(args.debug() > 1) cout << "       ----" << endl;
 
     if(result.no_path_)
