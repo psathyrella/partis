@@ -88,32 +88,16 @@ void run_algorithm(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> > &qr
     KBounds kbounds(kmin, kmax);
     vector<Sequence> qry_seqs(qry_seq_list[iqry]);
 
-    vector<KBounds> kbvector(qry_seqs.size(), kbounds);
-
     DPHandler dph(args.algorithm(), &args, gl, hmms);
-    Result result(kbounds, args.chain());
-    double logprob(-INFINITY);
-    bool stop(false);
-    string errors;
-    do {
-      errors = "";
-      if(args.debug() > 1) cout << "       ----" << endl;
-      result = dph.Run(qry_seqs, kbounds, args.str_lists_["only_genes"][iqry], args.floats_["mut_freq"][iqry], false);  // NOTE in principle I should tell it not to clear the cache, now that I'm not reusing dphandlers
-      logprob = result.total_score();
-      kbounds = result.better_kbounds();
-      stop = true;  // !result.boundary_error() || result.could_not_expand() || result.no_path_;  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
-      if(args.debug() && !stop)
-        cout << "             expand and run again" << endl;  // note that subsequent runs are much faster than the first one because of chunk caching
-      // if(result.boundary_error())
-      //   errors = "boundary";
-    } while(!stop);
+    Result result = dph.Run(qry_seqs, kbounds, args.str_lists_["only_genes"][iqry], args.floats_["mut_freq"][iqry], false);
+    if(args.debug() > 1) cout << "       ----" << endl;
 
     if(result.no_path_)
       StreamErrorput(ofs, args.algorithm(), qry_seqs, "no_path");
     else if(args.algorithm() == "viterbi")
-      StreamViterbiOutput(ofs, result.best_event(), qry_seqs, errors);
+      StreamViterbiOutput(ofs, result.best_event(), qry_seqs, "");
     else if(args.algorithm() == "forward")
-      StreamForwardOutput(ofs, qry_seqs, logprob, errors);
+      StreamForwardOutput(ofs, qry_seqs, result.total_score(), "");
     else
       assert(0);
 

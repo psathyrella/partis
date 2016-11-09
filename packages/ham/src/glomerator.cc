@@ -711,22 +711,11 @@ string Glomerator::CalculateNaiveSeq(string queries, RecoEvent *event) {
 
   DPHandler dph("viterbi", args_, gl_, hmms_);
   Query &cacheref = cachefo(queries);
-  Result result(cacheref.kbounds_, args_->chain());
-  bool stop(false);
-  do {
-    result = dph.Run(cacheref.seqs_, cacheref.kbounds_, cacheref.only_genes_, cacheref.mute_freq_, false);
-    cacheref.kbounds_ = result.better_kbounds();
-    stop = true;  // !result.boundary_error() || result.could_not_expand() || result.no_path_;  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
-    if(args_->debug() && !stop)
-      cout << "             expand and run again" << endl;  // note that subsequent runs are much faster than the first one because of chunk caching
-  } while(!stop);
-
+  Result result = dph.Run(cacheref.seqs_, cacheref.kbounds_, cacheref.only_genes_, cacheref.mute_freq_, false);
   if(result.no_path_) {
     AddFailedQuery(queries, "no_path");
     return "";
   }
-  // if(result.boundary_error())
-  //   errors_[queries] = errors_[queries] + ":boundary";
 
   if(event != nullptr)
     *event = result.best_event();
@@ -747,22 +736,11 @@ double Glomerator::CalculateLogProb(string queries) {  // NOTE can modify kbinfo
 
   DPHandler dph("forward", args_, gl_, hmms_);
   Query &cacheref = cachefo(queries);
-  Result result(cacheref.kbounds_, args_->chain());
-  bool stop(false);
-  do {
-    result = dph.Run(cacheref.seqs_, cacheref.kbounds_, cacheref.only_genes_, cacheref.mute_freq_, false);  // I think I don't actually check for improving kbounds when I'm running forward a.t.m., in which case this loop wouldn't really do anything
-    cacheref.kbounds_ = result.better_kbounds();
-    stop = true;  // !result.boundary_error() || result.could_not_expand() || result.no_path_;  // stop if the max is not on the boundary, or if the boundary's at zero or the sequence length
-    if(args_->debug() && !stop)
-      cout << "             expand and run again" << endl;  // note that subsequent runs are much faster than the first one because of chunk caching
-  } while(!stop);
-
+  Result result = dph.Run(cacheref.seqs_, cacheref.kbounds_, cacheref.only_genes_, cacheref.mute_freq_, false);
   if(result.no_path_) {
     AddFailedQuery(queries, "no_path");
     return -INFINITY;
   }
-  // if(result.boundary_error() && !result.could_not_expand())  // could_not_expand means the max is at the edge of the sequence -- e.g. k_d min is 1
-  //   errors_[queries] = errors_[queries] + ":boundary";
 
   WriteStatus();
   return result.total_score();

@@ -162,7 +162,7 @@ public:
   void PushBackRecoEvent(RecoEvent event) { events_.push_back(event); }
   void Finalize(GermLines &gl, map<string, double> &unsorted_per_gene_support, KSet best_kset, KBounds kbounds);
   RecoEvent &best_event() { assert(finalized_); return best_event_; }
-  bool boundary_error() { return boundary_error_; } // is the best kset on boundary of k space?
+  bool boundary_error() { return boundary_error_; } // is the best kset on boundary of k space?  // TODO boundary error stuff is deprectated (since sw does a much smarter job of choosing kbounds), so it can be removed
   bool could_not_expand() { return could_not_expand_; }
   KBounds better_kbounds() { return better_kbounds_; }
   double total_score() { return total_score_; }
