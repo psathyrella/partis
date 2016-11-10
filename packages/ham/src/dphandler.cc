@@ -167,6 +167,34 @@ Result DPHandler::Run(vector<Sequence> seqvector, KBounds kbounds, vector<string
 }
 
 // ----------------------------------------------------------------------------------------
+void DPHandler::HandleFishyAnnotations(Result &multi_seq_result, vector<Sequence*> pqry_seqs, KBounds kbounds, vector<string> only_gene_list, double overall_mute_freq) {
+  vector<Sequence> qry_seqs(GetSeqVector(pqry_seqs));
+  return HandleFishyAnnotations(multi_seq_result, qry_seqs, kbounds, only_gene_list, overall_mute_freq);
+}
+
+// ----------------------------------------------------------------------------------------
+void DPHandler::HandleFishyAnnotations(Result &multi_seq_result, vector<Sequence> qry_seqs, KBounds kbounds, vector<string> only_gene_list, double overall_mute_freq) {
+  Sequence naive_seq(qry_seqs[0].track(), "naive-seq", multi_seq_result.best_event().naive_seq_);
+  Result naive_result = Run(naive_seq, kbounds, only_gene_list, overall_mute_freq);
+  RecoEvent &naive_event(naive_result.best_event());
+  RecoEvent &multi_event(multi_seq_result.best_event());
+  for(auto &region : gl_.regions_)
+    multi_event.SetGene(region, naive_event.genes_[region]);
+
+  // vector<string> real_deletions{"v_3p", "d_5p", "d_3p", "j_5p"};
+  vector<string> all_deletions{"v_5p", "v_3p", "d_5p", "d_3p", "j_5p", "j_3p"};
+  for(auto &delname : all_deletions)
+    multi_event.SetDeletion(delname, naive_event.deletions_[delname]);  // NOTE they might be the same, but I think the multi-event (real) insertions would be better here, but it'd take some effort to get the right pieces of them
+
+  // vector<string> real_insertions{"vd", "dj"};
+  vector<string> all_insertions{"fv", "vd", "dj", "jf"};
+  for(auto &insert_name : all_insertions)
+    multi_event.SetInsertion(insert_name, naive_event.insertions_[insert_name]);
+
+  multi_event.per_gene_support_ = naive_event.per_gene_support_;
+}
+
+// ----------------------------------------------------------------------------------------
 void DPHandler::PrintCachedTrellisSize() {
   // double str_bytes(0.), tr_bytes(0.), path_bytes(0.);
   // for(auto &kv_a : cachefo_) {

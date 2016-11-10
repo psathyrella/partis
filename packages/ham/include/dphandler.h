@@ -26,6 +26,8 @@ public:
   Result Run(vector<Sequence*> pseqvector, KBounds kbounds, vector<string> only_gene_list = {}, double overall_mute_freq = -INFINITY, bool clear_cache = true);  // run all over the kspace specified by bounds in kmin and kmax
   Result Run(vector<Sequence> seqvector, KBounds kbounds, vector<string> only_gene_list = {}, double overall_mute_freq = -INFINITY, bool clear_cache = true);
   Result Run(Sequence seq, KBounds kbounds, vector<string> only_gene_list = {}, double overall_mute_freq = -INFINITY, bool clear_cache = true);
+  void HandleFishyAnnotations(Result &multi_seq_result, vector<Sequence*> pqry_seqs, KBounds kbounds, vector<string> only_gene_list, double overall_mute_freq);
+  void HandleFishyAnnotations(Result &multi_seq_result, vector<Sequence> qry_seqs, KBounds kbounds, vector<string> only_gene_list, double overall_mute_freq);
   // void StreamOutput(double test);  // print csv event info to stderr
   // void WriteBestGeneProbs(ofstream &ofs, string query_name);
   void PrintCachedTrellisSize();

@@ -90,10 +90,9 @@ void run_algorithm(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> > &qr
 
     DPHandler dph(args.algorithm(), &args, gl, hmms);
     Result result = dph.Run(qry_seqs, kbounds, args.str_lists_["only_genes"][iqry], args.floats_["mut_freq"][iqry]);
-    if(FishyMultiSeqAnnotation(qry_seqs.size(), result.best_event())) {
-      Sequence naive_seq(qry_seqs[0].track(), "naive-seq", result.best_event().naive_seq_);
-      result = dph.Run(naive_seq, kbounds, args.str_lists_["only_genes"][iqry], args.floats_["mut_freq"][iqry]);
-    }
+    // if(FishyMultiSeqAnnotation(qry_seqs.size(), result.best_event()))
+    //   dph.HandleFishyAnnotations(result, qry_seqs, kbounds, args.str_lists_["only_genes"][iqry], args.floats_["mut_freq"][iqry]);
+
     if(args.debug() > 1) cout << "       ----" << endl;
 
     if(result.no_path_)
