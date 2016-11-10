@@ -23,6 +23,7 @@ from clusterpath import ClusterPath
 from waterer import Waterer
 from parametercounter import ParameterCounter
 from performanceplotter import PerformancePlotter
+from partitionplotter import PartitionPlotter
 from hist import Hist
 
 # ----------------------------------------------------------------------------------------
@@ -330,6 +331,10 @@ class PartitionDriver(object):
             cpath = self.cluster_with_naive_vsearch_or_swarm(parameter_dir=self.sub_param_dir)
         else:
             cpath = self.cluster_with_bcrham()
+
+        if self.args.plotdir is not None:
+            partplotter = PartitionPlotter(cpath)
+            partplotter.plot(self.args.plotdir + '/partitions', only_csv=self.args.only_csv_plots)
 
         if self.args.debug:
             print 'final'
