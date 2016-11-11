@@ -333,7 +333,7 @@ class PartitionDriver(object):
             cpath = self.cluster_with_bcrham()
 
         if self.args.plotdir is not None:
-            partplotter = PartitionPlotter(cpath)
+            partplotter = PartitionPlotter(cpath=cpath)
             partplotter.plot(self.args.plotdir + '/partitions', only_csv=self.args.only_csv_plots)
 
         if self.args.debug:
