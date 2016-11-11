@@ -376,14 +376,12 @@ def get_cluster_size_hist(partition, rebin=None):
     hist = Hist(nbins, 0.5, max(sizes) + 0.5)
     for sz in sizes:
         hist.fill(sz)
-    # hist.all_data = sizes
     return hist
 
 # ----------------------------------------------------------------------------------------
 def make_mean_hist(hists, debug=False):
     """ return the hist with bin contents the mean over <hists> of each bin """
     binvals = {}
-    all_data = None
     for hist in hists:
         if debug:
             print '    sub',
@@ -394,17 +392,10 @@ def make_mean_hist(hists, debug=False):
             binvals[low_edge] += hist.bin_contents[ib]
             if debug:
                 print '   ', low_edge, hist.bin_contents[ib],
-        if all_data is not None and hist.all_data is None:
-            raise Exception('tried to average hists with and without all_data set')
-        if hist.all_data is not None:
-            if all_data is None:
-                all_data = []
-            all_data += hist.all_data
         if debug:
             print ''
     binlist = sorted(binvals.keys())
     meanhist = Hist(len(binlist) - 2, binlist[1], binlist[-1], binlist[1 : -1])
-    meanhist.all_data = all_data
     if debug:
         print '   mean',
     for ib in range(len(binlist)):
@@ -572,14 +563,6 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None, log='x'):
         # was using this:
         hist.normalize()
         plots[name] = ax.plot(hist.get_bin_centers(), hist.bin_contents_no_zeros(1e-8), linewidth=linewidths.get(name, 4), label=legends.get(name, name), color=colors.get(name, 'grey'), linestyle=linestyles.get(name, 'solid'), alpha=alphas.get(name, 1.))
-
-        # # or maybe try a hist?
-        # if n_queries is None:
-        #     n_queries = sum(hist.all_data)
-        # if tmpmax is None or max(hist.all_data) > tmpmax:
-        #     tmpmax = max(hist.all_data)
-        # plots[name] = ax.hist(hist.all_data, bins=[0.5, 1.5, 2.5, 3.5, 5.5, 10, 25, 50, 80, 110, 200, 350, 500, 1000], histtype='step', normed=True, linewidth=linewidths.get(name, 4), label=legends.get(name, name), color=colors.get(name, 'grey'), linestyle=linestyle, alpha=alpha)
-
 
     legend = ax.legend()
     sys.modules['seaborn'].despine()  #trim=True, bottom=True)

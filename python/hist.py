@@ -11,8 +11,6 @@ class Hist(object):
         self.low_edges, self.bin_contents, self.bin_labels = [], [], []
         self.xtitle, self.ytitle, self.title = xtitle, ytitle, title
 
-        self.all_data = None
-
         if fname is None:
             self.scratch_init(n_bins, xmin, xmax, sumw2=sumw2, xbins=xbins)
         else:
