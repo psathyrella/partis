@@ -382,17 +382,18 @@ def get_cluster_size_hist(partition, rebin=None):
 def make_mean_hist(hists):
     """ return the hist with bin contents the mean over <hists> of each bin """
     binvals = {}
-    for hist in hists:
+    for hist in hists:  # I could probably do this with list comprehensions or something, but this way handles different bin bounds
         for ib in range(0, hist.n_bins + 2):
             low_edge = hist.low_edges[ib]
             if low_edge not in binvals:
-                binvals[low_edge] = 0.
-            binvals[low_edge] += hist.bin_contents[ib]
+                binvals[low_edge] = []
+            binvals[low_edge].append(hist.bin_contents[ib])
     binlist = sorted(binvals.keys())
-    meanhist = Hist(len(binlist) - 2, binlist[1], binlist[-1], binlist[1 : -1])
+    meanhist = Hist(len(binlist) - 2, binlist[1], binlist[-1], xbins=binlist[1 :])
     for ib in range(len(binlist)):
-        meanhist.set_ibin(ib, binvals[binlist[ib]], error=0.)
-    meanhist.normalize()
+        vlist = binvals[binlist[ib]]
+        meanhist.set_ibin(ib, numpy.mean(vlist), error=(numpy.std(vlist, ddof=1) / math.sqrt(len(vlist))))
+    # meanhist.normalize()
     return meanhist
 
 # ----------------------------------------------------------------------------------------
@@ -547,9 +548,15 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None, log='x'):
         # plots[name] = ax.plot(base_xvals, data[name], linewidth=linewidth, label=name, color=colors.get(name, 'grey'), linestyle=linestyle, alpha=alpha)
         # scplots[name] = ax.scatter(hists[name].get_bin_centers(), hists[name].bin_contents, linewidth=linewidths.get(name, 4), label=legends.get(name, name), color=colors.get(name, 'grey'), linestyle=linestyle, alpha=alpha)
 
+        kwargs = {'linewidth' : linewidths.get(name, 4),
+                  'label' : legends.get(name, name),
+                  'color' : colors.get(name, 'grey'),
+                  'linestyle' : linestyles.get(name, 'solid'),
+                  'alpha' : alphas.get(name, 1.)}
+
         # was using this:
         hist.normalize()
-        plots[name] = ax.plot(hist.get_bin_centers(), hist.bin_contents_no_zeros(1e-8), linewidth=linewidths.get(name, 4), label=legends.get(name, name), color=colors.get(name, 'grey'), linestyle=linestyles.get(name, 'solid'), alpha=alphas.get(name, 1.))
+        plots[name] = ax.errorbar(hist.get_bin_centers(), hist.bin_contents_no_zeros(1e-8), yerr=hist.errors, **kwargs)
 
     legend = ax.legend()
     sys.modules['seaborn'].despine()  #trim=True, bottom=True)
@@ -583,6 +590,7 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None, log='x'):
         os.makedirs(plotdir)
     plt.savefig(outfname)
     plt.close()
+    check_call(['chmod', '664', outfname])
 
 # ----------------------------------------------------------------------------------------
 def plot_metrics_vs_thresholds(meth, thresholds, info, plotdir, plotfname, title):

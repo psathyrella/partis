@@ -17,7 +17,7 @@ class Hist(object):
             self.file_init(fname)
 
     # ----------------------------------------------------------------------------------------
-    def scratch_init(self, n_bins, xmin, xmax, sumw2=None, xbins=None):
+    def scratch_init(self, n_bins, xmin, xmax, sumw2=False, xbins=None):
         self.n_bins = int(n_bins)
         self.xmin, self.xmax = float(xmin), float(xmax)
         self.errors = None if sumw2 else []
@@ -82,10 +82,11 @@ class Hist(object):
     def set_ibin(self, ibin, value, error, label=None):
         """ set <ibin>th bin to <value> """
         self.bin_contents[ibin] = value
-        if self.errors is None and error is not None:
-            raise Exception('attempted to set ibin error with none type <self.errors>')
-        else:
-            self.errors[ibin] = error
+        if error is not None:
+            if self.errors is None:
+                raise Exception('attempted to set ibin error with none type <self.errors>')
+            else:
+                self.errors[ibin] = error
         if label is not None:
             self.bin_labels[ibin] = label
 

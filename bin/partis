@@ -18,6 +18,7 @@ sys.path.insert(1, partis_dir + '/python')
 import utils
 import glutils
 from partitiondriver import PartitionDriver
+from partitionplotter import PartitionPlotter
 
 # ----------------------------------------------------------------------------------------
 def default_parameter_dir(args):
@@ -213,11 +214,34 @@ def run_partitiondriver(args):
         newargv = newargv[:1] + ['cache-parameters', ] + newargv[2:]
         check_call(newargv)
 
-    parter = PartitionDriver(args, args.action, args.parameter_dir + '/' + args.parameter_type + '/' + glutils.glfo_dir)
     if 'run-' in args.action:
+        parter = PartitionDriver(args, args.action, args.parameter_dir + '/' + args.parameter_type + '/' + glutils.glfo_dir)
         parter.run_algorithm(args.action.replace('run-', ''))
     elif args.action == 'partition':
-        parter.partition()
+        if args.n_partition_subsets is None:
+            parter = PartitionDriver(args, args.action, args.parameter_dir + '/' + args.parameter_type + '/' + glutils.glfo_dir)
+            parter.partition()
+        else:  # and here I break my rule about not modifying <args>, sigh.
+            old_outfname = args.outfname
+            if args.n_max_queries == -1:
+                raise Exception('--n-max-queries must be set in order to use --n-partition-subsets')
+            n_per_subset = args.n_max_queries / args.n_partition_subsets
+            args.n_max_queries = -1
+            outfnames = [args.workdir + '/outfiles/partition-' + str(isub) + '.csv' for isub in range(args.n_partition_subsets)]
+            istart = 0
+            for isub in range(args.n_partition_subsets):
+                istop = istart + n_per_subset
+                args.outfname = outfnames[isub]
+                args.istartstop = [istart, istop]
+                parter = PartitionDriver(args, args.action, args.parameter_dir + '/' + args.parameter_type + '/' + glutils.glfo_dir)
+                parter.partition()
+                istart = istop
+            partplotter = PartitionPlotter(infiles=outfnames)
+            if args.plotdir is not None:
+                partplotter.plot(args.plotdir + '/partitions', only_csv=args.only_csv_plots)
+            for fn in outfnames:
+                os.remove(fn)
+            os.rmdir(os.path.dirname(outfnames[0]))
     else:
         raise Exception('bad action ' + args.action)
     parter.clean()
@@ -303,6 +327,7 @@ parent_parser.add_argument('--chain', default='h', choices=('h', 'k', 'l'), help
 parent_parser.add_argument('--species', default='human', choices=('human', 'mouse'), help='Which species?')
 parent_parser.add_argument('--only-smith-waterman', action='store_true', help='Exit after finishing smith-waterman.')
 parent_parser.add_argument('--initial-germline-dir', help='Directory with fastas from which to read germline set. Only used when caching parameters, during which its contents is copied into --parameter-dir, perhaps (i.e. if specified) with modification. NOTE default is set below, because control flow is too complicated for argparse')
+parent_parser.add_argument('--n-partition-subsets', type=int, help='compare the partitions of this many independent subsets, each of size <--n-max-queries>')
 # allele finding:
 parent_parser.add_argument('--dont-remove-unlikely-alleles', action='store_true', help='assign each sequence to its closest germline match, even if this would imply an unrealistically large number of alleles per gene in this sample')
 parent_parser.add_argument('--find-new-alleles', action='store_true', help='look for alleles which do not appear in the default germline set')
