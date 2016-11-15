@@ -315,7 +315,7 @@ void HMMHolder::CacheAll() {
 }
 
 // ----------------------------------------------------------------------------------------
-Model *HMMHolder::Get(string gene, bool debug) {
+Model *HMMHolder::Get(string gene) {
   if(hmms_.find(gene) == hmms_.end()) {   // if we don't already have it, read it from disk
     hmms_[gene] = new Model;
     string infname(hmm_dir_ + "/" + gl_.SanitizeName(gene) + ".yaml");
@@ -333,7 +333,7 @@ void HMMHolder::RescaleOverallMuteFreqs(map<string, set<string> > &only_genes, d
   // then actually do the rescaling for each necessary gene
   for(auto &region : gl_.regions_) {
     for(auto &gene : only_genes[region]) {
-      Get(gene, false)->RescaleOverallMuteFreq(overall_mute_freq);
+      Get(gene)->RescaleOverallMuteFreq(overall_mute_freq);
     }
   }
 }
@@ -342,7 +342,7 @@ void HMMHolder::RescaleOverallMuteFreqs(map<string, set<string> > &only_genes, d
 void HMMHolder::UnRescaleOverallMuteFreqs(map<string, set<string> > &only_genes) {
   for(auto &region : gl_.regions_) {
     for(auto &gene : only_genes[region]) {
-      Get(gene, false)->UnRescaleOverallMuteFreq();
+      Get(gene)->UnRescaleOverallMuteFreq();
     }
   }
 }
@@ -443,7 +443,7 @@ void StreamErrorput(ofstream &ofs, string algorithm, vector<Sequence> &seqs, str
 }
 
 // ----------------------------------------------------------------------------------------
-string PerGeneSupportString(string region, vector<SupportPair> &support) {
+string PerGeneSupportString(vector<SupportPair> &support) {
   string return_str;
   for(size_t is=0; is<support.size(); ++is) {
     if(is > 0)
@@ -479,9 +479,9 @@ void StreamViterbiOutput(ofstream &ofs, RecoEvent &event, vector<Sequence> &seqs
     << "," << event.deletions_["j_3p"]
     << "," << event.score_
     << "," << SeqStr(seqs, ":")
-    << "," << PerGeneSupportString("v", event.per_gene_support_["v"])
-    << "," << PerGeneSupportString("d", event.per_gene_support_["d"])
-    << "," << PerGeneSupportString("j", event.per_gene_support_["j"])
+    << "," << PerGeneSupportString(event.per_gene_support_["v"])
+    << "," << PerGeneSupportString(event.per_gene_support_["d"])
+    << "," << PerGeneSupportString(event.per_gene_support_["j"])
     << "," << errors
     << endl;
 }

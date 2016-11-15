@@ -54,20 +54,20 @@ void ClusterPath::AddPartition(Partition partition, double logprob, size_t n_max
 
 }
 
-// ----------------------------------------------------------------------------------------
-int ClusterPath::PotentialNumberOfParents(Partition &partition, bool debug) {
-  int combifactor(0);
-  for(auto &cluster : partition) {
-    int n_k(SplitString(cluster, ":").size());
-    combifactor += pow(2, n_k - 1) - 1;
-  }
+// // ----------------------------------------------------------------------------------------
+// int ClusterPath::PotentialNumberOfParents(Partition &partition, bool debug) {
+//   int combifactor(0);
+//   for(auto &cluster : partition) {
+//     int n_k(SplitString(cluster, ":").size());
+//     combifactor += pow(2, n_k - 1) - 1;
+//   }
 
-  // if(debug) {
-  //   for(auto &key : partition)
-  //     cout << "          x " << key << endl;
-  //   cout << "    combi " << combifactor << endl;
-  // }
+//   // if(debug) {
+//   //   for(auto &key : partition)
+//   //     cout << "          x " << key << endl;
+//   //   cout << "    combi " << combifactor << endl;
+//   // }
 
-  return combifactor;
-}
+//   return combifactor;
+// }
 }

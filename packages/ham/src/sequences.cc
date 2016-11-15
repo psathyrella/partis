@@ -51,8 +51,8 @@ Sequence::Sequence(const Sequence &rhs) {
 
 // ----------------------------------------------------------------------------------------
 void Sequence::CheckPosLen(string name, string undigitized, size_t pos, size_t len) {
-  if(pos < 0 || len < 0)  // can't actually be less than zero, but I have great hopes of eventually making them signed
-    throw runtime_error("invalid pos " + to_string(pos) + " len " + to_string(len) + " for " + name);
+  // if(pos < 0 || len < 0)  // can't actually be less than zero, but I have great hopes of eventually making them signed
+  //   throw runtime_error("invalid pos " + to_string(pos) + " len " + to_string(len) + " for " + name);
   if(pos >= undigitized.size() || pos + len > undigitized.size())
     throw runtime_error("len " + to_string(len) + " too large for " + undigitized + " in " + name);
 }

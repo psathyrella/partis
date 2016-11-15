@@ -21,7 +21,7 @@ public:
   ClusterPath() {}
   ClusterPath(Partition initial_partition, double initial_logprob=-INFINITY);
   void AddPartition(Partition partition, double logprob, size_t n_max_partitions=-1);  // , double max_drop);
-  int PotentialNumberOfParents(Partition &partition, bool debug=false);  // number of partitions from which we could have arrived at this partition (i.e. number of ways to split it)
+  // int PotentialNumberOfParents(Partition &partition, bool debug=false);  // number of partitions from which we could have arrived at this partition (i.e. number of ways to split it)
   Partition &CurrentPartition() { return partitions_.back(); }  // return current (most recent) partition
   double CurrentLogProb() { return logprobs_.back(); }  // return logprob of current (most recent partition)
   deque<Partition> &partitions() { return partitions_; }

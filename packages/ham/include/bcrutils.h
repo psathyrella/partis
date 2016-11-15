@@ -134,7 +134,7 @@ class HMMHolder {
 public:
   HMMHolder(string hmm_dir, GermLines &gl, Track *track): hmm_dir_(hmm_dir), gl_(gl), track_(track) {}
   ~HMMHolder();
-  Model *Get(string gene, bool debug);
+  Model *Get(string gene);
   Track *track() { return track_; }
   // Rescale, within each hmm, the emission probabilities to reflect <overall_mute_freq> instead of the mute freq which was recorded in the hmm file.
   // If <overall_mute_freq> is -INFINITY, we re-rescale them to what they were originally
@@ -179,7 +179,7 @@ private:
 void StreamHeader(ofstream &ofs, string algorithm);
 void StreamErrorput(ofstream &ofs, string algorithm, vector<Sequence> &seqs, string errors);
 void StreamErrorput(ofstream &ofs, string algorithm, vector<Sequence*> &pseqs, string errors);
-string PerGeneSupportString(string region, vector<SupportPair> &support);
+string PerGeneSupportString(vector<SupportPair> &support);
 void StreamViterbiOutput(ofstream &ofs, RecoEvent &event, vector<Sequence> &seqs, string errors);
 void StreamViterbiOutput(ofstream &ofs, RecoEvent &event, vector<Sequence*> &pseqs, string errors);
 void StreamForwardOutput(ofstream &ofs, vector<Sequence> &seqs, double total_score, string errors);

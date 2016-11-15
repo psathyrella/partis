@@ -70,7 +70,7 @@ public:
   
   // Return the next (i.e. the <i_initial_partition_>th) initial partition in the list of initial partitions, and increment <i_initial_partition_>.
   // Also sets arguments <initial_path_index> and <logweight> to correspond to the returned partition.
-  Partition GetAnInitialPartition(int &initial_path_index, double &logweight);
+  // Partition GetAnInitialPartition(int &initial_path_index, double &logweight);
 
   void WritePartitions(ClusterPath &cp);
   void WriteAnnotations(ClusterPath &cp);
@@ -91,7 +91,7 @@ private:
   string JoinNameStrings(vector<Sequence*> &strlist, string delimiter=":");
   string JoinSeqStrings(vector<Sequence*> &strlist, string delimiter=":");
   string PrintStr(string queries);
-  bool SeedMissing(string queries, string delimiter=":");
+  bool SeedMissing(string queries);
 
   double CalculateHfrac(string &seq_a, string &seq_b);
   double NaiveHfrac(string key_a, string key_b);

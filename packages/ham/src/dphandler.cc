@@ -240,10 +240,10 @@ void DPHandler::FillTrellis(KSet kset, Sequences query_seqs, vector<string> quer
     }
   }
 
-  Trellis tmptrell(hmms_.Get(gene, args_->debug()), query_seqs, cached_trellis);  // NOTE chunk cached trellisi don't get kept around -- we should be able to always just go back to the original one
+  Trellis tmptrell(hmms_.Get(gene), query_seqs, cached_trellis);  // NOTE chunk cached trellisi don't get kept around -- we should be able to always just go back to the original one
   Trellis *trell(&tmptrell);  // convenience pointer
   if(cached_trellis == nullptr) {   // if we didn't find a suitable chunk cached trellis
-    scratch_cachefo_[gene][query_strs] = Trellis(hmms_.Get(gene, args_->debug()), query_seqs);
+    scratch_cachefo_[gene][query_strs] = Trellis(hmms_.Get(gene), query_seqs);
     trell = &scratch_cachefo_[gene][query_strs];
     origin = "scratch";
   } else {
@@ -255,7 +255,7 @@ void DPHandler::FillTrellis(KSet kset, Sequences query_seqs, vector<string> quer
   if(algorithm_ == "viterbi") {
     trell->Viterbi();
     uncorrected_score = trell->ending_viterbi_log_prob();
-    paths_[gene][kset] = TracebackPath(hmms_.Get(gene, args_->debug()));
+    paths_[gene][kset] = TracebackPath(hmms_.Get(gene));
     if(uncorrected_score != -INFINITY)   // if there's a valid path
       trell->Traceback(paths_[gene][kset]);
   } else if(algorithm_ == "forward") {
@@ -266,7 +266,7 @@ void DPHandler::FillTrellis(KSet kset, Sequences query_seqs, vector<string> quer
   }
 
   // correct the score for gene choice probs
-  double gene_choice_score = log(hmms_.Get(gene, args_->debug())->overall_prob());
+  double gene_choice_score = log(hmms_.Get(gene)->overall_prob());
   scores_[gene][kset] = AddWithMinusInfinities(uncorrected_score, gene_choice_score);
 }
 
@@ -528,7 +528,7 @@ string DPHandler::GetInsertion(string side, vector<string> names) {
         break;
     }
   } else if(side == "right") {
-    for(size_t ip = names.size() - 1; ip >= 0; --ip)  // NOTE unsigned comparison is always true, so could really replace with while(true)
+    for(size_t ip = names.size() - 1; true; --ip)
       if(names[ip].find("insert") == 0)
         inserted_bases = names[ip].back() + inserted_bases;  // last character is "germline-like" base, e.g. insert_left_C
       else
@@ -579,7 +579,7 @@ size_t DPHandler::GetErosionLength(string side, vector<string> names, string gen
       }
     }
   } else if(side == "right") { // and for the righthand one we need the last non-insert state
-    for(size_t il = names.size() - 1; il >= 0; --il) {  // NOTE unsigned comparison is always true, so could really replace with while(true)
+    for(size_t il = names.size() - 1; true; --il) {
       if(names[il].find("insert") == 0) {   // skip any insert states on the left
         continue;
       } else {  // found the leftmost non-insert state -- that's the one we want
@@ -592,7 +592,7 @@ size_t DPHandler::GetErosionLength(string side, vector<string> names, string gen
   }
 
   // then find the state number (in the hmm's state numbering scheme) of the state found at that index in the viterbi path
-  assert(istate >= 0 && istate < names.size());
+  assert(istate < names.size());
   if(names[istate].find("IG") != 0)  // start of state name should be IG[HKL][VDJ]
     throw runtime_error("state not of the form IG[HKL]<gene>_<position>: " + names[istate]);
   string state_index_str = names[istate].substr(names[istate].find_last_of("_") + 1);

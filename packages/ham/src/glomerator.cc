@@ -103,15 +103,11 @@ void Glomerator::Cluster() {
     WriteAnnotations(cp);
 }
 
-// ----------------------------------------------------------------------------------------
-Partition Glomerator::GetAnInitialPartition(int &initial_path_index, double &logweight) {
-  assert(0);
-  // initial_path_index = i_initial_partition_;
-  // assert(i_initial_partition_ < (int)initial_partitions_.size());
-  // logweight = initial_logweights_[i_initial_partition_];
-  // return initial_partitions_.at(i_initial_partition_++);
-  return Partition();
-}
+// // ----------------------------------------------------------------------------------------
+// Partition Glomerator::GetAnInitialPartition(double &logweight) {
+//   assert(0);
+//   return Partition();
+// }
 
 // ----------------------------------------------------------------------------------------
 void Glomerator::ReadCacheFile() {
@@ -424,7 +420,7 @@ string Glomerator::PrintStr(string queries) {
 }
 
 // ----------------------------------------------------------------------------------------
-bool Glomerator::SeedMissing(string queries, string delimiter) {
+bool Glomerator::SeedMissing(string queries) {
   return cachefo(queries).seed_missing_;  // NOTE after refactoring the double loops, we probably don't really need to cache all these any more
   // set<string> queryset(SplitString(queries, delimiter));  // might be faster to look for :uid: and uid: and... hm, wait, that's kind of hard
   // return !InString(args_->seed_unique_id(), queries,  delimiter);
