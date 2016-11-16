@@ -189,5 +189,8 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, s
         elif args.seed_seq is not None:
             args.seed_unique_id = 'seed-seq'
             add_seed_seq(args, input_info, reco_info, is_data)
+        elif args.random_seed_seq:  # already checked (in bin/partis) that other seed args aren't set
+            args.seed_unique_id = random.choice(input_info.keys())
+            print '    chose random seed unique id %s' % args.seed_unique_id
 
     return input_info, reco_info
