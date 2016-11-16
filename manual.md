@@ -75,7 +75,7 @@ You also don't have to deal with the additional complications of being inside do
 Basically, you just need to install a few extra packages in addition to the dependencies listed in the [Dockerfile](https://github.com/psathyrella/partis/blob/master/Dockerfile):
 
 ```
-sudo apt-get install python-pip scons libboost-all-dev libgsl0ldbl libgsl0-dev libncurses5-dev libxml2-dev libxslt1-dev mafft r-base
+sudo apt-get install python-pip scons libgsl0ldbl libgsl0-dev libncurses5-dev libxml2-dev libxslt1-dev mafft r-base
 pip install --user numpy scipy matplotlib pandas biopython dendropy==3.12.3 pysam pyyaml seaborn colored_traceback
 R --vanilla --slave -e 'install.packages("TreeSim", repos="http://cran.rstudio.com/")'  # optional -- only used for simulation
 ```
