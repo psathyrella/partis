@@ -366,7 +366,7 @@ subargs['partition'].append({'name' : '--seed-unique-id', 'kwargs' : {'help' : '
 subargs['partition'].append({'name' : '--seed-seq', 'kwargs' : {'help' : 'same as --seed-unique-id, but specifies a sequence that doesn\'t have to be in the original file'}})
 subargs['partition'].append({'name' : '--annotation-clustering', 'kwargs' : {'help' : 'Perform annotation-based clustering: group together sequences with the same V and J, same CDR3 length, and 90%% cdr identity. Very, very inaccurate.'}})
 subargs['partition'].append({'name' : '--annotation-clustering-thresholds', 'kwargs' : {'default' : '0.9', 'help' : 'colon-separated list of thresholds for annotation-based (e.g. vollmers) clustering'}})
-subargs['partition'].append({'name' : '--print-cluster-annotations', 'kwargs' : {'action' : 'store_true', 'help' : 'Print annotation for each final cluster. If --outfname is also specified, then the cluster annotations are written to <args.outfname.replace(\'.csv\', \'-cluster-annotations.csv\')>'}})
+subargs['partition'].append({'name' : '--print-cluster-annotations', 'kwargs' : {'action' : 'store_true', 'help' : 'deprecated'}})
 subargs['partition'].append({'name' : '--naive-hamming-bounds', 'kwargs' : {'help' : 'Clustering bounds (lo:hi colon-separated pair) on naive sequence hamming distance. If not specified, the bounds are set based on the per-dataset mutation levels. For most purposes should be left at the defaults.'}})
 subargs['partition'].append({'name' : '--logprob-ratio-threshold', 'kwargs' : {'type' : float, 'default' : 18., 'help' : 'reaches a min value of <this> minus five for large clusters.'}})
 subargs['partition'].append({'name' : '--synthetic-distance-based-partition', 'kwargs' : {'action' : 'store_true', 'help' : 'Use simulation truth info to create a synthetic distance-based partition (for validation).'}})
@@ -440,7 +440,7 @@ args.n_fewer_procs = args.n_procs[0] if len(args.n_procs) == 1 else args.n_procs
 args.n_procs = args.n_procs[0]
 
 if args.print_cluster_annotations:
-    print '  note: --print-cluster-annotations is deprecated (cluster annotations are now written by default, and they\'re printed to stdout if --debug is greater than zero)'
+    print '  note: --print-cluster-annotations is deprecated (cluster annotations are now written by default, and to print them to stdout either partition with --debug 1, or run the \'view-partitions\' action on the output file after finishing)'
 
 if args.seqfile is not None and args.infname is None:
     print '  moving contents of deprecated option --seqfile into its replacement --infname'
