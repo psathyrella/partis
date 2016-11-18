@@ -98,6 +98,7 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, s
     reco_info = None
     if not is_data:
         reco_info = OrderedDict()
+    already_printed_forbidden_character_warning = False
     n_queries_added = 0
     found_seed = False
     used_names = set()  # for abbreviating
@@ -124,8 +125,10 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, s
         utils.process_input_line(line)
         unique_id = line[internal_name_column]
         if any(fc in unique_id for fc in utils.forbidden_characters):
-            raise Exception('found a forbidden character (one of %s) in sequence id \'%s\' -- sorry, you\'ll have to replace it with something else' % (' '.join(["'" + fc + "'" for fc in utils.forbidden_characters]), unique_id))
-
+            if not already_printed_forbidden_character_warning:
+                print '  %s: found a forbidden character (one of %s) in sequence id \'%s\'. This means we\'ll be replacing each of these forbidden characters with a single letter from their name (in this case %s). If this will cause problems you should replace the characters with something else beforehand.' % (utils.color('yellow', 'warning'), ' '.join(["'" + fc + "'" for fc in utils.forbidden_characters]), unique_id, unique_id.translate(utils.forbidden_character_translations))
+                already_printed_forbidden_character_warning = True
+            unique_id = unique_id.translate(utils.forbidden_character_translations)
         if args is not None and args.abbreviate:
             unique_id = abbreviate(used_names, potential_names, unique_id)
 

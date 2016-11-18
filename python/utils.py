@@ -1,3 +1,4 @@
+import string
 import time
 import sys
 import os
@@ -170,6 +171,7 @@ adaptive_headers = {
 
 # ----------------------------------------------------------------------------------------
 forbidden_characters = set([':', ';', ','])  # strings that are not allowed in sequence ids
+forbidden_character_translations = string.maketrans(':;,', 'csm')
 
 functional_columns = ['mutated_invariants', 'in_frames', 'stops']
 
