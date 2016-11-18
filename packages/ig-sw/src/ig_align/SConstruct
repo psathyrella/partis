@@ -1,6 +1,6 @@
 env = Environment(
     CPPDEFINES=[],
-    CFLAGS = ['-std=gnu99', '-Ofast'],  #, '-Wall', '-Wextra', '-pedantic'],
+    CFLAGS = ['-std=gnu99', '-Ofast', '-Wall', '-Wextra', '-pedantic'],
     LINKFLAGS = ['-Ofast', ],
     CPPPATH=[".", "tclap"])
 env.Program('ig-sw',

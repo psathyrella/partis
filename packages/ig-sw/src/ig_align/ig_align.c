@@ -58,7 +58,7 @@
    (x) |= (x) >> 16, ++(x))
 #endif
 
-KSEQ_INIT(gzFile, gzread);
+KSEQ_INIT(gzFile, gzread)
 
 typedef kvec_t(kseq_t) kseq_v;
 
@@ -244,7 +244,8 @@ static aln_v align_read(const kseq_t *read, const kseq_v targets,
    * abort.
    */
   if (max_score < conf->min_score) {
-    for (int i = 0; i < kv_size(result); i++)
+    // kv_size returns the n field of a kvec_t, which is a size_t.
+    for (size_t i = 0; i < kv_size(result); i++)
       free(kv_A(result, i).cigar);
     kv_size(result) = 0;
     free(qry);
@@ -325,7 +326,12 @@ static void write_sam_records(kstring_t *str, const kseq_t *read,
         ksprintf(str, "D");
     }
 
-    if (a.loc.qe + 1 != read->seq.l)
+    // Here we explicitly cast the size_t l to be an int.
+    // Neither of these numbers will be near their maximum
+    // in our application, which even for a signed 4 byte int
+    // is 2147483647, and size_t is an unsigned 4 byte int in
+    // on a 32 bit machine.
+    if (a.loc.qe + 1 != (int)read->seq.l)
       ksprintf(str, "%luS", read->seq.l - a.loc.qe - 1);
 
     ksprintf(str, "\t*\t0\t0\t");
