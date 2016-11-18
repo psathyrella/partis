@@ -404,12 +404,11 @@ class PartitionDriver(object):
         def time_to_remove_some_seqs(n_proc_threshold):
             return len(n_proc_list) >= n_proc_threshold or next_n_procs == 1
 
-        # time to remove unseeded clusters?
-        if self.args.seed_unique_id is not None and self.unseeded_seqs is None and time_to_remove_some_seqs(3):  # if we didn't already remove the unseeded clusters in a partition previous step
-            cpath = self.split_seeded_clusters(cpath)
-            next_n_procs = self.scale_n_procs_for_new_n_clusters(initial_nseqs, n_proc_list[0], cpath)
         if self.args.small_clusters_to_ignore is not None and self.small_cluster_seqs is None and time_to_remove_some_seqs(self.args.n_steps_after_which_to_ignore_small_clusters):
             cpath = self.remove_small_clusters(cpath)
+            next_n_procs = self.scale_n_procs_for_new_n_clusters(initial_nseqs, n_proc_list[0], cpath)
+        if self.args.seed_unique_id is not None and self.unseeded_seqs is None and time_to_remove_some_seqs(3):  # if we didn't already remove the unseeded clusters in a partition previous step
+            cpath = self.split_seeded_clusters(cpath)
             next_n_procs = self.scale_n_procs_for_new_n_clusters(initial_nseqs, n_proc_list[0], cpath)
 
         return next_n_procs, cpath

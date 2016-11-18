@@ -226,7 +226,7 @@ If your sample is too large to comfortably partition with the default method usi
 
 Since in many cases we are most interested in the largest clonal families, you can also specify that, after a few partitition steps, smaller families are discarded.
 The idea is that any large clusters will accumulate appreciable size within the first few partition steps, and since most real repertoires are dominated by small clusters (especially singletons), we can learn what we need from these larger clusters without spending time trying to accurately infer the details of the very small clusters.
-What counts as a "small" cluster is controlled by `--small-clusters-to-ignore`, which is either a colon-separated list of clusters sizes (e.g. `1:2:3`) or a range (e.g. `1-10`).
+What counts as a "small" cluster is controlled by `--small-clusters-to-ignore`, which is either a colon-separated list of clusters sizes (e.g. `1:2:3`) or an inclusive range (e.g. `1-10`).
 The number of steps after which these small clusters are removed is set with `--n-steps-after-which-to-ignore-small-clusters` (default 3).
 
 ##### cluster annotations
