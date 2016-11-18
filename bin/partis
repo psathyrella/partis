@@ -446,9 +446,6 @@ args.n_procs = utils.get_arg_list(args.n_procs, intify=True)
 args.n_fewer_procs = args.n_procs[0] if len(args.n_procs) == 1 else args.n_procs[1]
 args.n_procs = args.n_procs[0]
 
-if args.print_cluster_annotations:
-    print '  note: --print-cluster-annotations is deprecated (cluster annotations are now written by default, and to print them to stdout either partition with --debug 1, or run the \'view-partitions\' action on the output file after finishing)'
-
 if args.seqfile is not None and args.infname is None:
     print '  moving contents of deprecated option --seqfile into its replacement --infname'
     args.infname = args.seqfile
