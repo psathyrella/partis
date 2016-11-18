@@ -2,7 +2,6 @@
 #  - remove unused stuff from Result (and RecoEvent?)
 #  - fix sw output columns so they're aligned
 #  - move run.py to a repo
-#  - boost removal
 #  - allow existing un-explicitly-noted implicit keys without failing, but still make sure they're consistent
 #  - get naive seqs for "sub"-clusters
 
@@ -92,11 +91,3 @@
 
 # over-long multi-hmm d (and kinda j) 5' insertion:
 # /home/dralph/work/partis-dev/packages/ham/bcrham --algorithm viterbi --debug 2 --hmmdir _tmp/tmp-hmms --datadir /tmp/dralph/hmms/391731/germline-sets --infile /tmp/dralph/hmms/391731/hmm_input.csv --outfile /tmp/dralph/hmms/391731/hmm_output.csv --chain h --random-seed 1478107057 --ambig-base N
-
-5744  ./bin/partis simulate --n-sim-events 500 --n-trees 500 --n-leaves 5 --parameter-dir test/_new-results/test/parameters/data --seed 1 --n-procs 10 --outfname simu.csv
-5745  ./bin/partis cache-parameters --n-max-total-alleles 10 --n-alleles-per-gene 1 --is-simu --infname simu.csv --parameter-dir _tmp/multi-annotation --seed 1 --n-procs 10
-5746  ./bin/partis run-viterbi --plot-performance --plotdir $www/partis/multi-annotation/single --is-simu --infname simu.csv --parameter-dir _tmp/multi-annotation/ --seed 1 --n-procs 10 --outfname test/$
-
-# make sure all performance plots are shifting overflows
-# make sure all the hist bounds are where you want them
-# update reference results for new cdr3 subsetting
