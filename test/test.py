@@ -232,7 +232,8 @@ class Tester(object):
     # ----------------------------------------------------------------------------------------
     def bust_cache(self):
         test_outputs = [k + '.csv' for k in self.tests.keys() if k not in self.production_tests]
-        expected_content = set(test_outputs + self.perfdirs.values() + self.cachefnames.values() + [os.path.basename(self.logfname), self.label])
+        cluster_annotations = [fn.replace('.csv', '-cluster-annotations.csv') for fn in test_outputs if 'partition' in fn]
+        expected_content = set(test_outputs + cluster_annotations + self.perfdirs.values() + self.cachefnames.values() + [os.path.basename(self.logfname), self.label])
         expected_content.add('run-times.csv')
 
         # remove (very, very gingerly) whole reference dir
