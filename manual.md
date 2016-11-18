@@ -222,10 +222,12 @@ Vsearch is also very fast, because it makes a large number of heuristic approxim
 With `--n-procs` around 10 for the vsearch step, this should take only of order minutes for a million sequences.
 If your sample is too large to comfortably partition with the default method using your computational resources, one option is to run naive vsearch clustering, and use clusters from this step in which you're particularly interested to seed `--seed-unique-id`.
 
-*--naive-hamming*
+*ignore smaller clusters*
 
-Use hard boundaries on hamming distance between naive sequences alone, with no likelihood calculation, to cluster with hierarchical agglomeration.
-This is perhaps as much as twice as fast as the full method, but sacrifices significant accuracy because it doesn't know (for example) about the differing probabilities of mutations at different points in the sequence, and because it uses a single, fixed annotation rather than integrating over all likely annotations.
+Since in many cases we are most interested in the largest clonal families, you can also specify that, after a few partitition steps, smaller families are discarded.
+The idea is that any large clusters will accumulate appreciable size within the first few partition steps, and since most real repertoires are dominated by small clusters (especially singletons), we can learn what we need from these larger clusters without spending time trying to accurately infer the details of the very small clusters.
+What counts as a "small" cluster is controlled by `--small-clusters-to-ignore`, which is either a colon-separated list of clusters sizes (e.g. `1:2:3`) or a range (e.g. `1-10`).
+The number of steps after which these small clusters are removed is set with `--n-steps-after-which-to-ignore-small-clusters` (default 3).
 
 ##### cluster annotations
 

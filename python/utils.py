@@ -2442,3 +2442,10 @@ def collapse_naive_seqs(naive_seq_list, sw_info):
 def get_partition_from_collapsed_naive_seqs(naive_seq_list, sw_info):
     naive_seq_map, naive_seq_hashes = collapse_naive_seqs(naive_seq_list, sw_info)
     return [cluster for cluster in naive_seq_hashes.values()]
+
+# ----------------------------------------------------------------------------------------
+def split_partition_with_criterion(partition, criterion_fcn):
+    true_cluster_indices = [ic for ic in range(len(partition)) if criterion_fcn(partition[ic])]  # indices of clusters for which <criterion_fcn()> is true
+    true_clusters = [partition[ic] for ic in true_cluster_indices]
+    false_clusters = [partition[ic] for ic in range(len(partition)) if ic not in true_cluster_indices]
+    return true_clusters, false_clusters

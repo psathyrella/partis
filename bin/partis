@@ -182,6 +182,12 @@ def run_partitiondriver(args):
     args.initial_match_mismatch = utils.get_arg_list(args.initial_match_mismatch, intify=True)
     args.annotation_clustering_thresholds = utils.get_arg_list(args.annotation_clustering_thresholds, floatify=True)
     args.naive_hamming_bounds = utils.get_arg_list(args.naive_hamming_bounds, floatify=True)
+    if args.small_clusters_to_ignore is not None:
+        if '-' in args.small_clusters_to_ignore:
+            lo, hi = [int(cluster_size) for cluster_size in args.small_clusters_to_ignore.split('-')]
+            args.small_clusters_to_ignore = range(lo, hi + 1)
+        else:
+            args.small_clusters_to_ignore = utils.get_arg_list(args.small_clusters_to_ignore, intify=True)
     if args.seed_unique_id is not None:
         args.seed_unique_id = args.seed_unique_id.strip()  # protect against the space you may put in front of it if it's got an initial minus sign (better way is to use an equals sign)
         if args.queries is not None and args.seed_unique_id not in args.queries:
@@ -378,6 +384,8 @@ subargs['partition'].append({'name' : '--n-partitions-to-write', 'kwargs' : {'ty
 subargs['partition'].append({'name' : '--naive-swarm', 'kwargs' : {'action' : 'store_true', 'help' : 'Use swarm instead of vsearch, which the developer recommends. Didn\'t seem to help much, and needs more work to optimize threshold, so DO NOT USE.'}})
 subargs['partition'].append({'name' : '--dont-precache-naive-seqs', 'kwargs' : {'action' : 'store_true', 'help' : 'don\'t do a separate step beforehand to cache all the naive sequences'}})
 subargs['partition'].append({'name' : '--random-seed-seq', 'kwargs' : {'action' : 'store_true', 'help' : 'choose a sequence at random from the input sequences, and use it as a seed for seed partitioning'}})
+subargs['partition'].append({'name' : '--small-clusters-to-ignore', 'kwargs' : {'help' : 'colon-separated list (or dash-separated inclusive range) of cluster sizes to throw out after several partition steps. E.g. \'1:2\' will, after <--n-steps-at-which-to-ignore-small-clusters> partition steps, throw out all singletons and pairs. Alternatively, \'1-10\' will ignore all clusters with size less than 11.'}})
+subargs['partition'].append({'name' : '--n-steps-after-which-to-ignore-small-clusters', 'kwargs' : {'type' : int, 'default' : 3, 'help' : 'number of partition steps after which to throw out small clusters (where "small" is controlled by <--small-clusters-to-ignore>). (They\'re thrown out before this if we get to n_procs one before this).'}})
 
 subargs['simulate'].append({'name' : '--mutation-multiplier', 'kwargs' : {'type' : float, 'help' : 'Multiply observed branch lengths by some factor when simulating, e.g. if in data it was 0.05, but you want closer to ten percent in your simulation, set this to 2'}})
 subargs['simulate'].append({'name' : '--mimic-data-read-length', 'kwargs' : {'action' : 'store_true', 'help' : 'trim V 5\' and D 3\' to mimic read lengths seen in data'}})
@@ -416,8 +424,7 @@ for name, vals in subconfig.items():
 # ----------------------------------------------------------------------------------------
 # deprecation info
 if '--action' in sys.argv:
-    print '  NOTE we\'ve switched --action to a positional argument, so you can remove \'--action\' from your command line'
-    sys.argv.remove('--action')
+    raise Exception('--action is now a positional argument')
 
 args = parser.parse_args()
 

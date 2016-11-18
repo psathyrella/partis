@@ -55,8 +55,8 @@ class PartitionDriver(object):
         self.sw_info = None
         self.bcrham_proc_info = None
 
-        self.already_removed_unseeded_seqs = False  # can probably clean up so I only have one of these now
         self.unseeded_seqs = None  # all the queries that we *didn't* cluster with the seed uid
+        self.small_cluster_seqs = None  # all the queries that we removed after a few partition steps 'cause they were in small clusters
 
         self.all_new_allele_info = []
 
@@ -345,17 +345,14 @@ class PartitionDriver(object):
                 print 'true:'
                 true_cp.print_partitions(self.reco_info, print_header=False, calc_missing_values='best')
 
-        self.check_partition(cpath.partitions[cpath.i_best], other_clusters=self.unseeded_seqs)
+        self.check_partition(cpath.partitions[cpath.i_best])
         self.get_cluster_annotations(cpath.partitions[cpath.i_best])
         if self.args.outfname is not None:
             self.write_clusterpaths(self.args.outfname, cpath)  # [last agglomeration step]
 
     # ----------------------------------------------------------------------------------------
     def split_seeded_clusters(self, old_cpath):
-        partition = old_cpath.partitions[old_cpath.i_best_minus_x]
-        seeded_cluster_indices = [ic for ic in range(len(partition)) if self.args.seed_unique_id in partition[ic]]
-        seeded_clusters = [partition[ic] for ic in seeded_cluster_indices]
-        unseeded_clusters = [partition[ic] for ic in range(len(partition)) if ic not in seeded_cluster_indices]
+        seeded_clusters, unseeded_clusters = utils.split_partition_with_criterion(old_cpath.partitions[old_cpath.i_best_minus_x], lambda cluster: self.args.seed_unique_id in cluster)
         self.unseeded_seqs = [uid for uclust in unseeded_clusters for uid in uclust]  # they should actually all be singletons, since we shouldn't have merged anything that wasn't seeded
         if len(unseeded_clusters) != len(self.unseeded_seqs):
             print '%s unseeded clusters not all singletons' % utils.color('red', 'warning')
@@ -363,21 +360,30 @@ class PartitionDriver(object):
         seeded_singleton_set = set([uid for sclust in seeded_clusters for uid in sclust])  # in case there's duplicates
         seeded_singletons = [[uid, ] for uid in seeded_singleton_set]
         seeded_cpath.add_partition(seeded_singletons, -1., 1)
-        self.already_removed_unseeded_seqs = True
         print '      removing %d sequences in unseeded clusters, and splitting %d seeded clusters into %d singletons' % (len(self.unseeded_seqs), len(seeded_clusters), len(seeded_cpath.partitions[seeded_cpath.i_best_minus_x]))
 
         return seeded_cpath
 
     # ----------------------------------------------------------------------------------------
-    def scale_n_procs_for_new_n_seqs(self, initial_nseqs, initial_nprocs, new_n_seqs):
+    def remove_small_clusters(self, old_cpath):
+        big_clusters, small_clusters = utils.split_partition_with_criterion(old_cpath.partitions[old_cpath.i_best_minus_x], lambda cluster: len(cluster) not in self.args.small_clusters_to_ignore)
+        self.small_cluster_seqs = [sid for sclust in small_clusters for sid in sclust]
+        new_cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
+        new_cpath.add_partition(big_clusters, -1., 1)
+        print '      removing %d sequences in %d small clusters (with sizes among %s)' % (len(self.small_cluster_seqs), len(small_clusters), ' '.join([str(sz) for sz in self.args.small_clusters_to_ignore]))
+        return new_cpath
+
+    # ----------------------------------------------------------------------------------------
+    def scale_n_procs_for_new_n_clusters(self, initial_nseqs, initial_nprocs, cpath):
+        new_n_clusters = len(cpath.partitions[cpath.i_best_minus_x])  # when removing small clusters, this is the number of clusters, not the number of sequences, but it's maybe still ok
         int_initial_seqs_per_proc = max(1, int(float(initial_nseqs) / initial_nprocs))
-        new_n_procs = max(1, int(float(new_n_seqs) / int_initial_seqs_per_proc))
-        if new_n_seqs > 20:
+        new_n_procs = max(1, int(float(new_n_clusters) / int_initial_seqs_per_proc))
+        if new_n_clusters > 20:
             new_n_procs *= 3  # multiply by something 'cause we're turning off the seed uid for the last few times through
         if self.args.batch_system is None:
             new_n_procs = min(new_n_procs, multiprocessing.cpu_count())
         new_n_procs = min(new_n_procs, self.args.n_procs)  # don't let it be bigger than whatever was initially specified
-        print '        new n_procs %d (initial seqs/proc: %.2f   new seqs/proc: %.2f' % (new_n_procs, float(initial_nseqs) / initial_nprocs, float(new_n_seqs) / new_n_procs)
+        print '        new n_procs %d (initial seqs/proc: %.2f   new seqs/proc: %.2f' % (new_n_procs, float(initial_nseqs) / initial_nprocs, float(new_n_clusters) / new_n_procs)
         return new_n_procs
 
     # ----------------------------------------------------------------------------------------
@@ -395,12 +401,16 @@ class PartitionDriver(object):
         if reduce_n_procs:
             next_n_procs = int(next_n_procs / float(factor))
 
+        def time_to_remove_some_seqs(n_proc_threshold):
+            return len(n_proc_list) >= n_proc_threshold or next_n_procs == 1
+
         # time to remove unseeded clusters?
-        if self.args.seed_unique_id is not None:
-            if self.unseeded_seqs is None and (len(n_proc_list) > 2 or next_n_procs == 1):  # if we didn't already remove the unseeded clusters in a previous step
-                cpath = self.split_seeded_clusters(cpath)
-                n_remaining_seqs = len(cpath.partitions[cpath.i_best_minus_x])
-                next_n_procs = self.scale_n_procs_for_new_n_seqs(initial_nseqs, n_proc_list[0], n_remaining_seqs)
+        if self.args.seed_unique_id is not None and self.unseeded_seqs is None and time_to_remove_some_seqs(3):  # if we didn't already remove the unseeded clusters in a partition previous step
+            cpath = self.split_seeded_clusters(cpath)
+            next_n_procs = self.scale_n_procs_for_new_n_clusters(initial_nseqs, n_proc_list[0], cpath)
+        if self.args.small_clusters_to_ignore is not None and self.small_cluster_seqs is None and time_to_remove_some_seqs(self.args.n_steps_after_which_to_ignore_small_clusters):
+            cpath = self.remove_small_clusters(cpath)
+            next_n_procs = self.scale_n_procs_for_new_n_clusters(initial_nseqs, n_proc_list[0], cpath)
 
         return next_n_procs, cpath
 
@@ -427,7 +437,6 @@ class PartitionDriver(object):
         cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
         initial_nsets = [[q, ] for q in self.sw_info['queries']]
         cpath.add_partition(initial_nsets, logprob=0., n_procs=n_procs)  # NOTE sw info excludes failed sequences (and maybe also sequences with different cdr3 length)
-        assert self.unseeded_seqs == None
         n_proc_list = []
         start = time.time()
         while n_procs > 0:
@@ -442,12 +451,14 @@ class PartitionDriver(object):
         return cpath
 
     # ----------------------------------------------------------------------------------------
-    def check_partition(self, partition, other_clusters=None):
+    def check_partition(self, partition):
         uids = set([uid for cluster in partition for uid in cluster])
         input_ids = set(self.sw_info['queries'])  # note that this does not include queries that were removed in sw
         missing_ids = input_ids - uids
-        if other_clusters is not None:
-            missing_ids -= set(other_clusters)
+        if self.unseeded_seqs is not None:
+            missing_ids -= set(self.unseeded_seqs)
+        if self.small_cluster_seqs is not None:
+            missing_ids -= set(self.small_cluster_seqs)
         if len(missing_ids) > 0:
             warnstr = 'queries missing from partition: ' + str(len(missing_ids))
             print '  ' + utils.color('red', 'warning') + ' ' + warnstr
@@ -486,6 +497,8 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def get_cluster_annotations(self, partition):
+        if len(partition) == 0:
+            return
         action_cache = self.current_action
         self.current_action = 'run-viterbi'
         n_procs = min(self.args.n_procs, len(partition))  # we want as many procs as possible, since the large clusters can take a long time (depending on if we're translating...), but in general we treat <self.args.n_procs> as the maximum allowable number of processes
@@ -698,7 +711,7 @@ class PartitionDriver(object):
                 if n_procs == 1:  # if this is the last time through, with one process, we want glomerator.cc to calculate the total logprob of each partition NOTE this is quite expensive, since we have to turn off translation entirely
                     cmd_str += '  --write-logprob-for-each-partition'
 
-                if self.args.seed_unique_id is not None and not self.already_removed_unseeded_seqs:  # if we're in the last few cycles (i.e. we've removed unseeded clusters) we want bcrham to not know about the seed (this gives more accurate clustering 'cause we're really doing hierarchical agglomeration)
+                if self.args.seed_unique_id is not None and self.unseeded_seqs is None:  # if we're in the last few cycles (i.e. we've removed unseeded clusters) we want bcrham to not know about the seed (this gives more accurate clustering 'cause we're really doing hierarchical agglomeration)
                     cmd_str += ' --seed-unique-id ' + self.args.seed_unique_id
 
         assert len(utils.ambiguous_bases) == 1  # could allow more than one, but it's not implemented a.t.m.
@@ -859,7 +872,7 @@ class PartitionDriver(object):
     def split_input(self, n_procs, infname):
 
         # should we pull out the seeded clusters, and carefully re-inject them into each process?
-        separate_seeded_clusters = self.args.seed_unique_id is not None and not self.already_removed_unseeded_seqs
+        separate_seeded_clusters = self.args.seed_unique_id is not None and self.unseeded_seqs is None
 
         # read single input file
         info = []
@@ -1488,6 +1501,8 @@ class PartitionDriver(object):
             missing_input_keys = set(self.sw_info['queries'])  # all the queries for which we had decent sw annotations
             if self.unseeded_seqs is not None:
                 missing_input_keys -= set(self.unseeded_seqs)
+            if self.small_cluster_seqs is not None:
+                missing_input_keys -= set(self.small_cluster_seqs)
 
             for full_line in annotations.values():
                 outline = copy.deepcopy(full_line)  # in case we modify it
