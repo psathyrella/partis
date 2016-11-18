@@ -253,8 +253,8 @@ typedef struct {
 			double z = 1., x = drand48(); \
 			type_t tmp; \
 			while (x < z) z -= z * i / (pop--); \
-			// As described in ig_align these numbers are not close to their max in our
-			// application, so we don't lose anything casting a size_t to an int.
+			/* As described in ig_align these numbers are not close to their max in our */ \
+			/* application, so we don't lose anything casting a size_t to an int. */  \
 			if (k != (int)n - pop - 1) tmp = a[k], a[k] = a[n-pop-1], a[n-pop-1] = tmp; \
 			++k; \
 		} \
