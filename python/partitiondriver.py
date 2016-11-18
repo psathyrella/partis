@@ -351,6 +351,24 @@ class PartitionDriver(object):
             self.write_clusterpaths(self.args.outfname, cpath)  # [last agglomeration step]
 
     # ----------------------------------------------------------------------------------------
+    def split_seeded_clusters(self, old_cpath):
+        partition = old_cpath.partitions[old_cpath.i_best_minus_x]
+        seeded_cluster_indices = [ic for ic in range(len(partition)) if self.args.seed_unique_id in partition[ic]]
+        seeded_clusters = [partition[ic] for ic in seeded_cluster_indices]
+        unseeded_clusters = [partition[ic] for ic in range(len(partition)) if ic not in seeded_cluster_indices]
+        self.unseeded_seqs = [uid for uclust in unseeded_clusters for uid in uclust]  # they should actually all be singletons, since we shouldn't have merged anything that wasn't seeded
+        if len(unseeded_clusters) != len(self.unseeded_seqs):
+            print '%s unseeded clusters not all singletons' % utils.color('red', 'warning')
+        seeded_cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
+        seeded_singleton_set = set([uid for sclust in seeded_clusters for uid in sclust])  # in case there's duplicates
+        seeded_singletons = [[uid, ] for uid in seeded_singleton_set]
+        seeded_cpath.add_partition(seeded_singletons, -1., 1)
+        self.already_removed_unseeded_seqs = True
+        print '      removing %d sequences in unseeded clusters, and splitting %d seeded clusters into %d singletons' % (len(self.unseeded_seqs), len(seeded_clusters), len(seeded_cpath.partitions[seeded_cpath.i_best_minus_x]))
+
+        return seeded_cpath
+
+    # ----------------------------------------------------------------------------------------
     def get_next_n_procs_and_whatnot(self, n_proc_list, cpath, initial_nseqs):
         last_n_procs = n_proc_list[-1]
         next_n_procs = last_n_procs
@@ -368,21 +386,9 @@ class PartitionDriver(object):
         # time to remove unseeded clusters?
         if self.args.seed_unique_id is not None and (len(n_proc_list) > 2 or next_n_procs == 1):
             if self.unseeded_seqs is None:  # if we didn't already remove the unseeded clusters in a previous step
-                partition = cpath.partitions[cpath.i_best_minus_x]
-                seeded_cluster_indices = [ic for ic in range(len(partition)) if self.args.seed_unique_id in partition[ic]]
-                seeded_clusters = [partition[ic] for ic in seeded_cluster_indices]
-                unseeded_clusters = [partition[ic] for ic in range(len(partition)) if ic not in seeded_cluster_indices]
-                self.unseeded_seqs = [uid for uclust in unseeded_clusters for uid in uclust]  # they should actually all be singletons, since we shouldn't have merged anything that wasn't seeded
-                if len(unseeded_clusters) != len(self.unseeded_seqs):
-                    print '%s unseeded clusters not all singletons' % utils.color('red', 'warning')
-                cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
-                seeded_singleton_set = set([uid for sclust in seeded_clusters for uid in sclust])  # in case there's duplicates
-                seeded_singletons = [[uid, ] for uid in seeded_singleton_set]
-                cpath.add_partition(seeded_singletons, -1., 1)
-                n_remaining_seqs = len(cpath.partitions[cpath.i_best_minus_x])
-                self.already_removed_unseeded_seqs = True
-                print '      removing %d sequences in unseeded clusters, and splitting %d seeded clusters into %d singletons' % (len(self.unseeded_seqs), len(seeded_clusters), n_remaining_seqs)
+                cpath = self.split_seeded_clusters(cpath)
                 int_initial_seqs_per_proc = max(1, int(float(initial_nseqs) / n_proc_list[0]))
+                n_remaining_seqs = len(cpath.partitions[cpath.i_best_minus_x])
                 next_n_procs = max(1, int(float(n_remaining_seqs) / int_initial_seqs_per_proc))
                 if n_remaining_seqs > 20:
                     next_n_procs *= 3  # multiply by something 'cause we're turning off the seed uid for the last few times through
