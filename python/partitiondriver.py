@@ -369,6 +369,18 @@ class PartitionDriver(object):
         return seeded_cpath
 
     # ----------------------------------------------------------------------------------------
+    def scale_n_procs_for_new_n_seqs(self, initial_nseqs, initial_nprocs, new_n_seqs):
+        int_initial_seqs_per_proc = max(1, int(float(initial_nseqs) / initial_nprocs))
+        new_n_procs = max(1, int(float(new_n_seqs) / int_initial_seqs_per_proc))
+        if new_n_seqs > 20:
+            new_n_procs *= 3  # multiply by something 'cause we're turning off the seed uid for the last few times through
+        if self.args.batch_system is None:
+            new_n_procs = min(new_n_procs, multiprocessing.cpu_count())
+        new_n_procs = min(new_n_procs, self.args.n_procs)  # don't let it be bigger than whatever was initially specified
+        print '        new n_procs %d (initial seqs/proc: %.2f   new seqs/proc: %.2f' % (new_n_procs, float(initial_nseqs) / initial_nprocs, float(new_n_seqs) / new_n_procs)
+        return new_n_procs
+
+    # ----------------------------------------------------------------------------------------
     def get_next_n_procs_and_whatnot(self, n_proc_list, cpath, initial_nseqs):
         last_n_procs = n_proc_list[-1]
         next_n_procs = last_n_procs
@@ -384,18 +396,11 @@ class PartitionDriver(object):
             next_n_procs = int(next_n_procs / float(factor))
 
         # time to remove unseeded clusters?
-        if self.args.seed_unique_id is not None and (len(n_proc_list) > 2 or next_n_procs == 1):
-            if self.unseeded_seqs is None:  # if we didn't already remove the unseeded clusters in a previous step
+        if self.args.seed_unique_id is not None:
+            if self.unseeded_seqs is None and (len(n_proc_list) > 2 or next_n_procs == 1):  # if we didn't already remove the unseeded clusters in a previous step
                 cpath = self.split_seeded_clusters(cpath)
-                int_initial_seqs_per_proc = max(1, int(float(initial_nseqs) / n_proc_list[0]))
                 n_remaining_seqs = len(cpath.partitions[cpath.i_best_minus_x])
-                next_n_procs = max(1, int(float(n_remaining_seqs) / int_initial_seqs_per_proc))
-                if n_remaining_seqs > 20:
-                    next_n_procs *= 3  # multiply by something 'cause we're turning off the seed uid for the last few times through
-                if self.args.batch_system is None:
-                    next_n_procs = min(next_n_procs, multiprocessing.cpu_count())
-                next_n_procs = min(next_n_procs, self.args.n_procs)  # don't let it be bigger than whatever was initially specified
-                print '        new n_procs %d (initial seqs/proc: %.2f   new seqs/proc: %.2f' % (next_n_procs, float(initial_nseqs) / n_proc_list[0], float(n_remaining_seqs) / next_n_procs)
+                next_n_procs = self.scale_n_procs_for_new_n_seqs(initial_nseqs, n_proc_list[0], n_remaining_seqs)
 
         return next_n_procs, cpath
 
