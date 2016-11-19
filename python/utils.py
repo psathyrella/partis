@@ -811,18 +811,16 @@ def process_per_gene_support(line, debug=False):
         line[region + '_per_gene_support'] = support
 
 # ----------------------------------------------------------------------------------------
-def add_implicit_info(glfo, line, existing_implicit_keys=None, aligned_gl_seqs=None):
+def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False):  # should turn on <check_line_keys> for a bit if you change anything
     """ Add to <line> a bunch of things that are initially only implicit. """
 
-    # check for existing and unexpected keys
-    if existing_implicit_keys is not None:  # remove any existing implicit keys, keeping track of their values to make sure they're the same afterwards
-        pre_existing_info = {}
-        for ekey in existing_implicit_keys:
-            pre_existing_info[ekey] = copy.deepcopy(line[ekey])
-            del line[ekey]
-    initial_keys = set(line.keys())  # keep track of the keys that are in <line> to start with (so we know which ones we added)
-    if len(initial_keys - all_linekeys) > 0:  # make sure there aren't any extra keys to start with
-        raise Exception('unexpected keys %s' % ' '.join(initial_keys - all_linekeys))
+    if check_line_keys:
+        initial_keys = set(line)
+        # first make sure there aren't any unauthorized keys
+        if len(initial_keys - all_linekeys) > 0:
+            raise Exception('unexpected keys: \'%s\'' % '\' \''.join(initial_keys - all_linekeys))
+        # then keep track of the keys we got to start with
+        pre_existing_implicit_info = {ek : copy.deepcopy(line[ek]) for ek in implicit_linekeys if ek in line}
 
     # add the regional germline seqs and their lengths
     line['lengths'] = {}  # length of each match (including erosion)
@@ -887,22 +885,16 @@ def add_implicit_info(glfo, line, existing_implicit_keys=None, aligned_gl_seqs=N
     else:
         add_alignments(glfo, aligned_gl_seqs, line)
 
-    # make sure we added exactly what we expected to
-    new_keys = set(line.keys()) - initial_keys
-    if len(new_keys - implicit_linekeys) > 0 or len(implicit_linekeys - new_keys) > 0:
-        print ''
-        print '           new   %s' % ' '.join(sorted(new_keys))
-        print '      implicit   %s' % ' '.join(sorted(implicit_linekeys))
-        print 'new - implicit:  %s' % (' '.join(sorted(new_keys - implicit_linekeys)))
-        print 'implicit - new:  %s' % (' '.join(sorted(implicit_linekeys - new_keys)))
-        print ''
-        raise Exception('column/key problems (see above)')
-
-    # make sure that any pre-existing implicit info matches what we just added
-    if existing_implicit_keys is not None:
-        for ekey in existing_implicit_keys:
-            if pre_existing_info[ekey] != line[ekey]:
-                print '  WARNING pre-existing info\n    %s\n    doesn\'t match new info\n    %s\n    for %s in %s' % (pre_existing_info[ekey], line[ekey], ekey, line['unique_ids'])
+    if check_line_keys:
+        new_keys = set(line) - initial_keys
+        if len(new_keys - implicit_linekeys) > 0:
+            raise Exception('added new keys that aren\'t in implicit_linekeys: %s' % ' '.join(new_keys - implicit_linekeys))
+        for ikey in implicit_linekeys:  # make sure every key/value we added is either a) new or b) the same as it was before
+            if ikey in initial_keys:
+                if pre_existing_implicit_info[ikey] != line[ikey]:
+                    print '%s pre-existing info\n    %s\n    doesn\'t match new info\n    %s\n    for %s in %s' % (color('yellow', 'warning'), pre_existing_implicit_info[ikey], line[ikey], ikey, line['unique_ids'])
+            else:
+                assert ikey in new_keys  # only really checks the logic of the previous few lines
 
 # ----------------------------------------------------------------------------------------
 def print_true_events(glfo, reco_info, line, print_naive_seqs=False):

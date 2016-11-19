@@ -107,7 +107,7 @@ class Waterer(object):
                 assert len(line['unique_ids']) == 1
                 for region in utils.regions:  # uh... should do this more cleanly at some point
                     del line[region + '_per_gene_support']
-                utils.add_implicit_info(self.glfo, line, existing_implicit_keys=['cdr3_length', 'naive_seq', 'mut_freqs'] + utils.functional_columns + ['aligned_' + r + '_seqs' for r in utils.regions])
+                utils.add_implicit_info(self.glfo, line)
                 if line['indelfos'][0]['reversed_seq'] != '':
                     self.info['indels'][line['unique_ids'][0]] = line['indelfos'][0]
                 self.add_to_info(line)
@@ -866,7 +866,7 @@ class Waterer(object):
 
         infoline = self.convert_qinfo(qinfo, best, codon_positions)
         try:
-            utils.add_implicit_info(self.glfo, infoline, existing_implicit_keys=('cdr3_length', 'codon_positions'))
+            utils.add_implicit_info(self.glfo, infoline)
         except:
             if self.debug:
                 print '      implicit info adding failed for %s, rerunning' % qname
@@ -1209,7 +1209,7 @@ class Waterer(object):
                 swfo['regional_bounds'][region] = tuple([rb + padleft for rb in swfo['regional_bounds'][region]])  # I kind of want to just use a list now, but a.t.m. don't much feel like changing it everywhere else
             swfo['padlefts'] = [padleft, ]
             swfo['padrights'] = [padright, ]
-            utils.add_implicit_info(self.glfo, swfo, existing_implicit_keys=utils.implicit_linekeys)  # check to make sure we modified everything in a consistent manner
+            utils.add_implicit_info(self.glfo, swfo)  # check to make sure we modified everything in a consistent manner
 
             if debug:
                 print '      pad %d %d   %s' % (padleft, padright, query)
