@@ -174,6 +174,9 @@ class Waterer(object):
 
         # want to do this *before* we pad sequences, so that when we read the cache file we're reading unpadded sequences and can pad them below
         if cachefname is not None and not found_germline_changes:
+            if self.args.write_trimmed_and_padded_seqs_to_sw_cachefname:  # hackey workaround, shouldn't be used in general
+                self.pad_seqs_to_same_length()
+
             print '        writing sw results to %s' % cachefname
             glutils.write_glfo(cachefname.replace('.csv', '-glfo'), self.glfo)
             with open(cachefname, 'w') as outfile:

@@ -334,6 +334,7 @@ parent_parser.add_argument('--min-observations-to-write', type=int, default=20, 
 parent_parser.add_argument('--chain', default='h', choices=('h', 'k', 'l'), help='Are these heavy chain, or kappa or lambda light chain?')
 parent_parser.add_argument('--species', default='human', choices=('human', 'mouse'), help='Which species?')
 parent_parser.add_argument('--only-smith-waterman', action='store_true', help='Exit after finishing smith-waterman.')
+parent_parser.add_argument('--write-trimmed-and-padded-seqs-to-sw-cachefname', action='store_true', help='after running sw, trim and pad sequences *before* writing to the sw cache file (rather than after). Note that this will in some cases cause waterer.py to not be able to read sw results from this cache file.')
 parent_parser.add_argument('--initial-germline-dir', help='Directory with fastas from which to read germline set. Only used when caching parameters, during which its contents is copied into --parameter-dir, perhaps (i.e. if specified) with modification. NOTE default is set below, because control flow is too complicated for argparse')
 parent_parser.add_argument('--n-partition-subsets', type=int, help='compare the partitions of this many independent subsets, each of size <--n-max-queries>')
 # allele finding:
