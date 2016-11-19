@@ -146,6 +146,7 @@ Finds the Viterbi path (i.e., the most likely annotation/alignment) for each seq
 ```./bin/partis run-viterbi --infname test/example.fa --outfname _output/example.csv```
 
 The output csv headers are listed in the table below, and you can view a colored ascii representation of the rearrangement events with the `view-annotations` action.
+An example of how to parse this output csv (say, if you want to further process the results) is in `bin/example-output-processing.py`.
 
 |   column header        |  description
 |------------------------|----------------------------------------------------------------------------
@@ -193,6 +194,7 @@ Example invocation:
 
 The output csv file headers are listed in the table below, and you can view a colored ascii representation of the clusters with the `view-partitions` action.
 We write one line for the most likely partition (with the lowest logprob), as well as a number of lines for the surrounding less-likely partitions (set with `--n-partitions-to-write`)
+An example of how to parse this output csv (say, if you want to further process the results) is in `bin/example-output-processing.py`.
 
 |   column header  |  description
 |------------------|----------------------------------------------------------------------------

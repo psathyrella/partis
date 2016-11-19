@@ -126,10 +126,12 @@ class ClusterPath(object):
     def get_ccf_str(self, ip):
         ccf_str = ''
         if self.we_have_a_ccf:
-            if self.ccfs[ip][0] is None and self.ccfs[ip][1] is None:
-                ccf_str = '   -  -    '
-            else:
-                ccf_str = ' %5.2f %5.2f    ' % tuple(self.ccfs[ip])
+            ccf_str_list = [('%5s' % '-') if ccf is None else ('%5.2f' % ccf) for ccf in self.ccfs[ip]]
+            ccf_str = ' %s ' % ' '.join(ccf_str_list)
+            # if self.ccfs[ip][0] is None and self.ccfs[ip][1] is None:
+            #     ccf_str = '   -  -    '
+            # else:
+            #     ccf_str = ' %5.2f %5.2f    ' % tuple(self.ccfs[ip])
         else:  # TODO clean this up
             ccf_str = '   -  -    '
 
