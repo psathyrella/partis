@@ -130,17 +130,6 @@ class PartitionDriver(object):
             else:
                 raise Exception('--persistent-cachefname %s has unexpected header list %s' % (self.args.persistent_cachefname, reader.fieldnames))
 
-    # # ----------------------------------------------------------------------------------------
-    # def get_cachefname(self, write_parameters, diddle_with_glfo):
-    #     if self.args.sw_cachefname is not None:  # if --sw-cachefname was explicitly set, always use that
-    #         return self.args.sw_cachefname
-    #     elif write_parameters or diddle_with_glfo or os.path.exists(self.default_cachefname):  # otherwise, use the default cachefname if we're either writing parameters (in which case we want to write results to disk) or if the default already exists (in which case we want to read it)
-    #         if (write_parameters or diddle_with_glfo) and os.path.exists(self.default_cachefname):
-    #             print '  removing old sw cache file %s' % self.default_cachefname
-    #             os.remove(self.default_cachefname)
-    #         return self.default_cachefname
-    #     return None  # don't want to read or write sw cache files
-
     # ----------------------------------------------------------------------------------------
     def run_waterer(self, count_parameters=False, write_parameters=False, remove_less_likely_alleles=False, find_new_alleles=False, itry=None, write_cachefile=False, look_for_cachefile=False):
         print 'smith-waterman',
@@ -170,7 +159,6 @@ class PartitionDriver(object):
                           find_new_alleles=find_new_alleles,
                           plot_performance=(self.args.plot_performance and not remove_less_likely_alleles and not find_new_alleles),
                           simglfo=self.simglfo, itry=itry)
-        # cachefname = self.get_cachefname(write_parameters, diddle_with_glfo=find_new_alleles or remove_less_likely_alleles)
         cachefname = self.default_cachefname if self.args.sw_cachefname is None else self.args.sw_cachefname
         if not look_for_cachefile and os.path.exists(cachefname):  # i.e. if we're not explicitly told to look for it, and it's there, then it's probably out of date
             print '  removing old sw cache file %s' % cachefname
