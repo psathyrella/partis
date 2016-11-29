@@ -1465,11 +1465,16 @@ def split_key(key):
     return key.split('.')
 
 # ----------------------------------------------------------------------------------------
-def prep_dir(dirname, wildlings=None, subdirs=None):
+def prep_dir(dirname, wildlings=None, subdirs=None, fname=None, allow_other_files=False):
     """
     Make <dirname> if it d.n.e.
     Also, if shell glob <wildling> is specified, remove existing files which are thereby matched.
     """
+    if fname is not None:
+        assert dirname is None
+        dirname = os.path.dirname(fname)
+        if dirname[0] != '/':
+            dirname = os.getcwd() + '/' + dirname
 
     if wildlings is None:
         wildlings = []
@@ -1485,7 +1490,7 @@ def prep_dir(dirname, wildlings=None, subdirs=None):
             for fname in glob.glob(dirname + '/' + wild):
                 os.remove(fname)
         remaining_files = [fn for fn in os.listdir(dirname) if subdirs is not None and fn not in subdirs]
-        if len(remaining_files) > 0:  # make sure there's no other files in the dir
+        if len(remaining_files) > 0 and not allow_other_files:  # make sure there's no other files in the dir
             raise Exception('files (%s) remain in %s despite wildlings %s' % (' '.join(['\'' + fn + '\'' for fn in remaining_files]), dirname, wildlings))
     else:
         os.makedirs(dirname)

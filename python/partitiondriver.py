@@ -70,9 +70,7 @@ class PartitionDriver(object):
         self.annotation_fname = self.hmm_outfname.replace('.csv', '_annotations.csv')
 
         if self.args.outfname is not None:
-            outdir = os.path.dirname(self.args.outfname)
-            if outdir != '' and not os.path.exists(outdir):
-                os.makedirs(outdir)
+            utils.prep_dir(dirname=None, fname=self.args.outfname, allow_other_files=True)
 
         self.deal_with_persistent_cachefile()
 
@@ -306,7 +304,11 @@ class PartitionDriver(object):
         """ Partition sequences in <self.input_info> into clonally related lineages """
         print 'partitioning'
         self.run_waterer(look_for_cachefile=True)  # run smith-waterman
-        if self.args.only_smith_waterman or len(self.sw_info['queries']) == 0:
+        if len(self.sw_info['queries']) == 0:
+            if self.args.outfname is not None:
+                check_call(['touch', self.args.outfname])
+            return
+        if self.args.only_smith_waterman:
             return
 
         print 'hmm'
