@@ -163,11 +163,15 @@ class Waterer(object):
                 found_germline_changes = True
 
         if self.args.seed_unique_id is not None:  # TODO I should really get the seed cdr3 length before running anything, and then not add seqs with different cdr3 length to start with, so those other sequences' gene matches don't get mixed in
-            initial_n_queries = len(self.info['queries'])
-            seed_cdr3_length = self.info[self.args.seed_unique_id]['cdr3_length']  # NOTE should probably remove this now that it's in waterer
+            if self.args.seed_unique_id in self.info['queries']:
+                seed_cdr3_length = self.info[self.args.seed_unique_id]['cdr3_length']
+            else:  # if it failed
+                print '    seed unique id \'%s\' not in final s-w queries, so removing all queries' % self.args.seed_unique_id
+                seed_cdr3_length = -1
             for query in copy.deepcopy(self.info['queries']):
                 if self.info[query]['cdr3_length'] != seed_cdr3_length:
                     self.remove_query(query)
+            initial_n_queries = len(self.info['queries'])
             n_removed = initial_n_queries - len(self.info['queries'])
             if n_removed > 0:
                 print '      removed %d / %d = %.2f sequences with cdr3 length different from seed sequence (leaving %d)' % (n_removed, initial_n_queries, float(n_removed) / initial_n_queries, len(self.info['queries']))
