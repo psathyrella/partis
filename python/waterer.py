@@ -168,10 +168,10 @@ class Waterer(object):
             else:  # if it failed
                 print '    seed unique id \'%s\' not in final s-w queries, so removing all queries' % self.args.seed_unique_id
                 seed_cdr3_length = -1
+            initial_n_queries = len(self.info['queries'])
             for query in copy.deepcopy(self.info['queries']):
                 if self.info[query]['cdr3_length'] != seed_cdr3_length:
                     self.remove_query(query)
-            initial_n_queries = len(self.info['queries'])
             n_removed = initial_n_queries - len(self.info['queries'])
             if n_removed > 0:
                 print '      removed %d / %d = %.2f sequences with cdr3 length different from seed sequence (leaving %d)' % (n_removed, initial_n_queries, float(n_removed) / initial_n_queries, len(self.info['queries']))

@@ -101,6 +101,11 @@ class ClusterPath(object):
                 raise Exception('path index in lines %d doesn\'t match my initial path index %d' % (int(line['path_index']), self.initial_path_index))
             if 'partition' not in line:
                 raise Exception('\'partition\' not among headers, maybe this isn\'t a partition file?')
+            if 'seed_unique_id' in line and line['seed_unique_id'] != '':
+                if self.seed_unique_id is None:
+                    self.seed_unique_id = line['seed_unique_id']
+                if line['seed_unique_id'] != self.seed_unique_id:
+                    print '%s seed uids for each line not all the same %s %s' % (utils.color('yellow', 'warning'), line['seed_unique_id'], self.seed_unique_id)
             partitionstr = line['partition']
             partition = [cluster_str.split(':') for cluster_str in partitionstr.split(';')]
             ccfs = [None, None]
