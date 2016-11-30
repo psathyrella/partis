@@ -1473,8 +1473,8 @@ def prep_dir(dirname, wildlings=None, subdirs=None, fname=None, allow_other_file
     if fname is not None:
         assert dirname is None
         dirname = os.path.dirname(fname)
-        if dirname[0] != '/':
-            dirname = os.getcwd() + '/' + dirname
+        if dirname == '' or dirname[0] != '/':
+            dirname = '/'.join([pn for pn in [os.getcwd(), dirname] if pn != ''])
 
     if wildlings is None:
         wildlings = []
