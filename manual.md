@@ -156,7 +156,7 @@ An example of how to parse this output csv (say, if you want to further process 
 | j_gene         |  J gene in most likely annotation
 | cdr3_length    |  CDR3 length of most likely annotation (IMGT scheme, i.e. including both codons in their entirety)
 | mut_freqs      |  colon-separated list of sequence mutation frequencies (of length 1 if multi-hmm isn't used)
-| seqs           |  colon-separated list of input sequences (of length 1 if multi-hmm isn't used)
+| seqs           |  colon-separated list of query sequences (of length 1 if multi-hmm isn't used), with indels reversed (i.e. such that germline sequences align properly)
 | naive_seq      |  naive (unmutated ancestor) sequence corresponding to most likely annotation
 | v_3p_del       |  length of V 3' deletion in most likely annotation
 | d_5p_del       |  length of D 5' deletion in most likely annotation
@@ -179,7 +179,7 @@ An example of how to parse this output csv (say, if you want to further process 
 | aligned_d_seqs     |  do not use. will soon be removed (see issue #179)
 | aligned_j_seqs     |  do not use. will soon be removed (see issue #179)
 
-Note that `utils.process_input_line()` and `utils.get_line_for_output()` can be used to automate input/output.
+Note that `utils.process_input_line()` and `utils.get_line_for_output()` can be used to automate input/output (see for example `bin/example-output-processing.py`).
 
 Annotation with `run-viterbi` is the algorithm of choice for annotating sequences where the clonal relationship is different i.e. no sequence in the dataset are from the same germinal center, and therefore are not related by having the same naive sequence. Examples of such datasets could be pooled datasets with BCR sequences from many individuals, where clonal relationship cannot be present.
 
