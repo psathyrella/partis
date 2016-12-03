@@ -799,7 +799,18 @@ def add_qr_seqs(line):
         line[region + '_qr_seqs'] = [get_single_qr_seq(region, seq) for seq in line['seqs']]
 
 # ----------------------------------------------------------------------------------------
-def is_functional(line, debug=False):
+def is_functional_dbg_str(line):
+    dbg_str_list = []
+    if True in line['mutated_invariants']:
+        dbg_str_list.append('mutated invariant codon')
+    if False in line['in_frames']:
+        dbg_str_list.append('out of frame cdr3')
+    if True in line['stops']:
+        dbg_str_list.append('stop codon')
+    return ','.join(dbg_str_list)
+
+# ----------------------------------------------------------------------------------------
+def is_functional(line):
     if True in line['mutated_invariants']:
         return False
     if False in line['in_frames']:

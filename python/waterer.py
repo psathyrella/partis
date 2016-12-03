@@ -845,6 +845,7 @@ class Waterer(object):
             queries_to_rerun['invalid-codon'].add(qname)
             return
 
+        # convert to regular format used elsewhere, and add implicit info
         infoline = self.convert_qinfo(qinfo, best, codon_positions)
         try:
             utils.add_implicit_info(self.glfo, infoline)
@@ -854,19 +855,16 @@ class Waterer(object):
             queries_to_rerun['weird-annot.'].add(qname)
             return
 
-        # check for unproductive rearrangements
-        codons_ok = utils.both_codons_ok(self.args.chain, qseq, codon_positions)
-        in_frame_cdr3 = (cdr3_length % 3 == 0)
-        stop_codon = utils.is_there_a_stop_codon(qseq, fv_insertion=qseq[ : qinfo['qrbounds'][best['v']][0]], jf_insertion=qseq[qinfo['qrbounds'][best['j']][1] : ], cyst_position=codon_positions['v'])
-        if not codons_ok or not in_frame_cdr3 or stop_codon:
-            if self.nth_try < 2 and (not codons_ok or not in_frame_cdr3):  # rerun with higher mismatch score (sometimes unproductiveness is the result of a really screwed up annotation rather than an actual unproductive sequence). Note that stop codons aren't really indicative of screwed up annotations, so they don't count.
+        # deal with unproductive rearrangements
+        if not utils.is_functional(infoline):
+            if self.nth_try < 2 and (infoline['mutated_invariants'][0] or not infoline['in_frames'][0]):  # rerun with higher mismatch score (sometimes unproductiveness is the result of a really screwed up annotation rather than an actual unproductive sequence). Note that stop codons aren't really indicative of screwed up annotations, so they don't count.
                 if self.debug:
-                    print '            ...rerunning'
+                    print '            rerunning unproductive (%s)' % utils.is_functional_dbg_str(infoline)
                 queries_to_rerun['unproductive'].add(qname)
                 return
             elif self.args.skip_unproductive:
                 if self.debug:
-                    print '            ...skipping'
+                    print '            skipping unproductive (%s)' % utils.is_functional_dbg_str(infoline)
                 self.skipped_unproductive_queries.add(qname)
                 self.remaining_queries.remove(qname)
                 return
