@@ -337,8 +337,8 @@ class Waterer(object):
             raise Exception('didn\'t read %s from %s' % (':'.join(not_read), self.args.workdir))
 
         if self.nth_try == 1:
-            print '        processed       remaining      new-indels          rerun: ' + '      '.join([reason for reason in queries_to_rerun])
-        print '      %8d' % len(queries_read_from_file),
+            print '  %4s  processed       remaining      new-indels          rerun: %s' % ('summary:' if self.debug else '', '      '.join([reason for reason in queries_to_rerun]))
+        print '  %4s%8d' % ('summary:' if self.debug else '', len(queries_read_from_file)),
         if len(self.remaining_queries) > 0:
             printstr = '       %8d' % len(self.remaining_queries)
             printstr += '       %8d' % self.new_indels
@@ -421,8 +421,7 @@ class Waterer(object):
             iqr += 1
             igl += 1
 
-        dbg_str_list = ['      indels in %s' % query_name,
-                        '          %20s %s' % (gene, glprintstr),
+        dbg_str_list = ['          %20s %s' % (gene, glprintstr),
                         '          %20s %s' % ('query', qrprintstr)]
         for idl in indelfo['indels']:
             dbg_str_list.append('          %10s: %d bases at %d (%s)' % (idl['type'], idl['len'], idl['pos'], idl['seqstr']))
@@ -519,7 +518,7 @@ class Waterer(object):
         vj_mute_freq = utils.hamming_fraction(''.join(gl_seqs), ''.join(qr_seqs))
         if vj_mute_freq > self.args.max_vj_mut_freq:
             if self.debug:
-                print '      super high vj mutation (%.3f > %.3f)' % (vj_mute_freq, self.args.max_vj_mut_freq)
+                print '      rerun: super high vj mutation (%.3f > %.3f)' % (vj_mute_freq, self.args.max_vj_mut_freq)
             return True
         else:
             return False
@@ -726,9 +725,9 @@ class Waterer(object):
         #     self.check_simulation_kbounds(self.info[qname], self.reco_info[qname])
 
         if self.debug:
-            inf_label = ''
+            inf_label = '      ' + utils.kbound_str({r : infoline['k_' + r] for r in ['v', 'd']})
             if not self.args.is_data:
-                inf_label = 'inferred:'
+                inf_label = 'inferred: ' + inf_label
                 utils.print_reco_event(self.glfo['seqs'], self.reco_info[qname], extra_str='      ', label='true:')
             utils.print_reco_event(self.glfo['seqs'], self.info[qname], extra_str='      ', label=inf_label)
 
@@ -762,7 +761,7 @@ class Waterer(object):
         for region in utils.getregions(self.args.chain):
             if len(qinfo['matches'][region]) == 0:
                 if self.debug:
-                    print '      no', region, 'match found for', qname  # TODO if no d match found, we should really just assume entire d was eroded
+                    print '      rerun: no %s match' % region  # if no d match found, maybe we should just assume entire d was eroded?
                 queries_to_rerun['no-match'].add(qname)
                 return
 
@@ -771,13 +770,13 @@ class Waterer(object):
         if len(qinfo['new_indels']) > 0:  # if any of the best matches had new indels this time through (in practice: only v or j best matches)
             if self.nth_try < 2:
                 if self.debug:
-                    print 's-w called some indels, but we don\'t allow them first try (rerun with different match/mismatch)'
+                    print '      rerun: first-try indels'
                 queries_to_rerun['indel-fails'].add(qname)
                 return
 
             if qname in self.info['indels']:
                 if self.debug:
-                    print '      s-w called indels after already calling some before -- but we don\'t allow multiple cycles'
+                    print '      rerun: s-w called indels after already calling some before -- but we don\'t allow multiple cycles'
                 queries_to_rerun['indel-fails'].add(qname)
                 return
 
@@ -787,7 +786,7 @@ class Waterer(object):
                 self.info['indels'][qinfo['name']]['reversed_seq'] = qinfo['new_indels'][region]['reversed_seq']
                 self.new_indels += 1
                 if self.debug:
-                    print self.info['indels'][qinfo['name']]['dbg_str']
+                    print '      rerun: new indels\n%s' % self.info['indels'][qinfo['name']]['dbg_str']
                 return
 
             print '%s fell through indel block for %s' % (utils.color('red', 'warning'), qname)
@@ -841,7 +840,7 @@ class Waterer(object):
         cdr3_length = codon_positions['j'] - codon_positions['v'] + 3
         if cdr3_length < 6:  # NOTE six is also hardcoded in utils
             if self.debug:
-                print '      negative cdr3 length %d' % (cdr3_length)
+                print '      rerun: negative cdr3 length %d' % (cdr3_length)
             queries_to_rerun['invalid-codon'].add(qname)
             return
 
@@ -851,7 +850,7 @@ class Waterer(object):
             utils.add_implicit_info(self.glfo, infoline)
         except:
             if self.debug:
-                print '      implicit info adding failed for %s, rerunning' % qname
+                print '      rerun: implicit info adding failed for %s, rerunning' % qname
             queries_to_rerun['weird-annot.'].add(qname)
             return
 
@@ -859,12 +858,12 @@ class Waterer(object):
         if not utils.is_functional(infoline):
             if self.nth_try < 2 and (infoline['mutated_invariants'][0] or not infoline['in_frames'][0]):  # rerun with higher mismatch score (sometimes unproductiveness is the result of a really screwed up annotation rather than an actual unproductive sequence). Note that stop codons aren't really indicative of screwed up annotations, so they don't count.
                 if self.debug:
-                    print '            rerunning unproductive (%s)' % utils.is_functional_dbg_str(infoline)
+                    print '      rerun: %s' % utils.is_functional_dbg_str(infoline)
                 queries_to_rerun['unproductive'].add(qname)
                 return
             elif self.args.skip_unproductive:
                 if self.debug:
-                    print '            skipping unproductive (%s)' % utils.is_functional_dbg_str(infoline)
+                    print '      skipping unproductive (%s)' % utils.is_functional_dbg_str(infoline)
                 self.skipped_unproductive_queries.add(qname)
                 self.remaining_queries.remove(qname)
                 return
@@ -874,7 +873,7 @@ class Waterer(object):
         kbounds = self.get_kbounds(infoline, qinfo, best, codon_positions)  # gets the boundaries of the non-best matches from <qinfo>
         if kbounds is None:
             if self.debug:
-                print '      nonsense kbounds for %s, rerunning' % qname
+                print '      rerun: nonsense kbounds for %s, rerunning' % qname
             queries_to_rerun['weird-annot.'].add(qname)
             return
         infoline['k_v'] = kbounds['v']
@@ -1034,8 +1033,6 @@ class Waterer(object):
 
         kbounds = {'v' : {'best' : best_k_v, 'min' : k_v_min, 'max' : k_v_max},
                    'd' : {'best' : best_k_d, 'min' : k_d_min, 'max' : k_d_max}}
-        if self.debug:
-            print '    %s' % utils.kbound_str(kbounds)
         return kbounds
 
     # ----------------------------------------------------------------------------------------

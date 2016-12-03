@@ -807,7 +807,7 @@ def is_functional_dbg_str(line):
         dbg_str_list.append('out of frame cdr3')
     if True in line['stops']:
         dbg_str_list.append('stop codon')
-    return ','.join(dbg_str_list)
+    return ', '.join(dbg_str_list)
 
 # ----------------------------------------------------------------------------------------
 def is_functional(line):
