@@ -1081,7 +1081,6 @@ class Waterer(object):
     # ----------------------------------------------------------------------------------------
     def remove_duplicate_sequences(self, debug=False):
         def getseq(uid):
-            # return self.info[uid]['seqs'][0]  # reminder: these are query sequences with indels reversed
             return_seq = utils.get_seq_with_indels_reinstated(self.info[uid])
             # if return_seq not in self.input_info[uid]['seqs'][0]:
             #     print '%s reinstated seq not in input sequence:\n    %s\n    %s' % (utils.color('yellow', 'warning'), reinstated_seq, self.input_info[uid]['seqs'][0])
