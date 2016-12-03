@@ -846,6 +846,13 @@ class Waterer(object):
             return
 
         infoline = self.convert_qinfo(qinfo, best, codon_positions)
+        try:
+            utils.add_implicit_info(self.glfo, infoline)
+        except:
+            if self.debug:
+                print '      implicit info adding failed for %s, rerunning' % qname
+            queries_to_rerun['weird-annot.'].add(qname)
+            return
 
         # check for unproductive rearrangements
         codons_ok = utils.both_codons_ok(self.args.chain, qseq, codon_positions)
@@ -865,14 +872,6 @@ class Waterer(object):
                 return
             else:
                 pass  # this is here so you don't forget that if neither of the above is true, we fall through and add the query to self.info
-
-        try:
-            utils.add_implicit_info(self.glfo, infoline)
-        except:
-            if self.debug:
-                print '      implicit info adding failed for %s, rerunning' % qname
-            queries_to_rerun['weird-annot.'].add(qname)
-            return
 
         kbounds = self.get_kbounds(infoline, qinfo, best, codon_positions)  # gets the boundaries of the non-best matches from <qinfo>
         if kbounds is None:
