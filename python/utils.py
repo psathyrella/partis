@@ -180,9 +180,49 @@ column_configs = {
     'floats' : ['logprob', 'mut_freqs'],
     'bools' : functional_columns,
     'literals' : ['indelfo', 'indelfos', 'k_v', 'k_d', 'all_matches'],  # simulation has indelfo[s] singular, annotation output has it plural... and I think it actually makes sense to have it that way
-    'lists' : ['unique_ids', 'seqs', 'aligned_seqs', 'mut_freqs', 'padlefts', 'padrights'] + ['aligned_' + r + '_seqs' for r in regions] + [r + '_per_gene_support' for r in regions] + functional_columns,
-    'lists-of-string-float-pairs' : [r + '_per_gene_support' for r in regions]
+    'lists' : ['unique_ids', 'seqs', 'aligned_seqs', 'mut_freqs', 'padlefts', 'padrights'] + ['aligned_' + r + '_seqs' for r in regions] + functional_columns,
+    'lists-of-lists' : ['duplicates'] + [r + '_per_gene_support' for r in regions]
 }
+
+# ----------------------------------------------------------------------------------------
+def useful_bool(bool_str):
+    if bool_str == 'True':
+        return True
+    elif bool_str == 'False':
+        return False
+    elif bool_str == '1':
+        return True
+    elif bool_str == '0':
+        return False
+    else:
+        raise Exception('couldn\'t convert \'%s\' to bool' % bool_str)
+
+# ----------------------------------------------------------------------------------------
+def get_str_float_pair_dict(strlist):
+    def getpair(pairstr):
+        pairlist = pairstr.split(':')
+        assert len(pairlist) == 2
+        return (pairlist[0], float(pairlist[1]))
+    return OrderedDict(getpair(pairstr) for pairstr in strlist)
+
+# ----------------------------------------------------------------------------------------
+def get_list_of_str_list(strlist):
+    if strlist == '':
+        return []
+    return [substr.split(':') for substr in strlist]
+
+conversion_fcns = {}
+for key in column_configs['ints']:
+    conversion_fcns[key] = int
+for key in column_configs['floats']:
+    conversion_fcns[key] = float
+for key in column_configs['bools']:
+    conversion_fcns[key] = useful_bool
+for key in column_configs['literals']:
+    conversion_fcns[key] = ast.literal_eval
+for region in regions:
+    conversion_fcns[region + '_per_gene_support'] = get_str_float_pair_dict
+conversion_fcns['duplicates'] = get_list_of_str_list
 
 # keep track of all the *@*@$!ing different keys that happen in the <line>/<hmminfo>/whatever dictionaries
 linekeys = {}
@@ -192,12 +232,12 @@ linekeys['per_family'] = ['naive_seq', 'cdr3_length', 'codon_positions', 'length
                          [b + '_insertion' for b in boundaries + effective_boundaries] + \
                          [r + '_gl_seq' for r in regions] + \
                          [r + '_per_gene_support' for r in regions]
-linekeys['per_seq'] = ['seqs', 'unique_ids', 'indelfos', 'mut_freqs'] + \
+linekeys['per_seq'] = ['seqs', 'unique_ids', 'indelfos', 'mut_freqs', 'duplicates'] + \
                       [r + '_qr_seqs' for r in regions] + \
                       ['aligned_' + r + '_seqs' for r in regions] + \
                       functional_columns
 linekeys['hmm'] = ['logprob', 'errors']
-linekeys['sw'] = ['k_v', 'k_d', 'all_matches', 'padlefts', 'padrights']
+linekeys['sw'] = ['k_v', 'k_d', 'all_matches', 'padlefts', 'padrights', 'duplicates']
 linekeys['extra'] = ['invalid', ]
 linekeys['simu'] = ['reco_id', ]
 all_linekeys = set([k for cols in linekeys.values() for k in cols])
@@ -208,7 +248,7 @@ implicit_linekeys = set(['naive_seq', 'cdr3_length', 'codon_positions', 'lengths
                        ['mut_freqs', ] + functional_columns + [r + '_qr_seqs' for r in regions] + ['aligned_' + r + '_seqs' for r in regions])
 
 # ----------------------------------------------------------------------------------------
-annotation_headers = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'mut_freqs', 'seqs', 'naive_seq', 'indelfos'] \
+annotation_headers = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'mut_freqs', 'seqs', 'naive_seq', 'indelfos', 'duplicates'] \
                      + ['aligned_' + r + '_seqs' for r in regions] \
                      + [r + '_per_gene_support' for r in regions] \
                      + [e + '_del' for e in real_erosions + effective_erosions] + [b + '_insertion' for b in boundaries + effective_boundaries] \
@@ -1496,19 +1536,6 @@ def prep_dir(dirname, wildlings=None, subdirs=None, fname=None, allow_other_file
         os.makedirs(dirname)
 
 # ----------------------------------------------------------------------------------------
-def useful_bool(bool_str):
-    if bool_str == 'True':
-        return True
-    elif bool_str == 'False':
-        return False
-    elif bool_str == '1':
-        return True
-    elif bool_str == '0':
-        return False
-    else:
-        raise Exception('couldn\'t convert \'%s\' to bool' % bool_str)
-
-# ----------------------------------------------------------------------------------------
 def process_input_line(info):
     """
     Attempt to convert all the keys and values in <info> according to the specifications in <column_configs> (e.g. splitting lists, casting to int/float, etc).
@@ -1517,38 +1544,24 @@ def process_input_line(info):
     ccfg = column_configs  # shorten the name a bit
 
     for key in info:
-        if key is None:
-            raise Exception('none type key')
         if info[key] == '':
-            if key in ccfg['lists']:
-                info[key] = ['', ]
             continue
 
-        convert_fcn = pass_fcn  # dummy fcn, just returns the argument
-        if key in ccfg['ints']:
-            convert_fcn = int
-        elif key in ccfg['floats']:
-            convert_fcn = float
-        elif key in ccfg['bools']:
-            convert_fcn = useful_bool
-        elif key in ccfg['literals']:
-            convert_fcn = ast.literal_eval
-
+        convert_fcn = conversion_fcns.get(key, pass_fcn)
         if key in ccfg['lists']:
-            if key in ccfg['lists-of-string-float-pairs']:  # ok, that's getting a little hackey
-
-                def splitstrpair(pairstr):
-                    pairlist = pairstr.split(':')
-                    if len(pairlist) != 2:
-                        raise Exception('couldn\'t split %s into two pieces with \':\'' % (pairstr))
-                    return (pairlist[0], float(pairlist[1]))
-
-                info[key] = [convert_fcn(val) for val in info[key].split(';')]
-                info[key] = OrderedDict(splitstrpair(pairstr) for pairstr in info[key])
-            else:
-                info[key] = [convert_fcn(val) for val in info[key].split(':')]
+            info[key] = [convert_fcn(val) for val in info[key].split(':')]
+        elif key in ccfg['lists-of-lists']:
+            info[key] = convert_fcn(info[key].split(';'))
         else:
             info[key] = convert_fcn(info[key])
+
+    for key in info:
+        if info[key] != '':
+            continue
+        if key in ccfg['lists']:
+            info[key] = ['' for _ in range(len(info['unique_ids']))]
+        elif key in ccfg['lists-of-lists']:
+            info[key] = [[] for _ in range(len(info['unique_ids']))]
 
 # ----------------------------------------------------------------------------------------
 def get_line_for_output(info):
@@ -1559,10 +1572,14 @@ def get_line_for_output(info):
         if key in column_configs['floats']:
             str_fcn = repr  # keeps it from losing precision (we only care because we want it to match expectation if we read it back in)
         if key in column_configs['lists']:
-            if key in column_configs['lists-of-string-float-pairs']:  # ok, that's getting a little hackey
-                outfo[key] = ';'.join([k + ':' + str_fcn(v) for k, v in info[key].items()])
-            else:
-                outfo[key] = ':'.join([str_fcn(v) for v in info[key]])
+            outfo[key] = ':'.join([str_fcn(v) for v in info[key]])
+        elif key in column_configs['lists-of-lists']:
+            outfo[key] = copy.deepcopy(info[key])
+            if '_per_gene_support' in key:
+                outfo[key] = outfo[key].items()
+            for isl in range(len(outfo[key])):
+                outfo[key][isl] = ':'.join([str_fcn(s) for s in outfo[key][isl]])
+            outfo[key] = ';'.join(outfo[key])
         else:
             outfo[key] = str_fcn(info[key])
     return outfo
@@ -2157,6 +2174,10 @@ def subset_files(uids, fnames, outdir, uid_header='Sequence ID', delimiter='\t',
                 for line in reader:
                     if line[uid_header] in uids:
                         writer.writerow(line)
+
+# ----------------------------------------------------------------------------------------
+def get_seq_with_indels_reinstated(line):  # reverse the action of indel reversion
+    pass
 
 # ----------------------------------------------------------------------------------------
 def add_indels_to_germline_strings(line, indelfo):

@@ -46,6 +46,7 @@ class Waterer(object):
         self.info['all_best_matches'] = set()  # every gene that was a best match for at least one query
         self.info['all_matches'] = {r : set() for r in utils.regions}  # every gene that was *any* match (up to <self.args.n_max_per_region[ireg]>) for at least one query NOTE there is also an 'all_matches' in each query's info
         self.info['indels'] = {}  # NOTE if we find shm indels in a sequence, we store the indel info in here, and rerun sw with the reversed sequence (i.e. <self.info> contains the sw inference on the reversed sequence -- if you want the original sequence, get that from <self.input_info>)
+        self.info['duplicates'] = {}
         self.info['mute-freqs'] = None  # kind of hackey... but it's to allow us to keep this info around when we don't want to keep the whole waterer object around, and we don't want to write all the parameters to disk
 
         self.nth_try = 1
@@ -110,6 +111,8 @@ class Waterer(object):
                 utils.add_implicit_info(self.glfo, line)
                 if line['indelfos'][0]['reversed_seq'] != '':
                     self.info['indels'][line['unique_ids'][0]] = line['indelfos'][0]
+                if len(line['duplicates'][0]) > 0:
+                    self.info['duplicates'][line['unique_ids'][0]] = line['duplicates'][0]
                 self.add_to_info(line)
 
         self.finalize(cachefname=None, just_read_cachefile=True)
@@ -680,6 +683,7 @@ class Waterer(object):
         infoline['jf_insertion'] = qinfo['seq'][qinfo['qrbounds'][best['j']][1] : ]
 
         infoline['indelfos'] = [self.info['indels'].get(qname, utils.get_empty_indel()), ]
+        infoline['duplicates'] = [self.info['duplicates'].get(qname, []), ]
 
         infoline['all_matches'] = {r : [g for _, g in qinfo['matches'][r]] for r in utils.regions}  # get lists with no scores, just the names (still ordered by match quality, though)
         for region in utils.regions:
@@ -1098,25 +1102,33 @@ class Waterer(object):
         if self.args.queries is not None:
             uids_to_pre_keep |= set(self.args.queries)
 
-        seqs_to_keep = set()
+        seqs_to_keep = {}  # seq : [uids that correspond to seq]
         for utpk in uids_to_pre_keep:
             if utpk not in self.info:
                 print 'requested uid %s not in sw info (probably failed above)' % utpk
                 continue
             assert len(self.info[utpk]['seqs']) == 1
-            seqs_to_keep.add(self.info[utpk]['seqs'][0])
+            seq = self.info[utpk]['seqs'][0]  # reminder: these are query sequences with indels reversed
+            if seq not in seqs_to_keep:  # NOTE it's kind of weird to have more than one uid for a sequence, but it probably just means the user specified some duplicate sequences with --queries
+                seqs_to_keep[seq] = []
+            seqs_to_keep[seq].append(utpk)
 
         n_kept, n_removed = len(uids_to_pre_keep), 0
         for query in copy.deepcopy(self.info['queries']):
             if query in uids_to_pre_keep:  # already added it
                 continue
-            seq = self.info[query]['seqs'][0]
+            seq = self.info[query]['seqs'][0]  # input sequence with indels reversed
             if seq in seqs_to_keep:
+                seqs_to_keep[seq].append(query)
                 self.remove_query(query)
                 n_removed += 1
             else:
-                seqs_to_keep.add(seq)
+                seqs_to_keep[seq] = [query]
                 n_kept += 1
+
+        for seq, uids in seqs_to_keep.items():
+            assert uids[0] in self.info  # should've kept the first one
+            self.info['duplicates'][uids[0]] = uids[1:]
 
         if n_removed > 0:
             print '      removed %d / %d = %.2f duplicate sequences after trimming framework insertions (leaving %d)' % (n_removed, n_removed + n_kept, n_removed / float(n_removed + n_kept), len(self.info['queries']))

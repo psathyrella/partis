@@ -1353,6 +1353,7 @@ class PartitionDriver(object):
                 uids = padded_line['unique_ids']
                 uidstr = ':'.join(uids)
                 padded_line['indelfos'] = [self.sw_info['indels'].get(uid, utils.get_empty_indel()) for uid in uids]  # reminder: hmm was given a sequence with any indels reversed (i.e. <self.sw_info['indels'][uid]['reverersed_seq']>)
+                padded_line['duplicates'] = [self.sw_info['duplicates'].get(uid, []) for uid in uids]
 
                 if self.args.chain != 'h':
                     self.process_dummy_d_hack(padded_line)
