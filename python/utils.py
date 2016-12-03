@@ -180,7 +180,7 @@ column_configs = {
     'floats' : ['logprob', 'mut_freqs'],
     'bools' : functional_columns,
     'literals' : ['indelfo', 'indelfos', 'k_v', 'k_d', 'all_matches'],  # simulation has indelfo[s] singular, annotation output has it plural... and I think it actually makes sense to have it that way
-    'lists' : ['unique_ids', 'seqs', 'aligned_seqs', 'mut_freqs', 'padlefts', 'padrights'] + ['aligned_' + r + '_seqs' for r in regions] + functional_columns,
+    'lists' : ['unique_ids', 'seqs', 'aligned_seqs', 'mut_freqs', 'padlefts', 'padrights'] + ['aligned_' + r + '_seqs' for r in regions] + functional_columns,  # indelfos is a list, but we can't just split it by colons since it has colons within the dict string
     'lists-of-lists' : ['duplicates'] + [r + '_per_gene_support' for r in regions]
 }
 
@@ -210,6 +210,16 @@ def get_list_of_str_list(strlist):
     if strlist == '':
         return []
     return [substr.split(':') for substr in strlist]
+
+# ----------------------------------------------------------------------------------------
+def reconstruct_full_indelfo(indel_list, reversed_seq):
+    if 'reversed_seq' in indel_list:  # handle old files
+        return indel_list
+    indelfo = get_empty_indel()
+    indelfo['indels'] = indel_list
+    if len(indel_list) > 0:
+        indelfo['reversed_seq'] = reversed_seq
+    return indelfo
 
 conversion_fcns = {}
 for key in column_configs['ints']:
@@ -1566,9 +1576,15 @@ def process_input_line(info):
         else:
             info[key] = convert_fcn(info[key])
 
+    # process things for which we first want to know the number of seqs in the line
     for key in info:
-        if info[key] != '':
+        if key == 'indelfo':  # simulation file
+            info[key] = reconstruct_full_indelfo(info[key], info['seq'])
+        elif key == 'indelfos':
+            info[key] = [reconstruct_full_indelfo(info[key][iseq], info['seqs'][iseq]) for iseq in range(len(info['seqs']))]
+        elif info[key] != '':
             continue
+
         if key in ccfg['lists']:
             info[key] = ['' for _ in range(len(info['unique_ids']))]
         elif key in ccfg['lists-of-lists']:
@@ -1582,6 +1598,9 @@ def get_line_for_output(info):
         str_fcn = str
         if key in column_configs['floats']:
             str_fcn = repr  # keeps it from losing precision (we only care because we want it to match expectation if we read it back in)
+        elif 'indelfo' in key:  # just write the list of indels -- don't need the reversed seq and debug str
+            str_fcn = lambda x: str([sx['indels'] for sx in x])
+
         if key in column_configs['lists']:
             outfo[key] = ':'.join([str_fcn(v) for v in info[key]])
         elif key in column_configs['lists-of-lists']:
@@ -1593,6 +1612,7 @@ def get_line_for_output(info):
             outfo[key] = ';'.join(outfo[key])
         else:
             outfo[key] = str_fcn(info[key])
+
     return outfo
 
 # ----------------------------------------------------------------------------------------
@@ -2188,7 +2208,21 @@ def subset_files(uids, fnames, outdir, uid_header='Sequence ID', delimiter='\t',
 
 # ----------------------------------------------------------------------------------------
 def get_seq_with_indels_reinstated(line):  # reverse the action of indel reversion
-    pass
+    assert len(line['seqs']) == 1
+    indelfo = line['indelfos'][0]
+    return_seq = line['seqs'][0]
+    if indelfo['reversed_seq'] == '':
+        return return_seq
+
+    for indel in reversed(indelfo['indels']):
+        if indel['type'] == 'insertion':
+            return_seq = return_seq[ : indel['pos']] + indel['seqstr'] + return_seq[indel['pos'] : ]
+        elif indel['type'] == 'deletion':
+            return_seq = return_seq[ : indel['pos']] + return_seq[indel['pos'] + indel['len'] : ]
+        else:
+            assert False
+
+    return return_seq
 
 # ----------------------------------------------------------------------------------------
 def add_indels_to_germline_strings(line, indelfo):

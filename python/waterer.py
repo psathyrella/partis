@@ -1080,6 +1080,13 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def remove_duplicate_sequences(self, debug=False):
+        def getseq(uid):
+            # return self.info[uid]['seqs'][0]  # reminder: these are query sequences with indels reversed
+            return_seq = utils.get_seq_with_indels_reinstated(self.info[uid])
+            # if return_seq not in self.input_info[uid]['seqs'][0]:
+            #     print '%s reinstated seq not in input sequence:\n    %s\n    %s' % (utils.color('yellow', 'warning'), reinstated_seq, self.input_info[uid]['seqs'][0])
+            return return_seq
+
         uids_to_pre_keep = set()  # add these uids/seqs before looping through all the queries
         if self.args.seed_unique_id is not None:
             uids_to_pre_keep.add(self.args.seed_unique_id)
@@ -1091,8 +1098,7 @@ class Waterer(object):
             if utpk not in self.info:
                 print 'requested uid %s not in sw info (probably failed above)' % utpk
                 continue
-            assert len(self.info[utpk]['seqs']) == 1
-            seq = self.info[utpk]['seqs'][0]  # reminder: these are query sequences with indels reversed
+            seq = getseq(utpk)
             if seq not in seqs_to_keep:  # NOTE it's kind of weird to have more than one uid for a sequence, but it probably just means the user specified some duplicate sequences with --queries
                 seqs_to_keep[seq] = []
             seqs_to_keep[seq].append(utpk)
@@ -1101,7 +1107,7 @@ class Waterer(object):
         for query in copy.deepcopy(self.info['queries']):
             if query in uids_to_pre_keep:
                 continue
-            seq = self.info[query]['seqs'][0]  # input sequence with indels reversed
+            seq = getseq(query)
             if seq in seqs_to_keep:
                 seqs_to_keep[seq].append(query)
                 self.remove_query(query)
@@ -1111,7 +1117,7 @@ class Waterer(object):
                 n_kept += 1
 
         for seq, uids in seqs_to_keep.items():
-            assert uids[0] in self.info  # should've kept the first one
+            assert uids[0] in self.info  # the first one should've been the one we kept
             self.info['duplicates'][uids[0]] = uids[1:]
 
         if n_removed > 0:
