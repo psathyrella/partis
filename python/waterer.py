@@ -49,7 +49,7 @@ class Waterer(object):
         self.info['duplicates'] = {}
         self.info['mute-freqs'] = None  # kind of hackey... but it's to allow us to keep this info around when we don't want to keep the whole waterer object around, and we don't want to write all the parameters to disk
 
-        self.nth_try = 1
+        self.nth_try = 1  # arg, this should be zero-indexed like everything else
         self.skipped_unproductive_queries, self.kept_unproductive_queries = set(), set()
 
         self.my_gldir = self.args.workdir + '/' + glutils.glfo_dir
@@ -312,6 +312,9 @@ class Waterer(object):
         for reason in ['unproductive', 'no-match', 'weird-annot.', 'nonsense-bounds', 'invalid-codon', 'indel-fails', 'super-high-mutation']:
             queries_to_rerun[reason] = set()
 
+        if self.debug:
+            print '%s' % utils.color('green', 'try ' + str(self.nth_try))
+
         self.new_indels = 0
         queries_read_from_file = set()  # should be able to remove this, eventually
         for iproc in range(n_procs):
@@ -321,12 +324,10 @@ class Waterer(object):
                 for _, reads in grouped:  # loop over query sequences
                     try:
                         readlist = list(reads)
-                    except:
-                        print 'failed!'
-                        # print 'len', len(readlist)
+                    except:  # attempt to catch weird transient error that may stem from disk problems
                         for thing in reads:
                             print thing
-                        assert False
+                        raise Exception('failed to convert sam reads')
                     qinfo = self.read_query(sam.references, readlist)
                     self.summarize_query(qinfo, queries_to_rerun)  # returns before adding to <self.info> if it thinks we should rerun the query
                     queries_read_from_file.add(qinfo['name'])
@@ -754,6 +755,8 @@ class Waterer(object):
         qname = qinfo['name']
         qseq = qinfo['seq']
         assert qname not in self.info
+        if self.debug:
+            print '  %s' % qname
 
         # do we have a match for each region?
         for region in utils.getregions(self.args.chain):
@@ -791,7 +794,6 @@ class Waterer(object):
             return  # otherwise something's weird/wrong, so we want to re-run (I think we actually can't fall through to here)
 
         if self.debug >= 2:
-            print qname
             for region in utils.regions:
                 for score, gene in qinfo['matches'][region]:  # sorted by decreasing match quality
                     self.print_match(region, gene, score, qseq, qinfo['glbounds'][gene], qinfo['qrbounds'][gene], skipping=False)
@@ -823,9 +825,6 @@ class Waterer(object):
                 queries_to_rerun['weird-annot.'].add(qname)
                 return
 
-        if self.debug == 1:
-            print qname
-
         # set and check conserved codon positions
         codon_positions = {}
         for region, codon in utils.conserved_codons[self.args.chain].items():
@@ -851,16 +850,6 @@ class Waterer(object):
         in_frame_cdr3 = (cdr3_length % 3 == 0)
         stop_codon = utils.is_there_a_stop_codon(qseq, fv_insertion=qseq[ : qinfo['qrbounds'][best['v']][0]], jf_insertion=qseq[qinfo['qrbounds'][best['j']][1] : ], cyst_position=codon_positions['v'])
         if not codons_ok or not in_frame_cdr3 or stop_codon:  # TODO should use the new utils.is_functional() here
-            if self.debug:
-                print '       unproductive rearrangement:',
-                if not codons_ok:
-                    print '  bad codons',
-                if not in_frame_cdr3:
-                    print '  out of frame cdr3',
-                if stop_codon:
-                    print '  stop codon'
-                print ''
-
             if self.nth_try < 2 and (not codons_ok or not in_frame_cdr3):  # rerun with higher mismatch score (sometimes unproductiveness is the result of a really screwed up annotation rather than an actual unproductive sequence). Note that stop codons aren't really indicative of screwed up annotations, so they don't count.
                 if self.debug:
                     print '            ...rerunning'
@@ -1115,7 +1104,7 @@ class Waterer(object):
 
         n_kept, n_removed = len(uids_to_pre_keep), 0
         for query in copy.deepcopy(self.info['queries']):
-            if query in uids_to_pre_keep:  # already added it
+            if query in uids_to_pre_keep:
                 continue
             seq = self.info[query]['seqs'][0]  # input sequence with indels reversed
             if seq in seqs_to_keep:
