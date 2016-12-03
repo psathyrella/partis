@@ -9,11 +9,11 @@ tests['cpg'] = ('cpg', 'ACTTTTACCGTCAGTGCAGTGCGCGCGCGCGCGCGCCGTTTTAAAAAACCAATT')
 tests['multi-cpg'] = ('cpg', 'CGCCGCACTTTTACCGTCAGTGCAGTGCGCGCGCGCGCGCGCCGTTTTAAAAAACCAATT:GCGGCGCCTTCGACCGTCAGTGCAGTGCTTGCGCGCGCGAGCCGTTTGCATTAACGCATT:GCGGAAACTTCGACCGTTTTTGCAGTGCTTGCGCGCGCGAGTTTTTTGCAAAAACGCATT')
 
 testdir = 'test/data/regression/bcrham'
-bcrham_args = ' --debug 1 --hmmdir ' + testdir + ' --datadir ' + testdir + ' --dont-rescale-emissions'
-tests['bcrham-single-viterbi'] = ' --algorithm viterbi' + bcrham_args + ' --infile '+testdir+'/single-input.csv'
-tests['bcrham-pair-viterbi'] = ' --algorithm viterbi' + bcrham_args + ' --infile '+testdir+'/pair-input.csv'
-tests['bcrham-forward'] = ' --algorithm forward' + bcrham_args + ' --infile '+testdir+'/pair-input.csv'
-tests['bcrham-k'] = ' --algorithm forward' + bcrham_args + ' --infile '+testdir+'/k-input.csv'
+bcrham_args = ' --debug 1 --chain h --hmmdir ' + testdir + ' --datadir ' + testdir + '/germlines --dont-rescale-emissions'
+# tests['bcrham-single-viterbi'] = ' --algorithm viterbi' + bcrham_args + ' --infile '+testdir+'/single-input.csv'
+# tests['bcrham-pair-viterbi'] = ' --algorithm viterbi' + bcrham_args + ' --infile '+testdir+'/pair-input.csv'
+# tests['bcrham-forward'] = ' --algorithm forward' + bcrham_args + ' --infile '+testdir+'/pair-input.csv'
+# tests['bcrham-k'] = ' --algorithm forward' + bcrham_args + ' --infile '+testdir+'/k-input.csv'
 
 all_passed = '_results/ALL.passed'
 individual_passed = ['_results/%s.passed' % test for test in tests]

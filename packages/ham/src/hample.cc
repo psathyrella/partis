@@ -11,7 +11,7 @@ using namespace TCLAP;
 using namespace std;
 
 // ----------------------------------------------------------------------------------------
-void CheckChunkCaching(Model &hmm, trellis &trellis, Sequences seqs);  // for checking with scons test, ignore if you're not scons
+void CheckChunkCaching(Model &hmm, Trellis &trellis, Sequences seqs);  // for checking with scons test, ignore if you're not scons
 
 // ----------------------------------------------------------------------------------------
 int main(int argc, const char *argv[]) {
@@ -42,7 +42,7 @@ int main(int argc, const char *argv[]) {
     seqs.AddSeq(Sequence(hmm.track(), "seq", seqstr));
 
   // make the trellis, a wrapper for holding the DP tables and running the algorithms
-  trellis trell(&hmm, seqs);
+  Trellis trell(&hmm, seqs);
   trell.Viterbi();
   TracebackPath path(&hmm);
   trell.Traceback(path);
@@ -71,18 +71,18 @@ int main(int argc, const char *argv[]) {
 
 // ----------------------------------------------------------------------------------------
 // check dp table chunk caching (just for use by `scons test`)
-void CheckChunkCaching(Model &hmm, trellis &trell, Sequences seqs) {
+void CheckChunkCaching(Model &hmm, Trellis &trell, Sequences seqs) {
   for(size_t length = 1; length < seqs.GetSequenceLength(); ++length) {
     // first make a new trellis on the substring of length <length> using chunk caching
     Sequences subseqs(seqs, 0, length);
-    trellis subtrell(&hmm, subseqs, &trell);
+    Trellis subtrell(&hmm, subseqs, &trell);
     subtrell.Viterbi();
     TracebackPath subpath(&hmm);
     subtrell.Traceback(subpath);
     subtrell.Forward();
 
     // then make another one on the same sequence from scratch
-    trellis checktrell(&hmm, subseqs);
+    Trellis checktrell(&hmm, subseqs);
     checktrell.Viterbi();
     TracebackPath checkpath(&hmm);
     checktrell.Traceback(checkpath);
