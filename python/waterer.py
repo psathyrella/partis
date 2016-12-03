@@ -825,7 +825,7 @@ class Waterer(object):
                 queries_to_rerun['weird-annot.'].add(qname)
                 return
 
-        # set and check conserved codon positions
+        # set conserved codon positions
         codon_positions = {}
         for region, codon in utils.conserved_codons[self.args.chain].items():
             # position within original germline gene, minus the position in that germline gene at which the match starts, plus the position in the query sequence at which the match starts
@@ -837,19 +837,21 @@ class Waterer(object):
                 return
             codon_positions[region] = pos
 
-        # check for unproductive rearrangements
-        codons_ok = utils.both_codons_ok(self.args.chain, qseq, codon_positions)
+        # check cdr3 length
         cdr3_length = codon_positions['j'] - codon_positions['v'] + 3
-
         if cdr3_length < 6:  # NOTE six is also hardcoded in utils
             if self.debug:
                 print '      negative cdr3 length %d' % (cdr3_length)
             queries_to_rerun['invalid-codon'].add(qname)
             return
 
+        infoline = self.convert_qinfo(qinfo, best, codon_positions)
+
+        # check for unproductive rearrangements
+        codons_ok = utils.both_codons_ok(self.args.chain, qseq, codon_positions)
         in_frame_cdr3 = (cdr3_length % 3 == 0)
         stop_codon = utils.is_there_a_stop_codon(qseq, fv_insertion=qseq[ : qinfo['qrbounds'][best['v']][0]], jf_insertion=qseq[qinfo['qrbounds'][best['j']][1] : ], cyst_position=codon_positions['v'])
-        if not codons_ok or not in_frame_cdr3 or stop_codon:  # TODO should use the new utils.is_functional() here
+        if not codons_ok or not in_frame_cdr3 or stop_codon:
             if self.nth_try < 2 and (not codons_ok or not in_frame_cdr3):  # rerun with higher mismatch score (sometimes unproductiveness is the result of a really screwed up annotation rather than an actual unproductive sequence). Note that stop codons aren't really indicative of screwed up annotations, so they don't count.
                 if self.debug:
                     print '            ...rerunning'
@@ -864,7 +866,6 @@ class Waterer(object):
             else:
                 pass  # this is here so you don't forget that if neither of the above is true, we fall through and add the query to self.info
 
-        infoline = self.convert_qinfo(qinfo, best, codon_positions)
         try:
             utils.add_implicit_info(self.glfo, infoline)
         except:
