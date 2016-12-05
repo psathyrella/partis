@@ -144,6 +144,8 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, s
         if unique_id in input_info:
             raise Exception('found id %s twice in file %s' % (unique_id, infname))
 
+        if len(line[internal_seq_column].translate(None, ''.join(utils.alphabet))) > 0:
+            raise Exception('unexpected character (not among %s) in input sequence with id %s:\n  %s' % (utils.nukes + utils.ambiguous_bases, unique_id, line[internal_seq_column]))
 
         input_info[unique_id] = {'unique_ids' : [unique_id, ], 'seqs' : [line[internal_seq_column], ]}
 

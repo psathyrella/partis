@@ -95,8 +95,9 @@ boundaries = ['vd', 'dj']
 effective_boundaries = ['fv', 'jf']
 nukes = ['A', 'C', 'G', 'T']
 ambiguous_bases = ['N', ]
+alphabet = set(nukes + ambiguous_bases)  # NOTE not the greatest naming distinction, but note difference to <expected_characters>
 gap_chars = ['.', '-']
-expected_characters = set(nukes + ambiguous_bases + gap_chars)
+expected_characters = set(nukes + ambiguous_bases + gap_chars)  # NOTE not the greatest naming distinction, but note difference to <alphabet>
 conserved_codons = {
     'h' : {'v' : 'cyst', 'j' : 'tryp'},
     'k' : {'v' : 'cyst', 'j' : 'phen'},
@@ -1452,18 +1453,12 @@ def hamming_distance(seq1, seq2, extra_bases=None, return_len_excluding_ambig=Fa
         else:
             return 0
 
-    alphabet = nukes + ambiguous_bases  # I think I don't want to allow gap characters here
-
-    if extra_bases is not None:
-        alphabet += extra_bases
-
-    for ch in seq1 + seq2:  # check that all characters are in the expected alphabet
-        if ch not in alphabet:
-            raise Exception('unexpected character \'%s\' not among %s in hamming_fraction() with input:\n  %s\n  %s' % (ch, alphabet, seq1, seq2))
+    assert len(ambiguous_bases) == 1  # would just have to update the below if it's longer
+    ambig_base = ambiguous_bases[0]
 
     distance, len_excluding_ambig = 0, 0
     for ch1, ch2 in zip(seq1, seq2):
-        if ch1 in ambiguous_bases or ch2 in ambiguous_bases:
+        if ambig_base in ch1 + ch2:
             continue
 
         len_excluding_ambig += 1
@@ -1474,6 +1469,15 @@ def hamming_distance(seq1, seq2, extra_bases=None, return_len_excluding_ambig=Fa
         return distance, len_excluding_ambig
     else:
         return distance
+
+    # seems like it'd maybe be faster, but it's twice as slow:
+    # assert len(ambiguous_bases) == 1  # would just have to update the below if it's longer
+    # ambig_base = ambiguous_bases[0]
+    # if return_len_excluding_ambig:
+    #     spairs = [(ch1, ch2) for ch1, ch2 in zip(seq1, seq2) if ambig_base not in ch1 + ch2]
+    #     return sum(ch1 != ch2 for ch1, ch2 in spairs), len(spairs)
+    # else:
+    #     return sum(ch1 != ch2 for ch1, ch2 in zip(seq1, seq2) if ambig_base not in ch1 + ch2)
 
 # ----------------------------------------------------------------------------------------
 def hamming_fraction(seq1, seq2, extra_bases=None):
