@@ -690,7 +690,7 @@ class Waterer(object):
             infoline[region + '_gene'] = best[region]
 
         infoline['cdr3_length'] = codon_positions['j'] - codon_positions['v'] + 3
-        infoline['codon_positions'] = copy.deepcopy(codon_positions)
+        infoline['codon_positions'] = codon_positions
 
         return infoline
 
@@ -870,7 +870,7 @@ class Waterer(object):
             else:
                 pass  # this is here so you don't forget that if neither of the above is true, we fall through and add the query to self.info
 
-        kbounds = self.get_kbounds(infoline, qinfo, best, codon_positions)  # gets the boundaries of the non-best matches from <qinfo>
+        kbounds = self.get_kbounds(infoline, qinfo, best)  # gets the boundaries of the non-best matches from <qinfo>
         if kbounds is None:
             if self.debug:
                 print '      rerun: nonsense kbounds for %s, rerunning' % qname
@@ -882,7 +882,7 @@ class Waterer(object):
         self.add_to_info(infoline)
 
     # ----------------------------------------------------------------------------------------
-    def get_kbounds(self, line, qinfo, best, codon_positions, debug=False):
+    def get_kbounds(self, line, qinfo, best, debug=False):
         # NOTE
         #  - k_v is index of first d/dj insert base (i.e. length of v match)
         #  - k_v + k_d is index of first j/dj insert base (i.e. length of v + vd insert + d match)
@@ -906,7 +906,7 @@ class Waterer(object):
                 print 'k_v_min too big %d %d' % (k_v_min, len(qrseq))
             return None
         icheck = k_v_min
-        while icheck > codon_positions['v'] + 3:  # i.e. stop when the last v base is the last base of the cysteine
+        while icheck > line['codon_positions']['v'] + 3:  # i.e. stop when the last v base is the last base of the cysteine
             icheck -= 1
             if debug:
                 print '    check %d' % icheck
@@ -933,7 +933,7 @@ class Waterer(object):
         qrseq, glseq = line['j_qr_seqs'][0], line['j_gl_seq']
         j_start = line['regional_bounds']['j'][0]
         icheck = k_d_max  # <icheck> is what we're considering changing k_d_max to
-        while k_v_min + icheck + 1 < codon_positions['j']:  # i.e. stop when the first j/dj base is the first base of the tryp (even for the smallest k_v)
+        while k_v_min + icheck + 1 < line['codon_positions']['j']:  # i.e. stop when the first j/dj base is the first base of the tryp (even for the smallest k_v)
             icheck += 1
             if debug:
                 print '    check %d' % icheck

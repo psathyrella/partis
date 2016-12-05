@@ -1494,16 +1494,14 @@ class PartitionDriver(object):
             if self.small_cluster_seqs is not None:
                 missing_input_keys -= set(self.small_cluster_seqs)
 
-            for full_line in annotations.values():
-                outline = copy.deepcopy(full_line)  # in case we modify it
-
-                for uid in outline['unique_ids']:  # make a note that we have an annotation for these uids (so we can see if there's any that we're missing)
+            for line in annotations.values():
+                for uid in line['unique_ids']:  # make a note that we have an annotation for these uids (so we can see if there's any that we're missing)
                     if uid in missing_input_keys:
                         missing_input_keys.remove(uid)
                     else:
                         print '%s uid %s not found in missing_input_keys'  % (utils.color('red', 'warning'), uid)
 
-                outline = utils.get_line_for_output(outline)  # convert lists to colon-separated strings and whatnot
+                outline = utils.get_line_for_output(line)  # convert lists to colon-separated strings and whatnot (doesn't modify <line>
                 outline = {k : v for k, v in outline.items() if k in utils.annotation_headers}  # remove the columns we don't want to output
 
                 writer.writerow(outline)
