@@ -1053,7 +1053,7 @@ class PartitionDriver(object):
             combo['k_v']['max'] = max(k_v['max'], combo['k_v']['max'])
             combo['k_d']['min'] = min(k_d['min'], combo['k_d']['min'])
             combo['k_d']['max'] = max(k_d['max'], combo['k_d']['max'])
-            # Note that boundsbounds is updated below.
+            # Note that flexbounds is updated below.
             combo['relpos'] = {}
             for gene, pos in swfo['relpos'].items():
                 if gene in combo['relpos']:
@@ -1072,10 +1072,10 @@ class PartitionDriver(object):
             # and finally OR this query's genes into the ones from previous queries
             combo['only_genes'] = list(set(genes_to_use) | set(combo['only_genes']))  # NOTE using the OR of all sets of genes (from all query seqs) like this *really* helps,
 
-        combo['boundsbounds'] = {}
-        for region_side in self.sw_info[query_names[0]]['boundsbounds']:
-            bounds_l = zip(*[self.sw_info[name]['boundsbounds'][region_side] for name in query_names])
-            combo['boundsbounds'][region_side] = (min(bounds_l[0]), max(bounds_l[1]))
+        combo['flexbounds'] = {}
+        for region_side in self.sw_info[query_names[0]]['flexbounds']:
+            bounds_l = zip(*[self.sw_info[name]['flexbounds'][region_side] for name in query_names])
+            combo['flexbounds'][region_side] = (min(bounds_l[0]), max(bounds_l[1]))
 
         if not self.all_regions_present(combo['only_genes'], skipped_gene_matches, query_names):
             return {}
@@ -1110,7 +1110,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def write_to_single_input_file(self, fname, nsets, parameter_dir, skipped_gene_matches, shuffle_input=False):
         csvfile = opener('w')(fname)
-        header = ['names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'mut_freq', 'cdr3_length', 'only_genes', 'seqs', 'boundsbounds', 'relpos']
+        header = ['names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'mut_freq', 'cdr3_length', 'only_genes', 'seqs', 'flexbounds', 'relpos']
         writer = csv.DictWriter(csvfile, header, delimiter=' ')
         writer.writeheader()
         json_separators=(',', ':')
@@ -1144,7 +1144,7 @@ class PartitionDriver(object):
                 'only_genes' : ':'.join(combined_query['only_genes']),
                 'seqs' : ':'.join(combined_query['seqs']),
                 # Eventually we may use a special serialization, but JSON for now.
-                'boundsbounds' : json.dumps(combined_query['boundsbounds'], separators=json_separators),
+                'flexbounds' : json.dumps(combined_query['flexbounds'], separators=json_separators),
                 'relpos' : json.dumps(combined_query['relpos'], separators=json_separators)
             })
 

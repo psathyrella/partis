@@ -645,7 +645,7 @@ class Waterer(object):
                     assert False
 
     # ----------------------------------------------------------------------------------------
-    def convert_qinfo(self, qinfo, best, codon_positions, kbounds, boundsbounds, relpos):
+    def convert_qinfo(self, qinfo, best, codon_positions, kbounds, flexbounds, relpos):
         """ convert <qinfo> (which is from reading sam files) to format for <self.info> (this is so add_to_info() can be used by the cache file reader, as well) """
         qname = qinfo['name']
         assert qname not in self.info
@@ -657,7 +657,7 @@ class Waterer(object):
         infoline['k_v'] = kbounds['v']
         infoline['k_d'] = kbounds['d']
 
-        infoline['boundsbounds'] = boundsbounds
+        infoline['flexbounds'] = flexbounds
         infoline['relpos'] = relpos
 
         # erosion, insertion, mutation info for best match
@@ -855,10 +855,10 @@ class Waterer(object):
                 print '      nonsense kbounds for %s, rerunning' % qname
             queries_to_rerun['weird-annot.'].add(qname)
             return
-        boundsbounds = self.get_boundsbounds(qinfo)
+        flexbounds = self.get_flexbounds(qinfo)
         relpos = self.get_relpos(qinfo)
 
-        infoline = self.convert_qinfo(qinfo, best, codon_positions, kbounds, boundsbounds, relpos)
+        infoline = self.convert_qinfo(qinfo, best, codon_positions, kbounds, flexbounds, relpos)
         self.add_to_info(infoline)
 
     # ----------------------------------------------------------------------------------------
@@ -923,13 +923,13 @@ class Waterer(object):
         return kbounds
 
     # ----------------------------------------------------------------------------------------
-    def get_boundsbounds(self, qinfo):
+    def get_flexbounds(self, qinfo):
         """
         This is the moral equivalent of get_kbounds in that we are looking for
         reasonable starting and stopping points for germline gene matches to
         the query sequence. However, it's not nearly as fancy yet.
         """
-        boundsbounds = {}
+        flexbounds = {}
 
         # NOTE we will want to use command-line-derived fuzz, but this will do for now.
         def span(l):
@@ -939,10 +939,10 @@ class Waterer(object):
         for region in qinfo['matches']:
             # The zip makes a tuple list: [left hand bounds, right hand bounds]
             bounds_l = zip(*[qinfo['qrbounds'][match_gene[1]] for match_gene in qinfo['matches'][region]])
-            boundsbounds[region+'_l'] = span(bounds_l[0])
-            boundsbounds[region+'_r'] = span(bounds_l[1])
+            flexbounds[region+'_l'] = span(bounds_l[0])
+            flexbounds[region+'_r'] = span(bounds_l[1])
 
-        return boundsbounds
+        return flexbounds
 
     # ----------------------------------------------------------------------------------------
     def get_relpos(self, qinfo):
