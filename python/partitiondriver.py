@@ -149,8 +149,8 @@ class PartitionDriver(object):
             if len(expected_genes - genes_with_hmms) > 0:
                 print '  %s %d genes in glfo that don\'t have yamels in %s' % (utils.color('red', 'warning'), len(expected_genes - genes_with_hmms), self.sub_param_dir)
 
-        input_info = self.input_info if self.sw_info is None else {q : self.input_info[q] for q in self.sw_info['queries']}  # pick up info on failed queries if this isn't the first sw run
-        waterer = Waterer(self.args, input_info, self.reco_info, self.glfo,
+        sw_input_info = self.input_info if self.sw_info is None else {q : self.input_info[q] for q in self.sw_info['queries']}  # pick up info on failed queries if this isn't the first sw run
+        waterer = Waterer(self.args, sw_input_info, self.reco_info, self.glfo,
                           count_parameters=count_parameters,  # (remove_less_likely_alleles or parameter_out_dir is not None),
                           parameter_out_dir=self.sw_param_dir if write_parameters else None,
                           remove_less_likely_alleles=remove_less_likely_alleles,

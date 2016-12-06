@@ -23,9 +23,9 @@ from clusterpath import ClusterPath
 # ----------------------------------------------------------------------------------------
 class Waterer(object):
     """ Run smith-waterman on the query sequences in <infname> """
-    def __init__(self, args, input_info, reco_info, glfo, count_parameters=False, parameter_out_dir=None, remove_less_likely_alleles=False, find_new_alleles=False, plot_performance=False, simglfo=None, itry=None):
+    def __init__(self, args, sw_input_info, reco_info, glfo, count_parameters=False, parameter_out_dir=None, remove_less_likely_alleles=False, find_new_alleles=False, plot_performance=False, simglfo=None, itry=None):
         self.args = args
-        self.input_info = input_info
+        self.input_info = sw_input_info
         self.reco_info = reco_info
         self.glfo = glfo
         self.simglfo = simglfo
@@ -181,7 +181,10 @@ class Waterer(object):
 
         # want to do this *before* we pad sequences, so that when we read the cache file we're reading unpadded sequences and can pad them below
         if cachefname is not None and not found_germline_changes:
-            if self.args.write_trimmed_and_padded_seqs_to_sw_cachefname:  # hackey workaround, shouldn't be used in general
+            # hackey workaround: (in case you want to use trimmed/padded seqs for something, but shouldn't be used in general)
+            if self.args.write_trimmed_and_padded_seqs_to_sw_cachefname:
+                self.remove_framework_insertions()
+                self.remove_duplicate_sequences()
                 self.pad_seqs_to_same_length()
 
             print '        writing sw results to %s' % cachefname
@@ -196,6 +199,9 @@ class Waterer(object):
                     outline = {k : v for k, v in outline.items() if k in utils.annotation_headers + utils.sw_cache_headers}  # remove the columns we don't want to output
                     writer.writerow(outline)
 
+        if not self.args.dont_remove_framework_insertions and self.args.is_data:  # don't want to do this on simulation -- it's too much trouble to keep things consistent with the simulation info (it would also screw up the purity/completeness calculation)
+            self.remove_framework_insertions()
+            self.remove_duplicate_sequences()
         self.pad_seqs_to_same_length()  # NOTE this uses all the gene matches (not just the best ones), so it has to come before we call pcounter.write(), since that fcn rewrites the germlines removing genes that weren't best matches. But NOTE also that I'm not sure what but that the padding actually *needs* all matches (rather than just all *best* matches)
 
         if self.perfplotter is not None:
@@ -259,7 +265,7 @@ class Waterer(object):
                         continue
                     sub_infile.write('>' + query_name + ' NUKES\n')
 
-                    assert len(self.input_info[query_name]['seqs']) == 1  # sw can't handle multiple simultaneous sequences, but it's nice to have the same headers/keys everywhere, so we use the plural versions (with lists) even here
+                    assert len(self.input_info[query_name]['seqs']) == 1  # sw can't handle multiple simultaneous sequences, but it's nice to have the same headers/keys everywhere, so we use the plural versions (with lists) even here (where "it's nice" means "it used to be the other way and it fucking sucked and a fuckton of effort went into synchronizing the treatments")
                     seq = self.input_info[query_name]['seqs'][0]
                     if query_name in self.info['indels']:
                         seq = self.info['indels'][query_name]['reversed_seq']  # use the query sequence with shm insertions and deletions reversed
@@ -1179,11 +1185,6 @@ class Waterer(object):
         """
 
         cluster_different_cdr3_lengths = False  # if you want glomerator.cc to try to cluster different cdr3 lengths, you need to pass it *everybody* with the same N padding... but then you're padding way more than you need to on almost every sequence, which is really wasteful and sometimes confuses bcrham
-
-        # NOTE that an additional reason not to do this in simulation is that it will screw up the purity/completeness calculation
-        if not self.args.dont_remove_framework_insertions and self.args.is_data:  # don't want to do this on simulation -- it's too much trouble to keep things consistent with the simulation info
-            self.remove_framework_insertions(debug=debug)
-            self.remove_duplicate_sequences(debug=debug)
 
         maxima, per_cdr3_maxima = self.get_padding_parameters(debug=debug)
 
