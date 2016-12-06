@@ -111,7 +111,7 @@ class Waterer(object):
                 utils.add_implicit_info(self.glfo, line)
                 if line['indelfos'][0]['reversed_seq'] != '':
                     self.info['indels'][line['unique_ids'][0]] = line['indelfos'][0]
-                if len(line['duplicates'][0]) > 0:
+                if 'duplicates' in line and len(line['duplicates'][0]) > 0:
                     self.info['duplicates'][line['unique_ids'][0]] = line['duplicates'][0]
                 self.add_to_info(line)
 
