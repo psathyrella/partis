@@ -53,6 +53,7 @@ class PartitionDriver(object):
             raise Exception('--infname is required for action \'%s\'' % args.action)
 
         self.sw_info = None
+        self.duplicates = {}
         self.bcrham_proc_info = None
 
         self.unseeded_seqs = None  # all the queries that we *didn't* cluster with the seed uid
@@ -156,7 +157,7 @@ class PartitionDriver(object):
                           remove_less_likely_alleles=remove_less_likely_alleles,
                           find_new_alleles=find_new_alleles,
                           plot_performance=(self.args.plot_performance and not remove_less_likely_alleles and not find_new_alleles),
-                          simglfo=self.simglfo, itry=itry)
+                          simglfo=self.simglfo, itry=itry, duplicates=self.duplicates)
         cachefname = self.default_cachefname if self.args.sw_cachefname is None else self.args.sw_cachefname
         if not look_for_cachefile and os.path.exists(cachefname):  # i.e. if we're not explicitly told to look for it, and it's there, then it's probably out of date
             print '  removing old sw cache file %s' % cachefname
@@ -168,7 +169,10 @@ class PartitionDriver(object):
             waterer.read_cachefile(cachefname)
         else:
             waterer.run(cachefname if write_cachefile else None)
+
         self.sw_info = waterer.info
+        for uid, dupes in waterer.duplicates.items():  # <waterer.duplicates> is <self.duplicates> OR'd into any new duplicates from this run
+            self.duplicates[uid] = dupes
 
     # ----------------------------------------------------------------------------------------
     def find_new_alleles(self):
@@ -1353,7 +1357,7 @@ class PartitionDriver(object):
                 uids = padded_line['unique_ids']
                 uidstr = ':'.join(uids)
                 padded_line['indelfos'] = [self.sw_info['indels'].get(uid, utils.get_empty_indel()) for uid in uids]  # reminder: hmm was given a sequence with any indels reversed (i.e. <self.sw_info['indels'][uid]['reverersed_seq']>)
-                padded_line['duplicates'] = [self.sw_info['duplicates'].get(uid, []) for uid in uids]
+                padded_line['duplicates'] = [self.duplicates.get(uid, []) for uid in uids]
 
                 if self.args.chain != 'h':
                     self.process_dummy_d_hack(padded_line)

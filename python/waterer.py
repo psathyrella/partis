@@ -23,13 +23,14 @@ from clusterpath import ClusterPath
 # ----------------------------------------------------------------------------------------
 class Waterer(object):
     """ Run smith-waterman on the query sequences in <infname> """
-    def __init__(self, args, sw_input_info, reco_info, glfo, count_parameters=False, parameter_out_dir=None, remove_less_likely_alleles=False, find_new_alleles=False, plot_performance=False, simglfo=None, itry=None):
+    def __init__(self, args, sw_input_info, reco_info, glfo, count_parameters=False, parameter_out_dir=None, remove_less_likely_alleles=False, find_new_alleles=False, plot_performance=False, simglfo=None, itry=None, duplicates=None):
         self.args = args
         self.input_info = sw_input_info
         self.reco_info = reco_info
         self.glfo = glfo
         self.simglfo = simglfo
         self.parameter_out_dir = parameter_out_dir
+        self.duplicates = {} if duplicates is None else duplicates
         self.debug = self.args.debug if self.args.sw_debug is None else self.args.sw_debug
 
         self.max_insertion_length = 35  # if an insertion is longer than this, we skip the proposed annotation (i.e. rerun it)
@@ -46,7 +47,6 @@ class Waterer(object):
         self.info['all_best_matches'] = set()  # every gene that was a best match for at least one query
         self.info['all_matches'] = {r : set() for r in utils.regions}  # every gene that was *any* match (up to <self.args.n_max_per_region[ireg]>) for at least one query NOTE there is also an 'all_matches' in each query's info
         self.info['indels'] = {}  # NOTE if we find shm indels in a sequence, we store the indel info in here, and rerun sw with the reversed sequence (i.e. <self.info> contains the sw inference on the reversed sequence -- if you want the original sequence, get that from <self.input_info>)
-        self.info['duplicates'] = {}
         self.info['mute-freqs'] = None  # kind of hackey... but it's to allow us to keep this info around when we don't want to keep the whole waterer object around, and we don't want to write all the parameters to disk
 
         self.nth_try = 1  # arg, this should be zero-indexed like everything else
@@ -111,8 +111,6 @@ class Waterer(object):
                 utils.add_implicit_info(self.glfo, line)
                 if line['indelfos'][0]['reversed_seq'] != '':
                     self.info['indels'][line['unique_ids'][0]] = line['indelfos'][0]
-                if 'duplicates' in line and len(line['duplicates'][0]) > 0:
-                    self.info['duplicates'][line['unique_ids'][0]] = line['duplicates'][0]
                 self.add_to_info(line)
 
         self.finalize(cachefname=None, just_read_cachefile=True)
@@ -179,12 +177,14 @@ class Waterer(object):
             if n_removed > 0:
                 print '      removed %d / %d = %.2f sequences with cdr3 length different from seed sequence (leaving %d)' % (n_removed, initial_n_queries, float(n_removed) / initial_n_queries, len(self.info['queries']))
 
+        if not self.args.dont_remove_framework_insertions and self.args.is_data:  # don't want to do this on simulation -- it's too much trouble to keep things consistent with the simulation info (it would also screw up the purity/completeness calculation)
+            self.remove_framework_insertions()
+            self.remove_duplicate_sequences()
+
         # want to do this *before* we pad sequences, so that when we read the cache file we're reading unpadded sequences and can pad them below
         if cachefname is not None and not found_germline_changes:
             # hackey workaround: (in case you want to use trimmed/padded seqs for something, but shouldn't be used in general)
             if self.args.write_trimmed_and_padded_seqs_to_sw_cachefname:
-                self.remove_framework_insertions()
-                self.remove_duplicate_sequences()
                 self.pad_seqs_to_same_length()
 
             print '        writing sw results to %s' % cachefname
@@ -192,16 +192,11 @@ class Waterer(object):
             with open(cachefname, 'w') as outfile:
                 writer = csv.DictWriter(outfile, utils.annotation_headers + utils.sw_cache_headers)
                 writer.writeheader()
-                missing_input_keys = set(self.input_info.keys())  # all the keys we originially read from the file
                 for query in self.info['queries']:
-                    missing_input_keys.remove(query)
                     outline = utils.get_line_for_output(self.info[query])  # convert lists to colon-separated strings and whatnot (doens't modify input dictionary)
                     outline = {k : v for k, v in outline.items() if k in utils.annotation_headers + utils.sw_cache_headers}  # remove the columns we don't want to output
                     writer.writerow(outline)
 
-        if not self.args.dont_remove_framework_insertions and self.args.is_data:  # don't want to do this on simulation -- it's too much trouble to keep things consistent with the simulation info (it would also screw up the purity/completeness calculation)
-            self.remove_framework_insertions()
-            self.remove_duplicate_sequences()
         self.pad_seqs_to_same_length()  # NOTE this uses all the gene matches (not just the best ones), so it has to come before we call pcounter.write(), since that fcn rewrites the germlines removing genes that weren't best matches. But NOTE also that I'm not sure what but that the padding actually *needs* all matches (rather than just all *best* matches)
 
         if self.perfplotter is not None:
@@ -689,7 +684,7 @@ class Waterer(object):
         infoline['jf_insertion'] = qinfo['seq'][qinfo['qrbounds'][best['j']][1] : ]
 
         infoline['indelfos'] = [self.info['indels'].get(qname, utils.get_empty_indel()), ]
-        infoline['duplicates'] = [self.info['duplicates'].get(qname, []), ]
+        infoline['duplicates'] = [self.duplicates.get(qname, []), ]  # note that <self.duplicates> doesn't handle simultaneous seqs, i.e. it's for just a single sequence
 
         infoline['all_matches'] = {r : [g for _, g in qinfo['matches'][r]] for r in utils.regions}  # get lists with no scores, just the names (still ordered by match quality, though)
         for region in utils.regions:
@@ -1123,7 +1118,8 @@ class Waterer(object):
 
         for seq, uids in seqs_to_keep.items():
             assert uids[0] in self.info  # the first one should've been the one we kept
-            self.info['duplicates'][uids[0]] = uids[1:]
+            self.info[uids[0]]['duplicates'][0] += uids[1:]
+            self.duplicates[uids[0]] = self.info[uids[0]]['duplicates'][0]  # <self.duplicates> is really just so partitiondriver can pass in previous duplicates, but then now that we have the information in two places we need to keep it synchronized
 
         if n_removed > 0:
             print '      removed %d / %d = %.2f duplicate sequences after trimming framework insertions (leaving %d)' % (n_removed, n_removed + n_kept, n_removed / float(n_removed + n_kept), len(self.info['queries']))
