@@ -1,3 +1,4 @@
+import time
 import sys
 import utils
 import numpy
@@ -141,6 +142,8 @@ class PerformancePlotter(object):
 
     # ----------------------------------------------------------------------------------------
     def plot(self, plotdir, only_csv=False):
+        print '  plotting performance',
+        start = time.time()
         for substr in self.subplotdirs:
             utils.prep_dir(plotdir + '/' + substr, wildlings=('*.csv', '*.svg'))
 
@@ -188,3 +191,5 @@ class PerformancePlotter(object):
         if not only_csv:  # write html file and fix permissiions
             for substr in self.subplotdirs:
                 plotting.make_html(plotdir + '/' + substr, n_columns=4)
+
+        print '(%.1f sec)' % (time.time()-start)

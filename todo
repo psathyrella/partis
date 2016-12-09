@@ -1,9 +1,12 @@
 # now
+#  - duplicates in qrs data
+#    -  166202-1 multiple times in /fh/fast/matsen_e/processed-data/partis/kate-qrs-2016-09-09/seeds/QA255.006-Vh/Hs-LN2-5RACE-IgG.log
+#  - katie and david data
 #  - remove unused stuff from Result (and RecoEvent?)
 #  - fix sw output columns so they're aligned
-#  - move run.py to a repo
-#  - allow existing un-explicitly-noted implicit keys without failing, but still make sure they're consistent
-#  - get naive seqs for "sub"-clusters
+#  - get naive seqs for "sub"-clusters (already added '--calculate-alternative-naive-seqs')
+#  - stop using 'queries', 'duplicates', and 'indels' in sw info
+#  - #218
 
 # add between vs within cluster hamming distance plots
 # stop passing ambiguous char to ham both in the yaml and on the command line

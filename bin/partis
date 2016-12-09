@@ -337,6 +337,7 @@ parent_parser.add_argument('--only-smith-waterman', action='store_true', help='E
 parent_parser.add_argument('--write-trimmed-and-padded-seqs-to-sw-cachefname', action='store_true', help='after running sw, trim and pad sequences *before* writing to the sw cache file (rather than after). Note that this will in some cases cause waterer.py to not be able to read sw results from this cache file.')
 parent_parser.add_argument('--initial-germline-dir', help='Directory with fastas from which to read germline set. Only used when caching parameters, during which its contents is copied into --parameter-dir, perhaps (i.e. if specified) with modification. NOTE default is set below, because control flow is too complicated for argparse')
 parent_parser.add_argument('--n-partition-subsets', type=int, help='compare the partitions of this many independent subsets, each of size <--n-max-queries>')
+parent_parser.add_argument('--only-overall-plots', action='store_true', help='don\'t write per-gene plots (it\'s kind of slow writing that many plots)')
 # allele finding:
 parent_parser.add_argument('--dont-remove-unlikely-alleles', action='store_true', help='assign each sequence to its closest germline match, even if this would imply an unrealistically large number of alleles per gene in this sample')
 parent_parser.add_argument('--find-new-alleles', action='store_true', help='look for alleles which do not appear in the default germline set')
@@ -387,6 +388,7 @@ subargs['partition'].append({'name' : '--dont-precache-naive-seqs', 'kwargs' : {
 subargs['partition'].append({'name' : '--random-seed-seq', 'kwargs' : {'action' : 'store_true', 'help' : 'choose a sequence at random from the input sequences, and use it as a seed for seed partitioning'}})
 subargs['partition'].append({'name' : '--small-clusters-to-ignore', 'kwargs' : {'help' : 'colon-separated list (or dash-separated inclusive range) of cluster sizes to throw out after several partition steps. E.g. \'1:2\' will, after <--n-steps-at-which-to-ignore-small-clusters> partition steps, throw out all singletons and pairs. Alternatively, \'1-10\' will ignore all clusters with size less than 11.'}})
 subargs['partition'].append({'name' : '--n-steps-after-which-to-ignore-small-clusters', 'kwargs' : {'type' : int, 'default' : 3, 'help' : 'number of partition steps after which to throw out small clusters (where "small" is controlled by <--small-clusters-to-ignore>). (They\'re thrown out before this if we get to n_procs one before this).'}})
+subargs['partition'].append({'name' : '--calculate-alternative-naive-seqs', 'kwargs' : {'action' : 'store_true', 'help' : ''}})
 
 subargs['simulate'].append({'name' : '--mutation-multiplier', 'kwargs' : {'type' : float, 'help' : 'Multiply observed branch lengths by some factor when simulating, e.g. if in data it was 0.05, but you want closer to ten percent in your simulation, set this to 2'}})
 subargs['simulate'].append({'name' : '--mimic-data-read-length', 'kwargs' : {'action' : 'store_true', 'help' : 'trim V 5\' and D 3\' to mimic read lengths seen in data'}})

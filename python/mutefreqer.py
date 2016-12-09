@@ -112,13 +112,15 @@ class MuteFreqer(object):
             utils.prep_dir(plotdir + '/' + substr, wildlings=('*.csv', '*.svg'))
 
     # ----------------------------------------------------------------------------------------
-    def plot(self, plotdir, only_csv=False):
+    def plot(self, plotdir, only_csv=False, only_overall=False):
         if not self.finalized:
             self.finalize()
 
         overall_plotdir = plotdir + '/overall'
 
         for gene in self.freqs:
+            if only_overall:
+                continue
             freqs = self.freqs[gene]
             if len(freqs) == 0:
                 if gene not in glutils.dummy_d_genes.values():

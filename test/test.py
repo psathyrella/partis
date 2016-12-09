@@ -92,7 +92,7 @@ class Tester(object):
                 dtype = namelist[-1]
                 assert dtype in self.dtypes
                 if args.make_plots:
-                    argfo['extras'] += ['--plotdir', self.dirs['new'] + '/' + self.label + '/plots/' + dtype]
+                    argfo['extras'] += ['--plotdir', self.dirs['new'] + '/' + self.label + '/plots/' + dtype, '--only-csv-plots', '--only-overall-plots']
             else:
                 argfo['action'] = ptest
 
