@@ -591,6 +591,9 @@ parser.add_argument('--skip-ref', action='store_true', help='skip stuff that\'s 
 parser.add_argument('--bust-cache', action='store_true', help='copy info from new dir to reference dir, i.e. overwrite old test info')
 parser.add_argument('--comparison-plots', action='store_true')
 # parser.add_argument('--make-plots', action='store_true')
+# example to make comparison plots:
+#   ./bin/compare-plotdirs.py --plotdirs test/reference-results/simu-new-performance/sw:test/_new-results/simu-new-performance/sw --names ref:new --outdir $www/partis/tmp/test-plots
+
 parser.add_argument('--glfo-dir', default='data/germlines/human')
 parser.add_argument('--chain', default='h')
 args = parser.parse_args()
