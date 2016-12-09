@@ -91,7 +91,7 @@ class Tester(object):
                 argfo['action'] = 'cache-parameters'
                 dtype = namelist[-1]
                 assert dtype in self.dtypes
-                if args.make_plots:
+                if True:  #args.make_plots:
                     argfo['extras'] += ['--plotdir', self.dirs['new'] + '/' + self.label + '/plots/' + dtype, '--only-csv-plots', '--only-overall-plots']
             else:
                 argfo['action'] = ptest
@@ -590,7 +590,7 @@ parser.add_argument('--only-ref', action='store_true', help='only run with input
 parser.add_argument('--skip-ref', action='store_true', help='skip stuff that\'s run by --only-ref')
 parser.add_argument('--bust-cache', action='store_true', help='copy info from new dir to reference dir, i.e. overwrite old test info')
 parser.add_argument('--comparison-plots', action='store_true')
-parser.add_argument('--make-plots', action='store_true')
+# parser.add_argument('--make-plots', action='store_true')
 parser.add_argument('--glfo-dir', default='data/germlines/human')
 parser.add_argument('--chain', default='h')
 args = parser.parse_args()
