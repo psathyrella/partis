@@ -219,8 +219,6 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
                  linewidths=None, plottitle=None, csv_fname=None, stats='', translegend=(0., 0.), rebin=None,
                  xtitle=None, ytitle=None, markersizes=None, no_labels=False, only_csv=False, alphas=None):
     assert os.path.exists(plotdir)
-    fig, ax = mpl_init(figsize=figsize)
-    mpl.rcParams.update({'legend.fontsize' : 15})
 
     hists = [hist,]
     if more_hists is not None:
@@ -249,6 +247,20 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
     if shift_overflows:
         assert '_vs_per_gene_support' not in plotname and '_fraction_correct_vs_mute_freq' not in plotname and plotname.find('_gene') != 1  # really, really, really don't want to shift overflows for these
         shift_hist_overflows(hists, xmin, xmax)
+
+    if write_csv:
+        assert more_hists is None  # can't write a superposition on multiple hists to a single csv
+        if csv_fname is None:
+            hist.write(plotdir + '/' + plotname + '.csv')
+        else:
+            hist.write(csv_fname)
+
+    if only_csv:
+        return
+
+    # this is the slow part of plotting (well, writing the svg is also slow)
+    fig, ax = mpl_init(figsize=figsize)
+    mpl.rcParams.update({'legend.fontsize' : 15})
 
     if colors is None:  # fiddle here http://stackoverflow.com/questions/22408237/named-colors-in-matplotlib
         colors = ['royalblue', 'darkred', 'green', 'darkorange']
@@ -304,38 +316,29 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
         xticks = hist.get_bin_centers()
         xticklabels = hist.bin_labels
 
-    if not only_csv:
-        if plottitle is not None:
-            tmptitle = plottitle
-        elif plotname in plotconfig.plot_titles:
-            tmptitle = plotconfig.plot_titles[plotname]
-        else:
-            tmptitle = hist.title  # hm, maybe shouldn't be hist.title? I think that's usually supposed to be the legend
+    if plottitle is not None:
+        tmptitle = plottitle
+    elif plotname in plotconfig.plot_titles:
+        tmptitle = plotconfig.plot_titles[plotname]
+    else:
+        tmptitle = hist.title  # hm, maybe shouldn't be hist.title? I think that's usually supposed to be the legend
 
-        if xtitle is not None:
-            tmpxtitle = xtitle
-        elif plotname in plotconfig.xtitles:
-            tmpxtitle = plotconfig.xtitles[plotname]
-        else:
-            tmpxtitle = hist.xtitle  # hm, maybe shouldn't be hist.title? I think that's usually supposed to be the legend
+    if xtitle is not None:
+        tmpxtitle = xtitle
+    elif plotname in plotconfig.xtitles:
+        tmpxtitle = plotconfig.xtitles[plotname]
+    else:
+        tmpxtitle = hist.xtitle  # hm, maybe shouldn't be hist.title? I think that's usually supposed to be the legend
 
-        mpl_finish(ax, plotdir, plotname,
-                   title=tmptitle,
-                   xlabel=tmpxtitle,
-                   ylabel=hist.ytitle if ytitle is None else ytitle,
-                   xbounds=[xmin, xmax],
-                   ybounds=[-0.03*ymax, 1.15*ymax],
-                   leg_loc=(0.72 + translegend[0], 0.7 + translegend[1]),
-                   log=log, xticks=xticks, xticklabels=xticklabels,
-                   no_legend=(len(hists) <= 1))
-
-    if write_csv:
-        assert more_hists is None
-        if csv_fname is None:
-            hist.write(plotdir + '/' + plotname + '.csv')
-        else:
-            hist.write(csv_fname)
-
+    mpl_finish(ax, plotdir, plotname,
+               title=tmptitle,
+               xlabel=tmpxtitle,
+               ylabel=hist.ytitle if ytitle is None else ytitle,
+               xbounds=[xmin, xmax],
+               ybounds=[-0.03*ymax, 1.15*ymax],
+               leg_loc=(0.72 + translegend[0], 0.7 + translegend[1]),
+               log=log, xticks=xticks, xticklabels=xticklabels,
+               no_legend=(len(hists) <= 1))
     plt.close()
 
 # ----------------------------------------------------------------------------------------
