@@ -243,7 +243,7 @@ linekeys['per_family'] = ['naive_seq', 'cdr3_length', 'codon_positions', 'length
                          [b + '_insertion' for b in boundaries + effective_boundaries] + \
                          [r + '_gl_seq' for r in regions] + \
                          [r + '_per_gene_support' for r in regions]
-linekeys['per_seq'] = ['seqs', 'unique_ids', 'indelfos', 'mut_freqs', 'duplicates'] + \
+linekeys['per_seq'] = ['seqs', 'unique_ids', 'indelfos', 'mut_freqs'] + \
                       [r + '_qr_seqs' for r in regions] + \
                       ['aligned_' + r + '_seqs' for r in regions] + \
                       functional_columns
