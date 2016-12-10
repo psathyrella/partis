@@ -33,7 +33,7 @@ def pass_fcn(val):  # dummy function for conversions (see beloww)
     return val
 
 # ----------------------------------------------------------------------------------------
-def get_arg_list(arg, intify=False, floatify=False, translation=None, list_of_pairs=False):  # make lists from args that are passed as strings of colon-separated values
+def get_arg_list(arg, intify=False, floatify=False, translation=None, list_of_pairs=False, choices=None):  # make lists from args that are passed as strings of colon-separated values
     if arg is None:
         return None
 
@@ -54,6 +54,11 @@ def get_arg_list(arg, intify=False, floatify=False, translation=None, list_of_pa
         for ia in range(len(arglist)):
             if arglist[ia] in translation:
                 arglist[ia] = translation[arglist[ia]]
+
+    if choices is not None:
+        for arg in arglist:
+            if arg not in choices:
+                raise Exception('unexpected argument \'%s\' (choices: %s)' % (str(arg), [str(c) for c in choices]))
 
     return arglist
 
