@@ -1780,6 +1780,10 @@ def process_out_err(out, err, extra_str='', dbgfo=None, logdir=None, debug=None)
         out = readfile(logdir + '/out')
         err = readfile(logdir + '/err')
 
+    for line in out.split('\n'):  # temporarily (maybe) print debug info realted to --n-final-clusters/force merging
+        if 'force' in line:
+            print '    %s %s' % (color('yellow', 'force info:'), line)
+
     print_str = ''
     for line in err.split('\n'):
         if 'stty: standard input: Inappropriate ioctl for device' in line:

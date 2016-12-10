@@ -1128,10 +1128,10 @@ void Glomerator::Merge(ClusterPath *path) {
     } else if(path->CurrentPartition().size() > args_->n_final_clusters()) {
       if(force_merge_) {  // if we already set force merge on a previous iteration
 	path->finished_ = true;
-	printf("    couldn't merge any further despite setting force merge\n");
+	printf("    couldn't merge beyond %lu clusters despite setting force merge\n", path->CurrentPartition().size());
       } else {
 	force_merge_ = true;
-	printf("    setting force merge (currently at %lu clusters, %u were requested)\n", path->CurrentPartition().size(), args_->n_final_clusters());
+	printf("    setting force merge (currently at %lu clusters, requested %u)\n", path->CurrentPartition().size(), args_->n_final_clusters());
       }
     } else {  // we've gotten down to the requested number of clusters, so we can stop (shouldn't be possible to get here, since it'd require somehow missing setting the path to finished in the if clause below)
       path->finished_ = true;
