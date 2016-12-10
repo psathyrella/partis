@@ -14,6 +14,7 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> >
   n_hfrac_merges_(0),
   n_lratio_merges_(0),
   asym_factor_(4.),
+  force_merge_(false),
   current_partition_(nullptr),
   progress_file_(fopen((args_->outfile() + ".progress").c_str(), "w"))
 {
@@ -1014,7 +1015,7 @@ pair<double, Query> Glomerator::FindHfracMerge(ClusterPath *path) {
     }
   }
 
-  if(min_hamming_fraction != INFINITY) {
+  if(min_hamming_fraction != INFINITY) {  // (note that this is *plus* infinity, but in the lratio fcn it's -INFINITY)
     ++n_hfrac_merges_;
     if(args_->debug())
       printf("          hfrac merge  %.3f   %s  %s\n", min_hamming_fraction, PrintStr(min_hamming_merge.parents_.first).c_str(), PrintStr(min_hamming_merge.parents_.second).c_str());
@@ -1027,7 +1028,6 @@ pair<double, Query> Glomerator::FindHfracMerge(ClusterPath *path) {
 pair<double, Query> Glomerator::FindLRatioMerge(ClusterPath *path) {
   double max_lratio(-INFINITY);
   Query chosen_qmerge;
-  int n_total_pairs(0), n_skipped_hamming(0), n_small_lratios(0);
 
   Partition outer_clusters(path->CurrentPartition());
   if(args_->seed_unique_id() != "")  // see comments in FindHfracMerge
@@ -1053,24 +1053,18 @@ pair<double, Query> Glomerator::FindLRatioMerge(ClusterPath *path) {
       if(failed_queries_.count(key_a) || failed_queries_.count(key_b))
 	continue;
 
-      ++n_total_pairs;
-
       if(cachefo(key_a).cdr3_length_ != cachefo(key_b).cdr3_length_)
       	continue;
 
       double hfrac = NaiveHfrac(key_a, key_b);
-      if(hfrac > args_->hamming_fraction_bound_hi()) {  // if naive hamming fraction too big, don't even consider merging the pair
-	++n_skipped_hamming;
+      if(hfrac > args_->hamming_fraction_bound_hi())  // if naive hamming fraction too big, don't even consider merging the pair
 	continue;
-      }
 
       double lratio = GetLogProbRatio(key_a, key_b);
 
       // don't merge if lratio is small (less than zero, more or less)
-      if(LikelihoodRatioTooSmall(lratio, CountMembers(key_a) + CountMembers(key_b))) {
-	++n_small_lratios;
+      if(!force_merge_ && LikelihoodRatioTooSmall(lratio, CountMembers(key_a) + CountMembers(key_b)))
 	continue;
-      }
 
       if(lratio > max_lratio) {
 	max_lratio = lratio;
@@ -1079,13 +1073,7 @@ pair<double, Query> Glomerator::FindLRatioMerge(ClusterPath *path) {
     }
   }
 
-  if(max_lratio == -INFINITY) {  // if we didn't find any merges that we liked
-    path->finished_ = true;
-    cout << "        stop-with:   big-hfrac " << n_skipped_hamming << "   small-lratio " << n_small_lratios << "   total " << n_total_pairs;
-    if(failed_queries_.size() > 0)
-      cout << "   (" << failed_queries_.size() << " failed queries)";
-    cout << endl;
-  } else {
+  if(max_lratio != -INFINITY) {  // if we found a merge that we liked (note that this is *minus* infinity, but in the hfrac fcn it's +INFINITY)
     ++n_lratio_merges_;
     if(args_->debug())
       printf("          lratio merge  %.3f   %s  %s\n", max_lratio, PrintStr(chosen_qmerge.parents_.first).c_str(), PrintStr(chosen_qmerge.parents_.second).c_str());
@@ -1130,13 +1118,26 @@ void Glomerator::UpdateLogProbTranslationsForAsymetrics(Query &qmerge) {
 // ----------------------------------------------------------------------------------------
 // perform one merge step, i.e. find the two "nearest" clusters and merge 'em (unless we're doing doing smc, in which case we choose a random merge accordingy to their respective nearnesses)
 void Glomerator::Merge(ClusterPath *path) {
-  if(path->finished_)  // already finished this <path>, but we're still iterating 'cause some of the other paths aren't finished
-    return;
   pair<double, Query> qpair = FindHfracMerge(path);
-  if(qpair.first == INFINITY)
+  if(qpair.first == INFINITY)  // if there wasn't a good enough hfrac merge
     qpair = FindLRatioMerge(path);
-  if(path->finished_)
+
+  if(qpair.first == -INFINITY) {  // if there also wasn't a good lratio merge
+    if(args_->n_final_clusters() == 0) {  // default: stop when there's no good lratio merges, i.e. at (well, near) the maximum likelihood partition
+      path->finished_ = true;
+    } else if(path->CurrentPartition().size() > args_->n_final_clusters()) {
+      if(force_merge_) {  // if we already set force merge on a previous iteration
+	path->finished_ = true;
+	printf("    couldn't merge any further despite setting force merge\n");
+      } else {
+	force_merge_ = true;
+	printf("    setting force merge (currently at %lu clusters, %u were requested)\n", path->CurrentPartition().size(), args_->n_final_clusters());
+      }
+    } else {  // we've gotten down to the requested number of clusters, so we can stop (shouldn't be possible to get here, since it'd require somehow missing setting the path to finished in the if clause below)
+      path->finished_ = true;
+    }
     return;
+  }
 
   WriteStatus();
   Query chosen_qmerge = qpair.second;
@@ -1163,6 +1164,11 @@ void Glomerator::Merge(ClusterPath *path) {
   //  - bottom line, I think I'll need to buckle down and measure memory usage, decide how much I'm allowed to use, and only clear the caches that I need to
   //  - but also, it'd probably (maybe?) be ok to clear this cache after a logprob merge, since that would mean we're probably through with all the naive hfrac merges
   //  - or at least remove info for clusters we've merged out of existence
+
+  if(args_->n_final_clusters() > 0 && path->CurrentPartition().size() <= args_->n_final_clusters()) {
+    path->finished_ = true;
+    printf("    finished glomerating to %lu clusters (requested %u))\n", path->CurrentPartition().size(), args_->n_final_clusters());
+  }
 }
 
 // NOTE don't remove these (yet, at least)

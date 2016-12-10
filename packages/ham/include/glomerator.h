@@ -167,6 +167,8 @@ private:
 
   double asym_factor_;
 
+  bool force_merge_;  // this gets set to true if args_->n_final_clusters() is set, and we've got to keep going past the most likely partition in order to get down to the requested number of clusters
+
   Partition *current_partition_;  // (a.t.m. only used for writing to status file)
   time_t last_status_write_time_;  // last time that we wrote our progress to a file
   FILE *progress_file_;
