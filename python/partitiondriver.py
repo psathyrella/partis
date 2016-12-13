@@ -319,7 +319,7 @@ class PartitionDriver(object):
         # cache hmm naive seq for each single query
         if not self.args.dont_precache_naive_seqs and (len(self.sw_info['queries']) > 50 or self.args.naive_vsearch or self.args.naive_swarm):
             print '--> caching all %d naive sequences' % len(self.sw_info['queries'])
-            self.run_hmm('viterbi', self.sub_param_dir, n_procs=self.get_n_precache_procs(len(self.sw_info['queries'])), precache_all_naive_seqs=True)
+            self.run_hmm('viterbi', self.sub_param_dir, n_procs=self.auto_nprocs(len(self.sw_info['queries'])), precache_all_naive_seqs=True)
 
         if self.args.naive_vsearch or self.args.naive_swarm:
             cpath = self.cluster_with_naive_vsearch_or_swarm(parameter_dir=self.sub_param_dir)
@@ -467,17 +467,16 @@ class PartitionDriver(object):
             print '  ' + utils.color('red', 'warning') + ' ' + warnstr
 
     # ----------------------------------------------------------------------------------------
-    def get_n_precache_procs(self, initial_nseqs):
-        if self.args.n_precache_procs is not None:
+    def auto_nprocs(self, nseqs):
+        if self.args.n_precache_procs is not None:  # command line override
             return self.args.n_precache_procs
 
-        n_seqs = initial_nseqs
         seqs_per_proc = 500  # 2.5 mins (at something like 0.3 sec/seq)
-        if n_seqs > 3000:
+        if nseqs > 3000:
             seqs_per_proc *= 2
-        if n_seqs > 10000:
+        if nseqs > 10000:
             seqs_per_proc *= 1.5
-        n_precache_procs = int(math.ceil(float(n_seqs) / seqs_per_proc))
+        n_precache_procs = int(math.ceil(float(nseqs) / seqs_per_proc))
         n_precache_procs = min(n_precache_procs, self.args.n_max_procs)  # I can't get more'n a few hundred slots at a time, so it isn't worth using too much more than that
         if self.args.batch_system is None:  # if we're not on a batch system, make sure it's less than the number of cpus
             n_precache_procs = min(n_precache_procs, multiprocessing.cpu_count())
