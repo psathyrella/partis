@@ -939,7 +939,7 @@ def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False): 
     line['naive_seq'] = line['fv_insertion'] + line['v_gl_seq'] + line['vd_insertion'] + line['d_gl_seq'] + line['dj_insertion'] + line['j_gl_seq'] + line['jf_insertion']
     for iseq in range(len(line['seqs'])):
         if len(line['naive_seq']) != len(line['seqs'][iseq]):
-            raise Exception('naive and matures sequences different lengths %d %d for %s' % (len(line['naive_seq']), len(line['seqs'][iseq]), ' '.join(line['unique_ids'])))
+            raise Exception('naive and mature sequences different lengths %d %d for %s' % (len(line['naive_seq']), len(line['seqs'][iseq]), ' '.join(line['unique_ids'])))
 
     start, end = {}, {}  # add naive seq bounds for each region (could stand to make this more concise)
     start['v'] = len(line['fv_insertion'])  # NOTE this duplicates code in add_qr_seqs()
@@ -1609,8 +1609,11 @@ def process_input_line(info):
         else:
             info[key] = convert_fcn(info[key])
 
-    if 'seqs' not in info and 'seq' not in info:  # if this isn't an old-style file (where it's just called 'seqs'), and it isn't a simulation csv file
-        info['seqs'] = info['indel_reversed_seqs']  # this is called 'seqs' internally, for conciseness and to avoid rewriting a ton of stuff, but is called 'indel_reversed_seqs' in the output file to avoid user confusion
+    # this column is called 'seqs' internally (for conciseness and to avoid rewriting a ton of stuff) but is called 'indel_reversed_seqs' in the output file to avoid user confusion
+    if 'seqs' not in info and 'seq' not in info:  # if this is a new-style file (in old-style files it's just called 'seqs'), and if it also isn't a simulation csv file
+        if info['indel_reversed_seqs'] == '':
+            info['indel_reversed_seqs'] = ['' for _ in range(len(info['unique_ids']))]
+        info['seqs'] = [info['indel_reversed_seqs'][iseq] if info['indel_reversed_seqs'][iseq] != '' else info['input_seqs'][iseq] for iseq in range(len(info['unique_ids']))]  # if there's no indels, we just store 'input_seqs' and leave 'indel_reversed_seqs' empty
         del info['indel_reversed_seqs']
 
     # process things for which we first want to know the number of seqs in the line
@@ -1618,7 +1621,7 @@ def process_input_line(info):
         if key == 'indelfo':  # simulation file
             info[key] = reconstruct_full_indelfo(info['indelfo'], info['seq'])
         elif key == 'indelfos':
-            info[key] = [reconstruct_full_indelfo(info['indelfos'][iseq], info['seqs'][iseq]) for iseq in range(len(info['seqs']))]
+            info[key] = [reconstruct_full_indelfo(info['indelfos'][iseq], info['seqs'][iseq]) for iseq in range(len(info['unique_ids']))]
         elif info[key] != '':
             continue
 
@@ -1638,7 +1641,9 @@ def get_line_for_output(info):
         elif 'indelfo' in key:  # just write the list of indels -- don't need the reversed seq and debug str
             str_fcn = lambda x: str([sx['indels'] for sx in x])
 
-        if key in column_configs['lists']:
+        if key == 'seqs':  # this column is called 'seqs' internally (for conciseness and to avoid rewriting a ton of stuff) but is called 'indel_reversed_seqs' in the output file to avoid user confusion
+            outfo['indel_reversed_seqs'] = ':'.join([info['seqs'][iseq] if len(info['indelfos'][iseq]['indels']) > 0 else '' for iseq in range(len(info['unique_ids']))])
+        elif key in column_configs['lists']:
             outfo[key] = ':'.join([str_fcn(v) for v in info[key]])
         elif key in column_configs['lists-of-lists']:
             outfo[key] = copy.deepcopy(info[key])
@@ -1649,9 +1654,6 @@ def get_line_for_output(info):
             outfo[key] = ';'.join(outfo[key])
         else:
             outfo[key] = str_fcn(info[key])
-
-    outfo['indel_reversed_seqs'] = outfo['seqs']  # this is called 'seqs' internally, for conciseness and to avoid rewriting a ton of stuff, but is called 'indel_reversed_seqs' in the output file to avoid user confusion
-    del outfo['seqs']
 
     return outfo
 

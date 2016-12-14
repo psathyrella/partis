@@ -148,15 +148,17 @@ Finds the Viterbi path (i.e., the most likely annotation/alignment) for each seq
 The output csv headers are listed in the table below, and you can view a colored ascii representation of the rearrangement events with the `view-annotations` action.
 An example of how to parse this output csv (say, if you want to further process the results) is in `bin/example-output-processing.py`.
 
+All columns listed as "colon-separated lists" are trivial/length one for single hmm, and contain actual colons for multi-hmm.
+
 |   column header        |  description
 |------------------------|----------------------------------------------------------------------------
-| unique_ids             |  colon-separated list of sequence identification strings (of length 1 if multi-hmm isn't used)
+| unique_ids             |  colon-separated list of sequence identification strings
 | v_gene         |  V gene in most likely annotation
 | d_gene         |  D gene in most likely annotation
 | j_gene         |  J gene in most likely annotation
 | cdr3_length    |  CDR3 length of most likely annotation (IMGT scheme, i.e. including both codons in their entirety)
-| mut_freqs      |  colon-separated list of sequence mutation frequencies (of length 1 if multi-hmm isn't used)
-| input_seqs     |  colon-separated list of input sequences, with constant regions (fv/jf insertions) removed (of length 1 if multi-hmm isn't used)
+| mut_freqs      |  colon-separated list of sequence mutation frequencies
+| input_seqs     |  colon-separated list of input sequences, with constant regions (fv/jf insertions) removed
 | naive_seq      |  naive (unmutated ancestor) sequence corresponding to most likely annotation
 | v_3p_del       |  length of V 3' deletion in most likely annotation
 | d_5p_del       |  length of D 5' deletion in most likely annotation
@@ -168,25 +170,21 @@ An example of how to parse this output csv (say, if you want to further process 
 | dj_insertion       |  sequence of nucleotides corresponding to the non-templated insertion between the D and J segments
 | fv_insertion       |  constant region on the 5' side of the V (accounts for reads which extend beyond the 5' end of V)
 | jf_insertion       |  constant region on the 3' side of the J (accounts for reads which extend beyond the 3' end of J)
-| mutated_invariants     |  true if the conserved cysteine or tryptophan (IMGT numbering) were mutated (colon-separated list if multi-hmm)
-| in_frames      |  true if conserved cysteine and tryptophan (IMGT numbering) are in the same frame (colon-separated list if multi-hmm)
-| stops                  |  true if stop codon was found in the query sequence (colon-separated list if multi-hmm)
+| mutated_invariants     |  true if the conserved cysteine or tryptophan (IMGT numbering) were mutated
+| in_frames      |  true if conserved cysteine and tryptophan (IMGT numbering) are in the same
+| stops                  |  true if stop codon was found in the query sequence
 | v_per_gene_support     |  approximate probability supporting the top V gene matches, as a semicolon-separated list of colon-separated gene:probability pairs (approximate: monotonically related to the actual probability, but not exactly one-to-one)
 | d_per_gene_support     |  approximate probability supporting the top D gene matches, as a semicolon-separated list of colon-separated gene:probability pairs (approximate: monotonically related to the actual probability, but not exactly one-to-one)
 | j_per_gene_support     |  approximate probability supporting the top J gene matches, as a semicolon-separated list of colon-separated gene:probability pairs (approximate: monotonically related to the actual probability, but not exactly one-to-one)
-| indelfos       |  information on any SHM indels that were inferred in the Smith-Waterman step. Written as a literal python dict; can be read in python with `ast.literal_eval(line['indelfo'])` (colon-separated list if multi-hmm)
-| indel_reversed_seqs  |  colon-separated list of input sequences with indels "reversed", and with constant regions (fv/jf insertions) removed (of length 1 if multi-hmm isn't used)
-| duplicates     |  list of "duplicate" sequences, i.e. sequences which, after trimming fv/jf insertions, were identical and were thus collapsed into this uid (list of lists, if multi-hmm)
-| aligned_v_seqs     |  do not use. will soon be removed (see issue #179)
-| aligned_d_seqs     |  do not use. will soon be removed (see issue #179)
-| aligned_j_seqs     |  do not use. will soon be removed (see issue #179)
+| indelfos       |  colon-separated list of information on any SHM indels that were inferred in the Smith-Waterman step. Written as a literal python dict; can be read in python with `ast.literal_eval(line['indelfo'])`
+| indel_reversed_seqs  |  colon-separated list of input sequences with indels "reversed", and with constant regions (fv/jf insertions) removed. Empty string if there are no indels, i.e. if it's the same as 'input_seqs'
+| duplicates     |  colon-separated list of "duplicate" sequences for each sequence, i.e. sequences which, after trimming fv/jf insertions, were identical and were thus collapsed.
 
 Note that `utils.process_input_line()` and `utils.get_line_for_output()` can be used to automate input/output (see for example `bin/example-output-processing.py`).
 
 Annotation with `run-viterbi` is the algorithm of choice for annotating sequences where the clonal relationship is different i.e. no sequence in the dataset are from the same germinal center, and therefore are not related by having the same naive sequence. Examples of such datasets could be pooled datasets with BCR sequences from many individuals, where clonal relationship cannot be present.
 
 However for many applications sequence data is created unspecifically for a large amount of BCRs and will contain many sequences being from the same germinal center, hence also sharing the same naive sequence. Using this prior knowledge can greatly improve inference of VDJ gene combination and reconstruction of the naive sequence, and therefore when datasets allow for partitioning, the annotations from the partitioning algorithm should be preferred over the `run-viterbi` results.
-
 
 #### partition
 
