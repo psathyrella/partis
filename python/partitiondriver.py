@@ -1057,7 +1057,9 @@ class PartitionDriver(object):
             combo['relpos'] = {}
             for gene, pos in swfo['relpos'].items():
                 if gene in combo['relpos']:
+                    # Right now we just make sure that all the relpos' for the various sequences in a cluster are the same.
                     # Eventually we will have to do some smart error handling here when we get the same germline aligned two different ways for two sequences in a cluster.
+                    # For example, if there are two we could take the higher scoring gene's relpos, and if > 2 we could take the majority vote.
                     assert(combo['relpos'][gene] == pos)
                 else:
                     combo['relpos'][gene] = pos
@@ -1072,6 +1074,7 @@ class PartitionDriver(object):
             # and finally OR this query's genes into the ones from previous queries
             combo['only_genes'] = list(set(genes_to_use) | set(combo['only_genes']))  # NOTE using the OR of all sets of genes (from all query seqs) like this *really* helps,
 
+        # Take the widest set of flexbounds across all of the matched genes.
         combo['flexbounds'] = {}
         for region_side in self.sw_info[query_names[0]]['flexbounds']:
             bounds_l = zip(*[self.sw_info[name]['flexbounds'][region_side] for name in query_names])

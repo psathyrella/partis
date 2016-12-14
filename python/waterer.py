@@ -931,7 +931,7 @@ class Waterer(object):
         """
         flexbounds = {}
 
-        # NOTE we will want to use command-line-derived fuzz, but this will do for now.
+        # NOTE we will want to use Duncan's new cool way of finding out these bounds using sequence identity.
         def span(l):
             return (max(0, min(l)-2), max(l)+2)
 
