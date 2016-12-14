@@ -156,7 +156,7 @@ An example of how to parse this output csv (say, if you want to further process 
 | j_gene         |  J gene in most likely annotation
 | cdr3_length    |  CDR3 length of most likely annotation (IMGT scheme, i.e. including both codons in their entirety)
 | mut_freqs      |  colon-separated list of sequence mutation frequencies (of length 1 if multi-hmm isn't used)
-| seqs           |  colon-separated list of query sequences (of length 1 if multi-hmm isn't used), with indels reversed (i.e. such that germline sequences align properly)
+| input_seqs     |  colon-separated list of input sequences, with constant regions (fv/jf insertions) removed (of length 1 if multi-hmm isn't used)
 | naive_seq      |  naive (unmutated ancestor) sequence corresponding to most likely annotation
 | v_3p_del       |  length of V 3' deletion in most likely annotation
 | d_5p_del       |  length of D 5' deletion in most likely annotation
@@ -166,8 +166,8 @@ An example of how to parse this output csv (say, if you want to further process 
 | j_3p_del       |  length of an "effective" J 3' deletion in the most likely annotation, corresponding to a read which does not extend through the entire J segment
 | vd_insertion       |  sequence of nucleotides corresponding to the non-templated insertion between the V and D segments
 | dj_insertion       |  sequence of nucleotides corresponding to the non-templated insertion between the D and J segments
-| fv_insertion       |  sequence of nucleotides corresponding to any "effective" non-templated insertion on the 5' side of the V (accounts for reads which extend beyond the 5' end of V)
-| jf_insertion       |  sequence of nucleotides corresponding to any "effective" non-templated insertion on the 3' side of the J (accounts for reads which extend beyond the 3' end of J)
+| fv_insertion       |  constant region on the 5' side of the V (accounts for reads which extend beyond the 5' end of V)
+| jf_insertion       |  constant region on the 3' side of the J (accounts for reads which extend beyond the 3' end of J)
 | mutated_invariants     |  true if the conserved cysteine or tryptophan (IMGT numbering) were mutated (colon-separated list if multi-hmm)
 | in_frames      |  true if conserved cysteine and tryptophan (IMGT numbering) are in the same frame (colon-separated list if multi-hmm)
 | stops                  |  true if stop codon was found in the query sequence (colon-separated list if multi-hmm)
@@ -175,6 +175,8 @@ An example of how to parse this output csv (say, if you want to further process 
 | d_per_gene_support     |  approximate probability supporting the top D gene matches, as a semicolon-separated list of colon-separated gene:probability pairs (approximate: monotonically related to the actual probability, but not exactly one-to-one)
 | j_per_gene_support     |  approximate probability supporting the top J gene matches, as a semicolon-separated list of colon-separated gene:probability pairs (approximate: monotonically related to the actual probability, but not exactly one-to-one)
 | indelfos       |  information on any SHM indels that were inferred in the Smith-Waterman step. Written as a literal python dict; can be read in python with `ast.literal_eval(line['indelfo'])` (colon-separated list if multi-hmm)
+| indel_reversed_seqs  |  colon-separated list of input sequences with indels "reversed", and with constant regions (fv/jf insertions) removed (of length 1 if multi-hmm isn't used)
+| duplicates     |  list of "duplicate" sequences, i.e. sequences which, after trimming fv/jf insertions, were identical and were thus collapsed into this uid (list of lists, if multi-hmm)
 | aligned_v_seqs     |  do not use. will soon be removed (see issue #179)
 | aligned_d_seqs     |  do not use. will soon be removed (see issue #179)
 | aligned_j_seqs     |  do not use. will soon be removed (see issue #179)

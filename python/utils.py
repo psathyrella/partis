@@ -186,7 +186,7 @@ column_configs = {
     'floats' : ['logprob', 'mut_freqs'],
     'bools' : functional_columns,
     'literals' : ['indelfo', 'indelfos', 'k_v', 'k_d', 'all_matches'],  # simulation has indelfo[s] singular, annotation output has it plural... and I think it actually makes sense to have it that way
-    'lists' : ['unique_ids', 'seqs', 'aligned_seqs', 'mut_freqs', 'padlefts', 'padrights'] + ['aligned_' + r + '_seqs' for r in regions] + functional_columns,  # indelfos is a list, but we can't just split it by colons since it has colons within the dict string
+    'lists' : ['unique_ids', 'seqs', 'input_seqs', 'indel_reversed_seqs', 'aligned_seqs', 'mut_freqs', 'padlefts', 'padrights'] + ['aligned_' + r + '_seqs' for r in regions] + functional_columns,  # indelfos is a list, but we can't just split it by colons since it has colons within the dict string
     'lists-of-lists' : ['duplicates'] + [r + '_per_gene_support' for r in regions]
 }
 
@@ -248,7 +248,8 @@ linekeys['per_family'] = ['naive_seq', 'cdr3_length', 'codon_positions', 'length
                          [b + '_insertion' for b in boundaries + effective_boundaries] + \
                          [r + '_gl_seq' for r in regions] + \
                          [r + '_per_gene_support' for r in regions]
-linekeys['per_seq'] = ['seqs', 'unique_ids', 'indelfos', 'mut_freqs'] + \
+# used by the synthesize_[] fcns below
+linekeys['per_seq'] = ['seqs', 'unique_ids', 'indelfos', 'mut_freqs', 'input_seqs'] + \
                       [r + '_qr_seqs' for r in regions] + \
                       ['aligned_' + r + '_seqs' for r in regions] + \
                       functional_columns
@@ -259,12 +260,12 @@ linekeys['simu'] = ['reco_id', ]
 all_linekeys = set([k for cols in linekeys.values() for k in cols])
 
 # keys that are added by add_implicit_info()
-implicit_linekeys = set(['naive_seq', 'cdr3_length', 'codon_positions', 'lengths', 'regional_bounds', 'invalid'] + \
+implicit_linekeys = set(['naive_seq', 'cdr3_length', 'codon_positions', 'lengths', 'regional_bounds', 'invalid', 'input_seqs'] + \
                        [r + '_gl_seq' for r in regions] + \
                        ['mut_freqs', ] + functional_columns + [r + '_qr_seqs' for r in regions] + ['aligned_' + r + '_seqs' for r in regions])
 
 # ----------------------------------------------------------------------------------------
-annotation_headers = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'mut_freqs', 'seqs', 'naive_seq', 'indelfos', 'duplicates'] \
+annotation_headers = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'mut_freqs', 'input_seqs', 'indel_reversed_seqs', 'naive_seq', 'indelfos', 'duplicates'] \
                      + ['aligned_' + r + '_seqs' for r in regions] \
                      + [r + '_per_gene_support' for r in regions] \
                      + [e + '_del' for e in real_erosions + effective_erosions] + [b + '_insertion' for b in boundaries + effective_boundaries] \
@@ -282,6 +283,27 @@ bcrham_dbgstr_types = {
     'same' : ['read-cache', ],  # check that these are the same for all procs
     'min-max' : ['time', ]
 }
+
+# ----------------------------------------------------------------------------------------
+def synthesize_single_seq_line(line, iseq):
+    """ without modifying <line>, make a copy of it corresponding to a single-sequence event with the <iseq>th sequence """
+    hmminfo = copy.deepcopy(line)  # make a copy of the info, into which we'll insert the sequence-specific stuff
+    for col in linekeys['per_seq']:
+        hmminfo[col] = [hmminfo[col][iseq], ]
+    return hmminfo
+
+# ----------------------------------------------------------------------------------------
+def synthesize_multi_seq_line(uids, reco_info):
+    """ assumes you already added all the implicit info """
+    assert len(uids) > 0
+    outline = copy.deepcopy(reco_info[uids[0]])
+    for col in linekeys['per_seq']:
+        # this is for use when you switch 'duplicates' from linekeys['sw'] to linekeys['per_seq'], where it should be
+        # if col not in reco_info[uid]:  # e.g. 'duplicates'
+        #     continue
+        assert [len(reco_info[uid][col]) for uid in uids].count(1) == len(uids)  # make sure they're all length one
+        outline[col] = [copy.deepcopy(reco_info[uid][col][0]) for uid in uids]
+    return outline
 
 # ----------------------------------------------------------------------------------------
 def generate_dummy_v(d_gene):
@@ -927,6 +949,8 @@ def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False): 
     start['j'] = end['d'] + len(line['dj_insertion'])
     end['j'] = start['j'] + len(line['j_gl_seq'])
     line['regional_bounds'] = {r : (start[r], end[r]) for r in regions}
+
+    line['input_seqs'] = [get_seq_with_indels_reinstated(line, iseq) for iseq in range(len(line['seqs']))]
 
     # add regional query seqs
     add_qr_seqs(line)
@@ -1585,12 +1609,16 @@ def process_input_line(info):
         else:
             info[key] = convert_fcn(info[key])
 
+    if 'seqs' not in info and 'seq' not in info:  # if this isn't an old-style file (where it's just called 'seqs'), and it isn't a simulation csv file
+        info['seqs'] = info['indel_reversed_seqs']  # this is called 'seqs' internally, for conciseness and to avoid rewriting a ton of stuff, but is called 'indel_reversed_seqs' in the output file to avoid user confusion
+        del info['indel_reversed_seqs']
+
     # process things for which we first want to know the number of seqs in the line
     for key in info:
         if key == 'indelfo':  # simulation file
-            info[key] = reconstruct_full_indelfo(info[key], info['seq'])
+            info[key] = reconstruct_full_indelfo(info['indelfo'], info['seq'])
         elif key == 'indelfos':
-            info[key] = [reconstruct_full_indelfo(info[key][iseq], info['seqs'][iseq]) for iseq in range(len(info['seqs']))]
+            info[key] = [reconstruct_full_indelfo(info['indelfos'][iseq], info['seqs'][iseq]) for iseq in range(len(info['seqs']))]
         elif info[key] != '':
             continue
 
@@ -1621,6 +1649,9 @@ def get_line_for_output(info):
             outfo[key] = ';'.join(outfo[key])
         else:
             outfo[key] = str_fcn(info[key])
+
+    outfo['indel_reversed_seqs'] = outfo['seqs']  # this is called 'seqs' internally, for conciseness and to avoid rewriting a ton of stuff, but is called 'indel_reversed_seqs' in the output file to avoid user confusion
+    del outfo['seqs']
 
     return outfo
 
@@ -2219,11 +2250,26 @@ def subset_files(uids, fnames, outdir, uid_header='Sequence ID', delimiter='\t',
                     if line[uid_header] in uids:
                         writer.writerow(line)
 
+# # ----------------------------------------------------------------------------------------
+# ick, needs germline info, and, screw it, I'll just go back to writing the indel-reversed sequence to file
+# def reverse_indels(input_seq, indelfo):  # reverse the action of indel reversion
+#     if indelfo['reversed_seq'] == '':
+#         return input_seq
+
+#     for indel in indelfo['indels']:
+#         if indel['type'] == 'insertion':
+#             return_seq = return_seq[ : indel['pos']] + indel['seqstr'] + return_seq[indel['pos'] : ]
+#         elif indel['type'] == 'deletion':
+#             return_seq = return_seq[ : indel['pos']] + return_seq[indel['pos'] + indel['len'] : ]
+#         else:
+#             assert False
+
+#     return return_seq
+
 # ----------------------------------------------------------------------------------------
-def get_seq_with_indels_reinstated(line):  # reverse the action of indel reversion
-    assert len(line['seqs']) == 1
-    indelfo = line['indelfos'][0]
-    return_seq = line['seqs'][0]
+def get_seq_with_indels_reinstated(line, iseq=0):  # reverse the action of indel reversion
+    indelfo = line['indelfos'][iseq]
+    return_seq = line['seqs'][iseq]
     if indelfo['reversed_seq'] == '':
         return return_seq
 
@@ -2325,27 +2371,6 @@ def auto_slurm(n_procs):
     if n_procs > ncpu and slurm_exists():
         return True
     return False
-
-# ----------------------------------------------------------------------------------------
-def synthesize_single_seq_line(line, iseq):
-    """ without modifying <line>, make a copy of it corresponding to a single-sequence event with the <iseq>th sequence """
-    hmminfo = copy.deepcopy(line)  # make a copy of the info, into which we'll insert the sequence-specific stuff
-    for col in linekeys['per_seq']:
-        hmminfo[col] = [hmminfo[col][iseq], ]
-    return hmminfo
-
-# ----------------------------------------------------------------------------------------
-def synthesize_multi_seq_line(uids, reco_info):
-    """ assumes you already added all the implicit info """
-    assert len(uids) > 0
-    outline = copy.deepcopy(reco_info[uids[0]])
-    for col in linekeys['per_seq']:
-        # this is for use when you switch 'duplicates' from linekeys['sw'] to linekeys['per_seq'], where it should be
-        # if col not in reco_info[uid]:  # e.g. 'duplicates'
-        #     continue
-        assert [len(reco_info[uid][col]) for uid in uids].count(1) == len(uids)  # make sure they're all length one
-        outline[col] = [copy.deepcopy(reco_info[uid][col][0]) for uid in uids]
-    return outline
 
 # ----------------------------------------------------------------------------------------
 def count_gaps(seq, istop=None):
