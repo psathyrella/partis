@@ -222,7 +222,8 @@ def run_partitiondriver(args):
         parter.partition()
     else:
         raise Exception('bad action ' + args.action)
-    parter.clean()
+    # NOCLEANUP
+    #parter.clean()
 
 # ----------------------------------------------------------------------------------------
 def view_existing_output(args):

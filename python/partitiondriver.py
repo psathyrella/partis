@@ -737,6 +737,8 @@ class PartitionDriver(object):
         self.write_hmm_input(algorithm, parameter_in_dir, partition, shuffle_input=shuffle_input)
 
         cmd_str = self.get_hmm_cmd_str(algorithm, self.hmm_infname, self.hmm_outfname, parameter_dir=parameter_in_dir, precache_all_naive_seqs=precache_all_naive_seqs, n_procs=n_procs)
+        # NOCLEANUP
+        print cmd_str
 
         if n_procs > 1:
             self.split_input(n_procs, self.hmm_infname)
@@ -1204,7 +1206,9 @@ class PartitionDriver(object):
                 self.read_forward_output(self.hmm_outfname)
 
         if os.path.exists(self.hmm_infname):
-            os.remove(self.hmm_infname)
+        # NOCLEANUP
+            pass
+            #os.remove(self.hmm_infname)
 
         return cpath
 
