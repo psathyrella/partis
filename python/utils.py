@@ -253,7 +253,7 @@ linekeys['per_seq'] = ['seqs', 'unique_ids', 'indelfos', 'mut_freqs'] + \
                       ['aligned_' + r + '_seqs' for r in regions] + \
                       functional_columns
 linekeys['hmm'] = ['logprob', 'errors']
-linekeys['sw'] = ['k_v', 'k_d', 'all_matches', 'padlefts', 'padrights', 'duplicates']
+linekeys['sw'] = ['k_v', 'k_d', 'all_matches', 'padlefts', 'padrights', 'duplicates']  # TODO move 'duplicates' to 'per_seq' (see note in synthesize_multi_seq_line())
 linekeys['extra'] = ['invalid', ]
 linekeys['simu'] = ['reco_id', ]
 all_linekeys = set([k for cols in linekeys.values() for k in cols])
@@ -2340,6 +2340,9 @@ def synthesize_multi_seq_line(uids, reco_info):
     assert len(uids) > 0
     outline = copy.deepcopy(reco_info[uids[0]])
     for col in linekeys['per_seq']:
+        # this is for use when you switch 'duplicates' from linekeys['sw'] to linekeys['per_seq'], where it should be
+        # if col not in reco_info[uid]:  # e.g. 'duplicates'
+        #     continue
         assert [len(reco_info[uid][col]) for uid in uids].count(1) == len(uids)  # make sure they're all length one
         outline[col] = [copy.deepcopy(reco_info[uid][col][0]) for uid in uids]
     return outline
