@@ -1357,7 +1357,8 @@ class PartitionDriver(object):
         perfplotter = PerformancePlotter('hmm') if self.args.plot_performance else None
 
         n_lines_read, n_seqs_processed, n_events_processed, n_invalid_events = 0, 0, 0, 0
-        annotations = OrderedDict()
+        at_least_one_mult_hmm_line = False
+        eroded_annotations, padded_annotations = OrderedDict(), OrderedDict()
         errorfo = {}
         with opener('r')(annotation_fname) as hmm_csv_outfile:
             reader = csv.DictReader(hmm_csv_outfile)
@@ -1387,7 +1388,11 @@ class PartitionDriver(object):
                         utils.print_reco_event(self.glfo['seqs'], padded_line, extra_str='    ', label='invalid:')
                     continue
 
+                assert uidstr not in padded_annotations
+                padded_annotations[uidstr] = padded_line
+
                 if len(uids) > 1:  # if there's more than one sequence, we need to use the padded line
+                    at_least_one_mult_hmm_line = True
                     line_to_use = padded_line
                 else:  # otherwise, the eroded line is kind of simpler to look at
                     # get a new dict in which we have edited the sequences to swap Ns on either end (after removing fv and jf insertions) for v_5p and j_3p deletions
@@ -1396,12 +1401,10 @@ class PartitionDriver(object):
                         n_invalid_events += 1
                         continue
                     line_to_use = eroded_line
+                    eroded_annotations[uidstr] = eroded_line  # these only get used if there aren't any multi-seq lines, so it's ok that they don't all get added if there is a multi seq line
 
                 if self.args.debug or print_annotations:
                     self.print_hmm_output(line_to_use, print_true=True)
-
-                assert uidstr not in annotations
-                annotations[uidstr] = line_to_use
 
                 n_events_processed += 1
                 n_seqs_processed += len(uids)
@@ -1446,16 +1449,18 @@ class PartitionDriver(object):
             else:
                 print '          %s unknown ecode \'%s\': %s' % (utils.color('red', 'warning'), ecode, ' '.join(errorfo[ecode]))
 
+        annotations_to_use = padded_annotations if at_least_one_mult_hmm_line else eroded_annotations  # if every query is a single-sequence query, then the output will be less confusing to people if the N padding isn't there. But you kinda need the padding in order to make the multi-seq stuff work
+
         # write output file
         if outfname is not None:
-            self.write_annotations(annotations, outfname)  # [0] takes the best annotation... if people want other ones later it's easy to change
+            self.write_annotations(annotations_to_use, outfname)  # [0] takes the best annotation... if people want other ones later it's easy to change
 
         # annotation (VJ CDR3) clustering
         if self.args.annotation_clustering is not None:
-            self.deal_with_annotation_clustering(annotations, outfname)
+            self.deal_with_annotation_clustering(annotations_to_use, outfname)
 
         os.remove(annotation_fname)
-        return annotations
+        return annotations_to_use
 
     # ----------------------------------------------------------------------------------------
     def deal_with_annotation_clustering(self, annotations, outfname):
