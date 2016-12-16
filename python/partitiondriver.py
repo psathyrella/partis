@@ -326,9 +326,11 @@ class PartitionDriver(object):
         else:
             cpath = self.cluster_with_bcrham()
 
+        cluster_annotations = self.get_cluster_annotations(cpath.partitions[cpath.i_best])
+
         if self.args.plotdir is not None:
-            partplotter = PartitionPlotter(cpath=cpath)
-            partplotter.plot(self.args.plotdir + '/partitions', only_csv=self.args.only_csv_plots)
+            partplotter = PartitionPlotter()
+            partplotter.plot(self.args.plotdir + '/partitions', partition=cpath.partitions[cpath.i_best], annotations=cluster_annotations, only_csv=self.args.only_csv_plots)
 
         if self.args.debug:
             print 'final'
@@ -340,7 +342,6 @@ class PartitionDriver(object):
                 true_cp.print_partitions(self.reco_info, print_header=False, calc_missing_values='best')
 
         self.check_partition(cpath.partitions[cpath.i_best])
-        self.get_cluster_annotations(cpath.partitions[cpath.i_best])
         if self.args.outfname is not None:
             self.write_clusterpaths(self.args.outfname, cpath)  # [last agglomeration step]
 
@@ -508,10 +509,12 @@ class PartitionDriver(object):
         self.run_hmm('viterbi', self.sub_param_dir, n_procs=n_procs, partition=partition, read_output=False)  # it would be nice to rearrange <self.read_hmm_output()> so I could remove this option
         if n_procs > 1:
             _ = self.merge_all_hmm_outputs(n_procs, precache_all_naive_seqs=False)
-        self.read_annotation_output(self.hmm_outfname, outfname=self.args.cluster_annotation_fname, print_annotations=self.args.print_cluster_annotations)
+        annotations = self.read_annotation_output(self.hmm_outfname, outfname=self.args.cluster_annotation_fname, print_annotations=self.args.print_cluster_annotations)
         if os.path.exists(self.hmm_infname):
             os.remove(self.hmm_infname)
         self.current_action = action_cache
+
+        return annotations
 
     # ----------------------------------------------------------------------------------------
     def run_swarm(self, naive_seqs, threshold, outfname):
@@ -1452,6 +1455,7 @@ class PartitionDriver(object):
             self.deal_with_annotation_clustering(annotations, outfname)
 
         os.remove(annotation_fname)
+        return annotations
 
     # ----------------------------------------------------------------------------------------
     def deal_with_annotation_clustering(self, annotations, outfname):

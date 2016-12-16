@@ -8,34 +8,44 @@ from clusterpath import ClusterPath
 # ----------------------------------------------------------------------------------------
 class PartitionPlotter(object):
     # ----------------------------------------------------------------------------------------
-    def __init__(self, cpath=None, infiles=None):
-        self.cpaths = []
-        if cpath is not None:
-            self.cpaths.append(cpath)
-        elif infiles is not None:  # specify one clusterpath per input file
-            for fname in infiles:
-                self.cpaths.append(ClusterPath())
-                self.cpaths[-1].readfile(fname)
+    def __init__(self):
+        pass
 
     # ----------------------------------------------------------------------------------------
-    def plot(self, plotdir, only_csv):
-        if len(self.cpaths) == 0:
-            print '  no partitions to plot'
-            return
+    def get_cdr3_length_classes(self, partition, annotations):
+        classes = {}
+        for cluster in partition:
+            info = annotations[':'.join(cluster)]
+            if info['cdr3_length'] not in classes:
+                classes[info['cdr3_length']] = []
+            classes[info['cdr3_length']].append(cluster)
 
+        for cl in classes:
+            print cl, len(classes[cl]), classes[cl]
+
+    # ----------------------------------------------------------------------------------------
+    def plot(self, plotdir, partition=None, infiles=None, annotations=None, only_csv=None):
         print '  plotting partitions'
         sys.stdout.flush()
         start = time.time()
-        
         utils.prep_dir(plotdir, wildlings=['*.csv', '*.svg'])
 
-        if len(self.cpaths) == 1:
-            csize_hists = {'best' : plotting.get_cluster_size_hist(self.cpaths[0].partitions[self.cpaths[0].i_best])}
-        else:
-            subset_hists = [plotting.get_cluster_size_hist(cpath.partitions[cpath.i_best]) for cpath in self.cpaths]
+        if partition is not None:  # one partition
+            assert infiles is None
+            assert annotations is not None
+            csize_hists = {'best' : plotting.get_cluster_size_hist(partition)}
+            self.get_cdr3_length_classes(partition, annotations)
+        elif infiles is not None:  # plot the mean of a partition from each file
+            subset_hists = []
+            for fname in infiles:
+                cp = ClusterPath()
+                cp.readfile(fname)
+                subset_hists.append(plotting.get_cluster_size_hist(cp.partitions[cp.i_best]))
             csize_hists = {'best' : plotting.make_mean_hist(subset_hists)}
             for ih in range(len(subset_hists)):
                 subset_hists[ih].write(plotdir + ('/subset-%d-cluster-sizes.csv' % ih))
+        else:
+            assert False
 
         plotting.plot_cluster_size_hists(plotdir + '/cluster-sizes.svg', csize_hists, title='')
 

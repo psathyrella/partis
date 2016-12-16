@@ -246,9 +246,9 @@ def run_partitiondriver(args):
                 parter = PartitionDriver(args, args.action, args.parameter_dir + '/' + args.parameter_type + '/' + glutils.glfo_dir)
                 parter.partition()
                 istart = istop
-            partplotter = PartitionPlotter(infiles=outfnames)
+            partplotter = PartitionPlotter()
             if args.plotdir is not None:
-                partplotter.plot(args.plotdir + '/partitions', only_csv=args.only_csv_plots)
+                partplotter.plot(args.plotdir + '/partitions', infiles=outfnames, only_csv=args.only_csv_plots)
             for fn in outfnames:
                 os.remove(fn)
             os.rmdir(os.path.dirname(outfnames[0]))
