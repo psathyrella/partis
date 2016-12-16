@@ -48,7 +48,7 @@ class PartitionDriver(object):
                     print '  note:! running on %d sequences spread over %d processes. This will be kinda slow, so it might be a good idea to set --n-procs N to the number of processors on your local machine, or look into non-local parallelization with --batch-system.\n' % (len(self.input_info), self.args.n_procs)
                 if self.args.outfname is None and self.current_action != 'cache-parameters':
                     print '  note: running on a lot of sequences without setting --outfname. Which is ok! But there\'ll be no persistent record of the results'
-            self.default_cachefname = self.args.parameter_dir + '/sw-cache-' + repr(abs(hash(''.join(self.input_info.keys())))) + '.csv'  # maybe I shouldn't abs it? collisions are probably still unlikely, and I don't like the extra dash in my file name
+            self.default_sw_cachefname = self.args.parameter_dir + '/sw-cache-' + repr(abs(hash(''.join(self.input_info.keys())))) + '.csv'  # maybe I shouldn't abs it? collisions are probably still unlikely, and I don't like the extra dash in my file name
         elif self.current_action != 'view-annotations' and self.current_action != 'view-partitions':
             raise Exception('--infname is required for action \'%s\'' % args.action)
 
@@ -158,7 +158,7 @@ class PartitionDriver(object):
                           find_new_alleles=find_new_alleles,
                           plot_performance=(self.args.plot_performance and not remove_less_likely_alleles and not find_new_alleles),
                           simglfo=self.simglfo, itry=itry, duplicates=self.duplicates)
-        cachefname = self.default_cachefname if self.args.sw_cachefname is None else self.args.sw_cachefname
+        cachefname = self.default_sw_cachefname if self.args.sw_cachefname is None else self.args.sw_cachefname
         if not look_for_cachefile and os.path.exists(cachefname):  # i.e. if we're not explicitly told to look for it, and it's there, then it's probably out of date
             print '  removing old sw cache file %s' % cachefname
             os.remove(cachefname)
@@ -184,9 +184,9 @@ class PartitionDriver(object):
             self.run_waterer(find_new_alleles=True, itry=itry)
             if len(self.sw_info['new-alleles']) == 0:
                 break
-            if os.path.exists(self.default_cachefname):
-                print '    removing sw cache file %s (it has outdated germline info)' % self.default_cachefname
-                os.remove(self.default_cachefname)
+            if os.path.exists(self.default_sw_cachefname):
+                print '    removing sw cache file %s (it has outdated germline info)' % self.default_sw_cachefname
+                os.remove(self.default_sw_cachefname)
 
             self.all_new_allele_info += [afo for afo in self.sw_info['new-alleles'] if '+' in afo['gene']]
             # alleles_with_evidence |= self.sw_info['alleles-with-evidence']

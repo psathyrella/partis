@@ -35,7 +35,7 @@ class PartitionPlotter(object):
             subset_hists = [plotting.get_cluster_size_hist(cpath.partitions[cpath.i_best]) for cpath in self.cpaths]
             csize_hists = {'best' : plotting.make_mean_hist(subset_hists)}
             for ih in range(len(subset_hists)):
-                htmp.write(plotdir + ('/subset-%d-cluster-sizes.csv' % ih))
+                subset_hists[ih].write(plotdir + ('/subset-%d-cluster-sizes.csv' % ih))
 
         plotting.plot_cluster_size_hists(plotdir + '/cluster-sizes.svg', csize_hists, title='')
 

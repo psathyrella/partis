@@ -438,7 +438,7 @@ bool Glomerator::SeedMissing(string queries) {
 double Glomerator::CalculateHfrac(string &seq_a, string &seq_b) {
   ++n_hfrac_calculated_;
   if(seq_a.size() != seq_b.size())
-    throw runtime_error("ERROR sequences different length in Glomerator::NaiveHfrac (" + seq_a + "," + seq_b + ")\n");
+    throw runtime_error("sequences different length in Glomerator::NaiveHfrac:\n    " + seq_a + "\n    " + seq_b + "\n");
   int distance(0), len_excluding_ambigs(0);
   for(size_t ic=0; ic<seq_a.size(); ++ic) {
     uint8_t ch_a = track_->symbol_index(seq_a.substr(ic, 1));  // kind of hackey remnant left from when naive seqs were Sequence objects
