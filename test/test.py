@@ -440,6 +440,8 @@ class Tester(object):
                 continue
             if args.only_ref and '-ref-' not in name:
                 continue
+            if args.skip_ref and '-ref-' in name:
+                continue
             print '  %30s   %7.1f' % (name, times['ref'][name]),
             if name not in times['new']:
                 print '  no new time for %s' % utils.color('red', name)
