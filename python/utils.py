@@ -1614,7 +1614,7 @@ def process_input_line(info):
         if info['indel_reversed_seqs'] == '':
             info['indel_reversed_seqs'] = ['' for _ in range(len(info['unique_ids']))]
         info['seqs'] = [info['indel_reversed_seqs'][iseq] if info['indel_reversed_seqs'][iseq] != '' else info['input_seqs'][iseq] for iseq in range(len(info['unique_ids']))]  # if there's no indels, we just store 'input_seqs' and leave 'indel_reversed_seqs' empty
-        del info['indel_reversed_seqs']
+        # del info['indel_reversed_seqs']
 
     # process things for which we first want to know the number of seqs in the line
     for key in info:

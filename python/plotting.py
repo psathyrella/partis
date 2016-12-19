@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 import matplotlib as mpl
 mpl.use('Agg')
+mpl.rcParams['svg.fonttype'] = 'none'
 import matplotlib.pyplot as plt
 
 import math
