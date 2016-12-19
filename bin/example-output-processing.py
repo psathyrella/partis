@@ -2,7 +2,7 @@
 import csv
 import sys
 
-partis_path = '.'
+partis_path = '.'  # edit this if you're not running from the main partis dir
 sys.path.insert(1, partis_path + '/python')
 import utils
 import glutils
@@ -22,7 +22,7 @@ with open(partis_path + '/test/reference-results/annotate-new-simu.csv') as csvf
         print ''
         print '  should match the above:'
         print '    %s naive cdr3' % line['naive_seq'][cdr3_bounds[0] : cdr3_bounds[1]]
-        print '    %s mature' % line['seqs'][0][cdr3_bounds[0] : cdr3_bounds[1]]
+        print '    %s mature' % line['indel_reversed_seqs'][0][cdr3_bounds[0] : cdr3_bounds[1]]
         print ''
         break
 

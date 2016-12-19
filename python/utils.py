@@ -951,6 +951,8 @@ def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False): 
     line['regional_bounds'] = {r : (start[r], end[r]) for r in regions}
 
     line['input_seqs'] = [get_seq_with_indels_reinstated(line, iseq) for iseq in range(len(line['seqs']))]
+    if 'indel_reversed_seqs' not in line:  # everywhere internally, we refer to 'indel_reversed_seqs' as simply 'seqs'. For interaction with outside entities, however (i.e. writing files) we use the more explicit 'indel_reversed_seqs'
+        line['indel_reversed_seqs'] = line['seqs']
 
     # add regional query seqs
     add_qr_seqs(line)
@@ -1610,11 +1612,15 @@ def process_input_line(info):
             info[key] = convert_fcn(info[key])
 
     # this column is called 'seqs' internally (for conciseness and to avoid rewriting a ton of stuff) but is called 'indel_reversed_seqs' in the output file to avoid user confusion
-    if 'seqs' not in info and 'seq' not in info:  # if this is a new-style file (in old-style files it's just called 'seqs'), and if it also isn't a simulation csv file
+    if 'seq' in info:  # simulation files (this is just a reminder that they're different (and it'd be nice to change that...).
+        pass
+    elif 'seqs' not in info:  # if this is a new-style csv output file, i.e. it stores 'indel_reversed_seqs' instead of 'seqs'
+        assert 'indel_reversed_seqs' in info
         if info['indel_reversed_seqs'] == '':
             info['indel_reversed_seqs'] = ['' for _ in range(len(info['unique_ids']))]
         info['seqs'] = [info['indel_reversed_seqs'][iseq] if info['indel_reversed_seqs'][iseq] != '' else info['input_seqs'][iseq] for iseq in range(len(info['unique_ids']))]  # if there's no indels, we just store 'input_seqs' and leave 'indel_reversed_seqs' empty
-        # del info['indel_reversed_seqs']
+    else:  # old-style file: just copy 'em into the explicit name
+        info['indel_reversed_seqs'] = info['seqs']
 
     # process things for which we first want to know the number of seqs in the line
     for key in info:
