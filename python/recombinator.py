@@ -50,7 +50,6 @@ class Recombinator(object):
                 self.mute_models[region][model] = {}
 
         self.allele_prevalence_freqs = glutils.read_allele_prevalence_freqs(args.allele_prevalence_fname) if args.allele_prevalence_fname is not None else {}
-        self.allowed_genes = self.get_allowed_genes()  # set of genes a) for which we read per-position mutation information and b) from which we choose when running partially from scratch
         self.version_freq_table = self.read_vdj_version_freqs()  # list of the probabilities with which each VDJ combo (plus other rearrangement parameters) appears in data (none if rearranging from scratch)
         self.insertion_content_probs = self.read_insertion_content()  # dummy/uniform if rearranging from scratch
         self.all_mute_freqs = {}
@@ -188,38 +187,6 @@ class Recombinator(object):
         return True
 
     # ----------------------------------------------------------------------------------------
-    def get_parameter_dir_genes(self):
-        parameter_dir_genes = set()
-        for region in utils.regions:
-            col = region + '_gene'
-            column_and_deps = [col, ] + utils.column_dependencies[col]
-            with open(self.parameter_dir + '/' + utils.get_parameter_fname(column_and_deps=column_and_deps)) as infile:
-                reader = csv.DictReader(infile)
-                for line in reader:
-                    parameter_dir_genes.add(line[region + '_gene'])
-        return parameter_dir_genes
-
-    # ----------------------------------------------------------------------------------------
-    def get_allowed_genes(self):
-        # first get all the genes that are available
-        if self.args.rearrange_from_scratch:  # start with all of 'em
-            tmplist = [self.glfo['seqs'][r].keys() for r in utils.regions]
-            allowed_set = set([g for glist in tmplist for g in glist])
-        else:  # start with all the ones in the parameter directory
-            allowed_set = self.get_parameter_dir_genes()
-
-        # then, if specified, require that they're also in args.only_genes
-        if self.args.only_genes is not None:
-            allowed_set = allowed_set & set(self.args.only_genes)
-
-        # and finally convert to the proper format
-        allowed_genes = {r : [] for r in utils.regions}
-        for gene in allowed_set:
-            allowed_genes[utils.get_region(gene)].append(gene)
-
-        return allowed_genes
-
-    # ----------------------------------------------------------------------------------------
     def freqtable_index(self, line):
         return tuple(line[column] for column in utils.index_columns)
 
@@ -236,7 +203,7 @@ class Recombinator(object):
             for line in in_data:  # NOTE do *not* assume the file is sorted
                 skip = False
                 for region in utils.regions:
-                    if line[region + '_gene'] not in self.allowed_genes[region]:
+                    if line[region + '_gene'] not in self.glfo['seqs'][region]:
                         skip = True
                         break
                 if skip:
@@ -262,10 +229,10 @@ class Recombinator(object):
     def get_scratchline(self):
         tmpline = {}
         for region in utils.regions:
-            probs = None
+            probs = None  # it would make more sense to only do this prob calculation once, rather than for each event
             if region in self.allele_prevalence_freqs and len(self.allele_prevalence_freqs[region]) > 0:  # should really change it so it has to be the one or the other
-                probs = [self.allele_prevalence_freqs[region][g] for g in self.allowed_genes[region]]
-            tmpline[region + '_gene'] = numpy.random.choice(self.allowed_genes[region], p=probs)
+                probs = [self.allele_prevalence_freqs[region][g] for g in self.glfo['seqs'][region].keys()]
+            tmpline[region + '_gene'] = numpy.random.choice(self.glfo['seqs'][region].keys(), p=probs)  # order is arbitrary, but guaranteed to be the same as the previous line (https://docs.python.org/2/library/stdtypes.html#dict.items)
         for effrode in utils.effective_erosions:
             tmpline[effrode + '_del'] = 0
         for effbound in utils.effective_boundaries:
