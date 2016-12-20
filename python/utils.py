@@ -186,7 +186,7 @@ column_configs = {
     'floats' : ['logprob', 'mut_freqs'],
     'bools' : functional_columns,
     'literals' : ['indelfo', 'indelfos', 'k_v', 'k_d', 'all_matches'],  # simulation has indelfo[s] singular, annotation output has it plural... and I think it actually makes sense to have it that way
-    'lists' : ['unique_ids', 'seqs', 'input_seqs', 'indel_reversed_seqs', 'aligned_seqs', 'mut_freqs', 'padlefts', 'padrights'] + ['aligned_' + r + '_seqs' for r in regions] + functional_columns,  # indelfos is a list, but we can't just split it by colons since it has colons within the dict string
+    'lists' : ['unique_ids', 'seqs', 'input_seqs', 'indel_reversed_seqs', 'mut_freqs', 'padlefts', 'padrights'] + ['aligned_' + r + '_seqs' for r in regions] + functional_columns,  # indelfos is a list, but we can't just split it by colons since it has colons within the dict string
     'lists-of-lists' : ['duplicates'] + [r + '_per_gene_support' for r in regions]
 }
 
@@ -266,7 +266,6 @@ implicit_linekeys = set(['naive_seq', 'cdr3_length', 'codon_positions', 'lengths
 
 # ----------------------------------------------------------------------------------------
 annotation_headers = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'mut_freqs', 'input_seqs', 'indel_reversed_seqs', 'naive_seq', 'indelfos', 'duplicates'] \
-                     + ['aligned_' + r + '_seqs' for r in regions] \
                      + [r + '_per_gene_support' for r in regions] \
                      + [e + '_del' for e in real_erosions + effective_erosions] + [b + '_insertion' for b in boundaries + effective_boundaries] \
                      + functional_columns
@@ -287,23 +286,20 @@ bcrham_dbgstr_types = {
 # ----------------------------------------------------------------------------------------
 def synthesize_single_seq_line(line, iseq):
     """ without modifying <line>, make a copy of it corresponding to a single-sequence event with the <iseq>th sequence """
-    hmminfo = copy.deepcopy(line)  # make a copy of the info, into which we'll insert the sequence-specific stuff
-    for col in linekeys['per_seq']:
-        hmminfo[col] = [hmminfo[col][iseq], ]
-    return hmminfo
+    singlefo = copy.deepcopy(line)  # make a copy of the info, into which we'll insert the sequence-specific stuff
+    for col in [c for c in linekeys['per_seq'] if c in line]:
+        singlefo[col] = [singlefo[col][iseq], ]
+    return singlefo
 
 # ----------------------------------------------------------------------------------------
-def synthesize_multi_seq_line(uids, reco_info):
+def synthesize_multi_seq_line(uids, reco_info):  # only use when ascii-art printing simulation events
     """ assumes you already added all the implicit info """
     assert len(uids) > 0
-    outline = copy.deepcopy(reco_info[uids[0]])
-    for col in linekeys['per_seq']:
-        # this is for use when you switch 'duplicates' from linekeys['sw'] to linekeys['per_seq'], where it should be
-        # if col not in reco_info[uid]:  # e.g. 'duplicates'
-        #     continue
-        assert [len(reco_info[uid][col]) for uid in uids].count(1) == len(uids)  # make sure they're all length one
-        outline[col] = [copy.deepcopy(reco_info[uid][col][0]) for uid in uids]
-    return outline
+    multifo = copy.deepcopy(reco_info[uids[0]])
+    for col in [c for c in linekeys['per_seq'] if c in multifo]:
+        assert [len(reco_info[uid][col]) for uid in uids].count(1) == len(uids)  # make sure every uid's info for this column is of length 1
+        multifo[col] = [copy.deepcopy(reco_info[uid][col][0]) for uid in uids]
+    return multifo
 
 # ----------------------------------------------------------------------------------------
 def generate_dummy_v(d_gene):
@@ -972,9 +968,10 @@ def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False): 
     if line['cdr3_length'] < 6:  # i.e. if cyst and tryp overlap  NOTE six is also hardcoded in waterer
         line['invalid'] = True
 
-    # add alignment info
-    if aligned_gl_seqs is None:
-        add_dummy_alignments(line)
+    # add alignment info (this is only used if presto output has been specified on the command line, which requires specification of your own alignment file)
+    if aligned_gl_seqs is None:  # empty/dummy info
+        for region in regions:
+            line['aligned_' + region + '_seqs'] = ['' for _ in range(len(line['seqs']))]
     else:
         add_alignments(glfo, aligned_gl_seqs, line)
 
@@ -2386,11 +2383,6 @@ def count_gaps(seq, istop=None):
     if istop is not None:
         seq = seq[ : istop]
     return sum([seq.count(gc) for gc in gap_chars])
-
-# ----------------------------------------------------------------------------------------
-def add_dummy_alignments(line):
-    for region in regions:
-        line['aligned_' + region + '_seqs'] = ['' for _ in range(len(line['seqs']))]
 
 # ----------------------------------------------------------------------------------------
 def add_regional_alignments(glfo, aligned_gl_seqs, line, region, debug=False):
