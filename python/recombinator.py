@@ -32,12 +32,12 @@ class Recombinator(object):
         self.outfname = outfname
         utils.prep_dir(self.workdir)
 
-        if self.args.mutate_from_scratch:
-            assert self.args.parameter_dir is None
-            self.parameter_dir = None
-        elif self.args.rearrange_from_scratch:
-            assert self.args.parameter_dir is None
-            self.parameter_dir = self.args.scratch_mute_freq_dir  # if you make up mute freqs from scratch, unless you're really careful you tend to get nonsense results for a lot of things (e.g. allele finding)
+        # set <self.parameter_dir> (note that this is in general *not* the same as self.args.parameter_dir)
+        if self.args.rearrange_from_scratch:  # currently not allowed to mutate from scratch without also rearranging from scratch (enforced in bin/partis)
+            if self.args.mutate_from_scratch:
+                self.parameter_dir = None
+            else:
+                self.parameter_dir = self.args.scratch_mute_freq_dir  # if you make up mute freqs from scratch, unless you're really careful you tend to get nonsense results for a lot of things (e.g. allele finding). So it's easier to copy over a reasonable set of mut freq parameters from somewhere.
         else:
             self.parameter_dir = self.args.parameter_dir + '/' + self.args.parameter_type
 
@@ -51,8 +51,8 @@ class Recombinator(object):
 
         self.allele_prevalence_freqs = glutils.read_allele_prevalence_freqs(args.allele_prevalence_fname) if args.allele_prevalence_fname is not None else {}
         self.allowed_genes = self.get_allowed_genes()  # set of genes a) for which we read per-position mutation information and b) from which we choose when running partially from scratch
-        self.version_freq_table = self.read_vdj_version_freqs()  # list of the probabilities with which each VDJ combo (plus other rearrangement parameters) appears in data
-        self.insertion_content_probs = self.read_insertion_content()
+        self.version_freq_table = self.read_vdj_version_freqs()  # list of the probabilities with which each VDJ combo (plus other rearrangement parameters) appears in data (none if rearranging from scratch)
+        self.insertion_content_probs = self.read_insertion_content()  # dummy/uniform if rearranging from scratch
         self.all_mute_freqs = {}
 
         # read shm info NOTE I'm not inferring the gtr parameters a.t.m., so I'm just (very wrongly) using the same ones for all individuals
@@ -212,6 +212,7 @@ class Recombinator(object):
         if self.args.only_genes is not None:
             allowed_set = allowed_set & set(self.args.only_genes)
 
+        # and finally convert to the proper format
         allowed_genes = {r : [] for r in utils.regions}
         for gene in allowed_set:
             allowed_genes[utils.get_region(gene)].append(gene)
