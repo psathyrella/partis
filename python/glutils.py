@@ -446,19 +446,13 @@ def generate_snpd_gene(gene, cpos, seq, positions):
 def restrict_to_genes(glfo, only_genes, debug=False):
     """
     Remove from <glfo> any genes which are not in <only_genes>.
-    Any regions in <unrestricted_regions> will be left entirely unrestricted (i.e. there shouldn't be anybody from those regions in <only_genes>.
+    Any regions which are not represented in in a non-None <only_genes> will be unrestricted (i.e. any gene from that region is fair game).
     """
     if only_genes is None:
         return
 
-    unrestricted_regions = copy.deepcopy(utils.regions)
-    for g in only_genes:
-        if utils.get_region(g) in unrestricted_regions:
-            unrestricted_regions.remove(utils.get_region(g))
-
-    restricted_regions = copy.deepcopy(utils.regions)
-    if len(unrestricted_regions) > 0:
-        restricted_regions = [r for r in utils.regions if r not in unrestricted_regions]
+    restricted_regions = set([utils.get_region(g) for g in only_genes])
+    unrestricted_regions = set(utils.regions) - restricted_regions
 
     only_genes_not_in_glfo = set(only_genes) - set([g for r in restricted_regions for g in glfo['seqs'][r]])
     if len(only_genes_not_in_glfo) > 0:
