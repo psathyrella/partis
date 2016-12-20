@@ -431,12 +431,6 @@ def convert_to_presto_headers(line):
 
     return presto_line
 
-# ----------------------------------------------------------------------------------------
-# these are the top 10 v and d genes, and top six js, from mishmash.csv. Restricting to these makes testing much more stable and much faster.
-test_only_genes = 'IGHV3-53*02:IGHV3-7*01:IGHV3-7*03:IGHV3-23D*01:IGHV4-61*08:IGHV3-66*03:IGHV5-51*02:IGHV3-66*01:IGHV3-23D*02:IGHV1-2*02:' + \
-                  'IGHD2-2*03:IGHD6-6*01:IGHD2-8*01:IGHD2-21*02:IGHD3-10*01:IGHD3-16*02:IGHD3-22*01:IGHD6-19*01:IGHD2-15*01:' + \
-                  'IGHJ6*03:IGHJ6*02:IGHJ2*01:IGHJ1*01:IGHJ5*02:IGHJ4*02'
-
 # tuples with the column and its dependencies mashed together
 # (first entry is the column of interest, and it depends upon the following entries)
 column_dependency_tuples = []
