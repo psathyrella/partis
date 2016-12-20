@@ -32,13 +32,14 @@ class Recombinator(object):
         self.outfname = outfname
         utils.prep_dir(self.workdir)
 
-        if self.args.rearrange_from_scratch:
-            parameter_dir = self.args.scratch_mute_freq_dir  # if you make up mute freqs from scratch, unless you're really careful you tend to get nonsense results for a lot of things (e.g. allele finding)
+        if self.args.mutate_from_scratch:
+            assert self.args.parameter_dir is None
+            self.parameter_dir = None
+        elif self.args.rearrange_from_scratch:
+            assert self.args.parameter_dir is None
+            self.parameter_dir = self.args.scratch_mute_freq_dir  # if you make up mute freqs from scratch, unless you're really careful you tend to get nonsense results for a lot of things (e.g. allele finding)
         else:
-            parameter_dir = self.args.parameter_dir + '/' + self.args.parameter_type
-
-        if parameter_dir is None or not os.path.exists(parameter_dir):
-            raise Exception('parameter dir ' + parameter_dir + ' d.n.e')
+            self.parameter_dir = self.args.parameter_dir + '/' + self.args.parameter_type
 
         self.index_keys = {}  # this is kind of hackey, but I suspect indexing my huge table of freqs with a tuple is better than a dict
         self.mute_models = {}
@@ -49,11 +50,10 @@ class Recombinator(object):
                 self.mute_models[region][model] = {}
 
         self.allele_prevalence_freqs = glutils.read_allele_prevalence_freqs(args.allele_prevalence_fname) if args.allele_prevalence_fname is not None else {}
-        self.allowed_genes = self.get_allowed_genes(parameter_dir)  # set of genes a) for which we read per-position mutation information and b) from which we choose when running partially from scratch
-        self.version_freq_table = self.read_vdj_version_freqs(parameter_dir)  # list of the probabilities with which each VDJ combo (plus other rearrangement parameters) appears in data
-        self.insertion_content_probs = self.read_insertion_content(parameter_dir)
+        self.allowed_genes = self.get_allowed_genes()  # set of genes a) for which we read per-position mutation information and b) from which we choose when running partially from scratch
+        self.version_freq_table = self.read_vdj_version_freqs()  # list of the probabilities with which each VDJ combo (plus other rearrangement parameters) appears in data
+        self.insertion_content_probs = self.read_insertion_content()
         self.all_mute_freqs = {}
-        self.parameter_dir = parameter_dir  # damnit, I guess I do need to save this in self
 
         # read shm info NOTE I'm not inferring the gtr parameters a.t.m., so I'm just (very wrongly) using the same ones for all individuals
         with opener('r')(self.args.gtrfname) as gtrfile:  # read gtr parameters
@@ -66,7 +66,7 @@ class Recombinator(object):
                 parameter_name = parameters[2]
                 assert model in self.mute_models[region]
                 self.mute_models[region][model][parameter_name] = line['value']
-        treegen = treegenerator.TreeGenerator(args, parameter_dir, seed=seed)
+        treegen = treegenerator.TreeGenerator(args, self.parameter_dir, seed=seed)
         self.treefname = self.workdir + '/trees.tre'
         treegen.generate_trees(seed, self.treefname)
         with opener('r')(self.treefname) as treefile:  # read in the trees (and other info) that we just generated
@@ -79,14 +79,14 @@ class Recombinator(object):
             os.makedirs(os.path.dirname(os.path.abspath(self.outfname)))
 
     # ----------------------------------------------------------------------------------------
-    def read_insertion_content(self, parameter_dir):
+    def read_insertion_content(self):
         if self.args.rearrange_from_scratch:
             return {b : {n : 1./len(utils.nukes) for n in utils.nukes} for b in utils.boundaries}
 
         insertion_content_probs = {}
         for bound in utils.boundaries:
             insertion_content_probs[bound] = {}
-            with opener('r')(parameter_dir + '/' + bound + '_insertion_content.csv') as icfile:
+            with opener('r')(self.parameter_dir + '/' + bound + '_insertion_content.csv') as icfile:
                 reader = csv.DictReader(icfile)
                 total = 0
                 for line in reader:
@@ -188,25 +188,25 @@ class Recombinator(object):
         return True
 
     # ----------------------------------------------------------------------------------------
-    def get_parameter_dir_genes(self, parameter_dir):
+    def get_parameter_dir_genes(self):
         parameter_dir_genes = set()
         for region in utils.regions:
             col = region + '_gene'
             column_and_deps = [col, ] + utils.column_dependencies[col]
-            with open(parameter_dir + '/' + utils.get_parameter_fname(column_and_deps=column_and_deps)) as infile:
+            with open(self.parameter_dir + '/' + utils.get_parameter_fname(column_and_deps=column_and_deps)) as infile:
                 reader = csv.DictReader(infile)
                 for line in reader:
                     parameter_dir_genes.add(line[region + '_gene'])
         return parameter_dir_genes
 
     # ----------------------------------------------------------------------------------------
-    def get_allowed_genes(self, parameter_dir):
+    def get_allowed_genes(self):
         # first get all the genes that are available
         if self.args.rearrange_from_scratch:  # start with all of 'em
             tmplist = [self.glfo['seqs'][r].keys() for r in utils.regions]
             allowed_set = set([g for glist in tmplist for g in glist])
         else:  # start with all the ones in the parameter directory
-            allowed_set = self.get_parameter_dir_genes(parameter_dir)
+            allowed_set = self.get_parameter_dir_genes()
 
         # then, if specified, require that they're also in args.only_genes
         if self.args.only_genes is not None:
@@ -223,13 +223,13 @@ class Recombinator(object):
         return tuple(line[column] for column in utils.index_columns)
 
     # ----------------------------------------------------------------------------------------
-    def read_vdj_version_freqs(self, parameter_dir):
+    def read_vdj_version_freqs(self):
         """ Read the frequencies at which various VDJ combinations appeared in data """
         if self.args.rearrange_from_scratch:
             return None
 
         version_freq_table = {}
-        with opener('r')(parameter_dir + '/' + utils.get_parameter_fname('all')) as infile:
+        with opener('r')(self.parameter_dir + '/' + utils.get_parameter_fname('all')) as infile:
             in_data = csv.DictReader(infile)
             total = 0.0
             for line in in_data:  # NOTE do *not* assume the file is sorted
@@ -295,7 +295,7 @@ class Recombinator(object):
                 probs = [self.insertion_content_probs[bound][n] for n in utils.nukes]
                 tmpline[bound + '_insertion'] = ''.join(numpy.random.choice(utils.nukes, size=length, p=probs))
 
-            # have to add the 'seqs' by hand so utils.add_implicit_info doesn't barf (this duplicates code later on in recombinator)
+            # have to add some things by hand so utils.add_implicit_info() doesn't barf (this duplicates code later on in recombinator)
             gl_seqs = {r : self.glfo['seqs'][r][tmpline[r + '_gene']] for r in utils.regions}
             for erosion in utils.real_erosions:
                 region = erosion[0]
@@ -305,6 +305,7 @@ class Recombinator(object):
                 elif '3p' in erosion:
                     gl_seqs[region] = gl_seqs[region][:len(gl_seqs[region]) - e_length]
             tmpline['seqs'] = [gl_seqs['v'] + tmpline['vd_insertion'] + gl_seqs['d'] + tmpline['dj_insertion'] + gl_seqs['j'], ]
+            tmpline['indelfos'] = [utils.get_empty_indel(), ]
             utils.add_implicit_info(self.glfo, tmpline)
             assert len(tmpline['in_frames']) == 1
 
