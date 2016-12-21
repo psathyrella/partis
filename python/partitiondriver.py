@@ -125,7 +125,7 @@ class PartitionDriver(object):
                         outrow = {'unique_ids' : line['unique_ids'], 'naive_seq' : line['padlefts'][0] * utils.ambiguous_bases[0] + line['naive_seq'] + line['padrights'][0] * utils.ambiguous_bases[0]}
                         writer.writerow(outrow)
             elif set(reader.fieldnames) == set(utils.partition_cachefile_headers):  # headers are ok, so can just copy straight over
-                check_call(['cp', '-v', self.args.persistent_cachefname, self.hmm_cachefname])
+                check_call(['cp', self.args.persistent_cachefname, self.hmm_cachefname])
             else:
                 raise Exception('--persistent-cachefname %s has unexpected header list %s' % (self.args.persistent_cachefname, reader.fieldnames))
 
@@ -1023,7 +1023,7 @@ class PartitionDriver(object):
             tmpfname = outfname + '.tmp'
             check_call('echo ' + header + ' >' + tmpfname, shell=True)
             check_call('grep -v \'' + header + '\' ' + outfname + ' | sort | uniq >>' + tmpfname, shell=True)  # NOTE there can be multiple lines with the same uid string, but this is ok -- the c++ handles it
-            check_call(['mv', '-v', tmpfname, outfname])
+            check_call(['mv', tmpfname, outfname])
 
         for infname in infnames:
             if infname != outfname:
