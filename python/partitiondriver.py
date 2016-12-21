@@ -281,10 +281,11 @@ class PartitionDriver(object):
             reader = csv.DictReader(csvfile)
             for line in reader:
                 if line['v_gene'] == '':
-                    # print '   %s failed' % line['unique_ids']
                     failed_queries.add(line['unique_ids'])
                     continue
                 utils.process_input_line(line)
+                if self.args.queries is not None and len(set(self.args.queries) & set(line['unique_ids'])) == 0:
+                    continue
                 if self.args.infname is not None and self.reco_info is not None:
                     utils.print_true_events(self.glfo, self.reco_info, line)
                 utils.add_implicit_info(self.glfo, line)
