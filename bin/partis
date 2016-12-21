@@ -37,13 +37,6 @@ def set_default_parameter_dir(args):
 
 # ----------------------------------------------------------------------------------------
 def run_simulation(args):
-    # I honestly have no recollection of why I started putting the list getting in the sub functions, maybe I should combine it
-    args.n_genes_per_region = utils.get_arg_list(args.n_genes_per_region, intify=True)
-    args.n_genes_per_region = {r : args.n_genes_per_region[utils.regions.index(r)] for r in utils.regions}  # convert to dict for easier access
-    args.n_sim_alleles_per_gene = utils.get_arg_list(args.n_sim_alleles_per_gene)
-    assert len(args.n_sim_alleles_per_gene) == len(utils.regions)
-    args.n_sim_alleles_per_gene = {utils.regions[i] : [int(n) for n in args.n_sim_alleles_per_gene[i].split(',')] for i in range(len(utils.regions))}
-
     from recombinator import Recombinator
 
     if args.batch_system is not None and args.n_procs > 1 and not args.subsimproc:
@@ -176,28 +169,6 @@ def run_simulation(args):
 
 # ----------------------------------------------------------------------------------------
 def run_partitiondriver(args):
-    args.istartstop = utils.get_arg_list(args.istartstop, intify=True)
-    if args.istartstop is not None:
-        if args.istartstop[0] >= args.istartstop[1] or args.istartstop[0] < 0:
-            raise Exception('invalid --istartstop specification: %d %d' % (args.istartstop[0], args.istartstop[1]))
-    args.n_max_per_region = utils.get_arg_list(args.n_max_per_region, intify=True)
-    args.initial_match_mismatch = utils.get_arg_list(args.initial_match_mismatch, intify=True)
-    args.annotation_clustering_thresholds = utils.get_arg_list(args.annotation_clustering_thresholds, floatify=True)
-    args.naive_hamming_bounds = utils.get_arg_list(args.naive_hamming_bounds, floatify=True)
-    if args.small_clusters_to_ignore is not None:
-        if '-' in args.small_clusters_to_ignore:
-            lo, hi = [int(cluster_size) for cluster_size in args.small_clusters_to_ignore.split('-')]
-            args.small_clusters_to_ignore = range(lo, hi + 1)
-        else:
-            args.small_clusters_to_ignore = utils.get_arg_list(args.small_clusters_to_ignore, intify=True)
-    if args.seed_unique_id is not None:
-        args.seed_unique_id = args.seed_unique_id.strip()  # protect against the space you may put in front of it if it's got an initial minus sign (better way is to use an equals sign)
-        if args.queries is not None and args.seed_unique_id not in args.queries:
-            raise Exception('seed uid %s not in --queries %s' % (args.seed_unique_id, ' '.join(args.queries)))
-        if args.random_seed_seq:
-            raise Exception('can\'t specify both --seed-unique-id and --random-seed-seq')
-    if args.sw_debug is None:  # if not explicitly set, set equal to regular debug
-        args.sw_debug = args.debug
     if len(args.n_max_per_region) != 3:
         raise Exception('n-max-per-region should be of the form \'x:y:z\', but I got ' + str(args.n_max_per_region))
     if len(args.initial_match_mismatch) != 2:
@@ -465,6 +436,35 @@ args.n_fewer_procs = args.n_procs[0] if len(args.n_procs) == 1 else args.n_procs
 args.n_procs = args.n_procs[0]
 args.queries = utils.get_arg_list(args.queries)
 args.reco_ids = utils.get_arg_list(args.reco_ids)
+args.n_genes_per_region = utils.get_arg_list(args.n_genes_per_region, intify=True)
+if args.n_genes_per_region is not None:
+    args.n_genes_per_region = {r : args.n_genes_per_region[utils.regions.index(r)] for r in utils.regions}  # convert to dict for easier access
+args.n_sim_alleles_per_gene = utils.get_arg_list(args.n_sim_alleles_per_gene)
+if args.n_sim_alleles_per_gene is not None:
+    assert len(args.n_sim_alleles_per_gene) == len(utils.regions)
+    args.n_sim_alleles_per_gene = {utils.regions[i] : [int(n) for n in args.n_sim_alleles_per_gene[i].split(',')] for i in range(len(utils.regions))}
+args.istartstop = utils.get_arg_list(args.istartstop, intify=True)
+if args.istartstop is not None:
+    if args.istartstop[0] >= args.istartstop[1] or args.istartstop[0] < 0:
+        raise Exception('invalid --istartstop specification: %d %d' % (args.istartstop[0], args.istartstop[1]))
+args.n_max_per_region = utils.get_arg_list(args.n_max_per_region, intify=True)
+args.initial_match_mismatch = utils.get_arg_list(args.initial_match_mismatch, intify=True)
+args.annotation_clustering_thresholds = utils.get_arg_list(args.annotation_clustering_thresholds, floatify=True)
+args.naive_hamming_bounds = utils.get_arg_list(args.naive_hamming_bounds, floatify=True)
+if args.small_clusters_to_ignore is not None:
+    if '-' in args.small_clusters_to_ignore:
+        lo, hi = [int(cluster_size) for cluster_size in args.small_clusters_to_ignore.split('-')]
+        args.small_clusters_to_ignore = range(lo, hi + 1)
+    else:
+        args.small_clusters_to_ignore = utils.get_arg_list(args.small_clusters_to_ignore, intify=True)
+if args.seed_unique_id is not None:
+    args.seed_unique_id = args.seed_unique_id.strip()  # protect against the space you may put in front of it if it's got an initial minus sign (better way is to use an equals sign)
+    if args.queries is not None and args.seed_unique_id not in args.queries:
+        raise Exception('seed uid %s not in --queries %s' % (args.seed_unique_id, ' '.join(args.queries)))
+    if args.random_seed_seq:
+        raise Exception('can\'t specify both --seed-unique-id and --random-seed-seq')
+if args.sw_debug is None:  # if not explicitly set, set equal to regular debug
+    args.sw_debug = args.debug
 
 if args.only_genes is not None:
     for gene in args.only_genes:  # make sure they're all at least valid ig genes
