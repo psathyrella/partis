@@ -832,31 +832,6 @@ class PartitionDriver(object):
         return cachefo
 
     # ----------------------------------------------------------------------------------------
-    def get_expected_number_of_forward_calculations(self, info, namekey, seqkey):
-        start = time.time()
-        def join_names(name1, name2):  # mimics function in glomeraor.cc
-            sortedlist = sorted([name1, name2])
-            return ':'.join(sortedlist)
-
-        naive_seqs = self.get_sw_naive_seqs(info, namekey)
-        cachefo = self.read_cachefile()
-        n_total, n_cached = 0, 0
-        for id_a, id_b in itertools.combinations(naive_seqs.keys(), 2):
-            seq_a, seq_b = naive_seqs[id_a], naive_seqs[id_b]
-            hfrac = utils.hamming_fraction(seq_a, seq_b)
-            if hfrac >= self.args.hamming_fraction_bounds[0] and hfrac <= self.args.hamming_fraction_bounds[1]:  # NOTE not sure the equals match up exactly with what's in ham, but it's an estimate, so it doesn't matter
-                n_total += 1
-                if join_names(id_a, id_b) in cachefo:
-                    n_cached += 1
-                    assert ':'.join(sorted([id_a, id_b], reverse=True)) not in cachefo
-                    assert id_a in cachefo
-                    assert id_b in cachefo
-
-        print 'expected total: %d  (cached: %d) --> %d' % (n_total, n_cached, n_total - n_cached)
-        print '      expected calc time: %.1f' % (time.time()-start)
-        return n_total - n_cached
-
-    # ----------------------------------------------------------------------------------------
     def get_padded_true_naive_seq(self, qry):
         assert len(self.sw_info[qry]['padlefts']) == 1
         return self.sw_info[qry]['padlefts'][0] * utils.ambiguous_bases[0] + self.reco_info[qry]['naive_seq'] + self.sw_info[qry]['padrights'][0] * utils.ambiguous_bases[0]
@@ -923,8 +898,6 @@ class PartitionDriver(object):
             sub_outfile = get_sub_outfile(iproc, 'w')
             get_writer(sub_outfile).writeheader()
             sub_outfile.close()  # can't leave 'em all open the whole time 'cause python has the thoroughly unreasonable idea that one oughtn't to have thousands of files open at once
-
-        # self.get_expected_number_of_forward_calculations(info, 'names', 'seqs')  # I think this didn't work that well
 
         seed_clusters_to_write = seeded_clusters.keys()  # the keys in <seeded_clusters> that we still need to write
         for iproc in range(n_procs):
