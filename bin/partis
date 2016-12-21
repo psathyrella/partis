@@ -263,7 +263,11 @@ def run_partitiondriver(args):
 # ----------------------------------------------------------------------------------------
 def view_existing_output(args):
     if args.outfname is None:
-        raise Exception('--outfname is required for action \'%s\'' % args.action)
+        if args.infname is not None:  # can specify either outfname or infname
+            args.outfname = args.infname
+            args.infname = None  # otherwise seqfileopener tries to read it (you can specify *both* of them on the command line, though, if you want this step to know about the reco info)
+        else:
+            raise Exception('--outfname is required for action \'%s\'' % args.action)
     if not os.path.exists(args.outfname):
         raise Exception('--outfname \'%s\' does not exist' % args.outfname)
 
