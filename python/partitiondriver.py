@@ -864,12 +864,13 @@ class PartitionDriver(object):
             uids_of_interest = None  # make sure we don't use it later
             print '%s couldn\'t find the exact requested cluster, so using the biggest cluster that has some overlap with the requested cluster for the reference sequence' % utils.color('yellow', 'warning')
         ref_naive_seq = cachefo[uidstr_of_interest]['naive_seq']
-        print '  subcluster naive sequences for %s' % uidstr_of_interest
-        print '      %s  %s' % (ref_naive_seq, utils.color('blue', uidstr_of_interest))
+        print '  subcluster naive sequences for %s (in %s below)' % (uidstr_of_interest, utils.color('blue', 'blue'))
+        # print '      %s  %s' % (ref_naive_seq, utils.color('blue', uidstr_of_interest))
         for uidstr in sub_uidstrs:
+            post_str = uidstr
             if uidstr == uidstr_of_interest:
-                continue
-            print utils.color_mutants(ref_naive_seq, cachefo[uidstr]['naive_seq'], extra_str='      ', print_isnps=True, post_str='  ' + uidstr)
+                post_str = utils.color('blue', post_str)
+            print utils.color_mutants(ref_naive_seq, cachefo[uidstr]['naive_seq'], extra_str='      ', print_isnps=True, post_str='  ' + post_str)
 
     # ----------------------------------------------------------------------------------------
     def get_padded_true_naive_seq(self, qry):

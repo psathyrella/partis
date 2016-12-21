@@ -246,7 +246,7 @@ For instance:
 
 ```
 ./bin/partis partition --infname test/example.fa --outfname _output/example.csv --calculate-alternative-naive-seqs
-./bin/partis view-alternative-naive-seqs --outfname _output/example.csv --queries <queries of interest>
+./bin/partis view-alternative-naive-seqs --outfname _output/example.csv --queries <queries of interest>  # try piping this to less by adding "| less -RS"
 ```
 
 if you don't specify `--queries` in the second step, it's ok, since it will print the partitions in the output file before exiting, so you can copy and paste a cluster into the `--queries` argument.

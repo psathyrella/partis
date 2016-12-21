@@ -523,12 +523,13 @@ def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', 
         else:
             return_str.append(color('red', seq[inuke]))
             isnps.append(inuke)
+    isnp_str = ''
     if print_isnps and len(isnps) > 0:
-        return_str.append('   %d snp%s at: %s' % (len(isnps), plural(len(isnps)), ' '.join([str(i) for i in isnps])))
+        isnp_str = '   %d snp%s at: %s' % (len(isnps), plural(len(isnps)), ' '.join([str(i) for i in isnps]))
     hfrac_str = ''
     if print_hfrac:
         hfrac_str = '   hfrac %.3f' % hamming_fraction(ref_seq, seq)
-    return_str = extra_str + ' '*len(ref_label) + ''.join(return_str) + post_str + hfrac_str
+    return_str = extra_str + ' '*len(ref_label) + ''.join(return_str) + post_str + isnp_str + hfrac_str
     if print_result:
         print '%s%s%s' % (extra_str, ref_label, ref_seq)
         print return_str
