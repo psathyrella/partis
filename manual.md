@@ -240,6 +240,17 @@ For instance, if you knew from partitioning that three sequences `a`, `b`, and `
 
 ``` ./bin/partis run-viterbi --infname in.fa --queries a:b:c --n-simultaneous-seqs 3 --outfname abc-annotation.csv```
 
+In order to get an idea of the uncertainty on a given cluster's naive sequence, you can specify `--calculate-alternative-naive-seqs` during the partition step.
+This will save all the naive sequences for intermediate sub-clusters to a cache file so that, afterwards, you can view the alternative naive sequences for the sub-clusters.
+For instance:
+
+```
+./bin/partis partition --infname test/example.fa --outfname _output/example.csv --calculate-alternative-naive-seqs
+./bin/partis view-alternative-naive-seqs --outfname _output/example.csv --queries <queries of interest>
+```
+
+if you don't specify `--queries` in the second step, it's ok, since it will print the partitions in the output file before exiting, so you can copy and paste a cluster into the `--queries` argument.
+
 ##### cpu and memory usage
 Because, at least to a first approximation, accurate clustering entails all-against-all comparison, partitioning is in a fundamentally different computational regime than are single-sequence problems such as annotation.
 In order to arrive at a method that can be useful in practice, we have tried to combat this inherent difficulty with a number of different levels of both approximations and caching, several of which are described in the papers.

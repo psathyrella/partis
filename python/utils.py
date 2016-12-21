@@ -513,25 +513,25 @@ def color_chars(chars, col, seq):
 
 # ----------------------------------------------------------------------------------------
 def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', post_str='', print_hfrac=False, print_isnps=False):
-    assert len(ref_seq) == len(seq)
-    return_str = ''
-    isnps = []
+    """ default: return <seq> string with colored mutations with respect to <ref_seq> """
+    if len(ref_seq) != len(seq):
+        raise Exception('unequal lengths in color_mutants()\n    %s\n    %s' % (ref_seq, seq))
+    return_str, isnps = [], []
     for inuke in range(len(seq)):
         if inuke >= len(ref_seq) or seq[inuke] == ref_seq[inuke]:
-            return_str += seq[inuke]
+            return_str.append(seq[inuke])
         else:
-            return_str += color('red', seq[inuke])
+            return_str.append(color('red', seq[inuke]))
             isnps.append(inuke)
-    if print_isnps:
-        return_str += '   %d snps at: %s' % (len(isnps), ' '.join([str(i) for i in isnps]))
+    if print_isnps and len(isnps) > 0:
+        return_str.append('   %d snp%s at: %s' % (len(isnps), plural(len(isnps)), ' '.join([str(i) for i in isnps])))
+    hfrac_str = ''
+    if print_hfrac:
+        hfrac_str = '   hfrac %.3f' % hamming_fraction(ref_seq, seq)
+    return_str = extra_str + ' '*len(ref_label) + ''.join(return_str) + post_str + hfrac_str
     if print_result:
         print '%s%s%s' % (extra_str, ref_label, ref_seq)
-        print '%s%s%s%s' % (extra_str, ' '*len(ref_label), return_str, post_str),
-        if print_hfrac:
-            print '   hfrac %.3f' % hamming_fraction(ref_seq, seq),
-        # if print_isnps:
-        #     print '   %d snps at: %s' % (len(isnps), ' '.join([str(i) for i in isnps])),
-        print ''
+        print return_str
     return return_str
 
 # ----------------------------------------------------------------------------------------
@@ -1583,7 +1583,7 @@ def prep_dir(dirname, wildlings=None, subdirs=None, fname=None, allow_other_file
         os.makedirs(dirname)
 
 # ----------------------------------------------------------------------------------------
-def process_input_line(info):
+def process_input_line(info, hmm_cachefile=False):
     """
     Attempt to convert all the keys and values in <info> according to the specifications in <column_configs> (e.g. splitting lists, casting to int/float, etc).
     """
@@ -1603,7 +1603,9 @@ def process_input_line(info):
             info[key] = convert_fcn(info[key])
 
     # this column is called 'seqs' internally (for conciseness and to avoid rewriting a ton of stuff) but is called 'indel_reversed_seqs' in the output file to avoid user confusion
-    if 'seq' in info:  # simulation files (this is just a reminder that they're different (and it'd be nice to change that...).
+    if hmm_cachefile:  # hmm cache files don't have all the expected keys
+        pass
+    elif 'seq' in info:  # simulation files (this is just a reminder that they're different (and it'd be nice to change that...).
         pass
     elif 'seqs' not in info:  # if this is a new-style csv output file, i.e. it stores 'indel_reversed_seqs' instead of 'seqs'
         assert 'indel_reversed_seqs' in info

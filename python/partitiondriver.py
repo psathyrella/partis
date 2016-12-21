@@ -49,7 +49,7 @@ class PartitionDriver(object):
                 if self.args.outfname is None and self.current_action != 'cache-parameters':
                     print '  note: running on a lot of sequences without setting --outfname. Which is ok! But there\'ll be no persistent record of the results'
             self.default_sw_cachefname = self.args.parameter_dir + '/sw-cache-' + repr(abs(hash(''.join(self.input_info.keys())))) + '.csv'  # maybe I shouldn't abs it? collisions are probably still unlikely, and I don't like the extra dash in my file name
-        elif self.current_action != 'view-annotations' and self.current_action != 'view-partitions':
+        elif self.current_action != 'view-annotations' and self.current_action != 'view-partitions' and self.current_action != 'view-alternative-naive-seqs':
             raise Exception('--infname is required for action \'%s\'' % args.action)
 
         self.sw_info = None
@@ -302,6 +302,16 @@ class PartitionDriver(object):
         cp = ClusterPath()
         cp.readfile(self.args.outfname)
         cp.print_partitions(abbreviate=self.args.abbreviate, reco_info=self.reco_info)
+
+    # ----------------------------------------------------------------------------------------
+    def view_alternative_naive_seqs(self):
+        if self.args.queries is None:
+            print '%s in order to view alternative naive sequences, you have to specify a set of uids in which you\'re interested. Choose something from here:' % utils.color('red', 'error')
+            cp = ClusterPath()
+            cp.readfile(self.args.outfname)
+            cp.print_partitions(abbreviate=self.args.abbreviate, reco_info=self.reco_info)
+            raise Exception('see above')
+        self.print_subcluster_naive_seqs(self.args.queries)
 
     # ----------------------------------------------------------------------------------------
     def partition(self):
@@ -820,16 +830,45 @@ class PartitionDriver(object):
         return new_cpath
 
     # ----------------------------------------------------------------------------------------
-    def read_cachefile(self):
-        """ a.t.m. just want to know which values we have """
+    def read_hmm_cachefile(self):
         cachefo = {}
         if not os.path.exists(self.hmm_cachefname):
             return cachefo
         with open(self.hmm_cachefname) as cachefile:
             reader = csv.DictReader(cachefile)
             for line in reader:
-                cachefo[line['unique_ids']] = {}
+                utils.process_input_line(line, hmm_cachefile=True)
+                cachefo[':'.join(line['unique_ids'])] = line
         return cachefo
+
+    # ----------------------------------------------------------------------------------------
+    def print_subcluster_naive_seqs(self, uids_of_interest):
+        uids_of_interest = set(uids_of_interest)
+        uidstr_of_interest, ref_naive_seq = None, None  # we don't know what order they're in the cache file yet
+
+        cachefo = self.read_hmm_cachefile()
+        sub_uidstrs = []
+        for uidstr, info in cachefo.items():
+            if info['naive_seq'] == '':
+                continue
+            uids = set(info['unique_ids'])
+            if len(uids & uids_of_interest) > 0:  # first see if there's some overlap with what we're interested in
+                sub_uidstrs.append(uidstr)
+            if len(uids - uids_of_interest) == 0 and len(uids_of_interest - uids) == 0:  # then see if it's the actual cluster we're interested in
+                uidstr_of_interest = uidstr
+
+        sub_uidstrs = sorted(sub_uidstrs, key=lambda x: x.count(':'))
+        if uidstr_of_interest is None:
+            uidstr_of_interest = sub_uidstrs[-1]
+            uids_of_interest = None  # make sure we don't use it later
+            print '%s couldn\'t find the exact requested cluster, so using the biggest cluster that has some overlap with the requested cluster for the reference sequence' % utils.color('yellow', 'warning')
+        ref_naive_seq = cachefo[uidstr_of_interest]['naive_seq']
+        print '  subcluster naive sequences for %s' % uidstr_of_interest
+        print '      %s  %s' % (ref_naive_seq, utils.color('blue', uidstr_of_interest))
+        for uidstr in sub_uidstrs:
+            if uidstr == uidstr_of_interest:
+                continue
+            print utils.color_mutants(ref_naive_seq, cachefo[uidstr]['naive_seq'], extra_str='      ', print_isnps=True, post_str='  ' + uidstr)
 
     # ----------------------------------------------------------------------------------------
     def get_padded_true_naive_seq(self, qry):

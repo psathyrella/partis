@@ -281,6 +281,8 @@ def view_existing_output(args):
         parter.view_existing_annotations()
     elif args.action == 'view-partitions':
         parter.view_existing_partitions()
+    elif args.action == 'view-alternative-naive-seqs':
+        parter.view_alternative_naive_seqs()
     else:
         assert False
     parter.clean()
@@ -377,7 +379,8 @@ subconfig = {
     'simulate'         : {'func' : run_simulation,      'help' : 'Generate simulated sequences based on information in pre-existing parameter directory.'},
     'run-forward'      : {'func' : run_partitiondriver, 'help' : 'Run the forward algorithm on sequences in input file, using pre-existing parameter directory. Not particularly useful except for debugging.'},
     'view-annotations' : {'func' : view_existing_output,'help' : 'Print (to std out) the annotations from an existing annotation output csv.'},
-    'view-partitions'  : {'func' : view_existing_output,'help' : 'Print (to std out) the partitions from an existing partition output csv.'}
+    'view-partitions'  : {'func' : view_existing_output,'help' : 'Print (to std out) the partitions from an existing partition output csv.'},
+    'view-alternative-naive-seqs'  : {'func' : view_existing_output,'help' : 'Print (to std out) a comparison of the naive sequences corresponding to sub- and super-clusters of the cluster specified with --queries. You must have specified --calculate-alternative-naive-seqs (or --persistent-cachefname) in a previous partition step so that this information was saved.'}
 }
 
 subargs = {subname : [] for subname in subconfig}
@@ -404,7 +407,7 @@ subargs['partition'].append({'name' : '--small-clusters-to-ignore', 'kwargs' : {
 subargs['partition'].append({'name' : '--n-steps-after-which-to-ignore-small-clusters', 'kwargs' : {'type' : int, 'default' : 3, 'help' : 'number of partition steps after which to throw out small clusters (where "small" is controlled by <--small-clusters-to-ignore>). (They\'re thrown out before this if we get to n_procs one before this).'}})
 subargs['partition'].append({'name' : '--n-final-clusters', 'kwargs' : {'type' : int, 'help' : 'Number of clusters at which to cease hierarchical agglomeration'}})
 subargs['partition'].append({'name' : '--n-partition-subsets', 'kwargs' : {'type' : int, 'help' : 'compare the partitions of this many independent subsets, each of size <--n-max-queries>'}})
-subargs['partition'].append({'name' : '--calculate-alternative-naive-seqs', 'kwargs' : {'action' : 'store_true', 'help' : ''}})
+subargs['partition'].append({'name' : '--calculate-alternative-naive-seqs', 'kwargs' : {'action' : 'store_true', 'help' : 'write to disk all the information necessary to, in a later step, print alternative inferred naive sequences (i.e. visualize uncertainty in the inferred naive sequence). All this really does is set --persistent-cachefname, i.e. copy the hmm cache file that we would anyway be making (but deleting) to somewhere sensible for later use.'}})
 
 subargs['simulate'].append({'name' : '--mutation-multiplier', 'kwargs' : {'type' : float, 'help' : 'Multiply observed branch lengths by some factor when simulating, e.g. if in data it was 0.05, but you want closer to ten percent in your simulation, set this to 2'}})
 subargs['simulate'].append({'name' : '--mimic-data-read-length', 'kwargs' : {'action' : 'store_true', 'help' : 'trim V 5\' and D 3\' to mimic read lengths seen in data'}})
@@ -515,6 +518,11 @@ if args.batch_system == 'sge' and args.batch_options is not None:
 if args.cluster_annotation_fname is None and args.outfname is not None:
     assert '.csv' in args.outfname
     args.cluster_annotation_fname = args.outfname.replace('.csv', '-cluster-annotations.csv')
+
+if args.calculate_alternative_naive_seqs or (args.action == 'view-alternative-naive-seqs' and args.persistent_cachefname is None):
+    if args.outfname is None:
+        raise Exception('have to specify --outfname in order to calculate alternative naive sequences')
+    args.persistent_cachefname = args.outfname.replace('.csv', '-hmm-cache.csv')
 
 if args.plot_performance:
     if args.plotdir is None:
