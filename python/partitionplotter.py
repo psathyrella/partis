@@ -13,6 +13,7 @@ class PartitionPlotter(object):
     def __init__(self):
         # between vs within stuff:
         self.n_bins = 30
+        self.subplotdirs = ['overall', 'within-vs-between']
 
     # ----------------------------------------------------------------------------------------
     def get_cdr3_length_classes(self, partition, annotations):
@@ -25,40 +26,46 @@ class PartitionPlotter(object):
         return classes
 
     # ----------------------------------------------------------------------------------------
-    def get_within_vs_between_hists(self, partition, annotations):
-        classes = self.get_cdr3_length_classes(partition, annotations)
-
-        distances = {'within' : [mut_freq for info in annotations.values() for mut_freq in info['mut_freqs']],
-                     'between' : []}
-        # for each cdr3 length, loop over each pair of clusters that have that cdr3 length
-        for cdr3_length, clusters in classes.items():
-            for cluster_a, cluster_b in itertools.combinations(clusters, 2):
-                nseq_a = annotations[':'.join(cluster_a)]['naive_seq']
-                nseq_b = annotations[':'.join(cluster_b)]['naive_seq']
-                distances['between'].append(utils.hamming_fraction(nseq_a, nseq_b))
-
-        xmax = 1.2 * max(distances['between'] + distances['within'])
+    def plot_each_within_vs_between_hist(self, distances, plotdir, plotname, plottitle):
+        xmax = 1.2 * max([d for dtype in distances for d in distances[dtype]])
         hists = {}
         for dtype in distances:
             hists[dtype] = Hist(self.n_bins, 0., xmax, title=dtype)
             for mut_freq in distances[dtype]:
                 hists[dtype].fill(mut_freq)
+        plotting.draw_no_root(hists['within'], plotname=plotname, plotdir=plotdir, more_hists=[hists['between']], plottitle=plottitle, xtitle='hamming distance', errors=True)
 
-        return hists['within'], hists['between']
+    # ----------------------------------------------------------------------------------------
+    def plot_within_vs_between_hists(self, partition, annotations, base_plotdir):
+        classes = self.get_cdr3_length_classes(partition, annotations)
+
+        overall_distances = {'within' : [mut_freq for info in annotations.values() for mut_freq in info['mut_freqs']],
+                             'between' : []}
+        sub_distances = {}
+        for cdr3_length, clusters in classes.items():  # for each cdr3 length, loop over each pair of clusters that have that cdr3 length
+            hfracs = [utils.hamming_fraction(annotations[':'.join(cl_a)]['naive_seq'], annotations[':'.join(cl_b)]['naive_seq'])
+                      for cl_a, cl_b in itertools.combinations(clusters, 2)]  # hamming fractions for each pair of clusters with this cdr3 length
+            sub_distances[cdr3_length] = {'within' : [mut_freq for cluster in clusters for mut_freq in annotations[':'.join(cluster)]['mut_freqs']],
+                                          'between' : hfracs}
+            overall_distances['between'] += hfracs
+
+        self.plot_each_within_vs_between_hist(overall_distances, base_plotdir + '/overall', 'within-vs-between', '')
+        for cdr3_length, subd in sub_distances.items():
+            self.plot_each_within_vs_between_hist(subd, base_plotdir + '/within-vs-between', 'cdr3-length-%d' % cdr3_length, 'CDR3 %d' % cdr3_length)
 
     # ----------------------------------------------------------------------------------------
     def plot(self, plotdir, partition=None, infiles=None, annotations=None, only_csv=None):
         print '  plotting partitions'
         sys.stdout.flush()
         start = time.time()
-        utils.prep_dir(plotdir, wildlings=['*.csv', '*.svg'])
+        for subdir in self.subplotdirs:
+            utils.prep_dir(plotdir + '/' + subdir, wildlings=['*.csv', '*.svg'])
 
         if partition is not None:  # one partition
             assert infiles is None
             assert annotations is not None
             csize_hists = {'best' : plotting.get_cluster_size_hist(partition)}
-            hwithin, hbetween = self.get_within_vs_between_hists(partition, annotations)
-            plotting.draw_no_root(hwithin, plotname='within-vs-between', plotdir=plotdir, more_hists=[hbetween], xtitle='hamming distance', errors=True)
+            self.plot_within_vs_between_hists(partition, annotations, plotdir)
         elif infiles is not None:  # plot the mean of a partition from each file
             subset_hists = []
             for fname in infiles:
@@ -71,9 +78,10 @@ class PartitionPlotter(object):
         else:
             assert False
 
-        plotting.plot_cluster_size_hists(plotdir + '/cluster-sizes.svg', csize_hists, title='')
+        plotting.plot_cluster_size_hists(plotdir + '/overall/cluster-sizes.svg', csize_hists, title='', log='x')
 
         if not only_csv:
-            plotting.make_html(plotdir)
+            for subdir in self.subplotdirs:
+                plotting.make_html(plotdir + '/' + subdir)
 
         print '(%.1f sec)' % (time.time()-start)

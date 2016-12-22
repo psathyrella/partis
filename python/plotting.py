@@ -499,7 +499,7 @@ def label_bullshit_transform(label):
 # colors['cdr3-indels'] = '#cc0000'
 
 # ----------------------------------------------------------------------------------------
-def plot_cluster_size_hists(outfname, hists, title, xmax=None, log='x'):
+def plot_cluster_size_hists(outfname, hists, title, xmax=None, log='x', normalize=False):
     if 'seaborn' not in sys.modules:
         import seaborn  # really #$*$$*!ing slow to import, but only importing part of it doesn't seem to help
     sys.modules['seaborn'].set_style('ticks')
@@ -562,7 +562,8 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None, log='x'):
                   'alpha' : alphas.get(name, 1.)}
 
         # was using this:
-        hist.normalize()
+        if normalize:
+            hist.normalize()
         plots[name] = ax.errorbar(hist.get_bin_centers(), hist.bin_contents_no_zeros(1e-8), yerr=hist.errors, **kwargs)
 
     legend = ax.legend()
@@ -574,14 +575,15 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None, log='x'):
     else:
         ax.set_xlim(0.9, xmax)
 
-    if 'vollmers' in title:
-        ymin = 5e-4
-    else:
-        ymin = 5e-5
-    plt.ylim(ymin, 1)
+    if normalize:
+        if 'vollmers' in title:
+            ymin = 5e-4
+        else:
+            ymin = 5e-5
+        plt.ylim(ymin, 1)
     plt.title(title)
     plt.xlabel('cluster size')
-    plt.ylabel('fraction of clusters')
+    plt.ylabel('fraction of clusters' if normalize else 'number of clusters')
     plt.subplots_adjust(bottom=0.14, left=0.14)
     if 'x' in log:
         ax.set_xscale('log')
