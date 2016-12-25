@@ -1287,6 +1287,8 @@ def are_alleles(gene1, gene2):
 def split_gene(gene):
     """ returns (primary version, sub version, allele) """
     # make sure IG[HKL][VDJ] is at the start, and there's a *
+    if '_star_' in gene or '_slash_' in gene:
+        raise Exception('gene name \'%s\' isn\'t entirely unsanitized' % gene)
     if gene[:4] != 'IG' + get_chain(gene).upper() + get_region(gene).upper():
         raise Exception('unexpected string in gene name %s' % gene)
     if gene.count('*') != 1:
