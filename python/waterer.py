@@ -118,6 +118,9 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def finalize(self, cachefname=None, just_read_cachefile=False):
+        if len(self.info['queries']) == 0:
+            print '%s no queries passing smith-waterman, exiting' % utils.color('red', 'warning')
+            sys.exit(1)
         print '      info for %d / %d = %.3f' % (len(self.info['queries']), len(self.input_info), float(len(self.info['queries'])) / len(self.input_info))
         if len(self.kept_unproductive_queries) > 0:
             print '      kept %d (%.3f) unproductive' % (len(self.kept_unproductive_queries), float(len(self.kept_unproductive_queries)) / len(self.input_info))
@@ -1030,6 +1033,9 @@ class Waterer(object):
             return None
         if k_v_min <= 0 or k_d_min <= 0 or k_v_min >= k_v_max or k_d_min >= k_d_max:
             print '  %s nonsense k bounds for %s (v: %d %d  d: %d %d)' % (utils.color('red', 'error'), qinfo['name'], k_v_min, k_v_max, k_d_min, k_d_max)
+            return None
+        if not self.args.dont_remove_framework_insertions and self.args.is_data and k_v_min - len(line['fv_insertion']) < 0:  # it happened. like, once
+            print '%s trimming fwk insertion would take k_v min to less than zero for %s: %d - %d = %d' % (utils.color('yellow', 'warning'), ' '.join(line['unique_ids']), k_v_min, len(line['fv_insertion']), k_v_min - len(line['fv_insertion']))
             return None
 
         kbounds = {'v' : {'best' : best_k_v, 'min' : k_v_min, 'max' : k_v_max},
