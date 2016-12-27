@@ -106,7 +106,10 @@ class AlleleFinder(object):
 
         self.set_excluded_bases(swfo, debug=debug)
         if cpath is not None:
-            self.single_query_per_clone = [random.choice(cluster) for cluster in cpath.partitions[cpath.i_best]]  # since we're doing this before running sw (these clusters are from a previous sw run, presumably one that removed unlikely alleles), it's possible some of these won't show up this time through. But, we need to know which queries to count as we're incrementing, and while for allelefinder that happens *after* we've finalized sw, we also have to run vsearch, which is easier to do from partitiondriver...
+            def choose_cluster_representative(cluster):
+                mfreqs = [swfo[q]['mut_freqs'][0] for q in cluster]  # it would (I think) be better to use only the V mut freq, but we don't store that a.t.m., and I don't want to calculate it
+                return cluster[mfreqs.index(min(mfreqs))]  # if there's more than one with the min freq, this gives just the first one (which is fine)
+            self.single_query_per_clone = [choose_cluster_representative(cluster) for cluster in cpath.partitions[cpath.i_best]]
             self.n_seqs_over_all_clones = sum([len(c) for c in cpath.partitions[cpath.i_best]])
 
         self.prepared_to_finalize = True

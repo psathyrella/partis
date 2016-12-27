@@ -1,20 +1,10 @@
 # now
-#  - rerun kate-qrs with new-allele inference -- naive seqs will be off if you're missing alleles
-#  - rerun kate-qrs (and run new data) with alternative naive seq options
-#  - remove sequences from "sequences of interest" dir (just have uids)
-#  - katie and david data
-#  - cluster size hists:
-#    - stop normalizing
-#    - log y
-#  - remove unused stuff from Result (and RecoEvent?)
-#  - fix sw output columns so they're aligned
-#  - get naive seqs for "sub"-clusters (already added '--calculate-alternative-naive-seqs')
-#  - stop using 'queries', 'duplicates', and 'indels' in sw info
 #  - #218
 #  - automate n-procs, at least for viterbi/parameter caching
 #    - improve n_precache_proc calculator (expecially for large samples)
 #    - auto-set clustering step procs (at least when seed partitioning, since you don't know before you remove other cdr3 lengths how many you'll have)
-#  - allele finder needs to make it (more) obvious when most of the reads are short (e.g. katie data)
+#  - check/verify how having the wrong germline allele affects naive seq accuracy
+#  - why so many left side exclusions in laura data
 
 # check whether translation needs to have a lower fractional bound, i.e. don't let the translation be too much smaller than the actual cluster (c.f. kate-qrs data -- what's happening translation-wise when really big clusters are getting merged)
 # add between vs within cluster hamming distance plots
@@ -40,7 +30,10 @@
 #  - cluster these: /fh/fast/matsen_e/processed-data/cft/2016-10-21-rubelt-heritable-influence (/fh/fast/matsen_e/data/rubelt-heritable-influence-2016-10-21/proc_data/B-cell_memory.fasta /fh/fast/matsen_e/data/rubelt-heritable-influence-2016-10-21/proc_data/B-cell_naive.fasta)
 #  - kate
 
+# code cleanup
 #  - split up utils.py
+#  - remove unused stuff from Result (and RecoEvent?)
+#  - stop using 'queries', 'duplicates', and 'indels' in sw info
 
 # partition/annotation validation
 #  - go through a careful round of partition validation on larger samples (including light chain)
