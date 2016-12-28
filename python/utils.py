@@ -1591,45 +1591,42 @@ def process_input_line(info, hmm_cachefile=False):
     Attempt to convert all the keys and values in <info> according to the specifications in <column_configs> (e.g. splitting lists, casting to int/float, etc).
     """
 
-    ccfg = column_configs  # shorten the name a bit
+    if 'seq' in info:  # simulation files (should change at some point)
+        for key in ['unique_id', 'seq', 'indelfo']:
+            info[key + 's'] = info[key]
+            del info[key]
+        info['indelfos'] = '[' + info['indelfos'] + ']'
+        info['input_seqs'] = info['seqs']
 
     for key in info:
-        if info[key] == '':
+        if info[key] == '':  # handle these below, once we know how many seqs in the line
             continue
-
         convert_fcn = conversion_fcns.get(key, pass_fcn)
-        if key in ccfg['lists']:
+        if key in column_configs['lists']:
             info[key] = [convert_fcn(val) for val in info[key].split(':')]
-        elif key in ccfg['lists-of-lists']:
+        elif key in column_configs['lists-of-lists']:
             info[key] = convert_fcn(info[key].split(';'))
         else:
             info[key] = convert_fcn(info[key])
 
     # this column is called 'seqs' internally (for conciseness and to avoid rewriting a ton of stuff) but is called 'indel_reversed_seqs' in the output file to avoid user confusion
-    if hmm_cachefile:  # hmm cache files don't have all the expected keys
-        pass
-    elif 'seq' in info:  # simulation files (this is just a reminder that they're different (and it'd be nice to change that...).
-        pass
-    elif 'seqs' not in info:  # if this is a new-style csv output file, i.e. it stores 'indel_reversed_seqs' instead of 'seqs'
-        assert 'indel_reversed_seqs' in info
+    if 'indel_reversed_seqs' in info and 'input_seqs' in info:  # new-style csv output file, i.e. it stores 'indel_reversed_seqs' instead of 'seqs'
         if info['indel_reversed_seqs'] == '':
             info['indel_reversed_seqs'] = ['' for _ in range(len(info['unique_ids']))]
         info['seqs'] = [info['indel_reversed_seqs'][iseq] if info['indel_reversed_seqs'][iseq] != '' else info['input_seqs'][iseq] for iseq in range(len(info['unique_ids']))]  # if there's no indels, we just store 'input_seqs' and leave 'indel_reversed_seqs' empty
-    else:  # old-style file: just copy 'em into the explicit name
+    elif 'seqs' in info:  # old-style csv output file: just copy 'em into the explicit name
         info['indel_reversed_seqs'] = info['seqs']
 
     # process things for which we first want to know the number of seqs in the line
     for key in info:
-        if key == 'indelfo':  # simulation file
-            info[key] = reconstruct_full_indelfo(info['indelfo'], info['seq'])
-        elif key == 'indelfos':
+        if key == 'indelfos':
             info[key] = [reconstruct_full_indelfo(info['indelfos'][iseq], info['seqs'][iseq]) for iseq in range(len(info['unique_ids']))]
         elif info[key] != '':
             continue
 
-        if key in ccfg['lists']:
+        if key in column_configs['lists']:
             info[key] = ['' for _ in range(len(info['unique_ids']))]
-        elif key in ccfg['lists-of-lists']:
+        elif key in column_configs['lists-of-lists']:
             info[key] = [[] for _ in range(len(info['unique_ids']))]
 
 # ----------------------------------------------------------------------------------------
