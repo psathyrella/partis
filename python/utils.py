@@ -982,12 +982,12 @@ def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False): 
                 assert ikey in new_keys  # only really checks the logic of the previous few lines
 
 # ----------------------------------------------------------------------------------------
-def print_true_events(glfo, reco_info, line, print_naive_seqs=False):
+def print_true_events(glfo, reco_info, line, print_naive_seqs=False, extra_str='    '):
     """ print the true events which contain the seqs in <line> """
     true_naive_seqs = []
     for uids in get_true_partition(reco_info, ids=line['unique_ids']):  # make a multi-seq line that has all the seqs from this clonal family
         multiline = synthesize_multi_seq_line(uids, reco_info)
-        print_reco_event(glfo['seqs'], multiline, extra_str='    ', label=color('green', 'true:'))
+        print_reco_event(glfo['seqs'], multiline, extra_str=extra_str, label=color('green', 'true:'))
         true_naive_seqs.append(multiline['naive_seq'])
 
     if print_naive_seqs:
