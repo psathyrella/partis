@@ -1591,7 +1591,7 @@ def process_input_line(info, hmm_cachefile=False):
     Attempt to convert all the keys and values in <info> according to the specifications in <column_configs> (e.g. splitting lists, casting to int/float, etc).
     """
 
-    if 'seq' in info:  # simulation files (should change at some point)
+    if 'seq' in info:  # old simulation files
         for key in ['unique_id', 'seq', 'indelfo']:
             info[key + 's'] = info[key]
             del info[key]
@@ -1610,7 +1610,7 @@ def process_input_line(info, hmm_cachefile=False):
             info[key] = convert_fcn(info[key])
 
     # this column is called 'seqs' internally (for conciseness and to avoid rewriting a ton of stuff) but is called 'indel_reversed_seqs' in the output file to avoid user confusion
-    if 'indel_reversed_seqs' in info and 'input_seqs' in info:  # new-style csv output file, i.e. it stores 'indel_reversed_seqs' instead of 'seqs'
+    if 'indel_reversed_seqs' in info and 'input_seqs' in info:  # new-style csv output and simulation files, i.e. it stores 'indel_reversed_seqs' instead of 'seqs'
         if info['indel_reversed_seqs'] == '':
             info['indel_reversed_seqs'] = ['' for _ in range(len(info['unique_ids']))]
         info['seqs'] = [info['indel_reversed_seqs'][iseq] if info['indel_reversed_seqs'][iseq] != '' else info['input_seqs'][iseq] for iseq in range(len(info['unique_ids']))]  # if there's no indels, we just store 'input_seqs' and leave 'indel_reversed_seqs' empty

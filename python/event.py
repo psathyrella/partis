@@ -73,7 +73,7 @@ class RecombinationEvent(object):
             the calling proc tells write_event() that we're writing the <irandom>th event that that calling event is working on. Which effectively
             means we (drastically) reduce the period of our random number generator for hashing in exchange for reproducibility. Should be ok...
         """
-        columns = ('unique_id', 'reco_id') + utils.index_columns + ('cdr3_length', 'seq', 'indelfo')
+        columns = ('unique_ids', 'reco_id') + utils.index_columns + ('cdr3_length', 'input_seqs', 'indel_reversed_seqs', 'indelfos')
         mode = ''
         if os.path.isfile(outfile):
             mode = 'ab'
@@ -98,8 +98,8 @@ class RecombinationEvent(object):
             # hash the information that uniquely identifies each recombination event
             str_for_reco_id = ''
             for column in row:
-                assert 'unique_id' not in row
-                assert 'seq' not in row
+                assert 'unique_ids' not in row
+                assert 'seqs' not in row
                 str_for_reco_id += str(row[column])
             row['reco_id'] = hash(str_for_reco_id)  # note that this gives the same reco id for the same rearrangement parameters, even if they come from a separate rearrangement event
             assert 'fv_insertion' not in row  # well, in principle it's ok if they're there, but in that case I'll need to at least think about updating some things
@@ -108,7 +108,8 @@ class RecombinationEvent(object):
             row['jf_insertion'] = ''
             # then the stuff that's particular to each mutant/clone
             for imute in range(len(self.final_seqs)):
-                row['seq'] = self.final_seqs[imute]
+                row['seqs'] = [ifo['reversed_seq'] for ifo in self.indelfos]  # don't add this as 'indel_reversed_seqs', since we want get_line_for_output to use empty strings if there's no indels
+                row['input_seqs'] = [self.final_seqs[imute], ]
                 str_for_unique_id = ''  # Hash to uniquely identify the sequence.
                 for column in row:
                     str_for_unique_id += str(row[column])
@@ -116,9 +117,9 @@ class RecombinationEvent(object):
                     str_for_unique_id += str(numpy.random.uniform())
                 else:
                     str_for_unique_id += str(irandom)
-                row['unique_id'] = hash(str_for_unique_id)
-                row['indelfo'] = self.indelfos[imute]
-                writer.writerow(row)
+                row['unique_ids'] = [hash(str_for_unique_id), ]
+                row['indelfos'] = [self.indelfos[imute], ]
+                writer.writerow(utils.get_line_for_output(row))
 
     # ----------------------------------------------------------------------------------------
     def print_event(self):
@@ -135,11 +136,18 @@ class RecombinationEvent(object):
         assert 'jf_insertion' not in line
         line['fv_insertion'] = ''
         line['jf_insertion'] = ''
-        line['seqs'] = self.final_seqs
+        line['input_seqs'] = self.final_seqs
+        line['indel_reversed_seqs'] = []
+        for iseq in range(len(self.indelfos)):
+            if self.indelfos[iseq]['reversed_seq'] != '':
+                line['indel_reversed_seqs'].append(self.indelfos[iseq]['reversed_seq'])
+            else:
+                line['indel_reversed_seqs'].append(line['input_seqs'][iseq])
+        line['seqs'] = line['indel_reversed_seqs']
+        line['indelfos'] = self.indelfos
         line['unique_ids'] = [str(i) for i in range(len(self.final_seqs))]
         line['cdr3_length'] = self.cdr3_length
         line['codon_positions'] = copy.deepcopy(self.final_codon_positions)
-        line['indelfos'] = self.indelfos
         utils.add_implicit_info(self.glfo, line)
         utils.print_reco_event(self.glfo['seqs'], line)
 

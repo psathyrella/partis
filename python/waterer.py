@@ -338,7 +338,7 @@ class Waterer(object):
 
         not_read = self.remaining_queries - queries_read_from_file
         if len(not_read) > 0:
-            raise Exception('didn\'t read %s from %s' % (':'.join(not_read), self.args.workdir))
+            raise Exception('didn\'t read %s from %s' % (' '.join(not_read), self.args.workdir))
 
         if self.nth_try == 1:
             print '  %4s  processed       remaining      new-indels          rerun: %s' % ('summary:' if self.debug else '', '      '.join([reason for reason in queries_to_rerun]))
