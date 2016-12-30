@@ -6,6 +6,7 @@
 #  - check/verify how having the wrong germline allele affects naive seq accuracy
 #  - why so many left side exclusions in laura data
 #  - clean up the clusterfuck internal_name_column bullshit in seqfileopener
+#  - move metadata and seqs of interest and anything else you can to datascripts
 
 # check whether translation needs to have a lower fractional bound, i.e. don't let the translation be too much smaller than the actual cluster (c.f. kate-qrs data -- what's happening translation-wise when really big clusters are getting merged)
 # add between vs within cluster hamming distance plots
@@ -74,6 +75,7 @@
 #    - increase n_max_mutations_per_segment for highly-mutated repertoires (?)'
 
 # optimization
+#  - could speed up mutefreqer increment if there was only one call to utils get mute freq stuff
 #  - could maybe switch to only checking the most likely j frame (maybe by moving backwards through j hmm?)
 #  - go through glomerator (and maybe dphandler) and make sure everything that should be a reference or a pointer is one
 #  - switch all the c++ map.count() calls to map.find()
