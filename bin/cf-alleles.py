@@ -38,21 +38,21 @@ genes = ['IGH' + args.region.upper() + args.base + '*' + al for al in args.allel
 if args.other_genes is not None:
     genes += args.other_genes
 
+codon_positions = glfo[utils.conserved_codons[args.chain][args.region] + '-positions']
+
 def print_str(gene, seq):
     return '%s   %s' % (utils.color_gene(gene, width=15), seq)
 
 ref_gene = genes[0]
 ref_seq = glfo['seqs'][args.region][ref_gene]
+ref_seq = utils.color_mutants(ref_seq, ref_seq, emphasis_positions=[codon_positions[ref_gene] + i for i in range(3)])
 print print_str(ref_gene, ref_seq), '   (reference)'
 
 for igene in range(1, len(genes)):
     gene = genes[igene]
     seq = glfo['seqs'][args.region][gene]
     min_length = min(len(seq), len(ref_seq))
-    codon_pos = None
-    if gene in glfo[utils.conserved_codons[args.chain][args.region] + '-positions']:
-        codon_pos = glfo[utils.conserved_codons[args.chain][args.region] + '-positions'][gene]
-    colored_seq = utils.color_mutants(ref_seq[:min_length], seq[:min_length], print_isnps=True, emphasis_positions=None if codon_pos is None else [codon_pos + i for i in range(3)])
+    colored_seq = utils.color_mutants(ref_seq[:min_length], seq[:min_length], print_isnps=True, emphasis_positions=[codon_positions[gene] + i for i in range(3)])
     print print_str(gene, colored_seq)
     if min_length < len(ref_seq) and igene == 0:
         print 'extra for %s: %s' % (utils.color_gene(ref_gene), ref_seq[min_length:])
