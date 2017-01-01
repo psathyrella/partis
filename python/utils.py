@@ -512,17 +512,20 @@ def color_chars(chars, col, seq):
     return return_str
 
 # ----------------------------------------------------------------------------------------
-def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', post_str='', print_hfrac=False, print_isnps=False):
+def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', post_str='', print_hfrac=False, print_isnps=False, emphasis_positions=None):
     """ default: return <seq> string with colored mutations with respect to <ref_seq> """
     if len(ref_seq) != len(seq):
         raise Exception('unequal lengths in color_mutants()\n    %s\n    %s' % (ref_seq, seq))
     return_str, isnps = [], []
     for inuke in range(len(seq)):
-        if inuke >= len(ref_seq) or seq[inuke] == ref_seq[inuke]:
-            return_str.append(seq[inuke])
-        else:
-            return_str.append(color('red', seq[inuke]))
+        char = seq[inuke]
+        if seq[inuke] != ref_seq[inuke]:
+            char = color('red', char)
             isnps.append(inuke)
+        if emphasis_positions is not None and inuke in emphasis_positions:
+            char = color('reverse_video', char)
+        return_str.append(char)
+
     isnp_str = ''
     if print_isnps and len(isnps) > 0:
         isnp_str = '   %d snp%s at: %s' % (len(isnps), plural(len(isnps)), ' '.join([str(i) for i in isnps]))

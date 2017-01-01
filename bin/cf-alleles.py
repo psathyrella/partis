@@ -26,7 +26,6 @@ else:
     args.alleles = utils.get_arg_list(args.alleles)
 args.other_genes = utils.get_arg_list(args.other_genes)
 
-
 # for g, s in glfo['seqs']['v'].items():
 #     print '%s  %3d' % (utils.color_gene(g, width=20), len(s) - glfo['cyst-positions'][g])
 # sys.exit()
@@ -50,7 +49,10 @@ for igene in range(1, len(genes)):
     gene = genes[igene]
     seq = glfo['seqs'][args.region][gene]
     min_length = min(len(seq), len(ref_seq))
-    colored_seq = utils.color_mutants(ref_seq[:min_length], seq[:min_length], print_isnps=True)
+    codon_pos = None
+    if gene in glfo[utils.conserved_codons[args.chain][args.region] + '-positions']:
+        codon_pos = glfo[utils.conserved_codons[args.chain][args.region] + '-positions'][gene]
+    colored_seq = utils.color_mutants(ref_seq[:min_length], seq[:min_length], print_isnps=True, emphasis_positions=None if codon_pos is None else [codon_pos + i for i in range(3)])
     print print_str(gene, colored_seq)
     if min_length < len(ref_seq) and igene == 0:
         print 'extra for %s: %s' % (utils.color_gene(ref_gene), ref_seq[min_length:])
