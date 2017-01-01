@@ -45,8 +45,7 @@ def print_str(gene, seq):
 
 ref_gene = genes[0]
 ref_seq = glfo['seqs'][args.region][ref_gene]
-ref_seq = utils.color_mutants(ref_seq, ref_seq, emphasis_positions=[codon_positions[ref_gene] + i for i in range(3)])
-print print_str(ref_gene, ref_seq), '   (reference)'
+print print_str(ref_gene, utils.color_mutants(ref_seq, ref_seq, emphasis_positions=[codon_positions[ref_gene] + i for i in range(3)])), '   (reference)'
 
 for igene in range(1, len(genes)):
     gene = genes[igene]
