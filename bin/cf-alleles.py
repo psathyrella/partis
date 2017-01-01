@@ -11,19 +11,21 @@ sys.path.insert(1, partis_dir + '/python')
 import utils
 import glutils
 
-glfo = glutils.read_glfo('data/germlines/human', 'h')
-
 parser = argparse.ArgumentParser()
 parser.add_argument('--base', required=True)
 parser.add_argument('--alleles')
 parser.add_argument('--other-genes')
 parser.add_argument('--region', default='v')
+parser.add_argument('--chain', default='h')
+parser.add_argument('--glfo-dir', default='data/germlines/human')
 args = parser.parse_args()
+glfo = glutils.read_glfo(args.glfo_dir, args.chain)
 if args.alleles is None:
     args.alleles = [utils.allele(g) for g in glfo['seqs'][args.region] if args.base == utils.primary_version(g) + '-' + utils.sub_version(g)]
 else:
     args.alleles = utils.get_arg_list(args.alleles)
 args.other_genes = utils.get_arg_list(args.other_genes)
+
 
 # for g, s in glfo['seqs']['v'].items():
 #     print '%s  %3d' % (utils.color_gene(g, width=20), len(s) - glfo['cyst-positions'][g])
