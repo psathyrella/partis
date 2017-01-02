@@ -2529,24 +2529,24 @@ def kbound_str(kbounds):
 
 # ----------------------------------------------------------------------------------------
 def collapse_naive_seqs(naive_seq_list, sw_info):
-    assert False
-    naive_seq_map = {}  # X[cdr3][hash(naive_seq)] : naive_seq
-    naive_seq_hashes = {}  # X[hash(naive_seq)] : [uid1, uid2, uid3...]
+    # naive_seq_hashes = {}  # X[hash(naive_seq)] : [uid1, uid2, uid3...]
+    naive_seq_groups = {}  # X[naive_seq] : [uid1, uid2, uid3...]
     for uid, naive_seq in naive_seq_list:
-        hashstr = str(hash(naive_seq))
-        if hashstr not in naive_seq_hashes:  # first sequence that has this naive
-            cdr3_length = sw_info[uid]['cdr3_length']
-            if cdr3_length not in naive_seq_map:
-                naive_seq_map[cdr3_length] = {}
-            naive_seq_map[cdr3_length][hashstr] = naive_seq  # i.e. vsearch gets a hash of the naive seq (which maps to a list of uids with that naive sequence) instead of the uid
-            naive_seq_hashes[hashstr] = []
-        naive_seq_hashes[hashstr].append(uid)
-    print '        collapsed %d sequences into %d unique naive sequences' % (len(naive_seq_list), len(naive_seq_hashes))
-    return naive_seq_map, naive_seq_hashes
+        # hashstr = str(hash(naive_seq))
+        # if hashstr not in naive_seq_hashes:  # first sequence that has this naive
+        #     naive_seq_hashes[hashstr] = []
+        if naive_seq not in naive_seq_groups:  # first sequence that has this naive
+            naive_seq_groups[naive_seq] = []
+        # naive_seq_hashes[hashstr].append(uid)
+        naive_seq_groups[naive_seq].append(uid)
+    # print '        collapsed %d sequences into %d unique naive sequences' % (len(naive_seq_list), len(naive_seq_hashes))
+    print '        collapsed %d sequences into %d unique naive sequences' % (len(naive_seq_list), len(naive_seq_groups))
+    # return naive_seq_hashes
+    return naive_seq_groups
 
 # ----------------------------------------------------------------------------------------
 def get_partition_from_collapsed_naive_seqs(naive_seq_list, sw_info):
-    naive_seq_map, naive_seq_hashes = collapse_naive_seqs(naive_seq_list, sw_info)
+    naive_seq_hashes = collapse_naive_seqs(naive_seq_list, sw_info)
     return [cluster for cluster in naive_seq_hashes.values()]
 
 # ----------------------------------------------------------------------------------------
