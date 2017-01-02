@@ -2529,6 +2529,7 @@ def kbound_str(kbounds):
 
 # ----------------------------------------------------------------------------------------
 def collapse_naive_seqs(naive_seq_list, sw_info):
+    assert False
     naive_seq_map = {}  # X[cdr3][hash(naive_seq)] : naive_seq
     naive_seq_hashes = {}  # X[hash(naive_seq)] : [uid1, uid2, uid3...]
     for uid, naive_seq in naive_seq_list:
