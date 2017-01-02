@@ -2528,27 +2528,13 @@ def kbound_str(kbounds):
     return ''.join(return_str).strip()
 
 # ----------------------------------------------------------------------------------------
-def collapse_naive_seqs(naive_seq_list, sw_info):
+def get_partition_from_collapsed_naive_seqs(sw_info):
     start = time.time()
-    # naive_seq_hashes = {}  # X[hash(naive_seq)] : [uid1, uid2, uid3...]
-    naive_seq_groups = {}  # X[naive_seq] : [uid1, uid2, uid3...]
-    for uid, naive_seq in naive_seq_list:
-        # hashstr = str(hash(naive_seq))
-        # if hashstr not in naive_seq_hashes:  # first sequence that has this naive
-        #     naive_seq_hashes[hashstr] = []
-        if naive_seq not in naive_seq_groups:  # first sequence that has this naive
-            naive_seq_groups[naive_seq] = []
-        # naive_seq_hashes[hashstr].append(uid)
-        naive_seq_groups[naive_seq].append(uid)
-    # print '        collapsed %d sequences into %d unique naive sequences' % (len(naive_seq_list), len(naive_seq_hashes))
-    print '        collapsed %d sequences into %d unique naive sequences (%1f sec)' % (len(naive_seq_list), len(naive_seq_groups), time.time() - start)
-    # return naive_seq_hashes
-    return naive_seq_groups
-
-# ----------------------------------------------------------------------------------------
-def get_partition_from_collapsed_naive_seqs(naive_seq_list, sw_info):
-    naive_seq_hashes = collapse_naive_seqs(naive_seq_list, sw_info)
-    return [cluster for cluster in naive_seq_hashes.values()]
+    def keyfunc(q):
+        return sw_info[q]['naive_seq']
+    clusters = [list(group) for _, group in itertools.groupby(sorted(sw_info['queries'], key=keyfunc), key=keyfunc)]
+    print '        collapsed %d sequences into %d unique naive sequences (%3f sec)' % (len(sw_info['queries']), len(clusters), time.time() - start)
+    return clusters
 
 # ----------------------------------------------------------------------------------------
 def split_partition_with_criterion(partition, criterion_fcn):

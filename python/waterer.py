@@ -153,8 +153,7 @@ class Waterer(object):
         if self.alfinder is not None:
             cpath = None
             if not self.args.dont_collapse_clones:
-                naive_seq_list = [(q, self.info[q]['naive_seq']) for q in self.info['queries']]
-                cpath = ClusterPath(partition=utils.get_partition_from_collapsed_naive_seqs(naive_seq_list, self.info))
+                cpath = ClusterPath(partition=utils.get_partition_from_collapsed_naive_seqs(self.info))
             self.alfinder.prepare_to_finalize(self.info, cpath=cpath, debug=self.args.debug_allele_finding)
             for query in self.info['queries']:
                 self.alfinder.increment(self.info[query])  # it needs to know the distribution of 3p deletions before it can increment, so it has to be here
