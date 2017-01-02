@@ -2529,6 +2529,7 @@ def kbound_str(kbounds):
 
 # ----------------------------------------------------------------------------------------
 def collapse_naive_seqs(naive_seq_list, sw_info):
+    start = time.time()
     # naive_seq_hashes = {}  # X[hash(naive_seq)] : [uid1, uid2, uid3...]
     naive_seq_groups = {}  # X[naive_seq] : [uid1, uid2, uid3...]
     for uid, naive_seq in naive_seq_list:
@@ -2540,7 +2541,7 @@ def collapse_naive_seqs(naive_seq_list, sw_info):
         # naive_seq_hashes[hashstr].append(uid)
         naive_seq_groups[naive_seq].append(uid)
     # print '        collapsed %d sequences into %d unique naive sequences' % (len(naive_seq_list), len(naive_seq_hashes))
-    print '        collapsed %d sequences into %d unique naive sequences' % (len(naive_seq_list), len(naive_seq_groups))
+    print '        collapsed %d sequences into %d unique naive sequences (%1f sec)' % (len(naive_seq_list), len(naive_seq_groups), time.time() - start)
     # return naive_seq_hashes
     return naive_seq_groups
 
