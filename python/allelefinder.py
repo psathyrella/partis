@@ -77,8 +77,9 @@ class AlleleFinder(object):
             self.default_initial_glfo = glutils.read_glfo(self.args.default_initial_germline_dir, glfo['chain'])
 
         self.n_excluded_clonal_queries = {}
+        self.n_clones = None
         self.n_seqs_over_all_clones = None
-        self.single_query_per_clone = None  # one query from each clonal family
+        self.clonal_representatives = None  # queries which have been chosen to represent each clonal family
 
         self.prepared_to_finalize = False
         self.finalized = False
@@ -101,17 +102,47 @@ class AlleleFinder(object):
         self.n_excluded_clonal_queries[gene] = 0
 
     # ----------------------------------------------------------------------------------------
+    def choose_cluster_representatives(self, swfo, cpath):
+        start = time.time()
+        region = 'v'
+
+        def choose_cluster_representative(cluster):
+            n_muted = {q : utils.get_n_muted(swfo[q], iseq=0, restrict_to_region=region, return_mutated_positions=True) for q in cluster}
+            n_muted = {q : {'n' : n_muted[q][0], 'positions' : set(n_muted[q][1])} for q in n_muted}
+            sorted_cluster = sorted(cluster, key=lambda q: n_muted[q]['n'])
+            for q in sorted_cluster:
+                print '  %20s  %3d  %s' % (q, n_muted[q]['n'], ' '.join([str(p) for p in sorted(n_muted[q]['positions'])]))
+
+            def no_shared_mutations(q1, q2):  # true if q1 and q2 don't have mutations at any of the same positions
+                if n_muted[q1]['n'] == 0 or n_muted[q2]['n'] == 0:
+                    return True
+                p1, p2 = n_muted[q1]['positions'], n_muted[q2]['positions']
+                return len(p1 & p2) == 0
+
+            chosen_queries = [q for q in sorted_cluster if n_muted[q]['n'] == 0]  # just throw all the unmutated ones in to start with
+            sorted_cluster = [q for q in sorted_cluster if n_muted[q]['n'] > 0]
+            while len(sorted_cluster) > 0:
+                qchosen = sorted_cluster[0]
+                chosen_queries.append(qchosen)
+                sorted_cluster = [q for q in sorted_cluster if no_shared_mutations(q, qchosen)]  # remove everybody that shares any mutations with sorted_cluster[0]
+
+            print len(chosen_queries), ' '.join(chosen_queries)
+            return chosen_queries
+
+        # def choose_cluster_representative(cluster):
+        #     mfreqs = [swfo[q]['mut_freqs'][0] for q in cluster]  # it would (I think) be better to use only the V mut freq, but we don't store that a.t.m., and I don't want to calculate it
+        #     return cluster[mfreqs.index(min(mfreqs))]  # if there's more than one with the min freq, this gives just the first one (which is fine)
+        self.clonal_representatives = [q for cluster in cpath.partitions[cpath.i_best] for q in choose_cluster_representative(cluster)]
+        self.n_clones = len(cpath.partitions[cpath.i_best])
+        self.n_seqs_over_all_clones = sum([len(c) for c in cpath.partitions[cpath.i_best]])
+        print '(%.1f sec to choose clonal representatives)' % (time.time()-start)  # I could probably make this a lot faster by just always taking one sequence from highly mutated clusters (they have so many shared mutations anyway)
+
+    # ----------------------------------------------------------------------------------------
     def prepare_to_finalize(self, swfo, cpath=None, debug=False):
         assert not self.prepared_to_finalize
-
         self.set_excluded_bases(swfo, debug=debug)
         if cpath is not None:
-            def choose_cluster_representative(cluster):
-                mfreqs = [swfo[q]['mut_freqs'][0] for q in cluster]  # it would (I think) be better to use only the V mut freq, but we don't store that a.t.m., and I don't want to calculate it
-                return cluster[mfreqs.index(min(mfreqs))]  # if there's more than one with the min freq, this gives just the first one (which is fine)
-            self.single_query_per_clone = [choose_cluster_representative(cluster) for cluster in cpath.partitions[cpath.i_best]]
-            self.n_seqs_over_all_clones = sum([len(c) for c in cpath.partitions[cpath.i_best]])
-
+            self.choose_cluster_representatives(swfo, cpath)
         self.prepared_to_finalize = True
 
     # ----------------------------------------------------------------------------------------
@@ -189,7 +220,7 @@ class AlleleFinder(object):
                 continue
             if gene not in self.counts:
                 self.init_gene(gene)
-            if self.single_query_per_clone is not None and info['unique_ids'][0] not in self.single_query_per_clone:
+            if self.clonal_representatives is not None and info['unique_ids'][0] not in self.clonal_representatives:
                 self.n_excluded_clonal_queries[gene] += 1
                 return
 
@@ -587,7 +618,8 @@ class AlleleFinder(object):
                 approx_fitfo = self.approx_fit_vals(postvals)
                 if approx_fitfo['y_icpt'] < 0.:
                     continue
-            else:
+
+            if istart > 2:  # used to be if >= self.n_snps_to_switch_to_two_piece_method, but false positives with large pre-discontinuity slopes seem to be a problem
                 pre_approx = self.approx_fit_vals(prevals)
                 post_approx = self.approx_fit_vals(postvals)
                 if pre_approx['slope'] > post_approx['slope']:  #  or self.consistent_slope_and_y_icpt(pre_approx, post_approx):  # UPDATE really don't want to require inconsistent slope and y-icpt
@@ -845,8 +877,8 @@ class AlleleFinder(object):
 
         region = 'v'
         print '%s: looking for new alleles' % utils.color('blue', 'try ' + str(self.itry))
-        if self.single_query_per_clone is not None:
-            print '    %d clones among %d sequences, restricting to one sequence from each clone' % (len(self.single_query_per_clone), self.n_seqs_over_all_clones)
+        if self.clonal_representatives is not None:
+            print '    chose %d representatives for %d clones among %d total sequences' % (len(self.clonal_representatives), self.n_clones, self.n_seqs_over_all_clones)
         if not self.args.always_find_new_alleles:  # NOTE this is (on purpose) summed over all genes -- genes with homozygous unknown alleles would always fail this criterion
             binline, contents_line = self.overall_mute_counts.horizontal_print(bin_centers=True, bin_decimals=0, contents_decimals=0)
             print '             n muted in v' + binline + '(and up)'

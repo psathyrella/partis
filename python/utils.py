@@ -1472,7 +1472,7 @@ def find_replacement_genes(param_dir, min_counts, gene_name=None, debug=False, a
     # return hackey_default_gene_versions[region]
 
 # ----------------------------------------------------------------------------------------
-def hamming_distance(seq1, seq2, extra_bases=None, return_len_excluding_ambig=False):
+def hamming_distance(seq1, seq2, extra_bases=None, return_len_excluding_ambig=False, return_mutated_positions=False):
     if len(seq1) != len(seq2):
         raise Exception('unequal length sequences %d %d:\n  %s\n  %s' % (len(seq1), len(seq2), seq1, seq2))
     if len(seq1) == 0:
@@ -1485,16 +1485,23 @@ def hamming_distance(seq1, seq2, extra_bases=None, return_len_excluding_ambig=Fa
     ambig_base = ambiguous_bases[0]
 
     distance, len_excluding_ambig = 0, 0
-    for ch1, ch2 in zip(seq1, seq2):
-        if ambig_base in ch1 + ch2:
+    mutated_positions = []
+    for ich in range(len(seq1)):  # already made sure they're the same length
+        if ambig_base in seq1[ich] + seq2[ich]:
             continue
-
         len_excluding_ambig += 1
-        if ch1 != ch2:
+        if seq1[ich] != seq2[ich]:
             distance += 1
+            if return_mutated_positions:
+                mutated_positions.append(ich)
+
+    if return_len_excluding_ambig and return_mutated_positions:
+        assert False  # simplifies things to forbid it for the moment
 
     if return_len_excluding_ambig:
         return distance, len_excluding_ambig
+    elif return_mutated_positions:
+        return distance, mutated_positions
     else:
         return distance
 
@@ -1531,9 +1538,9 @@ def subset_sequences(line, iseq, restrict_to_region):
     return naive_seq, muted_seq
 
 # ----------------------------------------------------------------------------------------
-def get_n_muted(line, iseq, restrict_to_region=''):
+def get_n_muted(line, iseq, restrict_to_region='', return_mutated_positions=False):
     naive_seq, muted_seq = subset_sequences(line, iseq, restrict_to_region)
-    return hamming_distance(naive_seq, muted_seq)
+    return hamming_distance(naive_seq, muted_seq, return_mutated_positions=return_mutated_positions)
 
 # ----------------------------------------------------------------------------------------
 def get_mutation_rate(line, iseq, restrict_to_region=''):
