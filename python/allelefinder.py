@@ -31,6 +31,7 @@ def fstr(fval):
 # ----------------------------------------------------------------------------------------
 class AlleleFinder(object):
     def __init__(self, glfo, args, itry):
+        self.region = 'v'
         self.glfo = glfo
         self.args = args
         self.itry = itry
@@ -104,10 +105,12 @@ class AlleleFinder(object):
     # ----------------------------------------------------------------------------------------
     def choose_cluster_representatives(self, swfo, cpath, debug=True):
         start = time.time()
-        region = 'v'
+
+        # need to include exclusions
+        assert False
 
         def choose_cluster_representative(cluster):
-            n_muted = {q : utils.get_n_muted(swfo[q], iseq=0, restrict_to_region=region, return_mutated_positions=True) for q in cluster}
+            n_muted = {q : utils.get_n_muted(swfo[q], iseq=0, restrict_to_region=self.region, return_mutated_positions=True) for q in cluster}
             n_muted = {q : {'n' : n_muted[q][0], 'positions' : set(n_muted[q][1])} for q in n_muted}
             sorted_cluster = sorted(cluster, key=lambda q: n_muted[q]['n'])
             if debug:
@@ -153,14 +156,13 @@ class AlleleFinder(object):
 
     # ----------------------------------------------------------------------------------------
     def set_excluded_bases(self, swfo, debug=False):
-        region = 'v'
         for side in self.n_bases_to_exclude:
             dcounts = {}
             for query in swfo['queries']:
-                gene = swfo[query][region + '_gene']
+                gene = swfo[query][self.region + '_gene']
                 if gene not in dcounts:
                     dcounts[gene] = {}
-                dlen = swfo[query][region + '_' + side + '_del']
+                dlen = swfo[query][self.region + '_' + side + '_del']
                 if dlen not in dcounts[gene]:
                     dcounts[gene][dlen] = 0
                 dcounts[gene][dlen] += 1
@@ -189,21 +191,21 @@ class AlleleFinder(object):
         for gene in dcounts:
             if debug:
                 print '                %3d  %3d  %s' % (self.n_bases_to_exclude['5p'][gene], self.n_bases_to_exclude['3p'][gene], utils.color_gene(gene, width=15))
-            if self.n_bases_to_exclude['5p'][gene] + self.n_bases_to_exclude['3p'][gene] >= len(self.glfo['seqs'][utils.get_region(gene)][gene]):
+            if self.n_bases_to_exclude['5p'][gene] + self.n_bases_to_exclude['3p'][gene] >= len(self.glfo['seqs'][self.region][gene]):
                 self.genes_to_exclude.add(gene)
                 if debug:
                     print '%s excluding from analysis' % utils.color('red', 'too long:')
             # print ''
 
     # ----------------------------------------------------------------------------------------
-    def get_seqs(self, info, region, gene):
-        germline_seq = info[region + '_gl_seq']
+    def get_seqs(self, info, gene):
+        germline_seq = info[self.region + '_gl_seq']
         assert len(info['seqs']) == 1
-        query_seq = info[region + '_qr_seqs'][0]
+        query_seq = info[self.region + '_qr_seqs'][0]
         assert len(germline_seq) == len(query_seq)
 
-        left_exclusion = self.n_bases_to_exclude['5p'][gene] - info[region + '_5p_del']
-        right_exclusion = self.n_bases_to_exclude['3p'][gene] - info[region + '_3p_del']
+        left_exclusion = self.n_bases_to_exclude['5p'][gene] - info[self.region + '_5p_del']
+        right_exclusion = self.n_bases_to_exclude['3p'][gene] - info[self.region + '_3p_del']
         assert left_exclusion >= 0  # internal consistency check -- we should've already removed all the sequences with bigger deletions
         assert right_exclusion >= 0
         if left_exclusion + right_exclusion >= len(germline_seq):
@@ -220,48 +222,47 @@ class AlleleFinder(object):
 
     # ----------------------------------------------------------------------------------------
     def increment(self, info):
-        for region in ['v', ]:
-            gene = info[region + '_gene']
-            if gene in self.genes_to_exclude:
+        gene = info[self.region + '_gene']
+        if gene in self.genes_to_exclude:
+            continue
+        if gene not in self.counts:
+            self.init_gene(gene)
+        if self.clonal_representatives is not None and info['unique_ids'][0] not in self.clonal_representatives:
+            self.n_excluded_clonal_queries[gene] += 1
+            return
+
+        self.gene_obs_counts[gene] += 1
+
+        skip_this = False
+        for side in self.n_bases_to_exclude:  # NOTE this is important, because if there is a snp to the right of the cysteine, all the sequences in which it is removed by the v_3p deletion will be shifted one bin leftward, screwing everything up (same goes now that we're doing the same thing on the left side)
+            if info[self.region + '_' + side + '_del'] > self.n_bases_to_exclude[side][gene]:
+                self.n_big_del_skipped[side][gene] += 1
+                skip_this = True
+                break  # don't really have to break, but it makes it so the counters add up more nicely
+        if skip_this:
+            continue
+
+        n_mutes, germline_seq, query_seq = self.get_seqs(info, gene)  # NOTE no longer necessarily correspond to <info>
+        self.overall_mute_counts.fill(n_mutes)  # NOTE this is almost the same as the hists in mutefreqer.py, except those divide by sequence length, and more importantly, they don't make sure all the sequences are the same length (i.e. the base exclusions stuff)
+        self.per_gene_mute_counts[gene].fill(n_mutes)  # NOTE this is almost the same as the hists in mutefreqer.py, except those divide by sequence length, and more importantly, they don't make sure all the sequences are the same length (i.e. the base exclusions stuff)
+
+        # i.e. do *not* use <info> after this point
+
+        if n_mutes > self.args.n_max_mutations_per_segment:
+            self.n_seqs_too_highly_mutated[gene] += 1
+            continue
+
+        assert len(germline_seq) == len(self.glfo['seqs'][self.region][gene]) - self.n_bases_to_exclude['5p'][gene] - self.n_bases_to_exclude['3p'][gene]
+        for ipos in range(len(germline_seq)):
+            igl = ipos + self.n_bases_to_exclude['5p'][gene]  # position in original (i.e. complete) germline gene
+
+            if germline_seq[ipos] in utils.ambiguous_bases or query_seq[ipos] in utils.ambiguous_bases:  # skip if either germline or query sequence is ambiguous at this position
                 continue
-            if gene not in self.counts:
-                self.init_gene(gene)
-            if self.clonal_representatives is not None and info['unique_ids'][0] not in self.clonal_representatives:
-                self.n_excluded_clonal_queries[gene] += 1
-                return
 
-            self.gene_obs_counts[gene] += 1
-
-            skip_this = False
-            for side in self.n_bases_to_exclude:  # NOTE this is important, because if there is a snp to the right of the cysteine, all the sequences in which it is removed by the v_3p deletion will be shifted one bin leftward, screwing everything up (same goes now that we're doing the same thing on the left side)
-                if info[region + '_' + side + '_del'] > self.n_bases_to_exclude[side][gene]:
-                    self.n_big_del_skipped[side][gene] += 1
-                    skip_this = True
-                    break  # don't really have to break, but it makes it so the counters add up more nicely
-            if skip_this:
-                continue
-
-            n_mutes, germline_seq, query_seq = self.get_seqs(info, region, gene)  # NOTE no longer necessarily correspond to <info>
-            self.overall_mute_counts.fill(n_mutes)  # NOTE this is almost the same as the hists in mutefreqer.py, except those divide by sequence length, and more importantly, they don't make sure all the sequences are the same length (i.e. the base exclusions stuff)
-            self.per_gene_mute_counts[gene].fill(n_mutes)  # NOTE this is almost the same as the hists in mutefreqer.py, except those divide by sequence length, and more importantly, they don't make sure all the sequences are the same length (i.e. the base exclusions stuff)
-
-            # i.e. do *not* use <info> after this point
-
-            if n_mutes > self.args.n_max_mutations_per_segment:
-                self.n_seqs_too_highly_mutated[gene] += 1
-                continue
-
-            assert len(germline_seq) == len(self.glfo['seqs'][region][gene]) - self.n_bases_to_exclude['5p'][gene] - self.n_bases_to_exclude['3p'][gene]
-            for ipos in range(len(germline_seq)):
-                igl = ipos + self.n_bases_to_exclude['5p'][gene]  # position in original (i.e. complete) germline gene
-
-                if germline_seq[ipos] in utils.ambiguous_bases or query_seq[ipos] in utils.ambiguous_bases:  # skip if either germline or query sequence is ambiguous at this position
-                    continue
-
-                self.counts[gene][igl][n_mutes]['total'] += 1
-                if query_seq[ipos] != germline_seq[ipos]:  # if this position is mutated
-                    self.counts[gene][igl][n_mutes]['muted'] += 1  # mark that we saw this germline position mutated once in a sequence with <n_mutes> regional mutation frequency
-                self.counts[gene][igl][n_mutes][query_seq[ipos]] += 1  # if there's a new allele, we need this to work out what the snp'd base is
+            self.counts[gene][igl][n_mutes]['total'] += 1
+            if query_seq[ipos] != germline_seq[ipos]:  # if this position is mutated
+                self.counts[gene][igl][n_mutes]['muted'] += 1  # mark that we saw this germline position mutated once in a sequence with <n_mutes> regional mutation frequency
+            self.counts[gene][igl][n_mutes][query_seq[ipos]] += 1  # if there's a new allele, we need this to work out what the snp'd base is
 
     # ----------------------------------------------------------------------------------------
     def get_residual_sum(self, xvals, yvals, errs, slope, intercept, debug=False):
@@ -403,7 +404,7 @@ class AlleleFinder(object):
                 if per_bin_nuke_totals[n_muted][nuke] > 0:
                     reweight = float(overall_nuke_totals[nuke]) / per_bin_nuke_totals[n_muted][nuke]
                 total += reweight * gcts[n_muted][nuke]
-                if nuke != self.glfo['seqs'][utils.get_region(gene)][gene][position]:
+                if nuke != self.glfo['seqs'][self.region][gene][position]:
                     freq += reweight * gcts[n_muted][nuke]
             reweighted_freqs.append(freq / total if total > 0. else 0.)
         if debug:
@@ -765,15 +766,14 @@ class AlleleFinder(object):
 
     # ----------------------------------------------------------------------------------------
     def see_if_new_allele_is_in_default_initial_glfo(self, new_name, new_seq, template_gene, debug=False):
-        region = utils.get_region(template_gene)
-        if new_name in self.default_initial_glfo['seqs'][region]:  # if we removed an existing allele and then re-added it, it'll already be in the default glfo, so there's nothing for us to do in this fcn
+        if new_name in self.default_initial_glfo['seqs'][self.region]:  # if we removed an existing allele and then re-added it, it'll already be in the default glfo, so there's nothing for us to do in this fcn
             return new_name, new_seq
         chain = self.glfo['chain']
-        assert region == 'v'  # conserved codon stuff below will have to be changed for j
-        newpos = self.glfo[utils.conserved_codons[chain][region] + '-positions'][template_gene]  # codon position for template gene should be ok
-        for oldname_gene, oldname_seq in self.default_initial_glfo['seqs'][region].items():  # NOTE <oldname_{gene,seq}> is the old *name* corresponding to the new (snp'd) allele, whereas <old_seq> is the allele from which we inferred the new (snp'd) allele
+        assert self.region == 'v'  # conserved codon stuff below will have to be changed for j
+        newpos = self.glfo[utils.conserved_codons[chain][self.region] + '-positions'][template_gene]  # codon position for template gene should be ok
+        for oldname_gene, oldname_seq in self.default_initial_glfo['seqs'][self.region].items():  # NOTE <oldname_{gene,seq}> is the old *name* corresponding to the new (snp'd) allele, whereas <old_seq> is the allele from which we inferred the new (snp'd) allele
             # first see if they match up through the cysteine
-            oldpos = self.default_initial_glfo[utils.conserved_codons[chain][region] + '-positions'][oldname_gene]
+            oldpos = self.default_initial_glfo[utils.conserved_codons[chain][self.region] + '-positions'][oldname_gene]
             if oldname_seq[self.n_bases_to_exclude['5p'][template_gene] : oldpos + 3] != new_seq[self.n_bases_to_exclude['5p'][template_gene] : newpos + 3]:  # uh, I think we want to use the ones for the template gene
                 continue
 
@@ -803,13 +803,13 @@ class AlleleFinder(object):
     # ----------------------------------------------------------------------------------------
     def add_new_allele(self, template_gene, fitfo, n_candidate_snps, debug=False):
         # figure out what the new nukes are
-        old_seq = self.glfo['seqs'][utils.get_region(template_gene)][template_gene]
+        old_seq = self.glfo['seqs'][self.region][template_gene]
         new_seq = old_seq
         mutfo = {}
         for pos in sorted(fitfo['candidates'][n_candidate_snps]):
             obs_counts = {nuke : self.counts[template_gene][pos][n_candidate_snps][nuke] for nuke in utils.nukes}  # NOTE it's super important to only use the counts from sequences with <n_candidate_snps> total mutations
             sorted_obs_counts = sorted(obs_counts.items(), key=operator.itemgetter(1), reverse=True)
-            original_nuke = self.glfo['seqs'][utils.get_region(template_gene)][template_gene][pos]
+            original_nuke = self.glfo['seqs'][self.region][template_gene][pos]
             new_nuke = None
             for nuke, _ in sorted_obs_counts:  # take the most common one that isn't the existing gl nuke
                 if nuke != original_nuke:
@@ -824,7 +824,7 @@ class AlleleFinder(object):
         if self.default_initial_glfo is not None:  # if this is set, we want to take the names from this directory's glfo (i.e. see if there's already a name for <new_name>'s sequence)
             new_name, new_seq = self.see_if_new_allele_is_in_default_initial_glfo(new_name, new_seq, template_gene, debug=debug)
 
-        if new_name in self.glfo['seqs'][utils.get_region(template_gene)]:
+        if new_name in self.glfo['seqs'][self.region]:
             print '    new gene %s already in glfo (probably due to 3p end length issues), so skipping it' % utils.color_gene(new_name)
             return
 
@@ -865,9 +865,9 @@ class AlleleFinder(object):
                 skip_str = ' (' + ' '.join([str(p) for p in skip_positions]) + ')'
             return skip_str
 
-        glseq = self.glfo['seqs'][utils.get_region(gene)][gene]
+        glseq = self.glfo['seqs'][self.region][gene]
         # new_allele_names = [i['gene'] for i in self.new_allele_info]  # should make this less hackey
-        # glseq = self.new_allele_info[gene]['seq'] if gene in new_allele_names else self.glfo['seqs'][utils.get_region(gene)][gene]
+        # glseq = self.new_allele_info[gene]['seq'] if gene in new_allele_names else self.glfo['seqs'][self.region][gene]
         too_close_to_ends = range(self.n_bases_to_exclude['5p'][gene]) + range(len(glseq) - self.n_bases_to_exclude['3p'][gene], len(glseq))
         not_enough_counts = set(positions) - set(positions_to_try_to_fit) - set(too_close_to_ends)  # well, not enough counts, *and* not too close to the ends
 
@@ -881,7 +881,6 @@ class AlleleFinder(object):
         assert self.prepared_to_finalize
         assert not self.finalized
 
-        region = 'v'
         print '%s: looking for new alleles' % utils.color('blue', 'try ' + str(self.itry))
         if self.clonal_representatives is not None:
             print '    chose %d representatives for %d clones among %d total sequences' % (len(self.clonal_representatives), self.n_clones, self.n_seqs_over_all_clones)
@@ -893,7 +892,7 @@ class AlleleFinder(object):
             for n_mutes in range(self.args.n_max_snps):
                 if self.overall_mute_counts.bin_contents[n_mutes] / float(total) < self.min_fraction_per_bin:
                     print '        not looking for new alleles: not enough counts (%d / %d = %.3f < %.3f)' % (self.overall_mute_counts.bin_contents[n_mutes], total, self.overall_mute_counts.bin_contents[n_mutes] / float(total), self.min_fraction_per_bin),
-                    print 'with %d %s mutations (override this with --always-find-new-alleles, or by reducing --n-max-snps)' % (n_mutes, region)
+                    print 'with %d %s mutations (override this with --always-find-new-alleles, or by reducing --n-max-snps)' % (n_mutes, self.region)
                     self.finalized = True
                     return
 
