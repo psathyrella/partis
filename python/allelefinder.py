@@ -902,7 +902,7 @@ class AlleleFinder(object):
             clusters = [list(group) for _, group in itertools.groupby(sorted(queries_to_use, key=keyfunc), key=keyfunc)]
             print '        collapsed %d sequences into %d unique naive sequences (%3f sec)' % (len(queries_to_use), len(clusters), time.time() - substart)
         for cluster in clusters:
-            for qchosen in self.choose_cluster_representatives(swfo, cluster, debug=True):
+            for qchosen in self.choose_cluster_representatives(swfo, cluster):
                 self.increment_query(qchosen, swfo[qchosen][self.region + '_gene'])
 
         print '   %.1f sec to prepare and increment' % (time.time()-start)
