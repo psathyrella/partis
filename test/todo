@@ -63,6 +63,9 @@
 #    - multi-hmm (mebbe annotation accuracy on final clusters?)
 
 # allele finding/germline set generation:
+#  - move n skipped info to its own section of dbg output
+#  - clonal representative printing should be per-gene
+#  - I think I need to/can get away with requring that all the ratio components among the snp candidates are roughly similar (i.e. if one is 3.2 / 0.8, they should all be kinda close to 3 and 1)
             # collapse should
             #  - needs to exclude the exclusions
             #  - just make sure the fwk insertions aren't in the naive sequences to start with and, like, ever -- it doesn't make much sense, anyway

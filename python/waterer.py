@@ -78,10 +78,13 @@ class Waterer(object):
 
         n_procs = self.args.n_fewer_procs
         initial_queries_per_proc = float(len(self.remaining_queries)) / n_procs
+        print '  %4s  sequences    n_procs' % ('summary:' if self.debug else '')
         while len(self.remaining_queries) > 0:  # we remove queries from <self.remaining_queries> as we're satisfied with their output
             if self.nth_try > 1 and float(len(self.remaining_queries)) / n_procs < initial_queries_per_proc:
                 n_procs = int(max(1., float(len(self.remaining_queries)) / initial_queries_per_proc))
-            self.write_vdjalign_input(base_infname, n_procs)
+            n_queries_written = self.write_vdjalign_input(base_infname, n_procs)
+            print '  %4s  %8d    %5d' % ('summary:' if self.debug else '', n_queries_written, n_procs)
+            sys.stdout.flush()
             self.execute_commands(base_infname, base_outfname, n_procs)
             self.read_output(base_outfname, n_procs)
             if self.nth_try > 3:
@@ -266,6 +269,7 @@ class Waterer(object):
         not_written = self.remaining_queries - written_queries
         if len(not_written) > 0:
             raise Exception('didn\'t write %s to %s' % (':'.join(not_written), self.args.workdir))
+        return len(written_queries)
 
     # ----------------------------------------------------------------------------------------
     def get_vdjalign_cmd_str(self, workdir, base_infname, base_outfname, n_procs=None):
@@ -333,9 +337,9 @@ class Waterer(object):
         if len(not_read) > 0:
             raise Exception('didn\'t read %s from %s' % (' '.join(not_read), self.args.workdir))
 
-        if self.nth_try == 1:
-            print '  %4s  processed       remaining      new-indels          rerun: %s' % ('summary:' if self.debug else '', '      '.join([reason for reason in queries_to_rerun]))
-        print '  %4s%8d' % ('summary:' if self.debug else '', len(queries_read_from_file)),
+        # if self.nth_try == 1:
+        #     print '  %4s  processed       remaining      new-indels          rerun: %s' % ('summary:' if self.debug else '', '      '.join([reason for reason in queries_to_rerun]))
+        # print '  %4s%8d' % ('summary:' if self.debug else '', len(queries_read_from_file)),
         if len(self.remaining_queries) > 0:
             printstr = '       %8d' % len(self.remaining_queries)
             printstr += '       %8d' % self.new_indels
@@ -344,20 +348,20 @@ class Waterer(object):
             for reason in queries_to_rerun:
                 printstr += '        %8d' % len(queries_to_rerun[reason])
                 n_to_rerun += len(queries_to_rerun[reason])
-            print printstr,
+            # print printstr,
             if n_to_rerun + self.new_indels != len(self.remaining_queries):
-                print ''
+                # print ''
                 raise Exception('numbers don\'t add up in sw output reader (n_to_rerun + new_indels != remaining_queries): %d + %d != %d   (look in %s)' % (n_to_rerun, self.new_indels, len(self.remaining_queries), self.args.workdir))
             if self.nth_try < 2 or self.new_indels == 0:  # increase the mismatch score if it's the first try, or if there's no new indels
-                print '            increasing mismatch score (%d --> %d) and rerunning them' % (self.match_mismatch[1], self.match_mismatch[1] + 1)
+                # print '            increasing mismatch score (%d --> %d) and rerunning them' % (self.match_mismatch[1], self.match_mismatch[1] + 1)
                 self.match_mismatch[1] += 1
             elif self.new_indels > 0:  # if there were some indels, rerun with the same parameters (but when the input is written the indel will be "reversed' in the sequences that's passed to ighutil)
-                print '            rerunning for indels'
+                # print '            rerunning for indels'
                 self.new_indels = 0
             else:  # shouldn't get here
                 assert False
         else:
-            print '        all done'
+            pass # print '        all done'
 
         for iproc in range(n_procs):
             workdir = self.subworkdir(iproc, n_procs)
