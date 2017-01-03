@@ -2537,15 +2537,6 @@ def kbound_str(kbounds):
     return ''.join(return_str).strip()
 
 # ----------------------------------------------------------------------------------------
-def get_partition_from_collapsed_naive_seqs(naive_seqs):
-    start = time.time()
-    def keyfunc(q):
-        return naive_seqs[q]
-    clusters = [list(group) for _, group in itertools.groupby(sorted(naive_seqs.keys(), key=keyfunc), key=keyfunc)]
-    print '        collapsed %d sequences into %d unique naive sequences (%3f sec)' % (len(naive_seqs), len(clusters), time.time() - start)
-    return clusters
-
-# ----------------------------------------------------------------------------------------
 def split_partition_with_criterion(partition, criterion_fcn):
     true_cluster_indices = [ic for ic in range(len(partition)) if criterion_fcn(partition[ic])]  # indices of clusters for which <criterion_fcn()> is true
     true_clusters = [partition[ic] for ic in true_cluster_indices]

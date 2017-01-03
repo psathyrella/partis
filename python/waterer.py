@@ -151,16 +151,7 @@ class Waterer(object):
             if len(self.info['genes-to-remove']) > 0:
                 found_germline_changes = True
         if self.alfinder is not None:
-# ----------------------------------------------------------------------------------------
-            # cpath = None
-            # if not self.args.dont_collapse_clones:  # NOTE this is happening *before* trimming framework insertions, so it will collapse *less* aggressively than if you do it after (since the collapse is just approximate anyway, it's probably ok)
-            #     cpath = ClusterPath(partition=utils.get_partition_from_collapsed_naive_seqs(self.info))
-            self.alfinder.increment_and_finalize(self.info, debug=self.args.debug_allele_finding)  # it needs to know the distribution of 5p and 3p deletions before it can increment, so incrementing and finalizing are intertwined
-            # self.alfinder.prepare_to_finalize(self.info, cpath=cpath, debug=self.args.debug_allele_finding)
-            # for query in self.info['queries']:
-            #     self.alfinder.increment(self.info[query])  # it needs to know the distribution of 3p deletions before it can increment, so it has to be here
-            # self.alfinder.finalize(debug=self.args.debug_allele_finding)
-# ----------------------------------------------------------------------------------------
+            self.alfinder.increment_and_finalize(self.info, debug=self.args.debug_allele_finding)  # incrementing and finalizing are intertwined since needs to know the distribution of 5p and 3p deletions before it can increment
             self.info['new-alleles'] = self.alfinder.new_allele_info
             self.info['alleles-with-evidence'] = self.alfinder.alleles_with_evidence
             if self.args.plotdir is not None:
