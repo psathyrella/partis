@@ -2529,9 +2529,6 @@ def kbound_str(kbounds):
 
 # ----------------------------------------------------------------------------------------
 def get_partition_from_collapsed_naive_seqs(sw_info):
-    print 'XXXunique_ids,v_gene,naive_seq'
-    for q in sw_info['queries']:
-        print 'XXX%s,%s,%s' % (q, sw_info[q]['v_gene'], sw_info[q]['naive_seq'])
     start = time.time()
     def keyfunc(q):
         return sw_info[q]['naive_seq']

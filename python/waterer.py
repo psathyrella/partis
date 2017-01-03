@@ -152,7 +152,7 @@ class Waterer(object):
                 found_germline_changes = True
         if self.alfinder is not None:
             cpath = None
-            if not self.args.dont_collapse_clones:
+            if not self.args.dont_collapse_clones:  # NOTE this is happening *before* trimming framework insertions, so it will collapse *less* aggressively than if you do it after (since the collapse is just approximate anyway, it's probably ok)
                 cpath = ClusterPath(partition=utils.get_partition_from_collapsed_naive_seqs(self.info))
             self.alfinder.prepare_to_finalize(self.info, cpath=cpath, debug=self.args.debug_allele_finding)
             for query in self.info['queries']:
