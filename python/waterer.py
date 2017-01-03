@@ -78,14 +78,16 @@ class Waterer(object):
 
         n_procs = self.args.n_fewer_procs
         initial_queries_per_proc = float(len(self.remaining_queries)) / n_procs
-        print '  %4s  sequences    n_procs' % ('summary:' if self.debug else '')
+        print '  %4s  sequences    n_procs     ig-sw time     processing time' % ('summary:' if self.debug else '')
         while len(self.remaining_queries) > 0:  # we remove queries from <self.remaining_queries> as we're satisfied with their output
             if self.nth_try > 1 and float(len(self.remaining_queries)) / n_procs < initial_queries_per_proc:
                 n_procs = int(max(1., float(len(self.remaining_queries)) / initial_queries_per_proc))
             n_queries_written = self.write_vdjalign_input(base_infname, n_procs)
-            print '  %4s  %8d    %5d' % ('summary:' if self.debug else '', n_queries_written, n_procs)
+            print '  %4s  %8d    %5d' % ('summary:' if self.debug else '', n_queries_written, n_procs),
             sys.stdout.flush()
+            substart = time.time()
             self.execute_commands(base_infname, base_outfname, n_procs)
+            print '      %8.1f' % (time.time() - substart),  # comma/no comma needs fixing for debug > 0
             self.read_output(base_outfname, n_procs)
             if self.nth_try > 3:
                 break
@@ -308,6 +310,7 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def read_output(self, base_outfname, n_procs=1):
+        start = time.time()
         queries_to_rerun = OrderedDict()  # This is to keep track of every query that we don't add to self.info (i.e. it does *not* include unproductive queries that we ignore/skip entirely because we were told to by a command line argument)
                                           # ...whereas <self.skipped_unproductive_queries> is to keep track of the queries that were definitively unproductive (i.e. we removed them from self.remaining_queries) when we were told to skip unproductives by a command line argument
         for reason in ['unproductive', 'no-match', 'weird-annot.', 'nonsense-bounds', 'invalid-codon', 'indel-fails', 'super-high-mutation']:
@@ -369,6 +372,7 @@ class Waterer(object):
             if n_procs > 1:  # still need the top-level workdir
                 os.rmdir(workdir)
 
+        print '     %8.1f' % (time.time() - start)  # comma/no comma needs fixing for debug > 0
         sys.stdout.flush()
 
     # ----------------------------------------------------------------------------------------
