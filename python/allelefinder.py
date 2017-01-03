@@ -157,6 +157,7 @@ class AlleleFinder(object):
     # ----------------------------------------------------------------------------------------
     def set_excluded_bases(self, swfo, debug=False):
         for side in self.n_bases_to_exclude:
+            # first, for each gene, count how many times we saw each deletion length
             dcounts = {}
             for query in swfo['queries']:
                 gene = swfo[query][self.region + '_gene']
@@ -167,6 +168,9 @@ class AlleleFinder(object):
                     dcounts[gene][dlen] = 0
                 dcounts[gene][dlen] += 1
 
+            # then, for each gene, find the deletion length such that only a few (self.fraction_of_seqs_to_exclude) of the sequences have longer deletions
+            #  - exclude any sequences with deletions longer than this
+            #  - in sequences which we keep, exclude the positions which this deletion length deletes
             for gene in dcounts:
                 observed_deletions = sorted(dcounts[gene].keys())
                 total_obs = sum(dcounts[gene].values())
@@ -224,7 +228,7 @@ class AlleleFinder(object):
     def increment(self, info):
         gene = info[self.region + '_gene']
         if gene in self.genes_to_exclude:
-            continue
+            return
         if gene not in self.counts:
             self.init_gene(gene)
         if self.clonal_representatives is not None and info['unique_ids'][0] not in self.clonal_representatives:
@@ -240,7 +244,7 @@ class AlleleFinder(object):
                 skip_this = True
                 break  # don't really have to break, but it makes it so the counters add up more nicely
         if skip_this:
-            continue
+            return
 
         n_mutes, germline_seq, query_seq = self.get_seqs(info, gene)  # NOTE no longer necessarily correspond to <info>
         self.overall_mute_counts.fill(n_mutes)  # NOTE this is almost the same as the hists in mutefreqer.py, except those divide by sequence length, and more importantly, they don't make sure all the sequences are the same length (i.e. the base exclusions stuff)
@@ -250,7 +254,7 @@ class AlleleFinder(object):
 
         if n_mutes > self.args.n_max_mutations_per_segment:
             self.n_seqs_too_highly_mutated[gene] += 1
-            continue
+            return
 
         assert len(germline_seq) == len(self.glfo['seqs'][self.region][gene]) - self.n_bases_to_exclude['5p'][gene] - self.n_bases_to_exclude['3p'][gene]
         for ipos in range(len(germline_seq)):
