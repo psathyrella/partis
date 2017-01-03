@@ -102,7 +102,7 @@ class AlleleFinder(object):
         self.n_excluded_clonal_queries[gene] = 0
 
     # ----------------------------------------------------------------------------------------
-    def choose_cluster_representatives(self, swfo, cpath):
+    def choose_cluster_representatives(self, swfo, cpath, debug=False):
         start = time.time()
         region = 'v'
 
@@ -110,8 +110,9 @@ class AlleleFinder(object):
             n_muted = {q : utils.get_n_muted(swfo[q], iseq=0, restrict_to_region=region, return_mutated_positions=True) for q in cluster}
             n_muted = {q : {'n' : n_muted[q][0], 'positions' : set(n_muted[q][1])} for q in n_muted}
             sorted_cluster = sorted(cluster, key=lambda q: n_muted[q]['n'])
-            for q in sorted_cluster:
-                print '  %20s  %3d  %s' % (q, n_muted[q]['n'], ' '.join([str(p) for p in sorted(n_muted[q]['positions'])]))
+            if debug:
+                for q in sorted_cluster:
+                    print '  %20s  %3d  %s' % (q, n_muted[q]['n'], ' '.join([str(p) for p in sorted(n_muted[q]['positions'])]))
 
             def no_shared_mutations(q1, q2):  # true if q1 and q2 don't have mutations at any of the same positions
                 if n_muted[q1]['n'] == 0 or n_muted[q2]['n'] == 0:
@@ -126,7 +127,8 @@ class AlleleFinder(object):
                 chosen_queries.append(qchosen)
                 sorted_cluster = [q for q in sorted_cluster if no_shared_mutations(q, qchosen)]  # remove everybody that shares any mutations with sorted_cluster[0]
 
-            print len(chosen_queries), ' '.join(chosen_queries)
+            if debug:
+                print len(chosen_queries), ' '.join(chosen_queries)
             return chosen_queries
 
         # def choose_cluster_representative(cluster):
