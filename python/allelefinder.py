@@ -80,9 +80,6 @@ class AlleleFinder(object):
             self.default_initial_glfo = glutils.read_glfo(self.args.default_initial_germline_dir, glfo['chain'])
 
         self.n_excluded_clonal_queries = {}
-        self.n_clones = None
-        self.n_seqs_over_all_clones = None
-        self.clonal_representatives = None  # queries which have been chosen to represent each clonal family
 
         self.finalized = False
 
@@ -105,6 +102,7 @@ class AlleleFinder(object):
 
     # ----------------------------------------------------------------------------------------
     def choose_cluster_representatives(self, swfo, cluster, debug=False):
+        # I could probably make this a lot faster by just always only taking one sequence from highly mutated clusters (they have so many shared mutations anyway)
         assert len(cluster) > 0
         if len(cluster) == 1:
             return cluster
@@ -131,7 +129,9 @@ class AlleleFinder(object):
         while len(sorted_cluster) > 0:
             qchosen = sorted_cluster[0]
             chosen_queries.append(qchosen)
-            sorted_cluster = [q for q in sorted_cluster if no_shared_mutations(q, qchosen)]  # remove everybody that shares any mutations with sorted_cluster[0]
+            sorted_cluster = [q for q in sorted_cluster if no_shared_mutations(q, qchosen)]  # remove everybody that shares any mutations with sorted_cluster[0] (including the one we just chose)
+
+        self.n_excluded_clonal_queries[genes[0]] += len(cluster) - len(chosen_queries)
 
         if debug:
             n_chosen_str = str(len(chosen_queries))
@@ -139,27 +139,7 @@ class AlleleFinder(object):
                 n_chosen_str = utils.color('blue', n_chosen_str)
             print '  %s  %s' % (n_chosen_str, ' '.join(chosen_queries))
 
-# # ----------------------------------------------------------------------------------------
-#         self.n_excluded_clonal_queries[gene] += 1
-# # ----------------------------------------------------------------------------------------
         return chosen_queries
-
-# ----------------------------------------------------------------------------------------
-    # ----------------------------------------------------------------------------------------
-    def choose_cluster_representativesXXXXXX(self, swfo, cpath, debug=True):
-        start = time.time()
-
-        # need to include exclusions
-        assert False
-
-        # def choose_cluster_representative(cluster):
-        #     mfreqs = [swfo[q]['mut_freqs'][0] for q in cluster]  # it would (I think) be better to use only the V mut freq, but we don't store that a.t.m., and I don't want to calculate it
-        #     return cluster[mfreqs.index(min(mfreqs))]  # if there's more than one with the min freq, this gives just the first one (which is fine)
-        self.clonal_representatives = [q for cluster in cpath.partitions[cpath.i_best] for q in self.choose_cluster_representative(swfo, cluster)]
-        self.n_clones = len(cpath.partitions[cpath.i_best])
-        self.n_seqs_over_all_clones = sum([len(c) for c in cpath.partitions[cpath.i_best]])
-        print '(%.1f sec to choose clonal representatives)' % (time.time()-start)  # I could probably make this a lot faster by just always taking one sequence from highly mutated clusters (they have so many shared mutations anyway)
-# ----------------------------------------------------------------------------------------
 
     # ----------------------------------------------------------------------------------------
     def set_excluded_bases(self, swfo, debug=False):
@@ -245,7 +225,7 @@ class AlleleFinder(object):
         #     else:
         #         assert query_seq[ipos - self.n_bases_to_exclude['5p'][gene]] == full_gl_seq[ipos]
 
-        self.seq_info[info['unique_ids'][0]] = {'n_mutes' : n_mutes, 'positions' : muted_positions, 'gl_seq' : germline_seq, 'qr_seq' : query_seq}
+        self.seq_info[info['unique_ids'][0]] = {'n_mutes' : n_mutes, 'positions' : set(muted_positions), 'gl_seq' : germline_seq, 'qr_seq' : query_seq}
 
     # ----------------------------------------------------------------------------------------
     def skip_query(self, uid, info):  # and fill self.seq_info
@@ -909,6 +889,7 @@ class AlleleFinder(object):
     def increment_and_finalize(self, swfo, debug=False):
         assert not self.finalized
 
+        start = time.time()
         # do some preparations and increment
         self.set_excluded_bases(swfo, debug=debug)
         queries_to_use = [q for q in swfo['queries'] if not self.skip_query(q, swfo[q])]  # skip_query() also fills self.seq_info if we're not skipping the query (and sometimes also if we do skip it)
@@ -917,17 +898,20 @@ class AlleleFinder(object):
         else:
             print '%s remove fwk insertions from naive seqs' % utils.color('red', 'todo')
             clusters = utils.get_partition_from_collapsed_naive_seqs({q : swfo[q]['naive_seq'] for q in queries_to_use})  # need to use the swfo naive seq, because the whole point is to use the cdr3 region to distinguish clones
+        n_clonal_representatives = 0
         for cluster in clusters:
             chosen_queries = self.choose_cluster_representatives(swfo, cluster, debug=True)
+            n_clonal_representatives += len(chosen_queries)
             for qchosen in chosen_queries:
                 self.increment_query(qchosen, swfo[qchosen][self.region + '_gene'])
+
+        print '   %.1f sec to prepare and increment' % (time.time()-start)
 # ----------------------------------------------------------------------------------------
 # make sure you're not using swfo['queries'] past here
 
         # then finalize
         print '%s: looking for new alleles' % utils.color('blue', 'try ' + str(self.itry))
-        if self.clonal_representatives is not None:
-            print '    chose %d representatives for %d clones among %d total sequences' % (len(self.clonal_representatives), self.n_clones, self.n_seqs_over_all_clones)
+        print '    chose %d representatives for %d clones among %d total sequences' % (n_clonal_representatives, len(clusters), len(queries_to_use))
         if not self.args.always_find_new_alleles:  # NOTE this is (on purpose) summed over all genes -- genes with homozygous unknown alleles would always fail this criterion
             binline, contents_line = self.overall_mute_counts.horizontal_print(bin_centers=True, bin_decimals=0, contents_decimals=0)
             print '             n muted in v' + binline + '(and up)'
