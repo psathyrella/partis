@@ -62,6 +62,8 @@ class AlleleFinder(object):
         self.default_slope_bounds = (-0.1, 1.)  # fitting function needs some reasonable bounds from which to start (I could at some point make slope part of the criteria for candidacy, but it wouldn't add much sensitivity)
         self.unbounded_y_icpt_bounds = (-1., 1.5)
 
+        self.seq_info = {}
+
         self.counts, self.fitfos = {}, {}
         self.new_allele_info = []
         self.positions_to_plot = {}
@@ -82,7 +84,6 @@ class AlleleFinder(object):
         self.n_seqs_over_all_clones = None
         self.clonal_representatives = None  # queries which have been chosen to represent each clonal family
 
-        self.prepared_to_finalize = False
         self.finalized = False
 
         self.reflengths = {}
@@ -103,56 +104,62 @@ class AlleleFinder(object):
         self.n_excluded_clonal_queries[gene] = 0
 
     # ----------------------------------------------------------------------------------------
-    def choose_cluster_representatives(self, swfo, cpath, debug=True):
+    def choose_cluster_representatives(self, swfo, cluster, debug=False):
+        assert len(cluster) > 0
+        if len(cluster) == 1:
+            return cluster
+
+        n_muted = {q : {'n' : self.seq_info[q]['n_mutes'], 'positions' : self.seq_info[q]['positions']} for q in cluster}
+        sorted_cluster = sorted(cluster, key=lambda q: n_muted[q]['n'])
+        genes = [swfo[q][self.region + '_gene'] for q in sorted_cluster]
+        if genes.count(genes[0]) != len(genes):  # should only happen if the part that differentiates the genes was deleted or the read didn't extend that far, in which case I think it's fine
+            print '  %s genes in cluster %s not all the same: %s' % (utils.color('yellow', 'warning'), ' '.join(sorted_cluster), ' '.join([utils.color_gene(g) for g in genes]))
+        if debug:
+            print '%s' % utils.color_gene(genes[0])
+            for q in sorted_cluster:
+                print '    %20s  %3d  %s' % (q, n_muted[q]['n'], ' '.join([str(p) for p in sorted(n_muted[q]['positions'])]))
+
+        # ----------------------------------------------------------------------------------------
+        def no_shared_mutations(q1, q2):  # true if q1 and q2 don't have mutations at any of the same positions
+            if n_muted[q1]['n'] == 0 or n_muted[q2]['n'] == 0:
+                return True
+            p1, p2 = n_muted[q1]['positions'], n_muted[q2]['positions']
+            return len(p1 & p2) == 0
+
+        chosen_queries = [q for q in sorted_cluster if n_muted[q]['n'] == 0]  # just throw all the unmutated ones in to start with
+        sorted_cluster = [q for q in sorted_cluster if n_muted[q]['n'] > 0]  # and remove them from <sorted_cluster>
+        while len(sorted_cluster) > 0:
+            qchosen = sorted_cluster[0]
+            chosen_queries.append(qchosen)
+            sorted_cluster = [q for q in sorted_cluster if no_shared_mutations(q, qchosen)]  # remove everybody that shares any mutations with sorted_cluster[0]
+
+        if debug:
+            n_chosen_str = str(len(chosen_queries))
+            if len(chosen_queries) > 1:
+                n_chosen_str = utils.color('blue', n_chosen_str)
+            print '  %s  %s' % (n_chosen_str, ' '.join(chosen_queries))
+
+# # ----------------------------------------------------------------------------------------
+#         self.n_excluded_clonal_queries[gene] += 1
+# # ----------------------------------------------------------------------------------------
+        return chosen_queries
+
+# ----------------------------------------------------------------------------------------
+    # ----------------------------------------------------------------------------------------
+    def choose_cluster_representativesXXXXXX(self, swfo, cpath, debug=True):
         start = time.time()
 
         # need to include exclusions
         assert False
 
-        def choose_cluster_representative(cluster):
-            n_muted = {q : utils.get_n_muted(swfo[q], iseq=0, restrict_to_region=self.region, return_mutated_positions=True) for q in cluster}
-            n_muted = {q : {'n' : n_muted[q][0], 'positions' : set(n_muted[q][1])} for q in n_muted}
-            sorted_cluster = sorted(cluster, key=lambda q: n_muted[q]['n'])
-            if debug:
-                print '%s' % utils.color_gene(swfo[sorted_cluster[0]]['v_gene'])
-                for q in sorted_cluster:
-                    print '    %20s  %3d  %s' % (q, n_muted[q]['n'], ' '.join([str(p) for p in sorted(n_muted[q]['positions'])]))
-
-            def no_shared_mutations(q1, q2):  # true if q1 and q2 don't have mutations at any of the same positions
-                if n_muted[q1]['n'] == 0 or n_muted[q2]['n'] == 0:
-                    return True
-                p1, p2 = n_muted[q1]['positions'], n_muted[q2]['positions']
-                return len(p1 & p2) == 0
-
-            chosen_queries = [q for q in sorted_cluster if n_muted[q]['n'] == 0]  # just throw all the unmutated ones in to start with
-            sorted_cluster = [q for q in sorted_cluster if n_muted[q]['n'] > 0]
-            while len(sorted_cluster) > 0:
-                qchosen = sorted_cluster[0]
-                chosen_queries.append(qchosen)
-                sorted_cluster = [q for q in sorted_cluster if no_shared_mutations(q, qchosen)]  # remove everybody that shares any mutations with sorted_cluster[0]
-
-            if debug:
-                n_chosen_str = str(len(chosen_queries))
-                if len(chosen_queries) > 1:
-                    n_chosen_str = utils.color('blue', n_chosen_str)
-                print '  %s  %s' % (n_chosen_str, ' '.join(chosen_queries))
-            return chosen_queries
-
         # def choose_cluster_representative(cluster):
         #     mfreqs = [swfo[q]['mut_freqs'][0] for q in cluster]  # it would (I think) be better to use only the V mut freq, but we don't store that a.t.m., and I don't want to calculate it
         #     return cluster[mfreqs.index(min(mfreqs))]  # if there's more than one with the min freq, this gives just the first one (which is fine)
-        self.clonal_representatives = [q for cluster in cpath.partitions[cpath.i_best] for q in choose_cluster_representative(cluster)]
+        self.clonal_representatives = [q for cluster in cpath.partitions[cpath.i_best] for q in self.choose_cluster_representative(swfo, cluster)]
         self.n_clones = len(cpath.partitions[cpath.i_best])
         self.n_seqs_over_all_clones = sum([len(c) for c in cpath.partitions[cpath.i_best]])
         print '(%.1f sec to choose clonal representatives)' % (time.time()-start)  # I could probably make this a lot faster by just always taking one sequence from highly mutated clusters (they have so many shared mutations anyway)
-
-    # ----------------------------------------------------------------------------------------
-    def prepare_to_finalize(self, swfo, cpath=None, debug=False):
-        assert not self.prepared_to_finalize
-        self.set_excluded_bases(swfo, debug=debug)
-        if cpath is not None:
-            self.choose_cluster_representatives(swfo, cpath)
-        self.prepared_to_finalize = True
+# ----------------------------------------------------------------------------------------
 
     # ----------------------------------------------------------------------------------------
     def set_excluded_bases(self, swfo, debug=False):
@@ -202,7 +209,7 @@ class AlleleFinder(object):
             # print ''
 
     # ----------------------------------------------------------------------------------------
-    def get_seqs(self, info, gene):
+    def get_seqs_for_query(self, info, gene):
         germline_seq = info[self.region + '_gl_seq']
         assert len(info['seqs']) == 1
         query_seq = info[self.region + '_qr_seqs'][0]
@@ -221,21 +228,33 @@ class AlleleFinder(object):
             self.reflengths[gene] = len(query_seq)
         assert self.reflengths[gene] == len(query_seq)  # just an internal consistency check now -- they should all be identical
 
-        n_mutes = utils.hamming_distance(germline_seq, query_seq)
-        return n_mutes, germline_seq, query_seq
+        n_mutes, muted_positions = utils.hamming_distance(germline_seq, query_seq, return_mutated_positions=True)
+        muted_positions = [p + self.n_bases_to_exclude['5p'][gene] for p in muted_positions]
+        # double check positions are correct:
+        # full_gl_seq = self.glfo['seqs'][self.region][gene]
+        # print muted_positions
+        # print full_gl_seq
+        # print utils.color_mutants(full_gl_seq, self.n_bases_to_exclude['5p'][gene] * 'N' + query_seq + self.n_bases_to_exclude['3p'][gene] * 'N', print_isnps=True)
+        # for ipos in range(len(full_gl_seq)):
+        #     if ipos < self.n_bases_to_exclude['5p'][gene]:
+        #         continue
+        #     if ipos >= len(query_seq):
+        #         continue
+        #     if ipos in muted_positions:
+        #         assert query_seq[ipos - self.n_bases_to_exclude['5p'][gene]] != full_gl_seq[ipos]
+        #     else:
+        #         assert query_seq[ipos - self.n_bases_to_exclude['5p'][gene]] == full_gl_seq[ipos]
+
+        self.seq_info[info['unique_ids'][0]] = {'n_mutes' : n_mutes, 'positions' : muted_positions, 'gl_seq' : germline_seq, 'qr_seq' : query_seq}
 
     # ----------------------------------------------------------------------------------------
-    def increment(self, info):
+    def skip_query(self, uid, info):  # and fill self.seq_info
         gene = info[self.region + '_gene']
-        if gene in self.genes_to_exclude:
-            return
         if gene not in self.counts:
             self.init_gene(gene)
-        if self.clonal_representatives is not None and info['unique_ids'][0] not in self.clonal_representatives:
-            self.n_excluded_clonal_queries[gene] += 1
-            return
 
-        self.gene_obs_counts[gene] += 1
+        if gene in self.genes_to_exclude:
+            return True
 
         skip_this = False
         for side in self.n_bases_to_exclude:  # NOTE this is important, because if there is a snp to the right of the cysteine, all the sequences in which it is removed by the v_3p deletion will be shifted one bin leftward, screwing everything up (same goes now that we're doing the same thing on the left side)
@@ -244,17 +263,23 @@ class AlleleFinder(object):
                 skip_this = True
                 break  # don't really have to break, but it makes it so the counters add up more nicely
         if skip_this:
-            return
+            return True
 
-        n_mutes, germline_seq, query_seq = self.get_seqs(info, gene)  # NOTE no longer necessarily correspond to <info>
+        self.get_seqs_for_query(info, gene)
+
+        if self.seq_info[uid]['n_mutes'] > self.args.n_max_mutations_per_segment:
+            self.n_seqs_too_highly_mutated[gene] += 1
+            return True
+
+        return False
+
+    # ----------------------------------------------------------------------------------------
+    def increment_query(self, uid, gene):
+        self.gene_obs_counts[gene] += 1
+
+        n_mutes, germline_seq, query_seq = [self.seq_info[uid][tn] for tn in ['n_mutes', 'gl_seq', 'qr_seq']]  # historical...
         self.overall_mute_counts.fill(n_mutes)  # NOTE this is almost the same as the hists in mutefreqer.py, except those divide by sequence length, and more importantly, they don't make sure all the sequences are the same length (i.e. the base exclusions stuff)
         self.per_gene_mute_counts[gene].fill(n_mutes)  # NOTE this is almost the same as the hists in mutefreqer.py, except those divide by sequence length, and more importantly, they don't make sure all the sequences are the same length (i.e. the base exclusions stuff)
-
-        # i.e. do *not* use <info> after this point
-
-        if n_mutes > self.args.n_max_mutations_per_segment:
-            self.n_seqs_too_highly_mutated[gene] += 1
-            return
 
         assert len(germline_seq) == len(self.glfo['seqs'][self.region][gene]) - self.n_bases_to_exclude['5p'][gene] - self.n_bases_to_exclude['3p'][gene]
         for ipos in range(len(germline_seq)):
@@ -881,10 +906,25 @@ class AlleleFinder(object):
         print 'and %d had fewer than %d mutations and fewer than %d observations%s' % (len(not_enough_counts), self.n_muted_min, self.n_total_min, get_skip_str(not_enough_counts))
 
     # ----------------------------------------------------------------------------------------
-    def finalize(self, debug=False):
-        assert self.prepared_to_finalize
+    def increment_and_finalize(self, swfo, debug=False):
         assert not self.finalized
 
+        # do some preparations and increment
+        self.set_excluded_bases(swfo, debug=debug)
+        queries_to_use = [q for q in swfo['queries'] if not self.skip_query(q, swfo[q])]  # skip_query() also fills self.seq_info if we're not skipping the query (and sometimes also if we do skip it)
+        if self.args.dont_collapse_clones:
+            clusters = [[q] for q in queries_to_use]
+        else:
+            print '%s remove fwk insertions from naive seqs' % utils.color('red', 'todo')
+            clusters = utils.get_partition_from_collapsed_naive_seqs({q : swfo[q]['naive_seq'] for q in queries_to_use})  # need to use the swfo naive seq, because the whole point is to use the cdr3 region to distinguish clones
+        for cluster in clusters:
+            chosen_queries = self.choose_cluster_representatives(swfo, cluster, debug=True)
+            for qchosen in chosen_queries:
+                self.increment_query(qchosen, swfo[qchosen][self.region + '_gene'])
+# ----------------------------------------------------------------------------------------
+# make sure you're not using swfo['queries'] past here
+
+        # then finalize
         print '%s: looking for new alleles' % utils.color('blue', 'try ' + str(self.itry))
         if self.clonal_representatives is not None:
             print '    chose %d representatives for %d clones among %d total sequences' % (len(self.clonal_representatives), self.n_clones, self.n_seqs_over_all_clones)

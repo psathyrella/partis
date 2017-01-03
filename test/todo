@@ -63,6 +63,13 @@
 #    - multi-hmm (mebbe annotation accuracy on final clusters?)
 
 # allele finding/germline set generation:
+            # collapse should
+            #  - needs to exclude the exclusions
+            #  - just make sure the fwk insertions aren't in the naive sequences to start with and, like, ever -- it doesn't make much sense, anyway
+            #  - happen after trimmming (?)
+            #  - happen on a per-v-gene basis (?)
+            #  - keep more than one sequence per "clone" (probably the ones that share the fewest mutations)
+#  - maybe increase self.fraction_of_seqs_to_exclude?
 #  - not getting fits on plots if there's more than one new allele
 #  - probably need to go back to requiring before-slope is smaller than after-slope, at least for smaller n-snps (or at least not a lot bigger?) [getting apparent false-positives in laura-mb A-igm]
 #  - all alleles (including new ones) should have roughly the same mut freq distribution (especially at low mutation)'

@@ -517,9 +517,11 @@ def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', 
     if len(ref_seq) != len(seq):
         raise Exception('unequal lengths in color_mutants()\n    %s\n    %s' % (ref_seq, seq))
     return_str, isnps = [], []
-    for inuke in range(len(seq)):
+    for inuke in range(len(seq)):  # would be nice to integrate this with hamming_distance()
         char = seq[inuke]
-        if seq[inuke] != ref_seq[inuke]:
+        if seq[inuke] in ambiguous_bases or ref_seq[inuke] in ambiguous_bases:
+            char = color('blue', char)
+        elif seq[inuke] != ref_seq[inuke]:
             char = color('red', char)
             isnps.append(inuke)
         if emphasis_positions is not None and inuke in emphasis_positions:
@@ -2535,12 +2537,12 @@ def kbound_str(kbounds):
     return ''.join(return_str).strip()
 
 # ----------------------------------------------------------------------------------------
-def get_partition_from_collapsed_naive_seqs(sw_info):
+def get_partition_from_collapsed_naive_seqs(naive_seqs):
     start = time.time()
     def keyfunc(q):
-        return sw_info[q]['naive_seq']
-    clusters = [list(group) for _, group in itertools.groupby(sorted(sw_info['queries'], key=keyfunc), key=keyfunc)]
-    print '        collapsed %d sequences into %d unique naive sequences (%3f sec)' % (len(sw_info['queries']), len(clusters), time.time() - start)
+        return naive_seqs[q]
+    clusters = [list(group) for _, group in itertools.groupby(sorted(naive_seqs.keys(), key=keyfunc), key=keyfunc)]
+    print '        collapsed %d sequences into %d unique naive sequences (%3f sec)' % (len(naive_seqs), len(clusters), time.time() - start)
     return clusters
 
 # ----------------------------------------------------------------------------------------
