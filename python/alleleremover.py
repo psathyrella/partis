@@ -157,15 +157,15 @@ class AlleleRemover(object):
                 else:
                     pass  # don't keep it
 
-                if debug:
+                if debug and gfo['gene'] in self.genes_to_keep:
                     snpstr = ' ' if ig == 0 else '(%d)' % utils.hamming_distance(gclass[0]['seq'], gfo['seq'])
-                    # keepstr = utils.color('yellow', 'x', width=5) if gfo['gene'] in self.genes_to_keep else '     '
-                    if gfo['gene'] in self.genes_to_keep:
-                        print '\n       %-s  %5d  %-3s' % (utils.color_gene(gfo['gene'], width=20), gfo['counts'], snpstr),
-            if n_from_this_class == 0:
-                print '\n       %-s  %5s  %-3s' % (utils.color('blue', 'none', width=20, padside='right'), '-', ''),
+                    print '\n       %-s  %5d  %-3s' % (utils.color_gene(gfo['gene'], width=20), gfo['counts'], snpstr),
             if debug:
-                print '           %5d            %s' % (sum([gfo['counts'] for gfo in gclass]), ' '.join([utils.color_gene(gfo['gene']) for gfo in gclass])),
+                if n_from_this_class == 0:
+                    print '\n       %-s  %5s  %-3s' % (utils.color('blue', 'none', width=20, padside='right'), '-', ''),
+                removedfo = [gfo for gfo in gclass if gfo['gene'] not in self.genes_to_keep]
+                if len(removedfo) > 0:
+                    print '           %5d            %s' % (sum([gfo['counts'] for gfo in removedfo]), ' '.join([utils.color_gene(gfo['gene']) for gfo in removedfo])),
         if debug:
             print ''
 
