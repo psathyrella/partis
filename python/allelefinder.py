@@ -605,7 +605,7 @@ class AlleleFinder(object):
 
         candidate_ratios, residfo = {}, {}  # NOTE <residfo> is really just for dbg printing... but we have to sort before we print, so we need to keep the info around
         for pos in positions_to_try_to_fit:
-            dbg = False # (pos in [7] and istart==5)
+            dbg = False  # (pos in [3, 4, 5] and istart==3)
             if dbg:
                 print 'pos %d' % pos
             prevals = prexyvals[pos]
@@ -636,8 +636,8 @@ class AlleleFinder(object):
             if istart == 2 and bothvals['freqs'][istart - 1] > big_y_icpt - 1.5 * big_y_icpt_err:
                 continue
 
-            # approximate pre-slope should be smaller than approximate post-slope
-            if istart > self.hard_code_two:
+            # approximate pre-slope should be smaller than approximate post-slope (for smaller <istart>s, post-slope tends to be flat, so you can't require this)
+            if istart >= self.hard_code_five:
                 pre_approx = self.approx_fit_vals(prevals)
                 post_approx = self.approx_fit_vals(postvals)
                 if pre_approx['slope'] > post_approx['slope']:  #  or self.consistent_slope_and_y_icpt(pre_approx, post_approx):  # UPDATE really don't want to require inconsistent slope and y-icpt
@@ -655,8 +655,8 @@ class AlleleFinder(object):
             twofit_ndof = prefit['ndof'] + postfit['ndof']
             twofit_residuals_over_ndof = twofit_residuals / twofit_ndof
 
-            # pre-slope should be smaller than post-slope also for the full fits
-            if istart > self.hard_code_two and prefit['slope'] > postfit['slope']:
+            # pre-slope should be smaller than post-slope also for the full fits (for smaller <istart>s, post-slope tends to be flat, so you can't require this)
+            if istart >= self.hard_code_five and prefit['slope'] > postfit['slope']:
                 continue
 
             # pre-<istart> should actually be a good line, at least for small <istart>
