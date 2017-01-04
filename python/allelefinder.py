@@ -595,7 +595,7 @@ class AlleleFinder(object):
         return istart_freq - last_freq > factor * joint_freq_err
 
     # ----------------------------------------------------------------------------------------
-    def fit_two_piece_istart(self, gene, istart, positions_to_try_to_fit, already_printed_dbg_header=False, debug=False):
+    def fit_two_piece_istart(self, gene, istart, positions_to_try_to_fit, debug=False):
         # NOTE I'm including the zero bin here -- do I really want to do that? UPDATE yes, I think so -- we know there will be zero mutations in that bin, but the number of sequences in it still contains information (uh, I think)
         min_ibin = max(0, istart - self.max_fit_length)
         max_ibin = min(self.args.n_max_mutations_per_segment, istart + self.max_fit_length)
@@ -605,7 +605,7 @@ class AlleleFinder(object):
 
         candidate_ratios, residfo = {}, {}  # NOTE <residfo> is really just for dbg printing... but we have to sort before we print, so we need to keep the info around
         for pos in positions_to_try_to_fit:
-            dbg = False  # (pos in [1, 215, 240, 269, 278, 297] and istart==5)
+            dbg = False # (pos in [7] and istart==5)
             if dbg:
                 print 'pos %d' % pos
             prevals = prexyvals[pos]
@@ -678,9 +678,10 @@ class AlleleFinder(object):
 
         if debug:
             if len(candidates) > 0:
-                if not already_printed_dbg_header:
+                if not self.already_printed_dbg_header:
                     print '             position   ratio       (one piece / two pieces)  ',
                     print '%0s %s' % ('', ''.join(['%11d' % nm for nm in range(self.args.n_max_mutations_per_segment + 1)]))  # NOTE *has* to correspond to line at bottom of fcn below
+                    self.already_printed_dbg_header = True
                 print '    %d %s' % (istart, utils.plural_str('snp', istart))
             for pos in candidates:
                 pos_str = '%3s' % str(pos)
@@ -894,21 +895,23 @@ class AlleleFinder(object):
             return
 
         binline, contents_line = self.overall_mute_counts.horizontal_print(bin_centers=True, bin_decimals=0, contents_decimals=0)
-        print '             n muted in v' + binline + '(and up)'
-        print '                  overall' + contents_line
+        print '   %s mutations:' % self.region
+        print '              %s+' % binline
+        # print '                    %s  overall' % contents_line
         for gene in genes_to_use:
             _, contents_line = self.per_gene_mute_counts[gene].horizontal_print(bin_centers=True, bin_decimals=0, contents_decimals=0)
-            print '    %s%s' % (utils.color_gene(gene, width=21, leftpad=True), contents_line)
+            print '              %s     %s' % (contents_line, utils.color_gene(gene))
 
-        print '                               excluded              excluded                   excluded                                               included'
-        print '                             >%2d mutations       5p del (>N bases)          3p del (>N bases)       total seqs        clones        representatives' % self.args.n_max_mutations_per_segment
+        print '   sequence counts:'
+        print '                 excluded             excluded                 excluded             included                       actually'
+        print '              >%2d mutations       5p del (>N bases)        3p del (>N bases)       total seqs        clones          used' % self.args.n_max_mutations_per_segment
         for gene in genes_to_use:
-            print '    %s     %5d              %5d  %5s               %5d  %4s            %7d          %7d        %7d' % (utils.color_gene(gene, width=21, leftpad=True),
-                                                                                                                          self.n_seqs_too_highly_mutated[gene],
-                                                                                                                          self.n_big_del_skipped['5p'][gene], '(%d)' % self.n_bases_to_exclude['5p'][gene],
-                                                                                                                          self.n_big_del_skipped['3p'][gene], '(%d)' % self.n_bases_to_exclude['3p'][gene],
-                                                                                                                          self.n_clonal_representatives[gene] + self.n_excluded_clonal_queries[gene],
-                                                                                                                          self.n_clones[gene], self.n_clonal_representatives[gene])
+            print '                 %5d            %5d  %5s             %5d  %4s            %7d          %7d        %7d      %s' % (self.n_seqs_too_highly_mutated[gene],
+                                                                                                                                    self.n_big_del_skipped['5p'][gene], '(%d)' % self.n_bases_to_exclude['5p'][gene],
+                                                                                                                                    self.n_big_del_skipped['3p'][gene], '(%d)' % self.n_bases_to_exclude['3p'][gene],
+                                                                                                                                    self.n_clonal_representatives[gene] + self.n_excluded_clonal_queries[gene],
+                                                                                                                                    self.n_clones[gene], self.n_clonal_representatives[gene],
+                                                                                                                                    utils.color_gene(gene))
 
     # ----------------------------------------------------------------------------------------
     def increment_and_finalize(self, swfo, debug=False):
@@ -963,10 +966,11 @@ class AlleleFinder(object):
                 self.alleles_with_evidence.add(gene)
 
             # loop over each snp hypothesis
+            self.already_printed_dbg_header = False
             self.fitfos[gene] = {n : {} for n in ('min_snp_ratios', 'mean_snp_ratios', 'candidates', 'fitfos')}
             not_enough_candidates = []  # just for dbg printing
             for istart in range(1, self.args.n_max_snps + 1):
-                self.fit_two_piece_istart(gene, istart, positions_to_try_to_fit, already_printed_dbg_header=len(self.fitfos[gene]['candidates']) > 0, debug=debug)
+                self.fit_two_piece_istart(gene, istart, positions_to_try_to_fit, debug=debug)
 
                 if istart not in self.fitfos[gene]['candidates']:  # just for dbg printing
                     not_enough_candidates.append(istart)
