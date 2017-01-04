@@ -68,7 +68,7 @@ class AlleleFinder(object):
         self.new_allele_info = []
         self.positions_to_plot = {}
         self.n_seqs_too_highly_mutated = {}  # sequences (per-gene) that had more than <self.args.n_max_mutations_per_segment> mutations
-        self.gene_obs_counts = {}
+        self.gene_obs_counts = {}  # NOTE same as n_clonal_representatives
         self.overall_mute_counts = Hist(self.args.n_max_mutations_per_segment - 1, 0.5, self.args.n_max_mutations_per_segment - 0.5)  # i.e. 0th (underflow) bin corresponds to zero mutations
         self.per_gene_mute_counts = {}  # crappy name -- this is the denominator for each position in <self.counts>. Which is usually the same for most positions, but it's cleaner to keep it separate than choose one of 'em.
         self.n_big_del_skipped = {s : {} for s in self.n_bases_to_exclude}
@@ -81,7 +81,7 @@ class AlleleFinder(object):
 
         self.n_excluded_clonal_queries = {}
         self.n_clones = {}
-        self.n_clonal_representatives = {}
+        self.n_clonal_representatives = {}  # NOTE same as gene_obs_counts
 
         self.finalized = False
 
@@ -900,14 +900,15 @@ class AlleleFinder(object):
             _, contents_line = self.per_gene_mute_counts[gene].horizontal_print(bin_centers=True, bin_decimals=0, contents_decimals=0)
             print '    %s%s' % (utils.color_gene(gene, width=21, leftpad=True), contents_line)
 
-        print '                               excluded              excluded                  excluded                                               included'
-        print '                             >%2d mutations       5p del (>N bases)         3p del (>N bases)       total seqs        clones        representatives' % self.args.n_max_mutations_per_segment
+        print '                               excluded              excluded                   excluded                                               included'
+        print '                             >%2d mutations       5p del (>N bases)          3p del (>N bases)       total seqs        clones        representatives' % self.args.n_max_mutations_per_segment
         for gene in genes_to_use:
-            print '    %s     %5d              %5d  (%2d)               %5d  (%2d)            %7d          %7d        %7d' % (utils.color_gene(gene, width=21, leftpad=True),
-                                                                                                                              self.n_seqs_too_highly_mutated[gene],
-                                                                                                                              self.n_big_del_skipped['5p'][gene], self.n_bases_to_exclude['5p'][gene],
-                                                                                                                              self.n_big_del_skipped['3p'][gene], self.n_bases_to_exclude['3p'][gene],
-                                                                                                                              self.gene_obs_counts[gene], self.n_clones[gene], self.n_clonal_representatives[gene])
+            print '    %s     %5d              %5d  %5s               %5d  %4s            %7d          %7d        %7d' % (utils.color_gene(gene, width=21, leftpad=True),
+                                                                                                                          self.n_seqs_too_highly_mutated[gene],
+                                                                                                                          self.n_big_del_skipped['5p'][gene], '(%d)' % self.n_bases_to_exclude['5p'][gene],
+                                                                                                                          self.n_big_del_skipped['3p'][gene], '(%d)' % self.n_bases_to_exclude['3p'][gene],
+                                                                                                                          self.n_clonal_representatives[gene] + self.n_excluded_clonal_queries[gene],
+                                                                                                                          self.n_clones[gene], self.n_clonal_representatives[gene])
 
     # ----------------------------------------------------------------------------------------
     def increment_and_finalize(self, swfo, debug=False):
