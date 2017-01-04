@@ -133,12 +133,11 @@ class AlleleRemover(object):
 
         if debug:
             print '  removing least likely alleles (%d total counts)' % total_counts
-            print '       %20s  %5s  %5s   %s  %s' % ('', 'counts', 'snps', 'keep?', '')
+            print '     %-20s    %5s (%s)      removed counts     removed genes' % ('genes to keep', 'counts', 'snps'),
 
         class_counts = self.separate_into_classes(sorted_gene_counts, easycounts)
-        for gclass in class_counts:
-            if debug:
-                print ''
+        for iclass in range(len(class_counts)):
+            gclass = class_counts[iclass]
             n_from_this_class = 0
             for ig in range(len(gclass)):
                 gfo = gclass[ig]
@@ -159,9 +158,16 @@ class AlleleRemover(object):
                     pass  # don't keep it
 
                 if debug:
-                    snpstr = ' ' if ig == 0 else '%d' % utils.hamming_distance(gclass[0]['seq'], gfo['seq'])
-                    keepstr = utils.color('yellow', 'x', width=5) if gfo['gene'] in self.genes_to_keep else '     '
-                    print '       %20s  %5d  %5s  %s' % (utils.color_gene(gfo['gene'], width=20), gfo['counts'], snpstr, keepstr) #, utils.color_mutants(gclass[0]['seq'], gfo['seq']))
+                    snpstr = ' ' if ig == 0 else '(%d)' % utils.hamming_distance(gclass[0]['seq'], gfo['seq'])
+                    # keepstr = utils.color('yellow', 'x', width=5) if gfo['gene'] in self.genes_to_keep else '     '
+                    if gfo['gene'] in self.genes_to_keep:
+                        print '\n       %-s  %5d  %-3s' % (utils.color_gene(gfo['gene'], width=20), gfo['counts'], snpstr),
+            if n_from_this_class == 0:
+                print '\n       %-s  %5s  %-3s' % (utils.color('blue', 'none', width=20, padside='right'), '-', ''),
+            if debug:
+                print '           %5d            %s' % (sum([gfo['counts'] for gfo in gclass]), ' '.join([utils.color_gene(gfo['gene']) for gfo in gclass])),
+        if debug:
+            print ''
 
         # for igene in range(len(sorted_gene_counts)):
         #     gene, counts = sorted_gene_counts[igene]
