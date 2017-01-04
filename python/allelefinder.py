@@ -44,7 +44,8 @@ class AlleleFinder(object):
 
         self.max_fit_length = 10
 
-        self.n_snps_to_switch_to_two_piece_method = 5
+        self.hard_code_five = 5
+        self.hard_code_two = 2
 
         self.n_muted_min = 30  # don't fit positions that have fewer total mutations than this (i.e. summed over bins)
         self.n_total_min = 150  # ...or fewer total observations than this
@@ -56,6 +57,7 @@ class AlleleFinder(object):
         self.min_bad_fit_residual = 2.
         self.max_good_fit_residual = 2.5
         self.max_ok_fit_residual = 10.
+        self.max_consistent_candidate_fit_sigma = 4.
 
         self.min_min_candidate_ratio_to_plot = 1.5  # don't plot positions that're below this (for all <istart>)
 
@@ -453,7 +455,7 @@ class AlleleFinder(object):
                 print '    mean snp ratio %s too small (less than %s)' % (fstr(fitfo['mean_snp_ratios'][istart]), fstr(self.min_mean_candidate_ratio)),
             return False
 
-        # return false if any of the candidate positions don't have enough mutated counts in the <istart>th bin NOTE this is particularly important because it's the handle that tells us it's *this* <istart> that's correct, rather than <istart> + 1
+        # every candidate position needs to have enough mutated counts in the <istart>th bin (this is particularly important (partly) because it's the handle that tells us it's *this* <istart> that's correct, rather than <istart> + 1)
         for candidate_pos in fitfo['candidates'][istart]:
             n_istart_muted = self.counts[gene][candidate_pos][istart]['muted']
             if n_istart_muted < self.n_muted_min_per_bin:
@@ -461,19 +463,17 @@ class AlleleFinder(object):
                     print '    not enough mutated counts at candidate position %d with %d %s (%d < %d)' % (candidate_pos, istart, utils.plural_str('mutations', n_istart_muted), n_istart_muted, self.n_muted_min_per_bin),
                 return False
 
-        # return false if any of the candidate positions don't have enough mutated counts in the <istart>th bin NOTE this is particularly important because it's the handle that tells us it's *this* <istart> that's correct, rather than <istart> + 1
-        if istart >= self.n_snps_to_switch_to_two_piece_method:
-            for pos_1, pos_2 in itertools.combinations(fitfo['candidates'][istart], 2):
-                # make sure all the snp positions have similar fits
-                fitfo_1, fitfo_2 = self.fitfos[gene]['fitfos'][istart][pos_1], self.fitfos[gene]['fitfos'][istart][pos_2]
-                if not self.consistent_slope_and_y_icpt(2.5, fitfo_1['postfo'], fitfo_2['postfo']):  # NOTE this has to be very permissive, since with multiple new alleles at the same position the y-icpt (at least) is expected to be quite different
-                    if debug:
-                        print '    positions %d and %d have inconsistent post-istart fits' % (pos_1, pos_2)
-                    return False
-                if not self.consistent_slope_and_y_icpt(2.5, fitfo_1['prefo'], fitfo_2['prefo']):
-                    if debug:
-                        print '    positions %d and %d have inconsistent pre-istart fits' % (pos_1, pos_2)
-                    return False
+        # make sure all the snp positions have similar fits (the bin totals for all snp positions should be highly correlated, since they should ~all be present in ~all sequences [that stem from the new allele])
+        for pos_1, pos_2 in itertools.combinations(fitfo['candidates'][istart], 2):
+            fitfo_1, fitfo_2 = self.fitfos[gene]['fitfos'][istart][pos_1], self.fitfos[gene]['fitfos'][istart][pos_2]
+            if not self.consistent_slope_and_y_icpt(self.max_consistent_candidate_fit_sigma, fitfo_1['postfo'], fitfo_2['postfo']):  # NOTE this has to be very permissive, since with multiple new alleles at the same position the y-icpt (at least) is expected to be quite different
+                if debug:
+                    print '    positions %d and %d have inconsistent post-istart fits' % (pos_1, pos_2)
+                return False
+            if istart > self.hard_code_two and not self.consistent_slope_and_y_icpt(self.max_consistent_candidate_fit_sigma, fitfo_1['prefo'], fitfo_2['prefo']):
+                if debug:
+                    print '    positions %d and %d have inconsistent pre-istart fits' % (pos_1, pos_2)
+                return False
 
         if debug:
             print '    candidate',
@@ -622,13 +622,9 @@ class AlleleFinder(object):
                 continue
 
             # if both slope and intercept are quite close to each other, the fits aren't going to say they're wildly inconsistent
-            if istart < self.n_snps_to_switch_to_two_piece_method:
+            if istart < self.hard_code_five:
                 # if the bounds include zero, there won't be much difference between the two fits
                 if big_y_icpt_bounds[0] <= 0.:
-                    continue
-
-                # if there's only two points in <prevals>, we can't use the bad fit there to tell us this isn't a candidate, so we check and skip if the <istart - 1>th freq isn't really low
-                if istart == 2 and bothvals['freqs'][istart - 1] > big_y_icpt - 1.5 * big_y_icpt_err:
                     continue
 
                 # if a rough estimate of the y-icpt is less than zero, the zero-icpt fit is probably going to be pretty good
@@ -636,30 +632,35 @@ class AlleleFinder(object):
                 if approx_fitfo['y_icpt'] < 0.:
                     continue
 
-            if istart > 2:  # used to be if >= self.n_snps_to_switch_to_two_piece_method, but false positives with large pre-discontinuity slopes seem to be a problem (note that it is important *not* to apply this for nsnp equals two)
+            # if there's only two points in <prevals>, we can't use the bad fit there to tell us this isn't a candidate, so we check and skip if the <istart - 1>th freq isn't really low
+            if istart == 2 and bothvals['freqs'][istart - 1] > big_y_icpt - 1.5 * big_y_icpt_err:
+                continue
+
+            # approximate pre-slope should be smaller than approximate post-slope
+            if istart > self.hard_code_two:
                 pre_approx = self.approx_fit_vals(prevals)
                 post_approx = self.approx_fit_vals(postvals)
                 if pre_approx['slope'] > post_approx['slope']:  #  or self.consistent_slope_and_y_icpt(pre_approx, post_approx):  # UPDATE really don't want to require inconsistent slope and y-icpt
                     continue
 
-            onefit = self.get_curvefit(bothvals, y_icpt_bounds=(0., 0.), debug=dbg)  # self.unbounded_y_icpt_bounds)
+            onefit = self.get_curvefit(bothvals, y_icpt_bounds=(0., 0.), debug=dbg)
 
             # don't bother with the two-piece fit if the one-piece fit is pretty good
             if onefit['residuals_over_ndof'] < self.min_bad_fit_residual:
                 continue
 
-            prefit = self.get_curvefit(prevals, y_icpt_bounds=(0., 0.), debug=dbg)  # self.unbounded_y_icpt_bounds)
-            postfit = self.get_curvefit(postvals, y_icpt_bounds=big_y_icpt_bounds, debug=dbg)  # self.unbounded_y_icpt_bounds)
+            prefit = self.get_curvefit(prevals, y_icpt_bounds=(0., 0.), debug=dbg)
+            postfit = self.get_curvefit(postvals, y_icpt_bounds=big_y_icpt_bounds, debug=dbg)
             twofit_residuals = prefit['residuals_over_ndof'] * prefit['ndof'] + postfit['residuals_over_ndof'] * postfit['ndof']
             twofit_ndof = prefit['ndof'] + postfit['ndof']
             twofit_residuals_over_ndof = twofit_residuals / twofit_ndof
 
-            # at least for large <istart> pre-slope should be smaller than post-slope
-            if istart >= self.n_snps_to_switch_to_two_piece_method and prefit['slope'] > postfit['slope']:
+            # pre-slope should be smaller than post-slope also for the full fits
+            if istart > self.hard_code_two and prefit['slope'] > postfit['slope']:
                 continue
 
             # pre-<istart> should actually be a good line, at least for small <istart>
-            if istart < self.n_snps_to_switch_to_two_piece_method and prefit['residuals_over_ndof'] > self.max_good_fit_residual:
+            if istart < self.hard_code_five and prefit['residuals_over_ndof'] > self.max_good_fit_residual:
                 continue
 
             # <istart> and above should be a kinda-sort-ok line
