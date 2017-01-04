@@ -595,11 +595,7 @@ class AlleleFinder(object):
         return istart_freq - last_freq > factor * joint_freq_err
 
     # ----------------------------------------------------------------------------------------
-    def fit_two_piece_istart(self, gene, istart, positions_to_try_to_fit, print_dbg_header=False, debug=False):
-        if debug and print_dbg_header:
-            print '             position   ratio       (one piece / two pieces)  ',
-            print '%0s %s' % ('', ''.join(['%11d' % nm for nm in range(self.args.n_max_mutations_per_segment + 1)]))  # NOTE *has* to correspond to line at bottom of fcn below
-
+    def fit_two_piece_istart(self, gene, istart, positions_to_try_to_fit, already_printed_dbg_header=False, debug=False):
         # NOTE I'm including the zero bin here -- do I really want to do that? UPDATE yes, I think so -- we know there will be zero mutations in that bin, but the number of sequences in it still contains information (uh, I think)
         min_ibin = max(0, istart - self.max_fit_length)
         max_ibin = min(self.args.n_max_mutations_per_segment, istart + self.max_fit_length)
@@ -640,7 +636,7 @@ class AlleleFinder(object):
                 if approx_fitfo['y_icpt'] < 0.:
                     continue
 
-            if istart > 2:  # used to be if >= self.n_snps_to_switch_to_two_piece_method, but false positives with large pre-discontinuity slopes seem to be a problem
+            if istart > 2:  # used to be if >= self.n_snps_to_switch_to_two_piece_method, but false positives with large pre-discontinuity slopes seem to be a problem (note that it is important *not* to apply this for nsnp equals two)
                 pre_approx = self.approx_fit_vals(prevals)
                 post_approx = self.approx_fit_vals(postvals)
                 if pre_approx['slope'] > post_approx['slope']:  #  or self.consistent_slope_and_y_icpt(pre_approx, post_approx):  # UPDATE really don't want to require inconsistent slope and y-icpt
@@ -681,6 +677,9 @@ class AlleleFinder(object):
 
         if debug:
             if len(candidates) > 0:
+                if not already_printed_dbg_header:
+                    print '             position   ratio       (one piece / two pieces)  ',
+                    print '%0s %s' % ('', ''.join(['%11d' % nm for nm in range(self.args.n_max_mutations_per_segment + 1)]))  # NOTE *has* to correspond to line at bottom of fcn below
                 print '    %d %s' % (istart, utils.plural_str('snp', istart))
             for pos in candidates:
                 pos_str = '%3s' % str(pos)
@@ -966,7 +965,7 @@ class AlleleFinder(object):
             self.fitfos[gene] = {n : {} for n in ('min_snp_ratios', 'mean_snp_ratios', 'candidates', 'fitfos')}
             not_enough_candidates = []  # just for dbg printing
             for istart in range(1, self.args.n_max_snps + 1):
-                self.fit_two_piece_istart(gene, istart, positions_to_try_to_fit, print_dbg_header=(istart==self.n_snps_to_switch_to_two_piece_method), debug=debug)
+                self.fit_two_piece_istart(gene, istart, positions_to_try_to_fit, already_printed_dbg_header=len(self.fitfos[gene]['candidates']) > 0, debug=debug)
 
                 if istart not in self.fitfos[gene]['candidates']:  # just for dbg printing
                     not_enough_candidates.append(istart)

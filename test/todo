@@ -63,6 +63,7 @@
 #    - multi-hmm (mebbe annotation accuracy on final clusters?)
 
 # allele finding/germline set generation:
+#  - consistency/correlation between positions: require bin contents of each bin to be roughly equal (i.e. if this is really a new allele, all the snps should damn well be in most the same sequences [only exception is mutated reversion])
 #  - clonal representative printing should be per-gene
 #  - I think I need to/can get away with requring that all the ratio components among the snp candidates are roughly similar (i.e. if one is 3.2 / 0.8, they should all be kinda close to 3 and 1)
             # collapse should
@@ -71,6 +72,7 @@
             #  - happen after trimmming (?)
             #  - happen on a per-v-gene basis (?)
             #  - keep more than one sequence per "clone" (probably the ones that share the fewest mutations)
+#  - for new alleles that are clearly homozygous (i.e. fit is flat and near 1.) we should probably remove the old allele
 #  - maybe increase self.fraction_of_seqs_to_exclude?
 #  - not getting fits on plots if there's more than one new allele
 #  - probably need to go back to requiring before-slope is smaller than after-slope, at least for smaller n-snps (or at least not a lot bigger?) [getting apparent false-positives in laura-mb A-igm]

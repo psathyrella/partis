@@ -135,7 +135,7 @@ def comprehensive_test(args):
 fsdir = '/fh/fast/matsen_e/dralph'
 
 example_str = '\n    '.join(['example usage:',
-                             './bin/test-allele-finding.py --n-sim-events 2000 --n-procs 10 --sim-v-genes=IGHV1-18*01 --inf-v-genes=IGHV1-18*01 --snp-positions 27:55:88',
+                             './bin/test-allele-finding.py --n-sim-events 2000 --n-procs 10 --sim-v-genes=IGHV1-18*01 --inf-v-genes=IGHV1-18*01 --snp-positions 27,55,88',
                              './bin/test-allele-finding.py --n-sim-events 2000 --n-procs 10 --sim-v-genes=IGHV4-39*01:IGHV4-39*02 --inf-v-genes=IGHV4-39*01'])
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, epilog=example_str)
 parser.add_argument('--nosim', action='store_true')
