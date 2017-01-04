@@ -87,7 +87,7 @@ class Waterer(object):
             sys.stdout.flush()
             substart = time.time()
             self.execute_commands(base_infname, base_outfname, n_procs)
-            print '      %8.1f' % (time.time() - substart),  # comma/no comma needs fixing for debug > 0
+            print '      %8.1f%s' % (time.time() - substart, '\n' if self.debug else ''),
             self.read_output(base_outfname, n_procs)
             if self.nth_try > 3:
                 break
@@ -372,7 +372,8 @@ class Waterer(object):
             if n_procs > 1:  # still need the top-level workdir
                 os.rmdir(workdir)
 
-        print '     %8.1f' % (time.time() - start)  # comma/no comma needs fixing for debug > 0
+        if not self.debug:  # too hard to get newlines right
+            print '     %8.1f' % (time.time() - start)  # comma/no comma needs fixing for debug > 0
         sys.stdout.flush()
 
     # ----------------------------------------------------------------------------------------
