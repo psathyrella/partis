@@ -337,7 +337,7 @@ parent_parser.add_argument('--new-allele-fname', help='fasta fname to which to w
 parent_parser.add_argument('--n-max-allele-finding-iterations', type=int, default=2, help='maximum number of times to look for new alleles')
 parent_parser.add_argument('--n-max-new-alleles-per-gene-per-iteration', type=int, default=2, help='with an option name that long...')
 parent_parser.add_argument('--n-max-snps', type=int, default=8, help='when new-allele finding, look for new alleles separated from existing alleles by up to this many SNPs')
-parent_parser.add_argument('--n-max-mutations-per-segment', type=int, default=30, help='when new-allele finding, exclude sequences which have more than this many mutations in the V segment')
+parent_parser.add_argument('--n-max-mutations-per-segment', type=int, default=23, help='when new-allele finding, exclude sequences which have more than this many mutations in the V segment')
 
 # ----------------------------------------------------------------------------------------
 subconfig = {

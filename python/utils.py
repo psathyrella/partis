@@ -561,7 +561,7 @@ def summarize_gene_name(gene):
     return ' '.join([region, primary_version, sub_version, allele])
 
 # ----------------------------------------------------------------------------------------
-def color_gene(gene, width=None):
+def color_gene(gene, width=None, leftpad=False):
     """ color gene name (and remove extra characters), eg IGHV3-h*01 --> hv3-h1 """
     chain = get_chain(gene)
     region = get_region(gene)
@@ -575,7 +575,10 @@ def color_gene(gene, width=None):
     n_chars += len(allele)
     return_str += color('yellow', allele)
     if width is not None:
-        return_str += (width - n_chars) * ' '
+        if leftpad:
+            return_str = (width - n_chars) * ' ' + return_str
+        else:
+            return_str += (width - n_chars) * ' '
     return return_str
 
 #----------------------------------------------------------------------------------------

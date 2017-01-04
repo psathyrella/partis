@@ -37,10 +37,7 @@ def run_test(args):
     label = 'test'  #get_label(existing_genes, new_allele)
     simfname = args.outdir + '/simu-' + label + '.csv'
     outpdir = args.outdir + '/simu-' + label
-    if os.getenv('www') is not None:
-        plotdir = os.getenv('www') + '/partis/allele-finding/' + label
-    else:
-        plotdir = '_www/partis/allele-finding/' + label
+    plotdir = args.outdir + '/simu-' + label + '-plots'
 
     # simulate
     if not args.nosim:
@@ -137,7 +134,10 @@ def comprehensive_test(args):
 # ----------------------------------------------------------------------------------------
 fsdir = '/fh/fast/matsen_e/dralph'
 
-parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+example_str = '\n    '.join(['example usage:',
+                             './bin/test-allele-finding.py --n-sim-events 2000 --n-procs 10 --sim-v-genes=IGHV1-18*01 --inf-v-genes=IGHV1-18*01 --snp-positions 27:55:88',
+                             './bin/test-allele-finding.py --n-sim-events 2000 --n-procs 10 --sim-v-genes=IGHV4-39*01:IGHV4-39*02 --inf-v-genes=IGHV4-39*01'])
+parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, epilog=example_str)
 parser.add_argument('--nosim', action='store_true')
 parser.add_argument('--n-sim-events', type=int, default=20)
 parser.add_argument('--n-leaves', type=int, default=1)

@@ -106,6 +106,7 @@ class AlleleFinder(object):
         # I could probably make this a lot faster by just always only taking one sequence from highly mutated clusters (they have so many shared mutations anyway)
         assert len(cluster) > 0
         if len(cluster) == 1:
+            self.n_clonal_representatives += 1
             return cluster
 
         n_muted = {q : {'n' : self.seq_info[q]['n_mutes'], 'positions' : self.seq_info[q]['positions']} for q in cluster}
@@ -181,7 +182,7 @@ class AlleleFinder(object):
         # print choices and check consistency
         if debug:
             print '    exclusions:  5p   3p'
-        for gene in dcounts:
+        for gene in sorted(dcounts.keys()):
             if debug:
                 print '                %3d  %3d  %s' % (self.n_bases_to_exclude['5p'][gene], self.n_bases_to_exclude['3p'][gene], utils.color_gene(gene, width=15))
             if self.n_bases_to_exclude['5p'][gene] + self.n_bases_to_exclude['3p'][gene] >= len(self.glfo['seqs'][self.region][gene]):
@@ -285,9 +286,9 @@ class AlleleFinder(object):
     def dbgstr(self, fitfo, extra_str='', pvals=None):
         return_strs = []
         if pvals is not None:
-            return_strs.append(' '.join(['%5d' % n for n in pvals['n_mutelist']]))
-            return_strs.append(' '.join(['%5.3f' % f for f in pvals['freqs']]))
-            return_strs.append(' '.join(['%5.3f' % e for e in pvals['errs']]))
+            return_strs.append('  ' + ' '.join(['%5d' % n for n in pvals['n_mutelist']]))
+            return_strs.append('  ' + ' '.join(['%5.3f' % f for f in pvals['freqs']]))
+            return_strs.append('  ' + ' '.join(['%5.3f' % e for e in pvals['errs']]))
         return_strs.append('        %s  m: %5.3f +/- %5.3f   b: %5.3f +/- %5.3f     %5.3f / %-3d = %5.3f' % (extra_str, fitfo['slope'], fitfo['slope_err'], fitfo['y_icpt'], fitfo['y_icpt_err'],
                                                                                                              fitfo['residual_sum'], fitfo['ndof'], fitfo['residuals_over_ndof']))
         return '\n'.join(return_strs)
@@ -603,7 +604,7 @@ class AlleleFinder(object):
 
         candidate_ratios, residfo = {}, {}  # NOTE <residfo> is really just for dbg printing... but we have to sort before we print, so we need to keep the info around
         for pos in positions_to_try_to_fit:
-            dbg = False #(pos in [1, 215] and istart==5)
+            dbg = False  # (pos in [1, 215, 240, 269, 278, 297] and istart==5)
             if dbg:
                 print 'pos %d' % pos
             prevals = prexyvals[pos]
@@ -874,8 +875,6 @@ class AlleleFinder(object):
             return skip_str
 
         glseq = self.glfo['seqs'][self.region][gene]
-        # new_allele_names = [i['gene'] for i in self.new_allele_info]  # should make this less hackey
-        # glseq = self.new_allele_info[gene]['seq'] if gene in new_allele_names else self.glfo['seqs'][self.region][gene]
         too_close_to_ends = range(self.n_bases_to_exclude['5p'][gene]) + range(len(glseq) - self.n_bases_to_exclude['3p'][gene], len(glseq))
         not_enough_counts = set(positions) - set(positions_to_try_to_fit) - set(too_close_to_ends)  # well, not enough counts, *and* not too close to the ends
 
@@ -885,35 +884,49 @@ class AlleleFinder(object):
         print 'and %d had fewer than %d mutations and fewer than %d observations%s' % (len(not_enough_counts), self.n_muted_min, self.n_total_min, get_skip_str(not_enough_counts))
 
     # ----------------------------------------------------------------------------------------
+    def print_summary(self, genes_to_use):
+        if len(genes_to_use) == 0:
+            return
+
+        binline, contents_line = self.overall_mute_counts.horizontal_print(bin_centers=True, bin_decimals=0, contents_decimals=0)
+        print '             n muted in v' + binline + '(and up)'
+        print '                  overall' + contents_line
+        for gene in genes_to_use:
+            _, contents_line = self.per_gene_mute_counts[gene].horizontal_print(bin_centers=True, bin_decimals=0, contents_decimals=0)
+            print '    %s%s' % (utils.color_gene(gene, width=21, leftpad=True), contents_line)
+
+        print '                               included          excluded:'
+        print '                                seqs                 >%2d mutations       5p del (>N bases)         3p del (>N bases)' % self.args.n_max_mutations_per_segment
+        for gene in genes_to_use:
+            print '    %s       %5d                 %5d              %5d  (%2d)               %5d  (%2d)' % (utils.color_gene(gene, width=21, leftpad=True), self.gene_obs_counts[gene], self.n_seqs_too_highly_mutated[gene],
+                                                                                                             self.n_big_del_skipped['5p'][gene], self.n_bases_to_exclude['5p'][gene],
+                                                                                                             self.n_big_del_skipped['3p'][gene], self.n_bases_to_exclude['3p'][gene])
+
+    # ----------------------------------------------------------------------------------------
     def increment_and_finalize(self, swfo, debug=False):
         assert not self.finalized
         start = time.time()
 
         # first prepare some things, and increment for each chosen query
-        self.set_excluded_bases(swfo, debug=debug)
+        self.set_excluded_bases(swfo)
         queries_to_use = [q for q in swfo['queries'] if not self.skip_query(q, swfo[q])]  # skip_query() also fills self.seq_info if we're not skipping the query (and sometimes also if we do skip it)
         if self.args.dont_collapse_clones:
             clusters = [[q] for q in queries_to_use]
         else:
             print '%s remove fwk insertions from naive seqs' % utils.color('red', 'todo')
-            substart = time.time()
             def keyfunc(q):
                 return swfo[q]['naive_seq']  # need to use the swfo naive seq, because the whole point is to use the cdr3 region to distinguish clones
             clusters = [list(group) for _, group in itertools.groupby(sorted(queries_to_use, key=keyfunc), key=keyfunc)]
-            print '        collapsed %d sequences into %d unique naive sequences (%3f sec)' % (len(queries_to_use), len(clusters), time.time() - substart)
         for cluster in clusters:
             for qchosen in self.choose_cluster_representatives(swfo, cluster):
                 self.increment_query(qchosen, swfo[qchosen][self.region + '_gene'])
-
-        print '   %.1f sec to prepare and increment' % (time.time()-start)
+        print '    %d seqs chosen to represent %d clones with %d total seqs' % (self.n_clonal_representatives, len(clusters), len(queries_to_use))
 
         # then finalize
-        print '%s: looking for new alleles' % utils.color('blue', 'try ' + str(self.itry))
-        print '    chose %d representatives for %d clones among %d total sequences' % (self.n_clonal_representatives, len(clusters), len(queries_to_use))
+        genes_to_use = [g for g in sorted(self.counts) if self.gene_obs_counts[g] >= self.n_total_min]
+        self.print_summary(genes_to_use)
+        print '%s: looking for new alleles among %d gene%s (%d genes didn\'t have enough counts)' % (utils.color('blue', 'try ' + str(self.itry)), len(genes_to_use), utils.plural(len(genes_to_use)), len(self.counts) - len(genes_to_use))
         if not self.args.always_find_new_alleles:  # NOTE this is (on purpose) summed over all genes -- genes with homozygous unknown alleles would always fail this criterion
-            binline, contents_line = self.overall_mute_counts.horizontal_print(bin_centers=True, bin_decimals=0, contents_decimals=0)
-            print '             n muted in v' + binline + '(and up)'
-            print '                   counts' + contents_line
             total = int(self.overall_mute_counts.integral(include_overflows=True))  # underflow bin is zero mutations, and we want overflow, too NOTE why the fuck isn't this quite equal to sum(self.gene_obs_counts.values())?
             for n_mutes in range(self.args.n_max_snps):
                 if self.overall_mute_counts.bin_contents[n_mutes] / float(total) < self.min_fraction_per_bin:
@@ -922,27 +935,17 @@ class AlleleFinder(object):
                     self.finalized = True
                     return
 
-        start = time.time()
         self.xyvals = {}
         self.positions_to_plot = {gene : set() for gene in self.counts}
-        for gene in sorted(self.counts):
+        for gene in genes_to_use:
             if debug:
-                sys.stdout.flush()
-                print ' %s: %d / %d unmutated observations (excluded %d clonal sequences)' % (utils.color_gene(gene), self.per_gene_mute_counts[gene].bin_contents[0], self.gene_obs_counts[gene], self.n_excluded_clonal_queries[gene])
-                print '          skipping',
-                print '%d seqs that are too highly mutated,' % self.n_seqs_too_highly_mutated[gene],
-                print '%d that had 5p deletions larger than %d,' % (self.n_big_del_skipped['5p'][gene], self.n_bases_to_exclude['5p'][gene]),
-                print 'and %d that had 3p deletions larger than %d)' % (self.n_big_del_skipped['3p'][gene], self.n_bases_to_exclude['3p'][gene])
-
-            if self.gene_obs_counts[gene] < self.n_total_min:
-                continue
-
+                print ' %s %3d count%s' % (utils.color_gene(gene, width=21), self.gene_obs_counts[gene], utils.plural(self.gene_obs_counts[gene]))
             positions = sorted(self.counts[gene])
             self.xyvals[gene] = {pos : self.get_allele_finding_xyvals(gene, pos) for pos in positions}
             positions_to_try_to_fit = [pos for pos in positions if sum(self.xyvals[gene][pos]['obs']) > self.n_muted_min or sum(self.xyvals[gene][pos]['total']) > self.n_total_min]  # ignore positions with neither enough mutations nor total observations
 
-            if debug and len(positions) > len(positions_to_try_to_fit):
-                self.print_skip_debug(gene, positions, positions_to_try_to_fit)
+            # if debug and len(positions) > len(positions_to_try_to_fit):
+            #     self.print_skip_debug(gene, positions, positions_to_try_to_fit)
 
             if len(positions_to_try_to_fit) < self.args.n_max_snps:
                 if debug:
