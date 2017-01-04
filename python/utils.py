@@ -935,7 +935,7 @@ def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False): 
     line['cdr3_length'] = line['codon_positions']['j'] - line['codon_positions']['v'] + 3  # i.e. first base of cysteine to last base of tryptophan inclusive
 
     # add naive seq stuff
-    line['naive_seq'] = line['fv_insertion'] + line['v_gl_seq'] + line['vd_insertion'] + line['d_gl_seq'] + line['dj_insertion'] + line['j_gl_seq'] + line['jf_insertion']
+    line['naive_seq'] = len(line['fv_insertion']) * ambiguous_bases[0] + line['v_gl_seq'] + line['vd_insertion'] + line['d_gl_seq'] + line['dj_insertion'] + line['j_gl_seq'] + len(line['jf_insertion']) * ambiguous_bases[0]
     for iseq in range(len(line['seqs'])):
         if len(line['naive_seq']) != len(line['seqs'][iseq]):
             raise Exception('naive and mature sequences different lengths %d %d for %s' % (len(line['naive_seq']), len(line['seqs'][iseq]), ' '.join(line['unique_ids'])))
