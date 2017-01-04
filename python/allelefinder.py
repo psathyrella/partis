@@ -80,7 +80,8 @@ class AlleleFinder(object):
             self.default_initial_glfo = glutils.read_glfo(self.args.default_initial_germline_dir, glfo['chain'])
 
         self.n_excluded_clonal_queries = {}
-        self.n_clonal_representatives = 0
+        self.n_clones = {}
+        self.n_clonal_representatives = {}
 
         self.finalized = False
 
@@ -100,13 +101,16 @@ class AlleleFinder(object):
             self.n_big_del_skipped[side][gene] = 0
         self.n_seqs_too_highly_mutated[gene] = 0
         self.n_excluded_clonal_queries[gene] = 0
+        self.n_clones[gene] = 0
+        self.n_clonal_representatives[gene] = 0
 
     # ----------------------------------------------------------------------------------------
     def choose_cluster_representatives(self, swfo, cluster, debug=False):
         # I could probably make this a lot faster by just always only taking one sequence from highly mutated clusters (they have so many shared mutations anyway)
         assert len(cluster) > 0
         if len(cluster) == 1:
-            self.n_clonal_representatives += 1
+            self.n_clonal_representatives[swfo[cluster[0]][self.region + '_gene']] += 1
+            self.n_clones[swfo[cluster[0]][self.region + '_gene']] += 1
             return cluster
 
         n_muted = {q : {'n' : self.seq_info[q]['n_mutes'], 'positions' : self.seq_info[q]['positions']} for q in cluster}
@@ -134,7 +138,8 @@ class AlleleFinder(object):
             sorted_cluster = [q for q in sorted_cluster if no_shared_mutations(q, qchosen)]  # remove everybody that shares any mutations with sorted_cluster[0] (including the one we just chose)
 
         self.n_excluded_clonal_queries[genes[0]] += len(cluster) - len(chosen_queries)
-        self.n_clonal_representatives += len(chosen_queries)
+        self.n_clones[genes[0]] += 1
+        self.n_clonal_representatives[genes[0]] += len(chosen_queries)
 
         if debug:
             n_chosen_str = str(len(chosen_queries))
@@ -895,12 +900,14 @@ class AlleleFinder(object):
             _, contents_line = self.per_gene_mute_counts[gene].horizontal_print(bin_centers=True, bin_decimals=0, contents_decimals=0)
             print '    %s%s' % (utils.color_gene(gene, width=21, leftpad=True), contents_line)
 
-        print '                               included          excluded:'
-        print '                                seqs                 >%2d mutations       5p del (>N bases)         3p del (>N bases)' % self.args.n_max_mutations_per_segment
+        print '                               excluded              excluded                  excluded                                               included'
+        print '                             >%2d mutations       5p del (>N bases)         3p del (>N bases)       total seqs        clones        representatives' % self.args.n_max_mutations_per_segment
         for gene in genes_to_use:
-            print '    %s       %5d                 %5d              %5d  (%2d)               %5d  (%2d)' % (utils.color_gene(gene, width=21, leftpad=True), self.gene_obs_counts[gene], self.n_seqs_too_highly_mutated[gene],
-                                                                                                             self.n_big_del_skipped['5p'][gene], self.n_bases_to_exclude['5p'][gene],
-                                                                                                             self.n_big_del_skipped['3p'][gene], self.n_bases_to_exclude['3p'][gene])
+            print '    %s     %5d              %5d  (%2d)               %5d  (%2d)            %7d          %7d        %7d' % (utils.color_gene(gene, width=21, leftpad=True),
+                                                                                                                              self.n_seqs_too_highly_mutated[gene],
+                                                                                                                              self.n_big_del_skipped['5p'][gene], self.n_bases_to_exclude['5p'][gene],
+                                                                                                                              self.n_big_del_skipped['3p'][gene], self.n_bases_to_exclude['3p'][gene],
+                                                                                                                              self.gene_obs_counts[gene], self.n_clones[gene], self.n_clonal_representatives[gene])
 
     # ----------------------------------------------------------------------------------------
     def increment_and_finalize(self, swfo, debug=False):
@@ -913,14 +920,13 @@ class AlleleFinder(object):
         if self.args.dont_collapse_clones:
             clusters = [[q] for q in queries_to_use]
         else:
-            print '%s remove fwk insertions from naive seqs' % utils.color('red', 'todo')
             def keyfunc(q):
                 return swfo[q]['naive_seq']  # need to use the swfo naive seq, because the whole point is to use the cdr3 region to distinguish clones
             clusters = [list(group) for _, group in itertools.groupby(sorted(queries_to_use, key=keyfunc), key=keyfunc)]
         for cluster in clusters:
             for qchosen in self.choose_cluster_representatives(swfo, cluster):
                 self.increment_query(qchosen, swfo[qchosen][self.region + '_gene'])
-        print '    %d seqs chosen to represent %d clones with %d total seqs' % (self.n_clonal_representatives, len(clusters), len(queries_to_use))
+        print '    %d seqs chosen to represent %d clones with %d total seqs' % (sum(self.n_clonal_representatives.values()), len(clusters), len(queries_to_use))
 
         # then finalize
         genes_to_use = [g for g in sorted(self.counts) if self.gene_obs_counts[g] >= self.n_total_min]
