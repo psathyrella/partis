@@ -78,7 +78,7 @@ class Waterer(object):
 
         n_procs = self.args.n_fewer_procs
         initial_queries_per_proc = float(len(self.remaining_queries)) / n_procs
-        print '  %4s  sequences    n_procs     ig-sw time     processing time' % ('summary:' if self.debug else '')
+        print '  %4s  sequences    n_procs     ig-sw time    processing time' % ('summary:' if self.debug else '')
         while len(self.remaining_queries) > 0:  # we remove queries from <self.remaining_queries> as we're satisfied with their output
             if self.nth_try > 1 and float(len(self.remaining_queries)) / n_procs < initial_queries_per_proc:
                 n_procs = int(max(1., float(len(self.remaining_queries)) / initial_queries_per_proc))

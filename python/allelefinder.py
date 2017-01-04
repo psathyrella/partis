@@ -45,6 +45,7 @@ class AlleleFinder(object):
         self.max_fit_length = 10
 
         self.hard_code_five = 5
+        self.hard_code_three = 3
         self.hard_code_two = 2
 
         self.n_muted_min = 30  # don't fit positions that have fewer total mutations than this (i.e. summed over bins)
@@ -605,7 +606,7 @@ class AlleleFinder(object):
 
         candidate_ratios, residfo = {}, {}  # NOTE <residfo> is really just for dbg printing... but we have to sort before we print, so we need to keep the info around
         for pos in positions_to_try_to_fit:
-            dbg = False  # (pos in [3, 4, 5] and istart==3)
+            dbg = False  # (pos in [55] and istart==4)
             if dbg:
                 print 'pos %d' % pos
             prevals = prexyvals[pos]
@@ -621,8 +622,7 @@ class AlleleFinder(object):
             if not self.big_discontinuity(bothvals, istart) and not self.very_different_bin_totals(bothvals, istart):
                 continue
 
-            # if both slope and intercept are quite close to each other, the fits aren't going to say they're wildly inconsistent
-            if istart < self.hard_code_five:
+            if istart <= self.hard_code_three:
                 # if the bounds include zero, there won't be much difference between the two fits
                 if big_y_icpt_bounds[0] <= 0.:
                     continue
@@ -896,7 +896,7 @@ class AlleleFinder(object):
 
         binline, contents_line = self.overall_mute_counts.horizontal_print(bin_centers=True, bin_decimals=0, contents_decimals=0)
         print '   %s mutations:' % self.region
-        print '              %s+' % binline
+        print '              %s' % binline
         # print '                    %s  overall' % contents_line
         for gene in genes_to_use:
             _, contents_line = self.per_gene_mute_counts[gene].horizontal_print(bin_centers=True, bin_decimals=0, contents_decimals=0)
