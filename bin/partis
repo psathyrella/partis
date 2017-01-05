@@ -325,7 +325,7 @@ parent_parser.add_argument('--simulation-germline-dir', help='Germline directory
 parent_parser.add_argument('--aligned-germline-fname', help='fasta file with alignments for each V gene')
 
 parent_parser.add_argument('--dont-remove-unlikely-alleles', action='store_true', help='assign each sequence to its closest germline match, even if this would imply an unrealistically large number of alleles per gene in this sample')
-parent_parser.add_argument('--n-alleles-per-gene', type=int, default=2, help='number of alleles to assume per gene when removing spurious alleles during parameter caching')
+parent_parser.add_argument('--n-alleles-per-gene', type=int, default=1, help='number of alleles to assume per gene when removing spurious alleles during parameter caching')
 parent_parser.add_argument('--min-allele-prevalence-fraction', type=float, default=0.0005, help='Remove any alleles that represent less than this fraction of the repertoire.')
 parent_parser.add_argument('--n-max-total-alleles', type=int, help='maximum number of alleles per segment to allow when removing alleles (presumably just used for testing).')
 
