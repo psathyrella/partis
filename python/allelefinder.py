@@ -471,7 +471,7 @@ class AlleleFinder(object):
                 if debug:
                     print '    positions %d and %d have inconsistent post-istart fits' % (pos_1, pos_2)
                 return False
-            if istart > self.hard_code_two and not self.consistent_slope_and_y_icpt(self.max_consistent_candidate_fit_sigma, fitfo_1['prefo'], fitfo_2['prefo']):
+            if istart >= self.hard_code_two and not self.consistent_slope_and_y_icpt(self.max_consistent_candidate_fit_sigma, fitfo_1['prefo'], fitfo_2['prefo']):
                 if debug:
                     print '    positions %d and %d have inconsistent pre-istart fits' % (pos_1, pos_2)
                 return False
