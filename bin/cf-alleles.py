@@ -34,7 +34,7 @@ args.other_genes = utils.get_arg_list(args.other_genes)
 # a1, a2 = '12', '01'
 # gene1, gene2 = 'IGHV' + base + '*' + a1, 'IGHV' + base + '*' + a2
 
-genes = ['IGH' + args.region.upper() + args.base + '*' + al for al in args.alleles]
+genes = ['IG' + args.chain.upper() + args.region.upper() + args.base + '*' + al for al in args.alleles]
 if args.other_genes is not None:
     genes += args.other_genes
 
