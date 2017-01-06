@@ -325,7 +325,7 @@ parent_parser.add_argument('--simulation-germline-dir', help='Germline directory
 parent_parser.add_argument('--aligned-germline-fname', help='fasta file with alignments for each V gene')
 
 parent_parser.add_argument('--dont-remove-unlikely-alleles', action='store_true', help='assign each sequence to its closest germline match, even if this would imply an unrealistically large number of alleles per gene in this sample')
-parent_parser.add_argument('--n-alleles-per-gene', type=int, default=1, help='number of alleles to assume per gene when removing spurious alleles during parameter caching')
+parent_parser.add_argument('--n-alleles-per-gene', type=int, default=None, help='number of alleles to assume per gene when removing spurious alleles during parameter caching (default is set below -- 1 if looking for new alleles, otherwise 2)')
 parent_parser.add_argument('--min-allele-prevalence-fraction', type=float, default=0.0005, help='Remove any alleles that represent less than this fraction of the repertoire.')
 parent_parser.add_argument('--n-max-total-alleles', type=int, help='maximum number of alleles per segment to allow when removing alleles (presumably just used for testing).')
 
@@ -546,6 +546,12 @@ args.default_initial_germline_dir += '/' + args.species
 if args.n_max_snps is not None and args.n_max_mutations_per_segment is not None:
     if args.n_max_snps > args.n_max_mutations_per_segment - 10:
         raise Exception('--n-max-snps should be at least ten less than --n-max-mutations-per-segment, but I got %d and %d' % (args.n_max_snps, args.n_max_mutations_per_segment))
+
+if args.n_alleles_per_gene is None:
+    if args.find_new_alleles:
+        args.n_alleles_per_gene = 1
+    else:
+        args.n_alleles_per_gene = 2
 
 # ----------------------------------------------------------------------------------------
 random.seed(args.seed)
