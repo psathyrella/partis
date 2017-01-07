@@ -186,6 +186,24 @@ static aln_t align_read_against_one(kseq_t *target, const int read_len,
   }
 
   free(ref_num);
+
+/* /\* ---------------------------------------------------------------------------------------- *\/ */
+/*   size_t cigar_len = aln.loc.qb; */
+/*   for (int c = 0; c < aln.n_cigar; c++) { */
+/*     int32_t length = (0xfffffff0 & *(aln.cigar + c)) >> 4; */
+/*     cigar_len += length; */
+/*   } */
+/*   cigar_len += read_len - aln.loc.qe - 1; */
+/*   if(cigar_len != (size_t)read_len) { */
+/*     printf("aln.loc.qb %d\n", aln.loc.qb); */
+/*     printf("read_len - aln.loc.qe - 1 %d\n", read_len - aln.loc.qe - 1); */
+/*     printf("[ig_align] Error: cigar length (score %d) not equal to read length for target %s: %zu vs %d\n", aln.loc.score, target->name.s, cigar_len, read_len); */
+/*     /\* assert(0); *\/ */
+/*   } else { */
+/*     printf("ok\n"); */
+/*   } */
+/* /\* ---------------------------------------------------------------------------------------- *\/ */
+
   return aln;
 }
 
@@ -314,11 +332,11 @@ static void write_sam_records(kstring_t *str, const kseq_t *read,
              40);                                              /* MAPQ */
     if (a.loc.qb)
       ksprintf(str, "%dS", a.loc.qb);
-    size_t total_cigar_length = 0;
+    /* size_t total_cigar_length = a.loc.qb; */
     for (int c = 0; c < a.n_cigar; c++) {
       int32_t letter = 0xf & *(a.cigar + c);
       int32_t length = (0xfffffff0 & *(a.cigar + c)) >> 4;
-      total_cigar_length += length;
+      /* total_cigar_length += length; */
       ksprintf(str, "%d", length);
       if (letter == 0)
         ksprintf(str, "M");
@@ -327,11 +345,13 @@ static void write_sam_records(kstring_t *str, const kseq_t *read,
       else
         ksprintf(str, "D");
     }
-    total_cigar_length += a.loc.qb + read->seq.l - a.loc.qe - 1;
-    if(read->seq.l != total_cigar_length) {
-      printf("[ig_align] Error: cigar length not equal to read length for query %s: %zu vs %zu\n", read->name.s, total_cigar_length, read->seq.l);
-      assert(0);
-    }
+    /* total_cigar_length += read->seq.l - a.loc.qe - 1; */
+/* /\* ---------------------------------------------------------------------------------------- *\/ */
+/*     if(read->seq.l != total_cigar_length) { */
+/*       printf("[ig_align] Error: cigar length (score %d) not equal to read length for query %s: %zu vs %zu\n", a.loc.score, read->name.s, total_cigar_length, read->seq.l); */
+/*       assert(0); */
+/*     } */
+/* /\* ---------------------------------------------------------------------------------------- *\/ */
 
     // Here we explicitly cast the size_t l to be an int.
     // Neither of these numbers will be near their maximum
