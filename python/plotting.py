@@ -842,7 +842,7 @@ def plot_cluster_similarity_matrix(plotdir, plotname, meth1, partition1, meth2, 
     plt.close()
 
 # ----------------------------------------------------------------------------------------
-def make_html(plotdir, n_columns=3, extension='svg'):
+def make_html(plotdir, n_columns=3, extension='svg', fnames=None):
     if plotdir[-1] == '/':  # remove trailings slash, if present
         plotdir = plotdir[:-1]
     if not os.path.exists(plotdir):
@@ -860,29 +860,30 @@ def make_html(plotdir, n_columns=3, extension='svg'):
 
     def add_newline(lines):
         lines += ['</tr>', '<tr>']
-    def add_fname(lines, fname):
+    def add_fname(lines, fullfname):  # NOTE <fullname> may, or may not, be a base name (i.e. it might have a subdir tacked on the left side)
+        fname = fullfname.replace(plotdir, '').lstrip('/')
         line = '<td width="25%"><a target="_blank" href="' + dirname + '/' + fname + '"><img src="' + dirname + '/' + fname + '" alt="' + dirname + '/' + fname + '" width="100%"></a></td>"'
         lines.append(line)
 
-    fnames = sorted(glob.glob(plotdir + '/*.' + extension))
+    if fnames is None:
+        fnamelist = [os.path.basename(fn) for fn in sorted(glob.glob(plotdir + '/*.' + extension))]
+        fnames = []
+        # arrange the ones that have '[vdj]_' into group of three
+        for v_fn in [fn for fn in fnamelist if os.path.basename(fn).find('v_') == 0]:  # get the ones that start with 'v_', so we can use them as templates for the others
+            fstem = v_fn.replace('v_', '')
+            fnames.append([rstr + fstem for rstr in plotconfig.rstrings if rstr + fstem in fnamelist])
+            for fn in fnames[-1]:
+                fnamelist.remove(fn)
+        # then do the rest in groups of <n_columns>
+        while len(fnamelist) > 0:
+            fnames.append(fnamelist[:n_columns])
+            fnamelist = fnamelist[n_columns:]
 
-    # first do all the ones that have '[vdj]_' at the start, so they're lined up nicely in group of three
-    for v_fn in [fn for fn in fnames if os.path.basename(fn).find('v_') == 0]:
-        for region in utils.regions + ['cdr3', ]:
-            this_fn = v_fn.replace('v_', region + '_')
-            if this_fn not in fnames:
-                continue
-            add_fname(lines, os.path.basename(this_fn))
-            if this_fn not in fnames:
-                print this_fn
-            fnames.remove(this_fn)
+    # write the meat of the html
+    for rowlist in fnames:
+        for fn in rowlist:
+            add_fname(lines, fn)
         add_newline(lines)
-
-    # then do all the others
-    for ifn in range(len(fnames)):
-        if ifn > 0 and ifn % n_columns == 0:
-            add_newline(lines)
-        add_fname(lines, os.path.basename(fnames[ifn]))
 
     lines += ['</tr>',
               '</table>',

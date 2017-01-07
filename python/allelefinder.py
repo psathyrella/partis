@@ -465,6 +465,7 @@ class AlleleFinder(object):
                 return False
 
         # make sure all the snp positions have similar fits (the bin totals for all snp positions should be highly correlated, since they should ~all be present in ~all sequences [that stem from the new allele])
+        # NOTE that with multiple multi-snp new alleles that share some, but not all, positions, we don't expect consistency. This is rare enough, though, that it's probably better to require the consistency. They'll still show up in the dbg printing.
         for pos_1, pos_2 in itertools.combinations(fitfo['candidates'][istart], 2):
             fitfo_1, fitfo_2 = self.fitfos[gene]['fitfos'][istart][pos_1], self.fitfos[gene]['fitfos'][istart][pos_2]
             if not self.consistent_slope_and_y_icpt(self.max_consistent_candidate_fit_sigma, fitfo_1['postfo'], fitfo_2['postfo']):  # NOTE this has to be very permissive, since with multiple new alleles at the same position the y-icpt (at least) is expected to be quite different
@@ -868,7 +869,8 @@ class AlleleFinder(object):
             'gene' : new_name,
             'seq' : new_seq,
             'snp-positions' : mutfo.keys(),
-            'aligned-seq' : None
+            'aligned-seq' : None,
+            'plot-paths' : []
         })
 
     # ----------------------------------------------------------------------------------------
@@ -1037,15 +1039,18 @@ class AlleleFinder(object):
             return
 
         start = time.time()
-        template_genes = [newfo['template-gene'] for newfo in self.new_allele_info]
         for gene in self.positions_to_plot:  # we can make plots for the positions we didn't fit, but there's a *lot* of them and they're slow
-            snp_positions = [] if gene not in template_genes else self.new_allele_info[template_genes.index(gene)]['snp-positions']
+            newfos = [nf for nf in self.new_allele_info if nf['template-gene'] == gene]
             for position in self.positions_to_plot[gene]:
                 fitfos = None
-                # snp_positions = [10, 11, 12, 13, 14]
-                if position in snp_positions and len(snp_positions) in self.fitfos[gene]['fitfos'] and position in self.fitfos[gene]['fitfos'][len(snp_positions)]:  # not sure why I need the second and third one
-                    fitfos = self.fitfos[gene]['fitfos'][len(snp_positions)][position]
+                for newfo in newfos:
+                    if position in newfo['snp-positions']:
+                        assert fitfos is None  # for now, at least, we don't let positions contribute to multiple new alleles during the same try
+                        fitfos = self.fitfos[gene]['fitfos'][len(newfo['snp-positions'])][position]
+                        newfo['plot-paths'].append(utils.sanitize_name(gene) + '/' + str(position) + '.svg')
                 plotting.make_allele_finding_plot(plotdir + '/' + utils.sanitize_name(gene), gene, position, self.xyvals[gene][position], xmax=self.args.n_max_mutations_per_segment, fitfos=fitfos)
+
+        plotting.make_html(plotdir, fnames=[newfo['plot-paths'] for newfo in self.new_allele_info])
 
         check_call(['./bin/permissify-www', plotdir])
         print '(%.1f sec)' % (time.time()-start)
