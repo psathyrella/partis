@@ -301,6 +301,7 @@ parent_parser.add_argument('--max-vj-mut-freq', type=float, default=0.4, help='s
 parent_parser.add_argument('--max-logprob-drop', type=float, default=5., help='stop glomerating when the total logprob has dropped by this much')
 parent_parser.add_argument('--n-simultaneous-seqs', type=int, help='Number of simultaneous sequences on which to run the multi-HMM (e.g. 2 for a pair hmm)')
 parent_parser.add_argument('--simultaneous-true-clonal-seqs', action='store_true', help='Run true clonal sequences together simultaneously with the multi-HMM.')
+parent_parser.add_argument('--max-sequence-length', type=int, default=550, help='maximum allowed sequence length, in order to avoid apparent ig-sw problem (see issue #211)')
 
 parent_parser.add_argument('--infname', help='input sequence file in .fa, .fq or .csv (if .csv, specify id string and sequence headers with --name-column and --seq-column)')
 parent_parser.add_argument('--name-column', help='csv column name for sequence ids')

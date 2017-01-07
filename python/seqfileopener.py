@@ -129,6 +129,9 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, s
                 continue
             if args.seed_unique_id is not None and uid == args.seed_unique_id:
                 found_seed = True
+            if len(inseq) > args.max_sequence_length:
+                print '%s: skipping very long input sequence \'%s\' (%d > %d, set with --max-sequence-length)' % (utils.color('yellow', 'warning'), uid, len(inseq), args.max_sequence_length)
+                continue
 
         if uid in input_info:
             raise Exception('found uid \'%s\' twice in input file %s' % (uid, infname))
@@ -158,7 +161,10 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, s
             if n_lines_in_file < args.istartstop[1]:
                 raise Exception('--istartstop upper bound %d larger than number of lines in file %d' % (args.istartstop[1], n_lines_in_file))
         if len(input_info) == 0:
-            raise Exception('didn\'t find the specified --queries (%s) or --reco-ids (%s) in %s' % (str(args.queries), str(args.reco_ids), infname))
+            if args.queries is not None:
+                raise Exception('didn\'t find the specified --queries (%s) in %s' % (str(args.queries), infname))
+            if args.reco_ids is not None:
+                raise Exception('didn\'t find the specified --reco-ids (%s) in %s' % (str(args.reco_ids), infname))
         if args.queries is not None:
             missing_queries = set(args.queries) - set(input_info)
             extra_queries = set(input_info) - set(args.queries)  # this is just checking for a bug in the code just above here...
@@ -181,5 +187,8 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, s
         elif args.random_seed_seq:  # already checked (in bin/partis) that other seed args aren't set
             args.seed_unique_id = random.choice(input_info.keys())
             print '    chose random seed unique id %s' % args.seed_unique_id
+
+    if len(input_info) == 0:
+        raise Exception('didn\'t read any sequences from %s' % infname)
 
     return input_info, reco_info
