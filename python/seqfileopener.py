@@ -129,9 +129,6 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, s
                 continue
             if args.seed_unique_id is not None and uid == args.seed_unique_id:
                 found_seed = True
-            if len(inseq) > args.max_sequence_length:
-                print '%s: skipping very long input sequence \'%s\' (%d > %d, set with --max-sequence-length)' % (utils.color('yellow', 'warning'), uid, len(inseq), args.max_sequence_length)
-                continue
 
         if uid in input_info:
             raise Exception('found uid \'%s\' twice in input file %s' % (uid, infname))
