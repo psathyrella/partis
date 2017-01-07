@@ -607,7 +607,7 @@ class AlleleFinder(object):
 
         candidate_ratios, residfo = {}, {}  # NOTE <residfo> is really just for dbg printing... but we have to sort before we print, so we need to keep the info around
         for pos in positions_to_try_to_fit:
-            dbg = False  # (pos in [55] and istart==4)
+            dbg = False  # (pos in [12, 17, 55] and istart==2)
             if dbg:
                 print 'pos %d' % pos
             prevals = prexyvals[pos]
@@ -997,7 +997,7 @@ class AlleleFinder(object):
             n_new_alleles_for_this_gene = 0  # kinda messy way to implement this
             for istart in sorted(istart_candidates, reverse=True):
                 if n_new_alleles_for_this_gene >= self.args.n_max_new_alleles_per_gene_per_iteration:
-                    print '    skipping any additional new alleles for this gene (already have %d)' % n_new_alleles_for_this_gene
+                    print '%s: skipping any additional new alleles for this gene (already have %d, you can increase this by setting --n-max-new-alleles-per-gene-per-iteration)' % (utils.color('red', 'warning'), n_new_alleles_for_this_gene)
                     break
                 these_positions = set(self.fitfos[gene]['candidates'][istart])
                 if len(these_positions & already_used_positions) > 0:
