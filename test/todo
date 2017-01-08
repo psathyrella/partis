@@ -74,6 +74,7 @@
             #  - happen on a per-v-gene basis (?)
             #  - keep more than one sequence per "clone" (probably the ones that share the fewest mutations)
 #  - for new alleles that are clearly homozygous (i.e. fit is flat and near 1.) we should probably remove the old allele
+#  - I don't think there's a reason in principle, at least for 1 snp, why we can't allow more than one new allele for that isnp
 #  - see if you can get away with allele-remover going down to one allele per gene (this'd be nice because you'd be much, much less likely to get spurious alleles)
 #  - maybe increase self.fraction_of_seqs_to_exclude?
 #  - not getting fits on plots if there's more than one new allele

@@ -1016,6 +1016,22 @@ class AlleleFinder(object):
         self.finalized = True
 
     # ----------------------------------------------------------------------------------------
+    def get_fitfo_for_plotting(self, gene, pos):
+        for newfo in self.new_allele_info:
+            if newfo['template-gene'] != gene:
+                continue
+            if pos not in newfo['snp-positions']:
+                continue
+            nsnps = len(newfo['snp-positions'])
+            if nsnps not in self.fitfos[gene]['fitfos']:
+                continue
+            if pos not in self.fitfos[gene]['fitfos'][nsnps]:
+                continue
+            newfo['plot-paths'].append(utils.sanitize_name(gene) + '/' + str(pos) + '.svg')
+            return self.fitfos[gene]['fitfos'][nsnps][pos]
+        return None
+
+    # ----------------------------------------------------------------------------------------
     def plot(self, base_plotdir, only_csv=False):
         if not self.finalized:
             self.finalize(debug=debug)
@@ -1040,14 +1056,8 @@ class AlleleFinder(object):
 
         start = time.time()
         for gene in self.positions_to_plot:  # we can make plots for the positions we didn't fit, but there's a *lot* of them and they're slow
-            newfos = [nf for nf in self.new_allele_info if nf['template-gene'] == gene]
             for position in self.positions_to_plot[gene]:
-                fitfos = None
-                for newfo in newfos:
-                    if position in newfo['snp-positions']:
-                        assert fitfos is None  # for now, at least, we don't let positions contribute to multiple new alleles during the same try
-                        fitfos = self.fitfos[gene]['fitfos'][len(newfo['snp-positions'])][position]
-                        newfo['plot-paths'].append(utils.sanitize_name(gene) + '/' + str(position) + '.svg')
+                fitfos = self.get_fitfo_for_plotting(gene, position)
                 plotting.make_allele_finding_plot(plotdir + '/' + utils.sanitize_name(gene), gene, position, self.xyvals[gene][position], xmax=self.args.n_max_mutations_per_segment, fitfos=fitfos)
 
         plotting.make_html(plotdir, fnames=[newfo['plot-paths'] for newfo in self.new_allele_info])
