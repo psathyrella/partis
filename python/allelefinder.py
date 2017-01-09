@@ -55,7 +55,7 @@ class AlleleFinder(object):
 
         self.min_min_candidate_ratio = 2.25  # every candidate ratio must be greater than this
         self.min_mean_candidate_ratio = 2.75  # mean of candidate ratios must be greater than this
-        self.min_bad_fit_residual = 2.
+        self.min_bad_fit_residual = 1.8
         self.max_good_fit_residual = 2.5
         self.max_ok_fit_residual = 10.
         self.max_consistent_candidate_fit_sigma = 4.
@@ -68,7 +68,8 @@ class AlleleFinder(object):
         self.seq_info = {}
 
         self.counts, self.fitfos = {}, {}
-        self.new_allele_info = []
+        self.inferred_allele_info = []  # new alleles with respect to the template genes from which we actually inferred them, for usage internal to allelefinder
+        self.new_allele_info = []  #  new alleles with respect to original template genes, for external use (distinction is important if we infer a new allele from another previously-inferred new allele)
         self.positions_to_plot = {}
         self.n_seqs_too_highly_mutated = {}  # sequences (per-gene) that had more than <self.args.n_max_mutations_per_segment> mutations
         self.gene_obs_counts = {}  # NOTE same as n_clonal_representatives
@@ -607,7 +608,7 @@ class AlleleFinder(object):
 
         candidate_ratios, residfo = {}, {}  # NOTE <residfo> is really just for dbg printing... but we have to sort before we print, so we need to keep the info around
         for pos in positions_to_try_to_fit:
-            dbg = False  # (pos in [12, 17, 55] and istart==2)
+            dbg = False  # (pos in [55, 99, 100] and istart==3)
             if dbg:
                 print 'pos %d' % pos
             prevals = prexyvals[pos]
@@ -835,20 +836,22 @@ class AlleleFinder(object):
             mutfo[pos] = {'original' : original_nuke, 'new' : new_nuke}
             new_seq = new_seq[:pos] + new_nuke + new_seq[pos+1:]
 
-        new_name, mutfo = glutils.get_new_allele_name_and_change_mutfo(template_gene, mutfo)
+        final_name, final_mutfo = glutils.get_new_allele_name_and_change_mutfo(template_gene, mutfo)  # final as in destined for <self.new_allele_info>, not for <self.inferred_allele_info>
 
-        if self.default_initial_glfo is not None:  # if this is set, we want to take the names from this directory's glfo (i.e. see if there's already a name for <new_name>'s sequence)
-            new_name, new_seq = self.see_if_new_allele_is_in_default_initial_glfo(new_name, new_seq, template_gene, debug=debug)
+        # reminder: number of mutations in <final_mutfo> is not necessarily equal to <n_candidate_snps>
+        assert len(mutfo) == n_candidate_snps  # ...but this should be the same. Can remove this once I finish fixing the bug
 
-        if new_name in self.glfo['seqs'][self.region]:
-            print '    new gene %s already in glfo (probably due to 3p end length issues), so skipping it' % utils.color_gene(new_name)
+        if self.default_initial_glfo is not None:  # if this is set, we want to take the names from this directory's glfo (i.e. see if there's already a name for <final_name>'s sequence)
+            final_name, new_seq = self.see_if_new_allele_is_in_default_initial_glfo(final_name, new_seq, template_gene, debug=debug)
+
+        if final_name in self.glfo['seqs'][self.region]:
+            print '    new gene %s already in glfo (probably due to 3p end length issues), so skipping it' % utils.color_gene(final_name)
             return
 
-        print '    found a new allele candidate separated from %s by %d %s at %s:' % (utils.color_gene(template_gene), n_candidate_snps,
-                                                                                      utils.plural_str('snp', n_candidate_snps), utils.plural_str('position', n_candidate_snps)),
-        for pos in sorted(mutfo):
-            print '   %d (%s --> %s)' % (pos, mutfo[pos]['original'], mutfo[pos]['new']),
-        print ''
+        print '    found a new allele candidate separated from %s by %d snp%s at:  ' % (utils.color_gene(template_gene), n_candidate_snps, utils.plural(n_candidate_snps)),
+        print '  '.join([('%d (%s --> %s)' % (pos, mutfo[pos]['original'], mutfo[pos]['new'])) for pos in sorted(mutfo)])
+        if mutfo != final_mutfo:
+            print '      note: final snp positions (%s) differ from inferred snp positions (%s)' % (' '.join([str(p) for p in sorted(final_mutfo)]), ' '.join([str(p) for p in sorted(mutfo)]))
 
         old_len_str, new_len_str = '', ''
         old_seq_for_cf, new_seq_for_cf = old_seq, new_seq
@@ -861,16 +864,21 @@ class AlleleFinder(object):
             old_seq_for_cf = old_seq[:len(new_seq)]
             print '         %d extra (blue) bases in old seq were not considered' % (len(old_seq) - len(new_seq))
         print '          %s%s   %s' % (old_seq_for_cf, old_len_str, utils.color_gene(template_gene))
-        print '          %s%s   %s' % (utils.color_mutants(old_seq_for_cf, new_seq_for_cf), new_len_str, utils.color_gene(new_name))
+        print '          %s%s   %s' % (utils.color_mutants(old_seq_for_cf, new_seq_for_cf), new_len_str, utils.color_gene(final_name))
 
-        # and add it to the set of new alleles for this gene
-        self.new_allele_info.append({
+        # and add it to the list of new alleles for this gene
+        self.inferred_allele_info.append({
             'template-gene' : template_gene,
-            'gene' : new_name,
+            'gene' : final_name,  # reminder: <final_name> doesn't necessarily correspond to 'snp-positions'
             'seq' : new_seq,
-            'snp-positions' : mutfo.keys(),
+            'snp-positions' : mutfo.keys(),  # reminder: *not* necessarily the same as <final_mutfo>
             'aligned-seq' : None,
-            'plot-paths' : []
+            'plot-paths' : []  # not filled until we plot, since there may not be a plotdir defined
+        })
+        self.new_allele_info.append({
+            'gene' : final_name,
+            'seq' : new_seq,  # removing aligned-seq when I copy from above... I think I don't use it any more?
+            'template-gene' : template_gene  # i.e. not the ancestral template
         })
 
     # ----------------------------------------------------------------------------------------
@@ -1007,8 +1015,8 @@ class AlleleFinder(object):
                 self.add_new_allele(gene, self.fitfos[gene], istart, debug=debug)
 
         if debug:
-            if len(self.new_allele_info) > 0:
-                print '  found %d new %s: %s' % (len(self.new_allele_info), utils.plural_str('allele', len(self.new_allele_info)), ' '.join([utils.color_gene(nfo['gene']) for nfo in self.new_allele_info]))
+            if len(self.inferred_allele_info) > 0:
+                print '  found %d new %s: %s' % (len(self.inferred_allele_info), utils.plural_str('allele', len(self.inferred_allele_info)), ' '.join([utils.color_gene(nfo['gene']) for nfo in self.inferred_allele_info]))
             else:
                 print '    no new alleles'
             print '  allele finding: %d fits in %.1f sec' % (self.n_fits, time.time()-start)
@@ -1017,18 +1025,17 @@ class AlleleFinder(object):
 
     # ----------------------------------------------------------------------------------------
     def get_fitfo_for_plotting(self, gene, pos):
-        for newfo in self.new_allele_info:
+        gfitfos = self.fitfos[gene]['fitfos']
+        for newfo in self.inferred_allele_info:
             if newfo['template-gene'] != gene:
                 continue
             if pos not in newfo['snp-positions']:
                 continue
             nsnps = len(newfo['snp-positions'])
-            if nsnps not in self.fitfos[gene]['fitfos']:
-                continue
-            if pos not in self.fitfos[gene]['fitfos'][nsnps]:
-                continue
+            if nsnps not in gfitfos or pos not in gfitfos[nsnps]:  # historical bug
+                raise Exception('n snps %d or pos %d not found in fitfo for %s:\n%s' % (nsnps, pos, gene, gfitfos))
             newfo['plot-paths'].append(utils.sanitize_name(gene) + '/' + str(pos) + '.svg')
-            return self.fitfos[gene]['fitfos'][nsnps][pos]
+            return gfitfos[nsnps][pos]
         return None
 
     # ----------------------------------------------------------------------------------------
@@ -1060,7 +1067,7 @@ class AlleleFinder(object):
                 fitfos = self.get_fitfo_for_plotting(gene, position)
                 plotting.make_allele_finding_plot(plotdir + '/' + utils.sanitize_name(gene), gene, position, self.xyvals[gene][position], xmax=self.args.n_max_mutations_per_segment, fitfos=fitfos)
 
-        plotting.make_html(plotdir, fnames=[newfo['plot-paths'] for newfo in self.new_allele_info])
+        plotting.make_html(plotdir, fnames=[newfo['plot-paths'] for newfo in self.inferred_allele_info])
 
         check_call(['./bin/permissify-www', plotdir])
         print '(%.1f sec)' % (time.time()-start)

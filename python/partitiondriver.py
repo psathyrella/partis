@@ -188,7 +188,7 @@ class PartitionDriver(object):
                 print '    removing sw cache file %s (it has outdated germline info)' % self.default_sw_cachefname
                 os.remove(self.default_sw_cachefname)
 
-            self.all_new_allele_info += [afo for afo in self.sw_info['new-alleles'] if '+' in afo['gene']]
+            self.all_new_allele_info += [afo for afo in self.sw_info['new-alleles'] if '+' in afo['gene']]  # i.e. skip new/inferred alleles that turned out to be previously known (previous: in original glfo)
             # alleles_with_evidence |= self.sw_info['alleles-with-evidence']
             glutils.restrict_to_genes(self.glfo, list(self.sw_info['all_best_matches']))
             glutils.add_new_alleles(self.glfo, self.sw_info['new-alleles'])

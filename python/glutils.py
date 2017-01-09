@@ -504,7 +504,7 @@ def add_new_alleles(glfo, newfos, remove_template_genes=False, debug=False):
 def add_new_allele(glfo, newfo, remove_template_genes=False, debug=False):
     """
     Add a new allele to <glfo>, specified by <newfo> which is of the
-    form: {'template-gene' : 'IGHV3-71*01', 'gene' : 'IGHV3-71*01+C35T.T47G', 'seq' : 'ACTG yadda yadda CGGGT'}
+    form: {'gene' : 'IGHV3-71*01+C35T.T47G', 'seq' : 'ACTG yadda yadda CGGGT', 'template-gene' : 'IGHV3-71*01'}
     If <remove_template_genes>, we also remove 'template-gene' from <glfo>.
     """
 
