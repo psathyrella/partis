@@ -1827,9 +1827,20 @@ def process_out_err(out, err, extra_str='', dbgfo=None, logdir=None, debug=None)
         out = readfile(logdir + '/out')
         err = readfile(logdir + '/err')
 
+    # leaving this commented for the moment, since they're so common
+    # ig_sw_length_errors = []
     for line in out.split('\n'):  # temporarily (maybe) print debug info realted to --n-final-clusters/force merging
         if 'force' in line:
             print '    %s %s' % (color('yellow', 'force info:'), line)
+        # if '[ig_align] Error: cigar length' in line:
+        #     iquery = line.split().index('query')
+        #     if iquery > 0:
+        #         query = line.split()[iquery + 1]
+        #     else:
+        #         print 'couldn\'t find \'query\' in:\n%s' % line
+        #     ig_sw_length_errors.append('foop')
+    # if len(ig_sw_length_errors) > 0:
+    #     print '%s %d ig-sw length errors' % (color('red', 'error'), len(ig_sw_length_errors))
 
     print_str = ''
     for line in err.split('\n'):
