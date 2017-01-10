@@ -328,9 +328,7 @@ class Waterer(object):
                 for _, reads in grouped:  # loop over query sequences
                     try:
                         readlist = list(reads)
-                    except:  # attempt to catch weird transient error that may stem from disk problems
-                        for thing in reads:
-                            print thing
+                    except:  # should no longer happen (was a result of pysam barfing when ig-sw gave it cigar and query sequences that were different lengths, but now ig-sw should skip matches for which that's true) it would be better if ig-sw didn't make those matches to start with, but that would require understanding a lot more about ig-sw
                         raise Exception('failed to convert sam reads')
                     qinfo = self.read_query(sam.references, readlist)
                     self.summarize_query(qinfo, queries_to_rerun)  # returns before adding to <self.info> if it thinks we should rerun the query

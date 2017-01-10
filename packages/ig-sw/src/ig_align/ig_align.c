@@ -143,7 +143,8 @@ typedef struct {
 static aln_t align_read_against_one(kseq_t *target, const int read_len,
                                     uint8_t *read_num, kswq_t **qry,
                                     const align_config_t *conf,
-                                    const int min_score) {
+                                    const int min_score,
+				    const char *read_name) {
   uint8_t *ref_num = calloc(target->seq.l, sizeof(uint8_t));
   for (size_t k = 0; k < target->seq.l; ++k)
     ref_num[k] = conf->table[(int)target->seq.s[k]];
@@ -187,22 +188,16 @@ static aln_t align_read_against_one(kseq_t *target, const int read_len,
 
   free(ref_num);
 
-/* /\* ---------------------------------------------------------------------------------------- *\/ */
-/*   size_t cigar_len = aln.loc.qb; */
-/*   for (int c = 0; c < aln.n_cigar; c++) { */
-/*     int32_t length = (0xfffffff0 & *(aln.cigar + c)) >> 4; */
-/*     cigar_len += length; */
-/*   } */
-/*   cigar_len += read_len - aln.loc.qe - 1; */
-/*   if(cigar_len != (size_t)read_len) { */
-/*     printf("aln.loc.qb %d\n", aln.loc.qb); */
-/*     printf("read_len - aln.loc.qe - 1 %d\n", read_len - aln.loc.qe - 1); */
-/*     printf("[ig_align] Error: cigar length (score %d) not equal to read length for target %s: %zu vs %d\n", aln.loc.score, target->name.s, cigar_len, read_len); */
-/*     /\* assert(0); *\/ */
-/*   } else { */
-/*     printf("ok\n"); */
-/*   } */
-/* /\* ---------------------------------------------------------------------------------------- *\/ */
+  size_t cigar_len = aln.loc.qb;
+  for (int c = 0; c < aln.n_cigar; c++) {
+    int32_t length = (0xfffffff0 & *(aln.cigar + c)) >> 4;
+    cigar_len += length;
+  }
+  cigar_len += read_len - aln.loc.qe - 1;
+  if(cigar_len != (size_t)read_len) {
+    printf("[ig_align] Error: cigar length (score %d) not equal to read length for query %s (target %s): %zu vs %d\n", aln.loc.score, read_name, target->name.s, cigar_len, read_len);
+    aln.cigar = NULL;
+  }
 
   return aln;
 }
@@ -248,7 +243,7 @@ static aln_v align_read(const kseq_t *read, const kseq_v targets,
     // Encode target
     r = &kv_A(targets, j);
     aln_t aln =
-        align_read_against_one(r, read_len, read_num, &qry, conf, min_score);
+      align_read_against_one(r, read_len, read_num, &qry, conf, min_score, read->name.s);
     if (aln.cigar != NULL) {
       max_score = aln.loc.score > max_score ? aln.loc.score : max_score;
       min_score = (aln.loc.score - conf->max_drop) > min_score
@@ -289,7 +284,7 @@ static aln_v align_read(const kseq_t *read, const kseq_v targets,
       for (size_t j = 0; j < kv_size(extra_targets[idx]); j++) {
         r = &kv_A(extra_targets[idx], j);
         aln_t aln = align_read_against_one(r, read_len_trunc, read_num_trunc,
-                                           &qry, conf, min_score);
+                                           &qry, conf, min_score, read->name.s);
 
         if (aln.cigar != NULL) {
           min_score = (aln.loc.score - conf->max_drop) > min_score
@@ -346,18 +341,11 @@ static void write_sam_records(kstring_t *str, const kseq_t *read,
         ksprintf(str, "D");
     }
     /* total_cigar_length += read->seq.l - a.loc.qe - 1; */
-/* /\* ---------------------------------------------------------------------------------------- *\/ */
-/*     if(read->seq.l != total_cigar_length) { */
-/*       printf("[ig_align] Error: cigar length (score %d) not equal to read length for query %s: %zu vs %zu\n", a.loc.score, read->name.s, total_cigar_length, read->seq.l); */
-/*       assert(0); */
-/*     } */
-/* /\* ---------------------------------------------------------------------------------------- *\/ */
+    /* if(read->seq.l != total_cigar_length) { */
+    /*   printf("[ig_align] Error: cigar length (score %d) not equal to read length for query %s: %zu vs %zu (skipping entire query)\n", a.loc.score, read->name.s, total_cigar_length, read->seq.l); */
+    /*   assert(0); */
+    /* } */
 
-    // Here we explicitly cast the size_t l to be an int.
-    // Neither of these numbers will be near their maximum
-    // in our application, which even for a signed 4 byte int
-    // is 2147483647, and size_t is an unsigned 4 byte int in
-    // on a 32 bit machine.
     if (a.loc.qe + 1 != (int)read->seq.l)
       ksprintf(str, "%luS", read->seq.l - a.loc.qe - 1);
 
