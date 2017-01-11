@@ -143,8 +143,7 @@ typedef struct {
 static aln_t align_read_against_one(kseq_t *target, const int read_len,
                                     uint8_t *read_num, kswq_t **qry,
                                     const align_config_t *conf,
-                                    const int min_score,
-				    const char *read_name) {
+                                    const int min_score) {
   uint8_t *ref_num = calloc(target->seq.l, sizeof(uint8_t));
   for (size_t k = 0; k < target->seq.l; ++k)
     ref_num[k] = conf->table[(int)target->seq.s[k]];
@@ -195,8 +194,13 @@ static aln_t align_read_against_one(kseq_t *target, const int read_len,
   }
   cigar_len += read_len - aln.loc.qe - 1;
   if(cigar_len != (size_t)read_len) {
-    printf("[ig_align] Error: cigar length (score %d) not equal to read length for query %s (target %s): %zu vs %d\n", aln.loc.score, read_name, target->name.s, cigar_len, read_len);
-    aln.cigar = NULL;
+    /* printf("[ig_align] Error: cigar length (score %d) not equal to read length for XXX (target %s): %zu vs %d\n", aln.loc.score, target->name.s, cigar_len, read_len); */
+    // NOTE:
+    //   It is *really* *fucking* *scary* that it's spitting out cigars that are not the same length as the query sequence.
+    //   Nonetheless, fixing it seems to involve delving into the depths of ksw_align() and ksw_global(), which would be very time consuming, and the length discrepancy seems to ony appear in very poor matches.
+    //   I.e., poor enough that we will subsequently ignore them in partis/python/waterer.py, so it seems to not screw anything up downstream to just set the length-discrepant matches' scores to zero, such that ig-sw doesn't write them to its sam output.
+    //   Note also that it is not always the lowest- or highest-scoring matches that have discrepant lengths (i.e. setting their scores to zero promotes matches swith poorer scores, but which do not have discrepant lengths.
+    aln.loc.score = 0;
   }
 
   return aln;
@@ -243,7 +247,7 @@ static aln_v align_read(const kseq_t *read, const kseq_v targets,
     // Encode target
     r = &kv_A(targets, j);
     aln_t aln =
-      align_read_against_one(r, read_len, read_num, &qry, conf, min_score, read->name.s);
+      align_read_against_one(r, read_len, read_num, &qry, conf, min_score);
     if (aln.cigar != NULL) {
       max_score = aln.loc.score > max_score ? aln.loc.score : max_score;
       min_score = (aln.loc.score - conf->max_drop) > min_score
@@ -284,7 +288,7 @@ static aln_v align_read(const kseq_t *read, const kseq_v targets,
       for (size_t j = 0; j < kv_size(extra_targets[idx]); j++) {
         r = &kv_A(extra_targets[idx], j);
         aln_t aln = align_read_against_one(r, read_len_trunc, read_num_trunc,
-                                           &qry, conf, min_score, read->name.s);
+                                           &qry, conf, min_score);
 
         if (aln.cigar != NULL) {
           min_score = (aln.loc.score - conf->max_drop) > min_score
@@ -327,11 +331,11 @@ static void write_sam_records(kstring_t *str, const kseq_t *read,
              40);                                              /* MAPQ */
     if (a.loc.qb)
       ksprintf(str, "%dS", a.loc.qb);
-    /* size_t total_cigar_length = a.loc.qb; */
+    size_t cigar_length = 0;
     for (int c = 0; c < a.n_cigar; c++) {
       int32_t letter = 0xf & *(a.cigar + c);
       int32_t length = (0xfffffff0 & *(a.cigar + c)) >> 4;
-      /* total_cigar_length += length; */
+      cigar_length += length;
       ksprintf(str, "%d", length);
       if (letter == 0)
         ksprintf(str, "M");
@@ -340,11 +344,11 @@ static void write_sam_records(kstring_t *str, const kseq_t *read,
       else
         ksprintf(str, "D");
     }
-    /* total_cigar_length += read->seq.l - a.loc.qe - 1; */
-    /* if(read->seq.l != total_cigar_length) { */
-    /*   printf("[ig_align] Error: cigar length (score %d) not equal to read length for query %s: %zu vs %zu (skipping entire query)\n", a.loc.score, read->name.s, total_cigar_length, read->seq.l); */
-    /*   assert(0); */
-    /* } */
+    size_t total_cigar_length = a.loc.qb + cigar_length + read->seq.l - a.loc.qe - 1;
+    if(read->seq.l != total_cigar_length) {
+      printf("[ig_align] Error: cigar length (score %d) not equal to read length for query %s: qb %d  cigar %zu  qe %d   total cigar %zu   readl %zu\n", a.loc.score, read->name.s, a.loc.qb, cigar_length, a.loc.qe, total_cigar_length, read->seq.l);
+      assert(0);  // shouldn't get to here any more, because we set score to zero if they're different lengths in align_read_against_one()
+    }
 
     if (a.loc.qe + 1 != (int)read->seq.l)
       ksprintf(str, "%luS", read->seq.l - a.loc.qe - 1);
