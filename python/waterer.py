@@ -528,7 +528,7 @@ class Waterer(object):
             qinfo['qrbounds'][gene] = qrbounds
             qinfo['glbounds'][gene] = glbounds
 
-        if self.args.chain != 'h':
+        if self.args.chain != 'h' and len(qinfo['matches']['v']) > 0:
             _, first_v_match = qinfo['matches']['v'][0]
             self.add_dummy_d_match(qinfo, first_v_qr_end=qinfo['qrbounds'][first_v_match][1])
 
