@@ -62,6 +62,7 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, s
             raise Exception('couldn\'t handle file extension for %s' % infname)
         reader = []
         n_fasta_queries = 0
+        already_printed_forbidden_character_warning = False
         for seq_record in SeqIO.parse(infname, ftype):
 
             # if command line specified query or reco ids, skip other ones (can't have/don't allow simulation info in a fast[aq])
@@ -69,7 +70,15 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, s
                 continue
 
             reader.append({})
-            reader[-1]['unique_ids'] = seq_record.name
+
+            uid = seq_record.name
+            if any(fc in uid for fc in utils.forbidden_characters):
+                if not already_printed_forbidden_character_warning:
+                    print '  %s: found a forbidden character (one of %s) in sequence id \'%s\'. This means we\'ll be replacing each of these forbidden characters with a single letter from their name (in this case %s). If this will cause problems you should replace the characters with something else beforehand.' % (utils.color('yellow', 'warning'), ' '.join(["'" + fc + "'" for fc in utils.forbidden_characters]), uid, uid.translate(utils.forbidden_character_translations))
+                    already_printed_forbidden_character_warning = True
+                uid = uid.translate(utils.forbidden_character_translations)
+
+            reader[-1]['unique_ids'] = uid
             reader[-1]['input_seqs'] = str(seq_record.seq).upper()
             n_fasta_queries += 1
             if n_max_queries > 0 and n_fasta_queries >= n_max_queries:
@@ -79,7 +88,7 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, s
     reco_info = None
     if not is_data:
         reco_info = OrderedDict()
-    already_printed_forbidden_character_warning = False
+    # already_printed_forbidden_character_warning = False
     n_queries_added = 0
     found_seed = False
     used_names = set()  # for abbreviating
@@ -115,11 +124,12 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, s
         uid = line['unique_ids'][0]
         inseq = line['input_seqs'][0]
 
-        if any(fc in uid for fc in utils.forbidden_characters):
-            if not already_printed_forbidden_character_warning:
-                print '  %s: found a forbidden character (one of %s) in sequence id \'%s\'. This means we\'ll be replacing each of these forbidden characters with a single letter from their name (in this case %s). If this will cause problems you should replace the characters with something else beforehand.' % (utils.color('yellow', 'warning'), ' '.join(["'" + fc + "'" for fc in utils.forbidden_characters]), uid, uid.translate(utils.forbidden_character_translations))
-                already_printed_forbidden_character_warning = True
-            uid = uid.translate(utils.forbidden_character_translations)
+        # NOTE I just moved this to the .fa loop, since otherwise we have no way of knowing how to interpret special characters... nevertheless if someone passesin a csv with special characters as part of a uid this will break
+        # if any(fc in uid for fc in utils.forbidden_characters):
+        #     if not already_printed_forbidden_character_warning:
+        #         print '  %s: found a forbidden character (one of %s) in sequence id \'%s\'. This means we\'ll be replacing each of these forbidden characters with a single letter from their name (in this case %s). If this will cause problems you should replace the characters with something else beforehand.' % (utils.color('yellow', 'warning'), ' '.join(["'" + fc + "'" for fc in utils.forbidden_characters]), uid, uid.translate(utils.forbidden_character_translations))
+        #         already_printed_forbidden_character_warning = True
+        #     uid = uid.translate(utils.forbidden_character_translations)
         if args is not None:
             if args.abbreviate:  # note that this changes <uid>, but doesn't modify <line>
                 uid = abbreviate(used_names, potential_names, uid)

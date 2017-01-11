@@ -63,33 +63,15 @@
 #    - multi-hmm (mebbe annotation accuracy on final clusters?)
 
 # allele finding/germline set generation:
-#  - separate dir with plots (and html) for called new alleles
-#  - consistency/correlation between positions: require bin contents of each bin to be roughly equal (i.e. if this is really a new allele, all the snps should damn well be in most the same sequences [only exception is mutated reversion])
-#  - clonal representative printing should be per-gene
-#  - I think I need to/can get away with requring that all the ratio components among the snp candidates are roughly similar (i.e. if one is 3.2 / 0.8, they should all be kinda close to 3 and 1)
-            # collapse should
-            #  - needs to exclude the exclusions
-            #  - just make sure the fwk insertions aren't in the naive sequences to start with and, like, ever -- it doesn't make much sense, anyway
-            #  - happen after trimmming (?)
-            #  - happen on a per-v-gene basis (?)
-            #  - keep more than one sequence per "clone" (probably the ones that share the fewest mutations)
-#  - for new alleles that are clearly homozygous (i.e. fit is flat and near 1.) we should probably remove the old allele
+#  - for new alleles that are clearly homozygous (i.e. fit is flat and near 1.) we should maybe remove the old allele
 #  - I don't think there's a reason in principle, at least for 1 snp, why we can't allow more than one new allele for that isnp
-#  - see if you can get away with allele-remover going down to one allele per gene (this'd be nice because you'd be much, much less likely to get spurious alleles)
 #  - maybe increase self.fraction_of_seqs_to_exclude?
-#  - not getting fits on plots if there's more than one new allele
-#  - probably need to go back to requiring before-slope is smaller than after-slope, at least for smaller n-snps (or at least not a lot bigger?) [getting apparent false-positives in laura-mb A-igm]
 #  - all alleles (including new ones) should have roughly the same mut freq distribution (especially at low mutation)'
-#  - maybe remove bounds for as many fits as you can (i.e. don't pass bounds keyword to curvefit)
-#  - finish switch from fitfo to self.fitfos'
 #  - try trevor's k-means-style-ish clustering idea
-#  - make sure allele finding can't add the same sequence coming from different alleles
-#  - maybe:
-#    - y-icpt (i.e. allele prevalence) could also go into the decision about whether to remove the template gene or not'
-#    - add requirement that all positions in multiple-snp alleles are correlated (?)'
-#    - do all the plots separately for each potential original snp base (i.e. separate plot for A, C, G, T)?'
-#    - add requirement for mulitple j genes for new alleles (?)'
-#    - increase n_max_mutations_per_segment for highly-mutated repertoires (?)'
+#  - make sure allele finding can't add the same sequence coming from different alleles (update: maybe this is already done?)
+#  - do all the plots separately for each potential original snp base (i.e. separate plot for A, C, G, T)?'
+#  - add requirement for mulitple j genes for new alleles (?)'
+#  - increase n_max_mutations_per_segment for highly-mutated repertoires (?)'
 
 # optimization
 #  - could speed up mutefreqer increment if there was only one call to utils get mute freq stuff
