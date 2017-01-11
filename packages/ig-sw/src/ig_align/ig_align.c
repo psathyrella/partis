@@ -330,7 +330,7 @@ static void write_sam_records(kstring_t *str, const kseq_t *read,
     if (i == 0)
       tmp_aln = &a;
 
-    kstring_t tmpstr = {0, 0, NULL};  // temporary, so we can 
+    kstring_t tmpstr = {0, 0, NULL};  // temporary, so we can avoid writing to <str> until we know if the cigar and read are the same length
     ksprintf(&tmpstr, "%s\t%d\t", read->name.s, !wrote_primary_stuff ? 0 : 256); /* Secondary */
     ksprintf(&tmpstr, "%s\t%d\t%d\t", a.target_name,               /* Reference */
              a.loc.tb + 1,                                     /* POS */

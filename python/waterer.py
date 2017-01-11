@@ -379,7 +379,6 @@ class Waterer(object):
 
         not_read = self.remaining_queries - queries_read_from_file
         if len(not_read) > 0:  # ig-sw (now) doesn't write matches for cases in which cigar and read length differ, which means there are now queries for which it finds zero matches (well, it didn't seem to happen before... but not sure that it couldn't have)
-            # raise Exception('didn\'t read %s from %s' % (' '.join(not_read), self.args.workdir))
             print '\n%s didn\'t read %s from %s' % (utils.color('red', 'warning'), ' '.join(not_read), self.args.workdir)
 
         if len(self.remaining_queries) > 0:
