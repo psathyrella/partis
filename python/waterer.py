@@ -10,6 +10,7 @@ import pysam
 import contextlib
 from collections import OrderedDict
 import csv
+import subprocess
 
 import utils
 import glutils
@@ -308,6 +309,47 @@ class Waterer(object):
         cmd_str += ' ' + workdir + '/' + base_infname + ' ' + workdir + '/' + base_outfname
         return cmd_str
 
+    # # ----------------------------------------------------------------------------------------
+    # # NOTE wrote this as a way to remove the ig-sw matches with different cigar and read lengths. It works fine, except the fact we have to do all this string parsing means it's really too slow
+    # def remove_length_discrepant_matches(self, samfname):
+    #     start = time.time()
+    #     # Remove matches for which cigar and query are different length (in all checked cases, cigar was the party at fault).
+    #     # Have to rewrite the stupid file on disk because pysam doesn't seem to be able to not crash when it encounters the offending match, and ig-sw (well, klib: https://github.com/attractivechaos/klib) is too obfuscated to make fixing it there a good use of time, at least a.t.m.
+    #     sam_headers = ('QNAME', 'FLAG', 'RNAME', 'POS', 'MAPQ', 'CIGAR', 'MRNM/RNEXT', 'MPOS/PNEXT', 'ISIZE/TLEN', 'SEQ', 'QUAL', 'TAGs', 'wtf')  # what kind of loser puts their headers in their tsv file, anyway?
+    #     def lget(llist, sname):
+    #         return llist[sam_headers.index(sname)]
+
+    #     with open(samfname + '.tmp', 'w') as tmpfile:
+    #         with open(samfname) as samfile:
+    #             seqstr = None
+    #             missing_primary = False
+    #             for line in samfile:
+    #                 if line[0] != '@':
+    #                     linelist = line.strip().split()
+    #                     if len(linelist) != len(sam_headers):
+    #                         raise Exception('sam file line (len %d) in %s doesn\'t correspond to known headers (len %d):\n%s\n\n%s' % (len(linelist), samfname, len(sam_headers), '\n'.join(linelist), '\n'.join(sam_headers)))
+    #                     cigarstr = lget(linelist, 'CIGAR')
+    #                     cigarlen = sum([int(l) for l in re.findall('[0-9][0-9]*', cigarstr)])
+    #                     if lget(linelist, 'FLAG') == '0':
+    #                         assert seqstr != '*'
+    #                         seqstr = lget(linelist, 'SEQ')
+    #                     else:
+    #                         assert lget(linelist, 'SEQ')
+    #                     assert seqstr is not None
+    #                     if cigarlen != len(seqstr):
+    #                         if lget(linelist, 'FLAG') == '0':
+    #                             missing_primary = True  # this is the first line, so we're removing the only one with the sequence, so we need to convert the first one that's ok to a primary
+    #                         continue
+    #                 if missing_primary:
+    #                     iflag = sam_headers.index('FLAG')
+    #                     iseq = sam_headers.index('SEQ')
+    #                     linelist = linelist[:iflag] + ['0'] + linelist[iflag + 1 : iseq] + [seqstr] + linelist[iseq + 1:]
+    #                     line = '\t'.join(linelist) + '\n'
+    #                     missing_primary = False
+    #                 tmpfile.write(line)
+    #     subprocess.check_call(['mv', samfname + '.tmp', samfname])
+    #     print '        time to rewrite same file: %.2f' % (time.time() - start)
+
     # ----------------------------------------------------------------------------------------
     def read_output(self, base_outfname, n_procs=1):
         start = time.time()
@@ -323,6 +365,7 @@ class Waterer(object):
         queries_read_from_file = set()  # should be able to remove this, eventually
         for iproc in range(n_procs):
             outfname = self.subworkdir(iproc, n_procs) + '/' + base_outfname
+            # self.remove_length_discrepant_matches(outfname)
             with contextlib.closing(pysam.Samfile(outfname)) as sam:  # changed bam to sam because ig-sw outputs sam files
                 grouped = itertools.groupby(iter(sam), operator.attrgetter('qname'))
                 for _, reads in grouped:  # loop over query sequences
@@ -335,12 +378,10 @@ class Waterer(object):
                     queries_read_from_file.add(qinfo['name'])
 
         not_read = self.remaining_queries - queries_read_from_file
-        if len(not_read) > 0:
-            raise Exception('didn\'t read %s from %s' % (' '.join(not_read), self.args.workdir))
+        if len(not_read) > 0:  # ig-sw (now) doesn't write matches for cases in which cigar and read length differ, which means there are now queries for which it finds zero matches (well, it didn't seem to happen before... but not sure that it couldn't have)
+            # raise Exception('didn\'t read %s from %s' % (' '.join(not_read), self.args.workdir))
+            print '\n%s didn\'t read %s from %s' % (utils.color('red', 'warning'), ' '.join(not_read), self.args.workdir)
 
-        # if self.nth_try == 1:
-        #     print '  %4s  processed       remaining      new-indels          rerun: %s' % ('summary:' if self.debug else '', '      '.join([reason for reason in queries_to_rerun]))
-        # print '  %4s%8d' % ('summary:' if self.debug else '', len(queries_read_from_file)),
         if len(self.remaining_queries) > 0:
             printstr = '       %8d' % len(self.remaining_queries)
             printstr += '       %8d' % self.new_indels
@@ -349,20 +390,17 @@ class Waterer(object):
             for reason in queries_to_rerun:
                 printstr += '        %8d' % len(queries_to_rerun[reason])
                 n_to_rerun += len(queries_to_rerun[reason])
-            # print printstr,
-            if n_to_rerun + self.new_indels != len(self.remaining_queries):
-                # print ''
-                raise Exception('numbers don\'t add up in sw output reader (n_to_rerun + new_indels != remaining_queries): %d + %d != %d   (look in %s)' % (n_to_rerun, self.new_indels, len(self.remaining_queries), self.args.workdir))
+            if n_to_rerun + self.new_indels + len(not_read) != len(self.remaining_queries):
+                raise Exception('numbers don\'t add up in sw output reader (n_to_rerun + new_indels + (n missing from sam file) != remaining_queries): %d + %d + %d = %d != %d   (look in %s)'
+                                % (n_to_rerun, self.new_indels, len(not_read),
+                                   n_to_rerun + self.new_indels + len(not_read),
+                                   len(self.remaining_queries), self.args.workdir))
             if self.nth_try < 2 or self.new_indels == 0:  # increase the mismatch score if it's the first try, or if there's no new indels
-                # print '            increasing mismatch score (%d --> %d) and rerunning them' % (self.match_mismatch[1], self.match_mismatch[1] + 1)
                 self.match_mismatch[1] += 1
             elif self.new_indels > 0:  # if there were some indels, rerun with the same parameters (but when the input is written the indel will be "reversed' in the sequences that's passed to ighutil)
-                # print '            rerunning for indels'
                 self.new_indels = 0
             else:  # shouldn't get here
                 assert False
-        else:
-            pass # print '        all done'
 
         for iproc in range(n_procs):
             workdir = self.subworkdir(iproc, n_procs)

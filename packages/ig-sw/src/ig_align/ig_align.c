@@ -323,45 +323,64 @@ static void write_sam_records(kstring_t *str, const kseq_t *read,
     return;
 
   /* Alignments are sorted by decreasing score */
+  bool wrote_primary_stuff = false;  // can't any more use i==0 criterion, since the first match may be one with discordant cigar and read lengths
+  aln_t *tmp_aln = NULL;  // pointer to first alignment, so we can write a sensible target name to the dummy line
   for (size_t i = 0; i < kv_size(result); i++) {
     aln_t a = kv_A(result, i);
+    if (i == 0)
+      tmp_aln = &a;
 
-    ksprintf(str, "%s\t%d\t", read->name.s, i == 0 ? 0 : 256); /* Secondary */
-    ksprintf(str, "%s\t%d\t%d\t", a.target_name,               /* Reference */
+    kstring_t tmpstr = {0, 0, NULL};  // temporary, so we can 
+    ksprintf(&tmpstr, "%s\t%d\t", read->name.s, !wrote_primary_stuff ? 0 : 256); /* Secondary */
+    ksprintf(&tmpstr, "%s\t%d\t%d\t", a.target_name,               /* Reference */
              a.loc.tb + 1,                                     /* POS */
              40);                                              /* MAPQ */
     if (a.loc.qb)
-      ksprintf(str, "%dS", a.loc.qb);
-    /* size_t cigar_length = 0; */
+      ksprintf(&tmpstr, "%dS", a.loc.qb);
+    size_t cigar_length = 0;
     for (int c = 0; c < a.n_cigar; c++) {
       int32_t letter = 0xf & *(a.cigar + c);
       int32_t length = (0xfffffff0 & *(a.cigar + c)) >> 4;
-      /* cigar_length += length; */
-      ksprintf(str, "%d", length);
+      cigar_length += length;
+      ksprintf(&tmpstr, "%d", length);
       if (letter == 0)
-        ksprintf(str, "M");
+        ksprintf(&tmpstr, "M");
       else if (letter == 1)
-        ksprintf(str, "I");
+        ksprintf(&tmpstr, "I");
       else
-        ksprintf(str, "D");
+        ksprintf(&tmpstr, "D");
     }
-    /* size_t total_cigar_length = a.loc.qb + cigar_length + read->seq.l - a.loc.qe - 1; */
-    /* if(read->seq.l != total_cigar_length) { */
-    /*   printf("[ig_align] Error: cigar length (score %d) not equal to read length for query %s: qb %d  cigar %zu  qe %d   total cigar %zu   readl %zu\n", a.loc.score, read->name.s, a.loc.qb, cigar_length, a.loc.qe, total_cigar_length, read->seq.l); */
-    /*   assert(0);  // shouldn't get to here any more, because we set score to zero if they're different lengths in align_read_against_one() */
-    /* } */
+    size_t total_cigar_length = a.loc.qb + cigar_length + read->seq.l - a.loc.qe - 1;
+    if(read->seq.l != total_cigar_length) {
+      continue;
+      /* printf("[ig_align] Error: cigar length (score %d) not equal to read length for query %s: qb %d  cigar %zu  qe %d   total cigar %zu   readl %zu\n", a.loc.score, read->name.s, a.loc.qb, cigar_length, a.loc.qe, total_cigar_length, read->seq.l); */
+      /* assert(0);  // shouldn't get to here any more, because we set score to zero if they're different lengths in align_read_against_one() */
+      /* a.loc.score = 0.; */
+      // maybe just set score to zero and hack/fix cigar so it's the right length?
+    }
+
+    ksprintf(str, "%s", tmpstr.s);
 
     if (a.loc.qe + 1 != (int)read->seq.l)
       ksprintf(str, "%luS", read->seq.l - a.loc.qe - 1);
 
     ksprintf(str, "\t*\t0\t0\t");
-    ksprintf(str, "%s\t", i > 0 ? "*" : read->seq.s);
-    if (read->qual.s && i == 0)
+    ksprintf(str, "%s\t", wrote_primary_stuff ? "*" : read->seq.s);
+    if (read->qual.s && !wrote_primary_stuff)
       ksprintf(str, "%s", read->qual.s);
     else
       ksprintf(str, "*");
 
     ksprintf(str, "\tAS:i:%d\tNM:i:%d", a.loc.score, a.nm);
+    if (read_group_id)
+      ksprintf(str, "\tRG:Z:%s", read_group_id);
+    kputs("\n", str);
+    wrote_primary_stuff = true;
+  }
+
+  if (!wrote_primary_stuff) {  // no matches whatsoever made it through (probably due to lots of cigar/read length discrepancies) -- write a dummy line so the code reading it knows we didn't just lose the query
+    ksprintf(str, "%s\t%d\t%s\t%d\t%d\t%dS\t*\t0\t0\t%s\t*\tAS:i:%d\tNM:i:%d",
+	     read->name.s, 0, tmp_aln ? tmp_aln->target_name : "xxx", 1, 999, (int)read->seq.l, read->seq.s, 0, 0);
     if (read_group_id)
       ksprintf(str, "\tRG:Z:%s", read_group_id);
     kputs("\n", str);
