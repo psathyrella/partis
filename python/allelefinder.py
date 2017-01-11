@@ -936,7 +936,7 @@ class AlleleFinder(object):
         else:
             def keyfunc(q):
                 return swfo[q]['naive_seq']  # need to use the swfo naive seq, because the whole point is to use the cdr3 region to distinguish clones
-            clusters = [list(group) for _, group in itertools.groupby(sorted(queries_to_use, key=keyfunc), key=keyfunc)]
+            clusters = [list(group) for _, group in itertools.groupby(sorted(queries_to_use, key=keyfunc), key=keyfunc)]  # NOTE there is also a function in utils to collapse clones, but it does some hash stuff that is used by vsearch partitioning
         for cluster in clusters:
             for qchosen in self.choose_cluster_representatives(swfo, cluster):
                 self.increment_query(qchosen, swfo[qchosen][self.region + '_gene'])
