@@ -1047,7 +1047,7 @@ class Waterer(object):
         for igene in range(n_d_genes):
             _, gene = qinfo['matches'][tmpreg][igene]
             this_k_d = qinfo['qrbounds'][gene][1] - qinfo['qrbounds'][best['v']][1]  # end of d minus end of first/best v
-            k_d_min = min(this_k_d, k_d_min)
+            k_d_min = min(max(1, this_k_d), k_d_min)
             k_d_max = max(this_k_d, k_d_max)
             if debug:
                 print '    %s %d %d' % (utils.color_gene(gene, width=15), k_d_min, k_d_max)
