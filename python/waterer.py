@@ -1005,7 +1005,7 @@ class Waterer(object):
         qrseq, glseq = line['d_qr_seqs'][0], line['d_gl_seq']
         d_start = line['regional_bounds']['d'][0]
         icheck = k_d_min  # <icheck> is what we're considering changing k_d_min to
-        while k_v_max + icheck > d_start:
+        while icheck > d_start - k_v_max + 1:
             icheck -= 1
             if debug:
                 print '    check %d' % icheck
