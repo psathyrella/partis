@@ -16,10 +16,10 @@ class MuteFreqer(object):
 
         self.counts, self.freqs = {}, {}  # per-gene, per-position counts/rates
         self.n_bins, self.xmin, self.xmax = 40, 0., 0.4
-        self.mean_rates = {n : Hist(self.n_bins, self.xmin, self.xmax, xtitle='mut freq', ytitle='freq', title=n.upper() if n in utils.regions else 'full seq')
-                           for n in ['all', ] + utils.regions}
-        self.mean_n_muted = {n : Hist(30, -0.5, 29.5, xtitle='n mutated', ytitle='counts', title=n.upper() if n in utils.regions else 'full seq')
-                             for n in ['all', ] + utils.regions}
+        self.mean_rates = {n : Hist(self.n_bins, self.xmin, self.xmax, xtitle='mut freq', ytitle='freq', title='full seq' if n == 'all' else n.upper())
+                           for n in ['all', 'cdr3'] + utils.regions}  # kind of annoying that it's 'all' here, but '' in plotconfig.rstrings (and therefore in performanceplotter) but it's too much trouble to change to '' here
+        self.mean_n_muted = {n : Hist(30, -0.5, 29.5, xtitle='n mutated', ytitle='counts', title='full seq' if n == 'all' else n.upper())
+                             for n in ['all', 'cdr3'] + utils.regions}
         self.per_gene_mean_rates = {}
 
         self.finalized = False
@@ -29,14 +29,19 @@ class MuteFreqer(object):
 
     # ----------------------------------------------------------------------------------------
     def increment(self, info, iseq):
-        self.mean_rates['all'].fill(utils.get_mutation_rate(info, iseq))  # mean freq over whole sequence (excluding insertions)
-        self.mean_n_muted['all'].fill(utils.get_n_muted(info, iseq))
+        n_muted, freq = utils.get_n_muted_and_mutation_rate(info, iseq)
+        self.mean_rates['all'].fill(freq)  # mean freq over whole sequence (excluding insertions)
+        self.mean_n_muted['all'].fill(n_muted)
+
+        n_muted, freq = utils.get_n_muted_and_mutation_rate(info, iseq, restrict_to_region='cdr3')
+        self.mean_rates['cdr3'].fill(freq)
+        self.mean_n_muted['cdr3'].fill(n_muted)
 
         for region in utils.regions:
             # first do mean freqs
-            regional_freq = utils.get_mutation_rate(info, iseq, restrict_to_region=region)  # NOTE It might really make more sense to exclude the last few bases next to NTIs here, like I do in allelefinder
+            regional_n_muted, regional_freq = utils.get_n_muted_and_mutation_rate(info, iseq, restrict_to_region=region)  # NOTE It might really make more sense to exclude the last few bases next to NTIs here, like I do in allelefinder
             self.mean_rates[region].fill(regional_freq)  # per-region mean freq
-            self.mean_n_muted[region].fill(utils.get_n_muted(info, iseq, restrict_to_region=region))
+            self.mean_n_muted[region].fill(regional_n_muted)
 
             # then do per-gene and per-gene, per-position freqs
             gene = info[region + '_gene']
@@ -44,8 +49,6 @@ class MuteFreqer(object):
                 self.counts[gene] = {}
                 self.per_gene_mean_rates[gene] = Hist(self.n_bins, self.xmin, self.xmax, xtitle='mut freq', ytitle='freq', title=gene)
             self.per_gene_mean_rates[gene].fill(regional_freq)
-            if gene == 'IGHV1-69*14':
-                self.per_gene_mean_rates[gene].fill(0.7)
 
             gcts = self.counts[gene]  # shorthand name
 
@@ -153,11 +156,13 @@ class MuteFreqer(object):
             # paramutils.make_mutefreq_plot(plotdir + '/' + utils.get_region(gene) + '-per-base', utils.sanitize_name(gene), plotting_info)  # needs translation to mpl UPDATE fcn is fixed, but I can't be bothered uncommenting this at the moment
 
         # make mean mute freq hists
-        plotting.draw_no_root(self.mean_rates['all'], plotname='all_mean-freq', plotdir=overall_plotdir, stats='mean', bounds=(0.0, 0.4), write_csv=True, only_csv=only_csv, shift_overflows=True)
-        plotting.draw_no_root(self.mean_n_muted['all'], plotname='all_mean-n-muted', plotdir=overall_plotdir, stats='mean', write_csv=True, only_csv=only_csv, shift_overflows=True)
-        for region in utils.regions:
-            plotting.draw_no_root(self.mean_rates[region], plotname=region+'_mean-freq', plotdir=overall_plotdir, stats='mean', bounds=(0.0, 0.6 if region == 'd' else 0.4), write_csv=True, only_csv=only_csv, shift_overflows=True)
-            plotting.draw_no_root(self.mean_n_muted[region], plotname=region+'_mean-n-muted', plotdir=overall_plotdir, stats='mean', write_csv=True, only_csv=only_csv, shift_overflows=True)
+        for rstr in ['all', 'cdr3'] + utils.regions:
+            if rstr == 'all':
+                bounds = (0.0, 0.4)
+            else:
+                bounds = (0.0, 0.6 if rstr == 'd' else 0.4)
+            plotting.draw_no_root(self.mean_rates[rstr], plotname=rstr+'_mean-freq', plotdir=overall_plotdir, stats='mean', bounds=bounds, write_csv=True, only_csv=only_csv, shift_overflows=True)
+            plotting.draw_no_root(self.mean_n_muted[rstr], plotname=rstr+'_mean-n-muted', plotdir=overall_plotdir, stats='mean', write_csv=True, only_csv=only_csv, shift_overflows=True)
 
         if not only_csv:  # write html file and fix permissiions
             for substr in self.subplotdirs:
