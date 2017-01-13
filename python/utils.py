@@ -1520,12 +1520,17 @@ def hamming_distance(seq1, seq2, extra_bases=None, return_len_excluding_ambig=Fa
     #     return sum(ch1 != ch2 for ch1, ch2 in zip(seq1, seq2) if ambig_base not in ch1 + ch2)
 
 # ----------------------------------------------------------------------------------------
-def hamming_fraction(seq1, seq2, extra_bases=None):
+def hamming_fraction(seq1, seq2, extra_bases=None, also_return_distance=False):
     distance, len_excluding_ambig = hamming_distance(seq1, seq2, extra_bases=extra_bases, return_len_excluding_ambig=True)
+
     fraction = 0.
     if len_excluding_ambig > 0:
         fraction = distance / float(len_excluding_ambig)
-    return fraction
+
+    if also_return_distance:
+        return fraction, distance
+    else:
+        return fraction
 
 # ----------------------------------------------------------------------------------------
 def subset_sequences(line, iseq, restrict_to_region):
@@ -1551,6 +1556,12 @@ def get_n_muted(line, iseq, restrict_to_region='', return_mutated_positions=Fals
 def get_mutation_rate(line, iseq, restrict_to_region=''):
     naive_seq, muted_seq = subset_sequences(line, iseq, restrict_to_region)
     return hamming_fraction(naive_seq, muted_seq)
+
+# ----------------------------------------------------------------------------------------
+def get_n_muted_and_mutation_rate(line, iseq, restrict_to_region=''):
+    naive_seq, muted_seq = subset_sequences(line, iseq, restrict_to_region)
+    fraction, distance = hamming_fraction(naive_seq, muted_seq, also_return_distance=True)
+    return fraction, distance
 
 # ----------------------------------------------------------------------------------------
 def get_key(names):
