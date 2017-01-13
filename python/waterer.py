@@ -112,6 +112,10 @@ class Waterer(object):
             for line in reader:
                 utils.process_input_line(line)
                 assert len(line['unique_ids']) == 1
+                if self.args.queries is not None and line['unique_ids'][0] not in self.args.queries:
+                    continue
+                if self.args.reco_ids is not None:
+                    print '%s reco ids not implemented when reading sw cache files' % utils.color('red', 'error')
                 for region in utils.regions:  # uh... should do this more cleanly at some point
                     del line[region + '_per_gene_support']
                 utils.add_implicit_info(self.glfo, line)
