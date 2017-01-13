@@ -1120,7 +1120,7 @@ class PartitionDriver(object):
         combo['seqs'] = [self.sw_info[name]['seqs'][0] for name in query_names]
         combo['mut_freq'] = numpy.mean([utils.hamming_fraction(self.sw_info[name]['naive_seq'], self.sw_info[name]['seqs'][0]) for name in query_names])
         cdr3_lengths = [self.sw_info[name]['cdr3_length'] for name in query_names]
-        if cdr3_lengths.count(cdr3_lengths[0]) == len(cdr3_lengths):
+        if cdr3_lengths.count(cdr3_lengths[0]) != len(cdr3_lengths):
             uids_and_lengths = {q : self.sw_info[q]['cdr3_length'] for q in query_names}
             uids_and_lengths = sorted(uids_and_lengths.items(), key=operator.itemgetter(1))
             uids, lengths = zip(*uids_and_lengths)
