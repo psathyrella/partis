@@ -29,17 +29,17 @@ class MuteFreqer(object):
 
     # ----------------------------------------------------------------------------------------
     def increment(self, info, iseq):
-        n_muted, freq = utils.get_n_muted_and_mutation_rate(info, iseq)
+        freq, n_muted = utils.get_mutation_rate_and_n_muted(info, iseq)
         self.mean_rates['all'].fill(freq)  # mean freq over whole sequence (excluding insertions)
         self.mean_n_muted['all'].fill(n_muted)
 
-        n_muted, freq = utils.get_n_muted_and_mutation_rate(info, iseq, restrict_to_region='cdr3')
+        freq, n_muted = utils.get_mutation_rate_and_n_muted(info, iseq, restrict_to_region='cdr3')
         self.mean_rates['cdr3'].fill(freq)
         self.mean_n_muted['cdr3'].fill(n_muted)
 
         for region in utils.regions:
             # first do mean freqs
-            regional_n_muted, regional_freq = utils.get_n_muted_and_mutation_rate(info, iseq, restrict_to_region=region)  # NOTE It might really make more sense to exclude the last few bases next to NTIs here, like I do in allelefinder
+            regional_freq, regional_n_muted  = utils.get_mutation_rate_and_n_muted(info, iseq, restrict_to_region=region)  # NOTE It might really make more sense to exclude the last few bases next to NTIs here, like I do in allelefinder
             self.mean_rates[region].fill(regional_freq)  # per-region mean freq
             self.mean_n_muted[region].fill(regional_n_muted)
 

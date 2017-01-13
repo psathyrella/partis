@@ -1558,7 +1558,7 @@ def get_mutation_rate(line, iseq, restrict_to_region=''):
     return hamming_fraction(naive_seq, muted_seq)
 
 # ----------------------------------------------------------------------------------------
-def get_n_muted_and_mutation_rate(line, iseq, restrict_to_region=''):
+def get_mutation_rate_and_n_muted(line, iseq, restrict_to_region=''):
     naive_seq, muted_seq = subset_sequences(line, iseq, restrict_to_region)
     fraction, distance = hamming_fraction(naive_seq, muted_seq, also_return_distance=True)
     return fraction, distance
