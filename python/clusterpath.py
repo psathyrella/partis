@@ -144,6 +144,7 @@ class ClusterPath(object):
 
     # ----------------------------------------------------------------------------------------
     def print_partition(self, ip, reco_info=None, extrastr='', abbreviate=True, smc_print=False):
+        #  NOTE it's nicer to *not* sort by cluster size here, since preserving the order tends to frequently make it obvious which clusters are merging as your eye scans downwards through the output
         if ip > 0:  # delta between this logprob and the previous one
             delta_str = '%.1f' % (self.logprobs[ip] - self.logprobs[ip-1])
         else:

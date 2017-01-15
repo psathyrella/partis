@@ -515,6 +515,7 @@ class PartitionDriver(object):
             return
         action_cache = self.current_action
         self.current_action = 'run-viterbi'
+        partition = sorted(partition, key=len, reverse=True)  # as opposed to in clusterpath, where we *don't* want to sort by size, it's nicer to have them sorted by size here, since then as you're scanning down a long list of cluster annotations you know once you get to the singletons you won't be missing something big
         n_procs = min(self.args.n_procs, len(partition))  # we want as many procs as possible, since the large clusters can take a long time (depending on if we're translating...), but in general we treat <self.args.n_procs> as the maximum allowable number of processes
         print '--> getting annotations for final partition'
         self.run_hmm('viterbi', self.sub_param_dir, n_procs=n_procs, partition=partition, read_output=False)  # it would be nice to rearrange <self.read_hmm_output()> so I could remove this option
