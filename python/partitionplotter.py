@@ -19,6 +19,8 @@ class PartitionPlotter(object):
     def get_cdr3_length_classes(self, partition, annotations):
         classes = {}
         for cluster in partition:
+            if ':'.join(cluster) not in annotations:  # i.e. if this cluster's annotation failed in the hmm when getting annotations for the final partition (which is weird, I'm surprised there's messed-up-enough sequences at this stage that that would happen)
+                continue
             info = annotations[':'.join(cluster)]
             if info['cdr3_length'] not in classes:
                 classes[info['cdr3_length']] = []
