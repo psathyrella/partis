@@ -156,7 +156,7 @@ class Waterer(object):
 
         found_germline_changes = False  # set to true if either alremover or alfinder found changes to the germline info
         if self.alremover is not None:
-            self.alremover.finalize(self.pcounter, self.info, debug=self.args.debug_allele_finding)
+            self.alremover.finalize(self.pcounter, self.info, debug=True)
             self.info['genes-to-remove'] = self.alremover.genes_to_remove
             if len(self.info['genes-to-remove']) > 0:
                 found_germline_changes = True
