@@ -1,4 +1,13 @@
 # now
+#  - why does sw cache have indel_reversed_seqs written even if they're the same as input_seqs
+# print_reco_event:
+#  - handle indels within NTIs
+#  - maybe simulation line shouldn't be associated with a particular inferred line (see below)
+#  - fix multiple-indel printing'
+#  - just print the length for large fv/jf insertions
+#  - when printing cluster annotations on simulation, simulation should actually use the true partition, not split according(ish) to the inferred partition
+
+
 #  - automate n-procs, at least for viterbi/parameter caching
 #    - improve n_precache_proc calculator (expecially for large samples)
 #    - auto-set clustering step procs (at least when seed partitioning, since you don't know before you remove other cdr3 lengths how many you'll have)
@@ -12,11 +21,6 @@
 # stop passing ambiguous char to ham both in the yaml and on the command line
 #  - within vs between plots for each cdr3 length
 
-# print_reco_event:
-#  - maybe simulation line shouldn't be associated with a particular inferred line (see below)
-#  - fix multiple-indel printing'
-#  - just print the length for large fv/jf insertions
-#  - when printing cluster annotations on simulation, simulation should actually use the true partition, not split according(ish) to the inferred partition
 
 # fix ham scons test
 # fix waterer debug fails-to-rerun so they all print uid (or just one of them? in any case clean it up)
