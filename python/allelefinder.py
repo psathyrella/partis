@@ -1060,7 +1060,7 @@ class AlleleFinder(object):
                 fitfos = self.get_fitfo_for_plotting(gene, position)
                 plotting.make_allele_finding_plot(plotdir + '/' + utils.sanitize_name(gene), gene, position, self.xyvals[gene][position], xmax=self.args.n_max_mutations_per_segment, fitfos=fitfos)
 
-        plotting.make_html(plotdir, fnames=[newfo['plot-paths'] for newfo in self.inferred_allele_info])
+        plotting.make_html(plotdir, fnames=[newfo['plot-paths'] for newfo in self.inferred_allele_info], title=('itry %d' % self.itry))
 
         check_call(['./bin/permissify-www', plotdir])
         print '(%.1f sec)' % (time.time()-start)
