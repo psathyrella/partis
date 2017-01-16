@@ -456,14 +456,6 @@ class AlleleFinder(object):
                 print '    mean snp ratio %s too small (less than %s)' % (fstr(fitfo['mean_snp_ratios'][istart]), fstr(self.min_mean_candidate_ratio)),
             return False
 
-        # every candidate position needs to have enough mutated counts in the <istart>th bin (this is particularly important (partly) because it's the handle that tells us it's *this* <istart> that's correct, rather than <istart> + 1)
-        for candidate_pos in fitfo['candidates'][istart]:
-            n_istart_muted = self.counts[gene][candidate_pos][istart]['muted']
-            if n_istart_muted < self.n_muted_min_per_bin:
-                if debug:
-                    print '    not enough mutated counts at candidate position %d with %d %s (%d < %d)' % (candidate_pos, istart, utils.plural_str('mutations', n_istart_muted), n_istart_muted, self.n_muted_min_per_bin),
-                return False
-
         # make sure all the snp positions have similar fits (the bin totals for all snp positions should be highly correlated, since they should ~all be present in ~all sequences [that stem from the new allele])
         # NOTE that with multiple multi-snp new alleles that share some, but not all, positions, we don't expect consistency. This is rare enough, though, that it's probably better to require the consistency. They'll still show up in the dbg printing.
         for pos_1, pos_2 in itertools.combinations(fitfo['candidates'][istart], 2):
@@ -664,7 +656,13 @@ class AlleleFinder(object):
             if twofit_residuals_over_ndof > self.max_good_fit_residual:
                 continue
 
+            # need to have enough mutated counts in the <istart>th bin (this is particularly important (partly) because it's the handle that tells us it's *this* <istart> that's correct, rather than <istart> + 1)
+            if self.counts[gene][pos][istart]['muted'] < self.n_muted_min_per_bin:
+                continue
+
             candidate_ratios[pos] = onefit['residuals_over_ndof'] / twofit_residuals_over_ndof if twofit_residuals_over_ndof > 0. else float('inf')
+            if dbg:
+                print '  %5.3f / %5.3f = %5.3f' % (onefit['residuals_over_ndof'], twofit_residuals_over_ndof, candidate_ratios[pos])
             residfo[pos] = {'onefo' : onefit, 'prefo' : prefit, 'postfo' : postfit, 'twofo' : {'residuals_over_ndof' : twofit_residuals_over_ndof}}
             if dbg or candidate_ratios[pos] > self.min_min_candidate_ratio_to_plot:
                 self.positions_to_plot[gene].add(pos)  # if we already decided to plot it for another <istart>, it'll already be in there
