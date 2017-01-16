@@ -848,21 +848,20 @@ def make_html(plotdir, n_columns=3, extension='svg', fnames=None):
     if not os.path.exists(plotdir):
         raise Exception('plotdir %s d.n.e.' % plotdir)
     dirname = os.path.basename(plotdir)
-    lines = ['<!DOCTYPE html', 
-             '    PUBLIC "-//W3C//DTD HTML 3.2//EN">', 
+    lines = ['<!DOCTYPE html>',
              '<html>', 
              '<head><title>foop</title></head>', 
              '<body bgcolor="000000">', 
              '<h3 style="text-align:left; color:DD6600;">foop</h3>', 
              '', 
-             '<table border="0" cellspacing="5" width="100%">', 
+             '<table>',
              '<tr>']
 
     def add_newline(lines):
         lines += ['</tr>', '<tr>']
     def add_fname(lines, fullfname):  # NOTE <fullname> may, or may not, be a base name (i.e. it might have a subdir tacked on the left side)
         fname = fullfname.replace(plotdir, '').lstrip('/')
-        line = '<td width="25%"><a target="_blank" href="' + dirname + '/' + fname + '"><img src="' + dirname + '/' + fname + '" alt="' + dirname + '/' + fname + '" width="100%"></a></td>"'
+        line = '<td><a target="_blank" href="' + dirname + '/' + fname + '"><img src="' + dirname + '/' + fname + '" alt="' + dirname + '/' + fname + '" width="100%"></a></td>'
         lines.append(line)
 
     if fnames is None:
