@@ -56,8 +56,7 @@ class AlleleFinder(object):
         self.min_min_candidate_ratio = 2.25  # every candidate ratio must be greater than this
         self.min_mean_candidate_ratio = 2.75  # mean of candidate ratios must be greater than this
         self.min_bad_fit_residual = 1.8
-        self.max_good_fit_residual = 2.5
-        self.max_ok_fit_residual = 10.
+        self.max_good_fit_residual = 4.5  # this value hasn't gone through a huge amount of testing -- we might be able to get away with having it a good bit smaller than this
         self.max_consistent_candidate_fit_sigma = 4.
 
         self.min_min_candidate_ratio_to_plot = 1.5  # don't plot positions that're below this (for all <istart>)
@@ -620,7 +619,7 @@ class AlleleFinder(object):
             if sum(postvals['obs']) < self.n_muted_min or sum(postvals['total']) < self.n_total_min:
                 continue
 
-            # if the discontinuity is less than <factor> sigma, and the bin totals are closer than <factor> sigma, skip it
+            # if the discontinuity is less than <factor> sigma, and the bin totals are closer than <factor> sigma, skip it (note that the size of the discontinuity tells us about the allele prevalence -- [ie].[eg]. we can be quite confident of a new allele with a small absolute discontinuity)
             if not self.big_discontinuity(bothvals, istart) and not self.very_different_bin_totals(bothvals, istart):
                 continue
 
@@ -661,12 +660,8 @@ class AlleleFinder(object):
             if istart >= self.hard_code_five and prefit['slope'] > postfit['slope']:
                 continue
 
-            # pre-<istart> should actually be a good line, at least for small <istart>
-            if istart < self.hard_code_five and prefit['residuals_over_ndof'] > self.max_good_fit_residual:
-                continue
-
-            # <istart> and above should be a kinda-sort-ok line
-            if postfit['residuals_over_ndof'] > self.max_ok_fit_residual:
+            # make sure two-piece fit is at least ok
+            if twofit_residuals_over_ndof > self.max_good_fit_residual:
                 continue
 
             candidate_ratios[pos] = onefit['residuals_over_ndof'] / twofit_residuals_over_ndof if twofit_residuals_over_ndof > 0. else float('inf')
