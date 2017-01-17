@@ -1128,11 +1128,26 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def remove_duplicate_sequences(self, debug=False):
+        # ----------------------------------------------------------------------------------------
         def getseq(uid):
             return_seq = utils.get_seq_with_indels_reinstated(self.info[uid])
-            # if return_seq not in self.input_info[uid]['seqs'][0]:
+            # if return_seq not in self.input_info[uid]['seqs'][0]:  # make sure we reinstated the indels properly
             #     print '%s reinstated seq not in input sequence:\n    %s\n    %s' % (utils.color('yellow', 'warning'), reinstated_seq, self.input_info[uid]['seqs'][0])
             return return_seq
+        # ----------------------------------------------------------------------------------------
+        def get_key_seq(uid):  # return the sequence which will serve as the key for <uid>
+            seq = getseq(uid)
+            if not self.args.also_remove_duplicate_sequences_with_different_lengths:  # this is probably significantly slower, otherwise I might make it the default
+                return seq
+            else:
+                for kseq, kuids in seqs_to_keep.items():
+                    if self.info[kuids[0]]['cdr3_length'] != self.info[uid]['cdr3_length']:
+                        continue
+                    if seq in kseq or kseq in seq:  # note that this keeps the first one we happen to come across -- it'd be better to keep the longest one, but this is fine for now
+                        if debug:
+                            print '      using keyseq from %s instead of %s' % (kuids, uid)
+                        return kseq
+                return seq  # if we fall through, it didn't match anybody
 
         uids_to_pre_keep = set()  # add these uids/seqs before looping through all the queries
         if self.args.seed_unique_id is not None:
@@ -1140,28 +1155,42 @@ class Waterer(object):
         if self.args.queries is not None:
             uids_to_pre_keep |= set(self.args.queries)
 
+        if debug and len(uids_to_pre_keep) > 0:
+            print 'pre-keeping %s' % ' '.join(uids_to_pre_keep)
+            print '  checking pre-keepers'
         seqs_to_keep = {}  # seq : [uids that correspond to seq]
         for utpk in uids_to_pre_keep:
             if utpk not in self.info:
                 print 'requested uid %s not in sw info (probably failed above)' % utpk
                 continue
-            seq = getseq(utpk)
-            if seq not in seqs_to_keep:  # NOTE it's kind of weird to have more than one uid for a sequence, but it probably just means the user specified some duplicate sequences with --queries
-                seqs_to_keep[seq] = []
-            seqs_to_keep[seq].append(utpk)
+            keyseq = get_key_seq(utpk)
+            if keyseq not in seqs_to_keep:  # NOTE it's kind of weird to have more than one uid for a sequence, but it probably just means the user specified some duplicate sequences with --queries
+                seqs_to_keep[keyseq] = []
+                if debug:
+                    print '      new key for %s' % utpk
+            seqs_to_keep[keyseq].append(utpk)
+            if debug:
+                if len(seqs_to_keep[keyseq]) > 1:
+                    print '    add to existing key: %s' % ' '.join(seqs_to_keep[keyseq])
 
+        if debug:
+            print '  checking non-pre-kept'
         n_kept, n_removed = len(uids_to_pre_keep), 0
-        for query in copy.deepcopy(self.info['queries']):
-            if query in uids_to_pre_keep:
+        for uid in copy.deepcopy(self.info['queries']):
+            if uid in uids_to_pre_keep:
                 continue
-            seq = getseq(query)
-            if seq in seqs_to_keep:
-                seqs_to_keep[seq].append(query)
-                self.remove_query(query)
+            keyseq = get_key_seq(uid)
+            if keyseq in seqs_to_keep:
+                seqs_to_keep[keyseq].append(uid)
+                self.remove_query(uid)
                 n_removed += 1
+                if debug:
+                    print '    removing %s' % uid
             else:
-                seqs_to_keep[seq] = [query]
+                seqs_to_keep[keyseq] = [uid]
                 n_kept += 1
+                if debug:
+                    print '    new key for %s' % uid
 
         for seq, uids in seqs_to_keep.items():
             assert uids[0] in self.info  # the first one should've been the one we kept

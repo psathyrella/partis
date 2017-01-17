@@ -288,6 +288,7 @@ parent_parser.add_argument('--write-trimmed-and-padded-seqs-to-sw-cachefname', a
 parent_parser.add_argument('--ig-sw-binary', default=partis_dir + '/packages/ig-sw/src/ig_align/ig-sw', help='Path to ig-sw executable.')
 parent_parser.add_argument('--is-simu', action='store_true', help='Set if running on simulated sequences')
 parent_parser.add_argument('--skip-unproductive', action='store_true', help='Skip sequences which Smith-Waterman determines to be unproductive (i.e. if they have stop codons, out of frame cdr3, or mutated cyst/tryp/phen)')
+parent_parser.add_argument('--also-remove-duplicate-sequences-with-different-lengths', action='store_true', help='By default we remove any queries which have exactly the same sequence as a previous query. If this is set, we also consider as duplicates sequences which are sub/super strings of previous sequences (we keep the longest one).')
 parent_parser.add_argument('--dont-remove-framework-insertions', action='store_true', help='By default we trim anything to the 5\' of V and 3\' of J in order to remove queries with identical coding regions. This turns that off.')
 parent_parser.add_argument('--dont-rescale-emissions', action='store_true', help='Don\'t scale each hmm\'s emission probabilities to account for the branch length of each individual sequence.')
 parent_parser.add_argument('--no-indels', action='store_true', help='Tell smith-waterman not to look for indels, by drastically increasing the gap-open penalty (you can also set the penalty directly).')
