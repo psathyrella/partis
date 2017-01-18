@@ -337,29 +337,27 @@ static void write_sam_records(kstring_t *str, const kseq_t *read,
              40);                                              /* MAPQ */
     if (a.loc.qb)
       ksprintf(&tmpstr, "%dS", a.loc.qb);
-    size_t cigar_length = 0;
+    size_t match_length = 0;
     for (int c = 0; c < a.n_cigar; c++) {
       int32_t letter = 0xf & *(a.cigar + c);
       int32_t length = (0xfffffff0 & *(a.cigar + c)) >> 4;
       ksprintf(&tmpstr, "%d", length);
       if (letter == 0) {
         ksprintf(&tmpstr, "M");
-	cigar_length += length;
+	match_length += length;
       } else if (letter == 1) {
         ksprintf(&tmpstr, "I");
-	cigar_length += length;
+	match_length += length;
       } else {
         ksprintf(&tmpstr, "D");
       }
     }
-    size_t total_cigar_length = a.loc.qb + cigar_length + read->seq.l - a.loc.qe - 1;
-    if(read->seq.l != total_cigar_length) {
+
+    if(a.loc.qe - a.loc.qb != (int)match_length - 1) {
+      fprintf(stderr, "[ig_align] Error: match length mismatch for query %s score %d target %s: qe - qb = %d - %d = %d != match_length - 1 = %zu\n", read->name.s, a.loc.score, a.target_name, a.loc.qe, a.loc.qb, a.loc.qe - a.loc.qb, match_length - 1);
+      fprintf(stderr, "        %s    %s\n", tmpstr.s, read->seq.s);
+      // assert(0);
       continue;
-      /* printf("[ig_align] Error: cigar length (score %d) not equal to read length for query %s: qb %d  cigar %zu  qe %d   total cigar %zu   readl %zu\n", a.loc.score, read->name.s, a.loc.qb, cigar_length, a.loc.qe, total_cigar_length, read->seq.l); */
-      /* assert(0); */
-      /* assert(0);  // shouldn't get to here any more, because we set score to zero if they're different lengths in align_read_against_one() */
-      /* a.loc.score = 0.; */
-      // maybe just set score to zero and hack/fix cigar so it's the right length?
     }
 
     ksprintf(str, "%s", tmpstr.s);

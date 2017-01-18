@@ -1842,7 +1842,7 @@ def process_out_err(out, err, extra_str='', dbgfo=None, logdir=None, debug=None)
         if 'force' in line:
             print '    %s %s' % (color('yellow', 'force info:'), line)
 
-    print_str = ''
+    err_str = ''
     for line in err.split('\n'):
         if 'stty: standard input: Inappropriate ioctl for device' in line:
             continue
@@ -1855,7 +1855,7 @@ def process_out_err(out, err, extra_str='', dbgfo=None, logdir=None, debug=None)
         if '[ig_align] Read' in line or '[ig_align] Aligned' in line:
             continue
         if len(line.strip()) > 0:
-            print_str += line + '\n'
+            err_str += line + '\n'
 
     if dbgfo is not None:  # keep track of how many vtb and fwd calculations the process made
         for header, variables in bcrham_dbgstrs.items():
@@ -1870,18 +1870,19 @@ def process_out_err(out, err, extra_str='', dbgfo=None, logdir=None, debug=None)
                 if var in  words:
                     dbgfo[header][var] = float(words[words.index(var) + 1])
 
-    print_str += out
-
-    if print_str != '' and debug is not None:
+    if debug is None:
+        if err_str != '':
+            print err_str
+    elif err_str + out != '':
         if debug == 'print':
             if extra_str != '':
                 print '      --> proc %s' % extra_str
-            print print_str
+            print err_str + out
         elif debug == 'write':
             logfile = logdir + '/log'
             print 'writing dbg to %s' % logfile
             with open(logfile, 'w') as dbgfile:
-                dbgfile.write(print_str)
+                dbgfile.write(err_str + out)
         else:
             assert False
 
