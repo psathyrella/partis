@@ -352,8 +352,10 @@ static void write_sam_records(kstring_t *str, const kseq_t *read,
     }
     size_t total_cigar_length = a.loc.qb + cigar_length + read->seq.l - a.loc.qe - 1;
     if(read->seq.l != total_cigar_length) {
-      continue;
-      /* printf("[ig_align] Error: cigar length (score %d) not equal to read length for query %s: qb %d  cigar %zu  qe %d   total cigar %zu   readl %zu\n", a.loc.score, read->name.s, a.loc.qb, cigar_length, a.loc.qe, total_cigar_length, read->seq.l); */
+      /* continue; */
+      printf("[ig_align] Error: cigar length (score %d) not equal to read length for query %s: qb %d  cigar %zu  qe %d   total cigar %zu   readl %zu\n", a.loc.score, read->name.s, a.loc.qb, cigar_length, a.loc.qe, total_cigar_length, read->seq.l);
+      assert(0);
+      // god damn it
       /* assert(0);  // shouldn't get to here any more, because we set score to zero if they're different lengths in align_read_against_one() */
       /* a.loc.score = 0.; */
       // maybe just set score to zero and hack/fix cigar so it's the right length?
