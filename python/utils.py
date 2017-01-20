@@ -1032,17 +1032,24 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     Print ascii summary of recombination event and mutation.
     If <one_line>, then skip the germline lines, and only print the final_seq line.
     """
-    line = copy.deepcopy(original_line)  # copy that we can modify without changing <line>
+    # uncomment this, and the block at the end of the fcn, if you want to make sure you're not modifying <line>
+    # line = copy.deepcopy(original_line)  # copy that we can modify without changing <line>
+    line = original_line
 
     lseq = line['seqs'][iseq]
     indelfo = None if line['indelfos'][iseq]['reversed_seq'] == '' else line['indelfos'][iseq]
     reverse_indels = False  # for inferred sequences, we want to un-reverse the indels that we previously reversed in smith-waterman
+
+    # copies so that we don't have to modify <line>
+    lengths = {r : line['lengths'][r] for r in regions}
+    glseqs = {r + '_gl_seq' : line[r + '_gl_seq'] for r in regions}
+
     if indelfo is not None:
         if indelfo['reversed_seq'] == lseq:  # if <line> has the reversed sequence in it, then this is an inferred <line>, i.e. we removed the info, then passed the reversed sequence to the sw/hmm, so we need to reverse the indels now in order to get a sequence with indels in it
             reverse_indels = True
         if len(indelfo['indels']) > 1:
             print '        %s can\'t yet print multiple indels' % color('yellow', 'warning')
-        add_indels_to_germline_strings(line, indelfo)
+        add_indels_to_germline_strings(lengths, glseqs, line, indelfo)
 
     # ----------------------------------------------------------------------------------------
     def process_position(original, final):
@@ -1092,23 +1099,23 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
             pass
         else:
             ilocal -= len(line['fv_insertion'])
-            if ilocal < line['lengths']['v']:
+            if ilocal < lengths['v']:
                 key = 'v_gl_seq'
             else:
-                ilocal -= line['lengths']['v']
+                ilocal -= lengths['v']
                 if ilocal < len(line['vd_insertion']):
                     key = 'vd_insertion'
                 else:
                     ilocal -= len(line['vd_insertion'])
-                    if ilocal < line['lengths']['d']:
+                    if ilocal < lengths['d']:
                         key = 'd_gl_seq'
                     else:
-                        ilocal -= line['lengths']['d']
+                        ilocal -= lengths['d']
                         if ilocal < len(line['dj_insertion']):
                             key = 'dj_insertion'
                         else:
                             ilocal -= len(line['dj_insertion'])
-                            if ilocal < line['lengths']['j']:
+                            if ilocal < lengths['j']:
                                 key = 'j_gl_seq'
                             else:
                                 j_right_extra += ' '
@@ -1116,7 +1123,7 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
         if key is None:
             original = lseq[inuke]  # dummy value
         else:
-            original = line[key][ilocal]
+            original = glseqs[key][ilocal]
         new_nuke = process_position(original, lseq[inuke])
 
         for region, pos in line['codon_positions'].items():  # reverse video for the conserved codon positions
@@ -1129,7 +1136,7 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
 
     # check if there isn't enough space for dots in the vj line
     no_space = False
-    interior_length = len(line['vd_insertion']) + len(line['d_gl_seq']) + len(line['dj_insertion'])  # length of the portion of the vj line that is normally taken up by dots (and spaces)
+    interior_length = len(line['vd_insertion']) + len(glseqs['d_gl_seq']) + len(line['dj_insertion'])  # length of the portion of the vj line that is normally taken up by dots (and spaces)
     if line['v_3p_del'] + line['j_5p_del'] > interior_length:
         no_space = True
 
@@ -1139,7 +1146,7 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
         j_5p_del_str = '.' + str(line['j_5p_del']) + '.'  # if line['j_5p_del'] > 0 else ' '
         extra_space_because_of_fixed_nospace = max(0, interior_length - len(v_3p_del_str + j_5p_del_str))
 
-        gap_insertion_point = len(line['fv_insertion'] + line['v_gl_seq'])
+        gap_insertion_point = len(line['fv_insertion'] + glseqs['v_gl_seq'])
         gaps_to_add = len(v_3p_del_str + j_5p_del_str) - interior_length
         # gapstr = gaps_to_add * color('blue', '-')
         # final_seq = add_gaps_ignoring_color_characters(final_seq, gap_insertion_point, gapstr)
@@ -1150,30 +1157,30 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
         extra_space_because_of_fixed_nospace = 0
 
     eroded_seqs_dots = {}
-    eroded_seqs_dots['v'] = line['v_gl_seq'] + v_3p_del_str
-    eroded_seqs_dots['d'] = '.'*line['d_5p_del'] + line['d_gl_seq'] + '.'*line['d_3p_del']
-    eroded_seqs_dots['j'] = j_5p_del_str + line['j_gl_seq'] + '.'*line['j_3p_del']
+    eroded_seqs_dots['v'] = glseqs['v_gl_seq'] + v_3p_del_str
+    eroded_seqs_dots['d'] = '.'*line['d_5p_del'] + glseqs['d_gl_seq'] + '.'*line['d_3p_del']
+    eroded_seqs_dots['j'] = j_5p_del_str + glseqs['j_gl_seq'] + '.'*line['j_3p_del']
 
     v_5p_del_str = '.'*line['v_5p_del']
     if line['v_5p_del'] > 50:
         v_5p_del_str = '...' + str(line['v_5p_del']) + '...'
 
-    insert_line = ' '*len(line['fv_insertion']) + ' '*line['lengths']['v'] + color('blue', '-')*gaps_to_add
+    insert_line = ' '*len(line['fv_insertion']) + ' '*lengths['v'] + color('blue', '-')*gaps_to_add
     insert_line += ' '*len(v_5p_del_str)
     insert_line += line['vd_insertion']
-    insert_line += ' ' * line['lengths']['d']
+    insert_line += ' ' * lengths['d']
     insert_line += line['dj_insertion']
-    insert_line += ' ' * line['lengths']['j']
+    insert_line += ' ' * lengths['j']
     insert_line += j_right_extra
     insert_line += ' ' * line['j_3p_del']  # no damn idea why these need to be commented out for some cases in the igblast parser...
     # insert_line += ' '*len(line['jf_insertion'])
 
-    germline_d_start = len(line['fv_insertion']) + line['lengths']['v'] + len(line['vd_insertion']) - line['d_5p_del']
+    germline_d_start = len(line['fv_insertion']) + lengths['v'] + len(line['vd_insertion']) - line['d_5p_del']
     germline_d_end = germline_d_start + len(germlines['d'][line['d_gene']])
     d_line = ' ' * germline_d_start + color('blue', '-')*gaps_to_add
     d_line += ' '*len(v_5p_del_str)
     d_line += eroded_seqs_dots['d']
-    d_line += ' ' * (len(line['j_gl_seq']) + len(line['dj_insertion']) - line['d_3p_del'])
+    d_line += ' ' * (len(glseqs['j_gl_seq']) + len(line['dj_insertion']) - line['d_3p_del'])
     d_line += j_right_extra
     d_line += ' ' * line['j_3p_del']
     # d_line += ' '*len(line['jf_insertion'])
@@ -1181,7 +1188,7 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     vj_line = ' ' * len(line['fv_insertion'])
     vj_line += v_5p_del_str
     vj_line += eroded_seqs_dots['v'] + '.'*extra_space_because_of_fixed_nospace
-    germline_v_end = len(line['fv_insertion']) + len(line['v_gl_seq']) + line['v_3p_del'] - 1  # position in the query sequence at which we find the last base of the v match. NOTE we subtract off the v_5p_del because we're *not* adding dots for that deletion (it's just too long)
+    germline_v_end = len(line['fv_insertion']) + len(glseqs['v_gl_seq']) + line['v_3p_del'] - 1  # position in the query sequence at which we find the last base of the v match. NOTE we subtract off the v_5p_del because we're *not* adding dots for that deletion (it's just too long)
     germline_j_start = germline_d_end + 1 - line['d_3p_del'] + len(line['dj_insertion']) - line['j_5p_del']
     vj_line += ' ' * (germline_j_start - germline_v_end - 2)
     vj_line += eroded_seqs_dots['j']
@@ -1193,7 +1200,7 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     vj_line = color_chars(ambiguous_bases + ['*', ], 'light_blue', vj_line)
 
     chain = get_chain(line['v_gene'])  # kind of hackey
-    dont_show_d_stuff = chain != 'h' and line['lengths']['d'] == 0 and len(line['vd_insertion']) == 0
+    dont_show_d_stuff = chain != 'h' and lengths['d'] == 0 and len(line['vd_insertion']) == 0
 
     out_str_list = []
     # insert, d, and vj lines
@@ -1232,11 +1239,14 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
 
     print ''.join(out_str_list),
 
-    # if copy_of_original_line != original_line:
-    #     for k in copy_of_original_line:
-    #         if copy_of_original_line[k] != original_line[k]:
-    #             print k, copy_of_original_line[k], original_line[k]
-    #     raise Exception('')
+# # ----------------------------------------------------------------------------------------
+#     if set(line.keys()) != set(original_line.keys()):
+#         raise Exception('ack 1')
+#     for k in line:
+#         if line[k] != original_line[k]:
+#             print 'key %s differs:\n  %s\n  %s ' % (k, line[k], original_line[k])
+#             raise Exception('')
+# # ----------------------------------------------------------------------------------------
 
 #----------------------------------------------------------------------------------------
 def sanitize_name(name):
@@ -2312,8 +2322,9 @@ def get_seq_with_indels_reinstated(line, iseq=0):  # reverse the action of indel
     return return_seq
 
 # ----------------------------------------------------------------------------------------
-def add_indels_to_germline_strings(line, indelfo):
+def add_indels_to_germline_strings(lengths, glseqs, line, indelfo):
     """ Add stars to the germline sequences (for ascii printing) if there were SHM insertions. """
+    # NOTE modify <lengths> and/or <glseqs>, but don't touch <line>
 
     # if len(indelfo['indels']) > 1:
     #     print '    WARNING found %d indels, but we can only handle 1' % len(indelfo['indels'])
@@ -2333,8 +2344,10 @@ def add_indels_to_germline_strings(line, indelfo):
     thischunk = weirdolist[lastfo['pos']]
     offset = weirdolist.index(thischunk)  # index of first occurence
     if thischunk in regions:
-        line['lengths'][thischunk] += lastfo['len']
-        line[thischunk + '_gl_seq'] = line[thischunk + '_gl_seq'][ : lastfo['pos'] - offset] + '*' * lastfo['len'] + line[thischunk + '_gl_seq'][lastfo['pos'] - offset : ]
+        # line['lengths'][thischunk] += lastfo['len']
+        # line[thischunk + '_gl_seq'] = line[thischunk + '_gl_seq'][ : lastfo['pos'] - offset] + '*' * lastfo['len'] + line[thischunk + '_gl_seq'][lastfo['pos'] - offset : ]
+        lengths[thischunk] += lastfo['len']
+        glseqs[thischunk + '_gl_seq'] = line[thischunk + '_gl_seq'][ : lastfo['pos'] - offset] + '*' * lastfo['len'] + line[thischunk + '_gl_seq'][lastfo['pos'] - offset : ]
     else:
         print '     unhandled indel within a non-templated insertion'
 
