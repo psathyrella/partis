@@ -1,6 +1,7 @@
 # now
 #  - definitively fix ig-sw length issue
 #  - improve default n-partitions-to-write (I think just switch back to preserving previous partitions from different n_procs)
+#  - allow indels in both V and J at the same time (?)
 # print_reco_event:
 #  - handle indels within NTIs
 #  - maybe simulation line shouldn't be associated with a particular inferred line (see below)
@@ -58,7 +59,6 @@
 #  - --simulate-partially-from-scratch throws the out-of-frame exception if you don't use the allele finding testing --initial-germline-dir
 
 # turn per-base mutation rates on
-# allow indels in both V and J at the same time (?)
 # move dummy d adding in waterer to summarize_query()
 # get multi-hmm parameter counting working
 # need to do allele removal for d and j

@@ -1038,15 +1038,13 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
 
     lseq = line['seqs'][iseq]
     indelfo = None if line['indelfos'][iseq]['reversed_seq'] == '' else line['indelfos'][iseq]
-    reverse_indels = False  # for inferred sequences, we want to un-reverse the indels that we previously reversed in smith-waterman
 
     # copies so that we don't have to modify <line>
     lengths = {r : line['lengths'][r] for r in regions}
     glseqs = {r + '_gl_seq' : line[r + '_gl_seq'] for r in regions}
 
     if indelfo is not None:
-        if indelfo['reversed_seq'] == lseq:  # if <line> has the reversed sequence in it, then this is an inferred <line>, i.e. we removed the info, then passed the reversed sequence to the sw/hmm, so we need to reverse the indels now in order to get a sequence with indels in it
-            reverse_indels = True
+        assert indelfo['reversed_seq'] == lseq  # I think that while this didn't used to always be true, now it is
         if len(indelfo['indels']) > 1:
             print '        %s can\'t yet print multiple indels' % color('yellow', 'warning')
         add_indels_to_germline_strings(lengths, glseqs, line, indelfo)
@@ -1073,28 +1071,19 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     for inuke in range(len(lseq)):
         # if we're at the position that the insertion started at (before we removed it)
         if indelfo is not None and lastfo['type'] == 'insertion':
-            if reverse_indels and inuke == lastfo['pos']:
+            if inuke == lastfo['pos']:
                 final_seq_list.append(lastfo['seqstr'])  # put the insertion back into the query sequence
                 n_inserted += len(lastfo['seqstr'])
-            elif not reverse_indels and inuke - lastfo['pos'] >= 0 and inuke - lastfo['pos'] < lastfo['len']:
-                final_seq_list.append(lseq[inuke])
-                n_inserted += 1
-                continue
         if indelfo is not None and lastfo['type'] == 'deletion':
-            if reverse_indels and inuke - lastfo['pos'] >= 0 and inuke - lastfo['pos'] < lastfo['len']:  # if we're within the bases that we added to make up for the deletionlen
+            if inuke - lastfo['pos'] >= 0 and inuke - lastfo['pos'] < lastfo['len']:  # if we're within the bases that we added to make up for the deletionlen
                 final_seq_list.append(color('light_blue', '*'))
                 continue
-            elif not reverse_indels and inuke == lastfo['pos']:
-                final_seq_list.append(lastfo['len'] * color('light_blue', '*'))
-                n_inserted = - lastfo['len']
 
         new_nuke = ''
         key = None
         ilocal = inuke
-        if indelfo is not None and reverse_indels:
+        if indelfo is not None:
             ilocal += n_inserted
-        if indelfo is not None and not reverse_indels and lastfo['type'] == 'deletion':
-            ilocal -= n_inserted
         if ilocal < len(line['fv_insertion']):  # haven't got to start of v match yet, so just add on the query seq nuke
             pass
         else:
@@ -1127,8 +1116,6 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
         new_nuke = process_position(original, lseq[inuke])
 
         for region, pos in line['codon_positions'].items():  # reverse video for the conserved codon positions
-            if indelfo is not None and not reverse_indels:
-                pos += n_inserted
             if inuke >= pos and inuke < pos + 3:
                 new_nuke = '\033[7m' + new_nuke + '\033[m'
 
