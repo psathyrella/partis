@@ -599,7 +599,7 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None, log='x', normaliz
         os.makedirs(plotdir)
     plt.savefig(outfname)
     plt.close()
-    check_call(['chmod', '664', outfname])
+    # check_call(['chmod', '664', outfname])
 
 # ----------------------------------------------------------------------------------------
 def plot_metrics_vs_thresholds(meth, thresholds, info, plotdir, plotfname, title):
@@ -787,7 +787,7 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
     fullname = plotdir + '/' + plotname + '.' + suffix
     plt.savefig(fullname)
     plt.close()
-    check_call(['chmod', '664', fullname])
+    # check_call(['chmod', '664', fullname])
 
 # ----------------------------------------------------------------------------------------
 def plot_cluster_similarity_matrix(plotdir, plotname, meth1, partition1, meth2, partition2, n_biggest_clusters, title='', debug=False):
@@ -892,7 +892,7 @@ def make_html(plotdir, n_columns=3, extension='svg', fnames=None, title='foop'):
     htmlfname = os.path.dirname(plotdir) + '/' + dirname + '.html'  # more verbose than necessary
     with open(htmlfname, 'w') as htmlfile:
         htmlfile.write('\n'.join(lines))
-    check_call(['chmod', '664', htmlfname])
+    # check_call(['chmod', '664', htmlfname])
 
 # ----------------------------------------------------------------------------------------
 def make_allele_finding_plot(plotdir, gene, position, values, xmax, fitfos=None):

@@ -1,12 +1,10 @@
 # now
+#  - in datascripts, use output-exsts function from old partition stuff (to check size 0 & co)
 #  - add view-partitions and view-annotations to datascripts
 #  - definitively fix ig-sw length issue
-#  - add shm indels to testing, maybe directly checking that they're right
 #  - move seed info to datascripts
+#  - improve default n-partitions-to-write (I think just switch back to preserving previous partitions from different n_procs)
 #  - clear up action/argument treatments in run.py
-#  - make sure partition distance plots are wrapping overflows
-#  - don't make within-vs-between plots unless there's at least a few clusters for that cdr3 length
-#  - why does sw cache have indel_reversed_seqs written even if they're the same as input_seqs
 # print_reco_event:
 #  - handle indels within NTIs
 #  - maybe simulation line shouldn't be associated with a particular inferred line (see below)
@@ -14,6 +12,12 @@
 #  - just print the length for large fv/jf insertions
 #  - when printing cluster annotations on simulation, simulation should actually use the true partition, not split according(ish) to the inferred partition
 
+#  - add shm indels to testing, maybe directly checking that they're right
+
+#  - why does sw cache have indel_reversed_seqs written even if they're the same as input_seqs
+
+#  - make sure partition distance plots are wrapping overflows
+#  - don't make within-vs-between plots unless there's at least a few clusters for that cdr3 length
 
 #  - automate n-procs, at least for viterbi/parameter caching
 #    - improve n_precache_proc calculator (expecially for large samples)
