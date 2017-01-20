@@ -1123,7 +1123,7 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
         if key is None:
             original = lseq[inuke]  # dummy value
         else:
-            original = glseqs[key][ilocal]
+            original = glseqs[key][ilocal] if key in glseqs else line[key][ilocal]
         new_nuke = process_position(original, lseq[inuke])
 
         for region, pos in line['codon_positions'].items():  # reverse video for the conserved codon positions
