@@ -1039,6 +1039,12 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
 
     lseq = line['seqs'][iseq]
     indelfo = None if line['indelfos'][iseq]['reversed_seq'] == '' else line['indelfos'][iseq]
+    # if indelfo is not None:
+    #     for ii in range(len(indelfo['indels'])):
+    #         idl = indelfo['indels'][ii]
+    #         if ii > 0:
+    #             extra_str += '\nxxx'
+    #     extra_str += ' %10s: %2d bases at %3d'  % (idl['type'], idl['len'], idl['pos'])
 
     # copies so that we don't have to modify <line>
     lengths = {r : line['lengths'][r] for r in regions}
@@ -1099,21 +1105,12 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
             outstrs.append('%s    %s   %s\n' % (extra_str, d_line, color_gene(line['d_gene'])))
         outstrs.append('%s    %s   %s %s\n' % (extra_str, vj_line, color_gene(line['v_gene']), color_gene(line['j_gene'])))
 
-    # if indelfo is not None:
-    #     for ii in range(len(indelfo['indels'])):
-    #         idl = indelfo['indels'][ii]
-    #         if ii > 0:
-    #             extra_str += '\nxxx'
-    #     extra_str += ' %10s: %2d bases at %3d'  % (idl['type'], idl['len'], idl['pos'])
-
     # then query sequence
-    v_5p_del_space_str = ' '*len(v_5p_del_str)
-    j_3p_del_space_str = ' ' * line['j_3p_del']
-    final_seq = ''.join(final_seq_list)
-    final_seq = v_5p_del_space_str + final_seq + j_3p_del_space_str
+    final_seq = extra_str + '    ' + ' '*len(v_5p_del_str) + ''.join(final_seq_list) + ' ' * line['j_3p_del']
     final_seq = color_chars(ambiguous_bases + ['*', ], 'light_blue', final_seq)
-    outstrs.append(extra_str)
-    outstrs.append('    %s' % final_seq)
+    # outstrs.append('%s    %s' % (extra_str, final_seq))
+    outstrs.append(final_seq)
+
     uid_width = max([len(uid) for uid in line['unique_ids']])
     uidstr = ('   %' + str(uid_width) + 's') % line['unique_ids'][iseq]
     if seed_uid is not None and line['unique_ids'][iseq] == seed_uid:
