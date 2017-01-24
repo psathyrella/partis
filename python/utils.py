@@ -1042,7 +1042,7 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
 
     # copies so that we don't have to modify <line>
     lengths = {r : line['lengths'][r] for r in regions}
-    glseqs = {r + '_gl_seq' : line[r + '_gl_seq'] for r in regions}
+    glseqs = {r : line[r + '_gl_seq'] for r in regions}
 
     if indelfo is not None:
         assert indelfo['reversed_seq'] == lseq  # I think that while this didn't used to always be true, now it is
@@ -1054,7 +1054,7 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
 
     # check if there isn't enough space for dots in the vj line
     no_space = False
-    interior_length = len(line['vd_insertion']) + len(glseqs['d_gl_seq']) + len(line['dj_insertion'])  # length of the portion of the vj line that is normally taken up by dots (and spaces)
+    interior_length = len(line['vd_insertion']) + len(glseqs['d']) + len(line['dj_insertion'])  # length of the portion of the vj line that is normally taken up by dots (and spaces)
     if line['v_3p_del'] + line['j_5p_del'] > interior_length:
         no_space = True
 
@@ -1064,7 +1064,7 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
         j_5p_del_str = '.' + str(line['j_5p_del']) + '.'  # if line['j_5p_del'] > 0 else ' '
         extra_space_because_of_fixed_nospace = max(0, interior_length - len(v_3p_del_str + j_5p_del_str))
 
-        gap_insertion_point = len(line['fv_insertion'] + glseqs['v_gl_seq'])
+        gap_insertion_point = len(line['fv_insertion'] + glseqs['v'])
         gaps_to_add = len(v_3p_del_str + j_5p_del_str) - interior_length
         # gapstr = gaps_to_add * color('blue', '-')
         # final_seq = add_gaps_ignoring_color_characters(final_seq, gap_insertion_point, gapstr)
@@ -1075,9 +1075,9 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
         extra_space_because_of_fixed_nospace = 0
 
     eroded_seqs_dots = {}
-    eroded_seqs_dots['v'] = glseqs['v_gl_seq'] + v_3p_del_str
-    eroded_seqs_dots['d'] = '.'*line['d_5p_del'] + glseqs['d_gl_seq'] + '.'*line['d_3p_del']
-    eroded_seqs_dots['j'] = j_5p_del_str + glseqs['j_gl_seq'] + '.'*line['j_3p_del']
+    eroded_seqs_dots['v'] = glseqs['v'] + v_3p_del_str
+    eroded_seqs_dots['d'] = '.'*line['d_5p_del'] + glseqs['d'] + '.'*line['d_3p_del']
+    eroded_seqs_dots['j'] = j_5p_del_str + glseqs['j'] + '.'*line['j_3p_del']
 
     v_5p_del_str = '.'*line['v_5p_del']
     if line['v_5p_del'] > 50:
@@ -1098,7 +1098,7 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     d_line = ' ' * germline_d_start + color('blue', '-')*gaps_to_add
     d_line += ' '*len(v_5p_del_str)
     d_line += eroded_seqs_dots['d']
-    d_line += ' ' * (len(glseqs['j_gl_seq']) + len(line['dj_insertion']) - line['d_3p_del'])
+    d_line += ' ' * (len(glseqs['j']) + len(line['dj_insertion']) - line['d_3p_del'])
     d_line += j_right_extra
     d_line += ' ' * line['j_3p_del']
     # d_line += ' '*len(line['jf_insertion'])
@@ -1106,7 +1106,7 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     vj_line = ' ' * len(line['fv_insertion'])
     vj_line += v_5p_del_str
     vj_line += eroded_seqs_dots['v'] + '.'*extra_space_because_of_fixed_nospace
-    germline_v_end = len(line['fv_insertion']) + len(glseqs['v_gl_seq']) + line['v_3p_del'] - 1  # position in the query sequence at which we find the last base of the v match. NOTE we subtract off the v_5p_del because we're *not* adding dots for that deletion (it's just too long)
+    germline_v_end = len(line['fv_insertion']) + len(glseqs['v']) + line['v_3p_del'] - 1  # position in the query sequence at which we find the last base of the v match. NOTE we subtract off the v_5p_del because we're *not* adding dots for that deletion (it's just too long)
     germline_j_start = germline_d_end + 1 - line['d_3p_del'] + len(line['dj_insertion']) - line['j_5p_del']
     vj_line += ' ' * (germline_j_start - germline_v_end - 2)
     vj_line += eroded_seqs_dots['j']
@@ -2265,7 +2265,7 @@ def add_indels_to_germline_strings(lengths, glseqs, line, indelfo):
         # line['lengths'][thischunk] += lastfo['len']
         # line[thischunk + '_gl_seq'] = line[thischunk + '_gl_seq'][ : lastfo['pos'] - offset] + '*' * lastfo['len'] + line[thischunk + '_gl_seq'][lastfo['pos'] - offset : ]
         lengths[thischunk] += lastfo['len']
-        glseqs[thischunk + '_gl_seq'] = line[thischunk + '_gl_seq'][ : lastfo['pos'] - offset] + '*' * lastfo['len'] + line[thischunk + '_gl_seq'][lastfo['pos'] - offset : ]
+        glseqs[thischunk] = line[thischunk + '_gl_seq'][ : lastfo['pos'] - offset] + '*' * lastfo['len'] + line[thischunk + '_gl_seq'][lastfo['pos'] - offset : ]
     else:
         print '     unhandled indel within a non-templated insertion'
 

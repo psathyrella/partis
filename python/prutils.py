@@ -42,7 +42,7 @@ def get_query_line(lseq, line, lengths, glseqs, indelfo=None):  # NOTE do not, o
         else:
             ilocal -= len(line['fv_insertion'])
             if ilocal < lengths['v']:
-                key = 'v_gl_seq'
+                key = 'v'
             else:
                 ilocal -= lengths['v']
                 if ilocal < len(line['vd_insertion']):
@@ -50,7 +50,7 @@ def get_query_line(lseq, line, lengths, glseqs, indelfo=None):  # NOTE do not, o
                 else:
                     ilocal -= len(line['vd_insertion'])
                     if ilocal < lengths['d']:
-                        key = 'd_gl_seq'
+                        key = 'd'
                     else:
                         ilocal -= lengths['d']
                         if ilocal < len(line['dj_insertion']):
@@ -58,7 +58,7 @@ def get_query_line(lseq, line, lengths, glseqs, indelfo=None):  # NOTE do not, o
                         else:
                             ilocal -= len(line['dj_insertion'])
                             if ilocal < lengths['j']:
-                                key = 'j_gl_seq'
+                                key = 'j'
                             else:
                                 j_right_extra.append(' ')
 
