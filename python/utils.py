@@ -1056,19 +1056,21 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
             print '        %s can\'t yet print multiple indels' % color('yellow', 'warning')
         add_indels_to_germline_strings(lengths, glseqs, line, indelfo)
 
-    final_seq_list, j_right_extra = prutils.get_query_line(lseq, line, lengths, glseqs, indelfo=indelfo)
-    final_seq_list, gapstr, v_3p_del_str, j_5p_del_str, extra_space_because_of_fixed_nospace = prutils.handle_no_space(line, glseqs, final_seq_list)
+    # don't print a million dots if left-side v deletion is really big
+    v_5p_del_str = '.'*line['v_5p_del']
+    if line['v_5p_del'] > 50:
+        v_5p_del_str = '...' + str(line['v_5p_del']) + '...'
+
+    # get the query seq line, as well as info we need for the germline lines
+    qrseqlist, j_right_extra = prutils.get_query_line(lseq, line, lengths, glseqs, indelfo=indelfo)
+    qrseqlist, gapstr, v_3p_del_str, j_5p_del_str, extra_space_because_of_fixed_nospace = prutils.handle_no_space(line, glseqs, qrseqlist)
+    qrseq_line = extra_str + '    ' + ' '*len(v_5p_del_str) + ''.join(qrseqlist) + ' ' * line['j_3p_del']
 
     eroded_seqs_dots = {
         'v' : glseqs['v'] + v_3p_del_str,
         'd' : '.'*line['d_5p_del'] + glseqs['d'] + '.'*line['d_3p_del'],
         'j' : j_5p_del_str + glseqs['j'] + '.'*line['j_3p_del'],
     }
-
-    # don't print a million dots if left-side v deletion is really big
-    v_5p_del_str = '.'*line['v_5p_del']
-    if line['v_5p_del'] > 50:
-        v_5p_del_str = '...' + str(line['v_5p_del']) + '...'
 
     # build the various germline lines
     insert_line = ' '*len(line['fv_insertion']) + ' '*lengths['v'] + gapstr + ' '*len(v_5p_del_str) \
@@ -1106,10 +1108,9 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
         outstrs.append('%s    %s   %s %s\n' % (extra_str, vj_line, color_gene(line['v_gene']), color_gene(line['j_gene'])))
 
     # then query sequence
-    final_seq = extra_str + '    ' + ' '*len(v_5p_del_str) + ''.join(final_seq_list) + ' ' * line['j_3p_del']
-    final_seq = color_chars(ambiguous_bases + ['*', ], 'light_blue', final_seq)
-    # outstrs.append('%s    %s' % (extra_str, final_seq))
-    outstrs.append(final_seq)
+    qrseq_line = color_chars(ambiguous_bases + ['*', ], 'light_blue', qrseq_line)
+    # outstrs.append('%s    %s' % (extra_str, qrseq_line))
+    outstrs.append(qrseq_line)
 
     uid_width = max([len(uid) for uid in line['unique_ids']])
     uidstr = ('   %' + str(uid_width) + 's') % line['unique_ids'][iseq]
