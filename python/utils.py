@@ -1060,14 +1060,12 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
 
     gaps_to_add = 0
     if no_space:
-        v_3p_del_str = '.' + str(line['v_3p_del']) + '.'  # if line['v_3p_del'] > 0 else ' '
-        j_5p_del_str = '.' + str(line['j_5p_del']) + '.'  # if line['j_5p_del'] > 0 else ' '
+        v_3p_del_str = '.' + str(line['v_3p_del']) + '.'
+        j_5p_del_str = '.' + str(line['j_5p_del']) + '.'
         extra_space_because_of_fixed_nospace = max(0, interior_length - len(v_3p_del_str + j_5p_del_str))
 
         gap_insertion_point = len(line['fv_insertion'] + glseqs['v'])
         gaps_to_add = len(v_3p_del_str + j_5p_del_str) - interior_length
-        # gapstr = gaps_to_add * color('blue', '-')
-        # final_seq = add_gaps_ignoring_color_characters(final_seq, gap_insertion_point, gapstr)
         final_seq_list = final_seq_list[:gap_insertion_point] + gaps_to_add * [color('blue', '-'), ] + final_seq_list[gap_insertion_point:]
     else:
         v_3p_del_str = '.' * line['v_3p_del']
@@ -1091,7 +1089,6 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     insert_line += ' ' * lengths['j']
     insert_line += j_right_extra
     insert_line += ' ' * line['j_3p_del']  # no damn idea why these need to be commented out for some cases in the igblast parser...
-    # insert_line += ' '*len(line['jf_insertion'])
 
     germline_d_start = len(line['fv_insertion']) + lengths['v'] + len(line['vd_insertion']) - line['d_5p_del']
     germline_d_end = germline_d_start + len(germlines['d'][line['d_gene']])
@@ -1101,7 +1098,6 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     d_line += ' ' * (len(glseqs['j']) + len(line['dj_insertion']) - line['d_3p_del'])
     d_line += j_right_extra
     d_line += ' ' * line['j_3p_del']
-    # d_line += ' '*len(line['jf_insertion'])
 
     vj_line = ' ' * len(line['fv_insertion'])
     vj_line += v_5p_del_str
@@ -1111,7 +1107,6 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     vj_line += ' ' * (germline_j_start - germline_v_end - 2)
     vj_line += eroded_seqs_dots['j']
     vj_line += j_right_extra
-    # vj_line += ' '*len(line['jf_insertion'])
 
     insert_line = color_chars(ambiguous_bases + ['*', ], 'light_blue', insert_line)
     d_line = color_chars(ambiguous_bases + ['*', ], 'light_blue', d_line)
@@ -1121,7 +1116,6 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     dont_show_d_stuff = chain != 'h' and lengths['d'] == 0 and len(line['vd_insertion']) == 0
 
     out_str_list = []
-    # insert, d, and vj lines
     if not one_line:
         out_str_list.append('%s    %s   insert%s\n' % (extra_str, insert_line, '' if dont_show_d_stuff else 's'))
         if label != '':
@@ -1151,8 +1145,6 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
         uidstr = color('red', uidstr)
     out_str_list.append(uidstr)
     out_str_list.append('   %4.2f mut' % line['mut_freqs'][iseq])
-    # if 'logprob' in line:
-    #     out_str_list.append('     %8.2f  logprob' % line['logprob'])
     out_str_list.append('\n')
 
     print ''.join(out_str_list),
