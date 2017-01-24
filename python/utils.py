@@ -1052,25 +1052,7 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
 
     final_seq_list, j_right_extra = prutils.get_query_line(lseq, line, lengths, glseqs, indelfo=indelfo)
 
-    # check if there isn't enough space for dots in the vj line
-    no_space = False
-    interior_length = len(line['vd_insertion']) + len(glseqs['d']) + len(line['dj_insertion'])  # length of the portion of the vj line that is normally taken up by dots (and spaces)
-    if line['v_3p_del'] + line['j_5p_del'] > interior_length:
-        no_space = True
-
-    gaps_to_add = 0
-    if no_space:
-        v_3p_del_str = '.' + str(line['v_3p_del']) + '.'
-        j_5p_del_str = '.' + str(line['j_5p_del']) + '.'
-        extra_space_because_of_fixed_nospace = max(0, interior_length - len(v_3p_del_str + j_5p_del_str))
-
-        gap_insertion_point = len(line['fv_insertion'] + glseqs['v'])
-        gaps_to_add = len(v_3p_del_str + j_5p_del_str) - interior_length
-        final_seq_list = final_seq_list[:gap_insertion_point] + gaps_to_add * [color('blue', '-'), ] + final_seq_list[gap_insertion_point:]
-    else:
-        v_3p_del_str = '.' * line['v_3p_del']
-        j_5p_del_str = '.' * line['j_5p_del']
-        extra_space_because_of_fixed_nospace = 0
+    final_seq_list, gaps_to_add, v_3p_del_str, j_5p_del_str, extra_space_because_of_fixed_nospace = prutils.handle_no_space(line, glseqs, final_seq_list)
 
     eroded_seqs_dots = {}
     eroded_seqs_dots['v'] = glseqs['v'] + v_3p_del_str

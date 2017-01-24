@@ -75,3 +75,23 @@ def get_query_line(lseq, line, lengths, glseqs, indelfo=None):  # NOTE do not, o
         final_seq_list.append(new_nuke)
 
     return final_seq_list, ''.join(j_right_extra)
+
+# ----------------------------------------------------------------------------------------
+def handle_no_space(line, glseqs, final_seq_list):  # NOTE do not, on pain of death, modify <line>
+    # if there isn't enough space for dots in the vj line, we add some blue dashes to everybody so things fit (very rare in heavy chain rearrangements, but pretty common in light chain)
+    interior_length = len(line['vd_insertion']) + len(glseqs['d']) + len(line['dj_insertion'])  # length of the portion of the vj line that is normally taken up by dots (and spaces)
+    if line['v_3p_del'] + line['j_5p_del'] > interior_length:  # not enough space
+        v_3p_del_str = '.' + str(line['v_3p_del']) + '.'
+        j_5p_del_str = '.' + str(line['j_5p_del']) + '.'
+        extra_space_because_of_fixed_nospace = max(0, interior_length - len(v_3p_del_str + j_5p_del_str))
+
+        gap_insertion_point = len(line['fv_insertion'] + glseqs['v'])
+        gaps_to_add = len(v_3p_del_str + j_5p_del_str) - interior_length
+        final_seq_list = final_seq_list[:gap_insertion_point] + gaps_to_add * [utils.color('blue', '-'), ] + final_seq_list[gap_insertion_point:]
+    else:
+        v_3p_del_str = '.' * line['v_3p_del']
+        j_5p_del_str = '.' * line['j_5p_del']
+        gaps_to_add = 0
+        extra_space_because_of_fixed_nospace = 0
+
+    return final_seq_list, gaps_to_add, v_3p_del_str, j_5p_del_str, extra_space_because_of_fixed_nospace
