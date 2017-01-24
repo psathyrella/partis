@@ -1051,8 +1051,7 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
         add_indels_to_germline_strings(lengths, glseqs, line, indelfo)
 
     final_seq_list, j_right_extra = prutils.get_query_line(lseq, line, lengths, glseqs, indelfo=indelfo)
-
-    final_seq_list, gaps_to_add, v_3p_del_str, j_5p_del_str, extra_space_because_of_fixed_nospace = prutils.handle_no_space(line, glseqs, final_seq_list)
+    final_seq_list, gapstr, v_3p_del_str, j_5p_del_str, extra_space_because_of_fixed_nospace = prutils.handle_no_space(line, glseqs, final_seq_list)
 
     eroded_seqs_dots = {}
     eroded_seqs_dots['v'] = glseqs['v'] + v_3p_del_str
@@ -1063,7 +1062,7 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     if line['v_5p_del'] > 50:
         v_5p_del_str = '...' + str(line['v_5p_del']) + '...'
 
-    insert_line = ' '*len(line['fv_insertion']) + ' '*lengths['v'] + color('blue', '-')*gaps_to_add
+    insert_line = ' '*len(line['fv_insertion']) + ' '*lengths['v'] + gapstr
     insert_line += ' '*len(v_5p_del_str)
     insert_line += line['vd_insertion']
     insert_line += ' ' * lengths['d']
@@ -1074,7 +1073,7 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
 
     germline_d_start = len(line['fv_insertion']) + lengths['v'] + len(line['vd_insertion']) - line['d_5p_del']
     germline_d_end = germline_d_start + len(germlines['d'][line['d_gene']])
-    d_line = ' ' * germline_d_start + color('blue', '-')*gaps_to_add
+    d_line = ' ' * germline_d_start + gapstr
     d_line += ' '*len(v_5p_del_str)
     d_line += eroded_seqs_dots['d']
     d_line += ' ' * (len(glseqs['j']) + len(line['dj_insertion']) - line['d_3p_del'])
