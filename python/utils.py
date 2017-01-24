@@ -1054,7 +1054,7 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
         if original not in expected_characters or final not in expected_characters:
             raise Exception('one of %s %s not among expected characters' % (original, final))
 
-        if original in ambiguous_bases or final in ambiguous_bases:  # don't count Ns in the total
+        if original in ambiguous_bases or final in ambiguous_bases:
             return final
 
         if original != final:
