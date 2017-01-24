@@ -1053,57 +1053,51 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     final_seq_list, j_right_extra = prutils.get_query_line(lseq, line, lengths, glseqs, indelfo=indelfo)
     final_seq_list, gapstr, v_3p_del_str, j_5p_del_str, extra_space_because_of_fixed_nospace = prutils.handle_no_space(line, glseqs, final_seq_list)
 
-    eroded_seqs_dots = {}
-    eroded_seqs_dots['v'] = glseqs['v'] + v_3p_del_str
-    eroded_seqs_dots['d'] = '.'*line['d_5p_del'] + glseqs['d'] + '.'*line['d_3p_del']
-    eroded_seqs_dots['j'] = j_5p_del_str + glseqs['j'] + '.'*line['j_3p_del']
+    eroded_seqs_dots = {
+        'v' : glseqs['v'] + v_3p_del_str,
+        'd' : '.'*line['d_5p_del'] + glseqs['d'] + '.'*line['d_3p_del'],
+        'j' : j_5p_del_str + glseqs['j'] + '.'*line['j_3p_del'],
+    }
 
+    # don't print a million dots if left-side v deletion is really big
     v_5p_del_str = '.'*line['v_5p_del']
     if line['v_5p_del'] > 50:
         v_5p_del_str = '...' + str(line['v_5p_del']) + '...'
 
-    insert_line = ' '*len(line['fv_insertion']) + ' '*lengths['v'] + gapstr
-    insert_line += ' '*len(v_5p_del_str)
-    insert_line += line['vd_insertion']
-    insert_line += ' ' * lengths['d']
-    insert_line += line['dj_insertion']
-    insert_line += ' ' * lengths['j']
-    insert_line += j_right_extra
-    insert_line += ' ' * line['j_3p_del']  # no damn idea why these need to be commented out for some cases in the igblast parser...
-
+    # build the various germline lines
+    insert_line = ' '*len(line['fv_insertion']) + ' '*lengths['v'] + gapstr + ' '*len(v_5p_del_str) \
+                  + line['vd_insertion'] + ' ' * lengths['d'] + line['dj_insertion'] \
+                  + ' ' * lengths['j'] + ' '*j_right_extra + ' ' * line['j_3p_del']
     germline_d_start = len(line['fv_insertion']) + lengths['v'] + len(line['vd_insertion']) - line['d_5p_del']
     germline_d_end = germline_d_start + len(germlines['d'][line['d_gene']])
-    d_line = ' ' * germline_d_start + gapstr
-    d_line += ' '*len(v_5p_del_str)
-    d_line += eroded_seqs_dots['d']
-    d_line += ' ' * (len(glseqs['j']) + len(line['dj_insertion']) - line['d_3p_del'])
-    d_line += j_right_extra
-    d_line += ' ' * line['j_3p_del']
-
-    vj_line = ' ' * len(line['fv_insertion'])
-    vj_line += v_5p_del_str
-    vj_line += eroded_seqs_dots['v'] + '.'*extra_space_because_of_fixed_nospace
+    d_line = ' ' * germline_d_start + gapstr + ' '*len(v_5p_del_str) \
+             + eroded_seqs_dots['d'] \
+             + ' ' * (len(glseqs['j']) + len(line['dj_insertion']) - line['d_3p_del']) \
+             + ' '*j_right_extra \
+             + ' ' * line['j_3p_del']
     germline_v_end = len(line['fv_insertion']) + len(glseqs['v']) + line['v_3p_del'] - 1  # position in the query sequence at which we find the last base of the v match. NOTE we subtract off the v_5p_del because we're *not* adding dots for that deletion (it's just too long)
     germline_j_start = germline_d_end + 1 - line['d_3p_del'] + len(line['dj_insertion']) - line['j_5p_del']
-    vj_line += ' ' * (germline_j_start - germline_v_end - 2)
-    vj_line += eroded_seqs_dots['j']
-    vj_line += j_right_extra
+    vj_line = ' ' * len(line['fv_insertion']) + v_5p_del_str + eroded_seqs_dots['v'] + '.'*extra_space_because_of_fixed_nospace \
+              + ' ' * (germline_j_start - germline_v_end - 2) + eroded_seqs_dots['j'] + ' '*j_right_extra
 
+    # then color any ambiguous characters
     insert_line = color_chars(ambiguous_bases + ['*', ], 'light_blue', insert_line)
     d_line = color_chars(ambiguous_bases + ['*', ], 'light_blue', d_line)
     vj_line = color_chars(ambiguous_bases + ['*', ], 'light_blue', vj_line)
 
-    chain = get_chain(line['v_gene'])  # kind of hackey
-    dont_show_d_stuff = chain != 'h' and lengths['d'] == 0 and len(line['vd_insertion']) == 0
+    # special treatment for light chain
+    chain = get_chain(line['v_gene'])
+    if chain != 'h':
+        assert lengths['d'] == 0 and len(line['vd_insertion']) == 0
 
-    out_str_list = []
+    outstrs = []
     if not one_line:
-        out_str_list.append('%s    %s   insert%s\n' % (extra_str, insert_line, '' if dont_show_d_stuff else 's'))
+        outstrs.append('%s    %s   insert%s\n' % (extra_str, insert_line, 's' if chain == 'h' else ''))
         if label != '':
-            out_str_list[-1] = extra_str + label + out_str_list[-1][len_excluding_colors(extra_str + label) :]
-        if not dont_show_d_stuff:
-            out_str_list.append('%s    %s   %s\n' % (extra_str, d_line, color_gene(line['d_gene'])))
-        out_str_list.append('%s    %s   %s %s\n' % (extra_str, vj_line, color_gene(line['v_gene']), color_gene(line['j_gene'])))
+            outstrs[-1] = extra_str + label + outstrs[-1][len_excluding_colors(extra_str + label) :]
+        if chain == 'h':
+            outstrs.append('%s    %s   %s\n' % (extra_str, d_line, color_gene(line['d_gene'])))
+        outstrs.append('%s    %s   %s %s\n' % (extra_str, vj_line, color_gene(line['v_gene']), color_gene(line['j_gene'])))
 
     # if indelfo is not None:
     #     for ii in range(len(indelfo['indels'])):
@@ -1118,17 +1112,17 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     final_seq = ''.join(final_seq_list)
     final_seq = v_5p_del_space_str + final_seq + j_3p_del_space_str
     final_seq = color_chars(ambiguous_bases + ['*', ], 'light_blue', final_seq)
-    out_str_list.append(extra_str)
-    out_str_list.append('    %s' % final_seq)
+    outstrs.append(extra_str)
+    outstrs.append('    %s' % final_seq)
     uid_width = max([len(uid) for uid in line['unique_ids']])
     uidstr = ('   %' + str(uid_width) + 's') % line['unique_ids'][iseq]
     if seed_uid is not None and line['unique_ids'][iseq] == seed_uid:
         uidstr = color('red', uidstr)
-    out_str_list.append(uidstr)
-    out_str_list.append('   %4.2f mut' % line['mut_freqs'][iseq])
-    out_str_list.append('\n')
+    outstrs.append(uidstr)
+    outstrs.append('   %4.2f mut' % line['mut_freqs'][iseq])
+    outstrs.append('\n')
 
-    print ''.join(out_str_list),
+    print ''.join(outstrs),
 
 # # ----------------------------------------------------------------------------------------
 #     if set(line.keys()) != set(original_line.keys()):

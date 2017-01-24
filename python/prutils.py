@@ -16,7 +16,7 @@ def process_position(original, final):
 # ----------------------------------------------------------------------------------------
 def get_query_line(lseq, line, lengths, glseqs, indelfo=None):  # NOTE do not, on pain of death, modify <line>
     # build up the query sequence line, including colors for mutations and conserved codons
-    j_right_extra = []  # portion of query sequence to right of end of the j match
+    j_right_extra = 0  # portion of query sequence to right of end of the j match
     n_inserted = 0
     final_seq_list = []
     if indelfo is not None:
@@ -60,7 +60,7 @@ def get_query_line(lseq, line, lengths, glseqs, indelfo=None):  # NOTE do not, o
                             if ilocal < lengths['j']:
                                 key = 'j'
                             else:
-                                j_right_extra.append(' ')
+                                j_right_extra += 1
 
         if key is None:
             original = lseq[inuke]  # dummy value
@@ -74,7 +74,7 @@ def get_query_line(lseq, line, lengths, glseqs, indelfo=None):  # NOTE do not, o
 
         final_seq_list.append(new_nuke)
 
-    return final_seq_list, ''.join(j_right_extra)
+    return final_seq_list, j_right_extra
 
 # ----------------------------------------------------------------------------------------
 def handle_no_space(line, glseqs, final_seq_list):  # NOTE do not, on pain of death, modify <line>
