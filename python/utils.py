@@ -1034,7 +1034,7 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     if check_line_integrity:  # it's very important not to modify <line> -- this lets you verify that you aren't
         line = copy.deepcopy(original_line)  # copy that we can modify without changing <line>
 
-    lseq = line['seqs'][iseq]
+    qseq = line['seqs'][iseq]
     indelfo = None if line['indelfos'][iseq]['reversed_seq'] == '' else line['indelfos'][iseq]
     # if indelfo is not None:
     #     for ii in range(len(indelfo['indels'])):
@@ -1048,7 +1048,7 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     glseqs = {r : line[r + '_gl_seq'] for r in regions}
 
     if indelfo is not None:
-        assert indelfo['reversed_seq'] == lseq  # I think that while this didn't used to always be true, now it is
+        assert indelfo['reversed_seq'] == qseq  # I think that while this didn't used to always be true, now it is
         if len(indelfo['indels']) > 1:
             print '        %s can\'t yet print multiple indels' % color('yellow', 'warning')
         add_indels_to_germline_strings(lengths, glseqs, line, indelfo)
@@ -1059,7 +1059,7 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
         v_5p_del_str = '...' + str(line['v_5p_del']) + '...'
 
     # get the query seq line, as well as info we need for the germline lines
-    qrseqlist, j_right_extra = prutils.get_query_line(lseq, line, lengths, glseqs, indelfo=indelfo)
+    qrseqlist, j_right_extra = prutils.get_query_line(qseq, line, lengths, glseqs, indelfo=indelfo)
     qrseqlist, gapstr, v_3p_del_str, j_5p_del_str, extra_space_because_of_fixed_nospace = prutils.handle_no_space(line, glseqs, qrseqlist)
     qrseq_line = ' '*len(v_5p_del_str) + ''.join(qrseqlist) + ' ' * line['j_3p_del']
 

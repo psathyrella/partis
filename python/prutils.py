@@ -13,14 +13,14 @@ def process_position(original, final):  # optimizing this, and to a lesser exten
     return final
 
 # ----------------------------------------------------------------------------------------
-def get_query_line(lseq, line, lengths, glseqs, indelfo=None):  # NOTE do not, on pain of death, modify <line>
+def get_query_line(qseq, line, lengths, glseqs, indelfo=None):  # NOTE do not, on pain of death, modify <line>
     # build up the query sequence line, including colors for mutations and conserved codons
     j_right_extra = 0  # portion of query sequence to right of end of the j match
     n_inserted = 0
     final_seq_list = []
     if indelfo is not None:
         lastfo = indelfo['indels'][-1]  # if the "last" (arbitrary but necessary ordering) indel starts here
-    for inuke in range(len(lseq)):
+    for inuke in range(len(qseq)):
         # if we're at the position that the insertion started at (before we removed it)
         if indelfo is not None and lastfo['type'] == 'insertion':
             if inuke == lastfo['pos']:
@@ -62,10 +62,10 @@ def get_query_line(lseq, line, lengths, glseqs, indelfo=None):  # NOTE do not, o
                                 j_right_extra += 1
 
         if key is None:
-            original = lseq[inuke]  # dummy value
+            original = qseq[inuke]  # dummy value
         else:
             original = glseqs[key][ilocal] if key in glseqs else line[key][ilocal]
-        new_nuke = process_position(original, lseq[inuke])
+        new_nuke = process_position(original, qseq[inuke])
 
         for region, pos in line['codon_positions'].items():  # reverse video for the conserved codon positions
             if inuke >= pos and inuke < pos + 3:
