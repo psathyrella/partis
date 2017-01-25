@@ -504,13 +504,10 @@ def len_excluding_colors(seq):
 
 # ----------------------------------------------------------------------------------------
 def color_chars(chars, col, seq):
-    return_str = ''
-    for ch in seq:
-        if ch in chars:
-            return_str += color(col, ch)
-        else:
-            return_str += ch
-    return return_str
+    if sum([seq.count(c) for c in chars]) == 0:  # if <chars> aren't present, immediately return
+        return seq
+    return_str = [color(col, c) if c in chars else c for c in seq]
+    return ''.join(return_str)
 
 # ----------------------------------------------------------------------------------------
 def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', post_str='', print_hfrac=False, print_isnps=False, emphasis_positions=None):
