@@ -1064,7 +1064,7 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     # get the query seq line, as well as info we need for the germline lines
     qrseqlist, j_right_extra = prutils.get_query_line(lseq, line, lengths, glseqs, indelfo=indelfo)
     qrseqlist, gapstr, v_3p_del_str, j_5p_del_str, extra_space_because_of_fixed_nospace = prutils.handle_no_space(line, glseqs, qrseqlist)
-    qrseq_line = extra_str + '    ' + ' '*len(v_5p_del_str) + ''.join(qrseqlist) + ' ' * line['j_3p_del']
+    qrseq_line = ' '*len(v_5p_del_str) + ''.join(qrseqlist) + ' ' * line['j_3p_del']
 
     eroded_seqs_dots = {
         'v' : glseqs['v'] + v_3p_del_str,
@@ -1088,16 +1088,12 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     vj_line = ' ' * len(line['fv_insertion']) + v_5p_del_str + eroded_seqs_dots['v'] + '.'*extra_space_because_of_fixed_nospace \
               + ' ' * (germline_j_start - germline_v_end - 2) + eroded_seqs_dots['j'] + ' '*j_right_extra
 
-    # then color any ambiguous characters
-    insert_line = color_chars(ambiguous_bases + ['*', ], 'light_blue', insert_line)
-    d_line = color_chars(ambiguous_bases + ['*', ], 'light_blue', d_line)
-    vj_line = color_chars(ambiguous_bases + ['*', ], 'light_blue', vj_line)
-
     # special treatment for light chain
     chain = get_chain(line['v_gene'])
     if chain != 'h':
         assert lengths['d'] == 0 and len(line['vd_insertion']) == 0
 
+    # and finally build up the string to print
     outstrs = []
     if not one_line:
         outstrs.append('%s    %s   insert%s\n' % (extra_str, insert_line, 's' if chain == 'h' else ''))
@@ -1106,19 +1102,13 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
         if chain == 'h':
             outstrs.append('%s    %s   %s\n' % (extra_str, d_line, color_gene(line['d_gene'])))
         outstrs.append('%s    %s   %s %s\n' % (extra_str, vj_line, color_gene(line['v_gene']), color_gene(line['j_gene'])))
+    outstrs.append('%s    %s   %s   %4.2f mut\n' % (extra_str, qrseq_line, prutils.get_uid_str(line, iseq, seed_uid), line['mut_freqs'][iseq]))
 
-    # then query sequence
-    qrseq_line = color_chars(ambiguous_bases + ['*', ], 'light_blue', qrseq_line)
-    # outstrs.append('%s    %s' % (extra_str, qrseq_line))
-    outstrs.append(qrseq_line)
-
-    uid_width = max([len(uid) for uid in line['unique_ids']])
-    uidstr = ('   %' + str(uid_width) + 's') % line['unique_ids'][iseq]
-    if seed_uid is not None and line['unique_ids'][iseq] == seed_uid:
-        uidstr = color('red', uidstr)
-    outstrs.append(uidstr)
-    outstrs.append('   %4.2f mut' % line['mut_freqs'][iseq])
-    outstrs.append('\n')
+# ----------------------------------------------------------------------------------------
+    # HOLY SHIT color_chars() needs to be rewritten
+# ----------------------------------------------------------------------------------------
+    for il in range(len(outstrs)):
+        outstrs[il] = color_chars(ambiguous_bases + ['*', ], 'light_blue', outstrs[il])
 
     print ''.join(outstrs),
 

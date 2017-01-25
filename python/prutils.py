@@ -29,7 +29,7 @@ def get_query_line(lseq, line, lengths, glseqs, indelfo=None):  # NOTE do not, o
                 n_inserted += len(lastfo['seqstr'])
         if indelfo is not None and lastfo['type'] == 'deletion':
             if inuke - lastfo['pos'] >= 0 and inuke - lastfo['pos'] < lastfo['len']:  # if we're within the bases that we added to make up for the deletionlen
-                final_seq_list.append(utils.color('light_blue', '*'))
+                final_seq_list.append('*')  # gets blue'd later on, so it can happen at the same time as the germline lines
                 continue
 
         new_nuke = ''
@@ -95,3 +95,12 @@ def handle_no_space(line, glseqs, final_seq_list):  # NOTE do not, on pain of de
         extra_space_because_of_fixed_nospace = 0
 
     return final_seq_list, utils.color('blue', '-') * gaps_to_add, v_3p_del_str, j_5p_del_str, extra_space_because_of_fixed_nospace
+
+# ----------------------------------------------------------------------------------------
+def get_uid_str(line, iseq, seed_uid):
+    uid_width = max([len(uid) for uid in line['unique_ids']])
+    fstr = '%' + str(uid_width) + 's'
+    uidstr = fstr % line['unique_ids'][iseq]
+    if seed_uid is not None and line['unique_ids'][iseq] == seed_uid:
+        uidstr = utils.color('red', uidstr)
+    return uidstr
