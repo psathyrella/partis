@@ -1,10 +1,9 @@
 import utils
 
 # ----------------------------------------------------------------------------------------
-def process_position(original, final):
-    if original not in utils.expected_characters or final not in utils.expected_characters:
-        raise Exception('one of %s %s not among expected characters' % (original, final))
-
+def process_position(original, final):  # optimizing this, and to a lesser extent get_query_line(), would speed up utils.print_reco_event() significantly
+    # if original not in utils.expected_characters or final not in utils.expected_characters:
+    #     raise Exception('one of %s %s not among expected characters' % (original, final))
     if original in utils.ambiguous_bases or final in utils.ambiguous_bases:
         return final
 

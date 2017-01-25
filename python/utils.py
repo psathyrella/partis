@@ -1025,14 +1025,14 @@ def print_reco_event(germlines, line, one_line=False, extra_str='', label='', se
         print_seq_in_reco_event(germlines, line, iseq, extra_str=extra_str, label=(label if iseq==0 else ''), one_line=(iseq>0), seed_uid=seed_uid)
 
 # ----------------------------------------------------------------------------------------
-def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label='', one_line=False, seed_uid=None):
+def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label='', one_line=False, seed_uid=None, check_line_integrity=False):
     """
     Print ascii summary of recombination event and mutation.
     If <one_line>, then skip the germline lines, and only print the final_seq line.
     """
-    # uncomment this, and the block at the end of the fcn, if you want to make sure you're not modifying <line>
-    # line = copy.deepcopy(original_line)  # copy that we can modify without changing <line>
     line = original_line
+    if check_line_integrity:  # it's very important not to modify <line> -- this lets you verify that you aren't
+        line = copy.deepcopy(original_line)  # copy that we can modify without changing <line>
 
     lseq = line['seqs'][iseq]
     indelfo = None if line['indelfos'][iseq]['reversed_seq'] == '' else line['indelfos'][iseq]
@@ -1101,22 +1101,18 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
         outstrs.append('%s    %s   %s %s\n' % (extra_str, vj_line, color_gene(line['v_gene']), color_gene(line['j_gene'])))
     outstrs.append('%s    %s   %s   %4.2f mut\n' % (extra_str, qrseq_line, prutils.get_uid_str(line, iseq, seed_uid), line['mut_freqs'][iseq]))
 
-# ----------------------------------------------------------------------------------------
-    # HOLY SHIT color_chars() needs to be rewritten
-# ----------------------------------------------------------------------------------------
     for il in range(len(outstrs)):
         outstrs[il] = color_chars(ambiguous_bases + ['*', ], 'light_blue', outstrs[il])
 
     print ''.join(outstrs),
 
-# # ----------------------------------------------------------------------------------------
-#     if set(line.keys()) != set(original_line.keys()):
-#         raise Exception('ack 1')
-#     for k in line:
-#         if line[k] != original_line[k]:
-#             print 'key %s differs:\n  %s\n  %s ' % (k, line[k], original_line[k])
-#             raise Exception('')
-# # ----------------------------------------------------------------------------------------
+    if check_line_integrity:
+        if set(line.keys()) != set(original_line.keys()):
+            raise Exception('ack 1')
+        for k in line:
+            if line[k] != original_line[k]:
+                print 'key %s differs:\n  %s\n  %s ' % (k, line[k], original_line[k])
+                raise Exception('')
 
 #----------------------------------------------------------------------------------------
 def sanitize_name(name):

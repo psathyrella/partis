@@ -1433,7 +1433,7 @@ class PartitionDriver(object):
                     true_pcounter.increment(self.reco_info[uids[0]])  # NOTE doesn't matter which id you pass it, since they all have the same reco parameters
 
                 if perfplotter is not None:
-                    for iseq in range(len(uids)):
+                    for iseq in range(len(uids)):  # TODO get perfplotter handling multi-seq lines
                         singlefo = utils.synthesize_single_seq_line(line_to_use, iseq)
                         if len(singlefo['naive_seq']) != len(self.reco_info[uids[iseq]]['naive_seq']):  # this seems to mostly depend on if it's the multi-hmm or not (but the real problem is that different js are different lengths)
                             singlefo = utils.reset_effective_erosions_and_effective_insertions(self.glfo, singlefo)
