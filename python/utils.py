@@ -2455,7 +2455,7 @@ def read_fastx(fname):  # Bio.SeqIO is too goddamn slow to import
     elif suffix == '.fq' or suffix == '.fastq':
         ftype = 'fq'
     else:
-        raise Exception('unhandle file type: %s' % suffix)
+        raise Exception('unhandled file type: %s' % suffix)
 
     finfo = []
     with open(fname) as fastafile:
@@ -2492,7 +2492,7 @@ def read_fastx(fname):  # Bio.SeqIO is too goddamn slow to import
                 seqline = fastafile.readline()  # NOTE .fq with multi-line entries isn't supported, since delimiter characters are allowed to occur within the quality string
                 plusline = fastafile.readline().strip()
                 if plusline[0] != '+':
-                    raise Exception('invalid fastq quality line in %s:\n    %s' % (fname, plusline))
+                    raise Exception('invalid fastq quality header in %s:\n    %s' % (fname, plusline))
                 qualityline = fastafile.readline()
             else:
                 assert False
