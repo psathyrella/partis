@@ -11,9 +11,7 @@ import glob
 import numpy
 
 from hist import Hist
-import fraction_uncertainty
 from mutefreqer import MuteFreqer
-import plotting
 import utils
 import glutils
 
@@ -430,6 +428,7 @@ class AlleleFinder(object):
 
     # ----------------------------------------------------------------------------------------
     def get_allele_finding_xyvals(self, gene, position):
+        import fraction_uncertainty
         gcts = self.counts[gene][position]  # shorthand name
 
         obs = [d['muted'] for d in gcts.values()]
@@ -1033,6 +1032,7 @@ class AlleleFinder(object):
 
     # ----------------------------------------------------------------------------------------
     def plot(self, base_plotdir, only_csv=False):
+        import plotting
         if not self.finalized:
             self.finalize(debug=debug)
 

@@ -4,7 +4,6 @@ import math
 from subprocess import check_call
 
 import utils
-import plotting
 from opener import opener
 
 # ----------------------------------------------------------------------------------------

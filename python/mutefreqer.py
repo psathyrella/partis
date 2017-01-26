@@ -1,12 +1,10 @@
 import csv
 import os
 
-import fraction_uncertainty
 from hist import Hist
 from opener import opener
 import utils
 import glutils
-import plotting
 
 # ----------------------------------------------------------------------------------------
 class MuteFreqer(object):
@@ -72,6 +70,7 @@ class MuteFreqer(object):
 
     # ----------------------------------------------------------------------------------------
     def get_uncertainty(self, obs, total):
+        import fraction_uncertainty
         if self.calculate_uncertainty:  # it's kinda slow
             errs = fraction_uncertainty.err(obs, total)
             if errs[2]:
@@ -120,6 +119,7 @@ class MuteFreqer(object):
 
     # ----------------------------------------------------------------------------------------
     def plot(self, plotdir, only_csv=False, only_overall=False):
+        import plotting
         if not self.finalized:
             self.finalize()
 

@@ -6,7 +6,6 @@ import sys
 import utils
 import glutils
 from opener import opener
-import plotting
 from hist import Hist
 import plotconfig
 from mutefreqer import MuteFreqer
@@ -96,6 +95,7 @@ class ParameterCounter(object):
 
     # ----------------------------------------------------------------------------------------
     def plot(self, plotdir, only_csv=False, only_overall=False):
+        import plotting
         print '  plotting parameters',
         sys.stdout.flush()
         start = time.time()

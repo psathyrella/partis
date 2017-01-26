@@ -7,7 +7,6 @@ import copy
 import os
 
 import utils
-import plotting
 from hist import Hist
 
 # ----------------------------------------------------------------------------------------

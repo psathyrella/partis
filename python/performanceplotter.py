@@ -8,9 +8,7 @@ import copy
 import math
 
 import plotconfig
-import plotting
 from hist import Hist
-import fraction_uncertainty
 
 # Columns for which we just want to know, Did we guess the right value? (for other columns, we store guess - true)
 bool_columns = plotconfig.gene_usage_columns
@@ -143,6 +141,8 @@ class PerformancePlotter(object):
     # ----------------------------------------------------------------------------------------
     def plot(self, plotdir, only_csv=False):
         print '  plotting performance',
+        import fraction_uncertainty
+        import plotting
         start = time.time()
         for substr in self.subplotdirs:
             utils.prep_dir(plotdir + '/' + substr, wildlings=('*.csv', '*.svg'))
@@ -151,7 +151,7 @@ class PerformancePlotter(object):
             if column in bool_columns:
                 right = self.values[column]['right']
                 wrong = self.values[column]['wrong']
-                lo, hi, _ = fraction_uncertainty.err(right, right + wrong)
+                lo, hi, _ = sys.modules['fraction_uncertainty'].err(right, right + wrong)
                 hist = plotting.make_bool_hist(right, wrong, self.name + '-' + column)
                 plotting.draw_no_root(hist, plotname=column, plotdir=plotdir + '/gene-call', write_csv=True, stats='0-bin', only_csv=only_csv)
             else:

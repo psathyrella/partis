@@ -4,7 +4,6 @@ import operator
 
 import glutils
 import utils
-import plotting
 from opener import opener
 
 # ----------------------------------------------------------------------------------------
@@ -73,6 +72,7 @@ def read_mute_info(indir, this_gene, chain, approved_genes=None):  # NOTE this w
 
 # ----------------------------------------------------------------------------------------
 def make_mutefreq_plot(plotdir, gene_name, positions):
+    import plotting
     """ NOTE shares a lot with make_transition_plot() in bin/plot-hmms.py. """
     nuke_colors = {'A' : 'red', 'C' : 'blue', 'G' : 'orange', 'T' : 'green'}
     fig, ax = plotting.mpl_init()

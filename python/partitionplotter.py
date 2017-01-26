@@ -4,7 +4,6 @@ import time
 
 from hist import Hist
 import utils
-import plotting
 from clusterpath import ClusterPath
 
 # ----------------------------------------------------------------------------------------
@@ -59,6 +58,7 @@ class PartitionPlotter(object):
 
     # ----------------------------------------------------------------------------------------
     def plot(self, plotdir, partition=None, infiles=None, annotations=None, only_csv=None):
+        import plotting
         print '  plotting partitions'
         sys.stdout.flush()
         start = time.time()
