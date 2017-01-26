@@ -11,7 +11,7 @@ import os
 import re
 from subprocess import check_output
 
-from Bio import SeqIO, Phylo
+from Bio import Phylo
 import dendropy
 
 import paramutils
@@ -465,8 +465,8 @@ class Recombinator(object):
     # ----------------------------------------------------------------------------------------
     def read_bppseqgen_output(self, cmdfo, n_leaf_nodes):
         mutated_seqs = []
-        for seq_record in SeqIO.parse(cmdfo['outfname'], "fasta"):  # get the leaf node sequences from the file that bppseqgen wrote
-            mutated_seqs.append(str(seq_record.seq))
+        for seqfo in utils.read_fastx(cmdfo['outfname']):  # get the leaf node sequences from the file that bppseqgen wrote
+            mutated_seqs.append(str(seqfo['seq']))
             if n_leaf_nodes == 1:  # skip the extra leaf we added earlier
                 break
         assert n_leaf_nodes == len(mutated_seqs)

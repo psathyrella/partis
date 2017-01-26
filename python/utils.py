@@ -2446,3 +2446,62 @@ def collapse_naive_seqs(naive_seq_list, sw_info):  # NOTE there is also a (simpl
         naive_seq_hashes[hashstr].append(uid)
     print '        collapsed %d sequences into %d unique naive sequences' % (len(naive_seq_list), len(naive_seq_hashes))
     return naive_seq_map, naive_seq_hashes
+
+# ----------------------------------------------------------------------------------------
+def read_fastx(fname):  # Bio.SeqIO is too goddamn slow to import
+    suffix = os.path.splitext(fname)[1]
+    if suffix == '.fa' or suffix == '.fasta':
+        ftype = 'fa'
+    elif suffix == '.fq' or suffix == '.fastq':
+        ftype = 'fq'
+    else:
+        raise Exception('unhandle file type: %s' % suffix)
+
+    finfo = []
+    with open(fname) as fastafile:
+        startpos = None
+        while True:
+            if startpos is not None:  # rewind since the last time through we had to look to see when the next header line appeared
+                fastafile.seek(startpos)
+            headline = fastafile.readline()
+            if not headline:
+                break
+
+            if ftype == 'fa':
+                if headline[0] != '>':
+                    raise Exception('invalid fasta header line in %s:\n    %s' % (fname, headline))
+                headline = headline.lstrip('>')
+
+                seqlines = []
+                nextline = fastafile.readline()
+                while True:
+                    if not nextline:
+                        break
+                    if nextline[0] == '>':
+                        break
+                    else:
+                        startpos = fastafile.tell()  # i.e. very line that doesn't begin with '>' increments <startpos>
+                    seqlines.append(nextline)
+                    nextline = fastafile.readline()
+                seqline = ''.join([l.strip() for l in seqlines]) if len(seqlines) > 0 else None
+            elif ftype == 'fq':
+                if headline[0] != '@':
+                    raise Exception('invalid fastq header line in %s:\n    %s' % (fname, headline))
+                headline = headline.lstrip('@')
+
+                seqline = fastafile.readline()  # NOTE .fq with multi-line entries isn't supported, since delimiter characters are allowed to occur within the quality string
+                plusline = fastafile.readline().strip()
+                if plusline[0] != '+':
+                    raise Exception('invalid fastq quality line in %s:\n    %s' % (fname, plusline))
+                qualityline = fastafile.readline()
+            else:
+                assert False
+
+            if not seqline:
+                break
+
+            info = [p.strip() for p in headline.split('|')]
+            finfo.append({'info' : info,
+                          'name' : info[0].strip(),
+                          'seq' : seqline.strip()})
+    return finfo

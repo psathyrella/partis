@@ -7,12 +7,10 @@ import csv
 from collections import OrderedDict
 import random
 import re
-from Bio import SeqIO
 import string
 import itertools
 
 import utils
-from opener import opener
 
 # ----------------------------------------------------------------------------------------
 def get_more_names(potential_names):
@@ -51,27 +49,21 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, s
             delimiter = '\t'
         else:
             assert False
-        seqfile = opener('r')(infname)
+        seqfile = open(infname)
         reader = csv.DictReader(seqfile, delimiter=delimiter)
     else:
-        if suffix == '.fasta' or suffix == '.fa':
-            ftype = 'fasta'
-        elif suffix == '.fastq' or suffix == '.fq':
-             ftype = 'fastq'
-        else:
-            raise Exception('couldn\'t handle file extension for %s' % infname)
         reader = []
         n_fasta_queries = 0
         already_printed_forbidden_character_warning = False
-        for seq_record in SeqIO.parse(infname, ftype):
+        for seqinfo in utils.read_fastx(infname):
+            uid = seqinfo['name']
 
             # if command line specified query or reco ids, skip other ones (can't have/don't allow simulation info in a fast[aq])
-            if args is not None and args.queries is not None and seq_record.name not in args.queries:
+            if args is not None and args.queries is not None and uid not in args.queries:
                 continue
 
             reader.append({})
 
-            uid = seq_record.name
             if any(fc in uid for fc in utils.forbidden_characters):
                 if not already_printed_forbidden_character_warning:
                     print '  %s: found a forbidden character (one of %s) in sequence id \'%s\'. This means we\'ll be replacing each of these forbidden characters with a single letter from their name (in this case %s). If this will cause problems you should replace the characters with something else beforehand.' % (utils.color('yellow', 'warning'), ' '.join(["'" + fc + "'" for fc in utils.forbidden_characters]), uid, uid.translate(utils.forbidden_character_translations))
@@ -79,7 +71,7 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, s
                 uid = uid.translate(utils.forbidden_character_translations)
 
             reader[-1]['unique_ids'] = uid
-            reader[-1]['input_seqs'] = str(seq_record.seq).upper()
+            reader[-1]['input_seqs'] = str(seqinfo['seq']).upper()
             n_fasta_queries += 1
             if n_max_queries > 0 and n_fasta_queries >= n_max_queries:
                 break

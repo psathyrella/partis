@@ -9,7 +9,6 @@ import glob
 from collections import OrderedDict
 import csv
 from subprocess import check_call, Popen, PIPE
-from Bio import SeqIO
 
 import utils
 
@@ -71,20 +70,18 @@ def convert_to_duplicate_name(glfo, gene):
 def read_fasta_file(seqs, fname, skip_pseudogenes, aligned=False):
     n_skipped_pseudogenes = 0
     seq_to_gene_map = {}
-    for seq_record in SeqIO.parse(fname, 'fasta'):
-        linefo = [p.strip() for p in seq_record.description.split('|')]
-
+    for seqfo in utils.read_fastx(fname):
         # first get gene name
-        if linefo[0][:2] != 'IG':  # if it's an imgt file, with a bunch of header info (and the accession number first)
-            gene = linefo[imgt_info_indices.index('gene')]
-            functionality = linefo[imgt_info_indices.index('functionality')]
+        if seqfo['info'][0][:2] != 'IG':  # if it's an imgt file, with a bunch of header info (and the accession number first)
+            gene = seqfo['info'][imgt_info_indices.index('gene')]
+            functionality = seqfo['info'][imgt_info_indices.index('functionality')]
             if functionality not in functionalities:
                 raise Exception('unexpected functionality %s in %s' % (functionality, fname))
             if skip_pseudogenes and functionality in pseudogene_funcionalities:
                 n_skipped_pseudogenes += 1
                 continue
         else:  # plain fasta with just the gene name after the '>'
-            gene = linefo[0]
+            gene = seqfo['info'][0]  # should be the same as seqfo['name']
         utils.split_gene(gene)  # just to check if it's a valid gene name
         if not aligned and utils.get_region(gene) != utils.get_region(os.path.basename(fname)):  # if <aligned> is True, file name is expected to be whatever
             raise Exception('gene %s from %s has unexpected region %s' % (gene, os.path.basename(fname), utils.get_region(gene)))
@@ -92,7 +89,7 @@ def read_fasta_file(seqs, fname, skip_pseudogenes, aligned=False):
             raise Exception('gene name %s appears twice in %s' % (gene, fname))
 
         # then the sequence
-        seq = str(seq_record.seq).upper()
+        seq = str(seqfo['seq']).upper()
         if not aligned:
             seq = utils.remove_gaps(seq)
         if 'Y' in seq:
@@ -212,9 +209,9 @@ def get_new_alignments(glfo, region, debug=False):
         print '        ' + '\n        '.join(printstrs)
 
     # deal with fasta output
-    for seq_record in SeqIO.parse(mafft_outfname, 'fasta'):
-        gene = seq_record.name.split('|')[0]
-        seq = str(seq_record.seq).upper()
+    for seqfo in utils.read_fastx(mafft_outfname):
+        gene = seqfo['name']
+        seq = str(seqfo['seq']).upper()
         if gene not in glfo['seqs'][region]:  # only really possible if there's a bug in the preceding fifty lines, but oh well, you can't be too careful
             raise Exception('unexpected gene %s in mafft output' % gene)
         aligned_seqs[gene] = seq  # overwrite the old alignment with the new one
