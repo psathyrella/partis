@@ -4,7 +4,6 @@ import math
 from subprocess import check_call
 
 import utils
-from opener import opener
 
 # ----------------------------------------------------------------------------------------
 def vollmers(info, threshold, reco_info=None, debug=False):
@@ -209,7 +208,7 @@ class SingleLinkClusterer(object):
         else:
             assert input_scores is None  # should only specify <input_scores> *or* <infname>
             input_scores = []
-            with opener('r')(infname) as infile:
+            with open(infname, 'r') as infile:
                 reader = csv.DictReader(infile)
                 for line in reader:
                     input_scores.append(line)

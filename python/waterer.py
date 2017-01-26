@@ -14,7 +14,6 @@ import subprocess
 
 import utils
 import glutils
-from opener import opener
 from parametercounter import ParameterCounter
 from performanceplotter import PerformancePlotter
 from allelefinder import AlleleFinder
@@ -256,7 +255,7 @@ class Waterer(object):
             workdir = self.subworkdir(iproc, n_procs)
             if n_procs > 1:
                 utils.prep_dir(workdir)
-            with opener('w')(workdir + '/' + base_infname) as sub_infile:
+            with open(workdir + '/' + base_infname, 'w') as sub_infile:
                 iquery = 0
                 for query_name in self.remaining_queries:  # NOTE this is wasteful to loop of all the remaining queries for each process... but maybe not that wasteful
                     if iquery >= len(self.remaining_queries):

@@ -19,8 +19,6 @@ import utils
 import plotconfig
 from hist import Hist
 
-from opener import opener
-
 plot_ratios = {
     'v' : (30, 3),
     'd' : (8, 4),
@@ -60,7 +58,7 @@ def set_bins(values, n_bins, is_log_x, xbins, var_type='float'):
 # ----------------------------------------------------------------------------------------
 def write_hist_to_file(fname, hist):
     """ see the make_hist_from* functions to reverse this operation """
-    with opener('w')(fname) as histfile:
+    with open(fname, 'w') as histfile:
         writer = csv.DictWriter(histfile, ('bin_low_edge', 'contents', 'binerror', 'xtitle', 'binlabel'))  # this is a really crummy way of writing style information, but root files *suck*, so this is what I do for now
         writer.writeheader()
         for ibin in range(hist.GetNbinsX() + 2):

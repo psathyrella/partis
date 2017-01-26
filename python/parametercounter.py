@@ -5,7 +5,6 @@ import sys
 
 import utils
 import glutils
-from opener import opener
 from hist import Hist
 import plotconfig
 from mutefreqer import MuteFreqer
@@ -173,7 +172,7 @@ class ParameterCounter(object):
                 os.remove(outfname)
             elif not os.path.exists(base_outdir):
                 os.makedirs(base_outdir)
-            with opener('w')(outfname) as outfile:
+            with open(outfname, 'w') as outfile:
                 out_fieldnames = list(index)
                 out_fieldnames.append('count')
                 out_data = csv.DictWriter(outfile, out_fieldnames)

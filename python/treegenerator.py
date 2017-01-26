@@ -12,7 +12,6 @@ from cStringIO import StringIO
 import tempfile
 from subprocess import check_call
 from Bio import Phylo
-from opener import opener
 from hist import Hist
 import utils
 
@@ -115,7 +114,7 @@ class TreeGenerator(object):
         (t2:0.003751736951,t1:0.003751736951):0.001248262937;v:0.98,d:1.8,j:0.87
         """
         # first read the newick info for each tree
-        with opener('r')(treefname) as treefile:
+        with open(treefname, 'r') as treefile:
             treestrings = treefile.readlines()
         # then add the region-specific branch info
         length_list = ['%s:%f'% (region, self.branch_lengths[region]['mean'] / self.branch_lengths['all']['mean']) for region in utils.regions]
@@ -124,7 +123,7 @@ class TreeGenerator(object):
                 treestrings.insert(itree, 't1:%f;\n' % ages[itree])
             treestrings[itree] = treestrings[itree].replace(';', ';' + ','.join(length_list))
         # and finally write out the final lines
-        with opener('w')(treefname) as treefile:
+        with open(treefname, 'w') as treefile:
             for line in treestrings:
                 treefile.write(line)
                 
@@ -143,7 +142,7 @@ class TreeGenerator(object):
     # ----------------------------------------------------------------------------------------
     def check_tree_lengths(self, treefname, ages):
         treestrs = []
-        with opener('r')(treefname) as treefile:
+        with open(treefname, 'r') as treefile:
             for line in treefile:
                 treestrs.append(line.split(';')[0] + ';')  # ignore the info I added after the ';'
         if self.args.debug > 1:

@@ -6,7 +6,6 @@ import csv
 import time
 
 import utils
-from opener import opener
 from clusterpath import ClusterPath
 
 # ----------------------------------------------------------------------------------------
@@ -125,7 +124,7 @@ class Glomerator(object):
     def read_file_info(self, infname, n_paths):
         paths = [None for _ in range(n_paths)]
         lines_list = [[] for _ in range(n_paths)]
-        with opener('r')(infname) as csvfile:
+        with open(infname, 'r') as csvfile:
             reader = csv.DictReader(csvfile)
             for line in reader:
                 if line['partition'] == '':

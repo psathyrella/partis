@@ -1,7 +1,6 @@
 import csv
 import math
 import os
-from opener import opener
 from utils import is_normed
 
 # ----------------------------------------------------------------------------------------
@@ -47,7 +46,7 @@ class Hist(object):
     # ----------------------------------------------------------------------------------------
     def file_init(self, fname):
         self.errors, self.sum_weights_squared = [], []  # kill the unused one after reading file
-        with opener('r')(fname) as infile:
+        with open(fname, 'r') as infile:
             reader = csv.DictReader(infile)
             for line in reader:
                 self.low_edges.append(float(line['bin_low_edge']))
@@ -203,7 +202,7 @@ class Hist(object):
     def write(self, outfname):
         if not os.path.exists(os.path.dirname(outfname)):
             os.makedirs(os.path.dirname(outfname))
-        with opener('w')(outfname) as outfile:
+        with open(outfname, 'w') as outfile:
             header = [ 'bin_low_edge', 'contents', 'binlabel' ]
             if self.errors is not None:
                 header.append('error')

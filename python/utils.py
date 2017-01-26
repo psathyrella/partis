@@ -13,7 +13,6 @@ from subprocess import check_call, check_output, CalledProcessError, Popen
 import multiprocessing
 import copy
 
-from opener import opener
 import seqfileopener
 import glutils
 import prutils
@@ -1245,7 +1244,7 @@ def separate_into_allelic_groups(glfo, debug=False):
 def read_single_gene_count(indir, gene, expect_zero_counts=False, debug=False):
     region = get_region(gene)
     count = 0
-    with opener('r')(indir + '/' + region + '_gene-probs.csv') as infile:  # NOTE this ignores correlations... which I think is actually ok, but it wouldn't hurt to think through it again at some point
+    with open(indir + '/' + region + '_gene-probs.csv', 'r') as infile:  # NOTE this ignores correlations... which I think is actually ok, but it wouldn't hurt to think through it again at some point
         reader = csv.DictReader(infile)
         for line in reader:
             if line[region + '_gene'] == gene:
@@ -1270,7 +1269,7 @@ def read_overall_gene_probs(indir, only_gene=None, normalize=True, expect_zero_c
     counts, probs = {r : {} for r in regions}, {r : {} for r in regions}
     for region in regions:
         total = 0
-        with opener('r')(indir + '/' + region + '_gene-probs.csv') as infile:  # NOTE this ignores correlations... which I think is actually ok, but it wouldn't hurt to think through it again at some point
+        with open(indir + '/' + region + '_gene-probs.csv', 'r') as infile:  # NOTE this ignores correlations... which I think is actually ok, but it wouldn't hurt to think through it again at some point
             reader = csv.DictReader(infile)
             for line in reader:
                 line_count = int(line['count'])
@@ -1318,7 +1317,7 @@ def find_replacement_genes(param_dir, min_counts, gene_name=None, debug=False, a
     lists['allele'] = []  # list of genes that are alleles of <gene_name>
     lists['primary_version'] = []  # same primary version as <gene_name>
     lists['all'] = []  # give up and return everything
-    with opener('r')(param_dir + '/' + region + '_gene-probs.csv') as infile:  # NOTE note this ignores correlations... which I think is actually ok, but it wouldn't hurt to think through it again at some point
+    with open(param_dir + '/' + region + '_gene-probs.csv', 'r') as infile:  # NOTE note this ignores correlations... which I think is actually ok, but it wouldn't hurt to think through it again at some point
         reader = csv.DictReader(infile)
         for line in reader:
             gene = line[region + '_gene']
@@ -1564,7 +1563,7 @@ def merge_csvs(outfname, csv_list, cleanup=True):
     for infname in csv_list:
         # print '  ', infname
         workdir = os.path.dirname(infname)
-        with opener('r')(infname) as sub_outfile:
+        with open(infname, 'r') as sub_outfile:
             reader = csv.DictReader(sub_outfile)
             header = reader.fieldnames
             for line in reader:
@@ -1576,7 +1575,7 @@ def merge_csvs(outfname, csv_list, cleanup=True):
     outdir = '.' if os.path.dirname(outfname) == '' else os.path.dirname(outfname)
     if not os.path.exists(outdir):
         os.makedirs(outdir)
-    with opener('w')(outfname) as outfile:
+    with open(outfname, 'w') as outfile:
         writer = csv.DictWriter(outfile, header)
         writer.writeheader()
         for line in outfo:

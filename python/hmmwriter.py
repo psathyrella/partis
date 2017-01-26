@@ -10,7 +10,6 @@ import time
 
 import utils
 import glutils
-from opener import opener
 import paramutils
 from hist import Hist
 
@@ -226,7 +225,7 @@ class HmmWriter(object):
     def write(self):
         self.add_states()
         assert os.path.exists(self.outdir)
-        with opener('w')(self.outdir + '/' + self.saniname + '.yaml') as outfile:
+        with open(self.outdir + '/' + self.saniname + '.yaml', 'w') as outfile:
             yaml.dump(self.hmm, outfile, width=150)
 
     # ----------------------------------------------------------------------------------------
@@ -335,7 +334,7 @@ class HmmWriter(object):
                 eprobs[erosion][0] = 1.  # always erode zero bases
                 continue
             deps = utils.column_dependencies[erosion + '_del']
-            with opener('r')(self.indir + '/' + utils.get_parameter_fname(column=erosion + '_del', deps=deps)) as infile:
+            with open(self.indir + '/' + utils.get_parameter_fname(column=erosion + '_del', deps=deps), 'r') as infile:
                 reader = csv.DictReader(infile)
                 for line in reader:
                     # first see if we want to use this line (if <region>_gene isn't in the line, this erosion doesn't depend on gene version)
@@ -395,7 +394,7 @@ class HmmWriter(object):
                 icontentprobs[insertion] = {n : 0.25 for n in utils.nukes}
                 continue
             deps = utils.column_dependencies[insertion + '_insertion']
-            with opener('r')(self.indir + '/' + utils.get_parameter_fname(column=insertion + '_insertion', deps=deps)) as infile:
+            with open(self.indir + '/' + utils.get_parameter_fname(column=insertion + '_insertion', deps=deps), 'r') as infile:
                 reader = csv.DictReader(infile)
                 for line in reader:
                     # first see if we want to use this line (if <region>_gene isn't in the line, this erosion doesn't depend on gene version)
@@ -454,7 +453,7 @@ class HmmWriter(object):
     def read_insertion_content(self, insertion):
         icontentprobs = {}  # NOTE this is only the probs for <insertion>, even though name is the same as in the previous function
         if insertion in utils.boundaries:  # i.e. if it's a real insertion
-            with opener('r')(self.indir + '/' + insertion + '_insertion_content.csv') as icfile:
+            with open(self.indir + '/' + insertion + '_insertion_content.csv', 'r') as icfile:
                 reader = csv.DictReader(icfile)
                 total = 0
                 for line in reader:

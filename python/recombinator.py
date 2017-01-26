@@ -14,7 +14,6 @@ from subprocess import check_output
 from Bio import SeqIO, Phylo
 import dendropy
 
-from opener import opener
 import paramutils
 import utils
 import glutils
@@ -55,7 +54,7 @@ class Recombinator(object):
         self.all_mute_freqs = {}
 
         # read shm info NOTE I'm not inferring the gtr parameters a.t.m., so I'm just (very wrongly) using the same ones for all individuals
-        with opener('r')(self.args.gtrfname) as gtrfile:  # read gtr parameters
+        with open(self.args.gtrfname, 'r') as gtrfile:  # read gtr parameters
             reader = csv.DictReader(gtrfile)
             for line in reader:
                 parameters = line['parameter'].split('.')
@@ -68,7 +67,7 @@ class Recombinator(object):
         treegen = treegenerator.TreeGenerator(args, self.parameter_dir, seed=seed)
         self.treefname = self.workdir + '/trees.tre'
         treegen.generate_trees(seed, self.treefname)
-        with opener('r')(self.treefname) as treefile:  # read in the trees (and other info) that we just generated
+        with open(self.treefname, 'r') as treefile:  # read in the trees (and other info) that we just generated
             self.treeinfo = treefile.readlines()
         os.remove(self.treefname)
 
@@ -85,7 +84,7 @@ class Recombinator(object):
         insertion_content_probs = {}
         for bound in utils.boundaries:
             insertion_content_probs[bound] = {}
-            with opener('r')(self.parameter_dir + '/' + bound + '_insertion_content.csv') as icfile:
+            with open(self.parameter_dir + '/' + bound + '_insertion_content.csv', 'r') as icfile:
                 reader = csv.DictReader(icfile)
                 total = 0
                 for line in reader:
@@ -197,7 +196,7 @@ class Recombinator(object):
             return None
 
         version_freq_table = {}
-        with opener('r')(self.parameter_dir + '/' + utils.get_parameter_fname('all')) as infile:
+        with open(self.parameter_dir + '/' + utils.get_parameter_fname('all', 'r')) as infile:
             in_data = csv.DictReader(infile)
             total = 0.0
             for line in in_data:  # NOTE do *not* assume the file is sorted
@@ -397,7 +396,7 @@ class Recombinator(object):
         assert len(rates) == len(seq)  # you just can't be too careful. what if gremlins ate a few while python wasn't looking?
 
         # write the input file for bppseqgen, one base per line
-        with opener('w')(reco_seq_fname) as reco_seq_file:
+        with open(reco_seq_fname, 'w') as reco_seq_file:
             # NOTE really not sure why this doesn't really [seems to require an "extra" column] work with csv.DictWriter, but it doesn't -- bppseqgen barfs (I think maybe it expects a different newline character? don't feel like working it out)
             headstr = 'state'
             if not self.args.mutate_from_scratch:
@@ -427,7 +426,7 @@ class Recombinator(object):
             assert len(leafstr) == 1
             leafstr = leafstr[0]
             chosen_tree = chosen_tree.replace(leafstr, '(' + leafstr + ',' + leafstr + '):0.0')
-        with opener('w')(treefname) as treefile:
+        with open(treefname, 'w') as treefile:
             treefile.write(chosen_tree)
         self.write_mute_freqs(gene, seq, reco_event, reco_seq_fname)
 
@@ -618,12 +617,12 @@ class Recombinator(object):
         if leaf_seq_fname == '':  # we need to make the leaf seq file based on info in reco_event
             clean_up = True
             leaf_seq_fname = self.workdir + '/leaf-seqs.fa'
-            with opener('w')(leaf_seq_fname) as leafseqfile:
+            with open(leaf_seq_fname, 'w') as leafseqfile:
                 for iseq in range(len(reco_event.final_seqs)):
                     leafseqfile.write('>t' + str(iseq+1) + '\n')  # NOTE the *order* of the seqs doesn't correspond to the tN number. does it matter?
                     leafseqfile.write(reco_event.final_seqs[iseq] + '\n')
 
-        with opener('w')(os.devnull) as fnull:
+        with open(os.devnull, 'w') as fnull:
             inferred_tree_str = check_output('FastTree -gtr -nt ' + leaf_seq_fname, shell=True, stderr=fnull)
         os.remove(leaf_seq_fname)
         chosen_tree = dendropy.Tree.get_from_string(chosen_tree_str, 'newick')

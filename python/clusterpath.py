@@ -4,7 +4,6 @@ import math
 import csv
 
 import utils
-from opener import opener
 
 # ----------------------------------------------------------------------------------------
 class ClusterPath(object):
@@ -89,7 +88,7 @@ class ClusterPath(object):
             raise Exception('can\'t read NoneType partition file')
         if os.stat(fname).st_size == 0:
             raise Exception('partition file %s has size zero' % fname)
-        with opener('r')(fname) as infile:
+        with open(fname, 'r') as infile:
             reader = csv.DictReader(infile)
             lines = [line for line in reader]
             self.readlines(lines)

@@ -6,7 +6,6 @@ import numpy
 import os
 import copy
 
-from opener import opener
 import utils
 
 #----------------------------------------------------------------------------------------
@@ -79,7 +78,7 @@ class RecombinationEvent(object):
             mode = 'ab'
         else:
             mode = 'wb'
-        with opener(mode)(outfile) as csvfile:
+        with open(outfile, mode) as csvfile:
             writer = csv.DictWriter(csvfile, columns)
             if mode == 'wb':  # write the header if file wasn't there before
                 writer.writeheader()

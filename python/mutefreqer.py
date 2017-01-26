@@ -2,7 +2,6 @@ import csv
 import os
 
 from hist import Hist
-from opener import opener
 import utils
 import glutils
 
@@ -176,7 +175,7 @@ class MuteFreqer(object):
         for gene in self.counts:
             gcounts, freqs = self.counts[gene], self.freqs[gene]
             outfname = outdir + '/' + utils.sanitize_name(gene) + '.csv'
-            with opener('w')(outfname) as outfile:
+            with open(outfname, 'w') as outfile:
                 nuke_header = [n + xtra for n in utils.nukes for xtra in ('', '_obs', '_lo_err', '_hi_err')]
                 writer = csv.DictWriter(outfile, ('position', 'mute_freq', 'lo_err', 'hi_err') + tuple(nuke_header))
                 writer.writeheader()

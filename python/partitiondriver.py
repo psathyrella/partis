@@ -16,7 +16,6 @@ import operator
 
 import utils
 import glutils
-from opener import opener
 import seqfileopener
 from glomerator import Glomerator
 from clusterpath import ClusterPath
@@ -219,7 +218,7 @@ class PartitionDriver(object):
             print '  restricting self.glfo (and %s) to alleles observed in %s' % (self.my_gldir, subpdir)
         only_genes = set()
         for region in utils.regions:
-            with opener('r')(subpdir + '/' + region + '_gene-probs.csv') as pfile:
+            with open(subpdir + '/' + region + '_gene-probs.csv', 'r') as pfile:
                 reader = csv.DictReader(pfile)
                 for line in reader:
                     only_genes.add(line[region + '_gene'])
@@ -903,7 +902,7 @@ class PartitionDriver(object):
         # read single input file
         info = []
         seeded_clusters = {}
-        with opener('r')(infname) as infile:
+        with open(infname, 'r') as infile:
             reader = csv.DictReader(infile, delimiter=' ')
             for line in reader:
                 if separate_seeded_clusters and self.args.seed_unique_id in set(line['names'].split(':')):
@@ -1183,7 +1182,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def write_to_single_input_file(self, fname, nsets, parameter_dir, skipped_gene_matches, shuffle_input=False):
-        csvfile = opener('w')(fname)
+        csvfile = open(fname, 'w')
         header = ['names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'mut_freq', 'cdr3_length', 'only_genes', 'seqs']
         writer = csv.DictWriter(csvfile, header, delimiter=' ')
         writer.writeheader()
@@ -1285,7 +1284,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def read_forward_output(self, annotation_fname):
         probs = OrderedDict()
-        with opener('r')(annotation_fname) as csvfile:
+        with open(annotation_fname, 'r') as csvfile:
             reader = csv.DictReader(csvfile)
             for line in reader:
                 if line['errors'] != '':
@@ -1378,7 +1377,7 @@ class PartitionDriver(object):
         at_least_one_mult_hmm_line = False
         eroded_annotations, padded_annotations = OrderedDict(), OrderedDict()
         errorfo = {}
-        with opener('r')(annotation_fname) as hmm_csv_outfile:
+        with open(annotation_fname, 'r') as hmm_csv_outfile:
             reader = csv.DictReader(hmm_csv_outfile)
             for padded_line in reader:  # line coming from hmm output is N-padded such that all the seqs are the same length
 

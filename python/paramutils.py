@@ -4,7 +4,6 @@ import operator
 
 import glutils
 import utils
-from opener import opener
 
 # ----------------------------------------------------------------------------------------
 def simplify_state_name(state_name):
@@ -30,7 +29,7 @@ def read_mute_info(indir, this_gene, chain, approved_genes=None):  # NOTE this w
         mutefname = indir + '/mute-freqs/' + utils.sanitize_name(gene) + '.csv'
         if not os.path.exists(mutefname):
             continue
-        with opener('r')(mutefname) as mutefile:
+        with open(mutefname, 'r') as mutefile:
             reader = csv.DictReader(mutefile)
             for line in reader:
                 pos = int(line['position'])
