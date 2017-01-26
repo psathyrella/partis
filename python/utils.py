@@ -1034,23 +1034,22 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     if check_line_integrity:  # it's very important not to modify <line> -- this lets you verify that you aren't
         line = copy.deepcopy(original_line)  # copy that we can modify without changing <line>
 
-    qseq = line['seqs'][iseq]
-    indelfo = None if line['indelfos'][iseq]['reversed_seq'] == '' else line['indelfos'][iseq]
     # if indelfo is not None:
     #     for ii in range(len(indelfo['indels'])):
     #         idl = indelfo['indels'][ii]
     #         if ii > 0:
     #             extra_str += '\nxxx'
     #     extra_str += ' %10s: %2d bases at %3d'  % (idl['type'], idl['len'], idl['pos'])
+    # if len(indelfo['indels']) > 1:
+    #     print '        %s can\'t yet print multiple indels' % color('yellow', 'warning')
 
-    # copies so that we don't have to modify <line>
-    lengths = {r : line['lengths'][r] for r in regions}
-    glseqs = {r : line[r + '_gl_seq'] for r in regions}
+    qseq = line['seqs'][iseq]  # shorthand
+    lengths = {r : line['lengths'][r] for r in regions}  # copy so that we don't have to modify <line>
+    glseqs = {r : line[r + '_gl_seq'] for r in regions}  # copy so that we don't have to modify <line>
 
-    if indelfo is not None:
-        assert indelfo['reversed_seq'] == qseq  # I think that while this didn't used to always be true, now it is
-        if len(indelfo['indels']) > 1:
-            print '        %s can\'t yet print multiple indels' % color('yellow', 'warning')
+    indelfo = None
+    if len(line['indelfos'][iseq]['indels']) > 0:
+        indelfo = line['indelfos'][iseq]
         add_indels_to_germline_strings(lengths, glseqs, line, indelfo)
 
     # don't print a million dots if left-side v deletion is really big
@@ -1070,7 +1069,8 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     }
 
     # build the various germline lines
-    insert_line = ' '*len(line['fv_insertion']) + ' '*lengths['v'] + gapstr + ' '*len(v_5p_del_str) \
+    # insert_line = ' ' * (len(line['fv_insertion']) + lengths['v'] + len(v_5p_del_str)) 
+    insert_line = ' ' * len(line['fv_insertion']) + ' '*lengths['v'] + gapstr + ' '*len(v_5p_del_str) \
                   + line['vd_insertion'] + ' ' * lengths['d'] + line['dj_insertion'] \
                   + ' ' * lengths['j'] + ' '*j_right_extra + ' ' * line['j_3p_del']
     germline_d_start = len(line['fv_insertion']) + lengths['v'] + len(line['vd_insertion']) - line['d_5p_del']
@@ -1085,25 +1085,27 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     vj_line = ' ' * len(line['fv_insertion']) + v_5p_del_str + eroded_seqs_dots['v'] + '.'*extra_space_because_of_fixed_nospace \
               + ' ' * (germline_j_start - germline_v_end - 2) + eroded_seqs_dots['j'] + ' '*j_right_extra
 
-    # special treatment for light chain
     chain = get_chain(line['v_gene'])
     if chain != 'h':
         assert lengths['d'] == 0 and len(line['vd_insertion']) == 0
 
     # and finally build up the string to print
-    outstrs = []
-    if not one_line:
-        outstrs.append('%s    %s   insert%s\n' % (extra_str, insert_line, 's' if chain == 'h' else ''))
-        if label != '':
-            outstrs[-1] = extra_str + label + outstrs[-1][len_excluding_colors(extra_str + label) :]
-        if chain == 'h':
-            outstrs.append('%s    %s   %s\n' % (extra_str, d_line, color_gene(line['d_gene'])))
-        outstrs.append('%s    %s   %s %s\n' % (extra_str, vj_line, color_gene(line['v_gene']), color_gene(line['j_gene'])))
-    outstrs.append('%s    %s   %s   %4.2f mut\n' % (extra_str, qrseq_line, prutils.get_uid_str(line, iseq, seed_uid), line['mut_freqs'][iseq]))
+    outstrs = [
+        '%s%s   insert%s\n'       % (extra_str, insert_line, 's' if chain == 'h' else ''),
+        '%s%s   %s\n'             % (extra_str, d_line, color_gene(line['d_gene'])),
+        '%s%s   %s %s\n'          % (extra_str, vj_line, color_gene(line['v_gene']), color_gene(line['j_gene'])),
+        '%s%s   %s   %4.2f mut\n' % (extra_str, qrseq_line, prutils.get_uid_str(line, iseq, seed_uid), line['mut_freqs'][iseq]),
+    ]
+
+    if label != '':
+        outstrs[0] = outstrs[0][ : len(extra_str) - 2] + label + outstrs[0][len(extra_str) + len_excluding_colors(label) - 2 : ]
 
     for il in range(len(outstrs)):
         outstrs[il] = color_chars(ambiguous_bases + ['*', ], 'light_blue', outstrs[il])
 
+
+    # if not one_line:
+        # if chain == 'h':
     print ''.join(outstrs),
 
     if check_line_integrity:
