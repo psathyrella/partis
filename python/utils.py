@@ -1034,15 +1034,6 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     if check_line_integrity:  # it's very important not to modify <line> -- this lets you verify that you aren't
         line = copy.deepcopy(original_line)  # copy that we can modify without changing <line>
 
-    # if indelfo is not None:
-    #     for ii in range(len(indelfo['indels'])):
-    #         idl = indelfo['indels'][ii]
-    #         if ii > 0:
-    #             extra_str += '\nxxx'
-    #     extra_str += ' %10s: %2d bases at %3d'  % (idl['type'], idl['len'], idl['pos'])
-    # if len(indelfo['indels']) > 1:
-    #     print '        %s can\'t yet print multiple indels' % color('yellow', 'warning')
-
     qseq = line['seqs'][iseq]  # shorthand
     lengths = {r : line['lengths'][r] for r in regions}  # copy so that we don't have to modify <line>
     glseqs = {r : line[r + '_gl_seq'] for r in regions}  # copy so that we don't have to modify <line>
@@ -1099,7 +1090,7 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
 
     if label != '':
         offset = max(0, len(extra_str) - 2)  # skootch <label> this many positions leftward into <extra_str>
-        outstrs[0] = outstrs[0][ : offset] + label + outstrs[0][len_excluding_colors(label) + offset : ]
+        outstrs[0] = outstrs[0][ : offset] + label + outstrs[0][len_excluding_colors(label) + offset : ]  # NOTE this *replaces* the bases in <extra_str> with <label>, which is only fine if they're spaces
 
     for il in range(len(outstrs)):
         outstrs[il] = color_chars(ambiguous_bases + ['*', ], 'light_blue', outstrs[il])
@@ -2198,8 +2189,8 @@ def add_indels_to_germline_strings(lengths, glseqs, line, indelfo):
     """ Add stars to the germline sequences (for ascii printing) if there were SHM insertions. """
     # NOTE modify <lengths> and/or <glseqs>, but don't touch <line>
 
-    # if len(indelfo['indels']) > 1:
-    #     print '    WARNING found %d indels, but we can only handle 1' % len(indelfo['indels'])
+    if len(indelfo['indels']) > 1:
+        print '%s found %d indels, but we can only handle 1' % (color('red', 'warning'), len(indelfo['indels']))
 
     lastfo = indelfo['indels'][-1]
 
@@ -2216,8 +2207,6 @@ def add_indels_to_germline_strings(lengths, glseqs, line, indelfo):
     thischunk = weirdolist[lastfo['pos']]
     offset = weirdolist.index(thischunk)  # index of first occurence
     if thischunk in regions:
-        # line['lengths'][thischunk] += lastfo['len']
-        # line[thischunk + '_gl_seq'] = line[thischunk + '_gl_seq'][ : lastfo['pos'] - offset] + '*' * lastfo['len'] + line[thischunk + '_gl_seq'][lastfo['pos'] - offset : ]
         lengths[thischunk] += lastfo['len']
         glseqs[thischunk] = line[thischunk + '_gl_seq'][ : lastfo['pos'] - offset] + '*' * lastfo['len'] + line[thischunk + '_gl_seq'][lastfo['pos'] - offset : ]
     else:
