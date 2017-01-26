@@ -773,8 +773,8 @@ class Waterer(object):
             inf_label = '      ' + utils.kbound_str({r : infoline['k_' + r] for r in ['v', 'd']})
             if not self.args.is_data:
                 inf_label = 'inferred: ' + inf_label
-                utils.print_reco_event(self.glfo['seqs'], self.reco_info[qname], extra_str='      ', label='true:')
-            utils.print_reco_event(self.glfo['seqs'], self.info[qname], extra_str='      ', label=inf_label)
+                utils.print_reco_event(self.glfo['seqs'], self.reco_info[qname], extra_str='    ', label=utils.color('green', 'true:'))
+            utils.print_reco_event(self.glfo['seqs'], self.info[qname], extra_str='    ', label=inf_label)
 
         if self.pcounter is not None:
             self.pcounter.increment(self.info[qname])
