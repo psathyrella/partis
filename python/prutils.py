@@ -90,10 +90,11 @@ def handle_no_space(line, glseqs, final_seq_list):  # NOTE do not, on pain of de
     else:
         v_3p_del_str = '.' * line['v_3p_del']
         j_5p_del_str = '.' * line['j_5p_del']
+        gap_insertion_point = None
         gaps_to_add = 0
         extra_space_because_of_fixed_nospace = 0
 
-    return final_seq_list, utils.color('blue', '-') * gaps_to_add, v_3p_del_str, j_5p_del_str, extra_space_because_of_fixed_nospace
+    return final_seq_list, gap_insertion_point, utils.color('blue', '-') * gaps_to_add, v_3p_del_str, j_5p_del_str, extra_space_because_of_fixed_nospace
 
 # ----------------------------------------------------------------------------------------
 def get_uid_str(line, iseq, seed_uid):
