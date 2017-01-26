@@ -1090,7 +1090,6 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     if chain != 'h':
         assert lengths['d'] == 0 and len(line['vd_insertion']) == 0
 
-    # and finally build up the string to print
     outstrs = [
         '%s%s   insert%s\n'       % (extra_str, insert_line, 's' if chain == 'h' else ''),
         '%s%s   %s\n'             % (extra_str, d_line, color_gene(line['d_gene'])),
@@ -1105,8 +1104,11 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
         outstrs[il] = color_chars(ambiguous_bases + ['*', ], 'light_blue', outstrs[il])
 
 
-    # if not one_line:
-        # if chain == 'h':
+    if one_line:
+        outstrs = outstrs[-1:]  # remove all except the query seq line
+    elif chain != 'h':
+        outstrs.pop(1)  # remove the d germline line
+
     print ''.join(outstrs),
 
     if check_line_integrity:
