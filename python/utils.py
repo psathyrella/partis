@@ -1098,7 +1098,8 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     ]
 
     if label != '':
-        outstrs[0] = outstrs[0][ : len(extra_str) - 2] + label + outstrs[0][len(extra_str) + len_excluding_colors(label) - 2 : ]
+        offset = max(0, len(extra_str) - 2)  # skootch <label> this many positions leftward into <extra_str>
+        outstrs[0] = outstrs[0][ : offset] + label + outstrs[0][len_excluding_colors(label) + offset : ]
 
     for il in range(len(outstrs)):
         outstrs[il] = color_chars(ambiguous_bases + ['*', ], 'light_blue', outstrs[il])
