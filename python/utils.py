@@ -1051,7 +1051,7 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
         v_5p_del_str = '...' + str(line['v_5p_del']) + '...'
 
     # get the query seq line, as well as info we need for the germline lines
-    qrseqlist, j_right_extra = prutils.get_query_line(qseq, line, lengths, glseqs, indelfo=indelfo)
+    qrseqlist = list(qseq)
     qrseqlist, gap_insertion_point, gapstr, v_3p_del_str, j_5p_del_str, extra_space_because_of_fixed_nospace = prutils.handle_no_space(line, glseqs, qrseqlist)
     qrseq_line = ' '*len(v_5p_del_str) + ''.join(qrseqlist) + ' ' * line['j_3p_del']
 
@@ -1064,16 +1064,16 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     # build the various germline lines
     insert_line = ' ' * (len(line['fv_insertion']) + lengths['v'] + len(v_5p_del_str)) \
                   + line['vd_insertion'] + ' ' * lengths['d'] + line['dj_insertion'] \
-                  + ' ' * (lengths['j'] + j_right_extra + line['j_3p_del'])
+                  + ' ' * (lengths['j'] + line['j_3p_del'] + len(line['jf_insertion']))
     germline_d_start = len(line['fv_insertion']) + lengths['v'] + len(line['vd_insertion']) - line['d_5p_del']
     germline_d_end = germline_d_start + len(germlines['d'][line['d_gene']])
     d_line = ' ' * (germline_d_start + len(v_5p_del_str)) \
              + eroded_seqs_dots['d'] \
-             + ' ' * (len(glseqs['j']) + len(line['dj_insertion']) - line['d_3p_del'] + j_right_extra + line['j_3p_del'])
+             + ' ' * (len(glseqs['j']) + len(line['dj_insertion']) - line['d_3p_del'] + line['j_3p_del'] + len(line['jf_insertion']))
     germline_v_end = len(line['fv_insertion']) + len(glseqs['v']) + line['v_3p_del'] - 1  # position in the query sequence at which we find the last base of the v match. NOTE we subtract off the v_5p_del because we're *not* adding dots for that deletion (it's just too long)
     germline_j_start = germline_d_end + 1 - line['d_3p_del'] + len(line['dj_insertion']) - line['j_5p_del']
     vj_line = ' ' * len(line['fv_insertion']) + v_5p_del_str + eroded_seqs_dots['v'] + '.' * extra_space_because_of_fixed_nospace \
-              + ' ' * (germline_j_start - germline_v_end - 2) + eroded_seqs_dots['j'] + ' ' * j_right_extra
+              + ' ' * (germline_j_start - germline_v_end - 2) + eroded_seqs_dots['j'] + ' ' * len(line['jf_insertion'])
 
     if gapstr != '':  # <gap_insertion_point> point is only right here as long as there's no colors in these lines... but there usually almost probably always aren't
         insert_line = insert_line[:gap_insertion_point] + gapstr + insert_line[gap_insertion_point:]

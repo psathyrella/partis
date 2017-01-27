@@ -15,75 +15,6 @@ def process_position(original, final):  # optimizing this, and to a lesser exten
     return final
 
 # ----------------------------------------------------------------------------------------
-def get_query_line(qseq, line, lengths, glseqs, indelfo=None):  # NOTE do not, on pain of death, modify <line>
-    # build up the query sequence line, including colors for mutations and conserved codons
-    j_right_extra = 0  # portion of query sequence to right of end of the j match
-    n_inserted = 0
-    qrseqlist = []
-    if indelfo is not None:
-        lastfo = indelfo['indels'][-1]  # if the "last" (arbitrary but necessary ordering) indel starts here
-    for inuke in range(len(qseq)):
-        # if we're at the position that the insertion started at (before we removed it)
-        if indelfo is not None and lastfo['type'] == 'insertion':
-            if inuke == lastfo['pos']:
-                qrseqlist.append(lastfo['seqstr'])  # put the insertion back into the query sequence
-                n_inserted += len(lastfo['seqstr'])
-        if indelfo is not None and lastfo['type'] == 'deletion':
-            if inuke - lastfo['pos'] >= 0 and inuke - lastfo['pos'] < lastfo['len']:  # if we're within the bases that we added to make up for the deletionlen
-                qrseqlist.append('*')  # gets blue'd later on, so it can happen at the same time as the germline lines
-                continue
-
-        new_nuke = ''
-        key = None
-        ilocal = inuke
-        if indelfo is not None:
-            ilocal += n_inserted
-        if ilocal < len(line['fv_insertion']):  # haven't got to start of v match yet, so just add on the query seq nuke
-            pass
-        else:
-            ilocal -= len(line['fv_insertion'])
-            if ilocal < lengths['v']:
-                key = 'v'
-            else:
-                ilocal -= lengths['v']
-                if ilocal < len(line['vd_insertion']):
-                    key = 'vd_insertion'
-                else:
-                    ilocal -= len(line['vd_insertion'])
-                    if ilocal < lengths['d']:
-                        key = 'd'
-                    else:
-                        ilocal -= lengths['d']
-                        if ilocal < len(line['dj_insertion']):
-                            key = 'dj_insertion'
-                        else:
-                            ilocal -= len(line['dj_insertion'])
-                            if ilocal < lengths['j']:
-                                key = 'j'
-                            else:
-                                j_right_extra += 1
-
-        if key is None:
-            original = qseq[inuke]  # dummy value
-        else:
-            original = glseqs[key][ilocal] if key in glseqs else line[key][ilocal]
-        new_nuke = process_position(original, qseq[inuke])
-
-        for region, pos in line['codon_positions'].items():  # reverse video for the conserved codon positions
-            if inuke >= pos and inuke < pos + 3:
-                new_nuke = utils.color('reverse_video', new_nuke)  #'\033[7m' + new_nuke + '\033[0m'  # not sure why the hell I wasn't using color() here
-
-        qrseqlist.append(new_nuke)
-
-# ----------------------------------------------------------------------------------------
-    SQ = ''.join(qrseqlist)
-    for color_code in utils.Colors.values():
-        SQ = SQ.replace(color_code, '')
-    qrseqlist = list(SQ)
-# ----------------------------------------------------------------------------------------
-    return qrseqlist, j_right_extra
-
-# ----------------------------------------------------------------------------------------
 def handle_no_space(line, glseqs, qrseqlist):  # NOTE do not, on pain of death, modify <line>
     # if there isn't enough space for dots in the vj line, we add some blue dashes to everybody so things fit (very rare in heavy chain rearrangements, but pretty common in light chain)
     interior_length = len(line['vd_insertion']) + len(glseqs['d']) + len(line['dj_insertion'])  # length of the portion of the vj line that is normally taken up by dots (and spaces)
@@ -147,6 +78,8 @@ def color_query_seq(outstrs):
         if '*' in ''.join([ostr[inuke] for ostr in outstrs]):  # if any of the four have a star at this position (i.e. if we're in an shm insertion or shm deletion)
             continue
         glchars = [ostr[inuke] for ostr in outstrs[:3] if ostr[inuke] in utils.alphabet]
+        if len(glchars) == 0:  # all spaces (or maybe also dots?)
+            continue
         if len(glchars) > 1:
             raise Exception('more than one germline line has an alphabet character at %d: %s' % (inuke, glchars))
         if qrseqlist[inuke] != glchars[0]:
