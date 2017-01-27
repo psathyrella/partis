@@ -1040,11 +1040,6 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     lengths = {r : line['lengths'][r] for r in regions}  # copy so that we don't have to modify <line>
     glseqs = {r : line[r + '_gl_seq'] for r in regions}  # copy so that we don't have to modify <line>
 
-    indelfo = None
-    # if len(line['indelfos'][iseq]['indels']) > 0:
-    #     indelfo = line['indelfos'][iseq]
-    #     add_indels_to_germline_strings(lengths, glseqs, line, indelfo)
-
     # don't print a million dots if left-side v deletion is really big
     v_5p_del_str = '.'*line['v_5p_del']
     if line['v_5p_del'] > 50:
@@ -2195,34 +2190,6 @@ def get_seq_with_indels_reinstated(line, iseq=0):  # reverse the action of indel
             assert False
 
     return return_seq
-
-# ----------------------------------------------------------------------------------------
-def add_indels_to_germline_strings(lengths, glseqs, line, indelfo):
-    """ Add stars to the germline sequences (for ascii printing) if there were SHM insertions. """
-    # NOTE modify <lengths> and/or <glseqs>, but don't touch <line>
-
-    if len(indelfo['indels']) > 1:
-        print '%s found %d indels, but we can only handle 1' % (color('red', 'warning'), len(indelfo['indels']))
-
-    lastfo = indelfo['indels'][-1]
-
-    if lastfo['type'] == 'deletion':
-        return
-
-    # divide it up into its constituent chunks
-    chunks = [line['fv_insertion'], line['v_gl_seq'], line['vd_insertion'], line['d_gl_seq'], line['dj_insertion'], line['j_gl_seq'], line['jf_insertion']]
-    chunknames = ['fv_insertion', 'v', 'vd_insertion', 'd', 'dj_insertion', 'j', 'jf_insertion']
-    weirdolist = []  # list of lists, where each entry is the name of the chunk in which we find ourselves
-    for ichunk in range(len(chunks)):
-        for inuke in range(len(chunks[ichunk])):
-            weirdolist.append(chunknames[ichunk])
-    thischunk = weirdolist[lastfo['pos']]
-    offset = weirdolist.index(thischunk)  # index of first occurence
-    if thischunk in regions:
-        lengths[thischunk] += lastfo['len']
-        glseqs[thischunk] = line[thischunk + '_gl_seq'][ : lastfo['pos'] - offset] + '*' * lastfo['len'] + line[thischunk + '_gl_seq'][lastfo['pos'] - offset : ]
-    else:
-        print '     unhandled indel within a non-templated insertion'
 
 # ----------------------------------------------------------------------------------------
 def csv_to_fasta(infname, outfname=None, name_column='unique_id', seq_column='seq', n_max_lines=None):
