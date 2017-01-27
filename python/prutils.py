@@ -17,18 +17,18 @@ def get_query_line(qseq, line, lengths, glseqs, indelfo=None):  # NOTE do not, o
     # build up the query sequence line, including colors for mutations and conserved codons
     j_right_extra = 0  # portion of query sequence to right of end of the j match
     n_inserted = 0
-    final_seq_list = []
+    qrseqlist = []
     if indelfo is not None:
         lastfo = indelfo['indels'][-1]  # if the "last" (arbitrary but necessary ordering) indel starts here
     for inuke in range(len(qseq)):
         # if we're at the position that the insertion started at (before we removed it)
         if indelfo is not None and lastfo['type'] == 'insertion':
             if inuke == lastfo['pos']:
-                final_seq_list.append(lastfo['seqstr'])  # put the insertion back into the query sequence
+                qrseqlist.append(lastfo['seqstr'])  # put the insertion back into the query sequence
                 n_inserted += len(lastfo['seqstr'])
         if indelfo is not None and lastfo['type'] == 'deletion':
             if inuke - lastfo['pos'] >= 0 and inuke - lastfo['pos'] < lastfo['len']:  # if we're within the bases that we added to make up for the deletionlen
-                final_seq_list.append('*')  # gets blue'd later on, so it can happen at the same time as the germline lines
+                qrseqlist.append('*')  # gets blue'd later on, so it can happen at the same time as the germline lines
                 continue
 
         new_nuke = ''
@@ -71,12 +71,12 @@ def get_query_line(qseq, line, lengths, glseqs, indelfo=None):  # NOTE do not, o
             if inuke >= pos and inuke < pos + 3:
                 new_nuke = utils.color('reverse_video', new_nuke)  #'\033[7m' + new_nuke + '\033[0m'  # not sure why the hell I wasn't using color() here
 
-        final_seq_list.append(new_nuke)
+        qrseqlist.append(new_nuke)
 
-    return final_seq_list, j_right_extra
+    return qrseqlist, j_right_extra
 
 # ----------------------------------------------------------------------------------------
-def handle_no_space(line, glseqs, final_seq_list):  # NOTE do not, on pain of death, modify <line>
+def handle_no_space(line, glseqs, qrseqlist):  # NOTE do not, on pain of death, modify <line>
     # if there isn't enough space for dots in the vj line, we add some blue dashes to everybody so things fit (very rare in heavy chain rearrangements, but pretty common in light chain)
     interior_length = len(line['vd_insertion']) + len(glseqs['d']) + len(line['dj_insertion'])  # length of the portion of the vj line that is normally taken up by dots (and spaces)
     if line['v_3p_del'] + line['j_5p_del'] > interior_length:  # not enough space
@@ -86,7 +86,7 @@ def handle_no_space(line, glseqs, final_seq_list):  # NOTE do not, on pain of de
 
         gap_insertion_point = len(line['fv_insertion'] + glseqs['v'])
         gaps_to_add = len(v_3p_del_str + j_5p_del_str) - interior_length
-        final_seq_list = final_seq_list[:gap_insertion_point] + gaps_to_add * [utils.color('blue', '-'), ] + final_seq_list[gap_insertion_point:]
+        qrseqlist = qrseqlist[:gap_insertion_point] + gaps_to_add * [utils.color('blue', '-'), ] + qrseqlist[gap_insertion_point:]
     else:
         v_3p_del_str = '.' * line['v_3p_del']
         j_5p_del_str = '.' * line['j_5p_del']
@@ -94,7 +94,7 @@ def handle_no_space(line, glseqs, final_seq_list):  # NOTE do not, on pain of de
         gaps_to_add = 0
         extra_space_because_of_fixed_nospace = 0
 
-    return final_seq_list, gap_insertion_point, utils.color('blue', '-') * gaps_to_add, v_3p_del_str, j_5p_del_str, extra_space_because_of_fixed_nospace
+    return qrseqlist, gap_insertion_point, utils.color('blue', '-') * gaps_to_add, v_3p_del_str, j_5p_del_str, extra_space_because_of_fixed_nospace
 
 # ----------------------------------------------------------------------------------------
 def get_uid_str(line, iseq, seed_uid):
