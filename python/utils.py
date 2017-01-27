@@ -1080,12 +1080,12 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     if chain != 'h':
         assert lengths['d'] == 0 and len(line['vd_insertion']) == 0
 
-    outstrs = [
-        '%s%s   insert%s\n'       % (extra_str, insert_line, 's' if chain == 'h' else ''),
-        '%s%s   %s\n'             % (extra_str, d_line, color_gene(line['d_gene'])),
-        '%s%s   %s %s\n'          % (extra_str, vj_line, color_gene(line['v_gene']), color_gene(line['j_gene'])),
-        '%s%s   %s   %4.2f mut\n' % (extra_str, qrseq_line, prutils.get_uid_str(line, iseq, seed_uid), line['mut_freqs'][iseq]),
-    ]
+    outstrs = [insert_line, d_line, vj_line, qrseq_line]
+    suffixes = ['insert%s\n'       % ('s' if chain == 'h' else ''),
+                '%s\n'             % (color_gene(line['d_gene'])),
+                '%s %s\n'          % (color_gene(line['v_gene']), color_gene(line['j_gene'])),
+                '%s   %4.2f mut\n' % (prutils.get_uid_str(line, iseq, seed_uid), line['mut_freqs'][iseq])]
+    outstrs = ['%s%s   %s' % (extra_str, ostr, suf) for ostr, suf in zip(outstrs, suffixes)]
 
     if label != '':
         offset = max(0, len(extra_str) - 2)  # skootch <label> this many positions leftward into <extra_str>
