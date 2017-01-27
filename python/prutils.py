@@ -69,7 +69,7 @@ def get_query_line(qseq, line, lengths, glseqs, indelfo=None):  # NOTE do not, o
 
         for region, pos in line['codon_positions'].items():  # reverse video for the conserved codon positions
             if inuke >= pos and inuke < pos + 3:
-                new_nuke = '\033[7m' + new_nuke + '\033[m'
+                new_nuke = utils.color('reverse_video', new_nuke)  #'\033[7m' + new_nuke + '\033[0m'  # not sure why the hell I wasn't using color() here
 
         final_seq_list.append(new_nuke)
 
