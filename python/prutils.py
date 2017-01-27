@@ -16,7 +16,7 @@ def process_position(original, final):  # optimizing this, and to a lesser exten
 
 # ----------------------------------------------------------------------------------------
 def handle_no_space(line, glseqs, qrseqlist):  # NOTE do not, on pain of death, modify <line>
-    # if there isn't enough space for dots in the vj line, we add some blue dashes to everybody so things fit (very rare in heavy chain rearrangements, but pretty common in light chain)
+    # if there isn't enough space for dots in the vj line, we add some dashes to everybody so things fit (very rare in heavy chain rearrangements, but pretty common in light chain)
     interior_length = len(line['vd_insertion']) + len(glseqs['d']) + len(line['dj_insertion'])  # length of the portion of the vj line that is normally taken up by dots (and spaces)
     if line['v_3p_del'] + line['j_5p_del'] > interior_length:  # not enough space
         v_3p_del_str = '.' + str(line['v_3p_del']) + '.'
@@ -25,7 +25,7 @@ def handle_no_space(line, glseqs, qrseqlist):  # NOTE do not, on pain of death, 
 
         gap_insertion_point = len(line['fv_insertion'] + glseqs['v'])
         gaps_to_add = len(v_3p_del_str + j_5p_del_str) - interior_length
-        qrseqlist = qrseqlist[:gap_insertion_point] + gaps_to_add * [utils.color('blue', '-'), ] + qrseqlist[gap_insertion_point:]
+        qrseqlist = qrseqlist[:gap_insertion_point] + gaps_to_add * ['-'] + qrseqlist[gap_insertion_point:]
     else:
         v_3p_del_str = '.' * line['v_3p_del']
         j_5p_del_str = '.' * line['j_5p_del']
@@ -33,7 +33,7 @@ def handle_no_space(line, glseqs, qrseqlist):  # NOTE do not, on pain of death, 
         gaps_to_add = 0
         extra_space_because_of_fixed_nospace = 0
 
-    return qrseqlist, gap_insertion_point, utils.color('blue', '-') * gaps_to_add, v_3p_del_str, j_5p_del_str, extra_space_because_of_fixed_nospace
+    return qrseqlist, gap_insertion_point, '-' * gaps_to_add, v_3p_del_str, j_5p_del_str, extra_space_because_of_fixed_nospace
 
 # ----------------------------------------------------------------------------------------
 def get_uid_str(line, iseq, seed_uid):
@@ -78,7 +78,7 @@ def color_query_seq(outstrs):
         if '*' in ''.join([ostr[inuke] for ostr in outstrs]):  # if any of the four have a star at this position (i.e. if we're in an shm insertion or shm deletion)
             continue
         glchars = [ostr[inuke] for ostr in outstrs[:3] if ostr[inuke] in utils.alphabet]
-        if len(glchars) == 0:  # all spaces (or maybe also dots?)
+        if len(glchars) == 0:  # everybody's spaces, dashes, or dots (I think those are the only possibilities...)
             continue
         if len(glchars) > 1:
             raise Exception('more than one germline line has an alphabet character at %d: %s' % (inuke, glchars))
