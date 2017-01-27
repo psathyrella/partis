@@ -1,3 +1,5 @@
+import sys
+
 import utils
 
 # ----------------------------------------------------------------------------------------
@@ -73,6 +75,12 @@ def get_query_line(qseq, line, lengths, glseqs, indelfo=None):  # NOTE do not, o
 
         qrseqlist.append(new_nuke)
 
+# ----------------------------------------------------------------------------------------
+    SQ = ''.join(qrseqlist)
+    for color_code in utils.Colors.values():
+        SQ = SQ.replace(color_code, '')
+    qrseqlist = list(SQ)
+# ----------------------------------------------------------------------------------------
     return qrseqlist, j_right_extra
 
 # ----------------------------------------------------------------------------------------
@@ -104,3 +112,49 @@ def get_uid_str(line, iseq, seed_uid):
     if seed_uid is not None and line['unique_ids'][iseq] == seed_uid:
         uidstr = utils.color('red', uidstr)
     return uidstr
+
+# ----------------------------------------------------------------------------------------
+def indel_shenanigans(outstrs, indels):  # NOTE similar to/overlaps with get_seq_with_indels_reinstated()
+    # <outstrs> convention: [indels, d, vj, query]
+    def is_qr(index):
+        return index == 3
+    def use_stars(index, ifo):
+        if ifo['type'] == 'insertion': # for insertions, query sequence should *not* have stars
+            return not is_qr(index)
+        elif ifo['type'] == 'deletion':
+            return is_qr(index)
+        else:
+            assert False
+    def reinstate(seq, ifo, stars=False):
+        indelstr = ifo['seqstr']
+        if seq[ifo['pos']] not in utils.nukes + utils.ambiguous_bases:  # if this bit of the sequences is spaces, dots, or dashes, then we only want to insert spaces (note that this adds some arbitrariness on boundaries as to who gets the actual inserted string)
+            indelstr = ' ' * len(ifo['seqstr'])
+        elif stars:
+            indelstr = '*' * len(ifo['seqstr'])
+
+        return seq[ : ifo['pos']] + indelstr + seq[ifo['pos'] : ]
+
+    for ifo in reversed(indels['indels']):
+        outstrs = [reinstate(outstrs[i], ifo, stars=use_stars(i, ifo)) for i in range(len(outstrs))]
+
+    return outstrs
+
+# ----------------------------------------------------------------------------------------
+def color_query_seq(outstrs):
+    # <outstrs> convention: [indels, d, vj, query]
+    qseq = outstrs[-1]
+    qseq = qseq[:35] + 'T' + qseq[36:]
+    qrseqlist = list(qseq)
+    if len(qrseqlist) != len(qseq):
+        print qrseqlist
+        print qseq
+        assert False
+    for inuke in range(len(qseq)):
+        if '*' in ''.join([ostr[inuke] for ostr in outstrs]):  # if any of the four have a star at this position (i.e. if we're in an shm insertion or shm deletion)
+            continue
+        glchars = [ostr[inuke] for ostr in outstrs[:3] if ostr[inuke] in utils.alphabet]
+        if len(glchars) > 1:
+            raise Exception('more than one germline line has an alphabet character at %d: %s' % (inuke, glchars))
+        if qseq[inuke] != glchars[0]:
+            qrseqlist[inuke] = utils.color('red', qrseqlist[inuke])
+    return outstrs[:3] + [''.join(qrseqlist)]

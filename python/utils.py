@@ -501,6 +501,9 @@ def len_excluding_colors(seq):  # NOTE this won't work if you inserted a color c
         seq = seq.replace(color_code, '')
     return len(seq)
 
+def len_only_letters(seq):  # usually the same as len_excluding_colors(), except it doesn't count gap chars or spaces
+    return len(filter((alphabet).__contains__, seq))
+
 # ----------------------------------------------------------------------------------------
 def color_chars(chars, col, seq):
     if sum([seq.count(c) for c in chars]) == 0:  # if <chars> aren't present, immediately return
@@ -1038,9 +1041,9 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     glseqs = {r : line[r + '_gl_seq'] for r in regions}  # copy so that we don't have to modify <line>
 
     indelfo = None
-    if len(line['indelfos'][iseq]['indels']) > 0:
-        indelfo = line['indelfos'][iseq]
-        add_indels_to_germline_strings(lengths, glseqs, line, indelfo)
+    # if len(line['indelfos'][iseq]['indels']) > 0:
+    #     indelfo = line['indelfos'][iseq]
+    #     add_indels_to_germline_strings(lengths, glseqs, line, indelfo)
 
     # don't print a million dots if left-side v deletion is really big
     v_5p_del_str = '.'*line['v_5p_del']
@@ -1081,6 +1084,16 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
         assert lengths['d'] == 0 and len(line['vd_insertion']) == 0
 
     outstrs = [insert_line, d_line, vj_line, qrseq_line]
+# ----------------------------------------------------------------------------------------
+    if len(set([len_excluding_colors(ostr) for ostr in outstrs])) > 1:  # TODO remove me
+        raise Exception('outstrs not all the same length %s' % [len_excluding_colors(ostr) for ostr in outstrs])
+    outstrs = prutils.indel_shenanigans(outstrs, line['indelfos'][iseq])
+    if len(set([len_excluding_colors(ostr) for ostr in outstrs])) > 1:  # TODO remove me
+        raise Exception('outstrs not all the same length %s' % [len_excluding_colors(ostr) for ostr in outstrs])
+    outstrs = prutils.color_query_seq(outstrs)
+    if len(set([len_excluding_colors(ostr) for ostr in outstrs])) > 1:  # TODO remove me
+        raise Exception('outstrs not all the same length %s' % [len_excluding_colors(ostr) for ostr in outstrs])
+# ----------------------------------------------------------------------------------------
     suffixes = ['insert%s\n'       % ('s' if chain == 'h' else ''),
                 '%s\n'             % (color_gene(line['d_gene'])),
                 '%s %s\n'          % (color_gene(line['v_gene']), color_gene(line['j_gene'])),
