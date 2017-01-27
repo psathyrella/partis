@@ -142,19 +142,14 @@ def indel_shenanigans(outstrs, indels):  # NOTE similar to/overlaps with get_seq
 # ----------------------------------------------------------------------------------------
 def color_query_seq(outstrs):
     # <outstrs> convention: [indels, d, vj, query]
-    qseq = outstrs[-1]
-    qseq = qseq[:35] + 'T' + qseq[36:]
-    qrseqlist = list(qseq)
-    if len(qrseqlist) != len(qseq):
-        print qrseqlist
-        print qseq
-        assert False
-    for inuke in range(len(qseq)):
+    qrseqlist = list(outstrs[-1])
+    for inuke in range(len(qrseqlist)):
         if '*' in ''.join([ostr[inuke] for ostr in outstrs]):  # if any of the four have a star at this position (i.e. if we're in an shm insertion or shm deletion)
             continue
         glchars = [ostr[inuke] for ostr in outstrs[:3] if ostr[inuke] in utils.alphabet]
         if len(glchars) > 1:
             raise Exception('more than one germline line has an alphabet character at %d: %s' % (inuke, glchars))
-        if qseq[inuke] != glchars[0]:
+        if qrseqlist[inuke] != glchars[0]:
             qrseqlist[inuke] = utils.color('red', qrseqlist[inuke])
-    return outstrs[:3] + [''.join(qrseqlist)]
+    outstrs[3] = ''.join(qrseqlist)
+    return outstrs
