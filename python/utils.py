@@ -1004,24 +1004,6 @@ def print_true_events(glfo, reco_info, line, print_naive_seqs=False, extra_str='
             color_mutants(tseq, line['naive_seq'], print_result=True, print_hfrac=True, ref_label='true ', extra_str='          ')
 
 # ----------------------------------------------------------------------------------------
-def add_gaps_ignoring_color_characters(colored_seq, ipos, gapstr):
-    """ add <gapstr> to <colored_seq> at position <ipos>, where <ipos> is the index ignoring characters for bash colors """
-    # NOTE don't really need this any more, I realized I can just use lists of strings to keep track of the indices
-    iwithout = 0  # i.e. without bash color characters
-    for iwith in range(len(colored_seq)):
-        ch = colored_seq[iwith]
-        if iwithout == ipos:  # first position after ipos
-            break
-        if ch in expected_characters:  # i.e. if it isn't a character having to do with bash colors
-            # if iwithout == ipos:  # first position after ipos
-            #     break
-            iwithout += 1
-
-    # print repr(colored_seq[:iwith])
-    # print repr(colored_seq[iwith:])
-    return colored_seq[:iwith] + gapstr + colored_seq[iwith:]
-
-# ----------------------------------------------------------------------------------------
 def print_reco_event(germlines, line, one_line=False, extra_str='', label='', seed_uid=None):
     for iseq in range(len(line['unique_ids'])):
         print_seq_in_reco_event(germlines, line, iseq, extra_str=extra_str, label=(label if iseq==0 else ''), one_line=(iseq>0), seed_uid=seed_uid)

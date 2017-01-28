@@ -3,18 +3,6 @@ import sys
 import utils
 
 # ----------------------------------------------------------------------------------------
-def process_position(original, final):  # optimizing this, and to a lesser extent get_query_line(), would speed up utils.print_reco_event() significantly
-    # if original not in utils.expected_characters or final not in utils.expected_characters:
-    #     raise Exception('one of %s %s not among expected characters' % (original, final))
-    if original in utils.ambiguous_bases or final in utils.ambiguous_bases:
-        return final
-
-    if original != final:
-        return utils.color('red', final)
-
-    return final
-
-# ----------------------------------------------------------------------------------------
 def handle_no_space(line, glseqs, qrseqlist):  # NOTE do not, on pain of death, modify <line>
     # if there isn't enough space for dots in the vj line, we add some dashes to everybody so things fit (very rare in heavy chain rearrangements, but pretty common in light chain)
     interior_length = len(line['vd_insertion']) + len(glseqs['d']) + len(line['dj_insertion'])  # length of the portion of the vj line that is normally taken up by dots (and spaces)
