@@ -1067,7 +1067,9 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     outstrs = prutils.indel_shenanigans(outstrs, line['indelfos'][iseq])
     if len(set([len(ostr) for ostr in outstrs])) > 1:  # TODO remove me
         raise Exception('outstrs not all the same length %s' % [len(ostr) for ostr in outstrs])
-    outstrs = prutils.color_query_seq(outstrs)
+    outstrs = prutils.color_query_seq(outstrs, line)
+    for il in range(len(outstrs)):
+        outstrs[il] = color_chars(ambiguous_bases + ['*', '-'], 'light_blue', outstrs[il])
     if len(set([len_excluding_colors(ostr) for ostr in outstrs])) > 1:  # TODO remove me
         raise Exception('outstrs not all the same length %s' % [len_excluding_colors(ostr) for ostr in outstrs])
 # ----------------------------------------------------------------------------------------
@@ -1080,10 +1082,6 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     if label != '':
         offset = max(0, len(extra_str) - 2)  # skootch <label> this many positions leftward into <extra_str>
         outstrs[0] = outstrs[0][ : offset] + label + outstrs[0][len_excluding_colors(label) + offset : ]  # NOTE this *replaces* the bases in <extra_str> with <label>, which is only fine if they're spaces
-
-    for il in range(len(outstrs)):
-        outstrs[il] = color_chars(ambiguous_bases + ['*', '-'], 'light_blue', outstrs[il])
-
 
     if one_line:
         outstrs = outstrs[-1:]  # remove all except the query seq line

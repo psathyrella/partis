@@ -44,25 +44,31 @@ def indel_shenanigans(outstrs, indels):  # NOTE similar to/overlaps with get_seq
             return is_qr(index)
         else:
             assert False
-    def reinstate(seq, ifo, stars=False):
+    def reinstate(seq, ifo, iqr, stars=False):
         indelstr = ifo['seqstr']
         if seq[ifo['pos']] not in utils.nukes + utils.ambiguous_bases:  # if this bit of the sequences is spaces, dots, or dashes, then we only want to insert spaces (note that this adds some arbitrariness on boundaries as to who gets the actual inserted string)
             indelstr = ' ' * len(ifo['seqstr'])
         elif stars:
             indelstr = '*' * len(ifo['seqstr'])
 
-        return seq[ : ifo['pos']] + indelstr + seq[ifo['pos'] : ]
+        if ifo['type'] == 'deletion':
+            return seq[ : ifo['pos']] + indelstr + seq[ifo['pos'] + ifo['len'] : ]
+        else:
+            return seq[ : ifo['pos']] + indelstr + seq[ifo['pos'] : ]
 
     for ifo in reversed(indels['indels']):
-        outstrs = [reinstate(outstrs[i], ifo, stars=use_stars(i, ifo)) for i in range(len(outstrs))]
+        outstrs = [reinstate(outstrs[i], ifo, iqr=is_qr(i), stars=use_stars(i, ifo)) for i in range(len(outstrs))]
 
     return outstrs
 
 # ----------------------------------------------------------------------------------------
-def color_query_seq(outstrs):
+def color_query_seq(outstrs, line):  # NOTE do *not* modify <line>
     # <outstrs> convention: [indels, d, vj, query]
+    codon_positions = [p for cpos in line['codon_positions'].values() for p in range(cpos, cpos + 3)]  # *all* the positions in both the codons
     qrseqlist = list(outstrs[-1])
+    ipos = 0  # position in real (alphabetical) query sequence
     for inuke in range(len(qrseqlist)):
+        raise Exception('codon positions are wrong for deletions!')
         if '*' in ''.join([ostr[inuke] for ostr in outstrs]):  # if any of the four have a star at this position (i.e. if we're in an shm insertion or shm deletion)
             continue
         glchars = [ostr[inuke] for ostr in outstrs[:3] if ostr[inuke] in utils.alphabet]
@@ -72,5 +78,8 @@ def color_query_seq(outstrs):
             raise Exception('more than one germline line has an alphabet character at %d: %s' % (inuke, glchars))
         if qrseqlist[inuke] != glchars[0]:
             qrseqlist[inuke] = utils.color('red', qrseqlist[inuke])
+        if ipos in codon_positions:
+            qrseqlist[inuke] = utils.color('reverse_video', qrseqlist[inuke])
+        ipos += 1
     outstrs[3] = ''.join(qrseqlist)
     return outstrs
