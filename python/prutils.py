@@ -62,9 +62,12 @@ def indel_shenanigans(outstrs, indels):  # NOTE similar to/overlaps with get_seq
     return outstrs
 
 # ----------------------------------------------------------------------------------------
-def add_colors(outstrs, line):  # NOTE do *not* modify <line>
+def add_colors(outstrs, line, check_line_integrity):  # NOTE do *not* modify <line>
     # <outstrs> convention: [indels, d, vj, query]
     bluechars = utils.ambiguous_bases + ['*', '-']
+
+    if check_line_integrity and len(set([utils.len_excluding_colors(ostr) for ostr in outstrs])) > 1:
+        raise Exception('outstrs not all the same length %s' % [utils.len_excluding_colors(ostr) for ostr in outstrs])
 
     def ismuted(ch1, ch2):
         if ch1 in bluechars or ch2 in bluechars:

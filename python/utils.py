@@ -1061,18 +1061,12 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
         assert lengths['d'] == 0 and len(line['vd_insertion']) == 0
 
     outstrs = [insert_line, d_line, vj_line, qrseq_line]
-# ----------------------------------------------------------------------------------------
-    if len(set([len(ostr) for ostr in outstrs])) > 1:  # TODO remove me
+    if check_line_integrity and len(set([len(ostr) for ostr in outstrs])) > 1:
         raise Exception('outstrs not all the same length %s' % [len(ostr) for ostr in outstrs])
     outstrs = prutils.indel_shenanigans(outstrs, line['indelfos'][iseq])
-    if len(set([len(ostr) for ostr in outstrs])) > 1:  # TODO remove me
-        raise Exception('outstrs not all the same length %s' % [len(ostr) for ostr in outstrs])
-    outstrs = prutils.add_colors(outstrs, line)
-    # for il in range(len(outstrs)):
-    #     outstrs[il] = color_chars(ambiguous_bases + ['*', '-'], 'light_blue', outstrs[il])
-    if len(set([len_excluding_colors(ostr) for ostr in outstrs])) > 1:  # TODO remove me
+    outstrs = prutils.add_colors(outstrs, line, check_line_integrity=check_line_integrity)
+    if check_line_integrity and len(set([len_excluding_colors(ostr) for ostr in outstrs])) > 1:
         raise Exception('outstrs not all the same length %s' % [len_excluding_colors(ostr) for ostr in outstrs])
-# ----------------------------------------------------------------------------------------
     suffixes = ['insert%s\n'       % ('s' if chain == 'h' else ''),
                 '%s\n'             % (color_gene(line['d_gene'])),
                 '%s %s\n'          % (color_gene(line['v_gene']), color_gene(line['j_gene'])),
