@@ -62,7 +62,8 @@ def add_colors(outstrs, line):  # NOTE do *not* modify <line>
             continue
         glchars = [ostr[inuke] for ostr in outstrs[:3] if ostr[inuke] in utils.alphabet]
         if len(glchars) == 0:  # everybody's spaces, dashes, or dots (I think those are the only possibilities...)
-            ipos += 1
+            if qrseqlist[inuke] in utils.alphabet:
+                ipos += 1
             continue
         if len(glchars) > 1:
             raise Exception('more than one germline line has an alphabet character at %d: %s' % (inuke, glchars))
