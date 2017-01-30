@@ -1067,9 +1067,9 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     outstrs = prutils.indel_shenanigans(outstrs, line['indelfos'][iseq])
     if len(set([len(ostr) for ostr in outstrs])) > 1:  # TODO remove me
         raise Exception('outstrs not all the same length %s' % [len(ostr) for ostr in outstrs])
-    outstrs = prutils.color_query_seq(outstrs, line)
-    for il in range(len(outstrs)):
-        outstrs[il] = color_chars(ambiguous_bases + ['*', '-'], 'light_blue', outstrs[il])
+    outstrs = prutils.add_colors(outstrs, line)
+    # for il in range(len(outstrs)):
+    #     outstrs[il] = color_chars(ambiguous_bases + ['*', '-'], 'light_blue', outstrs[il])
     if len(set([len_excluding_colors(ostr) for ostr in outstrs])) > 1:  # TODO remove me
         raise Exception('outstrs not all the same length %s' % [len_excluding_colors(ostr) for ostr in outstrs])
 # ----------------------------------------------------------------------------------------

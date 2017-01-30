@@ -37,18 +37,18 @@ def indel_shenanigans(outstrs, indels):  # NOTE similar to/overlaps with get_seq
     # <outstrs> convention: [indels, d, vj, query]
     def is_qr(index):
         return index == 3
-    def use_stars(index, ifo):
+    def use_stars(ifo, index):
         if ifo['type'] == 'insertion': # for insertions, query sequence should *not* have stars
             return not is_qr(index)
         elif ifo['type'] == 'deletion':
             return is_qr(index)
         else:
             assert False
-    def reinstate(seq, ifo, iqr, stars=False):
+    def reinstate(seq, ifo, istr):
         indelstr = ifo['seqstr']
         if seq[ifo['pos']] not in utils.nukes + utils.ambiguous_bases:  # if this bit of the sequences is spaces, dots, or dashes, then we only want to insert spaces (note that this adds some arbitrariness on boundaries as to who gets the actual inserted string)
             indelstr = ' ' * len(ifo['seqstr'])
-        elif stars:
+        elif use_stars(ifo, istr):
             indelstr = '*' * len(ifo['seqstr'])
 
         if ifo['type'] == 'deletion':
@@ -57,29 +57,48 @@ def indel_shenanigans(outstrs, indels):  # NOTE similar to/overlaps with get_seq
             return seq[ : ifo['pos']] + indelstr + seq[ifo['pos'] : ]
 
     for ifo in reversed(indels['indels']):
-        outstrs = [reinstate(outstrs[i], ifo, iqr=is_qr(i), stars=use_stars(i, ifo)) for i in range(len(outstrs))]
+        outstrs = [reinstate(outstrs[istr], ifo, istr) for istr in range(len(outstrs))]
 
     return outstrs
 
 # ----------------------------------------------------------------------------------------
-def color_query_seq(outstrs, line):  # NOTE do *not* modify <line>
+def add_colors(outstrs, line):  # NOTE do *not* modify <line>
     # <outstrs> convention: [indels, d, vj, query]
+    bluechars = utils.ambiguous_bases + ['*', '-']
+
+    def ismuted(ch1, ch2):
+        if ch1 in bluechars or ch2 in bluechars:
+            return False
+        if ch1 == ch2:
+            return False
+        return True
+
+    # first color mutated bases and conserved codons in the query sequence
     codon_positions = [p for cpos in line['codon_positions'].values() for p in range(cpos, cpos + 3)]  # *all* the positions in both the codons
     qrseqlist = list(outstrs[-1])
     ipos = 0  # position in real (alphabetical) query sequence
     for inuke in range(len(qrseqlist)):
-        raise Exception('codon positions are wrong for deletions!')
-        if '*' in ''.join([ostr[inuke] for ostr in outstrs]):  # if any of the four have a star at this position (i.e. if we're in an shm insertion or shm deletion)
+        if '*' in ''.join([outstrs[i][inuke] for i in range(3)]):  # if any of the germline lines have a star at this position, i.e. if we're in an shm insertion (if the query line has a star, it's an shm deletion, i.e. the star's position was actually there as a base in the hmm)
             continue
         glchars = [ostr[inuke] for ostr in outstrs[:3] if ostr[inuke] in utils.alphabet]
         if len(glchars) == 0:  # everybody's spaces, dashes, or dots (I think those are the only possibilities...)
             continue
         if len(glchars) > 1:
             raise Exception('more than one germline line has an alphabet character at %d: %s' % (inuke, glchars))
-        if qrseqlist[inuke] != glchars[0]:
+        if ismuted(qrseqlist[inuke], glchars[0]):
             qrseqlist[inuke] = utils.color('red', qrseqlist[inuke])
         if ipos in codon_positions:
             qrseqlist[inuke] = utils.color('reverse_video', qrseqlist[inuke])
         ipos += 1
-    outstrs[3] = ''.join(qrseqlist)
+
+    outstrs = [outstrs[i] for i in range(3)] + [''.join(qrseqlist)]
+
+    # then color the blues in everybody
+    for istr in range(len(outstrs)):
+        if len(filter((bluechars).__contains__, outstrs[istr])) == 0:
+            continue
+        oslist = list(outstrs[istr])
+        oslist = [utils.color('light_blue', ochar) if ochar in bluechars else ochar for ochar in oslist]
+        outstrs[istr] = ''.join(oslist)
+
     return outstrs
