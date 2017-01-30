@@ -106,13 +106,13 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     if line['v_3p_del'] + line['j_5p_del'] > interior_length:  # not enough space
         v_3p_del_str = '.' + str(line['v_3p_del']) + '.'
         j_5p_del_str = '.' + str(line['j_5p_del']) + '.'
-        gap_insertion_point = len(line['fv_insertion'] + glseqs['v'])
+        gap_insert_point = len(line['fv_insertion'] + v_5p_del_str + glseqs['v'])
         gapstr = '-' * (len(v_3p_del_str + j_5p_del_str) - interior_length)
         extra_space_because_of_fixed_nospace = max(0, interior_length - len(v_3p_del_str + j_5p_del_str))
     else:
         v_3p_del_str = '.' * line['v_3p_del']
         j_5p_del_str = '.' * line['j_5p_del']
-        gap_insertion_point = None
+        gap_insert_point = None
         gapstr = ''
         extra_space_because_of_fixed_nospace = 0
 
@@ -138,10 +138,10 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     # and the query line
     qrseq_line = ' ' * len(v_5p_del_str) + line['seqs'][iseq] + ' ' * line['j_3p_del']
 
-    if gap_insertion_point is not None:  # <gap_insertion_point> point is only right here as long as there's no colors in these lines... but there usually almost probably always aren't
-        qrseq_line = qrseq_line[:gap_insertion_point] + gapstr + qrseq_line[gap_insertion_point:]
-        insert_line = insert_line[:gap_insertion_point] + gapstr + insert_line[gap_insertion_point:]
-        d_line = d_line[:gap_insertion_point] + gapstr + d_line[gap_insertion_point:]
+    if gap_insert_point is not None:  # <gap_insert_point> point is only right here as long as there's no colors in these lines... but there usually almost probably always aren't
+        qrseq_line = qrseq_line[:gap_insert_point] + gapstr + qrseq_line[gap_insert_point:]
+        insert_line = insert_line[:gap_insert_point] + gapstr + insert_line[gap_insert_point:]
+        d_line = d_line[:gap_insert_point] + gapstr + d_line[gap_insert_point:]
 
     chain = utils.get_chain(line['v_gene'])
     if chain != 'h':
