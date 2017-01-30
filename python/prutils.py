@@ -62,6 +62,7 @@ def add_colors(outstrs, line):  # NOTE do *not* modify <line>
             continue
         glchars = [ostr[inuke] for ostr in outstrs[:3] if ostr[inuke] in utils.alphabet]
         if len(glchars) == 0:  # everybody's spaces, dashes, or dots (I think those are the only possibilities...)
+            ipos += 1
             continue
         if len(glchars) > 1:
             raise Exception('more than one germline line has an alphabet character at %d: %s' % (inuke, glchars))
@@ -97,46 +98,45 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     glseqs = {r : line[r + '_gl_seq'] for r in utils.regions}  # copy so that we don't have to modify <line>
 
     # don't print a million dots if left-side v deletion is really big
-    v_5p_del_str = '.'*line['v_5p_del']
-    if line['v_5p_del'] > 50:
-        v_5p_del_str = '...' + str(line['v_5p_del']) + '...'
+    delstrs = {d : '.' * line[d + '_del'] for d in utils.all_erosions}  # NOTE len(delstrs[<del>]) is not in general the same as len(line[<del>_del])
+    if len(delstrs['v_5p']) > 50:
+        delstrs['v_5p'] = '.%d.' % len(delstrs['v_5p'])
 
     # if there isn't enough space for dots in the vj line, we add some dashes to everybody so things fit (very rare in heavy chain rearrangements, but pretty common in light chain)
     interior_length = len(line['vd_insertion']) + len(glseqs['d']) + len(line['dj_insertion'])  # length of the portion of the vj line that is normally taken up by dots (and spaces)
     if line['v_3p_del'] + line['j_5p_del'] > interior_length:  # not enough space
-        v_3p_del_str = '.' + str(line['v_3p_del']) + '.'
-        j_5p_del_str = '.' + str(line['j_5p_del']) + '.'
-        gap_insert_point = len(line['fv_insertion'] + v_5p_del_str + glseqs['v'])
-        gapstr = '-' * (len(v_3p_del_str + j_5p_del_str) - interior_length)
-        extra_space_because_of_fixed_nospace = max(0, interior_length - len(v_3p_del_str + j_5p_del_str))
+        delstrs['v_3p'] = '.%d.' % len(delstrs['v_3p'])
+        delstrs['j_5p'] = '.%d.' % len(delstrs['j_5p'])
+        gap_insert_point = len(line['fv_insertion'] + delstrs['v_5p'] + glseqs['v'])
+        gapstr = '-' * (len(delstrs['v_3p'] + delstrs['j_5p']) - interior_length)
+        extra_space_because_of_fixed_nospace = max(0, interior_length - len(delstrs['v_3p'] + delstrs['j_5p']))
     else:
-        v_3p_del_str = '.' * line['v_3p_del']
-        j_5p_del_str = '.' * line['j_5p_del']
         gap_insert_point = None
         gapstr = ''
         extra_space_because_of_fixed_nospace = 0
 
     eroded_seqs_dots = {
-        'v' : glseqs['v'] + v_3p_del_str,
-        'd' : '.'*line['d_5p_del'] + glseqs['d'] + '.'*line['d_3p_del'],
-        'j' : j_5p_del_str + glseqs['j'] + '.'*line['j_3p_del'],
+        # add v_5p into here
+        'v' : glseqs['v'] + delstrs['v_3p'],
+        'd' : delstrs['d_5p'] + glseqs['d'] + delstrs['d_3p'],
+        'j' : delstrs['j_5p'] + glseqs['j'] + delstrs['j_3p'],
     }
 
     # build the three germline lines
-    insert_line = ' ' * (len(line['fv_insertion']) + lengths['v'] + len(v_5p_del_str)) \
+    insert_line = ' ' * (len(line['fv_insertion']) + lengths['v'] + len(delstrs['v_5p'])) \
                   + line['vd_insertion'] + ' ' * lengths['d'] + line['dj_insertion'] \
                   + ' ' * (lengths['j'] + line['j_3p_del'] + len(line['jf_insertion']))
     germline_d_start = len(line['fv_insertion']) + lengths['v'] + len(line['vd_insertion']) - line['d_5p_del']
     germline_d_end = germline_d_start + len(germlines['d'][line['d_gene']])
-    d_line = ' ' * (germline_d_start + len(v_5p_del_str)) \
+    d_line = ' ' * (germline_d_start + len(delstrs['v_5p'])) \
              + eroded_seqs_dots['d'] \
              + ' ' * (len(glseqs['j']) + len(line['dj_insertion']) - line['d_3p_del'] + line['j_3p_del'] + len(line['jf_insertion']))
     germline_v_end = len(line['fv_insertion']) + len(glseqs['v']) + line['v_3p_del'] - 1  # position in the query sequence at which we find the last base of the v match. NOTE we subtract off the v_5p_del because we're *not* adding dots for that deletion (it's just too long)
     germline_j_start = germline_d_end + 1 - line['d_3p_del'] + len(line['dj_insertion']) - line['j_5p_del']
-    vj_line = ' ' * len(line['fv_insertion']) + v_5p_del_str + eroded_seqs_dots['v'] + '.' * extra_space_because_of_fixed_nospace \
+    vj_line = ' ' * len(line['fv_insertion']) + delstrs['v_5p'] + eroded_seqs_dots['v'] + '.' * extra_space_because_of_fixed_nospace \
               + ' ' * (germline_j_start - germline_v_end - 2) + eroded_seqs_dots['j'] + ' ' * len(line['jf_insertion'])
     # and the query line
-    qrseq_line = ' ' * len(v_5p_del_str) + line['seqs'][iseq] + ' ' * line['j_3p_del']
+    qrseq_line = ' ' * len(delstrs['v_5p']) + line['seqs'][iseq] + ' ' * line['j_3p_del']
 
     if gap_insert_point is not None:  # <gap_insert_point> point is only right here as long as there's no colors in these lines... but there usually almost probably always aren't
         qrseq_line = qrseq_line[:gap_insert_point] + gapstr + qrseq_line[gap_insert_point:]

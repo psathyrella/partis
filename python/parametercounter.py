@@ -30,7 +30,7 @@ class ParameterCounter(object):
         self.counts['seq_content'] = {n : 0 for n in utils.nukes}
         self.string_columns.add('seq_content')
 
-        self.columns_to_subset_by_gene = [e + '_del' for e in utils.real_erosions + utils.effective_erosions] + [b + '_insertion' for b in utils.boundaries]
+        self.columns_to_subset_by_gene = [e + '_del' for e in utils.all_erosions] + [b + '_insertion' for b in utils.boundaries]
 
     # ----------------------------------------------------------------------------------------
     def get_index(self, info, deps):

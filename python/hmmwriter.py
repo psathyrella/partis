@@ -326,7 +326,7 @@ class HmmWriter(object):
             approved_genes = [this_gene, ]
         eprobs = {}
         genes_used = set()
-        for erosion in utils.real_erosions + utils.effective_erosions:
+        for erosion in utils.all_erosions:
             if erosion[0] != self.region:
                 continue
             eprobs[erosion] = {}

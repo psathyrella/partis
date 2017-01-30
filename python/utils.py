@@ -96,6 +96,7 @@ real_erosions = ['v_3p', 'd_5p', 'd_3p', 'j_5p']
 # This means that while we write parameters for v_5p and j_3p deletions to the parameter dir, these are *not* used in making the
 # hmm yamels -- which is what we want, because we want to be able to read in short data reads but make full-length simulation.
 effective_erosions = ['v_5p', 'j_3p']
+all_erosions = real_erosions + effective_erosions
 boundaries = ['vd', 'dj']
 effective_boundaries = ['fv', 'jf']
 nukes = ['A', 'C', 'G', 'T']
@@ -182,7 +183,7 @@ forbidden_character_translations = string.maketrans(':;,', 'csm')
 functional_columns = ['mutated_invariants', 'in_frames', 'stops']
 
 column_configs = {
-    'ints' : ['cdr3_length', 'padlefts', 'padrights'] + [e + '_del' for e in real_erosions + effective_erosions],
+    'ints' : ['cdr3_length', 'padlefts', 'padrights'] + [e + '_del' for e in all_erosions],
     'floats' : ['logprob', 'mut_freqs'],
     'bools' : functional_columns,
     'literals' : ['indelfo', 'indelfos', 'k_v', 'k_d', 'all_matches'],  # simulation has indelfo[s] singular, annotation output has it plural... and I think it actually makes sense to have it that way
@@ -244,7 +245,7 @@ conversion_fcns['duplicates'] = get_list_of_str_list
 linekeys = {}
 linekeys['per_family'] = ['naive_seq', 'cdr3_length', 'codon_positions', 'lengths', 'regional_bounds'] + \
                          [r + '_gene' for r in regions] + \
-                         [e + '_del' for e in real_erosions + effective_erosions] + \
+                         [e + '_del' for e in all_erosions] + \
                          [b + '_insertion' for b in boundaries + effective_boundaries] + \
                          [r + '_gl_seq' for r in regions] + \
                          [r + '_per_gene_support' for r in regions]
@@ -267,7 +268,7 @@ implicit_linekeys = set(['naive_seq', 'cdr3_length', 'codon_positions', 'lengths
 # ----------------------------------------------------------------------------------------
 annotation_headers = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'mut_freqs', 'input_seqs', 'indel_reversed_seqs', 'naive_seq', 'indelfos', 'duplicates'] \
                      + [r + '_per_gene_support' for r in regions] \
-                     + [e + '_del' for e in real_erosions + effective_erosions] + [b + '_insertion' for b in boundaries + effective_boundaries] \
+                     + [e + '_del' for e in all_erosions] + [b + '_insertion' for b in boundaries + effective_boundaries] \
                      + functional_columns
 sw_cache_headers = ['k_v', 'k_d', 'padlefts', 'padrights', 'all_matches', 'mut_freqs']
 partition_cachefile_headers = ('unique_ids', 'logprob', 'naive_seq', 'naive_hfrac', 'errors')  # these have to match whatever bcrham is expecting
