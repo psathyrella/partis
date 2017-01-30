@@ -4,27 +4,6 @@ import sys
 import utils
 
 # ----------------------------------------------------------------------------------------
-def handle_no_space(line, glseqs, qrseqlist):  # NOTE do not, on pain of death, modify <line>
-    # if there isn't enough space for dots in the vj line, we add some dashes to everybody so things fit (very rare in heavy chain rearrangements, but pretty common in light chain)
-    interior_length = len(line['vd_insertion']) + len(glseqs['d']) + len(line['dj_insertion'])  # length of the portion of the vj line that is normally taken up by dots (and spaces)
-    if line['v_3p_del'] + line['j_5p_del'] > interior_length:  # not enough space
-        v_3p_del_str = '.' + str(line['v_3p_del']) + '.'
-        j_5p_del_str = '.' + str(line['j_5p_del']) + '.'
-        extra_space_because_of_fixed_nospace = max(0, interior_length - len(v_3p_del_str + j_5p_del_str))
-
-        gap_insertion_point = len(line['fv_insertion'] + glseqs['v'])
-        gaps_to_add = len(v_3p_del_str + j_5p_del_str) - interior_length
-        qrseqlist = qrseqlist[:gap_insertion_point] + gaps_to_add * ['-'] + qrseqlist[gap_insertion_point:]
-    else:
-        v_3p_del_str = '.' * line['v_3p_del']
-        j_5p_del_str = '.' * line['j_5p_del']
-        gap_insertion_point = None
-        gaps_to_add = 0
-        extra_space_because_of_fixed_nospace = 0
-
-    return qrseqlist, gap_insertion_point, '-' * gaps_to_add, v_3p_del_str, j_5p_del_str, extra_space_because_of_fixed_nospace
-
-# ----------------------------------------------------------------------------------------
 def get_uid_str(line, iseq, seed_uid):
     uid_width = max([len(uid) for uid in line['unique_ids']])
     fstr = '%' + str(uid_width) + 's'
@@ -114,7 +93,6 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     if check_line_integrity:  # it's very important not to modify <line> -- this lets you verify that you aren't
         line = copy.deepcopy(original_line)  # copy that we can modify without changing <line>
 
-    qseq = line['seqs'][iseq]  # shorthand
     lengths = {r : line['lengths'][r] for r in utils.regions}  # copy so that we don't have to modify <line>
     glseqs = {r : line[r + '_gl_seq'] for r in utils.regions}  # copy so that we don't have to modify <line>
 
@@ -123,10 +101,20 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     if line['v_5p_del'] > 50:
         v_5p_del_str = '...' + str(line['v_5p_del']) + '...'
 
-    # get the query seq line, as well as info we need for the germline lines
-    qrseqlist = list(qseq)
-    qrseqlist, gap_insertion_point, gapstr, v_3p_del_str, j_5p_del_str, extra_space_because_of_fixed_nospace = handle_no_space(line, glseqs, qrseqlist)
-    qrseq_line = ' '*len(v_5p_del_str) + ''.join(qrseqlist) + ' ' * line['j_3p_del']
+    # if there isn't enough space for dots in the vj line, we add some dashes to everybody so things fit (very rare in heavy chain rearrangements, but pretty common in light chain)
+    interior_length = len(line['vd_insertion']) + len(glseqs['d']) + len(line['dj_insertion'])  # length of the portion of the vj line that is normally taken up by dots (and spaces)
+    if line['v_3p_del'] + line['j_5p_del'] > interior_length:  # not enough space
+        v_3p_del_str = '.' + str(line['v_3p_del']) + '.'
+        j_5p_del_str = '.' + str(line['j_5p_del']) + '.'
+        gap_insertion_point = len(line['fv_insertion'] + glseqs['v'])
+        gapstr = '-' * (len(v_3p_del_str + j_5p_del_str) - interior_length)
+        extra_space_because_of_fixed_nospace = max(0, interior_length - len(v_3p_del_str + j_5p_del_str))
+    else:
+        v_3p_del_str = '.' * line['v_3p_del']
+        j_5p_del_str = '.' * line['j_5p_del']
+        gap_insertion_point = None
+        gapstr = ''
+        extra_space_because_of_fixed_nospace = 0
 
     eroded_seqs_dots = {
         'v' : glseqs['v'] + v_3p_del_str,
@@ -134,7 +122,7 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
         'j' : j_5p_del_str + glseqs['j'] + '.'*line['j_3p_del'],
     }
 
-    # build the various germline lines
+    # build the three germline lines
     insert_line = ' ' * (len(line['fv_insertion']) + lengths['v'] + len(v_5p_del_str)) \
                   + line['vd_insertion'] + ' ' * lengths['d'] + line['dj_insertion'] \
                   + ' ' * (lengths['j'] + line['j_3p_del'] + len(line['jf_insertion']))
@@ -147,8 +135,11 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     germline_j_start = germline_d_end + 1 - line['d_3p_del'] + len(line['dj_insertion']) - line['j_5p_del']
     vj_line = ' ' * len(line['fv_insertion']) + v_5p_del_str + eroded_seqs_dots['v'] + '.' * extra_space_because_of_fixed_nospace \
               + ' ' * (germline_j_start - germline_v_end - 2) + eroded_seqs_dots['j'] + ' ' * len(line['jf_insertion'])
+    # and the query line
+    qrseq_line = ' ' * len(v_5p_del_str) + line['seqs'][iseq] + ' ' * line['j_3p_del']
 
-    if gapstr != '':  # <gap_insertion_point> point is only right here as long as there's no colors in these lines... but there usually almost probably always aren't
+    if gap_insertion_point is not None:  # <gap_insertion_point> point is only right here as long as there's no colors in these lines... but there usually almost probably always aren't
+        qrseq_line = qrseq_line[:gap_insertion_point] + gapstr + qrseq_line[gap_insertion_point:]
         insert_line = insert_line[:gap_insertion_point] + gapstr + insert_line[gap_insertion_point:]
         d_line = d_line[:gap_insertion_point] + gapstr + d_line[gap_insertion_point:]
 
