@@ -13,7 +13,7 @@ def get_uid_str(line, iseq, seed_uid):
     return uidstr
 
 # ----------------------------------------------------------------------------------------
-def indel_shenanigans(outstrs, indels):  # NOTE similar to/overlaps with get_seq_with_indels_reinstated()
+def indel_shenanigans(outstrs, colors, indels, iseq):  # NOTE similar to/overlaps with get_seq_with_indels_reinstated()
     # <outstrs> convention: [indels, d, vj, query]
     def is_qr(index):
         return index == 3
@@ -24,25 +24,31 @@ def indel_shenanigans(outstrs, indels):  # NOTE similar to/overlaps with get_seq
             return is_qr(index)
         else:
             assert False
-    def reinstate(seq, ifo, istr):
+    def reinstate(ifo, istr):
         indelstr = ifo['seqstr']
-        if seq[ifo['pos']] not in utils.nukes + utils.ambiguous_bases:  # if this bit of the sequences is spaces, dots, or dashes, then we only want to insert spaces (note that this adds some arbitrariness on boundaries as to who gets the actual inserted string)
+        if outstrs[istr][ifo['pos']] not in utils.nukes + utils.ambiguous_bases:  # if this bit of the sequences is spaces, dots, or dashes, then we only want to insert spaces (note that this adds some arbitrariness on boundaries as to who gets the actual inserted string)
             indelstr = ' ' * len(ifo['seqstr'])
         elif use_stars(ifo, istr):
             indelstr = '*' * len(ifo['seqstr'])
 
         if ifo['type'] == 'deletion':
-            return seq[ : ifo['pos']] + indelstr + seq[ifo['pos'] + ifo['len'] : ]
+            outstrs[istr] = outstrs[istr][ : ifo['pos']] + indelstr + outstrs[istr][ifo['pos'] + ifo['len'] : ]
+            colors[istr] = colors[istr][ : ifo['pos']] + [[] for _ in range(len(indelstr))] + colors[istr][ifo['pos'] + ifo['len'] : ]
         else:
-            return seq[ : ifo['pos']] + indelstr + seq[ifo['pos'] : ]
+            outstrs[istr] = outstrs[istr][ : ifo['pos']] + indelstr + outstrs[istr][ifo['pos'] : ]
+            colors[istr] = colors[istr][ : ifo['pos']] + [[] for _ in range(len(indelstr))] + colors[istr][ifo['pos'] : ]
+            if iseq > 0 and is_qr(istr):  # the germline lines are printed based on the *first* query sequence in a multi-seq alignment, and it'd be kinda hard to really account for all subsequent sequences' indels, so we compromise by blueing the insertions in the subsequent query sequences (deletions are already blue stars). Note that they still don't line up right.
+                for inuke  in range(ifo['pos'], ifo['pos'] + ifo['len']):
+                    colors[istr][inuke] += ['light_blue', 'reverse_video']
 
     for ifo in reversed(indels['indels']):
-        outstrs = [reinstate(outstrs[istr], ifo, istr) for istr in range(len(outstrs))]
+        for istr in range(len(outstrs)):
+            reinstate(ifo, istr)
 
-    return outstrs
+    return outstrs, colors
 
 # ----------------------------------------------------------------------------------------
-def add_colors(outstrs, line):  # NOTE do *not* modify <line>
+def add_colors(outstrs, colors, line):  # NOTE do *not* modify <line>
     # <outstrs> convention: [indels, d, vj, query]
     bluechars = utils.ambiguous_bases + ['*', '-']
 
@@ -53,34 +59,44 @@ def add_colors(outstrs, line):  # NOTE do *not* modify <line>
             return False
         return True
 
-    # first color mutated bases and conserved codons in the query sequence
+    # first add colors for mutated bases and conserved codons in the query sequence
     codon_positions = [p for cpos in line['codon_positions'].values() for p in range(cpos, cpos + 3)]  # *all* the positions in both the codons
-    qrseqlist = list(outstrs[-1])
+    qrseq, qrcols = outstrs[-1], colors[-1]
     ipos = 0  # position in real (alphabetical) query sequence
-    for inuke in range(len(qrseqlist)):
-        if '*' in ''.join([outstrs[i][inuke] for i in range(3)]):  # if any of the germline lines have a star at this position, i.e. if we're in an shm insertion (if the query line has a star, it's an shm deletion, i.e. the star's position was actually there as a base in the hmm)
+    for inuke in range(len(qrseq)):
+        glchars = ''.join([ostr[inuke] for ostr in outstrs[:3]])
+        if '*' in glchars:  # if any of the germline lines have a star at this position, i.e. if we're in an shm insertion (if the query line has a star, it's an shm deletion, i.e. the star's position was actually there as a base in the hmm)
             continue
-        glchars = [ostr[inuke] for ostr in outstrs[:3] if ostr[inuke] in utils.alphabet]
-        if len(glchars) == 0:  # everybody's spaces, dashes, or dots (I think those are the only possibilities...)
-            if qrseqlist[inuke] in utils.alphabet:
+        alphagl = filter((utils.alphabet).__contains__, glchars)  # glchars that are also alphabet chars
+        if len(alphagl) == 0:  # if none of the germline lines have an alphabet base, we're not within the coding region
+            if qrseq[inuke] in utils.alphabet:  # fv insertions
                 ipos += 1
             continue
-        if len(glchars) > 1:
-            raise Exception('more than one germline line has an alphabet character at %d: %s' % (inuke, glchars))
-        if ismuted(qrseqlist[inuke], glchars[0]):
-            qrseqlist[inuke] = utils.color('red', qrseqlist[inuke])
+        if len(alphagl) > 1:
+            raise Exception('more than one germline line has an alphabet character at %d: %s' % (inuke, alphagl))
+        if ismuted(qrseq[inuke], alphagl[0]):
+            qrcols[inuke].append('red')
         if ipos in codon_positions:
-            qrseqlist[inuke] = utils.color('reverse_video', qrseqlist[inuke])
+            qrcols[inuke].append('reverse_video')
         ipos += 1
 
-    outstrs = [outstrs[i] for i in range(3)] + [''.join(qrseqlist)]
-
-    # then color the blues in everybody
+    # then add the blues for everybody
     for istr in range(len(outstrs)):
-        if len(filter((bluechars).__contains__, outstrs[istr])) == 0:
+        if len(filter((bluechars).__contains__, outstrs[istr])) == 0:  # skip anybody that doesn't have any blue chars
+            continue
+        blue_indices = [inuke for inuke in range(len(outstrs[istr])) if outstrs[istr][inuke] in bluechars]
+        for inuke in blue_indices:
+            colors[istr][inuke].append('light_blue')
+
+    # and finally apply the colors from <colors>
+    for istr in range(len(outstrs)):
+        assert len(colors[istr]) == len(outstrs[istr])
+        if colors.count([]) == len(colors):  # colorless line
             continue
         oslist = list(outstrs[istr])
-        oslist = [utils.color('light_blue', ochar) if ochar in bluechars else ochar for ochar in oslist]
+        for inuke in range(len(oslist)):
+            for col in colors[istr][inuke]:
+                oslist[inuke] = utils.color(col, oslist[inuke])
         outstrs[istr] = ''.join(oslist)
 
     return outstrs
@@ -117,7 +133,6 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
         extra_space_because_of_fixed_nospace = 0
 
     eroded_seqs_dots = {
-        # add v_5p into here
         'v' : glseqs['v'] + delstrs['v_3p'],
         'd' : delstrs['d_5p'] + glseqs['d'] + delstrs['d_3p'],
         'j' : delstrs['j_5p'] + glseqs['j'] + delstrs['j_3p'],
@@ -149,12 +164,9 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
         assert lengths['d'] == 0 and len(line['vd_insertion']) == 0
 
     outstrs = [insert_line, d_line, vj_line, qrseq_line]
-    if check_line_integrity and len(set([len(ostr) for ostr in outstrs])) > 1:
-        raise Exception('outstrs not all the same length %s' % [len(ostr) for ostr in outstrs])
-    outstrs = indel_shenanigans(outstrs, line['indelfos'][iseq])
-    outstrs = add_colors(outstrs, line)
-    if check_line_integrity and len(set([utils.len_excluding_colors(ostr) for ostr in outstrs])) > 1:
-        raise Exception('outstrs not all the same length %s' % [utils.len_excluding_colors(ostr) for ostr in outstrs])
+    colors = [[[] for _ in range(len(ostr))] for ostr in outstrs]
+    outstrs, colors = indel_shenanigans(outstrs, colors, line['indelfos'][iseq], iseq)
+    outstrs = add_colors(outstrs, colors, line)
     suffixes = ['insert%s\n'       % ('s' if chain == 'h' else ''),
                 '%s\n'             % (utils.color_gene(line['d_gene'])),
                 '%s %s\n'          % (utils.color_gene(line['v_gene']), utils.color_gene(line['j_gene'])),
