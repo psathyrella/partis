@@ -102,7 +102,7 @@ def add_colors(outstrs, colors, line):  # NOTE do *not* modify <line>
     return outstrs
 
 # ----------------------------------------------------------------------------------------
-def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label='', one_line=False, seed_uid=None, check_line_integrity=False):
+def print_seq_in_reco_event(original_line, iseq, extra_str='', label='', one_line=False, seed_uid=None, check_line_integrity=False):
     """
     Print ascii summary of recombination event and mutation.
     If <one_line>, then skip the germline lines, and only print the final_seq line.
@@ -135,7 +135,7 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
                   + line['vd_insertion'] + ' ' * line['lengths']['d'] + line['dj_insertion'] \
                   + ' ' * (line['lengths']['j'] + line['j_3p_del'] + len(line['jf_insertion']))
     germline_d_start = len(line['fv_insertion']) + line['lengths']['v'] + len(line['vd_insertion']) - line['d_5p_del']
-    germline_d_end = germline_d_start + len(germlines['d'][line['d_gene']])
+    germline_d_end = germline_d_start + line['d_5p_del'] + line['lengths']['d'] + line['d_3p_del']
     d_line = ' ' * (germline_d_start + len(delstrs['v_5p'])) \
              + eroded_seqs_dots['d'] \
              + ' ' * (len(line['j_gl_seq']) + len(line['dj_insertion']) - line['d_3p_del'] + line['j_3p_del'] + len(line['jf_insertion']))
@@ -146,16 +146,19 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     # and the query line
     qrseq_line = ' ' * len(delstrs['v_5p']) + line['seqs'][iseq] + ' ' * line['j_3p_del']
 
+    outstrs = [insert_line, d_line, vj_line, qrseq_line]
+
     if gap_insert_point is not None:  # <gap_insert_point> point is only right here as long as there's no colors in these lines... but there usually almost probably always aren't
-        qrseq_line = qrseq_line[:gap_insert_point] + gapstr + qrseq_line[gap_insert_point:]
-        insert_line = insert_line[:gap_insert_point] + gapstr + insert_line[gap_insert_point:]
-        d_line = d_line[:gap_insert_point] + gapstr + d_line[gap_insert_point:]
+        for istr in [0, 1, 3]:  # everybody except the vj line, which already has the modified interior delstrs above
+            outstrs[istr] = outstrs[istr][:gap_insert_point] + gapstr + outstrs[istr][gap_insert_point:]
+
+    if len(set([len(ostr) for ostr in outstrs])) > 1:  # could put this in a bunch of different places, but things're probably most likely to get screwed up either when initally building the four lines, or dealing with the stupid gaps
+        raise Exception('outstrs not all the same length %s' % [len(ostr) for ostr in outstrs])
 
     chain = utils.get_chain(line['v_gene'])
     if chain != 'h':
         assert line['lengths']['d'] == 0 and len(line['vd_insertion']) == 0
 
-    outstrs = [insert_line, d_line, vj_line, qrseq_line]
     colors = [[[] for _ in range(len(ostr))] for ostr in outstrs]
     outstrs, colors = indel_shenanigans(outstrs, colors, line['indelfos'][iseq], iseq)
     outstrs = add_colors(outstrs, colors, line)

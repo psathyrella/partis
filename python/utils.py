@@ -406,7 +406,7 @@ def convert_from_adaptive_headers(glfo, line, uid=None, only_dj_rearrangements=F
 
     if print_it:
         add_implicit_info(glfo, newline)
-        print_reco_event(glfo['seqs'], newline, label=uid)
+        print_reco_event(newline, label=uid)
 
     # still need to convert to integers/lists/whatnot (?)
 
@@ -996,7 +996,7 @@ def print_true_events(glfo, reco_info, line, print_naive_seqs=False, extra_str='
     true_naive_seqs = []
     for uids in get_true_partition(reco_info, ids=line['unique_ids']):  # make a multi-seq line that has all the seqs from this clonal family
         multiline = synthesize_multi_seq_line(uids, reco_info)
-        print_reco_event(glfo['seqs'], multiline, extra_str=extra_str, label=color('green', 'true:'))
+        print_reco_event(multiline, extra_str=extra_str, label=color('green', 'true:'))
         true_naive_seqs.append(multiline['naive_seq'])
 
     if print_naive_seqs:
@@ -1005,9 +1005,9 @@ def print_true_events(glfo, reco_info, line, print_naive_seqs=False, extra_str='
             color_mutants(tseq, line['naive_seq'], print_result=True, print_hfrac=True, ref_label='true ', extra_str='          ')
 
 # ----------------------------------------------------------------------------------------
-def print_reco_event(germlines, line, one_line=False, extra_str='', label='', seed_uid=None):
+def print_reco_event(line, one_line=False, extra_str='', label='', seed_uid=None):
     for iseq in range(len(line['unique_ids'])):
-        prutils.print_seq_in_reco_event(germlines, line, iseq, extra_str=extra_str, label=(label if iseq==0 else ''), one_line=(iseq>0), seed_uid=seed_uid)
+        prutils.print_seq_in_reco_event(line, iseq, extra_str=extra_str, label=(label if iseq==0 else ''), one_line=(iseq>0), seed_uid=seed_uid)
 
 #----------------------------------------------------------------------------------------
 def sanitize_name(name):

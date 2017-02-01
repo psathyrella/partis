@@ -293,7 +293,7 @@ class PartitionDriver(object):
                     print '   %s' % ':'.join(line['unique_ids'])
                 else:
                     print ''
-                utils.print_reco_event(self.glfo['seqs'], line)
+                utils.print_reco_event(line)
         if len(failed_queries) > 0:
             print '%d failed queries' % len(failed_queries)
 
@@ -1311,7 +1311,7 @@ class PartitionDriver(object):
         if debug:
             print ''
             print '  dummy d hack for %s' % ' '.join(line['unique_ids'])
-            utils.print_reco_event(self.glfo['seqs'], tmpline, extra_str='    ', label='before')
+            utils.print_reco_event(tmpline, extra_str='    ', label='before')
 
         gl_v_base = None
         if tmpline['v_3p_del'] > 0:
@@ -1361,7 +1361,7 @@ class PartitionDriver(object):
         after_line = copy.deepcopy(line)
         utils.add_implicit_info(self.glfo, after_line)
         if debug:
-            utils.print_reco_event(self.glfo['seqs'], after_line, extra_str='    ', label='after')
+            utils.print_reco_event(after_line, extra_str='    ', label='after')
 
     # ----------------------------------------------------------------------------------------
     def read_annotation_output(self, annotation_fname, outfname=None, count_parameters=False, parameter_out_dir=None, print_annotations=False):
@@ -1402,7 +1402,7 @@ class PartitionDriver(object):
                     n_invalid_events += 1
                     if self.args.debug:
                         print '      %s padded line invalid' % uidstr
-                        utils.print_reco_event(self.glfo['seqs'], padded_line, extra_str='    ', label='invalid:')
+                        utils.print_reco_event(padded_line, extra_str='    ', label='invalid:')
                     continue
 
                 assert uidstr not in padded_annotations
@@ -1520,7 +1520,7 @@ class PartitionDriver(object):
         label = 'inferred:'
         if self.args.seed_unique_id is not None and self.args.seed_unique_id in line['unique_ids']:
             label += '   (found %d sequences clonal to seed %s)' % (len(line['unique_ids']), self.args.seed_unique_id)
-        utils.print_reco_event(self.glfo['seqs'], line, extra_str='    ', label=label, seed_uid=self.args.seed_unique_id)
+        utils.print_reco_event(line, extra_str='    ', label=label, seed_uid=self.args.seed_unique_id)
 
     # ----------------------------------------------------------------------------------------
     def write_annotations(self, annotations, outfname):

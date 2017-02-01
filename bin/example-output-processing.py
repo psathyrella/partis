@@ -17,7 +17,7 @@ with open(partis_path + '/test/reference-results/annotate-new-simu.csv') as csvf
     for line in reader:
         utils.process_input_line(line)
         utils.add_implicit_info(glfo, line)
-        utils.print_reco_event(glfo['seqs'], line)
+        utils.print_reco_event(line)
         cdr3_bounds = (line['codon_positions']['v'], line['codon_positions']['j'] + 3)
         print ''
         print '  should match the above:'

@@ -149,7 +149,7 @@ class Waterer(object):
             if self.debug and not self.args.is_data and len(self.remaining_queries) > 0:
                 print 'true annotations for remaining events:'
                 for qry in self.remaining_queries:
-                    utils.print_reco_event(self.glfo['seqs'], self.reco_info[qry], extra_str='      ', label='true:')
+                    utils.print_reco_event(self.reco_info[qry], extra_str='      ', label='true:')
 
         self.info['remaining_queries'] = self.remaining_queries
 
@@ -772,8 +772,8 @@ class Waterer(object):
             inf_label = '      ' + utils.kbound_str({r : infoline['k_' + r] for r in ['v', 'd']})
             if not self.args.is_data:
                 inf_label = 'inferred: ' + inf_label
-                utils.print_reco_event(self.glfo['seqs'], self.reco_info[qname], extra_str='    ', label=utils.color('green', 'true:'))
-            utils.print_reco_event(self.glfo['seqs'], self.info[qname], extra_str='    ', label=inf_label)
+                utils.print_reco_event(self.reco_info[qname], extra_str='    ', label=utils.color('green', 'true:'))
+            utils.print_reco_event(self.info[qname], extra_str='    ', label=inf_label)
 
         if self.pcounter is not None:
             self.pcounter.increment(self.info[qname])
@@ -1093,7 +1093,7 @@ class Waterer(object):
                 if swfo['indelfos'][0]['reversed_seq'] != swfo['seqs'][0]:
                     print '%s reversed seq not same as seq:\n%s\n%s' % (utils.color('red', 'warning'), swfo['indelfos'][0]['reversed_seq'], swfo['seqs'][0])
 
-            # utils.print_reco_event(self.glfo['seqs'], swfo)
+            # utils.print_reco_event(swfo)
             utils.remove_all_implicit_info(swfo)
             fv_len = len(swfo['fv_insertion'])
             jf_len = len(swfo['jf_insertion'])
@@ -1109,7 +1109,7 @@ class Waterer(object):
             swfo['jf_insertion'] = ''
 
             utils.add_implicit_info(self.glfo, swfo)
-            # utils.print_reco_event(self.glfo['seqs'], swfo)
+            # utils.print_reco_event(swfo)
 
             # *sigh* not super happy about it, but I think the best way to handle this is to also remove these bases from the simulation info
             if self.reco_info is not None:

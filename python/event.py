@@ -148,7 +148,7 @@ class RecombinationEvent(object):
         line['cdr3_length'] = self.cdr3_length
         line['codon_positions'] = copy.deepcopy(self.final_codon_positions)
         utils.add_implicit_info(self.glfo, line)
-        utils.print_reco_event(self.glfo['seqs'], line, extra_str='    ')
+        utils.print_reco_event(line, extra_str='    ')
 
     # ----------------------------------------------------------------------------------------
     def print_gene_choice(self):
