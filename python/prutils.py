@@ -128,12 +128,7 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
         gap_insert_point = None
         extra_space_because_of_fixed_nospace = 0
 
-    eroded_seqs_dots = {
-        # TODO add v_5p into here
-        'v' : line['v_gl_seq'] + delstrs['v_3p'],
-        'd' : delstrs['d_5p'] + line['d_gl_seq'] + delstrs['d_3p'],
-        'j' : delstrs['j_5p'] + line['j_gl_seq'] + delstrs['j_3p'],
-    }
+    eroded_seqs_dots = {r : delstrs[r + '_5p'] + line[r + '_gl_seq'] + delstrs[r + '_3p'] for r in utils.regions}
 
     # build the three germline lines
     insert_line = ' ' * (len(line['fv_insertion']) + line['lengths']['v'] + len(delstrs['v_5p'])) \
@@ -146,7 +141,7 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
              + ' ' * (len(line['j_gl_seq']) + len(line['dj_insertion']) - line['d_3p_del'] + line['j_3p_del'] + len(line['jf_insertion']))
     germline_v_end = len(line['fv_insertion']) + len(line['v_gl_seq']) + line['v_3p_del'] - 1  # position in the query sequence at which we find the last base of the v match. NOTE we subtract off the v_5p_del because we're *not* adding dots for that deletion (it's just too long)
     germline_j_start = germline_d_end + 1 - line['d_3p_del'] + len(line['dj_insertion']) - line['j_5p_del']
-    vj_line = ' ' * len(line['fv_insertion']) + delstrs['v_5p'] + eroded_seqs_dots['v'] + '.' * extra_space_because_of_fixed_nospace \
+    vj_line = ' ' * len(line['fv_insertion']) + eroded_seqs_dots['v'] + '.' * extra_space_because_of_fixed_nospace \
               + ' ' * (germline_j_start - germline_v_end - 2) + eroded_seqs_dots['j'] + ' ' * len(line['jf_insertion'])
     # and the query line
     qrseq_line = ' ' * len(delstrs['v_5p']) + line['seqs'][iseq] + ' ' * line['j_3p_del']
