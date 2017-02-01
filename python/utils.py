@@ -490,9 +490,9 @@ def color(col, seq, width=None, padside='left'):
     if width is not None:  # make sure final string prints to correct width
         n_spaces = max(0, width - len(seq))  # if specified <width> is greater than uncolored length of <seq>, pad with spaces so that when the colors show up properly the colored sequences prints with width <width>
         if padside == 'left':
-            return_str.insert(0, [n_spaces * ' '])
+            return_str.insert(0, n_spaces * ' ')
         elif padside == 'right':
-            return_str.insert(len(return_str), [n_spaces * ' '])
+            return_str.insert(len(return_str), n_spaces * ' ')
         else:
             assert False
     return ''.join(return_str)
