@@ -107,13 +107,8 @@ class RecombinationEvent(object):
             row['jf_insertion'] = ''
             # then the stuff that's particular to each mutant/clone
             for imute in range(len(self.final_seqs)):
-# ----------------------------------------------------------------------------------------
                 row['seqs'] = [self.indelfos[imute]['reversed_seq'], ]  # add this as 'seqs' (instead of 'indel_reversed_seqs'), since we want get_line_for_output() to use empty strings if there's no indels
                 row['input_seqs'] = [self.final_seqs[imute], ]
-                print len(row['seqs'])
-                print len(row['input_seqs'])
-                raise Exception('still need to finish cleaning up')
-# ----------------------------------------------------------------------------------------
                 str_for_unique_id = ''  # Hash to uniquely identify the sequence.
                 for column in row:
                     str_for_unique_id += str(row[column])
