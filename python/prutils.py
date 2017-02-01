@@ -73,7 +73,7 @@ def add_colors(outstrs, colors, line):  # NOTE do *not* modify <line>
                 ipos += 1
             continue
         if len(alphagl) > 1:
-            raise Exception('more than one germline line has an alphabet character at %d: %s' % (inuke, alphagl))
+            raise Exception('more than one germline line has an alphabet character at %d:\n  %s\n  %s\n  %s' % (inuke, glchars[0], glchars[1], glchars[2]))
         if ismuted(qrseq[inuke], alphagl[0]):
             qrcols[inuke].append('red')
         if ipos in codon_positions:
@@ -111,22 +111,21 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     if check_line_integrity:  # it's very important not to modify <line> -- this lets you verify that you aren't
         line = copy.deepcopy(original_line)  # copy that we can modify without changing <line>
 
-    # don't print a million dots if left-side v deletion is really big
     delstrs = {d : '.' * line[d + '_del'] for d in utils.all_erosions}  # NOTE len(delstrs[<del>]) is not in general the same as len(line[<del>_del])
-    if len(delstrs['v_5p']) > 50:
+    if len(delstrs['v_5p']) > 50:  # don't print a million dots if left-side v deletion is really big
         delstrs['v_5p'] = '.%d.' % len(delstrs['v_5p'])
 
-    # if there isn't enough space for dots in the vj line, we add some dashes to everybody so things fit (very rare in heavy chain rearrangements, but pretty common in light chain)
-    interior_length = len(line['vd_insertion']) + len(line['d_gl_seq']) + len(line['dj_insertion'])  # length of the portion of the vj line that is normally taken up by dots (and spaces)
-    if line['v_3p_del'] + line['j_5p_del'] > interior_length:  # not enough space
-        delstrs['v_3p'] = '.%d.' % len(delstrs['v_3p'])
-        delstrs['j_5p'] = '.%d.' % len(delstrs['j_5p'])
-        gap_insert_point = len(line['fv_insertion'] + delstrs['v_5p'] + line['v_gl_seq'])
-        gapstr = '-' * (len(delstrs['v_3p'] + delstrs['j_5p']) - interior_length)
-        extra_space_because_of_fixed_nospace = max(0, interior_length - len(delstrs['v_3p'] + delstrs['j_5p']))
+    # if there isn't enough space for dots in the vj line, we add some dashes to everybody so things fit (rare in heavy chain rearrangements, but pretty common in light chain)
+    d_plus_inserts_length = len(line['vd_insertion'] + line['d_gl_seq'] + line['dj_insertion'])
+    if line['v_3p_del'] + line['j_5p_del'] > d_plus_inserts_length:  # if dots for v and j interior deletions will be longer than <d_plus_inserts_length>
+        delstrs['v_3p'] = '.%d.' % line['v_3p_del']
+        delstrs['j_5p'] = '.%d.' % line['j_5p_del']
+        gapstr = '-' * (len(delstrs['v_3p'] + delstrs['j_5p']) - d_plus_inserts_length)
+        gap_insert_point = len(line['fv_insertion'] + delstrs['v_5p'] + line['v_gl_seq'])  # it doesn't really matter exactly where we put the blue dashes, as long as it's the same place in all four lines, but this is a good spot
+        extra_space_because_of_fixed_nospace = max(0, d_plus_inserts_length - len(delstrs['v_3p'] + delstrs['j_5p']))  # if shortening the <delstrs> already over-compensated for the lack of space (i.e., if the number of dashes necessary is zero), then we need to add some dots to the vj line below
     else:
-        gap_insert_point = None
         gapstr = ''
+        gap_insert_point = None
         extra_space_because_of_fixed_nospace = 0
 
     eroded_seqs_dots = {
