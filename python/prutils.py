@@ -111,20 +111,17 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
     if check_line_integrity:  # it's very important not to modify <line> -- this lets you verify that you aren't
         line = copy.deepcopy(original_line)  # copy that we can modify without changing <line>
 
-    lengths = {r : line['lengths'][r] for r in utils.regions}  # copy so that we don't have to modify <line>
-    glseqs = {r : line[r + '_gl_seq'] for r in utils.regions}  # copy so that we don't have to modify <line>
-
     # don't print a million dots if left-side v deletion is really big
     delstrs = {d : '.' * line[d + '_del'] for d in utils.all_erosions}  # NOTE len(delstrs[<del>]) is not in general the same as len(line[<del>_del])
     if len(delstrs['v_5p']) > 50:
         delstrs['v_5p'] = '.%d.' % len(delstrs['v_5p'])
 
     # if there isn't enough space for dots in the vj line, we add some dashes to everybody so things fit (very rare in heavy chain rearrangements, but pretty common in light chain)
-    interior_length = len(line['vd_insertion']) + len(glseqs['d']) + len(line['dj_insertion'])  # length of the portion of the vj line that is normally taken up by dots (and spaces)
+    interior_length = len(line['vd_insertion']) + len(line['d_gl_seq']) + len(line['dj_insertion'])  # length of the portion of the vj line that is normally taken up by dots (and spaces)
     if line['v_3p_del'] + line['j_5p_del'] > interior_length:  # not enough space
         delstrs['v_3p'] = '.%d.' % len(delstrs['v_3p'])
         delstrs['j_5p'] = '.%d.' % len(delstrs['j_5p'])
-        gap_insert_point = len(line['fv_insertion'] + delstrs['v_5p'] + glseqs['v'])
+        gap_insert_point = len(line['fv_insertion'] + delstrs['v_5p'] + line['v_gl_seq'])
         gapstr = '-' * (len(delstrs['v_3p'] + delstrs['j_5p']) - interior_length)
         extra_space_because_of_fixed_nospace = max(0, interior_length - len(delstrs['v_3p'] + delstrs['j_5p']))
     else:
@@ -133,21 +130,22 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
         extra_space_because_of_fixed_nospace = 0
 
     eroded_seqs_dots = {
-        'v' : glseqs['v'] + delstrs['v_3p'],
-        'd' : delstrs['d_5p'] + glseqs['d'] + delstrs['d_3p'],
-        'j' : delstrs['j_5p'] + glseqs['j'] + delstrs['j_3p'],
+        # TODO add v_5p into here
+        'v' : line['v_gl_seq'] + delstrs['v_3p'],
+        'd' : delstrs['d_5p'] + line['d_gl_seq'] + delstrs['d_3p'],
+        'j' : delstrs['j_5p'] + line['j_gl_seq'] + delstrs['j_3p'],
     }
 
     # build the three germline lines
-    insert_line = ' ' * (len(line['fv_insertion']) + lengths['v'] + len(delstrs['v_5p'])) \
-                  + line['vd_insertion'] + ' ' * lengths['d'] + line['dj_insertion'] \
-                  + ' ' * (lengths['j'] + line['j_3p_del'] + len(line['jf_insertion']))
-    germline_d_start = len(line['fv_insertion']) + lengths['v'] + len(line['vd_insertion']) - line['d_5p_del']
+    insert_line = ' ' * (len(line['fv_insertion']) + line['lengths']['v'] + len(delstrs['v_5p'])) \
+                  + line['vd_insertion'] + ' ' * line['lengths']['d'] + line['dj_insertion'] \
+                  + ' ' * (line['lengths']['j'] + line['j_3p_del'] + len(line['jf_insertion']))
+    germline_d_start = len(line['fv_insertion']) + line['lengths']['v'] + len(line['vd_insertion']) - line['d_5p_del']
     germline_d_end = germline_d_start + len(germlines['d'][line['d_gene']])
     d_line = ' ' * (germline_d_start + len(delstrs['v_5p'])) \
              + eroded_seqs_dots['d'] \
-             + ' ' * (len(glseqs['j']) + len(line['dj_insertion']) - line['d_3p_del'] + line['j_3p_del'] + len(line['jf_insertion']))
-    germline_v_end = len(line['fv_insertion']) + len(glseqs['v']) + line['v_3p_del'] - 1  # position in the query sequence at which we find the last base of the v match. NOTE we subtract off the v_5p_del because we're *not* adding dots for that deletion (it's just too long)
+             + ' ' * (len(line['j_gl_seq']) + len(line['dj_insertion']) - line['d_3p_del'] + line['j_3p_del'] + len(line['jf_insertion']))
+    germline_v_end = len(line['fv_insertion']) + len(line['v_gl_seq']) + line['v_3p_del'] - 1  # position in the query sequence at which we find the last base of the v match. NOTE we subtract off the v_5p_del because we're *not* adding dots for that deletion (it's just too long)
     germline_j_start = germline_d_end + 1 - line['d_3p_del'] + len(line['dj_insertion']) - line['j_5p_del']
     vj_line = ' ' * len(line['fv_insertion']) + delstrs['v_5p'] + eroded_seqs_dots['v'] + '.' * extra_space_because_of_fixed_nospace \
               + ' ' * (germline_j_start - germline_v_end - 2) + eroded_seqs_dots['j'] + ' ' * len(line['jf_insertion'])
@@ -161,7 +159,7 @@ def print_seq_in_reco_event(germlines, original_line, iseq, extra_str='', label=
 
     chain = utils.get_chain(line['v_gene'])
     if chain != 'h':
-        assert lengths['d'] == 0 and len(line['vd_insertion']) == 0
+        assert line['lengths']['d'] == 0 and len(line['vd_insertion']) == 0
 
     outstrs = [insert_line, d_line, vj_line, qrseq_line]
     colors = [[[] for _ in range(len(ostr))] for ostr in outstrs]
