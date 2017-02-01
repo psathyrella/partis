@@ -148,21 +148,18 @@ def print_seq_in_reco_event(original_line, iseq, extra_str='', label='', one_lin
 
     outstrs = [insert_line, d_line, vj_line, qrseq_line]
 
-    if gap_insert_point is not None:  # <gap_insert_point> point is only right here as long as there's no colors in these lines... but there usually almost probably always aren't
+    if gap_insert_point is not None:
         for istr in [0, 1, 3]:  # everybody except the vj line, which already has the modified interior delstrs above
             outstrs[istr] = outstrs[istr][:gap_insert_point] + gapstr + outstrs[istr][gap_insert_point:]
 
     if len(set([len(ostr) for ostr in outstrs])) > 1:  # could put this in a bunch of different places, but things're probably most likely to get screwed up either when initally building the four lines, or dealing with the stupid gaps
         raise Exception('outstrs not all the same length %s' % [len(ostr) for ostr in outstrs])
 
-    chain = utils.get_chain(line['v_gene'])
-    if chain != 'h':
-        assert line['lengths']['d'] == 0 and len(line['vd_insertion']) == 0
-
     colors = [[[] for _ in range(len(ostr))] for ostr in outstrs]
     outstrs, colors = indel_shenanigans(outstrs, colors, line['indelfos'][iseq], iseq)
     outstrs = add_colors(outstrs, colors, line)
-    suffixes = ['insert%s\n'       % ('s' if chain == 'h' else ''),
+
+    suffixes = ['insert%s\n'       % ('s' if utils.get_chain(line['v_gene']) == 'h' else ''),
                 '%s\n'             % (utils.color_gene(line['d_gene'])),
                 '%s %s\n'          % (utils.color_gene(line['v_gene']), utils.color_gene(line['j_gene'])),
                 '%s   %4.2f mut\n' % (get_uid_str(line, iseq, seed_uid), line['mut_freqs'][iseq])]
@@ -174,7 +171,7 @@ def print_seq_in_reco_event(original_line, iseq, extra_str='', label='', one_lin
 
     if one_line:
         outstrs = outstrs[-1:]  # remove all except the query seq line
-    elif chain != 'h':
+    elif utils.get_chain(line['v_gene']) != 'h':
         outstrs.pop(1)  # remove the d germline line
 
     print ''.join(outstrs),
