@@ -1,165 +1,206 @@
 [92mannotate-ref-simu[0m                ./bin/partis run-viterbi --plot-performance --plotdir test/_new-results/simu-ref-performance --only-csv-plots --is-simu --infname test/reference-results/test/simu.csv --parameter-dir test/reference-results/test/parameters/simu --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human --outfname test/_new-results/annotate-ref-simu.csv
 running viterbi
 smith-waterman 
-        reading sw results from test/reference-results/test/parameters/simu/sw-cache-1930762267444642798.csv
-    skipping performance evaluation of -7888304906857033707 because of indels
-    skipping performance evaluation of -8243081027310769399 because of indels
-    skipping performance evaluation of 8003581797825190918 because of indels
-    skipping performance evaluation of -8336812982827930258 because of indels
-    skipping performance evaluation of 3032674279606861415 because of indels
-    skipping performance evaluation of 1975920950658836647 because of indels
-    skipping performance evaluation of 5922461321881824096 because of indels
-    skipping performance evaluation of -8979853866764054255 because of indels
-      info for 2426 / 2426 = 1.000
-      kept 1630 (0.672) unproductive
+        reading sw results from test/reference-results/test/parameters/simu/sw-cache-6821554342063078619.csv
+    skipping performance evaluation of 3916575519181570240 because of indels
+    skipping performance evaluation of 4638537895259520433 because of indels
+    skipping performance evaluation of -7829725254102920905 because of indels
+    skipping performance evaluation of -1838870529905718504 because of indels
+    skipping performance evaluation of -7412937390934044834 because of indels
+    skipping performance evaluation of -27065312974377017 because of indels
+    skipping performance evaluation of -8932478048782146751 because of indels
+    skipping performance evaluation of -1210541606854735754 because of indels
+    skipping performance evaluation of -5772736770207164802 because of indels
+    skipping performance evaluation of 952627299983456150 because of indels
+    skipping performance evaluation of -6777070966356926348 because of indels
+    skipping performance evaluation of 3781492018973163354 because of indels
+    skipping performance evaluation of 3638221520282597478 because of indels
+    skipping performance evaluation of 8134467020097944220 because of indels
+    skipping performance evaluation of 2831588768506176459 because of indels
+    skipping performance evaluation of -3467588411121338151 because of indels
+    skipping performance evaluation of 3312196281651092286 because of indels
+    skipping performance evaluation of -1653302207128651255 because of indels
+    skipping performance evaluation of -1392219867145143804 because of indels
+    skipping performance evaluation of 3210908193554380081 because of indels
+    skipping performance evaluation of 5630030942862912796 because of indels
+    skipping performance evaluation of -7414965680216621535 because of indels
+    skipping performance evaluation of 755479189736510219 because of indels
+    skipping performance evaluation of 8090518683811709673 because of indels
+    skipping performance evaluation of -6003499180866381899 because of indels
+    skipping performance evaluation of -1803779264717789789 because of indels
+    skipping performance evaluation of -3947223774054379180 because of indels
+      info for 2440 / 2440 = 1.000
+      kept 1747 (0.716) unproductive
   plotting performance (0.2 sec)
-        water time: 4.5
+        water time: 3.9
 hmm
     running 10 procs
     read output
-    skipping performance evaluation of 3032674279606861415 because of indels
-    skipping performance evaluation of -8336812982827930258 because of indels
-    skipping performance evaluation of 8003581797825190918 because of indels
-    skipping performance evaluation of 5922461321881824096 because of indels
-    skipping performance evaluation of -8979853866764054255 because of indels
-    skipping performance evaluation of -8243081027310769399 because of indels
-    skipping performance evaluation of -7888304906857033707 because of indels
-    skipping performance evaluation of 1975920950658836647 because of indels
+    skipping performance evaluation of -3467588411121338151 because of indels
+    skipping performance evaluation of 2831588768506176459 because of indels
+    skipping performance evaluation of 8134467020097944220 because of indels
+    skipping performance evaluation of -3947223774054379180 because of indels
+    skipping performance evaluation of -6777070966356926348 because of indels
+    skipping performance evaluation of 3916575519181570240 because of indels
+    skipping performance evaluation of -6003499180866381899 because of indels
+    skipping performance evaluation of -7412937390934044834 because of indels
+    skipping performance evaluation of 5630030942862912796 because of indels
+    skipping performance evaluation of 3210908193554380081 because of indels
+    skipping performance evaluation of -8932478048782146751 because of indels
+    skipping performance evaluation of 952627299983456150 because of indels
+    skipping performance evaluation of -27065312974377017 because of indels
+    skipping performance evaluation of 3781492018973163354 because of indels
+    skipping performance evaluation of 3312196281651092286 because of indels
+    skipping performance evaluation of 4638537895259520433 because of indels
+    skipping performance evaluation of -5772736770207164802 because of indels
+    skipping performance evaluation of -1210541606854735754 because of indels
+    skipping performance evaluation of -1653302207128651255 because of indels
+    skipping performance evaluation of 8090518683811709673 because of indels
+    skipping performance evaluation of -1392219867145143804 because of indels
+    skipping performance evaluation of -1838870529905718504 because of indels
+    skipping performance evaluation of -7414965680216621535 because of indels
+    skipping performance evaluation of 3638221520282597478 because of indels
+    skipping performance evaluation of -7829725254102920905 because of indels
+    skipping performance evaluation of 755479189736510219 because of indels
+    skipping performance evaluation of -1803779264717789789 because of indels
   plotting performance (0.1 sec)
-        processed 2426 hmm output lines with 2426 sequences in 2426 events
-      hmm step time: 11.0
-      total time: 16.6
+        processed 2440 hmm output lines with 2440 sequences in 2440 events
+      hmm step time: 11.6
+      total time: 16.7
 [92mpartition-ref-simu[0m               ./bin/partis partition --n-max-queries 500 --n-precache-procs 10 --biggest-logprob-cluster-to-calculate 5 --biggest-naive-seq-cluster-to-calculate 5 --persistent-cachefname test/_new-results/cache-ref-partition.csv --is-simu --infname test/reference-results/test/simu.csv --parameter-dir test/reference-results/test/parameters/simu --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human --outfname test/_new-results/partition-ref-simu.csv
 partitioning
 smith-waterman 
         sequences    n_procs     ig-sw time    processing time
-             500       10            0.7           0.2
-               4        1            0.1           0.0
+             500       10            0.6           0.6
+              39        1            0.5           0.1
+               1        1            0.0           0.0
       info for 500 / 500 = 1.000
-      kept 328 (0.656) unproductive
-        water time: 1.0
+      kept 381 (0.762) unproductive
+        water time: 2.0
 hmm
 --> caching all 500 naive sequences
     running 10 procs
                 no/empty cache file
                     calcd:         vtb 500        fwd   0
                    merged:       hfrac   0     lratio   0
-             min-max time:  1.8 - 2.0 sec
-      hmm step time: 2.3
+             min-max time:  1.9 - 2.2 sec
+      hmm step time: 2.6
 --> 500 clusters with 10 procs
-       naive hfrac bounds: 0.015 0.110   (0.115 mean mutation in parameter dir test/reference-results/test/parameters/simu/hmm)
+       naive hfrac bounds: 0.015 0.111   (0.117 mean mutation in parameter dir test/reference-results/test/parameters/simu/hmm)
     running 10 procs
           read from cache:  naive-seqs 500   logprobs   0
-                    calcd:         vtb 119        fwd 579
-                   merged:       hfrac 110     lratio  40
-             min-max time:  3.5 - 8.6 sec
-      hmm step time: 8.9
---> 350 clusters with 7 procs
+                    calcd:         vtb 111        fwd 522
+                   merged:       hfrac 108     lratio  49
+             min-max time:  3.2 - 8.5 sec
+      hmm step time: 9.0
+--> 343 clusters with 7 procs
     running 7 procs
-          read from cache:  naive-seqs 650   logprobs 579
-                    calcd:         vtb  64        fwd 248
-                   merged:       hfrac  66     lratio  20
-             min-max time:  3.4 - 9.1 sec
-      hmm step time: 9.3
---> 264 clusters with 5 procs
-    running 5 procs
-          read from cache:  naive-seqs 739   logprobs 827
-                    calcd:         vtb  48        fwd 145
-                   merged:       hfrac  46     lratio  15
-             min-max time:  2.7 - 7.8 sec
+          read from cache:  naive-seqs 657   logprobs 522
+                    calcd:         vtb  65        fwd 244
+                   merged:       hfrac  60     lratio  29
+             min-max time:  3.2 - 7.9 sec
       hmm step time: 8.2
---> 203 clusters with 3 procs
+--> 254 clusters with 5 procs
+    running 5 procs
+          read from cache:  naive-seqs 748   logprobs 766
+                    calcd:         vtb  42        fwd 165
+                   merged:       hfrac  39     lratio  21
+             min-max time:  3.0 - 7.4 sec
+      hmm step time: 7.7
+--> 194 clusters with 3 procs
     running 3 procs
-          read from cache:  naive-seqs 807   logprobs 972
-                    calcd:         vtb  36        fwd 121
-                   merged:       hfrac  40     lratio   9
-             min-max time:  6.0 - 11.4 sec
-      hmm step time: 11.7
---> 154 clusters with 2 procs
+          read from cache:  naive-seqs 814   logprobs 931
+                    calcd:         vtb  34        fwd 125
+                   merged:       hfrac  35     lratio   9
+             min-max time:  7.6 - 10.0 sec
+      hmm step time: 10.3
+--> 150 clusters with 2 procs
     running 2 procs
-          read from cache:  naive-seqs 864   logprobs 1093
-                    calcd:         vtb  21        fwd  78
-                   merged:       hfrac  25     lratio   3
-             min-max time:  8.5 - 8.7 sec
-      hmm step time: 8.9
---> 126 clusters with 1 proc
+          read from cache:  naive-seqs 866   logprobs 1056
+                    calcd:         vtb  27        fwd 121
+                   merged:       hfrac  28     lratio  12
+             min-max time:  11.7 - 11.9 sec
+      hmm step time: 12.0
+--> 110 clusters with 1 proc
     running 1 proc
-          read from cache:  naive-seqs 899   logprobs 1171
-                    calcd:         vtb  18        fwd 132
-                   merged:       hfrac  28     lratio   5
-                     time:  25.0 sec
-      hmm step time: 25.2
-      loop time: 72.1
+          read from cache:  naive-seqs 919   logprobs 1177
+                    calcd:         vtb  10        fwd 128
+                   merged:       hfrac  12     lratio   5
+                     time:  25.1 sec
+      hmm step time: 25.3
+      loop time: 72.5
 --> getting annotations for final partition
     running 10 procs
-      hmm step time: 2.2
+      hmm step time: 2.6
     read output
         processed 93 hmm output lines with 500 sequences in 93 events
-      total time: 78.4
-[92mseed-partition-ref-simu[0m          ./bin/partis partition --n-max-queries 500 --persistent-cachefname test/_new-results/cache-ref-partition.csv --dont-precache-naive-seqs --is-simu --infname test/reference-results/test/simu.csv --parameter-dir test/reference-results/test/parameters/simu --seed-unique-id 8916811530536526390 --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human --outfname test/_new-results/seed-partition-ref-simu.csv
+      total time: 80.3
+[92mseed-partition-ref-simu[0m          ./bin/partis partition --n-max-queries 500 --persistent-cachefname test/_new-results/cache-ref-partition.csv --dont-precache-naive-seqs --is-simu --infname test/reference-results/test/simu.csv --parameter-dir test/reference-results/test/parameters/simu --seed-unique-id 7545702563878701531 --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human --outfname test/_new-results/seed-partition-ref-simu.csv
 partitioning
 smith-waterman 
         sequences    n_procs     ig-sw time    processing time
-             500       10            0.6           0.7
-               4        1            0.1           0.0
+             500       10            0.7           0.6
+              39        1            0.5           0.1
+               1        1            0.0           0.0
       info for 500 / 500 = 1.000
-      kept 328 (0.656) unproductive
-      removed 359 / 500 = 0.72 sequences with cdr3 length different from seed sequence (leaving 141)
-        water time: 1.5
+      kept 381 (0.762) unproductive
+      removed 461 / 500 = 0.92 sequences with cdr3 length different from seed sequence (leaving 39)
+        water time: 1.8
 hmm
---> 141 clusters with 10 procs
-       naive hfrac bounds: 0.015 0.110   (0.115 mean mutation in parameter dir test/reference-results/test/parameters/simu/hmm)
+--> 39 clusters with 10 procs
+       naive hfrac bounds: 0.015 0.111   (0.117 mean mutation in parameter dir test/reference-results/test/parameters/simu/hmm)
     running 10 procs
-          read from cache:  naive-seqs 938   logprobs 1303
-                    calcd:         vtb   5        fwd  94
-                   merged:       hfrac   5     lratio   0
-             min-max time:  1.3 - 2.2 sec
-      hmm step time: 2.5
---> 145 clusters with 7 procs
+          read from cache:  naive-seqs 941   logprobs 1305
+                    calcd:         vtb   3        fwd   8
+                   merged:       hfrac   4     lratio   0
+             min-max time:  0.0 - 0.5 sec
+      hmm step time: 0.8
+--> 44 clusters with 7 procs
     running 7 procs
-          read from cache:  naive-seqs 943   logprobs 1397
-                    calcd:         vtb   0        fwd  49
+          read from cache:  naive-seqs 945   logprobs 1311
+                    calcd:         vtb   0        fwd   4
                    merged:       hfrac   0     lratio   0
-             min-max time:  1.0 - 2.1 sec
-      hmm step time: 2.4
---> 142 clusters with 5 procs
+             min-max time:  0.0 - 0.5 sec
+      hmm step time: 0.7
+--> 41 clusters with 5 procs
     running 5 procs
-          read from cache:  naive-seqs 943   logprobs 1446
-                    calcd:         vtb   0        fwd  28
+          read from cache:  naive-seqs 945   logprobs 1315
+                    calcd:         vtb   0        fwd   2
                    merged:       hfrac   0     lratio   0
-             min-max time:  0.3 - 1.7 sec
-      hmm step time: 1.8
-      removing 135 sequences in unseeded clusters, and splitting 5 seeded clusters into 6 singletons
-        new n_procs 1 (initial seqs/proc: 14.10   new seqs/proc: 6.00
---> 6 clusters with 1 proc
-    running 1 proc
-          read from cache:  naive-seqs 943   logprobs 1474
-                    calcd:         vtb   3        fwd   6
-                   merged:       hfrac   5     lratio   0
-                     time:  0.5 sec
+             min-max time:  0.0 - 0.5 sec
       hmm step time: 0.6
-      loop time: 7.3
+      removing 34 sequences in unseeded clusters, and splitting 5 seeded clusters into 5 singletons
+        new n_procs 1 (initial seqs/proc: 3.90   new seqs/proc: 5.00
+--> 5 clusters with 1 proc
+    running 1 proc
+          read from cache:  naive-seqs 945   logprobs 1317
+                    calcd:         vtb   2        fwd   5
+                   merged:       hfrac   4     lratio   0
+                     time:  0.4 sec
+      hmm step time: 0.4
+      loop time: 2.4
 --> getting annotations for final partition
     running 1 proc
-      hmm step time: 0.2
+      hmm step time: 0.3
     read output
-        processed 1 hmm output lines with 6 sequences in 1 events
-      total time: 9.5
+        processed 1 hmm output lines with 5 sequences in 1 events
+      total time: 5.1
 [92mvsearch-partition-ref-simu[0m       ./bin/partis partition --naive-vsearch --n-max-queries 500 --persistent-cachefname test/_new-results/cache-ref-partition.csv --dont-precache-naive-seqs --is-simu --infname test/reference-results/test/simu.csv --parameter-dir test/reference-results/test/parameters/simu --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human --outfname test/_new-results/vsearch-partition-ref-simu.csv
 partitioning
 smith-waterman 
         sequences    n_procs     ig-sw time    processing time
-             500       10            0.7           0.7
-               4        1            0.0           0.0
+             500       10            0.6           0.7
+              39        1            0.5           0.1
+               1        1            0.0           0.0
       info for 500 / 500 = 1.000
-      kept 328 (0.656) unproductive
-        water time: 1.5
+      kept 381 (0.762) unproductive
+        water time: 2.1
 hmm
-       naive hfrac bounds: 0.033 0.033   (0.115 mean mutation in parameter dir test/reference-results/test/parameters/simu/hmm)
-        collapsed 500 sequences into 340 unique naive sequences
+       naive hfrac bounds: 0.033 0.033   (0.117 mean mutation in parameter dir test/reference-results/test/parameters/simu/hmm)
+        collapsed 500 sequences into 310 unique naive sequences
     using hfrac bound for vsearch 0.033
-    running vsearch 17 times (once for each cdr3 length class): Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 100%
-351 nt in 1 seqs, min 351, max 351, avg 351
+    running vsearch 19 times (once for each cdr3 length class): Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 100%
+350 nt in 1 seqs, min 350, max 350, avg 350
 Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 100%
 Masking 0%  Masking 100%
 Sorting by length 0%  Sorting by length 100%
@@ -169,51 +210,62 @@ Writing clusters 0%  Writing clusters 0%  Writing clusters 100%
 Clusters: 1 Size min 1, max 1, avg 1.0
 Singletons: 1, 100.0% of seqs, 100.0% of clusters
 
-. Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 12%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 23%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 34%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 45%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 56%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 67%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 78%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 89%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 100%
-3465 nt in 9 seqs, min 385, max 385, avg 385
-Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 11%  Indexing sequences 22%  Indexing sequences 33%  Indexing sequences 44%  Indexing sequences 56%  Indexing sequences 67%  Indexing sequences 78%  Indexing sequences 89%  Indexing sequences 100%
+. Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 15%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 29%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 44%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 58%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 72%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 87%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 100%
+2464 nt in 7 seqs, min 352, max 352, avg 352
+Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 14%  Indexing sequences 29%  Indexing sequences 43%  Indexing sequences 57%  Indexing sequences 71%  Indexing sequences 86%  Indexing sequences 100%
 Masking 0%  Masking 100%
 Sorting by length 0%  Sorting by length 100%
-Counting unique k-mers 0%  Counting unique k-mers 0%  Counting unique k-mers 11%  Counting unique k-mers 22%  Counting unique k-mers 33%  Counting unique k-mers 44%  Counting unique k-mers 56%  Counting unique k-mers 67%  Counting unique k-mers 78%  Counting unique k-mers 89%  Counting unique k-mers 100%
+Counting unique k-mers 0%  Counting unique k-mers 0%  Counting unique k-mers 14%  Counting unique k-mers 29%  Counting unique k-mers 43%  Counting unique k-mers 57%  Counting unique k-mers 71%  Counting unique k-mers 86%  Counting unique k-mers 100%
 Clustering 0%  Clustering 100%  Clustering 100%
-Writing clusters 0%  Writing clusters 0%  Writing clusters 11%  Writing clusters 22%  Writing clusters 33%  Writing clusters 44%  Writing clusters 56%  Writing clusters 67%  Writing clusters 78%  Writing clusters 89%  Writing clusters 100%
-Clusters: 2 Size min 4, max 5, avg 4.5
-Singletons: 0, 0.0% of seqs, 0.0% of clusters
+Writing clusters 0%  Writing clusters 0%  Writing clusters 14%  Writing clusters 29%  Writing clusters 43%  Writing clusters 57%  Writing clusters 71%  Writing clusters 86%  Writing clusters 100%
+Clusters: 4 Size min 1, max 3, avg 1.8
+Singletons: 2, 28.6% of seqs, 50.0% of clusters
 
-. Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 21%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 41%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 61%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 81%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 100%
-1775 nt in 5 seqs, min 355, max 355, avg 355
-Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 20%  Indexing sequences 40%  Indexing sequences 60%  Indexing sequences 80%  Indexing sequences 100%
+. Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 100%
+385 nt in 1 seqs, min 385, max 385, avg 385
+Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 100%
 Masking 0%  Masking 100%
 Sorting by length 0%  Sorting by length 100%
-Counting unique k-mers 0%  Counting unique k-mers 0%  Counting unique k-mers 20%  Counting unique k-mers 40%  Counting unique k-mers 60%  Counting unique k-mers 80%  Counting unique k-mers 100%
+Counting unique k-mers 0%  Counting unique k-mers 0%  Counting unique k-mers 100%
 Clustering 0%  Clustering 100%  Clustering 100%
-Writing clusters 0%  Writing clusters 0%  Writing clusters 20%  Writing clusters 40%  Writing clusters 60%  Writing clusters 80%  Writing clusters 100%
-Clusters: 4 Size min 1, max 2, avg 1.2
-Singletons: 3, 60.0% of seqs, 75.0% of clusters
+Writing clusters 0%  Writing clusters 0%  Writing clusters 100%
+Clusters: 1 Size min 1, max 1, avg 1.0
+Singletons: 1, 100.0% of seqs, 100.0% of clusters
 
-. Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 21%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 41%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 61%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 81%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 100%
-1935 nt in 5 seqs, min 387, max 387, avg 387
-Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 20%  Indexing sequences 40%  Indexing sequences 60%  Indexing sequences 80%  Indexing sequences 100%
+. Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 18%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 34%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 51%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 68%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 84%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 100%
+2130 nt in 6 seqs, min 355, max 355, avg 355
+Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 17%  Indexing sequences 33%  Indexing sequences 50%  Indexing sequences 67%  Indexing sequences 83%  Indexing sequences 100%
 Masking 0%  Masking 100%
 Sorting by length 0%  Sorting by length 100%
-Counting unique k-mers 0%  Counting unique k-mers 0%  Counting unique k-mers 20%  Counting unique k-mers 40%  Counting unique k-mers 60%  Counting unique k-mers 80%  Counting unique k-mers 100%
+Counting unique k-mers 0%  Counting unique k-mers 0%  Counting unique k-mers 17%  Counting unique k-mers 33%  Counting unique k-mers 50%  Counting unique k-mers 67%  Counting unique k-mers 83%  Counting unique k-mers 100%
 Clustering 0%  Clustering 100%  Clustering 100%
-Writing clusters 0%  Writing clusters 0%  Writing clusters 20%  Writing clusters 40%  Writing clusters 60%  Writing clusters 80%  Writing clusters 100%
-Clusters: 1 Size min 5, max 5, avg 5.0
-Singletons: 0, 0.0% of seqs, 0.0% of clusters
+Writing clusters 0%  Writing clusters 0%  Writing clusters 17%  Writing clusters 33%  Writing clusters 50%  Writing clusters 67%  Writing clusters 83%  Writing clusters 100%
+Clusters: 4 Size min 1, max 3, avg 1.5
+Singletons: 3, 50.0% of seqs, 75.0% of clusters
 
-. Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 5%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 10%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 15%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 20%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 25%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 30%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 35%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 40%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 45%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 50%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 55%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 60%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 65%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 70%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 75%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 80%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 85%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 90%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 95%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 100%
-7160 nt in 20 seqs, min 358, max 358, avg 358
-Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 5%  Indexing sequences 10%  Indexing sequences 15%  Indexing sequences 20%  Indexing sequences 25%  Indexing sequences 30%  Indexing sequences 35%  Indexing sequences 40%  Indexing sequences 45%  Indexing sequences 50%  Indexing sequences 55%  Indexing sequences 60%  Indexing sequences 65%  Indexing sequences 70%  Indexing sequences 75%  Indexing sequences 80%  Indexing sequences 85%  Indexing sequences 90%  Indexing sequences 95%  Indexing sequences 100%
+. Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 2%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 5%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 7%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 9%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 12%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 14%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 16%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 19%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 21%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 23%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 26%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 28%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 30%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 33%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 35%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 37%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 40%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 42%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 44%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 47%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 49%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 51%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 54%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 56%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 58%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 61%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 63%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 65%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 68%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 70%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 72%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 75%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 77%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 79%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 82%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 84%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 86%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 89%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 91%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 93%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 95%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 98%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 100%
+15437 nt in 43 seqs, min 359, max 359, avg 359
+Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 2%  Indexing sequences 5%  Indexing sequences 7%  Indexing sequences 9%  Indexing sequences 12%  Indexing sequences 14%  Indexing sequences 16%  Indexing sequences 19%  Indexing sequences 21%  Indexing sequences 23%  Indexing sequences 26%  Indexing sequences 28%  Indexing sequences 30%  Indexing sequences 33%  Indexing sequences 35%  Indexing sequences 37%  Indexing sequences 40%  Indexing sequences 42%  Indexing sequences 44%  Indexing sequences 47%  Indexing sequences 49%  Indexing sequences 51%  Indexing sequences 53%  Indexing sequences 56%  Indexing sequences 58%  Indexing sequences 60%  Indexing sequences 63%  Indexing sequences 65%  Indexing sequences 67%  Indexing sequences 70%  Indexing sequences 72%  Indexing sequences 74%  Indexing sequences 77%  Indexing sequences 79%  Indexing sequences 81%  Indexing sequences 84%  Indexing sequences 86%  Indexing sequences 88%  Indexing sequences 91%  Indexing sequences 93%  Indexing sequences 95%  Indexing sequences 98%  Indexing sequences 100%
 Masking 0%  Masking 100%
 Sorting by length 0%  Sorting by length 100%
-Counting unique k-mers 0%  Counting unique k-mers 0%  Counting unique k-mers 5%  Counting unique k-mers 10%  Counting unique k-mers 15%  Counting unique k-mers 20%  Counting unique k-mers 25%  Counting unique k-mers 30%  Counting unique k-mers 35%  Counting unique k-mers 40%  Counting unique k-mers 45%  Counting unique k-mers 50%  Counting unique k-mers 55%  Counting unique k-mers 60%  Counting unique k-mers 65%  Counting unique k-mers 70%  Counting unique k-mers 75%  Counting unique k-mers 80%  Counting unique k-mers 85%  Counting unique k-mers 90%  Counting unique k-mers 95%  Counting unique k-mers 100%
-Clustering 0%  Clustering 50%  Clustering 100%  Clustering 100%
-Writing clusters 0%  Writing clusters 0%  Writing clusters 5%  Writing clusters 10%  Writing clusters 15%  Writing clusters 20%  Writing clusters 25%  Writing clusters 30%  Writing clusters 35%  Writing clusters 40%  Writing clusters 45%  Writing clusters 50%  Writing clusters 55%  Writing clusters 60%  Writing clusters 65%  Writing clusters 70%  Writing clusters 75%  Writing clusters 80%  Writing clusters 85%  Writing clusters 90%  Writing clusters 95%  Writing clusters 100%
-Clusters: 7 Size min 1, max 5, avg 2.9
-Singletons: 2, 10.0% of seqs, 28.6% of clusters
+Counting unique k-mers 0%  Counting unique k-mers 0%  Counting unique k-mers 2%  Counting unique k-mers 5%  Counting unique k-mers 7%  Counting unique k-mers 9%  Counting unique k-mers 12%  Counting unique k-mers 14%  Counting unique k-mers 16%  Counting unique k-mers 19%  Counting unique k-mers 21%  Counting unique k-mers 23%  Counting unique k-mers 26%  Counting unique k-mers 28%  Counting unique k-mers 30%  Counting unique k-mers 33%  Counting unique k-mers 35%  Counting unique k-mers 37%  Counting unique k-mers 40%  Counting unique k-mers 42%  Counting unique k-mers 44%  Counting unique k-mers 47%  Counting unique k-mers 49%  Counting unique k-mers 51%  Counting unique k-mers 53%  Counting unique k-mers 56%  Counting unique k-mers 58%  Counting unique k-mers 60%  Counting unique k-mers 63%  Counting unique k-mers 65%  Counting unique k-mers 67%  Counting unique k-mers 70%  Counting unique k-mers 72%  Counting unique k-mers 74%  Counting unique k-mers 77%  Counting unique k-mers 79%  Counting unique k-mers 81%  Counting unique k-mers 84%  Counting unique k-mers 86%  Counting unique k-mers 88%  Counting unique k-mers 91%  Counting unique k-mers 93%  Counting unique k-mers 95%  Counting unique k-mers 98%  Counting unique k-mers 100%
+Clustering 0%  Clustering 23%  Clustering 47%  Clustering 70%  Clustering 93%  Clustering 100%  Clustering 100%
+Writing clusters 0%  Writing clusters 0%  Writing clusters 2%  Writing clusters 5%  Writing clusters 7%  Writing clusters 9%  Writing clusters 12%  Writing clusters 14%  Writing clusters 16%  Writing clusters 19%  Writing clusters 21%  Writing clusters 23%  Writing clusters 26%  Writing clusters 28%  Writing clusters 30%  Writing clusters 33%  Writing clusters 35%  Writing clusters 37%  Writing clusters 40%  Writing clusters 42%  Writing clusters 44%  Writing clusters 47%  Writing clusters 49%  Writing clusters 51%  Writing clusters 53%  Writing clusters 56%  Writing clusters 58%  Writing clusters 60%  Writing clusters 63%  Writing clusters 65%  Writing clusters 67%  Writing clusters 70%  Writing clusters 72%  Writing clusters 74%  Writing clusters 77%  Writing clusters 79%  Writing clusters 81%  Writing clusters 84%  Writing clusters 86%  Writing clusters 88%  Writing clusters 91%  Writing clusters 93%  Writing clusters 95%  Writing clusters 98%  Writing clusters 100%
+Clusters: 9 Size min 1, max 14, avg 4.8
+Singletons: 2, 4.7% of seqs, 22.2% of clusters
 
-. Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 35%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 68%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 100%
+. Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 18%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 34%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 51%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 68%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 84%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 100%
+2346 nt in 6 seqs, min 391, max 391, avg 391
+Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 17%  Indexing sequences 33%  Indexing sequences 50%  Indexing sequences 67%  Indexing sequences 83%  Indexing sequences 100%
+Masking 0%  Masking 100%
+Sorting by length 0%  Sorting by length 100%
+Counting unique k-mers 0%  Counting unique k-mers 0%  Counting unique k-mers 17%  Counting unique k-mers 33%  Counting unique k-mers 50%  Counting unique k-mers 67%  Counting unique k-mers 83%  Counting unique k-mers 100%
+Clustering 0%  Clustering 100%  Clustering 100%
+Writing clusters 0%  Writing clusters 0%  Writing clusters 17%  Writing clusters 33%  Writing clusters 50%  Writing clusters 67%  Writing clusters 83%  Writing clusters 100%
+Clusters: 2 Size min 1, max 5, avg 3.0
+Singletons: 1, 16.7% of seqs, 50.0% of clusters
+
+. Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 35%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 68%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 100%
 1173 nt in 3 seqs, min 391, max 391, avg 391
 Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 33%  Indexing sequences 67%  Indexing sequences 100%
 Masking 0%  Masking 100%
@@ -224,19 +276,19 @@ Writing clusters 0%  Writing clusters 0%  Writing clusters 33%  Writing clust
 Clusters: 2 Size min 1, max 2, avg 1.5
 Singletons: 1, 33.3% of seqs, 50.0% of clusters
 
-. Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 8%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 15%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 22%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 29%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 36%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 43%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 50%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 58%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 65%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 72%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 79%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 86%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 93%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 100%
-5054 nt in 14 seqs, min 361, max 361, avg 361
-Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 7%  Indexing sequences 14%  Indexing sequences 21%  Indexing sequences 29%  Indexing sequences 36%  Indexing sequences 43%  Indexing sequences 50%  Indexing sequences 57%  Indexing sequences 64%  Indexing sequences 71%  Indexing sequences 79%  Indexing sequences 86%  Indexing sequences 93%  Indexing sequences 100%
+. Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 5%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 10%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 15%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 19%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 24%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 29%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 34%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 38%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 43%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 48%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 53%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 57%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 62%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 67%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 72%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 76%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 81%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 86%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 91%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 96%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 100%
+7581 nt in 21 seqs, min 361, max 361, avg 361
+Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 5%  Indexing sequences 10%  Indexing sequences 14%  Indexing sequences 19%  Indexing sequences 24%  Indexing sequences 29%  Indexing sequences 33%  Indexing sequences 38%  Indexing sequences 43%  Indexing sequences 48%  Indexing sequences 52%  Indexing sequences 57%  Indexing sequences 62%  Indexing sequences 67%  Indexing sequences 71%  Indexing sequences 76%  Indexing sequences 81%  Indexing sequences 86%  Indexing sequences 90%  Indexing sequences 95%  Indexing sequences 100%
 Masking 0%  Masking 100%
 Sorting by length 0%  Sorting by length 100%
-Counting unique k-mers 0%  Counting unique k-mers 0%  Counting unique k-mers 7%  Counting unique k-mers 14%  Counting unique k-mers 21%  Counting unique k-mers 29%  Counting unique k-mers 36%  Counting unique k-mers 43%  Counting unique k-mers 50%  Counting unique k-mers 57%  Counting unique k-mers 64%  Counting unique k-mers 71%  Counting unique k-mers 79%  Counting unique k-mers 86%  Counting unique k-mers 93%  Counting unique k-mers 100%
-Clustering 0%  Clustering 71%  Clustering 100%  Clustering 100%
-Writing clusters 0%  Writing clusters 0%  Writing clusters 7%  Writing clusters 14%  Writing clusters 21%  Writing clusters 29%  Writing clusters 36%  Writing clusters 43%  Writing clusters 50%  Writing clusters 57%  Writing clusters 64%  Writing clusters 71%  Writing clusters 79%  Writing clusters 86%  Writing clusters 93%  Writing clusters 100%
-Clusters: 6 Size min 1, max 6, avg 2.3
-Singletons: 2, 14.3% of seqs, 33.3% of clusters
+Counting unique k-mers 0%  Counting unique k-mers 0%  Counting unique k-mers 5%  Counting unique k-mers 10%  Counting unique k-mers 14%  Counting unique k-mers 19%  Counting unique k-mers 24%  Counting unique k-mers 29%  Counting unique k-mers 33%  Counting unique k-mers 38%  Counting unique k-mers 43%  Counting unique k-mers 48%  Counting unique k-mers 52%  Counting unique k-mers 57%  Counting unique k-mers 62%  Counting unique k-mers 67%  Counting unique k-mers 71%  Counting unique k-mers 76%  Counting unique k-mers 81%  Counting unique k-mers 86%  Counting unique k-mers 90%  Counting unique k-mers 95%  Counting unique k-mers 100%
+Clustering 0%  Clustering 48%  Clustering 95%  Clustering 100%  Clustering 100%
+Writing clusters 0%  Writing clusters 0%  Writing clusters 5%  Writing clusters 10%  Writing clusters 14%  Writing clusters 19%  Writing clusters 24%  Writing clusters 29%  Writing clusters 33%  Writing clusters 38%  Writing clusters 43%  Writing clusters 48%  Writing clusters 52%  Writing clusters 57%  Writing clusters 62%  Writing clusters 67%  Writing clusters 71%  Writing clusters 76%  Writing clusters 81%  Writing clusters 86%  Writing clusters 90%  Writing clusters 95%  Writing clusters 100%
+Clusters: 10 Size min 1, max 5, avg 2.1
+Singletons: 4, 19.0% of seqs, 40.0% of clusters
 
-. Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 100%
-402 nt in 1 seqs, min 402, max 402, avg 402
+. Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 100%
+393 nt in 1 seqs, min 393, max 393, avg 393
 Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 100%
 Masking 0%  Masking 100%
 Sorting by length 0%  Sorting by length 100%
@@ -246,123 +298,134 @@ Writing clusters 0%  Writing clusters 0%  Writing clusters 100%
 Clusters: 1 Size min 1, max 1, avg 1.0
 Singletons: 1, 100.0% of seqs, 100.0% of clusters
 
-. Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 12%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 23%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 34%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 45%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 56%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 67%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 78%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 90%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 100%
-3276 nt in 9 seqs, min 364, max 364, avg 364
+. Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 2%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 4%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 6%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 9%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 11%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 13%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 15%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 17%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 19%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 21%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 24%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 26%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 28%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 30%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 32%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 34%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 36%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 38%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 41%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 43%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 45%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 47%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 49%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 51%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 53%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 55%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 58%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 60%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 62%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 64%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 66%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 68%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 70%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 72%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 75%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 77%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 79%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 81%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 83%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 85%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 87%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 89%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 92%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 94%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 96%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 98%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 100%
+17155 nt in 47 seqs, min 365, max 365, avg 365
+Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 2%  Indexing sequences 4%  Indexing sequences 6%  Indexing sequences 9%  Indexing sequences 11%  Indexing sequences 13%  Indexing sequences 15%  Indexing sequences 17%  Indexing sequences 19%  Indexing sequences 21%  Indexing sequences 23%  Indexing sequences 26%  Indexing sequences 28%  Indexing sequences 30%  Indexing sequences 32%  Indexing sequences 34%  Indexing sequences 36%  Indexing sequences 38%  Indexing sequences 40%  Indexing sequences 43%  Indexing sequences 45%  Indexing sequences 47%  Indexing sequences 49%  Indexing sequences 51%  Indexing sequences 53%  Indexing sequences 55%  Indexing sequences 57%  Indexing sequences 60%  Indexing sequences 62%  Indexing sequences 64%  Indexing sequences 66%  Indexing sequences 68%  Indexing sequences 70%  Indexing sequences 72%  Indexing sequences 74%  Indexing sequences 77%  Indexing sequences 79%  Indexing sequences 81%  Indexing sequences 83%  Indexing sequences 85%  Indexing sequences 87%  Indexing sequences 89%  Indexing sequences 91%  Indexing sequences 94%  Indexing sequences 96%  Indexing sequences 98%  Indexing sequences 100%
+Masking 0%  Masking 100%
+Sorting by length 0%  Sorting by length 100%
+Counting unique k-mers 0%  Counting unique k-mers 0%  Counting unique k-mers 2%  Counting unique k-mers 4%  Counting unique k-mers 6%  Counting unique k-mers 9%  Counting unique k-mers 11%  Counting unique k-mers 13%  Counting unique k-mers 15%  Counting unique k-mers 17%  Counting unique k-mers 19%  Counting unique k-mers 21%  Counting unique k-mers 23%  Counting unique k-mers 26%  Counting unique k-mers 28%  Counting unique k-mers 30%  Counting unique k-mers 32%  Counting unique k-mers 34%  Counting unique k-mers 36%  Counting unique k-mers 38%  Counting unique k-mers 40%  Counting unique k-mers 43%  Counting unique k-mers 45%  Counting unique k-mers 47%  Counting unique k-mers 49%  Counting unique k-mers 51%  Counting unique k-mers 53%  Counting unique k-mers 55%  Counting unique k-mers 57%  Counting unique k-mers 60%  Counting unique k-mers 62%  Counting unique k-mers 64%  Counting unique k-mers 66%  Counting unique k-mers 68%  Counting unique k-mers 70%  Counting unique k-mers 72%  Counting unique k-mers 74%  Counting unique k-mers 77%  Counting unique k-mers 79%  Counting unique k-mers 81%  Counting unique k-mers 83%  Counting unique k-mers 85%  Counting unique k-mers 87%  Counting unique k-mers 89%  Counting unique k-mers 91%  Counting unique k-mers 94%  Counting unique k-mers 96%  Counting unique k-mers 98%  Counting unique k-mers 100%
+Clustering 0%  Clustering 21%  Clustering 43%  Clustering 64%  Clustering 85%  Clustering 100%  Clustering 100%
+Writing clusters 0%  Writing clusters 0%  Writing clusters 2%  Writing clusters 4%  Writing clusters 6%  Writing clusters 9%  Writing clusters 11%  Writing clusters 13%  Writing clusters 15%  Writing clusters 17%  Writing clusters 19%  Writing clusters 21%  Writing clusters 23%  Writing clusters 26%  Writing clusters 28%  Writing clusters 30%  Writing clusters 32%  Writing clusters 34%  Writing clusters 36%  Writing clusters 38%  Writing clusters 40%  Writing clusters 43%  Writing clusters 45%  Writing clusters 47%  Writing clusters 49%  Writing clusters 51%  Writing clusters 53%  Writing clusters 55%  Writing clusters 57%  Writing clusters 60%  Writing clusters 62%  Writing clusters 64%  Writing clusters 66%  Writing clusters 68%  Writing clusters 70%  Writing clusters 72%  Writing clusters 74%  Writing clusters 77%  Writing clusters 79%  Writing clusters 81%  Writing clusters 83%  Writing clusters 85%  Writing clusters 87%  Writing clusters 89%  Writing clusters 91%  Writing clusters 94%  Writing clusters 96%  Writing clusters 98%  Writing clusters 100%
+Clusters: 17 Size min 1, max 8, avg 2.8
+Singletons: 6, 12.8% of seqs, 35.3% of clusters
+
+. Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 4%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 7%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 11%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 14%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 18%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 22%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 25%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 29%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 32%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 36%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 39%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 43%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 47%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 50%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 54%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 57%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 61%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 64%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 68%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 72%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 75%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 79%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 82%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 86%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 89%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 93%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 97%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 100%
+10276 nt in 28 seqs, min 367, max 367, avg 367
+Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 4%  Indexing sequences 7%  Indexing sequences 11%  Indexing sequences 14%  Indexing sequences 18%  Indexing sequences 21%  Indexing sequences 25%  Indexing sequences 29%  Indexing sequences 32%  Indexing sequences 36%  Indexing sequences 39%  Indexing sequences 43%  Indexing sequences 46%  Indexing sequences 50%  Indexing sequences 54%  Indexing sequences 57%  Indexing sequences 61%  Indexing sequences 64%  Indexing sequences 68%  Indexing sequences 71%  Indexing sequences 75%  Indexing sequences 79%  Indexing sequences 82%  Indexing sequences 86%  Indexing sequences 89%  Indexing sequences 93%  Indexing sequences 96%  Indexing sequences 100%
+Masking 0%  Masking 100%
+Sorting by length 0%  Sorting by length 100%
+Counting unique k-mers 0%  Counting unique k-mers 0%  Counting unique k-mers 4%  Counting unique k-mers 7%  Counting unique k-mers 11%  Counting unique k-mers 14%  Counting unique k-mers 18%  Counting unique k-mers 21%  Counting unique k-mers 25%  Counting unique k-mers 29%  Counting unique k-mers 32%  Counting unique k-mers 36%  Counting unique k-mers 39%  Counting unique k-mers 43%  Counting unique k-mers 46%  Counting unique k-mers 50%  Counting unique k-mers 54%  Counting unique k-mers 57%  Counting unique k-mers 61%  Counting unique k-mers 64%  Counting unique k-mers 68%  Counting unique k-mers 71%  Counting unique k-mers 75%  Counting unique k-mers 79%  Counting unique k-mers 82%  Counting unique k-mers 86%  Counting unique k-mers 89%  Counting unique k-mers 93%  Counting unique k-mers 96%  Counting unique k-mers 100%
+Clustering 0%  Clustering 36%  Clustering 71%  Clustering 100%  Clustering 100%
+Writing clusters 0%  Writing clusters 0%  Writing clusters 4%  Writing clusters 7%  Writing clusters 11%  Writing clusters 14%  Writing clusters 18%  Writing clusters 21%  Writing clusters 25%  Writing clusters 29%  Writing clusters 32%  Writing clusters 36%  Writing clusters 39%  Writing clusters 43%  Writing clusters 46%  Writing clusters 50%  Writing clusters 54%  Writing clusters 57%  Writing clusters 61%  Writing clusters 64%  Writing clusters 68%  Writing clusters 71%  Writing clusters 75%  Writing clusters 79%  Writing clusters 82%  Writing clusters 86%  Writing clusters 89%  Writing clusters 93%  Writing clusters 96%  Writing clusters 100%
+Clusters: 12 Size min 1, max 8, avg 2.3
+Singletons: 5, 17.9% of seqs, 41.7% of clusters
+
+. Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 3%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 6%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 9%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 12%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 14%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 17%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 20%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 23%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 26%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 29%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 32%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 34%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 37%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 40%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 43%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 46%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 49%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 52%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 54%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 57%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 60%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 63%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 66%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 69%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 72%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 74%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 77%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 80%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 83%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 86%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 89%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 92%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 94%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 97%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 100%
+12985 nt in 35 seqs, min 371, max 371, avg 371
+Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 3%  Indexing sequences 6%  Indexing sequences 9%  Indexing sequences 11%  Indexing sequences 14%  Indexing sequences 17%  Indexing sequences 20%  Indexing sequences 23%  Indexing sequences 26%  Indexing sequences 29%  Indexing sequences 31%  Indexing sequences 34%  Indexing sequences 37%  Indexing sequences 40%  Indexing sequences 43%  Indexing sequences 46%  Indexing sequences 49%  Indexing sequences 51%  Indexing sequences 54%  Indexing sequences 57%  Indexing sequences 60%  Indexing sequences 63%  Indexing sequences 66%  Indexing sequences 69%  Indexing sequences 71%  Indexing sequences 74%  Indexing sequences 77%  Indexing sequences 80%  Indexing sequences 83%  Indexing sequences 86%  Indexing sequences 89%  Indexing sequences 91%  Indexing sequences 94%  Indexing sequences 97%  Indexing sequences 100%
+Masking 0%  Masking 100%
+Sorting by length 0%  Sorting by length 100%
+Counting unique k-mers 0%  Counting unique k-mers 0%  Counting unique k-mers 3%  Counting unique k-mers 6%  Counting unique k-mers 9%  Counting unique k-mers 11%  Counting unique k-mers 14%  Counting unique k-mers 17%  Counting unique k-mers 20%  Counting unique k-mers 23%  Counting unique k-mers 26%  Counting unique k-mers 29%  Counting unique k-mers 31%  Counting unique k-mers 34%  Counting unique k-mers 37%  Counting unique k-mers 40%  Counting unique k-mers 43%  Counting unique k-mers 46%  Counting unique k-mers 49%  Counting unique k-mers 51%  Counting unique k-mers 54%  Counting unique k-mers 57%  Counting unique k-mers 60%  Counting unique k-mers 63%  Counting unique k-mers 66%  Counting unique k-mers 69%  Counting unique k-mers 71%  Counting unique k-mers 74%  Counting unique k-mers 77%  Counting unique k-mers 80%  Counting unique k-mers 83%  Counting unique k-mers 86%  Counting unique k-mers 89%  Counting unique k-mers 91%  Counting unique k-mers 94%  Counting unique k-mers 97%  Counting unique k-mers 100%
+Clustering 0%  Clustering 29%  Clustering 57%  Clustering 86%  Clustering 100%  Clustering 100%
+Writing clusters 0%  Writing clusters 0%  Writing clusters 3%  Writing clusters 6%  Writing clusters 9%  Writing clusters 11%  Writing clusters 14%  Writing clusters 17%  Writing clusters 20%  Writing clusters 23%  Writing clusters 26%  Writing clusters 29%  Writing clusters 31%  Writing clusters 34%  Writing clusters 37%  Writing clusters 40%  Writing clusters 43%  Writing clusters 46%  Writing clusters 49%  Writing clusters 51%  Writing clusters 54%  Writing clusters 57%  Writing clusters 60%  Writing clusters 63%  Writing clusters 66%  Writing clusters 69%  Writing clusters 71%  Writing clusters 74%  Writing clusters 77%  Writing clusters 80%  Writing clusters 83%  Writing clusters 86%  Writing clusters 89%  Writing clusters 91%  Writing clusters 94%  Writing clusters 97%  Writing clusters 100%
+Clusters: 14 Size min 1, max 7, avg 2.5
+Singletons: 7, 20.0% of seqs, 50.0% of clusters
+
+. Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 4%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 8%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 12%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 16%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 20%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 24%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 28%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 32%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 36%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 40%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 44%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 48%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 52%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 56%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 60%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 64%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 68%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 72%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 76%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 80%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 84%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 88%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 92%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 96%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 100%
+9350 nt in 25 seqs, min 374, max 374, avg 374
+Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 4%  Indexing sequences 8%  Indexing sequences 12%  Indexing sequences 16%  Indexing sequences 20%  Indexing sequences 24%  Indexing sequences 28%  Indexing sequences 32%  Indexing sequences 36%  Indexing sequences 40%  Indexing sequences 44%  Indexing sequences 48%  Indexing sequences 52%  Indexing sequences 56%  Indexing sequences 60%  Indexing sequences 64%  Indexing sequences 68%  Indexing sequences 72%  Indexing sequences 76%  Indexing sequences 80%  Indexing sequences 84%  Indexing sequences 88%  Indexing sequences 92%  Indexing sequences 96%  Indexing sequences 100%
+Masking 0%  Masking 100%
+Sorting by length 0%  Sorting by length 100%
+Counting unique k-mers 0%  Counting unique k-mers 0%  Counting unique k-mers 4%  Counting unique k-mers 8%  Counting unique k-mers 12%  Counting unique k-mers 16%  Counting unique k-mers 20%  Counting unique k-mers 24%  Counting unique k-mers 28%  Counting unique k-mers 32%  Counting unique k-mers 36%  Counting unique k-mers 40%  Counting unique k-mers 44%  Counting unique k-mers 48%  Counting unique k-mers 52%  Counting unique k-mers 56%  Counting unique k-mers 60%  Counting unique k-mers 64%  Counting unique k-mers 68%  Counting unique k-mers 72%  Counting unique k-mers 76%  Counting unique k-mers 80%  Counting unique k-mers 84%  Counting unique k-mers 88%  Counting unique k-mers 92%  Counting unique k-mers 96%  Counting unique k-mers 100%
+Clustering 0%  Clustering 40%  Clustering 80%  Clustering 100%  Clustering 100%
+Writing clusters 0%  Writing clusters 0%  Writing clusters 4%  Writing clusters 8%  Writing clusters 12%  Writing clusters 16%  Writing clusters 20%  Writing clusters 24%  Writing clusters 28%  Writing clusters 32%  Writing clusters 36%  Writing clusters 40%  Writing clusters 44%  Writing clusters 48%  Writing clusters 52%  Writing clusters 56%  Writing clusters 60%  Writing clusters 64%  Writing clusters 68%  Writing clusters 72%  Writing clusters 76%  Writing clusters 80%  Writing clusters 84%  Writing clusters 88%  Writing clusters 92%  Writing clusters 96%  Writing clusters 100%
+Clusters: 12 Size min 1, max 4, avg 2.1
+Singletons: 5, 20.0% of seqs, 41.7% of clusters
+
+. Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 18%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 34%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 51%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 68%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 84%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 100%
+2412 nt in 6 seqs, min 402, max 402, avg 402
+Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 17%  Indexing sequences 33%  Indexing sequences 50%  Indexing sequences 67%  Indexing sequences 83%  Indexing sequences 100%
+Masking 0%  Masking 100%
+Sorting by length 0%  Sorting by length 100%
+Counting unique k-mers 0%  Counting unique k-mers 0%  Counting unique k-mers 17%  Counting unique k-mers 33%  Counting unique k-mers 50%  Counting unique k-mers 67%  Counting unique k-mers 83%  Counting unique k-mers 100%
+Clustering 0%  Clustering 100%  Clustering 100%
+Writing clusters 0%  Writing clusters 0%  Writing clusters 17%  Writing clusters 33%  Writing clusters 50%  Writing clusters 67%  Writing clusters 83%  Writing clusters 100%
+Clusters: 2 Size min 1, max 5, avg 3.0
+Singletons: 1, 16.7% of seqs, 50.0% of clusters
+
+. Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 12%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 23%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 34%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 45%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 56%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 67%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 78%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 89%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 100%
+3393 nt in 9 seqs, min 377, max 377, avg 377
 Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 11%  Indexing sequences 22%  Indexing sequences 33%  Indexing sequences 44%  Indexing sequences 56%  Indexing sequences 67%  Indexing sequences 78%  Indexing sequences 89%  Indexing sequences 100%
 Masking 0%  Masking 100%
 Sorting by length 0%  Sorting by length 100%
 Counting unique k-mers 0%  Counting unique k-mers 0%  Counting unique k-mers 11%  Counting unique k-mers 22%  Counting unique k-mers 33%  Counting unique k-mers 44%  Counting unique k-mers 56%  Counting unique k-mers 67%  Counting unique k-mers 78%  Counting unique k-mers 89%  Counting unique k-mers 100%
 Clustering 0%  Clustering 100%  Clustering 100%
 Writing clusters 0%  Writing clusters 0%  Writing clusters 11%  Writing clusters 22%  Writing clusters 33%  Writing clusters 44%  Writing clusters 56%  Writing clusters 67%  Writing clusters 78%  Writing clusters 89%  Writing clusters 100%
-Clusters: 6 Size min 1, max 3, avg 1.5
-Singletons: 4, 44.4% of seqs, 66.7% of clusters
+Clusters: 4 Size min 1, max 6, avg 2.2
+Singletons: 3, 33.3% of seqs, 75.0% of clusters
 
-. Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 5%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 9%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 14%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 18%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 23%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 28%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 32%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 37%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 41%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 46%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 50%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 55%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 59%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 64%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 68%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 73%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 78%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 82%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 87%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 91%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 96%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 100%
-8074 nt in 22 seqs, min 367, max 367, avg 367
-Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 5%  Indexing sequences 9%  Indexing sequences 14%  Indexing sequences 18%  Indexing sequences 23%  Indexing sequences 27%  Indexing sequences 32%  Indexing sequences 36%  Indexing sequences 41%  Indexing sequences 45%  Indexing sequences 50%  Indexing sequences 55%  Indexing sequences 59%  Indexing sequences 64%  Indexing sequences 68%  Indexing sequences 73%  Indexing sequences 77%  Indexing sequences 82%  Indexing sequences 86%  Indexing sequences 91%  Indexing sequences 95%  Indexing sequences 100%
-Masking 0%  Masking 100%
-Sorting by length 0%  Sorting by length 100%
-Counting unique k-mers 0%  Counting unique k-mers 0%  Counting unique k-mers 5%  Counting unique k-mers 9%  Counting unique k-mers 14%  Counting unique k-mers 18%  Counting unique k-mers 23%  Counting unique k-mers 27%  Counting unique k-mers 32%  Counting unique k-mers 36%  Counting unique k-mers 41%  Counting unique k-mers 45%  Counting unique k-mers 50%  Counting unique k-mers 55%  Counting unique k-mers 59%  Counting unique k-mers 64%  Counting unique k-mers 68%  Counting unique k-mers 73%  Counting unique k-mers 77%  Counting unique k-mers 82%  Counting unique k-mers 86%  Counting unique k-mers 91%  Counting unique k-mers 95%  Counting unique k-mers 100%
-Clustering 0%  Clustering 45%  Clustering 91%  Clustering 100%  Clustering 100%
-Writing clusters 0%  Writing clusters 0%  Writing clusters 5%  Writing clusters 9%  Writing clusters 14%  Writing clusters 18%  Writing clusters 23%  Writing clusters 27%  Writing clusters 32%  Writing clusters 36%  Writing clusters 41%  Writing clusters 45%  Writing clusters 50%  Writing clusters 55%  Writing clusters 59%  Writing clusters 64%  Writing clusters 68%  Writing clusters 73%  Writing clusters 77%  Writing clusters 82%  Writing clusters 86%  Writing clusters 91%  Writing clusters 95%  Writing clusters 100%
-Clusters: 8 Size min 1, max 7, avg 2.8
-Singletons: 3, 13.6% of seqs, 37.5% of clusters
-
-. Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 15%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 29%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 44%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 58%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 72%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 86%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 100%
-2800 nt in 7 seqs, min 400, max 400, avg 400
-Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 14%  Indexing sequences 29%  Indexing sequences 43%  Indexing sequences 57%  Indexing sequences 71%  Indexing sequences 86%  Indexing sequences 100%
-Masking 0%  Masking 100%
-Sorting by length 0%  Sorting by length 100%
-Counting unique k-mers 0%  Counting unique k-mers 0%  Counting unique k-mers 14%  Counting unique k-mers 29%  Counting unique k-mers 43%  Counting unique k-mers 57%  Counting unique k-mers 71%  Counting unique k-mers 86%  Counting unique k-mers 100%
-Clustering 0%  Clustering 100%  Clustering 100%
-Writing clusters 0%  Writing clusters 0%  Writing clusters 14%  Writing clusters 29%  Writing clusters 43%  Writing clusters 57%  Writing clusters 71%  Writing clusters 86%  Writing clusters 100%
-Clusters: 2 Size min 3, max 4, avg 3.5
-Singletons: 0, 0.0% of seqs, 0.0% of clusters
-
-. Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 3%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 6%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 9%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 12%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 15%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 18%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 21%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 24%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 27%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 30%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 34%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 37%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 40%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 43%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 46%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 49%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 52%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 55%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 58%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 61%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 64%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 67%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 70%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 73%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 76%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 79%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 82%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 85%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 88%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 91%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 94%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 97%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 100%
-12210 nt in 33 seqs, min 370, max 370, avg 370
-Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 3%  Indexing sequences 6%  Indexing sequences 9%  Indexing sequences 12%  Indexing sequences 15%  Indexing sequences 18%  Indexing sequences 21%  Indexing sequences 24%  Indexing sequences 27%  Indexing sequences 30%  Indexing sequences 33%  Indexing sequences 36%  Indexing sequences 39%  Indexing sequences 42%  Indexing sequences 45%  Indexing sequences 48%  Indexing sequences 52%  Indexing sequences 55%  Indexing sequences 58%  Indexing sequences 61%  Indexing sequences 64%  Indexing sequences 67%  Indexing sequences 70%  Indexing sequences 73%  Indexing sequences 76%  Indexing sequences 79%  Indexing sequences 82%  Indexing sequences 85%  Indexing sequences 88%  Indexing sequences 91%  Indexing sequences 94%  Indexing sequences 97%  Indexing sequences 100%
-Masking 0%  Masking 100%
-Sorting by length 0%  Sorting by length 100%
-Counting unique k-mers 0%  Counting unique k-mers 0%  Counting unique k-mers 3%  Counting unique k-mers 6%  Counting unique k-mers 9%  Counting unique k-mers 12%  Counting unique k-mers 15%  Counting unique k-mers 18%  Counting unique k-mers 21%  Counting unique k-mers 24%  Counting unique k-mers 27%  Counting unique k-mers 30%  Counting unique k-mers 33%  Counting unique k-mers 36%  Counting unique k-mers 39%  Counting unique k-mers 42%  Counting unique k-mers 45%  Counting unique k-mers 48%  Counting unique k-mers 52%  Counting unique k-mers 55%  Counting unique k-mers 58%  Counting unique k-mers 61%  Counting unique k-mers 64%  Counting unique k-mers 67%  Counting unique k-mers 70%  Counting unique k-mers 73%  Counting unique k-mers 76%  Counting unique k-mers 79%  Counting unique k-mers 82%  Counting unique k-mers 85%  Counting unique k-mers 88%  Counting unique k-mers 91%  Counting unique k-mers 94%  Counting unique k-mers 97%  Counting unique k-mers 100%
-Clustering 0%  Clustering 30%  Clustering 61%  Clustering 91%  Clustering 100%  Clustering 100%
-Writing clusters 0%  Writing clusters 0%  Writing clusters 3%  Writing clusters 6%  Writing clusters 9%  Writing clusters 12%  Writing clusters 15%  Writing clusters 18%  Writing clusters 21%  Writing clusters 24%  Writing clusters 27%  Writing clusters 30%  Writing clusters 33%  Writing clusters 36%  Writing clusters 39%  Writing clusters 42%  Writing clusters 45%  Writing clusters 48%  Writing clusters 52%  Writing clusters 55%  Writing clusters 58%  Writing clusters 61%  Writing clusters 64%  Writing clusters 67%  Writing clusters 70%  Writing clusters 73%  Writing clusters 76%  Writing clusters 79%  Writing clusters 82%  Writing clusters 85%  Writing clusters 88%  Writing clusters 91%  Writing clusters 94%  Writing clusters 97%  Writing clusters 100%
-Clusters: 12 Size min 1, max 6, avg 2.8
-Singletons: 2, 6.1% of seqs, 16.7% of clusters
-
-. Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 2%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 3%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 5%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 6%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 8%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 9%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 11%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 12%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 14%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 15%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 17%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 18%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 19%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 21%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 22%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 24%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 25%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 27%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 28%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 30%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 31%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 33%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 34%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 36%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 37%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 39%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 40%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 42%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 43%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 45%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 46%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 48%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 49%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 51%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 52%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 54%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 55%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 57%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 58%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 60%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 61%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 63%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 64%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 66%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 67%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 69%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 70%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 72%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 73%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 75%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 76%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 78%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 79%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 81%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 82%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 84%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 85%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 87%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 88%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 90%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 91%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 93%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 94%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 96%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 97%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 99%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 100%
-24991 nt in 67 seqs, min 373, max 373, avg 373
-Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 1%  Indexing sequences 3%  Indexing sequences 4%  Indexing sequences 6%  Indexing sequences 7%  Indexing sequences 9%  Indexing sequences 10%  Indexing sequences 12%  Indexing sequences 13%  Indexing sequences 15%  Indexing sequences 16%  Indexing sequences 18%  Indexing sequences 19%  Indexing sequences 21%  Indexing sequences 22%  Indexing sequences 24%  Indexing sequences 25%  Indexing sequences 27%  Indexing sequences 28%  Indexing sequences 30%  Indexing sequences 31%  Indexing sequences 33%  Indexing sequences 34%  Indexing sequences 36%  Indexing sequences 37%  Indexing sequences 39%  Indexing sequences 40%  Indexing sequences 42%  Indexing sequences 43%  Indexing sequences 45%  Indexing sequences 46%  Indexing sequences 48%  Indexing sequences 49%  Indexing sequences 51%  Indexing sequences 52%  Indexing sequences 54%  Indexing sequences 55%  Indexing sequences 57%  Indexing sequences 58%  Indexing sequences 60%  Indexing sequences 61%  Indexing sequences 63%  Indexing sequences 64%  Indexing sequences 66%  Indexing sequences 67%  Indexing sequences 69%  Indexing sequences 70%  Indexing sequences 72%  Indexing sequences 73%  Indexing sequences 75%  Indexing sequences 76%  Indexing sequences 78%  Indexing sequences 79%  Indexing sequences 81%  Indexing sequences 82%  Indexing sequences 84%  Indexing sequences 85%  Indexing sequences 87%  Indexing sequences 88%  Indexing sequences 90%  Indexing sequences 91%  Indexing sequences 93%  Indexing sequences 94%  Indexing sequences 96%  Indexing sequences 97%  Indexing sequences 99%  Indexing sequences 100%
-Masking 0%  Masking 100%
-Sorting by length 0%  Sorting by length 100%
-Counting unique k-mers 0%  Counting unique k-mers 0%  Counting unique k-mers 1%  Counting unique k-mers 3%  Counting unique k-mers 4%  Counting unique k-mers 6%  Counting unique k-mers 7%  Counting unique k-mers 9%  Counting unique k-mers 10%  Counting unique k-mers 12%  Counting unique k-mers 13%  Counting unique k-mers 15%  Counting unique k-mers 16%  Counting unique k-mers 18%  Counting unique k-mers 19%  Counting unique k-mers 21%  Counting unique k-mers 22%  Counting unique k-mers 24%  Counting unique k-mers 25%  Counting unique k-mers 27%  Counting unique k-mers 28%  Counting unique k-mers 30%  Counting unique k-mers 31%  Counting unique k-mers 33%  Counting unique k-mers 34%  Counting unique k-mers 36%  Counting unique k-mers 37%  Counting unique k-mers 39%  Counting unique k-mers 40%  Counting unique k-mers 42%  Counting unique k-mers 43%  Counting unique k-mers 45%  Counting unique k-mers 46%  Counting unique k-mers 48%  Counting unique k-mers 49%  Counting unique k-mers 51%  Counting unique k-mers 52%  Counting unique k-mers 54%  Counting unique k-mers 55%  Counting unique k-mers 57%  Counting unique k-mers 58%  Counting unique k-mers 60%  Counting unique k-mers 61%  Counting unique k-mers 63%  Counting unique k-mers 64%  Counting unique k-mers 66%  Counting unique k-mers 67%  Counting unique k-mers 69%  Counting unique k-mers 70%  Counting unique k-mers 72%  Counting unique k-mers 73%  Counting unique k-mers 75%  Counting unique k-mers 76%  Counting unique k-mers 78%  Counting unique k-mers 79%  Counting unique k-mers 81%  Counting unique k-mers 82%  Counting unique k-mers 84%  Counting unique k-mers 85%  Counting unique k-mers 87%  Counting unique k-mers 88%  Counting unique k-mers 90%  Counting unique k-mers 91%  Counting unique k-mers 93%  Counting unique k-mers 94%  Counting unique k-mers 96%  Counting unique k-mers 97%  Counting unique k-mers 99%  Counting unique k-mers 100%
-Clustering 0%  Clustering 15%  Clustering 30%  Clustering 45%  Clustering 60%  Clustering 75%  Clustering 90%  Clustering 100%  Clustering 100%
-Writing clusters 0%  Writing clusters 0%  Writing clusters 1%  Writing clusters 3%  Writing clusters 4%  Writing clusters 6%  Writing clusters 7%  Writing clusters 9%  Writing clusters 10%  Writing clusters 12%  Writing clusters 13%  Writing clusters 15%  Writing clusters 16%  Writing clusters 18%  Writing clusters 19%  Writing clusters 21%  Writing clusters 22%  Writing clusters 24%  Writing clusters 25%  Writing clusters 27%  Writing clusters 28%  Writing clusters 30%  Writing clusters 31%  Writing clusters 33%  Writing clusters 34%  Writing clusters 36%  Writing clusters 37%  Writing clusters 39%  Writing clusters 40%  Writing clusters 42%  Writing clusters 43%  Writing clusters 45%  Writing clusters 46%  Writing clusters 48%  Writing clusters 49%  Writing clusters 51%  Writing clusters 52%  Writing clusters 54%  Writing clusters 55%  Writing clusters 57%  Writing clusters 58%  Writing clusters 60%  Writing clusters 61%  Writing clusters 63%  Writing clusters 64%  Writing clusters 66%  Writing clusters 67%  Writing clusters 69%  Writing clusters 70%  Writing clusters 72%  Writing clusters 73%  Writing clusters 75%  Writing clusters 76%  Writing clusters 78%  Writing clusters 79%  Writing clusters 81%  Writing clusters 82%  Writing clusters 84%  Writing clusters 85%  Writing clusters 87%  Writing clusters 88%  Writing clusters 90%  Writing clusters 91%  Writing clusters 93%  Writing clusters 94%  Writing clusters 96%  Writing clusters 97%  Writing clusters 99%  Writing clusters 100%
-Clusters: 21 Size min 1, max 8, avg 3.2
-Singletons: 6, 9.0% of seqs, 28.6% of clusters
-
-. Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 3%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 6%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 9%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 12%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 15%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 18%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 21%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 24%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 27%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 30%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 33%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 37%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 40%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 43%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 46%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 49%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 52%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 55%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 58%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 61%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 64%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 67%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 70%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 73%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 76%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 79%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 82%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 85%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 88%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 91%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 94%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 97%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 100%
-12408 nt in 33 seqs, min 376, max 376, avg 376
-Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 3%  Indexing sequences 6%  Indexing sequences 9%  Indexing sequences 12%  Indexing sequences 15%  Indexing sequences 18%  Indexing sequences 21%  Indexing sequences 24%  Indexing sequences 27%  Indexing sequences 30%  Indexing sequences 33%  Indexing sequences 36%  Indexing sequences 39%  Indexing sequences 42%  Indexing sequences 45%  Indexing sequences 48%  Indexing sequences 52%  Indexing sequences 55%  Indexing sequences 58%  Indexing sequences 61%  Indexing sequences 64%  Indexing sequences 67%  Indexing sequences 70%  Indexing sequences 73%  Indexing sequences 76%  Indexing sequences 79%  Indexing sequences 82%  Indexing sequences 85%  Indexing sequences 88%  Indexing sequences 91%  Indexing sequences 94%  Indexing sequences 97%  Indexing sequences 100%
-Masking 0%  Masking 100%
-Sorting by length 0%  Sorting by length 100%
-Counting unique k-mers 0%  Counting unique k-mers 0%  Counting unique k-mers 3%  Counting unique k-mers 6%  Counting unique k-mers 9%  Counting unique k-mers 12%  Counting unique k-mers 15%  Counting unique k-mers 18%  Counting unique k-mers 21%  Counting unique k-mers 24%  Counting unique k-mers 27%  Counting unique k-mers 30%  Counting unique k-mers 33%  Counting unique k-mers 36%  Counting unique k-mers 39%  Counting unique k-mers 42%  Counting unique k-mers 45%  Counting unique k-mers 48%  Counting unique k-mers 52%  Counting unique k-mers 55%  Counting unique k-mers 58%  Counting unique k-mers 61%  Counting unique k-mers 64%  Counting unique k-mers 67%  Counting unique k-mers 70%  Counting unique k-mers 73%  Counting unique k-mers 76%  Counting unique k-mers 79%  Counting unique k-mers 82%  Counting unique k-mers 85%  Counting unique k-mers 88%  Counting unique k-mers 91%  Counting unique k-mers 94%  Counting unique k-mers 97%  Counting unique k-mers 100%
-Clustering 0%  Clustering 30%  Clustering 61%  Clustering 91%  Clustering 100%  Clustering 100%
-Writing clusters 0%  Writing clusters 0%  Writing clusters 3%  Writing clusters 6%  Writing clusters 9%  Writing clusters 12%  Writing clusters 15%  Writing clusters 18%  Writing clusters 21%  Writing clusters 24%  Writing clusters 27%  Writing clusters 30%  Writing clusters 33%  Writing clusters 36%  Writing clusters 39%  Writing clusters 42%  Writing clusters 45%  Writing clusters 48%  Writing clusters 52%  Writing clusters 55%  Writing clusters 58%  Writing clusters 61%  Writing clusters 64%  Writing clusters 67%  Writing clusters 70%  Writing clusters 73%  Writing clusters 76%  Writing clusters 79%  Writing clusters 82%  Writing clusters 85%  Writing clusters 88%  Writing clusters 91%  Writing clusters 94%  Writing clusters 97%  Writing clusters 100%
-Clusters: 7 Size min 1, max 9, avg 4.7
-Singletons: 2, 6.1% of seqs, 28.6% of clusters
-
-. Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 1%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 2%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 3%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 4%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 5%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 6%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 7%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 8%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 9%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 10%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 12%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 13%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 14%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 15%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 16%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 17%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 18%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 19%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 20%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 21%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 22%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 23%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 24%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 25%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 26%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 27%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 28%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 29%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 30%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 31%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 32%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 33%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 34%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 35%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 37%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 38%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 39%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 40%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 41%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 42%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 43%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 44%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 45%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 46%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 47%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 48%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 49%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 50%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 51%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 52%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 53%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 54%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 55%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 56%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 57%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 58%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 59%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 60%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 62%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 63%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 64%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 65%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 66%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 67%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 68%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 69%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 70%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 71%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 72%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 73%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 74%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 75%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 76%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 77%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 78%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 79%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 80%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 81%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 82%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 83%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 84%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 85%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 87%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 88%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 89%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 90%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 91%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 92%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 93%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 94%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 95%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 96%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 97%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 98%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 99%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 100%
-36480 nt in 96 seqs, min 380, max 380, avg 380
-Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 1%  Indexing sequences 2%  Indexing sequences 3%  Indexing sequences 4%  Indexing sequences 5%  Indexing sequences 6%  Indexing sequences 7%  Indexing sequences 8%  Indexing sequences 9%  Indexing sequences 10%  Indexing sequences 11%  Indexing sequences 12%  Indexing sequences 14%  Indexing sequences 15%  Indexing sequences 16%  Indexing sequences 17%  Indexing sequences 18%  Indexing sequences 19%  Indexing sequences 20%  Indexing sequences 21%  Indexing sequences 22%  Indexing sequences 23%  Indexing sequences 24%  Indexing sequences 25%  Indexing sequences 26%  Indexing sequences 27%  Indexing sequences 28%  Indexing sequences 29%  Indexing sequences 30%  Indexing sequences 31%  Indexing sequences 32%  Indexing sequences 33%  Indexing sequences 34%  Indexing sequences 35%  Indexing sequences 36%  Indexing sequences 38%  Indexing sequences 39%  Indexing sequences 40%  Indexing sequences 41%  Indexing sequences 42%  Indexing sequences 43%  Indexing sequences 44%  Indexing sequences 45%  Indexing sequences 46%  Indexing sequences 47%  Indexing sequences 48%  Indexing sequences 49%  Indexing sequences 50%  Indexing sequences 51%  Indexing sequences 52%  Indexing sequences 53%  Indexing sequences 54%  Indexing sequences 55%  Indexing sequences 56%  Indexing sequences 57%  Indexing sequences 58%  Indexing sequences 59%  Indexing sequences 60%  Indexing sequences 61%  Indexing sequences 62%  Indexing sequences 64%  Indexing sequences 65%  Indexing sequences 66%  Indexing sequences 67%  Indexing sequences 68%  Indexing sequences 69%  Indexing sequences 70%  Indexing sequences 71%  Indexing sequences 72%  Indexing sequences 73%  Indexing sequences 74%  Indexing sequences 75%  Indexing sequences 76%  Indexing sequences 77%  Indexing sequences 78%  Indexing sequences 79%  Indexing sequences 80%  Indexing sequences 81%  Indexing sequences 82%  Indexing sequences 83%  Indexing sequences 84%  Indexing sequences 85%  Indexing sequences 86%  Indexing sequences 88%  Indexing sequences 89%  Indexing sequences 90%  Indexing sequences 91%  Indexing sequences 92%  Indexing sequences 93%  Indexing sequences 94%  Indexing sequences 95%  Indexing sequences 96%  Indexing sequences 97%  Indexing sequences 98%  Indexing sequences 99%  Indexing sequences 100%
-Masking 0%  Masking 100%
-Sorting by length 0%  Sorting by length 100%
-Counting unique k-mers 0%  Counting unique k-mers 0%  Counting unique k-mers 1%  Counting unique k-mers 2%  Counting unique k-mers 3%  Counting unique k-mers 4%  Counting unique k-mers 5%  Counting unique k-mers 6%  Counting unique k-mers 7%  Counting unique k-mers 8%  Counting unique k-mers 9%  Counting unique k-mers 10%  Counting unique k-mers 11%  Counting unique k-mers 12%  Counting unique k-mers 14%  Counting unique k-mers 15%  Counting unique k-mers 16%  Counting unique k-mers 17%  Counting unique k-mers 18%  Counting unique k-mers 19%  Counting unique k-mers 20%  Counting unique k-mers 21%  Counting unique k-mers 22%  Counting unique k-mers 23%  Counting unique k-mers 24%  Counting unique k-mers 25%  Counting unique k-mers 26%  Counting unique k-mers 27%  Counting unique k-mers 28%  Counting unique k-mers 29%  Counting unique k-mers 30%  Counting unique k-mers 31%  Counting unique k-mers 32%  Counting unique k-mers 33%  Counting unique k-mers 34%  Counting unique k-mers 35%  Counting unique k-mers 36%  Counting unique k-mers 38%  Counting unique k-mers 39%  Counting unique k-mers 40%  Counting unique k-mers 41%  Counting unique k-mers 42%  Counting unique k-mers 43%  Counting unique k-mers 44%  Counting unique k-mers 45%  Counting unique k-mers 46%  Counting unique k-mers 47%  Counting unique k-mers 48%  Counting unique k-mers 49%  Counting unique k-mers 50%  Counting unique k-mers 51%  Counting unique k-mers 52%  Counting unique k-mers 53%  Counting unique k-mers 54%  Counting unique k-mers 55%  Counting unique k-mers 56%  Counting unique k-mers 57%  Counting unique k-mers 58%  Counting unique k-mers 59%  Counting unique k-mers 60%  Counting unique k-mers 61%  Counting unique k-mers 62%  Counting unique k-mers 64%  Counting unique k-mers 65%  Counting unique k-mers 66%  Counting unique k-mers 67%  Counting unique k-mers 68%  Counting unique k-mers 69%  Counting unique k-mers 70%  Counting unique k-mers 71%  Counting unique k-mers 72%  Counting unique k-mers 73%  Counting unique k-mers 74%  Counting unique k-mers 75%  Counting unique k-mers 76%  Counting unique k-mers 77%  Counting unique k-mers 78%  Counting unique k-mers 79%  Counting unique k-mers 80%  Counting unique k-mers 81%  Counting unique k-mers 82%  Counting unique k-mers 83%  Counting unique k-mers 84%  Counting unique k-mers 85%  Counting unique k-mers 86%  Counting unique k-mers 88%  Counting unique k-mers 89%  Counting unique k-mers 90%  Counting unique k-mers 91%  Counting unique k-mers 92%  Counting unique k-mers 93%  Counting unique k-mers 94%  Counting unique k-mers 95%  Counting unique k-mers 96%  Counting unique k-mers 97%  Counting unique k-mers 98%  Counting unique k-mers 99%  Counting unique k-mers 100%
-Clustering 0%  Clustering 10%  Clustering 21%  Clustering 31%  Clustering 42%  Clustering 52%  Clustering 62%  Clustering 73%  Clustering 83%  Clustering 94%  Clustering 100%  Clustering 100%
-Writing clusters 0%  Writing clusters 0%  Writing clusters 1%  Writing clusters 2%  Writing clusters 3%  Writing clusters 4%  Writing clusters 5%  Writing clusters 6%  Writing clusters 7%  Writing clusters 8%  Writing clusters 9%  Writing clusters 10%  Writing clusters 11%  Writing clusters 12%  Writing clusters 14%  Writing clusters 15%  Writing clusters 16%  Writing clusters 17%  Writing clusters 18%  Writing clusters 19%  Writing clusters 20%  Writing clusters 21%  Writing clusters 22%  Writing clusters 23%  Writing clusters 24%  Writing clusters 25%  Writing clusters 26%  Writing clusters 27%  Writing clusters 28%  Writing clusters 29%  Writing clusters 30%  Writing clusters 31%  Writing clusters 32%  Writing clusters 33%  Writing clusters 34%  Writing clusters 35%  Writing clusters 36%  Writing clusters 38%  Writing clusters 39%  Writing clusters 40%  Writing clusters 41%  Writing clusters 42%  Writing clusters 43%  Writing clusters 44%  Writing clusters 45%  Writing clusters 46%  Writing clusters 47%  Writing clusters 48%  Writing clusters 49%  Writing clusters 50%  Writing clusters 51%  Writing clusters 52%  Writing clusters 53%  Writing clusters 54%  Writing clusters 55%  Writing clusters 56%  Writing clusters 57%  Writing clusters 58%  Writing clusters 59%  Writing clusters 60%  Writing clusters 61%  Writing clusters 62%  Writing clusters 64%  Writing clusters 65%  Writing clusters 66%  Writing clusters 67%  Writing clusters 68%  Writing clusters 69%  Writing clusters 70%  Writing clusters 71%  Writing clusters 72%  Writing clusters 73%  Writing clusters 74%  Writing clusters 75%  Writing clusters 76%  Writing clusters 77%  Writing clusters 78%  Writing clusters 79%  Writing clusters 80%  Writing clusters 81%  Writing clusters 82%  Writing clusters 83%  Writing clusters 84%  Writing clusters 85%  Writing clusters 86%  Writing clusters 88%  Writing clusters 89%  Writing clusters 90%  Writing clusters 91%  Writing clusters 92%  Writing clusters 93%  Writing clusters 94%  Writing clusters 95%  Writing clusters 96%  Writing clusters 97%  Writing clusters 98%  Writing clusters 99%  Writing clusters 100%
-Clusters: 20 Size min 1, max 20, avg 4.8
-Singletons: 4, 4.2% of seqs, 20.0% of clusters
-
-. Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 53%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 100%
-698 nt in 2 seqs, min 349, max 349, avg 349
+. Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 53%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 100%
+754 nt in 2 seqs, min 377, max 377, avg 377
 Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 50%  Indexing sequences 100%
 Masking 0%  Masking 100%
 Sorting by length 0%  Sorting by length 100%
 Counting unique k-mers 0%  Counting unique k-mers 0%  Counting unique k-mers 50%  Counting unique k-mers 100%
 Clustering 0%  Clustering 100%  Clustering 100%
 Writing clusters 0%  Writing clusters 0%  Writing clusters 50%  Writing clusters 100%
-Clusters: 2 Size min 1, max 1, avg 1.0
-Singletons: 2, 100.0% of seqs, 100.0% of clusters
+Clusters: 1 Size min 2, max 2, avg 2.0
+Singletons: 0, 0.0% of seqs, 0.0% of clusters
 
-. Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 8%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 16%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 23%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 31%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 39%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 47%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 54%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 62%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 70%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 77%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 85%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 93%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/864993/naive-seqs.fasta 100%
-4979 nt in 13 seqs, min 383, max 383, avg 383
-Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 8%  Indexing sequences 15%  Indexing sequences 23%  Indexing sequences 31%  Indexing sequences 38%  Indexing sequences 46%  Indexing sequences 54%  Indexing sequences 62%  Indexing sequences 69%  Indexing sequences 77%  Indexing sequences 85%  Indexing sequences 92%  Indexing sequences 100%
+. Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 4%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 7%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 11%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 14%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 18%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 22%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 25%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 29%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 32%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 36%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 40%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 43%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 47%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 50%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 54%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 57%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 61%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 64%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 68%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 72%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 75%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 79%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 82%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 86%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 89%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 93%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 97%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 100%
+10640 nt in 28 seqs, min 380, max 380, avg 380
+Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 4%  Indexing sequences 7%  Indexing sequences 11%  Indexing sequences 14%  Indexing sequences 18%  Indexing sequences 21%  Indexing sequences 25%  Indexing sequences 29%  Indexing sequences 32%  Indexing sequences 36%  Indexing sequences 39%  Indexing sequences 43%  Indexing sequences 46%  Indexing sequences 50%  Indexing sequences 54%  Indexing sequences 57%  Indexing sequences 61%  Indexing sequences 64%  Indexing sequences 68%  Indexing sequences 71%  Indexing sequences 75%  Indexing sequences 79%  Indexing sequences 82%  Indexing sequences 86%  Indexing sequences 89%  Indexing sequences 93%  Indexing sequences 96%  Indexing sequences 100%
 Masking 0%  Masking 100%
 Sorting by length 0%  Sorting by length 100%
-Counting unique k-mers 0%  Counting unique k-mers 0%  Counting unique k-mers 8%  Counting unique k-mers 15%  Counting unique k-mers 23%  Counting unique k-mers 31%  Counting unique k-mers 38%  Counting unique k-mers 46%  Counting unique k-mers 54%  Counting unique k-mers 62%  Counting unique k-mers 69%  Counting unique k-mers 77%  Counting unique k-mers 85%  Counting unique k-mers 92%  Counting unique k-mers 100%
-Clustering 0%  Clustering 77%  Clustering 100%  Clustering 100%
-Writing clusters 0%  Writing clusters 0%  Writing clusters 8%  Writing clusters 15%  Writing clusters 23%  Writing clusters 31%  Writing clusters 38%  Writing clusters 46%  Writing clusters 54%  Writing clusters 62%  Writing clusters 69%  Writing clusters 77%  Writing clusters 85%  Writing clusters 92%  Writing clusters 100%
-Clusters: 7 Size min 1, max 6, avg 1.9
-Singletons: 5, 38.5% of seqs, 71.4% of clusters
+Counting unique k-mers 0%  Counting unique k-mers 0%  Counting unique k-mers 4%  Counting unique k-mers 7%  Counting unique k-mers 11%  Counting unique k-mers 14%  Counting unique k-mers 18%  Counting unique k-mers 21%  Counting unique k-mers 25%  Counting unique k-mers 29%  Counting unique k-mers 32%  Counting unique k-mers 36%  Counting unique k-mers 39%  Counting unique k-mers 43%  Counting unique k-mers 46%  Counting unique k-mers 50%  Counting unique k-mers 54%  Counting unique k-mers 57%  Counting unique k-mers 61%  Counting unique k-mers 64%  Counting unique k-mers 68%  Counting unique k-mers 71%  Counting unique k-mers 75%  Counting unique k-mers 79%  Counting unique k-mers 82%  Counting unique k-mers 86%  Counting unique k-mers 89%  Counting unique k-mers 93%  Counting unique k-mers 96%  Counting unique k-mers 100%
+Clustering 0%  Clustering 36%  Clustering 71%  Clustering 100%  Clustering 100%
+Writing clusters 0%  Writing clusters 0%  Writing clusters 4%  Writing clusters 7%  Writing clusters 11%  Writing clusters 14%  Writing clusters 18%  Writing clusters 21%  Writing clusters 25%  Writing clusters 29%  Writing clusters 32%  Writing clusters 36%  Writing clusters 39%  Writing clusters 43%  Writing clusters 46%  Writing clusters 50%  Writing clusters 54%  Writing clusters 57%  Writing clusters 61%  Writing clusters 64%  Writing clusters 68%  Writing clusters 71%  Writing clusters 75%  Writing clusters 79%  Writing clusters 82%  Writing clusters 86%  Writing clusters 89%  Writing clusters 93%  Writing clusters 96%  Writing clusters 100%
+Clusters: 5 Size min 1, max 12, avg 5.6
+Singletons: 2, 7.1% of seqs, 40.0% of clusters
+
+. Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 5%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 10%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 15%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 20%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 25%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 30%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 35%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 40%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 45%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 50%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 55%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 60%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 65%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 70%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 75%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 80%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 85%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 90%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 95%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 100%
+7840 nt in 20 seqs, min 392, max 392, avg 392
+Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 5%  Indexing sequences 10%  Indexing sequences 15%  Indexing sequences 20%  Indexing sequences 25%  Indexing sequences 30%  Indexing sequences 35%  Indexing sequences 40%  Indexing sequences 45%  Indexing sequences 50%  Indexing sequences 55%  Indexing sequences 60%  Indexing sequences 65%  Indexing sequences 70%  Indexing sequences 75%  Indexing sequences 80%  Indexing sequences 85%  Indexing sequences 90%  Indexing sequences 95%  Indexing sequences 100%
+Masking 0%  Masking 100%
+Sorting by length 0%  Sorting by length 100%
+Counting unique k-mers 0%  Counting unique k-mers 0%  Counting unique k-mers 5%  Counting unique k-mers 10%  Counting unique k-mers 15%  Counting unique k-mers 20%  Counting unique k-mers 25%  Counting unique k-mers 30%  Counting unique k-mers 35%  Counting unique k-mers 40%  Counting unique k-mers 45%  Counting unique k-mers 50%  Counting unique k-mers 55%  Counting unique k-mers 60%  Counting unique k-mers 65%  Counting unique k-mers 70%  Counting unique k-mers 75%  Counting unique k-mers 80%  Counting unique k-mers 85%  Counting unique k-mers 90%  Counting unique k-mers 95%  Counting unique k-mers 100%
+Clustering 0%  Clustering 50%  Clustering 100%  Clustering 100%
+Writing clusters 0%  Writing clusters 0%  Writing clusters 5%  Writing clusters 10%  Writing clusters 15%  Writing clusters 20%  Writing clusters 25%  Writing clusters 30%  Writing clusters 35%  Writing clusters 40%  Writing clusters 45%  Writing clusters 50%  Writing clusters 55%  Writing clusters 60%  Writing clusters 65%  Writing clusters 70%  Writing clusters 75%  Writing clusters 80%  Writing clusters 85%  Writing clusters 90%  Writing clusters 95%  Writing clusters 100%
+Clusters: 5 Size min 1, max 12, avg 4.0
+Singletons: 1, 5.0% of seqs, 20.0% of clusters
+
+. Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 5%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 10%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 15%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 19%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 24%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 29%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 34%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 38%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 43%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 48%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 53%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 57%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 62%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 67%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 72%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 76%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 81%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 86%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 91%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 95%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/978928/naive-seqs.fasta 100%
+8022 nt in 21 seqs, min 382, max 382, avg 382
+Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 5%  Indexing sequences 10%  Indexing sequences 14%  Indexing sequences 19%  Indexing sequences 24%  Indexing sequences 29%  Indexing sequences 33%  Indexing sequences 38%  Indexing sequences 43%  Indexing sequences 48%  Indexing sequences 52%  Indexing sequences 57%  Indexing sequences 62%  Indexing sequences 67%  Indexing sequences 71%  Indexing sequences 76%  Indexing sequences 81%  Indexing sequences 86%  Indexing sequences 90%  Indexing sequences 95%  Indexing sequences 100%
+Masking 0%  Masking 100%
+Sorting by length 0%  Sorting by length 100%
+Counting unique k-mers 0%  Counting unique k-mers 0%  Counting unique k-mers 5%  Counting unique k-mers 10%  Counting unique k-mers 14%  Counting unique k-mers 19%  Counting unique k-mers 24%  Counting unique k-mers 29%  Counting unique k-mers 33%  Counting unique k-mers 38%  Counting unique k-mers 43%  Counting unique k-mers 48%  Counting unique k-mers 52%  Counting unique k-mers 57%  Counting unique k-mers 62%  Counting unique k-mers 67%  Counting unique k-mers 71%  Counting unique k-mers 76%  Counting unique k-mers 81%  Counting unique k-mers 86%  Counting unique k-mers 90%  Counting unique k-mers 95%  Counting unique k-mers 100%
+Clustering 0%  Clustering 48%  Clustering 95%  Clustering 100%  Clustering 100%
+Writing clusters 0%  Writing clusters 0%  Writing clusters 5%  Writing clusters 10%  Writing clusters 14%  Writing clusters 19%  Writing clusters 24%  Writing clusters 29%  Writing clusters 33%  Writing clusters 38%  Writing clusters 43%  Writing clusters 48%  Writing clusters 52%  Writing clusters 57%  Writing clusters 62%  Writing clusters 67%  Writing clusters 71%  Writing clusters 76%  Writing clusters 81%  Writing clusters 86%  Writing clusters 90%  Writing clusters 95%  Writing clusters 100%
+Clusters: 9 Size min 1, max 6, avg 2.3
+Singletons: 4, 19.0% of seqs, 44.4% of clusters
 
 . 
-      vsearch time: 1.5
+      vsearch time: 1.8
 --> getting annotations for final partition
     running 10 procs
-      hmm step time: 2.4
+      hmm step time: 2.8
     read output
-        processed 109 hmm output lines with 500 sequences in 109 events
-      total time: 6.1
+        processed 115 hmm output lines with 500 sequences in 115 events
+      total time: 7.3
 [92mcache-parameters-data[0m            ./bin/partis cache-parameters --n-max-total-alleles 10 --n-alleles-per-gene 1 --plotdir test/_new-results/test/plots/data --only-csv-plots --only-overall-plots --infname test/mishmash.fa --parameter-dir test/_new-results/test/parameters/data --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human
 caching parameters
 smith-waterman   (removing less-likely alleles) 
   removing old sw cache file test/_new-results/test/parameters/data/sw-cache-7465598398907330838.csv
     and test/_new-results/test/parameters/data/sw-cache-7465598398907330838-glfo
         sequences    n_procs     ig-sw time    processing time
-            1412       10            5.1           1.9
-             311        2            4.1           0.6
+            1412       10            5.1           2.3
+             311        2            4.2           0.6
              120        1            5.2           0.1
-              73        1            2.0           0.2
+              73        1            1.7           0.1
       info for 1342 / 1412 = 0.950
       kept 408 (0.289) unproductive
   removing least likely alleles (1342 total counts)
@@ -439,20 +502,20 @@ smith-waterman   (removing less-likely alleles)
     keeping 10 v genes
     removing 277 v genes: 107 with no matches, 170 with unconvincing matches (797 / 1342 queries had their best match removed)
       removed 23 / 1342 = 0.02 duplicate sequences after trimming framework insertions (leaving 1319)
-        water time: 20.3
+        water time: 20.0
 smith-waterman   (writing parameters) 
         sequences    n_procs     ig-sw time    processing time
-            1319       10            0.7           1.9
-             252        1            0.3           0.3
+            1319       10            0.7           1.3
+             252        1            0.5           0.6
               79        1            0.7           0.2
               12        1            0.1           0.0
       info for 1315 / 1319 = 0.997
       kept 400 (0.303) unproductive
             missing annotations: 6880877555932742798 04-A-M_3755036 1851.d7 3701080585566436353
         writing sw results to test/_new-results/test/parameters/data/sw-cache-7465598398907330838.csv
-  plotting parameters (1.8 sec)
-    writing parameters (0.5 sec)
-        water time: 8.6
+  plotting parameters (2.3 sec)
+    writing parameters (0.7 sec)
+        water time: 8.9
   writing hmms (11.4 sec)
 hmm
     running 10 procs
@@ -462,19 +525,21 @@ hmm
         processed 1315 hmm output lines with 1313 sequences in 1313 events
             [91mwarning[0m skipped 2 invalid events
       hmm step time: 7.0
-  writing hmms (9.4 sec)
-      total time: 57.1
+  writing hmms (11.7 sec)
+      total time: 59.2
 [92msimulate[0m                         ./bin/partis simulate --n-sim-events 500 --n-trees 500 --n-leaves 5 --parameter-dir test/_new-results/test/parameters/data --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human --outfname test/_new-results/test/simu.csv
 simulating
    read 500 events from 10 files
-      total time: 6.5
+      total time: 6.7
 [92mcache-parameters-simu[0m            ./bin/partis cache-parameters --n-max-total-alleles 10 --n-alleles-per-gene 1 --plotdir test/_new-results/test/plots/simu --only-csv-plots --only-overall-plots --is-simu --infname test/_new-results/test/simu.csv --parameter-dir test/_new-results/test/parameters/simu --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human
 caching parameters
 smith-waterman   (removing less-likely alleles) 
+  removing old sw cache file test/_new-results/test/parameters/simu/sw-cache-6821554342063078619.csv
+    and test/_new-results/test/parameters/simu/sw-cache-6821554342063078619-glfo
         sequences    n_procs     ig-sw time    processing time
-            2440       10           14.0           3.9
-             157        1            8.1           0.6
-              27        1            1.8           0.1
+            2440       10           13.8           4.5
+             157        1            8.7           0.3
+              27        1            1.6           0.0
       info for 2440 / 2440 = 1.000
       kept 1747 (0.716) unproductive
   removing least likely alleles (2440 total counts)
@@ -495,32 +560,32 @@ smith-waterman   (removing less-likely alleles)
        [94mnone[0m                        -                     1            [95mh[0m[91mv[0m[95m3[0m-[95m23[0m[93m03[0m 
     keeping 10 v genes
     removing 277 v genes: 252 with no matches, 25 with unconvincing matches (311 / 2440 queries had their best match removed)
-        water time: 29.2
+        water time: 29.6
 smith-waterman   (writing parameters) 
         sequences    n_procs     ig-sw time    processing time
-            2440       10            1.6           4.1
-             157        1            1.0           0.7
-              27        1            0.2           0.2
+            2440       10            1.5           4.3
+             157        1            0.9           0.2
+              27        1            0.1           0.1
       info for 2440 / 2440 = 1.000
       kept 1747 (0.716) unproductive
         writing sw results to test/_new-results/test/parameters/simu/sw-cache-6821554342063078619.csv
-  plotting parameters (2.3 sec)
-  plotting parameters (1.5 sec)
+  plotting parameters (2.5 sec)
+  plotting parameters (1.6 sec)
     writing parameters (0.4 sec)
-    writing parameters (0.5 sec)
-        water time: 14.1
-  writing hmms (11.9 sec)
+    writing parameters (0.6 sec)
+        water time: 14.4
+  writing hmms (11.2 sec)
 hmm
     running 10 procs
     read output
   plotting parameters (1.2 sec)
-    writing parameters (0.5 sec)
-  plotting parameters (1.8 sec)
-    writing parameters (0.3 sec)
+    writing parameters (0.6 sec)
+  plotting parameters (1.6 sec)
+    writing parameters (0.4 sec)
         processed 2440 hmm output lines with 2440 sequences in 2440 events
-      hmm step time: 14.0
-  writing hmms (11.5 sec)
-      total time: 81.9
+      hmm step time: 14.6
+  writing hmms (8.6 sec)
+      total time: 79.7
 [92mannotate-new-simu[0m                ./bin/partis run-viterbi --plot-performance --plotdir test/_new-results/simu-new-performance --only-csv-plots --is-simu --infname test/_new-results/test/simu.csv --parameter-dir test/_new-results/test/parameters/simu --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human --outfname test/_new-results/annotate-new-simu.csv
 running viterbi
 smith-waterman 
@@ -555,7 +620,7 @@ smith-waterman
       info for 2440 / 2440 = 1.000
       kept 1747 (0.716) unproductive
   plotting performance (0.2 sec)
-        water time: 3.8
+        water time: 4.4
 hmm
     running 10 procs
     read output
@@ -586,89 +651,89 @@ hmm
     skipping performance evaluation of -7829725254102920905 because of indels
     skipping performance evaluation of 755479189736510219 because of indels
     skipping performance evaluation of -1803779264717789789 because of indels
-  plotting performance (0.1 sec)
+  plotting performance (0.2 sec)
         processed 2440 hmm output lines with 2440 sequences in 2440 events
-      hmm step time: 11.1
-      total time: 16.0
+      hmm step time: 11.9
+      total time: 17.2
 [92mpartition-new-simu[0m               ./bin/partis partition --n-max-queries 500 --n-precache-procs 10 --biggest-logprob-cluster-to-calculate 5 --biggest-naive-seq-cluster-to-calculate 5 --persistent-cachefname test/_new-results/cache-new-partition.csv --is-simu --infname test/_new-results/test/simu.csv --parameter-dir test/_new-results/test/parameters/simu --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human --outfname test/_new-results/partition-new-simu.csv
 partitioning
 smith-waterman 
         sequences    n_procs     ig-sw time    processing time
-             500       10            0.6           0.6
-              39        1            0.5           0.1
+             500       10            0.6           0.7
+              39        1            0.5           0.0
                1        1            0.0           0.0
       info for 500 / 500 = 1.000
       kept 381 (0.762) unproductive
-        water time: 1.9
+        water time: 2.0
 hmm
 --> caching all 500 naive sequences
     running 10 procs
                 no/empty cache file
                     calcd:         vtb 500        fwd   0
                    merged:       hfrac   0     lratio   0
-             min-max time:  2.2 - 2.3 sec
-      hmm step time: 2.8
+             min-max time:  1.6 - 1.9 sec
+      hmm step time: 2.2
 --> 500 clusters with 10 procs
        naive hfrac bounds: 0.015 0.111   (0.117 mean mutation in parameter dir test/_new-results/test/parameters/simu/hmm)
     running 10 procs
           read from cache:  naive-seqs 500   logprobs   0
                     calcd:         vtb 111        fwd 522
                    merged:       hfrac 108     lratio  49
-             min-max time:  3.0 - 8.4 sec
-      hmm step time: 8.7
+             min-max time:  3.4 - 8.8 sec
+      hmm step time: 9.1
 --> 343 clusters with 7 procs
     running 7 procs
           read from cache:  naive-seqs 657   logprobs 522
                     calcd:         vtb  65        fwd 244
                    merged:       hfrac  60     lratio  29
-             min-max time:  3.2 - 8.0 sec
-      hmm step time: 8.4
+             min-max time:  3.6 - 8.4 sec
+      hmm step time: 8.9
 --> 254 clusters with 5 procs
     running 5 procs
           read from cache:  naive-seqs 748   logprobs 766
                     calcd:         vtb  42        fwd 165
                    merged:       hfrac  39     lratio  21
-             min-max time:  3.8 - 8.1 sec
-      hmm step time: 8.4
+             min-max time:  3.9 - 8.3 sec
+      hmm step time: 8.6
 --> 194 clusters with 3 procs
     running 3 procs
           read from cache:  naive-seqs 814   logprobs 931
                     calcd:         vtb  34        fwd 125
                    merged:       hfrac  35     lratio   9
-             min-max time:  6.8 - 9.3 sec
-      hmm step time: 9.6
+             min-max time:  8.1 - 10.6 sec
+      hmm step time: 11.1
 --> 150 clusters with 2 procs
     running 2 procs
           read from cache:  naive-seqs 866   logprobs 1056
                     calcd:         vtb  27        fwd 121
                    merged:       hfrac  28     lratio  12
-             min-max time:  11.0 - 12.3 sec
-      hmm step time: 12.5
+             min-max time:  12.9 - 13.0 sec
+      hmm step time: 13.3
 --> 110 clusters with 1 proc
     running 1 proc
           read from cache:  naive-seqs 919   logprobs 1177
                     calcd:         vtb  10        fwd 128
                    merged:       hfrac  12     lratio   5
-                     time:  24.4 sec
-      hmm step time: 24.7
-      loop time: 72.5
+                     time:  24.7 sec
+      hmm step time: 25.0
+      loop time: 76.0
 --> getting annotations for final partition
     running 10 procs
-      hmm step time: 2.6
+      hmm step time: 3.3
     read output
         processed 93 hmm output lines with 500 sequences in 93 events
-      total time: 80.3
+      total time: 84.4
 [92mseed-partition-new-simu[0m          ./bin/partis partition --n-max-queries 500 --persistent-cachefname test/_new-results/cache-new-partition.csv --dont-precache-naive-seqs --is-simu --infname test/_new-results/test/simu.csv --parameter-dir test/_new-results/test/parameters/simu --seed-unique-id 7545702563878701531 --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human --outfname test/_new-results/seed-partition-new-simu.csv
 partitioning
 smith-waterman 
         sequences    n_procs     ig-sw time    processing time
-             500       10            0.6           0.7
-              39        1            0.5           0.1
+             500       10            0.6           0.6
+              39        1            0.4           0.1
                1        1            0.0           0.0
       info for 500 / 500 = 1.000
       kept 381 (0.762) unproductive
       removed 461 / 500 = 0.92 sequences with cdr3 length different from seed sequence (leaving 39)
-        water time: 1.9
+        water time: 1.8
 hmm
 --> 39 clusters with 10 procs
        naive hfrac bounds: 0.015 0.111   (0.117 mean mutation in parameter dir test/_new-results/test/parameters/simu/hmm)
@@ -684,14 +749,14 @@ hmm
                     calcd:         vtb   0        fwd   4
                    merged:       hfrac   0     lratio   0
              min-max time:  0.0 - 0.5 sec
-      hmm step time: 0.7
+      hmm step time: 0.6
 --> 41 clusters with 5 procs
     running 5 procs
           read from cache:  naive-seqs 945   logprobs 1315
                     calcd:         vtb   0        fwd   2
                    merged:       hfrac   0     lratio   0
-             min-max time:  0.0 - 0.4 sec
-      hmm step time: 0.5
+             min-max time:  0.0 - 0.5 sec
+      hmm step time: 0.6
       removing 34 sequences in unseeded clusters, and splitting 5 seeded clusters into 5 singletons
         new n_procs 1 (initial seqs/proc: 3.90   new seqs/proc: 5.00
 --> 5 clusters with 1 proc
@@ -700,29 +765,29 @@ hmm
                     calcd:         vtb   2        fwd   5
                    merged:       hfrac   4     lratio   0
                      time:  0.4 sec
-      hmm step time: 0.4
-      loop time: 2.4
+      hmm step time: 0.5
+      loop time: 2.6
 --> getting annotations for final partition
     running 1 proc
       hmm step time: 0.3
     read output
         processed 1 hmm output lines with 5 sequences in 1 events
-      total time: 5.2
+      total time: 5.3
 [92mvsearch-partition-new-simu[0m       ./bin/partis partition --naive-vsearch --n-max-queries 500 --persistent-cachefname test/_new-results/cache-new-partition.csv --dont-precache-naive-seqs --is-simu --infname test/_new-results/test/simu.csv --parameter-dir test/_new-results/test/parameters/simu --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human --outfname test/_new-results/vsearch-partition-new-simu.csv
 partitioning
 smith-waterman 
         sequences    n_procs     ig-sw time    processing time
-             500       10            0.5           0.8
-              39        1            0.2           0.0
+             500       10            0.7           0.6
+              39        1            0.5           0.1
                1        1            0.0           0.0
       info for 500 / 500 = 1.000
       kept 381 (0.762) unproductive
-        water time: 1.6
+        water time: 2.0
 hmm
        naive hfrac bounds: 0.033 0.033   (0.117 mean mutation in parameter dir test/_new-results/test/parameters/simu/hmm)
         collapsed 500 sequences into 310 unique naive sequences
     using hfrac bound for vsearch 0.033
-    running vsearch 19 times (once for each cdr3 length class): Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 100%
+    running vsearch 19 times (once for each cdr3 length class): Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 100%
 350 nt in 1 seqs, min 350, max 350, avg 350
 Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 100%
 Masking 0%  Masking 100%
@@ -733,7 +798,7 @@ Writing clusters 0%  Writing clusters 0%  Writing clusters 100%
 Clusters: 1 Size min 1, max 1, avg 1.0
 Singletons: 1, 100.0% of seqs, 100.0% of clusters
 
-. Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 15%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 29%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 44%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 58%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 72%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 87%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 100%
+. Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 15%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 29%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 44%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 58%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 72%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 87%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 100%
 2464 nt in 7 seqs, min 352, max 352, avg 352
 Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 14%  Indexing sequences 29%  Indexing sequences 43%  Indexing sequences 57%  Indexing sequences 71%  Indexing sequences 86%  Indexing sequences 100%
 Masking 0%  Masking 100%
@@ -744,7 +809,7 @@ Writing clusters 0%  Writing clusters 0%  Writing clusters 14%  Writing clust
 Clusters: 4 Size min 1, max 3, avg 1.8
 Singletons: 2, 28.6% of seqs, 50.0% of clusters
 
-. Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 100%
+. Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 100%
 385 nt in 1 seqs, min 385, max 385, avg 385
 Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 100%
 Masking 0%  Masking 100%
@@ -755,7 +820,7 @@ Writing clusters 0%  Writing clusters 0%  Writing clusters 100%
 Clusters: 1 Size min 1, max 1, avg 1.0
 Singletons: 1, 100.0% of seqs, 100.0% of clusters
 
-. Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 18%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 34%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 51%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 68%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 84%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 100%
+. Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 18%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 34%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 51%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 68%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 84%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 100%
 2130 nt in 6 seqs, min 355, max 355, avg 355
 Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 17%  Indexing sequences 33%  Indexing sequences 50%  Indexing sequences 67%  Indexing sequences 83%  Indexing sequences 100%
 Masking 0%  Masking 100%
@@ -766,7 +831,7 @@ Writing clusters 0%  Writing clusters 0%  Writing clusters 17%  Writing clust
 Clusters: 4 Size min 1, max 3, avg 1.5
 Singletons: 3, 50.0% of seqs, 75.0% of clusters
 
-. Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 2%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 5%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 7%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 9%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 12%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 14%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 16%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 19%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 21%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 23%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 26%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 28%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 30%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 33%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 35%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 37%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 40%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 42%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 44%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 47%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 49%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 51%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 54%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 56%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 58%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 61%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 63%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 65%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 68%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 70%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 72%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 75%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 77%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 79%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 82%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 84%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 86%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 89%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 91%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 93%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 95%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 98%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 100%
+. Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 2%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 5%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 7%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 9%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 12%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 14%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 16%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 19%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 21%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 23%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 26%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 28%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 30%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 33%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 35%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 37%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 40%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 42%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 44%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 47%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 49%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 51%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 54%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 56%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 58%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 61%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 63%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 65%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 68%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 70%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 72%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 75%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 77%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 79%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 82%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 84%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 86%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 89%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 91%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 93%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 95%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 98%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 100%
 15437 nt in 43 seqs, min 359, max 359, avg 359
 Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 2%  Indexing sequences 5%  Indexing sequences 7%  Indexing sequences 9%  Indexing sequences 12%  Indexing sequences 14%  Indexing sequences 16%  Indexing sequences 19%  Indexing sequences 21%  Indexing sequences 23%  Indexing sequences 26%  Indexing sequences 28%  Indexing sequences 30%  Indexing sequences 33%  Indexing sequences 35%  Indexing sequences 37%  Indexing sequences 40%  Indexing sequences 42%  Indexing sequences 44%  Indexing sequences 47%  Indexing sequences 49%  Indexing sequences 51%  Indexing sequences 53%  Indexing sequences 56%  Indexing sequences 58%  Indexing sequences 60%  Indexing sequences 63%  Indexing sequences 65%  Indexing sequences 67%  Indexing sequences 70%  Indexing sequences 72%  Indexing sequences 74%  Indexing sequences 77%  Indexing sequences 79%  Indexing sequences 81%  Indexing sequences 84%  Indexing sequences 86%  Indexing sequences 88%  Indexing sequences 91%  Indexing sequences 93%  Indexing sequences 95%  Indexing sequences 98%  Indexing sequences 100%
 Masking 0%  Masking 100%
@@ -777,7 +842,7 @@ Writing clusters 0%  Writing clusters 0%  Writing clusters 2%  Writing cluste
 Clusters: 9 Size min 1, max 14, avg 4.8
 Singletons: 2, 4.7% of seqs, 22.2% of clusters
 
-. Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 18%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 34%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 51%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 68%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 84%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 100%
+. Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 18%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 34%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 51%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 68%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 84%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 100%
 2346 nt in 6 seqs, min 391, max 391, avg 391
 Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 17%  Indexing sequences 33%  Indexing sequences 50%  Indexing sequences 67%  Indexing sequences 83%  Indexing sequences 100%
 Masking 0%  Masking 100%
@@ -788,7 +853,7 @@ Writing clusters 0%  Writing clusters 0%  Writing clusters 17%  Writing clust
 Clusters: 2 Size min 1, max 5, avg 3.0
 Singletons: 1, 16.7% of seqs, 50.0% of clusters
 
-. Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 35%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 68%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 100%
+. Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 35%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 68%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 100%
 1173 nt in 3 seqs, min 391, max 391, avg 391
 Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 33%  Indexing sequences 67%  Indexing sequences 100%
 Masking 0%  Masking 100%
@@ -799,7 +864,7 @@ Writing clusters 0%  Writing clusters 0%  Writing clusters 33%  Writing clust
 Clusters: 2 Size min 1, max 2, avg 1.5
 Singletons: 1, 33.3% of seqs, 50.0% of clusters
 
-. Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 5%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 10%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 15%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 19%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 24%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 29%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 34%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 38%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 43%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 48%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 53%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 57%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 62%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 67%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 72%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 76%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 81%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 86%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 91%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 96%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 100%
+. Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 5%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 10%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 15%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 19%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 24%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 29%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 34%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 38%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 43%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 48%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 53%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 57%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 62%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 67%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 72%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 76%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 81%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 86%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 91%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 96%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 100%
 7581 nt in 21 seqs, min 361, max 361, avg 361
 Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 5%  Indexing sequences 10%  Indexing sequences 14%  Indexing sequences 19%  Indexing sequences 24%  Indexing sequences 29%  Indexing sequences 33%  Indexing sequences 38%  Indexing sequences 43%  Indexing sequences 48%  Indexing sequences 52%  Indexing sequences 57%  Indexing sequences 62%  Indexing sequences 67%  Indexing sequences 71%  Indexing sequences 76%  Indexing sequences 81%  Indexing sequences 86%  Indexing sequences 90%  Indexing sequences 95%  Indexing sequences 100%
 Masking 0%  Masking 100%
@@ -810,7 +875,7 @@ Writing clusters 0%  Writing clusters 0%  Writing clusters 5%  Writing cluste
 Clusters: 10 Size min 1, max 5, avg 2.1
 Singletons: 4, 19.0% of seqs, 40.0% of clusters
 
-. Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 100%
+. Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 100%
 393 nt in 1 seqs, min 393, max 393, avg 393
 Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 100%
 Masking 0%  Masking 100%
@@ -821,7 +886,7 @@ Writing clusters 0%  Writing clusters 0%  Writing clusters 100%
 Clusters: 1 Size min 1, max 1, avg 1.0
 Singletons: 1, 100.0% of seqs, 100.0% of clusters
 
-. Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 2%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 4%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 6%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 9%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 11%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 13%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 15%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 17%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 19%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 21%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 24%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 26%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 28%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 30%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 32%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 34%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 36%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 38%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 41%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 43%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 45%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 47%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 49%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 51%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 53%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 55%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 58%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 60%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 62%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 64%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 66%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 68%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 70%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 72%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 75%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 77%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 79%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 81%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 83%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 85%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 87%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 89%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 92%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 94%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 96%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 98%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 100%
+. Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 2%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 4%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 6%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 9%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 11%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 13%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 15%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 17%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 19%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 21%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 24%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 26%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 28%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 30%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 32%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 34%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 36%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 38%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 41%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 43%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 45%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 47%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 49%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 51%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 53%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 55%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 58%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 60%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 62%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 64%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 66%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 68%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 70%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 72%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 75%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 77%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 79%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 81%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 83%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 85%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 87%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 89%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 92%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 94%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 96%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 98%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 100%
 17155 nt in 47 seqs, min 365, max 365, avg 365
 Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 2%  Indexing sequences 4%  Indexing sequences 6%  Indexing sequences 9%  Indexing sequences 11%  Indexing sequences 13%  Indexing sequences 15%  Indexing sequences 17%  Indexing sequences 19%  Indexing sequences 21%  Indexing sequences 23%  Indexing sequences 26%  Indexing sequences 28%  Indexing sequences 30%  Indexing sequences 32%  Indexing sequences 34%  Indexing sequences 36%  Indexing sequences 38%  Indexing sequences 40%  Indexing sequences 43%  Indexing sequences 45%  Indexing sequences 47%  Indexing sequences 49%  Indexing sequences 51%  Indexing sequences 53%  Indexing sequences 55%  Indexing sequences 57%  Indexing sequences 60%  Indexing sequences 62%  Indexing sequences 64%  Indexing sequences 66%  Indexing sequences 68%  Indexing sequences 70%  Indexing sequences 72%  Indexing sequences 74%  Indexing sequences 77%  Indexing sequences 79%  Indexing sequences 81%  Indexing sequences 83%  Indexing sequences 85%  Indexing sequences 87%  Indexing sequences 89%  Indexing sequences 91%  Indexing sequences 94%  Indexing sequences 96%  Indexing sequences 98%  Indexing sequences 100%
 Masking 0%  Masking 100%
@@ -832,7 +897,7 @@ Writing clusters 0%  Writing clusters 0%  Writing clusters 2%  Writing cluste
 Clusters: 17 Size min 1, max 8, avg 2.8
 Singletons: 6, 12.8% of seqs, 35.3% of clusters
 
-. Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 4%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 7%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 11%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 14%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 18%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 22%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 25%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 29%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 32%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 36%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 39%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 43%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 47%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 50%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 54%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 57%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 61%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 64%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 68%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 72%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 75%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 79%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 82%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 86%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 89%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 93%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 97%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 100%
+. Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 4%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 7%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 11%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 14%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 18%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 22%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 25%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 29%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 32%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 36%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 39%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 43%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 47%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 50%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 54%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 57%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 61%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 64%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 68%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 72%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 75%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 79%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 82%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 86%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 89%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 93%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 97%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 100%
 10276 nt in 28 seqs, min 367, max 367, avg 367
 Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 4%  Indexing sequences 7%  Indexing sequences 11%  Indexing sequences 14%  Indexing sequences 18%  Indexing sequences 21%  Indexing sequences 25%  Indexing sequences 29%  Indexing sequences 32%  Indexing sequences 36%  Indexing sequences 39%  Indexing sequences 43%  Indexing sequences 46%  Indexing sequences 50%  Indexing sequences 54%  Indexing sequences 57%  Indexing sequences 61%  Indexing sequences 64%  Indexing sequences 68%  Indexing sequences 71%  Indexing sequences 75%  Indexing sequences 79%  Indexing sequences 82%  Indexing sequences 86%  Indexing sequences 89%  Indexing sequences 93%  Indexing sequences 96%  Indexing sequences 100%
 Masking 0%  Masking 100%
@@ -843,7 +908,7 @@ Writing clusters 0%  Writing clusters 0%  Writing clusters 4%  Writing cluste
 Clusters: 12 Size min 1, max 8, avg 2.3
 Singletons: 5, 17.9% of seqs, 41.7% of clusters
 
-. Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 3%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 6%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 9%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 12%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 14%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 17%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 20%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 23%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 26%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 29%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 32%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 34%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 37%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 40%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 43%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 46%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 49%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 52%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 54%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 57%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 60%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 63%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 66%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 69%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 72%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 74%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 77%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 80%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 83%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 86%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 89%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 92%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 94%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 97%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 100%
+. Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 3%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 6%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 9%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 12%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 14%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 17%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 20%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 23%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 26%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 29%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 32%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 34%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 37%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 40%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 43%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 46%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 49%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 52%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 54%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 57%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 60%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 63%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 66%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 69%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 72%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 74%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 77%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 80%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 83%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 86%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 89%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 92%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 94%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 97%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 100%
 12985 nt in 35 seqs, min 371, max 371, avg 371
 Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 3%  Indexing sequences 6%  Indexing sequences 9%  Indexing sequences 11%  Indexing sequences 14%  Indexing sequences 17%  Indexing sequences 20%  Indexing sequences 23%  Indexing sequences 26%  Indexing sequences 29%  Indexing sequences 31%  Indexing sequences 34%  Indexing sequences 37%  Indexing sequences 40%  Indexing sequences 43%  Indexing sequences 46%  Indexing sequences 49%  Indexing sequences 51%  Indexing sequences 54%  Indexing sequences 57%  Indexing sequences 60%  Indexing sequences 63%  Indexing sequences 66%  Indexing sequences 69%  Indexing sequences 71%  Indexing sequences 74%  Indexing sequences 77%  Indexing sequences 80%  Indexing sequences 83%  Indexing sequences 86%  Indexing sequences 89%  Indexing sequences 91%  Indexing sequences 94%  Indexing sequences 97%  Indexing sequences 100%
 Masking 0%  Masking 100%
@@ -854,7 +919,7 @@ Writing clusters 0%  Writing clusters 0%  Writing clusters 3%  Writing cluste
 Clusters: 14 Size min 1, max 7, avg 2.5
 Singletons: 7, 20.0% of seqs, 50.0% of clusters
 
-. Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 4%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 8%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 12%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 16%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 20%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 24%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 28%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 32%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 36%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 40%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 44%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 48%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 52%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 56%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 60%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 64%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 68%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 72%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 76%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 80%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 84%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 88%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 92%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 96%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 100%
+. Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 4%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 8%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 12%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 16%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 20%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 24%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 28%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 32%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 36%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 40%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 44%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 48%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 52%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 56%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 60%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 64%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 68%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 72%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 76%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 80%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 84%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 88%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 92%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 96%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 100%
 9350 nt in 25 seqs, min 374, max 374, avg 374
 Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 4%  Indexing sequences 8%  Indexing sequences 12%  Indexing sequences 16%  Indexing sequences 20%  Indexing sequences 24%  Indexing sequences 28%  Indexing sequences 32%  Indexing sequences 36%  Indexing sequences 40%  Indexing sequences 44%  Indexing sequences 48%  Indexing sequences 52%  Indexing sequences 56%  Indexing sequences 60%  Indexing sequences 64%  Indexing sequences 68%  Indexing sequences 72%  Indexing sequences 76%  Indexing sequences 80%  Indexing sequences 84%  Indexing sequences 88%  Indexing sequences 92%  Indexing sequences 96%  Indexing sequences 100%
 Masking 0%  Masking 100%
@@ -865,7 +930,7 @@ Writing clusters 0%  Writing clusters 0%  Writing clusters 4%  Writing cluste
 Clusters: 12 Size min 1, max 4, avg 2.1
 Singletons: 5, 20.0% of seqs, 41.7% of clusters
 
-. Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 18%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 34%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 51%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 68%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 84%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 100%
+. Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 18%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 34%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 51%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 68%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 84%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 100%
 2412 nt in 6 seqs, min 402, max 402, avg 402
 Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 17%  Indexing sequences 33%  Indexing sequences 50%  Indexing sequences 67%  Indexing sequences 83%  Indexing sequences 100%
 Masking 0%  Masking 100%
@@ -876,7 +941,7 @@ Writing clusters 0%  Writing clusters 0%  Writing clusters 17%  Writing clust
 Clusters: 2 Size min 1, max 5, avg 3.0
 Singletons: 1, 16.7% of seqs, 50.0% of clusters
 
-. Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 12%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 23%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 34%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 45%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 56%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 67%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 78%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 89%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 100%
+. Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 12%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 23%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 34%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 45%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 56%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 67%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 78%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 89%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 100%
 3393 nt in 9 seqs, min 377, max 377, avg 377
 Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 11%  Indexing sequences 22%  Indexing sequences 33%  Indexing sequences 44%  Indexing sequences 56%  Indexing sequences 67%  Indexing sequences 78%  Indexing sequences 89%  Indexing sequences 100%
 Masking 0%  Masking 100%
@@ -887,7 +952,7 @@ Writing clusters 0%  Writing clusters 0%  Writing clusters 11%  Writing clust
 Clusters: 4 Size min 1, max 6, avg 2.2
 Singletons: 3, 33.3% of seqs, 75.0% of clusters
 
-. Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 53%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 100%
+. Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 53%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 100%
 754 nt in 2 seqs, min 377, max 377, avg 377
 Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 50%  Indexing sequences 100%
 Masking 0%  Masking 100%
@@ -898,7 +963,7 @@ Writing clusters 0%  Writing clusters 0%  Writing clusters 50%  Writing clust
 Clusters: 1 Size min 2, max 2, avg 2.0
 Singletons: 0, 0.0% of seqs, 0.0% of clusters
 
-. Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 4%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 7%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 11%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 14%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 18%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 22%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 25%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 29%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 32%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 36%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 40%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 43%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 47%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 50%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 54%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 57%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 61%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 64%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 68%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 72%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 75%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 79%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 82%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 86%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 89%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 93%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 97%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 100%
+. Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 4%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 7%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 11%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 14%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 18%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 22%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 25%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 29%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 32%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 36%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 40%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 43%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 47%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 50%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 54%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 57%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 61%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 64%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 68%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 72%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 75%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 79%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 82%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 86%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 89%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 93%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 97%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 100%
 10640 nt in 28 seqs, min 380, max 380, avg 380
 Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 4%  Indexing sequences 7%  Indexing sequences 11%  Indexing sequences 14%  Indexing sequences 18%  Indexing sequences 21%  Indexing sequences 25%  Indexing sequences 29%  Indexing sequences 32%  Indexing sequences 36%  Indexing sequences 39%  Indexing sequences 43%  Indexing sequences 46%  Indexing sequences 50%  Indexing sequences 54%  Indexing sequences 57%  Indexing sequences 61%  Indexing sequences 64%  Indexing sequences 68%  Indexing sequences 71%  Indexing sequences 75%  Indexing sequences 79%  Indexing sequences 82%  Indexing sequences 86%  Indexing sequences 89%  Indexing sequences 93%  Indexing sequences 96%  Indexing sequences 100%
 Masking 0%  Masking 100%
@@ -909,7 +974,7 @@ Writing clusters 0%  Writing clusters 0%  Writing clusters 4%  Writing cluste
 Clusters: 5 Size min 1, max 12, avg 5.6
 Singletons: 2, 7.1% of seqs, 40.0% of clusters
 
-. Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 5%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 10%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 15%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 20%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 25%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 30%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 35%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 40%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 45%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 50%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 55%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 60%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 65%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 70%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 75%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 80%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 85%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 90%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 95%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 100%
+. Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 5%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 10%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 15%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 20%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 25%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 30%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 35%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 40%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 45%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 50%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 55%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 60%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 65%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 70%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 75%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 80%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 85%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 90%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 95%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 100%
 7840 nt in 20 seqs, min 392, max 392, avg 392
 Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 5%  Indexing sequences 10%  Indexing sequences 15%  Indexing sequences 20%  Indexing sequences 25%  Indexing sequences 30%  Indexing sequences 35%  Indexing sequences 40%  Indexing sequences 45%  Indexing sequences 50%  Indexing sequences 55%  Indexing sequences 60%  Indexing sequences 65%  Indexing sequences 70%  Indexing sequences 75%  Indexing sequences 80%  Indexing sequences 85%  Indexing sequences 90%  Indexing sequences 95%  Indexing sequences 100%
 Masking 0%  Masking 100%
@@ -920,7 +985,7 @@ Writing clusters 0%  Writing clusters 0%  Writing clusters 5%  Writing cluste
 Clusters: 5 Size min 1, max 12, avg 4.0
 Singletons: 1, 5.0% of seqs, 20.0% of clusters
 
-. Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 5%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 10%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 15%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 19%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 24%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 29%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 34%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 38%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 43%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 48%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 53%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 57%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 62%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 67%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 72%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 76%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 81%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 86%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 91%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 95%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/916409/naive-seqs.fasta 100%
+. Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 0%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 5%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 10%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 15%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 19%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 24%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 29%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 34%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 38%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 43%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 48%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 53%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 57%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 62%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 67%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 72%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 76%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 81%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 86%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 91%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 95%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 100%  Reading file /tmp/dralph/hmms/672397/naive-seqs.fasta 100%
 8022 nt in 21 seqs, min 382, max 382, avg 382
 Indexing sequences 0%  Indexing sequences 0%  Indexing sequences 5%  Indexing sequences 10%  Indexing sequences 14%  Indexing sequences 19%  Indexing sequences 24%  Indexing sequences 29%  Indexing sequences 33%  Indexing sequences 38%  Indexing sequences 43%  Indexing sequences 48%  Indexing sequences 52%  Indexing sequences 57%  Indexing sequences 62%  Indexing sequences 67%  Indexing sequences 71%  Indexing sequences 76%  Indexing sequences 81%  Indexing sequences 86%  Indexing sequences 90%  Indexing sequences 95%  Indexing sequences 100%
 Masking 0%  Masking 100%
@@ -932,10 +997,10 @@ Clusters: 9 Size min 1, max 6, avg 2.3
 Singletons: 4, 19.0% of seqs, 44.4% of clusters
 
 . 
-      vsearch time: 1.6
+      vsearch time: 1.9
 --> getting annotations for final partition
     running 10 procs
-      hmm step time: 2.6
+      hmm step time: 3.1
     read output
         processed 115 hmm output lines with 500 sequences in 115 events
-      total time: 6.4
+      total time: 8.0
