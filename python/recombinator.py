@@ -503,36 +503,36 @@ class Recombinator(object):
         return rescaled_trees
 
     # ----------------------------------------------------------------------------------------
-    def add_shm_insertion(self, reco_event, seq, pos, length):
+    def add_shm_insertion(self, indelfo, seq, pos, length):
         """ insert a random sequence with <length> beginning at <pos> """
         inserted_sequence = ''
         for ipos in range(length):
             inuke = random.randint(0, len(utils.nukes) - 1)  # inclusive
             inserted_sequence += utils.nukes[inuke]
         return_seq = seq[ : pos] + inserted_sequence + seq[pos : ]
-        reco_event.indelfos[-1]['indels'].append({'type' : 'insertion', 'pos' : pos, 'len' : length, 'seqstr' : inserted_sequence})
+        indelfo['indels'].append({'type' : 'insertion', 'pos' : pos, 'len' : length, 'seqstr' : inserted_sequence})
         if self.args.debug:
             print '          inserting %s at %d' % (inserted_sequence, pos)
         return return_seq
 
     # ----------------------------------------------------------------------------------------
-    def add_single_indel(self, seq, reco_event):
+    def add_single_indel(self, seq, indelfo, codon_positions):
         if self.args.indel_location == None:  # uniform over entire sequence
             pos = random.randint(0, len(seq) - 1)  # this will actually exclude either before the first index or after the last index. No, I don't care.
         elif self.args.indel_location == 'v':  # within the meat of the v
-            pos = random.randint(10, reco_event.final_codon_positions['v'])
+            pos = random.randint(10, codon_positions['v'])
         elif self.args.indel_location == 'cdr3':  # inside cdr3
-            pos = random.randint(reco_event.final_codon_positions['v'], reco_event.final_codon_positions['j'])
+            pos = random.randint(codon_positions['v'], codon_positions['j'])
         else:
             assert False
 
         length = numpy.random.geometric(1. / self.args.mean_indel_length)
 
         if numpy.random.uniform(0, 1) < 0.5:  # fifty-fifty chance of insertion and deletion
-            new_seq = self.add_shm_insertion(reco_event, seq, pos, length)
+            new_seq = self.add_shm_insertion(indelfo, seq, pos, length)
         else:
             deleted_seq = seq[ : pos] + seq[pos + length : ]  # delete <length> bases beginning with <pos>
-            reco_event.indelfos[-1]['indels'].append({'type' : 'deletion', 'pos' : pos, 'len' : length, 'seqstr' : seq[pos : pos + length]})
+            indelfo['indels'].append({'type' : 'deletion', 'pos' : pos, 'len' : length, 'seqstr' : seq[pos : pos + length]})
             if self.args.debug:
                 print '          deleting %d bases at %d' % (length, pos)
             new_seq = deleted_seq
@@ -543,22 +543,20 @@ class Recombinator(object):
     def add_shm_indels(self, reco_event):
         if self.args.debug and self.args.indel_frequency > 0.:
             print '      indels'
+        reco_event.indelfos = [utils.get_empty_indel() for _ in range(len(reco_event.final_seqs))]
         for iseq in range(len(reco_event.final_seqs)):
-            reco_event.indelfos.append(utils.get_empty_indel())
             if self.args.indel_frequency == 0.:  # no indels at all
                 continue
             if numpy.random.uniform(0, 1) > self.args.indel_frequency:  # no indels for this sequence
                 if self.args.debug:
                     print '        0'
                 continue
-            seq = reco_event.final_seqs[iseq]
-            reco_event.indelfos[-1]['reversed_seq'] = seq  # set the original sequence (i.e. with all the indels reversed)
+            reco_event.indelfos[iseq]['reversed_seq'] = reco_event.final_seqs[iseq]  # set the original sequence (i.e. with all the indels reversed)
             n_indels = 1  #numpy.random.geometric(1. / self.args.mean_n_indels)
             if self.args.debug:
                 print '        %d' % n_indels
             for _ in range(n_indels):
-                seq = self.add_single_indel(seq, reco_event)
-            reco_event.final_seqs[iseq] = seq
+                reco_event.final_seqs[iseq] = self.add_single_indel(reco_event.final_seqs[iseq], reco_event.indelfos[iseq], reco_event.final_codon_positions)
 
     # ----------------------------------------------------------------------------------------
     def add_mutants(self, reco_event, irandom):
