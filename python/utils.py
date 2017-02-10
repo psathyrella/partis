@@ -158,6 +158,7 @@ column_dependencies['jf_insertion'] = []
 # definitions here: http://clip.med.yale.edu/changeo/manuals/Change-O_Data_Format.pdf
 presto_headers = {
     'unique_ids' : 'SEQUENCE_ID',
+    'input_seqs' : 'SEQUENCE_INPUT',
     'v_gene' : 'V_CALL',
     'd_gene' : 'D_CALL',
     'j_gene' : 'J_CALL',
@@ -250,7 +251,7 @@ linekeys['per_family'] = ['naive_seq', 'cdr3_length', 'codon_positions', 'length
                          [r + '_gl_seq' for r in regions] + \
                          [r + '_per_gene_support' for r in regions]
 # used by the synthesize_[] fcns below
-linekeys['per_seq'] = ['seqs', 'unique_ids', 'indelfos', 'mut_freqs', 'input_seqs'] + \
+linekeys['per_seq'] = ['seqs', 'unique_ids', 'indelfos', 'mut_freqs', 'input_seqs', 'indel_reversed_seqs'] + \
                       [r + '_qr_seqs' for r in regions] + \
                       ['aligned_' + r + '_seqs' for r in regions] + \
                       functional_columns
@@ -939,7 +940,7 @@ def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False): 
     line['naive_seq'] = len(line['fv_insertion']) * ambiguous_bases[0] + line['v_gl_seq'] + line['vd_insertion'] + line['d_gl_seq'] + line['dj_insertion'] + line['j_gl_seq'] + len(line['jf_insertion']) * ambiguous_bases[0]
     for iseq in range(len(line['seqs'])):
         if len(line['naive_seq']) != len(line['seqs'][iseq]):
-            raise Exception('naive and mature sequences different lengths %d %d for %s' % (len(line['naive_seq']), len(line['seqs'][iseq]), ' '.join(line['unique_ids'])))
+            raise Exception('naive and mature sequences different lengths %d %d for %s:\n    %s\n    %s' % (len(line['naive_seq']), len(line['seqs'][iseq]), ' '.join(line['unique_ids']), line['naive_seq'], line['seqs'][iseq]))
 
     start, end = {}, {}  # add naive seq bounds for each region (could stand to make this more concise)
     start['v'] = len(line['fv_insertion'])  # NOTE this duplicates code in add_qr_seqs()
