@@ -159,10 +159,9 @@ class PartitionDriver(object):
                           simglfo=self.simglfo, itry=itry, duplicates=self.duplicates)
         cachefname = self.default_sw_cachefname if self.args.sw_cachefname is None else self.args.sw_cachefname
         if not look_for_cachefile and os.path.exists(cachefname):  # i.e. if we're not explicitly told to look for it, and it's there, then it's probably out of date
-            print '  removing old sw cache file %s' % cachefname
+            print '  removing old sw cache %s' % cachefname.replace('.csv', '')
             os.remove(cachefname)
             if os.path.exists(cachefname.replace('.csv', '-glfo')):
-                print '    and %s' % cachefname.replace('.csv', '-glfo')
                 glutils.remove_glfo_files(cachefname.replace('.csv', '-glfo'), self.args.chain)
         if look_for_cachefile and os.path.exists(cachefname):  # run sw if we either don't want to do any caching (None) or if we are planning on writing the results after we run
             waterer.read_cachefile(cachefname)
