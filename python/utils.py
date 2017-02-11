@@ -859,7 +859,7 @@ def is_functional(line):
     return True
 
 # ----------------------------------------------------------------------------------------
-def add_functional_info(chain, line):
+def add_functional_info(chain, line, input_codon_positions):
     def get_val(ftype, iseq):
         if ftype == 'mutated_invariants':
             return not both_codons_ok(chain, line['seqs'][iseq], line['codon_positions'])
@@ -869,6 +869,10 @@ def add_functional_info(chain, line):
             return is_there_a_stop_codon(line['seqs'][iseq], line['fv_insertion'], line['jf_insertion'], line['codon_positions']['v'])
         else:
             assert False
+
+    # for iseq in range(len(line['seqs'])):
+    #     print '%s  -->  %s' % (both_codons_ok(glfo['chain'], line['seqs'][iseq], line['codon_positions']), both_codons_ok(glfo['chain'], line['input_seqs'][iseq], input_codon_positions[iseq]))
+    # # sys.exit()
 
     for fc in functional_columns:
         line[fc] = [get_val(fc, iseq) for iseq in range(len(line['seqs']))]
@@ -952,13 +956,14 @@ def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False): 
     line['regional_bounds'] = {r : (start[r], end[r]) for r in regions}
 
     line['input_seqs'] = [get_seq_with_indels_reinstated(line, iseq) for iseq in range(len(line['seqs']))]
+    input_codon_positions = [get_codon_positions_with_indels_reinstated(line, iseq, line['codon_positions']) for iseq in range(len(line['seqs']))]
     if 'indel_reversed_seqs' not in line:  # everywhere internally, we refer to 'indel_reversed_seqs' as simply 'seqs'. For interaction with outside entities, however (i.e. writing files) we use the more explicit 'indel_reversed_seqs'
         line['indel_reversed_seqs'] = line['seqs']
 
     # add regional query seqs
     add_qr_seqs(line)
 
-    add_functional_info(glfo['chain'], line)
+    add_functional_info(glfo['chain'], line, input_codon_positions)
 
     line['mut_freqs'] = [hamming_fraction(line['naive_seq'], mature_seq) for mature_seq in line['seqs']]
 
@@ -2082,6 +2087,26 @@ def get_seq_with_indels_reinstated(line, iseq=0):  # reverse the action of indel
             assert False
 
     return return_seq
+
+# ----------------------------------------------------------------------------------------
+def get_codon_positions_with_indels_reinstated(line, iseq, codon_positions):
+    # NOTE as long as the indels are reversed, all the sequences have the same codon positions. But as soon as we reinstate the indels, all heck breaks loose.
+    indelfo = line['indelfos'][iseq]
+    reinstated_codon_positions = copy.deepcopy(codon_positions)
+    if indelfo['reversed_seq'] == '':
+        return reinstated_codon_positions
+
+    for indel in reversed(indelfo['indels']):
+        for region in reinstated_codon_positions:
+            if indel['pos'] > reinstated_codon_positions[region]:  # NOTE this just ignores the case where the indel's in the middle of the codon, because, like, screw that I don't want to think about it
+                continue
+            if indel['type'] == 'insertion':
+                reinstated_codon_positions[region] += indel['len']
+            elif indel['type'] == 'deletion':
+                reinstated_codon_positions[region] -= indel['len']
+            else:
+                assert False
+    return reinstated_codon_positions
 
 # ----------------------------------------------------------------------------------------
 def csv_to_fasta(infname, outfname=None, name_column='unique_id', seq_column='seq', n_max_lines=None):
