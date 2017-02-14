@@ -170,12 +170,12 @@ All columns listed as "colon-separated lists" are trivial/length one for single 
 | dj_insertion       |  sequence of nucleotides corresponding to the non-templated insertion between the D and J segments
 | fv_insertion       |  constant region on the 5' side of the V (accounts for reads which extend beyond the 5' end of V)
 | jf_insertion       |  constant region on the 3' side of the J (accounts for reads which extend beyond the 3' end of J)
-| mutated_invariants     |  true if the conserved cysteine or tryptophan (IMGT numbering) were mutated
-| in_frames      |  true if conserved cysteine and tryptophan (IMGT numbering) are in the same
-| stops                  |  true if stop codon was found in the query sequence
-| v_per_gene_support     |  approximate probability supporting the top V gene matches, as a semicolon-separated list of colon-separated gene:probability pairs (approximate: monotonically related to the actual probability, but not exactly one-to-one)
-| d_per_gene_support     |  approximate probability supporting the top D gene matches, as a semicolon-separated list of colon-separated gene:probability pairs (approximate: monotonically related to the actual probability, but not exactly one-to-one)
-| j_per_gene_support     |  approximate probability supporting the top J gene matches, as a semicolon-separated list of colon-separated gene:probability pairs (approximate: monotonically related to the actual probability, but not exactly one-to-one)
+| mutated_invariants |  true if the conserved codons corresponding to the start and end of the CDR3 code for the same amino acid as in their original germline (cyst and tryp/phen, in IMGT numbering)
+| in_frames          |  true if the net effect of VDJ rearrangement and SHM indels leaves both the start and end of the CDR3 (IMGT cyst and tryp/phen) in frame with respect to the start of the germline V sequence
+| stops              |  true if a stop codon was found in the frame defined by the start of the germline V sequence
+| v_per_gene_support |  approximate probability supporting the top V gene matches, as a semicolon-separated list of colon-separated gene:probability pairs (approximate: monotonically related to the actual probability, but not exactly one-to-one)
+| d_per_gene_support |  approximate probability supporting the top D gene matches, as a semicolon-separated list of colon-separated gene:probability pairs (approximate: monotonically related to the actual probability, but not exactly one-to-one)
+| j_per_gene_support |  approximate probability supporting the top J gene matches, as a semicolon-separated list of colon-separated gene:probability pairs (approximate: monotonically related to the actual probability, but not exactly one-to-one)
 | indelfos       |  colon-separated list of information on any SHM indels that were inferred in the Smith-Waterman step. Written as a literal python dict; can be read in python with `ast.literal_eval(line['indelfo'])`
 | indel_reversed_seqs  |  colon-separated list of input sequences with indels "reversed", and with constant regions (fv/jf insertions) removed. Empty string if there are no indels, i.e. if it's the same as 'input_seqs'
 | duplicates     |  colon-separated list of "duplicate" sequences for each sequence, i.e. sequences which, after trimming fv/jf insertions, were identical and were thus collapsed.

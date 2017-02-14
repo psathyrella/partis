@@ -67,6 +67,29 @@ def convert_to_duplicate_name(glfo, gene):
     raise Exception('couldn\'t find alternate name for %s' % gene)
 
 #----------------------------------------------------------------------------------------
+def check_a_bunch_of_codons(codon, seqons, extra_str='', debug=False):  # seqons: list of (seq, pos) pairs
+    """ check a list of sequences, and keep track of some statistics """
+    n_total, n_ok, n_too_short, n_bad_codons = 0, 0, 0, 0
+    for seq, pos in seqons:
+        n_total += 1
+        if len(seq) < pos + 3:
+            n_too_short += 1
+        elif utils.codon_unmutated(codon, seq, pos):
+            n_ok += 1
+        else:
+            n_bad_codons += 1
+
+    if debug:
+        print '%s%d %s positions:' % (extra_str, n_total, codon),
+        if n_ok > 0:
+            print '  %d ok' % n_ok,
+        if n_too_short > 0:
+            print '  %d too short' % n_too_short,
+        if n_bad_codons > 0:
+            print '  %d mutated' % n_bad_codons,
+        print ''
+
+#----------------------------------------------------------------------------------------
 def read_fasta_file(seqs, fname, skip_pseudogenes, aligned=False):
     n_skipped_pseudogenes = 0
     seq_to_gene_map = {}
@@ -247,9 +270,9 @@ def get_missing_codon_info(glfo, debug=False):
     # ----------------------------------------------------------------------------------------
     def get_pos_in_alignment(codon, aligned_seq, seq, pos):
         """ given <pos> in <seq>, find the codon's position in <aligned_seq> """
-        assert utils.codon_ok(codon, seq, pos, debug=debug)  # this only gets called on the gene with the *known* position, so it shouldn't fail
+        assert utils.codon_unmutated(codon, seq, pos, debug=debug)  # this only gets called on the gene with the *known* position, so it shouldn't fail
         pos_in_alignment = pos + get_n_gaps_up_to_pos(aligned_seq, pos)
-        assert utils.codon_ok(codon, aligned_seq, pos_in_alignment, debug=debug)
+        assert utils.codon_unmutated(codon, aligned_seq, pos_in_alignment, debug=debug)
         return pos_in_alignment
 
     for region, codon in utils.conserved_codons[glfo['chain']].items():
@@ -273,7 +296,7 @@ def get_missing_codon_info(glfo, debug=False):
         if len(glfo[codon + '-positions']) > 0:
             known_gene, known_pos = None, None
             for gene, pos in glfo[codon + '-positions'].items():  # take the first one for which we have the sequence (NOTE it would be safer to check that they're all the same)
-                if gene in glfo['seqs'][region] and gene in aligned_seqs and utils.codon_ok(codon, glfo['seqs'][region][gene], pos):
+                if gene in glfo['seqs'][region] and gene in aligned_seqs and utils.codon_unmutated(codon, glfo['seqs'][region][gene], pos):
                     known_gene, known_pos = gene, pos
                     break
             if known_gene is None:
@@ -302,7 +325,7 @@ def get_missing_codon_info(glfo, debug=False):
             #     tmppos = known_pos_in_alignment
             #     print '    %s%s%s   %s    (new)' % (tmpseq[:tmppos], utils.color('reverse_video', tmpseq[tmppos : tmppos + 3]), tmpseq[tmppos + 3:], utils.color_gene(gene))
 
-        utils.check_a_bunch_of_codons(codon, seqons, extra_str='          ', debug=debug)
+        check_a_bunch_of_codons(codon, seqons, extra_str='          ', debug=debug)
         if debug:
             print '      added %d %s positions' % (n_added, codon)
 
@@ -342,7 +365,7 @@ def read_glfo(gldir, chain, only_genes=None, skip_pseudogenes=True, debug=False)
 
     for region, codon in utils.conserved_codons[glfo['chain']].items():
         seqons = [(seq, glfo[codon + '-positions'][gene]) for gene, seq in glfo['seqs'][region].items()]  # (seq, pos) pairs
-        utils.check_a_bunch_of_codons(codon, seqons, extra_str='      ', debug=debug)
+        check_a_bunch_of_codons(codon, seqons, extra_str='      ', debug=debug)
 
     if debug:
         print '  read %s' % '  '.join([('%s: %d' % (r, len(glfo['seqs'][r]))) for r in utils.regions])
@@ -416,7 +439,7 @@ def generate_snpd_gene(gene, cpos, seq, positions):
     assert utils.get_region(gene) == 'v'  # others not yet handled
     def choose_position():
         snp_pos = None
-        while snp_pos is None or snp_pos in snpd_positions or not utils.codon_ok('cyst', tmpseq, cpos, debug=True):
+        while snp_pos is None or snp_pos in snpd_positions or not utils.codon_unmutated('cyst', tmpseq, cpos, debug=True):
             snp_pos = random.randint(10, len(seq) - 15)  # note that randint() is inclusive
             tmpseq = seq[: snp_pos] + 'X' + seq[snp_pos + 1 :]  # for checking cyst position
         return snp_pos
@@ -435,7 +458,7 @@ def generate_snpd_gene(gene, cpos, seq, positions):
 
         seq = seq[: snp_pos] + new_base + seq[snp_pos + 1 :]
 
-    assert utils.codon_ok('cyst', seq, cpos, debug=True)  # this is probably unnecessary
+    assert utils.codon_unmutated('cyst', seq, cpos, debug=True)  # this is probably unnecessary
     snpd_name, mutfo = get_new_allele_name_and_change_mutfo(gene, mutfo)
     return {'template-gene' : gene, 'gene' : snpd_name, 'seq' : seq}
 
@@ -465,7 +488,7 @@ def remove_v_genes_with_bad_cysteines(glfo, debug=False):
     prelength = len(glfo['seqs']['v'])
     for gene in glfo['seqs']['v'].keys():
         # if len(glfo['seqs']['v'][gene]) < glfo['cyst-positions'][gene] + 3:
-        if not utils.codon_ok('cyst', glfo['seqs']['v'][gene], glfo['cyst-positions'][gene]):
+        if not utils.codon_unmutated('cyst', glfo['seqs']['v'][gene], glfo['cyst-positions'][gene]):
             remove_gene(glfo, gene, debug=debug)
     if True:  # debug:
         print '  removed %d / %d v genes with bad cysteines' % (prelength - len(glfo['seqs']['v']), len(glfo['seqs']['v']))

@@ -167,5 +167,5 @@ class RecombinationEvent(object):
             if seq[pos : pos + 3] != self.unmutated_codons[region]:
                 assert len(self.unmutated_codons[region]) == 3
                 seq = seq[:pos] + self.unmutated_codons[region] + seq[pos + 3 :]
-            assert utils.codon_ok(utils.conserved_codons[self.glfo['chain']][region], seq, pos)
+            assert utils.codon_unmutated(utils.conserved_codons[self.glfo['chain']][region], seq, pos)
         return seq

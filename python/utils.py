@@ -603,52 +603,66 @@ def remove_gaps(seq):
     return seq.translate(None, ''.join(gap_chars))
 
 # ----------------------------------------------------------------------------------------
-def both_codons_ok(chain, seq, positions, debug=False, extra_str=''):
+def both_codons_unmutated(chain, seq, positions, debug=False, extra_str=''):
     both_ok = True
     for region, codon in conserved_codons[chain].items():
-        both_ok &= codon_ok(codon, seq, positions[region], debug=debug, extra_str=extra_str)
+        both_ok &= codon_unmutated(codon, seq, positions[region], debug=debug, extra_str=extra_str)
     return both_ok
 
 # ----------------------------------------------------------------------------------------
-def codon_ok(codon, seq, position, debug=False, extra_str=''):
+def codon_unmutated(codon, seq, position, debug=False, extra_str=''):
     if len(seq) < position + 3:
         if debug:
             print '%ssequence length %d less than %s position %d + 3' % (extra_str, len(seq), codon, position)
         return False
-
-    if seq[position : position + 3] not in codon_table[codon]:
+    if seq[position : position + 3] not in codon_table[codon]:  # NOTE this allows it to be mutated to one of the other codons that codes for the same amino acid
         if debug:
             print '%s%s codon %s not among expected codons (%s)' % (extra_str, codon, seq[position : position + 3], ' '.join(codon_table[codon]))
         return False
-
     return True
 
 #----------------------------------------------------------------------------------------
-def check_a_bunch_of_codons(codon, seqons, extra_str='', debug=False):  # seqons: list of (seq, pos) pairs
-    """ check a list of sequences, and keep track of some statistics """
-    n_total, n_ok, n_too_short, n_bad_codons = 0, 0, 0, 0
-    for seq, pos in seqons:
-        n_total += 1
-        if len(seq) < pos + 3:
-            n_too_short += 1
-        elif codon_ok(codon, seq, pos):
-            n_ok += 1
-        else:
-            n_bad_codons += 1
-
+def in_frame(seq, codon_positions, fv_insertion, v_5p_del, debug=False):  # NOTE I'm not passing the whole <line> in order to make it more explicit that <seq> and <codon_positions> need to correspond to each other, i.e. are either both for input seqs, or both for indel-reversed seqws
+    debug = True
+    """ return true if the start and end of the cdr3 are both in frame with respect to the start of the V """
+    germline_v_start = len(fv_insertion) - v_5p_del  # position in <seq> (the query sequence) to which the first base of the germline sequence aligns
+    v_cpos = codon_positions['v'] - germline_v_start
+    j_cpos = codon_positions['j'] - germline_v_start  # NOTE I'm actually not sure how necessary it is that the right side of the J is in frame. I mean, I think it's pretty framework-ey, but I'm not sure.
     if debug:
-        print '%s%d %s positions:' % (extra_str, n_total, codon),
-        if n_ok > 0:
-            print '  %d ok' % n_ok,
-        if n_too_short > 0:
-            print '  %d too short' % n_too_short,
-        if n_bad_codons > 0:
-            print '  %d mutated' % n_bad_codons,
-        print ''
+        print '    in frame:  %d  %d  -->  %s' % (v_cpos % 3 == 0, j_cpos % 3 == 0, v_cpos % 3 == 0 and j_cpos % 3 == 0)
+    return v_cpos % 3 == 0 and j_cpos % 3 == 0
+
+# #----------------------------------------------------------------------------------------
+# def in_frame_stop(seq, fv_insertion, jf_insertion, cyst_position, debug=False):
+#     # NOTE it would be nicer to write this just taking a <line> as input, but I want to be able to call it from waterer.py before I've converted <qinfo> to a <line>
+#     """
+#     true if there's a stop codon in frame with respect to the start of the V
+#     """
+#     coding_seq = seq[len(fv_insertion) : len(seq) - len(jf_insertion)]
+#     coding_cpos = cyst_position - len(fv_insertion)
+#     if coding_cpos >= len(coding_seq):
+#         if debug:
+#             print '      not sure if there\'s a stop codon (invalid cysteine position)'
+#         return True  # not sure if there is one, since we have to way to establish the frame
+#     # jump leftward in steps of three until we reach the start of the sequence
+#     ipos = coding_cpos
+#     while ipos > 2:
+#         ipos -= 3
+#     # ipos should now bet the index of the start of the first complete codon
+#     while ipos + 2 < len(coding_seq):  # then jump forward in steps of three bases making sure none of them are stop codons
+#         codon = coding_seq[ipos : ipos + 3]
+#         if codon in codon_table['stop']:
+#             if debug:
+#                 print '      stop codon %s at %d in %s' % (codon, ipos, coding_seq)
+#             return True
+#         ipos += 3
+
+#     return False  # no stop codon
 
 #----------------------------------------------------------------------------------------
 def is_there_a_stop_codon(seq, fv_insertion, jf_insertion, cyst_position, debug=False):
-    # it would be nicer to write this just taking a <line> as input, but I want to be able to call it from waterer.py before I've converted <qinfo> to a <line>
+    raise Exception()
+    # NOTE it would be nicer to write this just taking a <line> as input, but I want to be able to call it from waterer.py before I've converted <qinfo> to a <line>
     """
     Make sure there is no in-frame stop codon, where frame is inferred from <cyst_position>.
     Returns True if no stop codon is found
@@ -860,22 +874,12 @@ def is_functional(line):
 
 # ----------------------------------------------------------------------------------------
 def add_functional_info(chain, line, input_codon_positions):
-    def get_val(ftype, iseq):
-        if ftype == 'mutated_invariants':
-            return not both_codons_ok(chain, line['seqs'][iseq], line['codon_positions'])
-        elif ftype == 'in_frames':
-            return line['cdr3_length'] % 3 == 0
-        elif ftype == 'stops':
-            return is_there_a_stop_codon(line['seqs'][iseq], line['fv_insertion'], line['jf_insertion'], line['codon_positions']['v'])
-        else:
-            assert False
-
-    # for iseq in range(len(line['seqs'])):
-    #     print '%s  -->  %s' % (both_codons_ok(glfo['chain'], line['seqs'][iseq], line['codon_positions']), both_codons_ok(glfo['chain'], line['input_seqs'][iseq], input_codon_positions[iseq]))
-    # # sys.exit()
-
-    for fc in functional_columns:
-        line[fc] = [get_val(fc, iseq) for iseq in range(len(line['seqs']))]
+    line['mutated_invariants'] = [not both_codons_unmutated(chain, line['input_seqs'][iseq], input_codon_positions[iseq])
+                                  for iseq in range(len(line['unique_ids']))]
+    line['in_frames'] = [in_frame(line['input_seqs'][iseq], input_codon_positions[iseq], line['fv_insertion'], line['v_5p_del'])
+                         for iseq in range(len(line['unique_ids']))]
+    line['stops'] = [is_there_a_stop_codon(line['input_seqs'][iseq], line['fv_insertion'], line['jf_insertion'], input_codon_positions[iseq]['v'])
+                     for iseq in range(len(line['unique_ids']))]
 
 # ----------------------------------------------------------------------------------------
 def remove_all_implicit_info(line):
@@ -992,7 +996,7 @@ def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False): 
         for ikey in implicit_linekeys:  # make sure every key/value we added is either a) new or b) the same as it was before
             if ikey in initial_keys:
                 if pre_existing_implicit_info[ikey] != line[ikey]:
-                    print '%s pre-existing info\n    %s\n    doesn\'t match new info\n    %s\n    for %s in %s' % (color('yellow', 'warning'), pre_existing_implicit_info[ikey], line[ikey], ikey, line['unique_ids'])
+                    print '%s pre-existing info for \'%s\' in %s\n    %s\n    doesn\'t match new info\n    %s' % (color('yellow', 'warning'), ikey, line['unique_ids'], pre_existing_implicit_info[ikey], line[ikey])
             else:
                 assert ikey in new_keys  # only really checks the logic of the previous few lines
 
