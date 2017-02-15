@@ -170,8 +170,8 @@ class Recombinator(object):
             if self.args.rearrange_from_scratch and self.args.generate_germline_set:  # if you let it try more than once, it screws up the desired allele prevalence ratios
                 raise Exception('arg')
             return False
-        # in_frame = reco_event.cdr3_length % 3 == 0
-        if self.args.rearrange_from_scratch and not utils.in_frame():
+        in_frame = utils.in_frame(reco_event.recombined_seq, reco_event.final_codon_positions, reco_event.insertions['fv'], reco_event.erosions['v_5p'])
+        if self.args.rearrange_from_scratch and not in_frame:
             raise Exception('arg 2')  # if you let it try more than once, it screws up the desired allele prevalence ratios
             return False
 
