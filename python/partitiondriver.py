@@ -286,7 +286,7 @@ class PartitionDriver(object):
                     continue
                 if self.args.infname is not None and self.reco_info is not None:
                     utils.print_true_events(self.glfo, self.reco_info, line, extra_str='')
-                utils.add_implicit_info(self.glfo, line, check_line_keys=True)
+                utils.add_implicit_info(self.glfo, line)
                 print 'inferred:',
                 if len(line['unique_ids']) > 1:
                     print '   %s' % ':'.join(line['unique_ids'])
