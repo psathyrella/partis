@@ -101,14 +101,15 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, s
                 del line[args.name_column]
             if args.seq_column is not None:
                 line['input_seqs'] = line[args.seq_column]
-                del line[args.seq_column]
+                if args.seq_column != 'seqs':  # stupid god damn weird backwards compatibility edge case bullshit
+                    del line[args.seq_column]
         if iname is None and 'unique_ids' not in line and 'unique_id' not in line:
             print '  %s: couldn\'t find a name (unique id) column, so using line number as the sequence label (you can set the name column with --name-column)' % (utils.color('yellow', 'warning'))
             iname = 0
         if iname is not None:
             line['unique_ids'] = '%09d' % iname
             iname += 1
-        if 'input_seqs' not in line and 'seqs' not in line and 'seq' not in line:
+        if 'input_seqs' not in line and 'seq' not in line:
             raise Exception('couldn\'t find a sequence column in %s (you can set this with --seq-column)' % infname)
         utils.process_input_line(line)
         if len(line['unique_ids']) > 1:

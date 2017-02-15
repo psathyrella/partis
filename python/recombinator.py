@@ -365,7 +365,7 @@ class Recombinator(object):
             self.insert(boundary, reco_event)
 
     # ----------------------------------------------------------------------------------------
-    def write_mute_freqs(self, gene, seq, reco_event, reco_seq_fname):
+    def write_mute_freqs(self, gene, seq, reco_event, reco_seq_fname):  # TODO unsurprisingly, this function profiles out to be kind of a dumb way to do it, in terms of run time
         """ Read position-by-position mute freqs from disk for <gene>, renormalize, then write to a file for bppseqgen. """
         mute_freqs = self.get_mute_freqs(gene)
 
