@@ -623,7 +623,6 @@ def codon_unmutated(codon, seq, position, debug=False, extra_str=''):
 
 #----------------------------------------------------------------------------------------
 def in_frame(seq, codon_positions, fv_insertion, v_5p_del, debug=False):  # NOTE I'm not passing the whole <line> in order to make it more explicit that <seq> and <codon_positions> need to correspond to each other, i.e. are either both for input seqs, or both for indel-reversed seqws
-    debug = True
     """ return true if the start and end of the cdr3 are both in frame with respect to the start of the V """
     germline_v_start = len(fv_insertion) - v_5p_del  # position in <seq> (the query sequence) to which the first base of the germline sequence aligns
     v_cpos = codon_positions['v'] - germline_v_start
