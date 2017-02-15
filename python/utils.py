@@ -643,30 +643,9 @@ def is_there_a_stop_codon(seq, fv_insertion, jf_insertion, v_5p_del, debug=False
     germline_j_end = len(seq) - len(jf_insertion)  # position immediately after the end of the germline j (if there's a j_3p_del it's accounted for with len(seq))
     istop = germline_j_end - ((germline_j_end - istart) % 3)
     codons = [seq[i : i + 3] for i in range(istart, istop, 3)]
-    print '%15s  %3d %3d   %s' % (seq, istart, istop, ' '.join(codons))
-    return
-
-# ----------------------------------------------------------------------------------------
-    coding_seq = seq[len(fv_insertion) : len(seq) - len(jf_insertion)]
-    coding_cpos = cyst_position - len(fv_insertion)
-    if coding_cpos >= len(coding_seq):
-        if debug:
-            print '      not sure if there\'s a stop codon (invalid cysteine position)'
-        return True  # not sure if there is one, since we have to way to establish the frame
-    # jump leftward in steps of three until we reach the start of the sequence
-    ipos = coding_cpos
-    while ipos > 2:
-        ipos -= 3
-    # ipos should now bet the index of the start of the first complete codon
-    while ipos + 2 < len(coding_seq):  # then jump forward in steps of three bases making sure none of them are stop codons
-        codon = coding_seq[ipos : ipos + 3]
-        if codon in codon_table['stop']:
-            if debug:
-                print '      stop codon %s at %d in %s' % (codon, ipos, coding_seq)
-            return True
-        ipos += 3
-
-    return False  # no stop codon
+    if debug:
+        print '%25s  %3d %3d  %6s   %s' % (seq, istart, istop, len(set(codons) & set(codon_table['stop'])) > 0, ' '.join(codons))
+    return len(set(codons) & set(codon_table['stop'])) > 0  # true if any of the stop codons from <codon_table> are present in <codons>
 
 #----------------------------------------------------------------------------------------
 def OLD_is_there_a_stop_codon(seq, fv_insertion, jf_insertion, cyst_position, debug=False):
@@ -887,25 +866,26 @@ def add_functional_info(chain, line, input_codon_positions):
                                   for iseq in range(len(line['unique_ids']))]
     line['in_frames'] = [in_frame(line['input_seqs'][iseq], input_codon_positions[iseq], line['fv_insertion'], line['v_5p_del'])
                          for iseq in range(len(line['unique_ids']))]
-    # line['stops'] = [is_there_a_stop_codon(line['input_seqs'][iseq], line['fv_insertion'], line['jf_insertion'], input_codon_positions[iseq]['v'])
+    # line['stops'] = [OLD_is_there_a_stop_codon(line['input_seqs'][iseq], line['fv_insertion'], line['jf_insertion'], input_codon_positions[iseq]['v'])
     #                  for iseq in range(len(line['unique_ids']))]
-    # seq = 'xyTTGTGGxy'  #TGTGCCCGCGCA'
-    # fv_insertion = 'xy'
-    # jf_insertion = 'xy'
-    # v_5p_del = 3
-    gl_bases = 'aaabbbcccddd'  # 'ACTCTGTAGCTG'
-    j_3p_del = 1
-    stuffs = [
-        ['', '', 0],
-        ['xxx', '', 0],
-        ['', '', 2],
-        ['xx', '', 4],
-        ['xx', '', 1],
-    ]
-    for fv_insertion, jf_insertion, v_5p_del in stuffs:
-        seq = fv_insertion + gl_bases[v_5p_del : len(gl_bases) - j_3p_del] + jf_insertion
-        is_there_a_stop_codon(seq, fv_insertion, jf_insertion, v_5p_del)
-    sys.exit()
+    # gl_bases = 'aaabbbTAAddd'  # 'ACTCTGTAGCTG'
+    # j_3p_del = 1
+    # stuffs = [
+    #     ['', '', 0],
+    #     ['', 'y', 0],
+    #     ['xxx', '', 0],
+    #     ['xxx', 'yyy', 0],
+    #     ['', '', 2],
+    #     ['', '', 2],
+    #     ['xx', '', 4],
+    #     ['xx', 'y', 4],
+    #     ['xx', '', 1],
+    #     ['xx', '', 1],
+    # ]
+    # for fv_insertion, jf_insertion, v_5p_del in stuffs:
+    #     seq = fv_insertion + gl_bases[v_5p_del : len(gl_bases) - j_3p_del] + jf_insertion
+    #     is_there_a_stop_codon(seq, fv_insertion, jf_insertion, v_5p_del, debug=True)
+    # sys.exit()
     line['stops'] = [is_there_a_stop_codon(line['input_seqs'][iseq], line['fv_insertion'], line['jf_insertion'], line['v_5p_del'])
                      for iseq in range(len(line['unique_ids']))]
 
