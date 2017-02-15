@@ -641,7 +641,7 @@ def is_there_a_stop_codon(seq, fv_insertion, jf_insertion, v_5p_del, debug=False
     while istart < len(fv_insertion):  # while staying in frame with the start of the v, skootch up to the first base in the query sequence that's actually aligned to the germline (i.e. up to 0 if no fv_insertion, and further if there is one)
         istart += 3
     germline_j_end = len(seq) - len(jf_insertion)  # position immediately after the end of the germline j (if there's a j_3p_del it's accounted for with len(seq))
-    istop = germline_j_end - (germline_j_end % 3)
+    istop = germline_j_end - ((germline_j_end - istart) % 3)
     codons = [seq[i : i + 3] for i in range(istart, istop, 3)]
     print '%15s  %3d %3d   %s' % (seq, istart, istop, ' '.join(codons))
     return
