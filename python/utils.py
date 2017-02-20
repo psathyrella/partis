@@ -831,12 +831,13 @@ def is_functional(line):  # NOTE code duplication with is_functional_dbg_str(
 
 # ----------------------------------------------------------------------------------------
 def add_functional_info(chain, line, input_codon_positions):
+    nseqs = len(line['seqs'])  # would normally use 'unique_ids', but this gets called during simulation before the point at which we choose the uids
     line['mutated_invariants'] = [not both_codons_unmutated(chain, line['input_seqs'][iseq], input_codon_positions[iseq])
-                                  for iseq in range(len(line['unique_ids']))]
+                                  for iseq in range(nseqs)]
     line['in_frames'] = [in_frame(line['input_seqs'][iseq], input_codon_positions[iseq], line['fv_insertion'], line['v_5p_del'])
-                         for iseq in range(len(line['unique_ids']))]
+                         for iseq in range(nseqs)]
     line['stops'] = [is_there_a_stop_codon(line['input_seqs'][iseq], line['fv_insertion'], line['jf_insertion'], line['v_5p_del'])
-                     for iseq in range(len(line['unique_ids']))]
+                     for iseq in range(nseqs)]
 
 # ----------------------------------------------------------------------------------------
 def remove_all_implicit_info(line):
@@ -1404,6 +1405,8 @@ def get_line_for_output(info):
         elif 'indelfo' in key:  # just write the list of indels -- don't need the reversed seq and debug str
             str_fcn = lambda x: str([sx['indels'] for sx in x])
 
+        if key == 'seqs':  # don't want it to be in the output dict
+            continue
         if key == 'indel_reversed_seqs':  # if no indels, it's the same as 'input_seqs', so set indel_reversed_seqs to empty strings
             outfo['indel_reversed_seqs'] = ':'.join(['' if len(info['indelfos'][iseq]['indels']) == 0 else info['indel_reversed_seqs'][iseq]
                                                      for iseq in range(len(info['unique_ids']))])
