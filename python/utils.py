@@ -1404,8 +1404,9 @@ def get_line_for_output(info):
         elif 'indelfo' in key:  # just write the list of indels -- don't need the reversed seq and debug str
             str_fcn = lambda x: str([sx['indels'] for sx in x])
 
-        if key == 'seqs':  # this column is called 'seqs' internally (for conciseness and to avoid rewriting a ton of stuff) but is called 'indel_reversed_seqs' in the output file to avoid user confusion
-            outfo['indel_reversed_seqs'] = ':'.join([info['seqs'][iseq] if len(info['indelfos'][iseq]['indels']) > 0 else '' for iseq in range(len(info['unique_ids']))])
+        if key == 'indel_reversed_seqs':  # if no indels, it's the same as 'input_seqs', so set indel_reversed_seqs to empty strings
+            outfo['indel_reversed_seqs'] = ':'.join(['' if len(info['indelfos'][iseq]['indels']) == 0 else info['indel_reversed_seqs'][iseq]
+                                                     for iseq in range(len(info['unique_ids']))])
         elif key in column_configs['lists']:
             outfo[key] = ':'.join([str_fcn(v) for v in info[key]])
         elif key in column_configs['lists-of-lists']:

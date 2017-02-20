@@ -1,24 +1,14 @@
 # now
 #  - fix sw-cache-[] stuff in test.py (especially/only when cache busting)
-#  - switch in-frame-cdr3 to include in-framedness of entire V (?)
-#  - data set list:
-#     https://bitbucket.org/javh/airrseq/wiki/PublicAIRR-seq
-#  - add ape, geiger, and laser to dockerfile r install line
-#  - add shm indels to testing fwk
-#  - re-add numberical precision stuff to test.py diff (diff-paramters.py, was it?)
-#  - optimize utils.is_there_a_stop_codon()
 #  - get bust-cache working with sw cache files
-#  - definitively fix ig-sw length issue
-#  - improve default n-partitions-to-write (I think just switch back to preserving previous partitions from different n_procs)
-#  - allow indels in both V and J at the same time (?)
-# print_reco_event:
-#  - handle indels within NTIs
-#  - maybe simulation line shouldn't be associated with a particular inferred line (see below)
-#  - fix multiple-indel printing'
-#  - just print the length for large fv/jf insertions
-#  - when printing cluster annotations on simulation, simulation should actually use the true partition, not split according(ish) to the inferred partition
 
-#  - add shm indels to testing, maybe directly checking that they're right
+#  - definitively fix ig-sw length issue
+
+#  - add ape, geiger, and laser to dockerfile r install line
+
+#  - improve default n-partitions-to-write (I think just switch back to preserving previous partitions from different n_procs)
+
+#  - allow indels in both V and J at the same time (?)
 
 #  - why does sw cache have indel_reversed_seqs written even if they're the same as input_seqs
 
@@ -55,7 +45,7 @@
 # code cleanup
 #  - split up utils.py
 #  - remove unused stuff from Result (and RecoEvent?)
-#  - stop using 'queries', 'duplicates', and 'indels' in sw info
+#  - stop using 'queries', 'duplicates', and 'indels' in sw info (?)
 
 # partition/annotation validation
 #  - go through a careful round of partition validation on larger samples (including light chain)
@@ -79,6 +69,8 @@
 #    - mutation-freq accuracy
 #    - cdr3 hamming or n_mutes
 #    - multi-hmm (mebbe annotation accuracy on final clusters?)
+#  - add shm indels, maybe directly checking that they're right
+#  - re-add numberical precision stuff to test.py diff (diff-paramters.py, was it?)
 
 # allele finding/germline set generation:
 #  - for new alleles that are clearly homozygous (i.e. fit is flat and near 1.) we should maybe remove the old allele
@@ -117,3 +109,6 @@
 
 # over-long multi-hmm d (and kinda j) 5' insertion:
 # /home/dralph/work/partis-dev/packages/ham/bcrham --algorithm viterbi --debug 2 --hmmdir _tmp/tmp-hmms --datadir /tmp/dralph/hmms/391731/germline-sets --infile /tmp/dralph/hmms/391731/hmm_input.csv --outfile /tmp/dralph/hmms/391731/hmm_output.csv --chain h --random-seed 1478107057 --ambig-base N
+
+# print_reco_event:
+#  - when printing cluster annotations on simulation, simulation should actually use the true partition, not split according(ish) to the inferred partition
