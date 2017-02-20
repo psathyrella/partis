@@ -1588,6 +1588,8 @@ def process_out_err(out, err, extra_str='', dbgfo=None, logdir=None, debug=None)
             continue
         if 'srun: job' in line and 'has been allocated resources' in line:
             continue
+        if 'srun: Required node not available (down, drained or reserved)' in line:
+            continue
         if 'GSL_RNG_TYPE=' in line or 'GSL_RNG_SEED=' in line:
             continue
         if '[ig_align] Read' in line or '[ig_align] Aligned' in line:
