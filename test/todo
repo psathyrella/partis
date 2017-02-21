@@ -1,6 +1,4 @@
 # now
-#  - fix sw-cache-[] stuff in test.py (especially/only when cache busting)
-#  - get bust-cache working with sw cache files
 
 #  - definitively fix ig-sw length issue
 
@@ -12,8 +10,9 @@
 
 #  - why does sw cache have indel_reversed_seqs written even if they're the same as input_seqs
 
-#  - make sure partition distance plots are wrapping overflows
-#  - don't make within-vs-between plots unless there's at least a few clusters for that cdr3 length
+# - partition plots
+#   - make sure partition distance plots are wrapping overflows
+#   - don't make within-vs-between plots unless there's at least a few clusters for that cdr3 length
 
 #  - automate n-procs, at least for viterbi/parameter caching
 #    - improve n_precache_proc calculator (expecially for large samples)
@@ -71,6 +70,7 @@
 #    - multi-hmm (mebbe annotation accuracy on final clusters?)
 #  - add shm indels, maybe directly checking that they're right
 #  - re-add numberical precision stuff to test.py diff (diff-paramters.py, was it?)
+#  - fix sw-cache-[] stuff in test.py (especially/only when cache busting)
 
 # allele finding/germline set generation:
 #  - for new alleles that are clearly homozygous (i.e. fit is flat and near 1.) we should maybe remove the old allele

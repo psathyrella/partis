@@ -29,12 +29,12 @@ class Tester(object):
 
         self.stypes = ['ref', 'new']  # I don't know what the 's' stands for
         self.dtypes = ['data', 'simu']
-        self.dirs = {'ref' : 'test/reference-results', 'new' : 'test/_new-results'}
+        self.dirs = {'ref' : 'test/reference-results', 'new' : 'test/new-results'}
         self.perfdirs = {st : 'simu-' + st + '-performance' for st in self.stypes}
         if not os.path.exists(self.dirs['new']):
             os.makedirs(self.dirs['new'])
         self.simfnames = {st : self.dirs[st] + '/' + self.label + '/simu.csv' for st in self.stypes}
-        self.param_dirs = { st : { dt : self.dirs[st] + '/' + self.label + '/parameters/' + dt for dt in ['simu', 'data']} for st in self.stypes}  # muddafuggincomprehensiongansta
+        self.param_dirs = { st : { dt : self.dirs[st] + '/' + self.label + '/parameters/' + dt for dt in self.dtypes} for st in self.stypes}  # muddafuggincomprehensiongansta
         self.common_extras = ['--seed', '1', '--n-procs', '10', '--simulation-germline-dir', 'data/germlines/human']
         self.parameter_caching_extras = ['--n-max-total-alleles', '10', '--n-alleles-per-gene', '1']
 
@@ -54,6 +54,7 @@ class Tester(object):
         self.n_partition_queries = '500'
         # n_data_inference_queries = '50'
         self.logfname = self.dirs['new'] + '/test.log'
+        self.sw_cachenames = {st : {dt : self.param_dirs[st][dt] + '/sw-cache' for dt in self.dtypes} for st in ['ref']}  # don't yet know the 'new' ones (they'll be the same only if the simulation is the same) #self.stypes}
         self.cachefnames = { st : 'cache-' + st + '-partition.csv' for st in self.stypes }
 
         self.quick_tests = ['annotate-ref-simu']
@@ -76,7 +77,6 @@ class Tester(object):
             self.tests['cache-parameters-simu']  = {'extras' : [ostr for ostr in self.parameter_caching_extras]}  # list comprehension to make sure it's a copy
             add_inference_tests('new')
 
-        # add some arguments
         for ptest, argfo in self.tests.items():
             namelist = ptest.split('-')
             argfo['bin'] = self.partis
@@ -132,7 +132,6 @@ class Tester(object):
         if not args.only_ref and not args.quick:
             self.compare_production_results()
             self.compare_stuff(input_stype='new')
-
         self.compare_run_times()
 
     # ----------------------------------------------------------------------------------------
@@ -153,7 +152,10 @@ class Tester(object):
         if name == 'partition-' + info['input_stype'] + '-simu':
             this_cachefname = self.dirs['new'] + '/' + self.cachefnames[info['input_stype']]
             if os.path.exists(this_cachefname):
-                check_call(['rm', '-v', this_cachefname])
+                if args.dry_run:
+                    print '   would remove %s' % this_cachefname
+                else:
+                    check_call(['rm', '-v', this_cachefname])
 
         # ref_globfnames = [fn for dtype in self.dtypes for fn in glob.glob(self.param_dirs['ref'][dtype] + '/sw-cache-*')]
         # if len(ref_globfnames) > 0:
@@ -177,7 +179,8 @@ class Tester(object):
 
     # ----------------------------------------------------------------------------------------
     def run(self, args):
-        open(self.logfname, 'w').close()
+        if not args.dry_run:
+            open(self.logfname, 'w').close()
 
         for name, info in self.tests.items():
             if args.quick and name not in self.quick_tests:
@@ -594,7 +597,7 @@ parser.add_argument('--bust-cache', action='store_true', help='copy info from ne
 parser.add_argument('--comparison-plots', action='store_true')
 # parser.add_argument('--make-plots', action='store_true')
 # example to make comparison plots:
-#   ./bin/compare-plotdirs.py --plotdirs test/reference-results/simu-new-performance/sw:test/_new-results/simu-new-performance/sw --names ref:new --outdir $www/partis/tmp/test-plots
+#   ./bin/compare-plotdirs.py --plotdirs test/reference-results/simu-new-performance/sw:test/new-results/simu-new-performance/sw --names ref:new --outdir $www/partis/tmp/test-plots
 
 parser.add_argument('--glfo-dir', default='data/germlines/human')
 parser.add_argument('--chain', default='h')
