@@ -33,7 +33,7 @@ class Tester(object):
         self.perfdirs = {st : 'simu-' + st + '-performance' for st in self.stypes}
         if not os.path.exists(self.dirs['new']):
             os.makedirs(self.dirs['new'])
-        self.simfnames = {st : self.dirs[st] + '/' + self.label + '/simu.csv' for st in self.stypes}
+        self.infnames = {st : {dt : self.datafname if dt == 'data' else self.dirs[st] + '/' + self.label + '/simu.csv' for dt in self.dtypes} for st in self.stypes}
         self.param_dirs = { st : { dt : self.dirs[st] + '/' + self.label + '/parameters/' + dt for dt in self.dtypes} for st in self.stypes}  # muddafuggincomprehensiongansta
         self.common_extras = ['--seed', '1', '--n-procs', '10', '--simulation-germline-dir', 'data/germlines/human']
         self.parameter_caching_extras = ['--n-max-total-alleles', '10', '--n-alleles-per-gene', '1']
@@ -54,7 +54,7 @@ class Tester(object):
         self.n_partition_queries = '500'
         # n_data_inference_queries = '50'
         self.logfname = self.dirs['new'] + '/test.log'
-        self.sw_cachenames = {st : {dt : self.param_dirs[st][dt] + '/sw-cache' for dt in self.dtypes} for st in ['ref']}  # don't yet know the 'new' ones (they'll be the same only if the simulation is the same) #self.stypes}
+        self.sw_cachenames = {st : {dt : self.param_dirs[st][dt] + '/sw-cache' for dt in self.dtypes} for st in self.stypes}  # don't yet know the 'new' ones (they'll be the same only if the simulation is the same) #self.stypes}
         self.cachefnames = { st : 'cache-' + st + '-partition.csv' for st in self.stypes }
 
         self.tests = OrderedDict()
@@ -121,20 +121,15 @@ class Tester(object):
 
         if '--plot-performance' in argfo['extras']:
             argfo['extras'] += ['--plotdir', self.dirs['new'] + '/' + self.perfdirs[input_stype], '--only-csv-plots']
-#           if '--n-max-queries' not in argfo['extras']:  # if --n-max-queries *is* specified, it'd be a different XXX nah! switch to using the sw cache file all the time
-#               argfo['extras'] += ['--sw-cachefname', self.sw_cachenames[
 
         if ptest == 'simulate':
             argfo['extras'] += ['--parameter-dir', self.param_dirs[input_stype]['data']]
-        elif input_dtype == 'simu':
-            argfo['extras'] += ['--is-simu', ]
-            argfo['extras'] += ['--infname', self.simfnames[input_stype]]
-            argfo['extras'] += ['--parameter-dir', self.param_dirs[input_stype]['simu']]
-        elif input_dtype == 'data':
-            argfo['extras'] += ['--infname', self.datafname]
-            argfo['extras'] += ['--parameter-dir', self.param_dirs[input_stype]['data']]
         else:
-            raise Exception('-'.join(namelist))
+            if input_dtype == 'simu':
+                argfo['extras'] += ['--is-simu', ]
+            argfo['extras'] += ['--sw-cachefname', self.sw_cachenames[input_stype][input_dtype] + '.csv']
+            argfo['extras'] += ['--infname', self.infnames[input_stype][input_dtype]]
+            argfo['extras'] += ['--parameter-dir', self.param_dirs[input_stype][input_dtype]]
 
     # ----------------------------------------------------------------------------------------
     def compare_stuff(self, input_stype):
@@ -176,7 +171,7 @@ class Tester(object):
 
         # choose a seed uid
         if name == 'seed-partition-' + info['input_stype'] + '-simu':
-            seed_uid, _ = utils.choose_seed_unique_id(args.glfo_dir, args.chain, self.simfnames[info['input_stype']], 5, 8, n_max_queries=int(self.n_partition_queries), debug=False)
+            seed_uid, _ = utils.choose_seed_unique_id(args.glfo_dir, args.chain, self.infnames[info['input_stype']]['simu'], 5, 8, n_max_queries=int(self.n_partition_queries), debug=False)
             info['extras'] += ['--seed-unique-id', seed_uid]
 
     # ----------------------------------------------------------------------------------------
@@ -194,11 +189,11 @@ class Tester(object):
             cmd_str = info['bin'] + ' ' + action
             cmd_str += ' ' + ' '.join(info['extras'] + self.common_extras)
             if name == 'simulate':
-                cmd_str += ' --outfname ' + self.simfnames['new']
+                cmd_str += ' --outfname ' + self.infnames['new']['simu']
             elif 'cache-parameters-' not in name:
                 cmd_str += ' --outfname ' + self.dirs['new'] + '/' + name + '.csv'
 
-            logstr = '%s   %s' % (utils.color('green', name, width=30, padside='right'), cmd_str)
+            logstr = '%s   %s' % (utils.color('green', name, width=30, padside='right'), cmd_str[:args.print_width])
             print logstr
             if args.dry_run:
                 continue
@@ -597,6 +592,7 @@ parser.add_argument('--only-ref', action='store_true', help='only run with input
 parser.add_argument('--skip-ref', action='store_true', help='skip stuff that\'s run by --only-ref')
 parser.add_argument('--bust-cache', action='store_true', help='copy info from new dir to reference dir, i.e. overwrite old test info')
 parser.add_argument('--comparison-plots', action='store_true')
+parser.add_argument('--print-width', type=int, default=300)
 # parser.add_argument('--make-plots', action='store_true')
 # example to make comparison plots:
 #   ./bin/compare-plotdirs.py --plotdirs test/reference-results/simu-new-performance/sw:test/new-results/simu-new-performance/sw --names ref:new --outdir $www/partis/tmp/test-plots
