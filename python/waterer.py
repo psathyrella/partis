@@ -99,10 +99,11 @@ class Waterer(object):
     # ----------------------------------------------------------------------------------------
     def read_cachefile(self, cachefname):
         start = time.time()
-        print '        reading sw results from %s' % cachefname
+        cachebase = cachefname.replace('.csv', '')
+        print '        reading sw results from %s' % cachebase
 
-        if os.path.exists(cachefname.replace('.csv', '-glfo')):
-            self.glfo = glutils.read_glfo(cachefname.replace('.csv', '-glfo'), self.args.chain)
+        if os.path.exists(cachebase + '-glfo'):
+            self.glfo = glutils.read_glfo(cachebase + '-glfo', self.args.chain)
         else:
             print '    %s didn\'t find a germline info dir along with sw cache file, but trying to read it anyway' % utils.color('red', 'warning')
 
@@ -192,8 +193,9 @@ class Waterer(object):
             if self.args.write_trimmed_and_padded_seqs_to_sw_cachefname:
                 self.pad_seqs_to_same_length()
 
-            print '        writing sw results to %s' % cachefname
-            glutils.write_glfo(cachefname.replace('.csv', '-glfo'), self.glfo)
+            cachebase = cachefname.replace('.csv', '')
+            print '        writing sw results to %s' % cachebase
+            glutils.write_glfo(cachebase + '-glfo', self.glfo)
             with open(cachefname, 'w') as outfile:
                 writer = csv.DictWriter(outfile, utils.annotation_headers + utils.sw_cache_headers)
                 writer.writeheader()
