@@ -57,9 +57,6 @@ class Tester(object):
         self.sw_cachenames = {st : {dt : self.param_dirs[st][dt] + '/sw-cache' for dt in self.dtypes} for st in ['ref']}  # don't yet know the 'new' ones (they'll be the same only if the simulation is the same) #self.stypes}
         self.cachefnames = { st : 'cache-' + st + '-partition.csv' for st in self.stypes }
 
-        self.quick_tests = ['annotate-ref-simu']
-        self.production_tests = ['cache-parameters-data', 'simulate', 'cache-parameters-simu']  # vs "inference" tests. Kind of crappy names, but we need to distinguish these three from all the other ones
-
         self.tests = OrderedDict()
 
         def add_inference_tests(input_stype):  # if input_stype is 'ref', infer on old simulation and parameters, if it's 'new' use the new ones
@@ -77,46 +74,11 @@ class Tester(object):
             self.tests['cache-parameters-simu']  = {'extras' : [ostr for ostr in self.parameter_caching_extras]}  # list comprehension to make sure it's a copy
             add_inference_tests('new')
 
+        self.quick_tests = ['annotate-ref-simu']
+        self.production_tests = ['cache-parameters-data', 'simulate', 'cache-parameters-simu']  # vs "inference" tests. Kind of crappy names, but we need to distinguish these three from all the other ones
+
         for ptest, argfo in self.tests.items():
-            namelist = ptest.split('-')
-            argfo['bin'] = self.partis
-            if 'annotate' in ptest:
-                argfo['action'] = 'run-viterbi'
-            elif 'partition' in ptest:
-                argfo['action'] = 'partition'
-                argfo['extras'] += ['--persistent-cachefname', self.dirs['new'] + '/' + self.cachefnames[input_stype]]
-                if 'seed-' in ptest or 'vsearch-' in ptest:
-                    argfo['extras'] += ['--dont-precache-naive-seqs', ]
-            elif 'cache-parameters-' in ptest:
-                argfo['action'] = 'cache-parameters'
-                dtype = namelist[-1]
-                assert dtype in self.dtypes
-                if True:  #args.make_plots:
-                    argfo['extras'] += ['--plotdir', self.dirs['new'] + '/' + self.label + '/plots/' + dtype, '--only-csv-plots', '--only-overall-plots']
-            else:
-                argfo['action'] = ptest
-
-            if ptest in self.production_tests:
-                input_stype = 'new'  # sort of...
-            else:
-                input_stype = namelist[-2]
-                assert input_stype in self.stypes
-
-            if '--plot-performance' in argfo['extras']:
-                argfo['extras'] += ['--plotdir', self.dirs['new'] + '/' + self.perfdirs[input_stype], '--only-csv-plots']
-
-            argfo['input_stype'] = input_stype
-            if ptest == 'simulate':
-                argfo['extras'] += ['--parameter-dir', self.param_dirs[input_stype]['data']]
-            elif namelist[-1] == 'simu':
-                argfo['extras'] += ['--is-simu', ]
-                argfo['extras'] += ['--infname', self.simfnames[input_stype]]
-                argfo['extras'] += ['--parameter-dir', self.param_dirs[input_stype]['simu']]
-            elif namelist[-1] == 'data':
-                argfo['extras'] += ['--infname', self.datafname]
-                argfo['extras'] += ['--parameter-dir', self.param_dirs[input_stype]['data']]
-            else:
-                raise Exception('-'.join(namelist))
+            self.fiddle_with_arguments(ptest, argfo)
 
     # ----------------------------------------------------------------------------------------
     def test(self, args):
@@ -133,6 +95,46 @@ class Tester(object):
             self.compare_production_results()
             self.compare_stuff(input_stype='new')
         self.compare_run_times()
+
+    # ----------------------------------------------------------------------------------------
+    def fiddle_with_arguments(self, ptest, argfo):
+        namelist = ptest.split('-')
+        input_stype = 'new' if ptest in self.production_tests else namelist[-2]
+        input_dtype = namelist[-1] if ptest != 'simulate' else None
+        assert input_stype in self.stypes
+        assert input_dtype in self.dtypes or input_dtype is None
+        argfo['input_stype'] = input_stype
+        argfo['bin'] = self.partis
+        if 'annotate' in ptest:
+            argfo['action'] = 'run-viterbi'
+        elif 'partition' in ptest:
+            argfo['action'] = 'partition'
+            argfo['extras'] += ['--persistent-cachefname', self.dirs['new'] + '/' + self.cachefnames[input_stype]]
+            if 'seed-' in ptest or 'vsearch-' in ptest:
+                argfo['extras'] += ['--dont-precache-naive-seqs', ]
+        elif 'cache-parameters-' in ptest:
+            argfo['action'] = 'cache-parameters'
+            if True:  #args.make_plots:
+                argfo['extras'] += ['--plotdir', self.dirs['new'] + '/' + self.label + '/plots/' + input_dtype, '--only-csv-plots', '--only-overall-plots']
+        else:
+            argfo['action'] = ptest
+
+        if '--plot-performance' in argfo['extras']:
+            argfo['extras'] += ['--plotdir', self.dirs['new'] + '/' + self.perfdirs[input_stype], '--only-csv-plots']
+#           if '--n-max-queries' not in argfo['extras']:  # if --n-max-queries *is* specified, it'd be a different XXX nah! switch to using the sw cache file all the time
+#               argfo['extras'] += ['--sw-cachefname', self.sw_cachenames[
+
+        if ptest == 'simulate':
+            argfo['extras'] += ['--parameter-dir', self.param_dirs[input_stype]['data']]
+        elif input_dtype == 'simu':
+            argfo['extras'] += ['--is-simu', ]
+            argfo['extras'] += ['--infname', self.simfnames[input_stype]]
+            argfo['extras'] += ['--parameter-dir', self.param_dirs[input_stype]['simu']]
+        elif input_dtype == 'data':
+            argfo['extras'] += ['--infname', self.datafname]
+            argfo['extras'] += ['--parameter-dir', self.param_dirs[input_stype]['data']]
+        else:
+            raise Exception('-'.join(namelist))
 
     # ----------------------------------------------------------------------------------------
     def compare_stuff(self, input_stype):
