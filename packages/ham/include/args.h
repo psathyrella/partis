@@ -5,6 +5,7 @@
 #include <fstream>
 #include <cassert>
 #include <ctime>
+#include <cmath>
 
 #include <text.h>
 #include "tclap/CmdLine.h"
