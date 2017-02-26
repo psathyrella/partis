@@ -354,9 +354,9 @@ static void write_sam_records(kstring_t *str, const kseq_t *read,
     }
 
     if(a.loc.qe - a.loc.qb != (int)match_length - 1) {
-      fprintf(stderr, "[ig_align] Error: match length mismatch for query %s score %d target %s: qe - qb = %d - %d = %d != match_length - 1 = %zu\n", read->name.s, a.loc.score, a.target_name, a.loc.qe, a.loc.qb, a.loc.qe - a.loc.qb, match_length - 1);
-      fprintf(stderr, "        %s    %s\n", tmpstr.s, read->seq.s);
-      // assert(0);
+      /* fprintf(stderr, "[ig_align] Error: match length mismatch for query %s score %d target %s: qe - qb = %d - %d = %d != match_length - 1 = %zu\n", read->name.s, a.loc.score, a.target_name, a.loc.qe, a.loc.qb, a.loc.qe - a.loc.qb, match_length - 1); */
+      /* fprintf(stderr, "        %s    %s\n", tmpstr.s, read->seq.s); */
+      /* // assert(0); */
       continue;
     }
 
