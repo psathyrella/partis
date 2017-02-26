@@ -28,6 +28,7 @@ class PartitionPlotter(object):
 
     # ----------------------------------------------------------------------------------------
     def plot_each_within_vs_between_hist(self, distances, plotdir, plotname, plottitle):
+        import plotting
         xmax = 1.2 * max([d for dtype in distances for d in distances[dtype]])
         hists = {}
         for dtype in distances:
