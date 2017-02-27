@@ -977,12 +977,14 @@ class Waterer(object):
         qrseq, glseq = line['j_qr_seqs'][0], line['j_gl_seq']
         j_start = line['regional_bounds']['j'][0]
         icheck = k_d_max  # <icheck> is what we're considering changing k_d_max to
-        while k_v_min + icheck + 1 < min(line['codon_positions']['j'], len(qrseq)):  # usually: stop when the first j/dj base is the first base of the tryp (even for the smallest k_v), but add min() with len(qrseq) to avoid extremely rare pathologies
+        # dammit, this is wrong, should be something other that len(qrseq), but oh well, it's still handled below (and it'll be much easier to really fix when I get sequence that actually causes the crash so I can dissect it)
+        # while k_v_min + icheck + 1 < min(line['codon_positions']['j'], len(qrseq)):  # usually: stop when the first j/dj base is the first base of the tryp (even for the smallest k_v), but add min() with len(qrseq) to avoid extremely rare pathologies
+        while k_v_min + icheck + 1 < line['codon_positions']['j']:  # usually: stop when the first j/dj base is the first base of the tryp (even for the smallest k_v), but add min() with len(qrseq) to avoid extremely rare pathologies
             icheck += 1
             if debug:
                 print '    check %d' % icheck,
-            if k_v_min + icheck - j_start >= len(qrseq):  # shouldn't happen any more (min() in while statement should avoid it), but just in case
-                print '    %s for query %s: k_v_min + icheck - j_start = %d + %d - %d = %d >= len(qrseq) = %d' % (utils.color('red', 'warning'), ' '.join(line['unique_ids']), k_v_min, icheck, j_start, k_v_min + icheck - j_start, len(qrseq))
+            if k_v_min + icheck - j_start >= len(qrseq) or k_v_min + icheck - j_start >= len(glseq):  # shouldn't happen any more (min() in while statement should avoid it), but just in case
+                print '    %s for query %s: k_v_min + icheck - j_start = %d + %d - %d = %d [ < 0 or >= len(qrseq) = %d   or   len(glseq) = %d]' % (utils.color('red', 'warning'), ' '.join(line['unique_ids']), k_v_min, icheck, j_start, k_v_min + icheck - j_start, len(qrseq), len(glseq))
                 return None
             if k_v_min + icheck < j_start:  # make sure we're at least as far as the start of the j (i.e. let the hmm arbitrate between d match and dj insertion)
                 if debug:
