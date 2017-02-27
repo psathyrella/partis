@@ -8,8 +8,6 @@
 
 #  - allow indels in both V and J at the same time (?)
 
-#  - why does sw cache have indel_reversed_seqs written even if they're the same as input_seqs
-
 # - partition plots
 #   - make sure partition distance plots are wrapping overflows
 #   - don't make within-vs-between plots unless there's at least a few clusters for that cdr3 length
@@ -17,10 +15,9 @@
 #  - automate n-procs, at least for viterbi/parameter caching
 #    - improve n_precache_proc calculator (expecially for large samples)
 #    - auto-set clustering step procs (at least when seed partitioning, since you don't know before you remove other cdr3 lengths how many you'll have)
+
 #  - why so many left side exclusions in laura data
 #    - more generally, wtf is really going on with both left and right exclusions -- are they all how I want them to be?
-#  - clean up the clusterfuck internal_name_column bullshit in seqfileopener
-#  - move metadata and seqs of interest and anything else you can to datascripts
 
 # check whether translation needs to have a lower fractional bound, i.e. don't let the translation be too much smaller than the actual cluster (c.f. kate-qrs data -- what's happening translation-wise when really big clusters are getting merged)
 # add between vs within cluster hamming distance plots
@@ -70,7 +67,6 @@
 #    - multi-hmm (mebbe annotation accuracy on final clusters?)
 #  - add shm indels, maybe directly checking that they're right
 #  - re-add numberical precision stuff to test.py diff (diff-paramters.py, was it?)
-#  - fix sw-cache-[] stuff in test.py (especially/only when cache busting)
 
 # allele finding/germline set generation:
 #  - for new alleles that are clearly homozygous (i.e. fit is flat and near 1.) we should maybe remove the old allele

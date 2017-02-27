@@ -600,8 +600,9 @@ parser.add_argument('--print-width', type=int, default=300)
 parser.add_argument('--glfo-dir', default='data/germlines/human')
 parser.add_argument('--chain', default='h')
 args = parser.parse_args()
-if not args.quick and not args.only_ref and not args.skip_ref:
-    print '%s even if you\'re about to bust the cache, there\'s probably not really a reason to be running the ref *and* non-ref stuff' % utils.color('yellow', 'warning')
+# this is less true than it used to be, because with --only-ref we now just read sw-cache files
+# if not args.quick and not args.only_ref and not args.skip_ref:
+#     print '%s even if you\'re about to bust the cache, there\'s probably not really a reason to be running the ref *and* non-ref stuff' % utils.color('yellow', 'warning')
 
 tester = Tester()
 if args.bust_cache:
