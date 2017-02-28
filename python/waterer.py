@@ -733,6 +733,16 @@ class Waterer(object):
         for region in utils.regions:
             infoline[region + '_gene'] = best[region]
 
+        if self.args.linearham:
+            sortmatches = {r : [g for _, g in qinfo['matches'][r]] for r in utils.regions}
+            infoline['flexbounds'] = {}
+            def span(boundlist):
+                return (max(0, min(boundlist) - 2), max(boundlist) + 2)
+            for region in utils.regions:
+                bounds_l, bounds_r = zip(*[qinfo['qrbounds'][g] for g in sortmatches[region]])  # left- (and right-) bounds for each gene
+                infoline['flexbounds'][region] = {'l' : span(bounds_l), 'r' : span(bounds_r)}
+            infoline['relpos'] = {gene: qinfo['qrbounds'][gene][0] - glbound[0] for gene, glbound in qinfo['glbounds'].items()}  # position in the query sequence of the start of each uneroded germline match
+
         infoline['cdr3_length'] = codon_positions['j'] - codon_positions['v'] + 3
         infoline['codon_positions'] = codon_positions
 
