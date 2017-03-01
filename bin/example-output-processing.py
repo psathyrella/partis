@@ -9,7 +9,7 @@ import glutils
 from clusterpath import ClusterPath
 
 # read default germline info
-glfo = glutils.read_glfo(partis_path + '/data/germlines/human', chain='h')
+glfo = glutils.read_glfo(partis_path + '/data/germlines/human', locus='igh')
 
 print 'first parse an annotation csv file:'
 with open(partis_path + '/test/reference-results/annotate-new-simu.csv') as csvfile:

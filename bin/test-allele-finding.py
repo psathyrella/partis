@@ -21,7 +21,7 @@ def run(cmd_str):
     check_call(cmd_str.split())
 
 base_cmd = './bin/partis'
-chain = 'h'
+locus = 'igh'
 
 # ----------------------------------------------------------------------------------------
 def join_gene_names(gene_name_str):
@@ -54,7 +54,7 @@ def run_test(args):
             cmd_str += ' --n-alleles-per-gene 2,3:1,2:1,2'
         else:
             simulation_genes = ':'.join(args.sim_v_genes + args.dj_genes)
-            sglfo = glutils.read_glfo('data/germlines/human', chain=chain, only_genes=simulation_genes.split(':'))
+            sglfo = glutils.read_glfo('data/germlines/human', locus=locus, only_genes=simulation_genes.split(':'))
 
             added_snp_names = None
             if args.snp_positions is not None:
@@ -83,7 +83,7 @@ def run_test(args):
             check_call(['rm', '-v', cachefname])
             sw_cache_gldir = cachefname.replace('.csv', '-glfo')
             if os.path.exists(sw_cache_gldir):  # if stuff fails halfway through, you can get one but not the other
-                glutils.remove_glfo_files(sw_cache_gldir, chain)
+                glutils.remove_glfo_files(sw_cache_gldir, locus)
                 # os.rmdir(sw_cache_gldir)
 
     # generate germline set and cache parameters
@@ -97,7 +97,7 @@ def run_test(args):
         cmd_str += ' --find-new-alleles'
     else:
         inference_genes = ':'.join(args.inf_v_genes + args.dj_genes)
-        iglfo = glutils.read_glfo('data/germlines/human', chain=chain, only_genes=inference_genes.split(':'), debug=True)
+        iglfo = glutils.read_glfo('data/germlines/human', locus=locus, only_genes=inference_genes.split(':'), debug=True)
         glutils.write_glfo(args.outdir + '/germlines/inference', iglfo)
         cmd_str += ' --initial-germline-dir ' + args.outdir + '/germlines/inference'
         cmd_str += ' --find-new-alleles --dont-remove-unlikely-alleles'  # --new-allele-fname ' + args.outdir + '/new-alleles.fa'

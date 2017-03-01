@@ -61,7 +61,7 @@ class ModelPlotter(object):
 
             sorted_to_states = {}
             for name in state.transitions.keys():
-                if name.find('IG') == 0:
+                if name.find('IG') == 0 or name.find('TR') == 0:
                     sorted_to_states[name] = int(paramutils.simplify_state_name(name))
                 else:
                     sorted_to_states[name] = name
@@ -82,7 +82,7 @@ class ModelPlotter(object):
                     label = 'end'
                     color = 'red'
                 else:  # regional/internal states
-                    assert to_state.find('IG') == 0
+                    assert to_state.find('IG') == 0 or to_state.find('TR') == 0
                     label = 'internal'
                     color = 'green'
 

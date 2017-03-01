@@ -15,26 +15,19 @@ import utils
 # ----------------------------------------------------------------------------------------
 glfo_dir = 'germline-sets'  # always put germline info into a subdir with this name
 
-dummy_d_genes = {'h' : None, 'k' : 'IGKDx-x*x', 'l' : 'IGLDx-x*x'}  # for light chain
+dummy_d_genes = {l : l.upper() + 'Dx-x*x' if 'd' not in r else None}  # e.g. IGKDx-x*x for igk, None for igh
 
-# single-chain file names
+# single-locus file names
 extra_fname = 'extras.csv'
-def glfo_fasta_fnames(chain):
-    if chain == 'h':
-        return ['ig' + chain + r + '.fasta' for r in utils.regions]
-    else:
-        return ['ig' + chain + r + '.fasta' for r in utils.regions if r != 'd']
-def glfo_fnames(chain):
-    return [extra_fname, ] + glfo_fasta_fnames(chain)
-
-# fasta file names including all chains
-def all_glfo_fasta_fnames():
-    return ['ig' + chain + r + '.fasta' for chain in utils.chains for r in utils.regions]
+def glfo_fasta_fnames(locus):
+    return [locus + r + '.fasta' for r in utils.getregions(locus)]
+def glfo_fnames(locus):
+    return [extra_fname, ] + glfo_fasta_fnames(locus)
 
 csv_headers = ['gene', 'cyst_position', 'tryp_position', 'phen_position', 'aligned_seq']
 
 imgt_info_indices = ('accession-number', 'gene', 'species', 'functionality', '', '', '', '', '', '', '', '', '')  # I think this is the right number of entries, but it doesn't really matter
-functionalities = ['F', 'ORF', 'P', '(F)', '[F]', '[P]', '[ORF]']   # not actually sure what the last few mean
+functionalities = ['F', 'ORF', 'P', '(F)', '[F]', '[P]', '[ORF]']   # not actually sure what the parentheses and brackets mean
 pseudogene_funcionalities = ['P', '[P]']
 
 duplicate_names = {
@@ -95,7 +88,7 @@ def read_fasta_file(seqs, fname, skip_pseudogenes, aligned=False):
     seq_to_gene_map = {}
     for seqfo in utils.read_fastx(fname):
         # first get gene name
-        if seqfo['info'][0][:2] != 'IG':  # if it's an imgt file, with a bunch of header info (and the accession number first)
+        if seqfo['info'][0][:2] != 'IG' and seqfo['info'][0][:2] != 'TR':  # if it's an imgt file, with a bunch of header info (and the accession number first)
             gene = seqfo['info'][imgt_info_indices.index('gene')]
             functionality = seqfo['info'][imgt_info_indices.index('functionality')]
             if functionality not in functionalities:
@@ -138,12 +131,12 @@ def read_fasta_file(seqs, fname, skip_pseudogenes, aligned=False):
         print '    skipped %d %s pseudogenes (leaving %d)' % (n_skipped_pseudogenes, utils.get_region(os.path.basename(fname)), len(seqs[utils.get_region(os.path.basename(fname))]))
 
 #----------------------------------------------------------------------------------------
-def read_germline_seqs(gldir, chain, skip_pseudogenes):
+def read_germline_seqs(gldir, locus, skip_pseudogenes):
     seqs = {r : OrderedDict() for r in utils.regions}
-    for fname in glfo_fasta_fnames(chain):
-        read_fasta_file(seqs, gldir + '/' + chain + '/' + fname, skip_pseudogenes)
-    if chain != 'h':
-        seqs['d'][dummy_d_genes[chain]] = 'A'  # NOTE this choice ('A') is also set in packages/ham/src/bcrutils.cc
+    for fname in glfo_fasta_fnames(locus):
+        read_fasta_file(seqs, gldir + '/' + locus + '/' + fname, skip_pseudogenes)
+    if 'd' not in utils.getregions(locus):  # choose a sequence for the dummy d
+        seqs['d'][dummy_d_genes[locus]] = 'A'  # this (arbitrary) choice is also made in packages/ham/src/bcrutils.cc
     return seqs
 
 # ----------------------------------------------------------------------------------------
@@ -158,7 +151,7 @@ def read_aligned_gl_seqs(fname, glfo):
         aligned_gl_seqs['v'][gene] += n_extra_gaps * utils.gap_chars[0]
 
     # check that we got all the genes
-    glfo_genes = set([g for r in utils.regions for g in glfo['seqs'][r]]) - set([dummy_d_genes[glfo['chain']], ])
+    glfo_genes = set([g for r in utils.regions for g in glfo['seqs'][r]]) - set([dummy_d_genes[glfo['locus']], ])
     aligned_genes = set([g for r in utils.regions for g in aligned_gl_seqs[r]])
     if len(glfo_genes - aligned_genes) > 0:
         raise Exception('missing alignments for %s' % ' '.join(glfo_genes - aligned_genes))
@@ -275,7 +268,7 @@ def get_missing_codon_info(glfo, debug=False):
         assert utils.codon_unmutated(codon, aligned_seq, pos_in_alignment, debug=debug)
         return pos_in_alignment
 
-    for region, codon in utils.conserved_codons[glfo['chain']].items():
+    for region, codon in utils.conserved_codonsx[glfo['locus']].items():
         missing_genes = set(glfo['seqs'][region]) - set(glfo[codon + '-positions'])
         if len(missing_genes) == 0:
             if debug:
@@ -332,7 +325,7 @@ def get_missing_codon_info(glfo, debug=False):
 #----------------------------------------------------------------------------------------
 def remove_extraneouse_info(glfo, debug=False):
     """ remove codon info corresponding to genes that aren't in 'seqs' """
-    for region, codon in utils.conserved_codons[glfo['chain']].items():
+    for region, codon in utils.conserved_codonsx[glfo['locus']].items():
         genes_to_remove = set(glfo[codon + '-positions']) - set(glfo['seqs'][region])
         if debug:
             print '    removing %s info for %d genes (leaving %d)' % (codon, len(genes_to_remove), len(glfo[codon + '-positions']) - len(genes_to_remove))
@@ -341,29 +334,33 @@ def remove_extraneouse_info(glfo, debug=False):
 
 # ----------------------------------------------------------------------------------------
 def read_extra_info(glfo, gldir):
-    for codon in utils.conserved_codons[glfo['chain']].values():
+    for codon in utils.conserved_codonsx[glfo['locus']].values():
         glfo[codon + '-positions'] = {}
-    with open(gldir + '/' + glfo['chain'] + '/' + extra_fname) as csvfile:
+    with open(gldir + '/' + glfo['locus'] + '/' + extra_fname) as csvfile:
         reader = csv.DictReader(csvfile)
         for line in reader:
-            for codon in utils.conserved_codons[glfo['chain']].values():
+            for codon in utils.conserved_codonsx[glfo['locus']].values():
                 if line[codon + '_position'] != '':
                     glfo[codon + '-positions'][line['gene']] = int(line[codon + '_position'])
 
 #----------------------------------------------------------------------------------------
-def read_glfo(gldir, chain, only_genes=None, skip_pseudogenes=True, debug=False):
-    if not os.path.exists(gldir + '/' + chain):
-        raise Exception('germline set directory \'%s\' does not exist (maybe --parameter-dir is corrupted, maybe crashed while writing parameters?)' % (gldir + '/' + chain))
+def read_glfo(gldir, locus, only_genes=None, skip_pseudogenes=True, debug=False):
+    if not os.path.exists(gldir + '/' + locus):
+        if locus[:2] == 'ig' and os.path.exists(gldir + '/' + locus[2]):  # backwards compatibility
+            print '    note: linking new germline dir name to old name'
+            check_call(['ln', '-sfv', gldir + '/' + locus[2], gldir + '/' + locus])
+        else:
+            raise Exception('germline set directory \'%s\' does not exist (maybe --parameter-dir is corrupted, maybe crashed while writing parameters?)' % (gldir + '/' + locus))
 
     if debug:
-        print '  reading %s chain glfo from %s' % (chain, gldir)
-    glfo = {'chain' : chain}
-    glfo['seqs'] = read_germline_seqs(gldir, chain, skip_pseudogenes)
+        print '  reading %s locus glfo from %s' % (locus, gldir)
+    glfo = {'locus' : locus}
+    glfo['seqs'] = read_germline_seqs(gldir, locus, skip_pseudogenes)
     read_extra_info(glfo, gldir)
     get_missing_codon_info(glfo, debug=debug)
     restrict_to_genes(glfo, only_genes, debug=debug)
 
-    for region, codon in utils.conserved_codons[glfo['chain']].items():
+    for region, codon in utils.conserved_codonsx[glfo['locus']].items():
         seqons = [(seq, glfo[codon + '-positions'][gene]) for gene, seq in glfo['seqs'][region].items()]  # (seq, pos) pairs
         check_a_bunch_of_codons(codon, seqons, extra_str='      ', debug=debug)
 
@@ -509,8 +506,8 @@ def remove_gene(glfo, gene, debug=False):
         if debug:
             print '  removing %s from glfo' % utils.color_gene(gene)
         del glfo['seqs'][region][gene]
-        if region in utils.conserved_codons[glfo['chain']]:
-            del glfo[utils.conserved_codons[glfo['chain']][region] + '-positions'][gene]
+        if region in utils.conserved_codonsx[glfo['locus']]:
+            del glfo[utils.conserved_codonsx[glfo['locus']][region] + '-positions'][gene]
     else:
         if debug:
             print '  can\'t remove %s from glfo, it\'s not there' % utils.color_gene(gene)
@@ -597,39 +594,53 @@ def add_some_snps(snps_to_add, glfo, remove_template_genes=False, debug=False):
 def write_glfo(output_dir, glfo, only_genes=None, debug=False):
     if debug:
         print '  writing glfo to %s%s' % (output_dir, '' if only_genes is None else ('  (restricting to %d genes)' % len(only_genes)))
-    if os.path.exists(output_dir + '/' + glfo['chain']):
-        remove_glfo_files(output_dir, glfo['chain'])  # also removes output_dir
-    os.makedirs(output_dir + '/' + glfo['chain'])
+    if os.path.exists(output_dir + '/' + glfo['locus']):
+        remove_glfo_files(output_dir, glfo['locus'])  # also removes output_dir
+    os.makedirs(output_dir + '/' + glfo['locus'])
 
-    for fname in glfo_fasta_fnames(glfo['chain']):
-        with open(output_dir + '/' + glfo['chain'] + '/' + fname, 'w') as outfile:
+    for fname in glfo_fasta_fnames(glfo['locus']):
+        with open(output_dir + '/' + glfo['locus'] + '/' + fname, 'w') as outfile:
             for gene in glfo['seqs'][utils.get_region(fname)]:
                 if only_genes is not None and gene not in only_genes:
                     continue
                 outfile.write('>' + gene + '\n')
                 outfile.write(glfo['seqs'][utils.get_region(fname)][gene] + '\n')
 
-    with open(output_dir + '/' + glfo['chain'] + '/' + extra_fname, 'w') as csvfile:
+    with open(output_dir + '/' + glfo['locus'] + '/' + extra_fname, 'w') as csvfile:
         writer = csv.DictWriter(csvfile, csv_headers)
         writer.writeheader()
-        for region, codon in utils.conserved_codons[glfo['chain']].items():
+        for region, codon in utils.conserved_codonsx[glfo['locus']].items():
             for gene, istart in glfo[codon + '-positions'].items():
                 if only_genes is not None and gene not in only_genes:
                     continue
                 writer.writerow({'gene' : gene, codon + '_position' : istart})
 
     # make sure there weren't any files lingering in the output dir when we started
-    # NOTE this will ignore the dirs corresponding to any *other* chains (which is what we want now, I think)
-    unexpected_files = set(glob.glob(output_dir + '/' + glfo['chain'] + '/*')) - set([output_dir + '/' + glfo['chain'] + '/' + fn for fn in glfo_fnames(glfo['chain'])])
+    # NOTE this will ignore the dirs corresponding to any *other* loci (which is what we want now, I think)
+    unexpected_files = set(glob.glob(output_dir + '/' + glfo['locus'] + '/*')) - set([output_dir + '/' + glfo['locus'] + '/' + fn for fn in glfo_fnames(glfo['locus'])])
     if len(unexpected_files) > 0:
         raise Exception('unexpected file(s) while writing germline set: %s' % (' '.join(unexpected_files)))
 
 # ----------------------------------------------------------------------------------------
-def remove_glfo_files(gldir, chain):
-    for fname in glfo_fnames(chain):
-        os.remove(gldir + '/' + chain + '/' + fname)
-    os.rmdir(gldir + '/' + chain)
-    os.rmdir(gldir)  # at the moment, we should only be running on single-chain stuff, so the only dir with info for more than one chain should be data/germlines
+def remove_glfo_files(gldir, locus):
+    locusdir = gldir + '/' + locus
+    if not os.path.exists(locusdir):
+        print '    %s tried to remove nonexistent glfo dir %s' % (utils.color('yellow', 'warning'), locusdir)
+        return
+    if os.path.islink(locusdir):  # linked to original, for backwards compatibility (see read_glfo())
+        print '    note: removing link new germline dir name %s' % locusdir
+        os.remove(locusdir)
+        if os.path.exists(gldir + '/' + locus[2]):  # presumably the link's target also exists and needs to be removed
+            locusdir = gldir + '/' + locus[2]
+            print '    note: also removing old germline dir name (i.e. link target) %s' % locusdir
+    for fname in glfo_fnames(locus):
+        if os.path.exists(fname):
+            os.remove(locusdir + '/' + fname)
+        else:
+            print '    %s tried to remove non-existent glfo file %s' % (utils.color('yellow', 'warning'), fname)
+    os.rmdir(locusdir)
+    if len(os.listdir(gldir)) == 0:  # if there aren't any other locus dirs in here, remove the parent dir as well
+        os.rmdir(gldir)
 
 # ----------------------------------------------------------------------------------------
 def choose_some_alleles(region, genes_to_use, allelic_groups, n_alleles_per_gene, debug=False):

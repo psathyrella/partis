@@ -113,13 +113,13 @@ class Recombinator(object):
             self.all_mute_freqs[gene_or_insert_name] = {'overall_mean' : self.args.flat_mute_freq}
         elif gene_or_insert_name[:2] in utils.boundaries:
             replacement_genes = utils.find_replacement_genes(self.parameter_dir, min_counts=-1, all_from_region='v')
-            self.all_mute_freqs[gene_or_insert_name], _ = paramutils.read_mute_info(self.parameter_dir, this_gene=gene_or_insert_name, chain=self.args.chain, approved_genes=replacement_genes)
+            self.all_mute_freqs[gene_or_insert_name], _ = paramutils.read_mute_info(self.parameter_dir, this_gene=gene_or_insert_name, locus=self.args.locus, approved_genes=replacement_genes)
         else:
             gene_counts = utils.read_overall_gene_probs(self.parameter_dir, only_gene=gene_or_insert_name, normalize=False, expect_zero_counts=True)
             replacement_genes = None
             if gene_counts < self.args.min_observations_to_write:  # if we didn't see it enough, average over all the genes that find_replacement_genes() gives us NOTE if <gene_or_insert_name> isn't in the dict, it's because it's <args.datadir> but not in the parameter dir UPDATE not using datadir like this any more, so previous statement may not be true
                 replacement_genes = utils.find_replacement_genes(self.parameter_dir, min_counts=self.args.min_observations_to_write, gene_name=gene_or_insert_name)
-            self.all_mute_freqs[gene_or_insert_name], _ = paramutils.read_mute_info(self.parameter_dir, this_gene=gene_or_insert_name, chain=self.args.chain, approved_genes=replacement_genes)
+            self.all_mute_freqs[gene_or_insert_name], _ = paramutils.read_mute_info(self.parameter_dir, this_gene=gene_or_insert_name, locus=self.args.locus, approved_genes=replacement_genes)
 
     # ----------------------------------------------------------------------------------------
     def combine(self, initial_irandom):
@@ -159,13 +159,13 @@ class Recombinator(object):
 
         # set the original conserved codon words, so we can revert them if they get mutated NOTE we do it here, *after* setting the full recombined sequence, so the germline Vs that don't extend through the cysteine don't screw us over
         reco_event.unmutated_codons = {}
-        for region, codon in utils.conserved_codons[self.args.chain].items():
+        for region, codon in utils.conserved_codonsx[self.args.locus].items():
             fpos = reco_event.final_codon_positions[region]
             original_codon = reco_event.recombined_seq[fpos : fpos + 3]
             reco_event.unmutated_codons[region] = reco_event.recombined_seq[fpos : fpos + 3]
             # print fpos, original_codon, utils.codon_unmutated(codon, reco_event.recombined_seq, fpos)
 
-        codons_ok = utils.both_codons_unmutated(self.glfo['chain'], reco_event.recombined_seq, reco_event.final_codon_positions, extra_str='      ', debug=self.args.debug)
+        codons_ok = utils.both_codons_unmutated(self.glfo['locus'], reco_event.recombined_seq, reco_event.final_codon_positions, extra_str='      ', debug=self.args.debug)
         if not codons_ok:
             if self.args.rearrange_from_scratch and self.args.generate_germline_set:  # if you let it try more than once, it screws up the desired allele prevalence ratios
                 raise Exception('arg')
@@ -243,13 +243,13 @@ class Recombinator(object):
             for erosion in utils.real_erosions:  # includes various contortions to avoid eroding the entire gene
                 region = erosion[0]
                 gene_length = len(self.glfo['seqs'][region][tmpline[region + '_gene']])
-                if self.args.chain != 'h' and region == 'd':  # light chains dummy d treatment
-                    assert gene_length == 1 and tmpline['d_gene'] == glutils.dummy_d_genes[self.args.chain]
+                if region == 'd' and 'd' not in utils.getregions(self.args.locus):  # dummy d treatment
+                    assert gene_length == 1 and tmpline['d_gene'] == glutils.dummy_d_genes[self.args.locus]
                     tmpline[erosion + '_del'] = 1 if '5p' in erosion else 0  # always erode the whole dummy d from the left
                 else:
                     max_erosion = max(0, gene_length/2 - 2)  # now that, son, is a heuristic
-                    if region in utils.conserved_codons[self.args.chain]:
-                        codon_pos = self.glfo[utils.conserved_codons[self.args.chain][region] + '-positions'][tmpline[region + '_gene']]
+                    if region in utils.conserved_codonsx[self.args.locus]:
+                        codon_pos = self.glfo[utils.conserved_codonsx[self.args.locus][region] + '-positions'][tmpline[region + '_gene']]
                         if '3p' in erosion:
                             n_bases_to_codon = gene_length - codon_pos - 3
                         elif '5p' in erosion:
@@ -257,7 +257,7 @@ class Recombinator(object):
                         max_erosion = min(max_erosion, n_bases_to_codon)
                     tmpline[erosion + '_del'] = min(max_erosion, numpy.random.geometric(1. / utils.scratch_mean_erosion_lengths[erosion]) - 1)
             for bound in utils.boundaries:
-                mean_length = utils.scratch_mean_insertion_lengths[self.args.chain][bound]
+                mean_length = utils.scratch_mean_insertion_lengths[self.args.locus][bound]
                 length = 0 if mean_length == 0 else numpy.random.geometric(1. / mean_length) - 1
                 probs = [self.insertion_content_probs[bound][n] for n in utils.nukes]
                 tmpline[bound + '_insertion'] = ''.join(numpy.random.choice(utils.nukes, size=length, p=probs))

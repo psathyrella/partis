@@ -16,10 +16,10 @@ parser.add_argument('--base', required=True)
 parser.add_argument('--alleles')
 parser.add_argument('--other-genes')
 parser.add_argument('--region', default='v')
-parser.add_argument('--chain', default='h')
+parser.add_argument('--locus', default='igh')
 parser.add_argument('--glfo-dir', default='data/germlines/human')
 args = parser.parse_args()
-glfo = glutils.read_glfo(args.glfo_dir, args.chain)
+glfo = glutils.read_glfo(args.glfo_dir, args.locus)
 if args.alleles is None:
     args.alleles = [utils.allele(g) for g in glfo['seqs'][args.region] if args.base == utils.primary_version(g) + '-' + utils.sub_version(g)]
 else:
@@ -34,11 +34,11 @@ args.other_genes = utils.get_arg_list(args.other_genes)
 # a1, a2 = '12', '01'
 # gene1, gene2 = 'IGHV' + base + '*' + a1, 'IGHV' + base + '*' + a2
 
-genes = ['IG' + args.chain.upper() + args.region.upper() + args.base + '*' + al for al in args.alleles]
+genes = [args.locus.upper() + args.region.upper() + args.base + '*' + al for al in args.alleles]
 if args.other_genes is not None:
     genes += args.other_genes
 
-codon_positions = glfo[utils.conserved_codons[args.chain][args.region] + '-positions'] if args.region != 'd' else None
+codon_positions = glfo[utils.conserved_codonsx[args.locus][args.region] + '-positions'] if args.region != 'd' else None
 
 def print_str(gene, seq):
     return '%s   %s' % (utils.color_gene(gene, width=15), seq)

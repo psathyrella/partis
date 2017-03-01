@@ -263,8 +263,8 @@ def get_synthetic_partition_type(stype):
 # ----------------------------------------------------------------------------------------
 def generate_synthetic_partitions(args, label, n_leaves, mut_mult, seqfname, base_outfname, datafname, procs):
     _, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=False)
-    print 'using heavy chain!'
-    glfo = glutils.read_glfo(args.gldir, chain='h')
+    print 'using igh!'
+    glfo = glutils.read_glfo(args.gldir, locus='igh')
     true_partition = utils.get_true_partition(reco_info)
     for stype in args.synthetic_partitions:
         misfrac, mistype, threshold = get_synthetic_partition_type(stype)

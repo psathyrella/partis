@@ -34,10 +34,10 @@ class PartitionDriver(object):
         self.current_action = action  # *not* necessarily the same as <self.args.action>
         utils.prep_dir(self.args.workdir)
         self.my_gldir = self.args.workdir + '/' + glutils.glfo_dir
-        self.glfo = glutils.read_glfo(initial_gldir, chain=self.args.chain, only_genes=self.args.only_genes)
+        self.glfo = glutils.read_glfo(initial_gldir, locus=self.args.locus, only_genes=self.args.only_genes)
         self.simglfo = self.glfo
         if self.args.simulation_germline_dir is not None:
-            self.simglfo = glutils.read_glfo(self.args.simulation_germline_dir, chain=self.args.chain)  # NOTE uh, I think I don't want to apply <self.args.only_genes>
+            self.simglfo = glutils.read_glfo(self.args.simulation_germline_dir, locus=self.args.locus)  # NOTE uh, I think I don't want to apply <self.args.only_genes>
         glutils.write_glfo(self.my_gldir, self.glfo)  # need a copy on disk for vdjalign and bcrham (note that what we write to <self.my_gldir> in general differs from what's in <initial_gldir>)
 
         self.input_info, self.reco_info = None, None
@@ -83,7 +83,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def clean(self):
-        glutils.remove_glfo_files(self.my_gldir, self.args.chain)
+        glutils.remove_glfo_files(self.my_gldir, self.args.locus)
 
         # merge persistent and current cache files into the persistent cache file
         if self.args.persistent_cachefname is not None:
@@ -162,8 +162,8 @@ class PartitionDriver(object):
         if not look_for_cachefile and os.path.exists(cachefname):  # i.e. if we're not explicitly told to look for it, and it's there, then it's probably out of date
             print '  removing old sw cache %s' % cachefname.replace('.csv', '')
             os.remove(cachefname)
-            if os.path.exists(cachefname.replace('.csv', '-glfo')):
-                glutils.remove_glfo_files(cachefname.replace('.csv', '-glfo'), self.args.chain)
+            if os.path.exists(cachefname.replace('.csv', '-glfo')):  # it should always be there now, but there could be some old sw cache files lying around from before they had their own glfo dirs
+                glutils.remove_glfo_files(cachefname.replace('.csv', '-glfo'), self.args.locus)
         if look_for_cachefile and os.path.exists(cachefname):  # run sw if we either don't want to do any caching (None) or if we are planning on writing the results after we run
             waterer.read_cachefile(cachefname)
         else:
@@ -696,7 +696,7 @@ class PartitionDriver(object):
         cmd_str += ' --datadir ' + self.my_gldir
         cmd_str += ' --infile ' + csv_infname
         cmd_str += ' --outfile ' + csv_outfname
-        cmd_str += ' --chain ' + self.args.chain
+        cmd_str += ' --locus ' + self.args.locus
         cmd_str += ' --random-seed ' + str(self.args.seed)
         if self.args.cache_naive_hfracs:
             cmd_str += ' --cache-naive-hfracs'
@@ -1317,7 +1317,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def process_dummy_d_hack(self, line, debug=False):
         """
-        a.t.m. we force bcrham to give us D of length one for light chains.
+        a.t.m. we force bcrham to give us D of length one for loci with no D genes.
         Here, we delete the dummy D base, and give it to either V, J, or the insertion.
         """
         tmpline = copy.deepcopy(line)
@@ -1407,7 +1407,7 @@ class PartitionDriver(object):
                 padded_line['indelfos'] = [self.sw_info['indels'].get(uid, utils.get_empty_indel()) for uid in uids]  # reminder: hmm was given a sequence with any indels reversed (i.e. <self.sw_info['indels'][uid]['reverersed_seq']>)
                 padded_line['duplicates'] = [self.duplicates.get(uid, []) for uid in uids]
 
-                if self.args.chain != 'h':
+                if 'd' not in utils.getregions(self.args.locus):
                     self.process_dummy_d_hack(padded_line)
 
                 utils.add_implicit_info(self.glfo, padded_line, aligned_gl_seqs=self.aligned_gl_seqs)

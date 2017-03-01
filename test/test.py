@@ -167,11 +167,11 @@ class Tester(object):
         #         raise Exception('unexpected sw cache files: %s' % ' '.join(globfnames))
         #     check_call(['rm', '-v', globfnames[0]])
         #     sw_cache_gldir = globfnames[0].replace('.csv', '-glfo')
-        #     glutils.remove_glfo_files(sw_cache_gldir, args.chain)
+        #     glutils.remove_glfo_files(sw_cache_gldir, args.locus)
 
         # choose a seed uid
         if name == 'seed-partition-' + info['input_stype'] + '-simu':
-            seed_uid, _ = utils.choose_seed_unique_id(args.glfo_dir, args.chain, self.infnames[info['input_stype']]['simu'], 5, 8, n_max_queries=int(self.n_partition_queries), debug=False)
+            seed_uid, _ = utils.choose_seed_unique_id(args.glfo_dir, args.locus, self.infnames[info['input_stype']]['simu'], 5, 8, n_max_queries=int(self.n_partition_queries), debug=False)
             info['extras'] += ['--seed-unique-id', seed_uid]
 
     # ----------------------------------------------------------------------------------------
@@ -598,7 +598,7 @@ parser.add_argument('--print-width', type=int, default=300)
 #   ./bin/compare-plotdirs.py --plotdirs test/reference-results/simu-new-performance/sw:test/new-results/simu-new-performance/sw --names ref:new --outdir $www/partis/tmp/test-plots
 
 parser.add_argument('--glfo-dir', default='data/germlines/human')
-parser.add_argument('--chain', default='h')
+parser.add_argument('--locus', default='igh')
 args = parser.parse_args()
 # this is less true than it used to be, because with --only-ref we now just read sw-cache files
 # if not args.quick and not args.only_ref and not args.skip_ref:

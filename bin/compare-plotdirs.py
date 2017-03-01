@@ -105,7 +105,7 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
             figsize = (20, 5)
             bounds = plotconfig.default_hard_bounds.setdefault(utils.unsanitize_name(varname), None)
 
-    if 'IG' in varname:
+    if 'IG' in varname or 'TR' in varname:
         if 'mute-freqs' in pathnameclues:
             gene = utils.unsanitize_name(varname)
             plottitle = gene  # + ' -- mutation frequency'
@@ -116,8 +116,8 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
                 translegend = (0.15, -0.02)
             xline = None
             if args.glfo is not None:
-                if utils.get_region(gene) in utils.conserved_codons[args.chain]:
-                    xline = args.glfo[utils.conserved_codons[args.chain][utils.get_region(gene)] + '-positions'][gene]
+                if utils.get_region(gene) in utils.conserved_codonsx[args.locus]:
+                    xline = args.glfo[utils.conserved_codonsx[args.locus][utils.get_region(gene)] + '-positions'][gene]
         else:
             ilastdash = varname.rfind('-')
             gene = utils.unsanitize_name(varname[:ilastdash])
@@ -143,7 +143,7 @@ parser.add_argument('--performance-plots', action='store_true')
 parser.add_argument('--colors', default='#006600:#990012:#3333ff:#cc0000:#3399ff:#2b65ec:#2b65ec:#808080')
 parser.add_argument('--linewidths', default='5:3:2:2:2')
 parser.add_argument('--gldir', default='data/germlines/human')
-parser.add_argument('--chain', default='h')
+parser.add_argument('--locus', default='igh')
 parser.add_argument('--normalize', action='store_true')
 
 args = parser.parse_args()
@@ -165,7 +165,7 @@ if len(args.plotdirs) != len(args.names):
 # if args.gldir is not 'none':
 args.glfo = None
 if os.path.exists(args.gldir):
-    args.glfo = glutils.read_glfo(args.gldir, args.chain)
+    args.glfo = glutils.read_glfo(args.gldir, args.locus)
 
 # figure out if there's subdirs we need to deal with
 listof_plotdirlists, listof_outdirs = [], []

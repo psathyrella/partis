@@ -103,7 +103,7 @@ class Waterer(object):
         print '        reading sw results from %s' % cachebase
 
         if os.path.exists(cachebase + '-glfo'):
-            self.glfo = glutils.read_glfo(cachebase + '-glfo', self.args.chain)
+            self.glfo = glutils.read_glfo(cachebase + '-glfo', self.args.locus)
         else:
             print '    %s didn\'t find a germline info dir along with sw cache file, but trying to read it anyway' % utils.color('red', 'warning')
 
@@ -285,12 +285,12 @@ class Waterer(object):
         # large gap-opening penalty: we want *no* gaps in the middle of the alignments
         # match score larger than (negative) mismatch score: we want to *encourage* some level of shm. If they're equal, we tend to end up with short unmutated alignments, which screws everything up
         cmd_str = os.getenv('HOME') + '/.local/bin/vdjalign align-fastq -q'
-        cmd_str += ' --locus ' + 'IG' + self.args.chain.upper()
+        cmd_str += ' --locus ' + self.args.locus.upper()
         cmd_str += ' --max-drop 50'
         match, mismatch = self.match_mismatch
         cmd_str += ' --match ' + str(match) + ' --mismatch ' + str(mismatch)
         cmd_str += ' --gap-open ' + str(self.gap_open_penalty)
-        cmd_str += ' --vdj-dir ' + self.my_gldir + '/' + self.args.chain
+        cmd_str += ' --vdj-dir ' + self.my_gldir + '/' + self.args.locus
         cmd_str += ' --samtools-dir ' + self.args.partis_dir + '/packages/samtools'
         cmd_str += ' ' + workdir + '/' + base_infname + ' ' + workdir + '/' + base_outfname
         return cmd_str
@@ -303,12 +303,12 @@ class Waterer(object):
         # large gap-opening penalty: we want *no* gaps in the middle of the alignments
         # match score larger than (negative) mismatch score: we want to *encourage* some level of shm. If they're equal, we tend to end up with short unmutated alignments, which screws everything up
         cmd_str = self.args.ig_sw_binary
-        cmd_str += ' -l ' + 'IG' + self.args.chain.upper()  # locus
+        cmd_str += ' -l ' + self.args.locus.upper()
         cmd_str += ' -d 50'  # max drop
         match, mismatch = self.match_mismatch
         cmd_str += ' -m ' + str(match) + ' -u ' + str(mismatch)
         cmd_str += ' -o ' + str(self.gap_open_penalty)
-        cmd_str += ' -p ' + self.my_gldir + '/' + self.args.chain + '/'  # NOTE needs the trailing slash
+        cmd_str += ' -p ' + self.my_gldir + '/' + self.args.locus + '/'  # NOTE needs the trailing slash
         cmd_str += ' ' + workdir + '/' + base_infname + ' ' + workdir + '/' + base_outfname
         return cmd_str
 
@@ -483,7 +483,7 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def add_dummy_d_match(self, qinfo, first_v_qr_end):
-        dummy_d = glutils.dummy_d_genes[self.args.chain]
+        dummy_d = glutils.dummy_d_genes[self.args.locus]
         qinfo['matches']['d'].append((1, dummy_d))
         qinfo['qrbounds'][dummy_d] = (first_v_qr_end, first_v_qr_end)
         qinfo['glbounds'][dummy_d] = (1, 1)
@@ -531,7 +531,7 @@ class Waterer(object):
             qinfo['qrbounds'][gene] = qrbounds
             qinfo['glbounds'][gene] = glbounds
 
-        if self.args.chain != 'h' and len(qinfo['matches']['v']) > 0:
+        if 'd' not in utils.getregions(self.args.locus) and len(qinfo['matches']['v']) > 0:
             _, first_v_match = qinfo['matches']['v'][0]
             self.add_dummy_d_match(qinfo, first_v_qr_end=qinfo['qrbounds'][first_v_match][1])
 
@@ -812,7 +812,7 @@ class Waterer(object):
             print '  %s' % qname
 
         # do we have a match for each region?
-        for region in utils.getregions(self.args.chain):
+        for region in utils.getregions(self.args.locus):
             if len(qinfo['matches'][region]) == 0:
                 if self.debug:
                     print '      rerun: no %s match' % region  # if no d match found, maybe we should just assume entire d was eroded?
@@ -880,7 +880,7 @@ class Waterer(object):
 
         # set conserved codon positions
         codon_positions = {}
-        for region, codon in utils.conserved_codons[self.args.chain].items():
+        for region, codon in utils.conserved_codonsx[self.args.locus].items():
             # position within original germline gene, minus the position in that germline gene at which the match starts, plus the position in the query sequence at which the match starts
             pos = self.glfo[codon + '-positions'][best[region]] - qinfo['glbounds'][best[region]][0] + qinfo['qrbounds'][best[region]][0]
             if pos < 0 or pos >= len(qseq):
@@ -1078,7 +1078,7 @@ class Waterer(object):
         k_v_max += 1
         k_d_max += 1
 
-        if self.args.chain != 'h':
+        if 'd' not in utils.getregions(self.args.locus):
             best_k_d = 1
             k_d_min = 1
             k_d_max = 2

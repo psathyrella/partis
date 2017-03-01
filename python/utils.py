@@ -63,31 +63,28 @@ def get_arg_list(arg, intify=False, floatify=False, translation=None, list_of_pa
     return arglist
 
 # ----------------------------------------------------------------------------------------
+regions = ['v', 'd', 'j']
+loci = {'igh' : 'vdj',
+        'igk' : 'vj',
+        'igl' : 'vj',
+        'tra' : 'vj',
+        'trb' : 'vdj',
+        'trg' : 'vj',
+        'trd' : 'vdj',
+}
+
+# ----------------------------------------------------------------------------------------
 # values used when simulating from scratch
 # scratch_mean_mute_freqs = {'v' : 0.03, 'd' : 0.8, 'j' : 0.06}
 # scratch_mean_mute_freqs['all'] = numpy.mean([v for v in scratch_mean_mute_freqs.values()])
 scratch_mean_erosion_lengths = {'v_3p' : 2, 'd_5p' : 3, 'd_3p' : 3, 'j_5p' : 4}
-scratch_mean_insertion_lengths = {
-    'h': {'vd' : 4, 'dj' : 4},
-    'k': {'vd' : 0, 'dj' : 8},
-    'l': {'vd' : 0, 'dj' : 8}
-}
+scratch_mean_insertion_lengths = {l : {'vd' : 4 if 'd' in r else 0,  # e.g. light chain gets no vd insertion
+                                       'dj' : 4 if 'd' in r else 8}  # ...but a longer dj insertion
+                                  for l, r in loci.items()}
 
-# ----------------------------------------------------------------------------------------
-regions = ['v', 'd', 'j']
-chains = ['h', 'k', 'l']
+def getregions(locus):  # for clarity, don't use the <loci> dictionary directly to access its .values()
+    return list(loci[locus])  # doesn't really need to be a list, but it's more clearly analagous to regions & co that way
 
-def getregions(chain):
-    if chain == 'h':
-        return regions
-    else:
-        return [r for r in regions if r != 'd']
-
-# def getboundaries(chain):
-#     regions = getregions(chain)
-#     return [regions[i] + regions[i+1] for i in range(len(regions) - 1)]
-# def get_region_pairs(chain):
-#     return [{'left' : bound[0], 'right' : bound[1]} for bound in getboundaries(chain)]
 def region_pairs():
     return [{'left' : bound[0], 'right' : bound[1]} for bound in boundaries]
 
@@ -104,11 +101,9 @@ ambiguous_bases = ['N', ]
 alphabet = set(nukes + ambiguous_bases)  # NOTE not the greatest naming distinction, but note difference to <expected_characters>
 gap_chars = ['.', '-']
 expected_characters = set(nukes + ambiguous_bases + gap_chars)  # NOTE not the greatest naming distinction, but note difference to <alphabet>
-conserved_codons = {
-    'h' : {'v' : 'cyst', 'j' : 'tryp'},
-    'k' : {'v' : 'cyst', 'j' : 'phen'},
-    'l' : {'v' : 'cyst', 'j' : 'phen'}
-}
+conserved_codonsx = {l : {'v' : 'cyst',
+                             'j' : 'tryp' if 'd' in r else 'phen'}  # e.g. heavy chain has tryp, light chain has phen
+                        for l, r in loci.items()}
 codon_table = {
     'cyst' : ['TGT', 'TGC'],
     'tryp' : ['TGG', ],
@@ -127,7 +122,7 @@ for i in range(len(index_columns)):  # dict so we can access them by name instea
 # ----------------------------------------------------------------------------------------
 def get_codon(fname):
     codon = fname.split('-')[0]
-    if codon not in [c for chain in chains for c in conserved_codons[chain].values()]:
+    if codon not in [c for locus in loci for c in conserved_codonsx[locus].values()]:
         raise Exception('couldn\'t get codon from file name %s' % fname)
     return codon
 
@@ -306,7 +301,7 @@ def synthesize_multi_seq_line(uids, reco_info):  # only use when ascii-art print
 # ----------------------------------------------------------------------------------------
 def generate_dummy_v(d_gene):
     pv, sv, al = split_gene(d_gene)
-    return 'IGHVxDx' + pv + '-' + sv + '*' + al
+    return get_locus(d_gene).upper() + 'VxDx' + pv + '-' + sv + '*' + al
 
 # ----------------------------------------------------------------------------------------
 def convert_from_adaptive_headers(glfo, line, uid=None, only_dj_rearrangements=False):
@@ -348,7 +343,7 @@ def convert_from_adaptive_headers(glfo, line, uid=None, only_dj_rearrangements=F
         primary_version, sub_version = primary_version.lstrip('0'), sub_version.lstrip('0')  # alleles get to keep their leading zero (thank you imgt for being consistent)
         if region == 'j':  # adaptive calls every j sub_version 1
             sub_version = None
-        gene = rejoin_gene(glfo['chain'], region, primary_version, sub_version, allele)
+        gene = rejoin_gene(glfo['locus'], region, primary_version, sub_version, allele)
         if gene not in glfo['seqs'][region]:
             gene = glutils.convert_to_duplicate_name(glfo, gene)
         if gene not in glfo['seqs'][region]:
@@ -565,12 +560,13 @@ def summarize_gene_name(gene):
 # ----------------------------------------------------------------------------------------
 def color_gene(gene, width=None, leftpad=False):
     """ color gene name (and remove extra characters), eg IGHV3-h*01 --> hv3-h1 """
-    chain = get_chain(gene)
+    locus = get_locus(gene)
+    locus = locus[2]  # hmm... maybe?
     region = get_region(gene)
     primary_version, sub_version, allele = split_gene(gene)
 
-    n_chars = len(chain + region + primary_version)  # number of non-special characters
-    return_str = color('purple', chain) + color('red', region) + color('purple', primary_version)
+    n_chars = len(locus + region + primary_version)  # number of non-special characters
+    return_str = color('purple', locus) + color('red', region) + color('purple', primary_version)
     if sub_version is not None:
         n_chars += 1 + len(sub_version)
         return_str += '-' + color('purple', sub_version)
@@ -603,9 +599,9 @@ def remove_gaps(seq):
     return seq.translate(None, ''.join(gap_chars))
 
 # ----------------------------------------------------------------------------------------
-def both_codons_unmutated(chain, seq, positions, debug=False, extra_str=''):
+def both_codons_unmutated(locus, seq, positions, debug=False, extra_str=''):
     both_ok = True
-    for region, codon in conserved_codons[chain].items():
+    for region, codon in conserved_codonsx[locus].items():
         both_ok &= codon_unmutated(codon, seq, positions[region], debug=debug, extra_str=extra_str)
     return both_ok
 
@@ -830,9 +826,9 @@ def is_functional(line):  # NOTE code duplication with is_functional_dbg_str(
     return True
 
 # ----------------------------------------------------------------------------------------
-def add_functional_info(chain, line, input_codon_positions):
+def add_functional_info(locus, line, input_codon_positions):
     nseqs = len(line['seqs'])  # would normally use 'unique_ids', but this gets called during simulation before the point at which we choose the uids
-    line['mutated_invariants'] = [not both_codons_unmutated(chain, line['input_seqs'][iseq], input_codon_positions[iseq])
+    line['mutated_invariants'] = [not both_codons_unmutated(locus, line['input_seqs'][iseq], input_codon_positions[iseq])
                                   for iseq in range(nseqs)]
     line['in_frames'] = [in_frame(line['input_seqs'][iseq], input_codon_positions[iseq], line['fv_insertion'], line['v_5p_del'])
                          for iseq in range(nseqs)]
@@ -892,7 +888,7 @@ def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False): 
 
     # add codon-related stuff
     line['codon_positions'] = {}
-    for region, codon in conserved_codons[glfo['chain']].items():
+    for region, codon in conserved_codonsx[glfo['locus']].items():
         eroded_gl_pos = glfo[codon + '-positions'][line[region + '_gene']] - line[region + '_5p_del']
         if region == 'v':
             line['codon_positions'][region] = eroded_gl_pos + len(line['f' + region + '_insertion'])
@@ -925,7 +921,7 @@ def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False): 
     # add regional query seqs
     add_qr_seqs(line)
 
-    add_functional_info(glfo['chain'], line, input_codon_positions)
+    add_functional_info(glfo['locus'], line, input_codon_positions)
 
     line['mut_freqs'] = [hamming_fraction(line['naive_seq'], mature_seq) for mature_seq in line['seqs']]
 
@@ -992,51 +988,32 @@ def unsanitize_name(name):
     return unsaniname
 
 # ----------------------------------------------------------------------------------------
-def get_chain(inputstr):
-    """ return chain weight/locus given gene of file name """
-    if inputstr[:2] == 'IG':  # it's a gene name
-        chain = inputstr[2:3].lower()
-    elif inputstr in glutils.all_glfo_fasta_fnames():  # it's a file name
-        chain = inputstr[2:3]
-    else:
-        raise Exception('couldn\'t figure out if %s was a gene or file name' % inputstr)
-    if chain not in chains:
-        raise Exception('couldn\'t get chain from input string %s' % inputstr)
-    return chain
+def get_locus(inputstr):
+    """ return locus given gene or gl fname """
+    locus = inputstr[:3].lower()  # only need the .lower() if it's a gene name
+    if locus not in loci:
+        raise Exception('couldn\'t get locus from input string %s' % inputstr)
+    return locus
 
 # ----------------------------------------------------------------------------------------
 def get_region(inputstr):
     """ return v, d, or j of gene or gl fname """
-    if inputstr[:2] == 'IG':  # it's a gene name
-        region = inputstr[3:4].lower()
-    elif inputstr in glutils.all_glfo_fasta_fnames():  # it's a file name
-        region = inputstr[3:4]
-    else:
-        raise Exception('couldn\'t figure out if %s was a gene or file name' % inputstr)
+    region = inputstr[3].lower()  # only need the .lower() if it's a gene name
     if region not in regions:
         raise Exception('couldn\'t get region from input string %s' % inputstr)
     return region
-
-# ----------------------------------------------------------------------------------------
-def maturity_to_naivety(maturity):
-    if maturity == 'memory':
-        return 'M'
-    elif maturity == 'naive':
-        return 'N'
-    else:
-        assert False
 
 # ----------------------------------------------------------------------------------------
 def are_alleles(gene1, gene2):
     return primary_version(gene1) == primary_version(gene2) and sub_version(gene1) == sub_version(gene2)
 
 # ----------------------------------------------------------------------------------------
-def split_gene(gene):
+def split_gene_XXX(gene):
     """ returns (primary version, sub version, allele) """
-    # make sure IG[HKL][VDJ] is at the start, and there's a *
+    # make sure {IG,TR}{[HKL],[abgd]}[VDJ] is at the start, and there's a *
     if '_star_' in gene or '_slash_' in gene:
         raise Exception('gene name \'%s\' isn\'t entirely unsanitized' % gene)
-    if gene[:4] != 'IG' + get_chain(gene).upper() + get_region(gene).upper():
+    if gene[:4] != get_locus(gene).upper() + get_region(gene).upper():
         raise Exception('unexpected string in gene name %s' % gene)
     if gene.count('*') != 1:
         raise Exception('expected exactly 1 \'*\' in %s but found %d' % (gene, gene.count('*')))
@@ -1045,21 +1022,21 @@ def split_gene(gene):
         primary_version = gene[4 : gene.find('-')]  # the bit between the IG[HKL][VDJ] and the first dash (sometimes there's a second dash as well)
         sub_version = gene[gene.find('-') + 1 : gene.find('*')]  # the bit between the first dash and the star
         allele = gene[gene.find('*') + 1 : ]  # the bit after the star
-        if gene != 'IG' + get_chain(gene).upper() + get_region(gene).upper() + primary_version + '-' + sub_version + '*' + allele:
+        if gene != get_locus(gene).upper() + get_region(gene).upper() + primary_version + '-' + sub_version + '*' + allele:
             raise Exception('couldn\'t build gene name %s from %s %s %s' % (gene, primary_version, sub_version, allele))
     else:
         primary_version = gene[4 : gene.find('*')]  # the bit between the IG[HKL][VDJ] and the star
         sub_version = None
         allele = gene[gene.find('*') + 1 : ]  # the bit after the star
-        if gene != 'IG' + get_chain(gene).upper() + get_region(gene).upper() + primary_version + '*' + allele:
+        if gene != get_locus(gene).upper() + get_region(gene).upper() + primary_version + '*' + allele:
             raise Exception('couldn\'t build gene name %s from %s %s' % (gene, primary_version, allele))
 
     return primary_version, sub_version, allele
 
 # ----------------------------------------------------------------------------------------
-def rejoin_gene(chain, region, primary_version, sub_version, allele):
+def rejoin_gene_XXX(locus, region, primary_version, sub_version, allele):
     """ reverse the action of split_gene() """
-    return_str = 'IG' + chain.upper() + region.upper() + primary_version
+    return_str = locus.upper() + region.upper() + primary_version
     if sub_version is not None:  # i.e. if it isn't a j
         return_str += '-' + sub_version
     return return_str + '*' + allele
@@ -2230,8 +2207,8 @@ def get_empty_indel():
     return {'reversed_seq' : '', 'indels' : []}
 
 # ----------------------------------------------------------------------------------------
-def choose_seed_unique_id(gldir, chain, simfname, seed_cluster_size_low, seed_cluster_size_high, iseed=None, n_max_queries=-1, debug=True):
-    glfo = glutils.read_glfo(gldir, chain)
+def choose_seed_unique_id(gldir, locus, simfname, seed_cluster_size_low, seed_cluster_size_high, iseed=None, n_max_queries=-1, debug=True):
+    glfo = glutils.read_glfo(gldir, locus)
     _, reco_info = seqfileopener.get_seqfile_info(simfname, is_data=False, glfo=glfo, n_max_queries=n_max_queries)
     true_partition = get_true_partition(reco_info)
 

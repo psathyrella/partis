@@ -28,7 +28,7 @@ def readfile(fname):
             linefo = [p.replace('>', '').strip() for p in line.split('|')]
             gene = None
             for piece in linefo:
-                if piece[:2] == 'IG':
+                if piece[:2] == 'IG' or piece[:2] == 'TR':
                     gene = piece
             if gene is None:
                 raise Exception('couldn\'t fine gene in %s' % line)

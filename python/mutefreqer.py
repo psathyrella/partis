@@ -141,8 +141,8 @@ class MuteFreqer(object):
                 genehist.set_ibin(genehist.find_bin(position), freqs[position]['freq'], error=err)
             xline = None
             figsize = [7, 4]
-            if utils.get_region(gene) in utils.conserved_codons[self.glfo['chain']]:
-                codon = utils.conserved_codons[self.glfo['chain']][utils.get_region(gene)]
+            if utils.get_region(gene) in utils.conserved_codonsx[self.glfo['locus']]:
+                codon = utils.conserved_codonsx[self.glfo['locus']][utils.get_region(gene)]
                 xline = self.glfo[codon + '-positions'][gene]
             if utils.get_region(gene) == 'v':
                 figsize[0] *= 3.5
