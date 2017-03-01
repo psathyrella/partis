@@ -231,10 +231,10 @@ def get_new_alignments(glfo, region, debug=False):
         if gene not in glfo['seqs'][region]:  # only really possible if there's a bug in the preceding fifty lines, but oh well, you can't be too careful
             raise Exception('unexpected gene %s in mafft output' % gene)
         aligned_seqs[gene] = seq  # overwrite the old alignment with the new one
-    if debug and False:  # too damn verbose with all the v genes
+    if debug > 1:
         print '  new alignments:'
         for g, seq in aligned_seqs.items():
-            print '    %s   %s  %s' % (seq, utils.color_gene(g), '<--- new' if g in genes_without_alignments else '')
+            print '            %s   %s  %s' % (seq, utils.color_gene(g, width=12 if region == 'v' else 7), '<--- new' if g in genes_without_alignments else '')
 
     os.remove(already_aligned_fname)
     os.remove(not_aligned_fname)
@@ -245,28 +245,30 @@ def get_new_alignments(glfo, region, debug=False):
 
     return aligned_seqs
 
+# ----------------------------------------------------------------------------------------
+def get_n_gaps_up_to_pos(aligned_seq, pos):
+    # NOTE I think this duplicates the functionality of count_gaps()
+    """ return number of gapped positions in <aligned_seq> before <pos> """
+    ipos = 0  # position in unaligned sequence
+    n_gaps_passed = 0  # number of gapped positions in the aligned sequence that we pass before getting to <pos> (i.e. while ipos < pos)
+    while ipos < pos:
+        if aligned_seq[ipos + n_gaps_passed] in utils.gap_chars:
+            n_gaps_passed += 1
+        else:
+            ipos += 1
+    return n_gaps_passed
+
+# ----------------------------------------------------------------------------------------
+def get_pos_in_alignment(codon, aligned_seq, seq, pos, debug=False):
+    """ given <pos> in <seq>, find the codon's position in <aligned_seq> """
+    assert utils.codon_unmutated(codon, seq, pos, debug=debug)  # this only gets called on the gene with the *known* position, so it shouldn't fail
+    pos_in_alignment = pos + get_n_gaps_up_to_pos(aligned_seq, pos)
+    assert utils.codon_unmutated(codon, aligned_seq, pos_in_alignment, debug=debug)
+    return pos_in_alignment
+
 #----------------------------------------------------------------------------------------
 def get_missing_codon_info(glfo, debug=False):
-    # ----------------------------------------------------------------------------------------
-    def get_n_gaps_up_to_pos(aligned_seq, pos):
-        # NOTE I think this duplicates the functionality of count_gaps()
-        """ return number of gapped positions in <aligned_seq> before <pos> """
-        ipos = 0  # position in unaligned sequence
-        n_gaps_passed = 0  # number of gapped positions in the aligned sequence that we pass before getting to <pos> (i.e. while ipos < pos)
-        while ipos < pos:
-            if aligned_seq[ipos + n_gaps_passed] in utils.gap_chars:
-                n_gaps_passed += 1
-            else:
-                ipos += 1
-        return n_gaps_passed
-
-    # ----------------------------------------------------------------------------------------
-    def get_pos_in_alignment(codon, aligned_seq, seq, pos):
-        """ given <pos> in <seq>, find the codon's position in <aligned_seq> """
-        assert utils.codon_unmutated(codon, seq, pos, debug=debug)  # this only gets called on the gene with the *known* position, so it shouldn't fail
-        pos_in_alignment = pos + get_n_gaps_up_to_pos(aligned_seq, pos)
-        assert utils.codon_unmutated(codon, aligned_seq, pos_in_alignment, debug=debug)
-        return pos_in_alignment
+    debug = 2
 
     for region, codon in utils.conserved_codonsx[glfo['locus']].items():
         missing_genes = set(glfo['seqs'][region]) - set(glfo[codon + '-positions'])
@@ -279,8 +281,6 @@ def get_missing_codon_info(glfo, debug=False):
             print '      missing %d %s positions' % (len(missing_genes), codon)
 
         aligned_seqs = get_new_alignments(glfo, region, debug=debug)
-        # for g, s in aligned_seqs.items():
-        #     print s, utils.color_gene(g)
 
         # if region == 'j':
         #     raise Exception('missing tryp position for %s, and we can\'t infer it because tryp positions don\'t reliably align to the same position' % ' '.join(missing_genes))
@@ -295,9 +295,9 @@ def get_missing_codon_info(glfo, debug=False):
             if known_gene is None:
                 raise Exception('couldn\'t find a known %s position' % codon)
             # NOTE for cyst, should be 309 if alignments are imgt [which they used to usually be, but now probably aren't] (imgt says 104th codon --> subtract 1 to get zero-indexing, then multiply by three 3 * (104 - 1) = 309
-            known_pos_in_alignment = get_pos_in_alignment(codon, aligned_seqs[known_gene], glfo['seqs'][region][known_gene], known_pos)
+            known_pos_in_alignment = get_pos_in_alignment(codon, aligned_seqs[known_gene], glfo['seqs'][region][known_gene], known_pos, debug=debug)
             if debug:
-                print '        using known position %d (aligned %d) in %s' % (known_pos, known_pos_in_alignment, known_gene)
+                print '  using known position %d (aligned %d) from %s' % (known_pos, known_pos_in_alignment, known_gene)
         elif codon == 'cyst':
             known_pos_in_alignment = 309
             print '      assuming aligned %s position is %d (this will %s work if you\'re using imgt alignments)' % (codon, known_pos_in_alignment, utils.color('red', 'only'))
@@ -307,16 +307,18 @@ def get_missing_codon_info(glfo, debug=False):
 
         n_added = 0
         seqons = []  # (seq, pos) pairs
-        for gene in missing_genes:
+        for gene in [known_gene] + list(missing_genes):
             unaligned_pos = known_pos_in_alignment - utils.count_gaps(aligned_seqs[gene], istop=known_pos_in_alignment)
             seq_to_check = glfo['seqs'][region][gene]
             seqons.append((seq_to_check, unaligned_pos))
             glfo[codon + '-positions'][gene] = unaligned_pos
             n_added += 1
-            # if debug:
-            #     tmpseq = aligned_seqs[gene]
-            #     tmppos = known_pos_in_alignment
-            #     print '    %s%s%s   %s    (new)' % (tmpseq[:tmppos], utils.color('reverse_video', tmpseq[tmppos : tmppos + 3]), tmpseq[tmppos + 3:], utils.color_gene(gene))
+            if debug > 1:
+                tmpseq = aligned_seqs[gene]
+                tmppos = known_pos_in_alignment
+                print '            %s%s%s   %s %3s %5s' % (tmpseq[:tmppos], utils.color('reverse_video', tmpseq[tmppos : tmppos + 3]), tmpseq[tmppos + 3:], utils.color_gene(gene, width=12 if region == 'v' else 7),
+                                                      '' if tmpseq[tmppos : tmppos + 3] in utils.codon_table[codon] else utils.color('red', 'bad'),
+                                                      'new' if gene != known_gene else '')
 
         check_a_bunch_of_codons(codon, seqons, extra_str='          ', debug=debug)
         if debug:
