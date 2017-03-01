@@ -15,7 +15,7 @@ import utils
 # ----------------------------------------------------------------------------------------
 glfo_dir = 'germline-sets'  # always put germline info into a subdir with this name
 
-dummy_d_genes = {l : l.upper() + 'Dx-x*x' if 'd' not in r else None}  # e.g. IGKDx-x*x for igk, None for igh
+dummy_d_genes = {l : l.upper() + 'Dx-x*x' if 'd' not in r else None for l, r in utils.loci.items()}  # e.g. IGKDx-x*x for igk, None for igh
 
 # single-locus file names
 extra_fname = 'extras.csv'
@@ -345,10 +345,10 @@ def read_extra_info(glfo, gldir):
 
 #----------------------------------------------------------------------------------------
 def read_glfo(gldir, locus, only_genes=None, skip_pseudogenes=True, debug=False):
-    if not os.path.exists(gldir + '/' + locus):
+    if not os.path.exists(gldir + '/' + locus):  # NOTE doesn't re-link it if we already made the link before
         if locus[:2] == 'ig' and os.path.exists(gldir + '/' + locus[2]):  # backwards compatibility
-            print '    note: linking new germline dir name to old name'
-            check_call(['ln', '-sfv', gldir + '/' + locus[2], gldir + '/' + locus])
+            print '    note: linking new germline dir name to old name in %s' % gldir
+            check_call('cd '  + gldir + ' && ln -sfv ' + locus[2] + ' ' + locus, shell=True)
         else:
             raise Exception('germline set directory \'%s\' does not exist (maybe --parameter-dir is corrupted, maybe crashed while writing parameters?)' % (gldir + '/' + locus))
 

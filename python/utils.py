@@ -13,6 +13,18 @@ from subprocess import check_call, check_output, CalledProcessError, Popen
 import multiprocessing
 import copy
 
+# ----------------------------------------------------------------------------------------
+# putting these up here so glutils import doesn't fail... I think I should be able to do it another way, though
+regions = ['v', 'd', 'j']
+loci = {'igh' : 'vdj',
+        'igk' : 'vj',
+        'igl' : 'vj',
+        'tra' : 'vj',
+        'trb' : 'vdj',
+        'trg' : 'vj',
+        'trd' : 'vdj',
+}
+
 import seqfileopener
 import glutils
 import prutils
@@ -61,17 +73,6 @@ def get_arg_list(arg, intify=False, floatify=False, translation=None, list_of_pa
                 raise Exception('unexpected argument \'%s\' (choices: %s)' % (str(arg), [str(c) for c in choices]))
 
     return arglist
-
-# ----------------------------------------------------------------------------------------
-regions = ['v', 'd', 'j']
-loci = {'igh' : 'vdj',
-        'igk' : 'vj',
-        'igl' : 'vj',
-        'tra' : 'vj',
-        'trb' : 'vdj',
-        'trg' : 'vj',
-        'trd' : 'vdj',
-}
 
 # ----------------------------------------------------------------------------------------
 # values used when simulating from scratch
@@ -1008,7 +1009,7 @@ def are_alleles(gene1, gene2):
     return primary_version(gene1) == primary_version(gene2) and sub_version(gene1) == sub_version(gene2)
 
 # ----------------------------------------------------------------------------------------
-def split_gene_XXX(gene):
+def split_gene(gene):
     """ returns (primary version, sub version, allele) """
     # make sure {IG,TR}{[HKL],[abgd]}[VDJ] is at the start, and there's a *
     if '_star_' in gene or '_slash_' in gene:
@@ -1034,7 +1035,7 @@ def split_gene_XXX(gene):
     return primary_version, sub_version, allele
 
 # ----------------------------------------------------------------------------------------
-def rejoin_gene_XXX(locus, region, primary_version, sub_version, allele):
+def rejoin_gene(locus, region, primary_version, sub_version, allele):
     """ reverse the action of split_gene() """
     return_str = locus.upper() + region.upper() + primary_version
     if sub_version is not None:  # i.e. if it isn't a j

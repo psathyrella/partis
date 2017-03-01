@@ -265,8 +265,8 @@ subparsers = parser.add_subparsers(dest='action')
 
 parent_parser = argparse.ArgumentParser(add_help=False)
 
-parent_parser.add_argument('--locus', default='igh', choices=('igh', 'igk', 'igl', 'tra', 'trb', 'trg', 'trd'), help='ig heavy, kappa, or lambda; or tcr alpha, beta, gamma, or delta?')
-parent_parser.add_argument('--chain', choices=('h', 'k', 'l'), help='DEPRECATED in favor of --locus, exists only for backwards compatibility (see below)')
+parent_parser.add_argument('--locus', default='igh', choices=utils.loci.keys(), help='which immunoglobulin or t-cell receptor locus?')
+parent_parser.add_argument('--chain', choices=('h', 'k', 'l'), help='DEPRECATED in favor of --locus, exists only for backwards compatibility')
 parent_parser.add_argument('--species', default='human', choices=('human', 'mouse'), help='Which species?')
 parent_parser.add_argument('--queries', help='Colon-separated list of query names to which we restrict ourselves')
 parent_parser.add_argument('--reco-ids', help='Colon-separated list of rearrangement-event IDs to which we restrict ourselves')  # or recombination events

@@ -24,6 +24,8 @@ if args.alleles is None:
     args.alleles = [utils.allele(g) for g in glfo['seqs'][args.region] if args.base == utils.primary_version(g) + '-' + utils.sub_version(g)]
 else:
     args.alleles = utils.get_arg_list(args.alleles)
+if len(args.alleles) == 0:
+    raise Exception('couldn\'t find any alleles for --base %s. Other choices:\n    %s' % (args.base, ' '.join(glfo['seqs'][args.region])))
 args.other_genes = utils.get_arg_list(args.other_genes)
 
 # for g, s in glfo['seqs']['v'].items():
