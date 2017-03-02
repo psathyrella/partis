@@ -27,7 +27,7 @@ def glfo_fnames(locus):
 csv_headers = ['gene', 'cyst_position', 'tryp_position', 'phen_position', 'aligned_seq']
 
 imgt_info_indices = ('accession-number', 'gene', 'species', 'functionality', '', '', '', '', '', '', '', '', '')  # I think this is the right number of entries, but it doesn't really matter
-functionalities = ['F', 'ORF', 'P', '(F)', '[F]', '[P]', '(P)', '[ORF]']   # not actually sure what the parentheses and brackets mean
+functionalities = ['F', 'ORF', 'P', '(F)', '[F]', '[P]', '(P)', '[ORF]', '(ORF)']   # not actually sure what the parentheses and brackets mean
 pseudogene_funcionalities = ['P', '[P]', '(P)']
 
 duplicate_names = {
