@@ -103,8 +103,8 @@ alphabet = set(nukes + ambiguous_bases)  # NOTE not the greatest naming distinct
 gap_chars = ['.', '-']
 expected_characters = set(nukes + ambiguous_bases + gap_chars)  # NOTE not the greatest naming distinction, but note difference to <alphabet>
 conserved_codonsx = {l : {'v' : 'cyst',
-                             'j' : 'tryp' if 'd' in r else 'phen'}  # e.g. heavy chain has tryp, light chain has phen
-                        for l, r in loci.items()}
+                          'j' : 'tryp' if l == 'igh' else 'phen'}  # e.g. heavy chain has tryp, light chain has phen
+                     for l in loci}
 codon_table = {
     'cyst' : ['TGT', 'TGC'],
     'tryp' : ['TGG', ],

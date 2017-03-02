@@ -27,8 +27,8 @@ def glfo_fnames(locus):
 csv_headers = ['gene', 'cyst_position', 'tryp_position', 'phen_position', 'aligned_seq']
 
 imgt_info_indices = ('accession-number', 'gene', 'species', 'functionality', '', '', '', '', '', '', '', '', '')  # I think this is the right number of entries, but it doesn't really matter
-functionalities = ['F', 'ORF', 'P', '(F)', '[F]', '[P]', '[ORF]']   # not actually sure what the parentheses and brackets mean
-pseudogene_funcionalities = ['P', '[P]']
+functionalities = ['F', 'ORF', 'P', '(F)', '[F]', '[P]', '(P)', '[ORF]']   # not actually sure what the parentheses and brackets mean
+pseudogene_funcionalities = ['P', '[P]', '(P)']
 
 duplicate_names = {
     'v' : [
@@ -37,7 +37,8 @@ duplicate_names = {
         set(['IGHV1-69*01', 'IGHV1-69D*01']),
         set(['IGHV3-30*02', 'IGHV3-30-5*02']),
         set(['IGHV3-30*04', 'IGHV3-30-3*03']),
-        set(['IGHV3-23*01', 'IGHV3-23D*01'])],
+        set(['IGHV3-23*01', 'IGHV3-23D*01']),
+    ],
     'd' : [
         set(['IGHD1/OR15-1a*01', 'IGHD1/OR15-1b*01']),
         set(['IGHD2/OR15-2a*01', 'IGHD2/OR15-2b*01']),
@@ -45,7 +46,8 @@ duplicate_names = {
         set(['IGHD3/OR15-3a*01', 'IGHD3/OR15-3b*01']),
         set(['IGHD5/OR15-5a*01', 'IGHD5/OR15-5b*01']),
         set(['IGHD5-18*01', 'IGHD5-5*01']),
-        set(['IGHD4-11*01', 'IGHD4-4*01'])],
+        set(['IGHD4-11*01', 'IGHD4-4*01']),
+    ],
     'j' : []
 }
 
@@ -234,7 +236,7 @@ def get_new_alignments(glfo, region, debug=False):
     if debug > 1:
         print '  new alignments:'
         for g, seq in aligned_seqs.items():
-            print '            %s   %s  %s' % (seq, utils.color_gene(g, width=12 if region == 'v' else 7), '<--- new' if g in genes_without_alignments else '')
+            print '            %s   %s  %s' % (seq, utils.color_gene(g, width=12 if region == 'v' else 8), '<--- new' if g in genes_without_alignments else '')
 
     os.remove(already_aligned_fname)
     os.remove(not_aligned_fname)
@@ -288,12 +290,21 @@ def get_missing_codon_info(glfo, debug=False):
         # existing codon position (this assumes that once aligned, all genes have the same codon position -- which is only really true for the imgt-gapped alignment)
         if len(glfo[codon + '-positions']) > 0:
             known_gene, known_pos = None, None
+            known_but_not_in_glfo, known_but_unaligned, known_but_mutated = [], [], []
             for gene, pos in glfo[codon + '-positions'].items():  # take the first one for which we have the sequence (NOTE it would be safer to check that they're all the same)
-                if gene in glfo['seqs'][region] and gene in aligned_seqs and utils.codon_unmutated(codon, glfo['seqs'][region][gene], pos):
-                    known_gene, known_pos = gene, pos
-                    break
+                if gene not in glfo['seqs'][region]:
+                    known_but_not_in_glfo.append(gene)
+                    continue
+                if gene not in aligned_seqs:
+                    known_but_unaligned.append(gene)
+                    continue
+                if not utils.codon_unmutated(codon, glfo['seqs'][region][gene], pos):
+                    known_but_mutated.append(gene)
+                    continue
+                known_gene, known_pos = gene, pos
+                break
             if known_gene is None:
-                raise Exception('couldn\'t find a known %s position' % codon)
+                raise Exception('couldn\'t find a known %s position\n    known but not in glfo: %s\n    known but unaligned: %s\n    known but mutated: %s' % (codon, ' '.join(known_but_not_in_glfo), ' '.join(known_but_unaligned), ' '.join(known_but_mutated)))
             # NOTE for cyst, should be 309 if alignments are imgt [which they used to usually be, but now probably aren't] (imgt says 104th codon --> subtract 1 to get zero-indexing, then multiply by three 3 * (104 - 1) = 309
             known_pos_in_alignment = get_pos_in_alignment(codon, aligned_seqs[known_gene], glfo['seqs'][region][known_gene], known_pos, debug=debug)
             if debug:
@@ -316,7 +327,7 @@ def get_missing_codon_info(glfo, debug=False):
             if debug > 1:
                 tmpseq = aligned_seqs[gene]
                 tmppos = known_pos_in_alignment
-                print '            %s%s%s   %s %3s %5s' % (tmpseq[:tmppos], utils.color('reverse_video', tmpseq[tmppos : tmppos + 3]), tmpseq[tmppos + 3:], utils.color_gene(gene, width=12 if region == 'v' else 7),
+                print '            %s%s%s   %s %3s %5s' % (tmpseq[:tmppos], utils.color('reverse_video', tmpseq[tmppos : tmppos + 3]), tmpseq[tmppos + 3:], utils.color_gene(gene, width=12 if region == 'v' else 8),
                                                       '' if tmpseq[tmppos : tmppos + 3] in utils.codon_table[codon] else utils.color('red', 'bad'),
                                                       'new' if gene != known_gene else '')
 
