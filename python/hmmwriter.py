@@ -176,7 +176,7 @@ class HmmWriter(object):
         self.indir = base_indir
         self.args = args
         self.debug = debug
-        self.codon_positions = {r : glfo[c + '-positions'] for r, c in utils.conserved_codonsx[args.locus].items()}
+        self.codon_positions = {r : glfo[c + '-positions'] for r, c in utils.conserved_codons[args.locus].items()}
 
         # parameters with values that I more or less made up
         self.precision = '16'  # number of digits after the decimal for probabilities

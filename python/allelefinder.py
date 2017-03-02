@@ -778,10 +778,10 @@ class AlleleFinder(object):
         if new_name in self.default_initial_glfo['seqs'][self.region]:  # if we removed an existing allele and then re-added it, it'll already be in the default glfo, so there's nothing for us to do in this fcn
             return new_name, new_seq
         assert self.region == 'v'  # conserved codon stuff below will have to be changed for j
-        newpos = self.glfo[utils.conserved_codonsx[self.glfo['locus']][self.region] + '-positions'][template_gene]  # codon position for template gene should be ok
+        newpos = self.glfo[utils.conserved_codons[self.glfo['locus']][self.region] + '-positions'][template_gene]  # codon position for template gene should be ok
         for oldname_gene, oldname_seq in self.default_initial_glfo['seqs'][self.region].items():  # NOTE <oldname_{gene,seq}> is the old *name* corresponding to the new (snp'd) allele, whereas <old_seq> is the allele from which we inferred the new (snp'd) allele
             # first see if they match up through the cysteine
-            oldpos = self.default_initial_glfo[utils.conserved_codonsx[self.glfo['locus']][self.region] + '-positions'][oldname_gene]
+            oldpos = self.default_initial_glfo[utils.conserved_codons[self.glfo['locus']][self.region] + '-positions'][oldname_gene]
             if oldname_seq[self.n_bases_to_exclude['5p'][template_gene] : oldpos + 3] != new_seq[self.n_bases_to_exclude['5p'][template_gene] : newpos + 3]:  # uh, I think we want to use the ones for the template gene
                 continue
 

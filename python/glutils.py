@@ -271,7 +271,7 @@ def get_pos_in_alignment(codon, aligned_seq, seq, pos, debug=False):
 def get_missing_codon_info(glfo, debug=False):
     # debug = 2
 
-    for region, codon in utils.conserved_codonsx[glfo['locus']].items():
+    for region, codon in utils.conserved_codons[glfo['locus']].items():
         missing_genes = set(glfo['seqs'][region]) - set(glfo[codon + '-positions'])
         if len(missing_genes) == 0:
             if debug:
@@ -337,7 +337,7 @@ def get_missing_codon_info(glfo, debug=False):
 #----------------------------------------------------------------------------------------
 def remove_extraneouse_info(glfo, debug=False):
     """ remove codon info corresponding to genes that aren't in 'seqs' """
-    for region, codon in utils.conserved_codonsx[glfo['locus']].items():
+    for region, codon in utils.conserved_codons[glfo['locus']].items():
         genes_to_remove = set(glfo[codon + '-positions']) - set(glfo['seqs'][region])
         if debug:
             print '    removing %s info for %d genes (leaving %d)' % (codon, len(genes_to_remove), len(glfo[codon + '-positions']) - len(genes_to_remove))
@@ -346,12 +346,12 @@ def remove_extraneouse_info(glfo, debug=False):
 
 # ----------------------------------------------------------------------------------------
 def read_extra_info(glfo, gldir):
-    for codon in utils.conserved_codonsx[glfo['locus']].values():
+    for codon in utils.conserved_codons[glfo['locus']].values():
         glfo[codon + '-positions'] = {}
     with open(gldir + '/' + glfo['locus'] + '/' + extra_fname) as csvfile:
         reader = csv.DictReader(csvfile)
         for line in reader:
-            for codon in utils.conserved_codonsx[glfo['locus']].values():
+            for codon in utils.conserved_codons[glfo['locus']].values():
                 if line[codon + '_position'] != '':
                     glfo[codon + '-positions'][line['gene']] = int(line[codon + '_position'])
 
@@ -372,7 +372,7 @@ def read_glfo(gldir, locus, only_genes=None, skip_pseudogenes=True, debug=False)
     get_missing_codon_info(glfo, debug=debug)
     restrict_to_genes(glfo, only_genes, debug=debug)
 
-    for region, codon in utils.conserved_codonsx[glfo['locus']].items():
+    for region, codon in utils.conserved_codons[glfo['locus']].items():
         seqons = [(seq, glfo[codon + '-positions'][gene]) for gene, seq in glfo['seqs'][region].items()]  # (seq, pos) pairs
         check_a_bunch_of_codons(codon, seqons, extra_str='      ', debug=debug)
 
@@ -518,8 +518,8 @@ def remove_gene(glfo, gene, debug=False):
         if debug:
             print '  removing %s from glfo' % utils.color_gene(gene)
         del glfo['seqs'][region][gene]
-        if region in utils.conserved_codonsx[glfo['locus']]:
-            del glfo[utils.conserved_codonsx[glfo['locus']][region] + '-positions'][gene]
+        if region in utils.conserved_codons[glfo['locus']]:
+            del glfo[utils.conserved_codons[glfo['locus']][region] + '-positions'][gene]
     else:
         if debug:
             print '  can\'t remove %s from glfo, it\'s not there' % utils.color_gene(gene)
@@ -621,7 +621,7 @@ def write_glfo(output_dir, glfo, only_genes=None, debug=False):
     with open(output_dir + '/' + glfo['locus'] + '/' + extra_fname, 'w') as csvfile:
         writer = csv.DictWriter(csvfile, csv_headers)
         writer.writeheader()
-        for region, codon in utils.conserved_codonsx[glfo['locus']].items():
+        for region, codon in utils.conserved_codons[glfo['locus']].items():
             for gene, istart in glfo[codon + '-positions'].items():
                 if only_genes is not None and gene not in only_genes:
                     continue

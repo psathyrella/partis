@@ -40,7 +40,7 @@ genes = [args.locus.upper() + args.region.upper() + args.base + '*' + al for al 
 if args.other_genes is not None:
     genes += args.other_genes
 
-codon_positions = glfo[utils.conserved_codonsx[args.locus][args.region] + '-positions'] if args.region != 'd' else None
+codon_positions = glfo[utils.conserved_codons[args.locus][args.region] + '-positions'] if args.region != 'd' else None
 
 def print_str(gene, seq):
     return '%s   %s' % (utils.color_gene(gene, width=15), seq)

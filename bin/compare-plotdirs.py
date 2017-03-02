@@ -116,8 +116,8 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
                 translegend = (0.15, -0.02)
             xline = None
             if args.glfo is not None:
-                if utils.get_region(gene) in utils.conserved_codonsx[args.locus]:
-                    xline = args.glfo[utils.conserved_codonsx[args.locus][utils.get_region(gene)] + '-positions'][gene]
+                if utils.get_region(gene) in utils.conserved_codons[args.locus]:
+                    xline = args.glfo[utils.conserved_codons[args.locus][utils.get_region(gene)] + '-positions'][gene]
         else:
             ilastdash = varname.rfind('-')
             gene = utils.unsanitize_name(varname[:ilastdash])

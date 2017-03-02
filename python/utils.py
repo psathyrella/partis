@@ -102,7 +102,7 @@ ambiguous_bases = ['N', ]
 alphabet = set(nukes + ambiguous_bases)  # NOTE not the greatest naming distinction, but note difference to <expected_characters>
 gap_chars = ['.', '-']
 expected_characters = set(nukes + ambiguous_bases + gap_chars)  # NOTE not the greatest naming distinction, but note difference to <alphabet>
-conserved_codonsx = {l : {'v' : 'cyst',
+conserved_codons = {l : {'v' : 'cyst',
                           'j' : 'tryp' if l == 'igh' else 'phen'}  # e.g. heavy chain has tryp, light chain has phen
                      for l in loci}
 codon_table = {
@@ -123,7 +123,7 @@ for i in range(len(index_columns)):  # dict so we can access them by name instea
 # ----------------------------------------------------------------------------------------
 def get_codon(fname):
     codon = fname.split('-')[0]
-    if codon not in [c for locus in loci for c in conserved_codonsx[locus].values()]:
+    if codon not in [c for locus in loci for c in conserved_codons[locus].values()]:
         raise Exception('couldn\'t get codon from file name %s' % fname)
     return codon
 
@@ -602,7 +602,7 @@ def remove_gaps(seq):
 # ----------------------------------------------------------------------------------------
 def both_codons_unmutated(locus, seq, positions, debug=False, extra_str=''):
     both_ok = True
-    for region, codon in conserved_codonsx[locus].items():
+    for region, codon in conserved_codons[locus].items():
         both_ok &= codon_unmutated(codon, seq, positions[region], debug=debug, extra_str=extra_str)
     return both_ok
 
@@ -889,7 +889,7 @@ def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False): 
 
     # add codon-related stuff
     line['codon_positions'] = {}
-    for region, codon in conserved_codonsx[glfo['locus']].items():
+    for region, codon in conserved_codons[glfo['locus']].items():
         eroded_gl_pos = glfo[codon + '-positions'][line[region + '_gene']] - line[region + '_5p_del']
         if region == 'v':
             line['codon_positions'][region] = eroded_gl_pos + len(line['f' + region + '_insertion'])

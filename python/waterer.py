@@ -880,7 +880,7 @@ class Waterer(object):
 
         # set conserved codon positions
         codon_positions = {}
-        for region, codon in utils.conserved_codonsx[self.args.locus].items():
+        for region, codon in utils.conserved_codons[self.args.locus].items():
             # position within original germline gene, minus the position in that germline gene at which the match starts, plus the position in the query sequence at which the match starts
             pos = self.glfo[codon + '-positions'][best[region]] - qinfo['glbounds'][best[region]][0] + qinfo['qrbounds'][best[region]][0]
             if pos < 0 or pos >= len(qseq):

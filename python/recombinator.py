@@ -159,7 +159,7 @@ class Recombinator(object):
 
         # set the original conserved codon words, so we can revert them if they get mutated NOTE we do it here, *after* setting the full recombined sequence, so the germline Vs that don't extend through the cysteine don't screw us over
         reco_event.unmutated_codons = {}
-        for region, codon in utils.conserved_codonsx[self.args.locus].items():
+        for region, codon in utils.conserved_codons[self.args.locus].items():
             fpos = reco_event.final_codon_positions[region]
             original_codon = reco_event.recombined_seq[fpos : fpos + 3]
             reco_event.unmutated_codons[region] = reco_event.recombined_seq[fpos : fpos + 3]
@@ -248,8 +248,8 @@ class Recombinator(object):
                     tmpline[erosion + '_del'] = 1 if '5p' in erosion else 0  # always erode the whole dummy d from the left
                 else:
                     max_erosion = max(0, gene_length/2 - 2)  # now that, son, is a heuristic
-                    if region in utils.conserved_codonsx[self.args.locus]:
-                        codon_pos = self.glfo[utils.conserved_codonsx[self.args.locus][region] + '-positions'][tmpline[region + '_gene']]
+                    if region in utils.conserved_codons[self.args.locus]:
+                        codon_pos = self.glfo[utils.conserved_codons[self.args.locus][region] + '-positions'][tmpline[region + '_gene']]
                         if '3p' in erosion:
                             n_bases_to_codon = gene_length - codon_pos - 3
                         elif '5p' in erosion:

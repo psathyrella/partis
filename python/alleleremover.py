@@ -26,7 +26,7 @@ class AlleleRemover(object):
         self.genes_to_remove = None
         self.dbg_strings = {}
         self.region = 'v'
-        self.codon_positions = self.glfo[utils.conserved_codonsx[self.glfo['locus']][self.region] + '-positions']
+        self.codon_positions = self.glfo[utils.conserved_codons[self.glfo['locus']][self.region] + '-positions']
 
         self.finalized = False
 
