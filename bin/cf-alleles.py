@@ -21,7 +21,7 @@ parser.add_argument('--glfo-dir', default='data/germlines/human')
 args = parser.parse_args()
 glfo = glutils.read_glfo(args.glfo_dir, args.locus)
 if args.alleles is None:
-    args.alleles = [utils.allele(g) for g in glfo['seqs'][args.region] if args.base == utils.primary_version(g) + '-' + utils.sub_version(g)]
+    args.alleles = [utils.allele(g) for g in glfo['seqs'][args.region] if args.base == utils.primary_version(g) + ('-' + utils.sub_version(g) if utils.sub_version(g) is not None else '')]
 else:
     args.alleles = utils.get_arg_list(args.alleles)
 if len(args.alleles) == 0:

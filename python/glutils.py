@@ -268,7 +268,7 @@ def get_pos_in_alignment(codon, aligned_seq, seq, pos, debug=False):
 
 #----------------------------------------------------------------------------------------
 def get_missing_codon_info(glfo, debug=False):
-    debug = 2
+    # debug = 2
 
     for region, codon in utils.conserved_codonsx[glfo['locus']].items():
         missing_genes = set(glfo['seqs'][region]) - set(glfo[codon + '-positions'])

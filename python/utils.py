@@ -1038,7 +1038,7 @@ def split_gene(gene):
 def rejoin_gene(locus, region, primary_version, sub_version, allele):
     """ reverse the action of split_gene() """
     return_str = locus.upper() + region.upper() + primary_version
-    if sub_version is not None:  # i.e. if it isn't a j
+    if sub_version is not None:  # e.g. J genes typically don't have sub-versions
         return_str += '-' + sub_version
     return return_str + '*' + allele
 
