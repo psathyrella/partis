@@ -159,7 +159,7 @@ def print_seq_in_reco_event(original_line, iseq, extra_str='', label='', one_lin
     outstrs, colors = indel_shenanigans(outstrs, colors, line['indelfos'][iseq], iseq)
     outstrs = add_colors(outstrs, colors, line)
 
-    suffixes = ['insert%s\n'       % ('s' if 'd' in utils.getregions(utils.get_locus(line['v_gene'])) else ''),
+    suffixes = ['insert%s\n'       % ('s' if utils.has_d_gene(utils.get_locus(line['v_gene'])) else ''),
                 '%s\n'             % (utils.color_gene(line['d_gene'])),
                 '%s %s\n'          % (utils.color_gene(line['v_gene']), utils.color_gene(line['j_gene'])),
                 '%s   %4.2f mut\n' % (get_uid_str(line, iseq, seed_uid), line['mut_freqs'][iseq])]
@@ -171,7 +171,7 @@ def print_seq_in_reco_event(original_line, iseq, extra_str='', label='', one_lin
 
     if one_line:
         outstrs = outstrs[-1:]  # remove all except the query seq line
-    elif 'd' not in utils.getregions(utils.get_locus(line['v_gene'])):
+    elif not utils.has_d_gene(utils.get_locus(line['v_gene'])):
         outstrs.pop(1)  # remove the d germline line
 
     print ''.join(outstrs),

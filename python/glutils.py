@@ -15,7 +15,7 @@ import utils
 # ----------------------------------------------------------------------------------------
 glfo_dir = 'germline-sets'  # always put germline info into a subdir with this name
 
-dummy_d_genes = {l : l.upper() + 'Dx-x*x' if 'd' not in r else None for l, r in utils.loci.items()}  # e.g. IGKDx-x*x for igk, None for igh
+dummy_d_genes = {l : l.upper() + 'Dx-x*x' if not utils.has_d_gene(l) else None for l in utils.loci}  # e.g. IGKDx-x*x for igk, None for igh
 
 # single-locus file names
 extra_fname = 'extras.csv'
@@ -136,7 +136,7 @@ def read_germline_seqs(gldir, locus, skip_pseudogenes):
     seqs = {r : OrderedDict() for r in utils.regions}
     for fname in glfo_fasta_fnames(locus):
         read_fasta_file(seqs, gldir + '/' + locus + '/' + fname, skip_pseudogenes)
-    if 'd' not in utils.getregions(locus):  # choose a sequence for the dummy d
+    if not utils.has_d_gene(locus):  # choose a sequence for the dummy d
         seqs['d'][dummy_d_genes[locus]] = 'A'  # this (arbitrary) choice is also made in packages/ham/src/bcrutils.cc
     return seqs
 

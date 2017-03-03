@@ -243,7 +243,7 @@ class Recombinator(object):
             for erosion in utils.real_erosions:  # includes various contortions to avoid eroding the entire gene
                 region = erosion[0]
                 gene_length = len(self.glfo['seqs'][region][tmpline[region + '_gene']])
-                if region == 'd' and 'd' not in utils.getregions(self.args.locus):  # dummy d treatment
+                if region == 'd' and not utils.has_d_gene(self.args.locus):  # dummy d treatment
                     assert gene_length == 1 and tmpline['d_gene'] == glutils.dummy_d_genes[self.args.locus]
                     tmpline[erosion + '_del'] = 1 if '5p' in erosion else 0  # always erode the whole dummy d from the left
                 else:

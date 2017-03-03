@@ -25,6 +25,15 @@ loci = {'igh' : 'vdj',
         'trd' : 'vdj',
 }
 
+def getregions(locus):  # for clarity, don't use the <loci> dictionary directly to access its .values()
+    return list(loci[locus])  # doesn't really need to be a list, but it's more clearly analagous to regions & co that way
+
+def has_d_gene(locus):  # for clarity, don't use the <loci> dictionary directly to access its .values()
+    return 'd' in loci[locus]
+
+def region_pairs():
+    return [{'left' : bound[0], 'right' : bound[1]} for bound in boundaries]
+
 import seqfileopener
 import glutils
 import prutils
@@ -79,15 +88,9 @@ def get_arg_list(arg, intify=False, floatify=False, translation=None, list_of_pa
 # scratch_mean_mute_freqs = {'v' : 0.03, 'd' : 0.8, 'j' : 0.06}
 # scratch_mean_mute_freqs['all'] = numpy.mean([v for v in scratch_mean_mute_freqs.values()])
 scratch_mean_erosion_lengths = {'v_3p' : 2, 'd_5p' : 3, 'd_3p' : 3, 'j_5p' : 4}
-scratch_mean_insertion_lengths = {l : {'vd' : 4 if 'd' in r else 0,  # e.g. light chain gets no vd insertion
-                                       'dj' : 4 if 'd' in r else 8}  # ...but a longer dj insertion
-                                  for l, r in loci.items()}
-
-def getregions(locus):  # for clarity, don't use the <loci> dictionary directly to access its .values()
-    return list(loci[locus])  # doesn't really need to be a list, but it's more clearly analagous to regions & co that way
-
-def region_pairs():
-    return [{'left' : bound[0], 'right' : bound[1]} for bound in boundaries]
+scratch_mean_insertion_lengths = {l : {'vd' : 4 if has_d_gene(l) else 0,  # e.g. light chain gets no vd insertion
+                                       'dj' : 4 if has_d_gene(l) else 8}  # ...but a longer dj insertion
+                                  for l in loci}
 
 real_erosions = ['v_3p', 'd_5p', 'd_3p', 'j_5p']
 # NOTE since we now handle v_5p and j_3p deletions by padding with Ns, the hmm does *not* allow actual v_5p and j_3p deletions.

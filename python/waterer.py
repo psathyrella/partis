@@ -531,7 +531,7 @@ class Waterer(object):
             qinfo['qrbounds'][gene] = qrbounds
             qinfo['glbounds'][gene] = glbounds
 
-        if 'd' not in utils.getregions(self.args.locus) and len(qinfo['matches']['v']) > 0:
+        if not utils.has_d_gene(self.args.locus) and len(qinfo['matches']['v']) > 0:
             _, first_v_match = qinfo['matches']['v'][0]
             self.add_dummy_d_match(qinfo, first_v_qr_end=qinfo['qrbounds'][first_v_match][1])
 
@@ -1078,7 +1078,7 @@ class Waterer(object):
         k_v_max += 1
         k_d_max += 1
 
-        if 'd' not in utils.getregions(self.args.locus):
+        if not utils.has_d_gene(self.args.locus):
             best_k_d = 1
             k_d_min = 1
             k_d_max = 2
