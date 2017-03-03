@@ -1066,6 +1066,7 @@ class PartitionDriver(object):
     def write_hmms(self, parameter_dir):
         """ Write hmm model files to <parameter_dir>/hmms, using information from <parameter_dir> """
         print '  writing hmms',
+        sys.stdout.flush()
         start = time.time()
 
         from hmmwriter import HmmWriter
