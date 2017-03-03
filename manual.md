@@ -1,6 +1,6 @@
 ### Introduction
 
-Partis is an HMM-based framework for B-cell receptor annotation, simulation, and partitioning.
+Partis is an HMM-based framework for B- and T-cell receptor annotation, simulation, and partitioning.
 It is built on top of the [ham](https://github.com/psathyrella/ham) HMM compiler, and also uses the [ig-sw](https://github.com/matsengrp/ig-sw) set of Smith-Waterman annotation tools.
 Partis is free software under the GPL v3.
 
