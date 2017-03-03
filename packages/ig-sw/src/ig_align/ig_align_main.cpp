@@ -15,12 +15,12 @@ extern "C" {
 std::vector<std::string> GetFileName(std::string vdj_dir, std::string locus) {
   std::vector<char> genes;
   std::vector<std::string> paths;
-  if (locus == "IGH") {
+  if (locus == "IGH" || locus == "TRB" || locus == "TRD") {
     genes.push_back('v');
     genes.push_back('d');
     genes.push_back('j');
   }
-  if (locus == "IGL" || locus == "IGK") {
+  if (locus == "IGK" || locus == "IGL" || locus == "TRA" || locus == "TRG") {
     genes.push_back('v');
     genes.push_back('j');
   }
@@ -91,8 +91,12 @@ int main(int argc, const char *argv[]) {
 
     std::vector<std::string> options;
     options.push_back("IGH");
-    options.push_back("IGL");
     options.push_back("IGK");
+    options.push_back("IGL");
+    options.push_back("TRA");
+    options.push_back("TRB");
+    options.push_back("TRG");
+    options.push_back("TRD");
     options.push_back("DJ");
     TCLAP::ValuesConstraint<std::string> allowedVals(options);
 
