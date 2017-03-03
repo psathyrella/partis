@@ -33,8 +33,8 @@ string TermColors::RedifyIfMuted(char germline_nuc, char nuc) {
 // get region from gene name, e.g. IGHD1-1*01 --> d
 // NOTE GermLines class also has its own GetRegion()
 string TermColors::GetRegion(string gene) {
-  if(gene.find("IG") != 0)
-    throw runtime_error("gene name '" + gene + "' doesn't begin with 'IG'.");
+  if(gene.find("IG") != 0 && gene.find("TR") != 0)
+    throw runtime_error("gene name '" + gene + "' doesn't begin with 'IG' or 'TR'.");
   char region_char(tolower(gene[3]));
   string region(1, region_char);
   assert(region == "v" || region == "d" || region == "j");
@@ -169,7 +169,7 @@ GermLines::GermLines(string gldir, string locus):
   while(getline(ifs, line)) {
     line.erase(remove(line.begin(), line.end(), '\r'), line.end());
     vector<string> info(SplitString(line, ","));
-    assert(info[0].find("IG") == 0);
+    assert(info[0].find("IG") == 0 || info[0].find("TR") == 0);
     if(info[1] != "")
       cyst_positions_[info[0]] = atoi(info[1].c_str());
     else if(info[2] != "")
@@ -198,8 +198,8 @@ string GermLines::SanitizeName(string gene_name) {
 // get region from gene name, e.g. IGHD1-1*01 --> d
 // NOTE TermColors class also has its own GetRegion()
 string GermLines::GetRegion(string gene) {
-  if(gene.find("IG") != 0)
-    throw runtime_error("gene name '" + gene + "' doesn't begin with 'IG'.");
+  if(gene.find("IG") != 0 && gene.find("TR") != 0)
+    throw runtime_error("gene name '" + gene + "' doesn't begin with 'IG' or 'TR'.");
   char region_char(tolower(gene[3]));
   string region(1, region_char);
   assert(region == "v" || region == "d" || region == "j");

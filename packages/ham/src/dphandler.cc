@@ -553,7 +553,7 @@ size_t DPHandler::GetErosionLength(string side, vector<string> names, string gen
   bool its_inserts_all_the_way_down(true);
   for(auto & name : names) {
     if(name.find("insert") != 0) {
-      assert(name.find("IG") == 0);  // Trust but verify, my little ducky, trust but verify.
+      assert(name.find("IG") == 0 || name.find("TR") == 0);  // Trust but verify, my little ducky, trust but verify.
       its_inserts_all_the_way_down = false;
       break;
     }
@@ -593,8 +593,8 @@ size_t DPHandler::GetErosionLength(string side, vector<string> names, string gen
 
   // then find the state number (in the hmm's state numbering scheme) of the state found at that index in the viterbi path
   assert(istate < names.size());
-  if(names[istate].find("IG") != 0)  // start of state name should be IG[HKL][VDJ]
-    throw runtime_error("state not of the form IG[HKL]<gene>_<position>: " + names[istate]);
+  if(names[istate].find("IG") != 0 && names[istate].find("TR") != 0)  // start of state name should be {IG,TR}[HKL][VDJ]
+    throw runtime_error("state not of the form {IG,TR}[HKL]<gene>_<position>: " + names[istate]);
   string state_index_str = names[istate].substr(names[istate].find_last_of("_") + 1);
   size_t state_index = atoi(state_index_str.c_str());
 
