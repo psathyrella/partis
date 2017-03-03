@@ -646,10 +646,10 @@ def remove_glfo_files(gldir, locus):
             locusdir = gldir + '/' + locus[2]
             print '    note: also removing old germline dir name (i.e. link target) %s' % locusdir
     for fname in glfo_fnames(locus):
-        if os.path.exists(fname):
+        if os.path.exists(locusdir + '/' + fname):
             os.remove(locusdir + '/' + fname)
         else:
-            print '    %s tried to remove non-existent glfo file %s' % (utils.color('yellow', 'warning'), fname)
+            print '    %s tried to remove non-existent glfo file %s' % (utils.color('yellow', 'warning'), locusdir + '/' + fname)
     os.rmdir(locusdir)
     if len(os.listdir(gldir)) == 0:  # if there aren't any other locus dirs in here, remove the parent dir as well
         os.rmdir(gldir)
