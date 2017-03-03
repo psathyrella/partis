@@ -276,8 +276,12 @@ class Recombinator(object):
             utils.add_implicit_info(self.glfo, tmpline)
             assert len(tmpline['in_frames']) == 1
 
+        n_tries = 0
         while 'in_frames' not in tmpline or not tmpline['in_frames'][0]:
             try_scratch_erode_insert(tmpline)
+            n_tries +=1
+            if n_tries > 500:
+                print '%s tried to get an in-frame rearrangement %d times already' % (utils.color('yellow', 'warning'), n_tries)
 
         # convert insertions back to lengths
         for bound in utils.boundaries + utils.effective_boundaries:
@@ -560,6 +564,11 @@ class Recombinator(object):
 
     # ----------------------------------------------------------------------------------------
     def add_mutants(self, reco_event, irandom):
+        if self.args.mutation_multiplier is not None and self.args.mutation_multiplier == 0.:  # some of the stuff below fails if mut mult is actually 0.
+            reco_event.final_seqs.append(reco_event.recombined_seq)  # set final sequnce in reco_event
+            reco_event.indelfos = [utils.get_empty_indel() for _ in range(len(reco_event.final_seqs))]
+            return
+
         chosen_treeinfo = self.treeinfo[random.randint(0, len(self.treeinfo)-1)]
         chosen_tree = chosen_treeinfo.split(';')[0] + ';'
         branch_length_ratios = {}  # NOTE a.t.m (and probably permanently) the mean branch lengths for each region are the *same* for all the trees in the file, I just don't have a better place to put them while I'm passing from TreeGenerator to here than at the end of each line in the file

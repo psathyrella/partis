@@ -628,7 +628,7 @@ def in_frame(seq, codon_positions, fv_insertion, v_5p_del, debug=False):  # NOTE
     v_cpos = codon_positions['v'] - germline_v_start
     j_cpos = codon_positions['j'] - germline_v_start  # NOTE I'm actually not sure how necessary it is that the right side of the J is in frame. I mean, I think it's pretty framework-ey, but I'm not sure.
     if debug:
-        print '    in frame:  %d  %d  -->  %s' % (v_cpos % 3 == 0, j_cpos % 3 == 0, v_cpos % 3 == 0 and j_cpos % 3 == 0)
+        print '    in frame:   v codon %d   j codon %d  -->  %s' % (v_cpos % 3 == 0, j_cpos % 3 == 0, v_cpos % 3 == 0 and j_cpos % 3 == 0)
     return v_cpos % 3 == 0 and j_cpos % 3 == 0
 
 #----------------------------------------------------------------------------------------

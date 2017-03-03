@@ -72,8 +72,10 @@ def run_simulation(args):
     else:
         input_gldir = args.initial_germline_dir
     glfo = glutils.read_glfo(input_gldir, args.locus, only_genes=args.only_genes)
-    if not args.im_a_subproc and args.rearrange_from_scratch and args.generate_germline_set:
+    if args.rearrange_from_scratch:
+        print '    not using v genes with bad cysteines'
         glutils.remove_v_genes_with_bad_cysteines(glfo)
+    if not args.im_a_subproc and args.rearrange_from_scratch and args.generate_germline_set:
         glutils.generate_germline_set(glfo, args.n_genes_per_region, args.n_sim_alleles_per_gene, args.min_sim_allele_prevalence_freq, args.allele_prevalence_fname)  # NOTE removes unwanted genes from <glfo>
         glutils.write_glfo(args.outfname.replace('.csv', '-glfo'), glfo)
     if args.subsimproc:
@@ -505,6 +507,9 @@ if args.simultaneous_true_clonal_seqs:
 if args.no_indels and args.gap_open_penalty < 1000:
     print 'forcing --gap-open-penalty to 1000 to prevent indels, since --no-indels was specified (you can also adjust this penalty directly)'
     args.gap_open_penalty = 1000
+
+if 'tr' in args.locus and args.mutation_multiplier is None:
+    args.mutation_multiplier = 0.
 
 if args.workdir is None:  # set default here so we know whether it was set by hand or not
     if args.batch_system is not None and os.path.exists('/fh/fast/matsen_e'):
