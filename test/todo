@@ -1,8 +1,9 @@
 # now
 
-#  - add mutation rate within each cluster to partition plots
-
-#  - definitively fix ig-sw length issue
+# - partition plots
+#   - make sure partition distance plots are wrapping overflows
+#   - don't make within-vs-between plots unless there's at least a few clusters for that cdr3 length
+#   - add mutation rate within each cluster to partition plots
 
 #  - add ape, geiger, and laser to dockerfile r install line
 
@@ -10,9 +11,6 @@
 
 #  - allow indels in both V and J at the same time (?)
 
-# - partition plots
-#   - make sure partition distance plots are wrapping overflows
-#   - don't make within-vs-between plots unless there's at least a few clusters for that cdr3 length
 
 #  - automate n-procs, at least for viterbi/parameter caching
 #    - improve n_precache_proc calculator (expecially for large samples)
@@ -34,6 +32,8 @@
 # add kbounds to validation plots (i.e. flag queries for which kbounds didn't include true kset)
 # fix fuckup where vsearch partition gets its ccfs
 # improve hfrac bounds for vsearch (especially) and regular (maybe use only cdr3 hfrac?)
+
+# definitively fix ig-sw length issue
 
 # data:
 #  - katie
