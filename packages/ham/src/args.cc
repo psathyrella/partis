@@ -15,7 +15,7 @@ Args::Args(int argc, const char * argv[]):
   annotationfile_arg_("", "annotationfile", "if specified, write annotations for each cluster to here", false, "", "string"),
   input_cachefname_arg_("", "input-cachefname", "input cached log prob/naive seq csv file", false, "", "string"),
   output_cachefname_arg_("", "output-cachefname", "output cached log prob/naive seq csv file", false, "", "string"),
-  chain_arg_("", "chain", "is this heavy (h) or light (k, l) chain?", true, "", "string"),
+  locus_arg_("", "locus", "ig{h,k,l} or tr{a,b,g,d}", true, "", "string"),
   algorithm_arg_("", "algorithm", "algorithm to run", true, "", &algo_vals_),
   ambig_base_arg_("", "ambig-base", "ambiguous base", false, "", "string"),
   seed_unique_id_arg_("", "seed-unique-id", "seed unique id", false, "", "string"),
@@ -53,7 +53,7 @@ Args::Args(int argc, const char * argv[]):
     cmd.add(annotationfile_arg_);
     cmd.add(input_cachefname_arg_);
     cmd.add(output_cachefname_arg_);
-    cmd.add(chain_arg_);
+    cmd.add(locus_arg_);
     cmd.add(hamming_fraction_bound_lo_arg_);
     cmd.add(hamming_fraction_bound_hi_arg_);
     cmd.add(logprob_ratio_threshold_arg_);
@@ -90,8 +90,9 @@ Args::Args(int argc, const char * argv[]):
   for(auto & head : float_headers_)
     floats_[head] = vector<double>();
 
-  if(chain() != "h" && chain() != "k" && chain() != "l")
-    throw runtime_error("--chain argument '" + chain() + "' not among h, k, l.");
+  vector<string> loci{"igh", "igk", "igl", "tra", "trb", "trg", "trd"};  // this is ugly... but oh, well
+  if(find(loci.begin(), loci.end(), locus()) == loci.end())
+    throw runtime_error("--locus argument '" + locus() + "' not among ig{h,k,l} or tr{a,b,g,d}");
 
   ifstream ifs(infile());
   if(!ifs.is_open())

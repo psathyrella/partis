@@ -91,7 +91,7 @@ Result DPHandler::Run(vector<Sequence> seqvector, KBounds kbounds, vector<string
     hmms_.RescaleOverallMuteFreqs(only_genes, overall_mute_freq);
   }
 
-  Result result(kbounds, args_->chain());
+  Result result(kbounds, args_->locus());
 
   // loop over k_v k_d space
   double best_score(-INFINITY);

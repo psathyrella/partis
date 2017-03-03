@@ -63,13 +63,13 @@ public:
 // ----------------------------------------------------------------------------------------
 class GermLines {
 public:
-  GermLines(string gldir, string chain);
+  GermLines(string gldir, string locus);
   string SanitizeName(string gene_name);
   string GetRegion(string gene);
 
-  string chain_;
+  string locus_;
   vector<string> regions_;
-  string dummy_d_gene;  // for light chain
+  string dummy_d_gene;  // e.g. for light chain
   map<string, vector<string> > names_;
   map<string, string> seqs_;
   map<string, int> cyst_positions_, tryp_positions_;
@@ -152,7 +152,7 @@ private:
 // ----------------------------------------------------------------------------------------
 class Result {
 public:
-  Result(KBounds kbounds, string chain) : total_score_(-INFINITY), no_path_(false), chain_(chain), better_kbounds_(kbounds), boundary_error_(false), could_not_expand_(false), finalized_(false) {}
+  Result(KBounds kbounds, string locus) : total_score_(-INFINITY), no_path_(false), locus_(locus), better_kbounds_(kbounds), boundary_error_(false), could_not_expand_(false), finalized_(false) {}
   void PushBackRecoEvent(RecoEvent event) { events_.push_back(event); }
   void Finalize(GermLines &gl, map<string, double> &unsorted_per_gene_support, KSet best_kset, KBounds kbounds);
   RecoEvent &best_event() { assert(finalized_); return best_event_; }
@@ -166,7 +166,7 @@ public:
 private:
   void check_boundaries(KSet best, KBounds kbounds);  // and if you find errors, put expanded bounds in better_[kmin,kmax]_
 
-  string chain_;
+  string locus_;
   KBounds better_kbounds_;
   bool boundary_error_;
   bool could_not_expand_;
@@ -189,6 +189,8 @@ string SeqStr(vector<Sequence*> &pseqs, string delimiter = " ");
 string SeqStr(vector<Sequence> &seqs, string delimiter = " ");
 string SeqNameStr(vector<Sequence*> &pseqs, string delimiter = " ");
 string SeqNameStr(vector<Sequence> &seqs, string delimiter = " ");
+
+bool HasDGene(string locus);
 
 // The star-tree assumption causes a systematic bias towards too-long insertions/deletions (since each mutation in each sequence is viewed as the result of an independent mutation event).
 // Since the accuracy of the inferred naive sequence does not suffer from significant inaccuracy as a result of this, though (it's largely just taking the consensus sequence in these situations), we can get a better annotation by rerunning with just the naive sequence as input.

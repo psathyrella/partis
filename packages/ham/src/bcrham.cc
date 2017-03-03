@@ -33,7 +33,7 @@ int main(int argc, const char * argv[]) {
   // init some infrastructure
   vector<string> characters {"A", "C", "G", "T"};
   Track track("NUKES", characters, args.ambig_base());
-  GermLines gl(args.datadir(), args.chain());
+  GermLines gl(args.datadir(), args.locus());
   HMMHolder hmms(args.hmmdir(), gl, &track);
   vector<vector<Sequence> > qry_seq_list(GetSeqs(args, &track));
 

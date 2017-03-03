@@ -1,5 +1,6 @@
 #ifndef HAM_ARGS_H
 #define HAM_ARGS_H
+#include <algorithm>
 #include <map>
 #include <set>
 #include <fstream>
@@ -27,7 +28,7 @@ public:
   string annotationfile() { return annotationfile_arg_.getValue(); }
   string input_cachefname() { return input_cachefname_arg_.getValue(); }
   string output_cachefname() { return output_cachefname_arg_.getValue(); }
-  string chain() { return chain_arg_.getValue(); }
+  string locus() { return locus_arg_.getValue(); }
   float hamming_fraction_bound_lo() { return hamming_fraction_bound_lo_arg_.getValue(); }
   float hamming_fraction_bound_hi() { return hamming_fraction_bound_hi_arg_.getValue(); }
   float logprob_ratio_threshold() { return logprob_ratio_threshold_arg_.getValue(); }
@@ -55,7 +56,7 @@ public:
   vector<int> debug_ints_;
   ValuesConstraint<string> algo_vals_;
   ValuesConstraint<int> debug_vals_;
-  ValueArg<string> hmmdir_arg_, datadir_arg_, infile_arg_, outfile_arg_, annotationfile_arg_, input_cachefname_arg_, output_cachefname_arg_, chain_arg_, algorithm_arg_, ambig_base_arg_, seed_unique_id_arg_;
+  ValueArg<string> hmmdir_arg_, datadir_arg_, infile_arg_, outfile_arg_, annotationfile_arg_, input_cachefname_arg_, output_cachefname_arg_, locus_arg_, algorithm_arg_, ambig_base_arg_, seed_unique_id_arg_;
   ValueArg<float> hamming_fraction_bound_lo_arg_, hamming_fraction_bound_hi_arg_, logprob_ratio_threshold_arg_, max_logprob_drop_arg_;
   ValueArg<int> debug_arg_, naive_hamming_cluster_arg_, biggest_naive_seq_cluster_to_calculate_arg_, biggest_logprob_cluster_to_calculate_arg_, n_partitions_to_write_arg_;
   ValueArg<unsigned> n_final_clusters_arg_, random_seed_arg_;

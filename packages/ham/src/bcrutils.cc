@@ -108,23 +108,24 @@ string TermColors::ColorGene(string gene) {
 }
 
 // ========================================================================================
-GermLines::GermLines(string gldir, string chain):
-  chain_(chain),
+GermLines::GermLines(string gldir, string locus):
+  locus_(locus),
   regions_({"v", "d", "j"})
 {
-  if(chain_ == "k")
-    dummy_d_gene = "IGKDx-x*x";
-  else if(chain_ == "l")
-    dummy_d_gene = "IGLDx-x*x";
+  if(!HasDGene(locus_)) {
+    string upperlocus(locus_);
+    transform(upperlocus.begin(), upperlocus.end(), upperlocus.begin(), ::toupper);
+    dummy_d_gene = upperlocus + "Dx-x*x";
+  }
 
   for(auto & region : regions_) {
     names_[region] = vector<string>();
-    if(chain != "h" && region == "d") {
+    if(!HasDGene(locus_) && region == "d") {
       names_[region].push_back(dummy_d_gene);
       seqs_[dummy_d_gene] = "A";  // NOTE this choice is also set in python/glutils.py
       continue;
     }
-    string infname(gldir + "/" + chain_ + "/ig" + chain_ + region + ".fasta");
+    string infname(gldir + "/" + locus_ + "/" + locus_ + region + ".fasta");
     ifstream ifs(infname);
     if(!ifs.is_open())
       throw runtime_error("germline file " + infname + " d.n.e.");
@@ -152,7 +153,7 @@ GermLines::GermLines(string gldir, string chain):
   vector<string> header;
 
   // get cyst/tryp info
-  string infname(gldir + "/" + chain_ + "/extras.csv");
+  string infname(gldir + "/" + locus_ + "/extras.csv");
   ifs.open(infname);
   if(!ifs.is_open())
     throw runtime_error("germline file " + infname + " d.n.e.");
@@ -287,11 +288,11 @@ void Result::check_boundaries(KSet best, KBounds kbounds) {
     boundary_error_ = true;
     better_kbounds_.vmax = kbounds.vmax + delta;
   }
-  if(chain_ == "h" && best.d == kbounds.dmin) {  // for light chains we expect/require k_d = 1 with no fuzz
+  if(HasDGene(locus_) && best.d == kbounds.dmin) {  // for light chains we expect/require k_d = 1 with no fuzz
     boundary_error_ = true;
     better_kbounds_.dmin = max((int)1, (int)kbounds.dmin - delta);
   }
-  if(chain_ == "h" && best.d == kbounds.dmax - 1) {
+  if(HasDGene(locus_) && best.d == kbounds.dmax - 1) {
     boundary_error_ = true;
     better_kbounds_.dmax = kbounds.dmax + delta;
   }
@@ -531,6 +532,16 @@ string SeqNameStr(vector<Sequence> &seqs, string delimiter) {
     name_str += seqs[iseq].name();
   }
   return name_str;
+}
+
+// ----------------------------------------------------------------------------------------
+bool HasDGene(string locus) {
+  if(locus == "igh" || locus == "trb" || locus == "trd")
+    return true;
+  else if(locus == "igk" || locus == "igl" || locus == "tra" || locus == "trg")
+    return false;
+  else
+    throw runtime_error("unkown locus " + locus);
 }
 
 // ----------------------------------------------------------------------------------------
