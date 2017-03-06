@@ -622,7 +622,12 @@ def codon_unmutated(codon, seq, position, debug=False, extra_str=''):
     return True
 
 #----------------------------------------------------------------------------------------
-def in_frame(seq, codon_positions, fv_insertion, v_5p_del, debug=False):  # NOTE I'm not passing the whole <line> in order to make it more explicit that <seq> and <codon_positions> need to correspond to each other, i.e. are either both for input seqs, or both for indel-reversed seqws
+def in_frame_germline_v(seq, cyst_position):  # NOTE duplication with in_frame() (this is for when all we have is the germline v gene, whereas in_frame() is for when we have the whole rearrangement line)
+    return cyst_position <= len(seq) - 3 and cyst_position % 3 == 0
+
+#----------------------------------------------------------------------------------------
+def in_frame(seq, codon_positions, fv_insertion, v_5p_del, debug=False):  # NOTE I'm not passing the whole <line> in order to make it more explicit that <seq> and <codon_positions> need to correspond to each other, i.e. are either both for input seqs, or both for indel-reversed seqs
+    # NOTE duplication with in_frame_germline_v()
     """ return true if the start and end of the cdr3 are both in frame with respect to the start of the V """
     germline_v_start = len(fv_insertion) - v_5p_del  # position in <seq> (the query sequence) to which the first base of the germline sequence aligns
     v_cpos = codon_positions['v'] - germline_v_start

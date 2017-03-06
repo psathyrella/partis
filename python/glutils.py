@@ -495,9 +495,10 @@ def restrict_to_genes(glfo, only_genes, debug=False):
 # ----------------------------------------------------------------------------------------
 def remove_v_genes_with_bad_cysteines(glfo, debug=False):
     prelength = len(glfo['seqs']['v'])
-    for gene in glfo['seqs']['v'].keys():
-        # if len(glfo['seqs']['v'][gene]) < glfo['cyst-positions'][gene] + 3:
-        if not utils.codon_unmutated('cyst', glfo['seqs']['v'][gene], glfo['cyst-positions'][gene]):
+    for gene in glfo['seqs']['v'].keys():  # have to use a copy of the keys, since we modify the dict in the loop
+        mutated = not utils.codon_unmutated('cyst', glfo['seqs']['v'][gene], glfo['cyst-positions'][gene])
+        in_frame = utils.in_frame_germline_v(glfo['seqs']['v'][gene], glfo['cyst-positions'][gene])
+        if mutated or not in_frame:
             remove_gene(glfo, gene, debug=debug)
     if True:  # debug:
         print '  removed %d / %d v genes with bad cysteines' % (prelength - len(glfo['seqs']['v']), len(glfo['seqs']['v']))

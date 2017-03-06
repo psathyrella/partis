@@ -225,8 +225,53 @@ class Recombinator(object):
         return version_freq_table
 
     # ----------------------------------------------------------------------------------------
+    def try_scratch_erode_insert(self, tmpline, debug=False):
+        utils.remove_all_implicit_info(tmpline)
+        for erosion in utils.real_erosions:  # includes various contortions to avoid eroding the entire gene
+            region = erosion[0]
+            gene_length = len(self.glfo['seqs'][region][tmpline[region + '_gene']])
+            if region == 'd' and not utils.has_d_gene(self.args.locus):  # dummy d genes: always erode the whole thing from the left
+                assert gene_length == 1 and tmpline['d_gene'] == glutils.dummy_d_genes[self.args.locus]
+                tmpline[erosion + '_del'] = 1 if '5p' in erosion else 0
+            else:
+                max_erosion = max(0, gene_length/2 - 2)  # heuristic
+                if region in utils.conserved_codons[self.args.locus]:  # make sure not to erode a conserved codon
+                    codon_pos = self.glfo[utils.conserved_codons[self.args.locus][region] + '-positions'][tmpline[region + '_gene']]
+                    if '3p' in erosion:
+                        n_bases_to_codon = gene_length - codon_pos - 3
+                    elif '5p' in erosion:
+                        n_bases_to_codon = codon_pos
+                    max_erosion = min(max_erosion, n_bases_to_codon)
+                tmpline[erosion + '_del'] = min(max_erosion, numpy.random.geometric(1. / utils.scratch_mean_erosion_lengths[erosion]) - 1)
+        for bound in utils.boundaries:
+            mean_length = utils.scratch_mean_insertion_lengths[self.args.locus][bound]
+            length = 0 if mean_length == 0 else numpy.random.geometric(1. / mean_length) - 1
+            probs = [self.insertion_content_probs[bound][n] for n in utils.nukes]
+            tmpline[bound + '_insertion'] = ''.join(numpy.random.choice(utils.nukes, size=length, p=probs))
+
+        if debug:
+            print '    erosions:  %s' % ('   '.join([('%s %d' % (e, tmpline[e + '_del'])) for e in utils.real_erosions]))
+            print '    insertions:  %s' % ('   '.join([('%s %s' % (b, tmpline[b + '_insertion'])) for b in utils.boundaries]))
+
+        # have to add some things by hand so utils.add_implicit_info() doesn't barf (this duplicates code later on in recombinator)
+        gl_seqs = {r : self.glfo['seqs'][r][tmpline[r + '_gene']] for r in utils.regions}
+        for erosion in utils.real_erosions:
+            region = erosion[0]
+            e_length = tmpline[erosion + '_del']
+            if '5p' in erosion:
+                gl_seqs[region] = gl_seqs[region][e_length:]
+            elif '3p' in erosion:
+                gl_seqs[region] = gl_seqs[region][:len(gl_seqs[region]) - e_length]
+        tmpline['seqs'] = [gl_seqs['v'] + tmpline['vd_insertion'] + gl_seqs['d'] + tmpline['dj_insertion'] + gl_seqs['j'], ]
+        tmpline['indelfos'] = [utils.get_empty_indel(), ]
+        utils.add_implicit_info(self.glfo, tmpline)
+        assert len(tmpline['in_frames']) == 1
+
+    # ----------------------------------------------------------------------------------------
     def get_scratchline(self):
         tmpline = {}
+
+        # first choose the things that we'll only need to try choosing once (genes and effective (non-physical) deletions/insertions)
         for region in utils.regions:
             probs = None  # it would make more sense to only do this prob calculation once, rather than for each event
             if region in self.allele_prevalence_freqs and len(self.allele_prevalence_freqs[region]) > 0:  # should really change it so it has to be the one or the other
@@ -237,53 +282,16 @@ class Recombinator(object):
         for effbound in utils.effective_boundaries:
             tmpline[effbound + '_insertion'] = ''
 
-        # ----------------------------------------------------------------------------------------
-        def try_scratch_erode_insert(tmpline):
-            utils.remove_all_implicit_info(tmpline)
-            for erosion in utils.real_erosions:  # includes various contortions to avoid eroding the entire gene
-                region = erosion[0]
-                gene_length = len(self.glfo['seqs'][region][tmpline[region + '_gene']])
-                if region == 'd' and not utils.has_d_gene(self.args.locus):  # dummy d treatment
-                    assert gene_length == 1 and tmpline['d_gene'] == glutils.dummy_d_genes[self.args.locus]
-                    tmpline[erosion + '_del'] = 1 if '5p' in erosion else 0  # always erode the whole dummy d from the left
-                else:
-                    max_erosion = max(0, gene_length/2 - 2)  # now that, son, is a heuristic
-                    if region in utils.conserved_codons[self.args.locus]:
-                        codon_pos = self.glfo[utils.conserved_codons[self.args.locus][region] + '-positions'][tmpline[region + '_gene']]
-                        if '3p' in erosion:
-                            n_bases_to_codon = gene_length - codon_pos - 3
-                        elif '5p' in erosion:
-                            n_bases_to_codon = codon_pos
-                        max_erosion = min(max_erosion, n_bases_to_codon)
-                    tmpline[erosion + '_del'] = min(max_erosion, numpy.random.geometric(1. / utils.scratch_mean_erosion_lengths[erosion]) - 1)
-            for bound in utils.boundaries:
-                mean_length = utils.scratch_mean_insertion_lengths[self.args.locus][bound]
-                length = 0 if mean_length == 0 else numpy.random.geometric(1. / mean_length) - 1
-                probs = [self.insertion_content_probs[bound][n] for n in utils.nukes]
-                tmpline[bound + '_insertion'] = ''.join(numpy.random.choice(utils.nukes, size=length, p=probs))
-
-            # have to add some things by hand so utils.add_implicit_info() doesn't barf (this duplicates code later on in recombinator)
-            gl_seqs = {r : self.glfo['seqs'][r][tmpline[r + '_gene']] for r in utils.regions}
-            for erosion in utils.real_erosions:
-                region = erosion[0]
-                e_length = tmpline[erosion + '_del']
-                if '5p' in erosion:
-                    gl_seqs[region] = gl_seqs[region][e_length:]
-                elif '3p' in erosion:
-                    gl_seqs[region] = gl_seqs[region][:len(gl_seqs[region]) - e_length]
-            tmpline['seqs'] = [gl_seqs['v'] + tmpline['vd_insertion'] + gl_seqs['d'] + tmpline['dj_insertion'] + gl_seqs['j'], ]
-            tmpline['indelfos'] = [utils.get_empty_indel(), ]
-            utils.add_implicit_info(self.glfo, tmpline)
-            assert len(tmpline['in_frames']) == 1
-
+        # then choose the things that we may need to try a few times (physical deletions/insertions)
         n_tries = 0
         while 'in_frames' not in tmpline or not tmpline['in_frames'][0]:
-            try_scratch_erode_insert(tmpline)
+            self.try_scratch_erode_insert(tmpline)
             n_tries +=1
             if n_tries > 500:
+                print tmpline['v_gene']
                 print '%s tried to get an in-frame rearrangement %d times already' % (utils.color('yellow', 'warning'), n_tries)
 
-        # convert insertions back to lengths
+        # convert insertions back to lengths (hoo boy this shouldn't need to be done)
         for bound in utils.boundaries + utils.effective_boundaries:
             tmpline[bound + '_insertion'] = len(tmpline[bound + '_insertion'])
 
