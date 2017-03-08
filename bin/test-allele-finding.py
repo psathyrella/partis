@@ -16,7 +16,7 @@ import glutils
 
 # ----------------------------------------------------------------------------------------
 def run(cmd_str):
-    print 'RUN', cmd_str
+    print '%s %s' % (utils.color('red', 'run'), cmd_str)
     sys.stdout.flush()
     check_call(cmd_str.split())
 
@@ -69,6 +69,7 @@ def run_test(args):
                 glutils.write_allele_prevalence_freqs(prevalence_freqs, args.workdir + '/allele-prevalence-freqs.csv')
                 cmd_str += ' --allele-prevalence-fname ' + args.workdir + '/allele-prevalence-freqs.csv'
 
+            print '  simulating with %d v: %s' % (len(sglfo['seqs']['v']), ' '.join([utils.color_gene(g) for g in sglfo['seqs']['v']]))
             glutils.write_glfo(args.outdir + '/germlines/simulation', sglfo)
             cmd_str += ' --initial-germline-dir ' + args.outdir + '/germlines/simulation'
 
@@ -97,7 +98,8 @@ def run_test(args):
         cmd_str += ' --find-new-alleles'
     else:
         inference_genes = ':'.join(args.inf_v_genes + args.dj_genes)
-        iglfo = glutils.read_glfo('data/germlines/human', locus=locus, only_genes=inference_genes.split(':'), debug=True)
+        iglfo = glutils.read_glfo('data/germlines/human', locus=locus, only_genes=inference_genes.split(':'))
+        print '  starting inference with %d v: %s' % (len(iglfo['seqs']['v']), ' '.join([utils.color_gene(g) for g in iglfo['seqs']['v']]))
         glutils.write_glfo(args.outdir + '/germlines/inference', iglfo)
         cmd_str += ' --initial-germline-dir ' + args.outdir + '/germlines/inference'
         cmd_str += ' --find-new-alleles --dont-remove-unlikely-alleles'  # --new-allele-fname ' + args.outdir + '/new-alleles.fa'
