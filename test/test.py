@@ -193,7 +193,7 @@ class Tester(object):
             elif 'cache-parameters-' not in name:
                 cmd_str += ' --outfname ' + self.dirs['new'] + '/' + name + '.csv'
 
-            logstr = '%s   %s' % (utils.color('green', name, width=30, padside='right'), cmd_str[:args.print_width])
+            logstr = '%s   %s%s' % (utils.color('green', name, width=30, padside='right'), cmd_str[:args.print_width], '[...]' if args.print_width < len(cmd_str) else '')
             print logstr
             if args.dry_run:
                 continue

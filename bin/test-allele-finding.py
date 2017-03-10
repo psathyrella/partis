@@ -48,6 +48,7 @@ def run_test(args):
         if args.slurm:
             cmd_str += ' --batch-system slurm --subsimproc'
 
+        # figure what genes we're using
         if args.gen_gset:
             cmd_str += ' --generate-germline-set'
             cmd_str += ' --n-genes-per-region 1:5:3'
@@ -62,7 +63,7 @@ def run_test(args):
                 added_snp_names = glutils.add_some_snps(snps_to_add, sglfo, debug=True, remove_template_genes=args.remove_template_genes)
 
             if args.allele_prevalence_freqs is not None:
-                if len(args.allele_prevalence_freqs) != len(sglfo['seqs']['v']):
+                if len(args.allele_prevalence_freqs) != len(sglfo['seqs']['v']):  # already checked when parsing args, but, you know...
                     raise Exception('--allele-prevalence-freqs not the right length')
                 gene_list = sorted(sglfo['seqs']['v']) if added_snp_names is None else list(set(args.sim_v_genes)) + added_snp_names
                 prevalence_freqs = {'v' : {g : f for g, f in zip(gene_list, args.allele_prevalence_freqs)}, 'd' : {}, 'j' : {}}
@@ -73,6 +74,7 @@ def run_test(args):
             glutils.write_glfo(args.outdir + '/germlines/simulation', sglfo)
             cmd_str += ' --initial-germline-dir ' + args.outdir + '/germlines/simulation'
 
+        # run simulation
         if args.seed is not None:
             cmd_str += ' --seed ' + str(args.seed)
         run(cmd_str)
@@ -94,15 +96,17 @@ def run_test(args):
     if args.slurm:
         cmd_str += ' --batch-system slurm'
 
+    cmd_str += ' --find-new-alleles'
+
     if args.gen_gset:
-        cmd_str += ' --find-new-alleles'
+        pass  # i.e. uses default (full) germline dir
     else:
+        cmd_str += ' --dont-remove-unlikely-alleles'  # --new-allele-fname ' + args.outdir + '/new-alleles.fa'
         inference_genes = ':'.join(args.inf_v_genes + args.dj_genes)
         iglfo = glutils.read_glfo('data/germlines/human', locus=locus, only_genes=inference_genes.split(':'))
         print '  starting inference with %d v: %s' % (len(iglfo['seqs']['v']), ' '.join([utils.color_gene(g) for g in iglfo['seqs']['v']]))
         glutils.write_glfo(args.outdir + '/germlines/inference', iglfo)
         cmd_str += ' --initial-germline-dir ' + args.outdir + '/germlines/inference'
-        cmd_str += ' --find-new-alleles --dont-remove-unlikely-alleles'  # --new-allele-fname ' + args.outdir + '/new-alleles.fa'
         # cmd_str += ' --n-max-snps 12'
 
     cmd_str += ' --parameter-dir ' + outpdir
@@ -140,34 +144,42 @@ example_str = '\n    '.join(['example usage:',
                              './bin/test-allele-finding.py --n-sim-events 2000 --n-procs 10 --sim-v-genes=IGHV1-18*01 --inf-v-genes=IGHV1-18*01 --snp-positions 27,55,88',
                              './bin/test-allele-finding.py --n-sim-events 2000 --n-procs 10 --sim-v-genes=IGHV4-39*01:IGHV4-39*02 --inf-v-genes=IGHV4-39*01'])
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, epilog=example_str)
-parser.add_argument('--nosim', action='store_true')
+parser.add_argument('--nosim', action='store_true', help='run inference on (presumably) existing simulation')
 parser.add_argument('--n-sim-events', type=int, default=20)
-parser.add_argument('--n-leaves', type=int, default=1)
+parser.add_argument('--n-leaves', type=int, default=1)  # NOTE --constant-number-of-leaves is set up there ^
 parser.add_argument('--n-procs', type=int, default=2)
 parser.add_argument('--seed', type=int, default=int(time.time()))
-parser.add_argument('--gen-gset', action='store_true')
-parser.add_argument('--dj-genes', default='IGHD6-19*01:IGHJ4*02', help='.')
+parser.add_argument('--gen-gset', action='store_true', help='generate a random germline set from scratch (parameters specified above), and infer a germline set from scratch, instead of using --sim-v-genes, --dj-genes, --inf-v-genes, and --snp-positions.')
 parser.add_argument('--sim-v-genes', default='IGHV4-39*01:IGHV4-39*06', help='.')
 parser.add_argument('--inf-v-genes', default='IGHV4-39*01', help='.')
-parser.add_argument('--snp-positions')
-parser.add_argument('--remove-template-genes', action='store_true')
+parser.add_argument('--dj-genes', default='IGHD6-19*01:IGHJ4*02', help='.')
+parser.add_argument('--snp-positions', help='colon-separated list (length must equal length of <--sim-v-genes>) of comma-separated snp positions for each gene, e.g. for two genes you might have \'3,71:45\'')
+parser.add_argument('--allele-prevalence-freqs', help='colon-separated list of allele prevalence frequencies, including newly-generated snpd genes (ordered alphabetically)')
+parser.add_argument('--remove-template-genes', action='store_true', help='when generating snps, remove the original gene before simulation')
 parser.add_argument('--mut-mult', type=float, default=0.5)
 parser.add_argument('--slurm', action='store_true')
 parser.add_argument('--outdir', default=fsdir + '/partis/allele-finder')
 parser.add_argument('--workdir', default=fsdir + '/_tmp/hmms/' + str(random.randint(0, 999999)))
-parser.add_argument('--comprehensive', action='store_true')
+parser.add_argument('--comprehensive', action='store_true', help='run <--n-tests> independent tests with the same command line arguments, writing each output to a subdir of <--outdir>/<iproc>')
 parser.add_argument('--n-tests', type=int, default=3)
-parser.add_argument('--allele-prevalence-freqs')
 args = parser.parse_args()
 args.dj_genes = utils.get_arg_list(args.dj_genes)
 args.sim_v_genes = utils.get_arg_list(args.sim_v_genes)
 args.inf_v_genes = utils.get_arg_list(args.inf_v_genes)
 args.snp_positions = utils.get_arg_list(args.snp_positions)
-args.allele_prevalence_freqs = utils.get_arg_list(args.allele_prevalence_freqs, floatify=True)
 if args.snp_positions is not None:
     args.snp_positions = [[int(p) for p in pos_str.split(',')] for pos_str in args.snp_positions]
-    assert len(args.snp_positions) == len(args.sim_v_genes)
-    # args.snp_positions = {args.sim_v_genes[ig] : args.snp_positions[ig] for ig in range(len(args.sim_v_genes))}
+    if len(args.snp_positions) != len(args.sim_v_genes):
+        raise Exception('--snp-positions %s and --sim-v-genes %s not the same length (%d vs %d)' % (args.snp_positions, args.sim_v_genes, len(args.snp_positions), len(args.sim_v_genes)))
+args.allele_prevalence_freqs = utils.get_arg_list(args.allele_prevalence_freqs, floatify=True)
+if args.allele_prevalence_freqs is not None:
+    if args.snp_positions is not None:
+        if len(args.allele_prevalence_freqs) != 2 * len(args.sim_v_genes):  # need a prevalence freq also for each newly-generated snpd gene
+            raise Exception('--allele-prevalence-freqs %s length %d not equal to twice --sim-v-genes %s length %d' % (args.allele_prevalence_freqs, len(args.allele_prevalence_freqs), args.sim_v_genes, 2 * len(args.sim_v_genes)))
+    elif len(args.allele_prevalence_freqs) != len(args.sim_v_genes):
+        raise Exception('--allele-prevalence-freqs %s length %d not equal to --sim-v-genes %s length %d' % (args.allele_prevalence_freqs, len(args.allele_prevalence_freqs), args.sim_v_genes, len(args.sim_v_genes)))
+    if not utils.is_normed(args.allele_prevalence_freqs):
+        raise Exception('--allele-prevalence-freqs %s not normalized' % args.allele_prevalence_freqs)
 
 if args.seed is not None:
     random.seed(args.seed)
