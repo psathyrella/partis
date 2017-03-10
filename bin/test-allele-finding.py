@@ -116,10 +116,9 @@ def run_test(args):
     run(cmd_str)
 
 # ----------------------------------------------------------------------------------------
-def comprehensive_test(args):
+def multiple_tests(args):
     def cmd_str(iproc):
         clist = copy.deepcopy(sys.argv)
-        utils.remove_from_arglist(clist, '--comprehensive')
         utils.remove_from_arglist(clist, '--n-tests', has_arg=True)
         utils.replace_in_arglist(clist, '--outdir', args.outdir + '/' + str(iproc))
         utils.replace_in_arglist(clist, '--seed', str(args.seed + iproc))
@@ -154,24 +153,32 @@ parser.add_argument('--sim-v-genes', default='IGHV4-39*01:IGHV4-39*06', help='.'
 parser.add_argument('--inf-v-genes', default='IGHV4-39*01', help='.')
 parser.add_argument('--dj-genes', default='IGHD6-19*01:IGHJ4*02', help='.')
 parser.add_argument('--snp-positions', help='colon-separated list (length must equal length of <--sim-v-genes>) of comma-separated snp positions for each gene, e.g. for two genes you might have \'3,71:45\'')
+parser.add_argument('--nsnp-list', help='colon-separated list (length must equal length of <--sim-v-genes>) of the number of snps to generate for each gene (each at a random position)')
 parser.add_argument('--allele-prevalence-freqs', help='colon-separated list of allele prevalence frequencies, including newly-generated snpd genes (ordered alphabetically)')
 parser.add_argument('--remove-template-genes', action='store_true', help='when generating snps, remove the original gene before simulation')
 parser.add_argument('--mut-mult', type=float, default=0.5)
 parser.add_argument('--slurm', action='store_true')
 parser.add_argument('--outdir', default=fsdir + '/partis/allele-finder')
 parser.add_argument('--workdir', default=fsdir + '/_tmp/hmms/' + str(random.randint(0, 999999)))
-parser.add_argument('--comprehensive', action='store_true', help='run <--n-tests> independent tests with the same command line arguments, writing each output to a subdir of <--outdir>/<iproc>')
-parser.add_argument('--n-tests', type=int, default=3)
+parser.add_argument('--n-tests', type=int)
 args = parser.parse_args()
 args.dj_genes = utils.get_arg_list(args.dj_genes)
 args.sim_v_genes = utils.get_arg_list(args.sim_v_genes)
 args.inf_v_genes = utils.get_arg_list(args.inf_v_genes)
 args.snp_positions = utils.get_arg_list(args.snp_positions)
+args.nsnp_list = utils.get_arg_list(args.nsnp_list, intify=True)
+args.allele_prevalence_freqs = utils.get_arg_list(args.allele_prevalence_freqs, floatify=True)
 if args.snp_positions is not None:
     args.snp_positions = [[int(p) for p in pos_str.split(',')] for pos_str in args.snp_positions]
     if len(args.snp_positions) != len(args.sim_v_genes):
         raise Exception('--snp-positions %s and --sim-v-genes %s not the same length (%d vs %d)' % (args.snp_positions, args.sim_v_genes, len(args.snp_positions), len(args.sim_v_genes)))
-args.allele_prevalence_freqs = utils.get_arg_list(args.allele_prevalence_freqs, floatify=True)
+if args.nsnp_list is not None:
+    if len(args.nsnp_list) != len(args.sim_v_genes):
+        raise Exception('--nsnp-list %s and --sim-v-genes %s not the same length (%d vs %d)' % (args.nsnp_list, args.sim_v_genes, len(args.nsnp_list), len(args.sim_v_genes)))
+    if args.snp_positions is not None:
+        raise Exception('can\'t specify both --nsnp-list and --snp-positions')
+    args.snp_positions = [[None for _ in range(nsnp)] for nsnp in args.nsnp_list]
+    args.nsnp_list = None
 if args.allele_prevalence_freqs is not None:
     if args.snp_positions is not None:
         if len(args.allele_prevalence_freqs) != 2 * len(args.sim_v_genes):  # need a prevalence freq also for each newly-generated snpd gene
@@ -185,7 +192,7 @@ if args.seed is not None:
     random.seed(args.seed)
     numpy.random.seed(args.seed)
 
-if args.comprehensive:
-    comprehensive_test(args)
+if args.n_tests is not None:
+    multiple_tests(args)
 else:
     run_test(args)

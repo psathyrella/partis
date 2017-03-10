@@ -449,7 +449,7 @@ def generate_snpd_gene(gene, cpos, seq, positions):
     def choose_position():
         snp_pos = None
         while snp_pos is None or snp_pos in snpd_positions or not utils.codon_unmutated('cyst', tmpseq, cpos, debug=True):
-            snp_pos = random.randint(10, len(seq) - 15)  # note that randint() is inclusive
+            snp_pos = random.randint(0, len(seq) - 1)  # note that randint() is inclusive
             tmpseq = seq[: snp_pos] + 'X' + seq[snp_pos + 1 :]  # for checking cyst position
         return snp_pos
 
