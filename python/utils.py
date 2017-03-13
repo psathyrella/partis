@@ -1329,7 +1329,10 @@ def prep_dir(dirname, wildlings=None, subdirs=None, fname=None, allow_other_file
     if os.path.exists(dirname):
         for wild in wildlings:
             for fname in glob.glob(dirname + '/' + wild):
-                os.remove(fname)
+                if os.path.exists(fname):
+                    os.remove(fname)
+                else:
+                    print '%s file %s exists but then it doesn\'t' % (color('red', 'wtf'), fname)
         remaining_files = [fn for fn in os.listdir(dirname) if subdirs is not None and fn not in subdirs]
         if len(remaining_files) > 0 and not allow_other_files:  # make sure there's no other files in the dir
             raise Exception('files (%s) remain in %s despite wildlings %s' % (' '.join(['\'' + fn + '\'' for fn in remaining_files]), dirname, wildlings))
@@ -1535,18 +1538,20 @@ def finish_process(iproc, procs, n_tries, cmdfo, dbgfo=None, batch_system=None, 
                 logstr = check_output(['tail', cmdfo['logdir'] + '/' + strtype])
                 print '\n'.join(['            ' + l for l in logstr.split('\n')])
         if batch_system is not None and os.path.exists(cmdfo['logdir'] + '/err'):  # cmdfo['cmd_str'].split()[0] == 'srun' and 
-            jobid = ''
+            jobid, nodelist = '', ''
             try:
                 jobid = check_output(['head', '-n1', cmdfo['logdir'] + '/err']).split()[2]
                 nodelist = check_output(['squeue', '--job', jobid, '--states=all', '--format', '%N']).split()[1]
-            except:
-                print '      couldn\'t get node list for jobid \'%s\'' % jobid
+            except (CalledProcessError, IndexError) as err:
+                print '      couldn\'t get node list from jobid \'%s\'' % jobid
+                print err
             try:
                 print '        sshing to %s' % nodelist
                 outstr = check_output('ssh -o StrictHostKeyChecking=no ' + nodelist + ' ps -eo pcpu,pmem,rss,cputime:12,stime:7,user,args:100 --sort pmem | tail', shell=True)
                 print pad_lines(outstr, padwidth=12)
-            except:
-                print '        failed'
+            except CalledProcessError as err:
+                print '        failed to ssh:'
+                print err
         # print cmdfo['cmd_str']
         # sys.exit()
         print '    restarting proc %d' % iproc
