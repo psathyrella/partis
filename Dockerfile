@@ -4,8 +4,7 @@ FROM matsengrp/cpp
 RUN sed -i 's/httpredir/ftp.us/' /etc/apt/sources.list
 # ape (required for TreeSim) doesn't work with the default debian r version; probably need to add the cran apt sources here
 RUN apt-get update && apt-get install -y \
-    libgsl0ldbl \
-    libgsl0-dev \
+    libgsl-dev \
     libncurses5-dev \
     libxml2-dev \
     libxslt1-dev \
