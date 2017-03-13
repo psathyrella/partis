@@ -1329,7 +1329,10 @@ def prep_dir(dirname, wildlings=None, subdirs=None, fname=None, allow_other_file
     if os.path.exists(dirname):
         for wild in wildlings:
             for fname in glob.glob(dirname + '/' + wild):
-                os.remove(fname)
+                if os.path.exists(fname):
+                    os.remove(fname)
+                else:
+                    print '%s file %s exists but then it doesn\'t' % (color('red', 'wtf'), fname)
         remaining_files = [fn for fn in os.listdir(dirname) if subdirs is not None and fn not in subdirs]
         if len(remaining_files) > 0 and not allow_other_files:  # make sure there's no other files in the dir
             raise Exception('files (%s) remain in %s despite wildlings %s' % (' '.join(['\'' + fn + '\'' for fn in remaining_files]), dirname, wildlings))
