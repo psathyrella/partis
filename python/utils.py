@@ -1538,18 +1538,20 @@ def finish_process(iproc, procs, n_tries, cmdfo, dbgfo=None, batch_system=None, 
                 logstr = check_output(['tail', cmdfo['logdir'] + '/' + strtype])
                 print '\n'.join(['            ' + l for l in logstr.split('\n')])
         if batch_system is not None and os.path.exists(cmdfo['logdir'] + '/err'):  # cmdfo['cmd_str'].split()[0] == 'srun' and 
-            jobid = ''
+            jobid, nodelist = '', ''
             try:
                 jobid = check_output(['head', '-n1', cmdfo['logdir'] + '/err']).split()[2]
                 nodelist = check_output(['squeue', '--job', jobid, '--states=all', '--format', '%N']).split()[1]
-            except:
-                print '      couldn\'t get node list for jobid \'%s\'' % jobid
+            except (CalledProcessError, IndexError) as err:
+                print '      couldn\'t get node list from jobid \'%s\'' % jobid
+                print err
             try:
                 print '        sshing to %s' % nodelist
                 outstr = check_output('ssh -o StrictHostKeyChecking=no ' + nodelist + ' ps -eo pcpu,pmem,rss,cputime:12,stime:7,user,args:100 --sort pmem | tail', shell=True)
                 print pad_lines(outstr, padwidth=12)
-            except:
-                print '        failed'
+            except CalledProcessError as err:
+                print '        failed to ssh:'
+                print err
         # print cmdfo['cmd_str']
         # sys.exit()
         print '    restarting proc %d' % iproc
