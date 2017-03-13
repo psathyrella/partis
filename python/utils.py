@@ -2350,8 +2350,8 @@ def read_fastx(fname):  # Bio.SeqIO is too goddamn slow to import
             if not seqline:
                 break
 
-            info = [p.strip() for p in headline.split('|')]
+            info = [ss.strip() for s in headline.split(' ') for ss in s.split('|')]
             finfo.append({'info' : info,
-                          'name' : info[0].strip(),
-                          'seq' : seqline.strip()})
+                          'name' : info[0],
+                          'seq' : seqline})
     return finfo
