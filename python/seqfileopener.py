@@ -1,3 +1,4 @@
+import numpy
 import bz2
 import gzip
 import copy
@@ -70,6 +71,19 @@ def post_process(input_info, reco_info, args, infname, found_seed, is_data):
     elif args.random_seed_seq:  # already checked (in bin/partis) that other seed args aren't set
         args.seed_unique_id = random.choice(input_info.keys())
         print '    chose random seed unique id %s' % args.seed_unique_id
+
+    if args.n_random_queries is not None:
+        uids_to_choose_from = input_info.keys()
+        if args.seed_unique_id is not None:
+            uids_to_choose_from.remove(args.seed_unique_id)
+        if args.n_random_queries >= len(input_info):
+            print '  %s --n-random-queries %d >= number of queries read from %s (so just keeping everybody)' % (utils.color('yellow', 'warning'), args.n_random_queries, infname)
+        else:
+            uids_to_remove = numpy.random.choice(uids_to_choose_from, len(input_info) - args.n_random_queries, replace=False)
+            for uid in uids_to_remove:
+                del input_info[uid]
+                if reco_info is not None:
+                    del reco_info[uid]
 
 # ----------------------------------------------------------------------------------------
 def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, simglfo=None):

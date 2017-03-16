@@ -272,8 +272,9 @@ parent_parser.add_argument('--chain', choices=('h', 'k', 'l'), help='DEPRECATED 
 parent_parser.add_argument('--species', default='human', choices=('human', 'mouse'), help='Which species?')
 parent_parser.add_argument('--queries', help='Colon-separated list of query names to which we restrict ourselves')
 parent_parser.add_argument('--reco-ids', help='Colon-separated list of rearrangement-event IDs to which we restrict ourselves')  # or recombination events
-parent_parser.add_argument('--n-max-queries', type=int, default=-1, help='Maximum number of query sequences on which to run (except for simulator, where it\'s the number of rearrangement events)')
-parent_parser.add_argument('--istartstop', help='Start and stop line indices for input sequence file (with python slice conventions, e.g. if set to \'2:4\' will skip the zeroth and first sequences, and then take the following two sequences, and then skip all subsequence sequences). Applied before any other input filters, e.g. --n-max-queries, --queries, --reco-ids, etc.')
+parent_parser.add_argument('--n-max-queries', type=int, default=-1, help='Maximum number of query sequences to read, starting from beginning of input file')
+parent_parser.add_argument('--n-random-queries', type=int, help='choose this many queries at random from input file')
+parent_parser.add_argument('--istartstop', help='colon-separated start:stop line indices for input sequence file (with python slice conventions, e.g. if set to \'2:4\' will skip the zeroth and first sequences, and then take the following two sequences, and then skip all subsequence sequences). Applied before any other input filters, e.g. --n-max-queries, --queries, --reco-ids, etc.')
 
 parent_parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2], help='Debug verbosity level.')
 parent_parser.add_argument('--sw-debug', type=int, choices=[0, 1, 2], help='Debug level for Smith-Waterman.')
