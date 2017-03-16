@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+import copy
 import matplotlib as mpl
 mpl.use('Agg')
 mpl.rcParams['svg.fonttype'] = 'none'
@@ -264,15 +265,20 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
     fig, ax = mpl_init(figsize=figsize)
     mpl.rcParams.update({'legend.fontsize' : 15})
 
-    if colors is None:  # fiddle here http://stackoverflow.com/questions/22408237/named-colors-in-matplotlib
-        colors = ['royalblue', 'darkred', 'green', 'darkorange']
-    while len(colors) < len(hists):
-        print 'warning: fewer colors than hists, so repeating them'
-        colors += colors
-    if linestyles is None:
-        linestyles = []
-    while len(linestyles) < len(hists):
-        linestyles.append('-')
+    tmpcolors = copy.deepcopy(colors)  # don't want to modify the arguments
+    if tmpcolors is None:  # fiddle here http://stackoverflow.com/questions/22408237/named-colors-in-matplotlib
+        tmpcolors = ['royalblue', 'darkred', 'green', 'darkorange']
+    n_different_colors = len(tmpcolors)
+    while len(tmpcolors) < len(hists):
+        print '  warning: fewer colors than hists, so repeating colors'
+        tmpcolors += tmpcolors
+
+    tmplinestyles = [] if linestyles is None or len(linestyles) < len(hists) else copy.deepcopy(linestyles)
+    itmp = 0
+    availstyles = ['-', '--', '-.', ':']
+    while len(tmplinestyles) < len(hists):
+        tmplinestyles += [availstyles[itmp % len(availstyles)] for _ in range(n_different_colors)]
+        itmp += 1
 
     for ih in range(len(hists)):
         htmp = hists[ih]
@@ -296,7 +302,7 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
         alpha = 1.
         if alphas is not None:
             alpha = alphas[ih]
-        htmp.mpl_plot(ax, color=colors[ih], linewidth=linewidth, linestyle=linestyles[ih], ignore_overflows=True, errors=errors, alpha=alpha, markersize=markersize)
+        htmp.mpl_plot(ax, color=tmpcolors[ih], linewidth=linewidth, linestyle=tmplinestyles[ih], ignore_overflows=True, errors=errors, alpha=alpha, markersize=markersize)
 
     # TODO combine xline, yline, and xyline (I don't want to go find everwhere that calls this right now)
     if xline is not None:

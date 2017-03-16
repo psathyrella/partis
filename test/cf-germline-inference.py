@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import os
 import random
 import argparse
 import sys
@@ -9,10 +10,31 @@ import utils
 import glutils
 
 base_cmd = './bin/test-allele-finding.py'
-baseoutdir = '/fh/fast/matsen_e/dralph/partis/allele-finder'
+fsdir = '/fh/fast/matsen_e'
+baseoutdir = fsdir + '/dralph/partis/allele-finder'
 locus = 'igh'
 region = 'v'
 
+# ----------------------------------------------------------------------------------------
+sys.path.insert(1, './datascripts')
+import heads
+names, dirs = [], []
+# for study in ['kate-qrs-2016-09-09', 'laura-mb-2016-12-22', 'chaim-donor-45-2016-08-04', 'adaptive-billion-read-2016-04-07']:  #, 'vollmers-2016-04-08']]
+for study in ['kate-qrs-2016-09-09']:  #, 'vollmers-2016-04-08']]
+    metafo = heads.read_metadata(study)
+    print study
+    for dset in metafo:
+        if metafo[dset]['timepoint'] == 'merged':
+            continue
+        if dset == 'Hs-LN3-5RACE-IgG':  # bad one
+            continue
+        names.append(metafo[dset]['shorthand'])
+        dirs.append(fsdir + '/processed-data/partis/' + study + '/latest/' + dset + '/plots/sw/mute-freqs/overall')
+print '\n'.join(names)
+check_call(['./bin/compare-plotdirs.py', '--outdir', os.getenv('www') + '/partis/tmp/lots-of-mfreqs', '--plotdirs', ':'.join(dirs), '--names', ':'.join(names)])
+sys.exit()
+
+# ----------------------------------------------------------------------------------------
 
 # ----------------------------------------------------------------------------------------
 def run(cmd_str):
@@ -53,6 +75,7 @@ def cf_nsnps(args, original_glfo):
         cmd += ' --outdir ' + baseoutdir + '/' + 'nsnp-' + str(nsnp)
         run(cmd)
 
+# need to add sample size as a subdir for everybody
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
 parser.add_argument('action', choices=['nsnp'])

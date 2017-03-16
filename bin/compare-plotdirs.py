@@ -53,7 +53,7 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
 
     no_labels = False
     xline, bounds, figsize = None, None, None
-    translegend = (0.0, -0.2)
+    translegend = [0.0, -0.2]
     extrastats, log = '', ''
     xtitle, ytitle = hlist[0].xtitle, hlist[0].ytitle
     if xtitle == '':  # arg, plotting.py thinks default should be None, hist.py thinks it's ''
@@ -85,7 +85,7 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
             xtitle = 'mutation freq'
             ytitle = 'fraction correct'
             if varname[0] == 'v' or varname[0] == 'j':
-                translegend = (-0.4, -0.4)
+                translegend = [-0.4, -0.4]
         elif varname.find('_gene') == 1:
             xtitle = ''
             ytitle = 'fraction correct'
@@ -111,9 +111,9 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
             plottitle = gene  # + ' -- mutation frequency'
             xtitle = 'position'
             if utils.get_region(gene) == 'j':
-                translegend = (0.1, 0.)  #(-0.35, -0.02)
+                translegend = [0.1, 0.]  #(-0.35, -0.02)
             else:
-                translegend = (0.15, -0.02)
+                translegend = [0.15, -0.02]
             xline = None
             if args.glfo is not None:
                 if utils.get_region(gene) in utils.conserved_codons[args.locus]:
@@ -125,6 +125,8 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
             base_plottitle = plotconfig.plot_titles[base_varname] if base_varname in plotconfig.plot_titles else ''
             plottitle = gene + ' -- ' + base_plottitle
 
+    if len(hlist) > 7:  # skootch it down so they (maybe) all fit
+        translegend[1] -= 0.5
     # draw that little #$*(!
     linewidths = [line_width_override, ] if line_width_override is not None else args.linewidths
     alphas = [0.6 for _ in range(len(hlist))]
@@ -140,7 +142,7 @@ parser.add_argument('--outdir', required=True)
 parser.add_argument('--plotdirs', required=True)
 parser.add_argument('--names', required=True)
 parser.add_argument('--performance-plots', action='store_true')
-parser.add_argument('--colors', default='#006600:#990012:#3333ff:#cc0000:#3399ff:#2b65ec:#2b65ec:#808080')
+parser.add_argument('--colors', default='#006600:#990012:#2b65ec:#cc0000:#3399ff:#a821c7:#808080')
 parser.add_argument('--linewidths', default='5:3:2:2:2')
 parser.add_argument('--gldir', default='data/germlines/human')
 parser.add_argument('--locus', default='igh')
