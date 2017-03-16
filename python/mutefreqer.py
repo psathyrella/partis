@@ -15,7 +15,10 @@ class MuteFreqer(object):
         self.n_bins, self.xmin, self.xmax = 40, 0., 0.4
         self.mean_rates = {n : Hist(self.n_bins, self.xmin, self.xmax, xtitle='mut freq', ytitle='freq', title='full seq' if n == 'all' else n.upper())
                            for n in ['all', 'cdr3'] + utils.regions}  # kind of annoying that it's 'all' here, but '' in plotconfig.rstrings (and therefore in performanceplotter) but it's too much trouble to change to '' here
-        self.mean_n_muted = {n : Hist(30, -0.5, 29.5, xtitle='n mutated', ytitle='counts', title='full seq' if n == 'all' else n.upper())
+        lengths = {'v' : 300, 'd' : 35, 'j' : 55, 'cdr3' : 50}  # typical lengths of each bit
+        lengths['all'] = sum(lengths.values())
+        nmaxes = {n : int(self.xmax * lengths[n]) for n in lengths}
+        self.mean_n_muted = {n : Hist(nmaxes[n], -0.5, nmaxes[n] + 0.5, xtitle='n mutated', ytitle='counts', title='full seq' if n == 'all' else n.upper())
                              for n in ['all', 'cdr3'] + utils.regions}
         self.per_gene_mean_rates = {}
 
