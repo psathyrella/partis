@@ -117,12 +117,9 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, s
         uid = line['unique_ids'][0]
         inseq = line['input_seqs'][0]
 
-        # NOTE I just moved this to the .fa loop, since otherwise we have no way of knowing how to interpret special characters... nevertheless if someone passesin a csv with special characters as part of a uid this will break
+        # # it would be nice to check here for forbidden characters (in addition to in the .fa code above), but it's hard because we won't have read the csv properly above it has them
         # if any(fc in uid for fc in utils.forbidden_characters):
-        #     if not already_printed_forbidden_character_warning:
-        #         print '  %s: found a forbidden character (one of %s) in sequence id \'%s\'. This means we\'ll be replacing each of these forbidden characters with a single letter from their name (in this case %s). If this will cause problems you should replace the characters with something else beforehand.' % (utils.color('yellow', 'warning'), ' '.join(["'" + fc + "'" for fc in utils.forbidden_characters]), uid, uid.translate(utils.forbidden_character_translations))
-        #         already_printed_forbidden_character_warning = True
-        #     uid = uid.translate(utils.forbidden_character_translations)
+        #     raise Exception('found a forbidden character (one of %s) in sequence id \'%s\'' % (' '.join(["'" + fc + "'" for fc in utils.forbidden_characters]), uid))
         if args is not None:
             if args.abbreviate:  # note that this changes <uid>, but doesn't modify <line>
                 uid = abbreviate(used_names, potential_names, uid)
