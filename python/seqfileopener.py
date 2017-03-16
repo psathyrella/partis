@@ -35,6 +35,43 @@ def abbreviate(used_names, potential_names, unique_id):
     return new_id
 
 # ----------------------------------------------------------------------------------------
+def post_process(input_info, reco_info, args, infname, found_seed, is_data):
+    if args is None:
+        return
+
+    if args.istartstop is not None:
+        n_lines_in_file = iline + 1
+        if n_lines_in_file < args.istartstop[1]:
+            raise Exception('--istartstop upper bound %d larger than number of lines in file %d' % (args.istartstop[1], n_lines_in_file))
+    if len(input_info) == 0:
+        if args.queries is not None:
+            raise Exception('didn\'t find the specified --queries (%s) in %s' % (str(args.queries), infname))
+        if args.reco_ids is not None:
+            raise Exception('didn\'t find the specified --reco-ids (%s) in %s' % (str(args.reco_ids), infname))
+    if args.queries is not None:
+        missing_queries = set(args.queries) - set(input_info)
+        extra_queries = set(input_info) - set(args.queries)  # this is just checking for a bug in the code just above here...
+        if len(missing_queries) > 0:
+            raise Exception('didn\'t find some of the specified --queries: %s' % ' '.join(missing_queries))
+        if len(extra_queries) > 0:
+            raise Exception('extracted uids %s that weren\'t specified with --queries' % ' '.join(extra_queries))
+    if args.seed_unique_id is not None:
+        if found_seed:
+            if args.seed_seq is not None:  # and input_info[args.seed_unique_id]['seqs'][0] != args.seed_seq:
+                # raise Exception('incompatible --seed-unique-id and --seed-seq (i.e. the sequence in %s corresponding to %s wasn\'t %s)' % (infname, args.seed_unique_id, args.seed_seq))
+                raise Exception('--seed-seq was specified, but --seed-unique-id was also present in input file')
+        else:
+            if args.seed_seq is None:
+                raise Exception('couldn\'t find seed unique id %s in %s' % (args.seed_unique_id, infname))
+            add_seed_seq(args, input_info, reco_info, is_data)
+    elif args.seed_seq is not None:
+        args.seed_unique_id = 'seed-seq'
+        add_seed_seq(args, input_info, reco_info, is_data)
+    elif args.random_seed_seq:  # already checked (in bin/partis) that other seed args aren't set
+        args.seed_unique_id = random.choice(input_info.keys())
+        print '    chose random seed unique id %s' % args.seed_unique_id
+
+# ----------------------------------------------------------------------------------------
 def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, simglfo=None):
     """ return list of sequence info from files of several types """
 
@@ -52,29 +89,7 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, s
         seqfile = open(infname)
         reader = csv.DictReader(seqfile, delimiter=delimiter)
     else:
-        reader = []
-        n_fasta_queries = 0
-        already_printed_forbidden_character_warning = False
-        for seqinfo in utils.read_fastx(infname):
-            uid = seqinfo['name']
-
-            # if command line specified query or reco ids, skip other ones (can't have/don't allow simulation info in a fast[aq])
-            if args is not None and args.queries is not None and uid not in args.queries:
-                continue
-
-            reader.append({})
-
-            if any(fc in uid for fc in utils.forbidden_characters):
-                if not already_printed_forbidden_character_warning:
-                    print '  %s: found a forbidden character (one of %s) in sequence id \'%s\'. This means we\'ll be replacing each of these forbidden characters with a single letter from their name (in this case %s). If this will cause problems you should replace the characters with something else beforehand.' % (utils.color('yellow', 'warning'), ' '.join(["'" + fc + "'" for fc in utils.forbidden_characters]), uid, uid.translate(utils.forbidden_character_translations))
-                    already_printed_forbidden_character_warning = True
-                uid = uid.translate(utils.forbidden_character_translations)
-
-            reader[-1]['unique_ids'] = uid
-            reader[-1]['input_seqs'] = str(seqinfo['seq']).upper()
-            n_fasta_queries += 1
-            if n_max_queries > 0 and n_fasta_queries >= n_max_queries:
-                break
+        reader = utils.read_fastx(infname, name_key='unique_ids', seq_key='input_seqs', add_info=False, sanitize=True, queries=(args.queries if args is not None else None), n_max_queries=n_max_queries)
 
     input_info = OrderedDict()
     reco_info = None
@@ -152,38 +167,7 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, s
         if n_max_queries > 0 and n_queries_added >= n_max_queries:
             break
 
-    if args is not None:
-        if args.istartstop is not None:
-            n_lines_in_file = iline + 1
-            if n_lines_in_file < args.istartstop[1]:
-                raise Exception('--istartstop upper bound %d larger than number of lines in file %d' % (args.istartstop[1], n_lines_in_file))
-        if len(input_info) == 0:
-            if args.queries is not None:
-                raise Exception('didn\'t find the specified --queries (%s) in %s' % (str(args.queries), infname))
-            if args.reco_ids is not None:
-                raise Exception('didn\'t find the specified --reco-ids (%s) in %s' % (str(args.reco_ids), infname))
-        if args.queries is not None:
-            missing_queries = set(args.queries) - set(input_info)
-            extra_queries = set(input_info) - set(args.queries)  # this is just checking for a bug in the code just above here...
-            if len(missing_queries) > 0:
-                raise Exception('didn\'t find some of the specified --queries: %s' % ' '.join(missing_queries))
-            if len(extra_queries) > 0:
-                raise Exception('extracted uids %s that weren\'t specified with --queries' % ' '.join(extra_queries))
-        if args.seed_unique_id is not None:
-            if found_seed:
-                if args.seed_seq is not None:  # and input_info[args.seed_unique_id]['seqs'][0] != args.seed_seq:
-                    # raise Exception('incompatible --seed-unique-id and --seed-seq (i.e. the sequence in %s corresponding to %s wasn\'t %s)' % (infname, args.seed_unique_id, args.seed_seq))
-                    raise Exception('--seed-seq was specified, but --seed-unique-id was also present in input file')
-            else:
-                if args.seed_seq is None:
-                    raise Exception('couldn\'t find seed unique id %s in %s' % (args.seed_unique_id, infname))
-                add_seed_seq(args, input_info, reco_info, is_data)
-        elif args.seed_seq is not None:
-            args.seed_unique_id = 'seed-seq'
-            add_seed_seq(args, input_info, reco_info, is_data)
-        elif args.random_seed_seq:  # already checked (in bin/partis) that other seed args aren't set
-            args.seed_unique_id = random.choice(input_info.keys())
-            print '    chose random seed unique id %s' % args.seed_unique_id
+    post_process(input_info, reco_info, args, infname, found_seed, is_data)
 
     if len(input_info) == 0:
         raise Exception('didn\'t read any sequences from %s' % infname)

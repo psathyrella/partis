@@ -478,7 +478,7 @@ class Recombinator(object):
     def read_bppseqgen_output(self, cmdfo, n_leaf_nodes):
         mutated_seqs = []
         for seqfo in utils.read_fastx(cmdfo['outfname']):  # get the leaf node sequences from the file that bppseqgen wrote
-            mutated_seqs.append(str(seqfo['seq']))
+            mutated_seqs.append(seqfo['seq'])
             if n_leaf_nodes == 1:  # skip the extra leaf we added earlier
                 break
         assert n_leaf_nodes == len(mutated_seqs)

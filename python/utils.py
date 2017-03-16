@@ -2303,7 +2303,7 @@ def collapse_naive_seqs(naive_seq_list, sw_info):  # NOTE there is also a (simpl
     return naive_seq_map, naive_seq_hashes
 
 # ----------------------------------------------------------------------------------------
-def read_fastx(fname):  # Bio.SeqIO is too goddamn slow to import
+def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, sanitize=False, queries=None, n_max_queries=-1):  # Bio.SeqIO takes too goddamn long to import
     suffix = os.path.splitext(fname)[1]
     if suffix == '.fa' or suffix == '.fasta':
         ftype = 'fa'
@@ -2313,6 +2313,8 @@ def read_fastx(fname):  # Bio.SeqIO is too goddamn slow to import
         raise Exception('unhandled file type: %s' % suffix)
 
     finfo = []
+    n_fasta_queries = 0
+    already_printed_forbidden_character_warning = False
     with open(fname) as fastafile:
         startpos = None
         while True:
@@ -2355,8 +2357,23 @@ def read_fastx(fname):  # Bio.SeqIO is too goddamn slow to import
             if not seqline:
                 break
 
-            info = [ss.strip() for s in headline.split(' ') for ss in s.split('|')]
-            finfo.append({'info' : info,
-                          'name' : info[0],
-                          'seq' : seqline})
+            infostrs = [ss.strip() for s in headline.split(' ') for ss in s.split('|')]  # NOTE the uid is left untranslated in here
+            uid = infostrs[0]
+            if sanitize and any(fc in uid for fc in forbidden_characters):
+                if not already_printed_forbidden_character_warning:
+                    print '  %s: found a forbidden character (one of %s) in sequence id \'%s\'. This means we\'ll be replacing each of these forbidden characters with a single letter from their name (in this case %s). If this will cause problems you should replace the characters with something else beforehand.' % (color('yellow', 'warning'), ' '.join(["'" + fc + "'" for fc in forbidden_characters]), uid, uid.translate(forbidden_character_translations))
+                    already_printed_forbidden_character_warning = True
+                uid = uid.translate(forbidden_character_translations)
+
+            if queries is not None and uid not in queries:
+                continue
+
+            seqfo = {name_key : uid, seq_key : seqline.upper()}
+            if add_info:
+                seqfo['infostrs'] = infostrs
+            finfo.append(seqfo)
+            n_fasta_queries += 1
+            if n_max_queries > 0 and n_fasta_queries >= n_max_queries:
+                break
+
     return finfo

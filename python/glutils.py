@@ -89,16 +89,16 @@ def read_fasta_file(seqs, fname, skip_pseudogenes, aligned=False):
     seq_to_gene_map = {}
     for seqfo in utils.read_fastx(fname):
         # first get gene name
-        if seqfo['info'][0][:2] != 'IG' and seqfo['info'][0][:2] != 'TR':  # if it's an imgt file, with a bunch of header info (and the accession number first)
-            gene = seqfo['info'][imgt_info_indices.index('gene')]
-            functionality = seqfo['info'][imgt_info_indices.index('functionality')]
+        if seqfo['name'][:2] != 'IG' and seqfo['name'][:2] != 'TR':  # if it's an imgt file, with a bunch of header info (and the accession number first)
+            gene = seqfo['infostrs'][imgt_info_indices.index('gene')]
+            functionality = seqfo['infostrs'][imgt_info_indices.index('functionality')]
             if functionality not in functionalities:
                 raise Exception('unexpected functionality %s in %s' % (functionality, fname))
             if skip_pseudogenes and functionality in pseudogene_funcionalities:
                 n_skipped_pseudogenes += 1
                 continue
         else:  # plain fasta with just the gene name after the '>'
-            gene = seqfo['info'][0]  # should be the same as seqfo['name']
+            gene = seqfo['name']
         utils.split_gene(gene)  # just to check if it's a valid gene name
         if not aligned and utils.get_region(gene) != utils.get_region(os.path.basename(fname)):  # if <aligned> is True, file name is expected to be whatever
             raise Exception('gene %s from %s has unexpected region %s' % (gene, os.path.basename(fname), utils.get_region(gene)))
@@ -106,7 +106,7 @@ def read_fasta_file(seqs, fname, skip_pseudogenes, aligned=False):
             raise Exception('gene name %s appears twice in %s' % (gene, fname))
 
         # then the sequence
-        seq = str(seqfo['seq']).upper()
+        seq = seqfo['seq']
         if not aligned:
             seq = utils.remove_gaps(seq)
         if 'Y' in seq:
@@ -228,7 +228,7 @@ def get_new_alignments(glfo, region, debug=False):
     # deal with fasta output
     for seqfo in utils.read_fastx(mafft_outfname):
         gene = seqfo['name']
-        seq = str(seqfo['seq']).upper()
+        seq = seqfo['seq']
         if gene not in glfo['seqs'][region]:  # only really possible if there's a bug in the preceding fifty lines, but oh well, you can't be too careful
             raise Exception('unexpected gene %s in mafft output' % gene)
         aligned_seqs[gene] = seq  # overwrite the old alignment with the new one
