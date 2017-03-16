@@ -18,7 +18,7 @@ class MuteFreqer(object):
         lengths = {'v' : 200, 'd' : 35, 'j' : 45, 'cdr3' : 50}  # typical lengths of each bit (except... also tweaking them to account for varying mutations rates)
         lengths['all'] = sum(lengths.values())
         nmaxes = {n : int(self.xmax * lengths[n]) for n in lengths}
-        self.mean_n_muted = {n : Hist(nmaxes[n], -0.5, nmaxes[n] + 0.5, xtitle='n mutated', ytitle='counts', title='full seq' if n == 'all' else n.upper())
+        self.mean_n_muted = {n : Hist(min(self.n_bins, nmaxes[n]), -0.5, nmaxes[n] + 0.5, xtitle='n mutated', ytitle='counts', title='full seq' if n == 'all' else n.upper())
                              for n in ['all', 'cdr3'] + utils.regions}
         self.per_gene_mean_rates = {}
 
