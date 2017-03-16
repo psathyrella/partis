@@ -289,7 +289,7 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
             if ih < 6 and len(hists) > 1:
                 linewidth = 6-ih
         else:
-            ilw = ih if len(linewidths) > 1 else 0
+            ilw = ih if len(linewidths) > 1 and ih < len(linewidths) else 0
             linewidth = linewidths[ilw]
         if rebin is not None:
             htmp.rebin(rebin)
