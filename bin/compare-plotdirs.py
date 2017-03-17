@@ -125,7 +125,7 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
             base_plottitle = plotconfig.plot_titles[base_varname] if base_varname in plotconfig.plot_titles else ''
             plottitle = gene + ' -- ' + base_plottitle
 
-    if len(hlist) > 7:  # skootch it down so they (maybe) all fit
+    if len(hlist) > 9:  # skootch it down so they (maybe) all fit
         translegend[1] -= 0.5
     # draw that little #$*(!
     linewidths = [line_width_override, ] if line_width_override is not None else args.linewidths

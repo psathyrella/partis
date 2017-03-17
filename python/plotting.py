@@ -270,7 +270,6 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
         tmpcolors = ['royalblue', 'darkred', 'green', 'darkorange']
     n_different_colors = len(tmpcolors)
     while len(tmpcolors) < len(hists):
-        print '  warning: fewer colors than hists, so repeating colors'
         tmpcolors += tmpcolors
 
     tmplinestyles = [] if linestyles is None or len(linestyles) < len(hists) else copy.deepcopy(linestyles)
