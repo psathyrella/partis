@@ -18,20 +18,24 @@ region = 'v'
 # ----------------------------------------------------------------------------------------
 sys.path.insert(1, './datascripts')
 import heads
-names, dirs = [], []
-# for study in ['kate-qrs-2016-09-09', 'laura-mb-2016-12-22', 'chaim-donor-45-2016-08-04', 'adaptive-billion-read-2016-04-07']:  #, 'vollmers-2016-04-08']]
-for study in ['kate-qrs-2016-09-09']:  #, 'vollmers-2016-04-08']]
+for study in ['kate-qrs-2016-09-09', 'laura-mb-2016-12-22', 'chaim-donor-45-2016-08-04', 'adaptive-billion-read-2016-04-07', 'vollmers-2016-04-08']:
+# for study in ['adaptive-billion-read-2016-04-07']:
+    names, dirs = [], []
     metafo = heads.read_metadata(study)
     print study
     for dset in metafo:
+        bdir = fsdir + '/processed-data/partis/' + study + '/vz/' + dset
         if metafo[dset]['timepoint'] == 'merged':
             continue
         if dset == 'Hs-LN3-5RACE-IgG':  # bad one
             continue
+        if not os.path.exists(bdir):
+            print '    %s missing' % dset
+            continue
         names.append(metafo[dset]['shorthand'])
-        dirs.append(fsdir + '/processed-data/partis/' + study + '/latest/' + dset + '/plots/sw/mute-freqs/overall')
-print '\n'.join(names)
-check_call(['./bin/compare-plotdirs.py', '--outdir', os.getenv('www') + '/partis/tmp/lots-of-mfreqs', '--plotdirs', ':'.join(dirs), '--names', ':'.join(names)])
+        dirs.append(bdir + '/plots/sw/mute-freqs/overall')
+    check_call(['./bin/compare-plotdirs.py', '--outdir', fsdir + '/dralph/partis/tmp/lots-of-mfreqs/' + study, '--plotdirs', ':'.join(dirs), '--names', ':'.join(names)])
+# check_call(['./bin/compare-plotdirs.py', '--outdir', fsdir + '/dralph/partis/tmp/lots-of-mfreqs/zeroths', '--plotdirs', ':'.join(dirs), '--names', ':'.join(names)])
 sys.exit()
 
 # ----------------------------------------------------------------------------------------
@@ -68,7 +72,7 @@ def cf_nsnps(args, original_glfo):
         return
     v_gene = args.v_genes[0]
     for nsnp in args.nsnp_list:
-        cmd = base_cmd + ' --n-procs 5 --n-tests ' + args.n_tests + ' --n-sim-events 1000 --slurm'
+        cmd = base_cmd + ' --n-procs 5 --n-tests ' + str(args.n_tests) + ' --n-sim-events 1000' # --slurm'
         cmd += ' --sim-v-genes ' + v_gene
         cmd += ' --inf-v-genes ' + v_gene
         cmd += ' --nsnp-list ' + str(nsnp)
