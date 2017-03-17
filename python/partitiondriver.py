@@ -1157,9 +1157,8 @@ class PartitionDriver(object):
 
         if self.args.linearham:
             boundfcns = {'l' : min, 'r' : max}  # take the widest set of flexbounds over all the queries
-            combo['flexbounds'] = {region : {side : boundfcns[side]([self.sw_info[q]['flexbounds'][region][side] for q in query_names])
-                                             for side in ['l', 'r']}
-                                   for region in utils.regions}
+            combo['flexbounds'] = {'{}_{}'.format(region, side): boundfcns[side]([self.sw_info[q]['flexbounds'][region][side] for q in query_names])
+                                   for region in utils.regions for side in ['l', 'r']}
 
         if not self.all_regions_present(combo['only_genes'], skipped_gene_matches, query_names):
             return {}
@@ -1276,7 +1275,10 @@ class PartitionDriver(object):
                 self.read_forward_output(self.hmm_outfname)
 
         if os.path.exists(self.hmm_infname):
-            os.remove(self.hmm_infname)
+            if self.args.linearham:
+                sys.exit()
+            else:
+                os.remove(self.hmm_infname)
 
         return cpath
 
