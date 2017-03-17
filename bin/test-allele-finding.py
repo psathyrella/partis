@@ -42,7 +42,8 @@ def run_test(args):
     # simulate
     if not args.nosim:
         cmd_str = base_cmd + ' simulate --n-sim-events ' + str(args.n_sim_events) + ' --n-leaves ' + str(args.n_leaves) + ' --constant-number-of-leaves --rearrange-from-scratch --outfname ' + simfname
-        cmd_str += ' --mutation-multiplier ' + str(args.mut_mult)
+        if args.mut_mult is not None:
+            cmd_str += ' --mutation-multiplier ' + str(args.mut_mult)
 
         cmd_str += ' --n-procs ' + str(args.n_procs)
         if args.slurm:
@@ -156,7 +157,7 @@ parser.add_argument('--snp-positions', help='colon-separated list (length must e
 parser.add_argument('--nsnp-list', help='colon-separated list (length must equal length of <--sim-v-genes>) of the number of snps to generate for each gene (each at a random position)')
 parser.add_argument('--allele-prevalence-freqs', help='colon-separated list of allele prevalence frequencies, including newly-generated snpd genes (ordered alphabetically)')
 parser.add_argument('--remove-template-genes', action='store_true', help='when generating snps, remove the original gene before simulation')
-parser.add_argument('--mut-mult', type=float, default=0.5)
+parser.add_argument('--mut-mult', type=float)
 parser.add_argument('--slurm', action='store_true')
 parser.add_argument('--outdir', default=fsdir + '/partis/allele-finder')
 parser.add_argument('--workdir', default=fsdir + '/_tmp/hmms/' + str(random.randint(0, 999999)))
