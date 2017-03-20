@@ -91,8 +91,9 @@ def cf_nsnps(args, original_glfo, baseoutdir):
             for n_events in args.n_event_list:
                 missing, spurious = zip(*[get_performance(getdir(nsnp, n_events) + '/' + str(iproc) + '/') for iproc in range(args.n_tests)])
                 assert len(set(missing + spurious) - set([0, 1])) == 0  # should only be zeroes and/or ones
-                print '  missing:  %2d / %-2d = %.2f' % (missing.count(1), len(missing), float(missing.count(1)) / len(missing))
-                print '  spurious: %2d / %-2d = %.2f' % (spurious.count(1), len(spurious), float(spurious.count(1)) / len(spurious))
+                print '  %d' % n_events
+                print '    missing:  %2d / %-2d = %.2f' % (missing.count(1), len(missing), float(missing.count(1)) / len(missing))
+                print '    spurious: %2d / %-2d = %.2f' % (spurious.count(1), len(spurious), float(spurious.count(1)) / len(spurious))
         return
 
     v_gene = args.v_genes[0]
@@ -120,7 +121,7 @@ args = parser.parse_args()
 
 args.nsnp_list = utils.get_arg_list(args.nsnp_list, intify=True)
 # args.mfreqs = utils.get_arg_list(args.mfreqs)
-args.n_event_list = utils.get_arg_list(args.n_event_list)
+args.n_event_list = utils.get_arg_list(args.n_event_list, intify=True)
 args.v_genes = utils.get_arg_list(args.v_genes)
 
 original_glfo = glutils.read_glfo('data/germlines/human', locus=locus)

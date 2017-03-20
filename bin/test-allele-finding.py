@@ -111,7 +111,7 @@ def run_test(args):
         # cmd_str += ' --n-max-snps 12'
 
     cmd_str += ' --parameter-dir ' + outpdir
-    cmd_str += ' --plotdir ' + plotdir
+    cmd_str += ' --only-overall-plots --plotdir ' + plotdir
     if args.seed is not None:
         cmd_str += ' --seed ' + str(args.seed)
     run(cmd_str)

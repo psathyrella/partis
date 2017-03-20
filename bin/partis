@@ -96,7 +96,10 @@ def run_simulation(args):
         if args.allele_prevalence_fname is not None:
             utils.replace_in_arglist(clist, '--allele-prevalence-fname', args.allele_prevalence_fname)
         if args.batch_system is not None:
-            clist.insert(0, 'srun')
+            if 'srun' in clist:
+                print 'srun already there!\n%s' % ' '.join(clist)
+            else:
+                clist.insert(0, 'srun')
         return ' '.join(clist)
 
     # ----------------------------------------------------------------------------------------
