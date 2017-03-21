@@ -8,6 +8,7 @@ sys.path.insert(1, './python')
 
 import utils
 import glutils
+from hist import Hist
 
 base_cmd = './bin/test-allele-finding.py'
 fsdir = '/fh/fast/matsen_e'
@@ -67,7 +68,11 @@ def run(cmd_str):
     subprocess.Popen(cmd_str.split())
 
 # ----------------------------------------------------------------------------------------
-def get_performance(outdir, debug=False):
+def get_nsnp_dir(baseoutdir, nsnp, n_events):
+    return baseoutdir + '/' + 'nsnp-' + str(nsnp) + '/n-events-' + str(n_events).replace('000', 'k')
+
+# ----------------------------------------------------------------------------------------
+def get_single_performance(outdir, debug=False):
     sglfo = glutils.read_glfo(outdir + '/germlines/simulation', locus=locus)
     iglfo = glutils.read_glfo(outdir + '/simu-test/sw/germline-sets', locus=locus)
     missing_alleles = set(sglfo['seqs'][region]) - set(iglfo['seqs'][region])
@@ -79,23 +84,43 @@ def get_performance(outdir, debug=False):
             print '    %2d spurious %s' % (len(spurious_alleles), ' '.join([utils.color_gene(g) for g in spurious_alleles]))
         if len(missing_alleles) == 0 and len(spurious_alleles) == 0:
             print '    none missing'
-    return len(missing_alleles), len(spurious_alleles)
+    return {'missing' : len(missing_alleles), 'spurious' : len(spurious_alleles)}
 
 # ----------------------------------------------------------------------------------------
-def cf_nsnps(args, original_glfo, baseoutdir):
-    def getdir(nsnp, n_events):
-        return baseoutdir + '/' + 'nsnp-' + str(nsnp) + '/n-events-' + str(n_events).replace('000', 'k')
+def plot_nsnp_test(args, baseoutdir, debug=False):
+    import plotting
+    plot_types = ['missing', 'spurious']
 
-    if args.plot:
-        for nsnp in args.nsnp_list:
-            for n_events in args.n_event_list:
-                missing, spurious = zip(*[get_performance(getdir(nsnp, n_events) + '/' + str(iproc) + '/') for iproc in range(args.n_tests)])
-                assert len(set(missing + spurious) - set([0, 1])) == 0  # should only be zeroes and/or ones
+    def get_performance():
+        perf_vals = {pt : [] for pt in plot_types}
+        for iproc in range(args.n_tests):
+            single_vals = get_single_performance(get_nsnp_dir(baseoutdir, nsnp, n_events) + '/' + str(iproc) + '/')
+            for ptype in plot_types:
+                perf_vals[ptype].append(single_vals[ptype])
+        for ptype in plot_types:
+            assert len(set(perf_vals[ptype]) - set([0, 1])) == 0  # should only be zeroes and/or ones
+        return perf_vals
+
+    plotvals = {pt : {k : [] for k in ['xvals', 'ycounts', 'ytotals']} for pt in plot_types}
+    debug = True
+    for nsnp in args.nsnp_list:
+        for n_events in args.n_event_list:
+            if debug:
                 print '  %d' % n_events
-                print '    missing:  %2d / %-2d = %.2f' % (missing.count(1), len(missing), float(missing.count(1)) / len(missing))
-                print '    spurious: %2d / %-2d = %.2f' % (spurious.count(1), len(spurious), float(spurious.count(1)) / len(spurious))
-        return
+            perf_vals = get_performance()
+            for ptype in plot_types:
+                count = perf_vals[ptype].count(1)
+                plotvals[ptype]['xvals'].append(n_events)
+                plotvals[ptype]['ycounts'].append(count)
+                plotvals[ptype]['ytotals'].append(len(perf_vals[ptype]))
+                if debug:
+                    frac = float(count) / len(perf_vals[ptype])
+                    print '    %8s:  %2d / %-2d = %.2f' % (ptype, count, len(perf_vals[ptype]), frac)
+        for ptype in plot_types:
+            plotting.plot_gl_inference_fractions(baseoutdir, ptype, plotvals[ptype]['xvals'], plotvals[ptype]['ycounts'], plotvals[ptype]['ytotals'], xlabel='sample size', ylabel='fraction %s' % ptype)
 
+# ----------------------------------------------------------------------------------------
+def run_nsnp_test(args, baseoutdir):
     v_gene = args.v_genes[0]
     for nsnp in args.nsnp_list:
         for n_events in args.n_event_list:
@@ -104,7 +129,7 @@ def cf_nsnps(args, original_glfo, baseoutdir):
             cmd += ' --inf-v-genes ' + v_gene
             cmd += ' --nsnp-list ' + str(nsnp)
             cmd += ' --n-sim-events ' + str(n_events)
-            cmd += ' --outdir ' + getdir(nsnp, n_events)
+            cmd += ' --outdir ' + get_nsnp_dir(baseoutdir, nsnp, n_events)
             run(cmd)
 
 # ----------------------------------------------------------------------------------------
@@ -133,4 +158,7 @@ if args.label is not None:
 baseoutdir += '/' + args.action
 
 if args.action == 'nsnp':
-    cf_nsnps(args, original_glfo, baseoutdir)
+    if args.plot:
+        plot_nsnp_test(args, baseoutdir)
+    else:
+        run_nsnp_test(args, baseoutdir)

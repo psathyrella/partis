@@ -779,7 +779,7 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
         plt.xticks(xticks)
     if xticklabels is not None:
         mean_length = float(sum([len(xl) for xl in xticklabels])) / len(xticklabels)
-        if mean_length > 3:
+        if mean_length > 4:
             ax.set_xticklabels(xticklabels, rotation='vertical', size=8)
         else:
             ax.set_xticklabels(xticklabels)
@@ -959,4 +959,24 @@ def make_fraction_plot(hright, hwrong, plotdir, plotname, xlabel, ylabel, xbound
             ax.plot((0, 1), (0, 1), color='black', linestyle='--', linewidth=3)  # line with slope 1 and intercept 0
         mpl_finish(ax, plotdir, plotname, xlabel=xlabel, ylabel=ylabel, title=plotconfig.plot_titles.get(plotname, plotname), xbounds=xbounds, ybounds=(-0.1, 1.1))
 
+    plt.close()
+
+# ----------------------------------------------------------------------------------------
+def plot_gl_inference_fractions(plotdir, plotname, xvals, ycounts, ytotals, xlabel='', ylabel=''):
+    if 'fraction_uncertainty' not in sys.modules:
+        import fraction_uncertainty
+
+    yvals = [float(c) / t for c, t in zip(ycounts, ytotals)]  # total shouldn't be able to be zero
+    tmphilos = [sys.modules['fraction_uncertainty'].err(c, t) for c, t in zip(ycounts, ytotals)]
+    yerrs = [err[1] - err[0] for err in tmphilos]
+    print '  %s                    %s' % (xlabel, ylabel)
+    for iv in range(len(xvals)):
+        print '   %5.2f     %5.0f / %-5.0f  =  %5.2f   +/-  %.3f' % (xvals[iv], ycounts[iv], ytotals[iv], yvals[iv], yerrs[iv])
+
+    fig, ax = mpl_init()
+    mpl.rcParams.update({'legend.fontsize' : 15})
+    ax.errorbar(xvals, yvals, yerr=yerrs, markersize=13, linewidth=4, color='#006600', alpha=0.6)  # '#006600:#990012:#2b65ec:#cc0000:#3399ff:#a821c7:#808080'
+    ax.plot((xvals[0], xvals[-1]), (0, 0), color='black', linestyle='--', linewidth=3)  # line at y=0
+    ax.plot((xvals[0], xvals[-1]), (1, 1), color='black', linestyle='--', linewidth=3)  # line at y=1
+    mpl_finish(ax, plotdir, plotname, xlabel=xlabel, ylabel=ylabel, xbounds=(0.8*xvals[0], 1.1*xvals[-1]), log='x', xticks=xvals, xticklabels=[('%d' % x) for x in xvals])
     plt.close()
