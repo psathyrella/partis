@@ -20,6 +20,9 @@ import utils
 import plotconfig
 from hist import Hist
 
+default_colors = ['#006600', '#990012', '#2b65ec', '#cc0000', '#3399ff', '#a821c7', '#808080']
+default_linewidths = ['5', '3', '2', '2', '2']
+
 plot_ratios = {
     'v' : (30, 3),
     'd' : (8, 4),
@@ -962,21 +965,40 @@ def make_fraction_plot(hright, hwrong, plotdir, plotname, xlabel, ylabel, xbound
     plt.close()
 
 # ----------------------------------------------------------------------------------------
-def plot_gl_inference_fractions(plotdir, plotname, xvals, ycounts, ytotals, xlabel='', ylabel=''):
+def plot_gl_inference_fractions(plotdir, plotname, plotvals, labels, xlabel='', ylabel=''):
     if 'fraction_uncertainty' not in sys.modules:
         import fraction_uncertainty
 
-    yvals = [float(c) / t for c, t in zip(ycounts, ytotals)]  # total shouldn't be able to be zero
-    tmphilos = [sys.modules['fraction_uncertainty'].err(c, t) for c, t in zip(ycounts, ytotals)]
-    yerrs = [err[1] - err[0] for err in tmphilos]
-    print '  %s                    %s' % (xlabel, ylabel)
-    for iv in range(len(xvals)):
-        print '   %5.2f     %5.0f / %-5.0f  =  %5.2f   +/-  %.3f' % (xvals[iv], ycounts[iv], ytotals[iv], yvals[iv], yerrs[iv])
+    def get_single_vals(pv):
+        yvals = [float(c) / t for c, t in zip(pv['ycounts'], pv['ytotals'])]  # total shouldn't be able to be zero
+        tmphilos = [sys.modules['fraction_uncertainty'].err(c, t) for c, t in zip(pv['ycounts'], pv['ytotals'])]
+        yerrs = [err[1] - err[0] for err in tmphilos]
+        print '  %s                    %s' % (xlabel, ylabel)
+        for iv in range(len(pv['xvals'])):
+            print '   %5.2f     %5.0f / %-5.0f  =  %5.2f   +/-  %.3f' % (pv['xvals'][iv], pv['ycounts'][iv], pv['ytotals'][iv], yvals[iv], yerrs[iv])
+        return pv['xvals'], yvals, yerrs
 
     fig, ax = mpl_init()
     mpl.rcParams.update({'legend.fontsize' : 15})
-    ax.errorbar(xvals, yvals, yerr=yerrs, markersize=13, linewidth=4, color='#006600', alpha=0.6)  # '#006600:#990012:#2b65ec:#cc0000:#3399ff:#a821c7:#808080'
-    ax.plot((xvals[0], xvals[-1]), (0, 0), color='black', linestyle='--', linewidth=3)  # line at y=0
-    ax.plot((xvals[0], xvals[-1]), (1, 1), color='black', linestyle='--', linewidth=3)  # line at y=1
-    mpl_finish(ax, plotdir, plotname, xlabel=xlabel, ylabel=ylabel, xbounds=(0.8*xvals[0], 1.1*xvals[-1]), log='x', xticks=xvals, xticklabels=[('%d' % x) for x in xvals])
+
+    xmin, xmax, xticks = None, None, None
+    for ii in range(len(labels)):
+        print labels[ii]
+        xvals, yvals, yerrs = get_single_vals(plotvals[ii])
+        if xmin is None:
+            xmin = xvals[0]
+            xmax = xvals[-1]
+            xticks = xvals
+        kwargs = {
+            'markersize' : 13,
+            'linewidth' : default_linewidths[min(ii, len(default_linewidths) - 1)],
+            'color' : default_colors[min(ii, len(default_colors) - 1)],
+            'alpha' : 0.6,
+        }
+        ax.errorbar(xvals, yvals, yerr=yerrs, label=labels[ii], **kwargs)
+
+    ax.plot((xmin, xmax), (0, 0), color='black', linestyle='--', linewidth=3)  # line at y=0
+    ax.plot((xmin, xmax), (1, 1), color='black', linestyle='--', linewidth=3)  # line at y=1
+    print plotname, plotdir
+    mpl_finish(ax, plotdir, plotname, xlabel=xlabel, ylabel=ylabel, xbounds=(0.8*xmin, 1.1*xmax), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks])
     plt.close()

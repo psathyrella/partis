@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from collections import OrderedDict
 import os
 import random
 import argparse
@@ -10,7 +11,6 @@ import utils
 import glutils
 from hist import Hist
 
-base_cmd = './bin/test-allele-finding.py'
 fsdir = '/fh/fast/matsen_e'
 alfdir = fsdir + '/dralph/partis/allele-finder'
 locus = 'igh'
@@ -65,11 +65,14 @@ region = 'v'
 def run(cmd_str):
     print '%s %s' % (utils.color('red', 'run'), cmd_str)
     sys.stdout.flush()
-    subprocess.Popen(cmd_str.split())
+    # subprocess.Popen(cmd_str.split())
+    subprocess.check_call(cmd_str.split())
 
 # ----------------------------------------------------------------------------------------
-def get_nsnp_dir(baseoutdir, nsnp, n_events):
-    return baseoutdir + '/' + 'nsnp-' + str(nsnp) + '/n-events-' + str(n_events).replace('000', 'k')
+def get_outdir(baseoutdir, n_events, varname, varval):
+    outdir = baseoutdir
+    outdir += '/' + varname + '-' + str(varval)
+    return outdir + '/n-events-' + str(n_events).replace('000', 'k')
 
 # ----------------------------------------------------------------------------------------
 def get_single_performance(outdir, debug=False):
@@ -87,56 +90,77 @@ def get_single_performance(outdir, debug=False):
     return {'missing' : len(missing_alleles), 'spurious' : len(spurious_alleles)}
 
 # ----------------------------------------------------------------------------------------
-def plot_nsnp_test(args, baseoutdir, debug=False):
+def plot_test(args, baseoutdir, varvals, debug=False):
     import plotting
     plot_types = ['missing', 'spurious']
 
-    def get_performance():
+    def get_performance(varname, varval):
         perf_vals = {pt : [] for pt in plot_types}
         for iproc in range(args.n_tests):
-            single_vals = get_single_performance(get_nsnp_dir(baseoutdir, nsnp, n_events) + '/' + str(iproc) + '/')
+            single_vals = get_single_performance(get_outdir(baseoutdir, n_events, varname, varval) + '/' + str(iproc))
             for ptype in plot_types:
                 perf_vals[ptype].append(single_vals[ptype])
         for ptype in plot_types:
             assert len(set(perf_vals[ptype]) - set([0, 1])) == 0  # should only be zeroes and/or ones
         return perf_vals
 
-    plotvals = {pt : {k : [] for k in ['xvals', 'ycounts', 'ytotals']} for pt in plot_types}
-    debug = True
-    for nsnp in args.nsnp_list:
+    # debug = True
+    plotvals = []
+    for varval in varvals:
+        if args.action == 'nsnp': 
+            print 'nsnp %d' % varval
+        elif args.action == 'mfreq':
+            print 'mfreq %0.2f' % varval
+        plotvals.append({pt : {k : [] for k in ['xvals', 'ycounts', 'ytotals']} for pt in plot_types})
         for n_events in args.n_event_list:
             if debug:
-                print '  %d' % n_events
-            perf_vals = get_performance()
+                print '    %d' % n_events
+            perf_vals = get_performance(varname=args.action, varval=varval)
             for ptype in plot_types:
                 count = perf_vals[ptype].count(1)
-                plotvals[ptype]['xvals'].append(n_events)
-                plotvals[ptype]['ycounts'].append(count)
-                plotvals[ptype]['ytotals'].append(len(perf_vals[ptype]))
-                if debug:
-                    frac = float(count) / len(perf_vals[ptype])
-                    print '    %8s:  %2d / %-2d = %.2f' % (ptype, count, len(perf_vals[ptype]), frac)
-        for ptype in plot_types:
-            plotting.plot_gl_inference_fractions(baseoutdir, ptype, plotvals[ptype]['xvals'], plotvals[ptype]['ycounts'], plotvals[ptype]['ytotals'], xlabel='sample size', ylabel='fraction %s' % ptype)
+                plotvals[-1][ptype]['xvals'].append(n_events)
+                plotvals[-1][ptype]['ycounts'].append(count)
+                plotvals[-1][ptype]['ytotals'].append(len(perf_vals[ptype]))
+                # if debug:
+                #     frac = float(count) / len(perf_vals[ptype])
+                #     print '      %8s:  %2d / %-2d = %.2f' % (ptype, count, len(perf_vals[ptype]), frac)
+    for ptype in plot_types:
+        plotting.plot_gl_inference_fractions(baseoutdir, ptype, [pv[ptype] for pv in plotvals], labels=varvals, xlabel='sample size', ylabel='fraction %s' % ptype)
+
+# ----------------------------------------------------------------------------------------
+def get_base_cmd(args):
+    cmd = './bin/test-allele-finding.py'
+    cmd += ' --n-procs 5 --n-tests ' + str(args.n_tests) #+ ' --slurm'
+    cmd += ' --sim-v-genes ' + args.v_genes[0]
+    cmd += ' --inf-v-genes ' + args.v_genes[0]
+    return cmd
+
+# ----------------------------------------------------------------------------------------
+def run_mfreq_test(args, baseoutdir):
+    for mfreq in args.mfreqs:
+        for n_events in args.n_event_list:
+            cmd = get_base_cmd(args)
+            cmd += ' --mut-mult ' + str(mfreq)
+            cmd += ' --nsnp-list 1'
+            cmd += ' --n-sim-events ' + str(n_events)
+            cmd += ' --outdir ' + get_outdir(baseoutdir, n_events, 'mfreq', mfreq)
+            run(cmd)
 
 # ----------------------------------------------------------------------------------------
 def run_nsnp_test(args, baseoutdir):
-    v_gene = args.v_genes[0]
     for nsnp in args.nsnp_list:
         for n_events in args.n_event_list:
-            cmd = base_cmd + ' --n-procs 5 --n-tests ' + str(args.n_tests) + ' --slurm'
-            cmd += ' --sim-v-genes ' + v_gene
-            cmd += ' --inf-v-genes ' + v_gene
+            cmd = get_base_cmd(args)
             cmd += ' --nsnp-list ' + str(nsnp)
             cmd += ' --n-sim-events ' + str(n_events)
-            cmd += ' --outdir ' + get_nsnp_dir(baseoutdir, nsnp, n_events)
+            cmd += ' --outdir ' + get_outdir(baseoutdir, n_events, 'nsnp', nsnp)
             run(cmd)
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
-parser.add_argument('action', choices=['nsnp'])
-parser.add_argument('--nsnp-list', default='1')
-# parser.add_argument('--mfreqs')
+parser.add_argument('action', choices=['mfreq', 'nsnp'])
+parser.add_argument('--nsnp-list', default='1:2:3')
+parser.add_argument('--mfreqs', default='0.1:1:2')
 parser.add_argument('--n-event-list', default='5000')
 parser.add_argument('--n-tests', type=int, default=5)
 parser.add_argument('--plot', action='store_true')
@@ -145,7 +169,7 @@ parser.add_argument('--label')
 args = parser.parse_args()
 
 args.nsnp_list = utils.get_arg_list(args.nsnp_list, intify=True)
-# args.mfreqs = utils.get_arg_list(args.mfreqs)
+args.mfreqs = utils.get_arg_list(args.mfreqs, floatify=True)
 args.n_event_list = utils.get_arg_list(args.n_event_list, intify=True)
 args.v_genes = utils.get_arg_list(args.v_genes)
 
@@ -157,8 +181,13 @@ if args.label is not None:
     baseoutdir += '/' + args.label
 baseoutdir += '/' + args.action
 
-if args.action == 'nsnp':
+if args.action == 'mfreq':
     if args.plot:
-        plot_nsnp_test(args, baseoutdir)
+        plot_test(args, baseoutdir, varvals=args.mfreqs)
+    else:
+        run_mfreq_test(args, baseoutdir)
+elif args.action == 'nsnp':
+    if args.plot:
+        plot_test(args, baseoutdir, varvals=args.nsnp_list)
     else:
         run_nsnp_test(args, baseoutdir)
