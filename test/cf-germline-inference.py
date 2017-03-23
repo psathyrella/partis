@@ -16,6 +16,13 @@ alfdir = fsdir + '/dralph/partis/allele-finder'
 locus = 'igh'
 region = 'v'
 
+legend_titles = {
+    'mfreq' : 'mutation',
+    'nsnp' : 'N SNPs',
+    'multi-nsnp' : 'N SNPs',
+    'prevalence' : 'prevalence',
+}
+
 # # ----------------------------------------------------------------------------------------
 # sys.path.insert(1, './datascripts')
 # import heads
@@ -79,11 +86,13 @@ def varvalstr(name, val):
 # ----------------------------------------------------------------------------------------
 def legend_str(args, val):
     if args.action == 'mfreq':
-        lstr = '%.1fx mut' % val
+        lstr = '%.1fx' % val
     elif args.action == 'nsnp':
-        lstr = '%d SNP%s' % (val, utils.plural(val))
+        lstr = '%d' % val
     elif args.action == 'multi-nsnp':
-        lstr = '%s SNPs' % '+'.join([str(v) for v in val])
+        lstr = '%s' % '+'.join([str(v) for v in val])
+    elif args.action == 'prevalence':
+        lstr = '%d%%' % (100*val)
     else:
         assert False
     return lstr
@@ -115,8 +124,6 @@ def get_single_performance(outdir, debug=False):
 
 # ----------------------------------------------------------------------------------------
 def plot_test(args, baseoutdir, varvals):
-    if args.action == 'prevalence':
-        raise Exception('not yet implemented')
     import plotting
     plot_types = ['missing', 'spurious']
 
@@ -144,7 +151,7 @@ def plot_test(args, baseoutdir, varvals):
                 plotvals[-1][ptype]['ycounts'].append(count)
                 plotvals[-1][ptype]['ytotals'].append(sum(perf_vals['total']))
     for ptype in plot_types:
-        plotting.plot_gl_inference_fractions(baseoutdir, ptype, [pv[ptype] for pv in plotvals], labels=[legend_str(args, v) for v in varvals], xlabel='sample size', ylabel='fraction %s' % ptype)
+        plotting.plot_gl_inference_fractions(baseoutdir, ptype, [pv[ptype] for pv in plotvals], labels=[legend_str(args, v) for v in varvals], xlabel='sample size', ylabel='fraction %s' % ptype, leg_title=legend_titles.get(args.action, None))
 
 # ----------------------------------------------------------------------------------------
 def get_base_cmd(args, n_events):

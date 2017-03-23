@@ -755,14 +755,14 @@ def mpl_init(figsize=None, fontsize=20):
     return fig, ax
 
 # ----------------------------------------------------------------------------------------
-def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=None, ybounds=None, leg_loc=(0.04, 0.6), leg_prop=None, log='', xticks=None, xticklabels=None, no_legend=False, adjust=None, suffix='svg'):
+def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=None, ybounds=None, leg_loc=(0.04, 0.6), leg_prop=None, log='', xticks=None, xticklabels=None, no_legend=False, adjust=None, suffix='svg', leg_title=None):
     if 'seaborn' not in sys.modules:
         import seaborn  # really #$*$$*!ing slow to import, but only importing part of it doesn't seem to help
     # xticks[0] = 0.000001
     if not no_legend:
         handles, labels = ax.get_legend_handles_labels()
         if len(handles) > 0:
-            legend = ax.legend(handles, labels, loc=leg_loc, prop=leg_prop)
+            legend = ax.legend(handles, labels, loc=leg_loc, prop=leg_prop, title=leg_title)
     if adjust is None:
         plt.gcf().subplots_adjust(bottom=0.20, left=0.18, right=0.95, top=0.92)
     else:
@@ -966,7 +966,7 @@ def make_fraction_plot(hright, hwrong, plotdir, plotname, xlabel, ylabel, xbound
     plt.close()
 
 # ----------------------------------------------------------------------------------------
-def plot_gl_inference_fractions(plotdir, plotname, plotvals, labels, xlabel='', ylabel=''):
+def plot_gl_inference_fractions(plotdir, plotname, plotvals, labels, xlabel='', ylabel='', leg_title=None):
     if 'fraction_uncertainty' not in sys.modules:
         import fraction_uncertainty
 
@@ -1001,5 +1001,5 @@ def plot_gl_inference_fractions(plotdir, plotname, plotvals, labels, xlabel='', 
     minfrac, maxfrac = 0.95, 1.05
     ax.plot((minfrac * xmin, maxfrac * xmax), (0, 0), color='black', linestyle='--', linewidth=3)  # line at y=0
     ax.plot((minfrac * xmin, maxfrac * xmax), (1, 1), color='black', linestyle='--', linewidth=3)  # line at y=1
-    mpl_finish(ax, plotdir, plotname, xlabel=xlabel, ylabel=ylabel, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.74, 0.6))
+    mpl_finish(ax, plotdir, plotname, xlabel=xlabel, ylabel=ylabel, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title)
     plt.close()
