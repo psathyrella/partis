@@ -123,7 +123,9 @@ def plot_test(args, baseoutdir, varvals, debug=False):
 # ----------------------------------------------------------------------------------------
 def get_base_cmd(args, n_events):
     cmd = './bin/test-allele-finding.py'
-    cmd += ' --n-procs 5 --n-tests ' + str(args.n_tests) + ' --slurm'
+    cmd += ' --n-procs 5 --n-tests ' + str(args.n_tests)
+    if not args.no_slurm:
+        cmd += ' --slurm'
     cmd += ' --inf-v-genes ' + args.v_genes[0]
     cmd += ' --n-sim-events ' + str(n_events)
     return cmd
@@ -162,6 +164,7 @@ parser.add_argument('--mfreqs', default='0.1:1:2')
 parser.add_argument('--n-event-list', default='5000')
 parser.add_argument('--n-tests', type=int, default=5)
 parser.add_argument('--plot', action='store_true')
+parser.add_argument('--no-slurm', action='store_true')
 parser.add_argument('--v-genes', default='IGHV4-39*01')
 parser.add_argument('--label')
 args = parser.parse_args()
