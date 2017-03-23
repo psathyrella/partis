@@ -91,6 +91,8 @@ def get_single_performance(outdir, debug=False):
 
 # ----------------------------------------------------------------------------------------
 def plot_test(args, baseoutdir, varvals, debug=False):
+    if args.action == 'multi-nsnp' or args.action == 'prevalence':
+        raise Exception('not yet implemented')
     import plotting
     plot_types = ['missing', 'spurious']
 
@@ -157,27 +159,38 @@ def run_nsnp_test(args, baseoutdir):
             run(cmd)
 
 # ----------------------------------------------------------------------------------------
+def run_prevalence_test(args, baseoutdir):
+    for prev in args.prevalence_list:
+        for n_events in args.n_event_list:
+            cmd = get_base_cmd(args, n_events)
+            cmd += ' --sim-v-genes ' + args.v_genes[0]
+            cmd += ' --allele-prevalence-freqs ' + str(1. - prev) + ':' + str(prev)  # i.e. previously-known allele has 1 - p, and new allele has p
+            cmd += ' --nsnp-list 1'
+            cmd += ' --outdir ' + get_outdir(baseoutdir, n_events, args.action, prev)
+            run(cmd)
+
+# ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
-parser.add_argument('action', choices=['mfreq', 'nsnp', 'multi-nsnp'])
+parser.add_argument('action', choices=['mfreq', 'nsnp', 'multi-nsnp', 'prevalence'])
+parser.add_argument('--v-genes', default='IGHV4-39*01')
 parser.add_argument('--nsnp-list', default='1:2:3')
 parser.add_argument('--mfreqs', default='0.1:1:2')
+parser.add_argument('--prevalence-list', default='0.1:0.2:0.3')
 parser.add_argument('--n-event-list', default='5000')
 parser.add_argument('--n-tests', type=int, default=5)
 parser.add_argument('--plot', action='store_true')
 parser.add_argument('--no-slurm', action='store_true')
-parser.add_argument('--v-genes', default='IGHV4-39*01')
 parser.add_argument('--label')
 args = parser.parse_args()
 
+args.v_genes = utils.get_arg_list(args.v_genes)
 if args.action == 'nsnp':
     args.nsnp_list = utils.get_arg_list(args.nsnp_list, intify=True)
 elif args.action == 'multi-nsnp':  # list of nsnps for each test, e.g. '1,1:2,2' runs two tests: 1) two new alleles, each with one snp and 2) two new alleles each with 2 snps
     args.nsnp_list = [[int(n) for n in gstr.split(',')] for gstr in utils.get_arg_list(args.nsnp_list)]
 args.mfreqs = utils.get_arg_list(args.mfreqs, floatify=True)
 args.n_event_list = utils.get_arg_list(args.n_event_list, intify=True)
-args.v_genes = utils.get_arg_list(args.v_genes)
-
-original_glfo = glutils.read_glfo('data/germlines/human', locus=locus)
+args.prevalence_list = utils.get_arg_list(args.prevalence_list, floatify=True)
 
 # ----------------------------------------------------------------------------------------
 baseoutdir = alfdir
@@ -195,3 +208,8 @@ elif args.action == 'nsnp' or args.action == 'multi-nsnp':
         plot_test(args, baseoutdir, varvals=args.nsnp_list)
     else:
         run_nsnp_test(args, baseoutdir)
+elif args.action == 'prevalence':
+    if args.plot:
+        plot_test(args, baseoutdir, varvals=args.prevalence_list)
+    else:
+        run_prevalence_test(args, baseoutdir)
