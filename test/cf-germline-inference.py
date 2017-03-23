@@ -72,7 +72,7 @@ def run(cmd_str):
 def get_outdir(baseoutdir, n_events, varname, varval):
     outdir = baseoutdir
     outdir += '/' + varname + '-' + str(varval)
-    return outdir + '/n-events-' + str(n_events).replace('000', 'k')
+    return outdir + '/n-events-' + str(n_events)  # .replace('000', 'k')
 
 # ----------------------------------------------------------------------------------------
 def get_single_performance(outdir, debug=False):
