@@ -997,8 +997,9 @@ def plot_gl_inference_fractions(plotdir, plotname, plotvals, labels, xlabel='', 
         }
         ax.errorbar(xvals, yvals, yerr=yerrs, label=labels[ii], **kwargs)
 
-    ax.plot((xmin, xmax), (0, 0), color='black', linestyle='--', linewidth=3)  # line at y=0
-    ax.plot((xmin, xmax), (1, 1), color='black', linestyle='--', linewidth=3)  # line at y=1
+    minfrac, maxfrac = 0.95, 1.05
+    ax.plot((minfrac * xmin, maxfrac * xmax), (0, 0), color='black', linestyle='--', linewidth=3)  # line at y=0
+    ax.plot((minfrac * xmin, maxfrac * xmax), (1, 1), color='black', linestyle='--', linewidth=3)  # line at y=1
     print plotname, plotdir
-    mpl_finish(ax, plotdir, plotname, xlabel=xlabel, ylabel=ylabel, xbounds=(0.8*xmin, 1.1*xmax), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks])
+    mpl_finish(ax, plotdir, plotname, xlabel=xlabel, ylabel=ylabel, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks])
     plt.close()

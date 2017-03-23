@@ -104,13 +104,9 @@ def plot_test(args, baseoutdir, varvals, debug=False):
             assert len(set(perf_vals[ptype]) - set([0, 1])) == 0  # should only be zeroes and/or ones
         return perf_vals
 
-    # debug = True
     plotvals = []
     for varval in varvals:
-        if args.action == 'nsnp': 
-            print 'nsnp %d' % varval
-        elif args.action == 'mfreq':
-            print 'mfreq %0.2f' % varval
+        print '%s %s' % (args.action, varval)
         plotvals.append({pt : {k : [] for k in ['xvals', 'ycounts', 'ytotals']} for pt in plot_types})
         for n_events in args.n_event_list:
             if debug:
@@ -121,44 +117,46 @@ def plot_test(args, baseoutdir, varvals, debug=False):
                 plotvals[-1][ptype]['xvals'].append(n_events)
                 plotvals[-1][ptype]['ycounts'].append(count)
                 plotvals[-1][ptype]['ytotals'].append(len(perf_vals[ptype]))
-                # if debug:
-                #     frac = float(count) / len(perf_vals[ptype])
-                #     print '      %8s:  %2d / %-2d = %.2f' % (ptype, count, len(perf_vals[ptype]), frac)
     for ptype in plot_types:
         plotting.plot_gl_inference_fractions(baseoutdir, ptype, [pv[ptype] for pv in plotvals], labels=varvals, xlabel='sample size', ylabel='fraction %s' % ptype)
 
 # ----------------------------------------------------------------------------------------
-def get_base_cmd(args):
+def get_base_cmd(args, n_events):
     cmd = './bin/test-allele-finding.py'
-    cmd += ' --n-procs 5 --n-tests ' + str(args.n_tests) #+ ' --slurm'
-    cmd += ' --sim-v-genes ' + args.v_genes[0]
+    cmd += ' --n-procs 5 --n-tests ' + str(args.n_tests) + ' --slurm'
     cmd += ' --inf-v-genes ' + args.v_genes[0]
+    cmd += ' --n-sim-events ' + str(n_events)
     return cmd
 
 # ----------------------------------------------------------------------------------------
 def run_mfreq_test(args, baseoutdir):
     for mfreq in args.mfreqs:
         for n_events in args.n_event_list:
-            cmd = get_base_cmd(args)
+            cmd = get_base_cmd(args, n_events)
+            cmd += ' --sim-v-genes ' + args.v_genes[0]
             cmd += ' --mut-mult ' + str(mfreq)
             cmd += ' --nsnp-list 1'
-            cmd += ' --n-sim-events ' + str(n_events)
-            cmd += ' --outdir ' + get_outdir(baseoutdir, n_events, 'mfreq', mfreq)
+            cmd += ' --outdir ' + get_outdir(baseoutdir, n_events, args.action, mfreq)
             run(cmd)
 
 # ----------------------------------------------------------------------------------------
 def run_nsnp_test(args, baseoutdir):
     for nsnp in args.nsnp_list:
         for n_events in args.n_event_list:
-            cmd = get_base_cmd(args)
-            cmd += ' --nsnp-list ' + str(nsnp)
-            cmd += ' --n-sim-events ' + str(n_events)
-            cmd += ' --outdir ' + get_outdir(baseoutdir, n_events, 'nsnp', nsnp)
+            cmd = get_base_cmd(args, n_events)
+            nsnpstr = nsnp
+            sim_v_genes = [args.v_genes[0]]
+            if args.action == 'multi-nsnp':
+                nsnpstr = ':'.join([str(n) for n in nsnp])
+                sim_v_genes *= len(nsnp)
+            cmd += ' --sim-v-genes ' + ':'.join(sim_v_genes)
+            cmd += ' --nsnp-list ' + nsnpstr
+            cmd += ' --outdir ' + get_outdir(baseoutdir, n_events, args.action, nsnpstr)
             run(cmd)
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
-parser.add_argument('action', choices=['mfreq', 'nsnp'])
+parser.add_argument('action', choices=['mfreq', 'nsnp', 'multi-nsnp'])
 parser.add_argument('--nsnp-list', default='1:2:3')
 parser.add_argument('--mfreqs', default='0.1:1:2')
 parser.add_argument('--n-event-list', default='5000')
@@ -168,7 +166,10 @@ parser.add_argument('--v-genes', default='IGHV4-39*01')
 parser.add_argument('--label')
 args = parser.parse_args()
 
-args.nsnp_list = utils.get_arg_list(args.nsnp_list, intify=True)
+if args.action == 'nsnp':
+    args.nsnp_list = utils.get_arg_list(args.nsnp_list, intify=True)
+elif args.action == 'multi-nsnp':  # list of nsnps for each test, e.g. '1,1:2,2' runs two tests: 1) two new alleles, each with one snp and 2) two new alleles each with 2 snps
+    args.nsnp_list = [[int(n) for n in gstr.split(',')] for gstr in utils.get_arg_list(args.nsnp_list)]
 args.mfreqs = utils.get_arg_list(args.mfreqs, floatify=True)
 args.n_event_list = utils.get_arg_list(args.n_event_list, intify=True)
 args.v_genes = utils.get_arg_list(args.v_genes)
@@ -186,7 +187,7 @@ if args.action == 'mfreq':
         plot_test(args, baseoutdir, varvals=args.mfreqs)
     else:
         run_mfreq_test(args, baseoutdir)
-elif args.action == 'nsnp':
+elif args.action == 'nsnp' or args.action == 'multi-nsnp':
     if args.plot:
         plot_test(args, baseoutdir, varvals=args.nsnp_list)
     else:
