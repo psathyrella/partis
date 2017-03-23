@@ -781,8 +781,9 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
     if xticks is not None:
         plt.xticks(xticks)
     if xticklabels is not None:
-        mean_length = float(sum([len(xl) for xl in xticklabels])) / len(xticklabels)
-        if mean_length > 4:
+        # mean_length = float(sum([len(xl) for xl in xticklabels])) / len(xticklabels)
+        median_length = numpy.median([len(xl) for xl in xticklabels])
+        if median_length > 4:
             ax.set_xticklabels(xticklabels, rotation='vertical', size=8)
         else:
             ax.set_xticklabels(xticklabels)
@@ -975,7 +976,7 @@ def plot_gl_inference_fractions(plotdir, plotname, plotvals, labels, xlabel='', 
         yerrs = [err[1] - err[0] for err in tmphilos]
         print '  %s                    %s' % (xlabel, ylabel)
         for iv in range(len(pv['xvals'])):
-            print '   %5.2f     %5.0f / %-5.0f  =  %5.2f   +/-  %.3f' % (pv['xvals'][iv], pv['ycounts'][iv], pv['ytotals'][iv], yvals[iv], yerrs[iv])
+            print '   %8.0f     %5.0f / %-5.0f  =  %5.2f   +/-  %.3f' % (pv['xvals'][iv], pv['ycounts'][iv], pv['ytotals'][iv], yvals[iv], yerrs[iv])
         return pv['xvals'], yvals, yerrs
 
     fig, ax = mpl_init()
@@ -1000,6 +1001,5 @@ def plot_gl_inference_fractions(plotdir, plotname, plotvals, labels, xlabel='', 
     minfrac, maxfrac = 0.95, 1.05
     ax.plot((minfrac * xmin, maxfrac * xmax), (0, 0), color='black', linestyle='--', linewidth=3)  # line at y=0
     ax.plot((minfrac * xmin, maxfrac * xmax), (1, 1), color='black', linestyle='--', linewidth=3)  # line at y=1
-    print plotname, plotdir
-    mpl_finish(ax, plotdir, plotname, xlabel=xlabel, ylabel=ylabel, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks])
+    mpl_finish(ax, plotdir, plotname, xlabel=xlabel, ylabel=ylabel, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.74, 0.6))
     plt.close()

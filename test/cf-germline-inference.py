@@ -69,9 +69,29 @@ def run(cmd_str):
     subprocess.check_call(cmd_str.split())
 
 # ----------------------------------------------------------------------------------------
+def varvalstr(name, val):
+    if name == 'multi-nsnp':
+        valstr = ':'.join([str(v) for v in val])
+    else:
+        valstr = str(val)
+    return valstr
+
+# ----------------------------------------------------------------------------------------
+def legend_str(args, val):
+    if args.action == 'mfreq':
+        lstr = '%.1fx mut' % val
+    elif args.action == 'nsnp':
+        lstr = '%d SNP%s' % (val, utils.plural(val))
+    elif args.action == 'multi-nsnp':
+        lstr = '%s SNPs' % '+'.join([str(v) for v in val])
+    else:
+        assert False
+    return lstr
+
+# ----------------------------------------------------------------------------------------
 def get_outdir(baseoutdir, n_events, varname, varval):
     outdir = baseoutdir
-    outdir += '/' + varname + '-' + str(varval)
+    outdir += '/' + varname + '-' + varvalstr(varname, varval)
     return outdir + '/n-events-' + str(n_events)  # .replace('000', 'k')
 
 # ----------------------------------------------------------------------------------------
@@ -87,40 +107,44 @@ def get_single_performance(outdir, debug=False):
             print '    %2d spurious %s' % (len(spurious_alleles), ' '.join([utils.color_gene(g) for g in spurious_alleles]))
         if len(missing_alleles) == 0 and len(spurious_alleles) == 0:
             print '    none missing'
-    return {'missing' : len(missing_alleles), 'spurious' : len(spurious_alleles)}
+    return {
+        'missing' : len(missing_alleles),
+        'spurious' : len(spurious_alleles),
+        'total' : len([g for g in sglfo['seqs'][region] if '+' in g]),  # anybody with a '+' should be a new allele
+    }
 
 # ----------------------------------------------------------------------------------------
-def plot_test(args, baseoutdir, varvals, debug=False):
-    if args.action == 'multi-nsnp' or args.action == 'prevalence':
+def plot_test(args, baseoutdir, varvals):
+    if args.action == 'prevalence':
         raise Exception('not yet implemented')
     import plotting
     plot_types = ['missing', 'spurious']
 
     def get_performance(varname, varval):
-        perf_vals = {pt : [] for pt in plot_types}
+        perf_vals = {pt : [] for pt in plot_types + ['total']}
         for iproc in range(args.n_tests):
             single_vals = get_single_performance(get_outdir(baseoutdir, n_events, varname, varval) + '/' + str(iproc))
-            for ptype in plot_types:
+            for ptype in plot_types + ['total']:
                 perf_vals[ptype].append(single_vals[ptype])
-        for ptype in plot_types:
-            assert len(set(perf_vals[ptype]) - set([0, 1])) == 0  # should only be zeroes and/or ones
         return perf_vals
 
     plotvals = []
     for varval in varvals:
-        print '%s %s' % (args.action, varval)
+        print '%s %s' % (args.action, varvalstr(args.action, varval))
         plotvals.append({pt : {k : [] for k in ['xvals', 'ycounts', 'ytotals']} for pt in plot_types})
         for n_events in args.n_event_list:
-            if debug:
-                print '    %d' % n_events
             perf_vals = get_performance(varname=args.action, varval=varval)
+            print '  %d' % n_events
+            print '    iproc    %s' % ' '.join([str(i) for i in range(args.n_tests)])
+            print '    missing  %s' % ' '.join([str(v) for v in perf_vals['missing']]).replace('0', ' ')
+            print '    spurious %s' % ' '.join([str(v) for v in perf_vals['spurious']]).replace('0', ' ')
             for ptype in plot_types:
-                count = perf_vals[ptype].count(1)
+                count = sum(perf_vals[ptype])
                 plotvals[-1][ptype]['xvals'].append(n_events)
                 plotvals[-1][ptype]['ycounts'].append(count)
-                plotvals[-1][ptype]['ytotals'].append(len(perf_vals[ptype]))
+                plotvals[-1][ptype]['ytotals'].append(sum(perf_vals['total']))
     for ptype in plot_types:
-        plotting.plot_gl_inference_fractions(baseoutdir, ptype, [pv[ptype] for pv in plotvals], labels=varvals, xlabel='sample size', ylabel='fraction %s' % ptype)
+        plotting.plot_gl_inference_fractions(baseoutdir, ptype, [pv[ptype] for pv in plotvals], labels=[legend_str(args, v) for v in varvals], xlabel='sample size', ylabel='fraction %s' % ptype)
 
 # ----------------------------------------------------------------------------------------
 def get_base_cmd(args, n_events):
