@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import numpy
 from collections import OrderedDict
 import os
 import random
@@ -123,7 +124,7 @@ def get_single_performance(outdir, debug=False):
     }
 
 # ----------------------------------------------------------------------------------------
-def plot_test(args, baseoutdir, varvals):
+def plot_test(args, baseoutdir):
     import plotting
     plot_types = ['missing', 'spurious']
 
@@ -136,7 +137,7 @@ def plot_test(args, baseoutdir, varvals):
         return perf_vals
 
     plotvals = []
-    for varval in varvals:
+    for varval in args.varvals:
         print '%s %s' % (args.action, varvalstr(args.action, varval))
         plotvals.append({pt : {k : [] for k in ['xvals', 'ycounts', 'ytotals']} for pt in plot_types})
         for n_events in args.n_event_list:
@@ -151,7 +152,7 @@ def plot_test(args, baseoutdir, varvals):
                 plotvals[-1][ptype]['ycounts'].append(count)
                 plotvals[-1][ptype]['ytotals'].append(sum(perf_vals['total']))
     for ptype in plot_types:
-        plotting.plot_gl_inference_fractions(baseoutdir, ptype, [pv[ptype] for pv in plotvals], labels=[legend_str(args, v) for v in varvals], xlabel='sample size', ylabel='fraction %s' % ptype, leg_title=legend_titles.get(args.action, None))
+        plotting.plot_gl_inference_fractions(baseoutdir, ptype, [pv[ptype] for pv in plotvals], labels=[legend_str(args, v) for v in args.varvals], xlabel='sample size', ylabel='fraction %s' % ptype, leg_title=legend_titles.get(args.action, None))
 
 # ----------------------------------------------------------------------------------------
 def get_base_cmd(args, n_events):
@@ -164,64 +165,51 @@ def get_base_cmd(args, n_events):
     return cmd
 
 # ----------------------------------------------------------------------------------------
-def run_mfreq_test(args, baseoutdir):
-    for mfreq in args.mfreqs:
+def run_test(args, baseoutdir):
+    for val in args.varvals:
         for n_events in args.n_event_list:
             cmd = get_base_cmd(args, n_events)
-            cmd += ' --sim-v-genes ' + args.v_genes[0]
-            cmd += ' --mut-mult ' + str(mfreq)
-            cmd += ' --nsnp-list 1'
-            cmd += ' --outdir ' + get_outdir(baseoutdir, n_events, args.action, mfreq)
-            run(cmd)
-
-# ----------------------------------------------------------------------------------------
-def run_nsnp_test(args, baseoutdir):
-    for nsnp in args.nsnp_list:
-        for n_events in args.n_event_list:
-            cmd = get_base_cmd(args, n_events)
-            nsnpstr = nsnp
             sim_v_genes = [args.v_genes[0]]
-            if args.action == 'multi-nsnp':
-                nsnpstr = ':'.join([str(n) for n in nsnp])
-                sim_v_genes *= len(nsnp)
+            nsnpstr = '1'
+            if args.action == 'mfreq':
+                cmd += ' --mut-mult ' + str(val)
+            elif args.action == 'nsnp':
+                nsnpstr = str(val)
+            elif args.action == 'multi-nsnp':
+                nsnpstr = ':'.join([str(n) for n in val])
+                sim_v_genes *= len(val)
+            elif args.action == 'prevalence':
+                cmd += ' --allele-prevalence-freqs ' + str(1. - val) + ':' + str(val)  # i.e. previously-known allele has 1 - p, and new allele has p
+            elif args.action == 'n-leaves':
+                assert False
+            else:
+                assert False
             cmd += ' --sim-v-genes ' + ':'.join(sim_v_genes)
             cmd += ' --nsnp-list ' + nsnpstr
-            cmd += ' --outdir ' + get_outdir(baseoutdir, n_events, args.action, nsnpstr)
+            cmd += ' --outdir ' + get_outdir(baseoutdir, n_events, args.action, val)
             run(cmd)
 
 # ----------------------------------------------------------------------------------------
-def run_prevalence_test(args, baseoutdir):
-    for prev in args.prevalence_list:
-        for n_events in args.n_event_list:
-            cmd = get_base_cmd(args, n_events)
-            cmd += ' --sim-v-genes ' + args.v_genes[0]
-            cmd += ' --allele-prevalence-freqs ' + str(1. - prev) + ':' + str(prev)  # i.e. previously-known allele has 1 - p, and new allele has p
-            cmd += ' --nsnp-list 1'
-            cmd += ' --outdir ' + get_outdir(baseoutdir, n_events, args.action, prev)
-            run(cmd)
-
-# ----------------------------------------------------------------------------------------
+default_varvals = {
+    'mfreq' : '0.1:1.0:2.0',
+    'nsnp' : '1:2:3:4',
+    'multi-nsnp' : '1,1:1,3:2,3',
+    'prevalence' : '0.1:0.2:0.3',
+    'n-leaves' : '1.5:3:10:25',
+}
 parser = argparse.ArgumentParser()
-parser.add_argument('action', choices=['mfreq', 'nsnp', 'multi-nsnp', 'prevalence'])
+parser.add_argument('action', choices=['mfreq', 'nsnp', 'multi-nsnp', 'prevalence', 'n-leaves'])
 parser.add_argument('--v-genes', default='IGHV4-39*01')
-parser.add_argument('--nsnp-list', default='1:2:3')
-parser.add_argument('--mfreqs', default='0.1:1:2')
-parser.add_argument('--prevalence-list', default='0.1:0.2:0.3')
-parser.add_argument('--n-event-list', default='5000')
-parser.add_argument('--n-tests', type=int, default=5)
+parser.add_argument('--varvals')
+parser.add_argument('--n-event-list', default='1000:2000:4000:8000')  # NOTE modified later for multi-nsnp
+parser.add_argument('--n-tests', type=int, default=10)
 parser.add_argument('--plot', action='store_true')
 parser.add_argument('--no-slurm', action='store_true')
 parser.add_argument('--label')
 args = parser.parse_args()
 
 args.v_genes = utils.get_arg_list(args.v_genes)
-if args.action == 'nsnp':
-    args.nsnp_list = utils.get_arg_list(args.nsnp_list, intify=True)
-elif args.action == 'multi-nsnp':  # list of nsnps for each test, e.g. '1,1:2,2' runs two tests: 1) two new alleles, each with one snp and 2) two new alleles each with 2 snps
-    args.nsnp_list = [[int(n) for n in gstr.split(',')] for gstr in utils.get_arg_list(args.nsnp_list)]
-args.mfreqs = utils.get_arg_list(args.mfreqs, floatify=True)
 args.n_event_list = utils.get_arg_list(args.n_event_list, intify=True)
-args.prevalence_list = utils.get_arg_list(args.prevalence_list, floatify=True)
 
 # ----------------------------------------------------------------------------------------
 baseoutdir = alfdir
@@ -229,18 +217,20 @@ if args.label is not None:
     baseoutdir += '/' + args.label
 baseoutdir += '/' + args.action
 
-if args.action == 'mfreq':
-    if args.plot:
-        plot_test(args, baseoutdir, varvals=args.mfreqs)
-    else:
-        run_mfreq_test(args, baseoutdir)
-elif args.action == 'nsnp' or args.action == 'multi-nsnp':
-    if args.plot:
-        plot_test(args, baseoutdir, varvals=args.nsnp_list)
-    else:
-        run_nsnp_test(args, baseoutdir)
-elif args.action == 'prevalence':
-    if args.plot:
-        plot_test(args, baseoutdir, varvals=args.prevalence_list)
-    else:
-        run_prevalence_test(args, baseoutdir)
+if args.varvals is None:
+    args.varvals = default_varvals[args.action]
+kwargs = {}
+if args.action == 'mfreq' or args.action == 'prevalence' or args.action == 'n-leaves':
+    kwargs['floatify'] = True
+if args.action == 'nsnp':
+    kwargs['intify'] = True
+args.varvals = utils.get_arg_list(args.varvals, **kwargs)
+if args.action == 'multi-nsnp':
+    args.varvals = [[int(n) for n in gstr.split(',')] for gstr in args.varvals]  # list of nsnps for each test, e.g. '1,1:2,2' runs two tests: 1) two new alleles, each with one snp and 2) two new alleles each with 2 snps
+    factor = numpy.median([(len(nl) + 1) / 2. for nl in args.varvals])  # i.e. the ratio of (how many alleles we'll be dividing the events among), to (how many we'd be dividing them among for the other [single-nsnp] tests)
+    args.n_event_list = [int(factor * n) for n in args.n_event_list]
+
+if args.plot:
+    plot_test(args, baseoutdir)
+else:
+    run_test(args, baseoutdir)

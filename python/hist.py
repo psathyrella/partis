@@ -303,8 +303,8 @@ class Hist(object):
             yerrs = self.errors
 
         defaults = {'color' : 'black',
-                    'alpha' : 1.,
-                    'linewidth' : 2,
+                    'alpha' : 0.6,
+                    'linewidth' : 3,
                     'linestyle' : '-',
                     'marker' : '.',
                     'markersize' : 13}
