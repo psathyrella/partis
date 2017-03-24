@@ -22,6 +22,7 @@ legend_titles = {
     'nsnp' : 'N SNPs',
     'multi-nsnp' : 'N SNPs',
     'prevalence' : 'prevalence',
+    'n-leaves' : 'mean N leaves',
 }
 
 # # ----------------------------------------------------------------------------------------
@@ -94,6 +95,8 @@ def legend_str(args, val):
         lstr = '%s' % '+'.join([str(v) for v in val])
     elif args.action == 'prevalence':
         lstr = '%d%%' % (100*val)
+    elif args.action == 'n-leaves':
+        lstr = '%.1f' % val
     else:
         assert False
     return lstr
