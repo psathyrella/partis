@@ -183,6 +183,7 @@ def run_test(args, baseoutdir):
             elif args.action == 'n-leaves':
                 cmd += ' --n-leaves ' + str(val)  # NOTE default of 1 (for other tests) is set in test-allele-finding.py
                 cmd += ' --n-leaf-distribution geometric'
+                cmd += ' --n-random-queries ' + str(n_events)  # i.e. we simulate <n_events> rearrangement events, but then only use <n_events> sequences for inference
             else:
                 assert False
             cmd += ' --sim-v-genes ' + ':'.join(sim_v_genes)

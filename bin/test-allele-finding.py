@@ -98,6 +98,8 @@ def run_test(args):
     cmd_str = base_cmd + ' cache-parameters --infname ' + simfname + ' --only-smith-waterman --debug-allele-finding --always-find-new-alleles --n-max-allele-finding-iterations 2' # --dont-collapse-clones'
     # cmd_str = 'python -m cProfile -s tottime -o prof.out ' + cmd_str
     cmd_str += ' --n-procs ' + str(args.n_procs)
+    if args.n_random_queries is not None:
+        cmd_str += ' --n-random-queries ' + str(args.n_random_queries)
     if args.slurm:
         cmd_str += ' --batch-system slurm'
 
@@ -149,7 +151,8 @@ example_str = '\n    '.join(['example usage:',
                              './bin/test-allele-finding.py --n-sim-events 2000 --n-procs 10 --sim-v-genes=IGHV4-39*01:IGHV4-39*02 --inf-v-genes=IGHV4-39*01'])
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, epilog=example_str)
 parser.add_argument('--nosim', action='store_true', help='run inference on (presumably) existing simulation')
-parser.add_argument('--n-sim-events', type=int, default=20)
+parser.add_argument('--n-sim-events', type=int, default=20, help='number of simulated rearrangement events')
+parser.add_argument('--n-random-queries', type=int, help='number of queries to use for inference from the simulation sample')
 parser.add_argument('--n-leaves', type=float, default=1.)
 parser.add_argument('--n-leaf-distribution')
 parser.add_argument('--n-procs', type=int, default=2)
