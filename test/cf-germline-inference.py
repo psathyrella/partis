@@ -181,7 +181,8 @@ def run_test(args, baseoutdir):
             elif args.action == 'prevalence':
                 cmd += ' --allele-prevalence-freqs ' + str(1. - val) + ':' + str(val)  # i.e. previously-known allele has 1 - p, and new allele has p
             elif args.action == 'n-leaves':
-                assert False
+                cmd += ' --n-leaves ' + str(val)  # NOTE default of 1 (for other tests) is set in test-allele-finding.py
+                cmd += ' --n-leaf-distribution geometric'
             else:
                 assert False
             cmd += ' --sim-v-genes ' + ':'.join(sim_v_genes)
