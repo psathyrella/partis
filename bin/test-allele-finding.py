@@ -41,7 +41,11 @@ def run_test(args):
 
     # simulate
     if not args.nosim:
-        cmd_str = base_cmd + ' simulate --n-sim-events ' + str(args.n_sim_events) + ' --n-leaves ' + str(args.n_leaves) + ' --constant-number-of-leaves --rearrange-from-scratch --outfname ' + simfname
+        cmd_str = base_cmd + ' simulate --n-sim-events ' + str(args.n_sim_events) + ' --n-leaves ' + str(args.n_leaves) + ' --rearrange-from-scratch --outfname ' + simfname
+        if args.n_leaf_distribution is None:
+            cmd_str += ' --constant-number-of-leaves'
+        else:
+            cmd_str += ' --n-leaf-distribution ' + args.n_leaf_distribution
         if args.mut_mult is not None:
             cmd_str += ' --mutation-multiplier ' + str(args.mut_mult)
 
@@ -146,7 +150,8 @@ example_str = '\n    '.join(['example usage:',
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, epilog=example_str)
 parser.add_argument('--nosim', action='store_true', help='run inference on (presumably) existing simulation')
 parser.add_argument('--n-sim-events', type=int, default=20)
-parser.add_argument('--n-leaves', type=int, default=1)  # NOTE --constant-number-of-leaves is set up there ^
+parser.add_argument('--n-leaves', type=int, default=1)
+parser.add_argument('--n-leaf-distribution')
 parser.add_argument('--n-procs', type=int, default=2)
 parser.add_argument('--seed', type=int, default=int(time.time()))
 parser.add_argument('--gen-gset', action='store_true', help='generate a random germline set from scratch (parameters specified above), and infer a germline set from scratch, instead of using --sim-v-genes, --dj-genes, --inf-v-genes, and --snp-positions.')
