@@ -343,6 +343,9 @@ parent_parser.add_argument('--n-max-new-alleles-per-gene-per-iteration', type=in
 parent_parser.add_argument('--n-max-snps', type=int, default=8, help='when new-allele finding, look for new alleles separated from existing alleles by up to this many SNPs')
 parent_parser.add_argument('--n-max-mutations-per-segment', type=int, default=23, help='when new-allele finding, exclude sequences which have more than this many mutations in the V segment')
 
+parent_parser.add_argument('--seed-unique-id', help='Only look for sequences that are clonally related to this unique id. Much much much faster than partitioning the entire dataset.')
+parent_parser.add_argument('--seed-seq', help='same as --seed-unique-id, but specifies a sequence that doesn\'t have to be in the original file')
+
 # ----------------------------------------------------------------------------------------
 subconfig = {
     'version'          : {'func' : int, 'help' : 'print version information and exit'},
@@ -360,8 +363,8 @@ subargs = {subname : [] for subname in subconfig}
 
 subargs['partition'].append({'name' : '--naive-hamming', 'kwargs' : {'action' : 'store_true', 'help' : 'agglomerate purely with naive hamming distance, i.e. set the low and high preclustering bounds to the same value'}})
 subargs['partition'].append({'name' : '--naive-vsearch', 'kwargs' : {'action' : 'store_true', 'help' : 'Very fast clustering: infer naive (unmutated ancestor) for each input sequence, then toss it all into vsearch. But, of course, not as accurate as the slower methods.'}})
-subargs['partition'].append({'name' : '--seed-unique-id', 'kwargs' : {'help' : 'Only look for sequences that are clonally related to this unique id. Much much much faster than partitioning the entire dataset.'}})
-subargs['partition'].append({'name' : '--seed-seq', 'kwargs' : {'help' : 'same as --seed-unique-id, but specifies a sequence that doesn\'t have to be in the original file'}})
+# subargs['partition'].append({'name' : '--seed-unique-id', 'kwargs' : {'help' : 'Only look for sequences that are clonally related to this unique id. Much much much faster than partitioning the entire dataset.'}})
+# subargs['partition'].append({'name' : '--seed-seq', 'kwargs' : {'help' : 'same as --seed-unique-id, but specifies a sequence that doesn\'t have to be in the original file'}})
 subargs['partition'].append({'name' : '--annotation-clustering', 'kwargs' : {'help' : 'Perform annotation-based clustering: group together sequences with the same V and J, same CDR3 length, and 90%% cdr identity. Very, very inaccurate.'}})
 subargs['partition'].append({'name' : '--annotation-clustering-thresholds', 'kwargs' : {'default' : '0.9', 'help' : 'colon-separated list of thresholds for annotation-based (e.g. vollmers) clustering'}})
 subargs['partition'].append({'name' : '--print-cluster-annotations', 'kwargs' : {'action' : 'store_true', 'help' : 'deprecated'}})

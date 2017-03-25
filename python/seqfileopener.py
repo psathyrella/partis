@@ -51,6 +51,8 @@ def post_process(input_info, reco_info, args, infname, found_seed, is_data):
             raise Exception('didn\'t find the specified --reco-ids (%s) in %s' % (str(args.reco_ids), infname))
     if args.queries is not None:
         missing_queries = set(args.queries) - set(input_info)
+        if args.seed_seq is not None:  # if the seed uid isn't in the input file, you can specify its sequence with --seed-seq
+            missing_queries -= set([args.seed_unique_id])
         extra_queries = set(input_info) - set(args.queries)  # this is just checking for a bug in the code just above here...
         if len(missing_queries) > 0:
             raise Exception('didn\'t find some of the specified --queries: %s' % ' '.join(missing_queries))
