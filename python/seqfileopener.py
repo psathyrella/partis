@@ -45,7 +45,7 @@ def post_process(input_info, reco_info, args, infname, found_seed, is_data):
         if n_lines_in_file < args.istartstop[1]:
             raise Exception('--istartstop upper bound %d larger than number of lines in file %d' % (args.istartstop[1], n_lines_in_file))
     if len(input_info) == 0:
-        if args.queries is not None:
+        if args.queries is not None and args.seed_seq is None:  # if --seed-seq is specified, we don't expect to pull it from the file
             raise Exception('didn\'t find the specified --queries (%s) in %s' % (str(args.queries), infname))
         if args.reco_ids is not None:
             raise Exception('didn\'t find the specified --reco-ids (%s) in %s' % (str(args.reco_ids), infname))
