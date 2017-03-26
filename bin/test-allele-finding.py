@@ -146,6 +146,70 @@ def multiple_tests(args):
 # ----------------------------------------------------------------------------------------
 fsdir = '/fh/fast/matsen_e/dralph'
 
+# # ----------------------------------------------------------------------------------------
+# from hist import Hist
+# import plotting
+# fig, ax = plotting.mpl_init()
+
+# ntrees = 1000
+# distrs = [
+#     # (1.5, 'geo'),
+#     # (3, 'geo'),
+#     (10, 'geo'),
+#     # (25, 'geo'),
+#     # (2.3, 'zipf'),
+#     # (1.8, 'zipf'),
+#     # (1.3, 'zipf'),
+# ]
+
+# # ----------------------------------------------------------------------------------------
+# def getsubsample(vals):
+#     print vals
+#     iclust = 0
+#     seqs = []
+#     for v in vals:
+#         seqs += [iclust for _ in range(v)]
+#         iclust += 1
+#     print seqs
+#     subseqs = numpy.random.choice(seqs, size=ntrees)
+#     # subseqs = seqs[:ntrees]
+#     print subseqs
+#     import itertools
+#     subvals = []
+#     for _, group in itertools.groupby(sorted(subseqs)):
+#         for what in set(group):
+#             subg = [s for s in subseqs if s == what]
+#             print what, len(subg)
+#             subvals.append(len(subg))
+#     print subvals
+#     return subvals
+
+# ih = 0
+# for n_leaves, fcn in distrs:
+#     if fcn == 'zipf':
+#         vals = numpy.random.zipf(n_leaves, size=ntrees)  # NOTE <n_leaves> is not the mean here
+#     elif fcn == 'geo':
+#         vals = numpy.random.geometric(1. / n_leaves, size=ntrees)
+#     else:
+#         assert False
+#     nbins = 100
+#     htmp = Hist(nbins, -0.5, nbins - 0.5)
+#     for v in vals:
+#         htmp.fill(v)
+#     htmp.mpl_plot(ax, color=plotting.default_colors[ih], errors=False, label='%s %.1f' % (fcn, numpy.mean(vals)))
+# # ----------------------------------------------------------------------------------------
+#     hsub = Hist(nbins, -0.5, nbins - 0.5)
+#     subvals = getsubsample(vals)
+#     for v in subvals:
+#         hsub.fill(v)
+#     hsub.mpl_plot(ax, color=plotting.default_colors[ih], errors=False, label='%s %.1f' % (fcn, numpy.mean(subvals)), linestyle='--')
+# # ----------------------------------------------------------------------------------------
+#     ih += 1
+
+# plotting.mpl_finish(ax, fsdir + '/partis/tmp/tmp', 'baz', xbounds=(0.9, nbins), log='y')
+# sys.exit()
+# # ----------------------------------------------------------------------------------------
+
 example_str = '\n    '.join(['example usage:',
                              './bin/test-allele-finding.py --n-sim-events 2000 --n-procs 10 --sim-v-genes=IGHV1-18*01 --inf-v-genes=IGHV1-18*01 --snp-positions 27,55,88',
                              './bin/test-allele-finding.py --n-sim-events 2000 --n-procs 10 --sim-v-genes=IGHV4-39*01:IGHV4-39*02 --inf-v-genes=IGHV4-39*01'])
