@@ -2314,6 +2314,7 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, sanitize=Fa
 
     finfo = []
     n_fasta_queries = 0
+    missing_queries = set(queries) if queries is not None else None
     already_printed_forbidden_character_warning = False
     with open(fname) as fastafile:
         startpos = None
@@ -2365,15 +2366,20 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, sanitize=Fa
                     already_printed_forbidden_character_warning = True
                 uid = uid.translate(forbidden_character_translations)
 
-            if queries is not None and uid not in queries:
-                continue
+            if queries is not None:
+                if uid not in queries:
+                    continue
+                missing_queries.remove(uid)
 
             seqfo = {name_key : uid, seq_key : seqline.upper()}
             if add_info:
                 seqfo['infostrs'] = infostrs
             finfo.append(seqfo)
+
             n_fasta_queries += 1
             if n_max_queries > 0 and n_fasta_queries >= n_max_queries:
+                break
+            if queries is not None and len(missing_queries) == 0:
                 break
 
     return finfo
