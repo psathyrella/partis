@@ -278,6 +278,7 @@ class PartitionDriver(object):
         with open(self.args.outfname) as csvfile:
             failed_queries = set()
             reader = csv.DictReader(csvfile)
+            n_queries_read = 0
             for line in reader:
                 if line['v_gene'] == '':
                     failed_queries.add(line['unique_ids'])
@@ -296,6 +297,9 @@ class PartitionDriver(object):
                 else:
                     print ''
                 utils.print_reco_event(line)
+                n_queries_read += 1
+                if self.args.n_max_queries > 0 and n_queries_read >= self.args.n_max_queries:
+                    break
         if len(failed_queries) > 0:
             print '%d failed queries' % len(failed_queries)
 
