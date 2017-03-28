@@ -726,7 +726,7 @@ class Waterer(object):
         infoline['dj_insertion'] = qinfo['seq'][qinfo['qrbounds'][best['d']][1] : qinfo['qrbounds'][best['j']][0]]
         infoline['jf_insertion'] = qinfo['seq'][qinfo['qrbounds'][best['j']][1] : ]
 
-        infoline['indelfos'] = [self.info['indels'].get(qname, utils.get_empty_indel()), ]
+        infoline['indelfos'] = [self.info['indels'].get(qname, utils.get_empty_indel()), ]  # NOTE this makes it so that self.info[uid]['indelfos'] *is* self.info['indels'][uid]. It'd still be nicer to eventually do away with self.info['indels'], although I'm not sure that's really either feasible or desirable given other constraints
         infoline['duplicates'] = [self.duplicates.get(qname, []), ]  # note that <self.duplicates> doesn't handle simultaneous seqs, i.e. it's for just a single sequence
 
         infoline['all_matches'] = {r : [g for _, g in qinfo['matches'][r]] for r in utils.regions}  # get lists with no scores, just the names (still ordered by match quality, though)
@@ -1102,11 +1102,6 @@ class Waterer(object):
         for query in self.info['queries']:
             swfo = self.info[query]
             assert len(swfo['seqs']) == 1
-            if query in self.info['indels']:
-                if self.info['indels'][query] != swfo['indelfos'][0]:
-                    print '%s indelfos not equal for %s' % (utils.color('red', 'warning'), query)
-                if swfo['indelfos'][0]['reversed_seq'] != swfo['seqs'][0]:
-                    print '%s reversed seq not same as seq:\n%s\n%s' % (utils.color('red', 'warning'), swfo['indelfos'][0]['reversed_seq'], swfo['seqs'][0])
 
             # utils.print_reco_event(swfo)
             utils.remove_all_implicit_info(swfo)
@@ -1114,10 +1109,10 @@ class Waterer(object):
             jf_len = len(swfo['jf_insertion'])
 
             swfo['seqs'][0] = swfo['seqs'][0][fv_len : len(swfo['seqs'][0]) - jf_len]
-            if swfo['indelfos'][0]['reversed_seq'] != '':
+            if query in self.info['indels']:  # NOTE unless there's no indel, the dict in self.info['indels'][query] *is* the dict in swfo['indelfos'][0]
                 swfo['indelfos'][0]['reversed_seq'] = swfo['seqs'][0]
-            for indel in reversed(swfo['indelfos'][0]['indels']):
-                indel['pos'] -= fv_len
+                for indel in reversed(swfo['indelfos'][0]['indels']):  # why in the world did I bother with the reversed() here? I guess maybe just as a reminder of how the list works...
+                    indel['pos'] -= fv_len
             for key in swfo['k_v']:
                 swfo['k_v'][key] -= fv_len
             swfo['fv_insertion'] = ''
@@ -1294,8 +1289,10 @@ class Waterer(object):
             swfo['jf_insertion'] = swfo['jf_insertion'] + rightstr
             swfo['seqs'][0] = leftstr + swfo['seqs'][0] + rightstr
             swfo['naive_seq'] = leftstr + swfo['naive_seq'] + rightstr  # NOTE I should eventually rewrite this to remove all implicit info, then change things, then re-add implicit info (like in remove_framework_insertions)
-            if query in self.info['indels']:  # also pad the reversed sequence
+            if query in self.info['indels']:  # also pad the reversed sequence and change indel positions NOTE unless there's no indel, the dict in self.info['indels'][query] *is* the dict in swfo['indelfos'][0]
                 self.info['indels'][query]['reversed_seq'] = leftstr + self.info['indels'][query]['reversed_seq'] + rightstr
+                for indel in reversed(swfo['indelfos'][0]['indels']):
+                    indel['pos'] += padleft
             for key in swfo['k_v']:
                 swfo['k_v'][key] += padleft
             swfo['codon_positions']['v'] += padleft
