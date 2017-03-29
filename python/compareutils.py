@@ -1085,7 +1085,7 @@ def slice_file(args, csv_infname, csv_outfname):  # not necessarily csv
         if not os.path.exists(csv_outfname.replace('.csv', '.fa')):
             utils.csv_to_fasta(csv_outfname)
         return
-    print '      subsetting %d seqs with indices %d --> %d' % (args.istartstop[1] - args.istartstop[0], args.istartstop[0], args.istartstop[1])
+    print '      slicing %d seqs with indices %d --> %d' % (args.istartstop[1] - args.istartstop[0], args.istartstop[0], args.istartstop[1])
     if not os.path.exists(os.path.dirname(csv_outfname)):
         os.makedirs(os.path.dirname(csv_outfname))
     if '.csv' in csv_infname:  # if it's actually a csv
@@ -1096,18 +1096,12 @@ def slice_file(args, csv_infname, csv_outfname):  # not necessarily csv
             assert '/dralph/' in csv_infname
             os.remove(csv_infname)
     elif '.fa' in csv_infname:
-        input_info, _ = seqfileopener.get_seqfile_info(csv_infname, is_data=True)
+        input_info = utils.read_fastx(csv_infname, name_key='unique_ids', seq_key='input_seqs', add_info=False, sanitize=True, istartstop=args.istartstop)
         with open(csv_outfname, 'w') as outfile:
-            writer = csv.DictWriter(outfile, ('unique_id', 'seq'))
+            writer = csv.DictWriter(outfile, ('unique_ids', 'input_seqs'))
             writer.writeheader()
-            iseq = -1
-            for line in input_info.values():  # hackey, but it's an ordered dict so it should be ok
-                iseq += 1
-                if iseq < args.istartstop[0]:
-                    continue
-                if iseq >= args.istartstop[1]:
-                    break
-                writer.writerow({'unique_id' : line['unique_id'], 'seq' : line['seq']})
+            for line in input_info:  # hackey, but it's an ordered dict so it should be ok
+                writer.writerow({'unique_ids' : line['unique_ids'], 'input_seqs' : line['input_seqs']})
         # print 'sed -n \'' + str(2*args.istartstop[0] + 1) + ',' + str(2*args.istartstop[1] + 1) + ' p\' ' + csv_infname + '>>' + csv_outfname
         # check_call('sed -n \'' + str(2*args.istartstop[0] + 1) + ',' + str(2*args.istartstop[1] + 1) + ' p\' ' + csv_infname + '>>' + csv_outfname, shell=True)  # NOTE conversion from standard zero indexing to sed inclusive one-indexing (and multiply by two for fasta file)
 
@@ -1333,7 +1327,7 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
     if action != 'simulate' and not args.no_slurm:
         extras += ['--batch-system', 'slurm' ]
 
-    print 'TODO put in something to reduce the number of procs for large samples'
+    # print 'TODO put in something to reduce the number of procs for large samples'
     n_procs = min(500, n_procs)  # can't get more than a few hundred slots at once, anyway
     n_proc_str = str(n_procs)
     n_fewer_procs = max(1, min(500, n_total_seqs / 2000))
@@ -1343,7 +1337,7 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
 
     # cmd += baseutils.get_extra_str(extras)
     cmd += ' ' + ' '.join([str(e) for e in extras]) + ' --print-git-commit'
-    print '   ' + cmd
+    print '   %s %s' % (utils.color('red', 'run'), cmd)
     if args.dry_run:
         return
 

@@ -36,7 +36,7 @@ def abbreviate(used_names, potential_names, unique_id):
     return new_id
 
 # ----------------------------------------------------------------------------------------
-def post_process(input_info, reco_info, args, infname, found_seed, is_data):
+def post_process(input_info, reco_info, args, infname, found_seed, is_data, iline):
     if args is None:
         return
 
@@ -105,7 +105,8 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, s
         seqfile = open(infname)
         reader = csv.DictReader(seqfile, delimiter=delimiter)
     else:
-        reader = utils.read_fastx(infname, name_key='unique_ids', seq_key='input_seqs', add_info=False, sanitize=True, queries=(args.queries if args is not None else None), n_max_queries=n_max_queries)
+        reader = utils.read_fastx(infname, name_key='unique_ids', seq_key='input_seqs', add_info=False, sanitize=True, n_max_queries=n_max_queries,
+                                  queries=(args.queries if args is not None else None))  # NOTE don't use istarstop kw arg here, 'cause it fucks with the istartstop treatment in the loop below
 
     input_info = OrderedDict()
     reco_info = None
@@ -183,7 +184,7 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, s
         if n_max_queries > 0 and n_queries_added >= n_max_queries:
             break
 
-    post_process(input_info, reco_info, args, infname, found_seed, is_data)
+    post_process(input_info, reco_info, args, infname, found_seed, is_data, iline)
 
     if len(input_info) == 0:
         raise Exception('didn\'t read any sequences from %s' % infname)
