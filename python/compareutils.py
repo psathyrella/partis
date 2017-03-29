@@ -262,6 +262,10 @@ def get_synthetic_partition_type(stype):
 
 # ----------------------------------------------------------------------------------------
 def generate_synthetic_partitions(args, label, n_leaves, mut_mult, seqfname, base_outfname, datafname, procs):
+    if args.dry_run:
+        print 'implement me!'
+        return
+
     _, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=False)
     print 'using igh!'
     glfo = glutils.read_glfo(args.gldir, locus='igh')
@@ -849,6 +853,10 @@ def output_exists(args, outfname):
 
 # ----------------------------------------------------------------------------------------
 def run_changeo(args, label, n_leaves, mut_mult, seqfname):
+    if args.dry_run:
+        print 'implement me!'
+        return
+
     def untar_imgt(imgtdir):
         tar_cmd = 'mkdir ' + imgtdir + ';'
         tar_cmd += ' tar Jxvf ' + imgtdir + '.txz --exclude=\'IMGT_HighV-QUEST_individual_files_folder/*\' -C ' + imgtdir
@@ -950,6 +958,10 @@ def run_changeo(args, label, n_leaves, mut_mult, seqfname):
 
 # ----------------------------------------------------------------------------------------
 def run_mixcr(args, label, n_leaves, mut_mult, seqfname):
+    if args.dry_run:
+        print 'implement me!'
+        return
+
     binary = '/home/dralph/work/mixcr/mixcr-1.2/mixcr'
     mixcr_workdir = get_program_workdir(args, 'mixcr', label, n_leaves, mut_mult)
     if not os.path.exists(mixcr_workdir):
@@ -988,6 +1000,10 @@ def run_mixcr(args, label, n_leaves, mut_mult, seqfname):
 
 # ----------------------------------------------------------------------------------------
 def run_igscueal(args, label, n_leaves, mut_mult, seqfname):
+    if args.dry_run:
+        print 'implement me!'
+        return
+
     igscueal_dir = '/home/dralph/work/IgSCUEAL'
     # outfname = os.path.splitext(seqfname)[0] + '-igscueal.tsv'
     # if output_exists(args, outfname):
@@ -1179,7 +1195,7 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
 
     extras = []
     seqfname = get_seqfile(args, datafname, label, n_leaves, mut_mult)
-    cmd += ' --seqfile ' + seqfname
+    cmd += ' --infname ' + seqfname
     parameter_dir = get_outdirname(args, label) + '/parameters'
     if not args.is_simu or action == 'simulate':
         parameter_dir += '/data'
@@ -1328,7 +1344,8 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
     # cmd += baseutils.get_extra_str(extras)
     cmd += ' ' + ' '.join([str(e) for e in extras]) + ' --print-git-commit'
     print '   ' + cmd
-    # return
+    if args.dry_run:
+        return
 
     logbase = get_outdirname(args, label) + '/logs/' + os.path.basename(outfname).replace('.csv', '')
     if action not in logbase:
