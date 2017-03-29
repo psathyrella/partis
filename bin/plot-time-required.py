@@ -37,6 +37,7 @@ for istartstopstr in istartstopstr_list_seed:
 n_query_list_seed = [istartstop[1] - istartstop[0] for istartstop in istartstoplist_seed]
 
 timeinfo = OrderedDict()
+
 # NOTE edited some of these values for current code version Dec 22 2015
 # n_query_list =                        [  100,   200,   500,  1000,  1500,  2000,  3000,  5000,  7000, 10000, 12000, 15000, 20000, 30000,  50000, 75000, 100000]
 # timeinfo['vollmers-0.9'] =            [   30,    34,    43,   385,   396,   217,   398,   477,  None,  1241,  None,  1681,  2247,  None,   4153,  5590,   None]
@@ -45,6 +46,8 @@ timeinfo = OrderedDict()
 # timeinfo['vsearch-partition'] =       [   52,    53,    62,    70,   303,   408,   460,   477,  None,  1208,  None,  1586,  2561,  None,  11209, 11413,   None]
 # timeinfo['naive-hamming-partition'] = [   33,    39,   208,    93,   170,   216,   649,   947,  None,  2372,  None,  4655,  None,  None,   None,  None,   None]
 # timeinfo['partition'] =               [   53,    67,   138,   217,  1026,  1623,  2847,  3052,  None,  8228,  None, 11542, 21391, 31418,   None,  None,   None]
+
+# ----------------------------------------------------------------------------------------
 def make_plot():
     import matplotlib as mpl
     mpl.use('Agg')
@@ -94,6 +97,7 @@ def make_plot():
     plt.savefig(os.getenv('www') + '/partis/clustering/time-required.svg')
     sys.exit()
 
+# ----------------------------------------------------------------------------------------
 def get_clock_time(istart, istop, action, fbase):
     logfname = fsdir + '/' + human + '/istartstop-' + str(istart) + '-' + str(istop) + '/_logs/' + fbase + '-' + action + '.out'
     if args.timegrep:
