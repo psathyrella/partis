@@ -2303,7 +2303,7 @@ def collapse_naive_seqs(naive_seq_list, sw_info):  # NOTE there is also a (simpl
     return naive_seq_map, naive_seq_hashes
 
 # ----------------------------------------------------------------------------------------
-def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, sanitize=False, queries=None, n_max_queries=-1):  # Bio.SeqIO takes too goddamn long to import
+def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, sanitize=False, queries=None, n_max_queries=-1, istartstop=None):  # Bio.SeqIO takes too goddamn long to import
     suffix = os.path.splitext(fname)[1]
     if suffix == '.fa' or suffix == '.fasta':
         ftype = 'fa'
@@ -2313,7 +2313,8 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, sanitize=Fa
         raise Exception('unhandled file type: %s' % suffix)
 
     finfo = []
-    n_fasta_queries = 0
+    iline = -1  # index of the query/seq that we're currently reading in the fasta
+    n_fasta_queries = 0  # number of queries so far added to <finfo> (I guess I could just use len(finfo) at this point)
     missing_queries = set(queries) if queries is not None else None
     already_printed_forbidden_character_warning = False
     with open(fname) as fastafile:
@@ -2357,6 +2358,13 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, sanitize=Fa
 
             if not seqline:
                 break
+
+            iline += 1
+            if istartstop is not None:
+                if iline < istartstop[0]:
+                    continue
+                elif iline >= istartstop[1]:
+                    continue
 
             infostrs = [ss.strip() for s in headline.split(' ') for ss in s.split('|')]  # NOTE the uid is left untranslated in here
             uid = infostrs[0]
