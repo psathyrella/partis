@@ -39,6 +39,7 @@ n_query_list_seed = [istartstop[1] - istartstop[0] for istartstop in istartstopl
 timeinfo = OrderedDict()
 
 # NOTE edited some of these values for current code version Dec 22 2015
+# NOTE I think the way this works is you use --timegrep to print the numbers, then paste those numbers into this table [then maybe edit some of them] the uncomment and run make_plots (i.e. so you don't have to wait for timegrep to finish in order to replot)
 # n_query_list =                        [  100,   200,   500,  1000,  1500,  2000,  3000,  5000,  7000, 10000, 12000, 15000, 20000, 30000,  50000, 75000, 100000]
 # timeinfo['vollmers-0.9'] =            [   30,    34,    43,   385,   396,   217,   398,   477,  None,  1241,  None,  1681,  2247,  None,   4153,  5590,   None]
 # timeinfo['mixcr'] =                   [    7,     7,     8,     9,     9,    10,    10,    11,  None,    13,  None,  None,    16,  None,     20,    20,   None]
