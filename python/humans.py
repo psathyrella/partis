@@ -2,7 +2,7 @@ import utils
 from subprocess import check_output
 
 basedatadir = '/fh/fast/matsen_e/data'
-baseprocdatadir = '/fh/fast/matsen_e/processed-data/partis'
+baseprocdatadir = '/fh/fast/matsen_e/processed-data/partis/clustering-paper'
 
 datasets = ['vollmers', 'adaptive', 'stern']
 
@@ -12,8 +12,8 @@ humans['adaptive'] = ['A', 'B', 'C']
 humans['stern'] = ['SRR1383326', 'SRR1383447', 'SRR1383448', 'SRR1383449', 'SRR1383450', 'SRR1383451', 'SRR1383452', 'SRR1383453', 'SRR1383454', 'SRR1383455', 'SRR1383456', 'SRR1383457', 'SRR1383458', 'SRR1383459', 'SRR1383460', 'SRR1383461', 'SRR1383462', 'SRR1383463', 'SRR1383464', 'SRR1383465', 'SRR1383466', 'SRR1383467', 'SRR1383468', 'SRR1383469', 'SRR1383470', 'SRR1383471', 'SRR1383472', 'SRR1383473', 'SRR1383474', 'SRR1383475', 'SRR1383476', 'SRR1383477']
 
 dataset_dirs = {}
-dataset_dirs['vollmers'] = '2016-04-08-vollmers'
-dataset_dirs['adaptive'] = '2016-04-07-adaptive-billion-read'
+dataset_dirs['vollmers'] = 'vollmers'
+dataset_dirs['adaptive'] = 'adaptive-billion-read'
 dataset_dirs['stern'] = '2016-01-06-stern-bcell/proc_data'
 colors = {
     'A': '595', 'B': '807', 'C': '834',
