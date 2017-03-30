@@ -1203,10 +1203,14 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
     else:
         cmd += ' --is-simu'
 
+    if action == 'cache-parameters':
+        cmd += ' --initial-germline-dir ' + args.fsdir + '/old-germlines/human'  # old simulation files were made with some genes (mostly pseudogenes?) that are no longer in my default germline dir
+    else:
+        cmd += ' --simulation-germline-dir ' + args.fsdir + '/old-germlines/human'  # old simulation files were made with some genes (mostly pseudogenes?) that are no longer in my default germline dir
+
     n_procs = 1
     n_total_seqs = 1
     if action == 'cache-parameters':
-        cmd += ' --initial-germline-dir ' + args.fsdir + '/old-germlines/human'  # old simulation files were made with some genes (mostly pseudogenes?) that are no longer in my default germline dir
         # cmd += ' --plotdir ' + parameter_dir.replace('parameters', 'plots')
         if not args.is_simu:
             outfname = parameter_dir  # get_outdirname(args, label) + '/parameters/data'
