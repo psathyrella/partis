@@ -1324,8 +1324,6 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
         return
 
     extras += ['--workdir', args.fsdir.replace('_output', '_tmp') + '/' + str(random.randint(0, 99999))]
-    if action != 'simulate' and not args.no_slurm:
-        extras += ['--batch-system', 'slurm' ]
 
     # print 'TODO put in something to reduce the number of procs for large samples'
     n_procs = min(500, n_procs)  # can't get more than a few hundred slots at once, anyway
@@ -1333,10 +1331,13 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
     n_fewer_procs = max(1, min(500, n_total_seqs / 2000))
     n_proc_str += ':' + str(n_fewer_procs)
 
+    if action != 'simulate' and not args.no_slurm and n_procs > 10:
+        extras += ['--batch-system', 'slurm' ]
+
     extras += ['--n-procs', n_proc_str]
 
     # cmd += baseutils.get_extra_str(extras)
-    cmd += ' ' + ' '.join([str(e) for e in extras]) + ' --print-git-commit'
+    cmd += ' ' + ' '.join([str(e) for e in extras]) + ' --print-git-commit'  # last bit is so it prints the command line
     print '   %s %s' % (utils.color('red', 'run'), cmd)
     if args.dry_run:
         return
