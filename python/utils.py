@@ -1353,8 +1353,12 @@ def process_input_line(info, hmm_cachefile=False):
 
     if 'seq' in info:  # old simulation files
         for key in ['unique_id', 'seq', 'indelfo']:
+            if key not in info:
+                continue
             info[key + 's'] = info[key]
             del info[key]
+        if 'indelfos' not in info:  # hm, at least some old sim files don't have 'indelfo'
+            info['indelfos'] = str(get_empty_indel())
         info['indelfos'] = '[' + info['indelfos'] + ']'
         info['input_seqs'] = info['seqs']
 
