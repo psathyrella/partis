@@ -883,6 +883,12 @@ def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False): 
         # then keep track of the keys we got to start with
         pre_existing_implicit_info = {ek : copy.deepcopy(line[ek]) for ek in implicit_linekeys if ek in line}
 
+    for region in regions:  # backwards compatibility with old simulation files should be removed when you're no longer running on them
+        if line[region + '_gene'] not in glfo['seqs'][region]:
+            alternate_name = glutils.convert_to_duplicate_name(glfo, line[region + '_gene'])
+            # print ' using alternate name %s instead of %s' % (alternate_name, line[region + '_gene'])
+            line[region + '_gene'] = alternate_name
+
     # add the regional germline seqs and their lengths
     line['lengths'] = {}  # length of each match (including erosion)
     for region in regions:
@@ -2092,8 +2098,11 @@ def csv_to_fasta(infname, outfname=None, name_column='unique_ids', seq_column='i
                     if 'name' in line:
                         name_column = 'name'
                         seq_column = 'nucleotide'
+                    elif 'unique_id' in line:
+                        name_column = 'unique_id'
+                        seq_column = 'seq'
                     else:
-                        raise Exception('specified <name_column> \'%s\' and backup \'name\' not in line: ' % (name_column, line.keys()))
+                        raise Exception('specified <name_column> \'%s\' and backup \'name\' not in line: %s' % (name_column, line.keys()))
                 n_lines += 1
                 if n_max_lines is not None and n_lines > n_max_lines:
                     break
