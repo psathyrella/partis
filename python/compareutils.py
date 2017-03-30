@@ -1209,12 +1209,12 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
         cmd += ' --initial-germline-dir ' + args.fsdir + '/old-germlines/human'  # old simulation files were made with some genes (mostly pseudogenes?) that are no longer in my default germline dir
         # cmd += ' --plotdir ' + parameter_dir.replace('parameters', 'plots')
         if not args.is_simu:
-            outfname = get_outdirname(args, label) + '/parameters/data'
+            outfname = parameter_dir  # get_outdirname(args, label) + '/parameters/data'
             extras += ['--n-max-queries', args.n_max_queries]
             n_procs = max(1, args.n_max_queries / 1000)
             n_total_seqs = args.n_max_queries
         else:
-            outfname = seqfname.replace('.csv', 'parameters')
+            outfname = parameter_dir  # seqfname.replace('.csv', '/parameters')
             n_total_seqs = args.n_max_queries
             if args.n_max_queries != -1:
                 extras += ['--n-max-queries', + args.n_max_queries]
