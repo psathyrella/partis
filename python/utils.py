@@ -2089,8 +2089,11 @@ def csv_to_fasta(infname, outfname=None, name_column='unique_ids', seq_column='i
             n_lines = 0
             for line in reader:
                 if name_column not in line:
-                    name_column = 'name'
-                    seq_column = 'nucleotide'
+                    if 'name' in line:
+                        name_column = 'name'
+                        seq_column = 'nucleotide'
+                    else:
+                        raise Exception('specified <name_column> \'%s\' and backup \'name\' not in line: ' % (name_column, line.keys()))
                 n_lines += 1
                 if n_max_lines is not None and n_lines > n_max_lines:
                     break
