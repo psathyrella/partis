@@ -87,7 +87,7 @@
 # ----------------------------------------------------------------------------------------
 # nl=7; xtra="--seed-cluster-bounds 10:15"
 nl=2.3; xtra="--zipf" # --count-distances --hfrac-bound-list 0,0"
-leaf_mut_hum="--n-leaf-list $nl --mutation-multipliers 1 --humans 021-018"
+leaf_mut_hum="--is-simu --n-leaf-list $nl --mutation-multipliers 1 --humans 021-018"
 # ./bin/compare-partition-methods.py --actions simulate --n-sim-seqs 2000000 $leaf_mut_hum $xtra &
 # ./bin/compare-partition-methods.py --actions cache-simu-parameters $leaf_mut_hum $xtra --n-simu-to-cache 200000 &
 istartstoplist="0:250 250:750 750:1500 1500:2500 2500:4000 4000:6500 6500:9500 9500:13500 13500:18500 18500:26000 26000:36000 36000:51000" # 51000:71000 71000:101000 101000:141000 141000:191000 191000:266000 266000:366000 366000:516000 516000:816000 816000:1316000 1316000:2066000"
