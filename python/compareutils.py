@@ -1195,8 +1195,6 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
         parameter_dir += '/data'
     else:
         parameter_dir += '/' + os.path.basename(os.path.splitext(seqfname)[0])
-    if action != 'cache-parameters':
-        parameter_dir += '/hmm'
     cmd += ' --parameter-dir ' + parameter_dir
 
     if not args.is_simu:
