@@ -21,7 +21,7 @@ import glob
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
 parser.add_argument('--gldir', default=partis_dir + '/data/germlines/human', help='Directory from which to read non-sample-specific information (e.g. germline genes)')
-parser.add_argument('--fsdir', default='/fh/fast/matsen_e/' + os.getenv('USER') + '/work/partis-dev/_output')
+parser.add_argument('--fsdir', default='/fh/fast/matsen_e/' + os.getenv('USER') + '/work/partis-dev/_output/update-17')  # remove the update-17 bit for stuff from when I was actually preparing the paper
 parser.add_argument('--mutation-multipliers', default='1')
 parser.add_argument('--is-simu', action='store_true')
 parser.add_argument('--print-metrics', action='store_true')
