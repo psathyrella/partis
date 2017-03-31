@@ -1211,21 +1211,13 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
     n_procs = 1
     n_total_seqs = 1
     if action == 'cache-parameters':
-        # cmd += ' --plotdir ' + parameter_dir.replace('parameters', 'plots')
-        if not args.is_simu:
-            outfname = parameter_dir  # get_outdirname(args, label) + '/parameters/data'
-            extras += ['--n-max-queries', args.n_max_queries]
-            n_procs = max(1, args.n_max_queries / 1000)
-            n_total_seqs = args.n_max_queries
-        else:
-            outfname = parameter_dir  # seqfname.replace('.csv', '/parameters')
-            n_total_seqs = args.n_max_queries
-            if args.n_max_queries != -1:
-                extras += ['--n-max-queries', + args.n_max_queries]
-                n_total_seqs = args.n_max_queries
-            n_procs = max(1, n_total_seqs / 1000)
+        outfname = parameter_dir  # seqfname.replace('.csv', '/parameters')
+        if args.n_max_queries != -1:
+            extras += ['--n-max-queries', + args.n_max_queries]
+        n_total_seqs = args.n_max_queries
+        n_procs = max(1, n_total_seqs / 2000)
     elif action == 'simulate':
-        n_procs = 10
+        n_procs = 10  # NOTE this was set before we could simulate with slurm
         outfname = seqfname
         if args.zipf:
             mean_leaves = scipy.stats.zipf(n_leaves).mean()
@@ -1251,7 +1243,7 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
         cmd += ' --outfname ' + outfname
         n_total_seqs = args.n_max_queries
         extras += ['--n-max-queries', args.n_max_queries]
-        n_procs = max(1, n_total_seqs / 1000)
+        n_procs = max(1, n_total_seqs / 2000)
     elif 'partition' in action:
         outfname = get_outputname(args, label, action, seqfname, hfrac_bounds)
         cmd += ' --outfname ' + outfname
@@ -1263,23 +1255,24 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
             if hfrac_bounds is not None:
                 assert hfrac_bounds[0] == hfrac_bounds[1]
                 extras += ['--logprob-ratio-threshold', hfrac_bounds[0]]
-            n_procs = max(1, args.n_max_queries / 300)
+            n_procs = max(1, args.n_max_queries / 900)
         elif action == 'naive-hamming-partition':
             extras += ['--naive-hamming']
             if hfrac_bounds is not None:
                 extras += ['--naive-hamming-bounds', get_str(hfrac_bounds, delimiter=':')]
-            n_procs = max(1, args.n_max_queries / 600)
+            n_procs = max(1, args.n_max_queries / 1200)
         elif action == 'vsearch-partition':
             extras += ['--naive-vsearch']
             # extras += ['--persistent-cachefname', seqfname.replace('.csv', '-naive-seq-cache.csv')]  # useful if you're rerunning a bunch of times
             if hfrac_bounds is not None:
                 extras += ['--naive-hamming-bounds', get_str(hfrac_bounds, delimiter=':')]
             # we don't really want this to be 10, but we're dependent on vsearch's non-slurm paralellization, and if I ask for more than 10 cpus per task on slurm I'm worried it'll take forever to get a node. It's still blazing *@*@$!$@ing fast with 10 procs.
+            raise Exception('hm, what should n_procs be here now?')
             n_procs = 10  # note that when partiondriver caches all the naive seqs, it decides on its own how many procs to use
         elif 'seed-' in action:
             seed_unique_id, seed_cluster_size = get_seed_info(args, seqfname, n_leaves)
             extras += ['--seed-unique-id', seed_unique_id]
-            seqs_per_proc = 4500
+            seqs_per_proc = 9000
             if args.n_max_queries > 30000:
                 seqs_per_proc *= 3
             n_procs = max(1, args.n_max_queries / seqs_per_proc)
@@ -1329,12 +1322,12 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
     extras += ['--workdir', args.fsdir.replace('_output', '_tmp') + '/' + str(random.randint(0, 99999))]
 
     # print 'TODO put in something to reduce the number of procs for large samples'
-    n_procs = min(500, n_procs)  # can't get more than a few hundred slots at once, anyway
+    n_procs = min(100, n_procs)  # can't get more than a few hundred slots at once, anyway
     n_proc_str = str(n_procs)
-    n_fewer_procs = max(1, min(500, n_total_seqs / 2000))
+    n_fewer_procs = max(1, min(100, n_total_seqs / 2000))
     n_proc_str += ':' + str(n_fewer_procs)
 
-    if action != 'simulate' and not args.no_slurm and n_procs > 10:
+    if action != 'simulate' and not args.no_slurm and n_procs > 20:  #utils.auto_slurm(n_procs):
         extras += ['--batch-system', 'slurm' ]
 
     extras += ['--n-procs', n_proc_str]
