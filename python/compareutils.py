@@ -8,7 +8,6 @@ import time
 import csv
 from subprocess import check_call, Popen, check_output, PIPE
 import itertools
-import scipy.stats
 sys.path.insert(1, './python')
 csv.field_size_limit(sys.maxsize)
 
@@ -18,9 +17,7 @@ import utils
 import glutils
 import baseutils
 import humans
-# from clusterplot import ClusterPlot
 from clusterpath import ClusterPath
-import plotting
 
 changeorandomcrapstr = '_db-pass_parse-select_clone-pass.tab'
 metrics = ['adj_mi', 'ccf_under', 'ccf_over', 'ccf_product']  # NOTE ccf_{under,over} is a deprecated name, they're 'purity' and 'completeness' now
@@ -56,10 +53,13 @@ def get_dataset(human):
 
 # ----------------------------------------------------------------------------------------
 def get_title(args, label, n_leaves, mut_mult, hfrac_bounds=None):
+    if 'plotting' not in sys.modules:
+        import plotting
+
     if not args.is_simu:
         label_str = label
         if label in humans.humans['vollmers']:
-            label_str = plotting.label_bullshit_transform(label)
+            label_str = sys.modules['plotting'].label_bullshit_transform(label)
         title = 'data (%s %s)' % (get_dataset(label), label_str)
     else:
         title = '%s leaves, %sx mutation' % (float_str(n_leaves), float_str(mut_mult))
@@ -161,12 +161,20 @@ def deal_with_parse_results(info, outdir, vname, partition, hist, metric_vals=No
 
 # ----------------------------------------------------------------------------------------
 def parse_true(args, info, outdir, true_partition):
+    if 'plotting' not in sys.modules:
+        import plotting
+
     # well, not really parse per se
-    truehist = plotting.get_cluster_size_hist(true_partition)
+    truehist = sys.modules['plotting'].get_cluster_size_hist(true_partition)
     deal_with_parse_results(info, outdir, 'true', true_partition, truehist, metric_vals=None)
 
 # ----------------------------------------------------------------------------------------
 def parse_vollmers(args, info, vollmers_fname, outdir, reco_info, true_partition):
+    if 'scipy.stats' not in sys.modules:
+        import scipy.stats
+    if 'plotting' not in sys.modules:
+        import plotting
+
     n_lines = 0
     with open(vollmers_fname) as vfile:
         vreader = csv.DictReader(vfile)
@@ -187,23 +195,28 @@ def parse_vollmers(args, info, vollmers_fname, outdir, reco_info, true_partition
                     ccfs = utils.new_ccfs_that_need_better_names(partition, true_partition, reco_info)
                     metric_vals['ccf_under'] = ccfs[0]
                     metric_vals['ccf_over'] = ccfs[1]
-                metric_vals['ccf_product'] = scipy.stats.hmean([metric_vals['ccf_under'], metric_vals['ccf_over']])
+                metric_vals['ccf_product'] = sys.modules['scipy.stats'].hmean([metric_vals['ccf_under'], metric_vals['ccf_over']])
 
-            deal_with_parse_results(info, outdir, 'vollmers-' + line['threshold'], partition, plotting.get_cluster_size_hist(partition), metric_vals)
+            deal_with_parse_results(info, outdir, 'vollmers-' + line['threshold'], partition, sys.modules['plotting'].get_cluster_size_hist(partition), metric_vals)
 
     if n_lines < 1:
         raise Exception('zero partition lines read from %s' % vollmers_fname)
 
 # ----------------------------------------------------------------------------------------
 def parse_changeo(args, info, outfname, csvdir):
+    if 'scipy.stats' not in sys.modules:
+        import scipy.stats
+    if 'plotting' not in sys.modules:
+        import plotting
+
     cpath = ClusterPath()
     cpath.readfile(outfname)
-    hist = plotting.get_cluster_size_hist(cpath.partitions[cpath.i_best])
+    hist = sys.modules['plotting'].get_cluster_size_hist(cpath.partitions[cpath.i_best])
     partition = cpath.partitions[cpath.i_best]
     metric_vals = None
     if args.is_simu:
         ccfs = cpath.ccfs[cpath.i_best]
-        metric_vals = {'adj_mi' : cpath.adj_mis[cpath.i_best], 'ccf_under' : ccfs[0], 'ccf_over' : ccfs[1], 'ccf_product' : scipy.stats.hmean(ccfs)}
+        metric_vals = {'adj_mi' : cpath.adj_mis[cpath.i_best], 'ccf_under' : ccfs[0], 'ccf_over' : ccfs[1], 'ccf_product' : sys.modules['scipy.stats'].hmean(ccfs)}
     deal_with_parse_results(info, csvdir, 'changeo', partition, hist, metric_vals)
 
 # ----------------------------------------------------------------------------------------
@@ -233,9 +246,14 @@ def read_seed_unique_id_from_file(fname):
 
 # ----------------------------------------------------------------------------------------
 def parse_partis(args, action, info, outfname, outdir, reco_info, true_partition):
+    if 'scipy.stats' not in sys.modules:
+        import scipy.stats
+    if 'plotting' not in sys.modules:
+        import plotting
+
     cpath = ClusterPath()
     cpath.readfile(outfname)
-    hist = plotting.get_cluster_size_hist(cpath.partitions[cpath.i_best])
+    hist = sys.modules['plotting'].get_cluster_size_hist(cpath.partitions[cpath.i_best])
     partition = cpath.partitions[cpath.i_best]
     vname = action
     metric_vals = None
@@ -246,7 +264,7 @@ def parse_partis(args, action, info, outfname, outdir, reco_info, true_partition
         else:
             adj_mi = cpath.adj_mis[cpath.i_best]
             ccfs = cpath.ccfs[cpath.i_best]
-        metric_vals = {'adj_mi' : adj_mi, 'ccf_under' : ccfs[0], 'ccf_over' : ccfs[1], 'ccf_product' : scipy.stats.hmean(ccfs)}
+        metric_vals = {'adj_mi' : adj_mi, 'ccf_under' : ccfs[0], 'ccf_over' : ccfs[1], 'ccf_product' : sys.modules['scipy.stats'].hmean(ccfs)}
     deal_with_parse_results(info, outdir, action, partition, hist, metric_vals)
 
 # ----------------------------------------------------------------------------------------
@@ -288,6 +306,11 @@ def generate_synthetic_partitions(args, label, n_leaves, mut_mult, seqfname, bas
 
 # ----------------------------------------------------------------------------------------
 def parse_synthetic(args, info, outdir, true_partition, base_outfname):
+    if 'scipy.stats' not in sys.modules:
+        import scipy.stats
+    if 'plotting' not in sys.modules:
+        import plotting
+
     for stype in args.synthetic_partitions:
         misfrac, mistype, threshold = get_synthetic_partition_type(stype)
         vname = stype
@@ -295,9 +318,9 @@ def parse_synthetic(args, info, outdir, true_partition, base_outfname):
         outfname = base_outfname.replace('.csv', '-' + vname + '.csv')
         cpath.readfile(outfname)
         partition = cpath.partitions[cpath.i_best]
-        hist = plotting.get_cluster_size_hist(partition)
+        hist = sys.modules['plotting'].get_cluster_size_hist(partition)
         ccfs = cpath.ccfs[cpath.i_best]
-        metric_vals = {'adj_mi' : cpath.adj_mis[cpath.i_best], 'ccf_under' : ccfs[0], 'ccf_over' : ccfs[1], 'ccf_product' : scipy.stats.hmean(ccfs)}
+        metric_vals = {'adj_mi' : cpath.adj_mis[cpath.i_best], 'ccf_under' : ccfs[0], 'ccf_over' : ccfs[1], 'ccf_product' : sys.modules['scipy.stats'].hmean(ccfs)}
         deal_with_parse_results(info, outdir, vname, partition, hist, metric_vals)
 
 # ----------------------------------------------------------------------------------------
@@ -319,6 +342,9 @@ def read_float_val(fname, valname):
 
 # ----------------------------------------------------------------------------------------
 def make_a_distance_plot(args, metric, combinations, reco_info, cachevals, plotdir, plotname, plottitle):
+    if 'plotting' not in sys.modules:
+        import plotting
+
     def get_joint_key(k1, k2):
         """ figure out which order we have <k1>, <k2> in the cache (if neither, return None) """
         jk1 = k1 + ':' + k2
@@ -395,7 +421,7 @@ def make_a_distance_plot(args, metric, combinations, reco_info, cachevals, plotd
     print ' ', metric, '----------------'
     for hs in hstyles:
         print '   ', hs
-        fig, ax = plotting.mpl_init()
+        fig, ax = sys.modules['plotting'].mpl_init()
 
         plots = {}
         plots['clonal'] = hists['all-clones'].mpl_plot(ax, ignore_overflows=ignore, label='clonal', alpha=0.7, linewidth=4, color='#6495ed')
@@ -430,8 +456,8 @@ def make_a_distance_plot(args, metric, combinations, reco_info, cachevals, plotd
         elif metric == 'naive_hfrac':
             leg_loc = (0.5, 0.6)
             xlabel = 'naive hamming fraction'
-        plotting.mpl_finish(ax, plotdir + '/' + hs, plotname, title=plottitle, xlabel=xlabel, ylabel='counts' if 'un-normed' in hs else 'frequency', xbounds=[xmin - 0.03*delta, xmax + 0.03*delta], ybounds=ybounds, leg_loc=leg_loc)
-        plotting.make_html(plotdir + '/' + hs)  # this'll overwrite itself a few times
+        sys.modules['plotting'].mpl_finish(ax, plotdir + '/' + hs, plotname, title=plottitle, xlabel=xlabel, ylabel='counts' if 'un-normed' in hs else 'frequency', xbounds=[xmin - 0.03*delta, xmax + 0.03*delta], ybounds=ybounds, leg_loc=leg_loc)
+        sys.modules['plotting'].make_html(plotdir + '/' + hs)  # this'll overwrite itself a few times
 
 # ----------------------------------------------------------------------------------------
 def make_distance_plots(args, baseplotdir, label, n_leaves, mut_mult, cachefname, reco_info, metric):
@@ -535,6 +561,9 @@ def write_all_plot_csvs(args, label, parameterlist, datafname):
 
 # ----------------------------------------------------------------------------------------
 def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, all_info, hfrac_bounds, datafname):
+    if 'plotting' not in sys.modules:
+        import plotting
+
     for k in all_info:
         if n_leaves not in all_info[k]:
             all_info[k][n_leaves] = {}
@@ -603,8 +632,8 @@ def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, all_info,
     if not args.is_simu:
         log += 'y'
     title = get_title(args, label, n_leaves, mut_mult, hfrac_bounds)
-    plotting.plot_cluster_size_hists(plotdir + '/cluster-size-distributions/' + plotname + '.svg', this_info['hists'], title=title, log=log)  #, xmax=n_leaves*6.01
-    plotting.make_html(plotdir + '/cluster-size-distributions')  # this runs a bunch more times than it should
+    sys.modules['plotting'].plot_cluster_size_hists(plotdir + '/cluster-size-distributions/' + plotname + '.svg', this_info['hists'], title=title, log=log)  #, xmax=n_leaves*6.01
+    sys.modules['plotting'].make_html(plotdir + '/cluster-size-distributions')  # this runs a bunch more times than it should
 
     if args.print_metrics:
         for metric in metrics:
@@ -617,7 +646,7 @@ def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, all_info,
             if '0.5' in meth1 or '0.5' in meth2:  # skip vollmers 0.5
                 continue
             n_biggest_clusters = 40  # if not args.is_simu else 30)
-            plotting.plot_cluster_similarity_matrix(plotdir + '/similarity-matrices/' + (meth1 + '-' + meth2).replace('partition ', ''), plotname, meth1, this_info['partitions'][meth1], meth2, this_info['partitions'][meth2], n_biggest_clusters=n_biggest_clusters, title=get_title(args, label, n_leaves, mut_mult))
+            sys.modules['plotting'].plot_cluster_similarity_matrix(plotdir + '/similarity-matrices/' + (meth1 + '-' + meth2).replace('partition ', ''), plotname, meth1, this_info['partitions'][meth1], meth2, this_info['partitions'][meth2], n_biggest_clusters=n_biggest_clusters, title=get_title(args, label, n_leaves, mut_mult))
 
 # ----------------------------------------------------------------------------------------
 def rearrange_metrics_vs_n_leaves(args, valdict, mut_mult_to_use):
@@ -631,6 +660,9 @@ def rearrange_metrics_vs_n_leaves(args, valdict, mut_mult_to_use):
 
 # ----------------------------------------------------------------------------------------
 def compare_subsets(args, label):
+    if 'plotting' not in sys.modules:
+        import plotting
+
     baseplotdir = os.getenv('www') + '/partis/clustering/' + label
     if args.hfrac_bound_list is not None and args.istartstop is not None:
         baseplotdir += '/subsets/istartstop-' + get_str(args.istartstop)
@@ -652,18 +684,18 @@ def compare_subsets(args, label):
                     if args.indels:
                         plotname = plotname.replace('.svg', '-%s-indels.svg' % args.indel_location)
                         title += ', %s indels' % args.indel_location.upper()
-                    plotting.plot_adj_mi_and_co(plotname, plotvals, mut_mult, baseplotdir + '/means-over-subsets/metrics', metric, xvar='n_leaves', title=title)
-            plotting.make_html(baseplotdir + '/means-over-subsets/metrics')  #, n_columns=2)
+                    sys.modules['plotting'].plot_adj_mi_and_co(plotname, plotvals, mut_mult, baseplotdir + '/means-over-subsets/metrics', metric, xvar='n_leaves', title=title)
+            sys.modules['plotting'].make_html(baseplotdir + '/means-over-subsets/metrics')  #, n_columns=2)
         elif args.hfrac_bound_list is not None:
             if len(args.expected_methods) != 1:
                 print args.expected_methods
                 raise Exception('needs updating if not')
             if args.expected_methods == ['partition']:
-                plotting.make_html(baseplotdir + '/plots-vs-thresholds/metrics' + '/logprobs', n_columns=4)
+                sys.modules['plotting'].make_html(baseplotdir + '/plots-vs-thresholds/metrics' + '/logprobs', n_columns=4)
             elif args.expected_methods == ['naive-hamming-partition']:
-                plotting.make_html(baseplotdir + '/plots-vs-thresholds/metrics' + '/naive-hfracs', n_columns=4)
+                sys.modules['plotting'].make_html(baseplotdir + '/plots-vs-thresholds/metrics' + '/naive-hfracs', n_columns=4)
             elif args.expected_methods == ['vsearch-partition']:
-                plotting.make_html(baseplotdir + '/plots-vs-thresholds/metrics' + '/vsearch-naive-hfracs', n_columns=2)
+                sys.modules['plotting'].make_html(baseplotdir + '/plots-vs-thresholds/metrics' + '/vsearch-naive-hfracs', n_columns=2)
             else:
                 assert False
 
@@ -677,6 +709,9 @@ def get_nseq_list(args):
 # ----------------------------------------------------------------------------------------
 def compare_subsets_for_each_leafmut(args, baseplotdir, label, n_leaves, mut_mult, all_info):
     """ Where "subsets" means any of a number of different things, or more accurately, this function name means almost nothing. """
+    if 'plotting' not in sys.modules:
+        import plotting
+
 
     per_subset_info = read_histfiles_and_co(args, label, n_leaves, mut_mult)
     this_info = get_this_info(all_info, n_leaves, mut_mult)
@@ -695,7 +730,7 @@ def compare_subsets_for_each_leafmut(args, baseplotdir, label, n_leaves, mut_mul
         else:
             assert False
         print 'TODO add mutation level to plot, not just multiplier'
-        plotting.plot_metrics_vs_thresholds(args.expected_methods[0], [b[0] for b in args.hfrac_bound_list], per_subset_info, plotdir, plotfname=leafmutstr(args, n_leaves, mut_mult), title=get_title(args, label, n_leaves, mut_mult))
+        sys.modules['plotting'].plot_metrics_vs_thresholds(args.expected_methods[0], [b[0] for b in args.hfrac_bound_list], per_subset_info, plotdir, plotfname=leafmutstr(args, n_leaves, mut_mult), title=get_title(args, label, n_leaves, mut_mult))
         # for metric in metrics:
         #     for method in get_expected_methods_to_plot(args, metric):
         #         this_info[metric][method] = per_subset_info[metric][method]
@@ -711,8 +746,8 @@ def compare_subsets_for_each_leafmut(args, baseplotdir, label, n_leaves, mut_mul
                 plotname = metric + '-%d-mutation.svg' % mut_mult
                 if args.indels:
                     plotname = plotname.replace('.svg', '-%s-indels.svg' % args.indel_location)
-                plotting.plot_adj_mi_and_co(plotname, plotvals, mut_mult, metric_plotdir, metric, xvar='nseqs', title=get_title(args, label, n_leaves, mut_mult))
-                plotting.make_html(metric_plotdir)
+                sys.modules['plotting'].plot_adj_mi_and_co(plotname, plotvals, mut_mult, metric_plotdir, metric, xvar='nseqs', title=get_title(args, label, n_leaves, mut_mult))
+                sys.modules['plotting'].make_html(metric_plotdir)
 
 # ----------------------------------------------------------------------------------------
 def get_expected_methods_to_plot(args, metric=None):
@@ -786,8 +821,11 @@ def get_this_info(all_info, n_leaves, mut_mult):
 
 # ----------------------------------------------------------------------------------------
 def plot_means_over_subsets(args, label, n_leaves, mut_mult, this_info, per_subset_info, baseplotdir):
+    if 'plotting' not in sys.modules:
+        import plotting
+
     for method in get_expected_methods_to_plot(args, metric='hists'):
-        this_info['hists'][method] = plotting.make_mean_hist(per_subset_info['hists'][method])
+        this_info['hists'][method] = sys.modules['plotting'].make_mean_hist(per_subset_info['hists'][method])
     cluster_size_plotdir = baseplotdir + '/means-over-subsets/cluster-size-distributions'
     log = 'x'
     if not args.is_simu:
@@ -800,8 +838,8 @@ def plot_means_over_subsets(args, label, n_leaves, mut_mult, this_info, per_subs
         xmax = n_leaves*6.01
         # if n_leaves <= 10:
         #     log = 'x'
-    plotting.plot_cluster_size_hists(plotfname, this_info['hists'], title=title, xmax=xmax, log=log)
-    plotting.make_html(cluster_size_plotdir)
+    sys.modules['plotting'].plot_cluster_size_hists(plotfname, this_info['hists'], title=title, xmax=xmax, log=log)
+    sys.modules['plotting'].make_html(cluster_size_plotdir)
 
     if args.is_simu:
         for metric in metrics:
@@ -1220,7 +1258,9 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
         n_procs = 10  # NOTE this was set before we could simulate with slurm
         outfname = seqfname
         if args.zipf:
-            mean_leaves = scipy.stats.zipf(n_leaves).mean()
+            if 'scipy.stats' not in sys.modules:
+                import scipy.stats
+            mean_leaves = sys.modules['scipy.stats'].zipf(n_leaves).mean()
         else:
             mean_leaves = n_leaves
         n_sim_events = int(float(args.n_max_queries) / mean_leaves)
