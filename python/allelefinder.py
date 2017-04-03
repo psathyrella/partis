@@ -445,6 +445,16 @@ class AlleleFinder(object):
         return {'obs' : obs, 'total' : total, 'n_mutelist' : n_mutelist, 'freqs' : freqs, 'errs' : errs, 'weights' : weights}
 
     # ----------------------------------------------------------------------------------------
+    def get_both_pre_post_vals(self, gene, istart, positions_to_try_to_fit):
+        # NOTE I'm including the zero bin here -- do I really want to do that? UPDATE yes, I think so -- we know there will be zero mutations in that bin, but the number of sequences in it still contains information (uh, I think)
+        min_ibin = max(0, istart - self.max_fit_length)
+        max_ibin = min(self.args.n_max_mutations_per_segment, istart + self.max_fit_length)
+        bothxyvals = {pos : {k : v[min_ibin : max_ibin] for k, v in self.xyvals[gene][pos].items()} for pos in positions_to_try_to_fit}
+        prexyvals = {pos : {k : v[min_ibin : istart] for k, v in self.xyvals[gene][pos].items()} for pos in positions_to_try_to_fit}  # arrays up to, but not including, <istart>
+        postxyvals = {pos : {k : v[istart : max_ibin] for k, v in self.xyvals[gene][pos].items()} for pos in positions_to_try_to_fit}  # arrays from <istart> onwards
+        return bothxyvals, prexyvals, postxyvals
+
+    # ----------------------------------------------------------------------------------------
     def is_a_candidate(self, gene, fitfo, istart, debug=False):
         if fitfo['min_snp_ratios'][istart] < self.min_min_candidate_ratio:  # worst snp candidate has to be pretty good on its own
             if debug:
@@ -567,6 +577,11 @@ class AlleleFinder(object):
         return big_y_icpt, big_y_icpt_err
 
     # ----------------------------------------------------------------------------------------
+    def get_big_y_icpt_bounds(self, big_y_icpt, big_y_icpt_err):
+        # we want the bounds to be lenient enough to accomodate non-zero slopes (in the future, we could do something cleverer like extrapolating with the slope of the line to x=0)
+        return (big_y_icpt - 1.5*big_y_icpt_err, big_y_icpt + 1.5*big_y_icpt_err)
+
+    # ----------------------------------------------------------------------------------------
     def very_different_bin_totals(self, pvals, istart, debug=False):
         # i.e. if there's a homozygous new allele at <istart> + 1
         factor = 2.  # i.e. check everything that's more than <factor> sigma away UPDATE this will have to change -- totals per bin vary too much
@@ -589,12 +604,7 @@ class AlleleFinder(object):
 
     # ----------------------------------------------------------------------------------------
     def fit_two_piece_istart(self, gene, istart, positions_to_try_to_fit, debug=False):
-        # NOTE I'm including the zero bin here -- do I really want to do that? UPDATE yes, I think so -- we know there will be zero mutations in that bin, but the number of sequences in it still contains information (uh, I think)
-        min_ibin = max(0, istart - self.max_fit_length)
-        max_ibin = min(self.args.n_max_mutations_per_segment, istart + self.max_fit_length)
-        prexyvals = {pos : {k : v[min_ibin : istart] for k, v in self.xyvals[gene][pos].items()} for pos in positions_to_try_to_fit}  # arrays up to, but not including, <istart>
-        postxyvals = {pos : {k : v[istart : max_ibin] for k, v in self.xyvals[gene][pos].items()} for pos in positions_to_try_to_fit}  # arrays from <istart> onwards
-        bothxyvals = {pos : {k : v[min_ibin : max_ibin] for k, v in self.xyvals[gene][pos].items()} for pos in positions_to_try_to_fit}
+        bothxyvals, prexyvals, postxyvals = self.get_both_pre_post_vals(gene, istart, positions_to_try_to_fit)
 
         candidate_ratios, residfo = {}, {}  # NOTE <residfo> is really just for dbg printing... but we have to sort before we print, so we need to keep the info around
         for pos in positions_to_try_to_fit:
@@ -605,7 +615,7 @@ class AlleleFinder(object):
             postvals = postxyvals[pos]
             bothvals = bothxyvals[pos]
             big_y_icpt, big_y_icpt_err = self.get_big_y(postvals)
-            big_y_icpt_bounds = (big_y_icpt - 1.5*big_y_icpt_err, big_y_icpt + 1.5*big_y_icpt_err)  # we want the bounds to be lenient enough to accomodate non-zero slopes (in the future, we could do something cleverer like extrapolating with the slope of the line to x=0)
+            big_y_icpt_bounds = self.get_big_y_icpt_bounds(big_y_icpt, big_y_icpt_err)  # (big_y_icpt - 1.5*big_y_icpt_err, big_y_icpt + 1.5*big_y_icpt_err)  # we want the bounds to be lenient enough to accomodate non-zero slopes (in the future, we could do something cleverer like extrapolating with the slope of the line to x=0)
 
             if sum(postvals['obs']) < self.n_muted_min or sum(postvals['total']) < self.n_total_min:
                 continue
@@ -1054,10 +1064,24 @@ class AlleleFinder(object):
             return
 
         start = time.time()
-        for gene in self.positions_to_plot:  # we can make plots for the positions we didn't fit, but there's a *lot* of them and they're slow
-            for position in self.positions_to_plot[gene]:
-                fitfos = self.get_fitfo_for_plotting(gene, position)
-                plotting.make_allele_finding_plot(plotdir + '/' + utils.sanitize_name(gene), gene, position, self.xyvals[gene][position], xmax=self.args.n_max_mutations_per_segment, fitfos=fitfos)
+
+        if self.args.plot_and_fit_absolutely_everything is None:
+            for gene in self.positions_to_plot:  # we can make plots for the positions we didn't fit, but there's a *lot* of them and they're slow
+                for position in self.positions_to_plot[gene]:
+                    fitfos = self.get_fitfo_for_plotting(gene, position)
+                    plotting.make_allele_finding_plot(plotdir + '/' + utils.sanitize_name(gene), gene, position, self.xyvals[gene][position], xmax=self.args.n_max_mutations_per_segment, fitfos=fitfos)
+        else:
+            for gene in self.counts:  # we can make plots for the positions we didn't fit, but there's a *lot* of them and they're slow
+                for position in sorted(self.counts[gene]):
+                    both, pre, post = self.get_both_pre_post_vals(gene, istart=self.args.plot_and_fit_absolutely_everything, positions_to_try_to_fit=[position])
+                    big_y_icpt, big_y_icpt_err = self.get_big_y(post[position])
+                    big_y_icpt_bounds = self.get_big_y_icpt_bounds(big_y_icpt, big_y_icpt_err)
+                    fitfos = {
+                        'onefo' : self.get_curvefit(both[position], y_icpt_bounds=(0., 0.), debug=True),
+                        'prefo' : self.get_curvefit(pre[position], y_icpt_bounds=(0., 0.), debug=True),
+                        'postfo' : self.get_curvefit(post[position], y_icpt_bounds=big_y_icpt_bounds, debug=True),
+                    }
+                    plotting.make_allele_finding_plot(plotdir + '/' + utils.sanitize_name(gene), gene, position, self.xyvals[gene][position], xmax=self.args.n_max_mutations_per_segment, fitfos=fitfos)
 
         plotting.make_html(plotdir, fnames=[newfo['plot-paths'] for newfo in self.inferred_allele_info], title=('itry %d' % self.itry))
 
