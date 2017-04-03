@@ -120,6 +120,8 @@ def run_test(args):
     cmd_str += ' --only-overall-plots --plotdir ' + plotdir
     if args.seed is not None:
         cmd_str += ' --seed ' + str(args.seed)
+    if args.plot_and_fit_absolutely_everything is not None:
+        cmd_str += ' --plot-and-fit-absolutely-everything ' + str(args.plot_and_fit_absolutely_everything)
     run(cmd_str)
 
 # ----------------------------------------------------------------------------------------
@@ -234,6 +236,7 @@ parser.add_argument('--slurm', action='store_true')
 parser.add_argument('--outdir', default=fsdir + '/partis/allele-finder')
 parser.add_argument('--workdir', default=fsdir + '/_tmp/hmms/' + str(random.randint(0, 999999)))
 parser.add_argument('--n-tests', type=int)
+parser.add_argument('--plot-and-fit-absolutely-everything', type=int, help='fit every single position for this <istart> and write every single corresponding plot (slow as hell, and only for debugging/making plots for paper)')
 args = parser.parse_args()
 args.dj_genes = utils.get_arg_list(args.dj_genes)
 args.sim_v_genes = utils.get_arg_list(args.sim_v_genes)
