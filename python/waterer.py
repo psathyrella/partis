@@ -161,7 +161,7 @@ class Waterer(object):
         if self.alfinder is not None:
             self.alfinder.increment_and_finalize(self.info, debug=self.args.debug_allele_finding)  # incrementing and finalizing are intertwined since needs to know the distribution of 5p and 3p deletions before it can increment
             self.info['new-alleles'] = self.alfinder.new_allele_info
-            self.info['alleles-with-evidence'] = self.alfinder.alleles_with_evidence
+            # self.info['alleles-with-evidence'] = self.alfinder.alleles_with_evidence
             if self.args.plotdir is not None:
                 self.alfinder.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
             if len(self.info['new-alleles']) > 0:
