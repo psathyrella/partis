@@ -593,8 +593,8 @@ class AlleleFinder(object):
         return istart_total - last_total > factor * joint_total_err  # it the total (denominator) is very different between the two bins
 
     # ----------------------------------------------------------------------------------------
-    def big_discontinuity(self, pvals, istart, debug=False):
-        factor = 2.  # i.e. check everything that's more than <factor> sigma away
+    def big_discontinuity(self, pvals, istart, debug=False):  # NOTE same as very_different_bin_totals(), except for freqs rather than totals
+        factor = 2.  # i.e. check everything that's more than <factor> sigma away (where "check" means actually do the fits, as long as it passes all the other prefiltering steps)
         joint_freq_err = max(pvals['errs'][istart - 1], pvals['errs'][istart])
         last_freq = pvals['freqs'][istart - 1]
         istart_freq = pvals['freqs'][istart]
@@ -616,6 +616,10 @@ class AlleleFinder(object):
             bothvals = bothxyvals[pos]
             big_y_icpt, big_y_icpt_err = self.get_big_y(postvals)
             big_y_icpt_bounds = self.get_big_y_icpt_bounds(big_y_icpt, big_y_icpt_err)  # (big_y_icpt - 1.5*big_y_icpt_err, big_y_icpt + 1.5*big_y_icpt_err)  # we want the bounds to be lenient enough to accomodate non-zero slopes (in the future, we could do something cleverer like extrapolating with the slope of the line to x=0)
+
+            # need to have enough mutated counts in the <istart>th bin (this is particularly important (partly) because it's the handle that tells us it's *this* <istart> that's correct, rather than <istart> + 1)
+            if self.counts[gene][pos][istart]['muted'] < self.n_muted_min_per_bin:
+                continue
 
             if sum(postvals['obs']) < self.n_muted_min or sum(postvals['total']) < self.n_total_min:
                 continue
@@ -663,10 +667,6 @@ class AlleleFinder(object):
 
             # make sure two-piece fit is at least ok
             if twofit_residuals_over_ndof > self.max_good_fit_residual:
-                continue
-
-            # need to have enough mutated counts in the <istart>th bin (this is particularly important (partly) because it's the handle that tells us it's *this* <istart> that's correct, rather than <istart> + 1)
-            if self.counts[gene][pos][istart]['muted'] < self.n_muted_min_per_bin:
                 continue
 
             candidate_ratios[pos] = onefit['residuals_over_ndof'] / twofit_residuals_over_ndof if twofit_residuals_over_ndof > 0. else float('inf')
