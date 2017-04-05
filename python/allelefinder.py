@@ -87,7 +87,7 @@ class AlleleFinder(object):
         self.finalized = False
 
         self.reflengths = {}
-        self.alleles_with_evidence = set()
+        # self.alleles_with_evidence = set()
 
     # ----------------------------------------------------------------------------------------
     def init_gene(self, gene):
@@ -213,7 +213,7 @@ class AlleleFinder(object):
         germline_seq = germline_seq[left_exclusion : len(germline_seq) - right_exclusion]
         query_seq = query_seq[left_exclusion : len(query_seq) - right_exclusion]
         # NOTE <germline_seq> and <query_seq> no longer correspond to <info>, but that should be ok
-        if gene not in self.reflengths:
+        if gene not in self.reflengths:  # make sure that all query sequences for this gene are precisely the same length
             self.reflengths[gene] = len(query_seq)
         assert self.reflengths[gene] == len(query_seq)  # just an internal consistency check now -- they should all be identical
 
@@ -899,8 +899,8 @@ class AlleleFinder(object):
                     print '          not enough positions with enough observations to fit %s' % utils.color_gene(gene)
                 continue
 
-            if self.per_gene_mute_counts[gene].bin_contents[0] > self.n_total_min:  # UPDATE this will have to change to accomodate repertoires with very few unmutated sequences
-                self.alleles_with_evidence.add(gene)
+            # if self.per_gene_mute_counts[gene].bin_contents[0] > self.n_total_min:  # UPDATE this will have to change to accomodate repertoires with very few unmutated sequences
+            #     self.alleles_with_evidence.add(gene)
 
             # loop over each snp hypothesis
             self.already_printed_dbg_header = False
