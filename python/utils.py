@@ -1471,7 +1471,7 @@ def run_cmd(cmdfo, batch_system=None, batch_options=None):
     prefix = None
     if batch_system is not None:
         if batch_system == 'slurm':
-            prefix = 'srun'  # --exclude=data/gizmod.txt'
+            prefix = 'srun --nodes 1 --ntasks 1'  # --exclude=data/gizmod.txt'
             if 'threads' in cmdfo:
                 prefix += ' --cpus-per-task %d' % cmdfo['threads']
         elif batch_system == 'sge':
