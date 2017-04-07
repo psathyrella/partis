@@ -225,7 +225,8 @@ class Waterer(object):
         if n_procs == 1:
             return self.args.workdir
         else:
-            return self.args.workdir + '/sw-' + str(iproc)
+            # return self.args.workdir + '/sw-' + str(iproc)
+            return self.args.workdir + '/sw-try-' + str(self.nth_try) + '-proc-' + str(iproc)
 
     # ----------------------------------------------------------------------------------------
     def execute_commands(self, base_infname, base_outfname, n_procs):
@@ -238,7 +239,7 @@ class Waterer(object):
                    'workdir' : self.subworkdir(iproc, n_procs),
                    'outfname' : self.subworkdir(iproc, n_procs) + '/' + base_outfname}
                   for iproc in range(n_procs)]
-        utils.run_cmds(cmdfos, batch_system=self.args.batch_system, batch_options=self.args.batch_options)
+        utils.run_cmds(cmdfos, batch_system=self.args.batch_system, batch_options=self.args.batch_options, batch_config_fname=self.args.batch_config_fname)
 
         for iproc in range(n_procs):
             os.remove(self.subworkdir(iproc, n_procs) + '/' + base_infname)

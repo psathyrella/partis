@@ -584,7 +584,7 @@ class PartitionDriver(object):
         id_fraction = 1. - threshold
         cmd = self.args.partis_dir + '/bin/vsearch-1.1.3-linux-x86_64 --threads ' + str(self.args.n_procs) + ' --uc ' + outfname + ' --cluster_fast ' + infname + ' --id ' + str(id_fraction) + ' --maxaccept 0 --maxreject 0'
         cmdfos = [{'cmd_str' : cmd, 'outfname' : outfname, 'workdir' : self.args.workdir, 'threads' : self.args.n_procs}, ]
-        utils.run_cmds(cmdfos, batch_system=self.args.batch_system, batch_options=self.args.batch_options)
+        utils.run_cmds(cmdfos, batch_system=self.args.batch_system, batch_options=self.args.batch_options, batch_config_fname=self.args.batch_config_fname)
 
         # read output
         id_clusters = {}
@@ -799,7 +799,7 @@ class PartitionDriver(object):
                    'outfname' : get_outfname(iproc),
                    'dbgfo' : self.bcrham_proc_info[iproc]}
                   for iproc in range(n_procs)]
-        utils.run_cmds(cmdfos, batch_system=self.args.batch_system, batch_options=self.args.batch_options, debug='print' if self.args.debug else None)
+        utils.run_cmds(cmdfos, batch_system=self.args.batch_system, batch_options=self.args.batch_options, batch_config_fname=self.args.batch_config_fname, debug='print' if self.args.debug else None)
         if self.current_action == 'partition':
             self.print_partition_dbgfo()
 
