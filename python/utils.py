@@ -1451,9 +1451,9 @@ def merge_csvs(outfname, csv_list, cleanup=True):
             writer.writerow(line)
 
 # ----------------------------------------------------------------------------------------
-def get_nodelist_from_slurm_shorthand(nodestr, debug=True):
+def get_nodelist_from_slurm_shorthand(nodestr, known_nodes, debug=False):
     nodes = []
-    nodestr = 'gizmox9,gizmod[1,15-17,26-29,32-33,38-39,43,46-47,49,57,66-67,76,82,93,99,139],gizmoe[2,6-8,10-23],gizmof[1,167,181-188,190-228,231,234-236,240,399,402,404,456-468],gizmog10,sprawl[1-2],gizmoe7,gizmof3'
+    # nodestr = 'gizmod[1,15-17,26-29,32-33,38-39,43,46-47,49,57,66-67,76,82,93,99,139],gizmoe[2,6-8,10-23],gizmof[1,167,181-188,190-228,231,234-236,240,399,402,404,456-468],gizmog10,sprawl[1-2]'
 
     if '[' not in nodestr and ']' not in nodestr:  # single node
         nodes.append(nodestr)
@@ -1465,30 +1465,30 @@ def get_nodelist_from_slurm_shorthand(nodestr, debug=True):
     thisnodestr = ''
     for ich in range(len(nodestr)):
         ch = nodestr[ich]
-        print ich, ch
+        # print ich, ch
         if ch == ',':
             ilastcomma = ich
         if ch == '[':
             bracketfo.append({'comma' : ilastcomma, 'ibrackets' : [ich, None]})
-            print '   reset'
+            # print '   reset'
             thisnodestr = ''
         elif ch == ']':
             assert bracketfo[-1]['ibrackets'][1] is None
             bracketfo[-1]['ibrackets'][1] = ich
-            print '   reset'
+            # print '   reset'
             thisnodestr = ''
 
         # if we're not within a bracket info
         if len(bracketfo) == 0 or bracketfo[-1]['ibrackets'][1] is not None:
             thisnodestr += ch
             thisnodestr = thisnodestr.strip(',[]')
-            print '      ', thisnodestr
+            # print '      ', thisnodestr
             if len(thisnodestr) > 1 and ch == ',':  # if we just got to a comma, and there's something worth looking at in <thisnodestr>
-                print '  adding %s' % thisnodestr
+                # print '  adding %s' % thisnodestr
                 nodes.append(thisnodestr)
                 thisnodestr = ''
 
-    print ' '.join(nodes)
+    # print ' '.join(nodes)
     for bfo in bracketfo:
         ibp = bfo['ibrackets']
         original_str = nodestr[ibp[0] + 1 : ibp[1]]  # NOTE excludes the actual bracket characters
@@ -1512,19 +1512,21 @@ def get_nodelist_from_slurm_shorthand(nodestr, debug=True):
             print '   ', bracketnodes
         nodes += bracketnodes
 
-    # need to check that the nodes exist (in slurm config, probably)
-    sys.exit()
+    unknown_nodes = set(nodes) - set(known_nodes)
+    if len(unknown_nodes) > 0:
+        print '  %s unknown knodes %s parsed from nodestr \'%s\'' % (color('yellow', 'warning'), ' '.join(unknown_nodes), nodestr)
+
     return nodes
 
 # ----------------------------------------------------------------------------------------
-def get_available_node_core_list(batch_config_fname):
-    print ''
+def get_available_node_core_list(batch_config_fname, debug=True):
+    if debug:
+        print ''
+        print '  figuring out slurm config'
 
-    # see if we're actually in an allocation
     our_nodes = []
-    if os.getenv('SLURM_NODELIST') is not None:
-        our_nodes = get_nodelist_from_slurm_shorthand(os.getenv('SLURM_NODELIST'))
-    if len(our_nodes) == 0:
+
+    if os.getenv('SLURM_NODELIST') is None:  # not within a slurm allocation
         return []
 
     # get info on all nodes
@@ -1554,8 +1556,19 @@ def get_available_node_core_list(batch_config_fname):
             raise Exception('missing keys in: %s' % ' '.join(info.keys()))
         info['nproc'] = int(info['Sockets']) * int(info['CoresPerSocket'])
 
+    if debug:
+        print '    info for %d nodes in %s' % (len(nodefo), batch_config_fname)
+
+    assert os.getenv('SLURM_NODELIST') is not None
+    our_nodes = get_nodelist_from_slurm_shorthand(os.getenv('SLURM_NODELIST'), known_nodes=nodefo.keys())
+    if len(our_nodes) == 0:
+        return []
+
+    if debug:
+        print '    current allocation includes %d nodes' % len(our_nodes)
+
     # then info on all current allocations
-    quefo = {}  # node : (number of tasks allocated to that node)
+    quefo = {}  # node : (number of tasks allocated to that node, including ours)
     squeue_str = check_output(['squeue', '--format', '%.18i %.2t %.6D %R'])
     headers = ['JOBID', 'ST',  'NODES', 'NODELIST(REASON)']
     for line in squeue_str.split('\n'):
@@ -1566,7 +1579,7 @@ def get_available_node_core_list(batch_config_fname):
             assert linefo == headers
         if linefo[headers.index('ST')] != 'R':  # skip jobs that aren't running
             continue
-        nodes = get_nodelist_from_slurm_shorthand(linefo[headers.index('NODELIST(REASON)')])
+        nodes = get_nodelist_from_slurm_shorthand(linefo[headers.index('NODELIST(REASON)')], known_nodes=nodefo.keys())
         for node in nodes:
             if node not in our_nodes:
                 continue
@@ -1577,6 +1590,12 @@ def get_available_node_core_list(batch_config_fname):
                 quefo[node] = 0
             quefo[node] += 1  # NOTE this is not correct, but I can't figure out how to get the number of cores allocated to each job (and the docs make it sound like it might not be possible to)
 
+    if debug:
+        print '    %d available cores on our currently allocated nodes' % sum(quefo.values())
+    # for node, n_alloc in quefo.items():
+    #     print '%20s %d' % (node, n_alloc)
+    # sys.exit()
+
     # and finally, decide how many procs we can send to each node
     corelist = []
     for node in our_nodes:
@@ -1584,14 +1603,22 @@ def get_available_node_core_list(batch_config_fname):
             raise Exception('node %s in our allocation not in config file %s' % (node, batch_config_fname))
         if node not in quefo:
             raise Exception('node %s in our allocation not in squeue output' % node)
-        n_cores_we_can_use = nodefo[node]['nproc'] - quefo[node]  # NOTE that this lets us use every unallocated core on the machine, even if slurm only allocated one to us... but as above, I'm not sure we can do better than that
-        if n_cores_we_can_use <= 0:
+        n_cores_we_can_use = nodefo[node]['nproc'] - quefo[node] + 1  # add one to account for the fact that quefo[node] includes our allocation
+        if n_cores_we_can_use == 0:
+            print '  %s huh, n_cores_we_can_use is zero' % color('yellow', 'warning')
+            n_cores_we_can_use = 1
+        elif n_cores_we_can_use < 0:
             print '  %s more tasks allocated to %s than available cores: %d - %d = %d (setting n_cores_we_can_use to 1 because, uh, not sure what else to do)' % (color('yellow', 'warning'), node, nodefo[node]['nproc'], quefo[node], nodefo[node]['nproc'] - quefo[node])
+            n_cores_we_can_use = 1
         corelist += [node for _ in range(n_cores_we_can_use)]
 
-    for c in corelist:
-        print c
+    corelist = sorted(corelist)  # easier to read if it's alphabetical
 
+    for node in set(corelist):
+        print '    %20s  %d' % (node, corelist.count(node))
+
+    if len(corelist) == 0:
+        corelist = None
     return corelist
 
 # ----------------------------------------------------------------------------------------
@@ -1610,10 +1637,11 @@ def prepare_cmds(cmdfos, batch_system, batch_options, batch_config_fname):
     if batch_system is not None and batch_system == 'slurm' and batch_config_fname is not None:
         if os.path.exists(batch_config_fname):
             corelist = get_available_node_core_list(batch_config_fname)  # list of nodes within our current allocation (empty if there isn't one), with each node present once for each core that we've been allocated on that node
-            if len(corelist) < len(cmdfos):
+            if corelist is not None and len(corelist) < len(cmdfos):
                 print '  %s fewer cores %d than processes %d, so shit\'s prolly gonna get hammered' % (color('yellow', 'warning'), len(corelist), len(cmdfos))
-            while len(corelist) < len(cmdfos):
-                corelist += corelist
+                print '      corelist: %s' % ' '.join(corelist)
+                while len(corelist) < len(cmdfos):
+                    corelist += corelist
         else:
             print '  %s specified --batch-config-fname %s doesn\'t exist' % (color('yellow', 'warning'), batch_config_fname)
 
@@ -1663,7 +1691,7 @@ def run_cmds(cmdfos, sleep=True, batch_system=None, batch_options=None, batch_co
     corelist = prepare_cmds(cmdfos, batch_system=batch_system, batch_options=batch_options, batch_config_fname=batch_config_fname)
     procs, n_tries = [], []
     for iproc in range(len(cmdfos)):
-        procs.append(run_cmd(cmdfos[iproc], batch_system=batch_system, batch_options=batch_options, nodelist=[corelist[iproc]]))
+        procs.append(run_cmd(cmdfos[iproc], batch_system=batch_system, batch_options=batch_options, nodelist=[corelist[iproc]] if corelist is not None else None))
         n_tries.append(1)
         if sleep:
             time.sleep(0.01)
