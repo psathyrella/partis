@@ -1641,7 +1641,7 @@ def prepare_cmds(cmdfos, batch_system, batch_options, batch_config_fname):
                 print '  %s fewer cores %d than processes %d, so shit\'s prolly gonna get hammered' % (color('yellow', 'warning'), len(corelist), len(cmdfos))
                 print '      corelist: %s' % ' '.join(corelist)
                 while len(corelist) < len(cmdfos):
-                    corelist += corelist
+                    corelist += sorted(set(corelist))  # add each node once each time through
         else:
             print '  %s specified --batch-config-fname %s doesn\'t exist' % (color('yellow', 'warning'), batch_config_fname)
 
