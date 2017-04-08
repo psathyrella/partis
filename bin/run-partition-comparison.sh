@@ -85,12 +85,16 @@
 # ----------------------------------------------------------------------------------------
 # different sample sizes
 # ----------------------------------------------------------------------------------------
-# nl=7; xtra="--seed-cluster-bounds 10:15"
-nl=2.3; xtra="--zipf" # --count-distances --hfrac-bound-list 0,0"
+nl=7; xtra="--seed-cluster-bounds 10:15"
+# nl=2.3; xtra="--zipf" # --count-distances --hfrac-bound-list 0,0"
 leaf_mut_hum="--is-simu --n-leaf-list $nl --mutation-multipliers 1 --humans 021-018"
 # ./bin/compare-partition-methods.py --actions simulate --n-sim-seqs 2000000 $leaf_mut_hum $xtra &
 # ./bin/compare-partition-methods.py --actions cache-simu-parameters $leaf_mut_hum $xtra --n-simu-to-cache 200000 &
-istartstoplist="0:250 250:750 750:1500 1500:2500 2500:4000 4000:6500 6500:9500 9500:13500 13500:18500 18500:26000 26000:36000 36000:51000" # 51000:71000 71000:101000 101000:141000 141000:191000 191000:266000 266000:366000 366000:516000 516000:816000 816000:1316000 1316000:2066000"
+
+# istartstoplist="0:250 250:750 750:1500 1500:2500 2500:4000 4000:6500 6500:9500 9500:13500 13500:18500 18500:26000 26000:36000 36000:51000 51000:71000 71000:101000 101000:141000 141000:191000 191000:266000 266000:366000 366000:516000 516000:816000 816000:1316000 1316000:2066000"
+istartstoplist="26000:36000 36000:51000 51000:71000 71000:101000 101000:141000 141000:191000 191000:266000 266000:366000 366000:516000 516000:816000 816000:1316000 1316000:2066000"
+# extra: 141001:191001 141002:191002
+
 # istartstoplist="51000:71000 71000:101000 101000:141000 141000:191000 191000:266000 266000:366000 366000:516000 516000:816000 816000:1316000 1316000:2066000"
 
 # not_for_plotting="7:1000007 0:500000 0:1500 1500:4500 4500:8500 8500:13500 13500:21000 21000:31000 31000:81000 141000:216000 216000:316000 316000:466000 500000:800000 2:100000 1000007:1500007"
@@ -112,11 +116,14 @@ istartstoplist="0:250 250:750 750:1500 1500:2500 2500:4000 4000:6500 6500:9500 9
 
 istartstopstr=`echo $istartstoplist | sed -e 's/:/,/g' -e 's/ /:/g'`
 
-for istartstop in $istartstoplist; do  # see code below to generate these
+# for istartstop in $istartstoplist; do  # see code below to generate these
+for istartstop in 141002:191002; do
     # ./bin/compare-partition-methods.py --actions naive-hamming-partition:partition:run-viterbi:vsearch-partition --istartstop $istartstop $leaf_mut_hum $xtra &
     # ./bin/compare-partition-methods.py --actions seed-partition --istartstop $istartstop $leaf_mut_hum $xtra &  #  --no-slurm
-    ./bin/compare-partition-methods.py --actions cache-parameters --istartstop $istartstop $leaf_mut_hum $xtra --no-slurm #--dry-run
-    # sleep 1h
+    ./bin/compare-partition-methods.py --actions cache-parameters --istartstop $istartstop $leaf_mut_hum $xtra
+    ./bin/compare-partition-methods.py --actions partition --istartstop $istartstop $leaf_mut_hum $xtra
+    # break
+    # sleep 0.5s
     # ./bin/compare-partition-methods.py --actions write-plots --istartstop $istartstop $leaf_mut_hum --expected-methods run-viterbi:partition:naive-hamming-partition:vsearch-partition:synthetic --no-similarity-matrices $xtra &  # --count-distances &
     # ./bin/compare-partition-methods.py --actions write-plots --istartstop $istartstop $leaf_mut_hum --expected-methods seed-partition $xtra --no-similarity-matrices &  # --count-distances & --no-similarity-matrices 
     # break
