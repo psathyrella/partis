@@ -1529,7 +1529,7 @@ def get_nodelist_from_slurm_shorthand(nodestr, known_nodes, debug=False):
     return nodes
 
 # ----------------------------------------------------------------------------------------
-def get_available_node_core_list(batch_config_fname, debug=True):
+def get_available_node_core_list(batch_config_fname, debug=False):
     if debug:
         print ''
         print '  figuring out slurm config'
@@ -1633,7 +1633,7 @@ def get_available_node_core_list(batch_config_fname, debug=True):
     return corelist
 
 # ----------------------------------------------------------------------------------------
-def prepare_cmds(cmdfos, batch_system, batch_options, batch_config_fname, debug=True):
+def prepare_cmds(cmdfos, batch_system, batch_options, batch_config_fname, debug=False):
     # set cmdfo defaults
     for iproc in range(len(cmdfos)):
         if 'logdir' not in cmdfos[iproc]:  # if logdirs aren't specified, then log files go in the workdirs
