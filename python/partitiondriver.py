@@ -929,22 +929,24 @@ class PartitionDriver(object):
 
         # ----------------------------------------------------------------------------------------
         def get_sub_outfile(siproc, mode):
-            subworkdir = self.subworkdir(siproc, n_procs)
-            if mode == 'w':
-                utils.prep_dir(subworkdir)
-                if self.current_action == 'partition' and os.path.exists(self.hmm_cachefname):  # copy cachefile to this subdir (first clause is just for so when we're getting cluster annotations we don't copy over the cache files)
-                    check_call(['cp', self.hmm_cachefname, subworkdir + '/'])
-            return open(subworkdir + '/' + os.path.basename(infname), mode)
-
-        # ----------------------------------------------------------------------------------------
+            return open(self.subworkdir(siproc, n_procs) + '/' + os.path.basename(infname), mode)
         def get_writer(sub_outfile):
             return csv.DictWriter(sub_outfile, reader.fieldnames, delimiter=' ')
+        def copy_cache_files(n_procs):
+            cmdfos = [{'cmd_str' : 'cp ' + self.hmm_cachefname + ' ' + self.subworkdir(iproc, n_procs) + '/',
+                       'workdir' : self.subworkdir(iproc, n_procs),
+                       'outfname' : self.subworkdir(iproc, n_procs) + '/' + os.path.basename(self.hmm_cachefname)}
+                      for iproc in range(n_procs)]
+            utils.run_cmds(cmdfos)
 
-        # initialize output files
+        # initialize output/cache files
         for iproc in range(n_procs):
+            utils.prep_dir(self.subworkdir(iproc, n_procs))
             sub_outfile = get_sub_outfile(iproc, 'w')
             get_writer(sub_outfile).writeheader()
             sub_outfile.close()  # can't leave 'em all open the whole time 'cause python has the thoroughly unreasonable idea that one oughtn't to have thousands of files open at once
+        if self.current_action == 'partition' and os.path.exists(self.hmm_cachefname):  # copy cachefile to this subdir (first clause is just for so when we're getting cluster annotations we don't copy over the cache files)
+            copy_cache_files(n_procs)
 
         seed_clusters_to_write = seeded_clusters.keys()  # the keys in <seeded_clusters> that we still need to write
         for iproc in range(n_procs):
