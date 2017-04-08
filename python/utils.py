@@ -1452,69 +1452,75 @@ def merge_csvs(outfname, csv_list, cleanup=True):
 
 # ----------------------------------------------------------------------------------------
 def get_nodelist_from_slurm_shorthand(nodestr, known_nodes, debug=False):
-    nodes = []
-    # nodestr = 'gizmod[1,15-17,26-29,32-33,38-39,43,46-47,49,57,66-67,76,82,93,99,139],gizmoe[2,6-8,10-23],gizmof[1,167,181-188,190-228,231,234-236,240,399,402,404,456-468],gizmog10,sprawl[1-2]'
+    if debug:
+        print '    getting nodelist from \'%s\'' % nodestr
 
-    if '[' not in nodestr and ']' not in nodestr:  # single node
-        nodes.append(nodestr)
-        return nodes
+    if '[' not in nodestr and ']' not in nodestr:  # single node (don't really need this, but maybe it's a little faster)
+        return [nodestr]
 
     # first find the indices at which there're square braces
+    nodes = []
     bracketfo = []
     ilastcomma = -1  # if the first one has brackets, the "effective" comma is at -1
     thisnodestr = ''
     for ich in range(len(nodestr)):
         ch = nodestr[ich]
-        # print ich, ch
         if ch == ',':
             ilastcomma = ich
         if ch == '[':
             bracketfo.append({'comma' : ilastcomma, 'ibrackets' : [ich, None]})
-            # print '   reset'
             thisnodestr = ''
+            if debug:
+                print '      start bracket    %s' % nodestr[ilastcomma + 1 : ich + 1]
         elif ch == ']':
             assert bracketfo[-1]['ibrackets'][1] is None
             bracketfo[-1]['ibrackets'][1] = ich
-            # print '   reset'
             thisnodestr = ''
+            if debug:
+                print '      end bracket      %s' % nodestr[bracketfo[-1]['ibrackets'][0] : bracketfo[-1]['ibrackets'][1] + 1]
 
         # if we're not within a bracket info
         if len(bracketfo) == 0 or bracketfo[-1]['ibrackets'][1] is not None:
             thisnodestr += ch
             thisnodestr = thisnodestr.strip(',[]')
-            # print '      ', thisnodestr
             if len(thisnodestr) > 1 and ch == ',':  # if we just got to a comma, and there's something worth looking at in <thisnodestr>
-                # print '  adding %s' % thisnodestr
                 nodes.append(thisnodestr)
                 thisnodestr = ''
+                if debug:
+                    print '      add no-bracket   %s' % nodes[-1]
 
-    # print ' '.join(nodes)
+    if debug:
+        if len(nodes) > 0:
+            print '    %d bracketless nodes: %s' % (len(nodes), ' '.join(nodes))
+        if len(bracketfo) > 0:
+            print '      brackets:'
+
+    # the expand the ranges in the brackets
     for bfo in bracketfo:
         ibp = bfo['ibrackets']
         original_str = nodestr[ibp[0] + 1 : ibp[1]]  # NOTE excludes the actual bracket characters
-        if debug:
-            print ibp
-            print '   ', original_str
         bracketnodes = []
         for subnodestr in original_str.split(','):
-            if '-' in subnodestr:
+            if '-' in subnodestr:  # range of node numbers
                 startstoplist = [int(i) for i in subnodestr.split('-')]
                 if len(startstoplist) != 2:
                     raise Exception('wtf %s' % subnodestr)
                 istart, istop = startstoplist
                 bracketnodes += range(istart, istop + 1)
-            else:
+            else: # single node
                 bracketnodes.append(int(subnodestr))
-
         namestr = nodestr[bfo['comma'] + 1 : ibp[0]]  # the texty bit of the name (i.e. without the numbers)
-        bracketnodes = [namestr + str(i) for i in bracketnodes]
         if debug:
-            print '   ', bracketnodes
+            print '        %s: \'%s\' --> %s' % (namestr, original_str, ' '.join([str(n) for n in bracketnodes]))
+        bracketnodes = [namestr + str(i) for i in bracketnodes]
         nodes += bracketnodes
 
     unknown_nodes = set(nodes) - set(known_nodes)
     if len(unknown_nodes) > 0:
-        print '  %s unknown knodes %s parsed from nodestr \'%s\'' % (color('yellow', 'warning'), ' '.join(unknown_nodes), nodestr)
+        print '    %s unknown nodes parsed from \'%s\': %s' % (color('yellow', 'warning'), nodestr, ' '.join(unknown_nodes))
+
+    if debug:
+        print '    %d final nodes: %s' % (len(nodes), ' '.join(nodes))
 
     return nodes
 
@@ -1527,9 +1533,11 @@ def get_available_node_core_list(batch_config_fname, debug=True):
     our_nodes = []
 
     if os.getenv('SLURM_NODELIST') is None:  # not within a slurm allocation
-        return []
+        if debug:
+            print '  not inside a slurm allocation'
+        return None
 
-    # get info on all nodes
+    # first get info on all nodes from config file
     nodefo = {}  # node : (that node's specifications in config file)
     with open(batch_config_fname) as bfile:
         for line in bfile:
@@ -1551,15 +1559,14 @@ def get_available_node_core_list(batch_config_fname, debug=True):
                     if node is None or node not in nodefo:
                         raise Exception('first key wasn\'t NodeName')
                     nodefo[node][key] = val
+    # multiply sockets times cores/socket
     for node, info in nodefo.items():
         if 'Sockets' not in info or 'CoresPerSocket' not in info:
             raise Exception('missing keys in: %s' % ' '.join(info.keys()))
         info['nproc'] = int(info['Sockets']) * int(info['CoresPerSocket'])
-
     if debug:
         print '    info for %d nodes in %s' % (len(nodefo), batch_config_fname)
 
-    assert os.getenv('SLURM_NODELIST') is not None
     our_nodes = get_nodelist_from_slurm_shorthand(os.getenv('SLURM_NODELIST'), known_nodes=nodefo.keys())
     if len(our_nodes) == 0:
         return []
@@ -1584,17 +1591,14 @@ def get_available_node_core_list(batch_config_fname, debug=True):
             if node not in our_nodes:
                 continue
             if node not in nodefo:
-                print '  %s node %s in squeue output but not in config file %s' % (node, batch_config_fname)
+                print '  %s node %s in squeue output but not in config file %s' % (color('yellow', 'warning'), node, batch_config_fname)
                 continue
             if node not in quefo:
                 quefo[node] = 0
-            quefo[node] += 1  # NOTE this is not correct, but I can't figure out how to get the number of cores allocated to each job (and the docs make it sound like it might not be possible to)
+            quefo[node] += 1  # NOTE ideally this would be the number of cores slurm gave this task, rather than 1, but I can't figure out how to that info (and the docs make it sound like it might not be possible to)
 
     if debug:
-        print '    %d available cores on our currently allocated nodes' % sum(quefo.values())
-    # for node, n_alloc in quefo.items():
-    #     print '%20s %d' % (node, n_alloc)
-    # sys.exit()
+        print '    %d "total tasks" allocated among nodes in our current allocation' % sum(quefo.values())
 
     # and finally, decide how many procs we can send to each node
     corelist = []
@@ -1614,15 +1618,18 @@ def get_available_node_core_list(batch_config_fname, debug=True):
 
     corelist = sorted(corelist)  # easier to read if it's alphabetical
 
-    for node in set(corelist):
-        print '    %20s  %d' % (node, corelist.count(node))
+    if debug:
+        print '    %d available cores:' % len(corelist)
+        for node in set(corelist):
+            print '        %d  %s' % (corelist.count(node), node)
 
     if len(corelist) == 0:
-        corelist = None
+        return None
+
     return corelist
 
 # ----------------------------------------------------------------------------------------
-def prepare_cmds(cmdfos, batch_system, batch_options, batch_config_fname):
+def prepare_cmds(cmdfos, batch_system, batch_options, batch_config_fname, debug=True):
     # set cmdfo defaults
     for iproc in range(len(cmdfos)):
         if 'logdir' not in cmdfos[iproc]:  # if logdirs aren't specified, then log files go in the workdirs
@@ -1635,18 +1642,25 @@ def prepare_cmds(cmdfos, batch_system, batch_options, batch_config_fname):
     # get info about any existing slurm allocation
     corelist = None
     if batch_system is not None and batch_system == 'slurm' and batch_config_fname is not None:
-        if os.path.exists(batch_config_fname):
+        if not os.path.exists(batch_config_fname):
+            print '  %s specified --batch-config-fname %s doesn\'t exist' % (color('yellow', 'warning'), batch_config_fname)
+        else:
             corelist = get_available_node_core_list(batch_config_fname)  # list of nodes within our current allocation (empty if there isn't one), with each node present once for each core that we've been allocated on that node
             if corelist is not None and len(corelist) < len(cmdfos):
-                print '  %s fewer cores %d than processes %d, so shit\'s prolly gonna get hammered' % (color('yellow', 'warning'), len(corelist), len(cmdfos))
-                print '      corelist: %s' % ' '.join(corelist)
+                if 1.5 * len(corelist) < len(cmdfos):
+                    print '  %s many fewer cores %d than processes %d' % (color('yellow', 'warning'), len(corelist), len(cmdfos))
+                    print '      corelist: %s' % ' '.join(corelist)
                 while len(corelist) < len(cmdfos):
                     corelist += sorted(set(corelist))  # add each node once each time through
-        else:
-            print '  %s specified --batch-config-fname %s doesn\'t exist' % (color('yellow', 'warning'), batch_config_fname)
 
     if corelist is not None:
+        if debug:
+            print '    %d final cores for %d procs' % (len(corelist), len(cmdfos))
+            print '        iproc     node'
+            for iproc in range(len(cmdfos)):
+                print '          %-3d    %s' % (iproc, corelist[iproc])
         assert len(corelist) >= len(cmdfos)
+
     return corelist
 
 # ----------------------------------------------------------------------------------------
@@ -1679,7 +1693,7 @@ def run_cmd(cmdfo, batch_system=None, batch_options=None, nodelist=None):
     if not os.path.exists(cmdfo['logdir']):
         os.makedirs(cmdfo['logdir'])
 
-    print cmd_str
+    # print cmd_str
     proc = Popen(cmd_str.split(),
                  stdout=None if fout is None else open(fout, 'w'),
                  stderr=None if ferr is None else open(ferr, 'w'),
