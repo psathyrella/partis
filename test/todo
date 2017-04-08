@@ -1,5 +1,15 @@
 # now
 
+# may as well parallelize cp commands
+# should also repeat nproc 3 and 2, maybe just by using time as a proxy rather than number of calculations? Or maybe looking at inter-step time (cp and whatnot)?
+# add sstat memory checks to utils.finish_process() (or maybe while you're waiting for them to finish?)
+
+# need to redo n procs in compareutils now that everything's so much faster
+#  - and maybe just don't use slurm at all if I can't get cores fast enough
+# making trees for gl genes: http://etetoolkit.org/docs/latest/tutorial/tutorial_clustering.html
+#   erick's trees are in /home/matsengrp/working/matsen/germline-align
+# use sstat to start aborting if jobs take a ton of memory
+
 # figure out messed-up new alleles in chaim donor 45 h95
 #  - probably need to add a step that removes new alleles for which final (i.e. hopefully hmm) prevalence isn't consistent with prevalence from plots (wait, but this might be hard, since the plots use clonal representatives)
 #  - maybe time to add j gene thing (but wait, wouldn't that just the same thing as the clonal collapse?)
