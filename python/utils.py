@@ -1705,14 +1705,15 @@ def run_cmd(cmdfo, batch_system=None, batch_options=None, nodelist=None):
     return proc
 
 # ----------------------------------------------------------------------------------------
-def run_cmds(cmdfos, sleep=True, batch_system=None, batch_options=None, batch_config_fname=None, debug=None):  # set sleep to False if you're commands are going to run really really really quickly
+def run_cmds(cmdfos, sleep=True, batch_system=None, batch_options=None, batch_config_fname=None, debug=None):  # set sleep to False if your commands are going to run really really really quickly
     corelist = prepare_cmds(cmdfos, batch_system=batch_system, batch_options=batch_options, batch_config_fname=batch_config_fname)
     procs, n_tries = [], []
+    per_proc_sleep_time = 0.01 / len(cmdfos)
     for iproc in range(len(cmdfos)):
         procs.append(run_cmd(cmdfos[iproc], batch_system=batch_system, batch_options=batch_options, nodelist=[corelist[iproc]] if corelist is not None else None))
         n_tries.append(1)
         if sleep:
-            time.sleep(0.01)
+            time.sleep(per_proc_sleep_time)
     while procs.count(None) != len(procs):  # we set each proc to None when it finishes
         for iproc in range(len(cmdfos)):
             if procs[iproc] is None:  # already finished
@@ -1721,7 +1722,7 @@ def run_cmds(cmdfos, sleep=True, batch_system=None, batch_options=None, batch_co
                 finish_process(iproc, procs, n_tries, cmdfos[iproc], dbgfo=cmdfos[iproc]['dbgfo'], batch_system=batch_system, batch_options=batch_options, debug=debug)
         sys.stdout.flush()
         if sleep:
-            time.sleep(0.01)
+            time.sleep(per_proc_sleep_time)
 
 # ----------------------------------------------------------------------------------------
 def pad_lines(linestr, padwidth=8):
