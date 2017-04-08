@@ -1377,6 +1377,10 @@ def process_input_line(info, hmm_cachefile=False):
     if 'indel_reversed_seqs' in info and 'input_seqs' in info:  # new-style csv output and simulation files, i.e. it stores 'indel_reversed_seqs' instead of 'seqs'
         if info['indel_reversed_seqs'] == '':
             info['indel_reversed_seqs'] = ['' for _ in range(len(info['unique_ids']))]
+        for tmpkey in ['indel_reversed_seqs', 'input_seqs']:
+            if len(info[tmpkey]) != len(info['unique_ids']):
+                print 'not the right length: %20s (%d): %s' % (tmpkey, len(info[tmpkey]), info[tmpkey])
+                print '                      %20s (%d)' % ('unique_ids', len(info['unique_ids']))
         info['seqs'] = [info['indel_reversed_seqs'][iseq] if info['indel_reversed_seqs'][iseq] != '' else info['input_seqs'][iseq] for iseq in range(len(info['unique_ids']))]  # if there's no indels, we just store 'input_seqs' and leave 'indel_reversed_seqs' empty
     elif 'seqs' in info:  # old-style csv output file: just copy 'em into the explicit name
         info['indel_reversed_seqs'] = info['seqs']
