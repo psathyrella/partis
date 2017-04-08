@@ -398,6 +398,12 @@ class PartitionDriver(object):
         return new_n_procs
 
     # ----------------------------------------------------------------------------------------
+    def times_to_try_this_n_procs(self, n_procs):
+        if n_procs > 2:
+            return n_procs
+        return 4  # n_procs = 2 is kind of a special case, because the drop to 1 is such a big one
+
+    # ----------------------------------------------------------------------------------------
     def get_next_n_procs_and_whatnot(self, n_proc_list, cpath, initial_nseqs):
         last_n_procs = n_proc_list[-1]
         next_n_procs = last_n_procs
@@ -405,7 +411,7 @@ class PartitionDriver(object):
         n_calcd_per_process = self.get_n_calculated_per_process()
 
         reduce_n_procs = False
-        if n_calcd_per_process < self.args.n_max_to_calc_per_process or n_proc_list.count(last_n_procs) > last_n_procs:  # if we didn't need to do that many calculations, or if we've already milked this number of procs for most of what it's worth
+        if n_calcd_per_process < self.args.n_max_to_calc_per_process or n_proc_list.count(last_n_procs) > self.times_to_try_this_n_procs(last_n_procs):  # if we didn't need to do that many calculations, or if we've already milked this number of procs for most of what it's worth
             reduce_n_procs = True
 
         factor = 1.3
