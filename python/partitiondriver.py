@@ -843,7 +843,7 @@ class PartitionDriver(object):
 
         step_time = time.time() - start
         if step_time - exec_time > 0.1:
-            print '        non-exec time: %.1f' % (step_time - exec_time)
+            print '         infra time: %.1f' % (step_time - exec_time)  # i.e. time for non-executing, infrastructure time
         print '      hmm step time: %.1f' % step_time
 
         return new_cpath
