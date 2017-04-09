@@ -1837,18 +1837,18 @@ def summarize_bcrham_dbgstrs(dbgfos):
         else:
             assert False
 
-    summaryfo = {dbgcat : {vtype : defval(dbgcat) for vtype in tlist} for dbgcat, tlist in bcrham_dbgstrs.items()}
+    summaryfo = {dbgcat : {vtype : defval(dbgcat) for vtype in tlist} for dbgcat, tlist in bcrham_dbgstrs.items()}  # fill summaryfo with default/initial values
     for procfo in dbgfos:
-        for dbgcat in bcrham_dbgstr_types['same']:
-            for vtype in bcrham_dbgstrs[dbgcat]:
-                if summaryfo[dbgcat][vtype] is None:
+        for dbgcat in bcrham_dbgstr_types['same']:  # loop over lines in output for which every process should have the same values (e.g. cache-read)
+            for vtype in bcrham_dbgstrs[dbgcat]:  # loop over values in that line (e.g. logprobs and naive-seqs)
+                if summaryfo[dbgcat][vtype] is None:  # first one
                     summaryfo[dbgcat][vtype] = procfo[dbgcat][vtype]
-                if procfo[dbgcat][vtype] != summaryfo[dbgcat][vtype]:
+                if procfo[dbgcat][vtype] != summaryfo[dbgcat][vtype]:  # make sure all subsequent ones are the same
                     print '        %s bcrham procs had different \'%s\' \'%s\' info: %d vs %d' % (color('red', 'warning'), vtype, dbgcat, procfo[dbgcat][vtype], summaryfo[dbgcat][vtype])
-        for dbgcat in bcrham_dbgstr_types['sum']:
+        for dbgcat in bcrham_dbgstr_types['sum']:  # lines for which we want to add up the values
             for vtype in bcrham_dbgstrs[dbgcat]:
                 summaryfo[dbgcat][vtype] += procfo[dbgcat][vtype]
-        for dbgcat in bcrham_dbgstr_types['min-max']:
+        for dbgcat in bcrham_dbgstr_types['min-max']:  # lines for which we want to keep track of the smallest and largest values (e.g. time required)
             for vtype in bcrham_dbgstrs[dbgcat]:
                 summaryfo[dbgcat][vtype].append(procfo[dbgcat][vtype])
 
