@@ -833,13 +833,19 @@ class PartitionDriver(object):
         if n_procs > 1:
             self.split_input(n_procs, self.hmm_infname)
 
+        exec_start = time.time()
         self.execute(cmd_str, n_procs)
+        exec_time = time.time() - exec_start
 
         new_cpath = None
         if read_output:
             new_cpath = self.read_hmm_output(algorithm, n_procs, count_parameters, parameter_out_dir, precache_all_naive_seqs)
 
-        print '      hmm step time: %.1f' % (time.time()-start)
+        step_time = time.time() - start
+        if step_time - exec_time > 0.1:
+            print '        non-exec time: %.1f' % (step_time - exec_time)
+        print '      hmm step time: %.1f' % step_time
+
         return new_cpath
 
     # ----------------------------------------------------------------------------------------
