@@ -94,28 +94,25 @@ cd partis
 
 Once you have partis installed, if you want to annotate a small file with BCR sequences, perhaps located at `/path/to/yourseqs.fa`, run
 
-```./bin/partis run-viterbi --infname /path/to/yourseqs.fa --outfname /path/to/yourseqs-run-viterbi.csv```
+```./bin/partis run-viterbi --infname /path/to/yourseqs.fa --outfname /path/to/yourseqs-run-viterbi.csv```.
+
+To separate them into clonal families, replace `run-viterbi` with `partition`.
 
 (If you're using Docker, and you mounted your host filesystem as described above, you should replace each `/path/to` with `/host/path/to`.)
 
-Whereas if you'd like to separate them into clonal families, run
-
-```./bin/partis partition --infname /path/to/yourseqs.fa --outfname /path/to/yourseqs-partition.csv```
-
-(Where, again, tack `/host` on the front of if you're inside Docker.)
-
-There's some example sequences you can run on in `test/example.fa`.
-
 To parallelize on your local machine, just add `--n-procs N`.
 The slurm and sge batch systems are also supported (see [below](#parallelization)).
-There are also [several options](#faster-methods) for faster partitioning methods.
-Especially for partitioning, run times depend heavily on the lineage structure of your sample (for instance a sample with fewer, larger clones is usually slower than a more diverse sample).
-Typically, though, you can annotate 10 thousand sequences on an 8-core desktop in about five minutes, and partition in 25 minutes.
+There are also several [faster](#faster-methods) partitioning methods.
+
+Typically, you can expect to annotate 10 thousand sequences on an 8-core desktop in about five minutes, and partition in 25 minutes.
+Note, though, that partitioning run times depend heavily on the lineage structure of your sample (for instance a sample with fewer, larger clones is usually slower than a more diverse sample).
 Memory is not usually a limiting factor, although very large samples (millions of sequences) with very large clones can provide exceptions.
 In such cases, running on subsamples using `--n-random-queries N` or `--n-max-queries N` is frequently the best option.
 
 By default, it assumes the sequences are human igh.
 To change this, use the `--species {human,mouse}` and `--locus {tra,trb,trd,trg,igl,igk,igh}` options.
+
+There's some example sequences you can run on in `test/example.fa`.
 
 ### Subcommands
 
