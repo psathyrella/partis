@@ -1738,7 +1738,7 @@ def finish_process(iproc, procs, n_tries, cmdfo, dbgfo=None, batch_system=None, 
             print '      proc %d succeded but its output isn\'t there, so sleeping for a bit...' % iproc
             time.sleep(0.5)
         if os.path.exists(cmdfo['outfname']):
-            process_out_err('', '', extra_str='' if len(procs) == 1 else str(iproc), dbgfo=dbgfo, logdir=cmdfo['logdir'], debug=debug)
+            process_out_err(extra_str='' if len(procs) == 1 else str(iproc), dbgfo=dbgfo, logdir=cmdfo['logdir'], debug=debug)
             procs[iproc] = None  # job succeeded
             return
 
@@ -1763,17 +1763,20 @@ def finish_process(iproc, procs, n_tries, cmdfo, dbgfo=None, batch_system=None, 
         n_tries[iproc] += 1
 
 # ----------------------------------------------------------------------------------------
-def process_out_err(out, err, extra_str='', dbgfo=None, logdir=None, debug=None):
+def process_out_err(extra_str='', dbgfo=None, logdir=None, debug=None):
     """ NOTE something in this chain seems to block or truncate or some such nonsense if you make it too big """
+    out, err = '', ''
     if logdir is not None:
-        def readfile(fname):
-            ftmp = open(fname)
-            fstr = ''.join(ftmp.readlines())
-            ftmp.close()
+        def read_and_delete_file(fname):
+            fstr = ''
+            if os.stat(fname).st_size > 0:
+                ftmp = open(fname)
+                fstr = ''.join(ftmp.readlines())
+                ftmp.close()
             os.remove(fname)
             return fstr
-        out = readfile(logdir + '/out')
-        err = readfile(logdir + '/err')
+        out = read_and_delete_file(logdir + '/out')
+        err = read_and_delete_file(logdir + '/err')
 
     for line in out.split('\n'):  # temporarily (maybe) print debug info realted to --n-final-clusters/force merging
         if 'force' in line:
