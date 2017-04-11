@@ -405,7 +405,7 @@ class PartitionDriver(object):
         n_calcd_per_process = self.get_n_calculated_per_process()
         if n_calcd_per_process < self.args.n_max_to_calc_per_process and last_n_procs > 2:  # should be replaced by time requirement, since especially in later iterations, the larger clusters make this a crappy metric (2 is kind of a special case, becase, well, small integers and all)
             return True
-        times_to_try_this_n_procs = max(3, last_n_procs)  # if we've already milked this number of procs for most of what it's worth (once you get down to 2 or 3, you don't want to go lower)
+        times_to_try_this_n_procs = max(4, last_n_procs)  # if we've already milked this number of procs for most of what it's worth (once you get down to 2 or 3, you don't want to go lower)
         if n_proc_list.count(last_n_procs) >= times_to_try_this_n_procs:
             return True
 
