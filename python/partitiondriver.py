@@ -55,6 +55,7 @@ class PartitionDriver(object):
         self.sw_info = None
         self.duplicates = {}
         self.bcrham_proc_info = None
+        self.timing_info = []  # TODO clean up this and bcrham_proc_info
 
         self.unseeded_seqs = None  # all the queries that we *didn't* cluster with the seed uid
         self.small_cluster_seqs = None  # all the queries that we removed after a few partition steps 'cause they were in small clusters
@@ -332,7 +333,7 @@ class PartitionDriver(object):
             return
 
         print 'hmm'
-        # cache hmm naive seq for each single query
+        # cache hmm naive seq for each single query NOTE <self.current_action> is (and needs to be) still set to partition for this
         if not self.args.dont_precache_naive_seqs and (len(self.sw_info['queries']) > 50 or self.args.naive_vsearch or self.args.naive_swarm):
             print '--> caching all %d naive sequences' % len(self.sw_info['queries'])
             self.run_hmm('viterbi', self.sub_param_dir, n_procs=self.auto_nprocs(len(self.sw_info['queries'])), precache_all_naive_seqs=True)
@@ -398,24 +399,25 @@ class PartitionDriver(object):
         return new_n_procs
 
     # ----------------------------------------------------------------------------------------
-    def times_to_try_this_n_procs(self, n_procs):
-        if n_procs > 2:
-            return n_procs
-        return 4  # n_procs = 2 is kind of a special case, because the drop to 1 is such a big one
+    def shall_we_reduce_n_procs(self, last_n_procs, n_proc_list):
+        if self.timing_info[-1]['total'] < self.args.min_hmm_step_time:  # mostly for when you're running on really small samples
+            return True
+        n_calcd_per_process = self.get_n_calculated_per_process()
+        if n_calcd_per_process < self.args.n_max_to_calc_per_process and last_n_procs > 2:  # should be replaced by time requirement, since especially in later iterations, the larger clusters make this a crappy metric (2 is kind of a special case, becase, well, small integers and all)
+            return True
+        times_to_try_this_n_procs = max(3, last_n_procs)  # if we've already milked this number of procs for most of what it's worth (once you get down to 2 or 3, you don't want to go lower)
+        if n_proc_list.count(last_n_procs) >= times_to_try_this_n_procs:
+            return True
+
+        return False
 
     # ----------------------------------------------------------------------------------------
-    def get_next_n_procs_and_whatnot(self, n_proc_list, cpath, initial_nseqs):
+    def prepare_next_iteration(self, n_proc_list, cpath, initial_nseqs):
         last_n_procs = n_proc_list[-1]
         next_n_procs = last_n_procs
 
-        n_calcd_per_process = self.get_n_calculated_per_process()
-
-        reduce_n_procs = False
-        if n_calcd_per_process < self.args.n_max_to_calc_per_process or n_proc_list.count(last_n_procs) > self.times_to_try_this_n_procs(last_n_procs):  # if we didn't need to do that many calculations, or if we've already milked this number of procs for most of what it's worth
-            reduce_n_procs = True
-
         factor = 1.3
-        if reduce_n_procs:
+        if self.shall_we_reduce_n_procs(last_n_procs, n_proc_list):
             next_n_procs = int(next_n_procs / float(factor))
 
         def time_to_remove_some_seqs(n_proc_threshold):
@@ -432,8 +434,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def get_n_calculated_per_process(self):
-        if self.bcrham_proc_info is None:
-            return
+        assert self.bcrham_proc_info is not None
 
         total = 0.  # sum over each process
         for procinfo in self.bcrham_proc_info:
@@ -471,7 +472,7 @@ class PartitionDriver(object):
             n_proc_list.append(n_procs)
             if self.are_we_finished_clustering(n_procs, cpath):
                 break
-            n_procs, cpath = self.get_next_n_procs_and_whatnot(n_proc_list, cpath, len(initial_nsets))
+            n_procs, cpath = self.prepare_next_iteration(n_proc_list, cpath, len(initial_nsets))
 
         print '      loop time: %.1f' % (time.time()-start)
         return cpath
@@ -845,6 +846,7 @@ class PartitionDriver(object):
         if step_time - exec_time > 0.1:
             print '         infra time: %.1f' % (step_time - exec_time)  # i.e. time for non-executing, infrastructure time
         print '      hmm step time: %.1f' % step_time
+        self.timing_info.append({'exec' : exec_time, 'total' : step_time})  # NOTE in general, includes pre-cache step
 
         return new_cpath
 

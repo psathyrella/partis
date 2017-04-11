@@ -281,7 +281,8 @@ parent_parser.add_argument('--print-git-commit', action='store_true', help='prin
 
 parent_parser.add_argument('--n-procs', default='1', help='Number of processes over which to parallelize (Can be colon-separated list: first number is procs for hmm, second (should be smaller) is procs for smith-waterman)')
 parent_parser.add_argument('--n-max-procs', default=100, help='Never allow more processes than this (default %(default)d)')
-parent_parser.add_argument('--n-max-to-calc-per-process', default=150, help='if a bcrham process calc\'d more than this many fwd + vtb values (and this is the first time with this number of procs), don\'t decrease the number of processes in the next step (default %(default)d)')
+parent_parser.add_argument('--n-max-to-calc-per-process', default=250, help='if a bcrham process calc\'d more than this many fwd + vtb values (and this is the first time with this number of procs), don\'t decrease the number of processes in the next step (default %(default)d)')
+parent_parser.add_argument('--min-hmm-step-time', default=2., help='if a clustering step takes fewer than this many seconds, always reduce n_procs')
 parent_parser.add_argument('--batch-system', choices=['slurm', 'sge'], help='batch system with which to attempt paralellization')
 parent_parser.add_argument('--batch-options', help='additional options to apply to --batch-system (e.g. --batch-options="--foo bar")')
 parent_parser.add_argument('--batch-config-fname', default='/etc/slurm-llnl/slurm.conf', help='system-wide batch system configuration file name')
