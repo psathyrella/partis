@@ -23,9 +23,11 @@ from clusterpath import ClusterPath
 # ----------------------------------------------------------------------------------------
 class Waterer(object):
     """ Run smith-waterman on the query sequences in <infname> """
-    def __init__(self, args, sw_input_info, reco_info, glfo, count_parameters=False, parameter_out_dir=None, remove_less_likely_alleles=False, find_new_alleles=False, plot_performance=False, simglfo=None, itry=None, duplicates=None):
+    def __init__(self, args, input_info, reco_info, glfo, count_parameters=False, parameter_out_dir=None,
+                 remove_less_likely_alleles=False, find_new_alleles=False, plot_performance=False,
+                 simglfo=None, itry=None, duplicates=None, pre_failed_queries=None):
         self.args = args
-        self.input_info = sw_input_info
+        self.input_info = input_info  # NOTE do *not* modify this, since it's this original input info from partitiondriver
         self.reco_info = reco_info
         self.glfo = glfo
         self.simglfo = simglfo
@@ -36,9 +38,6 @@ class Waterer(object):
         self.max_insertion_length = 35  # if an insertion is longer than this, we skip the proposed annotation (i.e. rerun it)
         self.absolute_max_insertion_length = 120  # but if it's longer than this, we always skip the annotation
 
-        self.remaining_queries = set([q for q in self.input_info.keys()])  # we remove queries from this set when we're satisfied with the current output (in general we may have to rerun some queries with different match/mismatch scores)
-        self.new_indels = 0  # number of new indels that were kicked up this time through
-
         self.match_mismatch = copy.deepcopy(self.args.initial_match_mismatch)  # don't want to modify it!
         self.gap_open_penalty = self.args.gap_open_penalty  # not modifying it now, but just to make sure we don't in the future
 
@@ -48,6 +47,10 @@ class Waterer(object):
         self.info['all_matches'] = {r : set() for r in utils.regions}  # every gene that was *any* match (up to <self.args.n_max_per_region[ireg]>) for at least one query NOTE there is also an 'all_matches' in each query's info
         self.info['indels'] = {}  # NOTE if we find shm indels in a sequence, we store the indel info in here, and rerun sw with the reversed sequence (i.e. <self.info> contains the sw inference on the reversed sequence -- if you want the original sequence, get that from <self.input_info>)
         self.info['mute-freqs'] = None  # kind of hackey... but it's to allow us to keep this info around when we don't want to keep the whole waterer object around, and we don't want to write all the parameters to disk
+        self.info['failed-queries'] = set() if pre_failed_queries is None else copy.deepcopy(pre_failed_queries)  # not really sure about the deepcopy(), but it's probably safer?
+
+        self.remaining_queries = set(self.input_info) - self.info['failed-queries']  # we remove queries from this set when we're satisfied with the current output (in general we may have to rerun some queries with different match/mismatch scores)
+        self.new_indels = 0  # number of new indels that were kicked up this time through
 
         self.nth_try = 1  # arg, this should be zero-indexed like everything else
         self.skipped_unproductive_queries, self.kept_unproductive_queries = set(), set()
@@ -109,7 +112,7 @@ class Waterer(object):
 
         with open(cachefname) as cachefile:
             reader = csv.DictReader(cachefile)
-            for line in reader:
+            for line in reader:  # NOTE failed queries are *not* written to the cache file -- they're assumed to be whatever's in input info that's missing
                 utils.process_input_line(line)
                 assert len(line['unique_ids']) == 1
                 if line['unique_ids'][0] not in self.input_info:
@@ -126,31 +129,34 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def finalize(self, cachefname=None, just_read_cachefile=False):
+        if self.debug:
+            print '%s' % utils.color('green', 'finalizing')
+
+        self.info['failed-queries'] |= set(self.remaining_queries)  # perhaps it doesn't make sense to keep both of 'em around after finishing?
+
         if len(self.info['queries']) == 0:
             print '%s no queries passing smith-waterman, exiting' % utils.color('red', 'warning')
             sys.exit(1)
-        print '      info for %d / %d = %.3f' % (len(self.info['queries']), len(self.input_info), float(len(self.info['queries'])) / len(self.input_info))
+
+        print '      info for %d / %d = %.3f   (%d failed)' % (len(self.info['queries']), len(self.input_info), float(len(self.info['queries'])) / len(self.input_info), len(self.info['failed-queries']))
         if len(self.kept_unproductive_queries) > 0:
             print '      kept %d (%.3f) unproductive' % (len(self.kept_unproductive_queries), float(len(self.kept_unproductive_queries)) / len(self.input_info))
 
-        if just_read_cachefile:  # it's past tense!
-            pass #print ''
-        else:
+        if not just_read_cachefile:  # it's past tense!
             if len(self.skipped_unproductive_queries) > 0:
                 print '         skipped %d unproductive' % len(self.skipped_unproductive_queries)
-            if len(self.remaining_queries) > 0:
-                # printstr = '   %s %d missing %s' % (utils.color('red', 'warning'), len(self.remaining_queries), utils.plural_str('annotation', len(self.remaining_queries)))
-                if len(self.remaining_queries) < 15:
-                    print '            missing annotations: ' + ' '.join(self.remaining_queries)
-            if self.debug and len(self.info['indels']) > 0:
-                print '      indels: %s' % ':'.join(self.info['indels'].keys())
-            assert len(self.info['queries']) + len(self.skipped_unproductive_queries) + len(self.remaining_queries) == len(self.input_info)
-            if self.debug and not self.args.is_data and len(self.remaining_queries) > 0:
-                print 'true annotations for remaining events:'
-                for qry in self.remaining_queries:
-                    utils.print_reco_event(self.reco_info[qry], extra_str='      ', label='true:')
+            if self.debug:
+                if len(self.info['indels']) > 0:
+                    print '      indels: %s' % ':'.join(self.info['indels'].keys())
+                if len(self.info['failed-queries']) > 0:
+                    print '            missing annotations: ' + ' '.join(self.info['failed-queries'])
+                    if not self.args.is_data:
+                        print 'true annotations for remaining events:'
+                        for qry in self.info['failed-queries']:
+                            utils.print_reco_event(self.reco_info[qry], extra_str='      ', label='true:')
 
-        self.info['remaining_queries'] = self.remaining_queries
+            assert len(self.info['queries']) + len(self.skipped_unproductive_queries) + len(self.info['failed-queries']) == len(self.input_info)
+
 
         found_germline_changes = False  # set to true if either alremover or alfinder found changes to the germline info
         if self.alremover is not None:
@@ -197,7 +203,7 @@ class Waterer(object):
             with open(cachefname, 'w') as outfile:
                 writer = csv.DictWriter(outfile, utils.annotation_headers + utils.sw_cache_headers)
                 writer.writeheader()
-                for query in self.info['queries']:
+                for query in self.info['queries']:  # NOTE does *not* write failed queries
                     outline = utils.get_line_for_output(self.info[query])  # convert lists to colon-separated strings and whatnot (doens't modify input dictionary)
                     outline = {k : v for k, v in outline.items() if k in utils.annotation_headers + utils.sw_cache_headers}  # remove the columns we don't want to output
                     writer.writerow(outline)
