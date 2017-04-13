@@ -150,14 +150,14 @@ class PartitionDriver(object):
             if len(expected_genes - genes_with_hmms) > 0:
                 print '  %s %d genes in glfo that don\'t have yamels in %s' % (utils.color('red', 'warning'), len(expected_genes - genes_with_hmms), self.sub_param_dir)
 
-        sw_input_info = self.input_info if self.sw_info is None else {q : self.input_info[q] for q in self.sw_info['queries']}  # pick up info on failed queries if this isn't the first sw run
-        waterer = Waterer(self.args, sw_input_info, self.reco_info, self.glfo,
+        pre_failed_queries = self.sw_info['failed-queries'] if self.sw_info is not None else None  # don't re-run on failed queries if this isn't the first sw run (i.e., if we're parameter caching)
+        waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo,
                           count_parameters=count_parameters,  # (remove_less_likely_alleles or parameter_out_dir is not None),
                           parameter_out_dir=self.sw_param_dir if write_parameters else None,
                           remove_less_likely_alleles=remove_less_likely_alleles,
                           find_new_alleles=find_new_alleles,
                           plot_performance=(self.args.plot_performance and not remove_less_likely_alleles and not find_new_alleles),
-                          simglfo=self.simglfo, itry=itry, duplicates=self.duplicates)
+                          simglfo=self.simglfo, itry=itry, duplicates=self.duplicates, pre_failed_queries=pre_failed_queries)
         cachefname = self.default_sw_cachefname if self.args.sw_cachefname is None else self.args.sw_cachefname
         if not look_for_cachefile and os.path.exists(cachefname):  # i.e. if we're not explicitly told to look for it, and it's there, then it's probably out of date
             print '  removing old sw cache %s' % cachefname.replace('.csv', '')
@@ -296,12 +296,12 @@ class PartitionDriver(object):
                     print '   %s' % ':'.join(line['unique_ids'])
                 else:
                     print ''
-                utils.print_reco_event(line)
+                utils.print_reco_event(line, extra_str='  ')
                 n_queries_read += 1
                 if self.args.n_max_queries > 0 and n_queries_read >= self.args.n_max_queries:
                     break
         if len(failed_queries) > 0:
-            print '%d failed queries' % len(failed_queries)
+            print '\n%d failed queries' % len(failed_queries)
 
     # ----------------------------------------------------------------------------------------
     def view_existing_partitions(self):
@@ -1399,6 +1399,20 @@ class PartitionDriver(object):
             utils.print_reco_event(after_line, extra_str='    ', label='after')
 
     # ----------------------------------------------------------------------------------------
+    def check_for_unexpectedly_missing_keys(self, annotations, hmm_failure_ids):
+        missing_input_keys = set(self.input_info)
+        missing_input_keys -= set([uid for line in  annotations.values() for uid in line['unique_ids']])  # set(self.sw_info['queries'])  # all the queries for which we had decent sw annotations (sw failures are accounted for below)
+        missing_input_keys -= self.sw_info['failed-queries']
+        missing_input_keys -= set([d for dlist in self.sw_info['duplicates'].values() for d in dlist])
+        missing_input_keys -= hmm_failure_ids
+        if self.unseeded_seqs is not None:
+            missing_input_keys -= set(self.unseeded_seqs)
+        if self.small_cluster_seqs is not None:
+            missing_input_keys -= set(self.small_cluster_seqs)
+        if len(missing_input_keys) > 0:
+            print '  %s couldn\'t account for %d missing input uid%s%s' % (utils.color('red', 'warning'), len(missing_input_keys), utils.plural(len(missing_input_keys)), ': %s' % ' '.join(missing_input_keys) if len(missing_input_keys) < 15 else '')
+
+    # ----------------------------------------------------------------------------------------
     def read_annotation_output(self, annotation_fname, outfname=None, count_parameters=False, parameter_out_dir=None, print_annotations=False):
         """ Read bcrham annotation output """
         print '    read output'
@@ -1411,6 +1425,7 @@ class PartitionDriver(object):
         n_lines_read, n_seqs_processed, n_events_processed, n_invalid_events = 0, 0, 0, 0
         at_least_one_mult_hmm_line = False
         eroded_annotations, padded_annotations = OrderedDict(), OrderedDict()
+        hmm_failures = set()  # hm, does this duplicate info I'm already keeping track of in one of these other variables?
         errorfo = {}
         with open(annotation_fname, 'r') as hmm_csv_outfile:
             reader = csv.DictReader(hmm_csv_outfile)
@@ -1421,6 +1436,7 @@ class PartitionDriver(object):
 
                 failed = self.check_did_bcrham_fail(padded_line, errorfo)
                 if failed:
+                    hmm_failures |= set(padded_line['unique_ids'])  # NOTE adds the ids individually (will have to be updated if we start accepting multi-seq input file)
                     continue
 
                 uids = padded_line['unique_ids']
@@ -1438,6 +1454,7 @@ class PartitionDriver(object):
                     if self.args.debug:
                         print '      %s padded line invalid' % uidstr
                         utils.print_reco_event(padded_line, extra_str='    ', label='invalid:')
+                    hmm_failures |= set(padded_line['unique_ids'])  # NOTE adds the ids individually (will have to be updated if we start accepting multi-seq input file)
                     continue
 
                 assert uidstr not in padded_annotations
@@ -1451,6 +1468,7 @@ class PartitionDriver(object):
                     eroded_line = utils.reset_effective_erosions_and_effective_insertions(self.glfo, padded_line, aligned_gl_seqs=self.aligned_gl_seqs)  #, padfo=self.sw_info)
                     if eroded_line['invalid']:  # not really sure why the eroded line is sometimes invalid when the padded line is not, but it's very rare and I don't really care, either
                         n_invalid_events += 1
+                        hmm_failures |= set(eroded_line['unique_ids'])  # NOTE adds the ids individually (will have to be updated if we start accepting multi-seq input file)
                         continue
                     line_to_use = eroded_line
                     eroded_annotations[uidstr] = eroded_line  # these only get used if there aren't any multi-seq lines, so it's ok that they don't all get added if there is a multi seq line
@@ -1488,7 +1506,7 @@ class PartitionDriver(object):
         if perfplotter is not None:
             perfplotter.plot(self.args.plotdir + '/hmm', only_csv=self.args.only_csv_plots)
 
-        print '        processed %d hmm output lines with %d sequences in %d events' % (n_lines_read, n_seqs_processed, n_events_processed)
+        print '        processed %d hmm output lines with %d sequences in %d events  (%d failures)' % (n_lines_read, n_seqs_processed, n_events_processed, len(hmm_failures))
         if n_invalid_events > 0:
             print '            %s skipped %d invalid events' % (utils.color('red', 'warning'), n_invalid_events)
         for ecode in errorfo:
@@ -1503,9 +1521,11 @@ class PartitionDriver(object):
 
         annotations_to_use = padded_annotations if at_least_one_mult_hmm_line else eroded_annotations  # if every query is a single-sequence query, then the output will be less confusing to people if the N padding isn't there. But you kinda need the padding in order to make the multi-seq stuff work
 
+        self.check_for_unexpectedly_missing_keys(annotations_to_use, hmm_failures)  # NOTE not sure if it's really correct to use <annotations_to_use>, [maybe since <hmm_failures> has ones that failed the conversion to eroded line (and maybe other reasons)]
+
         # write output file
         if outfname is not None:
-            self.write_annotations(annotations_to_use, outfname)  # [0] takes the best annotation... if people want other ones later it's easy to change
+            self.write_annotations(annotations_to_use, outfname, hmm_failures)  # [0] takes the best annotation... if people want other ones later it's easy to change
 
         # annotation (VJ CDR3) clustering
         if self.args.annotation_clustering is not None:
@@ -1558,7 +1578,7 @@ class PartitionDriver(object):
         utils.print_reco_event(line, extra_str='    ', label=label, seed_uid=self.args.seed_unique_id)
 
     # ----------------------------------------------------------------------------------------
-    def write_annotations(self, annotations, outfname):
+    def write_annotations(self, annotations, outfname, hmm_failures):
         outpath = outfname
         if outpath[0] != '/':  # if full output path wasn't specified on the command line, write to current directory
             outpath = os.getcwd() + '/' + outpath
@@ -1566,32 +1586,19 @@ class PartitionDriver(object):
         with open(outpath, 'w') as outfile:
             writer = csv.DictWriter(outfile, utils.annotation_headers)
             writer.writeheader()
-            missing_input_keys = set(self.sw_info['queries'])  # all the queries for which we had decent sw annotations
-            if self.unseeded_seqs is not None:
-                missing_input_keys -= set(self.unseeded_seqs)
-            if self.small_cluster_seqs is not None:
-                missing_input_keys -= set(self.small_cluster_seqs)
-
+            # hmm annotations
             for line in annotations.values():
-                for uid in line['unique_ids']:  # make a note that we have an annotation for these uids (so we can see if there's any that we're missing)
-                    if uid in missing_input_keys:
-                        missing_input_keys.remove(uid)
-                    else:
-                        print '%s uid %s not found in missing_input_keys'  % (utils.color('red', 'warning'), uid)
-
                 outline = utils.get_line_for_output(line)  # convert lists to colon-separated strings and whatnot (doesn't modify <line>
                 outline = {k : v for k, v in outline.items() if k in utils.annotation_headers}  # remove the columns we don't want to output
-
                 writer.writerow(outline)
 
-            # and write empty lines for seqs that failed either in sw or the hmm
-            if len(missing_input_keys) > 0:
-                print '          missing %d input keys when writing hmm output to %s' % (len(missing_input_keys), outfname)
-                for uid in missing_input_keys:
-                    col = 'unique_ids'
-                    writer.writerow({col : uid})
+            # write empty lines for seqs that failed either in sw or the hmm
+            for fid in self.sw_info['failed-queries'] | hmm_failures:  # both use single-seq ids a.t.m.
+                writer.writerow({'unique_ids' : fid, 'input_seqs' : ':'.join([self.input_info[f]['seqs'][0] for f in fid.split(':')])})  # .split() stuff is to handle in the future multi-seq ids
 
+        # presto!
         if self.args.presto_output:
+            raise Exception('needs updating')
             outstr = check_output(['mv', '-v', self.args.outfname, self.args.outfname + '.partis'])
             print '    backing up partis output before converting to presto: %s' % outstr.strip()
 

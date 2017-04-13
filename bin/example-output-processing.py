@@ -15,6 +15,8 @@ print 'first parse an annotation csv file:'
 with open(partis_path + '/test/reference-results/annotate-new-simu.csv') as csvfile:
     reader = csv.DictReader(csvfile)
     for line in reader:
+        if line['v_gene'] == '':  # failed (i.e. couldn't find an annotation)
+            continue
         utils.process_input_line(line)
         utils.add_implicit_info(glfo, line)
         utils.print_reco_event(line)

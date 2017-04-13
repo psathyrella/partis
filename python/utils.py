@@ -875,6 +875,9 @@ def process_per_gene_support(line, debug=False):
 def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False):  # should turn on <check_line_keys> for a bit if you change anything
     """ Add to <line> a bunch of things that are initially only implicit. """
 
+    if line['v_gene'] == '':
+        raise Exception('can\'t add implicit info to line with failed annotation:\n%s' % (''.join(['  %+20s  %s\n' % (k, v) for k, v in line.items()])))
+
     if check_line_keys:
         initial_keys = set(line)
         # first make sure there aren't any unauthorized keys
@@ -1351,6 +1354,9 @@ def process_input_line(info, hmm_cachefile=False):
     Attempt to convert all the keys and values in <info> according to the specifications in <column_configs> (e.g. splitting lists, casting to int/float, etc).
     """
 
+    if info['v_gene'] == '':
+        return
+
     if 'seq' in info:  # old simulation files
         for key in ['unique_id', 'seq', 'indelfo']:
             if key not in info:
@@ -1377,10 +1383,6 @@ def process_input_line(info, hmm_cachefile=False):
     if 'indel_reversed_seqs' in info and 'input_seqs' in info:  # new-style csv output and simulation files, i.e. it stores 'indel_reversed_seqs' instead of 'seqs'
         if info['indel_reversed_seqs'] == '':
             info['indel_reversed_seqs'] = ['' for _ in range(len(info['unique_ids']))]
-        for tmpkey in ['indel_reversed_seqs', 'input_seqs']:
-            if len(info[tmpkey]) != len(info['unique_ids']):
-                print 'not the right length: %20s (%d): %s' % (tmpkey, len(info[tmpkey]), info[tmpkey])
-                print '                      %20s (%d)' % ('unique_ids', len(info['unique_ids']))
         info['seqs'] = [info['indel_reversed_seqs'][iseq] if info['indel_reversed_seqs'][iseq] != '' else info['input_seqs'][iseq] for iseq in range(len(info['unique_ids']))]  # if there's no indels, we just store 'input_seqs' and leave 'indel_reversed_seqs' empty
     elif 'seqs' in info:  # old-style csv output file: just copy 'em into the explicit name
         info['indel_reversed_seqs'] = info['seqs']
