@@ -1354,7 +1354,7 @@ def process_input_line(info, hmm_cachefile=False):
     Attempt to convert all the keys and values in <info> according to the specifications in <column_configs> (e.g. splitting lists, casting to int/float, etc).
     """
 
-    if info['v_gene'] == '':
+    if 'v_gene' in info and info['v_gene'] == '':
         return
 
     if 'seq' in info:  # old simulation files
