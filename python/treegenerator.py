@@ -188,46 +188,32 @@ class TreeGenerator(object):
         if os.path.exists(outfname):
             os.remove(outfname)
 
-        # build up the R command line
-        r_command = 'R --slave'
-        if self.tree_generator == 'ape':
-            assert False  # needs updating
-            # r_command += ' -e \"'
-            # r_command += 'library(ape); '
-            # r_command += 'set.seed(0); '
-            # r_command += 'for (itree in 1:' + str(self.args.n_trees)+ ') { write.tree(rtree(' + str(self.args.n_leaves) + ', br = rexp, rate = 10), \'test.tre\', append=TRUE) }'
-            # r_command += '\"'
-            # check_call(r_command, shell=True)
-        elif self.tree_generator == 'TreeSim':
-            # from docs:
-            #   frac: each tip is included into the final tree with probability frac
-            #   age: the time since origin / most recent common ancestor
-            #   mrca: if FALSE, time since the origin of the process, else time since the most recent common ancestor of the sampled species.
-            speciation_rate = '1'
-            extinction_rate = '0.5'
-            n_trees_each_run = '1'
-            # build command line, one (painful) tree at a time
-            with tempfile.NamedTemporaryFile() as commandfile:
-                commandfile.write('require(TreeSim, quietly=TRUE)\n')
-                commandfile.write('set.seed(' + str(seed)+ ')\n')
-                ages, lonely_leaves = [], []  # keep track of which trees should have one leaft, so we can go back and add them later in the proper spots
-                for itree in range(self.args.n_trees):
-                    n_leaves = self.get_n_leaves()
-                    age = self.choose_mean_branch_length()
-                    ages.append(age)
-                    if n_leaves == 1:  # TODO doesn't work yet
-                        lonely_leaves.append(True)
-                        continue
-                    lonely_leaves.append(False)
-                    commandfile.write('trees <- sim.bd.taxa.age(' + str(n_leaves) + ', ' + n_trees_each_run + ', ' + speciation_rate + ', ' + extinction_rate + ', frac=1, age=' + str(age) + ', mrca = FALSE)\n')
-                    commandfile.write('write.tree(trees[[1]], \"' + outfname + '\", append=TRUE)\n')
-                r_command += ' -f ' + commandfile.name
-                commandfile.flush()
-                if lonely_leaves.count(True) == len(ages):
-                    open(outfname, 'w').close()
-                else:
-                    check_call(r_command, shell=True)
-            self.add_branch_lengths_and_things(outfname, lonely_leaves, ages)
-            self.check_tree_lengths(outfname, ages)
-        else:
-            assert False
+        # from TreeSim docs:
+        #   frac: each tip is included into the final tree with probability frac
+        #   age: the time since origin / most recent common ancestor
+        #   mrca: if FALSE, time since the origin of the process, else time since the most recent common ancestor of the sampled species.
+        speciation_rate = '1'
+        extinction_rate = '0.5'
+        n_trees_each_run = '1'
+        # build command file, one (painful) tree at a time
+        with tempfile.NamedTemporaryFile() as commandfile:
+            commandfile.write('require(TreeSim, quietly=TRUE)\n')
+            commandfile.write('set.seed(' + str(seed)+ ')\n')
+            ages, lonely_leaves = [], []  # keep track of which trees should have one leaft, so we can go back and add them later in the proper spots
+            for itree in range(self.args.n_trees):
+                n_leaves = self.get_n_leaves()
+                age = self.choose_mean_branch_length()
+                ages.append(age)
+                if n_leaves == 1:  # TODO doesn't work yet
+                    lonely_leaves.append(True)
+                    continue
+                lonely_leaves.append(False)
+                commandfile.write('trees <- sim.bd.taxa.age(' + str(n_leaves) + ', ' + n_trees_each_run + ', ' + speciation_rate + ', ' + extinction_rate + ', frac=1, age=' + str(age) + ', mrca = FALSE)\n')
+                commandfile.write('write.tree(trees[[1]], \"' + outfname + '\", append=TRUE)\n')
+            commandfile.flush()
+            if lonely_leaves.count(True) == len(ages):
+                open(outfname, 'w').close()
+            else:
+                check_call('R --slave -f ' + commandfile.name, shell=True)
+        self.add_branch_lengths_and_things(outfname, lonely_leaves, ages)
+        self.check_tree_lengths(outfname, ages)
