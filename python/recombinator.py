@@ -11,9 +11,6 @@ import os
 import re
 from subprocess import check_output
 
-from Bio import Phylo
-import dendropy
-
 import paramutils
 import utils
 import glutils
@@ -591,9 +588,11 @@ class Recombinator(object):
             branch_length_ratios[region] = ratio
 
         if self.args.debug:  # NOTE should be the same for t[0-9]... but I guess I should check at some point
+            if 'Phylo' not in sys.modules:
+                from Bio import Phylo
             print '  using tree with total depth %f' % treegenerator.get_leaf_node_depths(chosen_tree)['t1']  # kind of hackey to just look at t1, but they're all the same anyway and it's just for printing purposes...
             if len(re.findall('t', chosen_tree)) > 1:  # if more than one leaf
-                Phylo.draw_ascii(Phylo.read(StringIO(chosen_tree), 'newick'))
+                sys.modules['Bio.Phylo'].draw_ascii(sys.modules['Bio.Phylo'].read(StringIO(chosen_tree), 'newick'))
             else:
                 print '    one leaf'
             print '    with branch length ratios ', ', '.join(['%s %f' % (region, branch_length_ratios[region]) for region in utils.regions])
@@ -640,7 +639,9 @@ class Recombinator(object):
         with open(os.devnull, 'w') as fnull:
             inferred_tree_str = check_output('FastTree -gtr -nt ' + leaf_seq_fname, shell=True, stderr=fnull)
         os.remove(leaf_seq_fname)
-        chosen_tree = dendropy.Tree.get_from_string(chosen_tree_str, 'newick')
-        inferred_tree = dendropy.Tree.get_from_string(inferred_tree_str, 'newick')
+        if 'dendropy' not in sys.modules:
+            import dendropy
+        chosen_tree = sys.modules['dendropy'].Tree.get_from_string(chosen_tree_str, 'newick')
+        inferred_tree = sys.modules['dendropy'].Tree.get_from_string(inferred_tree_str, 'newick')
         if self.args.debug:
             print '        tree diff -- symmetric %d   euke %f   rf %f' % (chosen_tree.symmetric_difference(inferred_tree), chosen_tree.euclidean_distance(inferred_tree), chosen_tree.robinson_foulds_distance(inferred_tree))

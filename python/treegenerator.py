@@ -224,7 +224,6 @@ class TreeGenerator(object):
                 r_command += ' -f ' + commandfile.name
                 commandfile.flush()
                 if lonely_leaves.count(True) == len(ages):
-                    # print '  all lonely leaves'
                     open(outfname, 'w').close()
                 else:
                     check_call(r_command, shell=True)
