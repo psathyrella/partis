@@ -4,7 +4,6 @@ import csv
 import time
 import json
 import random
-from cStringIO import StringIO
 import treegenerator
 import numpy
 import os
@@ -487,28 +486,15 @@ class Recombinator(object):
         return mutated_seqs
 
     # ----------------------------------------------------------------------------------------
-    def get_rescaled_trees(self, treestr, branch_length_ratios, debug=False):
+    def get_rescaled_trees(self, treestr, new_heights):
         """
         Trees are generated with the mean branch length observed in data over the whole sequence, because we want to use topologically
         the same tree for the whole sequence. But we observe different branch lengths for each region, so we need to rescale the tree for
         v, d, and j
         """
         rescaled_trees = {}
-        if debug:
-            print '      rescaling tree:'
         for region in utils.regions:
-            # rescale the tree
-            rescaled_trees[region] = treegenerator.rescale_tree(treestr, branch_length_ratios[region])
-            if debug:
-                print '         %s by %f (new depth %f): %s -> %s' % (region, branch_length_ratios[region], treegenerator.get_leaf_node_depths(rescaled_trees[region])['t1'], treestr, rescaled_trees[region])
-
-            # and then check it NOTE can remove this eventually
-            initial_depths = {}
-            for node, depth in treegenerator.get_leaf_node_depths(treestr).items():
-                initial_depths[node] = depth
-            for node, depth in treegenerator.get_leaf_node_depths(rescaled_trees[region]).items():
-                depth_ratio = depth / initial_depths[node]
-                assert utils.is_normed(depth_ratio / branch_length_ratios[region], this_eps=1e-6)
+            rescaled_trees[region] = treegenerator.rescale_tree(treestr, new_heights[region])
         return rescaled_trees
 
     # ----------------------------------------------------------------------------------------
@@ -576,7 +562,8 @@ class Recombinator(object):
 
         chosen_treeinfo = self.treeinfo[random.randint(0, len(self.treeinfo)-1)]
         chosen_tree = chosen_treeinfo.split(';')[0] + ';'
-        branch_length_ratios = {}  # NOTE a.t.m (and probably permanently) the mean branch lengths for each region are the *same* for all the trees in the file, I just don't have a better place to put them while I'm passing from TreeGenerator to here than at the end of each line in the file
+        chosen_height = treegenerator.get_mean_height(chosen_tree)
+        new_heights = {}  # NOTE a.t.m (and probably permanently) the mean branch lengths for each region are the *same* for all the trees in the file, I just don't have a better place to put them while I'm passing from TreeGenerator to here than at the end of each line in the file
         for tmpstr in chosen_treeinfo.split(';')[1].split(','):  # looks like e.g.: (t2:0.003751736951,t1:0.003751736951):0.001248262937;v:0.98,d:1.8,j:0.87, where the newick trees has branch lengths corresponding to the whole sequence  (i.e. the weighted mean of v, d, and j)
             region = tmpstr.split(':')[0]
             assert region in utils.regions
@@ -585,19 +572,14 @@ class Recombinator(object):
                 # if self.args.debug:
                 # print '    adding branch length factor %f ' % self.args.mutation_multiplier
                 ratio *= self.args.mutation_multiplier
-            branch_length_ratios[region] = ratio
+            new_heights[region] = chosen_height * ratio
 
         if self.args.debug:  # NOTE should be the same for t[0-9]... but I guess I should check at some point
-            if 'Phylo' not in sys.modules:
-                from Bio import Phylo
             print '  using tree with total depth %f' % treegenerator.get_leaf_node_depths(chosen_tree)['t1']  # kind of hackey to just look at t1, but they're all the same anyway and it's just for printing purposes...
-            if len(re.findall('t', chosen_tree)) > 1:  # if more than one leaf
-                sys.modules['Bio.Phylo'].draw_ascii(sys.modules['Bio.Phylo'].read(StringIO(chosen_tree), 'newick'))
-            else:
-                print '    one leaf'
-            print '    with branch length ratios ', ', '.join(['%s %f' % (region, branch_length_ratios[region]) for region in utils.regions])
+            treegenerator.print_ascii_tree(chosen_tree)
+            print '    with new height ', ', '.join(['%s %f' % (region, new_heights[region]) for region in utils.regions])
 
-        scaled_trees = self.get_rescaled_trees(chosen_tree, branch_length_ratios)
+        scaled_trees = self.get_rescaled_trees(chosen_tree, new_heights)
         treg = re.compile('t[0-9][0-9]*')
         n_leaf_nodes = len(treg.findall(chosen_tree))
         cmdfos = []

@@ -11,36 +11,91 @@ import math
 from cStringIO import StringIO
 import tempfile
 from subprocess import check_call
-from Bio import Phylo
+import baltic
+
 from hist import Hist
 import utils
 
+# ----------------------------------------------------------------------------------------
+def print_ascii_tree(treestr):
+    if 'Bio.Phylo' not in sys.modules:
+        from Bio import Phylo
+    if len(re.findall('t', treestr)) > 1:  # if more than one leaf
+        sys.modules['Bio.Phylo'].draw_ascii(sys.modules['Bio.Phylo'].read(StringIO(treestr), 'newick'), column_width=80)
+    else:
+        print '    one leaf'
+
+# ----------------------------------------------------------------------------------------
+class TinyLeaf(object):
+    def __init__(self, name, length, height):
+        self.name = name
+        self.numName = self.name
+        self.length = length
+        self.height = height
+        self.branchType = 'leaf'
+
+# ----------------------------------------------------------------------------------------
+class OneLeafTree(object):
+    def __init__(self, name, height):
+        self.leaves = [TinyLeaf(name, height, height)]
+        self.Objects = self.leaves
+    def traverse_tree(self):
+        self.leaves[0].height = self.leaves[0].length
+    def toString(self, numName=None):
+        return '%s:%.15f;' % (self.leaves[0].name, self.leaves[0].length)
+
+# ----------------------------------------------------------------------------------------
+def get_btree(treestr):
+    if treestr.count(':') == 1:  # one-leaf tree
+        name, lengthstr = treestr.strip().rstrip(';').split(':')
+        tree = OneLeafTree(name, float(lengthstr))
+    else:
+        tree = baltic.tree()
+        baltic.make_tree(treestr, tree, verbose=False)
+    tree.traverse_tree()
+    return tree
 
 # ----------------------------------------------------------------------------------------
 def get_leaf_node_depths(treestr):
-    """ return mapping from leaf node names to depths """
-    tree = Phylo.read(StringIO(treestr), 'newick')
-    nodes = {}
-    for tclade in tree.get_terminals():
-        length = tree.distance(tclade.name) + tree.root.branch_length
-        nodes[tclade.name] = length
-    return nodes
+    tree = get_btree(treestr)
+    return {l.numName : l.height for l in tree.leaves}
 
 # ----------------------------------------------------------------------------------------
-def rescale_tree(treestr, factor):
+def get_mean_height(treestr):
+    tree = get_btree(treestr)
+    heights = [l.height for l in tree.leaves]
+    mean_height = sum(heights) / len(heights)
+    return mean_height
+
+# ----------------------------------------------------------------------------------------
+def rescale_tree(treestr, new_height, debug=False):
     """ 
     Rescale the branch lengths in <treestr> (newick-formatted) by <factor>
     I.e. multiply each float in <treestr> by <factor>.
     """
-    for match in re.findall('[0-9]*\.[0-9][0-9]*', treestr):
-        treestr = treestr.replace(match, str(factor*float(match)))
+
+    tree = get_btree(treestr)
+    mean_height = get_mean_height(treestr)
+    for ln in tree.Objects:
+        old_length = ln.length
+        ln.length *= new_height / mean_height  # everybody's heights should be the same... but they never quite were when I was using Bio.Phylo, so, uh. yeah, uh. not sure what to do
+        if debug:
+            print '  %5s  %7e  -->  %7e' % (ln.numName if ln.branchType == 'leaf' else ln.branchType, old_length, ln.length)
+    if len(tree.leaves) > 1:
+        tree.traverse_tree()
+    treestr = tree.toString(numName=True)
+    for leaf in get_btree(treestr).leaves:
+        if not utils.is_normed(leaf.height / new_height, this_eps=1e-8):
+            raise Exception('tree not rescaled properly:   %.10f   %.10f    %e' % (leaf.height, new_height, (leaf.height - new_height) / new_height))
     return treestr
 
 # ----------------------------------------------------------------------------------------
 class TreeGenerator(object):
     def __init__(self, args, parameter_dir, seed):
         self.args = args
+# ----------------------------------------------------------------------------------------
         self.tree_generator = 'TreeSim'  # other option: ape
+# ----------------------------------------------------------------------------------------
         self.branch_lengths = {}
         self.branch_lengths = self.read_mute_freqs(parameter_dir)  # for each region (and 'all'), a list of branch lengths and a list of corresponding probabilities (i.e. two lists: bin centers and bin contents). Also, the mean of the hist.
         random.seed(seed)
@@ -107,26 +162,48 @@ class TreeGenerator(object):
         return branch_lengths
 
     #----------------------------------------------------------------------------------------
-    def add_branch_lengths_and_things(self, treefname, lonely_leaves, ages):
+    def post_process_trees(self, treefname, lonely_leaves, ages):
         """ 
         Each tree is written with branch length the mean branch length over the whole sequence
         So we need to add the length for each region afterward, so each line looks e.g. like
         (t2:0.003751736951,t1:0.003751736951):0.001248262937;v:0.98,d:1.8,j:0.87
         """
+
         # first read the newick info for each tree
         with open(treefname, 'r') as treefile:
-            treestrings = treefile.readlines()
-        # then add the region-specific branch info
-        length_list = ['%s:%f'% (region, self.branch_lengths[region]['mean'] / self.branch_lengths['all']['mean']) for region in utils.regions]
+            treestrs = treefile.readlines()
         for itree in range(len(ages)):
             if lonely_leaves[itree]:
-                treestrings.insert(itree, 't1:%f;\n' % ages[itree])
-            treestrings[itree] = treestrings[itree].replace(';', ';' + ','.join(length_list))
-        # and finally write out the final lines
+                treestrs.insert(itree, 't1:%f;\n' % ages[itree])
+
+        # rescale branch lengths (TreeSim lets you specify the number of leaves and the height at the same time, but TreeSimGM doesn't, and TreeSim's numbers are usually a little off anyway... so we rescale everybody)
+        if len(treestrs) != len(ages):
+            raise Exception('expected %d trees, but read %d from %s' % (len(ages), len(treestrs), treefname))
+        for itree in range(len(ages)):
+            treestrs[itree] = rescale_tree(treestrs[itree], ages[itree])
+
+        if self.args.debug:
+            if self.args.debug > 1:
+                print '        n-leaves       height'
+            heights, n_leaves = [], []  # just for debug printing
+            for itree in range(len(ages)):
+                tree = get_btree(treestrs[itree])
+                heights.append(sum([l.height for l in tree.leaves]) / len(tree.leaves))  # mean height -- should be the same for all of them though
+                n_leaves.append(len(tree.leaves))
+                if self.args.debug > 1:
+                    print '       %5d         %8.6f' % (n_leaves[-1], heights[-1])
+            print '    mean over %d trees:   depth %.5f   n-leaves %.2f' % (len(heights), sum(heights) / len(heights), float(sum(n_leaves)) / len(n_leaves))
+
+        # then add the region-specific branch info
+        length_list = ['%s:%f' % (region, self.branch_lengths[region]['mean'] / self.branch_lengths['all']['mean']) for region in utils.regions]
+        for itree in range(len(ages)):
+            treestrs[itree] = treestrs[itree].replace(';', ';' + ','.join(length_list))
+
+        # and finally write the modified lines
         with open(treefname, 'w') as treefile:
-            for line in treestrings:
-                treefile.write(line)
-                
+            for line in treestrs:
+                treefile.write(line + '\n')
+
     #----------------------------------------------------------------------------------------
     def choose_mean_branch_length(self):
         """ mean for entire sequence, i.e. weighted average over v, d, and j """
@@ -139,32 +216,6 @@ class TreeGenerator(object):
                 
         assert False  # shouldn't fall through to here
     
-    # ----------------------------------------------------------------------------------------
-    def check_tree_lengths(self, treefname, ages):
-        treestrs = []
-        with open(treefname, 'r') as treefile:
-            for line in treefile:
-                treestrs.append(line.split(';')[0] + ';')  # ignore the info I added after the ';'
-        if self.args.debug > 1:
-            print '  checking branch lengths... '
-        assert len(treestrs) == len(ages)
-        total_length, total_leaves = 0.0, 0
-        for itree in range(len(ages)):
-            if self.args.debug > 1:
-                print '    asked for', ages[itree],
-            for name, depth in get_leaf_node_depths(treestrs[itree]).items():
-                if self.args.debug > 1:
-                    print '%s:%.8f' % (name, depth),
-                if not utils.is_normed(depth / ages[itree], this_eps=1e-4):
-                    raise Exception('asked for branch length %.8f but got %.8f\n   %s' % (ages[itree], depth, treestrs[itree]))  # ratio of <age> (requested length) and <length> (length in the tree file) should be 1 within float precision
-            total_length += ages[itree]
-            total_leaves += len(re.findall('t', treestrs[itree]))
-            if self.args.debug > 1:
-                print ''
-        if self.args.debug:
-            print '    mean branch length %.5f' % (total_length / len(ages))
-            print '    mean n leaves %.2f' % (float(total_leaves) / len(ages))
-
     # ----------------------------------------------------------------------------------------
     def get_n_leaves(self):
         if self.args.constant_number_of_leaves:
@@ -197,23 +248,27 @@ class TreeGenerator(object):
         n_trees_each_run = '1'
         # build command file, one (painful) tree at a time
         with tempfile.NamedTemporaryFile() as commandfile:
-            commandfile.write('require(TreeSim, quietly=TRUE)\n')
+            # commandfile.write('require(TreeSim, quietly=TRUE)\n')
+            commandfile.write('require(TreeSimGM, quietly=TRUE)\n')
             commandfile.write('set.seed(' + str(seed)+ ')\n')
             ages, lonely_leaves = [], []  # keep track of which trees should have one leaft, so we can go back and add them later in the proper spots
             for itree in range(self.args.n_trees):
                 n_leaves = self.get_n_leaves()
                 age = self.choose_mean_branch_length()
                 ages.append(age)
-                if n_leaves == 1:  # TODO doesn't work yet
+                if n_leaves == 1:
                     lonely_leaves.append(True)
                     continue
                 lonely_leaves.append(False)
-                commandfile.write('trees <- sim.bd.taxa.age(' + str(n_leaves) + ', ' + n_trees_each_run + ', ' + speciation_rate + ', ' + extinction_rate + ', frac=1, age=' + str(age) + ', mrca = FALSE)\n')
+                # commandfile.write('trees <- sim.bd.taxa.age(' + str(n_leaves) + ', ' + n_trees_each_run + ', ' + speciation_rate + ', ' + extinction_rate + ', frac=1, age=' + str(age) + ', mrca = FALSE)\n')
+                commandfile.write('trees <- sim.taxa(numbsim=' + n_trees_each_run + ', ' + 'n=' + str(n_leaves) + ', distributionspname="rweibull", distributionspparameters=c(0.1, 1), labellivingsp="t")\n')
                 commandfile.write('write.tree(trees[[1]], \"' + outfname + '\", append=TRUE)\n')
             commandfile.flush()
+            # print '---'
+            # check_call(['cat', commandfile.name])
+            # print '---'
             if lonely_leaves.count(True) == len(ages):
                 open(outfname, 'w').close()
             else:
                 check_call('R --slave -f ' + commandfile.name, shell=True)
-        self.add_branch_lengths_and_things(outfname, lonely_leaves, ages)
-        self.check_tree_lengths(outfname, ages)
+        self.post_process_trees(outfname, lonely_leaves, ages)

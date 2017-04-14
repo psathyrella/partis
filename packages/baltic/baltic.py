@@ -613,9 +613,9 @@ class tree: ## tree class
                         if len(comment)>0:
                             comment=','.join(comment)
                             comment='[&'+comment+']'
-                            tree_string.append(')%s:%8f'%(comment,cur_node.length)) ## end of node, add branch length with annotations
+                            tree_string.append(')%s:%.15f'%(comment,cur_node.length)) ## end of node, add branch length with annotations
                         else:
-                            tree_string.append('):%8f'%(cur_node.length)) ## end of node, add branch length
+                            tree_string.append('):%.15f'%(cur_node.length)) ## end of node, add branch length
                         cur_node=cur_node.parent ## go back
                         
                 seen.append(cur_node.index)
@@ -656,9 +656,9 @@ class tree: ## tree class
                         if len(comment)>0:
                             comment=','.join(comment) ## join up traits with commas
                             comment='[&'+comment+']' ## add starting and end bracket
-                            tree_string.append('\'%s\'%s:%8f'%(treeName,comment,cur_node.length)) ## dealing with tip, write out name, add branch length with annotation
+                            tree_string.append('\'%s\'%s:%.15f'%(treeName,comment,cur_node.length)) ## dealing with tip, write out name, add branch length with annotation
                         else:
-                            tree_string.append('\'%s\':%8f'%(treeName,cur_node.length)) ## dealing with tip, write out name, add branch length
+                            tree_string.append('\'%s\':%.15f'%(treeName,cur_node.length)) ## dealing with tip, write out name, add branch length
                     
                 else: ## all children seen, clade's end
                     comment=[]
@@ -680,9 +680,9 @@ class tree: ## tree class
                     if len(comment)>0:
                         comment=','.join(comment)
                         comment='[&'+comment+']'
-                        tree_string.append(')%s:%8f'%(comment,cur_node.length))
+                        tree_string.append(')%s:%.15f'%(comment,cur_node.length))
                     else:
-                        tree_string.append('):%8f'%(cur_node.length))
+                        tree_string.append('):%.15f'%(cur_node.length))
                     cur_node=cur_node.parent
                 
             elif cur_node.branchType=='leaf':
