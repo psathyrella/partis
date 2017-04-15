@@ -92,13 +92,7 @@ def rescale_tree(treestr, new_height, debug=False):
 class TreeGenerator(object):
     def __init__(self, args, parameter_dir, seed):
         self.args = args
-# ----------------------------------------------------------------------------------------
-        self.tree_generator = 'TreeSim'  # other option: ape
-# ----------------------------------------------------------------------------------------
-        self.branch_lengths = {}
         self.branch_lengths = self.read_mute_freqs(parameter_dir)  # for each region (and 'all'), a list of branch lengths and a list of corresponding probabilities (i.e. two lists: bin centers and bin contents). Also, the mean of the hist.
-        random.seed(seed)
-        numpy.random.seed(seed)
         if self.args.debug:
             print 'generating %d trees from %s' % (self.args.n_trees, parameter_dir),
             if self.args.constant_number_of_leaves:
