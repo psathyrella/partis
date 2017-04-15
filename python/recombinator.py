@@ -62,7 +62,7 @@ class Recombinator(object):
                 self.mute_models[region][model][parameter_name] = line['value']
         treegen = treegenerator.TreeGenerator(args, self.parameter_dir, seed=seed)
         self.treefname = self.workdir + '/trees.tre'
-        treegen.generate_trees(seed, self.treefname)
+        treegen.generate_trees(seed, self.treefname)  # NOTE not really a newick file, since I hack on the per-region branch length info at the end of each line
         with open(self.treefname, 'r') as treefile:  # read in the trees (and other info) that we just generated
             self.treeinfo = treefile.readlines()
         os.remove(self.treefname)
