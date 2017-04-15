@@ -548,46 +548,53 @@ class Recombinator(object):
             reco_event.indelfos = [utils.get_empty_indel() for _ in range(len(reco_event.final_seqs))]
             return
 
-        chosen_treeinfo = self.treeinfo[random.randint(0, len(self.treeinfo)-1)]
-        chosen_tree = chosen_treeinfo.split(';')[0] + ';'
+        # When generating trees, each tree's number of leaves and total depth are chosen from the specified distributions (a.t.m., by default n-leaves is from a geometric/zipf, and depth is from data)
+        # This chosen depth corresponds to the sequence-wide mutation frequency.
+        # In order to account for varying mutation rates in v, d, and j we simulate these regions separately, by appropriately rescaling the tree for each region.
+        # i.e.: here we get the sequence-wide mute freq from the tree, and rescale it by the repertoire-wide ratios from data (which are stored in the tree file).
+        # looks like e.g.: (t2:0.003751736951,t1:0.003751736951):0.001248262937;v:0.98,d:1.8,j:0.87, where the newick trees has branch lengths corresponding to the whole sequence  (i.e. the weighted mean of v, d, and j)
+        # NOTE a.t.m (and probably permanently) the mean branch lengths for each region are the same for all the trees in the file, I just don't have a better place to put them while I'm passing from TreeGenerator to here than at the end of each line in the file
+        treefostr = self.treeinfo[random.randint(0, len(self.treeinfo)-1)]  # per-region mutation info is tacked on after the tree... sigh. kind of hackey but works ok.
+        assert treefostr.count(';') == 1
+        isplit = treefostr.find(';') + 1
+        chosen_tree = treefostr[:isplit]  # includes semi-colon
+        mutefo = [rstr for rstr in treefostr[isplit:].split(',')]
         chosen_height = treegenerator.get_mean_height(chosen_tree)
-        new_heights = {}  # NOTE a.t.m (and probably permanently) the mean branch lengths for each region are the *same* for all the trees in the file, I just don't have a better place to put them while I'm passing from TreeGenerator to here than at the end of each line in the file
-        for tmpstr in chosen_treeinfo.split(';')[1].split(','):  # looks like e.g.: (t2:0.003751736951,t1:0.003751736951):0.001248262937;v:0.98,d:1.8,j:0.87, where the newick trees has branch lengths corresponding to the whole sequence  (i.e. the weighted mean of v, d, and j)
-            region = tmpstr.split(':')[0]
+        new_heights = {}
+        for tmpstr in mutefo:
+            region, ratio = tmpstr.split(':')
             assert region in utils.regions
-            ratio = float(tmpstr.split(':')[1])
+            ratio = float(ratio)
             if self.args.mutation_multiplier is not None:  # multiply the branch lengths by some factor
-                # if self.args.debug:
-                # print '    adding branch length factor %f ' % self.args.mutation_multiplier
                 ratio *= self.args.mutation_multiplier
             new_heights[region] = chosen_height * ratio
 
-        if self.args.debug:  # NOTE should be the same for t[0-9]... but I guess I should check at some point
-            print '  using tree with total depth %f' % treegenerator.get_leaf_node_depths(chosen_tree)['t1']  # kind of hackey to just look at t1, but they're all the same anyway and it's just for printing purposes...
-            treegenerator.print_ascii_tree(chosen_tree)
-            print '    with new height ', ', '.join(['%s %f' % (region, new_heights[region]) for region in utils.regions])
+        scaled_trees = {r : treegenerator.rescale_tree(chosen_tree, new_heights[r]) for r in utils.regions}
 
-        scaled_trees = {r : treegenerator.rescale_tree(chosen_tree, new_heights[region]) for r in utils.regions}  # Trees are generated with the mean branch length observed in data over the whole sequence, because we want to use topologically the same tree for the whole sequence. But we observe different branch lengths for each region, so we need to rescale the tree for v, d, and j
-        treg = re.compile('t[0-9][0-9]*')
-        n_leaf_nodes = len(treg.findall(chosen_tree))
+        if self.args.debug:
+            print '  chose tree with total height %f' % treegenerator.get_mean_height(chosen_tree)
+            print '    regional trees rescaled to heights:  %s' % ('   '.join(['%s %.3f  (expected %.3f)' % (region, treegenerator.get_mean_height(scaled_trees[region]), new_heights[region]) for region in utils.regions]))
+            treegenerator.print_ascii_tree(chosen_tree)
+
+        n_leaves = treegenerator.get_n_leaves(chosen_tree)
         cmdfos = []
         for region in utils.regions:
             simstr = reco_event.eroded_seqs[region]
             if region == 'd':
                 simstr = reco_event.insertions['vd'] + simstr + reco_event.insertions['dj']
-            cmdfos.append(self.prepare_bppseqgen(simstr, scaled_trees[region], n_leaf_nodes, reco_event.genes[region], reco_event, seed=irandom))
+            cmdfos.append(self.prepare_bppseqgen(simstr, scaled_trees[region], n_leaves, reco_event.genes[region], reco_event, seed=irandom))
 
         utils.run_cmds([cfo for cfo in cmdfos if cfo is not None], sleep=False)  # shenanigan is to handle zero-length regional seqs
 
         mseqs = {}
         for ireg in range(len(utils.regions)):
             if cmdfos[ireg] is None:
-                mseqs[utils.regions[ireg]] = ['' for _ in range(n_leaf_nodes)]  # return an empty string for each leaf node
+                mseqs[utils.regions[ireg]] = ['' for _ in range(n_leaves)]  # return an empty string for each leaf node
             else:
-                mseqs[utils.regions[ireg]] = self.read_bppseqgen_output(cmdfos[ireg], n_leaf_nodes)
+                mseqs[utils.regions[ireg]] = self.read_bppseqgen_output(cmdfos[ireg], n_leaves)
 
         assert len(reco_event.final_seqs) == 0
-        for iseq in range(n_leaf_nodes):
+        for iseq in range(n_leaves):
             seq = mseqs['v'][iseq] + mseqs['d'][iseq] + mseqs['j'][iseq]
             seq = reco_event.revert_conserved_codons(seq)  # if mutation screwed up the conserved codons, just switch 'em back to what they were to start with
             reco_event.final_seqs.append(seq)  # set final sequnce in reco_event

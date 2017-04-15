@@ -54,11 +54,9 @@ def get_btree(treestr):
         baltic.make_tree(treestr, tree, verbose=False)
     tree.traverse_tree()
     return tree
-
 # ----------------------------------------------------------------------------------------
-def get_leaf_node_depths(treestr):
-    tree = get_btree(treestr)
-    return {l.numName : l.height for l in tree.leaves}
+def get_n_leaves(treestr):
+    return len(get_btree(treestr).leaves)
 
 # ----------------------------------------------------------------------------------------
 def get_mean_height(treestr):
@@ -208,7 +206,7 @@ class TreeGenerator(object):
         assert False  # shouldn't fall through to here
     
     # ----------------------------------------------------------------------------------------
-    def get_n_leaves(self):
+    def choose_n_leaves(self):
         if self.args.constant_number_of_leaves:
             return self.args.n_leaves
 
@@ -245,7 +243,7 @@ class TreeGenerator(object):
             commandfile.write('set.seed(' + str(seed)+ ')\n')
             ages, lonely_leaves = [], []  # <lonely_leaves> keeps track of which trees should have only one leaf, so we can go back and add them later in the proper spots
             for itree in range(self.args.n_trees):
-                n_leaves = self.get_n_leaves()
+                n_leaves = self.choose_n_leaves()
                 age = self.choose_mean_branch_length()
                 ages.append(age)
                 if n_leaves == 1:
