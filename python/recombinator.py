@@ -486,18 +486,6 @@ class Recombinator(object):
         return mutated_seqs
 
     # ----------------------------------------------------------------------------------------
-    def get_rescaled_trees(self, treestr, new_heights):
-        """
-        Trees are generated with the mean branch length observed in data over the whole sequence, because we want to use topologically
-        the same tree for the whole sequence. But we observe different branch lengths for each region, so we need to rescale the tree for
-        v, d, and j
-        """
-        rescaled_trees = {}
-        for region in utils.regions:
-            rescaled_trees[region] = treegenerator.rescale_tree(treestr, new_heights[region])
-        return rescaled_trees
-
-    # ----------------------------------------------------------------------------------------
     def add_shm_insertion(self, indelfo, seq, pos, length):
         """ insert a random sequence with <length> beginning at <pos> """
         inserted_sequence = ''
@@ -579,7 +567,7 @@ class Recombinator(object):
             treegenerator.print_ascii_tree(chosen_tree)
             print '    with new height ', ', '.join(['%s %f' % (region, new_heights[region]) for region in utils.regions])
 
-        scaled_trees = self.get_rescaled_trees(chosen_tree, new_heights)
+        scaled_trees = {r : treegenerator.rescale_tree(chosen_tree, new_heights[region]) for r in utils.regions}  # Trees are generated with the mean branch length observed in data over the whole sequence, because we want to use topologically the same tree for the whole sequence. But we observe different branch lengths for each region, so we need to rescale the tree for v, d, and j
         treg = re.compile('t[0-9][0-9]*')
         n_leaf_nodes = len(treg.findall(chosen_tree))
         cmdfos = []
