@@ -81,8 +81,7 @@ def rescale_tree(treestr, new_height, debug=False):
         ln.length *= new_height / mean_height  # everybody's heights should be the same... but they never quite were when I was using Bio.Phylo, so, uh. yeah, uh. not sure what to do
         if debug:
             print '  %5s  %7e  -->  %7e' % (ln.numName if ln.branchType == 'leaf' else ln.branchType, old_length, ln.length)
-    if len(tree.leaves) > 1:
-        tree.traverse_tree()
+    tree.traverse_tree()
     treestr = tree.toString(numName=True)
     for leaf in get_btree(treestr).leaves:
         if not utils.is_normed(leaf.height / new_height, this_eps=1e-8):
@@ -248,8 +247,8 @@ class TreeGenerator(object):
         n_trees_each_run = '1'
         # build command file, one (painful) tree at a time
         with tempfile.NamedTemporaryFile() as commandfile:
-            # commandfile.write('require(TreeSim, quietly=TRUE)\n')
-            commandfile.write('require(TreeSimGM, quietly=TRUE)\n')
+            commandfile.write('require(TreeSim, quietly=TRUE)\n')
+            # commandfile.write('require(TreeSimGM, quietly=TRUE)\n')
             commandfile.write('set.seed(' + str(seed)+ ')\n')
             ages, lonely_leaves = [], []  # keep track of which trees should have one leaft, so we can go back and add them later in the proper spots
             for itree in range(self.args.n_trees):
@@ -260,8 +259,8 @@ class TreeGenerator(object):
                     lonely_leaves.append(True)
                     continue
                 lonely_leaves.append(False)
-                # commandfile.write('trees <- sim.bd.taxa.age(' + str(n_leaves) + ', ' + n_trees_each_run + ', ' + speciation_rate + ', ' + extinction_rate + ', frac=1, age=' + str(age) + ', mrca = FALSE)\n')
-                commandfile.write('trees <- sim.taxa(numbsim=' + n_trees_each_run + ', ' + 'n=' + str(n_leaves) + ', distributionspname="rweibull", distributionspparameters=c(0.1, 1), labellivingsp="t")\n')
+                commandfile.write('trees <- sim.bd.taxa.age(' + str(n_leaves) + ', ' + n_trees_each_run + ', ' + speciation_rate + ', ' + extinction_rate + ', frac=1, age=' + str(age) + ', mrca = FALSE)\n')
+                # commandfile.write('trees <- sim.taxa(numbsim=' + n_trees_each_run + ', ' + 'n=' + str(n_leaves) + ', distributionspname="rweibull", distributionspparameters=c(0.1, 1), labellivingsp="t")\n')
                 commandfile.write('write.tree(trees[[1]], \"' + outfname + '\", append=TRUE)\n')
             commandfile.flush()
             # print '---'
