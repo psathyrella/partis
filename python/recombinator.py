@@ -439,7 +439,7 @@ class Recombinator(object):
         self.write_mute_freqs(gene, seq, reco_event, reco_seq_fname)
 
         env = os.environ.copy()
-        env["LD_LIBRARY_PATH"] += ':' + self.args.partis_dir + '/packages/bpp/lib'
+        env['LD_LIBRARY_PATH'] = env.get('LD_LIBRARY_PATH', '') + ':' + self.args.partis_dir + '/packages/bpp/lib'
 
         # build up the command line
         # docs: http://biopp.univ-montp2.fr/apidoc/bpp-phyl/html/classbpp_1_1GTR.html that page is too darn hard to google
