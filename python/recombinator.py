@@ -15,6 +15,8 @@ import utils
 import glutils
 from event import RecombinationEvent
 
+dummy_name_so_bppseqgen_doesnt_break = 'xxx'  # bppseqgen ignores branch length before mrca, so we add a spurious leaf with this name and the same total depth as the rest of the tree, then remove it after getting bppseqgen's output
+
 #----------------------------------------------------------------------------------------
 class Recombinator(object):
     """ Simulates the process of VDJ recombination """
@@ -428,12 +430,8 @@ class Recombinator(object):
         treefname = workdir + '/tree.tre'
         reco_seq_fname = workdir + '/start-seq.txt'
         leaf_seq_fname = workdir + '/leaf-seqs.fa'
-        if n_leaf_nodes == 1:  # add an extra leaf to one-leaf trees so bppseqgen doesn't barf (when we read the output, we ignore the second leaf)
-            lreg = re.compile('t1:[0-9]\.[0-9][0-9]*')
-            leafstr = lreg.findall(chosen_tree)
-            assert len(leafstr) == 1
-            leafstr = leafstr[0]
-            chosen_tree = chosen_tree.replace(leafstr, '(' + leafstr + ',' + leafstr + '):0.0')
+        # add dummy leaf that we'll subsequently ignore (such are the vagaries of bppseqgen)
+        chosen_tree = '(%s,%s:%.15f):0.0;' % (chosen_tree.rstrip(';'), dummy_name_so_bppseqgen_doesnt_break, treegenerator.get_mean_height(chosen_tree))
         with open(treefname, 'w') as treefile:
             treefile.write(chosen_tree)
         self.write_mute_freqs(gene, seq, reco_event, reco_seq_fname)
@@ -474,9 +472,9 @@ class Recombinator(object):
     def read_bppseqgen_output(self, cmdfo, n_leaf_nodes):
         mutated_seqs = []
         for seqfo in utils.read_fastx(cmdfo['outfname']):  # get the leaf node sequences from the file that bppseqgen wrote
+            if seqfo['name'] == dummy_name_so_bppseqgen_doesnt_break:  # in the unlikely (impossible unless we change tree generators and don't tell them to use the same leaf names) event that we get a non-dummy leaf with this name, it'll fail at the assertion just below
+                continue
             mutated_seqs.append(seqfo['seq'])
-            if n_leaf_nodes == 1:  # skip the extra leaf we added earlier
-                break
         assert n_leaf_nodes == len(mutated_seqs)
         # self.check_tree_simulation(leaf_seq_fname, chosen_tree)
         os.remove(cmdfo['outfname'])
@@ -574,7 +572,7 @@ class Recombinator(object):
         if self.args.debug:
             print '  chose tree with total height %f' % treegenerator.get_mean_height(chosen_tree)
             print '    regional trees rescaled to heights:  %s' % ('   '.join(['%s %.3f  (expected %.3f)' % (region, treegenerator.get_mean_height(scaled_trees[region]), new_heights[region]) for region in utils.regions]))
-            treegenerator.print_ascii_tree(chosen_tree)
+            print treegenerator.get_ascii_tree(chosen_tree, extra_str='    ')
 
         n_leaves = treegenerator.get_n_leaves(chosen_tree)
         cmdfos = []
@@ -601,8 +599,26 @@ class Recombinator(object):
 
         self.add_shm_indels(reco_event)
 
+# ----------------------------------------------------------------------------------------
+        line = reco_event.getline()
+        mean_observed = {n : 0.0 for n in ['all'] + utils.regions}
+        for iseq in range(n_leaves):
+            print '   %4d  %.3f  %.3f' % (iseq, line['mut_freqs'][iseq], chosen_height)
+            mean_observed['all'] += line['mut_freqs'][iseq]
+            for region in utils.regions:
+                rrate = utils.get_mutation_rate(line, iseq=iseq, restrict_to_region=region)
+                print '       %.3f  %.3f' % (rrate, new_heights[region])
+                mean_observed[region] += rrate
+        print '           expected     observed'
+        for rname in mean_observed:
+            mean_observed[rname] /= float(n_leaves)
+            print '  %4s    %8.4f    %8.4f' % (rname, chosen_height if rname == 'all' else new_heights[rname], mean_observed[rname])
+        sys.exit()
+# ----------------------------------------------------------------------------------------
+
     # ----------------------------------------------------------------------------------------
     def check_tree_simulation(self, leaf_seq_fname, chosen_tree_str, reco_event=None):
+# ----------------------------------------------------------------------------------------
         """ See how well we can reconstruct the true tree """
         clean_up = False
         if leaf_seq_fname == '':  # we need to make the leaf seq file based on info in reco_event
@@ -622,3 +638,4 @@ class Recombinator(object):
         inferred_tree = sys.modules['dendropy'].Tree.get_from_string(inferred_tree_str, 'newick')
         if self.args.debug:
             print '        tree diff -- symmetric %d   euke %f   rf %f' % (chosen_tree.symmetric_difference(inferred_tree), chosen_tree.euclidean_distance(inferred_tree), chosen_tree.robinson_foulds_distance(inferred_tree))
+# ----------------------------------------------------------------------------------------
