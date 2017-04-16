@@ -36,7 +36,7 @@ class OneLeafTree(object):
         return '%s:%.15f;' % (self.leaves[0].name, self.leaves[0].length)
 
 # ----------------------------------------------------------------------------------------
-def get_ascii_tree(treestr, extra_str='    '):
+def get_ascii_tree(treestr, extra_str=''):
     if 'Bio.Phylo' not in sys.modules:
         from Bio import Phylo
     if len(re.findall('t', treestr)) > 1:  # if more than one leaf
@@ -44,7 +44,7 @@ def get_ascii_tree(treestr, extra_str='    '):
         sys.modules['Bio.Phylo'].draw_ascii(sys.modules['Bio.Phylo'].read(StringIO(treestr), 'newick'), file=tmpf, column_width=80)
         return '\n'.join(['%s%s' % (extra_str, line) for line in tmpf.getvalue().split('\n')])
     else:
-        return '%sone leaf'
+        return '%sone leaf' % extra_str
 
 # ----------------------------------------------------------------------------------------
 def get_btree(treestr):
