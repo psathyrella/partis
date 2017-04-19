@@ -1,4 +1,6 @@
 """ Simulates the process of VDJ recombination """
+import operator
+import tempfile
 import sys
 import csv
 import time
@@ -8,7 +10,7 @@ import treegenerator
 import numpy
 import os
 import re
-from subprocess import check_output
+import subprocess
 
 import paramutils
 import utils
@@ -470,13 +472,16 @@ class Recombinator(object):
 
     # ----------------------------------------------------------------------------------------
     def read_bppseqgen_output(self, cmdfo, n_leaf_nodes):
-        mutated_seqs = []
+        mutated_seqs = {}
         for seqfo in utils.read_fastx(cmdfo['outfname']):  # get the leaf node sequences from the file that bppseqgen wrote
             if seqfo['name'] == dummy_name_so_bppseqgen_doesnt_break:  # in the unlikely (impossible unless we change tree generators and don't tell them to use the same leaf names) event that we get a non-dummy leaf with this name, it'll fail at the assertion just below
                 continue
-            mutated_seqs.append(seqfo['seq'])
+            mutated_seqs[seqfo['name'].strip('\'')] = seqfo['seq']
+        try:
+            mutated_seqs = [mutated_seqs['t' + str(iseq + 1)] for iseq in range(len(mutated_seqs))]
+        except KeyError as ke:
+            raise Exception('leaf name %s not as expected in bppseqgen output %s' % (ke, cmdfo['outfname']))
         assert n_leaf_nodes == len(mutated_seqs)
-        # self.check_tree_simulation(leaf_seq_fname, chosen_tree)
         os.remove(cmdfo['outfname'])
         for otherfname in cmdfo['other-files']:
             os.remove(otherfname)
@@ -557,21 +562,21 @@ class Recombinator(object):
         isplit = treefostr.find(';') + 1
         chosen_tree = treefostr[:isplit]  # includes semi-colon
         mutefo = [rstr for rstr in treefostr[isplit:].split(',')]
-        chosen_height = treegenerator.get_mean_height(chosen_tree)
-        new_heights = {}
+        mean_total_height = treegenerator.get_mean_height(chosen_tree)
+        regional_heights = {}  # per-region height, including <self.args.mutation_multiplier>
         for tmpstr in mutefo:
             region, ratio = tmpstr.split(':')
             assert region in utils.regions
             ratio = float(ratio)
             if self.args.mutation_multiplier is not None:  # multiply the branch lengths by some factor
                 ratio *= self.args.mutation_multiplier
-            new_heights[region] = chosen_height * ratio
+            regional_heights[region] = mean_total_height * ratio
 
-        scaled_trees = {r : treegenerator.rescale_tree(chosen_tree, new_heights[r]) for r in utils.regions}
+        scaled_trees = {r : treegenerator.rescale_tree(chosen_tree, regional_heights[r]) for r in utils.regions}
 
         if self.args.debug:
             print '  chose tree with total height %f' % treegenerator.get_mean_height(chosen_tree)
-            print '    regional trees rescaled to heights:  %s' % ('   '.join(['%s %.3f  (expected %.3f)' % (region, treegenerator.get_mean_height(scaled_trees[region]), new_heights[region]) for region in utils.regions]))
+            print '    regional trees rescaled to heights:  %s' % ('   '.join(['%s %.3f  (expected %.3f)' % (region, treegenerator.get_mean_height(scaled_trees[region]), regional_heights[region]) for region in utils.regions]))
             print treegenerator.get_ascii_tree(chosen_tree, extra_str='    ')
 
         n_leaves = treegenerator.get_n_leaves(chosen_tree)
@@ -585,7 +590,7 @@ class Recombinator(object):
         utils.run_cmds([cfo for cfo in cmdfos if cfo is not None], sleep=False)  # shenanigan is to handle zero-length regional seqs
 
         mseqs = {}
-        for ireg in range(len(utils.regions)):
+        for ireg in range(len(utils.regions)):  # NOTE kind of sketchy just using index in <utils.regions> (although it just depends on the loop immediately above a.t.m.)
             if cmdfos[ireg] is None:
                 mseqs[utils.regions[ireg]] = ['' for _ in range(n_leaves)]  # return an empty string for each leaf node
             else:
@@ -599,43 +604,56 @@ class Recombinator(object):
 
         self.add_shm_indels(reco_event)
 
-# ----------------------------------------------------------------------------------------
+        self.check_tree_simulation(mean_total_height, regional_heights, scaled_trees, mseqs, reco_event)
+
+    # ----------------------------------------------------------------------------------------
+    def infer_tree_from_output(self, region, in_tree, leafseqs):
+        with tempfile.NamedTemporaryFile() as tmpfile:
+            for iseq in range(len(leafseqs)):
+                tmpfile.write('>t%s\n%s\n' % (iseq+1, leafseqs[iseq]))  # NOTE the order of the leaves/names is checked when reading bppseqgen output
+            tmpfile.flush()
+            with open(os.devnull, 'w') as fnull:
+                out_tree = subprocess.check_output('./bin/FastTree -gtr -nt ' + tmpfile.name, shell=True, stderr=fnull)
+
+        in_height = treegenerator.get_mean_height(in_tree)
+        out_height = treegenerator.get_mean_height(out_tree)
+        base_width = 100
+        print '  %s trees: input/output' % region
+        print treegenerator.get_ascii_tree(in_tree, extra_str='        ', width=base_width)
+        print treegenerator.get_ascii_tree(out_tree, extra_str='        ', width=int(base_width*out_height/in_height))
+
+        if 'dendropy' not in sys.modules:
+            import dendropy
+        in_dtree = sys.modules['dendropy'].Tree.get_from_string(in_tree, 'newick')
+        out_dtree = sys.modules['dendropy'].Tree.get_from_string(out_tree, 'newick')
+        if self.args.debug:
+            print '                   heights: %.3f   %.3f' % (in_height, out_height)
+            print '      symmetric difference: %d' % in_dtree.symmetric_difference(out_dtree)
+            print '        euclidean distance: %f' % in_dtree.euclidean_distance(out_dtree)
+            print '              r-f distance: %f' % in_dtree.robinson_foulds_distance(out_dtree)
+
+    # ----------------------------------------------------------------------------------------
+    def check_tree_simulation(self, mean_total_height, regional_heights, scaled_trees, mseqs, reco_event):
         line = reco_event.getline()
         mean_observed = {n : 0.0 for n in ['all'] + utils.regions}
-        for iseq in range(n_leaves):
-            print '   %4d  %.3f  %.3f' % (iseq, line['mut_freqs'][iseq], chosen_height)
+        for iseq in range(len(reco_event.final_seqs)):
+            print '   %4d  %.3f  %.3f' % (iseq, line['mut_freqs'][iseq], mean_total_height)
             mean_observed['all'] += line['mut_freqs'][iseq]
             for region in utils.regions:
                 rrate = utils.get_mutation_rate(line, iseq=iseq, restrict_to_region=region)
-                print '       %.3f  %.3f' % (rrate, new_heights[region])
+                print '       %.3f  %.3f' % (rrate, regional_heights[region])
                 mean_observed[region] += rrate
-        print '           expected     observed'
-        for rname in mean_observed:
-            mean_observed[rname] /= float(n_leaves)
-            print '  %4s    %8.4f    %8.4f' % (rname, chosen_height if rname == 'all' else new_heights[rname], mean_observed[rname])
-        sys.exit()
-# ----------------------------------------------------------------------------------------
+        print '             in          out'
+        for rname in ['all'] + utils.regions:
+            mean_observed[rname] /= float(len(reco_event.final_seqs))
+            if rname == 'all':
+                input_height = mean_total_height
+                if self.args.mutation_multiplier is not None:  # multiply the branch lengths by some factor
+                    input_height *= self.args.mutation_multiplier
+            else:
+                input_height = regional_heights[rname]
+            print '  %4s    %7.3f     %7.3f' % (rname, input_height, mean_observed[rname])
 
-    # ----------------------------------------------------------------------------------------
-    def check_tree_simulation(self, leaf_seq_fname, chosen_tree_str, reco_event=None):
-# ----------------------------------------------------------------------------------------
-        """ See how well we can reconstruct the true tree """
-        clean_up = False
-        if leaf_seq_fname == '':  # we need to make the leaf seq file based on info in reco_event
-            clean_up = True
-            leaf_seq_fname = self.workdir + '/leaf-seqs.fa'
-            with open(leaf_seq_fname, 'w') as leafseqfile:
-                for iseq in range(len(reco_event.final_seqs)):
-                    leafseqfile.write('>t' + str(iseq+1) + '\n')  # NOTE the *order* of the seqs doesn't correspond to the tN number. does it matter?
-                    leafseqfile.write(reco_event.final_seqs[iseq] + '\n')
-
-        with open(os.devnull, 'w') as fnull:
-            inferred_tree_str = check_output('FastTree -gtr -nt ' + leaf_seq_fname, shell=True, stderr=fnull)
-        os.remove(leaf_seq_fname)
-        if 'dendropy' not in sys.modules:
-            import dendropy
-        chosen_tree = sys.modules['dendropy'].Tree.get_from_string(chosen_tree_str, 'newick')
-        inferred_tree = sys.modules['dendropy'].Tree.get_from_string(inferred_tree_str, 'newick')
-        if self.args.debug:
-            print '        tree diff -- symmetric %d   euke %f   rf %f' % (chosen_tree.symmetric_difference(inferred_tree), chosen_tree.euclidean_distance(inferred_tree), chosen_tree.robinson_foulds_distance(inferred_tree))
-# ----------------------------------------------------------------------------------------
+        # need to root them
+        # for region in utils.regions:
+        #     self.infer_tree_from_output(region, scaled_trees[region], mseqs[region])  # NOTE haven't yet reverted codons
