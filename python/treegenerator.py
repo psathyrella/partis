@@ -240,8 +240,10 @@ class TreeGenerator(object):
 
         # build command file, one (painful) tree at a time
         with tempfile.NamedTemporaryFile() as commandfile:
-            commandfile.write('require(TreeSim, quietly=TRUE)\n')
-            # commandfile.write('require(TreeSimGM, quietly=TRUE)\n')
+            pkgname = 'TreeSim'
+            if self.args.root_mrca_weibull_parameter is not None:
+                pkgname += 'GM'
+            commandfile.write('require(%s, quietly=TRUE)\n' % pkgname)
             commandfile.write('set.seed(' + str(seed)+ ')\n')
             ages, lonely_leaves = [], []  # <lonely_leaves> keeps track of which trees should have only one leaf, so we can go back and add them later in the proper spots
             for itree in range(self.args.n_trees):
@@ -252,8 +254,10 @@ class TreeGenerator(object):
                     lonely_leaves.append(True)
                     continue
                 lonely_leaves.append(False)
-                commandfile.write('trees <- sim.bd.taxa.age(' + str(n_leaves) + ', ' + n_trees_each_run + ', ' + speciation_rate + ', ' + extinction_rate + ', frac=1, age=' + str(age) + ', mrca = FALSE)\n')
-                # commandfile.write('trees <- sim.taxa(numbsim=' + n_trees_each_run + ', ' + 'n=' + str(n_leaves) + ', distributionspname="rweibull", distributionspparameters=c(0.1, 1), labellivingsp="t")\n')
+                if self.args.root_mrca_weibull_parameter is None:
+                    commandfile.write('trees <- sim.bd.taxa.age(' + str(n_leaves) + ', ' + n_trees_each_run + ', ' + speciation_rate + ', ' + extinction_rate + ', frac=1, age=' + str(age) + ', mrca = FALSE)\n')
+                else:
+                    commandfile.write('trees <- sim.taxa(numbsim=' + n_trees_each_run + ', ' + 'n=' + str(n_leaves) + ', distributionspname="rweibull", distributionspparameters=c(' + str(self.args.root_mrca_weibull_parameter) + ', 1), labellivingsp="t")\n')
                 commandfile.write('write.tree(trees[[1]], \"' + outfname + '\", append=TRUE)\n')
             commandfile.flush()
             if lonely_leaves.count(True) == len(ages):  # if every tree has one leaf, we don't need to run R
