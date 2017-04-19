@@ -76,6 +76,8 @@ class Recombinator(object):
         elif not os.path.exists(os.path.dirname(os.path.abspath(self.outfname))):
             os.makedirs(os.path.dirname(os.path.abspath(self.outfname)))
 
+        self.validation_values = {'heights' : {t : {'in' : [], 'out' : []} for t in ['all'] + utils.regions}}
+
     # ----------------------------------------------------------------------------------------
     def read_insertion_content(self):
         if self.args.rearrange_from_scratch:
@@ -607,7 +609,7 @@ class Recombinator(object):
         self.check_tree_simulation(mean_total_height, regional_heights, scaled_trees, mseqs, reco_event)
 
     # ----------------------------------------------------------------------------------------
-    def infer_tree_from_output(self, region, in_tree, leafseqs):
+    def infer_tree_from_leaves(self, region, in_tree, leafseqs):
         with tempfile.NamedTemporaryFile() as tmpfile:
             for iseq in range(len(leafseqs)):
                 tmpfile.write('>t%s\n%s\n' % (iseq+1, leafseqs[iseq]))  # NOTE the order of the leaves/names is checked when reading bppseqgen output
@@ -633,17 +635,20 @@ class Recombinator(object):
             print '              r-f distance: %f' % in_dtree.robinson_foulds_distance(out_dtree)
 
     # ----------------------------------------------------------------------------------------
-    def check_tree_simulation(self, mean_total_height, regional_heights, scaled_trees, mseqs, reco_event):
+    def check_tree_simulation(self, mean_total_height, regional_heights, scaled_trees, mseqs, reco_event, debug=False):
         line = reco_event.getline()
         mean_observed = {n : 0.0 for n in ['all'] + utils.regions}
         for iseq in range(len(reco_event.final_seqs)):
-            print '   %4d  %.3f  %.3f' % (iseq, line['mut_freqs'][iseq], mean_total_height)
+            if debug:
+                print '   %4d  %.3f  %.3f' % (iseq, line['mut_freqs'][iseq], mean_total_height)
             mean_observed['all'] += line['mut_freqs'][iseq]
             for region in utils.regions:
                 rrate = utils.get_mutation_rate(line, iseq=iseq, restrict_to_region=region)
-                print '       %.3f  %.3f' % (rrate, regional_heights[region])
+                if debug:
+                    print '       %.3f  %.3f' % (rrate, regional_heights[region])
                 mean_observed[region] += rrate
-        print '             in          out'
+        if debug:
+            print '             in          out'
         for rname in ['all'] + utils.regions:
             mean_observed[rname] /= float(len(reco_event.final_seqs))
             if rname == 'all':
@@ -652,8 +657,20 @@ class Recombinator(object):
                     input_height *= self.args.mutation_multiplier
             else:
                 input_height = regional_heights[rname]
-            print '  %4s    %7.3f     %7.3f' % (rname, input_height, mean_observed[rname])
+            self.validation_values['heights'][rname]['in'].append(input_height)
+            self.validation_values['heights'][rname]['out'].append(mean_observed[rname])
+            if debug:
+                print '  %4s    %7.3f     %7.3f' % (rname, input_height, mean_observed[rname])
 
         # need to root them
         # for region in utils.regions:
-        #     self.infer_tree_from_output(region, scaled_trees[region], mseqs[region])  # NOTE haven't yet reverted codons
+        #     self.infer_tree_from_leaves(region, scaled_trees[region], mseqs[region])  # NOTE haven't yet reverted codons
+
+    # ----------------------------------------------------------------------------------------
+    def print_validation_values(self):
+        print '  tree heights:'
+        print '        in      out     diff'
+        for vtype in ['all'] + utils.regions:
+            vvals = self.validation_values['heights'][vtype]
+            deltas = [(vvals['out'][i] - vvals['in'][i]) for i in range(len(vvals['in']))]
+            print '      %.3f   %.3f    %+.3f   %s' % (numpy.mean(vvals['in']), numpy.mean(vvals['out']), numpy.mean(deltas), vtype)

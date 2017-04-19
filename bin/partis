@@ -103,6 +103,7 @@ def run_simulation(args):
         reco = Recombinator(args, glfo, seed=args.seed+iproc, workdir=workdir, outfname=outfname)
         for ievt in range(n_events):
             reco.combine(random_ints[ievt])
+        reco.print_validation_values()
 
     def get_workdir(iproc):
         return args.workdir + '/sub-' + str(iproc)
