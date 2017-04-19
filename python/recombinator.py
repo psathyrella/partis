@@ -642,7 +642,7 @@ class Recombinator(object):
             if debug:
                 print '   %4d  %.3f  %.3f' % (iseq, line['mut_freqs'][iseq], mean_total_height)
             mean_observed['all'] += line['mut_freqs'][iseq]
-            for region in utils.regions:
+            for region in utils.regions:  # NOTE for simulating, we mash the insertions in with the D, but this isn't accounted for here
                 rrate = utils.get_mutation_rate(line, iseq=iseq, restrict_to_region=region)
                 if debug:
                     print '       %.3f  %.3f' % (rrate, regional_heights[region])
@@ -668,9 +668,11 @@ class Recombinator(object):
 
     # ----------------------------------------------------------------------------------------
     def print_validation_values(self):
+        # NOTE the v, d, and all are systematically low, while j is high. Don't feel like continuing to figure out all the contributors a.t.m. though
         print '  tree heights:'
-        print '        in      out     diff'
+        print '        in      out          diff'
         for vtype in ['all'] + utils.regions:
             vvals = self.validation_values['heights'][vtype]
             deltas = [(vvals['out'][i] - vvals['in'][i]) for i in range(len(vvals['in']))]
-            print '      %.3f   %.3f    %+.3f   %s' % (numpy.mean(vvals['in']), numpy.mean(vvals['out']), numpy.mean(deltas), vtype)
+            print '      %.3f   %.3f    %+.3f +/- %.3f      %s' % (numpy.mean(vvals['in']), numpy.mean(vvals['out']),
+                                                                   numpy.mean(deltas), numpy.std(deltas) / len(deltas), vtype)  # NOTE each delta is already the mean of <n_leaves> independent measurements
