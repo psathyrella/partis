@@ -252,11 +252,22 @@ class TreeGenerator(object):
                     lonely_leaves.append(True)
                     continue
                 lonely_leaves.append(False)
+
+                # NOTE these simulation functions seem to assume that we want all the extant leaves to have the same height. Which is kind of weird. Maybe makes more sense at some point to change this.
+                params = {'n' : n_leaves, 'numbsim' : n_trees_each_run}
                 if self.args.root_mrca_weibull_parameter is None:
-                    commandfile.write('trees <- sim.bd.taxa.age(' + str(n_leaves) + ', ' + n_trees_each_run + ', ' + speciation_rate + ', ' + extinction_rate + ', frac=1, age=' + str(age) + ', mrca = FALSE)\n')
+                    fcn = 'sim.bd.taxa.age'
+                    params['lambda'] = speciation_rate
+                    params['mu'] = extinction_rate
+                    params['age'] = age
                 else:
-                    commandfile.write('trees <- sim.taxa(numbsim=' + n_trees_each_run + ', ' + 'n=' + str(n_leaves) + ', distributionspname="rweibull", distributionspparameters=c(' + str(self.args.root_mrca_weibull_parameter) + ', 1), labellivingsp="t")\n')
+                    fcn = 'sim.taxa'
+                    params['distributionspname'] = '"rweibull"'
+                    params['distributionspparameters'] = 'c(%f, 1)' % self.args.root_mrca_weibull_parameter
+                    params['labellivingsp'] = '"t"'  # TreeSim doesn't let you do this, but a.t.m. this is their default
+                commandfile.write('trees <- %s(%s)\n' % (fcn, ', '.join(['%s=%s' % (k, str(v)) for k, v in params.items()])))
                 commandfile.write('write.tree(trees[[1]], \"' + outfname + '\", append=TRUE)\n')
+
             commandfile.flush()
             if lonely_leaves.count(True) == len(ages):  # if every tree has one leaf, we don't need to run R
                 open(outfname, 'w').close()

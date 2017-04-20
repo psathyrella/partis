@@ -194,7 +194,7 @@ class Tester(object):
                 cmd_str += ' --outfname ' + self.dirs['new'] + '/' + name + '.csv'
 
             logstr = '%s   %s' % (utils.color('green', name, width=30, padside='right'), cmd_str)
-            print logstr if len(logstr) < args.print_width else logstr[:args.print_width] + '[...]'
+            print logstr if utils.len_excluding_colors(logstr) < args.print_width else logstr[:args.print_width] + '[...]'
             if args.dry_run:
                 continue
             logfile = open(self.logfname, 'a')
