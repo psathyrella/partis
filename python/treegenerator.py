@@ -88,6 +88,7 @@ class TreeGenerator(object):
     def __init__(self, args, parameter_dir, seed):
         self.args = args
         self.branch_lengths = self.read_mute_freqs(parameter_dir)  # for each region (and 'all'), a list of branch lengths and a list of corresponding probabilities (i.e. two lists: bin centers and bin contents). Also, the mean of the hist.
+        self.n_trees_each_run = '1'  # it would no doubt be faster to have this bigger than 1, but this makes it easier to vary the n-leaf distribution
         if self.args.debug:
             print '  generating %d trees,' % self.args.n_trees,
             if self.args.constant_number_of_leaves:
@@ -228,14 +229,6 @@ class TreeGenerator(object):
         if os.path.exists(outfname):
             os.remove(outfname)
 
-        # from TreeSim docs:
-        #   frac: each tip is included into the final tree with probability frac
-        #   age: the time since origin / most recent common ancestor
-        #   mrca: if FALSE, time since the origin of the process, else time since the most recent common ancestor of the sampled species.
-        speciation_rate = '1'
-        extinction_rate = '0.5'
-        n_trees_each_run = '1'  # it would no doubt be faster to have this bigger than 1, but this makes it easier to vary the n-leaf distribution
-
         # build command file, one (painful) tree at a time
         with tempfile.NamedTemporaryFile() as commandfile:
             pkgname = 'TreeSim'
@@ -254,11 +247,11 @@ class TreeGenerator(object):
                 lonely_leaves.append(False)
 
                 # NOTE these simulation functions seem to assume that we want all the extant leaves to have the same height. Which is kind of weird. Maybe makes more sense at some point to change this.
-                params = {'n' : n_leaves, 'numbsim' : n_trees_each_run}
+                params = {'n' : n_leaves, 'numbsim' : self.n_trees_each_run}
                 if self.args.root_mrca_weibull_parameter is None:
                     fcn = 'sim.bd.taxa.age'
-                    params['lambda'] = speciation_rate
-                    params['mu'] = extinction_rate
+                    params['lambda'] = 1  # speciation_rate
+                    params['mu'] = 0.5  # extinction_rate
                     params['age'] = age
                 else:
                     fcn = 'sim.taxa'
