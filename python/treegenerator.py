@@ -89,11 +89,14 @@ class TreeGenerator(object):
         self.args = args
         self.branch_lengths = self.read_mute_freqs(parameter_dir)  # for each region (and 'all'), a list of branch lengths and a list of corresponding probabilities (i.e. two lists: bin centers and bin contents). Also, the mean of the hist.
         if self.args.debug:
-            print 'generating %d trees from %s' % (self.args.n_trees, parameter_dir),
+            print '  generating %d trees,' % self.args.n_trees,
             if self.args.constant_number_of_leaves:
-                print ' with %s leaves' % str(self.args.n_leaves)
+                print 'all with %s leaves' % str(self.args.n_leaves)
             else:
-                print ' with random number of leaves with parameter %s' % str(self.args.n_leaves)
+                print 'n-leaves from %s distribution with parameter %s' % (self.args.n_leaf_distribution, str(self.args.n_leaves))
+            print '        mean branch lengths from %s' % parameter_dir
+            for mtype in ['all',] + utils.regions:
+                print '         %4s %7.3f (ratio %7.3f)' % (mtype, self.branch_lengths[mtype]['mean'], self.branch_lengths[mtype]['mean'] / self.branch_lengths['all']['mean'])
 
     #----------------------------------------------------------------------------------------
     def convert_observed_changes_to_branch_length(self, mute_freq):
@@ -141,11 +144,6 @@ class TreeGenerator(object):
                 check_sum += branch_lengths[mtype]['probs'][-1]
             if not utils.is_normed(check_sum):
                 raise Exception('not normalized %f' % check_sum)
-
-        if self.args.debug:
-            print '  mean branch lengths'
-            for mtype in ['all',] + utils.regions:
-                print '     %4s %7.3f (ratio %7.3f)' % (mtype, branch_lengths[mtype]['mean'], branch_lengths[mtype]['mean'] / branch_lengths['all']['mean'])
 
         return branch_lengths
 
