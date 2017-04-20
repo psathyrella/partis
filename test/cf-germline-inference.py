@@ -12,8 +12,6 @@ import utils
 import glutils
 from hist import Hist
 
-fsdir = '/fh/fast/matsen_e'
-alfdir = fsdir + '/dralph/partis/allele-finder'
 locus = 'igh'
 region = 'v'
 
@@ -26,6 +24,7 @@ legend_titles = {
 }
 
 # # ----------------------------------------------------------------------------------------
+# fsdir = '/fh/fast/matsen_e'
 # sys.path.insert(1, './datascripts')
 # import heads
 # label = 'vz'
@@ -96,6 +95,8 @@ def legend_str(args, val):
     elif args.action == 'prevalence':
         lstr = '%d%%' % (100*val)
     elif args.action == 'n-leaves':
+        lstr = '%.1f' % val
+    elif args.action == 'weibull':
         lstr = '%.1f' % val
     else:
         assert False
@@ -187,6 +188,10 @@ def run_test(args, baseoutdir):
                 cmd += ' --n-leaves ' + str(val)  # NOTE default of 1 (for other tests) is set in test-allele-finding.py
                 cmd += ' --n-leaf-distribution geometric'
                 cmd += ' --n-max-queries ' + str(n_events)  # i.e. we simulate <n_events> rearrangement events, but then only use <n_events> sequences for inference
+            elif args.action == 'weibull':
+                cmd += ' --n-leaves 5'  # NOTE default of 1 (for other tests) is set in test-allele-finding.py
+                cmd += ' --n-leaf-distribution geometric'
+                cmd += ' --n-max-queries ' + str(n_events)  # i.e. we simulate <n_events> rearrangement events, but then only use <n_events> sequences for inference
             else:
                 assert False
             cmd += ' --sim-v-genes ' + ':'.join(sim_v_genes)
@@ -201,9 +206,10 @@ default_varvals = {
     'multi-nsnp' : '1,1:1,3:2,3',
     'prevalence' : '0.1:0.2:0.3',
     'n-leaves' : '1.5:3:10:25',
+    'weibull' : '0.1:0.5:1:4',
 }
 parser = argparse.ArgumentParser()
-parser.add_argument('action', choices=['mfreq', 'nsnp', 'multi-nsnp', 'prevalence', 'n-leaves'])
+parser.add_argument('action', choices=['mfreq', 'nsnp', 'multi-nsnp', 'prevalence', 'n-leaves', 'weibull'])
 parser.add_argument('--v-genes', default='IGHV4-39*01')
 parser.add_argument('--varvals')
 parser.add_argument('--n-event-list', default='1000:2000:4000:8000')  # NOTE modified later for multi-nsnp
@@ -211,12 +217,14 @@ parser.add_argument('--n-tests', type=int, default=10)
 parser.add_argument('--plot', action='store_true')
 parser.add_argument('--no-slurm', action='store_true')
 parser.add_argument('--label')
+parser.add_argument('--fsdir', default='/fh/fast/matsen_e')
 args = parser.parse_args()
 
 args.v_genes = utils.get_arg_list(args.v_genes)
 args.n_event_list = utils.get_arg_list(args.n_event_list, intify=True)
 
 # ----------------------------------------------------------------------------------------
+alfdir = args.fsdir + '/dralph/partis/allele-finder'
 baseoutdir = alfdir
 if args.label is not None:
     baseoutdir += '/' + args.label
@@ -225,7 +233,7 @@ baseoutdir += '/' + args.action
 if args.varvals is None:
     args.varvals = default_varvals[args.action]
 kwargs = {}
-if args.action == 'mfreq' or args.action == 'prevalence' or args.action == 'n-leaves':
+if args.action == 'mfreq' or args.action == 'prevalence' or args.action == 'n-leaves' or args.action == 'weibull':
     kwargs['floatify'] = True
 if args.action == 'nsnp':
     kwargs['intify'] = True
