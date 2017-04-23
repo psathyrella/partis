@@ -496,34 +496,38 @@ class AlleleFinder(object):
     # ----------------------------------------------------------------------------------------
     def approx_fit_vals(self, pvals, fixed_y_icpt=None, debug=False):
         # NOTE uncertainties are kinda complicated if you do the weighted mean, so screw it, it works fine with the plain mean
-        fitfo = self.default_fitfo()
 
-        def getslope(i1, i2, shift=False):
+        def getslope(i1, i2, shift=False):  # return two-point slope between indices i1 and i2 (if <shift>, we replace <yv> with a vector in which each value is shifted alternately up or down by its uncertainty)
             if not shift:
                 tmp_y = yv
             else:
-                tmp_y = [yv[i] + (-1) ** (i%2) * ev[i] for i in range(len(yv))]  # shift alternately up or down by the uncertainty
+                tmp_y = [yv[i] + (-1) ** (i%2) * ev[i] for i in range(len(yv))]  # alternately shifted up/down
             return (tmp_y[i2] - tmp_y[i1]) / (xv[i2] - xv[i1])
 
+        fitfo = self.default_fitfo()
+        if fixed_y_icpt is not None:
+            fitfo['y_icpt'] = fixed_y_icpt
         xv, yv, ev = pvals['n_mutelist'], pvals['freqs'], pvals['errs']  # tmp shorthand
+
+        # if we were only given one point, return the defualt fitfo, possibly setting the slope based on treating the fixed y-icpt as an additional point
         assert len(xv) > 0
         if len(xv) == 1:
-            if fixed_y_icpt is None:
-                return fitfo  # just leave the default values
-                # raise Exception('can\'t handle single point with floating y-icpt')
-            if xv[0] > 0.:  # <xv[0]> can't be able to be negative, but if it's zero, then the fit values aren't well-defined
+            if fixed_y_icpt is not None and xv[0] > 0.:  # <xv[0]> can't be able to be negative, but if it's zero, then the fit values aren't well-defined
                 fitfo['slope'] = (yv[0] - fixed_y_icpt) / (xv[0] - 0.)
-        else:
-            slopes = [getslope(i-1, i) for i in range(1, len(xv))]  # only uses adjacent points, and double-counts interior points, but we don't care (we don't use steps of two, because then we'd the last one if it's odd-length)
-            if len(xv) == 2:  # add two points, shifting each direction by each point's uncertainty
-                slopes.append(getslope(0, 1, shift=True))
-            fitfo['slope'] = numpy.average(slopes)
-            var_err = numpy.std(slopes, ddof=1) / math.sqrt(len(xv))  # error based on variance
-            if self.cov_err_ok(var_err, ev):
-                fitfo['slope_err'] = var_err
-            else:
-                fitfo['slope_err'] = self.hack_err('slope', ev, xv)
+            return fitfo
 
+        # first set slope and slope error
+        slopes = [getslope(i-1, i) for i in range(1, len(xv))]  # only uses adjacent points, and double-counts interior points, but we don't care (we don't use steps of two, because then we'd lose the last one if it's odd-length)
+        if len(xv) == 2:  # add a slope for an additional, hypothetical, pair of points, obtained by shifting one point each direction by its uncertainty
+            slopes.append(getslope(0, 1, shift=True))
+        fitfo['slope'] = numpy.average(slopes)
+        var_err = numpy.std(slopes, ddof=1) / math.sqrt(len(xv))  # error based on variance
+        if self.cov_err_ok(var_err, ev):
+            fitfo['slope_err'] = var_err
+        else:
+            fitfo['slope_err'] = self.hack_err('slope', ev, xv)
+
+        # then (if necessary) set y-icpt and its error
         if fixed_y_icpt is None:
             y_icpts = [yv[i] - getslope(i-1, i) * xv[i] for i in range(1, len(xv))]
             fitfo['y_icpt'] = numpy.average(y_icpts)
@@ -534,8 +538,6 @@ class AlleleFinder(object):
                 fitfo['y_icpt_err'] = var_err
             else:
                 fitfo['y_icpt_err'] = self.hack_err('y_icpt', ev, xv)
-        else:
-            fitfo['y_icpt'] = fixed_y_icpt
 
         if debug:
             print self.dbgstr(fitfo, extra_str='apr', pvals=pvals)
@@ -639,7 +641,7 @@ class AlleleFinder(object):
                     continue
 
             # if there's only two points in <prevals>, we can't use the bad fit there to tell us this isn't a candidate, so we check and skip if the <istart - 1>th freq isn't really low
-            if istart == 2 and bothvals['freqs'][istart - 1] > big_y_icpt - 1.5 * big_y_icpt_err:
+            if istart == 2 and bothvals['freqs'][istart - 1] > big_y_icpt - 1.5 * big_y_icpt_err:  # TODO wait isn't this the same as lower bound?
                 continue
 
             # approximate pre-slope should be smaller than approximate post-slope (for smaller <istart>s, post-slope tends to be flat, so you can't require this)
