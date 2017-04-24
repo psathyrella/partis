@@ -293,8 +293,12 @@ def synthesize_single_seq_line(line, iseq):
     return singlefo
 
 # ----------------------------------------------------------------------------------------
-def synthesize_multi_seq_line(uids, reco_info):  # only use when ascii-art printing simulation events
-    """ assumes you already added all the implicit info """
+def synthesize_multi_seq_line(uids, multifo):  # assumes you already added all the implicit info
+    reco_info = {multifo['unique_ids'][iseq] : synthesize_single_seq_line(multifo, iseq) for iseq in range(len(multifo['unique_ids']))}
+    return synthesize_multi_seq_line_from_reco_info(uids, reco_info)
+
+# ----------------------------------------------------------------------------------------
+def synthesize_multi_seq_line_from_reco_info(uids, reco_info):  # assumes you already added all the implicit info
     assert len(uids) > 0
     multifo = copy.deepcopy(reco_info[uids[0]])
     for col in [c for c in linekeys['per_seq'] if c in multifo]:
@@ -977,7 +981,7 @@ def print_true_events(glfo, reco_info, line, print_naive_seqs=False, extra_str='
     """ print the true events which contain the seqs in <line> """
     true_naive_seqs = []
     for uids in get_true_partition(reco_info, ids=line['unique_ids']):  # make a multi-seq line that has all the seqs from this clonal family
-        multiline = synthesize_multi_seq_line(uids, reco_info)
+        multiline = synthesize_multi_seq_line_from_reco_info(uids, reco_info)
         print_reco_event(multiline, extra_str=extra_str, label=color('green', 'true:'))
         true_naive_seqs.append(multiline['naive_seq'])
 
