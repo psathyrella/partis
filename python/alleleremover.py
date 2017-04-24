@@ -72,14 +72,14 @@ class AlleleRemover(object):
         #     self.counts[best_gene]['second'].fill(second_smallest_hfrac)
 
     # ----------------------------------------------------------------------------------------
-    def separate_into_classes(self, sorted_gene_counts, easycounts):
+    def separate_into_classes(self, sorted_gene_counts, easycounts):  # where each class contains all alleles with the same distance from start to cyst, and within a hamming distance of <self.args.n_max_snps> 
         class_counts = []
         for gene, counts in sorted_gene_counts:
-            seq = self.glfo['seqs'][self.region][gene][:self.codon_positions[gene] + 3]
-            add_new_class = True
-            for gclass in class_counts:
+            seq = self.glfo['seqs'][self.region][gene][:self.codon_positions[gene] + 3]  # only go up through the end of the cysteine
+            add_new_class = True  # to begin with, assume we'll add a new class for this gene
+            for gclass in class_counts:  # then check if, instead, this gene belongs in any of the existing classes
                 for gfo in gclass:
-                    if len(gfo['seq']) != len(seq):
+                    if len(gfo['seq']) != len(seq):  # everybody in the class has to have the same distance from start of V (rss, I think) to end of cysteine
                         continue
                     hdist = utils.hamming_distance(gfo['seq'], seq)
                     if hdist < self.args.n_max_snps - 1:  # if this gene is close to any gene in the class, add it to this class
