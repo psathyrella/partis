@@ -422,19 +422,18 @@ def get_mutfo_from_name(gene_name):
     return mutfo
 
 # ----------------------------------------------------------------------------------------
-def get_new_allele_name_and_change_mutfo(template_gene, mutfo):
-    if '+' in utils.allele(template_gene):  # template gene was already snp'd
-        old_mutfo = get_mutfo_from_name(template_gene)
-        for position, info in mutfo.items():
-            if position not in old_mutfo:
-                old_mutfo[position] = {}
-                old_mutfo[position]['original'] = info['original']  # if it *is* already there, we want to *keep* the old 'original'
-            old_mutfo[position]['new'] = info['new']
-            if old_mutfo[position]['new'] == old_mutfo[position]['original']:  # reverted back to the original base
+def get_new_allele_name_and_change_mutfo(template_gene, mutfo):  # convert snp info in <mutfo> to the snpd/inferred name (with '+'s and whatnot), accounting for <template_gene> being possibly already snpd/inferred
+    if '+' in utils.allele(template_gene):  # if template gene was itself snpd/inferred, we have to merge the old and new snpd positions
+        old_mutfo = get_mutfo_from_name(template_gene)  # start from the template gene's snpd positions
+        for position, posfo in mutfo.items():  # loop over the new gene's snpd positions
+            if position not in old_mutfo:  # ...adding the new positions that aren't already there
+                old_mutfo[position] = {'original' : posfo['original']}
+            old_mutfo[position]['new'] = posfo['new']
+            if old_mutfo[position]['new'] == old_mutfo[position]['original']:  # the new mutation reverted the position back to the original base
                 del old_mutfo[position]
         final_mutfo = old_mutfo
         assert len(template_gene.split('+')) == 2
-        template_gene = template_gene.split('+')[0]  # before we did any snp'ing
+        template_gene = template_gene.split('+')[0]  # original template name, before we did any snp'ing
     else:
         final_mutfo = mutfo
 
