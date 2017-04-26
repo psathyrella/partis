@@ -56,8 +56,8 @@ def run_test(args):
         # figure what genes we're using
         if args.gen_gset:
             cmd_str += ' --generate-germline-set'
-            cmd_str += ' --n-genes-per-region 1:5:3'
-            cmd_str += ' --n-alleles-per-gene 2,3:1,2:1,2'
+            cmd_str += ' --n-genes-per-region 20:5:3'
+            cmd_str += ' --n-sim-alleles-per-gene 1,2,3:1,2:1,2'
         else:
             simulation_genes = ':'.join(args.sim_v_genes + args.dj_genes)
             sglfo = glutils.read_glfo('data/germlines/human', locus=locus, only_genes=simulation_genes.split(':'))

@@ -661,7 +661,7 @@ def choose_some_alleles(region, genes_to_use, allelic_groups, n_alleles_per_gene
     # NOTE also modifies <allelic_groups>
 
     if len(allelic_groups[region]) == 0:
-        raise Exception('ran out of %s alleles (either --n-genes-per-region or --n-alleles-per-gene are probably too big)' % region)
+        raise Exception('ran out of %s alleles (either --n-genes-per-region or --n-alleles-per-gene are probably too big)' % region)  # note that we don't reuse pv/sv pairs (the idea being such a pair represents an actual gene), and we don't directly control how many alleles are chosen from each such pair, so there isn't really a way to make sure you get every single allele in the germline set.
 
     available_versions = None
     while available_versions is None or len(available_versions) == 0:
@@ -729,7 +729,7 @@ def generate_germline_set(glfo, n_genes_per_region, n_alleles_per_gene, min_alle
     """ NOTE removes genes from  <glfo> """
     if debug:
         print '    choosing germline set'
-    allelic_groups = utils.separate_into_allelic_groups(glfo)
+    allelic_groups = utils.separate_into_allelic_groups(glfo)  # NOTE by design, these are not the same as the groups created by alleleremover
     allele_prevalence_freqs = {r : {} for r in utils.regions}
     for region in utils.regions:
         if debug:
