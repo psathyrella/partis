@@ -517,7 +517,7 @@ def color_chars(chars, col, seq):
     return ''.join(return_str)
 
 # ----------------------------------------------------------------------------------------
-def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', post_str='', print_hfrac=False, print_isnps=False, emphasis_positions=None):
+def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', post_str='', print_hfrac=False, print_isnps=False, return_isnps=False, emphasis_positions=None):
     """ default: return <seq> string with colored mutations with respect to <ref_seq> """
     if len(ref_seq) != len(seq):
         raise Exception('unequal lengths in color_mutants()\n    %s\n    %s' % (ref_seq, seq))
@@ -543,7 +543,10 @@ def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', 
     if print_result:
         print '%s%s%s' % (extra_str, ref_label, ref_seq)
         print return_str
-    return return_str
+    if return_isnps:
+        return return_str, isnps
+    else:
+        return return_str
 
 # ----------------------------------------------------------------------------------------
 def plural_str(pstr, count):
