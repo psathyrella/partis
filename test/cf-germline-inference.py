@@ -206,7 +206,7 @@ default_varvals = {
     'multi-nsnp' : '1,1:1,3:2,3',
     'prevalence' : '0.1:0.2:0.3',
     'n-leaves' : '1.5:3:10:25',
-    'weibull' : '0.1:0.5:1.3',
+    'weibull' : '0.3:0.5:1.3',
 }
 parser = argparse.ArgumentParser()
 parser.add_argument('action', choices=['mfreq', 'nsnp', 'multi-nsnp', 'prevalence', 'n-leaves', 'weibull'])
