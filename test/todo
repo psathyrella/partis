@@ -1,35 +1,6 @@
 # now
 
-# need to get ./bin/cf-alleles.py to align cyst/tryp
-
-# should also repeat nproc 3 and 2, maybe just by using time as a proxy rather than number of calculations? Or maybe looking at inter-step vs in-step time (cp and whatnot)?
 # add sstat memory checks to utils.finish_process() (or maybe while you're waiting for them to finish?)
-
-install.packages("TreeSimGM")
-install.packages("apTreeshape")
-install.packages("magrittr")
-
-library(apTreeshape)
-library(TreeSimGM)
-library(magrittr)
-
-> sim.taxa(100, n=10, distributionspname="rweibull", distributionspparameters=c(1.3,1),
-+          symmetric=TRUE, complete=TRUE) %>%
-+     lapply(., as.treeshape) %>%
-+     sapply(., colless) %>%
-+     summary
-Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
-4.00    8.00   10.50   10.88   12.00   27.00
-> sim.taxa(100, n=10, distributionspname="rweibull", distributionspparameters=c(0.1,1),
-+          symmetric=TRUE, complete=TRUE) %>%
-+     lapply(., as.treeshape) %>%
-+     sapply(., colless) %>%
-+     summary
-Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
-7.0    18.0    23.0    23.1    28.0    36.0
->
-
-distributionsparameters in the range [0.1, 1.3].
 
 # need to redo n procs in compareutils now that everything's so much faster
 #  - and maybe just don't use slurm at all if I can't get cores fast enough
@@ -143,6 +114,7 @@ distributionsparameters in the range [0.1, 1.3].
 #  - it might make more sense to ditch the whole k_v k_d parameterization, since since it inherently suggests a rectangular region of k-space, which doesn't take account of the fact that we know beforehand that we shouldn't really be checking everything in that rectangular region
 #    - maybe a stopgap would be to increment/decrement k_v/k_d in tandem?
 #    - would make more sense to have per-gene kbounds
+#  - for partitioning, maybe use time as a proxy rather than number of calculations, perhaps using inter-step vs in-step time (note that at least on my setup the cp commands take a significant amount of time)
 
 # bryan's super-short-read sample
 #  - figure out cause of mutation rate discontinuity in some clusters (better insertion mutation rate?)
