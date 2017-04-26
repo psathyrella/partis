@@ -47,13 +47,19 @@ def print_str(gene, seq):
 
 ref_gene = genes[0]
 ref_seq = glfo['seqs'][args.region][ref_gene]
-print print_str(ref_gene, utils.color_mutants(ref_seq, ref_seq, emphasis_positions=None if args.region == 'd' else [codon_positions[ref_gene] + i for i in range(3)])), '   (reference)'
+ref_pos = codon_positions[ref_gene]
+print print_str(ref_gene, utils.color_mutants(ref_seq, ref_seq, emphasis_positions=None if args.region == 'd' else [ref_pos + i for i in range(3)])), '   (reference)'
 
 for igene in range(1, len(genes)):
     gene = genes[igene]
     seq = glfo['seqs'][args.region][gene]
+    pos = codon_positions[gene]
+    if pos < ref_pos:  # align the codon position in the case that this seq is shorter up to the codon
+        seq = (ref_pos - pos) * 'N' + seq
+        pos += (ref_pos - pos)
     min_length = min(len(seq), len(ref_seq))
-    colored_seq = utils.color_mutants(ref_seq[:min_length], seq[:min_length], print_isnps=True, emphasis_positions=None if args.region == 'd' else [codon_positions[gene] + i for i in range(3)])
+    emph_positions = None if args.region == 'd' else [pos + i for i in range(3)]
+    colored_seq = utils.color_mutants(ref_seq[:min_length], seq[:min_length], print_isnps=True, emphasis_positions=emph_positions)
     print print_str(gene, colored_seq)
     if min_length < len(ref_seq) and igene == 0:
         print 'extra for %s: %s' % (utils.color_gene(ref_gene), ref_seq[min_length:])
