@@ -448,7 +448,7 @@ def generate_snpd_gene(gene, cpos, seq, positions):
     assert utils.get_region(gene) == 'v'  # others not yet handled
     def choose_position():
         snp_pos = None
-        while snp_pos is None or snp_pos in snpd_positions or not utils.codon_unmutated('cyst', tmpseq, cpos, debug=True):
+        while snp_pos is None or snp_pos in snpd_positions or not utils.codon_unmutated('cyst', tmpseq, cpos):
             snp_pos = random.randint(0, len(seq) - 1)  # note that randint() is inclusive
             tmpseq = seq[: snp_pos] + 'X' + seq[snp_pos + 1 :]  # for checking cyst position
         return snp_pos
@@ -725,10 +725,22 @@ def choose_allele_prevalence_freqs(glfo, allele_prevalence_freqs, region, min_al
         print '   min ratio %.3f' % (min(prevalence_freqs) / max(prevalence_freqs))
 
 # ----------------------------------------------------------------------------------------
+def process_parameter_strings(n_genes_per_region, n_alleles_per_gene):
+    n_genes_per_region = utils.get_arg_list(n_genes_per_region, intify=True)
+    if n_genes_per_region is not None:
+        n_genes_per_region = {r : n_genes_per_region[utils.regions.index(r)] for r in utils.regions}  # convert to dict for easier access
+    n_alleles_per_gene = utils.get_arg_list(n_alleles_per_gene)
+    if n_alleles_per_gene is not None:
+        assert len(n_alleles_per_gene) == len(utils.regions)
+        n_alleles_per_gene = {utils.regions[i] : [int(n) for n in n_alleles_per_gene[i].split(',')] for i in range(len(utils.regions))}
+    return n_genes_per_region, n_alleles_per_gene
+
+# ----------------------------------------------------------------------------------------
 def generate_germline_set(glfo, n_genes_per_region, n_alleles_per_gene, min_allele_prevalence_freq, allele_prevalence_fname, debug=True):
     """ NOTE removes genes from  <glfo> """
     if debug:
         print '    choosing germline set'
+    n_genes_per_region, n_alleles_per_gene = process_parameter_strings(n_genes_per_region, n_alleles_per_gene)  # they're passed as strings into here, but we need 'em to be dicts
     allelic_groups = utils.separate_into_allelic_groups(glfo)  # NOTE by design, these are not the same as the groups created by alleleremover
     allele_prevalence_freqs = {r : {} for r in utils.regions}
     for region in utils.regions:

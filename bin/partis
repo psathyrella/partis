@@ -453,13 +453,6 @@ args.n_fewer_procs = args.n_procs[0] if len(args.n_procs) == 1 else args.n_procs
 args.n_procs = args.n_procs[0]
 args.queries = utils.get_arg_list(args.queries)
 args.reco_ids = utils.get_arg_list(args.reco_ids)
-args.n_genes_per_region = utils.get_arg_list(args.n_genes_per_region, intify=True)
-if args.n_genes_per_region is not None:
-    args.n_genes_per_region = {r : args.n_genes_per_region[utils.regions.index(r)] for r in utils.regions}  # convert to dict for easier access
-args.n_sim_alleles_per_gene = utils.get_arg_list(args.n_sim_alleles_per_gene)
-if args.n_sim_alleles_per_gene is not None:
-    assert len(args.n_sim_alleles_per_gene) == len(utils.regions)
-    args.n_sim_alleles_per_gene = {utils.regions[i] : [int(n) for n in args.n_sim_alleles_per_gene[i].split(',')] for i in range(len(utils.regions))}
 args.istartstop = utils.get_arg_list(args.istartstop, intify=True)
 if args.istartstop is not None:
     if args.istartstop[0] >= args.istartstop[1] or args.istartstop[0] < 0:
