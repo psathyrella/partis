@@ -57,31 +57,31 @@ def run_test(args):
 
         # figure what genes we're using
         if args.gen_gset:
+            assert args.sim_v_genes is None and args.allele_prevalence_freqs is None
+
             n_genes_per_region = '20:5:3'
             n_sim_alleles_per_gene = '1,2,3:1,2:1,2'
             min_allele_prevalence_freq = 0.01
+            remove_template_genes = False
+
             sglfo = glutils.read_glfo('data/germlines/human', locus=locus)
             glutils.remove_v_genes_with_bad_cysteines(sglfo)
-            glutils.generate_germline_set(sglfo, n_genes_per_region, n_sim_alleles_per_gene, min_allele_prevalence_freq, allele_prevalence_fname)
-            assert args.sim_v_genes is None
+            glutils.generate_germline_set(sglfo, n_genes_per_region, n_sim_alleles_per_gene, min_allele_prevalence_freq, allele_prevalence_fname, snp_positions=args.snp_positions, remove_template_genes=remove_template_genes)
+            cmd_str += ' --allele-prevalence-fname ' + allele_prevalence_fname
         else:
             sglfo = glutils.read_glfo('data/germlines/human', locus=locus, only_genes=(args.sim_v_genes + args.dj_genes))
+            added_snp_names = None
+            if args.snp_positions is not None:  # not necessarily explicitly set on the command line, i.e. can also be filled based on --nsnp-list
+                snps_to_add = [{'gene' : args.sim_v_genes[ig], 'positions' : args.snp_positions[ig]} for ig in range(len(args.snp_positions))]
+                added_snp_names = glutils.add_some_snps(snps_to_add, sglfo, debug=True, remove_template_genes=args.remove_template_genes)
 
-        added_snp_names = None
-        if args.snp_positions is not None:  # not necessarily explicitly set on the command line, i.e. can also be filled based on --nsnp-list
-            v_gene_list = args.sim_v_genes if args.sim_v_genes is not None else numpy.random.choice(sglfo['seqs']['v'].keys(), size=len(sglfo['seqs']['v']))
-            if len(v_gene_list) < len(args.snp_positions):
-                raise Exception('more snp positions %d than genes %d' % (len(args.snp_positions), len(v_gene_list)))
-            snps_to_add = [{'gene' : v_gene_list[ig], 'positions' : args.snp_positions[ig]} for ig in range(len(args.snp_positions))]
-            added_snp_names = glutils.add_some_snps(snps_to_add, sglfo, debug=True, remove_template_genes=args.remove_template_genes)
-
-        if args.allele_prevalence_freqs is not None:
-            if len(args.allele_prevalence_freqs) != len(sglfo['seqs']['v']):  # already checked when parsing args, but, you know...
-                raise Exception('--allele-prevalence-freqs not the right length')
-            gene_list = sorted(sglfo['seqs']['v']) if added_snp_names is None else list(set(args.sim_v_genes)) + added_snp_names
-            prevalence_freqs = {'v' : {g : f for g, f in zip(gene_list, args.allele_prevalence_freqs)}, 'd' : {}, 'j' : {}}
-            glutils.write_allele_prevalence_freqs(prevalence_freqs, allele_prevalence_fname)
-            cmd_str += ' --allele-prevalence-fname ' + allele_prevalence_fname
+            if args.allele_prevalence_freqs is not None:
+                if len(args.allele_prevalence_freqs) != len(sglfo['seqs']['v']):  # already checked when parsing args, but, you know...
+                    raise Exception('--allele-prevalence-freqs not the right length')
+                gene_list = sorted(sglfo['seqs']['v']) if added_snp_names is None else list(set(args.sim_v_genes)) + added_snp_names
+                prevalence_freqs = {'v' : {g : f for g, f in zip(gene_list, args.allele_prevalence_freqs)}, 'd' : {}, 'j' : {}}
+                glutils.write_allele_prevalence_freqs(prevalence_freqs, allele_prevalence_fname)
+                cmd_str += ' --allele-prevalence-fname ' + allele_prevalence_fname
 
         print '  simulating with %d v: %s' % (len(sglfo['seqs']['v']), ' '.join([utils.color_gene(g) for g in sglfo['seqs']['v']]))
         glutils.write_glfo(args.outdir + '/germlines/simulation', sglfo)

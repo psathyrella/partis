@@ -736,7 +736,7 @@ def process_parameter_strings(n_genes_per_region, n_alleles_per_gene):
     return n_genes_per_region, n_alleles_per_gene
 
 # ----------------------------------------------------------------------------------------
-def generate_germline_set(glfo, n_genes_per_region, n_alleles_per_gene, min_allele_prevalence_freq, allele_prevalence_fname, debug=True):
+def generate_germline_set(glfo, n_genes_per_region, n_alleles_per_gene, min_allele_prevalence_freq, allele_prevalence_fname, snp_positions=None, remove_template_genes=False, debug=True):
     """ NOTE removes genes from  <glfo> """
     if debug:
         print '    choosing germline set'
@@ -752,6 +752,13 @@ def generate_germline_set(glfo, n_genes_per_region, n_alleles_per_gene, min_alle
         if debug:
             print '      chose %d alleles' % len(genes_to_use)
         remove_genes(glfo, set(glfo['seqs'][region].keys()) - genes_to_use)  # NOTE would use glutils.restrict_to_genes() but it isn't on a regional basis
+
+        if region == 'v' and snp_positions is not None:
+            assert len(snp_positions) <= len(glfo['seqs'][region])
+            snpd_genes = numpy.random.choice(glfo['seqs'][region].keys(), size=len(snp_positions))
+            snps_to_add = [{'gene' : snpd_genes[ig], 'positions' : snp_positions[ig]} for ig in range(len(snp_positions))]
+            _ = add_some_snps(snps_to_add, glfo, debug=True, remove_template_genes=remove_template_genes)
+
         choose_allele_prevalence_freqs(glfo, allele_prevalence_freqs, region, min_allele_prevalence_freq, debug=debug)
     write_allele_prevalence_freqs(allele_prevalence_freqs, allele_prevalence_fname)  # NOTE lumps all the regions together, unlike in the parameter dirs
 
