@@ -76,6 +76,9 @@ def run_test(args):
                 added_snp_names = glutils.add_some_snps(snps_to_add, sglfo, debug=True, remove_template_genes=args.remove_template_genes)
 
             if args.allele_prevalence_freqs is not None:
+                if not utils.is_normed(args.allele_prevalence_freqs):
+                    raise Exception('--allele-prevalence-freqs %s not normalized' % args.allele_prevalence_freqs)
+
                 if len(args.allele_prevalence_freqs) != len(sglfo['seqs']['v']):  # already checked when parsing args, but, you know...
                     raise Exception('--allele-prevalence-freqs not the right length')
                 gene_list = sorted(sglfo['seqs']['v']) if added_snp_names is None else list(set(args.sim_v_genes)) + added_snp_names
@@ -264,11 +267,7 @@ if args.nsnp_list is not None:
     args.snp_positions = [[None for _ in range(nsnp)] for nsnp in args.nsnp_list]  # the <None> tells glutils to choose a position at random
     args.nsnp_list = None
 if args.allele_prevalence_freqs is not None:
-    if args.snp_positions is not None:
-        if len(args.allele_prevalence_freqs) != 2 * len(args.sim_v_genes):  # need a prevalence freq also for each newly-generated snpd gene
-            raise Exception('--allele-prevalence-freqs %s length %d not equal to twice --sim-v-genes %s length %d' % (args.allele_prevalence_freqs, len(args.allele_prevalence_freqs), args.sim_v_genes, 2 * len(args.sim_v_genes)))
-    elif len(args.allele_prevalence_freqs) != len(args.sim_v_genes):
-        raise Exception('--allele-prevalence-freqs %s length %d not equal to --sim-v-genes %s length %d' % (args.allele_prevalence_freqs, len(args.allele_prevalence_freqs), args.sim_v_genes, len(args.sim_v_genes)))
+    # easier to check the length after we've generated snpd genes (above)
     if not utils.is_normed(args.allele_prevalence_freqs):
         raise Exception('--allele-prevalence-freqs %s not normalized' % args.allele_prevalence_freqs)
 if args.gen_gset:  # these are all set automatically if we're generating/inferring a whole germline set
