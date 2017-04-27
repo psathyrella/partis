@@ -82,7 +82,7 @@ class AlleleRemover(object):
                     if len(gfo['seq']) != len(seq):  # everybody in the class has to have the same distance from start of V (rss, I think) to end of cysteine
                         continue
                     hdist = utils.hamming_distance(gfo['seq'], seq)
-                    if hdist < self.args.n_max_snps - 1:  # if this gene is close to any gene in the class, add it to this class
+                    if hdist < self.args.n_max_snps - 2:  # if this gene is close to any gene in the class, add it to this class
                         add_new_class = False
                         class_counts[class_counts.index(gclass)].append({'gene' : gene, 'counts' : counts, 'seq' : seq})
                         break
@@ -111,7 +111,7 @@ class AlleleRemover(object):
             if nearest_hdist is None or hdist < nearest_hdist:
                 nearest_hdist = hdist
                 nearest_gene = kgene
-            if hdist < self.args.n_max_snps - 1:
+            if hdist < self.args.n_max_snps - 2:
                 n_close_genes += 1
 
         if easycounts[this_gene] < self.alfinder.n_total_min:  # if we hardly ever saw it, there's no good reason to believe it wasn't the result of just mutational wandering
