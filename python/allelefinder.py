@@ -466,14 +466,14 @@ class AlleleFinder(object):
             return False
 
         # make sure all the snp positions have similar fits (the bin totals for all snp positions should be highly correlated, since they should ~all be present in ~all sequences [that stem from the new allele])
-        # NOTE that with multiple multi-snp new alleles that share some, but not all, positions, we don't expect consistency. This is rare enough, though, that it's probably better to require the consistency. They'll still show up in the dbg printing.
+        # NOTE that with multiple multi-snp new alleles that share some, but not all, positions, we don't expect consistency. In particular, at shared positions, the nsnp bin for the other allele will be high, and the prevalence will be off.
         for pos_1, pos_2 in itertools.combinations(fitfo['candidates'][istart], 2):
             fitfo_1, fitfo_2 = self.fitfos[gene]['fitfos'][istart][pos_1], self.fitfos[gene]['fitfos'][istart][pos_2]
-            if not self.consistent_slope_and_y_icpt(self.max_consistent_candidate_fit_sigma, fitfo_1['postfo'], fitfo_2['postfo']):  # NOTE this has to be very permissive, since with multiple new alleles at the same position the y-icpt (at least) is expected to be quite different
+            if istart >= self.hard_code_three and not self.consistent_slope_and_y_icpt(self.max_consistent_candidate_fit_sigma, fitfo_1['postfo'], fitfo_2['postfo']):
                 if debug:
                     print '    positions %d and %d have inconsistent post-istart fits' % (pos_1, pos_2)
                 return False
-            if istart >= self.hard_code_two and not self.consistent_slope_and_y_icpt(self.max_consistent_candidate_fit_sigma, fitfo_1['prefo'], fitfo_2['prefo']):
+            if istart > self.hard_code_three and not self.consistent_slope_and_y_icpt(self.max_consistent_candidate_fit_sigma, fitfo_1['prefo'], fitfo_2['prefo']):  # if this nsnp is less than 3, and there's a second new allele with smaller nsnp, the pre-fit will be super inconsistent
                 if debug:
                     print '    positions %d and %d have inconsistent pre-istart fits' % (pos_1, pos_2)
                 return False
@@ -648,7 +648,7 @@ class AlleleFinder(object):
             if istart >= self.hard_code_five:
                 pre_approx = self.approx_fit_vals(prevals)
                 post_approx = self.approx_fit_vals(postvals)
-                if pre_approx['slope'] > post_approx['slope']:  #  or self.consistent_slope_and_y_icpt(pre_approx, post_approx):  # UPDATE really don't want to require inconsistent slope and y-icpt
+                if pre_approx['slope'] > post_approx['slope']:
                     continue
 
             onefit = self.get_curvefit(bothvals, y_icpt_bounds=(0., 0.), debug=dbg)
