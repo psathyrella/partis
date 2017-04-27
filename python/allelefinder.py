@@ -469,7 +469,7 @@ class AlleleFinder(object):
         # NOTE that with multiple multi-snp new alleles that share some, but not all, positions, we don't expect consistency. In particular, at shared positions, the nsnp bin for the other allele will be high, and the prevalence will be off.
         for pos_1, pos_2 in itertools.combinations(fitfo['candidates'][istart], 2):
             fitfo_1, fitfo_2 = self.fitfos[gene]['fitfos'][istart][pos_1], self.fitfos[gene]['fitfos'][istart][pos_2]
-            if istart >= self.hard_code_three and not self.consistent_slope_and_y_icpt(self.max_consistent_candidate_fit_sigma, fitfo_1['postfo'], fitfo_2['postfo']):
+            if istart > self.hard_code_three and not self.consistent_slope_and_y_icpt(self.max_consistent_candidate_fit_sigma, fitfo_1['postfo'], fitfo_2['postfo']):
                 if debug:
                     print '    positions %d and %d have inconsistent post-istart fits' % (pos_1, pos_2)
                 return False
