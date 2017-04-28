@@ -776,7 +776,9 @@ def check_allele_prevalence_freqs(outfname, glfo, allele_prevalence_fname, only_
         if only_region is not None and region != only_region:
             continue
         total = sum(counts[region].values())
-        print '       %s   obs / tot  =  freq    expected' % region
+        width = str(max(3, len(str(max(counts[region].values())))))
+        print '       %s  (%d total)' % (region, total)
+        print ('           %' + width + 's    freq    expected') % 'obs'
         for gene in glfo['seqs'][region]:
-            print '          %4d / %-4d = %.3f    %.3f   %s' % (counts[region][gene], total, float(counts[region][gene]) / total, allele_prevalence_freqs[region][gene], utils.color_gene(gene, width=15))
+            print ('          %' + width + 'd     %.3f    %.3f   %s') % (counts[region][gene], float(counts[region][gene]) / total, allele_prevalence_freqs[region][gene], utils.color_gene(gene, width=15))
 
