@@ -13,6 +13,16 @@ import subprocess
 import multiprocessing
 import copy
 
+
+# ----------------------------------------------------------------------------------------
+def fsdir():
+    fsdir = '/fh/fast/matsen_e'
+    if not os.path.exists(fsdir):
+        fsdir = '/tmp'
+    if os.getenv('USER') is not None:
+        fsdir += '/' + os.getenv('USER')
+    return fsdir
+
 # ----------------------------------------------------------------------------------------
 # putting these up here so glutils import doesn't fail... I think I should be able to do it another way, though
 regions = ['v', 'd', 'j']

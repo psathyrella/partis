@@ -120,7 +120,7 @@ def get_simfname(args, label, n_leaves, mut_mult, no_subset=False):
 
 # ----------------------------------------------------------------------------------------
 def get_program_workdir(args, program_name, label, n_leaves, mut_mult):
-    basedir = '/fh/fast/matsen_e/dralph/work/' + program_name + '/' + label
+    basedir = utils.fsdir() + '/work/' + program_name + '/' + label
     if not args.is_simu:
         outdir = basedir + '/data'
     else:
@@ -134,9 +134,9 @@ def get_program_workdir(args, program_name, label, n_leaves, mut_mult):
 # ----------------------------------------------------------------------------------------
 def get_changeo_outdir(args, label, n_leaves, mut_mult):
     if args.bak:
-        changeo_fsdir = '/fh/fast/matsen_e/dralph/work/changeo.bak/' + label
+        changeo_fsdir = utils.fsdir() + '/work/changeo.bak/' + label
     else:
-        changeo_fsdir = '/fh/fast/matsen_e/dralph/work/changeo/' + label
+        changeo_fsdir = utils.fsdir() + '/work/changeo/' + label
 
     if not args.is_simu:
         imgtdir = changeo_fsdir + '/data'

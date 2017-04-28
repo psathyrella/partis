@@ -151,7 +151,6 @@ def multiple_tests(args):
     utils.run_cmds(cmdfos, debug='write')
 
 # ----------------------------------------------------------------------------------------
-fsdir = '/fh/fast/matsen_e/dralph'
 
 # # ----------------------------------------------------------------------------------------
 # from hist import Hist
@@ -213,7 +212,7 @@ fsdir = '/fh/fast/matsen_e/dralph'
 # # ----------------------------------------------------------------------------------------
 #     ih += 1
 
-# plotting.mpl_finish(ax, fsdir + '/partis/tmp/tmp', 'baz', xbounds=(0.9, nbins), log='y')
+# plotting.mpl_finish(ax, utils.fsdir() + '/partis/tmp/tmp', 'baz', xbounds=(0.9, nbins), log='y')
 # sys.exit()
 # # ----------------------------------------------------------------------------------------
 
@@ -238,8 +237,8 @@ parser.add_argument('--allele-prevalence-freqs', help='colon-separated list of a
 parser.add_argument('--remove-template-genes', action='store_true', help='when generating snps, remove the original gene before simulation')
 parser.add_argument('--mut-mult', type=float)
 parser.add_argument('--slurm', action='store_true')
-parser.add_argument('--outdir', default=fsdir + '/partis/allele-finder')
-parser.add_argument('--workdir', default=fsdir + '/_tmp/hmms/' + str(random.randint(0, 999999)))
+parser.add_argument('--outdir', default=utils.fsdir() + '/partis/allele-finder')
+parser.add_argument('--workdir', default=utils.fsdir() + '/_tmp/hmms/' + str(random.randint(0, 999999)))
 parser.add_argument('--n-tests', type=int)
 parser.add_argument('--plot-and-fit-absolutely-everything', type=int, help='fit every single position for this <istart> and write every single corresponding plot (slow as hell, and only for debugging/making plots for paper)')
 args = parser.parse_args()

@@ -24,7 +24,6 @@ legend_titles = {
 }
 
 # # ----------------------------------------------------------------------------------------
-# fsdir = '/fh/fast/matsen_e'
 # sys.path.insert(1, './datascripts')
 # import heads
 # label = 'vz'
@@ -48,7 +47,7 @@ legend_titles = {
 #     for dset in metafo:
 #         if subject is not None and metafo[dset]['subject'] != subject:
 #             continue
-#         bdir = fsdir + '/processed-data/partis/' + study + '/' + label + '/' + dset
+#         bdir = utils.fsdir() + '/processed-data/partis/' + study + '/' + label + '/' + dset
 #         if metafo[dset]['timepoint'] == 'merged':
 #             continue
 #         if dset == 'Hs-LN3-5RACE-IgG':  # bad one
@@ -58,13 +57,13 @@ legend_titles = {
 #             continue
 #         names.append(metafo[dset]['shorthand'])
 #         dirs.append(bdir + '/plots/' + ptype + '/mute-freqs/overall')
-#     outdir = fsdir + '/dralph/partis/tmp/lots-of-mfreqs/' + study
+#     outdir = utils.fsdir() + '/partis/tmp/lots-of-mfreqs/' + study
 #     if subject is not None:
 #         outdir += '/' + subject
 #     subprocess.check_call(['./bin/compare-plotdirs.py', '--outdir', outdir, '--plotdirs', ':'.join(dirs), '--names', ':'.join(names), '--normalize'])
 #     merged_names += names
 #     merged_dirs += dirs
-# # subprocess.check_call(['./bin/compare-plotdirs.py', '--outdir', fsdir + '/dralph/partis/tmp/lots-of-mfreqs/merged', '--plotdirs', ':'.join(merged_dirs), '--names', ':'.join(merged_names), '--normalize'])
+# # subprocess.check_call(['./bin/compare-plotdirs.py', '--outdir', utils.fsdir() + '/partis/tmp/lots-of-mfreqs/merged', '--plotdirs', ':'.join(merged_dirs), '--names', ':'.join(merged_names), '--normalize'])
 # sys.exit()
 
 # # ----------------------------------------------------------------------------------------
@@ -222,12 +221,12 @@ def run_single_test(args, baseoutdir, val, n_events):
 
     cmd += ' --nsnp-list ' + nsnpstr
     cmd += ' --outdir ' + get_outdir(baseoutdir, n_events, args.action, val)
-    utils.simplerun(cmd, dryrun=True)
+    utils.simplerun(cmd)
 
 # ----------------------------------------------------------------------------------------
 def run_tests(args, baseoutdir):
     if args.action == 'gls-gen':
-        n_events = 300000
+        n_events = args.gen_gset_events
         val = args.data
         run_single_test(args, baseoutdir, val, n_events)
     else:
@@ -249,13 +248,13 @@ parser = argparse.ArgumentParser()
 parser.add_argument('action', choices=['mfreq', 'nsnp', 'multi-nsnp', 'prevalence', 'n-leaves', 'weibull', 'gls-gen'])
 parser.add_argument('--v-genes', default='IGHV4-39*01')
 parser.add_argument('--varvals')
-parser.add_argument('--n-event-list', default='1000:2000:4000:8000')  # NOTE modified later for multi-nsnp
+parser.add_argument('--n-event-list', default='1000:2000:4000:8000')  # NOTE modified later for multi-nsnp also NOTE not used for gen-gset
+parser.add_argument('--gen-gset-events', default=300000)
 parser.add_argument('--n-tests', type=int, default=10)
-parser.add_argument('--n-procs_per_test', type=int, default=5)
+parser.add_argument('--n-procs-per-test', type=int, default=5)
 parser.add_argument('--plot', action='store_true')
 parser.add_argument('--no-slurm', action='store_true')
 parser.add_argument('--label')
-parser.add_argument('--fsdir', default='/fh/fast/matsen_e')
 parser.add_argument('--ete-path', default='/home/' + os.getenv('USER') + '/anaconda_ete/bin')
 parser.add_argument('--data', action='store_true')
 args = parser.parse_args()
@@ -264,7 +263,7 @@ args.v_genes = utils.get_arg_list(args.v_genes)
 args.n_event_list = utils.get_arg_list(args.n_event_list, intify=True)
 
 # ----------------------------------------------------------------------------------------
-alfdir = args.fsdir + '/dralph/partis/allele-finder'
+alfdir = utils.fsdir() + '/partis/allele-finder'
 baseoutdir = alfdir
 if args.label is not None:
     baseoutdir += '/' + args.label
