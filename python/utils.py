@@ -9,7 +9,7 @@ import math
 import glob
 from collections import OrderedDict
 import csv
-from subprocess import check_call, check_output, CalledProcessError, Popen
+import subprocess
 import multiprocessing
 import copy
 
@@ -1589,7 +1589,7 @@ def get_available_node_core_list(batch_config_fname, debug=False):
 
     # then info on all current allocations
     quefo = {}  # node : (number of tasks allocated to that node, including ours)
-    squeue_str = check_output(['squeue', '--format', '%.18i %.2t %.6D %R'])
+    squeue_str = subpocess.check_output(['squeue', '--format', '%.18i %.2t %.6D %R'])
     headers = ['JOBID', 'ST',  'NODES', 'NODELIST(REASON)']
     for line in squeue_str.split('\n'):
         linefo = line.strip().split()
@@ -1677,6 +1677,15 @@ def prepare_cmds(cmdfos, batch_system, batch_options, batch_config_fname, debug=
     return corelist
 
 # ----------------------------------------------------------------------------------------
+def simplerun(cmd_str, shell=False):
+    print '%s %s' % (color('red', 'run'), cmd_str)
+    sys.stdout.flush()
+    if shell:
+        subprocess.check_call(cmd_str, env=os.environ, shell=True)
+    else:
+        subprocess.check_call(cmd_str.split(), env=os.environ)
+
+# ----------------------------------------------------------------------------------------
 def run_cmd(cmdfo, batch_system=None, batch_options=None, nodelist=None):
     cmd_str = cmdfo['cmd_str']  # don't want to modify the str in <cmdfo>
     # print cmd_str
@@ -1707,10 +1716,10 @@ def run_cmd(cmdfo, batch_system=None, batch_options=None, nodelist=None):
         os.makedirs(cmdfo['logdir'])
 
     # print cmd_str
-    proc = Popen(cmd_str.split(),
-                 stdout=None if fout is None else open(fout, 'w'),
-                 stderr=None if ferr is None else open(ferr, 'w'),
-                 env=cmdfo['env'])
+    proc = subprocess.Popen(cmd_str.split(),
+                            stdout=None if fout is None else open(fout, 'w'),
+                            stderr=None if ferr is None else open(ferr, 'w'),
+                            env=cmdfo['env'])
     return proc
 
 # ----------------------------------------------------------------------------------------
@@ -1765,7 +1774,7 @@ def finish_process(iproc, procs, n_tries, cmdfo, dbgfo=None, batch_system=None, 
         for strtype in ['out', 'err']:
             if os.path.exists(cmdfo['logdir'] + '/' + strtype) and os.stat(cmdfo['logdir'] + '/' + strtype).st_size > 0:
                 print '        %s tail:' % strtype
-                logstr = check_output(['tail', cmdfo['logdir'] + '/' + strtype])
+                logstr = subpocess.check_output(['tail', cmdfo['logdir'] + '/' + strtype])
                 print '\n'.join(['            ' + l for l in logstr.split('\n')])
         print '    restarting proc %d' % iproc
         procs[iproc] = run_cmd(cmdfo, batch_system=batch_system, batch_options=batch_options)
@@ -2340,9 +2349,9 @@ def auto_slurm(n_procs):
     def slurm_exists():
         try:
             fnull = open(os.devnull, 'w')
-            check_output(['which', 'srun'], stderr=fnull, close_fds=True)
+            subpocess.check_output(['which', 'srun'], stderr=fnull, close_fds=True)
             return True
-        except CalledProcessError:
+        except subprocess.CalledProcessError:
             return False
 
     ncpu = multiprocessing.cpu_count()

@@ -14,12 +14,6 @@ sys.path.insert(1, './python')
 import utils
 import glutils
 
-# ----------------------------------------------------------------------------------------
-def run(cmd_str):
-    print '%s %s' % (utils.color('red', 'run'), cmd_str)
-    sys.stdout.flush()
-    check_call(cmd_str.split())
-
 base_cmd = './bin/partis'
 locus = 'igh'
 
@@ -93,7 +87,7 @@ def run_test(args):
         # run simulation
         if args.seed is not None:
             cmd_str += ' --seed ' + str(args.seed)
-        run(cmd_str)
+        utils.simplerun(cmd_str)
 
     # remove any old sw cache files
     sw_cachefiles = glob.glob(outpdir + '/sw-cache-*.csv')
@@ -133,7 +127,7 @@ def run_test(args):
         cmd_str += ' --seed ' + str(args.seed)
     if args.plot_and_fit_absolutely_everything is not None:
         cmd_str += ' --plot-and-fit-absolutely-everything ' + str(args.plot_and_fit_absolutely_everything)
-    run(cmd_str)
+    utils.simplerun(cmd_str)
 
 # ----------------------------------------------------------------------------------------
 def multiple_tests(args):

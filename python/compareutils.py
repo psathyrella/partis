@@ -938,10 +938,6 @@ def run_changeo(args, label, n_leaves, mut_mult, seqfname):
             utils.subset_files(subset_ids, tsvfnames, subset_dir)
         imgtdir = subset_dir
 
-    def run(cmdstr):
-        print 'RUN %s' % cmdstr
-        # check_call(cmdstr.split(), env=os.environ)
-
     outfname = get_outputname(args, label, 'run-changeo', seqfname, hfrac_bounds=None)
     if output_exists(args, outfname):
         return
@@ -954,16 +950,16 @@ def run_changeo(args, label, n_leaves, mut_mult, seqfname):
     start = time.time()
     cmd = bindir + '/MakeDb.py imgt -i ' + imgtdir + ' -s ' + fastafname + ' --failed'
     # cmd = bindir + '/MakeDb.py imgt -h'
-    run(cmd)
+    utils.simplerun(cmd)
     cmd = bindir + '/ParseDb.py select -d ' + imgtdir + '_db-pass.tab'
     if not args.is_simu:
         cmd += ' -f FUNCTIONAL -u T'
     else:  # on simulation we don't want to skip any (I'm not forbidding stop codons in simulation)
         cmd += ' -f FUNCTIONAL -u T F'
-    run(cmd)
+    utils.simplerun(cmd)
     # cmd = bindir + '/DefineClones.py bygroup -d ' + imgtdir + '_db-pass_parse-select.tab --act first --model m1n --dist 7'
     cmd = bindir + '/DefineClones.py bygroup -d ' + imgtdir + '_db-pass_parse-select.tab --model hs1f --norm len --act set --dist 0.2'
-    run(cmd)
+    utils.simplerun(cmd)
     print '        changeo time: %.3f' % (time.time()-start)
 
     # read changeo's output and toss it into a csv
@@ -1016,17 +1012,13 @@ def run_mixcr(args, label, n_leaves, mut_mult, seqfname):
     # check_call('head -n' + str(2*args.n_max_queries) + ' ' + fastafname + ' >' + infname, shell=True)
     # os.remove(seqfname.replace('.csv', '.fa'))
 
-    def run(cmdstr):
-        print 'RUN %s' % cmdstr
-        check_call(cmdstr.split())
-
     start = time.time()
     cmd = binary + ' align -f --loci IGH ' + infname + ' ' + infname.replace('.fasta', '.vdjca')
-    run(cmd)
+    utils.simplerun(cmd)
     cmd = binary + ' assemble -f ' + infname.replace('.fasta', '.vdjca') + ' ' + infname.replace('.fasta', '.clns')
-    run(cmd)
+    utils.simplerun(cmd)
     cmd = binary + ' exportClones ' + infname.replace('.fasta', '.clns') + ' ' + infname.replace('.fasta', '.txt')
-    run(cmd)
+    utils.simplerun(cmd)
 
     elapsed_time = time.time()-start
     print '        mixcr time: %.3f' % elapsed_time
