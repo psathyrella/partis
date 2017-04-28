@@ -73,6 +73,11 @@ legend_titles = {
 def varvalstr(name, val):
     if name == 'multi-nsnp':
         valstr = ':'.join([str(v) for v in val])
+    elif name == 'gls-gen':
+        if val:  # <val> is <args.data>
+            assert False
+        else:
+            valstr = 'simu'
     else:
         valstr = str(val)
     return valstr
@@ -121,8 +126,11 @@ def get_single_performance(outdir, debug=False):
     }
 
 # ----------------------------------------------------------------------------------------
-def xxx(args):
+def get_gls_gen_plots(args, baseoutdir):
     # ete3 requires its own python version, so we run as a subprocess
+    for iproc in range(args.n_tests):
+        print get_outdir(baseoutdir, n_events, varname, varval) + '/' + str(iproc)
+    sys.exit()
     plotdir = '.'
     plotname = 'tmp'
     glslabels = ['sim', 'inf']
@@ -137,6 +145,10 @@ def xxx(args):
 
 # ----------------------------------------------------------------------------------------
 def plot_test(args, baseoutdir):
+    if args.action == 'gls-gen':
+        get_gls_gen_plots(args, baseoutdir)
+        return
+
     import plotting
     plot_types = ['missing', 'spurious']
 
@@ -169,43 +181,59 @@ def plot_test(args, baseoutdir):
 # ----------------------------------------------------------------------------------------
 def get_base_cmd(args, n_events):
     cmd = './bin/test-allele-finding.py'
-    cmd += ' --n-procs 5 --n-tests ' + str(args.n_tests)
+    cmd += ' --n-procs ' + str(args.n_procs_per_test) + ' --n-tests ' + str(args.n_tests)
+    cmd += ' --n-sim-events ' + str(n_events)
     if not args.no_slurm:
         cmd += ' --slurm'
-    cmd += ' --inf-v-genes ' + args.v_genes[0]
-    cmd += ' --n-sim-events ' + str(n_events)
+    if args.action != 'gls-gen':
+        cmd += ' --inf-v-genes ' + args.v_genes[0]
     return cmd
 
 # ----------------------------------------------------------------------------------------
-def run_test(args, baseoutdir):
-    for val in args.varvals:
-        for n_events in args.n_event_list:
-            cmd = get_base_cmd(args, n_events)
-            sim_v_genes = [args.v_genes[0]]
-            nsnpstr = '1'
-            if args.action == 'mfreq':
-                cmd += ' --mut-mult ' + str(val)
-            elif args.action == 'nsnp':
-                nsnpstr = str(val)
-            elif args.action == 'multi-nsnp':
-                nsnpstr = ':'.join([str(n) for n in val])
-                sim_v_genes *= len(val)
-            elif args.action == 'prevalence':
-                cmd += ' --allele-prevalence-freqs ' + str(1. - val) + ':' + str(val)  # i.e. previously-known allele has 1 - p, and new allele has p
-            elif args.action == 'n-leaves':
-                cmd += ' --n-leaves ' + str(val)  # NOTE default of 1 (for other tests) is set in test-allele-finding.py
-                cmd += ' --n-leaf-distribution geometric'
-                cmd += ' --n-max-queries ' + str(n_events)  # i.e. we simulate <n_events> rearrangement events, but then only use <n_events> sequences for inference
-            elif args.action == 'weibull':
-                cmd += ' --n-leaves 5'  # NOTE default of 1 (for other tests) is set in test-allele-finding.py
-                cmd += ' --n-leaf-distribution geometric'
-                cmd += ' --n-max-queries ' + str(n_events)  # i.e. we simulate <n_events> rearrangement events, but then only use <n_events> sequences for inference
-            else:
-                assert False
-            cmd += ' --sim-v-genes ' + ':'.join(sim_v_genes)
-            cmd += ' --nsnp-list ' + nsnpstr
-            cmd += ' --outdir ' + get_outdir(baseoutdir, n_events, args.action, val)
-            utils.simplerun(cmd)
+def run_single_test(args, baseoutdir, val, n_events):
+    cmd = get_base_cmd(args, n_events)
+    sim_v_genes = [args.v_genes[0]]
+    nsnpstr = '1'
+    if args.action == 'mfreq':
+        cmd += ' --mut-mult ' + str(val)
+    elif args.action == 'nsnp':
+        nsnpstr = str(val)
+    elif args.action == 'multi-nsnp':
+        nsnpstr = ':'.join([str(n) for n in val])
+        sim_v_genes *= len(val)
+    elif args.action == 'prevalence':
+        cmd += ' --allele-prevalence-freqs ' + str(1. - val) + ':' + str(val)  # i.e. previously-known allele has 1 - p, and new allele has p
+    elif args.action == 'n-leaves':
+        cmd += ' --n-leaves ' + str(val)  # NOTE default of 1 (for other tests) is set in test-allele-finding.py
+        cmd += ' --n-leaf-distribution geometric'
+        cmd += ' --n-max-queries ' + str(n_events)  # i.e. we simulate <n_events> rearrangement events, but then only use <n_events> sequences for inference
+    elif args.action == 'weibull':
+        cmd += ' --n-leaves 5'  # NOTE default of 1 (for other tests) is set in test-allele-finding.py
+        cmd += ' --n-leaf-distribution geometric'
+        cmd += ' --n-max-queries ' + str(n_events)  # i.e. we simulate <n_events> rearrangement events, but then only use <n_events> sequences for inference
+    elif args.action == 'gls-gen':
+        nsnpstr = '1:1:2:3'
+        cmd += ' --gen-gset'
+    else:
+        assert False
+
+    if args.action != 'gls-gen':
+        cmd += ' --sim-v-genes ' + ':'.join(sim_v_genes)
+
+    cmd += ' --nsnp-list ' + nsnpstr
+    cmd += ' --outdir ' + get_outdir(baseoutdir, n_events, args.action, val)
+    utils.simplerun(cmd, dryrun=True)
+
+# ----------------------------------------------------------------------------------------
+def run_tests(args, baseoutdir):
+    if args.action == 'gls-gen':
+        n_events = 300000
+        val = args.data
+        run_single_test(args, baseoutdir, val, n_events)
+    else:
+        for val in args.varvals:
+            for n_events in args.n_event_list:
+                run_single_test(args, baseoutdir, val, n_events)
 
 # ----------------------------------------------------------------------------------------
 default_varvals = {
@@ -215,20 +243,23 @@ default_varvals = {
     'prevalence' : '0.1:0.2:0.3',
     'n-leaves' : '1.5:3:10:25',
     'weibull' : '0.3:0.5:1.3',
+    'gls-gen' : None,
 }
 parser = argparse.ArgumentParser()
-parser.add_argument('action', choices=['mfreq', 'nsnp', 'multi-nsnp', 'prevalence', 'n-leaves', 'weibull'])
+parser.add_argument('action', choices=['mfreq', 'nsnp', 'multi-nsnp', 'prevalence', 'n-leaves', 'weibull', 'gls-gen'])
 parser.add_argument('--v-genes', default='IGHV4-39*01')
 parser.add_argument('--varvals')
 parser.add_argument('--n-event-list', default='1000:2000:4000:8000')  # NOTE modified later for multi-nsnp
 parser.add_argument('--n-tests', type=int, default=10)
+parser.add_argument('--n-procs_per_test', type=int, default=5)
 parser.add_argument('--plot', action='store_true')
 parser.add_argument('--no-slurm', action='store_true')
 parser.add_argument('--label')
 parser.add_argument('--fsdir', default='/fh/fast/matsen_e')
 parser.add_argument('--ete-path', default='/home/' + os.getenv('USER') + '/anaconda_ete/bin')
+parser.add_argument('--data', action='store_true')
 args = parser.parse_args()
-xxx(args)
+
 args.v_genes = utils.get_arg_list(args.v_genes)
 args.n_event_list = utils.get_arg_list(args.n_event_list, intify=True)
 
@@ -255,4 +286,4 @@ if args.action == 'multi-nsnp':
 if args.plot:
     plot_test(args, baseoutdir)
 else:
-    run_test(args, baseoutdir)
+    run_tests(args, baseoutdir)

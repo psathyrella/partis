@@ -1677,9 +1677,11 @@ def prepare_cmds(cmdfos, batch_system, batch_options, batch_config_fname, debug=
     return corelist
 
 # ----------------------------------------------------------------------------------------
-def simplerun(cmd_str, shell=False):
+def simplerun(cmd_str, shell=False, dryrun=False):
     print '%s %s' % (color('red', 'run'), cmd_str)
     sys.stdout.flush()
+    if dryrun:
+        return
     if shell:
         subprocess.check_call(cmd_str, env=os.environ, shell=True)
     else:
