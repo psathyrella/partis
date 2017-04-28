@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # has to be its own script, since ete3 requires its own god damn python version, installed in a separated directory
+import glob
 import argparse
 import copy
 import random
@@ -100,7 +101,7 @@ parser.add_argument('--glsfnames', required=True)
 parser.add_argument('--glslabels', required=True)
 parser.add_argument('--title')
 parser.add_argument('--muscle-path', default='./packages/muscle/muscle3.8.31_i86linux64')
-parser.add_argument('--raxml-path', default='./packages/standard-RAxML/raxmlHPC-AVX')
+parser.add_argument('--raxml-path', default=glob.glob('./packages/standard-RAxML/raxmlHPC-*')[0])
 
 args = parser.parse_args()
 args.glsfnames = utils.get_arg_list(args.glsfnames)
