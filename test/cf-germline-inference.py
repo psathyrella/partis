@@ -70,13 +70,6 @@ legend_titles = {
 # # ----------------------------------------------------------------------------------------
 
 # ----------------------------------------------------------------------------------------
-def run(cmd_str):
-    print '%s %s' % (utils.color('red', 'run'), cmd_str)
-    sys.stdout.flush()
-    # subprocess.Popen(cmd_str.split())
-    subprocess.check_call(cmd_str.split())
-
-# ----------------------------------------------------------------------------------------
 def varvalstr(name, val):
     if name == 'multi-nsnp':
         valstr = ':'.join([str(v) for v in val])
@@ -126,6 +119,21 @@ def get_single_performance(outdir, debug=False):
         'spurious' : len(spurious_alleles),
         'total' : len([g for g in sglfo['seqs'][region] if '+' in g]),  # anybody with a '+' should be a new allele
     }
+
+# ----------------------------------------------------------------------------------------
+def xxx(args):
+    # ete3 requires its own python version, so we run as a subprocess
+    plotdir = '.'
+    plotname = 'tmp'
+    glslabels = ['sim', 'inf']
+    glsfnames = [l + '.fa' for l in glslabels]
+    cmdstr = 'export PATH=%s:$PATH && ./bin/plot-gl-set-trees.py' % args.ete_path
+    cmdstr += ' --plotdir ' + plotdir
+    cmdstr += ' --plotname ' + plotname
+    cmdstr += ' --glsfnames ' + ':'.join(glsfnames)
+    cmdstr += ' --glslabels ' + ':'.join(glslabels)
+    utils.simplerun(cmdstr, shell=True)
+    sys.exit()
 
 # ----------------------------------------------------------------------------------------
 def plot_test(args, baseoutdir):
@@ -197,7 +205,7 @@ def run_test(args, baseoutdir):
             cmd += ' --sim-v-genes ' + ':'.join(sim_v_genes)
             cmd += ' --nsnp-list ' + nsnpstr
             cmd += ' --outdir ' + get_outdir(baseoutdir, n_events, args.action, val)
-            run(cmd)
+            utils.simplerun(cmd)
 
 # ----------------------------------------------------------------------------------------
 default_varvals = {
@@ -218,8 +226,9 @@ parser.add_argument('--plot', action='store_true')
 parser.add_argument('--no-slurm', action='store_true')
 parser.add_argument('--label')
 parser.add_argument('--fsdir', default='/fh/fast/matsen_e')
+parser.add_argument('--ete-path', default='/home/' + os.getenv('USER') + '/anaconda_ete/bin')
 args = parser.parse_args()
-
+xxx(args)
 args.v_genes = utils.get_arg_list(args.v_genes)
 args.n_event_list = utils.get_arg_list(args.n_event_list, intify=True)
 
