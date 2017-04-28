@@ -127,20 +127,19 @@ def get_single_performance(outdir, debug=False):
 # ----------------------------------------------------------------------------------------
 def get_gls_gen_plots(args, baseoutdir):
     # ete3 requires its own python version, so we run as a subprocess
+    varname = args.action
+    varval = args.data
+
     for iproc in range(args.n_tests):
-        print get_outdir(baseoutdir, n_events, varname, varval) + '/' + str(iproc)
-    sys.exit()
-    plotdir = '.'
-    plotname = 'tmp'
-    glslabels = ['sim', 'inf']
-    glsfnames = [l + '.fa' for l in glslabels]
-    cmdstr = 'export PATH=%s:$PATH && ./bin/plot-gl-set-trees.py' % args.ete_path
-    cmdstr += ' --plotdir ' + plotdir
-    cmdstr += ' --plotname ' + plotname
-    cmdstr += ' --glsfnames ' + ':'.join(glsfnames)
-    cmdstr += ' --glslabels ' + ':'.join(glslabels)
-    utils.simplerun(cmdstr, shell=True)
-    sys.exit()
+        outdir = get_outdir(baseoutdir, args.gen_gset_events, varname, varval) + '/' + str(iproc)
+        simfname = outdir + '/germlines/simulation/' + locus + '/igh' + region + '.fasta'
+        inffname = outdir + '/simu-test/sw/germline-sets/' + locus + '/igh' + region + '.fasta'  # NOTE arg, the 'simu-test' part depends on the current vagaries of test-allele-finding
+        cmdstr = 'export PATH=%s:$PATH && ./bin/plot-gl-set-trees.py' % args.ete_path
+        cmdstr += ' --plotdir ' + outdir
+        cmdstr += ' --plotname ' + varvalstr(varname, varval)
+        cmdstr += ' --glsfnames ' + ':'.join([simfname, inffname])
+        cmdstr += ' --glslabels ' + ':'.join(['sim', 'inf'])
+        utils.simplerun(cmdstr, shell=True)
 
 # ----------------------------------------------------------------------------------------
 def plot_test(args, baseoutdir):
@@ -254,7 +253,7 @@ parser.add_argument('--n-tests', type=int, default=10)
 parser.add_argument('--n-procs-per-test', type=int, default=5)
 parser.add_argument('--plot', action='store_true')
 parser.add_argument('--no-slurm', action='store_true')
-parser.add_argument('--label')
+parser.add_argument('--label', default='xxx')
 parser.add_argument('--ete-path', default='/home/' + os.getenv('USER') + '/anaconda_ete/bin')
 parser.add_argument('--data', action='store_true')
 args = parser.parse_args()
