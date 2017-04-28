@@ -13,17 +13,13 @@ import ete3
 import utils
 
 # ----------------------------------------------------------------------------------------
-def plot_gls_gen_tree(plotdir, plotname, glsfnames, glslabels, leg_title=None, title=None):
+def plot_gls_gen_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=None, title=None):
     assert len(glslabels) == len(set(glslabels))  # no duplicates
     if 'ete3' not in sys.modules:
         import ete3
     ete3 = sys.modules['ete3']
 
     workdir = '/tmp/' + os.getenv('USER') + '/gls-trees/' + str(random.randint(0, 999999))
-    musclepath = './packages/muscle/muscle3.8.31_i86linux64'
-    if not os.path.exists(musclepath):
-        raise Exception('muscle path %s does not exist' % musclepath)
-    sys.exit()
     aligned_fname = workdir + '/all-aligned.fa'
     raxml_label = 'xxx'
     raxml_output_fnames = ['%s/RAxML_%s.%s' % (workdir, fn, raxml_label) for fn in ['parsimonyTree', 'log', 'result', 'info', 'bestTree']]
@@ -42,24 +38,22 @@ def plot_gls_gen_tree(plotdir, plotname, glsfnames, glslabels, leg_title=None, t
     with tempfile.NamedTemporaryFile() as tmpfile:
         for name, seq in all_genes.items():
             tmpfile.write('>%s\n%s\n' % (name, seq))
-        cmd_str = '%s -in %s -out %s' % (musclepath, tmpfile.name, aligned_fname)
+        cmd_str = '%s -in %s -out %s' % (args.muscle_path, tmpfile.name, aligned_fname)
         utils.simplerun(cmd_str)
 
     # get a tree for the aligned .fa
-    cmd_str = './packages/standard-RAxML/raxmlHPC-AVX -mGTRCAT -n%s -s%s -p1 -w %s' % (raxml_label, aligned_fname, workdir)
+    cmd_str = '%s -mGTRCAT -n%s -s%s -p1 -w%s' % (args.raxml_path, raxml_label, aligned_fname, workdir)
     utils.simplerun(cmd_str)
 
     with open(tree_fname) as treefile:
         treestr = treefile.read().strip()
-
-    t = ete3.ClusterTree(treestr)
-    ts = ete3.TreeStyle()
     # treestr = "(A:0.7,B:0.7):0.3;"
 
     scolors = {'ok' : 'DarkSeaGreen', 'missing' : 'IndianRed', 'spurious' : 'IndianRed'}
     faces = {'missing'  : ete3.CircleFace(10, 'white'), 
              'spurious' : ete3.CircleFace(10, 'black')}
 
+    # ----------------------------------------------------------------------------------------
     def getstatus(gene):
         if gene in gl_sets['sim'] and gene in gl_sets['inf']:
             return 'ok'
@@ -70,28 +64,29 @@ def plot_gls_gen_tree(plotdir, plotname, glsfnames, glslabels, leg_title=None, t
         else:
             return 'xxx'
 
+    # ----------------------------------------------------------------------------------------
     def get_nst(status):
         nst = ete3.NodeStyle()
         nst['bgcolor'] = scolors[status]
         return nst
 
-    for n in t.traverse():
-        n.dist = 1
-        n.img_style['hz_line_width'] = 2
-        n.img_style['vt_line_width'] = 2
-        if n.is_leaf():
-            status = getstatus(n.name)
-            n.set_style(get_nst(status))
+    etree = ete3.ClusterTree(treestr)
+    for node in etree.traverse():
+        node.dist = 1
+        node.img_style['hz_line_width'] = 2
+        node.img_style['vt_line_width'] = 2
+        if node.is_leaf():
+            status = getstatus(node.name)
+            node.set_style(get_nst(status))
             if status in faces:
-                n.add_face(copy.deepcopy(faces[status]), column=0)
+                node.add_face(copy.deepcopy(faces[status]), column=0)
 
-    ts.show_leaf_name = False
-    ts.mode = 'c'
-    ts.show_scale = False
-    outfname = 'out.png' #'../papers/germline-set-generation/prefigs/gls-gen/2.svg'
-    t.render(outfname, h=750, tree_style=ts)  # , layout='heatmap'
+    tstyle = ete3.TreeStyle()
+    tstyle.show_leaf_name = False
+    tstyle.mode = 'c'
+    tstyle.show_scale = False
+    etree.render(plotdir + '/' + plotname + '.svg', h=750, tree_style=tstyle)
 
-    sys.exit()
     os.remove(aligned_fname)
     for fn in raxml_output_fnames:
         os.remove(fn)
@@ -104,9 +99,15 @@ parser.add_argument('--plotname', required=True)
 parser.add_argument('--glsfnames', required=True)
 parser.add_argument('--glslabels', required=True)
 parser.add_argument('--title')
+parser.add_argument('--muscle-path', default='./packages/muscle/muscle3.8.31_i86linux64')
+parser.add_argument('--raxml-path', default='./packages/standard-RAxML/raxmlHPC-AVX')
 
 args = parser.parse_args()
 args.glsfnames = utils.get_arg_list(args.glsfnames)
 args.glslabels = utils.get_arg_list(args.glslabels)
+if not os.path.exists(args.muscle_path):
+    raise Exception('muscle path %s does not exist' % args.muscle_path)
+if not os.path.exists(args.raxml_path):
+    raise Exception('raxml path %s does not exist' % args.raxml_path)
 
-plot_gls_gen_tree(args.plotdir, args.plotname, args.glsfnames, args.glslabels, title=args.title)
+plot_gls_gen_tree(args, args.plotdir, args.plotname, args.glsfnames, args.glslabels, title=args.title)
