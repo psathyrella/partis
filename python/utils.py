@@ -1692,10 +1692,7 @@ def simplerun(cmd_str, shell=False, dryrun=False):
     sys.stdout.flush()
     if dryrun:
         return
-    if shell:
-        subprocess.check_call(cmd_str, env=os.environ, shell=True)
-    else:
-        subprocess.check_call(cmd_str.split(), env=os.environ)
+    subprocess.check_call(cmd_str if shell else cmd_str.split(), env=os.environ, shell=shell)
 
 # ----------------------------------------------------------------------------------------
 def run_cmd(cmdfo, batch_system=None, batch_options=None, nodelist=None):

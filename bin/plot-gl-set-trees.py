@@ -13,6 +13,11 @@ import ete3
 
 import utils
 
+def get_cmdfos(cmdstr, workdir, outfname):
+    return [{'cmd_str' : cmdstr,
+             'workdir' : workdir,
+             'outfname' : outfname}]
+
 # ----------------------------------------------------------------------------------------
 def plot_gls_gen_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=None, title=None):
     assert len(glslabels) == len(set(glslabels))  # no duplicates
@@ -40,7 +45,7 @@ def plot_gls_gen_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=N
         for name, seq in all_genes.items():
             tmpfile.write('>%s\n%s\n' % (name, seq))
         cmd_str = '%s -in %s -out %s' % (args.muscle_path, tmpfile.name, aligned_fname)
-        utils.simplerun(cmd_str)
+        utils.simplerun(cmd_str, )
 
     # get a tree for the aligned .fa
     cmd_str = '%s -mGTRCAT -n%s -s%s -p1 -w%s' % (args.raxml_path, raxml_label, aligned_fname, workdir)
