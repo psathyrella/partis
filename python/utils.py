@@ -1337,7 +1337,7 @@ def prep_dir(dirname, wildlings=None, subdirs=None, fname=None, allow_other_file
     Make <dirname> if it d.n.e.
     Also, if shell glob <wildling> is specified, remove existing files which are thereby matched.
     """
-    if fname is not None:
+    if fname is not None:  # passed in a file name, and we want to prep the file's dir
         assert dirname is None
         dirname = os.path.dirname(fname)
         if dirname == '' or dirname[0] != '/':
@@ -1359,7 +1359,7 @@ def prep_dir(dirname, wildlings=None, subdirs=None, fname=None, allow_other_file
                     os.remove(fname)
                 else:
                     print '%s file %s exists but then it doesn\'t' % (color('red', 'wtf'), fname)
-        remaining_files = [fn for fn in os.listdir(dirname) if subdirs is not None and fn not in subdirs]
+        remaining_files = [fn for fn in os.listdir(dirname) if subdirs is None or fn in subdirs]  # allow subdirs to still be present
         if len(remaining_files) > 0 and not allow_other_files:  # make sure there's no other files in the dir
             raise Exception('files (%s) remain in %s despite wildlings %s' % (' '.join(['\'' + fn + '\'' for fn in remaining_files]), dirname, wildlings))
     else:
@@ -1599,7 +1599,7 @@ def get_available_node_core_list(batch_config_fname, debug=False):
 
     # then info on all current allocations
     quefo = {}  # node : (number of tasks allocated to that node, including ours)
-    squeue_str = subpocess.check_output(['squeue', '--format', '%.18i %.2t %.6D %R'])
+    squeue_str = subprocess.check_output(['squeue', '--format', '%.18i %.2t %.6D %R'])
     headers = ['JOBID', 'ST',  'NODES', 'NODELIST(REASON)']
     for line in squeue_str.split('\n'):
         linefo = line.strip().split()
@@ -1732,7 +1732,7 @@ def run_cmd(cmdfo, batch_system=None, batch_options=None, nodelist=None):
     return proc
 
 # ----------------------------------------------------------------------------------------
-def run_cmds(cmdfos, sleep=True, batch_system=None, batch_options=None, batch_config_fname=None, debug=None):  # set sleep to False if your commands are going to run really really really quickly
+def run_cmds(cmdfos, sleep=True, batch_system=None, batch_options=None, batch_config_fname=None, debug=None, ignore_stderr=False):  # set sleep to False if your commands are going to run really really really quickly
     corelist = prepare_cmds(cmdfos, batch_system=batch_system, batch_options=batch_options, batch_config_fname=batch_config_fname)
     procs, n_tries = [], []
     per_proc_sleep_time = 0.01 / len(cmdfos)
@@ -1746,7 +1746,7 @@ def run_cmds(cmdfos, sleep=True, batch_system=None, batch_options=None, batch_co
             if procs[iproc] is None:  # already finished
                 continue
             if procs[iproc].poll() is not None:  # it just finished
-                finish_process(iproc, procs, n_tries, cmdfos[iproc], dbgfo=cmdfos[iproc]['dbgfo'], batch_system=batch_system, batch_options=batch_options, debug=debug)
+                finish_process(iproc, procs, n_tries, cmdfos[iproc], dbgfo=cmdfos[iproc]['dbgfo'], batch_system=batch_system, batch_options=batch_options, debug=debug, ignore_stderr=ignore_stderr)
         sys.stdout.flush()
         if sleep:
             time.sleep(per_proc_sleep_time)
@@ -1758,14 +1758,14 @@ def pad_lines(linestr, padwidth=8):
 
 # ----------------------------------------------------------------------------------------
 # deal with a process once it's finished (i.e. check if it failed, and restart if so)
-def finish_process(iproc, procs, n_tries, cmdfo, dbgfo=None, batch_system=None, batch_options=None, debug=None):
+def finish_process(iproc, procs, n_tries, cmdfo, dbgfo=None, batch_system=None, batch_options=None, debug=None, ignore_stderr=False):
     procs[iproc].communicate()
     if procs[iproc].returncode == 0:
         if not os.path.exists(cmdfo['outfname']):
             print '      proc %d succeded but its output isn\'t there, so sleeping for a bit...' % iproc
             time.sleep(0.5)
         if os.path.exists(cmdfo['outfname']):
-            process_out_err(extra_str='' if len(procs) == 1 else str(iproc), dbgfo=dbgfo, logdir=cmdfo['logdir'], debug=debug)
+            process_out_err(extra_str='' if len(procs) == 1 else str(iproc), dbgfo=dbgfo, logdir=cmdfo['logdir'], debug=debug, ignore_stderr=ignore_stderr)
             procs[iproc] = None  # job succeeded
             return
 
@@ -1782,15 +1782,15 @@ def finish_process(iproc, procs, n_tries, cmdfo, dbgfo=None, batch_system=None, 
             print 'failed with %d (output %s)' % (procs[iproc].returncode, 'exists' if os.path.exists(cmdfo['outfname']) else 'is missing')
         for strtype in ['out', 'err']:
             if os.path.exists(cmdfo['logdir'] + '/' + strtype) and os.stat(cmdfo['logdir'] + '/' + strtype).st_size > 0:
-                print '        %s tail:' % strtype
-                logstr = subpocess.check_output(['tail', cmdfo['logdir'] + '/' + strtype])
+                print '        %s tail:           (%s)' % (strtype, cmdfo['logdir'] + '/' + strtype)
+                logstr = subprocess.check_output(['tail', cmdfo['logdir'] + '/' + strtype])
                 print '\n'.join(['            ' + l for l in logstr.split('\n')])
         print '    restarting proc %d' % iproc
         procs[iproc] = run_cmd(cmdfo, batch_system=batch_system, batch_options=batch_options)
         n_tries[iproc] += 1
 
 # ----------------------------------------------------------------------------------------
-def process_out_err(extra_str='', dbgfo=None, logdir=None, debug=None):
+def process_out_err(extra_str='', dbgfo=None, logdir=None, debug=None, ignore_stderr=False):
     """ NOTE something in this chain seems to block or truncate or some such nonsense if you make it too big """
     out, err = '', ''
     if logdir is not None:
@@ -1840,7 +1840,7 @@ def process_out_err(extra_str='', dbgfo=None, logdir=None, debug=None):
                     dbgfo[header][var] = float(words[words.index(var) + 1])
 
     if debug is None:
-        if err_str != '':
+        if not ignore_stderr and err_str != '':
             print err_str
     elif err_str + out != '':
         if debug == 'print':
@@ -2358,7 +2358,7 @@ def auto_slurm(n_procs):
     def slurm_exists():
         try:
             fnull = open(os.devnull, 'w')
-            subpocess.check_output(['which', 'srun'], stderr=fnull, close_fds=True)
+            subprocess.check_output(['which', 'srun'], stderr=fnull, close_fds=True)
             return True
         except subprocess.CalledProcessError:
             return False

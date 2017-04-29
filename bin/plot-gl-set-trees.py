@@ -8,9 +8,9 @@ import os
 import tempfile
 import subprocess
 import sys
-sys.path.insert(1, './python')
 import ete3
 
+sys.path.insert(1, './python')
 import utils
 
 def get_cmdfos(cmdstr, workdir, outfname):
@@ -19,18 +19,37 @@ def get_cmdfos(cmdstr, workdir, outfname):
              'outfname' : outfname}]
 
 # ----------------------------------------------------------------------------------------
-def plot_gls_gen_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=None, title=None):
-    assert len(glslabels) == len(set(glslabels))  # no duplicates
-    if 'ete3' not in sys.modules:
-        import ete3
-    ete3 = sys.modules['ete3']
-
-    workdir = '/tmp/' + os.getenv('USER') + '/gls-trees/' + str(random.randint(0, 999999))
+def make_tree(all_genes, workdir, glsfnames, glslabels, use_cache=False):
     aligned_fname = workdir + '/all-aligned.fa'
     raxml_label = 'xxx'
     raxml_output_fnames = ['%s/RAxML_%s.%s' % (workdir, fn, raxml_label) for fn in ['parsimonyTree', 'log', 'result', 'info', 'bestTree']]
-    tree_fname = [fn for fn in raxml_output_fnames if 'result' in fn][0]
-    utils.prep_dir(workdir)
+    treefname = [fn for fn in raxml_output_fnames if 'result' in fn][0]
+    if use_cache:  # don't re-run muxcle & raxml, just use the previous run's output tree file
+        return treefname
+    utils.prep_dir(workdir, wildlings=['*.' + raxml_label, os.path.basename(aligned_fname), 'out', 'err'])
+
+    # write and align an .fa with all alleles from any gl set
+    with tempfile.NamedTemporaryFile() as tmpfile:
+        for name, seq in all_genes.items():
+            tmpfile.write('>%s\n%s\n' % (name, seq))
+        cmdstr = '%s -in %s -out %s' % (args.muscle_path, tmpfile.name, aligned_fname)
+        print '    %s %s' % (utils.color('red', 'run'), cmdstr)
+        utils.run_cmds(get_cmdfos(cmdstr, workdir, aligned_fname), ignore_stderr=True)
+
+    # get a tree for the aligned .fa
+    cmdstr = '%s -mGTRCAT -n%s -s%s -p1 -w%s' % (args.raxml_path, raxml_label, aligned_fname, workdir)
+    print '    %s %s' % (utils.color('red', 'run'), cmdstr)
+    utils.run_cmds(get_cmdfos(cmdstr, workdir, treefname), ignore_stderr=True)
+
+    os.remove(aligned_fname)  # rm muscle output
+    for fn in [f for f in raxml_output_fnames if f != treefname]:  # rm all the raxml outputs except what the one file we really want
+        os.remove(fn)
+
+    return treefname
+
+# ----------------------------------------------------------------------------------------
+def plot_gls_gen_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=None, title=None):
+    assert len(glslabels) == len(set(glslabels))  # no duplicates
 
     # read the input germline sets
     all_genes, gl_sets = {}, {}
@@ -40,18 +59,9 @@ def plot_gls_gen_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=N
             if name not in all_genes:
                 all_genes[name] = seq
 
-    # write and align an .fa with all alleles from any gl set
-    with tempfile.NamedTemporaryFile() as tmpfile:
-        for name, seq in all_genes.items():
-            tmpfile.write('>%s\n%s\n' % (name, seq))
-        cmd_str = '%s -in %s -out %s' % (args.muscle_path, tmpfile.name, aligned_fname)
-        utils.simplerun(cmd_str, )
-
-    # get a tree for the aligned .fa
-    cmd_str = '%s -mGTRCAT -n%s -s%s -p1 -w%s' % (args.raxml_path, raxml_label, aligned_fname, workdir)
-    utils.simplerun(cmd_str)
-
-    with open(tree_fname) as treefile:
+    workdir = plotdir + '/workdir'
+    treefname = make_tree(all_genes, workdir, glsfnames, glslabels, use_cache=args.use_cache)
+    with open(treefname) as treefile:
         treestr = treefile.read().strip()
     # treestr = "(A:0.7,B:0.7):0.3;"
 
@@ -93,17 +103,13 @@ def plot_gls_gen_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=N
     tstyle.show_scale = False
     etree.render(plotdir + '/' + plotname + '.svg', h=750, tree_style=tstyle)
 
-    os.remove(aligned_fname)
-    for fn in raxml_output_fnames:
-        os.remove(fn)
-    os.rmdir(workdir)
-
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
 parser.add_argument('--plotdir', required=True)
 parser.add_argument('--plotname', required=True)
 parser.add_argument('--glsfnames', required=True)
 parser.add_argument('--glslabels', required=True)
+parser.add_argument('--use-cache', action='store_true')
 parser.add_argument('--title')
 parser.add_argument('--muscle-path', default='./packages/muscle/muscle3.8.31_i86linux64')
 parser.add_argument('--raxml-path', default=glob.glob('./packages/standard-RAxML/raxmlHPC-*')[0])

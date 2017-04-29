@@ -135,10 +135,11 @@ def get_gls_gen_plots(args, baseoutdir):
         simfname = outdir + '/germlines/simulation/' + locus + '/igh' + region + '.fasta'
         inffname = outdir + '/simu-test/sw/germline-sets/' + locus + '/igh' + region + '.fasta'  # NOTE arg, the 'simu-test' part depends on the current vagaries of test-allele-finding
         cmdstr = 'export PATH=%s:$PATH && xvfb-run -a ./bin/plot-gl-set-trees.py' % args.ete_path
-        cmdstr += ' --plotdir ' + outdir
+        cmdstr += ' --plotdir ' + outdir + '/gls-gen-plots'
         cmdstr += ' --plotname ' + varvalstr(varname, varval)
         cmdstr += ' --glsfnames ' + ':'.join([simfname, inffname])
         cmdstr += ' --glslabels ' + ':'.join(['sim', 'inf'])
+        # cmdstr += ' --use-cache'
         utils.simplerun(cmdstr, shell=True)
 
 # ----------------------------------------------------------------------------------------
