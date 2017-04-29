@@ -139,14 +139,18 @@ def multiple_tests(args):
         # clist.append('--slurm')
         return ' '.join(clist)
 
+
+    all_outfnames = [args.outdir + '/' + str(iproc) for iproc in range(args.n_tests)]
     cmdfos = [{'cmd_str' : cmd_str(iproc),
                'workdir' : args.workdir + '/' + str(iproc),
                'logdir' : args.outdir + '/' + str(iproc),
-               'outfname' : args.outdir + '/' + str(iproc)}
-        for iproc in range(args.n_tests)]
-    for iproc in range(args.n_tests):
-        if os.path.exists(cmdfos[iproc]['outfname']):
-            check_call(['rm', '-r', cmdfos[iproc]['outfname']])
+               'outfname' : all_outfnames[iproc]}
+              for iproc in range(args.n_tests) if not os.path.exists(all_outfnames[iproc])]
+    existing_outfnames = [fn for fn in all_outfnames if fn not in [cfo['outfname'] for cfo in cmdfos]]
+    if len(existing_outfnames) > 0:
+        print '    skipping %d tests (runnning %d) whose output exists (%s)' % (len(existing_outfnames), len(cmdfos), ' '.join(existing_outfnames))
+    if len(cmdfos) == 0:
+        return
     print '  look for logs in %s' % args.outdir
     utils.run_cmds(cmdfos, debug='write')
 
