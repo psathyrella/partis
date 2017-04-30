@@ -342,7 +342,7 @@ parent_parser.add_argument('--always-find-new-alleles', action='store_true', hel
 parent_parser.add_argument('--debug-allele-finding', action='store_true', help='print lots of debug info on new-allele fits')
 parent_parser.add_argument('--dont-collapse-clones', action='store_true', help='By default we use vsearch clustering to choose one sequence from each clonal family before looking for new alleles (to ensure independent mutations). This turns that off.')
 parent_parser.add_argument('--new-allele-fname', help='fasta fname to which to write any new alleles (they are also written, together with previously-known alleles that are also in the sample, to --parameter-dir)')
-parent_parser.add_argument('--n-max-allele-finding-iterations', type=int, default=2, help='maximum number of times to look for new alleles')
+parent_parser.add_argument('--n-max-allele-finding-iterations', type=int, default=3, help='maximum number of times to look for new alleles')
 parent_parser.add_argument('--n-max-new-alleles-per-gene-per-iteration', type=int, default=2, help='with an option name that long...')
 parent_parser.add_argument('--n-max-snps', type=int, default=8, help='when new-allele finding, look for new alleles separated from existing alleles by up to this many SNPs')
 parent_parser.add_argument('--n-max-mutations-per-segment', type=int, default=23, help='when new-allele finding, exclude sequences which have more than this many mutations in the V segment')

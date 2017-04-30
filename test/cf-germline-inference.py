@@ -103,15 +103,15 @@ def legend_str(args, val):
 def get_outdir(args, baseoutdir, n_events, varname, varval):
     outdir = baseoutdir
     if args.action == 'gls-gen':
-        outdir += '/' + varvalstr(varname, varval) + '/' + args.gls_gen_method
+        outdir += '/' + varvalstr(varname, varval)
     else:
         outdir += '/' + varname + '-' + varvalstr(varname, varval) + '/n-events-' + str(n_events)
     return outdir
 
 # ----------------------------------------------------------------------------------------
-def get_single_performance(outdir, debug=False):
+def get_single_performance(outdir, method, debug=False):
     sglfo = glutils.read_glfo(outdir + '/germlines/simulation', locus=locus)
-    iglfo = glutils.read_glfo(outdir + '/simu-test/sw/germline-sets', locus=locus)
+    iglfo = glutils.read_glfo(outdir + '/' + method + '/sw/germline-sets', locus=locus)
     missing_alleles = set(sglfo['seqs'][region]) - set(iglfo['seqs'][region])
     spurious_alleles = set(iglfo['seqs'][region]) - set(sglfo['seqs'][region])
     if debug:
@@ -128,7 +128,7 @@ def get_single_performance(outdir, debug=False):
     }
 
 # ----------------------------------------------------------------------------------------
-def get_gls_gen_plots(args, baseoutdir):
+def get_gls_gen_plots(args, baseoutdir, method):
     # ete3 requires its own python version, so we run as a subprocess
     varname = args.action
     varval = args.data
@@ -136,9 +136,9 @@ def get_gls_gen_plots(args, baseoutdir):
     for iproc in range(args.n_tests):
         outdir = get_outdir(args, baseoutdir, args.gen_gset_events, varname, varval) + '/' + str(iproc)
         simfname = outdir + '/germlines/simulation/' + locus + '/igh' + region + '.fasta'
-        inffname = outdir + '/simu-test/sw/germline-sets/' + locus + '/igh' + region + '.fasta'  # NOTE arg, the 'simu-test' part depends on the current vagaries of test-allele-finding
+        inffname = outdir + '/' + method + '/sw/germline-sets/' + locus + '/igh' + region + '.fasta'  # NOTE arg, the 'simu-test' part depends on the current vagaries of test-allele-finding
         cmdstr = 'export PATH=%s:$PATH && xvfb-run -a ./bin/plot-gl-set-trees.py' % args.ete_path
-        cmdstr += ' --plotdir ' + outdir + '/gls-gen-plots'
+        cmdstr += ' --plotdir ' + outdir + '/' + method + '/gls-gen-plots'
         cmdstr += ' --plotname ' + varvalstr(varname, varval)
         cmdstr += ' --glsfnames ' + ':'.join([simfname, inffname])
         cmdstr += ' --glslabels ' + ':'.join(['sim', 'inf'])
@@ -148,9 +148,7 @@ def get_gls_gen_plots(args, baseoutdir):
 # ----------------------------------------------------------------------------------------
 def plot_test(args, baseoutdir):
     if args.action == 'gls-gen':
-        if args.gls_gen_method != 'partis':
-            raise Exception()
-        get_gls_gen_plots(args, baseoutdir)
+        get_gls_gen_plots(args, baseoutdir, method=args.gls_gen_method)
         return
 
     import plotting
@@ -159,7 +157,7 @@ def plot_test(args, baseoutdir):
     def get_performance(varname, varval):
         perf_vals = {pt : [] for pt in plot_types + ['total']}
         for iproc in range(args.n_tests):
-            single_vals = get_single_performance(get_outdir(args, baseoutdir, n_events, varname, varval) + '/' + str(iproc))
+            single_vals = get_single_performance(get_outdir(args, baseoutdir, n_events, varname, varval) + '/' + str(iproc), method='partis')
             for ptype in plot_types + ['total']:
                 perf_vals[ptype].append(single_vals[ptype])
         return perf_vals
@@ -217,15 +215,9 @@ def run_single_test(args, baseoutdir, val, n_events):
         cmd += ' --n-leaf-distribution geometric'
         cmd += ' --n-max-queries ' + str(n_events)  # i.e. we simulate <n_events> rearrangement events, but then only use <n_events> sequences for inference
     elif args.action == 'gls-gen':
-        cmd += ' --simfname ' + outdir.replace('/' + args.gls_gen_method, '/partis') + '/simu.csv'
-        if args.gls_gen_method ==  'partis':
-            nsnpstr = '1:1:2:3'
-            cmd += ' --gen-gset'
-        elif args.gls_gen_method == 'full':
-            cmd += ' --nosim'  # eh... kinda hackey, but whatever
-            cmd += ' --no-gls-gen'
-        else:
-            assert False
+        nsnpstr = '1:1:2:3'
+        cmd += ' --gen-gset'
+        cmd += ' --method ' + args.gls_gen_method
     else:
         assert False
 

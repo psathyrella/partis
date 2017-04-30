@@ -18,77 +18,71 @@ base_cmd = './bin/partis'
 locus = 'igh'
 
 # ----------------------------------------------------------------------------------------
-def join_gene_names(gene_name_str):
-    return ':'.join([utils.sanitize_name(g) for g in gene_name_str.split(':')])
+def simulate(args, simfname):
+    if os.path.exists(simfname):
+        print '  sim file %s exists, not overwriting it' % simfname
+        return
+    cmd_str = base_cmd + ' simulate --n-sim-events ' + str(args.n_sim_events) + ' --n-leaves ' + str(args.n_leaves) + ' --rearrange-from-scratch --outfname ' + simfname
+    if args.n_leaf_distribution is None:
+        cmd_str += ' --constant-number-of-leaves'
+    else:
+        cmd_str += ' --n-leaf-distribution ' + args.n_leaf_distribution
+    if args.mut_mult is not None:
+        cmd_str += ' --mutation-multiplier ' + str(args.mut_mult)
 
-# ----------------------------------------------------------------------------------------
-def get_label(existing_genes, new_allele):
-    return '_existing_' + join_gene_names(existing_genes) + '_new_' + join_gene_names(new_allele)
+    cmd_str += ' --n-procs ' + str(args.n_procs)
+    if args.slurm:
+        cmd_str += ' --batch-system slurm --subsimproc'
 
-# ----------------------------------------------------------------------------------------
-def run_test(args):
-    print 'seed %d' % args.seed
-    label = 'test'  #get_label(existing_genes, new_allele)
-    if args.simfname is None:
-        args.simfname = args.outdir + '/simu-' + label + '.csv'
-    outpdir = args.outdir + '/simu-' + label
-    plotdir = args.outdir + '/simu-' + label + '-plots'
+    allele_prevalence_fname = args.workdir + '/allele-prevalence-freqs.csv'
 
-    # simulate
-    if not args.nosim:
-        cmd_str = base_cmd + ' simulate --n-sim-events ' + str(args.n_sim_events) + ' --n-leaves ' + str(args.n_leaves) + ' --rearrange-from-scratch --outfname ' + args.simfname
-        if args.n_leaf_distribution is None:
-            cmd_str += ' --constant-number-of-leaves'
-        else:
-            cmd_str += ' --n-leaf-distribution ' + args.n_leaf_distribution
-        if args.mut_mult is not None:
-            cmd_str += ' --mutation-multiplier ' + str(args.mut_mult)
+    # figure what genes we're using
+    if args.gen_gset:
+        assert args.sim_v_genes is None and args.allele_prevalence_freqs is None
 
-        cmd_str += ' --n-procs ' + str(args.n_procs)
-        if args.slurm:
-            cmd_str += ' --batch-system slurm --subsimproc'
+        n_genes_per_region = '20:5:3'
+        n_sim_alleles_per_gene = '1,2,3:1,2:1,2'
+        min_allele_prevalence_freq = 0.01
+        remove_template_genes = False
 
-        allele_prevalence_fname = args.workdir + '/allele-prevalence-freqs.csv'
+        sglfo = glutils.read_glfo('data/germlines/human', locus=locus)
+        glutils.remove_v_genes_with_bad_cysteines(sglfo)
+        glutils.generate_germline_set(sglfo, n_genes_per_region, n_sim_alleles_per_gene, min_allele_prevalence_freq, allele_prevalence_fname, snp_positions=args.snp_positions, remove_template_genes=remove_template_genes)
+        cmd_str += ' --allele-prevalence-fname ' + allele_prevalence_fname
+    else:
+        sglfo = glutils.read_glfo('data/germlines/human', locus=locus, only_genes=(args.sim_v_genes + args.dj_genes))
+        added_snp_names = None
+        if args.snp_positions is not None:  # not necessarily explicitly set on the command line, i.e. can also be filled based on --nsnp-list
+            snps_to_add = [{'gene' : args.sim_v_genes[ig], 'positions' : args.snp_positions[ig]} for ig in range(len(args.snp_positions))]
+            added_snp_names = glutils.add_some_snps(snps_to_add, sglfo, debug=True, remove_template_genes=args.remove_template_genes)
 
-        # figure what genes we're using
-        if args.gen_gset:
-            assert args.sim_v_genes is None and args.allele_prevalence_freqs is None
+        if args.allele_prevalence_freqs is not None:
+            if not utils.is_normed(args.allele_prevalence_freqs):
+                raise Exception('--allele-prevalence-freqs %s not normalized' % args.allele_prevalence_freqs)
 
-            n_genes_per_region = '20:5:3'
-            n_sim_alleles_per_gene = '1,2,3:1,2:1,2'
-            min_allele_prevalence_freq = 0.01
-            remove_template_genes = False
-
-            sglfo = glutils.read_glfo('data/germlines/human', locus=locus)
-            glutils.remove_v_genes_with_bad_cysteines(sglfo)
-            glutils.generate_germline_set(sglfo, n_genes_per_region, n_sim_alleles_per_gene, min_allele_prevalence_freq, allele_prevalence_fname, snp_positions=args.snp_positions, remove_template_genes=remove_template_genes)
+            if len(args.allele_prevalence_freqs) != len(sglfo['seqs']['v']):  # already checked when parsing args, but, you know...
+                raise Exception('--allele-prevalence-freqs not the right length')
+            gene_list = sorted(sglfo['seqs']['v']) if added_snp_names is None else list(set(args.sim_v_genes)) + added_snp_names
+            prevalence_freqs = {'v' : {g : f for g, f in zip(gene_list, args.allele_prevalence_freqs)}, 'd' : {}, 'j' : {}}
+            glutils.write_allele_prevalence_freqs(prevalence_freqs, allele_prevalence_fname)
             cmd_str += ' --allele-prevalence-fname ' + allele_prevalence_fname
-        else:
-            sglfo = glutils.read_glfo('data/germlines/human', locus=locus, only_genes=(args.sim_v_genes + args.dj_genes))
-            added_snp_names = None
-            if args.snp_positions is not None:  # not necessarily explicitly set on the command line, i.e. can also be filled based on --nsnp-list
-                snps_to_add = [{'gene' : args.sim_v_genes[ig], 'positions' : args.snp_positions[ig]} for ig in range(len(args.snp_positions))]
-                added_snp_names = glutils.add_some_snps(snps_to_add, sglfo, debug=True, remove_template_genes=args.remove_template_genes)
 
-            if args.allele_prevalence_freqs is not None:
-                if not utils.is_normed(args.allele_prevalence_freqs):
-                    raise Exception('--allele-prevalence-freqs %s not normalized' % args.allele_prevalence_freqs)
+    print '  simulating with %d v: %s' % (len(sglfo['seqs']['v']), ' '.join([utils.color_gene(g) for g in sglfo['seqs']['v']]))
+    glutils.write_glfo(args.outdir + '/germlines/simulation', sglfo)
+    cmd_str += ' --initial-germline-dir ' + args.outdir + '/germlines/simulation'
 
-                if len(args.allele_prevalence_freqs) != len(sglfo['seqs']['v']):  # already checked when parsing args, but, you know...
-                    raise Exception('--allele-prevalence-freqs not the right length')
-                gene_list = sorted(sglfo['seqs']['v']) if added_snp_names is None else list(set(args.sim_v_genes)) + added_snp_names
-                prevalence_freqs = {'v' : {g : f for g, f in zip(gene_list, args.allele_prevalence_freqs)}, 'd' : {}, 'j' : {}}
-                glutils.write_allele_prevalence_freqs(prevalence_freqs, allele_prevalence_fname)
-                cmd_str += ' --allele-prevalence-fname ' + allele_prevalence_fname
+    # run simulation
+    if args.seed is not None:
+        cmd_str += ' --seed ' + str(args.seed)
+    utils.simplerun(cmd_str)
 
-        print '  simulating with %d v: %s' % (len(sglfo['seqs']['v']), ' '.join([utils.color_gene(g) for g in sglfo['seqs']['v']]))
-        glutils.write_glfo(args.outdir + '/germlines/simulation', sglfo)
-        cmd_str += ' --initial-germline-dir ' + args.outdir + '/germlines/simulation'
-
-        # run simulation
-        if args.seed is not None:
-            cmd_str += ' --seed ' + str(args.seed)
-        utils.simplerun(cmd_str)
+# ----------------------------------------------------------------------------------------
+def run_test(args, method, simfname):
+    outpdir = args.outdir + '/' + method
+    plotdir = args.outdir + '/' + method + '/plots'
+    if os.path.exists(outpdir):
+        print '  %s output exists (%s), not overwriting it' % (method, outpdir)
+        return
 
     # remove any old sw cache files
     sw_cachefiles = glob.glob(outpdir + '/sw-cache-*.csv')
@@ -101,9 +95,12 @@ def run_test(args):
                 # os.rmdir(sw_cache_gldir)
 
     # generate germline set and cache parameters
-    cmd_str = base_cmd + ' cache-parameters --infname ' + args.simfname + ' --only-smith-waterman'
-    if not args.no_gls_gen:
-        cmd_str += ' --find-new-alleles --debug-allele-finding --always-find-new-alleles --n-max-allele-finding-iterations 3'
+    cmd_str = base_cmd + ' cache-parameters --infname ' + simfname + ' --only-smith-waterman'
+    if method == 'partis':
+        cmd_str += ' --find-new-alleles --debug-allele-finding' # --always-find-new-alleles'
+    elif method == 'full':
+        cmd_str += ' --dont-remove-unlikely-alleles'
+
     cmd_str += ' --n-procs ' + str(args.n_procs)
     if args.n_max_queries is not None:
         cmd_str += ' --n-max-queries ' + str(args.n_max_queries)  # NOTE do *not* use --n-random-queries, since it'll change the cluster size distribution
@@ -130,6 +127,15 @@ def run_test(args):
     utils.simplerun(cmd_str)
 
 # ----------------------------------------------------------------------------------------
+def run_tests(args):
+    print 'seed %d' % args.seed
+    simfname = args.outdir + '/simu.csv'
+    if not args.nosim:
+        simulate(args, simfname)
+    for method in args.methods:
+        run_test(args, method, simfname)
+
+# ----------------------------------------------------------------------------------------
 def multiple_tests(args):
     def cmd_str(iproc):
         clist = copy.deepcopy(sys.argv)
@@ -140,17 +146,11 @@ def multiple_tests(args):
         return ' '.join(clist)
 
 
-    all_outfnames = [args.outdir + '/' + str(iproc) for iproc in range(args.n_tests)]
     cmdfos = [{'cmd_str' : cmd_str(iproc),
                'workdir' : args.workdir + '/' + str(iproc),
                'logdir' : args.outdir + '/' + str(iproc),
                'outfname' : all_outfnames[iproc]}
-              for iproc in range(args.n_tests) if not os.path.exists(all_outfnames[iproc])]
-    existing_outfnames = [fn for fn in all_outfnames if fn not in [cfo['outfname'] for cfo in cmdfos]]
-    if len(existing_outfnames) > 0:
-        print '    skipping %d tests (runnning %d) whose output exists (%s)' % (len(existing_outfnames), len(cmdfos), ' '.join(existing_outfnames))
-    if len(cmdfos) == 0:
-        return
+              for iproc in range(args.n_tests)]
     print '  look for logs in %s' % args.outdir
     utils.run_cmds(cmdfos, debug='write')
 
@@ -241,8 +241,7 @@ parser.add_argument('--allele-prevalence-freqs', help='colon-separated list of a
 parser.add_argument('--remove-template-genes', action='store_true', help='when generating snps, remove the original gene before simulation')
 parser.add_argument('--mut-mult', type=float)
 parser.add_argument('--slurm', action='store_true')
-parser.add_argument('--no-gls-gen', action='store_true')
-parser.add_argument('--simfname', help='use e.g. if you want to run of a pre-existing sim file somewhere else')
+parser.add_argument('--methods', default='partis')
 parser.add_argument('--outdir', default=utils.fsdir() + '/partis/allele-finder')
 parser.add_argument('--workdir', default=utils.fsdir() + '/_tmp/hmms/' + str(random.randint(0, 999999)))
 parser.add_argument('--n-tests', type=int)
@@ -254,6 +253,7 @@ args.inf_v_genes = utils.get_arg_list(args.inf_v_genes)
 args.snp_positions = utils.get_arg_list(args.snp_positions)
 args.nsnp_list = utils.get_arg_list(args.nsnp_list, intify=True)
 args.allele_prevalence_freqs = utils.get_arg_list(args.allele_prevalence_freqs, floatify=True)
+args.methods = utils.get_arg_list(args.methods)
 if args.snp_positions is not None:
     args.snp_positions = [[int(p) for p in pos_str.split(',')] for pos_str in args.snp_positions]
     if len(args.snp_positions) != len(args.sim_v_genes):
@@ -282,4 +282,4 @@ if args.seed is not None:
 if args.n_tests is not None:
     multiple_tests(args)
 else:
-    run_test(args)
+    run_tests(args)
