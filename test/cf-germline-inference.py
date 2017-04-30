@@ -100,10 +100,13 @@ def legend_str(args, val):
     return lstr
 
 # ----------------------------------------------------------------------------------------
-def get_outdir(baseoutdir, n_events, varname, varval):
+def get_outdir(args, baseoutdir, n_events, varname, varval):
     outdir = baseoutdir
-    outdir += '/' + varname + '-' + varvalstr(varname, varval)
-    return outdir + '/n-events-' + str(n_events)  # .replace('000', 'k')
+    if args.action == 'gls-gen':
+        outdir += '/' + varvalstr(varname, varval) + '/' + args.gls_gen_method
+    else:
+        outdir += '/' + varname + '-' + varvalstr(varname, varval) + '/n-events-' + str(n_events)
+    return outdir
 
 # ----------------------------------------------------------------------------------------
 def get_single_performance(outdir, debug=False):
@@ -131,7 +134,7 @@ def get_gls_gen_plots(args, baseoutdir):
     varval = args.data
 
     for iproc in range(args.n_tests):
-        outdir = get_outdir(baseoutdir, args.gen_gset_events, varname, varval) + '/' + str(iproc)
+        outdir = get_outdir(args, baseoutdir, args.gen_gset_events, varname, varval) + '/' + str(iproc)
         simfname = outdir + '/germlines/simulation/' + locus + '/igh' + region + '.fasta'
         inffname = outdir + '/simu-test/sw/germline-sets/' + locus + '/igh' + region + '.fasta'  # NOTE arg, the 'simu-test' part depends on the current vagaries of test-allele-finding
         cmdstr = 'export PATH=%s:$PATH && xvfb-run -a ./bin/plot-gl-set-trees.py' % args.ete_path
@@ -145,6 +148,8 @@ def get_gls_gen_plots(args, baseoutdir):
 # ----------------------------------------------------------------------------------------
 def plot_test(args, baseoutdir):
     if args.action == 'gls-gen':
+        if args.gls_gen_method != 'partis':
+            raise Exception()
         get_gls_gen_plots(args, baseoutdir)
         return
 
@@ -154,7 +159,7 @@ def plot_test(args, baseoutdir):
     def get_performance(varname, varval):
         perf_vals = {pt : [] for pt in plot_types + ['total']}
         for iproc in range(args.n_tests):
-            single_vals = get_single_performance(get_outdir(baseoutdir, n_events, varname, varval) + '/' + str(iproc))
+            single_vals = get_single_performance(get_outdir(args, baseoutdir, n_events, varname, varval) + '/' + str(iproc))
             for ptype in plot_types + ['total']:
                 perf_vals[ptype].append(single_vals[ptype])
         return perf_vals
@@ -191,6 +196,7 @@ def get_base_cmd(args, n_events):
 # ----------------------------------------------------------------------------------------
 def run_single_test(args, baseoutdir, val, n_events):
     cmd = get_base_cmd(args, n_events)
+    outdir = get_outdir(args, baseoutdir, n_events, args.action, val)
     sim_v_genes = [args.v_genes[0]]
     nsnpstr = '1'
     if args.action == 'mfreq':
@@ -211,17 +217,24 @@ def run_single_test(args, baseoutdir, val, n_events):
         cmd += ' --n-leaf-distribution geometric'
         cmd += ' --n-max-queries ' + str(n_events)  # i.e. we simulate <n_events> rearrangement events, but then only use <n_events> sequences for inference
     elif args.action == 'gls-gen':
-        nsnpstr = '1:1:2:3'
-        cmd += ' --gen-gset'
+        cmd += ' --simfname ' + outdir.replace('/' + args.gls_gen_method, '/partis') + '/simu.csv'
+        if args.gls_gen_method ==  'partis':
+            nsnpstr = '1:1:2:3'
+            cmd += ' --gen-gset'
+        elif args.gls_gen_method == 'full':
+            cmd += ' --nosim'  # eh... kinda hackey, but whatever
+            cmd += ' --no-gls-gen'
+        else:
+            assert False
     else:
         assert False
 
     if args.action != 'gls-gen':
         cmd += ' --sim-v-genes ' + ':'.join(sim_v_genes)
-
-    cmd += ' --nsnp-list ' + nsnpstr
-    cmd += ' --outdir ' + get_outdir(baseoutdir, n_events, args.action, val)
-    utils.simplerun(cmd)
+    if '--nosim' not in cmd:
+        cmd += ' --nsnp-list ' + nsnpstr
+    cmd += ' --outdir ' + outdir
+    utils.simplerun(cmd) #, dryrun=True)
 
 # ----------------------------------------------------------------------------------------
 def run_tests(args, baseoutdir):
@@ -246,6 +259,7 @@ default_varvals = {
 }
 parser = argparse.ArgumentParser()
 parser.add_argument('action', choices=['mfreq', 'nsnp', 'multi-nsnp', 'prevalence', 'n-leaves', 'weibull', 'gls-gen'])
+parser.add_argument('--gls-gen-method', choices=['partis', 'full'])
 parser.add_argument('--v-genes', default='IGHV4-39*01')
 parser.add_argument('--varvals')
 parser.add_argument('--n-event-list', default='1000:2000:4000:8000')  # NOTE modified later for multi-nsnp also NOTE not used for gen-gset

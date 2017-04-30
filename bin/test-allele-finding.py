@@ -29,13 +29,14 @@ def get_label(existing_genes, new_allele):
 def run_test(args):
     print 'seed %d' % args.seed
     label = 'test'  #get_label(existing_genes, new_allele)
-    simfname = args.outdir + '/simu-' + label + '.csv'
+    if args.simfname is None:
+        args.simfname = args.outdir + '/simu-' + label + '.csv'
     outpdir = args.outdir + '/simu-' + label
     plotdir = args.outdir + '/simu-' + label + '-plots'
 
     # simulate
     if not args.nosim:
-        cmd_str = base_cmd + ' simulate --n-sim-events ' + str(args.n_sim_events) + ' --n-leaves ' + str(args.n_leaves) + ' --rearrange-from-scratch --outfname ' + simfname
+        cmd_str = base_cmd + ' simulate --n-sim-events ' + str(args.n_sim_events) + ' --n-leaves ' + str(args.n_leaves) + ' --rearrange-from-scratch --outfname ' + args.simfname
         if args.n_leaf_distribution is None:
             cmd_str += ' --constant-number-of-leaves'
         else:
@@ -100,15 +101,14 @@ def run_test(args):
                 # os.rmdir(sw_cache_gldir)
 
     # generate germline set and cache parameters
-    cmd_str = base_cmd + ' cache-parameters --infname ' + simfname + ' --only-smith-waterman --debug-allele-finding --always-find-new-alleles --n-max-allele-finding-iterations 3' # --dont-collapse-clones'
-    # cmd_str = 'python -m cProfile -s tottime -o prof.out ' + cmd_str
+    cmd_str = base_cmd + ' cache-parameters --infname ' + args.simfname + ' --only-smith-waterman'
+    if not args.no_gls_gen:
+        cmd_str += ' --find-new-alleles --debug-allele-finding --always-find-new-alleles --n-max-allele-finding-iterations 3'
     cmd_str += ' --n-procs ' + str(args.n_procs)
     if args.n_max_queries is not None:
         cmd_str += ' --n-max-queries ' + str(args.n_max_queries)  # NOTE do *not* use --n-random-queries, since it'll change the cluster size distribution
     if args.slurm:
         cmd_str += ' --batch-system slurm'
-
-    cmd_str += ' --find-new-alleles'
 
     if args.gen_gset:
         pass  # i.e. uses default (full) germline dir
@@ -241,6 +241,8 @@ parser.add_argument('--allele-prevalence-freqs', help='colon-separated list of a
 parser.add_argument('--remove-template-genes', action='store_true', help='when generating snps, remove the original gene before simulation')
 parser.add_argument('--mut-mult', type=float)
 parser.add_argument('--slurm', action='store_true')
+parser.add_argument('--no-gls-gen', action='store_true')
+parser.add_argument('--simfname', help='use e.g. if you want to run of a pre-existing sim file somewhere else')
 parser.add_argument('--outdir', default=utils.fsdir() + '/partis/allele-finder')
 parser.add_argument('--workdir', default=utils.fsdir() + '/_tmp/hmms/' + str(random.randint(0, 999999)))
 parser.add_argument('--n-tests', type=int)
