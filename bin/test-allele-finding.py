@@ -149,7 +149,7 @@ def multiple_tests(args):
     cmdfos = [{'cmd_str' : cmd_str(iproc),
                'workdir' : args.workdir + '/' + str(iproc),
                'logdir' : args.outdir + '/' + str(iproc),
-               'outfname' : all_outfnames[iproc]}
+               'outfname' : args.outdir + '/' + str(iproc)}
               for iproc in range(args.n_tests)]
     print '  look for logs in %s' % args.outdir
     utils.run_cmds(cmdfos, debug='write')
