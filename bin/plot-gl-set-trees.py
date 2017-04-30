@@ -48,8 +48,28 @@ def make_tree(all_genes, workdir, glsfnames, glslabels, use_cache=False):
     return treefname
 
 # ----------------------------------------------------------------------------------------
+def getstatus(gl_sets, gene):
+    if gene in gl_sets['sim'] and gene in gl_sets['inf']:
+        return 'ok'
+    elif gene in gl_sets['sim']:
+        return 'missing'
+    elif gene in gl_sets['inf']:
+        return 'spurious'
+    else:
+        return 'xxx'
+
+# ----------------------------------------------------------------------------------------
+def print_results(gl_sets):
+    tmpfo = {'missing' : set(gl_sets['sim']) - set(gl_sets['inf']),
+             'spurious' : set(gl_sets['inf']) - set(gl_sets['sim']),
+             'ok' : set(gl_sets['inf']) & set(gl_sets['sim'])}
+    for name, genes in tmpfo.items():
+        print '    %9s %2d: %s' % (name, len(genes), ' '.join([utils.color_gene(g) for g in genes]))
+
+# ----------------------------------------------------------------------------------------
 def plot_gls_gen_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=None, title=None):
     assert len(glslabels) == len(set(glslabels))  # no duplicates
+    assert glslabels == ['sim', 'inf']  # otherwise stuff needs to be updated
 
     # read the input germline sets
     all_genes, gl_sets = {}, {}
@@ -58,6 +78,8 @@ def plot_gls_gen_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=N
         for name, seq in gl_sets[label].items():
             if name not in all_genes:
                 all_genes[name] = seq
+
+    print_results(gl_sets)
 
     workdir = plotdir + '/workdir'
     treefname = make_tree(all_genes, workdir, glsfnames, glslabels, use_cache=args.use_cache)
@@ -68,17 +90,6 @@ def plot_gls_gen_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=N
     scolors = {'ok' : 'DarkSeaGreen', 'missing' : 'IndianRed', 'spurious' : 'IndianRed'}
     faces = {'missing'  : ete3.CircleFace(10, 'white'), 
              'spurious' : ete3.CircleFace(10, 'black')}
-
-    # ----------------------------------------------------------------------------------------
-    def getstatus(gene):
-        if gene in gl_sets['sim'] and gene in gl_sets['inf']:
-            return 'ok'
-        elif gene in gl_sets['sim']:
-            return 'missing'
-        elif gene in gl_sets['inf']:
-            return 'spurious'
-        else:
-            return 'xxx'
 
     # ----------------------------------------------------------------------------------------
     def get_nst(status):
@@ -92,7 +103,7 @@ def plot_gls_gen_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=N
         node.img_style['hz_line_width'] = 2
         node.img_style['vt_line_width'] = 2
         if node.is_leaf():
-            status = getstatus(node.name)
+            status = getstatus(gl_sets, node.name)
             node.set_style(get_nst(status))
             if status in faces:
                 node.add_face(copy.deepcopy(faces[status]), column=0)
