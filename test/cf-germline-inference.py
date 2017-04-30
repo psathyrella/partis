@@ -142,7 +142,8 @@ def get_gls_gen_plots(args, baseoutdir, method):
         cmdstr += ' --plotname ' + varvalstr(varname, varval)
         cmdstr += ' --glsfnames ' + ':'.join([simfname, inffname])
         cmdstr += ' --glslabels ' + ':'.join(['sim', 'inf'])
-        # cmdstr += ' --use-cache'
+        if args.plotcache:
+            cmdstr += ' --use-cache'
         utils.simplerun(cmdstr, shell=True)
 
 # ----------------------------------------------------------------------------------------
@@ -260,6 +261,7 @@ parser.add_argument('--n-tests', type=int, default=10)
 parser.add_argument('--n-procs-per-test', type=int, default=5)
 parser.add_argument('--plot', action='store_true')
 parser.add_argument('--no-slurm', action='store_true')
+parser.add_argument('--plotcache', action='store_true')
 parser.add_argument('--label', default='xxx')
 parser.add_argument('--ete-path', default='/home/' + os.getenv('USER') + '/anaconda_ete/bin')
 parser.add_argument('--data', action='store_true')

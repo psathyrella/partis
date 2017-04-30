@@ -261,7 +261,7 @@ class TreeGenerator(object):
                 commandfile.write('trees <- %s(%s)\n' % (fcn, ', '.join(['%s=%s' % (k, str(v)) for k, v in params.items()])))
                 commandfile.write('write.tree(trees[[1]], \"' + outfname + '\", append=TRUE)\n')
 
-            commandfile.flush()
+            commandfile.flush()  # BEWARE if you forget this you are fucked
             if lonely_leaves.count(True) == len(ages):  # if every tree has one leaf, we don't need to run R
                 open(outfname, 'w').close()
             else:

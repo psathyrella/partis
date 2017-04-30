@@ -613,7 +613,7 @@ class Recombinator(object):
         with tempfile.NamedTemporaryFile() as tmpfile:
             for iseq in range(len(leafseqs)):
                 tmpfile.write('>t%s\n%s\n' % (iseq+1, leafseqs[iseq]))  # NOTE the order of the leaves/names is checked when reading bppseqgen output
-            tmpfile.flush()
+            tmpfile.flush()  # BEWARE if you forget this you are fucked
             with open(os.devnull, 'w') as fnull:
                 out_tree = subprocess.check_output('./bin/FastTree -gtr -nt ' + tmpfile.name, shell=True, stderr=fnull)
 

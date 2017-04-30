@@ -32,6 +32,7 @@ def make_tree(all_genes, workdir, glsfnames, glslabels, use_cache=False):
     with tempfile.NamedTemporaryFile() as tmpfile:
         for name, seq in all_genes.items():
             tmpfile.write('>%s\n%s\n' % (name, seq))
+        tmpfile.flush()  # BEWARE if you forget this you are fucked
         cmdstr = '%s -in %s -out %s' % (args.muscle_path, tmpfile.name, aligned_fname)
         print '    %s %s' % (utils.color('red', 'run'), cmdstr)
         utils.run_cmds(get_cmdfos(cmdstr, workdir, aligned_fname), ignore_stderr=True)
@@ -98,6 +99,7 @@ def plot_gls_gen_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=N
         return nst
 
     etree = ete3.ClusterTree(treestr)
+    node_names = set()  # make sure we get out all the genes we put in
     for node in etree.traverse():
         node.dist = 1
         node.img_style['hz_line_width'] = 2
@@ -107,6 +109,9 @@ def plot_gls_gen_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=N
             node.set_style(get_nst(status))
             if status in faces:
                 node.add_face(copy.deepcopy(faces[status]), column=0)
+            node_names.add(node.name)
+    if len(set(all_genes) - node_names) > 0:
+        raise Exception('missing genes from final tree: %s' % ' '.join(node_names))
 
     tstyle = ete3.TreeStyle()
     tstyle.show_leaf_name = False
