@@ -146,6 +146,9 @@ def multiple_tests(args):
         return ' '.join(clist)
 
 
+    for iproc in range(args.n_tests):  # don't overwrite old log files... need to eventually fix this so it isn't necessary
+        if os.path.exists(args.outdir + '/' + str(iproc) + '/log'):
+            check_call(['mv', '-v', args.outdir + '/' + str(iproc) + '/log', args.outdir + '/' + str(iproc) + '/log.1'])
     cmdfos = [{'cmd_str' : cmd_str(iproc),
                'workdir' : args.workdir + '/' + str(iproc),
                'logdir' : args.outdir + '/' + str(iproc),
