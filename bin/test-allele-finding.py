@@ -145,13 +145,15 @@ def multiple_tests(args):
         # clist.append('--slurm')
         return ' '.join(clist)
 
-
     for iproc in range(args.n_tests):  # don't overwrite old log files... need to eventually fix this so it isn't necessary
-        if os.path.exists(args.outdir + '/' + str(iproc) + '/log'):
-            check_call(['mv', '-v', args.outdir + '/' + str(iproc) + '/log', args.outdir + '/' + str(iproc) + '/log.1'])
+        def lfn(iproc, ilog):
+            logfname =  args.outdir + '/' + str(iproc) + '/log'
+            if ilog > 0:
+                logfname += '.' + str(ilog)
+            return logfname
     cmdfos = [{'cmd_str' : cmd_str(iproc),
                'workdir' : args.workdir + '/' + str(iproc),
-               'logdir' : args.outdir + '/' + str(iproc),
+               'logdir' : args.outdir + '/' + str(iproc) + '/logs/' + '-'.join(args.methods),
                'outfname' : args.outdir + '/' + str(iproc)}
               for iproc in range(args.n_tests)]
     print '  look for logs in %s' % args.outdir
