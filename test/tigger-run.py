@@ -6,8 +6,12 @@ import os
 sys.path.insert(1, './python')
 import utils
 
+infname = os.getcwd() + '/tmp.fa'
+tigger_outfname = 'ighv.fasta'
 igbdir = './packages/ncbi-igblast-1.6.1/bin'
 n_procs = 4
+workdir = '/tmp/dkralph/tigger'
+utils.prep_dir(workdir, wildlings='*.cmd')
 
 def changeo_outfname(infname):
     assert infname.count('.') == 1
@@ -21,6 +25,7 @@ def run_igblast(infname, outfname):
     cmd += ' -germline_db_V human_gl_V -germline_db_D human_gl_V -germline_db_J human_gl_J'
     cmd += ' -auxiliary_data optional_file/human_gl.aux'
     cmd += ' -domain_system imgt -ig_seqtype Ig -organism human -outfmt \'7 std qseq sseq btop\''
+    cmd += ' -num_threads %d' % n_procs
     cmd += ' -query ' + infname + ' -out ' + outfname
     
     cmd = 'cd %s; %s' % (igbdir, cmd)
@@ -33,39 +38,28 @@ def run_changeo(infname, igblast_outfname):
     cmd += ' -i %s -s %s -r %s --regions --scores' % (igblast_outfname, infname, ' '.join(glfnames))
     utils.simplerun(cmd)
 
-infname = os.getcwd() + '/tmp.fa'
+def run_tigger(infname, outfname):
+    rcmds = ['library(tigger)', 'library(dplyr)']
+    # rcmds += ['data(sample_db, germline_ighv)']
+
+    db_name = 'annotations'
+    gls_name = 'gls'
+    rcmds += ['%s = read.csv("%s", sep="\t")' % (db_name, changeo_outfname(infname))]
+    rcmds += ['%s = readIgFasta("%s")' % (gls_name, get_glfname('v'))]
+
+    rcmds += ['novel_df = findNovelAlleles(%s, %s, nproc=%d, germline_min=2)' % (db_name, gls_name, n_procs)]
+    rcmds += ['geno = inferGenotype(%s, find_unmutated = FALSE, germline_db = %s, novel_df = novel_df)' % (db_name, gls_name)]
+    rcmds += ['genotype_seqs = genotypeFasta(geno, %s, novel_df)' % (gls_name)]
+    rcmds += ['writeFasta(genotype_seqs, "%s")' % outfname]
+    cmdfname = workdir + '/tigger-in.cmd'
+    with open(cmdfname, 'w') as cmdfile:
+        cmdfile.write('\n'.join(rcmds) + '\n')
+    # subprocess.check_call(['cat', cmdfname])
+    cmdstr = 'R --slave -f ' + cmdfname
+    utils.simplerun(cmdstr, shell=True)
+    os.remove(cmdfname)
+
 igblast_outfname = os.getcwd() + '/%s.fmt7' % os.path.basename(os.path.splitext(infname)[0])
-# run_igblast(infnmae, igblast_outfname)
-# run_changeo(infname, igblast_outfname)
-
-    
-cmd = ['library(tigger)', 'library(dplyr)']
-# 'data(sample_db, germline_ighv)'
-# cmd += 'novel_df = findNovelAlleles(sample_db, germline_ighv, nproc=1)'
-cmd += 'annotations = read.csv("%s")' % changeo_outfname(infname)
-cmd += 'germlines = readIgFasta("%s")' % get_glfname('v')
-cmd += 'novel_df = findNovelAlleles(annotations, germlines, nproc=%d)' % n_procs
-cmd += 'novel = selectNovel(novel_df)'
-# cmd += 'geno = inferGenotype(sample_db, find_unmutated = TRUE, germline_db = germline_ighv, novel_df = novel_df)'
-# 'genotype_seqs = genotypeFasta(geno, germline_ighv, novel_df)'
-# 'writeFasta(genotype_seqs, "tmp.fa")'
-
-# # ----------------------------------------------------------------------------------------
-# require(devtools, quietly=TRUE)
-# require(ggplot2, quietly=TRUE)
-# require(dplyr, quietly=TRUE)
-# load_all("alakazam")
-# load_all("shm")
-# load_all("tigger")
-# annotations = read.csv('/home/dralph/work/partis-dev/_tmp/tigger/run-viterbi.csv')
-# germlines = readIgFasta('/home/dralph/work/partis-dev/_tmp/tigger/germlines/ighv-aligned.fasta')
-# # germlines = readIgFasta('/home/dralph/work/partis-dev/data/imgt/ighv-aligned.fasta')
-# novel_df = findNovelAlleles(annotations, germlines, nproc=1, germline_min=2)
-# novel = selectNovel(novel_df)
-# glimpse(novel)
-# # ----------------------------------------------------------------------------------------
-# # gl = load('gl.rda')
-# #data(head, gl)
-# # save(headdata, file='head.rda')
-# # headdata = load('head.rda')
-# # ----------------------------------------------------------------------------------------
+run_igblast(infname, igblast_outfname)
+run_changeo(infname, igblast_outfname)
+run_tigger(infname, tigger_outfname)
