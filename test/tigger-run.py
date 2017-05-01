@@ -1,0 +1,30 @@
+"""
+> library(tigger)
+> library(dplyr)
+> data(sample_db, germline_ighv)
+> novel_df = findNovelAlleles(sample_db, germline_ighv, nproc=1)
+> novel = selectNovel(novel_df)
+# > glimpse(novel)
+> geno = inferGenotype(sample_db, find_unmutated = TRUE, germline_db = germline_ighv, novel_df = novel_df)
+> genotype_seqs = genotypeFasta(geno, germline_ighv, novel_df)
+> writeFasta(genotype_seqs, "tmp.fa")
+"""                       
+# ----------------------------------------------------------------------------------------
+require(devtools, quietly=TRUE)
+require(ggplot2, quietly=TRUE)
+require(dplyr, quietly=TRUE)
+load_all("alakazam")
+load_all("shm")
+load_all("tigger")
+annotations = read.csv('/home/dralph/work/partis-dev/_tmp/tigger/run-viterbi.csv')
+germlines = readIgFasta('/home/dralph/work/partis-dev/_tmp/tigger/germlines/ighv-aligned.fasta')
+# germlines = readIgFasta('/home/dralph/work/partis-dev/data/imgt/ighv-aligned.fasta')
+novel_df = findNovelAlleles(annotations, germlines, nproc=1, germline_min=2)
+novel = selectNovel(novel_df)
+glimpse(novel)
+# ----------------------------------------------------------------------------------------
+# gl = load('gl.rda')
+#data(head, gl)
+# save(headdata, file='head.rda')
+# headdata = load('head.rda')
+# ----------------------------------------------------------------------------------------
