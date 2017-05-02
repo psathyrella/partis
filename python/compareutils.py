@@ -292,7 +292,7 @@ def generate_synthetic_partitions(args, label, n_leaves, mut_mult, seqfname, bas
         misfrac, mistype, threshold = get_synthetic_partition_type(stype)
         vname = stype
         outfname = base_outfname.replace('.csv', '-' + vname + '.csv')
-        if output_exists(args, outfname):
+        if utils.output_exists(args, outfname):
             continue
         if 'distance' in stype:
             execute(args, 'synthetic-partition', datafname, label, n_leaves, mut_mult, procs, hfrac_bounds=[threshold, threshold], forced_outfname=outfname)
@@ -870,26 +870,6 @@ def plot_means_over_subsets(args, label, n_leaves, mut_mult, this_info, per_subs
 #     return {nseqs : utils.adjusted_mutual_information(new_partitions[nseqs], utils.get_true_partition(reco_info, ids=new_partitions[nseqs].keys())) for nseqs in nseq_list}
 
 # ----------------------------------------------------------------------------------------
-def output_exists(args, outfname):
-    if os.path.exists(outfname):
-        if os.stat(outfname).st_size == 0:
-            print '                      deleting zero length %s' % outfname
-            os.remove(outfname)
-            return False
-        elif args.overwrite:
-            print '                      overwriting %s' % outfname
-            if os.path.isdir(outfname):
-                raise Exception('output %s is a directory, rm it by hand' % outfname)
-            else:
-                os.remove(outfname)
-            return False
-        else:
-            print '                      output exists, skipping (%s)' % outfname
-            return True
-    else:
-        return False
-
-# ----------------------------------------------------------------------------------------
 def run_changeo(args, label, n_leaves, mut_mult, seqfname):
     if args.dry_run:
         print 'implement me!'
@@ -939,10 +919,10 @@ def run_changeo(args, label, n_leaves, mut_mult, seqfname):
         imgtdir = subset_dir
 
     outfname = get_outputname(args, label, 'run-changeo', seqfname, hfrac_bounds=None)
-    if output_exists(args, outfname):
+    if utils.output_exists(args, outfname):
         return
 
-    fastafname = os.path.splitext(seqfname)[0] + '.fasta'
+    fastafname = utils.getprefix(seqfname) + '.fasta'
     if not os.path.exists(fastafname):
         utils.csv_to_fasta(seqfname, outfname=fastafname)  #, name_column='name' if not args.is_simu else 'unique_id', seq_column='nucleotide' if not args.is_simu else 'seq')
     bindir = '/home/dralph/work/changeo/changeo/bin'
@@ -1001,10 +981,10 @@ def run_mixcr(args, label, n_leaves, mut_mult, seqfname):
     if not os.path.exists(mixcr_workdir):
         os.makedirs(mixcr_workdir)
 
-    # fastafname = os.path.splitext(seqfname)[0] + '.fasta'
-    infname = mixcr_workdir + '/' + os.path.basename(os.path.splitext(seqfname)[0] + '.fasta')
-    outfname = os.path.splitext(seqfname)[0] + '-mixcr.tsv'
-    if output_exists(args, outfname):
+    # fastafname = utils.getprefix(seqfname) + '.fasta'
+    infname = mixcr_workdir + '/' + os.path.basename(utils.getprefix(seqfname) + '.fasta')
+    outfname = utils.getprefix(seqfname) + '-mixcr.tsv'
+    if utils.output_exists(args, outfname):
         return
 
     # check_call(['./bin/csv2fasta', seqfname])
@@ -1035,12 +1015,12 @@ def run_igscueal(args, label, n_leaves, mut_mult, seqfname):
         return
 
     igscueal_dir = '/home/dralph/work/IgSCUEAL'
-    # outfname = os.path.splitext(seqfname)[0] + '-igscueal.tsv'
-    # if output_exists(args, outfname):
+    # outfname = utils.getprefix(seqfname) + '-igscueal.tsv'
+    # if utils.output_exists(args, outfname):
     #     return
     workdir = get_program_workdir(args, 'igscueal', label, n_leaves, mut_mult)
 
-    infname = workdir + '/' + os.path.basename(os.path.splitext(seqfname)[0] + '.fasta')
+    infname = workdir + '/' + os.path.basename(utils.getprefix(seqfname) + '.fasta')
 
     if not os.path.exists(workdir):
         os.makedirs(workdir)
@@ -1224,7 +1204,7 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
     if not args.is_simu or action == 'simulate':
         parameter_dir += '/data'
     else:
-        parameter_dir += '/' + os.path.basename(os.path.splitext(seqfname)[0])
+        parameter_dir += '/' + os.path.basename(utils.getprefix(seqfname))
     cmd += ' --parameter-dir ' + parameter_dir
 
     if not args.is_simu:
@@ -1348,7 +1328,7 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
     else:
         raise Exception('bad action %s' % action)
 
-    if output_exists(args, outfname):
+    if utils.output_exists(args, outfname):
         return
 
     extras += ['--workdir', args.fsdir.replace('_output', '_tmp') + '/' + str(random.randint(0, 99999))]

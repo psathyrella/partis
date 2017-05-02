@@ -2544,7 +2544,7 @@ def collapse_naive_seqs(naive_seq_list, sw_info):  # NOTE there is also a (simpl
 
 # ----------------------------------------------------------------------------------------
 def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, sanitize=False, queries=None, n_max_queries=-1, istartstop=None):  # Bio.SeqIO takes too goddamn long to import
-    suffix = os.path.splitext(fname)[1]
+    suffix = getsuffix(fname)
     if suffix == '.fa' or suffix == '.fasta':
         ftype = 'fa'
     elif suffix == '.fq' or suffix == '.fastq':
@@ -2631,3 +2631,35 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, sanitize=Fa
                 break
 
     return finfo
+
+# ----------------------------------------------------------------------------------------
+def output_exists(args, outfname):
+    if os.path.exists(outfname):
+        if os.stat(outfname).st_size == 0:
+            print '                      deleting zero length %s' % outfname
+            os.remove(outfname)
+            return False
+        elif args.overwrite:
+            print '                      overwriting %s' % outfname
+            if os.path.isdir(outfname):
+                raise Exception('output %s is a directory, rm it by hand' % outfname)
+            else:
+                os.remove(outfname)
+            return False
+        else:
+            print '                      output exists, skipping (%s)' % outfname
+            return True
+    else:
+        return False
+
+# ----------------------------------------------------------------------------------------
+def getprefix(fname):  # basename before the dot
+    if len(os.path.splitext(fname)) != 2:
+        raise Exception('couldn\'t split %s into two pieces using dot' % fname)
+    return os.path.splitext(fname)[0]
+
+# ----------------------------------------------------------------------------------------
+def getsuffix(fname):  # basename before the dot
+    if len(os.path.splitext(fname)) != 2:
+        raise Exception('couldn\'t split %s into two pieces using dot' % fname)
+    return os.path.splitext(fname)[1]

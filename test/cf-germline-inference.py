@@ -128,6 +128,18 @@ def get_single_performance(outdir, method, debug=False):
     }
 
 # ----------------------------------------------------------------------------------------
+def get_gls_fname(outdir, method, sim=False):  # NOTE duplicates/depends on code in test-allele-finding.py
+    if sim:
+        outdir += '/germlines/simulation'
+    elif method == 'partis' or method == 'full':
+        outdir += '/' + method + '/sw/germline-sets'
+    elif method == 'tigger':
+        outdir += '/' + method
+    else:
+        assert False
+    return outdir + '/' + locus + '/' + locus + region + '.fasta'
+
+# ----------------------------------------------------------------------------------------
 def get_gls_gen_plots(args, baseoutdir, method):
     # ete3 requires its own python version, so we run as a subprocess
     varname = args.action
@@ -135,8 +147,8 @@ def get_gls_gen_plots(args, baseoutdir, method):
 
     for iproc in range(args.n_tests):
         outdir = get_outdir(args, baseoutdir, args.gen_gset_events, varname, varval) + '/' + str(iproc)
-        simfname = outdir + '/germlines/simulation/' + locus + '/igh' + region + '.fasta'
-        inffname = outdir + '/' + method + '/sw/germline-sets/' + locus + '/igh' + region + '.fasta'  # NOTE arg, the 'simu-test' part depends on the current vagaries of test-allele-finding
+        simfname = get_gls_fname(outdir, method=None, sim=True)
+        inffname = get_gls_fname(outdir, method)
         cmdstr = 'export PATH=%s:$PATH && xvfb-run -a ./bin/plot-gl-set-trees.py' % args.ete_path
         cmdstr += ' --plotdir ' + outdir + '/' + method + '/gls-gen-plots'
         cmdstr += ' --plotname ' + varvalstr(varname, varval)
@@ -216,7 +228,7 @@ def run_single_test(args, baseoutdir, val, n_events):
         cmd += ' --n-leaf-distribution geometric'
         cmd += ' --n-max-queries ' + str(n_events)  # i.e. we simulate <n_events> rearrangement events, but then only use <n_events> sequences for inference
     elif args.action == 'gls-gen':
-        nsnpstr = '1:1:2:3'
+        nsnpstr = '1:1:2:2:3'
         cmd += ' --gen-gset'
         cmd += ' --method ' + args.gls_gen_method
     else:
@@ -252,7 +264,7 @@ default_varvals = {
 }
 parser = argparse.ArgumentParser()
 parser.add_argument('action', choices=['mfreq', 'nsnp', 'multi-nsnp', 'prevalence', 'n-leaves', 'weibull', 'gls-gen'])
-parser.add_argument('--gls-gen-method', choices=['partis', 'full'])
+parser.add_argument('--gls-gen-method', choices=['partis', 'full', 'tigger'])
 parser.add_argument('--v-genes', default='IGHV4-39*01')
 parser.add_argument('--varvals')
 parser.add_argument('--n-event-list', default='1000:2000:4000:8000')  # NOTE modified later for multi-nsnp also NOTE not used for gen-gset

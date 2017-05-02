@@ -94,7 +94,7 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, s
     if not is_data and glfo is None:
         print '  WARNING glfo is None, so not adding implicit info'
 
-    suffix = os.path.splitext(infname)[1]
+    suffix = utils.getsuffix(infname)
     if len(re.findall('\.[ct]sv', suffix)) > 0:
         if suffix == '.csv':
             delimiter = ','

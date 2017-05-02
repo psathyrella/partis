@@ -14,15 +14,20 @@ sys.path.insert(1, './python')
 import utils
 import glutils
 
-base_cmd = './bin/partis'
-locus = 'igh'
+# ----------------------------------------------------------------------------------------
+def get_outfname(args, method):
+    if method == 'tigger':
+        return args.outdir + '/tigger/' + args.locus + '/' + args.locus + 'v' + '.fasta'
+    elif method == 'partis' or method == 'full':  # parameter directory, not regular file
+        return args.outdir + '/' + method
+    else:
+        assert False
 
 # ----------------------------------------------------------------------------------------
 def simulate(args, simfname):
-    if os.path.exists(simfname):
-        print '  sim file %s exists, not overwriting it' % simfname
+    if utils.output_exists(args, simfname):
         return
-    cmd_str = base_cmd + ' simulate --n-sim-events ' + str(args.n_sim_events) + ' --n-leaves ' + str(args.n_leaves) + ' --rearrange-from-scratch --outfname ' + simfname
+    cmd_str = args.partis_path + ' simulate --n-sim-events ' + str(args.n_sim_events) + ' --n-leaves ' + str(args.n_leaves) + ' --rearrange-from-scratch --outfname ' + simfname
     if args.n_leaf_distribution is None:
         cmd_str += ' --constant-number-of-leaves'
     else:
@@ -45,12 +50,12 @@ def simulate(args, simfname):
         min_allele_prevalence_freq = 0.01
         remove_template_genes = False
 
-        sglfo = glutils.read_glfo('data/germlines/human', locus=locus)
+        sglfo = glutils.read_glfo('data/germlines/human', locus=args.locus)
         glutils.remove_v_genes_with_bad_cysteines(sglfo)
         glutils.generate_germline_set(sglfo, n_genes_per_region, n_sim_alleles_per_gene, min_allele_prevalence_freq, allele_prevalence_fname, snp_positions=args.snp_positions, remove_template_genes=remove_template_genes)
         cmd_str += ' --allele-prevalence-fname ' + allele_prevalence_fname
     else:
-        sglfo = glutils.read_glfo('data/germlines/human', locus=locus, only_genes=(args.sim_v_genes + args.dj_genes))
+        sglfo = glutils.read_glfo('data/germlines/human', locus=args.locus, only_genes=(args.sim_v_genes + args.dj_genes))
         added_snp_names = None
         if args.snp_positions is not None:  # not necessarily explicitly set on the command line, i.e. can also be filled based on --nsnp-list
             snps_to_add = [{'gene' : args.sim_v_genes[ig], 'positions' : args.snp_positions[ig]} for ig in range(len(args.snp_positions))]
@@ -77,29 +82,46 @@ def simulate(args, simfname):
     utils.simplerun(cmd_str)
 
 # ----------------------------------------------------------------------------------------
-def run_test(args, method, simfname):
-    outpdir = args.outdir + '/' + method
-    plotdir = args.outdir + '/' + method + '/plots'
-    if os.path.exists(outpdir):
-        print '  %s output exists (%s), not overwriting it' % (method, outpdir)
+def run_tigger(args, simfname):
+    if utils.output_exists(args, get_outfname(args, 'tigger')):
+        return
+    simfasta = utils.getprefix(simfname) + '.fa'
+    utils.csv_to_fasta(simfname, outfname=simfasta)
+
+    cmd = './test/tigger-run.py'
+    cmd += ' --infname ' + simfasta
+    cmd += ' --outfname ' + get_outfname(args, 'tigger')
+    cmd += ' --workdir ' + args.workdir + '/tigger'
+    cmd += ' --n-procs ' + str(args.n_procs)
+
+    utils.simplerun(cmd)
+
+# ----------------------------------------------------------------------------------------
+def run_partis(args, method, simfname):
+    if utils.output_exists(args, get_outfname(args, method)):
         return
 
+    paramdir = get_outfname(args, method)
+    plotdir = args.outdir + '/' + method + '/plots'
+
     # remove any old sw cache files
-    sw_cachefiles = glob.glob(outpdir + '/sw-cache-*.csv')
+    sw_cachefiles = glob.glob(paramdir + '/sw-cache-*.csv')
     if len(sw_cachefiles) > 0:
         for cachefname in sw_cachefiles:
             check_call(['rm', '-v', cachefname])
             sw_cache_gldir = cachefname.replace('.csv', '-glfo')
             if os.path.exists(sw_cache_gldir):  # if stuff fails halfway through, you can get one but not the other
-                glutils.remove_glfo_files(sw_cache_gldir, locus)
+                glutils.remove_glfo_files(sw_cache_gldir, args.locus)
                 # os.rmdir(sw_cache_gldir)
 
     # generate germline set and cache parameters
-    cmd_str = base_cmd + ' cache-parameters --infname ' + simfname + ' --only-smith-waterman'
+    cmd_str = args.partis_path + ' cache-parameters --infname ' + simfname + ' --only-smith-waterman'
     if method == 'partis':
         cmd_str += ' --find-new-alleles --debug-allele-finding' # --always-find-new-alleles'
     elif method == 'full':
         cmd_str += ' --dont-remove-unlikely-alleles'
+    else:
+        assert False
 
     cmd_str += ' --n-procs ' + str(args.n_procs)
     if args.n_max_queries is not None:
@@ -112,13 +134,13 @@ def run_test(args, method, simfname):
     else:
         cmd_str += ' --dont-remove-unlikely-alleles'  # --new-allele-fname ' + args.outdir + '/new-alleles.fa'
         inference_genes = ':'.join(args.inf_v_genes + args.dj_genes)
-        iglfo = glutils.read_glfo('data/germlines/human', locus=locus, only_genes=inference_genes.split(':'))
+        iglfo = glutils.read_glfo('data/germlines/human', locus=args.locus, only_genes=inference_genes.split(':'))
         print '  starting inference with %d v: %s' % (len(iglfo['seqs']['v']), ' '.join([utils.color_gene(g) for g in iglfo['seqs']['v']]))
         glutils.write_glfo(args.outdir + '/germlines/inference', iglfo)
         cmd_str += ' --initial-germline-dir ' + args.outdir + '/germlines/inference'
         # cmd_str += ' --n-max-snps 12'
 
-    cmd_str += ' --parameter-dir ' + outpdir
+    cmd_str += ' --parameter-dir ' + paramdir
     cmd_str += ' --only-overall-plots --plotdir ' + plotdir
     if args.seed is not None:
         cmd_str += ' --seed ' + str(args.seed)
@@ -133,7 +155,10 @@ def run_tests(args):
     if not args.nosim:
         simulate(args, simfname)
     for method in args.methods:
-        run_test(args, method, simfname)
+        if method == 'tigger':
+            run_tigger(args, simfname)
+        else:
+            run_partis(args, method, simfname)
 
 # ----------------------------------------------------------------------------------------
 def multiple_tests(args):
@@ -246,11 +271,15 @@ parser.add_argument('--allele-prevalence-freqs', help='colon-separated list of a
 parser.add_argument('--remove-template-genes', action='store_true', help='when generating snps, remove the original gene before simulation')
 parser.add_argument('--mut-mult', type=float)
 parser.add_argument('--slurm', action='store_true')
+parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--methods', default='partis')
 parser.add_argument('--outdir', default=utils.fsdir() + '/partis/allele-finder')
 parser.add_argument('--workdir', default=utils.fsdir() + '/_tmp/hmms/' + str(random.randint(0, 999999)))
 parser.add_argument('--n-tests', type=int)
 parser.add_argument('--plot-and-fit-absolutely-everything', type=int, help='fit every single position for this <istart> and write every single corresponding plot (slow as hell, and only for debugging/making plots for paper)')
+parser.add_argument('--partis-path', default='./bin/partis')
+parser.add_argument('--locus', default='igh')
+
 args = parser.parse_args()
 args.dj_genes = utils.get_arg_list(args.dj_genes)
 args.sim_v_genes = utils.get_arg_list(args.sim_v_genes)

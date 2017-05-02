@@ -6,7 +6,7 @@ label=test
 # done
 
 glscmd="$cmd gls-gen --label $label"
-for meth in partis full; do
+for meth in tigger; do #partis full tigger; do
     $glscmd --gls-gen-method $meth --n-tests 3 --n-procs-per-test 2 --no-slurm --gen-gset-events 1000 #--plot  # campanellabox
     # $glscmd --gls-gen-method $meth --n-tests 5 --n-procs-per-test 16 #--plot  # quoll
 done

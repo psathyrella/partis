@@ -1108,7 +1108,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def get_existing_hmm_files(self, parameter_dir):
         fnames = [os.path.basename(fn) for fn in glob.glob(parameter_dir + '/hmms/*.yaml')]
-        genes = set([utils.unsanitize_name(os.path.splitext(fn)[0]) for fn in fnames])
+        genes = set([utils.unsanitize_name(utils.getprefix(fn)) for fn in fnames])
         if len(genes) == 0:
             raise Exception('no yamels in %s' % parameter_dir + '/hmms')
         return genes
