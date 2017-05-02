@@ -228,7 +228,7 @@ def run_single_test(args, baseoutdir, val, n_events):
         cmd += ' --n-leaf-distribution geometric'
         cmd += ' --n-max-queries ' + str(n_events)  # i.e. we simulate <n_events> rearrangement events, but then only use <n_events> sequences for inference
     elif args.action == 'gls-gen':
-        nsnpstr = '1:1:2:2:3'
+        nsnpstr = '1:1:1:2:2:3:3'
         cmd += ' --gen-gset'
         cmd += ' --method ' + args.gls_gen_method
     else:
