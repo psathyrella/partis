@@ -49,15 +49,18 @@ def make_tree(all_genes, workdir, glsfnames, glslabels, use_cache=False):
     return treefname
 
 # ----------------------------------------------------------------------------------------
-def getstatus(gl_sets, gene):
-    if gene in gl_sets['sim'] and gene in gl_sets['inf']:
+def getstatus(gl_sets, node):
+    gene = node.name
+    if not node.is_leaf():
+        return 'internal'
+    elif gene in gl_sets['sim'] and gene in gl_sets['inf']:
         return 'ok'
     elif gene in gl_sets['sim']:
         return 'missing'
     elif gene in gl_sets['inf']:
         return 'spurious'
     else:
-        return 'xxx'
+        assert False
 
 # ----------------------------------------------------------------------------------------
 def print_results(gl_sets):
@@ -93,20 +96,24 @@ def plot_gls_gen_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=N
              'spurious' : ete3.CircleFace(10, 'black')}
 
     # ----------------------------------------------------------------------------------------
-    def get_nst(status):
-        nst = ete3.NodeStyle()
-        nst['bgcolor'] = scolors[status]
-        return nst
+    def set_node_style(node, status):
+        linewidth = 4
+        if not status == 'internal':
+            node.img_style['bgcolor'] = scolors[status]
+        if '+' in node.name:
+            linewidth = 8
+            node.img_style['hz_line_color'] = 'Gold'
+            node.img_style['vt_line_color'] = 'Gold'
+        node.img_style['hz_line_width'] = linewidth
+        node.img_style['vt_line_width'] = linewidth
 
     etree = ete3.ClusterTree(treestr)
     node_names = set()  # make sure we get out all the genes we put in
     for node in etree.traverse():
         node.dist = 1
-        node.img_style['hz_line_width'] = 2
-        node.img_style['vt_line_width'] = 2
+        status = getstatus(gl_sets, node)
+        set_node_style(node, status)
         if node.is_leaf():
-            status = getstatus(gl_sets, node.name)
-            node.set_style(get_nst(status))
             if status in faces:
                 node.add_face(copy.deepcopy(faces[status]), column=0)
             node_names.add(node.name)
