@@ -100,6 +100,8 @@ def plot_gls_gen_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=N
         linewidth = 4
         if not status == 'internal':
             node.img_style['bgcolor'] = scolors[status]
+        if '_' in node.name:  # tigger names
+            raise Exception('unhandled gene name %s' node.name)
         if '+' in node.name:
             linewidth = 8
             node.img_style['hz_line_color'] = 'Gold'
