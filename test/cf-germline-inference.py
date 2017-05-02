@@ -159,18 +159,14 @@ def get_gls_gen_plots(args, baseoutdir, method):
         utils.simplerun(cmdstr, shell=True)
 
 # ----------------------------------------------------------------------------------------
-def plot_test(args, baseoutdir):
-    if args.action == 'gls-gen':
-        get_gls_gen_plots(args, baseoutdir, method=args.gls_gen_method)
-        return
-
+def plot_single_test(args, baseoutdir, method):
     import plotting
     plot_types = ['missing', 'spurious']
 
     def get_performance(varname, varval):
         perf_vals = {pt : [] for pt in plot_types + ['total']}
         for iproc in range(args.n_tests):
-            single_vals = get_single_performance(get_outdir(args, baseoutdir, n_events, varname, varval) + '/' + str(iproc), method='partis')
+            single_vals = get_single_performance(get_outdir(args, baseoutdir, n_events, varname, varval) + '/' + str(iproc), method=method)
             for ptype in plot_types + ['total']:
                 perf_vals[ptype].append(single_vals[ptype])
         return perf_vals
@@ -194,9 +190,17 @@ def plot_test(args, baseoutdir):
         plotting.plot_gl_inference_fractions(baseoutdir, ptype, [pv[ptype] for pv in plotvals], labels=[legend_str(args, v) for v in args.varvals], xlabel='sample size', ylabel='fraction %s' % ptype, leg_title=legend_titles.get(args.action, None), title=ptype + ' alleles')
 
 # ----------------------------------------------------------------------------------------
-def get_base_cmd(args, n_events):
+def plot_tests(args, baseoutdir, method):
+    if args.action == 'gls-gen':
+        get_gls_gen_plots(args, baseoutdir, method)
+    else:
+        plot_single_test(args, baseoutdir, method)
+
+# ----------------------------------------------------------------------------------------
+def get_base_cmd(args, n_events, method):
     cmd = './bin/test-allele-finding.py'
     cmd += ' --n-procs ' + str(args.n_procs_per_test) + ' --n-tests ' + str(args.n_tests)
+    cmd += ' --methods ' + method
     cmd += ' --n-sim-events ' + str(n_events)
     if not args.no_slurm:
         cmd += ' --slurm'
@@ -205,8 +209,8 @@ def get_base_cmd(args, n_events):
     return cmd
 
 # ----------------------------------------------------------------------------------------
-def run_single_test(args, baseoutdir, val, n_events):
-    cmd = get_base_cmd(args, n_events)
+def run_single_test(args, baseoutdir, val, n_events, method):
+    cmd = get_base_cmd(args, n_events, method)
     outdir = get_outdir(args, baseoutdir, n_events, args.action, val)
     sim_v_genes = [args.v_genes[0]]
     nsnpstr = '1'
@@ -230,7 +234,6 @@ def run_single_test(args, baseoutdir, val, n_events):
     elif args.action == 'gls-gen':
         nsnpstr = '1:1:1:2:2:3:3'
         cmd += ' --gen-gset'
-        cmd += ' --method ' + args.gls_gen_method
     else:
         assert False
 
@@ -242,15 +245,15 @@ def run_single_test(args, baseoutdir, val, n_events):
     utils.simplerun(cmd) #, dryrun=True)
 
 # ----------------------------------------------------------------------------------------
-def run_tests(args, baseoutdir):
+def run_tests(args, baseoutdir, method):
     if args.action == 'gls-gen':
         n_events = args.gen_gset_events
         val = args.data
-        run_single_test(args, baseoutdir, val, n_events)
+        run_single_test(args, baseoutdir, val, n_events, method)
     else:
         for val in args.varvals:
             for n_events in args.n_event_list:
-                run_single_test(args, baseoutdir, val, n_events)
+                run_single_test(args, baseoutdir, val, n_events, method)
 
 # ----------------------------------------------------------------------------------------
 default_varvals = {
@@ -264,7 +267,7 @@ default_varvals = {
 }
 parser = argparse.ArgumentParser()
 parser.add_argument('action', choices=['mfreq', 'nsnp', 'multi-nsnp', 'prevalence', 'n-leaves', 'weibull', 'gls-gen'])
-parser.add_argument('--gls-gen-method', choices=['partis', 'full', 'tigger'])
+parser.add_argument('--methods', default='partis') #choices=['partis', 'full', 'tigger'])
 parser.add_argument('--v-genes', default='IGHV4-39*01')
 parser.add_argument('--varvals')
 parser.add_argument('--n-event-list', default='1000:2000:4000:8000')  # NOTE modified later for multi-nsnp also NOTE not used for gen-gset
@@ -279,6 +282,7 @@ parser.add_argument('--ete-path', default='/home/' + os.getenv('USER') + '/anaco
 parser.add_argument('--data', action='store_true')
 args = parser.parse_args()
 
+args.methods = utils.get_arg_list(args.methods)
 args.v_genes = utils.get_arg_list(args.v_genes)
 args.n_event_list = utils.get_arg_list(args.n_event_list, intify=True)
 
@@ -302,7 +306,8 @@ if args.action == 'multi-nsnp':
     factor = numpy.median([(len(nl) + 1) / 2. for nl in args.varvals])  # i.e. the ratio of (how many alleles we'll be dividing the events among), to (how many we'd be dividing them among for the other [single-nsnp] tests)
     args.n_event_list = [int(factor * n) for n in args.n_event_list]
 
-if args.plot:
-    plot_test(args, baseoutdir)
-else:
-    run_tests(args, baseoutdir)
+for method in args.methods:
+    if args.plot:
+        plot_tests(args, baseoutdir, method)
+    else:
+        run_tests(args, baseoutdir, method)

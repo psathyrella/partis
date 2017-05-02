@@ -1687,12 +1687,16 @@ def prepare_cmds(cmdfos, batch_system, batch_options, batch_config_fname, debug=
     return corelist
 
 # ----------------------------------------------------------------------------------------
-def simplerun(cmd_str, shell=False, dryrun=False):
+def simplerun(cmd_str, shell=False, dryrun=False, print_time=None):
     print '%s %s' % (color('red', 'run'), cmd_str)
     sys.stdout.flush()
     if dryrun:
         return
+    if print_time is not None:
+        start = time.time()
     subprocess.check_call(cmd_str if shell else cmd_str.split(), env=os.environ, shell=shell)
+    if print_time is not None:
+        print '      %s time: %.1f' % (print_time, time.time() - start)
 
 # ----------------------------------------------------------------------------------------
 def run_cmd(cmdfo, batch_system=None, batch_options=None, nodelist=None):

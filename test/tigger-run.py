@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import time
 import colored_traceback.always
 import argparse
 import subprocess
@@ -25,7 +26,7 @@ def run_igblast(infname, outfname):
     cmd += ' -query ' + infname + ' -out ' + outfname
     
     cmd = 'cd %s; %s' % (args.igbdir, cmd)
-    utils.simplerun(cmd, shell=True)
+    utils.simplerun(cmd, shell=True, print_time='igblast')
 
 # ----------------------------------------------------------------------------------------
 def run_changeo(infname, igblast_outfname, outfname):
@@ -36,7 +37,7 @@ def run_changeo(infname, igblast_outfname, outfname):
     glfnames = [get_glfname(r) for r in utils.regions]
     cmd = changeo_path + '/MakeDb.py igblast'
     cmd += ' -i %s -s %s -r %s --regions --scores' % (igblast_outfname, infname, ' '.join(glfnames))
-    utils.simplerun(cmd)
+    utils.simplerun(cmd, print_time='changeo')
 
 # ----------------------------------------------------------------------------------------
 def run_tigger(infname, outfname):
@@ -60,7 +61,7 @@ def run_tigger(infname, outfname):
         cmdfile.write('\n'.join(rcmds) + '\n')
     # subprocess.check_call(['cat', cmdfname])
     cmdstr = 'R --slave -f ' + cmdfname
-    utils.simplerun(cmdstr, shell=True)
+    utils.simplerun(cmdstr, shell=True, print_time='tigger')
     os.remove(cmdfname)
 
 # ----------------------------------------------------------------------------------------
