@@ -86,7 +86,7 @@ class ParameterCounter(object):
     # ----------------------------------------------------------------------------------------
     def clean_plots(self, plotdir):
         self.mfreqer.clean_plots(plotdir + '/mute-freqs')
-        utils.prep_dir(plotdir + '/overall')  #, multilings=('*.csv', '*.svg'))
+        utils.prep_dir(plotdir + '/overall', wildlings=('*.csv', '*.svg'))
         for column in self.counts:
             if column in self.columns_to_subset_by_gene:
                 thisplotdir = plotdir + '/' + column
