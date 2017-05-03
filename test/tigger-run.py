@@ -52,7 +52,7 @@ def run_tigger(infname, outfname):
     rcmds += ['%s = read.csv("%s", sep="\t")' % (db_name, infname)]
     rcmds += ['%s = readIgFasta("%s")' % (gls_name, get_glfname('v'))]
 
-    rcmds += ['novel_df = findNovelAlleles(%s, %s, nproc=%d, germline_min=2)' % (db_name, gls_name, args.n_procs)]
+    rcmds += ['novel_df = findNovelAlleles(%s, %s, nproc=%d)' % (db_name, gls_name, args.n_procs)]  # , germline_min=2
     rcmds += ['geno = inferGenotype(%s, find_unmutated = FALSE, germline_db = %s, novel_df = novel_df)' % (db_name, gls_name)]
     rcmds += ['genotype_seqs = genotypeFasta(geno, %s, novel_df)' % (gls_name)]
     rcmds += ['writeFasta(genotype_seqs, "%s")' % outfname]
