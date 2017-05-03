@@ -145,6 +145,8 @@ def get_gls_gen_plots(args, baseoutdir, method):
     varname = args.action
     varval = args.data
 
+    raise Exception('need to handle naming ambiguity (i.e. which gene do we count the snps from)')
+    raise Exception('also need to fix allele name decider to more strongly prefer non-snpd genes')
     for iproc in range(args.iteststart, args.n_tests):
         outdir = get_outdir(args, baseoutdir, args.gen_gset_events, varname, varval) + '/' + str(iproc)
         simfname = get_gls_fname(outdir, method=None, sim=True)
