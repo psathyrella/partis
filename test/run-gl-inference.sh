@@ -1,12 +1,14 @@
 cmd=./test/cf-germline-inference.py
-label=test
+label=t2
+testopts="--n-tests 1 --n-procs-per-test 2 --no-slurm"
 
-# for tname in mfreq nsnp multi-nsnp prevalence n-leaves weibull; do
-#     $cmd $tname --label $label # --plot
-# done
-
-glscmd="$cmd gls-gen --label $label"
-for meth in tigger; do #partis full tigger; do
-    $glscmd --gls-gen-method $meth --n-tests 3 --n-procs-per-test 2 --no-slurm --gen-gset-events 1000 #--plot  # campanellabox
-    # $glscmd --gls-gen-method $meth --n-tests 5 --n-procs-per-test 16 #--plot  # quoll
+for tname in mfreq; do #mfreq nsnp multi-nsnp prevalence n-leaves weibull; do
+    $cmd $tname --label $label $testopts  # laptop
+    # $cmd $tname --label $label # --plot
 done
+
+# glscmd="$cmd gls-gen --label $label"
+# for meth in partis; do #partis full tigger; do  # NOTE can add all methods to --methods arg now
+#     # $glscmd --methods $meth $testopts --gen-gset-events 1000 --plot  # laptop
+#     echo $glscmd --methods $meth --n-tests 5 --n-procs-per-test 16 #--plot  # quoll
+# done
