@@ -449,7 +449,7 @@ def generate_snpd_gene(gene, cpos, seq, positions):
     def choose_position():
         snp_pos = None
         while snp_pos is None or snp_pos in snpd_positions or not utils.codon_unmutated('cyst', tmpseq, cpos):
-            snp_pos = random.randint(0, len(seq) - 1)  # note that randint() is inclusive
+            snp_pos = random.randint(0, cpos - 1)  # len(seq) - 1)  # note that randint() is inclusive
             tmpseq = seq[: snp_pos] + 'X' + seq[snp_pos + 1 :]  # for checking cyst position
         return snp_pos
 
@@ -715,7 +715,7 @@ def read_allele_prevalence_freqs(fname, debug=False):
 # ----------------------------------------------------------------------------------------
 def choose_allele_prevalence_freqs(glfo, allele_prevalence_freqs, region, min_allele_prevalence_freq, debug=False):
     n_alleles = len(glfo['seqs'][region])
-    prevalence_counts = numpy.random.randint(1, int(1. / min_allele_prevalence_freq), size=n_alleles)  # ensures that each pair of alleles has a prevalence ratio between <min_allele_prevalence_freq> and 1. NOTE it's inclusive
+    prevalence_counts = numpy.random.randint(1, int(1. / min_allele_prevalence_freq), size=n_alleles)  # ensures that any two alleles have a prevalence ratio between <min_allele_prevalence_freq> and 1. NOTE it's inclusive
     prevalence_freqs = [float(c) / sum(prevalence_counts) for c in prevalence_counts]
     allele_prevalence_freqs[region] = {g : f for g, f in zip(glfo['seqs'][region].keys(), prevalence_freqs)}
     assert utils.is_normed(allele_prevalence_freqs[region])

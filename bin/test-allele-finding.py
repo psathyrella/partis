@@ -47,7 +47,7 @@ def simulate(args, simfname):
 
         n_genes_per_region = '20:5:3'
         n_sim_alleles_per_gene = '1,2,3:1,2:1,2'
-        min_allele_prevalence_freq = 0.01
+        min_allele_prevalence_freq = 0.1
         remove_template_genes = False
 
         sglfo = glutils.read_glfo('data/germlines/human', locus=args.locus)

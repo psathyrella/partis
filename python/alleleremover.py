@@ -72,26 +72,11 @@ class AlleleRemover(object):
         #     self.counts[best_gene]['second'].fill(second_smallest_hfrac)
 
     # ----------------------------------------------------------------------------------------
-    def separate_into_classes(self, sorted_gene_counts, easycounts):  # where each class contains all alleles with the same distance from start to cyst, and within a hamming distance of <self.args.n_max_snps> 
-        class_counts = []
-        for gene, counts in sorted_gene_counts:
-            seq = self.glfo['seqs'][self.region][gene][:self.codon_positions[gene] + 3]  # only go up through the end of the cysteine
-            add_new_class = True  # to begin with, assume we'll add a new class for this gene
-            for gclass in class_counts:  # then check if, instead, this gene belongs in any of the existing classes
-                for gfo in gclass:
-                    if len(gfo['seq']) != len(seq):  # everybody in the class has to have the same distance from start of V (rss, I think) to end of cysteine
-                        continue
-                    hdist = utils.hamming_distance(gfo['seq'], seq)
-                    if hdist < self.args.n_max_snps - 2:  # if this gene is close to any gene in the class, add it to this class
-                        add_new_class = False
-                        class_counts[class_counts.index(gclass)].append({'gene' : gene, 'counts' : counts, 'seq' : seq})
-                        break
-                if not add_new_class:
-                    break
-
-            if add_new_class:
-                class_counts.append([{'gene' : gene, 'counts' : counts, 'seq' : seq}, ])
-
+    def separate_into_classes(self, sorted_gene_counts, easycounts):  # where each class contains all alleles with the same distance from start to cyst, and within a hamming distance of <self.args.n_max_snps>
+        snp_groups = utils.separate_into_snp_groups(self.glfo, self.region, self.args.n_max_snps, genelist=[g for g, _ in sorted_gene_counts])
+        class_counts = []  # this could stand to be cleaned up... it's kind of a holdover from before I moved the separating fcn to utils
+        for sgroup in snp_groups:
+            class_counts.append([{'gene' : gfo['gene'], 'counts' : easycounts[gfo['gene']], 'seq' : gfo['seq']} for gfo in sgroup])
         return class_counts
 
     # ----------------------------------------------------------------------------------------

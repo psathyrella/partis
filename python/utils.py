@@ -1117,7 +1117,36 @@ def separate_into_allelic_groups(glfo, debug=False):
                 print '    %15s' % p
                 for s in allelic_groups[r][p]:
                     print '        %15s      %s' % (s, ' '.join([color_gene(g, width=12) for g in allelic_groups[r][p][s]]))
-    return allelic_groups
+    return allelic_groups  # NOTE doesn't return the same thing as separate_into_snp_groups()
+
+
+# ----------------------------------------------------------------------------------------
+def separate_into_snp_groups(glfo, region, n_max_snps, genelist=None):
+    """ where each class contains all alleles with the same distance from start to cyst, and within a hamming distance of <n_max_snps> """
+    if genelist is None:
+        genelist = glfo['seqs'][region].keys()
+    assert region == 'v'  # would need to change the up-to-cpos requirement if it isn't v
+    snp_groups = []
+    for gene in genelist:
+        cpos = glfo[conserved_codons[glfo['locus']][region] + '-positions'][gene]
+        seq = glfo['seqs'][region][gene][:cpos + 3]  # only go up through the end of the cysteine
+        add_new_class = True  # to begin with, assume we'll add a new class for this gene
+        for gclass in snp_groups:  # then check if, instead, this gene belongs in any of the existing classes
+            for gfo in gclass:
+                if len(gfo['seq']) != len(seq):  # everybody in the class has to have the same distance from start of V (rss, I think) to end of cysteine
+                    continue
+                hdist = hamming_distance(gfo['seq'], seq)
+                if hdist < n_max_snps - 2:  # if this gene is close to any gene in the class, add it to this class
+                    add_new_class = False
+                    snp_groups[snp_groups.index(gclass)].append({'gene' : gene, 'seq' : seq})
+                    break
+            if not add_new_class:
+                break
+
+        if add_new_class:
+            snp_groups.append([{'gene' : gene, 'seq' : seq}, ])
+
+    return snp_groups  # NOTE this is a list of lists of dicts, whereas separate_into_allelic_groups() returns a dict of region-keyed dicts
 
 # ----------------------------------------------------------------------------------------
 def read_single_gene_count(indir, gene, expect_zero_counts=False, debug=False):
