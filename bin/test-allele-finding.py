@@ -162,6 +162,8 @@ def run_tests(args):
 
 # ----------------------------------------------------------------------------------------
 def multiple_tests(args):
+    def getlogdir(iproc):
+        return args.outdir + '/' + str(iproc) + '/logs/' + '-'.join(args.methods)
     def cmd_str(iproc):
         clist = copy.deepcopy(sys.argv)
         utils.remove_from_arglist(clist, '--n-tests', has_arg=True)
@@ -170,17 +172,25 @@ def multiple_tests(args):
         # clist.append('--slurm')
         return ' '.join(clist)
 
-    for iproc in range(args.n_tests):  # don't overwrite old log files... need to eventually fix this so it isn't necessary
+    for iproc in range(args.iteststart, args.n_tests):  # don't overwrite old log files... need to eventually fix this so it isn't necessary
         def lfn(iproc, ilog):
             logfname =  args.outdir + '/' + str(iproc) + '/log'
             if ilog > 0:
                 logfname += '.' + str(ilog)
             return logfname
+
+    for iproc in range(args.iteststart, args.n_tests):
+        logd = getlogdir(iproc)
+        if os.path.exists(logd + '/log'):
+            ilog = 0
+            while os.path.exists(logd + '/log.' + str(ilog)):
+                ilog += 1
+            check_call(['mv', '-v', logd + '/log', logd + '/log.' + str(ilog)])
     cmdfos = [{'cmd_str' : cmd_str(iproc),
                'workdir' : args.workdir + '/' + str(iproc),
-               'logdir' : args.outdir + '/' + str(iproc) + '/logs/' + '-'.join(args.methods),
+               'logdir' : getlogdir(iproc),
                'outfname' : args.outdir + '/' + str(iproc)}
-              for iproc in range(args.n_tests)]
+              for iproc in range(args.iteststart, args.n_tests)]
     print '  look for logs in %s' % args.outdir
     utils.run_cmds(cmdfos, debug='write')
 
@@ -276,6 +286,7 @@ parser.add_argument('--methods', default='partis')
 parser.add_argument('--outdir', default=utils.fsdir() + '/partis/allele-finder')
 parser.add_argument('--workdir', default=utils.fsdir() + '/_tmp/hmms/' + str(random.randint(0, 999999)))
 parser.add_argument('--n-tests', type=int)
+parser.add_argument('--iteststart', type=int, default=0)
 parser.add_argument('--plot-and-fit-absolutely-everything', type=int, help='fit every single position for this <istart> and write every single corresponding plot (slow as hell, and only for debugging/making plots for paper)')
 parser.add_argument('--partis-path', default='./bin/partis')
 parser.add_argument('--locus', default='igh')

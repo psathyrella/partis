@@ -145,7 +145,7 @@ def get_gls_gen_plots(args, baseoutdir, method):
     varname = args.action
     varval = args.data
 
-    for iproc in range(args.n_tests):
+    for iproc in range(args.iteststart, args.n_tests):
         outdir = get_outdir(args, baseoutdir, args.gen_gset_events, varname, varval) + '/' + str(iproc)
         simfname = get_gls_fname(outdir, method=None, sim=True)
         inffname = get_gls_fname(outdir, method)
@@ -165,7 +165,7 @@ def plot_single_test(args, baseoutdir, method):
 
     def get_performance(varname, varval):
         perf_vals = {pt : [] for pt in plot_types + ['total']}
-        for iproc in range(args.n_tests):
+        for iproc in range(args.iteststart, args.n_tests):
             single_vals = get_single_performance(get_outdir(args, baseoutdir, n_events, varname, varval) + '/' + str(iproc), method=method)
             for ptype in plot_types + ['total']:
                 perf_vals[ptype].append(single_vals[ptype])
@@ -178,7 +178,7 @@ def plot_single_test(args, baseoutdir, method):
         for n_events in args.n_event_list:
             perf_vals = get_performance(varname=args.action, varval=varval)
             print '  %d' % n_events
-            print '    iproc    %s' % ' '.join([str(i) for i in range(args.n_tests)])
+            print '    iproc    %s' % ' '.join([str(i) for i in range(args.iteststart, args.n_tests)])
             print '    missing  %s' % ' '.join([str(v) for v in perf_vals['missing']]).replace('0', ' ')
             print '    spurious %s' % ' '.join([str(v) for v in perf_vals['spurious']]).replace('0', ' ')
             for ptype in plot_types:
@@ -200,6 +200,8 @@ def plot_tests(args, baseoutdir, method):
 def get_base_cmd(args, n_events, method):
     cmd = './bin/test-allele-finding.py'
     cmd += ' --n-procs ' + str(args.n_procs_per_test) + ' --n-tests ' + str(args.n_tests)
+    if args.iteststart != 0:
+        cmd += ' --iteststart ' + str(args.iteststart)
     cmd += ' --methods ' + method
     cmd += ' --n-sim-events ' + str(n_events)
     if not args.no_slurm:
@@ -273,6 +275,7 @@ parser.add_argument('--varvals')
 parser.add_argument('--n-event-list', default='1000:2000:4000:8000')  # NOTE modified later for multi-nsnp also NOTE not used for gen-gset
 parser.add_argument('--gen-gset-events', default=500000)
 parser.add_argument('--n-tests', type=int, default=10)
+parser.add_argument('--iteststart', type=int, default=0)
 parser.add_argument('--n-procs-per-test', type=int, default=5)
 parser.add_argument('--plot', action='store_true')
 parser.add_argument('--no-slurm', action='store_true')
