@@ -236,7 +236,7 @@ def run_single_test(args, baseoutdir, val, n_events, method):
         cmd += ' --n-leaf-distribution geometric'
         cmd += ' --n-max-queries ' + str(n_events)  # i.e. we simulate <n_events> rearrangement events, but then only use <n_events> sequences for inference
     elif args.action == 'gls-gen':
-        nsnpstr = '1:1:1:2:2:3:3'
+        nsnpstr = '1:1:2:2:3'
         cmd += ' --gen-gset'
     else:
         assert False
@@ -275,7 +275,7 @@ parser.add_argument('--methods', default='partis') #choices=['partis', 'full', '
 parser.add_argument('--v-genes', default='IGHV4-39*01')
 parser.add_argument('--varvals')
 parser.add_argument('--n-event-list', default='1000:2000:4000:8000')  # NOTE modified later for multi-nsnp also NOTE not used for gen-gset
-parser.add_argument('--gen-gset-events', default=500000)
+parser.add_argument('--gen-gset-events', default=300000)
 parser.add_argument('--n-tests', type=int, default=10)
 parser.add_argument('--iteststart', type=int, default=0)
 parser.add_argument('--n-procs-per-test', type=int, default=5)

@@ -55,7 +55,11 @@ class AlleleFinder(object):
         self.min_mean_candidate_ratio = 2.75  # mean of candidate ratios must be greater than this
         self.min_bad_fit_residual = 1.8
         self.max_good_fit_residual = 4.5  # this value hasn't gone through a huge amount of testing -- we might be able to get away with having it a good bit smaller than this
-        self.max_consistent_candidate_fit_sigma = 4.
+        def max_consistent_candidate_fit_sigma(self, istart):
+            if istart < 4:  # want to be more permissive for small nsnp, to allow for multiple new alleles
+                return 5.5
+            else:
+                return 4.
 
         self.min_min_candidate_ratio_to_plot = 1.5  # don't plot positions that're below this (for all <istart>)
 
@@ -469,11 +473,11 @@ class AlleleFinder(object):
         # NOTE that with multiple multi-snp new alleles that share some, but not all, positions, we don't expect consistency. In particular, at shared positions, the nsnp bin for the other allele will be high, and the prevalence will be off.
         for pos_1, pos_2 in itertools.combinations(fitfo['candidates'][istart], 2):
             fitfo_1, fitfo_2 = self.fitfos[gene]['fitfos'][istart][pos_1], self.fitfos[gene]['fitfos'][istart][pos_2]
-            if istart > self.hard_code_three and not self.consistent_slope_and_y_icpt(self.max_consistent_candidate_fit_sigma, fitfo_1['postfo'], fitfo_2['postfo']):
+            if not self.consistent_slope_and_y_icpt(self.max_consistent_candidate_fit_sigma(istart), fitfo_1['postfo'], fitfo_2['postfo']):
                 if debug:
                     print '    positions %d and %d have inconsistent post-istart fits' % (pos_1, pos_2)
                 return False
-            if istart > self.hard_code_three and not self.consistent_slope_and_y_icpt(self.max_consistent_candidate_fit_sigma, fitfo_1['prefo'], fitfo_2['prefo']):  # if this nsnp is less than 3, and there's a second new allele with smaller nsnp, the pre-fit will be super inconsistent
+            if istart > self.hard_code_three and not self.consistent_slope_and_y_icpt(self.max_consistent_candidate_fit_sigma(istart), fitfo_1['prefo'], fitfo_2['prefo']):  # if this nsnp is less than 3, and there's a second new allele with smaller nsnp, the pre-fit will be super inconsistent
                 if debug:
                     print '    positions %d and %d have inconsistent pre-istart fits' % (pos_1, pos_2)
                 return False
@@ -585,18 +589,25 @@ class AlleleFinder(object):
 
     # ----------------------------------------------------------------------------------------
     def very_different_bin_totals(self, pvals, istart, debug=False):
-        # i.e. if there's a homozygous new allele at <istart> + 1
-        factor = 2.  # i.e. check everything that's more than <factor> sigma away UPDATE this will have to change -- totals per bin vary too much
-        joint_total_err = max(math.sqrt(pvals['total'][istart - 1]), math.sqrt(pvals['total'][istart]))
+        # i.e. if there's a homozygous new allele at <istart> + 1  UPDATE wait, why +1?
+        factor = 3.5  # i.e. check everything that's more than <factor> sigma away
         last_total = pvals['total'][istart - 1]
         istart_total = pvals['total'][istart]
+        joint_total_err = max(math.sqrt(last_total), math.sqrt(this_total))
         if debug:
             print '    different bin totals: %.0f - %.0f = %.0f ?> %.1f * %5.3f = %5.3f'  % (istart_total, last_total, istart_total - last_total, factor, joint_total_err, factor * joint_total_err)
         return istart_total - last_total > factor * joint_total_err  # it the total (denominator) is very different between the two bins
 
     # ----------------------------------------------------------------------------------------
     def big_discontinuity(self, pvals, istart, debug=False):  # NOTE same as very_different_bin_totals(), except for freqs rather than totals
-        factor = 2.  # i.e. check everything that's more than <factor> sigma away (where "check" means actually do the fits, as long as it passes all the other prefiltering steps)
+        # (note that the size of the discontinuity tells us about the allele prevalence -- [ie].[eg]. we can be quite confident of a new allele with a small absolute discontinuity)
+        if pvals['total'][istart] < 4:  # if there's nothing in this bin, there's certainly not a new allele (although, note, this should have already been checked for)
+            return False
+
+        if pvals['total'][istart - 1] < 5:  # if there's hardly any entries in the previous bin (i.e. presumably a homozygous new allele) then just use bin totals
+            return self.very_different_bin_totals(pvals, istart)
+
+        factor = 2.5  # i.e. check everything that's more than <factor> sigma away (where "check" means actually do the fits, as long as it passes all the other prefiltering steps)
         joint_freq_err = max(pvals['errs'][istart - 1], pvals['errs'][istart])
         last_freq = pvals['freqs'][istart - 1]
         istart_freq = pvals['freqs'][istart]
@@ -626,8 +637,8 @@ class AlleleFinder(object):
             if sum(postvals['obs']) < self.n_muted_min or sum(postvals['total']) < self.n_total_min:
                 continue
 
-            # if the discontinuity is less than <factor> sigma, and the bin totals are closer than <factor> sigma, skip it (note that the size of the discontinuity tells us about the allele prevalence -- [ie].[eg]. we can be quite confident of a new allele with a small absolute discontinuity)
-            if not self.big_discontinuity(bothvals, istart) and not self.very_different_bin_totals(bothvals, istart):
+            # skip if the discontinuity is less than <factor> sigma, or if hardly any entries at i-1 and the bin totals are closer than <factor> sigma (not actualy OR, but basically)
+            if not self.big_discontinuity(bothvals, istart):
                 continue
 
             if istart <= self.hard_code_three:
