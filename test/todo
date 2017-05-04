@@ -1,12 +1,16 @@
 # now
 
-# gls-gen should use same classes as alleleremover (UPDATE ick, this is kind of hard, since the structure of the allelic groups is intertwined with choosing from them)
+
+# handle naming ambiguity (i.e. which gene do we count the snps from
+# fix allele name decider to more strongly prefer non-snpd genes
+# new-allele name arbitration needs to happen when plotting (e.g. count as correct alleles that only differ after the cpos)
 
 # fix /fh/fast/matsen_e/kdavidse/partis_prob/SRR1383455_collapse-unique_atleast-2_partitioning.log
 # carefully go through all gls-gen logs
 
 # maybe use different allele removal numbers for small samples, once you have a good prior for how many alleles/genes samples have
 
+# gls-gen should use same classes as alleleremover (UPDATE ick, this is kind of hard, since the structure of the allelic groups is intertwined with choosing from them)
 # add sstat memory checks to utils.finish_process() (or maybe while you're waiting for them to finish?)
 
 # need to redo n procs in compareutils now that everything's so much faster
