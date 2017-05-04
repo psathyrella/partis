@@ -10,8 +10,11 @@ sys.path.insert(1, './python')
 import utils
 
 # ----------------------------------------------------------------------------------------
-def get_glfname(region):
-    return args.igbdir + '/human_gl_' + region.upper() + '.fa'
+def get_glfname(region, aligned):  # igblast uses unaligned ones
+    if aligned:
+        return args.igbdir + '/gl-fastas/human_igh_' + region + '.fasta'
+    else:
+        return args.igbdir + '/human_gl_' + region.upper() + '.fa'
 
 # ----------------------------------------------------------------------------------------
 def run_igblast(infname, outfname):
@@ -34,7 +37,7 @@ def run_changeo(infname, igblast_outfname, outfname):
         return
 
     changeo_path = os.getenv('HOME') + '/.local/bin'
-    glfnames = [get_glfname(r) for r in utils.regions]
+    glfnames = [get_glfname(r, aligned=True) for r in utils.regions]
     cmd = changeo_path + '/MakeDb.py igblast'
     cmd += ' -i %s -s %s -r %s --regions --scores' % (igblast_outfname, infname, ' '.join(glfnames))
     utils.simplerun(cmd, print_time='changeo')
@@ -50,10 +53,10 @@ def run_tigger(infname, outfname):
     db_name = 'annotations'
     gls_name = 'gls'
     rcmds += ['%s = read.csv("%s", sep="\t")' % (db_name, infname)]
-    rcmds += ['%s = readIgFasta("%s")' % (gls_name, get_glfname('v'))]
+    rcmds += ['%s = readIgFasta("%s")' % (gls_name, get_glfname('v', aligned=True))]
 
     rcmds += ['novel_df = findNovelAlleles(%s, %s, nproc=%d)' % (db_name, gls_name, args.n_procs)]  # , germline_min=2
-    rcmds += ['geno = inferGenotype(%s, find_unmutated = FALSE, germline_db = %s, novel_df = novel_df)' % (db_name, gls_name)]
+    rcmds += ['geno = inferGenotype(%s, find_unmutated = TRUE, germline_db = %s, novel_df = novel_df)' % (db_name, gls_name)]
     rcmds += ['genotype_seqs = genotypeFasta(geno, %s, novel_df)' % (gls_name)]
     rcmds += ['writeFasta(genotype_seqs, "%s")' % outfname]
     cmdfname = args.workdir + '/tigger-in.cmd'
