@@ -46,7 +46,7 @@ def simulate(args, simfname):
         assert args.sim_v_genes is None and args.allele_prevalence_freqs is None
 
         n_genes_per_region = '20:5:3'
-        n_sim_alleles_per_gene = '1,2,3:1,2:1,2'
+        n_sim_alleles_per_gene = '1,2:1,2:1,2'  # NOTE default is also in bin/partis
         min_allele_prevalence_freq = 0.1
         remove_template_genes = False
 
