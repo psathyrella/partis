@@ -55,11 +55,7 @@ class AlleleFinder(object):
         self.min_mean_candidate_ratio = 2.75  # mean of candidate ratios must be greater than this
         self.min_bad_fit_residual = 1.8
         self.max_good_fit_residual = 4.5  # this value hasn't gone through a huge amount of testing -- we might be able to get away with having it a good bit smaller than this
-        def max_consistent_candidate_fit_sigma(self, istart):
-            if istart < 4:  # want to be more permissive for small nsnp, to allow for multiple new alleles
-                return 5.5
-            else:
-                return 4.
+        self.max_consistent_candidate_fit_sigma = 5.
 
         self.min_min_candidate_ratio_to_plot = 1.5  # don't plot positions that're below this (for all <istart>)
 
@@ -473,11 +469,11 @@ class AlleleFinder(object):
         # NOTE that with multiple multi-snp new alleles that share some, but not all, positions, we don't expect consistency. In particular, at shared positions, the nsnp bin for the other allele will be high, and the prevalence will be off.
         for pos_1, pos_2 in itertools.combinations(fitfo['candidates'][istart], 2):
             fitfo_1, fitfo_2 = self.fitfos[gene]['fitfos'][istart][pos_1], self.fitfos[gene]['fitfos'][istart][pos_2]
-            if not self.consistent_slope_and_y_icpt(self.max_consistent_candidate_fit_sigma(istart), fitfo_1['postfo'], fitfo_2['postfo']):
+            if not self.consistent_slope_and_y_icpt(self.max_consistent_candidate_fit_sigma, fitfo_1['postfo'], fitfo_2['postfo']):
                 if debug:
                     print '    positions %d and %d have inconsistent post-istart fits' % (pos_1, pos_2)
                 return False
-            if istart > self.hard_code_three and not self.consistent_slope_and_y_icpt(self.max_consistent_candidate_fit_sigma(istart), fitfo_1['prefo'], fitfo_2['prefo']):  # if this nsnp is less than 3, and there's a second new allele with smaller nsnp, the pre-fit will be super inconsistent
+            if istart > self.hard_code_three and not self.consistent_slope_and_y_icpt(self.max_consistent_candidate_fit_sigma, fitfo_1['prefo'], fitfo_2['prefo']):  # if this nsnp is less than 3, and there's a second new allele with smaller nsnp, the pre-fit will be super inconsistent
                 if debug:
                     print '    positions %d and %d have inconsistent pre-istart fits' % (pos_1, pos_2)
                 return False
@@ -593,7 +589,7 @@ class AlleleFinder(object):
         factor = 3.5  # i.e. check everything that's more than <factor> sigma away
         last_total = pvals['total'][istart - 1]
         istart_total = pvals['total'][istart]
-        joint_total_err = max(math.sqrt(last_total), math.sqrt(this_total))
+        joint_total_err = max(math.sqrt(last_total), math.sqrt(istart_total))
         if debug:
             print '    different bin totals: %.0f - %.0f = %.0f ?> %.1f * %5.3f = %5.3f'  % (istart_total, last_total, istart_total - last_total, factor, joint_total_err, factor * joint_total_err)
         return istart_total - last_total > factor * joint_total_err  # it the total (denominator) is very different between the two bins
