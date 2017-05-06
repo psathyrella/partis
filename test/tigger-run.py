@@ -69,6 +69,8 @@ def run_tigger(infname, outfname):
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
+parser.add_argument('--gls-gen', action='store_true')
+raise Exception('handle --gls-gen')
 parser.add_argument('--infname', required=True)
 parser.add_argument('--outfname', required=True)
 parser.add_argument('--workdir', required=True)
@@ -76,6 +78,7 @@ parser.add_argument('--n-procs', default=1, type=int)
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--igbdir', default='./packages/ncbi-igblast-1.6.1/bin')
 args = parser.parse_args()
+raise Exception('add --glfo-dir')
 
 # ----------------------------------------------------------------------------------------
 outdir = os.path.dirname(args.outfname)  # kind of annoying having <args.workdir> and <outdir>, but the former is for stuff we don't want to keep (not much...  maybe just .cmd file), and the latter is for stuff we do

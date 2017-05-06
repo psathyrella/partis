@@ -9,6 +9,6 @@ testopts="--n-tests 1 --n-procs-per-test 2 --no-slurm"
 
 glscmd="$cmd gls-gen --label $label"
 for meth in partis; do #partis full tigger; do  # NOTE can add all methods to --methods arg now
-    # $glscmd --methods $meth $testopts --gen-gset-events 1000 --plot  # laptop
+    # $glscmd --methods $meth $testopts --gls-gen-events 1000 --plot  # laptop
     echo $glscmd --methods $meth --n-tests 3 --n-procs-per-test 35  #--plot  # quoll
 done

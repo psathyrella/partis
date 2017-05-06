@@ -137,7 +137,7 @@ def get_gls_fname(outdir, method, sim=False):  # NOTE duplicates/depends on code
         outdir += '/' + method
     else:
         assert False
-    return outdir + '/' + locus + '/' + locus + region + '.fasta'
+    return glutils.get_fname(outdir, locus, region)
 
 # ----------------------------------------------------------------------------------------
 def get_gls_gen_plots(args, baseoutdir, method):
@@ -146,7 +146,7 @@ def get_gls_gen_plots(args, baseoutdir, method):
     varval = args.data
 
     for iproc in range(args.iteststart, args.n_tests):
-        outdir = get_outdir(args, baseoutdir, args.gen_gset_events, varname, varval) + '/' + str(iproc)
+        outdir = get_outdir(args, baseoutdir, args.gls_gen_events, varname, varval) + '/' + str(iproc)
         simfname = get_gls_fname(outdir, method=None, sim=True)
         inffname = get_gls_fname(outdir, method)
         cmdstr = 'export PATH=%s:$PATH && xvfb-run -a ./bin/plot-gl-set-trees.py' % args.ete_path
@@ -235,7 +235,7 @@ def run_single_test(args, baseoutdir, val, n_events, method):
         cmd += ' --n-max-queries ' + str(n_events)  # i.e. we simulate <n_events> rearrangement events, but then only use <n_events> sequences for inference
     elif args.action == 'gls-gen':
         nsnpstr = '1:1:2:2:3'
-        cmd += ' --gen-gset'
+        cmd += ' --gls-gen'
     else:
         assert False
 
@@ -249,7 +249,7 @@ def run_single_test(args, baseoutdir, val, n_events, method):
 # ----------------------------------------------------------------------------------------
 def run_tests(args, baseoutdir, method):
     if args.action == 'gls-gen':
-        n_events = args.gen_gset_events
+        n_events = args.gls_gen_events
         val = args.data
         run_single_test(args, baseoutdir, val, n_events, method)
     else:
@@ -273,7 +273,7 @@ parser.add_argument('--methods', default='partis') #choices=['partis', 'full', '
 parser.add_argument('--v-genes', default='IGHV4-39*01')
 parser.add_argument('--varvals')
 parser.add_argument('--n-event-list', default='1000:2000:4000:8000')  # NOTE modified later for multi-nsnp also NOTE not used for gen-gset
-parser.add_argument('--gen-gset-events', default=300000)
+parser.add_argument('--gls-gen-events', default=300000)
 parser.add_argument('--n-tests', type=int, default=10)
 parser.add_argument('--iteststart', type=int, default=0)
 parser.add_argument('--n-procs-per-test', type=int, default=5)
