@@ -10,6 +10,7 @@ import glob
 
 from subprocess import check_call
 sys.path.insert(1, './python')
+partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
 
 import utils
 import glutils
@@ -91,7 +92,7 @@ def run_other_method(args, method):
     if args.gls_gen:
         assert method != 'tigger'  # needs updating
         cmd += ' --gls-gen'
-        cmd += ' --glfo-dir ' + partis_dir + '/data/germlines'  # the partis mehods have this as the default internally, but we want/have to set it explicitly here
+        cmd += ' --glfo-dir ' + partis_dir + '/data/germlines/human'  # the partis mehods have this as the default internally, but we want/have to set it explicitly here
     else:
         cmd += ' --glfo-dir ' + args.inf_glfo_dir
     if method != 'igdiscover':  # for now we're saving all the igdiscover output/intermediate files, so we write them to an output dir

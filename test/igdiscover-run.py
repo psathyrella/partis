@@ -17,36 +17,35 @@ def get_igd_glsfname(outdir, region):
     return outdir + '/db/' + region.upper() + '.fasta'
 
 # ----------------------------------------------------------------------------------------
-def get_all_output(outdir):
-    outfnames, outdirs = [], []
-    outfnames += [get_igd_glsfname(outdir, r) for r in utils.regions]
-    outdirs += outdir + '/db'
-
-    return outfnames, outdirs
-
-# ----------------------------------------------------------------------------------------
 def prepare_igdiscover_outdir(outdir):
-    if os.path.exists(outdir):
-        outfnames, outdirs = get_all_output(outdir)
-        for fn in outfnames:
-            if os.path.exists(fn):
-                print '  exists %s' % fn
-        # os.rmdir(outdir + '/db')
-        # raise Exception('need to write this after I know what files to expect (no I\'m not going to us rm -r)')
-    else:
+    if not os.path.exists(outdir):
         os.makedirs(outdir)
-        os.makedirs(outdir + '/db')
-        for region in utils.regions:
-            subprocess.check_call(['ln', '-s', glutils.get_fname(args.glfo_dir, args.locus, region), get_igd_glsfname(outdir, region)])
 
-    with open(args.yamlfname) as cfgfile:
+    if os.path.exists(outdir + '/db'):
+        for fn in [get_igd_glsfname(outdir, r) for r in utils.regions]:
+            print fn
+            print os.path.exists(fn)
+            if os.path.exists(fn):
+                os.remove(fn)
+    else:
+        os.makedirs(outdir + '/db')
+    for region in utils.regions:
+        subprocess.check_call(['ln', '-s', glutils.get_fname(args.glfo_dir, args.locus, region), get_igd_glsfname(outdir, region)])
+
+    cfgfname = outdir + '/' + os.path.basename(args.yamlfname)  # this is the .yaml in igdiscover/ (but *not* in igdiscover/work/) have to write it in the parent workdir, then cp to work/, because... meh, who cares why, just do it like this so shit works
+    if os.path.exists(cfgfname):
+        os.remove(cfgfname)
+    with open(args.yamlfname) as cfgfile:  # whereas this is the template .yaml in partis/test/
         cfgdata = yaml.load(cfgfile)
     if not args.gls_gen:
         for filtername in ['pre_germline_filter', 'germline_filter']:
             for cfgvar in ['unique_js', 'unique_cdr3s']:
                 cfgdata[filtername][cfgvar] = 0
-    with open(outdir + '/' + os.path.basename(args.yamlfname), 'w') as cfgfile:  # have to write it in the parent workdir, then cp to work/, because... meh, who cares why, just do it like this so shit works
+    with open(cfgfname, 'w') as cfgfile:
         yaml.dump(cfgdata, cfgfile, width=200)
+
+    if os.path.exists(outdir + '/work'):  # sigh, it spams out too much different output, can't get away without a -r
+        subprocess.check_call(['rm', '-rv', outdir + '/work'])
 
 # ----------------------------------------------------------------------------------------
 def run_igdiscover(infname, outfname, outdir):
