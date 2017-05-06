@@ -23,8 +23,6 @@ def prepare_igdiscover_outdir(outdir):
 
     if os.path.exists(outdir + '/db'):
         for fn in [get_igd_glsfname(outdir, r) for r in utils.regions]:
-            print fn
-            print os.path.exists(fn)
             if os.path.exists(fn):
                 os.remove(fn)
     else:
@@ -37,7 +35,7 @@ def prepare_igdiscover_outdir(outdir):
         os.remove(cfgfname)
     with open(args.yamlfname) as cfgfile:  # whereas this is the template .yaml in partis/test/
         cfgdata = yaml.load(cfgfile)
-    if not args.gls_gen:
+    if True: #not args.gls_gen:
         for filtername in ['pre_germline_filter', 'germline_filter']:
             for cfgvar in ['unique_js', 'unique_cdr3s']:
                 cfgdata[filtername][cfgvar] = 0
@@ -45,7 +43,7 @@ def prepare_igdiscover_outdir(outdir):
         yaml.dump(cfgdata, cfgfile, width=200)
 
     if os.path.exists(outdir + '/work'):  # sigh, it spams out too much different output, can't get away without a -r
-        subprocess.check_call(['rm', '-rv', outdir + '/work'])
+        subprocess.check_call(['rm', '-r', outdir + '/work'])
 
 # ----------------------------------------------------------------------------------------
 def run_igdiscover(infname, outfname, outdir):
@@ -68,11 +66,11 @@ def run_igdiscover(infname, outfname, outdir):
     cmdfos = [{'cmd_str' : cmdfname,
                'workdir' : outdir,
                'outfname' : outdir + '/work/final/%s_usage.tab' % 'v'.upper()}]
-    # utils.simplerun(cmdfname, shell=True, print_time='igdiscover')
-    utils.prepare_cmds(cmdfos)
-    start = time.time()
-    utils.run_cmds(cmdfos, ignore_stderr=True)
-    print '      igdiscover time: %.1f' % (time.time()-start)
+    utils.simplerun(cmdfname, shell=True, print_time='igdiscover')
+    # utils.prepare_cmds(cmdfos)
+    # start = time.time()
+    # utils.run_cmds(cmdfos, ignore_stderr=True)
+    # print '      igdiscover time: %.1f' % (time.time()-start)
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
