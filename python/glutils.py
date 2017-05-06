@@ -19,13 +19,13 @@ dummy_d_genes = {l : l.upper() + 'Dx-x*x' if not utils.has_d_gene(l) else None f
 
 # single-locus file names
 def get_fname(gldir, locus, region):
-    return gldir + '/' + locus + '/' + locus + r + '.fasta'
-def get_extra_fname(gldir):
+    return gldir + '/' + locus + '/' + locus + region + '.fasta'
+def get_extra_fname(gldir, locus):
     return gldir + '/' + locus + '/extras.csv'
 def glfo_fasta_fnames(gldir, locus):
     return [get_fname(gldir, locus, r) for r in utils.getregions(locus)]
 def glfo_fnames(gldir, locus):
-    return [get_extra_fname(gldir), ] + glfo_fasta_fnames(gldir, locus)
+    return [get_extra_fname(gldir, locus), ] + glfo_fasta_fnames(gldir, locus)
 
 csv_headers = ['gene', 'cyst_position', 'tryp_position', 'phen_position', 'aligned_seq']
 
@@ -352,7 +352,7 @@ def remove_extraneouse_info(glfo, debug=False):
 def read_extra_info(glfo, gldir):
     for codon in utils.conserved_codons[glfo['locus']].values():
         glfo[codon + '-positions'] = {}
-    with open(get_extra_fname(gldir)) as csvfile:
+    with open(get_extra_fname(gldir, glfo['locus'])) as csvfile:
         reader = csv.DictReader(csvfile)
         for line in reader:
             for codon in utils.conserved_codons[glfo['locus']].values():
@@ -622,7 +622,7 @@ def write_glfo(output_dir, glfo, only_genes=None, debug=False):
                 outfile.write('>' + gene + '\n')
                 outfile.write(glfo['seqs'][region][gene] + '\n')
 
-    with open(get_extra_fname(output_dir), 'w') as csvfile:
+    with open(get_extra_fname(output_dir, glfo['locus']), 'w') as csvfile:
         writer = csv.DictWriter(csvfile, csv_headers)
         writer.writeheader()
         for region, codon in utils.conserved_codons[glfo['locus']].items():
