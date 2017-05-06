@@ -2334,14 +2334,18 @@ def get_codon_positions_with_indels_reinstated(line, iseq, codon_positions):
     return reinstated_codon_positions
 
 # ----------------------------------------------------------------------------------------
-def csv_to_fasta(infname, outfname=None, name_column='unique_ids', seq_column='input_seqs', n_max_lines=None):
+def csv_to_fasta(infname, outfname=None, name_column='unique_ids', seq_column='input_seqs', n_max_lines=None, overwrite=True):
     if not os.path.exists(infname):
         raise Exception('input file %s d.n.e.' % infname)
     if outfname is None:
         assert '.csv' in infname
         outfname = infname.replace('.csv', '.fa')
     if os.path.exists(outfname):
-        print '  csv --> fasta: overwriting %s' % outfname
+        if overwrite:
+            print '  csv --> fasta: overwriting %s' % outfname
+        else:
+            print '  csv --> fasta: leaving existing outfile %s' % outfname
+            return
 
     if '.csv' in infname:
         delimiter = ','

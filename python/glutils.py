@@ -18,11 +18,14 @@ glfo_dir = 'germline-sets'  # always put germline info into a subdir with this n
 dummy_d_genes = {l : l.upper() + 'Dx-x*x' if not utils.has_d_gene(l) else None for l in utils.loci}  # e.g. IGKDx-x*x for igk, None for igh
 
 # single-locus file names
-extra_fname = 'extras.csv'
-def glfo_fasta_fnames(locus):
-    return [locus + r + '.fasta' for r in utils.getregions(locus)]
-def glfo_fnames(locus):
-    return [extra_fname, ] + glfo_fasta_fnames(locus)
+def get_fname(gldir, locus, region):
+    return gldir + '/' + locus + '/' + locus + r + '.fasta'
+def get_extra_fname(gldir):
+    return gldir + '/' + locus + '/extras.csv'
+def glfo_fasta_fnames(gldir, locus):
+    return [get_fname(gldir, locus, r) for r in utils.getregions(locus)]
+def glfo_fnames(gldir, locus):
+    return [get_extra_fname(gldir), ] + glfo_fasta_fnames(gldir, locus)
 
 csv_headers = ['gene', 'cyst_position', 'tryp_position', 'phen_position', 'aligned_seq']
 
@@ -135,8 +138,8 @@ def read_fasta_file(seqs, fname, skip_pseudogenes, aligned=False):
 #----------------------------------------------------------------------------------------
 def read_germline_seqs(gldir, locus, skip_pseudogenes):
     seqs = {r : OrderedDict() for r in utils.regions}
-    for fname in glfo_fasta_fnames(locus):
-        read_fasta_file(seqs, gldir + '/' + locus + '/' + fname, skip_pseudogenes)
+    for region in utils.getregions(locus):
+        read_fasta_file(seqs, get_fname(gldir, locus, region), skip_pseudogenes)
     if not utils.has_d_gene(locus):  # choose a sequence for the dummy d
         seqs['d'][dummy_d_genes[locus]] = 'A'  # this (arbitrary) choice is also made in packages/ham/src/bcrutils.cc
     return seqs
@@ -349,7 +352,7 @@ def remove_extraneouse_info(glfo, debug=False):
 def read_extra_info(glfo, gldir):
     for codon in utils.conserved_codons[glfo['locus']].values():
         glfo[codon + '-positions'] = {}
-    with open(gldir + '/' + glfo['locus'] + '/' + extra_fname) as csvfile:
+    with open(get_extra_fname(gldir)) as csvfile:
         reader = csv.DictReader(csvfile)
         for line in reader:
             for codon in utils.conserved_codons[glfo['locus']].values():
@@ -611,15 +614,15 @@ def write_glfo(output_dir, glfo, only_genes=None, debug=False):
         remove_glfo_files(output_dir, glfo['locus'])  # also removes output_dir
     os.makedirs(output_dir + '/' + glfo['locus'])
 
-    for fname in glfo_fasta_fnames(glfo['locus']):
-        with open(output_dir + '/' + glfo['locus'] + '/' + fname, 'w') as outfile:
-            for gene in glfo['seqs'][utils.get_region(fname)]:
+    for region in utils.getregions(glfo['locus']):
+        with open(get_fname(output_dir, glfo['locus'], region), 'w') as outfile:
+            for gene in glfo['seqs'][region]:
                 if only_genes is not None and gene not in only_genes:
                     continue
                 outfile.write('>' + gene + '\n')
-                outfile.write(glfo['seqs'][utils.get_region(fname)][gene] + '\n')
+                outfile.write(glfo['seqs'][region][gene] + '\n')
 
-    with open(output_dir + '/' + glfo['locus'] + '/' + extra_fname, 'w') as csvfile:
+    with open(get_extra_fname(output_dir), 'w') as csvfile:
         writer = csv.DictWriter(csvfile, csv_headers)
         writer.writeheader()
         for region, codon in utils.conserved_codons[glfo['locus']].items():
@@ -630,7 +633,7 @@ def write_glfo(output_dir, glfo, only_genes=None, debug=False):
 
     # make sure there weren't any files lingering in the output dir when we started
     # NOTE this will ignore the dirs corresponding to any *other* loci (which is what we want now, I think)
-    unexpected_files = set(glob.glob(output_dir + '/' + glfo['locus'] + '/*')) - set([output_dir + '/' + glfo['locus'] + '/' + fn for fn in glfo_fnames(glfo['locus'])])
+    unexpected_files = set(glob.glob(output_dir + '/' + glfo['locus'] + '/*')) - set(glfo_fnames(output_dir, glfo['locus']))
     if len(unexpected_files) > 0:
         raise Exception('unexpected file(s) while writing germline set: %s' % (' '.join(unexpected_files)))
 
@@ -646,11 +649,11 @@ def remove_glfo_files(gldir, locus):
         if os.path.exists(gldir + '/' + locus[2]):  # presumably the link's target also exists and needs to be removed
             locusdir = gldir + '/' + locus[2]
             print '    note: also removing old germline dir name (i.e. link target) %s' % locusdir
-    for fname in glfo_fnames(locus):
-        if os.path.exists(locusdir + '/' + fname):
-            os.remove(locusdir + '/' + fname)
+    for fname in glfo_fnames(gldir, locus):
+        if os.path.exists(fname):
+            os.remove(fname)
         else:
-            print '    %s tried to remove non-existent glfo file %s' % (utils.color('yellow', 'warning'), locusdir + '/' + fname)
+            print '    %s tried to remove non-existent glfo file %s' % (utils.color('yellow', 'warning'), fname)
     os.rmdir(locusdir)
     if len(os.listdir(gldir)) == 0:  # if there aren't any other locus dirs in here, remove the parent dir as well
         os.rmdir(gldir)
