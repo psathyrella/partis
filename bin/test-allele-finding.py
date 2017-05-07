@@ -86,7 +86,7 @@ def run_tigger(args, simfname):
     if utils.output_exists(args, get_outfname(args, 'tigger')):
         return
     simfasta = utils.getprefix(simfname) + '.fa'
-    utils.csv_to_fasta(simfname, outfname=simfasta)
+    utils.csv_to_fasta(simfname, outfname=simfasta, remove_duplicates=True)
 
     cmd = './test/tigger-run.py'
     cmd += ' --infname ' + simfasta
@@ -167,6 +167,7 @@ def multiple_tests(args):
     def cmd_str(iproc):
         clist = copy.deepcopy(sys.argv)
         utils.remove_from_arglist(clist, '--n-tests', has_arg=True)
+        utils.remove_from_arglist(clist, '--iteststart', has_arg=True)
         utils.replace_in_arglist(clist, '--outdir', args.outdir + '/' + str(iproc))
         utils.replace_in_arglist(clist, '--seed', str(args.seed + iproc))
         # clist.append('--slurm')

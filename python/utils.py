@@ -2334,7 +2334,18 @@ def get_codon_positions_with_indels_reinstated(line, iseq, codon_positions):
     return reinstated_codon_positions
 
 # ----------------------------------------------------------------------------------------
-def csv_to_fasta(infname, outfname=None, name_column='unique_ids', seq_column='input_seqs', n_max_lines=None):
+def csv_to_fasta(infname, outfname=None, name_column='unique_ids', seq_column='input_seqs', n_max_lines=None, remove_duplicates=False):
+    def get_column_names(line):
+        if 'name' in line:
+            name_column = 'name'
+            seq_column = 'nucleotide'
+        elif 'unique_id' in line:
+            name_column = 'unique_id'
+            seq_column = 'seq'
+        else:
+            raise Exception('specified <name_column> \'%s\' and backup \'name\' not in line: %s' % (name_column, line.keys()))
+        return name_column, seq_column
+
     if not os.path.exists(infname):
         raise Exception('input file %s d.n.e.' % infname)
     if outfname is None:
@@ -2350,20 +2361,19 @@ def csv_to_fasta(infname, outfname=None, name_column='unique_ids', seq_column='i
     else:
         assert False
 
+    uid_set = set()
     with open(infname) as infile:
         reader = csv.DictReader(infile, delimiter=delimiter)
         with open(outfname, 'w') as outfile:
             n_lines = 0
             for line in reader:
                 if name_column not in line:
-                    if 'name' in line:
-                        name_column = 'name'
-                        seq_column = 'nucleotide'
-                    elif 'unique_id' in line:
-                        name_column = 'unique_id'
-                        seq_column = 'seq'
-                    else:
-                        raise Exception('specified <name_column> \'%s\' and backup \'name\' not in line: %s' % (name_column, line.keys()))
+                    name_column, seq_column = get_column_names(line)
+                if remove_duplicates:
+                    if line[name_column] in uid_set:
+                        print '    csv --> fasta: skipping duplicate id %s' % line[name_column]
+                        continue
+                    uid_set.add(line[name_column])
                 n_lines += 1
                 if n_max_lines is not None and n_lines > n_max_lines:
                     break
