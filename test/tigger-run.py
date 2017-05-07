@@ -56,7 +56,7 @@ def run_tigger(infname, outfname):
     rcmds += ['%s = readIgFasta("%s")' % (gls_name, get_glfname('v', aligned=True))]
 
     rcmds += ['novel_df = findNovelAlleles(%s, %s, nproc=%d)' % (db_name, gls_name, args.n_procs)]  # , germline_min=2
-    rcmds += ['geno = inferGenotype(%s, find_unmutated = TRUE, germline_db = %s, novel_df = novel_df)' % (db_name, gls_name)]
+    rcmds += ['geno = inferGenotype(%s, find_unmutated = FALSE, germline_db = %s, novel_df = novel_df)' % (db_name, gls_name)]
     rcmds += ['genotype_seqs = genotypeFasta(geno, %s, novel_df)' % (gls_name)]
     rcmds += ['writeFasta(genotype_seqs, "%s")' % outfname]
     cmdfname = args.workdir + '/tigger-in.cmd'
@@ -70,7 +70,6 @@ def run_tigger(infname, outfname):
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
 parser.add_argument('--gls-gen', action='store_true')
-raise Exception('handle --gls-gen')
 parser.add_argument('--infname', required=True)
 parser.add_argument('--outfname', required=True)
 parser.add_argument('--workdir', required=True)
@@ -78,7 +77,8 @@ parser.add_argument('--n-procs', default=1, type=int)
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--igbdir', default='./packages/ncbi-igblast-1.6.1/bin')
 args = parser.parse_args()
-raise Exception('add --glfo-dir')
+if not args.gls_gen:
+    print '%s can\'t really run without --gls-gen, since you\'d need to work out how to change j parameters' % utils.color('red', 'warning')
 
 # ----------------------------------------------------------------------------------------
 outdir = os.path.dirname(args.outfname)  # kind of annoying having <args.workdir> and <outdir>, but the former is for stuff we don't want to keep (not much...  maybe just .cmd file), and the latter is for stuff we do

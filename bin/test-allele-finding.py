@@ -90,7 +90,6 @@ def run_other_method(args, method):
     cmd += ' --infname ' + simfasta
     cmd += ' --outfname ' + get_outfname(args, method)
     if args.gls_gen:
-        assert method != 'tigger'  # needs updating
         cmd += ' --gls-gen'
         cmd += ' --glfo-dir ' + partis_dir + '/data/germlines/human'  # the partis mehods have this as the default internally, but we want/have to set it explicitly here
     else:

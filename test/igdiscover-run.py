@@ -85,7 +85,9 @@ parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--condapath', default=os.getenv('HOME') + '/miniconda3/bin')
 args = parser.parse_args()
 
-print '%s not using --n-procs for igdiscover yet' % utils.color('red', 'note')
+print '%s not using --n-procs for igdiscover yet (it uses all the available threads by default)' % utils.color('red', 'note')
+if not args.gls_gen:
+    print '%s can\'t really run without --gls-gen, since you\'d need to work out how to change j parameters' % utils.color('red', 'warning')
 
 # ----------------------------------------------------------------------------------------
 outdir = os.path.dirname(args.outfname)
