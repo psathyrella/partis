@@ -579,7 +579,7 @@ def add_some_snps(snps_to_add, glfo, remove_template_genes=False, debug=False):
     for isnp in range(len(snps_to_add)):
         snpinfo = snps_to_add[isnp]
         gene, positions = snpinfo['gene'], snpinfo['positions']
-        print '    adding %d %s to %s' % (len(positions), utils.plural_str('snp', len(positions)), gene)
+        print '    adding %d snp%s to %s' % (len(positions), utils.plural(len(positions)), utils.color_gene(gene))
         seq = glfo['seqs'][utils.get_region(gene)][gene]
         assert utils.get_region(gene) == 'v'
         cpos = glfo['cyst-positions'][gene]
