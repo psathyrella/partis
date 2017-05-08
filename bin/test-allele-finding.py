@@ -10,24 +10,23 @@ import glob
 
 from subprocess import check_call
 sys.path.insert(1, './python')
+partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
 
 import utils
 import glutils
 
 # ----------------------------------------------------------------------------------------
 def get_outfname(args, method):
-    if method == 'tigger':
-        return args.outdir + '/tigger/' + args.locus + '/' + args.locus + 'v' + '.fasta'
-    elif method == 'partis' or method == 'full':  # parameter directory, not regular file
+    if method == 'partis' or method == 'full':  # parameter directory, not regular file (although, could change it to the gls .fa in sw/)
         return args.outdir + '/' + method
     else:
-        assert False
+        return args.outdir + '/' + method + '/' + args.locus + '/' + args.locus + 'v' + '.fasta'
 
 # ----------------------------------------------------------------------------------------
-def simulate(args, simfname):
-    if utils.output_exists(args, simfname):
+def simulate(args):
+    if utils.output_exists(args, args.simfname):
         return
-    cmd_str = args.partis_path + ' simulate --n-sim-events ' + str(args.n_sim_events) + ' --n-leaves ' + str(args.n_leaves) + ' --rearrange-from-scratch --outfname ' + simfname
+    cmd_str = args.partis_path + ' simulate --n-sim-events ' + str(args.n_sim_events) + ' --n-leaves ' + str(args.n_leaves) + ' --rearrange-from-scratch --outfname ' + args.simfname
     if args.n_leaf_distribution is None:
         cmd_str += ' --constant-number-of-leaves'
     else:
@@ -42,7 +41,7 @@ def simulate(args, simfname):
     allele_prevalence_fname = args.workdir + '/allele-prevalence-freqs.csv'
 
     # figure what genes we're using
-    if args.gen_gset:
+    if args.gls_gen:
         assert args.sim_v_genes is None and args.allele_prevalence_freqs is None
 
         n_genes_per_region = '20:5:3'
@@ -82,22 +81,27 @@ def simulate(args, simfname):
     utils.simplerun(cmd_str)
 
 # ----------------------------------------------------------------------------------------
-def run_tigger(args, simfname):
-    if utils.output_exists(args, get_outfname(args, 'tigger')):
+def run_other_method(args, method):
+    if utils.output_exists(args, get_outfname(args, method)):
         return
-    simfasta = utils.getprefix(simfname) + '.fa'
-    utils.csv_to_fasta(simfname, outfname=simfasta, remove_duplicates=True)
-
-    cmd = './test/tigger-run.py'
+    simfasta = utils.getprefix(args.simfname) + '.fa'
+    utils.csv_to_fasta(args.simfname, outfname=simfasta, overwrite=False, remove_duplicates=True)
+    cmd = './test/%s-run.py' % method
     cmd += ' --infname ' + simfasta
-    cmd += ' --outfname ' + get_outfname(args, 'tigger')
-    cmd += ' --workdir ' + args.workdir + '/tigger'
+    cmd += ' --outfname ' + get_outfname(args, method)
+    if args.gls_gen:
+        cmd += ' --gls-gen'
+        cmd += ' --glfo-dir ' + partis_dir + '/data/germlines/human'  # the partis mehods have this as the default internally, but we want/have to set it explicitly here
+    else:
+        cmd += ' --glfo-dir ' + args.inf_glfo_dir
+    if method != 'igdiscover':  # for now we're saving all the igdiscover output/intermediate files, so we write them to an output dir
+        cmd += ' --workdir ' + args.workdir + '/' + method
     cmd += ' --n-procs ' + str(args.n_procs)
 
     utils.simplerun(cmd)
 
 # ----------------------------------------------------------------------------------------
-def run_partis(args, method, simfname):
+def run_partis(args, method):
     if utils.output_exists(args, get_outfname(args, method)):
         return
 
@@ -115,7 +119,7 @@ def run_partis(args, method, simfname):
                 # os.rmdir(sw_cache_gldir)
 
     # generate germline set and cache parameters
-    cmd_str = args.partis_path + ' cache-parameters --infname ' + simfname + ' --only-smith-waterman'
+    cmd_str = args.partis_path + ' cache-parameters --infname ' + args.simfname + ' --only-smith-waterman'
     if method == 'partis':
         cmd_str += ' --find-new-alleles --debug-allele-finding' # --always-find-new-alleles'
     elif method == 'full':
@@ -129,16 +133,8 @@ def run_partis(args, method, simfname):
     if args.slurm:
         cmd_str += ' --batch-system slurm'
 
-    if args.gen_gset:
-        pass  # i.e. uses default (full) germline dir
-    else:
-        cmd_str += ' --dont-remove-unlikely-alleles'  # --new-allele-fname ' + args.outdir + '/new-alleles.fa'
-        inference_genes = ':'.join(args.inf_v_genes + args.dj_genes)
-        iglfo = glutils.read_glfo('data/germlines/human', locus=args.locus, only_genes=inference_genes.split(':'))
-        print '  starting inference with %d v: %s' % (len(iglfo['seqs']['v']), ' '.join([utils.color_gene(g) for g in iglfo['seqs']['v']]))
-        glutils.write_glfo(args.outdir + '/germlines/inference', iglfo)
-        cmd_str += ' --initial-germline-dir ' + args.outdir + '/germlines/inference'
-        # cmd_str += ' --n-max-snps 12'
+    if not args.gls_gen:  # otherwise it uses the default (full) germline dir
+        cmd_str += ' --dont-remove-unlikely-alleles --initial-germline-dir ' + args.inf_glfo_dir
 
     cmd_str += ' --parameter-dir ' + paramdir
     cmd_str += ' --only-overall-plots --plotdir ' + plotdir
@@ -149,16 +145,26 @@ def run_partis(args, method, simfname):
     utils.simplerun(cmd_str)
 
 # ----------------------------------------------------------------------------------------
+def write_inf_glfo(args):  # read default glfo, restrict it to the specified alleles, and write to somewhere where all the methods can read it
+    # NOTE this dir should *not* be modified by any of the methods
+    inf_glfo = glutils.read_glfo('data/germlines/human', locus=args.locus, only_genes=args.inf_v_genes + args.dj_genes)
+    print '  writing initial inference glfo with %d v: %s' % (len(inf_glfo['seqs']['v']), ' '.join([utils.color_gene(g) for g in inf_glfo['seqs']['v']]))
+    glutils.write_glfo(args.inf_glfo_dir, inf_glfo)
+
+# ----------------------------------------------------------------------------------------
 def run_tests(args):
     print 'seed %d' % args.seed
-    simfname = args.outdir + '/simu.csv'
+
     if not args.nosim:
-        simulate(args, simfname)
+        simulate(args)
+
+    if not args.gls_gen:
+        write_inf_glfo(args)
     for method in args.methods:
-        if method == 'tigger':
-            run_tigger(args, simfname)
+        if method == 'partis' or method == 'full':
+            run_partis(args, method)
         else:
-            run_partis(args, method, simfname)
+            run_other_method(args, method)
 
 # ----------------------------------------------------------------------------------------
 def multiple_tests(args):
@@ -272,12 +278,12 @@ parser.add_argument('--n-leaves', type=float, default=1.)
 parser.add_argument('--n-leaf-distribution')
 parser.add_argument('--n-procs', type=int, default=2)
 parser.add_argument('--seed', type=int, default=int(time.time()))
-parser.add_argument('--gen-gset', action='store_true', help='generate a random germline set from scratch (parameters specified above), and infer a germline set from scratch, instead of using --sim-v-genes, --dj-genes, --inf-v-genes, and --snp-positions.')
+parser.add_argument('--gls-gen', action='store_true', help='generate a random germline set from scratch (parameters specified above), and infer a germline set from scratch, instead of using --sim-v-genes, --dj-genes, --inf-v-genes, and --snp-positions.')
 parser.add_argument('--sim-v-genes', default='IGHV4-39*01:IGHV4-39*06', help='.')
 parser.add_argument('--inf-v-genes', default='IGHV4-39*01', help='.')
 parser.add_argument('--dj-genes', default='IGHD6-19*01:IGHJ4*02', help='.')
 parser.add_argument('--snp-positions', help='colon-separated list (length must equal length of <--sim-v-genes>) of comma-separated snp positions for each gene, e.g. for two genes you might have \'3,71:45\'')
-parser.add_argument('--nsnp-list', help='colon-separated list (length must equal length of <--sim-v-genes> unless --gen-gset) of the number of snps to generate for each gene (each snp at a random position). If --gen-gset, then this still gives the number of snpd genes, but it isn\'t assumed to be the same length as anything [i.e. we don\'t yet know how many v genes there\'ll be]')
+parser.add_argument('--nsnp-list', help='colon-separated list (length must equal length of <--sim-v-genes> unless --gls-gen) of the number of snps to generate for each gene (each snp at a random position). If --gls-gen, then this still gives the number of snpd genes, but it isn\'t assumed to be the same length as anything [i.e. we don\'t yet know how many v genes there\'ll be]')
 parser.add_argument('--allele-prevalence-freqs', help='colon-separated list of allele prevalence frequencies, including newly-generated snpd genes (ordered alphabetically)')
 parser.add_argument('--remove-template-genes', action='store_true', help='when generating snps, remove the original gene before simulation')
 parser.add_argument('--mut-mult', type=float)
@@ -285,6 +291,8 @@ parser.add_argument('--slurm', action='store_true')
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--methods', default='partis')
 parser.add_argument('--outdir', default=utils.fsdir() + '/partis/allele-finder')
+parser.add_argument('--inf-glfo-dir', help='default set below')
+parser.add_argument('--simfname', help='default set below')
 parser.add_argument('--workdir', default=utils.fsdir() + '/_tmp/hmms/' + str(random.randint(0, 999999)))
 parser.add_argument('--n-tests', type=int)
 parser.add_argument('--iteststart', type=int, default=0)
@@ -305,7 +313,7 @@ if args.snp_positions is not None:
     if len(args.snp_positions) != len(args.sim_v_genes):
         raise Exception('--snp-positions %s and --sim-v-genes %s not the same length (%d vs %d)' % (args.snp_positions, args.sim_v_genes, len(args.snp_positions), len(args.sim_v_genes)))
 if args.nsnp_list is not None:
-    if not args.gen_gset and len(args.nsnp_list) != len(args.sim_v_genes):
+    if not args.gls_gen and len(args.nsnp_list) != len(args.sim_v_genes):
         raise Exception('--nsnp-list %s and --sim-v-genes %s not the same length (%d vs %d)' % (args.nsnp_list, args.sim_v_genes, len(args.nsnp_list), len(args.sim_v_genes)))
     if args.snp_positions is not None:
         raise Exception('can\'t specify both --nsnp-list and --snp-positions')
@@ -315,11 +323,18 @@ if args.allele_prevalence_freqs is not None:
     # easier to check the length after we've generated snpd genes (above)
     if not utils.is_normed(args.allele_prevalence_freqs):
         raise Exception('--allele-prevalence-freqs %s not normalized' % args.allele_prevalence_freqs)
-if args.gen_gset:  # these are all set automatically if we're generating/inferring a whole germline set
+if args.inf_glfo_dir is None:
+    args.inf_glfo_dir = args.outdir + '/germlines/inference'
+if args.simfname is None:
+    args.simfname = args.outdir + '/simu.csv'
+
+# if we're generating/inferring a whole germline set these are either set automatically or not used
+if args.gls_gen:
     args.sim_v_genes = None
     args.inf_v_genes = None
     args.dj_genes = None
     args.allele_prevalence_freqs = None
+    args.inf_glfo_dir = None
 
 if args.seed is not None:
     random.seed(args.seed)

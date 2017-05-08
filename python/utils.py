@@ -1684,7 +1684,7 @@ def get_available_node_core_list(batch_config_fname, debug=False):
     return corelist
 
 # ----------------------------------------------------------------------------------------
-def prepare_cmds(cmdfos, batch_system, batch_options, batch_config_fname, debug=False):
+def prepare_cmds(cmdfos, batch_system=None, batch_options=None, batch_config_fname=None, debug=False):
     # set cmdfo defaults
     for iproc in range(len(cmdfos)):
         if 'logdir' not in cmdfos[iproc]:  # if logdirs aren't specified, then log files go in the workdirs
@@ -2337,7 +2337,7 @@ def get_codon_positions_with_indels_reinstated(line, iseq, codon_positions):
     return reinstated_codon_positions
 
 # ----------------------------------------------------------------------------------------
-def csv_to_fasta(infname, outfname=None, name_column='unique_ids', seq_column='input_seqs', n_max_lines=None, remove_duplicates=False):
+def csv_to_fasta(infname, outfname=None, name_column='unique_ids', seq_column='input_seqs', n_max_lines=None, overwrite=True, remove_duplicates=False):
     def get_column_names(line):
         if 'name' in line:
             name_column = 'name'
@@ -2355,7 +2355,11 @@ def csv_to_fasta(infname, outfname=None, name_column='unique_ids', seq_column='i
         assert '.csv' in infname
         outfname = infname.replace('.csv', '.fa')
     if os.path.exists(outfname):
-        print '  csv --> fasta: overwriting %s' % outfname
+        if overwrite:
+            print '  csv --> fasta: overwriting %s' % outfname
+        else:
+            print '  csv --> fasta: leaving existing outfile %s' % outfname
+            return
 
     if '.csv' in infname:
         delimiter = ','
