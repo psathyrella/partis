@@ -73,10 +73,7 @@ def varvalstr(name, val):
     if name == 'multi-nsnp':
         valstr = ':'.join([str(v) for v in val])
     elif name == 'gls-gen':
-        if val:  # <val> is <args.data>
-            assert False
-        else:
-            valstr = 'simu'
+        valstr = 'simu'
     else:
         valstr = str(val)
     return valstr
@@ -108,9 +105,11 @@ def legend_str(args, val):
     return lstr
 
 # ----------------------------------------------------------------------------------------
-def get_outdir(args, baseoutdir, n_events, varname, varval):
+def get_outdir(args, baseoutdir, varname, varval, n_events=None):
     outdir = baseoutdir
     if args.action == 'gls-gen':
+        outdir += '/' + varvalstr(varname, varval)
+    if args.action == 'data':
         outdir += '/' + varvalstr(varname, varval)
     else:
         outdir += '/' + varname + '-' + varvalstr(varname, varval) + '/n-events-' + str(n_events)
@@ -151,10 +150,10 @@ def get_gls_fname(outdir, method, sim=False):  # NOTE duplicates/depends on code
 def get_gls_gen_plots(args, baseoutdir, method):
     # ete3 requires its own python version, so we run as a subprocess
     varname = args.action
-    varval = args.data
+    varval = 'simu'
 
     for iproc in range(args.iteststart, args.n_tests):
-        outdir = get_outdir(args, baseoutdir, args.gls_gen_events, varname, varval) + '/' + str(iproc)
+        outdir = get_outdir(args, baseoutdir, varname, varval, n_events=args.gls_gen_events) + '/' + str(iproc)
         simfname = get_gls_fname(outdir, method=None, sim=True)
         inffname = get_gls_fname(outdir, method)
         cmdstr = 'export PATH=%s:$PATH && xvfb-run -a ./bin/plot-gl-set-trees.py' % args.ete_path
@@ -174,7 +173,7 @@ def plot_single_test(args, baseoutdir, method):
     def get_performance(varname, varval):
         perf_vals = {pt : [] for pt in plot_types + ['total']}
         for iproc in range(args.iteststart, args.n_tests):
-            single_vals = get_single_performance(get_outdir(args, baseoutdir, n_events, varname, varval) + '/' + str(iproc), method=method)
+            single_vals = get_single_performance(get_outdir(args, baseoutdir, varname, varval, n_events=n_events) + '/' + str(iproc), method=method)
             for ptype in plot_types + ['total']:
                 perf_vals[ptype].append(single_vals[ptype])
         return perf_vals
@@ -221,7 +220,7 @@ def get_base_cmd(args, n_events, method):
 # ----------------------------------------------------------------------------------------
 def run_single_test(args, baseoutdir, val, n_events, method):
     cmd = get_base_cmd(args, n_events, method)
-    outdir = get_outdir(args, baseoutdir, n_events, args.action, val)
+    outdir = get_outdir(args, baseoutdir, args.action, val, n_events=n_events)
     sim_v_genes = [args.v_genes[0]]
     nsnpstr = '1'
     if args.action == 'mfreq':
@@ -255,11 +254,31 @@ def run_single_test(args, baseoutdir, val, n_events, method):
     utils.simplerun(cmd) #, dryrun=True)
 
 # ----------------------------------------------------------------------------------------
+def run_data(args, baseoutdir, study, dset, method):
+    assert method == 'partis'  # doesn't handle the others (yet, maybe)
+    cmd = './datascripts/run.py cache-parameters'
+    outdir = get_outdir(args, baseoutdir, varname='data', varval=study + '/' + dset)
+    cmd += ' --study ' + study
+    cmd += ' --dsets ' + dset
+    cmd += ' --extra-str gls-gen-paper'
+    if args.no_slurm:
+        cmd += ' --no-slurm'
+    cmd += ' --n-procs ' + str(args.n_procs_per_test)
+    if args.n_random_queries is not None:
+        cmd += ' --n-random-queries ' + str(args.n_random_queries)
+
+    utils.simplerun(cmd)
+
+# ----------------------------------------------------------------------------------------
 def run_tests(args, baseoutdir, method):
     if args.action == 'gls-gen':
         n_events = args.gls_gen_events
-        val = args.data
+        val = 'simu'
         run_single_test(args, baseoutdir, val, n_events, method)
+    if args.action == 'data':
+        for var in args.varvals:
+            study, dset = var.split('/')
+            run_data(args, baseoutdir, study, dset, method)
     else:
         for val in args.varvals:
             for n_events in args.n_event_list:
@@ -274,14 +293,16 @@ default_varvals = {
     'n-leaves' : '1.5:3:10:25',
     'weibull' : '0.3:0.5:1.3',
     'gls-gen' : None,
+    'data' : 'jason-mg/HD07-igh',
 }
 parser = argparse.ArgumentParser()
-parser.add_argument('action', choices=['mfreq', 'nsnp', 'multi-nsnp', 'prevalence', 'n-leaves', 'weibull', 'gls-gen'])
+parser.add_argument('action', choices=['mfreq', 'nsnp', 'multi-nsnp', 'prevalence', 'n-leaves', 'weibull', 'gls-gen', 'data'])
 parser.add_argument('--methods', default='partis') #choices=['partis', 'full', 'tigger'])
 parser.add_argument('--v-genes', default='IGHV4-39*01')
 parser.add_argument('--varvals')
 parser.add_argument('--n-event-list', default='1000:2000:4000:8000')  # NOTE modified later for multi-nsnp also NOTE not used for gen-gset
-parser.add_argument('--gls-gen-events', default=300000)
+parser.add_argument('--gls-gen-events', type=int, default=300000)
+parser.add_argument('--n-random-queries', type=int)
 parser.add_argument('--n-tests', type=int, default=10)
 parser.add_argument('--iteststart', type=int, default=0)
 parser.add_argument('--n-procs-per-test', type=int, default=5)
@@ -290,7 +311,6 @@ parser.add_argument('--no-slurm', action='store_true')
 parser.add_argument('--plotcache', action='store_true')
 parser.add_argument('--label', default='xxx')
 parser.add_argument('--ete-path', default='/home/' + os.getenv('USER') + '/anaconda_ete/bin')
-parser.add_argument('--data', action='store_true')
 args = parser.parse_args()
 
 args.methods = utils.get_arg_list(args.methods)
