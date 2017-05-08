@@ -17,10 +17,10 @@ import glutils
 
 # ----------------------------------------------------------------------------------------
 def get_outfname(args, method):
+    outdir = args.outdir + '/' + method
     if method == 'partis' or method == 'full':  # parameter directory, not regular file (although, could change it to the gls .fa in sw/)
-        return args.outdir + '/' + method
-    else:
-        return args.outdir + '/' + method + '/' + args.locus + '/' + args.locus + 'v' + '.fasta'
+        outdir += '/sw/germline-sets'
+    return glutils.get_fname(outdir, args.locus, 'v')
 
 # ----------------------------------------------------------------------------------------
 def simulate(args):
@@ -105,7 +105,7 @@ def run_partis(args, method):
     if utils.output_exists(args, get_outfname(args, method)):
         return
 
-    paramdir = get_outfname(args, method)
+    paramdir = args.outdir + '/' + method
     plotdir = args.outdir + '/' + method + '/plots'
 
     # remove any old sw cache files
