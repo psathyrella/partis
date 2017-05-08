@@ -84,7 +84,15 @@ def varvalstr(name, val):
 # ----------------------------------------------------------------------------------------
 def legend_str(args, val):
     if args.action == 'mfreq':
-        lstr = '%.1fx' % val
+        # lstr = '%.1fx' % val
+        if val < 0.15:
+            return 'low'
+        elif val > 0.5 and val < 1.5:
+            return 'typical'
+        elif val > 1.5:
+            return 'high'
+        else:
+            assert False
     elif args.action == 'nsnp':
         lstr = '%d' % val
     elif args.action == 'multi-nsnp':
