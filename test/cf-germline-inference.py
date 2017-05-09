@@ -14,7 +14,7 @@ from hist import Hist
 sys.path.insert(1, './datascripts')
 import heads
 
-locus = 'igh'
+sim_locus = 'igh'
 region = 'v'
 
 legend_titles = {
@@ -119,8 +119,8 @@ def get_outdir(args, baseoutdir, varname, varval, n_events=None):
 
 # ----------------------------------------------------------------------------------------
 def get_single_performance(outdir, method, debug=False):
-    sglfo = glutils.read_glfo(outdir + '/germlines/simulation', locus=locus)
-    iglfo = glutils.read_glfo(outdir + '/' + method + '/sw/germline-sets', locus=locus)
+    sglfo = glutils.read_glfo(outdir + '/germlines/simulation', locus=sim_locus)
+    iglfo = glutils.read_glfo(outdir + '/' + method + '/sw/germline-sets', locus=sim_locus)
     missing_alleles = set(sglfo['seqs'][region]) - set(iglfo['seqs'][region])
     spurious_alleles = set(iglfo['seqs'][region]) - set(sglfo['seqs'][region])
     if debug:
@@ -137,7 +137,7 @@ def get_single_performance(outdir, method, debug=False):
     }
 
 # ----------------------------------------------------------------------------------------
-def get_gls_fname(outdir, method, sim_truth=False, data=False):  # NOTE duplicates/depends on code in test-allele-finding.py
+def get_gls_fname(outdir, method, locus, sim_truth=False, data=False):  # NOTE duplicates/depends on code in test-allele-finding.py
     if data:
         outdir += '/hmm/germline-sets'  # NOTE this is inside the datascripts output dir, also NOTE doesn't use <method> (since we only have partis for a method a.t.m., although could use --label or --extra-str to differentiate)
     elif sim_truth:
@@ -169,17 +169,18 @@ def get_gls_gen_plots(args, baseoutdir, method):
 
     for iproc in range(args.iteststart, args.n_tests):
         outdir = get_outdir(args, baseoutdir, varname, varval, n_events=args.gls_gen_events) + '/' + str(iproc)
-        simfname = get_gls_fname(outdir, method=None, sim_truth=True)
-        inffname = get_gls_fname(outdir, method)
+        simfname = get_gls_fname(outdir, method=None, locus=sim_locus, sim_truth=True)
+        inffname = get_gls_fname(outdir, method, sim_locus)
         make_gls_tree_plot(args, outdir + '/' + method + '/gls-gen-plots', varvalstr(varname, varval), glsfnames=[simfname, inffname], glslabels=['sim', 'inf'])
 
 # ----------------------------------------------------------------------------------------
 def get_data_plots(args, baseoutdir, method):
     for var in args.varvals:
         study, dset = var.split('/')
+        mfo = heads.read_metadata(study)[dset]
         data_outdir = heads.get_datadir(study, 'processed', extra_str='gls-gen-paper-' + args.label) + '/' + dset
         outdir = get_outdir(args, baseoutdir, varname='data', varval=study + '/' + dset)  # for data, only the plots go here, since datascripts puts its output somewhere else
-        make_gls_tree_plot(args, outdir + '/' + method + '/gls-gen-plots', study + '-' + dset, glsfnames=[get_gls_fname(data_outdir, method=None, data=True)], glslabels=['data'])
+        make_gls_tree_plot(args, outdir + '/' + method + '/gls-gen-plots', study + '-' + dset, glsfnames=[get_gls_fname(data_outdir, method=None, locus=mfo['locus'], data=True)], glslabels=['data'])
 
 # ----------------------------------------------------------------------------------------
 def plot_single_test(args, baseoutdir, method):
@@ -311,7 +312,7 @@ default_varvals = {
     'n-leaves' : '1.5:3:10:25',
     'weibull' : '0.3:0.5:1.3',
     'gls-gen' : None,
-    'data' : 'jason-mg/HD07-igh',
+    'data' : 'jason-mg/HD07-igh:jason-mg/HD07-igk:jason-mg/HD07-igl',
 }
 parser = argparse.ArgumentParser()
 parser.add_argument('action', choices=['mfreq', 'nsnp', 'multi-nsnp', 'prevalence', 'n-leaves', 'weibull', 'gls-gen', 'data'])
