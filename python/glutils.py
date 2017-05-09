@@ -55,6 +55,14 @@ duplicate_names = {
 }
 
 #----------------------------------------------------------------------------------------
+def is_snpd(gene):
+    primary_version, sub_version, allele = utils.split_gene(gene)
+    if '+' in allele:
+        return True
+    else:
+        return False
+
+#----------------------------------------------------------------------------------------
 def convert_to_duplicate_name(glfo, gene):
     for equivalence_class in duplicate_names[utils.get_region(gene)]:
         if gene in equivalence_class:

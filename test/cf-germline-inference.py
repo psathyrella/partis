@@ -11,6 +11,8 @@ sys.path.insert(1, './python')
 import utils
 import glutils
 from hist import Hist
+sys.path.insert(1, './datascripts')
+import heads
 
 locus = 'igh'
 region = 'v'
@@ -135,8 +137,10 @@ def get_single_performance(outdir, method, debug=False):
     }
 
 # ----------------------------------------------------------------------------------------
-def get_gls_fname(outdir, method, sim=False):  # NOTE duplicates/depends on code in test-allele-finding.py
-    if sim:
+def get_gls_fname(outdir, method, sim_truth=False, data=False):  # NOTE duplicates/depends on code in test-allele-finding.py
+    if data:
+        outdir += '/hmm/germline-sets'  # NOTE this is inside the datascripts output dir, also NOTE doesn't use <method> (since we only have partis for a method a.t.m., although could use --label or --extra-str to differentiate)
+    elif sim_truth:
         outdir += '/germlines/simulation'
     elif method == 'partis' or method == 'full':
         outdir += '/' + method + '/sw/germline-sets'
@@ -147,23 +151,35 @@ def get_gls_fname(outdir, method, sim=False):  # NOTE duplicates/depends on code
     return glutils.get_fname(outdir, locus, region)
 
 # ----------------------------------------------------------------------------------------
-def get_gls_gen_plots(args, baseoutdir, method):
+def make_gls_tree_plot(args, plotdir, plotname, glsfnames, glslabels):
     # ete3 requires its own python version, so we run as a subprocess
+    cmdstr = 'export PATH=%s:$PATH && xvfb-run -a ./bin/plot-gl-set-trees.py' % args.ete_path
+    cmdstr += ' --plotdir ' + plotdir
+    cmdstr += ' --plotname ' + plotname
+    cmdstr += ' --glsfnames ' + ':'.join(glsfnames)
+    cmdstr += ' --glslabels ' + ':'.join(glslabels)
+    if args.plotcache:
+        cmdstr += ' --use-cache'
+    utils.simplerun(cmdstr, shell=True)
+
+# ----------------------------------------------------------------------------------------
+def get_gls_gen_plots(args, baseoutdir, method):
     varname = args.action
     varval = 'simu'
 
     for iproc in range(args.iteststart, args.n_tests):
         outdir = get_outdir(args, baseoutdir, varname, varval, n_events=args.gls_gen_events) + '/' + str(iproc)
-        simfname = get_gls_fname(outdir, method=None, sim=True)
+        simfname = get_gls_fname(outdir, method=None, sim_truth=True)
         inffname = get_gls_fname(outdir, method)
-        cmdstr = 'export PATH=%s:$PATH && xvfb-run -a ./bin/plot-gl-set-trees.py' % args.ete_path
-        cmdstr += ' --plotdir ' + outdir + '/' + method + '/gls-gen-plots'
-        cmdstr += ' --plotname ' + varvalstr(varname, varval)
-        cmdstr += ' --glsfnames ' + ':'.join([simfname, inffname])
-        cmdstr += ' --glslabels ' + ':'.join(['sim', 'inf'])
-        if args.plotcache:
-            cmdstr += ' --use-cache'
-        utils.simplerun(cmdstr, shell=True)
+        make_gls_tree_plot(args, outdir + '/' + method + '/gls-gen-plots', varvalstr(varname, varval), glsfnames=[simfname, inffname], glslabels=['sim', 'inf'])
+
+# ----------------------------------------------------------------------------------------
+def get_data_plots(args, baseoutdir, method):
+    for var in args.varvals:
+        study, dset = var.split('/')
+        data_outdir = heads.get_datadir(study, 'processed', extra_str='gls-gen-paper-' + args.label) + '/' + dset
+        outdir = get_outdir(args, baseoutdir, varname='data', varval=study + '/' + dset)  # for data, only the plots go here, since datascripts puts its output somewhere else
+        make_gls_tree_plot(args, outdir + '/' + method + '/gls-gen-plots', study + '-' + dset, glsfnames=[get_gls_fname(data_outdir, method=None, data=True)], glslabels=['data'])
 
 # ----------------------------------------------------------------------------------------
 def plot_single_test(args, baseoutdir, method):
@@ -200,6 +216,8 @@ def plot_single_test(args, baseoutdir, method):
 def plot_tests(args, baseoutdir, method):
     if args.action == 'gls-gen':
         get_gls_gen_plots(args, baseoutdir, method)
+    elif args.action == 'data':
+        get_data_plots(args, baseoutdir, method)
     else:
         plot_single_test(args, baseoutdir, method)
 
@@ -257,10 +275,10 @@ def run_single_test(args, baseoutdir, val, n_events, method):
 def run_data(args, baseoutdir, study, dset, method):
     assert method == 'partis'  # doesn't handle the others (yet, maybe)
     cmd = './datascripts/run.py cache-parameters'
-    outdir = get_outdir(args, baseoutdir, varname='data', varval=study + '/' + dset)
     cmd += ' --study ' + study
     cmd += ' --dsets ' + dset
-    cmd += ' --extra-str gls-gen-paper'
+    assert args.label is not None  # it's got a default now, so it shouldn't anymore be None
+    cmd += ' --extra-str gls-gen-paper-' + args.label
     if args.no_slurm:
         cmd += ' --no-slurm'
     cmd += ' --n-procs ' + str(args.n_procs_per_test)

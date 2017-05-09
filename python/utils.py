@@ -1027,7 +1027,7 @@ def get_locus(inputstr):
     """ return locus given gene or gl fname """
     locus = inputstr[:3].lower()  # only need the .lower() if it's a gene name
     if locus not in loci:
-        raise Exception('couldn\'t get locus from input string %s' % inputstr)
+        raise Exception('couldn\'t get locus from input string \'%s\'' % inputstr)
     return locus
 
 # ----------------------------------------------------------------------------------------
@@ -1035,7 +1035,7 @@ def get_region(inputstr):
     """ return v, d, or j of gene or gl fname """
     region = inputstr[3].lower()  # only need the .lower() if it's a gene name
     if region not in regions:
-        raise Exception('couldn\'t get region from input string %s' % inputstr)
+        raise Exception('couldn\'t get region from input string \'%s\'' % inputstr)
     return region
 
 # ----------------------------------------------------------------------------------------
