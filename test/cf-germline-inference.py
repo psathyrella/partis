@@ -312,8 +312,12 @@ default_varvals = {
     'n-leaves' : '1.5:3:10:25',
     'weibull' : '0.3:0.5:1.3',
     'gls-gen' : None,
-    'data' : 'jason-mg/HD07-igh:jason-mg/HD07-igk:jason-mg/HD07-igl',
+    'data' : {'jason-mg' : ['HD07-igh', 'HD07-igk', 'HD07-igl', 'AR03-igh', 'AR03-igk', 'AR03-igl'],
+              'kate-qrs' : ['1g', '1k', '1l', '4h', '4k', '4l'],
+              'jason-influenza' : ['FV-igh-m8d', 'FV-igh-p7d', 'FV-igh-p28d'],
+              }
 }
+default_varvals['data'] = ':'.join([study + '/' + dset for study in default_varvals['data'] for dset in default_varvals['data'][study]])
 parser = argparse.ArgumentParser()
 parser.add_argument('action', choices=['mfreq', 'nsnp', 'multi-nsnp', 'prevalence', 'n-leaves', 'weibull', 'gls-gen', 'data'])
 parser.add_argument('--methods', default='partis') #choices=['partis', 'full', 'tigger'])
