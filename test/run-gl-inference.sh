@@ -14,4 +14,4 @@ testopts="--n-tests 1 --n-procs-per-test 2 --no-slurm"
 # done
 
 $cmd data --label $label $testopts --n-random-queries 5000  # laptop
-$cmd data --label $label
+$cmd data --label $label --n-procs-per-test 15

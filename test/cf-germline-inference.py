@@ -285,6 +285,8 @@ def run_data(args, baseoutdir, study, dset, method):
     cmd += ' --n-procs ' + str(args.n_procs_per_test)
     if args.n_random_queries is not None:
         cmd += ' --n-random-queries ' + str(args.n_random_queries)
+    if args.check:
+        cmd += ' --check'
 
     utils.simplerun(cmd)
 
@@ -312,12 +314,14 @@ default_varvals = {
     'n-leaves' : '1.5:3:10:25',
     'weibull' : '0.3:0.5:1.3',
     'gls-gen' : None,
-    'data' : {'jason-mg' : ['HD07-igh', 'HD07-igk', 'HD07-igl', 'AR03-igh', 'AR03-igk', 'AR03-igl'],
-              'kate-qrs' : ['1g', '1k', '1l', '4h', '4k', '4l'],
-              'jason-influenza' : ['FV-igh-m8d', 'FV-igh-p7d', 'FV-igh-p28d'],
-              }
+    'data' : {
+        # 'jason-mg' : ['HD07-igh', 'HD07-igk', 'HD07-igl', 'AR03-igh', 'AR03-igk', 'AR03-igl'],
+        'kate-qrs' : ['1k', '4k'],
+        # 'kate-qrs' : ['1g', '1k', '1l', '4g', '4k', '4l', '2k', '2l', '3k', '3l'],
+        # 'jason-influenza' : ['FV-igh-m8d', 'FV-igh-p7d', 'FV-igh-p28d'],
+    }
 }
-default_varvals['data'] = ':'.join([study + '/' + dset for study in default_varvals['data'] for dset in default_varvals['data'][study]])
+default_varvals['data'] = ':'.join([study + '/' + heads.full_dataset(heads.read_metadata(study), dset) for study in default_varvals['data'] for dset in default_varvals['data'][study]])
 parser = argparse.ArgumentParser()
 parser.add_argument('action', choices=['mfreq', 'nsnp', 'multi-nsnp', 'prevalence', 'n-leaves', 'weibull', 'gls-gen', 'data'])
 parser.add_argument('--methods', default='partis') #choices=['partis', 'full', 'tigger'])
@@ -332,6 +336,7 @@ parser.add_argument('--n-procs-per-test', type=int, default=5)
 parser.add_argument('--plot', action='store_true')
 parser.add_argument('--no-slurm', action='store_true')
 parser.add_argument('--plotcache', action='store_true')
+parser.add_argument('--check', action='store_true')
 parser.add_argument('--label', default='xxx')
 parser.add_argument('--ete-path', default='/home/' + os.getenv('USER') + '/anaconda_ete/bin')
 args = parser.parse_args()
