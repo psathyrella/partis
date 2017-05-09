@@ -1819,7 +1819,7 @@ def finish_process(iproc, procs, n_tries, cmdfo, dbgfo=None, batch_system=None, 
         for strtype in ['out', 'err']:
             if os.path.exists(cmdfo['logdir'] + '/' + strtype) and os.stat(cmdfo['logdir'] + '/' + strtype).st_size > 0:
                 print '        %s tail:           (%s)' % (strtype, cmdfo['logdir'] + '/' + strtype)
-                logstr = subprocess.check_output(['tail', cmdfo['logdir'] + '/' + strtype])
+                logstr = subprocess.check_output(['tail', '-n30', cmdfo['logdir'] + '/' + strtype])
                 print '\n'.join(['            ' + l for l in logstr.split('\n')])
         print '    restarting proc %d' % iproc
         procs[iproc] = run_cmd(cmdfo, batch_system=batch_system, batch_options=batch_options)
