@@ -51,7 +51,7 @@ class AlleleFinder(object):
         self.n_muted_min_per_bin = 8  # <istart>th bin has to have at least this many mutated sequences (i.e. 2-3 sigma from zero)
         self.min_fraction_per_bin = 0.005  # require that every bin (i.e. n_muted) from 0 through <self.args.max_n_snps> has at least 1% of the total (unless overridden)
 
-        self.min_min_candidate_ratio = 2.25  # every candidate ratio must be greater than this
+        self.min_min_candidate_ratio = 2.75  # every candidate ratio must be greater than this
         self.min_mean_candidate_ratio = 2.75  # mean of candidate ratios must be greater than this
         self.min_bad_fit_residual = 1.8
         self.max_good_fit_residual = 4.5  # this value hasn't gone through a huge amount of testing -- we might be able to get away with having it a good bit smaller than this
