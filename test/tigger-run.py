@@ -8,6 +8,7 @@ import os
 
 sys.path.insert(1, './python')
 import utils
+import glutils
 
 # ----------------------------------------------------------------------------------------
 def get_glfname(region, aligned):  # igblast uses unaligned ones
@@ -43,6 +44,19 @@ def run_changeo(infname, igblast_outfname, outfname):
     utils.simplerun(cmd, print_time='changeo')
 
 # ----------------------------------------------------------------------------------------
+def fiddle_with_gene_info(gfo):
+    if '_' in gfo['name']:
+        print '      ', gfo['name']
+        gfo['name'] = gfo['name'].replace('_', '+')
+        print '      ', gfo['name']
+        _, _, _ = utils.split_gene(gfo['name'])
+        try:
+            _, _, _ = utils.split_gene(gfo['name'])
+        except:
+            print '    couldn\'t parse \'%s\'' % gfo['name']
+        print '    new tigger gene: %s' % gfo['name']
+
+# ----------------------------------------------------------------------------------------
 def run_tigger(infname, outfname):
     if utils.output_exists(args, outfname):
         return
@@ -55,16 +69,22 @@ def run_tigger(infname, outfname):
     rcmds += ['%s = read.csv("%s", sep="\t")' % (db_name, infname)]
     rcmds += ['%s = readIgFasta("%s")' % (gls_name, get_glfname('v', aligned=True))]
 
-    rcmds += ['novel_df = findNovelAlleles(%s, %s, nproc=%d)' % (db_name, gls_name, args.n_procs)]  # , germline_min=2
+    rcmds += ['novel_df = findNovelAlleles(%s, %s, germline_min=2, nproc=%d)' % (db_name, gls_name, args.n_procs)]  #
     rcmds += ['geno = inferGenotype(%s, find_unmutated = FALSE, germline_db = %s, novel_df = novel_df)' % (db_name, gls_name)]
     rcmds += ['genotype_seqs = genotypeFasta(geno, %s, novel_df)' % (gls_name)]
-    rcmds += ['writeFasta(genotype_seqs, "%s")' % outfname]
+    rcmds += ['writeFasta(genotype_seqs, "%s")' % outfname.replace('.fasta', '-tigger.fasta')]
     cmdfname = args.workdir + '/tigger-in.cmd'
     with open(cmdfname, 'w') as cmdfile:
         cmdfile.write('\n'.join(rcmds) + '\n')
-    # subprocess.check_call(['cat', cmdfname])
     cmdstr = 'R --slave -f ' + cmdfname
     utils.simplerun(cmdstr, shell=True, print_time='tigger')
+
+    # post-process tigger .fa (mostly to make sure we're handling the gene names properly)
+    tgfo = utils.read_fastx(outfname.replace('.fasta', '-tigger.fasta'))
+    with open(outfname, 'w') as outfile:
+        for gfo in tgfo:
+            fiddle_with_gene_info(gfo)
+            outfile.write('>%s\n%s\n' % (gfo['name'], gfo['seq']))
     os.remove(cmdfname)
 
 # ----------------------------------------------------------------------------------------
@@ -76,9 +96,12 @@ parser.add_argument('--workdir', required=True)
 parser.add_argument('--n-procs', default=1, type=int)
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--igbdir', default='./packages/ncbi-igblast-1.6.1/bin')
+parser.add_argument('--glfo-dir')
 args = parser.parse_args()
 if not args.gls_gen:
     print '%s can\'t really run without --gls-gen, since you\'d need to work out how to change j parameters' % utils.color('red', 'warning')
+if args.glfo_dir is not None:
+    print '%s not using --glfo-dir a.t.m. (would need to rebuild igblast db)' % utils.color('red', 'warning')
 
 # ----------------------------------------------------------------------------------------
 outdir = os.path.dirname(args.outfname)  # kind of annoying having <args.workdir> and <outdir>, but the former is for stuff we don't want to keep (not much...  maybe just .cmd file), and the latter is for stuff we do

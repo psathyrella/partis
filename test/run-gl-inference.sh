@@ -13,4 +13,4 @@ testopts="--n-tests 1 --n-procs-per-test 2 --no-slurm"
 #     $glscmd --methods $meth --n-tests 3 --n-procs-per-test 35  #--plot  # quoll
 # done
 
-$cmd data $testopts --label $label --n-random-queries 5000
+# $cmd data $testopts --label $label --n-random-queries 5000
