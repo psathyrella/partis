@@ -99,6 +99,21 @@ def print_results(gl_sets):
         print '    %9s %2d: %s' % (name, len(genes), ' '.join([utils.color_gene(g) for g in genes]))
 
 # ----------------------------------------------------------------------------------------
+def print_data_results(gl_sets):
+    assert len(gl_sets) == 1  # would need to update
+    for name, genes in gl_sets.items():
+        print '    %9s %2d: %s' % (name, len(genes), ' '.join([utils.color_gene(g) for g in genes]))
+
+# ----------------------------------------------------------------------------------------
+def print_data_pair_results(gl_sets):
+    assert len(gl_sets) == 2  # would need to update
+    ds_1, ds_2 = gl_sets.keys()
+    tmpfo = {'one' : set(gl_sets[ds_1]) ^ set(gl_sets[ds_2]),
+             'both' : set(gl_sets[ds_2]) & set(gl_sets[ds_1])}
+    for name, genes in tmpfo.items():
+        print '    %9s %2d: %s' % (name, len(genes), ' '.join([utils.color_gene(g) for g in genes]))
+
+# ----------------------------------------------------------------------------------------
 def get_gene_sets(glsfnames, glslabels):
     all_genes, gl_sets = {}, {}
     for label, fname in zip(glslabels, glsfnames):
@@ -164,7 +179,7 @@ def plot_gls_gen_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=N
 def plot_data_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=None, title=None):
 
     all_genes, gl_sets = get_gene_sets(glsfnames, glslabels)
-    # print_results(gl_sets)
+    print_data_results(gl_sets)
 
     treefname = make_tree(all_genes, plotdir + '/workdir', use_cache=args.use_cache)
     with open(treefname) as treefile:
@@ -191,7 +206,7 @@ def plot_data_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=None
 # ----------------------------------------------------------------------------------------
 def plot_data_pair_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=None, title=None):
     all_genes, gl_sets = get_gene_sets(glsfnames, glslabels)
-    # print_results(gl_sets)
+    print_data_pair_results(gl_sets)
 
     treefname = make_tree(all_genes, plotdir + '/workdir', use_cache=args.use_cache)
     with open(treefname) as treefile:
