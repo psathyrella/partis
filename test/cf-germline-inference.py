@@ -331,7 +331,7 @@ default_varvals = {
     'gls-gen' : None,
     'data' : {
         # 'jason-mg' : ['HD07-igh', 'HD07-igk', 'HD07-igl', 'AR03-igh', 'AR03-igk', 'AR03-igl'],
-        'kate-qrs' : ['1k', '4k', '1g'],
+        'kate-qrs' : ['1k', '4k'],
         # 'kate-qrs' : ['1g', '1k', '1l', '4g', '4k', '4l', '2k', '2l', '3k', '3l'],
         # 'jason-influenza' : ['FV-igh-m8d', 'FV-igh-p7d', 'FV-igh-p28d'],
     }

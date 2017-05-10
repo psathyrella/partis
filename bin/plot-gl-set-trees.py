@@ -19,8 +19,9 @@ scolors = {
     'missing' : 'IndianRed',
     'spurious' : 'IndianRed',
     'data' : 'LightSteelBlue',
-    'one' : 'LightGrey',
-    'both' : 'LightSteelBlue',
+    'both' : 'LightGrey',
+    'Hs-LN1-5RACE-IgK' : '#85ad98',
+    'Hs-LN4-5RACE-IgK' : '#94a3d1',
 }
 faces = {'missing'  : ete3.CircleFace(10, 'white'),
          'spurious' : ete3.CircleFace(10, 'black')}
@@ -81,14 +82,15 @@ def getdatastatus(gl_sets, node, pair=False):
     if not pair:
         return 'leaf' if node.is_leaf() else 'internal'
 
-    n_found = [gene in gl_sets[k] for k in gl_sets].count(True)
+    foundlist = [ds for ds in gl_sets if gene in gl_sets[ds]]
 
     if not node.is_leaf():
         return 'internal'
-    elif n_found == len(gl_sets):
+    elif len(foundlist) == len(gl_sets):
         return 'both'
     else:
-        return 'one'
+        assert len(foundlist) == 1  # a.t.m <gl_sets> has to have length two, so...
+        return foundlist[0]
 
 # ----------------------------------------------------------------------------------------
 def print_results(gl_sets):
@@ -108,7 +110,8 @@ def print_data_results(gl_sets):
 def print_data_pair_results(gl_sets):
     assert len(gl_sets) == 2  # would need to update
     ds_1, ds_2 = gl_sets.keys()
-    tmpfo = {'one' : set(gl_sets[ds_1]) ^ set(gl_sets[ds_2]),
+    tmpfo = {ds_1 : set(gl_sets[ds_1]) - set(gl_sets[ds_2]),
+             ds_2 : set(gl_sets[ds_2]) - set(gl_sets[ds_1]),
              'both' : set(gl_sets[ds_2]) & set(gl_sets[ds_1])}
     for name, genes in tmpfo.items():
         print '    %9s %2d: %s' % (name, len(genes), ' '.join([utils.color_gene(g) for g in genes]))
@@ -177,7 +180,6 @@ def plot_gls_gen_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=N
 
 # ----------------------------------------------------------------------------------------
 def plot_data_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=None, title=None):
-
     all_genes, gl_sets = get_gene_sets(glsfnames, glslabels)
     print_data_results(gl_sets)
 
