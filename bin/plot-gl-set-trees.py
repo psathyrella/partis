@@ -22,6 +22,8 @@ scolors = {
     'both' : 'LightGrey',
     'Hs-LN1-5RACE-IgK' : '#85ad98',
     'Hs-LN4-5RACE-IgK' : '#94a3d1',
+    'Hs-LN2-5RACE-IgK' : '#85ad98',
+    'Hs-LN3-5RACE-IgK' : '#94a3d1',
 }
 faces = {'missing'  : ete3.CircleFace(10, 'white'),
          'spurious' : ete3.CircleFace(10, 'black')}
