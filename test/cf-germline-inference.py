@@ -183,6 +183,14 @@ def get_data_plots(args, baseoutdir, method):
         make_gls_tree_plot(args, outdir + '/' + method + '/gls-gen-plots', study + '-' + dset, glsfnames=[get_gls_fname(data_outdir, method=None, locus=mfo['locus'], data=True)], glslabels=['data'])
 
 # ----------------------------------------------------------------------------------------
+def get_data_pair_plots(args, baseoutdir, method, study, dsets):
+    mfo = heads.read_metadata(study)[dsets[0]]
+    assert heads.read_metadata(study)[dsets[1]]['locus'] == mfo['locus']
+    data_outdirs = [heads.get_datadir(study, 'processed', extra_str='gls-gen-paper-' + args.label) + '/' + ds for ds in dsets]
+    outdir = get_outdir(args, baseoutdir, varname='data', varval=study + '/' + '-vs-'.join(dsets))  # for data, only the plots go here, since datascripts puts its output somewhere else
+    make_gls_tree_plot(args, outdir + '/' + method + '/gls-gen-plots', study + '-' + '-vs-'.join(dsets), glsfnames=[get_gls_fname(dout, method=None, locus=mfo['locus'], data=True) for dout in data_outdirs], glslabels=dsets)
+
+# ----------------------------------------------------------------------------------------
 def plot_single_test(args, baseoutdir, method):
     import plotting
     plot_types = ['missing', 'spurious']
@@ -219,6 +227,13 @@ def plot_tests(args, baseoutdir, method):
         get_gls_gen_plots(args, baseoutdir, method)
     elif args.action == 'data':
         get_data_plots(args, baseoutdir, method)
+        all_dsets = [v.split('/')[1] for v in args.varvals]
+        for study in data_pairs:
+            for dp in data_pairs[study]:
+                ds_1, ds_2 = dp
+                if ds_1 in all_dsets and ds_2 in all_dsets:
+                    print study, ds_1, ds_2
+                    get_data_pair_plots(args, baseoutdir, method, study, [ds_1, ds_2])
     else:
         plot_single_test(args, baseoutdir, method)
 
@@ -316,12 +331,23 @@ default_varvals = {
     'gls-gen' : None,
     'data' : {
         # 'jason-mg' : ['HD07-igh', 'HD07-igk', 'HD07-igl', 'AR03-igh', 'AR03-igk', 'AR03-igl'],
-        'kate-qrs' : ['1k', '4k'],
+        'kate-qrs' : ['1k', '4k', '1g'],
         # 'kate-qrs' : ['1g', '1k', '1l', '4g', '4k', '4l', '2k', '2l', '3k', '3l'],
         # 'jason-influenza' : ['FV-igh-m8d', 'FV-igh-p7d', 'FV-igh-p28d'],
     }
 }
+data_pairs = {'kate-qrs' : [
+    ['1g', '4g'],
+    ['1k', '4k'],
+    ['1l', '4l'],
+    ['2k', '3k'],
+    ['2l', '3l'],
+    ]}
 default_varvals['data'] = ':'.join([study + '/' + heads.full_dataset(heads.read_metadata(study), dset) for study in default_varvals['data'] for dset in default_varvals['data'][study]])
+for study in data_pairs:
+    for idp in range(len(data_pairs[study])):
+        data_pairs[study][idp] = [heads.full_dataset(heads.read_metadata(study), ds) for ds in data_pairs[study][idp]]
+# ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
 parser.add_argument('action', choices=['mfreq', 'nsnp', 'multi-nsnp', 'prevalence', 'n-leaves', 'weibull', 'gls-gen', 'data'])
 parser.add_argument('--methods', default='partis') #choices=['partis', 'full', 'tigger'])

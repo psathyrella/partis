@@ -14,7 +14,14 @@ sys.path.insert(1, './python')
 import utils
 import glutils
 
-scolors = {'ok' : 'DarkSeaGreen', 'missing' : 'IndianRed', 'spurious' : 'IndianRed', 'data' : 'LightSteelBlue'}
+scolors = {
+    'ok' : 'DarkSeaGreen',
+    'missing' : 'IndianRed',
+    'spurious' : 'IndianRed',
+    'data' : 'LightSteelBlue',
+    'one' : 'LightGrey',
+    'both' : 'LightSteelBlue',
+}
 faces = {'missing'  : ete3.CircleFace(10, 'white'),
          'spurious' : ete3.CircleFace(10, 'black')}
 
@@ -54,12 +61,8 @@ def make_tree(all_genes, workdir, use_cache=False):
     return treefname
 
 # ----------------------------------------------------------------------------------------
-def getstatus(gl_sets, node, data=False):
+def getstatus(gl_sets, node):
     gene = node.name
-
-    if data:
-        return 'leaf' if node.is_leaf() else 'internal'
-
     if not node.is_leaf():
         return 'internal'
     elif gene in gl_sets['sim'] and gene in gl_sets['inf']:
@@ -70,6 +73,22 @@ def getstatus(gl_sets, node, data=False):
         return 'spurious'
     else:
         assert False
+
+# ----------------------------------------------------------------------------------------
+def getdatastatus(gl_sets, node, pair=False):
+    gene = node.name
+
+    if not pair:
+        return 'leaf' if node.is_leaf() else 'internal'
+
+    n_found = [gene in gl_sets[k] for k in gl_sets].count(True)
+
+    if not node.is_leaf():
+        return 'internal'
+    elif n_found == len(gl_sets):
+        return 'both'
+    else:
+        return 'one'
 
 # ----------------------------------------------------------------------------------------
 def print_results(gl_sets):
@@ -92,10 +111,14 @@ def get_gene_sets(glsfnames, glslabels):
     return all_genes, gl_sets
 
 # ----------------------------------------------------------------------------------------
-def set_node_style(node, status, data=False):
+def set_node_style(node, status, data=False, pair=False):
     linewidth = 4
     if data:
-        node.img_style['bgcolor'] = scolors['data']
+        if pair:
+            if status != 'internal':
+                node.img_style['bgcolor'] = scolors[status]
+        else:
+            node.img_style['bgcolor'] = scolors['data']
     elif status != 'internal':
         node.img_style['bgcolor'] = scolors[status]
 
@@ -108,8 +131,7 @@ def set_node_style(node, status, data=False):
 
 # ----------------------------------------------------------------------------------------
 def plot_gls_gen_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=None, title=None):
-    assert len(glslabels) == len(set(glslabels))  # no duplicates
-    # assert glslabels == ['sim', 'inf']  # otherwise stuff needs to be updated
+    assert glslabels == ['sim', 'inf']  # otherwise stuff needs to be updated
 
     all_genes, gl_sets = get_gene_sets(glsfnames, glslabels)
     print_results(gl_sets)
@@ -140,7 +162,6 @@ def plot_gls_gen_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=N
 
 # ----------------------------------------------------------------------------------------
 def plot_data_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=None, title=None):
-    assert len(glslabels) == len(set(glslabels))  # no duplicates
 
     all_genes, gl_sets = get_gene_sets(glsfnames, glslabels)
     # print_results(gl_sets)
@@ -154,8 +175,35 @@ def plot_data_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=None
     node_names = set()  # make sure we get out all the genes we put in
     for node in etree.traverse():
         node.dist = 1
-        status = getstatus(gl_sets, node, data=True)
+        status = getdatastatus(gl_sets, node, pair=False)
         set_node_style(node, status, data=True)
+        if node.is_leaf():
+            node_names.add(node.name)
+    if len(set(all_genes) - node_names) > 0:
+        raise Exception('missing genes from final tree: %s' % ' '.join(set(all_genes) - node_names))
+
+    tstyle = ete3.TreeStyle()
+    tstyle.show_leaf_name = True
+    tstyle.mode = 'c'
+    tstyle.show_scale = False
+    etree.render(plotdir + '/' + plotname + '.svg', h=750, tree_style=tstyle)
+
+# ----------------------------------------------------------------------------------------
+def plot_data_pair_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=None, title=None):
+    all_genes, gl_sets = get_gene_sets(glsfnames, glslabels)
+    # print_results(gl_sets)
+
+    treefname = make_tree(all_genes, plotdir + '/workdir', use_cache=args.use_cache)
+    with open(treefname) as treefile:
+        treestr = treefile.read().strip()
+    # treestr = "(A:0.7,B:0.7):0.3;"
+
+    etree = ete3.ClusterTree(treestr)
+    node_names = set()  # make sure we get out all the genes we put in
+    for node in etree.traverse():
+        node.dist = 1
+        status = getdatastatus(gl_sets, node, pair=True)
+        set_node_style(node, status, data=True, pair=True)
         if node.is_leaf():
             node_names.add(node.name)
     if len(set(all_genes) - node_names) > 0:
@@ -186,7 +234,11 @@ if not os.path.exists(args.muscle_path):
 if not os.path.exists(args.raxml_path):
     raise Exception('raxml path %s does not exist' % args.raxml_path)
 
-if len(args.glsfnames) > 1:
+assert len(args.glslabels) == len(set(args.glslabels))  # no duplicates
+
+if args.glslabels == ['sim', 'inf']:
     plot_gls_gen_tree(args, args.plotdir, args.plotname, args.glsfnames, args.glslabels, title=args.title)
-else:
+elif len(args.glsfnames) == 1:
     plot_data_tree(args, args.plotdir, args.plotname, args.glsfnames, args.glslabels, title=args.title)
+else:
+    plot_data_pair_tree(args, args.plotdir, args.plotname, args.glsfnames, args.glslabels, title=args.title)
