@@ -82,6 +82,8 @@ def simulate(args):
 
 # ----------------------------------------------------------------------------------------
 def run_other_method(args, method):
+    if method not in ['tigger', 'igdiscover']:  # really just to make it easier to search for this fcn
+        assert False
     if utils.output_exists(args, get_outfname(args, method)):
         return
     simfasta = utils.getprefix(args.simfname) + '.fa'
