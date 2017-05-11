@@ -13,6 +13,8 @@ import ete3
 sys.path.insert(1, './python')
 import utils
 import glutils
+sys.path.insert(1, './datascripts')
+import heads
 
 scolors = {
     'ok' : 'DarkSeaGreen',
@@ -20,9 +22,13 @@ scolors = {
     'spurious' : 'IndianRed',
     'data' : 'LightSteelBlue',
     'both' : 'LightGrey',
-    'Hs-LN1-5RACE-IgK' : '#85ad98',
-    'Hs-LN4-5RACE-IgK' : '#94a3d1',
 }
+metafos = heads.read_metadata('kate-qrs')
+for ds in metafos:
+    if 'LN1' in ds or 'LN2' in ds:
+        scolors[ds] = '#85ad98'  # green
+    elif 'LN4' in ds or 'LN3' in ds:
+        scolors[ds] = '#94a3d1'  # blue
 faces = {'missing'  : ete3.CircleFace(10, 'white'),
          'spurious' : ete3.CircleFace(10, 'black')}
 
