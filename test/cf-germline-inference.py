@@ -139,7 +139,10 @@ def get_single_performance(outdir, method, debug=False):
 # ----------------------------------------------------------------------------------------
 def get_gls_fname(outdir, method, locus, sim_truth=False, data=False):  # NOTE duplicates/depends on code in test-allele-finding.py
     if data:
-        outdir += '/hmm/germline-sets'  # NOTE this is inside the datascripts output dir, also NOTE doesn't use <method> (since we only have partis for a method a.t.m., although could use --label or --extra-str to differentiate)
+        if method == 'partis' or method == 'full':
+            outdir += '/hmm/germline-sets'  # NOTE this is inside the datascripts output dir, also NOTE doesn't use <method> (since we only have partis for a method a.t.m., although could use --label or --extra-str to differentiate)
+        else:
+            outdir += '/' + method
     elif sim_truth:
         outdir += '/germlines/simulation'
     elif method == 'partis' or method == 'full':
@@ -180,7 +183,7 @@ def get_data_plots(args, baseoutdir, method):
         mfo = heads.read_metadata(study)[dset]
         data_outdir = heads.get_datadir(study, 'processed', extra_str='gls-gen-paper-' + args.label) + '/' + dset
         outdir = get_outdir(args, baseoutdir, varname='data', varval=study + '/' + dset)  # for data, only the plots go here, since datascripts puts its output somewhere else
-        make_gls_tree_plot(args, outdir + '/' + method + '/gls-gen-plots', study + '-' + dset, glsfnames=[get_gls_fname(data_outdir, method=None, locus=mfo['locus'], data=True)], glslabels=['data'])
+        make_gls_tree_plot(args, outdir + '/' + method + '/gls-gen-plots', study + '-' + dset, glsfnames=[get_gls_fname(data_outdir, method, locus=mfo['locus'], data=True)], glslabels=['data'])
 
 # ----------------------------------------------------------------------------------------
 def get_data_pair_plots(args, baseoutdir, method, study, dsets):
@@ -188,7 +191,7 @@ def get_data_pair_plots(args, baseoutdir, method, study, dsets):
     assert heads.read_metadata(study)[dsets[1]]['locus'] == mfo['locus']
     data_outdirs = [heads.get_datadir(study, 'processed', extra_str='gls-gen-paper-' + args.label) + '/' + ds for ds in dsets]
     outdir = get_outdir(args, baseoutdir, varname='data', varval=study + '/' + '-vs-'.join(dsets))  # for data, only the plots go here, since datascripts puts its output somewhere else
-    make_gls_tree_plot(args, outdir + '/' + method + '/gls-gen-plots', study + '-' + '-vs-'.join(dsets), glsfnames=[get_gls_fname(dout, method=None, locus=mfo['locus'], data=True) for dout in data_outdirs], glslabels=dsets)
+    make_gls_tree_plot(args, outdir + '/' + method + '/gls-gen-plots', study + '-' + '-vs-'.join(dsets), glsfnames=[get_gls_fname(dout, method, locus=mfo['locus'], data=True) for dout in data_outdirs], glslabels=dsets)
 
 # ----------------------------------------------------------------------------------------
 def plot_single_test(args, baseoutdir, method):
@@ -289,7 +292,6 @@ def run_single_test(args, baseoutdir, val, n_events, method):
 
 # ----------------------------------------------------------------------------------------
 def run_data(args, baseoutdir, study, dset, method):
-    assert method == 'partis'  # doesn't handle the others (yet, maybe)
     cmd = './datascripts/run.py cache-parameters'
     cmd += ' --study ' + study
     cmd += ' --dsets ' + dset
@@ -299,9 +301,12 @@ def run_data(args, baseoutdir, study, dset, method):
         cmd += ' --no-slurm'
     cmd += ' --n-procs ' + str(args.n_procs_per_test)
     if args.n_random_queries is not None:
+        assert method == 'partis'  # I don't think it works for any others a.t.m.
         cmd += ' --n-random-queries ' + str(args.n_random_queries)
     if args.check:
         cmd += ' --check'
+    if method != 'partis':
+        cmd += ' --other-method ' + method
 
     utils.simplerun(cmd)
 
@@ -331,7 +336,7 @@ default_varvals = {
     'gls-gen' : None,
     'data' : {
         # 'jason-mg' : ['HD07-igh', 'HD07-igk', 'HD07-igl', 'AR03-igh', 'AR03-igk', 'AR03-igl'],
-        'kate-qrs' : ['1k', '4k'],
+        'kate-qrs' : ['1g', '4g'],
         # 'kate-qrs' : ['1g', '1k', '1l', '4g', '4k', '4l', '2k', '2l', '3k', '3l'],
         # 'jason-influenza' : ['FV-igh-m8d', 'FV-igh-p7d', 'FV-igh-p28d'],
     }
