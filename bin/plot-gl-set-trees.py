@@ -26,9 +26,9 @@ scolors = {
 metafos = heads.read_metadata('kate-qrs')
 for ds in metafos:
     if 'LN1' in ds or 'LN2' in ds:
-        scolors[ds] = '#85ad98'
+        scolors[ds] = '#85ad98'  # green
     elif 'LN4' in ds or 'LN3' in ds:
-        scolors[ds] = '#94a3d1'
+        scolors[ds] = '#94a3d1'  # blue
 faces = {'missing'  : ete3.CircleFace(10, 'white'),
          'spurious' : ete3.CircleFace(10, 'black')}
 
