@@ -2,7 +2,6 @@
 
 # add scheepers data (well, and others)
 # add new chaim data (igg + igm)
-#
 # plots
 #  - add nsnps up to at least 6
 #  - add multi-nsnps with more simultaneous alleles and more shared snps
@@ -10,10 +9,11 @@
 # add a local tmp dir to recombinator
 # handle naming ambiguity (i.e. which gene do we count the snps from
 # fix allele name decider to more strongly prefer non-snpd genes (well, make sure it hasn't messed anything up yet)
+# don't keep the template gene if the lower end of its mut freq distribution is different enough (i.e. if there's a deficit of little-/unmutated seqs)
 # new-allele name arbitration needs to happen when plotting (e.g. count as correct alleles that only differ after the cpos)
 # check allele names coming in from tigger (make sure we know about all the alleles)
 # cf the two different imgt gl sets
-# go through and remove the 'D' from all alleles
+# deal with 'D' (imgt 'duplicate') alleles (not sure if remove, or swap for the non-D, or actually maybe just leave them and fix the name splitter)
 
 # fix /fh/fast/matsen_e/kdavidse/partis_prob/SRR1383455_collapse-unique_atleast-2_partitioning.log
 # carefully go through all gls-gen logs

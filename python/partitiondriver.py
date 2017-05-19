@@ -587,9 +587,10 @@ class PartitionDriver(object):
                 fastafile.write('>' + query + '\n' + naive_seq + '\n')
 
         # run
-        cmd = self.args.partis_dir + '/bin/vsearch-1.1.3-linux-x86_64'
+        cmd = self.args.partis_dir + '/bin/vsearch-2.4.3-linux-x86_64'
         cmd += ' --cluster_fast ' + infname
         cmd += ' --uc ' + outfname
+        # cmd += ' --consout ' + consensus_fname
         cmd += ' --id ' + str(1. - threshold)
         cmd += ' --maxaccept 0 --maxreject 0'
         cmd += ' --threads ' + str(self.args.n_procs)
