@@ -540,44 +540,6 @@ class PartitionDriver(object):
         return annotations
 
     # ----------------------------------------------------------------------------------------
-    def run_swarm(self, naive_seqs, threshold, outfname):
-        raise Exception('needs updating/fixing')
-        # # ----------------------------------------------------------------------------------------
-        # if self.args.naive_swarm:
-        #     print '    NOTE: replacing N with A for input to swarm'
-        # with open(fastafname, 'w') as fastafile:
-        #     for query, naive_seq in naive_seqs.items():
-        #         if self.args.naive_swarm:
-        #             query += '_1'
-        #             naive_seq = utils.remove_ambiguous_ends(naive_seq)
-        #             naive_seq = naive_seq.replace('N', 'A')
-        #         fastafile.write('>' + query + '\n' + naive_seq + '\n')
-        # # ----------------------------------------------------------------------------------------
-        #     clusterfname = self.args.workdir + '/swarm-clusters.txt'
-        #     cmd = './bin/swarm-2.1.1-linux-x86_64 ' + fastafname
-        #     cmd += ' -t 5'  # five threads TODO set this more intelligently
-        #     # cmd += ' -f'
-        #     cmd += ' --match-reward ' + str(self.args.match_mismatch[0])
-        #     cmd += ' --mismatch-penalty ' + str(self.args.match_mismatch[1])
-        #     cmd += ' --gap-opening-penalty ' + str(self.args.gap_open_penalty)
-        #     # cmd += ' --gap-extension-penalty'
-        #     tmpstart = time.time()
-        #     total = 0.
-        #     for key in self.sw_info['queries']:
-        #         seq = self.input_info[key]['seqs'][0]
-        #         total += float(len(seq))
-        #     mean_length = total / len(self.sw_info['queries'])
-        #     raise Exception('update for new thresholds')
-        #     bound = self.get_naive_hamming_threshold(parameter_dir, 'tight') /  2.  # yay for heuristics! (I did actually optimize this...)
-        #     differences = int(round(mean_length * bound))
-        #     print '        d = mean len * mut freq bound = %f * %f = %f --> %d' % (mean_length, bound, mean_length * bound, differences)
-        #     print '      swarm average time: %.1f' % (time.time()-tmpstart)
-        #     cmd += ' --differences ' + str(differences)
-        #     cmd += ' --uclust-file ' + clusterfname
-        #     check_call(cmd.split())
-        # # ----------------------------------------------------------------------------------------
-
-    # ----------------------------------------------------------------------------------------
     def run_vsearch(self, naive_seqs, threshold):
         # write input
         infname = self.args.workdir + '/naive-seqs.fasta'
