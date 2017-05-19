@@ -1,7 +1,26 @@
 # now
 
-# may as well parallelize cp commands
-# should also repeat nproc 3 and 2, maybe just by using time as a proxy rather than number of calculations? Or maybe looking at inter-step time (cp and whatnot)?
+# add scheepers data (well, and others)
+# add new chaim data (igg + igm)
+#
+# plots
+#  - add nsnps up to at least 6
+#  - add multi-nsnps with more simultaneous alleles and more shared snps
+#  - remove n-leaves 25
+# add a local tmp dir to recombinator
+# handle naming ambiguity (i.e. which gene do we count the snps from
+# fix allele name decider to more strongly prefer non-snpd genes (well, make sure it hasn't messed anything up yet)
+# new-allele name arbitration needs to happen when plotting (e.g. count as correct alleles that only differ after the cpos)
+# check allele names coming in from tigger (make sure we know about all the alleles)
+# cf the two different imgt gl sets
+# go through and remove the 'D' from all alleles
+
+# fix /fh/fast/matsen_e/kdavidse/partis_prob/SRR1383455_collapse-unique_atleast-2_partitioning.log
+# carefully go through all gls-gen logs
+
+# maybe use different allele removal numbers for small samples, once you have a good prior for how many alleles/genes samples have
+
+# gls-gen should use same classes as alleleremover (UPDATE ick, this is kind of hard, since the structure of the allelic groups is intertwined with choosing from them)
 # add sstat memory checks to utils.finish_process() (or maybe while you're waiting for them to finish?)
 
 # need to redo n procs in compareutils now that everything's so much faster
@@ -28,6 +47,8 @@
 
 #  - allow indels in both V and J at the same time (?)
 
+
+# speed up cp calls in partitiondriver -- I think all the procs can really be reading from one file, although it might involve a little coding
 
 #  - automate n-procs, at least for viterbi/parameter caching
 #    - improve n_precache_proc calculator (expecially for large samples)
@@ -114,6 +135,7 @@
 #  - it might make more sense to ditch the whole k_v k_d parameterization, since since it inherently suggests a rectangular region of k-space, which doesn't take account of the fact that we know beforehand that we shouldn't really be checking everything in that rectangular region
 #    - maybe a stopgap would be to increment/decrement k_v/k_d in tandem?
 #    - would make more sense to have per-gene kbounds
+#  - for partitioning, maybe use time as a proxy rather than number of calculations, perhaps using inter-step vs in-step time (note that at least on my setup the cp commands take a significant amount of time)
 
 # bryan's super-short-read sample
 #  - figure out cause of mutation rate discontinuity in some clusters (better insertion mutation rate?)

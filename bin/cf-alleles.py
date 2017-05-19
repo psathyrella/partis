@@ -14,6 +14,7 @@ import glutils
 parser = argparse.ArgumentParser()
 parser.add_argument('--base', required=True)
 parser.add_argument('--alleles')
+parser.add_argument('--ref-allele', help='print this one first')
 parser.add_argument('--other-genes')
 parser.add_argument('--region', default='v')
 parser.add_argument('--locus', default='igh', choices=utils.loci.keys())
@@ -39,23 +40,44 @@ args.other_genes = utils.get_arg_list(args.other_genes)
 genes = [args.locus.upper() + args.region.upper() + args.base + '*' + al for al in args.alleles]
 if args.other_genes is not None:
     genes += args.other_genes
+seqstrs = ['' for _ in range(len(genes))]
+snpstrs = ['' for _ in range(len(genes))]
 
+gene_str_width = max([utils.len_excluding_colors(utils.color_gene(g)) for g in genes])
 codon_positions = glfo[utils.conserved_codons[args.locus][args.region] + '-positions'] if args.region != 'd' else None
+max_seq_len = max([len(glfo['seqs'][args.region][g]) for g in genes])
 
-def print_str(gene, seq):
-    return '%s   %s' % (utils.color_gene(gene, width=15), seq)
-
-ref_gene = genes[0]
+ref_gene = genes[0] if args.ref_allele is None else utils.rejoin_gene(args.locus, args.region, utils.primary_version(genes[0]), utils.sub_version(genes[0]), args.ref_allele)
+if ref_gene != genes[0]:
+    genes.remove(ref_gene)
+    genes.insert(0, ref_gene)
 ref_seq = glfo['seqs'][args.region][ref_gene]
-print print_str(ref_gene, utils.color_mutants(ref_seq, ref_seq, emphasis_positions=None if args.region == 'd' else [codon_positions[ref_gene] + i for i in range(3)])), '   (reference)'
+ref_pos = codon_positions[ref_gene]
 
-for igene in range(1, len(genes)):
+for igene in range(0, len(genes)):
     gene = genes[igene]
     seq = glfo['seqs'][args.region][gene]
-    min_length = min(len(seq), len(ref_seq))
-    colored_seq = utils.color_mutants(ref_seq[:min_length], seq[:min_length], print_isnps=True, emphasis_positions=None if args.region == 'd' else [codon_positions[gene] + i for i in range(3)])
-    print print_str(gene, colored_seq)
-    if min_length < len(ref_seq) and igene == 0:
-        print 'extra for %s: %s' % (utils.color_gene(ref_gene), ref_seq[min_length:])
+    pos = codon_positions[gene]
+    if pos < ref_pos:  # align the codon position in the case that this seq is shorter up to the codon
+        seq = (ref_pos - pos) * 'N' + seq
+        pos += (ref_pos - pos)
+
+    right_pad_str = ''
+    if len(seq) < max_seq_len:
+        right_pad_str = (max_seq_len - len(seq)) * ' '
+
+    min_length = min(len(seq), len(ref_seq))  # can only compute hamming distance out as far as the shorter of the two
+    emph_positions = None if args.region == 'd' else [pos + i for i in range(3)]
+    colored_seq, isnps = utils.color_mutants(ref_seq[:min_length], seq[:min_length], return_isnps=True, emphasis_positions=emph_positions)
+    seqstrs[igene] += '%s%s' % (colored_seq, right_pad_str)
     if min_length < len(seq):
-        print 'extra for %s: %s' % (utils.color_gene(gene), seq[min_length:])
+        seqstrs[igene] += utils.color('blue', seq[min_length:])
+    if len(isnps) > 0:
+        snpstrs[igene] = '%2d (%s)' % (len(isnps), ' '.join([str(i) for i in isnps]))
+
+# ----------------------------------------------------------------------------------------
+def print_str(gene, seqstr, snpstr):
+    return '%s  %s  %s  %s' % (utils.color_gene(gene, width=gene_str_width), seqstr, utils.color_gene(gene, width=gene_str_width), snpstr)
+
+for igene in range(len(genes)):
+    print print_str(genes[igene], seqstrs[igene], snpstrs[igene])

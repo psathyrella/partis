@@ -29,6 +29,8 @@ class RecombinationEvent(object):
         self.final_seqs, self.indelfos = [], []
         self.unmutated_codons = None
 
+        self.line = None  # dict with info in format of utils.py/output files
+
     # ----------------------------------------------------------------------------------------
     def set_vdj_combo(self, vdj_combo_label, glfo, debug=False, mimic_data_read_length=False):
         """ Set the label which labels the gene/length choice (a tuple of strings) as well as it's constituent parts """
@@ -121,7 +123,10 @@ class RecombinationEvent(object):
                 writer.writerow(utils.get_line_for_output(row))
 
     # ----------------------------------------------------------------------------------------
-    def print_event(self):
+    def getline(self):  # don't access <self.line> directly
+        if self.line is not None:
+            return self.line
+
         line = {}  # collect some information into a form that the print fcn understands
         for region in utils.regions:
             line[region + '_gene'] = self.genes[region]
@@ -148,7 +153,13 @@ class RecombinationEvent(object):
         line['cdr3_length'] = self.cdr3_length
         line['codon_positions'] = copy.deepcopy(self.final_codon_positions)
         utils.add_implicit_info(self.glfo, line)
-        utils.print_reco_event(line, extra_str='    ')
+
+        self.line = line
+        return self.line
+
+    # ----------------------------------------------------------------------------------------
+    def print_event(self):
+        utils.print_reco_event(self.getline(), extra_str='    ')  # don't access <self.line> directly
 
     # ----------------------------------------------------------------------------------------
     def print_gene_choice(self):

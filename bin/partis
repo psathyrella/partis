@@ -14,6 +14,7 @@ partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
 if not os.path.exists(partis_dir):
     print 'WARNING current script dir %s doesn\'t exist, so python path may not be correctly set' % partis_dir
 sys.path.insert(1, partis_dir + '/python')
+sys.path.insert(1, partis_dir + '/packages/baltic')
 
 import utils
 import glutils
@@ -102,6 +103,7 @@ def run_simulation(args):
         reco = Recombinator(args, glfo, seed=args.seed+iproc, workdir=workdir, outfname=outfname)
         for ievt in range(n_events):
             reco.combine(random_ints[ievt])
+        # reco.print_validation_values()
 
     def get_workdir(iproc):
         return args.workdir + '/sub-' + str(iproc)
@@ -195,9 +197,9 @@ def run_partitiondriver(args):
         newargv = newargv[:1] + ['cache-parameters', ] + newargv[2:]
         check_call(newargv)
 
-    if 'run-' in args.action:
+    if args.action == 'annotate':
         parter = PartitionDriver(args, args.action, args.parameter_dir + '/' + args.parameter_type + '/' + glutils.glfo_dir)
-        parter.run_algorithm(args.action.replace('run-', ''))
+        parter.annotate()
     elif args.action == 'partition':
         if args.n_partition_subsets is None:
             parter = PartitionDriver(args, args.action, args.parameter_dir + '/' + args.parameter_type + '/' + glutils.glfo_dir)
@@ -281,7 +283,8 @@ parent_parser.add_argument('--print-git-commit', action='store_true', help='prin
 
 parent_parser.add_argument('--n-procs', default='1', help='Number of processes over which to parallelize (Can be colon-separated list: first number is procs for hmm, second (should be smaller) is procs for smith-waterman)')
 parent_parser.add_argument('--n-max-procs', default=100, help='Never allow more processes than this (default %(default)d)')
-parent_parser.add_argument('--n-max-to-calc-per-process', default=150, help='if a bcrham process calc\'d more than this many fwd + vtb values (and this is the first time with this number of procs), don\'t decrease the number of processes in the next step (default %(default)d)')
+parent_parser.add_argument('--n-max-to-calc-per-process', default=250, help='if a bcrham process calc\'d more than this many fwd + vtb values (and this is the first time with this number of procs), don\'t decrease the number of processes in the next step (default %(default)d)')
+parent_parser.add_argument('--min-hmm-step-time', default=2., help='if a clustering step takes fewer than this many seconds, always reduce n_procs')
 parent_parser.add_argument('--batch-system', choices=['slurm', 'sge'], help='batch system with which to attempt paralellization')
 parent_parser.add_argument('--batch-options', help='additional options to apply to --batch-system (e.g. --batch-options="--foo bar")')
 parent_parser.add_argument('--batch-config-fname', default='/etc/slurm-llnl/slurm.conf', help='system-wide batch system configuration file name')
@@ -330,7 +333,7 @@ parent_parser.add_argument('--simulation-germline-dir', help='Germline directory
 parent_parser.add_argument('--aligned-germline-fname', help='fasta file with alignments for each V gene')
 
 parent_parser.add_argument('--dont-remove-unlikely-alleles', action='store_true', help='assign each sequence to its closest germline match, even if this would imply an unrealistically large number of alleles per gene in this sample')
-parent_parser.add_argument('--n-alleles-per-gene', type=int, default=None, help='number of alleles to assume per gene when removing spurious alleles during parameter caching (default is set below -- 1 if looking for new alleles, otherwise 2)')
+parent_parser.add_argument('--n-alleles-per-gene', type=int, default=None, help='number of alleles to assume per gene when removing spurious alleles during parameter caching (default is set below -- 1 if looking for new alleles, otherwise 2) NOTE difference to --n-sim-alleles-per-gene')
 parent_parser.add_argument('--min-allele-prevalence-fraction', type=float, default=0.0005, help='Remove any alleles that represent less than this fraction of the repertoire.')
 parent_parser.add_argument('--n-max-total-alleles', type=int, help='maximum number of alleles per segment to allow when removing alleles (presumably just used for testing).')
 
@@ -352,13 +355,13 @@ parent_parser.add_argument('--seed-seq', help='same as --seed-unique-id, but spe
 subconfig = {
     'version'          : {'func' : int, 'help' : 'print version information and exit'},
     'cache-parameters' : {'func' : run_partitiondriver, 'help' : 'Cache parameter values and write hmm model files.'},
-    'run-viterbi'      : {'func' : run_partitiondriver, 'help' : 'Annotate sequences in input file, i.e. run the viterbi algorithm, using pre-existing parameter directory.'},
+    'annotate'         : {'func' : run_partitiondriver, 'help' : 'Annotate sequences in input file, i.e. run the viterbi algorithm, using pre-existing parameter directory.'},
     'partition'        : {'func' : run_partitiondriver, 'help' : 'Partition sequences in input file into clonally-related families using pre-existing parameter directory.'},
     'simulate'         : {'func' : run_simulation,      'help' : 'Generate simulated sequences based on information in pre-existing parameter directory.'},
-    'run-forward'      : {'func' : run_partitiondriver, 'help' : 'Run the forward algorithm on sequences in input file, using pre-existing parameter directory. Not particularly useful except for debugging.'},
     'view-annotations' : {'func' : view_existing_output,'help' : 'Print (to std out) the annotations from an existing annotation output csv.'},
     'view-partitions'  : {'func' : view_existing_output,'help' : 'Print (to std out) the partitions from an existing partition output csv.'},
-    'view-alternative-naive-seqs'  : {'func' : view_existing_output,'help' : 'Print (to std out) a comparison of the naive sequences corresponding to sub- and super-clusters of the cluster specified with --queries. You must have specified --calculate-alternative-naive-seqs (or --persistent-cachefname) in a previous partition step so that this information was saved.'}
+    'view-alternative-naive-seqs'  : {'func' : view_existing_output,'help' : 'Print (to std out) a comparison of the naive sequences corresponding to sub- and super-clusters of the cluster specified with --queries. You must have specified --calculate-alternative-naive-seqs (or --persistent-cachefname) in a previous partition step so that this information was saved.'},
+    'run-viterbi'      : {'func' : run_partitiondriver, 'help' : 'deprecated, do not use'},
 }
 
 subargs = {subname : [] for subname in subconfig}
@@ -407,9 +410,10 @@ subargs['simulate'].append({'name' : '--flat-mute-freq', 'kwargs' : {'type' : fl
 subargs['simulate'].append({'name' : '--scratch-mute-freq-dir', 'kwargs' : {'default' : partis_dir + '/data/recombinator/scratch-parameters', 'help' : 'synthetic/partial parameter directory with only shm-level (mutation) information, which allows to specify --rearrange-from-scratch without also setting --mutate-from-scratch'}})
 subargs['simulate'].append({'name' : '--generate-germline-set', 'kwargs' : {'action' : 'store_true', 'help' : 'Choose a subset of the available genes to represent this sample\'s germline.'}})
 subargs['simulate'].append({'name' : '--n-genes-per-region', 'kwargs' : {'default' : '15:5:3', 'help' : 'colon-separated list specifying the number of genes (not alleles -- i.e. the *total* number of alleles is this times the number of alleles per gene) for each region (for use with --generate-germline-set)'}})
-subargs['simulate'].append({'name' : '--n-sim-alleles-per-gene', 'kwargs' : {'default' : '1,2,3:1,2:1,2', 'help' : 'colon-separated list of comma-separated lists of the allowed allele multiplicities for each region, e.g. \'2:1,2:1,2\' means that for each gene we will choose two alleles for V, and either 1 or 2 for D and J (for use with --generate-germline-set)'}})
-subargs['simulate'].append({'name' : '--min-sim-allele-prevalence-freq', 'kwargs' : {'default' : 0.1, 'type' : float, 'help' : 'minimum frequency at which alleles are allowed to occur, e.g. if it\'s 0.01 then each pair of V alleles will have a prevalence ratio between --min-allele-prevalence-freq and 1..'}})
+subargs['simulate'].append({'name' : '--n-sim-alleles-per-gene', 'kwargs' : {'default' : '1,2:1,2:1,2', 'help' : 'colon-separated list of comma-separated lists of the allowed allele multiplicities for each region, e.g. \'2:1,2:1,2\' means that for each gene we will choose two alleles for V, and either 1 or 2 for D and J (for use with --generate-germline-set)'}})
+subargs['simulate'].append({'name' : '--min-sim-allele-prevalence-freq', 'kwargs' : {'default' : 0.1, 'type' : float, 'help' : 'minimum frequency at which alleles are allowed to occur, e.g. if it\'s 0.01 then each pair of V alleles will have a prevalence ratio between 0.01 and 1.'}})
 subargs['simulate'].append({'name' : '--allele-prevalence-fname', 'kwargs' : {'help' : 'abandon help all ye who enter here'}})
+subargs['simulate'].append({'name' : '--root-mrca-weibull-parameter', 'kwargs' : {'type' : float, 'help' : 'if set, uses TreeSimGM (instead of TreeSim), and value passed as the parameter (e.g. 0.1: long root-mrca distance, lots of shared mutation; 5: short, little) NOTE requires installation of TreeSimGM'}})
 
 subargs['simulate'].append({'name' : '--subsimproc', 'kwargs' : {'action' : 'store_true', 'help' : 'set to true if this process has subsidiary simulation processes handled by Popen'}})
 subargs['simulate'].append({'name' : '--im-a-subproc', 'kwargs' : {'action' : 'store_true', 'help' : 'set to true if this is a sub-process handled by --subsimproc'}})
@@ -422,11 +426,14 @@ for name, vals in subconfig.items():
         subparsermap[name].add_argument(argconf['name'], **argconf['kwargs'])
 
 # ----------------------------------------------------------------------------------------
-# deprecation info
 if '--action' in sys.argv:
     raise Exception('--action is now a positional argument')
 
 args = parser.parse_args()
+
+if args.action == 'run-viterbi':
+    print'  note: replacing deprecated action name \'run-viterbi\' with current name \'annotate\' (this doesn\'t change any actual behavior)'
+    args.action = 'annotate'
 
 args.partis_dir = partis_dir
 
@@ -449,13 +456,6 @@ args.n_fewer_procs = args.n_procs[0] if len(args.n_procs) == 1 else args.n_procs
 args.n_procs = args.n_procs[0]
 args.queries = utils.get_arg_list(args.queries)
 args.reco_ids = utils.get_arg_list(args.reco_ids)
-args.n_genes_per_region = utils.get_arg_list(args.n_genes_per_region, intify=True)
-if args.n_genes_per_region is not None:
-    args.n_genes_per_region = {r : args.n_genes_per_region[utils.regions.index(r)] for r in utils.regions}  # convert to dict for easier access
-args.n_sim_alleles_per_gene = utils.get_arg_list(args.n_sim_alleles_per_gene)
-if args.n_sim_alleles_per_gene is not None:
-    assert len(args.n_sim_alleles_per_gene) == len(utils.regions)
-    args.n_sim_alleles_per_gene = {utils.regions[i] : [int(n) for n in args.n_sim_alleles_per_gene[i].split(',')] for i in range(len(utils.regions))}
 args.istartstop = utils.get_arg_list(args.istartstop, intify=True)
 if args.istartstop is not None:
     if args.istartstop[0] >= args.istartstop[1] or args.istartstop[0] < 0:
@@ -516,10 +516,15 @@ if 'tr' in args.locus and args.mutation_multiplier is None:
     args.mutation_multiplier = 0.
 
 if args.workdir is None:  # set default here so we know whether it was set by hand or not
+    def choose_random_subdir(dirname):
+        subname = str(random.randint(0, 999999))
+        while os.path.exists(dirname + '/' + subname):
+            subname = str(random.randint(0, 999999))
+        return dirname + '/' + subname
     if args.batch_system is not None and os.path.exists('/fh/fast/matsen_e'):
-        args.workdir = '/fh/fast/matsen_e/' + os.path.basename(os.getenv('HOME')) + '/_tmp/hmms/' + str(random.randint(0, 999999))
+        args.workdir = choose_random_subdir('/fh/fast/matsen_e/' + os.path.basename(os.getenv('HOME')) + '/_tmp/hmms')
     else:
-        args.workdir = '/tmp/' + os.path.basename(os.getenv('HOME')) + '/hmms/' + str(random.randint(0, 999999))
+        args.workdir = choose_random_subdir('/tmp/' + os.path.basename(os.getenv('HOME')) + '/hmms')
         if args.batch_system is not None:
             print '  %s: using batch system %s with default --workdir (%s) -- if this isn\'t visible to the batch nodes on your system, you\'ll need to change it' % (utils.color('red', 'warning'), args.batch_system, args.workdir)
 else:

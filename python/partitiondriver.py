@@ -55,6 +55,7 @@ class PartitionDriver(object):
         self.sw_info = None
         self.duplicates = {}
         self.bcrham_proc_info = None
+        self.timing_info = []  # TODO clean up this and bcrham_proc_info
 
         self.unseeded_seqs = None  # all the queries that we *didn't* cluster with the seed uid
         self.small_cluster_seqs = None  # all the queries that we removed after a few partition steps 'cause they were in small clusters
@@ -264,14 +265,13 @@ class PartitionDriver(object):
             print '  %d new allele%s written to {sw,hmm}/%s subdirs of parameter dir %s' % (len(self.all_new_allele_info), utils.plural_str('', len(self.all_new_allele_info)), glutils.glfo_dir, self.args.parameter_dir)
 
     # ----------------------------------------------------------------------------------------
-    def run_algorithm(self, algorithm):
-        """ Just run <algorithm> (either 'forward' or 'viterbi') on sequences in <self.input_info> and exit. You've got to already have parameters cached in <self.args.parameter_dir> """
-        print 'running %s' % algorithm
+    def annotate(self):
+        print 'annotating'
         self.run_waterer(look_for_cachefile=True)
         if self.args.only_smith_waterman:
             return
         print 'hmm'
-        self.run_hmm(algorithm, parameter_in_dir=self.sub_param_dir)
+        self.run_hmm('viterbi', parameter_in_dir=self.sub_param_dir)
 
     # ----------------------------------------------------------------------------------------
     def view_existing_annotations(self):
@@ -332,7 +332,7 @@ class PartitionDriver(object):
             return
 
         print 'hmm'
-        # cache hmm naive seq for each single query
+        # cache hmm naive seq for each single query NOTE <self.current_action> is (and needs to be) still set to partition for this
         if not self.args.dont_precache_naive_seqs and (len(self.sw_info['queries']) > 50 or self.args.naive_vsearch or self.args.naive_swarm):
             print '--> caching all %d naive sequences' % len(self.sw_info['queries'])
             self.run_hmm('viterbi', self.sub_param_dir, n_procs=self.auto_nprocs(len(self.sw_info['queries'])), precache_all_naive_seqs=True)
@@ -398,24 +398,25 @@ class PartitionDriver(object):
         return new_n_procs
 
     # ----------------------------------------------------------------------------------------
-    def times_to_try_this_n_procs(self, n_procs):
-        if n_procs > 2:
-            return n_procs
-        return 4  # n_procs = 2 is kind of a special case, because the drop to 1 is such a big one
+    def shall_we_reduce_n_procs(self, last_n_procs, n_proc_list):
+        if self.timing_info[-1]['total'] < self.args.min_hmm_step_time:  # mostly for when you're running on really small samples
+            return True
+        n_calcd_per_process = self.get_n_calculated_per_process()
+        if n_calcd_per_process < self.args.n_max_to_calc_per_process and last_n_procs > 2:  # should be replaced by time requirement, since especially in later iterations, the larger clusters make this a crappy metric (2 is kind of a special case, becase, well, small integers and all)
+            return True
+        times_to_try_this_n_procs = max(4, last_n_procs)  # if we've already milked this number of procs for most of what it's worth (once you get down to 2 or 3, you don't want to go lower)
+        if n_proc_list.count(last_n_procs) >= times_to_try_this_n_procs:
+            return True
+
+        return False
 
     # ----------------------------------------------------------------------------------------
-    def get_next_n_procs_and_whatnot(self, n_proc_list, cpath, initial_nseqs):
+    def prepare_next_iteration(self, n_proc_list, cpath, initial_nseqs):
         last_n_procs = n_proc_list[-1]
         next_n_procs = last_n_procs
 
-        n_calcd_per_process = self.get_n_calculated_per_process()
-
-        reduce_n_procs = False
-        if n_calcd_per_process < self.args.n_max_to_calc_per_process or n_proc_list.count(last_n_procs) > self.times_to_try_this_n_procs(last_n_procs):  # if we didn't need to do that many calculations, or if we've already milked this number of procs for most of what it's worth
-            reduce_n_procs = True
-
         factor = 1.3
-        if reduce_n_procs:
+        if self.shall_we_reduce_n_procs(last_n_procs, n_proc_list):
             next_n_procs = int(next_n_procs / float(factor))
 
         def time_to_remove_some_seqs(n_proc_threshold):
@@ -432,8 +433,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def get_n_calculated_per_process(self):
-        if self.bcrham_proc_info is None:
-            return
+        assert self.bcrham_proc_info is not None
 
         total = 0.  # sum over each process
         for procinfo in self.bcrham_proc_info:
@@ -471,7 +471,7 @@ class PartitionDriver(object):
             n_proc_list.append(n_procs)
             if self.are_we_finished_clustering(n_procs, cpath):
                 break
-            n_procs, cpath = self.get_next_n_procs_and_whatnot(n_proc_list, cpath, len(initial_nsets))
+            n_procs, cpath = self.prepare_next_iteration(n_proc_list, cpath, len(initial_nsets))
 
         print '      loop time: %.1f' % (time.time()-start)
         return cpath
@@ -525,7 +525,7 @@ class PartitionDriver(object):
         if len(partition) == 0:
             return
         action_cache = self.current_action
-        self.current_action = 'run-viterbi'
+        self.current_action = 'annotate'
         partition = sorted(partition, key=len, reverse=True)  # as opposed to in clusterpath, where we *don't* want to sort by size, it's nicer to have them sorted by size here, since then as you're scanning down a long list of cluster annotations you know once you get to the singletons you won't be missing something big
         n_procs = min(self.args.n_procs, len(partition))  # we want as many procs as possible, since the large clusters can take a long time (depending on if we're translating...), but in general we treat <self.args.n_procs> as the maximum allowable number of processes
         print '--> getting annotations for final partition'
@@ -845,6 +845,7 @@ class PartitionDriver(object):
         if step_time - exec_time > 0.1:
             print '         infra time: %.1f' % (step_time - exec_time)  # i.e. time for non-executing, infrastructure time
         print '      hmm step time: %.1f' % step_time
+        self.timing_info.append({'exec' : exec_time, 'total' : step_time})  # NOTE in general, includes pre-cache step
 
         return new_cpath
 
@@ -1106,7 +1107,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def get_existing_hmm_files(self, parameter_dir):
         fnames = [os.path.basename(fn) for fn in glob.glob(parameter_dir + '/hmms/*.yaml')]
-        genes = set([utils.unsanitize_name(os.path.splitext(fn)[0]) for fn in fnames])
+        genes = set([utils.unsanitize_name(utils.getprefix(fn)) for fn in fnames])
         if len(genes) == 0:
             raise Exception('no yamels in %s' % parameter_dir + '/hmms')
         return genes
@@ -1486,13 +1487,14 @@ class PartitionDriver(object):
 
                 if perfplotter is not None:
                     for iseq in range(len(uids)):  # TODO get perfplotter handling multi-seq lines
-                        singlefo = utils.synthesize_single_seq_line(line_to_use, iseq)
-                        if len(singlefo['naive_seq']) != len(self.reco_info[uids[iseq]]['naive_seq']):  # this seems to mostly depend on if it's the multi-hmm or not (but the real problem is that different js are different lengths)
-                            singlefo = utils.reset_effective_erosions_and_effective_insertions(self.glfo, singlefo)
                         if uids[iseq] in self.sw_info['indels']:
                             print '    skipping performance evaluation of %s because of indels' % uids[iseq]  # I just have no idea how to handle naive hamming fraction when there's indels
-                        else:
-                            perfplotter.evaluate(self.reco_info[uids[iseq]], singlefo)
+                            continue
+                        singlefo = utils.synthesize_single_seq_line(line_to_use, iseq)
+                        perfplotter.evaluate(self.reco_info[uids[iseq]], singlefo)
+                        if len(singlefo['naive_seq']) != len(self.reco_info[uids[iseq]]['naive_seq']):
+                            raise Exception('shouldn\'t get here!')
+                            # singlefo = utils.reset_effective_erosions_and_effective_insertions(self.glfo, singlefo)  # TODO this is wrong, since <singlefo> can be derived from <eroded_line>, i.e. the reset_ fcn was already called on it. But it doesn't really matter, since it's commented now, and should be able to stay that way
 
         # parameter and performance writing/plotting
         if pcounter is not None:

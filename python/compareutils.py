@@ -120,7 +120,7 @@ def get_simfname(args, label, n_leaves, mut_mult, no_subset=False):
 
 # ----------------------------------------------------------------------------------------
 def get_program_workdir(args, program_name, label, n_leaves, mut_mult):
-    basedir = '/fh/fast/matsen_e/dralph/work/' + program_name + '/' + label
+    basedir = utils.fsdir() + '/work/' + program_name + '/' + label
     if not args.is_simu:
         outdir = basedir + '/data'
     else:
@@ -134,9 +134,9 @@ def get_program_workdir(args, program_name, label, n_leaves, mut_mult):
 # ----------------------------------------------------------------------------------------
 def get_changeo_outdir(args, label, n_leaves, mut_mult):
     if args.bak:
-        changeo_fsdir = '/fh/fast/matsen_e/dralph/work/changeo.bak/' + label
+        changeo_fsdir = utils.fsdir() + '/work/changeo.bak/' + label
     else:
-        changeo_fsdir = '/fh/fast/matsen_e/dralph/work/changeo/' + label
+        changeo_fsdir = utils.fsdir() + '/work/changeo/' + label
 
     if not args.is_simu:
         imgtdir = changeo_fsdir + '/data'
@@ -292,7 +292,7 @@ def generate_synthetic_partitions(args, label, n_leaves, mut_mult, seqfname, bas
         misfrac, mistype, threshold = get_synthetic_partition_type(stype)
         vname = stype
         outfname = base_outfname.replace('.csv', '-' + vname + '.csv')
-        if output_exists(args, outfname):
+        if utils.output_exists(args, outfname):
             continue
         if 'distance' in stype:
             execute(args, 'synthetic-partition', datafname, label, n_leaves, mut_mult, procs, hfrac_bounds=[threshold, threshold], forced_outfname=outfname)
@@ -614,11 +614,11 @@ def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, all_info,
         if 'vollmers' in meth and meth != 'vollmers-0.9':
             raise Exception('need to update a few things to change the threshold')
 
-    if 'run-viterbi' in args.expected_methods or 'run-mixcr' in args.expected_methods or 'run-changeo' in args.expected_methods:
+    if 'annotate' in args.expected_methods or 'run-mixcr' in args.expected_methods or 'run-changeo' in args.expected_methods:
         raise Exception('no, it\'s the *other* name')
 
     if 'vollmers-0.9' in args.expected_methods:
-        parse_vollmers(args, this_info, get_outputname(args, label, 'run-viterbi', seqfname, hfrac_bounds), csvdir, reco_info, true_partition)
+        parse_vollmers(args, this_info, get_outputname(args, label, 'annotate', seqfname, hfrac_bounds), csvdir, reco_info, true_partition)
     if 'changeo' in args.expected_methods:
         parse_changeo(args, this_info, get_outputname(args, label, 'run-changeo', seqfname, hfrac_bounds), csvdir)
     if 'mixcr' in args.expected_methods:
@@ -870,26 +870,6 @@ def plot_means_over_subsets(args, label, n_leaves, mut_mult, this_info, per_subs
 #     return {nseqs : utils.adjusted_mutual_information(new_partitions[nseqs], utils.get_true_partition(reco_info, ids=new_partitions[nseqs].keys())) for nseqs in nseq_list}
 
 # ----------------------------------------------------------------------------------------
-def output_exists(args, outfname):
-    if os.path.exists(outfname):
-        if os.stat(outfname).st_size == 0:
-            print '                      deleting zero length %s' % outfname
-            os.remove(outfname)
-            return False
-        elif args.overwrite:
-            print '                      overwriting %s' % outfname
-            if os.path.isdir(outfname):
-                raise Exception('output %s is a directory, rm it by hand' % outfname)
-            else:
-                os.remove(outfname)
-            return False
-        else:
-            print '                      output exists, skipping (%s)' % outfname
-            return True
-    else:
-        return False
-
-# ----------------------------------------------------------------------------------------
 def run_changeo(args, label, n_leaves, mut_mult, seqfname):
     if args.dry_run:
         print 'implement me!'
@@ -938,15 +918,11 @@ def run_changeo(args, label, n_leaves, mut_mult, seqfname):
             utils.subset_files(subset_ids, tsvfnames, subset_dir)
         imgtdir = subset_dir
 
-    def run(cmdstr):
-        print 'RUN %s' % cmdstr
-        # check_call(cmdstr.split(), env=os.environ)
-
     outfname = get_outputname(args, label, 'run-changeo', seqfname, hfrac_bounds=None)
-    if output_exists(args, outfname):
+    if utils.output_exists(args, outfname):
         return
 
-    fastafname = os.path.splitext(seqfname)[0] + '.fasta'
+    fastafname = utils.getprefix(seqfname) + '.fasta'
     if not os.path.exists(fastafname):
         utils.csv_to_fasta(seqfname, outfname=fastafname)  #, name_column='name' if not args.is_simu else 'unique_id', seq_column='nucleotide' if not args.is_simu else 'seq')
     bindir = '/home/dralph/work/changeo/changeo/bin'
@@ -954,16 +930,16 @@ def run_changeo(args, label, n_leaves, mut_mult, seqfname):
     start = time.time()
     cmd = bindir + '/MakeDb.py imgt -i ' + imgtdir + ' -s ' + fastafname + ' --failed'
     # cmd = bindir + '/MakeDb.py imgt -h'
-    run(cmd)
+    utils.simplerun(cmd)
     cmd = bindir + '/ParseDb.py select -d ' + imgtdir + '_db-pass.tab'
     if not args.is_simu:
         cmd += ' -f FUNCTIONAL -u T'
     else:  # on simulation we don't want to skip any (I'm not forbidding stop codons in simulation)
         cmd += ' -f FUNCTIONAL -u T F'
-    run(cmd)
+    utils.simplerun(cmd)
     # cmd = bindir + '/DefineClones.py bygroup -d ' + imgtdir + '_db-pass_parse-select.tab --act first --model m1n --dist 7'
     cmd = bindir + '/DefineClones.py bygroup -d ' + imgtdir + '_db-pass_parse-select.tab --model hs1f --norm len --act set --dist 0.2'
-    run(cmd)
+    utils.simplerun(cmd)
     print '        changeo time: %.3f' % (time.time()-start)
 
     # read changeo's output and toss it into a csv
@@ -1005,10 +981,10 @@ def run_mixcr(args, label, n_leaves, mut_mult, seqfname):
     if not os.path.exists(mixcr_workdir):
         os.makedirs(mixcr_workdir)
 
-    # fastafname = os.path.splitext(seqfname)[0] + '.fasta'
-    infname = mixcr_workdir + '/' + os.path.basename(os.path.splitext(seqfname)[0] + '.fasta')
-    outfname = os.path.splitext(seqfname)[0] + '-mixcr.tsv'
-    if output_exists(args, outfname):
+    # fastafname = utils.getprefix(seqfname) + '.fasta'
+    infname = mixcr_workdir + '/' + os.path.basename(utils.getprefix(seqfname) + '.fasta')
+    outfname = utils.getprefix(seqfname) + '-mixcr.tsv'
+    if utils.output_exists(args, outfname):
         return
 
     # check_call(['./bin/csv2fasta', seqfname])
@@ -1016,17 +992,13 @@ def run_mixcr(args, label, n_leaves, mut_mult, seqfname):
     # check_call('head -n' + str(2*args.n_max_queries) + ' ' + fastafname + ' >' + infname, shell=True)
     # os.remove(seqfname.replace('.csv', '.fa'))
 
-    def run(cmdstr):
-        print 'RUN %s' % cmdstr
-        check_call(cmdstr.split())
-
     start = time.time()
     cmd = binary + ' align -f --loci IGH ' + infname + ' ' + infname.replace('.fasta', '.vdjca')
-    run(cmd)
+    utils.simplerun(cmd)
     cmd = binary + ' assemble -f ' + infname.replace('.fasta', '.vdjca') + ' ' + infname.replace('.fasta', '.clns')
-    run(cmd)
+    utils.simplerun(cmd)
     cmd = binary + ' exportClones ' + infname.replace('.fasta', '.clns') + ' ' + infname.replace('.fasta', '.txt')
-    run(cmd)
+    utils.simplerun(cmd)
 
     elapsed_time = time.time()-start
     print '        mixcr time: %.3f' % elapsed_time
@@ -1043,12 +1015,12 @@ def run_igscueal(args, label, n_leaves, mut_mult, seqfname):
         return
 
     igscueal_dir = '/home/dralph/work/IgSCUEAL'
-    # outfname = os.path.splitext(seqfname)[0] + '-igscueal.tsv'
-    # if output_exists(args, outfname):
+    # outfname = utils.getprefix(seqfname) + '-igscueal.tsv'
+    # if utils.output_exists(args, outfname):
     #     return
     workdir = get_program_workdir(args, 'igscueal', label, n_leaves, mut_mult)
 
-    infname = workdir + '/' + os.path.basename(os.path.splitext(seqfname)[0] + '.fasta')
+    infname = workdir + '/' + os.path.basename(utils.getprefix(seqfname) + '.fasta')
 
     if not os.path.exists(workdir):
         os.makedirs(workdir)
@@ -1218,7 +1190,7 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
     if 'partition' in action:
         cmd += ' partition'
     elif action == 'annotate-seed-clusters':
-        cmd += ' run-viterbi'
+        cmd += ' annotate'
     else:
         cmd += ' ' + action
     # cmd += ' --stashdir ' + get_outdirname(args, label).replace('/' + label, '')
@@ -1232,7 +1204,7 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
     if not args.is_simu or action == 'simulate':
         parameter_dir += '/data'
     else:
-        parameter_dir += '/' + os.path.basename(os.path.splitext(seqfname)[0])
+        parameter_dir += '/' + os.path.basename(utils.getprefix(seqfname))
     cmd += ' --parameter-dir ' + parameter_dir
 
     if not args.is_simu:
@@ -1278,7 +1250,7 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
             extras += ['--n-leaf-distribution', 'box']
         if args.zipf:
             extras += ['--n-leaf-distribution', 'zipf']
-    elif action == 'run-viterbi':
+    elif action == 'annotate':
         outfname = get_outputname(args, label, action, seqfname, hfrac_bounds)
         cmd += ' --outfname ' + outfname
         n_total_seqs = args.n_max_queries
@@ -1356,7 +1328,7 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
     else:
         raise Exception('bad action %s' % action)
 
-    if output_exists(args, outfname):
+    if utils.output_exists(args, outfname):
         return
 
     extras += ['--workdir', args.fsdir.replace('_output', '_tmp') + '/' + str(random.randint(0, 99999))]

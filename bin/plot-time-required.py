@@ -19,11 +19,12 @@ parser.add_argument('--timegrep', action='store_true')
 args = parser.parse_args()
 args.actions = utils.get_arg_list(args.actions)
 
-fsdir = '/fh/fast/matsen_e/dralph/work/partis-dev/_output'
+fsdir = '/fh/fast/matsen_e/dralph/work/partis-dev/_output' + '/update-17'
+# fsdir = '/fh/fast/matsen_e/processed-data/partis/clustering-paper/vollmers'  #/021-018/
 simfbase = 'simu-7-leaves-1.0-mutate'
 simfbase_seed = 'simu-2.3-leaves-1.0-mutate-zipf'
 human = '021-018'
-istartstopstr_list_str = '0:250 250:750 750:1500 1500:2500 2500:4000 4000:6500 6500:9500 9500:13500 13500:18500 18500:26000 26000:36000 36000:51000 51000:71000 71000:101000 101000:141000 141000:191000 191000:266000 266000:366000 350000:500000 366000:516000'
+istartstopstr_list_str = '0:250 250:750 750:1500 1500:2500 2500:4000 4000:6500 6500:9500 9500:13500 13500:18500 18500:26000 26000:36000 36000:51000 51000:71000 71000:101000' # 101000:141000 141000:191000 191000:266000 266000:366000 350000:500000 366000:516000'
 istartstopstr_list_str_seed = '0:1500 1500:4500 4500:8500 8500:13500 13500:21000 21000:31000 51000:71000 71000:101000 101000:141000 141000:191000 191000:266000 266000:366000 366000:516000 516000:816000 816000:1316000 7:500007 500007:1000007 1000007:1500007 1316000:2066000 7:1000007'
 istartstopstr_list = istartstopstr_list_str.split(' ')
 istartstopstr_list_seed = istartstopstr_list_str_seed.split(' ')
@@ -100,7 +101,8 @@ def make_plot():
 
 # ----------------------------------------------------------------------------------------
 def get_clock_time(istart, istop, action, fbase):
-    logfname = fsdir + '/' + human + '/istartstop-' + str(istart) + '-' + str(istop) + '/_logs/' + fbase + '-' + action + '.out'
+    # logfname = fsdir + '/' + human + '/istartstop-' + str(istart) + '-' + str(istop) + '/_logs/' + fbase + '-' + action + '.out'
+    logfname = fsdir + '/' + human + '/istartstop-' + str(istart) + '-' + str(istop) + '/logs/' + fbase + '-' + action + '.out'
     if args.timegrep:
         # check_call(['ls', '-ltrh', logfname])
         try:
@@ -128,4 +130,13 @@ for action in args.actions:
     for istart, istop in list_to_use:
         timeinfo[aname].append(get_clock_time(istart, istop, action, fbase))
 
-make_plot()
+for meth, vals in timeinfo.items():
+    if meth == 'seed-partition':
+        nql = n_query_list_seed
+    else:
+        nql = n_query_list
+    print '%30s  %s' % ('', ''.join([('%7d' % t) for t in nql]))
+    print '%30s  %s' % (meth, ''.join([('%7.0f' % val) if val is not None else '  n  ' for val in vals]))
+
+if not args.timegrep:
+    make_plot()

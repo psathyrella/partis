@@ -106,7 +106,7 @@ class Tester(object):
         argfo['input_stype'] = input_stype
         argfo['bin'] = self.partis
         if 'annotate' in ptest:
-            argfo['action'] = 'run-viterbi'
+            argfo['action'] = 'annotate'  # NOTE now that this isn't 'run-viterbi' we can combine it with the others
         elif 'partition' in ptest:
             argfo['action'] = 'partition'
             argfo['extras'] += ['--persistent-cachefname', self.dirs['new'] + '/' + self.cachefnames[input_stype]]
@@ -193,8 +193,8 @@ class Tester(object):
             elif 'cache-parameters-' not in name:
                 cmd_str += ' --outfname ' + self.dirs['new'] + '/' + name + '.csv'
 
-            logstr = '%s   %s%s' % (utils.color('green', name, width=30, padside='right'), cmd_str[:args.print_width], '[...]' if args.print_width < len(cmd_str) else '')
-            print logstr
+            logstr = '%s   %s' % (utils.color('green', name, width=30, padside='right'), cmd_str)
+            print logstr if utils.len_excluding_colors(logstr) < args.print_width else logstr[:args.print_width] + '[...]'
             if args.dry_run:
                 continue
             logfile = open(self.logfname, 'a')

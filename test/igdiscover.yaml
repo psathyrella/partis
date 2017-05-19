@@ -1,0 +1,196 @@
+## IgDiscover configuration
+
+library_name: testdata
+
+
+# How many discovery iterations to run.
+# If 0, no updated database is created, but expression
+# profiles are still computed.
+iterations: 2
+
+
+## Barcoding settings
+
+
+# If you have a random barcode sequence (unique molecular identifier) at the 5' end,
+# set this to its length. Leave at 0 when you have no 5' barcode.
+barcode_length_5prime: 0
+
+
+# Same as above, but for the 3' end of the sequence. Leave at 0 when you have no 3' barcode.
+# Currently, you cannot have a barcode in both ends, so at least one of the two settings
+# must be zero.
+barcode_length_3prime: 0
+
+
+# When barcoding is enabled, sequences are automatically grouped by barcode
+# and by their CDR3 sequence. The CDR3 location is either detected with a
+# regular expressions or a 'pseudo' CDR3 sequence is used, which is at a
+# pre-defined position within the sequence. Seting this configuration option to
+# [-80, -60] (which is the default) means that a pseudo CDR3 is to be used,
+# located at bases 80 to 60 counted from the 3' end. (Use negative numbers to
+# count from the 3' end, positive ones to count from the 5' end. The most 5'
+# base has index 0.)
+#
+# Set this to 'detect' (with quotation marks) in order to use CDR3s
+# detected by regular expression.
+#
+# Set this to false (no quotation marks) in order to *only* group by barcode, not by CDR3.
+cdr3_location: [-80, -60]
+
+
+# When you use a RACE protocol, then the sequences have a run of G nucleotides in the beginning
+# which need to be removed when barcodes are used. If you use RACE, set this to true.
+# The G nucleotides are assumed to be in the 5' end (but after the barcode if it exists).
+#
+race_g: false
+
+
+## Primer-related settings
+
+# If set to true, it is assumed that the forward primer is always at the 5' end
+# of the first read and that the reverse primer is always at the 5' end of the
+# second read. If it can also be the other way, set this to false.
+# This setting has no effect if no primer sequences are defined below.
+# stranded: true
+
+
+# List of 5' primers
+# forward_primers:
+#  - CGTGAGCTGAGTACGACTCACTATAGCTTCAC
+
+
+# List of 3' primers
+# reverse_primers:
+ # - GCAGGCCTTTTTGGCCNNNNNGGGGCATTCTCACAGGAGACGAGGGGGAAAAG  # IgM
+
+
+# Work only on this number of reads (for quick test runs). Set to false to
+# process all reads.
+#
+#limit: false
+
+
+##
+## Advanced settings (usually these do not need to be changed)
+##
+
+# Filter out merged reads that are shorter than this length.
+minimum_merged_read_length: 300
+
+
+# When discovering new V genes, ignore whether a J gene has been assigned
+# and also ignore its %SHM.
+#  true: yes, ignore the J
+#  false: do not ignore J assignment, do not ignore its %SHM
+#
+ignore_j: false
+
+
+# Read merging program. Choose either 'pear' or 'flash'.
+# pear merges more reads, but is slower.
+#
+#merge_program: pear
+
+
+# Which program to use for computing multiple alignments. This is used for
+# computing consens sequences.
+# Choose 'mafft', 'clustalo', 'muscle' or 'muscle-fast'.
+# 'muscle-fast' runs muscle with parameters "-maxiters 1 -diags".
+#
+#multialign_program: muscle-fast
+
+
+# Maximum overlap (-M) for the flash read merger.
+# If you use pear, this is ignored.
+#
+flash_maximum_overlap: 300
+
+
+# When clustering sequences to discover new genes, subsample to this number of
+# sequences. Higher is slower.
+#
+subsample: 1000
+
+
+# Which program to use for clustering. Use vsearch or usearch (can also be an
+# absolute path).
+#
+#cluster_program: vsearch
+
+
+# Filter out reads that have more than this number of expected errors.
+# Set to null to disable.
+#
+#maximum_expected_errors: null
+#maximum_expected_errors: 5
+
+
+# Do not mention the original FASTA or FASTQ sequence names in the
+# assigned.tab files, but instead use names <library_name>_seq<number>,
+# where <number> is a running number starting at 1.
+#  true: yes, rename
+#  false: no, do not rename
+#
+rename: true
+
+
+# Whether debugging is enabled or not. Currently, if this is set to true,
+# some large intermediate files that would otherwise be deleted will be
+# kept.
+#
+debug: false
+
+
+# The "seed value" is in arbitrary number used to get reproducible
+# runs. Two runs that use the same software version, the same seed
+# and otherwise the same configuration will give identical results.
+#
+# Set this to false in order to use a different seed each run.
+# The results will then be not exactly reproducible.
+#
+seed: 1
+
+
+# Leave empty or choose a species name supported by IgBLAST:
+# human, mouse, rabbit, rat, rhesus_monkey
+# This setting is not used anywhere except that it is passed
+# to IgBLAST. Since we provide IgBLAST with our own gene
+# databases, it seems this has no effect.
+species:
+
+
+# The preprocessing filter is always applied directly after running IgBLAST,
+# even if no gene discovery is requested.
+#
+preprocessing_filter:
+  v_coverage: 90   # Match must cover V gene by at least this percentage
+  j_coverage: 60   # Match must cover J gene by at least this percentage
+  v_evalue: 0.001  # Highest allowed V gene match E-value
+
+
+# Filtering criteria applied to candidate sequences in all iterations except the last.
+#
+pre_germline_filter:
+  unique_cdr3s: 2      # Minimum number of unique CDR3s (within exact matches)
+  unique_js: 2         # Minimum number of unique J genes (within exact matches)
+  check_motifs: false  # Check whether 5' end starts with known motif
+  whitelist: true      # Add database sequences to the whitelist
+  cluster_size: 0      # Minimum number of sequences assigned to cluster
+  differences: 1       # Merge sequences if they have at most this number of differences
+  allow_stop: true     # Whether to allow non-productive sequences containing stop codons
+  cross_mapping_ratio: 0.02  # Threshold for removal of cross-mapping artifacts (set to 0 to disable)
+
+
+# Filtering criteria applied to candidate sequences in the last iteration.
+# These should be more strict than the pre_germline_filter criteria.
+#
+germline_filter:
+  unique_cdr3s: 3      # Minimum number of unique CDR3s (within exact matches)
+  unique_js: 2         # Minimum number of unique J genes (within exact matches)
+  check_motifs: false  # Check whether 5' end starts with known motif
+  whitelist: true      # Add database sequences to the whitelist
+  cluster_size: 100    # Minimum number of sequences assigned to cluster
+  differences: 1       # Merge sequences if they have at most this number of differences
+  allow_stop: false    # Whether to allow non-productive sequences containing stop codons
+  cross_mapping_ratio: 0.02  # Threshold for removal of cross-mapping artifacts (set to 0 to disable)

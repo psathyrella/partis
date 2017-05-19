@@ -15,7 +15,7 @@ This manual is organized into the following sections:
   * [Installation from scratch](#installation-from-scratch)
   * [Quick start](#quick-start)
   * [Subcommands](#subcommands) how to navigate the various `partis` actions
-    - [run-viterbi](#run-viterbi) find most likely annotations/alignments
+    - [annotate](#annotate) find most likely annotations
 	- [partition](#partition) cluster sequences into clonally-related families
 	  - [faster methods](#faster-methods)
 	  - [cluster annotations](#cluster-annotations)
@@ -94,9 +94,9 @@ cd partis
 
 Once you have partis installed, to annotate a file `/path/to/yourseqs.fa` with BCR sequences you'd run
 
-```./bin/partis run-viterbi --infname /path/to/yourseqs.fa --outfname /path/to/yourseqs-run-viterbi.csv```.
+```./bin/partis annotate --infname /path/to/yourseqs.fa --outfname /path/to/yourseqs-annotate.csv```.
 
-To separate them into clonal families, replace `run-viterbi` with `partition`.
+To separate them into clonal families, replace `annotate` with `partition`.
 
 (If you're using Docker, and you mounted your host filesystem as described above, you should replace each `/path/to` with `/host/path/to`.)
 
@@ -114,11 +114,16 @@ To change this, use the `--species {human,mouse}` and `--locus {tra,trb,trd,trg,
 
 There are also some example sequences you can run on in `test/example.fa`.
 
+In addition to any output files, partis writes to two directories on your file system.
+Temporary working files go in `--workdir`, which is entirely removed upon successful completion.
+This defaults into a directory under `/tmp`, and shouldn't need to be modified unless you're running on multiple nodes (see below), in which case it needs to be on a network mount they can all see.
+Permament parameter files, on the other hand, are written to `--parameter-dir`, which defaults to a subdir of the current directory (see below).
+
 ### Subcommands
 
 The main script has a number of actions:
 
-```./bin/partis run-viterbi | partition | view-annotations | view-partitions | cache-parameters | simulate | run-forward```,
+```./bin/partis annotate | partition | view-annotations | view-partitions | cache-parameters | simulate | run-forward```,
 
 each of which is described in more detail below.
 For more information you can also type `./bin/partis --help` and `./bin/partis <subcommand> --help`.
@@ -142,11 +147,11 @@ The default filename is a hash of the concatenated input sequence id strings
 These defaults should ensure that with typical workflows, smith-waterman only runs once.
 If however, you're doing less typical things (running on a subset of sequences in the file), if you want smith-waterman results to be cached you'll need to specify `--sw-cachefname` explicitly, and it'll write it if it doesn't exist, and read from it if it does.
 
-#### run-viterbi
+#### annotate
 
 Finds the Viterbi path (i.e., the most likely annotation/alignment) for each sequence, for example:
 
-```./bin/partis run-viterbi --infname test/example.fa --outfname _output/example.csv```
+```./bin/partis annotate --infname test/example.fa --outfname _output/example.csv```
 
 The output csv headers are listed in the table below, and you can view a colored ascii representation of the rearrangement events with the `view-annotations` action.
 An example of how to parse this output csv (say, if you want to further process the results) is in `bin/example-output-processing.py`.
@@ -185,9 +190,9 @@ All columns listed as "colon-separated lists" are trivial/length one for single 
 
 Note that `utils.process_input_line()` and `utils.get_line_for_output()` can be used to automate input/output (see for example `bin/example-output-processing.py`).
 
-Annotation with `run-viterbi` is the algorithm of choice for annotating sequences where the clonal relationship is different i.e. no sequence in the dataset are from the same germinal center, and therefore are not related by having the same naive sequence. Examples of such datasets could be pooled datasets with BCR sequences from many individuals, where clonal relationship cannot be present.
+Annotation is the algorithm of choice for annotating sequences where the clonal relationship is different i.e. no sequence in the dataset are from the same germinal center, and therefore are not related by having the same naive sequence. Examples of such datasets could be pooled datasets with BCR sequences from many individuals, where clonal relationship cannot be present.
 
-However for many applications sequence data is created unspecifically for a large amount of BCRs and will contain many sequences being from the same germinal center, hence also sharing the same naive sequence. Using this prior knowledge can greatly improve inference of VDJ gene combination and reconstruction of the naive sequence, and therefore when datasets allow for partitioning, the annotations from the partitioning algorithm should be preferred over the `run-viterbi` results.
+However for many applications sequence data is created unspecifically for a large amount of BCRs and will contain many sequences being from the same germinal center, hence also sharing the same naive sequence. Using this prior knowledge can greatly improve inference of VDJ gene combination and reconstruction of the naive sequence, and therefore when datasets allow for partitioning, the annotations from the partitioning algorithm should be preferred over the single-sequence annotation results.
 
 #### partition
 
@@ -241,7 +246,7 @@ If --outfname is set, in addition to the clusters in that file, the most likely 
 To annotate an arbitrary collection of sequences using simultaneous multi-HMM inference (which is much, much more accurate than annotating the sequences individually), you can combine the `--queries` and `--n-simultaneous-seqs` arguments.
 For instance, if you knew from partitioning that three sequences `a`, `b`, and `c` were clonal, you could run:
 
-``` ./bin/partis run-viterbi --infname in.fa --queries a:b:c --n-simultaneous-seqs 3 --outfname abc-annotation.csv```
+``` ./bin/partis annotate --infname in.fa --queries a:b:c --n-simultaneous-seqs 3 --outfname abc-annotation.csv```
 
 In order to get an idea of the uncertainty on a given cluster's naive sequence, you can specify `--calculate-alternative-naive-seqs` during the partition step.
 This will save all the naive sequences for intermediate sub-clusters to a cache file so that, afterwards, you can view the alternative naive sequences for the sub-clusters.
@@ -270,9 +275,9 @@ We're working to include these two strategies as command line options, but want 
 
 #### view-annotations
 
-To, e.g. run on the output csv from the `run-viterbi` action:
+To, e.g. run on the output csv from the `annotate` action:
 
-``` ./bin/partis view-annotations --outfname run-viterbi-output.csv```
+``` ./bin/partis view-annotations --outfname annotate-output.csv```
 
 #### view-partitions
 
@@ -340,11 +345,6 @@ To get the actual number of sequences, we multiply this by the mean number of le
 At the start of a simulation run, TreeSim generates a set of `--n-trees` trees (default 500 at the moment), and each tree has a number of leaves drawn from an exponential (or zipf, or box, or...) with mean/exponent `--n-leaves`.
 Throughout the run, we sample a tree at random from this set for each rearrangement event.
 
-#### run-forward
-
-Same as `run-viterbi`, except with the forward algorithm, i.e. it sums over all possible rearrangement events to get the total log probability of the sequence.
-Probably mostly useful for testing.
-
 ### Parallelization
 
 ###### In general
@@ -357,9 +357,9 @@ Note that you should not specify stdout/stderr locations (`-e` or `-o`) for sge 
 By default, partis writes its temporary files to a working directory of the form `/tmp/$USER/hmms/$RANDOM`.
 If you're running on a batch system, though, you need the working directory to be a network mount that every node can see; set this with `--workdir`, e.g. `--workdir /path/to/nfs/$USER/hmms/$RANDOM`.
 
-###### run-viterbi
+###### annotate
 
-Sequence annotation (run-viterbi) lends itself quite readily to independent parallelization.
+Sequence annotation lends itself quite readily to independent parallelization.
 It should take 0.1-1 second per sequence; if you want it to go faster, just increase `--n-procs`.
 
 ###### partition

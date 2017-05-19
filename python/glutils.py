@@ -18,11 +18,14 @@ glfo_dir = 'germline-sets'  # always put germline info into a subdir with this n
 dummy_d_genes = {l : l.upper() + 'Dx-x*x' if not utils.has_d_gene(l) else None for l in utils.loci}  # e.g. IGKDx-x*x for igk, None for igh
 
 # single-locus file names
-extra_fname = 'extras.csv'
-def glfo_fasta_fnames(locus):
-    return [locus + r + '.fasta' for r in utils.getregions(locus)]
-def glfo_fnames(locus):
-    return [extra_fname, ] + glfo_fasta_fnames(locus)
+def get_fname(gldir, locus, region):
+    return gldir + '/' + locus + '/' + locus + region + '.fasta'
+def get_extra_fname(gldir, locus):
+    return gldir + '/' + locus + '/extras.csv'
+def glfo_fasta_fnames(gldir, locus):
+    return [get_fname(gldir, locus, r) for r in utils.getregions(locus)]
+def glfo_fnames(gldir, locus):
+    return [get_extra_fname(gldir, locus), ] + glfo_fasta_fnames(gldir, locus)
 
 csv_headers = ['gene', 'cyst_position', 'tryp_position', 'phen_position', 'aligned_seq']
 
@@ -50,6 +53,14 @@ duplicate_names = {
     ],
     'j' : []
 }
+
+#----------------------------------------------------------------------------------------
+def is_snpd(gene):
+    primary_version, sub_version, allele = utils.split_gene(gene)
+    if '+' in allele:
+        return True
+    else:
+        return False
 
 #----------------------------------------------------------------------------------------
 def convert_to_duplicate_name(glfo, gene):
@@ -135,8 +146,8 @@ def read_fasta_file(seqs, fname, skip_pseudogenes, aligned=False):
 #----------------------------------------------------------------------------------------
 def read_germline_seqs(gldir, locus, skip_pseudogenes):
     seqs = {r : OrderedDict() for r in utils.regions}
-    for fname in glfo_fasta_fnames(locus):
-        read_fasta_file(seqs, gldir + '/' + locus + '/' + fname, skip_pseudogenes)
+    for region in utils.getregions(locus):
+        read_fasta_file(seqs, get_fname(gldir, locus, region), skip_pseudogenes)
     if not utils.has_d_gene(locus):  # choose a sequence for the dummy d
         seqs['d'][dummy_d_genes[locus]] = 'A'  # this (arbitrary) choice is also made in packages/ham/src/bcrutils.cc
     return seqs
@@ -349,7 +360,7 @@ def remove_extraneouse_info(glfo, debug=False):
 def read_extra_info(glfo, gldir):
     for codon in utils.conserved_codons[glfo['locus']].values():
         glfo[codon + '-positions'] = {}
-    with open(gldir + '/' + glfo['locus'] + '/' + extra_fname) as csvfile:
+    with open(get_extra_fname(gldir, glfo['locus'])) as csvfile:
         reader = csv.DictReader(csvfile)
         for line in reader:
             for codon in utils.conserved_codons[glfo['locus']].values():
@@ -422,19 +433,18 @@ def get_mutfo_from_name(gene_name):
     return mutfo
 
 # ----------------------------------------------------------------------------------------
-def get_new_allele_name_and_change_mutfo(template_gene, mutfo):
-    if '+' in utils.allele(template_gene):  # template gene was already snp'd
-        old_mutfo = get_mutfo_from_name(template_gene)
-        for position, info in mutfo.items():
-            if position not in old_mutfo:
-                old_mutfo[position] = {}
-                old_mutfo[position]['original'] = info['original']  # if it *is* already there, we want to *keep* the old 'original'
-            old_mutfo[position]['new'] = info['new']
-            if old_mutfo[position]['new'] == old_mutfo[position]['original']:  # reverted back to the original base
+def get_new_allele_name_and_change_mutfo(template_gene, mutfo):  # convert snp info in <mutfo> to the snpd/inferred name (with '+'s and whatnot), accounting for <template_gene> being possibly already snpd/inferred
+    if '+' in utils.allele(template_gene):  # if template gene was itself snpd/inferred, we have to merge the old and new snpd positions
+        old_mutfo = get_mutfo_from_name(template_gene)  # start from the template gene's snpd positions
+        for position, posfo in mutfo.items():  # loop over the new gene's snpd positions
+            if position not in old_mutfo:  # ...adding the new positions that aren't already there
+                old_mutfo[position] = {'original' : posfo['original']}
+            old_mutfo[position]['new'] = posfo['new']
+            if old_mutfo[position]['new'] == old_mutfo[position]['original']:  # the new mutation reverted the position back to the original base
                 del old_mutfo[position]
         final_mutfo = old_mutfo
         assert len(template_gene.split('+')) == 2
-        template_gene = template_gene.split('+')[0]  # before we did any snp'ing
+        template_gene = template_gene.split('+')[0]  # original template name, before we did any snp'ing
     else:
         final_mutfo = mutfo
 
@@ -449,8 +459,8 @@ def generate_snpd_gene(gene, cpos, seq, positions):
     assert utils.get_region(gene) == 'v'  # others not yet handled
     def choose_position():
         snp_pos = None
-        while snp_pos is None or snp_pos in snpd_positions or not utils.codon_unmutated('cyst', tmpseq, cpos, debug=True):
-            snp_pos = random.randint(0, len(seq) - 1)  # note that randint() is inclusive
+        while snp_pos is None or snp_pos in snpd_positions or not utils.codon_unmutated('cyst', tmpseq, cpos):
+            snp_pos = random.randint(0, cpos - 1)  # len(seq) - 1)  # note that randint() is inclusive
             tmpseq = seq[: snp_pos] + 'X' + seq[snp_pos + 1 :]  # for checking cyst position
         return snp_pos
 
@@ -580,7 +590,7 @@ def add_some_snps(snps_to_add, glfo, remove_template_genes=False, debug=False):
     for isnp in range(len(snps_to_add)):
         snpinfo = snps_to_add[isnp]
         gene, positions = snpinfo['gene'], snpinfo['positions']
-        print '    adding %d %s to %s' % (len(positions), utils.plural_str('snp', len(positions)), gene)
+        print '    adding %d snp%s to %s' % (len(positions), utils.plural(len(positions)), utils.color_gene(gene))
         seq = glfo['seqs'][utils.get_region(gene)][gene]
         assert utils.get_region(gene) == 'v'
         cpos = glfo['cyst-positions'][gene]
@@ -612,15 +622,15 @@ def write_glfo(output_dir, glfo, only_genes=None, debug=False):
         remove_glfo_files(output_dir, glfo['locus'])  # also removes output_dir
     os.makedirs(output_dir + '/' + glfo['locus'])
 
-    for fname in glfo_fasta_fnames(glfo['locus']):
-        with open(output_dir + '/' + glfo['locus'] + '/' + fname, 'w') as outfile:
-            for gene in glfo['seqs'][utils.get_region(fname)]:
+    for region in utils.getregions(glfo['locus']):
+        with open(get_fname(output_dir, glfo['locus'], region), 'w') as outfile:
+            for gene in glfo['seqs'][region]:
                 if only_genes is not None and gene not in only_genes:
                     continue
                 outfile.write('>' + gene + '\n')
-                outfile.write(glfo['seqs'][utils.get_region(fname)][gene] + '\n')
+                outfile.write(glfo['seqs'][region][gene] + '\n')
 
-    with open(output_dir + '/' + glfo['locus'] + '/' + extra_fname, 'w') as csvfile:
+    with open(get_extra_fname(output_dir, glfo['locus']), 'w') as csvfile:
         writer = csv.DictWriter(csvfile, csv_headers)
         writer.writeheader()
         for region, codon in utils.conserved_codons[glfo['locus']].items():
@@ -631,7 +641,7 @@ def write_glfo(output_dir, glfo, only_genes=None, debug=False):
 
     # make sure there weren't any files lingering in the output dir when we started
     # NOTE this will ignore the dirs corresponding to any *other* loci (which is what we want now, I think)
-    unexpected_files = set(glob.glob(output_dir + '/' + glfo['locus'] + '/*')) - set([output_dir + '/' + glfo['locus'] + '/' + fn for fn in glfo_fnames(glfo['locus'])])
+    unexpected_files = set(glob.glob(output_dir + '/' + glfo['locus'] + '/*')) - set(glfo_fnames(output_dir, glfo['locus']))
     if len(unexpected_files) > 0:
         raise Exception('unexpected file(s) while writing germline set: %s' % (' '.join(unexpected_files)))
 
@@ -647,11 +657,11 @@ def remove_glfo_files(gldir, locus):
         if os.path.exists(gldir + '/' + locus[2]):  # presumably the link's target also exists and needs to be removed
             locusdir = gldir + '/' + locus[2]
             print '    note: also removing old germline dir name (i.e. link target) %s' % locusdir
-    for fname in glfo_fnames(locus):
-        if os.path.exists(locusdir + '/' + fname):
-            os.remove(locusdir + '/' + fname)
+    for fname in glfo_fnames(gldir, locus):
+        if os.path.exists(fname):
+            os.remove(fname)
         else:
-            print '    %s tried to remove non-existent glfo file %s' % (utils.color('yellow', 'warning'), locusdir + '/' + fname)
+            print '    %s tried to remove non-existent glfo file %s' % (utils.color('yellow', 'warning'), fname)
     os.rmdir(locusdir)
     if len(os.listdir(gldir)) == 0:  # if there aren't any other locus dirs in here, remove the parent dir as well
         os.rmdir(gldir)
@@ -662,7 +672,7 @@ def choose_some_alleles(region, genes_to_use, allelic_groups, n_alleles_per_gene
     # NOTE also modifies <allelic_groups>
 
     if len(allelic_groups[region]) == 0:
-        raise Exception('ran out of %s alleles (either --n-genes-per-region or --n-alleles-per-gene are probably too big)' % region)
+        raise Exception('ran out of %s alleles (either --n-genes-per-region or --n-alleles-per-gene are probably too big)' % region)  # note that we don't reuse pv/sv pairs (the idea being such a pair represents an actual gene), and we don't directly control how many alleles are chosen from each such pair, so there isn't really a way to make sure you get every single allele in the germline set.
 
     available_versions = None
     while available_versions is None or len(available_versions) == 0:
@@ -716,7 +726,7 @@ def read_allele_prevalence_freqs(fname, debug=False):
 # ----------------------------------------------------------------------------------------
 def choose_allele_prevalence_freqs(glfo, allele_prevalence_freqs, region, min_allele_prevalence_freq, debug=False):
     n_alleles = len(glfo['seqs'][region])
-    prevalence_counts = numpy.random.randint(1, int(1. / min_allele_prevalence_freq), size=n_alleles)  # ensures that each pair of alleles has a prevalence ratio between <min_allele_prevalence_freq> and 1. NOTE it's inclusive
+    prevalence_counts = numpy.random.randint(1, int(1. / min_allele_prevalence_freq), size=n_alleles)  # ensures that any two alleles have a prevalence ratio between <min_allele_prevalence_freq> and 1. NOTE it's inclusive
     prevalence_freqs = [float(c) / sum(prevalence_counts) for c in prevalence_counts]
     allele_prevalence_freqs[region] = {g : f for g, f in zip(glfo['seqs'][region].keys(), prevalence_freqs)}
     assert utils.is_normed(allele_prevalence_freqs[region])
@@ -726,11 +736,23 @@ def choose_allele_prevalence_freqs(glfo, allele_prevalence_freqs, region, min_al
         print '   min ratio %.3f' % (min(prevalence_freqs) / max(prevalence_freqs))
 
 # ----------------------------------------------------------------------------------------
-def generate_germline_set(glfo, n_genes_per_region, n_alleles_per_gene, min_allele_prevalence_freq, allele_prevalence_fname, debug=True):
+def process_parameter_strings(n_genes_per_region, n_alleles_per_gene):
+    n_genes_per_region = utils.get_arg_list(n_genes_per_region, intify=True)
+    if n_genes_per_region is not None:
+        n_genes_per_region = {r : n_genes_per_region[utils.regions.index(r)] for r in utils.regions}  # convert to dict for easier access
+    n_alleles_per_gene = utils.get_arg_list(n_alleles_per_gene)
+    if n_alleles_per_gene is not None:
+        assert len(n_alleles_per_gene) == len(utils.regions)
+        n_alleles_per_gene = {utils.regions[i] : [int(n) for n in n_alleles_per_gene[i].split(',')] for i in range(len(utils.regions))}
+    return n_genes_per_region, n_alleles_per_gene
+
+# ----------------------------------------------------------------------------------------
+def generate_germline_set(glfo, n_genes_per_region, n_alleles_per_gene, min_allele_prevalence_freq, allele_prevalence_fname, snp_positions=None, remove_template_genes=False, debug=True):
     """ NOTE removes genes from  <glfo> """
     if debug:
         print '    choosing germline set'
-    allelic_groups = utils.separate_into_allelic_groups(glfo)
+    n_genes_per_region, n_alleles_per_gene = process_parameter_strings(n_genes_per_region, n_alleles_per_gene)  # they're passed as strings into here, but we need 'em to be dicts
+    allelic_groups = utils.separate_into_allelic_groups(glfo)  # NOTE by design, these are not the same as the groups created by alleleremover
     allele_prevalence_freqs = {r : {} for r in utils.regions}
     for region in utils.regions:
         if debug:
@@ -741,6 +763,13 @@ def generate_germline_set(glfo, n_genes_per_region, n_alleles_per_gene, min_alle
         if debug:
             print '      chose %d alleles' % len(genes_to_use)
         remove_genes(glfo, set(glfo['seqs'][region].keys()) - genes_to_use)  # NOTE would use glutils.restrict_to_genes() but it isn't on a regional basis
+
+        if region == 'v' and snp_positions is not None:
+            assert len(snp_positions) <= len(glfo['seqs'][region])
+            snpd_genes = numpy.random.choice(glfo['seqs'][region].keys(), size=len(snp_positions))
+            snps_to_add = [{'gene' : snpd_genes[ig], 'positions' : snp_positions[ig]} for ig in range(len(snp_positions))]
+            _ = add_some_snps(snps_to_add, glfo, debug=True, remove_template_genes=remove_template_genes)
+
         choose_allele_prevalence_freqs(glfo, allele_prevalence_freqs, region, min_allele_prevalence_freq, debug=debug)
     write_allele_prevalence_freqs(allele_prevalence_freqs, allele_prevalence_fname)  # NOTE lumps all the regions together, unlike in the parameter dirs
 
@@ -758,7 +787,9 @@ def check_allele_prevalence_freqs(outfname, glfo, allele_prevalence_fname, only_
         if only_region is not None and region != only_region:
             continue
         total = sum(counts[region].values())
-        print '       %s   obs / tot  =  freq    expected' % region
+        width = str(max(3, len(str(max(counts[region].values())))))
+        print '       %s  (%d total)' % (region, total)
+        print ('           %' + width + 's    freq    expected') % 'obs'
         for gene in glfo['seqs'][region]:
-            print '          %4d / %-4d = %.3f    %.3f   %s' % (counts[region][gene], total, float(counts[region][gene]) / total, allele_prevalence_freqs[region][gene], utils.color_gene(gene, width=15))
+            print ('          %' + width + 'd     %.3f    %.3f   %s') % (counts[region][gene], float(counts[region][gene]) / total, allele_prevalence_freqs[region][gene], utils.color_gene(gene, width=15))
 

@@ -94,7 +94,7 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, s
     if not is_data and glfo is None:
         print '  WARNING glfo is None, so not adding implicit info'
 
-    suffix = os.path.splitext(infname)[1]
+    suffix = utils.getsuffix(infname)
     if len(re.findall('\.[ct]sv', suffix)) > 0:
         if suffix == '.csv':
             delimiter = ','
@@ -147,6 +147,14 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, s
         if len(line['unique_ids']) > 1:
             raise Exception('can\'t yet handle multi-seq csv input files')
         uid = line['unique_ids'][0]
+        if uid in input_info:
+            new_uid = uid
+            iid = 2
+            while new_uid in input_info:
+                new_uid = uid + '-' + str(iid)
+                iid += 1
+            print '  %s uid %s already read from input file %s, so replacing with new uid %s' % (utils.color('yellow', 'warning'), uid, infname, new_uid)
+            uid = new_uid
         inseq = line['input_seqs'][0]
 
         # # it would be nice to check here for forbidden characters (in addition to in the .fa code above), but it's hard because we won't have read the csv properly above it has them

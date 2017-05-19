@@ -9,9 +9,19 @@ import math
 import glob
 from collections import OrderedDict
 import csv
-from subprocess import check_call, check_output, CalledProcessError, Popen
+import subprocess
 import multiprocessing
 import copy
+
+
+# ----------------------------------------------------------------------------------------
+def fsdir():
+    fsdir = '/fh/fast/matsen_e'
+    if not os.path.exists(fsdir):
+        fsdir = '/tmp'
+    if os.getenv('USER') is not None:
+        fsdir += '/' + os.getenv('USER')
+    return fsdir
 
 # ----------------------------------------------------------------------------------------
 # putting these up here so glutils import doesn't fail... I think I should be able to do it another way, though
@@ -293,8 +303,12 @@ def synthesize_single_seq_line(line, iseq):
     return singlefo
 
 # ----------------------------------------------------------------------------------------
-def synthesize_multi_seq_line(uids, reco_info):  # only use when ascii-art printing simulation events
-    """ assumes you already added all the implicit info """
+def synthesize_multi_seq_line(uids, multifo):  # assumes you already added all the implicit info
+    reco_info = {multifo['unique_ids'][iseq] : synthesize_single_seq_line(multifo, iseq) for iseq in range(len(multifo['unique_ids']))}
+    return synthesize_multi_seq_line_from_reco_info(uids, reco_info)
+
+# ----------------------------------------------------------------------------------------
+def synthesize_multi_seq_line_from_reco_info(uids, reco_info):  # assumes you already added all the implicit info
     assert len(uids) > 0
     multifo = copy.deepcopy(reco_info[uids[0]])
     for col in [c for c in linekeys['per_seq'] if c in multifo]:
@@ -513,7 +527,7 @@ def color_chars(chars, col, seq):
     return ''.join(return_str)
 
 # ----------------------------------------------------------------------------------------
-def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', post_str='', print_hfrac=False, print_isnps=False, emphasis_positions=None):
+def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', post_str='', print_hfrac=False, print_isnps=False, return_isnps=False, emphasis_positions=None):
     """ default: return <seq> string with colored mutations with respect to <ref_seq> """
     if len(ref_seq) != len(seq):
         raise Exception('unequal lengths in color_mutants()\n    %s\n    %s' % (ref_seq, seq))
@@ -539,7 +553,10 @@ def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', 
     if print_result:
         print '%s%s%s' % (extra_str, ref_label, ref_seq)
         print return_str
-    return return_str
+    if return_isnps:
+        return return_str, isnps
+    else:
+        return return_str
 
 # ----------------------------------------------------------------------------------------
 def plural_str(pstr, count):
@@ -977,7 +994,7 @@ def print_true_events(glfo, reco_info, line, print_naive_seqs=False, extra_str='
     """ print the true events which contain the seqs in <line> """
     true_naive_seqs = []
     for uids in get_true_partition(reco_info, ids=line['unique_ids']):  # make a multi-seq line that has all the seqs from this clonal family
-        multiline = synthesize_multi_seq_line(uids, reco_info)
+        multiline = synthesize_multi_seq_line_from_reco_info(uids, reco_info)
         print_reco_event(multiline, extra_str=extra_str, label=color('green', 'true:'))
         true_naive_seqs.append(multiline['naive_seq'])
 
@@ -1010,7 +1027,7 @@ def get_locus(inputstr):
     """ return locus given gene or gl fname """
     locus = inputstr[:3].lower()  # only need the .lower() if it's a gene name
     if locus not in loci:
-        raise Exception('couldn\'t get locus from input string %s' % inputstr)
+        raise Exception('couldn\'t get locus from input string \'%s\'' % inputstr)
     return locus
 
 # ----------------------------------------------------------------------------------------
@@ -1018,7 +1035,7 @@ def get_region(inputstr):
     """ return v, d, or j of gene or gl fname """
     region = inputstr[3].lower()  # only need the .lower() if it's a gene name
     if region not in regions:
-        raise Exception('couldn\'t get region from input string %s' % inputstr)
+        raise Exception('couldn\'t get region from input string \'%s\'' % inputstr)
     return region
 
 # ----------------------------------------------------------------------------------------
@@ -1084,10 +1101,13 @@ def are_same_primary_version(gene1, gene2):
 
 # ----------------------------------------------------------------------------------------
 def separate_into_allelic_groups(glfo, debug=False):
+    print '%s removing \'D\' alleles' % color('red', 'note')
     allelic_groups = {r : {} for r in regions}
     for region in regions:
         for gene in glfo['seqs'][region]:
             primary_version, sub_version, allele = split_gene(gene)
+            if region == 'v' and sub_version[-1] == 'D':
+                continue
             if primary_version not in allelic_groups[region]:
                 allelic_groups[region][primary_version] = {}
             if sub_version not in allelic_groups[region][primary_version]:
@@ -1100,7 +1120,36 @@ def separate_into_allelic_groups(glfo, debug=False):
                 print '    %15s' % p
                 for s in allelic_groups[r][p]:
                     print '        %15s      %s' % (s, ' '.join([color_gene(g, width=12) for g in allelic_groups[r][p][s]]))
-    return allelic_groups
+    return allelic_groups  # NOTE doesn't return the same thing as separate_into_snp_groups()
+
+
+# ----------------------------------------------------------------------------------------
+def separate_into_snp_groups(glfo, region, n_max_snps, genelist=None):
+    """ where each class contains all alleles with the same distance from start to cyst, and within a hamming distance of <n_max_snps> """
+    if genelist is None:
+        genelist = glfo['seqs'][region].keys()
+    assert region == 'v'  # would need to change the up-to-cpos requirement if it isn't v
+    snp_groups = []
+    for gene in genelist:
+        cpos = glfo[conserved_codons[glfo['locus']][region] + '-positions'][gene]
+        seq = glfo['seqs'][region][gene][:cpos + 3]  # only go up through the end of the cysteine
+        add_new_class = True  # to begin with, assume we'll add a new class for this gene
+        for gclass in snp_groups:  # then check if, instead, this gene belongs in any of the existing classes
+            for gfo in gclass:
+                if len(gfo['seq']) != len(seq):  # everybody in the class has to have the same distance from start of V (rss, I think) to end of cysteine
+                    continue
+                hdist = hamming_distance(gfo['seq'], seq)
+                if hdist < n_max_snps - 2:  # if this gene is close to any gene in the class, add it to this class
+                    add_new_class = False
+                    snp_groups[snp_groups.index(gclass)].append({'gene' : gene, 'seq' : seq})
+                    break
+            if not add_new_class:
+                break
+
+        if add_new_class:
+            snp_groups.append([{'gene' : gene, 'seq' : seq}, ])
+
+    return snp_groups  # NOTE this is a list of lists of dicts, whereas separate_into_allelic_groups() returns a dict of region-keyed dicts
 
 # ----------------------------------------------------------------------------------------
 def read_single_gene_count(indir, gene, expect_zero_counts=False, debug=False):
@@ -1320,7 +1369,7 @@ def prep_dir(dirname, wildlings=None, subdirs=None, fname=None, allow_other_file
     Make <dirname> if it d.n.e.
     Also, if shell glob <wildling> is specified, remove existing files which are thereby matched.
     """
-    if fname is not None:
+    if fname is not None:  # passed in a file name, and we want to prep the file's dir
         assert dirname is None
         dirname = os.path.dirname(fname)
         if dirname == '' or dirname[0] != '/':
@@ -1342,7 +1391,7 @@ def prep_dir(dirname, wildlings=None, subdirs=None, fname=None, allow_other_file
                     os.remove(fname)
                 else:
                     print '%s file %s exists but then it doesn\'t' % (color('red', 'wtf'), fname)
-        remaining_files = [fn for fn in os.listdir(dirname) if subdirs is not None and fn not in subdirs]
+        remaining_files = [fn for fn in os.listdir(dirname) if subdirs is None or fn not in subdirs]  # allow subdirs to still be present
         if len(remaining_files) > 0 and not allow_other_files:  # make sure there's no other files in the dir
             raise Exception('files (%s) remain in %s despite wildlings %s' % (' '.join(['\'' + fn + '\'' for fn in remaining_files]), dirname, wildlings))
     else:
@@ -1582,7 +1631,7 @@ def get_available_node_core_list(batch_config_fname, debug=False):
 
     # then info on all current allocations
     quefo = {}  # node : (number of tasks allocated to that node, including ours)
-    squeue_str = check_output(['squeue', '--format', '%.18i %.2t %.6D %R'])
+    squeue_str = subprocess.check_output(['squeue', '--format', '%.18i %.2t %.6D %R'])
     headers = ['JOBID', 'ST',  'NODES', 'NODELIST(REASON)']
     for line in squeue_str.split('\n'):
         linefo = line.strip().split()
@@ -1635,7 +1684,7 @@ def get_available_node_core_list(batch_config_fname, debug=False):
     return corelist
 
 # ----------------------------------------------------------------------------------------
-def prepare_cmds(cmdfos, batch_system, batch_options, batch_config_fname, debug=False):
+def prepare_cmds(cmdfos, batch_system=None, batch_options=None, batch_config_fname=None, debug=False):
     # set cmdfo defaults
     for iproc in range(len(cmdfos)):
         if 'logdir' not in cmdfos[iproc]:  # if logdirs aren't specified, then log files go in the workdirs
@@ -1670,6 +1719,18 @@ def prepare_cmds(cmdfos, batch_system, batch_options, batch_config_fname, debug=
     return corelist
 
 # ----------------------------------------------------------------------------------------
+def simplerun(cmd_str, shell=False, dryrun=False, print_time=None):
+    print '%s %s' % (color('red', 'run'), cmd_str)
+    sys.stdout.flush()
+    if dryrun:
+        return
+    if print_time is not None:
+        start = time.time()
+    subprocess.check_call(cmd_str if shell else cmd_str.split(), env=os.environ, shell=shell)
+    if print_time is not None:
+        print '      %s time: %.1f' % (print_time, time.time() - start)
+
+# ----------------------------------------------------------------------------------------
 def run_cmd(cmdfo, batch_system=None, batch_options=None, nodelist=None):
     cmd_str = cmdfo['cmd_str']  # don't want to modify the str in <cmdfo>
     # print cmd_str
@@ -1700,14 +1761,14 @@ def run_cmd(cmdfo, batch_system=None, batch_options=None, nodelist=None):
         os.makedirs(cmdfo['logdir'])
 
     # print cmd_str
-    proc = Popen(cmd_str.split(),
-                 stdout=None if fout is None else open(fout, 'w'),
-                 stderr=None if ferr is None else open(ferr, 'w'),
-                 env=cmdfo['env'])
+    proc = subprocess.Popen(cmd_str.split(),
+                            stdout=None if fout is None else open(fout, 'w'),
+                            stderr=None if ferr is None else open(ferr, 'w'),
+                            env=cmdfo['env'])
     return proc
 
 # ----------------------------------------------------------------------------------------
-def run_cmds(cmdfos, sleep=True, batch_system=None, batch_options=None, batch_config_fname=None, debug=None):  # set sleep to False if your commands are going to run really really really quickly
+def run_cmds(cmdfos, sleep=True, batch_system=None, batch_options=None, batch_config_fname=None, debug=None, ignore_stderr=False):  # set sleep to False if your commands are going to run really really really quickly
     corelist = prepare_cmds(cmdfos, batch_system=batch_system, batch_options=batch_options, batch_config_fname=batch_config_fname)
     procs, n_tries = [], []
     per_proc_sleep_time = 0.01 / len(cmdfos)
@@ -1721,7 +1782,7 @@ def run_cmds(cmdfos, sleep=True, batch_system=None, batch_options=None, batch_co
             if procs[iproc] is None:  # already finished
                 continue
             if procs[iproc].poll() is not None:  # it just finished
-                finish_process(iproc, procs, n_tries, cmdfos[iproc], dbgfo=cmdfos[iproc]['dbgfo'], batch_system=batch_system, batch_options=batch_options, debug=debug)
+                finish_process(iproc, procs, n_tries, cmdfos[iproc], dbgfo=cmdfos[iproc]['dbgfo'], batch_system=batch_system, batch_options=batch_options, debug=debug, ignore_stderr=ignore_stderr)
         sys.stdout.flush()
         if sleep:
             time.sleep(per_proc_sleep_time)
@@ -1733,14 +1794,14 @@ def pad_lines(linestr, padwidth=8):
 
 # ----------------------------------------------------------------------------------------
 # deal with a process once it's finished (i.e. check if it failed, and restart if so)
-def finish_process(iproc, procs, n_tries, cmdfo, dbgfo=None, batch_system=None, batch_options=None, debug=None):
+def finish_process(iproc, procs, n_tries, cmdfo, dbgfo=None, batch_system=None, batch_options=None, debug=None, ignore_stderr=False):
     procs[iproc].communicate()
     if procs[iproc].returncode == 0:
         if not os.path.exists(cmdfo['outfname']):
             print '      proc %d succeded but its output isn\'t there, so sleeping for a bit...' % iproc
             time.sleep(0.5)
         if os.path.exists(cmdfo['outfname']):
-            process_out_err(extra_str='' if len(procs) == 1 else str(iproc), dbgfo=dbgfo, logdir=cmdfo['logdir'], debug=debug)
+            process_out_err(extra_str='' if len(procs) == 1 else str(iproc), dbgfo=dbgfo, logdir=cmdfo['logdir'], debug=debug, ignore_stderr=ignore_stderr)
             procs[iproc] = None  # job succeeded
             return
 
@@ -1757,15 +1818,15 @@ def finish_process(iproc, procs, n_tries, cmdfo, dbgfo=None, batch_system=None, 
             print 'failed with %d (output %s)' % (procs[iproc].returncode, 'exists' if os.path.exists(cmdfo['outfname']) else 'is missing')
         for strtype in ['out', 'err']:
             if os.path.exists(cmdfo['logdir'] + '/' + strtype) and os.stat(cmdfo['logdir'] + '/' + strtype).st_size > 0:
-                print '        %s tail:' % strtype
-                logstr = check_output(['tail', cmdfo['logdir'] + '/' + strtype])
+                print '        %s tail:           (%s)' % (strtype, cmdfo['logdir'] + '/' + strtype)
+                logstr = subprocess.check_output(['tail', '-n30', cmdfo['logdir'] + '/' + strtype])
                 print '\n'.join(['            ' + l for l in logstr.split('\n')])
         print '    restarting proc %d' % iproc
         procs[iproc] = run_cmd(cmdfo, batch_system=batch_system, batch_options=batch_options)
         n_tries[iproc] += 1
 
 # ----------------------------------------------------------------------------------------
-def process_out_err(extra_str='', dbgfo=None, logdir=None, debug=None):
+def process_out_err(extra_str='', dbgfo=None, logdir=None, debug=None, ignore_stderr=False):
     """ NOTE something in this chain seems to block or truncate or some such nonsense if you make it too big """
     out, err = '', ''
     if logdir is not None:
@@ -1815,7 +1876,7 @@ def process_out_err(extra_str='', dbgfo=None, logdir=None, debug=None):
                     dbgfo[header][var] = float(words[words.index(var) + 1])
 
     if debug is None:
-        if err_str != '':
+        if not ignore_stderr and err_str != '':
             print err_str
     elif err_str + out != '':
         if debug == 'print':
@@ -2276,14 +2337,29 @@ def get_codon_positions_with_indels_reinstated(line, iseq, codon_positions):
     return reinstated_codon_positions
 
 # ----------------------------------------------------------------------------------------
-def csv_to_fasta(infname, outfname=None, name_column='unique_ids', seq_column='input_seqs', n_max_lines=None):
+def csv_to_fasta(infname, outfname=None, name_column='unique_ids', seq_column='input_seqs', n_max_lines=None, overwrite=True, remove_duplicates=False):
+    def get_column_names(line):
+        if 'name' in line:
+            name_column = 'name'
+            seq_column = 'nucleotide'
+        elif 'unique_id' in line:
+            name_column = 'unique_id'
+            seq_column = 'seq'
+        else:
+            raise Exception('specified <name_column> \'%s\' and backup \'name\' not in line: %s' % (name_column, line.keys()))
+        return name_column, seq_column
+
     if not os.path.exists(infname):
         raise Exception('input file %s d.n.e.' % infname)
     if outfname is None:
         assert '.csv' in infname
         outfname = infname.replace('.csv', '.fa')
     if os.path.exists(outfname):
-        print '  csv --> fasta: overwriting %s' % outfname
+        if overwrite:
+            print '  csv --> fasta: overwriting %s' % outfname
+        else:
+            print '  csv --> fasta: leaving existing outfile %s' % outfname
+            return
 
     if '.csv' in infname:
         delimiter = ','
@@ -2292,20 +2368,19 @@ def csv_to_fasta(infname, outfname=None, name_column='unique_ids', seq_column='i
     else:
         assert False
 
+    uid_set = set()
     with open(infname) as infile:
         reader = csv.DictReader(infile, delimiter=delimiter)
         with open(outfname, 'w') as outfile:
             n_lines = 0
             for line in reader:
                 if name_column not in line:
-                    if 'name' in line:
-                        name_column = 'name'
-                        seq_column = 'nucleotide'
-                    elif 'unique_id' in line:
-                        name_column = 'unique_id'
-                        seq_column = 'seq'
-                    else:
-                        raise Exception('specified <name_column> \'%s\' and backup \'name\' not in line: %s' % (name_column, line.keys()))
+                    name_column, seq_column = get_column_names(line)
+                if remove_duplicates:
+                    if line[name_column] in uid_set:
+                        print '    csv --> fasta: skipping duplicate id %s' % line[name_column]
+                        continue
+                    uid_set.add(line[name_column])
                 n_lines += 1
                 if n_max_lines is not None and n_lines > n_max_lines:
                     break
@@ -2333,9 +2408,9 @@ def auto_slurm(n_procs):
     def slurm_exists():
         try:
             fnull = open(os.devnull, 'w')
-            check_output(['which', 'srun'], stderr=fnull, close_fds=True)
+            subprocess.check_output(['which', 'srun'], stderr=fnull, close_fds=True)
             return True
-        except CalledProcessError:
+        except subprocess.CalledProcessError:
             return False
 
     ncpu = multiprocessing.cpu_count()
@@ -2519,7 +2594,7 @@ def collapse_naive_seqs(naive_seq_list, sw_info):  # NOTE there is also a (simpl
 
 # ----------------------------------------------------------------------------------------
 def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, sanitize=False, queries=None, n_max_queries=-1, istartstop=None):  # Bio.SeqIO takes too goddamn long to import
-    suffix = os.path.splitext(fname)[1]
+    suffix = getsuffix(fname)
     if suffix == '.fa' or suffix == '.fasta':
         ftype = 'fa'
     elif suffix == '.fq' or suffix == '.fastq':
@@ -2606,3 +2681,35 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, sanitize=Fa
                 break
 
     return finfo
+
+# ----------------------------------------------------------------------------------------
+def output_exists(args, outfname):
+    if os.path.exists(outfname):
+        if os.stat(outfname).st_size == 0:
+            print '                      deleting zero length %s' % outfname
+            os.remove(outfname)
+            return False
+        elif args.overwrite:
+            print '                      overwriting %s' % outfname
+            if os.path.isdir(outfname):
+                raise Exception('output %s is a directory, rm it by hand' % outfname)
+            else:
+                os.remove(outfname)
+            return False
+        else:
+            print '                      output exists, skipping (%s)' % outfname
+            return True
+    else:
+        return False
+
+# ----------------------------------------------------------------------------------------
+def getprefix(fname):  # basename before the dot
+    if len(os.path.splitext(fname)) != 2:
+        raise Exception('couldn\'t split %s into two pieces using dot' % fname)
+    return os.path.splitext(fname)[0]
+
+# ----------------------------------------------------------------------------------------
+def getsuffix(fname):  # basename before the dot
+    if len(os.path.splitext(fname)) != 2:
+        raise Exception('couldn\'t split %s into two pieces using dot' % fname)
+    return os.path.splitext(fname)[1]

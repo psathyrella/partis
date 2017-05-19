@@ -51,11 +51,11 @@ class AlleleFinder(object):
         self.n_muted_min_per_bin = 8  # <istart>th bin has to have at least this many mutated sequences (i.e. 2-3 sigma from zero)
         self.min_fraction_per_bin = 0.005  # require that every bin (i.e. n_muted) from 0 through <self.args.max_n_snps> has at least 1% of the total (unless overridden)
 
-        self.min_min_candidate_ratio = 2.25  # every candidate ratio must be greater than this
+        self.min_min_candidate_ratio = 2.75  # every candidate ratio must be greater than this
         self.min_mean_candidate_ratio = 2.75  # mean of candidate ratios must be greater than this
         self.min_bad_fit_residual = 1.8
         self.max_good_fit_residual = 4.5  # this value hasn't gone through a huge amount of testing -- we might be able to get away with having it a good bit smaller than this
-        self.max_consistent_candidate_fit_sigma = 4.
+        self.max_consistent_candidate_fit_sigma = 5.
 
         self.min_min_candidate_ratio_to_plot = 1.5  # don't plot positions that're below this (for all <istart>)
 
@@ -466,14 +466,14 @@ class AlleleFinder(object):
             return False
 
         # make sure all the snp positions have similar fits (the bin totals for all snp positions should be highly correlated, since they should ~all be present in ~all sequences [that stem from the new allele])
-        # NOTE that with multiple multi-snp new alleles that share some, but not all, positions, we don't expect consistency. This is rare enough, though, that it's probably better to require the consistency. They'll still show up in the dbg printing.
+        # NOTE that with multiple multi-snp new alleles that share some, but not all, positions, we don't expect consistency. In particular, at shared positions, the nsnp bin for the other allele will be high, and the prevalence will be off.
         for pos_1, pos_2 in itertools.combinations(fitfo['candidates'][istart], 2):
             fitfo_1, fitfo_2 = self.fitfos[gene]['fitfos'][istart][pos_1], self.fitfos[gene]['fitfos'][istart][pos_2]
-            if not self.consistent_slope_and_y_icpt(self.max_consistent_candidate_fit_sigma, fitfo_1['postfo'], fitfo_2['postfo']):  # NOTE this has to be very permissive, since with multiple new alleles at the same position the y-icpt (at least) is expected to be quite different
+            if not self.consistent_slope_and_y_icpt(self.max_consistent_candidate_fit_sigma, fitfo_1['postfo'], fitfo_2['postfo']):
                 if debug:
                     print '    positions %d and %d have inconsistent post-istart fits' % (pos_1, pos_2)
                 return False
-            if istart >= self.hard_code_two and not self.consistent_slope_and_y_icpt(self.max_consistent_candidate_fit_sigma, fitfo_1['prefo'], fitfo_2['prefo']):
+            if istart > self.hard_code_three and not self.consistent_slope_and_y_icpt(self.max_consistent_candidate_fit_sigma, fitfo_1['prefo'], fitfo_2['prefo']):  # if this nsnp is less than 3, and there's a second new allele with smaller nsnp, the pre-fit will be super inconsistent
                 if debug:
                     print '    positions %d and %d have inconsistent pre-istart fits' % (pos_1, pos_2)
                 return False
@@ -496,34 +496,38 @@ class AlleleFinder(object):
     # ----------------------------------------------------------------------------------------
     def approx_fit_vals(self, pvals, fixed_y_icpt=None, debug=False):
         # NOTE uncertainties are kinda complicated if you do the weighted mean, so screw it, it works fine with the plain mean
-        fitfo = self.default_fitfo()
 
-        def getslope(i1, i2, shift=False):
+        def getslope(i1, i2, shift=False):  # return two-point slope between indices i1 and i2 (if <shift>, we replace <yv> with a vector in which each value is shifted alternately up or down by its uncertainty)
             if not shift:
                 tmp_y = yv
             else:
-                tmp_y = [yv[i] + (-1) ** (i%2) * ev[i] for i in range(len(yv))]  # shift alternately up or down by the uncertainty
+                tmp_y = [yv[i] + (-1) ** (i%2) * ev[i] for i in range(len(yv))]  # alternately shifted up/down
             return (tmp_y[i2] - tmp_y[i1]) / (xv[i2] - xv[i1])
 
+        fitfo = self.default_fitfo()
+        if fixed_y_icpt is not None:
+            fitfo['y_icpt'] = fixed_y_icpt
         xv, yv, ev = pvals['n_mutelist'], pvals['freqs'], pvals['errs']  # tmp shorthand
+
+        # if we were only given one point, return the defualt fitfo, possibly setting the slope based on treating the fixed y-icpt as an additional point
         assert len(xv) > 0
         if len(xv) == 1:
-            if fixed_y_icpt is None:
-                return fitfo  # just leave the default values
-                # raise Exception('can\'t handle single point with floating y-icpt')
-            if xv[0] > 0.:  # <xv[0]> can't be able to be negative, but if it's zero, then the fit values aren't well-defined
+            if fixed_y_icpt is not None and xv[0] > 0.:  # <xv[0]> can't be able to be negative, but if it's zero, then the fit values aren't well-defined
                 fitfo['slope'] = (yv[0] - fixed_y_icpt) / (xv[0] - 0.)
-        else:
-            slopes = [getslope(i-1, i) for i in range(1, len(xv))]  # only uses adjacent points, and double-counts interior points, but we don't care (we don't use steps of two, because then we'd the last one if it's odd-length)
-            if len(xv) == 2:  # add two points, shifting each direction by each point's uncertainty
-                slopes.append(getslope(0, 1, shift=True))
-            fitfo['slope'] = numpy.average(slopes)
-            var_err = numpy.std(slopes, ddof=1) / math.sqrt(len(xv))  # error based on variance
-            if self.cov_err_ok(var_err, ev):
-                fitfo['slope_err'] = var_err
-            else:
-                fitfo['slope_err'] = self.hack_err('slope', ev, xv)
+            return fitfo
 
+        # first set slope and slope error
+        slopes = [getslope(i-1, i) for i in range(1, len(xv))]  # only uses adjacent points, and double-counts interior points, but we don't care (we don't use steps of two, because then we'd lose the last one if it's odd-length)
+        if len(xv) == 2:  # add a slope for an additional, hypothetical, pair of points, obtained by shifting one point each direction by its uncertainty
+            slopes.append(getslope(0, 1, shift=True))
+        fitfo['slope'] = numpy.average(slopes)
+        var_err = numpy.std(slopes, ddof=1) / math.sqrt(len(xv))  # error based on variance
+        if self.cov_err_ok(var_err, ev):
+            fitfo['slope_err'] = var_err
+        else:
+            fitfo['slope_err'] = self.hack_err('slope', ev, xv)
+
+        # then (if necessary) set y-icpt and its error
         if fixed_y_icpt is None:
             y_icpts = [yv[i] - getslope(i-1, i) * xv[i] for i in range(1, len(xv))]
             fitfo['y_icpt'] = numpy.average(y_icpts)
@@ -534,8 +538,6 @@ class AlleleFinder(object):
                 fitfo['y_icpt_err'] = var_err
             else:
                 fitfo['y_icpt_err'] = self.hack_err('y_icpt', ev, xv)
-        else:
-            fitfo['y_icpt'] = fixed_y_icpt
 
         if debug:
             print self.dbgstr(fitfo, extra_str='apr', pvals=pvals)
@@ -583,18 +585,25 @@ class AlleleFinder(object):
 
     # ----------------------------------------------------------------------------------------
     def very_different_bin_totals(self, pvals, istart, debug=False):
-        # i.e. if there's a homozygous new allele at <istart> + 1
-        factor = 2.  # i.e. check everything that's more than <factor> sigma away UPDATE this will have to change -- totals per bin vary too much
-        joint_total_err = max(math.sqrt(pvals['total'][istart - 1]), math.sqrt(pvals['total'][istart]))
+        # i.e. if there's a homozygous new allele at <istart> + 1  UPDATE wait, why +1?
+        factor = 3.5  # i.e. check everything that's more than <factor> sigma away
         last_total = pvals['total'][istart - 1]
         istart_total = pvals['total'][istart]
+        joint_total_err = max(math.sqrt(last_total), math.sqrt(istart_total))
         if debug:
             print '    different bin totals: %.0f - %.0f = %.0f ?> %.1f * %5.3f = %5.3f'  % (istart_total, last_total, istart_total - last_total, factor, joint_total_err, factor * joint_total_err)
         return istart_total - last_total > factor * joint_total_err  # it the total (denominator) is very different between the two bins
 
     # ----------------------------------------------------------------------------------------
     def big_discontinuity(self, pvals, istart, debug=False):  # NOTE same as very_different_bin_totals(), except for freqs rather than totals
-        factor = 2.  # i.e. check everything that's more than <factor> sigma away (where "check" means actually do the fits, as long as it passes all the other prefiltering steps)
+        # (note that the size of the discontinuity tells us about the allele prevalence -- [ie].[eg]. we can be quite confident of a new allele with a small absolute discontinuity)
+        if pvals['total'][istart] < 4:  # if there's nothing in this bin, there's certainly not a new allele (although, note, this should have already been checked for)
+            return False
+
+        if pvals['total'][istart - 1] < 5:  # if there's hardly any entries in the previous bin (i.e. presumably a homozygous new allele) then just use bin totals
+            return self.very_different_bin_totals(pvals, istart)
+
+        factor = 2.5  # i.e. check everything that's more than <factor> sigma away (where "check" means actually do the fits, as long as it passes all the other prefiltering steps)
         joint_freq_err = max(pvals['errs'][istart - 1], pvals['errs'][istart])
         last_freq = pvals['freqs'][istart - 1]
         istart_freq = pvals['freqs'][istart]
@@ -624,8 +633,8 @@ class AlleleFinder(object):
             if sum(postvals['obs']) < self.n_muted_min or sum(postvals['total']) < self.n_total_min:
                 continue
 
-            # if the discontinuity is less than <factor> sigma, and the bin totals are closer than <factor> sigma, skip it (note that the size of the discontinuity tells us about the allele prevalence -- [ie].[eg]. we can be quite confident of a new allele with a small absolute discontinuity)
-            if not self.big_discontinuity(bothvals, istart) and not self.very_different_bin_totals(bothvals, istart):
+            # skip if the discontinuity is less than <factor> sigma, or if hardly any entries at i-1 and the bin totals are closer than <factor> sigma (not actualy OR, but basically)
+            if not self.big_discontinuity(bothvals, istart):
                 continue
 
             if istart <= self.hard_code_three:
@@ -639,14 +648,14 @@ class AlleleFinder(object):
                     continue
 
             # if there's only two points in <prevals>, we can't use the bad fit there to tell us this isn't a candidate, so we check and skip if the <istart - 1>th freq isn't really low
-            if istart == 2 and bothvals['freqs'][istart - 1] > big_y_icpt - 1.5 * big_y_icpt_err:
+            if istart == 2 and bothvals['freqs'][istart - 1] > big_y_icpt - 1.5 * big_y_icpt_err:  # TODO wait isn't this the same as lower bound?
                 continue
 
             # approximate pre-slope should be smaller than approximate post-slope (for smaller <istart>s, post-slope tends to be flat, so you can't require this)
             if istart >= self.hard_code_five:
                 pre_approx = self.approx_fit_vals(prevals)
                 post_approx = self.approx_fit_vals(postvals)
-                if pre_approx['slope'] > post_approx['slope']:  #  or self.consistent_slope_and_y_icpt(pre_approx, post_approx):  # UPDATE really don't want to require inconsistent slope and y-icpt
+                if pre_approx['slope'] > post_approx['slope']:
                     continue
 
             onefit = self.get_curvefit(bothvals, y_icpt_bounds=(0., 0.), debug=dbg)
@@ -711,6 +720,14 @@ class AlleleFinder(object):
 
     # ----------------------------------------------------------------------------------------
     def see_if_new_allele_is_in_default_initial_glfo(self, new_name, new_seq, template_gene, debug=False):
+        def print_sequence_chunks(seq, cpos, name):
+            print '            %s%s%s%s%s   %s' % (utils.color('blue', seq[:self.n_bases_to_exclude['5p'][template_gene]]),
+                                                   seq[self.n_bases_to_exclude['5p'][template_gene] : cpos],
+                                                   utils.color('reverse_video', seq[cpos : cpos + 3]),
+                                                   seq[cpos + 3 : cpos + 3 + bases_to_right_of_cysteine],
+                                                   utils.color('blue', seq[cpos + 3 + bases_to_right_of_cysteine:]),
+                                                   utils.color_gene(name))
+
         if new_name in self.default_initial_glfo['seqs'][self.region]:  # if we removed an existing allele and then re-added it, it'll already be in the default glfo, so there's nothing for us to do in this fcn
             return new_name, new_seq
         assert self.region == 'v'  # conserved codon stuff below will have to be changed for j
@@ -718,7 +735,7 @@ class AlleleFinder(object):
         for oldname_gene, oldname_seq in self.default_initial_glfo['seqs'][self.region].items():  # NOTE <oldname_{gene,seq}> is the old *name* corresponding to the new (snp'd) allele, whereas <old_seq> is the allele from which we inferred the new (snp'd) allele
             # first see if they match up through the cysteine
             oldpos = self.default_initial_glfo[utils.conserved_codons[self.glfo['locus']][self.region] + '-positions'][oldname_gene]
-            if oldname_seq[self.n_bases_to_exclude['5p'][template_gene] : oldpos + 3] != new_seq[self.n_bases_to_exclude['5p'][template_gene] : newpos + 3]:  # uh, I think we want to use the ones for the template gene
+            if oldname_seq[self.n_bases_to_exclude['5p'][template_gene] : oldpos + 3] != new_seq[self.n_bases_to_exclude['5p'][template_gene] : newpos + 3]:  # uh, I think we want to use the 5p exclusions for the template gene
                 continue
 
             # then require that any bases in common to the right of the cysteine in the new allele match the ones in the old one (where "in common" means either of them can be longer, since this just changes the insertion length)
@@ -728,13 +745,6 @@ class AlleleFinder(object):
                 continue
 
             print '        using old name %s for new allele %s (blue bases are not considered):' % (utils.color_gene(oldname_gene), utils.color_gene(new_name))
-            def print_sequence_chunks(seq, cpos, name):
-                print '            %s%s%s%s%s   %s' % (utils.color('blue', seq[:self.n_bases_to_exclude['5p'][template_gene]]),
-                                                       seq[self.n_bases_to_exclude['5p'][template_gene] : cpos],
-                                                       utils.color('reverse_video', seq[cpos : cpos + 3]),
-                                                       seq[cpos + 3 : cpos + 3 + bases_to_right_of_cysteine],
-                                                       utils.color('blue', seq[cpos + 3 + bases_to_right_of_cysteine:]),
-                                                       utils.color_gene(name))
             print_sequence_chunks(oldname_seq, oldpos, oldname_gene)
             print_sequence_chunks(new_seq, newpos, new_name)
 

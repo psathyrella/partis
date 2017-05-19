@@ -72,26 +72,11 @@ class AlleleRemover(object):
         #     self.counts[best_gene]['second'].fill(second_smallest_hfrac)
 
     # ----------------------------------------------------------------------------------------
-    def separate_into_classes(self, sorted_gene_counts, easycounts):
-        class_counts = []
-        for gene, counts in sorted_gene_counts:
-            seq = self.glfo['seqs'][self.region][gene][:self.codon_positions[gene] + 3]
-            add_new_class = True
-            for gclass in class_counts:
-                for gfo in gclass:
-                    if len(gfo['seq']) != len(seq):
-                        continue
-                    hdist = utils.hamming_distance(gfo['seq'], seq)
-                    if hdist < self.args.n_max_snps - 1:  # if this gene is close to any gene in the class, add it to this class
-                        add_new_class = False
-                        class_counts[class_counts.index(gclass)].append({'gene' : gene, 'counts' : counts, 'seq' : seq})
-                        break
-                if not add_new_class:
-                    break
-
-            if add_new_class:
-                class_counts.append([{'gene' : gene, 'counts' : counts, 'seq' : seq}, ])
-
+    def separate_into_classes(self, sorted_gene_counts, easycounts):  # where each class contains all alleles with the same distance from start to cyst, and within a hamming distance of <self.args.n_max_snps>
+        snp_groups = utils.separate_into_snp_groups(self.glfo, self.region, self.args.n_max_snps, genelist=[g for g, _ in sorted_gene_counts])
+        class_counts = []  # this could stand to be cleaned up... it's kind of a holdover from before I moved the separating fcn to utils
+        for sgroup in snp_groups:
+            class_counts.append([{'gene' : gfo['gene'], 'counts' : easycounts[gfo['gene']], 'seq' : gfo['seq']} for gfo in sgroup])
         return class_counts
 
     # ----------------------------------------------------------------------------------------
@@ -111,7 +96,7 @@ class AlleleRemover(object):
             if nearest_hdist is None or hdist < nearest_hdist:
                 nearest_hdist = hdist
                 nearest_gene = kgene
-            if hdist < self.args.n_max_snps - 1:
+            if hdist < self.args.n_max_snps - 2:
                 n_close_genes += 1
 
         if easycounts[this_gene] < self.alfinder.n_total_min:  # if we hardly ever saw it, there's no good reason to believe it wasn't the result of just mutational wandering

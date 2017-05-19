@@ -86,7 +86,7 @@ class ParameterCounter(object):
     # ----------------------------------------------------------------------------------------
     def clean_plots(self, plotdir):
         self.mfreqer.clean_plots(plotdir + '/mute-freqs')
-        utils.prep_dir(plotdir + '/overall')  #, multilings=('*.csv', '*.svg'))
+        utils.prep_dir(plotdir + '/overall', wildlings=('*.csv', '*.svg'))
         for column in self.counts:
             if column in self.columns_to_subset_by_gene:
                 thisplotdir = plotdir + '/' + column
@@ -150,7 +150,9 @@ class ParameterCounter(object):
         sys.stdout.flush()
         start = time.time()
 
-        utils.prep_dir(base_outdir, subdirs=('hmms', 'mute-freqs', 'germline-sets'), wildlings=('*.csv', '*.yaml', '*.fasta'))  # it's kind of hackey to specify the /hmms dir here, but as soon as we write the parameters below, the previous yamels are out of date, so it's pretty much necessary
+        if os.path.exists(base_outdir + '/' + glutils.glfo_dir):
+            glutils.remove_glfo_files(base_outdir + '/' + glutils.glfo_dir, self.glfo['locus'])  # NOTE I think this will fail if I ever start having multiple loci in one dir
+        utils.prep_dir(base_outdir, subdirs=('hmms', 'mute-freqs', glutils.glfo_dir), wildlings=('*.csv', '*.yaml', '*.fasta'))  # it's kind of hackey to specify the /hmms dir here, but as soon as we write the parameters below, the previous yamels are out of date, so it's pretty much necessary
 
         self.mfreqer.write(base_outdir + '/mute-freqs', mean_freq_outfname=base_outdir + '/REGION-mean-mute-freqs.csv')  # REGION is replace by each region in the three output files)
         genes_with_counts = [g[0] for r in utils.regions for g in self.counts[r + '_gene'].keys()]

@@ -13,7 +13,7 @@ import glob
 import sys
 import csv
 import numpy
-from subprocess import check_call
+import subprocess
 import operator
 
 import utils
@@ -605,7 +605,7 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None, log='x', normaliz
         os.makedirs(plotdir)
     plt.savefig(outfname)
     plt.close()
-    # check_call(['chmod', '664', outfname])
+    # subprocess.check_call(['chmod', '664', outfname])
 
 # ----------------------------------------------------------------------------------------
 def plot_metrics_vs_thresholds(meth, thresholds, info, plotdir, plotfname, title):
@@ -794,7 +794,7 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
     fullname = plotdir + '/' + plotname + '.' + suffix
     plt.savefig(fullname)
     plt.close()
-    # check_call(['chmod', '664', fullname])
+    # subprocess.check_call(['chmod', '664', fullname])
 
 # ----------------------------------------------------------------------------------------
 def plot_cluster_similarity_matrix(plotdir, plotname, meth1, partition1, meth2, partition2, n_biggest_clusters, title='', debug=False):
@@ -899,7 +899,7 @@ def make_html(plotdir, n_columns=3, extension='svg', fnames=None, title='foop'):
     htmlfname = os.path.dirname(plotdir) + '/' + dirname + '.html'  # more verbose than necessary
     with open(htmlfname, 'w') as htmlfile:
         htmlfile.write('\n'.join(lines))
-    # check_call(['chmod', '664', htmlfname])
+    # subprocess.check_call(['chmod', '664', htmlfname])
 
 # ----------------------------------------------------------------------------------------
 def make_allele_finding_plot(plotdir, gene, position, values, xmax, fitfos=None):
@@ -969,10 +969,11 @@ def make_fraction_plot(hright, hwrong, plotdir, plotname, xlabel, ylabel, xbound
 def plot_gl_inference_fractions(plotdir, plotname, plotvals, labels, xlabel='', ylabel='', leg_title=None, title=None):
     if 'fraction_uncertainty' not in sys.modules:
         import fraction_uncertainty
+    fraction_uncertainty = sys.modules['fraction_uncertainty']
 
     def get_single_vals(pv):
         yvals = [float(c) / t for c, t in zip(pv['ycounts'], pv['ytotals'])]  # total shouldn't be able to be zero
-        tmphilos = [sys.modules['fraction_uncertainty'].err(c, t) for c, t in zip(pv['ycounts'], pv['ytotals'])]
+        tmphilos = [fraction_uncertainty.err(c, t) for c, t in zip(pv['ycounts'], pv['ytotals'])]
         yerrs = [err[1] - err[0] for err in tmphilos]
         print '  %s                    %s' % (xlabel, ylabel)
         for iv in range(len(pv['xvals'])):

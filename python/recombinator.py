@@ -1,23 +1,23 @@
 """ Simulates the process of VDJ recombination """
+import operator
+import tempfile
 import sys
 import csv
 import time
 import json
 import random
-from cStringIO import StringIO
 import treegenerator
 import numpy
 import os
 import re
-from subprocess import check_output
-
-from Bio import Phylo
-import dendropy
+import subprocess
 
 import paramutils
 import utils
 import glutils
 from event import RecombinationEvent
+
+dummy_name_so_bppseqgen_doesnt_break = 'xxx'  # bppseqgen ignores branch length before mrca, so we add a spurious leaf with this name and the same total depth as the rest of the tree, then remove it after getting bppseqgen's output
 
 #----------------------------------------------------------------------------------------
 class Recombinator(object):
@@ -66,7 +66,7 @@ class Recombinator(object):
                 self.mute_models[region][model][parameter_name] = line['value']
         treegen = treegenerator.TreeGenerator(args, self.parameter_dir, seed=seed)
         self.treefname = self.workdir + '/trees.tre'
-        treegen.generate_trees(seed, self.treefname)
+        treegen.generate_trees(seed, self.treefname)  # NOTE not really a newick file, since I hack on the per-region branch length info at the end of each line
         with open(self.treefname, 'r') as treefile:  # read in the trees (and other info) that we just generated
             self.treeinfo = treefile.readlines()
         os.remove(self.treefname)
@@ -75,6 +75,8 @@ class Recombinator(object):
             os.remove(self.outfname)
         elif not os.path.exists(os.path.dirname(os.path.abspath(self.outfname))):
             os.makedirs(os.path.dirname(os.path.abspath(self.outfname)))
+
+        self.validation_values = {'heights' : {t : {'in' : [], 'out' : []} for t in ['all'] + utils.regions}}
 
     # ----------------------------------------------------------------------------------------
     def read_insertion_content(self):
@@ -432,18 +434,14 @@ class Recombinator(object):
         treefname = workdir + '/tree.tre'
         reco_seq_fname = workdir + '/start-seq.txt'
         leaf_seq_fname = workdir + '/leaf-seqs.fa'
-        if n_leaf_nodes == 1:  # add an extra leaf to one-leaf trees so bppseqgen doesn't barf (when we read the output, we ignore the second leaf)
-            lreg = re.compile('t1:[0-9]\.[0-9][0-9]*')
-            leafstr = lreg.findall(chosen_tree)
-            assert len(leafstr) == 1
-            leafstr = leafstr[0]
-            chosen_tree = chosen_tree.replace(leafstr, '(' + leafstr + ',' + leafstr + '):0.0')
+        # add dummy leaf that we'll subsequently ignore (such are the vagaries of bppseqgen)
+        chosen_tree = '(%s,%s:%.15f):0.0;' % (chosen_tree.rstrip(';'), dummy_name_so_bppseqgen_doesnt_break, treegenerator.get_mean_height(chosen_tree))
         with open(treefname, 'w') as treefile:
             treefile.write(chosen_tree)
         self.write_mute_freqs(gene, seq, reco_event, reco_seq_fname)
 
         env = os.environ.copy()
-        env["LD_LIBRARY_PATH"] += ':' + self.args.partis_dir + '/packages/bpp/lib'
+        env['LD_LIBRARY_PATH'] = env.get('LD_LIBRARY_PATH', '') + ':' + self.args.partis_dir + '/packages/bpp/lib'
 
         # build up the command line
         # docs: http://biopp.univ-montp2.fr/apidoc/bpp-phyl/html/classbpp_1_1GTR.html that page is too darn hard to google
@@ -476,43 +474,21 @@ class Recombinator(object):
 
     # ----------------------------------------------------------------------------------------
     def read_bppseqgen_output(self, cmdfo, n_leaf_nodes):
-        mutated_seqs = []
+        mutated_seqs = {}
         for seqfo in utils.read_fastx(cmdfo['outfname']):  # get the leaf node sequences from the file that bppseqgen wrote
-            mutated_seqs.append(seqfo['seq'])
-            if n_leaf_nodes == 1:  # skip the extra leaf we added earlier
-                break
+            if seqfo['name'] == dummy_name_so_bppseqgen_doesnt_break:  # in the unlikely (impossible unless we change tree generators and don't tell them to use the same leaf names) event that we get a non-dummy leaf with this name, it'll fail at the assertion just below
+                continue
+            mutated_seqs[seqfo['name'].strip('\'')] = seqfo['seq']
+        try:
+            mutated_seqs = [mutated_seqs['t' + str(iseq + 1)] for iseq in range(len(mutated_seqs))]
+        except KeyError as ke:
+            raise Exception('leaf name %s not as expected in bppseqgen output %s' % (ke, cmdfo['outfname']))
         assert n_leaf_nodes == len(mutated_seqs)
-        # self.check_tree_simulation(leaf_seq_fname, chosen_tree)
         os.remove(cmdfo['outfname'])
         for otherfname in cmdfo['other-files']:
             os.remove(otherfname)
         os.rmdir(cmdfo['workdir'])
         return mutated_seqs
-
-    # ----------------------------------------------------------------------------------------
-    def get_rescaled_trees(self, treestr, branch_length_ratios, debug=False):
-        """
-        Trees are generated with the mean branch length observed in data over the whole sequence, because we want to use topologically
-        the same tree for the whole sequence. But we observe different branch lengths for each region, so we need to rescale the tree for
-        v, d, and j
-        """
-        rescaled_trees = {}
-        if debug:
-            print '      rescaling tree:'
-        for region in utils.regions:
-            # rescale the tree
-            rescaled_trees[region] = treegenerator.rescale_tree(treestr, branch_length_ratios[region])
-            if debug:
-                print '         %s by %f (new depth %f): %s -> %s' % (region, branch_length_ratios[region], treegenerator.get_leaf_node_depths(rescaled_trees[region])['t1'], treestr, rescaled_trees[region])
-
-            # and then check it NOTE can remove this eventually
-            initial_depths = {}
-            for node, depth in treegenerator.get_leaf_node_depths(treestr).items():
-                initial_depths[node] = depth
-            for node, depth in treegenerator.get_leaf_node_depths(rescaled_trees[region]).items():
-                depth_ratio = depth / initial_depths[node]
-                assert utils.is_normed(depth_ratio / branch_length_ratios[region], this_eps=1e-6)
-        return rescaled_trees
 
     # ----------------------------------------------------------------------------------------
     def add_shm_insertion(self, indelfo, seq, pos, length):
@@ -577,70 +553,126 @@ class Recombinator(object):
             reco_event.indelfos = [utils.get_empty_indel() for _ in range(len(reco_event.final_seqs))]
             return
 
-        chosen_treeinfo = self.treeinfo[random.randint(0, len(self.treeinfo)-1)]
-        chosen_tree = chosen_treeinfo.split(';')[0] + ';'
-        branch_length_ratios = {}  # NOTE a.t.m (and probably permanently) the mean branch lengths for each region are the *same* for all the trees in the file, I just don't have a better place to put them while I'm passing from TreeGenerator to here than at the end of each line in the file
-        for tmpstr in chosen_treeinfo.split(';')[1].split(','):  # looks like e.g.: (t2:0.003751736951,t1:0.003751736951):0.001248262937;v:0.98,d:1.8,j:0.87, where the newick trees has branch lengths corresponding to the whole sequence  (i.e. the weighted mean of v, d, and j)
-            region = tmpstr.split(':')[0]
+        # When generating trees, each tree's number of leaves and total depth are chosen from the specified distributions (a.t.m., by default n-leaves is from a geometric/zipf, and depth is from data)
+        # This chosen depth corresponds to the sequence-wide mutation frequency.
+        # In order to account for varying mutation rates in v, d, and j we simulate these regions separately, by appropriately rescaling the tree for each region.
+        # i.e.: here we get the sequence-wide mute freq from the tree, and rescale it by the repertoire-wide ratios from data (which are stored in the tree file).
+        # looks like e.g.: (t2:0.003751736951,t1:0.003751736951):0.001248262937;v:0.98,d:1.8,j:0.87, where the newick trees has branch lengths corresponding to the whole sequence  (i.e. the weighted mean of v, d, and j)
+        # NOTE a.t.m (and probably permanently) the mean branch lengths for each region are the same for all the trees in the file, I just don't have a better place to put them while I'm passing from TreeGenerator to here than at the end of each line in the file
+        treefostr = self.treeinfo[random.randint(0, len(self.treeinfo)-1)]  # per-region mutation info is tacked on after the tree... sigh. kind of hackey but works ok.
+        assert treefostr.count(';') == 1
+        isplit = treefostr.find(';') + 1
+        chosen_tree = treefostr[:isplit]  # includes semi-colon
+        mutefo = [rstr for rstr in treefostr[isplit:].split(',')]
+        mean_total_height = treegenerator.get_mean_height(chosen_tree)
+        regional_heights = {}  # per-region height, including <self.args.mutation_multiplier>
+        for tmpstr in mutefo:
+            region, ratio = tmpstr.split(':')
             assert region in utils.regions
-            ratio = float(tmpstr.split(':')[1])
+            ratio = float(ratio)
             if self.args.mutation_multiplier is not None:  # multiply the branch lengths by some factor
-                # if self.args.debug:
-                # print '    adding branch length factor %f ' % self.args.mutation_multiplier
                 ratio *= self.args.mutation_multiplier
-            branch_length_ratios[region] = ratio
+            regional_heights[region] = mean_total_height * ratio
 
-        if self.args.debug:  # NOTE should be the same for t[0-9]... but I guess I should check at some point
-            print '  using tree with total depth %f' % treegenerator.get_leaf_node_depths(chosen_tree)['t1']  # kind of hackey to just look at t1, but they're all the same anyway and it's just for printing purposes...
-            if len(re.findall('t', chosen_tree)) > 1:  # if more than one leaf
-                Phylo.draw_ascii(Phylo.read(StringIO(chosen_tree), 'newick'))
-            else:
-                print '    one leaf'
-            print '    with branch length ratios ', ', '.join(['%s %f' % (region, branch_length_ratios[region]) for region in utils.regions])
+        scaled_trees = {r : treegenerator.rescale_tree(chosen_tree, regional_heights[r]) for r in utils.regions}
 
-        scaled_trees = self.get_rescaled_trees(chosen_tree, branch_length_ratios)
-        treg = re.compile('t[0-9][0-9]*')
-        n_leaf_nodes = len(treg.findall(chosen_tree))
+        if self.args.debug:
+            print '  chose tree with total height %f' % treegenerator.get_mean_height(chosen_tree)
+            print '    regional trees rescaled to heights:  %s' % ('   '.join(['%s %.3f  (expected %.3f)' % (region, treegenerator.get_mean_height(scaled_trees[region]), regional_heights[region]) for region in utils.regions]))
+            print treegenerator.get_ascii_tree(chosen_tree, extra_str='    ')
+
+        n_leaves = treegenerator.get_n_leaves(chosen_tree)
         cmdfos = []
         for region in utils.regions:
             simstr = reco_event.eroded_seqs[region]
             if region == 'd':
                 simstr = reco_event.insertions['vd'] + simstr + reco_event.insertions['dj']
-            cmdfos.append(self.prepare_bppseqgen(simstr, scaled_trees[region], n_leaf_nodes, reco_event.genes[region], reco_event, seed=irandom))
+            cmdfos.append(self.prepare_bppseqgen(simstr, scaled_trees[region], n_leaves, reco_event.genes[region], reco_event, seed=irandom))
 
         utils.run_cmds([cfo for cfo in cmdfos if cfo is not None], sleep=False)  # shenanigan is to handle zero-length regional seqs
 
         mseqs = {}
-        for ireg in range(len(utils.regions)):
+        for ireg in range(len(utils.regions)):  # NOTE kind of sketchy just using index in <utils.regions> (although it just depends on the loop immediately above a.t.m.)
             if cmdfos[ireg] is None:
-                mseqs[utils.regions[ireg]] = ['' for _ in range(n_leaf_nodes)]  # return an empty string for each leaf node
+                mseqs[utils.regions[ireg]] = ['' for _ in range(n_leaves)]  # return an empty string for each leaf node
             else:
-                mseqs[utils.regions[ireg]] = self.read_bppseqgen_output(cmdfos[ireg], n_leaf_nodes)
+                mseqs[utils.regions[ireg]] = self.read_bppseqgen_output(cmdfos[ireg], n_leaves)
 
         assert len(reco_event.final_seqs) == 0
-        for iseq in range(n_leaf_nodes):
+        for iseq in range(n_leaves):
             seq = mseqs['v'][iseq] + mseqs['d'][iseq] + mseqs['j'][iseq]
             seq = reco_event.revert_conserved_codons(seq)  # if mutation screwed up the conserved codons, just switch 'em back to what they were to start with
             reco_event.final_seqs.append(seq)  # set final sequnce in reco_event
 
         self.add_shm_indels(reco_event)
 
-    # ----------------------------------------------------------------------------------------
-    def check_tree_simulation(self, leaf_seq_fname, chosen_tree_str, reco_event=None):
-        """ See how well we can reconstruct the true tree """
-        clean_up = False
-        if leaf_seq_fname == '':  # we need to make the leaf seq file based on info in reco_event
-            clean_up = True
-            leaf_seq_fname = self.workdir + '/leaf-seqs.fa'
-            with open(leaf_seq_fname, 'w') as leafseqfile:
-                for iseq in range(len(reco_event.final_seqs)):
-                    leafseqfile.write('>t' + str(iseq+1) + '\n')  # NOTE the *order* of the seqs doesn't correspond to the tN number. does it matter?
-                    leafseqfile.write(reco_event.final_seqs[iseq] + '\n')
+        self.check_tree_simulation(mean_total_height, regional_heights, scaled_trees, mseqs, reco_event)
 
-        with open(os.devnull, 'w') as fnull:
-            inferred_tree_str = check_output('FastTree -gtr -nt ' + leaf_seq_fname, shell=True, stderr=fnull)
-        os.remove(leaf_seq_fname)
-        chosen_tree = dendropy.Tree.get_from_string(chosen_tree_str, 'newick')
-        inferred_tree = dendropy.Tree.get_from_string(inferred_tree_str, 'newick')
+    # ----------------------------------------------------------------------------------------
+    def infer_tree_from_leaves(self, region, in_tree, leafseqs):
+        with tempfile.NamedTemporaryFile() as tmpfile:
+            for iseq in range(len(leafseqs)):
+                tmpfile.write('>t%s\n%s\n' % (iseq+1, leafseqs[iseq]))  # NOTE the order of the leaves/names is checked when reading bppseqgen output
+            tmpfile.flush()  # BEWARE if you forget this you are fucked
+            with open(os.devnull, 'w') as fnull:
+                out_tree = subprocess.check_output('./bin/FastTree -gtr -nt ' + tmpfile.name, shell=True, stderr=fnull)
+
+        in_height = treegenerator.get_mean_height(in_tree)
+        out_height = treegenerator.get_mean_height(out_tree)
+        base_width = 100
+        print '  %s trees: input/output' % region
+        print treegenerator.get_ascii_tree(in_tree, extra_str='        ', width=base_width)
+        print treegenerator.get_ascii_tree(out_tree, extra_str='        ', width=int(base_width*out_height/in_height))
+
+        if 'dendropy' not in sys.modules:
+            import dendropy
+        in_dtree = sys.modules['dendropy'].Tree.get_from_string(in_tree, 'newick')
+        out_dtree = sys.modules['dendropy'].Tree.get_from_string(out_tree, 'newick')
         if self.args.debug:
-            print '        tree diff -- symmetric %d   euke %f   rf %f' % (chosen_tree.symmetric_difference(inferred_tree), chosen_tree.euclidean_distance(inferred_tree), chosen_tree.robinson_foulds_distance(inferred_tree))
+            print '                   heights: %.3f   %.3f' % (in_height, out_height)
+            print '      symmetric difference: %d' % in_dtree.symmetric_difference(out_dtree)
+            print '        euclidean distance: %f' % in_dtree.euclidean_distance(out_dtree)
+            print '              r-f distance: %f' % in_dtree.robinson_foulds_distance(out_dtree)
+
+    # ----------------------------------------------------------------------------------------
+    def check_tree_simulation(self, mean_total_height, regional_heights, scaled_trees, mseqs, reco_event, debug=False):
+        line = reco_event.getline()
+        mean_observed = {n : 0.0 for n in ['all'] + utils.regions}
+        for iseq in range(len(reco_event.final_seqs)):
+            if debug:
+                print '   %4d  %.3f  %.3f' % (iseq, line['mut_freqs'][iseq], mean_total_height)
+            mean_observed['all'] += line['mut_freqs'][iseq]
+            for region in utils.regions:  # NOTE for simulating, we mash the insertions in with the D, but this isn't accounted for here
+                rrate = utils.get_mutation_rate(line, iseq=iseq, restrict_to_region=region)
+                if debug:
+                    print '       %.3f  %.3f' % (rrate, regional_heights[region])
+                mean_observed[region] += rrate
+        if debug:
+            print '             in          out'
+        for rname in ['all'] + utils.regions:
+            mean_observed[rname] /= float(len(reco_event.final_seqs))
+            if rname == 'all':
+                input_height = mean_total_height
+                if self.args.mutation_multiplier is not None:  # multiply the branch lengths by some factor
+                    input_height *= self.args.mutation_multiplier
+            else:
+                input_height = regional_heights[rname]
+            self.validation_values['heights'][rname]['in'].append(input_height)
+            self.validation_values['heights'][rname]['out'].append(mean_observed[rname])
+            if debug:
+                print '  %4s    %7.3f     %7.3f' % (rname, input_height, mean_observed[rname])
+
+        # need to root them
+        # for region in utils.regions:
+        #     self.infer_tree_from_leaves(region, scaled_trees[region], mseqs[region])  # NOTE haven't yet reverted codons
+
+    # ----------------------------------------------------------------------------------------
+    def print_validation_values(self):
+        # NOTE the v, d, and all are systematically low, while j is high. Don't feel like continuing to figure out all the contributors a.t.m. though
+        print '  tree heights:'
+        print '        in      out          diff'
+        for vtype in ['all'] + utils.regions:
+            vvals = self.validation_values['heights'][vtype]
+            deltas = [(vvals['out'][i] - vvals['in'][i]) for i in range(len(vvals['in']))]
+            print '      %.3f   %.3f    %+.3f +/- %.3f      %s' % (numpy.mean(vvals['in']), numpy.mean(vvals['out']),
+                                                                   numpy.mean(deltas), numpy.std(deltas) / len(deltas), vtype)  # NOTE each delta is already the mean of <n_leaves> independent measurements
