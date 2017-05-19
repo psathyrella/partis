@@ -265,14 +265,13 @@ class PartitionDriver(object):
             print '  %d new allele%s written to {sw,hmm}/%s subdirs of parameter dir %s' % (len(self.all_new_allele_info), utils.plural_str('', len(self.all_new_allele_info)), glutils.glfo_dir, self.args.parameter_dir)
 
     # ----------------------------------------------------------------------------------------
-    def run_algorithm(self, algorithm):
-        """ Just run <algorithm> (either 'forward' or 'viterbi') on sequences in <self.input_info> and exit. You've got to already have parameters cached in <self.args.parameter_dir> """
-        print 'running %s' % algorithm
+    def annotate(self):
+        print 'annotating'
         self.run_waterer(look_for_cachefile=True)
         if self.args.only_smith_waterman:
             return
         print 'hmm'
-        self.run_hmm(algorithm, parameter_in_dir=self.sub_param_dir)
+        self.run_hmm('viterbi', parameter_in_dir=self.sub_param_dir)
 
     # ----------------------------------------------------------------------------------------
     def view_existing_annotations(self):
@@ -526,7 +525,7 @@ class PartitionDriver(object):
         if len(partition) == 0:
             return
         action_cache = self.current_action
-        self.current_action = 'run-viterbi'
+        self.current_action = 'annotate'
         partition = sorted(partition, key=len, reverse=True)  # as opposed to in clusterpath, where we *don't* want to sort by size, it's nicer to have them sorted by size here, since then as you're scanning down a long list of cluster annotations you know once you get to the singletons you won't be missing something big
         n_procs = min(self.args.n_procs, len(partition))  # we want as many procs as possible, since the large clusters can take a long time (depending on if we're translating...), but in general we treat <self.args.n_procs> as the maximum allowable number of processes
         print '--> getting annotations for final partition'
