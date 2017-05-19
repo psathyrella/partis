@@ -331,7 +331,7 @@ default_varvals = {
     'nsnp' : '1:2:3:4',
     'multi-nsnp' : '1,1:1,3:2,3',
     'prevalence' : '0.1:0.2:0.3',
-    'n-leaves' : '1.5:3:10:25',
+    'n-leaves' : '1.5:3:10',
     'weibull' : '0.3:0.5:1.3',
     'gls-gen' : None,
     'data' : {
