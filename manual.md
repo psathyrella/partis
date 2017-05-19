@@ -114,10 +114,10 @@ To change this, use the `--species {human,mouse}` and `--locus {tra,trb,trd,trg,
 
 There are also some example sequences you can run on in `test/example.fa`.
 
-Besides any output files, partis writes to two directories on your file system.
-Temporary working files go in `--workdir`, which is entirely removed upon successful completetion.
-This defaults into a random subdir under `/tmp`, and shouldn't need to be modified unless you're running on multiple nodes (see below), in which case it needs to be a network mount they can all see.
-Permament parameter files are written to `--parameter-dir`, which defaults to a subdir of the current directory (see below).
+In addition to any output files, partis writes to two directories on your file system.
+Temporary working files go in `--workdir`, which is entirely removed upon successful completion.
+This defaults into a directory under `/tmp`, and shouldn't need to be modified unless you're running on multiple nodes (see below), in which case it needs to be on a network mount they can all see.
+Permament parameter files, on the other hand, are written to `--parameter-dir`, which defaults to a subdir of the current directory (see below).
 
 ### Subcommands
 
