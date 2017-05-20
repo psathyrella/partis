@@ -265,14 +265,13 @@ class PartitionDriver(object):
             print '  %d new allele%s written to {sw,hmm}/%s subdirs of parameter dir %s' % (len(self.all_new_allele_info), utils.plural_str('', len(self.all_new_allele_info)), glutils.glfo_dir, self.args.parameter_dir)
 
     # ----------------------------------------------------------------------------------------
-    def run_algorithm(self, algorithm):
-        """ Just run <algorithm> (either 'forward' or 'viterbi') on sequences in <self.input_info> and exit. You've got to already have parameters cached in <self.args.parameter_dir> """
-        print 'running %s' % algorithm
+    def annotate(self):
+        print 'annotating'
         self.run_waterer(look_for_cachefile=True)
         if self.args.only_smith_waterman:
             return
         print 'hmm'
-        self.run_hmm(algorithm, parameter_in_dir=self.sub_param_dir)
+        self.run_hmm('viterbi', parameter_in_dir=self.sub_param_dir)
 
     # ----------------------------------------------------------------------------------------
     def view_existing_annotations(self):
@@ -526,7 +525,7 @@ class PartitionDriver(object):
         if len(partition) == 0:
             return
         action_cache = self.current_action
-        self.current_action = 'run-viterbi'
+        self.current_action = 'annotate'
         partition = sorted(partition, key=len, reverse=True)  # as opposed to in clusterpath, where we *don't* want to sort by size, it's nicer to have them sorted by size here, since then as you're scanning down a long list of cluster annotations you know once you get to the singletons you won't be missing something big
         n_procs = min(self.args.n_procs, len(partition))  # we want as many procs as possible, since the large clusters can take a long time (depending on if we're translating...), but in general we treat <self.args.n_procs> as the maximum allowable number of processes
         print '--> getting annotations for final partition'
@@ -541,44 +540,6 @@ class PartitionDriver(object):
         return annotations
 
     # ----------------------------------------------------------------------------------------
-    def run_swarm(self, naive_seqs, threshold, outfname):
-        raise Exception('needs updating/fixing')
-        # # ----------------------------------------------------------------------------------------
-        # if self.args.naive_swarm:
-        #     print '    NOTE: replacing N with A for input to swarm'
-        # with open(fastafname, 'w') as fastafile:
-        #     for query, naive_seq in naive_seqs.items():
-        #         if self.args.naive_swarm:
-        #             query += '_1'
-        #             naive_seq = utils.remove_ambiguous_ends(naive_seq)
-        #             naive_seq = naive_seq.replace('N', 'A')
-        #         fastafile.write('>' + query + '\n' + naive_seq + '\n')
-        # # ----------------------------------------------------------------------------------------
-        #     clusterfname = self.args.workdir + '/swarm-clusters.txt'
-        #     cmd = './bin/swarm-2.1.1-linux-x86_64 ' + fastafname
-        #     cmd += ' -t 5'  # five threads TODO set this more intelligently
-        #     # cmd += ' -f'
-        #     cmd += ' --match-reward ' + str(self.args.match_mismatch[0])
-        #     cmd += ' --mismatch-penalty ' + str(self.args.match_mismatch[1])
-        #     cmd += ' --gap-opening-penalty ' + str(self.args.gap_open_penalty)
-        #     # cmd += ' --gap-extension-penalty'
-        #     tmpstart = time.time()
-        #     total = 0.
-        #     for key in self.sw_info['queries']:
-        #         seq = self.input_info[key]['seqs'][0]
-        #         total += float(len(seq))
-        #     mean_length = total / len(self.sw_info['queries'])
-        #     raise Exception('update for new thresholds')
-        #     bound = self.get_naive_hamming_threshold(parameter_dir, 'tight') /  2.  # yay for heuristics! (I did actually optimize this...)
-        #     differences = int(round(mean_length * bound))
-        #     print '        d = mean len * mut freq bound = %f * %f = %f --> %d' % (mean_length, bound, mean_length * bound, differences)
-        #     print '      swarm average time: %.1f' % (time.time()-tmpstart)
-        #     cmd += ' --differences ' + str(differences)
-        #     cmd += ' --uclust-file ' + clusterfname
-        #     check_call(cmd.split())
-        # # ----------------------------------------------------------------------------------------
-
-    # ----------------------------------------------------------------------------------------
     def run_vsearch(self, naive_seqs, threshold):
         # write input
         infname = self.args.workdir + '/naive-seqs.fasta'
@@ -588,8 +549,14 @@ class PartitionDriver(object):
                 fastafile.write('>' + query + '\n' + naive_seq + '\n')
 
         # run
-        id_fraction = 1. - threshold
-        cmd = self.args.partis_dir + '/bin/vsearch-1.1.3-linux-x86_64 --threads ' + str(self.args.n_procs) + ' --uc ' + outfname + ' --cluster_fast ' + infname + ' --id ' + str(id_fraction) + ' --maxaccept 0 --maxreject 0'
+        cmd = self.args.partis_dir + '/bin/vsearch-2.4.3-linux-x86_64'
+        cmd += ' --cluster_fast ' + infname
+        cmd += ' --uc ' + outfname
+        # cmd += ' --consout ' + consensus_fname
+        cmd += ' --id ' + str(1. - threshold)
+        cmd += ' --maxaccept 0 --maxreject 0'
+        cmd += ' --threads ' + str(self.args.n_procs)
+        cmd += ' --quiet'
         cmdfos = [{'cmd_str' : cmd, 'outfname' : outfname, 'workdir' : self.args.workdir, 'threads' : self.args.n_procs}, ]
         utils.run_cmds(cmdfos, batch_system=self.args.batch_system, batch_options=self.args.batch_options, batch_config_fname=self.args.batch_config_fname)
 

@@ -106,7 +106,7 @@ class Tester(object):
         argfo['input_stype'] = input_stype
         argfo['bin'] = self.partis
         if 'annotate' in ptest:
-            argfo['action'] = 'run-viterbi'
+            argfo['action'] = 'annotate'  # NOTE now that this isn't 'run-viterbi' we can combine it with the others
         elif 'partition' in ptest:
             argfo['action'] = 'partition'
             argfo['extras'] += ['--persistent-cachefname', self.dirs['new'] + '/' + self.cachefnames[input_stype]]

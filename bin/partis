@@ -197,9 +197,9 @@ def run_partitiondriver(args):
         newargv = newargv[:1] + ['cache-parameters', ] + newargv[2:]
         check_call(newargv)
 
-    if 'run-' in args.action:
+    if args.action == 'annotate':
         parter = PartitionDriver(args, args.action, args.parameter_dir + '/' + args.parameter_type + '/' + glutils.glfo_dir)
-        parter.run_algorithm(args.action.replace('run-', ''))
+        parter.annotate()
     elif args.action == 'partition':
         if args.n_partition_subsets is None:
             parter = PartitionDriver(args, args.action, args.parameter_dir + '/' + args.parameter_type + '/' + glutils.glfo_dir)
@@ -355,13 +355,13 @@ parent_parser.add_argument('--seed-seq', help='same as --seed-unique-id, but spe
 subconfig = {
     'version'          : {'func' : int, 'help' : 'print version information and exit'},
     'cache-parameters' : {'func' : run_partitiondriver, 'help' : 'Cache parameter values and write hmm model files.'},
-    'run-viterbi'      : {'func' : run_partitiondriver, 'help' : 'Annotate sequences in input file, i.e. run the viterbi algorithm, using pre-existing parameter directory.'},
+    'annotate'         : {'func' : run_partitiondriver, 'help' : 'Annotate sequences in input file, i.e. run the viterbi algorithm, using pre-existing parameter directory.'},
     'partition'        : {'func' : run_partitiondriver, 'help' : 'Partition sequences in input file into clonally-related families using pre-existing parameter directory.'},
     'simulate'         : {'func' : run_simulation,      'help' : 'Generate simulated sequences based on information in pre-existing parameter directory.'},
-    'run-forward'      : {'func' : run_partitiondriver, 'help' : 'Run the forward algorithm on sequences in input file, using pre-existing parameter directory. Not particularly useful except for debugging.'},
     'view-annotations' : {'func' : view_existing_output,'help' : 'Print (to std out) the annotations from an existing annotation output csv.'},
     'view-partitions'  : {'func' : view_existing_output,'help' : 'Print (to std out) the partitions from an existing partition output csv.'},
-    'view-alternative-naive-seqs'  : {'func' : view_existing_output,'help' : 'Print (to std out) a comparison of the naive sequences corresponding to sub- and super-clusters of the cluster specified with --queries. You must have specified --calculate-alternative-naive-seqs (or --persistent-cachefname) in a previous partition step so that this information was saved.'}
+    'view-alternative-naive-seqs'  : {'func' : view_existing_output,'help' : 'Print (to std out) a comparison of the naive sequences corresponding to sub- and super-clusters of the cluster specified with --queries. You must have specified --calculate-alternative-naive-seqs (or --persistent-cachefname) in a previous partition step so that this information was saved.'},
+    'run-viterbi'      : {'func' : run_partitiondriver, 'help' : 'deprecated, do not use'},
 }
 
 subargs = {subname : [] for subname in subconfig}
@@ -426,11 +426,14 @@ for name, vals in subconfig.items():
         subparsermap[name].add_argument(argconf['name'], **argconf['kwargs'])
 
 # ----------------------------------------------------------------------------------------
-# deprecation info
 if '--action' in sys.argv:
     raise Exception('--action is now a positional argument')
 
 args = parser.parse_args()
+
+if args.action == 'run-viterbi':
+    print'  note: replacing deprecated action name \'run-viterbi\' with current name \'annotate\' (this doesn\'t change any actual behavior)'
+    args.action = 'annotate'
 
 args.partis_dir = partis_dir
 
@@ -513,10 +516,15 @@ if 'tr' in args.locus and args.mutation_multiplier is None:
     args.mutation_multiplier = 0.
 
 if args.workdir is None:  # set default here so we know whether it was set by hand or not
+    def choose_random_subdir(dirname):
+        subname = str(random.randint(0, 999999))
+        while os.path.exists(dirname + '/' + subname):
+            subname = str(random.randint(0, 999999))
+        return dirname + '/' + subname
     if args.batch_system is not None and os.path.exists('/fh/fast/matsen_e'):
-        args.workdir = '/fh/fast/matsen_e/' + os.path.basename(os.getenv('HOME')) + '/_tmp/hmms/' + str(random.randint(0, 999999))
+        args.workdir = choose_random_subdir('/fh/fast/matsen_e/' + os.path.basename(os.getenv('HOME')) + '/_tmp/hmms')
     else:
-        args.workdir = '/tmp/' + os.path.basename(os.getenv('HOME')) + '/hmms/' + str(random.randint(0, 999999))
+        args.workdir = choose_random_subdir('/tmp/' + os.path.basename(os.getenv('HOME')) + '/hmms')
         if args.batch_system is not None:
             print '  %s: using batch system %s with default --workdir (%s) -- if this isn\'t visible to the batch nodes on your system, you\'ll need to change it' % (utils.color('red', 'warning'), args.batch_system, args.workdir)
 else:

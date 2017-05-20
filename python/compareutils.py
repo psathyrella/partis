@@ -614,11 +614,11 @@ def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, all_info,
         if 'vollmers' in meth and meth != 'vollmers-0.9':
             raise Exception('need to update a few things to change the threshold')
 
-    if 'run-viterbi' in args.expected_methods or 'run-mixcr' in args.expected_methods or 'run-changeo' in args.expected_methods:
+    if 'annotate' in args.expected_methods or 'run-mixcr' in args.expected_methods or 'run-changeo' in args.expected_methods:
         raise Exception('no, it\'s the *other* name')
 
     if 'vollmers-0.9' in args.expected_methods:
-        parse_vollmers(args, this_info, get_outputname(args, label, 'run-viterbi', seqfname, hfrac_bounds), csvdir, reco_info, true_partition)
+        parse_vollmers(args, this_info, get_outputname(args, label, 'annotate', seqfname, hfrac_bounds), csvdir, reco_info, true_partition)
     if 'changeo' in args.expected_methods:
         parse_changeo(args, this_info, get_outputname(args, label, 'run-changeo', seqfname, hfrac_bounds), csvdir)
     if 'mixcr' in args.expected_methods:
@@ -1190,7 +1190,7 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
     if 'partition' in action:
         cmd += ' partition'
     elif action == 'annotate-seed-clusters':
-        cmd += ' run-viterbi'
+        cmd += ' annotate'
     else:
         cmd += ' ' + action
     # cmd += ' --stashdir ' + get_outdirname(args, label).replace('/' + label, '')
@@ -1250,7 +1250,7 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
             extras += ['--n-leaf-distribution', 'box']
         if args.zipf:
             extras += ['--n-leaf-distribution', 'zipf']
-    elif action == 'run-viterbi':
+    elif action == 'annotate':
         outfname = get_outputname(args, label, action, seqfname, hfrac_bounds)
         cmd += ' --outfname ' + outfname
         n_total_seqs = args.n_max_queries

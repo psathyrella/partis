@@ -2713,3 +2713,54 @@ def getsuffix(fname):  # basename before the dot
     if len(os.path.splitext(fname)) != 2:
         raise Exception('couldn\'t split %s into two pieces using dot' % fname)
     return os.path.splitext(fname)[1]
+
+# ----------------------------------------------------------------------------------------
+def run_swarm(seqs, workdir, n_procs=1):
+    prep_dir(workdir)
+
+    infname = workdir + '/input.fa'
+    dummy_abundance = 1
+    with open(infname, 'w') as fastafile:
+        for name, seq in seqs.items():
+            fastafile.write('>%s_%d\n%s\n' % (name, dummy_abundance, remove_ambiguous_ends(seq).replace('N', 'A')))
+
+    # total = 0.
+    # for key in self.sw_info['queries']:
+    #     seq = self.input_info[key]['seqs'][0]
+    #     total += float(len(seq))
+    # mean_length = total / len(self.sw_info['queries'])
+    # raise Exception('update for new thresholds')
+    # bound = self.get_naive_hamming_threshold(parameter_dir, 'tight') /  2.  # yay for heuristics! (I did actually optimize this...)
+    # differences = int(round(mean_length * bound))
+    # print '        d = mean len * mut freq bound = %f * %f = %f --> %d' % (mean_length, bound, mean_length * bound, differences)
+    # cmd += ' --differences ' + str(differences)
+
+    outfname = workdir + '/clusters.txt'
+    partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/python', '')
+    cmd = partis_dir + '/bin/swarm-2.1.13-linux-x86_64 ' + infname
+    # cmd += ' --fastidious'
+    cmd += ' --differences ' + str(8)
+    # cmd += ' --match-reward ' + str(self.args.match_mismatch[0])
+    # cmd += ' --mismatch-penalty ' + str(self.args.match_mismatch[1])
+    # cmd += ' --gap-opening-penalty ' + str(self.args.gap_open_penalty)
+    # # cmd += ' --gap-extension-penalty'
+    cmd += ' --threads ' + str(n_procs)
+    # cmd += ' --uclust-file ' + clusterfname
+    cmd += ' --output-file ' + outfname
+    simplerun(cmd)
+
+    partition = []
+    with open(outfname) as outfile:
+        for line in outfile:
+            partition.append([uidstr.rstrip('_%s' % dummy_abundance) for uidstr in line.strip().split()])
+
+    os.remove(infname)
+    os.remove(outfname)
+    os.rmdir(workdir)
+
+    from clusterpath import ClusterPath
+    cp = ClusterPath()
+    cp.add_partition(partition, logprob=0., n_procs=1)
+    cp.print_partitions(abbreviate=True)
+
+    return partition
