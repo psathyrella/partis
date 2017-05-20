@@ -316,7 +316,7 @@ def run_tests(args, baseoutdir, method):
         n_events = args.gls_gen_events
         val = 'simu'
         run_single_test(args, baseoutdir, val, n_events, method)
-    if args.action == 'data':
+    elif args.action == 'data':
         for var in args.varvals:
             study, dset = var.split('/')
             run_data(args, baseoutdir, study, dset, method)
