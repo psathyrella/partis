@@ -540,47 +540,6 @@ class PartitionDriver(object):
         return annotations
 
     # ----------------------------------------------------------------------------------------
-    def run_vsearch(self, naive_seqs, threshold):
-        # write input
-        infname = self.args.workdir + '/naive-seqs.fasta'
-        outfname = self.args.workdir + '/vsearch-clusters.txt'
-        with open(infname, 'w') as fastafile:
-            for query, naive_seq in naive_seqs.items():
-                fastafile.write('>' + query + '\n' + naive_seq + '\n')
-
-        # run
-        cmd = self.args.partis_dir + '/bin/vsearch-2.4.3-linux-x86_64'
-        cmd += ' --cluster_fast ' + infname
-        cmd += ' --uc ' + outfname
-        # cmd += ' --consout ' + consensus_fname
-        cmd += ' --id ' + str(1. - threshold)
-        cmd += ' --maxaccept 0 --maxreject 0'
-        cmd += ' --threads ' + str(self.args.n_procs)
-        cmd += ' --quiet'
-        cmdfos = [{'cmd_str' : cmd, 'outfname' : outfname, 'workdir' : self.args.workdir, 'threads' : self.args.n_procs}, ]
-        utils.run_cmds(cmdfos, batch_system=self.args.batch_system, batch_options=self.args.batch_options, batch_config_fname=self.args.batch_config_fname)
-
-        # read output
-        id_clusters = {}
-        with open(outfname) as clusterfile:
-            reader = csv.DictReader(clusterfile, fieldnames=['type', 'cluster_id', '3', '4', '5', '6', '7', 'crap', 'query', 'morecrap'], delimiter='\t')
-            for line in reader:
-                if line['type'] == 'C':  # batshit output format: some lines are a cluster, and some are a query sequence. Skip the cluster ones.
-                    continue
-                cluster_id = int(line['cluster_id'])
-                if cluster_id not in id_clusters:
-                    id_clusters[cluster_id] = []
-                uid = line['query']
-                if self.args.naive_swarm and uid[-2:] == '_1':  # remove (dummy) abundance information
-                    uid = uid[:-2]
-                id_clusters[cluster_id].append(uid)
-        partition = id_clusters.values()
-
-        os.remove(infname)
-        os.remove(outfname)
-        return partition
-
-    # ----------------------------------------------------------------------------------------
     def cluster_with_naive_vsearch_or_swarm(self, parameter_dir=None, read_hmm_cachefile=True):
         start = time.time()
 
@@ -611,7 +570,9 @@ class PartitionDriver(object):
         partition = []
         print '    running vsearch %d times (once for each cdr3 length class):' % len(all_naive_seqs),
         for cdr3_length, sub_naive_seqs in all_naive_seqs.items():
-            sub_hash_partition = self.run_vsearch(sub_naive_seqs, threshold)
+            sub_hash_partition = utils.run_vsearch(sub_naive_seqs, threshold, self.args.workdir, self.args.partis_dir,
+                                                  n_procs=self.args.n_procs,
+                                                  batch_system=self.args.batch_system, batch_options=self.args.batch_options, batch_config_fname=self.args.batch_config_fname)
             sub_uid_partition = [[uid for hashstr in hashcluster for uid in naive_seq_hashes[hashstr]] for hashcluster in sub_hash_partition]
             partition += sub_uid_partition
             print '.',
