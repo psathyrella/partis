@@ -3,13 +3,24 @@
 # add scheepers data (well, and others)
 # add new chaim data (igg + igm)
 #
+# - apply vsearch/swarm to v_qr_seqs to see if there's any well-separated new genes that we should add to the initial set
+#   - probably use consensus sequence from each of these new clusters (?)
+#   - probably add it if it would be a new class by the definition in allele removal (?)
+#     - need to decide about: indels vs snps, and 5' and 3' ends
+# - run allele removal, keeping only the most-likely within each class
+#   - lower bound should be very small (like 8 or so?)
+#   - probably don't use consensus, i.e. continue to use alleles from existing gl set
+# - in allele finding, start checking whether to remove template gene
+#
+#
+#
 # allele removal/vsearch clustering
 #  - I think the consensus sequences might actually be waaaaay more reliable than the most common germline (well, could use a combination of the two)
+#  - allele removal's lower bound on counts needs to be very small, maybe eight? (at least if it's very far from any other gene)
 #
 # plots
 #  - add nsnps up to at least 6
 #  - add multi-nsnps with more simultaneous alleles and more shared snps
-#  - remove n-leaves 25
 # add a local tmp dir to recombinator
 # handle naming ambiguity (i.e. which gene do we count the snps from
 # fix allele name decider to more strongly prefer non-snpd genes (well, make sure it hasn't messed anything up yet)
