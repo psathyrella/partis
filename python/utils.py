@@ -2715,7 +2715,7 @@ def getsuffix(fname):  # basename before the dot
     return os.path.splitext(fname)[1]
 
 # ----------------------------------------------------------------------------------------
-def run_vsearch(seqs, threshold, workdir, partis_dir, n_procs=1, batch_system=None, batch_options=None, batch_config_fname=None):
+def run_vsearch(seqs, workdir, threshold, n_procs=1, batch_system=None, batch_options=None, batch_config_fname=None):
     # sigle-pass, greedy, star-clustering algorithm with
     #  - add the target to the cluster if the pairwise identity with the centroid is higher than global threshold <--id>
     #  - pairwise identity definition <--iddef> defaults to: number of (matching columns) / (alignment length - terminal gaps)
@@ -2734,11 +2734,10 @@ def run_vsearch(seqs, threshold, workdir, partis_dir, n_procs=1, batch_system=No
             fastafile.write('>' + name + '\n' + seq + '\n')
 
     # run
-    cmd = partis_dir + '/bin/vsearch-2.4.3-linux-x86_64'
+    cmd = os.path.dirname(os.path.realpath(__file__)).replace('/python', '') + '/bin/vsearch-2.4.3-linux-x86_64'
     cmd += ' --cluster_fast ' + infname
     cmd += ' --uc ' + outfname
-    # cmd += ' --consout ' + outfname  # consensus file
-    # cmd += ' --msaout ' + outfname  # msa + consensus file
+    # cmd += ' --consout ' + outfname  # consensus file (note: can also output a file with msa and consensus)
     cmd += ' --id ' + str(1. - threshold)
     cmd += ' --maxaccept 0 --maxreject 0'  # see note above
     cmd += ' --threads ' + str(n_procs)
@@ -2766,7 +2765,7 @@ def run_vsearch(seqs, threshold, workdir, partis_dir, n_procs=1, batch_system=No
     return partition
 
 # ----------------------------------------------------------------------------------------
-def run_swarm(seqs, workdir, partis_dir, differences=1, n_procs=1):
+def run_swarm(seqs, workdir, differences=1, n_procs=1):
     # groups together all sequence pairs that have <d> or fewer differences (--differences, default 1)
     #  - if d=1, uses algorithm of linear complexity (d=2 or greater uses quadratic algorithm)
     #  - --fastidious (only for d=1) extra pass to reduce the number of small OTUs
@@ -2780,7 +2779,7 @@ def run_swarm(seqs, workdir, partis_dir, differences=1, n_procs=1):
         for name, seq in seqs.items():
             fastafile.write('>%s_%d\n%s\n' % (name, dummy_abundance, remove_ambiguous_ends(seq).replace('N', 'A')))
 
-    cmd = partis_dir + '/bin/swarm-2.1.13-linux-x86_64 ' + infname
+    cmd = os.path.dirname(os.path.realpath(__file__)).replace('/python', '') + '/bin/swarm-2.1.13-linux-x86_64 ' + infname
     cmd += ' --differences ' + str(differences)
     if differences == 1:
         cmd += ' --fastidious'
