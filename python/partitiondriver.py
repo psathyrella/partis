@@ -570,7 +570,7 @@ class PartitionDriver(object):
         partition = []
         print '    running vsearch %d times (once for each cdr3 length class):' % len(all_naive_seqs),
         for cdr3_length, sub_naive_seqs in all_naive_seqs.items():
-            sub_hash_partition = utils.run_vsearch(sub_naive_seqs, threshold, self.args.workdir, self.args.partis_dir,
+            sub_hash_partition = utils.run_vsearch(sub_naive_seqs, threshold, self.args.workdir + '/vsearch', self.args.partis_dir,
                                                   n_procs=self.args.n_procs,
                                                   batch_system=self.args.batch_system, batch_options=self.args.batch_options, batch_config_fname=self.args.batch_config_fname)
             sub_uid_partition = [[uid for hashstr in hashcluster for uid in naive_seq_hashes[hashstr]] for hashcluster in sub_hash_partition]

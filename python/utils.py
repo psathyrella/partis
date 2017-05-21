@@ -2719,10 +2719,16 @@ def run_vsearch(seqs, threshold, workdir, partis_dir, n_procs=1, batch_system=No
     # sigle-pass, greedy, star-clustering algorithm with
     #  - add the target to the cluster if the pairwise identity with the centroid is higher than global threshold <--id>
     #  - pairwise identity definition <--iddef> defaults to: number of (matching columns) / (alignment length - terminal gaps)
+    #  - the search process sorts sequences in decreasing order of number of k-mers in common
+    #    - the search process stops after --maxaccept matches (default 1), and gives up after --maxreject non-matches (default 32)
+    #    - If both are zero, it searches the whole database
+    #    - I do not remember why I set both to zero. I just did a quick test, and on a few thousand sequences, it seems to be somewhat faster with the defaults, and a tiny bit less accurate.
 
-    # write input
+    prep_dir(workdir)
     infname = workdir + '/naive-seqs.fasta'
     outfname = workdir + '/vsearch-clusters.txt'
+
+    # write input
     with open(infname, 'w') as fastafile:
         for name, seq in seqs.items():
             fastafile.write('>' + name + '\n' + seq + '\n')
@@ -2731,10 +2737,10 @@ def run_vsearch(seqs, threshold, workdir, partis_dir, n_procs=1, batch_system=No
     cmd = partis_dir + '/bin/vsearch-2.4.3-linux-x86_64'
     cmd += ' --cluster_fast ' + infname
     cmd += ' --uc ' + outfname
-    # cmd += ' --consout ' + consensus_fname
-    # cmd += ' --msaout ' + msa_plus_consensus_fname
+    # cmd += ' --consout ' + outfname  # consensus file
+    # cmd += ' --msaout ' + outfname  # msa + consensus file
     cmd += ' --id ' + str(1. - threshold)
-    cmd += ' --maxaccept 0 --maxreject 0'
+    cmd += ' --maxaccept 0 --maxreject 0'  # see note above
     cmd += ' --threads ' + str(n_procs)
     cmd += ' --quiet'
     cmdfos = [{'cmd_str' : cmd, 'outfname' : outfname, 'workdir' : workdir, 'threads' : n_procs}, ]
@@ -2745,56 +2751,40 @@ def run_vsearch(seqs, threshold, workdir, partis_dir, n_procs=1, batch_system=No
     with open(outfname) as clusterfile:
         reader = csv.DictReader(clusterfile, fieldnames=['type', 'cluster_id', '3', '4', '5', '6', '7', 'crap', 'query', 'morecrap'], delimiter='\t')
         for line in reader:
-            if line['type'] == 'C':  # batshit output format: some lines are a cluster, and some are a query sequence. Skip the cluster ones.
+            if line['type'] == 'C':  # some lines are a cluster, and some are a query sequence. Skip the cluster ones.
                 continue
             cluster_id = int(line['cluster_id'])
             if cluster_id not in id_clusters:
                 id_clusters[cluster_id] = []
             uid = line['query']
-            # if self.args.naive_swarm and uid[-2:] == '_1':  # remove (dummy) abundance information
-            #     uid = uid[:-2]
             id_clusters[cluster_id].append(uid)
     partition = id_clusters.values()
 
     os.remove(infname)
     os.remove(outfname)
+    os.rmdir(workdir)
     return partition
 
 # ----------------------------------------------------------------------------------------
-def run_swarm(seqs, workdir, partis_dir, n_procs=1):
+def run_swarm(seqs, workdir, partis_dir, differences=1, n_procs=1):
     # groups together all sequence pairs that have <d> or fewer differences (--differences, default 1)
     #  - if d=1, uses algorithm of linear complexity (d=2 or greater uses quadratic algorithm)
     #  - --fastidious (only for d=1) extra pass to reduce the number of small OTUs
 
     prep_dir(workdir)
-
     infname = workdir + '/input.fa'
+    outfname = workdir + '/clusters.txt'
+
     dummy_abundance = 1
     with open(infname, 'w') as fastafile:
         for name, seq in seqs.items():
             fastafile.write('>%s_%d\n%s\n' % (name, dummy_abundance, remove_ambiguous_ends(seq).replace('N', 'A')))
 
-    # total = 0.
-    # for key in self.sw_info['queries']:
-    #     seq = self.input_info[key]['seqs'][0]
-    #     total += float(len(seq))
-    # mean_length = total / len(self.sw_info['queries'])
-    # raise Exception('update for new thresholds')
-    # bound = self.get_naive_hamming_threshold(parameter_dir, 'tight') /  2.  # yay for heuristics! (I did actually optimize this...)
-    # differences = int(round(mean_length * bound))
-    # print '        d = mean len * mut freq bound = %f * %f = %f --> %d' % (mean_length, bound, mean_length * bound, differences)
-    # cmd += ' --differences ' + str(differences)
-
-    outfname = workdir + '/clusters.txt'
     cmd = partis_dir + '/bin/swarm-2.1.13-linux-x86_64 ' + infname
-    # cmd += ' --fastidious'
-    cmd += ' --differences ' + str(8)
-    # cmd += ' --match-reward ' + str(self.args.match_mismatch[0])
-    # cmd += ' --mismatch-penalty ' + str(self.args.match_mismatch[1])
-    # cmd += ' --gap-opening-penalty ' + str(self.args.gap_open_penalty)
-    # # cmd += ' --gap-extension-penalty'
+    cmd += ' --differences ' + str(differences)
+    if differences == 1:
+        cmd += ' --fastidious'
     cmd += ' --threads ' + str(n_procs)
-    # cmd += ' --uclust-file ' + clusterfname
     cmd += ' --output-file ' + outfname
     simplerun(cmd)
 
