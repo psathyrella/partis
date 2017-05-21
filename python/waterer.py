@@ -162,6 +162,15 @@ class Waterer(object):
             self.info['mute-freqs'] = {rstr : self.pcounter.mfreqer.mean_rates[rstr].get_mean() for rstr in ['all', ] + utils.regions}
 
         found_germline_changes = False  # set to true if either alremover or alfinder found changes to the germline info
+# ----------------------------------------------------------------------------------------
+# todo: combine all alclusterer, alremover, and alfinder
+# todo: stop running sw over and over again
+        from alleleclusterer import AlleleClusterer
+        self.alclusterer = AlleleClusterer(self.args)
+        if self.alclusterer is not None:
+            self.alclusterer.get_alleles(self.info, self.glfo)
+        sys.exit()
+# ----------------------------------------------------------------------------------------
         if self.alremover is not None:
             self.alremover.finalize(self.pcounter, self.info, debug=True)
             self.info['genes-to-remove'] = self.alremover.genes_to_remove

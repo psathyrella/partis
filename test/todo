@@ -3,6 +3,9 @@
 # add scheepers data (well, and others)
 # add new chaim data (igg + igm)
 #
+# use "symmetry" of apparent mutation (i.e. real alleles should have uniform fuzz in all directions)
+#
+#
 # - apply vsearch/swarm to v_qr_seqs to see if there's any well-separated new genes that we should add to the initial set
 #   - probably use consensus sequence from each of these new clusters (?)
 #   - probably add it if it would be a new class by the definition in allele removal (?)
@@ -33,6 +36,7 @@
 # allelefinder/sw optimization
 #  - only rerun sequences that're from new alleles
 #  - seems kind of silly to run full sw on, say, five alleles that're separated by a few snps; could probably do something faster (maybe vsearch)
+#  - when you remove and add alleles, I think you don't actually need to rerun (if they're just separated by snps) -- can't I just update the info?
 
 # fix /fh/fast/matsen_e/kdavidse/partis_prob/SRR1383455_collapse-unique_atleast-2_partitioning.log
 # carefully go through all gls-gen logs

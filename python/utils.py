@@ -2715,7 +2715,7 @@ def getsuffix(fname):  # basename before the dot
     return os.path.splitext(fname)[1]
 
 # ----------------------------------------------------------------------------------------
-def run_vsearch(seqs, workdir, threshold, n_procs=1, batch_system=None, batch_options=None, batch_config_fname=None):
+def run_vsearch(seqs, workdir, threshold, n_procs=1, batch_system=None, batch_options=None, batch_config_fname=None, consensus_fname=None):
     # sigle-pass, greedy, star-clustering algorithm with
     #  - add the target to the cluster if the pairwise identity with the centroid is higher than global threshold <--id>
     #  - pairwise identity definition <--iddef> defaults to: number of (matching columns) / (alignment length - terminal gaps)
@@ -2737,7 +2737,9 @@ def run_vsearch(seqs, workdir, threshold, n_procs=1, batch_system=None, batch_op
     cmd = os.path.dirname(os.path.realpath(__file__)).replace('/python', '') + '/bin/vsearch-2.4.3-linux-x86_64'
     cmd += ' --cluster_fast ' + infname
     cmd += ' --uc ' + outfname
-    # cmd += ' --consout ' + outfname  # consensus file (note: can also output a file with msa and consensus)
+    if consensus_fname is not None:  # workdir cleanup below will fail if you put it in this workdir
+        cmd += ' --consout ' + consensus_fname  # note: can also output a file with msa and consensus
+    # cmd += ' --profile ' + outfname.replace('.txt', '-profile.txt')
     cmd += ' --id ' + str(1. - threshold)
     cmd += ' --maxaccept 0 --maxreject 0'  # see note above
     cmd += ' --threads ' + str(n_procs)
@@ -2762,6 +2764,7 @@ def run_vsearch(seqs, workdir, threshold, n_procs=1, batch_system=None, batch_op
     os.remove(infname)
     os.remove(outfname)
     os.rmdir(workdir)
+
     return partition
 
 # ----------------------------------------------------------------------------------------
