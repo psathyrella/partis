@@ -30,6 +30,10 @@
 # cf the two different imgt gl sets
 # deal with 'D' (imgt 'duplicate') alleles (not sure if remove, or swap for the non-D, or actually maybe just leave them and fix the name splitter)
 
+# allelefinder/sw optimization
+#  - only rerun sequences that're from new alleles
+#  - seems kind of silly to run full sw on, say, five alleles that're separated by a few snps; could probably do something faster (maybe vsearch)
+
 # fix /fh/fast/matsen_e/kdavidse/partis_prob/SRR1383455_collapse-unique_atleast-2_partitioning.log
 # carefully go through all gls-gen logs
 

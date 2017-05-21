@@ -2716,7 +2716,9 @@ def getsuffix(fname):  # basename before the dot
 
 # ----------------------------------------------------------------------------------------
 def run_vsearch(seqs, threshold, workdir, partis_dir, n_procs=1, batch_system=None, batch_options=None, batch_config_fname=None):
-    # merges with global threshold 1. - <threshold>
+    # sigle-pass, greedy, star-clustering algorithm with
+    #  - add the target to the cluster if the pairwise identity with the centroid is higher than global threshold <--id>
+    #  - pairwise identity definition <--iddef> defaults to: number of (matching columns) / (alignment length - terminal gaps)
 
     # write input
     infname = workdir + '/naive-seqs.fasta'
@@ -2730,6 +2732,7 @@ def run_vsearch(seqs, threshold, workdir, partis_dir, n_procs=1, batch_system=No
     cmd += ' --cluster_fast ' + infname
     cmd += ' --uc ' + outfname
     # cmd += ' --consout ' + consensus_fname
+    # cmd += ' --msaout ' + msa_plus_consensus_fname
     cmd += ' --id ' + str(1. - threshold)
     cmd += ' --maxaccept 0 --maxreject 0'
     cmd += ' --threads ' + str(n_procs)
@@ -2759,7 +2762,10 @@ def run_vsearch(seqs, threshold, workdir, partis_dir, n_procs=1, batch_system=No
 
 # ----------------------------------------------------------------------------------------
 def run_swarm(seqs, workdir, partis_dir, n_procs=1):
-    # merges with local threshold <differences> (default 1)
+    # groups together all sequence pairs that have <d> or fewer differences (--differences, default 1)
+    #  - if d=1, uses algorithm of linear complexity (d=2 or greater uses quadratic algorithm)
+    #  - --fastidious (only for d=1) extra pass to reduce the number of small OTUs
+
     prep_dir(workdir)
 
     infname = workdir + '/input.fa'
@@ -2780,7 +2786,6 @@ def run_swarm(seqs, workdir, partis_dir, n_procs=1):
     # cmd += ' --differences ' + str(differences)
 
     outfname = workdir + '/clusters.txt'
-    # partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/python', '')
     cmd = partis_dir + '/bin/swarm-2.1.13-linux-x86_64 ' + infname
     # cmd += ' --fastidious'
     cmd += ' --differences ' + str(8)
