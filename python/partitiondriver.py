@@ -558,7 +558,7 @@ class PartitionDriver(object):
                 if uid not in cached_naive_seqs:
                     raise Exception('naive sequence for %s not found in %s' % (uid, self.hmm_cachefname))
                 naive_seq_list.append((uid, cached_naive_seqs[uid]))
-        else:
+        else:  # I think this was added to allow allele finding to cluster with vsearch, but I ended up just clustering with naive seqs, so this isn't used
             assert parameter_dir is None  # i.e. get mut freq from sw info
             threshold = self.get_naive_hamming_bounds(parameter_dir=None, overall_mute_freq=self.sw_info['mute-freqs']['all'])[0]  # lo and hi are the same
             naive_seq_list = [(q, self.sw_info[q]['naive_seq']) for q in self.sw_info['queries']]
@@ -592,7 +592,7 @@ class PartitionDriver(object):
         return cpath
 
     # ----------------------------------------------------------------------------------------
-    def get_naive_hamming_bounds(self, parameter_dir=None, overall_mute_freq=None):
+    def get_naive_hamming_bounds(self, parameter_dir=None, overall_mute_freq=None):  # parameterize the relationship between mutation frequency and naive sequence inaccuracy
         if self.cached_naive_hamming_bounds is not None:  # only run the stuff below once
             return self.cached_naive_hamming_bounds
 
