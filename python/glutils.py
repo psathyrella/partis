@@ -793,3 +793,40 @@ def check_allele_prevalence_freqs(outfname, glfo, allele_prevalence_fname, only_
         for gene in glfo['seqs'][region]:
             print ('          %' + width + 'd     %.3f    %.3f   %s') % (counts[region][gene], float(counts[region][gene]) / total, allele_prevalence_freqs[region][gene], utils.color_gene(gene, width=15))
 
+# ----------------------------------------------------------------------------------------
+def find_new_allele_in_existing_glfo(glfo, region, new_name, new_seq, template_cpos, exclusion_5p=0, exclusion_3p=3, debug=False):
+    # decide if <new_seq> likely corresponds to an allele that's already in <glfo>
+    assert region == 'v'  # conserved codon stuff below will have to be changed for j
+
+    def print_sequence_chunks(seq, cpos, name):
+        print '            %s%s%s%s%s   %s' % (utils.color('blue', seq[:exclusion_5p]),
+                                               seq[exclusion_5p : cpos],
+                                               utils.color('reverse_video', seq[cpos : cpos + 3]),
+                                               seq[cpos + 3 : cpos + 3 + bases_to_right_of_cysteine],
+                                               utils.color('blue', seq[cpos + 3 + bases_to_right_of_cysteine:]),
+                                               utils.color_gene(name))
+
+    if new_name in glfo['seqs'][region]:  # if we removed an existing allele and then re-added it, it'll already be in the default glfo, so there's nothing for us to do in this fcn
+        return new_name, new_seq
+
+    for oldname_gene, oldname_seq in glfo['seqs'][region].items():  # NOTE <oldname_{gene,seq}> is the old *name* corresponding to the new (snp'd) allele, whereas <old_seq> is the allele from which we inferred the new (snp'd) allele
+        # first see if they match up through the cysteine
+        oldpos = glfo[utils.conserved_codons[glfo['locus']][region] + '-positions'][oldname_gene]
+        if oldname_seq[exclusion_5p : oldpos + 3] != new_seq[exclusion_5p : template_cpos + 3]:
+            continue
+
+        # then require that any bases in common to the right of the cysteine in the new allele match the ones in the old one (where "in common" means either of them can be longer, since this just changes the insertion length)
+        bases_to_right_of_cysteine = min(len(oldname_seq) - (oldpos + 3), len(new_seq) - exclusion_3p - (template_cpos + 3))
+
+        if bases_to_right_of_cysteine > 0 and oldname_seq[oldpos + 3 : oldpos + 3 + bases_to_right_of_cysteine] != new_seq[template_cpos + 3 : template_cpos + 3 + bases_to_right_of_cysteine]:
+            continue
+
+        print '        using old name %s for new allele %s (blue bases are not considered):' % (utils.color_gene(oldname_gene), utils.color_gene(new_name))
+        print_sequence_chunks(oldname_seq, oldpos, oldname_gene)
+        print_sequence_chunks(new_seq, template_cpos, new_name)
+
+        new_name = oldname_gene
+        new_seq = oldname_seq  # *very* important
+        break
+
+    return new_name, new_seq
