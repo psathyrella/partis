@@ -2761,9 +2761,8 @@ def run_vsearch(seqs, workdir, threshold, n_procs=1, batch_system=None, batch_op
     cmd += ' --uc ' + outfname
     if consensus_fname is not None:  # workdir cleanup below will fail if you put it in this workdir
         cmd += ' --consout ' + consensus_fname  # note: can also output a file with msa and consensus
-    # cmd += ' --profile ' + outfname.replace('.txt', '-profile.txt')
     cmd += ' --id ' + str(1. - threshold)
-    cmd += ' --maxaccept 0 --maxreject 0'  # see note above
+    # cmd += ' --maxaccept 0 --maxreject 0'  # see note above
     cmd += ' --threads ' + str(n_procs)
     cmd += ' --quiet'
     cmdfos = [{'cmd_str' : cmd, 'outfname' : outfname, 'workdir' : workdir, 'threads' : n_procs}, ]
