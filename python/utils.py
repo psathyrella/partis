@@ -1,3 +1,4 @@
+import tempfile
 import string
 import time
 import sys
@@ -527,16 +528,36 @@ def color_chars(chars, col, seq):
     return ''.join(return_str)
 
 # ----------------------------------------------------------------------------------------
-def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', post_str='', print_hfrac=False, print_isnps=False, return_isnps=False, emphasis_positions=None):
+def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', post_str='', print_hfrac=False, print_isnps=False, return_isnps=False, emphasis_positions=None, use_min_len=False, align=False):
     """ default: return <seq> string with colored mutations with respect to <ref_seq> """
+
+    if use_min_len:
+        min_len = min(len(ref_seq), len(seq))
+        ref_seq = ref_seq[:min_len]
+        seq = seq[:min_len]
+
+    if align:
+        with tempfile.NamedTemporaryFile() as fin, tempfile.NamedTemporaryFile() as fout:
+            fin.write('>%s\n%s\n' % ('ref', ref_seq))
+            fin.write('>%s\n%s\n' % ('seq', seq))
+            fin.flush()
+            subprocess.check_call('mafft --quiet %s >%s' % (fin.name, fout.name), shell=True)
+            msa_info = read_fastx(fout.name, ftype='fa')
+        ref_seq = [sfo['seq'] for sfo in msa_info if sfo['name'] == 'ref'][0]
+        seq = [sfo['seq'] for sfo in msa_info if sfo['name'] == 'seq'][0]
+
     if len(ref_seq) != len(seq):
         raise Exception('unequal lengths in color_mutants()\n    %s\n    %s' % (ref_seq, seq))
+
     return_str, isnps = [], []
     for inuke in range(len(seq)):  # would be nice to integrate this with hamming_distance()
+        rchar = ref_seq[inuke]
         char = seq[inuke]
-        if seq[inuke] in ambiguous_bases or ref_seq[inuke] in ambiguous_bases:
+        if char in ambiguous_bases or rchar in ambiguous_bases:
             char = color('blue', char)
-        elif seq[inuke] != ref_seq[inuke]:
+        elif char in gap_chars or rchar in gap_chars:
+            char = color('blue', char)
+        elif char != rchar:
             char = color('red', char)
             isnps.append(inuke)
         if emphasis_positions is not None and inuke in emphasis_positions:
@@ -2593,14 +2614,15 @@ def collapse_naive_seqs(naive_seq_list, sw_info):  # NOTE there is also a (simpl
     return naive_seq_map, naive_seq_hashes
 
 # ----------------------------------------------------------------------------------------
-def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, sanitize=False, queries=None, n_max_queries=-1, istartstop=None):  # Bio.SeqIO takes too goddamn long to import
-    suffix = getsuffix(fname)
-    if suffix == '.fa' or suffix == '.fasta':
-        ftype = 'fa'
-    elif suffix == '.fq' or suffix == '.fastq':
-        ftype = 'fq'
-    else:
-        raise Exception('unhandled file type: %s' % suffix)
+def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, sanitize=False, queries=None, n_max_queries=-1, istartstop=None, ftype=None):  # Bio.SeqIO takes too goddamn long to import
+    if ftype is None:
+        suffix = getsuffix(fname)
+        if suffix == '.fa' or suffix == '.fasta':
+            ftype = 'fa'
+        elif suffix == '.fq' or suffix == '.fastq':
+            ftype = 'fq'
+        else:
+            raise Exception('unhandled file type: %s' % suffix)
 
     finfo = []
     iline = -1  # index of the query/seq that we're currently reading in the fasta
@@ -2644,7 +2666,7 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, sanitize=Fa
                     raise Exception('invalid fastq quality header in %s:\n    %s' % (fname, plusline))
                 qualityline = fastafile.readline()
             else:
-                assert False
+                raise Exception('unhandled ftype %s' % ftype)
 
             if not seqline:
                 break
