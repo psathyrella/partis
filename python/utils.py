@@ -2747,7 +2747,7 @@ def run_vsearch(seqs, workdir, threshold, n_procs=1, batch_system=None, batch_op
     #    - I do not remember why I set both to zero. I just did a quick test, and on a few thousand sequences, it seems to be somewhat faster with the defaults, and a tiny bit less accurate.
 
     prep_dir(workdir)
-    infname = workdir + '/naive-seqs.fasta'
+    infname = workdir + '/input.fa'
     outfname = workdir + '/vsearch-clusters.txt'
 
     # write input

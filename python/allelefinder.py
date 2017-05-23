@@ -724,7 +724,8 @@ class AlleleFinder(object):
         template_cpos = self.glfo[utils.conserved_codons[self.glfo['locus']][self.region] + '-positions'][template_gene]
         exclusion_5p = self.n_bases_to_exclude['5p'][template_gene]
         exclusion_3p = self.n_bases_to_exclude['3p'][template_gene]
-        return glutils.find_new_allele_in_existing_glfo(self.default_initial_glfo, self.region, new_name, new_seq, template_cpos, exclusion_5p=exclusion_5p, exclusion_3p=exclusion_3p)
+        new_name, new_seq = glutils.find_new_allele_in_existing_glfo(self.default_initial_glfo, self.region, new_name, new_seq, template_cpos, exclusion_5p=exclusion_5p, exclusion_3p=exclusion_3p, debug=True)
+        return new_name, new_seq
 
     # ----------------------------------------------------------------------------------------
     def add_new_allele(self, template_gene, fitfo, n_candidate_snps, debug=False):

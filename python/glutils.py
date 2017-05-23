@@ -821,9 +821,10 @@ def find_new_allele_in_existing_glfo(glfo, region, new_name, new_seq, template_c
         if bases_to_right_of_cysteine > 0 and oldname_seq[oldpos + 3 : oldpos + 3 + bases_to_right_of_cysteine] != new_seq[template_cpos + 3 : template_cpos + 3 + bases_to_right_of_cysteine]:
             continue
 
-        print '        using old name %s for new allele %s (blue bases are not considered):' % (utils.color_gene(oldname_gene), utils.color_gene(new_name))
-        print_sequence_chunks(oldname_seq, oldpos, oldname_gene)
-        print_sequence_chunks(new_seq, template_cpos, new_name)
+        if debug:
+            print '        using old name %s for new allele %s (blue bases are not considered):' % (utils.color_gene(oldname_gene), utils.color_gene(new_name))
+            print_sequence_chunks(oldname_seq, oldpos, oldname_gene)
+            print_sequence_chunks(new_seq, template_cpos, new_name)
 
         new_name = oldname_gene
         new_seq = oldname_seq  # *very* important
