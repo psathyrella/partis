@@ -1290,13 +1290,12 @@ def hamming_distance(seq1, seq2, extra_bases=None, return_len_excluding_ambig=Fa
         else:
             return 0
 
-    assert len(ambiguous_bases) == 1  # would just have to update the below if it's longer
-    ambig_base = ambiguous_bases[0]
+    skip_chars = set(ambiguous_bases + gap_chars)
 
     distance, len_excluding_ambig = 0, 0
     mutated_positions = []
     for ich in range(len(seq1)):  # already made sure they're the same length
-        if ambig_base in seq1[ich] + seq2[ich]:
+        if seq1[ich] in skip_chars or seq2[ich] in skip_chars:
             continue
         len_excluding_ambig += 1
         if seq1[ich] != seq2[ich]:
@@ -1366,6 +1365,19 @@ def get_mutation_rate_and_n_muted(line, iseq, restrict_to_region=''):
     naive_seq, muted_seq = subset_sequences(line, iseq, restrict_to_region)
     fraction, distance = hamming_fraction(naive_seq, muted_seq, also_return_distance=True)
     return fraction, distance
+
+# ----------------------------------------------------------------------------------------
+def dot_product(naive_seq, seq1, seq2):
+    _, imutes1 = hamming_distance(naive_seq, seq1, return_mutated_positions=True)
+    _, imutes2 = hamming_distance(naive_seq, seq2, return_mutated_positions=True)
+    both_muted = set(imutes1) & set(imutes2)
+    both_muted_to_same_thing = [imut for imut in both_muted if seq1[imut] == seq2[imut]]
+    dot_product = len(both_muted_to_same_thing)
+    # print '    naive  %s' % naive_seq
+    # print '           %s' % utils.color_mutants(naive_seq, seq1)
+    # print '           %s' % utils.color_mutants(naive_seq, seq2)
+    # print '    dot %d' % dot_product
+    return dot_product
 
 # ----------------------------------------------------------------------------------------
 def get_key(names):
@@ -2637,6 +2649,8 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, sanitize=Fa
             headline = fastafile.readline()
             if not headline:
                 break
+            if headline.strip() == '':  # skip a blank line
+                headline = fastafile.readline()
 
             if ftype == 'fa':
                 if headline[0] != '>':
@@ -2737,7 +2751,7 @@ def getsuffix(fname):  # basename before the dot
     return os.path.splitext(fname)[1]
 
 # ----------------------------------------------------------------------------------------
-def run_vsearch(seqs, workdir, threshold, n_procs=1, batch_system=None, batch_options=None, batch_config_fname=None, consensus_fname=None):
+def run_vsearch(seqs, workdir, threshold, n_procs=1, batch_system=None, batch_options=None, batch_config_fname=None, consensus_fname=None, msa_fname=None):
     # sigle-pass, greedy, star-clustering algorithm with
     #  - add the target to the cluster if the pairwise identity with the centroid is higher than global threshold <--id>
     #  - pairwise identity definition <--iddef> defaults to: number of (matching columns) / (alignment length - terminal gaps)
@@ -2761,6 +2775,8 @@ def run_vsearch(seqs, workdir, threshold, n_procs=1, batch_system=None, batch_op
     cmd += ' --uc ' + outfname
     if consensus_fname is not None:  # workdir cleanup below will fail if you put it in this workdir
         cmd += ' --consout ' + consensus_fname  # note: can also output a file with msa and consensus
+    if msa_fname is not None:  # workdir cleanup below will fail if you put it in this workdir
+        cmd += ' --msaout ' + msa_fname
     cmd += ' --id ' + str(1. - threshold)
     # cmd += ' --maxaccept 0 --maxreject 0'  # see note above
     cmd += ' --threads ' + str(n_procs)
