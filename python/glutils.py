@@ -542,7 +542,7 @@ def add_new_alleles(glfo, newfos, remove_template_genes=False, debug=False):
         add_new_allele(glfo, newfo, remove_template_genes=remove_template_genes, debug=debug)
 
 # ----------------------------------------------------------------------------------------
-def add_new_allele(glfo, newfo, remove_template_genes=False, debug=False):
+def add_new_allele(glfo, newfo, remove_template_genes=False, use_template_for_codon_info=True, debug=False):
     """
     Add a new allele to <glfo>, specified by <newfo> which is of the
     form: {'gene' : 'IGHV3-71*01+C35T.T47G', 'seq' : 'ACTG yadda yadda CGGGT', 'template-gene' : 'IGHV3-71*01'}
@@ -556,12 +556,15 @@ def add_new_allele(glfo, newfo, remove_template_genes=False, debug=False):
 
     new_gene = newfo['gene']
 
-    if region == 'v':
-        glfo['cyst-positions'][new_gene] = glfo['cyst-positions'][template_gene]
-    elif region == 'j':
-        glfo['tryp-positions'][new_gene] = glfo['tryp-positions'][template_gene]
-
     glfo['seqs'][region][new_gene] = newfo['seq']
+
+    if use_template_for_codon_info:
+        if region == 'v':
+            glfo['cyst-positions'][new_gene] = glfo['cyst-positions'][template_gene]
+        elif region == 'j':
+            glfo['tryp-positions'][new_gene] = glfo['tryp-positions'][template_gene]
+    else:
+        get_missing_codon_info(glfo)
 
     if debug:
         print '    adding new allele to glfo:'
