@@ -18,7 +18,9 @@ class AlleleClusterer(object):
 
     # ----------------------------------------------------------------------------------------
     def get_alleles(self, swfo, glfo, debug=True):
-        qr_seqs = {query : swfo[query][self.region + '_qr_seqs'][0] for query in swfo['queries']}
+        # qr_seqs = {query : swfo[query][self.region + '_qr_seqs'][0] for query in swfo['queries']}
+        qr_seqs = {query : utils.get_qr_seqs_with_indels_reinstated(swfo[query], iseq=0)[self.region] for query in swfo['queries']}
+
         consensus_fname = self.args.workdir + '/cluster-consensus-seqs.fa'
         msa_fname = self.args.workdir + '/msa.fa'
         threshold = swfo['mute-freqs'][self.region]
@@ -73,20 +75,28 @@ class AlleleClusterer(object):
                     print '    %-12s  %4d   %s' % (utils.color_gene(gene, width=12), counts, utils.color_mutants(clusterfo['cons_seq'], glfo['seqs'][self.region][gene], print_isnps=True, align=True))
 
             most_common_gene, _ = sorted_glcounts[0]  # not sure what but the most similar gene wouldn't be a better choice, but I think it doesn't matter since it's just getting used for find_new_allele_in_existing_glfo()
-            new_name = most_common_gene + '+' + str(random.randint(0, 999999))  # er, not sure what to use here, but at least this probably won't result in collisions
+            new_name = most_common_gene + '+' + ''.join(numpy.random.choice(list('xyz'), size=8))  # er, not sure what to use here, but at least this probably won't result in collisions
             new_seq = clusterfo['cons_seq']
             template_cpos = glfo[utils.conserved_codons[glfo['locus']][self.region] + '-positions'][most_common_gene]
             new_name, new_seq = glutils.find_new_allele_in_existing_glfo(glfo, self.region, new_name, new_seq, template_cpos)
             if new_name in glfo['seqs'][self.region]:
-                print '  existing gene %s' % utils.color_gene(new_name)
+                print '    existing gene %s' % utils.color_gene(new_name)
                 continue
             most_common_glseq = glfo['seqs'][self.region][most_common_gene]  # not necessarily the most similar (but it probably is)
             if len(new_seq[:template_cpos]) == len(most_common_glseq[:template_cpos]):
                 n_snps = utils.hamming_distance(new_seq[:template_cpos], most_common_glseq[:template_cpos])
                 if n_snps < self.args.n_max_snps:
-                    print '  too close (%d snps) to existing gene %s' % (n_snps, utils.color_gene(most_common_gene))
+                    print '    too close (%d snps) to existing gene %s' % (n_snps, utils.color_gene(most_common_gene))
                     continue
-            print '  actual new allele %s' % utils.color_gene(new_name)
-            final_alleles[new_name] = new_seq
+            print '%s new allele %s' % (utils.color('blue', '-->'), utils.color_gene(new_name))
 
+            glutils.add_new_allele(glfo, {'template-gene' : most_common_gene, 'gene' : new_name, 'seq' : new_seq}, use_template_for_codon_info=False)
+            real_gene = 'IGHV4-39*01'
+            refglfo = glutils.read_glfo('data/germlines/human', locus='igh')
+            print '----------'
+            print refglfo['seqs']['v'][real_gene]
+            print utils.color_mutants(refglfo['seqs']['v'][real_gene], new_seq, align=True)
+
+        assert False  # can't let it actually modify glfo
         return final_alleles
+
