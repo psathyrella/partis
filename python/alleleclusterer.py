@@ -64,9 +64,9 @@ class AlleleClusterer(object):
 
         new_alleles = {}
         min_seqs = max(self.absolute_min_seqs, self.args.min_allele_prevalence_fraction * len(swfo['queries']))
-        for clusterfo in msa_info:
+        for clusterfo in sorted(msa_info, key=lambda cfo: len(cfo['seqfos']), reverse=True):
             if len(clusterfo['seqfos']) < min_seqs:
-                continue
+                break
 
             glcounts = {}
             for seqfo in clusterfo['seqfos']:
