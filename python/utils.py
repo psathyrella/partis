@@ -2350,6 +2350,17 @@ def get_seq_with_indels_reinstated(line, iseq=0):  # reverse the action of indel
     return return_seq
 
 # ----------------------------------------------------------------------------------------
+def adjust_single_position_for_reinstated_indels(indel, position):
+    if indel['pos'] > position:  # NOTE this just ignores the case where the indel's in the middle of the codon, because, like, screw that I don't want to think about it
+        return position
+    if indel['type'] == 'insertion':
+        return position + indel['len']
+    elif indel['type'] == 'deletion':
+        return position - indel['len']
+    else:
+        assert False
+
+# ----------------------------------------------------------------------------------------
 def get_codon_positions_with_indels_reinstated(line, iseq, codon_positions):
     # NOTE as long as the indels are reversed, all the sequences have the same codon positions. But as soon as we reinstate the indels, all heck breaks loose.
     indelfo = line['indelfos'][iseq]
@@ -2359,15 +2370,29 @@ def get_codon_positions_with_indels_reinstated(line, iseq, codon_positions):
 
     for indel in reversed(indelfo['indels']):
         for region in reinstated_codon_positions:
-            if indel['pos'] > reinstated_codon_positions[region]:  # NOTE this just ignores the case where the indel's in the middle of the codon, because, like, screw that I don't want to think about it
-                continue
-            if indel['type'] == 'insertion':
-                reinstated_codon_positions[region] += indel['len']
-            elif indel['type'] == 'deletion':
-                reinstated_codon_positions[region] -= indel['len']
-            else:
-                assert False
+            reinstated_codon_positions[region] = adjust_single_position_for_reinstated_indels(indel, reinstated_codon_positions[region])
     return reinstated_codon_positions
+
+# ----------------------------------------------------------------------------------------
+def get_regional_bounds_with_indels_reinstated(line, iseq):
+    indelfo = line['indelfos'][iseq]
+    regional_bounds = copy.deepcopy(line['regional_bounds'])
+    if indelfo['reversed_seq'] == '':
+        return regional_bounds
+
+    for indel in reversed(indelfo['indels']):
+        for region in regional_bounds:
+            regional_bounds[region] = (adjust_single_position_for_reinstated_indels(indel, regional_bounds[region][0]),
+                                       adjust_single_position_for_reinstated_indels(indel, regional_bounds[region][1]))
+    return regional_bounds
+
+# ----------------------------------------------------------------------------------------
+def get_qr_seqs_with_indels_reinstated(line, iseq):
+    rbounds = get_regional_bounds_with_indels_reinstated(line, iseq)
+    assert line['input_seqs'][iseq] == get_seq_with_indels_reinstated(line, iseq)
+    inseq = line['input_seqs'][iseq]
+    qr_seqs = {r : inseq[rbounds[r][0] : rbounds[r][1]] for r in regions}
+    return qr_seqs
 
 # ----------------------------------------------------------------------------------------
 def csv_to_fasta(infname, outfname=None, name_column='unique_ids', seq_column='input_seqs', n_max_lines=None, overwrite=True, remove_duplicates=False):
