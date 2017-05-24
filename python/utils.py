@@ -2340,10 +2340,12 @@ def get_seq_with_indels_reinstated(line, iseq=0):  # reverse the action of indel
         return return_seq
 
     for indel in indelfo['indels']:
-        raise Exception('XXX')
         if indel['type'] == 'insertion':
             return_seq = return_seq[ : indel['pos']] + indel['seqstr'] + return_seq[indel['pos'] : ]
         elif indel['type'] == 'deletion':
+            excision = return_seq[indel['pos'] : indel['pos'] + indel['len']]
+            if excision != indel['seqstr']:
+                raise Exception('ack %s %s' % (excision, indel['seqstr']))
             return_seq = return_seq[ : indel['pos']] + return_seq[indel['pos'] + indel['len'] : ]
         else:
             assert False
@@ -2369,7 +2371,7 @@ def get_codon_positions_with_indels_reinstated(line, iseq, codon_positions):
     if indelfo['reversed_seq'] == '':
         return reinstated_codon_positions
 
-    for indel in reversed(indelfo['indels']):
+    for indel in indelfo['indels']:
         for region in reinstated_codon_positions:
             reinstated_codon_positions[region] = adjust_single_position_for_reinstated_indels(indel, reinstated_codon_positions[region])
     return reinstated_codon_positions
@@ -2381,7 +2383,7 @@ def get_regional_bounds_with_indels_reinstated(line, iseq):
     if indelfo['reversed_seq'] == '':
         return regional_bounds
 
-    for indel in reversed(indelfo['indels']):
+    for indel in indelfo['indels']:
         for region in regional_bounds:
             regional_bounds[region] = (adjust_single_position_for_reinstated_indels(indel, regional_bounds[region][0]),
                                        adjust_single_position_for_reinstated_indels(indel, regional_bounds[region][1]))
