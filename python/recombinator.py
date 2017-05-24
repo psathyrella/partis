@@ -275,6 +275,8 @@ class Recombinator(object):
 
         # first choose the things that we'll only need to try choosing once (genes and effective (non-physical) deletions/insertions)
         for region in utils.regions:
+            if len(self.glfo['seqs'][region]) == 0:
+                raise Exception('no genes to choose from for %s' % region)
             probs = None  # it would make more sense to only do this prob calculation once, rather than for each event
             if region in self.allele_prevalence_freqs and len(self.allele_prevalence_freqs[region]) > 0:  # should really change it so it has to be the one or the other
                 probs = [self.allele_prevalence_freqs[region][g] for g in self.glfo['seqs'][region].keys()]
