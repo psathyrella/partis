@@ -566,7 +566,9 @@ def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', 
 
     isnp_str = ''
     if print_isnps and len(isnps) > 0:
-        isnp_str = '   %d snp%s at: %s' % (len(isnps), plural(len(isnps)), ' '.join([str(i) for i in isnps]))
+        isnp_str = '   %d snp%s' % (len(isnps), plural(len(isnps)))
+        if len(isnps) < 10:
+            isnp_str +=  'at: %s' % ' '.join([str(i) for i in isnps])
     hfrac_str = ''
     if print_hfrac:
         hfrac_str = '   hfrac %.3f' % hamming_fraction(ref_seq, seq)
