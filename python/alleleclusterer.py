@@ -17,6 +17,15 @@ class AlleleClusterer(object):
         self.absolute_min_seqs = 15
 
     # ----------------------------------------------------------------------------------------
+    def too_close_to_already_added_gene(self, new_seq, new_alleles):
+        for added_name, added_seq in new_alleles.items():
+            _, isnps = utils.color_mutants(added_seq, new_seq, return_isnps=True, align=True)  # oh man that could be cleaner
+            if len(isnps) < self.args.n_max_snps:
+                print '    too close (%d snp%s) to gene we just added %s' % (len(isnps), utils.plural(len(isnps)), utils.color_gene(added_name))
+                return True
+        return False
+
+    # ----------------------------------------------------------------------------------------
     def get_alleles(self, swfo, glfo, debug=True):
         # qr_seqs = {query : swfo[query][self.region + '_qr_seqs'][0] for query in swfo['queries']}
         qr_seqs = {query : utils.get_qr_seqs_with_indels_reinstated(swfo[query], iseq=0)[self.region] for query in swfo['queries']}
@@ -53,7 +62,7 @@ class AlleleClusterer(object):
                 msa_info[-1]['seqfos'].append(seqfo)
         os.remove(msa_fname)
 
-        final_alleles = {}
+        new_alleles = {}
         min_seqs = max(self.absolute_min_seqs, self.args.min_allele_prevalence_fraction * len(swfo['queries']))
         for clusterfo in msa_info:
             if len(clusterfo['seqfos']) < min_seqs:
@@ -86,17 +95,20 @@ class AlleleClusterer(object):
             if len(new_seq[:template_cpos]) == len(most_common_glseq[:template_cpos]):
                 n_snps = utils.hamming_distance(new_seq[:template_cpos], most_common_glseq[:template_cpos])
                 if n_snps < self.args.n_max_snps:
-                    print '    too close (%d snps) to existing gene %s' % (n_snps, utils.color_gene(most_common_gene))
+                    print '    too close (%d snp%s) to existing gene %s' % (n_snps, utils.plural(n_snps), utils.color_gene(most_common_gene))
                     continue
-            print '%s new allele %s' % (utils.color('blue', '-->'), utils.color_gene(new_name))
+
+            if self.too_close_to_already_added_gene(new_seq, new_alleles):
+                continue
+
+            print '  %s new allele %s' % (utils.color('bold', utils.color('blue', '-->')), utils.color_gene(new_name))
 
             glutils.add_new_allele(glfo, {'template-gene' : most_common_gene, 'gene' : new_name, 'seq' : new_seq}, use_template_for_codon_info=False)
-            real_gene = 'IGHV4-39*01'
+            new_alleles[new_name] = new_seq
+            real_gene = 'IGHV5-51*03'
             refglfo = glutils.read_glfo('data/germlines/human', locus='igh')
-            print '----------'
-            print refglfo['seqs']['v'][real_gene]
-            print utils.color_mutants(refglfo['seqs']['v'][real_gene], new_seq, align=True)
+            print '      %s %s' % (utils.color_gene(real_gene, width=12), refglfo['seqs']['v'][real_gene])
+            print '      %-12s %s' % ('new', utils.color_mutants(refglfo['seqs']['v'][real_gene], new_seq, align=True))
 
         assert False  # can't let it actually modify glfo
-        return final_alleles
-
+        return new_alleles
