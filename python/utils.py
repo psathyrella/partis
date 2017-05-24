@@ -2339,7 +2339,8 @@ def get_seq_with_indels_reinstated(line, iseq=0):  # reverse the action of indel
     if indelfo['reversed_seq'] == '':
         return return_seq
 
-    for indel in reversed(indelfo['indels']):
+    for indel in indelfo['indels']:
+        raise Exception('XXX')
         if indel['type'] == 'insertion':
             return_seq = return_seq[ : indel['pos']] + indel['seqstr'] + return_seq[indel['pos'] : ]
         elif indel['type'] == 'deletion':
@@ -2389,7 +2390,7 @@ def get_regional_bounds_with_indels_reinstated(line, iseq):
 # ----------------------------------------------------------------------------------------
 def get_qr_seqs_with_indels_reinstated(line, iseq):
     rbounds = get_regional_bounds_with_indels_reinstated(line, iseq)
-    assert line['input_seqs'][iseq] == get_seq_with_indels_reinstated(line, iseq)
+    # assert line['input_seqs'][iseq] == get_seq_with_indels_reinstated(line, iseq)
     inseq = line['input_seqs'][iseq]
     qr_seqs = {r : inseq[rbounds[r][0] : rbounds[r][1]] for r in regions}
     return qr_seqs
