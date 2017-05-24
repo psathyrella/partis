@@ -804,13 +804,15 @@ def reset_effective_erosions_and_effective_insertions(glfo, padded_line, aligned
         if line['j_3p_del'] > 0:
             line['seqs'][iseq] = line['seqs'][iseq][ : -line['j_3p_del']]
 
-        # if necessary, also de-pad the indel-reversed seqs
+        # also de-pad the indel info
         if line['indelfos'][iseq]['reversed_seq'] != '':
             rseq = line['indelfos'][iseq]['reversed_seq']
             rseq = rseq[len(fv_insertion_to_remove) + line['v_5p_del'] : ]
             if len(jf_insertion_to_remove) + line['j_3p_del'] > 0:
                 rseq = rseq[ : -(len(jf_insertion_to_remove) + line['j_3p_del'])]
             line['indelfos'][iseq]['reversed_seq'] = rseq
+            for indel in line['indelfos'][iseq]['indels']:
+                indel['pos'] -= len(fv_insertion_to_remove) + line['v_5p_del']
 
     if debug:
         print '     fv %d   v_5p %d   j_3p %d   jf %d    %s' % (len(fv_insertion_to_remove), line['v_5p_del'], line['j_3p_del'], len(jf_insertion_to_remove), line['seqs'][0])
@@ -823,7 +825,7 @@ def reset_effective_erosions_and_effective_insertions(glfo, padded_line, aligned
     # else:
     #     line['padlefts'], line['padrights'] = [padfo[uid]['padded']['padleft'] for uid in line['unique_ids']], [padfo[uid]['padded']['padright'] for uid in line['unique_ids']]
 
-    # NOTE fixed the problem we were actually seeing, so this shouldn't fail any more, but I'll leave it in for a bit just in case
+    # NOTE fixed the problem we were actually seeing, so this shouldn't fail any more, but I'll leave it in for a bit just in case UPDATE totally saved my ass from an unrelated problem (well, maybe not "saved" -- definitely don't remove the add_implicit_info() call though)
     try:
         add_implicit_info(glfo, line, aligned_gl_seqs=aligned_gl_seqs)
     except:
