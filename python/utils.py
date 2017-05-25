@@ -1,3 +1,4 @@
+import numpy
 import tempfile
 import string
 import time
@@ -119,6 +120,10 @@ expected_characters = set(nukes + ambiguous_bases + gap_chars)  # NOTE not the g
 conserved_codons = {l : {'v' : 'cyst',
                           'j' : 'tryp' if l == 'igh' else 'phen'}  # e.g. heavy chain has tryp, light chain has phen
                      for l in loci}
+
+def cpos(glfo, region, gene):  # here the 'c' stands for 'codon', not 'cysteine', which is kind of confusing but worthwhile for the delectable concision it allows
+    return glfo[conserved_codons[glfo['locus']][region] + '-positions'][gene]
+
 codon_table = {
     'cyst' : ['TGT', 'TGC'],
     'tryp' : ['TGG', ],
@@ -539,12 +544,15 @@ def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', 
     if align:
         with tempfile.NamedTemporaryFile() as fin, tempfile.NamedTemporaryFile() as fout:
             fin.write('>%s\n%s\n' % ('ref', ref_seq))
-            fin.write('>%s\n%s\n' % ('seq', seq))
+            fin.write('>%s\n%s\n' % ('new', seq))
             fin.flush()
             subprocess.check_call('mafft --quiet %s >%s' % (fin.name, fout.name), shell=True)
-            msa_info = read_fastx(fout.name, ftype='fa')
-        ref_seq = [sfo['seq'] for sfo in msa_info if sfo['name'] == 'ref'][0]
-        seq = [sfo['seq'] for sfo in msa_info if sfo['name'] == 'seq'][0]
+            msa_info = {sfo['name'] : sfo['seq'] for sfo in read_fastx(fout.name, ftype='fa')}
+            if 'ref' not in msa_info or 'new' not in msa_info:
+                subprocess.check_call(['cat', fin.name])
+                raise Exception('incoherent mafft output from %s (cat\'d on previous line)' % fin.name)
+        ref_seq = msa_info['ref']
+        seq = msa_info['new']
 
     if len(ref_seq) != len(seq):
         raise Exception('unequal lengths in color_mutants()\n    %s\n    %s' % (ref_seq, seq))
@@ -568,7 +576,7 @@ def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', 
     if print_isnps and len(isnps) > 0:
         isnp_str = '   %d snp%s' % (len(isnps), plural(len(isnps)))
         if len(isnps) < 10:
-            isnp_str +=  'at: %s' % ' '.join([str(i) for i in isnps])
+            isnp_str +=  ' at: %s' % ' '.join([str(i) for i in isnps])
     hfrac_str = ''
     if print_hfrac:
         hfrac_str = '   hfrac %.3f' % hamming_fraction(ref_seq, seq)
@@ -2800,13 +2808,15 @@ def read_vsearch_cluster_file(fname):
 
 # ----------------------------------------------------------------------------------------
 def run_vsearch(action, seqs, workdir, threshold, n_procs=1, batch_system=None, batch_options=None, batch_config_fname=None, consensus_fname=None, msa_fname=None, glfo=None):
-    # sigle-pass, greedy, star-clustering algorithm with
+    # single-pass, greedy, star-clustering algorithm with
     #  - add the target to the cluster if the pairwise identity with the centroid is higher than global threshold <--id>
     #  - pairwise identity definition <--iddef> defaults to: number of (matching columns) / (alignment length - terminal gaps)
     #  - the search process sorts sequences in decreasing order of number of k-mers in common
     #    - the search process stops after --maxaccept matches (default 1), and gives up after --maxreject non-matches (default 32)
     #    - If both are zero, it searches the whole database
     #    - I do not remember why I set both to zero. I just did a quick test, and on a few thousand sequences, it seems to be somewhat faster with the defaults, and a tiny bit less accurate.
+    region = 'v'
+
 
     prep_dir(workdir)
     infname = workdir + '/input.fa'
@@ -2835,7 +2845,7 @@ def run_vsearch(action, seqs, workdir, threshold, n_procs=1, batch_system=None, 
         glutils.write_glfo(dbdir, glfo)
         cmd += ' --usearch_global ' + infname
         cmd += ' --maxaccepts 5'  # it's sorted by number of k-mers in common, so this needs to be large enough that we'll almost definitely get the exact best gene match
-        cmd += ' --db ' + glutils.get_fname(dbdir, glfo['locus'], 'v')
+        cmd += ' --db ' + glutils.get_fname(dbdir, glfo['locus'], region)
         cmd += ' --userfields %s --userout %s' % ('+'.join(userfields), outfname)  # note that --sizeout --dbmatched <fname> adds up all the matches from --maxaccepts, i.e. it's not what we want
     else:
         assert False
@@ -2860,13 +2870,16 @@ def run_vsearch(action, seqs, workdir, threshold, n_procs=1, batch_system=None, 
                 qr_seq = seqs[query][istart : istart + length]
                 id_score = int(line['ids'])
                 if query not in query_info or query_info[query]['ids'] < id_score:  # a surprisingly large number of targets give the same score, and you seem to get a little closer to what sw does if you sort alphabetically, but it don't matter
-                    query_info[query] = {'ids' : id_score, 'gene' : line['target'], 'qr_seq' : qr_seq}
+                    query_info[query] = {'ids' : id_score,
+                                         'gene' : line['target'],
+                                         'qr_seq' : qr_seq}
         gene_counts = {}
         for query, qinfo in query_info.items():
             if qinfo['gene'] not in gene_counts:
                 gene_counts[qinfo['gene']] = 0
             gene_counts[qinfo['gene']] += 1
-        returnfo = {'gene-counts' : gene_counts, 'queries' : query_info}
+        regional_mute_freq = numpy.mean([float(qinfo['ids']) / len(qinfo['qr_seq']) for qinfo in query_info.values()])
+        returnfo = {'gene-counts' : gene_counts, 'queries' : query_info, 'mute-freqs' : {region : regional_mute_freq}}
     else:
         assert False
 

@@ -537,9 +537,9 @@ def remove_gene(glfo, gene, debug=False):
             print '  can\'t remove %s from glfo, it\'s not there' % utils.color_gene(gene)
 
 # ----------------------------------------------------------------------------------------
-def add_new_alleles(glfo, newfos, remove_template_genes=False, debug=False):
+def add_new_alleles(glfo, newfos, remove_template_genes=False, use_template_for_codon_info=True, debug=False):
     for newfo in newfos:
-        add_new_allele(glfo, newfo, remove_template_genes=remove_template_genes, debug=debug)
+        add_new_allele(glfo, newfo, remove_template_genes=remove_template_genes, use_template_for_codon_info=use_template_for_codon_info, debug=debug)
 
 # ----------------------------------------------------------------------------------------
 def add_new_allele(glfo, newfo, remove_template_genes=False, use_template_for_codon_info=True, debug=False):
@@ -556,13 +556,14 @@ def add_new_allele(glfo, newfo, remove_template_genes=False, use_template_for_co
 
     new_gene = newfo['gene']
 
+    if len(set(newfo['seq']) - utils.alphabet) > 0:
+        raise Exception('unexpected characters %s in new gl seq %s' % (set(newfo['seq']) - utils.alphabet, newfo['seq']))
     glfo['seqs'][region][new_gene] = newfo['seq']
 
     if use_template_for_codon_info:
-        if region == 'v':
-            glfo['cyst-positions'][new_gene] = glfo['cyst-positions'][template_gene]
-        elif region == 'j':
-            glfo['tryp-positions'][new_gene] = glfo['tryp-positions'][template_gene]
+        codon = utils.conserved_codons[glfo['locus']].get(region, None)
+        if codon is not None:
+            glfo[codon + '-positions'][new_gene] = glfo[codon + '-positions'][template_gene]
     else:
         get_missing_codon_info(glfo)
 

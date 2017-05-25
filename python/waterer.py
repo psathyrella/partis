@@ -158,11 +158,6 @@ class Waterer(object):
 
             assert len(self.info['queries']) + len(self.skipped_unproductive_queries) + len(self.info['failed-queries']) == len(self.input_info)
 
-        if self.pcounter is not None:
-            # stash xxx
-            # TODO set some mean mute freq information in <self.info> just based on averages from the dicts in <self.info>, instead of pcounter
-            self.info['mute-freqs'] = {rstr : self.pcounter.mfreqer.mean_rates[rstr].get_mean() for rstr in ['all', ] + utils.regions}
-
         for qname in self.info['queries']:
             if self.pcounter is not None:
                 self.pcounter.increment(self.info[qname])
@@ -174,19 +169,10 @@ class Waterer(object):
                 else:
                     self.perfplotter.evaluate(self.reco_info[qname], self.info[qname])
 
+        if self.pcounter is not None:
+            self.info['mute-freqs'] = {rstr : self.pcounter.mfreqer.mean_rates[rstr].get_mean() for rstr in ['all', ] + utils.regions}
+
         found_germline_changes = False  # set to true if either alremover or alfinder found changes to the germline info
-        # stash xxx
-        # # ----------------------------------------------------------------------------------------
-        # # ----------------------------------------------------------------------------------------
-        # # todo: combine all alclusterer, alremover, and alfinder
-        # # todo: stop running sw over and over again
-        # from alleleclusterer import AlleleClusterer
-        # self.alclusterer = AlleleClusterer(self.args)
-        # if self.alclusterer is not None:
-        #     alcluster_alleleles = self.alclusterer.get_alleles(self.info, self.glfo)
-        # sys.exit()
-        # # ----------------------------------------------------------------------------------------
-        # # ----------------------------------------------------------------------------------------
         if self.alremover is not None:
             sorted_gene_counts = [(deps[0], counts) for deps, counts in sorted(self.pcounter.counts[self.alremover.region + '_gene'].items(), key=operator.itemgetter(1), reverse=True)]
             self.alremover.finalize(sorted_gene_counts, debug=True)

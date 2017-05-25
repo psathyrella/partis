@@ -1,5 +1,7 @@
 # now
 
+# clean up/shorten conserved_codons/locus calls
+
 # add scheepers data (well, and others)
 # add new chaim data (igg + igm)
 #
@@ -23,6 +25,9 @@
 # maybe run alremover only on a subset for large samples
 #
 # holy shit there's a lot of v genes with bad cysteines. mebbe remove 'em all?
+#
+# probably need to not consider large clonal families in alleleclusterer (maybe -- the whole alleleremover strategy breaks with very large families)
+#  - instead, could probably just make the per-gene-mute-freq check apply to all alleles -- anybody that doesn't have a pretty similar mut freq distribution gets removed. uh, maybe. that sounds dangerous
 #
 # allele removal/vsearch clustering
 #  - I think the consensus sequences might actually be waaaaay more reliable than the most common germline (well, could use a combination of the two)
