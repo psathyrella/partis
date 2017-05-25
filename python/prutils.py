@@ -41,7 +41,7 @@ def indel_shenanigans(outstrs, colors, indels, iseq):  # NOTE similar to/overlap
                 for inuke  in range(ifo['pos'], ifo['pos'] + ifo['len']):
                     colors[istr][inuke] += ['light_blue', 'reverse_video']
 
-    for ifo in reversed(indels['indels']):
+    for ifo in indels['indels']:
         for istr in range(len(outstrs)):
             reinstate(ifo, istr)
 
@@ -153,6 +153,9 @@ def print_seq_in_reco_event(original_line, iseq, extra_str='', label='', one_lin
             outstrs[istr] = outstrs[istr][:gap_insert_point] + gapstr + outstrs[istr][gap_insert_point:]
 
     if len(set([len(ostr) for ostr in outstrs])) > 1:  # could put this in a bunch of different places, but things're probably most likely to get screwed up either when initally building the four lines, or dealing with the stupid gaps
+        print ' '.join(line['unique_ids'])
+        for ostr in outstrs:
+            print '%s%s%s' % (utils.color('red', 'x'), ostr, utils.color('red', 'x'))
         raise Exception('outstrs not all the same length %s' % [len(ostr) for ostr in outstrs])
 
     colors = [[[] for _ in range(len(ostr))] for ostr in outstrs]
