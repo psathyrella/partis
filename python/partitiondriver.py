@@ -49,7 +49,7 @@ class PartitionDriver(object):
                 if self.args.outfname is None and self.current_action != 'cache-parameters':
                     print '  note: running on a lot of sequences without setting --outfname. Which is ok! But there\'ll be no persistent record of the results'
             self.default_sw_cachefname = self.args.parameter_dir + '/sw-cache-' + repr(abs(hash(''.join(self.input_info.keys())))) + '.csv'  # maybe I shouldn't abs it? collisions are probably still unlikely, and I don't like the extra dash in my file name
-        elif self.current_action != 'view-annotations' and self.current_action != 'view-partitions' and self.current_action != 'view-alternative-naive-seqs':
+        elif self.current_action != 'view-annotations' and self.current_action != 'view-partitions' and self.current_action != 'plot-partitions' and self.current_action != 'view-alternative-naive-seqs':
             raise Exception('--infname is required for action \'%s\'' % args.action)
 
         self.sw_info = None
@@ -274,8 +274,11 @@ class PartitionDriver(object):
         self.run_hmm('viterbi', parameter_in_dir=self.sub_param_dir)
 
     # ----------------------------------------------------------------------------------------
-    def view_existing_annotations(self):
-        with open(self.args.outfname) as csvfile:
+    def read_existing_annotations(self, outfname=None, debug=False):
+        if outfname is None:
+            outfname = self.args.outfname
+        annotations = {}
+        with open(outfname) as csvfile:
             failed_queries = set()
             reader = csv.DictReader(csvfile)
             n_queries_read = 0
@@ -288,26 +291,40 @@ class PartitionDriver(object):
                 utils.process_input_line(line)
                 if self.args.queries is not None and len(set(self.args.queries) & set(line['unique_ids'])) == 0:  # actually make sure this is the precise set of queries we want (note that --queries and line['unique_ids'] are both ordered, and this ignores that... oh, well, sigh.)
                     continue
-                if self.args.infname is not None and self.reco_info is not None:
-                    utils.print_true_events(self.glfo, self.reco_info, line, extra_str='')
                 utils.add_implicit_info(self.glfo, line)
-                print 'inferred:',
-                if len(line['unique_ids']) > 1:
-                    print '   %s' % ':'.join(line['unique_ids'])
-                else:
-                    print ''
-                utils.print_reco_event(line, extra_str='  ')
+                annotations[':'.join(line['unique_ids'])] = line
+
+                if debug and self.args.infname is not None and self.reco_info is not None:
+                    utils.print_true_events(self.glfo, self.reco_info, line, extra_str='')
+                    print 'inferred:',
+                    if len(line['unique_ids']) > 1:
+                        print '   %s' % ':'.join(line['unique_ids'])
+                    else:
+                        print ''
+                    utils.print_reco_event(line, extra_str='  ')
                 n_queries_read += 1
                 if self.args.n_max_queries > 0 and n_queries_read >= self.args.n_max_queries:
                     break
+
         if len(failed_queries) > 0:
             print '\n%d failed queries' % len(failed_queries)
 
+        return annotations
+
     # ----------------------------------------------------------------------------------------
-    def view_existing_partitions(self):
+    def read_existing_partitions(self, debug=False):
         cp = ClusterPath()
         cp.readfile(self.args.outfname)
-        cp.print_partitions(abbreviate=self.args.abbreviate, reco_info=self.reco_info)
+        if debug:
+            cp.print_partitions(abbreviate=self.args.abbreviate, reco_info=self.reco_info)
+        return cp
+
+    # ----------------------------------------------------------------------------------------
+    def plot_existing_partitions(self):
+        cpath = self.read_existing_partitions()
+        annotations = self.read_existing_annotations(outfname=self.args.outfname.replace('.csv', '-cluster-annotations.csv'))
+        partplotter = PartitionPlotter()
+        partplotter.plot(self.args.plotdir + '/partitions', partition=cpath.partitions[cpath.i_best], annotations=annotations, only_csv=self.args.only_csv_plots)
 
     # ----------------------------------------------------------------------------------------
     def view_alternative_naive_seqs(self):

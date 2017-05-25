@@ -249,9 +249,11 @@ def view_existing_output(args):
 
     parter = PartitionDriver(args, args.action, args.initial_germline_dir)
     if args.action == 'view-annotations':
-        parter.view_existing_annotations()
+        parter.read_existing_annotations(debug=True)
     elif args.action == 'view-partitions':
-        parter.view_existing_partitions()
+        parter.read_existing_partitions(debug=True)
+    elif args.action == 'plot-partitions':
+        parter.plot_existing_partitions()
     elif args.action == 'view-alternative-naive-seqs':
         parter.view_alternative_naive_seqs()
     else:
@@ -360,6 +362,7 @@ subconfig = {
     'simulate'         : {'func' : run_simulation,      'help' : 'Generate simulated sequences based on information in pre-existing parameter directory.'},
     'view-annotations' : {'func' : view_existing_output,'help' : 'Print (to std out) the annotations from an existing annotation output csv.'},
     'view-partitions'  : {'func' : view_existing_output,'help' : 'Print (to std out) the partitions from an existing partition output csv.'},
+    'plot-partitions'  : {'func' : view_existing_output,'help' : 'Plot existing partitions and cluster annotations.'},
     'view-alternative-naive-seqs'  : {'func' : view_existing_output,'help' : 'Print (to std out) a comparison of the naive sequences corresponding to sub- and super-clusters of the cluster specified with --queries. You must have specified --calculate-alternative-naive-seqs (or --persistent-cachefname) in a previous partition step so that this information was saved.'},
     'run-viterbi'      : {'func' : run_partitiondriver, 'help' : 'deprecated, do not use'},
 }
