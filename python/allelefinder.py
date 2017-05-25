@@ -721,7 +721,7 @@ class AlleleFinder(object):
     # ----------------------------------------------------------------------------------------
     def see_if_new_allele_is_in_default_initial_glfo(self, new_name, new_seq, template_gene, debug=False):
         # kinda bullshit organization leftover from before I moved the main fcn to glutils
-        template_cpos = self.glfo[utils.conserved_codons[self.glfo['locus']][self.region] + '-positions'][template_gene]
+        template_cpos = utils.cdn_pos(self.glfo, self.region, template_gene)
         exclusion_5p = self.n_bases_to_exclude['5p'][template_gene]
         exclusion_3p = self.n_bases_to_exclude['3p'][template_gene]
         new_name, new_seq = glutils.find_new_allele_in_existing_glfo(self.default_initial_glfo, self.region, new_name, new_seq, template_cpos, exclusion_5p=exclusion_5p, exclusion_3p=exclusion_3p, debug=True)

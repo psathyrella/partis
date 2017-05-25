@@ -238,7 +238,7 @@ class Recombinator(object):
             else:
                 max_erosion = max(0, gene_length/2 - 2)  # heuristic
                 if region in utils.conserved_codons[self.args.locus]:  # make sure not to erode a conserved codon
-                    codon_pos = self.glfo[utils.conserved_codons[self.args.locus][region] + '-positions'][tmpline[region + '_gene']]
+                    codon_pos = utils.cdn_pos(self.glfo, region, tmpline[region + '_gene'])
                     if '3p' in erosion:
                         n_bases_to_codon = gene_length - codon_pos - 3
                     elif '5p' in erosion:

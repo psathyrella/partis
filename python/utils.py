@@ -121,8 +121,10 @@ conserved_codons = {l : {'v' : 'cyst',
                           'j' : 'tryp' if l == 'igh' else 'phen'}  # e.g. heavy chain has tryp, light chain has phen
                      for l in loci}
 
-def cpos(glfo, region, gene):  # here the 'c' stands for 'codon', not 'cysteine', which is kind of confusing but worthwhile for the delectable concision it allows
-    return glfo[conserved_codons[glfo['locus']][region] + '-positions'][gene]
+def cdn_positions(glfo, region):
+    return glfo[conserved_codons[glfo['locus']][region] + '-positions']
+def cdn_pos(glfo, region, gene):
+    return cdn_positions(glfo, region)[gene]
 
 codon_table = {
     'cyst' : ['TGT', 'TGC'],
@@ -1164,7 +1166,7 @@ def separate_into_snp_groups(glfo, region, n_max_snps, genelist=None):
     assert region == 'v'  # would need to change the up-to-cpos requirement if it isn't v
     snp_groups = []
     for gene in genelist:
-        cpos = glfo[conserved_codons[glfo['locus']][region] + '-positions'][gene]
+        cpos = cdn_pos(glfo, region, gene)
         seq = glfo['seqs'][region][gene][:cpos + 3]  # only go up through the end of the cysteine
         add_new_class = True  # to begin with, assume we'll add a new class for this gene
         for gclass in snp_groups:  # then check if, instead, this gene belongs in any of the existing classes

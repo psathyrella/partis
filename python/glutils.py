@@ -570,7 +570,7 @@ def add_new_allele(glfo, newfo, remove_template_genes=False, use_template_for_co
     if debug:
         print '    adding new allele to glfo:'
         print '      template %s   %s' % (glfo['seqs'][region][template_gene], utils.color_gene(template_gene))
-        print '           new %s   %s' % (utils.color_mutants(glfo['seqs'][region][template_gene], newfo['seq']), utils.color_gene(new_gene))
+        print '           new %s   %s' % (utils.color_mutants(glfo['seqs'][region][template_gene], newfo['seq'], align=True), utils.color_gene(new_gene))
 
     if remove_template_genes:
         remove_gene(glfo, template_gene, debug=True)
@@ -815,7 +815,7 @@ def find_new_allele_in_existing_glfo(glfo, region, new_allele_name, new_allele_s
 
     for oldname_gene, oldname_seq in glfo['seqs'][region].items():  # NOTE <oldname_{gene,seq}> is the old *name* corresponding to the new (snp'd) allele, whereas <old_seq> is the allele from which we inferred the new (snp'd) allele
         # first see if they match up through the cysteine
-        oldpos = glfo[utils.conserved_codons[glfo['locus']][region] + '-positions'][oldname_gene]
+        oldpos = utils.cdn_pos(glfo, region, oldname_gene)
         if oldname_seq[exclusion_5p : oldpos + 3] != new_allele_seq[exclusion_5p : template_cpos + 3]:
             continue
 

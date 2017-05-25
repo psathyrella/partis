@@ -68,7 +68,7 @@ class AlleleClusterer(object):
             # choose some existing gene to use as a template (the most similar gene might be a better choice, but deciding on "most similar" would involve adjudicating between snps and indels, and it shouldn't really matter)
             template_gene, _ = sorted_glcounts[0]
             template_seq = glfo['seqs'][self.region][template_gene]  # not necessarily the most similar (but it probably is)
-            template_cpos = utils.cpos(glfo, self.region, template_gene)
+            template_cpos = utils.cdn_pos(glfo, self.region, template_gene)
 
             new_name = template_gene + '+' + ''.join(numpy.random.choice(list('xyz'), size=8))  # er, not sure what to use here, but at least this probably won't result in collisions
             new_seq = clusterfo['cons_seq'].replace('-', '')
