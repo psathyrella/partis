@@ -245,7 +245,25 @@ class PartitionDriver(object):
             self.args.min_observations_to_write = 1
 
         if not self.args.dont_remove_unlikely_alleles:
+            # stash xxx
+# ----------------------------------------------------------------------------------------
+            vsearch_seqs = {sfo['unique_ids'][0] : sfo['seqs'][0] for sfo in self.input_info.values()}
+            tmpglfo = copy.deepcopy(self.glfo)
+            glutils.remove_v_genes_with_bad_cysteines(tmpglfo)
+            vsearch_info = utils.run_vsearch('search', vsearch_seqs, self.args.workdir + '/vsearch', threshold=0.3, n_procs=self.args.n_procs, glfo=tmpglfo)
+            sorted_gene_counts = sorted(vsearch_info['gene-counts'].items(), key=operator.itemgetter(1), reverse=True)
+            from alleleremover import AlleleRemover
+            from allelefinder import AlleleFinder
+            alremover = AlleleRemover(self.glfo, self.args, AlleleFinder(self.glfo, self.args, itry=0))
+            alremover.finalize(sorted_gene_counts, debug=True)
+# ----------------------------------------------------------------------------------------
+
+# ----------------------------------------------------------------------------------------
             self.run_waterer(remove_less_likely_alleles=True, count_parameters=True)
+# ----------------------------------------------------------------------------------------
+
+            sys.exit()
+
             glutils.remove_genes(self.glfo, self.sw_info['genes-to-remove'])
             glutils.write_glfo(self.my_gldir, self.glfo)
         if self.args.find_new_alleles:
@@ -570,7 +588,7 @@ class PartitionDriver(object):
         partition = []
         print '    running vsearch %d times (once for each cdr3 length class):' % len(all_naive_seqs),
         for cdr3_length, sub_naive_seqs in all_naive_seqs.items():
-            sub_hash_partition = utils.run_vsearch(sub_naive_seqs, self.args.workdir + '/vsearch', threshold,
+            sub_hash_partition = utils.run_vsearch('cluster', sub_naive_seqs, self.args.workdir + '/vsearch', threshold,
                                                    n_procs=self.args.n_procs, batch_system=self.args.batch_system, batch_options=self.args.batch_options, batch_config_fname=self.args.batch_config_fname)
             sub_uid_partition = [[uid for hashstr in hashcluster for uid in naive_seq_hashes[hashstr]] for hashcluster in sub_hash_partition]
             partition += sub_uid_partition

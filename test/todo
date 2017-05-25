@@ -5,6 +5,11 @@
 #
 # use "symmetry" of apparent mutation (i.e. real alleles should have uniform fuzz in all directions)
 #
+# switch all color_mutants() calls to new different-length-handler
+#
+# alleleclusterer
+#  - need to deal with different length alleles, i.e. if there's extra crap on the left or right of the new/old allele
+#
 #
 # - apply vsearch/swarm to v_qr_seqs to see if there's any well-separated new genes that we should add to the initial set
 #   - probably use consensus sequence from each of these new clusters (?)
@@ -15,7 +20,9 @@
 #   - probably don't use consensus, i.e. continue to use alleles from existing gl set
 # - in allele finding, start checking whether to remove template gene
 #
+# maybe run alremover only on a subset for large samples
 #
+# holy shit there's a lot of v genes with bad cysteines. mebbe remove 'em all?
 #
 # allele removal/vsearch clustering
 #  - I think the consensus sequences might actually be waaaaay more reliable than the most common germline (well, could use a combination of the two)

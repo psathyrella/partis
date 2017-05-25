@@ -2783,42 +2783,9 @@ def getsuffix(fname):  # basename before the dot
     return os.path.splitext(fname)[1]
 
 # ----------------------------------------------------------------------------------------
-def run_vsearch(seqs, workdir, threshold, n_procs=1, batch_system=None, batch_options=None, batch_config_fname=None, consensus_fname=None, msa_fname=None):
-    # sigle-pass, greedy, star-clustering algorithm with
-    #  - add the target to the cluster if the pairwise identity with the centroid is higher than global threshold <--id>
-    #  - pairwise identity definition <--iddef> defaults to: number of (matching columns) / (alignment length - terminal gaps)
-    #  - the search process sorts sequences in decreasing order of number of k-mers in common
-    #    - the search process stops after --maxaccept matches (default 1), and gives up after --maxreject non-matches (default 32)
-    #    - If both are zero, it searches the whole database
-    #    - I do not remember why I set both to zero. I just did a quick test, and on a few thousand sequences, it seems to be somewhat faster with the defaults, and a tiny bit less accurate.
-
-    prep_dir(workdir)
-    infname = workdir + '/input.fa'
-    outfname = workdir + '/vsearch-clusters.txt'
-
-    # write input
-    with open(infname, 'w') as fastafile:
-        for name, seq in seqs.items():
-            fastafile.write('>' + name + '\n' + seq + '\n')
-
-    # run
-    cmd = os.path.dirname(os.path.realpath(__file__)).replace('/python', '') + '/bin/vsearch-2.4.3-linux-x86_64'
-    cmd += ' --cluster_fast ' + infname
-    cmd += ' --uc ' + outfname
-    if consensus_fname is not None:  # workdir cleanup below will fail if you put it in this workdir
-        cmd += ' --consout ' + consensus_fname  # note: can also output a file with msa and consensus
-    if msa_fname is not None:  # workdir cleanup below will fail if you put it in this workdir
-        cmd += ' --msaout ' + msa_fname
-    cmd += ' --id ' + str(1. - threshold)
-    # cmd += ' --maxaccept 0 --maxreject 0'  # see note above
-    cmd += ' --threads ' + str(n_procs)
-    cmd += ' --quiet'
-    cmdfos = [{'cmd_str' : cmd, 'outfname' : outfname, 'workdir' : workdir, 'threads' : n_procs}, ]
-    run_cmds(cmdfos, batch_system=batch_system, batch_options=batch_options, batch_config_fname=batch_config_fname)
-
-    # read output
+def read_vsearch_cluster_file(fname):
     id_clusters = {}
-    with open(outfname) as clusterfile:
+    with open(fname) as clusterfile:
         reader = csv.DictReader(clusterfile, fieldnames=['type', 'cluster_id', '3', '4', '5', '6', '7', 'crap', 'query', 'morecrap'], delimiter='\t')
         for line in reader:
             if line['type'] == 'C':  # some lines are a cluster, and some are a query sequence. Skip the cluster ones.
@@ -2829,12 +2796,85 @@ def run_vsearch(seqs, workdir, threshold, n_procs=1, batch_system=None, batch_op
             uid = line['query']
             id_clusters[cluster_id].append(uid)
     partition = id_clusters.values()
+    return partition
+
+# ----------------------------------------------------------------------------------------
+def run_vsearch(action, seqs, workdir, threshold, n_procs=1, batch_system=None, batch_options=None, batch_config_fname=None, consensus_fname=None, msa_fname=None, glfo=None):
+    # sigle-pass, greedy, star-clustering algorithm with
+    #  - add the target to the cluster if the pairwise identity with the centroid is higher than global threshold <--id>
+    #  - pairwise identity definition <--iddef> defaults to: number of (matching columns) / (alignment length - terminal gaps)
+    #  - the search process sorts sequences in decreasing order of number of k-mers in common
+    #    - the search process stops after --maxaccept matches (default 1), and gives up after --maxreject non-matches (default 32)
+    #    - If both are zero, it searches the whole database
+    #    - I do not remember why I set both to zero. I just did a quick test, and on a few thousand sequences, it seems to be somewhat faster with the defaults, and a tiny bit less accurate.
+
+    prep_dir(workdir)
+    infname = workdir + '/input.fa'
+
+    # write input
+    with open(infname, 'w') as fastafile:
+        for name, seq in seqs.items():
+            fastafile.write('>' + name + '\n' + seq + '\n')
+
+    # run
+    cmd = os.path.dirname(os.path.realpath(__file__)).replace('/python', '') + '/bin/vsearch-2.4.3-linux-x86_64'
+    cmd += ' --id ' + str(1. - threshold)
+    if action == 'cluster':
+        outfname = workdir + '/vsearch-clusters.txt'
+        cmd += ' --cluster_fast ' + infname
+        cmd += ' --uc ' + outfname
+        if consensus_fname is not None:  # workdir cleanup below will fail if you put it in this workdir
+            cmd += ' --consout ' + consensus_fname  # note: can also output a file with msa and consensus
+        if msa_fname is not None:  # workdir cleanup below will fail if you put it in this workdir
+            cmd += ' --msaout ' + msa_fname
+        # cmd += ' --maxaccept 0 --maxreject 0'  # see note above
+    elif action == 'search':
+        outfname = workdir + '/aln-info.tsv'
+        userfields = ['query', 'target', 'qilo', 'qihi', 'ids']
+        dbdir = workdir + '/' + glutils.glfo_dir
+        glutils.write_glfo(dbdir, glfo)
+        cmd += ' --usearch_global ' + infname
+        cmd += ' --maxaccepts 5'  # it's sorted by number of k-mers in common, so this needs to be large enough that we'll almost definitely get the exact best gene match
+        cmd += ' --db ' + glutils.get_fname(dbdir, glfo['locus'], 'v')
+        cmd += ' --userfields %s --userout %s' % ('+'.join(userfields), outfname)  # note that --sizeout --dbmatched <fname> adds up all the matches from --maxaccepts, i.e. it's not what we want
+    else:
+        assert False
+
+    cmd += ' --threads ' + str(n_procs)
+    cmd += ' --quiet'
+    cmdfos = [{'cmd_str' : cmd, 'outfname' : outfname, 'workdir' : workdir, 'threads' : n_procs}, ]
+    run_cmds(cmdfos, batch_system=batch_system, batch_options=batch_options, batch_config_fname=batch_config_fname)
+
+    # read output
+    if action == 'cluster':
+        returnfo = read_vsearch_cluster_file(outfname)
+    elif action == 'search':
+        glutils.remove_glfo_files(dbdir, glfo['locus'])
+        query_info = {}
+        with open(outfname) as alnfile:
+            reader = csv.DictReader(alnfile, fieldnames=userfields, delimiter='\t')  # NOTE start/end positions are 1-indexed
+            for line in reader:
+                query = line['query']
+                istart = int(line['qilo']) - 1  # qilo/qihi: first/last nucleotide of query aligned with target (1-indexed, ignores initial gaps)
+                length = int(line['qihi']) - int(line['qilo']) + 1
+                qr_seq = seqs[query][istart : istart + length]
+                id_score = int(line['ids'])
+                if query not in query_info or query_info[query]['ids'] < id_score:  # a surprisingly large number of targets give the same score, and you seem to get a little closer to what sw does if you sort alphabetically, but it don't matter
+                    query_info[query] = {'ids' : id_score, 'gene' : line['target'], 'qr_seq' : qr_seq}
+        gene_counts = {}
+        for query, qinfo in query_info.items():
+            if qinfo['gene'] not in gene_counts:
+                gene_counts[qinfo['gene']] = 0
+            gene_counts[qinfo['gene']] += 1
+        returnfo = {'gene-counts' : gene_counts, 'queries' : query_info}
+    else:
+        assert False
 
     os.remove(infname)
     os.remove(outfname)
     os.rmdir(workdir)
 
-    return partition
+    return returnfo
 
 # ----------------------------------------------------------------------------------------
 def run_swarm(seqs, workdir, differences=1, n_procs=1):

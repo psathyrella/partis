@@ -35,7 +35,7 @@ class AlleleClusterer(object):
         threshold = swfo['mute-freqs'][self.region]
         print '  running vsearch with threshold %.2f (*300 = %d)' % (threshold, int(threshold * 300))
         start = time.time()
-        _ = utils.run_vsearch(qr_seqs, self.args.workdir + '/vsearch', threshold=threshold, n_procs=self.args.n_procs, msa_fname=msa_fname)
+        _ = utils.run_vsearch('cluster', qr_seqs, self.args.workdir + '/vsearch', threshold=threshold, n_procs=self.args.n_procs, msa_fname=msa_fname)
         print '  vsearch: %.1f sec' % (time.time()-start)
 
         # consensus_seqs = utils.read_fastx(consensus_fname)

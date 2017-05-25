@@ -81,11 +81,11 @@ class Waterer(object):
         sys.stdout.flush()
 
         n_procs = self.args.n_fewer_procs
-        initial_queries_per_proc = float(len(self.remaining_queries)) / n_procs
+        min_queries_per_proc = 10  # float(len(self.remaining_queries)) / n_procs  # used to be initial queries per proc
         print '  %4s  sequences    n_procs     ig-sw time    processing time' % ('summary:' if self.debug else '')
         while len(self.remaining_queries) > 0:  # we remove queries from <self.remaining_queries> as we're satisfied with their output
-            if self.nth_try > 1 and float(len(self.remaining_queries)) / n_procs < initial_queries_per_proc:
-                n_procs = int(max(1., float(len(self.remaining_queries)) / initial_queries_per_proc))
+            if self.nth_try > 1 and float(len(self.remaining_queries)) / n_procs < min_queries_per_proc:
+                n_procs = int(max(1., float(len(self.remaining_queries)) / min_queries_per_proc))
             n_queries_written = self.write_vdjalign_input(base_infname, n_procs)
             print '  %4s  %8d    %5d' % ('summary:' if self.debug else '', n_queries_written, n_procs),
             sys.stdout.flush()
@@ -159,20 +159,37 @@ class Waterer(object):
             assert len(self.info['queries']) + len(self.skipped_unproductive_queries) + len(self.info['failed-queries']) == len(self.input_info)
 
         if self.pcounter is not None:
+            # stash xxx
+            # TODO set some mean mute freq information in <self.info> just based on averages from the dicts in <self.info>, instead of pcounter
             self.info['mute-freqs'] = {rstr : self.pcounter.mfreqer.mean_rates[rstr].get_mean() for rstr in ['all', ] + utils.regions}
 
+        for qname in self.info['queries']:
+            if self.pcounter is not None:
+                self.pcounter.increment(self.info[qname])
+                if self.true_pcounter is not None:
+                    self.true_pcounter.increment(self.reco_info[qname])
+            if self.perfplotter is not None:
+                if qname in self.info['indels']:
+                    print '    skipping performance evaluation of %s because of indels' % qname  # I just have no idea how to handle naive hamming fraction when there's indels
+                else:
+                    self.perfplotter.evaluate(self.reco_info[qname], self.info[qname])
+
         found_germline_changes = False  # set to true if either alremover or alfinder found changes to the germline info
-# ----------------------------------------------------------------------------------------
-# todo: combine all alclusterer, alremover, and alfinder
-# todo: stop running sw over and over again
-        from alleleclusterer import AlleleClusterer
-        self.alclusterer = AlleleClusterer(self.args)
-        if self.alclusterer is not None:
-            self.alclusterer.get_alleles(self.info, self.glfo)
-        sys.exit()
-# ----------------------------------------------------------------------------------------
+        # stash xxx
+        # # ----------------------------------------------------------------------------------------
+        # # ----------------------------------------------------------------------------------------
+        # # todo: combine all alclusterer, alremover, and alfinder
+        # # todo: stop running sw over and over again
+        # from alleleclusterer import AlleleClusterer
+        # self.alclusterer = AlleleClusterer(self.args)
+        # if self.alclusterer is not None:
+        #     alcluster_alleleles = self.alclusterer.get_alleles(self.info, self.glfo)
+        # sys.exit()
+        # # ----------------------------------------------------------------------------------------
+        # # ----------------------------------------------------------------------------------------
         if self.alremover is not None:
-            self.alremover.finalize(self.pcounter, self.info, debug=True)
+            sorted_gene_counts = [(deps[0], counts) for deps, counts in sorted(self.pcounter.counts[self.alremover.region + '_gene'].items(), key=operator.itemgetter(1), reverse=True)]
+            self.alremover.finalize(sorted_gene_counts, debug=True)
             self.info['genes-to-remove'] = self.alremover.genes_to_remove
             if len(self.info['genes-to-remove']) > 0:
                 found_germline_changes = True
@@ -803,16 +820,6 @@ class Waterer(object):
                 utils.print_reco_event(self.reco_info[qname], extra_str='    ', label=utils.color('green', 'true:'))
             utils.print_reco_event(self.info[qname], extra_str='    ', label=inf_label)
 
-        if self.pcounter is not None:
-            self.pcounter.increment(self.info[qname])
-            if self.true_pcounter is not None:
-                self.true_pcounter.increment(self.reco_info[qname])
-        if self.perfplotter is not None:
-            if qname in self.info['indels']:
-                print '    skipping performance evaluation of %s because of indels' % qname  # I just have no idea how to handle naive hamming fraction when there's indels
-            else:
-                self.perfplotter.evaluate(self.reco_info[qname], self.info[qname])
-
         if not utils.is_functional(self.info[qname]):
             self.kept_unproductive_queries.add(qname)
         self.remaining_queries.remove(qname)
@@ -920,7 +927,7 @@ class Waterer(object):
         infoline = self.convert_qinfo(qinfo, best, codon_positions)
         try:
             utils.add_implicit_info(self.glfo, infoline)
-        except:
+        except:  # AssertionError gah, I don't really like just swallowing everything... but then I *expect* it to fail here... and when I call it elsewhere, where I don't expect it to fail, shit doesn't get swallowed
             if self.debug:
                 print '      rerun: implicit info adding failed for %s, rerunning' % qname
             queries_to_rerun['weird-annot.'].add(qname)
@@ -1247,7 +1254,7 @@ class Waterer(object):
         for query in self.info['queries']:
             swfo = self.info[query]
 
-            # find biggest cyst position among all gl matches
+            # find biggest cyst position among all gl matches (NOTE this pads more than it really needs to -- it only needs to be the max cpos over genes that have this cdr3 length)
             fvstuff = max(0, len(swfo['fv_insertion']) - swfo['v_5p_del'])  # we always want to pad out to the entire germline sequence, so don't let this go negative
             # loop over all matches for all sequences (up to n_max_per_region), because we want bcrham to be able to compare any sequence to any other (although, could probably use all *best* matches rather than all *all* UPDATE no, I kinda think not)
             for v_match in self.info['all_matches']['v']:
@@ -1309,7 +1316,7 @@ class Waterer(object):
             swfo['naive_seq'] = leftstr + swfo['naive_seq'] + rightstr  # NOTE I should eventually rewrite this to remove all implicit info, then change things, then re-add implicit info (like in remove_framework_insertions)
             if query in self.info['indels']:  # also pad the reversed sequence and change indel positions NOTE unless there's no indel, the dict in self.info['indels'][query] *is* the dict in swfo['indelfos'][0]
                 self.info['indels'][query]['reversed_seq'] = leftstr + self.info['indels'][query]['reversed_seq'] + rightstr
-                for indel in reversed(swfo['indelfos'][0]['indels']):
+                for indel in swfo['indelfos'][0]['indels']:
                     indel['pos'] += padleft
             for key in swfo['k_v']:
                 swfo['k_v'][key] += padleft
