@@ -10,10 +10,11 @@ from clusterpath import ClusterPath
 # ----------------------------------------------------------------------------------------
 class PartitionPlotter(object):
     # ----------------------------------------------------------------------------------------
-    def __init__(self):
+    def __init__(self, args):
         # between vs within stuff:
         self.n_bins = 30
         self.subplotdirs = ['overall', 'within-vs-between']
+        self.args = args
 
     # ----------------------------------------------------------------------------------------
     def get_cdr3_length_classes(self, partition, annotations):
@@ -59,7 +60,7 @@ class PartitionPlotter(object):
             self.plot_each_within_vs_between_hist(subd, base_plotdir + '/within-vs-between', 'cdr3-length-%d' % cdr3_length, 'CDR3 %d' % cdr3_length)
 
     # ----------------------------------------------------------------------------------------
-    def plot_size_vs_mfreq(self, partition, annotations, base_plotdir):
+    def plot_size_vs_mfreq(self, partition, annotations, base_plotdir, debug=False):
         import plotting
 
         colors = ['#006600', '#3399ff', '#ffa500']
@@ -69,26 +70,39 @@ class PartitionPlotter(object):
         # purple '#a821c7'
         # grey '#808080'
 
+        n_max_mutations = 50
+
         def gety(minval, maxval, xmax, x):
             slope = (maxval - minval) / xmax
             return slope * x + minval
         def getnmutelist(cluster):
             return annotations[':'.join(cluster)]['n_mutations']
 
-        fig, ax = plotting.mpl_init()
-
         sorted_clusters = sorted(partition, key=lambda c: len(c), reverse=True)
-        biggest_cluster_size = len(sorted_clusters[0])
-        min_linewidth = 0.3  # * int(float(biggest_cluster_size) / 30.)
-        max_linewidth = 12 * int(float(biggest_cluster_size) / 30.)
+        sorted_clusters = [clust for clust in sorted_clusters if len(clust) > self.args.plotting_min_cluster_size]
+
+        dpi = 80
+        xpixels = 450
+        ypixels = max(250, 10 * len(sorted_clusters))
+        fig, ax = plotting.mpl_init(figsize=(xpixels / dpi, ypixels / dpi))
+
+        repertoire_size = sum([len(cl) for cl in sorted_clusters])
+        min_linewidth = 0.3
+        max_linewidth = 12
+        ymin, ymax = None, None
+        iclust_global = 0
+        yticks, yticklabels = [], []
         for csize, cluster_group in itertools.groupby(sorted_clusters, key=lambda c: len(c)):
-            # if csize < 30:
-            #     break
+            repfrac = float(csize) / repertoire_size
             cluster_group = sorted(list(cluster_group), key=lambda c: numpy.median(getnmutelist(c)))
             n_clusters = len(cluster_group)
-            print ' %3d' % csize
+            if debug:
+                print ' %3d  (%.3f)' % (csize, repfrac)
             for iclust in range(len(cluster_group)):
                 cluster = cluster_group[iclust]
+                base_color = colors[iclust_global % len(colors)]
+                if self.args.plotting_seed_ids is not None and len(set(cluster) & set(self.args.plotting_seed_ids)) > 0:
+                    base_color = 'red'
                 nmutelist = sorted(getnmutelist(cluster))
 
                 nbins = nmutelist[-1] - nmutelist[0] + 1
@@ -96,26 +110,43 @@ class PartitionPlotter(object):
                 for nm in nmutelist:
                     hist.fill(nm)
                 assert hist.overflow_contents() == 0.  # includes underflows
-                xmax = float(csize)
-                yval = csize
-                if iclust > 0:
-                    yval += (-1)**(iclust) * 0.15
+                yval = len(sorted_clusters) - iclust_global  # csize # repfrac
 
-                print '      %8.2f %s' % (numpy.median(nmutelist), ' '.join(['%3d' % nm for nm in nmutelist]))
+                if ymin is None or yval < ymin:
+                    ymin = yval
+                if ymax is None or yval > ymax:
+                    ymax = yval
 
+                # if iclust_global % 10 == 0:
+                yticks.append(yval)
+                yticklabels.append('%d' % csize)  # '%.3f' % repfrac)
+
+                if debug:
+                    print '      %.2f  %8.2f %s' % (yval, numpy.median(nmutelist), ' '.join(['%3d' % nm for nm in nmutelist]))
+
+                xmax = max(hist.bin_contents)  # float(csize)
                 for ibin in range(1, hist.n_bins + 1):
                     linewidth = gety(min_linewidth, max_linewidth, xmax, hist.bin_contents[ibin])
-                    color = colors[iclust % len(colors)]
+                    color = base_color
                     alpha = 0.55
                     if hist.bin_contents[ibin] == 0.:
                         color = 'grey'
                         alpha = 0.4
                     ax.plot([hist.low_edges[ibin], hist.low_edges[ibin+1]], [yval, yval], color=color, linewidth=linewidth, alpha=alpha, solid_capstyle='butt')
 
-        ybounds = [0.9 * len(sorted_clusters[-1]), 1.05 * len(sorted_clusters[0])]
-        plotnames = {'size-vs-shm' : [-0.2, 50], 'size-vs-shm-zoomed' : [-0.2, 60]}
+                iclust_global += 1
+
+        # ybounds = [0.9 * len(sorted_clusters[-1]), 1.05 * len(sorted_clusters[0])]
+        ybounds = [0.95 * ymin, 1.05 * ymax]
+        plotnames = {'size-vs-shm' : [-0.2, 50], 'size-vs-shm-zoomed' : [-0.2, n_max_mutations]}
+        n_ticks = 5
+        yticks = [yticks[i] for i in range(0, len(yticks), int(len(yticks) / float(n_ticks - 1)))]
+        yticklabels = [yticklabels[i] for i in range(0, len(yticklabels), int(len(yticklabels) / float(n_ticks - 1)))]
         for name, xbounds in plotnames.items():
-            plotting.mpl_finish(ax, base_plotdir + '/overall', name, xlabel='N mutations', ylabel='clonal family size', xbounds=xbounds, ybounds=ybounds)
+            plotting.mpl_finish(ax, base_plotdir + '/overall', name, xlabel='N mutations',
+                                # ylabel='fraction of repertoire',
+                                ylabel='clonal family size',
+                                xbounds=xbounds, ybounds=ybounds, yticks=yticks, yticklabels=yticklabels, adjust={'left' : 0.25})
 
     # ----------------------------------------------------------------------------------------
     def plot(self, plotdir, partition=None, infiles=None, annotations=None, only_csv=None):

@@ -755,10 +755,10 @@ def mpl_init(figsize=None, fontsize=20):
     return fig, ax
 
 # ----------------------------------------------------------------------------------------
-def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=None, ybounds=None, leg_loc=(0.04, 0.6), leg_prop=None, log='', xticks=None, xticklabels=None, no_legend=False, adjust=None, suffix='svg', leg_title=None):
+def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=None, ybounds=None, leg_loc=(0.04, 0.6), leg_prop=None, log='',
+               xticks=None, xticklabels=None, yticks=None, yticklabels=None, no_legend=False, adjust=None, suffix='svg', leg_title=None):
     if 'seaborn' not in sys.modules:
         import seaborn  # really #$*$$*!ing slow to import, but only importing part of it doesn't seem to help
-    # xticks[0] = 0.000001
     if not no_legend:
         handles, labels = ax.get_legend_handles_labels()
         if len(handles) > 0:
@@ -780,6 +780,8 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
         plt.ylim(ybounds[0], ybounds[1])
     if xticks is not None:
         plt.xticks(xticks)
+    if yticks is not None:
+        plt.yticks(yticks)
     if xticklabels is not None:
         # mean_length = float(sum([len(xl) for xl in xticklabels])) / len(xticklabels)
         median_length = numpy.median([len(xl) for xl in xticklabels])
@@ -787,6 +789,8 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
             ax.set_xticklabels(xticklabels, rotation='vertical', size=8)
         else:
             ax.set_xticklabels(xticklabels)
+    if yticklabels is not None:
+        ax.set_yticklabels(yticklabels)
     plt.title(title)
     if not os.path.exists(plotdir):
         os.makedirs(plotdir)

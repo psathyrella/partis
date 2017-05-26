@@ -348,7 +348,7 @@ class PartitionDriver(object):
     def plot_existing_partitions(self):
         cpath = self.read_existing_partitions()
         annotations = self.read_existing_annotations(outfname=self.args.outfname.replace('.csv', '-cluster-annotations.csv'))
-        partplotter = PartitionPlotter()
+        partplotter = PartitionPlotter(self.args)
         partplotter.plot(self.args.plotdir + '/partitions', partition=cpath.partitions[cpath.i_best], annotations=annotations, only_csv=self.args.only_csv_plots)
 
     # ----------------------------------------------------------------------------------------
@@ -387,7 +387,7 @@ class PartitionDriver(object):
         cluster_annotations = self.get_cluster_annotations(cpath.partitions[cpath.i_best])
 
         if self.args.plotdir is not None:
-            partplotter = PartitionPlotter()
+            partplotter = PartitionPlotter(self.args)
             partplotter.plot(self.args.plotdir + '/partitions', partition=cpath.partitions[cpath.i_best], annotations=cluster_annotations, only_csv=self.args.only_csv_plots)
 
         if self.args.debug:
