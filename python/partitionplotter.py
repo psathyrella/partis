@@ -58,6 +58,60 @@ class PartitionPlotter(object):
             self.plot_each_within_vs_between_hist(subd, base_plotdir + '/within-vs-between', 'cdr3-length-%d' % cdr3_length, 'CDR3 %d' % cdr3_length)
 
     # ----------------------------------------------------------------------------------------
+    def plot_size_vs_mfreq(self, partition, annotations, base_plotdir):
+        import plotting
+
+        binwidth = 0.0003
+        min_alpha = 0.1
+        max_alpha = 0.8
+        min_linewidth = 1
+        max_linewidth = 12
+
+        def gety(minval, maxval, xmax, x):
+            slope = (maxval - minval) / xmax
+            return slope * x + minval
+
+        fig, ax = plotting.mpl_init()
+        colors = ['#006600', '#990012', '#cc0000', '#3399ff', '#a821c7', '#808080']  # plotting.default_colors
+        last_cluster_size = None
+        last_color = 0
+        y_adjust = 0
+        sorted_clusters = sorted(partition, key=lambda c: len(c), reverse=True)
+        for cluster in sorted_clusters:
+            mfreqs = sorted(annotations[':'.join(cluster)]['mut_freqs'])
+
+            if last_cluster_size is None or last_cluster_size != len(cluster):
+                print ' %3d' % len(cluster)
+                color = colors[0]
+                y_adjust = 0.
+            else:
+                color = colors[(colors.index(last_color) + 1) % len(colors)]
+                y_adjust = (-1)**(colors.index(color)) * colors.index(color) * 0.15
+
+            print '      %8s   %5.2f   %s' % (color, y_adjust, ' '.join(['%.3f' % mf for mf in mfreqs]))
+
+            nbins = int((mfreqs[-1] - mfreqs[0]) / binwidth) + 2
+            hist = Hist(nbins, mfreqs[0] - binwidth, mfreqs[-1] + binwidth)
+            for mf in mfreqs:
+                hist.fill(mf)
+            assert hist.overflow_contents() == 0.
+            max_bin_contents = max(hist.bin_contents)
+            xmax = float(len(cluster))  # max_bin_contents
+            yval = len(cluster) + y_adjust
+            for ibin in range(1, hist.n_bins + 1):
+                alpha = gety(min_alpha, max_alpha, xmax, hist.bin_contents[ibin])
+                linewidth = gety(min_linewidth, max_linewidth, xmax, hist.bin_contents[ibin])
+                ax.plot([hist.low_edges[ibin], hist.low_edges[ibin+1]], [yval, yval], color=color, linewidth=linewidth, alpha=alpha, solid_capstyle='butt')
+
+            last_cluster_size = len(cluster)
+            last_color = color
+
+        ybounds = [0.9 * len(sorted_clusters[-1]), 1.05 * len(sorted_clusters[0])]
+        plotnames = {'size-vs-mfreq' : [-0.001, 0.25], 'size-vs-mfreq-zoomed' : [-0.001, 0.05]}
+        for name, xbounds in plotnames.items():
+            plotting.mpl_finish(ax, base_plotdir + '/overall', name, xlabel='mut freq', ylabel='clonal family size', xbounds=xbounds, ybounds=ybounds)
+
+    # ----------------------------------------------------------------------------------------
     def plot(self, plotdir, partition=None, infiles=None, annotations=None, only_csv=None):
         import plotting
         print '  plotting partitions'
@@ -70,7 +124,8 @@ class PartitionPlotter(object):
             assert infiles is None
             assert annotations is not None
             csize_hists = {'best' : plotting.get_cluster_size_hist(partition)}
-            self.plot_within_vs_between_hists(partition, annotations, plotdir)
+            # self.plot_within_vs_between_hists(partition, annotations, plotdir)
+            self.plot_size_vs_mfreq(partition, annotations, plotdir)
         elif infiles is not None:  # plot the mean of a partition from each file
             subset_hists = []
             for fname in infiles:
