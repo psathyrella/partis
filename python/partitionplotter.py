@@ -62,7 +62,12 @@ class PartitionPlotter(object):
     def plot_size_vs_mfreq(self, partition, annotations, base_plotdir):
         import plotting
 
-        colors = ['#006600', '#990012', '#cc0000', '#3399ff', '#a821c7', '#808080']  # plotting.default_colors
+        colors = ['#006600', '#3399ff', '#ffa500']
+        # goldenrod '#daa520'
+        # red '#cc0000',
+        # dark red '#990012'
+        # purple '#a821c7'
+        # grey '#808080'
 
         def gety(minval, maxval, xmax, x):
             slope = (maxval - minval) / xmax
@@ -100,7 +105,12 @@ class PartitionPlotter(object):
 
                 for ibin in range(1, hist.n_bins + 1):
                     linewidth = gety(min_linewidth, max_linewidth, xmax, hist.bin_contents[ibin])
-                    ax.plot([hist.low_edges[ibin], hist.low_edges[ibin+1]], [yval, yval], color=colors[iclust % len(colors)], linewidth=linewidth, alpha=0.55, solid_capstyle='butt')
+                    color = colors[iclust % len(colors)]
+                    alpha = 0.55
+                    if hist.bin_contents[ibin] == 0.:
+                        color = 'grey'
+                        alpha = 0.4
+                    ax.plot([hist.low_edges[ibin], hist.low_edges[ibin+1]], [yval, yval], color=color, linewidth=linewidth, alpha=alpha, solid_capstyle='butt')
 
         ybounds = [0.9 * len(sorted_clusters[-1]), 1.05 * len(sorted_clusters[0])]
         plotnames = {'size-vs-shm' : [-0.2, 50], 'size-vs-shm-zoomed' : [-0.2, 60]}
