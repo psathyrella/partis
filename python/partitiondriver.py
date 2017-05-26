@@ -260,15 +260,15 @@ class PartitionDriver(object):
             alcluster_alleles = alclusterer.get_alleles(vs_info['queries'], vs_info['mute-freqs']['v'], self.glfo)
             genes_to_remove = alremover.genes_to_remove
         else:
-            from alleleclusterer import AlleleClusterer
             self.run_waterer(remove_less_likely_alleles=True, count_parameters=True)
             swfo = self.sw_info  # just so you don't forget that the above line modifies/creates it
-            alclusterer = AlleleClusterer(self.args)
-            alcluster_alleles = alclusterer.get_alleles(queryfo=None, threshold=swfo['mute-freqs']['v'], glfo=self.glfo, swfo=swfo)
+            # from alleleclusterer import AlleleClusterer
+            # alclusterer = AlleleClusterer(self.args)
+            # alcluster_alleles = alclusterer.get_alleles(queryfo=None, threshold=swfo['mute-freqs']['v'], glfo=self.glfo, swfo=swfo)
             genes_to_remove = swfo['genes-to-remove']
 
 # ----------------------------------------------------------------------------------------
-        glutils.add_new_alleles(self.glfo, alcluster_alleles.values(), use_template_for_codon_info=False, debug=True)
+        # glutils.add_new_alleles(self.glfo, alcluster_alleles.values(), use_template_for_codon_info=False, debug=True)
         glutils.remove_genes(self.glfo, genes_to_remove)
         glutils.write_glfo(self.my_gldir, self.glfo)
 # ----------------------------------------------------------------------------------------
