@@ -1,3 +1,4 @@
+import numpy
 import itertools
 import sys
 import time
@@ -61,55 +62,50 @@ class PartitionPlotter(object):
     def plot_size_vs_mfreq(self, partition, annotations, base_plotdir):
         import plotting
 
-        binwidth = 0.0003
-        min_alpha = 0.1
-        max_alpha = 0.8
-        min_linewidth = 1
-        max_linewidth = 12
+        colors = ['#006600', '#990012', '#cc0000', '#3399ff', '#a821c7', '#808080']  # plotting.default_colors
 
         def gety(minval, maxval, xmax, x):
             slope = (maxval - minval) / xmax
             return slope * x + minval
+        def getnmutelist(cluster):
+            return annotations[':'.join(cluster)]['n_mutations']
 
         fig, ax = plotting.mpl_init()
-        colors = ['#006600', '#990012', '#cc0000', '#3399ff', '#a821c7', '#808080']  # plotting.default_colors
-        last_cluster_size = None
-        last_color = 0
-        y_adjust = 0
+
         sorted_clusters = sorted(partition, key=lambda c: len(c), reverse=True)
-        for cluster in sorted_clusters:
-            mfreqs = sorted(annotations[':'.join(cluster)]['mut_freqs'])
+        biggest_cluster_size = len(sorted_clusters[0])
+        min_linewidth = 0.3  # * int(float(biggest_cluster_size) / 30.)
+        max_linewidth = 12 * int(float(biggest_cluster_size) / 30.)
+        for csize, cluster_group in itertools.groupby(sorted_clusters, key=lambda c: len(c)):
+            # if csize < 30:
+            #     break
+            cluster_group = sorted(list(cluster_group), key=lambda c: numpy.median(getnmutelist(c)))
+            n_clusters = len(cluster_group)
+            print ' %3d' % csize
+            for iclust in range(len(cluster_group)):
+                cluster = cluster_group[iclust]
+                nmutelist = sorted(getnmutelist(cluster))
 
-            if last_cluster_size is None or last_cluster_size != len(cluster):
-                print ' %3d' % len(cluster)
-                color = colors[0]
-                y_adjust = 0.
-            else:
-                color = colors[(colors.index(last_color) + 1) % len(colors)]
-                y_adjust = (-1)**(colors.index(color)) * colors.index(color) * 0.15
+                nbins = nmutelist[-1] - nmutelist[0] + 1
+                hist = Hist(nbins, nmutelist[0] - 0.5, nmutelist[-1] + 0.5)
+                for nm in nmutelist:
+                    hist.fill(nm)
+                assert hist.overflow_contents() == 0.  # includes underflows
+                xmax = float(csize)
+                yval = csize
+                if iclust > 0:
+                    yval += (-1)**(iclust) * 0.15
 
-            print '      %8s   %5.2f   %s' % (color, y_adjust, ' '.join(['%.3f' % mf for mf in mfreqs]))
+                print '      %8.2f %s' % (numpy.median(nmutelist), ' '.join(['%3d' % nm for nm in nmutelist]))
 
-            nbins = int((mfreqs[-1] - mfreqs[0]) / binwidth) + 2
-            hist = Hist(nbins, mfreqs[0] - binwidth, mfreqs[-1] + binwidth)
-            for mf in mfreqs:
-                hist.fill(mf)
-            assert hist.overflow_contents() == 0.
-            max_bin_contents = max(hist.bin_contents)
-            xmax = float(len(cluster))  # max_bin_contents
-            yval = len(cluster) + y_adjust
-            for ibin in range(1, hist.n_bins + 1):
-                alpha = gety(min_alpha, max_alpha, xmax, hist.bin_contents[ibin])
-                linewidth = gety(min_linewidth, max_linewidth, xmax, hist.bin_contents[ibin])
-                ax.plot([hist.low_edges[ibin], hist.low_edges[ibin+1]], [yval, yval], color=color, linewidth=linewidth, alpha=alpha, solid_capstyle='butt')
-
-            last_cluster_size = len(cluster)
-            last_color = color
+                for ibin in range(1, hist.n_bins + 1):
+                    linewidth = gety(min_linewidth, max_linewidth, xmax, hist.bin_contents[ibin])
+                    ax.plot([hist.low_edges[ibin], hist.low_edges[ibin+1]], [yval, yval], color=colors[iclust % len(colors)], linewidth=linewidth, alpha=0.55, solid_capstyle='butt')
 
         ybounds = [0.9 * len(sorted_clusters[-1]), 1.05 * len(sorted_clusters[0])]
-        plotnames = {'size-vs-mfreq' : [-0.001, 0.25], 'size-vs-mfreq-zoomed' : [-0.001, 0.05]}
+        plotnames = {'size-vs-shm' : [-0.2, 50], 'size-vs-shm-zoomed' : [-0.2, 60]}
         for name, xbounds in plotnames.items():
-            plotting.mpl_finish(ax, base_plotdir + '/overall', name, xlabel='mut freq', ylabel='clonal family size', xbounds=xbounds, ybounds=ybounds)
+            plotting.mpl_finish(ax, base_plotdir + '/overall', name, xlabel='N mutations', ylabel='clonal family size', xbounds=xbounds, ybounds=ybounds)
 
     # ----------------------------------------------------------------------------------------
     def plot(self, plotdir, partition=None, infiles=None, annotations=None, only_csv=None):
