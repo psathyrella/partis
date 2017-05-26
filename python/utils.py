@@ -268,7 +268,7 @@ linekeys['per_family'] = ['naive_seq', 'cdr3_length', 'codon_positions', 'length
                          [r + '_gl_seq' for r in regions] + \
                          [r + '_per_gene_support' for r in regions]
 # used by the synthesize_[] fcns below
-linekeys['per_seq'] = ['seqs', 'unique_ids', 'indelfos', 'mut_freqs', 'input_seqs', 'indel_reversed_seqs'] + \
+linekeys['per_seq'] = ['seqs', 'unique_ids', 'indelfos', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs'] + \
                       [r + '_qr_seqs' for r in regions] + \
                       ['aligned_' + r + '_seqs' for r in regions] + \
                       functional_columns
@@ -281,7 +281,7 @@ all_linekeys = set([k for cols in linekeys.values() for k in cols])
 # keys that are added by add_implicit_info()
 implicit_linekeys = set(['naive_seq', 'cdr3_length', 'codon_positions', 'lengths', 'regional_bounds', 'invalid', 'input_seqs'] + \
                        [r + '_gl_seq' for r in regions] + \
-                       ['mut_freqs', ] + functional_columns + [r + '_qr_seqs' for r in regions] + ['aligned_' + r + '_seqs' for r in regions])
+                       ['mut_freqs', 'n_mutations'] + functional_columns + [r + '_qr_seqs' for r in regions] + ['aligned_' + r + '_seqs' for r in regions])
 
 # ----------------------------------------------------------------------------------------
 annotation_headers = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'mut_freqs', 'input_seqs', 'indel_reversed_seqs', 'naive_seq', 'indelfos', 'duplicates'] \
@@ -993,7 +993,9 @@ def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False): 
 
     add_functional_info(glfo['locus'], line, input_codon_positions)
 
-    line['mut_freqs'] = [hamming_fraction(line['naive_seq'], mature_seq) for mature_seq in line['seqs']]
+    hfracfo = [hamming_fraction(line['naive_seq'], mature_seq, also_return_distance=True) for mature_seq in line['seqs']]
+    line['mut_freqs'] = [hfrac for hfrac, _ in hfracfo]
+    line['n_mutations'] = [n_mutations for _, n_mutations in hfracfo]
 
     # set validity (alignment addition [below] can also set invalid)  # TODO clean up this checking stuff
     line['invalid'] = False
@@ -2359,7 +2361,8 @@ def get_seq_with_indels_reinstated(line, iseq=0):  # reverse the action of indel
         elif indel['type'] == 'deletion':
             excision = return_seq[indel['pos'] : indel['pos'] + indel['len']]
             if excision != indel['seqstr']:
-                raise Exception('ack %s %s' % (excision, indel['seqstr']))
+                # raise Exception('ack %s %s' % (excision, indel['seqstr']))
+                print 'ack %s %s' % (excision, indel['seqstr'])
             return_seq = return_seq[ : indel['pos']] + return_seq[indel['pos'] + indel['len'] : ]
         else:
             assert False
