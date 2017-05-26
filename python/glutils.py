@@ -537,12 +537,12 @@ def remove_gene(glfo, gene, debug=False):
             print '  can\'t remove %s from glfo, it\'s not there' % utils.color_gene(gene)
 
 # ----------------------------------------------------------------------------------------
-def add_new_alleles(glfo, newfos, remove_template_genes=False, debug=False):
+def add_new_alleles(glfo, newfos, remove_template_genes=False, use_template_for_codon_info=True, debug=False):
     for newfo in newfos:
-        add_new_allele(glfo, newfo, remove_template_genes=remove_template_genes, debug=debug)
+        add_new_allele(glfo, newfo, remove_template_genes=remove_template_genes, use_template_for_codon_info=use_template_for_codon_info, debug=debug)
 
 # ----------------------------------------------------------------------------------------
-def add_new_allele(glfo, newfo, remove_template_genes=False, debug=False):
+def add_new_allele(glfo, newfo, remove_template_genes=False, use_template_for_codon_info=True, debug=False):
     """
     Add a new allele to <glfo>, specified by <newfo> which is of the
     form: {'gene' : 'IGHV3-71*01+C35T.T47G', 'seq' : 'ACTG yadda yadda CGGGT', 'template-gene' : 'IGHV3-71*01'}
@@ -556,17 +556,21 @@ def add_new_allele(glfo, newfo, remove_template_genes=False, debug=False):
 
     new_gene = newfo['gene']
 
-    if region == 'v':
-        glfo['cyst-positions'][new_gene] = glfo['cyst-positions'][template_gene]
-    elif region == 'j':
-        glfo['tryp-positions'][new_gene] = glfo['tryp-positions'][template_gene]
-
+    if len(set(newfo['seq']) - utils.alphabet) > 0:
+        raise Exception('unexpected characters %s in new gl seq %s' % (set(newfo['seq']) - utils.alphabet, newfo['seq']))
     glfo['seqs'][region][new_gene] = newfo['seq']
+
+    if use_template_for_codon_info:
+        codon = utils.conserved_codons[glfo['locus']].get(region, None)
+        if codon is not None:
+            glfo[codon + '-positions'][new_gene] = glfo[codon + '-positions'][template_gene]
+    else:
+        get_missing_codon_info(glfo)
 
     if debug:
         print '    adding new allele to glfo:'
         print '      template %s   %s' % (glfo['seqs'][region][template_gene], utils.color_gene(template_gene))
-        print '           new %s   %s' % (utils.color_mutants(glfo['seqs'][region][template_gene], newfo['seq']), utils.color_gene(new_gene))
+        print '           new %s   %s' % (utils.color_mutants(glfo['seqs'][region][template_gene], newfo['seq'], align=True), utils.color_gene(new_gene))
 
     if remove_template_genes:
         remove_gene(glfo, template_gene, debug=True)
@@ -793,3 +797,41 @@ def check_allele_prevalence_freqs(outfname, glfo, allele_prevalence_fname, only_
         for gene in glfo['seqs'][region]:
             print ('          %' + width + 'd     %.3f    %.3f   %s') % (counts[region][gene], float(counts[region][gene]) / total, allele_prevalence_freqs[region][gene], utils.color_gene(gene, width=15))
 
+# ----------------------------------------------------------------------------------------
+def find_new_allele_in_existing_glfo(glfo, region, new_allele_name, new_allele_seq, template_cpos, exclusion_5p=0, exclusion_3p=3, debug=False):
+    # decide if <new_allele_seq> likely corresponds to an allele that's already in <glfo>
+    assert region == 'v'  # conserved codon stuff below will have to be changed for j
+
+    def print_sequence_chunks(seq, cpos, name):
+        print '            %s%s%s%s%s   %s' % (utils.color('blue', seq[:exclusion_5p]),
+                                               seq[exclusion_5p : cpos],
+                                               utils.color('reverse_video', seq[cpos : cpos + 3]),
+                                               seq[cpos + 3 : cpos + 3 + bases_to_right_of_cysteine],
+                                               utils.color('blue', seq[cpos + 3 + bases_to_right_of_cysteine:]),
+                                               utils.color_gene(name))
+
+    if new_allele_name in glfo['seqs'][region]:  # if we removed an existing allele and then re-added it, it'll already be in the default glfo, so there's nothing for us to do in this fcn
+        return new_allele_name, new_allele_seq
+
+    for oldname_gene, oldname_seq in glfo['seqs'][region].items():  # NOTE <oldname_{gene,seq}> is the old *name* corresponding to the new (snp'd) allele, whereas <old_seq> is the allele from which we inferred the new (snp'd) allele
+        # first see if they match up through the cysteine
+        oldpos = utils.cdn_pos(glfo, region, oldname_gene)
+        if oldname_seq[exclusion_5p : oldpos + 3] != new_allele_seq[exclusion_5p : template_cpos + 3]:
+            continue
+
+        # then require that any bases in common to the right of the cysteine in the new allele match the ones in the old one (where "in common" means either of them can be longer, since this just changes the insertion length)
+        bases_to_right_of_cysteine = min(len(oldname_seq) - (oldpos + 3), len(new_allele_seq) - exclusion_3p - (template_cpos + 3))
+
+        if bases_to_right_of_cysteine > 0 and oldname_seq[oldpos + 3 : oldpos + 3 + bases_to_right_of_cysteine] != new_allele_seq[template_cpos + 3 : template_cpos + 3 + bases_to_right_of_cysteine]:
+            continue
+
+        if debug:
+            print '        using existing name %s for new allele %s (blue bases are not considered):' % (utils.color_gene(oldname_gene), utils.color_gene(new_allele_name))
+            print_sequence_chunks(oldname_seq, oldpos, oldname_gene)
+            print_sequence_chunks(new_allele_seq, template_cpos, new_allele_name)
+
+        new_allele_name = oldname_gene
+        new_allele_seq = oldname_seq  # *very* important
+        break
+
+    return new_allele_name, new_allele_seq

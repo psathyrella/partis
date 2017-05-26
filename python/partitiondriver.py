@@ -244,10 +244,35 @@ class PartitionDriver(object):
 
             self.args.min_observations_to_write = 1
 
-        if not self.args.dont_remove_unlikely_alleles:
+        vsearch = False
+        if vsearch:
+            from alleleremover import AlleleRemover
+            from allelefinder import AlleleFinder
+            from alleleclusterer import AlleleClusterer
+
+            tmpglfo = copy.deepcopy(self.glfo)
+            glutils.remove_v_genes_with_bad_cysteines(tmpglfo)
+            vs_info = utils.run_vsearch('search', {sfo['unique_ids'][0] : sfo['seqs'][0] for sfo in self.input_info.values()}, self.args.workdir + '/vsearch', threshold=0.3, n_procs=self.args.n_procs, glfo=tmpglfo)
+            sorted_gene_counts = sorted(vs_info['gene-counts'].items(), key=operator.itemgetter(1), reverse=True)
+            alremover = AlleleRemover(self.glfo, self.args, AlleleFinder(self.glfo, self.args, itry=0))
+            alremover.finalize(sorted_gene_counts, debug=True)
+            alclusterer = AlleleClusterer(self.args)
+            alcluster_alleles = alclusterer.get_alleles(vs_info['queries'], vs_info['mute-freqs']['v'], self.glfo)
+            genes_to_remove = alremover.genes_to_remove
+        else:
+            from alleleclusterer import AlleleClusterer
             self.run_waterer(remove_less_likely_alleles=True, count_parameters=True)
-            glutils.remove_genes(self.glfo, self.sw_info['genes-to-remove'])
-            glutils.write_glfo(self.my_gldir, self.glfo)
+            swfo = self.sw_info  # just so you don't forget that the above line modifies/creates it
+            alclusterer = AlleleClusterer(self.args)
+            alcluster_alleles = alclusterer.get_alleles(queryfo=None, threshold=swfo['mute-freqs']['v'], glfo=self.glfo, swfo=swfo)
+            genes_to_remove = swfo['genes-to-remove']
+
+# ----------------------------------------------------------------------------------------
+        glutils.add_new_alleles(self.glfo, alcluster_alleles.values(), use_template_for_codon_info=False, debug=True)
+        glutils.remove_genes(self.glfo, genes_to_remove)
+        glutils.write_glfo(self.my_gldir, self.glfo)
+# ----------------------------------------------------------------------------------------
+
         if self.args.find_new_alleles:
             self.find_new_alleles()
         self.run_waterer(count_parameters=True, write_parameters=True, write_cachefile=True)
@@ -557,47 +582,6 @@ class PartitionDriver(object):
         return annotations
 
     # ----------------------------------------------------------------------------------------
-    def run_vsearch(self, naive_seqs, threshold):
-        # write input
-        infname = self.args.workdir + '/naive-seqs.fasta'
-        outfname = self.args.workdir + '/vsearch-clusters.txt'
-        with open(infname, 'w') as fastafile:
-            for query, naive_seq in naive_seqs.items():
-                fastafile.write('>' + query + '\n' + naive_seq + '\n')
-
-        # run
-        cmd = self.args.partis_dir + '/bin/vsearch-2.4.3-linux-x86_64'
-        cmd += ' --cluster_fast ' + infname
-        cmd += ' --uc ' + outfname
-        # cmd += ' --consout ' + consensus_fname
-        cmd += ' --id ' + str(1. - threshold)
-        cmd += ' --maxaccept 0 --maxreject 0'
-        cmd += ' --threads ' + str(self.args.n_procs)
-        cmd += ' --quiet'
-        cmdfos = [{'cmd_str' : cmd, 'outfname' : outfname, 'workdir' : self.args.workdir, 'threads' : self.args.n_procs}, ]
-        utils.run_cmds(cmdfos, batch_system=self.args.batch_system, batch_options=self.args.batch_options, batch_config_fname=self.args.batch_config_fname)
-
-        # read output
-        id_clusters = {}
-        with open(outfname) as clusterfile:
-            reader = csv.DictReader(clusterfile, fieldnames=['type', 'cluster_id', '3', '4', '5', '6', '7', 'crap', 'query', 'morecrap'], delimiter='\t')
-            for line in reader:
-                if line['type'] == 'C':  # batshit output format: some lines are a cluster, and some are a query sequence. Skip the cluster ones.
-                    continue
-                cluster_id = int(line['cluster_id'])
-                if cluster_id not in id_clusters:
-                    id_clusters[cluster_id] = []
-                uid = line['query']
-                if self.args.naive_swarm and uid[-2:] == '_1':  # remove (dummy) abundance information
-                    uid = uid[:-2]
-                id_clusters[cluster_id].append(uid)
-        partition = id_clusters.values()
-
-        os.remove(infname)
-        os.remove(outfname)
-        return partition
-
-    # ----------------------------------------------------------------------------------------
     def cluster_with_naive_vsearch_or_swarm(self, parameter_dir=None, read_hmm_cachefile=True):
         start = time.time()
 
@@ -616,7 +600,7 @@ class PartitionDriver(object):
                 if uid not in cached_naive_seqs:
                     raise Exception('naive sequence for %s not found in %s' % (uid, self.hmm_cachefname))
                 naive_seq_list.append((uid, cached_naive_seqs[uid]))
-        else:
+        else:  # I think this was added to allow allele finding to cluster with vsearch, but I ended up just clustering with naive seqs, so this isn't used
             assert parameter_dir is None  # i.e. get mut freq from sw info
             threshold = self.get_naive_hamming_bounds(parameter_dir=None, overall_mute_freq=self.sw_info['mute-freqs']['all'])[0]  # lo and hi are the same
             naive_seq_list = [(q, self.sw_info[q]['naive_seq']) for q in self.sw_info['queries']]
@@ -628,7 +612,8 @@ class PartitionDriver(object):
         partition = []
         print '    running vsearch %d times (once for each cdr3 length class):' % len(all_naive_seqs),
         for cdr3_length, sub_naive_seqs in all_naive_seqs.items():
-            sub_hash_partition = self.run_vsearch(sub_naive_seqs, threshold)
+            sub_hash_partition = utils.run_vsearch('cluster', sub_naive_seqs, self.args.workdir + '/vsearch', threshold,
+                                                   n_procs=self.args.n_procs, batch_system=self.args.batch_system, batch_options=self.args.batch_options, batch_config_fname=self.args.batch_config_fname)
             sub_uid_partition = [[uid for hashstr in hashcluster for uid in naive_seq_hashes[hashstr]] for hashcluster in sub_hash_partition]
             partition += sub_uid_partition
             print '.',
@@ -649,7 +634,7 @@ class PartitionDriver(object):
         return cpath
 
     # ----------------------------------------------------------------------------------------
-    def get_naive_hamming_bounds(self, parameter_dir=None, overall_mute_freq=None):
+    def get_naive_hamming_bounds(self, parameter_dir=None, overall_mute_freq=None):  # parameterize the relationship between mutation frequency and naive sequence inaccuracy
         if self.cached_naive_hamming_bounds is not None:  # only run the stuff below once
             return self.cached_naive_hamming_bounds
 

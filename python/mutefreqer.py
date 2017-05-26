@@ -144,8 +144,7 @@ class MuteFreqer(object):
             xline = None
             figsize = [7, 4]
             if utils.get_region(gene) in utils.conserved_codons[self.glfo['locus']]:
-                codon = utils.conserved_codons[self.glfo['locus']][utils.get_region(gene)]
-                xline = self.glfo[codon + '-positions'][gene]
+                xline = utils.cdn_pos(self.glfo, utils.get_region(gene), gene)
             if utils.get_region(gene) == 'v':
                 figsize[0] *= 3.5
             elif utils.get_region(gene) == 'j':

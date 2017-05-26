@@ -326,8 +326,6 @@ The entire resulting germline set is written to a subdirectory of `--parameter-d
 We could probably do the same thing for J, but there doesn't seem to be much polymorphism, so it's probably not worthwhile.
 Doing it for D is probably not realistic.
 
-You can disable the allele-removal step with `--dont-remove-unlikely-alleles`.
-
 #### simulate
 
 For testing purposes, we can use the parameters in `--parameter-dir` to create simulated sequences that mimic the data as closely as possible.

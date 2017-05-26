@@ -66,12 +66,9 @@ for igene in range(0, len(genes)):
     if len(seq) < max_seq_len:
         right_pad_str = (max_seq_len - len(seq)) * ' '
 
-    min_length = min(len(seq), len(ref_seq))  # can only compute hamming distance out as far as the shorter of the two
     emph_positions = None if args.region == 'd' else [pos + i for i in range(3)]
-    colored_seq, isnps = utils.color_mutants(ref_seq[:min_length], seq[:min_length], return_isnps=True, emphasis_positions=emph_positions)
+    colored_seq, isnps = utils.color_mutants(ref_seq, seq, return_isnps=True, emphasis_positions=emph_positions, align=True)
     seqstrs[igene] += '%s%s' % (colored_seq, right_pad_str)
-    if min_length < len(seq):
-        seqstrs[igene] += utils.color('blue', seq[min_length:])
     if len(isnps) > 0:
         snpstrs[igene] = '%2d (%s)' % (len(isnps), ' '.join([str(i) for i in isnps]))
 
