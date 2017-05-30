@@ -89,7 +89,7 @@ class PartitionPlotter(object):
         # linewidth = 7
         alpha = 0.55
 
-        ymin, ymax = None, None
+        ymin, ymax = 9999, 0
         iclust_global = 0
         yticks, yticklabels = [], []
 
@@ -113,9 +113,9 @@ class PartitionPlotter(object):
                     biggest_n_mutations = nmutelist[-1]
 
                 yval = len(sorted_clusters) - iclust_global
-                if ymin is None or yval < ymin:
+                if yval < ymin:
                     ymin = yval
-                if ymax is None or yval > ymax:
+                if yval > ymax:
                     ymax = yval
                 yticks.append(yval)
                 yticklabels.append('%d' % csize)
@@ -129,7 +129,8 @@ class PartitionPlotter(object):
                     high_mutation_clusters.append(cluster)
                     continue
 
-                print ''
+                if debug:
+                    print ''
 
                 nbins = nmutelist[-1] - nmutelist[0] + 1
                 hist = Hist(nbins, nmutelist[0] - 0.5, nmutelist[-1] + 0.5)
@@ -162,8 +163,6 @@ class PartitionPlotter(object):
 
     # ----------------------------------------------------------------------------------------
     def plot_size_vs_shm(self, partition, annotations, base_plotdir, debug=False):
-        debug = True
-
         fnames = []
 
         sorted_clusters = sorted(partition, key=lambda c: len(c), reverse=True)
