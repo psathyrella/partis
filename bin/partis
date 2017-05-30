@@ -352,7 +352,6 @@ parent_parser.add_argument('--plot-and-fit-absolutely-everything', type=int, hel
 parent_parser.add_argument('--seed-unique-id', help='Only look for sequences that are clonally related to this unique id. Much much much faster than partitioning the entire dataset.')
 parent_parser.add_argument('--seed-seq', help='same as --seed-unique-id, but specifies a sequence that doesn\'t have to be in the original file')
 parent_parser.add_argument('--plotting-seed-ids', help='pass multiple seed uids for emphasis in plotting. not for general use')
-parent_parser.add_argument('--plotting-min-cluster-size', type=int, default=1, help='not for general use')
 
 # ----------------------------------------------------------------------------------------
 subconfig = {

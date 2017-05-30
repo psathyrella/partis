@@ -60,8 +60,13 @@ class PartitionPlotter(object):
             self.plot_each_within_vs_between_hist(subd, base_plotdir + '/within-vs-between', 'cdr3-length-%d' % cdr3_length, 'CDR3 %d' % cdr3_length)
 
     # ----------------------------------------------------------------------------------------
-    def plot_size_vs_mfreq(self, partition, annotations, base_plotdir, debug=False):
+    def make_single_size_vs_shm_plot(self, sorted_clusters, annotations, base_plotdir, plotname, plot_high_mutation=False, debug=False):
         import plotting
+        def gety(minval, maxval, xmax, x):
+            slope = (maxval - minval) / xmax
+            return slope * x + minval
+        def getnmutelist(cluster):
+            return annotations[':'.join(cluster)]['n_mutations']
 
         colors = ['#006600', '#3399ff', '#ffa500']
         # goldenrod '#daa520'
@@ -70,83 +75,112 @@ class PartitionPlotter(object):
         # purple '#a821c7'
         # grey '#808080'
 
-        n_max_mutations = 50
-
-        def gety(minval, maxval, xmax, x):
-            slope = (maxval - minval) / xmax
-            return slope * x + minval
-        def getnmutelist(cluster):
-            return annotations[':'.join(cluster)]['n_mutations']
-
-        sorted_clusters = sorted(partition, key=lambda c: len(c), reverse=True)
-        sorted_clusters = [clust for clust in sorted_clusters if len(clust) > self.args.plotting_min_cluster_size]
-
         dpi = 80
         xpixels = 450
-        ypixels = max(250, 10 * len(sorted_clusters))
+        ypixels = max(400, 10 * len(sorted_clusters))
         fig, ax = plotting.mpl_init(figsize=(xpixels / dpi, ypixels / dpi))
 
-        repertoire_size = sum([len(cl) for cl in sorted_clusters])
+        n_max_mutations = 50
+
         min_linewidth = 0.3
         max_linewidth = 12
+        # min_alpha = 0.1
+        # max_alpha = 1.
+        # linewidth = 7
+        alpha = 0.55
+
         ymin, ymax = None, None
         iclust_global = 0
         yticks, yticklabels = [], []
+
+        high_mutation_clusters = []
+        biggest_n_mutations = None
+
+        if debug:
+            print '  %s' % plotname
+            print '    size    yval    median'
+
         for csize, cluster_group in itertools.groupby(sorted_clusters, key=lambda c: len(c)):
-            repfrac = float(csize) / repertoire_size
             cluster_group = sorted(list(cluster_group), key=lambda c: numpy.median(getnmutelist(c)))
             n_clusters = len(cluster_group)
-            if debug:
-                print ' %3d  (%.3f)' % (csize, repfrac)
             for iclust in range(len(cluster_group)):
                 cluster = cluster_group[iclust]
                 base_color = colors[iclust_global % len(colors)]
                 if self.args.plotting_seed_ids is not None and len(set(cluster) & set(self.args.plotting_seed_ids)) > 0:
                     base_color = 'red'
                 nmutelist = sorted(getnmutelist(cluster))
+                if biggest_n_mutations is None or nmutelist[-1] > biggest_n_mutations:
+                    biggest_n_mutations = nmutelist[-1]
+
+                yval = len(sorted_clusters) - iclust_global
+                if ymin is None or yval < ymin:
+                    ymin = yval
+                if ymax is None or yval > ymax:
+                    ymax = yval
+                yticks.append(yval)
+                yticklabels.append('%d' % csize)
+
+                if debug:
+                    print '     %3s    %4.1f  %6.1f' % ('%d' % csize if iclust == 0 else '', yval, numpy.median(nmutelist)),
+
+                if numpy.median(nmutelist) > n_max_mutations and not plot_high_mutation:
+                    if debug:
+                        print '%s' % utils.color('red', 'high mutation')
+                    high_mutation_clusters.append(cluster)
+                    continue
+
+                print ''
 
                 nbins = nmutelist[-1] - nmutelist[0] + 1
                 hist = Hist(nbins, nmutelist[0] - 0.5, nmutelist[-1] + 0.5)
                 for nm in nmutelist:
                     hist.fill(nm)
                 assert hist.overflow_contents() == 0.  # includes underflows
-                yval = len(sorted_clusters) - iclust_global  # csize # repfrac
-
-                if ymin is None or yval < ymin:
-                    ymin = yval
-                if ymax is None or yval > ymax:
-                    ymax = yval
-
-                # if iclust_global % 10 == 0:
-                yticks.append(yval)
-                yticklabels.append('%d' % csize)  # '%.3f' % repfrac)
-
-                if debug:
-                    print '      %.2f  %8.2f %s' % (yval, numpy.median(nmutelist), ' '.join(['%3d' % nm for nm in nmutelist]))
-
                 xmax = max(hist.bin_contents)  # float(csize)
                 for ibin in range(1, hist.n_bins + 1):
                     linewidth = gety(min_linewidth, max_linewidth, xmax, hist.bin_contents[ibin])
                     color = base_color
-                    alpha = 0.55
+                    # alpha = gety(min_alpha, max_alpha, xmax, hist.bin_contents[ibin])
                     if hist.bin_contents[ibin] == 0.:
                         color = 'grey'
+                        linewidth = min_linewidth
                         alpha = 0.4
                     ax.plot([hist.low_edges[ibin], hist.low_edges[ibin+1]], [yval, yval], color=color, linewidth=linewidth, alpha=alpha, solid_capstyle='butt')
 
                 iclust_global += 1
 
-        # ybounds = [0.9 * len(sorted_clusters[-1]), 1.05 * len(sorted_clusters[0])]
+        xbounds = [-0.2, n_max_mutations] if not plot_high_mutation else [n_max_mutations, biggest_n_mutations]
         ybounds = [0.95 * ymin, 1.05 * ymax]
-        plotnames = {'size-vs-shm' : [-0.2, 50], 'size-vs-shm-zoomed' : [-0.2, n_max_mutations]}
         n_ticks = 5
-        yticks = [yticks[i] for i in range(0, len(yticks), int(len(yticks) / float(n_ticks - 1)))]
-        yticklabels = [yticklabels[i] for i in range(0, len(yticklabels), int(len(yticklabels) / float(n_ticks - 1)))]
-        for name, xbounds in plotnames.items():
-            plotting.mpl_finish(ax, base_plotdir + '/overall', name, xlabel='N mutations',
-                                # ylabel='fraction of repertoire',
-                                ylabel='clonal family size',
-                                xbounds=xbounds, ybounds=ybounds, yticks=yticks, yticklabels=yticklabels, adjust={'left' : 0.25})
+        if len(yticks) > n_ticks:
+            yticks = [yticks[i] for i in range(0, len(yticks), int(len(yticks) / float(n_ticks - 1)))]
+            yticklabels = [yticklabels[i] for i in range(0, len(yticklabels), int(len(yticklabels) / float(n_ticks - 1)))]
+        plotting.mpl_finish(ax, base_plotdir + '/overall', plotname, xlabel='N mutations', ylabel='clonal family size',
+                            xbounds=xbounds, ybounds=ybounds, yticks=yticks, yticklabels=yticklabels, adjust={'left' : 0.25})
+
+        return high_mutation_clusters
+
+    # ----------------------------------------------------------------------------------------
+    def plot_size_vs_shm(self, partition, annotations, base_plotdir, debug=False):
+        debug = True
+
+        fnames = []
+
+        sorted_clusters = sorted(partition, key=lambda c: len(c), reverse=True)
+        # sorted_clusters = [clust for clust in sorted_clusters if len(clust) > self.args.plotting_min_cluster_size]
+
+        high_mutation_clusters = []
+
+        n_clusters_per_plot = 75
+        iclust = 0
+        for subclusters in [sorted_clusters[i : i + n_clusters_per_plot] for i in range(0, len(sorted_clusters), n_clusters_per_plot)]:
+            fnames.append('size-vs-shm-%d' % iclust)
+            high_mutation_clusters += self.make_single_size_vs_shm_plot(subclusters, annotations, base_plotdir, fnames[-1], debug=debug)
+            iclust += 1
+        fnames.append('size-vs-shm-high-mutation')
+        self.make_single_size_vs_shm_plot(high_mutation_clusters, annotations, base_plotdir, fnames[-1], plot_high_mutation=True, debug=debug)
+
+        return [fn + '.svg' for fn in fnames]
 
     # ----------------------------------------------------------------------------------------
     def plot(self, plotdir, partition=None, infiles=None, annotations=None, only_csv=None):
@@ -157,12 +191,14 @@ class PartitionPlotter(object):
         for subdir in self.subplotdirs:
             utils.prep_dir(plotdir + '/' + subdir, wildlings=['*.csv', '*.svg'])
 
+        fnames = []
+
         if partition is not None:  # one partition
             assert infiles is None
             assert annotations is not None
             csize_hists = {'best' : plotting.get_cluster_size_hist(partition)}
             # self.plot_within_vs_between_hists(partition, annotations, plotdir)
-            self.plot_size_vs_mfreq(partition, annotations, plotdir)
+            fnames.append(self.plot_size_vs_shm(partition, annotations, plotdir))
         elif infiles is not None:  # plot the mean of a partition from each file
             subset_hists = []
             for fname in infiles:
@@ -176,9 +212,10 @@ class PartitionPlotter(object):
             assert False
 
         plotting.plot_cluster_size_hists(plotdir + '/overall/cluster-sizes.svg', csize_hists, title='', log='x')
+        fnames.append(['cluster-sizes.svg'])
 
         if not only_csv:
             for subdir in self.subplotdirs:
-                plotting.make_html(plotdir + '/' + subdir)
+                plotting.make_html(plotdir + '/' + subdir, fnames=fnames)
 
         print '(%.1f sec)' % (time.time()-start)
