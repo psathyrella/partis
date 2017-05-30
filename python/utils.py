@@ -201,11 +201,11 @@ forbidden_character_translations = string.maketrans(':;,', 'csm')
 functional_columns = ['mutated_invariants', 'in_frames', 'stops']
 
 column_configs = {
-    'ints' : ['cdr3_length', 'padlefts', 'padrights'] + [e + '_del' for e in all_erosions],
+    'ints' : ['n_mutations', 'cdr3_length', 'padlefts', 'padrights'] + [e + '_del' for e in all_erosions],
     'floats' : ['logprob', 'mut_freqs'],
     'bools' : functional_columns,
     'literals' : ['indelfo', 'indelfos', 'k_v', 'k_d', 'all_matches'],  # simulation has indelfo[s] singular, annotation output has it plural... and I think it actually makes sense to have it that way
-    'lists' : ['unique_ids', 'seqs', 'input_seqs', 'indel_reversed_seqs', 'mut_freqs', 'padlefts', 'padrights'] + ['aligned_' + r + '_seqs' for r in regions] + functional_columns,  # indelfos is a list, but we can't just split it by colons since it has colons within the dict string
+    'lists' : ['unique_ids', 'seqs', 'input_seqs', 'indel_reversed_seqs', 'n_mutations', 'mut_freqs', 'padlefts', 'padrights'] + ['aligned_' + r + '_seqs' for r in regions] + functional_columns,  # indelfos is a list, but we can't just split it by colons since it has colons within the dict string
     'lists-of-lists' : ['duplicates'] + [r + '_per_gene_support' for r in regions]
 }
 
@@ -279,12 +279,12 @@ linekeys['simu'] = ['reco_id', ]
 all_linekeys = set([k for cols in linekeys.values() for k in cols])
 
 # keys that are added by add_implicit_info()
-implicit_linekeys = set(['naive_seq', 'cdr3_length', 'codon_positions', 'lengths', 'regional_bounds', 'invalid', 'input_seqs'] + \
+implicit_linekeys = set(['naive_seq', 'cdr3_length', 'codon_positions', 'lengths', 'regional_bounds', 'invalid', 'input_seqs', 'indel_reversed_seqs'] + \
                        [r + '_gl_seq' for r in regions] + \
                        ['mut_freqs', 'n_mutations'] + functional_columns + [r + '_qr_seqs' for r in regions] + ['aligned_' + r + '_seqs' for r in regions])
 
 # ----------------------------------------------------------------------------------------
-annotation_headers = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'mut_freqs', 'input_seqs', 'indel_reversed_seqs', 'naive_seq', 'indelfos', 'duplicates'] \
+annotation_headers = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'naive_seq', 'indelfos', 'duplicates'] \
                      + [r + '_per_gene_support' for r in regions] \
                      + [e + '_del' for e in all_erosions] + [b + '_insertion' for b in boundaries + effective_boundaries] \
                      + functional_columns
