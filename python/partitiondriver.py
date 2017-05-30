@@ -319,14 +319,16 @@ class PartitionDriver(object):
                 utils.add_implicit_info(self.glfo, line)
                 annotations[':'.join(line['unique_ids'])] = line
 
-                if debug and self.args.infname is not None and self.reco_info is not None:
-                    utils.print_true_events(self.glfo, self.reco_info, line, extra_str='')
-                    print 'inferred:',
-                    if len(line['unique_ids']) > 1:
-                        print '   %s' % ':'.join(line['unique_ids'])
-                    else:
-                        print ''
+                if debug:
+                    if self.args.infname is not None and self.reco_info is not None:
+                        utils.print_true_events(self.glfo, self.reco_info, line, extra_str='')
+                        print 'inferred:',
+                        if len(line['unique_ids']) > 1:
+                            print '   %s' % ':'.join(line['unique_ids'])
+                        else:
+                            print ''
                     utils.print_reco_event(line, extra_str='  ')
+
                 n_queries_read += 1
                 if self.args.n_max_queries > 0 and n_queries_read >= self.args.n_max_queries:
                     break
@@ -387,8 +389,9 @@ class PartitionDriver(object):
         cluster_annotations = self.get_cluster_annotations(cpath.partitions[cpath.i_best])
 
         if self.args.plotdir is not None:
-            partplotter = PartitionPlotter(self.args)
-            partplotter.plot(self.args.plotdir + '/partitions', partition=cpath.partitions[cpath.i_best], annotations=cluster_annotations, only_csv=self.args.only_csv_plots)
+            print 'skipping partition plotting'
+            # partplotter = PartitionPlotter(self.args)
+            # partplotter.plot(self.args.plotdir + '/partitions', partition=cpath.partitions[cpath.i_best], annotations=cluster_annotations, only_csv=self.args.only_csv_plots)
 
         if self.args.debug:
             print 'final'
