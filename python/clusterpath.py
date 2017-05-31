@@ -142,7 +142,7 @@ class ClusterPath(object):
         return ccf_str
 
     # ----------------------------------------------------------------------------------------
-    def print_partition(self, ip, reco_info=None, extrastr='', abbreviate=True, smc_print=False):
+    def print_partition(self, ip, reco_info=None, extrastr='', abbreviate=True, smc_print=False, sizesort=False):
         #  NOTE it's nicer to *not* sort by cluster size here, since preserving the order tends to frequently make it obvious which clusters are merging as your eye scans downwards through the output
         if ip > 0:  # delta between this logprob and the previous one
             delta_str = '%.1f' % (self.logprobs[ip] - self.logprobs[ip-1])
@@ -164,7 +164,11 @@ class ClusterPath(object):
             print '   %10s    %8s   ' % (way_str, logweight_str),
 
         # clusters
-        for cluster in self.partitions[ip]:
+        if sizesort:
+            partition = sorted(self.partitions[ip], key=lambda c: len(c), reverse=True)
+        else:
+            partition = self.partitions[ip]
+        for cluster in partition:
             if abbreviate:
                 cluster_str = ':'.join(['o' if len(uid) > 3 else uid for uid in cluster])
             else:
@@ -184,7 +188,7 @@ class ClusterPath(object):
         print ''
 
     # ----------------------------------------------------------------------------------------
-    def print_partitions(self, reco_info=None, extrastr='', abbreviate=True, print_header=True, n_to_print=None, smc_print=False, calc_missing_values='none'):
+    def print_partitions(self, reco_info=None, extrastr='', abbreviate=True, print_header=True, n_to_print=None, smc_print=False, calc_missing_values='none', sizesort=False):
         assert calc_missing_values in ['none', 'all', 'best']
         if reco_info is not None and calc_missing_values == 'all':
             self.calculate_missing_values(reco_info)
@@ -207,7 +211,7 @@ class ClusterPath(object):
                 mark = mark[:-2] + '* '
             if mark.count(' ') < len(mark):
                 mark = utils.color('yellow', mark)
-            self.print_partition(ip, reco_info, extrastr=mark+extrastr, abbreviate=abbreviate, smc_print=smc_print)
+            self.print_partition(ip, reco_info, extrastr=mark+extrastr, abbreviate=abbreviate, smc_print=smc_print, sizesort=sizesort)
 
     # ----------------------------------------------------------------------------------------
     def get_surrounding_partitions(self, n_partitions):

@@ -319,19 +319,22 @@ class PartitionDriver(object):
                 utils.add_implicit_info(self.glfo, line)
                 annotations[':'.join(line['unique_ids'])] = line
 
-                if debug:
-                    if self.args.infname is not None and self.reco_info is not None:
-                        utils.print_true_events(self.glfo, self.reco_info, line, extra_str='')
-                        print 'inferred:',
-                        if len(line['unique_ids']) > 1:
-                            print '   %s' % ':'.join(line['unique_ids'])
-                        else:
-                            print ''
-                    utils.print_reco_event(line, extra_str='  ')
-
                 n_queries_read += 1
                 if self.args.n_max_queries > 0 and n_queries_read >= self.args.n_max_queries:
                     break
+
+        if debug:
+            for line in sorted(annotations.values(), key=lambda l: len(l['unique_ids']), reverse=True):
+                if self.args.infname is not None and self.reco_info is not None:
+                    utils.print_true_events(self.glfo, self.reco_info, line, extra_str='')
+                    print 'inferred:',
+                    if len(line['unique_ids']) > 1:
+                        print '   %s' % ':'.join(line['unique_ids'])
+                    else:
+                        print ''
+                if len(line['unique_ids']) > 1:
+                    print '%d sequences (%.1f mean mutations)' % (len(line['unique_ids']), numpy.mean(line['n_mutations']))
+                utils.print_reco_event(line, extra_str='  ')
 
         if len(failed_queries) > 0:
             print '\n%d failed queries' % len(failed_queries)
@@ -343,7 +346,7 @@ class PartitionDriver(object):
         cp = ClusterPath()
         cp.readfile(self.args.outfname)
         if debug:
-            cp.print_partitions(abbreviate=self.args.abbreviate, reco_info=self.reco_info)
+            cp.print_partitions(abbreviate=self.args.abbreviate, reco_info=self.reco_info, sizesort=True)
         return cp
 
     # ----------------------------------------------------------------------------------------
