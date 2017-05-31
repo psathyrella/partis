@@ -169,7 +169,7 @@ class PartitionPlotter(object):
         for cluster in partition:
             if ':'.join(cluster) not in annotations:
                 print '    %s cluster %s not in annotations' % (utils.color('red', 'warning'), ':'.join(cluster))
-            failed_clusters.append(cluster)
+                failed_clusters.append(cluster)
         for fclust in failed_clusters:
             partition.remove(fclust)
         sorted_clusters = sorted(partition, key=lambda c: len(c), reverse=True)
