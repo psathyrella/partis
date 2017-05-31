@@ -78,6 +78,9 @@ def post_process(input_info, reco_info, args, infname, found_seed, is_data, ilin
         uids_to_choose_from = input_info.keys()
         if args.seed_unique_id is not None:
             uids_to_choose_from.remove(args.seed_unique_id)
+        if args.queries_to_include is not None:
+            for uid in args.queries_to_include:
+                uids_to_choose_from.remove(uid)
         if args.n_random_queries >= len(input_info):
             print '  %s --n-random-queries %d >= number of queries read from %s (so just keeping everybody)' % (utils.color('yellow', 'warning'), args.n_random_queries, infname)
         else:
@@ -176,6 +179,7 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, s
         if len(inseq.translate(None, ''.join(utils.alphabet))) > 0:
             raise Exception('unexpected character (not among %s) in input sequence with id %s:\n  %s' % (utils.nukes + utils.ambiguous_bases, uid, inseq))
 
+        # da business
         input_info[uid] = {'unique_ids' : [uid, ], 'seqs' : [inseq, ]}
 
         if n_queries_added == 0 and is_data and 'v_gene' in line:

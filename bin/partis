@@ -272,7 +272,8 @@ parent_parser = argparse.ArgumentParser(add_help=False)
 parent_parser.add_argument('--locus', default='igh', choices=utils.loci.keys(), help='which immunoglobulin or t-cell receptor locus?')
 parent_parser.add_argument('--chain', choices=('h', 'k', 'l'), help='DEPRECATED in favor of --locus, exists only for backwards compatibility')
 parent_parser.add_argument('--species', default='human', choices=('human', 'mouse'), help='Which species?')
-parent_parser.add_argument('--queries', help='Colon-separated list of query names to which we restrict ourselves')
+parent_parser.add_argument('--queries', help='Colon-separated list of query names to which to restrict the analysis')
+parent_parser.add_argument('--queries-to-include', help='when using --n-random-queries, look for, and include, these additional uids (in contast to --queries, which includes *only* the indicated uids) NOTE *not* compatible with --n-max-queries, i.e. use --n-random-queries instead')
 parent_parser.add_argument('--reco-ids', help='Colon-separated list of rearrangement-event IDs to which we restrict ourselves')  # or recombination events
 parent_parser.add_argument('--n-max-queries', type=int, default=-1, help='Maximum number of query sequences to read, starting from beginning of input file')
 parent_parser.add_argument('--n-random-queries', type=int, help='choose this many queries at random from input file')
@@ -351,7 +352,6 @@ parent_parser.add_argument('--plot-and-fit-absolutely-everything', type=int, hel
 
 parent_parser.add_argument('--seed-unique-id', help='Only look for sequences that are clonally related to this unique id. Much much much faster than partitioning the entire dataset.')
 parent_parser.add_argument('--seed-seq', help='same as --seed-unique-id, but specifies a sequence that doesn\'t have to be in the original file')
-parent_parser.add_argument('--plotting-seed-ids', help='pass multiple seed uids for emphasis in plotting. not for general use')
 
 # ----------------------------------------------------------------------------------------
 subconfig = {
@@ -458,7 +458,7 @@ args.n_procs = utils.get_arg_list(args.n_procs, intify=True)
 args.n_fewer_procs = args.n_procs[0] if len(args.n_procs) == 1 else args.n_procs[1]
 args.n_procs = args.n_procs[0]
 args.queries = utils.get_arg_list(args.queries)
-args.plotting_seed_ids = utils.get_arg_list(args.plotting_seed_ids)
+args.queries_to_include = utils.get_arg_list(args.queries_to_include)
 args.reco_ids = utils.get_arg_list(args.reco_ids)
 args.istartstop = utils.get_arg_list(args.istartstop, intify=True)
 if args.istartstop is not None:

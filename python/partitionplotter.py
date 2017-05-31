@@ -106,7 +106,7 @@ class PartitionPlotter(object):
             for iclust in range(len(cluster_group)):
                 cluster = cluster_group[iclust]
                 base_color = colors[iclust_global % len(colors)]
-                if self.args.plotting_seed_ids is not None and len(set(cluster) & set(self.args.plotting_seed_ids)) > 0:
+                if self.args.queries_to_include is not None and len(set(cluster) & set(self.args.queries_to_include)) > 0:
                     base_color = 'red'
                 nmutelist = sorted(getnmutelist(cluster))
                 if biggest_n_mutations is None or nmutelist[-1] > biggest_n_mutations:
