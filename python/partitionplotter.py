@@ -60,7 +60,31 @@ class PartitionPlotter(object):
             self.plot_each_within_vs_between_hist(subd, base_plotdir + '/within-vs-between', 'cdr3-length-%d' % cdr3_length, 'CDR3 %d' % cdr3_length)
 
     # ----------------------------------------------------------------------------------------
-    def make_single_size_vs_shm_plot(self, sorted_clusters, annotations, base_plotdir, plotname, plot_high_mutation=False, title=None, debug=False):
+    def make_single_hexbin_size_vs_shm_plot(self, sorted_clusters, annotations, base_plotdir, plotname, n_max_mutations=100, debug=False):
+        import plotting
+        import matplotlib.pyplot as plt
+        def getnmutelist(cluster):
+            return annotations[':'.join(cluster)]['n_mutations']
+
+        fig, ax = plotting.mpl_init()
+
+        xvals, yvals = zip(*[[numpy.mean(getnmutelist(cluster)), len(cluster)] for cluster in sorted_clusters if numpy.mean(getnmutelist(cluster)) < n_max_mutations])
+        hb = ax.hexbin(xvals, yvals, gridsize=n_max_mutations, cmap=plt.cm.Blues, bins='log')
+
+        if self.args.queries_to_include is not None:
+            for cluster in sorted_clusters:
+                queries_to_include_in_this_cluster = set(cluster) & set(self.args.queries_to_include)
+                if len(queries_to_include_in_this_cluster) == 0:
+                    continue
+                xval = numpy.mean(getnmutelist(cluster))
+                yval = len(cluster)
+                ax.plot([xval], [yval], color='red', marker='.', markersize=10)
+                ax.text(xval, yval, ' '.join(queries_to_include_in_this_cluster), color='red', fontsize=8)
+
+        plotting.mpl_finish(ax, base_plotdir + '/overall', plotname, xlabel='mean N mutations', ylabel='clonal family size', xbounds=[0, n_max_mutations])
+
+    # ----------------------------------------------------------------------------------------
+    def make_single_size_vs_shm_plot(self, sorted_clusters, annotations, base_plotdir, plotname, n_max_mutations=100, plot_high_mutation=False, title=None, debug=False):
         import plotting
         def gety(minval, maxval, xmax, x):
             slope = (maxval - minval) / xmax
@@ -80,8 +104,6 @@ class PartitionPlotter(object):
         ypixels = max(400, 10 * len(sorted_clusters))
         fig, ax = plotting.mpl_init(figsize=(xpixels / dpi, ypixels / dpi))
 
-        n_max_mutations = 50
-
         min_linewidth = 0.3
         max_linewidth = 12
         # min_alpha = 0.1
@@ -98,7 +120,7 @@ class PartitionPlotter(object):
 
         if debug:
             print '  %s   %d x %d' % (plotname, xpixels, ypixels)  #, utils.color('red', 'high mutation') if plot_high_mutation else '')
-            print '    size    yval    median'
+            print '    size    yval    median   mean'
 
         for csize, cluster_group in itertools.groupby(sorted_clusters, key=lambda c: len(c)):
             cluster_group = sorted(list(cluster_group), key=lambda c: numpy.median(getnmutelist(c)))
@@ -107,6 +129,7 @@ class PartitionPlotter(object):
                 cluster = cluster_group[iclust]
                 nmutelist = sorted(getnmutelist(cluster))
                 nmedian = numpy.median(nmutelist)
+                nmean = numpy.mean(nmutelist)  # maybe should use this instead of the median?
                 if biggest_n_mutations is None or nmutelist[-1] > biggest_n_mutations:
                     biggest_n_mutations = nmutelist[-1]
 
@@ -132,7 +155,7 @@ class PartitionPlotter(object):
                         ax.text(xtext * n_max_mutations, yval, ' '.join(queries_to_include_in_this_cluster), color='red', fontsize=8)
 
                 if debug:
-                    print '     %3s    %4.1f  %6.1f' % ('%d' % csize if iclust == 0 else '', yval, nmedian),
+                    print '     %3s    %4.1f  %6.1f  %6.1f' % ('%d' % csize if iclust == 0 else '', yval, nmedian, nmean),
 
                 if nmedian > n_max_mutations and not plot_high_mutation:
                     if debug:
@@ -174,6 +197,15 @@ class PartitionPlotter(object):
 
     # ----------------------------------------------------------------------------------------
     def plot_size_vs_shm(self, partition, annotations, base_plotdir, debug=False):
+        def get_fname(iclust=None, high_mutation=False, hexbin=False):
+            if high_mutation:
+                return 'size-vs-shm-high-mutation'
+            elif hexbin:
+                return 'size-vs-shm-hexbin'
+            else:
+                return 'size-vs-shm-%d' % iclust
+
+        # remove cluster with failed annotations
         failed_clusters = []
         for cluster in partition:
             if ':'.join(cluster) not in annotations:
@@ -181,27 +213,30 @@ class PartitionPlotter(object):
                 failed_clusters.append(cluster)
         for fclust in failed_clusters:
             partition.remove(fclust)
+
+        # sort clusters
         sorted_clusters = sorted(partition, key=lambda c: len(c), reverse=True)
-        # sorted_clusters = [clust for clust in sorted_clusters if len(clust) > self.args.plotting_min_cluster_size]
 
-        high_mutation_clusters = []
-
-        def get_fname(iclust=None, high_mutation=False):
-            if high_mutation:
-                return 'size-vs-shm-high-mutation'
-            else:
-                return 'size-vs-shm-%d' % iclust
-
+        # per-family shm plots
         n_clusters_per_plot = 75
+        max_html_files = 4  # don't put more than this many images in the html
+        n_max_mutations = 50
+
         iclust = 0
         fnames = []
+        high_mutation_clusters = []
         sorted_cluster_groups = [sorted_clusters[i : i + n_clusters_per_plot] for i in range(0, len(sorted_clusters), n_clusters_per_plot)]
         for subclusters in sorted_cluster_groups:
-            high_mutation_clusters += self.make_single_size_vs_shm_plot(subclusters, annotations, base_plotdir, get_fname(iclust=iclust), title='per-family SHM (%d / %d)' % (iclust + 1, len(sorted_cluster_groups)), debug=debug)
-            fnames.append(get_fname(iclust=iclust))
+            high_mutation_clusters += self.make_single_size_vs_shm_plot(subclusters, annotations, base_plotdir, get_fname(iclust=iclust), n_max_mutations=n_max_mutations, title='per-family SHM (%d / %d)' % (iclust + 1, len(sorted_cluster_groups)), debug=debug)
+            if len(fnames) < max_html_files:
+                fnames.append(get_fname(iclust=iclust))
             iclust += 1
-        self.make_single_size_vs_shm_plot(high_mutation_clusters, annotations, base_plotdir, get_fname(high_mutation=True), plot_high_mutation=True, title='per-family SHM (high mutation)', debug=debug)
+        self.make_single_size_vs_shm_plot(high_mutation_clusters, annotations, base_plotdir, get_fname(high_mutation=True), n_max_mutations=n_max_mutations, plot_high_mutation=True, title='per-family SHM (high mutation)', debug=debug)
         fnames.append(get_fname(high_mutation=True))
+
+        # make hexbin plot
+        self.make_single_hexbin_size_vs_shm_plot(sorted_clusters, annotations, base_plotdir, get_fname(hexbin=True), n_max_mutations=n_max_mutations)
+        fnames.append(get_fname(hexbin=True))
 
         n_per_row = 4
         fnames = [fnames[i : i + n_per_row] for i in range(0, len(fnames), n_per_row)]
