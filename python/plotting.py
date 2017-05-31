@@ -853,7 +853,7 @@ def plot_cluster_similarity_matrix(plotdir, plotname, meth1, partition1, meth2, 
     plt.close()
 
 # ----------------------------------------------------------------------------------------
-def make_html(plotdir, n_columns=3, extension='svg', fnames=None, title='foop'):
+def make_html(plotdir, n_columns=3, extension='svg', fnames=None, title='foop', new_table_each_row=False):
     if plotdir[-1] == '/':  # remove trailings slash, if present
         plotdir = plotdir[:-1]
     if not os.path.exists(plotdir):
@@ -869,7 +869,11 @@ def make_html(plotdir, n_columns=3, extension='svg', fnames=None, title='foop'):
              '<tr>']
 
     def add_newline(lines):
-        lines += ['</tr>', '<tr>']
+        if new_table_each_row:
+            newlines = ['</tr>', '</table>', '<table>', '<tr>']
+        else:
+            newlines = ['</tr>', '<tr>']
+        lines += newlines
     def add_fname(lines, fullfname):  # NOTE <fullname> may, or may not, be a base name (i.e. it might have a subdir tacked on the left side)
         fname = fullfname.replace(plotdir, '').lstrip('/')
         line = '<td><a target="_blank" href="' + dirname + '/' + fname + '"><img src="' + dirname + '/' + fname + '" alt="' + dirname + '/' + fname + '" width="100%"></a></td>'
