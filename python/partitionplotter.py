@@ -165,6 +165,13 @@ class PartitionPlotter(object):
     def plot_size_vs_shm(self, partition, annotations, base_plotdir, debug=False):
         fnames = []
 
+        failed_clusters = []
+        for cluster in partition:
+            if ':'.join(cluster) not in annotations:
+                print '    %s cluster %s not in annotations' % (utils.color('red', 'warning'), ':'.join(cluster))
+            failed_clusters.append(cluster)
+        for fclust in failed_clusters:
+            partition.remove(fclust)
         sorted_clusters = sorted(partition, key=lambda c: len(c), reverse=True)
         # sorted_clusters = [clust for clust in sorted_clusters if len(clust) > self.args.plotting_min_cluster_size]
 
