@@ -221,6 +221,7 @@ class PartitionPlotter(object):
         n_clusters_per_plot = 75
         max_html_files = 4  # don't put more than this many images in the html
         n_max_mutations = 50
+        min_high_mutation_cluster_size = 1
 
         iclust = 0
         fnames = []
@@ -231,6 +232,8 @@ class PartitionPlotter(object):
             if len(fnames) < max_html_files:
                 fnames.append(get_fname(iclust=iclust))
             iclust += 1
+        if len(high_mutation_clusters) > n_clusters_per_plot and len(high_mutation_clusters[0]) > min_high_mutation_cluster_size:
+            high_mutation_clusters = [cluster for cluster in high_mutation_clusters if len(cluster) > min_high_mutation_cluster_size]
         self.make_single_size_vs_shm_plot(high_mutation_clusters, annotations, base_plotdir, get_fname(high_mutation=True), n_max_mutations=n_max_mutations, plot_high_mutation=True, title='per-family SHM (high mutation)', debug=debug)
         fnames.append(get_fname(high_mutation=True))
 
