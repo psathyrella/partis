@@ -1279,6 +1279,9 @@ class PartitionDriver(object):
         if line['errors'] == '':  # no problems
             return False
 
+        if 'v_gene' in line and line['v_gene'] == '':  # utils.process_input_line() just returns without doing anything in this case
+            line['unique_ids'] = line['unique_ids'].split(':')
+
         failed = False
         for ecode in line['errors'].split(':'):  # I don't think I've ever seen one with more than one, but it could happen
             if ecode not in errorfo:
