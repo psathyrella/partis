@@ -70,7 +70,7 @@ def convert_to_duplicate_name(glfo, gene):
                 if alternate_name != gene and alternate_name in glfo['seqs'][utils.get_region(gene)]:
                     # print 'converting %s --> %s' % (gene, alternate_name)
                     return alternate_name
-    raise Exception('couldn\'t find alternate name for %s' % gene)
+    raise Exception('couldn\'t find alternate name for %s (and we\'re probably looking for an alternate name because it wasn\'t in glfo to start with)' % gene)
 
 #----------------------------------------------------------------------------------------
 def check_a_bunch_of_codons(codon, seqons, extra_str='', debug=False):  # seqons: list of (seq, pos) pairs

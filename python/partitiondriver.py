@@ -22,6 +22,9 @@ from glomerator import Glomerator
 from clusterpath import ClusterPath
 from waterer import Waterer
 from parametercounter import ParameterCounter
+from alleleclusterer import AlleleClusterer
+from alleleremover import AlleleRemover
+from allelefinder import AlleleFinder
 from performanceplotter import PerformancePlotter
 from partitionplotter import PartitionPlotter
 from hist import Hist
@@ -244,34 +247,32 @@ class PartitionDriver(object):
 
             self.args.min_observations_to_write = 1
 
-        vsearch = False
-        if vsearch:
-            from alleleremover import AlleleRemover
-            from allelefinder import AlleleFinder
-            from alleleclusterer import AlleleClusterer
-
-            tmpglfo = copy.deepcopy(self.glfo)
-            glutils.remove_v_genes_with_bad_cysteines(tmpglfo)
+        alcluster_alleles = None
+        genes_to_remove = None
+        if self.args.initial_aligner == 'vsearch':
+            tmpglfo = copy.deepcopy(self.glfo)  # definitely don't leave it like this
+            glutils.remove_v_genes_with_bad_cysteines(tmpglfo)  # hm...
             vs_info = utils.run_vsearch('search', {sfo['unique_ids'][0] : sfo['seqs'][0] for sfo in self.input_info.values()}, self.args.workdir + '/vsearch', threshold=0.3, n_procs=self.args.n_procs, glfo=tmpglfo)
-            sorted_gene_counts = sorted(vs_info['gene-counts'].items(), key=operator.itemgetter(1), reverse=True)
             alremover = AlleleRemover(self.glfo, self.args, AlleleFinder(self.glfo, self.args, itry=0))
-            alremover.finalize(sorted_gene_counts, debug=True)
-            alclusterer = AlleleClusterer(self.args)
-            alcluster_alleles = alclusterer.get_alleles(vs_info['queries'], vs_info['mute-freqs']['v'], self.glfo)
+            alremover.finalize(sorted(vs_info['gene-counts'].items(), key=operator.itemgetter(1), reverse=True), debug=True)
+            if self.args.allele_cluster:
+                alclusterer = AlleleClusterer(self.args)
+                alcluster_alleles = alclusterer.get_alleles(vs_info['queries'], vs_info['mute-freqs']['v'], self.glfo)
             genes_to_remove = alremover.genes_to_remove
-        else:
+        elif self.args.initial_aligner == 'sw':
             self.run_waterer(remove_less_likely_alleles=True, count_parameters=True)
             swfo = self.sw_info  # just so you don't forget that the above line modifies/creates it
-            # from alleleclusterer import AlleleClusterer
-            # alclusterer = AlleleClusterer(self.args)
-            # alcluster_alleles = alclusterer.get_alleles(queryfo=None, threshold=swfo['mute-freqs']['v'], glfo=self.glfo, swfo=swfo)
+            if self.args.allele_cluster:
+                alclusterer = AlleleClusterer(self.args)
+                alcluster_alleles = alclusterer.get_alleles(queryfo=None, threshold=swfo['mute-freqs']['v'], glfo=self.glfo, swfo=swfo)
             genes_to_remove = swfo['genes-to-remove']
+        else:
+            assert False
 
-# ----------------------------------------------------------------------------------------
-        # glutils.add_new_alleles(self.glfo, alcluster_alleles.values(), use_template_for_codon_info=False, debug=True)
+        if self.args.allele_cluster:
+            glutils.add_new_alleles(self.glfo, alcluster_alleles.values(), use_template_for_codon_info=False, debug=True)
         glutils.remove_genes(self.glfo, genes_to_remove)
         glutils.write_glfo(self.my_gldir, self.glfo)
-# ----------------------------------------------------------------------------------------
 
         if self.args.find_new_alleles:
             self.find_new_alleles()
