@@ -1423,6 +1423,7 @@ class PartitionDriver(object):
                 uids = padded_line['unique_ids']
                 uidstr = ':'.join(uids)
                 padded_line['indelfos'] = [self.sw_info['indels'].get(uid, utils.get_empty_indel()) for uid in uids]  # reminder: hmm was given a sequence with any indels reversed (i.e. <self.sw_info['indels'][uid]['reverersed_seq']>)
+                padded_line['input_seqs'] = [self.sw_info[uid]['input_seqs'][0] for uid in uids]
                 padded_line['duplicates'] = [self.duplicates.get(uid, []) for uid in uids]
 
                 if not utils.has_d_gene(self.args.locus):

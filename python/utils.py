@@ -279,9 +279,9 @@ linekeys['simu'] = ['reco_id', ]
 all_linekeys = set([k for cols in linekeys.values() for k in cols])
 
 # keys that are added by add_implicit_info()
-implicit_linekeys = set(['naive_seq', 'cdr3_length', 'codon_positions', 'lengths', 'regional_bounds', 'invalid', 'input_seqs', 'indel_reversed_seqs'] + \
-                       [r + '_gl_seq' for r in regions] + \
-                       ['mut_freqs', 'n_mutations'] + functional_columns + [r + '_qr_seqs' for r in regions] + ['aligned_' + r + '_seqs' for r in regions])
+implicit_linekeys = set(['naive_seq', 'cdr3_length', 'codon_positions', 'lengths', 'regional_bounds', 'invalid', 'indel_reversed_seqs'] + \
+                        [r + '_gl_seq' for r in regions] + \
+                        ['mut_freqs', 'n_mutations'] + functional_columns + [r + '_qr_seqs' for r in regions] + ['aligned_' + r + '_seqs' for r in regions])
 
 # ----------------------------------------------------------------------------------------
 annotation_headers = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'naive_seq', 'indelfos', 'duplicates'] \
@@ -535,7 +535,7 @@ def color_chars(chars, col, seq):
     return ''.join(return_str)
 
 # ----------------------------------------------------------------------------------------
-def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', post_str='', print_hfrac=False, print_isnps=False, return_isnps=False, emphasis_positions=None, use_min_len=False, align=False):
+def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', seq_label='', post_str='', print_hfrac=False, print_isnps=False, return_isnps=False, emphasis_positions=None, use_min_len=False, only_print_seq=False, align=False):
     """ default: return <seq> string with colored mutations with respect to <ref_seq> """
 
     if use_min_len:
@@ -582,10 +582,13 @@ def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', 
     hfrac_str = ''
     if print_hfrac:
         hfrac_str = '   hfrac %.3f' % hamming_fraction(ref_seq, seq)
-    return_str = extra_str + ' '*len(ref_label) + ''.join(return_str) + post_str + isnp_str + hfrac_str
     if print_result:
-        print '%s%s%s' % (extra_str, ref_label, ref_seq)
-        print return_str
+        lwidth = max(len_excluding_colors(ref_label), len_excluding_colors(seq_label))
+        if not only_print_seq:
+            print '%s%s%s' % (extra_str, ('%' + str(lwidth) + 's') % ref_label, ref_seq)
+        print '%s%s%s' % (extra_str, ('%' + str(lwidth) + 's') % seq_label, ''.join(return_str) + post_str + isnp_str + hfrac_str)
+
+    return_str = extra_str + seq_label + ''.join(return_str) + post_str + isnp_str + hfrac_str
     if return_isnps:
         return return_str, isnps
     else:
@@ -983,7 +986,6 @@ def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False): 
     end['j'] = start['j'] + len(line['j_gl_seq'])
     line['regional_bounds'] = {r : (start[r], end[r]) for r in regions}
 
-    line['input_seqs'] = [get_seq_with_indels_reinstated(line, iseq) for iseq in range(len(line['seqs']))]
     input_codon_positions = [get_codon_positions_with_indels_reinstated(line, iseq, line['codon_positions']) for iseq in range(len(line['seqs']))]
     if 'indel_reversed_seqs' not in line:  # everywhere internally, we refer to 'indel_reversed_seqs' as simply 'seqs'. For interaction with outside entities, however (i.e. writing files) we use the more explicit 'indel_reversed_seqs'
         line['indel_reversed_seqs'] = line['seqs']
@@ -2348,26 +2350,31 @@ def subset_files(uids, fnames, outdir, uid_header='Sequence ID', delimiter='\t',
 
 #     return return_seq
 
-# ----------------------------------------------------------------------------------------
-def get_seq_with_indels_reinstated(line, iseq=0):  # reverse the action of indel reversion
-    indelfo = line['indelfos'][iseq]
-    return_seq = line['seqs'][iseq]
-    if indelfo['reversed_seq'] == '':
-        return return_seq
-
-    for indel in indelfo['indels']:
-        if indel['type'] == 'insertion':
-            return_seq = return_seq[ : indel['pos']] + indel['seqstr'] + return_seq[indel['pos'] : ]
-        elif indel['type'] == 'deletion':
-            excision = return_seq[indel['pos'] : indel['pos'] + indel['len']]
-            if excision != indel['seqstr']:
-                # raise Exception('ack %s %s' % (excision, indel['seqstr']))
-                print 'ack %s %s' % (excision, indel['seqstr'])
-            return_seq = return_seq[ : indel['pos']] + return_seq[indel['pos'] + indel['len'] : ]
-        else:
-            assert False
-
-    return return_seq
+# # ----------------------------------------------------------------------------------------
+#
+# This is *not* correct (the 'pos' for each indel is needs to be different -- see waterer.py).
+# Nevertheless, leaving this here to remind you not to reimplement it.
+#
+# def get_seq_with_indels_reinstated(line, iseq=0):  # reverse the action of indel reversion
+#     indelfo = line['indelfos'][iseq]
+#     return_seq = line['seqs'][iseq]
+#     if indelfo['reversed_seq'] == '':
+#         return return_seq
+#
+#     # for indel in reversed(indelfo['indels']):
+#     for indel in indelfo['indels']:
+#         if indel['type'] == 'insertion':
+#             return_seq = return_seq[ : indel['pos']] + indel['seqstr'] + return_seq[indel['pos'] : ]
+#         elif indel['type'] == 'deletion':
+#             excision = return_seq[indel['pos'] : indel['pos'] + indel['len']]
+#             if excision != indel['seqstr']:
+#                 # raise Exception('ack %s %s' % (excision, indel['seqstr']))
+#                 print '%s %s %s %s' % (color('red', 'ack'), ' '.join(line['unique_ids']), excision, indel['seqstr'])
+#             return_seq = return_seq[ : indel['pos']] + return_seq[indel['pos'] + indel['len'] : ]
+#         else:
+#             assert False
+#
+#     return return_seq
 
 # ----------------------------------------------------------------------------------------
 def adjust_single_position_for_reinstated_indels(indel, position):

@@ -733,6 +733,7 @@ class Waterer(object):
         infoline = {}
         infoline['unique_ids'] = [qname, ]  # redundant, but used somewhere down the line
         infoline['seqs'] = [qinfo['seq'], ]  # NOTE this is the seq output by vdjalign, i.e. if we reversed any indels it is the reversed sequence, also NOTE many, many things depend on this list being of length one
+        infoline['input_seqs'] = [self.input_info[qname]['seqs'][0], ]
 
         # erosion, insertion, mutation info for best match
         infoline['v_5p_del'] = qinfo['glbounds'][best['v']][0]
@@ -1119,7 +1120,8 @@ class Waterer(object):
             fv_len = len(swfo['fv_insertion'])
             jf_len = len(swfo['jf_insertion'])
 
-            swfo['seqs'][0] = swfo['seqs'][0][fv_len : len(swfo['seqs'][0]) - jf_len]
+            for seqkey in ['seqs', 'input_seqs']:
+                swfo[seqkey][0] = swfo[seqkey][0][fv_len : len(swfo[seqkey][0]) - jf_len]
             if query in self.info['indels']:  # NOTE unless there's no indel, the dict in self.info['indels'][query] *is* the dict in swfo['indelfos'][0]
                 swfo['indelfos'][0]['reversed_seq'] = swfo['seqs'][0]
                 for indel in reversed(swfo['indelfos'][0]['indels']):  # why in the world did I bother with the reversed() here? I guess maybe just as a reminder of how the list works...
@@ -1150,7 +1152,8 @@ class Waterer(object):
     def remove_duplicate_sequences(self, debug=False):
         # ----------------------------------------------------------------------------------------
         def getseq(uid):
-            return_seq = utils.get_seq_with_indels_reinstated(self.info[uid])
+            return_seq = self.info[uid]['input_seqs'][0]
+            # return_seq = utils.get_seq_with_indels_reinstated(self.info[uid])
             # if return_seq not in self.input_info[uid]['seqs'][0]:  # make sure we reinstated the indels properly
             #     print '%s reinstated seq not in input sequence:\n    %s\n    %s' % (utils.color('yellow', 'warning'), reinstated_seq, self.input_info[uid]['seqs'][0])
             return return_seq
@@ -1298,7 +1301,8 @@ class Waterer(object):
             rightstr = padright * utils.ambiguous_bases[0]
             swfo['fv_insertion'] = leftstr + swfo['fv_insertion']
             swfo['jf_insertion'] = swfo['jf_insertion'] + rightstr
-            swfo['seqs'][0] = leftstr + swfo['seqs'][0] + rightstr
+            for seqkey in ['seqs', 'input_seqs']:
+                swfo[seqkey][0] = leftstr + swfo[seqkey][0] + rightstr
             swfo['naive_seq'] = leftstr + swfo['naive_seq'] + rightstr  # NOTE I should eventually rewrite this to remove all implicit info, then change things, then re-add implicit info (like in remove_framework_insertions)
             if query in self.info['indels']:  # also pad the reversed sequence and change indel positions NOTE unless there's no indel, the dict in self.info['indels'][query] *is* the dict in swfo['indelfos'][0]
                 self.info['indels'][query]['reversed_seq'] = leftstr + self.info['indels'][query]['reversed_seq'] + rightstr
