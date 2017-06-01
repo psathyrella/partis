@@ -1,103 +1,58 @@
 # now
 
-# clean up/shorten conserved_codons/locus calls
-
-# add scheepers data (well, and others)
-# add new chaim data (igg + igm)
-#
-# use "symmetry" of apparent mutation (i.e. real alleles should have uniform fuzz in all directions)
-#
-# switch all color_mutants() calls to new different-length-handler
-#
-# alleleclusterer
-#  - need to deal with different length alleles, i.e. if there's extra crap on the left or right of the new/old allele
-#
-#
-# - apply vsearch/swarm to v_qr_seqs to see if there's any well-separated new genes that we should add to the initial set
-#   - probably use consensus sequence from each of these new clusters (?)
-#   - probably add it if it would be a new class by the definition in allele removal (?)
-#     - need to decide about: indels vs snps, and 5' and 3' ends
-# - run allele removal, keeping only the most-likely within each class
-#   - lower bound should be very small (like 8 or so?)
-#   - probably don't use consensus, i.e. continue to use alleles from existing gl set
-# - in allele finding, start checking whether to remove template gene
-#
-# maybe run alremover only on a subset for large samples
-#
-# holy shit there's a lot of v genes with bad cysteines. mebbe remove 'em all?
-#
-# probably need to not consider large clonal families in alleleclusterer (maybe -- the whole alleleremover strategy breaks with very large families)
-#  - instead, could probably just make the per-gene-mute-freq check apply to all alleles -- anybody that doesn't have a pretty similar mut freq distribution gets removed. uh, maybe. that sounds dangerous
-#
-# allele removal/vsearch clustering
-#  - I think the consensus sequences might actually be waaaaay more reliable than the most common germline (well, could use a combination of the two)
-#  - allele removal's lower bound on counts needs to be very small, maybe eight? (at least if it's very far from any other gene)
-#
-# plots
-#  - add nsnps up to at least 6
-#  - add multi-nsnps with more simultaneous alleles and more shared snps
-# add a local tmp dir to recombinator
-# handle naming ambiguity (i.e. which gene do we count the snps from
-# fix allele name decider to more strongly prefer non-snpd genes (well, make sure it hasn't messed anything up yet)
-# don't keep the template gene if the lower end of its mut freq distribution is different enough (i.e. if there's a deficit of little-/unmutated seqs)
-# new-allele name arbitration needs to happen when plotting (e.g. count as correct alleles that only differ after the cpos)
-# check allele names coming in from tigger (make sure we know about all the alleles)
-# cf the two different imgt gl sets
-# deal with 'D' (imgt 'duplicate') alleles (not sure if remove, or swap for the non-D, or actually maybe just leave them and fix the name splitter)
-
-# allelefinder/sw optimization
-#  - only rerun sequences that're from new alleles
-#  - seems kind of silly to run full sw on, say, five alleles that're separated by a few snps; could probably do something faster (maybe vsearch)
-#  - when you remove and add alleles, I think you don't actually need to rerun (if they're just separated by snps) -- can't I just update the info?
-
-# fix /fh/fast/matsen_e/kdavidse/partis_prob/SRR1383455_collapse-unique_atleast-2_partitioning.log
-# carefully go through all gls-gen logs
-
-# maybe use different allele removal numbers for small samples, once you have a good prior for how many alleles/genes samples have
-
-# gls-gen should use same classes as alleleremover (UPDATE ick, this is kind of hard, since the structure of the allelic groups is intertwined with choosing from them)
-# add sstat memory checks to utils.finish_process() (or maybe while you're waiting for them to finish?)
-
-# need to redo n procs in compareutils now that everything's so much faster
-#  - and maybe just don't use slurm at all if I can't get cores fast enough
-# making trees for gl genes: http://etetoolkit.org/docs/latest/tutorial/tutorial_clustering.html
-#   erick's trees are in /home/matsengrp/working/matsen/germline-align
-# use sstat to start aborting if jobs take a ton of memory
-
-# figure out messed-up new alleles in chaim donor 45 h95
-#  - probably need to add a step that removes new alleles for which final (i.e. hopefully hmm) prevalence isn't consistent with prevalence from plots (wait, but this might be hard, since the plots use clonal representatives)
-#  - maybe time to add j gene thing (but wait, wouldn't that just the same thing as the clonal collapse?)
-# re-run all the data samples, and decide which one(s) to move into data/recombinator/scratch-parameters
-# get auto-n-procs working in run.py (or partis?) [NOTE look at bottom of compareutils.py for ideas]
-# add cdr3 length to standard plots
-
-# - partition plots
-#   - make sure partition distance plots are wrapping overflows
-#   - don't make within-vs-between plots unless there's at least a few clusters for that cdr3 length
-#   - add mutation rate within each cluster to partition plots
-
+# optimizations/cleanup (more below)
+#  - add a local tmp dir to recombinator
+#  - streamline add_implicit_info() calls (mostly just try to avoid calling hamming_distance()) when what you're really doing is checking internal <line> consistency -- maybe just don't recalculate the keys that require that call if they're already in the <line>)
+#  - switch all color_mutants() calls to new different-length-handler/aligner
+#  - fix /fh/fast/matsen_e/kdavidse/partis_prob/SRR1383455_collapse-unique_atleast-2_partitioning.log
+#  - instead of rerunning sw when you add or remove an allele, write something in waterer to switch the v_gene for a <line>
+#  - add sstat memory checks to utils.finish_process() (or maybe while you're waiting for them to finish?)
 #  - add ape, geiger, and laser to dockerfile r install line
-
-#  - improve default n-partitions-to-write (I think just switch back to preserving previous partitions from different n_procs)
-
-#  - allow indels in both V and J at the same time (?)
-
-
-# speed up cp calls in partitiondriver -- I think all the procs can really be reading from one file, although it might involve a little coding
-
-#  - automate n-procs, at least for viterbi/parameter caching
+#  - automate n-procs
 #    - improve n_precache_proc calculator (expecially for large samples)
 #    - auto-set clustering step procs (at least when seed partitioning, since you don't know before you remove other cdr3 lengths how many you'll have)
+#    - need to redo n procs in compareutils now that everything's so much faster
+#    - get auto-n-procs working in run.py (or partis?) [NOTE look at bottom of compareutils.py for ideas]
+#  - improve default n-partitions-to-write (I think just switch back to preserving previous partitions from different n_procs)
+#  - check whether translation needs to have a lower fractional bound, i.e. don't let the translation be too much smaller than the actual cluster (c.f. kate-qrs data -- what's happening translation-wise when really big clusters are getting merged)
+#  - stop passing ambiguous char to ham both in the yaml and on the command line
+
+# paper
+#  - add scheepers data (well, and others)
+#  - add new chaim data (igg + igm)
+#  - plots
+#    - add nsnps up to at least 6
+#    - add multi-nsnps with more simultaneous alleles and more shared snps
+
+# check allele names coming in from tigger (make sure we know about all the alleles)
+# cf the two different imgt gl sets
+# handle naming ambiguity (i.e. which gene do we count the snps from
+
+# alleleclusterer
+#  - need to deal with different length alleles, i.e. if there's extra crap on the left or right of the new/old allele
+#   - maybe don't not consider large clonal families? (not sure. after all the whole alleleremover strategy breaks with very large families)
+#
+# fix allele name decider to more strongly prefer non-snpd genes (well, make sure it hasn't messed anything up yet)
+# new-allele name arbitration needs to happen when plotting (e.g. count as correct alleles that only differ after the cpos)
+
+# overall gl inference workflow
+# - apply vsearch/swarm to v_qr_seqs to see if there's any well-separated new genes that we should add to the initial set
+#   - decide which of these clusters represent new alleles
+#   - add consensus sequence from these clusters
+# - run allele removal, keeping only the most-likely within each class
+#   - lower bound should be smaller (at least for large samples)
+# - in allele finding, start checking whether to remove template gene (based on mfreq distribution)
+
+# default gl set
+#  - deal with 'D' (imgt 'duplicate') alleles (not sure if remove, or swap for the non-D, or actually maybe just leave them and fix the name splitter)
+#  - remove v genes with bad cysteines (?)
+
+#  - allow indels in both V and J at the same time (?)
 
 #  - why so many left side exclusions in laura data
 #    - more generally, wtf is really going on with both left and right exclusions -- are they all how I want them to be?
 
-# check whether translation needs to have a lower fractional bound, i.e. don't let the translation be too much smaller than the actual cluster (c.f. kate-qrs data -- what's happening translation-wise when really big clusters are getting merged)
-# add between vs within cluster hamming distance plots
-# stop passing ambiguous char to ham both in the yaml and on the command line
-#  - within vs between plots for each cdr3 length
-
-
+# ----------------------------------------------------------------------------------------
 # fix ham scons test
 # fix waterer debug fails-to-rerun so they all print uid (or just one of them? in any case clean it up)
 # is best-minus-x stuff still working? (I'm almost certain not -- I'm only calculating the partition log prob the last time through, so all the other times I can't rewind at all. I need to check that this isn't leading to too much over-mergin)
@@ -188,3 +143,4 @@
 # d gene finding
   # corey data
   # andrew data/ideas
+ 
