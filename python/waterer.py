@@ -1252,8 +1252,8 @@ class Waterer(object):
 
             # Since we only store j_3p_del for the best match, we can't loop over all of 'em. But j stuff doesn't vary too much, so it works ok.
             cpos = swfo['codon_positions']['v']  # cyst position in query sequence (as opposed to gl_cpos, which is in germline allele)
-            jfstuff = max(0, len(swfo['jf_insertion']) - swfo['j_3p_del'])
-            gl_cpos_to_j_end = len(swfo['seqs'][0]) - cpos + swfo['j_3p_del'] + jfstuff
+            # jfstuff = max(0, len(swfo['jf_insertion']) - swfo['j_3p_del'])  # I'm not really sure why what this was for -- maybe I needed it when fwk insertion trimming was before/after this? -- in any case I'm pretty sure it's wrong to include it now
+            gl_cpos_to_j_end = len(swfo['seqs'][0]) - cpos + swfo['j_3p_del']  # + jfstuff
             check_set_maxima('gl_cpos_to_j_end', gl_cpos_to_j_end, swfo['cdr3_length'])
 
         if debug:
