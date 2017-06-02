@@ -1257,7 +1257,7 @@ class Waterer(object):
             check_set_maxima('gl_cpos_to_j_end', gl_cpos_to_j_end, swfo['cdr3_length'])
 
         if debug:
-            print '    maxima:',
+            print '  maxima:',
             for k in padnames:
                 print '%s %d    ' % (k, maxima[k]),
             print ''
@@ -1281,8 +1281,13 @@ class Waterer(object):
 
         cluster_different_cdr3_lengths = False  # if you want glomerator.cc to try to cluster different cdr3 lengths, you need to pass it *everybody* with the same N padding... but then you're padding way more than you need to on almost every sequence, which is really wasteful and sometimes confuses bcrham
 
+        if debug:
+            print 'padding %d seqs to same length (%s cdr3 length classes)' % (len(self.info['queries']), 'within' if not cluster_different_cdr3_lengths else 'merging')
+
         maxima, per_cdr3_maxima = self.get_padding_parameters(debug=debug)
 
+        if debug:
+            print '    left  right    uid'
         for query in self.info['queries']:
             swfo = self.info[query]
             assert len(swfo['seqs']) == 1
@@ -1319,8 +1324,9 @@ class Waterer(object):
             utils.add_implicit_info(self.glfo, swfo)  # check to make sure we modified everything in a consistent manner
 
             if debug:
-                print '      pad %d %d   %s' % (padleft, padright, query)
+                print '    %3d   %3d    %s' % (padleft, padright, query)
 
         if debug:
-            for query in self.info['queries']:
-                print '%20s %3d %s' % (query, self.info[query]['cdr3_length'], self.info[query]['seqs'][0])
+            print '    cdr3        uid                 padded seq'
+            for query in sorted(self.info['queries'], key=lambda q: self.info[q]['cdr3_length']):
+                print '    %3d   %20s    %s' % (self.info[query]['cdr3_length'], query, self.info[query]['seqs'][0])
