@@ -1,4 +1,4 @@
-""" Simulates the process of VDJ recombination """
+import copy
 import operator
 import tempfile
 import sys
@@ -265,6 +265,7 @@ class Recombinator(object):
             elif '3p' in erosion:
                 gl_seqs[region] = gl_seqs[region][:len(gl_seqs[region]) - e_length]
         tmpline['seqs'] = [gl_seqs['v'] + tmpline['vd_insertion'] + gl_seqs['d'] + tmpline['dj_insertion'] + gl_seqs['j'], ]
+        tmpline['input_seqs'] = copy.deepcopy(tmpline['seqs'])
         tmpline['indelfos'] = [utils.get_empty_indel(), ]
         utils.add_implicit_info(self.glfo, tmpline)
         assert len(tmpline['in_frames']) == 1
