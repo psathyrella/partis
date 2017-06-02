@@ -1,8 +1,16 @@
 # now
 
+# don't reinstate the damn sequences -- just keep the input sequence lying around (i.e. remove 'input_seqs' from implicit info, and require that it's always in the <line>)
+
+# read through/clean up vsearch run fcn
+# set some mean mute freq information in waterer.info just based on averages from the dicts in <self.info>, instead of pcounter
+
 # optimizations/cleanup (more below)
 #  - add a local tmp dir to recombinator
-#  - streamline add_implicit_info() calls (mostly just try to avoid calling hamming_distance()) when what you're really doing is checking internal <line> consistency -- maybe just don't recalculate the keys that require that call if they're already in the <line>)
+#  - streamline (and minimize -- e.g. remove any of the ones in waterer that you can) add_implicit_info() calls
+#    - hamming_distance() is especialy slow
+#    - when what you're really doing is checking internal <line> consistency -- maybe just check consistency instead of recaluclating everything
+#    - don't recalculate the keys that require that call if they're already in the <line>)
 #  - switch all color_mutants() calls to new different-length-handler/aligner
 #  - fix /fh/fast/matsen_e/kdavidse/partis_prob/SRR1383455_collapse-unique_atleast-2_partitioning.log
 #  - instead of rerunning sw when you add or remove an allele, write something in waterer to switch the v_gene for a <line>
@@ -27,11 +35,12 @@
 # check allele names coming in from tigger (make sure we know about all the alleles)
 # cf the two different imgt gl sets
 # handle naming ambiguity (i.e. which gene do we count the snps from
+# do cases where two or more v genes are equidistant from the query need to be handled more carefully?
 
 # alleleclusterer
 #  - need to deal with different length alleles, i.e. if there's extra crap on the left or right of the new/old allele
 #   - maybe don't not consider large clonal families? (not sure. after all the whole alleleremover strategy breaks with very large families)
-#
+
 # fix allele name decider to more strongly prefer non-snpd genes (well, make sure it hasn't messed anything up yet)
 # new-allele name arbitration needs to happen when plotting (e.g. count as correct alleles that only differ after the cpos)
 

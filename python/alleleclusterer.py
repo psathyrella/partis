@@ -7,6 +7,7 @@ import os
 
 import utils
 import glutils
+import indelutils
 
 # ----------------------------------------------------------------------------------------
 class AlleleClusterer(object):
@@ -24,7 +25,7 @@ class AlleleClusterer(object):
             gene_info = {q : qfo['gene'] for q, qfo in queryfo.items()}
         else:
             assert queryfo is None
-            qr_seqs = {query : utils.get_qr_seqs_with_indels_reinstated(swfo[query], iseq=0)[self.region] for query in swfo['queries']}
+            qr_seqs = {query : indelutils.get_qr_seqs_with_indels_reinstated(swfo[query], iseq=0)[self.region] for query in swfo['queries']}
             gene_info = {q : swfo[q][self.region + '_gene'] for q in swfo['queries']}
 
         msa_fname = self.args.workdir + '/msa.fa'
