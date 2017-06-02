@@ -303,7 +303,7 @@ class PartitionDriver(object):
     def read_existing_annotations(self, outfname=None, debug=False):
         if outfname is None:
             outfname = self.args.outfname
-        annotations = {}
+        annotations = OrderedDict()
         with open(outfname) as csvfile:
             failed_queries = set()
             reader = csv.DictReader(csvfile)
@@ -326,16 +326,11 @@ class PartitionDriver(object):
 
         if debug:
             for line in sorted(annotations.values(), key=lambda l: len(l['unique_ids']), reverse=True):
+                label = ''
                 if self.args.infname is not None and self.reco_info is not None:
-                    utils.print_true_events(self.glfo, self.reco_info, line, extra_str='')
-                    print 'inferred:',
-                    if len(line['unique_ids']) > 1:
-                        print '   %s' % ':'.join(line['unique_ids'])
-                    else:
-                        print ''
-                if len(line['unique_ids']) > 1:
-                    print '%d sequences (%.1f mean mutations)' % (len(line['unique_ids']), numpy.mean(line['n_mutations']))
-                utils.print_reco_event(line, extra_str='  ')
+                    utils.print_true_events(self.glfo, self.reco_info, line, extra_str='  ')
+                    label = 'inferred:'
+                utils.print_reco_event(line, extra_str='  ', label=label)
 
         if len(failed_queries) > 0:
             print '\n%d failed queries' % len(failed_queries)
@@ -1550,14 +1545,10 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def print_hmm_output(self, line, print_true=False):
+        label = ''
         if print_true and not self.args.is_data:  # first print true event (if this is simulation)
             utils.print_true_events(self.glfo, self.reco_info, line)
-
-        if len(line['unique_ids']) > 1:  # make it easier to cut and paste for --queries (it'd be nice if this could go on the same line as 'inferred:', but then for really big clusters it pushes the 'inserts' label out of alignment
-            print '          ' + ':'.join(line['unique_ids'])
-        label = 'inferred:'
-        if self.args.seed_unique_id is not None and self.args.seed_unique_id in line['unique_ids']:
-            label += '   (found %d sequences clonal to seed %s)' % (len(line['unique_ids']), self.args.seed_unique_id)
+            label = 'inferred:'
         utils.print_reco_event(line, extra_str='    ', label=label, seed_uid=self.args.seed_unique_id)
 
     # ----------------------------------------------------------------------------------------

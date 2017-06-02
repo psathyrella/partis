@@ -746,7 +746,6 @@ def disambiguate_effective_insertions(bound, line, iseq, debug=False):
 
 # ----------------------------------------------------------------------------------------
 def reset_effective_erosions_and_effective_insertions(glfo, padded_line, aligned_gl_seqs=None, debug=False):  # , padfo=None
-    # need to update this to modify 'input_seqs'
     """
     Ham does not allow (well, no longer allows) v_5p and j_3p deletions -- we instead pad sequences with Ns.
     This means that the info we get from ham always has these effective erosions set to zero, but for downstream
@@ -1043,6 +1042,8 @@ def print_true_events(glfo, reco_info, line, print_naive_seqs=False, extra_str='
 
 # ----------------------------------------------------------------------------------------
 def print_reco_event(line, one_line=False, extra_str='', label='', seed_uid=None):
+    if len(line['unique_ids']) > 1:
+        label += '%s%d sequences with %.1f mean mutations' % ('' if label == '' else '    ', len(line['unique_ids']), numpy.mean(line['n_mutations']))
     for iseq in range(len(line['unique_ids'])):
         prutils.print_seq_in_reco_event(line, iseq, extra_str=extra_str, label=(label if iseq==0 else ''), one_line=(iseq>0), seed_uid=seed_uid)
 
