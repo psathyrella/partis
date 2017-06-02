@@ -705,22 +705,21 @@ def is_there_a_stop_codon(seq, fv_insertion, jf_insertion, v_5p_del, debug=False
     return len(set(codons) & set(codon_table['stop'])) > 0  # true if any of the stop codons from <codon_table> are present in <codons>
 
 # ----------------------------------------------------------------------------------------
-def disambiguate_effective_insertions(bound, line, seq, unique_id, debug=False):
+def disambiguate_effective_insertions(bound, line, iseq, debug=False):
     # These are kinda weird names, but the distinction is important
     # If an insert state with "germline" N emits one of [ACGT], then the hmm will report this as an inserted N. Which is what we want -- we view this as a germline N which "mutated" to [ACGT].
     # This concept of insertion germline state is mostly relevant for simultaneous inference on several sequences, i.e. in ham we don't want to just say the inserted base was the base in the query sequence.
     # But here, we're trimming off the effective insertions and we have to treat the inserted germline N to [ACGT] differently than we would an insertion which was "germline" [ACGT] which emitted an N,
     # and also differently to a real germline [VDJ] state that emitted an N.
     naive_insertion = line[bound + '_insertion']  # reminder: ham gets this from the last character in the insertion state name, e.g. 'insert_left_A' or 'insert_right_N'
+    insert_len = len(line[bound + '_insertion'])
     if bound == 'fv':  # ...but to accomodate multiple sequences, the insert states can emit non-germline states, so the mature bases might be different.
-        mature_insertion = seq[ : len(line[bound + '_insertion'])]
+        mature_insertion = line['seqs'][iseq][ : insert_len]
     elif bound == 'jf':
-        if len(line[bound + '_insertion']) > 0:
-            mature_insertion = seq[-len(line[bound + '_insertion']) : ]
-        else:
-            mature_insertion = ''
+        mature_insertion = line['seqs'][iseq][len(line['seqs'][iseq]) - insert_len : ]
     else:
         assert False
+
     if naive_insertion == mature_insertion:  # all is simple and hunky-dory: no insertion 'mutations'
         final_insertion = ''  # leave this bit as an insertion in the final <line>
         insertion_to_remove = naive_insertion  # this bit we'll remove -- it's just Ns (note that this is only equal to the N padding if we correctly inferred the right edge of the J [for jf bound])
@@ -738,28 +737,16 @@ def disambiguate_effective_insertions(bound, line, seq, unique_id, debug=False):
             insertion_to_remove = mature_insertion[i_first_N : ]
         else:
             assert False
-        if debug:
-            print 'naive and mature %s insertions differ for %s' % (bound, unique_id)
-            color_mutants(naive_insertion, mature_insertion, print_result=True, extra_str='          ')
-            print '   removing %s and leaving %s' % (insertion_to_remove, final_insertion)
 
-    # remove the insertion that we want to remove
-    if bound == 'fv':  # ...but to accomodate multiple sequences, the insert states can emit non-germline states, so the mature bases might be different.
-        trimmed_seq = seq[len(insertion_to_remove) : ]
-    elif bound == 'jf':
-        if len(insertion_to_remove) > 0:
-            trimmed_seq = seq[ : -len(insertion_to_remove)]
-        else:
-            trimmed_seq = seq
     if debug:
-        print '     %s      final: %s' % (color('blue', bound), final_insertion)
-        print '         to_remove: %s' % insertion_to_remove
-        print '       trimmed_seq: %s' % trimmed_seq
+        print '     %s      final: %s' % (color('red', bound), color('purple', final_insertion))
+        print '         to_remove: %s' % color('blue', insertion_to_remove)
 
-    return trimmed_seq, final_insertion, insertion_to_remove
+    return final_insertion, insertion_to_remove
 
 # ----------------------------------------------------------------------------------------
 def reset_effective_erosions_and_effective_insertions(glfo, padded_line, aligned_gl_seqs=None, debug=False):  # , padfo=None
+    # need to update this to modify 'input_seqs'
     """
     Ham does not allow (well, no longer allows) v_5p and j_3p deletions -- we instead pad sequences with Ns.
     This means that the info we get from ham always has these effective erosions set to zero, but for downstream
@@ -768,29 +755,37 @@ def reset_effective_erosions_and_effective_insertions(glfo, padded_line, aligned
     the hmm yaml files.
     """
 
+    if debug:
+        print 'resetting effective erosions/insertions for %s' % ' '.join(padded_line['unique_ids'])
+
     line = copy.deepcopy(padded_line)
     remove_all_implicit_info(line)
 
     assert line['v_5p_del'] == 0  # just to be safe
     assert line['j_3p_del'] == 0
+    nseqs = len(line['unique_ids'])  # convenience
 
+    # first disambiguate/remove effective (fv and jf) insertions
     if debug:
-        print 'resetting effective erosions'
-        print '     start: %s' % line['seqs'][0]
-
-    # first remove effective (fv and jf) insertions
-    trimmed_seqs = []
-    final_insertions = []  # the effective insertions that will remain in the final info
-    insertions_to_remove = []  # the effective insertions that we'll be removing, so which won't be in the final info
-    for iseq in range(len(line['seqs'])):
-        trimmed_seq = line['seqs'][iseq]
-        final_insertions.append({})
-        insertions_to_remove.append({})
+        print '   disambiguating effective insertions'
+    trimmed_seqs = [line['seqs'][iseq] for iseq in range(nseqs)]
+    trimmed_input_seqs = [line['input_seqs'][iseq] for iseq in range(nseqs)]
+    final_insertions = [{} for _ in range(nseqs)]  # the effective insertions that will remain in the final info
+    insertions_to_remove = [{} for _ in range(nseqs)]  # the effective insertions that we'll be removing, so which won't be in the final info
+    for iseq in range(nseqs):
+        fin = final_insertions[iseq]
+        rem = insertions_to_remove[iseq]
         for bound in effective_boundaries:
-            trimmed_seq, final_insertion, insertion_to_remove = disambiguate_effective_insertions(bound, line, trimmed_seq, line['unique_ids'][iseq], debug)
-            final_insertions[-1][bound] = final_insertion
-            insertions_to_remove[-1][bound] = insertion_to_remove
-        trimmed_seqs.append(trimmed_seq)
+            final_insertion, insertion_to_remove = disambiguate_effective_insertions(bound, line, iseq, debug=debug)
+            fin[bound] = final_insertion
+            rem[bound] = insertion_to_remove
+        trimmed_seqs[iseq] = trimmed_seqs[iseq][len(rem['fv']) : len(trimmed_seqs[iseq]) - len(rem['jf'])]
+        trimmed_input_seqs[iseq] = trimmed_input_seqs[iseq][len(rem['fv']) : len(trimmed_input_seqs[iseq]) - len(rem['jf'])]
+        if debug:
+            print '       %s  %s%s%s%s%s' % (' '.join(line['unique_ids']),
+                                             color('blue', rem['fv']), color('purple', fin['fv']),
+                                             trimmed_seqs[iseq][len(fin['fv']) : len(trimmed_seqs[iseq]) - len(fin['jf'])],
+                                             color('purple', fin['jf']), color('blue', rem['jf']))
 
     # arbitrarily use the zeroth sequence (in principle v_5p and j_3p should be per-sequence, not per-rearrangement... but that'd be a mess to implement, since the other deletions are per-rearrangement)
     TMPiseq = 0  # NOTE this is pretty hackey: we just use the values from the first sequence. But it's actually not that bad -- we can either have some extra pad Ns showing, or chop off some bases.
@@ -812,11 +807,17 @@ def reset_effective_erosions_and_effective_insertions(glfo, padded_line, aligned
     line['v_5p_del'] = min(max_effective_erosion('v_5p'), find_first_non_ambiguous_base(trimmed_seq))
     line['j_3p_del'] = min(max_effective_erosion('j_3p'), len(trimmed_seq) - find_last_non_ambiguous_base_plus_one(trimmed_seq))
 
-    for iseq in range(len(line['seqs'])):
-        # de-pad the seqs
-        line['seqs'][iseq] = trimmed_seqs[iseq][line['v_5p_del'] : ]
-        if line['j_3p_del'] > 0:
-            line['seqs'][iseq] = line['seqs'][iseq][ : -line['j_3p_del']]
+    if debug:
+        v_5p = line['v_5p_del']
+        j_3p = line['j_3p_del']
+        print '     %s:  %d' % (color('red', 'v_5p'), v_5p)
+        print '     %s:  %d' % (color('red', 'j_3p'), j_3p)
+        for iseq in range(nseqs):
+            print '       %s  %s%s%s' % (' '.join(line['unique_ids']), color('red', v_5p * '.'), trimmed_seqs[iseq][v_5p : len(trimmed_seqs[iseq]) - j_3p], color('red', j_3p * '.'))
+
+    for iseq in range(nseqs):
+        line['seqs'][iseq] = trimmed_seqs[iseq][line['v_5p_del'] : len(trimmed_seqs[iseq]) - line['j_3p_del']]
+        line['input_seqs'][iseq] = trimmed_input_seqs[iseq][line['v_5p_del'] : len(trimmed_input_seqs[iseq]) - line['j_3p_del']]
 
         # also de-pad the indel info
         if line['indelfos'][iseq]['reversed_seq'] != '':
@@ -827,9 +828,6 @@ def reset_effective_erosions_and_effective_insertions(glfo, padded_line, aligned
             line['indelfos'][iseq]['reversed_seq'] = rseq
             for indel in line['indelfos'][iseq]['indels']:
                 indel['pos'] -= len(fv_insertion_to_remove) + line['v_5p_del']
-
-    if debug:
-        print '     fv %d   v_5p %d   j_3p %d   jf %d    %s' % (len(fv_insertion_to_remove), line['v_5p_del'], line['j_3p_del'], len(jf_insertion_to_remove), line['seqs'][0])
 
     line['fv_insertion'] = final_fv_insertion
     line['jf_insertion'] = final_jf_insertion
