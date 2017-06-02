@@ -532,6 +532,7 @@ class Recombinator(object):
 
     # ----------------------------------------------------------------------------------------
     def add_shm_indels(self, reco_event):
+        # NOTE that it will eventually make sense to add shared indel mutation according to the chosen tree -- i.e., probably, with some probability apply an indel instead of a point mutation
         if self.args.debug and self.args.indel_frequency > 0.:
             print '      indels'
         reco_event.indelfos = [utils.get_empty_indel() for _ in range(len(reco_event.final_seqs))]
@@ -543,7 +544,7 @@ class Recombinator(object):
                     print '        0'
                 continue
             reco_event.indelfos[iseq]['reversed_seq'] = reco_event.final_seqs[iseq]  # set the original sequence (i.e. with all the indels reversed)
-            n_indels = 1  #numpy.random.geometric(1. / self.args.mean_n_indels)
+            n_indels = numpy.random.geometric(1. / self.args.mean_indels_per_indeld_seq)
             if self.args.debug:
                 print '        %d' % n_indels
             for _ in range(n_indels):
