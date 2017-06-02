@@ -347,7 +347,7 @@ class PartitionDriver(object):
         cp = ClusterPath()
         cp.readfile(self.args.outfname)
         if debug:
-            cp.print_partitions(abbreviate=self.args.abbreviate, reco_info=self.reco_info, sizesort=True)
+            cp.print_partitions(abbreviate=self.args.abbreviate, reco_info=self.reco_info)
         return cp
 
     # ----------------------------------------------------------------------------------------
