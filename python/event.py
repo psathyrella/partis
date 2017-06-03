@@ -76,12 +76,15 @@ class RecombinationEvent(object):
         """
         reco_id_columns = [r + '_gene' for r in utils.regions] + [b + '_insertion' for b in utils.boundaries] + [e + '_del' for e in utils.real_erosions + utils.effective_erosions]
         unique_id_columns = ['seqs', 'input_seqs']
+        def randstr():
+            return str(numpy.random.uniform() if irandom is None else irandom)
 
         reco_id_str = ''.join([str(line[c]) for c in reco_id_columns])
         line['reco_id'] = hash(reco_id_str)  # note that this gives the same reco id for the same rearrangement parameters, even if they come from a separate rearrangement event
 
         uidstrs = [''.join([str(line[c][iseq]) for c in unique_id_columns]) for iseq in range(len(self.final_seqs))]
-        line['unique_ids'] = [str(hash(reco_id_str + uidstrs[iseq] + str(numpy.random.uniform() if irandom is None else irandom))) for iseq in range(len(uidstrs))]
+        uidstrs = [reco_id_str + uidstrs[iseq] + randstr() + str(iseq) for iseq in range(len(uidstrs))]  # NOTE i'm not sure I really like having the str(iseq), but it mimics the way things used to be by accident/bug (i.e. identical sequences in the same simulated rearrangement event get different uids), so I'm leaving it in for the moment to ease transition after a rewrite
+        line['unique_ids'] = [str(hash(ustr)) for ustr in uidstrs]
 
     # ----------------------------------------------------------------------------------------
     def write_event(self, outfile, line):
