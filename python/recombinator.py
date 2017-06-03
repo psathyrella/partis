@@ -177,13 +177,9 @@ class Recombinator(object):
             raise Exception('arg 2')  # if you let it try more than once, it screws up the desired allele prevalence ratios
             return False
 
-        self.add_mutants(reco_event, irandom)  # toss a bunch of clones: add point mutations
+        self.add_mutants(reco_event, irandom)
 
-        if self.args.debug:
-            reco_event.print_event()
-
-        # write output to csv
-        reco_event.write_event(self.outfname, irandom=irandom)
+        reco_event.write_event(self.outfname, reco_event.line)
 
         return True
 
@@ -610,7 +606,12 @@ class Recombinator(object):
 
         self.add_shm_indels(reco_event)
 
+        reco_event.setline(irandom)  # set the line here because we use it when checking tree simulation, and want to make sure the uids are always set at the same point in the workflow
+
         self.check_tree_simulation(mean_total_height, regional_heights, scaled_trees, mseqs, reco_event)
+
+        if self.args.debug:
+            utils.print_reco_event(reco_event.line, extra_str='    ')
 
     # ----------------------------------------------------------------------------------------
     def infer_tree_from_leaves(self, region, in_tree, leafseqs):
@@ -640,14 +641,14 @@ class Recombinator(object):
 
     # ----------------------------------------------------------------------------------------
     def check_tree_simulation(self, mean_total_height, regional_heights, scaled_trees, mseqs, reco_event, debug=False):
-        line = reco_event.getline()
+        assert reco_event.line is not None  # make sure we already set it
         mean_observed = {n : 0.0 for n in ['all'] + utils.regions}
         for iseq in range(len(reco_event.final_seqs)):
             if debug:
-                print '   %4d  %.3f  %.3f' % (iseq, line['mut_freqs'][iseq], mean_total_height)
-            mean_observed['all'] += line['mut_freqs'][iseq]
+                print '   %4d  %.3f  %.3f' % (iseq, reco_event.line['mut_freqs'][iseq], mean_total_height)
+            mean_observed['all'] += reco_event.line['mut_freqs'][iseq]
             for region in utils.regions:  # NOTE for simulating, we mash the insertions in with the D, but this isn't accounted for here
-                rrate = utils.get_mutation_rate(line, iseq=iseq, restrict_to_region=region)
+                rrate = utils.get_mutation_rate(reco_event.line, iseq=iseq, restrict_to_region=region)
                 if debug:
                     print '       %.3f  %.3f' % (rrate, regional_heights[region])
                 mean_observed[region] += rrate
