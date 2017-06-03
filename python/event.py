@@ -81,7 +81,7 @@ class RecombinationEvent(object):
         line['reco_id'] = hash(reco_id_str)  # note that this gives the same reco id for the same rearrangement parameters, even if they come from a separate rearrangement event
 
         uidstrs = [''.join([str(line[c][iseq]) for c in unique_id_columns]) for iseq in range(len(self.final_seqs))]
-        line['unique_ids'] = [str(hash(uidstrs[iseq] + str(numpy.random.uniform() if irandom is None else irandom))) for iseq in range(len(uidstrs))]
+        line['unique_ids'] = [str(hash(reco_id_str + uidstrs[iseq] + str(numpy.random.uniform() if irandom is None else irandom))) for iseq in range(len(uidstrs))]
 
     # ----------------------------------------------------------------------------------------
     def write_event(self, outfile, line):
