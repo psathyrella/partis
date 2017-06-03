@@ -247,6 +247,40 @@ class PartitionDriver(object):
 
             self.args.min_observations_to_write = 1
 
+# # ----------------------------------------------------------------------------------------
+#         tmpglfo = copy.deepcopy(self.glfo)  # definitely don't leave it like this
+#         glutils.remove_v_genes_with_bad_cysteines(tmpglfo)  # hm...
+#         vs_info = utils.run_vsearch('search', {sfo['unique_ids'][0] : sfo['seqs'][0] for sfo in self.input_info.values()}, self.args.workdir + '/vsearch', threshold=0.3, n_procs=self.args.n_procs, glfo=tmpglfo)
+#         self.run_waterer()
+#         swfo = self.sw_info  # just so you don't forget that the above line modifies/creates it
+#         n_same, n_same_snps = 0, 0
+#         for query in swfo['queries']:
+#             swgene = swfo[query]['v_gene']
+#             if query not in vs_info['queries']:
+#                 print '  %s not in vs_info' % query
+#                 continue
+#             vsgene = vs_info['queries'][query]['gene']
+
+#             if vsgene == swgene:
+#                 n_same += 1
+#                 continue
+
+#             _, sw_isnps = utils.color_mutants(swfo[query]['v_qr_seqs'][0], self.glfo['seqs']['v'][swgene], align=True, return_isnps=True)
+#             _, vs_isnps = utils.color_mutants(swfo[query]['v_qr_seqs'][0], self.glfo['seqs']['v'][vsgene], align=True, return_isnps=True)
+#             if set(sw_isnps) == set(vs_isnps):
+#                 n_same_snps += 1
+#                 continue
+
+#             print ''
+#             # utils.print_reco_event(swfo[query])
+#             utils.color_mutants(swfo[query]['v_qr_seqs'][0], self.glfo['seqs']['v'][swgene], align=True, print_isnps=True, print_result=True, seq_label=utils.color_gene(swgene, width=12), ref_label='%-12s' % 'query')
+#             utils.color_mutants(swfo[query]['v_qr_seqs'][0], self.glfo['seqs']['v'][vsgene], align=True, print_isnps=True, print_result=True, seq_label=utils.color_gene(vsgene, width=12), only_print_seq=True)
+
+#         print ' total     %4d' % len(swfo['queries'])
+#         print ' same      %4d' % n_same
+#         print ' same snps %4d' % n_same_snps
+#         sys.exit()
+# # ----------------------------------------------------------------------------------------
         alcluster_alleles = None
         genes_to_remove = None
         if self.args.initial_aligner == 'vsearch':
@@ -316,6 +350,8 @@ class PartitionDriver(object):
                     continue
                 utils.process_input_line(line)
                 if self.args.queries is not None and len(set(self.args.queries) & set(line['unique_ids'])) == 0:  # actually make sure this is the precise set of queries we want (note that --queries and line['unique_ids'] are both ordered, and this ignores that... oh, well, sigh.)
+                    continue
+                if self.args.reco_ids is not None and line['reco_id'] not in self.args.reco_ids:
                     continue
                 utils.add_implicit_info(self.glfo, line)
                 annotations[':'.join(line['unique_ids'])] = line
