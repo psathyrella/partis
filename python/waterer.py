@@ -733,6 +733,7 @@ class Waterer(object):
         infoline = {}
         infoline['unique_ids'] = [qname, ]  # redundant, but used somewhere down the line
         infoline['seqs'] = [qinfo['seq'], ]  # NOTE this is the seq output by vdjalign, i.e. if we reversed any indels it is the reversed sequence, also NOTE many, many things depend on this list being of length one
+        infoline['input_seqs'] = [self.input_info[qname]['seqs'][0], ]
 
         # erosion, insertion, mutation info for best match
         infoline['v_5p_del'] = qinfo['glbounds'][best['v']][0]
@@ -1119,7 +1120,8 @@ class Waterer(object):
             fv_len = len(swfo['fv_insertion'])
             jf_len = len(swfo['jf_insertion'])
 
-            swfo['seqs'][0] = swfo['seqs'][0][fv_len : len(swfo['seqs'][0]) - jf_len]
+            for seqkey in ['seqs', 'input_seqs']:
+                swfo[seqkey][0] = swfo[seqkey][0][fv_len : len(swfo[seqkey][0]) - jf_len]
             if query in self.info['indels']:  # NOTE unless there's no indel, the dict in self.info['indels'][query] *is* the dict in swfo['indelfos'][0]
                 swfo['indelfos'][0]['reversed_seq'] = swfo['seqs'][0]
                 for indel in reversed(swfo['indelfos'][0]['indels']):  # why in the world did I bother with the reversed() here? I guess maybe just as a reminder of how the list works...
@@ -1150,7 +1152,8 @@ class Waterer(object):
     def remove_duplicate_sequences(self, debug=False):
         # ----------------------------------------------------------------------------------------
         def getseq(uid):
-            return_seq = utils.get_seq_with_indels_reinstated(self.info[uid])
+            return_seq = self.info[uid]['input_seqs'][0]
+            # return_seq = utils.get_seq_with_indels_reinstated(self.info[uid])
             # if return_seq not in self.input_info[uid]['seqs'][0]:  # make sure we reinstated the indels properly
             #     print '%s reinstated seq not in input sequence:\n    %s\n    %s' % (utils.color('yellow', 'warning'), reinstated_seq, self.input_info[uid]['seqs'][0])
             return return_seq
@@ -1249,12 +1252,12 @@ class Waterer(object):
 
             # Since we only store j_3p_del for the best match, we can't loop over all of 'em. But j stuff doesn't vary too much, so it works ok.
             cpos = swfo['codon_positions']['v']  # cyst position in query sequence (as opposed to gl_cpos, which is in germline allele)
-            jfstuff = max(0, len(swfo['jf_insertion']) - swfo['j_3p_del'])
-            gl_cpos_to_j_end = len(swfo['seqs'][0]) - cpos + swfo['j_3p_del'] + jfstuff
+            # jfstuff = max(0, len(swfo['jf_insertion']) - swfo['j_3p_del'])  # I'm not really sure why what this was for -- maybe I needed it when fwk insertion trimming was before/after this? -- in any case I'm pretty sure it's wrong to include it now
+            gl_cpos_to_j_end = len(swfo['seqs'][0]) - cpos + swfo['j_3p_del']  # + jfstuff
             check_set_maxima('gl_cpos_to_j_end', gl_cpos_to_j_end, swfo['cdr3_length'])
 
         if debug:
-            print '    maxima:',
+            print '  maxima:',
             for k in padnames:
                 print '%s %d    ' % (k, maxima[k]),
             print ''
@@ -1278,8 +1281,13 @@ class Waterer(object):
 
         cluster_different_cdr3_lengths = False  # if you want glomerator.cc to try to cluster different cdr3 lengths, you need to pass it *everybody* with the same N padding... but then you're padding way more than you need to on almost every sequence, which is really wasteful and sometimes confuses bcrham
 
+        if debug:
+            print 'padding %d seqs to same length (%s cdr3 length classes)' % (len(self.info['queries']), 'within' if not cluster_different_cdr3_lengths else 'merging')
+
         maxima, per_cdr3_maxima = self.get_padding_parameters(debug=debug)
 
+        if debug:
+            print '    left  right    uid'
         for query in self.info['queries']:
             swfo = self.info[query]
             assert len(swfo['seqs']) == 1
@@ -1298,7 +1306,8 @@ class Waterer(object):
             rightstr = padright * utils.ambiguous_bases[0]
             swfo['fv_insertion'] = leftstr + swfo['fv_insertion']
             swfo['jf_insertion'] = swfo['jf_insertion'] + rightstr
-            swfo['seqs'][0] = leftstr + swfo['seqs'][0] + rightstr
+            for seqkey in ['seqs', 'input_seqs']:
+                swfo[seqkey][0] = leftstr + swfo[seqkey][0] + rightstr
             swfo['naive_seq'] = leftstr + swfo['naive_seq'] + rightstr  # NOTE I should eventually rewrite this to remove all implicit info, then change things, then re-add implicit info (like in remove_framework_insertions)
             if query in self.info['indels']:  # also pad the reversed sequence and change indel positions NOTE unless there's no indel, the dict in self.info['indels'][query] *is* the dict in swfo['indelfos'][0]
                 self.info['indels'][query]['reversed_seq'] = leftstr + self.info['indels'][query]['reversed_seq'] + rightstr
@@ -1315,8 +1324,9 @@ class Waterer(object):
             utils.add_implicit_info(self.glfo, swfo)  # check to make sure we modified everything in a consistent manner
 
             if debug:
-                print '      pad %d %d   %s' % (padleft, padright, query)
+                print '    %3d   %3d    %s' % (padleft, padright, query)
 
         if debug:
-            for query in self.info['queries']:
-                print '%20s %3d %s' % (query, self.info[query]['cdr3_length'], self.info[query]['seqs'][0])
+            print '    cdr3        uid                 padded seq'
+            for query in sorted(self.info['queries'], key=lambda q: self.info[q]['cdr3_length']):
+                print '    %3d   %20s    %s' % (self.info[query]['cdr3_length'], query, self.info[query]['seqs'][0])

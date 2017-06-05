@@ -22,6 +22,9 @@ from glomerator import Glomerator
 from clusterpath import ClusterPath
 from waterer import Waterer
 from parametercounter import ParameterCounter
+from alleleclusterer import AlleleClusterer
+from alleleremover import AlleleRemover
+from allelefinder import AlleleFinder
 from performanceplotter import PerformancePlotter
 from partitionplotter import PartitionPlotter
 from hist import Hist
@@ -244,34 +247,66 @@ class PartitionDriver(object):
 
             self.args.min_observations_to_write = 1
 
-        vsearch = False
-        if vsearch:
-            from alleleremover import AlleleRemover
-            from allelefinder import AlleleFinder
-            from alleleclusterer import AlleleClusterer
+# # ----------------------------------------------------------------------------------------
+#         tmpglfo = copy.deepcopy(self.glfo)  # definitely don't leave it like this
+#         glutils.remove_v_genes_with_bad_cysteines(tmpglfo)  # hm...
+#         vs_info = utils.run_vsearch('search', {sfo['unique_ids'][0] : sfo['seqs'][0] for sfo in self.input_info.values()}, self.args.workdir + '/vsearch', threshold=0.3, n_procs=self.args.n_procs, glfo=tmpglfo)
+#         self.run_waterer()
+#         swfo = self.sw_info  # just so you don't forget that the above line modifies/creates it
+#         n_same, n_same_snps = 0, 0
+#         for query in swfo['queries']:
+#             swgene = swfo[query]['v_gene']
+#             if query not in vs_info['queries']:
+#                 print '  %s not in vs_info' % query
+#                 continue
+#             vsgene = vs_info['queries'][query]['gene']
 
-            tmpglfo = copy.deepcopy(self.glfo)
-            glutils.remove_v_genes_with_bad_cysteines(tmpglfo)
+#             if vsgene == swgene:
+#                 n_same += 1
+#                 continue
+
+#             _, sw_isnps = utils.color_mutants(swfo[query]['v_qr_seqs'][0], self.glfo['seqs']['v'][swgene], align=True, return_isnps=True)
+#             _, vs_isnps = utils.color_mutants(swfo[query]['v_qr_seqs'][0], self.glfo['seqs']['v'][vsgene], align=True, return_isnps=True)
+#             if set(sw_isnps) == set(vs_isnps):
+#                 n_same_snps += 1
+#                 continue
+
+#             print ''
+#             # utils.print_reco_event(swfo[query])
+#             utils.color_mutants(swfo[query]['v_qr_seqs'][0], self.glfo['seqs']['v'][swgene], align=True, print_isnps=True, print_result=True, seq_label=utils.color_gene(swgene, width=12), ref_label='%-12s' % 'query')
+#             utils.color_mutants(swfo[query]['v_qr_seqs'][0], self.glfo['seqs']['v'][vsgene], align=True, print_isnps=True, print_result=True, seq_label=utils.color_gene(vsgene, width=12), only_print_seq=True)
+
+#         print ' total     %4d' % len(swfo['queries'])
+#         print ' same      %4d' % n_same
+#         print ' same snps %4d' % n_same_snps
+#         sys.exit()
+# # ----------------------------------------------------------------------------------------
+        alcluster_alleles = None
+        genes_to_remove = None
+        if self.args.initial_aligner == 'vsearch':
+            tmpglfo = copy.deepcopy(self.glfo)  # definitely don't leave it like this
+            glutils.remove_v_genes_with_bad_cysteines(tmpglfo)  # hm...
             vs_info = utils.run_vsearch('search', {sfo['unique_ids'][0] : sfo['seqs'][0] for sfo in self.input_info.values()}, self.args.workdir + '/vsearch', threshold=0.3, n_procs=self.args.n_procs, glfo=tmpglfo)
-            sorted_gene_counts = sorted(vs_info['gene-counts'].items(), key=operator.itemgetter(1), reverse=True)
             alremover = AlleleRemover(self.glfo, self.args, AlleleFinder(self.glfo, self.args, itry=0))
-            alremover.finalize(sorted_gene_counts, debug=True)
-            alclusterer = AlleleClusterer(self.args)
-            alcluster_alleles = alclusterer.get_alleles(vs_info['queries'], vs_info['mute-freqs']['v'], self.glfo)
+            alremover.finalize(sorted(vs_info['gene-counts'].items(), key=operator.itemgetter(1), reverse=True), debug=True)
+            if self.args.allele_cluster:
+                alclusterer = AlleleClusterer(self.args)
+                alcluster_alleles = alclusterer.get_alleles(vs_info['queries'], vs_info['mute-freqs']['v'], self.glfo)
             genes_to_remove = alremover.genes_to_remove
-        else:
+        elif self.args.initial_aligner == 'sw':
             self.run_waterer(remove_less_likely_alleles=True, count_parameters=True)
             swfo = self.sw_info  # just so you don't forget that the above line modifies/creates it
-            # from alleleclusterer import AlleleClusterer
-            # alclusterer = AlleleClusterer(self.args)
-            # alcluster_alleles = alclusterer.get_alleles(queryfo=None, threshold=swfo['mute-freqs']['v'], glfo=self.glfo, swfo=swfo)
+            if self.args.allele_cluster:
+                alclusterer = AlleleClusterer(self.args)
+                alcluster_alleles = alclusterer.get_alleles(queryfo=None, threshold=swfo['mute-freqs']['v'], glfo=self.glfo, swfo=swfo)
             genes_to_remove = swfo['genes-to-remove']
+        else:
+            assert False
 
-# ----------------------------------------------------------------------------------------
-        # glutils.add_new_alleles(self.glfo, alcluster_alleles.values(), use_template_for_codon_info=False, debug=True)
+        if self.args.allele_cluster:
+            glutils.add_new_alleles(self.glfo, alcluster_alleles.values(), use_template_for_codon_info=False, debug=True)
         glutils.remove_genes(self.glfo, genes_to_remove)
         glutils.write_glfo(self.my_gldir, self.glfo)
-# ----------------------------------------------------------------------------------------
 
         if self.args.find_new_alleles:
             self.find_new_alleles()
@@ -302,7 +337,7 @@ class PartitionDriver(object):
     def read_existing_annotations(self, outfname=None, debug=False):
         if outfname is None:
             outfname = self.args.outfname
-        annotations = {}
+        annotations = OrderedDict()
         with open(outfname) as csvfile:
             failed_queries = set()
             reader = csv.DictReader(csvfile)
@@ -316,6 +351,8 @@ class PartitionDriver(object):
                 utils.process_input_line(line)
                 if self.args.queries is not None and len(set(self.args.queries) & set(line['unique_ids'])) == 0:  # actually make sure this is the precise set of queries we want (note that --queries and line['unique_ids'] are both ordered, and this ignores that... oh, well, sigh.)
                     continue
+                if self.args.reco_ids is not None and line['reco_id'] not in self.args.reco_ids:
+                    continue
                 utils.add_implicit_info(self.glfo, line)
                 annotations[':'.join(line['unique_ids'])] = line
 
@@ -325,16 +362,11 @@ class PartitionDriver(object):
 
         if debug:
             for line in sorted(annotations.values(), key=lambda l: len(l['unique_ids']), reverse=True):
+                label = ''
                 if self.args.infname is not None and self.reco_info is not None:
-                    utils.print_true_events(self.glfo, self.reco_info, line, extra_str='')
-                    print 'inferred:',
-                    if len(line['unique_ids']) > 1:
-                        print '   %s' % ':'.join(line['unique_ids'])
-                    else:
-                        print ''
-                if len(line['unique_ids']) > 1:
-                    print '%d sequences (%.1f mean mutations)' % (len(line['unique_ids']), numpy.mean(line['n_mutations']))
-                utils.print_reco_event(line, extra_str='  ')
+                    utils.print_true_events(self.glfo, self.reco_info, line, extra_str='  ')
+                    label = 'inferred:'
+                utils.print_reco_event(line, extra_str='  ', label=label)
 
         if len(failed_queries) > 0:
             print '\n%d failed queries' % len(failed_queries)
@@ -346,7 +378,7 @@ class PartitionDriver(object):
         cp = ClusterPath()
         cp.readfile(self.args.outfname)
         if debug:
-            cp.print_partitions(abbreviate=self.args.abbreviate, reco_info=self.reco_info, sizesort=True)
+            cp.print_partitions(abbreviate=self.args.abbreviate, reco_info=self.reco_info)
         return cp
 
     # ----------------------------------------------------------------------------------------
@@ -1422,6 +1454,7 @@ class PartitionDriver(object):
                 uids = padded_line['unique_ids']
                 uidstr = ':'.join(uids)
                 padded_line['indelfos'] = [self.sw_info['indels'].get(uid, utils.get_empty_indel()) for uid in uids]  # reminder: hmm was given a sequence with any indels reversed (i.e. <self.sw_info['indels'][uid]['reverersed_seq']>)
+                padded_line['input_seqs'] = [self.sw_info[uid]['input_seqs'][0] for uid in uids]
                 padded_line['duplicates'] = [self.duplicates.get(uid, []) for uid in uids]
 
                 if not utils.has_d_gene(self.args.locus):
@@ -1548,14 +1581,10 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def print_hmm_output(self, line, print_true=False):
+        label = ''
         if print_true and not self.args.is_data:  # first print true event (if this is simulation)
             utils.print_true_events(self.glfo, self.reco_info, line)
-
-        if len(line['unique_ids']) > 1:  # make it easier to cut and paste for --queries (it'd be nice if this could go on the same line as 'inferred:', but then for really big clusters it pushes the 'inserts' label out of alignment
-            print '          ' + ':'.join(line['unique_ids'])
-        label = 'inferred:'
-        if self.args.seed_unique_id is not None and self.args.seed_unique_id in line['unique_ids']:
-            label += '   (found %d sequences clonal to seed %s)' % (len(line['unique_ids']), self.args.seed_unique_id)
+            label = 'inferred:'
         utils.print_reco_event(line, extra_str='    ', label=label, seed_uid=self.args.seed_unique_id)
 
     # ----------------------------------------------------------------------------------------

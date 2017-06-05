@@ -63,9 +63,9 @@ class RecombinationEvent(object):
         self.cdr3_length = self.final_codon_positions['j'] - self.final_codon_positions['v'] + 3
 
     # ----------------------------------------------------------------------------------------
-    def write_event(self, outfile, irandom=None):
+    def set_ids(self, line, irandom=None):
+        # NOTE i think this rant is deprecated
         """ 
-        Write out all info to csv file.
         NOTE/RANT so, in calculating each sequence's unique id, we need to hash more than the information about the rearrangement
             event and mutation, because if we create identical events and sequences in independent recombinator threads, we *need* them
             to have different unique ids (otherwise all hell will break loose when you try to analyze them). The easy way to avoid this is
@@ -74,6 +74,20 @@ class RecombinationEvent(object):
             the calling proc tells write_event() that we're writing the <irandom>th event that that calling event is working on. Which effectively
             means we (drastically) reduce the period of our random number generator for hashing in exchange for reproducibility. Should be ok...
         """
+        reco_id_columns = [r + '_gene' for r in utils.regions] + [b + '_insertion' for b in utils.boundaries] + [e + '_del' for e in utils.real_erosions + utils.effective_erosions]
+        unique_id_columns = ['seqs', 'input_seqs']
+        def randstr():
+            return str(numpy.random.uniform() if irandom is None else irandom)
+
+        reco_id_str = ''.join([str(line[c]) for c in reco_id_columns])
+        line['reco_id'] = hash(reco_id_str)  # note that this gives the same reco id for the same rearrangement parameters, even if they come from a separate rearrangement event
+
+        uidstrs = [''.join([str(line[c][iseq]) for c in unique_id_columns]) for iseq in range(len(self.final_seqs))]
+        uidstrs = [reco_id_str + uidstrs[iseq] + randstr() + str(iseq) for iseq in range(len(uidstrs))]  # NOTE i'm not sure I really like having the str(iseq), but it mimics the way things used to be by accident/bug (i.e. identical sequences in the same simulated rearrangement event get different uids), so I'm leaving it in for the moment to ease transition after a rewrite
+        line['unique_ids'] = [str(hash(ustr)) for ustr in uidstrs]
+
+    # ----------------------------------------------------------------------------------------
+    def write_event(self, outfile, line):
         columns = ('unique_ids', 'reco_id') + utils.index_columns + ('cdr3_length', 'input_seqs', 'indel_reversed_seqs', 'indelfos')
         mode = ''
         if os.path.isfile(outfile):
@@ -84,82 +98,35 @@ class RecombinationEvent(object):
             writer = csv.DictWriter(csvfile, columns)
             if mode == 'wb':  # write the header if file wasn't there before
                 writer.writeheader()
-            # fill the row with values
-            row = {}
-            # first the stuff that's common to the whole recombination event
-            row['cdr3_length'] = self.cdr3_length
-            for region in utils.regions:
-                row[region + '_gene'] = self.genes[region]
-            for boundary in utils.boundaries:
-                row[boundary + '_insertion'] = self.insertions[boundary]
-            for erosion in utils.real_erosions:
-                row[erosion + '_del'] = self.erosions[erosion]
-            for erosion in utils.effective_erosions:
-                row[erosion + '_del'] = self.effective_erosions[erosion]
-            # hash the information that uniquely identifies each recombination event
-            str_for_reco_id = ''
-            for column in row:
-                assert 'unique_ids' not in row
-                assert 'seqs' not in row
-                str_for_reco_id += str(row[column])
-            row['reco_id'] = hash(str_for_reco_id)  # note that this gives the same reco id for the same rearrangement parameters, even if they come from a separate rearrangement event
-            assert 'fv_insertion' not in row  # well, in principle it's ok if they're there, but in that case I'll need to at least think about updating some things
-            assert 'jf_insertion' not in row
-            row['fv_insertion'] = ''
-            row['jf_insertion'] = ''
-            # then the stuff that's particular to each mutant/clone
-            for imute in range(len(self.final_seqs)):
-                row['seqs'] = [self.indelfos[imute]['reversed_seq'], ]  # add this as 'seqs' (instead of 'indel_reversed_seqs'), since we want get_line_for_output() to use empty strings if there's no indels
-                row['input_seqs'] = [self.final_seqs[imute], ]
-                str_for_unique_id = ''  # Hash to uniquely identify the sequence.
-                for column in row:
-                    str_for_unique_id += str(row[column])
-                if irandom is None:  # NOTE see note above
-                    str_for_unique_id += str(numpy.random.uniform())
-                else:
-                    str_for_unique_id += str(irandom)
-                row['unique_ids'] = [hash(str_for_unique_id), ]
-                row['indelfos'] = [self.indelfos[imute], ]
-                writer.writerow(utils.get_line_for_output(row))
+            for iseq in range(len(line['unique_ids'])):
+                outline = utils.get_line_for_output(utils.synthesize_single_seq_line(line, iseq))
+                outline = {k : v for k, v in outline.items() if k in columns}
+                writer.writerow(outline)
 
     # ----------------------------------------------------------------------------------------
-    def getline(self):  # don't access <self.line> directly
+    def setline(self, irandom=None):  # don't access <self.line> directly
         if self.line is not None:
             return self.line
 
-        line = {}  # collect some information into a form that the print fcn understands
+        line = {}
         for region in utils.regions:
             line[region + '_gene'] = self.genes[region]
         for boundary in utils.boundaries:
             line[boundary + '_insertion'] = self.insertions[boundary]
+        for boundary in utils.effective_boundaries:
+            line[boundary + '_insertion'] = ''
         for erosion in utils.real_erosions:
             line[erosion + '_del'] = self.erosions[erosion]
         for erosion in utils.effective_erosions:
             line[erosion + '_del'] = self.effective_erosions[erosion]
-        assert 'fv_insertion' not in line  # well, in principle it's ok if they're there, but in that case I'll need to at least think about updating some things
-        assert 'jf_insertion' not in line
-        line['fv_insertion'] = ''
-        line['jf_insertion'] = ''
         line['input_seqs'] = self.final_seqs
-        line['indel_reversed_seqs'] = []
-        for iseq in range(len(self.indelfos)):
-            if self.indelfos[iseq]['reversed_seq'] != '':
-                line['indel_reversed_seqs'].append(self.indelfos[iseq]['reversed_seq'])
-            else:
-                line['indel_reversed_seqs'].append(line['input_seqs'][iseq])
-        line['seqs'] = line['indel_reversed_seqs']
         line['indelfos'] = self.indelfos
-        line['unique_ids'] = [str(i) for i in range(len(self.final_seqs))]
-        line['cdr3_length'] = self.cdr3_length
-        line['codon_positions'] = copy.deepcopy(self.final_codon_positions)
+        line['seqs'] = [line['indelfos'][iseq]['reversed_seq'] if line['indelfos'][iseq]['reversed_seq'] != '' else line['input_seqs'][iseq] for iseq in range(len(line['input_seqs']))]
+        self.set_ids(line, irandom)
+
         utils.add_implicit_info(self.glfo, line)
 
         self.line = line
-        return self.line
-
-    # ----------------------------------------------------------------------------------------
-    def print_event(self):
-        utils.print_reco_event(self.getline(), extra_str='    ')  # don't access <self.line> directly
 
     # ----------------------------------------------------------------------------------------
     def print_gene_choice(self):

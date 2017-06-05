@@ -339,6 +339,8 @@ parent_parser.add_argument('--n-alleles-per-gene', type=int, default=None, help=
 parent_parser.add_argument('--min-allele-prevalence-fraction', type=float, default=0.0005, help='Remove any alleles that represent less than this fraction of the repertoire.')
 parent_parser.add_argument('--n-max-total-alleles', type=int, help='maximum number of alleles per segment to allow when removing alleles (presumably just used for testing).')
 
+parent_parser.add_argument('--initial-aligner', choices=['sw', 'vsearch'], default='sw')
+parent_parser.add_argument('--allele-cluster', action='store_true')
 parent_parser.add_argument('--find-new-alleles', action='store_true', help='look for alleles which do not appear in the default germline set')
 parent_parser.add_argument('--always-find-new-alleles', action='store_true', help='By default we only look for new alleles if a repertoire\'s mutation rate is amenable to reasonable new-allele sensitivity (i.e. if it\'s not crazy high). This overrides that.')
 parent_parser.add_argument('--debug-allele-finding', action='store_true', help='print lots of debug info on new-allele fits')
@@ -401,8 +403,7 @@ subargs['simulate'].append({'name' : '--n-leaves', 'kwargs' : {'type' : float, '
 subargs['simulate'].append({'name' : '--constant-number-of-leaves', 'kwargs' : {'action' : 'store_true', 'help' : 'Give all trees the same number of leaves'}})
 subargs['simulate'].append({'name' : '--n-leaf-distribution', 'kwargs' : {'default' : 'geometric', 'choices' : ['geometric', 'box', 'zipf'], 'help' : 'distribution from which to draw the number of leaves for each tree'}})
 subargs['simulate'].append({'name' : '--indel-frequency', 'kwargs' : {'default' : 0., 'type' : float, 'help' : 'fraction of simulated sequences with indels'}})
-# disabled for now, but if you want multiple indels per sequence you can use this (you'd also need to uncomment a line in recombinator):)
-#subargs['simulate'].append({'name' : '--mean-n-indels', 'kwargs' : {'default' : 1, 'type' : int, 'help' : 'mean number of indels in each sequence which we\'ve already decided has indels (geometric distribution)'}})
+subargs['simulate'].append({'name' : '--mean-indels-per-indeld-seq', 'kwargs' : {'default' : 1.2, 'type' : float, 'help' : 'mean number of indels in each sequence which we\'ve already decided has indels (geometric distribution)'}})
 subargs['simulate'].append({'name' : '--mean-indel-length', 'kwargs' : {'default' : 5, 'help' : 'mean length of each indel (geometric distribution)'}})
 subargs['simulate'].append({'name' : '--indel-location', 'kwargs' : {'choices' : [None, 'v', 'cdr3'], 'help' : 'where to put the indels'}})
 # NOTE command to generate gtr parameter file: [stoat] partis/ > zcat /shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_gtr_tr-qi-gi.json.gz | jq .independentParameters | grep -v '[{}]' | sed 's/["\:,]//g' | sed 's/^[ ][ ]*//' | sed 's/ /,/' | sort >data/gtr.txt)

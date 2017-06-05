@@ -15,6 +15,7 @@ import subprocess
 import multiprocessing
 import copy
 
+import indelutils
 
 # ----------------------------------------------------------------------------------------
 def fsdir():
@@ -279,9 +280,9 @@ linekeys['simu'] = ['reco_id', ]
 all_linekeys = set([k for cols in linekeys.values() for k in cols])
 
 # keys that are added by add_implicit_info()
-implicit_linekeys = set(['naive_seq', 'cdr3_length', 'codon_positions', 'lengths', 'regional_bounds', 'invalid', 'input_seqs', 'indel_reversed_seqs'] + \
-                       [r + '_gl_seq' for r in regions] + \
-                       ['mut_freqs', 'n_mutations'] + functional_columns + [r + '_qr_seqs' for r in regions] + ['aligned_' + r + '_seqs' for r in regions])
+implicit_linekeys = set(['naive_seq', 'cdr3_length', 'codon_positions', 'lengths', 'regional_bounds', 'invalid', 'indel_reversed_seqs'] + \
+                        [r + '_gl_seq' for r in regions] + \
+                        ['mut_freqs', 'n_mutations'] + functional_columns + [r + '_qr_seqs' for r in regions] + ['aligned_' + r + '_seqs' for r in regions])
 
 # ----------------------------------------------------------------------------------------
 annotation_headers = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'naive_seq', 'indelfos', 'duplicates'] \
@@ -535,7 +536,7 @@ def color_chars(chars, col, seq):
     return ''.join(return_str)
 
 # ----------------------------------------------------------------------------------------
-def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', post_str='', print_hfrac=False, print_isnps=False, return_isnps=False, emphasis_positions=None, use_min_len=False, align=False):
+def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', seq_label='', post_str='', print_hfrac=False, print_isnps=False, return_isnps=False, emphasis_positions=None, use_min_len=False, only_print_seq=False, align=False):
     """ default: return <seq> string with colored mutations with respect to <ref_seq> """
 
     if use_min_len:
@@ -582,10 +583,13 @@ def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', 
     hfrac_str = ''
     if print_hfrac:
         hfrac_str = '   hfrac %.3f' % hamming_fraction(ref_seq, seq)
-    return_str = extra_str + ' '*len(ref_label) + ''.join(return_str) + post_str + isnp_str + hfrac_str
     if print_result:
-        print '%s%s%s' % (extra_str, ref_label, ref_seq)
-        print return_str
+        lwidth = max(len_excluding_colors(ref_label), len_excluding_colors(seq_label))
+        if not only_print_seq:
+            print '%s%s%s' % (extra_str, ('%' + str(lwidth) + 's') % ref_label, ref_seq)
+        print '%s%s%s' % (extra_str, ('%' + str(lwidth) + 's') % seq_label, ''.join(return_str) + post_str + isnp_str + hfrac_str)
+
+    return_str = extra_str + seq_label + ''.join(return_str) + post_str + isnp_str + hfrac_str
     if return_isnps:
         return return_str, isnps
     else:
@@ -701,22 +705,21 @@ def is_there_a_stop_codon(seq, fv_insertion, jf_insertion, v_5p_del, debug=False
     return len(set(codons) & set(codon_table['stop'])) > 0  # true if any of the stop codons from <codon_table> are present in <codons>
 
 # ----------------------------------------------------------------------------------------
-def disambiguate_effective_insertions(bound, line, seq, unique_id, debug=False):
+def disambiguate_effective_insertions(bound, line, iseq, debug=False):
     # These are kinda weird names, but the distinction is important
     # If an insert state with "germline" N emits one of [ACGT], then the hmm will report this as an inserted N. Which is what we want -- we view this as a germline N which "mutated" to [ACGT].
     # This concept of insertion germline state is mostly relevant for simultaneous inference on several sequences, i.e. in ham we don't want to just say the inserted base was the base in the query sequence.
     # But here, we're trimming off the effective insertions and we have to treat the inserted germline N to [ACGT] differently than we would an insertion which was "germline" [ACGT] which emitted an N,
     # and also differently to a real germline [VDJ] state that emitted an N.
     naive_insertion = line[bound + '_insertion']  # reminder: ham gets this from the last character in the insertion state name, e.g. 'insert_left_A' or 'insert_right_N'
+    insert_len = len(line[bound + '_insertion'])
     if bound == 'fv':  # ...but to accomodate multiple sequences, the insert states can emit non-germline states, so the mature bases might be different.
-        mature_insertion = seq[ : len(line[bound + '_insertion'])]
+        mature_insertion = line['seqs'][iseq][ : insert_len]
     elif bound == 'jf':
-        if len(line[bound + '_insertion']) > 0:
-            mature_insertion = seq[-len(line[bound + '_insertion']) : ]
-        else:
-            mature_insertion = ''
+        mature_insertion = line['seqs'][iseq][len(line['seqs'][iseq]) - insert_len : ]
     else:
         assert False
+
     if naive_insertion == mature_insertion:  # all is simple and hunky-dory: no insertion 'mutations'
         final_insertion = ''  # leave this bit as an insertion in the final <line>
         insertion_to_remove = naive_insertion  # this bit we'll remove -- it's just Ns (note that this is only equal to the N padding if we correctly inferred the right edge of the J [for jf bound])
@@ -734,25 +737,12 @@ def disambiguate_effective_insertions(bound, line, seq, unique_id, debug=False):
             insertion_to_remove = mature_insertion[i_first_N : ]
         else:
             assert False
-        if debug:
-            print 'naive and mature %s insertions differ for %s' % (bound, unique_id)
-            color_mutants(naive_insertion, mature_insertion, print_result=True, extra_str='          ')
-            print '   removing %s and leaving %s' % (insertion_to_remove, final_insertion)
 
-    # remove the insertion that we want to remove
-    if bound == 'fv':  # ...but to accomodate multiple sequences, the insert states can emit non-germline states, so the mature bases might be different.
-        trimmed_seq = seq[len(insertion_to_remove) : ]
-    elif bound == 'jf':
-        if len(insertion_to_remove) > 0:
-            trimmed_seq = seq[ : -len(insertion_to_remove)]
-        else:
-            trimmed_seq = seq
     if debug:
-        print '     %s      final: %s' % (color('blue', bound), final_insertion)
-        print '         to_remove: %s' % insertion_to_remove
-        print '       trimmed_seq: %s' % trimmed_seq
+        print '     %s      final: %s' % (color('red', bound), color('purple', final_insertion))
+        print '         to_remove: %s' % color('blue', insertion_to_remove)
 
-    return trimmed_seq, final_insertion, insertion_to_remove
+    return final_insertion, insertion_to_remove
 
 # ----------------------------------------------------------------------------------------
 def reset_effective_erosions_and_effective_insertions(glfo, padded_line, aligned_gl_seqs=None, debug=False):  # , padfo=None
@@ -764,29 +754,37 @@ def reset_effective_erosions_and_effective_insertions(glfo, padded_line, aligned
     the hmm yaml files.
     """
 
+    if debug:
+        print 'resetting effective erosions/insertions for %s' % ' '.join(padded_line['unique_ids'])
+
     line = copy.deepcopy(padded_line)
     remove_all_implicit_info(line)
 
     assert line['v_5p_del'] == 0  # just to be safe
     assert line['j_3p_del'] == 0
+    nseqs = len(line['unique_ids'])  # convenience
 
+    # first disambiguate/remove effective (fv and jf) insertions
     if debug:
-        print 'resetting effective erosions'
-        print '     start: %s' % line['seqs'][0]
-
-    # first remove effective (fv and jf) insertions
-    trimmed_seqs = []
-    final_insertions = []  # the effective insertions that will remain in the final info
-    insertions_to_remove = []  # the effective insertions that we'll be removing, so which won't be in the final info
-    for iseq in range(len(line['seqs'])):
-        trimmed_seq = line['seqs'][iseq]
-        final_insertions.append({})
-        insertions_to_remove.append({})
+        print '   disambiguating effective insertions'
+    trimmed_seqs = [line['seqs'][iseq] for iseq in range(nseqs)]
+    trimmed_input_seqs = [line['input_seqs'][iseq] for iseq in range(nseqs)]
+    final_insertions = [{} for _ in range(nseqs)]  # the effective insertions that will remain in the final info
+    insertions_to_remove = [{} for _ in range(nseqs)]  # the effective insertions that we'll be removing, so which won't be in the final info
+    for iseq in range(nseqs):
+        fin = final_insertions[iseq]
+        rem = insertions_to_remove[iseq]
         for bound in effective_boundaries:
-            trimmed_seq, final_insertion, insertion_to_remove = disambiguate_effective_insertions(bound, line, trimmed_seq, line['unique_ids'][iseq], debug)
-            final_insertions[-1][bound] = final_insertion
-            insertions_to_remove[-1][bound] = insertion_to_remove
-        trimmed_seqs.append(trimmed_seq)
+            final_insertion, insertion_to_remove = disambiguate_effective_insertions(bound, line, iseq, debug=debug)
+            fin[bound] = final_insertion
+            rem[bound] = insertion_to_remove
+        trimmed_seqs[iseq] = trimmed_seqs[iseq][len(rem['fv']) : len(trimmed_seqs[iseq]) - len(rem['jf'])]
+        trimmed_input_seqs[iseq] = trimmed_input_seqs[iseq][len(rem['fv']) : len(trimmed_input_seqs[iseq]) - len(rem['jf'])]
+        if debug:
+            print '       %s  %s%s%s%s%s' % (' '.join(line['unique_ids']),
+                                             color('blue', rem['fv']), color('purple', fin['fv']),
+                                             trimmed_seqs[iseq][len(fin['fv']) : len(trimmed_seqs[iseq]) - len(fin['jf'])],
+                                             color('purple', fin['jf']), color('blue', rem['jf']))
 
     # arbitrarily use the zeroth sequence (in principle v_5p and j_3p should be per-sequence, not per-rearrangement... but that'd be a mess to implement, since the other deletions are per-rearrangement)
     TMPiseq = 0  # NOTE this is pretty hackey: we just use the values from the first sequence. But it's actually not that bad -- we can either have some extra pad Ns showing, or chop off some bases.
@@ -808,11 +806,17 @@ def reset_effective_erosions_and_effective_insertions(glfo, padded_line, aligned
     line['v_5p_del'] = min(max_effective_erosion('v_5p'), find_first_non_ambiguous_base(trimmed_seq))
     line['j_3p_del'] = min(max_effective_erosion('j_3p'), len(trimmed_seq) - find_last_non_ambiguous_base_plus_one(trimmed_seq))
 
-    for iseq in range(len(line['seqs'])):
-        # de-pad the seqs
-        line['seqs'][iseq] = trimmed_seqs[iseq][line['v_5p_del'] : ]
-        if line['j_3p_del'] > 0:
-            line['seqs'][iseq] = line['seqs'][iseq][ : -line['j_3p_del']]
+    if debug:
+        v_5p = line['v_5p_del']
+        j_3p = line['j_3p_del']
+        print '     %s:  %d' % (color('red', 'v_5p'), v_5p)
+        print '     %s:  %d' % (color('red', 'j_3p'), j_3p)
+        for iseq in range(nseqs):
+            print '       %s  %s%s%s' % (' '.join(line['unique_ids']), color('red', v_5p * '.'), trimmed_seqs[iseq][v_5p : len(trimmed_seqs[iseq]) - j_3p], color('red', j_3p * '.'))
+
+    for iseq in range(nseqs):
+        line['seqs'][iseq] = trimmed_seqs[iseq][line['v_5p_del'] : len(trimmed_seqs[iseq]) - line['j_3p_del']]
+        line['input_seqs'][iseq] = trimmed_input_seqs[iseq][line['v_5p_del'] : len(trimmed_input_seqs[iseq]) - line['j_3p_del']]
 
         # also de-pad the indel info
         if line['indelfos'][iseq]['reversed_seq'] != '':
@@ -823,9 +827,6 @@ def reset_effective_erosions_and_effective_insertions(glfo, padded_line, aligned
             line['indelfos'][iseq]['reversed_seq'] = rseq
             for indel in line['indelfos'][iseq]['indels']:
                 indel['pos'] -= len(fv_insertion_to_remove) + line['v_5p_del']
-
-    if debug:
-        print '     fv %d   v_5p %d   j_3p %d   jf %d    %s' % (len(fv_insertion_to_remove), line['v_5p_del'], line['j_3p_del'], len(jf_insertion_to_remove), line['seqs'][0])
 
     line['fv_insertion'] = final_fv_insertion
     line['jf_insertion'] = final_jf_insertion
@@ -983,8 +984,7 @@ def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False): 
     end['j'] = start['j'] + len(line['j_gl_seq'])
     line['regional_bounds'] = {r : (start[r], end[r]) for r in regions}
 
-    line['input_seqs'] = [get_seq_with_indels_reinstated(line, iseq) for iseq in range(len(line['seqs']))]
-    input_codon_positions = [get_codon_positions_with_indels_reinstated(line, iseq, line['codon_positions']) for iseq in range(len(line['seqs']))]
+    input_codon_positions = [indelutils.get_codon_positions_with_indels_reinstated(line, iseq, line['codon_positions']) for iseq in range(len(line['seqs']))]
     if 'indel_reversed_seqs' not in line:  # everywhere internally, we refer to 'indel_reversed_seqs' as simply 'seqs'. For interaction with outside entities, however (i.e. writing files) we use the more explicit 'indel_reversed_seqs'
         line['indel_reversed_seqs'] = line['seqs']
 
@@ -1042,6 +1042,8 @@ def print_true_events(glfo, reco_info, line, print_naive_seqs=False, extra_str='
 
 # ----------------------------------------------------------------------------------------
 def print_reco_event(line, one_line=False, extra_str='', label='', seed_uid=None):
+    if len(line['unique_ids']) > 1:
+        label += '%s%d sequences with %.1f mean mutations' % ('' if label == '' else '    ', len(line['unique_ids']), numpy.mean(line['n_mutations']))
     for iseq in range(len(line['unique_ids'])):
         prutils.print_seq_in_reco_event(line, iseq, extra_str=extra_str, label=(label if iseq==0 else ''), one_line=(iseq>0), seed_uid=seed_uid)
 
@@ -2331,88 +2333,6 @@ def subset_files(uids, fnames, outdir, uid_header='Sequence ID', delimiter='\t',
                 for line in reader:
                     if line[uid_header] in uids:
                         writer.writerow(line)
-
-# # ----------------------------------------------------------------------------------------
-# ick, needs germline info, and, screw it, I'll just go back to writing the indel-reversed sequence to file
-# def reverse_indels(input_seq, indelfo):  # reverse the action of indel reversion
-#     if indelfo['reversed_seq'] == '':
-#         return input_seq
-
-#     for indel in indelfo['indels']:
-#         if indel['type'] == 'insertion':
-#             return_seq = return_seq[ : indel['pos']] + indel['seqstr'] + return_seq[indel['pos'] : ]
-#         elif indel['type'] == 'deletion':
-#             return_seq = return_seq[ : indel['pos']] + return_seq[indel['pos'] + indel['len'] : ]
-#         else:
-#             assert False
-
-#     return return_seq
-
-# ----------------------------------------------------------------------------------------
-def get_seq_with_indels_reinstated(line, iseq=0):  # reverse the action of indel reversion
-    indelfo = line['indelfos'][iseq]
-    return_seq = line['seqs'][iseq]
-    if indelfo['reversed_seq'] == '':
-        return return_seq
-
-    for indel in indelfo['indels']:
-        if indel['type'] == 'insertion':
-            return_seq = return_seq[ : indel['pos']] + indel['seqstr'] + return_seq[indel['pos'] : ]
-        elif indel['type'] == 'deletion':
-            excision = return_seq[indel['pos'] : indel['pos'] + indel['len']]
-            if excision != indel['seqstr']:
-                # raise Exception('ack %s %s' % (excision, indel['seqstr']))
-                print 'ack %s %s' % (excision, indel['seqstr'])
-            return_seq = return_seq[ : indel['pos']] + return_seq[indel['pos'] + indel['len'] : ]
-        else:
-            assert False
-
-    return return_seq
-
-# ----------------------------------------------------------------------------------------
-def adjust_single_position_for_reinstated_indels(indel, position):
-    if indel['pos'] > position:  # NOTE this just ignores the case where the indel's in the middle of the codon, because, like, screw that I don't want to think about it
-        return position
-    if indel['type'] == 'insertion':
-        return position + indel['len']
-    elif indel['type'] == 'deletion':
-        return position - indel['len']
-    else:
-        assert False
-
-# ----------------------------------------------------------------------------------------
-def get_codon_positions_with_indels_reinstated(line, iseq, codon_positions):
-    # NOTE as long as the indels are reversed, all the sequences have the same codon positions. But as soon as we reinstate the indels, all heck breaks loose.
-    indelfo = line['indelfos'][iseq]
-    reinstated_codon_positions = copy.deepcopy(codon_positions)
-    if indelfo['reversed_seq'] == '':
-        return reinstated_codon_positions
-
-    for indel in indelfo['indels']:
-        for region in reinstated_codon_positions:
-            reinstated_codon_positions[region] = adjust_single_position_for_reinstated_indels(indel, reinstated_codon_positions[region])
-    return reinstated_codon_positions
-
-# ----------------------------------------------------------------------------------------
-def get_regional_bounds_with_indels_reinstated(line, iseq):
-    indelfo = line['indelfos'][iseq]
-    regional_bounds = copy.deepcopy(line['regional_bounds'])
-    if indelfo['reversed_seq'] == '':
-        return regional_bounds
-
-    for indel in indelfo['indels']:
-        for region in regional_bounds:
-            regional_bounds[region] = (adjust_single_position_for_reinstated_indels(indel, regional_bounds[region][0]),
-                                       adjust_single_position_for_reinstated_indels(indel, regional_bounds[region][1]))
-    return regional_bounds
-
-# ----------------------------------------------------------------------------------------
-def get_qr_seqs_with_indels_reinstated(line, iseq):
-    rbounds = get_regional_bounds_with_indels_reinstated(line, iseq)
-    # assert line['input_seqs'][iseq] == get_seq_with_indels_reinstated(line, iseq)
-    inseq = line['input_seqs'][iseq]
-    qr_seqs = {r : inseq[rbounds[r][0] : rbounds[r][1]] for r in regions}
-    return qr_seqs
 
 # ----------------------------------------------------------------------------------------
 def csv_to_fasta(infname, outfname=None, name_column='unique_ids', seq_column='input_seqs', n_max_lines=None, overwrite=True, remove_duplicates=False):
