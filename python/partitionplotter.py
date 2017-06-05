@@ -234,7 +234,7 @@ class PartitionPlotter(object):
             iclust += 1
         if len(high_mutation_clusters) > n_clusters_per_plot and len(high_mutation_clusters[0]) > min_high_mutation_cluster_size:
             high_mutation_clusters = [cluster for cluster in high_mutation_clusters if len(cluster) > min_high_mutation_cluster_size]
-        self.make_single_size_vs_shm_plot(high_mutation_clusters, annotations, base_plotdir, get_fname(high_mutation=True), n_max_mutations=n_max_mutations, plot_high_mutation=True, title='per-family SHM (high mutation)', debug=debug)
+        self.make_single_size_vs_shm_plot(high_mutation_clusters, annotations, base_plotdir, get_fname(high_mutation=True), n_max_mutations=n_max_mutations, plot_high_mutation=True, title='per-family SHM (families with mean > %d mutations)' % n_max_mutations, debug=debug)
         fnames.append(get_fname(high_mutation=True))
 
         # make hexbin plot
