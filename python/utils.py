@@ -306,9 +306,12 @@ bcrham_dbgstr_types = {
 # ----------------------------------------------------------------------------------------
 def synthesize_single_seq_line(line, iseq):
     """ without modifying <line>, make a copy of it corresponding to a single-sequence event with the <iseq>th sequence """
-    singlefo = copy.deepcopy(line)  # make a copy of the info, into which we'll insert the sequence-specific stuff
-    for col in [c for c in linekeys['per_seq'] if c in line]:
-        singlefo[col] = [singlefo[col][iseq], ]
+    singlefo = {}
+    for key in line:
+        if key in linekeys['per_seq']:
+            singlefo[key] = [copy.deepcopy(line[key][iseq]), ]
+        else:
+            singlefo[key] = copy.deepcopy(line[key])
     return singlefo
 
 # ----------------------------------------------------------------------------------------
@@ -757,8 +760,7 @@ def reset_effective_erosions_and_effective_insertions(glfo, padded_line, aligned
     if debug:
         print 'resetting effective erosions/insertions for %s' % ' '.join(padded_line['unique_ids'])
 
-    line = copy.deepcopy(padded_line)
-    remove_all_implicit_info(line)
+    line = {k : copy.deepcopy(padded_line[k]) for k in padded_line if k not in implicit_linekeys}
 
     assert line['v_5p_del'] == 0  # just to be safe
     assert line['j_3p_del'] == 0
@@ -927,7 +929,6 @@ def process_per_gene_support(line, debug=False):
 # ----------------------------------------------------------------------------------------
 def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False):  # should turn on <check_line_keys> for a bit if you change anything
     """ Add to <line> a bunch of things that are initially only implicit. """
-
     if line['v_gene'] == '':
         raise Exception('can\'t add implicit info to line with failed annotation:\n%s' % (''.join(['  %+20s  %s\n' % (k, v) for k, v in line.items()])))
 
