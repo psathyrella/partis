@@ -10,25 +10,20 @@ import math
 import plotconfig
 from hist import Hist
 
-# Columns for which we just want to know, Did we guess the right value? (for other columns, we store guess - true)
-bool_columns = plotconfig.gene_usage_columns
-
 class PerformancePlotter(object):
     # ----------------------------------------------------------------------------------------
     def __init__(self, name):
         self.name = name
         self.values, self.hists = {}, {}  # the dictionary-based approach in <self.values> is nice because you can decide your hist bounds after filling everything
 
-        for column in utils.index_columns:
+        for column in plotconfig.gene_usage_columns:
+            self.values[column] = {'right' : 0, 'wrong' : 0}
+        for column in plotconfig.int_columns:  # it might be nicer to eventually switch these to hists (I think the ony reason they're separte is that they predate the existence of the hist class)
             self.values[column] = {}
-            if column in bool_columns:
-                self.values[column] = {'right' : 0, 'wrong' : 0}
-
         for rstr in plotconfig.rstrings:
             self.values[rstr + 'hamming_to_true_naive'] = {}
-
-        for rstr in plotconfig.rstrings:
             self.values[rstr + 'muted_bases'] = {}
+
         self.hists['mute_freqs'] = Hist(25, -0.04, 0.04)  # only do mutation frequency for the whole sequence
         # NOTE this hist bounds here are intended to be super inclusive, whereas in compare-plotdirs.py we apply the more-restrictive ones from plotconfig.py (we still shift overflows here, where appropriate, though)
         for region in utils.regions:
@@ -51,7 +46,7 @@ class PerformancePlotter(object):
             elif restrict_to_region == 'cdr3':
                 bounds = (true_line['codon_positions']['v'], true_line['codon_positions']['j'] + 3)
             else:
-                assert False
+                print 'invalid regional restriction %s' % restrict_to_region
             true_naive_seq = true_naive_seq[bounds[0] : bounds[1]]
             inferred_naive_seq = inferred_naive_seq[bounds[0] : bounds[1]]
         return utils.hamming_distance(true_naive_seq, inferred_naive_seq)
@@ -59,7 +54,7 @@ class PerformancePlotter(object):
     # ----------------------------------------------------------------------------------------
     def add_fail(self):
         for column in self.values:
-            if column in bool_columns:
+            if column in plotconfig.gene_usage_columns:
                 self.values[column]['wrong'] += 1
             else:
                 pass
@@ -90,7 +85,7 @@ class PerformancePlotter(object):
         overall_mute_freq = utils.get_mutation_rate(true_line, iseq=0)  # true value
 
         for column in self.values:
-            if column in bool_columns:
+            if column in plotconfig.gene_usage_columns:
                 if column in line:
                     self.set_bool_column(true_line, line, column, overall_mute_freq)
             else:
@@ -103,40 +98,43 @@ class PerformancePlotter(object):
     # ----------------------------------------------------------------------------------------
     def evaluate(self, true_line, inf_line):
 
-        overall_mute_freq = utils.get_mutation_rate(true_line, iseq=0)  # true value
+# ----------------------------------------------------------------------------------------
+        # fix add_partial_fail and add_fail
+# ----------------------------------------------------------------------------------------
 
-        for column in self.values:
-            if column in bool_columns:
-                self.set_bool_column(true_line, inf_line, column, overall_mute_freq)  # this also sets the fraction-correct-vs-mute-freq hists
-            else:  # these should all be integer-valued
-                trueval, guessval = 0, 0
-                if column[2:] == '_insertion':  # insertion length
-                    trueval = len(true_line[column])
-                    guessval = len(inf_line[column])
-                elif 'hamming_to_true_naive' in column:
-                    restrict_to_region = column.replace('hamming_to_true_naive', '').replace('_', '')
-                    trueval = 0
-                    guessval = self.hamming_to_true_naive(true_line, inf_line, restrict_to_region=restrict_to_region)
-                elif 'muted_bases' in column:
-                    restrict_to_region = column.replace('muted_bases', '').replace('_', '')
-                    trueval = utils.get_n_muted(true_line, iseq=0, restrict_to_region=restrict_to_region)  # when we're evaluating on multi-seq hmm output, we synthesize single-sequence lines for each sequence
-                    guessval = utils.get_n_muted(inf_line, iseq=0, restrict_to_region=restrict_to_region)
-                else:
-                    trueval = int(true_line[column])
-                    guessval = int(inf_line[column])
+        def addval(col, simval, infval):
+            if col[2:] == '_insertion':  # stored as the actual inserted bases
+                simval = len(simval)
+                infval = len(infval)
+            diff = infval - simval
+            if diff not in self.values[col]:
+                self.values[col][diff] = 0
+            self.values[col][diff] += 1
 
-                diff = guessval - trueval
-                if diff not in self.values[column]:
-                    self.values[column][diff] = 0
-                self.values[column][diff] += 1
+        mutfo = {lt : {mt : {} for mt in ['freq', 'total']} for lt in ['sim', 'inf']}
+        for rstr in plotconfig.rstrings:
+            if rstr == '':  # these are already in the <line>s, so may as well not recalculate
+                mutfo['sim']['freq'][rstr], mutfo['sim']['total'][rstr] = true_line['mut_freqs'][0], true_line['n_mutations'][0]
+                mutfo['inf']['freq'][rstr], mutfo['inf']['total'][rstr] = inf_line['mut_freqs'][0], inf_line['n_mutations'][0]
+            else:
+                mutfo['sim']['freq'][rstr], mutfo['sim']['total'][rstr] = utils.get_mutation_rate_and_n_muted(true_line, iseq=0, restrict_to_region=rstr.rstrip('_'))
+                mutfo['inf']['freq'][rstr], mutfo['inf']['total'][rstr] = utils.get_mutation_rate_and_n_muted(inf_line, iseq=0, restrict_to_region=rstr.rstrip('_'))
+
+        for col in plotconfig.gene_usage_columns:
+            self.set_bool_column(true_line, inf_line, col, mutfo['sim']['freq'][''])  # this also sets the fraction-correct-vs-mute-freq hists
+
+        for column in plotconfig.int_columns:
+            addval(column, true_line[column], inf_line[column])
+
+        for rstr in plotconfig.rstrings:
+            addval(rstr + 'hamming_to_true_naive', 0, self.hamming_to_true_naive(true_line, inf_line, restrict_to_region=rstr.rstrip('_')))
+            addval(rstr + 'muted_bases', mutfo['sim']['total'][rstr], mutfo['inf']['total'][rstr])
 
         for region in utils.regions:
             if region + '_per_gene_support' in inf_line:
                 self.set_per_gene_support(true_line, inf_line, region)
 
-        tmptrueval = utils.get_mutation_rate(true_line, iseq=0, restrict_to_region='')  # when we're evaluating on multi-seq hmm output, we synthesize single-sequence lines for each sequence
-        tmpguessval = utils.get_mutation_rate(inf_line, iseq=0, restrict_to_region='')
-        self.hists['mute_freqs'].fill(tmpguessval - tmptrueval)
+        self.hists['mute_freqs'].fill(mutfo['inf']['freq'][''] - mutfo['sim']['freq'][''])  # when we're evaluating on multi-seq hmm output, we synthesize single-sequence lines for each sequence
 
     # ----------------------------------------------------------------------------------------
     def plot(self, plotdir, only_csv=False):
@@ -148,7 +146,7 @@ class PerformancePlotter(object):
             utils.prep_dir(plotdir + '/' + substr, wildlings=('*.csv', '*.svg'))
 
         for column in self.values:
-            if column in bool_columns:
+            if column in plotconfig.gene_usage_columns:
                 right = self.values[column]['right']
                 wrong = self.values[column]['wrong']
                 lo, hi, _ = fraction_uncertainty.err(right, right + wrong)

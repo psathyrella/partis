@@ -2,6 +2,7 @@ import utils
 
 rstrings = ['', 'cdr3_'] + [r + '_' for r in utils.regions]
 gene_usage_columns = [r + '_gene' for r in utils.regions]
+int_columns = [c for c in utils.index_columns if c not in gene_usage_columns]
 
 xtitles = {
     'v_gene' : '',

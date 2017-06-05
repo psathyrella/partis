@@ -25,6 +25,11 @@
 #  - check whether translation needs to have a lower fractional bound, i.e. don't let the translation be too much smaller than the actual cluster (c.f. kate-qrs data -- what's happening translation-wise when really big clusters are getting merged)
 #  - stop passing ambiguous char to ham both in the yaml and on the command line
 
+# testing
+#  - add a low indel freq
+#  - add allele finding
+
+
 # paper
 #  - add scheepers data (well, and others)
 #  - add new chaim data (igg + igm)
@@ -43,6 +48,7 @@
 
 # fix allele name decider to more strongly prefer non-snpd genes (well, make sure it hasn't messed anything up yet)
 # new-allele name arbitration needs to happen when plotting (e.g. count as correct alleles that only differ after the cpos)
+# light chain allele finding: need to account for larger amount of v to right of cysteine?
 
 # overall gl inference workflow
 # - apply vsearch/swarm to v_qr_seqs to see if there's any well-separated new genes that we should add to the initial set
