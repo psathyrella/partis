@@ -1416,12 +1416,15 @@ class PartitionDriver(object):
         missing_input_keys = set(self.input_info)
         missing_input_keys -= set([uid for line in  annotations.values() for uid in line['unique_ids']])  # set(self.sw_info['queries'])  # all the queries for which we had decent sw annotations (sw failures are accounted for below)
         missing_input_keys -= self.sw_info['failed-queries']
+        missing_input_keys -= self.sw_info['removed-queries']
         missing_input_keys -= set([d for dlist in self.sw_info['duplicates'].values() for d in dlist])
         missing_input_keys -= hmm_failure_ids
         if self.unseeded_seqs is not None:
             missing_input_keys -= set(self.unseeded_seqs)
         if self.small_cluster_seqs is not None:
             missing_input_keys -= set(self.small_cluster_seqs)
+        if self.unseeded_seqs is not None:
+            missing_input_keys -= set(self.unseeded_seqs)
         if len(missing_input_keys) > 0:
             print '  %s couldn\'t account for %d missing input uid%s%s' % (utils.color('red', 'warning'), len(missing_input_keys), utils.plural(len(missing_input_keys)), ': %s' % ' '.join(missing_input_keys) if len(missing_input_keys) < 15 else '')
 
