@@ -5,7 +5,7 @@ import copy
 # # ----------------------------------------------------------------------------------------
 # ick, needs germline info, and, screw it, I'll just go back to writing the indel-reversed sequence to file
 # def reverse_indels(input_seq, indelfo):  # reverse the action of indel reversion
-#     if indelfo['reversed_seq'] == '':
+#     if not has_indels(indelfo):
 #         return input_seq
 
 #     for indel in indelfo['indels']:
@@ -26,7 +26,7 @@ import copy
 # def get_seq_with_indels_reinstated(line, iseq=0):  # reverse the action of indel reversion
 #     indelfo = line['indelfos'][iseq]
 #     return_seq = line['seqs'][iseq]
-#     if indelfo['reversed_seq'] == '':
+#     if not has_indels(indelfo):
 #         return return_seq
 #
 #     # for indel in reversed(indelfo['indels']):
@@ -45,6 +45,14 @@ import copy
 #     return return_seq
 
 # ----------------------------------------------------------------------------------------
+def get_empty_indel():
+    return {'reversed_seq' : '', 'indels' : []}
+
+# ----------------------------------------------------------------------------------------
+def has_indels(indelfo):
+    return len(indelfo['indels']) > 0
+
+# ----------------------------------------------------------------------------------------
 def adjust_single_position_for_reinstated_indels(indel, position):
     if indel['pos'] > position:  # NOTE this just ignores the case where the indel's in the middle of the codon, because, like, screw that I don't want to think about it
         return position
@@ -60,7 +68,7 @@ def get_codon_positions_with_indels_reinstated(line, iseq, codon_positions):
     # NOTE as long as the indels are reversed, all the sequences have the same codon positions. But as soon as we reinstate the indels, all heck breaks loose.
     indelfo = line['indelfos'][iseq]
     reinstated_codon_positions = copy.deepcopy(codon_positions)
-    if indelfo['reversed_seq'] == '':
+    if not has_indels(indelfo):
         return reinstated_codon_positions
 
     for indel in indelfo['indels']:
@@ -72,7 +80,7 @@ def get_codon_positions_with_indels_reinstated(line, iseq, codon_positions):
 def get_regional_bounds_with_indels_reinstated(line, iseq):
     indelfo = line['indelfos'][iseq]
     regional_bounds = copy.deepcopy(line['regional_bounds'])
-    if indelfo['reversed_seq'] == '':
+    if not has_indels(indelfo):
         return regional_bounds
 
     for indel in indelfo['indels']:

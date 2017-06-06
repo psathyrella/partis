@@ -14,6 +14,7 @@ import subprocess
 
 import utils
 import glutils
+import indelutils
 from parametercounter import ParameterCounter
 from performanceplotter import PerformancePlotter
 from allelefinder import AlleleFinder
@@ -121,7 +122,7 @@ class Waterer(object):
                 for region in utils.regions:  # uh... should do this more cleanly at some point
                     del line[region + '_per_gene_support']
                 utils.add_implicit_info(self.glfo, line)
-                if line['indelfos'][0]['reversed_seq'] != '':
+                if indelutils.has_indels(line['indelfos'][0]):
                     self.info['indels'][line['unique_ids'][0]] = line['indelfos'][0]
                 self.add_to_info(line)
 
@@ -442,7 +443,7 @@ class Waterer(object):
 
         codestr = ''
         qpos = 0  # position within query sequence
-        indelfo = utils.get_empty_indel()  # replacement_seq: query seq with insertions removed and germline bases inserted at the position of deletions
+        indelfo = indelutils.get_empty_indel()  # replacement_seq: query seq with insertions removed and germline bases inserted at the position of deletions
         tmp_indices = []
         for code, length in cigars:
             codestr += length * code
@@ -748,7 +749,7 @@ class Waterer(object):
         infoline['dj_insertion'] = qinfo['seq'][qinfo['qrbounds'][best['d']][1] : qinfo['qrbounds'][best['j']][0]]
         infoline['jf_insertion'] = qinfo['seq'][qinfo['qrbounds'][best['j']][1] : ]
 
-        infoline['indelfos'] = [self.info['indels'].get(qname, utils.get_empty_indel()), ]  # NOTE this makes it so that self.info[uid]['indelfos'] *is* self.info['indels'][uid]. It'd still be nicer to eventually do away with self.info['indels'], although I'm not sure that's really either feasible or desirable given other constraints
+        infoline['indelfos'] = [self.info['indels'].get(qname, indelutils.get_empty_indel()), ]  # NOTE this makes it so that self.info[uid]['indelfos'] *is* self.info['indels'][uid]. It'd still be nicer to eventually do away with self.info['indels'], although I'm not sure that's really either feasible or desirable given other constraints
         infoline['duplicates'] = [self.duplicates.get(qname, []), ]  # note that <self.duplicates> doesn't handle simultaneous seqs, i.e. it's for just a single sequence
 
         infoline['all_matches'] = {r : [g for _, g in qinfo['matches'][r]] for r in utils.regions}  # get lists with no scores, just the names (still ordered by match quality, though)
@@ -1140,7 +1141,7 @@ class Waterer(object):
                 simfo = self.reco_info[query]
                 utils.remove_all_implicit_info(simfo)
                 simfo['seqs'][0] = simfo['seqs'][0][fv_len : len(simfo['seqs'][0]) - jf_len]
-                if simfo['indelfos'][0]['reversed_seq'] != '':
+                if indelutils.has_indels(simfo['indelfos'][0]):
                     simfo['indelfos'][0]['reversed_seq'] = simfo['seqs'][0]
                 for indel in reversed(simfo['indelfos'][0]['indels']):
                     indel['pos'] -= fv_len

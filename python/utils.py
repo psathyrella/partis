@@ -241,7 +241,7 @@ def get_list_of_str_list(strlist):
 def reconstruct_full_indelfo(indel_list, reversed_seq):
     if 'reversed_seq' in indel_list:  # handle old files
         return indel_list
-    indelfo = get_empty_indel()
+    indelfo = indelutils.get_empty_indel()
     indelfo['indels'] = indel_list
     if len(indel_list) > 0:
         indelfo['reversed_seq'] = reversed_seq
@@ -428,7 +428,7 @@ def convert_from_adaptive_headers(glfo, line, uid=None, only_dj_rearrangements=F
     # print seq[qrbounds['j'][0] : qrbounds['j'][1]],
     # print seq[qrbounds['j'][1] :]
 
-    newline['indelfos'] = [get_empty_indel(), ]
+    newline['indelfos'] = [indelutils.get_empty_indel(), ]
 
     if print_it:
         add_implicit_info(glfo, newline)
@@ -821,7 +821,7 @@ def reset_effective_erosions_and_effective_insertions(glfo, padded_line, aligned
         line['input_seqs'][iseq] = trimmed_input_seqs[iseq][line['v_5p_del'] : len(trimmed_input_seqs[iseq]) - line['j_3p_del']]
 
         # also de-pad the indel info
-        if line['indelfos'][iseq]['reversed_seq'] != '':
+        if indelutils.has_indels(line['indelfos'][iseq]):
             rseq = line['indelfos'][iseq]['reversed_seq']
             rseq = rseq[len(fv_insertion_to_remove) + line['v_5p_del'] : ]
             if len(jf_insertion_to_remove) + line['j_3p_del'] > 0:
@@ -1465,7 +1465,7 @@ def process_input_line(info, hmm_cachefile=False):
             info[key + 's'] = info[key]
             del info[key]
         if 'indelfos' not in info:  # hm, at least some old sim files don't have 'indelfo'
-            info['indelfos'] = str(get_empty_indel())
+            info['indelfos'] = str(indelutils.get_empty_indel())
         info['indelfos'] = '[' + info['indelfos'] + ']'
         info['input_seqs'] = info['seqs']
 
@@ -1514,7 +1514,7 @@ def get_line_for_output(info):
         if key == 'seqs':  # don't want it to be in the output dict
             continue
         if key == 'indel_reversed_seqs':  # if no indels, it's the same as 'input_seqs', so set indel_reversed_seqs to empty strings
-            outfo['indel_reversed_seqs'] = ':'.join(['' if len(info['indelfos'][iseq]['indels']) == 0 else info['indel_reversed_seqs'][iseq]
+            outfo['indel_reversed_seqs'] = ':'.join(['' if not indelutils.has_indels(info['indelfos'][iseq]) else info['indel_reversed_seqs'][iseq]
                                                      for iseq in range(len(info['unique_ids']))])
         elif key in column_configs['lists']:
             outfo[key] = ':'.join([str_fcn(v) for v in info[key]])
@@ -2504,10 +2504,6 @@ def find_genes_that_have_hmms(parameter_dir):
         genes.append(gene)
 
     return genes
-
-# ----------------------------------------------------------------------------------------
-def get_empty_indel():
-    return {'reversed_seq' : '', 'indels' : []}
 
 # ----------------------------------------------------------------------------------------
 def choose_seed_unique_id(gldir, locus, simfname, seed_cluster_size_low, seed_cluster_size_high, iseed=None, n_max_queries=-1, debug=True):

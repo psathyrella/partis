@@ -262,7 +262,7 @@ class Recombinator(object):
                 gl_seqs[region] = gl_seqs[region][:len(gl_seqs[region]) - e_length]
         tmpline['seqs'] = [gl_seqs['v'] + tmpline['vd_insertion'] + gl_seqs['d'] + tmpline['dj_insertion'] + gl_seqs['j'], ]
         tmpline['input_seqs'] = copy.deepcopy(tmpline['seqs'])
-        tmpline['indelfos'] = [utils.get_empty_indel(), ]
+        tmpline['indelfos'] = [indelutils.get_empty_indel(), ]
         utils.add_implicit_info(self.glfo, tmpline)
         assert len(tmpline['in_frames']) == 1
 
@@ -531,7 +531,7 @@ class Recombinator(object):
         # NOTE that it will eventually make sense to add shared indel mutation according to the chosen tree -- i.e., probably, with some probability apply an indel instead of a point mutation
         if self.args.debug and self.args.indel_frequency > 0.:
             print '      indels'
-        reco_event.indelfos = [utils.get_empty_indel() for _ in range(len(reco_event.final_seqs))]
+        reco_event.indelfos = [indelutils.get_empty_indel() for _ in range(len(reco_event.final_seqs))]
         for iseq in range(len(reco_event.final_seqs)):
             if self.args.indel_frequency == 0.:  # no indels at all
                 continue
@@ -550,7 +550,7 @@ class Recombinator(object):
     def add_mutants(self, reco_event, irandom):
         if self.args.mutation_multiplier is not None and self.args.mutation_multiplier == 0.:  # some of the stuff below fails if mut mult is actually 0.
             reco_event.final_seqs.append(reco_event.recombined_seq)  # set final sequnce in reco_event
-            reco_event.indelfos = [utils.get_empty_indel() for _ in range(len(reco_event.final_seqs))]
+            reco_event.indelfos = [indelutils.get_empty_indel() for _ in range(len(reco_event.final_seqs))]
             return
 
         # When generating trees, each tree's number of leaves and total depth are chosen from the specified distributions (a.t.m., by default n-leaves is from a geometric/zipf, and depth is from data)

@@ -7,6 +7,7 @@ import os
 import copy
 
 import utils
+import indelutils
 
 #----------------------------------------------------------------------------------------
 class RecombinationEvent(object):
@@ -121,7 +122,7 @@ class RecombinationEvent(object):
             line[erosion + '_del'] = self.effective_erosions[erosion]
         line['input_seqs'] = self.final_seqs
         line['indelfos'] = self.indelfos
-        line['seqs'] = [line['indelfos'][iseq]['reversed_seq'] if line['indelfos'][iseq]['reversed_seq'] != '' else line['input_seqs'][iseq] for iseq in range(len(line['input_seqs']))]
+        line['seqs'] = [line['indelfos'][iseq]['reversed_seq'] if indelutils.has_indels(line['indelfos'][iseq]) else line['input_seqs'][iseq] for iseq in range(len(line['input_seqs']))]
         self.set_ids(line, irandom)
 
         utils.add_implicit_info(self.glfo, line)
