@@ -66,13 +66,14 @@ plot_titles = {
     'j_fraction_correct_vs_mute_freq' : 'J gene',
     'v_allele_fraction_correct_vs_per_gene_support' : 'V gene',
     'd_allele_fraction_correct_vs_per_gene_support' : 'D gene',
-    'j_allele_fraction_correct_vs_per_gene_support' : 'J gene'
+    'j_allele_fraction_correct_vs_per_gene_support' : 'J gene',
+    'shm_indel_length' : 'total/net SHM indel length',
 }
 for region in utils.regions:
     for end in ['5', '3']:
         xtitles[region + '_' + end + 'p_del'] = 'bases'
         plot_titles[region + '_' + end + 'p_del'] = region.upper() + ' ' + end + '\' deletion'
-for boundary in utils.boundaries + utils.effective_boundaries:
+for boundary in utils.all_boundaries:
     xtitles[boundary + '_insertion'] = 'bases'
     plot_titles[boundary + '_insertion'] = boundary.upper() + ' N length'
 

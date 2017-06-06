@@ -75,7 +75,7 @@ class RecombinationEvent(object):
             the calling proc tells write_event() that we're writing the <irandom>th event that that calling event is working on. Which effectively
             means we (drastically) reduce the period of our random number generator for hashing in exchange for reproducibility. Should be ok...
         """
-        reco_id_columns = [r + '_gene' for r in utils.regions] + [b + '_insertion' for b in utils.boundaries] + [e + '_del' for e in utils.real_erosions + utils.effective_erosions]
+        reco_id_columns = [r + '_gene' for r in utils.regions] + [b + '_insertion' for b in utils.boundaries] + [e + '_del' for e in utils.all_erosions]
         unique_id_columns = ['seqs', 'input_seqs']
         def randstr():
             return str(numpy.random.uniform() if irandom is None else irandom)

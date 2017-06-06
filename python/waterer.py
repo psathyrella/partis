@@ -165,10 +165,7 @@ class Waterer(object):
                 if self.true_pcounter is not None:
                     self.true_pcounter.increment(self.reco_info[qname])
             if self.perfplotter is not None:
-                if qname in self.info['indels']:
-                    print '    skipping performance evaluation of %s because of indels' % qname  # I just have no idea how to handle naive hamming fraction when there's indels
-                else:
-                    self.perfplotter.evaluate(self.reco_info[qname], self.info[qname])
+                self.perfplotter.evaluate(self.reco_info[qname], self.info[qname], simglfo=self.simglfo)
 
         if self.pcounter is not None:
             self.info['mute-freqs'] = {rstr : self.pcounter.mfreqer.mean_rates[rstr].get_mean() for rstr in ['all', ] + utils.regions}

@@ -111,8 +111,9 @@ real_erosions = ['v_3p', 'd_5p', 'd_3p', 'j_5p']
 # hmm yamels -- which is what we want, because we want to be able to read in short data reads but make full-length simulation.
 effective_erosions = ['v_5p', 'j_3p']
 all_erosions = real_erosions + effective_erosions
-boundaries = ['vd', 'dj']
+boundaries = ['vd', 'dj']  # NOTE needs to be updated to be consistent with erosion names
 effective_boundaries = ['fv', 'jf']
+all_boundaries = boundaries + effective_boundaries
 nukes = ['A', 'C', 'G', 'T']
 ambiguous_bases = ['N', ]
 alphabet = set(nukes + ambiguous_bases)  # NOTE not the greatest naming distinction, but note difference to <expected_characters>
@@ -265,7 +266,7 @@ linekeys = {}
 linekeys['per_family'] = ['naive_seq', 'cdr3_length', 'codon_positions', 'lengths', 'regional_bounds'] + \
                          [r + '_gene' for r in regions] + \
                          [e + '_del' for e in all_erosions] + \
-                         [b + '_insertion' for b in boundaries + effective_boundaries] + \
+                         [b + '_insertion' for b in all_boundaries] + \
                          [r + '_gl_seq' for r in regions] + \
                          [r + '_per_gene_support' for r in regions]
 # used by the synthesize_[] fcns below
@@ -287,7 +288,7 @@ implicit_linekeys = set(['naive_seq', 'cdr3_length', 'codon_positions', 'lengths
 # ----------------------------------------------------------------------------------------
 annotation_headers = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'naive_seq', 'indelfos', 'duplicates'] \
                      + [r + '_per_gene_support' for r in regions] \
-                     + [e + '_del' for e in all_erosions] + [b + '_insertion' for b in boundaries + effective_boundaries] \
+                     + [e + '_del' for e in all_erosions] + [b + '_insertion' for b in all_boundaries] \
                      + functional_columns
 sw_cache_headers = ['k_v', 'k_d', 'padlefts', 'padrights', 'all_matches', 'mut_freqs']
 partition_cachefile_headers = ('unique_ids', 'logprob', 'naive_seq', 'naive_hfrac', 'errors')  # these have to match whatever bcrham is expecting

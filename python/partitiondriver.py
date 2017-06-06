@@ -1500,14 +1500,7 @@ class PartitionDriver(object):
 
                 if perfplotter is not None:
                     for iseq in range(len(uids)):  # TODO get perfplotter handling multi-seq lines
-                        if uids[iseq] in self.sw_info['indels']:
-                            print '    skipping performance evaluation of %s because of indels' % uids[iseq]  # I just have no idea how to handle naive hamming fraction when there's indels
-                            continue
-                        singlefo = utils.synthesize_single_seq_line(line_to_use, iseq)
-                        perfplotter.evaluate(self.reco_info[uids[iseq]], singlefo)
-                        if len(singlefo['naive_seq']) != len(self.reco_info[uids[iseq]]['naive_seq']):
-                            raise Exception('shouldn\'t get here!')
-                            # singlefo = utils.reset_effective_erosions_and_effective_insertions(self.glfo, singlefo)  # TODO this is wrong, since <singlefo> can be derived from <eroded_line>, i.e. the reset_ fcn was already called on it. But it doesn't really matter, since it's commented now, and should be able to stay that way
+                        perfplotter.evaluate(self.reco_info[uids[iseq]], utils.synthesize_single_seq_line(line_to_use, iseq), simglfo=self.simglfo)
 
         # parameter and performance writing/plotting
         if pcounter is not None:

@@ -879,15 +879,30 @@ def make_html(plotdir, n_columns=3, extension='svg', fnames=None, title='foop', 
         line = '<td><a target="_blank" href="' + dirname + '/' + fname + '"><img src="' + dirname + '/' + fname + '" alt="' + dirname + '/' + fname + '" width="100%"></a></td>'
         lines.append(line)
 
+    # if <fnames> wasn't used to tell us how to group them into rows, try to guess based on the file base names
     if fnames is None:
         fnamelist = [os.path.basename(fn) for fn in sorted(glob.glob(plotdir + '/*.' + extension))]
         fnames = []
+
         # arrange the ones that have '[vdj]_' into group of three
         for v_fn in [fn for fn in fnamelist if os.path.basename(fn).find('v_') == 0]:  # get the ones that start with 'v_', so we can use them as templates for the others
             fstem = v_fn.replace('v_', '')
             fnames.append([rstr + fstem for rstr in plotconfig.rstrings if rstr + fstem in fnamelist])
             for fn in fnames[-1]:
                 fnamelist.remove(fn)
+
+        # and group insertion lengths together
+        found_bound_fnames = []
+        for bound in utils.all_boundaries:
+            for fn in fnamelist:
+                if bound + '_insertion' in fn:
+                    found_bound_fnames.append(fn)
+                    break
+        if len(found_bound_fnames) == len(utils.all_boundaries):
+            fnames.append(found_bound_fnames)
+            for fn in found_bound_fnames:
+                fnamelist.remove(fn)
+
         # then do the rest in groups of <n_columns>
         while len(fnamelist) > 0:
             fnames.append(fnamelist[:n_columns])

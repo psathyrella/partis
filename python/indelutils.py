@@ -53,6 +53,12 @@ def has_indels(indelfo):
     return len(indelfo['indels']) > 0
 
 # ----------------------------------------------------------------------------------------
+def net_length(indelfo):
+    def sign(ifo):
+        return 1 if ifo['type'] == 'insertion' else -1
+    return sum([sign(ifo) * ifo['len'] for ifo in indelfo['indels']])
+
+# ----------------------------------------------------------------------------------------
 def adjust_single_position_for_reinstated_indels(indel, position):
     if indel['pos'] > position:  # NOTE this just ignores the case where the indel's in the middle of the codon, because, like, screw that I don't want to think about it
         return position

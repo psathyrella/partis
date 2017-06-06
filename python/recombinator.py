@@ -294,7 +294,7 @@ class Recombinator(object):
                 print '%s tried to get an in-frame rearrangement %d times already' % (utils.color('yellow', 'warning'), n_tries)
 
         # convert insertions back to lengths (hoo boy this shouldn't need to be done)
-        for bound in utils.boundaries + utils.effective_boundaries:
+        for bound in utils.all_boundaries:
             tmpline[bound + '_insertion'] = len(tmpline[bound + '_insertion'])
 
         return tmpline

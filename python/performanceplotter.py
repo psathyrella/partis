@@ -9,6 +9,7 @@ import math
 
 import plotconfig
 from hist import Hist
+import indelutils
 
 class PerformancePlotter(object):
     # ----------------------------------------------------------------------------------------
@@ -23,6 +24,7 @@ class PerformancePlotter(object):
         for rstr in plotconfig.rstrings:
             self.values[rstr + 'hamming_to_true_naive'] = {}
             self.values[rstr + 'muted_bases'] = {}
+        self.values['shm_indel_length'] = {}
 
         self.hists['mute_freqs'] = Hist(25, -0.04, 0.04)  # only do mutation frequency for the whole sequence
         # NOTE this hist bounds here are intended to be super inclusive, whereas in compare-plotdirs.py we apply the more-restrictive ones from plotconfig.py (we still shift overflows here, where appropriate, though)
@@ -76,7 +78,10 @@ class PerformancePlotter(object):
             self.hists[region + '_allele_wrong_vs_per_gene_support'].fill(support)
 
     # ----------------------------------------------------------------------------------------
-    def evaluate(self, true_line, inf_line):
+    def evaluate(self, true_line, inf_line, simglfo=None):
+        if len(inf_line['unique_ids']) > 1:
+            raise Exception('mutli-seq lines not yet handled')
+        iseq = 0
 
         def addval(col, simval, infval):
             if col[2:] == '_insertion':  # stored as the actual inserted bases
@@ -87,14 +92,28 @@ class PerformancePlotter(object):
                 self.values[col][diff] = 0
             self.values[col][diff] += 1
 
+        if indelutils.has_indels(true_line['indelfos'][iseq]) or indelutils.has_indels(inf_line['indelfos'][iseq]):
+            simlen = indelutils.net_length(true_line['indelfos'][iseq])
+            inflen = indelutils.net_length(inf_line['indelfos'][iseq])
+            addval('shm_indel_length', simlen, inflen)
+            if simlen != inflen:  # this is probably because the simulated shm indel was within the cdr3, so we attempt to fix it by switching the sim line to non-reversed
+                print '    %s true and inferred shm net indel lengths different, so skipping rest of performance evaluation' % ' '.join(inf_line['unique_ids'])
+                # note that you can't really evaluate the rest of the performance vars in a particularly meaningful when the indel info is different (like I tried to do below) since you have to decide how to assign the indel'd bases (like, is it correct to assign the indel'd bases to a deletion? or to an insertion? or to the j?)
+                return
+                # true_line = copy.deepcopy(true_line)
+                # utils.remove_all_implicit_info(true_line)
+                # true_line['indelfos'][iseq] = indelutils.get_empty_indel()
+                # true_line['seqs'][iseq] = true_line['input_seqs'][iseq]
+                # utils.add_implicit_info(simglfo, true_line)
+
         mutfo = {lt : {mt : {} for mt in ['freq', 'total']} for lt in ['sim', 'inf']}
         for rstr in plotconfig.rstrings:
             if rstr == '':  # these are already in the <line>s, so may as well not recalculate
-                mutfo['sim']['freq'][rstr], mutfo['sim']['total'][rstr] = true_line['mut_freqs'][0], true_line['n_mutations'][0]
-                mutfo['inf']['freq'][rstr], mutfo['inf']['total'][rstr] = inf_line['mut_freqs'][0], inf_line['n_mutations'][0]
+                mutfo['sim']['freq'][rstr], mutfo['sim']['total'][rstr] = true_line['mut_freqs'][iseq], true_line['n_mutations'][iseq]
+                mutfo['inf']['freq'][rstr], mutfo['inf']['total'][rstr] = inf_line['mut_freqs'][iseq], inf_line['n_mutations'][iseq]
             else:
-                mutfo['sim']['freq'][rstr], mutfo['sim']['total'][rstr] = utils.get_mutation_rate_and_n_muted(true_line, iseq=0, restrict_to_region=rstr.rstrip('_'))
-                mutfo['inf']['freq'][rstr], mutfo['inf']['total'][rstr] = utils.get_mutation_rate_and_n_muted(inf_line, iseq=0, restrict_to_region=rstr.rstrip('_'))
+                mutfo['sim']['freq'][rstr], mutfo['sim']['total'][rstr] = utils.get_mutation_rate_and_n_muted(true_line, iseq=iseq, restrict_to_region=rstr.rstrip('_'))
+                mutfo['inf']['freq'][rstr], mutfo['inf']['total'][rstr] = utils.get_mutation_rate_and_n_muted(inf_line, iseq=iseq, restrict_to_region=rstr.rstrip('_'))
 
         for col in plotconfig.gene_usage_columns:
             self.set_bool_column(true_line, inf_line, col, mutfo['sim']['freq'][''])  # this also sets the fraction-correct-vs-mute-freq hists
