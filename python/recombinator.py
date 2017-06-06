@@ -15,6 +15,7 @@ import subprocess
 import paramutils
 import utils
 import glutils
+import indelutils
 from event import RecombinationEvent
 
 dummy_name_so_bppseqgen_doesnt_break = 'xxx'  # bppseqgen ignores branch length before mrca, so we add a spurious leaf with this name and the same total depth as the rest of the tree, then remove it after getting bppseqgen's output
