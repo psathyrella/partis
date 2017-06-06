@@ -53,11 +53,8 @@ class PerformancePlotter(object):
 
     # ----------------------------------------------------------------------------------------
     def add_fail(self):
-        for column in self.values:
-            if column in plotconfig.gene_usage_columns:
-                self.values[column]['wrong'] += 1
-            else:
-                pass
+        for column in plotconfig.gene_usage_columns:
+            self.values[column]['wrong'] += 1
 
     # ----------------------------------------------------------------------------------------
     def set_bool_column(self, true_line, inf_line, column, overall_mute_freq):
@@ -70,8 +67,8 @@ class PerformancePlotter(object):
 
     # ----------------------------------------------------------------------------------------
     def set_per_gene_support(self, true_line, inf_line, region):
-        if inf_line[region + '_per_gene_support'].keys()[0] != inf_line[region + '_gene']:
-            print '   WARNING best-supported gene %s not same as viterbi gene %s' % (utils.color_gene(inf_line[region + '_per_gene_support'].keys()[0]), utils.color_gene(inf_line[region + '_gene']))
+        # if inf_line[region + '_per_gene_support'].keys()[0] != inf_line[region + '_gene']:
+        #     print '   WARNING best-supported gene %s not same as viterbi gene %s' % (utils.color_gene(inf_line[region + '_per_gene_support'].keys()[0]), utils.color_gene(inf_line[region + '_gene']))
         support = inf_line[region + '_per_gene_support'].values()[0]  # sorted, ordered dict with gene : logprob key-val pairs
         if true_line[region + '_gene'] == inf_line[region + '_gene']:  # NOTE this requires allele to be correct, but set_bool_column() does not
             self.hists[region + '_allele_right_vs_per_gene_support'].fill(support)
@@ -79,28 +76,7 @@ class PerformancePlotter(object):
             self.hists[region + '_allele_wrong_vs_per_gene_support'].fill(support)
 
     # ----------------------------------------------------------------------------------------
-    def add_partial_fail(self, true_line, line):
-        # NOTE does not fill all the hists ('cause it kind of can't, right?)
-
-        overall_mute_freq = utils.get_mutation_rate(true_line, iseq=0)  # true value
-
-        for column in self.values:
-            if column in plotconfig.gene_usage_columns:
-                if column in line:
-                    self.set_bool_column(true_line, line, column, overall_mute_freq)
-            else:
-                pass
-
-        for region in utils.regions:
-            if region + '_per_gene_support' in inf_line:
-                self.set_per_gene_support(true_line, inf_line, region)
-
-    # ----------------------------------------------------------------------------------------
     def evaluate(self, true_line, inf_line):
-
-# ----------------------------------------------------------------------------------------
-        # fix add_partial_fail and add_fail
-# ----------------------------------------------------------------------------------------
 
         def addval(col, simval, infval):
             if col[2:] == '_insertion':  # stored as the actual inserted bases
