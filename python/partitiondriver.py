@@ -344,11 +344,11 @@ class PartitionDriver(object):
                 if line['v_gene'] == '':
                     failed_queries.add(line['unique_ids'])
                     continue
-                if self.args.queries is not None and self.args.queries[0] not in line['unique_ids']:  # check that at least the first requested query is present in the unconverted unique_ids string, since conversion is slow
-                    continue
+                if self.args.queries is not None:
+                    uids = set(line['unique_ids'].split(':'))  # avoid processing the whole input line if we don't need to
+                    if len(set(self.args.queries) & uids) == 0:  # actually make sure this is the precise set of queries we want (note that --queries and line['unique_ids'] are both ordered, and this ignores that... oh, well, sigh.)
+                        continue
                 utils.process_input_line(line)
-                if self.args.queries is not None and len(set(self.args.queries) & set(line['unique_ids'])) == 0:  # actually make sure this is the precise set of queries we want (note that --queries and line['unique_ids'] are both ordered, and this ignores that... oh, well, sigh.)
-                    continue
                 if self.args.reco_ids is not None and line['reco_id'] not in self.args.reco_ids:
                     continue
                 utils.add_implicit_info(self.glfo, line)
