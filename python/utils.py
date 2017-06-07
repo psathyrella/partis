@@ -2573,7 +2573,15 @@ def split_partition_with_criterion(partition, criterion_fcn):
     return true_clusters, false_clusters
 
 # ----------------------------------------------------------------------------------------
-def collapse_naive_seqs(naive_seq_list, sw_info):  # NOTE there is also a (simpler) naive seq collapse function in allelefinder
+def collapse_naive_seqs(swfo, queries=None):
+    if queries is None:
+        queries = swfo['queries']  # don't modify this
+    def keyfunc(q):
+        return swfo[q]['naive_seq']
+    return [list(group) for _, group in itertools.groupby(sorted(queries, key=keyfunc), key=keyfunc)]
+
+# ----------------------------------------------------------------------------------------
+def collapse_naive_seqs_with_hashes(naive_seq_list, sw_info):
     naive_seq_map = {}  # X[cdr3][hash(naive_seq)] : naive_seq
     naive_seq_hashes = {}  # X[hash(naive_seq)] : [uid1, uid2, uid3...]
     for uid, naive_seq in naive_seq_list:
@@ -2730,7 +2738,7 @@ def read_vsearch_cluster_file(fname):
     return partition
 
 # ----------------------------------------------------------------------------------------
-def run_vsearch(action, seqs, workdir, threshold, n_procs=1, batch_system=None, batch_options=None, batch_config_fname=None, consensus_fname=None, msa_fname=None, glfo=None):
+def run_vsearch(action, seqs, workdir, threshold, n_procs=1, batch_system=None, batch_options=None, batch_config_fname=None, consensus_fname=None, msa_fname=None, glfo=None, print_time=False):
     # single-pass, greedy, star-clustering algorithm with
     #  - add the target to the cluster if the pairwise identity with the centroid is higher than global threshold <--id>
     #  - pairwise identity definition <--iddef> defaults to: number of (matching columns) / (alignment length - terminal gaps)
@@ -2739,7 +2747,7 @@ def run_vsearch(action, seqs, workdir, threshold, n_procs=1, batch_system=None, 
     #    - If both are zero, it searches the whole database
     #    - I do not remember why I set both to zero. I just did a quick test, and on a few thousand sequences, it seems to be somewhat faster with the defaults, and a tiny bit less accurate.
     region = 'v'
-
+    start = time.time()
 
     prep_dir(workdir)
     infname = workdir + '/input.fa'
@@ -2792,7 +2800,7 @@ def run_vsearch(action, seqs, workdir, threshold, n_procs=1, batch_system=None, 
                 length = int(line['qihi']) - int(line['qilo']) + 1
                 qr_seq = seqs[query][istart : istart + length]
                 id_score = int(line['ids'])
-                if query not in query_info or query_info[query]['ids'] < id_score:  # a surprisingly large number of targets give the same score, and you seem to get a little closer to what sw does if you sort alphabetically, but it don't matter
+                if query not in query_info or query_info[query]['ids'] < id_score:  # note that a surprisingly large number of targets give the same score, and you seem to get a little closer to what sw does if you sort alphabetically, but it don't matter
                     query_info[query] = {'ids' : id_score,
                                          'gene' : line['target'],
                                          'qr_seq' : qr_seq}
@@ -2809,6 +2817,8 @@ def run_vsearch(action, seqs, workdir, threshold, n_procs=1, batch_system=None, 
     os.remove(infname)
     os.remove(outfname)
     os.rmdir(workdir)
+    if print_time:
+        print '      vsearch time: %.1f' % (time.time()-start)
 
     return returnfo
 

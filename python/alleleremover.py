@@ -20,7 +20,6 @@ class AlleleRemover(object):
         self.genes_to_remove = None
         self.dbg_strings = {}
         self.region = 'v'
-        self.codon_positions = utils.cdn_positions(self.glfo, self.region)
 
         self.finalized = False
 
