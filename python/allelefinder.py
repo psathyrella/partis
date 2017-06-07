@@ -106,7 +106,7 @@ class AlleleFinder(object):
         self.n_clonal_representatives[gene] = 0
 
     # ----------------------------------------------------------------------------------------
-    def choose_cluster_representatives(self, swfo, cluster, debug=False):
+    def choose_cluster_representatives(self, swfo, cluster, debug=False):  # NOTE there's somewhat similar code in AlleleClusterer
         # I could probably make this a lot faster by just always only taking one sequence from highly mutated clusters (they have so many shared mutations anyway)
         assert len(cluster) > 0
         if len(cluster) == 1:
