@@ -2818,7 +2818,7 @@ def run_vsearch(action, seqs, workdir, threshold, n_procs=1, batch_system=None, 
     os.remove(outfname)
     os.rmdir(workdir)
     if print_time:
-        print '      vsearch time: %.1f' % (time.time()-start)
+        print '      vsearch: %d %s annotations in %.1f sec' % (len(seqs), region, time.time() - start)
 
     return returnfo
 
