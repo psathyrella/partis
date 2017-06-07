@@ -288,13 +288,14 @@ class PartitionDriver(object):
             vs_info = utils.run_vsearch('search', {sfo['unique_ids'][0] : sfo['seqs'][0] for sfo in self.input_info.values()}, self.args.workdir + '/vsearch', threshold=0.3, n_procs=self.args.n_procs, glfo=tmpglfo, print_time=True)
             alremover = AlleleRemover(self.glfo, self.args, AlleleFinder(self.glfo, self.args, itry=0))
             alremover.finalize(sorted(vs_info['gene-counts'].items(), key=operator.itemgetter(1), reverse=True), debug=True)
+            glutils.remove_genes(self.glfo, alremover.genes_to_remove)
+            glutils.write_glfo(self.my_gldir, self.glfo)
             if self.args.allele_cluster:
                 alclusterer = AlleleClusterer(self.args)
-                alcluster_alleles = alclusterer.get_alleles(vs_info['queries'], vs_info['mute-freqs']['v'], self.glfo, reco_info=self.reco_info)
-                # alcluster_alleles = alclusterer.get_alleles(queryfo=None, threshold=swfo['mute-freqs']['v'], glfo=self.glfo, swfo=swfo)
+                # TODO make it so you don't have to count parameters here to get 'mute-freqs' (there's a comment about this also written somewhere else)
+                self.run_waterer(count_parameters=True)
+                alcluster_alleles = alclusterer.get_alleles(queryfo=None, threshold=self.sw_info['mute-freqs']['v'], glfo=self.glfo, swfo=self.sw_info)
                 glutils.add_new_alleles(self.glfo, alcluster_alleles.values(), use_template_for_codon_info=False, debug=True)
-                sys.exit()
-            glutils.remove_genes(self.glfo, alremover.genes_to_remove)
         elif self.args.initial_aligner == 'sw':
             assert not self.args.allele_cluster
             self.run_waterer(remove_less_likely_alleles=True, count_parameters=True)
@@ -302,6 +303,7 @@ class PartitionDriver(object):
         else:
             assert False
 
+        # NOTE you have to make sure to write between making changes to <self.glfo> and running waterer (could probably stand to change this arrangement at some point)
         glutils.write_glfo(self.my_gldir, self.glfo)
 
         if self.args.find_new_alleles:
