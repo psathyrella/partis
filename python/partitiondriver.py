@@ -282,31 +282,26 @@ class PartitionDriver(object):
 #         print ' same snps %4d' % n_same_snps
 #         sys.exit()
 # # ----------------------------------------------------------------------------------------
-        alcluster_alleles = None
-        genes_to_remove = None
         if self.args.initial_aligner == 'vsearch':
             tmpglfo = copy.deepcopy(self.glfo)  # definitely don't leave it like this
             glutils.remove_v_genes_with_bad_cysteines(tmpglfo)  # hm...
-            vs_info = utils.run_vsearch('search', {sfo['unique_ids'][0] : sfo['seqs'][0] for sfo in self.input_info.values()}, self.args.workdir + '/vsearch', threshold=0.3, n_procs=self.args.n_procs, glfo=tmpglfo)
+            vs_info = utils.run_vsearch('search', {sfo['unique_ids'][0] : sfo['seqs'][0] for sfo in self.input_info.values()}, self.args.workdir + '/vsearch', threshold=0.3, n_procs=self.args.n_procs, glfo=tmpglfo, print_time=True)
             alremover = AlleleRemover(self.glfo, self.args, AlleleFinder(self.glfo, self.args, itry=0))
             alremover.finalize(sorted(vs_info['gene-counts'].items(), key=operator.itemgetter(1), reverse=True), debug=True)
             if self.args.allele_cluster:
                 alclusterer = AlleleClusterer(self.args)
-                alcluster_alleles = alclusterer.get_alleles(vs_info['queries'], vs_info['mute-freqs']['v'], self.glfo)
-            genes_to_remove = alremover.genes_to_remove
+                alcluster_alleles = alclusterer.get_alleles(vs_info['queries'], vs_info['mute-freqs']['v'], self.glfo, reco_info=self.reco_info)
+                # alcluster_alleles = alclusterer.get_alleles(queryfo=None, threshold=swfo['mute-freqs']['v'], glfo=self.glfo, swfo=swfo)
+                glutils.add_new_alleles(self.glfo, alcluster_alleles.values(), use_template_for_codon_info=False, debug=True)
+                sys.exit()
+            glutils.remove_genes(self.glfo, alremover.genes_to_remove)
         elif self.args.initial_aligner == 'sw':
+            assert not self.args.allele_cluster
             self.run_waterer(remove_less_likely_alleles=True, count_parameters=True)
-            swfo = self.sw_info  # just so you don't forget that the above line modifies/creates it
-            if self.args.allele_cluster:
-                alclusterer = AlleleClusterer(self.args)
-                alcluster_alleles = alclusterer.get_alleles(queryfo=None, threshold=swfo['mute-freqs']['v'], glfo=self.glfo, swfo=swfo)
-            genes_to_remove = swfo['genes-to-remove']
+            glutils.remove_genes(self.glfo, self.sw_info['genes-to-remove'])
         else:
             assert False
 
-        if self.args.allele_cluster:
-            glutils.add_new_alleles(self.glfo, alcluster_alleles.values(), use_template_for_codon_info=False, debug=True)
-        glutils.remove_genes(self.glfo, genes_to_remove)
         glutils.write_glfo(self.my_gldir, self.glfo)
 
         if self.args.find_new_alleles:
@@ -644,7 +639,7 @@ class PartitionDriver(object):
             threshold = self.get_naive_hamming_bounds(parameter_dir=None, overall_mute_freq=self.sw_info['mute-freqs']['all'])[0]  # lo and hi are the same
             naive_seq_list = [(q, self.sw_info[q]['naive_seq']) for q in self.sw_info['queries']]
 
-        all_naive_seqs, naive_seq_hashes = utils.collapse_naive_seqs(naive_seq_list, self.sw_info)
+        all_naive_seqs, naive_seq_hashes = utils.collapse_naive_seqs_with_hashes(naive_seq_list, self.sw_info)
 
         print '    using hfrac bound for vsearch %.3f' % threshold
 
