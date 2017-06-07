@@ -20,12 +20,6 @@ with open(partis_path + '/test/reference-results/annotate-new-simu.csv') as csvf
         utils.process_input_line(line)
         utils.add_implicit_info(glfo, line)
         utils.print_reco_event(line)
-        cdr3_bounds = (line['codon_positions']['v'], line['codon_positions']['j'] + 3)
-        print ''
-        print '  should match the above:'
-        print '    %s naive cdr3' % line['naive_seq'][cdr3_bounds[0] : cdr3_bounds[1]]
-        print '    %s mature' % line['indel_reversed_seqs'][0][cdr3_bounds[0] : cdr3_bounds[1]]
-        print ''
         break
 
 print 'then parse a partition csv file:'
