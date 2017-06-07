@@ -19,7 +19,7 @@ class AlleleClusterer(object):
         self.max_j_mutations = 8
 
     # ----------------------------------------------------------------------------------------
-    def get_alleles(self, queryfo, threshold, glfo, swfo=None, reco_info=None, debug=True):
+    def get_alleles(self, queryfo, threshold, glfo, swfo=None, reco_info=None, simglfo=None, debug=True):
         # NOTE do *not* modify <glfo> (in the future it would be nice to just modify <glfo>, but for now we need it to be super clear in partitiondriver what is happening to <glfo>)
         if swfo is None:
             print '  note: not collapsing clones, since we\'re working from vsearch v-only info'
@@ -82,12 +82,10 @@ class AlleleClusterer(object):
                 for gene, counts in sorted_glcounts:
                     print '    %-12s  %4d   %s' % (utils.color_gene(gene, width=12), counts, utils.color_mutants(clusterfo['cons_seq'], glfo['seqs'][self.region][gene], print_isnps=True, align=True))
                 if reco_info is not None:
-                    mean_j_mutation = numpy.mean([utils.get_n_muted(reco_info[seqfo['name']], iseq=0, restrict_to_region='j') for seqfo in clusterfo['seqfos']])
-                    print '  %s   %d' % (utils.color('green', 'true'), mean_j_mutation)
-                    #':'.join([seqfo['name'] for seqfo in clusterfo['seqfos']]))
+                    print '  %s' % utils.color('green', 'true')
                     print '    %-12s  %4s   %s' % ('consensus', '', clusterfo['cons_seq'])
                     for gene, counts in true_sorted_glcounts:
-                        print '    %-12s  %4d   %s' % (utils.color_gene(gene, width=12), counts, utils.color_mutants(clusterfo['cons_seq'], glfo['seqs'][self.region][gene], print_isnps=True, align=True))
+                        print '    %-12s  %4d   %s' % (utils.color_gene(gene, width=12), counts, utils.color_mutants(clusterfo['cons_seq'], simglfo['seqs'][self.region][gene], print_isnps=True, align=True))
 
             # choose the most common existing gene to use as a template (the most similar gene might be a better choice, but deciding on "most similar" would involve adjudicating between snps and indels, and it shouldn't really matter)
             template_gene, _ = sorted_glcounts[0]

@@ -294,7 +294,7 @@ class PartitionDriver(object):
                 alclusterer = AlleleClusterer(self.args)
                 # TODO make it so you don't have to count parameters here to get 'mute-freqs' (there's a comment about this also written somewhere else)
                 self.run_waterer(count_parameters=True)
-                alcluster_alleles = alclusterer.get_alleles(queryfo=None, threshold=self.sw_info['mute-freqs']['v'], glfo=self.glfo, swfo=self.sw_info)
+                alcluster_alleles = alclusterer.get_alleles(queryfo=None, threshold=self.sw_info['mute-freqs']['v'], glfo=self.glfo, swfo=self.sw_info, reco_info=self.reco_info, simglfo=self.simglfo)
                 glutils.add_new_alleles(self.glfo, alcluster_alleles.values(), use_template_for_codon_info=False, debug=True)
         elif self.args.initial_aligner == 'sw':
             assert not self.args.allele_cluster
