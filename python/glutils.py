@@ -558,6 +558,8 @@ def add_new_allele(glfo, newfo, remove_template_genes=False, use_template_for_co
 
     if len(set(newfo['seq']) - utils.alphabet) > 0:
         raise Exception('unexpected characters %s in new gl seq %s' % (set(newfo['seq']) - utils.alphabet, newfo['seq']))
+    if new_gene in glfo['seqs'][region]:
+        raise Exception('attempted to add name %s that already exists in glfo' % new_gene)
     glfo['seqs'][region][new_gene] = newfo['seq']
 
     if use_template_for_codon_info:
