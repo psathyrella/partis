@@ -1,5 +1,7 @@
 import copy
 
+import utils
+
 # NOTE that even the uncommented functions are kinda not completely right for multiple indels (they're fine as long as we're asking for cyst/tryp/phen positions, and indels are in v or j, which should always be true a.t.m.)
 
 # # ----------------------------------------------------------------------------------------
@@ -100,5 +102,5 @@ def get_qr_seqs_with_indels_reinstated(line, iseq):
     rbounds = get_regional_bounds_with_indels_reinstated(line, iseq)
     # assert line['input_seqs'][iseq] == get_seq_with_indels_reinstated(line, iseq)
     inseq = line['input_seqs'][iseq]
-    qr_seqs = {r : inseq[rbounds[r][0] : rbounds[r][1]] for r in regions}
+    qr_seqs = {r : inseq[rbounds[r][0] : rbounds[r][1]] for r in utils.regions}
     return qr_seqs
