@@ -74,6 +74,8 @@ legend_titles = {
 def varvalstr(name, val):
     if name == 'multi-nsnp':
         valstr = ':'.join([str(v) for v in val])
+    elif name == 'alcluster':
+        valstr = utils.sanitize_name(val)
     elif name == 'gls-gen':
         valstr = 'simu'
     else:
@@ -277,6 +279,10 @@ def run_single_test(args, baseoutdir, val, n_events, method):
         cmd += ' --n-leaves 5'  # NOTE default of 1 (for other tests) is set in test-allele-finding.py
         cmd += ' --n-leaf-distribution geometric'
         cmd += ' --n-max-queries ' + str(n_events)  # i.e. we simulate <n_events> rearrangement events, but then only use <n_events> sequences for inference
+    elif args.action == 'alcluster':
+        cmd += ' --allele-cluster'
+        sim_v_genes = [val]
+        nsnpstr = ''
     elif args.action == 'gls-gen':
         nsnpstr = '1:1:2:2:3'
         cmd += ' --gls-gen'
@@ -285,7 +291,7 @@ def run_single_test(args, baseoutdir, val, n_events, method):
 
     if args.action != 'gls-gen':
         cmd += ' --sim-v-genes ' + ':'.join(sim_v_genes)
-    if '--nosim' not in cmd:
+    if '--nosim' not in cmd and nsnpstr != '':
         cmd += ' --nsnp-list ' + nsnpstr
     cmd += ' --outdir ' + outdir
     utils.simplerun(cmd) #, dryrun=True)
@@ -333,6 +339,11 @@ default_varvals = {
     'prevalence' : '0.1:0.2:0.3',
     'n-leaves' : '1.5:3:10',
     'weibull' : '0.3:0.5:1.3',
+    'alcluster' : [
+        # 'IGHV1-2*01',
+        # 'IGHV5-51*03',
+        'IGHV4-28*01',
+    ],
     'gls-gen' : None,
     'data' : {
         # 'jason-mg' : ['HD07-igh', 'HD07-igk', 'HD07-igl', 'AR03-igh', 'AR03-igk', 'AR03-igl'],
@@ -354,7 +365,7 @@ for study in data_pairs:
         data_pairs[study][idp] = [heads.full_dataset(heads.read_metadata(study), ds) for ds in data_pairs[study][idp]]
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
-parser.add_argument('action', choices=['mfreq', 'nsnp', 'multi-nsnp', 'prevalence', 'n-leaves', 'weibull', 'gls-gen', 'data'])
+parser.add_argument('action', choices=['mfreq', 'nsnp', 'multi-nsnp', 'prevalence', 'n-leaves', 'weibull', 'alcluster', 'gls-gen', 'data'])
 parser.add_argument('--methods', default='partis') #choices=['partis', 'full', 'tigger'])
 parser.add_argument('--v-genes', default='IGHV4-39*01')
 parser.add_argument('--varvals')
@@ -390,7 +401,8 @@ if args.action == 'mfreq' or args.action == 'prevalence' or args.action == 'n-le
     kwargs['floatify'] = True
 if args.action == 'nsnp':
     kwargs['intify'] = True
-args.varvals = utils.get_arg_list(args.varvals, **kwargs)
+if args.action != 'alcluster':  # could also do this for data i think, if i remove that line up there ^
+    args.varvals = utils.get_arg_list(args.varvals, **kwargs)
 if args.action == 'multi-nsnp':
     args.varvals = [[int(n) for n in gstr.split(',')] for gstr in args.varvals]  # list of nsnps for each test, e.g. '1,1:2,2' runs two tests: 1) two new alleles, each with one snp and 2) two new alleles each with 2 snps
     factor = numpy.median([(len(nl) + 1) / 2. for nl in args.varvals])  # i.e. the ratio of (how many alleles we'll be dividing the events among), to (how many we'd be dividing them among for the other [single-nsnp] tests)
