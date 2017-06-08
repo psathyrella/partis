@@ -124,6 +124,8 @@ def run_partis(args, method):
     cmd_str = args.partis_path + ' cache-parameters --infname ' + args.simfname + ' --only-smith-waterman'
     if method == 'partis':
         cmd_str += ' --find-new-alleles --debug-allele-finding' # --always-find-new-alleles'
+        if args.allele_cluster:
+            cmd_str += ' --initial-aligner vsearch --allele-cluster'
     elif method == 'full':
         cmd_str += ' --dont-remove-unlikely-alleles'
     else:
@@ -136,7 +138,7 @@ def run_partis(args, method):
         cmd_str += ' --batch-system slurm'
 
     if not args.gls_gen:  # otherwise it uses the default (full) germline dir
-        cmd_str += ' --dont-remove-unlikely-alleles --initial-germline-dir ' + args.inf_glfo_dir
+        cmd_str += ' --initial-germline-dir ' + args.inf_glfo_dir  # --dont-remove-unlikely-alleles
 
     cmd_str += ' --parameter-dir ' + paramdir
     cmd_str += ' --only-overall-plots --plotdir ' + plotdir
@@ -281,6 +283,7 @@ parser.add_argument('--n-leaf-distribution')
 parser.add_argument('--n-procs', type=int, default=2)
 parser.add_argument('--seed', type=int, default=int(time.time()))
 parser.add_argument('--gls-gen', action='store_true', help='generate a random germline set from scratch (parameters specified above), and infer a germline set from scratch, instead of using --sim-v-genes, --dj-genes, --inf-v-genes, and --snp-positions.')
+parser.add_argument('--allele-cluster', action='store_true')
 parser.add_argument('--sim-v-genes', default='IGHV4-39*01:IGHV4-39*06', help='.')
 parser.add_argument('--inf-v-genes', default='IGHV4-39*01', help='.')
 parser.add_argument('--dj-genes', default='IGHD6-19*01:IGHJ4*02', help='.')
