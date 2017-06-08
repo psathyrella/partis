@@ -2760,6 +2760,8 @@ def run_vsearch(action, seqs, workdir, threshold, n_procs=1, batch_system=None, 
     # run
     cmd = os.path.dirname(os.path.realpath(__file__)).replace('/python', '') + '/bin/vsearch-2.4.3-linux-x86_64'
     cmd += ' --id ' + str(1. - threshold)
+    # cmd += ' --match '  # default 2
+    # cmd += ' --mismatch '  # default -4
     if action == 'cluster':
         outfname = workdir + '/vsearch-clusters.txt'
         cmd += ' --cluster_fast ' + infname
@@ -2790,7 +2792,6 @@ def run_vsearch(action, seqs, workdir, threshold, n_procs=1, batch_system=None, 
     if action == 'cluster':
         returnfo = read_vsearch_cluster_file(outfname)
     elif action == 'search':
-        glutils.remove_glfo_files(dbdir, glfo['locus'])
         query_info = {}
         with open(outfname) as alnfile:
             reader = csv.DictReader(alnfile, fieldnames=userfields, delimiter='\t')  # NOTE start/end positions are 1-indexed
@@ -2804,6 +2805,9 @@ def run_vsearch(action, seqs, workdir, threshold, n_procs=1, batch_system=None, 
                     query_info[query] = {'ids' : id_score,
                                          'gene' : line['target'],
                                          'qr_seq' : qr_seq}
+        if len(query_info) == 0:
+            raise Exception('didn\'t read anything from vsearch output file %s from cmd %s' % (outfname, cmd))
+        glutils.remove_glfo_files(dbdir, glfo['locus'])
         gene_counts = {}
         for query, qinfo in query_info.items():
             if qinfo['gene'] not in gene_counts:
@@ -2813,7 +2817,6 @@ def run_vsearch(action, seqs, workdir, threshold, n_procs=1, batch_system=None, 
         returnfo = {'gene-counts' : gene_counts, 'queries' : query_info, 'mute-freqs' : {region : regional_mute_freq}}
     else:
         assert False
-
     os.remove(infname)
     os.remove(outfname)
     os.rmdir(workdir)
