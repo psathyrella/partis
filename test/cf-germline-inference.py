@@ -76,7 +76,7 @@ def varvalstr(name, val):
     if name == 'multi-nsnp':
         valstr = ':'.join([str(v) for v in val])
     elif name == 'alcluster':
-        valstr = '-'.join(['n%s-%d' % (k, v) for k, v in val.items()])
+        valstr = '-'.join(['n%s-%s' % (k, v) for k, v in val.items()])
     elif name == 'gls-gen':
         valstr = 'simu'
     else:
@@ -289,9 +289,9 @@ def run_single_test(args, baseoutdir, val, n_events, method):
         cmd += ' --n-leaf-distribution geometric'
         cmd += ' --n-max-queries ' + str(n_events)  # i.e. we simulate <n_events> rearrangement events, but then only use <n_events> sequences for inference
     elif args.action == 'alcluster':
-        cmd += ' --allele-cluster'
-        nsnpstr = str(val['snp'])
-        nindelstr = str(val['indel'])
+        nsnpstr = val['snp']
+        nindelstr = val['indel']
+        sim_v_genes *= len(val['snp'].split(':'))
     elif args.action == 'gls-gen':
         nsnpstr = '1:1:2:3:100:100'
         nindelstr = '0:0:0:0:3:3'
@@ -354,7 +354,7 @@ default_varvals = {
     'weibull' : '0.3:0.5:1.3',
     'alcluster' : [
         # {'snp' : 25, 'indel' : 3},
-        {'snp' : 100, 'indel' : 3},
+        {'snp' : '75:100:125', 'indel' : '3:4:5'},
     ],
     'gls-gen' : None,
     'data' : {
