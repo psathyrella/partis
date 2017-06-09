@@ -74,6 +74,14 @@ class PartitionPlotter(object):
             yvals = [math.log(yv) for yv in yvals]
         hb = ax.hexbin(xvals, yvals, gridsize=n_max_mutations, cmap=plt.cm.Blues, bins='log')
 
+        nticks = 5
+        yticks = [yvals[0] + itick * (yvals[-1] - yvals[0]) / float(nticks - 1) for itick in range(nticks)]
+        if log_cluster_size:
+            yticklabels = [math.exp(yt) for yt in yticks]
+            yticklabels = [('%.0f' % yt) if yt > 5 else ('%.1f' % yt) for yt in yticklabels]
+        else:
+            yticklabels = [int(yt) for yt in yticks]
+
         if self.args.queries_to_include is not None:
             for cluster in sorted_clusters:
                 queries_to_include_in_this_cluster = set(cluster) & set(self.args.queries_to_include)
@@ -90,7 +98,7 @@ class PartitionPlotter(object):
         if log_cluster_size:
             ylabel = 'log(' + ylabel + ')'
             plotname += '-log'
-        plotting.mpl_finish(ax, base_plotdir + '/overall', plotname, xlabel='mean N mutations', ylabel=ylabel, xbounds=[0, n_max_mutations])
+        plotting.mpl_finish(ax, base_plotdir + '/overall', plotname, xlabel='mean N mutations', ylabel=ylabel, xbounds=[0, n_max_mutations], yticks=yticks, yticklabels=yticklabels)
 
     # ----------------------------------------------------------------------------------------
     def get_repfracstr(self, csize, repertoire_size):
