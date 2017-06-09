@@ -290,14 +290,14 @@ class PartitionDriver(object):
             alremover.finalize(sorted(vs_info['gene-counts'].items(), key=operator.itemgetter(1), reverse=True), debug=True)
             glutils.remove_genes(self.glfo, alremover.genes_to_remove)
             glutils.write_glfo(self.my_gldir, self.glfo)
-            if self.args.allele_cluster:
+            if not self.args.dont_allele_cluster:
                 alclusterer = AlleleClusterer(self.args)
                 # TODO make it so you don't have to count parameters here to get 'mute-freqs' (there's a comment about this also written somewhere else)
                 self.run_waterer(count_parameters=True)
                 alcluster_alleles = alclusterer.get_alleles(queryfo=None, threshold=self.sw_info['mute-freqs']['v'], glfo=self.glfo, swfo=self.sw_info, reco_info=self.reco_info, simglfo=self.simglfo)
                 glutils.add_new_alleles(self.glfo, alcluster_alleles.values(), use_template_for_codon_info=False, debug=True)
         elif self.args.initial_aligner == 'sw':
-            assert not self.args.allele_cluster
+            assert self.args.dont_allele_cluster
             self.run_waterer(remove_less_likely_alleles=True, count_parameters=True)
             glutils.remove_genes(self.glfo, self.sw_info['genes-to-remove'])
         else:
@@ -306,7 +306,7 @@ class PartitionDriver(object):
         # NOTE you have to make sure to write between making changes to <self.glfo> and running waterer (could probably stand to change this arrangement at some point)
         glutils.write_glfo(self.my_gldir, self.glfo)
 
-        if self.args.find_new_alleles:
+        if not self.args.dont_find_new_alleles:
             self.find_new_alleles()
         self.run_waterer(count_parameters=True, write_parameters=True, write_cachefile=True)
         self.restrict_to_observed_alleles(self.sw_param_dir)
