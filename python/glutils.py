@@ -567,12 +567,12 @@ def remove_gene(glfo, gene, debug=False):
             print '  can\'t remove %s from glfo, it\'s not there' % utils.color_gene(gene)
 
 # ----------------------------------------------------------------------------------------
-def add_new_alleles(glfo, newfos, remove_template_genes=False, use_template_for_codon_info=True, debug=False):
+def add_new_alleles(glfo, newfos, remove_template_genes=False, use_template_for_codon_info=True, simglfo=None, debug=False):
     for newfo in newfos:
-        add_new_allele(glfo, newfo, remove_template_genes=remove_template_genes, use_template_for_codon_info=use_template_for_codon_info, debug=debug)
+        add_new_allele(glfo, newfo, remove_template_genes=remove_template_genes, use_template_for_codon_info=use_template_for_codon_info, simglfo=simglfo, debug=debug)
 
 # ----------------------------------------------------------------------------------------
-def add_new_allele(glfo, newfo, remove_template_genes=False, use_template_for_codon_info=True, debug=False):
+def add_new_allele(glfo, newfo, remove_template_genes=False, use_template_for_codon_info=True, simglfo=None, debug=False):
     """
     Add a new allele to <glfo>, specified by <newfo> which is of the
     form: {'gene' : 'IGHV3-71*01+C35T.T47G', 'seq' : 'ACTG yadda yadda CGGGT', 'template-gene' : 'IGHV3-71*01'}
@@ -602,7 +602,21 @@ def add_new_allele(glfo, newfo, remove_template_genes=False, use_template_for_co
             get_missing_codon_info(glfo)
 
     if debug:
-        print '    adding new allele to glfo:'
+        simstr = ''
+        if simglfo is not None:
+            if new_gene in simglfo['seqs'][region]:
+                simstr = 'same name'
+                if newfo['seq'] == simglfo['seqs'][region][new_gene]:  # I mean if they have the same name they should be identical, but maybe not?
+                    simstr += ' and seq'
+                    simstr = utils.color('green', simstr)
+                else:
+                    simstr += utils.color('red', ' different seq')
+                simstr += ' as in simulation'
+            else:
+                simstr = 'looked in sim info above'
+                sim_name, sim_seq = find_new_allele_in_existing_glfo(simglfo, region, new_gene, newfo['seq'], glfo[codon + '-positions'][new_gene], debug=True)
+            simstr = '(' + simstr + ')'
+        print '    adding new allele to glfo: %s' % simstr
         print '      template %s   %s' % (glfo['seqs'][region][template_gene], utils.color_gene(template_gene))
         print '           new %s   %s' % (utils.color_mutants(glfo['seqs'][region][template_gene], newfo['seq'], align=True), utils.color_gene(new_gene))
 
