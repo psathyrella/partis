@@ -23,6 +23,7 @@
 #  - improve default n-partitions-to-write (I think just switch back to preserving previous partitions from different n_procs)
 #  - check whether translation needs to have a lower fractional bound, i.e. don't let the translation be too much smaller than the actual cluster (c.f. kate-qrs data -- what's happening translation-wise when really big clusters are getting merged)
 #  - stop passing ambiguous char to ham both in the yaml and on the command line
+#  - could speed up sw a lot by first using vsearch info to use only a few v genes for each sequence
 
 # testing
 #  - add allele finding

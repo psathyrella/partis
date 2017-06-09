@@ -15,6 +15,7 @@ class AlleleClusterer(object):
     def __init__(self, args):
         self.args = args
         self.region = 'v'
+        self.other_region = 'j'
         self.absolute_n_seqs_min = 15
         self.max_j_mutations = 8
 
@@ -30,11 +31,11 @@ class AlleleClusterer(object):
             clusters = utils.collapse_naive_seqs(swfo)
             qr_seqs = {}
             for cluster in clusters:  # take the sequence with the lowest j mutation for each cluster, if it doesn't have too many j mutations NOTE choose_cluster_representatives() in allelefinder is somewhat similar
-                j_mutations = {q : utils.get_n_muted(swfo[q], iseq=0, restrict_to_region='j') for q in cluster}
+                j_mutations = {q : utils.get_n_muted(swfo[q], iseq=0, restrict_to_region=self.other_region) for q in cluster}
                 best_query, smallest_j_mutations = sorted(j_mutations.items(), key=operator.itemgetter(1))[0]
                 if smallest_j_mutations < self.max_j_mutations:
                     qr_seqs[best_query] = indelutils.get_qr_seqs_with_indels_reinstated(swfo[best_query], iseq=0)[self.region]
-            print '    collapsed %d input sequences into %d representatives from %d clones' % (len(swfo['queries']), len(qr_seqs), len(clusters))
+            print '    collapsed %d input sequences into %d representatives from %d clones (removed %d clones with >= %d j mutations)' % (len(swfo['queries']), len(qr_seqs), len(clusters), len(clusters) - len(qr_seqs), self.max_j_mutations)
             gene_info = {q : swfo[q][self.region + '_gene'] for q in qr_seqs}
 
         msa_fname = self.args.workdir + '/msa.fa'
@@ -92,8 +93,8 @@ class AlleleClusterer(object):
             template_seq = glfo['seqs'][self.region][template_gene]
             template_cpos = utils.cdn_pos(glfo, self.region, template_gene)
 
-            new_name = template_gene + '+' + ''.join(numpy.random.choice(list('xyz'), size=8))  # er, not sure what to use here, but at least this probably won't result in collisions
             new_seq = clusterfo['cons_seq'].replace('-', '')
+            new_name = template_gene + '+' + str(abs(hash(new_seq)))[:5]
             new_name, new_seq = glutils.find_new_allele_in_existing_glfo(glfo, self.region, new_name, new_seq, template_cpos)
 
             if new_name in glfo['seqs'][self.region]:

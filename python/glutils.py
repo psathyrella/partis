@@ -502,6 +502,9 @@ def generate_single_new_allele(template_gene, template_cpos, template_seq, snp_p
             new_name += '+'
         new_name += '.%s%d' % (ifo['type'][0], ifo['pos'])
 
+    if len(new_name) > 20:
+        new_name = template_gene + '+' + str(abs(hash(new_seq)))[:5]
+
     return {'template-gene' : template_gene, 'gene' : new_name, 'seq' : new_seq, 'cpos' : new_cpos}
 
 # ----------------------------------------------------------------------------------------
@@ -786,7 +789,7 @@ def process_parameter_strings(n_genes_per_region, n_alleles_per_gene):
     return n_genes_per_region, n_alleles_per_gene
 
 # ----------------------------------------------------------------------------------------
-def generate_germline_set(glfo, n_genes_per_region, n_alleles_per_gene, min_allele_prevalence_freq, allele_prevalence_fname, snp_positions=None, remove_template_genes=False, debug=True):
+def generate_germline_set(glfo, n_genes_per_region, n_alleles_per_gene, min_allele_prevalence_freq, allele_prevalence_fname, new_allele_info=None, remove_template_genes=False, debug=True):
     """ NOTE removes genes from  <glfo> """
     if debug:
         print '    choosing germline set'
@@ -803,11 +806,12 @@ def generate_germline_set(glfo, n_genes_per_region, n_alleles_per_gene, min_alle
             print '      chose %d alleles' % len(genes_to_use)
         remove_genes(glfo, set(glfo['seqs'][region].keys()) - genes_to_use)  # NOTE would use glutils.restrict_to_genes() but it isn't on a regional basis
 
-        if region == 'v' and snp_positions is not None:
-            assert len(snp_positions) <= len(glfo['seqs'][region])
-            snpd_genes = numpy.random.choice(glfo['seqs'][region].keys(), size=len(snp_positions))
-            snps_to_add = [{'gene' : snpd_genes[ig], 'positions' : snp_positions[ig]} for ig in range(len(snp_positions))]
-            _ = generate_new_alleles(glfo, snps_to_add=snps_to_add, debug=True, remove_template_genes=remove_template_genes)
+        if region == 'v' and new_allele_info is not None:
+            assert len(new_allele_info) <= len(glfo['seqs'][region])
+            template_genes = numpy.random.choice(glfo['seqs'][region].keys(), size=len(new_allele_info))  # (template) genes in <new_allele_info> should all be None
+            for ig in range(len(new_allele_info)):
+                new_allele_info[ig]['gene'] = template_genes[ig]
+            _ = generate_new_alleles(glfo, new_allele_info, debug=True, remove_template_genes=remove_template_genes)
 
         choose_allele_prevalence_freqs(glfo, allele_prevalence_freqs, region, min_allele_prevalence_freq, debug=debug)
     write_allele_prevalence_freqs(allele_prevalence_freqs, allele_prevalence_fname)  # NOTE lumps all the regions together, unlike in the parameter dirs

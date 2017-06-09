@@ -270,7 +270,7 @@ def run_single_test(args, baseoutdir, val, n_events, method):
     cmd = get_base_cmd(args, n_events, method)
     outdir = get_outdir(args, baseoutdir, args.action, val, n_events=n_events)
     sim_v_genes = [args.v_genes[0]]
-    nsnpstr = '1'
+    nsnpstr, nindelstr = '1', ''
     if args.action == 'mfreq':
         cmd += ' --mut-mult ' + str(val)
     elif args.action == 'nsnp':
@@ -291,19 +291,23 @@ def run_single_test(args, baseoutdir, val, n_events, method):
     elif args.action == 'alcluster':
         cmd += ' --allele-cluster'
         nsnpstr = str(val['snp'])
-        cmd += ' --nindel-list ' + str(val['indel'])
+        nindelstr = str(val['indel'])
     elif args.action == 'gls-gen':
-        nsnpstr = '1:1:2:2:3'
+        nsnpstr = '1:1:2:3:100:100'
+        nindelstr = '0:0:0:0:3:3'
         cmd += ' --gls-gen'
     else:
         assert False
 
     if args.action != 'gls-gen':
         cmd += ' --sim-v-genes ' + ':'.join(sim_v_genes)
-    if '--nosim' not in cmd and nsnpstr != '':
-        cmd += ' --nsnp-list ' + nsnpstr
+    if '--nosim' not in cmd:
+        if nsnpstr != '':
+            cmd += ' --nsnp-list ' + nsnpstr
+        if nindelstr != '':
+            cmd += ' --nindel-list ' + nindelstr
     cmd += ' --outdir ' + outdir
-    utils.simplerun(cmd)  # , dryrun=True)
+    utils.simplerun(cmd, dryrun=args.dry_run)
 
 # ----------------------------------------------------------------------------------------
 def run_data(args, baseoutdir, study, dset, method):
@@ -323,7 +327,7 @@ def run_data(args, baseoutdir, study, dset, method):
     if method != 'partis':
         cmd += ' --other-method ' + method
 
-    utils.simplerun(cmd)
+    utils.simplerun(cmd, dryrun=args.dry_run)
 
 # ----------------------------------------------------------------------------------------
 def run_tests(args, baseoutdir, method):
@@ -349,7 +353,8 @@ default_varvals = {
     'n-leaves' : '1.5:3:10',
     'weibull' : '0.3:0.5:1.3',
     'alcluster' : [
-        {'snp' : 25, 'indel' : 3},
+        # {'snp' : 25, 'indel' : 3},
+        {'snp' : 100, 'indel' : 3},
     ],
     'gls-gen' : None,
     'data' : {
@@ -386,6 +391,7 @@ parser.add_argument('--plot', action='store_true')
 parser.add_argument('--no-slurm', action='store_true')
 parser.add_argument('--plotcache', action='store_true')
 parser.add_argument('--check', action='store_true')
+parser.add_argument('--dry-run', action='store_true')
 parser.add_argument('--label', default='xxx')
 parser.add_argument('--ete-path', default='/home/' + os.getenv('USER') + '/anaconda_ete/bin')
 args = parser.parse_args()

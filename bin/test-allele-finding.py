@@ -52,8 +52,7 @@ def simulate(args):
 
         sglfo = glutils.read_glfo('data/germlines/human', locus=args.locus)
         glutils.remove_v_genes_with_bad_cysteines(sglfo)
-        assert False  # needs updating
-        glutils.generate_germline_set(sglfo, n_genes_per_region, n_sim_alleles_per_gene, min_allele_prevalence_freq, allele_prevalence_fname, snp_positions=args.new_allele_info['positions']['snp'], indel_positions=args.new_allele_info['positions']['indel'], remove_template_genes=remove_template_genes)
+        glutils.generate_germline_set(sglfo, n_genes_per_region, n_sim_alleles_per_gene, min_allele_prevalence_freq, allele_prevalence_fname, new_allele_info=args.new_allele_info, remove_template_genes=remove_template_genes)
         cmd_str += ' --allele-prevalence-fname ' + allele_prevalence_fname
     else:
         sglfo = glutils.read_glfo('data/germlines/human', locus=args.locus, only_genes=(args.sim_v_genes + args.dj_genes))
@@ -76,7 +75,7 @@ def simulate(args):
     # run simulation
     if args.seed is not None:
         cmd_str += ' --seed ' + str(args.seed)
-    utils.simplerun(cmd_str)
+    utils.simplerun(cmd_str, dryrun=args.dry_run)
 
 # ----------------------------------------------------------------------------------------
 def run_other_method(args, method):
@@ -98,7 +97,7 @@ def run_other_method(args, method):
         cmd += ' --workdir ' + args.workdir + '/' + method
     cmd += ' --n-procs ' + str(args.n_procs)
 
-    utils.simplerun(cmd)
+    utils.simplerun(cmd, dryrun=args.dry_run)
 
 # ----------------------------------------------------------------------------------------
 def run_partis(args, method):
@@ -123,7 +122,7 @@ def run_partis(args, method):
     if method == 'partis':
         cmd_str += ' --find-new-alleles --debug-allele-finding' # --always-find-new-alleles'
         if args.allele_cluster:
-            cmd_str += ' --initial-aligner vsearch --allele-cluster'
+            cmd_str += ' --initial-aligner vsearch --allele-cluster --is-simu --simulation-germline-dir ' + args.outdir + '/germlines/simulation'
     elif method == 'full':
         cmd_str += ' --dont-remove-unlikely-alleles'
     else:
@@ -144,7 +143,7 @@ def run_partis(args, method):
         cmd_str += ' --seed ' + str(args.seed)
     if args.plot_and_fit_absolutely_everything is not None:
         cmd_str += ' --plot-and-fit-absolutely-everything ' + str(args.plot_and_fit_absolutely_everything)
-    utils.simplerun(cmd_str)
+    utils.simplerun(cmd_str, dryrun=args.dry_run)
 
 # ----------------------------------------------------------------------------------------
 def write_inf_glfo(args):  # read default glfo, restrict it to the specified alleles, and write to somewhere where all the methods can read it
@@ -188,6 +187,15 @@ def multiple_tests(args):
                 logfname += '.' + str(ilog)
             return logfname
 
+    cmdfos = [{'cmd_str' : cmd_str(iproc),
+               'workdir' : args.workdir + '/' + str(iproc),
+               'logdir' : getlogdir(iproc),
+               'outfname' : args.outdir + '/' + str(iproc)}
+              for iproc in range(args.iteststart, args.n_tests)]
+    if args.dry_run:
+        for iproc in range(args.iteststart, args.n_tests):
+            utils.simplerun(cmdfos[iproc]['cmd_str'], dryrun=True)
+        return
     for iproc in range(args.iteststart, args.n_tests):
         logd = getlogdir(iproc)
         if os.path.exists(logd + '/log'):
@@ -195,11 +203,6 @@ def multiple_tests(args):
             while os.path.exists(logd + '/log.' + str(ilog)):
                 ilog += 1
             check_call(['mv', '-v', logd + '/log', logd + '/log.' + str(ilog)])
-    cmdfos = [{'cmd_str' : cmd_str(iproc),
-               'workdir' : args.workdir + '/' + str(iproc),
-               'logdir' : getlogdir(iproc),
-               'outfname' : args.outdir + '/' + str(iproc)}
-              for iproc in range(args.iteststart, args.n_tests)]
     print '  look for logs in %s' % args.outdir
     utils.run_cmds(cmdfos, debug='write')
 
@@ -294,6 +297,7 @@ parser.add_argument('--remove-template-genes', action='store_true', help='when g
 parser.add_argument('--mut-mult', type=float)
 parser.add_argument('--slurm', action='store_true')
 parser.add_argument('--overwrite', action='store_true')
+parser.add_argument('--dry-run', action='store_true')
 parser.add_argument('--methods', default='partis')
 parser.add_argument('--outdir', default=utils.fsdir() + '/partis/allele-finder')
 parser.add_argument('--inf-glfo-dir', help='default set below')
@@ -324,8 +328,17 @@ args.snp_positions = None  # just to make sure you don't accidentally use them
 args.indel_positions = None
 args.nsnp_list = None
 args.nindel_list = None
+# if we're generating/inferring a whole germline set these are either set automatically or not used
+if args.gls_gen:
+    args.sim_v_genes = None
+    args.inf_v_genes = None
+    args.dj_genes = None
+    args.allele_prevalence_freqs = None
+    args.inf_glfo_dir = None
 
-for mtype in ['snp', 'indel']:
+n_new_alleles = None
+mtypes = ['snp', 'indel']
+for mtype in mtypes:
     if positions[mtype] is not None:  # if specific positions were specified on the command line
         positions[mtype] = [[int(p) for p in pos_str.split(',')] for pos_str in positions[mtype]]
         if len(positions[mtype]) != len(args.sim_v_genes):
@@ -336,12 +349,18 @@ for mtype in ['snp', 'indel']:
         if positions[mtype] is not None:
             raise Exception('can\'t specify both --n%s-list and --%s-positions' % (mtype, mtype))
         positions[mtype] = [[None for _ in range(number)] for number in numbers[mtype]]  # the <None> tells glutils to choose a position at random
+    if positions[mtype] is not None:
+        if n_new_alleles is None:
+            n_new_alleles = len(positions[mtype])
+        if len(positions[mtype]) != n_new_alleles:
+            raise Exception('mismatched number of new alleles for %s' % ' vs '.join(mtypes))
+for mtype in mtypes:
     if positions[mtype] is None:  # if it wasn't specified at all, i.e. we don't want to generate any new alleles
-        positions[mtype] = [[] for _ in range(len(args.sim_v_genes))]
-args.new_allele_info = [{'gene' : args.sim_v_genes[igene],
+        positions[mtype] = [[] for _ in range(n_new_alleles)]
+args.new_allele_info = [{'gene' : args.sim_v_genes[igene] if not args.gls_gen else None,
                          'snp-positions' : positions['snp'][igene],
                          'indel-positions' : positions['indel'][igene]}
-                        for igene in range(len(args.sim_v_genes))]
+                        for igene in range(n_new_alleles)]
 
 if args.allele_prevalence_freqs is not None:
     # easier to check the length after we've generated snpd genes (above)
@@ -351,14 +370,6 @@ if args.inf_glfo_dir is None:
     args.inf_glfo_dir = args.outdir + '/germlines/inference'
 if args.simfname is None:
     args.simfname = args.outdir + '/simu.csv'
-
-# if we're generating/inferring a whole germline set these are either set automatically or not used
-if args.gls_gen:
-    args.sim_v_genes = None
-    args.inf_v_genes = None
-    args.dj_genes = None
-    args.allele_prevalence_freqs = None
-    args.inf_glfo_dir = None
 
 if args.seed is not None:
     random.seed(args.seed)
