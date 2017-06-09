@@ -75,7 +75,7 @@ def varvalstr(name, val):
     if name == 'multi-nsnp':
         valstr = ':'.join([str(v) for v in val])
     elif name == 'alcluster':
-        valstr = utils.sanitize_name(val)
+        valstr = '-'.join(['n%s-%d' % (k, v) for k, v in val.items()])
     elif name == 'gls-gen':
         valstr = 'simu'
     else:
@@ -281,8 +281,8 @@ def run_single_test(args, baseoutdir, val, n_events, method):
         cmd += ' --n-max-queries ' + str(n_events)  # i.e. we simulate <n_events> rearrangement events, but then only use <n_events> sequences for inference
     elif args.action == 'alcluster':
         cmd += ' --allele-cluster'
-        sim_v_genes = [val]
-        nsnpstr = ''
+        nsnpstr = str(val['snp'])
+        cmd += ' --nindel-list ' + str(val['indel'])
     elif args.action == 'gls-gen':
         nsnpstr = '1:1:2:2:3'
         cmd += ' --gls-gen'
@@ -294,7 +294,7 @@ def run_single_test(args, baseoutdir, val, n_events, method):
     if '--nosim' not in cmd and nsnpstr != '':
         cmd += ' --nsnp-list ' + nsnpstr
     cmd += ' --outdir ' + outdir
-    utils.simplerun(cmd) #, dryrun=True)
+    utils.simplerun(cmd)  # , dryrun=True)
 
 # ----------------------------------------------------------------------------------------
 def run_data(args, baseoutdir, study, dset, method):
@@ -340,9 +340,7 @@ default_varvals = {
     'n-leaves' : '1.5:3:10',
     'weibull' : '0.3:0.5:1.3',
     'alcluster' : [
-        # 'IGHV1-2*01',
-        # 'IGHV5-51*03',
-        'IGHV4-28*01',
+        {'snp' : 25, 'indel' : 3},
     ],
     'gls-gen' : None,
     'data' : {
