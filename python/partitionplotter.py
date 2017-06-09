@@ -1,3 +1,4 @@
+import math
 import numpy
 import itertools
 import sys
@@ -60,7 +61,7 @@ class PartitionPlotter(object):
             self.plot_each_within_vs_between_hist(subd, base_plotdir + '/within-vs-between', 'cdr3-length-%d' % cdr3_length, 'CDR3 %d' % cdr3_length)
 
     # ----------------------------------------------------------------------------------------
-    def make_single_hexbin_size_vs_shm_plot(self, sorted_clusters, annotations, repertoire_size, base_plotdir, plotname, n_max_mutations=100, debug=False):
+    def make_single_hexbin_size_vs_shm_plot(self, sorted_clusters, annotations, repertoire_size, base_plotdir, plotname, n_max_mutations=100, log_cluster_size=False, debug=False):
         import plotting
         import matplotlib.pyplot as plt
         def getnmutelist(cluster):
@@ -69,6 +70,8 @@ class PartitionPlotter(object):
         fig, ax = plotting.mpl_init()
 
         xvals, yvals = zip(*[[numpy.mean(getnmutelist(cluster)), len(cluster)] for cluster in sorted_clusters if numpy.mean(getnmutelist(cluster)) < n_max_mutations])
+        if log_cluster_size:
+            yvals = [math.log(yv) for yv in yvals]
         hb = ax.hexbin(xvals, yvals, gridsize=n_max_mutations, cmap=plt.cm.Blues, bins='log')
 
         if self.args.queries_to_include is not None:
@@ -78,11 +81,16 @@ class PartitionPlotter(object):
                     continue
                 xval = numpy.mean(getnmutelist(cluster))
                 yval = len(cluster)
+                if log_cluster_size:
+                    yval = math.log(yval)
                 ax.plot([xval], [yval], color='red', marker='.', markersize=10)
                 ax.text(xval, yval, ' '.join(queries_to_include_in_this_cluster), color='red', fontsize=8)
 
-        plotting.mpl_finish(ax, base_plotdir + '/overall', plotname, xlabel='mean N mutations', ylabel='clonal family size', xbounds=[0, n_max_mutations])
-        # plotting.mpl_finish(ax, base_plotdir + '/overall', plotname + '-log', xlabel='mean N mutations', ylabel='clonal family size', xbounds=[0, n_max_mutations], log='y')
+        ylabel = 'clonal family size'
+        if log_cluster_size:
+            ylabel = 'log(' + ylabel + ')'
+            plotname += '-log'
+        plotting.mpl_finish(ax, base_plotdir + '/overall', plotname, xlabel='mean N mutations', ylabel=ylabel, xbounds=[0, n_max_mutations])
 
     # ----------------------------------------------------------------------------------------
     def get_repfracstr(self, csize, repertoire_size):
@@ -260,7 +268,8 @@ class PartitionPlotter(object):
         # make hexbin plot
         self.make_single_hexbin_size_vs_shm_plot(sorted_clusters, annotations, repertoire_size, base_plotdir, get_fname(hexbin=True), n_max_mutations=n_max_mutations)
         fnames.append(get_fname(hexbin=True))
-        # fnames.append(get_fname(hexbin=True) + '-log')
+        self.make_single_hexbin_size_vs_shm_plot(sorted_clusters, annotations, repertoire_size, base_plotdir, get_fname(hexbin=True), n_max_mutations=n_max_mutations, log_cluster_size=True)
+        fnames.append(get_fname(hexbin=True) + '-log')
 
         n_per_row = 4
         fnames = [fnames[i : i + n_per_row] for i in range(0, len(fnames), n_per_row)]
