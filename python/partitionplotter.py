@@ -96,7 +96,7 @@ class PartitionPlotter(object):
 
         ylabel = 'clonal family size'
         if log_cluster_size:
-            ylabel = 'log(' + ylabel + ')'
+            ylabel += ' (log)'
             plotname += '-log'
         plotting.mpl_finish(ax, base_plotdir + '/overall', plotname, xlabel='mean N mutations', ylabel=ylabel, xbounds=[0, n_max_mutations], yticks=yticks, yticklabels=yticklabels)
 
