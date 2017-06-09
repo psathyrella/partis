@@ -491,43 +491,6 @@ class Recombinator(object):
         return mutated_seqs
 
     # ----------------------------------------------------------------------------------------
-    def add_shm_insertion(self, indelfo, seq, pos, length):
-        """ insert a random sequence with <length> beginning at <pos> """
-        inserted_sequence = ''
-        for ipos in range(length):
-            inuke = random.randint(0, len(utils.nukes) - 1)  # inclusive
-            inserted_sequence += utils.nukes[inuke]
-        return_seq = seq[ : pos] + inserted_sequence + seq[pos : ]
-        indelfo['indels'].append({'type' : 'insertion', 'pos' : pos, 'len' : length, 'seqstr' : inserted_sequence})
-        if self.args.debug:
-            print '          inserting %s at %d' % (inserted_sequence, pos)
-        return return_seq
-
-    # ----------------------------------------------------------------------------------------
-    def add_single_indel(self, seq, indelfo, codon_positions):
-        if self.args.indel_location == None:  # uniform over entire sequence
-            pos = random.randint(0, len(seq) - 1)  # this will actually exclude either before the first index or after the last index. No, I don't care.
-        elif self.args.indel_location == 'v':  # within the meat of the v
-            pos = random.randint(10, codon_positions['v'])
-        elif self.args.indel_location == 'cdr3':  # inside cdr3
-            pos = random.randint(codon_positions['v'], codon_positions['j'])
-        else:
-            assert False
-
-        length = numpy.random.geometric(1. / self.args.mean_indel_length)
-
-        if numpy.random.uniform(0, 1) < 0.5:  # fifty-fifty chance of insertion and deletion
-            new_seq = self.add_shm_insertion(indelfo, seq, pos, length)
-        else:
-            deleted_seq = seq[ : pos] + seq[pos + length : ]  # delete <length> bases beginning with <pos>
-            indelfo['indels'].append({'type' : 'deletion', 'pos' : pos, 'len' : length, 'seqstr' : seq[pos : pos + length]})
-            if self.args.debug:
-                print '          deleting %d bases at %d' % (length, pos)
-            new_seq = deleted_seq
-
-        return new_seq
-
-    # ----------------------------------------------------------------------------------------
     def add_shm_indels(self, reco_event):
         # NOTE that it will eventually make sense to add shared indel mutation according to the chosen tree -- i.e., probably, with some probability apply an indel instead of a point mutation
         if self.args.debug and self.args.indel_frequency > 0.:
@@ -545,7 +508,10 @@ class Recombinator(object):
             if self.args.debug:
                 print '        %d' % n_indels
             for _ in range(n_indels):
-                reco_event.final_seqs[iseq] = self.add_single_indel(reco_event.final_seqs[iseq], reco_event.indelfos[iseq], reco_event.final_codon_positions)
+                # NOTE modifies <indelfo> and <codon_positions>
+                reco_event.final_seqs[iseq] = indelutils.add_single_indel(reco_event.final_seqs[iseq], reco_event.indelfos[iseq],
+                                                                          self.args.mean_indel_length, reco_event.final_codon_positions,
+                                                                          indel_location=self.args.indel_location, debug=self.args.debug)
 
     # ----------------------------------------------------------------------------------------
     def add_mutants(self, reco_event, irandom):

@@ -11,6 +11,7 @@ import csv
 from subprocess import check_call, Popen, PIPE
 
 import utils
+import indelutils
 
 # ----------------------------------------------------------------------------------------
 glfo_dir = 'germline-sets'  # always put germline info into a subdir with this name
@@ -455,32 +456,53 @@ def get_new_allele_name_and_change_mutfo(template_gene, mutfo):  # convert snp i
     return final_name, final_mutfo
 
 # ----------------------------------------------------------------------------------------
-def generate_snpd_gene(gene, cpos, seq, positions):
-    assert utils.get_region(gene) == 'v'  # others not yet handled
-    def choose_position():
-        snp_pos = None
-        while snp_pos is None or snp_pos in snpd_positions or not utils.codon_unmutated('cyst', tmpseq, cpos):
-            snp_pos = random.randint(0, cpos - 1)  # len(seq) - 1)  # note that randint() is inclusive
-            tmpseq = seq[: snp_pos] + 'X' + seq[snp_pos + 1 :]  # for checking cyst position
-        return snp_pos
+def generate_single_new_allele(template_gene, template_cpos, template_seq, snp_positions, indel_positions):
+    assert utils.get_region(template_gene) == 'v'  # others not yet handled
+    mean_indel_length = 3  # I really can't think of a reason that the indel lengths are all that important, so it's staying hard-coded here for now (could of course use the mean shm indel length from recombinator, but that's confusig since we're not modeling shm here)
+    already_snpd_positions = set()  # only used if a position wasn't specified (i.e. was None) in <snps_to_add> (also not used for indels, which probably makes sense)
 
-    snpd_positions = set()  # only used if a position wasn't specified (i.e. was None) in <snps_to_add>
-    mutfo = OrderedDict()
-    for snp_pos in positions:
+    def choose_position(seq, cpos):  # some bits of this aren't really relevant for indels, but whatever, it's fine
+        chosen_pos = None
+        while chosen_pos is None or chosen_pos in already_snpd_positions or not utils.codon_unmutated('cyst', tmpseq, cpos):
+            chosen_pos = random.randint(0, cpos - 1)  # len(seq) - 1)  # note that randint() is inclusive
+            tmpseq = seq[: chosen_pos] + 'X' + seq[chosen_pos + 1 :]  # only used for checking cyst position
+        return chosen_pos
+
+    new_cpos = template_cpos
+    new_seq = template_seq
+
+    # first do indels (it's kind of arbitrary to do indels before snps, but it'd be pretty common for a deletion to annihilate a snp, and doing indels first avoids that (at the "cost" of making the snp positions more obtuse))
+    indelfo = indelutils.get_empty_indel()
+    codon_positions = {'v' : new_cpos}  # do *not* use <new_cpos> itself from this point until it's re-set after the loop
+    for indel_pos in indel_positions:
+        if indel_pos is None:
+            indel_pos = choose_position(new_seq, codon_positions['v'])
+        new_seq = indelutils.add_single_indel(new_seq, indelfo, mean_indel_length, codon_positions, pos=indel_pos, keep_in_frame=True, debug=True)  # NOTE modifies <indelfo> and <codon_positions>
+    new_cpos = codon_positions['v']  # ick
+
+    # then do snps
+    snpfo = OrderedDict()  # this is only really used for figuring out the final name
+    for snp_pos in snp_positions:
         if snp_pos is None:
-            snp_pos = choose_position()
-        snpd_positions.add(snp_pos)
+            snp_pos = choose_position(new_seq, new_cpos)
+        already_snpd_positions.add(snp_pos)
         new_base = None
-        while new_base is None or new_base == seq[snp_pos]:
+        while new_base is None or new_base == new_seq[snp_pos]:
             new_base = utils.nukes[random.randint(0, len(utils.nukes) - 1)]
-        print '        %3d   %s --> %s' % (snp_pos, seq[snp_pos], new_base)
-        mutfo[snp_pos] = {'original' : seq[snp_pos], 'new' : new_base}
+        print '        %3d   %s --> %s' % (snp_pos, new_seq[snp_pos], new_base)
+        snpfo[snp_pos] = {'original' : new_seq[snp_pos], 'new' : new_base}
 
-        seq = seq[: snp_pos] + new_base + seq[snp_pos + 1 :]
+        new_seq = new_seq[: snp_pos] + new_base + new_seq[snp_pos + 1 :]
 
-    assert utils.codon_unmutated('cyst', seq, cpos, debug=True)  # this is probably unnecessary
-    snpd_name, mutfo = get_new_allele_name_and_change_mutfo(gene, mutfo)
-    return {'template-gene' : gene, 'gene' : snpd_name, 'seq' : seq}
+    assert utils.codon_unmutated('cyst', new_seq, new_cpos, debug=True)  # this is probably unnecessary
+
+    new_name, _ = get_new_allele_name_and_change_mutfo(template_gene, snpfo) #, indelfo)
+    for ifo in indelfo['indels']:
+        if '+' not in new_name:
+            new_name += '+'
+        new_name += '.%s%d' % (ifo['type'][0], ifo['pos'])
+
+    return {'template-gene' : template_gene, 'gene' : new_name, 'seq' : new_seq, 'cpos' : new_cpos}
 
 # ----------------------------------------------------------------------------------------
 def restrict_to_genes(glfo, only_genes, debug=False):
@@ -506,13 +528,18 @@ def restrict_to_genes(glfo, only_genes, debug=False):
 # ----------------------------------------------------------------------------------------
 def remove_v_genes_with_bad_cysteines(glfo, debug=False):
     prelength = len(glfo['seqs']['v'])
+    n_mutated, n_out_of_frame = 0, 0
     for gene in glfo['seqs']['v'].keys():  # have to use a copy of the keys, since we modify the dict in the loop
         mutated = not utils.codon_unmutated('cyst', glfo['seqs']['v'][gene], glfo['cyst-positions'][gene])
         in_frame = utils.in_frame_germline_v(glfo['seqs']['v'][gene], glfo['cyst-positions'][gene])
+        if mutated:
+            n_mutated += 1
+        if not in_frame:
+            n_out_of_frame += 1
         if mutated or not in_frame:
             remove_gene(glfo, gene, debug=debug)
     if True:  # debug:
-        print '  removed %d / %d v genes with bad cysteines' % (prelength - len(glfo['seqs']['v']), len(glfo['seqs']['v']))
+        print '  removed %d / %d v genes with bad cysteines (%d mutated, %d out of frame)' % (prelength - len(glfo['seqs']['v']), len(glfo['seqs']['v']), n_mutated, n_out_of_frame)
 
 # ----------------------------------------------------------------------------------------
 def remove_genes(glfo, genes, debug=False):
@@ -562,12 +589,14 @@ def add_new_allele(glfo, newfo, remove_template_genes=False, use_template_for_co
         raise Exception('attempted to add name %s that already exists in glfo' % new_gene)
     glfo['seqs'][region][new_gene] = newfo['seq']
 
-    if use_template_for_codon_info:
-        codon = utils.conserved_codons[glfo['locus']].get(region, None)
-        if codon is not None:
+    if region in utils.conserved_codons[glfo['locus']]:
+        codon = utils.conserved_codons[glfo['locus']][region]
+        if use_template_for_codon_info:
             glfo[codon + '-positions'][new_gene] = glfo[codon + '-positions'][template_gene]
-    else:
-        get_missing_codon_info(glfo)
+        elif 'cpos' in newfo:  # if it's generated with indels from a known gene, then we store the cpos
+            glfo[codon + '-positions'][new_gene] = newfo['cpos']
+        else:
+            get_missing_codon_info(glfo)
 
     if debug:
         print '    adding new allele to glfo:'
@@ -583,42 +612,46 @@ def remove_the_stupid_godamn_template_genes_all_at_once(glfo, templates_to_remov
         remove_gene(glfo, gene, debug=True)
 
 # ----------------------------------------------------------------------------------------
-def add_some_snps(snps_to_add, glfo, remove_template_genes=False, debug=False):
+def generate_new_alleles(glfo, new_allele_info, remove_template_genes=False, debug=False):
     """
     Generate some snp'd genes and add them to glfo, specified with <snps_to_add>.
     e.g. [{'gene' : 'IGHV3-71*01', 'positions' : (35, None)}, ] will add a snp at position 35 and at a random location.
     The resulting snp'd gene will have a name like IGHV3-71*01+C35T.T47G
     """
+    templates_to_remove = set()  # NOTE they're not removed if you don't actually add a new gene
 
-    templates_to_remove = set()
+    added_names = []
+    for genefo in new_allele_info:
+        if len(genefo['snp-positions']) == 0 and len(genefo['indel-positions']) == 0:
+            continue
+        template_gene = genefo['gene']
 
-    added_snp_names = []
-    for isnp in range(len(snps_to_add)):
-        snpinfo = snps_to_add[isnp]
-        gene, positions = snpinfo['gene'], snpinfo['positions']
-        print '    adding %d snp%s to %s' % (len(positions), utils.plural(len(positions)), utils.color_gene(gene))
-        seq = glfo['seqs'][utils.get_region(gene)][gene]
-        assert utils.get_region(gene) == 'v'
-        cpos = glfo['cyst-positions'][gene]
+        print '    generating new allele from %s: ' % utils.color_gene(template_gene),
+        for mtype in ['snp', 'indel']:
+            if len(genefo[mtype + '-positions']) > 0:
+                print '%d %s%s' % (len(genefo[mtype + '-positions']), mtype, utils.plural(len(genefo[mtype + '-positions']))),
+        print ''
 
-        snpfo = None
+        assert utils.get_region(template_gene) == 'v'
+
+        newfo = None
         itry = 0
-        while snpfo is None or snpfo['gene'] in glfo['seqs'][utils.get_region(gene)]:
+        while newfo is None or newfo['gene'] in glfo['seqs'][utils.get_region(template_gene)]:
             if itry > 0:
                 print '      already in glfo, try again'
                 if itry > 99:
                     raise Exception('too many tries while trying to generate new snps -- did you specify a lot of snps on the same position?')
-            snpfo = generate_snpd_gene(gene, cpos, seq, positions)
+            newfo = generate_single_new_allele(template_gene, glfo['cyst-positions'][template_gene], glfo['seqs'][utils.get_region(template_gene)][template_gene], genefo['snp-positions'], genefo['indel-positions'])
             itry += 1
 
         if remove_template_genes:
-            templates_to_remove.add(gene)
-        add_new_allele(glfo, snpfo, remove_template_genes=False, debug=debug)  # *don't* remove the templates here, since we don't know if there's another snp later that needs them
-        added_snp_names.append(snpfo['gene'])
+            templates_to_remove.add(template_gene)
+        add_new_allele(glfo, newfo, remove_template_genes=False, use_template_for_codon_info=False, debug=debug)  # *don't* remove the templates here, since we don't know if there's another snp later that needs them
+        added_names.append(newfo['gene'])
 
     remove_the_stupid_godamn_template_genes_all_at_once(glfo, templates_to_remove)  # works fine with zero-length <templates_to_remove>
 
-    return added_snp_names  # need the order of the names so we can get allele prevalence freqs from the command line right
+    return added_names  # need the order of the names so we can get allele prevalence freqs from the command line right
 
 # ----------------------------------------------------------------------------------------
 def write_glfo(output_dir, glfo, only_genes=None, debug=False):
@@ -774,7 +807,7 @@ def generate_germline_set(glfo, n_genes_per_region, n_alleles_per_gene, min_alle
             assert len(snp_positions) <= len(glfo['seqs'][region])
             snpd_genes = numpy.random.choice(glfo['seqs'][region].keys(), size=len(snp_positions))
             snps_to_add = [{'gene' : snpd_genes[ig], 'positions' : snp_positions[ig]} for ig in range(len(snp_positions))]
-            _ = add_some_snps(snps_to_add, glfo, debug=True, remove_template_genes=remove_template_genes)
+            _ = generate_new_alleles(glfo, snps_to_add=snps_to_add, debug=True, remove_template_genes=remove_template_genes)
 
         choose_allele_prevalence_freqs(glfo, allele_prevalence_freqs, region, min_allele_prevalence_freq, debug=debug)
     write_allele_prevalence_freqs(allele_prevalence_freqs, allele_prevalence_fname)  # NOTE lumps all the regions together, unlike in the parameter dirs

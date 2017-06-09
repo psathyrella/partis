@@ -1,8 +1,7 @@
 # now
 
-# don't reinstate the damn sequences -- just keep the input sequence lying around (i.e. remove 'input_seqs' from implicit info, and require that it's always in the <line>)
-
 # read through/clean up vsearch run fcn
+#   - add some default dbg info
 # set some mean mute freq information in waterer.info just based on averages from the dicts in <self.info>, instead of pcounter
 
 # optimizations/cleanup (more below)
@@ -34,6 +33,9 @@
 #  - plots
 #    - add nsnps up to at least 6
 #    - add multi-nsnps with more simultaneous alleles and more shared snps
+#  - could potentially need to rerun tests for vsearch alignment, deprecation of --dont-remove-unlikely-alleles (and other changes?)
+
+# shouldn't the indel-adders be modifying event.codon_positions?
 
 # check allele names coming in from tigger (make sure we know about all the alleles)
 # cf the two different imgt gl sets
@@ -51,19 +53,19 @@
 # overall gl inference workflow
 # - apply vsearch/swarm to v_qr_seqs to see if there's any well-separated new genes that we should add to the initial set
 #   - decide which of these clusters represent new alleles
+#     - add a requirement that the inferred germlines for each query in the cluster aren't crazy far apart (?)
 #   - add consensus sequence from these clusters
 # - run allele removal, keeping only the most-likely within each class
-#   - lower bound should be smaller (at least for large samples)
+#   - lower bound should be smaller (at least for large samples) UPDATE I think I already lowered this? but I'm not sure
 # - in allele finding, start checking whether to remove template gene (based on mfreq distribution)
+# - at some point need to have good criteria for removing alcluster alleles that don't have plausible clonal family + mute freq properties
+# - could maybe use mutation rate in j as proxy for "real" v mutation rate (maybe just don't consider seqs with more than, say 5 j mutations)
 
 # default gl set
 #  - deal with 'D' (imgt 'duplicate') alleles (not sure if remove, or swap for the non-D, or actually maybe just leave them and fix the name splitter)
 #  - remove v genes with bad cysteines (?)
 
 #  - allow indels in both V and J at the same time (?)
-
-#  - why so many left side exclusions in laura data
-#    - more generally, wtf is really going on with both left and right exclusions -- are they all how I want them to be?
 
 # ----------------------------------------------------------------------------------------
 # fix ham scons test

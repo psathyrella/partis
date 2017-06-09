@@ -1,3 +1,5 @@
+import random
+import numpy
 import copy
 
 import utils
@@ -55,9 +57,16 @@ def has_indels(indelfo):
     return len(indelfo['indels']) > 0
 
 # ----------------------------------------------------------------------------------------
+def sign(ifo):
+    if ifo['type'] == 'insertion':
+        return 1
+    elif ifo['type'] == 'deletion':
+        return -1
+    else:
+        assert False
+
+# ----------------------------------------------------------------------------------------
 def net_length(indelfo):
-    def sign(ifo):
-        return 1 if ifo['type'] == 'insertion' else -1
     return sum([sign(ifo) * ifo['len'] for ifo in indelfo['indels']])
 
 # ----------------------------------------------------------------------------------------
@@ -104,3 +113,55 @@ def get_qr_seqs_with_indels_reinstated(line, iseq):
     inseq = line['input_seqs'][iseq]
     qr_seqs = {r : inseq[rbounds[r][0] : rbounds[r][1]] for r in utils.regions}
     return qr_seqs
+
+# ----------------------------------------------------------------------------------------
+def add_insertion(indelfo, seq, pos, length, debug=False):
+    # should probably be moved inside of add_single_indel()
+    """ insert a random sequence with <length> beginning at <pos> """
+    inserted_sequence = ''
+    for ipos in range(length):
+        inuke = random.randint(0, len(utils.nukes) - 1)  # inclusive
+        inserted_sequence += utils.nukes[inuke]
+    return_seq = seq[ : pos] + inserted_sequence + seq[pos : ]
+    indelfo['indels'].append({'type' : 'insertion', 'pos' : pos, 'len' : length, 'seqstr' : inserted_sequence})
+    if debug:
+        print '          inserting %s at %d' % (inserted_sequence, pos)
+    return return_seq
+
+# ----------------------------------------------------------------------------------------
+def add_single_indel(seq, indelfo, mean_length, codon_positions, indel_location=None, pos=None, keep_in_frame=False, debug=False):  # NOTE modifies <indelfo> and <codon_positions>
+    # if <pos> is specified we use that, otherwise we use <indel_location> to decide the region of the sequence from which to choose a position
+    if pos is None:
+        if indel_location is None:  # uniform over entire sequence
+            pos = random.randint(0, len(seq) - 1)  # this will actually exclude either before the first index or after the last index. No, I don't care.
+        elif indel_location == 'v':  # within the meat of the v
+            pos = random.randint(10, codon_positions['v'])
+        elif indel_location == 'cdr3':  # inside cdr3
+            pos = random.randint(codon_positions['v'], codon_positions['j'])
+        else:
+            assert False
+
+    length = numpy.random.geometric(1. / mean_length)
+    if keep_in_frame:
+        itry = 0
+        while length % 3 != 0:
+            length = numpy.random.geometric(1. / mean_length)
+            itry += 1
+            if itry > 99:
+                raise Exception('tried too many times to get in-frame indel length')
+
+    if numpy.random.uniform(0, 1) < 0.5:  # fifty-fifty chance of insertion and deletion
+        new_seq = add_insertion(indelfo, seq, pos, length, debug=debug)
+    else:
+        deleted_seq = seq[ : pos] + seq[pos + length : ]  # delete <length> bases beginning with <pos>
+        indelfo['indels'].append({'type' : 'deletion', 'pos' : pos, 'len' : length, 'seqstr' : seq[pos : pos + length]})
+        if debug:
+            print '          deleting %d bases at %d' % (length, pos)
+        new_seq = deleted_seq
+
+    for region in codon_positions:
+        if pos < codon_positions[region]:  # not sure that this is right if the indel is actually in the codon, but who fucking cares, right?
+            codon_positions[region] += sign(indelfo['indels'][-1]) * length
+    assert utils.codon_unmutated('cyst', new_seq, codon_positions['v'], debug=True)
+
+    return new_seq
