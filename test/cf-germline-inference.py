@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import copy
 import numpy
 from collections import OrderedDict
 import os
@@ -104,6 +105,8 @@ def legend_str(args, val):
         lstr = '%.1f' % val
     elif args.action == 'weibull':
         lstr = '%.1f' % val
+    elif args.action == 'alcluster':
+        lstr = 'er...'
     else:
         assert False
     return lstr
@@ -125,6 +128,12 @@ def get_single_performance(outdir, method, debug=False):
     iglfo = glutils.read_glfo(outdir + '/' + method + '/sw/germline-sets', locus=sim_locus)
     missing_alleles = set(sglfo['seqs'][region]) - set(iglfo['seqs'][region])
     spurious_alleles = set(iglfo['seqs'][region]) - set(sglfo['seqs'][region])
+    for spal in copy.deepcopy(spurious_alleles):
+        new_name, new_seq = glutils.find_new_allele_in_existing_glfo(sglfo, region, spal, iglfo['seqs'][region][spal], iglfo['cyst-positions'][spal], debug=True)
+        if new_name != spal:
+            print '  remove %s/%s from missing/spurious' % (new_name, spal)
+            missing_alleles.remove(new_name)
+            spurious_alleles.remove(spal)
     if debug:
         if len(missing_alleles) > 0:
             print '    %2d  missing %s' % (len(missing_alleles), ' '.join([utils.color_gene(g) for g in missing_alleles]))
