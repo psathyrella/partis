@@ -1,8 +1,8 @@
 cmd=./test/cf-germline-inference.py
-label=v2
+label=v3
 testopts="--n-tests 1 --n-procs-per-test 2 --no-slurm"
 
-# for tname in mfreq; do #mfreq nsnp multi-nsnp prevalence n-leaves weibull; do
+# for tname in alcluster; do #mfreq nsnp multi-nsnp prevalence n-leaves weibull alcluster; do
 #     # $cmd $tname --label $label $testopts  # laptop
 #     $cmd $tname --n-tests 10 --label $label # --plot
 # done
