@@ -90,6 +90,21 @@ class AlleleFinder(object):
         # self.alleles_with_evidence = set()
 
     # ----------------------------------------------------------------------------------------
+    def dbgfcn(self, pos, istart, pos_2=None):
+        dbg_positions = None  # [238, 226]
+        dbg_istart = 4
+
+        if dbg_positions is None or dbg_istart is None:
+            return False
+
+        is_dbg = istart == dbg_istart
+        if pos_2 is None:
+            is_dbg &= pos in dbg_positions
+        else:
+            is_dbg &= pos in dbg_positions and pos_2 in dbg_positions
+        return is_dbg
+
+    # ----------------------------------------------------------------------------------------
     def init_gene(self, gene):
         self.counts[gene] = {}
         for igl in range(len(self.glfo['seqs'][utils.get_region(gene)][gene])):
@@ -295,7 +310,7 @@ class AlleleFinder(object):
             return_strs.append('  ' + ' '.join(['%5d' % n for n in pvals['n_mutelist']]))
             return_strs.append('  ' + ' '.join(['%5.3f' % f for f in pvals['freqs']]))
             return_strs.append('  ' + ' '.join(['%5.3f' % e for e in pvals['errs']]))
-        return_strs.append('        %s  m: %5.3f +/- %5.3f   b: %5.3f +/- %5.3f     %5.3f / %-3d = %5.3f' % (extra_str, fitfo['slope'], fitfo['slope_err'], fitfo['y_icpt'], fitfo['y_icpt_err'],
+        return_strs.append('        %s  m: %5.3f +/- %5.4f   b: %5.3f +/- %5.4f     %5.3f / %-3d = %5.3f' % (extra_str, fitfo['slope'], fitfo['slope_err'], fitfo['y_icpt'], fitfo['y_icpt_err'],
                                                                                                              fitfo['residual_sum'], fitfo['ndof'], fitfo['residuals_over_ndof']))
         return '\n'.join(return_strs)
 
@@ -433,8 +448,8 @@ class AlleleFinder(object):
 
         obs = [d['muted'] for d in gcts.values()]
 
-        lohis = [fraction_uncertainty.err(d['muted'], d['total'], use_beta=True) if d['total'] > 0. else (0., 1., None) for d in gcts.values()]  # set uncertainty bounds to (0., 1.) for zero-denominator bins
-        errs = [(hi - lo) / 2 for lo, hi, _ in lohis]
+        lohis = [fraction_uncertainty.err(d['muted'], d['total']) if d['total'] > 0. else (0., 1.) for d in gcts.values()]  # set uncertainty bounds to (0., 1.) for zero-denominator bins
+        errs = [(hi - lo) / 2 for lo, hi in lohis]
         weights = [1./(e*e) for e in errs]
 
         freqs = [float(d['muted']) / d['total'] if d['total'] > 0 else 0. for d in gcts.values()]
@@ -469,11 +484,11 @@ class AlleleFinder(object):
         # NOTE that with multiple multi-snp new alleles that share some, but not all, positions, we don't expect consistency. In particular, at shared positions, the nsnp bin for the other allele will be high, and the prevalence will be off.
         for pos_1, pos_2 in itertools.combinations(fitfo['candidates'][istart], 2):
             fitfo_1, fitfo_2 = self.fitfos[gene]['fitfos'][istart][pos_1], self.fitfos[gene]['fitfos'][istart][pos_2]
-            if not self.consistent_slope_and_y_icpt(self.max_consistent_candidate_fit_sigma, fitfo_1['postfo'], fitfo_2['postfo']):
+            if not self.consistent_slope_and_y_icpt(self.max_consistent_candidate_fit_sigma, fitfo_1['postfo'], fitfo_2['postfo'], debug=self.dbgfcn(pos_1, istart, pos_2=pos_2)):
                 if debug:
                     print '    positions %d and %d have inconsistent post-istart fits' % (pos_1, pos_2)
                 return False
-            if istart > self.hard_code_three and not self.consistent_slope_and_y_icpt(self.max_consistent_candidate_fit_sigma, fitfo_1['prefo'], fitfo_2['prefo']):  # if this nsnp is less than 3, and there's a second new allele with smaller nsnp, the pre-fit will be super inconsistent
+            if istart > self.hard_code_three and not self.consistent_slope_and_y_icpt(self.max_consistent_candidate_fit_sigma, fitfo_1['prefo'], fitfo_2['prefo'], debug=self.dbgfcn(pos_1, istart, pos_2=pos_2)):  # if this nsnp is less than 3, and there's a second new allele with smaller nsnp, the pre-fit will be super inconsistent
                 if debug:
                     print '    positions %d and %d have inconsistent pre-istart fits' % (pos_1, pos_2)
                 return False
@@ -617,7 +632,7 @@ class AlleleFinder(object):
 
         candidate_ratios, residfo = {}, {}  # NOTE <residfo> is really just for dbg printing... but we have to sort before we print, so we need to keep the info around
         for pos in positions_to_try_to_fit:
-            dbg = False  # (pos in [55, 99, 100] and istart==3)
+            dbg = self.dbgfcn(pos, istart)
             if dbg:
                 print 'pos %d' % pos
             prevals = prexyvals[pos]
