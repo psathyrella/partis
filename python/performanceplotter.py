@@ -144,7 +144,7 @@ class PerformancePlotter(object):
             if column in plotconfig.gene_usage_columns:
                 right = self.values[column]['right']
                 wrong = self.values[column]['wrong']
-                lo, hi, _ = fraction_uncertainty.err(right, right + wrong)
+                lo, hi = fraction_uncertainty.err(right, right + wrong)
                 hist = plotting.make_bool_hist(right, wrong, self.name + '-' + column)
                 plotting.draw_no_root(hist, plotname=column, plotdir=plotdir + '/gene-call', write_csv=True, stats='0-bin', only_csv=only_csv)
             else:
