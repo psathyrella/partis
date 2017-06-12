@@ -9,6 +9,7 @@ import tempfile
 import subprocess
 import sys
 import ete3
+import colored_traceback.always
 
 sys.path.insert(1, './python')
 import utils
@@ -45,7 +46,7 @@ def make_tree(all_genes, workdir, use_cache=False):
     treefname = [fn for fn in raxml_output_fnames if 'result' in fn][0]
     if use_cache:  # don't re-run muxcle & raxml, just use the previous run's output tree file
         return treefname
-    utils.prep_dir(workdir, wildlings=['*.' + raxml_label, os.path.basename(aligned_fname), 'out', 'err'])
+    utils.prep_dir(workdir, wildlings=['*.' + raxml_label, os.path.basename(aligned_fname), 'out', 'err', os.path.basename(aligned_fname) + '.reduced'])
 
     # write and align an .fa with all alleles from any gl set
     with tempfile.NamedTemporaryFile() as tmpfile:
@@ -79,7 +80,7 @@ def getstatus(gl_sets, node):
     elif gene in gl_sets['inf']:
         return 'spurious'
     else:
-        assert False
+        raise Exception('couldn\'t decide on status for node with name %s' % gene)
 
 # ----------------------------------------------------------------------------------------
 def getdatastatus(gl_sets, node, pair=False):
@@ -123,7 +124,7 @@ def print_data_pair_results(gl_sets):
         print '    %9s %2d: %s' % (name, len(genes), ' '.join([utils.color_gene(g) for g in genes]))
 
 # ----------------------------------------------------------------------------------------
-def get_gene_sets(glsfnames, glslabels):
+def get_gene_sets(glsfnames, glslabels, ref_label=None):
     all_genes, gl_sets = {}, {}
     for label, fname in zip(glslabels, glsfnames):
         gl_sets[label] = {gfo['name'] : gfo['seq'] for gfo in utils.read_fastx(fname)}
@@ -132,6 +133,24 @@ def get_gene_sets(glsfnames, glslabels):
                 raise Exception('unhandled gene name %s' % name)
             if name not in all_genes:
                 all_genes[name] = seq
+
+    if ref_label is not None:
+        glfos = {}
+        for label, fname in zip(glslabels, glsfnames):
+            gldir = os.path.dirname(fname).replace('/' + args.locus, '')
+            glfos[label] = glutils.read_glfo(gldir, args.locus)  # this is gonna fail for tigger since you only have the .fa
+
+        for label in [l for l in gl_sets if l != ref_label]:
+            print '    syncronizing %s names to match %s' % (label, ref_label)
+            for gene, seq in gl_sets[label].items():
+                new_name, new_seq = glutils.find_new_allele_in_existing_glfo(glfos[ref_label], utils.get_region(gene), gene, seq, utils.cdn_pos(glfos[label], utils.get_region(gene), gene))
+                if new_name != gene:
+                    print '           %s --> %s' % (utils.color_gene(gene), utils.color_gene(new_name))
+                    del gl_sets[label][gene]
+                    del all_genes[gene]
+                    gl_sets[label][new_name] = new_seq
+                    all_genes[new_name] = new_seq
+
     return all_genes, gl_sets
 
 # ----------------------------------------------------------------------------------------
@@ -157,7 +176,7 @@ def set_node_style(node, status, data=False, pair=False):
 def plot_gls_gen_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=None, title=None):
     assert glslabels == ['sim', 'inf']  # otherwise stuff needs to be updated
 
-    all_genes, gl_sets = get_gene_sets(glsfnames, glslabels)
+    all_genes, gl_sets = get_gene_sets(glsfnames, glslabels, ref_label='sim')
     print_results(gl_sets)
 
     treefname = make_tree(all_genes, plotdir + '/workdir', use_cache=args.use_cache)
@@ -213,7 +232,7 @@ def plot_data_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=None
 
 # ----------------------------------------------------------------------------------------
 def plot_data_pair_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=None, title=None):
-    all_genes, gl_sets = get_gene_sets(glsfnames, glslabels)
+    all_genes, gl_sets = get_gene_sets(glsfnames, glslabels, ref_label=glslabels[0])
     print_data_pair_results(gl_sets)
 
     treefname = make_tree(all_genes, plotdir + '/workdir', use_cache=args.use_cache)
@@ -246,8 +265,11 @@ parser.add_argument('--glsfnames', required=True)
 parser.add_argument('--glslabels', required=True)
 parser.add_argument('--use-cache', action='store_true')
 parser.add_argument('--title')
+parser.add_argument('--locus', default='igh')
 parser.add_argument('--muscle-path', default='./packages/muscle/muscle3.8.31_i86linux64')
 parser.add_argument('--raxml-path', default=glob.glob('./packages/standard-RAxML/raxmlHPC-*')[0])
+
+locus = 'igh'
 
 args = parser.parse_args()
 args.glsfnames = utils.get_arg_list(args.glsfnames)
