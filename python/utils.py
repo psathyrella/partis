@@ -548,7 +548,7 @@ def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', 
         ref_seq = ref_seq[:min_len]
         seq = seq[:min_len]
 
-    if align:
+    if align and len(ref_seq) != len(seq):
         with tempfile.NamedTemporaryFile() as fin, tempfile.NamedTemporaryFile() as fout:
             fin.write('>%s\n%s\n' % ('ref', ref_seq))
             fin.write('>%s\n%s\n' % ('new', seq))

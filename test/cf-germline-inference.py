@@ -7,6 +7,7 @@ import random
 import argparse
 import sys
 import subprocess
+import colored_traceback.always
 sys.path.insert(1, './python')
 
 import utils
