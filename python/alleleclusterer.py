@@ -127,7 +127,7 @@ class AlleleClusterer(object):
             if len(new_seq[:template_cpos]) == len(template_seq[:template_cpos]):
                 n_snps = utils.hamming_distance(new_seq[:template_cpos], template_seq[:template_cpos])
                 # if n_snps < self.args.n_max_snps and mean_j_mutations > self.small_number_of_j_mutations:
-                if n_snps < mean_j_mutations:  # i.e. we keep if it's *further* than <number of j mutations> from the closest existing allele (should presumably rescale by some factor to go from j --> v, but it seems like the factor's near to 1.)
+                if n_snps < 1.75 * mean_j_mutations:  # i.e. we keep if it's *further* than factor * <number of j mutations> from the closest existing allele (should presumably rescale by some factor to go from j --> v, but it seems like the factor's near to 1.)
                     if debug:
                         print '      too close (%d snp%s < %d j mutation%s) to existing gene %s' % (n_snps, utils.plural(n_snps), mean_j_mutations, utils.plural(mean_j_mutations), utils.color_gene(template_gene))
                     continue
