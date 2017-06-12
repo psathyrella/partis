@@ -23,6 +23,12 @@ class AlleleClusterer(object):
 
     # ----------------------------------------------------------------------------------------
     def get_alleles(self, queryfo, threshold, glfo, swfo=None, reco_info=None, simglfo=None, debug=True):
+        default_initial_glfo = glfo
+        if self.args.default_initial_germline_dir is not None:  # if this is set, we want to take any new allele names from this directory's glfo if they're in there
+            default_initial_glfo = glutils.read_glfo(self.args.default_initial_germline_dir, glfo['locus'])
+        else:
+            print '  %s --default-initial-germline-dir isn\'t set, so new allele names won\'t correspond to existing names' % utils.color('yellow', 'warning')
+
         # NOTE do *not* modify <glfo> (in the future it would be nice to just modify <glfo>, but for now we need it to be super clear in partitiondriver what is happening to <glfo>)
         if swfo is None:
             print '  note: not collapsing clones, since we\'re working from vsearch v-only info'
@@ -90,21 +96,6 @@ class AlleleClusterer(object):
 
             mean_j_mutations = numpy.mean([self.all_j_mutations[seqfo['name']] for seqfo in clusterfo['seqfos']])
 
-            dbgstr = ''
-            if debug:
-                dbgstr += '   %-4d' % len(clusterfo['seqfos'])
-                if self.all_j_mutations is not None:
-                    dbgstr += '%5.1f' % mean_j_mutations
-                dbgstr += '\n'
-                dbgstr += '           %-12s  %4s   %s\n' % ('consensus', '', clusterfo['cons_seq'])
-                for gene, counts in sorted_glcounts:
-                    dbgstr += '           %-12s  %4d   %s\n' % (utils.color_gene(gene, width=20), counts, utils.color_mutants(clusterfo['cons_seq'], glfo['seqs'][self.region][gene], print_isnps=True, align=True))
-                if reco_info is not None:
-                    dbgstr += '       %s   %.1f\n' % (utils.color('green', 'true'), numpy.mean([utils.get_n_muted(reco_info[seqfo['name']], iseq=0, restrict_to_region=self.other_region) for seqfo in clusterfo['seqfos']]))
-                    dbgstr += '           %-12s  %4s   %s\n' % ('consensus', '', clusterfo['cons_seq'])
-                    for gene, counts in true_sorted_glcounts:
-                        dbgstr += '           %-12s  %4d   %s\n' % (utils.color_gene(gene, width=20), counts, utils.color_mutants(clusterfo['cons_seq'], simglfo['seqs'][self.region][gene], print_isnps=True, align=True))
-
             # choose the most common existing gene to use as a template (the most similar gene might be a better choice, but deciding on "most similar" would involve adjudicating between snps and indels, and it shouldn't really matter)
             template_gene, _ = sorted_glcounts[0]
             template_seq = glfo['seqs'][self.region][template_gene]
@@ -112,7 +103,7 @@ class AlleleClusterer(object):
 
             new_seq = clusterfo['cons_seq'].replace('-', '')
             new_name = template_gene + '+' + str(abs(hash(new_seq)))[:5]
-            new_name, new_seq = glutils.find_new_allele_in_existing_glfo(glfo, self.region, new_name, new_seq, template_cpos)
+            new_name, new_seq = glutils.find_new_allele_in_existing_glfo(default_initial_glfo, self.region, new_name, new_seq, template_cpos)
 
             if new_name in glfo['seqs'][self.region]:
                 # print '      existing gene %s' % utils.color_gene(new_name)
@@ -120,19 +111,31 @@ class AlleleClusterer(object):
                 continue
 
             if debug:
-                print dbgstr,
+                print '   %-4d' % len(clusterfo['seqfos']),
+                if self.all_j_mutations is not None:
+                    print '%5.1f' % mean_j_mutations,
+                print ''
+                print '           %-20s  %4s   %s' % ('consensus', '', new_seq)
+                for gene, counts in sorted_glcounts:
+                    print '           %-20s  %4d   %s' % (utils.color_gene(gene, width=20), counts, utils.color_mutants(new_seq, glfo['seqs'][self.region][gene], print_isnps=True, align=True))
+                if reco_info is not None:
+                    print '       %s   %.1f' % (utils.color('green', 'true'), numpy.mean([utils.get_n_muted(reco_info[seqfo['name']], iseq=0, restrict_to_region=self.other_region) for seqfo in clusterfo['seqfos']]))
+                    print '           %-20s  %4s   %s' % ('consensus', '', new_seq)
+                    for gene, counts in true_sorted_glcounts:
+                        print '           %-12s  %4d   %s' % (utils.color_gene(gene, width=20), counts, utils.color_mutants(new_seq, simglfo['seqs'][self.region][gene], print_isnps=True, align=True))
 
             if len(new_seq[:template_cpos]) == len(template_seq[:template_cpos]):
                 n_snps = utils.hamming_distance(new_seq[:template_cpos], template_seq[:template_cpos])
-                if n_snps < self.args.n_max_snps and mean_j_mutations > self.small_number_of_j_mutations:
+                # if n_snps < self.args.n_max_snps and mean_j_mutations > self.small_number_of_j_mutations:
+                if n_snps < mean_j_mutations:  # i.e. we keep if it's *further* than <number of j mutations> from the closest existing allele (should presumably rescale by some factor to go from j --> v, but it seems like the factor's near to 1.)
                     if debug:
-                        print '      too close (%d snp%s) to existing gene %s' % (n_snps, utils.plural(n_snps), utils.color_gene(template_gene))
+                        print '      too close (%d snp%s < %d j mutation%s) to existing gene %s' % (n_snps, utils.plural(n_snps), mean_j_mutations, utils.plural(mean_j_mutations), utils.color_gene(template_gene))
                     continue
 
             if self.too_close_to_already_added_gene(new_seq, new_alleles, debug=debug):
                 continue
 
-            print '      %s new allele %s' % (utils.color('bold', utils.color('blue', '-->')), utils.color_gene(new_name))
+            print '  new allele %s%s' % (utils.color_gene(new_name), ' (existing)' if new_name in default_initial_glfo['seqs'][self.region] else '')
             new_alleles[new_name] = {'template-gene' : template_gene, 'gene' : new_name, 'seq' : new_seq}
 
         if debug:
