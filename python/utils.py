@@ -1142,13 +1142,10 @@ def are_same_primary_version(gene1, gene2):
 
 # ----------------------------------------------------------------------------------------
 def separate_into_allelic_groups(glfo, debug=False):
-    print '%s removing \'D\' alleles' % color('red', 'note')
     allelic_groups = {r : {} for r in regions}
     for region in regions:
         for gene in glfo['seqs'][region]:
             primary_version, sub_version, allele = split_gene(gene)
-            if region == 'v' and sub_version[-1] == 'D':
-                continue
             if primary_version not in allelic_groups[region]:
                 allelic_groups[region][primary_version] = {}
             if sub_version not in allelic_groups[region][primary_version]:

@@ -73,9 +73,6 @@ def run_simulation(args):
     else:
         input_gldir = args.initial_germline_dir
     glfo = glutils.read_glfo(input_gldir, args.locus, only_genes=args.only_genes)
-    if args.rearrange_from_scratch:
-        print '    not using v genes with bad cysteines'
-        glutils.remove_v_genes_with_bad_cysteines(glfo)
     if not args.im_a_subproc and args.rearrange_from_scratch and args.generate_germline_set:
         glutils.generate_germline_set(glfo, args.n_genes_per_region, args.n_sim_alleles_per_gene, args.min_sim_allele_prevalence_freq, args.allele_prevalence_fname)  # NOTE removes unwanted genes from <glfo>
         glutils.write_glfo(args.outfname.replace('.csv', '-glfo'), glfo)
