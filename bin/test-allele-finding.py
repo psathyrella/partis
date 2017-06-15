@@ -154,9 +154,11 @@ def write_inf_glfo(args):  # read default glfo, restrict it to the specified all
 # ----------------------------------------------------------------------------------------
 def run_tests(args):
     print 'seed %d' % args.seed
+    # all fcns return immediately if output already exists
 
-    if not args.nosim:
+    if 'simu' in args.methods:
         simulate(args)
+        args.methods.remove('simu')
 
     if not args.gls_gen:
         write_inf_glfo(args)
@@ -313,6 +315,9 @@ args.sim_v_genes = utils.get_arg_list(args.sim_v_genes)
 args.inf_v_genes = utils.get_arg_list(args.inf_v_genes)
 args.allele_prevalence_freqs = utils.get_arg_list(args.allele_prevalence_freqs, floatify=True)
 args.methods = utils.get_arg_list(args.methods)
+available_methods = set(['simu', 'partis', 'full', 'tigger', 'igdiscover'])
+if len(set(args.methods) - available_methods) > 0:
+    raise Exception('unexpected --methods: %s' % ' '.join(set(args.methods) - available_methods))
 
 positions = {
     'snp' : utils.get_arg_list(args.snp_positions),
