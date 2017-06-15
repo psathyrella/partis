@@ -74,10 +74,10 @@ class MuteFreqer(object):
         import fraction_uncertainty
         if self.calculate_uncertainty:  # it's kinda slow
             errs = fraction_uncertainty.err(obs, total)
-            if errs[2]:
-                self.n_cached += 1
-            else:
-                self.n_not_cached += 1
+            # if errs[2]:
+            #     self.n_cached += 1
+            # else:
+            #     self.n_not_cached += 1
         else:
             errs = 0., 1.
 

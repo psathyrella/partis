@@ -12,8 +12,8 @@ import utils
 import glutils
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--base', required=True)
-parser.add_argument('--alleles')
+parser.add_argument('--bases', required=True)
+parser.add_argument('--allele-numbers')
 parser.add_argument('--ref-allele', help='print this one first')
 parser.add_argument('--other-genes')
 parser.add_argument('--region', default='v')
@@ -21,25 +21,29 @@ parser.add_argument('--locus', default='igh', choices=utils.loci.keys())
 parser.add_argument('--glfo-dir', default='data/germlines/human')
 args = parser.parse_args()
 glfo = glutils.read_glfo(args.glfo_dir, args.locus)
-if args.alleles is None:
-    args.alleles = [utils.allele(g) for g in glfo['seqs'][args.region] if args.base == utils.primary_version(g) + ('-' + utils.sub_version(g) if utils.sub_version(g) is not None else '')]
-else:
-    args.alleles = utils.get_arg_list(args.alleles)
-if len(args.alleles) == 0:
-    raise Exception('couldn\'t find any alleles for --base %s. Other choices:\n    %s' % (args.base, ' '.join(glfo['seqs'][args.region])))
+
+# ----------------------------------------------------------------------------------------
+def get_base(gene):
+    basestr = utils.primary_version(gene)
+    if utils.sub_version(gene) is not None:
+        basestr += '-' + utils.sub_version(gene)
+    return basestr
+
+# ----------------------------------------------------------------------------------------
+def get_genes(base, alleles=None):
+    if alleles is None:  # take all of 'em
+        alleles = [utils.allele(g) for g in glfo['seqs'][args.region] if base == get_base(g)]
+    return [args.locus.upper() + args.region.upper() + base + '*' + al for al in alleles]
+
+args.bases = utils.get_arg_list(args.bases)
+args.allele_numbers = utils.get_arg_list(args.allele_numbers)
+genes = [g for base in args.bases for g in get_genes(base, args.allele_numbers)]
+if len(genes) == 0:
+    raise Exception('couldn\'t find any genes for the specified --bases %s\n  choices:\n    %s' % (' '.join(args.bases), ' '.join(sorted(set([get_base(g) for g in glfo['seqs'][args.region]])))))
 args.other_genes = utils.get_arg_list(args.other_genes)
-
-# for g, s in glfo['seqs']['v'].items():
-#     print '%s  %3d' % (utils.color_gene(g, width=20), len(s) - glfo['cyst-positions'][g])
-# sys.exit()
-
-# base = '4-59'
-# a1, a2 = '12', '01'
-# gene1, gene2 = 'IGHV' + base + '*' + a1, 'IGHV' + base + '*' + a2
-
-genes = [args.locus.upper() + args.region.upper() + args.base + '*' + al for al in args.alleles]
 if args.other_genes is not None:
     genes += args.other_genes
+
 seqstrs = ['' for _ in range(len(genes))]
 snpstrs = ['' for _ in range(len(genes))]
 
@@ -62,9 +66,9 @@ for igene in range(0, len(genes)):
         seq = (ref_pos - pos) * 'N' + seq
         pos += (ref_pos - pos)
 
-    right_pad_str = ''
-    if len(seq) < max_seq_len:
-        right_pad_str = (max_seq_len - len(seq)) * ' '
+    right_pad_str = ''  # i think i don't need this any more since i have the align option in color_mutants
+    # if len(seq) < max_seq_len:
+    #     right_pad_str = (max_seq_len - len(seq)) * ' '
 
     emph_positions = None if args.region == 'd' else [pos + i for i in range(3)]
     colored_seq, isnps = utils.color_mutants(ref_seq, seq, return_isnps=True, emphasis_positions=emph_positions, align=True)

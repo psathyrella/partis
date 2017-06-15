@@ -18,9 +18,17 @@ class AlleleClusterer(object):
         self.other_region = 'j'
         self.absolute_n_seqs_min = 15
         self.max_j_mutations = 8
+        self.small_number_of_j_mutations = 3
+        self.all_j_mutations = None
 
     # ----------------------------------------------------------------------------------------
     def get_alleles(self, queryfo, threshold, glfo, swfo=None, reco_info=None, simglfo=None, debug=True):
+        default_initial_glfo = glfo
+        if self.args.default_initial_germline_dir is not None:  # if this is set, we want to take any new allele names from this directory's glfo if they're in there
+            default_initial_glfo = glutils.read_glfo(self.args.default_initial_germline_dir, glfo['locus'])
+        else:
+            print '  %s --default-initial-germline-dir isn\'t set, so new allele names won\'t correspond to existing names' % utils.color('yellow', 'warning')
+
         # NOTE do *not* modify <glfo> (in the future it would be nice to just modify <glfo>, but for now we need it to be super clear in partitiondriver what is happening to <glfo>)
         if swfo is None:
             print '  note: not collapsing clones, since we\'re working from vsearch v-only info'
@@ -30,11 +38,15 @@ class AlleleClusterer(object):
             assert queryfo is None
             clusters = utils.collapse_naive_seqs(swfo)
             qr_seqs = {}
+            self.all_j_mutations = {}
             for cluster in clusters:  # take the sequence with the lowest j mutation for each cluster, if it doesn't have too many j mutations NOTE choose_cluster_representatives() in allelefinder is somewhat similar
+                clusterstr = ':'.join(cluster)
                 j_mutations = {q : utils.get_n_muted(swfo[q], iseq=0, restrict_to_region=self.other_region) for q in cluster}
                 best_query, smallest_j_mutations = sorted(j_mutations.items(), key=operator.itemgetter(1))[0]
                 if smallest_j_mutations < self.max_j_mutations:
                     qr_seqs[best_query] = indelutils.get_qr_seqs_with_indels_reinstated(swfo[best_query], iseq=0)[self.region]
+                for query in cluster:
+                    self.all_j_mutations[query] = j_mutations[query]  # I don't think I can key by the cluster str, since here things correspond to the naive-seq-collapsed clusters, then we remove some of the clusters, and then cluster with vsearch
             print '    collapsed %d input sequences into %d representatives from %d clones (removed %d clones with >= %d j mutations)' % (len(swfo['queries']), len(qr_seqs), len(clusters), len(clusters) - len(qr_seqs), self.max_j_mutations)
             gene_info = {q : swfo[q][self.region + '_gene'] for q in qr_seqs}
 
@@ -54,6 +66,11 @@ class AlleleClusterer(object):
                 msa_info[-1]['seqfos'].append(seqfo)
         os.remove(msa_fname)
 
+        if debug:
+            print '  seqs  mean %s mutations' % self.other_region
+
+        n_existing_gene_clusters = 0
+        # n_clusters_for_new_alleles = 0
         new_alleles = {}
         n_seqs_min = max(self.absolute_n_seqs_min, self.args.min_allele_prevalence_fraction * len(qr_seqs))
         for clusterfo in sorted(msa_info, key=lambda cfo: len(cfo['seqfos']), reverse=True):
@@ -77,49 +94,72 @@ class AlleleClusterer(object):
             sorted_glcounts = sorted(glcounts.items(), key=operator.itemgetter(1), reverse=True)
             if reco_info is not None:
                 true_sorted_glcounts = sorted(true_glcounts.items(), key=operator.itemgetter(1), reverse=True)
-            if debug:
-                print '%d seqs' % len(clusterfo['seqfos'])
-                print '    %-12s  %4s   %s' % ('consensus', '', clusterfo['cons_seq'])
-                for gene, counts in sorted_glcounts:
-                    print '    %-12s  %4d   %s' % (utils.color_gene(gene, width=12), counts, utils.color_mutants(clusterfo['cons_seq'], glfo['seqs'][self.region][gene], print_isnps=True, align=True))
-                if reco_info is not None:
-                    print '  %s' % utils.color('green', 'true')
-                    print '    %-12s  %4s   %s' % ('consensus', '', clusterfo['cons_seq'])
-                    for gene, counts in true_sorted_glcounts:
-                        print '    %-12s  %4d   %s' % (utils.color_gene(gene, width=12), counts, utils.color_mutants(clusterfo['cons_seq'], simglfo['seqs'][self.region][gene], print_isnps=True, align=True))
+
+            mean_j_mutations = numpy.mean([self.all_j_mutations[seqfo['name']] for seqfo in clusterfo['seqfos']])
 
             # choose the most common existing gene to use as a template (the most similar gene might be a better choice, but deciding on "most similar" would involve adjudicating between snps and indels, and it shouldn't really matter)
             template_gene, _ = sorted_glcounts[0]
             template_seq = glfo['seqs'][self.region][template_gene]
             template_cpos = utils.cdn_pos(glfo, self.region, template_gene)
 
-            new_seq = clusterfo['cons_seq'].replace('-', '')
-            new_name = template_gene + '+' + str(abs(hash(new_seq)))[:5]
-            new_name, new_seq = glutils.find_new_allele_in_existing_glfo(glfo, self.region, new_name, new_seq, template_cpos)
+            new_seq = clusterfo['cons_seq'].replace('-', '')  # I don't really completely understand the dashes in this sequence, but it seems to be right to just remove 'em
 
-            if new_name in glfo['seqs'][self.region]:
-                print '    existing gene %s' % utils.color_gene(new_name)
+            equiv_name, equiv_seq = glutils.find_equivalent_gene_in_glfo(default_initial_glfo, new_seq, template_cpos)
+            if equiv_name is not None:
+                new_name = equiv_name
+                new_seq = equiv_seq
+            else:
+                new_name, _ = glutils.choose_new_allele_name(template_gene, new_seq)
+
+            if new_name in glfo['seqs'][self.region]:  # note that this only looks in <glfo>, not in <new_alleles>
+                n_existing_gene_clusters += 1
                 continue
+
+            if debug:
+                print '   %-4d' % len(clusterfo['seqfos']),
+                if self.all_j_mutations is not None:
+                    print '%5.1f' % mean_j_mutations,
+                print ''
+                print '           %-20s  %4s   %s' % ('consensus', '', new_seq)
+                for gene, counts in sorted_glcounts:
+                    print '           %-20s  %4d   %s' % (utils.color_gene(gene, width=20), counts, utils.color_mutants(new_seq, glfo['seqs'][self.region][gene], print_isnps=True, align=True))
+                if reco_info is not None:
+                    print '       %s   %.1f' % (utils.color('green', 'true'), numpy.mean([utils.get_n_muted(reco_info[seqfo['name']], iseq=0, restrict_to_region=self.other_region) for seqfo in clusterfo['seqfos']]))
+                    print '           %-20s  %4s   %s' % ('consensus', '', new_seq)
+                    for gene, counts in true_sorted_glcounts:
+                        print '           %-12s  %4d   %s' % (utils.color_gene(gene, width=20), counts, utils.color_mutants(new_seq, simglfo['seqs'][self.region][gene], print_isnps=True, align=True))
+
+            if new_name in new_alleles:  # already added it
+                # n_clusters_for_new_alleles += 1
+                continue
+            assert new_seq not in new_alleles.values()  # if it's the same seq, it should've got the same damn name
 
             if len(new_seq[:template_cpos]) == len(template_seq[:template_cpos]):
                 n_snps = utils.hamming_distance(new_seq[:template_cpos], template_seq[:template_cpos])
-                if n_snps < self.args.n_max_snps:
-                    print '    too close (%d snp%s) to existing gene %s' % (n_snps, utils.plural(n_snps), utils.color_gene(template_gene))
+                # if n_snps < self.args.n_max_snps and mean_j_mutations > self.small_number_of_j_mutations:
+                factor = 1.75
+                if n_snps < factor * mean_j_mutations:  # i.e. we keep if it's *further* than factor * <number of j mutations> from the closest existing allele (should presumably rescale by some factor to go from j --> v, but it seems like the factor's near to 1.)
+                    if debug:
+                        print '      too close (%d snp%s < %.2f = %.2f * %d j mutation%s) to existing glfo gene %s' % (n_snps, utils.plural(n_snps), factor * mean_j_mutations, factor, mean_j_mutations, utils.plural(mean_j_mutations), utils.color_gene(template_gene))
                     continue
 
-            if self.too_close_to_already_added_gene(new_seq, new_alleles):
+            if self.too_close_to_already_added_gene(new_seq, new_alleles, debug=debug):
                 continue
 
-            print '  %s new allele %s' % (utils.color('bold', utils.color('blue', '-->')), utils.color_gene(new_name))
+            print '  %s new allele%s' % (utils.color_gene(new_name), ' (existing)' if new_name in default_initial_glfo['seqs'][self.region] else '')
             new_alleles[new_name] = {'template-gene' : template_gene, 'gene' : new_name, 'seq' : new_seq}
+
+        if debug:
+            print '  %d / %d clusters consensed to existing genes' % (n_existing_gene_clusters, len(msa_info))
 
         return new_alleles
 
     # ----------------------------------------------------------------------------------------
-    def too_close_to_already_added_gene(self, new_seq, new_alleles):
+    def too_close_to_already_added_gene(self, new_seq, new_alleles, debug=False):
         for added_name, added_info in new_alleles.items():
             _, isnps = utils.color_mutants(added_info['seq'], new_seq, return_isnps=True, align=True)  # oh man that could be cleaner
             if len(isnps) < self.args.n_max_snps:
-                print '    too close (%d snp%s) to gene we just added %s' % (len(isnps), utils.plural(len(isnps)), utils.color_gene(added_name))
+                if debug:
+                    print '      too close (%d snp%s) to gene we just added %s' % (len(isnps), utils.plural(len(isnps)), utils.color_gene(added_name))
                 return True
         return False
