@@ -195,7 +195,7 @@ class PartitionDriver(object):
             self.all_new_allele_info += [afo for afo in self.sw_info['new-alleles'] if '+' in afo['gene']]  # i.e. skip new/inferred alleles that turned out to be previously known (previous: in original glfo)
             # alleles_with_evidence |= self.sw_info['alleles-with-evidence']
             glutils.restrict_to_genes(self.glfo, list(self.sw_info['all_best_matches']))
-            glutils.add_new_alleles(self.glfo, self.sw_info['new-alleles'])
+            glutils.add_new_alleles(self.glfo, self.sw_info['new-alleles'], simglfo=self.simglfo if self.reco_info is not None else None)
             # if self.args.generate_germline_set:
             #     for alfo in self.sw_info['new-alleles']:
             #         if alfo['template-gene'] not in alleles_with_evidence:  # XXX [update comment] if the new allele is actually new (i.e. not in imgt), and if we never had explicit evidence for the template gene (i.e. it was just the best match we had) then remove the template gene
@@ -294,7 +294,7 @@ class PartitionDriver(object):
                 alclusterer = AlleleClusterer(self.args)
                 # TODO make it so you don't have to count parameters here to get 'mute-freqs' (there's a comment about this also written somewhere else)
                 self.run_waterer(count_parameters=True)
-                alcluster_alleles = alclusterer.get_alleles(queryfo=None, threshold=self.sw_info['mute-freqs']['v'], glfo=self.glfo, swfo=self.sw_info, reco_info=self.reco_info, simglfo=self.simglfo)
+                alcluster_alleles = alclusterer.get_alleles(queryfo=None, threshold=self.sw_info['mute-freqs']['v'], glfo=self.glfo, swfo=self.sw_info, reco_info=self.reco_info, simglfo=self.simglfo if self.reco_info is not None else None)
                 glutils.add_new_alleles(self.glfo, alcluster_alleles.values(), use_template_for_codon_info=False, simglfo=self.simglfo if self.reco_info is not None else None, debug=True)
         elif self.args.initial_aligner == 'sw':
             assert self.args.dont_allele_cluster

@@ -127,14 +127,9 @@ def get_outdir(args, baseoutdir, varname, varval, n_events=None):
 def get_single_performance(outdir, method, debug=False):
     sglfo = glutils.read_glfo(outdir + '/germlines/simulation', locus=sim_locus)
     iglfo = glutils.read_glfo(outdir + '/' + method + '/sw/germline-sets', locus=sim_locus)
+    glutils.synchronize_glfo_names(ref_glfo=sglfo, new_glfo=iglfo)
     missing_alleles = set(sglfo['seqs'][region]) - set(iglfo['seqs'][region])
     spurious_alleles = set(iglfo['seqs'][region]) - set(sglfo['seqs'][region])
-    for spal in copy.deepcopy(spurious_alleles):
-        new_name, new_seq = glutils.find_new_allele_in_existing_glfo(sglfo, region, spal, iglfo['seqs'][region][spal], iglfo['cyst-positions'][spal], debug=True)
-        if new_name != spal:
-            print '  remove %s/%s from missing/spurious' % (new_name, spal)
-            missing_alleles.remove(new_name)
-            spurious_alleles.remove(spal)
     if debug:
         if len(missing_alleles) > 0:
             print '    %2d  missing %s' % (len(missing_alleles), ' '.join([utils.color_gene(g) for g in missing_alleles]))

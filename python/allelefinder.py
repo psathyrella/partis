@@ -734,16 +734,8 @@ class AlleleFinder(object):
         self.fitfos[gene]['fitfos'][istart] = residfo
 
     # ----------------------------------------------------------------------------------------
-    def see_if_new_allele_is_in_default_initial_glfo(self, new_name, new_seq, template_gene, debug=False):
-        # kinda bullshit organization leftover from before I moved the main fcn to glutils
-        template_cpos = utils.cdn_pos(self.glfo, self.region, template_gene)
-        exclusion_5p = self.n_bases_to_exclude['5p'][template_gene]
-        exclusion_3p = self.n_bases_to_exclude['3p'][template_gene]
-        new_name, new_seq = glutils.find_new_allele_in_existing_glfo(self.default_initial_glfo, self.region, new_name, new_seq, template_cpos, exclusion_5p=exclusion_5p, exclusion_3p=exclusion_3p, debug=True)
-        return new_name, new_seq
-
-    # ----------------------------------------------------------------------------------------
-    def add_new_allele(self, template_gene, fitfo, n_candidate_snps, debug=False):
+    def add_allele_to_new_allele_info(self, template_gene, fitfo, n_candidate_snps, debug=False):
+        debug = True
         # figure out what the new nukes are
         old_seq = self.glfo['seqs'][self.region][template_gene]
         new_seq = old_seq
@@ -761,35 +753,43 @@ class AlleleFinder(object):
             mutfo[pos] = {'original' : original_nuke, 'new' : new_nuke}
             new_seq = new_seq[:pos] + new_nuke + new_seq[pos+1:]
 
-        final_name, final_mutfo = glutils.get_new_allele_name_and_change_mutfo(template_gene, mutfo)  # final as in destined for <self.new_allele_info>, not for <self.inferred_allele_info>
+        final_name, final_mutfo = glutils.get_snpd_name_and_simplify_mutfo(template_gene, mutfo)  # final as in destined for <self.new_allele_info>, not for <self.inferred_allele_info>
 
         # reminder: number of mutations in <final_mutfo> is not necessarily equal to <n_candidate_snps>
         assert len(mutfo) == n_candidate_snps  # ...but this should be the same. Can remove this once I finish fixing the bug
 
         if self.default_initial_glfo is not None:  # if this is set, we want to take the names from this directory's glfo (i.e. see if there's already a name for <final_name>'s sequence)
-            final_name, new_seq = self.see_if_new_allele_is_in_default_initial_glfo(final_name, new_seq, template_gene, debug=debug)
+            if final_name in self.default_initial_glfo['seqs'][self.region]:
+                assert False  # uh... I don't think this can happen and i'm not sure what to do if it does
+            else:
+                equiv_name, equiv_seq = glutils.find_equivalent_gene_in_glfo(self.default_initial_glfo, new_seq, utils.cdn_pos(self.glfo, self.region, template_gene), new_name=final_name,
+                                                                             exclusion_5p=self.n_bases_to_exclude['5p'][template_gene], exclusion_3p=self.n_bases_to_exclude['3p'][template_gene], debug=debug)
+                if equiv_name is not None:
+                    final_name = equiv_name
+                    new_seq = equiv_seq
 
         if final_name in self.glfo['seqs'][self.region]:
-            print '    new gene %s already in glfo (probably due to 3p end length issues), so skipping it' % utils.color_gene(final_name)
+            if debug:
+                print '    new gene %s already in glfo (probably 3p end length issues), so skipping it' % utils.color_gene(final_name)
             return
 
-        print '    found a new allele candidate separated from %s by %d snp%s at:  ' % (utils.color_gene(template_gene), n_candidate_snps, utils.plural(n_candidate_snps)),
-        print '  '.join([('%d (%s --> %s)' % (pos, mutfo[pos]['original'], mutfo[pos]['new'])) for pos in sorted(mutfo)])
-        if mutfo != final_mutfo:
-            print '      note: final snp positions (%s) differ from inferred snp positions (%s)' % (' '.join([str(p) for p in sorted(final_mutfo)]), ' '.join([str(p) for p in sorted(mutfo)]))
-
-        old_len_str, new_len_str = '', ''
-        old_seq_for_cf, new_seq_for_cf = old_seq, new_seq
-        if len(new_seq) > len(old_seq):  # i.e if <old_seq> (the template gene) is shorter than the sequence corresponding to the original name for the new allele that we found from it
-            new_len_str = utils.color('blue', new_seq[len(old_seq):])
-            new_seq_for_cf = new_seq[:len(old_seq)]
-            print '         %d extra (blue) bases in new seq were not considered' % (len(new_seq) - len(old_seq))
-        elif len(old_seq) > len(new_seq):
-            old_len_str = utils.color('blue', old_seq[len(new_seq):])
-            old_seq_for_cf = old_seq[:len(new_seq)]
-            print '         %d extra (blue) bases in old seq were not considered' % (len(old_seq) - len(new_seq))
-        print '          %s%s   %s' % (old_seq_for_cf, old_len_str, utils.color_gene(template_gene))
-        print '          %s%s   %s' % (utils.color_mutants(old_seq_for_cf, new_seq_for_cf), new_len_str, utils.color_gene(final_name))
+        if debug:
+            print '    found a new allele candidate separated from %s by %d snp%s at:  ' % (utils.color_gene(template_gene), n_candidate_snps, utils.plural(n_candidate_snps)),
+            print '  '.join([('%d (%s --> %s)' % (pos, mutfo[pos]['original'], mutfo[pos]['new'])) for pos in sorted(mutfo)])
+            if mutfo != final_mutfo:
+                print '      note: final snp positions (%s) differ from inferred snp positions (%s)' % (' '.join([str(p) for p in sorted(final_mutfo)]), ' '.join([str(p) for p in sorted(mutfo)]))
+            old_len_str, new_len_str = '', ''
+            old_seq_for_cf, new_seq_for_cf = old_seq, new_seq
+            if len(new_seq) > len(old_seq):  # i.e if <old_seq> (the template gene) is shorter than the sequence corresponding to the original name for the new allele that we found from it
+                new_len_str = utils.color('blue', new_seq[len(old_seq):])
+                new_seq_for_cf = new_seq[:len(old_seq)]
+                print '         %d extra (blue) bases in new seq were not considered' % (len(new_seq) - len(old_seq))
+            elif len(old_seq) > len(new_seq):
+                old_len_str = utils.color('blue', old_seq[len(new_seq):])
+                old_seq_for_cf = old_seq[:len(new_seq)]
+                print '         %d extra (blue) bases in old seq were not considered' % (len(old_seq) - len(new_seq))
+            print '          %s%s   %s' % (old_seq_for_cf, old_len_str, utils.color_gene(template_gene))
+            print '          %s%s   %s' % (utils.color_mutants(old_seq_for_cf, new_seq_for_cf), new_len_str, utils.color_gene(final_name))
 
         # and add it to the list of new alleles for this gene
         self.inferred_allele_info.append({
@@ -932,7 +932,7 @@ class AlleleFinder(object):
                     continue
                 already_used_positions |= these_positions
                 n_new_alleles_for_this_gene += 1
-                self.add_new_allele(gene, self.fitfos[gene], istart, debug=debug)
+                self.add_allele_to_new_allele_info(gene, self.fitfos[gene], istart, debug=debug)
 
         if debug:
             if len(self.inferred_allele_info) > 0:

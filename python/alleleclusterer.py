@@ -70,6 +70,7 @@ class AlleleClusterer(object):
             print '  seqs  mean %s mutations' % self.other_region
 
         n_existing_gene_clusters = 0
+        # n_clusters_for_new_alleles = 0
         new_alleles = {}
         n_seqs_min = max(self.absolute_n_seqs_min, self.args.min_allele_prevalence_fraction * len(qr_seqs))
         for clusterfo in sorted(msa_info, key=lambda cfo: len(cfo['seqfos']), reverse=True):
@@ -101,12 +102,16 @@ class AlleleClusterer(object):
             template_seq = glfo['seqs'][self.region][template_gene]
             template_cpos = utils.cdn_pos(glfo, self.region, template_gene)
 
-            new_seq = clusterfo['cons_seq'].replace('-', '')
-            new_name = template_gene + '+' + str(abs(hash(new_seq)))[:5]
-            new_name, new_seq = glutils.find_new_allele_in_existing_glfo(default_initial_glfo, self.region, new_name, new_seq, template_cpos)
+            new_seq = clusterfo['cons_seq'].replace('-', '')  # I don't really completely understand the dashes in this sequence, but it seems to be right to just remove 'em
 
-            if new_name in glfo['seqs'][self.region]:
-                # print '      existing gene %s' % utils.color_gene(new_name)
+            equiv_name, equiv_seq = glutils.find_equivalent_gene_in_glfo(default_initial_glfo, new_seq, template_cpos)
+            if equiv_name is not None:
+                new_name = equiv_name
+                new_seq = equiv_seq
+            else:
+                new_name, _ = glutils.choose_new_allele_name(template_gene, new_seq)
+
+            if new_name in glfo['seqs'][self.region]:  # note that this only looks in <glfo>, not in <new_alleles>
                 n_existing_gene_clusters += 1
                 continue
 
@@ -124,18 +129,24 @@ class AlleleClusterer(object):
                     for gene, counts in true_sorted_glcounts:
                         print '           %-12s  %4d   %s' % (utils.color_gene(gene, width=20), counts, utils.color_mutants(new_seq, simglfo['seqs'][self.region][gene], print_isnps=True, align=True))
 
+            if new_name in new_alleles:  # already added it
+                # n_clusters_for_new_alleles += 1
+                continue
+            assert new_seq not in new_alleles.values()  # if it's the same seq, it should've got the same damn name
+
             if len(new_seq[:template_cpos]) == len(template_seq[:template_cpos]):
                 n_snps = utils.hamming_distance(new_seq[:template_cpos], template_seq[:template_cpos])
                 # if n_snps < self.args.n_max_snps and mean_j_mutations > self.small_number_of_j_mutations:
-                if n_snps < 1.75 * mean_j_mutations:  # i.e. we keep if it's *further* than factor * <number of j mutations> from the closest existing allele (should presumably rescale by some factor to go from j --> v, but it seems like the factor's near to 1.)
+                factor = 1.75
+                if n_snps < factor * mean_j_mutations:  # i.e. we keep if it's *further* than factor * <number of j mutations> from the closest existing allele (should presumably rescale by some factor to go from j --> v, but it seems like the factor's near to 1.)
                     if debug:
-                        print '      too close (%d snp%s < %d j mutation%s) to existing gene %s' % (n_snps, utils.plural(n_snps), mean_j_mutations, utils.plural(mean_j_mutations), utils.color_gene(template_gene))
+                        print '      too close (%d snp%s < %.2f = %.2f * %d j mutation%s) to existing glfo gene %s' % (n_snps, utils.plural(n_snps), factor * mean_j_mutations, factor, mean_j_mutations, utils.plural(mean_j_mutations), utils.color_gene(template_gene))
                     continue
 
             if self.too_close_to_already_added_gene(new_seq, new_alleles, debug=debug):
                 continue
 
-            print '  new allele %s%s' % (utils.color_gene(new_name), ' (existing)' if new_name in default_initial_glfo['seqs'][self.region] else '')
+            print '  %s new allele%s' % (utils.color_gene(new_name), ' (existing)' if new_name in default_initial_glfo['seqs'][self.region] else '')
             new_alleles[new_name] = {'template-gene' : template_gene, 'gene' : new_name, 'seq' : new_seq}
 
         if debug:
@@ -145,10 +156,6 @@ class AlleleClusterer(object):
 
     # ----------------------------------------------------------------------------------------
     def too_close_to_already_added_gene(self, new_seq, new_alleles, debug=False):
-        if new_seq in new_alleles.values():
-            if debug:
-                print '      same as gene we just added %s' % utils.color_gene(added_name)
-            return True
         for added_name, added_info in new_alleles.items():
             _, isnps = utils.color_mutants(added_info['seq'], new_seq, return_isnps=True, align=True)  # oh man that could be cleaner
             if len(isnps) < self.args.n_max_snps:

@@ -141,15 +141,7 @@ def get_gene_sets(glsfnames, glslabels, ref_label=None):
             glfos[label] = glutils.read_glfo(gldir, args.locus)  # this is gonna fail for tigger since you only have the .fa
 
         for label in [l for l in gl_sets if l != ref_label]:
-            print '    syncronizing %s names to match %s' % (label, ref_label)
-            for gene, seq in gl_sets[label].items():
-                new_name, new_seq = glutils.find_new_allele_in_existing_glfo(glfos[ref_label], utils.get_region(gene), gene, seq, utils.cdn_pos(glfos[label], utils.get_region(gene), gene))
-                if new_name != gene:
-                    print '           %s --> %s' % (utils.color_gene(gene), utils.color_gene(new_name))
-                    del gl_sets[label][gene]
-                    del all_genes[gene]
-                    gl_sets[label][new_name] = new_seq
-                    all_genes[new_name] = new_seq
+            glutils.synchronize_glfo_names(ref_glfo=glfos[ref_labe], new_glfo=glfos[label])
 
     return all_genes, gl_sets
 

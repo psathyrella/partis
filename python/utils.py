@@ -540,8 +540,10 @@ def color_chars(chars, col, seq):
     return ''.join(return_str)
 
 # ----------------------------------------------------------------------------------------
-def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', seq_label='', post_str='', print_hfrac=False, print_isnps=False, return_isnps=False, emphasis_positions=None, use_min_len=False, only_print_seq=False, align=False):
+def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', seq_label='', post_str='', print_hfrac=False, print_isnps=False, return_isnps=False, emphasis_positions=None, use_min_len=False, only_print_seq=False, align=False, return_ref=False):
     """ default: return <seq> string with colored mutations with respect to <ref_seq> """
+
+    # NOTE now I've got <return_ref>, I can probably remove a bunch of the label/whatever arguments and do all the damn formatting in the caller
 
     if use_min_len:
         min_len = min(len(ref_seq), len(seq))
@@ -593,11 +595,12 @@ def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', 
             print '%s%s%s' % (extra_str, ('%' + str(lwidth) + 's') % ref_label, ref_seq)
         print '%s%s%s' % (extra_str, ('%' + str(lwidth) + 's') % seq_label, ''.join(return_str) + post_str + isnp_str + hfrac_str)
 
-    return_str = extra_str + seq_label + ''.join(return_str) + post_str + isnp_str + hfrac_str
+    return_list = [extra_str + seq_label + ''.join(return_str) + post_str + isnp_str + hfrac_str]
+    if return_ref:
+        return_list.append(''.join([ch if ch not in gap_chars else color('blue', ch) for ch in ref_seq]))
     if return_isnps:
-        return return_str, isnps
-    else:
-        return return_str
+        return_list.append(isnps)
+    return return_list[0] if len(return_list) == 1 else return_list
 
 # ----------------------------------------------------------------------------------------
 def plural_str(pstr, count):
@@ -631,7 +634,7 @@ def color_gene(gene, width=None, leftpad=False):
     return_str = color('purple', locus) + color('red', region) + color('purple', primary_version)
     if sub_version is not None:
         n_chars += 1 + len(sub_version)
-        return_str += '-' + color('purple', sub_version)
+        return_str += color('purple', '-' + sub_version)
     n_chars += len(allele)
     return_str += color('yellow', allele)
     if width is not None:
@@ -2414,13 +2417,6 @@ def auto_slurm(n_procs):
     if n_procs > ncpu and slurm_exists():
         return True
     return False
-
-# ----------------------------------------------------------------------------------------
-def count_gaps(seq, istop=None):
-    """ return number of gap characters up to, but not including <istop> """
-    if istop is not None:
-        seq = seq[ : istop]
-    return sum([seq.count(gc) for gc in gap_chars])
 
 # ----------------------------------------------------------------------------------------
 def add_regional_alignments(glfo, aligned_gl_seqs, line, region, debug=False):
