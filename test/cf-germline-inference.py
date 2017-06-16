@@ -127,7 +127,7 @@ def get_outdir(args, baseoutdir, varname, varval, n_events=None):
 def get_single_performance(outdir, method, debug=False):
     sglfo = glutils.read_glfo(outdir + '/germlines/simulation', locus=sim_locus)
     iglfo = glutils.read_glfo(outdir + '/' + method + '/sw/germline-sets', locus=sim_locus)
-    glutils.synchronize_glfo_names(ref_glfo=sglfo, new_glfo=iglfo)
+    glutils.synchronize_glfos(ref_glfo=sglfo, new_glfo=iglfo, region=region)
     missing_alleles = set(sglfo['seqs'][region]) - set(iglfo['seqs'][region])
     spurious_alleles = set(iglfo['seqs'][region]) - set(sglfo['seqs'][region])
     if debug:

@@ -125,23 +125,20 @@ def print_data_pair_results(gl_sets):
 
 # ----------------------------------------------------------------------------------------
 def get_gene_sets(glsfnames, glslabels, ref_label=None):
-    all_genes, gl_sets = {}, {}
+    glfos = {}
     for label, fname in zip(glslabels, glsfnames):
-        gl_sets[label] = {gfo['name'] : gfo['seq'] for gfo in utils.read_fastx(fname)}
-        for name, seq in gl_sets[label].items():
-            if '_' in name:  # tigger names
-                raise Exception('unhandled gene name %s' % name)
-            if name not in all_genes:
-                all_genes[name] = seq
+        # old way (will have to handle differently for e.g. tigger that a.t.m. is just writing the .fa)
+        # gl_sets[label] = {gfo['name'] : gfo['seq'] for gfo in utils.read_fastx(fname)}
+        gldir = os.path.dirname(fname).replace('/' + args.locus, '')
+        glfos[label] = glutils.read_glfo(gldir, args.locus)  # this is gonna fail for tigger since you only have the .fa
 
     if ref_label is not None:
-        glfos = {}
-        for label, fname in zip(glslabels, glsfnames):
-            gldir = os.path.dirname(fname).replace('/' + args.locus, '')
-            glfos[label] = glutils.read_glfo(gldir, args.locus)  # this is gonna fail for tigger since you only have the .fa
+        for label in [l for l in glslabels if l != ref_label]:
+            print '    syncronizing %s names to match %s' % (label, ref_label)
+            glutils.synchronize_glfos(ref_glfo=glfos[ref_label], new_glfo=glfos[label], region=args.region)
 
-        for label in [l for l in gl_sets if l != ref_label]:
-            glutils.synchronize_glfo_names(ref_glfo=glfos[ref_labe], new_glfo=glfos[label])
+    gl_sets = {label : {g : seq for g, seq in glfos[label]['seqs'][args.region].items()} for label in glfos}
+    all_genes = {g : s for gls in gl_sets.values() for g, s in gls.items()}
 
     return all_genes, gl_sets
 
@@ -257,6 +254,7 @@ parser.add_argument('--glsfnames', required=True)
 parser.add_argument('--glslabels', required=True)
 parser.add_argument('--use-cache', action='store_true')
 parser.add_argument('--title')
+parser.add_argument('--region', default='v')
 parser.add_argument('--locus', default='igh')
 parser.add_argument('--muscle-path', default='./packages/muscle/muscle3.8.31_i86linux64')
 parser.add_argument('--raxml-path', default=glob.glob('./packages/standard-RAxML/raxmlHPC-*')[0])

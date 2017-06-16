@@ -580,10 +580,8 @@ def add_new_allele(glfo, newfo, remove_template_genes=False, use_template_for_co
     form: {'gene' : 'IGHV3-71*01+C35T.T47G', 'seq' : 'ACTG yadda yadda CGGGT', 'template-gene' : 'IGHV3-71*01'}
     If <remove_template_genes>, we also remove 'template-gene' from <glfo>.
     """
-    region = utils.get_region(newfo['template-gene'])
+    region = utils.get_region(newfo['gene'])
 
-    if newfo['template-gene'] not in glfo['seqs'][region]:
-        raise Exception('unknown template gene %s' % newfo['template-gene'])
     if len(set(newfo['seq']) - utils.alphabet) > 0:
         raise Exception('unexpected characters %s in new gl seq %s' % (set(newfo['seq']) - utils.alphabet, newfo['seq']))
     if newfo['gene'] in glfo['seqs'][region]:
@@ -596,6 +594,10 @@ def add_new_allele(glfo, newfo, remove_template_genes=False, use_template_for_co
     if region in utils.conserved_codons[glfo['locus']]:
         codon = utils.conserved_codons[glfo['locus']][region]
         if use_template_for_codon_info:
+            if 'template-gene' not in newfo:
+                raise Exception('no template gene specified in newfo')
+            if newfo['template-gene'] not in glfo[codon + '-positions']:
+                raise Exception('template gene %s not found in codon info' % newfo['template-gene'])
             glfo[codon + '-positions'][newfo['gene']] = glfo[codon + '-positions'][newfo['template-gene']]
         elif 'cpos' in newfo:  # if it's generated with indels from a known gene, then we store the cpos
             glfo[codon + '-positions'][newfo['gene']] = newfo['cpos']
@@ -603,6 +605,8 @@ def add_new_allele(glfo, newfo, remove_template_genes=False, use_template_for_co
             get_missing_codon_info(glfo)
 
     if debug:
+        if 'template-gene' not in newfo:
+            raise Exception('no template gene specified in newfo')
         simstr = ''
         if simglfo is not None:
             if newfo['gene'] in simglfo['seqs'][region]:  # exact name is in simglfo
@@ -629,6 +633,8 @@ def add_new_allele(glfo, newfo, remove_template_genes=False, use_template_for_co
         print '           new %s   %s' % (aligned_new_seq, utils.color_gene(newfo['gene']))
 
     if remove_template_genes:
+        if 'template-gene' not in newfo:
+            raise Exception('no template gene specified in newfo')
         remove_gene(glfo, newfo['template-gene'], debug=True)
 
 # ----------------------------------------------------------------------------------------
@@ -920,30 +926,16 @@ def find_equivalent_gene_in_glfo(glfo, new_seq, new_cpos, new_name=None, exclusi
     return None, None
 
 # ----------------------------------------------------------------------------------------
-def synchronize_glfo_names(ref_glfo, new_glfo, debug=False):
-    assert False
-# ----------------------------------------------------------------------------------------
-    # for new_name, new_seq in new_glfo.items():
-    #     new_name, new_seq = glutils.find_equivalent_gene_in_glfo(sglfo, iglfo['seqs'][region][spal], iglfo['cyst-positions'][spal], new_name=spal, debug=True)
-    #     if new_name is not None:
-    #         print '  remove %s/%s from missing/spurious' % (new_name, spal)
-    #         missing_alleles.remove(new_name)
-    #         spurious_alleles.remove(spal)
-# ----------------------------------------------------------------------------------------
-            # print '    syncronizing %s names to match %s' % (label, ref_label)
-            # for gene, seq in gl_sets[label].items():
-            #     new_name, new_seq = glutils.replace_with_equivalent_gene(glfos[ref_label], seq, utils.cdn_pos(glfos[label], utils.get_region(gene), gene), new_name=gene)
-            #     if new_name != gene:
-            #         print '           %s --> %s' % (utils.color_gene(gene), utils.color_gene(new_name))
-            #         del gl_sets[label][gene]
-            #         del all_genes[gene]
-            #         gl_sets[label][new_name] = new_seq
-            #         all_genes[new_name] = new_seq
-# ----------------------------------------------------------------------------------------
-    # for spal in copy.deepcopy(spurious_alleles):
-    #     new_name, new_seq = glutils.find_equivalent_gene_in_glfo(sglfo, iglfo['seqs'][region][spal], iglfo['cyst-positions'][spal], new_name=spal, debug=True)
-    #     if new_name is not None:
-    #         print '  remove %s/%s from missing/spurious' % (new_name, spal)
-    #         missing_alleles.remove(new_name)
-    #         spurious_alleles.remove(spal)
-# ----------------------------------------------------------------------------------------
+def synchronize_glfos(ref_glfo, new_glfo, region, debug=False):
+    debug = True
+    assert region == 'v'  # cysteine stuff would need to be generalized
+    for new_name, new_seq in new_glfo['seqs'][region].items():
+        if new_name in ref_glfo['seqs'][region]:
+            continue
+        equiv_name, equiv_seq = find_equivalent_gene_in_glfo(ref_glfo, new_seq, utils.cdn_pos(new_glfo, region, new_name), new_name=new_name, debug=True)
+        if equiv_name is not None:
+            print '      %s --> %s' % (utils.color_gene(new_name), utils.color_gene(equiv_name))
+            remove_gene(new_glfo, new_name)
+            add_new_allele(new_glfo, {'gene' : equiv_name, 'seq' : equiv_seq, 'cpos' : utils.cdn_pos(ref_glfo, region, equiv_name)}, use_template_for_codon_info=False)
+
+    return new_glfo
