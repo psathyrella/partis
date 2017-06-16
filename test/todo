@@ -1,9 +1,21 @@
 # now
+Heavy chains and light chains:
+QA255.006 (very low confidence, I think)
+QA255.016
+QA255.067
+QA255.072
+QA255.105
+
+Light chains only:
+QA255.157
+QA255.253
 
 # inconsistent pre-istart fits aren't always inconsistent (e.g. 3-33 in /fh/fast/matsen_e/dralph/partis/allele-finder/v3/gls-gen/simu/gls-gen-simu/n-events-300000/0/logs/partis/log)
 # probably need to do something with the fact that allele clustering can actually pick up nearby alleles pretty well (?)
 #  - maybe add close (few-snp) new alleles if they're super clear cut, i.e. very low j mutation, and other things (?)
 # what to do about internal dashes in alcluster consensus seqs?
+# split isnp stuff out of color_mutants and combine with hamming_distance
+# synchronize "gene we just added" and "existing gene" distance/n_snp requirements in alleleclusterer
 
 # also remove Vs that don't extend through cysteine
 #  - remove 'D' thing from wherever they're getting removed somewhere else
@@ -41,6 +53,7 @@
 # paper
 #  - add scheepers data (well, and others)
 #  - add new chaim data (igg + igm)
+#  - abvitro/kristian data https://peerj.com/articles/2924/?utm_source=TrendMD&utm_campaign=PeerJ_TrendMD_0&utm_medium=TrendMD
 #  - plots
 #    - add nsnps up to at least 6
 #    - add multi-nsnps with more simultaneous alleles and more shared snps

@@ -753,7 +753,7 @@ class AlleleFinder(object):
             mutfo[pos] = {'original' : original_nuke, 'new' : new_nuke}
             new_seq = new_seq[:pos] + new_nuke + new_seq[pos+1:]
 
-        final_name, final_mutfo = glutils.get_snpd_name_and_simplify_mutfo(template_gene, mutfo)  # final as in destined for <self.new_allele_info>, not for <self.inferred_allele_info>
+        final_name, final_mutfo = glutils.choose_new_allele_name(template_gene, new_seq, snpfo=mutfo)  # final as in destined for <self.new_allele_info>, not for <self.inferred_allele_info>
 
         # reminder: number of mutations in <final_mutfo> is not necessarily equal to <n_candidate_snps>
         assert len(mutfo) == n_candidate_snps  # ...but this should be the same. Can remove this once I finish fixing the bug

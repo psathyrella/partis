@@ -420,18 +420,25 @@ def get_mutfo_from_seq(old_seq, new_seq):
     return mutfo
 
 # ----------------------------------------------------------------------------------------
-def get_mutfo_from_name(gene_name):
+def try_to_get_mutfo_from_name(gene_name):
     allele_list = utils.allele(gene_name).split('+')
     if len(allele_list) != 2:
-        raise Exception('couldn\'t get snp info from gene name %s' % gene_name)
+        print 'couldn\'t get snp info from gene name %s' % gene_name
+        return None
     mutfo = {}
     for mutstr in allele_list[1].split('.'):
         if len(mutstr) < 3:
-            raise Exception('couldn\'t extract mutation info from %s' % mutstr)
+            print 'couldn\'t extract mutation info from \'%s\' in gene %s' % (mutstr, gene_name)
+            return None
         original, new = mutstr[0], mutstr[-1]
         if original not in utils.nukes or new not in utils.nukes:
-            raise Exception('couldn\'t extract mutation info from %s' % mutstr)
-        position = int(mutstr[1:-1])
+            print 'couldn\'t extract mutation info from \'%s\' in gene %s' % (mutstr, gene_name)
+            return None
+        try:
+            position = int(mutstr[1:-1])
+        except ValueError:
+            print 'couldn\'t convert \'%s\' to a position in gene %s' % (mutstr[1:-1], gene_name)
+            return None
         if position not in mutfo:
             mutfo[position] = {}
             mutfo[position]['original'] = original  # if it *is* already there, we want to *keep* the old 'original'
@@ -442,32 +449,20 @@ def get_mutfo_from_name(gene_name):
     return mutfo
 
 # ----------------------------------------------------------------------------------------
-def get_snpd_name_and_simplify_mutfo(template_gene, mutfo):  # convert snp info in <mutfo> to the snpd/inferred name (with '+'s and whatnot), accounting for <template_gene> being possibly already snpd/inferred
-    if '+' in utils.allele(template_gene):  # if template gene was itself snpd/inferred, we have to merge the old and new snpd positions
-        try:
-            old_mutfo = get_mutfo_from_name(template_gene)  # start from the template gene's snpd positions
-            for position, posfo in mutfo.items():  # loop over the new gene's snpd positions
-                if position not in old_mutfo:  # ...adding the new positions that aren't already there
-                    old_mutfo[position] = {'original' : posfo['original']}
-                old_mutfo[position]['new'] = posfo['new']
-                if old_mutfo[position]['new'] == old_mutfo[position]['original']:  # the new mutation reverted the position back to the original base
-                    del old_mutfo[position]
-            final_mutfo = old_mutfo
-            assert len(template_gene.split('+')) == 2
-            template_gene = template_gene.split('+')[0]  # original template name, before we did any snp'ing
-        except:
-            final_mutfo = mutfo
-    else:
-        final_mutfo = mutfo
+def simplify_snpfo(template_gene, mutfo):
+    """ convert snp info in <mutfo> to the snpd/inferred name (with '+'s and whatnot), accounting for <template_gene> being possibly already snpd/inferred """
+    old_mutfo = try_to_get_mutfo_from_name(template_gene)  # start from the template gene's snpd positions
+    if old_mutfo is None:
+        return None
 
-    final_name = template_gene
-    if len(final_mutfo) > 0:
-        try:
-            assert '+' not in final_name
-            final_name += '+' + stringify_mutfo(final_mutfo)  # full, but possibly overly verbose
-        except:
-            print '%s fix this bullshit %s' % (utils.color('red', 'ack'), utils.color_gene(final_name))
-    return final_name, final_mutfo
+    for position, posfo in mutfo.items():  # loop over the new gene's snpd positions
+        if position not in old_mutfo:  # ...adding the new positions that aren't already there
+            old_mutfo[position] = {'original' : posfo['original']}
+        old_mutfo[position]['new'] = posfo['new']
+        if old_mutfo[position]['new'] == old_mutfo[position]['original']:  # the new mutation reverted the position back to the original base
+            del old_mutfo[position]
+    final_mutfo = old_mutfo  # <old_mutfo> is modified at this point, so I should really call it something else here
+    return final_mutfo
 
 # ----------------------------------------------------------------------------------------
 def generate_single_new_allele(template_gene, template_cpos, template_seq, snp_positions, indel_positions):
@@ -628,7 +623,7 @@ def add_new_allele(glfo, newfo, remove_template_genes=False, use_template_for_co
                 else:
                     simstr = 'doesn\'t seem to correspond to any simulation genes'
             simstr = '(' + simstr + ')'
-        print '    adding new allele to glfo: %s' % '' #simstr
+        print '    adding new allele to glfo: %s' % simstr
         aligned_new_seq, aligned_template_seq = utils.color_mutants(glfo['seqs'][region][newfo['template-gene']], newfo['seq'], align=True, return_ref=True)
         print '      template %s   %s' % (aligned_template_seq, utils.color_gene(newfo['template-gene']))
         print '           new %s   %s' % (aligned_new_seq, utils.color_gene(newfo['gene']))
@@ -864,11 +859,19 @@ def check_allele_prevalence_freqs(outfname, glfo, allele_prevalence_fname, only_
             print ('          %' + width + 'd     %.3f    %.3f   %s') % (counts[region][gene], float(counts[region][gene]) / total, allele_prevalence_freqs[region][gene], utils.color_gene(gene, width=15))
 
 # ----------------------------------------------------------------------------------------
-def choose_new_allele_name(template_gene, new_seq, snpfo=None, indelfo=None):
-    if snpfo is not None:
-        new_name, snpfo = get_snpd_name_and_simplify_mutfo(template_gene, snpfo)  # I think it returns <snpfo> instead of modifying in place becase it starts <snpfo> over from scratch
+def choose_new_allele_name(template_gene, new_seq, snpfo=None, indelfo=None):  # may modify <snpfo>, if it's passed
+    new_name = template_gene
 
-    if snpfo is None or len(snpfo) > 5 or len(indelfo['indels']) > 0:
+    if snpfo is not None:
+        if '+' in utils.allele(template_gene) and len(template_gene.split('+')) == 2:  # if template was snpd we need to fix up <snpfo>
+            simplified_snpfo = simplify_snpfo(template_gene, snpfo)  # returns None if it failed to parse mutation info in template name
+            if simplified_snpfo is not None:
+                new_name = template_gene.split('+')[0]  # original template name, before we did any snp'ing
+                snpfo = simplified_snpfo
+        if len(snpfo) > 0:
+            new_name += '+' + stringify_mutfo(snpfo)
+
+    if snpfo is None or len(snpfo) > 5 or (indelfo is not None and len(indelfo['indels']) > 0):
         new_name = template_gene + '+' + str(abs(hash(new_seq)))[:5]
 
     return new_name, snpfo
