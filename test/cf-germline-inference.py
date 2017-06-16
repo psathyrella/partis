@@ -253,7 +253,7 @@ def get_base_cmd(args, n_events, method):
     cmd += ' --n-procs ' + str(args.n_procs_per_test) + ' --n-tests ' + str(args.n_tests)
     if args.iteststart != 0:
         cmd += ' --iteststart ' + str(args.iteststart)
-    cmd += ' --methods ' + method
+    cmd += ' --methods simu:' + method
     cmd += ' --n-sim-events ' + str(n_events)
     if not args.no_slurm:
         cmd += ' --slurm'
