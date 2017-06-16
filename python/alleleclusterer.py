@@ -22,7 +22,11 @@ class AlleleClusterer(object):
         self.all_j_mutations = None
 
     # ----------------------------------------------------------------------------------------
-    def get_alleles(self, queryfo, threshold, glfo, swfo=None, reco_info=None, simglfo=None, debug=True):
+    def get_alleles(self, queryfo, threshold, glfo, swfo=None, reco_info=None, simglfo=None, debug=False):
+        debug = True
+        if debug:
+            print 'clustering for new alleles'
+
         default_initial_glfo = glfo
         if self.args.default_initial_germline_dir is not None:  # if this is set, we want to take any new allele names from this directory's glfo if they're in there
             default_initial_glfo = glutils.read_glfo(self.args.default_initial_germline_dir, glfo['locus'])
@@ -47,11 +51,12 @@ class AlleleClusterer(object):
                     qr_seqs[best_query] = indelutils.get_qr_seqs_with_indels_reinstated(swfo[best_query], iseq=0)[self.region]
                 for query in cluster:
                     self.all_j_mutations[query] = j_mutations[query]  # I don't think I can key by the cluster str, since here things correspond to the naive-seq-collapsed clusters, then we remove some of the clusters, and then cluster with vsearch
-            print '    collapsed %d input sequences into %d representatives from %d clones (removed %d clones with >= %d j mutations)' % (len(swfo['queries']), len(qr_seqs), len(clusters), len(clusters) - len(qr_seqs), self.max_j_mutations)
+            print '   collapsed %d input sequences into %d representatives from %d clones (removed %d clones with >= %d j mutations)' % (len(swfo['queries']), len(qr_seqs), len(clusters), len(clusters) - len(qr_seqs), self.max_j_mutations)
             gene_info = {q : swfo[q][self.region + '_gene'] for q in qr_seqs}
 
         msa_fname = self.args.workdir + '/msa.fa'
-        print '  running vsearch with threshold %.2f (*300 = %d)' % (threshold, int(threshold * 300))
+        print '   vsearch clustering %d %s segments with threshold %.2f (*300 = %d)' % (len(qr_seqs), self.region, threshold, int(threshold * 300))
+        assert self.region == 'v'  # would need to change the 300
         _ = utils.run_vsearch('cluster', qr_seqs, self.args.workdir + '/vsearch', threshold=threshold, n_procs=self.args.n_procs, msa_fname=msa_fname)
 
         msa_info = []
@@ -66,16 +71,22 @@ class AlleleClusterer(object):
                 msa_info[-1]['seqfos'].append(seqfo)
         os.remove(msa_fname)
 
-        if debug:
-            print '  seqs  mean %s mutations' % self.other_region
+        n_initial_clusters = len(msa_info)
+        print '     read %d vsearch clusters (%d sequences))' % (n_initial_clusters, sum([len(cfo['seqfos']) for cfo in msa_info]))
+
+        n_seqs_min = max(self.absolute_n_seqs_min, self.args.min_allele_prevalence_fraction * len(qr_seqs))
+        msa_info = [cfo for cfo in msa_info if len(cfo['seqfos']) >= n_seqs_min]
+        print '     removed %d clusters with fewer than %d sequences' % (n_initial_clusters - len(msa_info), n_seqs_min)
+        msa_info = sorted(msa_info, key=lambda cfo: len(cfo['seqfos']), reverse=True)
 
         n_existing_gene_clusters = 0
         # n_clusters_for_new_alleles = 0
         new_alleles = {}
-        n_seqs_min = max(self.absolute_n_seqs_min, self.args.min_allele_prevalence_fraction * len(qr_seqs))
-        for clusterfo in sorted(msa_info, key=lambda cfo: len(cfo['seqfos']), reverse=True):
-            if len(clusterfo['seqfos']) < n_seqs_min:
-                break
+        if debug:
+            print '  looping over %d clusters with %d sequences' % (len(msa_info), sum([len(cfo['seqfos']) for cfo in msa_info]))
+            print '   seqs   %s mutations (mean)' % self.other_region
+        for clusterfo in msa_info:
+            assert len(clusterfo['seqfos']) >= n_seqs_min
 
             # dot_products = [utils.dot_product(clusterfo['cons_seq'], seq1, seq2) for seq1, seq2 in itertools.combinations([seqfo['seq'] for seqfo in clusterfo['seqfos']], 2)]
             # mean_dot_product = numpy.average(dot_products)
@@ -116,9 +127,9 @@ class AlleleClusterer(object):
                 continue
 
             if debug:
-                print '   %-4d' % len(clusterfo['seqfos']),
+                print '    %-4d' % len(clusterfo['seqfos']),
                 if self.all_j_mutations is not None:
-                    print '%5.1f' % mean_j_mutations,
+                    print '   %5.1f' % mean_j_mutations,
                 print ''
                 print '           %-20s  %4s   %s' % ('consensus', '', new_seq)
                 for gene, counts in sorted_glcounts:
