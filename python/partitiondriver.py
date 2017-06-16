@@ -195,7 +195,7 @@ class PartitionDriver(object):
             self.all_new_allele_info += [afo for afo in self.sw_info['new-alleles'] if '+' in afo['gene']]  # i.e. skip new/inferred alleles that turned out to be previously known (previous: in original glfo)
             # alleles_with_evidence |= self.sw_info['alleles-with-evidence']
             glutils.restrict_to_genes(self.glfo, list(self.sw_info['all_best_matches']))
-            glutils.add_new_alleles(self.glfo, self.sw_info['new-alleles'], simglfo=self.simglfo if self.reco_info is not None else None)
+            glutils.add_new_alleles(self.glfo, self.sw_info['new-alleles'], debug=True, simglfo=self.simglfo if self.reco_info is not None else None)
             # if self.args.generate_germline_set:
             #     for alfo in self.sw_info['new-alleles']:
             #         if alfo['template-gene'] not in alleles_with_evidence:  # XXX [update comment] if the new allele is actually new (i.e. not in imgt), and if we never had explicit evidence for the template gene (i.e. it was just the best match we had) then remove the template gene
