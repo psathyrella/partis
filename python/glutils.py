@@ -1,4 +1,5 @@
 import tempfile
+import operator
 import copy
 import sys
 import os
@@ -375,6 +376,38 @@ def read_extra_info(glfo, gldir):
             for codon in utils.conserved_codons[glfo['locus']].values():
                 if line[codon + '_position'] != '':
                     glfo[codon + '-positions'][line['gene']] = int(line[codon + '_position'])
+
+#----------------------------------------------------------------------------------------
+def print_glfo(glfo):  # NOTE kind of similar to bin/cf-alleles.py
+    for region in utils.regions:
+        print region
+        primary_versions = set([utils.primary_version(g) for g in glfo['seqs'][region]])
+        for pv in sorted(primary_versions):
+            print '  %s' % pv
+            pvseqs = {g : glfo['seqs'][region][g] for g in glfo['seqs'][region] if utils.primary_version(g) == pv}
+            workdir = tempfile.mkdtemp()
+            with tempfile.NamedTemporaryFile() as tmpfile:  # kind of hilarious that i use vsearch here, but mafft up there... oh well it shouldn't matter
+                _ = utils.run_vsearch('cluster', pvseqs, workdir, threshold=0.3, msa_fname=tmpfile.name)  # <threshold> is kind of random, i just set it to something that seems to group all the V genes with the same pv together
+                msa_seqs = utils.read_fastx(tmpfile.name, ftype='fa')
+            msa_info = []
+            for seqfo in msa_seqs:
+                if seqfo['name'][0] == '*':  # start of new cluster (centroid is first, and is marked with a '*')
+                    centroid = seqfo['name'].lstrip('*')
+                    msa_info.append({'centroid' : centroid, 'seqfos' : [{'name' : centroid, 'seq' : seqfo['seq']}]})
+                elif seqfo['name'] == 'consensus':
+                    msa_info[-1]['cons_seq'] = seqfo['seq'].replace('+', '')  # gaaaaah not sure what the +s mean
+                else:
+                    msa_info[-1]['seqfos'].append(seqfo)
+            for clusterfo in msa_info:
+                print '    %s    %s' % (clusterfo['cons_seq'], 'consensus')
+                for seqfo in clusterfo['seqfos']:
+                    emphasis_positions = None
+                    if region in utils.conserved_codons[glfo['locus']]:
+                        aligned_cpos = get_pos_in_alignment(utils.conserved_codons[glfo['locus']][region], seqfo['seq'], pvseqs[seqfo['name']], utils.cdn_pos(glfo, region, seqfo['name']))
+                        emphasis_positions = [aligned_cpos + i for i in range(3)]
+                    cons_seq = clusterfo['cons_seq'] + '-' * (len(seqfo['seq']) - len(clusterfo['cons_seq']))  # I don't know why it's sometimes a teensy bit shorter
+                    print '    %s    %s' % (utils.color_mutants(cons_seq, seqfo['seq'], emphasis_positions=emphasis_positions), utils.color_gene(seqfo['name']))
+                    # print '    %s    %s' % (seqfo['seq'], utils.color_gene(seqfo['name']))
 
 #----------------------------------------------------------------------------------------
 def read_glfo(gldir, locus, only_genes=None, skip_pseudogenes=True, debug=False):
