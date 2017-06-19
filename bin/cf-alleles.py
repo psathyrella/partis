@@ -12,7 +12,7 @@ import utils
 import glutils
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--bases', required=True)
+parser.add_argument('--bases', required=True, help='colon-separated list of the bits before the stars, e.g. 1-18:2-2 (set to \'all\' to print entire germline set)')
 parser.add_argument('--allele-numbers')
 parser.add_argument('--ref-allele', help='print this one first')
 parser.add_argument('--other-genes')
@@ -34,6 +34,10 @@ def get_genes(base, alleles=None):
     if alleles is None:  # take all of 'em
         alleles = [utils.allele(g) for g in glfo['seqs'][args.region] if base == get_base(g)]
     return [args.locus.upper() + args.region.upper() + base + '*' + al for al in alleles]
+
+if args.bases == 'all':
+    glutils.print_glfo(glfo)
+    sys.exit(0)
 
 args.bases = utils.get_arg_list(args.bases)
 args.allele_numbers = utils.get_arg_list(args.allele_numbers)
