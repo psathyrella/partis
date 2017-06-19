@@ -773,6 +773,16 @@ class AlleleFinder(object):
                 print '    new gene %s already in glfo (probably 3p end length issues), so skipping it' % utils.color_gene(final_name)
             return
 
+
+        # we actually expect the slope to be somewhat negative (since as the mutation rate increases a higher fraction of them revert to germline)
+        # this is heuristically parameterized by the non-zero values
+        remove_template = True
+        homozygous_line = {'slope' : -0.005, 'slope_err' : 0.01, 'y_icpt' : 1., 'y_icpt_err' : 0.01}
+        consistent_with_homozygosity = 3.  # TODO move this somewhere else
+        for pos in fitfo['fitfos'][n_candidate_snps]:  # if every position is consistent with slope = 0, y_icpt = 1, remove the template gene
+            if not self.consistent_slope_and_y_icpt(consistent_with_homozygosity, fitfo['fitfos'][n_candidate_snps][pos]['postfo'], homozygous_line):
+                remove_template = False
+
         if debug:
             print '    found a new allele candidate separated from %s by %d snp%s at:  ' % (utils.color_gene(template_gene), n_candidate_snps, utils.plural(n_candidate_snps)),
             print '  '.join([('%d (%s --> %s)' % (pos, mutfo[pos]['original'], mutfo[pos]['new'])) for pos in sorted(mutfo)])
@@ -793,7 +803,7 @@ class AlleleFinder(object):
 
         # and add it to the list of new alleles for this gene
         self.inferred_allele_info.append({
-            'template-gene' : template_gene,
+            'template-gene' : template_gene,  # the "immediate" template, not the ancestral one
             'gene' : final_name,  # reminder: <final_name> doesn't necessarily correspond to 'snp-positions'
             'seq' : new_seq,
             'snp-positions' : mutfo.keys(),  # reminder: *not* necessarily the same as <final_mutfo>
@@ -802,8 +812,9 @@ class AlleleFinder(object):
         })
         self.new_allele_info.append({
             'gene' : final_name,
-            'seq' : new_seq,  # removing aligned-seq when I copy from above... I think I don't use it any more?
-            'template-gene' : template_gene  # i.e. not the ancestral template
+            'seq' : new_seq,
+            'template-gene' : template_gene,  # the "immediate" template, not the ancestral one
+            'remove-template-gene' : remove_template,
         })
 
     # ----------------------------------------------------------------------------------------
