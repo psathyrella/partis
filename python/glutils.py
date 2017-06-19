@@ -407,7 +407,6 @@ def print_glfo(glfo):  # NOTE kind of similar to bin/cf-alleles.py
                         emphasis_positions = [aligned_cpos + i for i in range(3)]
                     cons_seq = clusterfo['cons_seq'] + '-' * (len(seqfo['seq']) - len(clusterfo['cons_seq']))  # I don't know why it's sometimes a teensy bit shorter
                     print '    %s    %s' % (utils.color_mutants(cons_seq, seqfo['seq'], emphasis_positions=emphasis_positions), utils.color_gene(seqfo['name']))
-                    # print '    %s    %s' % (seqfo['seq'], utils.color_gene(seqfo['name']))
 
 #----------------------------------------------------------------------------------------
 def read_glfo(gldir, locus, only_genes=None, skip_pseudogenes=True, debug=False):
