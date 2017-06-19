@@ -272,7 +272,7 @@ def count_gaps(aligned_seq, aligned_pos=None, unaligned_pos=None):
         assert aligned_pos is None
         ipos = 0  # position in unaligned sequence
         n_gaps_passed = 0  # number of gapped positions in the aligned sequence that we pass before getting to <unaligned_pos> (i.e. while ipos < unaligned_pos)
-        while ipos < unaligned_pos or aligned_seq[ipos + n_gaps_passed] in utils.gap_chars:  # second bit handles alignments with gaps immediately before <unaligned_pos>
+        while ipos < unaligned_pos or (ipos + n_gaps_passed < len(aligned_seq) and aligned_seq[ipos + n_gaps_passed] in utils.gap_chars):  # second bit handles alignments with gaps immediately before <unaligned_pos>
             if aligned_seq[ipos + n_gaps_passed] in utils.gap_chars:
                 n_gaps_passed += 1
             else:
@@ -282,11 +282,13 @@ def count_gaps(aligned_seq, aligned_pos=None, unaligned_pos=None):
         assert False
 
 # ----------------------------------------------------------------------------------------
-def get_pos_in_alignment(codon, aligned_seq, seq, pos, debug=False):
+def get_pos_in_alignment(codon, aligned_seq, seq, pos, gene):
     """ given <pos> in <seq>, find the codon's position in <aligned_seq> """
-    assert utils.codon_unmutated(codon, seq, pos, debug=debug)  # this only gets called on the gene with the *known* position, so it shouldn't fail
+    if not utils.codon_unmutated(codon, seq, pos):  # this only gets called on the gene with the *known* position, so it shouldn't fail
+        print '  %s mutated %s before alignment in %s' % (utils.color('yellow', 'warning'), codon, gene)
     pos_in_alignment = pos + count_gaps(aligned_seq, unaligned_pos=pos)
-    assert utils.codon_unmutated(codon, aligned_seq, pos_in_alignment, debug=debug)
+    if not utils.codon_unmutated(codon, aligned_seq, pos_in_alignment):
+        print '  %s mutated %s after alignment in %s' % (utils.color('yellow', 'warning'), codon, gene)
     return pos_in_alignment
 
 #----------------------------------------------------------------------------------------
@@ -327,7 +329,7 @@ def get_missing_codon_info(glfo, debug=False):
             if known_gene is None:
                 raise Exception('couldn\'t find a known %s position\n    known but not in glfo: %s\n    known but unaligned: %s\n    known but mutated: %s' % (codon, ' '.join(known_but_not_in_glfo), ' '.join(known_but_unaligned), ' '.join(known_but_mutated)))
             # NOTE for cyst, should be 309 if alignments are imgt [which they used to usually be, but now probably aren't] (imgt says 104th codon --> subtract 1 to get zero-indexing, then multiply by three 3 * (104 - 1) = 309
-            known_pos_in_alignment = get_pos_in_alignment(codon, aligned_seqs[known_gene], glfo['seqs'][region][known_gene], known_pos, debug=debug)
+            known_pos_in_alignment = get_pos_in_alignment(codon, aligned_seqs[known_gene], glfo['seqs'][region][known_gene], known_pos, known_gene)
             if debug:
                 print '  using known position %d (aligned %d) from %s' % (known_pos, known_pos_in_alignment, known_gene)
         elif codon == 'cyst':
@@ -403,7 +405,7 @@ def print_glfo(glfo):  # NOTE kind of similar to bin/cf-alleles.py
                 for seqfo in clusterfo['seqfos']:
                     emphasis_positions = None
                     if region in utils.conserved_codons[glfo['locus']]:
-                        aligned_cpos = get_pos_in_alignment(utils.conserved_codons[glfo['locus']][region], seqfo['seq'], pvseqs[seqfo['name']], utils.cdn_pos(glfo, region, seqfo['name']))
+                        aligned_cpos = get_pos_in_alignment(utils.conserved_codons[glfo['locus']][region], seqfo['seq'], pvseqs[seqfo['name']], utils.cdn_pos(glfo, region, seqfo['name']), seqfo['name'])
                         emphasis_positions = [aligned_cpos + i for i in range(3)]
                     cons_seq = clusterfo['cons_seq'] + '-' * (len(seqfo['seq']) - len(clusterfo['cons_seq']))  # I don't know why it's sometimes a teensy bit shorter
                     print '    %s    %s' % (utils.color_mutants(cons_seq, seqfo['seq'], emphasis_positions=emphasis_positions), utils.color_gene(seqfo['name']))
