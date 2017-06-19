@@ -25,6 +25,7 @@ class AlleleRemover(object):
 
     # ----------------------------------------------------------------------------------------
     def separate_into_classes(self, sorted_gene_counts, easycounts):  # where each class contains all alleles with the same distance from start to cyst, and within a hamming distance of <self.args.n_max_snps>
+        # NOTE <sorted_gene_counts> may be floats instead of integers
         snp_groups = utils.separate_into_snp_groups(self.glfo, self.region, self.args.n_max_snps, genelist=[g for g, _ in sorted_gene_counts])
         class_counts = []  # this could stand to be cleaned up... it's kind of a holdover from before I moved the separating fcn to utils
         for sgroup in snp_groups:

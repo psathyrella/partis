@@ -2794,20 +2794,34 @@ def run_vsearch(action, seqs, workdir, threshold, n_procs=1, batch_system=None, 
                 length = int(line['qihi']) - int(line['qilo']) + 1
                 qr_seq = seqs[query][istart : istart + length]
                 id_score = int(line['ids'])
-                if query not in query_info or query_info[query]['ids'] < id_score:  # note that a surprisingly large number of targets give the same score, and you seem to get a little closer to what sw does if you sort alphabetically, but it don't matter
-                    query_info[query] = {'ids' : id_score,
-                                         'gene' : line['target'],
-                                         'qr_seq' : qr_seq}
+                if query not in query_info:  # note that a surprisingly large number of targets give the same score, and you seem to get a little closer to what sw does if you sort alphabetically, but it don't matter
+                    query_info[query] = []
+                query_info[query].append({'ids' : id_score,
+                                          'gene' : line['target'],
+                                          'qr_seq' : qr_seq})
+
+        glutils.remove_glfo_files(dbdir, glfo['locus'])
         if len(query_info) == 0:
             raise Exception('didn\'t read anything from vsearch output file %s from cmd %s' % (outfname, cmd))
-        glutils.remove_glfo_files(dbdir, glfo['locus'])
+
+        for query in query_info:
+            if len(query_info[query]) == 0:
+                print '%s zero vsearch matches for query %s' % (color('yellow', 'warning'), query)
+                del query_info[query]  # uh... need to handle failures better than this
+                continue
+            query_info[query] = sorted(query_info[query], key=lambda d: d['ids'], reverse=True)
+            best_score = query_info[query][0]['ids']
+            query_info[query] = [qinfo for qinfo in query_info[query] if qinfo['ids'] == best_score]  # keep all the matches that have the same score as the best match
+
         gene_counts = {}
-        for query, qinfo in query_info.items():
-            if qinfo['gene'] not in gene_counts:
-                gene_counts[qinfo['gene']] = 0
-            gene_counts[qinfo['gene']] += 1
-        regional_mute_freq = numpy.mean([float(qinfo['ids']) / len(qinfo['qr_seq']) for qinfo in query_info.values()])
-        returnfo = {'gene-counts' : gene_counts, 'queries' : query_info, 'mute-freqs' : {region : regional_mute_freq}}
+        for query in query_info:
+            counts_per_match = 1. / len(query_info[query])  # e.g. if there's four matches with the same score, give 'em each 0.25 counts
+            for qinfo in query_info[query]:
+                if qinfo['gene'] not in gene_counts:
+                    gene_counts[qinfo['gene']] = 0.
+                gene_counts[qinfo['gene']] += counts_per_match
+        regional_mute_freq = numpy.mean([float(query_info[q][0]['ids']) / len(query_info[q][0]['qr_seq']) for q in query_info])
+        returnfo = {'gene-counts' : gene_counts, 'queries' : query_info, 'mute-freqs' : {region : regional_mute_freq}}  # NOTE <gene_counts> is note integers
     else:
         assert False
     os.remove(infname)

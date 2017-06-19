@@ -362,7 +362,7 @@ class PartitionDriver(object):
             for line in sorted(annotations.values(), key=lambda l: len(l['unique_ids']), reverse=True):
                 label = ''
                 if self.args.infname is not None and self.reco_info is not None:
-                    utils.print_true_events(self.glfo, self.reco_info, line, extra_str='  ')
+                    utils.print_true_events(self.simglfo, self.reco_info, line, extra_str='  ')
                     label = 'inferred:'
                 utils.print_reco_event(line, extra_str='  ', label=label)
 
