@@ -13,7 +13,24 @@ def get_uid_str(line, iseq, seed_uid):
     return uidstr
 
 # ----------------------------------------------------------------------------------------
-def indel_shenanigans(outstrs, colors, indels, iseq):  # NOTE similar to/overlaps with get_seq_with_indels_reinstated()
+def check_outsr_lengths(line, outstrs, fix=False):
+    if len(set([len(ostr) for ostr in outstrs])) == 1:  # could put this in a bunch of different places, but things're probably most likely to get screwed up either when initally building the four lines, or dealing with the stupid gaps
+        return
+
+    if fix:
+        max_len = max([len(ostr) for ostr in outstrs])
+        for istr in range(len(outstrs)):
+            if len(outstrs[istr]) < max_len:
+                outstrs[istr] += ' ' * (max_len - len(outstrs[istr]))
+        return
+
+    print ':'.join(line['unique_ids'])
+    for ostr in outstrs:
+        print '%s%s%s' % (utils.color('red', 'x'), ostr, utils.color('red', 'x'))
+    raise Exception('outstrs not all the same length %s' % [len(ostr) for ostr in outstrs])
+
+# ----------------------------------------------------------------------------------------
+def indel_shenanigans(line, outstrs, colors, indels, iseq):  # NOTE similar to/overlaps with get_seq_with_indels_reinstated()
     # <outstrs> convention: [indels, d, vj, query]
     def is_qr(index):
         return index == 3
@@ -26,6 +43,7 @@ def indel_shenanigans(outstrs, colors, indels, iseq):  # NOTE similar to/overlap
             assert False
     def reinstate(ifo, istr):
         indelstr = ifo['seqstr']
+
         if outstrs[istr][ifo['pos']] not in utils.nukes + utils.ambiguous_bases:  # if this bit of the sequences is spaces, dots, or dashes, then we only want to insert spaces (note that this adds some arbitrariness on boundaries as to who gets the actual inserted string)
             indelstr = ' ' * len(ifo['seqstr'])
         elif use_stars(ifo, istr):
@@ -44,6 +62,7 @@ def indel_shenanigans(outstrs, colors, indels, iseq):  # NOTE similar to/overlap
     for ifo in indels['indels']:
         for istr in range(len(outstrs)):
             reinstate(ifo, istr)
+        check_outsr_lengths(line, outstrs)
 
     return outstrs, colors
 
@@ -147,19 +166,16 @@ def print_seq_in_reco_event(original_line, iseq, extra_str='', label='', one_lin
     qrseq_line = ' ' * len(delstrs['v_5p']) + line['seqs'][iseq] + ' ' * line['j_3p_del']
 
     outstrs = [insert_line, d_line, vj_line, qrseq_line]
+    check_outsr_lengths(line, outstrs, fix=True)  # I think the only way they can be different is if the d right side erosion is so long that it hangs over the right side of the j
 
     if gap_insert_point is not None:
         for istr in [0, 1, 3]:  # everybody except the vj line, which already has the modified interior delstrs above
             outstrs[istr] = outstrs[istr][:gap_insert_point] + gapstr + outstrs[istr][gap_insert_point:]
 
-    if len(set([len(ostr) for ostr in outstrs])) > 1:  # could put this in a bunch of different places, but things're probably most likely to get screwed up either when initally building the four lines, or dealing with the stupid gaps
-        print ' '.join(line['unique_ids'])
-        for ostr in outstrs:
-            print '%s%s%s' % (utils.color('red', 'x'), ostr, utils.color('red', 'x'))
-        raise Exception('outstrs not all the same length %s' % [len(ostr) for ostr in outstrs])
+    check_outsr_lengths(line, outstrs, fix=True)
 
     colors = [[[] for _ in range(len(ostr))] for ostr in outstrs]
-    outstrs, colors = indel_shenanigans(outstrs, colors, line['indelfos'][iseq], iseq)
+    outstrs, colors = indel_shenanigans(line, outstrs, colors, line['indelfos'][iseq], iseq)
     outstrs = add_colors(outstrs, colors, line)
 
     suffixes = ['insert%s\n'       % ('s' if utils.has_d_gene(utils.get_locus(line['v_gene'])) else ''),

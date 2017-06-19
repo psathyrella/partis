@@ -277,7 +277,6 @@ example_str = '\n    '.join(['example usage:',
                              './bin/test-allele-finding.py --n-sim-events 2000 --n-procs 10 --sim-v-genes=IGHV1-18*01 --inf-v-genes=IGHV1-18*01 --snp-positions 27,55,88',
                              './bin/test-allele-finding.py --n-sim-events 2000 --n-procs 10 --sim-v-genes=IGHV4-39*01:IGHV4-39*02 --inf-v-genes=IGHV4-39*01'])
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, epilog=example_str)
-parser.add_argument('--nosim', action='store_true', help='run inference on (presumably) existing simulation')
 parser.add_argument('--n-sim-events', type=int, default=20, help='number of simulated rearrangement events')
 parser.add_argument('--n-max-queries', type=int, help='number of queries to use for inference from the simulation sample')
 parser.add_argument('--n-leaves', type=float, default=1.)
@@ -357,6 +356,8 @@ for mtype in mtypes:
             n_new_alleles = len(positions[mtype])
         if len(positions[mtype]) != n_new_alleles:
             raise Exception('mismatched number of new alleles for %s' % ' vs '.join(mtypes))
+if n_new_alleles is None:
+    n_new_alleles = 0
 for mtype in mtypes:
     if positions[mtype] is None:  # if it wasn't specified at all, i.e. we don't want to generate any new alleles
         positions[mtype] = [[] for _ in range(n_new_alleles)]
