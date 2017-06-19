@@ -63,7 +63,7 @@ for igene in range(0, len(genes)):
     seq = glfo['seqs'][args.region][gene]
     pos = codon_positions[gene]
     if pos < ref_pos:  # align the codon position in the case that this seq is shorter up to the codon
-        seq = (ref_pos - pos) * 'N' + seq
+        seq = (ref_pos - pos) * '-' + seq
         pos += (ref_pos - pos)
 
     right_pad_str = ''  # i think i don't need this any more since i have the align option in color_mutants
