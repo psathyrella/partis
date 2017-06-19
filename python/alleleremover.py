@@ -41,7 +41,7 @@ class AlleleRemover(object):
 
         if debug:
             print '  removing least likely alleles (%d total counts)' % total_counts
-            print '     %-20s    %5s (%s)      removed counts     removed genes' % ('genes to keep', 'counts', 'snps'),
+            print '     %-20s    %5s (%s)      removed genes (counts)' % ('genes to keep', 'counts', 'snps'),
 
         class_counts = self.separate_into_classes(sorted_gene_counts, easycounts)
         for iclass in range(len(class_counts)):
@@ -73,7 +73,9 @@ class AlleleRemover(object):
                     print '\n       %-s  %7s  %-3s' % (utils.color('blue', 'none', width=20, padside='right'), '-', ''),
                 removedfo = [gfo for gfo in gclass if gfo['gene'] not in self.genes_to_keep]
                 if len(removedfo) > 0:
-                    print '           %5d            %s' % (sum([gfo['counts'] for gfo in removedfo]), ' '.join([utils.color_gene(gfo['gene']) for gfo in removedfo])),
+                    # print '           %5d            %s' % (sum([gfo['counts'] for gfo in removedfo]), ' '.join([utils.color_gene(gfo['gene']) for gfo in removedfo])),
+                    removal_strs = ['%s (%d)' % (utils.color_gene(gfo['gene']), gfo['counts']) for gfo in removedfo]
+                    print '        %s' % '  '.join(removal_strs)
         if debug:
             print ''
 

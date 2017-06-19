@@ -157,7 +157,7 @@ class AlleleClusterer(object):
             if self.too_close_to_already_added_gene(new_seq, new_alleles, debug=debug):
                 continue
 
-            print '  %s new allele%s' % (utils.color_gene(new_name), ' (existing)' if new_name in default_initial_glfo['seqs'][self.region] else '')
+            print '  %s new allele%s' % (utils.color_gene(new_name), ' (exists default germline dir)' if new_name in default_initial_glfo['seqs'][self.region] else '')
             new_alleles[new_name] = {'template-gene' : template_gene, 'gene' : new_name, 'seq' : new_seq}
 
         if debug:
