@@ -74,9 +74,8 @@ class AlleleRemover(object):
                     print '\n       %-s  %7s  %-3s' % (utils.color('blue', 'none', width=20, padside='right'), '-', ''),
                 removedfo = [gfo for gfo in gclass if gfo['gene'] not in self.genes_to_keep]
                 if len(removedfo) > 0:
-                    # print '           %5d            %s' % (sum([gfo['counts'] for gfo in removedfo]), ' '.join([utils.color_gene(gfo['gene']) for gfo in removedfo])),
                     removal_strs = ['%s (%d)' % (utils.color_gene(gfo['gene']), gfo['counts']) for gfo in removedfo]
-                    print '        %s' % '  '.join(removal_strs)
+                    print '        %s' % '  '.join(removal_strs),
         if debug:
             print ''
 
