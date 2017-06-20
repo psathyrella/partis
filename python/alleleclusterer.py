@@ -17,6 +17,7 @@ class AlleleClusterer(object):
         self.region = 'v'
         self.other_region = 'j'
         self.absolute_n_seqs_min = 15
+        self.min_cluster_fraction = 0.005
         self.max_j_mutations = 8
         self.small_number_of_j_mutations = 3
         self.all_j_mutations = None
@@ -74,7 +75,7 @@ class AlleleClusterer(object):
         n_initial_clusters = len(msa_info)
         print '     read %d vsearch clusters (%d sequences))' % (n_initial_clusters, sum([len(cfo['seqfos']) for cfo in msa_info]))
 
-        n_seqs_min = max(self.absolute_n_seqs_min, self.args.min_allele_prevalence_fraction * len(qr_seqs))
+        n_seqs_min = max(self.absolute_n_seqs_min, self.min_cluster_fraction * len(qr_seqs))
         msa_info = [cfo for cfo in msa_info if len(cfo['seqfos']) >= n_seqs_min]
         print '     removed %d clusters with fewer than %d sequences' % (n_initial_clusters - len(msa_info), n_seqs_min)
         msa_info = sorted(msa_info, key=lambda cfo: len(cfo['seqfos']), reverse=True)
@@ -157,7 +158,7 @@ class AlleleClusterer(object):
             if self.too_close_to_already_added_gene(new_seq, new_alleles, debug=debug):
                 continue
 
-            print '  %s new allele%s' % (utils.color_gene(new_name), ' (exists default germline dir)' if new_name in default_initial_glfo['seqs'][self.region] else '')
+            print '  %s allele %s%s' % (utils.color('red', 'new'), utils.color_gene(new_name), ' (exists in default germline dir)' if new_name in default_initial_glfo['seqs'][self.region] else '')
             new_alleles[new_name] = {'template-gene' : template_gene, 'gene' : new_name, 'seq' : new_seq}
 
         if debug:
