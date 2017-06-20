@@ -674,7 +674,7 @@ class AlleleFinder(object):
             if istart >= self.hard_code_five:
                 pre_approx = self.approx_fit_vals(prevals)
                 post_approx = self.approx_fit_vals(postvals)
-                if pre_approx['slope'] > post_approx['slope']:
+                if not self.consistent(pre_approx['slope'], pre_approx['slope_err'], post_approx['slope'], post_approx['slope_err'], dbgstr='slope', debug=dbg) and pre_approx['slope'] > post_approx['slope']:
                     continue
 
             onefit = self.get_curvefit(bothvals, y_icpt_bounds=(0., 0.), debug=dbg)
