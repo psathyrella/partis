@@ -2731,7 +2731,7 @@ def read_vsearch_cluster_file(fname):
     return partition
 
 # ----------------------------------------------------------------------------------------
-def run_vsearch(action, seqs, workdir, threshold, n_procs=1, batch_system=None, batch_options=None, batch_config_fname=None, consensus_fname=None, msa_fname=None, glfo=None, print_time=False):
+def run_vsearch(action, seqs, workdir, threshold, consensus_fname=None, msa_fname=None, glfo=None, print_time=False):
     # single-pass, greedy, star-clustering algorithm with
     #  - add the target to the cluster if the pairwise identity with the centroid is higher than global threshold <--id>
     #  - pairwise identity definition <--iddef> defaults to: number of (matching columns) / (alignment length - terminal gaps)
@@ -2776,10 +2776,15 @@ def run_vsearch(action, seqs, workdir, threshold, n_procs=1, batch_system=None, 
     else:
         assert False
 
-    cmd += ' --threads ' + str(n_procs)
+    # cmd += ' --threads ' + str(n_procs)  # a.t.m. just let vsearch use all the cores (it'd be nice to be able to control it a little, but it's hard to keep it separate from the number of slurm procs, and we pretty much always want it to be different to that)
     cmd += ' --quiet'
-    cmdfos = [{'cmd_str' : cmd, 'outfname' : outfname, 'workdir' : workdir, 'threads' : n_procs}, ]
-    run_cmds(cmdfos, batch_system=batch_system, batch_options=batch_options, batch_config_fname=batch_config_fname)
+    cmdfos = [{
+        'cmd_str' : cmd,
+        'outfname' : outfname,
+        'workdir' : workdir,
+        # 'threads' : n_procs},  # NOTE that this does something very different (adjusts slurm command) to the line above ^ (talks to vsearch)
+    }]
+    run_cmds(cmdfos)
 
     # read output
     if action == 'cluster':

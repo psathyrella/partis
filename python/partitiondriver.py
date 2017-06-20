@@ -254,7 +254,7 @@ class PartitionDriver(object):
 # # ----------------------------------------------------------------------------------------
 #         tmpglfo = copy.deepcopy(self.glfo)  # definitely don't leave it like this
 #         glutils.remove_v_genes_with_bad_cysteines(tmpglfo)  # hm...
-#         vs_info = utils.run_vsearch('search', {sfo['unique_ids'][0] : sfo['seqs'][0] for sfo in self.input_info.values()}, self.args.workdir + '/vsearch', threshold=0.3, n_procs=self.args.n_procs, glfo=tmpglfo)
+#         vs_info = utils.run_vsearch('search', {sfo['unique_ids'][0] : sfo['seqs'][0] for sfo in self.input_info.values()}, self.args.workdir + '/vsearch', threshold=0.3, glfo=tmpglfo)
 #         self.run_waterer()
 #         swfo = self.sw_info  # just so you don't forget that the above line modifies/creates it
 #         n_same, n_same_snps = 0, 0
@@ -288,7 +288,7 @@ class PartitionDriver(object):
         if self.args.initial_aligner == 'vsearch':
             tmpglfo = copy.deepcopy(self.glfo)  # definitely don't leave it like this
             glutils.remove_v_genes_with_bad_cysteines(tmpglfo)  # hm...
-            vs_info = utils.run_vsearch('search', {sfo['unique_ids'][0] : sfo['seqs'][0] for sfo in self.input_info.values()}, self.args.workdir + '/vsearch', threshold=0.3, n_procs=self.args.n_procs, glfo=tmpglfo, print_time=True)
+            vs_info = utils.run_vsearch('search', {sfo['unique_ids'][0] : sfo['seqs'][0] for sfo in self.input_info.values()}, self.args.workdir + '/vsearch', threshold=0.3, glfo=tmpglfo, print_time=True)
             alremover = AlleleRemover(self.glfo, self.args, AlleleFinder(self.glfo, self.args, itry=0))
             alremover.finalize(sorted(vs_info['gene-counts'].items(), key=operator.itemgetter(1), reverse=True), debug=True)
             glutils.remove_genes(self.glfo, alremover.genes_to_remove)

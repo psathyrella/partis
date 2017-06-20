@@ -57,7 +57,7 @@ class AlleleClusterer(object):
         msa_fname = self.args.workdir + '/msa.fa'
         print '   vsearch clustering %d %s segments with threshold %.2f (*300 = %d)' % (len(qr_seqs), self.region, threshold, int(threshold * 300))
         assert self.region == 'v'  # would need to change the 300
-        _ = utils.run_vsearch('cluster', qr_seqs, self.args.workdir + '/vsearch', threshold=threshold, n_procs=self.args.n_procs, msa_fname=msa_fname)
+        _ = utils.run_vsearch('cluster', qr_seqs, self.args.workdir + '/vsearch', threshold=threshold, msa_fname=msa_fname)
 
         msa_info = []
         msa_seqs = utils.read_fastx(msa_fname)
