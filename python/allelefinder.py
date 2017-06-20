@@ -56,6 +56,7 @@ class AlleleFinder(object):
         self.min_bad_fit_residual = 1.8
         self.max_good_fit_residual = 4.5  # since this is unbounded above (unlike the min bad fit number), it needs to depend on how bad the bad fit/good fit ratio is (although, this starts making it hard to distinguish this from the ratio criterion, but see next parameter below))
         self.very_large_residual_ratio = 7.5  # if the ratio's bigger than this, we don't apply the max good fit residual criterion (i.e. if the ratio is a total slam dunk, it's ok if the good fit is shitty)
+        self.default_consistency_sigmas = 3.  # default number of sigma for the boundary between consistent and inconsistent fits
         self.max_consistent_candidate_fit_sigma = 5.
 
         self.min_min_candidate_ratio_to_plot = 1.5  # don't plot positions that're below this (for all <istart>)
@@ -485,11 +486,11 @@ class AlleleFinder(object):
         # NOTE that with multiple multi-snp new alleles that share some, but not all, positions, we don't expect consistency. In particular, at shared positions, the nsnp bin for the other allele will be high, and the prevalence will be off.
         for pos_1, pos_2 in itertools.combinations(fitfo['candidates'][istart], 2):
             fitfo_1, fitfo_2 = self.fitfos[gene]['fitfos'][istart][pos_1], self.fitfos[gene]['fitfos'][istart][pos_2]
-            if not self.consistent_slope_and_y_icpt(self.max_consistent_candidate_fit_sigma, fitfo_1['postfo'], fitfo_2['postfo'], debug=self.dbgfcn(pos_1, istart, pos_2=pos_2)):
+            if not self.consistent_fits(fitfo_1['postfo'], fitfo_2['postfo'], factor=self.max_consistent_candidate_fit_sigma, debug=self.dbgfcn(pos_1, istart, pos_2=pos_2)):
                 if debug:
                     print '    positions %d and %d have inconsistent post-istart fits' % (pos_1, pos_2)
                 return False
-            if istart > self.hard_code_three and not self.consistent_slope_and_y_icpt(self.max_consistent_candidate_fit_sigma, fitfo_1['prefo'], fitfo_2['prefo'], debug=self.dbgfcn(pos_1, istart, pos_2=pos_2)):  # if this nsnp is less than 3, and there's a second new allele with smaller nsnp, the pre-fit will be super inconsistent
+            if istart > self.hard_code_three and not self.consistent_fits(fitfo_1['prefo'], fitfo_2['prefo'], factor=self.max_consistent_candidate_fit_sigma, debug=self.dbgfcn(pos_1, istart, pos_2=pos_2)):  # if this nsnp is less than 3, and there's a second new allele with smaller nsnp, the pre-fit will be super inconsistent
                 if debug:
                     print '    positions %d and %d have inconsistent pre-istart fits' % (pos_1, pos_2)
                 return False
@@ -561,8 +562,10 @@ class AlleleFinder(object):
         return fitfo
 
     # ----------------------------------------------------------------------------------------
-    def consistent(self, factor, v1, v1err, v2, v2err, debug=False, dbgstr=''):
+    def consistent(self, v1, v1err, v2, v2err, factor=None, dbgstr='', debug=False):
         # i.e. if both slope and intercept are within <factor> std deviations of each other, don't bother fitting, because the fit isn't going to say they're wildly inconsistent
+        if factor is None:
+            factor = self.default_consistency_sigmas
         lo, hi = sorted([v1, v2])
         joint_err = max(v1err, v2err)
         if joint_err == float('inf'):
@@ -575,10 +578,10 @@ class AlleleFinder(object):
             return lo + factor * joint_err > hi
 
     # ----------------------------------------------------------------------------------------
-    def consistent_slope_and_y_icpt(self, factor, vals1, vals2, debug=False):
+    def consistent_fits(self, vals1, vals2, factor=None, debug=False):
         consistent = True
         for valname in ['slope', 'y_icpt']:
-            consistent &= self.consistent(factor, vals1[valname], vals1[valname + '_err'], vals2[valname], vals2[valname + '_err'], debug=debug, dbgstr=valname)
+            consistent &= self.consistent(vals1[valname], vals1[valname + '_err'], vals2[valname], vals2[valname + '_err'], factor=factor, dbgstr=valname, debug=debug)
         return consistent
 
     # ----------------------------------------------------------------------------------------
@@ -687,8 +690,9 @@ class AlleleFinder(object):
             twofit_residuals_over_ndof = twofit_residuals / twofit_ndof
 
             # pre-slope should be smaller than post-slope also for the full fits (for smaller <istart>s, post-slope tends to be flat, so you can't require this)
-            if istart >= self.hard_code_five and prefit['slope'] > postfit['slope']:
-                continue
+            if istart >= self.hard_code_five:
+                if not self.consistent(prefit['slope'], prefit['slope_err'], postfit['slope'], postfit['slope_err'], dbgstr='slope', debug=dbg) and prefit['slope'] > postfit['slope']:
+                    continue
 
             ratio = onefit['residuals_over_ndof'] / twofit_residuals_over_ndof if twofit_residuals_over_ndof > 0. else float('inf')
             if dbg:
@@ -782,9 +786,8 @@ class AlleleFinder(object):
         # this is heuristically parameterized by the non-zero values
         remove_template = True
         homozygous_line = {'slope' : -0.005, 'slope_err' : 0.01, 'y_icpt' : 1., 'y_icpt_err' : 0.01}
-        consistent_with_homozygosity = 3.  # TODO move this somewhere else
         for pos in fitfo['fitfos'][n_candidate_snps]:  # if every position is consistent with slope = 0, y_icpt = 1, remove the template gene
-            if not self.consistent_slope_and_y_icpt(consistent_with_homozygosity, fitfo['fitfos'][n_candidate_snps][pos]['postfo'], homozygous_line):
+            if not self.consistent_fits(fitfo['fitfos'][n_candidate_snps][pos]['postfo'], homozygous_line):
                 remove_template = False
 
         if debug:
