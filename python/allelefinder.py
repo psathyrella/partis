@@ -54,7 +54,8 @@ class AlleleFinder(object):
         self.min_min_candidate_ratio = 2.75  # every candidate ratio must be greater than this
         self.min_mean_candidate_ratio = 2.75  # mean of candidate ratios must be greater than this
         self.min_bad_fit_residual = 1.8
-        self.max_good_fit_residual = 4.5  # this value hasn't gone through a huge amount of testing -- we might be able to get away with having it a good bit smaller than this
+        self.max_good_fit_residual = 4.5  # since this is unbounded above (unlike the min bad fit number), it needs to depend on how bad the bad fit/good fit ratio is (although, this starts making it hard to distinguish this from the ratio criterion, but see next parameter below))
+        self.very_large_residual_ratio = 7.5  # if the ratio's bigger than this, we don't apply the max good fit residual criterion (i.e. if the ratio is a total slam dunk, it's ok if the good fit is shitty)
         self.max_consistent_candidate_fit_sigma = 5.
 
         self.min_min_candidate_ratio_to_plot = 1.5  # don't plot positions that're below this (for all <istart>)
@@ -689,13 +690,16 @@ class AlleleFinder(object):
             if istart >= self.hard_code_five and prefit['slope'] > postfit['slope']:
                 continue
 
-            # make sure two-piece fit is at least ok
-            if twofit_residuals_over_ndof > self.max_good_fit_residual:
+            ratio = onefit['residuals_over_ndof'] / twofit_residuals_over_ndof if twofit_residuals_over_ndof > 0. else float('inf')
+            if dbg:
+                print '  %5.3f / %5.3f = %5.3f' % (onefit['residuals_over_ndof'], twofit_residuals_over_ndof, ratio)
+
+            # make sure two-piece fit is at least ok (unless the residual ratio is incredibly convincing)
+            if ratio < self.very_large_residual_ratio and twofit_residuals_over_ndof > self.max_good_fit_residual:
                 continue
 
-            candidate_ratios[pos] = onefit['residuals_over_ndof'] / twofit_residuals_over_ndof if twofit_residuals_over_ndof > 0. else float('inf')
-            if dbg:
-                print '  %5.3f / %5.3f = %5.3f' % (onefit['residuals_over_ndof'], twofit_residuals_over_ndof, candidate_ratios[pos])
+            # add it as a candidate
+            candidate_ratios[pos] = ratio
             residfo[pos] = {'onefo' : onefit, 'prefo' : prefit, 'postfo' : postfit, 'twofo' : {'residuals_over_ndof' : twofit_residuals_over_ndof}}
             if dbg or candidate_ratios[pos] > self.min_min_candidate_ratio_to_plot:
                 self.positions_to_plot[gene].add(pos)  # if we already decided to plot it for another <istart>, it'll already be in there
