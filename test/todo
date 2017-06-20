@@ -10,23 +10,29 @@ Light chains only:
 QA255.157
 QA255.253
 
-# profile alclusterer
+# fix os-x problem
+# rerun kate-qrs and laura-mb, then do per-seq uncertainties for seeds above ^
+# paralellize hmmwriter calls
 
-# inconsistent pre-istart fits aren't always inconsistent (e.g. 3-33 in /fh/fast/matsen_e/dralph/partis/allele-finder/v3/gls-gen/simu/gls-gen-simu/n-events-300000/0/logs/partis/log)
-# probably need to do something with the fact that allele clustering can actually pick up nearby alleles pretty well (?)
-#  - maybe add close (few-snp) new alleles if they're super clear cut, i.e. very low j mutation, and other things (?)
-# what to do about internal dashes in alcluster consensus seqs?
-# split isnp stuff out of color_mutants and combine with hamming_distance
-# synchronize "gene we just added" and "existing gene" distance/n_snp requirements in alleleclusterer
+# paper
+#  - add scheepers data (well, and others)
+#  - add new chaim data (igg + igm)
+#  - abvitro/kristian data https://peerj.com/articles/2924/?utm_source=TrendMD&utm_campaign=PeerJ_TrendMD_0&utm_medium=TrendMD
+#  - plots
+#    - add nsnps up to at least 6
+#    - add multi-nsnps with more simultaneous alleles and more shared snps
+#  - could potentially need to rerun tests with vsearch alignment, deprecation of --dont-remove-unlikely-alleles (and other changes?)
+#  - light chain allele finding: need to account for larger amount of v to right of cysteine?
+#  - profile alclusterer
 
-# also remove Vs that don't extend through cysteine
-#  - remove 'D' thing from wherever they're getting removed somewhere else
-
-# fix/update fraction uncertainty for obs == total
-
-# read through/clean up vsearch run fcn
-#   - add some default dbg info
-# set some mean mute freq information in waterer.info just based on averages from the dicts in <self.info>, instead of pcounter
+# not urgent
+#  - split isnp stuff out of color_mutants and combine with hamming_distance
+#  - synchronize "gene we just added" and "existing gene" distance/n_snp requirements in alleleclusterer
+#  - read through/clean up vsearch run fcn, add some default dbg info
+#  - set some mean mute freq information in waterer.info just based on averages from the dicts in <self.info>, instead of pcounter
+#  - do cases where two or more v genes are equidistant from the query need to be handled more carefully?
+#  - shouldn't the indel-adders be modifying event.codon_positions?
+#  - allow indels in both V and J at the same time (?)
 
 # optimizations/cleanup (more below)
 #  - add a local tmp dir to recombinator
@@ -51,47 +57,6 @@ QA255.253
 
 # testing
 #  - add allele finding
-
-# paper
-#  - add scheepers data (well, and others)
-#  - add new chaim data (igg + igm)
-#  - abvitro/kristian data https://peerj.com/articles/2924/?utm_source=TrendMD&utm_campaign=PeerJ_TrendMD_0&utm_medium=TrendMD
-#  - plots
-#    - add nsnps up to at least 6
-#    - add multi-nsnps with more simultaneous alleles and more shared snps
-#  - could potentially need to rerun tests for vsearch alignment, deprecation of --dont-remove-unlikely-alleles (and other changes?)
-
-# shouldn't the indel-adders be modifying event.codon_positions?
-
-# check allele names coming in from tigger (make sure we know about all the alleles)
-# cf the two different imgt gl sets
-# handle naming ambiguity (i.e. which gene do we count the snps from
-# do cases where two or more v genes are equidistant from the query need to be handled more carefully?
-
-# alleleclusterer
-#  - need to deal with different length alleles, i.e. if there's extra crap on the left or right of the new/old allele
-#   - maybe don't not consider large clonal families? (not sure. after all the whole alleleremover strategy breaks with very large families)
-
-# fix allele name decider to more strongly prefer non-snpd genes (well, make sure it hasn't messed anything up yet)
-# new-allele name arbitration needs to happen when plotting (e.g. count as correct alleles that only differ after the cpos)
-# light chain allele finding: need to account for larger amount of v to right of cysteine?
-
-# overall gl inference workflow
-# - apply vsearch/swarm to v_qr_seqs to see if there's any well-separated new genes that we should add to the initial set
-#   - decide which of these clusters represent new alleles
-#     - add a requirement that the inferred germlines for each query in the cluster aren't crazy far apart (?)
-#   - add consensus sequence from these clusters
-# - run allele removal, keeping only the most-likely within each class
-#   - lower bound should be smaller (at least for large samples) UPDATE I think I already lowered this? but I'm not sure
-# - in allele finding, start checking whether to remove template gene (based on mfreq distribution)
-# - at some point need to have good criteria for removing alcluster alleles that don't have plausible clonal family + mute freq properties
-# - could maybe use mutation rate in j as proxy for "real" v mutation rate (maybe just don't consider seqs with more than, say 5 j mutations)
-
-# default gl set
-#  - deal with 'D' (imgt 'duplicate') alleles (not sure if remove, or swap for the non-D, or actually maybe just leave them and fix the name splitter)
-#  - remove v genes with bad cysteines (?)
-
-#  - allow indels in both V and J at the same time (?)
 
 # ----------------------------------------------------------------------------------------
 # fix ham scons test
