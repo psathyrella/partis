@@ -1112,12 +1112,7 @@ class PartitionDriver(object):
 
         procs = [multiprocessing.Process(target=write_single_hmm, args=(gene,))
                  for region in utils.regions for gene in self.glfo['seqs'][region]]
-        while True:
-            while len(procs) > 0 and len(multiprocessing.active_children()) < self.args.n_procs:
-                procs[0].start()
-                procs.pop(0)
-            if len(multiprocessing.active_children()) == 0 and len(procs) == 0:
-                break
+        utils.run_proc_functions(procs, self.args.n_procs)
 
         print '(%.1f sec)' % (time.time()-start)
 

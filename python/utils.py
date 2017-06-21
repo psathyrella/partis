@@ -1784,6 +1784,18 @@ def simplerun(cmd_str, shell=False, dryrun=False, print_time=None):
         print '      %s time: %.1f' % (print_time, time.time() - start)
 
 # ----------------------------------------------------------------------------------------
+def run_proc_functions(procs, n_procs, debug=False):  # <procs> is a list of multiprocessing.Process objects
+    if debug:
+        print '    running %d proc fcns with %d procs' % (len(procs), n_procs)
+        sys.stdout.flush()
+    while True:
+        while len(procs) > 0 and len(multiprocessing.active_children()) < n_procs:
+            procs[0].start()
+            procs.pop(0)
+        if len(multiprocessing.active_children()) == 0 and len(procs) == 0:
+            break
+
+# ----------------------------------------------------------------------------------------
 def run_cmd(cmdfo, batch_system=None, batch_options=None, nodelist=None):
     cmd_str = cmdfo['cmd_str']  # don't want to modify the str in <cmdfo>
     # print cmd_str

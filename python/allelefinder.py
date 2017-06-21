@@ -11,7 +11,6 @@ import glob
 import numpy
 
 from hist import Hist
-from mutefreqer import MuteFreqer
 import utils
 import glutils
 
