@@ -17,16 +17,18 @@ class AlleleClusterer(object):
         self.region = 'v'
         self.other_region = 'j'
         self.absolute_n_seqs_min = 15
-        self.min_cluster_fraction = 0.005
+        self.min_cluster_fraction = 0.002
         self.max_j_mutations = 8
         self.small_number_of_j_mutations = 3
         self.all_j_mutations = None
 
     # ----------------------------------------------------------------------------------------
-    def get_alleles(self, queryfo, threshold, glfo, swfo=None, reco_info=None, simglfo=None, debug=False):
+    def get_alleles(self, queryfo, glfo, swfo=None, reco_info=None, simglfo=None, debug=False):
         debug = True
         if debug:
             print 'clustering for new alleles'
+
+        new_alleles = {}
 
         default_initial_glfo = glfo
         if self.args.default_initial_germline_dir is not None:  # if this is set, we want to take any new allele names from this directory's glfo if they're in there
@@ -36,12 +38,18 @@ class AlleleClusterer(object):
 
         # NOTE do *not* modify <glfo> (in the future it would be nice to just modify <glfo>, but for now we need it to be super clear in partitiondriver what is happening to <glfo>)
         if swfo is None:
-            print '  note: not collapsing clones, since we\'re working from vsearch v-only info'
+            assert False  # need to figure out a threshold
+            # threshold=self.sw_info['mute-freqs']['v'],
+            print '  note: not collapsing clones, and not removing non-full-length sequences, since we\'re working from vsearch v-only info'
             qr_seqs = {q : qfo['qr_seq'] for q, qfo in queryfo.items()}
             gene_info = {q : qfo['gene'] for q, qfo in queryfo.items()}
         else:
             assert queryfo is None
-            clusters = utils.collapse_naive_seqs(swfo)
+            full_length_queries = [q for q in swfo['queries'] if swfo[q]['v_5p_del'] == 0 and swfo[q]['j_3p_del'] == 0]
+            print '   removing %d/%d sequences with v_5p or j_3p deletions' % (len(swfo['queries']) - len(full_length_queries), len(swfo['queries']))
+            if len(full_length_queries) == 0:
+                return new_alleles
+            clusters = utils.collapse_naive_seqs(swfo, queries=full_length_queries)
             qr_seqs = {}
             self.all_j_mutations = {}
             for cluster in clusters:  # take the sequence with the lowest j mutation for each cluster, if it doesn't have too many j mutations NOTE choose_cluster_representatives() in allelefinder is somewhat similar
@@ -54,6 +62,9 @@ class AlleleClusterer(object):
                     self.all_j_mutations[query] = j_mutations[query]  # I don't think I can key by the cluster str, since here things correspond to the naive-seq-collapsed clusters, then we remove some of the clusters, and then cluster with vsearch
             print '   collapsed %d input sequences into %d representatives from %d clones (removed %d clones with >= %d j mutations)' % (len(swfo['queries']), len(qr_seqs), len(clusters), len(clusters) - len(qr_seqs), self.max_j_mutations)
             gene_info = {q : swfo[q][self.region + '_gene'] for q in qr_seqs}
+
+            assert self.region == 'v'  # need to think about whether this should always be j, or if it should be self.other_region
+            threshold = swfo['mute-freqs']['j'] / 2.
 
         msa_fname = self.args.workdir + '/msa.fa'
         print '   vsearch clustering %d %s segments with threshold %.2f (*300 = %d)' % (len(qr_seqs), self.region, threshold, int(threshold * 300))
@@ -82,7 +93,6 @@ class AlleleClusterer(object):
 
         n_existing_gene_clusters = 0
         # n_clusters_for_new_alleles = 0
-        new_alleles = {}
         if debug:
             print '  looping over %d clusters with %d sequences' % (len(msa_info), sum([len(cfo['seqfos']) for cfo in msa_info]))
             print '   seqs   %s mutations (mean)' % self.other_region
