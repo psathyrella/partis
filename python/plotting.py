@@ -84,7 +84,7 @@ def make_bool_hist(n_true, n_false, hist_label):
 
     def set_bin(numer, denom, ibin, label):
         frac = float(numer) / denom
-        bounds = sys.modules['fraction_uncertainty'].err(numer, denom, use_beta=True)
+        bounds = sys.modules['fraction_uncertainty'].err(numer, denom)
         err = max(abs(frac - bounds[0]), abs(frac - bounds[1]))
         hist.set_ibin(ibin, frac, error=err, label=label)
 
