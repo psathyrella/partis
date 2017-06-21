@@ -67,12 +67,12 @@ Docker containers and images are kinda-sorta like virtual machines, only differe
 ### Installation from scratch
 
 Given the wide variety of hardware and operating systems, installing without Docker comes with no guarantees.
-That said, you should be able to get partis running with just a few `apt-get` and `pip` commands, at least on recent versions of ubuntu.
-We haven't tried on os-x, but if you do, let us know -- especially if you find any tricks.
+That said, you should be able to get partis running with just a few `apt-get`/`brew` and `pip` commands.
 This docker-free approach is frequently a lot faster (if you already have numpy and scipy installed, for instance, you don't have to wait for docker to compile and install them from scratch).
 You also don't have to deal with the additional complications of being inside docker, perhaps most importantly docker's likely incompatibility with your batch queueing system.
 
-Basically, you just need to install a few extra packages in addition to the dependencies listed in the [Dockerfile](https://github.com/psathyrella/partis/blob/master/Dockerfile):
+Basically, you just need to install a few extra packages in addition to the dependencies listed in the [Dockerfile](https://github.com/psathyrella/partis/blob/master/Dockerfile).
+For Ubuntu (tested on 16.04):
 
 ```
 sudo apt-get install python-pip cmake scons libgsl0-dev libncurses5-dev libxml2-dev libxslt1-dev mafft r-base
@@ -80,7 +80,15 @@ pip install --user numpy scipy matplotlib pandas biopython dendropy==3.12.3 pysa
 R --vanilla --slave -e 'install.packages("TreeSim", repos="http://cran.rstudio.com/")'  # optional -- only used for simulation
 ```
 
-If you need to sort out versions (unlikely, especially if you start from 14.04/16.04, since that's what we're running), follow the Dockerfile chain beginning [here](https://registry.hub.docker.com/u/psathyrella/partis/dockerfile/) and [here](https://github.com/matsengrp/dockerfiles/blob/master/cpp/Dockerfile).
+We have less experience with os-x, so please drop us a line if you run into any problems, but folks have had good luck swapping out the `apt-get`/`pip` calls for a combination of `brew` and `pip`.
+For instance, depending what is already installed on your system (the Ubuntu list above is more comprehensive) this might be sufficient:
+
+```
+pip install --user colored-traceback pysam scons cmake pyyaml  # adding --egg may help if it fails
+brew install gsl
+```
+
+If you need to sort out versions, follow the Dockerfile chain beginning [here](https://registry.hub.docker.com/u/psathyrella/partis/dockerfile/) and [here](https://github.com/matsengrp/dockerfiles/blob/master/cpp/Dockerfile).
 
 Once you've got all the necessary things on your system, you can proceed to clone the repository and compile:
 
