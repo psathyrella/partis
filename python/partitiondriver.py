@@ -290,7 +290,7 @@ class PartitionDriver(object):
             glutils.remove_v_genes_with_bad_cysteines(tmpglfo)  # hm...
             vs_info = utils.run_vsearch('search', {sfo['unique_ids'][0] : sfo['seqs'][0] for sfo in self.input_info.values()}, self.args.workdir + '/vsearch', threshold=0.3, glfo=tmpglfo, print_time=True)
             alremover = AlleleRemover(self.glfo, self.args, AlleleFinder(self.glfo, self.args, itry=0))
-            alremover.finalize(sorted(vs_info['gene-counts'].items(), key=operator.itemgetter(1), reverse=True), debug=True)
+            alremover.finalize(sorted(vs_info['gene-counts'].items(), key=operator.itemgetter(1), reverse=True), debug=self.args.debug_allele_finding)
             glutils.remove_genes(self.glfo, alremover.genes_to_remove)
             glutils.write_glfo(self.my_gldir, self.glfo)
             if not self.args.dont_allele_cluster:
@@ -1106,10 +1106,18 @@ class PartitionDriver(object):
         if self.args.debug:
             print '    to %s' % parameter_dir + '/hmms'
 
-        for region in utils.regions:
-            for gene in self.glfo['seqs'][region]:
-                writer = HmmWriter(parameter_dir, hmm_dir, gene, self.glfo, self.args)
-                writer.write()
+        def write_single_hmm(gene):
+            writer = HmmWriter(parameter_dir, hmm_dir, gene, self.glfo, self.args)
+            writer.write()
+
+        procs = [multiprocessing.Process(target=write_single_hmm, args=(gene,))
+                 for region in utils.regions for gene in self.glfo['seqs'][region]]
+        while True:
+            while len(procs) > 0 and len(multiprocessing.active_children()) < self.args.n_procs:
+                procs[0].start()
+                procs.pop(0)
+            if len(multiprocessing.active_children()) == 0 and len(procs) == 0:
+                break
 
         print '(%.1f sec)' % (time.time()-start)
 

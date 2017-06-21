@@ -7,7 +7,7 @@ import sys
 import csv
 import numpy
 import colored_traceback.always
-from multiprocessing import Process, active_children
+import multiprocessing
 from subprocess import check_call, check_output, CalledProcessError
 import os
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
@@ -131,9 +131,9 @@ def run_simulation(args):
             utils.run_cmds(cmdfos, batch_system=args.batch_system, batch_options=args.batch_options, batch_config_fname=args.batch_config_fname, debug='print')
         else:
             for iproc in range(args.n_procs):
-                proc = Process(target=make_events, args=(n_per_proc, iproc, cmdfos[iproc]['workdir'], cmdfos[iproc]['outfname'], all_random_ints[iproc]))
+                proc = multiprocessing.Process(target=make_events, args=(n_per_proc, iproc, cmdfos[iproc]['workdir'], cmdfos[iproc]['outfname'], all_random_ints[iproc]))
                 proc.start()
-            while len(active_children()) > 0:
+            while len(multiprocessing.active_children()) > 0:
                 sys.stdout.flush()
                 time.sleep(1)
 
