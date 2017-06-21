@@ -1115,10 +1115,12 @@ class Waterer(object):
             swfo = self.info[query]
             assert len(swfo['seqs']) == 1
 
-            # utils.print_reco_event(swfo)
-            utils.remove_all_implicit_info(swfo)
             fv_len = len(swfo['fv_insertion'])
             jf_len = len(swfo['jf_insertion'])
+            if fv_len == 0 and jf_len == 0:
+                continue
+
+            utils.remove_all_implicit_info(swfo)
 
             for seqkey in ['seqs', 'input_seqs']:
                 swfo[seqkey][0] = swfo[seqkey][0][fv_len : len(swfo[seqkey][0]) - jf_len]
@@ -1130,23 +1132,21 @@ class Waterer(object):
                 swfo['k_v'][key] -= fv_len
             swfo['fv_insertion'] = ''
             swfo['jf_insertion'] = ''
-
             utils.add_implicit_info(self.glfo, swfo)
-            # utils.print_reco_event(swfo)
 
             # *sigh* not super happy about it, but I think the best way to handle this is to also remove these bases from the simulation info
             if self.reco_info is not None:
-                raise Exception('needs fixing (and maybe actually shouldn\'t be fixed)')
-                simfo = self.reco_info[query]
-                utils.remove_all_implicit_info(simfo)
-                simfo['seqs'][0] = simfo['seqs'][0][fv_len : len(simfo['seqs'][0]) - jf_len]
-                if indelutils.has_indels(simfo['indelfos'][0]):
-                    simfo['indelfos'][0]['reversed_seq'] = simfo['seqs'][0]
-                for indel in reversed(simfo['indelfos'][0]['indels']):
-                    indel['pos'] -= fv_len
-                simfo['fv_insertion'] = ''
-                simfo['jf_insertion'] = ''
-                utils.add_implicit_info(self.glfo, simfo)
+                raise Exception('needs fixing (and maybe actually shouldn\'t be fixed) -- i.e. you probably should have turned off fwk insertion removal')
+                # simfo = self.reco_info[query]
+                # utils.remove_all_implicit_info(simfo)
+                # simfo['seqs'][0] = simfo['seqs'][0][fv_len : len(simfo['seqs'][0]) - jf_len]
+                # if indelutils.has_indels(simfo['indelfos'][0]):
+                #     simfo['indelfos'][0]['reversed_seq'] = simfo['seqs'][0]
+                # for indel in reversed(simfo['indelfos'][0]['indels']):
+                #     indel['pos'] -= fv_len
+                # simfo['fv_insertion'] = ''
+                # simfo['jf_insertion'] = ''
+                # utils.add_implicit_info(self.glfo, simfo)
 
     # ----------------------------------------------------------------------------------------
     def remove_duplicate_sequences(self, debug=False):
