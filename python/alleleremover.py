@@ -25,7 +25,6 @@ class AlleleRemover(object):
 
     # ----------------------------------------------------------------------------------------
     def separate_into_classes(self, sorted_gene_counts, easycounts):  # where each class contains all alleles with the same distance from start to cyst, and within a hamming distance of <self.args.n_max_snps>
-        # NOTE <sorted_gene_counts> may be floats instead of integers
         snp_groups = utils.separate_into_snp_groups(self.glfo, self.region, self.args.n_max_snps, genelist=[g for g, _ in sorted_gene_counts])
         class_counts = []  # this could stand to be cleaned up... it's kind of a holdover from before I moved the separating fcn to utils
         for sgroup in snp_groups:
@@ -34,6 +33,7 @@ class AlleleRemover(object):
 
     # ----------------------------------------------------------------------------------------
     def finalize(self, sorted_gene_counts, debug=False):
+        # NOTE <sorted_gene_counts> is usually/always floats instead of integers
         assert not self.finalized
         easycounts = {gene : counts for gene, counts in sorted_gene_counts}
         total_counts = sum([counts for counts in easycounts.values()])
@@ -41,8 +41,13 @@ class AlleleRemover(object):
         self.genes_to_keep = set()
 
         if debug:
-            print '  removing least likely alleles (%d total counts)' % total_counts
+            print '  removing least likely alleles (%.1f total counts)' % total_counts
             print '     %-20s    %5s (%s)      removed genes (counts)' % ('genes to keep', 'counts', 'snps'),
+            def count_str(cnt):
+                if cnt < 10.:
+                    return '%.1f' % cnt
+                else:
+                    return '%.0f' % cnt
 
         class_counts = self.separate_into_classes(sorted_gene_counts, easycounts)
         for iclass in range(len(class_counts)):
@@ -68,13 +73,13 @@ class AlleleRemover(object):
 
                 if debug and gfo['gene'] in self.genes_to_keep:
                     snpstr = ' ' if ig == 0 else '(%d)' % utils.hamming_distance(gclass[0]['seq'], gfo['seq'])
-                    print '\n       %-s  %7d  %-3s' % (utils.color_gene(gfo['gene'], width=20), gfo['counts'], snpstr),
+                    print '\n       %-s  %7s  %-3s' % (utils.color_gene(gfo['gene'], width=20), count_str(gfo['counts']), snpstr),
             if debug:
                 if n_from_this_class == 0:
                     print '\n       %-s  %7s  %-3s' % (utils.color('blue', 'none', width=20, padside='right'), '-', ''),
                 removedfo = [gfo for gfo in gclass if gfo['gene'] not in self.genes_to_keep]
                 if len(removedfo) > 0:
-                    removal_strs = ['%s (%d)' % (utils.color_gene(gfo['gene']), gfo['counts']) for gfo in removedfo]
+                    removal_strs = ['%s (%s)' % (utils.color_gene(gfo['gene']), count_str(gfo['counts'])) for gfo in removedfo]
                     print '        %s' % '  '.join(removal_strs),
         if debug:
             print ''
