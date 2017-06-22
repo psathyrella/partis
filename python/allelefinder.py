@@ -784,7 +784,7 @@ class AlleleFinder(object):
         # we actually expect the slope to be somewhat negative (since as the mutation rate increases a higher fraction of them revert to germline)
         # this is heuristically parameterized by the non-zero values
         remove_template = True
-        homozygous_line = {'slope' : -0.01, 'slope_err' : 0.015, 'y_icpt' : 1.08, 'y_icpt_err' : 0.1}
+        homozygous_line = {'slope' : -0.01, 'slope_err' : 0.015, 'y_icpt' : 1.095, 'y_icpt_err' : 0.1}
         for pos in fitfo['fitfos'][n_candidate_snps]:  # if every position is consistent with slope = 0, y_icpt = 1, remove the template gene
             if not self.consistent_fits(fitfo['fitfos'][n_candidate_snps][pos]['postfo'], homozygous_line, factor=1., debug=True):
                 remove_template = False
