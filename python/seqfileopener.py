@@ -182,7 +182,7 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, s
         # da business
         input_info[uid] = {'unique_ids' : [uid, ], 'seqs' : [inseq, ]}
 
-        if n_queries_added == 0 and is_data and 'v_gene' in line:
+        if n_queries_added == 0 and is_data and 'reco_id' in line:
             print '  note: found simulation info in %s -- are you sure you didn\'t mean to set --is-simu?' % infname
 
         if not is_data:
