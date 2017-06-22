@@ -339,7 +339,7 @@ parent_parser.add_argument('--n-max-total-alleles', type=int, help='maximum numb
 parent_parser.add_argument('--initial-aligner', choices=['sw', 'vsearch'], default='vsearch')
 parent_parser.add_argument('--dont-allele-cluster', action='store_true')
 parent_parser.add_argument('--dont-find-new-alleles', action='store_true', help='dont\'t look for alleles which do not appear in the default germline set')
-parent_parser.add_argument('--always-find-new-alleles', action='store_true', help='By default we only look for new alleles if a repertoire\'s mutation rate is amenable to reasonable new-allele sensitivity (i.e. if it\'s not crazy high). This overrides that.')
+# parent_parser.add_argument('--always-find-new-alleles', action='store_true', help='By default we only look for new alleles if a repertoire\'s mutation rate is amenable to reasonable new-allele sensitivity (i.e. if it\'s not crazy high). This overrides that.')
 parent_parser.add_argument('--debug-allele-finding', action='store_true', help='print lots of debug info on new-allele fits')
 parent_parser.add_argument('--new-allele-fname', help='fasta fname to which to write any new alleles (they are also written, together with previously-known alleles that are also in the sample, to --parameter-dir)')
 parent_parser.add_argument('--n-max-allele-finding-iterations', type=int, default=2, help='maximum number of times to look for new alleles')
