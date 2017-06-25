@@ -738,7 +738,7 @@ class AlleleFinder(object):
         self.fitfos[gene]['min_snp_ratios'][istart] = min(candidate_ratios.values())
         self.fitfos[gene]['mean_snp_ratios'][istart] = numpy.mean(candidate_ratios.values())
         self.fitfos[gene]['candidates'][istart] = candidate_ratios
-        self.fitfos[gene]['fitfos'][istart] = residfo
+        self.fitfos[gene]['fitfos'][istart] = {pos : fitfo for pos, fitfo in residfo.items() if pos in candidates}
 
     # ----------------------------------------------------------------------------------------
     def add_allele_to_new_allele_info(self, template_gene, fitfo, n_candidate_snps, debug=False):
@@ -784,7 +784,7 @@ class AlleleFinder(object):
         # we actually expect the slope to be somewhat negative (since as the mutation rate increases a higher fraction of them revert to germline)
         # this is heuristically parameterized by the non-zero values
         remove_template = True
-        homozygous_line = {'slope' : -0.01, 'slope_err' : 0.015, 'y_icpt' : 1.095, 'y_icpt_err' : 0.1}
+        homozygous_line = {'slope' : -0.01, 'slope_err' : 0.015, 'y_icpt' : 1.1, 'y_icpt_err' : 0.12}
         for pos in fitfo['fitfos'][n_candidate_snps]:  # if every position is consistent with slope = 0, y_icpt = 1, remove the template gene
             if not self.consistent_fits(fitfo['fitfos'][n_candidate_snps][pos]['postfo'], homozygous_line, factor=1., debug=True):
                 remove_template = False
