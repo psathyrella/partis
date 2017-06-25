@@ -162,7 +162,7 @@ class AlleleClusterer(object):
                 factor = 1.75
                 if n_snps < factor * mean_j_mutations:  # i.e. we keep if it's *further* than factor * <number of j mutations> from the closest existing allele (should presumably rescale by some factor to go from j --> v, but it seems like the factor's near to 1.)
                     if debug:
-                        print '      too close (%d snp%s < %.2f = %.2f * %d j mutation%s) to existing glfo gene %s' % (n_snps, utils.plural(n_snps), factor * mean_j_mutations, factor, mean_j_mutations, utils.plural(mean_j_mutations), utils.color_gene(template_gene))
+                        print '      too close (%d snp%s < %.2f = %.2f * %.1f mean j mutation%s) to existing glfo gene %s' % (n_snps, utils.plural(n_snps), factor * mean_j_mutations, factor, mean_j_mutations, utils.plural(mean_j_mutations), utils.color_gene(template_gene))
                     continue
 
             if self.too_close_to_already_added_gene(new_seq, new_alleles, debug=debug):
