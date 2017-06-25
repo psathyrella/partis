@@ -251,40 +251,6 @@ class PartitionDriver(object):
 
             self.args.min_observations_to_write = 1
 
-# # ----------------------------------------------------------------------------------------
-#         tmpglfo = copy.deepcopy(self.glfo)  # definitely don't leave it like this
-#         glutils.remove_v_genes_with_bad_cysteines(tmpglfo)  # hm...
-#         vs_info = utils.run_vsearch('search', {sfo['unique_ids'][0] : sfo['seqs'][0] for sfo in self.input_info.values()}, self.args.workdir + '/vsearch', threshold=0.3, glfo=tmpglfo)
-#         self.run_waterer()
-#         swfo = self.sw_info  # just so you don't forget that the above line modifies/creates it
-#         n_same, n_same_snps = 0, 0
-#         for query in swfo['queries']:
-#             swgene = swfo[query]['v_gene']
-#             if query not in vs_info['queries']:
-#                 print '  %s not in vs_info' % query
-#                 continue
-#             vsgene = vs_info['queries'][query]['gene']
-
-#             if vsgene == swgene:
-#                 n_same += 1
-#                 continue
-
-#             _, sw_isnps = utils.color_mutants(swfo[query]['v_qr_seqs'][0], self.glfo['seqs']['v'][swgene], align=True, return_isnps=True)
-#             _, vs_isnps = utils.color_mutants(swfo[query]['v_qr_seqs'][0], self.glfo['seqs']['v'][vsgene], align=True, return_isnps=True)
-#             if set(sw_isnps) == set(vs_isnps):
-#                 n_same_snps += 1
-#                 continue
-
-#             print ''
-#             # utils.print_reco_event(swfo[query])
-#             utils.color_mutants(swfo[query]['v_qr_seqs'][0], self.glfo['seqs']['v'][swgene], align=True, print_isnps=True, print_result=True, seq_label=utils.color_gene(swgene, width=12), ref_label='%-12s' % 'query')
-#             utils.color_mutants(swfo[query]['v_qr_seqs'][0], self.glfo['seqs']['v'][vsgene], align=True, print_isnps=True, print_result=True, seq_label=utils.color_gene(vsgene, width=12), only_print_seq=True)
-
-#         print ' total     %4d' % len(swfo['queries'])
-#         print ' same      %4d' % n_same
-#         print ' same snps %4d' % n_same_snps
-#         sys.exit()
-# # ----------------------------------------------------------------------------------------
         if self.args.initial_aligner == 'vsearch':
             tmpglfo = copy.deepcopy(self.glfo)  # definitely don't leave it like this
             glutils.remove_v_genes_with_bad_cysteines(tmpglfo)  # hm...
@@ -297,7 +263,7 @@ class PartitionDriver(object):
                 alclusterer = AlleleClusterer(self.args)
                 # TODO make it so you don't have to count parameters here to get 'mute-freqs' (there's a comment about this also written somewhere else)
                 self.run_waterer(count_parameters=True)
-                alcluster_alleles = alclusterer.get_alleles(queryfo=None, glfo=self.glfo, swfo=self.sw_info, reco_info=self.reco_info, simglfo=self.simglfo if self.reco_info is not None else None)
+                alcluster_alleles = alclusterer.get_alleles(queryfo=None, glfo=self.glfo, swfo=self.sw_info, reco_info=self.reco_info, simglfo=self.simglfo if self.reco_info is not None else None, debug=self.args.debug_allele_finding)
                 glutils.add_new_alleles(self.glfo, alcluster_alleles.values(), use_template_for_codon_info=False, simglfo=self.simglfo if self.reco_info is not None else None, debug=True)
         elif self.args.initial_aligner == 'sw':
             assert self.args.dont_allele_cluster

@@ -24,9 +24,7 @@ class AlleleClusterer(object):
 
     # ----------------------------------------------------------------------------------------
     def get_alleles(self, queryfo, glfo, swfo=None, reco_info=None, simglfo=None, debug=False):
-        debug = True
-        if debug:
-            print 'clustering for new alleles'
+        print 'clustering for new alleles'
 
         new_alleles = {}
 
