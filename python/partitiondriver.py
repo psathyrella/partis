@@ -1071,13 +1071,6 @@ class PartitionDriver(object):
         if self.args.debug:
             print '    to %s' % parameter_dir + '/hmms'
 
-        # def write_single_hmm(gene):
-        #     writer = HmmWriter(parameter_dir, hmm_dir, gene, self.glfo, self.args)
-        #     writer.write()
-
-        # procs = [multiprocessing.Process(target=write_single_hmm, args=(gene,))
-        #          for region in utils.regions for gene in self.glfo['seqs'][region]]
-        # utils.run_proc_functions(procs, self.args.n_procs)
         for region in utils.regions:
             for gene in self.glfo['seqs'][region]:
                 writer = HmmWriter(parameter_dir, hmm_dir, gene, self.glfo, self.args)
