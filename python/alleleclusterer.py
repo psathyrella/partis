@@ -60,7 +60,7 @@ class AlleleClusterer(object):
                     qr_seqs[best_query] = indelutils.get_qr_seqs_with_indels_reinstated(swfo[best_query], iseq=0)[self.region]
                 for query in cluster:
                     self.all_j_mutations[query] = j_mutations[query]  # I don't think I can key by the cluster str, since here things correspond to the naive-seq-collapsed clusters, then we remove some of the clusters, and then cluster with vsearch
-            print '   collapsed %d input sequences into %d representatives from %d clones (removed %d clones with >= %d j mutations)' % (len(swfo['queries']), len(qr_seqs), len(clusters), len(clusters) - len(qr_seqs), self.max_j_mutations)
+            print '   collapsed %d input sequences into %d representatives from %d clones (removed %d clones with >= %d j mutations)' % (len(full_length_queries), len(qr_seqs), len(clusters), len(clusters) - len(qr_seqs), self.max_j_mutations)
             gene_info = {q : swfo[q][self.region + '_gene'] for q in qr_seqs}
 
             assert self.region == 'v'  # need to think about whether this should always be j, or if it should be self.other_region
