@@ -951,7 +951,7 @@ def find_equivalent_gene_in_glfo(glfo, new_seq, new_cpos, new_name=None, exclusi
         if debug:
             def print_sequence_chunks(seq, cpos, colored_name, pad=0):
                 print '            %s%s%s%s%s%s   %s' % (utils.color('blue', seq[:exclusion_5p]), seq[exclusion_5p : cpos], utils.color('reverse_video', seq[cpos : cpos + 3]), seq[cpos + 3 : cpos + 3 + bases_to_right_of_cysteine], utils.color('blue', seq[cpos + 3 + bases_to_right_of_cysteine:]), ' ' * pad, colored_name)
-            print '        found equivalent gene %s in %s for %s (blue bases are not considered):' % (utils.color_gene(oldname_gene), glfo_str, ' ' if new_name is None else utils.color_gene(new_name))
+            print '        equivalent gene %s in %s for %s (blue bases are not considered):' % (utils.color_gene(oldname_gene), glfo_str, ' ' if new_name is None else utils.color_gene(new_name))
             print_sequence_chunks(new_seq, new_cpos, 'new' if new_name is None else utils.color_gene(new_name), pad=max(0, len(oldname_seq) - len(new_seq)))
             print_sequence_chunks(oldname_seq, oldpos, utils.color_gene(oldname_gene), pad=max(0, len(new_seq) - len(oldname_seq)))
 

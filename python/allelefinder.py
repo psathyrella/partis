@@ -471,25 +471,25 @@ class AlleleFinder(object):
         return bothxyvals, prexyvals, postxyvals
 
     # ----------------------------------------------------------------------------------------
-    def is_a_candidate(self, gene, fitfo, istart, debug=False):
-        if fitfo['min_snp_ratios'][istart] < self.min_min_candidate_ratio:  # worst snp candidate has to be pretty good on its own
+    def is_a_candidate(self, gene, candidfo, debug=False):
+        if candidfo['min_snp_ratio'] < self.min_min_candidate_ratio:  # worst snp candidate has to be pretty good on its own
             if debug:
-                print '    min snp ratio %s too small (less than %s)' % (fstr(fitfo['min_snp_ratios'][istart]), fstr(self.min_min_candidate_ratio)),
+                print '    min snp ratio %s too small (less than %s)' % (fstr(candidfo['min_snp_ratio']), fstr(self.min_min_candidate_ratio)),
             return False
-        if fitfo['mean_snp_ratios'][istart] < self.min_mean_candidate_ratio:  # mean of snp candidate ratios has to be even better
+        if candidfo['mean_snp_ratio'] < self.min_mean_candidate_ratio:  # mean of snp candidate ratios has to be even better
             if debug:
-                print '    mean snp ratio %s too small (less than %s)' % (fstr(fitfo['mean_snp_ratios'][istart]), fstr(self.min_mean_candidate_ratio)),
+                print '    mean snp ratio %s too small (less than %s)' % (fstr(candidfo['mean_snp_ratio']), fstr(self.min_mean_candidate_ratio)),
             return False
 
         # make sure all the snp positions have similar fits (the bin totals for all snp positions should be highly correlated, since they should ~all be present in ~all sequences [that stem from the new allele])
         # NOTE that with multiple multi-snp new alleles that share some, but not all, positions, we don't expect consistency. In particular, at shared positions, the nsnp bin for the other allele will be high, and the prevalence will be off.
-        for pos_1, pos_2 in itertools.combinations(fitfo['candidates'][istart], 2):
-            fitfo_1, fitfo_2 = self.fitfos[gene]['fitfos'][istart][pos_1], self.fitfos[gene]['fitfos'][istart][pos_2]
-            if not self.consistent_fits(fitfo_1['postfo'], fitfo_2['postfo'], factor=self.max_consistent_candidate_fit_sigma, debug=self.dbgfcn(pos_1, istart, pos_2=pos_2)):
+        for pos_1, pos_2 in itertools.combinations(candidfo['positions'], 2):
+            fitfo_1, fitfo_2 = candidfo['fitfos'][pos_1], candidfo['fitfos'][pos_2]
+            if not self.consistent_fits(fitfo_1['postfo'], fitfo_2['postfo'], factor=self.max_consistent_candidate_fit_sigma, debug=self.dbgfcn(pos_1, candidfo['istart'], pos_2=pos_2)):
                 if debug:
                     print '    positions %d and %d have inconsistent post-istart fits' % (pos_1, pos_2)
                 return False
-            if istart > self.hard_code_three and not self.consistent_fits(fitfo_1['prefo'], fitfo_2['prefo'], factor=self.max_consistent_candidate_fit_sigma, debug=self.dbgfcn(pos_1, istart, pos_2=pos_2)):  # if this nsnp is less than 3, and there's a second new allele with smaller nsnp, the pre-fit will be super inconsistent
+            if candidfo['istart'] > self.hard_code_three and not self.consistent_fits(fitfo_1['prefo'], fitfo_2['prefo'], factor=self.max_consistent_candidate_fit_sigma, debug=self.dbgfcn(pos_1, candidfo['istart'], pos_2=pos_2)):  # if this nsnp is less than 3, and there's a second new allele with smaller nsnp, the pre-fit will be super inconsistent
                 if debug:
                     print '    positions %d and %d have inconsistent pre-istart fits' % (pos_1, pos_2)
                 return False
@@ -735,18 +735,24 @@ class AlleleFinder(object):
         if len(candidates) < istart:
             return
 
-        self.fitfos[gene]['min_snp_ratios'][istart] = min(candidate_ratios.values())
-        self.fitfos[gene]['mean_snp_ratios'][istart] = numpy.mean(candidate_ratios.values())
-        self.fitfos[gene]['candidates'][istart] = candidate_ratios
-        self.fitfos[gene]['fitfos'][istart] = {pos : fitfo for pos, fitfo in residfo.items() if pos in candidates}
+        candidfo = {
+            'istart' : istart,
+            'positions' : candidates,
+            'min_snp_ratio' : min(candidate_ratios.values()),
+            'mean_snp_ratio' : numpy.mean(candidate_ratios.values()),
+            'fitfos' : {pos : fitfo for pos, fitfo in residfo.items() if pos in candidates},
+        }
+        self.fitfos[gene].append(candidfo)
 
     # ----------------------------------------------------------------------------------------
-    def add_allele_to_new_allele_info(self, template_gene, fitfo, n_candidate_snps, debug=False):
+    def add_allele_to_new_allele_info(self, template_gene, candidfo, debug=False):
+        n_candidate_snps = candidfo['istart']
+
         # figure out what the new nukes are
         old_seq = self.glfo['seqs'][self.region][template_gene]
         new_seq = old_seq
         mutfo = {}
-        for pos in sorted(fitfo['candidates'][n_candidate_snps]):
+        for pos in sorted(candidfo['positions']):
             obs_counts = {nuke : self.counts[template_gene][pos][n_candidate_snps][nuke] for nuke in utils.nukes}  # NOTE it's super important to only use the counts from sequences with <n_candidate_snps> total mutations
             sorted_obs_counts = sorted(obs_counts.items(), key=operator.itemgetter(1), reverse=True)
             original_nuke = self.glfo['seqs'][self.region][template_gene][pos]
@@ -779,32 +785,31 @@ class AlleleFinder(object):
                 print '    new gene %s already in glfo (probably 3p end length issues), so skipping it' % utils.color_gene(final_name)
             return
 
-
         # we actually expect the slope to be somewhat negative (since as the mutation rate increases a higher fraction of them revert to germline)
         # this is heuristically parameterized by the non-zero values
         remove_template = True
         homozygous_line = {'slope' : -0.01, 'slope_err' : 0.015, 'y_icpt' : 1.1, 'y_icpt_err' : 0.12}
-        for pos in fitfo['fitfos'][n_candidate_snps]:  # if every position is consistent with slope = 0, y_icpt = 1, remove the template gene
-            if not self.consistent_fits(fitfo['fitfos'][n_candidate_snps][pos]['postfo'], homozygous_line, factor=1., debug=debug):
+        for pos in candidfo['fitfos']:  # if every position is consistent with slope = 0, y_icpt = 1, remove the template gene
+            if not self.consistent_fits(candidfo['fitfos'][pos]['postfo'], homozygous_line, factor=1.):
                 remove_template = False
 
         if debug:
-            print '    found a new allele candidate separated from %s by %d snp%s at:  ' % (utils.color_gene(template_gene), n_candidate_snps, utils.plural(n_candidate_snps)),
+            print '  %s allele %s separated from %s by %d snp%s at:  ' % (utils.color('red', 'new'), utils.color_gene(final_name), utils.color_gene(template_gene), n_candidate_snps, utils.plural(n_candidate_snps)),
             print '  '.join([('%d (%s --> %s)' % (pos, mutfo[pos]['original'], mutfo[pos]['new'])) for pos in sorted(mutfo)])
             if mutfo != final_mutfo:
                 print '      note: final snp positions (%s) differ from inferred snp positions (%s)' % (' '.join([str(p) for p in sorted(final_mutfo)]), ' '.join([str(p) for p in sorted(mutfo)]))
-            old_len_str, new_len_str = '', ''
-            old_seq_for_cf, new_seq_for_cf = old_seq, new_seq
-            if len(new_seq) > len(old_seq):  # i.e if <old_seq> (the template gene) is shorter than the sequence corresponding to the original name for the new allele that we found from it
-                new_len_str = utils.color('blue', new_seq[len(old_seq):])
-                new_seq_for_cf = new_seq[:len(old_seq)]
-                print '         %d extra (blue) bases in new seq were not considered' % (len(new_seq) - len(old_seq))
-            elif len(old_seq) > len(new_seq):
-                old_len_str = utils.color('blue', old_seq[len(new_seq):])
-                old_seq_for_cf = old_seq[:len(new_seq)]
-                print '         %d extra (blue) bases in old seq were not considered' % (len(old_seq) - len(new_seq))
-            print '          %s%s   %s' % (old_seq_for_cf, old_len_str, utils.color_gene(template_gene))
-            print '          %s%s   %s' % (utils.color_mutants(old_seq_for_cf, new_seq_for_cf), new_len_str, utils.color_gene(final_name))
+            # old_len_str, new_len_str = '', ''
+            # old_seq_for_cf, new_seq_for_cf = old_seq, new_seq
+            # if len(new_seq) > len(old_seq):  # i.e if <old_seq> (the template gene) is shorter than the sequence corresponding to the original name for the new allele that we found from it
+            #     new_len_str = utils.color('blue', new_seq[len(old_seq):])
+            #     new_seq_for_cf = new_seq[:len(old_seq)]
+            #     print '         %d extra (blue) bases in new seq were not considered' % (len(new_seq) - len(old_seq))
+            # elif len(old_seq) > len(new_seq):
+            #     old_len_str = utils.color('blue', old_seq[len(new_seq):])
+            #     old_seq_for_cf = old_seq[:len(new_seq)]
+            #     print '         %d extra (blue) bases in old seq were not considered' % (len(old_seq) - len(new_seq))
+            # print '          %s%s   %s' % (old_seq_for_cf, old_len_str, utils.color_gene(template_gene))
+            # print '          %s%s   %s' % (utils.color_mutants(old_seq_for_cf, new_seq_for_cf), new_len_str, utils.color_gene(final_name))
 
         # and add it to the list of new alleles for this gene
         self.inferred_allele_info.append({
@@ -913,42 +918,35 @@ class AlleleFinder(object):
 
             # loop over each snp hypothesis
             self.already_printed_dbg_header = False
-            self.fitfos[gene] = {n : {} for n in ('min_snp_ratios', 'mean_snp_ratios', 'candidates', 'fitfos')}
-            not_enough_candidates = []  # just for dbg printing
+            self.fitfos[gene] = []
             for istart in range(1, self.args.n_max_snps + 1):
                 self.fit_two_piece_istart(gene, istart, positions_to_try_to_fit, debug=debug)
 
-                if istart not in self.fitfos[gene]['candidates']:  # just for dbg printing
-                    not_enough_candidates.append(istart)
-
-            if debug and len(not_enough_candidates) > 0:
-                print '      not enough candidates for istarts: %s' % ' '.join([str(i) for i in not_enough_candidates])
-
-            if debug and len(self.fitfos[gene]['candidates']) > 0:
-                print '  evaluating each snp hypothesis'
-                print '    snps       min ratio'
-            istart_candidates = []
-            for istart in self.fitfos[gene]['candidates']:  # note that not all <istart>s get added to self.fitfos[gene]
+            candidates = []
+            for icand in range(len(self.fitfos[gene])):
+                candidfo = self.fitfos[gene][icand]
                 if debug:
-                    print '    %2d     %9s' % (istart, fstr(self.fitfos[gene]['min_snp_ratios'][istart])),
-                if self.is_a_candidate(gene, self.fitfos[gene], istart, debug=debug):
-                    istart_candidates.append(istart)
+                    if icand == 0:
+                        print '   snps       min ratio'
+                    print '   %2d     %9s' % (candidfo['istart'], fstr(candidfo['min_snp_ratio'])),
+                if self.is_a_candidate(gene, candidfo, debug=debug):
+                    candidates.append(candidfo)
                 if debug:
                     print ''
 
             # first take the biggest one, then if there's any others that have entirely non-overlapping positions, we don't need to re-run
             already_used_positions = set()
             n_new_alleles_for_this_gene = 0  # kinda messy way to implement this
-            for istart in sorted(istart_candidates, reverse=True):
+            for candidfo in reversed(candidates):  # biggest <istart> first
                 if n_new_alleles_for_this_gene >= self.args.n_max_new_alleles_per_gene_per_iteration:
                     print '%s: skipping any additional new alleles for this gene (already have %d, you can increase this by setting --n-max-new-alleles-per-gene-per-iteration)' % (utils.color('red', 'warning'), n_new_alleles_for_this_gene)
                     break
-                these_positions = set(self.fitfos[gene]['candidates'][istart])
+                these_positions = set(candidfo['positions'])
                 if len(these_positions & already_used_positions) > 0:
                     continue
                 already_used_positions |= these_positions
                 n_new_alleles_for_this_gene += 1
-                self.add_allele_to_new_allele_info(gene, self.fitfos[gene], istart, debug=debug)
+                self.add_allele_to_new_allele_info(gene, candidfo, debug=debug)
 
         if debug:
             if len(self.inferred_allele_info) > 0:
@@ -961,17 +959,18 @@ class AlleleFinder(object):
 
     # ----------------------------------------------------------------------------------------
     def get_fitfo_for_plotting(self, gene, pos):
-        gfitfos = self.fitfos[gene]['fitfos']
+        # loop over all the new alleles to figure out which one we're supposed to take the fitfo from
         for newfo in self.inferred_allele_info:
             if newfo['template-gene'] != gene:
                 continue
             if pos not in newfo['snp-positions']:
                 continue
-            nsnps = len(newfo['snp-positions'])
-            if nsnps not in gfitfos or pos not in gfitfos[nsnps]:  # historical bug
-                raise Exception('n snps %d or pos %d not found in fitfo for %s:\n%s' % (nsnps, pos, gene, gfitfos))
             newfo['plot-paths'].append(utils.sanitize_name(gene) + '/' + str(pos) + '.svg')
-            return gfitfos[nsnps][pos]
+            cfos = [candidfo for candidfo in self.fitfos[gene] if candidfo['istart'] == len(newfo['snp-positions'])]
+            if len(cfos) == 0:
+                print '  shouldn\'t be able to get here if there\'s no candidfos with the right <istart>'
+                continue
+            return cfos[0]['fitfos'][pos]  # just arbitrarily take the first one (I don't think you can really get two -- that would mean a position was shared by more than one new allele)
         return None
 
     # ----------------------------------------------------------------------------------------
