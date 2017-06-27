@@ -701,7 +701,7 @@ class AlleleFinder(object):
             self.positions_to_plot[gene].add(pos)  # if we already decided to plot it for another <istart>, it'll already be in there
 
     # ----------------------------------------------------------------------------------------
-    def print_candidates(selfistart, candidates, candidate_ratios, residfo):
+    def print_candidates(self, istart, candidates, ratios, residfo, bothxyvals):  # NOTE <ratios> in general contains positions not in <candidates> (i.e. <candidates> is the ones we're supposed to be printing right now)
         if len(candidates) == 0:
             return
 
@@ -713,9 +713,9 @@ class AlleleFinder(object):
 
         for pos in candidates:
             pos_str = '%3s' % str(pos)
-            if candidate_ratios[pos] > self.min_min_candidate_ratio and residfo[pos]['onefo']['residuals_over_ndof'] > self.min_bad_fit_residual:
+            if ratios[pos] > self.min_min_candidate_ratio and residfo[pos]['onefo']['residuals_over_ndof'] > self.min_bad_fit_residual:
                 pos_str = utils.color('yellow', pos_str)
-            print_str = ['                 %s    %5s            %5s / %-5s               ' % (pos_str, fstr(candidate_ratios[pos]),
+            print_str = ['                 %s    %5s            %5s / %-5s               ' % (pos_str, fstr(ratios[pos]),
                                                                                               fstr(residfo[pos]['onefo']['residuals_over_ndof']), fstr(residfo[pos]['twofo']['residuals_over_ndof']))]
             for n_mutes in range(self.args.n_max_mutations_per_segment + 1):
                 if n_mutes in bothxyvals[pos]['n_mutelist']:
@@ -728,27 +728,23 @@ class AlleleFinder(object):
     # ----------------------------------------------------------------------------------------
     def fit_istart(self, gene, istart, positions_to_try_to_fit, debug=False):
         bothxyvals, prexyvals, postxyvals = self.get_both_pre_post_vals(gene, istart, positions_to_try_to_fit)
-        candidate_ratios, residfo = {}, {}  # NOTE <residfo> is really just for dbg printing... but we have to sort before we print, so we need to keep the info around
+        ratios, residfo = {}, {}
         for pos in positions_to_try_to_fit:
-            self.fit_position(gene, istart, pos, prexyvals[pos], postxyvals[pos], bothxyvals[pos], candidate_ratios, residfo, debug=debug)
-        candidates = [pos for pos, _ in sorted(candidate_ratios.items(), key=operator.itemgetter(1), reverse=True)]  # sort the candidate positions in decreasing order of residual ratio
-        candidates = candidates[:istart]  # remove any extra ones
-        candidate_ratios = {pos : ratio for pos, ratio in candidate_ratios.items() if pos in candidates}
-
-        if debug:
-            self.print_candidates(istart, candidates, candidate_ratios, residfo)
-
-        if len(candidates) < istart:
-            return
-
-        candidfo = {
-            'istart' : istart,
-            'positions' : candidates,
-            'min_snp_ratio' : min(candidate_ratios.values()),
-            'mean_snp_ratio' : numpy.mean(candidate_ratios.values()),
-            'fitfos' : {pos : fitfo for pos, fitfo in residfo.items() if pos in candidates},
-        }
-        self.fitfos[gene].append(candidfo)
+            self.fit_position(gene, istart, pos, prexyvals[pos], postxyvals[pos], bothxyvals[pos], ratios, residfo, debug=debug)
+        sorted_positions = [pos for pos, _ in sorted(ratios.items(), key=operator.itemgetter(1), reverse=True)]  # sort the candidate positions in decreasing order of residual ratio
+        position_lists = [sorted_positions[i : i + istart] for i in range(0, len(sorted_positions), istart)]  # and divide them into groups of length <istart> (note that we don't really have a good way of knowing which positions should go together if there's more than one group of candidates (and if <istart> is greater than 1), but since they're sorted by ratio, similar ones are together, which does an ok job)
+        for plist in position_lists:
+            if debug:
+                self.print_candidates(istart, plist, ratios, residfo, bothxyvals)
+            if len(plist) < istart:  # all the full-length ones will be first
+                return
+            self.fitfos[gene].append({
+                'istart' : istart,
+                'positions' : plist,
+                'min_snp_ratio' : min([ratios[p] for p in plist]),
+                'mean_snp_ratio' : numpy.mean([ratios[p] for p in plist]),
+                'fitfos' : {p : residfo[p] for p in plist},
+            })
 
     # ----------------------------------------------------------------------------------------
     def add_allele_to_new_allele_info(self, template_gene, candidfo, debug=False):
@@ -972,7 +968,7 @@ class AlleleFinder(object):
             if pos not in newfo['snp-positions']:
                 continue
             newfo['plot-paths'].append(utils.sanitize_name(gene) + '/' + str(pos) + '.svg')
-            cfos = [candidfo for candidfo in self.fitfos[gene] if candidfo['istart'] == len(newfo['snp-positions'])]
+            cfos = [candidfo for candidfo in self.fitfos[gene] if candidfo['istart'] == len(newfo['snp-positions']) and pos in candidfo['positions']]
             if len(cfos) == 0:
                 print '  shouldn\'t be able to get here if there\'s no candidfos with the right <istart>'
                 continue
