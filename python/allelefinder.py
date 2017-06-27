@@ -701,6 +701,31 @@ class AlleleFinder(object):
             self.positions_to_plot[gene].add(pos)  # if we already decided to plot it for another <istart>, it'll already be in there
 
     # ----------------------------------------------------------------------------------------
+    def print_candidates(selfistart, candidates, candidate_ratios, residfo):
+        if len(candidates) == 0:
+            return
+
+        if not self.already_printed_dbg_header:
+            print '             position   ratio       (one piece / two pieces)  ',
+            print '%0s %s' % ('', ''.join(['%11d' % nm for nm in range(self.args.n_max_mutations_per_segment + 1)]))  # NOTE *has* to correspond to line at bottom of fcn below
+            self.already_printed_dbg_header = True
+        print '    %d %s' % (istart, utils.plural_str('snp', istart))
+
+        for pos in candidates:
+            pos_str = '%3s' % str(pos)
+            if candidate_ratios[pos] > self.min_min_candidate_ratio and residfo[pos]['onefo']['residuals_over_ndof'] > self.min_bad_fit_residual:
+                pos_str = utils.color('yellow', pos_str)
+            print_str = ['                 %s    %5s            %5s / %-5s               ' % (pos_str, fstr(candidate_ratios[pos]),
+                                                                                              fstr(residfo[pos]['onefo']['residuals_over_ndof']), fstr(residfo[pos]['twofo']['residuals_over_ndof']))]
+            for n_mutes in range(self.args.n_max_mutations_per_segment + 1):
+                if n_mutes in bothxyvals[pos]['n_mutelist']:
+                    inm = bothxyvals[pos]['n_mutelist'].index(n_mutes)
+                    print_str.append('%4d / %-4d' % (bothxyvals[pos]['obs'][inm], bothxyvals[pos]['total'][inm]))
+                else:
+                    print_str.append('           ')
+            print ''.join(print_str)
+
+    # ----------------------------------------------------------------------------------------
     def fit_istart(self, gene, istart, positions_to_try_to_fit, debug=False):
         bothxyvals, prexyvals, postxyvals = self.get_both_pre_post_vals(gene, istart, positions_to_try_to_fit)
         candidate_ratios, residfo = {}, {}  # NOTE <residfo> is really just for dbg printing... but we have to sort before we print, so we need to keep the info around
@@ -711,25 +736,7 @@ class AlleleFinder(object):
         candidate_ratios = {pos : ratio for pos, ratio in candidate_ratios.items() if pos in candidates}
 
         if debug:
-            if len(candidates) > 0:
-                if not self.already_printed_dbg_header:
-                    print '             position   ratio       (one piece / two pieces)  ',
-                    print '%0s %s' % ('', ''.join(['%11d' % nm for nm in range(self.args.n_max_mutations_per_segment + 1)]))  # NOTE *has* to correspond to line at bottom of fcn below
-                    self.already_printed_dbg_header = True
-                print '    %d %s' % (istart, utils.plural_str('snp', istart))
-            for pos in candidates:
-                pos_str = '%3s' % str(pos)
-                if candidate_ratios[pos] > self.min_min_candidate_ratio and residfo[pos]['onefo']['residuals_over_ndof'] > self.min_bad_fit_residual:
-                    pos_str = utils.color('yellow', pos_str)
-                print_str = ['                 %s    %5s            %5s / %-5s               ' % (pos_str, fstr(candidate_ratios[pos]),
-                                                                                                  fstr(residfo[pos]['onefo']['residuals_over_ndof']), fstr(residfo[pos]['twofo']['residuals_over_ndof']))]
-                for n_mutes in range(self.args.n_max_mutations_per_segment + 1):
-                    if n_mutes in bothxyvals[pos]['n_mutelist']:
-                        inm = bothxyvals[pos]['n_mutelist'].index(n_mutes)
-                        print_str.append('%4d / %-4d' % (bothxyvals[pos]['obs'][inm], bothxyvals[pos]['total'][inm]))
-                    else:
-                        print_str.append('           ')
-                print ''.join(print_str)
+            self.print_candidates(istart, candidates, candidate_ratios, residfo)
 
         if len(candidates) < istart:
             return
