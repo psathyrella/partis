@@ -17,9 +17,10 @@ class AlleleClusterer(object):
         self.region = 'v'
         self.other_region = 'j'
         self.absolute_n_seqs_min = 15
-        self.min_cluster_fraction = 0.002
+        self.min_cluster_fraction = 0.001
         self.max_j_mutations = 8
         self.small_number_of_j_mutations = 3
+        self.min_n_snps = 5
         self.all_j_mutations = None
 
     # ----------------------------------------------------------------------------------------
@@ -158,7 +159,7 @@ class AlleleClusterer(object):
                 n_snps = utils.hamming_distance(new_seq[:template_cpos], template_seq[:template_cpos])
                 # if n_snps < self.args.n_max_snps and mean_j_mutations > self.small_number_of_j_mutations:
                 factor = 1.75
-                if n_snps < factor * mean_j_mutations:  # i.e. we keep if it's *further* than factor * <number of j mutations> from the closest existing allele (should presumably rescale by some factor to go from j --> v, but it seems like the factor's near to 1.)
+                if n_snps < self.min_n_snps or n_snps < factor * mean_j_mutations:  # i.e. we keep if it's *further* than factor * <number of j mutations> from the closest existing allele (should presumably rescale by some factor to go from j --> v, but it seems like the factor's near to 1.)
                     if debug:
                         print '      too close (%d snp%s < %.2f = %.2f * %.1f mean j mutation%s) to existing glfo gene %s' % (n_snps, utils.plural(n_snps), factor * mean_j_mutations, factor, mean_j_mutations, utils.plural(mean_j_mutations), utils.color_gene(template_gene))
                     continue
@@ -178,7 +179,7 @@ class AlleleClusterer(object):
     def too_close_to_already_added_gene(self, new_seq, new_alleles, debug=False):
         for added_name, added_info in new_alleles.items():
             _, isnps = utils.color_mutants(added_info['seq'], new_seq, return_isnps=True, align=True)  # oh man that could be cleaner
-            if len(isnps) < self.args.n_max_snps:
+            if len(isnps) < self.min_n_snps or len(isnps) < self.args.n_max_snps:
                 if debug:
                     print '      too close (%d snp%s) to gene we just added %s' % (len(isnps), utils.plural(len(isnps)), utils.color_gene(added_name))
                 return True
