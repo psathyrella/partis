@@ -471,7 +471,7 @@ class AlleleFinder(object):
         return bothxyvals, prexyvals, postxyvals
 
     # ----------------------------------------------------------------------------------------
-    def is_a_candidate(self, gene, candidfo, debug=False):
+    def is_a_candidate(self, candidfo, debug=False):
         if candidfo['min_snp_ratio'] < self.min_min_candidate_ratio:  # worst snp candidate has to be pretty good on its own
             if debug:
                 print '    min snp ratio %s too small (less than %s)' % (fstr(candidfo['min_snp_ratio']), fstr(self.min_min_candidate_ratio)),
@@ -630,83 +630,82 @@ class AlleleFinder(object):
         return istart_freq - last_freq > factor * joint_freq_err
 
     # ----------------------------------------------------------------------------------------
-    def fit_two_piece_istart(self, gene, istart, positions_to_try_to_fit, debug=False):
-        bothxyvals, prexyvals, postxyvals = self.get_both_pre_post_vals(gene, istart, positions_to_try_to_fit)
+    def fit_position(self, gene, istart, pos, prevals, postvals, bothvals, candidate_ratios, residfo, debug=False):
+        dbg = self.dbgfcn(pos, istart)
+        if dbg:
+            print 'pos %d' % pos
+        big_y_icpt, big_y_icpt_err = self.get_big_y(postvals)
+        big_y_icpt_bounds = self.get_big_y_icpt_bounds(big_y_icpt, big_y_icpt_err)  # (big_y_icpt - 1.5*big_y_icpt_err, big_y_icpt + 1.5*big_y_icpt_err)  # we want the bounds to be lenient enough to accomodate non-zero slopes (in the future, we could do something cleverer like extrapolating with the slope of the line to x=0)
 
+        # need to have enough mutated counts in the <istart>th bin (this is particularly important (partly) because it's the handle that tells us it's *this* <istart> that's correct, rather than <istart> + 1)
+        if self.counts[gene][pos][istart]['muted'] < self.n_muted_min_per_bin:
+            return
+
+        if sum(postvals['obs']) < self.n_muted_min or sum(postvals['total']) < self.n_total_min:
+            return
+
+        # skip if the discontinuity is less than <factor> sigma, or if hardly any entries at i-1 and the bin totals are closer than <factor> sigma (not actualy OR, but basically)
+        if not self.big_discontinuity(bothvals, istart):
+            return
+
+        if istart <= self.hard_code_three:
+            # if the bounds include zero, there won't be much difference between the two fits
+            if big_y_icpt_bounds[0] <= 0.:
+                return
+
+            # if a rough estimate of the y-icpt is less than zero, the zero-icpt fit is probably going to be pretty good
+            approx_fitfo = self.approx_fit_vals(postvals)
+            if approx_fitfo['y_icpt'] < 0.:
+                return
+
+        # if there's only two points in <prevals>, we can't use the bad fit there to tell us this isn't a candidate, so we check and skip if the <istart - 1>th freq isn't really low
+        if istart == 2 and bothvals['freqs'][istart - 1] > big_y_icpt - 1.5 * big_y_icpt_err:  # TODO wait isn't this the same as lower bound?
+            return
+
+        # approximate pre-slope should be smaller than approximate post-slope (for smaller <istart>s, post-slope tends to be flat, so you can't require this)
+        if istart >= self.hard_code_five:
+            pre_approx = self.approx_fit_vals(prevals)
+            post_approx = self.approx_fit_vals(postvals)
+            if not self.consistent(pre_approx['slope'], pre_approx['slope_err'], post_approx['slope'], post_approx['slope_err'], dbgstr='slope', debug=dbg) and pre_approx['slope'] > post_approx['slope']:
+                return
+
+        onefit = self.get_curvefit(bothvals, y_icpt_bounds=(0., 0.), debug=dbg)
+
+        # don't bother with the two-piece fit if the one-piece fit is pretty good
+        if onefit['residuals_over_ndof'] < self.min_bad_fit_residual:
+            return
+
+        prefit = self.get_curvefit(prevals, y_icpt_bounds=(0., 0.), debug=dbg)
+        postfit = self.get_curvefit(postvals, y_icpt_bounds=big_y_icpt_bounds, debug=dbg)
+        twofit_residuals = prefit['residuals_over_ndof'] * prefit['ndof'] + postfit['residuals_over_ndof'] * postfit['ndof']
+        twofit_ndof = prefit['ndof'] + postfit['ndof']
+        twofit_residuals_over_ndof = twofit_residuals / twofit_ndof
+
+        # pre-slope should be smaller than post-slope also for the full fits (for smaller <istart>s, post-slope tends to be flat, so you can't require this)
+        if istart >= self.hard_code_five:
+            if not self.consistent(prefit['slope'], prefit['slope_err'], postfit['slope'], postfit['slope_err'], dbgstr='slope', debug=dbg) and prefit['slope'] > postfit['slope']:
+                return
+
+        ratio = onefit['residuals_over_ndof'] / twofit_residuals_over_ndof if twofit_residuals_over_ndof > 0. else float('inf')
+        if dbg:
+            print '  %5.3f / %5.3f = %5.3f' % (onefit['residuals_over_ndof'], twofit_residuals_over_ndof, ratio)
+
+        # make sure two-piece fit is at least ok (unless the residual ratio is incredibly convincing)
+        if ratio < self.very_large_residual_ratio and twofit_residuals_over_ndof > self.max_good_fit_residual:
+            return
+
+        # add it as a candidate
+        candidate_ratios[pos] = ratio
+        residfo[pos] = {'onefo' : onefit, 'prefo' : prefit, 'postfo' : postfit, 'twofo' : {'residuals_over_ndof' : twofit_residuals_over_ndof}}
+        if dbg or candidate_ratios[pos] > self.min_min_candidate_ratio_to_plot:
+            self.positions_to_plot[gene].add(pos)  # if we already decided to plot it for another <istart>, it'll already be in there
+
+    # ----------------------------------------------------------------------------------------
+    def fit_istart(self, gene, istart, positions_to_try_to_fit, debug=False):
+        bothxyvals, prexyvals, postxyvals = self.get_both_pre_post_vals(gene, istart, positions_to_try_to_fit)
         candidate_ratios, residfo = {}, {}  # NOTE <residfo> is really just for dbg printing... but we have to sort before we print, so we need to keep the info around
         for pos in positions_to_try_to_fit:
-            dbg = self.dbgfcn(pos, istart)
-            if dbg:
-                print 'pos %d' % pos
-            prevals = prexyvals[pos]
-            postvals = postxyvals[pos]
-            bothvals = bothxyvals[pos]
-            big_y_icpt, big_y_icpt_err = self.get_big_y(postvals)
-            big_y_icpt_bounds = self.get_big_y_icpt_bounds(big_y_icpt, big_y_icpt_err)  # (big_y_icpt - 1.5*big_y_icpt_err, big_y_icpt + 1.5*big_y_icpt_err)  # we want the bounds to be lenient enough to accomodate non-zero slopes (in the future, we could do something cleverer like extrapolating with the slope of the line to x=0)
-
-            # need to have enough mutated counts in the <istart>th bin (this is particularly important (partly) because it's the handle that tells us it's *this* <istart> that's correct, rather than <istart> + 1)
-            if self.counts[gene][pos][istart]['muted'] < self.n_muted_min_per_bin:
-                continue
-
-            if sum(postvals['obs']) < self.n_muted_min or sum(postvals['total']) < self.n_total_min:
-                continue
-
-            # skip if the discontinuity is less than <factor> sigma, or if hardly any entries at i-1 and the bin totals are closer than <factor> sigma (not actualy OR, but basically)
-            if not self.big_discontinuity(bothvals, istart):
-                continue
-
-            if istart <= self.hard_code_three:
-                # if the bounds include zero, there won't be much difference between the two fits
-                if big_y_icpt_bounds[0] <= 0.:
-                    continue
-
-                # if a rough estimate of the y-icpt is less than zero, the zero-icpt fit is probably going to be pretty good
-                approx_fitfo = self.approx_fit_vals(postvals)
-                if approx_fitfo['y_icpt'] < 0.:
-                    continue
-
-            # if there's only two points in <prevals>, we can't use the bad fit there to tell us this isn't a candidate, so we check and skip if the <istart - 1>th freq isn't really low
-            if istart == 2 and bothvals['freqs'][istart - 1] > big_y_icpt - 1.5 * big_y_icpt_err:  # TODO wait isn't this the same as lower bound?
-                continue
-
-            # approximate pre-slope should be smaller than approximate post-slope (for smaller <istart>s, post-slope tends to be flat, so you can't require this)
-            if istart >= self.hard_code_five:
-                pre_approx = self.approx_fit_vals(prevals)
-                post_approx = self.approx_fit_vals(postvals)
-                if not self.consistent(pre_approx['slope'], pre_approx['slope_err'], post_approx['slope'], post_approx['slope_err'], dbgstr='slope', debug=dbg) and pre_approx['slope'] > post_approx['slope']:
-                    continue
-
-            onefit = self.get_curvefit(bothvals, y_icpt_bounds=(0., 0.), debug=dbg)
-
-            # don't bother with the two-piece fit if the one-piece fit is pretty good
-            if onefit['residuals_over_ndof'] < self.min_bad_fit_residual:
-                continue
-
-            prefit = self.get_curvefit(prevals, y_icpt_bounds=(0., 0.), debug=dbg)
-            postfit = self.get_curvefit(postvals, y_icpt_bounds=big_y_icpt_bounds, debug=dbg)
-            twofit_residuals = prefit['residuals_over_ndof'] * prefit['ndof'] + postfit['residuals_over_ndof'] * postfit['ndof']
-            twofit_ndof = prefit['ndof'] + postfit['ndof']
-            twofit_residuals_over_ndof = twofit_residuals / twofit_ndof
-
-            # pre-slope should be smaller than post-slope also for the full fits (for smaller <istart>s, post-slope tends to be flat, so you can't require this)
-            if istart >= self.hard_code_five:
-                if not self.consistent(prefit['slope'], prefit['slope_err'], postfit['slope'], postfit['slope_err'], dbgstr='slope', debug=dbg) and prefit['slope'] > postfit['slope']:
-                    continue
-
-            ratio = onefit['residuals_over_ndof'] / twofit_residuals_over_ndof if twofit_residuals_over_ndof > 0. else float('inf')
-            if dbg:
-                print '  %5.3f / %5.3f = %5.3f' % (onefit['residuals_over_ndof'], twofit_residuals_over_ndof, ratio)
-
-            # make sure two-piece fit is at least ok (unless the residual ratio is incredibly convincing)
-            if ratio < self.very_large_residual_ratio and twofit_residuals_over_ndof > self.max_good_fit_residual:
-                continue
-
-            # add it as a candidate
-            candidate_ratios[pos] = ratio
-            residfo[pos] = {'onefo' : onefit, 'prefo' : prefit, 'postfo' : postfit, 'twofo' : {'residuals_over_ndof' : twofit_residuals_over_ndof}}
-            if dbg or candidate_ratios[pos] > self.min_min_candidate_ratio_to_plot:
-                self.positions_to_plot[gene].add(pos)  # if we already decided to plot it for another <istart>, it'll already be in there
-
+            self.fit_position(gene, istart, pos, prexyvals[pos], postxyvals[pos], bothxyvals[pos], candidate_ratios, residfo, debug=debug)
         candidates = [pos for pos, _ in sorted(candidate_ratios.items(), key=operator.itemgetter(1), reverse=True)]  # sort the candidate positions in decreasing order of residual ratio
         candidates = candidates[:istart]  # remove any extra ones
         candidate_ratios = {pos : ratio for pos, ratio in candidate_ratios.items() if pos in candidates}
@@ -920,7 +919,7 @@ class AlleleFinder(object):
             self.already_printed_dbg_header = False
             self.fitfos[gene] = []
             for istart in range(1, self.args.n_max_snps + 1):
-                self.fit_two_piece_istart(gene, istart, positions_to_try_to_fit, debug=debug)
+                self.fit_istart(gene, istart, positions_to_try_to_fit, debug=debug)
 
             candidates = []
             for icand in range(len(self.fitfos[gene])):
@@ -929,7 +928,7 @@ class AlleleFinder(object):
                     if icand == 0:
                         print '   snps       min ratio'
                     print '   %2d     %9s' % (candidfo['istart'], fstr(candidfo['min_snp_ratio'])),
-                if self.is_a_candidate(gene, candidfo, debug=debug):
+                if self.is_a_candidate(candidfo, debug=debug):
                     candidates.append(candidfo)
                 if debug:
                     print ''
