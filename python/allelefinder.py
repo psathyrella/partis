@@ -731,13 +731,15 @@ class AlleleFinder(object):
         ratios, residfo = {}, {}
         for pos in positions_to_try_to_fit:
             self.fit_position(gene, istart, pos, prexyvals[pos], postxyvals[pos], bothxyvals[pos], ratios, residfo, debug=debug)
-        sorted_positions = [pos for pos, _ in sorted(ratios.items(), key=operator.itemgetter(1), reverse=True)]  # sort the candidate positions in decreasing order of residual ratio
+        sorted_positions = sorted(ratios, key=lambda p: ratios[p], reverse=True)  # sort the candidate positions in decreasing order of residual ratio
+        sorted_positions = sorted_positions[ : len(sorted_positions) - len(sorted_positions) % istart]  # remove any extra positions
+        if len(sorted_positions) >= 2 * istart:  # if there's more than one candidate allele, sort so positions with similar numerators are together, rather than those with similar ratios
+            sorted_positions = sorted(sorted_positions, key=lambda p: residfo[p]['postfo']['y_icpt'], reverse=True)  # would make as much sense to sort by the one piece residuals, but I gotta choose one
         position_lists = [sorted_positions[i : i + istart] for i in range(0, len(sorted_positions), istart)]  # and divide them into groups of length <istart> (note that we don't really have a good way of knowing which positions should go together if there's more than one group of candidates (and if <istart> is greater than 1), but since they're sorted by ratio, similar ones are together, which does an ok job)
         for plist in position_lists:
+            assert len(plist) == istart  # shouldn't happen any more
             if debug:
                 self.print_candidates(istart, plist, ratios, residfo, bothxyvals)
-            if len(plist) < istart:  # all the full-length ones will be first
-                return
             self.fitfos[gene].append({
                 'istart' : istart,
                 'positions' : plist,
