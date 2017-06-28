@@ -127,6 +127,8 @@ def cdn_positions(glfo, region):
     return glfo[conserved_codons[glfo['locus']][region] + '-positions']
 def cdn_pos(glfo, region, gene):
     return cdn_positions(glfo, region)[gene]
+def non_gap_len(seq):
+    return len(seq) - len(filter(gap_chars.__contains__, seq))
 
 codon_table = {
     'cyst' : ['TGT', 'TGC'],
