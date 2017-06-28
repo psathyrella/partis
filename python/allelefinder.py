@@ -489,7 +489,9 @@ class AlleleFinder(object):
                 if debug:
                     print '    positions %d and %d have inconsistent post-istart fits' % (pos_1, pos_2)
                 return False
-            if candidfo['istart'] > self.hard_code_three and not self.consistent_fits(fitfo_1['prefo'], fitfo_2['prefo'], factor=self.max_consistent_candidate_fit_sigma, debug=self.dbgfcn(pos_1, candidfo['istart'], pos_2=pos_2)):  # if this nsnp is less than 3, and there's a second new allele with smaller nsnp, the pre-fit will be super inconsistent
+            # if this nsnp is less than 3, and there's a second new allele with smaller nsnp, the pre-fit will be super inconsistent, but this is really rare in actual data... so I'm commenting it since I care more about avoiding false positives
+            # if candidfo['istart'] > self.hard_code_three:
+            if not self.consistent_fits(fitfo_1['prefo'], fitfo_2['prefo'], factor=self.max_consistent_candidate_fit_sigma, debug=self.dbgfcn(pos_1, candidfo['istart'], pos_2=pos_2)):
                 if debug:
                     print '    positions %d and %d have inconsistent pre-istart fits' % (pos_1, pos_2)
                 return False
