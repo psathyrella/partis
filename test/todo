@@ -13,7 +13,7 @@ QA255.253
 # don't allow new alcluster genes that are just truncated on the ends
 # make sure J length is reasonable before using n mutations (i.e., use freq instead of n)
 
-# fix os-x problem
+# in allelefinder, collapse clones separately for each gene (the only real reason to do this is so it's easier to figure out what's going on when you grep through for individual genes, and to figure out why it seems to be different in those cases)
 # rerun kate-qrs and laura-mb, then do per-seq uncertainties for seeds above ^
 # paralellize hmmwriter calls (and maybe parameter writing as well)
 

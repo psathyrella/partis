@@ -284,6 +284,7 @@ class PartitionDriver(object):
             return
 
         print 'hmm'
+        sys.stdout.flush()
         self.run_hmm('viterbi', parameter_in_dir=self.sw_param_dir, parameter_out_dir=self.hmm_param_dir, count_parameters=True)
         self.restrict_to_observed_alleles(self.hmm_param_dir)
         self.write_hmms(self.hmm_param_dir)
@@ -1077,6 +1078,7 @@ class PartitionDriver(object):
                 writer.write()
 
         print '(%.1f sec)' % (time.time()-start)
+        sys.stdout.flush()
 
     # ----------------------------------------------------------------------------------------
     def get_existing_hmm_files(self, parameter_dir):
