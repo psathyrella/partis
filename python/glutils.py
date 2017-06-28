@@ -401,14 +401,14 @@ def print_glfo(glfo):  # NOTE kind of similar to bin/cf-alleles.py
                 else:
                     msa_info[-1]['seqfos'].append(seqfo)
             for clusterfo in msa_info:
-                print '    %s    %s' % (clusterfo['cons_seq'], 'consensus')
+                print '    %s    %3d  %s' % (clusterfo['cons_seq'], utils.non_gap_len(clusterfo['cons_seq']), 'consensus')
                 for seqfo in clusterfo['seqfos']:
                     emphasis_positions = None
                     if region in utils.conserved_codons[glfo['locus']]:
                         aligned_cpos = get_pos_in_alignment(utils.conserved_codons[glfo['locus']][region], seqfo['seq'], pvseqs[seqfo['name']], utils.cdn_pos(glfo, region, seqfo['name']), seqfo['name'])
                         emphasis_positions = [aligned_cpos + i for i in range(3)]
                     cons_seq = clusterfo['cons_seq'] + '-' * (len(seqfo['seq']) - len(clusterfo['cons_seq']))  # I don't know why it's sometimes a teensy bit shorter
-                    print '    %s    %s' % (utils.color_mutants(cons_seq, seqfo['seq'], emphasis_positions=emphasis_positions), utils.color_gene(seqfo['name']))
+                    print '    %s    %3d  %s' % (utils.color_mutants(cons_seq, seqfo['seq'], emphasis_positions=emphasis_positions), utils.non_gap_len(seqfo['seq']), utils.color_gene(seqfo['name']))
 
 #----------------------------------------------------------------------------------------
 def read_glfo(gldir, locus, only_genes=None, skip_pseudogenes=True, debug=False):
