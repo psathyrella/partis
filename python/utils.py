@@ -77,7 +77,7 @@ def get_arg_list(arg, intify=False, floatify=False, translation=None, list_of_pa
     elif floatify:
         convert_fcn = float
 
-    arglist = arg.strip().split(':')  # to allow ids with minus signs, need to add a space, which you then have to strip() off
+    arglist = arg.strip().split(':')  # to allow ids with minus signs, you can add a space (if you don't use --name=val), which you then have to strip() off
     if list_of_pairs:
         arglist = [pairstr.split(',') for pairstr in arglist]
         arglist = [[convert_fcn(p) for p in pair] for pair in arglist]
