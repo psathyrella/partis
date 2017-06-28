@@ -563,7 +563,8 @@ if args.presto_output and args.aligned_germline_fname is None:
 if args.parameter_dir is not None:
     args.parameter_dir = args.parameter_dir.rstrip('/')
 
-args.default_initial_germline_dir += '/' + args.species
+if os.path.exists(args.default_initial_germline_dir + '/' + args.species):  # ick that is hackey
+    args.default_initial_germline_dir += '/' + args.species
 
 if args.n_max_snps is not None and args.n_max_mutations_per_segment is not None:
     if args.n_max_snps > args.n_max_mutations_per_segment - 10:
