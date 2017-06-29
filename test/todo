@@ -10,28 +10,21 @@ Light chains only:
 QA255.157
 QA255.253
 
-# don't allow new alcluster genes that are just truncated on the ends
-# make sure J length is reasonable before using n mutations (i.e., use freq instead of n)
-
 # in allelefinder, collapse clones separately for each gene (the only real reason to do this is so it's easier to figure out what's going on when you grep through for individual genes, and to figure out why it seems to be different in those cases)
-# rerun kate-qrs and laura-mb, then do per-seq uncertainties for seeds above ^
-# paralellize hmmwriter calls (and maybe parameter writing as well)
-
-# need to allow more than one new allele for each istart (?)
 # forbid alclusterer to add few-snp alleles (?)
 
 # move is_a_candidate() stuff into fit_[xxx]()
 
 # paper
-#  - add scheepers data (well, and others)
-#  - add new chaim data (igg + igm)
-#  - abvitro/kristian data https://peerj.com/articles/2924/?utm_source=TrendMD&utm_campaign=PeerJ_TrendMD_0&utm_medium=TrendMD
+#  - data
+#   - scheepers
+#   - new chaim data (igg + igm)
+#   - abvitro/kristian data https://peerj.com/articles/2924/?utm_source=TrendMD&utm_campaign=PeerJ_TrendMD_0&utm_medium=TrendMD
+#   - simulate with mouse, start from human for inference (and run on mouse data starting from human)
 #  - plots
 #    - add nsnps up to at least 6
 #    - add multi-nsnps with more simultaneous alleles and more shared snps
-#  - could potentially need to rerun tests with vsearch alignment, deprecation of --dont-remove-unlikely-alleles (and other changes?)
 #  - light chain allele finding: need to account for larger amount of v to right of cysteine?
-#  - profile alclusterer
 
 # not urgent
 #  - split isnp stuff out of color_mutants and combine with hamming_distance
