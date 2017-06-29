@@ -1331,12 +1331,12 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
     if utils.output_exists(args, outfname):
         return
 
-    extras += ['--workdir', args.fsdir.replace('_output', '_tmp') + '/' + str(random.randint(0, 99999))]
+    extras += ['--workdir', args.baseworkdir + '/' + str(random.randint(0, 99999))]
 
     # print 'TODO put in something to reduce the number of procs for large samples'
-    n_procs = min(100, n_procs)  # can't get more than a few hundred slots at once, anyway
+    n_procs = min(args.n_max_procs, n_procs)  # can't get more than a few hundred slots at once, anyway
     n_proc_str = str(n_procs)
-    n_fewer_procs = max(1, min(100, n_total_seqs / 2000))
+    n_fewer_procs = max(1, min(args.n_max_procs, n_total_seqs / 2000))
     n_proc_str += ':' + str(n_fewer_procs)
 
     if action != 'simulate' and not args.no_slurm and n_procs > 20:  #utils.auto_slurm(n_procs):
