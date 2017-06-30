@@ -1115,6 +1115,11 @@ class Waterer(object):
             swfo = self.info[query]
             assert len(swfo['seqs']) == 1
 
+            if debug:
+                print '  %-12s' % swfo['unique_ids'][0]
+                print '     fv  %s' % utils.color('blue', swfo['fv_insertion'])
+                print '     jf  %s' % utils.color('blue', swfo['jf_insertion'])
+
             fv_len = len(swfo['fv_insertion'])
             jf_len = len(swfo['jf_insertion'])
             if fv_len == 0 and jf_len == 0:
@@ -1133,6 +1138,9 @@ class Waterer(object):
             swfo['fv_insertion'] = ''
             swfo['jf_insertion'] = ''
             utils.add_implicit_info(self.glfo, swfo)
+
+            if debug:
+                print '    after %s' % swfo['seqs'][0]
 
             # *sigh* not super happy about it, but I think the best way to handle this is to also remove these bases from the simulation info
             if self.reco_info is not None:
