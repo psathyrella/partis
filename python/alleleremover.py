@@ -41,7 +41,7 @@ class AlleleRemover(object):
         self.genes_to_keep = set()
 
         if debug:
-            print '  removing least likely alleles (%.1f total counts)' % total_counts
+            print '  removing least likely genes (%.1f total counts)' % total_counts
             print '     %-20s    %5s (%s)      removed genes (counts)' % ('genes to keep', 'counts', 'snps'),
             def count_str(cnt):
                 if cnt < 10.:
@@ -86,7 +86,7 @@ class AlleleRemover(object):
 
         self.genes_to_remove = set(self.glfo['seqs'][self.region]) - self.genes_to_keep
 
-        print '    keeping %d %s genes' % (len(self.genes_to_keep), self.region)
-        print '    removing %d %s genes: %d with no matches, %d with unconvincing matches' % (len(self.genes_to_remove), self.region, len(set(self.glfo['seqs'][self.region]) - set(easycounts)), len(set(easycounts) - self.genes_to_keep))
+        print '    keeping %d / %d %s gene%s' % (len(self.genes_to_keep), len(self.glfo['seqs'][self.region]), self.region, utils.plural(len(self.genes_to_keep)))
+        # print '    removing %d %s genes: %d with no matches, %d with unconvincing matches' % (len(self.genes_to_remove), self.region, len(set(self.glfo['seqs'][self.region]) - set(easycounts)), len(set(easycounts) - self.genes_to_keep))
 
         self.finalized = True
