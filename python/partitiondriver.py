@@ -179,7 +179,6 @@ class PartitionDriver(object):
     def find_new_alleles(self):
         """ look for new alleles with sw, write any that you find to the germline set directory in <self.workdir>, add them to <self.glfo>, and repeat until you don't find any. """
         assert len(self.all_new_allele_info) == 0
-        # alleles_with_evidence = set()
         itry = 0
         while True:
             self.run_waterer(find_new_alleles=True, itry=itry)
@@ -189,18 +188,12 @@ class PartitionDriver(object):
                 print '    removing sw cache file %s (it has outdated germline info)' % self.default_sw_cachefname
                 os.remove(self.default_sw_cachefname)
 
-            self.all_new_allele_info += [afo for afo in self.sw_info['new-alleles'] if '+' in afo['gene']]  # i.e. skip new/inferred alleles that turned out to be previously known (previous: in original glfo)
-            # alleles_with_evidence |= self.sw_info['alleles-with-evidence']
+            self.all_new_allele_info += [afo for afo in self.sw_info['new-alleles'] if glutils.is_snpd(afo['gene'])]  # i.e. skip new/inferred alleles that turned out to be previously known (previous: in original glfo)
             glutils.restrict_to_genes(self.glfo, list(self.sw_info['all_best_matches']))
             glutils.add_new_alleles(self.glfo, self.sw_info['new-alleles'], debug=True, simglfo=self.simglfo if self.reco_info is not None else None)
             for newfo in [nf for nf in self.sw_info['new-alleles'] if nf['remove-template-gene']]:
                 print '    %s template gene %s' % (utils.color('red', 'removing'), utils.color_gene(newfo['template-gene']))
                 glutils.remove_gene(self.glfo, newfo['template-gene'])
-            # if self.args.generate_germline_set:
-            #     for alfo in self.sw_info['new-alleles']:
-            #         if alfo['template-gene'] not in alleles_with_evidence:  # XXX [update comment] if the new allele is actually new (i.e. not in imgt), and if we never had explicit evidence for the template gene (i.e. it was just the best match we had) then remove the template gene
-            #             print '    removing template gene %s' % utils.color_gene(alfo['template-gene'])
-            #             glutils.remove_gene(self.glfo, alfo['template-gene'])
             glutils.write_glfo(self.my_gldir, self.glfo)  # write glfo modifications to disk
 
             itry += 1

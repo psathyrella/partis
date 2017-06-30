@@ -60,7 +60,7 @@ class Waterer(object):
 
         self.my_gldir = self.args.workdir + '/' + glutils.glfo_dir
 
-        self.alfinder, self.pcounter, self.true_pcounter, self.perfplotter = None, None, None, None, None
+        self.alfinder, self.pcounter, self.true_pcounter, self.perfplotter = None, None, None, None
         if find_new_alleles:  # NOTE *not* the same as <self.args.find_new_alleles>
             self.alfinder = AlleleFinder(self.glfo, self.args, itry)
         if count_parameters:  # NOTE *not* the same as <self.args.cache_parameters>
