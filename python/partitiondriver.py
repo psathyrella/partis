@@ -135,19 +135,17 @@ class PartitionDriver(object):
                 raise Exception('--persistent-cachefname %s has unexpected header list %s' % (self.args.persistent_cachefname, reader.fieldnames))
 
     # ----------------------------------------------------------------------------------------
-    def run_waterer(self, count_parameters=False, write_parameters=False, remove_less_likely_alleles=False, find_new_alleles=False, itry=None, write_cachefile=False, look_for_cachefile=False):
+    def run_waterer(self, count_parameters=False, write_parameters=False, find_new_alleles=False, itry=None, write_cachefile=False, look_for_cachefile=False):
         print 'smith-waterman',
         if write_parameters:
             print '  (writing parameters)',
         if find_new_alleles:
             print '  (looking for new alleles)',
-        if remove_less_likely_alleles:
-            print '  (removing less-likely alleles)',
         print ''
         sys.stdout.flush()
 
         # can probably remove this... I just kind of want to know if it happens EDIT hell no don't remove this
-        if not count_parameters and not find_new_alleles and not remove_less_likely_alleles and os.path.exists(self.sub_param_dir + '/hmms'):
+        if not count_parameters and not find_new_alleles and os.path.exists(self.sub_param_dir + '/hmms'):
             genes_with_hmms = set(utils.find_genes_that_have_hmms(self.sub_param_dir))
             expected_genes = set([g for r in utils.regions for g in self.glfo['seqs'][r].keys()])  # this'll be the & of the gldir (maybe rewritten, maybe not)
             if self.args.only_genes is None and len(genes_with_hmms - expected_genes) > 0:
@@ -157,11 +155,10 @@ class PartitionDriver(object):
 
         pre_failed_queries = self.sw_info['failed-queries'] if self.sw_info is not None else None  # don't re-run on failed queries if this isn't the first sw run (i.e., if we're parameter caching)
         waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo,
-                          count_parameters=count_parameters,  # (remove_less_likely_alleles or parameter_out_dir is not None),
+                          count_parameters=count_parameters,
                           parameter_out_dir=self.sw_param_dir if write_parameters else None,
-                          remove_less_likely_alleles=remove_less_likely_alleles,
                           find_new_alleles=find_new_alleles,
-                          plot_performance=(self.args.plot_performance and not remove_less_likely_alleles and not find_new_alleles),
+                          plot_performance=(self.args.plot_performance and not find_new_alleles),
                           simglfo=self.simglfo, itry=itry, duplicates=self.duplicates, pre_failed_queries=pre_failed_queries)
         cachefname = self.default_sw_cachefname if self.args.sw_cachefname is None else self.args.sw_cachefname
         if not look_for_cachefile and os.path.exists(cachefname):  # i.e. if we're not explicitly told to look for it, and it's there, then it's probably out of date
@@ -251,26 +248,19 @@ class PartitionDriver(object):
 
             self.args.min_observations_to_write = 1
 
-        if self.args.initial_aligner == 'vsearch':
-            tmpglfo = copy.deepcopy(self.glfo)  # definitely don't leave it like this
-            glutils.remove_v_genes_with_bad_cysteines(tmpglfo)  # hm...
-            vs_info = utils.run_vsearch('search', {sfo['unique_ids'][0] : sfo['seqs'][0] for sfo in self.input_info.values()}, self.args.workdir + '/vsearch', threshold=0.3, glfo=tmpglfo, print_time=True)
-            alremover = AlleleRemover(self.glfo, self.args, AlleleFinder(self.glfo, self.args, itry=0))
-            alremover.finalize(sorted(vs_info['gene-counts'].items(), key=operator.itemgetter(1), reverse=True), debug=self.args.debug_allele_finding)
-            glutils.remove_genes(self.glfo, alremover.genes_to_remove)
-            glutils.write_glfo(self.my_gldir, self.glfo)
-            if not self.args.dont_allele_cluster:
-                alclusterer = AlleleClusterer(self.args)
-                # TODO make it so you don't have to count parameters here to get 'mute-freqs' (there's a comment about this also written somewhere else)
-                self.run_waterer(count_parameters=True)
-                alcluster_alleles = alclusterer.get_alleles(queryfo=None, glfo=self.glfo, swfo=self.sw_info, reco_info=self.reco_info, simglfo=self.simglfo if self.reco_info is not None else None, debug=self.args.debug_allele_finding)
-                glutils.add_new_alleles(self.glfo, alcluster_alleles.values(), use_template_for_codon_info=False, simglfo=self.simglfo if self.reco_info is not None else None, debug=True)
-        elif self.args.initial_aligner == 'sw':
-            assert self.args.dont_allele_cluster
-            self.run_waterer(remove_less_likely_alleles=True, count_parameters=True)
-            glutils.remove_genes(self.glfo, self.sw_info['genes-to-remove'])
-        else:
-            assert False
+        tmpglfo = copy.deepcopy(self.glfo)  # definitely don't leave it like this
+        # glutils.remove_v_genes_with_bad_cysteines(tmpglfo)  # hm...
+        vs_info = utils.run_vsearch('search', {sfo['unique_ids'][0] : sfo['seqs'][0] for sfo in self.input_info.values()}, self.args.workdir + '/vsearch', threshold=0.3, glfo=tmpglfo, print_time=True)
+        alremover = AlleleRemover(self.glfo, self.args, AlleleFinder(self.glfo, self.args, itry=0))
+        alremover.finalize(sorted(vs_info['gene-counts'].items(), key=operator.itemgetter(1), reverse=True), debug=self.args.debug_allele_finding)
+        glutils.remove_genes(self.glfo, alremover.genes_to_remove)
+        glutils.write_glfo(self.my_gldir, self.glfo)
+        if not self.args.dont_allele_cluster:
+            alclusterer = AlleleClusterer(self.args)
+            # TODO make it so you don't have to count parameters here to get 'mute-freqs' (there's a comment about this also written somewhere else)
+            self.run_waterer(count_parameters=True)
+            alcluster_alleles = alclusterer.get_alleles(queryfo=None, glfo=self.glfo, swfo=self.sw_info, reco_info=self.reco_info, simglfo=self.simglfo if self.reco_info is not None else None, debug=self.args.debug_allele_finding)
+            glutils.add_new_alleles(self.glfo, alcluster_alleles.values(), use_template_for_codon_info=False, simglfo=self.simglfo if self.reco_info is not None else None, debug=True)
 
         # NOTE you have to make sure to write between making changes to <self.glfo> and running waterer (could probably stand to change this arrangement at some point)
         glutils.write_glfo(self.my_gldir, self.glfo)

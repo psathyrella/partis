@@ -25,7 +25,7 @@ from clusterpath import ClusterPath
 class Waterer(object):
     """ Run smith-waterman on the query sequences in <infname> """
     def __init__(self, args, input_info, reco_info, glfo, count_parameters=False, parameter_out_dir=None,
-                 remove_less_likely_alleles=False, find_new_alleles=False, plot_performance=False,
+                 find_new_alleles=False, plot_performance=False,
                  simglfo=None, itry=None, duplicates=None, pre_failed_queries=None):
         self.args = args
         self.input_info = input_info  # NOTE do *not* modify this, since it's this original input info from partitiondriver
@@ -60,9 +60,7 @@ class Waterer(object):
 
         self.my_gldir = self.args.workdir + '/' + glutils.glfo_dir
 
-        self.alremover, self.alfinder, self.pcounter, self.true_pcounter, self.perfplotter = None, None, None, None, None
-        if remove_less_likely_alleles:
-            self.alremover = AlleleRemover(self.glfo, self.args, AlleleFinder(self.glfo, self.args, itry=0))
+        self.alfinder, self.pcounter, self.true_pcounter, self.perfplotter = None, None, None, None, None
         if find_new_alleles:  # NOTE *not* the same as <self.args.find_new_alleles>
             self.alfinder = AlleleFinder(self.glfo, self.args, itry)
         if count_parameters:  # NOTE *not* the same as <self.args.cache_parameters>
@@ -160,24 +158,17 @@ class Waterer(object):
 
             assert len(self.info['queries']) + len(self.skipped_unproductive_queries) + len(self.info['failed-queries']) == len(self.input_info)
 
-        for qname in self.info['queries']:
-            if self.pcounter is not None:
+        if self.pcounter is not None:
+            for qname in self.info['queries']:
                 self.pcounter.increment(self.info[qname])
                 if self.true_pcounter is not None:
                     self.true_pcounter.increment(self.reco_info[qname])
-            if self.perfplotter is not None:
+            self.info['mute-freqs'] = {rstr : self.pcounter.mfreqer.mean_rates[rstr].get_mean() for rstr in ['all', ] + utils.regions}
+        if self.perfplotter is not None:
+            for qname in self.info['queries']:
                 self.perfplotter.evaluate(self.reco_info[qname], self.info[qname], simglfo=self.simglfo)
 
-        if self.pcounter is not None:
-            self.info['mute-freqs'] = {rstr : self.pcounter.mfreqer.mean_rates[rstr].get_mean() for rstr in ['all', ] + utils.regions}
-
-        found_germline_changes = False  # set to true if either alremover or alfinder found changes to the germline info
-        if self.alremover is not None:
-            sorted_gene_counts = [(deps[0], counts) for deps, counts in sorted(self.pcounter.counts[self.alremover.region + '_gene'].items(), key=operator.itemgetter(1), reverse=True)]
-            self.alremover.finalize(sorted_gene_counts, debug=self.args.debug_allele_finding)
-            self.info['genes-to-remove'] = self.alremover.genes_to_remove
-            if len(self.info['genes-to-remove']) > 0:
-                found_germline_changes = True
+        found_germline_changes = False  # set to true if alfinder found changes to the germline info
         if self.alfinder is not None:
             self.alfinder.increment_and_finalize(self.info, debug=self.args.debug_allele_finding)  # incrementing and finalizing are intertwined since needs to know the distribution of 5p and 3p deletions before it can increment
             self.info['new-alleles'] = self.alfinder.new_allele_info
@@ -187,7 +178,8 @@ class Waterer(object):
             if len(self.info['new-alleles']) > 0:
                 found_germline_changes = True
 
-        if self.args.seed_unique_id is not None:  # TODO I should really get the seed cdr3 length before running anything, and then not add seqs with different cdr3 length to start with, so those other sequences' gene matches don't get mixed in
+        # remove queries with cdr3 length different to the seed sequence
+        if self.args.seed_unique_id is not None:  # TODO I should really get the seed cdr3 length before running anything, and then not add seqs with different cdr3 length to start with, so those other sequences' gene matches don't get mixed in UPDATE on the other hand aren't we pretty much alwasy reading cached values if we're seed partitioning?
             if self.args.seed_unique_id in self.info['queries']:
                 seed_cdr3_length = self.info[self.args.seed_unique_id]['cdr3_length']
             else:  # if it failed
