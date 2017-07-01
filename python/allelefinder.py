@@ -124,6 +124,10 @@ class AlleleFinder(object):
     # ----------------------------------------------------------------------------------------
     def choose_cluster_representatives(self, swfo, cluster, debug=False):  # NOTE there's somewhat similar code in AlleleClusterer
         # I could probably make this a lot faster by just always only taking one sequence from highly mutated clusters (they have so many shared mutations anyway)
+        # also, now that I'm clustering only within each gene, I don't need the checks about all the sequences having the same gene
+        # note that when there *is* a new allele, this is wildly over-conservative (i.e. it collapses more than we need to), since (almost) *everyone* in the cluster will [appear to] have the mutation. I don't think there's really a way around that, though
+        # TODO the per-gene counters in here are deprecated now that I'm clustering per-gene in increment_and_finalize()
+
         assert len(cluster) > 0
         if len(cluster) == 1:
             self.n_clonal_representatives[swfo[cluster[0]][self.region + '_gene']] += 1
@@ -908,29 +912,23 @@ class AlleleFinder(object):
         # first prepare some things, and increment for each chosen query
         self.set_excluded_bases(swfo)
         queries_to_use = [q for q in swfo['queries'] if not self.skip_query(q, swfo[q])]  # skip_query() also fills self.seq_info if we're not skipping the query (and sometimes also if we do skip it)
-        # print '                        total   clones    representatives'
-        # n_total_clusters = 0
-        # # HEY DUMBASS IT"S PROBABLY N PADDING ON THE NAIVE SEQUENCES
-        # def keyfunc(q):
-        #     return swfo[q][self.region + '_gene']
-        # for gene, gene_queries in itertools.groupby(sorted(queries_to_use, key=keyfunc), key=keyfunc):
-        #     gene_queries = list(gene_queries)  # otherwise i can't print the length down there...
-        #     clusters = utils.collapse_naive_seqs(swfo, queries=gene_queries)
-        #     n_representatives = 0
-        #     for cluster in clusters:
-        #         cluster_representatives = self.choose_cluster_representatives(swfo, cluster)
-        #         for qchosen in cluster_representatives:
-        #             self.increment_query(qchosen, swfo[qchosen][self.region + '_gene'])
-        #         n_representatives += len(cluster_representatives)
-        #     n_total_clusters += len(clusters)
-        #     print '      %s %6d  %6d    %6d' % (utils.color_gene(gene, width=15), len(gene_queries), len(clusters), n_representatives)
-        # print '    %d seqs chosen to represent %d clones with %d total seqs' % (sum(self.n_clonal_representatives.values()), n_total_clusters, len(queries_to_use))
 
-        clusters = utils.collapse_naive_seqs(swfo, queries=queries_to_use)
-        for cluster in clusters:
-            for qchosen in self.choose_cluster_representatives(swfo, cluster):
-                self.increment_query(qchosen, swfo[qchosen][self.region + '_gene'])
-        print '    %d seqs chosen to represent %d clones with %d total seqs' % (sum(self.n_clonal_representatives.values()), len(clusters), len(queries_to_use))
+        print '                        total   clones    representatives'
+        n_total_clusters = 0
+        def keyfunc(q):
+            return swfo[q][self.region + '_gene']
+        for gene, gene_queries in itertools.groupby(sorted(queries_to_use, key=keyfunc), key=keyfunc):
+            gene_queries = list(gene_queries)  # otherwise i can't print the length down there...
+            clusters = utils.collapse_naive_seqs(swfo, queries=gene_queries)
+            n_representatives = 0
+            for cluster in clusters:
+                cluster_representatives = self.choose_cluster_representatives(swfo, cluster)
+                for qchosen in cluster_representatives:
+                    self.increment_query(qchosen, swfo[qchosen][self.region + '_gene'])
+                n_representatives += len(cluster_representatives)
+            n_total_clusters += len(clusters)
+            print '      %s %6d  %6d    %6d' % (utils.color_gene(gene, width=15), len(gene_queries), len(clusters), n_representatives)
+        print '    %d seqs chosen to represent %d clones with %d total seqs' % (sum(self.n_clonal_representatives.values()), n_total_clusters, len(queries_to_use))
 
         # then finalize
         genes_to_use = [g for g in sorted(self.counts) if self.gene_obs_counts[g] >= self.n_total_min]
