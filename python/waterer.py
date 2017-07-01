@@ -25,8 +25,8 @@ from clusterpath import ClusterPath
 class Waterer(object):
     """ Run smith-waterman on the query sequences in <infname> """
     def __init__(self, args, input_info, reco_info, glfo, count_parameters=False, parameter_out_dir=None,
-                 find_new_alleles=False, plot_performance=False,
-                 simglfo=None, itry=None, duplicates=None, pre_failed_queries=None):
+                 plot_performance=False,
+                 simglfo=None, duplicates=None, pre_failed_queries=None):
         self.args = args
         self.input_info = input_info  # NOTE do *not* modify this, since it's this original input info from partitiondriver
         self.reco_info = reco_info
@@ -47,7 +47,6 @@ class Waterer(object):
         self.info['all_best_matches'] = set()  # every gene that was a best match for at least one query
         self.info['all_matches'] = {r : set() for r in utils.regions}  # every gene that was *any* match (up to <self.args.n_max_per_region[ireg]>) for at least one query NOTE there is also an 'all_matches' in each query's info
         self.info['indels'] = {}  # NOTE if we find shm indels in a sequence, we store the indel info in here, and rerun sw with the reversed sequence (i.e. <self.info> contains the sw inference on the reversed sequence -- if you want the original sequence, get that from <self.input_info>)
-        self.info['mute-freqs'] = None  # kind of hackey... but it's to allow us to keep this info around when we don't want to keep the whole waterer object around, and we don't want to write all the parameters to disk
         self.info['failed-queries'] = set() if pre_failed_queries is None else copy.deepcopy(pre_failed_queries)  # not really sure about the deepcopy(), but it's probably safer?
         self.info['duplicates'] = self.duplicates  # TODO rationalize this
         self.info['removed-queries'] = set()  # ...and this
@@ -58,11 +57,10 @@ class Waterer(object):
         self.nth_try = 1  # arg, this should be zero-indexed like everything else
         self.skipped_unproductive_queries, self.kept_unproductive_queries = set(), set()
 
-        self.my_gldir = self.args.workdir + '/' + glutils.glfo_dir
+        self.my_gldir = self.args.workdir + '/sw-' + glutils.glfo_dir
+        glutils.write_glfo(self.my_gldir, self.glfo)
 
-        self.alfinder, self.pcounter, self.true_pcounter, self.perfplotter = None, None, None, None
-        if find_new_alleles:  # NOTE *not* the same as <self.args.find_new_alleles>
-            self.alfinder = AlleleFinder(self.glfo, self.args, itry)
+        self.pcounter, self.true_pcounter, self.perfplotter = None, None, None
         if count_parameters:  # NOTE *not* the same as <self.args.cache_parameters>
             self.pcounter = ParameterCounter(self.glfo, self.args)
             if not self.args.is_data:
@@ -163,20 +161,9 @@ class Waterer(object):
                 self.pcounter.increment(self.info[qname])
                 if self.true_pcounter is not None:
                     self.true_pcounter.increment(self.reco_info[qname])
-            self.info['mute-freqs'] = {rstr : self.pcounter.mfreqer.mean_rates[rstr].get_mean() for rstr in ['all', ] + utils.regions}
         if self.perfplotter is not None:
             for qname in self.info['queries']:
                 self.perfplotter.evaluate(self.reco_info[qname], self.info[qname], simglfo=self.simglfo)
-
-        found_germline_changes = False  # set to true if alfinder found changes to the germline info
-        if self.alfinder is not None:
-            self.alfinder.increment_and_finalize(self.info, debug=self.args.debug_allele_finding)  # incrementing and finalizing are intertwined since needs to know the distribution of 5p and 3p deletions before it can increment
-            self.info['new-alleles'] = self.alfinder.new_allele_info
-            # self.info['alleles-with-evidence'] = self.alfinder.alleles_with_evidence
-            if self.args.plotdir is not None:
-                self.alfinder.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
-            if len(self.info['new-alleles']) > 0:
-                found_germline_changes = True
 
         # remove queries with cdr3 length different to the seed sequence
         if self.args.seed_unique_id is not None:  # TODO I should really get the seed cdr3 length before running anything, and then not add seqs with different cdr3 length to start with, so those other sequences' gene matches don't get mixed in UPDATE on the other hand aren't we pretty much alwasy reading cached values if we're seed partitioning?
@@ -198,7 +185,7 @@ class Waterer(object):
             self.remove_duplicate_sequences()
 
         # want to do this *before* we pad sequences, so that when we read the cache file we're reading unpadded sequences and can pad them below
-        if cachefname is not None and not found_germline_changes:
+        if cachefname is not None:
             # hackey workaround: (in case you want to use trimmed/padded seqs for something, but shouldn't be used in general)
             if self.args.write_trimmed_and_padded_seqs_to_sw_cachefname:
                 self.pad_seqs_to_same_length()
@@ -220,7 +207,7 @@ class Waterer(object):
             self.perfplotter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
 
         if self.pcounter is not None:
-            if self.parameter_out_dir is not None and not found_germline_changes:
+            if self.parameter_out_dir is not None:
                 if self.args.plotdir is not None:
                     self.pcounter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots, only_overall=self.args.only_overall_plots)
                     if self.true_pcounter is not None:
@@ -229,6 +216,7 @@ class Waterer(object):
                 if self.true_pcounter is not None:
                     self.true_pcounter.write(self.parameter_out_dir + '-true')
 
+        glutils.remove_glfo_files(self.my_gldir, self.args.locus)
         sys.stdout.flush()
 
     # ----------------------------------------------------------------------------------------

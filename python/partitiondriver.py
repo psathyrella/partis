@@ -42,7 +42,6 @@ class PartitionDriver(object):
         self.simglfo = self.glfo
         if self.args.simulation_germline_dir is not None:
             self.simglfo = glutils.read_glfo(self.args.simulation_germline_dir, locus=self.args.locus)  # NOTE uh, I think I don't want to apply <self.args.only_genes>
-        glutils.write_glfo(self.my_gldir, self.glfo)  # need a copy on disk for vdjalign and bcrham (note that what we write to <self.my_gldir> in general differs from what's in <initial_gldir>)
 
         self.input_info, self.reco_info = None, None
         if self.args.infname is not None:
@@ -63,8 +62,6 @@ class PartitionDriver(object):
 
         self.unseeded_seqs = None  # all the queries that we *didn't* cluster with the seed uid
         self.small_cluster_seqs = None  # all the queries that we removed after a few partition steps 'cause they were in small clusters
-
-        self.all_new_allele_info = []
 
         self.sw_param_dir = self.args.parameter_dir + '/sw'
         self.hmm_param_dir = self.args.parameter_dir + '/hmm'
@@ -88,8 +85,6 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def clean(self):
-        glutils.remove_glfo_files(self.my_gldir, self.args.locus)
-
         # merge persistent and current cache files into the persistent cache file
         if self.args.persistent_cachefname is not None:
             lockfname = self.args.persistent_cachefname + '.lock'
@@ -135,31 +130,19 @@ class PartitionDriver(object):
                 raise Exception('--persistent-cachefname %s has unexpected header list %s' % (self.args.persistent_cachefname, reader.fieldnames))
 
     # ----------------------------------------------------------------------------------------
-    def run_waterer(self, count_parameters=False, write_parameters=False, find_new_alleles=False, itry=None, write_cachefile=False, look_for_cachefile=False):
+    def run_waterer(self, count_parameters=False, write_parameters=False, write_cachefile=False, look_for_cachefile=False):
         print 'smith-waterman',
         if write_parameters:
             print '  (writing parameters)',
-        if find_new_alleles:
-            print '  (looking for new alleles)',
         print ''
         sys.stdout.flush()
-
-        # can probably remove this... I just kind of want to know if it happens EDIT hell no don't remove this
-        if not count_parameters and not find_new_alleles and os.path.exists(self.sub_param_dir + '/hmms'):
-            genes_with_hmms = set(utils.find_genes_that_have_hmms(self.sub_param_dir))
-            expected_genes = set([g for r in utils.regions for g in self.glfo['seqs'][r].keys()])  # this'll be the & of the gldir (maybe rewritten, maybe not)
-            if self.args.only_genes is None and len(genes_with_hmms - expected_genes) > 0:
-                print '  %s yamels in %s for %d genes that aren\'t in glfo' % (utils.color('red', 'warning'), self.sub_param_dir, len(genes_with_hmms - expected_genes))
-            if len(expected_genes - genes_with_hmms) > 0:
-                print '  %s %d genes in glfo that don\'t have yamels in %s' % (utils.color('red', 'warning'), len(expected_genes - genes_with_hmms), self.sub_param_dir)
 
         pre_failed_queries = self.sw_info['failed-queries'] if self.sw_info is not None else None  # don't re-run on failed queries if this isn't the first sw run (i.e., if we're parameter caching)
         waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo,
                           count_parameters=count_parameters,
                           parameter_out_dir=self.sw_param_dir if write_parameters else None,
-                          find_new_alleles=find_new_alleles,
-                          plot_performance=(self.args.plot_performance and not find_new_alleles),
-                          simglfo=self.simglfo, itry=itry, duplicates=self.duplicates, pre_failed_queries=pre_failed_queries)
+                          plot_performance=self.args.plot_performance,
+                          simglfo=self.simglfo, duplicates=self.duplicates, pre_failed_queries=pre_failed_queries)
         cachefname = self.default_sw_cachefname if self.args.sw_cachefname is None else self.args.sw_cachefname
         if not look_for_cachefile and os.path.exists(cachefname):  # i.e. if we're not explicitly told to look for it, and it's there, then it's probably out of date
             print '  removing old sw cache %s' % cachefname.replace('.csv', '')
@@ -178,42 +161,36 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def find_new_alleles(self):
         """ look for new alleles with sw, write any that you find to the germline set directory in <self.workdir>, add them to <self.glfo>, and repeat until you don't find any. """
-        assert len(self.all_new_allele_info) == 0
         itry = 0
         while True:
-            self.run_waterer(find_new_alleles=True, itry=itry)
-            if len(self.sw_info['new-alleles']) == 0:
+            self.run_waterer()
+            alfinder = AlleleFinder(self.glfo, self.args, itry)
+            new_allele_info = alfinder.increment_and_finalize(self.sw_info, debug=self.args.debug_allele_finding)  # incrementing and finalizing are intertwined since it needs to know the distribution of 5p and 3p deletions before it can increment
+            if self.args.plotdir is not None:
+                alfinder.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
+            if len(new_allele_info) == 0:
                 break
+
             if os.path.exists(self.default_sw_cachefname):
                 print '    removing sw cache file %s (it has outdated germline info)' % self.default_sw_cachefname
                 os.remove(self.default_sw_cachefname)
 
-            self.all_new_allele_info += [afo for afo in self.sw_info['new-alleles'] if glutils.is_snpd(afo['gene'])]  # i.e. skip new/inferred alleles that turned out to be previously known (previous: in original glfo)
             glutils.restrict_to_genes(self.glfo, list(self.sw_info['all_best_matches']))
-            glutils.add_new_alleles(self.glfo, self.sw_info['new-alleles'], debug=True, simglfo=self.simglfo if self.reco_info is not None else None)
-            for newfo in [nf for nf in self.sw_info['new-alleles'] if nf['remove-template-gene']]:
+            glutils.add_new_alleles(self.glfo, new_allele_info, debug=True, simglfo=self.simglfo if self.reco_info is not None else None)
+            for newfo in [nf for nf in new_allele_info if nf['remove-template-gene']]:
                 print '    %s template gene %s' % (utils.color('red', 'removing'), utils.color_gene(newfo['template-gene']))
                 glutils.remove_gene(self.glfo, newfo['template-gene'])
-            glutils.write_glfo(self.my_gldir, self.glfo)  # write glfo modifications to disk
 
             itry += 1
             if itry >= self.args.n_max_allele_finding_iterations:
                 break
 
-        if self.args.new_allele_fname is not None:
-            n_new_alleles = len(self.all_new_allele_info)
-            print '  writing %d new %s to %s' % (n_new_alleles, utils.plural_str('allele', n_new_alleles), self.args.new_allele_fname)
-            with open(self.args.new_allele_fname, 'w') as outfile:
-                for allele_info in self.all_new_allele_info:
-                    outfile.write('>%s\n' % allele_info['gene'])
-                    outfile.write('%s\n' % allele_info['seq'])
-
     # ----------------------------------------------------------------------------------------
     def restrict_to_observed_alleles(self, subpdir):
         # TODO do I still need this now I'm using alleleremover?
-        """ Restrict <self.glfo> to genes observed in <subpdir>, and write the changes to <self.my_gldir>. """
+        """ Restrict <self.glfo> to genes observed in <subpdir> """
         if self.args.debug:
-            print '  restricting self.glfo (and %s) to alleles observed in %s' % (self.my_gldir, subpdir)
+            print '  restricting self.glfo to alleles observed in %s' % subpdir
         only_genes = set()
         for region in utils.regions:
             with open(subpdir + '/' + region + '_gene-probs.csv', 'r') as pfile:
@@ -221,7 +198,6 @@ class PartitionDriver(object):
                 for line in reader:
                     only_genes.add(line[region + '_gene'])
         glutils.restrict_to_genes(self.glfo, only_genes, debug=False)
-        glutils.write_glfo(self.my_gldir, self.glfo, debug=False)  # write glfo modifications to disk
 
     # ----------------------------------------------------------------------------------------
     def cache_parameters(self):
@@ -241,39 +217,44 @@ class PartitionDriver(object):
 
             self.args.min_observations_to_write = 1
 
-        tmpglfo = copy.deepcopy(self.glfo)  # definitely don't leave it like this
-        # glutils.remove_v_genes_with_bad_cysteines(tmpglfo)  # hm...
-        vs_info = utils.run_vsearch('search', {sfo['unique_ids'][0] : sfo['seqs'][0] for sfo in self.input_info.values()}, self.args.workdir + '/vsearch', threshold=0.3, glfo=tmpglfo, print_time=True)
+        # remove unlikely alleles
+        vs_info = utils.run_vsearch('search', {sfo['unique_ids'][0] : sfo['seqs'][0] for sfo in self.input_info.values()}, self.args.workdir + '/vsearch', threshold=0.3, glfo=self.glfo, print_time=True)
         alremover = AlleleRemover(self.glfo, self.args, AlleleFinder(self.glfo, self.args, itry=0))
         alremover.finalize(sorted(vs_info['gene-counts'].items(), key=operator.itemgetter(1), reverse=True), debug=self.args.debug_allele_finding)
         glutils.remove_genes(self.glfo, alremover.genes_to_remove)
-        glutils.write_glfo(self.my_gldir, self.glfo)
+
+        # (re-)add [new] alleles
         if not self.args.dont_allele_cluster:
+            self.run_waterer()
             alclusterer = AlleleClusterer(self.args)
-            # TODO make it so you don't have to count parameters here to get 'mute-freqs' (there's a comment about this also written somewhere else)
-            self.run_waterer(count_parameters=True)
             alcluster_alleles = alclusterer.get_alleles(queryfo=None, glfo=self.glfo, swfo=self.sw_info, reco_info=self.reco_info, simglfo=self.simglfo if self.reco_info is not None else None, debug=self.args.debug_allele_finding)
-            glutils.add_new_alleles(self.glfo, alcluster_alleles.values(), use_template_for_codon_info=False, simglfo=self.simglfo if self.reco_info is not None else None, debug=True)
-
-        # NOTE you have to make sure to write between making changes to <self.glfo> and running waterer (could probably stand to change this arrangement at some point)
-        glutils.write_glfo(self.my_gldir, self.glfo)
-
+            if len(alcluster_alleles) > 0:
+                glutils.add_new_alleles(self.glfo, alcluster_alleles.values(), use_template_for_codon_info=False, simglfo=self.simglfo if self.reco_info is not None else None, debug=True)
         if not self.args.dont_find_new_alleles:
             self.find_new_alleles()
+
+        # get and write sw parameters
         self.run_waterer(count_parameters=True, write_parameters=True, write_cachefile=True)
         self.restrict_to_observed_alleles(self.sw_param_dir)
         self.write_hmms(self.sw_param_dir)
         if self.args.only_smith_waterman:
             return
 
+        # get and write hmm parameters
         print 'hmm'
         sys.stdout.flush()
         self.run_hmm('viterbi', parameter_in_dir=self.sw_param_dir, parameter_out_dir=self.hmm_param_dir, count_parameters=True)
         self.restrict_to_observed_alleles(self.hmm_param_dir)
         self.write_hmms(self.hmm_param_dir)
 
-        if len(self.all_new_allele_info) > 0:
-            print '  %d new allele%s written to {sw,hmm}/%s subdirs of parameter dir %s' % (len(self.all_new_allele_info), utils.plural_str('', len(self.all_new_allele_info)), glutils.glfo_dir, self.args.parameter_dir)
+        if self.args.new_allele_fname is not None:
+            new_allele_region = 'v'
+            new_alleles = [(g, seq) for g, seq in self.glfo['seqs'][new_allele_region].items() if glutils.is_snpd(g)]
+            print '  writing %d new %s to %s' % (len(new_alleles), utils.plural_str('allele', len(new_alleles)), self.args.new_allele_fname)
+            with open(self.args.new_allele_fname, 'w') as outfile:
+                for name, seq in new_alleles:
+                    outfile.write('>%s\n' % name)
+                    outfile.write('%s\n' % seq)
 
     # ----------------------------------------------------------------------------------------
     def annotate(self):
@@ -571,28 +552,23 @@ class PartitionDriver(object):
         return annotations
 
     # ----------------------------------------------------------------------------------------
-    def cluster_with_naive_vsearch_or_swarm(self, parameter_dir=None, read_hmm_cachefile=True):
+    def cluster_with_naive_vsearch_or_swarm(self, parameter_dir=None):
         start = time.time()
 
         naive_seq_list = []
-        if read_hmm_cachefile:
-            assert parameter_dir is not None
-            threshold = self.get_naive_hamming_bounds(parameter_dir)[0]  # lo and hi are the same
-            cached_naive_seqs = {}
-            with open(self.hmm_cachefname) as cachefile:
-                reader = csv.DictReader(cachefile)
-                for line in reader:
-                    unique_ids = line['unique_ids'].split(':')
-                    if len(unique_ids) == 1:  # if it's a cache file left over from a previous partitioning, there'll be clusters in it, too
-                        cached_naive_seqs[unique_ids[0]] = line['naive_seq']
-            for uid in self.sw_info['queries']:
-                if uid not in cached_naive_seqs:
-                    raise Exception('naive sequence for %s not found in %s' % (uid, self.hmm_cachefname))
-                naive_seq_list.append((uid, cached_naive_seqs[uid]))
-        else:  # I think this was added to allow allele finding to cluster with vsearch, but I ended up just clustering with naive seqs, so this isn't used
-            assert parameter_dir is None  # i.e. get mut freq from sw info
-            threshold = self.get_naive_hamming_bounds(parameter_dir=None, overall_mute_freq=self.sw_info['mute-freqs']['all'])[0]  # lo and hi are the same
-            naive_seq_list = [(q, self.sw_info[q]['naive_seq']) for q in self.sw_info['queries']]
+        assert parameter_dir is not None
+        threshold = self.get_naive_hamming_bounds(parameter_dir)[0]  # lo and hi are the same
+        cached_naive_seqs = {}
+        with open(self.hmm_cachefname) as cachefile:
+            reader = csv.DictReader(cachefile)
+            for line in reader:
+                unique_ids = line['unique_ids'].split(':')
+                if len(unique_ids) == 1:  # if it's a cache file left over from a previous partitioning, there'll be clusters in it, too
+                    cached_naive_seqs[unique_ids[0]] = line['naive_seq']
+        for uid in self.sw_info['queries']:
+            if uid not in cached_naive_seqs:
+                raise Exception('naive sequence for %s not found in %s' % (uid, self.hmm_cachefname))
+            naive_seq_list.append((uid, cached_naive_seqs[uid]))
 
         all_naive_seqs, naive_seq_hashes = utils.collapse_naive_seqs_with_hashes(naive_seq_list, self.sw_info)
 
@@ -629,7 +605,7 @@ class PartitionDriver(object):
         if parameter_dir is not None:
             assert overall_mute_freq is None
             mutehist = Hist(fname=parameter_dir + '/all-mean-mute-freqs.csv')
-            mute_freq = mutehist.get_mean(ignore_overflows=True)  # TODO should I not ignore overflows here? or should I ignore them when I set waterer.info['mute-freqs']?
+            mute_freq = mutehist.get_mean(ignore_overflows=True)  # TODO should I not ignore overflows here?
         else:
             assert overall_mute_freq is not None
             mute_freq = overall_mute_freq
@@ -1220,6 +1196,8 @@ class PartitionDriver(object):
         if self.args.debug:
             print '    writing input'
 
+        glutils.write_glfo(self.my_gldir, self.glfo)
+
         if partition is not None:
             nsets = copy.deepcopy(partition)  # needs to be a deep copy so we can shuffle the order
         else:
@@ -1257,6 +1235,8 @@ class PartitionDriver(object):
 
         if os.path.exists(self.hmm_infname):
             os.remove(self.hmm_infname)
+
+        glutils.remove_glfo_files(self.my_gldir, self.args.locus)
 
         return cpath
 

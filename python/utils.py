@@ -2572,7 +2572,7 @@ def collapse_naive_seqs(swfo, queries=None):
     if queries is None:
         queries = swfo['queries']  # don't modify this
     def keyfunc(q):
-        return swfo[q]['naive_seq']
+        return swfo[q]['naive_seq']  # while this is no longer happening before fwk insertion trimming (which was bad), it is still happening on N-padded sequences, which should be kept in mind
     return [list(group) for _, group in itertools.groupby(sorted(queries, key=keyfunc), key=keyfunc)]
 
 # ----------------------------------------------------------------------------------------
@@ -2828,6 +2828,7 @@ def run_vsearch(action, seqs, workdir, threshold, consensus_fname=None, msa_fnam
                     gene_counts[qinfo['gene']] = 0.
                 gene_counts[qinfo['gene']] += counts_per_match
         regional_mute_freq = numpy.mean([float(query_info[q][0]['ids']) / len(query_info[q][0]['qr_seq']) for q in query_info])
+        # TODO I think I don't need the 'mute-freqs' info any more (?)
         returnfo = {'gene-counts' : gene_counts, 'queries' : query_info, 'mute-freqs' : {region : regional_mute_freq}}  # NOTE <gene_counts> is note integers
     else:
         assert False

@@ -1005,6 +1005,7 @@ class AlleleFinder(object):
             print '  allele finding: %d fits in %.1f sec' % (self.n_fits, time.time()-start)
 
         self.finalized = True
+        return self.new_allele_info
 
     # ----------------------------------------------------------------------------------------
     def get_fitfo_for_plotting(self, gene, pos):

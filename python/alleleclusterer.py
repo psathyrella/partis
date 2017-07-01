@@ -51,10 +51,10 @@ class AlleleClusterer(object):
             clusters = utils.collapse_naive_seqs(swfo, queries=full_length_queries)
             qr_seqs = {}
             self.all_j_mutations = {}
-            for cluster in clusters:  # take the sequence with the lowest j mutation for each cluster, if it doesn't have too many j mutations NOTE choose_cluster_representatives() in allelefinder is somewhat similar
+            for cluster in clusters:
                 clusterstr = ':'.join(cluster)
                 j_mutations = {q : utils.get_n_muted(swfo[q], iseq=0, restrict_to_region=self.other_region) for q in cluster}
-                best_query, smallest_j_mutations = sorted(j_mutations.items(), key=operator.itemgetter(1))[0]
+                best_query, smallest_j_mutations = sorted(j_mutations.items(), key=operator.itemgetter(1))[0]  # take the sequence with the lowest j mutation for each cluster, if it doesn't have too many j mutations NOTE choose_cluster_representatives() in allelefinder is somewhat similar
                 if smallest_j_mutations < self.max_j_mutations:
                     qr_seqs[best_query] = indelutils.get_qr_seqs_with_indels_reinstated(swfo[best_query], iseq=0)[self.region]
                 for query in cluster:
@@ -63,7 +63,8 @@ class AlleleClusterer(object):
             gene_info = {q : swfo[q][self.region + '_gene'] for q in qr_seqs}
 
             assert self.region == 'v'  # need to think about whether this should always be j, or if it should be self.other_region
-            threshold = swfo['mute-freqs']['j'] / 2.
+            j_mfreqs = [utils.get_mutation_rate(swfo[q], iseq=0, restrict_to_region='j') for q in qr_seqs]
+            threshold = numpy.mean(j_mfreqs) / 1.5  # v mut freq will be way off for any very different new alleles
 
         msa_fname = self.args.workdir + '/msa.fa'
         print '   vsearch clustering %d %s segments with threshold %.2f (*300 = %d)' % (len(qr_seqs), self.region, threshold, int(threshold * 300))
