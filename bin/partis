@@ -336,6 +336,7 @@ parent_parser.add_argument('--n-alleles-per-gene', type=int, default=None, help=
 parent_parser.add_argument('--min-allele-prevalence-fraction', type=float, default=0.0005, help='Remove any alleles that represent less than this fraction of the repertoire.')
 parent_parser.add_argument('--n-max-total-alleles', type=int, help='maximum number of alleles per segment to allow when removing alleles (presumably just used for testing).')
 
+parent_parser.add_argument('--leave-default-germline', action='store_true')
 parent_parser.add_argument('--dont-remove-unlikely-alleles', action='store_true')
 parent_parser.add_argument('--dont-allele-cluster', action='store_true')
 parent_parser.add_argument('--dont-find-new-alleles', action='store_true')
@@ -574,6 +575,11 @@ if args.n_alleles_per_gene is None:
         args.n_alleles_per_gene = 1
     else:
         args.n_alleles_per_gene = 2
+
+if args.leave_default_germline:
+    args.dont_remove_unlikely_alleles = True
+    args.dont_allele_cluster = True
+    args.dont_find_new_alleles = True
 
 # ----------------------------------------------------------------------------------------
 random.seed(args.seed)
