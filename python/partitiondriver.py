@@ -218,10 +218,11 @@ class PartitionDriver(object):
             self.args.min_observations_to_write = 1
 
         # remove unlikely alleles
-        vs_info = utils.run_vsearch('search', {sfo['unique_ids'][0] : sfo['seqs'][0] for sfo in self.input_info.values()}, self.args.workdir + '/vsearch', threshold=0.3, glfo=self.glfo, print_time=True)
-        alremover = AlleleRemover(self.glfo, self.args, AlleleFinder(self.glfo, self.args, itry=0))
-        alremover.finalize(sorted(vs_info['gene-counts'].items(), key=operator.itemgetter(1), reverse=True), debug=self.args.debug_allele_finding)
-        glutils.remove_genes(self.glfo, alremover.genes_to_remove)
+        if not self.args.dont_remove_unlikely_alleles:
+            vs_info = utils.run_vsearch('search', {sfo['unique_ids'][0] : sfo['seqs'][0] for sfo in self.input_info.values()}, self.args.workdir + '/vsearch', threshold=0.3, glfo=self.glfo, print_time=True)
+            alremover = AlleleRemover(self.glfo, self.args, AlleleFinder(self.glfo, self.args, itry=0))
+            alremover.finalize(sorted(vs_info['gene-counts'].items(), key=operator.itemgetter(1), reverse=True), debug=self.args.debug_allele_finding)
+            glutils.remove_genes(self.glfo, alremover.genes_to_remove)
 
         # (re-)add [new] alleles
         if not self.args.dont_allele_cluster:
