@@ -104,6 +104,8 @@ def read_fasta_file(seqs, fname, skip_pseudogenes, aligned=False):
     for seqfo in utils.read_fastx(fname):
         # first get gene name
         if seqfo['name'][:2] != 'IG' and seqfo['name'][:2] != 'TR':  # if it's an imgt file, with a bunch of header info (and the accession number first)
+            if len(seqfo['infostrs']) < len(imgt_info_indices):
+                raise Exception('info str %s is too short (len %d) to correspond to imgt info indices %s (len %d)' % (seqfo['infostrs'], len(seqfo['infostrs']), imgt_info_indices, len(imgt_info_indices)))
             gene = seqfo['infostrs'][imgt_info_indices.index('gene')]
             functionality = seqfo['infostrs'][imgt_info_indices.index('functionality')]
             if functionality not in functionalities:
