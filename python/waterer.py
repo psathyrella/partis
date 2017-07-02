@@ -127,6 +127,22 @@ class Waterer(object):
         print '        water time: %.1f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
+    def write_cachefile(self, cachefname):
+        if self.args.write_trimmed_and_padded_seqs_to_sw_cachefname:  # hackey workaround: (in case you want to use trimmed/padded seqs for something, but shouldn't be used in general)
+            self.pad_seqs_to_same_length()
+
+        cachebase = cachefname.replace('.csv', '')
+        print '        writing sw results to %s' % cachebase
+        glutils.write_glfo(cachebase + '-glfo', self.glfo)
+        with open(cachefname, 'w') as outfile:
+            writer = csv.DictWriter(outfile, utils.annotation_headers + utils.sw_cache_headers)
+            writer.writeheader()
+            for query in self.info['queries']:  # NOTE does *not* write failed queries
+                outline = utils.get_line_for_output(self.info[query])  # convert lists to colon-separated strings and whatnot (doens't modify input dictionary)
+                outline = {k : v for k, v in outline.items() if k in utils.annotation_headers + utils.sw_cache_headers}  # remove the columns we don't want to output
+                writer.writerow(outline)
+
+    # ----------------------------------------------------------------------------------------
     def finalize(self, cachefname=None, just_read_cachefile=False):
         if self.debug:
             print '%s' % utils.color('green', 'finalizing')
@@ -186,20 +202,7 @@ class Waterer(object):
 
         # want to do this *before* we pad sequences, so that when we read the cache file we're reading unpadded sequences and can pad them below
         if cachefname is not None:
-            # hackey workaround: (in case you want to use trimmed/padded seqs for something, but shouldn't be used in general)
-            if self.args.write_trimmed_and_padded_seqs_to_sw_cachefname:
-                self.pad_seqs_to_same_length()
-
-            cachebase = cachefname.replace('.csv', '')
-            print '        writing sw results to %s' % cachebase
-            glutils.write_glfo(cachebase + '-glfo', self.glfo)
-            with open(cachefname, 'w') as outfile:
-                writer = csv.DictWriter(outfile, utils.annotation_headers + utils.sw_cache_headers)
-                writer.writeheader()
-                for query in self.info['queries']:  # NOTE does *not* write failed queries
-                    outline = utils.get_line_for_output(self.info[query])  # convert lists to colon-separated strings and whatnot (doens't modify input dictionary)
-                    outline = {k : v for k, v in outline.items() if k in utils.annotation_headers + utils.sw_cache_headers}  # remove the columns we don't want to output
-                    writer.writerow(outline)
+            self.write_cachefile(cachefname)
 
         self.pad_seqs_to_same_length()  # NOTE this uses all the gene matches (not just the best ones), so it has to come before we call pcounter.write(), since that fcn rewrites the germlines removing genes that weren't best matches. But NOTE also that I'm not sure what but that the padding actually *needs* all matches (rather than just all *best* matches)
 
