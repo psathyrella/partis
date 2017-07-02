@@ -1029,7 +1029,7 @@ class PartitionDriver(object):
         utils.prep_dir(hmm_dir, '*.yaml')
 
         if self.args.debug:
-            print '    to %s' % parameter_dir + '/hmms'
+            print 'to %s' % parameter_dir + '/hmms',
 
         # for region in utils.regions:
         #     for gene in self.glfo['seqs'][region]:

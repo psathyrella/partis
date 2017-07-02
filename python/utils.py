@@ -127,8 +127,10 @@ def cdn_positions(glfo, region):
     return glfo[conserved_codons[glfo['locus']][region] + '-positions']
 def cdn_pos(glfo, region, gene):
     return cdn_positions(glfo, region)[gene]
+def gap_len(seq):
+    return len(filter(gap_chars.__contains__, seq))
 def non_gap_len(seq):
-    return len(seq) - len(filter(gap_chars.__contains__, seq))
+    return len(seq) - gap_len(seq)
 
 codon_table = {
     'cyst' : ['TGT', 'TGC'],
@@ -2458,55 +2460,77 @@ def auto_slurm(n_procs):
 def add_regional_alignments(glfo, aligned_gl_seqs, line, region, debug=False):
     if debug:
         print ' %s' % region
-    aligned_seqs = []
+
+    aligned_seqs = [None for _ in range(len(line['unique_ids']))]
     for iseq in range(len(line['seqs'])):
         qr_seq = line[region + '_qr_seqs'][iseq]
         gl_seq = line[region + '_gl_seq']
         aligned_gl_seq = aligned_gl_seqs[region][line[region + '_gene']]
         if len(qr_seq) != len(gl_seq):
+            if debug:
+                print '    qr %d and gl %d seqs different lengths for %s, setting invalid' % (len(qr_seq), len(gl_seq), ' '.join(line['unique_ids']))
             line['invalid'] = True
+            continue
+
+        n_gaps = gap_len(aligned_gl_seq)
+        if n_gaps == 0:
+            if debug:
+                print '   no gaps'
+            aligned_seqs[iseq] = qr_seq
             continue
 
         if debug:
             print '   before alignment'
             print '      qr   ', qr_seq
             print '      gl   ', gl_seq
-            print '      al gl', aligned_gl_seq
+            print ' aligned gl', aligned_gl_seq
 
-        n_gaps = sum([aligned_gl_seq.count(gc) for gc in gap_chars])
-        if len(aligned_gl_seq) != line[region + '_5p_del'] + len(gl_seq) + line[region + '_3p_del'] + n_gaps:
-            print len(aligned_gl_seq), line[region + '_5p_del'], len(gl_seq), line[region + '_3p_del'], n_gaps
+        # add dots for 5p and 3p deletions
+        qr_seq = gap_chars[0] * line[region + '_5p_del'] + qr_seq + gap_chars[0] * line[region + '_3p_del']
+        gl_seq = gap_chars[0] * line[region + '_5p_del'] + gl_seq + gap_chars[0] * line[region + '_3p_del']
+
+        if len(aligned_gl_seq) - n_gaps != len(gl_seq):
+            if debug:
+                print '    aligned germline seq without gaps (%d - %d = %d) not the same length as unaligned gl/qr seqs %d' % (len(aligned_gl_seq), n_gaps, len(aligned_gl_seq) - n_gaps, len(gl_seq))
             line['invalid'] = True
             continue
 
-        qr_seq = 'N' * line[region + '_5p_del'] + qr_seq + 'N' * line[region + '_3p_del']
-        gl_seq = 'N' * line[region + '_5p_del'] + gl_seq + 'N' * line[region + '_3p_del']
-
+        qr_seq = list(qr_seq)
+        gl_seq = list(gl_seq)
         for ibase in range(len(aligned_gl_seq)):
-            if aligned_gl_seq[ibase] in gap_chars:
-                qr_seq = qr_seq[ : ibase] + gap_chars[0] + qr_seq[ibase : ]
-                gl_seq = gl_seq[ : ibase] + gap_chars[0] + gl_seq[ibase : ]
-            else:
-                if gl_seq[ibase] != 'N' and gl_seq[ibase] != aligned_gl_seq[ibase]:
-                    line['invalid'] = True
-                    break
+            if aligned_gl_seq[ibase] in gap_chars:  # add gap to the qr and gl seq lists
+                qr_seq.insert(ibase, gap_chars[0])
+                gl_seq.insert(ibase, gap_chars[0])
+            elif gl_seq[ibase] == aligned_gl_seq[ibase] or gl_seq[ibase] in gap_chars:  # latter is 5p or 3p deletion that we filled in above
+                pass  # all is well
+            else:  # all is not well, don't know why
+                line['invalid'] = True
+                break
         if line['invalid']:
+            if debug:
+                print '    unknown error during alignment process'
             continue
+        qr_seq = ''.join(qr_seq)
+        gl_seq = ''.join(gl_seq)
 
         if debug:
             print '   after alignment'
             print '      qr   ', qr_seq
             print '      gl   ', gl_seq
-            print '      al gl', aligned_gl_seq
+            print ' aligned gl', aligned_gl_seq
 
-        if len(qr_seq) != len(gl_seq) or len(qr_seq) != len(aligned_gl_seq):
+        if len(qr_seq) != len(gl_seq) or len(qr_seq) != len(aligned_gl_seq):  # I don't think this is really possible as currently written
+            if debug:
+                print '    lengths qr %d gl %d and aligned gl %d not all the same after alignment' % (len(qr_seq), len(gl_seq), len(aligned_gl_seq))
             line['invalid'] = True
             continue
-        aligned_seqs.append(qr_seq)  # TODO is this supposed to be just the v section of the query sequence, or the whole sequence? (if it's the latter, I don't know what to do about alignments)
 
-    if line['invalid']:  # this seems to only happening when we simulate with debug 1, and in that case we don't actually do anything with the aligned seqs, so screw it
-        # aligned_seqs = [None for _ in range(len(line['seqs']))]
-        raise Exception('failed adding alignment info for %s' % ' '.join(line['unique_ids']))
+        aligned_seqs[iseq] = qr_seq
+
+    if line['invalid']:
+        print '%s failed adding alignment info for %s' % (color('red', 'error'),' '.join(line['unique_ids']))  # will print more than once if it doesn't fail on the last region
+        aligned_seqs = [None for _ in range(len(line['seqs']))]
+
     line['aligned_' + region + '_seqs'] = aligned_seqs
 
 # ----------------------------------------------------------------------------------------
