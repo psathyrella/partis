@@ -2745,21 +2745,21 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, sanitize=Fa
     return finfo
 
 # ----------------------------------------------------------------------------------------
-def output_exists(args, outfname):
+def output_exists(args, outfname, offset=22):
     if os.path.exists(outfname):
         if os.stat(outfname).st_size == 0:
-            print '                      deleting zero length %s' % outfname
+            print '%sdeleting zero length %s' % (offset * ' ', outfname)
             os.remove(outfname)
             return False
         elif args.overwrite:
-            print '                      overwriting %s' % outfname
+            print '%soverwriting %s' % (offset * ' ', outfname)
             if os.path.isdir(outfname):
                 raise Exception('output %s is a directory, rm it by hand' % outfname)
             else:
                 os.remove(outfname)
             return False
         else:
-            print '                      output exists, skipping (%s)' % outfname
+            print '%soutput exists, skipping (%s)' % (offset * ' ', outfname)
             return True
     else:
         return False
