@@ -19,7 +19,7 @@ def get_glfname(region, aligned):  # igblast uses unaligned ones
 
 # ----------------------------------------------------------------------------------------
 def run_igblast(infname, outfname):
-    if utils.output_exists(args, outfname):
+    if utils.output_exists(args, outfname, offset=8):
         return
 
     cmd = './igblastn'
@@ -30,18 +30,45 @@ def run_igblast(infname, outfname):
     cmd += ' -query ' + infname + ' -out ' + outfname
     
     cmd = 'cd %s; %s' % (args.igbdir, cmd)
-    utils.simplerun(cmd, shell=True, print_time='igblast')
+    # utils.simplerun(cmd, shell=True, print_time='igblast')
 
 # ----------------------------------------------------------------------------------------
 def run_changeo(infname, igblast_outfname, outfname):
-    if utils.output_exists(args, outfname):
+    if utils.output_exists(args, outfname, offset=8):
         return
 
-    changeo_path = os.getenv('HOME') + '/.local/bin'
     glfnames = [get_glfname(r, aligned=True) for r in utils.regions]
-    cmd = changeo_path + '/MakeDb.py igblast'
+    cmd = args.changeo_path + '/bin/MakeDb.py igblast'
     cmd += ' -i %s -s %s -r %s --regions --scores' % (igblast_outfname, infname, ' '.join(glfnames))
     utils.simplerun(cmd, print_time='changeo')
+
+# ----------------------------------------------------------------------------------------
+def run_partis(infname, outfname):
+    if utils.output_exists(args, outfname, offset=8):
+        return
+
+    aligned_gl_seqs = {}  # keyed by seq so it's easy to check for duplicates
+    for r in utils.regions:  # deduplicate before passing to partis
+        for seqfo in utils.read_fastx(get_glfname(r, aligned=True)):
+            if seqfo['seq'] in aligned_gl_seqs:
+                continue
+            aligned_gl_seqs[seqfo['seq']] = '|'.join(seqfo['infostrs'])
+    aligned_germline_fname = args.workdir + '/all-aligned-gl-seqs.fa'
+    with open(aligned_germline_fname, 'w') as merged_file:
+        for seq, gene in aligned_gl_seqs.items():
+            merged_file.write('>%s\n%s\n' % (gene, seq))
+
+    cmd = './bin/partis cache-parameters'
+    cmd += ' --infname ' + infname
+    cmd += ' --dont-remove-unlikely-alleles --dont-allele-cluster --dont-find-new-alleles'
+    cmd += ' --presto-output --only-smith-waterman'
+    cmd += ' --outfname ' + outfname
+    cmd += ' --aligned-germline-fname ' + aligned_germline_fname
+    cmd += ' --n-procs ' + str(args.n_procs)
+
+    utils.simplerun(cmd, print_time='partis annotation')
+
+    os.remove(aligned_germline_fname)
 
 # ----------------------------------------------------------------------------------------
 def fiddle_with_gene_info(gfo):
@@ -58,7 +85,7 @@ def fiddle_with_gene_info(gfo):
 
 # ----------------------------------------------------------------------------------------
 def run_tigger(infname, outfname):
-    if utils.output_exists(args, outfname):
+    if utils.output_exists(args, outfname, offset=8):
         return
 
     rcmds = ['library(tigger)', 'library(dplyr)']
@@ -88,16 +115,35 @@ def run_tigger(infname, outfname):
     os.remove(cmdfname)
 
 # ----------------------------------------------------------------------------------------
+def run_alignment(args, outdir):
+    infbase = utils.getprefix(os.path.basename(args.infname))
+    if args.aligner == 'igblast':
+        igblast_outfname = outdir + '/' + infbase + '-igblast.fmt7'
+        changeo_outfname = outdir + '/' + infbase + '-igblast_db-pass.tab'
+        run_igblast(args.infname, igblast_outfname)
+        run_changeo(args.infname, igblast_outfname, changeo_outfname)
+        return changeo_outfname
+    elif args.aligner == 'partis':
+        outfname = outdir + '/' + infbase + '-partis-sw-annotations.tsv'
+        run_partis(args.infname, outfname)  # can't change it in changeo (I think), so may as well use the same name here
+        return outfname
+    else:
+        assert False
+
+# ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
 parser.add_argument('--gls-gen', action='store_true')
 parser.add_argument('--infname', required=True)
 parser.add_argument('--outfname', required=True)
 parser.add_argument('--workdir', required=True)
 parser.add_argument('--n-procs', default=1, type=int)
+parser.add_argument('--aligner', choices=['igblast', 'partis'], default='partis')
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--igbdir', default='./packages/ncbi-igblast-1.6.1/bin')
 parser.add_argument('--glfo-dir')
+parser.add_argument('--changeo-path', default=os.getenv('HOME') + '/.local')
 args = parser.parse_args()
+
 if not args.gls_gen:
     print '%s can\'t really run without --gls-gen, since you\'d need to work out how to change j parameters' % utils.color('red', 'warning')
 if args.glfo_dir is not None:
@@ -105,12 +151,8 @@ if args.glfo_dir is not None:
 
 # ----------------------------------------------------------------------------------------
 outdir = os.path.dirname(args.outfname)  # kind of annoying having <args.workdir> and <outdir>, but the former is for stuff we don't want to keep (not much...  maybe just .cmd file), and the latter is for stuff we do
-infbase = utils.getprefix(os.path.basename(args.infname))
-igblast_outfname = outdir + '/' + infbase + '-igblast.fmt7'
-changeo_outfname = outdir + '/' + infbase + '-igblast_db-pass.tab'
-utils.prep_dir(args.workdir, wildlings=['*.cmd']) #'*.fmt7'])
+utils.prep_dir(args.workdir, wildlings=['*.cmd', '*.fa']) #'*.fmt7'])
 utils.prep_dir(outdir, allow_other_files=True)
 
-run_igblast(args.infname, igblast_outfname)
-run_changeo(args.infname, igblast_outfname, changeo_outfname)
-run_tigger(changeo_outfname, args.outfname)
+outfname = run_alignment(args, outdir)
+run_tigger(outfname, args.outfname)
