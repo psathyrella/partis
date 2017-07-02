@@ -479,7 +479,7 @@ def write_presto_annotations(outfname, glfo, annotations, failed_queries):
     print '    backing up partis output before converting to presto: %s' % outstr.strip()
 
     with open(outfname, 'w') as outfile:
-        writer = csv.DictWriter(outfile, presto_headers.keys())
+        writer = csv.DictWriter(outfile, presto_headers.keys(), delimiter='\t')
         writer.writeheader()
 
         for full_line in annotations.values():
