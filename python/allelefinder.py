@@ -913,7 +913,8 @@ class AlleleFinder(object):
         self.set_excluded_bases(swfo)
         queries_to_use = [q for q in swfo['queries'] if not self.skip_query(q, swfo[q])]  # skip_query() also fills self.seq_info if we're not skipping the query (and sometimes also if we do skip it)
 
-        print '                        total   clones    representatives'
+        if debug:
+            print '                        total   clones    representatives'
         n_total_clusters = 0
         def keyfunc(q):
             return swfo[q][self.region + '_gene']
@@ -927,8 +928,10 @@ class AlleleFinder(object):
                     self.increment_query(qchosen, swfo[qchosen][self.region + '_gene'])
                 n_representatives += len(cluster_representatives)
             n_total_clusters += len(clusters)
-            print '      %s %6d  %6d    %6d' % (utils.color_gene(gene, width=15), len(gene_queries), len(clusters), n_representatives)
-        print '    %d seqs chosen to represent %d clones with %d total seqs' % (sum(self.n_clonal_representatives.values()), n_total_clusters, len(queries_to_use))
+            if debug:
+                print '      %s %6d  %6d    %6d' % (utils.color_gene(gene, width=15), len(gene_queries), len(clusters), n_representatives)
+        if debug:
+            print '    %d seqs chosen to represent %d clones with %d total seqs' % (sum(self.n_clonal_representatives.values()), n_total_clusters, len(queries_to_use))
 
         # then finalize
         genes_to_use = [g for g in sorted(self.counts) if self.gene_obs_counts[g] >= self.n_total_min]
