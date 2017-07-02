@@ -176,16 +176,13 @@ column_dependencies['jf_insertion'] = []
 # column_dependencies['vd_insertion_content'] = []
 # column_dependencies['dj_insertion_content'] = []
 
-# definitions here: http://clip.med.yale.edu/changeo/manuals/Change-O_Data_Format.pdf
-presto_headers = {
-    'unique_ids' : 'SEQUENCE_ID',
-    'input_seqs' : 'SEQUENCE_INPUT',
-    'v_gene' : 'V_CALL',
-    'd_gene' : 'D_CALL',
-    'j_gene' : 'J_CALL',
-    'aligned_v_plus_unaligned_dj' : 'SEQUENCE_IMGT',  # TODO is this supposed to be the whole sequence, or just the v bit? UPDATE looks like aligned v, plus the rest of the sequence without any alignment info
-    'cdr3_length' : 'JUNCTION_LENGTH'
-}
+# tuples with the column and its dependencies mashed together
+# (first entry is the column of interest, and it depends upon the following entries)
+column_dependency_tuples = []
+for column, deps in column_dependencies.iteritems():
+    tmp_list = [column]
+    tmp_list.extend(deps)
+    column_dependency_tuples.append(tuple(tmp_list))
 
 adaptive_headers = {
     'seqs' : 'nucleotide',
@@ -444,30 +441,51 @@ def convert_from_adaptive_headers(glfo, line, uid=None, only_dj_rearrangements=F
     return newline
 
 # ----------------------------------------------------------------------------------------
-def convert_to_presto_headers(line):
+# definitions here: http://clip.med.yale.edu/changeo/manuals/Change-O_Data_Format.pdf
+presto_headers = {
+    'SEQUENCE_ID' : 'unique_ids',
+    'SEQUENCE_INPUT' : 'input_seqs',
+    'V_CALL' : 'v_gene',
+    'D_CALL' : 'd_gene',
+    'J_CALL' : 'j_gene',
+    'SEQUENCE_IMGT' : 'aligned_v_plus_unaligned_dj',
+    'JUNCTION_LENGTH' : None,
+}
+
+# ----------------------------------------------------------------------------------------
+def get_line_with_presto_headers(line):  # NOTE doesn't deep copy
     """ convert <line> to presto csv format """
     if len(line['unique_ids']) > 1:  # has to happen *before* utils.get_line_for_output()
-        print line['unique_ids']
         raise Exception('multiple seqs not handled for presto output')
 
     presto_line = {}
-    for head, phead in presto_headers.items():
+    for phead, head in presto_headers.items():
         if head == 'aligned_v_plus_unaligned_dj':
             presto_line[phead] = line['aligned_v_seqs'][0] + line['vd_insertion'] + line['d_qr_seqs'][0] + line['dj_insertion'] + line['j_qr_seqs'][0]
-        elif head == 'unique_ids':
+        elif phead == 'JUNCTION_LENGTH':
+            presto_line[phead] = line['cdr3_length'] + 6
+        elif head == 'unique_ids' or head == 'input_seqs':
             presto_line[phead] = line[head][0]
         else:
             presto_line[phead] = line[head]
 
     return presto_line
 
-# tuples with the column and its dependencies mashed together
-# (first entry is the column of interest, and it depends upon the following entries)
-column_dependency_tuples = []
-for column, deps in column_dependencies.iteritems():
-    tmp_list = [column]
-    tmp_list.extend(deps)
-    column_dependency_tuples.append(tuple(tmp_list))
+# ----------------------------------------------------------------------------------------
+def write_presto_annotations(outfname, glfo, annotations, failed_queries):
+    outstr = subprocess.check_output(['mv', '-v', outfname, outfname + '.partis'])
+    print '    backing up partis output before converting to presto: %s' % outstr.strip()
+
+    with open(outfname, 'w') as outfile:
+        writer = csv.DictWriter(outfile, presto_headers.keys())
+        writer.writeheader()
+
+        for full_line in annotations.values():
+            writer.writerow(get_line_with_presto_headers(full_line))
+
+        # and write empty lines for seqs that failed either in sw or the hmm
+        for uid, seq in failed_queries.items():
+            writer.writerow({'SEQUENCE_ID' : uid, 'SEQUENCE_INPUT' : seq})
 
 # ----------------------------------------------------------------------------------------
 def get_parameter_fname(column=None, deps=None, column_and_deps=None):
@@ -910,6 +928,10 @@ def remove_all_implicit_info(line):
     for col in implicit_linekeys:
         if col in line:
             del line[col]
+
+# ----------------------------------------------------------------------------------------
+def get_non_implicit_copy(line):  # return a deep copy of <line> with only non-implicit info
+    return {col : copy.deepcopy(line[col]) for col in line if col not in implicit_linekeys}
 
 # ----------------------------------------------------------------------------------------
 def process_per_gene_support(line, debug=False):
@@ -1786,6 +1808,18 @@ def simplerun(cmd_str, shell=False, dryrun=False, print_time=None):
         print '      %s time: %.1f' % (print_time, time.time() - start)
 
 # ----------------------------------------------------------------------------------------
+def run_proc_functions(procs, n_procs, debug=False):  # <procs> is a list of multiprocessing.Process objects
+    if debug:
+        print '    running %d proc fcns with %d procs' % (len(procs), n_procs)
+        sys.stdout.flush()
+    while True:
+        while len(procs) > 0 and len(multiprocessing.active_children()) < n_procs:
+            procs[0].start()
+            procs.pop(0)
+        if len(multiprocessing.active_children()) == 0 and len(procs) == 0:
+            break
+
+# ----------------------------------------------------------------------------------------
 def run_cmd(cmdfo, batch_system=None, batch_options=None, nodelist=None):
     cmd_str = cmdfo['cmd_str']  # don't want to modify the str in <cmdfo>
     # print cmd_str
@@ -2422,6 +2456,8 @@ def auto_slurm(n_procs):
 
 # ----------------------------------------------------------------------------------------
 def add_regional_alignments(glfo, aligned_gl_seqs, line, region, debug=False):
+    if debug:
+        print ' %s' % region
     aligned_seqs = []
     for iseq in range(len(line['seqs'])):
         qr_seq = line[region + '_qr_seqs'][iseq]
@@ -2432,10 +2468,10 @@ def add_regional_alignments(glfo, aligned_gl_seqs, line, region, debug=False):
             continue
 
         if debug:
-            print 'before alignment'
-            print '   qr   ', qr_seq
-            print '   gl   ', gl_seq
-            print '   al gl', aligned_gl_seq
+            print '   before alignment'
+            print '      qr   ', qr_seq
+            print '      gl   ', gl_seq
+            print '      al gl', aligned_gl_seq
 
         n_gaps = sum([aligned_gl_seq.count(gc) for gc in gap_chars])
         if len(aligned_gl_seq) != line[region + '_5p_del'] + len(gl_seq) + line[region + '_3p_del'] + n_gaps:
@@ -2458,10 +2494,10 @@ def add_regional_alignments(glfo, aligned_gl_seqs, line, region, debug=False):
             continue
 
         if debug:
-            print 'after alignment'
-            print '   qr   ', qr_seq
-            print '   gl   ', gl_seq
-            print '   al gl', aligned_gl_seq
+            print '   after alignment'
+            print '      qr   ', qr_seq
+            print '      gl   ', gl_seq
+            print '      al gl', aligned_gl_seq
 
         if len(qr_seq) != len(gl_seq) or len(qr_seq) != len(aligned_gl_seq):
             line['invalid'] = True

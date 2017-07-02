@@ -1031,10 +1031,17 @@ class PartitionDriver(object):
         if self.args.debug:
             print '    to %s' % parameter_dir + '/hmms'
 
-        for region in utils.regions:
-            for gene in self.glfo['seqs'][region]:
-                writer = HmmWriter(parameter_dir, hmm_dir, gene, self.glfo, self.args)
-                writer.write()
+        # for region in utils.regions:
+        #     for gene in self.glfo['seqs'][region]:
+        #         writer = HmmWriter(parameter_dir, hmm_dir, gene, self.glfo, self.args)
+        #         writer.write()
+
+        def write_single_hmm(gene):
+            writer = HmmWriter(parameter_dir, hmm_dir, gene, self.glfo, self.args)
+            writer.write()
+        procs = [multiprocessing.Process(target=write_single_hmm, args=(gene,))
+                 for region in utils.regions for gene in self.glfo['seqs'][region]]
+        utils.run_proc_functions(procs, self.args.n_procs)
 
         print '(%.1f sec)' % (time.time()-start)
         sys.stdout.flush()
@@ -1535,32 +1542,6 @@ class PartitionDriver(object):
 
         # presto!
         if self.args.presto_output:
-            raise Exception('needs updating')
-            outstr = check_output(['mv', '-v', self.args.outfname, self.args.outfname + '.partis'])
-            print '    backing up partis output before converting to presto: %s' % outstr.strip()
-
-            prestoheader = utils.presto_headers.values()
-            with open(outpath, 'w') as outfile:
-                writer = csv.DictWriter(outfile, prestoheader)
-                writer.writeheader()
-
-                for full_line in annotations.values():
-                    outline = copy.deepcopy(full_line)  # in case we modify it
-
-                    utils.remove_all_implicit_info(outline)
-                    utils.add_implicit_info(self.glfo, outline, aligned_gl_seqs=self.aligned_gl_seqs)
-
-                    outline = utils.convert_to_presto_headers(outline)
-
-                    outline = utils.get_line_for_output(outline)  # convert lists to colon-separated strings and whatnot
-                    outline = {k : v for k, v in outline.items() if k in prestoheader}  # remove the columns we don't want to output
-
-                    writer.writerow(outline)
-
-                # and write empty lines for seqs that failed either in sw or the hmm
-                if len(missing_input_keys) > 0:  # NOTE assumes it's already been set by the first loop
-                    print 'missing %d input keys' % len(missing_input_keys)
-                    for uid in missing_input_keys:
-                        col = utils.presto_headers['unique_id']
-                        writer.writerow({col : uid})
-
+            failed_queries = {fid : self.input_info[fid]['seqs'][0] for fid in self.sw_info['failed-queries'] | hmm_failures}
+            # : ':'.join([self.input_info[f]['seqs'][0] for f in fid.split(':')]) for fid in self.sw_info['failed-queries'] | hmm_failures}
+            utils.write_presto_annotations(outpath, self.glfo, annotations, failed_queries=failed_queries)
