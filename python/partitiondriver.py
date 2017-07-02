@@ -142,13 +142,14 @@ class PartitionDriver(object):
                           count_parameters=count_parameters,
                           parameter_out_dir=self.sw_param_dir if write_parameters else None,
                           plot_performance=self.args.plot_performance,
-                          simglfo=self.simglfo, duplicates=self.duplicates, pre_failed_queries=pre_failed_queries)
+                          simglfo=self.simglfo, duplicates=self.duplicates, pre_failed_queries=pre_failed_queries, aligned_gl_seqs=self.aligned_gl_seqs)
         cachefname = self.default_sw_cachefname if self.args.sw_cachefname is None else self.args.sw_cachefname
         if not look_for_cachefile and os.path.exists(cachefname):  # i.e. if we're not explicitly told to look for it, and it's there, then it's probably out of date
             print '  removing old sw cache %s' % cachefname.replace('.csv', '')
             os.remove(cachefname)
             if os.path.exists(cachefname.replace('.csv', '-glfo')):  # it should always be there now, but there could be some old sw cache files lying around from before they had their own glfo dirs
                 glutils.remove_glfo_files(cachefname.replace('.csv', '-glfo'), self.args.locus)
+
         if look_for_cachefile and os.path.exists(cachefname):  # run sw if we either don't want to do any caching (None) or if we are planning on writing the results after we run
             waterer.read_cachefile(cachefname)
         else:
@@ -157,6 +158,14 @@ class PartitionDriver(object):
         self.sw_info = waterer.info
         for uid, dupes in waterer.duplicates.items():  # <waterer.duplicates> is <self.duplicates> OR'd into any new duplicates from this run
             self.duplicates[uid] = dupes
+
+        if self.args.only_smith_waterman and self.args.outfname is not None and write_cachefile:
+            print '  copying sw cache file %s to --outfname %s' % (cachefname, self.args.outfname)
+            check_call(['cp', cachefname, self.args.outfname])
+            if self.args.presto_output:
+                annotations = {q : self.sw_info[q] for q in self.sw_info['queries']}
+                failed_queries = {fid : self.input_info[fid]['seqs'][0] for fid in self.sw_info['failed-queries']}
+                utils.write_presto_annotations(self.args.outfname, self.glfo, annotations, failed_queries=failed_queries)
 
     # ----------------------------------------------------------------------------------------
     def find_new_alleles(self):
@@ -1544,5 +1553,4 @@ class PartitionDriver(object):
         # presto!
         if self.args.presto_output:
             failed_queries = {fid : self.input_info[fid]['seqs'][0] for fid in self.sw_info['failed-queries'] | hmm_failures}
-            # : ':'.join([self.input_info[f]['seqs'][0] for f in fid.split(':')]) for fid in self.sw_info['failed-queries'] | hmm_failures}
             utils.write_presto_annotations(outpath, self.glfo, annotations, failed_queries=failed_queries)

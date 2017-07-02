@@ -26,7 +26,7 @@ class Waterer(object):
     """ Run smith-waterman on the query sequences in <infname> """
     def __init__(self, args, input_info, reco_info, glfo, count_parameters=False, parameter_out_dir=None,
                  plot_performance=False,
-                 simglfo=None, duplicates=None, pre_failed_queries=None):
+                 simglfo=None, duplicates=None, pre_failed_queries=None, aligned_gl_seqs=None):
         self.args = args
         self.input_info = input_info  # NOTE do *not* modify this, since it's this original input info from partitiondriver
         self.reco_info = reco_info
@@ -35,6 +35,7 @@ class Waterer(object):
         self.parameter_out_dir = parameter_out_dir
         self.duplicates = {} if duplicates is None else duplicates
         self.debug = self.args.debug if self.args.sw_debug is None else self.args.sw_debug
+        self.aligned_gl_seqs = aligned_gl_seqs
 
         self.max_insertion_length = 35  # if an insertion is longer than this, we skip the proposed annotation (i.e. rerun it)
         self.absolute_max_insertion_length = 120  # but if it's longer than this, we always skip the annotation
@@ -118,7 +119,7 @@ class Waterer(object):
                     continue
                 for region in utils.regions:  # uh... should do this more cleanly at some point
                     del line[region + '_per_gene_support']
-                utils.add_implicit_info(self.glfo, line)
+                utils.add_implicit_info(self.glfo, line, aligned_gl_seqs=self.aligned_gl_seqs)
                 if indelutils.has_indels(line['indelfos'][0]):
                     self.info['indels'][line['unique_ids'][0]] = line['indelfos'][0]
                 self.add_to_info(line)
@@ -896,7 +897,7 @@ class Waterer(object):
         # convert to regular format used elsewhere, and add implicit info
         infoline = self.convert_qinfo(qinfo, best, codon_positions)
         try:
-            utils.add_implicit_info(self.glfo, infoline)
+            utils.add_implicit_info(self.glfo, infoline, aligned_gl_seqs=self.aligned_gl_seqs)
         except:  # AssertionError gah, I don't really like just swallowing everything... but then I *expect* it to fail here... and when I call it elsewhere, where I don't expect it to fail, shit doesn't get swallowed
             if self.debug:
                 print '      rerun: implicit info adding failed for %s, rerunning' % qname
@@ -1120,7 +1121,7 @@ class Waterer(object):
                 swfo['k_v'][key] -= fv_len
             swfo['fv_insertion'] = ''
             swfo['jf_insertion'] = ''
-            utils.add_implicit_info(self.glfo, swfo)
+            utils.add_implicit_info(self.glfo, swfo, aligned_gl_seqs=self.aligned_gl_seqs)
 
             if debug:
                 print '    after %s' % swfo['seqs'][0]
@@ -1312,7 +1313,7 @@ class Waterer(object):
                 swfo['regional_bounds'][region] = tuple([rb + padleft for rb in swfo['regional_bounds'][region]])  # I kind of want to just use a list now, but a.t.m. don't much feel like changing it everywhere else
             swfo['padlefts'] = [padleft, ]
             swfo['padrights'] = [padright, ]
-            utils.add_implicit_info(self.glfo, swfo)  # check to make sure we modified everything in a consistent manner
+            utils.add_implicit_info(self.glfo, swfo, aligned_gl_seqs=self.aligned_gl_seqs)  # check to make sure we modified everything in a consistent manner
 
             if debug:
                 print '    %3d   %3d    %s' % (padleft, padright, query)

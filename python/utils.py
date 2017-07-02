@@ -444,15 +444,15 @@ def convert_from_adaptive_headers(glfo, line, uid=None, only_dj_rearrangements=F
 
 # ----------------------------------------------------------------------------------------
 # definitions here: http://clip.med.yale.edu/changeo/manuals/Change-O_Data_Format.pdf
-presto_headers = {
-    'SEQUENCE_ID' : 'unique_ids',
-    'SEQUENCE_INPUT' : 'input_seqs',
-    'V_CALL' : 'v_gene',
-    'D_CALL' : 'd_gene',
-    'J_CALL' : 'j_gene',
-    'SEQUENCE_IMGT' : 'aligned_v_plus_unaligned_dj',
-    'JUNCTION_LENGTH' : None,
-}
+presto_headers = OrderedDict([  # enforce this ordering so the output files are easier to read
+    ('SEQUENCE_ID', 'unique_ids'),
+    ('V_CALL', 'v_gene'),
+    ('D_CALL', 'd_gene'),
+    ('J_CALL', 'j_gene'),
+    ('JUNCTION_LENGTH', None),
+    ('SEQUENCE_INPUT', 'input_seqs'),
+    ('SEQUENCE_IMGT', 'aligned_v_plus_unaligned_dj'),
+])
 
 # ----------------------------------------------------------------------------------------
 def get_line_with_presto_headers(line):  # NOTE doesn't deep copy
