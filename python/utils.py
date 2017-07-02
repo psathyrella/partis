@@ -1810,7 +1810,9 @@ def simplerun(cmd_str, shell=False, dryrun=False, print_time=None):
         print '      %s time: %.1f' % (print_time, time.time() - start)
 
 # ----------------------------------------------------------------------------------------
-def run_proc_functions(procs, n_procs, debug=False):  # <procs> is a list of multiprocessing.Process objects
+def run_proc_functions(procs, n_procs=None, debug=False):  # <procs> is a list of multiprocessing.Process objects
+    if n_procs is None:
+        n_procs = multiprocessing.cpu_count()
     if debug:
         print '    running %d proc fcns with %d procs' % (len(procs), n_procs)
         sys.stdout.flush()
