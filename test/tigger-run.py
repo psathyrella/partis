@@ -22,6 +22,9 @@ def run_igblast(infname, outfname):
     if utils.output_exists(args, outfname, offset=8):
         return
 
+    if args.glfo_dir is not None:
+        print '%s --glfo-dir isn\'t getting plugged in to igblast/changeo/tigger (would need to rebuild igblast db)' % utils.color('red', 'warning')
+
     cmd = './igblastn'
     cmd += ' -germline_db_V human_gl_V -germline_db_D human_gl_V -germline_db_J human_gl_J'
     cmd += ' -auxiliary_data optional_file/human_gl.aux'
@@ -60,28 +63,18 @@ def run_partis(infname, outfname):
 
     cmd = './bin/partis cache-parameters'
     cmd += ' --infname ' + infname
-    cmd += ' --dont-remove-unlikely-alleles --dont-allele-cluster --dont-find-new-alleles'
+    cmd += ' --leave-default-germline'
     cmd += ' --presto-output --only-smith-waterman'
     cmd += ' --outfname ' + outfname
+    if args.glfo_dir is not None:
+        raise Exception('think about/update this (may actually be ok)')
+        cmd += ' --initial-germline-dir ' + args.glfo_dir
     cmd += ' --aligned-germline-fname ' + aligned_germline_fname
     cmd += ' --n-procs ' + str(args.n_procs)
 
     utils.simplerun(cmd, print_time='partis annotation')
 
     os.remove(aligned_germline_fname)
-
-# ----------------------------------------------------------------------------------------
-def fiddle_with_gene_info(gfo):
-    if '_' in gfo['name']:
-        print '      ', gfo['name']
-        gfo['name'] = gfo['name'].replace('_', '+')
-        print '      ', gfo['name']
-        _, _, _ = utils.split_gene(gfo['name'])
-        try:
-            _, _, _ = utils.split_gene(gfo['name'])
-        except:
-            print '    couldn\'t parse \'%s\'' % gfo['name']
-        print '    new tigger gene: %s' % gfo['name']
 
 # ----------------------------------------------------------------------------------------
 def run_tigger(infname, outfname):
@@ -106,12 +99,22 @@ def run_tigger(infname, outfname):
     cmdstr = 'R --slave -f ' + cmdfname
     utils.simplerun(cmdstr, shell=True, print_time='tigger')
 
-    # post-process tigger .fa (mostly to make sure we're handling the gene names properly)
-    tgfo = utils.read_fastx(outfname.replace('.fasta', '-tigger.fasta'))
+    # post-process tigger .fa
+    gldir = args.glfo_dir if args.glfo_dir is not None else 'data/germlines/human'
+    glfo = glutils.read_glfo(gldir, args.locus)
+    for seqfo in utils.read_fastx(outfname.replace('.fasta', '-tigger.fasta')):
+        if seqfo['name'] not in glfo['seqs'][args.region]:
+            glutils.add_new_allele(glfo, {}, debug=True)
+        elif glfo['seqs'][args.region][seqfo['name']] != seqfo['seq']:
+            print '%s different sequences in glfo and tigger output for %s:\n    %s\n    %s' % (utils.color('red', 'error'), seqfo['name'], glfo['seqs'][args.region][seqfo['name']], seqfo['seq'])
+
+# ----------------------------------------------------------------------------------------
     with open(outfname, 'w') as outfile:
         for gfo in tgfo:
             fiddle_with_gene_info(gfo)
             outfile.write('>%s\n%s\n' % (gfo['name'], gfo['seq']))
+# ----------------------------------------------------------------------------------------
+
     os.remove(cmdfname)
 
 # ----------------------------------------------------------------------------------------
@@ -141,13 +144,13 @@ parser.add_argument('--aligner', choices=['igblast', 'partis'], default='partis'
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--igbdir', default='./packages/ncbi-igblast-1.6.1/bin')
 parser.add_argument('--glfo-dir')
+parser.add_argument('--locus', default='igh')
+parser.add_argument('--region', default='v')
 parser.add_argument('--changeo-path', default=os.getenv('HOME') + '/.local')
 args = parser.parse_args()
 
 if not args.gls_gen:
     print '%s can\'t really run without --gls-gen, since you\'d need to work out how to change j parameters' % utils.color('red', 'warning')
-if args.glfo_dir is not None:
-    print '%s not using --glfo-dir a.t.m. (would need to rebuild igblast db)' % utils.color('red', 'warning')
 
 # ----------------------------------------------------------------------------------------
 outdir = os.path.dirname(args.outfname)  # kind of annoying having <args.workdir> and <outdir>, but the former is for stuff we don't want to keep (not much...  maybe just .cmd file), and the latter is for stuff we do
