@@ -1,3 +1,4 @@
+import sys
 import multiprocessing
 import csv
 import os
@@ -193,12 +194,8 @@ class MuteFreqer(object):
         if not self.finalized:
             self.finalize()
 
-        for gene in self.counts:
+        for gene in self.counts:  # don't bother parallelizing this, all the time is spent finalizing
             self.write_single_gene(gene, outdir + '/' + utils.sanitize_name(gene) + '.csv')
-
-        # doesn't seem to be any faster... maybe it's actually i/o limited
-        # procs = [multiprocessing.Process(target=self.write_single_gene, args=(gene, outdir + '/' + utils.sanitize_name(gene) + '.csv')) for gene in self.counts]
-        # utils.run_proc_functions(procs)
 
         assert 'REGION' in mean_freq_outfname
         self.mean_rates['all'].write(mean_freq_outfname.replace('REGION', 'all'))  # hackey hackey hackey replacement... *sigh*
