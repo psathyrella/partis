@@ -771,6 +771,8 @@ class PartitionDriver(object):
             n_procs = self.args.n_procs
 
         self.prepare_for_hmm(algorithm, parameter_in_dir, partition, shuffle_input=shuffle_input)
+        glutils.write_glfo(self.my_gldir, self.glfo)
+
 
         cmd_str = self.get_hmm_cmd_str(algorithm, self.hmm_infname, self.hmm_outfname, parameter_dir=parameter_in_dir, precache_all_naive_seqs=precache_all_naive_seqs, n_procs=n_procs)
 
@@ -780,6 +782,8 @@ class PartitionDriver(object):
         exec_start = time.time()
         self.execute(cmd_str, n_procs)
         exec_time = time.time() - exec_start
+
+        glutils.remove_glfo_files(self.my_gldir, self.args.locus)
 
         new_cpath = None
         if read_output:
@@ -1213,8 +1217,6 @@ class PartitionDriver(object):
         if self.args.debug:
             print '    writing input'
 
-        glutils.write_glfo(self.my_gldir, self.glfo)
-
         if partition is not None:
             nsets = copy.deepcopy(partition)  # needs to be a deep copy so we can shuffle the order
         else:
@@ -1252,8 +1254,6 @@ class PartitionDriver(object):
 
         if os.path.exists(self.hmm_infname):
             os.remove(self.hmm_infname)
-
-        glutils.remove_glfo_files(self.my_gldir, self.args.locus)
 
         return cpath
 
