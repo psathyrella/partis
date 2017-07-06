@@ -755,7 +755,7 @@ def write_glfo(output_dir, glfo, only_genes=None, debug=False):
 def remove_glfo_files(gldir, locus):
     locusdir = gldir + '/' + locus
     if not os.path.exists(locusdir):
-        print '    %s tried to remove nonexistent glfo dir %s' % (utils.color('yellow', 'warning'), locusdir)
+        # print '    %s tried to remove nonexistent glfo dir %s' % (utils.color('yellow', 'warning'), locusdir)  # this seems to only happen when something crashed in the middle, i.e. this code is old/mature enough I'm commenting the check
         return
     if os.path.islink(locusdir):  # linked to original, for backwards compatibility (see read_glfo())
         print '    note: removing link new germline dir name %s' % locusdir

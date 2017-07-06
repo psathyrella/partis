@@ -75,12 +75,15 @@ def post_process(input_info, reco_info, args, infname, found_seed, is_data, ilin
         print '    chose random seed unique id %s' % args.seed_unique_id
 
     if args.n_random_queries is not None:
+        included_queries = set()  # only for dbg printing
         uids_to_choose_from = input_info.keys()
         if args.seed_unique_id is not None:
             uids_to_choose_from.remove(args.seed_unique_id)
+            included_queries.add(args.seed_unique_id)
         if args.queries_to_include is not None:
             for uid in args.queries_to_include:
                 uids_to_choose_from.remove(uid)
+                included_queries.add(uid)
         if args.n_random_queries >= len(input_info):
             print '  %s --n-random-queries %d >= number of queries read from %s (so just keeping everybody)' % (utils.color('yellow', 'warning'), args.n_random_queries, infname)
         else:
@@ -89,6 +92,8 @@ def post_process(input_info, reco_info, args, infname, found_seed, is_data, ilin
                 del input_info[uid]
                 if reco_info is not None:
                     del reco_info[uid]
+            print '  --n-random-queries: keeping %d / %d sequences (removed %d) from input file%s' % (len(input_info), len(input_info) + len(uids_to_remove), len(uids_to_remove),
+                                                                                                      (' (specifically kept %s)' % ' '.join(included_queries)) if len(included_queries) > 0 else '')
 
 # ----------------------------------------------------------------------------------------
 def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, simglfo=None):
@@ -194,6 +199,7 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, s
 
         n_queries_added += 1
         if n_max_queries > 0 and n_queries_added >= n_max_queries:
+            print '  --n-max-queries: stopped after reading %d queries from input file' % len(input_info)
             break
 
     post_process(input_info, reco_info, args, infname, found_seed, is_data, iline)
