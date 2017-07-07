@@ -23,7 +23,7 @@ def run_igblast(infname, outfname):
         return
 
     if args.glfo_dir is not None:
-        print '%s --glfo-dir isn\'t getting plugged in to igblast/changeo/tigger (would need to rebuild igblast db)' % utils.color('red', 'warning')
+        print '%s --glfo-dir isn\'t getting plugged in to igblast/changeo (would need to rebuild igblast db)' % utils.color('red', 'warning')
 
     cmd = './igblastn'
     cmd += ' -germline_db_V human_gl_V -germline_db_D human_gl_V -germline_db_J human_gl_J'
@@ -33,7 +33,7 @@ def run_igblast(infname, outfname):
     cmd += ' -query ' + infname + ' -out ' + outfname
     
     cmd = 'cd %s; %s' % (args.igbdir, cmd)
-    # utils.simplerun(cmd, shell=True, print_time='igblast')
+    utils.simplerun(cmd, shell=True, print_time='igblast')
 
 # ----------------------------------------------------------------------------------------
 def run_changeo(infname, igblast_outfname, outfname):
@@ -67,7 +67,6 @@ def run_partis(infname, outfname):
     cmd += ' --presto-output --only-smith-waterman'
     cmd += ' --outfname ' + outfname
     if args.glfo_dir is not None:
-        raise Exception('think about/update this (may actually be ok)')
         cmd += ' --initial-germline-dir ' + args.glfo_dir
     cmd += ' --aligned-germline-fname ' + aligned_germline_fname
     cmd += ' --n-procs ' + str(args.n_procs)
@@ -77,7 +76,7 @@ def run_partis(infname, outfname):
     os.remove(aligned_germline_fname)
 
 # ----------------------------------------------------------------------------------------
-def run_tigger(infname, outfname):
+def run_tigger(infname, outfname, outdir):
     if utils.output_exists(args, outfname, offset=8):
         return
 
@@ -89,10 +88,11 @@ def run_tigger(infname, outfname):
     rcmds += ['%s = read.csv("%s", sep="\t")' % (db_name, infname)]
     rcmds += ['%s = readIgFasta("%s")' % (gls_name, get_glfname('v', aligned=True))]
 
+    tigger_outfname = outdir + '/tigger.fasta'
     rcmds += ['novel_df = findNovelAlleles(%s, %s, germline_min=2, nproc=%d)' % (db_name, gls_name, args.n_procs)]  #
     rcmds += ['geno = inferGenotype(%s, find_unmutated = FALSE, germline_db = %s, novel_df = novel_df)' % (db_name, gls_name)]
     rcmds += ['genotype_seqs = genotypeFasta(geno, %s, novel_df)' % (gls_name)]
-    rcmds += ['writeFasta(genotype_seqs, "%s")' % outfname.replace('.fasta', '-tigger.fasta')]
+    rcmds += ['writeFasta(genotype_seqs, "%s")' % tigger_outfname]
     cmdfname = args.workdir + '/tigger-in.cmd'
     with open(cmdfname, 'w') as cmdfile:
         cmdfile.write('\n'.join(rcmds) + '\n')
@@ -102,18 +102,21 @@ def run_tigger(infname, outfname):
     # post-process tigger .fa
     gldir = args.glfo_dir if args.glfo_dir is not None else 'data/germlines/human'
     glfo = glutils.read_glfo(gldir, args.locus)
-    for seqfo in utils.read_fastx(outfname.replace('.fasta', '-tigger.fasta')):
+    for seqfo in utils.read_fastx(tigger_outfname):
+        seq = seqfo['seq'].replace(utils.gap_chars[0], '')  # it should be just dots...
         if seqfo['name'] not in glfo['seqs'][args.region]:
-            glutils.add_new_allele(glfo, {}, debug=True)
-        elif glfo['seqs'][args.region][seqfo['name']] != seqfo['seq']:
+            newfo = {'gene' : seqfo['name'], 'seq' : seq}
+            use_template_for_codon_info = False
+            if '+' in newfo['gene']:
+                newfo['template-gene'] = newfo['gene'].split('+')[0]
+                use_template_for_codon_info = True
+            glutils.add_new_allele(glfo, newfo, use_template_for_codon_info=use_template_for_codon_info, debug=True)
+        elif glfo['seqs'][args.region][seqfo['name']] != seq:
             print '%s different sequences in glfo and tigger output for %s:\n    %s\n    %s' % (utils.color('red', 'error'), seqfo['name'], glfo['seqs'][args.region][seqfo['name']], seqfo['seq'])
 
-# ----------------------------------------------------------------------------------------
-    with open(outfname, 'w') as outfile:
-        for gfo in tgfo:
-            fiddle_with_gene_info(gfo)
-            outfile.write('>%s\n%s\n' % (gfo['name'], gfo['seq']))
-# ----------------------------------------------------------------------------------------
+    out_gldir = os.path.dirname(outfname).rstrip('/' + args.locus)
+    assert glutils.get_fname(out_gldir, args.locus, args.region) == outfname
+    glutils.write_glfo(out_gldir, glfo)
 
     os.remove(cmdfname)
 
@@ -149,13 +152,13 @@ parser.add_argument('--region', default='v')
 parser.add_argument('--changeo-path', default=os.getenv('HOME') + '/.local')
 args = parser.parse_args()
 
-if not args.gls_gen:
-    print '%s can\'t really run without --gls-gen, since you\'d need to work out how to change j parameters' % utils.color('red', 'warning')
-
 # ----------------------------------------------------------------------------------------
 outdir = os.path.dirname(args.outfname)  # kind of annoying having <args.workdir> and <outdir>, but the former is for stuff we don't want to keep (not much...  maybe just .cmd file), and the latter is for stuff we do
+assert outdir.split('/')[-1] == args.locus
+outdir = outdir.rstrip('/' + args.locus)
+
 utils.prep_dir(args.workdir, wildlings=['*.cmd', '*.fa']) #'*.fmt7'])
 utils.prep_dir(outdir, allow_other_files=True)
 
 outfname = run_alignment(args, outdir)
-run_tigger(outfname, args.outfname)
+run_tigger(outfname, args.outfname, outdir)

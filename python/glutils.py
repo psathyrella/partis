@@ -641,8 +641,6 @@ def add_new_allele(glfo, newfo, remove_template_genes=False, use_template_for_co
             get_missing_codon_info(glfo)
 
     if debug:
-        if 'template-gene' not in newfo:
-            raise Exception('no template gene specified in newfo')
         simstr = ''
         if simglfo is not None:
             if newfo['gene'] in simglfo['seqs'][region]:  # exact name is in simglfo
@@ -664,9 +662,12 @@ def add_new_allele(glfo, newfo, remove_template_genes=False, use_template_for_co
                     simstr = 'doesn\'t seem to correspond to any simulation genes'
             simstr = '(' + simstr + ')'
         print '    adding new allele to glfo: %s' % simstr
-        aligned_new_seq, aligned_template_seq = utils.color_mutants(glfo['seqs'][region][newfo['template-gene']], newfo['seq'], align=True, return_ref=True)
-        print '      template %s   %s' % (aligned_template_seq, utils.color_gene(newfo['template-gene']))
-        print '           new %s   %s' % (aligned_new_seq, utils.color_gene(newfo['gene']))
+        if 'template-gene' in newfo:
+            aligned_new_seq, aligned_template_seq = utils.color_mutants(glfo['seqs'][region][newfo['template-gene']], newfo['seq'], align=True, return_ref=True)
+            print '      template %s   %s' % (aligned_template_seq, utils.color_gene(newfo['template-gene']))
+            print '           new %s   %s' % (aligned_new_seq, utils.color_gene(newfo['gene']))
+        else:
+            print '               %s   %s (no template)' % (newfo['seq'], utils.color_gene(newfo['gene']))
 
     if remove_template_genes:
         if 'template-gene' not in newfo:
