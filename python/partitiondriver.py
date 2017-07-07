@@ -30,6 +30,14 @@ from performanceplotter import PerformancePlotter
 from partitionplotter import PartitionPlotter
 from hist import Hist
 
+def timeprinter(fcn):
+    def wrapper(*args, **kwargs):
+        start = time.time()
+        # print fcn.__name__,
+        fcn(*args, **kwargs)
+        print '    %s: (%.1f sec)' % (fcn.__name__, time.time()-start)
+    return wrapper
+
 # ----------------------------------------------------------------------------------------
 class PartitionDriver(object):
     """ Class to parse input files, start bcrham jobs, and parse/interpret bcrham output for annotation and partitioning """
@@ -1215,15 +1223,15 @@ class PartitionDriver(object):
         csvfile.close()
 
     # ----------------------------------------------------------------------------------------
+    @timeprinter
     def prepare_for_hmm(self, algorithm, parameter_dir, partition, shuffle_input=False):
         """ Write input file for bcrham """
-        if self.args.debug:
-            print '    writing input'
 
         if partition is not None:
             nsets = copy.deepcopy(partition)  # needs to be a deep copy so we can shuffle the order
         else:
-            qlist = [q for q in self.input_info if q in self.sw_info['queries']]  # we want the queries from sw (to skip failures), but the order from input_info
+            qlist = self.sw_info['queries']  # shorthand
+
             if self.args.simultaneous_true_clonal_seqs:
                 assert self.args.n_simultaneous_seqs is None and not self.args.is_data  # are both already checked in ./bin/partis
                 nsets = utils.get_true_partition(self.reco_info, ids=qlist)

@@ -92,8 +92,8 @@ def post_process(input_info, reco_info, args, infname, found_seed, is_data, ilin
                 del input_info[uid]
                 if reco_info is not None:
                     del reco_info[uid]
-            print '  --n-random-queries: keeping %d / %d sequences (removed %d) from input file%s' % (len(input_info), len(input_info) + len(uids_to_remove), len(uids_to_remove),
-                                                                                                      (' (specifically kept %s)' % ' '.join(included_queries)) if len(included_queries) > 0 else '')
+            print '  --n-random-queries: keeping %d / %d sequences from input file (removed %d%s)' % (len(input_info), len(input_info) + len(uids_to_remove), len(uids_to_remove),
+                                                                                                      (' and specifically kept %s' % ' '.join(included_queries)) if len(included_queries) > 0 else '')
 
 # ----------------------------------------------------------------------------------------
 def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, simglfo=None):

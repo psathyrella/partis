@@ -49,6 +49,7 @@ class Waterer(object):
         self.info['all_matches'] = {r : set() for r in utils.regions}  # every gene that was *any* match (up to <self.args.n_max_per_region[ireg]>) for at least one query NOTE there is also an 'all_matches' in each query's info
         self.info['indels'] = {}  # NOTE if we find shm indels in a sequence, we store the indel info in here, and rerun sw with the reversed sequence (i.e. <self.info> contains the sw inference on the reversed sequence -- if you want the original sequence, get that from <self.input_info>)
         self.info['failed-queries'] = set() if pre_failed_queries is None else copy.deepcopy(pre_failed_queries)  # not really sure about the deepcopy(), but it's probably safer?
+        self.info['passed-queries'] = set()
         self.info['duplicates'] = self.duplicates  # TODO rationalize this
         self.info['removed-queries'] = set()  # ...and this
 
@@ -148,6 +149,7 @@ class Waterer(object):
         if self.debug:
             print '%s' % utils.color('green', 'finalizing')
 
+        self.info['queries'] = [q for q in self.input_info if q in self.info['passed-queries']]  # it might be cleaner eventually to just make self.info['queries'] a set, but it's used in so many other places that I'm worried about changing it
         self.info['failed-queries'] |= set(self.remaining_queries)  # perhaps it doesn't make sense to keep both of 'em around after finishing?
 
         if len(self.info['queries']) == 0:
@@ -772,7 +774,7 @@ class Waterer(object):
         assert len(infoline['unique_ids'])
         qname = infoline['unique_ids'][0]
 
-        self.info['queries'].append(qname)
+        self.info['passed-queries'].add(qname)
         self.info[qname] = infoline
 
         # add this query's matches into the overall gene match sets
