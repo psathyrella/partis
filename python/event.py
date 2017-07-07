@@ -19,15 +19,18 @@ class RecombinationEvent(object):
         self.genes = {}
         self.original_seqs = {}
         self.eroded_seqs = {}
-        self.local_codon_positions = {r : -1 for r in utils.conserved_codons[glfo['locus']]}  # local: without the v left erosion
-        self.final_codon_positions = {r : -1 for r in utils.conserved_codons[glfo['locus']]}  # final: with it
+
+        # per-rearrangement even codon positions (i.e. per-sequence, i.e. *pre*-shm indels)
+        self.pre_erosion_codon_positions = {r : -1 for r in utils.conserved_codons[glfo['locus']]}  # local: without the v left erosion
+        self.post_erosion_codon_positions = {r : -1 for r in utils.conserved_codons[glfo['locus']]}  # final: with it
+
         self.erosions = {}  # erosion lengths for the event
         self.effective_erosions = {}  # v left and j right erosions
         self.cdr3_length = 0  # NOTE this is the *desired* cdr3_length, i.e. after erosion and insertion
         self.insertion_lengths = {}
         self.insertions = {}
         self.recombined_seq = ''  # combined sequence *before* mutations
-        self.final_seqs, self.indelfos = [], []
+        self.final_seqs, self.indelfos, self.final_codon_positions = [], [], []
         self.unmutated_codons = None
 
         self.line = None  # dict with info in format of utils.py/output files
@@ -41,7 +44,7 @@ class RecombinationEvent(object):
             self.original_seqs[region] = glfo['seqs'][region][self.genes[region]]
             self.original_seqs[region] = self.original_seqs[region].replace('N', utils.int_to_nucleotide(random.randint(0, 3)))  # replace any Ns with a random nuke (a.t.m. use the same nuke for all Ns in a given seq)
         for region, codon in utils.conserved_codons[glfo['locus']].items():
-            self.local_codon_positions[region] = glfo[codon + '-positions'][self.genes[region]]  # position in uneroded germline gene
+            self.pre_erosion_codon_positions[region] = glfo[codon + '-positions'][self.genes[region]]  # position in uneroded germline gene
         for boundary in utils.boundaries:
             self.insertion_lengths[boundary] = int(vdj_combo_label[utils.index_keys[boundary + '_insertion']])
         for erosion in utils.real_erosions:
@@ -56,12 +59,12 @@ class RecombinationEvent(object):
             self.print_gene_choice()
 
     # ----------------------------------------------------------------------------------------
-    def set_final_codon_positions(self):
+    def set_post_erosion_codon_positions(self):
         """ Set tryp position in the final, combined sequence. """
-        self.final_codon_positions['v'] = self.local_codon_positions['v'] - self.effective_erosions['v_5p']
+        self.post_erosion_codon_positions['v'] = self.pre_erosion_codon_positions['v'] - self.effective_erosions['v_5p']
         length_to_left_of_j = len(self.eroded_seqs['v'] + self.insertions['vd'] + self.eroded_seqs['d'] + self.insertions['dj'])
-        self.final_codon_positions['j'] = self.local_codon_positions['j'] - self.erosions['j_5p'] + length_to_left_of_j
-        self.cdr3_length = self.final_codon_positions['j'] - self.final_codon_positions['v'] + 3
+        self.post_erosion_codon_positions['j'] = self.pre_erosion_codon_positions['j'] - self.erosions['j_5p'] + length_to_left_of_j
+        self.cdr3_length = self.post_erosion_codon_positions['j'] - self.post_erosion_codon_positions['v'] + 3
 
     # ----------------------------------------------------------------------------------------
     def set_ids(self, line, irandom=None):
@@ -134,17 +137,19 @@ class RecombinationEvent(object):
         print '    chose:  gene             length'
         for region in utils.regions:
             print '        %s  %-18s %-3d' % (region, self.genes[region], len(self.original_seqs[region])),
-            if region in self.local_codon_positions:
-                print ' (%s: %d)' % (utils.conserved_codons[self.glfo['locus']][region], self.local_codon_positions[region])
+            if region in self.pre_erosion_codon_positions:
+                print ' (%s: %d)' % (utils.conserved_codons[self.glfo['locus']][region], self.pre_erosion_codon_positions[region])
             else:
                 print ''
 
     # ----------------------------------------------------------------------------------------
-    def revert_conserved_codons(self, seq):
+    def revert_conserved_codons(self, seq, debug=False):
         """ revert conserved cysteine and tryptophan to their original bases, eg if they were messed up by s.h.m. """
-        for region, pos in self.final_codon_positions.items():
+        for region, pos in self.post_erosion_codon_positions.items():  #  NOTE this happens *before* shm indels, i.e. we use self.post_erosion_codon_positions rather than self.final_codon_positions
             if seq[pos : pos + 3] != self.unmutated_codons[region]:
                 assert len(self.unmutated_codons[region]) == 3
+                if debug:
+                    print '    reverting %s --> %s' % (seq[pos : pos + 3], self.unmutated_codons[region])
                 seq = seq[:pos] + self.unmutated_codons[region] + seq[pos + 3 :]
             assert utils.codon_unmutated(utils.conserved_codons[self.glfo['locus']][region], seq, pos)
         return seq

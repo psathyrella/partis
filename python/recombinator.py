@@ -158,22 +158,22 @@ class Recombinator(object):
             print '    insert: %s' % reco_event.insertions['dj']
             print '         j: %s' % reco_event.eroded_seqs['j']
         reco_event.recombined_seq = reco_event.eroded_seqs['v'] + reco_event.insertions['vd'] + reco_event.eroded_seqs['d'] + reco_event.insertions['dj'] + reco_event.eroded_seqs['j']
-        reco_event.set_final_codon_positions()
+        reco_event.set_post_erosion_codon_positions()
 
         # set the original conserved codon words, so we can revert them if they get mutated NOTE we do it here, *after* setting the full recombined sequence, so the germline Vs that don't extend through the cysteine don't screw us over
         reco_event.unmutated_codons = {}
         for region, codon in utils.conserved_codons[self.args.locus].items():
-            fpos = reco_event.final_codon_positions[region]
+            fpos = reco_event.post_erosion_codon_positions[region]
             original_codon = reco_event.recombined_seq[fpos : fpos + 3]
             reco_event.unmutated_codons[region] = reco_event.recombined_seq[fpos : fpos + 3]
             # print fpos, original_codon, utils.codon_unmutated(codon, reco_event.recombined_seq, fpos)
 
-        codons_ok = utils.both_codons_unmutated(self.glfo['locus'], reco_event.recombined_seq, reco_event.final_codon_positions, extra_str='      ', debug=self.args.debug)
+        codons_ok = utils.both_codons_unmutated(self.glfo['locus'], reco_event.recombined_seq, reco_event.post_erosion_codon_positions, extra_str='      ', debug=self.args.debug)
         if not codons_ok:
             if self.args.rearrange_from_scratch and self.args.generate_germline_set:  # if you let it try more than once, it screws up the desired allele prevalence ratios
                 raise Exception('arg')
             return False
-        in_frame = utils.in_frame(reco_event.recombined_seq, reco_event.final_codon_positions, '', reco_event.effective_erosions['v_5p'])  # NOTE empty string is the fv insertion, which is hard coded to zero in event.py. I no longer recall the details of that decision, but I have a large amount of confidence that it's more sensible than it looks
+        in_frame = utils.in_frame(reco_event.recombined_seq, reco_event.post_erosion_codon_positions, '', reco_event.effective_erosions['v_5p'])  # NOTE empty string is the fv insertion, which is hard coded to zero in event.py. I no longer recall the details of that decision, but I have a large amount of confidence that it's more sensible than it looks
         if self.args.rearrange_from_scratch and not in_frame:
             raise Exception('arg 2')  # if you let it try more than once, it screws up the desired allele prevalence ratios
             return False
@@ -510,7 +510,7 @@ class Recombinator(object):
             for _ in range(n_indels):
                 # NOTE modifies <indelfo> and <codon_positions>
                 reco_event.final_seqs[iseq] = indelutils.add_single_indel(reco_event.final_seqs[iseq], reco_event.indelfos[iseq],
-                                                                          self.args.mean_indel_length, reco_event.final_codon_positions,
+                                                                          self.args.mean_indel_length, reco_event.final_codon_positions[iseq],
                                                                           indel_location=self.args.indel_location, debug=self.args.debug)
 
     # ----------------------------------------------------------------------------------------
@@ -568,8 +568,9 @@ class Recombinator(object):
         assert len(reco_event.final_seqs) == 0
         for iseq in range(n_leaves):
             seq = mseqs['v'][iseq] + mseqs['d'][iseq] + mseqs['j'][iseq]
-            seq = reco_event.revert_conserved_codons(seq)  # if mutation screwed up the conserved codons, just switch 'em back to what they were to start with
+            seq = reco_event.revert_conserved_codons(seq, debug=self.args.debug)  # if mutation screwed up the conserved codons, just switch 'em back to what they were to start with
             reco_event.final_seqs.append(seq)  # set final sequnce in reco_event
+            reco_event.final_codon_positions.append(copy.deepcopy(reco_event.post_erosion_codon_positions))  # separate codon positions for each sequence, because of shm indels
 
         self.add_shm_indels(reco_event)
 
