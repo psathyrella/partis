@@ -102,8 +102,10 @@ def run_tigger(infname, outfname, outdir):
     # post-process tigger .fa
     gldir = args.glfo_dir if args.glfo_dir is not None else 'data/germlines/human'
     glfo = glutils.read_glfo(gldir, args.locus)
+    tigger_alleles = set()
     for seqfo in utils.read_fastx(tigger_outfname):
         seq = seqfo['seq'].replace(utils.gap_chars[0], '')  # it should be just dots...
+        tigger_alleles.add(seqfo['name'])
         if seqfo['name'] not in glfo['seqs'][args.region]:
             newfo = {'gene' : seqfo['name'], 'seq' : seq}
             use_template_for_codon_info = False
@@ -113,6 +115,9 @@ def run_tigger(infname, outfname, outdir):
             glutils.add_new_allele(glfo, newfo, use_template_for_codon_info=use_template_for_codon_info, debug=True)
         elif glfo['seqs'][args.region][seqfo['name']] != seq:
             print '%s different sequences in glfo and tigger output for %s:\n    %s\n    %s' % (utils.color('red', 'error'), seqfo['name'], glfo['seqs'][args.region][seqfo['name']], seqfo['seq'])
+    for gene in glfo['seqs'][args.region]:  # remove them afterwards so we can use existing ones to get codon info
+        if gene not in tigger_alleles:
+            glutils.remove_gene(glfo, gene)
 
     out_gldir = os.path.dirname(outfname).rstrip('/' + args.locus)
     assert glutils.get_fname(out_gldir, args.locus, args.region) == outfname
