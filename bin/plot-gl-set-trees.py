@@ -127,10 +127,6 @@ def print_data_pair_results(gl_sets):
 def get_gene_sets(glsfnames, glslabels, ref_label=None):
     glfos = {}
     for label, fname in zip(glslabels, glsfnames):
-# ----------------------------------------------------------------------------------------
-        # old way (will have to handle differently for e.g. tigger that a.t.m. is just writing the .fa)
-        # gl_sets[label] = {gfo['name'] : gfo['seq'] for gfo in utils.read_fastx(fname)}
-# ----------------------------------------------------------------------------------------
         gldir = os.path.dirname(fname).replace('/' + args.locus, '')
         glfos[label] = glutils.read_glfo(gldir, args.locus)  # this is gonna fail for tigger since you only have the .fa
 
