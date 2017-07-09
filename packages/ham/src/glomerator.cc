@@ -634,8 +634,10 @@ string &Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents) {
   string queries_to_calc = GetNaiveSeqNameToCalculate(queries);
 
   // actually calculate the viterbi path for whatever queries we've decided on
-  if(naive_seqs_.count(queries_to_calc) == 0)
-    naive_seqs_[queries_to_calc] = CalculateNaiveSeq(queries_to_calc);
+  if(naive_seqs_.count(queries_to_calc) == 0) {
+    string tmp_nseq = CalculateNaiveSeq(queries_to_calc);  // some compilers add <queries_to_calc> to <naive_seqs_> *before* calling CalculateNaiveSeq(), which causes that function's check to fail
+    naive_seqs_[queries_to_calc] = tmp_nseq;
+  }
 
   // if we did some translation, propagate the naive sequence back to the queries we were originally interested in
   if(queries_to_calc != queries)
