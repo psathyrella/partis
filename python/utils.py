@@ -1,3 +1,6 @@
+import platform
+import resource
+import psutil
 import numpy
 import tempfile
 import string
@@ -1810,9 +1813,21 @@ def simplerun(cmd_str, shell=False, dryrun=False, print_time=None):
         print '      %s time: %.1f' % (print_time, time.time() - start)
 
 # ----------------------------------------------------------------------------------------
+def memory_usage_fraction(debug=False):  # return fraction of total system memory that this process is using (as always with memory things, this is an approximation)
+    if platform.system() != 'Linux':
+        print '\n  note: utils.memory_usage_fraction() needs testing on platform \'%s\' to make sure unit conversions don\'t need changing' % platform.system()
+    current_usage = float(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)  # kb
+    total = float(psutil.virtual_memory().total) / 1000.  # returns bytes, then convert to kb
+    if debug:
+        print '  using %.0f / %.0f MB = %.4f' % (current_usage / 1000, total / 1000, current_usage / total)
+    return current_usage / total
+
+# ----------------------------------------------------------------------------------------
 def run_proc_functions(procs, n_procs=None, debug=False):  # <procs> is a list of multiprocessing.Process objects
     if n_procs is None:
         n_procs = multiprocessing.cpu_count()
+        if n_procs > 10: # if it's a huge server, we probably shouldn't use all the cores
+            n_procs = int(float(n_procs) / 2.)
     if debug:
         print '    running %d proc fcns with %d procs' % (len(procs), n_procs)
         sys.stdout.flush()
