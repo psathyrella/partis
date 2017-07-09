@@ -164,7 +164,7 @@ class ClusterPath(object):
             print '   %10s    %8s   ' % (way_str, logweight_str),
 
         # clusters
-        for cluster in self.partitions[ip]:
+        for cluster in sorted(self.partitions[ip], key=lambda c: len(c), reverse=True):
             if abbreviate:
                 cluster_str = ':'.join(['o' if len(uid) > 3 else uid for uid in cluster])
             else:

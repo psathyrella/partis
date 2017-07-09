@@ -9,9 +9,7 @@ import math
 
 import plotconfig
 from hist import Hist
-
-# Columns for which we just want to know, Did we guess the right value? (for other columns, we store guess - true)
-bool_columns = plotconfig.gene_usage_columns
+import indelutils
 
 class PerformancePlotter(object):
     # ----------------------------------------------------------------------------------------
@@ -19,16 +17,15 @@ class PerformancePlotter(object):
         self.name = name
         self.values, self.hists = {}, {}  # the dictionary-based approach in <self.values> is nice because you can decide your hist bounds after filling everything
 
-        for column in utils.index_columns:
+        for column in plotconfig.gene_usage_columns:
+            self.values[column] = {'right' : 0, 'wrong' : 0}
+        for column in plotconfig.int_columns:  # it might be nicer to eventually switch these to hists (I think the ony reason they're separte is that they predate the existence of the hist class)
             self.values[column] = {}
-            if column in bool_columns:
-                self.values[column] = {'right' : 0, 'wrong' : 0}
-
         for rstr in plotconfig.rstrings:
             self.values[rstr + 'hamming_to_true_naive'] = {}
-
-        for rstr in plotconfig.rstrings:
             self.values[rstr + 'muted_bases'] = {}
+        self.values['shm_indel_length'] = {}
+
         self.hists['mute_freqs'] = Hist(25, -0.04, 0.04)  # only do mutation frequency for the whole sequence
         # NOTE this hist bounds here are intended to be super inclusive, whereas in compare-plotdirs.py we apply the more-restrictive ones from plotconfig.py (we still shift overflows here, where appropriate, though)
         for region in utils.regions:
@@ -51,18 +48,15 @@ class PerformancePlotter(object):
             elif restrict_to_region == 'cdr3':
                 bounds = (true_line['codon_positions']['v'], true_line['codon_positions']['j'] + 3)
             else:
-                assert False
+                print 'invalid regional restriction %s' % restrict_to_region
             true_naive_seq = true_naive_seq[bounds[0] : bounds[1]]
             inferred_naive_seq = inferred_naive_seq[bounds[0] : bounds[1]]
         return utils.hamming_distance(true_naive_seq, inferred_naive_seq)
 
     # ----------------------------------------------------------------------------------------
     def add_fail(self):
-        for column in self.values:
-            if column in bool_columns:
-                self.values[column]['wrong'] += 1
-            else:
-                pass
+        for column in plotconfig.gene_usage_columns:
+            self.values[column]['wrong'] += 1
 
     # ----------------------------------------------------------------------------------------
     def set_bool_column(self, true_line, inf_line, column, overall_mute_freq):
@@ -75,8 +69,8 @@ class PerformancePlotter(object):
 
     # ----------------------------------------------------------------------------------------
     def set_per_gene_support(self, true_line, inf_line, region):
-        if inf_line[region + '_per_gene_support'].keys()[0] != inf_line[region + '_gene']:
-            print '   WARNING best-supported gene %s not same as viterbi gene %s' % (utils.color_gene(inf_line[region + '_per_gene_support'].keys()[0]), utils.color_gene(inf_line[region + '_gene']))
+        # if inf_line[region + '_per_gene_support'].keys()[0] != inf_line[region + '_gene']:
+        #     print '   WARNING best-supported gene %s not same as viterbi gene %s' % (utils.color_gene(inf_line[region + '_per_gene_support'].keys()[0]), utils.color_gene(inf_line[region + '_gene']))
         support = inf_line[region + '_per_gene_support'].values()[0]  # sorted, ordered dict with gene : logprob key-val pairs
         if true_line[region + '_gene'] == inf_line[region + '_gene']:  # NOTE this requires allele to be correct, but set_bool_column() does not
             self.hists[region + '_allele_right_vs_per_gene_support'].fill(support)
@@ -84,59 +78,58 @@ class PerformancePlotter(object):
             self.hists[region + '_allele_wrong_vs_per_gene_support'].fill(support)
 
     # ----------------------------------------------------------------------------------------
-    def add_partial_fail(self, true_line, line):
-        # NOTE does not fill all the hists ('cause it kind of can't, right?)
+    def evaluate(self, true_line, inf_line, simglfo=None):
+        if len(inf_line['unique_ids']) > 1:
+            raise Exception('mutli-seq lines not yet handled')
+        iseq = 0
 
-        overall_mute_freq = utils.get_mutation_rate(true_line, iseq=0)  # true value
+        def addval(col, simval, infval):
+            if col[2:] == '_insertion':  # stored as the actual inserted bases
+                simval = len(simval)
+                infval = len(infval)
+            diff = infval - simval
+            if diff not in self.values[col]:
+                self.values[col][diff] = 0
+            self.values[col][diff] += 1
 
-        for column in self.values:
-            if column in bool_columns:
-                if column in line:
-                    self.set_bool_column(true_line, line, column, overall_mute_freq)
+        if indelutils.has_indels(true_line['indelfos'][iseq]) or indelutils.has_indels(inf_line['indelfos'][iseq]):
+            simlen = indelutils.net_length(true_line['indelfos'][iseq])
+            inflen = indelutils.net_length(inf_line['indelfos'][iseq])
+            addval('shm_indel_length', simlen, inflen)
+            if simlen != inflen:  # this is probably because the simulated shm indel was within the cdr3, so we attempt to fix it by switching the sim line to non-reversed
+                print '    %s true and inferred shm net indel lengths different, so skipping rest of performance evaluation' % ' '.join(inf_line['unique_ids'])
+                # note that you can't really evaluate the rest of the performance vars in a particularly meaningful when the indel info is different (like I tried to do below) since you have to decide how to assign the indel'd bases (like, is it correct to assign the indel'd bases to a deletion? or to an insertion? or to the j?)
+                return
+                # true_line = copy.deepcopy(true_line)
+                # utils.remove_all_implicit_info(true_line)
+                # true_line['indelfos'][iseq] = indelutils.get_empty_indel()
+                # true_line['seqs'][iseq] = true_line['input_seqs'][iseq]
+                # utils.add_implicit_info(simglfo, true_line)
+
+        mutfo = {lt : {mt : {} for mt in ['freq', 'total']} for lt in ['sim', 'inf']}
+        for rstr in plotconfig.rstrings:
+            if rstr == '':  # these are already in the <line>s, so may as well not recalculate
+                mutfo['sim']['freq'][rstr], mutfo['sim']['total'][rstr] = true_line['mut_freqs'][iseq], true_line['n_mutations'][iseq]
+                mutfo['inf']['freq'][rstr], mutfo['inf']['total'][rstr] = inf_line['mut_freqs'][iseq], inf_line['n_mutations'][iseq]
             else:
-                pass
+                mutfo['sim']['freq'][rstr], mutfo['sim']['total'][rstr] = utils.get_mutation_rate_and_n_muted(true_line, iseq=iseq, restrict_to_region=rstr.rstrip('_'))
+                mutfo['inf']['freq'][rstr], mutfo['inf']['total'][rstr] = utils.get_mutation_rate_and_n_muted(inf_line, iseq=iseq, restrict_to_region=rstr.rstrip('_'))
+
+        for col in plotconfig.gene_usage_columns:
+            self.set_bool_column(true_line, inf_line, col, mutfo['sim']['freq'][''])  # this also sets the fraction-correct-vs-mute-freq hists
+
+        for column in plotconfig.int_columns:
+            addval(column, true_line[column], inf_line[column])
+
+        for rstr in plotconfig.rstrings:
+            addval(rstr + 'hamming_to_true_naive', 0, self.hamming_to_true_naive(true_line, inf_line, restrict_to_region=rstr.rstrip('_')))
+            addval(rstr + 'muted_bases', mutfo['sim']['total'][rstr], mutfo['inf']['total'][rstr])
 
         for region in utils.regions:
             if region + '_per_gene_support' in inf_line:
                 self.set_per_gene_support(true_line, inf_line, region)
 
-    # ----------------------------------------------------------------------------------------
-    def evaluate(self, true_line, inf_line):
-
-        overall_mute_freq = utils.get_mutation_rate(true_line, iseq=0)  # true value
-
-        for column in self.values:
-            if column in bool_columns:
-                self.set_bool_column(true_line, inf_line, column, overall_mute_freq)  # this also sets the fraction-correct-vs-mute-freq hists
-            else:  # these should all be integer-valued
-                trueval, guessval = 0, 0
-                if column[2:] == '_insertion':  # insertion length
-                    trueval = len(true_line[column])
-                    guessval = len(inf_line[column])
-                elif 'hamming_to_true_naive' in column:
-                    restrict_to_region = column.replace('hamming_to_true_naive', '').replace('_', '')
-                    trueval = 0
-                    guessval = self.hamming_to_true_naive(true_line, inf_line, restrict_to_region=restrict_to_region)
-                elif 'muted_bases' in column:
-                    restrict_to_region = column.replace('muted_bases', '').replace('_', '')
-                    trueval = utils.get_n_muted(true_line, iseq=0, restrict_to_region=restrict_to_region)  # when we're evaluating on multi-seq hmm output, we synthesize single-sequence lines for each sequence
-                    guessval = utils.get_n_muted(inf_line, iseq=0, restrict_to_region=restrict_to_region)
-                else:
-                    trueval = int(true_line[column])
-                    guessval = int(inf_line[column])
-
-                diff = guessval - trueval
-                if diff not in self.values[column]:
-                    self.values[column][diff] = 0
-                self.values[column][diff] += 1
-
-        for region in utils.regions:
-            if region + '_per_gene_support' in inf_line:
-                self.set_per_gene_support(true_line, inf_line, region)
-
-        tmptrueval = utils.get_mutation_rate(true_line, iseq=0, restrict_to_region='')  # when we're evaluating on multi-seq hmm output, we synthesize single-sequence lines for each sequence
-        tmpguessval = utils.get_mutation_rate(inf_line, iseq=0, restrict_to_region='')
-        self.hists['mute_freqs'].fill(tmpguessval - tmptrueval)
+        self.hists['mute_freqs'].fill(mutfo['inf']['freq'][''] - mutfo['sim']['freq'][''])  # when we're evaluating on multi-seq hmm output, we synthesize single-sequence lines for each sequence
 
     # ----------------------------------------------------------------------------------------
     def plot(self, plotdir, only_csv=False):
@@ -148,10 +141,10 @@ class PerformancePlotter(object):
             utils.prep_dir(plotdir + '/' + substr, wildlings=('*.csv', '*.svg'))
 
         for column in self.values:
-            if column in bool_columns:
+            if column in plotconfig.gene_usage_columns:
                 right = self.values[column]['right']
                 wrong = self.values[column]['wrong']
-                lo, hi, _ = fraction_uncertainty.err(right, right + wrong)
+                lo, hi = fraction_uncertainty.err(right, right + wrong)
                 hist = plotting.make_bool_hist(right, wrong, self.name + '-' + column)
                 plotting.draw_no_root(hist, plotname=column, plotdir=plotdir + '/gene-call', write_csv=True, stats='0-bin', only_csv=only_csv)
             else:

@@ -84,7 +84,7 @@ def make_bool_hist(n_true, n_false, hist_label):
 
     def set_bin(numer, denom, ibin, label):
         frac = float(numer) / denom
-        bounds = sys.modules['fraction_uncertainty'].err(numer, denom, use_beta=True)
+        bounds = sys.modules['fraction_uncertainty'].err(numer, denom)
         err = max(abs(frac - bounds[0]), abs(frac - bounds[1]))
         hist.set_ibin(ibin, frac, error=err, label=label)
 
@@ -755,10 +755,10 @@ def mpl_init(figsize=None, fontsize=20):
     return fig, ax
 
 # ----------------------------------------------------------------------------------------
-def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=None, ybounds=None, leg_loc=(0.04, 0.6), leg_prop=None, log='', xticks=None, xticklabels=None, no_legend=False, adjust=None, suffix='svg', leg_title=None):
+def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=None, ybounds=None, leg_loc=(0.04, 0.6), leg_prop=None, log='',
+               xticks=None, xticklabels=None, yticks=None, yticklabels=None, no_legend=False, adjust=None, suffix='svg', leg_title=None):
     if 'seaborn' not in sys.modules:
         import seaborn  # really #$*$$*!ing slow to import, but only importing part of it doesn't seem to help
-    # xticks[0] = 0.000001
     if not no_legend:
         handles, labels = ax.get_legend_handles_labels()
         if len(handles) > 0:
@@ -780,6 +780,8 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
         plt.ylim(ybounds[0], ybounds[1])
     if xticks is not None:
         plt.xticks(xticks)
+    if yticks is not None:
+        plt.yticks(yticks)
     if xticklabels is not None:
         # mean_length = float(sum([len(xl) for xl in xticklabels])) / len(xticklabels)
         median_length = numpy.median([len(xl) for xl in xticklabels])
@@ -787,6 +789,8 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
             ax.set_xticklabels(xticklabels, rotation='vertical', size=8)
         else:
             ax.set_xticklabels(xticklabels)
+    if yticklabels is not None:
+        ax.set_yticklabels(yticklabels)
     plt.title(title)
     if not os.path.exists(plotdir):
         os.makedirs(plotdir)
@@ -849,7 +853,7 @@ def plot_cluster_similarity_matrix(plotdir, plotname, meth1, partition1, meth2, 
     plt.close()
 
 # ----------------------------------------------------------------------------------------
-def make_html(plotdir, n_columns=3, extension='svg', fnames=None, title='foop'):
+def make_html(plotdir, n_columns=3, extension='svg', fnames=None, title='foop', new_table_each_row=False):
     if plotdir[-1] == '/':  # remove trailings slash, if present
         plotdir = plotdir[:-1]
     if not os.path.exists(plotdir):
@@ -865,21 +869,40 @@ def make_html(plotdir, n_columns=3, extension='svg', fnames=None, title='foop'):
              '<tr>']
 
     def add_newline(lines):
-        lines += ['</tr>', '<tr>']
+        if new_table_each_row:
+            newlines = ['</tr>', '</table>', '<table>', '<tr>']
+        else:
+            newlines = ['</tr>', '<tr>']
+        lines += newlines
     def add_fname(lines, fullfname):  # NOTE <fullname> may, or may not, be a base name (i.e. it might have a subdir tacked on the left side)
         fname = fullfname.replace(plotdir, '').lstrip('/')
         line = '<td><a target="_blank" href="' + dirname + '/' + fname + '"><img src="' + dirname + '/' + fname + '" alt="' + dirname + '/' + fname + '" width="100%"></a></td>'
         lines.append(line)
 
+    # if <fnames> wasn't used to tell us how to group them into rows, try to guess based on the file base names
     if fnames is None:
         fnamelist = [os.path.basename(fn) for fn in sorted(glob.glob(plotdir + '/*.' + extension))]
         fnames = []
+
         # arrange the ones that have '[vdj]_' into group of three
         for v_fn in [fn for fn in fnamelist if os.path.basename(fn).find('v_') == 0]:  # get the ones that start with 'v_', so we can use them as templates for the others
             fstem = v_fn.replace('v_', '')
             fnames.append([rstr + fstem for rstr in plotconfig.rstrings if rstr + fstem in fnamelist])
             for fn in fnames[-1]:
                 fnamelist.remove(fn)
+
+        # and group insertion lengths together
+        found_bound_fnames = []
+        for bound in utils.all_boundaries:
+            for fn in fnamelist:
+                if bound + '_insertion' in fn:
+                    found_bound_fnames.append(fn)
+                    break
+        if len(found_bound_fnames) == len(utils.all_boundaries):
+            fnames.append(found_bound_fnames)
+            for fn in found_bound_fnames:
+                fnamelist.remove(fn)
+
         # then do the rest in groups of <n_columns>
         while len(fnamelist) > 0:
             fnames.append(fnamelist[:n_columns])

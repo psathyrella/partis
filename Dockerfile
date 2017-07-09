@@ -20,6 +20,7 @@ RUN pip install pysam
 RUN pip install pyyaml
 RUN pip install seaborn
 RUN pip install colored_traceback
+RUN pip install psutil
 
 RUN R --vanilla --slave -e 'install.packages("TreeSim", repos="http://cran.rstudio.com/")'
 

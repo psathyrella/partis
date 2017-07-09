@@ -17,14 +17,26 @@ import operator
 
 import utils
 import glutils
+import indelutils
 import seqfileopener
 from glomerator import Glomerator
 from clusterpath import ClusterPath
 from waterer import Waterer
 from parametercounter import ParameterCounter
+from alleleclusterer import AlleleClusterer
+from alleleremover import AlleleRemover
+from allelefinder import AlleleFinder
 from performanceplotter import PerformancePlotter
 from partitionplotter import PartitionPlotter
 from hist import Hist
+
+def timeprinter(fcn):
+    def wrapper(*args, **kwargs):
+        start = time.time()
+        # print fcn.__name__,
+        fcn(*args, **kwargs)
+        print '    %s: (%.1f sec)' % (fcn.__name__, time.time()-start)
+    return wrapper
 
 # ----------------------------------------------------------------------------------------
 class PartitionDriver(object):
@@ -38,7 +50,6 @@ class PartitionDriver(object):
         self.simglfo = self.glfo
         if self.args.simulation_germline_dir is not None:
             self.simglfo = glutils.read_glfo(self.args.simulation_germline_dir, locus=self.args.locus)  # NOTE uh, I think I don't want to apply <self.args.only_genes>
-        glutils.write_glfo(self.my_gldir, self.glfo)  # need a copy on disk for vdjalign and bcrham (note that what we write to <self.my_gldir> in general differs from what's in <initial_gldir>)
 
         self.input_info, self.reco_info = None, None
         if self.args.infname is not None:
@@ -49,7 +60,7 @@ class PartitionDriver(object):
                 if self.args.outfname is None and self.current_action != 'cache-parameters':
                     print '  note: running on a lot of sequences without setting --outfname. Which is ok! But there\'ll be no persistent record of the results'
             self.default_sw_cachefname = self.args.parameter_dir + '/sw-cache-' + repr(abs(hash(''.join(self.input_info.keys())))) + '.csv'  # maybe I shouldn't abs it? collisions are probably still unlikely, and I don't like the extra dash in my file name
-        elif self.current_action != 'view-annotations' and self.current_action != 'view-partitions' and self.current_action != 'view-alternative-naive-seqs':
+        elif self.current_action != 'view-annotations' and self.current_action != 'view-partitions' and self.current_action != 'plot-partitions' and self.current_action != 'view-alternative-naive-seqs':
             raise Exception('--infname is required for action \'%s\'' % args.action)
 
         self.sw_info = None
@@ -59,8 +70,6 @@ class PartitionDriver(object):
 
         self.unseeded_seqs = None  # all the queries that we *didn't* cluster with the seed uid
         self.small_cluster_seqs = None  # all the queries that we removed after a few partition steps 'cause they were in small clusters
-
-        self.all_new_allele_info = []
 
         self.sw_param_dir = self.args.parameter_dir + '/sw'
         self.hmm_param_dir = self.args.parameter_dir + '/hmm'
@@ -84,8 +93,6 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def clean(self):
-        glutils.remove_glfo_files(self.my_gldir, self.args.locus)
-
         # merge persistent and current cache files into the persistent cache file
         if self.args.persistent_cachefname is not None:
             lockfname = self.args.persistent_cachefname + '.lock'
@@ -131,40 +138,26 @@ class PartitionDriver(object):
                 raise Exception('--persistent-cachefname %s has unexpected header list %s' % (self.args.persistent_cachefname, reader.fieldnames))
 
     # ----------------------------------------------------------------------------------------
-    def run_waterer(self, count_parameters=False, write_parameters=False, remove_less_likely_alleles=False, find_new_alleles=False, itry=None, write_cachefile=False, look_for_cachefile=False):
+    def run_waterer(self, count_parameters=False, write_parameters=False, write_cachefile=False, look_for_cachefile=False):
         print 'smith-waterman',
         if write_parameters:
             print '  (writing parameters)',
-        if find_new_alleles:
-            print '  (looking for new alleles)',
-        if remove_less_likely_alleles:
-            print '  (removing less-likely alleles)',
         print ''
         sys.stdout.flush()
 
-        # can probably remove this... I just kind of want to know if it happens EDIT hell no don't remove this
-        if not count_parameters and not find_new_alleles and not remove_less_likely_alleles and os.path.exists(self.sub_param_dir + '/hmms'):
-            genes_with_hmms = set(utils.find_genes_that_have_hmms(self.sub_param_dir))
-            expected_genes = set([g for r in utils.regions for g in self.glfo['seqs'][r].keys()])  # this'll be the & of the gldir (maybe rewritten, maybe not)
-            if self.args.only_genes is None and len(genes_with_hmms - expected_genes) > 0:
-                print '  %s yamels in %s for %d genes that aren\'t in glfo' % (utils.color('red', 'warning'), self.sub_param_dir, len(genes_with_hmms - expected_genes))
-            if len(expected_genes - genes_with_hmms) > 0:
-                print '  %s %d genes in glfo that don\'t have yamels in %s' % (utils.color('red', 'warning'), len(expected_genes - genes_with_hmms), self.sub_param_dir)
-
         pre_failed_queries = self.sw_info['failed-queries'] if self.sw_info is not None else None  # don't re-run on failed queries if this isn't the first sw run (i.e., if we're parameter caching)
         waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo,
-                          count_parameters=count_parameters,  # (remove_less_likely_alleles or parameter_out_dir is not None),
+                          count_parameters=count_parameters,
                           parameter_out_dir=self.sw_param_dir if write_parameters else None,
-                          remove_less_likely_alleles=remove_less_likely_alleles,
-                          find_new_alleles=find_new_alleles,
-                          plot_performance=(self.args.plot_performance and not remove_less_likely_alleles and not find_new_alleles),
-                          simglfo=self.simglfo, itry=itry, duplicates=self.duplicates, pre_failed_queries=pre_failed_queries)
+                          plot_performance=self.args.plot_performance,
+                          simglfo=self.simglfo, duplicates=self.duplicates, pre_failed_queries=pre_failed_queries, aligned_gl_seqs=self.aligned_gl_seqs)
         cachefname = self.default_sw_cachefname if self.args.sw_cachefname is None else self.args.sw_cachefname
         if not look_for_cachefile and os.path.exists(cachefname):  # i.e. if we're not explicitly told to look for it, and it's there, then it's probably out of date
             print '  removing old sw cache %s' % cachefname.replace('.csv', '')
             os.remove(cachefname)
             if os.path.exists(cachefname.replace('.csv', '-glfo')):  # it should always be there now, but there could be some old sw cache files lying around from before they had their own glfo dirs
                 glutils.remove_glfo_files(cachefname.replace('.csv', '-glfo'), self.args.locus)
+
         if look_for_cachefile and os.path.exists(cachefname):  # run sw if we either don't want to do any caching (None) or if we are planning on writing the results after we run
             waterer.read_cachefile(cachefname)
         else:
@@ -174,49 +167,47 @@ class PartitionDriver(object):
         for uid, dupes in waterer.duplicates.items():  # <waterer.duplicates> is <self.duplicates> OR'd into any new duplicates from this run
             self.duplicates[uid] = dupes
 
+        if self.args.only_smith_waterman and self.args.outfname is not None and write_cachefile:
+            print '  copying sw cache file %s to --outfname %s' % (cachefname, self.args.outfname)
+            check_call(['cp', cachefname, self.args.outfname])
+            if self.args.presto_output:
+                annotations = {q : self.sw_info[q] for q in self.sw_info['queries']}
+                failed_queries = {fid : self.input_info[fid]['seqs'][0] for fid in self.sw_info['failed-queries']}
+                utils.write_presto_annotations(self.args.outfname, self.glfo, annotations, failed_queries=failed_queries)
+
     # ----------------------------------------------------------------------------------------
     def find_new_alleles(self):
         """ look for new alleles with sw, write any that you find to the germline set directory in <self.workdir>, add them to <self.glfo>, and repeat until you don't find any. """
-        assert len(self.all_new_allele_info) == 0
-        # alleles_with_evidence = set()
         itry = 0
         while True:
-            self.run_waterer(find_new_alleles=True, itry=itry)
-            if len(self.sw_info['new-alleles']) == 0:
+            self.run_waterer()
+            alfinder = AlleleFinder(self.glfo, self.args, itry)
+            new_allele_info = alfinder.increment_and_finalize(self.sw_info, debug=self.args.debug_allele_finding)  # incrementing and finalizing are intertwined since it needs to know the distribution of 5p and 3p deletions before it can increment
+            if self.args.plotdir is not None:
+                alfinder.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
+            if len(new_allele_info) == 0:
                 break
+
             if os.path.exists(self.default_sw_cachefname):
                 print '    removing sw cache file %s (it has outdated germline info)' % self.default_sw_cachefname
                 os.remove(self.default_sw_cachefname)
 
-            self.all_new_allele_info += [afo for afo in self.sw_info['new-alleles'] if '+' in afo['gene']]  # i.e. skip new/inferred alleles that turned out to be previously known (previous: in original glfo)
-            # alleles_with_evidence |= self.sw_info['alleles-with-evidence']
             glutils.restrict_to_genes(self.glfo, list(self.sw_info['all_best_matches']))
-            glutils.add_new_alleles(self.glfo, self.sw_info['new-alleles'])
-            # if self.args.generate_germline_set:
-            #     for alfo in self.sw_info['new-alleles']:
-            #         if alfo['template-gene'] not in alleles_with_evidence:  # XXX [update comment] if the new allele is actually new (i.e. not in imgt), and if we never had explicit evidence for the template gene (i.e. it was just the best match we had) then remove the template gene
-            #             print '    removing template gene %s' % utils.color_gene(alfo['template-gene'])
-            #             glutils.remove_gene(self.glfo, alfo['template-gene'])
-            glutils.write_glfo(self.my_gldir, self.glfo)  # write glfo modifications to disk
+            glutils.add_new_alleles(self.glfo, new_allele_info, debug=True, simglfo=self.simglfo if self.reco_info is not None else None)
+            for newfo in [nf for nf in new_allele_info if nf['remove-template-gene']]:
+                print '    %s template gene %s' % (utils.color('red', 'removing'), utils.color_gene(newfo['template-gene']))
+                glutils.remove_gene(self.glfo, newfo['template-gene'])
 
             itry += 1
             if itry >= self.args.n_max_allele_finding_iterations:
                 break
 
-        if self.args.new_allele_fname is not None:
-            n_new_alleles = len(self.all_new_allele_info)
-            print '  writing %d new %s to %s' % (n_new_alleles, utils.plural_str('allele', n_new_alleles), self.args.new_allele_fname)
-            with open(self.args.new_allele_fname, 'w') as outfile:
-                for allele_info in self.all_new_allele_info:
-                    outfile.write('>%s\n' % allele_info['gene'])
-                    outfile.write('%s\n' % allele_info['seq'])
-
     # ----------------------------------------------------------------------------------------
     def restrict_to_observed_alleles(self, subpdir):
         # TODO do I still need this now I'm using alleleremover?
-        """ Restrict <self.glfo> to genes observed in <subpdir>, and write the changes to <self.my_gldir>. """
+        """ Restrict <self.glfo> to genes observed in <subpdir> """
         if self.args.debug:
-            print '  restricting self.glfo (and %s) to alleles observed in %s' % (self.my_gldir, subpdir)
+            print '  restricting self.glfo to alleles observed in %s' % subpdir
         only_genes = set()
         for region in utils.regions:
             with open(subpdir + '/' + region + '_gene-probs.csv', 'r') as pfile:
@@ -224,7 +215,6 @@ class PartitionDriver(object):
                 for line in reader:
                     only_genes.add(line[region + '_gene'])
         glutils.restrict_to_genes(self.glfo, only_genes, debug=False)
-        glutils.write_glfo(self.my_gldir, self.glfo, debug=False)  # write glfo modifications to disk
 
     # ----------------------------------------------------------------------------------------
     def cache_parameters(self):
@@ -244,25 +234,48 @@ class PartitionDriver(object):
 
             self.args.min_observations_to_write = 1
 
+        # remove unlikely alleles
         if not self.args.dont_remove_unlikely_alleles:
-            self.run_waterer(remove_less_likely_alleles=True, count_parameters=True)
-            glutils.remove_genes(self.glfo, self.sw_info['genes-to-remove'])
-            glutils.write_glfo(self.my_gldir, self.glfo)
-        if self.args.find_new_alleles:
+            vs_info = utils.run_vsearch('search', {sfo['unique_ids'][0] : sfo['seqs'][0] for sfo in self.input_info.values()}, self.args.workdir + '/vsearch', threshold=0.3, glfo=self.glfo, print_time=True, vsearch_binary=self.args.vsearch_binary)
+            alremover = AlleleRemover(self.glfo, self.args, AlleleFinder(self.glfo, self.args, itry=0))
+            alremover.finalize(sorted(vs_info['gene-counts'].items(), key=operator.itemgetter(1), reverse=True), debug=self.args.debug_allele_finding)
+            glutils.remove_genes(self.glfo, alremover.genes_to_remove)
+            vs_info = None  # memory control (not tested)
+            alremover = None
+
+        # (re-)add [new] alleles
+        if not self.args.dont_allele_cluster:
+            self.run_waterer()
+            alclusterer = AlleleClusterer(self.args)
+            alcluster_alleles = alclusterer.get_alleles(queryfo=None, glfo=self.glfo, swfo=self.sw_info, reco_info=self.reco_info, simglfo=self.simglfo if self.reco_info is not None else None, debug=self.args.debug_allele_finding)
+            if len(alcluster_alleles) > 0:
+                glutils.add_new_alleles(self.glfo, alcluster_alleles.values(), use_template_for_codon_info=False, simglfo=self.simglfo if self.reco_info is not None else None, debug=True)
+            alclusterer = None
+        if not self.args.dont_find_new_alleles:
             self.find_new_alleles()
+
+        # get and write sw parameters
         self.run_waterer(count_parameters=True, write_parameters=True, write_cachefile=True)
         self.restrict_to_observed_alleles(self.sw_param_dir)
         self.write_hmms(self.sw_param_dir)
         if self.args.only_smith_waterman:
             return
 
+        # get and write hmm parameters
         print 'hmm'
+        sys.stdout.flush()
         self.run_hmm('viterbi', parameter_in_dir=self.sw_param_dir, parameter_out_dir=self.hmm_param_dir, count_parameters=True)
         self.restrict_to_observed_alleles(self.hmm_param_dir)
         self.write_hmms(self.hmm_param_dir)
 
-        if len(self.all_new_allele_info) > 0:
-            print '  %d new allele%s written to {sw,hmm}/%s subdirs of parameter dir %s' % (len(self.all_new_allele_info), utils.plural_str('', len(self.all_new_allele_info)), glutils.glfo_dir, self.args.parameter_dir)
+        if self.args.new_allele_fname is not None:
+            new_allele_region = 'v'
+            new_alleles = [(g, seq) for g, seq in self.glfo['seqs'][new_allele_region].items() if glutils.is_snpd(g)]
+            print '  writing %d new %s to %s' % (len(new_alleles), utils.plural_str('allele', len(new_alleles)), self.args.new_allele_fname)
+            with open(self.args.new_allele_fname, 'w') as outfile:
+                for name, seq in new_alleles:
+                    outfile.write('>%s\n' % name)
+                    outfile.write('%s\n' % seq)
 
     # ----------------------------------------------------------------------------------------
     def annotate(self):
@@ -274,8 +287,11 @@ class PartitionDriver(object):
         self.run_hmm('viterbi', parameter_in_dir=self.sub_param_dir)
 
     # ----------------------------------------------------------------------------------------
-    def view_existing_annotations(self):
-        with open(self.args.outfname) as csvfile:
+    def read_existing_annotations(self, outfname=None, debug=False):
+        if outfname is None:
+            outfname = self.args.outfname
+        annotations = OrderedDict()
+        with open(outfname) as csvfile:
             failed_queries = set()
             reader = csv.DictReader(csvfile)
             n_queries_read = 0
@@ -283,31 +299,47 @@ class PartitionDriver(object):
                 if line['v_gene'] == '':
                     failed_queries.add(line['unique_ids'])
                     continue
-                if self.args.queries is not None and self.args.queries[0] not in line['unique_ids']:  # check that at least the first requested query is present in the unconverted unique_ids string, since conversion is slow
-                    continue
+                if self.args.queries is not None:
+                    uids = set(line['unique_ids'].split(':'))  # avoid processing the whole input line if we don't need to
+                    if len(set(self.args.queries) & uids) == 0:  # actually make sure this is the precise set of queries we want (note that --queries and line['unique_ids'] are both ordered, and this ignores that... oh, well, sigh.)
+                        continue
                 utils.process_input_line(line)
-                if self.args.queries is not None and len(set(self.args.queries) & set(line['unique_ids'])) == 0:  # actually make sure this is the precise set of queries we want (note that --queries and line['unique_ids'] are both ordered, and this ignores that... oh, well, sigh.)
+                if self.args.reco_ids is not None and line['reco_id'] not in self.args.reco_ids:
                     continue
-                if self.args.infname is not None and self.reco_info is not None:
-                    utils.print_true_events(self.glfo, self.reco_info, line, extra_str='')
                 utils.add_implicit_info(self.glfo, line)
-                print 'inferred:',
-                if len(line['unique_ids']) > 1:
-                    print '   %s' % ':'.join(line['unique_ids'])
-                else:
-                    print ''
-                utils.print_reco_event(line, extra_str='  ')
+                annotations[':'.join(line['unique_ids'])] = line
+
                 n_queries_read += 1
                 if self.args.n_max_queries > 0 and n_queries_read >= self.args.n_max_queries:
                     break
+
+        if debug:
+            for line in sorted(annotations.values(), key=lambda l: len(l['unique_ids']), reverse=True):
+                label = ''
+                if self.args.infname is not None and self.reco_info is not None:
+                    utils.print_true_events(self.simglfo, self.reco_info, line, extra_str='  ')
+                    label = 'inferred:'
+                utils.print_reco_event(line, extra_str='  ', label=label)
+
         if len(failed_queries) > 0:
             print '\n%d failed queries' % len(failed_queries)
 
+        return annotations
+
     # ----------------------------------------------------------------------------------------
-    def view_existing_partitions(self):
+    def read_existing_partitions(self, debug=False):
         cp = ClusterPath()
         cp.readfile(self.args.outfname)
-        cp.print_partitions(abbreviate=self.args.abbreviate, reco_info=self.reco_info)
+        if debug:
+            cp.print_partitions(abbreviate=self.args.abbreviate, reco_info=self.reco_info)
+        return cp
+
+    # ----------------------------------------------------------------------------------------
+    def plot_existing_partitions(self):
+        cpath = self.read_existing_partitions()
+        annotations = self.read_existing_annotations(outfname=self.args.outfname.replace('.csv', '-cluster-annotations.csv'))
+        partplotter = PartitionPlotter(self.args)
+        partplotter.plot(self.args.plotdir + '/partitions', partition=cpath.partitions[cpath.i_best], annotations=annotations, only_csv=self.args.only_csv_plots)
 
     # ----------------------------------------------------------------------------------------
     def view_alternative_naive_seqs(self):
@@ -345,8 +377,9 @@ class PartitionDriver(object):
         cluster_annotations = self.get_cluster_annotations(cpath.partitions[cpath.i_best])
 
         if self.args.plotdir is not None:
-            partplotter = PartitionPlotter()
-            partplotter.plot(self.args.plotdir + '/partitions', partition=cpath.partitions[cpath.i_best], annotations=cluster_annotations, only_csv=self.args.only_csv_plots)
+            print 'skipping partition plotting'
+            # partplotter = PartitionPlotter(self.args)
+            # partplotter.plot(self.args.plotdir + '/partitions', partition=cpath.partitions[cpath.i_best], annotations=cluster_annotations, only_csv=self.args.only_csv_plots)
 
         if self.args.debug:
             print 'final'
@@ -540,110 +573,32 @@ class PartitionDriver(object):
         return annotations
 
     # ----------------------------------------------------------------------------------------
-    def run_swarm(self, naive_seqs, threshold, outfname):
-        raise Exception('needs updating/fixing')
-        # # ----------------------------------------------------------------------------------------
-        # if self.args.naive_swarm:
-        #     print '    NOTE: replacing N with A for input to swarm'
-        # with open(fastafname, 'w') as fastafile:
-        #     for query, naive_seq in naive_seqs.items():
-        #         if self.args.naive_swarm:
-        #             query += '_1'
-        #             naive_seq = utils.remove_ambiguous_ends(naive_seq)
-        #             naive_seq = naive_seq.replace('N', 'A')
-        #         fastafile.write('>' + query + '\n' + naive_seq + '\n')
-        # # ----------------------------------------------------------------------------------------
-        #     clusterfname = self.args.workdir + '/swarm-clusters.txt'
-        #     cmd = './bin/swarm-2.1.1-linux-x86_64 ' + fastafname
-        #     cmd += ' -t 5'  # five threads TODO set this more intelligently
-        #     # cmd += ' -f'
-        #     cmd += ' --match-reward ' + str(self.args.match_mismatch[0])
-        #     cmd += ' --mismatch-penalty ' + str(self.args.match_mismatch[1])
-        #     cmd += ' --gap-opening-penalty ' + str(self.args.gap_open_penalty)
-        #     # cmd += ' --gap-extension-penalty'
-        #     tmpstart = time.time()
-        #     total = 0.
-        #     for key in self.sw_info['queries']:
-        #         seq = self.input_info[key]['seqs'][0]
-        #         total += float(len(seq))
-        #     mean_length = total / len(self.sw_info['queries'])
-        #     raise Exception('update for new thresholds')
-        #     bound = self.get_naive_hamming_threshold(parameter_dir, 'tight') /  2.  # yay for heuristics! (I did actually optimize this...)
-        #     differences = int(round(mean_length * bound))
-        #     print '        d = mean len * mut freq bound = %f * %f = %f --> %d' % (mean_length, bound, mean_length * bound, differences)
-        #     print '      swarm average time: %.1f' % (time.time()-tmpstart)
-        #     cmd += ' --differences ' + str(differences)
-        #     cmd += ' --uclust-file ' + clusterfname
-        #     check_call(cmd.split())
-        # # ----------------------------------------------------------------------------------------
-
-    # ----------------------------------------------------------------------------------------
-    def run_vsearch(self, naive_seqs, threshold):
-        # write input
-        infname = self.args.workdir + '/naive-seqs.fasta'
-        outfname = self.args.workdir + '/vsearch-clusters.txt'
-        with open(infname, 'w') as fastafile:
-            for query, naive_seq in naive_seqs.items():
-                fastafile.write('>' + query + '\n' + naive_seq + '\n')
-
-        # run
-        id_fraction = 1. - threshold
-        cmd = self.args.partis_dir + '/bin/vsearch-1.1.3-linux-x86_64 --threads ' + str(self.args.n_procs) + ' --uc ' + outfname + ' --cluster_fast ' + infname + ' --id ' + str(id_fraction) + ' --maxaccept 0 --maxreject 0'
-        cmdfos = [{'cmd_str' : cmd, 'outfname' : outfname, 'workdir' : self.args.workdir, 'threads' : self.args.n_procs}, ]
-        utils.run_cmds(cmdfos, batch_system=self.args.batch_system, batch_options=self.args.batch_options, batch_config_fname=self.args.batch_config_fname)
-
-        # read output
-        id_clusters = {}
-        with open(outfname) as clusterfile:
-            reader = csv.DictReader(clusterfile, fieldnames=['type', 'cluster_id', '3', '4', '5', '6', '7', 'crap', 'query', 'morecrap'], delimiter='\t')
-            for line in reader:
-                if line['type'] == 'C':  # batshit output format: some lines are a cluster, and some are a query sequence. Skip the cluster ones.
-                    continue
-                cluster_id = int(line['cluster_id'])
-                if cluster_id not in id_clusters:
-                    id_clusters[cluster_id] = []
-                uid = line['query']
-                if self.args.naive_swarm and uid[-2:] == '_1':  # remove (dummy) abundance information
-                    uid = uid[:-2]
-                id_clusters[cluster_id].append(uid)
-        partition = id_clusters.values()
-
-        os.remove(infname)
-        os.remove(outfname)
-        return partition
-
-    # ----------------------------------------------------------------------------------------
-    def cluster_with_naive_vsearch_or_swarm(self, parameter_dir=None, read_hmm_cachefile=True):
+    def cluster_with_naive_vsearch_or_swarm(self, parameter_dir=None):
         start = time.time()
 
         naive_seq_list = []
-        if read_hmm_cachefile:
-            assert parameter_dir is not None
-            threshold = self.get_naive_hamming_bounds(parameter_dir)[0]  # lo and hi are the same
-            cached_naive_seqs = {}
-            with open(self.hmm_cachefname) as cachefile:
-                reader = csv.DictReader(cachefile)
-                for line in reader:
-                    unique_ids = line['unique_ids'].split(':')
-                    if len(unique_ids) == 1:  # if it's a cache file left over from a previous partitioning, there'll be clusters in it, too
-                        cached_naive_seqs[unique_ids[0]] = line['naive_seq']
-            for uid in self.sw_info['queries']:
-                if uid not in cached_naive_seqs:
-                    raise Exception('naive sequence for %s not found in %s' % (uid, self.hmm_cachefname))
-                naive_seq_list.append((uid, cached_naive_seqs[uid]))
-        else:
-            assert parameter_dir is None  # i.e. get mut freq from sw info
-            threshold = self.get_naive_hamming_bounds(parameter_dir=None, overall_mute_freq=self.sw_info['mute-freqs']['all'])[0]  # lo and hi are the same
-            naive_seq_list = [(q, self.sw_info[q]['naive_seq']) for q in self.sw_info['queries']]
+        assert parameter_dir is not None
+        threshold = self.get_naive_hamming_bounds(parameter_dir)[0]  # lo and hi are the same
+        cached_naive_seqs = {}
+        with open(self.hmm_cachefname) as cachefile:
+            reader = csv.DictReader(cachefile)
+            for line in reader:
+                unique_ids = line['unique_ids'].split(':')
+                if len(unique_ids) == 1:  # if it's a cache file left over from a previous partitioning, there'll be clusters in it, too
+                    cached_naive_seqs[unique_ids[0]] = line['naive_seq']
+        for uid in self.sw_info['queries']:
+            if uid not in cached_naive_seqs:
+                raise Exception('naive sequence for %s not found in %s' % (uid, self.hmm_cachefname))
+            naive_seq_list.append((uid, cached_naive_seqs[uid]))
 
-        all_naive_seqs, naive_seq_hashes = utils.collapse_naive_seqs(naive_seq_list, self.sw_info)
+        all_naive_seqs, naive_seq_hashes = utils.collapse_naive_seqs_with_hashes(naive_seq_list, self.sw_info)
 
         print '    using hfrac bound for vsearch %.3f' % threshold
 
         partition = []
         print '    running vsearch %d times (once for each cdr3 length class):' % len(all_naive_seqs),
         for cdr3_length, sub_naive_seqs in all_naive_seqs.items():
-            sub_hash_partition = self.run_vsearch(sub_naive_seqs, threshold)
+            sub_hash_partition = utils.run_vsearch('cluster', sub_naive_seqs, self.args.workdir + '/vsearch', threshold, vsearch_binary=self.args.vsearch_binary)
             sub_uid_partition = [[uid for hashstr in hashcluster for uid in naive_seq_hashes[hashstr]] for hashcluster in sub_hash_partition]
             partition += sub_uid_partition
             print '.',
@@ -664,14 +619,14 @@ class PartitionDriver(object):
         return cpath
 
     # ----------------------------------------------------------------------------------------
-    def get_naive_hamming_bounds(self, parameter_dir=None, overall_mute_freq=None):
+    def get_naive_hamming_bounds(self, parameter_dir=None, overall_mute_freq=None):  # parameterize the relationship between mutation frequency and naive sequence inaccuracy
         if self.cached_naive_hamming_bounds is not None:  # only run the stuff below once
             return self.cached_naive_hamming_bounds
 
         if parameter_dir is not None:
             assert overall_mute_freq is None
             mutehist = Hist(fname=parameter_dir + '/all-mean-mute-freqs.csv')
-            mute_freq = mutehist.get_mean(ignore_overflows=True)  # TODO should I not ignore overflows here? or should I ignore them when I set waterer.info['mute-freqs']?
+            mute_freq = mutehist.get_mean(ignore_overflows=True)  # TODO should I not ignore overflows here?
         else:
             assert overall_mute_freq is not None
             mute_freq = overall_mute_freq
@@ -827,6 +782,8 @@ class PartitionDriver(object):
             n_procs = self.args.n_procs
 
         self.prepare_for_hmm(algorithm, parameter_in_dir, partition, shuffle_input=shuffle_input)
+        glutils.write_glfo(self.my_gldir, self.glfo)
+
 
         cmd_str = self.get_hmm_cmd_str(algorithm, self.hmm_infname, self.hmm_outfname, parameter_dir=parameter_in_dir, precache_all_naive_seqs=precache_all_naive_seqs, n_procs=n_procs)
 
@@ -836,6 +793,8 @@ class PartitionDriver(object):
         exec_start = time.time()
         self.execute(cmd_str, n_procs)
         exec_time = time.time() - exec_start
+
+        glutils.remove_glfo_files(self.my_gldir, self.args.locus)
 
         new_cpath = None
         if read_output:
@@ -1095,14 +1054,23 @@ class PartitionDriver(object):
         utils.prep_dir(hmm_dir, '*.yaml')
 
         if self.args.debug:
-            print '    to %s' % parameter_dir + '/hmms'
+            print 'to %s' % parameter_dir + '/hmms',
 
-        for region in utils.regions:
-            for gene in self.glfo['seqs'][region]:
+        if multiprocessing.cpu_count() * utils.memory_usage_fraction() > 0.8:  # already using a lot of memory, so don't to call multiprocessing, which will duplicate all the memory for each process
+            for region in utils.regions:
+                for gene in self.glfo['seqs'][region]:
+                    writer = HmmWriter(parameter_dir, hmm_dir, gene, self.glfo, self.args)
+                    writer.write()
+        else:
+            def write_single_hmm(gene):
                 writer = HmmWriter(parameter_dir, hmm_dir, gene, self.glfo, self.args)
                 writer.write()
+            procs = [multiprocessing.Process(target=write_single_hmm, args=(gene,))
+                     for region in utils.regions for gene in self.glfo['seqs'][region]]
+            utils.run_proc_functions(procs)  # uses all the cores (should only be for a little bit, though)
 
         print '(%.1f sec)' % (time.time()-start)
+        sys.stdout.flush()
 
     # ----------------------------------------------------------------------------------------
     def get_existing_hmm_files(self, parameter_dir):
@@ -1256,15 +1224,15 @@ class PartitionDriver(object):
         csvfile.close()
 
     # ----------------------------------------------------------------------------------------
+    @timeprinter
     def prepare_for_hmm(self, algorithm, parameter_dir, partition, shuffle_input=False):
         """ Write input file for bcrham """
-        if self.args.debug:
-            print '    writing input'
 
         if partition is not None:
             nsets = copy.deepcopy(partition)  # needs to be a deep copy so we can shuffle the order
         else:
-            qlist = [q for q in self.input_info if q in self.sw_info['queries']]  # we want the queries from sw (to skip failures), but the order from input_info
+            qlist = self.sw_info['queries']  # shorthand
+
             if self.args.simultaneous_true_clonal_seqs:
                 assert self.args.n_simultaneous_seqs is None and not self.args.is_data  # are both already checked in ./bin/partis
                 nsets = utils.get_true_partition(self.reco_info, ids=qlist)
@@ -1305,6 +1273,9 @@ class PartitionDriver(object):
     def check_did_bcrham_fail(self, line, errorfo):
         if line['errors'] == '':  # no problems
             return False
+
+        if 'v_gene' in line and line['v_gene'] == '':  # utils.process_input_line() just returns without doing anything in this case
+            line['unique_ids'] = line['unique_ids'].split(':')
 
         failed = False
         for ecode in line['errors'].split(':'):  # I don't think I've ever seen one with more than one, but it could happen
@@ -1404,12 +1375,15 @@ class PartitionDriver(object):
         missing_input_keys = set(self.input_info)
         missing_input_keys -= set([uid for line in  annotations.values() for uid in line['unique_ids']])  # set(self.sw_info['queries'])  # all the queries for which we had decent sw annotations (sw failures are accounted for below)
         missing_input_keys -= self.sw_info['failed-queries']
+        missing_input_keys -= self.sw_info['removed-queries']
         missing_input_keys -= set([d for dlist in self.sw_info['duplicates'].values() for d in dlist])
         missing_input_keys -= hmm_failure_ids
         if self.unseeded_seqs is not None:
             missing_input_keys -= set(self.unseeded_seqs)
         if self.small_cluster_seqs is not None:
             missing_input_keys -= set(self.small_cluster_seqs)
+        if self.unseeded_seqs is not None:
+            missing_input_keys -= set(self.unseeded_seqs)
         if len(missing_input_keys) > 0:
             print '  %s couldn\'t account for %d missing input uid%s%s' % (utils.color('red', 'warning'), len(missing_input_keys), utils.plural(len(missing_input_keys)), ': %s' % ' '.join(missing_input_keys) if len(missing_input_keys) < 15 else '')
 
@@ -1442,7 +1416,8 @@ class PartitionDriver(object):
 
                 uids = padded_line['unique_ids']
                 uidstr = ':'.join(uids)
-                padded_line['indelfos'] = [self.sw_info['indels'].get(uid, utils.get_empty_indel()) for uid in uids]  # reminder: hmm was given a sequence with any indels reversed (i.e. <self.sw_info['indels'][uid]['reverersed_seq']>)
+                padded_line['indelfos'] = [self.sw_info['indels'].get(uid, indelutils.get_empty_indel()) for uid in uids]  # reminder: hmm was given a sequence with any indels reversed (i.e. <self.sw_info['indels'][uid]['reverersed_seq']>)
+                padded_line['input_seqs'] = [self.sw_info[uid]['input_seqs'][0] for uid in uids]
                 padded_line['duplicates'] = [self.duplicates.get(uid, []) for uid in uids]
 
                 if not utils.has_d_gene(self.args.locus):
@@ -1487,14 +1462,7 @@ class PartitionDriver(object):
 
                 if perfplotter is not None:
                     for iseq in range(len(uids)):  # TODO get perfplotter handling multi-seq lines
-                        if uids[iseq] in self.sw_info['indels']:
-                            print '    skipping performance evaluation of %s because of indels' % uids[iseq]  # I just have no idea how to handle naive hamming fraction when there's indels
-                            continue
-                        singlefo = utils.synthesize_single_seq_line(line_to_use, iseq)
-                        perfplotter.evaluate(self.reco_info[uids[iseq]], singlefo)
-                        if len(singlefo['naive_seq']) != len(self.reco_info[uids[iseq]]['naive_seq']):
-                            raise Exception('shouldn\'t get here!')
-                            # singlefo = utils.reset_effective_erosions_and_effective_insertions(self.glfo, singlefo)  # TODO this is wrong, since <singlefo> can be derived from <eroded_line>, i.e. the reset_ fcn was already called on it. But it doesn't really matter, since it's commented now, and should be able to stay that way
+                        perfplotter.evaluate(self.reco_info[uids[iseq]], utils.synthesize_single_seq_line(line_to_use, iseq), simglfo=self.simglfo)
 
         # parameter and performance writing/plotting
         if pcounter is not None:
@@ -1569,14 +1537,10 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def print_hmm_output(self, line, print_true=False):
+        label = ''
         if print_true and not self.args.is_data:  # first print true event (if this is simulation)
             utils.print_true_events(self.glfo, self.reco_info, line)
-
-        if len(line['unique_ids']) > 1:  # make it easier to cut and paste for --queries (it'd be nice if this could go on the same line as 'inferred:', but then for really big clusters it pushes the 'inserts' label out of alignment
-            print '          ' + ':'.join(line['unique_ids'])
-        label = 'inferred:'
-        if self.args.seed_unique_id is not None and self.args.seed_unique_id in line['unique_ids']:
-            label += '   (found %d sequences clonal to seed %s)' % (len(line['unique_ids']), self.args.seed_unique_id)
+            label = 'inferred:'
         utils.print_reco_event(line, extra_str='    ', label=label, seed_uid=self.args.seed_unique_id)
 
     # ----------------------------------------------------------------------------------------
@@ -1600,32 +1564,5 @@ class PartitionDriver(object):
 
         # presto!
         if self.args.presto_output:
-            raise Exception('needs updating')
-            outstr = check_output(['mv', '-v', self.args.outfname, self.args.outfname + '.partis'])
-            print '    backing up partis output before converting to presto: %s' % outstr.strip()
-
-            prestoheader = utils.presto_headers.values()
-            with open(outpath, 'w') as outfile:
-                writer = csv.DictWriter(outfile, prestoheader)
-                writer.writeheader()
-
-                for full_line in annotations.values():
-                    outline = copy.deepcopy(full_line)  # in case we modify it
-
-                    utils.remove_all_implicit_info(outline)
-                    utils.add_implicit_info(self.glfo, outline, aligned_gl_seqs=self.aligned_gl_seqs)
-
-                    outline = utils.convert_to_presto_headers(outline)
-
-                    outline = utils.get_line_for_output(outline)  # convert lists to colon-separated strings and whatnot
-                    outline = {k : v for k, v in outline.items() if k in prestoheader}  # remove the columns we don't want to output
-
-                    writer.writerow(outline)
-
-                # and write empty lines for seqs that failed either in sw or the hmm
-                if len(missing_input_keys) > 0:  # NOTE assumes it's already been set by the first loop
-                    print 'missing %d input keys' % len(missing_input_keys)
-                    for uid in missing_input_keys:
-                        col = utils.presto_headers['unique_id']
-                        writer.writerow({col : uid})
-
+            failed_queries = {fid : self.input_info[fid]['seqs'][0] for fid in self.sw_info['failed-queries'] | hmm_failures}
+            utils.write_presto_annotations(outpath, self.glfo, annotations, failed_queries=failed_queries)

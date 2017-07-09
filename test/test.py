@@ -52,6 +52,7 @@ class Tester(object):
         self.eps_vals['completeness']   = 0.08
 
         self.n_partition_queries = '500'
+        self.n_sim_events = '500'
         # n_data_inference_queries = '50'
         self.logfname = self.dirs['new'] + '/test.log'
         self.sw_cachenames = {st : {dt : self.param_dirs[st][dt] + '/sw-cache' for dt in self.dtypes} for st in self.stypes}  # don't yet know the 'new' ones (they'll be the same only if the simulation is the same) #self.stypes}
@@ -70,7 +71,7 @@ class Tester(object):
             add_inference_tests('ref')
         if not args.only_ref:
             self.tests['cache-parameters-data']  = {'extras' : [ostr for ostr in self.parameter_caching_extras]}  # list comprehension to make sure it's a copy
-            self.tests['simulate']  = {'extras' : ['--n-sim-events', '500', '--n-trees', '500', '--n-leaves', '5']}
+            self.tests['simulate']  = {'extras' : ['--n-sim-events', self.n_sim_events, '--n-trees', self.n_sim_events, '--n-leaves', '5']}
             self.tests['cache-parameters-simu']  = {'extras' : [ostr for ostr in self.parameter_caching_extras]}  # list comprehension to make sure it's a copy
             add_inference_tests('new')
 
@@ -190,6 +191,7 @@ class Tester(object):
             cmd_str += ' ' + ' '.join(info['extras'] + self.common_extras)
             if name == 'simulate':
                 cmd_str += ' --outfname ' + self.infnames['new']['simu']
+                cmd_str += ' --indel-frequency 0.01 --indel-location v'
             elif 'cache-parameters-' not in name:
                 cmd_str += ' --outfname ' + self.dirs['new'] + '/' + name + '.csv'
 

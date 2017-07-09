@@ -78,6 +78,10 @@ class Hist(object):
             assert len(self.errors) == len(self.low_edges)
 
     # ----------------------------------------------------------------------------------------
+    def overflow_contents(self):
+        return self.bin_contents[0] + self.bin_contents[-1]
+
+    # ----------------------------------------------------------------------------------------
     def set_ibin(self, ibin, value, error, label=None):
         """ set <ibin>th bin to <value> """
         self.bin_contents[ibin] = value

@@ -21,7 +21,8 @@ import glob
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
 parser.add_argument('--gldir', default=partis_dir + '/data/germlines/human', help='Directory from which to read non-sample-specific information (e.g. germline genes)')
-parser.add_argument('--fsdir', default='/fh/fast/matsen_e/' + os.getenv('USER') + '/work/partis-dev/_output/update-17')  # remove the update-17 bit for stuff from when I was actually preparing the paper
+parser.add_argument('--fsdir', default='/fh/fast/matsen_e/' + os.getenv('USER') + '/work/partis-dev/_output/update-17-loraxis')  # remove the update-17 bit for stuff from when I was actually preparing the paper
+parser.add_argument('--baseworkdir')
 parser.add_argument('--mutation-multipliers', default='1')
 parser.add_argument('--is-simu', action='store_true')
 parser.add_argument('--print-metrics', action='store_true')
@@ -41,6 +42,7 @@ parser.add_argument('--n-leaf-list', default='10')
 parser.add_argument('--hfrac-bound-list')
 parser.add_argument('--subset', type=int)
 parser.add_argument('--n-max-queries')
+parser.add_argument('--n-max-procs', type=int, default=100)
 parser.add_argument('--n-subsets', type=int)
 parser.add_argument('--istartstop')  # NOTE usual zero indexing
 parser.add_argument('--istartstoplist')  # list of istartstops for comparisons
@@ -78,6 +80,8 @@ if args.istartstop is not None:
 
 if args.bak:
     args.fsdir = args.fsdir.replace('_output', '_output.bak')
+if args.baseworkdir is None:
+    args.baseworkdir = args.fsdir.replace('_output', '_tmp')
 
 if 'simulate' in args.actions:
     if args.n_max_queries is None:

@@ -7,7 +7,7 @@ import sys
 import csv
 import numpy
 import colored_traceback.always
-from multiprocessing import Process, active_children
+import multiprocessing
 from subprocess import check_call, check_output, CalledProcessError
 import os
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
@@ -73,9 +73,6 @@ def run_simulation(args):
     else:
         input_gldir = args.initial_germline_dir
     glfo = glutils.read_glfo(input_gldir, args.locus, only_genes=args.only_genes)
-    if args.rearrange_from_scratch:
-        print '    not using v genes with bad cysteines'
-        glutils.remove_v_genes_with_bad_cysteines(glfo)
     if not args.im_a_subproc and args.rearrange_from_scratch and args.generate_germline_set:
         glutils.generate_germline_set(glfo, args.n_genes_per_region, args.n_sim_alleles_per_gene, args.min_sim_allele_prevalence_freq, args.allele_prevalence_fname)  # NOTE removes unwanted genes from <glfo>
         glutils.write_glfo(args.outfname.replace('.csv', '-glfo'), glfo)
@@ -134,9 +131,9 @@ def run_simulation(args):
             utils.run_cmds(cmdfos, batch_system=args.batch_system, batch_options=args.batch_options, batch_config_fname=args.batch_config_fname, debug='print')
         else:
             for iproc in range(args.n_procs):
-                proc = Process(target=make_events, args=(n_per_proc, iproc, cmdfos[iproc]['workdir'], cmdfos[iproc]['outfname'], all_random_ints[iproc]))
+                proc = multiprocessing.Process(target=make_events, args=(n_per_proc, iproc, cmdfos[iproc]['workdir'], cmdfos[iproc]['outfname'], all_random_ints[iproc]))
                 proc.start()
-            while len(active_children()) > 0:
+            while len(multiprocessing.active_children()) > 0:
                 sys.stdout.flush()
                 time.sleep(1)
 
@@ -249,9 +246,11 @@ def view_existing_output(args):
 
     parter = PartitionDriver(args, args.action, args.initial_germline_dir)
     if args.action == 'view-annotations':
-        parter.view_existing_annotations()
+        parter.read_existing_annotations(debug=True)
     elif args.action == 'view-partitions':
-        parter.view_existing_partitions()
+        parter.read_existing_partitions(debug=True)
+    elif args.action == 'plot-partitions':
+        parter.plot_existing_partitions()
     elif args.action == 'view-alternative-naive-seqs':
         parter.view_alternative_naive_seqs()
     else:
@@ -270,7 +269,8 @@ parent_parser = argparse.ArgumentParser(add_help=False)
 parent_parser.add_argument('--locus', default='igh', choices=utils.loci.keys(), help='which immunoglobulin or t-cell receptor locus?')
 parent_parser.add_argument('--chain', choices=('h', 'k', 'l'), help='DEPRECATED in favor of --locus, exists only for backwards compatibility')
 parent_parser.add_argument('--species', default='human', choices=('human', 'mouse'), help='Which species?')
-parent_parser.add_argument('--queries', help='Colon-separated list of query names to which we restrict ourselves')
+parent_parser.add_argument('--queries', help='Colon-separated list of query names to which to restrict the analysis')
+parent_parser.add_argument('--queries-to-include', help='when using --n-random-queries, look for, and include, these additional uids (in contast to --queries, which includes *only* the indicated uids) NOTE *not* compatible with --n-max-queries, i.e. use --n-random-queries instead')
 parent_parser.add_argument('--reco-ids', help='Colon-separated list of rearrangement-event IDs to which we restrict ourselves')  # or recombination events
 parent_parser.add_argument('--n-max-queries', type=int, default=-1, help='Maximum number of query sequences to read, starting from beginning of input file')
 parent_parser.add_argument('--n-random-queries', type=int, help='choose this many queries at random from input file')
@@ -292,6 +292,7 @@ parent_parser.add_argument('--batch-config-fname', default='/etc/slurm-llnl/slur
 parent_parser.add_argument('--only-smith-waterman', action='store_true', help='Exit after finishing smith-waterman.')
 parent_parser.add_argument('--write-trimmed-and-padded-seqs-to-sw-cachefname', action='store_true', help='after running sw, trim and pad sequences *before* writing to the sw cache file (rather than after). Note that this will in some cases cause waterer.py to not be able to read sw results from this cache file.')
 parent_parser.add_argument('--ig-sw-binary', default=partis_dir + '/packages/ig-sw/src/ig_align/ig-sw', help='Path to ig-sw executable.')
+parent_parser.add_argument('--vsearch-binary',  help='Path to vsearch binary (vsearch binaries for linux and darwin are pre-installed in bin/, but for other systems you need to get your own)')
 parent_parser.add_argument('--is-simu', action='store_true', help='Set if running on simulated sequences')
 parent_parser.add_argument('--skip-unproductive', action='store_true', help='Skip sequences which Smith-Waterman determines to be unproductive (i.e. if they have stop codons, out of frame cdr3, or mutated cyst/tryp/phen)')
 parent_parser.add_argument('--also-remove-duplicate-sequences-with-different-lengths', action='store_true', help='By default we remove any queries which have exactly the same sequence as a previous query. If this is set, we also consider as duplicates sequences which are sub/super strings of previous sequences (we keep the longest one).')
@@ -332,18 +333,19 @@ parent_parser.add_argument('--initial-germline-dir', help='Directory with fastas
 parent_parser.add_argument('--simulation-germline-dir', help='Germline directory that was used for simulation (not usually needed, in fact maybe only for performance evaluation)')
 parent_parser.add_argument('--aligned-germline-fname', help='fasta file with alignments for each V gene')
 
-parent_parser.add_argument('--dont-remove-unlikely-alleles', action='store_true', help='assign each sequence to its closest germline match, even if this would imply an unrealistically large number of alleles per gene in this sample')
 parent_parser.add_argument('--n-alleles-per-gene', type=int, default=None, help='number of alleles to assume per gene when removing spurious alleles during parameter caching (default is set below -- 1 if looking for new alleles, otherwise 2) NOTE difference to --n-sim-alleles-per-gene')
 parent_parser.add_argument('--min-allele-prevalence-fraction', type=float, default=0.0005, help='Remove any alleles that represent less than this fraction of the repertoire.')
 parent_parser.add_argument('--n-max-total-alleles', type=int, help='maximum number of alleles per segment to allow when removing alleles (presumably just used for testing).')
 
-parent_parser.add_argument('--find-new-alleles', action='store_true', help='look for alleles which do not appear in the default germline set')
-parent_parser.add_argument('--always-find-new-alleles', action='store_true', help='By default we only look for new alleles if a repertoire\'s mutation rate is amenable to reasonable new-allele sensitivity (i.e. if it\'s not crazy high). This overrides that.')
+parent_parser.add_argument('--leave-default-germline', action='store_true')
+parent_parser.add_argument('--dont-remove-unlikely-alleles', action='store_true')
+parent_parser.add_argument('--dont-allele-cluster', action='store_true')
+parent_parser.add_argument('--dont-find-new-alleles', action='store_true')
+# parent_parser.add_argument('--always-find-new-alleles', action='store_true', help='By default we only look for new alleles if a repertoire\'s mutation rate is amenable to reasonable new-allele sensitivity (i.e. if it\'s not crazy high). This overrides that.')
 parent_parser.add_argument('--debug-allele-finding', action='store_true', help='print lots of debug info on new-allele fits')
-parent_parser.add_argument('--dont-collapse-clones', action='store_true', help='By default we use vsearch clustering to choose one sequence from each clonal family before looking for new alleles (to ensure independent mutations). This turns that off.')
 parent_parser.add_argument('--new-allele-fname', help='fasta fname to which to write any new alleles (they are also written, together with previously-known alleles that are also in the sample, to --parameter-dir)')
-parent_parser.add_argument('--n-max-allele-finding-iterations', type=int, default=2, help='maximum number of times to look for new alleles')
-parent_parser.add_argument('--n-max-new-alleles-per-gene-per-iteration', type=int, default=2, help='with an option name that long...')
+parent_parser.add_argument('--n-max-allele-finding-iterations', type=int, default=1, help='maximum number of times to look for new alleles')
+parent_parser.add_argument('--n-max-new-alleles-per-gene-per-iteration', type=int, default=3, help='with an option name that long...')
 parent_parser.add_argument('--n-max-snps', type=int, default=8, help='when new-allele finding, look for new alleles separated from existing alleles by up to this many SNPs')
 parent_parser.add_argument('--n-max-mutations-per-segment', type=int, default=23, help='when new-allele finding, exclude sequences which have more than this many mutations in the V segment')
 parent_parser.add_argument('--plot-and-fit-absolutely-everything', type=int, help='fit every single position for this <istart> and write every single corresponding plot (slow as hell, and only for debugging/making plots for paper)')
@@ -360,6 +362,7 @@ subconfig = {
     'simulate'         : {'func' : run_simulation,      'help' : 'Generate simulated sequences based on information in pre-existing parameter directory.'},
     'view-annotations' : {'func' : view_existing_output,'help' : 'Print (to std out) the annotations from an existing annotation output csv.'},
     'view-partitions'  : {'func' : view_existing_output,'help' : 'Print (to std out) the partitions from an existing partition output csv.'},
+    'plot-partitions'  : {'func' : view_existing_output,'help' : 'Plot existing partitions and cluster annotations.'},
     'view-alternative-naive-seqs'  : {'func' : view_existing_output,'help' : 'Print (to std out) a comparison of the naive sequences corresponding to sub- and super-clusters of the cluster specified with --queries. You must have specified --calculate-alternative-naive-seqs (or --persistent-cachefname) in a previous partition step so that this information was saved.'},
     'run-viterbi'      : {'func' : run_partitiondriver, 'help' : 'deprecated, do not use'},
 }
@@ -398,8 +401,7 @@ subargs['simulate'].append({'name' : '--n-leaves', 'kwargs' : {'type' : float, '
 subargs['simulate'].append({'name' : '--constant-number-of-leaves', 'kwargs' : {'action' : 'store_true', 'help' : 'Give all trees the same number of leaves'}})
 subargs['simulate'].append({'name' : '--n-leaf-distribution', 'kwargs' : {'default' : 'geometric', 'choices' : ['geometric', 'box', 'zipf'], 'help' : 'distribution from which to draw the number of leaves for each tree'}})
 subargs['simulate'].append({'name' : '--indel-frequency', 'kwargs' : {'default' : 0., 'type' : float, 'help' : 'fraction of simulated sequences with indels'}})
-# disabled for now, but if you want multiple indels per sequence you can use this (you'd also need to uncomment a line in recombinator):)
-#subargs['simulate'].append({'name' : '--mean-n-indels', 'kwargs' : {'default' : 1, 'type' : int, 'help' : 'mean number of indels in each sequence which we\'ve already decided has indels (geometric distribution)'}})
+subargs['simulate'].append({'name' : '--mean-indels-per-indeld-seq', 'kwargs' : {'default' : 1.2, 'type' : float, 'help' : 'mean number of indels in each sequence which we\'ve already decided has indels (geometric distribution)'}})
 subargs['simulate'].append({'name' : '--mean-indel-length', 'kwargs' : {'default' : 5, 'help' : 'mean length of each indel (geometric distribution)'}})
 subargs['simulate'].append({'name' : '--indel-location', 'kwargs' : {'choices' : [None, 'v', 'cdr3'], 'help' : 'where to put the indels'}})
 # NOTE command to generate gtr parameter file: [stoat] partis/ > zcat /shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_gtr_tr-qi-gi.json.gz | jq .independentParameters | grep -v '[{}]' | sed 's/["\:,]//g' | sed 's/^[ ][ ]*//' | sed 's/ /,/' | sort >data/gtr.txt)
@@ -455,6 +457,7 @@ args.n_procs = utils.get_arg_list(args.n_procs, intify=True)
 args.n_fewer_procs = args.n_procs[0] if len(args.n_procs) == 1 else args.n_procs[1]
 args.n_procs = args.n_procs[0]
 args.queries = utils.get_arg_list(args.queries)
+args.queries_to_include = utils.get_arg_list(args.queries_to_include)
 args.reco_ids = utils.get_arg_list(args.reco_ids)
 args.istartstop = utils.get_arg_list(args.istartstop, intify=True)
 if args.istartstop is not None:
@@ -537,8 +540,7 @@ if args.batch_system == 'sge' and args.batch_options is not None:
         print '%s --batch-options contains \'-e\' or \'-o\', but we add these automatically since we need to be able to parse each job\'s stdout and stderr. You can control the directory under which they\'re written with --workdir (which is currently %s).' % (utils.color('red', 'warning'), args.workdir)
 
 if args.cluster_annotation_fname is None and args.outfname is not None:
-    assert '.csv' in args.outfname
-    args.cluster_annotation_fname = args.outfname.replace('.csv', '-cluster-annotations.csv')
+    args.cluster_annotation_fname = args.outfname.replace(utils.getsuffix(args.outfname), '-cluster-annotations.csv')
 
 if args.calculate_alternative_naive_seqs or (args.action == 'view-alternative-naive-seqs' and args.persistent_cachefname is None):
     if args.outfname is None:
@@ -562,17 +564,23 @@ if args.presto_output and args.aligned_germline_fname is None:
 if args.parameter_dir is not None:
     args.parameter_dir = args.parameter_dir.rstrip('/')
 
-args.default_initial_germline_dir += '/' + args.species
+if os.path.exists(args.default_initial_germline_dir + '/' + args.species):  # ick that is hackey
+    args.default_initial_germline_dir += '/' + args.species
 
 if args.n_max_snps is not None and args.n_max_mutations_per_segment is not None:
     if args.n_max_snps > args.n_max_mutations_per_segment - 10:
         raise Exception('--n-max-snps should be at least ten less than --n-max-mutations-per-segment, but I got %d and %d' % (args.n_max_snps, args.n_max_mutations_per_segment))
 
 if args.n_alleles_per_gene is None:
-    if args.find_new_alleles:
+    if not args.dont_find_new_alleles:
         args.n_alleles_per_gene = 1
     else:
         args.n_alleles_per_gene = 2
+
+if args.leave_default_germline:
+    args.dont_remove_unlikely_alleles = True
+    args.dont_allele_cluster = True
+    args.dont_find_new_alleles = True
 
 # ----------------------------------------------------------------------------------------
 random.seed(args.seed)

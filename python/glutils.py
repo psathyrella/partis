@@ -1,4 +1,5 @@
 import tempfile
+import operator
 import copy
 import sys
 import os
@@ -11,6 +12,7 @@ import csv
 from subprocess import check_call, Popen, PIPE
 
 import utils
+import indelutils
 
 # ----------------------------------------------------------------------------------------
 glfo_dir = 'germline-sets'  # always put germline info into a subdir with this name
@@ -70,7 +72,7 @@ def convert_to_duplicate_name(glfo, gene):
                 if alternate_name != gene and alternate_name in glfo['seqs'][utils.get_region(gene)]:
                     # print 'converting %s --> %s' % (gene, alternate_name)
                     return alternate_name
-    raise Exception('couldn\'t find alternate name for %s' % gene)
+    raise Exception('couldn\'t find alternate name for %s (and we\'re probably looking for an alternate name because it wasn\'t in glfo to start with)' % gene)
 
 #----------------------------------------------------------------------------------------
 def check_a_bunch_of_codons(codon, seqons, extra_str='', debug=False):  # seqons: list of (seq, pos) pairs
@@ -102,6 +104,8 @@ def read_fasta_file(seqs, fname, skip_pseudogenes, aligned=False):
     for seqfo in utils.read_fastx(fname):
         # first get gene name
         if seqfo['name'][:2] != 'IG' and seqfo['name'][:2] != 'TR':  # if it's an imgt file, with a bunch of header info (and the accession number first)
+            if len(seqfo['infostrs']) < len(imgt_info_indices):
+                raise Exception('info str %s is too short (len %d) to correspond to imgt info indices %s (len %d)' % (seqfo['infostrs'], len(seqfo['infostrs']), imgt_info_indices, len(imgt_info_indices)))
             gene = seqfo['infostrs'][imgt_info_indices.index('gene')]
             functionality = seqfo['infostrs'][imgt_info_indices.index('functionality')]
             if functionality not in functionalities:
@@ -258,25 +262,35 @@ def get_new_alignments(glfo, region, debug=False):
 
     return aligned_seqs
 
-# ----------------------------------------------------------------------------------------
-def get_n_gaps_up_to_pos(aligned_seq, pos):
-    # NOTE I think this duplicates the functionality of count_gaps()
-    """ return number of gapped positions in <aligned_seq> before <pos> """
-    ipos = 0  # position in unaligned sequence
-    n_gaps_passed = 0  # number of gapped positions in the aligned sequence that we pass before getting to <pos> (i.e. while ipos < pos)
-    while ipos < pos:
-        if aligned_seq[ipos + n_gaps_passed] in utils.gap_chars:
-            n_gaps_passed += 1
-        else:
-            ipos += 1
-    return n_gaps_passed
 
 # ----------------------------------------------------------------------------------------
-def get_pos_in_alignment(codon, aligned_seq, seq, pos, debug=False):
+def count_gaps(aligned_seq, aligned_pos=None, unaligned_pos=None):
+    """ return number of gap characters up to, but not including a position, either in unaligned or aligned sequence """
+    if aligned_pos is not None:
+        assert unaligned_pos is None
+        aligned_seq = aligned_seq[ : aligned_pos]
+        return sum([aligned_seq.count(gc) for gc in utils.gap_chars])
+    elif unaligned_pos is not None:
+        assert aligned_pos is None
+        ipos = 0  # position in unaligned sequence
+        n_gaps_passed = 0  # number of gapped positions in the aligned sequence that we pass before getting to <unaligned_pos> (i.e. while ipos < unaligned_pos)
+        while ipos < unaligned_pos or (ipos + n_gaps_passed < len(aligned_seq) and aligned_seq[ipos + n_gaps_passed] in utils.gap_chars):  # second bit handles alignments with gaps immediately before <unaligned_pos>
+            if aligned_seq[ipos + n_gaps_passed] in utils.gap_chars:
+                n_gaps_passed += 1
+            else:
+                ipos += 1
+        return n_gaps_passed
+    else:
+        assert False
+
+# ----------------------------------------------------------------------------------------
+def get_pos_in_alignment(codon, aligned_seq, seq, pos, gene):
     """ given <pos> in <seq>, find the codon's position in <aligned_seq> """
-    assert utils.codon_unmutated(codon, seq, pos, debug=debug)  # this only gets called on the gene with the *known* position, so it shouldn't fail
-    pos_in_alignment = pos + get_n_gaps_up_to_pos(aligned_seq, pos)
-    assert utils.codon_unmutated(codon, aligned_seq, pos_in_alignment, debug=debug)
+    if not utils.codon_unmutated(codon, seq, pos):  # this only gets called on the gene with the *known* position, so it shouldn't fail
+        print '  %s mutated %s before alignment in %s' % (utils.color('yellow', 'warning'), codon, gene)
+    pos_in_alignment = pos + count_gaps(aligned_seq, unaligned_pos=pos)
+    if not utils.codon_unmutated(codon, aligned_seq, pos_in_alignment):
+        print '  %s mutated %s after alignment in %s' % (utils.color('yellow', 'warning'), codon, gene)
     return pos_in_alignment
 
 #----------------------------------------------------------------------------------------
@@ -317,7 +331,7 @@ def get_missing_codon_info(glfo, debug=False):
             if known_gene is None:
                 raise Exception('couldn\'t find a known %s position\n    known but not in glfo: %s\n    known but unaligned: %s\n    known but mutated: %s' % (codon, ' '.join(known_but_not_in_glfo), ' '.join(known_but_unaligned), ' '.join(known_but_mutated)))
             # NOTE for cyst, should be 309 if alignments are imgt [which they used to usually be, but now probably aren't] (imgt says 104th codon --> subtract 1 to get zero-indexing, then multiply by three 3 * (104 - 1) = 309
-            known_pos_in_alignment = get_pos_in_alignment(codon, aligned_seqs[known_gene], glfo['seqs'][region][known_gene], known_pos, debug=debug)
+            known_pos_in_alignment = get_pos_in_alignment(codon, aligned_seqs[known_gene], glfo['seqs'][region][known_gene], known_pos, known_gene)
             if debug:
                 print '  using known position %d (aligned %d) from %s' % (known_pos, known_pos_in_alignment, known_gene)
         elif codon == 'cyst':
@@ -330,7 +344,7 @@ def get_missing_codon_info(glfo, debug=False):
         n_added = 0
         seqons = []  # (seq, pos) pairs
         for gene in [known_gene] + list(missing_genes):
-            unaligned_pos = known_pos_in_alignment - utils.count_gaps(aligned_seqs[gene], istop=known_pos_in_alignment)
+            unaligned_pos = known_pos_in_alignment - count_gaps(aligned_seqs[gene], aligned_pos=known_pos_in_alignment)
             seq_to_check = glfo['seqs'][region][gene]
             seqons.append((seq_to_check, unaligned_pos))
             glfo[codon + '-positions'][gene] = unaligned_pos
@@ -366,6 +380,37 @@ def read_extra_info(glfo, gldir):
             for codon in utils.conserved_codons[glfo['locus']].values():
                 if line[codon + '_position'] != '':
                     glfo[codon + '-positions'][line['gene']] = int(line[codon + '_position'])
+
+#----------------------------------------------------------------------------------------
+def print_glfo(glfo):  # NOTE kind of similar to bin/cf-alleles.py
+    for region in utils.regions:
+        print region
+        primary_versions = set([utils.primary_version(g) for g in glfo['seqs'][region]])
+        for pv in sorted(primary_versions):
+            print '  %s' % pv
+            pvseqs = {g : glfo['seqs'][region][g] for g in glfo['seqs'][region] if utils.primary_version(g) == pv}
+            workdir = tempfile.mkdtemp()
+            with tempfile.NamedTemporaryFile() as tmpfile:  # kind of hilarious that i use vsearch here, but mafft up there... oh well it shouldn't matter
+                _ = utils.run_vsearch('cluster', pvseqs, workdir, threshold=0.3, msa_fname=tmpfile.name)  # <threshold> is kind of random, i just set it to something that seems to group all the V genes with the same pv together
+                msa_seqs = utils.read_fastx(tmpfile.name, ftype='fa')
+            msa_info = []
+            for seqfo in msa_seqs:
+                if seqfo['name'][0] == '*':  # start of new cluster (centroid is first, and is marked with a '*')
+                    centroid = seqfo['name'].lstrip('*')
+                    msa_info.append({'centroid' : centroid, 'seqfos' : [{'name' : centroid, 'seq' : seqfo['seq']}]})
+                elif seqfo['name'] == 'consensus':
+                    msa_info[-1]['cons_seq'] = seqfo['seq'].replace('+', '')  # gaaaaah not sure what the +s mean
+                else:
+                    msa_info[-1]['seqfos'].append(seqfo)
+            for clusterfo in msa_info:
+                print '    %s    %3d  %s' % (clusterfo['cons_seq'], utils.non_gap_len(clusterfo['cons_seq']), 'consensus')
+                for seqfo in clusterfo['seqfos']:
+                    emphasis_positions = None
+                    if region in utils.conserved_codons[glfo['locus']]:
+                        aligned_cpos = get_pos_in_alignment(utils.conserved_codons[glfo['locus']][region], seqfo['seq'], pvseqs[seqfo['name']], utils.cdn_pos(glfo, region, seqfo['name']), seqfo['name'])
+                        emphasis_positions = [aligned_cpos + i for i in range(3)]
+                    cons_seq = clusterfo['cons_seq'] + '-' * (len(seqfo['seq']) - len(clusterfo['cons_seq']))  # I don't know why it's sometimes a teensy bit shorter
+                    print '    %s    %3d  %s' % (utils.color_mutants(cons_seq, seqfo['seq'], emphasis_positions=emphasis_positions), utils.non_gap_len(seqfo['seq']), utils.color_gene(seqfo['name']))
 
 #----------------------------------------------------------------------------------------
 def read_glfo(gldir, locus, only_genes=None, skip_pseudogenes=True, debug=False):
@@ -411,18 +456,25 @@ def get_mutfo_from_seq(old_seq, new_seq):
     return mutfo
 
 # ----------------------------------------------------------------------------------------
-def get_mutfo_from_name(gene_name):
+def try_to_get_mutfo_from_name(gene_name):
     allele_list = utils.allele(gene_name).split('+')
     if len(allele_list) != 2:
-        raise Exception('couldn\'t get snp info from gene name %s' % gene_name)
+        print 'couldn\'t get snp info from gene name %s' % gene_name
+        return None
     mutfo = {}
     for mutstr in allele_list[1].split('.'):
         if len(mutstr) < 3:
-            raise Exception('couldn\'t extract mutation info from %s' % mutstr)
+            print 'couldn\'t extract mutation info from \'%s\' in gene %s' % (mutstr, gene_name)
+            return None
         original, new = mutstr[0], mutstr[-1]
         if original not in utils.nukes or new not in utils.nukes:
-            raise Exception('couldn\'t extract mutation info from %s' % mutstr)
-        position = int(mutstr[1:-1])
+            print 'couldn\'t extract mutation info from \'%s\' in gene %s' % (mutstr, gene_name)
+            return None
+        try:
+            position = int(mutstr[1:-1])
+        except ValueError:
+            print 'couldn\'t convert \'%s\' to a position in gene %s' % (mutstr[1:-1], gene_name)
+            return None
         if position not in mutfo:
             mutfo[position] = {}
             mutfo[position]['original'] = original  # if it *is* already there, we want to *keep* the old 'original'
@@ -433,54 +485,65 @@ def get_mutfo_from_name(gene_name):
     return mutfo
 
 # ----------------------------------------------------------------------------------------
-def get_new_allele_name_and_change_mutfo(template_gene, mutfo):  # convert snp info in <mutfo> to the snpd/inferred name (with '+'s and whatnot), accounting for <template_gene> being possibly already snpd/inferred
-    if '+' in utils.allele(template_gene):  # if template gene was itself snpd/inferred, we have to merge the old and new snpd positions
-        old_mutfo = get_mutfo_from_name(template_gene)  # start from the template gene's snpd positions
-        for position, posfo in mutfo.items():  # loop over the new gene's snpd positions
-            if position not in old_mutfo:  # ...adding the new positions that aren't already there
-                old_mutfo[position] = {'original' : posfo['original']}
-            old_mutfo[position]['new'] = posfo['new']
-            if old_mutfo[position]['new'] == old_mutfo[position]['original']:  # the new mutation reverted the position back to the original base
-                del old_mutfo[position]
-        final_mutfo = old_mutfo
-        assert len(template_gene.split('+')) == 2
-        template_gene = template_gene.split('+')[0]  # original template name, before we did any snp'ing
-    else:
-        final_mutfo = mutfo
+def simplify_snpfo(template_gene, mutfo):
+    """ convert snp info in <mutfo> to the snpd/inferred name (with '+'s and whatnot), accounting for <template_gene> being possibly already snpd/inferred """
+    old_mutfo = try_to_get_mutfo_from_name(template_gene)  # start from the template gene's snpd positions
+    if old_mutfo is None:
+        return None
 
-    final_name = template_gene
-    if len(final_mutfo) > 0:
-        assert '+' not in final_name
-        final_name += '+' + stringify_mutfo(final_mutfo)  # full, but possibly overly verbose
-    return final_name, final_mutfo
+    for position, posfo in mutfo.items():  # loop over the new gene's snpd positions
+        if position not in old_mutfo:  # ...adding the new positions that aren't already there
+            old_mutfo[position] = {'original' : posfo['original']}
+        old_mutfo[position]['new'] = posfo['new']
+        if old_mutfo[position]['new'] == old_mutfo[position]['original']:  # the new mutation reverted the position back to the original base
+            del old_mutfo[position]
+    final_mutfo = old_mutfo  # <old_mutfo> is modified at this point, so I should really call it something else here
+    return final_mutfo
 
 # ----------------------------------------------------------------------------------------
-def generate_snpd_gene(gene, cpos, seq, positions):
-    assert utils.get_region(gene) == 'v'  # others not yet handled
-    def choose_position():
-        snp_pos = None
-        while snp_pos is None or snp_pos in snpd_positions or not utils.codon_unmutated('cyst', tmpseq, cpos):
-            snp_pos = random.randint(0, cpos - 1)  # len(seq) - 1)  # note that randint() is inclusive
-            tmpseq = seq[: snp_pos] + 'X' + seq[snp_pos + 1 :]  # for checking cyst position
-        return snp_pos
+def generate_single_new_allele(template_gene, template_cpos, template_seq, snp_positions, indel_positions):
+    assert utils.get_region(template_gene) == 'v'  # others not yet handled
+    mean_indel_length = 3  # I really can't think of a reason that the indel lengths are all that important, so it's staying hard-coded here for now (could of course use the mean shm indel length from recombinator, but that's confusig since we're not modeling shm here)
+    already_snpd_positions = set()  # only used if a position wasn't specified (i.e. was None) in <snps_to_add> (also not used for indels, which probably makes sense)
 
-    snpd_positions = set()  # only used if a position wasn't specified (i.e. was None) in <snps_to_add>
-    mutfo = OrderedDict()
-    for snp_pos in positions:
+    def choose_position(seq, cpos):  # some bits of this aren't really relevant for indels, but whatever, it's fine
+        chosen_pos = None
+        while chosen_pos is None or chosen_pos in already_snpd_positions or not utils.codon_unmutated('cyst', tmpseq, cpos):
+            chosen_pos = random.randint(0, cpos - 1)  # len(seq) - 1)  # note that randint() is inclusive
+            tmpseq = seq[: chosen_pos] + 'X' + seq[chosen_pos + 1 :]  # only used for checking cyst position
+        return chosen_pos
+
+    new_cpos = template_cpos
+    new_seq = template_seq
+
+    # first do indels (it's kind of arbitrary to do indels before snps, but it'd be pretty common for a deletion to annihilate a snp, and doing indels first avoids that (at the "cost" of making the snp positions more obtuse))
+    indelfo = indelutils.get_empty_indel()
+    codon_positions = {'v' : new_cpos}  # do *not* use <new_cpos> itself from this point until it's re-set after the loop
+    for indel_pos in indel_positions:
+        if indel_pos is None:
+            indel_pos = choose_position(new_seq, codon_positions['v'])
+        new_seq = indelutils.add_single_indel(new_seq, indelfo, mean_indel_length, codon_positions, pos=indel_pos, keep_in_frame=True, debug=True)  # NOTE modifies <indelfo> and <codon_positions>
+    new_cpos = codon_positions['v']  # ick
+
+    # then do snps
+    snpfo = OrderedDict()  # this is only really used for figuring out the final name
+    for snp_pos in snp_positions:
         if snp_pos is None:
-            snp_pos = choose_position()
-        snpd_positions.add(snp_pos)
+            snp_pos = choose_position(new_seq, new_cpos)
+        already_snpd_positions.add(snp_pos)
         new_base = None
-        while new_base is None or new_base == seq[snp_pos]:
+        while new_base is None or new_base == new_seq[snp_pos]:
             new_base = utils.nukes[random.randint(0, len(utils.nukes) - 1)]
-        print '        %3d   %s --> %s' % (snp_pos, seq[snp_pos], new_base)
-        mutfo[snp_pos] = {'original' : seq[snp_pos], 'new' : new_base}
+        print '        %3d   %s --> %s' % (snp_pos, new_seq[snp_pos], new_base)
+        snpfo[snp_pos] = {'original' : new_seq[snp_pos], 'new' : new_base}
 
-        seq = seq[: snp_pos] + new_base + seq[snp_pos + 1 :]
+        new_seq = new_seq[: snp_pos] + new_base + new_seq[snp_pos + 1 :]
 
-    assert utils.codon_unmutated('cyst', seq, cpos, debug=True)  # this is probably unnecessary
-    snpd_name, mutfo = get_new_allele_name_and_change_mutfo(gene, mutfo)
-    return {'template-gene' : gene, 'gene' : snpd_name, 'seq' : seq}
+    assert utils.codon_unmutated('cyst', new_seq, new_cpos, debug=True)  # this is probably unnecessary
+
+    new_name, snpfo = choose_new_allele_name(template_gene, new_seq, snpfo=snpfo, indelfo=indelfo)  # shouldn't actually change <snpfo>
+
+    return {'template-gene' : template_gene, 'gene' : new_name, 'seq' : new_seq, 'cpos' : new_cpos}
 
 # ----------------------------------------------------------------------------------------
 def restrict_to_genes(glfo, only_genes, debug=False):
@@ -506,13 +569,18 @@ def restrict_to_genes(glfo, only_genes, debug=False):
 # ----------------------------------------------------------------------------------------
 def remove_v_genes_with_bad_cysteines(glfo, debug=False):
     prelength = len(glfo['seqs']['v'])
+    n_mutated, n_out_of_frame = 0, 0
     for gene in glfo['seqs']['v'].keys():  # have to use a copy of the keys, since we modify the dict in the loop
         mutated = not utils.codon_unmutated('cyst', glfo['seqs']['v'][gene], glfo['cyst-positions'][gene])
         in_frame = utils.in_frame_germline_v(glfo['seqs']['v'][gene], glfo['cyst-positions'][gene])
+        if mutated:
+            n_mutated += 1
+        if not in_frame:
+            n_out_of_frame += 1
         if mutated or not in_frame:
             remove_gene(glfo, gene, debug=debug)
     if True:  # debug:
-        print '  removed %d / %d v genes with bad cysteines' % (prelength - len(glfo['seqs']['v']), len(glfo['seqs']['v']))
+        print '  removed %d / %d v genes with bad cysteines (%d mutated, %d out of frame)' % (prelength - len(glfo['seqs']['v']), len(glfo['seqs']['v']), n_mutated, n_out_of_frame)
 
 # ----------------------------------------------------------------------------------------
 def remove_genes(glfo, genes, debug=False):
@@ -537,39 +605,74 @@ def remove_gene(glfo, gene, debug=False):
             print '  can\'t remove %s from glfo, it\'s not there' % utils.color_gene(gene)
 
 # ----------------------------------------------------------------------------------------
-def add_new_alleles(glfo, newfos, remove_template_genes=False, debug=False):
+def add_new_alleles(glfo, newfos, remove_template_genes=False, use_template_for_codon_info=True, simglfo=None, debug=False):
     for newfo in newfos:
-        add_new_allele(glfo, newfo, remove_template_genes=remove_template_genes, debug=debug)
+        add_new_allele(glfo, newfo, remove_template_genes=remove_template_genes, use_template_for_codon_info=use_template_for_codon_info, simglfo=simglfo, debug=debug)
 
 # ----------------------------------------------------------------------------------------
-def add_new_allele(glfo, newfo, remove_template_genes=False, debug=False):
+def add_new_allele(glfo, newfo, remove_template_genes=False, use_template_for_codon_info=True, simglfo=None, debug=False):
     """
     Add a new allele to <glfo>, specified by <newfo> which is of the
     form: {'gene' : 'IGHV3-71*01+C35T.T47G', 'seq' : 'ACTG yadda yadda CGGGT', 'template-gene' : 'IGHV3-71*01'}
     If <remove_template_genes>, we also remove 'template-gene' from <glfo>.
     """
+    region = utils.get_region(newfo['gene'])
 
-    template_gene = newfo['template-gene']
-    region = utils.get_region(template_gene)
-    if template_gene not in glfo['seqs'][region]:
-        raise Exception('unknown template gene %s' % template_gene)
+    if len(set(newfo['seq']) - utils.alphabet) > 0:
+        raise Exception('unexpected characters %s in new gl seq %s' % (set(newfo['seq']) - utils.alphabet, newfo['seq']))
+    if newfo['gene'] in glfo['seqs'][region]:
+        raise Exception('attempted to add name %s that already exists in glfo' % newfo['gene'])
+    if newfo['seq'] in glfo['seqs'][region].values():
+        raise Exception('attempted to add sequence %s that\'s already in glfo' % newfo['seq'])
 
-    new_gene = newfo['gene']
+    glfo['seqs'][region][newfo['gene']] = newfo['seq']
 
-    if region == 'v':
-        glfo['cyst-positions'][new_gene] = glfo['cyst-positions'][template_gene]
-    elif region == 'j':
-        glfo['tryp-positions'][new_gene] = glfo['tryp-positions'][template_gene]
-
-    glfo['seqs'][region][new_gene] = newfo['seq']
+    if region in utils.conserved_codons[glfo['locus']]:
+        codon = utils.conserved_codons[glfo['locus']][region]
+        if use_template_for_codon_info:
+            if 'template-gene' not in newfo:
+                raise Exception('no template gene specified in newfo')
+            if newfo['template-gene'] not in glfo[codon + '-positions']:
+                raise Exception('template gene %s not found in codon info' % newfo['template-gene'])
+            glfo[codon + '-positions'][newfo['gene']] = glfo[codon + '-positions'][newfo['template-gene']]
+        elif 'cpos' in newfo:  # if it's generated with indels from a known gene, then we store the cpos
+            glfo[codon + '-positions'][newfo['gene']] = newfo['cpos']
+        else:
+            get_missing_codon_info(glfo)
 
     if debug:
-        print '    adding new allele to glfo:'
-        print '      template %s   %s' % (glfo['seqs'][region][template_gene], utils.color_gene(template_gene))
-        print '           new %s   %s' % (utils.color_mutants(glfo['seqs'][region][template_gene], newfo['seq']), utils.color_gene(new_gene))
+        simstr = ''
+        if simglfo is not None:
+            if newfo['gene'] in simglfo['seqs'][region]:  # exact name is in simglfo
+                simstr = 'same name'
+                if newfo['seq'] == simglfo['seqs'][region][newfo['gene']]:  # I mean if they have the same name they should be identical, but maybe not?
+                    simstr += ' and seq'
+                    simstr = utils.color('green', simstr)
+                else:
+                    simstr += utils.color('red', ' different seq')
+                simstr += ' as in simulation'
+            else:  # see if an equivalent gene is in simglfo
+                sim_name, sim_seq = find_equivalent_gene_in_glfo(simglfo, newfo['seq'], glfo[codon + '-positions'][newfo['gene']], new_name=newfo['gene'], glfo_str='sim glfo', debug=True)
+                if sim_name is not None:
+                    if sim_seq == newfo['seq']:
+                        simstr = 'same sequence found in simulation, but with name %s' % utils.color_gene(sim_name)
+                    else:
+                        simstr = 'equivalent sequence (%s) found in simulation' % utils.color_gene(sim_name)
+                else:
+                    simstr = 'doesn\'t seem to correspond to any simulation genes'
+            simstr = '(' + simstr + ')'
+        print '    adding new allele to glfo: %s' % simstr
+        if 'template-gene' in newfo:
+            aligned_new_seq, aligned_template_seq = utils.color_mutants(glfo['seqs'][region][newfo['template-gene']], newfo['seq'], align=True, return_ref=True)
+            print '      template %s   %s' % (aligned_template_seq, utils.color_gene(newfo['template-gene']))
+            print '           new %s   %s' % (aligned_new_seq, utils.color_gene(newfo['gene']))
+        else:
+            print '               %s   %s (no template)' % (newfo['seq'], utils.color_gene(newfo['gene']))
 
     if remove_template_genes:
-        remove_gene(glfo, template_gene, debug=True)
+        if 'template-gene' not in newfo:
+            raise Exception('no template gene specified in newfo')
+        remove_gene(glfo, newfo['template-gene'], debug=True)
 
 # ----------------------------------------------------------------------------------------
 def remove_the_stupid_godamn_template_genes_all_at_once(glfo, templates_to_remove):
@@ -577,42 +680,46 @@ def remove_the_stupid_godamn_template_genes_all_at_once(glfo, templates_to_remov
         remove_gene(glfo, gene, debug=True)
 
 # ----------------------------------------------------------------------------------------
-def add_some_snps(snps_to_add, glfo, remove_template_genes=False, debug=False):
+def generate_new_alleles(glfo, new_allele_info, remove_template_genes=False, debug=False):
     """
     Generate some snp'd genes and add them to glfo, specified with <snps_to_add>.
     e.g. [{'gene' : 'IGHV3-71*01', 'positions' : (35, None)}, ] will add a snp at position 35 and at a random location.
     The resulting snp'd gene will have a name like IGHV3-71*01+C35T.T47G
     """
+    templates_to_remove = set()  # NOTE they're not removed if you don't actually add a new gene
 
-    templates_to_remove = set()
+    added_names = []
+    for genefo in new_allele_info:
+        if len(genefo['snp-positions']) == 0 and len(genefo['indel-positions']) == 0:
+            continue
+        template_gene = genefo['gene']
 
-    added_snp_names = []
-    for isnp in range(len(snps_to_add)):
-        snpinfo = snps_to_add[isnp]
-        gene, positions = snpinfo['gene'], snpinfo['positions']
-        print '    adding %d snp%s to %s' % (len(positions), utils.plural(len(positions)), utils.color_gene(gene))
-        seq = glfo['seqs'][utils.get_region(gene)][gene]
-        assert utils.get_region(gene) == 'v'
-        cpos = glfo['cyst-positions'][gene]
+        print '    generating new allele from %s: ' % utils.color_gene(template_gene),
+        for mtype in ['snp', 'indel']:
+            if len(genefo[mtype + '-positions']) > 0:
+                print '%d %s%s' % (len(genefo[mtype + '-positions']), mtype, utils.plural(len(genefo[mtype + '-positions']))),
+        print ''
 
-        snpfo = None
+        assert utils.get_region(template_gene) == 'v'
+
+        newfo = None
         itry = 0
-        while snpfo is None or snpfo['gene'] in glfo['seqs'][utils.get_region(gene)]:
+        while newfo is None or newfo['gene'] in glfo['seqs'][utils.get_region(template_gene)]:
             if itry > 0:
                 print '      already in glfo, try again'
                 if itry > 99:
                     raise Exception('too many tries while trying to generate new snps -- did you specify a lot of snps on the same position?')
-            snpfo = generate_snpd_gene(gene, cpos, seq, positions)
+            newfo = generate_single_new_allele(template_gene, glfo['cyst-positions'][template_gene], glfo['seqs'][utils.get_region(template_gene)][template_gene], genefo['snp-positions'], genefo['indel-positions'])
             itry += 1
 
         if remove_template_genes:
-            templates_to_remove.add(gene)
-        add_new_allele(glfo, snpfo, remove_template_genes=False, debug=debug)  # *don't* remove the templates here, since we don't know if there's another snp later that needs them
-        added_snp_names.append(snpfo['gene'])
+            templates_to_remove.add(template_gene)
+        add_new_allele(glfo, newfo, remove_template_genes=False, use_template_for_codon_info=False, debug=debug)  # *don't* remove the templates here, since we don't know if there's another snp later that needs them
+        added_names.append(newfo['gene'])
 
     remove_the_stupid_godamn_template_genes_all_at_once(glfo, templates_to_remove)  # works fine with zero-length <templates_to_remove>
 
-    return added_snp_names  # need the order of the names so we can get allele prevalence freqs from the command line right
+    return added_names  # need the order of the names so we can get allele prevalence freqs from the command line right
 
 # ----------------------------------------------------------------------------------------
 def write_glfo(output_dir, glfo, only_genes=None, debug=False):
@@ -649,7 +756,7 @@ def write_glfo(output_dir, glfo, only_genes=None, debug=False):
 def remove_glfo_files(gldir, locus):
     locusdir = gldir + '/' + locus
     if not os.path.exists(locusdir):
-        print '    %s tried to remove nonexistent glfo dir %s' % (utils.color('yellow', 'warning'), locusdir)
+        # print '    %s tried to remove nonexistent glfo dir %s' % (utils.color('yellow', 'warning'), locusdir)  # this seems to only happen when something crashed in the middle, i.e. this code is old/mature enough I'm commenting the check
         return
     if os.path.islink(locusdir):  # linked to original, for backwards compatibility (see read_glfo())
         print '    note: removing link new germline dir name %s' % locusdir
@@ -747,7 +854,7 @@ def process_parameter_strings(n_genes_per_region, n_alleles_per_gene):
     return n_genes_per_region, n_alleles_per_gene
 
 # ----------------------------------------------------------------------------------------
-def generate_germline_set(glfo, n_genes_per_region, n_alleles_per_gene, min_allele_prevalence_freq, allele_prevalence_fname, snp_positions=None, remove_template_genes=False, debug=True):
+def generate_germline_set(glfo, n_genes_per_region, n_alleles_per_gene, min_allele_prevalence_freq, allele_prevalence_fname, new_allele_info=None, remove_template_genes=False, debug=True):
     """ NOTE removes genes from  <glfo> """
     if debug:
         print '    choosing germline set'
@@ -764,11 +871,12 @@ def generate_germline_set(glfo, n_genes_per_region, n_alleles_per_gene, min_alle
             print '      chose %d alleles' % len(genes_to_use)
         remove_genes(glfo, set(glfo['seqs'][region].keys()) - genes_to_use)  # NOTE would use glutils.restrict_to_genes() but it isn't on a regional basis
 
-        if region == 'v' and snp_positions is not None:
-            assert len(snp_positions) <= len(glfo['seqs'][region])
-            snpd_genes = numpy.random.choice(glfo['seqs'][region].keys(), size=len(snp_positions))
-            snps_to_add = [{'gene' : snpd_genes[ig], 'positions' : snp_positions[ig]} for ig in range(len(snp_positions))]
-            _ = add_some_snps(snps_to_add, glfo, debug=True, remove_template_genes=remove_template_genes)
+        if region == 'v' and new_allele_info is not None:
+            assert len(new_allele_info) <= len(glfo['seqs'][region])
+            template_genes = numpy.random.choice(glfo['seqs'][region].keys(), size=len(new_allele_info))  # (template) genes in <new_allele_info> should all be None
+            for ig in range(len(new_allele_info)):
+                new_allele_info[ig]['gene'] = template_genes[ig]
+            _ = generate_new_alleles(glfo, new_allele_info, debug=True, remove_template_genes=remove_template_genes)
 
         choose_allele_prevalence_freqs(glfo, allele_prevalence_freqs, region, min_allele_prevalence_freq, debug=debug)
     write_allele_prevalence_freqs(allele_prevalence_freqs, allele_prevalence_fname)  # NOTE lumps all the regions together, unlike in the parameter dirs
@@ -793,3 +901,78 @@ def check_allele_prevalence_freqs(outfname, glfo, allele_prevalence_fname, only_
         for gene in glfo['seqs'][region]:
             print ('          %' + width + 'd     %.3f    %.3f   %s') % (counts[region][gene], float(counts[region][gene]) / total, allele_prevalence_freqs[region][gene], utils.color_gene(gene, width=15))
 
+# ----------------------------------------------------------------------------------------
+def choose_new_allele_name(template_gene, new_seq, snpfo=None, indelfo=None):  # may modify <snpfo>, if it's passed
+    new_name = template_gene
+
+    if snpfo is not None:
+        if '+' in utils.allele(template_gene) and len(template_gene.split('+')) == 2:  # if template was snpd we need to fix up <snpfo>
+            simplified_snpfo = simplify_snpfo(template_gene, snpfo)  # returns None if it failed to parse mutation info in template name
+            if simplified_snpfo is not None:
+                new_name = template_gene.split('+')[0]  # original template name, before we did any snp'ing
+                snpfo = simplified_snpfo
+        if len(snpfo) > 0:
+            new_name += '+' + stringify_mutfo(snpfo)
+
+    if snpfo is None or len(snpfo) > 5 or (indelfo is not None and len(indelfo['indels']) > 0):
+        new_name = template_gene + '+' + str(abs(hash(new_seq)))[:5]
+
+    return new_name, snpfo
+
+# ----------------------------------------------------------------------------------------
+def find_equivalent_gene_in_glfo(glfo, new_seq, new_cpos, new_name=None, exclusion_5p=0, exclusion_3p=3, glfo_str='glfo', debug=False):
+    # if <new_seq> likely corresponds to an allele that's already in <glfo>, return that name and its sequence, otherwise return (None, None).
+    # NOTE that the calling code, in general, is determining whether we want this sequence in the calling code's glfo.
+    # Here, we're trying to find any existing names in <glfo>, which is typically a different glfo (it's usually either default_inititial, or it's simulation)
+    region = 'v'  # conserved codon stuff below will have to be changed for j
+
+    if new_name is not None and new_name in glfo['seqs'][region]:
+        raise Exception('you have to check for new name in glfo before calling this (%s)' % utils.color_gene(new_name))
+
+    # first see if the exact sequence is in there
+    if new_seq in glfo['seqs'][region].values():
+        names_for_this_seq = [g for g in glfo['seqs'][region] if glfo['seqs'][region][g] == new_seq]
+        assert len(names_for_this_seq) == 1  # this should have already been verified in glutils
+        new_name = names_for_this_seq[0]
+        if debug:
+            print '        exact sequence in %s under name %s' % (glfo_str, utils.color_gene(new_name))
+        return new_name, new_seq
+
+    # then check for sequences that match (roughly) up to the cysteiene
+    for oldname_gene, oldname_seq in glfo['seqs'][region].items():  # NOTE <oldname_{gene,seq}> is the old *name* corresponding to the new (snp'd) allele, whereas <old_seq> is the allele from which we inferred the new (snp'd) allele
+        # first see if they match up through the cysteine
+        oldpos = utils.cdn_pos(glfo, region, oldname_gene)
+        if oldpos != new_cpos or oldname_seq[exclusion_5p : oldpos + 3] != new_seq[exclusion_5p : new_cpos + 3]:
+            continue
+
+        # then require that any bases in common to the right of the cysteine in the new allele match the ones in the old one (where "in common" means either of them can be longer, since this just changes the insertion length)
+        bases_to_right_of_cysteine = min(len(oldname_seq) - (oldpos + 3), len(new_seq) - exclusion_3p - (new_cpos + 3))
+
+        if bases_to_right_of_cysteine > 0 and oldname_seq[oldpos + 3 : oldpos + 3 + bases_to_right_of_cysteine] != new_seq[new_cpos + 3 : new_cpos + 3 + bases_to_right_of_cysteine]:
+            continue
+
+        if debug:
+            def print_sequence_chunks(seq, cpos, colored_name, pad=0):
+                print '            %s%s%s%s%s%s   %s' % (utils.color('blue', seq[:exclusion_5p]), seq[exclusion_5p : cpos], utils.color('reverse_video', seq[cpos : cpos + 3]), seq[cpos + 3 : cpos + 3 + bases_to_right_of_cysteine], utils.color('blue', seq[cpos + 3 + bases_to_right_of_cysteine:]), ' ' * pad, colored_name)
+            print '        equivalent gene %s in %s for %s (blue bases are not considered):' % (utils.color_gene(oldname_gene), glfo_str, ' ' if new_name is None else utils.color_gene(new_name))
+            print_sequence_chunks(new_seq, new_cpos, 'new' if new_name is None else utils.color_gene(new_name), pad=max(0, len(oldname_seq) - len(new_seq)))
+            print_sequence_chunks(oldname_seq, oldpos, utils.color_gene(oldname_gene), pad=max(0, len(new_seq) - len(oldname_seq)))
+
+        return oldname_gene, oldname_seq  # it might make more sense to keep looking for a better match, rather than just taking the first one
+
+    return None, None
+
+# ----------------------------------------------------------------------------------------
+def synchronize_glfos(ref_glfo, new_glfo, region, debug=False):
+    debug = True
+    assert region == 'v'  # cysteine stuff would need to be generalized
+    for new_name, new_seq in new_glfo['seqs'][region].items():
+        if new_name in ref_glfo['seqs'][region]:
+            continue
+        equiv_name, equiv_seq = find_equivalent_gene_in_glfo(ref_glfo, new_seq, utils.cdn_pos(new_glfo, region, new_name), new_name=new_name, debug=True)
+        if equiv_name is not None:
+            print '      %s --> %s' % (utils.color_gene(new_name), utils.color_gene(equiv_name))
+            remove_gene(new_glfo, new_name)
+            add_new_allele(new_glfo, {'gene' : equiv_name, 'seq' : equiv_seq, 'cpos' : utils.cdn_pos(ref_glfo, region, equiv_name)}, use_template_for_codon_info=False)
+
+    return new_glfo

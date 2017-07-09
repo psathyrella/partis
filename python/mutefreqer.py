@@ -1,3 +1,5 @@
+import sys
+import multiprocessing
 import csv
 import os
 
@@ -74,10 +76,10 @@ class MuteFreqer(object):
         import fraction_uncertainty
         if self.calculate_uncertainty:  # it's kinda slow
             errs = fraction_uncertainty.err(obs, total)
-            if errs[2]:
-                self.n_cached += 1
-            else:
-                self.n_not_cached += 1
+            # if errs[2]:
+            #     self.n_cached += 1
+            # else:
+            #     self.n_not_cached += 1
         else:
             errs = 0., 1.
 
@@ -144,8 +146,7 @@ class MuteFreqer(object):
             xline = None
             figsize = [7, 4]
             if utils.get_region(gene) in utils.conserved_codons[self.glfo['locus']]:
-                codon = utils.conserved_codons[self.glfo['locus']][utils.get_region(gene)]
-                xline = self.glfo[codon + '-positions'][gene]
+                xline = utils.cdn_pos(self.glfo, utils.get_region(gene), gene)
             if utils.get_region(gene) == 'v':
                 figsize[0] *= 3.5
             elif utils.get_region(gene) == 'j':
@@ -170,28 +171,31 @@ class MuteFreqer(object):
                 plotting.make_html(plotdir + '/' + substr)
 
     # ----------------------------------------------------------------------------------------
+    def write_single_gene(self, gene, outfname):
+        gcounts, freqs = self.counts[gene], self.freqs[gene]
+        with open(outfname, 'w') as outfile:
+            nuke_header = [n + xtra for n in utils.nukes for xtra in ('', '_obs', '_lo_err', '_hi_err')]
+            writer = csv.DictWriter(outfile, ('position', 'mute_freq', 'lo_err', 'hi_err') + tuple(nuke_header))
+            writer.writeheader()
+            for position in sorted(gcounts.keys()):
+                row = {'position':position,
+                       'mute_freq':freqs[position]['freq'],
+                       'lo_err':freqs[position]['freq_lo_err'],
+                       'hi_err':freqs[position]['freq_hi_err']}
+                for nuke in utils.nukes:
+                    row[nuke] = freqs[position][nuke]
+                    row[nuke + '_obs'] = gcounts[position][nuke]
+                    row[nuke + '_lo_err'] = freqs[position][nuke + '_lo_err']
+                    row[nuke + '_hi_err'] = freqs[position][nuke + '_hi_err']
+                writer.writerow(row)
+
+    # ----------------------------------------------------------------------------------------
     def write(self, outdir, mean_freq_outfname):
         if not self.finalized:
             self.finalize()
 
-        for gene in self.counts:
-            gcounts, freqs = self.counts[gene], self.freqs[gene]
-            outfname = outdir + '/' + utils.sanitize_name(gene) + '.csv'
-            with open(outfname, 'w') as outfile:
-                nuke_header = [n + xtra for n in utils.nukes for xtra in ('', '_obs', '_lo_err', '_hi_err')]
-                writer = csv.DictWriter(outfile, ('position', 'mute_freq', 'lo_err', 'hi_err') + tuple(nuke_header))
-                writer.writeheader()
-                for position in sorted(gcounts.keys()):
-                    row = {'position':position,
-                           'mute_freq':freqs[position]['freq'],
-                           'lo_err':freqs[position]['freq_lo_err'],
-                           'hi_err':freqs[position]['freq_hi_err']}
-                    for nuke in utils.nukes:
-                        row[nuke] = freqs[position][nuke]
-                        row[nuke + '_obs'] = gcounts[position][nuke]
-                        row[nuke + '_lo_err'] = freqs[position][nuke + '_lo_err']
-                        row[nuke + '_hi_err'] = freqs[position][nuke + '_hi_err']
-                    writer.writerow(row)
+        for gene in self.counts:  # don't bother parallelizing this, all the time is spent finalizing
+            self.write_single_gene(gene, outdir + '/' + utils.sanitize_name(gene) + '.csv')
 
         assert 'REGION' in mean_freq_outfname
         self.mean_rates['all'].write(mean_freq_outfname.replace('REGION', 'all'))  # hackey hackey hackey replacement... *sigh*

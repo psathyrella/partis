@@ -1,68 +1,66 @@
 # now
+Heavy chains and light chains:
+QA255.006 (very low confidence, I think)
+QA255.016
+QA255.067
+QA255.072
+QA255.105
 
-# add scheepers data (well, and others)
-# add new chaim data (igg + igm)
-#
-# plots
-#  - add nsnps up to at least 6
-#  - add multi-nsnps with more simultaneous alleles and more shared snps
-#  - remove n-leaves 25
-# add a local tmp dir to recombinator
-# handle naming ambiguity (i.e. which gene do we count the snps from
-# fix allele name decider to more strongly prefer non-snpd genes (well, make sure it hasn't messed anything up yet)
-# new-allele name arbitration needs to happen when plotting (e.g. count as correct alleles that only differ after the cpos)
-# check allele names coming in from tigger (make sure we know about all the alleles)
-# cf the two different imgt gl sets
-# go through and remove the 'D' from all alleles
+Light chains only:
+QA255.157
+QA255.253
 
-# fix /fh/fast/matsen_e/kdavidse/partis_prob/SRR1383455_collapse-unique_atleast-2_partitioning.log
-# carefully go through all gls-gen logs
+# paper
+#  - tigger
+#  - igdiscover
+#  - data
+#   - scheepers
+#   - new chaim data (igg + igm)
+#   - abvitro/kristian data https://peerj.com/articles/2924/?utm_source=TrendMD&utm_campaign=PeerJ_TrendMD_0&utm_medium=TrendMD
+#   - simulate with mouse, start from human for inference (and run on mouse data starting from human)
+#  - plots
+#    - add nsnps up to at least 6
+#    - add multi-nsnps with more simultaneous alleles and more shared snps
+#  - light chain allele finding: need to account for larger amount of v to right of cysteine?
 
-# maybe use different allele removal numbers for small samples, once you have a good prior for how many alleles/genes samples have
+# figure out how to get vsearch to be more permissive with shitty matches to reduce the number of failed queries
 
-# gls-gen should use same classes as alleleremover (UPDATE ick, this is kind of hard, since the structure of the allelic groups is intertwined with choosing from them)
-# add sstat memory checks to utils.finish_process() (or maybe while you're waiting for them to finish?)
-
-# need to redo n procs in compareutils now that everything's so much faster
-#  - and maybe just don't use slurm at all if I can't get cores fast enough
-# making trees for gl genes: http://etetoolkit.org/docs/latest/tutorial/tutorial_clustering.html
-#   erick's trees are in /home/matsengrp/working/matsen/germline-align
-# use sstat to start aborting if jobs take a ton of memory
-
-# figure out messed-up new alleles in chaim donor 45 h95
-#  - probably need to add a step that removes new alleles for which final (i.e. hopefully hmm) prevalence isn't consistent with prevalence from plots (wait, but this might be hard, since the plots use clonal representatives)
-#  - maybe time to add j gene thing (but wait, wouldn't that just the same thing as the clonal collapse?)
-# re-run all the data samples, and decide which one(s) to move into data/recombinator/scratch-parameters
-# get auto-n-procs working in run.py (or partis?) [NOTE look at bottom of compareutils.py for ideas]
-# add cdr3 length to standard plots
-
-# - partition plots
-#   - make sure partition distance plots are wrapping overflows
-#   - don't make within-vs-between plots unless there's at least a few clusters for that cdr3 length
-#   - add mutation rate within each cluster to partition plots
-
-#  - add ape, geiger, and laser to dockerfile r install line
-
-#  - improve default n-partitions-to-write (I think just switch back to preserving previous partitions from different n_procs)
-
+# less urgent
+#  - split isnp stuff out of color_mutants and combine with hamming_distance
+#  - shouldn't the indel-adders be modifying event.codon_positions?
 #  - allow indels in both V and J at the same time (?)
+# alcluster
+#  - make sure J length is reasonable before using n mutations (i.e., use freq instead of n)
+#  - maybe forbid alclusterer to add few-snp alleles
+#  - synchronize "gene we just added" and "existing gene" distance/n_snp requirements
+# alfinder
+#  - move is_a_candidate() stuff into fit_[xxx]()
 
-
-# speed up cp calls in partitiondriver -- I think all the procs can really be reading from one file, although it might involve a little coding
-
-#  - automate n-procs, at least for viterbi/parameter caching
+# optimizations/cleanup (more below)
+#  - add a local tmp dir to recombinator
+#  - streamline (and minimize -- e.g. remove any of the ones in waterer that you can) add_implicit_info() calls
+#    - hamming_distance() is especialy slow
+#    - when what you're really doing is checking internal <line> consistency -- maybe just check consistency instead of recaluclating everything
+#    - don't recalculate the keys that require that call if they're already in the <line>)
+#  - switch all color_mutants() calls to new different-length-handler/aligner
+#  - fix /fh/fast/matsen_e/kdavidse/partis_prob/SRR1383455_collapse-unique_atleast-2_partitioning.log
+#  - instead of rerunning sw when you add or remove an allele, write something in waterer to switch the v_gene for a <line>
+#  - add sstat memory checks to utils.finish_process() (or maybe while you're waiting for them to finish?)
+#  - add ape, geiger, and laser to dockerfile r install line
+#  - automate n-procs
 #    - improve n_precache_proc calculator (expecially for large samples)
 #    - auto-set clustering step procs (at least when seed partitioning, since you don't know before you remove other cdr3 lengths how many you'll have)
+#    - need to redo n procs in compareutils now that everything's so much faster
+#    - get auto-n-procs working in run.py (or partis?) [NOTE look at bottom of compareutils.py for ideas]
+#  - improve default n-partitions-to-write (I think just switch back to preserving previous partitions from different n_procs)
+#  - check whether translation needs to have a lower fractional bound, i.e. don't let the translation be too much smaller than the actual cluster (c.f. kate-qrs data -- what's happening translation-wise when really big clusters are getting merged)
+#  - stop passing ambiguous char to ham both in the yaml and on the command line
+#  - could speed up sw a lot by first using vsearch info to use only a few v genes for each sequence
 
-#  - why so many left side exclusions in laura data
-#    - more generally, wtf is really going on with both left and right exclusions -- are they all how I want them to be?
+# testing
+#  - add allele finding
 
-# check whether translation needs to have a lower fractional bound, i.e. don't let the translation be too much smaller than the actual cluster (c.f. kate-qrs data -- what's happening translation-wise when really big clusters are getting merged)
-# add between vs within cluster hamming distance plots
-# stop passing ambiguous char to ham both in the yaml and on the command line
-#  - within vs between plots for each cdr3 length
-
-
+# ----------------------------------------------------------------------------------------
 # fix ham scons test
 # fix waterer debug fails-to-rerun so they all print uid (or just one of them? in any case clean it up)
 # is best-minus-x stuff still working? (I'm almost certain not -- I'm only calculating the partition log prob the last time through, so all the other times I can't rewind at all. I need to check that this isn't leading to too much over-mergin)
@@ -153,3 +151,4 @@
 # d gene finding
   # corey data
   # andrew data/ideas
+ 

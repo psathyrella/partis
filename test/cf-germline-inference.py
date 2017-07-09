@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import copy
 import numpy
 from collections import OrderedDict
 import os
@@ -6,6 +7,7 @@ import random
 import argparse
 import sys
 import subprocess
+import colored_traceback.always
 sys.path.insert(1, './python')
 
 import utils
@@ -74,6 +76,8 @@ legend_titles = {
 def varvalstr(name, val):
     if name == 'multi-nsnp':
         valstr = ':'.join([str(v) for v in val])
+    elif name == 'alcluster':
+        valstr = '-'.join(['n%s-%s' % (k, v) for k, v in val.items()])
     elif name == 'gls-gen':
         valstr = 'simu'
     else:
@@ -102,6 +106,8 @@ def legend_str(args, val):
         lstr = '%.1f' % val
     elif args.action == 'weibull':
         lstr = '%.1f' % val
+    elif args.action == 'alcluster':
+        lstr = 'er...'
     else:
         assert False
     return lstr
@@ -121,6 +127,7 @@ def get_outdir(args, baseoutdir, varname, varval, n_events=None):
 def get_single_performance(outdir, method, debug=False):
     sglfo = glutils.read_glfo(outdir + '/germlines/simulation', locus=sim_locus)
     iglfo = glutils.read_glfo(outdir + '/' + method + '/sw/germline-sets', locus=sim_locus)
+    glutils.synchronize_glfos(ref_glfo=sglfo, new_glfo=iglfo, region=region)
     missing_alleles = set(sglfo['seqs'][region]) - set(iglfo['seqs'][region])
     spurious_alleles = set(iglfo['seqs'][region]) - set(sglfo['seqs'][region])
     if debug:
@@ -246,7 +253,7 @@ def get_base_cmd(args, n_events, method):
     cmd += ' --n-procs ' + str(args.n_procs_per_test) + ' --n-tests ' + str(args.n_tests)
     if args.iteststart != 0:
         cmd += ' --iteststart ' + str(args.iteststart)
-    cmd += ' --methods ' + method
+    cmd += ' --methods simu:' + method
     cmd += ' --n-sim-events ' + str(n_events)
     if not args.no_slurm:
         cmd += ' --slurm'
@@ -259,7 +266,7 @@ def run_single_test(args, baseoutdir, val, n_events, method):
     cmd = get_base_cmd(args, n_events, method)
     outdir = get_outdir(args, baseoutdir, args.action, val, n_events=n_events)
     sim_v_genes = [args.v_genes[0]]
-    nsnpstr = '1'
+    nsnpstr, nindelstr = '1', ''
     if args.action == 'mfreq':
         cmd += ' --mut-mult ' + str(val)
     elif args.action == 'nsnp':
@@ -277,8 +284,13 @@ def run_single_test(args, baseoutdir, val, n_events, method):
         cmd += ' --n-leaves 5'  # NOTE default of 1 (for other tests) is set in test-allele-finding.py
         cmd += ' --n-leaf-distribution geometric'
         cmd += ' --n-max-queries ' + str(n_events)  # i.e. we simulate <n_events> rearrangement events, but then only use <n_events> sequences for inference
+    elif args.action == 'alcluster':
+        nsnpstr = val['snp']
+        nindelstr = val['indel']
+        sim_v_genes *= len(val['snp'].split(':'))
     elif args.action == 'gls-gen':
-        nsnpstr = '1:1:2:2:3'
+        nsnpstr = '1:1:2:3:100:100'
+        nindelstr = '0:0:0:0:3:3'
         cmd += ' --gls-gen'
     else:
         assert False
@@ -286,9 +298,12 @@ def run_single_test(args, baseoutdir, val, n_events, method):
     if args.action != 'gls-gen':
         cmd += ' --sim-v-genes ' + ':'.join(sim_v_genes)
     if '--nosim' not in cmd:
-        cmd += ' --nsnp-list ' + nsnpstr
+        if nsnpstr != '':
+            cmd += ' --nsnp-list ' + nsnpstr
+        if nindelstr != '':
+            cmd += ' --nindel-list ' + nindelstr
     cmd += ' --outdir ' + outdir
-    utils.simplerun(cmd) #, dryrun=True)
+    utils.simplerun(cmd, dryrun=args.dry_run)
 
 # ----------------------------------------------------------------------------------------
 def run_data(args, baseoutdir, study, dset, method):
@@ -308,7 +323,7 @@ def run_data(args, baseoutdir, study, dset, method):
     if method != 'partis':
         cmd += ' --other-method ' + method
 
-    utils.simplerun(cmd)
+    utils.simplerun(cmd, dryrun=args.dry_run)
 
 # ----------------------------------------------------------------------------------------
 def run_tests(args, baseoutdir, method):
@@ -316,7 +331,7 @@ def run_tests(args, baseoutdir, method):
         n_events = args.gls_gen_events
         val = 'simu'
         run_single_test(args, baseoutdir, val, n_events, method)
-    if args.action == 'data':
+    elif args.action == 'data':
         for var in args.varvals:
             study, dset = var.split('/')
             run_data(args, baseoutdir, study, dset, method)
@@ -331,8 +346,12 @@ default_varvals = {
     'nsnp' : '1:2:3:4',
     'multi-nsnp' : '1,1:1,3:2,3',
     'prevalence' : '0.1:0.2:0.3',
-    'n-leaves' : '1.5:3:10:25',
+    'n-leaves' : '1.5:3:10',
     'weibull' : '0.3:0.5:1.3',
+    'alcluster' : [
+        # {'snp' : 25, 'indel' : 3},
+        {'snp' : '75:100:125', 'indel' : '3:4:5'},
+    ],
     'gls-gen' : None,
     'data' : {
         # 'jason-mg' : ['HD07-igh', 'HD07-igk', 'HD07-igl', 'AR03-igh', 'AR03-igk', 'AR03-igl'],
@@ -354,7 +373,7 @@ for study in data_pairs:
         data_pairs[study][idp] = [heads.full_dataset(heads.read_metadata(study), ds) for ds in data_pairs[study][idp]]
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
-parser.add_argument('action', choices=['mfreq', 'nsnp', 'multi-nsnp', 'prevalence', 'n-leaves', 'weibull', 'gls-gen', 'data'])
+parser.add_argument('action', choices=['mfreq', 'nsnp', 'multi-nsnp', 'prevalence', 'n-leaves', 'weibull', 'alcluster', 'gls-gen', 'data'])
 parser.add_argument('--methods', default='partis') #choices=['partis', 'full', 'tigger'])
 parser.add_argument('--v-genes', default='IGHV4-39*01')
 parser.add_argument('--varvals')
@@ -368,6 +387,7 @@ parser.add_argument('--plot', action='store_true')
 parser.add_argument('--no-slurm', action='store_true')
 parser.add_argument('--plotcache', action='store_true')
 parser.add_argument('--check', action='store_true')
+parser.add_argument('--dry-run', action='store_true')
 parser.add_argument('--label', default='xxx')
 parser.add_argument('--ete-path', default='/home/' + os.getenv('USER') + '/anaconda_ete/bin')
 args = parser.parse_args()
@@ -390,7 +410,8 @@ if args.action == 'mfreq' or args.action == 'prevalence' or args.action == 'n-le
     kwargs['floatify'] = True
 if args.action == 'nsnp':
     kwargs['intify'] = True
-args.varvals = utils.get_arg_list(args.varvals, **kwargs)
+if args.action != 'alcluster':  # could also do this for data i think, if i remove that line up there ^
+    args.varvals = utils.get_arg_list(args.varvals, **kwargs)
 if args.action == 'multi-nsnp':
     args.varvals = [[int(n) for n in gstr.split(',')] for gstr in args.varvals]  # list of nsnps for each test, e.g. '1,1:2,2' runs two tests: 1) two new alleles, each with one snp and 2) two new alleles each with 2 snps
     factor = numpy.median([(len(nl) + 1) / 2. for nl in args.varvals])  # i.e. the ratio of (how many alleles we'll be dividing the events among), to (how many we'd be dividing them among for the other [single-nsnp] tests)

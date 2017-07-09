@@ -1,3 +1,8 @@
+import platform
+import resource
+import psutil
+import numpy
+import tempfile
 import string
 import time
 import sys
@@ -13,6 +18,7 @@ import subprocess
 import multiprocessing
 import copy
 
+import indelutils
 
 # ----------------------------------------------------------------------------------------
 def fsdir():
@@ -74,7 +80,7 @@ def get_arg_list(arg, intify=False, floatify=False, translation=None, list_of_pa
     elif floatify:
         convert_fcn = float
 
-    arglist = arg.strip().split(':')  # to allow ids with minus signs, need to add a space, which you then have to strip() off
+    arglist = arg.strip().split(':')  # to allow ids with minus signs, you can add a space (if you don't use --name=val), which you then have to strip() off
     if list_of_pairs:
         arglist = [pairstr.split(',') for pairstr in arglist]
         arglist = [[convert_fcn(p) for p in pair] for pair in arglist]
@@ -108,8 +114,9 @@ real_erosions = ['v_3p', 'd_5p', 'd_3p', 'j_5p']
 # hmm yamels -- which is what we want, because we want to be able to read in short data reads but make full-length simulation.
 effective_erosions = ['v_5p', 'j_3p']
 all_erosions = real_erosions + effective_erosions
-boundaries = ['vd', 'dj']
+boundaries = ['vd', 'dj']  # NOTE needs to be updated to be consistent with erosion names
 effective_boundaries = ['fv', 'jf']
+all_boundaries = boundaries + effective_boundaries
 nukes = ['A', 'C', 'G', 'T']
 ambiguous_bases = ['N', ]
 alphabet = set(nukes + ambiguous_bases)  # NOTE not the greatest naming distinction, but note difference to <expected_characters>
@@ -118,6 +125,16 @@ expected_characters = set(nukes + ambiguous_bases + gap_chars)  # NOTE not the g
 conserved_codons = {l : {'v' : 'cyst',
                           'j' : 'tryp' if l == 'igh' else 'phen'}  # e.g. heavy chain has tryp, light chain has phen
                      for l in loci}
+
+def cdn_positions(glfo, region):
+    return glfo[conserved_codons[glfo['locus']][region] + '-positions']
+def cdn_pos(glfo, region, gene):
+    return cdn_positions(glfo, region)[gene]
+def gap_len(seq):
+    return len(filter(gap_chars.__contains__, seq))
+def non_gap_len(seq):
+    return len(seq) - gap_len(seq)
+
 codon_table = {
     'cyst' : ['TGT', 'TGC'],
     'tryp' : ['TGG', ],
@@ -164,16 +181,13 @@ column_dependencies['jf_insertion'] = []
 # column_dependencies['vd_insertion_content'] = []
 # column_dependencies['dj_insertion_content'] = []
 
-# definitions here: http://clip.med.yale.edu/changeo/manuals/Change-O_Data_Format.pdf
-presto_headers = {
-    'unique_ids' : 'SEQUENCE_ID',
-    'input_seqs' : 'SEQUENCE_INPUT',
-    'v_gene' : 'V_CALL',
-    'd_gene' : 'D_CALL',
-    'j_gene' : 'J_CALL',
-    'aligned_v_plus_unaligned_dj' : 'SEQUENCE_IMGT',  # TODO is this supposed to be the whole sequence, or just the v bit? UPDATE looks like aligned v, plus the rest of the sequence without any alignment info
-    'cdr3_length' : 'JUNCTION_LENGTH'
-}
+# tuples with the column and its dependencies mashed together
+# (first entry is the column of interest, and it depends upon the following entries)
+column_dependency_tuples = []
+for column, deps in column_dependencies.iteritems():
+    tmp_list = [column]
+    tmp_list.extend(deps)
+    column_dependency_tuples.append(tuple(tmp_list))
 
 adaptive_headers = {
     'seqs' : 'nucleotide',
@@ -193,11 +207,11 @@ forbidden_character_translations = string.maketrans(':;,', 'csm')
 functional_columns = ['mutated_invariants', 'in_frames', 'stops']
 
 column_configs = {
-    'ints' : ['cdr3_length', 'padlefts', 'padrights'] + [e + '_del' for e in all_erosions],
+    'ints' : ['n_mutations', 'cdr3_length', 'padlefts', 'padrights'] + [e + '_del' for e in all_erosions],
     'floats' : ['logprob', 'mut_freqs'],
     'bools' : functional_columns,
     'literals' : ['indelfo', 'indelfos', 'k_v', 'k_d', 'all_matches'],  # simulation has indelfo[s] singular, annotation output has it plural... and I think it actually makes sense to have it that way
-    'lists' : ['unique_ids', 'seqs', 'input_seqs', 'indel_reversed_seqs', 'mut_freqs', 'padlefts', 'padrights'] + ['aligned_' + r + '_seqs' for r in regions] + functional_columns,  # indelfos is a list, but we can't just split it by colons since it has colons within the dict string
+    'lists' : ['unique_ids', 'seqs', 'input_seqs', 'indel_reversed_seqs', 'n_mutations', 'mut_freqs', 'padlefts', 'padrights'] + ['aligned_' + r + '_seqs' for r in regions] + functional_columns,  # indelfos is a list, but we can't just split it by colons since it has colons within the dict string
     'lists-of-lists' : ['duplicates'] + [r + '_per_gene_support' for r in regions]
 }
 
@@ -232,7 +246,7 @@ def get_list_of_str_list(strlist):
 def reconstruct_full_indelfo(indel_list, reversed_seq):
     if 'reversed_seq' in indel_list:  # handle old files
         return indel_list
-    indelfo = get_empty_indel()
+    indelfo = indelutils.get_empty_indel()
     indelfo['indels'] = indel_list
     if len(indel_list) > 0:
         indelfo['reversed_seq'] = reversed_seq
@@ -256,11 +270,11 @@ linekeys = {}
 linekeys['per_family'] = ['naive_seq', 'cdr3_length', 'codon_positions', 'lengths', 'regional_bounds'] + \
                          [r + '_gene' for r in regions] + \
                          [e + '_del' for e in all_erosions] + \
-                         [b + '_insertion' for b in boundaries + effective_boundaries] + \
+                         [b + '_insertion' for b in all_boundaries] + \
                          [r + '_gl_seq' for r in regions] + \
                          [r + '_per_gene_support' for r in regions]
 # used by the synthesize_[] fcns below
-linekeys['per_seq'] = ['seqs', 'unique_ids', 'indelfos', 'mut_freqs', 'input_seqs', 'indel_reversed_seqs'] + \
+linekeys['per_seq'] = ['seqs', 'unique_ids', 'indelfos', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs'] + \
                       [r + '_qr_seqs' for r in regions] + \
                       ['aligned_' + r + '_seqs' for r in regions] + \
                       functional_columns
@@ -271,14 +285,14 @@ linekeys['simu'] = ['reco_id', ]
 all_linekeys = set([k for cols in linekeys.values() for k in cols])
 
 # keys that are added by add_implicit_info()
-implicit_linekeys = set(['naive_seq', 'cdr3_length', 'codon_positions', 'lengths', 'regional_bounds', 'invalid', 'input_seqs'] + \
-                       [r + '_gl_seq' for r in regions] + \
-                       ['mut_freqs', ] + functional_columns + [r + '_qr_seqs' for r in regions] + ['aligned_' + r + '_seqs' for r in regions])
+implicit_linekeys = set(['naive_seq', 'cdr3_length', 'codon_positions', 'lengths', 'regional_bounds', 'invalid', 'indel_reversed_seqs'] + \
+                        [r + '_gl_seq' for r in regions] + \
+                        ['mut_freqs', 'n_mutations'] + functional_columns + [r + '_qr_seqs' for r in regions] + ['aligned_' + r + '_seqs' for r in regions])
 
 # ----------------------------------------------------------------------------------------
-annotation_headers = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'mut_freqs', 'input_seqs', 'indel_reversed_seqs', 'naive_seq', 'indelfos', 'duplicates'] \
+annotation_headers = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'naive_seq', 'indelfos', 'duplicates'] \
                      + [r + '_per_gene_support' for r in regions] \
-                     + [e + '_del' for e in all_erosions] + [b + '_insertion' for b in boundaries + effective_boundaries] \
+                     + [e + '_del' for e in all_erosions] + [b + '_insertion' for b in all_boundaries] \
                      + functional_columns
 sw_cache_headers = ['k_v', 'k_d', 'padlefts', 'padrights', 'all_matches', 'mut_freqs']
 partition_cachefile_headers = ('unique_ids', 'logprob', 'naive_seq', 'naive_hfrac', 'errors')  # these have to match whatever bcrham is expecting
@@ -297,9 +311,12 @@ bcrham_dbgstr_types = {
 # ----------------------------------------------------------------------------------------
 def synthesize_single_seq_line(line, iseq):
     """ without modifying <line>, make a copy of it corresponding to a single-sequence event with the <iseq>th sequence """
-    singlefo = copy.deepcopy(line)  # make a copy of the info, into which we'll insert the sequence-specific stuff
-    for col in [c for c in linekeys['per_seq'] if c in line]:
-        singlefo[col] = [singlefo[col][iseq], ]
+    singlefo = {}
+    for key in line:
+        if key in linekeys['per_seq']:
+            singlefo[key] = [copy.deepcopy(line[key][iseq]), ]
+        else:
+            singlefo[key] = copy.deepcopy(line[key])
     return singlefo
 
 # ----------------------------------------------------------------------------------------
@@ -416,7 +433,7 @@ def convert_from_adaptive_headers(glfo, line, uid=None, only_dj_rearrangements=F
     # print seq[qrbounds['j'][0] : qrbounds['j'][1]],
     # print seq[qrbounds['j'][1] :]
 
-    newline['indelfos'] = [get_empty_indel(), ]
+    newline['indelfos'] = [indelutils.get_empty_indel(), ]
 
     if print_it:
         add_implicit_info(glfo, newline)
@@ -429,30 +446,51 @@ def convert_from_adaptive_headers(glfo, line, uid=None, only_dj_rearrangements=F
     return newline
 
 # ----------------------------------------------------------------------------------------
-def convert_to_presto_headers(line):
+# definitions here: http://clip.med.yale.edu/changeo/manuals/Change-O_Data_Format.pdf
+presto_headers = OrderedDict([  # enforce this ordering so the output files are easier to read
+    ('SEQUENCE_ID', 'unique_ids'),
+    ('V_CALL', 'v_gene'),
+    ('D_CALL', 'd_gene'),
+    ('J_CALL', 'j_gene'),
+    ('JUNCTION_LENGTH', None),
+    ('SEQUENCE_INPUT', 'input_seqs'),
+    ('SEQUENCE_IMGT', 'aligned_v_plus_unaligned_dj'),
+])
+
+# ----------------------------------------------------------------------------------------
+def get_line_with_presto_headers(line):  # NOTE doesn't deep copy
     """ convert <line> to presto csv format """
     if len(line['unique_ids']) > 1:  # has to happen *before* utils.get_line_for_output()
-        print line['unique_ids']
         raise Exception('multiple seqs not handled for presto output')
 
     presto_line = {}
-    for head, phead in presto_headers.items():
+    for phead, head in presto_headers.items():
         if head == 'aligned_v_plus_unaligned_dj':
             presto_line[phead] = line['aligned_v_seqs'][0] + line['vd_insertion'] + line['d_qr_seqs'][0] + line['dj_insertion'] + line['j_qr_seqs'][0]
-        elif head == 'unique_ids':
+        elif phead == 'JUNCTION_LENGTH':
+            presto_line[phead] = line['cdr3_length'] + 6
+        elif head == 'unique_ids' or head == 'input_seqs':
             presto_line[phead] = line[head][0]
         else:
             presto_line[phead] = line[head]
 
     return presto_line
 
-# tuples with the column and its dependencies mashed together
-# (first entry is the column of interest, and it depends upon the following entries)
-column_dependency_tuples = []
-for column, deps in column_dependencies.iteritems():
-    tmp_list = [column]
-    tmp_list.extend(deps)
-    column_dependency_tuples.append(tuple(tmp_list))
+# ----------------------------------------------------------------------------------------
+def write_presto_annotations(outfname, glfo, annotations, failed_queries):
+    outstr = subprocess.check_output(['mv', '-v', outfname, outfname + '.partis'])
+    print '    backing up partis output before converting to presto: %s' % outstr.strip()
+
+    with open(outfname, 'w') as outfile:
+        writer = csv.DictWriter(outfile, presto_headers.keys(), delimiter='\t')
+        writer.writeheader()
+
+        for full_line in annotations.values():
+            writer.writerow(get_line_with_presto_headers(full_line))
+
+        # and write empty lines for seqs that failed either in sw or the hmm
+        for uid, seq in failed_queries.items():
+            writer.writerow({'SEQUENCE_ID' : uid, 'SEQUENCE_INPUT' : seq})
 
 # ----------------------------------------------------------------------------------------
 def get_parameter_fname(column=None, deps=None, column_and_deps=None):
@@ -527,16 +565,41 @@ def color_chars(chars, col, seq):
     return ''.join(return_str)
 
 # ----------------------------------------------------------------------------------------
-def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', post_str='', print_hfrac=False, print_isnps=False, return_isnps=False, emphasis_positions=None):
+def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', seq_label='', post_str='', print_hfrac=False, print_isnps=False, return_isnps=False, emphasis_positions=None, use_min_len=False, only_print_seq=False, align=False, return_ref=False):
     """ default: return <seq> string with colored mutations with respect to <ref_seq> """
+
+    # NOTE now I've got <return_ref>, I can probably remove a bunch of the label/whatever arguments and do all the damn formatting in the caller
+
+    if use_min_len:
+        min_len = min(len(ref_seq), len(seq))
+        ref_seq = ref_seq[:min_len]
+        seq = seq[:min_len]
+
+    if align and len(ref_seq) != len(seq):
+        with tempfile.NamedTemporaryFile() as fin, tempfile.NamedTemporaryFile() as fout:
+            fin.write('>%s\n%s\n' % ('ref', ref_seq))
+            fin.write('>%s\n%s\n' % ('new', seq))
+            fin.flush()
+            subprocess.check_call('mafft --quiet %s >%s' % (fin.name, fout.name), shell=True)
+            msa_info = {sfo['name'] : sfo['seq'] for sfo in read_fastx(fout.name, ftype='fa')}
+            if 'ref' not in msa_info or 'new' not in msa_info:
+                subprocess.check_call(['cat', fin.name])
+                raise Exception('incoherent mafft output from %s (cat\'d on previous line)' % fin.name)
+        ref_seq = msa_info['ref']
+        seq = msa_info['new']
+
     if len(ref_seq) != len(seq):
         raise Exception('unequal lengths in color_mutants()\n    %s\n    %s' % (ref_seq, seq))
+
     return_str, isnps = [], []
     for inuke in range(len(seq)):  # would be nice to integrate this with hamming_distance()
+        rchar = ref_seq[inuke]
         char = seq[inuke]
-        if seq[inuke] in ambiguous_bases or ref_seq[inuke] in ambiguous_bases:
+        if char in ambiguous_bases or rchar in ambiguous_bases:
             char = color('blue', char)
-        elif seq[inuke] != ref_seq[inuke]:
+        elif char in gap_chars or rchar in gap_chars:
+            char = color('blue', char)
+        elif char != rchar:
             char = color('red', char)
             isnps.append(inuke)
         if emphasis_positions is not None and inuke in emphasis_positions:
@@ -545,18 +608,24 @@ def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', 
 
     isnp_str = ''
     if print_isnps and len(isnps) > 0:
-        isnp_str = '   %d snp%s at: %s' % (len(isnps), plural(len(isnps)), ' '.join([str(i) for i in isnps]))
+        isnp_str = '   %d snp%s' % (len(isnps), plural(len(isnps)))
+        if len(isnps) < 10:
+            isnp_str +=  ' at: %s' % ' '.join([str(i) for i in isnps])
     hfrac_str = ''
     if print_hfrac:
         hfrac_str = '   hfrac %.3f' % hamming_fraction(ref_seq, seq)
-    return_str = extra_str + ' '*len(ref_label) + ''.join(return_str) + post_str + isnp_str + hfrac_str
     if print_result:
-        print '%s%s%s' % (extra_str, ref_label, ref_seq)
-        print return_str
+        lwidth = max(len_excluding_colors(ref_label), len_excluding_colors(seq_label))
+        if not only_print_seq:
+            print '%s%s%s' % (extra_str, ('%' + str(lwidth) + 's') % ref_label, ref_seq)
+        print '%s%s%s' % (extra_str, ('%' + str(lwidth) + 's') % seq_label, ''.join(return_str) + post_str + isnp_str + hfrac_str)
+
+    return_list = [extra_str + seq_label + ''.join(return_str) + post_str + isnp_str + hfrac_str]
+    if return_ref:
+        return_list.append(''.join([ch if ch not in gap_chars else color('blue', ch) for ch in ref_seq]))
     if return_isnps:
-        return return_str, isnps
-    else:
-        return return_str
+        return_list.append(isnps)
+    return return_list[0] if len(return_list) == 1 else return_list
 
 # ----------------------------------------------------------------------------------------
 def plural_str(pstr, count):
@@ -590,7 +659,7 @@ def color_gene(gene, width=None, leftpad=False):
     return_str = color('purple', locus) + color('red', region) + color('purple', primary_version)
     if sub_version is not None:
         n_chars += 1 + len(sub_version)
-        return_str += '-' + color('purple', sub_version)
+        return_str += color('purple', '-' + sub_version)
     n_chars += len(allele)
     return_str += color('yellow', allele)
     if width is not None:
@@ -668,22 +737,21 @@ def is_there_a_stop_codon(seq, fv_insertion, jf_insertion, v_5p_del, debug=False
     return len(set(codons) & set(codon_table['stop'])) > 0  # true if any of the stop codons from <codon_table> are present in <codons>
 
 # ----------------------------------------------------------------------------------------
-def disambiguate_effective_insertions(bound, line, seq, unique_id, debug=False):
+def disambiguate_effective_insertions(bound, line, iseq, debug=False):
     # These are kinda weird names, but the distinction is important
     # If an insert state with "germline" N emits one of [ACGT], then the hmm will report this as an inserted N. Which is what we want -- we view this as a germline N which "mutated" to [ACGT].
     # This concept of insertion germline state is mostly relevant for simultaneous inference on several sequences, i.e. in ham we don't want to just say the inserted base was the base in the query sequence.
     # But here, we're trimming off the effective insertions and we have to treat the inserted germline N to [ACGT] differently than we would an insertion which was "germline" [ACGT] which emitted an N,
     # and also differently to a real germline [VDJ] state that emitted an N.
     naive_insertion = line[bound + '_insertion']  # reminder: ham gets this from the last character in the insertion state name, e.g. 'insert_left_A' or 'insert_right_N'
+    insert_len = len(line[bound + '_insertion'])
     if bound == 'fv':  # ...but to accomodate multiple sequences, the insert states can emit non-germline states, so the mature bases might be different.
-        mature_insertion = seq[ : len(line[bound + '_insertion'])]
+        mature_insertion = line['seqs'][iseq][ : insert_len]
     elif bound == 'jf':
-        if len(line[bound + '_insertion']) > 0:
-            mature_insertion = seq[-len(line[bound + '_insertion']) : ]
-        else:
-            mature_insertion = ''
+        mature_insertion = line['seqs'][iseq][len(line['seqs'][iseq]) - insert_len : ]
     else:
         assert False
+
     if naive_insertion == mature_insertion:  # all is simple and hunky-dory: no insertion 'mutations'
         final_insertion = ''  # leave this bit as an insertion in the final <line>
         insertion_to_remove = naive_insertion  # this bit we'll remove -- it's just Ns (note that this is only equal to the N padding if we correctly inferred the right edge of the J [for jf bound])
@@ -701,25 +769,12 @@ def disambiguate_effective_insertions(bound, line, seq, unique_id, debug=False):
             insertion_to_remove = mature_insertion[i_first_N : ]
         else:
             assert False
-        if debug:
-            print 'naive and mature %s insertions differ for %s' % (bound, unique_id)
-            color_mutants(naive_insertion, mature_insertion, print_result=True, extra_str='          ')
-            print '   removing %s and leaving %s' % (insertion_to_remove, final_insertion)
 
-    # remove the insertion that we want to remove
-    if bound == 'fv':  # ...but to accomodate multiple sequences, the insert states can emit non-germline states, so the mature bases might be different.
-        trimmed_seq = seq[len(insertion_to_remove) : ]
-    elif bound == 'jf':
-        if len(insertion_to_remove) > 0:
-            trimmed_seq = seq[ : -len(insertion_to_remove)]
-        else:
-            trimmed_seq = seq
     if debug:
-        print '     %s      final: %s' % (color('blue', bound), final_insertion)
-        print '         to_remove: %s' % insertion_to_remove
-        print '       trimmed_seq: %s' % trimmed_seq
+        print '     %s      final: %s' % (color('red', bound), color('purple', final_insertion))
+        print '         to_remove: %s' % color('blue', insertion_to_remove)
 
-    return trimmed_seq, final_insertion, insertion_to_remove
+    return final_insertion, insertion_to_remove
 
 # ----------------------------------------------------------------------------------------
 def reset_effective_erosions_and_effective_insertions(glfo, padded_line, aligned_gl_seqs=None, debug=False):  # , padfo=None
@@ -731,29 +786,36 @@ def reset_effective_erosions_and_effective_insertions(glfo, padded_line, aligned
     the hmm yaml files.
     """
 
-    line = copy.deepcopy(padded_line)
-    remove_all_implicit_info(line)
+    if debug:
+        print 'resetting effective erosions/insertions for %s' % ' '.join(padded_line['unique_ids'])
+
+    line = {k : copy.deepcopy(padded_line[k]) for k in padded_line if k not in implicit_linekeys}
 
     assert line['v_5p_del'] == 0  # just to be safe
     assert line['j_3p_del'] == 0
+    nseqs = len(line['unique_ids'])  # convenience
 
+    # first disambiguate/remove effective (fv and jf) insertions
     if debug:
-        print 'resetting effective erosions'
-        print '     start: %s' % line['seqs'][0]
-
-    # first remove effective (fv and jf) insertions
-    trimmed_seqs = []
-    final_insertions = []  # the effective insertions that will remain in the final info
-    insertions_to_remove = []  # the effective insertions that we'll be removing, so which won't be in the final info
-    for iseq in range(len(line['seqs'])):
-        trimmed_seq = line['seqs'][iseq]
-        final_insertions.append({})
-        insertions_to_remove.append({})
+        print '   disambiguating effective insertions'
+    trimmed_seqs = [line['seqs'][iseq] for iseq in range(nseqs)]
+    trimmed_input_seqs = [line['input_seqs'][iseq] for iseq in range(nseqs)]
+    final_insertions = [{} for _ in range(nseqs)]  # the effective insertions that will remain in the final info
+    insertions_to_remove = [{} for _ in range(nseqs)]  # the effective insertions that we'll be removing, so which won't be in the final info
+    for iseq in range(nseqs):
+        fin = final_insertions[iseq]
+        rem = insertions_to_remove[iseq]
         for bound in effective_boundaries:
-            trimmed_seq, final_insertion, insertion_to_remove = disambiguate_effective_insertions(bound, line, trimmed_seq, line['unique_ids'][iseq], debug)
-            final_insertions[-1][bound] = final_insertion
-            insertions_to_remove[-1][bound] = insertion_to_remove
-        trimmed_seqs.append(trimmed_seq)
+            final_insertion, insertion_to_remove = disambiguate_effective_insertions(bound, line, iseq, debug=debug)
+            fin[bound] = final_insertion
+            rem[bound] = insertion_to_remove
+        trimmed_seqs[iseq] = trimmed_seqs[iseq][len(rem['fv']) : len(trimmed_seqs[iseq]) - len(rem['jf'])]
+        trimmed_input_seqs[iseq] = trimmed_input_seqs[iseq][len(rem['fv']) : len(trimmed_input_seqs[iseq]) - len(rem['jf'])]
+        if debug:
+            print '       %s  %s%s%s%s%s' % (' '.join(line['unique_ids']),
+                                             color('blue', rem['fv']), color('purple', fin['fv']),
+                                             trimmed_seqs[iseq][len(fin['fv']) : len(trimmed_seqs[iseq]) - len(fin['jf'])],
+                                             color('purple', fin['jf']), color('blue', rem['jf']))
 
     # arbitrarily use the zeroth sequence (in principle v_5p and j_3p should be per-sequence, not per-rearrangement... but that'd be a mess to implement, since the other deletions are per-rearrangement)
     TMPiseq = 0  # NOTE this is pretty hackey: we just use the values from the first sequence. But it's actually not that bad -- we can either have some extra pad Ns showing, or chop off some bases.
@@ -775,22 +837,27 @@ def reset_effective_erosions_and_effective_insertions(glfo, padded_line, aligned
     line['v_5p_del'] = min(max_effective_erosion('v_5p'), find_first_non_ambiguous_base(trimmed_seq))
     line['j_3p_del'] = min(max_effective_erosion('j_3p'), len(trimmed_seq) - find_last_non_ambiguous_base_plus_one(trimmed_seq))
 
-    for iseq in range(len(line['seqs'])):
-        # de-pad the seqs
-        line['seqs'][iseq] = trimmed_seqs[iseq][line['v_5p_del'] : ]
-        if line['j_3p_del'] > 0:
-            line['seqs'][iseq] = line['seqs'][iseq][ : -line['j_3p_del']]
+    if debug:
+        v_5p = line['v_5p_del']
+        j_3p = line['j_3p_del']
+        print '     %s:  %d' % (color('red', 'v_5p'), v_5p)
+        print '     %s:  %d' % (color('red', 'j_3p'), j_3p)
+        for iseq in range(nseqs):
+            print '       %s  %s%s%s' % (' '.join(line['unique_ids']), color('red', v_5p * '.'), trimmed_seqs[iseq][v_5p : len(trimmed_seqs[iseq]) - j_3p], color('red', j_3p * '.'))
 
-        # if necessary, also de-pad the indel-reversed seqs
-        if line['indelfos'][iseq]['reversed_seq'] != '':
+    for iseq in range(nseqs):
+        line['seqs'][iseq] = trimmed_seqs[iseq][line['v_5p_del'] : len(trimmed_seqs[iseq]) - line['j_3p_del']]
+        line['input_seqs'][iseq] = trimmed_input_seqs[iseq][line['v_5p_del'] : len(trimmed_input_seqs[iseq]) - line['j_3p_del']]
+
+        # also de-pad the indel info
+        if indelutils.has_indels(line['indelfos'][iseq]):
             rseq = line['indelfos'][iseq]['reversed_seq']
             rseq = rseq[len(fv_insertion_to_remove) + line['v_5p_del'] : ]
             if len(jf_insertion_to_remove) + line['j_3p_del'] > 0:
                 rseq = rseq[ : -(len(jf_insertion_to_remove) + line['j_3p_del'])]
             line['indelfos'][iseq]['reversed_seq'] = rseq
-
-    if debug:
-        print '     fv %d   v_5p %d   j_3p %d   jf %d    %s' % (len(fv_insertion_to_remove), line['v_5p_del'], line['j_3p_del'], len(jf_insertion_to_remove), line['seqs'][0])
+            for indel in line['indelfos'][iseq]['indels']:
+                indel['pos'] -= len(fv_insertion_to_remove) + line['v_5p_del']
 
     line['fv_insertion'] = final_fv_insertion
     line['jf_insertion'] = final_jf_insertion
@@ -800,7 +867,7 @@ def reset_effective_erosions_and_effective_insertions(glfo, padded_line, aligned
     # else:
     #     line['padlefts'], line['padrights'] = [padfo[uid]['padded']['padleft'] for uid in line['unique_ids']], [padfo[uid]['padded']['padright'] for uid in line['unique_ids']]
 
-    # NOTE fixed the problem we were actually seeing, so this shouldn't fail any more, but I'll leave it in for a bit just in case
+    # NOTE fixed the problem we were actually seeing, so this shouldn't fail any more, but I'll leave it in for a bit just in case UPDATE totally saved my ass from an unrelated problem (well, maybe not "saved" -- definitely don't remove the add_implicit_info() call though)
     try:
         add_implicit_info(glfo, line, aligned_gl_seqs=aligned_gl_seqs)
     except:
@@ -868,6 +935,10 @@ def remove_all_implicit_info(line):
             del line[col]
 
 # ----------------------------------------------------------------------------------------
+def get_non_implicit_copy(line):  # return a deep copy of <line> with only non-implicit info
+    return {col : copy.deepcopy(line[col]) for col in line if col not in implicit_linekeys}
+
+# ----------------------------------------------------------------------------------------
 def process_per_gene_support(line, debug=False):
     for region in regions:
         if debug:
@@ -891,7 +962,6 @@ def process_per_gene_support(line, debug=False):
 # ----------------------------------------------------------------------------------------
 def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False):  # should turn on <check_line_keys> for a bit if you change anything
     """ Add to <line> a bunch of things that are initially only implicit. """
-
     if line['v_gene'] == '':
         raise Exception('can\'t add implicit info to line with failed annotation:\n%s' % (''.join(['  %+20s  %s\n' % (k, v) for k, v in line.items()])))
 
@@ -948,8 +1018,7 @@ def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False): 
     end['j'] = start['j'] + len(line['j_gl_seq'])
     line['regional_bounds'] = {r : (start[r], end[r]) for r in regions}
 
-    line['input_seqs'] = [get_seq_with_indels_reinstated(line, iseq) for iseq in range(len(line['seqs']))]
-    input_codon_positions = [get_codon_positions_with_indels_reinstated(line, iseq, line['codon_positions']) for iseq in range(len(line['seqs']))]
+    input_codon_positions = [indelutils.get_codon_positions_with_indels_reinstated(line, iseq, line['codon_positions']) for iseq in range(len(line['seqs']))]
     if 'indel_reversed_seqs' not in line:  # everywhere internally, we refer to 'indel_reversed_seqs' as simply 'seqs'. For interaction with outside entities, however (i.e. writing files) we use the more explicit 'indel_reversed_seqs'
         line['indel_reversed_seqs'] = line['seqs']
 
@@ -958,7 +1027,9 @@ def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False): 
 
     add_functional_info(glfo['locus'], line, input_codon_positions)
 
-    line['mut_freqs'] = [hamming_fraction(line['naive_seq'], mature_seq) for mature_seq in line['seqs']]
+    hfracfo = [hamming_fraction(line['naive_seq'], mature_seq, also_return_distance=True) for mature_seq in line['seqs']]
+    line['mut_freqs'] = [hfrac for hfrac, _ in hfracfo]
+    line['n_mutations'] = [n_mutations for _, n_mutations in hfracfo]
 
     # set validity (alignment addition [below] can also set invalid)  # TODO clean up this checking stuff
     line['invalid'] = False
@@ -1005,6 +1076,8 @@ def print_true_events(glfo, reco_info, line, print_naive_seqs=False, extra_str='
 
 # ----------------------------------------------------------------------------------------
 def print_reco_event(line, one_line=False, extra_str='', label='', seed_uid=None):
+    if len(line['unique_ids']) > 1:
+        label += '%s%d sequences with %.1f mean mutations' % ('' if label == '' else '    ', len(line['unique_ids']), numpy.mean(line['n_mutations']))
     for iseq in range(len(line['unique_ids'])):
         prutils.print_seq_in_reco_event(line, iseq, extra_str=extra_str, label=(label if iseq==0 else ''), one_line=(iseq>0), seed_uid=seed_uid)
 
@@ -1101,13 +1174,10 @@ def are_same_primary_version(gene1, gene2):
 
 # ----------------------------------------------------------------------------------------
 def separate_into_allelic_groups(glfo, debug=False):
-    print '%s removing \'D\' alleles' % color('red', 'note')
     allelic_groups = {r : {} for r in regions}
     for region in regions:
         for gene in glfo['seqs'][region]:
             primary_version, sub_version, allele = split_gene(gene)
-            if region == 'v' and sub_version[-1] == 'D':
-                continue
             if primary_version not in allelic_groups[region]:
                 allelic_groups[region][primary_version] = {}
             if sub_version not in allelic_groups[region][primary_version]:
@@ -1131,7 +1201,7 @@ def separate_into_snp_groups(glfo, region, n_max_snps, genelist=None):
     assert region == 'v'  # would need to change the up-to-cpos requirement if it isn't v
     snp_groups = []
     for gene in genelist:
-        cpos = glfo[conserved_codons[glfo['locus']][region] + '-positions'][gene]
+        cpos = cdn_pos(glfo, region, gene)
         seq = glfo['seqs'][region][gene][:cpos + 3]  # only go up through the end of the cysteine
         add_new_class = True  # to begin with, assume we'll add a new class for this gene
         for gclass in snp_groups:  # then check if, instead, this gene belongs in any of the existing classes
@@ -1269,13 +1339,12 @@ def hamming_distance(seq1, seq2, extra_bases=None, return_len_excluding_ambig=Fa
         else:
             return 0
 
-    assert len(ambiguous_bases) == 1  # would just have to update the below if it's longer
-    ambig_base = ambiguous_bases[0]
+    skip_chars = set(ambiguous_bases + gap_chars)
 
     distance, len_excluding_ambig = 0, 0
     mutated_positions = []
     for ich in range(len(seq1)):  # already made sure they're the same length
-        if ambig_base in seq1[ich] + seq2[ich]:
+        if seq1[ich] in skip_chars or seq2[ich] in skip_chars:
             continue
         len_excluding_ambig += 1
         if seq1[ich] != seq2[ich]:
@@ -1347,6 +1416,19 @@ def get_mutation_rate_and_n_muted(line, iseq, restrict_to_region=''):
     return fraction, distance
 
 # ----------------------------------------------------------------------------------------
+def dot_product(naive_seq, seq1, seq2):
+    _, imutes1 = hamming_distance(naive_seq, seq1, return_mutated_positions=True)
+    _, imutes2 = hamming_distance(naive_seq, seq2, return_mutated_positions=True)
+    both_muted = set(imutes1) & set(imutes2)
+    both_muted_to_same_thing = [imut for imut in both_muted if seq1[imut] == seq2[imut]]
+    dot_product = len(both_muted_to_same_thing)
+    # print '    naive  %s' % naive_seq
+    # print '           %s' % utils.color_mutants(naive_seq, seq1)
+    # print '           %s' % utils.color_mutants(naive_seq, seq2)
+    # print '    dot %d' % dot_product
+    return dot_product
+
+# ----------------------------------------------------------------------------------------
 def get_key(names):
     """
     Return a hashable combination of the two query names that's the same if we reverse their order.
@@ -1413,7 +1495,7 @@ def process_input_line(info, hmm_cachefile=False):
             info[key + 's'] = info[key]
             del info[key]
         if 'indelfos' not in info:  # hm, at least some old sim files don't have 'indelfo'
-            info['indelfos'] = str(get_empty_indel())
+            info['indelfos'] = str(indelutils.get_empty_indel())
         info['indelfos'] = '[' + info['indelfos'] + ']'
         info['input_seqs'] = info['seqs']
 
@@ -1462,7 +1544,7 @@ def get_line_for_output(info):
         if key == 'seqs':  # don't want it to be in the output dict
             continue
         if key == 'indel_reversed_seqs':  # if no indels, it's the same as 'input_seqs', so set indel_reversed_seqs to empty strings
-            outfo['indel_reversed_seqs'] = ':'.join(['' if len(info['indelfos'][iseq]['indels']) == 0 else info['indel_reversed_seqs'][iseq]
+            outfo['indel_reversed_seqs'] = ':'.join(['' if not indelutils.has_indels(info['indelfos'][iseq]) else info['indel_reversed_seqs'][iseq]
                                                      for iseq in range(len(info['unique_ids']))])
         elif key in column_configs['lists']:
             outfo[key] = ':'.join([str_fcn(v) for v in info[key]])
@@ -1729,6 +1811,32 @@ def simplerun(cmd_str, shell=False, dryrun=False, print_time=None):
     subprocess.check_call(cmd_str if shell else cmd_str.split(), env=os.environ, shell=shell)
     if print_time is not None:
         print '      %s time: %.1f' % (print_time, time.time() - start)
+
+# ----------------------------------------------------------------------------------------
+def memory_usage_fraction(debug=False):  # return fraction of total system memory that this process is using (as always with memory things, this is an approximation)
+    if platform.system() != 'Linux':
+        print '\n  note: utils.memory_usage_fraction() needs testing on platform \'%s\' to make sure unit conversions don\'t need changing' % platform.system()
+    current_usage = float(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)  # kb
+    total = float(psutil.virtual_memory().total) / 1000.  # returns bytes, then convert to kb
+    if debug:
+        print '  using %.0f / %.0f MB = %.4f' % (current_usage / 1000, total / 1000, current_usage / total)
+    return current_usage / total
+
+# ----------------------------------------------------------------------------------------
+def run_proc_functions(procs, n_procs=None, debug=False):  # <procs> is a list of multiprocessing.Process objects
+    if n_procs is None:
+        n_procs = multiprocessing.cpu_count()
+        if n_procs > 10: # if it's a huge server, we probably shouldn't use all the cores
+            n_procs = int(float(n_procs) / 2.)
+    if debug:
+        print '    running %d proc fcns with %d procs' % (len(procs), n_procs)
+        sys.stdout.flush()
+    while True:
+        while len(procs) > 0 and len(multiprocessing.active_children()) < n_procs:
+            procs[0].start()
+            procs.pop(0)
+        if len(multiprocessing.active_children()) == 0 and len(procs) == 0:
+            break
 
 # ----------------------------------------------------------------------------------------
 def run_cmd(cmdfo, batch_system=None, batch_options=None, nodelist=None):
@@ -2283,59 +2391,6 @@ def subset_files(uids, fnames, outdir, uid_header='Sequence ID', delimiter='\t',
                     if line[uid_header] in uids:
                         writer.writerow(line)
 
-# # ----------------------------------------------------------------------------------------
-# ick, needs germline info, and, screw it, I'll just go back to writing the indel-reversed sequence to file
-# def reverse_indels(input_seq, indelfo):  # reverse the action of indel reversion
-#     if indelfo['reversed_seq'] == '':
-#         return input_seq
-
-#     for indel in indelfo['indels']:
-#         if indel['type'] == 'insertion':
-#             return_seq = return_seq[ : indel['pos']] + indel['seqstr'] + return_seq[indel['pos'] : ]
-#         elif indel['type'] == 'deletion':
-#             return_seq = return_seq[ : indel['pos']] + return_seq[indel['pos'] + indel['len'] : ]
-#         else:
-#             assert False
-
-#     return return_seq
-
-# ----------------------------------------------------------------------------------------
-def get_seq_with_indels_reinstated(line, iseq=0):  # reverse the action of indel reversion
-    indelfo = line['indelfos'][iseq]
-    return_seq = line['seqs'][iseq]
-    if indelfo['reversed_seq'] == '':
-        return return_seq
-
-    for indel in reversed(indelfo['indels']):
-        if indel['type'] == 'insertion':
-            return_seq = return_seq[ : indel['pos']] + indel['seqstr'] + return_seq[indel['pos'] : ]
-        elif indel['type'] == 'deletion':
-            return_seq = return_seq[ : indel['pos']] + return_seq[indel['pos'] + indel['len'] : ]
-        else:
-            assert False
-
-    return return_seq
-
-# ----------------------------------------------------------------------------------------
-def get_codon_positions_with_indels_reinstated(line, iseq, codon_positions):
-    # NOTE as long as the indels are reversed, all the sequences have the same codon positions. But as soon as we reinstate the indels, all heck breaks loose.
-    indelfo = line['indelfos'][iseq]
-    reinstated_codon_positions = copy.deepcopy(codon_positions)
-    if indelfo['reversed_seq'] == '':
-        return reinstated_codon_positions
-
-    for indel in reversed(indelfo['indels']):
-        for region in reinstated_codon_positions:
-            if indel['pos'] > reinstated_codon_positions[region]:  # NOTE this just ignores the case where the indel's in the middle of the codon, because, like, screw that I don't want to think about it
-                continue
-            if indel['type'] == 'insertion':
-                reinstated_codon_positions[region] += indel['len']
-            elif indel['type'] == 'deletion':
-                reinstated_codon_positions[region] -= indel['len']
-            else:
-                assert False
-    return reinstated_codon_positions
-
 # ----------------------------------------------------------------------------------------
 def csv_to_fasta(infname, outfname=None, name_column='unique_ids', seq_column='input_seqs', n_max_lines=None, overwrite=True, remove_duplicates=False):
     def get_column_names(line):
@@ -2419,63 +2474,80 @@ def auto_slurm(n_procs):
     return False
 
 # ----------------------------------------------------------------------------------------
-def count_gaps(seq, istop=None):
-    """ return number of gap characters up to, but not including <istop> """
-    if istop is not None:
-        seq = seq[ : istop]
-    return sum([seq.count(gc) for gc in gap_chars])
-
-# ----------------------------------------------------------------------------------------
 def add_regional_alignments(glfo, aligned_gl_seqs, line, region, debug=False):
-    aligned_seqs = []
+    if debug:
+        print ' %s' % region
+
+    aligned_seqs = [None for _ in range(len(line['unique_ids']))]
     for iseq in range(len(line['seqs'])):
         qr_seq = line[region + '_qr_seqs'][iseq]
         gl_seq = line[region + '_gl_seq']
         aligned_gl_seq = aligned_gl_seqs[region][line[region + '_gene']]
         if len(qr_seq) != len(gl_seq):
+            if debug:
+                print '    qr %d and gl %d seqs different lengths for %s, setting invalid' % (len(qr_seq), len(gl_seq), ' '.join(line['unique_ids']))
             line['invalid'] = True
+            continue
+
+        n_gaps = gap_len(aligned_gl_seq)
+        if n_gaps == 0:
+            if debug:
+                print '   no gaps'
+            aligned_seqs[iseq] = qr_seq
             continue
 
         if debug:
-            print 'before alignment'
-            print '   qr   ', qr_seq
-            print '   gl   ', gl_seq
-            print '   al gl', aligned_gl_seq
+            print '   before alignment'
+            print '      qr   ', qr_seq
+            print '      gl   ', gl_seq
+            print ' aligned gl', aligned_gl_seq
 
-        n_gaps = sum([aligned_gl_seq.count(gc) for gc in gap_chars])
-        if len(aligned_gl_seq) != line[region + '_5p_del'] + len(gl_seq) + line[region + '_3p_del'] + n_gaps:
-            print len(aligned_gl_seq), line[region + '_5p_del'], len(gl_seq), line[region + '_3p_del'], n_gaps
+        # add dots for 5p and 3p deletions
+        qr_seq = gap_chars[0] * line[region + '_5p_del'] + qr_seq + gap_chars[0] * line[region + '_3p_del']
+        gl_seq = gap_chars[0] * line[region + '_5p_del'] + gl_seq + gap_chars[0] * line[region + '_3p_del']
+
+        if len(aligned_gl_seq) - n_gaps != len(gl_seq):
+            if debug:
+                print '    aligned germline seq without gaps (%d - %d = %d) not the same length as unaligned gl/qr seqs %d' % (len(aligned_gl_seq), n_gaps, len(aligned_gl_seq) - n_gaps, len(gl_seq))
             line['invalid'] = True
             continue
 
-        qr_seq = 'N' * line[region + '_5p_del'] + qr_seq + 'N' * line[region + '_3p_del']
-        gl_seq = 'N' * line[region + '_5p_del'] + gl_seq + 'N' * line[region + '_3p_del']
-
+        qr_seq = list(qr_seq)
+        gl_seq = list(gl_seq)
         for ibase in range(len(aligned_gl_seq)):
-            if aligned_gl_seq[ibase] in gap_chars:
-                qr_seq = qr_seq[ : ibase] + gap_chars[0] + qr_seq[ibase : ]
-                gl_seq = gl_seq[ : ibase] + gap_chars[0] + gl_seq[ibase : ]
-            else:
-                if gl_seq[ibase] != 'N' and gl_seq[ibase] != aligned_gl_seq[ibase]:
-                    line['invalid'] = True
-                    break
+            if aligned_gl_seq[ibase] in gap_chars:  # add gap to the qr and gl seq lists
+                qr_seq.insert(ibase, gap_chars[0])
+                gl_seq.insert(ibase, gap_chars[0])
+            elif gl_seq[ibase] == aligned_gl_seq[ibase] or gl_seq[ibase] in gap_chars:  # latter is 5p or 3p deletion that we filled in above
+                pass  # all is well
+            else:  # all is not well, don't know why
+                line['invalid'] = True
+                break
         if line['invalid']:
+            if debug:
+                print '    unknown error during alignment process'
             continue
+        qr_seq = ''.join(qr_seq)
+        gl_seq = ''.join(gl_seq)
 
         if debug:
-            print 'after alignment'
-            print '   qr   ', qr_seq
-            print '   gl   ', gl_seq
-            print '   al gl', aligned_gl_seq
+            print '   after alignment'
+            print '      qr   ', qr_seq
+            print '      gl   ', gl_seq
+            print ' aligned gl', aligned_gl_seq
 
-        if len(qr_seq) != len(gl_seq) or len(qr_seq) != len(aligned_gl_seq):
+        if len(qr_seq) != len(gl_seq) or len(qr_seq) != len(aligned_gl_seq):  # I don't think this is really possible as currently written
+            if debug:
+                print '    lengths qr %d gl %d and aligned gl %d not all the same after alignment' % (len(qr_seq), len(gl_seq), len(aligned_gl_seq))
             line['invalid'] = True
             continue
-        aligned_seqs.append(qr_seq)  # TODO is this supposed to be just the v section of the query sequence, or the whole sequence? (if it's the latter, I don't know what to do about alignments)
 
-    if line['invalid']:  # this seems to only happening when we simulate with debug 1, and in that case we don't actually do anything with the aligned seqs, so screw it
-        # aligned_seqs = [None for _ in range(len(line['seqs']))]
-        raise Exception('failed adding alignment info for %s' % ' '.join(line['unique_ids']))
+        aligned_seqs[iseq] = qr_seq
+
+    if line['invalid']:
+        print '%s failed adding alignment info for %s' % (color('red', 'error'),' '.join(line['unique_ids']))  # will print more than once if it doesn't fail on the last region
+        aligned_seqs = [None for _ in range(len(line['seqs']))]
+
     line['aligned_' + region + '_seqs'] = aligned_seqs
 
 # ----------------------------------------------------------------------------------------
@@ -2505,10 +2577,6 @@ def find_genes_that_have_hmms(parameter_dir):
         genes.append(gene)
 
     return genes
-
-# ----------------------------------------------------------------------------------------
-def get_empty_indel():
-    return {'reversed_seq' : '', 'indels' : []}
 
 # ----------------------------------------------------------------------------------------
 def choose_seed_unique_id(gldir, locus, simfname, seed_cluster_size_low, seed_cluster_size_high, iseed=None, n_max_queries=-1, debug=True):
@@ -2577,7 +2645,15 @@ def split_partition_with_criterion(partition, criterion_fcn):
     return true_clusters, false_clusters
 
 # ----------------------------------------------------------------------------------------
-def collapse_naive_seqs(naive_seq_list, sw_info):  # NOTE there is also a (simpler) naive seq collapse function in allelefinder
+def collapse_naive_seqs(swfo, queries=None):
+    if queries is None:
+        queries = swfo['queries']  # don't modify this
+    def keyfunc(q):
+        return swfo[q]['naive_seq']  # while this is no longer happening before fwk insertion trimming (which was bad), it is still happening on N-padded sequences, which should be kept in mind
+    return [list(group) for _, group in itertools.groupby(sorted(queries, key=keyfunc), key=keyfunc)]
+
+# ----------------------------------------------------------------------------------------
+def collapse_naive_seqs_with_hashes(naive_seq_list, sw_info):
     naive_seq_map = {}  # X[cdr3][hash(naive_seq)] : naive_seq
     naive_seq_hashes = {}  # X[hash(naive_seq)] : [uid1, uid2, uid3...]
     for uid, naive_seq in naive_seq_list:
@@ -2593,14 +2669,15 @@ def collapse_naive_seqs(naive_seq_list, sw_info):  # NOTE there is also a (simpl
     return naive_seq_map, naive_seq_hashes
 
 # ----------------------------------------------------------------------------------------
-def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, sanitize=False, queries=None, n_max_queries=-1, istartstop=None):  # Bio.SeqIO takes too goddamn long to import
-    suffix = getsuffix(fname)
-    if suffix == '.fa' or suffix == '.fasta':
-        ftype = 'fa'
-    elif suffix == '.fq' or suffix == '.fastq':
-        ftype = 'fq'
-    else:
-        raise Exception('unhandled file type: %s' % suffix)
+def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, sanitize=False, queries=None, n_max_queries=-1, istartstop=None, ftype=None):  # Bio.SeqIO takes too goddamn long to import
+    if ftype is None:
+        suffix = getsuffix(fname)
+        if suffix == '.fa' or suffix == '.fasta':
+            ftype = 'fa'
+        elif suffix == '.fq' or suffix == '.fastq':
+            ftype = 'fq'
+        else:
+            raise Exception('unhandled file type: %s' % suffix)
 
     finfo = []
     iline = -1  # index of the query/seq that we're currently reading in the fasta
@@ -2615,6 +2692,8 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, sanitize=Fa
             headline = fastafile.readline()
             if not headline:
                 break
+            if headline.strip() == '':  # skip a blank line
+                headline = fastafile.readline()
 
             if ftype == 'fa':
                 if headline[0] != '>':
@@ -2644,7 +2723,7 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, sanitize=Fa
                     raise Exception('invalid fastq quality header in %s:\n    %s' % (fname, plusline))
                 qualityline = fastafile.readline()
             else:
-                assert False
+                raise Exception('unhandled ftype %s' % ftype)
 
             if not seqline:
                 break
@@ -2683,21 +2762,21 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, sanitize=Fa
     return finfo
 
 # ----------------------------------------------------------------------------------------
-def output_exists(args, outfname):
+def output_exists(args, outfname, offset=22):
     if os.path.exists(outfname):
         if os.stat(outfname).st_size == 0:
-            print '                      deleting zero length %s' % outfname
+            print '%sdeleting zero length %s' % (offset * ' ', outfname)
             os.remove(outfname)
             return False
         elif args.overwrite:
-            print '                      overwriting %s' % outfname
+            print '%soverwriting %s' % (offset * ' ', outfname)
             if os.path.isdir(outfname):
                 raise Exception('output %s is a directory, rm it by hand' % outfname)
             else:
                 os.remove(outfname)
             return False
         else:
-            print '                      output exists, skipping (%s)' % outfname
+            print '%soutput exists, skipping (%s)' % (offset * ' ', outfname)
             return True
     else:
         return False
@@ -2713,3 +2792,175 @@ def getsuffix(fname):  # basename before the dot
     if len(os.path.splitext(fname)) != 2:
         raise Exception('couldn\'t split %s into two pieces using dot' % fname)
     return os.path.splitext(fname)[1]
+
+# ----------------------------------------------------------------------------------------
+def read_vsearch_cluster_file(fname):
+    id_clusters = {}
+    with open(fname) as clusterfile:
+        reader = csv.DictReader(clusterfile, fieldnames=['type', 'cluster_id', '3', '4', '5', '6', '7', 'crap', 'query', 'morecrap'], delimiter='\t')
+        for line in reader:
+            if line['type'] == 'C':  # some lines are a cluster, and some are a query sequence. Skip the cluster ones.
+                continue
+            cluster_id = int(line['cluster_id'])
+            if cluster_id not in id_clusters:
+                id_clusters[cluster_id] = []
+            uid = line['query']
+            id_clusters[cluster_id].append(uid)
+    partition = id_clusters.values()
+    return partition
+
+# ----------------------------------------------------------------------------------------
+def run_vsearch(action, seqs, workdir, threshold, consensus_fname=None, msa_fname=None, glfo=None, print_time=False, vsearch_binary=None):
+    # single-pass, greedy, star-clustering algorithm with
+    #  - add the target to the cluster if the pairwise identity with the centroid is higher than global threshold <--id>
+    #  - pairwise identity definition <--iddef> defaults to: number of (matching columns) / (alignment length - terminal gaps)
+    #  - the search process sorts sequences in decreasing order of number of k-mers in common
+    #    - the search process stops after --maxaccept matches (default 1), and gives up after --maxreject non-matches (default 32)
+    #    - If both are zero, it searches the whole database
+    #    - I do not remember why I set both to zero. I just did a quick test, and on a few thousand sequences, it seems to be somewhat faster with the defaults, and a tiny bit less accurate.
+    region = 'v'
+    start = time.time()
+
+    prep_dir(workdir)
+    infname = workdir + '/input.fa'
+
+    # write input
+    with open(infname, 'w') as fastafile:
+        for name, seq in seqs.items():
+            fastafile.write('>' + name + '\n' + seq + '\n')
+
+    # run
+    if vsearch_binary is None:
+        vsearch_binary = os.path.dirname(os.path.realpath(__file__)).replace('/python', '') + '/bin'
+        if platform.system() == 'Linux':
+            vsearch_binary += '/vsearch-2.4.3-linux-x86_64'
+        elif platform.system() == 'Darwin':
+            vsearch_binary += '/vsearch-2.4.3-macos-x86_64'
+        else:
+            raise Exception('%s no vsearch binary in bin/ for platform \'%s\' (you can specify your own full vsearch path with --vsearch-binary)' % (color('red', 'error'), platform.system()))
+
+    cmd = vsearch_binary
+    cmd += ' --id ' + str(1. - threshold)
+    # cmd += ' --match '  # default 2
+    # cmd += ' --mismatch '  # default -4
+    if action == 'cluster':
+        outfname = workdir + '/vsearch-clusters.txt'
+        cmd += ' --cluster_fast ' + infname
+        cmd += ' --uc ' + outfname
+        if consensus_fname is not None:  # workdir cleanup below will fail if you put it in this workdir
+            cmd += ' --consout ' + consensus_fname  # note: can also output a file with msa and consensus
+        if msa_fname is not None:  # workdir cleanup below will fail if you put it in this workdir
+            cmd += ' --msaout ' + msa_fname
+        # cmd += ' --maxaccept 0 --maxreject 0'  # see note above
+    elif action == 'search':
+        outfname = workdir + '/aln-info.tsv'
+        userfields = ['query', 'target', 'qilo', 'qihi', 'ids']
+        dbdir = workdir + '/' + glutils.glfo_dir
+        glutils.write_glfo(dbdir, glfo)
+        cmd += ' --usearch_global ' + infname
+        cmd += ' --maxaccepts 5'  # it's sorted by number of k-mers in common, so this needs to be large enough that we'll almost definitely get the exact best gene match
+        cmd += ' --db ' + glutils.get_fname(dbdir, glfo['locus'], region)
+        cmd += ' --userfields %s --userout %s' % ('+'.join(userfields), outfname)  # note that --sizeout --dbmatched <fname> adds up all the matches from --maxaccepts, i.e. it's not what we want
+    else:
+        assert False
+
+    # cmd += ' --threads ' + str(n_procs)  # a.t.m. just let vsearch use all the cores (it'd be nice to be able to control it a little, but it's hard to keep it separate from the number of slurm procs, and we pretty much always want it to be different to that)
+    cmd += ' --quiet'
+    cmdfos = [{
+        'cmd_str' : cmd,
+        'outfname' : outfname,
+        'workdir' : workdir,
+        # 'threads' : n_procs},  # NOTE that this does something very different (adjusts slurm command) to the line above ^ (talks to vsearch)
+    }]
+    run_cmds(cmdfos)
+
+    # read output
+    if action == 'cluster':
+        returnfo = read_vsearch_cluster_file(outfname)
+    elif action == 'search':
+        query_info = {}
+        with open(outfname) as alnfile:
+            reader = csv.DictReader(alnfile, fieldnames=userfields, delimiter='\t')  # NOTE start/end positions are 1-indexed
+            for line in reader:
+                query = line['query']
+                istart = int(line['qilo']) - 1  # qilo/qihi: first/last nucleotide of query aligned with target (1-indexed, ignores initial gaps)
+                length = int(line['qihi']) - int(line['qilo']) + 1
+                qr_seq = seqs[query][istart : istart + length]
+                id_score = int(line['ids'])
+                if query not in query_info:  # note that a surprisingly large number of targets give the same score, and you seem to get a little closer to what sw does if you sort alphabetically, but it don't matter
+                    query_info[query] = []
+                query_info[query].append({'ids' : id_score,
+                                          'gene' : line['target'],
+                                          'qr_seq' : qr_seq})
+
+        glutils.remove_glfo_files(dbdir, glfo['locus'])
+        if len(query_info) == 0:
+            raise Exception('didn\'t read anything from vsearch output file %s from cmd %s' % (outfname, cmd))
+
+        for query in query_info:
+            if len(query_info[query]) == 0:
+                print '%s zero vsearch matches for query %s' % (color('yellow', 'warning'), query)
+                del query_info[query]  # uh... need to handle failures better than this
+                continue
+            query_info[query] = sorted(query_info[query], key=lambda d: d['ids'], reverse=True)
+            best_score = query_info[query][0]['ids']
+            query_info[query] = [qinfo for qinfo in query_info[query] if qinfo['ids'] == best_score]  # keep all the matches that have the same score as the best match
+
+        gene_counts = {}
+        for query in query_info:
+            counts_per_match = 1. / len(query_info[query])  # e.g. if there's four matches with the same score, give 'em each 0.25 counts
+            for qinfo in query_info[query]:
+                if qinfo['gene'] not in gene_counts:
+                    gene_counts[qinfo['gene']] = 0.
+                gene_counts[qinfo['gene']] += counts_per_match
+        regional_mute_freq = numpy.mean([float(query_info[q][0]['ids']) / len(query_info[q][0]['qr_seq']) for q in query_info])
+        # TODO I think I don't need the 'mute-freqs' info any more (?)
+        returnfo = {'gene-counts' : gene_counts, 'queries' : query_info, 'mute-freqs' : {region : regional_mute_freq}}  # NOTE <gene_counts> is note integers
+    else:
+        assert False
+    os.remove(infname)
+    os.remove(outfname)
+    os.rmdir(workdir)
+    if print_time:
+        print '      vsearch: %d %s annotations in %.1f sec' % (len(seqs), region, time.time() - start)
+
+    return returnfo
+
+# ----------------------------------------------------------------------------------------
+def run_swarm(seqs, workdir, differences=1, n_procs=1):
+    # groups together all sequence pairs that have <d> or fewer differences (--differences, default 1)
+    #  - if d=1, uses algorithm of linear complexity (d=2 or greater uses quadratic algorithm)
+    #  - --fastidious (only for d=1) extra pass to reduce the number of small OTUs
+
+    prep_dir(workdir)
+    infname = workdir + '/input.fa'
+    outfname = workdir + '/clusters.txt'
+
+    dummy_abundance = 1
+    with open(infname, 'w') as fastafile:
+        for name, seq in seqs.items():
+            fastafile.write('>%s_%d\n%s\n' % (name, dummy_abundance, remove_ambiguous_ends(seq).replace('N', 'A')))
+
+    cmd = os.path.dirname(os.path.realpath(__file__)).replace('/python', '') + '/bin/swarm-2.1.13-linux-x86_64 ' + infname
+    cmd += ' --differences ' + str(differences)
+    if differences == 1:
+        cmd += ' --fastidious'
+    cmd += ' --threads ' + str(n_procs)
+    cmd += ' --output-file ' + outfname
+    simplerun(cmd)
+
+    partition = []
+    with open(outfname) as outfile:
+        for line in outfile:
+            partition.append([uidstr.rstrip('_%s' % dummy_abundance) for uidstr in line.strip().split()])
+
+    os.remove(infname)
+    os.remove(outfname)
+    os.rmdir(workdir)
+
+    from clusterpath import ClusterPath
+    cp = ClusterPath()
+    cp.add_partition(partition, logprob=0., n_procs=1)
+    cp.print_partitions(abbreviate=True)
+
+    return partition

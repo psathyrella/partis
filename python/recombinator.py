@@ -1,4 +1,4 @@
-""" Simulates the process of VDJ recombination """
+import copy
 import operator
 import tempfile
 import sys
@@ -15,6 +15,7 @@ import subprocess
 import paramutils
 import utils
 import glutils
+import indelutils
 from event import RecombinationEvent
 
 dummy_name_so_bppseqgen_doesnt_break = 'xxx'  # bppseqgen ignores branch length before mrca, so we add a spurious leaf with this name and the same total depth as the rest of the tree, then remove it after getting bppseqgen's output
@@ -157,33 +158,29 @@ class Recombinator(object):
             print '    insert: %s' % reco_event.insertions['dj']
             print '         j: %s' % reco_event.eroded_seqs['j']
         reco_event.recombined_seq = reco_event.eroded_seqs['v'] + reco_event.insertions['vd'] + reco_event.eroded_seqs['d'] + reco_event.insertions['dj'] + reco_event.eroded_seqs['j']
-        reco_event.set_final_codon_positions()
+        reco_event.set_post_erosion_codon_positions()
 
         # set the original conserved codon words, so we can revert them if they get mutated NOTE we do it here, *after* setting the full recombined sequence, so the germline Vs that don't extend through the cysteine don't screw us over
         reco_event.unmutated_codons = {}
         for region, codon in utils.conserved_codons[self.args.locus].items():
-            fpos = reco_event.final_codon_positions[region]
+            fpos = reco_event.post_erosion_codon_positions[region]
             original_codon = reco_event.recombined_seq[fpos : fpos + 3]
             reco_event.unmutated_codons[region] = reco_event.recombined_seq[fpos : fpos + 3]
             # print fpos, original_codon, utils.codon_unmutated(codon, reco_event.recombined_seq, fpos)
 
-        codons_ok = utils.both_codons_unmutated(self.glfo['locus'], reco_event.recombined_seq, reco_event.final_codon_positions, extra_str='      ', debug=self.args.debug)
+        codons_ok = utils.both_codons_unmutated(self.glfo['locus'], reco_event.recombined_seq, reco_event.post_erosion_codon_positions, extra_str='      ', debug=self.args.debug)
         if not codons_ok:
             if self.args.rearrange_from_scratch and self.args.generate_germline_set:  # if you let it try more than once, it screws up the desired allele prevalence ratios
                 raise Exception('arg')
             return False
-        in_frame = utils.in_frame(reco_event.recombined_seq, reco_event.final_codon_positions, '', reco_event.effective_erosions['v_5p'])  # NOTE empty string is the fv insertion, which is hard coded to zero in event.py. I no longer recall the details of that decision, but I have a large amount of confidence that it's more sensible than it looks
+        in_frame = utils.in_frame(reco_event.recombined_seq, reco_event.post_erosion_codon_positions, '', reco_event.effective_erosions['v_5p'])  # NOTE empty string is the fv insertion, which is hard coded to zero in event.py. I no longer recall the details of that decision, but I have a large amount of confidence that it's more sensible than it looks
         if self.args.rearrange_from_scratch and not in_frame:
             raise Exception('arg 2')  # if you let it try more than once, it screws up the desired allele prevalence ratios
             return False
 
-        self.add_mutants(reco_event, irandom)  # toss a bunch of clones: add point mutations
+        self.add_mutants(reco_event, irandom)
 
-        if self.args.debug:
-            reco_event.print_event()
-
-        # write output to csv
-        reco_event.write_event(self.outfname, irandom=irandom)
+        reco_event.write_event(self.outfname, reco_event.line)
 
         return True
 
@@ -238,7 +235,7 @@ class Recombinator(object):
             else:
                 max_erosion = max(0, gene_length/2 - 2)  # heuristic
                 if region in utils.conserved_codons[self.args.locus]:  # make sure not to erode a conserved codon
-                    codon_pos = self.glfo[utils.conserved_codons[self.args.locus][region] + '-positions'][tmpline[region + '_gene']]
+                    codon_pos = utils.cdn_pos(self.glfo, region, tmpline[region + '_gene'])
                     if '3p' in erosion:
                         n_bases_to_codon = gene_length - codon_pos - 3
                     elif '5p' in erosion:
@@ -265,7 +262,8 @@ class Recombinator(object):
             elif '3p' in erosion:
                 gl_seqs[region] = gl_seqs[region][:len(gl_seqs[region]) - e_length]
         tmpline['seqs'] = [gl_seqs['v'] + tmpline['vd_insertion'] + gl_seqs['d'] + tmpline['dj_insertion'] + gl_seqs['j'], ]
-        tmpline['indelfos'] = [utils.get_empty_indel(), ]
+        tmpline['input_seqs'] = copy.deepcopy(tmpline['seqs'])
+        tmpline['indelfos'] = [indelutils.get_empty_indel(), ]
         utils.add_implicit_info(self.glfo, tmpline)
         assert len(tmpline['in_frames']) == 1
 
@@ -275,6 +273,8 @@ class Recombinator(object):
 
         # first choose the things that we'll only need to try choosing once (genes and effective (non-physical) deletions/insertions)
         for region in utils.regions:
+            if len(self.glfo['seqs'][region]) == 0:
+                raise Exception('no genes to choose from for %s' % region)
             probs = None  # it would make more sense to only do this prob calculation once, rather than for each event
             if region in self.allele_prevalence_freqs and len(self.allele_prevalence_freqs[region]) > 0:  # should really change it so it has to be the one or the other
                 probs = [self.allele_prevalence_freqs[region][g] for g in self.glfo['seqs'][region].keys()]
@@ -294,7 +294,7 @@ class Recombinator(object):
                 print '%s tried to get an in-frame rearrangement %d times already' % (utils.color('yellow', 'warning'), n_tries)
 
         # convert insertions back to lengths (hoo boy this shouldn't need to be done)
-        for bound in utils.boundaries + utils.effective_boundaries:
+        for bound in utils.all_boundaries:
             tmpline[bound + '_insertion'] = len(tmpline[bound + '_insertion'])
 
         return tmpline
@@ -491,47 +491,11 @@ class Recombinator(object):
         return mutated_seqs
 
     # ----------------------------------------------------------------------------------------
-    def add_shm_insertion(self, indelfo, seq, pos, length):
-        """ insert a random sequence with <length> beginning at <pos> """
-        inserted_sequence = ''
-        for ipos in range(length):
-            inuke = random.randint(0, len(utils.nukes) - 1)  # inclusive
-            inserted_sequence += utils.nukes[inuke]
-        return_seq = seq[ : pos] + inserted_sequence + seq[pos : ]
-        indelfo['indels'].append({'type' : 'insertion', 'pos' : pos, 'len' : length, 'seqstr' : inserted_sequence})
-        if self.args.debug:
-            print '          inserting %s at %d' % (inserted_sequence, pos)
-        return return_seq
-
-    # ----------------------------------------------------------------------------------------
-    def add_single_indel(self, seq, indelfo, codon_positions):
-        if self.args.indel_location == None:  # uniform over entire sequence
-            pos = random.randint(0, len(seq) - 1)  # this will actually exclude either before the first index or after the last index. No, I don't care.
-        elif self.args.indel_location == 'v':  # within the meat of the v
-            pos = random.randint(10, codon_positions['v'])
-        elif self.args.indel_location == 'cdr3':  # inside cdr3
-            pos = random.randint(codon_positions['v'], codon_positions['j'])
-        else:
-            assert False
-
-        length = numpy.random.geometric(1. / self.args.mean_indel_length)
-
-        if numpy.random.uniform(0, 1) < 0.5:  # fifty-fifty chance of insertion and deletion
-            new_seq = self.add_shm_insertion(indelfo, seq, pos, length)
-        else:
-            deleted_seq = seq[ : pos] + seq[pos + length : ]  # delete <length> bases beginning with <pos>
-            indelfo['indels'].append({'type' : 'deletion', 'pos' : pos, 'len' : length, 'seqstr' : seq[pos : pos + length]})
-            if self.args.debug:
-                print '          deleting %d bases at %d' % (length, pos)
-            new_seq = deleted_seq
-
-        return new_seq
-
-    # ----------------------------------------------------------------------------------------
     def add_shm_indels(self, reco_event):
+        # NOTE that it will eventually make sense to add shared indel mutation according to the chosen tree -- i.e., probably, with some probability apply an indel instead of a point mutation
         if self.args.debug and self.args.indel_frequency > 0.:
             print '      indels'
-        reco_event.indelfos = [utils.get_empty_indel() for _ in range(len(reco_event.final_seqs))]
+        reco_event.indelfos = [indelutils.get_empty_indel() for _ in range(len(reco_event.final_seqs))]
         for iseq in range(len(reco_event.final_seqs)):
             if self.args.indel_frequency == 0.:  # no indels at all
                 continue
@@ -540,17 +504,20 @@ class Recombinator(object):
                     print '        0'
                 continue
             reco_event.indelfos[iseq]['reversed_seq'] = reco_event.final_seqs[iseq]  # set the original sequence (i.e. with all the indels reversed)
-            n_indels = 1  #numpy.random.geometric(1. / self.args.mean_n_indels)
+            n_indels = numpy.random.geometric(1. / self.args.mean_indels_per_indeld_seq)
             if self.args.debug:
                 print '        %d' % n_indels
             for _ in range(n_indels):
-                reco_event.final_seqs[iseq] = self.add_single_indel(reco_event.final_seqs[iseq], reco_event.indelfos[iseq], reco_event.final_codon_positions)
+                # NOTE modifies <indelfo> and <codon_positions>
+                reco_event.final_seqs[iseq] = indelutils.add_single_indel(reco_event.final_seqs[iseq], reco_event.indelfos[iseq],
+                                                                          self.args.mean_indel_length, reco_event.final_codon_positions[iseq],
+                                                                          indel_location=self.args.indel_location, debug=self.args.debug)
 
     # ----------------------------------------------------------------------------------------
     def add_mutants(self, reco_event, irandom):
         if self.args.mutation_multiplier is not None and self.args.mutation_multiplier == 0.:  # some of the stuff below fails if mut mult is actually 0.
             reco_event.final_seqs.append(reco_event.recombined_seq)  # set final sequnce in reco_event
-            reco_event.indelfos = [utils.get_empty_indel() for _ in range(len(reco_event.final_seqs))]
+            reco_event.indelfos = [indelutils.get_empty_indel() for _ in range(len(reco_event.final_seqs))]
             return
 
         # When generating trees, each tree's number of leaves and total depth are chosen from the specified distributions (a.t.m., by default n-leaves is from a geometric/zipf, and depth is from data)
@@ -601,12 +568,18 @@ class Recombinator(object):
         assert len(reco_event.final_seqs) == 0
         for iseq in range(n_leaves):
             seq = mseqs['v'][iseq] + mseqs['d'][iseq] + mseqs['j'][iseq]
-            seq = reco_event.revert_conserved_codons(seq)  # if mutation screwed up the conserved codons, just switch 'em back to what they were to start with
+            seq = reco_event.revert_conserved_codons(seq, debug=self.args.debug)  # if mutation screwed up the conserved codons, just switch 'em back to what they were to start with
             reco_event.final_seqs.append(seq)  # set final sequnce in reco_event
+            reco_event.final_codon_positions.append(copy.deepcopy(reco_event.post_erosion_codon_positions))  # separate codon positions for each sequence, because of shm indels
 
         self.add_shm_indels(reco_event)
 
+        reco_event.setline(irandom)  # set the line here because we use it when checking tree simulation, and want to make sure the uids are always set at the same point in the workflow
+
         self.check_tree_simulation(mean_total_height, regional_heights, scaled_trees, mseqs, reco_event)
+
+        if self.args.debug:
+            utils.print_reco_event(reco_event.line, extra_str='    ')
 
     # ----------------------------------------------------------------------------------------
     def infer_tree_from_leaves(self, region, in_tree, leafseqs):
@@ -636,14 +609,14 @@ class Recombinator(object):
 
     # ----------------------------------------------------------------------------------------
     def check_tree_simulation(self, mean_total_height, regional_heights, scaled_trees, mseqs, reco_event, debug=False):
-        line = reco_event.getline()
+        assert reco_event.line is not None  # make sure we already set it
         mean_observed = {n : 0.0 for n in ['all'] + utils.regions}
         for iseq in range(len(reco_event.final_seqs)):
             if debug:
-                print '   %4d  %.3f  %.3f' % (iseq, line['mut_freqs'][iseq], mean_total_height)
-            mean_observed['all'] += line['mut_freqs'][iseq]
+                print '   %4d  %.3f  %.3f' % (iseq, reco_event.line['mut_freqs'][iseq], mean_total_height)
+            mean_observed['all'] += reco_event.line['mut_freqs'][iseq]
             for region in utils.regions:  # NOTE for simulating, we mash the insertions in with the D, but this isn't accounted for here
-                rrate = utils.get_mutation_rate(line, iseq=iseq, restrict_to_region=region)
+                rrate = utils.get_mutation_rate(reco_event.line, iseq=iseq, restrict_to_region=region)
                 if debug:
                     print '       %.3f  %.3f' % (rrate, regional_heights[region])
                 mean_observed[region] += rrate
