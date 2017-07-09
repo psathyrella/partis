@@ -1111,10 +1111,10 @@ class Waterer(object):
             if fv_len == 0 and jf_len == 0:
                 continue
 
-            utils.remove_all_implicit_info(swfo)
-
+            # it would be nice to combine these shenanigans with their counterparts in pad_seqs_to_same_length() [e.g. add a fcn utils.modify_fwk_insertions(), although padding doesn't just modify the fwk insertions, so...], but I'm worried they need to be slightly different and don't want to test extensively a.t.m.
             for seqkey in ['seqs', 'input_seqs']:
                 swfo[seqkey][0] = swfo[seqkey][0][fv_len : len(swfo[seqkey][0]) - jf_len]
+            swfo['naive_seq'] = swfo['naive_seq'][fv_len : len(swfo['naive_seq']) - jf_len]
             if query in self.info['indels']:  # NOTE unless there's no indel, the dict in self.info['indels'][query] *is* the dict in swfo['indelfos'][0]
                 swfo['indelfos'][0]['reversed_seq'] = swfo['seqs'][0]
                 for indel in reversed(swfo['indelfos'][0]['indels']):  # why in the world did I bother with the reversed() here? I guess maybe just as a reminder of how the list works...
@@ -1123,7 +1123,10 @@ class Waterer(object):
                 swfo['k_v'][key] -= fv_len
             swfo['fv_insertion'] = ''
             swfo['jf_insertion'] = ''
-            utils.add_implicit_info(self.glfo, swfo, aligned_gl_seqs=self.aligned_gl_seqs)
+            swfo['codon_positions']['v'] -= fv_len
+            swfo['codon_positions']['j'] -= fv_len
+            for region in utils.regions:
+                swfo['regional_bounds'][region] = tuple([rb - fv_len for rb in swfo['regional_bounds'][region]])  # I kind of want to just use a list now, but a.t.m. don't much feel like changing it everywhere else
 
             if debug:
                 print '    after %s' % swfo['seqs'][0]
@@ -1302,7 +1305,7 @@ class Waterer(object):
             swfo['jf_insertion'] = swfo['jf_insertion'] + rightstr
             for seqkey in ['seqs', 'input_seqs']:
                 swfo[seqkey][0] = leftstr + swfo[seqkey][0] + rightstr
-            swfo['naive_seq'] = leftstr + swfo['naive_seq'] + rightstr  # NOTE I should eventually rewrite this to remove all implicit info, then change things, then re-add implicit info (like in remove_framework_insertions)
+            swfo['naive_seq'] = leftstr + swfo['naive_seq'] + rightstr
             if query in self.info['indels']:  # also pad the reversed sequence and change indel positions NOTE unless there's no indel, the dict in self.info['indels'][query] *is* the dict in swfo['indelfos'][0]
                 self.info['indels'][query]['reversed_seq'] = leftstr + self.info['indels'][query]['reversed_seq'] + rightstr
                 for indel in swfo['indelfos'][0]['indels']:
@@ -1315,8 +1318,6 @@ class Waterer(object):
                 swfo['regional_bounds'][region] = tuple([rb + padleft for rb in swfo['regional_bounds'][region]])  # I kind of want to just use a list now, but a.t.m. don't much feel like changing it everywhere else
             swfo['padlefts'] = [padleft, ]
             swfo['padrights'] = [padright, ]
-            utils.add_implicit_info(self.glfo, swfo, aligned_gl_seqs=self.aligned_gl_seqs)  # check to make sure we modified everything in a consistent manner
-
             if debug:
                 print '    %3d   %3d    %s' % (padleft, padright, query)
 
