@@ -2810,7 +2810,7 @@ def read_vsearch_cluster_file(fname):
     return partition
 
 # ----------------------------------------------------------------------------------------
-def run_vsearch(action, seqs, workdir, threshold, consensus_fname=None, msa_fname=None, glfo=None, print_time=False):
+def run_vsearch(action, seqs, workdir, threshold, consensus_fname=None, msa_fname=None, glfo=None, print_time=False, vsearch_binary=None):
     # single-pass, greedy, star-clustering algorithm with
     #  - add the target to the cluster if the pairwise identity with the centroid is higher than global threshold <--id>
     #  - pairwise identity definition <--iddef> defaults to: number of (matching columns) / (alignment length - terminal gaps)
@@ -2830,7 +2830,16 @@ def run_vsearch(action, seqs, workdir, threshold, consensus_fname=None, msa_fnam
             fastafile.write('>' + name + '\n' + seq + '\n')
 
     # run
-    cmd = os.path.dirname(os.path.realpath(__file__)).replace('/python', '') + '/bin/vsearch-2.4.3-linux-x86_64'
+    if vsearch_binary is None:
+        vsearch_binary = os.path.dirname(os.path.realpath(__file__)).replace('/python', '') + '/bin'
+        if platform.system() == 'Linux':
+            vsearch_binary += '/vsearch-2.4.3-linux-x86_64'
+        elif platform.system() == 'Darwin':
+            vsearch_binary += '/vsearch-2.4.3-macos-x86_64'
+        else:
+            raise Exception('%s no vsearch binary in bin/ for platform \'%s\' (you can specify your own full vsearch path with --vsearch-binary)' % (color('red', 'error'), platform.system()))
+
+    cmd = vsearch_binary
     cmd += ' --id ' + str(1. - threshold)
     # cmd += ' --match '  # default 2
     # cmd += ' --mismatch '  # default -4

@@ -292,6 +292,7 @@ parent_parser.add_argument('--batch-config-fname', default='/etc/slurm-llnl/slur
 parent_parser.add_argument('--only-smith-waterman', action='store_true', help='Exit after finishing smith-waterman.')
 parent_parser.add_argument('--write-trimmed-and-padded-seqs-to-sw-cachefname', action='store_true', help='after running sw, trim and pad sequences *before* writing to the sw cache file (rather than after). Note that this will in some cases cause waterer.py to not be able to read sw results from this cache file.')
 parent_parser.add_argument('--ig-sw-binary', default=partis_dir + '/packages/ig-sw/src/ig_align/ig-sw', help='Path to ig-sw executable.')
+parent_parser.add_argument('--vsearch-binary',  help='Path to vsearch binary (vsearch binaries for linux and darwin are pre-installed in bin/, but for other systems you need to get your own)')
 parent_parser.add_argument('--is-simu', action='store_true', help='Set if running on simulated sequences')
 parent_parser.add_argument('--skip-unproductive', action='store_true', help='Skip sequences which Smith-Waterman determines to be unproductive (i.e. if they have stop codons, out of frame cdr3, or mutated cyst/tryp/phen)')
 parent_parser.add_argument('--also-remove-duplicate-sequences-with-different-lengths', action='store_true', help='By default we remove any queries which have exactly the same sequence as a previous query. If this is set, we also consider as duplicates sequences which are sub/super strings of previous sequences (we keep the longest one).')

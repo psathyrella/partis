@@ -236,7 +236,7 @@ class PartitionDriver(object):
 
         # remove unlikely alleles
         if not self.args.dont_remove_unlikely_alleles:
-            vs_info = utils.run_vsearch('search', {sfo['unique_ids'][0] : sfo['seqs'][0] for sfo in self.input_info.values()}, self.args.workdir + '/vsearch', threshold=0.3, glfo=self.glfo, print_time=True)
+            vs_info = utils.run_vsearch('search', {sfo['unique_ids'][0] : sfo['seqs'][0] for sfo in self.input_info.values()}, self.args.workdir + '/vsearch', threshold=0.3, glfo=self.glfo, print_time=True, vsearch_binary=self.args.vsearch_binary)
             alremover = AlleleRemover(self.glfo, self.args, AlleleFinder(self.glfo, self.args, itry=0))
             alremover.finalize(sorted(vs_info['gene-counts'].items(), key=operator.itemgetter(1), reverse=True), debug=self.args.debug_allele_finding)
             glutils.remove_genes(self.glfo, alremover.genes_to_remove)
@@ -598,7 +598,7 @@ class PartitionDriver(object):
         partition = []
         print '    running vsearch %d times (once for each cdr3 length class):' % len(all_naive_seqs),
         for cdr3_length, sub_naive_seqs in all_naive_seqs.items():
-            sub_hash_partition = utils.run_vsearch('cluster', sub_naive_seqs, self.args.workdir + '/vsearch', threshold)
+            sub_hash_partition = utils.run_vsearch('cluster', sub_naive_seqs, self.args.workdir + '/vsearch', threshold, vsearch_binary=self.args.vsearch_binary)
             sub_uid_partition = [[uid for hashstr in hashcluster for uid in naive_seq_hashes[hashstr]] for hashcluster in sub_hash_partition]
             partition += sub_uid_partition
             print '.',
