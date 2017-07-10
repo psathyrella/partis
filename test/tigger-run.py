@@ -66,6 +66,8 @@ def run_partis(infname, outfname):
     cmd += ' --leave-default-germline'
     cmd += ' --presto-output --only-smith-waterman'
     cmd += ' --outfname ' + outfname
+    cmd += ' --dont-write-parameters'
+    cmd += ' --parameter-dir ' + os.path.dirname(outfname) + '/partis-parameters'  # sw cache file gets written to the parameter dir even with --dont-write-parameters
     if args.glfo_dir is not None:
         cmd += ' --initial-germline-dir ' + args.glfo_dir
     cmd += ' --aligned-germline-fname ' + aligned_germline_fname
@@ -91,10 +93,13 @@ def run_tigger(infname, outfname, outdir):
     rcmds += ['%s = readIgFasta("%s")' % (gls_name, get_glfname('v', aligned=True))]
 
     tigger_outfname = outdir + '/tigger.fasta'
-    germline_min = 5 # only analyze genes which correspond to at least this many V calls (default 200)
-    min_seqs = 5  # minimum number of total sequences
-    j_max = 0.95  # of sequences which align perfectly (i.e. zero mutation?) to a new allele, no more than this fraction can correspond to each junction length + j gene combination (default 0.15)
-    rcmds += ['novel_df = findNovelAlleles(%s, %s, germline_min=%d, min_seqs=%d, j_max=%f, nproc=%d)' % (db_name, gls_name, germline_min, min_seqs, j_max, utils.auto_n_procs())]
+    find_novel_argstr = '%s, %s, nproc=%d' % (db_name, gls_name, utils.auto_n_procs())
+    if args.tuned_tigger_params:
+        germline_min = 5 # only analyze genes which correspond to at least this many V calls (default 200)
+        min_seqs = 5  # minimum number of total sequences
+        j_max = 0.95  # of sequences which align perfectly (i.e. zero mutation?) to a new allele, no more than this fraction can correspond to each junction length + j gene combination (default 0.15)
+        find_novel_argstr += ', germline_min=%d, min_seqs=%d, j_max=%f' % (germline_min, min_seqs, j_max)
+    rcmds += ['novel_df = findNovelAlleles(%s)' % find_novel_argstr]
     # rcmds += ['sessionInfo()']
     rcmds += ['print(novel_df)']
     rcmds += ['geno = inferGenotype(%s, find_unmutated = TRUE, germline_db = %s, novel_df = novel_df)' % (db_name, gls_name)]
@@ -104,7 +109,7 @@ def run_tigger(infname, outfname, outdir):
     with open(cmdfname, 'w') as cmdfile:
         cmdfile.write('\n'.join(rcmds) + '\n')
     cmdstr = 'R --slave -f ' + cmdfname
-    # subprocess.check_call(['cat', cmdfname])
+    subprocess.check_call(['cat', cmdfname])
     utils.simplerun(cmdstr, shell=True, print_time='tigger')
 
     # post-process tigger .fa
@@ -186,6 +191,7 @@ def run_alignment(args, outdir):
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
 parser.add_argument('--gls-gen', action='store_true')
+parser.add_argument('--tuned-tigger-params', action='store_true')
 parser.add_argument('--infname', required=True)
 parser.add_argument('--outfname', required=True)
 parser.add_argument('--workdir', required=True)

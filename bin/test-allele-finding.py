@@ -77,13 +77,15 @@ def simulate(args):
 
 # ----------------------------------------------------------------------------------------
 def run_other_method(args, method):
-    if method not in ['tigger', 'igdiscover']:  # really just to make it easier to search for this fcn
+    if method not in ['tigger-default', 'tigger-tuned', 'igdiscover']:  # really just to make it easier to search for this fcn
         assert False
     if utils.output_exists(args, get_outfname(args, method)):
         return
     simfasta = utils.getprefix(args.simfname) + '.fa'
     utils.csv_to_fasta(args.simfname, outfname=simfasta, overwrite=False, remove_duplicates=True)
-    cmd = './test/%s-run.py' % method
+    cmd = './test/%s-run.py' % method.split('-')[0]
+    if method == 'tigger-tuned':
+        cmd += ' --tuned-tigger-params'
     cmd += ' --infname ' + simfasta
     cmd += ' --outfname ' + get_outfname(args, method)
     if args.overwrite:
@@ -319,7 +321,7 @@ args.sim_v_genes = utils.get_arg_list(args.sim_v_genes)
 args.inf_v_genes = utils.get_arg_list(args.inf_v_genes)
 args.allele_prevalence_freqs = utils.get_arg_list(args.allele_prevalence_freqs, floatify=True)
 args.methods = utils.get_arg_list(args.methods)
-available_methods = set(['simu', 'partis', 'full', 'tigger', 'igdiscover'])
+available_methods = set(['simu', 'partis', 'full', 'tigger-default', 'tigger-tuned', 'igdiscover'])
 if len(set(args.methods) - available_methods) > 0:
     raise Exception('unexpected --methods: %s' % ' '.join(set(args.methods) - available_methods))
 

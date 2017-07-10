@@ -154,7 +154,7 @@ def get_gls_fname(outdir, method, locus, sim_truth=False, data=False):  # NOTE d
         outdir += '/germlines/simulation'
     elif method == 'partis' or method == 'full':
         outdir += '/' + method + '/sw/germline-sets'
-    elif method == 'tigger':
+    elif 'tigger' in method:
         outdir += '/' + method
     else:
         assert False
@@ -372,7 +372,7 @@ for study in data_pairs:
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
 parser.add_argument('action', choices=['mfreq', 'nsnp', 'multi-nsnp', 'prevalence', 'n-leaves', 'weibull', 'alcluster', 'gls-gen', 'data'])
-parser.add_argument('--methods', default='partis') #choices=['partis', 'full', 'tigger'])
+parser.add_argument('--methods', default='partis') # not using <choices> 'cause it's harder since it's a list
 parser.add_argument('--v-genes', default='IGHV4-39*01')
 parser.add_argument('--varvals')
 parser.add_argument('--n-event-list', default='1000:2000:4000:8000')  # NOTE modified later for multi-nsnp also NOTE not used for gen-gset

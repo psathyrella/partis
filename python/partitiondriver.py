@@ -206,6 +206,8 @@ class PartitionDriver(object):
     def restrict_to_observed_alleles(self, subpdir):
         # TODO do I still need this now I'm using alleleremover?
         """ Restrict <self.glfo> to genes observed in <subpdir> """
+        if self.args.dont_write_parameters:
+            return
         if self.args.debug:
             print '  restricting self.glfo to alleles observed in %s' % subpdir
         only_genes = set()
@@ -1045,6 +1047,8 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def write_hmms(self, parameter_dir):
         """ Write hmm model files to <parameter_dir>/hmms, using information from <parameter_dir> """
+        if self.args.dont_write_parameters:
+            return
         print '  writing hmms',
         sys.stdout.flush()
         start = time.time()
@@ -1465,14 +1469,15 @@ class PartitionDriver(object):
                         perfplotter.evaluate(self.reco_info[uids[iseq]], utils.synthesize_single_seq_line(line_to_use, iseq), simglfo=self.simglfo)
 
         # parameter and performance writing/plotting
-        if pcounter is not None:
+        if pcounter is not None and not self.args.dont_write_parameters:
+            pcounter.write(parameter_out_dir)
+            if true_pcounter is not None:
+                true_pcounter.write(parameter_out_dir + '-true')
             if self.args.plotdir is not None:
                 pcounter.plot(self.args.plotdir + '/hmm', only_csv=self.args.only_csv_plots, only_overall=self.args.only_overall_plots)
-            pcounter.write(parameter_out_dir)
-        if true_pcounter is not None:
-            if self.args.plotdir is not None:
-                true_pcounter.plot(self.args.plotdir + '/hmm-true', only_csv=self.args.only_csv_plots, only_overall=self.args.only_overall_plots)
-            true_pcounter.write(parameter_out_dir + '-true')
+                if true_pcounter is not None:
+                        true_pcounter.plot(self.args.plotdir + '/hmm-true', only_csv=self.args.only_csv_plots, only_overall=self.args.only_overall_plots)
+
         if perfplotter is not None:
             perfplotter.plot(self.args.plotdir + '/hmm', only_csv=self.args.only_csv_plots)
 

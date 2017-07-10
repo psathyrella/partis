@@ -290,6 +290,7 @@ parent_parser.add_argument('--batch-options', help='additional options to apply 
 parent_parser.add_argument('--batch-config-fname', default='/etc/slurm-llnl/slurm.conf', help='system-wide batch system configuration file name')
 
 parent_parser.add_argument('--only-smith-waterman', action='store_true', help='Exit after finishing smith-waterman.')
+parent_parser.add_argument('--dont-write-parameters', action='store_true', help='don\'t write parameters to disk (mostly for use in conjunction with --only-smith-waterman, so you can avoid cluttering up your file system)')
 parent_parser.add_argument('--write-trimmed-and-padded-seqs-to-sw-cachefname', action='store_true', help='after running sw, trim and pad sequences *before* writing to the sw cache file (rather than after). Note that this will in some cases cause waterer.py to not be able to read sw results from this cache file.')
 parent_parser.add_argument('--ig-sw-binary', default=partis_dir + '/packages/ig-sw/src/ig_align/ig-sw', help='Path to ig-sw executable.')
 parent_parser.add_argument('--vsearch-binary',  help='Path to vsearch binary (vsearch binaries for linux and darwin are pre-installed in bin/, but for other systems you need to get your own)')
