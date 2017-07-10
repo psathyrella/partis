@@ -108,6 +108,7 @@ def run_tigger(infname, outfname, outdir):
     # post-process tigger .fa
     gldir = args.glfo_dir if args.glfo_dir is not None else 'data/germlines/human'
     glfo = glutils.read_glfo(gldir, args.locus)
+    simglfo = None
     if args.simulation_germline_dir is not None:
         simglfo = glutils.read_glfo(args.simulation_germline_dir, args.locus)
     tigger_alleles = set()

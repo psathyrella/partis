@@ -93,6 +93,7 @@ def run_other_method(args, method):
         cmd += ' --glfo-dir ' + partis_dir + '/data/germlines/human'  # the partis mehods have this as the default internally, but we want/have to set it explicitly here
     else:
         cmd += ' --glfo-dir ' + args.inf_glfo_dir
+    cmd += ' --simulation-germline-dir ' + args.outdir + '/germlines/simulation'  # alleleclusterer is the only one that really uses this, but for now I want its dbg output to have the sim info
     if method != 'igdiscover':  # for now we're saving all the igdiscover output/intermediate files, so we write them to an output dir
         cmd += ' --workdir ' + args.workdir + '/' + method
     cmd += ' --n-procs ' + str(args.n_procs)
