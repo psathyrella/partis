@@ -364,8 +364,6 @@ data_pairs = {'kate-qrs' : [
     ['1g', '4g'],
     ['1k', '4k'],
     ['1l', '4l'],
-    ['2k', '3k'],
-    ['2l', '3l'],
     ]}
 default_varvals['data'] = ':'.join([study + '/' + heads.full_dataset(heads.read_metadata(study), dset) for study in default_varvals['data'] for dset in default_varvals['data'][study]])
 for study in data_pairs:
