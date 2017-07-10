@@ -141,8 +141,11 @@ def run_tigger(infname, outfname, outdir):
                         print '       unaligned %s%d%s: %s%s%s' % (initial_base, unaligned_pos, final_base, seq[:unaligned_pos], utils.color('red', seq[unaligned_pos]), seq[unaligned_pos + 1:])
                     assert seq[unaligned_pos] == final_base
                     snp_name_strs.append('%s%d%s' % (initial_base, unaligned_pos, final_base))
-                assert len(snp_name_strs) > 0
-                name = '%s+%s' % (template_gene, '.'.join(snp_name_strs))
+                if len(snp_name_strs) > 4:
+                    snpstr = str(abs(hash(seq)))[:5]
+                else:
+                    snpstr = '.'.join(snp_name_strs)
+                name = '%s+%s' % (template_gene, snpstr)
                 newfo['gene'] = name
                 newfo['template-gene'] = template_gene
             glutils.add_new_allele(glfo, newfo, use_template_for_codon_info='template-gene' in newfo, simglfo=simglfo, debug=True)
