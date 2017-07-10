@@ -976,3 +976,60 @@ def synchronize_glfos(ref_glfo, new_glfo, region, debug=False):
             add_new_allele(new_glfo, {'gene' : equiv_name, 'seq' : equiv_seq, 'cpos' : utils.cdn_pos(ref_glfo, region, equiv_name)}, use_template_for_codon_info=False)
 
     return new_glfo
+
+# ----------------------------------------------------------------------------------------
+def create_glfo_from_fasta(fastafname, locus, region, template_germline_dir, simulation_germline_dir=None):
+    glfo = read_glfo(template_germline_dir, locus)
+    simglfo = None
+    if simulation_germline_dir is not None:
+        simglfo = read_glfo(simulation_germline_dir, locus)
+    fasta_alleles = set()
+    for seqfo in utils.read_fastx(fastafname):
+        name, seq = seqfo['name'], seqfo['seq']  # unaligned seq
+        for gc in utils.gap_chars:
+            seq = seq.replace(gc, '')
+
+        if name not in glfo['seqs'][region]:
+            newfo = {'gene' : name, 'seq' : seq}
+            if '_' in newfo['gene']:
+                dbg = False
+                if dbg:
+                    print '  %s allele %s' % (utils.color('red', 'new'), name)
+                splitfos = newfo['gene'].split('_')
+                template_gene, snpfos = splitfos[0], splitfos[1:]
+                utils.split_gene(template_gene)  # fails if it isn't a valid gene name
+                snp_name_strs = []
+                for snpfostr in snpfos:
+                    imgt_aligned_pos = int(snpfostr[1:-1]) - 1  # it's 1-indexed in the tigger output
+                    initial_base, final_base = snpfostr[0], snpfostr[-1]
+                    if initial_base not in utils.nukes or final_base not in utils.nukes:
+                        raise Exception('not among expected nucleotides:  initial %s  final %s' % (initial_base, final_base))
+                    if dbg:
+                        print '    imgt aligned %s%d%s: %s%s%s' % (initial_base, imgt_aligned_pos, final_base, seqfo['seq'][:imgt_aligned_pos], utils.color('red', seqfo['seq'][imgt_aligned_pos]), seqfo['seq'][imgt_aligned_pos + 1:])
+                    assert seqfo['seq'][imgt_aligned_pos] == final_base
+                    n_gaps = count_gaps(seqfo['seq'], aligned_pos=imgt_aligned_pos)
+                    unaligned_pos = imgt_aligned_pos - n_gaps
+                    if dbg:
+                        print '       unaligned %s%d%s: %s%s%s' % (initial_base, unaligned_pos, final_base, seq[:unaligned_pos], utils.color('red', seq[unaligned_pos]), seq[unaligned_pos + 1:])
+                    assert seq[unaligned_pos] == final_base
+                    snp_name_strs.append('%s%d%s' % (initial_base, unaligned_pos, final_base))
+                if len(snp_name_strs) > 4:
+                    snpstr = str(abs(hash(seq)))[:5]
+                else:
+                    snpstr = '.'.join(snp_name_strs)
+                name = '%s+%s' % (template_gene, snpstr)
+                newfo['gene'] = name
+                newfo['template-gene'] = template_gene
+            add_new_allele(glfo, newfo, use_template_for_codon_info='template-gene' in newfo, simglfo=simglfo, debug=True)
+        elif glfo['seqs'][region][seqfo['name']] != seq:
+            print '%s different sequences in template glfo and fasta output for %s:\n    %s\n    %s' % (utils.color('red', 'error'), seqfo['name'], glfo['seqs'][region][seqfo['name']], seqfo['seq'])
+
+        fasta_alleles.add(name)  # add it *after* any changes to <name>
+
+    # remove alleles that *aren't* in fasta's gl set
+    for gene in glfo['seqs'][region]:  # can't do it before, since we want to use existing ones to get codon info
+        if gene not in fasta_alleles:
+            remove_gene(glfo, gene)
+
+    return glfo
+

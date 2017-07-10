@@ -8,7 +8,7 @@ testopts="--n-tests 1 --n-procs-per-test 2 --no-slurm"
 # done
 
 # glscmd="$cmd gls-gen --label $label"
-# for meth in partis; do #simu partis full tigger; do  # NOTE can add all methods to --methods arg now
+# for meth in partis; do #simu partis full tigger-default tigger-tuned; do  # NOTE can add all methods to --methods arg now
 #     # $glscmd --methods $meth $testopts --gls-gen-events 1000 #--plot  # laptop
 #     $glscmd --methods $meth --n-tests 3 --n-procs-per-test 35  #--plot  # quoll
 # done

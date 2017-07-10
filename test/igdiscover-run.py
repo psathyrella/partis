@@ -49,6 +49,9 @@ def prepare_igdiscover_outdir(outdir):
 def run_igdiscover(infname, outfname, outdir):
     if utils.output_exists(args, outfname):
         return
+    prepare_igdiscover_outdir(outdir)
+
+    igdiscover_outfname = outdir + '/work/final/database/%s.fasta' % args.region.upper()
 
     cmds = ['#!/bin/bash']
     cmds += ['export PATH=%s:$PATH' % args.condapath]
@@ -65,12 +68,14 @@ def run_igdiscover(infname, outfname, outdir):
     subprocess.check_call(['chmod', '+x', cmdfname])
     cmdfos = [{'cmd_str' : cmdfname,
                'workdir' : outdir,
-               'outfname' : outdir + '/work/final/%s_usage.tab' % 'v'.upper()}]
+               'outfname' : igdiscover_outfname}]
     utils.simplerun(cmdfname, shell=True, print_time='igdiscover')
-    # utils.prepare_cmds(cmdfos)
-    # start = time.time()
-    # utils.run_cmds(cmdfos, ignore_stderr=True)
-    # print '      igdiscover time: %.1f' % (time.time()-start)
+
+    template_gldir = args.glfo_dir if args.glfo_dir is not None else 'data/germlines/human'
+    glfo = glutils.create_glfo_from_fasta(igdiscover_outfname, args.locus, args.region, template_gldir, simulation_germline_dir=args.simulation_germline_dir)
+    out_gldir = os.path.dirname(outfname).rstrip('/' + args.locus)
+    assert glutils.get_fname(out_gldir, args.locus, args.region) == outfname
+    glutils.write_glfo(out_gldir, glfo, debug=True)
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
@@ -78,7 +83,9 @@ parser.add_argument('--gls-gen', action='store_true')
 parser.add_argument('--infname', required=True)
 parser.add_argument('--outfname', required=True)
 parser.add_argument('--glfo-dir', required=True)
+parser.add_argument('--simulation-germline-dir')
 parser.add_argument('--yamlfname', default=partis_dir + '/test/igdiscover.yaml')
+parser.add_argument('--region', default='v')
 parser.add_argument('--locus', default='igh')
 parser.add_argument('--n-procs', default=1, type=int)
 parser.add_argument('--overwrite', action='store_true')
@@ -93,5 +100,4 @@ if not args.gls_gen:
 outdir = os.path.dirname(args.outfname)
 assert outdir.split('/')[-1] == args.locus  # otherwise will need to update things
 outdir = outdir.replace('/igh', '')
-prepare_igdiscover_outdir(outdir)
 run_igdiscover(args.infname, args.outfname, outdir)
