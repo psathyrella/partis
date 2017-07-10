@@ -80,7 +80,7 @@ def run_tigger(infname, outfname, outdir):
     if utils.output_exists(args, outfname, offset=8):
         return
 
-    rcmds = ['library(tigger)', 'library(dplyr)']
+    rcmds = ['library(tigger, warn.conflicts=FALSE)', 'library(dplyr, warn.conflicts=FALSE)']
     # rcmds += ['data(sample_db, germline_ighv)']
 
     db_name = 'annotations'
@@ -89,33 +89,69 @@ def run_tigger(infname, outfname, outdir):
     rcmds += ['%s = readIgFasta("%s")' % (gls_name, get_glfname('v', aligned=True))]
 
     tigger_outfname = outdir + '/tigger.fasta'
-    rcmds += ['novel_df = findNovelAlleles(%s, %s, germline_min=2, nproc=%d)' % (db_name, gls_name, args.n_procs)]  #
-    rcmds += ['geno = inferGenotype(%s, find_unmutated = FALSE, germline_db = %s, novel_df = novel_df)' % (db_name, gls_name)]
+    germline_min = 5 # only analyze genes which correspond to at least this many V calls (default 200)
+    min_seqs = 5  # minimum number of total sequences
+    j_max = 0.95  # of sequences which align perfectly (i.e. zero mutation?) to a new allele, no more than this fraction can correspond to each junction length + j gene combination (default 0.15)
+    rcmds += ['novel_df = findNovelAlleles(%s, %s, germline_min=%d, min_seqs=%d, j_max=%f, nproc=%d)' % (db_name, gls_name, germline_min, min_seqs, j_max, args.n_procs)]
+    # rcmds += ['sessionInfo()']
+    rcmds += ['print(novel_df)']
+    rcmds += ['geno = inferGenotype(%s, find_unmutated = TRUE, germline_db = %s, novel_df = novel_df)' % (db_name, gls_name)]
     rcmds += ['genotype_seqs = genotypeFasta(geno, %s, novel_df)' % (gls_name)]
     rcmds += ['writeFasta(genotype_seqs, "%s")' % tigger_outfname]
     cmdfname = args.workdir + '/tigger-in.cmd'
     with open(cmdfname, 'w') as cmdfile:
         cmdfile.write('\n'.join(rcmds) + '\n')
     cmdstr = 'R --slave -f ' + cmdfname
+    # subprocess.check_call(['cat', cmdfname])
     utils.simplerun(cmdstr, shell=True, print_time='tigger')
 
     # post-process tigger .fa
     gldir = args.glfo_dir if args.glfo_dir is not None else 'data/germlines/human'
     glfo = glutils.read_glfo(gldir, args.locus)
+    if args.simulation_germline_dir is not None:
+        simglfo = glutils.read_glfo(args.simulation_germline_dir, args.locus)
     tigger_alleles = set()
     for seqfo in utils.read_fastx(tigger_outfname):
-        seq = seqfo['seq'].replace(utils.gap_chars[0], '')  # it should be just dots...
-        tigger_alleles.add(seqfo['name'])
-        if seqfo['name'] not in glfo['seqs'][args.region]:
-            newfo = {'gene' : seqfo['name'], 'seq' : seq}
-            use_template_for_codon_info = False
-            if '+' in newfo['gene']:
-                newfo['template-gene'] = newfo['gene'].split('+')[0]
-                use_template_for_codon_info = True
-            glutils.add_new_allele(glfo, newfo, use_template_for_codon_info=use_template_for_codon_info, debug=True)
+        name, seq = seqfo['name'], seqfo['seq']  # unaligned seq
+        for gc in utils.gap_chars:
+            seq = seq.replace(gc, '')
+
+        if name not in glfo['seqs'][args.region]:
+            newfo = {'gene' : name, 'seq' : seq}
+            if '_' in newfo['gene']:
+                dbg = False
+                if dbg:
+                    print '  %s tigger allele %s' % (utils.color('red', 'new'), name)
+                splitfos = newfo['gene'].split('_')
+                template_gene, snpfos = splitfos[0], splitfos[1:]
+                utils.split_gene(template_gene)  # fails if it isn't a valid gene name
+                snp_name_strs = []
+                for snpfostr in snpfos:
+                    imgt_aligned_pos = int(snpfostr[1:-1]) - 1  # it's 1-indexed in the tigger output
+                    initial_base, final_base = snpfostr[0], snpfostr[-1]
+                    if initial_base not in utils.nukes or final_base not in utils.nukes:
+                        raise Exception('initial: %s  final: %s' % (initial_base, final_base))
+                    if dbg:
+                        print '    imgt aligned %s%d%s: %s%s%s' % (initial_base, imgt_aligned_pos, final_base, seqfo['seq'][:imgt_aligned_pos], utils.color('red', seqfo['seq'][imgt_aligned_pos]), seqfo['seq'][imgt_aligned_pos + 1:])
+                    assert seqfo['seq'][imgt_aligned_pos] == final_base
+                    n_gaps = glutils.count_gaps(seqfo['seq'], aligned_pos=imgt_aligned_pos)
+                    unaligned_pos = imgt_aligned_pos - n_gaps
+                    if dbg:
+                        print '       unaligned %s%d%s: %s%s%s' % (initial_base, unaligned_pos, final_base, seq[:unaligned_pos], utils.color('red', seq[unaligned_pos]), seq[unaligned_pos + 1:])
+                    assert seq[unaligned_pos] == final_base
+                    snp_name_strs.append('%s%d%s' % (initial_base, unaligned_pos, final_base))
+                assert len(snp_name_strs) > 0
+                name = '%s+%s' % (template_gene, '.'.join(snp_name_strs))
+                newfo['gene'] = name
+                newfo['template-gene'] = template_gene
+            glutils.add_new_allele(glfo, newfo, use_template_for_codon_info='template-gene' in newfo, simglfo=simglfo, debug=True)
         elif glfo['seqs'][args.region][seqfo['name']] != seq:
             print '%s different sequences in glfo and tigger output for %s:\n    %s\n    %s' % (utils.color('red', 'error'), seqfo['name'], glfo['seqs'][args.region][seqfo['name']], seqfo['seq'])
-    for gene in glfo['seqs'][args.region]:  # remove them afterwards so we can use existing ones to get codon info
+
+        tigger_alleles.add(name)  # add it *after* any changes to <name> 
+
+    # remove alleles that *aren't* in tigger's gl set
+    for gene in glfo['seqs'][args.region]:  # can't do it before, since we want to use existing ones to get codon info
         if gene not in tigger_alleles:
             glutils.remove_gene(glfo, gene)
 
@@ -152,6 +188,7 @@ parser.add_argument('--aligner', choices=['igblast', 'partis'], default='partis'
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--igbdir', default='./packages/ncbi-igblast-1.6.1/bin')
 parser.add_argument('--glfo-dir')
+parser.add_argument('--simulation-germline-dir')
 parser.add_argument('--locus', default='igh')
 parser.add_argument('--region', default='v')
 parser.add_argument('--changeo-path', default=os.getenv('HOME') + '/.local')
