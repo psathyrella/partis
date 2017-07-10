@@ -200,7 +200,7 @@ def multiple_tests(args):
               for iproc in range(args.iteststart, args.n_tests)]
     if args.dry_run:
         for iproc in range(args.iteststart, args.n_tests):
-            utils.simplerun(cmdfos[iproc]['cmd_str'], dryrun=True)
+            utils.simplerun(cmdfos[iproc - args.iteststart]['cmd_str'], dryrun=True)
         return
     for iproc in range(args.iteststart, args.n_tests):
         logd = getlogdir(iproc)
