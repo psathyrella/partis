@@ -97,6 +97,8 @@ def run_other_method(args, method):
     if method != 'igdiscover':  # for now we're saving all the igdiscover output/intermediate files, so we write them to an output dir
         cmd += ' --workdir ' + args.workdir + '/' + method
     cmd += ' --n-procs ' + str(args.n_procs)
+    if args.slurm:
+        cmd += ' --slurm'
 
     utils.simplerun(cmd, dryrun=args.dry_run)
 

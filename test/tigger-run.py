@@ -29,7 +29,7 @@ def run_igblast(infname, outfname):
     cmd += ' -germline_db_V human_gl_V -germline_db_D human_gl_V -germline_db_J human_gl_J'
     cmd += ' -auxiliary_data optional_file/human_gl.aux'
     cmd += ' -domain_system imgt -ig_seqtype Ig -organism human -outfmt \'7 std qseq sseq btop\''
-    cmd += ' -num_threads %d' % args.n_procs
+    cmd += ' -num_threads %d' % utils.auto_n_procs()
     cmd += ' -query ' + infname + ' -out ' + outfname
     
     cmd = 'cd %s; %s' % (args.igbdir, cmd)
@@ -70,6 +70,8 @@ def run_partis(infname, outfname):
         cmd += ' --initial-germline-dir ' + args.glfo_dir
     cmd += ' --aligned-germline-fname ' + aligned_germline_fname
     cmd += ' --n-procs ' + str(args.n_procs)
+    if args.slurm:
+        cmd += ' --batch-system slurm'
 
     utils.simplerun(cmd, print_time='partis annotation')
 
@@ -92,7 +94,7 @@ def run_tigger(infname, outfname, outdir):
     germline_min = 5 # only analyze genes which correspond to at least this many V calls (default 200)
     min_seqs = 5  # minimum number of total sequences
     j_max = 0.95  # of sequences which align perfectly (i.e. zero mutation?) to a new allele, no more than this fraction can correspond to each junction length + j gene combination (default 0.15)
-    rcmds += ['novel_df = findNovelAlleles(%s, %s, germline_min=%d, min_seqs=%d, j_max=%f, nproc=%d)' % (db_name, gls_name, germline_min, min_seqs, j_max, args.n_procs)]
+    rcmds += ['novel_df = findNovelAlleles(%s, %s, germline_min=%d, min_seqs=%d, j_max=%f, nproc=%d)' % (db_name, gls_name, germline_min, min_seqs, j_max, utils.auto_n_procs())]
     # rcmds += ['sessionInfo()']
     rcmds += ['print(novel_df)']
     rcmds += ['geno = inferGenotype(%s, find_unmutated = TRUE, germline_db = %s, novel_df = novel_df)' % (db_name, gls_name)]
@@ -195,6 +197,7 @@ parser.add_argument('--glfo-dir')
 parser.add_argument('--simulation-germline-dir')
 parser.add_argument('--locus', default='igh')
 parser.add_argument('--region', default='v')
+parser.add_argument('--slurm', action='store_true')
 parser.add_argument('--changeo-path', default=os.getenv('HOME') + '/.local')
 args = parser.parse_args()
 

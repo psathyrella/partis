@@ -1823,11 +1823,16 @@ def memory_usage_fraction(debug=False):  # return fraction of total system memor
     return current_usage / total
 
 # ----------------------------------------------------------------------------------------
+def auto_n_procs():  # for running on the local machine
+    n_procs = multiprocessing.cpu_count()
+    if n_procs > 10: # if it's a huge server, we probably shouldn't use all the cores
+        n_procs = int(float(n_procs) / 2.)
+    return n_procs
+
+# ----------------------------------------------------------------------------------------
 def run_proc_functions(procs, n_procs=None, debug=False):  # <procs> is a list of multiprocessing.Process objects
     if n_procs is None:
-        n_procs = multiprocessing.cpu_count()
-        if n_procs > 10: # if it's a huge server, we probably shouldn't use all the cores
-            n_procs = int(float(n_procs) / 2.)
+        n_procs = auto_n_procs()
     if debug:
         print '    running %d proc fcns with %d procs' % (len(procs), n_procs)
         sys.stdout.flush()
