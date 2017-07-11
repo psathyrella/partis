@@ -116,7 +116,7 @@ def legend_str(args, val):
 def get_outdir(args, baseoutdir, varname, varval, n_events=None):
     outdir = baseoutdir
     if args.action == 'gls-gen':
-        outdir += '/' + varvalstr(varname, varval)
+        outdir += '/' + varvalstr(varname, varval) + '/' + args.gls_gen_difficulty
     if args.action == 'data':
         outdir += '/' + varvalstr(varname, varval)
     else:
@@ -154,7 +154,7 @@ def get_gls_fname(outdir, method, locus, sim_truth=False, data=False):  # NOTE d
         outdir += '/germlines/simulation'
     elif method == 'partis' or method == 'full':
         outdir += '/' + method + '/sw/germline-sets'
-    elif 'tigger' in method:
+    elif 'tigger' in method or method == 'igdiscover':
         outdir += '/' + method
     else:
         assert False
@@ -266,9 +266,10 @@ def run_single_test(args, baseoutdir, val, n_events, method):
     cmd = get_base_cmd(args, n_events, method)
     outdir = get_outdir(args, baseoutdir, args.action, val, n_events=n_events)
     sim_v_genes = [args.v_genes[0]]
+    mut_mult = None
     nsnpstr, nindelstr = '1', ''
     if args.action == 'mfreq':
-        cmd += ' --mut-mult ' + str(val)
+        mut_mult = val
     elif args.action == 'nsnp':
         nsnpstr = str(val)
     elif args.action == 'multi-nsnp':
@@ -289,11 +290,23 @@ def run_single_test(args, baseoutdir, val, n_events, method):
         nindelstr = val['indel']
         sim_v_genes *= len(val['snp'].split(':'))
     elif args.action == 'gls-gen':
-        nsnpstr = '1:1:2:3:100:100'
+        nsnpstr = '1:1:2:3:50:100'
         nindelstr = '0:0:0:0:3:3'
+        if args.gls_gen_difficulty == 'easy':
+            genes_per_region_str = '20:5:3'
+            mut_mult = 0.3
+        elif args.gls_gen_difficulty == 'hard':
+            genes_per_region_str = '30:5:3'
+            mut_mult = 1.
+        else:
+            assert False
+        cmd += ' --n-genes-per-region ' + genes_per_region_str
         cmd += ' --gls-gen'
     else:
         assert False
+
+    if mut_mult is not None:
+        cmd += ' --mut-mult ' + str(mut_mult)
 
     if args.action != 'gls-gen':
         cmd += ' --sim-v-genes ' + ':'.join(sim_v_genes)
@@ -377,6 +390,7 @@ parser.add_argument('--v-genes', default='IGHV4-39*01')
 parser.add_argument('--varvals')
 parser.add_argument('--n-event-list', default='1000:2000:4000:8000')  # NOTE modified later for multi-nsnp also NOTE not used for gen-gset
 parser.add_argument('--gls-gen-events', type=int, default=300000)
+parser.add_argument('--gls-gen-difficulty', choices=['easy', 'hard'])
 parser.add_argument('--n-random-queries', type=int)
 parser.add_argument('--n-tests', type=int, default=10)
 parser.add_argument('--iteststart', type=int, default=0)
