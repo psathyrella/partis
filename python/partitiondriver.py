@@ -1470,13 +1470,13 @@ class PartitionDriver(object):
 
         # parameter and performance writing/plotting
         if pcounter is not None and not self.args.dont_write_parameters:
-            pcounter.write(parameter_out_dir)
-            if true_pcounter is not None:
-                true_pcounter.write(parameter_out_dir + '-true')
             if self.args.plotdir is not None:
                 pcounter.plot(self.args.plotdir + '/hmm', only_csv=self.args.only_csv_plots, only_overall=self.args.only_overall_plots)
                 if true_pcounter is not None:
                         true_pcounter.plot(self.args.plotdir + '/hmm-true', only_csv=self.args.only_csv_plots, only_overall=self.args.only_overall_plots)
+            pcounter.write(parameter_out_dir)
+            if true_pcounter is not None:
+                true_pcounter.write(parameter_out_dir + '-true')
 
         if perfplotter is not None:
             perfplotter.plot(self.args.plotdir + '/hmm', only_csv=self.args.only_csv_plots)
