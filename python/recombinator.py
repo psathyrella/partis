@@ -23,12 +23,12 @@ dummy_name_so_bppseqgen_doesnt_break = 'xxx'  # bppseqgen ignores branch length 
 #----------------------------------------------------------------------------------------
 class Recombinator(object):
     """ Simulates the process of VDJ recombination """
-    def __init__(self, args, glfo, seed, workdir, outfname):  # NOTE <gldir> is not in general the same as <args.initial_germline_dir>
+    def __init__(self, args, glfo, seed, workdir, outfname):  # NOTE <gldir> is not in general the same as <args.initial_germline_dir> # rm workdir
         self.args = args
         self.glfo = glfo
 
         # NOTE in general *not* the same as <self.args.workdir> and <self.args.outfname>
-        self.workdir = workdir
+        self.workdir = tempfile.mkdtemp()
         self.outfname = outfname
         utils.prep_dir(self.workdir)
 
@@ -78,6 +78,10 @@ class Recombinator(object):
             os.makedirs(os.path.dirname(os.path.abspath(self.outfname)))
 
         self.validation_values = {'heights' : {t : {'in' : [], 'out' : []} for t in ['all'] + utils.regions}}
+
+    # ----------------------------------------------------------------------------------------
+    def __del__(self):
+        os.rmdir(self.workdir)
 
     # ----------------------------------------------------------------------------------------
     def read_insertion_content(self):

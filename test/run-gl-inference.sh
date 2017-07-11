@@ -1,5 +1,5 @@
 cmd=./test/cf-germline-inference.py
-label=v3
+label=v7
 testopts="--n-tests 1 --n-procs-per-test 2 --no-slurm"
 
 # for tname in alcluster; do #mfreq nsnp multi-nsnp prevalence n-leaves weibull alcluster; do

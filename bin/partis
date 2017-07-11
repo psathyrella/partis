@@ -61,6 +61,8 @@ def run_simulation(args):
         if args.initial_germline_dir is not None:
             raise Exception('you can\'t specify both --parameter-dir and --inital-germline-dir (germline info has to be read from the parameter dir)')
 
+    utils.prep_dir(args.workdir)
+
     default_prevalence_fname = args.workdir + '/allele-prevalence.csv'
     if args.generate_germline_set and args.allele_prevalence_fname is None:
         args.allele_prevalence_fname = default_prevalence_fname
