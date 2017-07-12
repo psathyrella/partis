@@ -849,25 +849,18 @@ class PartitionDriver(object):
             print '%s couldn\'t find the exact requested cluster, so using the biggest cluster that has some overlap with the requested cluster for the reference sequence' % utils.color('yellow', 'warning')
         ref_naive_seq = cachefo[uidstr_of_interest]['naive_seq']
         print '  subcluster naive sequences for %s (in %s below)' % (uidstr_of_interest, utils.color('blue', 'blue'))
-        # print '      %s  %s' % (ref_naive_seq, utils.color('blue', uidstr_of_interest))
 
         cluster_annotations = self.read_existing_annotations(outfname=self.args.cluster_annotation_fname)
         ref_v_gene = cluster_annotations[uidstr_of_interest]['v_gene']
-        for uidstr in sub_uidstrs:
 
-            gene_str = ''
-            if uidstr == uidstr_of_interest or uidstr in cluster_annotations and cluster_annotations[uidstr]['v_gene'] != ref_v_gene:
-                gene_str = utils.color_gene(cluster_annotations[uidstr]['v_gene'], width=15)
-
-            post_str = uidstr
-            if uidstr == uidstr_of_interest:
-                post_str = utils.color('blue', post_str)
-            print ' %15s %s' % (gene_str, utils.color_mutants(ref_naive_seq, cachefo[uidstr]['naive_seq'], extra_str='      ', post_str='  ' + post_str))
+        utils.print_reco_event(utils.synthesize_single_seq_line(cluster_annotations[uidstr_of_interest], iseq=0), extra_str='         %15s ' % '', label='iseq 0')
 
         print ''
         print ''
-        print ' %15s %s  cluster sizes' % ('', ' ' * len(ref_naive_seq))
-        for naive_seq in sorted(sub_info, key=lambda nseq: sum([uidstr.count(':') + 1 for uidstr in sub_info[nseq]])):
+        print ' %15s %s          total    cluster' % ('', ' ' * len(ref_naive_seq))
+        print ' %15s %s           seqs    sizes' % ('', ' ' * len(ref_naive_seq))
+        independent_seq_info = {naive_seq : set([uid for uidstr in uid_str_list for uid in uidstr.split(':')]) for naive_seq, uid_str_list in sub_info.items()}
+        for naive_seq in sorted(independent_seq_info, key=lambda ns: len(independent_seq_info[ns]), reverse=True):
             uid_str_list = sorted(sub_info[naive_seq], key=lambda uidstr: uidstr.count(':') + 1, reverse=True)
 
             gene_str = ''
@@ -881,12 +874,11 @@ class PartitionDriver(object):
                 if uidstr_of_interest == uidstr:
                     size_str = utils.color('blue', size_str)
                 cluster_size_strs.append(size_str)
-            post_str = '    %s' %  ' '.join(cluster_size_strs)
 
             pre_str = ''
             if uidstr_of_interest in uid_str_list:
                 pre_str = utils.color('blue', '-->', width=5)
-            print '  %15s  %5s %s  %s' % (gene_str, pre_str, utils.color_mutants(ref_naive_seq, naive_seq), post_str)
+            print '  %15s  %5s %s  %4d     %s' % (gene_str, pre_str, utils.color_mutants(ref_naive_seq, naive_seq), len(independent_seq_info[naive_seq]), ' '.join(cluster_size_strs))
 
     # ----------------------------------------------------------------------------------------
     def get_padded_true_naive_seq(self, qry):
