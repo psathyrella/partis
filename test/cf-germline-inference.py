@@ -294,13 +294,24 @@ def run_single_test(args, baseoutdir, val, n_events, method):
         nindelstr = '0:0:0:0:3:3'
         if args.gls_gen_difficulty == 'easy':
             genes_per_region_str = '20:5:3'
+            n_sim_alleles_per_gene_str = '1,2:1,2:1,2'
+            min_allele_prevalence_freq = 0.1
             mut_mult = 0.3
         elif args.gls_gen_difficulty == 'hard':
             genes_per_region_str = '30:5:3'
+            n_sim_alleles_per_gene_str = '1,2:1,2:1,2'
+            min_allele_prevalence_freq = 0.1
+            mut_mult = 1.
+        elif args.gls_gen_difficulty == 'super-hard':
+            genes_per_region_str = '25:5:3'
+            n_sim_alleles_per_gene_str = '1,2,3:1,2:1,2'
+            min_allele_prevalence_freq = 0.04
             mut_mult = 1.
         else:
             assert False
         cmd += ' --n-genes-per-region ' + genes_per_region_str
+        cmd += ' --n-sim-alleles-per-gene ' + n_sim_alleles_per_gene_str
+        cmd += ' --min-allele-prevalence-freq ' + str(min_allele_prevalence_freq)
         cmd += ' --gls-gen'
     else:
         assert False
@@ -390,7 +401,7 @@ parser.add_argument('--v-genes', default='IGHV4-39*01')
 parser.add_argument('--varvals')
 parser.add_argument('--n-event-list', default='1000:2000:4000:8000')  # NOTE modified later for multi-nsnp also NOTE not used for gen-gset
 parser.add_argument('--gls-gen-events', type=int, default=300000)
-parser.add_argument('--gls-gen-difficulty', choices=['easy', 'hard'])
+parser.add_argument('--gls-gen-difficulty', choices=['easy', 'hard', 'super-hard'])
 parser.add_argument('--n-random-queries', type=int)
 parser.add_argument('--n-tests', type=int, default=10)
 parser.add_argument('--iteststart', type=int, default=0)
@@ -431,6 +442,8 @@ if args.action == 'multi-nsnp':
 
 for method in args.methods:
     if args.plot:
+        if method == 'simu':
+            continue
         plot_tests(args, baseoutdir, method)
     else:
         run_tests(args, baseoutdir, method)

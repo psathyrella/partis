@@ -45,12 +45,11 @@ def simulate(args):
     if args.gls_gen:
         assert args.sim_v_genes is None and args.allele_prevalence_freqs is None
 
-        min_allele_prevalence_freq = 0.1
         remove_template_genes = False
 
         sglfo = glutils.read_glfo('data/germlines/human', locus=args.locus)
         glutils.remove_v_genes_with_bad_cysteines(sglfo)
-        glutils.generate_germline_set(sglfo, args.n_genes_per_region, args.n_sim_alleles_per_gene, min_allele_prevalence_freq, allele_prevalence_fname, new_allele_info=args.new_allele_info, remove_template_genes=remove_template_genes)
+        glutils.generate_germline_set(sglfo, args.n_genes_per_region, args.n_sim_alleles_per_gene, args.min_allele_prevalence_freq, allele_prevalence_fname, new_allele_info=args.new_allele_info, remove_template_genes=remove_template_genes)
         cmd_str += ' --allele-prevalence-fname ' + allele_prevalence_fname
     else:
         sglfo = glutils.read_glfo('data/germlines/human', locus=args.locus, only_genes=(args.sim_v_genes + args.dj_genes))
@@ -298,6 +297,7 @@ parser.add_argument('--indel-positions', help='see --snp-positions (a.t.m. the i
 parser.add_argument('--nindel-list', help='see --nsnp-list')
 parser.add_argument('--n-genes-per-region', default='20:5:3')
 parser.add_argument('--n-sim-alleles-per-gene', default='1,2:1,2:1,2')
+parser.add_argument('--min-allele-prevalence-freq', type=float, default=0.1)
 parser.add_argument('--allele-prevalence-freqs', help='colon-separated list of allele prevalence frequencies, including newly-generated snpd genes (ordered alphabetically)')
 parser.add_argument('--remove-template-genes', action='store_true', help='when generating snps, remove the original gene before simulation')
 parser.add_argument('--mut-mult', type=float)
