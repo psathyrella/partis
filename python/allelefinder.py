@@ -617,12 +617,12 @@ class AlleleFinder(object):
     # ----------------------------------------------------------------------------------------
     def very_different_bin_totals(self, pvals, istart, debug=False):
         # i.e. if there's a homozygous new allele at <istart> + 1  UPDATE wait, why +1?
-        factor = 3.5  # i.e. check everything that's more than <factor> sigma away
+        factor = 4.  # i.e. check everything that's more than <factor> sigma away
         last_total = pvals['total'][istart - 1]
         istart_total = pvals['total'][istart]
         joint_total_err = max(math.sqrt(last_total), math.sqrt(istart_total))
         if debug:
-            print '    different bin totals: %.0f - %.0f = %.0f ?> %.1f * %5.3f = %5.3f'  % (istart_total, last_total, istart_total - last_total, factor, joint_total_err, factor * joint_total_err)
+            print '    different bin totals:  diff / err = (%.0f - %.0f) / %5.1f = %.1f ?> %.1f'  % (istart_total, last_total, joint_total_err, (istart_total - last_total) / joint_total_err, factor)
         return istart_total - last_total > factor * joint_total_err  # it the total (denominator) is very different between the two bins
 
     # ----------------------------------------------------------------------------------------
@@ -632,14 +632,14 @@ class AlleleFinder(object):
             return False
 
         if pvals['total'][istart - 1] < 5:  # if there's hardly any entries in the previous bin (i.e. presumably a homozygous new allele) then just use bin totals
-            return self.very_different_bin_totals(pvals, istart)
+            return self.very_different_bin_totals(pvals, istart, debug=debug)
 
-        factor = 2.5  # i.e. check everything that's more than <factor> sigma away (where "check" means actually do the fits, as long as it passes all the other prefiltering steps)
+        factor = 4.  # i.e. check everything that's more than <factor> sigma away (where "check" means actually do the fits, as long as it passes all the other prefiltering steps)
         joint_freq_err = max(pvals['errs'][istart - 1], pvals['errs'][istart])
         last_freq = pvals['freqs'][istart - 1]
         istart_freq = pvals['freqs'][istart]
         if debug:
-            print '    discontinuity: %5.3f - %5.3f = %5.3f ?> %.1f * %5.3f = %5.3f'  % (istart_freq, last_freq, istart_freq - last_freq, factor, joint_freq_err, factor * joint_freq_err)
+            print '    discontinuity:  diff / err = (%5.3f - %5.3f) / %5.3f = %.1f ?> %.1f'  % (istart_freq, last_freq, joint_freq_err, (istart_freq - last_freq) / joint_freq_err, factor)
         return istart_freq - last_freq > factor * joint_freq_err
 
     # ----------------------------------------------------------------------------------------
@@ -668,7 +668,7 @@ class AlleleFinder(object):
                 return
 
         # skip if the discontinuity is less than <factor> sigma, or if hardly any entries at i-1 and the bin totals are closer than <factor> sigma (not actualy OR, but basically)
-        if not self.big_discontinuity(bothvals, istart):
+        if not self.big_discontinuity(bothvals, istart, debug=dbg):
             if returnfcn('no big dicontinuity'):
                 return
 
