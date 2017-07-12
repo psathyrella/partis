@@ -19,8 +19,8 @@ import heads
 
 scolors = {
     'ok' : 'DarkSeaGreen',
-    'missing' : 'IndianRed',
-    'spurious' : 'IndianRed',
+    'missing' : '#d77c7c',  #'IndianRed',
+    'spurious' : '#a44949',  #'IndianRed',
     'data' : 'LightSteelBlue',
     'both' : 'LightGrey',
 }
@@ -30,8 +30,11 @@ for ds in metafos:
         scolors[ds] = '#85ad98'  # green
     elif 'LN4' in ds or 'LN3' in ds:
         scolors[ds] = '#94a3d1'  # blue
-faces = {'missing'  : ete3.CircleFace(10, 'white'),
-         'spurious' : ete3.CircleFace(10, 'black')}
+faces = {}
+# faces = { 'missing' : ete3.AttrFace("name", fsize=30)}
+#         # faces.add_face_to_node(N, node, 0, position="aligned")}
+# faces = {'missing'  : ete3.CircleFace(10, 'white'),
+#          'spurious' : ete3.CircleFace(10, 'black')}
 
 def get_cmdfos(cmdstr, workdir, outfname):
     return [{'cmd_str' : cmdstr,
@@ -142,7 +145,7 @@ def get_gene_sets(glsfnames, glslabels, ref_label=None):
 
 # ----------------------------------------------------------------------------------------
 def set_node_style(node, status, data=False, pair=False):
-    linewidth = 4
+    linewidth = 2
     if data:
         if pair:
             if status != 'internal':
@@ -153,11 +156,13 @@ def set_node_style(node, status, data=False, pair=False):
         node.img_style['bgcolor'] = scolors[status]
 
     if status != 'internal' and glutils.is_snpd(node.name):
-        linewidth = 8
-        node.img_style['hz_line_color'] = 'Gold'
-        node.img_style['vt_line_color'] = 'Gold'
+        node.add_face(ete3.CircleFace(2.5, 'Gold'), column=0) #, position='aligned')
+
     node.img_style['hz_line_width'] = linewidth
     node.img_style['vt_line_width'] = linewidth
+
+    if status in faces:
+        node.add_face(copy.deepcopy(faces[status]), column=0, position='aligned')
 
 # ----------------------------------------------------------------------------------------
 def plot_gls_gen_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=None, title=None):
@@ -178,8 +183,6 @@ def plot_gls_gen_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=N
         status = getstatus(gl_sets, node)
         set_node_style(node, status)
         if node.is_leaf():
-            if status in faces:
-                node.add_face(copy.deepcopy(faces[status]), column=0)
             node_names.add(node.name)
     if len(set(all_genes) - node_names) > 0:
         raise Exception('missing genes from final tree: %s' % ' '.join(node_names))
