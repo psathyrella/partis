@@ -346,7 +346,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def view_alternative_naive_seqs(self):
         if self.args.queries is None:
-            print '%s in order to view alternative naive sequences, you have to specify a set of uids in which you\'re interested. Choose something from here:' % utils.color('red', 'error')
+            print '%s in order to view alternative naive sequences, you have to specify (with --queries) a set of uids in which you\'re interested. Choose something from here:' % utils.color('red', 'error')
             cp = ClusterPath()
             cp.readfile(self.args.outfname)
             cp.print_partitions(abbreviate=self.args.abbreviate, reco_info=self.reco_info)
@@ -828,13 +828,17 @@ class PartitionDriver(object):
         uidstr_of_interest, ref_naive_seq = None, None  # we don't know what order they're in the cache file yet
 
         cachefo = self.read_hmm_cachefile()
-        sub_uidstrs = []
+        sub_uidstrs = []  # uid strings from the file that have non-zero overlap with <uids_of_interest>
+        sub_info = {}  # map from naive seq : sub uid strs
         for uidstr, info in cachefo.items():
             if info['naive_seq'] == '':
                 continue
             uids = set(info['unique_ids'])
             if len(uids & uids_of_interest) > 0:  # first see if there's some overlap with what we're interested in
                 sub_uidstrs.append(uidstr)
+                if cachefo[uidstr]['naive_seq'] not in sub_info:
+                    sub_info[cachefo[uidstr]['naive_seq']] = []
+                sub_info[cachefo[uidstr]['naive_seq']].append(uidstr)
             if len(uids - uids_of_interest) == 0 and len(uids_of_interest - uids) == 0:  # then see if it's the actual cluster we're interested in
                 uidstr_of_interest = uidstr
 
@@ -846,11 +850,43 @@ class PartitionDriver(object):
         ref_naive_seq = cachefo[uidstr_of_interest]['naive_seq']
         print '  subcluster naive sequences for %s (in %s below)' % (uidstr_of_interest, utils.color('blue', 'blue'))
         # print '      %s  %s' % (ref_naive_seq, utils.color('blue', uidstr_of_interest))
+
+        cluster_annotations = self.read_existing_annotations(outfname=self.args.cluster_annotation_fname)
+        ref_v_gene = cluster_annotations[uidstr_of_interest]['v_gene']
         for uidstr in sub_uidstrs:
+
+            gene_str = ''
+            if uidstr == uidstr_of_interest or uidstr in cluster_annotations and cluster_annotations[uidstr]['v_gene'] != ref_v_gene:
+                gene_str = utils.color_gene(cluster_annotations[uidstr]['v_gene'], width=15)
+
             post_str = uidstr
             if uidstr == uidstr_of_interest:
                 post_str = utils.color('blue', post_str)
-            print utils.color_mutants(ref_naive_seq, cachefo[uidstr]['naive_seq'], extra_str='      ', print_isnps=True, post_str='  ' + post_str)
+            print ' %15s %s' % (gene_str, utils.color_mutants(ref_naive_seq, cachefo[uidstr]['naive_seq'], extra_str='      ', post_str='  ' + post_str))
+
+        print ''
+        print ''
+        print ' %15s %s  cluster sizes' % ('', ' ' * len(ref_naive_seq))
+        for naive_seq in sorted(sub_info, key=lambda nseq: sum([uidstr.count(':') + 1 for uidstr in sub_info[nseq]])):
+            uid_str_list = sorted(sub_info[naive_seq], key=lambda uidstr: uidstr.count(':') + 1, reverse=True)
+
+            gene_str = ''
+            for uidstr in uid_str_list:
+                if uidstr == uidstr_of_interest or uidstr in cluster_annotations and cluster_annotations[uidstr]['v_gene'] != ref_v_gene:
+                    gene_str += utils.color_gene(cluster_annotations[uidstr]['v_gene'], width=15)
+
+            cluster_size_strs = []
+            for uidstr in uid_str_list:
+                size_str = str(uidstr.count(':') + 1)
+                if uidstr_of_interest == uidstr:
+                    size_str = utils.color('blue', size_str)
+                cluster_size_strs.append(size_str)
+            post_str = '    %s' %  ' '.join(cluster_size_strs)
+
+            pre_str = ''
+            if uidstr_of_interest in uid_str_list:
+                pre_str = utils.color('blue', '-->', width=5)
+            print '  %15s  %5s %s  %s' % (gene_str, pre_str, utils.color_mutants(ref_naive_seq, naive_seq), post_str)
 
     # ----------------------------------------------------------------------------------------
     def get_padded_true_naive_seq(self, qry):
