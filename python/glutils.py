@@ -661,7 +661,7 @@ def add_new_allele(glfo, newfo, remove_template_genes=False, use_template_for_co
     if newfo['gene'] in glfo['seqs'][region]:
         raise Exception('attempted to add name %s that already exists in glfo' % newfo['gene'])
     if newfo['seq'] in glfo['seqs'][region].values():
-        raise Exception('attempted to add sequence %s that\'s already in glfo' % newfo['seq'])
+        raise Exception('attempted to add sequence that\'s already in glfo with name(s) %s\n  %s' % (' '.join([utils.color_gene(g) for g, seq in glfo['seqs'][region].items() if seq == newfo['seq']]), newfo['seq']))
 
     glfo['seqs'][region][newfo['gene']] = newfo['seq']
 
@@ -958,11 +958,21 @@ def choose_new_allele_name(template_gene, new_seq, snpfo=None, indelfo=None):  #
     return new_name, snpfo
 
 # ----------------------------------------------------------------------------------------
-def find_equivalent_gene_in_glfo(glfo, new_seq, new_cpos, new_name=None, exclusion_5p=0, exclusion_3p=3, glfo_str='glfo', debug=False):
+def find_equivalent_gene_in_glfo(glfo, new_seq, new_cpos=None, new_name=None, exclusion_5p=0, exclusion_3p=3, glfo_str='glfo', debug=False):
     # if <new_seq> likely corresponds to an allele that's already in <glfo>, return that name and its sequence, otherwise return (None, None).
     # NOTE that the calling code, in general, is determining whether we want this sequence in the calling code's glfo.
     # Here, we're trying to find any existing names in <glfo>, which is typically a different glfo (it's usually either default_inititial, or it's simulation)
     region = 'v'  # conserved codon stuff below will have to be changed for j
+
+    if new_cpos is None:  # try to guess it...
+        if new_name is None:
+            raise Exception('have to specify either <new_cpos> or <new_name>')
+        if new_name in glfo['seqs'][region]:
+            new_cpos = utils.cdn_pos(glfo, region, new_name)
+        elif get_template_gene(new_name) in glfo['seqs'][region]:  # that'll fail if it isn't an inferred allele... but then again if it's not an inferred allele hopefully it was in there as itself
+            new_cpos = utils.cdn_pos(glfo, region, get_template_gene(new_name))
+        else:
+            raise Exception('couldn\'t guess a codon position for %s (glfo has: %s)' % (new_name, ' '.join(glfo['seqs'][region].keys())))
 
     if new_name is not None and new_name in glfo['seqs'][region]:
         raise Exception('you have to check for new name in glfo before calling this (%s)' % utils.color_gene(new_name))
@@ -1029,20 +1039,29 @@ def create_glfo_from_fasta(fastafname, locus, region, template_germline_dir, sim
     for seqfo in utils.read_fastx(fastafname):
         new_name, aligned_seq = seqfo['name'], seqfo['seq']  # well, tigger or igdiscover
         unaligned_seq = utils.remove_gaps(aligned_seq)
-        if new_name not in glfo['seqs'][region]:  # should be an inferred allele if it isn't in the default glfo, but we enforce this by calling split_inferred_allele_name()
+
+        if new_name in glfo['seqs'][region]:
+            if glfo['seqs'][region][new_name] != unaligned_seq:
+                print '%s different sequences in template glfo and fasta output for %s:\n    %s\n    %s' % (utils.color('red', 'error'), new_name, glfo['seqs'][region][new_name], aligned_seq)
+            fasta_alleles.add(new_name)
+            continue
+
+        equiv_name, equiv_seq = find_equivalent_gene_in_glfo(glfo, unaligned_seq, new_cpos=None, new_name=new_name, debug=debug)
+        if equiv_name is not None:
+            new_name = equiv_name
+            unaligned_seq = equiv_seq  # this has no effect, but it's a nice reminder that <unaligned_seq> isn't correct any more
+            fasta_alleles.add(new_name)
+        else:
             print '  %s allele %s' % (utils.color('red', 'new'), utils.color_gene(new_name))
-            method, template_gene, mutstrs = split_inferred_allele_name(new_name, debug=debug)
+            method, template_gene, mutstrs = split_inferred_allele_name(new_name, debug=debug)  # will fail (and we want it to) if it's not an inferred allele
             snpfo = None
             if mutstrs is not None:
                 snpfo = try_to_get_mutfo_from_name(new_name, aligned_seq=aligned_seq, debug=debug)
             if snpfo is not None:
-                new_name, _ = choose_new_allele_name(template_gene, unaligned_seq, snpfo=snpfo)
+                new_name, snpfo = choose_new_allele_name(template_gene, unaligned_seq, snpfo=snpfo)  # reminder: can modify <snpfo>
             newfo = {'gene' : new_name, 'seq' : unaligned_seq, 'template-gene' : template_gene}
             add_new_allele(glfo, newfo, use_template_for_codon_info=True, simglfo=simglfo, debug=True)
-        elif glfo['seqs'][region][seqfo['name']] != unaligned_seq:
-            print '%s different sequences in template glfo and fasta output for %s:\n    %s\n    %s' % (utils.color('red', 'error'), seqfo['name'], glfo['seqs'][region][seqfo['name']], aligned_seq)
-
-        fasta_alleles.add(new_name)  # add it *after* any changes
+            fasta_alleles.add(new_name)
 
     # remove alleles that *aren't* in fasta's gl set
     for gene in glfo['seqs'][region]:  # can't do it before, since we want to use existing ones to get codon info
