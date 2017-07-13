@@ -617,7 +617,7 @@ class AlleleFinder(object):
     # ----------------------------------------------------------------------------------------
     def very_different_bin_totals(self, pvals, istart, debug=False):
         # i.e. if there's a homozygous new allele at <istart> + 1  UPDATE wait, why +1?
-        factor = 4.  # i.e. check everything that's more than <factor> sigma away
+        factor = self.max_good_fit_residual  # i.e. check everything that's more than <factor> sigma away
         last_total = pvals['total'][istart - 1]
         istart_total = pvals['total'][istart]
         joint_total_err = max(math.sqrt(last_total), math.sqrt(istart_total))
@@ -634,7 +634,7 @@ class AlleleFinder(object):
         if pvals['total'][istart - 1] < 5:  # if there's hardly any entries in the previous bin (i.e. presumably a homozygous new allele) then just use bin totals
             return self.very_different_bin_totals(pvals, istart, debug=debug)
 
-        factor = 4.  # i.e. check everything that's more than <factor> sigma away (where "check" means actually do the fits, as long as it passes all the other prefiltering steps)
+        factor = self.max_good_fit_residual  # i.e. check everything that's more than <factor> sigma away (where "check" means actually do the fits, as long as it passes all the other prefiltering steps)
         joint_freq_err = max(pvals['errs'][istart - 1], pvals['errs'][istart])
         last_freq = pvals['freqs'][istart - 1]
         istart_freq = pvals['freqs'][istart]
