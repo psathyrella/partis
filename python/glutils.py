@@ -456,13 +456,38 @@ def get_mutfo_from_seq(old_seq, new_seq):
     return mutfo
 
 # ----------------------------------------------------------------------------------------
-def try_to_get_mutfo_from_name(gene_name):
-    allele_list = utils.allele(gene_name).split('+')
-    if len(allele_list) != 2:
-        print 'couldn\'t get snp info from gene name %s' % gene_name
-        return None
+def split_inferred_allele_name(gene_name, debug=False):
+    if '+' in gene_name:  # partis (e.g. IGHVx-y*z+G35T.A77C)
+        method = 'partis'
+        template_name, mutstrs = gene_name.split('+')
+        if mutstrs[0] not in utils.nukes:  # hashed name
+            int(mutstrs)  # make sure it's actually a hash
+            mutstrs = None
+        else:
+            mutstrs = mutstrs.split('.')
+    elif '_' in gene_name:
+        template_name = gene_name.split('_')[0]
+        mutstrs = gene_name.split('_')[1:]  # always a list of strings
+        if len(mutstrs) == 1 and mutstrs[0][0] == 'S':  # igdiscover (e.g. IGHVx-y*z_S1098)
+            method = 'igdiscover'
+            mutstrs = None
+        else:  # tigger (e.g. IGHVx-y*z_G35T_A77C)
+            method = 'tigger'
+    else:
+        raise Exception('couldn\'t figure out template gene and snp info for %s' % gene_name)
+
+    return method, template_name, mutstrs
+
+# ----------------------------------------------------------------------------------------
+def get_template_gene(gene_name, debug=False):
+    _, template_name, _ = split_inferred_allele_name(gene_name, debug=debug)
+    return template_name
+
+# ----------------------------------------------------------------------------------------
+def try_to_get_mutfo_from_name(gene_name, aligned_seq=None, debug=False):
     mutfo = {}
-    for mutstr in allele_list[1].split('.'):
+    method, _, mutstrs = split_inferred_allele_name(gene_name)
+    for mutstr in mutstrs:  # shouldn't get here with igdiscover (if you do, it'll crash when it tries to loop over a nonetype <mutstrs>)
         if len(mutstr) < 3:
             print 'couldn\'t extract mutation info from \'%s\' in gene %s' % (mutstr, gene_name)
             return None
@@ -475,6 +500,19 @@ def try_to_get_mutfo_from_name(gene_name):
         except ValueError:
             print 'couldn\'t convert \'%s\' to a position in gene %s' % (mutstr[1:-1], gene_name)
             return None
+        if method == 'tigger':  # convert from 1-indexed aligned to 0-indexed unaligned
+            assert aligned_seq is not None
+            unaligned_seq = utils.remove_gaps(aligned_seq)
+            imgt_aligned_pos = position - 1  # convert to 0-indexed
+            if debug:
+                print '    imgt aligned %s%d%s: %s%s%s' % (original, imgt_aligned_pos, new, aligned_seq[:imgt_aligned_pos], utils.color('red', aligned_seq[imgt_aligned_pos]), aligned_seq[imgt_aligned_pos + 1:])
+            assert aligned_seq[imgt_aligned_pos] == new
+            n_gaps = count_gaps(aligned_seq, aligned_pos=imgt_aligned_pos)
+            unaligned_pos = imgt_aligned_pos - n_gaps
+            if debug:
+                print '       unaligned %s%d%s: %s%s%s' % (original, unaligned_pos, new, unaligned_seq[:unaligned_pos], utils.color('red', unaligned_seq[unaligned_pos]), unaligned_seq[unaligned_pos + 1:])
+            assert unaligned_seq[unaligned_pos] == new
+            position = unaligned_pos
         if position not in mutfo:
             mutfo[position] = {}
             mutfo[position]['original'] = original  # if it *is* already there, we want to *keep* the old 'original'
@@ -982,53 +1020,29 @@ def synchronize_glfos(ref_glfo, new_glfo, region, debug=False):
     return new_glfo
 
 # ----------------------------------------------------------------------------------------
-def create_glfo_from_fasta(fastafname, locus, region, template_germline_dir, simulation_germline_dir=None):
+def create_glfo_from_fasta(fastafname, locus, region, template_germline_dir, simulation_germline_dir=None, debug=False):
     glfo = read_glfo(template_germline_dir, locus)
     simglfo = None
     if simulation_germline_dir is not None:
         simglfo = read_glfo(simulation_germline_dir, locus)
     fasta_alleles = set()
     for seqfo in utils.read_fastx(fastafname):
-        name, seq = seqfo['name'], seqfo['seq']  # unaligned seq
-        for gc in utils.gap_chars:
-            seq = seq.replace(gc, '')
+        new_name, aligned_seq = seqfo['name'], seqfo['seq']  # well, tigger or igdiscover
+        unaligned_seq = utils.remove_gaps(aligned_seq)
+        if new_name not in glfo['seqs'][region]:  # should be an inferred allele if it isn't in the default glfo, but we enforce this by calling split_inferred_allele_name()
+            print '  %s allele %s' % (utils.color('red', 'new'), utils.color_gene(new_name))
+            method, template_gene, mutstrs = split_inferred_allele_name(new_name, debug=debug)
+            snpfo = None
+            if mutstrs is not None:
+                snpfo = try_to_get_mutfo_from_name(new_name, aligned_seq=aligned_seq, debug=debug)
+            if snpfo is not None:
+                new_name, _ = choose_new_allele_name(template_gene, unaligned_seq, snpfo=snpfo)
+            newfo = {'gene' : new_name, 'seq' : unaligned_seq, 'template-gene' : template_gene}
+            add_new_allele(glfo, newfo, use_template_for_codon_info=True, simglfo=simglfo, debug=True)
+        elif glfo['seqs'][region][seqfo['name']] != unaligned_seq:
+            print '%s different sequences in template glfo and fasta output for %s:\n    %s\n    %s' % (utils.color('red', 'error'), seqfo['name'], glfo['seqs'][region][seqfo['name']], aligned_seq)
 
-        if name not in glfo['seqs'][region]:
-            newfo = {'gene' : name, 'seq' : seq}
-            if '_' in newfo['gene']:
-                dbg = False
-                if dbg:
-                    print '  %s allele %s' % (utils.color('red', 'new'), name)
-                splitfos = newfo['gene'].split('_')
-                template_gene, snpfos = splitfos[0], splitfos[1:]
-                utils.split_gene(template_gene)  # fails if it isn't a valid gene name
-                snp_name_strs = []
-                for snpfostr in snpfos:
-                    imgt_aligned_pos = int(snpfostr[1:-1]) - 1  # it's 1-indexed in the tigger output
-                    initial_base, final_base = snpfostr[0], snpfostr[-1]
-                    if initial_base not in utils.nukes or final_base not in utils.nukes:
-                        raise Exception('not among expected nucleotides:  initial %s  final %s' % (initial_base, final_base))
-                    if dbg:
-                        print '    imgt aligned %s%d%s: %s%s%s' % (initial_base, imgt_aligned_pos, final_base, seqfo['seq'][:imgt_aligned_pos], utils.color('red', seqfo['seq'][imgt_aligned_pos]), seqfo['seq'][imgt_aligned_pos + 1:])
-                    assert seqfo['seq'][imgt_aligned_pos] == final_base
-                    n_gaps = count_gaps(seqfo['seq'], aligned_pos=imgt_aligned_pos)
-                    unaligned_pos = imgt_aligned_pos - n_gaps
-                    if dbg:
-                        print '       unaligned %s%d%s: %s%s%s' % (initial_base, unaligned_pos, final_base, seq[:unaligned_pos], utils.color('red', seq[unaligned_pos]), seq[unaligned_pos + 1:])
-                    assert seq[unaligned_pos] == final_base
-                    snp_name_strs.append('%s%d%s' % (initial_base, unaligned_pos, final_base))
-                if len(snp_name_strs) > 4:
-                    snpstr = str(abs(hash(seq)))[:5]
-                else:
-                    snpstr = '.'.join(snp_name_strs)
-                name = '%s+%s' % (template_gene, snpstr)
-                newfo['gene'] = name
-                newfo['template-gene'] = template_gene
-            add_new_allele(glfo, newfo, use_template_for_codon_info='template-gene' in newfo, simglfo=simglfo, debug=True)
-        elif glfo['seqs'][region][seqfo['name']] != seq:
-            print '%s different sequences in template glfo and fasta output for %s:\n    %s\n    %s' % (utils.color('red', 'error'), seqfo['name'], glfo['seqs'][region][seqfo['name']], seqfo['seq'])
-
-        fasta_alleles.add(name)  # add it *after* any changes to <name>
+        fasta_alleles.add(new_name)  # add it *after* any changes
 
     # remove alleles that *aren't* in fasta's gl set
     for gene in glfo['seqs'][region]:  # can't do it before, since we want to use existing ones to get codon info
