@@ -16,15 +16,15 @@ This manual is organized into the following sections:
   * [Quick start](#quick-start)
   * Subcommands: how to navigate the various `partis` actions
     - [annotate](#annotate) find most likely annotations
-	- [partition](#partition) cluster sequences into clonally-related families
-	  - [faster methods](#faster-methods)
-	  - [cluster annotations](#cluster-annotations)
-	- [view-annotations](#view-annotations) Print (to std out) the annotations from an existing annotation output csv.
-	- [view-partitions](#view-partitions)  Print (to std out) the partitions from an existing partition output csv.
-	- [cache-parameters](#cache-parameters) write parameter values and HMM model files for a given data set
-	  - [germline sets](#germline-sets)
-	- [simulate](#simulate) make simulated sequences
-	- [run-forward](#run-forward) find total probability of sequences
+    - [partition](#partition) cluster sequences into clonally-related families
+      - [faster methods](#faster-methods)
+      - [cluster annotations](#cluster-annotations)
+    - [view-annotations](#view-annotations) Print (to std out) the annotations from an existing annotation output csv.
+    - [view-partitions](#view-partitions)  Print (to std out) the partitions from an existing partition output csv.
+    - [cache-parameters](#cache-parameters) write parameter values and HMM model files for a given data set
+      - [germline sets](#germline-sets)
+    - [simulate](#simulate) make simulated sequences
+    - [run-forward](#run-forward) find total probability of sequences
   * [Parallelization](#parallelization)
   * [Text output and logging](#text-output-and-logging)
 
@@ -354,19 +354,22 @@ There are a number of parameters for modifying the details of the simulation sam
 
 | option                                        | description
 |-----------------------------------------------|-----------------------------------------------------------------
-| `--n-trees`									| In a separate, initial step, partis generates a set of this many phylogentic trees, from which it will later choose for each rearrangemnt event. Defaults to the value of --n-sim-events.
-| `--n-leaf-distribution <geometric|box|zipf>`	| When generating these trees, from what distribution should the number of leaves be drawn?
-| `--n-leaves`									| Parameter controlling the n-leaf distribution (e.g. for the default geometric distribution, it's the mean number of leaves)
-| `--constant-number-of-leaves`					| instead of drawing the number of leaves for each tree from a distribution, force every tree to have the same number of leaves
+| `--n-trees`                                   | In a separate, initial step, partis generates a set of this many phylogentic trees, from which it will later choose for each rearrangemnt event. Defaults to the value of --n-sim-events.
+| `--n-leaf-distribution <geometric|box|zipf>`  | When generating these trees, from what distribution should the number of leaves be drawn?
+| `--n-leaves`                                  | Parameter controlling the n-leaf distribution (e.g. for the default geometric distribution, it's the mean number of leaves)
+| `--constant-number-of-leaves`                 | instead of drawing the number of leaves for each tree from a distribution, force every tree to have the same number of leaves
+| `--root-mrca-weibull-parameter`               | adjusts tree shape and branching
 
 **SHM indel control:**
 
 | option                            | description
 |-----------------------------------|-----------------------------------------------------------------
-| `--indel-frequency`				| fraction of simulated sequences which will contain SHM indels (currently, insertions and deletions are generated with equal probability, i.e. on average half of 'em will have insertions and half will have deletions)
-| `--mean-indels-per-indeld-seq`	| once we've decided a sequence will have at least one indel, we choose the actual number of indels from a geometric distribution with this mean
-| `--mean-indel-length`				| mean length of each SHM insertion or deletion
-| `--indel-location <v|cdr3>`		| if not set (default), indels are placed uniformly across the sequence. If set to `v` or `cdr3` they are restricted to those bits
+| `--indel-frequency`               | fraction of simulated sequences which will contain SHM indels (currently, insertions and deletions are generated with equal probability, i.e. on average half of 'em will have insertions and half will have deletions)
+| `--mean-indels-per-indeld-seq`    | once we've decided a sequence will have at least one indel, we choose the actual number of indels from a geometric distribution with this mean
+| `--mean-indel-length`             | mean length of each SHM insertion or deletion
+| `--indel-location <v|cdr3>`       | if not set (default), indels are placed uniformly across the sequence. If set to `v` or `cdr3` they are restricted to those bits
+
+**Scratch parameters:**
 
 There also exist options for specifying various ways in which to deviate more profoundly from simply mimicking the specified sample.
 This also allows you to generate simulated samples without previously running inference.
@@ -394,13 +397,17 @@ Several parameters control this generation:
 | `--n-sim-alleles-per-gene`         | number of alleles to choose for each of these genes (colon-separated list of comma separated lists: e.g. with the default of '1,2:1,2:1,2', for each gene from --n-genes-per-region, we choose (with equal probability) either 1 or 2 alleles)
 | `--min-sim-allele-prevalence-freq` | minimum prevalence ratio between any two alleles in the germline set. I.e., the prevalence frequency for each allele is chosen such that the ratio of any two is between this and 1 (default 0.1)
 
+details of the generated germline set will be printed to stdout, and after simulation the prevalence frequencies are checked and printed to stdout.
+
 **Generating novel alleles:**
 
 Because this is somewhat complicated, in the following we describe the options in the context of options to the helper script `bin/test-germline-inference.py`.
-This helper script, however, is mostly just running `bin/partis`, and it printing the correspond command lines to stdout as it runs.
+This helper script, however, is mostly just running `bin/partis`, and it prints the correspond command lines to stdout as it runs.
+You basically need to tell it how many novel alleles, with how many SNPs and/or indels, and where to introduce them.
 
-
-`--root-mrca-weibull-parameter`
+| option                             | description
+|------------------------------------|-----------------------------------------------------------------
+| `--snp-positions`                  | 
 
 ####### Examples
 

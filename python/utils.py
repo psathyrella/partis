@@ -1154,6 +1154,10 @@ def primary_version(gene):
     return split_gene(gene)[0]
 
 # ----------------------------------------------------------------------------------------
+def gene_family(gene):  # same as primary_version(), except ignore stuff after the slash, e.g. 1/OR15 --> 1
+    return primary_version(gene).split('/')[0]
+
+# ----------------------------------------------------------------------------------------
 def sub_version(gene):
     return split_gene(gene)[1]
 

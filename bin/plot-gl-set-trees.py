@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # has to be its own script, since ete3 requires its own god damn python version, installed in a separated directory
+import itertools
 import glob
 import argparse
 import copy
@@ -127,7 +128,7 @@ def print_data_pair_results(gl_sets):
         print '    %9s %2d: %s' % (name, len(genes), ' '.join([utils.color_gene(g) for g in genes]))
 
 # ----------------------------------------------------------------------------------------
-def get_gene_sets(glsfnames, glslabels, ref_label=None):
+def get_gene_sets(glsfnames, glslabels, ref_label=None, classification_fcn=None):
     glfos = {}
     for label, fname in zip(glslabels, glsfnames):
         gldir = os.path.dirname(fname).replace('/' + args.locus, '')
@@ -140,6 +141,11 @@ def get_gene_sets(glsfnames, glslabels, ref_label=None):
 
     gl_sets = {label : {g : seq for g, seq in glfos[label]['seqs'][args.region].items()} for label in glfos}
     all_genes = {g : s for gls in gl_sets.values() for g, s in gls.items()}
+
+    if classification_fcn is not None:
+        all_primary_versions = set([classification_fcn(g) for g in all_genes])
+        gl_sets = {pv : {label : {g : gl_sets[label][g] for g in gl_sets[label] if classification_fcn(g) == pv} for label in gl_sets} for pv in all_primary_versions}
+        all_genes = {pv : {g : s for g, s in all_genes.items() if classification_fcn(g) == pv} for pv in all_primary_versions}
 
     return all_genes, gl_sets
 
@@ -165,21 +171,12 @@ def set_node_style(node, status, data=False, pair=False):
         node.add_face(copy.deepcopy(faces[status]), column=0, position='aligned')
 
 # ----------------------------------------------------------------------------------------
-def plot_gls_gen_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=None, title=None):
-    assert glslabels == ['sim', 'inf']  # otherwise stuff needs to be updated
-
-    all_genes, gl_sets = get_gene_sets(glsfnames, glslabels, ref_label='sim')
-    print_results(gl_sets)
-
-    treefname = make_tree(all_genes, plotdir + '/workdir', use_cache=args.use_cache)
-    with open(treefname) as treefile:
-        treestr = treefile.read().strip()
-    # treestr = "(A:0.7,B:0.7):0.3;"
-
+def draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, arc_start=None, arc_span=None):
     etree = ete3.ClusterTree(treestr)
     node_names = set()  # make sure we get out all the genes we put in
     for node in etree.traverse():
-        node.dist = 1
+        if node.dist > 0.05:
+            node.dist = 0.05
         status = getstatus(gl_sets, node)
         set_node_style(node, status)
         if node.is_leaf():
@@ -191,7 +188,27 @@ def plot_gls_gen_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=N
     tstyle.show_leaf_name = False
     tstyle.mode = 'c'
     tstyle.show_scale = False
+    if arc_start is not None:
+        tstyle.arc_start = arc_start
+    if arc_span is not None:
+        tstyle.arc_span = arc_span
     etree.render(plotdir + '/' + plotname + '.svg', h=750, tree_style=tstyle)
+
+# ----------------------------------------------------------------------------------------
+def plot_gls_gen_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=None, title=None):
+    assert glslabels == ['sim', 'inf']  # otherwise stuff needs to be updated
+
+    all_genes, gl_sets = get_gene_sets(glsfnames, glslabels, ref_label='sim')
+    per_pv_all_genes, per_pv_gl_sets = get_gene_sets(glsfnames, glslabels, ref_label='sim', classification_fcn=utils.gene_family)
+    print_results(gl_sets)
+
+    treestrs = {}
+    for pv in per_pv_gl_sets:
+        treefname = make_tree(per_pv_all_genes[pv], plotdir + '/workdir', use_cache=args.use_cache)
+        with open(treefname) as treefile:
+            treestrs[pv] = treefile.read().strip()
+        arc_span = 360 * float(len(per_pv_all_genes[pv])) / sum([len(pvgenes) for pvgenes in per_pv_all_genes.values()])
+        draw_tree(plotdir, plotname + '-' + pv, treestrs[pv], per_pv_gl_sets[pv], per_pv_all_genes[pv], arc_start=0, arc_span=arc_span)
 
 # ----------------------------------------------------------------------------------------
 def plot_data_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=None, title=None):
@@ -201,7 +218,6 @@ def plot_data_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=None
     treefname = make_tree(all_genes, plotdir + '/workdir', use_cache=args.use_cache)
     with open(treefname) as treefile:
         treestr = treefile.read().strip()
-    # treestr = "(A:0.7,B:0.7):0.3;"
 
     etree = ete3.ClusterTree(treestr)
     node_names = set()  # make sure we get out all the genes we put in
@@ -228,7 +244,6 @@ def plot_data_pair_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title
     treefname = make_tree(all_genes, plotdir + '/workdir', use_cache=args.use_cache)
     with open(treefname) as treefile:
         treestr = treefile.read().strip()
-    # treestr = "(A:0.7,B:0.7):0.3;"
 
     etree = ete3.ClusterTree(treestr)
     node_names = set()  # make sure we get out all the genes we put in
