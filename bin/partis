@@ -77,6 +77,7 @@ def run_simulation(args):
     glfo = glutils.read_glfo(input_gldir, args.locus, only_genes=args.only_genes)
     if not args.im_a_subproc and args.rearrange_from_scratch and args.generate_germline_set:
         glutils.generate_germline_set(glfo, args.n_genes_per_region, args.n_sim_alleles_per_gene, args.min_sim_allele_prevalence_freq, args.allele_prevalence_fname)  # NOTE removes unwanted genes from <glfo>
+        print '  writing generated germline set to %s/' % args.outfname.replace('.csv', '-glfo')
         glutils.write_glfo(args.outfname.replace('.csv', '-glfo'), glfo)
     if args.subsimproc:
         working_gldir = args.workdir + '/' + glutils.glfo_dir

@@ -318,21 +318,21 @@ If you have another set you'd like to use, you can do so by setting the `--initi
 A number of studies have shown that, at least for V genes, this set (and all others) is both missing many alleles which occur in real populations and contains many alleles which do not occur in any real sample.
 In addition, any individual sample will contain only a small fraction of the genes and alleles in the default germline set.
 
-By default partis handles these problems when caching parameters with a two step process during the preliminary smith-waterman annotation.
-The V alleles in the initial germline set which were the best match for at least one sequence, and which accounted for more than `--min-allele-prevalence-fraction` (default 0.0005) of the repertoire, are then divided into classes, such that all alleles within each class are the same length, and separated by less than `--n-max-snps` (default 8) SNPs.
-To a first approximation, these classes are the same as imgt gene designations, i.e. the bit before the `*`.
-Within each class, we then keep only the most common `--n-alleles-per-gene` alleles (default 2) which are distinguishable from each other in expressed samples (e.g. which don't differ by one base at codon 108).
-This amounts to the application of a strong diploid prior.
-Which, of course, is not particularly well-justified given the extensive gene deletion and duplication in the BCR locus, and the fact that typical SHM levels are much larger than the typical inter-V-gene distance in the imgt repertoire.
-But, it is a reasonable first approximation.
-And, more importantly, it is vastly more accurate than simply keeping every single allele which is a best match.
+<!-- By default partis handles these problems when caching parameters with a two step process during the preliminary smith-waterman annotation. -->
+<!-- The V alleles in the initial germline set which were the best match for at least one sequence, and which accounted for more than `--min-allele-prevalence-fraction` (default 0.0005) of the repertoire, are then divided into classes, such that all alleles within each class are the same length, and separated by less than `--n-max-snps` (default 8) SNPs. -->
+<!-- To a first approximation, these classes are the same as imgt gene designations, i.e. the bit before the `*`. -->
+<!-- Within each class, we then keep only the most common `--n-alleles-per-gene` alleles (default 2) which are distinguishable from each other in expressed samples (e.g. which don't differ by one base at codon 108). -->
+<!-- This amounts to the application of a strong diploid prior. -->
+<!-- Which, of course, is not particularly well-justified given the extensive gene deletion and duplication in the BCR locus, and the fact that typical SHM levels are much larger than the typical inter-V-gene distance in the imgt repertoire. -->
+<!-- But, it is a reasonable first approximation. -->
+<!-- And, more importantly, it is vastly more accurate than simply keeping every single allele which is a best match. -->
 
-Second, if `--find-new-alleles` is specified, we re-run smith-waterman using this reduced V germline set, and apply a new method for finding any previously unknown V alleles, or V alleles which were over-aggressively pruned in the previous step.
-This method is too complex to describe here in detail, but can perhaps best be described as a principled, hypothesis-testing-based generalization of the [tigger](https://www.ncbi.nlm.nih.gov/pubmed/25675496) method.
-The entire resulting germline set is written to a subdirectory of `--parameter-dir`, and is used in subsequent runs instead of the initial germline set.
+<!-- Second, if `--find-new-alleles` is specified, we re-run smith-waterman using this reduced V germline set, and apply a new method for finding any previously unknown V alleles, or V alleles which were over-aggressively pruned in the previous step. -->
+<!-- This method is too complex to describe here in detail, but can perhaps best be described as a principled, hypothesis-testing-based generalization of the [tigger](https://www.ncbi.nlm.nih.gov/pubmed/25675496) method. -->
+<!-- The entire resulting germline set is written to a subdirectory of `--parameter-dir`, and is used in subsequent runs instead of the initial germline set. -->
 
-We could probably do the same thing for J, but there doesn't seem to be much polymorphism, so it's probably not worthwhile.
-Doing it for D is probably not realistic.
+<!-- We could probably do the same thing for J, but there doesn't seem to be much polymorphism, so it's probably not worthwhile. -->
+<!-- Doing it for D is probably not realistic. -->
 
 #### simulate
 
@@ -371,15 +371,19 @@ This also allows you to generate simulated samples without previously running in
 
 Germline set control:
 
-By default, the germline set (i.e. the set of germline V, D, and J genes), and their prevalance frequencies are taken from --parameter-dir.
-In some cases, particularly when validation germline set inference methods, however, it is necessary to exert very fine-grained control over the simulated germline set.
+By default, the germline set (i.e. the set of germline V, D, and J genes), and their prevalance frequencies are taken from --parameter-dir (which will contain be the germline set that was inferred from the sample that was used to make --parameter-dir).
+In some cases, however (particularly when validating germline set inference methods) it is necessary to exert very fine-grained control over the simulated germline set.
 
-`--generate-germline-set`: 
-`--n-genes-per-region`
-`--n-sim-alleles-per-gene`
-`--min-sim-allele-prevalence-freq`
-`--allele-prevalence-fname`
+If you have a particular germline set that you want to use, that can be specified with `--initial-germline-dir`.
 
+You can also direct partis to generate a synthetic germline set by setting `--generate-germline-set`.
+Several parameters control this generation:
+
+|-----------------------------------|-----------------------------------------------------------------
+|`--n-genes-per-region`             | number of genes to choose for each of the V, D, and J regions (colon separated list ordered like v:d:j, default: '15:5:3')
+|`--n-sim-alleles-per-gene`         | number of alleles to choose for each of these genes (colon-separated list of comma separated lists: e.g. with the default of '1,2:1,2:1,2', for each gene from --n-genes-per-region, we choose (with equal probability) either 1 or 2 alleles)
+|`--min-sim-allele-prevalence-freq` | minimum prevalence ratio between any two alleles in the germline set. I.e., the prevalence frequency for each allele is chosen such that the ratio of any two is between this and 1 (default 0.1)
+|-----------------------------------|-----------------------------------------------------------------
 
 --> adding snpd alleles
 Because this is somewhat complicated, in the following we describe the options in the context of options to the helper script `bin/test-germline-inference.py`.
