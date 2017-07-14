@@ -14,7 +14,7 @@ This manual is organized into the following sections:
   * [Installation with Docker](#installation-with-docker)
   * [Installation from scratch](#installation-from-scratch)
   * [Quick start](#quick-start)
-  * [Subcommands](#subcommands) how to navigate the various `partis` actions
+  * Subcommands: how to navigate the various `partis` actions
     - [annotate](#annotate) find most likely annotations
 	- [partition](#partition) cluster sequences into clonally-related families
 	  - [faster methods](#faster-methods)
@@ -155,7 +155,7 @@ The default filename is a hash of the concatenated input sequence id strings
 These defaults should ensure that with typical workflows, smith-waterman only runs once.
 If however, you're doing less typical things (running on a subset of sequences in the file), if you want smith-waterman results to be cached you'll need to specify `--sw-cachefname` explicitly, and it'll write it if it doesn't exist, and read from it if it does.
 
-#### annotate
+### annotate
 
 Finds the Viterbi path (i.e., the most likely annotation/alignment) for each sequence, for example:
 
@@ -202,7 +202,7 @@ Annotation is the algorithm of choice for annotating sequences where the clonal 
 
 However for many applications sequence data is created unspecifically for a large amount of BCRs and will contain many sequences being from the same germinal center, hence also sharing the same naive sequence. Using this prior knowledge can greatly improve inference of VDJ gene combination and reconstruction of the naive sequence, and therefore when datasets allow for partitioning, the annotations from the partitioning algorithm should be preferred over the single-sequence annotation results.
 
-#### partition
+### partition
 
 Example invocation:
 
@@ -281,19 +281,19 @@ Another option, as mentioned above, is to run the very fast but somewhat less ac
 
 We're working to include these two strategies as command line options, but want to do some more validation before we settle on the particulars which are best for a general use case.
 
-#### view-annotations
+### view-annotations
 
 To, e.g. run on the output csv from the `annotate` action:
 
 ``` ./bin/partis view-annotations --outfname annotate-output.csv```
 
-#### view-partitions
+### view-partitions
 
 To, e.g. run on the output csv from the `partition` action:
 
 ``` ./bin/partis view-partitions --outfname partition-output.csv```
 
-#### cache-parameters
+### cache-parameters
 
 This is run automatically if `--parameter-dir` doesn't exist (whether this directory is specified explicitly, or is left as default).
 So you do not, generally, need to run it on its own.
@@ -311,7 +311,7 @@ When caching parameters, the parameter csvs from Smith-Waterman and the HMM are 
 Within each of these, there are a bunch of csv files with (hopefully) self-explanatory names, e.g. `j_gene-j_5p_del-probs.csv` has counts for J 5' deletions subset by J gene.
 The hmm model files go in the `hmms` subdirectory, which contains yaml HMM model files for each observed allele.
 
-##### germline sets
+#### germline sets
 
 By default partis uses the set of germline V, D, and J genes (the "germline set") in `data/germlines`, which is from imgt.
 If you have another set you'd like to use, you can do so by setting the `--initial-germline-dir` option to cache-parameters.
@@ -334,7 +334,7 @@ In addition, any individual sample will contain only a small fraction of the gen
 <!-- We could probably do the same thing for J, but there doesn't seem to be much polymorphism, so it's probably not worthwhile. -->
 <!-- Doing it for D is probably not realistic. -->
 
-#### simulate
+### simulate
 
 There are a large number of options controlling the details of creating simulated samples.
 The simplest mode is to mimic a particular data sample of your choice as closely as possible -- germline set, gene usage frequencies, insertion and deletion lengths, somatic hypermutation rates and per-position dependencies, etc. (as well as the correlations between these) are modelled using previously-inferred parameters from a particular sample.
@@ -350,7 +350,7 @@ There are a number of parameters for modifying the details of the simulation sam
 | `--mutation-multiplier <factor>` | multiply the observed SHM frequency by <factor>
 | `--mimic-data-read-length`       | by default the simulation creates reads that extend through all of V and J -- this tells it to, instead, truncate them according to the lengths/frequencies seen in the data sample
 
-*tree control*
+**Tree control:**
 
 | option                                        | description
 |-----------------------------------------------|-----------------------------------------------------------------
@@ -359,7 +359,7 @@ There are a number of parameters for modifying the details of the simulation sam
 | `--n-leaves`									| Parameter controlling the n-leaf distribution (e.g. for the default geometric distribution, it's the mean number of leaves)
 | `--constant-number-of-leaves`					| instead of drawing the number of leaves for each tree from a distribution, force every tree to have the same number of leaves
 
-*SHM indel control*
+**SHM indel control:**
 
 | option                            | description
 |-----------------------------------|-----------------------------------------------------------------
@@ -378,7 +378,7 @@ This also allows you to generate simulated samples without previously running in
 | `--mutate-from-scratch`    | instead of taking SHM-level (i.e. non-rearrangement level) parameters from --parameter-dir (e.g. per-gene, per-position mutation frequencies), use a flat rate specified by --flat-mute-freq
 | `--flat-mute-freq`         | see --mutate-from-scratch
 
-*Germline set control*
+**Germline set control:**
 
 By default, the germline set (i.e. the set of germline V, D, and J genes), and their prevalance frequencies are taken from --parameter-dir (which will contain be the germline set that was inferred from the sample that was used to make --parameter-dir).
 In some cases, however (particularly when validating germline set inference methods) it is necessary to exert very fine-grained control over the simulated germline set.
@@ -394,7 +394,7 @@ Several parameters control this generation:
 | `--n-sim-alleles-per-gene`         | number of alleles to choose for each of these genes (colon-separated list of comma separated lists: e.g. with the default of '1,2:1,2:1,2', for each gene from --n-genes-per-region, we choose (with equal probability) either 1 or 2 alleles)
 | `--min-sim-allele-prevalence-freq` | minimum prevalence ratio between any two alleles in the germline set. I.e., the prevalence frequency for each allele is chosen such that the ratio of any two is between this and 1 (default 0.1)
 
-*generating novel alleles*
+**Generating novel alleles:**
 
 Because this is somewhat complicated, in the following we describe the options in the context of options to the helper script `bin/test-germline-inference.py`.
 This helper script, however, is mostly just running `bin/partis`, and it printing the correspond command lines to stdout as it runs.
