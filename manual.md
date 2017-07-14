@@ -336,6 +336,64 @@ Doing it for D is probably not realistic.
 
 #### simulate
 
+There are a large number of options controlling the details of creating simulated samples.
+The simplest mode is to mimic a particular data sample of your choice as closely as possible -- germline set, gene usage frequencies, insertion and deletion lengths, somatic hypermutation rates and per-position dependencies, etc. (as well as the correlations between these) are modelled using previously-inferred parameters from a particular sample.
+If, for instance, you previously partitioned a sample at the path `/path/to/sample.fa`, unless you specified otherwise with `--parameter-dir`, the parameteres would have been written to `_output/_path_to_sample/`, and you could create a simulated sample with 3 rearrangement events by running
+
+```./bin/partis simulate --parameter-dir _output/_path_to_sample --outfname simu.csv --n-sim-events 3 --debug 1```,
+
+where `--debug 1` shows you what the rearrangement events look like as they're being made.
+There are a number of parameters for modifying the details of the simulation sample starting from here (for information on defaults, run `./bin/partis simulate --help`):
+
+`--mutation-multiplier <factor>`: multiply the observed SHM frequency by <factor>
+
+Tree control:
+`--n-trees`: In a separate, initial step, partis generates a set of this many phylogentic trees, from which it will later choose for each rearrangemnt event. Defaults to the value of --n-sim-events.
+`--n-leaf-distribution <geometric|box|zipf>`: When generating these trees, from what distribution should the number of leaves be drawn?
+`--n-leaves`: Parameter controlling the n-leaf distribution (e.g. for the default geometric distribution, it's the mean number of leaves)
+`--constant-number-of-leaves`: instead of drawing the number of leaves for each tree from a distribution, force every tree to have the same number of leaves
+
+`--mimic-data-read-length`: By default the simulation creates reads that extend through all of V and J -- this tells it to, instead, truncate them according to the lengths/frequencies seen in the data sample.
+
+SHM indel control:
+`--indel-frequency`: fraction of simulated sequences which will contain SHM indels (currently, insertions and deletions are generated with equal probability, i.e. on average half of 'em will have insertions and half will have deletions)
+`--mean-indels-per-indeld-seq`: once we've decided a sequence will have at least one indel, we choose the actual number of indels from a geometric distribution with this mean
+`--mean-indel-length`: mean length of each SHM insertion or deletion
+`--indel-location <v|cdr3>`: if not set (default), indels are placed uniformly across the sequence. If set to `v` or `cdr3` they are restricted to those bits
+
+There also exist options for specifying various ways in which to deviate more profoundly from simply mimicking the specified sample.
+This also allows you to generate simulated samples without previously running inference.
+
+`--rearrange-from-scratch`: instead of taking rearrangement-level (i.e. non-SHM) parameters from --parameter-dir, make up some plausible values from scratch (e.g. geometric insertion lengths)
+`--scratch-mute-freq-dir`: parameter directory with only SHM-level information, which allows --rearrange-from-scratch to create realistic mutation spectra for any specified germline set (default value, in data/ shouldn't need to be changed)
+`--mutate-from-scratch`: instead of taking SHM-level (i.e. non-rearrangement level) parameters from --parameter-dir (e.g. per-gene, per-position mutation frequencies), use a flat rate specified by --flat-mute-freq
+`--flat-mute-freq`: see --mutate-from-scratch
+
+Germline set control:
+
+By default, the germline set (i.e. the set of germline V, D, and J genes), and their prevalance frequencies are taken from --parameter-dir.
+In some cases, particularly when validation germline set inference methods, however, it is necessary to exert very fine-grained control over the simulated germline set.
+
+`--generate-germline-set`: 
+`--n-genes-per-region`
+`--n-sim-alleles-per-gene`
+`--min-sim-allele-prevalence-freq`
+`--allele-prevalence-fname`
+
+
+--> adding snpd alleles
+Because this is somewhat complicated, in the following we describe the options in the context of options to the helper script `bin/test-germline-inference.py`.
+This helper script, however, is mostly just running `bin/partis`, and it printing the correspond command lines to stdout as it runs.
+
+
+`--root-mrca-weibull-parameter`
+
+####### Examples
+
+
+###### bin/test-allele-finding.py
+
+
 For testing purposes, we can use the parameters in `--parameter-dir` to create simulated sequences that mimic the data as closely as possible.
 This allows us to test how well our algorithms work on a set of sequences for which we know the correct annotations and clonal relationships.
 Note that while the parameters describe a very detailed picture of the rearrangement and mutation patterns, we do not (yet!) parametrize either the emipical clonal size distributions or phylogenetic relationships.
@@ -351,6 +409,7 @@ To get the actual number of sequences, we multiply this by the mean number of le
 At the start of a simulation run, TreeSim generates a set of `--n-trees` trees (default 500 at the moment), and each tree has a number of leaves drawn from an exponential (or zipf, or box, or...) with mean/exponent `--n-leaves`.
 Throughout the run, we sample a tree at random from this set for each rearrangement event.
 
+<!-- ---------------------------------------------------------------------------------------- -->
 ### Parallelization
 
 ###### In general
