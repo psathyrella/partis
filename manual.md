@@ -351,6 +351,7 @@ There are a number of parameters for modifying the details of the simulation sam
 | `--mimic-data-read-length`       | by default the simulation creates reads that extend through all of V and J -- this tells it to, instead, truncate them according to the lengths/frequencies seen in the data sample
 
 *tree control*
+
 | option                                        | description
 |-----------------------------------------------|-----------------------------------------------------------------
 | `--n-trees`									| In a separate, initial step, partis generates a set of this many phylogentic trees, from which it will later choose for each rearrangemnt event. Defaults to the value of --n-sim-events.
@@ -359,6 +360,7 @@ There are a number of parameters for modifying the details of the simulation sam
 | `--constant-number-of-leaves`					| instead of drawing the number of leaves for each tree from a distribution, force every tree to have the same number of leaves
 
 *SHM indel control*
+
 | option                            | description
 |-----------------------------------|-----------------------------------------------------------------
 | `--indel-frequency`				| fraction of simulated sequences which will contain SHM indels (currently, insertions and deletions are generated with equal probability, i.e. on average half of 'em will have insertions and half will have deletions)
