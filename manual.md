@@ -345,31 +345,38 @@ If, for instance, you previously partitioned a sample at the path `/path/to/samp
 where `--debug 1` shows you what the rearrangement events look like as they're being made.
 There are a number of parameters for modifying the details of the simulation sample starting from here (for information on defaults, run `./bin/partis simulate --help`):
 
-`--mutation-multiplier <factor>`: multiply the observed SHM frequency by <factor>
+| option                           | description
+|----------------------------------|-----------------------------------------------------------------
+| `--mutation-multiplier <factor>` | multiply the observed SHM frequency by <factor>
+| `--mimic-data-read-length`       | by default the simulation creates reads that extend through all of V and J -- this tells it to, instead, truncate them according to the lengths/frequencies seen in the data sample
 
-Tree control:
-`--n-trees`: In a separate, initial step, partis generates a set of this many phylogentic trees, from which it will later choose for each rearrangemnt event. Defaults to the value of --n-sim-events.
-`--n-leaf-distribution <geometric|box|zipf>`: When generating these trees, from what distribution should the number of leaves be drawn?
-`--n-leaves`: Parameter controlling the n-leaf distribution (e.g. for the default geometric distribution, it's the mean number of leaves)
-`--constant-number-of-leaves`: instead of drawing the number of leaves for each tree from a distribution, force every tree to have the same number of leaves
+*tree control*
+| option                                        | description
+|-----------------------------------------------|-----------------------------------------------------------------
+| `--n-trees`									| In a separate, initial step, partis generates a set of this many phylogentic trees, from which it will later choose for each rearrangemnt event. Defaults to the value of --n-sim-events.
+| `--n-leaf-distribution <geometric|box|zipf>`	| When generating these trees, from what distribution should the number of leaves be drawn?
+| `--n-leaves`									| Parameter controlling the n-leaf distribution (e.g. for the default geometric distribution, it's the mean number of leaves)
+| `--constant-number-of-leaves`					| instead of drawing the number of leaves for each tree from a distribution, force every tree to have the same number of leaves
 
-`--mimic-data-read-length`: By default the simulation creates reads that extend through all of V and J -- this tells it to, instead, truncate them according to the lengths/frequencies seen in the data sample.
-
-SHM indel control:
-`--indel-frequency`: fraction of simulated sequences which will contain SHM indels (currently, insertions and deletions are generated with equal probability, i.e. on average half of 'em will have insertions and half will have deletions)
-`--mean-indels-per-indeld-seq`: once we've decided a sequence will have at least one indel, we choose the actual number of indels from a geometric distribution with this mean
-`--mean-indel-length`: mean length of each SHM insertion or deletion
-`--indel-location <v|cdr3>`: if not set (default), indels are placed uniformly across the sequence. If set to `v` or `cdr3` they are restricted to those bits
+*SHM indel control*
+| option                            | description
+|-----------------------------------|-----------------------------------------------------------------
+| `--indel-frequency`				| fraction of simulated sequences which will contain SHM indels (currently, insertions and deletions are generated with equal probability, i.e. on average half of 'em will have insertions and half will have deletions)
+| `--mean-indels-per-indeld-seq`	| once we've decided a sequence will have at least one indel, we choose the actual number of indels from a geometric distribution with this mean
+| `--mean-indel-length`				| mean length of each SHM insertion or deletion
+| `--indel-location <v|cdr3>`		| if not set (default), indels are placed uniformly across the sequence. If set to `v` or `cdr3` they are restricted to those bits
 
 There also exist options for specifying various ways in which to deviate more profoundly from simply mimicking the specified sample.
 This also allows you to generate simulated samples without previously running inference.
 
-`--rearrange-from-scratch`: instead of taking rearrangement-level (i.e. non-SHM) parameters from --parameter-dir, make up some plausible values from scratch (e.g. geometric insertion lengths)
-`--scratch-mute-freq-dir`: parameter directory with only SHM-level information, which allows --rearrange-from-scratch to create realistic mutation spectra for any specified germline set (default value, in data/ shouldn't need to be changed)
-`--mutate-from-scratch`: instead of taking SHM-level (i.e. non-rearrangement level) parameters from --parameter-dir (e.g. per-gene, per-position mutation frequencies), use a flat rate specified by --flat-mute-freq
-`--flat-mute-freq`: see --mutate-from-scratch
+| option                     | description
+|----------------------------|-----------------------------------------------------------------
+| `--rearrange-from-scratch` | instead of taking rearrangement-level (i.e. non-SHM) parameters from --parameter-dir, make up some plausible values from scratch (e.g. geometric insertion lengths)
+| `--scratch-mute-freq-dir`  | parameter directory with only SHM-level information, which allows --rearrange-from-scratch to create realistic mutation spectra for any specified germline set (default value, in data/ shouldn't need to be changed)
+| `--mutate-from-scratch`    | instead of taking SHM-level (i.e. non-rearrangement level) parameters from --parameter-dir (e.g. per-gene, per-position mutation frequencies), use a flat rate specified by --flat-mute-freq
+| `--flat-mute-freq`         | see --mutate-from-scratch
 
-Germline set control:
+*Germline set control*
 
 By default, the germline set (i.e. the set of germline V, D, and J genes), and their prevalance frequencies are taken from --parameter-dir (which will contain be the germline set that was inferred from the sample that was used to make --parameter-dir).
 In some cases, however (particularly when validating germline set inference methods) it is necessary to exert very fine-grained control over the simulated germline set.
@@ -379,13 +386,14 @@ If you have a particular germline set that you want to use, that can be specifie
 You can also direct partis to generate a synthetic germline set by setting `--generate-germline-set`.
 Several parameters control this generation:
 
-|                                   |
-|-----------------------------------|-----------------------------------------------------------------
-|`--n-genes-per-region`             | number of genes to choose for each of the V, D, and J regions (colon separated list ordered like v:d:j, default: '15:5:3')
-|`--n-sim-alleles-per-gene`         | number of alleles to choose for each of these genes (colon-separated list of comma separated lists: e.g. with the default of '1,2:1,2:1,2', for each gene from --n-genes-per-region, we choose (with equal probability) either 1 or 2 alleles)
-|`--min-sim-allele-prevalence-freq` | minimum prevalence ratio between any two alleles in the germline set. I.e., the prevalence frequency for each allele is chosen such that the ratio of any two is between this and 1 (default 0.1)
+| option                             | description
+|------------------------------------|-----------------------------------------------------------------
+| `--n-genes-per-region`             | number of genes to choose for each of the V, D, and J regions (colon separated list ordered like v:d:j, default: '15:5:3')
+| `--n-sim-alleles-per-gene`         | number of alleles to choose for each of these genes (colon-separated list of comma separated lists: e.g. with the default of '1,2:1,2:1,2', for each gene from --n-genes-per-region, we choose (with equal probability) either 1 or 2 alleles)
+| `--min-sim-allele-prevalence-freq` | minimum prevalence ratio between any two alleles in the germline set. I.e., the prevalence frequency for each allele is chosen such that the ratio of any two is between this and 1 (default 0.1)
 
---> adding snpd alleles
+*generating novel alleles*
+
 Because this is somewhat complicated, in the following we describe the options in the context of options to the helper script `bin/test-germline-inference.py`.
 This helper script, however, is mostly just running `bin/partis`, and it printing the correspond command lines to stdout as it runs.
 
