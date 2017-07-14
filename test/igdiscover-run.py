@@ -80,6 +80,7 @@ def run_igdiscover(infname, outfname, outdir):
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
 parser.add_argument('--gls-gen', action='store_true')
+parser.add_argument('--slurm', action='store_true', help='doesn\'t do shit, it\'s just for compatibility with tigger-run')
 parser.add_argument('--infname', required=True)
 parser.add_argument('--outfname', required=True)
 parser.add_argument('--glfo-dir', required=True)
@@ -95,6 +96,9 @@ args = parser.parse_args()
 print '%s not using --n-procs for igdiscover yet (it uses all the available threads by default)' % utils.color('red', 'note')
 if not args.gls_gen:
     print '%s can\'t really run without --gls-gen, since you\'d need to work out how to change j parameters' % utils.color('red', 'warning')
+
+if args.slurm:
+    print '    note: --slurm doesn\'t do anything'
 
 # ----------------------------------------------------------------------------------------
 outdir = os.path.dirname(args.outfname)
