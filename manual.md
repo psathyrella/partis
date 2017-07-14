@@ -379,6 +379,7 @@ If you have a particular germline set that you want to use, that can be specifie
 You can also direct partis to generate a synthetic germline set by setting `--generate-germline-set`.
 Several parameters control this generation:
 
+|   a        |  b
 |-----------------------------------|-----------------------------------------------------------------
 |`--n-genes-per-region`             | number of genes to choose for each of the V, D, and J regions (colon separated list ordered like v:d:j, default: '15:5:3')
 |`--n-sim-alleles-per-gene`         | number of alleles to choose for each of these genes (colon-separated list of comma separated lists: e.g. with the default of '1,2:1,2:1,2', for each gene from --n-genes-per-region, we choose (with equal probability) either 1 or 2 alleles)
