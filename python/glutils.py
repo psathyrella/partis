@@ -59,7 +59,7 @@ duplicate_names = {
 #----------------------------------------------------------------------------------------
 def is_snpd(gene):
     primary_version, sub_version, allele = utils.split_gene(gene)
-    if '+' in allele:
+    if '+' in allele or '_' in allele:
         return True
     else:
         return False

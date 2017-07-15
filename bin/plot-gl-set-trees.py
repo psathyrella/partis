@@ -175,9 +175,12 @@ def draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, arc_start=None, ar
     etree = ete3.ClusterTree(treestr)
     node_names = set()  # make sure we get out all the genes we put in
     for node in etree.traverse():
-        if node.dist > 0.05:
-            node.dist = 0.05
         status = getstatus(gl_sets, node)
+        print '%5.3f   %s' % (node.dist, node.name)
+        # if status == 'internal':
+        #     node.dist = min(node.dist, 0.001)
+        # if '+' in node.name and node.dist > 0.1:  # dammit, I should have named those differently...
+        #     node.dist = 0.05
         set_node_style(node, status)
         if node.is_leaf():
             node_names.add(node.name)
@@ -194,21 +197,33 @@ def draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, arc_start=None, ar
         tstyle.arc_span = arc_span
     etree.render(plotdir + '/' + plotname + '.svg', h=750, tree_style=tstyle)
 
+# # ----------------------------------------------------------------------------------------
+# def plot_gls_gen_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=None, title=None):
+#     assert glslabels == ['sim', 'inf']  # otherwise stuff needs to be updated
+
+#     all_genes, gl_sets = get_gene_sets(glsfnames, glslabels, ref_label='sim')
+#     per_pv_all_genes, per_pv_gl_sets = get_gene_sets(glsfnames, glslabels, ref_label='sim', classification_fcn=utils.gene_family)
+#     print_results(gl_sets)
+
+#     treestrs = {}
+#     for pv in per_pv_gl_sets:
+#         treefname = make_tree(per_pv_all_genes[pv], plotdir + '/workdir', use_cache=args.use_cache)
+#         with open(treefname) as treefile:
+#             treestrs[pv] = treefile.read().strip()
+#         arc_span = 360 * float(len(per_pv_all_genes[pv])) / sum([len(pvgenes) for pvgenes in per_pv_all_genes.values()])
+#         draw_tree(plotdir, plotname + '-' + pv, treestrs[pv], per_pv_gl_sets[pv], per_pv_all_genes[pv], arc_start=0, arc_span=arc_span)
+
 # ----------------------------------------------------------------------------------------
 def plot_gls_gen_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=None, title=None):
     assert glslabels == ['sim', 'inf']  # otherwise stuff needs to be updated
 
     all_genes, gl_sets = get_gene_sets(glsfnames, glslabels, ref_label='sim')
-    per_pv_all_genes, per_pv_gl_sets = get_gene_sets(glsfnames, glslabels, ref_label='sim', classification_fcn=utils.gene_family)
     print_results(gl_sets)
 
-    treestrs = {}
-    for pv in per_pv_gl_sets:
-        treefname = make_tree(per_pv_all_genes[pv], plotdir + '/workdir', use_cache=args.use_cache)
-        with open(treefname) as treefile:
-            treestrs[pv] = treefile.read().strip()
-        arc_span = 360 * float(len(per_pv_all_genes[pv])) / sum([len(pvgenes) for pvgenes in per_pv_all_genes.values()])
-        draw_tree(plotdir, plotname + '-' + pv, treestrs[pv], per_pv_gl_sets[pv], per_pv_all_genes[pv], arc_start=0, arc_span=arc_span)
+    treefname = make_tree(all_genes, plotdir + '/workdir', use_cache=args.use_cache)
+    with open(treefname) as treefile:
+        treestr = treefile.read().strip()
+    draw_tree(plotdir, plotname, treestr, gl_sets, all_genes)
 
 # ----------------------------------------------------------------------------------------
 def plot_data_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=None, title=None):
