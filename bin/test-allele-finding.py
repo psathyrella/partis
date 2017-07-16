@@ -127,7 +127,7 @@ def run_partis(args, method):
         cmd_str += ' --debug-allele-finding' # --always-find-new-alleles'
         cmd_str += ' --is-simu --simulation-germline-dir ' + args.outdir + '/germlines/simulation'  # alleleclusterer is the only one that really uses this, but for now I want its dbg output to have the sim info
     elif method == 'full':
-        cmd_str += ' --dont-remove-unlikely-alleles'
+        cmd_str += ' --leave-default-germline'
     else:
         assert False
 
