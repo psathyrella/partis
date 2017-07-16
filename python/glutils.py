@@ -952,8 +952,11 @@ def choose_new_allele_name(template_gene, new_seq, snpfo=None, indelfo=None):  #
         if len(snpfo) > 0:
             new_name += '+' + stringify_mutfo(snpfo)
 
-    if snpfo is None or len(snpfo) > 5 or (indelfo is not None and len(indelfo['indels']) > 0):
-        new_name = template_gene + '+' + str(abs(hash(new_seq)))[:5]
+    hashstr = str(abs(hash(new_seq)))
+    if indelfo is not None and len(indelfo['indels']) > 0:  # call it a new gene family
+        new_name = utils.rejoin_gene(utils.get_locus(template_gene), utils.get_region(template_gene), hashstr[:5], 'x', '01')
+    elif snpfo is None or len(snpfo) > 5:  # i don't remember why i get here when snpfo is None. sigh.
+        new_name = template_gene + '+' + hashstr[:5]
 
     return new_name, snpfo
 
