@@ -196,8 +196,8 @@ def draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, arc_start=None, ar
         # print '%5.3f   %s' % (node.dist, node.name)
         if set_distance_to_zero(node):
             node.dist = 0.
-        if '+' in node.name and node.dist > 0.1:  # dammit, I should have named those differently...
-            node.dist = 0.05
+        # if '+' in node.name and node.dist > 0.1:  # dammit, I should have named those differently...
+        #     node.dist = 0.05
         set_node_style(node, getstatus(gl_sets, node))
         if node.is_leaf():
             node_names.add(node.name)
