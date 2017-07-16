@@ -171,17 +171,34 @@ def set_node_style(node, status, data=False, pair=False):
         node.add_face(copy.deepcopy(faces[status]), column=0, position='aligned')
 
 # ----------------------------------------------------------------------------------------
+def set_distance_to_zero(node):
+    if node.is_root():
+        return True
+    if node.is_leaf():
+        return False
+
+    descendents = set([leaf.name for leaf in node])
+    gene_families = set([utils.gene_family(d) for d in descendents])
+    if len(gene_families) == 0:
+        raise Exception('zero length gene family set from %s' % ' '.join([leaf.name for leaf in node]))
+    if len(gene_families) > 1:
+        return True
+
+    gene_family = list(gene_families)[0]
+    entirety_of_gene_family = set([leaf.name for leaf in node.get_tree_root() if utils.gene_family(leaf.name) == gene_family])
+    return descendents == entirety_of_gene_family
+
+# ----------------------------------------------------------------------------------------
 def draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, arc_start=None, arc_span=None):
     etree = ete3.ClusterTree(treestr)
     node_names = set()  # make sure we get out all the genes we put in
     for node in etree.traverse():
-        status = getstatus(gl_sets, node)
-        print '%5.3f   %s' % (node.dist, node.name)
-        # if status == 'internal':
-        #     node.dist = min(node.dist, 0.001)
-        # if '+' in node.name and node.dist > 0.1:  # dammit, I should have named those differently...
-        #     node.dist = 0.05
-        set_node_style(node, status)
+        # print '%5.3f   %s' % (node.dist, node.name)
+        if set_distance_to_zero(node):
+            node.dist = 0.
+        if '+' in node.name and node.dist > 0.1:  # dammit, I should have named those differently...
+            node.dist = 0.05
+        set_node_style(node, getstatus(gl_sets, node))
         if node.is_leaf():
             node_names.add(node.name)
     if len(set(all_genes) - node_names) > 0:
