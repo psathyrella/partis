@@ -290,7 +290,7 @@ def run_single_test(args, baseoutdir, val, n_events, method):
         nindelstr = val['indel']
         sim_v_genes *= len(val['snp'].split(':'))
     elif args.action == 'gls-gen':
-        nsnpstr = '1:1:2:3:50:100'
+        nsnpstr = '1:2:3:4:10:10'
         nindelstr = '0:0:0:0:3:3'
         if args.gls_gen_difficulty == 'easy':
             genes_per_region_str = '20:5:3'
