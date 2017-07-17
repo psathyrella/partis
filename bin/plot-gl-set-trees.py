@@ -161,7 +161,7 @@ def set_node_style(node, status, data=False, pair=False):
     elif status != 'internal':
         node.img_style['bgcolor'] = scolors[status]
 
-    if status != 'internal' and glutils.is_snpd(node.name):
+    if status != 'internal' and glutils.is_novel(node.name):
         node.add_face(ete3.CircleFace(2.5, 'Gold'), column=0) #, position='aligned')
 
     node.img_style['hz_line_width'] = linewidth

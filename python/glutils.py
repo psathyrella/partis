@@ -65,6 +65,11 @@ def is_snpd(gene):
         return False
 
 #----------------------------------------------------------------------------------------
+def is_novel(gene):
+    primary_version, sub_version, allele = utils.split_gene(gene)
+    return is_snpd(gene) or sub_version == 'x'
+
+#----------------------------------------------------------------------------------------
 def convert_to_duplicate_name(glfo, gene):
     for equivalence_class in duplicate_names[utils.get_region(gene)]:
         if gene in equivalence_class:
@@ -487,7 +492,9 @@ def get_template_gene(gene_name, debug=False):
 def try_to_get_mutfo_from_name(gene_name, aligned_seq=None, debug=False):
     mutfo = {}
     method, _, mutstrs = split_inferred_allele_name(gene_name)
-    for mutstr in mutstrs:  # shouldn't get here with igdiscover (if you do, it'll crash when it tries to loop over a nonetype <mutstrs>)
+    if mutstrs is None:
+        return None
+    for mutstr in mutstrs:
         if len(mutstr) < 3:
             print 'couldn\'t extract mutation info from \'%s\' in gene %s' % (mutstr, gene_name)
             return None
@@ -942,8 +949,11 @@ def check_allele_prevalence_freqs(outfname, glfo, allele_prevalence_fname, only_
 # ----------------------------------------------------------------------------------------
 def choose_new_allele_name(template_gene, new_seq, snpfo=None, indelfo=None):  # may modify <snpfo>, if it's passed
     new_name = template_gene
+    hashstr = str(abs(hash(new_seq)))
 
-    if snpfo is not None:
+    if indelfo is not None and len(indelfo['indels']) > 0:  # call it a new gene family
+        new_name = utils.rejoin_gene(utils.get_locus(template_gene), utils.get_region(template_gene), hashstr[:5], 'x', '01')
+    elif snpfo is not None and len(snpfo) <= 5:
         if '+' in utils.allele(template_gene) and len(template_gene.split('+')) == 2:  # if template was snpd we need to fix up <snpfo>
             simplified_snpfo = simplify_snpfo(template_gene, snpfo)  # returns None if it failed to parse mutation info in template name
             if simplified_snpfo is not None:
@@ -951,11 +961,7 @@ def choose_new_allele_name(template_gene, new_seq, snpfo=None, indelfo=None):  #
                 snpfo = simplified_snpfo
         if len(snpfo) > 0:
             new_name += '+' + stringify_mutfo(snpfo)
-
-    hashstr = str(abs(hash(new_seq)))
-    if indelfo is not None and len(indelfo['indels']) > 0:  # call it a new gene family
-        new_name = utils.rejoin_gene(utils.get_locus(template_gene), utils.get_region(template_gene), hashstr[:5], 'x', '01')
-    elif snpfo is None or len(snpfo) > 5:  # i don't remember why i get here when snpfo is None. sigh.
+    else:
         new_name = template_gene + '+' + hashstr[:5]
 
     return new_name, snpfo
