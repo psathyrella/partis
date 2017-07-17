@@ -54,9 +54,10 @@ class AlleleFinder(object):
         self.min_mean_candidate_ratio = 2.75  # mean of candidate ratios must be greater than this
         self.min_bad_fit_residual = 1.8
         self.max_good_fit_residual = 4.5  # since this is unbounded above (unlike the min bad fit number), it needs to depend on how bad the bad fit/good fit ratio is (although, this starts making it hard to distinguish this from the ratio criterion, but see next parameter below))
+        self.big_discontinuity_factor = 3.8  # i.e. check everything that's more than <factor> sigma away ( i.e. check everything that's more than <factor> sigma away (where "check" means actually do the fits, as long as it passes all the other prefiltering steps))
         self.very_large_residual_ratio = 7.5  # if the ratio's bigger than this, we don't apply the max good fit residual criterion (i.e. if the ratio is a total slam dunk, it's ok if the good fit is shitty)
         self.default_consistency_sigmas = 3.  # default number of sigma for the boundary between consistent and inconsistent fits
-        self.max_consistent_candidate_fit_sigma = 5.
+        self.max_consistent_candidate_fit_sigma = 5.5
 
         self.min_min_candidate_ratio_to_plot = 1.5  # don't plot positions that're below this (for all <istart>)
 
@@ -586,15 +587,35 @@ class AlleleFinder(object):
             return True
         else:
             if debug:
-                print '      %6s  %6.3f +/- %6.3f   %6.3f +/- %6.3f   -->   %6.3f + %3.1f * %6.3f = %6.3f >? %6.3f   %s' % (dbgstr, v1, v1err, v2, v2err, lo, factor, joint_err, lo + factor * joint_err, hi, 'consistent' if (lo + factor * joint_err > hi) else 'nope')
+                print '      %6s  %6.3f +/- %7.4f   %6.3f +/- %7.4f   -->   %6.3f + %3.1f * %7.4f = %7.4f >? %6.3f   %s' % (dbgstr, v1, v1err, v2, v2err, lo, factor, joint_err, lo + factor * joint_err, hi, 'consistent' if (lo + factor * joint_err > hi) else 'nope')
             return lo + factor * joint_err > hi
 
     # ----------------------------------------------------------------------------------------
     def consistent_fits(self, vals1, vals2, factor=None, debug=False):
-        consistent = True
-        for valname in ['slope', 'y_icpt']:
-            consistent &= self.consistent(vals1[valname], vals1[valname + '_err'], vals2[valname], vals2[valname + '_err'], factor=factor, dbgstr=valname, debug=debug)
-        return consistent
+        if len(vals1['xvals']) < 4:  # the fit uncertainties are way low in cases where the points have large uncertainties, but line up really well. This only really happens when there's only a few points, though
+            return self.consistent_bin_vals(vals1, vals2, factor=factor, debug=debug)
+        else:
+            consistent = True
+            for valname in ['slope', 'y_icpt']:
+                consistent &= self.consistent(vals1[valname], vals1[valname + '_err'], vals2[valname], vals2[valname + '_err'], factor=factor, dbgstr=valname, debug=debug)
+            return consistent
+
+    # ----------------------------------------------------------------------------------------
+    def consistent_bin_vals(self, vals1, vals2, factor=None, debug=False):
+        if factor is None:
+            factor = self.default_consistency_sigmas
+        net_sigma = 0.
+        assert len(vals1['xvals']) == len(vals2['xvals'])
+        for ipos in range(len(vals1['xvals'])):
+            ydiff = vals2['yvals'][ipos] - vals1['yvals'][ipos]
+            joint_err = max(vals1['errs'][ipos], vals2['errs'][ipos])  # at some point i should do something slightly more sensible for my joint errors (maybe geometric mean?, quadrature [but they're not independent]?)
+            net_sigma += ydiff / joint_err
+            if debug:
+                print '    (%6.3f - %6.3f) / %7.4f = %5.2f' % (vals2['yvals'][ipos], vals1['yvals'][ipos], joint_err, ydiff / joint_err)
+
+        if debug:
+            print '    net sigma from %d bins: %4.2f ?> %4.2f  %s' % (len(vals1['xvals']), net_sigma, factor, 'consistent' if  factor > net_sigma else 'nope')
+        return factor > net_sigma
 
     # ----------------------------------------------------------------------------------------
     def empty_pre_bins(self, gene, istart, positions_to_try_to_fit, debug=False):
@@ -617,13 +638,12 @@ class AlleleFinder(object):
     # ----------------------------------------------------------------------------------------
     def very_different_bin_totals(self, pvals, istart, debug=False):
         # i.e. if there's a homozygous new allele at <istart> + 1  UPDATE wait, why +1?
-        factor = self.max_good_fit_residual  # i.e. check everything that's more than <factor> sigma away
         last_total = pvals['total'][istart - 1]
         istart_total = pvals['total'][istart]
         joint_total_err = max(math.sqrt(last_total), math.sqrt(istart_total))
         if debug:
-            print '    different bin totals:  diff / err = (%.0f - %.0f) / %5.1f = %.1f ?> %.1f'  % (istart_total, last_total, joint_total_err, (istart_total - last_total) / joint_total_err, factor)
-        return istart_total - last_total > factor * joint_total_err  # it the total (denominator) is very different between the two bins
+            print '    different bin totals:  diff / err = (%.0f - %.0f) / %5.1f = %.1f ?> %.1f'  % (istart_total, last_total, joint_total_err, (istart_total - last_total) / joint_total_err, self.big_discontinuity_factor)
+        return istart_total - last_total > self.big_discontinuity_factor * joint_total_err  # it the total (denominator) is very different between the two bins
 
     # ----------------------------------------------------------------------------------------
     def big_discontinuity(self, pvals, istart, debug=False):  # NOTE same as very_different_bin_totals(), except for freqs rather than totals
@@ -634,13 +654,12 @@ class AlleleFinder(object):
         if pvals['total'][istart - 1] < 5:  # if there's hardly any entries in the previous bin (i.e. presumably a homozygous new allele) then just use bin totals
             return self.very_different_bin_totals(pvals, istart, debug=debug)
 
-        factor = self.max_good_fit_residual  # i.e. check everything that's more than <factor> sigma away (where "check" means actually do the fits, as long as it passes all the other prefiltering steps)
         joint_freq_err = max(pvals['errs'][istart - 1], pvals['errs'][istart])
         last_freq = pvals['freqs'][istart - 1]
         istart_freq = pvals['freqs'][istart]
         if debug:
-            print '    discontinuity:  diff / err = (%5.3f - %5.3f) / %5.3f = %.1f ?> %.1f'  % (istart_freq, last_freq, joint_freq_err, (istart_freq - last_freq) / joint_freq_err, factor)
-        return istart_freq - last_freq > factor * joint_freq_err
+            print '    discontinuity:  diff / err = (%5.3f - %5.3f) / %5.3f = %.1f ?> %.1f'  % (istart_freq, last_freq, joint_freq_err, (istart_freq - last_freq) / joint_freq_err, self.big_discontinuity_factor)
+        return istart_freq - last_freq > self.big_discontinuity_factor * joint_freq_err
 
     # ----------------------------------------------------------------------------------------
     def fit_position(self, gene, istart, pos, prevals, postvals, bothvals, candidate_ratios, residfo, debug=False):
