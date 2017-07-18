@@ -52,12 +52,12 @@ class AlleleFinder(object):
 
         self.min_min_candidate_ratio = 2.75  # every candidate ratio must be greater than this
         self.min_mean_candidate_ratio = 2.75  # mean of candidate ratios must be greater than this
-        self.min_bad_fit_residual = 1.8
+        self.min_bad_fit_residual = 1.95
         self.max_good_fit_residual = 4.5  # since this is unbounded above (unlike the min bad fit number), it needs to depend on how bad the bad fit/good fit ratio is (although, this starts making it hard to distinguish this from the ratio criterion, but see next parameter below))
         self.big_discontinuity_factor = 3.8  # i.e. check everything that's more than <factor> sigma away ( i.e. check everything that's more than <factor> sigma away (where "check" means actually do the fits, as long as it passes all the other prefiltering steps))
         self.very_large_residual_ratio = 7.5  # if the ratio's bigger than this, we don't apply the max good fit residual criterion (i.e. if the ratio is a total slam dunk, it's ok if the good fit is shitty)
         self.default_consistency_sigmas = 3.  # default number of sigma for the boundary between consistent and inconsistent fits
-        self.max_consistent_candidate_fit_sigma = 5.5
+        self.max_consistent_candidate_fit_sigma = 7.5  # this is extremely permissiive, since we don't expect  them to actually the same -- in particular, the slopes are given by the position's mutation rate (among I think maybe other things)
 
         self.min_min_candidate_ratio_to_plot = 1.5  # don't plot positions that're below this (for all <istart>)
 
@@ -610,8 +610,8 @@ class AlleleFinder(object):
             ydiff = vals2['yvals'][ipos] - vals1['yvals'][ipos]
             joint_err = max(vals1['errs'][ipos], vals2['errs'][ipos])  # at some point i should do something slightly more sensible for my joint errors (maybe geometric mean?, quadrature [but they're not independent]?)
             net_sigma += ydiff / joint_err
-            # if debug:
-            #     print '    (%6.3f - %6.3f) / %7.4f = %5.2f' % (vals2['yvals'][ipos], vals1['yvals'][ipos], joint_err, ydiff / joint_err)
+            if debug:
+                print '    (%6.3f - %6.3f) / %7.4f = %5.2f' % (vals2['yvals'][ipos], vals1['yvals'][ipos], joint_err, ydiff / joint_err)
 
         if debug:
             print '    net sigma from %d bins: %4.2f ?> %4.2f  %s' % (len(vals1['xvals']), net_sigma, factor, 'consistent' if  factor > net_sigma else 'nope')
