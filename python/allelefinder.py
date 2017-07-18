@@ -592,7 +592,7 @@ class AlleleFinder(object):
 
     # ----------------------------------------------------------------------------------------
     def consistent_fits(self, vals1, vals2, factor=None, debug=False):
-        if len(vals1['xvals']) < 4:  # the fit uncertainties are way low in cases where the points have large uncertainties, but line up really well. This only really happens when there's only a few points, though
+        if len(vals1['xvals']) < 5 and vals1['xvals'][0] == 0:  # the fit uncertainties are way low in cases where the points have large uncertainties, but line up really well. This only really happens when there's only a few points, though
             return self.consistent_bin_vals(vals1, vals2, factor=factor, debug=debug)
         else:
             consistent = True
@@ -610,8 +610,8 @@ class AlleleFinder(object):
             ydiff = vals2['yvals'][ipos] - vals1['yvals'][ipos]
             joint_err = max(vals1['errs'][ipos], vals2['errs'][ipos])  # at some point i should do something slightly more sensible for my joint errors (maybe geometric mean?, quadrature [but they're not independent]?)
             net_sigma += ydiff / joint_err
-            if debug:
-                print '    (%6.3f - %6.3f) / %7.4f = %5.2f' % (vals2['yvals'][ipos], vals1['yvals'][ipos], joint_err, ydiff / joint_err)
+            # if debug:
+            #     print '    (%6.3f - %6.3f) / %7.4f = %5.2f' % (vals2['yvals'][ipos], vals1['yvals'][ipos], joint_err, ydiff / joint_err)
 
         if debug:
             print '    net sigma from %d bins: %4.2f ?> %4.2f  %s' % (len(vals1['xvals']), net_sigma, factor, 'consistent' if  factor > net_sigma else 'nope')
@@ -783,8 +783,11 @@ class AlleleFinder(object):
             self.fit_position(gene, istart, pos, prexyvals[pos], postxyvals[pos], bothxyvals[pos], ratios, residfo, debug=debug)
         sorted_positions = sorted(ratios, key=lambda p: ratios[p], reverse=True)  # sort the candidate positions in decreasing order of residual ratio
         sorted_positions = sorted_positions[ : len(sorted_positions) - len(sorted_positions) % istart]  # remove any extra positions
-        if len(sorted_positions) >= 2 * istart:  # if there's more than one candidate allele, sort so positions with similar numerators are together, rather than those with similar ratios
-            sorted_positions = sorted(sorted_positions, key=lambda p: residfo[p]['postfo']['y_icpt'], reverse=True)  # would make as much sense to sort by the one piece residuals, but I gotta choose one
+        if len(sorted_positions) >= 2 * istart:  # if there's more than one candidate allele, sorted such that similar positions are together, and maybe we'll get the combinations right
+            if istart < self.hard_code_three:  # for small <istart>, y-icpt is a good proxy for allele prevalence, and two new alleles are unlikely to have exactly the same prevalence (also, the within correctly-sorted position groups shit is all highly correlated)
+                sorted_positions = sorted(sorted_positions, key=lambda p: residfo[p]['postfo']['y_icpt'], reverse=True)
+            else:  # whereas for bigger <istart>, two-fit fit quality works well
+                sorted_positions = sorted(sorted_positions, key=lambda p: residfo[p]['twofo']['residuals_over_ndof'], reverse=True)  # 
         position_lists = [sorted_positions[i : i + istart] for i in range(0, len(sorted_positions), istart)]  # and divide them into groups of length <istart> (note that we don't really have a good way of knowing which positions should go together if there's more than one group of candidates (and if <istart> is greater than 1), but since they're sorted by ratio, similar ones are together, which does an ok job)
         for plist in position_lists:
             assert len(plist) == istart  # shouldn't happen any more
