@@ -551,7 +551,11 @@ if args.calculate_alternative_naive_seqs or (args.action == 'view-alternative-na
         raise Exception('have to specify --outfname in order to calculate alternative naive sequences')
     args.persistent_cachefname = args.outfname.replace('.csv', '-hmm-cache.csv')
     if args.calculate_alternative_naive_seqs and os.path.exists(args.persistent_cachefname):
-        raise Exception('persistent cache file already exists, but we were asked to --calculate-alternative-naive-seqs. Either it\'s an old file (in which case you should delete it), or you\'ve already got the alternative annotations (so you can just run view-alternative-naive-seqs)')
+        if os.stat(args.persistent_cachefname).st_size == 0:
+            print '  note: removing existing zero-length persistent cache file %s' % args.persistent_cachefname
+            os.remove(args.persistent_cachefname)
+        else:
+            raise Exception('persistent cache file %s already exists, but we were asked to --calculate-alternative-naive-seqs. Either it\'s an old file (in which case you should delete it), or you\'ve already got the alternative annotations (so you can just run view-alternative-naive-seqs)' % args.persistent_cachefname)
 
 if args.plot_performance:
     if args.plotdir is None:
