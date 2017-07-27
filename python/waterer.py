@@ -1214,8 +1214,8 @@ class Waterer(object):
 
         for seq, uids in seqs_to_keep.items():
             assert uids[0] in self.info  # the first one should've been the one we kept
-            self.info[uids[0]]['duplicates'][0] += uids[1:]
-            self.duplicates[uids[0]] = self.info[uids[0]]['duplicates'][0]  # <self.duplicates> is really just so partitiondriver can pass in previous duplicates, but then now that we have the information in two places we need to keep it synchronized
+            self.info[uids[0]]['duplicates'][0] = list(set(self.info[uids[0]]['duplicates'][0] + uids[1:]))  # this is wasteful (and overly verbose), but I just want to hack in a way to remove the duplicated duplicates (I think they're sneaking in from multiple waterer runs) without screwing anything up
+            self.duplicates[uids[0]] = self.info[uids[0]]['duplicates'][0]  # just copies over from previous line. Note that <self.duplicates> is really just so partitiondriver can pass in previous duplicates, but then now that we have the information in two places we need to keep it synchronized
 
         if n_removed > 0:
             print '      removed %d / %d = %.2f duplicate sequences after trimming framework insertions (leaving %d)' % (n_removed, n_removed + n_kept, n_removed / float(n_removed + n_kept), len(self.info['queries']))
