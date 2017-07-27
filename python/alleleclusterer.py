@@ -17,7 +17,7 @@ class AlleleClusterer(object):
         self.region = 'v'
         self.other_region = 'j'
         self.absolute_n_seqs_min = 15
-        self.min_cluster_fraction = 0.001
+        self.min_cluster_fraction = 0.004
         self.max_j_mutations = 8
         self.small_number_of_j_mutations = 3
         self.min_n_snps = 5
