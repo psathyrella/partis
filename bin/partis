@@ -21,12 +21,6 @@ import glutils
 from partitiondriver import PartitionDriver
 from partitionplotter import PartitionPlotter
 
-print utils.color('red', 'old')
-glutils.print_glfo(glutils.read_glfo('data/germlines/mouse', locus='igl', debug=True))
-print utils.color('red', 'new')
-glutils.print_glfo(glutils.read_glfo('_output/new-mouse-gl', locus='igl', debug=True))
-sys.exit()
-
 # ----------------------------------------------------------------------------------------
 def default_parameter_dir(args):
     if args.infname is not None:

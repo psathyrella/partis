@@ -300,7 +300,7 @@ def get_pos_in_alignment(codon, aligned_seq, seq, pos, gene):
 
 #----------------------------------------------------------------------------------------
 def get_missing_codon_info(glfo, debug=False):
-    debug = 2
+    # debug = 2
 
     for region, codon in utils.conserved_codons[glfo['locus']].items():
         missing_genes = set(glfo['seqs'][region]) - set(glfo[codon + '-positions'])
@@ -358,8 +358,8 @@ def get_missing_codon_info(glfo, debug=False):
                 tmpseq = aligned_seqs[gene]
                 tmppos = known_pos_in_alignment
                 print '            %s%s%s   %s %3s %5s' % (tmpseq[:tmppos], utils.color('reverse_video', tmpseq[tmppos : tmppos + 3]), tmpseq[tmppos + 3:], utils.color_gene(gene, width=12 if region == 'v' else 8),
-                                                      '' if tmpseq[tmppos : tmppos + 3] in utils.codon_table[codon] else utils.color('red', 'bad'),
-                                                      'new' if gene != known_gene else '')
+                                                           '' if tmpseq[tmppos : tmppos + 3] in utils.codon_table[codon] else utils.color('red', 'bad'),
+                                                           'new' if gene != known_gene else '')
 
         check_a_bunch_of_codons(codon, seqons, extra_str='          ', debug=debug)
         if debug:
