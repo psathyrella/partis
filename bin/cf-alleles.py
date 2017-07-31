@@ -18,8 +18,13 @@ parser.add_argument('--ref-allele', help='print this one first')
 parser.add_argument('--other-genes')
 parser.add_argument('--region', default='v')
 parser.add_argument('--locus', default='igh', choices=utils.loci.keys())
-parser.add_argument('--glfo-dir', default='data/germlines/human')
+parser.add_argument('--species', default='human')
+parser.add_argument('--glfo-dir', help='default set below')
 args = parser.parse_args()
+
+if args.glfo_dir is None:
+    args.glfo_dir = 'data/germlines/' + args.species
+
 glfo = glutils.read_glfo(args.glfo_dir, args.locus)
 
 # ----------------------------------------------------------------------------------------
