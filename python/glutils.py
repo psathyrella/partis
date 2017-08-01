@@ -87,10 +87,12 @@ def check_a_bunch_of_codons(codon, seqons, extra_str='', debug=False):  # seqons
         n_total += 1
         if len(seq) < pos + 3:
             n_too_short += 1
-        elif utils.codon_unmutated(codon, seq, pos):
-            n_ok += 1
-        else:
+        elif not utils.codon_unmutated(codon, seq, pos):
             n_bad_codons += 1
+        elif codon == 'cyst' and not utils.in_frame_germline_v(seq, pos):
+            n_bad_codons += 1
+        else:
+            n_ok += 1
 
     if debug:
         print '%s%d %s positions:' % (extra_str, n_total, codon),
@@ -257,6 +259,7 @@ def get_new_alignments(glfo, region, debug=False):
         print '  new alignments:'
         for g, seq in aligned_seqs.items():
             print '            %s   %s  %s' % (seq, utils.color_gene(g, width=12 if region == 'v' else 8), '<--- new' if g in genes_without_alignments else '')
+        print ''
 
     os.remove(already_aligned_fname)
     os.remove(not_aligned_fname)
@@ -348,6 +351,7 @@ def get_missing_codon_info(glfo, debug=False):
 
         n_added = 0
         seqons = []  # (seq, pos) pairs
+        bad_codons = []
         for gene in [known_gene] + list(missing_genes):
             unaligned_pos = known_pos_in_alignment - count_gaps(aligned_seqs[gene], aligned_pos=known_pos_in_alignment)
             seq_to_check = glfo['seqs'][region][gene]
@@ -357,11 +361,21 @@ def get_missing_codon_info(glfo, debug=False):
             if debug > 1:
                 tmpseq = aligned_seqs[gene]
                 tmppos = known_pos_in_alignment
-                print '            %s%s%s   %s %3s %5s' % (tmpseq[:tmppos], utils.color('reverse_video', tmpseq[tmppos : tmppos + 3]), tmpseq[tmppos + 3:], utils.color_gene(gene, width=12 if region == 'v' else 8),
-                                                           '' if tmpseq[tmppos : tmppos + 3] in utils.codon_table[codon] else utils.color('red', 'bad'),
+                codon_str = ''
+                if not utils.codon_unmutated(codon, tmpseq, tmppos) or not utils.in_frame_germline_v(tmpseq, tmppos):
+                    bad_codons.append(gene)
+                    codon_str = utils.color('red', 'bad')
+                print '       %3s  %s%s%s   %s %3s %5s' % (codon_str,
+                                                           tmpseq[:tmppos],
+                                                           utils.color('reverse_video', tmpseq[tmppos : tmppos + 3]),
+                                                           tmpseq[tmppos + 3:],
+                                                           utils.color_gene(gene, width=12 if region == 'v' else 8),
+                                                           codon_str,
                                                            'new' if gene != known_gene else '')
 
-        check_a_bunch_of_codons(codon, seqons, extra_str='          ', debug=debug)
+        check_a_bunch_of_codons(codon, seqons, extra_str='          ', debug=debug)  # kind of redundant with the check that happens in the loop above, but prints some summary info
+        if len(bad_codons) > 0:
+            print '%s %d bad %s positions. You should probably fix these by hand' % (utils.color('red', 'warning'), len(bad_codons), codon)
         if debug:
             print '      added %d %s positions' % (n_added, codon)
 
@@ -413,10 +427,14 @@ def print_glfo(glfo):  # NOTE kind of similar to bin/cf-alleles.py
                     emphasis_positions = None
                     extra_str = ''
                     if region in utils.conserved_codons[glfo['locus']]:
-                        aligned_cpos = get_pos_in_alignment(utils.conserved_codons[glfo['locus']][region], seqfo['seq'], pvseqs[seqfo['name']], utils.cdn_pos(glfo, region, seqfo['name']), seqfo['name'])
+                        codon = utils.conserved_codons[glfo['locus']][region]
+                        aligned_cpos = get_pos_in_alignment(codon, seqfo['seq'], pvseqs[seqfo['name']], utils.cdn_pos(glfo, region, seqfo['name']), seqfo['name'])
                         emphasis_positions = [aligned_cpos + i for i in range(3)]
-                        if region == 'v' and utils.cdn_pos(glfo, region, seqfo['name']) % 3 != 0:  # flag out of frame cysteines
-                            extra_str = '%s %s frame (%d)' % (utils.color('red', 'bad'), utils.conserved_codons[glfo['locus']][region], utils.cdn_pos(glfo, region, seqfo['name']))
+                        if region == 'v':
+                            if utils.cdn_pos(glfo, region, seqfo['name']) % 3 != 0:  # flag out of frame cysteines
+                                extra_str += '%s %s frame (%d)' % (utils.color('red', 'bad'), codon, utils.cdn_pos(glfo, region, seqfo['name']))
+                            if not utils.codon_unmutated(codon, glfo['seqs'][region][seqfo['name']], utils.cdn_pos(glfo, region, seqfo['name'])) or not utils.in_frame_germline_v(glfo['seqs'][region][seqfo['name']], utils.cdn_pos(glfo, region, seqfo['name'])):
+                                extra_str += '   %s codon' % utils.color('red', 'bad')
                     cons_seq = clusterfo['cons_seq'] + '-' * (len(seqfo['seq']) - len(clusterfo['cons_seq']))  # I don't know why it's sometimes a teensy bit shorter
                     print '    %s    %s      %s' % (utils.color_mutants(cons_seq, seqfo['seq'], emphasis_positions=emphasis_positions), utils.color_gene(seqfo['name']), extra_str)
 
