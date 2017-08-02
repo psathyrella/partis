@@ -209,5 +209,3 @@ for difftype in ['indels', 'subs']:
                 genesets=pversions, title='compare means over pairs of primary versions', xtitle=xtitles[difftype])
 
     check_call(['./bin/makeHtml', baseplotdir + '/' + difftype, '2', 'foop', 'svg'])
-
-check_call(['./bin/permissify-www', baseplotdir])

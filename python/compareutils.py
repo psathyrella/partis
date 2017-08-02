@@ -556,7 +556,6 @@ def write_all_plot_csvs(args, label, parameterlist, datafname):
     for params in parameterlist:
         write_each_plot_csvs(args, baseplotdir, label, params['n_leaves'], params['mut_mult'], info, params['hfrac_bounds'], datafname)
 
-    check_call(['./bin/permissify-www', baseplotdir])
     print 'finished!'
 
 # ----------------------------------------------------------------------------------------
@@ -699,7 +698,6 @@ def compare_subsets(args, label):
             else:
                 assert False
 
-    check_call(['./bin/permissify-www', baseplotdir])
     print 'finished!'
 
 # ----------------------------------------------------------------------------------------

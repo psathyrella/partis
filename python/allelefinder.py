@@ -1092,5 +1092,4 @@ class AlleleFinder(object):
 
         plotting.make_html(plotdir, fnames=[newfo['plot-paths'] for newfo in self.inferred_allele_info], title=('itry %d' % self.itry))
 
-        check_call(['./bin/permissify-www', plotdir])
         print '(%.1f sec)' % (time.time()-start)

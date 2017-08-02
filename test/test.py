@@ -487,8 +487,6 @@ class Tester(object):
             check_cmd = base_check_cmd + ' --plotdirs '  + self.dirs['ref'] + '/' + plotdir + ':' + self.dirs['new'] + '/' + plotdir
             check_cmd += ' --outdir ' + www_dir + '/' + plotdir
             check_call(check_cmd.split())
-        # check_call(['chmod', '664', htmlfname])
-        check_call(['./bin/permissify-www', www_dir])
         
 #            # env.Command('test/_results/%s.passed' % name, out,
 #            #             './bin/diff-parameters.py --arg1 test/regression/parameters/' + actions[name]['target'] + ' --arg2 ' + stashdir + '/test/' + actions[name]['target'] + ' && touch $TARGET')
