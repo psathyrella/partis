@@ -328,7 +328,7 @@ class AlleleFinder(object):
         return '\n'.join(return_strs)
 
     # ----------------------------------------------------------------------------------------
-    def default_fitfo(self, ndof=0, y_icpt_bounds=None, xvals=None, yvals=None, errs=None):
+    def default_fitfo(self, xvals, yvals, errs, ndof=0, y_icpt_bounds=None):
         fitfo = {
             'slope'  : 0.,
             'y_icpt' : 0.,
@@ -386,7 +386,7 @@ class AlleleFinder(object):
     def get_curvefit(self, pvals, y_icpt_bounds, debug=False):
         n_mutelist, freqs, errs = self.get_tmp_fitvals(pvals)  # this is probably kind of slow
         if y_icpt_bounds[0] == y_icpt_bounds[1]:  # fixed y-icpt
-            fitfo = self.default_fitfo(len(n_mutelist) - 1, y_icpt_bounds, xvals=n_mutelist, yvals=freqs, errs=errs)
+            fitfo = self.default_fitfo(n_mutelist, freqs, errs, ndof=len(n_mutelist) - 1, y_icpt_bounds=y_icpt_bounds)
             fitfo['y_icpt'] = y_icpt_bounds[0]
             if fitfo['ndof'] > 0:
                 def linefunc(x, slope):
@@ -396,7 +396,7 @@ class AlleleFinder(object):
             elif fitfo['ndof'] == 0:
                 fitfo = self.approx_fit_vals(pvals, fixed_y_icpt=fitfo['y_icpt'], debug=debug)
         else:  # floating y-icpt
-            fitfo = self.default_fitfo(len(n_mutelist) - 2, y_icpt_bounds, xvals=n_mutelist, yvals=freqs, errs=errs)
+            fitfo = self.default_fitfo(n_mutelist, freqs, errs, ndof=len(n_mutelist) - 2, y_icpt_bounds=y_icpt_bounds)
             if fitfo['ndof'] > 0:
                 def linefunc(x, slope, y_icpt):
                     return slope*x + y_icpt
@@ -534,10 +534,10 @@ class AlleleFinder(object):
                 tmp_y = [yv[i] + (-1) ** (i%2) * ev[i] for i in range(len(yv))]  # alternately shifted up/down
             return (tmp_y[i2] - tmp_y[i1]) / (xv[i2] - xv[i1])
 
-        fitfo = self.default_fitfo()
-        if fixed_y_icpt is not None:
-            fitfo['y_icpt'] = fixed_y_icpt
         xv, yv, ev = pvals['n_mutelist'], pvals['freqs'], pvals['errs']  # tmp shorthand
+        fitfo = self.default_fitfo(xv, yv, ev)
+        if fixed_y_icpt is not None:  # hurg, can't this be handled by passing as arguments to the fcn? don't want to figure it out just now though
+            fitfo['y_icpt'] = fixed_y_icpt
 
         # if we were only given one point, return the defualt fitfo, possibly setting the slope based on treating the fixed y-icpt as an additional point
         assert len(xv) > 0
