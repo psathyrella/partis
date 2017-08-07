@@ -133,9 +133,9 @@ def add_single_indel(seq, indelfo, mean_length, codon_positions, indel_location=
     # if <pos> is specified we use that, otherwise we use <indel_location> to decide the region of the sequence from which to choose a position
     if pos is None:
         if indel_location is None:  # uniform over entire sequence
-            pos = random.randint(0, len(seq) - 1)  # this will actually exclude either before the first index or after the last index. No, I don't care.
+            pos = random.randint(5, len(seq) - 6)  # this will actually exclude either before the first index or after the last index. No, I don't care.
         elif indel_location == 'v':  # within the meat of the v
-            pos = random.randint(10, codon_positions['v'])
+            pos = random.randint(5, codon_positions['v'])
         elif indel_location == 'cdr3':  # inside cdr3
             pos = random.randint(codon_positions['v'], codon_positions['j'])
         else:
