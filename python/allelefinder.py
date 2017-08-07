@@ -348,10 +348,9 @@ class AlleleFinder(object):
     def get_tmp_fitvals(self, pvals):
         n_mutelist, freqs, errs = [], [], []
         for im in range(len(pvals['n_mutelist'])):
-            if pvals['total'][im] > 0:
-                n_mutelist.append(pvals['n_mutelist'][im])
-                freqs.append(pvals['freqs'][im])
-                errs.append(pvals['errs'][im])
+            n_mutelist.append(pvals['n_mutelist'][im])
+            freqs.append(pvals['freqs'][im])
+            errs.append(pvals['errs'][im])
         return n_mutelist, freqs, errs
 
     # ----------------------------------------------------------------------------------------
@@ -663,7 +662,6 @@ class AlleleFinder(object):
 
     # ----------------------------------------------------------------------------------------
     def fit_position(self, gene, istart, pos, prevals, postvals, bothvals, candidate_ratios, residfo, debug=False):
-
         dbg = self.dbgfcn(pos, istart)
         if dbg:
             print 'pos %d' % pos
