@@ -17,7 +17,8 @@ class AlleleClusterer(object):
         self.region = 'v'
         self.other_region = 'j'
         self.absolute_n_seqs_min = 15
-        self.min_cluster_fraction = 0.004
+        # self.min_cluster_fraction = 0.004
+        self.max_number_of_clusters = 50  # of order the number of expected "V gene clusters", i.e. counting groups of very nearby genes as one cluster
         self.max_j_mutations = 8
         self.small_number_of_j_mutations = 3
         self.min_n_snps = 5
@@ -86,18 +87,22 @@ class AlleleClusterer(object):
         n_initial_clusters = len(msa_info)
         print '     read %d vsearch clusters (%d sequences))' % (n_initial_clusters, sum([len(cfo['seqfos']) for cfo in msa_info]))
 
-        n_seqs_min = max(self.absolute_n_seqs_min, self.min_cluster_fraction * len(qr_seqs))
+        # n_seqs_min = max(self.absolute_n_seqs_min, self.min_cluster_fraction * len(msa_info))
+        n_seqs_min = self.absolute_n_seqs_min
         msa_info = [cfo for cfo in msa_info if len(cfo['seqfos']) >= n_seqs_min]
         print '     removed %d clusters with fewer than %d sequences' % (n_initial_clusters - len(msa_info), n_seqs_min)
         msa_info = sorted(msa_info, key=lambda cfo: len(cfo['seqfos']), reverse=True)
+        if len(msa_info) > self.max_number_of_clusters:
+            print '     taking the %d largest clusters (removing %d)' % (self.max_number_of_clusters, len(msa_info) - self.max_number_of_clusters)
+            msa_info = msa_info[:self.max_number_of_clusters]
 
         n_existing_gene_clusters = 0
         # n_clusters_for_new_alleles = 0
         if debug:
             print '  looping over %d clusters with %d sequences' % (len(msa_info), sum([len(cfo['seqfos']) for cfo in msa_info]))
-            print '   seqs   %s mutations (mean)' % self.other_region
-        for clusterfo in msa_info:
-            assert len(clusterfo['seqfos']) >= n_seqs_min
+            print '   rank  seqs   %s mutations (mean)' % self.other_region
+        for iclust in range(len(msa_info)):
+            clusterfo = msa_info[iclust]
 
             # dot_products = [utils.dot_product(clusterfo['cons_seq'], seq1, seq2) for seq1, seq2 in itertools.combinations([seqfo['seq'] for seqfo in clusterfo['seqfos']], 2)]
             # mean_dot_product = numpy.average(dot_products)
@@ -133,12 +138,15 @@ class AlleleClusterer(object):
             else:
                 new_name, _ = glutils.choose_new_allele_name(template_gene, new_seq)  # TODO it would be nice to pass in indel info, so the name matches the simulation name when there's indels
 
+            if debug:
+                print '    %-3d  %4d' % (iclust, len(clusterfo['seqfos'])),
+
             if new_name in glfo['seqs'][self.region]:  # note that this only looks in <glfo>, not in <new_alleles>
+                print '    %s' % utils.color_gene(new_name)
                 n_existing_gene_clusters += 1
                 continue
 
             if debug:
-                print '    %-4d' % len(clusterfo['seqfos']),
                 if self.all_j_mutations is not None:
                     print '   %5.1f' % mean_j_mutations,
                 print ''
@@ -168,7 +176,7 @@ class AlleleClusterer(object):
             if self.too_close_to_already_added_gene(new_seq, new_alleles, debug=debug):
                 continue
 
-            print '  %s allele %s%s' % (utils.color('red', 'new'), utils.color_gene(new_name), ' (exists in default germline dir)' if new_name in default_initial_glfo['seqs'][self.region] else '')
+            print '       %s %s%s' % (utils.color('red', 'new'), utils.color_gene(new_name), ' (exists in default germline dir)' if new_name in default_initial_glfo['seqs'][self.region] else '')
             new_alleles[new_name] = {'template-gene' : template_gene, 'gene' : new_name, 'seq' : new_seq}
 
         if debug:
