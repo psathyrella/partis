@@ -161,13 +161,14 @@ def get_gls_fname(outdir, method, locus, sim_truth=False, data=False):  # NOTE d
     return glutils.get_fname(outdir, locus, region)
 
 # ----------------------------------------------------------------------------------------
-def make_gls_tree_plot(args, plotdir, plotname, glsfnames, glslabels):
+def make_gls_tree_plot(args, plotdir, plotname, glsfnames, glslabels, locus):
     # ete3 requires its own python version, so we run as a subprocess
     cmdstr = 'export PATH=%s:$PATH && xvfb-run -a ./bin/plot-gl-set-trees.py' % args.ete_path
     cmdstr += ' --plotdir ' + plotdir
     cmdstr += ' --plotname ' + plotname
     cmdstr += ' --glsfnames ' + ':'.join(glsfnames)
     cmdstr += ' --glslabels ' + ':'.join(glslabels)
+    cmdstr += ' --locus ' + locus
     if args.plotcache:
         cmdstr += ' --use-cache'
     utils.simplerun(cmdstr, shell=True, debug=False)
@@ -191,8 +192,8 @@ def get_data_plots(args, baseoutdir, method):
         mfo = heads.read_metadata(study)[dset]
         data_outdir = heads.get_datadir(study, 'processed', extra_str='gls-gen-paper-' + args.label) + '/' + dset
         outdir = get_outdir(args, baseoutdir, varname='data', varval=study + '/' + dset)  # for data, only the plots go here, since datascripts puts its output somewhere else
-        print '-%10s  %10s    %s' % (study, dset, outdir)
-        make_gls_tree_plot(args, outdir + '/' + method + '/gls-gen-plots', study + '-' + dset, glsfnames=[get_gls_fname(data_outdir, method, locus=mfo['locus'], data=True)], glslabels=['data'])
+        print '%-15s  %10s    %s' % (study, dset, outdir)
+        make_gls_tree_plot(args, outdir + '/' + method + '/gls-gen-plots', study + '-' + dset, glsfnames=[get_gls_fname(data_outdir, method, locus=mfo['locus'], data=True)], glslabels=['data'], locus=mfo['locus'])
 
 # ----------------------------------------------------------------------------------------
 def get_data_pair_plots(args, baseoutdir, method, study, dsets):
@@ -200,7 +201,7 @@ def get_data_pair_plots(args, baseoutdir, method, study, dsets):
     assert heads.read_metadata(study)[dsets[1]]['locus'] == mfo['locus']
     data_outdirs = [heads.get_datadir(study, 'processed', extra_str='gls-gen-paper-' + args.label) + '/' + ds for ds in dsets]
     outdir = get_outdir(args, baseoutdir, varname='data', varval=study + '/' + '-vs-'.join(dsets))  # for data, only the plots go here, since datascripts puts its output somewhere else
-    make_gls_tree_plot(args, outdir + '/' + method + '/gls-gen-plots', study + '-' + '-vs-'.join(dsets), glsfnames=[get_gls_fname(dout, method, locus=mfo['locus'], data=True) for dout in data_outdirs], glslabels=dsets)
+    make_gls_tree_plot(args, outdir + '/' + method + '/gls-gen-plots', study + '-' + '-vs-'.join(dsets), glsfnames=[get_gls_fname(dout, method, locus=mfo['locus'], data=True) for dout in data_outdirs], glslabels=dsets, locus=mfo['locus'])
 
 # ----------------------------------------------------------------------------------------
 def plot_single_test(args, baseoutdir, method):
@@ -375,8 +376,8 @@ default_varvals = {
     ],
     'gls-gen' : None,
     'data' : {
-        # 'jason-mg' : ['HD07-igh', 'HD07-igk', 'HD07-igl', 'AR03-igh', 'AR03-igk', 'AR03-igl'],
-        'kate-qrs' : ['1g', '4g'],
+        'jason-mg' : ['HD07-igh', 'HD07-igk', 'HD07-igl', 'AR03-igh', 'AR03-igk', 'AR03-igl'],
+        # 'kate-qrs' : ['1g', '4g'],
         # 'kate-qrs' : ['1g', '1k', '1l', '4g', '4k', '4l', '2k', '2l', '3k', '3l'],
         # 'jason-influenza' : ['FV-igh-m8d', 'FV-igh-p7d', 'FV-igh-p28d'],
     }

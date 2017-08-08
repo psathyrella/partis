@@ -44,6 +44,17 @@ def get_cmdfos(cmdstr, workdir, outfname):
              'outfname' : outfname}]
 
 # ----------------------------------------------------------------------------------------
+def shorten_name(name):
+    if name[:2] != 'IG':
+        raise Exception('bad node name %s' % name)
+
+    pv, sv, allele = utils.split_gene(name)
+    if sv is not None:
+        return '%s-%s*%s' % (pv, sv, allele)
+    else:
+        return '%s*%s' % (pv, allele)
+
+# ----------------------------------------------------------------------------------------
 def make_tree(all_genes, workdir, use_cache=False):
     aligned_fname = workdir + '/all-aligned.fa'
     raxml_label = 'xxx'
@@ -183,25 +194,45 @@ def set_node_style(node, status, data=False, pair=False):
         node.add_face(copy.deepcopy(faces[status]), column=0, position='aligned')
 
 # ----------------------------------------------------------------------------------------
-def set_distance_to_zero(node):
+def get_entirety_of_gene_family(root, family):
+    # return set([leaf.name for leaf in node.get_tree_root() if utils.gene_family(leaf.name) == gene_family])
+    return set([leaf.name for leaf in root if utils.gene_family(leaf.name) == family])
+
+# ----------------------------------------------------------------------------------------
+def set_distance_to_zero(node, debug=False):
     if node.is_root():
         return True
     if node.is_leaf():
-        return False
+        if len(get_entirety_of_gene_family(node.get_tree_root(), utils.gene_family(node.name))) == 1:  # if this is the *only* one from this family
+            if debug:
+                print '  family %s is of length 1 %s (set to zero)' % (utils.gene_family(node.name), node.name)
+            return True
+        else:
+            return False
 
     descendents = set([leaf.name for leaf in node])
     gene_families = set([utils.gene_family(d) for d in descendents])
+    if debug:
+        print '  %s' % ' '.join([shorten_name(d) for d in descendents])
+        print '      %s' % ' '.join(gene_families)
     if len(gene_families) == 0:
         raise Exception('zero length gene family set from %s' % ' '.join([leaf.name for leaf in node]))
     if len(gene_families) > 1:
         return True
 
     gene_family = list(gene_families)[0]
-    entirety_of_gene_family = set([leaf.name for leaf in node.get_tree_root() if utils.gene_family(leaf.name) == gene_family])
+    entirety_of_gene_family = get_entirety_of_gene_family(node.get_tree_root(), gene_family)
+    if debug:
+        if len(entirety_of_gene_family - descendents) > 0:
+            print '    missing %d / %d of family' % (len(entirety_of_gene_family - descendents), len(entirety_of_gene_family))
+        elif len(descendents - entirety_of_gene_family) > 0:
+            raise Exception('wtf should\'ve already returned')
+        else:
+            print '    setting to zero'
     return descendents == entirety_of_gene_family
 
 # ----------------------------------------------------------------------------------------
-def draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, arc_start=None, arc_span=None):
+def draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, data=False, pair=False, arc_start=None, arc_span=None):
     etree = ete3.ClusterTree(treestr)
     node_names = set()  # make sure we get out all the genes we put in
     for node in etree.traverse():
@@ -210,14 +241,23 @@ def draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, arc_start=None, ar
             node.dist = 0.
         # if '+' in node.name and node.dist > 0.1:  # dammit, I should have named those differently...
         #     node.dist = 0.05
-        set_node_style(node, getstatus(gl_sets, node))
+        if data:
+            status = getdatastatus(gl_sets, node, pair=pair)
+        else:
+            status = getstatus(gl_sets, node)
+        set_node_style(node, status, data=data, pair=pair)
         if node.is_leaf():
             node_names.add(node.name)
     if len(set(all_genes) - node_names) > 0:
         raise Exception('missing genes from final tree: %s' % ' '.join(node_names))
 
+    if data:  # have to do it in a separate loop so it doesn't screw up the distance setting
+        for node in [n for n in etree.traverse() if n.is_leaf()]:  # yeah I'm sure there's a fcn for that
+            node.name = shorten_name(node.name)
+
     tstyle = ete3.TreeStyle()
-    tstyle.show_leaf_name = False
+    if not data:
+        tstyle.show_leaf_name = False
     tstyle.mode = 'c'
     tstyle.show_scale = False
     if arc_start is not None:
@@ -225,22 +265,6 @@ def draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, arc_start=None, ar
     if arc_span is not None:
         tstyle.arc_span = arc_span
     etree.render(plotdir + '/' + plotname + '.svg', h=750, tree_style=tstyle)
-
-# # ----------------------------------------------------------------------------------------
-# def plot_gls_gen_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=None, title=None):
-#     assert glslabels == ['sim', 'inf']  # otherwise stuff needs to be updated
-
-#     all_genes, gl_sets = get_gene_sets(glsfnames, glslabels, ref_label='sim')
-#     per_pv_all_genes, per_pv_gl_sets = get_gene_sets(glsfnames, glslabels, ref_label='sim', classification_fcn=utils.gene_family)
-#     print_results(gl_sets)
-
-#     treestrs = {}
-#     for pv in per_pv_gl_sets:
-#         treefname = make_tree(per_pv_all_genes[pv], plotdir + '/workdir', use_cache=args.use_cache)
-#         with open(treefname) as treefile:
-#             treestrs[pv] = treefile.read().strip()
-#         arc_span = 360 * float(len(per_pv_all_genes[pv])) / sum([len(pvgenes) for pvgenes in per_pv_all_genes.values()])
-#         draw_tree(plotdir, plotname + '-' + pv, treestrs[pv], per_pv_gl_sets[pv], per_pv_all_genes[pv], arc_start=0, arc_span=arc_span)
 
 # ----------------------------------------------------------------------------------------
 def plot_gls_gen_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=None, title=None):
@@ -263,22 +287,7 @@ def plot_data_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=None
     with open(treefname) as treefile:
         treestr = treefile.read().strip()
 
-    etree = ete3.ClusterTree(treestr)
-    node_names = set()  # make sure we get out all the genes we put in
-    for node in etree.traverse():
-        node.dist = 1
-        status = getdatastatus(gl_sets, node, pair=False)
-        set_node_style(node, status, data=True)
-        if node.is_leaf():
-            node_names.add(node.name)
-    if len(set(all_genes) - node_names) > 0:
-        raise Exception('missing genes from final tree: %s' % ' '.join(set(all_genes) - node_names))
-
-    tstyle = ete3.TreeStyle()
-    tstyle.show_leaf_name = True
-    tstyle.mode = 'c'
-    tstyle.show_scale = False
-    etree.render(plotdir + '/' + plotname + '.svg', h=750, tree_style=tstyle)
+    draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, data=True, pair=False)
 
 # ----------------------------------------------------------------------------------------
 def plot_data_pair_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=None, title=None):
@@ -312,15 +321,13 @@ parser.add_argument('--plotdir', required=True)
 parser.add_argument('--plotname', required=True)
 parser.add_argument('--glsfnames', required=True)
 parser.add_argument('--glslabels', required=True)
+parser.add_argument('--locus', required=True)
 parser.add_argument('--use-cache', action='store_true')
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--title')
 parser.add_argument('--region', default='v')
-parser.add_argument('--locus', default='igh')
 parser.add_argument('--muscle-path', default='./packages/muscle/muscle3.8.31_i86linux64')
 parser.add_argument('--raxml-path', default=glob.glob('./packages/standard-RAxML/raxmlHPC-*')[0])
-
-locus = 'igh'
 
 args = parser.parse_args()
 args.glsfnames = utils.get_arg_list(args.glsfnames)
