@@ -178,8 +178,8 @@ def get_gls_gen_plots(args, baseoutdir, method):
     varval = 'simu'
 
     for iproc in range(args.iteststart, args.n_tests):
-        print iproc
         outdir = get_outdir(args, baseoutdir, varname, varval, n_events=args.gls_gen_events) + '/' + str(iproc)
+        print '%-2d                            %s' % (iproc, outdir)
         simfname = get_gls_fname(outdir, method=None, locus=sim_locus, sim_truth=True)
         inffname = get_gls_fname(outdir, method, sim_locus)
         make_gls_tree_plot(args, outdir + '/' + method + '/gls-gen-plots', varvalstr(varname, varval), glsfnames=[simfname, inffname], glslabels=['sim', 'inf'])
@@ -187,11 +187,11 @@ def get_gls_gen_plots(args, baseoutdir, method):
 # ----------------------------------------------------------------------------------------
 def get_data_plots(args, baseoutdir, method):
     for var in args.varvals:
-        print study, dset
         study, dset = var.split('/')
         mfo = heads.read_metadata(study)[dset]
         data_outdir = heads.get_datadir(study, 'processed', extra_str='gls-gen-paper-' + args.label) + '/' + dset
         outdir = get_outdir(args, baseoutdir, varname='data', varval=study + '/' + dset)  # for data, only the plots go here, since datascripts puts its output somewhere else
+        print '-%10s  %10s    %s' % (study, dset, outdir)
         make_gls_tree_plot(args, outdir + '/' + method + '/gls-gen-plots', study + '-' + dset, glsfnames=[get_gls_fname(data_outdir, method, locus=mfo['locus'], data=True)], glslabels=['data'])
 
 # ----------------------------------------------------------------------------------------

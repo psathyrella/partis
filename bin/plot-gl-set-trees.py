@@ -59,12 +59,14 @@ def make_tree(all_genes, workdir, use_cache=False):
             tmpfile.write('>%s\n%s\n' % (name, seq))
         tmpfile.flush()  # BEWARE if you forget this you are fucked
         cmdstr = '%s -in %s -out %s' % (args.muscle_path, tmpfile.name, aligned_fname)
-        print '    %s %s' % (utils.color('red', 'run'), cmdstr)
+        if args.debug:
+            print '    %s %s' % (utils.color('red', 'run'), cmdstr)
         utils.run_cmds(get_cmdfos(cmdstr, workdir, aligned_fname), ignore_stderr=True)
 
     # get a tree for the aligned .fa
     cmdstr = '%s -mGTRCAT -n%s -s%s -p1 -w%s' % (args.raxml_path, raxml_label, aligned_fname, workdir)
-    print '    %s %s' % (utils.color('red', 'run'), cmdstr)
+    if args.debug:
+        print '    %s %s' % (utils.color('red', 'run'), cmdstr)
     utils.run_cmds(get_cmdfos(cmdstr, workdir, treefname), ignore_stderr=True)
 
     os.remove(aligned_fname)  # rm muscle output
@@ -110,7 +112,15 @@ def print_results(gl_sets):
                          ['spurious', set(gl_sets['inf']) - set(gl_sets['sim'])],
                          ['ok', set(gl_sets['inf']) & set(gl_sets['sim'])]])  # ordered just to make printing easier
     for name, genes in tmpfo.items():
-        print '    %9s %2d: %s' % (name, len(genes), ' '.join([utils.color_gene(g) for g in genes]))
+        genestr = ' '.join([utils.color_gene(g) for g in genes])
+        if name == 'ok':
+            print '       %2d %s %s' % (len(genes), name, genestr)
+        else:
+            print '    %-8s' % name,
+            if len(genes) == 0:
+                print ' %s' % utils.color('blue', 'none')
+            else:
+                print ' %2d    %s' % (len(genes), genestr)
 
 # ----------------------------------------------------------------------------------------
 def print_data_results(gl_sets):
@@ -303,6 +313,7 @@ parser.add_argument('--plotname', required=True)
 parser.add_argument('--glsfnames', required=True)
 parser.add_argument('--glslabels', required=True)
 parser.add_argument('--use-cache', action='store_true')
+parser.add_argument('--debug', action='store_true')
 parser.add_argument('--title')
 parser.add_argument('--region', default='v')
 parser.add_argument('--locus', default='igh')
