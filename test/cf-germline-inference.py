@@ -330,7 +330,7 @@ def run_single_test(args, baseoutdir, val, n_events, method):
 def run_data(args, baseoutdir, study, dset, method):
     cmd = './datascripts/run.py cache-parameters'
     cmd += ' --study ' + study
-    cmd += ' --dsets ' + dset
+    cmd += ' --samples ' + dset
     assert args.label is not None  # it's got a default now, so it shouldn't anymore be None
     cmd += ' --extra-str gls-gen-paper-' + args.label
     if args.no_slurm:
