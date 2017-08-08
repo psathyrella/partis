@@ -170,7 +170,7 @@ def make_gls_tree_plot(args, plotdir, plotname, glsfnames, glslabels):
     cmdstr += ' --glslabels ' + ':'.join(glslabels)
     if args.plotcache:
         cmdstr += ' --use-cache'
-    utils.simplerun(cmdstr, shell=True)
+    utils.simplerun(cmdstr, shell=True, debug=False)
 
 # ----------------------------------------------------------------------------------------
 def get_gls_gen_plots(args, baseoutdir, method):
@@ -178,6 +178,7 @@ def get_gls_gen_plots(args, baseoutdir, method):
     varval = 'simu'
 
     for iproc in range(args.iteststart, args.n_tests):
+        print iproc
         outdir = get_outdir(args, baseoutdir, varname, varval, n_events=args.gls_gen_events) + '/' + str(iproc)
         simfname = get_gls_fname(outdir, method=None, locus=sim_locus, sim_truth=True)
         inffname = get_gls_fname(outdir, method, sim_locus)
@@ -186,6 +187,7 @@ def get_gls_gen_plots(args, baseoutdir, method):
 # ----------------------------------------------------------------------------------------
 def get_data_plots(args, baseoutdir, method):
     for var in args.varvals:
+        print study, dset
         study, dset = var.split('/')
         mfo = heads.read_metadata(study)[dset]
         data_outdir = heads.get_datadir(study, 'processed', extra_str='gls-gen-paper-' + args.label) + '/' + dset

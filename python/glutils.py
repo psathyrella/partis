@@ -1042,18 +1042,18 @@ def find_equivalent_gene_in_glfo(glfo, new_seq, new_cpos=None, new_name=None, ex
 
 # ----------------------------------------------------------------------------------------
 def synchronize_glfos(ref_glfo, new_glfo, region, debug=False):
-    debug = True
     assert region == 'v'  # cysteine stuff would need to be generalized
     for new_name, new_seq in new_glfo['seqs'][region].items():
         if new_name in ref_glfo['seqs'][region]:
             continue
-        equiv_name, equiv_seq = find_equivalent_gene_in_glfo(ref_glfo, new_seq, utils.cdn_pos(new_glfo, region, new_name), new_name=new_name, debug=True)
+        equiv_name, equiv_seq = find_equivalent_gene_in_glfo(ref_glfo, new_seq, utils.cdn_pos(new_glfo, region, new_name), new_name=new_name, debug=debug)
         if equiv_name is not None:
             if equiv_name in new_glfo['seqs'][region]:
                 print '        (already in new glfo [probably not a snpd allele, i.e. you\'ve got two alleles in your gl set that are equivalent])'
                 continue
 
-            print '      %s --> %s' % (utils.color_gene(new_name), utils.color_gene(equiv_name))
+            if debug:
+                print '      %s --> %s' % (utils.color_gene(new_name), utils.color_gene(equiv_name))
             remove_gene(new_glfo, new_name)
             add_new_allele(new_glfo, {'gene' : equiv_name, 'seq' : equiv_seq, 'cpos' : utils.cdn_pos(ref_glfo, region, equiv_name)}, use_template_for_codon_info=False)
 

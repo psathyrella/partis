@@ -131,7 +131,7 @@ class AlleleClusterer(object):
                 new_name = equiv_name
                 new_seq = equiv_seq
             else:
-                new_name, _ = glutils.choose_new_allele_name(template_gene, new_seq)
+                new_name, _ = glutils.choose_new_allele_name(template_gene, new_seq)  # TODO it would be nice to pass in indel info, so the name matches the simulation name when there's indels
 
             if new_name in glfo['seqs'][self.region]:  # note that this only looks in <glfo>, not in <new_alleles>
                 n_existing_gene_clusters += 1

@@ -1805,8 +1805,9 @@ def prepare_cmds(cmdfos, batch_system=None, batch_options=None, batch_config_fna
     return corelist
 
 # ----------------------------------------------------------------------------------------
-def simplerun(cmd_str, shell=False, dryrun=False, print_time=None):
-    print '%s %s' % (color('red', 'run'), cmd_str)
+def simplerun(cmd_str, shell=False, dryrun=False, print_time=None, debug=True):
+    if debug:
+        print '%s %s' % (color('red', 'run'), cmd_str)
     sys.stdout.flush()
     if dryrun:
         return

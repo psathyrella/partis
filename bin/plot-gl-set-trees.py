@@ -11,6 +11,7 @@ import subprocess
 import sys
 import ete3
 import colored_traceback.always
+from collections import OrderedDict
 
 sys.path.insert(1, './python')
 import utils
@@ -105,9 +106,9 @@ def getdatastatus(gl_sets, node, pair=False):
 
 # ----------------------------------------------------------------------------------------
 def print_results(gl_sets):
-    tmpfo = {'missing' : set(gl_sets['sim']) - set(gl_sets['inf']),
-             'spurious' : set(gl_sets['inf']) - set(gl_sets['sim']),
-             'ok' : set(gl_sets['inf']) & set(gl_sets['sim'])}
+    tmpfo = OrderedDict([['missing', set(gl_sets['sim']) - set(gl_sets['inf'])],
+                         ['spurious', set(gl_sets['inf']) - set(gl_sets['sim'])],
+                         ['ok', set(gl_sets['inf']) & set(gl_sets['sim'])]])  # ordered just to make printing easier
     for name, genes in tmpfo.items():
         print '    %9s %2d: %s' % (name, len(genes), ' '.join([utils.color_gene(g) for g in genes]))
 
@@ -128,7 +129,7 @@ def print_data_pair_results(gl_sets):
         print '    %9s %2d: %s' % (name, len(genes), ' '.join([utils.color_gene(g) for g in genes]))
 
 # ----------------------------------------------------------------------------------------
-def get_gene_sets(glsfnames, glslabels, ref_label=None, classification_fcn=None):
+def get_gene_sets(glsfnames, glslabels, ref_label=None, classification_fcn=None, debug=False):
     glfos = {}
     for label, fname in zip(glslabels, glsfnames):
         gldir = os.path.dirname(fname).replace('/' + args.locus, '')
@@ -136,8 +137,9 @@ def get_gene_sets(glsfnames, glslabels, ref_label=None, classification_fcn=None)
 
     if ref_label is not None:
         for label in [l for l in glslabels if l != ref_label]:
-            print '    syncronizing %s names to match %s' % (label, ref_label)
-            glutils.synchronize_glfos(ref_glfo=glfos[ref_label], new_glfo=glfos[label], region=args.region)
+            if debug:
+                print '    syncronizing %s names to match %s' % (label, ref_label)
+            glutils.synchronize_glfos(ref_glfo=glfos[ref_label], new_glfo=glfos[label], region=args.region, debug=debug)
 
     gl_sets = {label : {g : seq for g, seq in glfos[label]['seqs'][args.region].items()} for label in glfos}
     all_genes = {g : s for gls in gl_sets.values() for g, s in gls.items()}
