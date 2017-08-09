@@ -43,6 +43,7 @@ class AlleleClusterer(object):
                 if gene not in true_glcounts:
                     true_glcounts[gene] = 0
                 true_glcounts[gene] += 1
+
         sorted_glcounts = sorted(glcounts.items(), key=operator.itemgetter(1), reverse=True)
         true_sorted_glcounts = None
         if self.reco_info is not None:
@@ -132,33 +133,33 @@ class AlleleClusterer(object):
         # then throw out smaller clusters
         # n_seqs_min = max(self.absolute_n_seqs_min, self.min_cluster_fraction * len(msa_info))
         n_seqs_min = self.absolute_n_seqs_min
-        msa_info = [cfo for cfo in msa_info if len(cfo['seqfos']) >= n_seqs_min]
-        print '     removed %d clusters with fewer than %d sequences' % (n_initial_clusters - len(msa_info), n_seqs_min)
-        msa_info = sorted(msa_info, key=lambda cfo: len(cfo['seqfos']), reverse=True)
-        if len(msa_info) > self.max_number_of_clusters:
-            print '     taking the %d largest clusters (removing %d)' % (self.max_number_of_clusters, len(msa_info) - self.max_number_of_clusters)
-            msa_info = msa_info[:self.max_number_of_clusters]
+        clusterfos = [cfo for cfo in msa_info if len(cfo['seqfos']) >= n_seqs_min]
+        print '     removed %d clusters with fewer than %d sequences' % (n_initial_clusters - len(clusterfos), n_seqs_min)
+        clusterfos = sorted(clusterfos, key=lambda cfo: len(cfo['seqfos']), reverse=True)
+        if len(clusterfos) > self.max_number_of_clusters:
+            print '     taking the %d largest clusters (removing %d)' % (self.max_number_of_clusters, len(clusterfos) - self.max_number_of_clusters)
+            clusterfos = clusterfos[:self.max_number_of_clusters]
 
         # and finally loop over eah cluster, deciding if it corresponds to a new allele
         if debug:
-            print '  looping over %d clusters with %d sequences' % (len(msa_info), sum([len(cfo['seqfos']) for cfo in msa_info]))
+            print '  looping over %d clusters with %d sequences' % (len(clusterfos), sum([len(cfo['seqfos']) for cfo in clusterfos]))
             print '   rank  seqs   %s mutations (mean)' % self.other_region
         new_alleles = {}
         n_existing_gene_clusters = 0
-        for iclust in range(len(msa_info)):
-            clusterfo = msa_info[iclust]
+        for iclust in range(len(clusterfos)):
+            clusterfo = clusterfos[iclust]
 
             # dot_products = [utils.dot_product(clusterfo['cons_seq'], seq1, seq2) for seq1, seq2 in itertools.combinations([seqfo['seq'] for seqfo in clusterfo['seqfos']], 2)]
             # mean_dot_product = numpy.average(dot_products)
 
             # choose the most common existing gene to use as a template (the most similar gene might be a better choice, but deciding on "most similar" would involve adjudicating between snps and indels, and it shouldn't really matter)
             sorted_glcounts, true_sorted_glcounts = self.get_glcounts(clusterfo, gene_info)
-            template_gene, _ = sorted_glcounts[0]
+            template_gene, template_counts = sorted_glcounts[0]
             template_seq = self.glfo['seqs'][self.region][template_gene]
             template_cpos = utils.cdn_pos(self.glfo, self.region, template_gene)
             mean_j_mutations = numpy.mean([self.all_j_mutations[seqfo['name']] for seqfo in clusterfo['seqfos']])
 
-            new_seq = clusterfo['cons_seq'].replace('-', '')  # I don't really completely understand the dashes in this sequence, but it seems to be right to just remove 'em
+            new_seq = clusterfo['cons_seq'].replace('-', '')  # I'm not sure that I completely understand the dashes in this sequence, but it seems to be right to just remove 'em
 
             equiv_name, equiv_seq = glutils.find_equivalent_gene_in_glfo(default_initial_glfo, new_seq, template_cpos)
             if equiv_name is not None:
