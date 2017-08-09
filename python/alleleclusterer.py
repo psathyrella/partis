@@ -43,7 +43,6 @@ class AlleleClusterer(object):
                 if gene not in true_glcounts:
                     true_glcounts[gene] = 0
                 true_glcounts[gene] += 1
-
         sorted_glcounts = sorted(glcounts.items(), key=operator.itemgetter(1), reverse=True)
         true_sorted_glcounts = None
         if self.reco_info is not None:
@@ -63,6 +62,62 @@ class AlleleClusterer(object):
             print '           %-20s  %4s   %s' % ('consensus', '', new_seq)
             for gene, counts in true_sorted_glcounts:
                 print '           %-12s  %4d   %s' % (utils.color_gene(gene, width=20), counts, utils.color_mutants(new_seq, self.simglfo['seqs'][self.region][gene], print_isnps=True, align=True))
+
+    # ----------------------------------------------------------------------------------------
+    def decide_whether_to_remove_template_genes(self, msa_info, gene_info, new_alleles, debug=True):
+        if len(new_alleles) == 0:
+            return
+
+        if debug:
+            print '      size    template   snps      new    snps',
+            if self.reco_info is not None:
+                print '      true',
+            print ''
+
+        templates = {newfo['template-gene'] : newfo['gene'] for newfo in new_alleles.values()}
+        all_glcounts = {}
+        for clusterfo in sorted(msa_info, key=lambda cfo: len(cfo['seqfos']), reverse=True):
+            sorted_glcounts, true_sorted_glcounts = self.get_glcounts(clusterfo, gene_info)  # it would be nice to not re-call this for the clusters we already called it on above
+            for gene, counts in sorted_glcounts:  # <gene> is the one assigned by sw before allele clustering
+                if gene in templates:  # if this was a template for a new allele, we have to decide whether to apportion some or all of the sequences in this cluster to that new allele
+                    template_gene = gene
+                    template_cpos = utils.cdn_pos(self.glfo, self.region, template_gene)
+                    cons_seq = clusterfo['cons_seq']
+                    template_seq = self.glfo['seqs'][self.region][template_gene]
+                    new_allele_seq = new_alleles[templates[template_gene]]['seq']
+
+                    if len(cons_seq[:template_cpos]) != len(template_seq[:template_cpos]):
+                        raise Exception('arg 1')
+                    if len(cons_seq[:template_cpos]) != len(new_allele_seq[:template_cpos]):
+                        raise Exception('arg 2')
+
+                    n_template_snps = utils.hamming_distance(cons_seq[:template_cpos], template_seq[:template_cpos])
+                    n_new_snps = utils.hamming_distance(cons_seq[:template_cpos], new_allele_seq[:template_cpos])
+
+                    if debug:
+                        print '      %5d    %s  %2d      %s  %2d' % (len(clusterfo['seqfos']), utils.color_gene(template_gene, width=15), n_template_snps, utils.color_gene(templates[template_gene], width=15), n_new_snps),
+                        if self.reco_info is not None:
+                            print '    %s' % utils.color_gene(true_sorted_glcounts[0][0], width=15),
+
+                    if n_new_snps < n_template_snps:  # reassign to the new allele
+                        gene = templates[template_gene]
+                        if debug:
+                            # print '    %s --> %s' % (utils.color_gene(template_gene), utils.color_gene(templates[template_gene])),
+                            print '     reassign',
+                    if debug:
+                        print ''
+
+                if gene not in all_glcounts:
+                    all_glcounts[gene] = 0
+                all_glcounts[gene] += counts
+
+        for gene, counts in sorted(all_glcounts.items(), key=operator.itemgetter(1), reverse=True):
+            print '%s %4d' % (utils.color_gene(gene, width=15), counts)
+
+        for new_name, newfo in new_alleles.items():
+            # print '%s  %s  %.1f / %.1f = %.4f' % (new_name, newfo['template-gene'], all_glcounts[newfo['template-gene']], float(sum(all_glcounts.values())), all_glcounts[newfo['template-gene']] / float(sum(all_glcounts.values())))
+            if all_glcounts[newfo['template-gene']] / float(sum(all_glcounts.values())) < self.args.min_allele_prevalence_fraction:  # NOTE all_glcounts only includes large clusters, and the constituents of those clusters are clonal representatives, so this isn't quite the same as in alleleremover
+                newfo['remove-template-gene'] = True
 
     # ----------------------------------------------------------------------------------------
     def get_alleles(self, queryfo, swfo=None, debug=False):
@@ -198,6 +253,8 @@ class AlleleClusterer(object):
 
             print '       %s %s%s' % (utils.color('red', 'new'), utils.color_gene(new_name), ' (exists in default germline dir)' if new_name in default_initial_glfo['seqs'][self.region] else '')
             new_alleles[new_name] = {'template-gene' : template_gene, 'gene' : new_name, 'seq' : new_seq}
+
+        self.decide_whether_to_remove_template_genes(msa_info, gene_info, new_alleles)
 
         if debug:
             print '  %d / %d clusters consensed to existing genes' % (n_existing_gene_clusters, len(msa_info))
