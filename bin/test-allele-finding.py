@@ -45,11 +45,9 @@ def simulate(args):
     if args.gls_gen:
         assert args.sim_v_genes is None and args.allele_prevalence_freqs is None
 
-        remove_template_genes = False
-
         sglfo = glutils.read_glfo('data/germlines/human', locus=args.locus)
         glutils.remove_v_genes_with_bad_cysteines(sglfo)
-        glutils.generate_germline_set(sglfo, args.n_genes_per_region, args.n_sim_alleles_per_gene, args.min_allele_prevalence_freq, allele_prevalence_fname, new_allele_info=args.new_allele_info, remove_template_genes=remove_template_genes)
+        glutils.generate_germline_set(sglfo, args.n_genes_per_region, args.n_sim_alleles_per_gene, args.min_allele_prevalence_freq, allele_prevalence_fname, new_allele_info=args.new_allele_info, remove_template_genes=args.remove_template_genes)
         cmd_str += ' --allele-prevalence-fname ' + allele_prevalence_fname
     else:
         sglfo = glutils.read_glfo('data/germlines/human', locus=args.locus, only_genes=(args.sim_v_genes + args.dj_genes))
