@@ -33,6 +33,7 @@ class AlleleRemover(object):
 
     # ----------------------------------------------------------------------------------------
     def finalize(self, sorted_gene_counts, debug=False):
+        # NOTE a.t.m. this is using vsearch V alignments only, so we can't collapse clones beforehand. It would be more accurate, though, if we could collapse clones first
         # NOTE <sorted_gene_counts> is usually/always floats instead of integers
         assert not self.finalized
         easycounts = {gene : counts for gene, counts in sorted_gene_counts}
