@@ -12,8 +12,12 @@ import indelutils
 # ----------------------------------------------------------------------------------------
 class AlleleClusterer(object):
     # ----------------------------------------------------------------------------------------
-    def __init__(self, args):
+    def __init__(self, args, glfo, reco_info=None, simglfo=None):
         self.args = args
+        self.glfo = glfo
+        self.reco_info = reco_info
+        self.simglfo = simglfo
+
         self.region = 'v'
         self.other_region = 'j'
         self.absolute_n_seqs_min = 15
@@ -22,21 +26,54 @@ class AlleleClusterer(object):
         self.max_j_mutations = 8
         self.small_number_of_j_mutations = 3
         self.min_n_snps = 5
+
         self.all_j_mutations = None
 
+
     # ----------------------------------------------------------------------------------------
-    def get_alleles(self, queryfo, glfo, swfo=None, reco_info=None, simglfo=None, debug=False):
+    def get_glcounts(self, clusterfo, gene_info):  # return map from gene : counts for this cluster
+        glcounts, true_glcounts = {}, {}
+        for seqfo in clusterfo['seqfos']:
+            gene = gene_info[seqfo['name']]
+            if gene not in glcounts:
+                glcounts[gene] = 0
+            glcounts[gene] += 1
+            if self.reco_info is not None:
+                gene = self.reco_info[seqfo['name']][self.region + '_gene']
+                if gene not in true_glcounts:
+                    true_glcounts[gene] = 0
+                true_glcounts[gene] += 1
+        sorted_glcounts = sorted(glcounts.items(), key=operator.itemgetter(1), reverse=True)
+        true_sorted_glcounts = None
+        if self.reco_info is not None:
+            true_sorted_glcounts = sorted(true_glcounts.items(), key=operator.itemgetter(1), reverse=True)
+        return sorted_glcounts, true_sorted_glcounts
+
+    # ----------------------------------------------------------------------------------------
+    def print_cluster(self, clusterfo, sorted_glcounts, new_seq, mean_j_mutations, true_sorted_glcounts):
+        if self.all_j_mutations is not None:
+            print '   %5.1f' % mean_j_mutations,
+        print ''
+        print '           %-20s  %4s   %s' % ('consensus', '', new_seq)
+        for gene, counts in sorted_glcounts:
+            print '           %-20s  %4d   %s' % (utils.color_gene(gene, width=20), counts, utils.color_mutants(new_seq, self.glfo['seqs'][self.region][gene], print_isnps=True, align=True))
+        if self.reco_info is not None:
+            print '       %s   %.1f' % (utils.color('green', 'true'), numpy.mean([utils.get_n_muted(self.reco_info[seqfo['name']], iseq=0, restrict_to_region=self.other_region) for seqfo in clusterfo['seqfos']]))
+            print '           %-20s  %4s   %s' % ('consensus', '', new_seq)
+            for gene, counts in true_sorted_glcounts:
+                print '           %-12s  %4d   %s' % (utils.color_gene(gene, width=20), counts, utils.color_mutants(new_seq, self.simglfo['seqs'][self.region][gene], print_isnps=True, align=True))
+
+    # ----------------------------------------------------------------------------------------
+    def get_alleles(self, queryfo, swfo=None, debug=False):
         print 'clustering for new alleles'
 
-        new_alleles = {}
-
-        default_initial_glfo = glfo
+        default_initial_glfo = self.glfo
         if self.args.default_initial_germline_dir is not None:  # if this is set, we want to take any new allele names from this directory's glfo if they're in there
-            default_initial_glfo = glutils.read_glfo(self.args.default_initial_germline_dir, glfo['locus'])
+            default_initial_glfo = glutils.read_glfo(self.args.default_initial_germline_dir, self.glfo['locus'])
         else:
             print '  %s --default-initial-germline-dir isn\'t set, so new allele names won\'t correspond to existing names' % utils.color('yellow', 'warning')
 
-        # NOTE do *not* modify <glfo> (in the future it would be nice to just modify <glfo>, but for now we need it to be super clear in partitiondriver what is happening to <glfo>)
+        # NOTE do *not* modify <self.glfo> (in the future it would be nice to just modify <self.glfo>, but for now we need it to be super clear in partitiondriver what is happening to <self.glfo>)
         if swfo is None:
             assert False  # need to figure out a threshold
             # threshold=self.sw_info['mute-freqs']['v'],
@@ -45,11 +82,17 @@ class AlleleClusterer(object):
             gene_info = {q : qfo['gene'] for q, qfo in queryfo.items()}
         else:
             assert queryfo is None
+
+            # first remove non-full-length sequences
             full_length_queries = [q for q in swfo['queries'] if swfo[q]['v_5p_del'] == 0 and swfo[q]['j_3p_del'] == 0]
             print '   removing %d/%d sequences with v_5p or j_3p deletions' % (len(swfo['queries']) - len(full_length_queries), len(swfo['queries']))
             if len(full_length_queries) == 0:
-                return new_alleles
+                return {}
+
+            # then cluster by full-length (v+d+j) naive sequence
             clusters = utils.collapse_naive_seqs(swfo, queries=full_length_queries)
+
+            # then build <qr_seqs> from the v sequences corresponding to the least-j-mutated sequence in each of these clusters (skipping clusterings that are too mutated)
             qr_seqs = {}
             self.all_j_mutations = {}
             for cluster in clusters:
@@ -61,17 +104,17 @@ class AlleleClusterer(object):
                 for query in cluster:
                     self.all_j_mutations[query] = j_mutations[query]  # I don't think I can key by the cluster str, since here things correspond to the naive-seq-collapsed clusters, then we remove some of the clusters, and then cluster with vsearch
             print '   collapsed %d input sequences into %d representatives from %d clones (removed %d clones with >= %d j mutations)' % (len(full_length_queries), len(qr_seqs), len(clusters), len(clusters) - len(qr_seqs), self.max_j_mutations)
-            gene_info = {q : swfo[q][self.region + '_gene'] for q in qr_seqs}
+            gene_info = {q : swfo[q][self.region + '_gene'] for q in qr_seqs}  # assigned gene for the clonal representative from each cluster that we used (i.e. *not* from every sequence in the sample)
 
             assert self.region == 'v'  # need to think about whether this should always be j, or if it should be self.other_region
             j_mfreqs = [utils.get_mutation_rate(swfo[q], iseq=0, restrict_to_region='j') for q in qr_seqs]
             threshold = numpy.mean(j_mfreqs) / 1.5  # v mut freq will be way off for any very different new alleles
 
+        # then vsearch cluster the v-sequences in <qr_seqs> using a heuristic j-mutation-based threshold
         msa_fname = self.args.workdir + '/msa.fa'
         print '   vsearch clustering %d %s segments with threshold %.2f (*300 = %d)' % (len(qr_seqs), self.region, threshold, int(threshold * 300))
         assert self.region == 'v'  # would need to change the 300
         _ = utils.run_vsearch('cluster', qr_seqs, self.args.workdir + '/vsearch', threshold=threshold, msa_fname=msa_fname, vsearch_binary=self.args.vsearch_binary)
-
         msa_info = []
         msa_seqs = utils.read_fastx(msa_fname)
         for seqfo in msa_seqs:
@@ -83,10 +126,10 @@ class AlleleClusterer(object):
             else:
                 msa_info[-1]['seqfos'].append(seqfo)
         os.remove(msa_fname)
-
         n_initial_clusters = len(msa_info)
         print '     read %d vsearch clusters (%d sequences))' % (n_initial_clusters, sum([len(cfo['seqfos']) for cfo in msa_info]))
 
+        # then throw out smaller clusters
         # n_seqs_min = max(self.absolute_n_seqs_min, self.min_cluster_fraction * len(msa_info))
         n_seqs_min = self.absolute_n_seqs_min
         msa_info = [cfo for cfo in msa_info if len(cfo['seqfos']) >= n_seqs_min]
@@ -96,8 +139,9 @@ class AlleleClusterer(object):
             print '     taking the %d largest clusters (removing %d)' % (self.max_number_of_clusters, len(msa_info) - self.max_number_of_clusters)
             msa_info = msa_info[:self.max_number_of_clusters]
 
+        # and finally loop over eah cluster, deciding if it corresponds to a new allele
+        new_alleles = {}
         n_existing_gene_clusters = 0
-        # n_clusters_for_new_alleles = 0
         if debug:
             print '  looping over %d clusters with %d sequences' % (len(msa_info), sum([len(cfo['seqfos']) for cfo in msa_info]))
             print '   rank  seqs   %s mutations (mean)' % self.other_region
@@ -107,27 +151,13 @@ class AlleleClusterer(object):
             # dot_products = [utils.dot_product(clusterfo['cons_seq'], seq1, seq2) for seq1, seq2 in itertools.combinations([seqfo['seq'] for seqfo in clusterfo['seqfos']], 2)]
             # mean_dot_product = numpy.average(dot_products)
 
-            glcounts, true_glcounts = {}, {}
-            for seqfo in clusterfo['seqfos']:
-                gene = gene_info[seqfo['name']]
-                if gene not in glcounts:
-                    glcounts[gene] = 0
-                glcounts[gene] += 1
-                if reco_info is not None:
-                    gene = reco_info[seqfo['name']][self.region + '_gene']
-                    if gene not in true_glcounts:
-                        true_glcounts[gene] = 0
-                    true_glcounts[gene] += 1
-            sorted_glcounts = sorted(glcounts.items(), key=operator.itemgetter(1), reverse=True)
-            if reco_info is not None:
-                true_sorted_glcounts = sorted(true_glcounts.items(), key=operator.itemgetter(1), reverse=True)
-
+            sorted_glcounts, true_sorted_glcounts = self.get_glcounts(clusterfo, gene_info)
             mean_j_mutations = numpy.mean([self.all_j_mutations[seqfo['name']] for seqfo in clusterfo['seqfos']])
 
             # choose the most common existing gene to use as a template (the most similar gene might be a better choice, but deciding on "most similar" would involve adjudicating between snps and indels, and it shouldn't really matter)
             template_gene, _ = sorted_glcounts[0]
-            template_seq = glfo['seqs'][self.region][template_gene]
-            template_cpos = utils.cdn_pos(glfo, self.region, template_gene)
+            template_seq = self.glfo['seqs'][self.region][template_gene]
+            template_cpos = utils.cdn_pos(self.glfo, self.region, template_gene)
 
             new_seq = clusterfo['cons_seq'].replace('-', '')  # I don't really completely understand the dashes in this sequence, but it seems to be right to just remove 'em
 
@@ -141,26 +171,15 @@ class AlleleClusterer(object):
             if debug:
                 print '    %-3d  %4d' % (iclust, len(clusterfo['seqfos'])),
 
-            if new_name in glfo['seqs'][self.region]:  # note that this only looks in <glfo>, not in <new_alleles>
+            if new_name in self.glfo['seqs'][self.region]:  # note that this only looks in <self.glfo>, not in <new_alleles>
                 print '    %s' % utils.color_gene(new_name)
                 n_existing_gene_clusters += 1
                 continue
 
             if debug:
-                if self.all_j_mutations is not None:
-                    print '   %5.1f' % mean_j_mutations,
-                print ''
-                print '           %-20s  %4s   %s' % ('consensus', '', new_seq)
-                for gene, counts in sorted_glcounts:
-                    print '           %-20s  %4d   %s' % (utils.color_gene(gene, width=20), counts, utils.color_mutants(new_seq, glfo['seqs'][self.region][gene], print_isnps=True, align=True))
-                if reco_info is not None:
-                    print '       %s   %.1f' % (utils.color('green', 'true'), numpy.mean([utils.get_n_muted(reco_info[seqfo['name']], iseq=0, restrict_to_region=self.other_region) for seqfo in clusterfo['seqfos']]))
-                    print '           %-20s  %4s   %s' % ('consensus', '', new_seq)
-                    for gene, counts in true_sorted_glcounts:
-                        print '           %-12s  %4d   %s' % (utils.color_gene(gene, width=20), counts, utils.color_mutants(new_seq, simglfo['seqs'][self.region][gene], print_isnps=True, align=True))
+                self.print_cluster(clusterfo, sorted_glcounts, new_seq, mean_j_mutations, true_sorted_glcounts)
 
             if new_name in new_alleles:  # already added it
-                # n_clusters_for_new_alleles += 1
                 continue
             assert new_seq not in new_alleles.values()  # if it's the same seq, it should've got the same damn name
 
