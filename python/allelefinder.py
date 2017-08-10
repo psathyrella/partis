@@ -655,7 +655,7 @@ class AlleleFinder(object):
         if pvals['total'][istart] < 4:  # if there's nothing in this bin, there's certainly not a new allele (although, note, this should have already been checked for)
             return False
 
-        if pvals['total'][istart - 1] < 10:  # if there's hardly any entries in the previous bin (i.e. presumably a homozygous new allele) then just use bin totals
+        if pvals['total'][istart - 1] < 10:  # if there's hardly any entries in the previous bin (i.e. presumably a homozygous new allele) then just use bin totals UPDATE you know, i'm not really sure what but that it wouldn't make more sense to always use some combination of the two
             return self.very_different_bin_totals(pvals, istart, debug=debug)
 
         joint_freq_err = max(pvals['errs'][istart - 1], pvals['errs'][istart])
