@@ -734,8 +734,8 @@ def add_new_allele(glfo, newfo, remove_template_genes=False, use_template_for_co
         else:
             print '               %s   %s (no template)' % (newfo['seq'], utils.color_gene(newfo['gene']))
 
-    if remove_template_genes or 'remove-template-gene' in newfo:
-        assert newfo['remove-template-gene']  # damnit, i have two ways to specify this and it pisses me off. But too hard to change it just now
+    if remove_template_genes or ('remove-template-gene' in newfo and newfo['remove-template-gene']):
+        # assert newfo['remove-template-gene']  # damnit, i have two ways to specify this and it pisses me off. But too hard to change it just now
         if 'template-gene' not in newfo:
             raise Exception('no template gene specified in newfo')
         print '    %s template gene %s' % (utils.color('red', 'removing'), utils.color_gene(newfo['template-gene']))
