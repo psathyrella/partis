@@ -75,11 +75,17 @@ class AlleleClusterer(object):
                 print '         true',
             print ''
 
+        dbg_print = debug  # don't print all the tiny clusters
         templates = {newfo['template-gene'] : newfo['gene'] for newfo in new_alleles.values()}
         all_glcounts = {}
         for clusterfo in sorted(msa_info, key=lambda cfo: len(cfo['seqfos']), reverse=True):
             sorted_glcounts, true_sorted_glcounts = self.get_glcounts(clusterfo, gene_info)  # it would be nice to not re-call this for the clusters we already called it on above
             for gene, counts in sorted_glcounts:  # <gene> is the one assigned by sw before allele clustering
+                if debug and len(clusterfo['seqfos']) < 5:
+                    if dbg_print:
+                        print '     not printing clusters smaller than 5'
+                    dbg_print = False
+
                 if gene not in all_glcounts:  # add it before we decide whether to switch it, so a template gene with zero counts will be in there with zero counts
                     all_glcounts[gene] = 0
                 if gene in templates:  # if this was a template for a new allele, we have to decide whether to apportion some or all of the sequences in this cluster to that new allele
@@ -93,14 +99,15 @@ class AlleleClusterer(object):
                     n_template_snps = utils.hamming_distance(cons_seq[:compare_len], template_seq[:compare_len])
                     n_new_snps = utils.hamming_distance(cons_seq[:compare_len], new_allele_seq[:compare_len])
 
-                    if debug:
+                    if debug and dbg_print:
                         print '    %5d       %2d      %2d' % (len(clusterfo['seqfos']), n_template_snps, n_new_snps),
 
                     if n_new_snps < n_template_snps:  # reassign to the new allele
                         gene = templates[template_gene]
                         if gene not in all_glcounts:  # add it before we decide whether to switch it, so a template gene with zero counts will be in there with zero counts
                             all_glcounts[gene] = 0
-                    if debug:
+
+                    if debug and dbg_print:
                         print '    %s' % utils.color_gene(gene, width=15),
                         if self.reco_info is not None:
                             true_gene = true_sorted_glcounts[0][0]  # NOTE this is the most *common* simulated gene in the cluster, not necessarily the one corresponding to these particular sequences... but clusters with new alleles should generally be dominated by one gene, so oh, well
@@ -112,8 +119,10 @@ class AlleleClusterer(object):
 
                 all_glcounts[gene] += counts
 
-        for gene, counts in sorted(all_glcounts.items(), key=operator.itemgetter(1), reverse=True):
-            print '%4d  %s' % (counts, utils.color_gene(gene))
+        if debug:
+            print '  final counts:'
+            for gene, counts in sorted(all_glcounts.items(), key=operator.itemgetter(1), reverse=True):
+                print '    %4d  %s' % (counts, utils.color_gene(gene))
 
         for new_name, newfo in new_alleles.items():
             # print '%s  %s  %.1f / %.1f = %.4f' % (new_name, newfo['template-gene'], all_glcounts[newfo['template-gene']], float(sum(all_glcounts.values())), all_glcounts[newfo['template-gene']] / float(sum(all_glcounts.values())))
@@ -233,12 +242,14 @@ class AlleleClusterer(object):
                     print '    %s' % utils.color_gene(new_name)
                 continue
 
-            if debug:
-                self.print_cluster(clusterfo, sorted_glcounts, new_seq, mean_j_mutations, true_sorted_glcounts)
-
             if new_name in new_alleles:  # already added it
+                if debug:
+                    print '    %s (%s)' % (utils.color_gene(new_name), utils.color('red', 'new'))
                 continue
             assert new_seq not in new_alleles.values()  # if it's the same seq, it should've got the same damn name
+
+            if debug:
+                self.print_cluster(clusterfo, sorted_glcounts, new_seq, mean_j_mutations, true_sorted_glcounts)
 
             if len(new_seq[:template_cpos]) == len(template_seq[:template_cpos]):
                 n_snps = utils.hamming_distance(new_seq[:template_cpos], template_seq[:template_cpos])  # TODO should probably update this to do the same thing (with min([])) as up in decide_whether_to_remove_template_genes()
