@@ -27,6 +27,12 @@ def fstr(fval):
 
 # ----------------------------------------------------------------------------------------
 class AlleleFinder(object):
+    def big_discontinuity_factor(self, istart):
+        if istart == 1:
+            return 2.75  # since the <istart - 1>th bin is the zero bin, in which we sometimes expect a very small number of sequences, this needs to be smaller here
+        else:
+            return 3.8  # i.e. check everything that's more than <factor> sigma away (where "check" means actually do the fits, as long as it passes all the other prefiltering steps)
+
     def __init__(self, glfo, args, itry):
         self.region = 'v'
         self.glfo = glfo
@@ -54,7 +60,6 @@ class AlleleFinder(object):
         self.min_mean_candidate_ratio = 2.75  # mean of candidate ratios must be greater than this
         self.min_bad_fit_residual = 1.95
         self.max_good_fit_residual = 4.5  # since this is unbounded above (unlike the min bad fit number), it needs to depend on how bad the bad fit/good fit ratio is (although, this starts making it hard to distinguish this from the ratio criterion, but see next parameter below))
-        self.big_discontinuity_factor = 3.8  # i.e. check everything that's more than <factor> sigma away ( i.e. check everything that's more than <factor> sigma away (where "check" means actually do the fits, as long as it passes all the other prefiltering steps))
         self.very_large_residual_ratio = 7.5  # if the ratio's bigger than this, we don't apply the max good fit residual criterion (i.e. if the ratio is a total slam dunk, it's ok if the good fit is shitty)
         self.default_consistency_sigmas = 3.  # default number of sigma for the boundary between consistent and inconsistent fits
         self.max_consistent_candidate_fit_sigma = 7.5  # this is extremely permissiive, since we don't expect  them to actually the same -- in particular, the slopes are given by the position's mutation rate (among I think maybe other things)
@@ -641,8 +646,8 @@ class AlleleFinder(object):
         istart_total = pvals['total'][istart]
         joint_total_err = max(math.sqrt(last_total), math.sqrt(istart_total))
         if debug:
-            print '    different bin totals:  diff / err = (%.0f - %.0f) / %5.1f = %.1f ?> %.1f'  % (istart_total, last_total, joint_total_err, (istart_total - last_total) / joint_total_err, self.big_discontinuity_factor)
-        return istart_total - last_total > self.big_discontinuity_factor * joint_total_err  # it the total (denominator) is very different between the two bins
+            print '    different bin totals:  diff / err = (%.0f - %.0f) / %5.1f = %.1f ?> %.1f'  % (istart_total, last_total, joint_total_err, (istart_total - last_total) / joint_total_err, self.big_discontinuity_factor(istart))
+        return istart_total - last_total > self.big_discontinuity_factor(istart) * joint_total_err  # it the total (denominator) is very different between the two bins
 
     # ----------------------------------------------------------------------------------------
     def big_discontinuity(self, pvals, istart, debug=False):  # NOTE same as very_different_bin_totals(), except for freqs rather than totals
@@ -650,15 +655,15 @@ class AlleleFinder(object):
         if pvals['total'][istart] < 4:  # if there's nothing in this bin, there's certainly not a new allele (although, note, this should have already been checked for)
             return False
 
-        if pvals['total'][istart - 1] < 5:  # if there's hardly any entries in the previous bin (i.e. presumably a homozygous new allele) then just use bin totals
+        if pvals['total'][istart - 1] < 10:  # if there's hardly any entries in the previous bin (i.e. presumably a homozygous new allele) then just use bin totals
             return self.very_different_bin_totals(pvals, istart, debug=debug)
 
         joint_freq_err = max(pvals['errs'][istart - 1], pvals['errs'][istart])
         last_freq = pvals['freqs'][istart - 1]
         istart_freq = pvals['freqs'][istart]
         if debug:
-            print '    discontinuity:  diff / err = (%5.3f - %5.3f) / %5.3f = %.1f ?> %.1f'  % (istart_freq, last_freq, joint_freq_err, (istart_freq - last_freq) / joint_freq_err, self.big_discontinuity_factor)
-        return istart_freq - last_freq > self.big_discontinuity_factor * joint_freq_err
+            print '    discontinuity:  diff / err = (%5.3f - %5.3f) / %5.3f = %.1f ?> %.1f'  % (istart_freq, last_freq, joint_freq_err, (istart_freq - last_freq) / joint_freq_err, self.big_discontinuity_factor(istart))
+        return istart_freq - last_freq > self.big_discontinuity_factor(istart) * joint_freq_err
 
     # ----------------------------------------------------------------------------------------
     def fit_position(self, gene, istart, pos, prevals, postvals, bothvals, candidate_ratios, residfo, debug=False):
