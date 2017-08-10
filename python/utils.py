@@ -588,7 +588,7 @@ def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', 
         ref_seq = ref_seq[:min_len]
         seq = seq[:min_len]
 
-    if align and len(ref_seq) != len(seq):
+    if align:  #  and len(ref_seq) != len(seq):  # it would be nice to avoid aligning when we don't need to... but i'm not sure how to identify cases where multiple indels result in the same length
         ref_seq, seq = align_seqs(ref_seq, seq)
 
     if len(ref_seq) != len(seq):
