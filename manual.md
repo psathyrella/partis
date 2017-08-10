@@ -84,11 +84,12 @@ We have less experience with os-x, so please drop us a line if you run into any 
 For instance, depending what is already installed on your system (the Ubuntu list above is more comprehensive) this might be sufficient:
 
 ```
-pip install --user colored-traceback pysam scons cmake pyyaml  # adding --egg may help if it fails
-brew install gsl
+pip install --user colored-traceback pysam cmake pyyaml psutil  # adding --egg may help if it fails
+brew install gsl scons
 ```
 
 If you need to sort out versions, follow the Dockerfile chain beginning [here](https://registry.hub.docker.com/u/psathyrella/partis/dockerfile/) and [here](https://github.com/matsengrp/dockerfiles/blob/master/cpp/Dockerfile).
+And... if you're having trouble, you can go back up and use Docker up there ^.
 
 Once you've got all the necessary things on your system, you can proceed to clone the repository and compile:
 
