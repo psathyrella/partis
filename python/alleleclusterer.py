@@ -69,9 +69,10 @@ class AlleleClusterer(object):
             return
 
         if debug:
-            print '      size    template   snps      new    snps',
+            print '              template  new'
+            print '      size      snps    snps    assigned',
             if self.reco_info is not None:
-                print '      true',
+                print '         true',
             print ''
 
         templates = {newfo['template-gene'] : newfo['gene'] for newfo in new_alleles.values()}
@@ -79,6 +80,8 @@ class AlleleClusterer(object):
         for clusterfo in sorted(msa_info, key=lambda cfo: len(cfo['seqfos']), reverse=True):
             sorted_glcounts, true_sorted_glcounts = self.get_glcounts(clusterfo, gene_info)  # it would be nice to not re-call this for the clusters we already called it on above
             for gene, counts in sorted_glcounts:  # <gene> is the one assigned by sw before allele clustering
+                if gene not in all_glcounts:  # add it before we decide whether to switch it, so a template gene with zero counts will be in there with zero counts
+                    all_glcounts[gene] = 0
                 if gene in templates:  # if this was a template for a new allele, we have to decide whether to apportion some or all of the sequences in this cluster to that new allele
                     template_gene = gene
                     template_cpos = utils.cdn_pos(self.glfo, self.region, template_gene)
@@ -86,33 +89,31 @@ class AlleleClusterer(object):
                     template_seq = self.glfo['seqs'][self.region][template_gene]
                     new_allele_seq = new_alleles[templates[template_gene]]['seq']
 
-                    if len(cons_seq[:template_cpos]) != len(template_seq[:template_cpos]):
-                        raise Exception('arg 1')
-                    if len(cons_seq[:template_cpos]) != len(new_allele_seq[:template_cpos]):
-                        raise Exception('arg 2')
-
-                    n_template_snps = utils.hamming_distance(cons_seq[:template_cpos], template_seq[:template_cpos])
-                    n_new_snps = utils.hamming_distance(cons_seq[:template_cpos], new_allele_seq[:template_cpos])
+                    compare_len = min([template_cpos, len(cons_seq), len(template_seq), len(new_allele_seq)])  # NOTE this doesn't account for indels, i.e. the template and consensus sequences are in general different lengths, but that's ok, it'll just inflate the hamming distance for sequences that differ from consensus by indels, and all we care is finding the one that doesn't have any indels
+                    n_template_snps = utils.hamming_distance(cons_seq[:compare_len], template_seq[:compare_len])
+                    n_new_snps = utils.hamming_distance(cons_seq[:compare_len], new_allele_seq[:compare_len])
 
                     if debug:
-                        print '      %5d    %s  %2d      %s  %2d' % (len(clusterfo['seqfos']), utils.color_gene(template_gene, width=15), n_template_snps, utils.color_gene(templates[template_gene], width=15), n_new_snps),
-                        if self.reco_info is not None:
-                            print '    %s' % utils.color_gene(true_sorted_glcounts[0][0], width=15),
+                        print '    %5d       %2d      %2d' % (len(clusterfo['seqfos']), n_template_snps, n_new_snps),
 
                     if n_new_snps < n_template_snps:  # reassign to the new allele
                         gene = templates[template_gene]
-                        if debug:
-                            # print '    %s --> %s' % (utils.color_gene(template_gene), utils.color_gene(templates[template_gene])),
-                            print '     reassign',
+                        if gene not in all_glcounts:  # add it before we decide whether to switch it, so a template gene with zero counts will be in there with zero counts
+                            all_glcounts[gene] = 0
                     if debug:
+                        print '    %s' % utils.color_gene(gene, width=15),
+                        if self.reco_info is not None:
+                            true_gene = true_sorted_glcounts[0][0]  # NOTE this is the most *common* simulated gene in the cluster, not necessarily the one corresponding to these particular sequences... but clusters with new alleles should generally be dominated by one gene, so oh, well
+                            if true_gene == gene:
+                                print '    %s' % utils.color('green', 'ok'),
+                            else:
+                                print '    %s' % utils.color_gene(true_gene, width=15),
                         print ''
 
-                if gene not in all_glcounts:
-                    all_glcounts[gene] = 0
                 all_glcounts[gene] += counts
 
         for gene, counts in sorted(all_glcounts.items(), key=operator.itemgetter(1), reverse=True):
-            print '%s %4d' % (utils.color_gene(gene, width=15), counts)
+            print '%4d  %s' % (counts, utils.color_gene(gene))
 
         for new_name, newfo in new_alleles.items():
             # print '%s  %s  %.1f / %.1f = %.4f' % (new_name, newfo['template-gene'], all_glcounts[newfo['template-gene']], float(sum(all_glcounts.values())), all_glcounts[newfo['template-gene']] / float(sum(all_glcounts.values())))
@@ -240,7 +241,7 @@ class AlleleClusterer(object):
             assert new_seq not in new_alleles.values()  # if it's the same seq, it should've got the same damn name
 
             if len(new_seq[:template_cpos]) == len(template_seq[:template_cpos]):
-                n_snps = utils.hamming_distance(new_seq[:template_cpos], template_seq[:template_cpos])
+                n_snps = utils.hamming_distance(new_seq[:template_cpos], template_seq[:template_cpos])  # TODO should probably update this to do the same thing (with min([])) as up in decide_whether_to_remove_template_genes()
                 # if n_snps < self.args.n_max_snps and mean_j_mutations > self.small_number_of_j_mutations:
                 factor = 1.75
                 if n_snps < self.min_n_snps or n_snps < factor * mean_j_mutations:  # i.e. we keep if it's *further* than factor * <number of j mutations> from the closest existing allele (should presumably rescale by some factor to go from j --> v, but it seems like the factor's near to 1.)
@@ -254,10 +255,10 @@ class AlleleClusterer(object):
             print '       %s %s%s' % (utils.color('red', 'new'), utils.color_gene(new_name), ' (exists in default germline dir)' if new_name in default_initial_glfo['seqs'][self.region] else '')
             new_alleles[new_name] = {'template-gene' : template_gene, 'gene' : new_name, 'seq' : new_seq}
 
-        # self.decide_whether_to_remove_template_genes(msa_info, gene_info, new_alleles)
-
         if debug:
             print '  %d / %d clusters consensed to existing genes' % (n_existing_gene_clusters, len(msa_info))
+
+        self.decide_whether_to_remove_template_genes(msa_info, gene_info, new_alleles)
 
         return new_alleles
 
