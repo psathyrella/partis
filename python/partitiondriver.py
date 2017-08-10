@@ -193,10 +193,7 @@ class PartitionDriver(object):
                 os.remove(self.default_sw_cachefname)
 
             glutils.restrict_to_genes(self.glfo, list(self.sw_info['all_best_matches']))
-            glutils.add_new_alleles(self.glfo, new_allele_info, debug=True, simglfo=self.simglfo if self.reco_info is not None else None)
-            for newfo in [nf for nf in new_allele_info if nf['remove-template-gene']]:
-                print '    %s template gene %s' % (utils.color('red', 'removing'), utils.color_gene(newfo['template-gene']))
-                glutils.remove_gene(self.glfo, newfo['template-gene'])
+            glutils.add_new_alleles(self.glfo, new_allele_info, debug=True, simglfo=self.simglfo if self.reco_info is not None else None)  # <remove_template_genes> stuff is handled in <new_allele_info>
 
             itry += 1
             if itry >= self.args.n_max_allele_finding_iterations:

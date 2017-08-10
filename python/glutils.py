@@ -667,8 +667,7 @@ def remove_gene(glfo, gene, debug=False):
         if region in utils.conserved_codons[glfo['locus']]:
             del glfo[utils.conserved_codons[glfo['locus']][region] + '-positions'][gene]
     else:
-        if debug:
-            print '  can\'t remove %s from glfo, it\'s not there' % utils.color_gene(gene)
+        print '  %s tried remove %s from glfo, but it isn\'t there' % (utils.color('yellow', 'warning'), utils.color_gene(gene))
 
 # ----------------------------------------------------------------------------------------
 def add_new_alleles(glfo, newfos, remove_template_genes=False, use_template_for_codon_info=True, simglfo=None, debug=False):
