@@ -680,7 +680,7 @@ def add_new_allele(glfo, newfo, remove_template_genes=False, use_template_for_co
     """
     Add a new allele to <glfo>, specified by <newfo> which is of the
     form: {'gene' : 'IGHV3-71*01+C35T.T47G', 'seq' : 'ACTG yadda yadda CGGGT', 'template-gene' : 'IGHV3-71*01'}
-    If <remove_template_genes>, we also remove 'template-gene' from <glfo>.
+    If <remove_template_genes>, or if 'remove-template-gene' in <newfo>, we also remove 'template-gene' from <glfo>.
     """
     region = utils.get_region(newfo['gene'])
 
@@ -735,10 +735,12 @@ def add_new_allele(glfo, newfo, remove_template_genes=False, use_template_for_co
         else:
             print '               %s   %s (no template)' % (newfo['seq'], utils.color_gene(newfo['gene']))
 
-    if remove_template_genes:
+    if remove_template_genes or 'remove-template-gene' in newfo:
+        assert newfo['remove-template-gene']  # damnit, i have two ways to specify this and it pisses me off. But too hard to change it just now
         if 'template-gene' not in newfo:
             raise Exception('no template gene specified in newfo')
-        remove_gene(glfo, newfo['template-gene'], debug=True)
+        print '    %s template gene %s' % (utils.color('red', 'removing'), utils.color_gene(newfo['template-gene']))
+        remove_gene(glfo, newfo['template-gene'])
 
 # ----------------------------------------------------------------------------------------
 def remove_the_stupid_godamn_template_genes_all_at_once(glfo, templates_to_remove):
