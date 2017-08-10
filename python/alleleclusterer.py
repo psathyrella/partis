@@ -254,7 +254,7 @@ class AlleleClusterer(object):
             print '       %s %s%s' % (utils.color('red', 'new'), utils.color_gene(new_name), ' (exists in default germline dir)' if new_name in default_initial_glfo['seqs'][self.region] else '')
             new_alleles[new_name] = {'template-gene' : template_gene, 'gene' : new_name, 'seq' : new_seq}
 
-        self.decide_whether_to_remove_template_genes(msa_info, gene_info, new_alleles)
+        # self.decide_whether_to_remove_template_genes(msa_info, gene_info, new_alleles)
 
         if debug:
             print '  %d / %d clusters consensed to existing genes' % (n_existing_gene_clusters, len(msa_info))
