@@ -64,7 +64,7 @@ class AlleleClusterer(object):
                 print '           %-12s  %4d   %s' % (utils.color_gene(gene, width=20), counts, utils.color_mutants(new_seq, self.simglfo['seqs'][self.region][gene], print_isnps=True, align=True))
 
     # ----------------------------------------------------------------------------------------
-    def decide_whether_to_remove_template_genes(self, msa_info, gene_info, new_alleles, debug=True):
+    def decide_whether_to_remove_template_genes(self, msa_info, gene_info, new_alleles, debug=False):
         if len(new_alleles) == 0:
             return
 
@@ -100,7 +100,7 @@ class AlleleClusterer(object):
                     n_new_snps = utils.hamming_distance(cons_seq[:compare_len], new_allele_seq[:compare_len])
 
                     if debug and dbg_print:
-                        print '    %5d       %2d      %2d' % (len(clusterfo['seqfos']), n_template_snps, n_new_snps),
+                        print '    %5d      %3d     %3d' % (len(clusterfo['seqfos']), n_template_snps, n_new_snps),
 
                     if n_new_snps < n_template_snps:  # reassign to the new allele
                         gene = templates[template_gene]
@@ -231,7 +231,11 @@ class AlleleClusterer(object):
                 new_name = equiv_name
                 new_seq = equiv_seq
             else:
-                new_name, _ = glutils.choose_new_allele_name(template_gene, new_seq)  # TODO it would be nice to pass in indel info, so the name matches the simulation name when there's indels
+                aligned_template_seq, aligned_new_seq = utils.align_seqs(template_seq, clusterfo['cons_seq'])
+                indelfo = None
+                if '-' in aligned_template_seq or '-' in aligned_new_seq:
+                    indelfo = {'indels' : ['xxx', 'xxx', 'xxx']}  # the fcn just checks to see if it's non-None and of length greater than zero...
+                new_name, _ = glutils.choose_new_allele_name(template_gene, new_seq, indelfo=indelfo)  # TODO it would be nice to figure out actual snp and indel info
 
             if debug:
                 print '    %-3d  %4d' % (iclust, len(clusterfo['seqfos'])),
@@ -269,7 +273,7 @@ class AlleleClusterer(object):
         if debug:
             print '  %d / %d clusters consensed to existing genes' % (n_existing_gene_clusters, len(msa_info))
 
-        self.decide_whether_to_remove_template_genes(msa_info, gene_info, new_alleles)
+        self.decide_whether_to_remove_template_genes(msa_info, gene_info, new_alleles, debug=debug)
 
         return new_alleles
 
