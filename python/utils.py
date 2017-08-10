@@ -565,6 +565,19 @@ def color_chars(chars, col, seq):
     return ''.join(return_str)
 
 # ----------------------------------------------------------------------------------------
+def align_seqs(ref_seq, seq):
+    with tempfile.NamedTemporaryFile() as fin, tempfile.NamedTemporaryFile() as fout:
+        fin.write('>%s\n%s\n' % ('ref', ref_seq))
+        fin.write('>%s\n%s\n' % ('new', seq))
+        fin.flush()
+        subprocess.check_call('mafft --quiet %s >%s' % (fin.name, fout.name), shell=True)
+        msa_info = {sfo['name'] : sfo['seq'] for sfo in read_fastx(fout.name, ftype='fa')}
+        if 'ref' not in msa_info or 'new' not in msa_info:
+            subprocess.check_call(['cat', fin.name])
+            raise Exception('incoherent mafft output from %s (cat\'d on previous line)' % fin.name)
+    return msa_info['ref'], msa_info['new']
+
+# ----------------------------------------------------------------------------------------
 def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', seq_label='', post_str='', print_hfrac=False, print_isnps=False, return_isnps=False, emphasis_positions=None, use_min_len=False, only_print_seq=False, align=False, return_ref=False):
     """ default: return <seq> string with colored mutations with respect to <ref_seq> """
 
@@ -576,17 +589,7 @@ def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', 
         seq = seq[:min_len]
 
     if align and len(ref_seq) != len(seq):
-        with tempfile.NamedTemporaryFile() as fin, tempfile.NamedTemporaryFile() as fout:
-            fin.write('>%s\n%s\n' % ('ref', ref_seq))
-            fin.write('>%s\n%s\n' % ('new', seq))
-            fin.flush()
-            subprocess.check_call('mafft --quiet %s >%s' % (fin.name, fout.name), shell=True)
-            msa_info = {sfo['name'] : sfo['seq'] for sfo in read_fastx(fout.name, ftype='fa')}
-            if 'ref' not in msa_info or 'new' not in msa_info:
-                subprocess.check_call(['cat', fin.name])
-                raise Exception('incoherent mafft output from %s (cat\'d on previous line)' % fin.name)
-        ref_seq = msa_info['ref']
-        seq = msa_info['new']
+        ref_seq, seq = align_seqs(ref_seq, seq)
 
     if len(ref_seq) != len(seq):
         raise Exception('unequal lengths in color_mutants()\n    %s\n    %s' % (ref_seq, seq))
