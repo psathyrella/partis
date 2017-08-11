@@ -18,13 +18,15 @@ def simplify_state_name(state_name):
 
 # ----------------------------------------------------------------------------------------
 def read_mute_info(indir, this_gene, locus, approved_genes=None):  # NOTE this would probably be more accurate if we made some effort to align the genes before combining all the approved ones
-    if approved_genes is None:
-        approved_genes = [this_gene, ]
     if this_gene == glutils.dummy_d_genes[locus]:
         return {'overall_mean' : 0.5}, {}
+
+    if approved_genes is None:
+        approved_genes = [this_gene, ]
+
+    # add an observation for each position, for each gene where we observed that position NOTE this would be more sensible if they were aligned first
     observed_freqs, observed_counts = {}, {}
     total_counts = 0
-    # add an observation for each position, for each gene where we observed that position NOTE this would be more sensible if they were aligned first
     for gene in approved_genes:
         mutefname = indir + '/mute-freqs/' + utils.sanitize_name(gene) + '.csv'
         if not os.path.exists(mutefname):
@@ -37,22 +39,24 @@ def read_mute_info(indir, this_gene, locus, approved_genes=None):  # NOTE this w
                 lo_err = float(line['lo_err'])  # NOTE lo_err in the file is really the lower *bound*
                 hi_err = float(line['hi_err'])  #   same deal
                 assert freq >= 0.0 and lo_err >= 0.0 and hi_err >= 0.0  # you just can't be too careful
+
                 if freq < utils.eps or abs(1.0 - freq) < utils.eps:  # if <freq> too close to 0 or 1, replace it with the midpoint of its uncertainty band
                     freq = 0.5 * (lo_err + hi_err)
+
                 if pos not in observed_freqs:
                     observed_freqs[pos] = []
                     observed_counts[pos] = {n : 0 for n in utils.nukes}
-                observed_freqs[pos].append({'freq':freq, 'err':max(abs(freq-lo_err), abs(freq-hi_err))})
+
+                observed_freqs[pos].append({'freq' : freq, 'err' : max(abs(freq-lo_err), abs(freq-hi_err))})  # append one for each gene
                 for nuke in utils.nukes:
                     observed_counts[pos][nuke] += int(line[nuke + '_obs'])
                 total_counts += int(line[nuke + '_obs'])
 
-    # set final mute_freqs[pos] to the (inverse error-weighted) average over all the observations for each position
+    # set final mute_freqs[pos] to the (inverse error-weighted) average over all the observations [i.e. genes] for each position
     mute_freqs = {}
-    overall_total, overall_sum_of_weights = 0.0, 0.0  # also calculate the mean over all positions
     for pos in observed_freqs:
         total, sum_of_weights = 0.0, 0.0
-        for obs in observed_freqs[pos]:
+        for obs in observed_freqs[pos]:  # loop over genes
             assert obs['err'] > 0.0
             weight = 1.0 / obs['err']
             total += weight * obs['freq']
@@ -60,12 +64,19 @@ def read_mute_info(indir, this_gene, locus, approved_genes=None):  # NOTE this w
         assert sum_of_weights > 0.0
         mean_freq = total / sum_of_weights
         mute_freqs[pos] = mean_freq
-        overall_total += total
-        overall_sum_of_weights += sum_of_weights
 
+    # NOTE I'm sure that this weighting scheme makes sense for comparing differeing genes at the same position, but I'm less sure it makes sense for the overall mean. But, I don't want to track down all the places that changing it might affect right now
     mute_freqs['overall_mean'] = 0.
-    if overall_sum_of_weights > 0.:
-        mute_freqs['overall_mean'] = overall_total / overall_sum_of_weights
+    weighted_denom = sum([1. / obs['err'] for pos in observed_freqs for obs in observed_freqs[pos]])
+    if weighted_denom > 0.:
+        mute_freqs['overall_mean'] = sum([obs['freq'] / obs['err'] for pos in observed_freqs for obs in observed_freqs[pos]]) / weighted_denom
+
+    # I need the inverse-error-weighted numbers to sensibly combine genes, but then I also need unweigthed values that I can easily write to the yaml files for other people to use
+    mute_freqs['unweighted_overall_mean'] = 0.
+    unweighted_denom = sum([len(observed_freqs[pos]) for pos in observed_freqs])
+    if unweighted_denom > 0.:
+        mute_freqs['unweighted_overall_mean'] = sum([obs['freq'] for pos in observed_freqs for obs in observed_freqs[pos]]) / unweighted_denom
+
     observed_counts['total_counts'] = total_counts
     return mute_freqs, observed_counts
 

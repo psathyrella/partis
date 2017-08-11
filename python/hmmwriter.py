@@ -220,6 +220,7 @@ class HmmWriter(object):
         self.hmm.extras['gene_prob'] = max(self.eps, utils.read_overall_gene_probs(self.indir, only_gene=gene_name))  # if we really didn't see this gene at all, take pity on it and kick it an eps
         tmp_mean_freq_hist = Hist(fname=self.indir + '/all-mean-mute-freqs.csv')
         self.hmm.extras['overall_mute_freq'] = tmp_mean_freq_hist.get_mean()
+        self.hmm.extras['per_gene_mute_freq'] = self.mute_freqs['unweighted_overall_mean']  # the other (weighted) one might be technically more accurate, depending on what you want, but it's probably not what anyone is expecting, so we write the unweighted one
 
     # ----------------------------------------------------------------------------------------
     def write(self):
