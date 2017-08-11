@@ -29,7 +29,7 @@ def fstr(fval):
 class AlleleFinder(object):
     def big_discontinuity_factor(self, istart):
         if istart == 1:
-            return 2.75  # since the <istart - 1>th bin is the zero bin, in which we sometimes expect a very small number of sequences, this needs to be smaller here
+            return 3.  # since the <istart - 1>th bin is the zero bin, in which we sometimes expect a very small number of sequences, this needs to be smaller here
         else:
             return 3.8  # i.e. check everything that's more than <factor> sigma away (where "check" means actually do the fits, as long as it passes all the other prefiltering steps)
 
