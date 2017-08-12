@@ -30,15 +30,18 @@ QA255.253
 # wait, doesn't cdr3 length need to be reset if there's an shm indel within cdr3?
 # switch to joyplot for partition plots (https://github.com/halhen/viz-pub/blob/master/sports-time-of-day/2_gen_chart.R)
 # is functional info correct after fwk insertion trimming and N padding?
+# switch everybody over to new utils.align_seqs() fcn
+
 
 # paper
-#  - redo everything with snpd+indel'd genes closer, and labeled as a different family
+#  - need some way to remove template genes when alclustering (or maybe just a way to remove un-assigned genes afterward)
+#  - make sure hmm/ and sw/ germline sets aren't really different
 #  - tigger
 #    - why is it picking up something *close* to the snpd+indeld genes, but not quite correct?
 #  - add time required
 #  - data
 #   - scheepers
-#   - new chaim data (igg + igm)
+#   - new chaim data (igg + igm) https://www.ncbi.nlm.nih.gov/bioproject/?term=PRJNA336331
 #   - abvitro/kristian data https://peerj.com/articles/2924/?utm_source=TrendMD&utm_campaign=PeerJ_TrendMD_0&utm_medium=TrendMD
 #   - simulate with mouse, start from human for inference (and run on mouse data starting from human)
 #   - just straight mouse data as well
