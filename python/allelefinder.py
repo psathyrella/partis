@@ -854,7 +854,7 @@ class AlleleFinder(object):
                 remove_template = False
 
         if debug:
-            print '  %s allele %s separated from %s by %d snp%s at:  ' % (utils.color('red', 'new'), utils.color_gene(final_name), utils.color_gene(template_gene), n_candidate_snps, utils.plural(n_candidate_snps)),
+            print '  %s %s separated from %s by %d snp%s at:  ' % (utils.color('red', 'new'), utils.color_gene(final_name), utils.color_gene(template_gene), n_candidate_snps, utils.plural(n_candidate_snps)),
             print '  '.join([('%d (%s --> %s)' % (pos, mutfo[pos]['original'], mutfo[pos]['new'])) for pos in sorted(mutfo)])
             if mutfo != final_mutfo:
                 print '      note: final snp positions (%s) differ from inferred snp positions (%s)' % (' '.join([str(p) for p in sorted(final_mutfo)]), ' '.join([str(p) for p in sorted(mutfo)]))
