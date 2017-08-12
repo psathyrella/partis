@@ -378,6 +378,7 @@ default_varvals = {
     'data' : {
         'jason-mg' : ['HD07-igh', 'HD07-igk', 'HD07-igl', 'AR03-igh', 'AR03-igk', 'AR03-igl'],
         # 'kate-qrs' : ['1g', '4g'],
+        # 'three-finger' : ['3ftx-1-igh', 'pla2-1-igh'],
         # 'kate-qrs' : ['1g', '1k', '1l', '4g', '4k', '4l', '2k', '2l', '3k', '3l'],
         # 'jason-influenza' : ['FV-igh-m8d', 'FV-igh-p7d', 'FV-igh-p28d'],
     }
