@@ -1,5 +1,5 @@
 !!python/object:hmmwriter.HMM
-extras: {gene_prob: 0.03313840155945419, overall_mute_freq: 0.13205263157894737}
+extras: {gene_prob: 0.03313840155945419, overall_mute_freq: 0.13205263157894737, per_gene_mute_freq: 0.1223030857200634}
 name: IGHV1_slash_OR15-1_star_04
 states:
 - !!python/object:hmmwriter.State
@@ -16,21 +16,21 @@ states:
   transitions: {IGHV1_slash_OR15-1_star_04_0: 0.6666666666666666, insert_left_N: 0.33333333333333337}
 - !!python/object:hmmwriter.State
   emissions:
-    probs: {A: 0.011764705882352941, C: 0.9647058823529412, G: 0.011764705882352941, T: 0.011764705882352941}
+    probs: {A: 0.011904761904761904, C: 0.9642857142857143, G: 0.011904761904761904, T: 0.011904761904761904}
     track: nukes
   extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: C}
   name: IGHV1_slash_OR15-1_star_04_0
   transitions: {IGHV1_slash_OR15-1_star_04_1: 1.0}
 - !!python/object:hmmwriter.State
   emissions:
-    probs: {A: 0.9764705882352941, C: 0.00784313725490196, G: 0.00784313725490196, T: 0.00784313725490196}
+    probs: {A: 0.9647058823529412, C: 0.011764705882352941, G: 0.011764705882352941, T: 0.011764705882352941}
     track: nukes
   extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: A}
   name: IGHV1_slash_OR15-1_star_04_1
   transitions: {IGHV1_slash_OR15-1_star_04_2: 1.0}
 - !!python/object:hmmwriter.State
   emissions:
-    probs: {A: 0.01568627450980392, C: 0.01568627450980392, G: 0.9529411764705882, T: 0.01568627450980392}
+    probs: {A: 0.0196078431372549, C: 0.0196078431372549, G: 0.9411764705882353, T: 0.0196078431372549}
     track: nukes
   extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: G}
   name: IGHV1_slash_OR15-1_star_04_2
@@ -44,7 +44,7 @@ states:
   transitions: {IGHV1_slash_OR15-1_star_04_4: 1.0}
 - !!python/object:hmmwriter.State
   emissions:
-    probs: {A: 0.00784313725490196, C: 0.00784313725490196, G: 0.00784313725490196, T: 0.9764705882352941}
+    probs: {A: 0.011764705882352941, C: 0.011764705882352941, G: 0.011764705882352941, T: 0.9647058823529412}
     track: nukes
   extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: T}
   name: IGHV1_slash_OR15-1_star_04_4

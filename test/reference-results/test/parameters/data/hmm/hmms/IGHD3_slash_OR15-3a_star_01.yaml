@@ -1,5 +1,5 @@
 !!python/object:hmmwriter.HMM
-extras: {gene_prob: 0.004559270516717325, overall_mute_freq: 0.11775835866261401}
+extras: {gene_prob: 0.004559270516717325, overall_mute_freq: 0.11775835866261401, per_gene_mute_freq: 0.29109320651007464}
 name: IGHD3_slash_OR15-3a_star_01
 states:
 - !!python/object:hmmwriter.State
@@ -20,7 +20,7 @@ states:
     insert_left_T: 0.15864725264192756}
 - !!python/object:hmmwriter.State
   emissions:
-    probs: {A: 0.7659505481898736, C: 0.07801648393670879, G: 0.07801648393670879, T: 0.07801648393670879}
+    probs: {A: 0.7659505481898741, C: 0.07801648393670864, G: 0.07801648393670864, T: 0.07801648393670864}
     track: nukes
   extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: A}
   name: insert_left_A
@@ -38,7 +38,7 @@ states:
     insert_left_T: 0.15928573016144199}
 - !!python/object:hmmwriter.State
   emissions:
-    probs: {A: 0.07801648393670879, C: 0.7659505481898736, G: 0.07801648393670879, T: 0.07801648393670879}
+    probs: {A: 0.07801648393670864, C: 0.7659505481898741, G: 0.07801648393670864, T: 0.07801648393670864}
     track: nukes
   extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: C}
   name: insert_left_C
@@ -56,7 +56,7 @@ states:
     insert_left_T: 0.15928573016144199}
 - !!python/object:hmmwriter.State
   emissions:
-    probs: {A: 0.07801648393670879, C: 0.07801648393670879, G: 0.7659505481898736, T: 0.07801648393670879}
+    probs: {A: 0.07801648393670864, C: 0.07801648393670864, G: 0.7659505481898741, T: 0.07801648393670864}
     track: nukes
   extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: G}
   name: insert_left_G
@@ -74,7 +74,7 @@ states:
     insert_left_T: 0.15928573016144199}
 - !!python/object:hmmwriter.State
   emissions:
-    probs: {A: 0.07801648393670879, C: 0.07801648393670879, G: 0.07801648393670879, T: 0.7659505481898736}
+    probs: {A: 0.07801648393670864, C: 0.07801648393670864, G: 0.07801648393670864, T: 0.7659505481898741}
     track: nukes
   extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: T}
   name: insert_left_T

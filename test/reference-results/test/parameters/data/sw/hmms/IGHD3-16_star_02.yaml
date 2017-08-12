@@ -1,5 +1,5 @@
 !!python/object:hmmwriter.HMM
-extras: {gene_prob: 0.06194029850746269, overall_mute_freq: 0.11870895522388061}
+extras: {gene_prob: 0.06194029850746269, overall_mute_freq: 0.11870895522388061, per_gene_mute_freq: 0.19353719008060702}
 name: IGHD3-16_star_02
 states:
 - !!python/object:hmmwriter.State
@@ -19,7 +19,7 @@ states:
     insert_left_T: 0.11046075241156124}
 - !!python/object:hmmwriter.State
   emissions:
-    probs: {A: 0.824747000151581, C: 0.05841766661613968, G: 0.05841766661613968, T: 0.05841766661613968}
+    probs: {A: 0.824747000151581, C: 0.05841766661613967, G: 0.05841766661613967, T: 0.05841766661613967}
     track: nukes
   extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: A}
   name: insert_left_A
@@ -36,7 +36,7 @@ states:
     insert_left_T: 0.16577891566855987}
 - !!python/object:hmmwriter.State
   emissions:
-    probs: {A: 0.05841766661613968, C: 0.824747000151581, G: 0.05841766661613968, T: 0.05841766661613968}
+    probs: {A: 0.05841766661613967, C: 0.824747000151581, G: 0.05841766661613967, T: 0.05841766661613967}
     track: nukes
   extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: C}
   name: insert_left_C
@@ -53,7 +53,7 @@ states:
     insert_left_T: 0.16577891566855987}
 - !!python/object:hmmwriter.State
   emissions:
-    probs: {A: 0.05841766661613968, C: 0.05841766661613968, G: 0.824747000151581, T: 0.05841766661613968}
+    probs: {A: 0.05841766661613967, C: 0.05841766661613967, G: 0.824747000151581, T: 0.05841766661613967}
     track: nukes
   extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: G}
   name: insert_left_G
@@ -70,7 +70,7 @@ states:
     insert_left_T: 0.16577891566855987}
 - !!python/object:hmmwriter.State
   emissions:
-    probs: {A: 0.05841766661613968, C: 0.05841766661613968, G: 0.05841766661613968, T: 0.824747000151581}
+    probs: {A: 0.05841766661613967, C: 0.05841766661613967, G: 0.05841766661613967, T: 0.824747000151581}
     track: nukes
   extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: T}
   name: insert_left_T

@@ -1,5 +1,5 @@
 !!python/object:hmmwriter.HMM
-extras: {gene_prob: 0.044832826747720364, overall_mute_freq: 0.11775835866261401}
+extras: {gene_prob: 0.044832826747720364, overall_mute_freq: 0.11775835866261401, per_gene_mute_freq: 0.13038214963328457}
 name: IGHD6-6_star_01
 states:
 - !!python/object:hmmwriter.State
@@ -14,7 +14,7 @@ states:
     insert_left_G: 0.2666090511269325, insert_left_T: 0.17072795252967274}
 - !!python/object:hmmwriter.State
   emissions:
-    probs: {A: 0.8897990753790977, C: 0.03673364154030075, G: 0.03673364154030075, T: 0.03673364154030075}
+    probs: {A: 0.8897990753790977, C: 0.03673364154030076, G: 0.03673364154030076, T: 0.03673364154030076}
     track: nukes
   extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: A}
   name: insert_left_A
@@ -26,7 +26,7 @@ states:
     insert_left_G: 0.27826677766079866, insert_left_T: 0.17819318963945946}
 - !!python/object:hmmwriter.State
   emissions:
-    probs: {A: 0.03673364154030075, C: 0.8897990753790977, G: 0.03673364154030075, T: 0.03673364154030075}
+    probs: {A: 0.03673364154030076, C: 0.8897990753790977, G: 0.03673364154030076, T: 0.03673364154030076}
     track: nukes
   extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: C}
   name: insert_left_C
@@ -38,7 +38,7 @@ states:
     insert_left_G: 0.27826677766079866, insert_left_T: 0.17819318963945946}
 - !!python/object:hmmwriter.State
   emissions:
-    probs: {A: 0.03673364154030075, C: 0.03673364154030075, G: 0.8897990753790977, T: 0.03673364154030075}
+    probs: {A: 0.03673364154030076, C: 0.03673364154030076, G: 0.8897990753790977, T: 0.03673364154030076}
     track: nukes
   extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: G}
   name: insert_left_G
@@ -50,7 +50,7 @@ states:
     insert_left_G: 0.27826677766079866, insert_left_T: 0.17819318963945946}
 - !!python/object:hmmwriter.State
   emissions:
-    probs: {A: 0.03673364154030075, C: 0.03673364154030075, G: 0.03673364154030075, T: 0.8897990753790977}
+    probs: {A: 0.03673364154030076, C: 0.03673364154030076, G: 0.03673364154030076, T: 0.8897990753790977}
     track: nukes
   extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: T}
   name: insert_left_T

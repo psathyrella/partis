@@ -1,5 +1,5 @@
 !!python/object:hmmwriter.HMM
-extras: {gene_prob: 0.17660818713450294, overall_mute_freq: 0.13205263157894737}
+extras: {gene_prob: 0.17660818713450294, overall_mute_freq: 0.13205263157894737, per_gene_mute_freq: 0.1327895063460519}
 name: IGHV1-2_star_02
 states:
 - !!python/object:hmmwriter.State
@@ -751,7 +751,7 @@ states:
   transitions: {IGHV1-2_star_02_105: 1.0}
 - !!python/object:hmmwriter.State
   emissions:
-    probs: {A: 0.0036791758646063286, C: 0.0036791758646063286, G: 0.0036791758646063286, T: 0.988962472406181}
+    probs: {A: 0.0029433406916850625, C: 0.0029433406916850625, G: 0.0029433406916850625, T: 0.9911699779249448}
     track: nukes
   extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: T}
   name: IGHV1-2_star_02_105
