@@ -25,7 +25,6 @@ class AlleleClusterer(object):
         # self.min_cluster_fraction = 0.004
         self.max_number_of_clusters = 50  # of order the number of expected "V gene clusters", i.e. counting groups of very nearby genes as one cluster
         self.max_j_mutations = 8
-        self.small_number_of_j_mutations = 3
         self.min_n_snps = 5
 
         # it's not a super sensible distinction, but for now <qr_seqs> is passed around (i.e. not a member variable) since it's what's actually looped over for clusters, and everything else is a member variable
@@ -264,7 +263,6 @@ class AlleleClusterer(object):
             new_seq = clusterfo['cons_seq'].replace('-', '')  # I'm not sure that I completely understand the dashes in this sequence, but it seems to be right to just remove 'em
 
             aligned_template_seq, aligned_new_seq = utils.align_seqs(template_seq, clusterfo['cons_seq'])
-            # n_snps_to_template = utils.hamming_distance(aligned_template_seq, aligned_new_seq)  # number of snps (excluding indels) between the most common existing gene from this cluster (the template) and the consensus (new) sequences
             has_indels = '-' in aligned_template_seq.strip('-') or '-' in aligned_new_seq.strip('-')  # only counts internal indels
             cluster_mfreqs = {r : [self.mfreqs[r][seqfo['name']] for seqfo in clusterfo['seqfos']] for r in self.mfreqs}  # regional mfreqs for each sequence in the cluster corresponding to the initially-assigned existing gene
             mean_cluster_mfreqs = {r : numpy.mean(cluster_mfreqs[r]) for r in cluster_mfreqs}
@@ -291,15 +289,16 @@ class AlleleClusterer(object):
                 continue
             assert new_seq not in new_alleles.values()  # if it's the same seq, it should've got the same damn name
 
-            if self.too_close_to_existing_glfo_gene(clusterfo, new_seq, template_seq, template_cpos, template_gene, debug=debug):
-                continue
+            if not has_indels:  # we assume that the presence of indels somewhat precludes false positives, which is equivalent to an assumption about the rarity of shm indels
+                if self.too_close_to_existing_glfo_gene(clusterfo, new_seq, template_seq, template_cpos, template_gene, debug=debug):  # presumably if it were really close to another (non-template) existing glfo gene, that one would've been the template
+                    continue
 
-            if self.too_close_to_already_added_gene(new_seq, new_alleles, debug=debug):
-                continue
+                if mean_cluster_mfreqs['v'] / mean_cluster_mfreqs['j'] < self.mean_mfreqs['v'] / self.mean_mfreqs['j']:
+                    if debug:
+                        print 'v / j cluster mfreqs too low %6.3f < %6.3f' % (mean_cluster_mfreqs['v'] / mean_cluster_mfreqs['j'], self.mean_mfreqs['v'] / self.mean_mfreqs['j'])
+                    continue
 
-            if not has_indels and mean_cluster_mfreqs['v'] / mean_cluster_mfreqs['j'] < self.mean_mfreqs['v'] / self.mean_mfreqs['j']:
-                if debug:
-                    print 'v / j cluster mfreqs too low %6.3f < %6.3f' % (mean_cluster_mfreqs['v'] / mean_cluster_mfreqs['j'], self.mean_mfreqs['v'] / self.mean_mfreqs['j'])
+            if self.too_close_to_already_added_gene(new_seq, new_alleles, debug=debug):  # this needs to be applied even if there are indels, since the indels are with respect to the (existing glfo) template gene, not to the [potentially] previously-added gene
                 continue
 
             print '%s %s%s' % (utils.color('red', 'new'), utils.color_gene(new_name), ' (exists in default germline dir)' if new_name in default_initial_glfo['seqs'][self.region] else '')
@@ -319,8 +318,8 @@ class AlleleClusterer(object):
             return False
 
         mean_j_mutations = numpy.mean([self.all_j_mutations[seqfo['name']] for seqfo in clusterfo['seqfos']])  # TODO <self.all_j_mutations> uses everybody in the cluster, rather than just the representative. It'd be nice to synchronize this with other things
-        pre_cpos_snps = utils.hamming_distance(new_seq[:template_cpos], template_seq[:template_cpos])  # TODO should probably update this to do the same thing (with min([])) as up in decide_whether_to_remove_template_genes()
-        # if pre_cpos_snps < self.args.n_max_snps and mean_j_mutations > self.small_number_of_j_mutations:
+        # TODO should probably update this to do the same thing (with min([])) as up in decide_whether_to_remove_template_genes(), or just use the new <align> option to utils.hamming_distance (although that would be slower, and this seems to work ok)
+        pre_cpos_snps = utils.hamming_distance(new_seq[:template_cpos], template_seq[:template_cpos])
         factor = 1.75
         if pre_cpos_snps < self.min_n_snps or pre_cpos_snps < factor * mean_j_mutations:  # i.e. we keep if it's *further* than factor * <number of j mutations> from the closest existing allele (should presumably rescale by some factor to go from j --> v, but it seems like the factor's near to 1.)
             if debug:
@@ -332,9 +331,9 @@ class AlleleClusterer(object):
     # ----------------------------------------------------------------------------------------
     def too_close_to_already_added_gene(self, new_seq, new_alleles, debug=False):
         for added_name, added_info in new_alleles.items():
-            tmp_n_snps = utils.hamming_distance(added_info['seq'], new_seq, align=True)
-            if tmp_n_snps < self.min_n_snps or tmp_n_snps < self.args.n_max_snps:
+            n_snps = utils.hamming_distance(added_info['seq'], new_seq, align=True)
+            if n_snps < self.min_n_snps or n_snps < self.args.n_max_snps:
                 if debug:
-                    print 'too close (%d snp%s) to gene we just added %s' % (tmp_n_snps, utils.plural(tmp_n_snps), utils.color_gene(added_name))
+                    print 'too close (%d snp%s) to gene we just added %s' % (n_snps, utils.plural(n_snps), utils.color_gene(added_name))
                 return True
         return False
