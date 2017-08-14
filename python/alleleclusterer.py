@@ -1,3 +1,4 @@
+import copy
 import numpy
 import itertools
 import operator
@@ -29,6 +30,9 @@ class AlleleClusterer(object):
 
         self.all_j_mutations = None
 
+        assert len(utils.gap_chars) == 2  # i just want to hard code it below, dammit
+        assert '-' in utils.gap_chars
+        assert '.' in utils.gap_chars
 
     # ----------------------------------------------------------------------------------------
     def get_glcounts(self, clusterfo, gene_info):  # return map from gene : counts for this cluster
@@ -50,18 +54,33 @@ class AlleleClusterer(object):
         return sorted_glcounts, true_sorted_glcounts
 
     # ----------------------------------------------------------------------------------------
-    def print_cluster(self, clusterfo, sorted_glcounts, new_seq, mean_j_mutations, true_sorted_glcounts):
-        if self.all_j_mutations is not None:
-            print '   %5.1f' % mean_j_mutations,
-        print ''
-        print '           %-20s  %4s   %s' % ('consensus', '', new_seq)
-        for gene, counts in sorted_glcounts:
-            print '           %-20s  %4d   %s' % (utils.color_gene(gene, width=20), counts, utils.color_mutants(new_seq, self.glfo['seqs'][self.region][gene], print_isnps=True, align=True))
+    def print_cluster(self, iclust, clusterfo, sorted_glcounts, new_seq, true_sorted_glcounts, mean_cluster_mfreqs, has_indels):
+        if iclust > 0:
+            print ''
+        print '    %-3d  %4d   %6.3f' % (iclust, len(clusterfo['seqfos']), mean_cluster_mfreqs['v'] / mean_cluster_mfreqs['j']),
+        for igene in range(len(sorted_glcounts)):
+            if igene > 0:
+                print '%30s' % '',
+            gene, counts = sorted_glcounts[igene]
+            print '      %-s %4d      %2d%s' % (utils.color_gene(gene, width=15), counts, utils.hamming_distance(new_seq, self.glfo['seqs'][self.region][gene], align=True), ' (%s)' % utils.color('blue', 'x') if has_indels else ''),
+            if igene < len(sorted_glcounts) - 1 or self.reco_info is not None:
+                print ''
         if self.reco_info is not None:
-            print '       %s   %.1f' % (utils.color('green', 'true'), numpy.mean([utils.get_n_muted(self.reco_info[seqfo['name']], iseq=0, restrict_to_region=self.other_region) for seqfo in clusterfo['seqfos']]))
-            print '           %-20s  %4s   %s' % ('consensus', '', new_seq)
-            for gene, counts in true_sorted_glcounts:
-                print '           %-12s  %4d   %s' % (utils.color_gene(gene, width=20), counts, utils.color_mutants(new_seq, self.simglfo['seqs'][self.region][gene], print_isnps=True, align=True))
+            for igene in range(len(true_sorted_glcounts)):
+                gene, counts = true_sorted_glcounts[igene]
+                print '%20s       %s %-s %4d %s    %2d' % ('', utils.color('green', '['), utils.color_gene(gene, width=15), counts, utils.color('green', ']'), utils.hamming_distance(new_seq, self.simglfo['seqs'][self.region][gene], align=True)),
+                if igene < len(true_sorted_glcounts) - 1:
+                    print ''
+
+        # print '           %-20s  %4s   %s' % ('consensus', '', new_seq)
+        # for gene, counts in sorted_glcounts:
+        #     print '           %-20s  %4d   %s' % (utils.color_gene(gene, width=20), counts, utils.color_mutants(new_seq, self.glfo['seqs'][self.region][gene], print_isnps=True, align=True))
+        # if self.reco_info is not None:
+        #     print '       %s   %.1f' % (utils.color('green', 'true'), numpy.mean([utils.get_n_muted(self.reco_info[seqfo['name']], iseq=0, restrict_to_region=self.other_region) for seqfo in clusterfo['seqfos']]))
+        #     print '           %-20s  %4s   %s' % ('consensus', '', new_seq)
+        #     for gene, counts in true_sorted_glcounts:
+        #         print '           %-12s  %4d   %s' % (utils.color_gene(gene, width=20), counts, utils.color_mutants(new_seq, self.simglfo['seqs'][self.region][gene], print_isnps=True, align=True))
+
 
     # ----------------------------------------------------------------------------------------
     def decide_whether_to_remove_template_genes(self, msa_info, gene_info, new_alleles, debug=False):
@@ -171,10 +190,18 @@ class AlleleClusterer(object):
                     self.all_j_mutations[query] = j_mutations[query]  # I don't think I can key by the cluster str, since here things correspond to the naive-seq-collapsed clusters, then we remove some of the clusters, and then cluster with vsearch
             print '   collapsed %d input sequences into %d representatives from %d clones (removed %d clones with >= %d j mutations)' % (len(full_length_queries), len(qr_seqs), len(clusters), len(clusters) - len(qr_seqs), self.max_j_mutations)
             gene_info = {q : swfo[q][self.region + '_gene'] for q in qr_seqs}  # assigned gene for the clonal representative from each cluster that we used (i.e. *not* from every sequence in the sample)
+            self.mfreqs = {  # NOTE doesn't account for indels (they're calculated on indel-reversed seqs)
+                'v' : {q : utils.get_mutation_rate(swfo[q], iseq=0, restrict_to_region='v') for q in qr_seqs},
+                'j' : {q : utils.get_mutation_rate(swfo[q], iseq=0, restrict_to_region='j') for q in qr_seqs},
+            }
+            self.mean_mfreqs = {r : numpy.mean(self.mfreqs[r].values()) for r in self.mfreqs}
+            print '    repertoire-wide  mutation:   v / j = %6.3f / %6.3f = %6.3f' % (self.mean_mfreqs['v'], self.mean_mfreqs['j'], self.mean_mfreqs['v'] / self.mean_mfreqs['j'])
 
             assert self.region == 'v'  # need to think about whether this should always be j, or if it should be self.other_region
             j_mfreqs = [utils.get_mutation_rate(swfo[q], iseq=0, restrict_to_region='j') for q in qr_seqs]
             threshold = numpy.mean(j_mfreqs) / 1.5  # v mut freq will be way off for any very different new alleles
+
+        tmp_glfo = copy.deepcopy(default_initial_glfo)  # so we can add new genes to it, so we can check for equivalency more easily TODO fix that shit, obviously
 
         # then vsearch cluster the v-sequences in <qr_seqs> using a heuristic j-mutation-based threshold
         msa_fname = self.args.workdir + '/msa.fa'
@@ -208,7 +235,7 @@ class AlleleClusterer(object):
         # and finally loop over eah cluster, deciding if it corresponds to a new allele
         if debug:
             print '  looping over %d clusters with %d sequences' % (len(clusterfos), sum([len(cfo['seqfos']) for cfo in clusterfos]))
-            print '   rank  seqs   %s mutations (mean)' % self.other_region
+            print '   rank  seqs   v/j mfreq      gene          counts   snps (indels)'
         new_alleles = {}
         n_existing_gene_clusters = 0
         for iclust in range(len(clusterfos)):
@@ -222,28 +249,30 @@ class AlleleClusterer(object):
             template_gene, template_counts = sorted_glcounts[0]
             template_seq = self.glfo['seqs'][self.region][template_gene]
             template_cpos = utils.cdn_pos(self.glfo, self.region, template_gene)
-            mean_j_mutations = numpy.mean([self.all_j_mutations[seqfo['name']] for seqfo in clusterfo['seqfos']])
 
+            assert '.' not in clusterfo['cons_seq']  # make sure you haven't switched to something that doesn't use '-' for gap chars
             new_seq = clusterfo['cons_seq'].replace('-', '')  # I'm not sure that I completely understand the dashes in this sequence, but it seems to be right to just remove 'em
 
-            equiv_name, equiv_seq = glutils.find_equivalent_gene_in_glfo(default_initial_glfo, new_seq, template_cpos)
+            aligned_template_seq, aligned_new_seq = utils.align_seqs(template_seq, clusterfo['cons_seq'])
+            n_snps = utils.hamming_distance(aligned_template_seq, aligned_new_seq)  # number of snps (excluding indels) between the most common existing gene from this cluster (the template) and the consensus (new) sequences
+            has_indels = '-' in aligned_template_seq.strip('-') or '-' in aligned_new_seq.strip('-')
+            cluster_mfreqs = {r : [self.mfreqs[r][seqfo['name']] for seqfo in clusterfo['seqfos']] for r in self.mfreqs}  # regional mfreqs for each sequence in the cluster corresponding to the initially-assigned existing gene
+            mean_cluster_mfreqs = {r : numpy.mean(cluster_mfreqs[r]) for r in cluster_mfreqs}
+
+            equiv_name, equiv_seq = glutils.find_equivalent_gene_in_glfo(tmp_glfo, new_seq, template_cpos)
             if equiv_name is not None:
                 new_name = equiv_name
                 new_seq = equiv_seq
             else:
-                aligned_template_seq, aligned_new_seq = utils.align_seqs(template_seq, clusterfo['cons_seq'])
-                indelfo = None
-                if '-' in aligned_template_seq or '-' in aligned_new_seq:
-                    indelfo = {'indels' : ['xxx', 'xxx', 'xxx']}  # the fcn just checks to see if it's non-None and of length greater than zero...
-                new_name, _ = glutils.choose_new_allele_name(template_gene, new_seq, indelfo=indelfo)  # TODO it would be nice to figure out actual snp and indel info
+                new_name, _ = glutils.choose_new_allele_name(template_gene, new_seq, indelfo={'indels' : ['xxx', 'xxx', 'xxx']} if has_indels else None)  # the fcn just checks to see if it's non-None and of length greater than zero...TODO it would be nice to figure out actual snp and indel info
 
             if debug:
-                print '    %-3d  %4d' % (iclust, len(clusterfo['seqfos'])),
+                self.print_cluster(iclust, clusterfo, sorted_glcounts, new_seq, true_sorted_glcounts, mean_cluster_mfreqs, has_indels)
 
             if new_name in self.glfo['seqs'][self.region]:  # note that this only looks in <self.glfo>, not in <new_alleles>
                 n_existing_gene_clusters += 1
                 if debug:
-                    print '    %s' % utils.color_gene(new_name)
+                    print '    existing %s' % utils.color_gene(new_name)
                 continue
 
             if new_name in new_alleles:  # already added it
@@ -252,28 +281,27 @@ class AlleleClusterer(object):
                 continue
             assert new_seq not in new_alleles.values()  # if it's the same seq, it should've got the same damn name
 
-            if debug:
-                self.print_cluster(clusterfo, sorted_glcounts, new_seq, mean_j_mutations, true_sorted_glcounts)
-
-            if len(new_seq[:template_cpos]) == len(template_seq[:template_cpos]):
-                n_snps = utils.hamming_distance(new_seq[:template_cpos], template_seq[:template_cpos])  # TODO should probably update this to do the same thing (with min([])) as up in decide_whether_to_remove_template_genes()
-                # if n_snps < self.args.n_max_snps and mean_j_mutations > self.small_number_of_j_mutations:
+            if len(new_seq[:template_cpos]) == len(template_seq[:template_cpos]):  # update this to use the new n_snps from the aligned template/new seqs
+                mean_j_mutations = numpy.mean([self.all_j_mutations[seqfo['name']] for seqfo in clusterfo['seqfos']])
+                pre_cpos_snps = utils.hamming_distance(new_seq[:template_cpos], template_seq[:template_cpos])  # TODO should probably update this to do the same thing (with min([])) as up in decide_whether_to_remove_template_genes()
+                # if pre_cpos_snps < self.args.n_max_snps and mean_j_mutations > self.small_number_of_j_mutations:
                 factor = 1.75
-                if n_snps < self.min_n_snps or n_snps < factor * mean_j_mutations:  # i.e. we keep if it's *further* than factor * <number of j mutations> from the closest existing allele (should presumably rescale by some factor to go from j --> v, but it seems like the factor's near to 1.)
+                if pre_cpos_snps < self.min_n_snps or pre_cpos_snps < factor * mean_j_mutations:  # i.e. we keep if it's *further* than factor * <number of j mutations> from the closest existing allele (should presumably rescale by some factor to go from j --> v, but it seems like the factor's near to 1.)
                     if debug:
-                        print '      too close (%d snp%s < %.2f = %.2f * %.1f mean j mutation%s) to existing glfo gene %s' % (n_snps, utils.plural(n_snps), factor * mean_j_mutations, factor, mean_j_mutations, utils.plural(mean_j_mutations), utils.color_gene(template_gene))
+                        print '    too close (%d snp%s < %.2f = %.2f * %.1f mean j mutation%s) to existing glfo gene %s' % (pre_cpos_snps, utils.plural(pre_cpos_snps), factor * mean_j_mutations, factor, mean_j_mutations, utils.plural(mean_j_mutations), utils.color_gene(template_gene))
                     continue
 
             if self.too_close_to_already_added_gene(new_seq, new_alleles, debug=debug):
                 continue
 
-            print '       %s %s%s' % (utils.color('red', 'new'), utils.color_gene(new_name), ' (exists in default germline dir)' if new_name in default_initial_glfo['seqs'][self.region] else '')
+            print '    %s %s%s' % (utils.color('red', 'new'), utils.color_gene(new_name), ' (exists in default germline dir)' if new_name in default_initial_glfo['seqs'][self.region] else '')
             new_alleles[new_name] = {'template-gene' : template_gene, 'gene' : new_name, 'seq' : new_seq}
+            glutils.add_new_allele(tmp_glfo, new_alleles[new_name])  # just so we can check for equivalency
 
         if debug:
             print '  %d / %d clusters consensed to existing genes' % (n_existing_gene_clusters, len(msa_info))
 
-        self.decide_whether_to_remove_template_genes(msa_info, gene_info, new_alleles, debug=debug)
+        self.decide_whether_to_remove_template_genes(msa_info, gene_info, new_alleles, debug=False)
 
         return new_alleles
 
@@ -283,6 +311,6 @@ class AlleleClusterer(object):
             _, isnps = utils.color_mutants(added_info['seq'], new_seq, return_isnps=True, align=True)  # oh man that could be cleaner
             if len(isnps) < self.min_n_snps or len(isnps) < self.args.n_max_snps:
                 if debug:
-                    print '      too close (%d snp%s) to gene we just added %s' % (len(isnps), utils.plural(len(isnps)), utils.color_gene(added_name))
+                    print '    too close (%d snp%s) to gene we just added %s' % (len(isnps), utils.plural(len(isnps)), utils.color_gene(added_name))
                 return True
         return False
