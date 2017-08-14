@@ -19,7 +19,7 @@ def simplify_state_name(state_name):
 # ----------------------------------------------------------------------------------------
 def read_mute_info(indir, this_gene, locus, approved_genes=None):  # NOTE this would probably be more accurate if we made some effort to align the genes before combining all the approved ones
     if this_gene == glutils.dummy_d_genes[locus]:
-        return {'overall_mean' : 0.5}, {}
+        return {'overall_mean' : 0.5, 'unweighted_overall_mean' : 0.5}, {}
 
     if approved_genes is None:
         approved_genes = [this_gene, ]
