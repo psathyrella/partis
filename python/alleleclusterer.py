@@ -190,12 +190,12 @@ class AlleleClusterer(object):
                     self.all_j_mutations[query] = j_mutations[query]  # I don't think I can key by the cluster str, since here things correspond to the naive-seq-collapsed clusters, then we remove some of the clusters, and then cluster with vsearch
             print '   collapsed %d input sequences into %d representatives from %d clones (removed %d clones with >= %d j mutations)' % (len(full_length_queries), len(qr_seqs), len(clusters), len(clusters) - len(qr_seqs), self.max_j_mutations)
             gene_info = {q : swfo[q][self.region + '_gene'] for q in qr_seqs}  # assigned gene for the clonal representative from each cluster that we used (i.e. *not* from every sequence in the sample)
-            self.mfreqs = {  # NOTE doesn't account for indels (they're calculated on indel-reversed seqs)
+            self.mfreqs = {  # NOTE only includes cluster representatives, i.e. it's biased towards sequences with low overall mutation, and low j mutation
                 'v' : {q : utils.get_mutation_rate(swfo[q], iseq=0, restrict_to_region='v') for q in qr_seqs},
                 'j' : {q : utils.get_mutation_rate(swfo[q], iseq=0, restrict_to_region='j') for q in qr_seqs},
             }
             self.mean_mfreqs = {r : numpy.mean(self.mfreqs[r].values()) for r in self.mfreqs}
-            print '    repertoire-wide  mutation:   v / j = %6.3f / %6.3f = %6.3f' % (self.mean_mfreqs['v'], self.mean_mfreqs['j'], self.mean_mfreqs['v'] / self.mean_mfreqs['j'])
+            print '    mutation among all cluster representatives:   v / j = %6.3f / %6.3f = %6.3f' % (self.mean_mfreqs['v'], self.mean_mfreqs['j'], self.mean_mfreqs['v'] / self.mean_mfreqs['j'])
 
             assert self.region == 'v'  # need to think about whether this should always be j, or if it should be self.other_region
             j_mfreqs = [utils.get_mutation_rate(swfo[q], iseq=0, restrict_to_region='j') for q in qr_seqs]
@@ -235,7 +235,7 @@ class AlleleClusterer(object):
         # and finally loop over eah cluster, deciding if it corresponds to a new allele
         if debug:
             print '  looping over %d clusters with %d sequences' % (len(clusterfos), sum([len(cfo['seqfos']) for cfo in clusterfos]))
-            print '   rank  seqs   v/j mfreq                 counts    snps (indels)'
+            print '   rank  seqs   v/j mfreq                 seqs      snps (indels)'
         new_alleles = {}
         n_existing_gene_clusters = 0
         for iclust in range(len(clusterfos)):
@@ -288,7 +288,7 @@ class AlleleClusterer(object):
                 factor = 1.75
                 if pre_cpos_snps < self.min_n_snps or pre_cpos_snps < factor * mean_j_mutations:  # i.e. we keep if it's *further* than factor * <number of j mutations> from the closest existing allele (should presumably rescale by some factor to go from j --> v, but it seems like the factor's near to 1.)
                     if debug:
-                        print '    too close (%d snp%s < %.2f = %.2f * %.1f mean j mutation%s) to existing glfo gene %s' % (pre_cpos_snps, utils.plural(pre_cpos_snps), factor * mean_j_mutations, factor, mean_j_mutations, utils.plural(mean_j_mutations), utils.color_gene(template_gene))
+                        print '    too close to existing glfo gene %s (%d snp%s < %.2f = %.2f * %.1f mean j mutation%s)' % (utils.color_gene(template_gene), pre_cpos_snps, utils.plural(pre_cpos_snps), factor * mean_j_mutations, factor, mean_j_mutations, utils.plural(mean_j_mutations))
                     continue
 
             if self.too_close_to_already_added_gene(new_seq, new_alleles, debug=debug):
