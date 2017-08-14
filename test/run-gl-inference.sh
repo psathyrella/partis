@@ -21,6 +21,6 @@ for diff in hard; do
     done
 done
 
-
+label=v9
 # $cmd data --label $label $testopts --n-random-queries 5000  # laptop
 # $cmd data --label $label --n-procs-per-test 15
