@@ -62,13 +62,13 @@ class AlleleClusterer(object):
             if igene > 0:
                 print '%30s' % '',
             gene, counts = sorted_glcounts[igene]
-            print '      %-s %4d      %2d%s' % (utils.color_gene(gene, width=15), counts, utils.hamming_distance(new_seq, self.glfo['seqs'][self.region][gene], align=True), ' (%s)' % utils.color('blue', 'x') if has_indels else ''),
+            print '   %-s %4d      %2d%s' % (utils.color_gene(gene, width=15), counts, utils.hamming_distance(new_seq, self.glfo['seqs'][self.region][gene], align=True), ' (%s)' % utils.color('blue', 'x') if has_indels else ''),
             if igene < len(sorted_glcounts) - 1 or self.reco_info is not None:
                 print ''
         if self.reco_info is not None:
             for igene in range(len(true_sorted_glcounts)):
                 gene, counts = true_sorted_glcounts[igene]
-                print '%20s       %s %-s %4d %s    %2d' % ('', utils.color('green', '['), utils.color_gene(gene, width=15), counts, utils.color('green', ']'), utils.hamming_distance(new_seq, self.simglfo['seqs'][self.region][gene], align=True)),
+                print '%17s       %s %-s %4d %s    %2d' % ('', utils.color('green', '['), utils.color_gene(gene, width=15), counts, utils.color('green', ']'), utils.hamming_distance(new_seq, self.simglfo['seqs'][self.region][gene], align=True)),
                 if igene < len(true_sorted_glcounts) - 1:
                     print ''
 
@@ -235,7 +235,7 @@ class AlleleClusterer(object):
         # and finally loop over eah cluster, deciding if it corresponds to a new allele
         if debug:
             print '  looping over %d clusters with %d sequences' % (len(clusterfos), sum([len(cfo['seqfos']) for cfo in clusterfos]))
-            print '   rank  seqs   v/j mfreq      gene          counts   snps (indels)'
+            print '   rank  seqs   v/j mfreq                 counts    snps (indels)'
         new_alleles = {}
         n_existing_gene_clusters = 0
         for iclust in range(len(clusterfos)):
@@ -255,7 +255,7 @@ class AlleleClusterer(object):
 
             aligned_template_seq, aligned_new_seq = utils.align_seqs(template_seq, clusterfo['cons_seq'])
             n_snps = utils.hamming_distance(aligned_template_seq, aligned_new_seq)  # number of snps (excluding indels) between the most common existing gene from this cluster (the template) and the consensus (new) sequences
-            has_indels = '-' in aligned_template_seq.strip('-') or '-' in aligned_new_seq.strip('-')
+            has_indels = '-' in aligned_template_seq.strip('-') or '-' in aligned_new_seq.strip('-')  # only counts internal indels
             cluster_mfreqs = {r : [self.mfreqs[r][seqfo['name']] for seqfo in clusterfo['seqfos']] for r in self.mfreqs}  # regional mfreqs for each sequence in the cluster corresponding to the initially-assigned existing gene
             mean_cluster_mfreqs = {r : numpy.mean(cluster_mfreqs[r]) for r in cluster_mfreqs}
 
@@ -292,6 +292,11 @@ class AlleleClusterer(object):
                     continue
 
             if self.too_close_to_already_added_gene(new_seq, new_alleles, debug=debug):
+                continue
+
+            if not has_indels and mean_cluster_mfreqs['v'] / mean_cluster_mfreqs['j'] < self.mean_mfreqs['v'] / self.mean_mfreqs['j']:
+                if debug:
+                    print '    v / j cluster mfreqs too low %6.3f < %6.3f' % (mean_cluster_mfreqs['v'] / mean_cluster_mfreqs['j'], self.mean_mfreqs['v'] / self.mean_mfreqs['j'])
                 continue
 
             print '    %s %s%s' % (utils.color('red', 'new'), utils.color_gene(new_name), ' (exists in default germline dir)' if new_name in default_initial_glfo['seqs'][self.region] else '')
