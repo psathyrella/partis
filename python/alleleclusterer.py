@@ -293,17 +293,19 @@ class AlleleClusterer(object):
                 if self.too_close_to_existing_glfo_gene(clusterfo, new_seq, template_seq, template_cpos, template_gene, debug=debug):  # presumably if it were really close to another (non-template) existing glfo gene, that one would've been the template
                     continue
 
-                if mean_cluster_mfreqs['v'] / mean_cluster_mfreqs['j'] < self.mean_mfreqs['v'] / self.mean_mfreqs['j']:
-                    if debug:
-                        print 'v / j cluster mfreqs too low %6.3f < %6.3f' % (mean_cluster_mfreqs['v'] / mean_cluster_mfreqs['j'], self.mean_mfreqs['v'] / self.mean_mfreqs['j'])
-                    continue
+                if mean_cluster_mfreqs['j'] > 0. and self.mean_mfreqs['j'] > 0.:
+                    if mean_cluster_mfreqs['v'] / mean_cluster_mfreqs['j'] < self.mean_mfreqs['v'] / self.mean_mfreqs['j']:
+                        if debug:
+                            print 'v / j cluster mfreqs too low %6.3f < %6.3f' % (mean_cluster_mfreqs['v'] / mean_cluster_mfreqs['j'], self.mean_mfreqs['v'] / self.mean_mfreqs['j'])
+                        continue
 
             if self.too_close_to_already_added_gene(new_seq, new_alleles, debug=debug):  # this needs to be applied even if there are indels, since the indels are with respect to the (existing glfo) template gene, not to the [potentially] previously-added gene
                 continue
 
             print '%s %s%s' % (utils.color('red', 'new'), utils.color_gene(new_name), ' (exists in default germline dir)' if new_name in default_initial_glfo['seqs'][self.region] else '')
             new_alleles[new_name] = {'template-gene' : template_gene, 'gene' : new_name, 'seq' : new_seq}
-            glutils.add_new_allele(glfo_to_modify, new_alleles[new_name])  # just so we can check for equivalency
+            if new_alleles[new_name]['gene'] not in glfo_to_modify['seqs'][self.region]:  # if it's in <default_initial_glfo> it'll already be in there
+                glutils.add_new_allele(glfo_to_modify, new_alleles[new_name])  # just so we can check for equivalency
 
         if debug:
             print '  %d / %d clusters consensed to existing genes' % (n_existing_gene_clusters, len(msa_info))
