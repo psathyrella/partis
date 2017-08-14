@@ -722,7 +722,7 @@ def add_new_allele(glfo, newfo, remove_template_genes=False, use_template_for_co
                     if sim_seq == newfo['seq']:
                         simstr = 'same sequence found in simulation, but with name %s' % utils.color_gene(sim_name)
                     else:
-                        simstr = 'equivalent sequence (%s) found in simulation' % utils.color_gene(sim_name)
+                        simstr = '%s (%s) found in simulation' % (utils.color('green', 'equivalent sequence'), utils.color_gene(sim_name))
                 else:
                     simstr = 'doesn\'t seem to correspond to any simulation genes'
             simstr = '(' + simstr + ')'
