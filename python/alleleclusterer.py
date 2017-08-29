@@ -26,6 +26,7 @@ class AlleleClusterer(object):
         self.max_number_of_clusters = 50  # of order the number of expected "V gene clusters", i.e. counting groups of very nearby genes as one cluster
         self.max_j_mutations = 8
         self.min_n_snps = 5
+        self.mfreq_ratio_threshold = 1.25
 
         # it's not a super sensible distinction, but for now <qr_seqs> is passed around (i.e. not a member variable) since it's what's actually looped over for clusters, and everything else is a member variable
         self.all_j_mutations = None
@@ -239,12 +240,7 @@ class AlleleClusterer(object):
         qr_seqs, threshold = self.choose_clonal_representatives(swfo, debug=debug)
         if qr_seqs is None:
             return {}
-# ----------------------------------------------------------------------------------------
-        clusterfos, msa_info = self.cluster_v_seqs(qr_seqs, threshold=1., debug=True)
-        for clusterfo in clusterfos:
-            utils.run_mds(clusterfo['seqfos'], self.args.workdir + '/mds', outdir=os.getenv('PWD'), plotdir=os.getenv('PWD') + '/tmp-plots/' + str(clusterfos.index(clusterfo)), reco_info=self.reco_info)
-        sys.exit()
-# ----------------------------------------------------------------------------------------
+
         clusterfos, msa_info = self.cluster_v_seqs(qr_seqs, threshold, debug=debug)
 
         # and finally loop over each cluster, deciding if it corresponds to a new allele
@@ -300,9 +296,11 @@ class AlleleClusterer(object):
                     continue
 
                 if mean_cluster_mfreqs['j'] > 0. and self.mean_mfreqs['j'] > 0.:
-                    if mean_cluster_mfreqs['v'] / mean_cluster_mfreqs['j'] < self.mean_mfreqs['v'] / self.mean_mfreqs['j']:
+                    this_cluster_ratio = mean_cluster_mfreqs['v'] / mean_cluster_mfreqs['j']
+                    overall_ratio = self.mean_mfreqs['v'] / self.mean_mfreqs['j']
+                    if this_cluster_ratio / overall_ratio < self.mfreq_ratio_threshold:
                         if debug:
-                            print 'v / j cluster mfreqs too low %6.3f < %6.3f' % (mean_cluster_mfreqs['v'] / mean_cluster_mfreqs['j'], self.mean_mfreqs['v'] / self.mean_mfreqs['j'])
+                            print 'v / j cluster mfreqs too small %6.3f / %6.3f = %6.3f < %6.3f' % (this_cluster_ratio, overall_ratio, this_cluster_ratio / overall_ratio, self.mfreq_ratio_threshold)
                         continue
 
             if self.too_close_to_already_added_gene(new_seq, new_alleles, debug=debug):  # this needs to be applied even if there are indels, since the indels are with respect to the (existing glfo) template gene, not to the [potentially] previously-added gene
