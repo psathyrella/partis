@@ -22,42 +22,6 @@ from partitiondriver import PartitionDriver
 from partitionplotter import PartitionPlotter
 
 # ----------------------------------------------------------------------------------------
-plotdir = os.getenv('PWD')
-
-cmdlines = [
-    'require(bios2mds, quietly=TRUE)',
-    # set.seed(1503941627)
-    'data(gpcr)',
-    'human <- import.fasta(system.file("msa/human_gpcr.fa", package="bios2mds"))',
-    'active <- gpcr$dif$sapiens.sapiens',
-    'sup <- gpcr$dif$melanogaster.sapiens',
-    # mat.dif or mat.dis?
-    'mmds_active <- mmds(active, group.file=system.file("csv/human_gpcr_group.csv", package = "bios2mds"))',
-    'layout(matrix(1:6, 2, 3))',
-    'scree.plot(mmds_active$eigen.perc, lab = TRUE, title = "Scree plot of metric MDS", pdf.file="%s/scree.pdf")' % plotdir,
-    'mmds.2D.plot(mmds_active, title = "Sequence space of human GPCRs", outfile.name="%s/mmds-2d", outfile.type="pdf")' % plotdir,
-    # sil.score(mat, nb.clus = c(2:13), nb.run = 100, iter.max = 1000,  # run for every possible number of clusters (?)
-    #               method = "euclidean")
-    # mmds.plot(mmds_active) #, pdf.file="")  # does several of the above steps in one go
-    # random.msa  # builds a random [...]
-
-    # write.mmds.pdb(mmds_active)
-]
-
-workdir = '/tmp/dralph/mds'
-if not os.path.exists(workdir):
-    os.makedirs(workdir)
-cmdfname = workdir + '/mds.r'
-with open(cmdfname, 'w') as cmdfile:
-    cmdfile.write('\n'.join(cmdlines) + '\n')
-# check_call(['cat', cmdfname])
-check_call('cd %s && R --slave -f %s' % (workdir, cmdfname), shell=True)  # cd to workdir so stupid Rplots.pdf file doesn't get splooged into cwd
-os.remove(cmdfname)
-os.remove('%s/Rplots.pdf' % workdir )
-sys.exit()
-# ----------------------------------------------------------------------------------------
-
-# ----------------------------------------------------------------------------------------
 def default_parameter_dir(args):
     if args.infname is not None:
         label = args.infname[ : args.infname.rfind('.')]  # probably ok not to use the full path here

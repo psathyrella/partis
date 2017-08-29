@@ -2979,3 +2979,79 @@ def run_swarm(seqs, workdir, differences=1, n_procs=1):
     cp.print_partitions(abbreviate=True)
 
     return partition
+
+# ----------------------------------------------------------------------------------------
+def run_mds(seqfos, workdir, outdir, plotdir, reco_info=None):
+    region = 'v'
+
+    if not os.path.exists(workdir):
+        os.makedirs(workdir)
+    if not os.path.exists(plotdir):
+        os.makedirs(plotdir)
+
+    msafname = workdir + '/msa.fa'
+    group_csv_fname = workdir + '/groups.csv'
+
+    translations = string.maketrans('-0123456789', 'dabcdefghij')  # R does some horrible truncation or some bullshit when it reads the group csv
+
+    with open(msafname, 'w') as msafile:
+        for seqfo in seqfos:
+            msafile.write('>%s\n%s\n' % (seqfo['name'].translate(translations), seqfo['seq']))
+
+    if reco_info is not None:
+        colors = ['red', 'blue', 'green', 'forestgreen', 'grey', 'orange']
+        all_genes = list(set([reco_info[seqfo['name']][region + '_gene'] for seqfo in seqfos]))
+        if len(all_genes) > len(colors):
+            print '%s more genes %d than colors %d' % (color('yellow', 'warning'), len(all_genes), len(colors))
+        gene_colors = {all_genes[ig] : colors[ig % len(colors)] for ig in range(len(all_genes))}
+
+        with open(group_csv_fname, 'w') as groupfile:
+            for seqfo in seqfos:
+                gene = reco_info[seqfo['name']][region + '_gene']
+                groupfile.write('"%s","%s","%s"\n' % (seqfo['name'].translate(translations), gene, gene_colors[gene]))
+
+    cmdlines = [
+        # # functional example:
+        # 'require(bios2mds, quietly=TRUE)',
+        # 'data(gpcr)',
+        # 'human <- import.fasta(system.file("msa/human_gpcr.fa", package="bios2mds"))',
+        # 'active <- gpcr$dif$sapiens.sapiens',
+        # 'mmds_active <- mmds(active, group.file=system.file("csv/human_gpcr_group.csv", package = "bios2mds"))',
+        # # 'mmds_active <- mmds(active, group.file="/home/dralph/work/partis/bios2mds/inst/csv/human_gpcr_group.csv")',
+        # 'layout(matrix(1:6, 2, 3))',
+        # 'scree.plot(mmds_active$eigen.perc, lab = TRUE, title = "Scree plot of metric MDS", pdf.file="%s/scree.pdf")' % plotdir,
+        # 'mmds.2D.plot(mmds_active, title = "Sequence space of human GPCRs", outfile.name="%s/mmds-2d", outfile.type="pdf")' % plotdir,
+
+        # ----------------------------------------------------------------------------------------
+        'require(bios2mds, quietly=TRUE)',
+        # set.seed(1503941627)
+        'human <- import.fasta("%s")' % msafname, #system.file("msa/human_gpcr.fa", package="bios2mds"))',
+
+        # mat.dif or mat.dis?
+        'active <- mat.dif(human, human)',
+
+        'mmds_active <- mmds(active, group.file=%s)' % ('NULL' if reco_info is None else '"' + group_csv_fname + '"'),
+
+        # 'layout(matrix(1:6, 2, 3))',
+
+        'scree.plot(mmds_active$eigen.perc, lab=TRUE, title="%s", pdf.file="%s/scree.pdf")' % ('xxx', plotdir),
+        'mmds.2D.plot(mmds_active, title="%s", outfile.name="%s/mmds-2d", outfile.type="pdf")' % ('xxx', plotdir),
+
+        # sil.score(mat, nb.clus = c(2:13), nb.run = 100, iter.max = 1000,  # run for every possible number of clusters (?)
+        #               method = "euclidean")
+        # mmds.plot(mmds_active) #, pdf.file="")  # does several of the above steps in one go
+        # random.msa  # builds a random [...]
+
+        # write.mmds.pdb(mmds_active)
+    ]
+
+    cmdfname = workdir + '/mds.r'
+    with open(cmdfname, 'w') as cmdfile:
+        cmdfile.write('\n'.join(cmdlines) + '\n')
+    # subprocess.check_call(['cat', cmdfname])
+    subprocess.check_call('R --slave -f %s' % cmdfname, shell=True)
+    os.remove(cmdfname)
+    os.remove(msafname)
+    if reco_info is not None:
+        os.remove(group_csv_fname)
+    os.rmdir(workdir)

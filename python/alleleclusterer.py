@@ -239,6 +239,12 @@ class AlleleClusterer(object):
         qr_seqs, threshold = self.choose_clonal_representatives(swfo, debug=debug)
         if qr_seqs is None:
             return {}
+# ----------------------------------------------------------------------------------------
+        clusterfos, msa_info = self.cluster_v_seqs(qr_seqs, threshold=1., debug=True)
+        for clusterfo in clusterfos:
+            utils.run_mds(clusterfo['seqfos'], self.args.workdir + '/mds', outdir=os.getenv('PWD'), plotdir=os.getenv('PWD') + '/tmp-plots/' + str(clusterfos.index(clusterfo)), reco_info=self.reco_info)
+        sys.exit()
+# ----------------------------------------------------------------------------------------
         clusterfos, msa_info = self.cluster_v_seqs(qr_seqs, threshold, debug=debug)
 
         # and finally loop over each cluster, deciding if it corresponds to a new allele
