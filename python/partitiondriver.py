@@ -376,9 +376,8 @@ class PartitionDriver(object):
         cluster_annotations = self.get_cluster_annotations(cpath.partitions[cpath.i_best])
 
         if self.args.plotdir is not None:
-            print 'skipping partition plotting'
-            # partplotter = PartitionPlotter(self.args)
-            # partplotter.plot(self.args.plotdir + '/partitions', partition=cpath.partitions[cpath.i_best], annotations=cluster_annotations, only_csv=self.args.only_csv_plots)
+            partplotter = PartitionPlotter(self.args)
+            partplotter.plot(self.args.plotdir + '/partitions', partition=cpath.partitions[cpath.i_best], annotations=cluster_annotations, only_csv=self.args.only_csv_plots)
 
         if self.args.debug:
             print 'final'
