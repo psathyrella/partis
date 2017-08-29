@@ -32,6 +32,12 @@ for ds in metafos:
         scolors[ds] = '#85ad98'  # green
     elif 'LN4' in ds or 'LN3' in ds:
         scolors[ds] = '#94a3d1'  # blue
+metafos = heads.read_metadata('sheng-gssp')
+for ds in metafos:
+    if '-m-' in ds:
+        scolors[ds] = '#85ad98'  # green
+    elif '-g-' in ds:
+        scolors[ds] = '#94a3d1'  # blue
 faces = {}
 # faces = { 'missing' : ete3.AttrFace("name", fsize=30)}
 #         # faces.add_face_to_node(N, node, 0, position="aligned")}
