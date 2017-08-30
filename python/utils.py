@@ -565,7 +565,30 @@ def color_chars(chars, col, seq):
     return ''.join(return_str)
 
 # ----------------------------------------------------------------------------------------
-def align_seqs(ref_seq, seq):
+def align_many_seqs(seqfos, outfname=None):  # if <outfname> is specified, we just tell mafft to write to <outfname> and then return None
+    def outfile_fcn():
+        if outfname is None:
+            return tempfile.NamedTemporaryFile()
+        else:
+            return open(outfname, 'w')
+
+    with tempfile.NamedTemporaryFile() as fin, outfile_fcn() as fout:
+        for seqfo in seqfos:
+            fin.write('>%s\n%s\n' % (seqfo['name'], seqfo['seq']))
+        fin.flush()
+        subprocess.check_call('mafft --quiet %s >%s' % (fin.name, fout.name), shell=True)
+        if outfname is not None:
+            return None
+        msa_info = read_fastx(fout.name, ftype='fa')
+        x = set([sfo['name'] for sfo in msa_info])
+        y = set([sfo['name'] for sfo in seqfos])
+        if set([sfo['name'] for sfo in msa_info]) != set([sfo['name'] for sfo in seqfos]):
+            subprocess.check_call(['cat', fin.name])
+            raise Exception('incoherent mafft output from %s (cat\'d on previous line)' % fin.name)
+    return msa_info
+
+# ----------------------------------------------------------------------------------------
+def align_seqs(ref_seq, seq):  # should eventually change name to align_two_seqs() or something
     with tempfile.NamedTemporaryFile() as fin, tempfile.NamedTemporaryFile() as fout:
         fin.write('>%s\n%s\n' % ('ref', ref_seq))
         fin.write('>%s\n%s\n' % ('new', seq))
@@ -2981,7 +3004,8 @@ def run_swarm(seqs, workdir, differences=1, n_procs=1):
     return partition
 
 # ----------------------------------------------------------------------------------------
-def run_mds(seqfos, workdir, outdir, plotdir, reco_info=None):
+def run_mds(seqfos, workdir, outdir, plotdir, reco_info=None, title='', debug=False):
+    debug = True
     region = 'v'
 
     if not os.path.exists(workdir):
@@ -2992,23 +3016,36 @@ def run_mds(seqfos, workdir, outdir, plotdir, reco_info=None):
     msafname = workdir + '/msa.fa'
     group_csv_fname = workdir + '/groups.csv'
 
-    translations = string.maketrans('-0123456789', 'dabcdefghij')  # R does some horrible truncation or some bullshit when it reads the group csv
+    # R does some horrible truncation or some bullshit when it reads the group csv
+    chmap = ['0123456789', 'abcdefghij']
+    translations = string.maketrans(*chmap)
+    reverse_translations = string.maketrans(*reversed(chmap))
+    def translate(name):
+        return name.translate(translations)
+    def untranslate(trans_name):
+        return trans_name.translate(reverse_translations)
 
-    with open(msafname, 'w') as msafile:
-        for seqfo in seqfos:
-            msafile.write('>%s\n%s\n' % (seqfo['name'].translate(translations), seqfo['seq']))
+    for seqfo in seqfos:
+        # print seqfo['name'], translate(seqfo['name']), untranslate(translate(seqfo['name']))
+        seqfo['name'] = translate(seqfo['name'])
+
+    align_many_seqs(seqfos, outfname=msafname)
 
     if reco_info is not None:
-        colors = ['red', 'blue', 'green', 'forestgreen', 'grey', 'orange']
-        all_genes = list(set([reco_info[seqfo['name']][region + '_gene'] for seqfo in seqfos]))
+        colors = ['red', 'blue', 'green', 'forestgreen', 'grey', 'orange', 'skyblue4', 'maroon', 'salmon', 'chocolate4', 'magenta']
+        all_genes = list(set([reco_info[untranslate(seqfo['name'])][region + '_gene'] for seqfo in seqfos]))
         if len(all_genes) > len(colors):
             print '%s more genes %d than colors %d' % (color('yellow', 'warning'), len(all_genes), len(colors))
         gene_colors = {all_genes[ig] : colors[ig % len(colors)] for ig in range(len(all_genes))}
 
+        all_genes = set([reco_info[untranslate(seqfo['name'])][region + '_gene'] for seqfo in seqfos])  # R code crashes if there's only one group
         with open(group_csv_fname, 'w') as groupfile:
-            for seqfo in seqfos:
-                gene = reco_info[seqfo['name']][region + '_gene']
-                groupfile.write('"%s","%s","%s"\n' % (seqfo['name'].translate(translations), gene, gene_colors[gene]))
+            for iseq in range(len(seqfos)):
+                seqfo = seqfos[iseq]
+                gene = reco_info[untranslate(seqfo['name'])][region + '_gene']
+                if len(all_genes) == 1 and iseq == 0:  # see note above (!#$@!$Q)
+                    gene += '-dummy'
+                groupfile.write('"%s","%s","%s"\n' % (seqfo['name'], gene, gene_colors.get(gene, 'black')))
 
     cmdlines = [
         # # functional example:
@@ -3034,8 +3071,8 @@ def run_mds(seqfos, workdir, outdir, plotdir, reco_info=None):
 
         # 'layout(matrix(1:6, 2, 3))',
 
-        'scree.plot(mmds_active$eigen.perc, lab=TRUE, title="%s", pdf.file="%s/scree.pdf")' % ('xxx', plotdir),
-        'mmds.2D.plot(mmds_active, title="%s", outfile.name="%s/mmds-2d", outfile.type="pdf")' % ('xxx', plotdir),
+        'scree.plot(mmds_active$eigen.perc, lab=TRUE, title="%s", pdf.file="%s/scree.pdf")' % (title, plotdir),
+        'mmds.2D.plot(mmds_active, title="%s", outfile.name="%s/mmds-2d", outfile.type="pdf")' % (title, plotdir),
 
         # sil.score(mat, nb.clus = c(2:13), nb.run = 100, iter.max = 1000,  # run for every possible number of clusters (?)
         #               method = "euclidean")

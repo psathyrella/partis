@@ -241,6 +241,19 @@ class AlleleClusterer(object):
         if qr_seqs is None:
             return {}
 
+# # ----------------------------------------------------------------------------------------
+#         family_groups = {}
+#         for name, seq in qr_seqs.items():
+#             fam = utils.gene_family(swfo[name][self.region + '_gene'])
+#             if fam not in family_groups:
+#                 family_groups[fam] = []
+#             family_groups[fam].append({'name' : name, 'seq' : seq})
+#         print '  seqs    family'
+#         for family, seqfos in family_groups.items():
+#             print '  %5d     %s' % (len(seqfos), family)
+#             utils.run_mds(seqfos, self.args.workdir + '/mds', outdir='/xxx', plotdir=os.getenv('PWD') + '/tmp-plots/' + utils.sanitize_name(family), reco_info=self.reco_info, title=family)
+#         sys.exit()
+# # ----------------------------------------------------------------------------------------
         clusterfos, msa_info = self.cluster_v_seqs(qr_seqs, threshold, debug=debug)
 
         # and finally loop over each cluster, deciding if it corresponds to a new allele
