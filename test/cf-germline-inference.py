@@ -376,18 +376,25 @@ default_varvals = {
     ],
     'gls-gen' : None,
     'data' : {
-        'jason-mg' : ['HD07-igh', 'HD07-igk', 'HD07-igl', 'AR03-igh', 'AR03-igk', 'AR03-igl'],
+        # 'jason-mg' : ['HD07-igh', 'HD07-igk', 'HD07-igl', 'AR03-igh', 'AR03-igk', 'AR03-igl'],
+        'sheng-gssp' : ['lp23810-m-pool', 'lp23810-g-pool', 'lp08248-m-pool', 'lp08248-g-pool'],
         # 'kate-qrs' : ['1g', '4g'],
         # 'three-finger' : ['3ftx-1-igh', 'pla2-1-igh'],
         # 'kate-qrs' : ['1g', '1k', '1l', '4g', '4k', '4l', '2k', '2l', '3k', '3l'],
         # 'jason-influenza' : ['FV-igh-m8d', 'FV-igh-p7d', 'FV-igh-p28d'],
     }
 }
-data_pairs = {'kate-qrs' : [
-    ['1g', '4g'],
-    ['1k', '4k'],
-    ['1l', '4l'],
-    ]}
+data_pairs = {
+    'kate-qrs' : [
+        ['1g', '4g'],
+        ['1k', '4k'],
+        ['1l', '4l'],
+    ],
+    'sheng-gssp' : [
+        ['lp23810-m-pool', 'lp23810-g-pool'],
+        ['lp08248-m-pool', 'lp08248-g-pool'],
+    ],
+}
 default_varvals['data'] = ':'.join([study + '/' + heads.full_dataset(heads.read_metadata(study), dset) for study in default_varvals['data'] for dset in default_varvals['data'][study]])
 for study in data_pairs:
     for idp in range(len(data_pairs[study])):
