@@ -37,7 +37,7 @@ class AlleleClusterer(object):
         self.gene_info = None
         self.mfreqs = None
         self.mean_mfreqs = None
-        self.mfreq_hists = None  # TODO remove this if you're not going to use it (or maybe just print the results of the donut test) hopefully don't need it after switch to kmeans
+        # self.mfreq_hists = None  # TODO remove this if you're not going to use it (or maybe just print the results of the donut test) hopefully don't need it after switch to kmeans
         self.adjusted_glcounts = None  # gene assignment counts after reassignment for new + template genes
 
         assert len(utils.gap_chars) == 2  # i just want to hard code it below, dammit
@@ -95,11 +95,11 @@ class AlleleClusterer(object):
             'j' : {q : utils.get_mutation_rate(swfo[q], iseq=0, restrict_to_region='j') for q in qr_seqs},
         }
         self.mean_mfreqs = {r : numpy.mean(self.mfreqs[r].values()) for r in self.mfreqs}
-        assert self.region == 'v'  # this won't work if our region is j, since it's too short; there's always/often a dip/gap between 0 mutations and the rest of the distribution
-        self.mfreq_hists = {self.region : Hist(30, 0., 0.3)}  # not reall sure whether it's better to use n_mutes or mfreq, but I already have mfreq
-        for query in qr_seqs:
-            for region in self.mfreq_hists:
-                self.mfreq_hists[region].fill(self.mfreqs[region][query])
+        # assert self.region == 'v'  # this won't work if our region is j, since it's too short; there's always/often a dip/gap between 0 mutations and the rest of the distribution
+        # self.mfreq_hists = {self.region : Hist(30, 0., 0.3)}  # not reall sure whether it's better to use n_mutes or mfreq, but I already have mfreq
+        # for query in qr_seqs:
+        #     for region in self.mfreq_hists:
+        #         self.mfreq_hists[region].fill(self.mfreqs[region][query])
         print '    mutation among all cluster representatives:   v / j = %6.3f / %6.3f = %6.3f' % (self.mean_mfreqs['v'], self.mean_mfreqs['j'], self.mean_mfreqs['v'] / self.mean_mfreqs['j'])
 
         assert self.region == 'v'  # need to think about whether this should always be j, or if it should be self.other_region
@@ -236,24 +236,24 @@ class AlleleClusterer(object):
             if self.adjusted_glcounts[newfo['template-gene']] / float(sum(self.adjusted_glcounts.values())) < self.args.min_allele_prevalence_fraction:  # NOTE self.adjusted_glcounts only includes large clusters, and the constituents of those clusters are clonal representatives, so this isn't quite the same as in alleleremover
                 newfo['remove-template-gene'] = True
 
-    # ----------------------------------------------------------------------------------------
-    def check_for_donuts(self, debug=False):
-        hist = self.mfreq_hists['v']
-        fac = 1.5  # one-half the number of sigmas
-        print hist
+    # # ----------------------------------------------------------------------------------------
+    # def check_for_donuts(self, debug=False):
+    #     hist = self.mfreq_hists['v']
+    #     fac = 1.5  # one-half the number of sigmas
+    #     print hist
 
-        min_freq, min_freq_err, min_ibin = None, None, None
-        for ibin in range(1, hist.n_bins):  # don't care about underflow or overflow
-            if min_freq is None or hist.bin_contents[ibin] < min_freq:
-                min_freq = hist.bin_contents[ibin]
-                min_freq_err = hist.errors[ibin]
-                min_ibin = ibin
+    #     min_freq, min_freq_err, min_ibin = None, None, None
+    #     for ibin in range(1, hist.n_bins):  # don't care about underflow or overflow
+    #         if min_freq is None or hist.bin_contents[ibin] < min_freq:
+    #             min_freq = hist.bin_contents[ibin]
+    #             min_freq_err = hist.errors[ibin]
+    #             min_ibin = ibin
 
-            print '  %2d  %9.3f - %3.1f * %7.2f ?> %9.3f - %3.1f * %7.2f' % (ibin, hist.bin_contents[ibin], fac, hist.errors[ibin], min_freq, fac, min_freq_err),
-            print '--> %9.3f ?> %9.3f' % (hist.bin_contents[ibin] - fac * hist.errors[ibin], min_freq + fac * min_freq_err),
-            if hist.bin_contents[ibin] - fac * hist.errors[ibin] > min_freq + fac * min_freq_err:
-                print 'ack!',
-            print ''
+    #         print '  %2d  %9.3f - %3.1f * %7.2f ?> %9.3f - %3.1f * %7.2f' % (ibin, hist.bin_contents[ibin], fac, hist.errors[ibin], min_freq, fac, min_freq_err),
+    #         print '--> %9.3f ?> %9.3f' % (hist.bin_contents[ibin] - fac * hist.errors[ibin], min_freq + fac * min_freq_err),
+    #         if hist.bin_contents[ibin] - fac * hist.errors[ibin] > min_freq + fac * min_freq_err:
+    #             print 'ack!',
+    #         print ''
 
     # ----------------------------------------------------------------------------------------
     def get_alleles(self, swfo, plotdir=None, debug=False):
