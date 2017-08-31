@@ -243,10 +243,10 @@ class PartitionDriver(object):
             alremover = None
 
         # (re-)add [new] alleles
-        if not self.args.dont_allele_cluster:
+        if self.args.allele_cluster:
             self.run_waterer()
             alclusterer = AlleleClusterer(self.args, glfo=self.glfo, reco_info=self.reco_info, simglfo=self.simglfo if self.reco_info is not None else None)
-            alcluster_alleles = alclusterer.get_alleles(self.sw_info, debug=self.args.debug_allele_finding)
+            alcluster_alleles = alclusterer.get_alleles(self.sw_info, debug=self.args.debug_allele_finding, plotdir=None if self.args.plotdir is None else self.args.plotdir + '/sw/alcluster')
             if len(alcluster_alleles) > 0:
                 glutils.add_new_alleles(self.glfo, alcluster_alleles.values(), use_template_for_codon_info=False, simglfo=self.simglfo if self.reco_info is not None else None, debug=True)
             alclusterer = None

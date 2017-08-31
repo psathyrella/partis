@@ -343,7 +343,7 @@ parent_parser.add_argument('--n-max-total-alleles', type=int, help='maximum numb
 
 parent_parser.add_argument('--leave-default-germline', action='store_true')
 parent_parser.add_argument('--dont-remove-unlikely-alleles', action='store_true')
-parent_parser.add_argument('--dont-allele-cluster', action='store_true')
+parent_parser.add_argument('--allele-cluster', action='store_true')
 parent_parser.add_argument('--dont-find-new-alleles', action='store_true')
 # parent_parser.add_argument('--always-find-new-alleles', action='store_true', help='By default we only look for new alleles if a repertoire\'s mutation rate is amenable to reasonable new-allele sensitivity (i.e. if it\'s not crazy high). This overrides that.')
 parent_parser.add_argument('--debug-allele-finding', action='store_true', help='print lots of debug info on new-allele fits')
@@ -587,7 +587,7 @@ if args.n_alleles_per_gene is None:
 
 if args.leave_default_germline:
     args.dont_remove_unlikely_alleles = True
-    args.dont_allele_cluster = True
+    args.allele_cluster = False
     args.dont_find_new_alleles = True
 
 # ----------------------------------------------------------------------------------------

@@ -565,7 +565,30 @@ def color_chars(chars, col, seq):
     return ''.join(return_str)
 
 # ----------------------------------------------------------------------------------------
-def align_seqs(ref_seq, seq):
+def align_many_seqs(seqfos, outfname=None):  # if <outfname> is specified, we just tell mafft to write to <outfname> and then return None
+    def outfile_fcn():
+        if outfname is None:
+            return tempfile.NamedTemporaryFile()
+        else:
+            return open(outfname, 'w')
+
+    with tempfile.NamedTemporaryFile() as fin, outfile_fcn() as fout:
+        for seqfo in seqfos:
+            fin.write('>%s\n%s\n' % (seqfo['name'], seqfo['seq']))
+        fin.flush()
+        subprocess.check_call('mafft --quiet %s >%s' % (fin.name, fout.name), shell=True)
+        if outfname is not None:
+            return None
+        msa_info = read_fastx(fout.name, ftype='fa')
+        x = set([sfo['name'] for sfo in msa_info])
+        y = set([sfo['name'] for sfo in seqfos])
+        if set([sfo['name'] for sfo in msa_info]) != set([sfo['name'] for sfo in seqfos]):
+            subprocess.check_call(['cat', fin.name])
+            raise Exception('incoherent mafft output from %s (cat\'d on previous line)' % fin.name)
+    return msa_info
+
+# ----------------------------------------------------------------------------------------
+def align_seqs(ref_seq, seq):  # should eventually change name to align_two_seqs() or something
     with tempfile.NamedTemporaryFile() as fin, tempfile.NamedTemporaryFile() as fout:
         fin.write('>%s\n%s\n' % ('ref', ref_seq))
         fin.write('>%s\n%s\n' % ('new', seq))
@@ -2979,3 +3002,93 @@ def run_swarm(seqs, workdir, differences=1, n_procs=1):
     cp.print_partitions(abbreviate=True)
 
     return partition
+
+# ----------------------------------------------------------------------------------------
+def run_mds(seqfos, workdir, outdir, plotdir, reco_info=None, title='', debug=False):
+    debug = True
+    region = 'v'
+
+    if not os.path.exists(workdir):
+        os.makedirs(workdir)
+    if not os.path.exists(plotdir):
+        os.makedirs(plotdir)
+
+    msafname = workdir + '/msa.fa'
+    group_csv_fname = workdir + '/groups.csv'
+
+    # R does some horrible truncation or some bullshit when it reads the group csv
+    chmap = ['0123456789', 'abcdefghij']
+    translations = string.maketrans(*chmap)
+    reverse_translations = string.maketrans(*reversed(chmap))
+    def translate(name):
+        return name.translate(translations)
+    def untranslate(trans_name):
+        return trans_name.translate(reverse_translations)
+
+    for seqfo in seqfos:
+        # print seqfo['name'], translate(seqfo['name']), untranslate(translate(seqfo['name']))
+        seqfo['name'] = translate(seqfo['name'])
+
+    align_many_seqs(seqfos, outfname=msafname)
+
+    if reco_info is not None:
+        colors = ['red', 'blue', 'forestgreen', 'grey', 'orange', 'green', 'skyblue4', 'maroon', 'salmon', 'chocolate4', 'magenta']
+        all_genes = list(set([reco_info[untranslate(seqfo['name'])][region + '_gene'] for seqfo in seqfos]))
+        if len(all_genes) > len(colors):
+            print '%s more genes %d than colors %d' % (color('yellow', 'warning'), len(all_genes), len(colors))
+        gene_colors = {all_genes[ig] : colors[ig % len(colors)] for ig in range(len(all_genes))}
+
+        all_genes = set([reco_info[untranslate(seqfo['name'])][region + '_gene'] for seqfo in seqfos])  # R code crashes if there's only one group
+        with open(group_csv_fname, 'w') as groupfile:
+            for iseq in range(len(seqfos)):
+                seqfo = seqfos[iseq]
+                gene = reco_info[untranslate(seqfo['name'])][region + '_gene']
+                if len(all_genes) == 1 and iseq == 0:  # see note above (!#$@!$Q)
+                    gene += '-dummy'
+                groupfile.write('"%s","%s","%s"\n' % (seqfo['name'], gene, gene_colors.get(gene, 'black')))
+
+    cmdlines = [
+        # # functional example:
+        # 'require(bios2mds, quietly=TRUE)',
+        # 'data(gpcr)',
+        # 'human <- import.fasta(system.file("msa/human_gpcr.fa", package="bios2mds"))',
+        # 'active <- gpcr$dif$sapiens.sapiens',
+        # 'mmds_active <- mmds(active, group.file=system.file("csv/human_gpcr_group.csv", package = "bios2mds"))',
+        # # 'mmds_active <- mmds(active, group.file="/home/dralph/work/partis/bios2mds/inst/csv/human_gpcr_group.csv")',
+        # 'layout(matrix(1:6, 2, 3))',
+        # 'scree.plot(mmds_active$eigen.perc, lab = TRUE, title = "Scree plot of metric MDS", pdf.file="%s/scree.pdf")' % plotdir,
+        # 'mmds.2D.plot(mmds_active, title = "Sequence space of human GPCRs", outfile.name="%s/mmds-2d", outfile.type="pdf")' % plotdir,
+
+        # ----------------------------------------------------------------------------------------
+        'require(bios2mds, quietly=TRUE)',
+        # set.seed(1503941627)
+        'human <- import.fasta("%s")' % msafname, #system.file("msa/human_gpcr.fa", package="bios2mds"))',
+
+        # mat.dif or mat.dis?
+        'active <- mat.dif(human, human)',
+
+        'mmds_active <- mmds(active, group.file=%s)' % ('NULL' if reco_info is None else '"' + group_csv_fname + '"'),
+
+        # 'layout(matrix(1:6, 2, 3))',
+
+        'scree.plot(mmds_active$eigen.perc, lab=TRUE, title="%s", pdf.file="%s/scree.pdf")' % (title, plotdir),
+        'mmds.2D.plot(mmds_active, title="%s", outfile.name="%s/mmds-2d", outfile.type="pdf")' % (title, plotdir),
+
+        # sil.score(mat, nb.clus = c(2:13), nb.run = 100, iter.max = 1000,  # run for every possible number of clusters (?)
+        #               method = "euclidean")
+        # mmds.plot(mmds_active) #, pdf.file="")  # does several of the above steps in one go
+        # random.msa  # builds a random [...]
+
+        # write.mmds.pdb(mmds_active)
+    ]
+
+    cmdfname = workdir + '/mds.r'
+    with open(cmdfname, 'w') as cmdfile:
+        cmdfile.write('\n'.join(cmdlines) + '\n')
+    # subprocess.check_call(['cat', cmdfname])
+    subprocess.check_call('R --slave -f %s' % cmdfname, shell=True)
+    os.remove(cmdfname)
+    os.remove(msafname)
+    if reco_info is not None:
+        os.remove(group_csv_fname)
+    os.rmdir(workdir)
