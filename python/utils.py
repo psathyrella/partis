@@ -3032,7 +3032,7 @@ def run_mds(seqfos, workdir, outdir, plotdir, reco_info=None, title='', debug=Fa
     align_many_seqs(seqfos, outfname=msafname)
 
     if reco_info is not None:
-        colors = ['red', 'blue', 'green', 'forestgreen', 'grey', 'orange', 'skyblue4', 'maroon', 'salmon', 'chocolate4', 'magenta']
+        colors = ['red', 'blue', 'forestgreen', 'grey', 'orange', 'green', 'skyblue4', 'maroon', 'salmon', 'chocolate4', 'magenta']
         all_genes = list(set([reco_info[untranslate(seqfo['name'])][region + '_gene'] for seqfo in seqfos]))
         if len(all_genes) > len(colors):
             print '%s more genes %d than colors %d' % (color('yellow', 'warning'), len(all_genes), len(colors))
