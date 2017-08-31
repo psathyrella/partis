@@ -279,9 +279,11 @@ class Hist(object):
 
     # ----------------------------------------------------------------------------------------
     def __str__(self):
-        str_list = ['    %7s  %12s'  % ('low edge', 'contents'), '\n', ]
+        str_list = ['    %7s  %12s%s'  % ('low edge', 'contents', '' if self.errors is None else '     err'), '\n', ]
         for ib in range(len(self.low_edges)):
             str_list += ['    %7.4f  %12.3f'  % (self.low_edges[ib], self.bin_contents[ib]), ]
+            if self.errors is not None:
+                  str_list += ['%9.2f' % self.errors[ib]]
             if self.bin_labels.count('') != len(self.bin_labels):
                 str_list += ['%12s' % self.bin_labels[ib]]
             if ib == 0:
