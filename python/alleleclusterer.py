@@ -154,49 +154,49 @@ class AlleleClusterer(object):
     # ----------------------------------------------------------------------------------------
     def init_bios2mds(self, seqfos):
         workdir = self.args.workdir + '/mds'
-        msafname = workdir + '/msa.fa'
-
         if not os.path.exists(workdir):
             os.makedirs(workdir)
-
+        msafname = workdir + '/msa.fa'
         utils.align_many_seqs(seqfos, outfname=msafname)
-
         return workdir, msafname
 
     # ----------------------------------------------------------------------------------------
+    def read_kmeans_clusterfile(self, clusterfname, seqfos):
+        all_uids = set([sfo['name'] for sfo in seqfos])
+        partition = []
+        with open(clusterfname) as clusterfile:
+            lines = [l.strip() for l in clusterfile.readlines()]
+            lines = [lines[i : i + 4] for i in range(0, len(lines), 4)]
+            for clusterlines in lines:
+                clidline = clusterlines[0]
+                uidline = clusterlines[1]
+                intline = clusterlines[2]  # some info about the kmean cluster quality i think? don't care a.t.m.
+                emptyline = clusterlines[3]
+
+                if clidline[0] != '$' or int(clidline.lstrip('$').strip('`')) != len(partition) + 1:
+                    raise Exception('couldn\'t convert %s to the expected cluster id %d' % (clidline, len(partition) + 1))
+
+                uids = set([u for u in uidline.split()])
+                if len(uids - all_uids) > 0:
+                    raise Exception('read unexpected uid[s] \'%s\' from %s' % (' '.join(uids - all_uids), clusterfname))
+                all_uids -= uids
+                partition.append(list(uids))
+
+                integers = [int(istr) for istr in intline.split()]
+                if len(integers) != len(uids):
+                    raise Exception('uid line %d and integers line %d have different lengths:\n  %s\n  %s' % (len(uids), len(integers), uidline, intline))
+
+                if emptyline != '':
+                    raise Exception('expected empty line but got \'%s\'' % emptyline)
+
+        if len(all_uids) > 0:
+            raise Exception('didn\'t read %d expected queries from %s (%s)' % (len(all_uids), clusterfname, ' '.join(all_uids)))
+
+        os.remove(clusterfname)
+        return partition
+
+    # ----------------------------------------------------------------------------------------
     def run_single_family_kmeans(self, family, seqfos, reco_info=None, debug=False):
-        # ----------------------------------------------------------------------------------------
-        def read_clusterfile(clusterfname, seqfos):
-            all_uids = set([sfo['name'] for sfo in seqfos])
-
-            partition = []
-            with open(clusterfname) as clusterfile:
-                lines = [l.strip() for l in clusterfile.readlines()]
-                lines = [lines[i : i + 4] for i in range(0, len(lines), 4)]
-                for clusterlines in lines:
-                    clidline = clusterlines[0]
-                    uidline = clusterlines[1]
-                    intline = clusterlines[2]  # some info about the kmean cluster quality i think? don't care a.t.m.
-                    emptyline = clusterlines[3]
-
-                    if clidline[0] != '$' or int(clidline.lstrip('$').strip('`')) != len(partition) + 1:
-                        raise Exception('couldn\'t convert %s to the expected cluster id %d' % (clidline, len(partition) + 1))
-
-                    uids = set([u for u in uidline.split()])
-                    if len(uids - all_uids) > 0:
-                        raise Exception('read unexpected uid[s] \'%s\' from %s' % (' '.join(uids - all_uids), clusterfname))
-                    all_uids -= uids
-                    partition.append(list(uids))
-
-                    integers = [int(istr) for istr in intline.split()]
-                    if len(integers) != len(uids):
-                        raise Exception('uid line %d and integers line %d have different lengths:\n  %s\n  %s' % (len(uids), len(integers), uidline, intline))
-
-                    if emptyline != '':
-                        raise Exception('expected empty line but got \'%s\'' % emptyline)
-
-            os.remove(clusterfname)
-            return partition
 
         workdir, msafname = self.init_bios2mds(seqfos)
         clusterfname = workdir + '/clusters.txt'
@@ -220,7 +220,7 @@ class AlleleClusterer(object):
         ]
 
         utils.run_r(cmdlines, workdir)
-        partition = read_clusterfile(clusterfname, seqfos)
+        partition = self.read_kmeans_clusterfile(clusterfname, seqfos)
         # for cluster in partition:
         #     print '    %s' % ' '.join(cluster)
 
@@ -480,7 +480,6 @@ class AlleleClusterer(object):
     def plot(self, swfo, qr_seqs, plotdir):
         family_groups = {}
         for name, seq in qr_seqs.items():
-            # TODO switch to adjusted, and separate plots for sim/non-sim
             # fam = utils.gene_family(adjusted_XXX[name][self.region + '_gene'])
             fam = utils.gene_family(swfo[name][self.region + '_gene'])
             if fam not in family_groups:
