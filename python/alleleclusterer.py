@@ -1,3 +1,4 @@
+import string
 import copy
 import numpy
 import itertools
@@ -109,7 +110,7 @@ class AlleleClusterer(object):
         return qr_seqs, threshold
 
     # ----------------------------------------------------------------------------------------
-    def cluster_v_seqs(self, qr_seqs, threshold, debug=False):
+    def vsearch_cluster_v_seqs(self, qr_seqs, threshold, debug=False):
         # then vsearch cluster the v-sequences in <qr_seqs> using a heuristic j-mutation-based threshold
         msa_fname = self.args.workdir + '/msa.fa'
         print '   vsearch clustering %d %s segments with threshold %.2f (*300 = %d)' % (len(qr_seqs), self.region, threshold, int(threshold * 300))
@@ -140,6 +141,91 @@ class AlleleClusterer(object):
             clusterfos = clusterfos[:self.max_number_of_clusters]
 
         return clusterfos, msa_info
+
+    # ----------------------------------------------------------------------------------------
+    def kmeans_cluster_v_seqs(self, family_groups, debug=False):
+        print '  seqs    family'
+        for family, seqfos in family_groups.items():
+            print '  %5d     %s' % (len(seqfos), family)
+            self.run_single_family_kmeans(family, seqfos, reco_info=self.reco_info)
+
+        return None, None
+
+    # ----------------------------------------------------------------------------------------
+    def init_bios2mds(self, seqfos):
+        workdir = self.args.workdir + '/mds'
+        msafname = workdir + '/msa.fa'
+
+        if not os.path.exists(workdir):
+            os.makedirs(workdir)
+
+        utils.align_many_seqs(seqfos, outfname=msafname)
+
+        return workdir, msafname
+
+    # ----------------------------------------------------------------------------------------
+    def run_single_family_kmeans(self, family, seqfos, reco_info=None, debug=False):
+        # ----------------------------------------------------------------------------------------
+        def read_clusterfile(clusterfname, seqfos):
+            all_uids = set([sfo['name'] for sfo in seqfos])
+
+            partition = []
+            with open(clusterfname) as clusterfile:
+                lines = [l.strip() for l in clusterfile.readlines()]
+                lines = [lines[i : i + 4] for i in range(0, len(lines), 4)]
+                for clusterlines in lines:
+                    clidline = clusterlines[0]
+                    uidline = clusterlines[1]
+                    intline = clusterlines[2]  # some info about the kmean cluster quality i think? don't care a.t.m.
+                    emptyline = clusterlines[3]
+
+                    if clidline[0] != '$' or int(clidline.lstrip('$').strip('`')) != len(partition) + 1:
+                        raise Exception('couldn\'t convert %s to the expected cluster id %d' % (clidline, len(partition) + 1))
+
+                    uids = set([u for u in uidline.split()])
+                    if len(uids - all_uids) > 0:
+                        raise Exception('read unexpected uid[s] \'%s\' from %s' % (' '.join(uids - all_uids), clusterfname))
+                    all_uids -= uids
+                    partition.append(list(uids))
+
+                    integers = [int(istr) for istr in intline.split()]
+                    if len(integers) != len(uids):
+                        raise Exception('uid line %d and integers line %d have different lengths:\n  %s\n  %s' % (len(uids), len(integers), uidline, intline))
+
+                    if emptyline != '':
+                        raise Exception('expected empty line but got \'%s\'' % emptyline)
+
+            os.remove(clusterfname)
+            return partition
+
+        workdir, msafname = self.init_bios2mds(seqfos)
+        clusterfname = workdir + '/clusters.txt'
+
+        cmdlines = [
+            'require(bios2mds, quietly=TRUE)',
+            'set.seed(%d)' % self.args.seed,
+            'human <- import.fasta("%s")' % msafname,
+
+            # mat.dif or mat.dis?
+            'active <- mat.dif(human, human)',
+            'kmeans.run1 <- kmeans.run(active, nb.clus = 3, nb.run = 100)',
+            # 'kmeans.run1$clusters',
+            # 'kmeans.run1$elements',
+            'options(width=10000)',
+            'capture.output(kmeans.run1$clusters, file="%s")' % clusterfname,
+
+            # sil.score(mat, nb.clus = c(2:13), nb.run = 100, iter.max = 1000,  # run for every possible number of clusters (?)
+            #               method = "euclidean")
+            # random.msa  # builds a random [...]
+        ]
+
+        utils.run_r(cmdlines, workdir)
+        partition = read_clusterfile(clusterfname, seqfos)
+        # for cluster in partition:
+        #     print '    %s' % ' '.join(cluster)
+
+        os.remove(msafname)
+        os.rmdir(workdir)
 
     # ----------------------------------------------------------------------------------------
     def print_cluster(self, iclust, clusterfo, sorted_glcounts, new_seq, true_sorted_glcounts, mean_cluster_mfreqs, has_indels):
@@ -274,7 +360,16 @@ class AlleleClusterer(object):
         # self.check_for_donuts(debug=debug)
         # sys.exit()
 
-        clusterfos, msa_info = self.cluster_v_seqs(qr_seqs, threshold, debug=debug)
+        family_groups = {}
+        for name, seq in qr_seqs.items():
+            # fam = utils.gene_family(adjusted_XXX[name][self.region + '_gene'])
+            fam = utils.gene_family(swfo[name][self.region + '_gene'])
+            if fam not in family_groups:
+                family_groups[fam] = []
+            family_groups[fam].append({'name' : name, 'seq' : seq})
+
+        clusterfos, msa_info = self.vsearch_cluster_v_seqs(qr_seqs, threshold, debug=debug)
+        _, _ = self.kmeans_cluster_v_seqs(family_groups, debug=debug)
 
         # and finally loop over each cluster, deciding if it corresponds to a new allele
         if debug:
@@ -394,4 +489,74 @@ class AlleleClusterer(object):
         print '  seqs    family'
         for family, seqfos in family_groups.items():
             print '  %5d     %s' % (len(seqfos), family)
-            utils.run_mds(seqfos, self.args.workdir + '/mds', outdir='/xxx', plotdir=plotdir + '/' + utils.sanitize_name(family), reco_info=self.reco_info, title=family)
+            # utils.run_mds(seqfos, self.args.workdir + '/mds', plotdir=plotdir + '/' + utils.sanitize_name(family), reco_info=self.reco_info, title=family)
+            self.plot_single_family(family, seqfos, plotdir + '/' + utils.sanitize_name(family), reco_info=self.reco_info)
+
+    # ----------------------------------------------------------------------------------------
+    def plot_single_family(self, family, seqfos, plotdir, reco_info=None, debug=False):
+        if not os.path.exists(plotdir):
+            os.makedirs(plotdir)
+
+        # R does some horrible truncation or some bullshit when it reads the group csv
+        chmap = ['0123456789', 'abcdefghij']
+        translations = string.maketrans(*chmap)
+        reverse_translations = string.maketrans(*reversed(chmap))
+        def translate(name):
+            return name.translate(translations)
+        def untranslate(trans_name):
+            return trans_name.translate(reverse_translations)
+        # this somewhat wastefully makes a whole new <seqfos>, but it's better than modifying the original one, and it should only happen when we're plotting
+        seqfos = [{'name' : translate(sfo['name']), 'seq' : sfo['seq']} for sfo in seqfos]
+
+        workdir, msafname = self.init_bios2mds(seqfos)
+        group_csv_fname = workdir + '/groups.csv'
+
+        if reco_info is not None:
+            colors = ['red', 'blue', 'forestgreen', 'grey', 'orange', 'green', 'skyblue4', 'maroon', 'salmon', 'chocolate4', 'magenta']
+            all_genes = list(set([reco_info[untranslate(seqfo['name'])][self.region + '_gene'] for seqfo in seqfos]))
+            if len(all_genes) > len(colors):
+                print '%s more genes %d than colors %d' % (color('yellow', 'warning'), len(all_genes), len(colors))
+            gene_colors = {all_genes[ig] : colors[ig % len(colors)] for ig in range(len(all_genes))}
+
+            all_genes = set([reco_info[untranslate(seqfo['name'])][self.region + '_gene'] for seqfo in seqfos])  # R code crashes if there's only one group
+            with open(group_csv_fname, 'w') as groupfile:
+                for iseq in range(len(seqfos)):
+                    seqfo = seqfos[iseq]
+                    gene = reco_info[untranslate(seqfo['name'])][self.region + '_gene']
+                    if len(all_genes) == 1 and iseq == 0:  # see note above (!#$@!$Q)
+                        gene += '-dummy'
+                    groupfile.write('"%s","%s","%s"\n' % (seqfo['name'], gene, gene_colors.get(gene, 'black')))
+
+        # # functional example:
+        # cmdlines = [
+        #     'require(bios2mds, quietly=TRUE)',
+        #     'data(gpcr)',
+        #     'human <- import.fasta(system.file("msa/human_gpcr.fa", package="bios2mds"))',
+        #     'active <- gpcr$dif$sapiens.sapiens',
+        #     'mmds_active <- mmds(active, group.file=system.file("csv/human_gpcr_group.csv", package = "bios2mds"))',
+        #     # 'mmds_active <- mmds(active, group.file="/home/dralph/work/partis/bios2mds/inst/csv/human_gpcr_group.csv")',
+        #     'layout(matrix(1:6, 2, 3))',
+        #     'scree.plot(mmds_active$eigen.perc, lab = TRUE, title = "Scree plot of metric MDS", pdf.file="%s/scree.pdf")' % plotdir,
+        #     'mmds.2D.plot(mmds_active, title = "Sequence space of human GPCRs", outfile.name="%s/mmds-2d", outfile.type="pdf")' % plotdir,
+        # ]
+        cmdlines = [
+            'require(bios2mds, quietly=TRUE)',
+            'set.seed(%d)' % self.args.seed,
+            'human <- import.fasta("%s")' % msafname,
+
+            # mat.dif or mat.dis?
+            'active <- mat.dif(human, human)',
+            'mmds_active <- mmds(active, group.file=%s)' % ('NULL' if reco_info is None else '"' + group_csv_fname + '"'),
+
+            'scree.plot(mmds_active$eigen.perc, lab=TRUE, title="%s", pdf.file="%s/scree.pdf")' % (family, plotdir),
+            'mmds.2D.plot(mmds_active, title="%s", outfile.name="%s/mmds-2d", outfile.type="pdf")' % (family, plotdir),
+
+            # random.msa  # builds a random [...]
+        ]
+
+        utils.run_r(cmdlines, workdir)
+
+        os.remove(msafname)
+        if reco_info is not None:
+            os.remove(group_csv_fname)
+        os.rmdir(workdir)
