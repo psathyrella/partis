@@ -143,9 +143,20 @@ class AlleleClusterer(object):
         return clusterfos, msa_info
 
     # ----------------------------------------------------------------------------------------
-    def kmeans_cluster_v_seqs(self, family_groups, debug=False):
+    def get_family_groups(self, qr_seqs, swfo):
+        family_groups = {}  # this is kinda wasteful to copy all the sequences as well
+        for name, seq in qr_seqs.items():
+            # fam = utils.gene_family(adjusted_XXX[name][self.region + '_gene'])
+            fam = utils.gene_family(swfo[name][self.region + '_gene'])
+            if fam not in family_groups:
+                family_groups[fam] = []
+            family_groups[fam].append({'name' : name, 'seq' : seq})
+        return family_groups
+
+    # ----------------------------------------------------------------------------------------
+    def kmeans_cluster_v_seqs(self, qr_seqs, swfo, debug=False):
         print '  seqs    family'
-        for family, seqfos in family_groups.items():
+        for family, seqfos in self.get_family_groups(qr_seqs, swfo).items():
             print '  %5d     %s' % (len(seqfos), family)
             self.run_single_family_kmeans(family, seqfos, reco_info=self.reco_info)
 
@@ -219,7 +230,7 @@ class AlleleClusterer(object):
             # random.msa  # builds a random [...]
         ]
 
-        utils.run_r(cmdlines, workdir)
+        utils.run_r(cmdlines, workdir, print_time='kmeans')
         partition = self.read_kmeans_clusterfile(clusterfname, seqfos)
         # for cluster in partition:
         #     print '    %s' % ' '.join(cluster)
@@ -257,7 +268,7 @@ class AlleleClusterer(object):
 
 
     # ----------------------------------------------------------------------------------------
-    def decide_whether_to_remove_template_genes(self, msa_info, new_alleles, debug=False):
+    def reassign_template_counts(self, msa_info, new_alleles, debug=False):
         if len(new_alleles) == 0:
             return
 
@@ -317,11 +328,6 @@ class AlleleClusterer(object):
             for gene, counts in sorted(self.adjusted_glcounts.items(), key=operator.itemgetter(1), reverse=True):
                 print '    %4d  %s' % (counts, utils.color_gene(gene))
 
-        for new_name, newfo in new_alleles.items():
-            # print '%s  %s  %.1f / %.1f = %.4f' % (new_name, newfo['template-gene'], self.adjusted_glcounts[newfo['template-gene']], float(sum(self.adjusted_glcounts.values())), self.adjusted_glcounts[newfo['template-gene']] / float(sum(self.adjusted_glcounts.values())))
-            if self.adjusted_glcounts[newfo['template-gene']] / float(sum(self.adjusted_glcounts.values())) < self.args.min_allele_prevalence_fraction:  # NOTE self.adjusted_glcounts only includes large clusters, and the constituents of those clusters are clonal representatives, so this isn't quite the same as in alleleremover
-                newfo['remove-template-gene'] = True
-
     # # ----------------------------------------------------------------------------------------
     # def check_for_donuts(self, debug=False):
     #     hist = self.mfreq_hists['v']
@@ -360,16 +366,8 @@ class AlleleClusterer(object):
         # self.check_for_donuts(debug=debug)
         # sys.exit()
 
-        family_groups = {}
-        for name, seq in qr_seqs.items():
-            # fam = utils.gene_family(adjusted_XXX[name][self.region + '_gene'])
-            fam = utils.gene_family(swfo[name][self.region + '_gene'])
-            if fam not in family_groups:
-                family_groups[fam] = []
-            family_groups[fam].append({'name' : name, 'seq' : seq})
-
         clusterfos, msa_info = self.vsearch_cluster_v_seqs(qr_seqs, threshold, debug=debug)
-        _, _ = self.kmeans_cluster_v_seqs(family_groups, debug=debug)
+        _, _ = self.kmeans_cluster_v_seqs(qr_seqs, swfo, debug=debug)
 
         # and finally loop over each cluster, deciding if it corresponds to a new allele
         if debug:
@@ -442,7 +440,11 @@ class AlleleClusterer(object):
         if debug:
             print '  %d / %d clusters consensed to existing genes' % (n_existing_gene_clusters, len(msa_info))
 
-        self.decide_whether_to_remove_template_genes(msa_info, new_alleles, debug=False)
+        self.reassign_template_counts(msa_info, new_alleles, debug=False)
+        for new_name, newfo in new_alleles.items():
+            # print '%s  %s  %.1f / %.1f = %.4f' % (new_name, newfo['template-gene'], self.adjusted_glcounts[newfo['template-gene']], float(sum(self.adjusted_glcounts.values())), self.adjusted_glcounts[newfo['template-gene']] / float(sum(self.adjusted_glcounts.values())))
+            if self.adjusted_glcounts[newfo['template-gene']] / float(sum(self.adjusted_glcounts.values())) < self.args.min_allele_prevalence_fraction:  # NOTE self.adjusted_glcounts only includes large clusters, and the constituents of those clusters are clonal representatives, so this isn't quite the same as in alleleremover
+                newfo['remove-template-gene'] = True
 
         if plotdir is not None:
             self.plot(swfo, qr_seqs, plotdir)
@@ -478,15 +480,8 @@ class AlleleClusterer(object):
 
     # ----------------------------------------------------------------------------------------
     def plot(self, swfo, qr_seqs, plotdir):
-        family_groups = {}
-        for name, seq in qr_seqs.items():
-            # fam = utils.gene_family(adjusted_XXX[name][self.region + '_gene'])
-            fam = utils.gene_family(swfo[name][self.region + '_gene'])
-            if fam not in family_groups:
-                family_groups[fam] = []
-            family_groups[fam].append({'name' : name, 'seq' : seq})
         print '  seqs    family'
-        for family, seqfos in family_groups.items():
+        for family, seqfos in self.get_family_groups(qr_seqs, swfo).items():
             print '  %5d     %s' % (len(seqfos), family)
             # utils.run_mds(seqfos, self.args.workdir + '/mds', plotdir=plotdir + '/' + utils.sanitize_name(family), reco_info=self.reco_info, title=family)
             self.plot_single_family(family, seqfos, plotdir + '/' + utils.sanitize_name(family), reco_info=self.reco_info)
@@ -553,7 +548,7 @@ class AlleleClusterer(object):
             # random.msa  # builds a random [...]
         ]
 
-        utils.run_r(cmdlines, workdir)
+        utils.run_r(cmdlines, workdir, print_time='mds plot')
 
         os.remove(msafname)
         if reco_info is not None:
