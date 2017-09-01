@@ -1840,11 +1840,11 @@ def run_r(cmdlines, workdir, dryrun=False, print_time=None, debug=True):
     with open(cmdfname, 'w') as cmdfile:
         cmdfile.write('\n'.join(cmdlines) + '\n')
     # subprocess.check_call(['cat', cmdfname])
-    simplerun('R --slave -f %s' % cmdfname, shell=True, debug=False)
+    simplerun('R --slave -f %s' % cmdfname, shell=True, print_time=print_time, swallow_stdout=True, debug=False)
     os.remove(cmdfname)
 
 # ----------------------------------------------------------------------------------------
-def simplerun(cmd_str, shell=False, dryrun=False, print_time=None, debug=True):
+def simplerun(cmd_str, shell=False, dryrun=False, print_time=None, swallow_stdout=False, debug=True):
     if debug:
         print '%s %s' % (color('red', 'run'), cmd_str)
     sys.stdout.flush()
@@ -1852,7 +1852,8 @@ def simplerun(cmd_str, shell=False, dryrun=False, print_time=None, debug=True):
         return
     if print_time is not None:
         start = time.time()
-    subprocess.check_call(cmd_str if shell else cmd_str.split(), env=os.environ, shell=shell)
+    runfcn = subprocess.check_output if swallow_stdout else subprocess.check_call
+    runfcn(cmd_str if shell else cmd_str.split(), env=os.environ, shell=shell)
     if print_time is not None:
         print '      %s time: %.1f' % (print_time, time.time() - start)
 
