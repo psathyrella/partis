@@ -3005,6 +3005,39 @@ def run_swarm(seqs, workdir, differences=1, n_procs=1):
 
 # ----------------------------------------------------------------------------------------
 def run_mds(seqfos, workdir, outdir, plotdir, reco_info=None, title='', debug=False):
+    # ----------------------------------------------------------------------------------------
+    def read_clusterfile(clusterfname, seqfos):
+        all_uids = set([sfo['name'] for sfo in seqfos])
+
+        partition = []
+        with open(clusterfname) as clusterfile:
+            lines = [l.strip() for l in clusterfile.readlines()]
+            lines = [lines[i : i + 4] for i in range(0, len(lines), 4)]
+            for clusterlines in lines:
+                clidline = clusterlines[0]
+                uidline = clusterlines[1]
+                intline = clusterlines[2]  # some info about the kmean cluster quality i think? don't care a.t.m.
+                emptyline = clusterlines[3]
+
+                if clidline[0] != '$' or int(clidline.lstrip('$').strip('`')) != len(partition) + 1:
+                    raise Exception('couldn\'t convert %s to the expected cluster id %d' % (clidline, len(partition) + 1))
+
+                uids = set([u for u in uidline.split()])
+                if len(uids - all_uids) > 0:
+                    raise Exception('read unexpected uid[s] \'%s\' from %s' % (' '.join(uids - all_uids), clusterfname))
+                all_uids -= uids
+                partition.append(list(uids))
+
+                integers = [int(istr) for istr in intline.split()]
+                if len(integers) != len(uids):
+                    raise Exception('uid line %d and integers line %d have different lengths:\n  %s\n  %s' % (len(uids), len(integers), uidline, intline))
+
+                if emptyline != '':
+                    raise Exception('expected empty line but got \'%s\'' % emptyline)
+
+        os.remove(clusterfname)
+        return partition
+
     debug = True
     region = 'v'
 
@@ -3015,6 +3048,7 @@ def run_mds(seqfos, workdir, outdir, plotdir, reco_info=None, title='', debug=Fa
 
     msafname = workdir + '/msa.fa'
     group_csv_fname = workdir + '/groups.csv'
+    clusterfname = workdir + '/clusters.txt'
 
     # R does some horrible truncation or some bullshit when it reads the group csv
     chmap = ['0123456789', 'abcdefghij']
@@ -3025,6 +3059,7 @@ def run_mds(seqfos, workdir, outdir, plotdir, reco_info=None, title='', debug=Fa
     def untranslate(trans_name):
         return trans_name.translate(reverse_translations)
 
+    print '%s stop modifying <seqfos>' % color('red', 'hey')
     for seqfo in seqfos:
         # print seqfo['name'], translate(seqfo['name']), untranslate(translate(seqfo['name']))
         seqfo['name'] = translate(seqfo['name'])
@@ -3066,6 +3101,11 @@ def run_mds(seqfos, workdir, outdir, plotdir, reco_info=None, title='', debug=Fa
 
         # mat.dif or mat.dis?
         'active <- mat.dif(human, human)',
+        'kmeans.run1 <- kmeans.run(active, nb.clus = 3, nb.run = 100)',
+        # 'kmeans.run1$clusters',
+        # 'kmeans.run1$elements',
+        'options(width=10000)',
+        'capture.output(kmeans.run1$clusters, file="%s")' % clusterfname,
 
         'mmds_active <- mmds(active, group.file=%s)' % ('NULL' if reco_info is None else '"' + group_csv_fname + '"'),
 
@@ -3087,6 +3127,12 @@ def run_mds(seqfos, workdir, outdir, plotdir, reco_info=None, title='', debug=Fa
         cmdfile.write('\n'.join(cmdlines) + '\n')
     # subprocess.check_call(['cat', cmdfname])
     subprocess.check_call('R --slave -f %s' % cmdfname, shell=True)
+    partition = read_clusterfile(clusterfname, seqfos)
+
+    for seqfo in seqfos:
+        seqfo['name'] = untranslate(seqfo['name'])
+    partition = [[untranslate(uid) for uid in cluster] for cluster in partition]
+
     os.remove(cmdfname)
     os.remove(msafname)
     if reco_info is not None:
