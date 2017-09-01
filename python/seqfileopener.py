@@ -82,6 +82,10 @@ def post_process(input_info, reco_info, args, infname, found_seed, is_data, ilin
             included_queries.add(args.seed_unique_id)
         if args.queries_to_include is not None:
             for uid in args.queries_to_include:
+                if args.seed_unique_id is not None and uid == args.seed_unique_id:
+                    continue
+                if uid not in uids_to_choose_from:
+                    raise Exception('couldn\'t find requested query %s in %s' % (uid, infname))
                 uids_to_choose_from.remove(uid)
                 included_queries.add(uid)
         if args.n_random_queries >= len(input_info):
