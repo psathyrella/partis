@@ -177,33 +177,53 @@ class AlleleClusterer(object):
         return workdir, msafname
 
     # ----------------------------------------------------------------------------------------
-    def read_kmeans_clusterfile(self, clusterfname, seqfos):
+    def read_kmeans_clusterfile(self, clusterfname, seqfos, debug=False):
+
+        # holy crap the need for this function [and its consequent form] make me angry
+
         all_uids = set([sfo['name'] for sfo in seqfos])
         partition = []
         with open(clusterfname) as clusterfile:
             lines = [l.strip() for l in clusterfile.readlines()]
-            lines = [lines[i : i + 4] for i in range(0, len(lines), 4)]
-            for clusterlines in lines:
-                clidline = clusterlines[0]
-                uidline = clusterlines[1]
-                floatline = clusterlines[2]  # some info about the kmean cluster quality i think? don't care a.t.m.
-                emptyline = clusterlines[3]
+            iline = -1
+            while iline < len(lines) - 1:
+                iline += 1
 
+                clidline = lines[iline]
+                if debug:
+                    print 'clid  ', clidline
                 if clidline[0] != '$' or int(clidline.lstrip('$').strip('`')) != len(partition) + 1:
                     raise Exception('couldn\'t convert %s to the expected cluster id %d' % (clidline, len(partition) + 1))
+                partition.append([])
 
-                uids = set([u for u in uidline.split()])
-                if len(uids - all_uids) > 0:
-                    raise Exception('read unexpected uid[s] \'%s\' from %s' % (' '.join(uids - all_uids), clusterfname))
-                all_uids -= uids
-                partition.append(list(uids))
+                while True:
+                    if iline + 2 >= len(lines):
+                        break
+                    iline += 1
+                    uidline = lines[iline]
+                    if debug:
+                        print 'uid   ', uidline
+                    iline += 1
+                    floatline = lines[iline]  # some info about the kmean cluster quality i think? don't care a.t.m.
+                    if debug:
+                        print 'float ', floatline
 
-                floats = [float(istr) for istr in floatline.split()]
-                if len(floats) != len(uids):
-                    raise Exception('uid line %d and floats line %d have different lengths:\n  %s\n  %s' % (len(uids), len(floats), uidline, floatline))
+                    uids = set([u for u in uidline.split()])
+                    if len(uids - all_uids) > 0:
+                        raise Exception('read unexpected uid[s] \'%s\' from %s' % (' '.join(uids - all_uids), clusterfname))
+                    all_uids -= uids
+                    partition[-1] += list(uids)
 
-                if emptyline != '':
-                    raise Exception('expected empty line but got \'%s\'' % emptyline)
+                    floats = [float(istr) for istr in floatline.split()]
+                    if len(floats) != len(uids):
+                        raise Exception('uid line %d and floats line %d have different lengths:\n  %s\n  %s' % (len(uids), len(floats), uidline, floatline))
+
+                    if lines[iline + 1] == '':
+                        iline += 1
+                        break
+
+                # if emptyline != '':
+                #     raise Exception('expected empty line but got \'%s\'' % emptyline)
 
         if len(all_uids) > 0:
             raise Exception('didn\'t read %d expected queries from %s (%s)' % (len(all_uids), clusterfname, ' '.join(all_uids)))
