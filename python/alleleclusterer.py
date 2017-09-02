@@ -212,9 +212,8 @@ class AlleleClusterer(object):
         return partition
 
     # ----------------------------------------------------------------------------------------
-    def run_single_family_kmeans(self, family, seqfos, all_qr_seqs, reco_info=None, debug=False):
-        # debug = True
-        workdir, msafname = self.init_bios2mds(seqfos)
+    def run_single_family_kmeans(self, family, family_seqfos, all_qr_seqs, reco_info=None, debug=False):
+        workdir, msafname = self.init_bios2mds(family_seqfos)
         clusterfname = workdir + '/clusters.txt'
 
         cmdlines = [
@@ -237,16 +236,18 @@ class AlleleClusterer(object):
         ]
 
         utils.run_r(cmdlines, workdir, print_time='kmeans')
-        partition = self.read_kmeans_clusterfile(clusterfname, seqfos)
+        partition = self.read_kmeans_clusterfile(clusterfname, family_seqfos)
 
         clusterfos = []
         for cluster in partition:
-            clusterfos.append({
+            cfo = {
                 'seqfos' : [{'name' : uid, 'seq' : all_qr_seqs[uid]} for uid in cluster],
-                'cons_seq' : utils.cons_seq(0.1, unaligned_seqfos=seqfos),
                 # 'centroid'  # placeholder to remind you that vsearch clustering adds this, but I think it isn't subsequently used
-            })
+            }
+            cfo['cons_seq'] = utils.cons_seq(0.1, unaligned_seqfos=cfo['seqfos'])
+            clusterfos.append(cfo)
 
+            # debug = True
             # if debug and reco_info is not None:
             #     print len(cluster)
             #     for uid in cluster:
