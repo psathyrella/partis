@@ -164,8 +164,6 @@ class AlleleClusterer(object):
                 print '  %5d     %s' % (len(seqfos), family)
             familyfos = self.run_single_family_kmeans(family, seqfos, qr_seqs, reco_info=self.reco_info)
             clusterfos += familyfos
-            for cfo in clusterfos:
-                print 'y', family, len(cfo['seqfos'])
 
         return clusterfos
 
@@ -226,10 +224,8 @@ class AlleleClusterer(object):
 
             # mat.dif or mat.dis?
             'active <- mat.dif(human, human)',
-# ----------------------------------------------------------------------------------------
-            # 'mmds_active <- mmds(active)',
-            'kmeans.run1 <- kmeans.run(active, nb.clus = 3, iter.max = 1000, nb.run = 10)',  # nb.run = 100
-# ----------------------------------------------------------------------------------------
+            'mmds_active <- mmds(active)',
+            'kmeans.run1 <- kmeans.run(mmds_active$coord, nb.clus = 3, iter.max = 1000, nb.run = 10)',  # nb.run = 100
             # 'kmeans.run1$clusters',
             # 'kmeans.run1$elements',
             'options(width=10000)',
@@ -239,7 +235,6 @@ class AlleleClusterer(object):
             #               method = "euclidean")
             # random.msa  # builds a random [...]
         ]
-        raise Exception('i\'m not passing the right the to kmeans.run() yet')
 
         utils.run_r(cmdlines, workdir, print_time='kmeans')
         partition = self.read_kmeans_clusterfile(clusterfname, seqfos)
@@ -391,9 +386,9 @@ class AlleleClusterer(object):
         # self.check_for_donuts(debug=debug)
         # sys.exit()
 
-        clusterfos, msa_info = self.vsearch_cluster_v_seqs(qr_seqs, threshold, debug=debug)
-        # clusterfos = self.kmeans_cluster_v_seqs(qr_seqs, swfo, debug=debug)
-        # msa_info = clusterfos
+        # clusterfos, msa_info = self.vsearch_cluster_v_seqs(qr_seqs, threshold, debug=debug)
+        clusterfos = self.kmeans_cluster_v_seqs(qr_seqs, swfo, debug=debug)
+        msa_info = clusterfos
 
         # and finally loop over each cluster, deciding if it corresponds to a new allele
         if debug:
