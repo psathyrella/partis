@@ -121,7 +121,7 @@ class AlleleClusterer(object):
         for seqfo in msa_seqs:
             if seqfo['name'][0] == '*':  # start of new cluster (centroid is first, and is marked with a '*')
                 centroid = seqfo['name'].lstrip('*')
-                msa_info.append({'centroid' : centroid, 'seqfos' : [{'name' : centroid, 'seq' : seqfo['seq']}]})
+                msa_info.append({'centroid' : centroid, 'seqfos' : [{'name' : centroid, 'seq' : seqfo['seq']}]})  # I don't seem to actually be using the identity of the centroid sequence for anything
             elif seqfo['name'] == 'consensus':
                 msa_info[-1]['cons_seq'] = seqfo['seq'].replace('+', '')  # gaaaaah not sure what the +s mean
             else:
@@ -155,12 +155,19 @@ class AlleleClusterer(object):
 
     # ----------------------------------------------------------------------------------------
     def kmeans_cluster_v_seqs(self, qr_seqs, swfo, debug=False):
-        print '  seqs    family'
+        clusterfos = []
+        if debug:
+            print 'kmeans clustering'
+            print '  seqs    family'
         for family, seqfos in self.get_family_groups(qr_seqs, swfo).items():
-            print '  %5d     %s' % (len(seqfos), family)
-            self.run_single_family_kmeans(family, seqfos, reco_info=self.reco_info)
+            if debug:
+                print '  %5d     %s' % (len(seqfos), family)
+            familyfos = self.run_single_family_kmeans(family, seqfos, qr_seqs, reco_info=self.reco_info)
+            clusterfos += familyfos
+            for cfo in clusterfos:
+                print 'y', family, len(cfo['seqfos'])
 
-        return None, None
+        return clusterfos
 
     # ----------------------------------------------------------------------------------------
     def init_bios2mds(self, seqfos):
@@ -181,7 +188,7 @@ class AlleleClusterer(object):
             for clusterlines in lines:
                 clidline = clusterlines[0]
                 uidline = clusterlines[1]
-                intline = clusterlines[2]  # some info about the kmean cluster quality i think? don't care a.t.m.
+                floatline = clusterlines[2]  # some info about the kmean cluster quality i think? don't care a.t.m.
                 emptyline = clusterlines[3]
 
                 if clidline[0] != '$' or int(clidline.lstrip('$').strip('`')) != len(partition) + 1:
@@ -193,9 +200,9 @@ class AlleleClusterer(object):
                 all_uids -= uids
                 partition.append(list(uids))
 
-                integers = [int(istr) for istr in intline.split()]
-                if len(integers) != len(uids):
-                    raise Exception('uid line %d and integers line %d have different lengths:\n  %s\n  %s' % (len(uids), len(integers), uidline, intline))
+                floats = [float(istr) for istr in floatline.split()]
+                if len(floats) != len(uids):
+                    raise Exception('uid line %d and floats line %d have different lengths:\n  %s\n  %s' % (len(uids), len(floats), uidline, floatline))
 
                 if emptyline != '':
                     raise Exception('expected empty line but got \'%s\'' % emptyline)
@@ -207,8 +214,8 @@ class AlleleClusterer(object):
         return partition
 
     # ----------------------------------------------------------------------------------------
-    def run_single_family_kmeans(self, family, seqfos, reco_info=None, debug=False):
-
+    def run_single_family_kmeans(self, family, seqfos, all_qr_seqs, reco_info=None, debug=False):
+        # debug = True
         workdir, msafname = self.init_bios2mds(seqfos)
         clusterfname = workdir + '/clusters.txt'
 
@@ -219,7 +226,10 @@ class AlleleClusterer(object):
 
             # mat.dif or mat.dis?
             'active <- mat.dif(human, human)',
-            'kmeans.run1 <- kmeans.run(active, nb.clus = 3, nb.run = 100)',
+# ----------------------------------------------------------------------------------------
+            # 'mmds_active <- mmds(active)',
+            'kmeans.run1 <- kmeans.run(active, nb.clus = 3, iter.max = 1000, nb.run = 10)',  # nb.run = 100
+# ----------------------------------------------------------------------------------------
             # 'kmeans.run1$clusters',
             # 'kmeans.run1$elements',
             'options(width=10000)',
@@ -229,14 +239,28 @@ class AlleleClusterer(object):
             #               method = "euclidean")
             # random.msa  # builds a random [...]
         ]
+        raise Exception('i\'m not passing the right the to kmeans.run() yet')
 
         utils.run_r(cmdlines, workdir, print_time='kmeans')
         partition = self.read_kmeans_clusterfile(clusterfname, seqfos)
-        # for cluster in partition:
-        #     print '    %s' % ' '.join(cluster)
+
+        clusterfos = []
+        for cluster in partition:
+            clusterfos.append({
+                'seqfos' : [{'name' : uid, 'seq' : all_qr_seqs[uid]} for uid in cluster],
+                'cons_seq' : utils.cons_seq(0.1, unaligned_seqfos=seqfos),
+                # 'centroid'  # placeholder to remind you that vsearch clustering adds this, but I think it isn't subsequently used
+            })
+
+            # if debug and reco_info is not None:
+            #     print len(cluster)
+            #     for uid in cluster:
+            #         print '    %s' % utils.color_gene(reco_info[uid][self.region + '_gene'])
 
         os.remove(msafname)
         os.rmdir(workdir)
+
+        return clusterfos
 
     # ----------------------------------------------------------------------------------------
     def print_cluster(self, iclust, clusterfo, sorted_glcounts, new_seq, true_sorted_glcounts, mean_cluster_mfreqs, has_indels):
@@ -269,6 +293,7 @@ class AlleleClusterer(object):
 
     # ----------------------------------------------------------------------------------------
     def reassign_template_counts(self, msa_info, new_alleles, debug=False):
+        # XXX need to update family_groups here
         if len(new_alleles) == 0:
             return
 
@@ -367,7 +392,8 @@ class AlleleClusterer(object):
         # sys.exit()
 
         clusterfos, msa_info = self.vsearch_cluster_v_seqs(qr_seqs, threshold, debug=debug)
-        _, _ = self.kmeans_cluster_v_seqs(qr_seqs, swfo, debug=debug)
+        # clusterfos = self.kmeans_cluster_v_seqs(qr_seqs, swfo, debug=debug)
+        # msa_info = clusterfos
 
         # and finally loop over each cluster, deciding if it corresponds to a new allele
         if debug:
@@ -447,7 +473,7 @@ class AlleleClusterer(object):
                 newfo['remove-template-gene'] = True
 
         if plotdir is not None:
-            self.plot(swfo, qr_seqs, plotdir)
+            self.plot(clusterfos, swfo, qr_seqs, plotdir)
 
         return new_alleles
 
@@ -479,15 +505,56 @@ class AlleleClusterer(object):
 
 
     # ----------------------------------------------------------------------------------------
-    def plot(self, swfo, qr_seqs, plotdir):
+    def plot(self, clusterfos, swfo, qr_seqs, plotdir):
         print '  seqs    family'
         for family, seqfos in self.get_family_groups(qr_seqs, swfo).items():
             print '  %5d     %s' % (len(seqfos), family)
             # utils.run_mds(seqfos, self.args.workdir + '/mds', plotdir=plotdir + '/' + utils.sanitize_name(family), reco_info=self.reco_info, title=family)
-            self.plot_single_family(family, seqfos, plotdir + '/' + utils.sanitize_name(family), reco_info=self.reco_info)
+            self.plot_single_family(family, seqfos, clusterfos, plotdir + '/' + utils.sanitize_name(family), reco_info=self.reco_info)
 
     # ----------------------------------------------------------------------------------------
-    def plot_single_family(self, family, seqfos, plotdir, reco_info=None, debug=False):
+    def plot_single_family(self, family, seqfos, clusterfos, plotdir, reco_info=None, debug=False):
+        def write_group_colors(seqfos, reco_info=None, clusterfos=None):  # <seqfos> correspond to the family, <clusterfos> is everybody
+            colors = ['red', 'blue', 'forestgreen', 'grey', 'orange', 'green', 'skyblue4', 'maroon', 'salmon', 'chocolate4', 'magenta']
+
+            if reco_info is not None:
+                all_genes = set([reco_info[untranslate(seqfo['name'])][self.region + '_gene'] for seqfo in seqfos])
+                if len(all_genes) > len(colors):
+                    print '%s more genes %d than colors %d' % (color('yellow', 'warning'), len(all_genes), len(colors))
+                all_gene_list = list(all_genes)
+                gene_colors = {all_gene_list[ig] : colors[ig % len(colors)] for ig in range(len(all_gene_list))}
+                with open(group_csv_fname, 'w') as groupfile:
+                    for iseq in range(len(seqfos)):
+                        seqfo = seqfos[iseq]
+                        gene = reco_info[untranslate(seqfo['name'])][self.region + '_gene']
+                        if len(all_genes) == 1 and iseq == 0:  # R code crashes if there's only one group
+                            gene += '-dummy'
+                        groupfile.write('"%s","%s","%s"\n' % (seqfo['name'], gene, gene_colors.get(gene, 'black')))
+            elif clusterfos is not None:
+                idstrs = ['a', 'b', 'c', 'd', 'e', 'f', 'g']
+                uid_to_cluster_id_map = {sfo['name'] : idstrs[iclust] for iclust in range(len(clusterfos)) for sfo in clusterfos[iclust]['seqfos']}
+                all_cluster_ids = set(uid_to_cluster_id_map.values()) #range(len(clusterfos)))
+                if len(all_cluster_ids) > len(colors):
+                    print '%s more clusters %d than colors %d' % (color('yellow', 'warning'), len(all_cluster_ids), len(colors))
+                all_cluster_id_list = list(all_cluster_ids)
+                cluster_id_colors = {all_cluster_id_list[ig] : colors[ig % len(colors)] for ig in range(len(all_cluster_id_list))}
+                with open(group_csv_fname, 'w') as groupfile:
+                    for iseq in range(len(seqfos)):
+                        seqfo = seqfos[iseq]
+                        cluster_id = uid_to_cluster_id_map[untranslate(seqfo['name'])]
+                        if len(all_cluster_ids) == 1 and iseq == 0:  # R code crashes if there's only one group
+                            cluster_id += '-dummy'
+                        groupfile.write('"%s","%s","%s"\n' % (seqfo['name'], cluster_id, cluster_id_colors.get(cluster_id, 'black')))
+            else:
+                assert False
+
+            # all_genes = set([reco_info[untranslate(seqfo['name'])][self.region + '_gene'] for seqfo in seqfos])
+
+            # with open(group_csv_fname, 'w') as groupfile:
+            #     for iseq in range(len(seqfos)):
+            #         seqfo = seqfos[iseq]
+            #         groupfile.write('"%s","%s","%s"\n' % (seqfo['name'], gene, colorfcn(seqfo['name'], iseq)))
+
         if not os.path.exists(plotdir):
             os.makedirs(plotdir)
 
@@ -505,21 +572,8 @@ class AlleleClusterer(object):
         workdir, msafname = self.init_bios2mds(seqfos)
         group_csv_fname = workdir + '/groups.csv'
 
-        if reco_info is not None:
-            colors = ['red', 'blue', 'forestgreen', 'grey', 'orange', 'green', 'skyblue4', 'maroon', 'salmon', 'chocolate4', 'magenta']
-            all_genes = list(set([reco_info[untranslate(seqfo['name'])][self.region + '_gene'] for seqfo in seqfos]))
-            if len(all_genes) > len(colors):
-                print '%s more genes %d than colors %d' % (color('yellow', 'warning'), len(all_genes), len(colors))
-            gene_colors = {all_genes[ig] : colors[ig % len(colors)] for ig in range(len(all_genes))}
-
-            all_genes = set([reco_info[untranslate(seqfo['name'])][self.region + '_gene'] for seqfo in seqfos])  # R code crashes if there's only one group
-            with open(group_csv_fname, 'w') as groupfile:
-                for iseq in range(len(seqfos)):
-                    seqfo = seqfos[iseq]
-                    gene = reco_info[untranslate(seqfo['name'])][self.region + '_gene']
-                    if len(all_genes) == 1 and iseq == 0:  # see note above (!#$@!$Q)
-                        gene += '-dummy'
-                    groupfile.write('"%s","%s","%s"\n' % (seqfo['name'], gene, gene_colors.get(gene, 'black')))
+        # write_group_colors(seqfos, reco_info=reco_info)
+        write_group_colors(seqfos, clusterfos=clusterfos)
 
         # # functional example:
         # cmdlines = [
