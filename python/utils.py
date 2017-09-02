@@ -601,6 +601,32 @@ def align_seqs(ref_seq, seq):  # should eventually change name to align_two_seqs
     return msa_info['ref'], msa_info['new']
 
 # ----------------------------------------------------------------------------------------
+def cons_seq(threshold, aligned_seqfos=None, unaligned_seqfos=None):
+    from cStringIO import StringIO
+    from Bio.Align import AlignInfo
+    # if 'Bio.Align' not in sys.modules:
+    #     from Bio.Align import AlignInfo
+    # Bio.Align.AlignInfo = sys.modules['Bio.Align']
+    import Bio.AlignIO
+    # if 'Bio.AlignIO' not in sys.modules:
+    #     import Bio.AlignIO
+    # Bio.AlignIO = sys.modules['Bio.AlignIO']
+
+    if aligned_seqfos is not None:
+        assert unaligned_seqfos is None
+        seqfos = aligned_seqfos
+    elif unaligned_seqfos is not None:
+        assert aligned_seqfos is None
+        seqfos = align_many_seqs(unaligned_seqfos)
+    else:
+        assert False
+
+    fastalist = ['>%s\n%s' % (sfo['name'], sfo['seq']) for sfo in seqfos]
+    alignment = Bio.AlignIO.read(StringIO('\n'.join(fastalist) + '\n'), 'fasta')
+    cons_seq = str(AlignInfo.SummaryInfo(alignment).gap_consensus(threshold, ambiguous='N'))
+    return cons_seq
+
+# ----------------------------------------------------------------------------------------
 def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', seq_label='', post_str='', print_hfrac=False, print_isnps=False, return_isnps=False, emphasis_positions=None, use_min_len=False, only_print_seq=False, align=False, return_ref=False):
     """ default: return <seq> string with colored mutations with respect to <ref_seq> """
 
@@ -3014,6 +3040,7 @@ def run_swarm(seqs, workdir, differences=1, n_procs=1):
     cp.print_partitions(abbreviate=True)
 
     return partition
+
 
 # # ----------------------------------------------------------------------------------------
 # def run_mds(seqfos, workdir, plotdir, reco_info=None, title='', debug=False):
