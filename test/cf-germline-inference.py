@@ -183,7 +183,7 @@ def get_gls_gen_plots(args, baseoutdir, method):
         print '%-2d                            %s' % (iproc, outdir)
         simfname = get_gls_fname(outdir, method=None, locus=sim_locus, sim_truth=True)
         inffname = get_gls_fname(outdir, method, sim_locus)
-        make_gls_tree_plot(args, outdir + '/' + method + '/gls-gen-plots', varvalstr(varname, varval), glsfnames=[simfname, inffname], glslabels=['sim', 'inf'])
+        make_gls_tree_plot(args, outdir + '/' + method + '/gls-gen-plots', varvalstr(varname, varval), glsfnames=[simfname, inffname], glslabels=['sim', 'inf'], locus=sim_locus)
 
 # ----------------------------------------------------------------------------------------
 def get_data_plots(args, baseoutdir, method):
