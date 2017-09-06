@@ -493,8 +493,8 @@ class AlleleClusterer(object):
             if self.adjusted_glcounts[newfo['template-gene']] / float(sum(self.adjusted_glcounts.values())) < self.args.min_allele_prevalence_fraction:  # NOTE self.adjusted_glcounts only includes large clusters, and the constituents of those clusters are clonal representatives, so this isn't quite the same as in alleleremover
                 newfo['remove-template-gene'] = True
 
-        if plotdir is not None:
-            self.plot(clusterfos, swfo, qr_seqs, plotdir)
+        # if plotdir is not None:
+        #     self.plot(clusterfos, swfo, qr_seqs, plotdir)
 
         return new_alleles
 
