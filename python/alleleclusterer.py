@@ -411,9 +411,10 @@ class AlleleClusterer(object):
         # self.check_for_donuts(debug=debug)
         # sys.exit()
 
-        # clusterfos, msa_info = self.vsearch_cluster_v_seqs(qr_seqs, threshold, debug=debug)
-        clusterfos = self.kmeans_cluster_v_seqs(qr_seqs, swfo, debug=debug)
-        msa_info = clusterfos
+        clusterfos, msa_info = self.vsearch_cluster_v_seqs(qr_seqs, threshold, debug=debug)
+
+        # clusterfos = self.kmeans_cluster_v_seqs(qr_seqs, swfo, debug=debug)
+        # msa_info = clusterfos
 
         # and finally loop over each cluster, deciding if it corresponds to a new allele
         if debug:
