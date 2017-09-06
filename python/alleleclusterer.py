@@ -236,6 +236,10 @@ class AlleleClusterer(object):
         workdir, msafname = self.init_bios2mds(family_seqfos)
         clusterfname = workdir + '/clusters.txt'
 
+# ----------------------------------------------------------------------------------------
+        n_clusters = 4
+# ----------------------------------------------------------------------------------------
+
         cmdlines = [
             'require(bios2mds, quietly=TRUE)',
             'set.seed(%d)' % self.args.seed,
@@ -243,8 +247,8 @@ class AlleleClusterer(object):
 
             # mat.dif or mat.dis?
             'active <- mat.dif(human, human)',
-            'mmds_active <- mmds(active)',
-            'kmeans.run1 <- kmeans.run(mmds_active$coord, nb.clus = 3, iter.max = 1000, nb.run = 10)',  # nb.run = 100
+            'mmds_active <- mmds(active)',  # TODO now that you moved mmds to here, you need to move the plotting stuff into here (or, really, get it to output the PCA components and stop doing the plotting in R)
+            'kmeans.run1 <- kmeans.run(mmds_active$coord, nb.clus = %d, iter.max = 1000, nb.run = 10)' % n_clusters,  # nb.run = 100
             # 'kmeans.run1$clusters',
             # 'kmeans.run1$elements',
             'options(width=10000)',
@@ -287,13 +291,13 @@ class AlleleClusterer(object):
             if igene > 0:
                 print '%22s' % '',
             gene, counts = sorted_glcounts[igene]
-            print '   %-s %4d      %2d%s' % (utils.color_gene(gene, width=15), counts, utils.hamming_distance(new_seq, self.glfo['seqs'][self.region][gene], align=True), ' (%s)' % utils.color('blue', 'x') if has_indels else '   '),
+            print '   %-s %4d      %2d%s' % (utils.color_gene(gene, width=20), counts, utils.hamming_distance(new_seq, self.glfo['seqs'][self.region][gene], align=True), ' (%s)' % utils.color('blue', 'x') if has_indels else '   '),
             if igene < len(sorted_glcounts) - 1 or self.reco_info is not None:
                 print ''
         if self.reco_info is not None:
             for igene in range(len(true_sorted_glcounts)):
                 gene, counts = true_sorted_glcounts[igene]
-                print '%17s       %s %-s %4d %s    %2d   ' % ('', utils.color('green', '['), utils.color_gene(gene, width=15), counts, utils.color('green', ']'), utils.hamming_distance(new_seq, self.simglfo['seqs'][self.region][gene], align=True)),
+                print '%17s       %s %-s %4d %s    %2d   ' % ('', utils.color('green', '['), utils.color_gene(gene[:23], width=20), counts, utils.color('green', ']'), utils.hamming_distance(new_seq, self.simglfo['seqs'][self.region][gene], align=True)),
                 if igene < len(true_sorted_glcounts) - 1:
                     print ''
 

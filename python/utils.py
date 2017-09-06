@@ -601,7 +601,8 @@ def align_seqs(ref_seq, seq):  # should eventually change name to align_two_seqs
     return msa_info['ref'], msa_info['new']
 
 # ----------------------------------------------------------------------------------------
-def cons_seq(threshold, aligned_seqfos=None, unaligned_seqfos=None):
+def cons_seq(threshold, aligned_seqfos=None, unaligned_seqfos=None, debug=False):
+    print '%s decide how you want to do these imports' % color('red', 'hey')
     from cStringIO import StringIO
     from Bio.Align import AlignInfo
     # if 'Bio.Align' not in sys.modules:
@@ -624,6 +625,14 @@ def cons_seq(threshold, aligned_seqfos=None, unaligned_seqfos=None):
     fastalist = ['>%s\n%s' % (sfo['name'], sfo['seq']) for sfo in seqfos]
     alignment = Bio.AlignIO.read(StringIO('\n'.join(fastalist) + '\n'), 'fasta')
     cons_seq = str(AlignInfo.SummaryInfo(alignment).gap_consensus(threshold, ambiguous='N'))
+
+    # debug = True
+    # if debug:
+    #     print 'consensus %s' % cons_seq
+    #     for sfo in seqfos:
+    #         print '' % (color_mutants(cons_seq, sfo['seq'], align=True))
+    #     sys.exit()
+
     return cons_seq
 
 # ----------------------------------------------------------------------------------------
