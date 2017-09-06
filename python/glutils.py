@@ -1039,6 +1039,21 @@ def find_equivalent_gene_in_glfo(glfo, new_seq, new_cpos=None, new_name=None, ex
 
         return oldname_gene, oldname_seq  # it might make more sense to keep looking for a better match, rather than just taking the first one
 
+    if debug:
+        seqfos = [{'name' : g, 'seq' : s} for g, s in glfo['seqs'][region].items()]
+        seqfos.append({'name' : 'new', 'seq' : new_seq})
+        aligned_seqs = {sfo['name'] : sfo['seq'] for sfo in utils.align_many_seqs(seqfos)}
+        hdists = [(name, utils.hamming_distance(seq, aligned_seqs['new'])) for name, seq in aligned_seqs.items() if name != 'new']
+        hdists = sorted(hdists, key=operator.itemgetter(1))
+        print '    no equivalent gene for %s' % utils.color_gene(new_name) if new_name is not None else '',
+        if len(hdists) == 0:
+            raise Exception('also no nearby genes (should only happen if the gl set is pretty trivial)')
+        nearest_gene, nearest_distance = hdists[0]
+        tmp_ref_seq, tmp_seq = utils.color_mutants(aligned_seqs['new'], aligned_seqs[nearest_gene], align=True, return_ref=True)  # have to re-align 'em in order to get rid of extraneous gaps from other seqs in the previous alignment
+        print ', nearest is %s:' % utils.color_gene(nearest_gene)
+        print '      %s %s' % (tmp_ref_seq, utils.color_gene(new_name) if new_name is not None else '')
+        print '      %s %s' % (tmp_seq, utils.color_gene(nearest_gene))
+
     return None, None
 
 # ----------------------------------------------------------------------------------------
