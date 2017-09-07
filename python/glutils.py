@@ -1050,7 +1050,7 @@ def find_equivalent_gene_in_glfo(glfo, new_seq, new_cpos=None, new_name=None, ex
             raise Exception('also no nearby genes (should only happen if the gl set is pretty trivial)')
         nearest_gene, nearest_distance = hdists[0]
         tmp_ref_seq, tmp_seq = utils.color_mutants(aligned_seqs['new'], aligned_seqs[nearest_gene], align=True, return_ref=True)  # have to re-align 'em in order to get rid of extraneous gaps from other seqs in the previous alignment
-        print ', nearest is %s:' % utils.color_gene(nearest_gene)
+        print 'nearest is %s:' % utils.color_gene(nearest_gene)
         print '      %s %s' % (tmp_ref_seq, utils.color_gene(new_name) if new_name is not None else '')
         print '      %s %s' % (tmp_seq, utils.color_gene(nearest_gene))
 
