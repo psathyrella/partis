@@ -1,3 +1,4 @@
+import string
 import copy
 import numpy
 import itertools
@@ -109,7 +110,7 @@ class AlleleClusterer(object):
         return qr_seqs, threshold
 
     # ----------------------------------------------------------------------------------------
-    def cluster_v_seqs(self, qr_seqs, threshold, debug=False):
+    def vsearch_cluster_v_seqs(self, qr_seqs, threshold, debug=False):
         # then vsearch cluster the v-sequences in <qr_seqs> using a heuristic j-mutation-based threshold
         msa_fname = self.args.workdir + '/msa.fa'
         print '   vsearch clustering %d %s segments with threshold %.2f (*300 = %d)' % (len(qr_seqs), self.region, threshold, int(threshold * 300))
@@ -120,7 +121,7 @@ class AlleleClusterer(object):
         for seqfo in msa_seqs:
             if seqfo['name'][0] == '*':  # start of new cluster (centroid is first, and is marked with a '*')
                 centroid = seqfo['name'].lstrip('*')
-                msa_info.append({'centroid' : centroid, 'seqfos' : [{'name' : centroid, 'seq' : seqfo['seq']}]})
+                msa_info.append({'centroid' : centroid, 'seqfos' : [{'name' : centroid, 'seq' : seqfo['seq']}]})  # I don't seem to actually be using the identity of the centroid sequence for anything
             elif seqfo['name'] == 'consensus':
                 msa_info[-1]['cons_seq'] = seqfo['seq'].replace('+', '')  # gaaaaah not sure what the +s mean
             else:
@@ -142,6 +143,146 @@ class AlleleClusterer(object):
         return clusterfos, msa_info
 
     # ----------------------------------------------------------------------------------------
+    def get_family_groups(self, qr_seqs, swfo):
+        family_groups = {}  # this is kinda wasteful to copy all the sequences as well
+        for name, seq in qr_seqs.items():
+            # fam = utils.gene_family(adjusted_XXX[name][self.region + '_gene'])
+            fam = utils.gene_family(swfo[name][self.region + '_gene'])
+            if fam not in family_groups:
+                family_groups[fam] = []
+            family_groups[fam].append({'name' : name, 'seq' : seq})
+        return family_groups
+
+    # ----------------------------------------------------------------------------------------
+    def kmeans_cluster_v_seqs(self, qr_seqs, swfo, debug=False):
+        clusterfos = []
+        if debug:
+            print 'kmeans clustering'
+            print '  seqs    family'
+        for family, seqfos in self.get_family_groups(qr_seqs, swfo).items():
+            if debug:
+                print '  %5d     %s' % (len(seqfos), family)
+            familyfos = self.run_single_family_kmeans(family, seqfos, qr_seqs, reco_info=self.reco_info)
+            clusterfos += familyfos
+
+        return clusterfos
+
+    # ----------------------------------------------------------------------------------------
+    def init_bios2mds(self, seqfos):
+        workdir = self.args.workdir + '/mds'
+        if not os.path.exists(workdir):
+            os.makedirs(workdir)
+        msafname = workdir + '/msa.fa'
+        utils.align_many_seqs(seqfos, outfname=msafname)
+        return workdir, msafname
+
+    # ----------------------------------------------------------------------------------------
+    def read_kmeans_clusterfile(self, clusterfname, seqfos, debug=False):
+
+        # holy crap the need for this function [and its consequent form] make me angry
+
+        all_uids = set([sfo['name'] for sfo in seqfos])
+        partition = []
+        with open(clusterfname) as clusterfile:
+            lines = [l.strip() for l in clusterfile.readlines()]
+            iline = -1
+            while iline < len(lines) - 1:
+                iline += 1
+
+                clidline = lines[iline]
+                if debug:
+                    print 'clid  ', clidline
+                if clidline[0] != '$' or int(clidline.lstrip('$').strip('`')) != len(partition) + 1:
+                    raise Exception('couldn\'t convert %s to the expected cluster id %d' % (clidline, len(partition) + 1))
+                partition.append([])
+
+                while True:
+                    if iline + 2 >= len(lines):
+                        break
+                    iline += 1
+                    uidline = lines[iline]
+                    if debug:
+                        print 'uid   ', uidline
+                    iline += 1
+                    floatline = lines[iline]  # some info about the kmean cluster quality i think? don't care a.t.m.
+                    if debug:
+                        print 'float ', floatline
+
+                    uids = set([u for u in uidline.split()])
+                    if len(uids - all_uids) > 0:
+                        raise Exception('read unexpected uid[s] \'%s\' from %s' % (' '.join(uids - all_uids), clusterfname))
+                    all_uids -= uids
+                    partition[-1] += list(uids)
+
+                    floats = [float(istr) for istr in floatline.split()]
+                    if len(floats) != len(uids):
+                        raise Exception('uid line %d and floats line %d have different lengths:\n  %s\n  %s' % (len(uids), len(floats), uidline, floatline))
+
+                    if lines[iline + 1] == '':
+                        iline += 1
+                        break
+
+                # if emptyline != '':
+                #     raise Exception('expected empty line but got \'%s\'' % emptyline)
+
+        if len(all_uids) > 0:
+            raise Exception('didn\'t read %d expected queries from %s (%s)' % (len(all_uids), clusterfname, ' '.join(all_uids)))
+
+        os.remove(clusterfname)
+        return partition
+
+    # ----------------------------------------------------------------------------------------
+    def run_single_family_kmeans(self, family, family_seqfos, all_qr_seqs, reco_info=None, debug=False):
+        workdir, msafname = self.init_bios2mds(family_seqfos)
+        clusterfname = workdir + '/clusters.txt'
+
+# ----------------------------------------------------------------------------------------
+        n_clusters = 4
+# ----------------------------------------------------------------------------------------
+
+        cmdlines = [
+            'require(bios2mds, quietly=TRUE)',
+            'set.seed(%d)' % self.args.seed,
+            'human <- import.fasta("%s")' % msafname,
+
+            # mat.dif or mat.dis?
+            'active <- mat.dif(human, human)',
+            'mmds_active <- mmds(active)',  # TODO now that you moved mmds to here, you need to move the plotting stuff into here (or, really, get it to output the PCA components and stop doing the plotting in R)
+            'kmeans.run1 <- kmeans.run(mmds_active$coord, nb.clus = %d, iter.max = 1000, nb.run = 10)' % n_clusters,  # nb.run = 100
+            # 'kmeans.run1$clusters',
+            # 'kmeans.run1$elements',
+            'options(width=10000)',
+            'capture.output(kmeans.run1$clusters, file="%s")' % clusterfname,
+
+            # sil.score(mat, nb.clus = c(2:13), nb.run = 100, iter.max = 1000,  # run for every possible number of clusters (?)
+            #               method = "euclidean")
+            # random.msa  # builds a random [...]
+        ]
+
+        utils.run_r(cmdlines, workdir, print_time='kmeans')
+        partition = self.read_kmeans_clusterfile(clusterfname, family_seqfos)
+
+        clusterfos = []
+        for cluster in partition:
+            cfo = {
+                'seqfos' : [{'name' : uid, 'seq' : all_qr_seqs[uid]} for uid in cluster],
+                # 'centroid'  # placeholder to remind you that vsearch clustering adds this, but I think it isn't subsequently used
+            }
+            cfo['cons_seq'] = utils.cons_seq(0.1, unaligned_seqfos=cfo['seqfos'])
+            clusterfos.append(cfo)
+
+            # debug = True
+            # if debug and reco_info is not None:
+            #     print len(cluster)
+            #     for uid in cluster:
+            #         print '    %s' % utils.color_gene(reco_info[uid][self.region + '_gene'])
+
+        os.remove(msafname)
+        os.rmdir(workdir)
+
+        return clusterfos
+
+    # ----------------------------------------------------------------------------------------
     def print_cluster(self, iclust, clusterfo, sorted_glcounts, new_seq, true_sorted_glcounts, mean_cluster_mfreqs, has_indels):
         if iclust > 0:
             print ''
@@ -150,13 +291,13 @@ class AlleleClusterer(object):
             if igene > 0:
                 print '%22s' % '',
             gene, counts = sorted_glcounts[igene]
-            print '   %-s %4d      %2d%s' % (utils.color_gene(gene, width=15), counts, utils.hamming_distance(new_seq, self.glfo['seqs'][self.region][gene], align=True), ' (%s)' % utils.color('blue', 'x') if has_indels else '   '),
+            print '   %-s %4d      %2d%s' % (utils.color_gene(gene, width=20), counts, utils.hamming_distance(new_seq, self.glfo['seqs'][self.region][gene], align=True), ' (%s)' % utils.color('blue', 'x') if has_indels else '   '),
             if igene < len(sorted_glcounts) - 1 or self.reco_info is not None:
                 print ''
         if self.reco_info is not None:
             for igene in range(len(true_sorted_glcounts)):
                 gene, counts = true_sorted_glcounts[igene]
-                print '%17s       %s %-s %4d %s    %2d   ' % ('', utils.color('green', '['), utils.color_gene(gene, width=15), counts, utils.color('green', ']'), utils.hamming_distance(new_seq, self.simglfo['seqs'][self.region][gene], align=True)),
+                print '%17s       %s %-s %4d %s    %2d   ' % ('', utils.color('green', '['), utils.color_gene(gene[:23], width=20), counts, utils.color('green', ']'), utils.hamming_distance(new_seq, self.simglfo['seqs'][self.region][gene], align=True)),
                 if igene < len(true_sorted_glcounts) - 1:
                     print ''
 
@@ -171,7 +312,8 @@ class AlleleClusterer(object):
 
 
     # ----------------------------------------------------------------------------------------
-    def decide_whether_to_remove_template_genes(self, msa_info, new_alleles, debug=False):
+    def reassign_template_counts(self, msa_info, new_alleles, debug=False):
+        # XXX need to update family_groups here
         if len(new_alleles) == 0:
             return
 
@@ -231,11 +373,6 @@ class AlleleClusterer(object):
             for gene, counts in sorted(self.adjusted_glcounts.items(), key=operator.itemgetter(1), reverse=True):
                 print '    %4d  %s' % (counts, utils.color_gene(gene))
 
-        for new_name, newfo in new_alleles.items():
-            # print '%s  %s  %.1f / %.1f = %.4f' % (new_name, newfo['template-gene'], self.adjusted_glcounts[newfo['template-gene']], float(sum(self.adjusted_glcounts.values())), self.adjusted_glcounts[newfo['template-gene']] / float(sum(self.adjusted_glcounts.values())))
-            if self.adjusted_glcounts[newfo['template-gene']] / float(sum(self.adjusted_glcounts.values())) < self.args.min_allele_prevalence_fraction:  # NOTE self.adjusted_glcounts only includes large clusters, and the constituents of those clusters are clonal representatives, so this isn't quite the same as in alleleremover
-                newfo['remove-template-gene'] = True
-
     # # ----------------------------------------------------------------------------------------
     # def check_for_donuts(self, debug=False):
     #     hist = self.mfreq_hists['v']
@@ -274,7 +411,10 @@ class AlleleClusterer(object):
         # self.check_for_donuts(debug=debug)
         # sys.exit()
 
-        clusterfos, msa_info = self.cluster_v_seqs(qr_seqs, threshold, debug=debug)
+        clusterfos, msa_info = self.vsearch_cluster_v_seqs(qr_seqs, threshold, debug=debug)
+
+        # clusterfos = self.kmeans_cluster_v_seqs(qr_seqs, swfo, debug=debug)
+        # msa_info = clusterfos
 
         # and finally loop over each cluster, deciding if it corresponds to a new allele
         if debug:
@@ -347,10 +487,14 @@ class AlleleClusterer(object):
         if debug:
             print '  %d / %d clusters consensed to existing genes' % (n_existing_gene_clusters, len(msa_info))
 
-        self.decide_whether_to_remove_template_genes(msa_info, new_alleles, debug=False)
+        self.reassign_template_counts(msa_info, new_alleles, debug=False)
+        for new_name, newfo in new_alleles.items():
+            # print '%s  %s  %.1f / %.1f = %.4f' % (new_name, newfo['template-gene'], self.adjusted_glcounts[newfo['template-gene']], float(sum(self.adjusted_glcounts.values())), self.adjusted_glcounts[newfo['template-gene']] / float(sum(self.adjusted_glcounts.values())))
+            if self.adjusted_glcounts[newfo['template-gene']] / float(sum(self.adjusted_glcounts.values())) < self.args.min_allele_prevalence_fraction:  # NOTE self.adjusted_glcounts only includes large clusters, and the constituents of those clusters are clonal representatives, so this isn't quite the same as in alleleremover
+                newfo['remove-template-gene'] = True
 
-        if plotdir is not None:
-            self.plot(swfo, qr_seqs, plotdir)
+        # if plotdir is not None:
+        #     self.plot(clusterfos, swfo, qr_seqs, plotdir)
 
         return new_alleles
 
@@ -382,16 +526,106 @@ class AlleleClusterer(object):
 
 
     # ----------------------------------------------------------------------------------------
-    def plot(self, swfo, qr_seqs, plotdir):
-        family_groups = {}
-        for name, seq in qr_seqs.items():
-            # TODO switch to adjusted, and separate plots for sim/non-sim
-            # fam = utils.gene_family(adjusted_XXX[name][self.region + '_gene'])
-            fam = utils.gene_family(swfo[name][self.region + '_gene'])
-            if fam not in family_groups:
-                family_groups[fam] = []
-            family_groups[fam].append({'name' : name, 'seq' : seq})
+    def plot(self, clusterfos, swfo, qr_seqs, plotdir):
         print '  seqs    family'
-        for family, seqfos in family_groups.items():
+        for family, seqfos in self.get_family_groups(qr_seqs, swfo).items():
             print '  %5d     %s' % (len(seqfos), family)
-            utils.run_mds(seqfos, self.args.workdir + '/mds', outdir='/xxx', plotdir=plotdir + '/' + utils.sanitize_name(family), reco_info=self.reco_info, title=family)
+            # utils.run_mds(seqfos, self.args.workdir + '/mds', plotdir=plotdir + '/' + utils.sanitize_name(family), reco_info=self.reco_info, title=family)
+            self.plot_single_family(family, seqfos, clusterfos, plotdir + '/' + utils.sanitize_name(family), reco_info=self.reco_info)
+
+    # ----------------------------------------------------------------------------------------
+    def plot_single_family(self, family, seqfos, clusterfos, plotdir, reco_info=None, debug=False):
+        def write_group_colors(seqfos, reco_info=None, clusterfos=None):  # <seqfos> correspond to the family, <clusterfos> is everybody
+            colors = ['red', 'blue', 'forestgreen', 'grey', 'orange', 'green', 'skyblue4', 'maroon', 'salmon', 'chocolate4', 'magenta']
+
+            if reco_info is not None:
+                all_genes = set([reco_info[untranslate(seqfo['name'])][self.region + '_gene'] for seqfo in seqfos])
+                if len(all_genes) > len(colors):
+                    print '%s more genes %d than colors %d' % (color('yellow', 'warning'), len(all_genes), len(colors))
+                all_gene_list = list(all_genes)
+                gene_colors = {all_gene_list[ig] : colors[ig % len(colors)] for ig in range(len(all_gene_list))}
+                with open(group_csv_fname, 'w') as groupfile:
+                    for iseq in range(len(seqfos)):
+                        seqfo = seqfos[iseq]
+                        gene = reco_info[untranslate(seqfo['name'])][self.region + '_gene']
+                        if len(all_genes) == 1 and iseq == 0:  # R code crashes if there's only one group
+                            gene += '-dummy'
+                        groupfile.write('"%s","%s","%s"\n' % (seqfo['name'], gene, gene_colors.get(gene, 'black')))
+            elif clusterfos is not None:
+                idstrs = ['a', 'b', 'c', 'd', 'e', 'f', 'g']
+                uid_to_cluster_id_map = {sfo['name'] : idstrs[iclust] for iclust in range(len(clusterfos)) for sfo in clusterfos[iclust]['seqfos']}
+                all_cluster_ids = set(uid_to_cluster_id_map.values()) #range(len(clusterfos)))
+                if len(all_cluster_ids) > len(colors):
+                    print '%s more clusters %d than colors %d' % (color('yellow', 'warning'), len(all_cluster_ids), len(colors))
+                all_cluster_id_list = list(all_cluster_ids)
+                cluster_id_colors = {all_cluster_id_list[ig] : colors[ig % len(colors)] for ig in range(len(all_cluster_id_list))}
+                with open(group_csv_fname, 'w') as groupfile:
+                    for iseq in range(len(seqfos)):
+                        seqfo = seqfos[iseq]
+                        cluster_id = uid_to_cluster_id_map[untranslate(seqfo['name'])]
+                        if len(all_cluster_ids) == 1 and iseq == 0:  # R code crashes if there's only one group
+                            cluster_id += '-dummy'
+                        groupfile.write('"%s","%s","%s"\n' % (seqfo['name'], cluster_id, cluster_id_colors.get(cluster_id, 'black')))
+            else:
+                assert False
+
+            # all_genes = set([reco_info[untranslate(seqfo['name'])][self.region + '_gene'] for seqfo in seqfos])
+
+            # with open(group_csv_fname, 'w') as groupfile:
+            #     for iseq in range(len(seqfos)):
+            #         seqfo = seqfos[iseq]
+            #         groupfile.write('"%s","%s","%s"\n' % (seqfo['name'], gene, colorfcn(seqfo['name'], iseq)))
+
+        if not os.path.exists(plotdir):
+            os.makedirs(plotdir)
+
+        # R does some horrible truncation or some bullshit when it reads the group csv
+        chmap = ['0123456789', 'abcdefghij']
+        translations = string.maketrans(*chmap)
+        reverse_translations = string.maketrans(*reversed(chmap))
+        def translate(name):
+            return name.translate(translations)
+        def untranslate(trans_name):
+            return trans_name.translate(reverse_translations)
+        # this somewhat wastefully makes a whole new <seqfos>, but it's better than modifying the original one, and it should only happen when we're plotting
+        seqfos = [{'name' : translate(sfo['name']), 'seq' : sfo['seq']} for sfo in seqfos]
+
+        workdir, msafname = self.init_bios2mds(seqfos)
+        group_csv_fname = workdir + '/groups.csv'
+
+        # write_group_colors(seqfos, reco_info=reco_info)
+        write_group_colors(seqfos, clusterfos=clusterfos)
+
+        # # functional example:
+        # cmdlines = [
+        #     'require(bios2mds, quietly=TRUE)',
+        #     'data(gpcr)',
+        #     'human <- import.fasta(system.file("msa/human_gpcr.fa", package="bios2mds"))',
+        #     'active <- gpcr$dif$sapiens.sapiens',
+        #     'mmds_active <- mmds(active, group.file=system.file("csv/human_gpcr_group.csv", package = "bios2mds"))',
+        #     # 'mmds_active <- mmds(active, group.file="/home/dralph/work/partis/bios2mds/inst/csv/human_gpcr_group.csv")',
+        #     'layout(matrix(1:6, 2, 3))',
+        #     'scree.plot(mmds_active$eigen.perc, lab = TRUE, title = "Scree plot of metric MDS", pdf.file="%s/scree.pdf")' % plotdir,
+        #     'mmds.2D.plot(mmds_active, title = "Sequence space of human GPCRs", outfile.name="%s/mmds-2d", outfile.type="pdf")' % plotdir,
+        # ]
+        cmdlines = [
+            'require(bios2mds, quietly=TRUE)',
+            'set.seed(%d)' % self.args.seed,
+            'human <- import.fasta("%s")' % msafname,
+
+            # mat.dif or mat.dis?
+            'active <- mat.dif(human, human)',
+            'mmds_active <- mmds(active, group.file=%s)' % ('NULL' if reco_info is None else '"' + group_csv_fname + '"'),
+
+            'scree.plot(mmds_active$eigen.perc, lab=TRUE, title="%s", pdf.file="%s/scree.pdf")' % (family, plotdir),
+            'mmds.2D.plot(mmds_active, title="%s", outfile.name="%s/mmds-2d", outfile.type="pdf")' % (family, plotdir),
+
+            # random.msa  # builds a random [...]
+        ]
+
+        utils.run_r(cmdlines, workdir, print_time='mds plot')
+
+        os.remove(msafname)
+        if reco_info is not None:
+            os.remove(group_csv_fname)
+        os.rmdir(workdir)

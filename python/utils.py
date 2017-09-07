@@ -601,6 +601,41 @@ def align_seqs(ref_seq, seq):  # should eventually change name to align_two_seqs
     return msa_info['ref'], msa_info['new']
 
 # ----------------------------------------------------------------------------------------
+def cons_seq(threshold, aligned_seqfos=None, unaligned_seqfos=None, debug=False):
+    print '%s decide how you want to do these imports' % color('red', 'hey')
+    from cStringIO import StringIO
+    from Bio.Align import AlignInfo
+    # if 'Bio.Align' not in sys.modules:
+    #     from Bio.Align import AlignInfo
+    # Bio.Align.AlignInfo = sys.modules['Bio.Align']
+    import Bio.AlignIO
+    # if 'Bio.AlignIO' not in sys.modules:
+    #     import Bio.AlignIO
+    # Bio.AlignIO = sys.modules['Bio.AlignIO']
+
+    if aligned_seqfos is not None:
+        assert unaligned_seqfos is None
+        seqfos = aligned_seqfos
+    elif unaligned_seqfos is not None:
+        assert aligned_seqfos is None
+        seqfos = align_many_seqs(unaligned_seqfos)
+    else:
+        assert False
+
+    fastalist = ['>%s\n%s' % (sfo['name'], sfo['seq']) for sfo in seqfos]
+    alignment = Bio.AlignIO.read(StringIO('\n'.join(fastalist) + '\n'), 'fasta')
+    cons_seq = str(AlignInfo.SummaryInfo(alignment).gap_consensus(threshold, ambiguous='N'))
+
+    # debug = True
+    # if debug:
+    #     print 'consensus %s' % cons_seq
+    #     for sfo in seqfos:
+    #         print '' % (color_mutants(cons_seq, sfo['seq'], align=True))
+    #     sys.exit()
+
+    return cons_seq
+
+# ----------------------------------------------------------------------------------------
 def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', seq_label='', post_str='', print_hfrac=False, print_isnps=False, return_isnps=False, emphasis_positions=None, use_min_len=False, only_print_seq=False, align=False, return_ref=False):
     """ default: return <seq> string with colored mutations with respect to <ref_seq> """
 
@@ -1833,7 +1868,18 @@ def prepare_cmds(cmdfos, batch_system=None, batch_options=None, batch_config_fna
     return corelist
 
 # ----------------------------------------------------------------------------------------
-def simplerun(cmd_str, shell=False, dryrun=False, print_time=None, debug=True):
+def run_r(cmdlines, workdir, dryrun=False, print_time=None, debug=True):
+    if not os.path.exists(workdir):
+        raise Exception('workdir %s doesn\'t exist' % workdir)
+    cmdfname = workdir + '/mds.r'
+    with open(cmdfname, 'w') as cmdfile:
+        cmdfile.write('\n'.join(cmdlines) + '\n')
+    # subprocess.check_call(['cat', cmdfname])
+    simplerun('R --slave -f %s' % cmdfname, shell=True, print_time=print_time, swallow_stdout=True, debug=False)
+    os.remove(cmdfname)
+
+# ----------------------------------------------------------------------------------------
+def simplerun(cmd_str, shell=False, dryrun=False, print_time=None, swallow_stdout=False, debug=True):
     if debug:
         print '%s %s' % (color('red', 'run'), cmd_str)
     sys.stdout.flush()
@@ -1841,7 +1887,8 @@ def simplerun(cmd_str, shell=False, dryrun=False, print_time=None, debug=True):
         return
     if print_time is not None:
         start = time.time()
-    subprocess.check_call(cmd_str if shell else cmd_str.split(), env=os.environ, shell=shell)
+    runfcn = subprocess.check_output if swallow_stdout else subprocess.check_call
+    runfcn(cmd_str if shell else cmd_str.split(), env=os.environ, shell=shell)
     if print_time is not None:
         print '      %s time: %.1f' % (print_time, time.time() - start)
 
@@ -3003,92 +3050,139 @@ def run_swarm(seqs, workdir, differences=1, n_procs=1):
 
     return partition
 
-# ----------------------------------------------------------------------------------------
-def run_mds(seqfos, workdir, outdir, plotdir, reco_info=None, title='', debug=False):
-    debug = True
-    region = 'v'
 
-    if not os.path.exists(workdir):
-        os.makedirs(workdir)
-    if not os.path.exists(plotdir):
-        os.makedirs(plotdir)
+# # ----------------------------------------------------------------------------------------
+# def run_mds(seqfos, workdir, plotdir, reco_info=None, title='', debug=False):
+#     # ----------------------------------------------------------------------------------------
+#     def read_clusterfile(clusterfname, seqfos):
+#         all_uids = set([sfo['name'] for sfo in seqfos])
 
-    msafname = workdir + '/msa.fa'
-    group_csv_fname = workdir + '/groups.csv'
+#         partition = []
+#         with open(clusterfname) as clusterfile:
+#             lines = [l.strip() for l in clusterfile.readlines()]
+#             lines = [lines[i : i + 4] for i in range(0, len(lines), 4)]
+#             for clusterlines in lines:
+#                 clidline = clusterlines[0]
+#                 uidline = clusterlines[1]
+#                 intline = clusterlines[2]  # some info about the kmean cluster quality i think? don't care a.t.m.
+#                 emptyline = clusterlines[3]
 
-    # R does some horrible truncation or some bullshit when it reads the group csv
-    chmap = ['0123456789', 'abcdefghij']
-    translations = string.maketrans(*chmap)
-    reverse_translations = string.maketrans(*reversed(chmap))
-    def translate(name):
-        return name.translate(translations)
-    def untranslate(trans_name):
-        return trans_name.translate(reverse_translations)
+#                 if clidline[0] != '$' or int(clidline.lstrip('$').strip('`')) != len(partition) + 1:
+#                     raise Exception('couldn\'t convert %s to the expected cluster id %d' % (clidline, len(partition) + 1))
 
-    for seqfo in seqfos:
-        # print seqfo['name'], translate(seqfo['name']), untranslate(translate(seqfo['name']))
-        seqfo['name'] = translate(seqfo['name'])
+#                 uids = set([u for u in uidline.split()])
+#                 if len(uids - all_uids) > 0:
+#                     raise Exception('read unexpected uid[s] \'%s\' from %s' % (' '.join(uids - all_uids), clusterfname))
+#                 all_uids -= uids
+#                 partition.append(list(uids))
 
-    align_many_seqs(seqfos, outfname=msafname)
+#                 integers = [int(istr) for istr in intline.split()]
+#                 if len(integers) != len(uids):
+#                     raise Exception('uid line %d and integers line %d have different lengths:\n  %s\n  %s' % (len(uids), len(integers), uidline, intline))
 
-    if reco_info is not None:
-        colors = ['red', 'blue', 'forestgreen', 'grey', 'orange', 'green', 'skyblue4', 'maroon', 'salmon', 'chocolate4', 'magenta']
-        all_genes = list(set([reco_info[untranslate(seqfo['name'])][region + '_gene'] for seqfo in seqfos]))
-        if len(all_genes) > len(colors):
-            print '%s more genes %d than colors %d' % (color('yellow', 'warning'), len(all_genes), len(colors))
-        gene_colors = {all_genes[ig] : colors[ig % len(colors)] for ig in range(len(all_genes))}
+#                 if emptyline != '':
+#                     raise Exception('expected empty line but got \'%s\'' % emptyline)
 
-        all_genes = set([reco_info[untranslate(seqfo['name'])][region + '_gene'] for seqfo in seqfos])  # R code crashes if there's only one group
-        with open(group_csv_fname, 'w') as groupfile:
-            for iseq in range(len(seqfos)):
-                seqfo = seqfos[iseq]
-                gene = reco_info[untranslate(seqfo['name'])][region + '_gene']
-                if len(all_genes) == 1 and iseq == 0:  # see note above (!#$@!$Q)
-                    gene += '-dummy'
-                groupfile.write('"%s","%s","%s"\n' % (seqfo['name'], gene, gene_colors.get(gene, 'black')))
+#         os.remove(clusterfname)
+#         return partition
 
-    cmdlines = [
-        # # functional example:
-        # 'require(bios2mds, quietly=TRUE)',
-        # 'data(gpcr)',
-        # 'human <- import.fasta(system.file("msa/human_gpcr.fa", package="bios2mds"))',
-        # 'active <- gpcr$dif$sapiens.sapiens',
-        # 'mmds_active <- mmds(active, group.file=system.file("csv/human_gpcr_group.csv", package = "bios2mds"))',
-        # # 'mmds_active <- mmds(active, group.file="/home/dralph/work/partis/bios2mds/inst/csv/human_gpcr_group.csv")',
-        # 'layout(matrix(1:6, 2, 3))',
-        # 'scree.plot(mmds_active$eigen.perc, lab = TRUE, title = "Scree plot of metric MDS", pdf.file="%s/scree.pdf")' % plotdir,
-        # 'mmds.2D.plot(mmds_active, title = "Sequence space of human GPCRs", outfile.name="%s/mmds-2d", outfile.type="pdf")' % plotdir,
+#     debug = True
+#     region = 'v'
 
-        # ----------------------------------------------------------------------------------------
-        'require(bios2mds, quietly=TRUE)',
-        # set.seed(1503941627)
-        'human <- import.fasta("%s")' % msafname, #system.file("msa/human_gpcr.fa", package="bios2mds"))',
+#     if not os.path.exists(workdir):
+#         os.makedirs(workdir)
+#     if not os.path.exists(plotdir):
+#         os.makedirs(plotdir)
 
-        # mat.dif or mat.dis?
-        'active <- mat.dif(human, human)',
+#     msafname = workdir + '/msa.fa'
+#     group_csv_fname = workdir + '/groups.csv'
+#     clusterfname = workdir + '/clusters.txt'
 
-        'mmds_active <- mmds(active, group.file=%s)' % ('NULL' if reco_info is None else '"' + group_csv_fname + '"'),
+#     # R does some horrible truncation or some bullshit when it reads the group csv
+#     chmap = ['0123456789', 'abcdefghij']
+#     translations = string.maketrans(*chmap)
+#     reverse_translations = string.maketrans(*reversed(chmap))
+#     def translate(name):
+#         return name.translate(translations)
+#     def untranslate(trans_name):
+#         return trans_name.translate(reverse_translations)
 
-        # 'layout(matrix(1:6, 2, 3))',
+#     print '%s stop modifying <seqfos>' % color('red', 'hey')
+#     for seqfo in seqfos:
+#         # print seqfo['name'], translate(seqfo['name']), untranslate(translate(seqfo['name']))
+#         seqfo['name'] = translate(seqfo['name'])
 
-        'scree.plot(mmds_active$eigen.perc, lab=TRUE, title="%s", pdf.file="%s/scree.pdf")' % (title, plotdir),
-        'mmds.2D.plot(mmds_active, title="%s", outfile.name="%s/mmds-2d", outfile.type="pdf")' % (title, plotdir),
+#     align_many_seqs(seqfos, outfname=msafname)
 
-        # sil.score(mat, nb.clus = c(2:13), nb.run = 100, iter.max = 1000,  # run for every possible number of clusters (?)
-        #               method = "euclidean")
-        # mmds.plot(mmds_active) #, pdf.file="")  # does several of the above steps in one go
-        # random.msa  # builds a random [...]
+#     if reco_info is not None:
+#         colors = ['red', 'blue', 'forestgreen', 'grey', 'orange', 'green', 'skyblue4', 'maroon', 'salmon', 'chocolate4', 'magenta']
+#         all_genes = list(set([reco_info[untranslate(seqfo['name'])][region + '_gene'] for seqfo in seqfos]))
+#         if len(all_genes) > len(colors):
+#             print '%s more genes %d than colors %d' % (color('yellow', 'warning'), len(all_genes), len(colors))
+#         gene_colors = {all_genes[ig] : colors[ig % len(colors)] for ig in range(len(all_genes))}
 
-        # write.mmds.pdb(mmds_active)
-    ]
+#         all_genes = set([reco_info[untranslate(seqfo['name'])][region + '_gene'] for seqfo in seqfos])  # R code crashes if there's only one group
+#         with open(group_csv_fname, 'w') as groupfile:
+#             for iseq in range(len(seqfos)):
+#                 seqfo = seqfos[iseq]
+#                 gene = reco_info[untranslate(seqfo['name'])][region + '_gene']
+#                 if len(all_genes) == 1 and iseq == 0:  # see note above (!#$@!$Q)
+#                     gene += '-dummy'
+#                 groupfile.write('"%s","%s","%s"\n' % (seqfo['name'], gene, gene_colors.get(gene, 'black')))
 
-    cmdfname = workdir + '/mds.r'
-    with open(cmdfname, 'w') as cmdfile:
-        cmdfile.write('\n'.join(cmdlines) + '\n')
-    # subprocess.check_call(['cat', cmdfname])
-    subprocess.check_call('R --slave -f %s' % cmdfname, shell=True)
-    os.remove(cmdfname)
-    os.remove(msafname)
-    if reco_info is not None:
-        os.remove(group_csv_fname)
-    os.rmdir(workdir)
+#     cmdlines = [
+#         # # functional example:
+#         # 'require(bios2mds, quietly=TRUE)',
+#         # 'data(gpcr)',
+#         # 'human <- import.fasta(system.file("msa/human_gpcr.fa", package="bios2mds"))',
+#         # 'active <- gpcr$dif$sapiens.sapiens',
+#         # 'mmds_active <- mmds(active, group.file=system.file("csv/human_gpcr_group.csv", package = "bios2mds"))',
+#         # # 'mmds_active <- mmds(active, group.file="/home/dralph/work/partis/bios2mds/inst/csv/human_gpcr_group.csv")',
+#         # 'layout(matrix(1:6, 2, 3))',
+#         # 'scree.plot(mmds_active$eigen.perc, lab = TRUE, title = "Scree plot of metric MDS", pdf.file="%s/scree.pdf")' % plotdir,
+#         # 'mmds.2D.plot(mmds_active, title = "Sequence space of human GPCRs", outfile.name="%s/mmds-2d", outfile.type="pdf")' % plotdir,
+
+#         # ----------------------------------------------------------------------------------------
+#         'require(bios2mds, quietly=TRUE)',
+#         # set.seed(1503941627)
+#         'human <- import.fasta("%s")' % msafname, #system.file("msa/human_gpcr.fa", package="bios2mds"))',
+
+#         # mat.dif or mat.dis?
+#         'active <- mat.dif(human, human)',
+#         'kmeans.run1 <- kmeans.run(active, nb.clus = 3, nb.run = 100)',
+#         # 'kmeans.run1$clusters',
+#         # 'kmeans.run1$elements',
+#         'options(width=10000)',
+#         'capture.output(kmeans.run1$clusters, file="%s")' % clusterfname,
+
+#         'mmds_active <- mmds(active, group.file=%s)' % ('NULL' if reco_info is None else '"' + group_csv_fname + '"'),
+
+#         # 'layout(matrix(1:6, 2, 3))',
+
+#         'scree.plot(mmds_active$eigen.perc, lab=TRUE, title="%s", pdf.file="%s/scree.pdf")' % (title, plotdir),
+#         'mmds.2D.plot(mmds_active, title="%s", outfile.name="%s/mmds-2d", outfile.type="pdf")' % (title, plotdir),
+
+#         # sil.score(mat, nb.clus = c(2:13), nb.run = 100, iter.max = 1000,  # run for every possible number of clusters (?)
+#         #               method = "euclidean")
+#         # mmds.plot(mmds_active) #, pdf.file="")  # does several of the above steps in one go
+#         # random.msa  # builds a random [...]
+
+#         # write.mmds.pdb(mmds_active)
+#     ]
+
+#     cmdfname = workdir + '/mds.r'
+#     with open(cmdfname, 'w') as cmdfile:
+#         cmdfile.write('\n'.join(cmdlines) + '\n')
+#     # subprocess.check_call(['cat', cmdfname])
+#     subprocess.check_call('R --slave -f %s' % cmdfname, shell=True)
+#     partition = read_clusterfile(clusterfname, seqfos)
+
+#     for seqfo in seqfos:
+#         seqfo['name'] = untranslate(seqfo['name'])
+#     partition = [[untranslate(uid) for uid in cluster] for cluster in partition]
+
+#     os.remove(cmdfname)
+#     os.remove(msafname)
+#     if reco_info is not None:
+#         os.remove(group_csv_fname)
+#     os.rmdir(workdir)
