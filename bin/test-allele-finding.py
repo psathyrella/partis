@@ -124,7 +124,7 @@ def run_partis(args, method):
     if method == 'partis':
         cmd_str += ' --debug-allele-finding' # --always-find-new-alleles'
         cmd_str += ' --is-simu --simulation-germline-dir ' + args.outdir + '/germlines/simulation'  # alleleclusterer is the only one that really uses this, but for now I want its dbg output to have the sim info
-        if not args.dont_allele_cluster:
+        if args.allele_cluster:
             cmd_str += ' --allele-cluster'
     elif method == 'full':
         cmd_str += ' --leave-default-germline'
@@ -304,7 +304,7 @@ parser.add_argument('--mut-mult', type=float)
 parser.add_argument('--slurm', action='store_true')
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--dry-run', action='store_true')
-parser.add_argument('--dont-allele-cluster', action='store_true')
+parser.add_argument('--allele-cluster', action='store_true')
 parser.add_argument('--methods', default='simu:partis')
 parser.add_argument('--outdir', default=utils.fsdir() + '/partis/allele-finder')
 parser.add_argument('--inf-glfo-dir', help='default set below')
