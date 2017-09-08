@@ -60,10 +60,10 @@ class AlleleFinder(object):
         self.min_mean_candidate_ratio = 2.75  # mean of candidate ratios must be greater than this
         self.min_bad_fit_residual = 1.95
         self.max_good_fit_residual = 4.5  # since this is unbounded above (unlike the min bad fit number), it needs to depend on how bad the bad fit/good fit ratio is (although, this starts making it hard to distinguish this from the ratio criterion, but see next parameter below))
-        self.very_large_residual_ratio = 6.  # if the ratio's bigger than this, we don't apply the max good fit residual criterion (i.e. if the ratio is a total slam dunk, it's ok if the good fit is shitty)
+        self.large_residual_ratio = 4.25  # if the ratio's bigger than this, we don't apply the max good fit residual criterion (i.e. if the ratio is a total slam dunk, it's ok if the good fit is shitty) UPDATE this is dumb, I should just find away around this bullshit
         self.default_consistency_sigmas = 3.  # default number of sigma for the boundary between consistent and inconsistent fits
         # self.max_consistent_candidate_fit_sigma = 10.  # this is extremely permissiive, since we don't expect  them to actually the same -- in particular, the slopes are given by the position's mutation rate (among I think maybe other things)
-        self.min_discontinuity_slope_ratio = 3.  # the ratio of the slope *at* the discontinuity to that on either side has to be at least this big
+        self.min_discontinuity_slope_ratio = 2.5  # the fractional difference between the slope *at* the discontinuity and that on either side has to be at least this big
 
         self.min_min_candidate_ratio_to_plot = 1.5  # don't plot positions that're below this (for all <istart>)
 
@@ -100,7 +100,7 @@ class AlleleFinder(object):
     # ----------------------------------------------------------------------------------------
     def dbgfcn(self, pos, istart, pos_2=None):
         dbg_positions = None  # [238, 226]
-        dbg_istart = 4
+        dbg_istart = None # 4
 
         if dbg_positions is None or dbg_istart is None:
             return False
@@ -768,17 +768,21 @@ class AlleleFinder(object):
             print '  %5.3f / %5.3f = %5.3f' % (onefit['residuals_over_ndof'], twofit_residuals_over_ndof, ratio)
 
         # make sure two-piece fit is at least ok (unless the residual ratio is incredibly convincing)
-        if ratio < self.very_large_residual_ratio and twofit_residuals_over_ndof > self.max_good_fit_residual:
+        if ratio < self.large_residual_ratio and twofit_residuals_over_ndof > self.max_good_fit_residual:
             if returnfcn('two-piece fit not good enough %f' % twofit_residuals_over_ndof):
                 return
 
         # the slope at the discontinuity should be much larger than on either side
         discontinuity_slope = (bothvals['freqs'][istart] - bothvals['freqs'][istart - 1]) / 1.  # oh,  pedantry
-        for side, sideslope in [['pre', prefit['slope']], ['post', postfit['slope']]]:
-            if sideslope == 0.:
+        for side, sideslope, sideslopeerr in [['pre', prefit['slope'], prefit['slope_err']], ['post', postfit['slope'], postfit['slope_err']]]:
+            if sideslope == 0. or sideslopeerr == float('inf'):  # the slope error should be set to inf if there's only one point
                 continue
-            if discontinuity_slope / sideslope < self.min_discontinuity_slope_ratio:
-                if returnfcn('disc. / %-4s slope too small: %5.3f / %5.3f = %4.2f' % (side, discontinuity_slope, sideslope, discontinuity_slope / sideslope)):
+            if discontinuity_slope < sideslope:  # shouldn't really happen, but if I do this I don't have to worry about signs in the bit below
+                if returnfcn('disc. slope less that %-4s slope %5.3f < %5.3f' % (side, discontinuity_slope, sideslope)):
+                    return
+            frac_diff = abs((discontinuity_slope - sideslope) / sideslope)
+            if frac_diff < self.min_discontinuity_slope_ratio:
+                if returnfcn('disc. slope not enough bigger than %-4s slope: abs((%5.3f - %5.3f) / %5.3f) = %4.2f < %3.1f' % (side, discontinuity_slope, sideslope, sideslope, frac_diff, self.min_discontinuity_slope_ratio)):
                     return
 
         # add it as a candidate
