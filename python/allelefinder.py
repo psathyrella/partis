@@ -60,9 +60,10 @@ class AlleleFinder(object):
         self.min_mean_candidate_ratio = 2.75  # mean of candidate ratios must be greater than this
         self.min_bad_fit_residual = 1.95
         self.max_good_fit_residual = 4.5  # since this is unbounded above (unlike the min bad fit number), it needs to depend on how bad the bad fit/good fit ratio is (although, this starts making it hard to distinguish this from the ratio criterion, but see next parameter below))
-        self.very_large_residual_ratio = 7.5  # if the ratio's bigger than this, we don't apply the max good fit residual criterion (i.e. if the ratio is a total slam dunk, it's ok if the good fit is shitty)
+        self.very_large_residual_ratio = 6.  # if the ratio's bigger than this, we don't apply the max good fit residual criterion (i.e. if the ratio is a total slam dunk, it's ok if the good fit is shitty)
         self.default_consistency_sigmas = 3.  # default number of sigma for the boundary between consistent and inconsistent fits
-        self.max_consistent_candidate_fit_sigma = 7.5  # this is extremely permissiive, since we don't expect  them to actually the same -- in particular, the slopes are given by the position's mutation rate (among I think maybe other things)
+        # self.max_consistent_candidate_fit_sigma = 10.  # this is extremely permissiive, since we don't expect  them to actually the same -- in particular, the slopes are given by the position's mutation rate (among I think maybe other things)
+        self.min_discontinuity_slope_ratio = 3.  # the ratio of the slope *at* the discontinuity to that on either side has to be at least this big
 
         self.min_min_candidate_ratio_to_plot = 1.5  # don't plot positions that're below this (for all <istart>)
 
@@ -501,16 +502,23 @@ class AlleleFinder(object):
         # NOTE that with multiple multi-snp new alleles that share some, but not all, positions, we don't expect consistency. In particular, at shared positions, the nsnp bin for the other allele will be high, and the prevalence will be off.
         for pos_1, pos_2 in itertools.combinations(candidfo['positions'], 2):
             fitfo_1, fitfo_2 = candidfo['fitfos'][pos_1], candidfo['fitfos'][pos_2]
-            if not self.consistent_fits(fitfo_1['postfo'], fitfo_2['postfo'], factor=self.max_consistent_candidate_fit_sigma, debug=self.dbgfcn(pos_1, candidfo['istart'], pos_2=pos_2)):
+            if not self.consistent_discontinuities(fitfo_1['onefo'], fitfo_2['onefo'], candidfo['istart'], debug=self.dbgfcn(pos_1, candidfo['istart'], pos_2=pos_2)):
                 if debug:
-                    print '    positions %d and %d have inconsistent post-istart fits' % (pos_1, pos_2)
+                    print '    positions %d and %d have inconsistent discontinuities' % (pos_1, pos_2)
                 return False
+
+            # if not self.consistent_fits(fitfo_1['postfo'], fitfo_2['postfo'], factor=self.max_consistent_candidate_fit_sigma, debug=self.dbgfcn(pos_1, candidfo['istart'], pos_2=pos_2)):
+            #     if debug:
+            #         print '    positions %d and %d have inconsistent post-istart fits' % (pos_1, pos_2)
+            #     return False
+
             # if this nsnp is less than 3, and there's a second new allele with smaller nsnp, the pre-fit will be super inconsistent, but this is really rare in actual data... so I'm commenting it since I care more about avoiding false positives
-            # if candidfo['istart'] > self.hard_code_three:
-            if not self.consistent_fits(fitfo_1['prefo'], fitfo_2['prefo'], factor=self.max_consistent_candidate_fit_sigma, debug=self.dbgfcn(pos_1, candidfo['istart'], pos_2=pos_2)):
-                if debug:
-                    print '    positions %d and %d have inconsistent pre-istart fits' % (pos_1, pos_2)
-                return False
+
+            # if not self.consistent_fits(fitfo_1['prefo'], fitfo_2['prefo'], factor=self.max_consistent_candidate_fit_sigma, debug=self.dbgfcn(pos_1, candidfo['istart'], pos_2=pos_2)):
+            #     if debug:
+            #         print '    positions %d and %d have inconsistent pre-istart fits' % (pos_1, pos_2)
+            #         self.consistent_fits(fitfo_1['prefo'], fitfo_2['prefo'], factor=self.max_consistent_candidate_fit_sigma, debug=True)
+            #     return False
 
         if debug:
             print '    candidate',
@@ -583,19 +591,22 @@ class AlleleFinder(object):
         # i.e. if both slope and intercept are within <factor> std deviations of each other, don't bother fitting, because the fit isn't going to say they're wildly inconsistent
         if factor is None:
             factor = self.default_consistency_sigmas
-        lo, hi = sorted([v1, v2])
-        joint_err = max(v1err, v2err)
+        lo, hi = sorted([float(v1), float(v2)])
+        joint_err = max(float(v1err), float(v2err))
         if joint_err == float('inf'):
             if debug:
                 print '      %6s  (inf err)' % dbgstr
             return True
         else:
             if debug:
-                print '      %6s  %6.3f +/- %7.4f   %6.3f +/- %7.4f   -->   %6.3f + %3.1f * %7.4f = %7.4f >? %6.3f   %s' % (dbgstr, v1, v1err, v2, v2err, lo, factor, joint_err, lo + factor * joint_err, hi, 'consistent' if (lo + factor * joint_err > hi) else 'nope')
+                # print '      %6s  %6.3f +/- %7.4f   %6.3f +/- %7.4f   -->   %6.3f + %3.1f * %7.4f = %7.4f >? %6.3f   %s' % (dbgstr, v1, v1err, v2, v2err, lo, factor, joint_err, lo + factor * joint_err, hi, 'consistent' if (lo + factor * joint_err > hi) else 'nope')
+                print '      %6s  %6.3f +/- %7.4f   %6.3f +/- %7.4f   -->  ' % (dbgstr, v1, v1err, v2, v2err),
+                print '(%-6.3f - %6.3f) / %7.4f = %4.2f <? %3.1f    %s' % (hi, lo, joint_err, (hi - lo) / joint_err, factor, 'consistent' if (lo + factor * joint_err > hi) else 'nope')
             return lo + factor * joint_err > hi
 
     # ----------------------------------------------------------------------------------------
     def consistent_fits(self, vals1, vals2, factor=None, debug=False):
+        # if I stick with consistent_discontinuities(), I think I can remove a bunch of the fit-consistency infrastructure (although I'm not sure that I really want to)
         if len(vals1['xvals']) < 5 and vals1['xvals'][0] == 0:  # the fit uncertainties are way low in cases where the points have large uncertainties, but line up really well. This only really happens when there's only a few points, though
             return self.consistent_bin_vals(vals1, vals2, factor=factor, debug=debug)
         else:
@@ -605,7 +616,19 @@ class AlleleFinder(object):
             return consistent
 
     # ----------------------------------------------------------------------------------------
+    def consistent_discontinuities(self, vals1, vals2, istart, factor=None, debug=False):  # NOTE this is getting passed the one-piece fitfos, which doesn't necessarily make that much sense, but we just want the x- and y-vals, so it's ok
+        # this kind of duplicates consistent_bin_vals(), but oh, well, since I may way to remove one or the other eventually
+        def getdiff(vals):
+            diff = vals['yvals'][istart] - vals['yvals'][istart - 1]
+            err = max(vals['errs'][istart - 1], vals['errs'][istart])
+            return diff, err
+        diff1, err1 = getdiff(vals1)
+        diff2, err2 = getdiff(vals2)
+        return self.consistent(diff1, err1, diff2, err2, factor=factor, dbgstr='discontinuities', debug=debug)
+
+    # ----------------------------------------------------------------------------------------
     def consistent_bin_vals(self, vals1, vals2, factor=None, debug=False):
+        # hey, wait, should this be using self.consistent()?
         if factor is None:
             factor = self.default_consistency_sigmas
         net_sigma = 0.
@@ -652,6 +675,8 @@ class AlleleFinder(object):
     # ----------------------------------------------------------------------------------------
     def big_discontinuity(self, pvals, istart, debug=False):  # NOTE same as very_different_bin_totals(), except for freqs rather than totals
         # (note that the size of the discontinuity tells us about the allele prevalence -- [ie].[eg]. we can be quite confident of a new allele with a small absolute discontinuity)
+        # also note that for large sample sizes, the uncertainties will be small enough that this fcn will in general call it a discontinuity even for non-snpd positions
+
         if pvals['total'][istart] < 4:  # if there's nothing in this bin, there's certainly not a new allele (although, note, this should have already been checked for)
             return False
 
@@ -746,6 +771,15 @@ class AlleleFinder(object):
         if ratio < self.very_large_residual_ratio and twofit_residuals_over_ndof > self.max_good_fit_residual:
             if returnfcn('two-piece fit not good enough %f' % twofit_residuals_over_ndof):
                 return
+
+        # the slope at the discontinuity should be much larger than on either side
+        discontinuity_slope = (bothvals['freqs'][istart] - bothvals['freqs'][istart - 1]) / 1.  # oh,  pedantry
+        for side, sideslope in [['pre', prefit['slope']], ['post', postfit['slope']]]:
+            if sideslope == 0.:
+                continue
+            if discontinuity_slope / sideslope < self.min_discontinuity_slope_ratio:
+                if returnfcn('disc. / %-4s slope too small: %5.3f / %5.3f = %4.2f' % (side, discontinuity_slope, sideslope, discontinuity_slope / sideslope)):
+                    return
 
         # add it as a candidate
         candidate_ratios[pos] = ratio
