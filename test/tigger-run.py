@@ -46,7 +46,7 @@ def run_changeo(infname, igblast_outfname, outfname):
     utils.simplerun(cmd, print_time='changeo')
 
 # ----------------------------------------------------------------------------------------
-def run_partis(infname, outfname):
+def run_partis(infname, outfname, n_random_queries=None):
     if utils.output_exists(args, outfname, offset=8):
         return
 
@@ -72,6 +72,8 @@ def run_partis(infname, outfname):
         cmd += ' --initial-germline-dir ' + args.glfo_dir
     cmd += ' --aligned-germline-fname ' + aligned_germline_fname
     cmd += ' --n-procs ' + str(args.n_procs)
+    if n_random_queries is not None:
+        cmd += ' --n-random-queries %d' % n_random_queries
     if args.slurm:
         cmd += ' --batch-system slurm'
 
@@ -132,7 +134,7 @@ def run_alignment(args, outdir):
         return changeo_outfname
     elif args.aligner == 'partis':
         outfname = outdir + '/' + infbase + '-partis-sw-annotations.tsv'
-        run_partis(args.infname, outfname)  # can't change it in changeo (I think), so may as well use the same name here
+        run_partis(args.infname, outfname, n_random_queries=args.n_random_queries)  # can't change it in changeo (I think), so may as well use the same name here
         return outfname
     else:
         assert False
@@ -145,6 +147,7 @@ parser.add_argument('--infname', required=True)
 parser.add_argument('--outfname', required=True)
 parser.add_argument('--workdir', required=True)
 parser.add_argument('--n-procs', default=1, type=int)
+parser.add_argument('--n-random-queries', type=int)
 parser.add_argument('--aligner', choices=['igblast', 'partis'], default='partis')
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--igbdir', default='./packages/ncbi-igblast-1.6.1/bin')
