@@ -293,8 +293,8 @@ def run_single_test(args, baseoutdir, val, n_events, method):
         nindelstr = val['indel']
         sim_v_genes *= len(val['snp'].split(':'))
     elif args.action == 'gls-gen':
-        nsnpstr = '1:2:3:4:10:10'
-        nindelstr = '0:0:0:0:3:3'
+        nsnpstr = '1:1:2:2:3:4:5:6'
+        nindelstr = '' # '0:0:0:0:0:0:0:0'
         if args.gls_gen_difficulty == 'easy':
             genes_per_region_str = '20:5:3'
             n_sim_alleles_per_gene_str = '1,2:1,2:1,2'
@@ -303,7 +303,7 @@ def run_single_test(args, baseoutdir, val, n_events, method):
         elif args.gls_gen_difficulty == 'hard':
             genes_per_region_str = '25:5:3'
             n_sim_alleles_per_gene_str = '1,2,3:1,2:1,2'
-            min_allele_prevalence_freq = 0.04
+            min_allele_prevalence_freq = 0.01
             mut_mult = 1.
         else:
             assert False
