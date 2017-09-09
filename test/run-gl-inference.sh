@@ -9,21 +9,15 @@ testopts="--n-tests 1 --n-procs-per-test 2 --no-slurm"
 
 
 glscmd="$cmd gls-gen --label $label"
-# for diff in hard; do
-#     for meth in simu tigger-default igdiscover; do #partis full tigger-default tigger-tuned igdiscover; do  # NOTE can add all methods to --methods arg now
-# 	$glscmd --methods $meth --n-tests 3 --n-procs-per-test 10 --gls-gen-difficulty $diff --no-slurm  #--dry  # --plot
+# for diff in easy hard; do
+#     for meth in tigger-default igdiscover full; do #simu partis full tigger-default igdiscover; do  # NOTE can add all methods to --methods arg now, i just keep 'em separate here so the log files are separate
+# 	# for itest in {0..2}; do
+# 	#     $glscmd --methods $meth --n-tests $((itest + 1)) --iteststart $itest --n-procs-per-test 12 --gls-gen-difficulty $diff --no-slurm  # --plot
+# 	# done
+# 	echo $glscmd --methods $meth --n-tests 3 --n-procs-per-test 20 --gls-gen-difficulty $diff --plot # --plotcache
 #     done
 # done
 
-for diff in easy hard; do
-    for meth in tigger-default igdiscover full; do #simu partis full tigger-default igdiscover; do  # NOTE can add all methods to --methods arg now, i just keep 'em separate here so the log files are separate
-	# for itest in {0..2}; do
-	#     $glscmd --methods $meth --n-tests $((itest + 1)) --iteststart $itest --n-procs-per-test 12 --gls-gen-difficulty $diff --no-slurm  # --plot
-	# done
-	echo $glscmd --methods $meth --n-tests 3 --n-procs-per-test 20 --gls-gen-difficulty $diff --plot # --plotcache
-    done
-done
-
-label=v9
+label=v10
 # $cmd data --label $label $testopts --n-random-queries 5000  # laptop
-# $cmd data --label $label --n-procs-per-test 15
+# $cmd data --label $label --n-procs-per-test 15 --dry
