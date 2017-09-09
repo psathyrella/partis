@@ -29,6 +29,7 @@ Args::Args(int argc, const char * argv[]):
   biggest_logprob_cluster_to_calculate_arg_("", "biggest-logprob-cluster-to-calculate", "", false, 99999, "int"),
   n_partitions_to_write_arg_("", "n-partitions-to-write", "how many partitions, before the best one, should we write to the output file", false, 99999, "int"),
   n_final_clusters_arg_("", "n-final-clusters", "instead of stopping at the most likely partition, stop when you have this many clusters", false, 0, "unsigned"),
+  max_cluster_size_arg_("", "max-cluster-size", "if any cluster gets bigger than this, stop clustering", false, 0, "unsigned"),
   random_seed_arg_("", "random-seed", "", false, time(NULL), "unsigned"),
   no_chunk_cache_arg_("", "no-chunk-cache", "don't perform chunk caching?", false),
   partition_arg_("", "partition", "", false),
@@ -67,6 +68,7 @@ Args::Args(int argc, const char * argv[]):
     cmd.add(biggest_logprob_cluster_to_calculate_arg_);
     cmd.add(n_partitions_to_write_arg_);
     cmd.add(n_final_clusters_arg_);
+    cmd.add(max_cluster_size_arg_);
     cmd.add(random_seed_arg_);
     cmd.add(no_chunk_cache_arg_);
     cmd.add(cache_naive_seqs_arg_);

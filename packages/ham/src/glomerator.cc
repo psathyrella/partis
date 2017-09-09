@@ -1124,10 +1124,21 @@ void Glomerator::Merge(ClusterPath *path) {
   if(qpair.first == INFINITY)  // if there wasn't a good enough hfrac merge
     qpair = FindLRatioMerge(path);
 
+  if(args_->max_cluster_size() > 0) {  // if we were told to stop if any clusters get too big
+    for(auto &cluster : path->CurrentPartition()) {
+      if(unsigned(CountMembers(cluster)) > args_->max_cluster_size()) {
+	printf("    stopping: found a clusters with size %u larger than --max-cluster-size %u)\n", unsigned(CountMembers(cluster)), args_->max_cluster_size());
+	path->finished_ = true;
+      }
+    }
+    if(path->finished_)
+      return;
+  }
+
   if(qpair.first == -INFINITY) {  // if there also wasn't a good lratio merge
     if(args_->n_final_clusters() == 0) {  // default: stop when there's no good lratio merges, i.e. at (well, near) the maximum likelihood partition
       path->finished_ = true;
-    } else if(path->CurrentPartition().size() > args_->n_final_clusters()) {
+    } else if(path->CurrentPartition().size() > args_->n_final_clusters()) {  // still have more clusters than we were asked for
       if(force_merge_) {  // if we already set force merge on a previous iteration
 	path->finished_ = true;
 	printf("    couldn't merge beyond %lu clusters despite setting force merge\n", path->CurrentPartition().size());
