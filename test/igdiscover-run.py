@@ -89,6 +89,7 @@ parser.add_argument('--yamlfname', default=partis_dir + '/test/igdiscover.yaml')
 parser.add_argument('--region', default='v')
 parser.add_argument('--locus', default='igh')
 parser.add_argument('--n-procs', default=1, type=int)
+# parser.add_argument('--n-random-queries', type=int)  # not implemented
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--condapath', default=os.getenv('HOME') + '/miniconda3/bin')
 args = parser.parse_args()

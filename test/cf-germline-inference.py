@@ -338,7 +338,7 @@ def run_data(args, baseoutdir, study, dset, method):
         cmd += ' --no-slurm'
     cmd += ' --n-procs ' + str(args.n_procs_per_test)
     if args.n_random_queries is not None:
-        assert method == 'partis' or method == 'tigger-default'  # I don't think it works for any others a.t.m.
+        assert method == 'partis' or method == 'tigger-default' or method == 'igdiscover'  # I don't think it works for any others a.t.m.
         cmd += ' --n-random-queries ' + str(args.n_random_queries)
     if args.check:
         cmd += ' --check'
