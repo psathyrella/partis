@@ -698,6 +698,9 @@ class PartitionDriver(object):
                 if n_procs == 1 and self.args.n_final_clusters is not None:
                     cmd_str += ' --n-final-clusters ' + str(self.args.n_final_clusters)
 
+                if self.args.max_cluster_size is not None:
+                    cmd_str += ' --max-cluster-size ' + str(self.args.max_cluster_size)
+
         assert len(utils.ambiguous_bases) == 1  # could allow more than one, but it's not implemented a.t.m.
         cmd_str += ' --ambig-base ' + utils.ambiguous_bases[0]
 
