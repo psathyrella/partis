@@ -19,20 +19,31 @@ import glutils
 sys.path.insert(1, './datascripts')
 import heads
 
+# custom interactive faces: http://etetoolkit.org/docs/latest/tutorial/tutorial_drawing.html#id34
+
 primary_colors = OrderedDict((
-    ('red', '#d77c7c'),
-    ('yellow', '#e3e317'),
-    ('blue', '#94a3d1'),
+    ('red', '#c32222'),
+    # ('yellow', '#e3e317'),
+    ('green', '#29a614'),
+    ('blue', '#2455ed'),
 ))
 
+def med_grey():
+    return '#929292'
+
 combo_colors = {  # colors need to sorted before calling '-'.join()
-    'red-&-yellow' : '#f59f49',
-    'blue-&-yellow' : '#85ad98',  # green above ^
-    'blue-&-red' : '#e26ade',
+    # 'red-&-yellow' : '#f5be82',  # orange
+    # 'blue-&-yellow' : '#85ad98',  # green
+    # 'blue-&-red' : '#d5aaf4',  # purple
+    # 'green-&-red' : '#f5be82',  # orange
+    # 'blue-&-green' : '#8fecd6',  # green
+    'blue-&-red' : med_grey(),
+    'green-&-red' : med_grey(),
+    'blue-&-green' : med_grey(),
 }
 
 all_colors = dict(primary_colors.items() + combo_colors.items())
-all_colors['LightGrey'] = 'LightGrey'
+all_colors['LightGrey'] = '#d3d3d3'
 
 # ----------------------------------------------------------------------------------------
 def pairkey(name1, name2):
@@ -51,7 +62,7 @@ scolors = {
     'missing' : '#d77c7c',
     'spurious' : '#a44949',
     'data' : 'LightSteelBlue',
-    'all' : 'LightGrey',
+    'all' : '#d3d3d3',
     'pale-green' : '#85ad98',
     'pale-blue' : '#94a3d1',
 }
@@ -241,6 +252,11 @@ def set_node_style(node, status, ref_label=None, pair=False):
     node.img_style['hz_line_width'] = linewidth
     node.img_style['vt_line_width'] = linewidth
 
+    if '-&-' in status:
+        names = status.split('-&-')
+        pcf = ete3.PieChartFace(percents=[100./len(names) for _ in range(len(names))], width=20, height=20, colors=[scolors[n] for n in names], line_color=None)
+        node.add_face(pcf, column=0, position='aligned')
+
     # if status in faces:
     #     node.add_face(copy.deepcopy(faces[status]), column=0, position='aligned')
 
@@ -304,7 +320,7 @@ def draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, gene_categories, r
             node.name = shorten_name(node.name)
 
     tstyle = ete3.TreeStyle()
-    if ref_label is not None:
+    if True: #ref_label is not None:
         tstyle.show_leaf_name = False
     tstyle.mode = 'c'
     tstyle.show_scale = False
