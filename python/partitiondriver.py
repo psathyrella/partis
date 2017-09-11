@@ -485,6 +485,9 @@ class PartitionDriver(object):
         elif self.args.n_final_clusters is not None and len(cpath.partitions[cpath.i_best]) <= self.args.n_final_clusters:  # NOTE I *think* I want the best, not best-minus-x here (hardish to be sure a.t.m., since I'm not really using the minus-x part right now)
             print '  stopping with %d (<= %d) clusters' % (len(cpath.partitions[cpath.i_best]), self.args.n_final_clusters)
             return True
+        elif self.args.max_cluster_size is not None and max([len(c) for c in cpath.partitions[cpath.i_best]]) > self.args.max_cluster_size:  # NOTE I *think* I want the best, not best-minus-x here (hardish to be sure a.t.m., since I'm not really using the minus-x part right now)
+            print '   --max-cluster-size: stopping with a cluster of size %d (> %d)' % (max([len(c) for c in cpath.partitions[cpath.i_best]]), self.args.max_cluster_size)
+            return True
         else:
             return False
 
