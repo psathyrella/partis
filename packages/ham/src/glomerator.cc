@@ -1127,7 +1127,7 @@ void Glomerator::Merge(ClusterPath *path) {
   if(args_->max_cluster_size() > 0) {  // if we were told to stop if any clusters get too big
     for(auto &cluster : path->CurrentPartition()) {
       if(unsigned(CountMembers(cluster)) > args_->max_cluster_size()) {
-	printf("    stopping: found a clusters with size %u larger than --max-cluster-size %u)\n", unsigned(CountMembers(cluster)), args_->max_cluster_size());
+	printf("    --max-cluster-size: stopping with a cluster of size %u (> %u)\n", unsigned(CountMembers(cluster)), args_->max_cluster_size());
 	path->finished_ = true;
       }
     }
