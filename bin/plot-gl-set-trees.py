@@ -38,7 +38,7 @@ for ds in metafos:
         scolors[ds] = '#85ad98'  # green
     elif '-g-' in ds:
         scolors[ds] = '#94a3d1'  # blue
-faces = {}
+# faces = {}
 # faces = { 'missing' : ete3.AttrFace("name", fsize=30)}
 #         # faces.add_face_to_node(N, node, 0, position="aligned")}
 # faces = {'missing'  : ete3.CircleFace(10, 'white'),
@@ -93,67 +93,66 @@ def make_tree(all_genes, workdir, use_cache=False):
     return treefname
 
 # ----------------------------------------------------------------------------------------
-def getstatus(gl_sets, node):
-    gene = node.name
-    if not node.is_leaf():
-        return 'internal'
-    elif gene in gl_sets['sim'] and gene in gl_sets['inf']:
-        return 'ok'
-    elif gene in gl_sets['sim']:
-        return 'missing'
-    elif gene in gl_sets['inf']:
-        return 'spurious'
-    else:
-        raise Exception('couldn\'t decide on status for node with name %s' % gene)
-
-# ----------------------------------------------------------------------------------------
-def getdatastatus(gl_sets, node, pair=False):
+def getstatus(gl_sets, node, ref_label=None):
     gene = node.name
 
-    if not pair:
+    # simulation
+    if ref_label is not None:
+        if not node.is_leaf():
+            return 'internal'
+        elif gene in gl_sets['sim'] and gene in gl_sets['inf']:
+            return 'ok'
+        elif gene in gl_sets['sim']:
+            return 'missing'
+        elif gene in gl_sets['inf']:
+            return 'spurious'
+        else:
+            raise Exception('couldn\'t decide on status for node with name %s' % gene)
+
+    if len(gl_sets) == 1:
         return 'leaf' if node.is_leaf() else 'internal'
 
-    foundlist = [ds for ds in gl_sets if gene in gl_sets[ds]]
-
+    foundlist = [ds for ds in gl_sets if gene in gl_sets[ds]]  # list of datasets that have this gene
     if not node.is_leaf():
         return 'internal'
-    elif len(foundlist) == len(gl_sets):
-        return 'both'
+    elif len(foundlist) == len(gl_sets):  # if this node/gene is in every gl set
+        return 'both'  # should change to 'all' now
     else:
-        assert len(foundlist) == 1  # a.t.m <gl_sets> has to have length two, so...
+        assert len(foundlist) > 0
+        if len(foundlist) > 1:
+            raise Exception('update!')
         return foundlist[0]
 
 # ----------------------------------------------------------------------------------------
-def print_results(gl_sets):
-    tmpfo = OrderedDict([['missing', set(gl_sets['sim']) - set(gl_sets['inf'])],
-                         ['spurious', set(gl_sets['inf']) - set(gl_sets['sim'])],
-                         ['ok', set(gl_sets['inf']) & set(gl_sets['sim'])]])  # ordered just to make printing easier
+def print_results(gl_sets, ref_label=None):
+    tmpfo = None
+    for ds_1, ds_2 in itertools.combinations(gl_sets, 2):
+        tmpfo = OrderedDict(((ds_1, set(gl_sets[ds_1]) - set(gl_sets[ds_2])),
+                             (ds_2, set(gl_sets[ds_2]) - set(gl_sets[ds_1])),
+                             ('both', set(gl_sets[ds_2]) & set(gl_sets[ds_1]))))
+        if ref_label is not None:
+            assert ref_label == ds_1 or ref_label == ds_2
+            inf_label = ds_1 if ds_1 != ref_label else ds_2
+            tmpfo['missing'] = tmpfo[ref_label]
+            tmpfo['spurious'] = tmpfo[inf_label]
+            tmpfo['ok'] = tmpfo['both']
+            del tmpfo[ref_label]
+            del tmpfo[inf_label]
+            del tmpfo['both']
+    if tmpfo is None:  # only one of 'em
+        tmpfo = {n : s for n, s in gl_sets.items()}
+
+    pwidth = str(max([len(n) for n in tmpfo]))
     for name, genes in tmpfo.items():
         genestr = ' '.join([utils.color_gene(g) for g in genes])
         if name == 'ok':
-            print '       %2d %s %s' % (len(genes), name, genestr)
+            print ('       %2d %' + pwidth + 's %s') % (len(genes), name, genestr)
         else:
-            print '    %-8s' % name,
+            print ('    %-' + pwidth + 's') % name,
             if len(genes) == 0:
                 print ' %s' % utils.color('blue', 'none')
             else:
                 print ' %2d    %s' % (len(genes), genestr)
-
-# ----------------------------------------------------------------------------------------
-def print_data_results(gl_sets):
-    assert len(gl_sets) == 1  # would need to update
-    for name, genes in gl_sets.items():
-        print '    %9s %2d: %s' % (name, len(genes), ' '.join([utils.color_gene(g) for g in genes]))
-
-# ----------------------------------------------------------------------------------------
-def print_data_pair_results(gl_sets):
-    assert len(gl_sets) == 2  # would need to update
-    ds_1, ds_2 = gl_sets.keys()
-    tmpfo = {ds_1 : set(gl_sets[ds_1]) - set(gl_sets[ds_2]),
-             ds_2 : set(gl_sets[ds_2]) - set(gl_sets[ds_1]),
-             'both' : set(gl_sets[ds_2]) & set(gl_sets[ds_1])}
-    for name, genes in tmpfo.items():
-        print '    %9s %2d: %s' % (name, len(genes), ' '.join([utils.color_gene(g) for g in genes]))
 
 # ----------------------------------------------------------------------------------------
 def get_gene_sets(glsfnames, glslabels, ref_label=None, classification_fcn=None, debug=False):
@@ -179,9 +178,9 @@ def get_gene_sets(glsfnames, glslabels, ref_label=None, classification_fcn=None,
     return all_genes, gl_sets
 
 # ----------------------------------------------------------------------------------------
-def set_node_style(node, status, data=False, pair=False):
+def set_node_style(node, status, ref_label=None, pair=False):
     linewidth = 2
-    if data:
+    if ref_label is None:
         if pair:
             if status != 'internal':
                 node.img_style['bgcolor'] = scolors[status]
@@ -196,8 +195,8 @@ def set_node_style(node, status, data=False, pair=False):
     node.img_style['hz_line_width'] = linewidth
     node.img_style['vt_line_width'] = linewidth
 
-    if status in faces:
-        node.add_face(copy.deepcopy(faces[status]), column=0, position='aligned')
+    # if status in faces:
+    #     node.add_face(copy.deepcopy(faces[status]), column=0, position='aligned')
 
 # ----------------------------------------------------------------------------------------
 def get_entirety_of_gene_family(root, family):
@@ -238,7 +237,7 @@ def set_distance_to_zero(node, debug=False):
     return descendents == entirety_of_gene_family
 
 # ----------------------------------------------------------------------------------------
-def draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, data=False, pair=False, arc_start=None, arc_span=None):
+def draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, ref_label=None, arc_start=None, arc_span=None):
     etree = ete3.ClusterTree(treestr)
     node_names = set()  # make sure we get out all the genes we put in
     for node in etree.traverse():
@@ -247,22 +246,19 @@ def draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, data=False, pair=F
             node.dist = 0.
         # if '+' in node.name and node.dist > 0.1:  # dammit, I should have named those differently...
         #     node.dist = 0.05
-        if data:
-            status = getdatastatus(gl_sets, node, pair=pair)
-        else:
-            status = getstatus(gl_sets, node)
-        set_node_style(node, status, data=data, pair=pair)
+        status = getstatus(gl_sets, node, ref_label=ref_label)
+        set_node_style(node, status, ref_label=ref_label, pair=(len(gl_sets) > 1))
         if node.is_leaf():
             node_names.add(node.name)
     if len(set(all_genes) - node_names) > 0:
         raise Exception('missing genes from final tree: %s' % ' '.join(node_names))
 
-    if data:  # have to do it in a separate loop so it doesn't screw up the distance setting
+    if ref_label is None:  # have to do it in a separate loop so it doesn't screw up the distance setting
         for node in [n for n in etree.traverse() if n.is_leaf()]:  # yeah I'm sure there's a fcn for that
             node.name = shorten_name(node.name)
 
     tstyle = ete3.TreeStyle()
-    if not data:
+    if ref_label is not None:
         tstyle.show_leaf_name = False
     tstyle.mode = 'c'
     tstyle.show_scale = False
@@ -273,53 +269,15 @@ def draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, data=False, pair=F
     etree.render(plotdir + '/' + plotname + '.svg', h=750, tree_style=tstyle)
 
 # ----------------------------------------------------------------------------------------
-def plot_gls_gen_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=None, title=None):
-    assert glslabels == ['sim', 'inf']  # otherwise stuff needs to be updated
-
-    all_genes, gl_sets = get_gene_sets(glsfnames, glslabels, ref_label='sim')
-    print_results(gl_sets)
-
-    treefname = make_tree(all_genes, plotdir + '/workdir', use_cache=args.use_cache)
-    with open(treefname) as treefile:
-        treestr = treefile.read().strip()
-    draw_tree(plotdir, plotname, treestr, gl_sets, all_genes)
-
-# ----------------------------------------------------------------------------------------
-def plot_data_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=None, title=None):
-    all_genes, gl_sets = get_gene_sets(glsfnames, glslabels)
-    print_data_results(gl_sets)
+def plot_trees(args, plotdir, plotname, glsfnames, glslabels, leg_title=None, title=None):
+    all_genes, gl_sets = get_gene_sets(glsfnames, glslabels, ref_label=args.ref_label)
+    print_results(gl_sets, ref_label=args.ref_label)
 
     treefname = make_tree(all_genes, plotdir + '/workdir', use_cache=args.use_cache)
     with open(treefname) as treefile:
         treestr = treefile.read().strip()
 
-    draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, data=True, pair=False)
-
-# ----------------------------------------------------------------------------------------
-def plot_data_pair_tree(args, plotdir, plotname, glsfnames, glslabels, leg_title=None, title=None):
-    all_genes, gl_sets = get_gene_sets(glsfnames, glslabels, ref_label=glslabels[0])
-    print_data_pair_results(gl_sets)
-
-    treefname = make_tree(all_genes, plotdir + '/workdir', use_cache=args.use_cache)
-    with open(treefname) as treefile:
-        treestr = treefile.read().strip()
-
-    etree = ete3.ClusterTree(treestr)
-    node_names = set()  # make sure we get out all the genes we put in
-    for node in etree.traverse():
-        node.dist = 1
-        status = getdatastatus(gl_sets, node, pair=True)
-        set_node_style(node, status, data=True, pair=True)
-        if node.is_leaf():
-            node_names.add(node.name)
-    if len(set(all_genes) - node_names) > 0:
-        raise Exception('missing genes from final tree: %s' % ' '.join(set(all_genes) - node_names))
-
-    tstyle = ete3.TreeStyle()
-    tstyle.show_leaf_name = True
-    tstyle.mode = 'c'
-    tstyle.show_scale = False
-    etree.render(plotdir + '/' + plotname + '.svg', h=750, tree_style=tstyle)
+    draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, ref_label=args.ref_label)
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
@@ -328,12 +286,13 @@ parser.add_argument('--plotname', required=True)
 parser.add_argument('--glsfnames', required=True)
 parser.add_argument('--glslabels', required=True)
 parser.add_argument('--locus', required=True)
-parser.add_argument('--use-cache', action='store_true')
+parser.add_argument('--use-cache', action='store_true', help='just print results and remake the plots, without remaking the tree (which is the slow part)')
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--title')
 parser.add_argument('--region', default='v')
 parser.add_argument('--muscle-path', default='./packages/muscle/muscle3.8.31_i86linux64')
 parser.add_argument('--raxml-path', default=glob.glob('./packages/standard-RAxML/raxmlHPC-*')[0])
+parser.add_argument('--ref-label')  # label corresponding to simulation
 
 args = parser.parse_args()
 args.glsfnames = utils.get_arg_list(args.glsfnames)
@@ -345,9 +304,14 @@ if not os.path.exists(args.raxml_path):
 
 assert len(args.glslabels) == len(set(args.glslabels))  # no duplicates
 
-if args.glslabels == ['sim', 'inf']:
-    plot_gls_gen_tree(args, args.plotdir, args.plotname, args.glsfnames, args.glslabels, title=args.title)
-elif len(args.glsfnames) == 1:
-    plot_data_tree(args, args.plotdir, args.plotname, args.glsfnames, args.glslabels, title=args.title)
-else:
-    plot_data_pair_tree(args, args.plotdir, args.plotname, args.glsfnames, args.glslabels, title=args.title)
+plot_trees(args, args.plotdir, args.plotname, args.glsfnames, args.glslabels, title=args.title)
+
+# if args.ref_label is not None:
+#     plot_gls_gen_tree(args, args.plotdir, args.plotname, args.glsfnames, args.glslabels, title=args.title)
+# else:
+#     plot_data_tree(args, args.plotdir, args.plotname, args.glsfnames, args.glslabels, title=args.title)
+
+# elif len(args.glsfnames) == 1:
+#     plot_single_data_tree(args, args.plotdir, args.plotname, args.glsfnames, args.glslabels, title=args.title)
+# else:
+#     plot_data_pair_tree(args, args.plotdir, args.plotname, args.glsfnames, args.glslabels, title=args.title)

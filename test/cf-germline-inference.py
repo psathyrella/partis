@@ -161,17 +161,19 @@ def get_gls_fname(outdir, method, locus, sim_truth=False, data=False):  # NOTE d
     return glutils.get_fname(outdir, locus, region)
 
 # ----------------------------------------------------------------------------------------
-def make_gls_tree_plot(args, plotdir, plotname, glsfnames, glslabels, locus):
+def make_gls_tree_plot(args, plotdir, plotname, glsfnames, glslabels, locus, ref_label=None):
     # ete3 requires its own python version, so we run as a subprocess
     cmdstr = 'export PATH=%s:$PATH && xvfb-run -a ./bin/plot-gl-set-trees.py' % args.ete_path
     cmdstr += ' --plotdir ' + plotdir
     cmdstr += ' --plotname ' + plotname
     cmdstr += ' --glsfnames ' + ':'.join(glsfnames)
     cmdstr += ' --glslabels ' + ':'.join(glslabels)
+    if ref_label is not None:
+        cmdstr += ' --ref-label ' + ref_label
     cmdstr += ' --locus ' + locus
     if args.plotcache:
         cmdstr += ' --use-cache'
-    utils.simplerun(cmdstr, shell=True, debug=False)
+    utils.simplerun(cmdstr, shell=True, debug=True, dryrun=args.dry_run)
 
 # ----------------------------------------------------------------------------------------
 def get_gls_gen_plots(args, baseoutdir, method):
@@ -183,25 +185,17 @@ def get_gls_gen_plots(args, baseoutdir, method):
         print '%-2d                            %s' % (iproc, outdir)
         simfname = get_gls_fname(outdir, method=None, locus=sim_locus, sim_truth=True)
         inffname = get_gls_fname(outdir, method, sim_locus)
-        make_gls_tree_plot(args, outdir + '/' + method + '/gls-gen-plots', varvalstr(varname, varval), glsfnames=[simfname, inffname], glslabels=['sim', 'inf'], locus=sim_locus)
+        make_gls_tree_plot(args, outdir + '/' + method + '/gls-gen-plots', varvalstr(varname, varval), glsfnames=[simfname, inffname], glslabels=['sim', 'inf'], locus=sim_locus, ref_label='sim')
 
 # ----------------------------------------------------------------------------------------
-def get_data_plots(args, baseoutdir, method):
-    for var in args.varvals:
-        study, dset = var.split('/')
-        mfo = heads.read_metadata(study)[dset]
-        data_outdir = heads.get_datadir(study, 'processed', extra_str='gls-gen-paper-' + args.label) + '/' + dset
-        outdir = get_outdir(args, baseoutdir, varname='data', varval=study + '/' + dset)  # for data, only the plots go here, since datascripts puts its output somewhere else
-        print '%-15s  %10s    %s' % (study, dset, outdir)
-        make_gls_tree_plot(args, outdir + '/' + method + '/gls-gen-plots', study + '-' + dset, glsfnames=[get_gls_fname(data_outdir, method, locus=mfo['locus'], data=True)], glslabels=['data'], locus=mfo['locus'])
-
-# ----------------------------------------------------------------------------------------
-def get_data_pair_plots(args, baseoutdir, method, study, dsets):
-    mfo = heads.read_metadata(study)[dsets[0]]
-    assert heads.read_metadata(study)[dsets[1]]['locus'] == mfo['locus']
+def get_data_plots(args, baseoutdir, method, study, dsets):
+    metafos = heads.read_metadata(study)
+    assert len(set([metafos[ds]['locus'] for ds in dsets]))  # make sure everybody has is same locus
+    mfo = metafos[dsets[0]]
     data_outdirs = [heads.get_datadir(study, 'processed', extra_str='gls-gen-paper-' + args.label) + '/' + ds for ds in dsets]
     outdir = get_outdir(args, baseoutdir, varname='data', varval=study + '/' + '-vs-'.join(dsets))  # for data, only the plots go here, since datascripts puts its output somewhere else
-    make_gls_tree_plot(args, outdir + '/' + method + '/gls-gen-plots', study + '-' + '-vs-'.join(dsets), glsfnames=[get_gls_fname(dout, method, locus=mfo['locus'], data=True) for dout in data_outdirs], glslabels=dsets, locus=mfo['locus'])
+    print '%-15s  %10s' % (study, ' '.join(dsets))
+    make_gls_tree_plot(args, outdir + '/' + method + '/gls-gen-plots', study + '-' + dset, glsfnames=[get_gls_fname(ddir, method, locus=mfo['locus'], data=True) for ddir in data_outdirs], glslabels=dsets, locus=mfo['locus'])
 
 # ----------------------------------------------------------------------------------------
 def plot_single_test(args, baseoutdir, method):
@@ -239,14 +233,14 @@ def plot_tests(args, baseoutdir, method):
     if args.action == 'gls-gen':
         get_gls_gen_plots(args, baseoutdir, method)
     elif args.action == 'data':
-        get_data_plots(args, baseoutdir, method)
-        all_dsets = [v.split('/')[1] for v in args.varvals]
-        for study in data_pairs:
-            for dp in data_pairs[study]:
-                ds_1, ds_2 = dp
-                if ds_1 in all_dsets and ds_2 in all_dsets:
-                    print study, ds_1, ds_2
-                    get_data_pair_plots(args, baseoutdir, method, study, [ds_1, ds_2])
+        dsetfos = [v.split('/') for v in args.varvals]  # (study, dset)
+        data_pairs = [(study, ds_1, ds_2) for study in all_data_pairs for ds_1, ds_2 in all_data_pairs[study] if [study, ds_1] in dsetfos and [study, ds_2] in dsetfos]
+        for study, ds_1, ds_2 in data_pairs:
+            get_data_plots(args, baseoutdir, method, study, [ds_1, ds_2])
+            dsetfos.remove([study, ds_1])
+            dsetfos.remove([study, ds_2])
+        for study, dset in dsetfos:
+            get_data_plots(args, baseoutdir, method, study, [dset])
     else:
         plot_single_test(args, baseoutdir, method)
 
@@ -377,14 +371,14 @@ default_varvals = {
     'gls-gen' : None,
     'data' : {
         # 'jason-mg' : ['HD07-igh', 'HD07-igk', 'HD07-igl', 'AR03-igh', 'AR03-igk', 'AR03-igl'],
-        'sheng-gssp' : ['lp23810-m-pool', 'lp23810-g-pool', 'lp08248-m-pool', 'lp08248-g-pool'],
+        'sheng-gssp' : ['lp23810-m-pool', 'lp23810-g-pool', 'lp08248-m-pool'], #, 'lp08248-g-pool'],
         # 'kate-qrs' : ['1g', '4g'],
-        # 'three-finger' : ['3ftx-1-igh', 'pla2-1-igh'],
+        # 'three-finger' : ['3ftx-1-igh'], #, 'pla2-1-igh'],
         # 'kate-qrs' : ['1g', '1k', '1l', '4g', '4k', '4l', '2k', '2l', '3k', '3l'],
         # 'jason-influenza' : ['FV-igh-m8d', 'FV-igh-p7d', 'FV-igh-p28d'],
     }
 }
-data_pairs = {
+all_data_pairs = {
     'kate-qrs' : [
         ['1g', '4g'],
         ['1k', '4k'],
@@ -396,9 +390,9 @@ data_pairs = {
     ],
 }
 default_varvals['data'] = ':'.join([study + '/' + heads.full_dataset(heads.read_metadata(study), dset) for study in default_varvals['data'] for dset in default_varvals['data'][study]])
-for study in data_pairs:
-    for idp in range(len(data_pairs[study])):
-        data_pairs[study][idp] = [heads.full_dataset(heads.read_metadata(study), ds) for ds in data_pairs[study][idp]]
+for study in all_data_pairs:
+    for idp in range(len(all_data_pairs[study])):
+        all_data_pairs[study][idp] = [heads.full_dataset(heads.read_metadata(study), ds) for ds in all_data_pairs[study][idp]]
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
 parser.add_argument('action', choices=['mfreq', 'nsnp', 'multi-nsnp', 'prevalence', 'n-leaves', 'weibull', 'alcluster', 'gls-gen', 'data'])
@@ -407,9 +401,9 @@ parser.add_argument('--v-genes', default='IGHV4-39*01')
 parser.add_argument('--varvals')
 parser.add_argument('--n-event-list', default='1000:2000:4000:8000')  # NOTE modified later for multi-nsnp also NOTE not used for gen-gset
 parser.add_argument('--gls-gen-events', type=int, default=300000)
-parser.add_argument('--gls-gen-difficulty', choices=['easy', 'hard'])
+parser.add_argument('--gls-gen-difficulty', default='easy', choices=['easy', 'hard'])
 parser.add_argument('--n-random-queries', type=int)
-parser.add_argument('--n-tests', type=int, default=10)
+parser.add_argument('--n-tests', type=int, default=3)
 parser.add_argument('--iteststart', type=int, default=0)
 parser.add_argument('--n-procs-per-test', type=int, default=5)
 parser.add_argument('--plot', action='store_true')
