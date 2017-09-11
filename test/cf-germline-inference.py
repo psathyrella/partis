@@ -195,7 +195,7 @@ def get_data_plots(args, baseoutdir, method, study, dsets):
     data_outdirs = [heads.get_datadir(study, 'processed', extra_str='gls-gen-paper-' + args.label) + '/' + ds for ds in dsets]
     outdir = get_outdir(args, baseoutdir, varname='data', varval=study + '/' + '-vs-'.join(dsets))  # for data, only the plots go here, since datascripts puts its output somewhere else
     print '%-15s  %10s' % (study, ' '.join(dsets))
-    make_gls_tree_plot(args, outdir + '/' + method + '/gls-gen-plots', study + '-' + dset, glsfnames=[get_gls_fname(ddir, method, locus=mfo['locus'], data=True) for ddir in data_outdirs], glslabels=dsets, locus=mfo['locus'])
+    make_gls_tree_plot(args, outdir + '/' + method + '/gls-gen-plots', study + '-' + '-vs-'.join(dsets), glsfnames=[get_gls_fname(ddir, method, locus=mfo['locus'], data=True) for ddir in data_outdirs], glslabels=dsets, locus=mfo['locus'])
 
 # ----------------------------------------------------------------------------------------
 def plot_single_test(args, baseoutdir, method):
