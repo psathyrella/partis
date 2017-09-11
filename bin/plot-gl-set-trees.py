@@ -22,9 +22,7 @@ import heads
 primary_colors = OrderedDict((
     ('red', '#d77c7c'),
     ('yellow', '#e3e317'),
-    # ('green', '#85ad98'),
     ('blue', '#94a3d1'),
-    # 'LightSteelBlue',
 ))
 
 combo_colors = {  # colors need to sorted before calling '-'.join()
@@ -54,6 +52,8 @@ scolors = {
     'spurious' : '#a44949',
     'data' : 'LightSteelBlue',
     'all' : 'LightGrey',
+    'pale-green' : '#85ad98',
+    'pale-blue' : '#94a3d1',
 }
 
 # faces = {}
@@ -64,24 +64,27 @@ scolors = {
 
 # ----------------------------------------------------------------------------------------
 def set_colors(gl_sets, ref_label=None):
-    if ref_label is not None:
-        return
-
-    if len(gl_sets) == 1:  # single-sample data
-        scolors[gl_sets.keys()[0]] = scolors['data']
+    if ref_label is not None:  # simulation
         return
 
     names = gl_sets.keys()
-    if len(names) > 3:
+
+    if len(names) == 1:  # single-sample data
+        scolors[names[0]] = scolors['data']
+    elif len(names) == 2:  # two-sample data
+        scolors[names[0]] = scolors['pale-green']
+        scolors[names[1]] = scolors['pale-blue']
+        scolors[pairkey(names[0], names[1])] = scolors['all']
+        return
+    elif len(names) == 3:
+        pclist = primary_colors.keys()
+        pccodes = primary_colors.values()
+        for iname in range(len(names)):
+            scolors[names[iname]] = pccodes[iname]  # set this data set to a primary color
+            for jname in range(iname + 1, len(names)):
+                scolors[pairkey(names[iname], names[jname])] = combo_colors[pairkey(pclist[iname], pclist[jname])]  # ...and set its combos with other data sets to the apropriate secondary color
+    else:
         raise Exception('need more colors')
-
-    pclist = primary_colors.keys()
-    pccodes = primary_colors.values()
-    for iname in range(len(names)):
-        scolors[names[iname]] = pccodes[iname]  # set this data set to a primary color
-        for jname in range(iname + 1, len(names)):
-            scolors[pairkey(names[iname], names[jname])] = combo_colors[pairkey(pclist[iname], pclist[jname])]  # ...and set its combos with other data sets to the apropriate secondary color
-
 # ----------------------------------------------------------------------------------------
 def get_cmdfos(cmdstr, workdir, outfname):
     return [{'cmd_str' : cmdstr,
