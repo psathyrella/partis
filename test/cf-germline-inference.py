@@ -188,14 +188,20 @@ def get_gls_gen_plots(args, baseoutdir, method):
         make_gls_tree_plot(args, outdir + '/' + method + '/gls-gen-plots', varvalstr(varname, varval), glsfnames=[simfname, inffname], glslabels=['sim', 'inf'], locus=sim_locus, ref_label='sim')
 
 # ----------------------------------------------------------------------------------------
-def get_data_plots(args, baseoutdir, method, study, dsets):
+def get_data_plots(args, baseoutdir, methods, study, dsets):
     metafos = heads.read_metadata(study)
     assert len(set([metafos[ds]['locus'] for ds in dsets]))  # make sure everybody has is same locus
     mfo = metafos[dsets[0]]
     data_outdirs = [heads.get_datadir(study, 'processed', extra_str='gls-gen-paper-' + args.label) + '/' + ds for ds in dsets]
     outdir = get_outdir(args, baseoutdir, varname='data', varval=study + '/' + '-vs-'.join(dsets))  # for data, only the plots go here, since datascripts puts its output somewhere else
+    if len(dsets) > 1 and len(methods) == 1:
+        glslabels = dsets
+    elif len(methods) > 1 and len(dsets) == 1:
+        glslabels = methods
+    else:
+        raise Exception('one of \'em has to be length 1: %d %d' % (len(methods), len(dsets)))
     print '%-15s  %10s' % (study, ' '.join(dsets))
-    make_gls_tree_plot(args, outdir + '/' + method + '/gls-gen-plots', study + '-' + '-vs-'.join(dsets), glsfnames=[get_gls_fname(ddir, method, locus=mfo['locus'], data=True) for ddir in data_outdirs], glslabels=dsets, locus=mfo['locus'])
+    make_gls_tree_plot(args, outdir + '/' + '-vs-'.join(methods) + '/gls-gen-plots', study + '-' + '-vs-'.join(dsets), glsfnames=[get_gls_fname(ddir, meth, locus=mfo['locus'], data=True) for ddir in data_outdirs for meth in methods], glslabels=glslabels, locus=mfo['locus'])
 
 # ----------------------------------------------------------------------------------------
 def plot_single_test(args, baseoutdir, method):
@@ -229,18 +235,22 @@ def plot_single_test(args, baseoutdir, method):
         plotting.plot_gl_inference_fractions(baseoutdir, ptype, [pv[ptype] for pv in plotvals], labels=[legend_str(args, v) for v in args.varvals], xlabel='sample size', ylabel='fraction %s' % ptype, leg_title=legend_titles.get(args.action, None), title=ptype + ' alleles')
 
 # ----------------------------------------------------------------------------------------
-def plot_tests(args, baseoutdir, method):
+def plot_tests(args, baseoutdir, method, method_vs_method=False):
     if args.action == 'gls-gen':
         get_gls_gen_plots(args, baseoutdir, method)
     elif args.action == 'data':
         dsetfos = [v.split('/') for v in args.varvals]  # (study, dset)
-        data_pairs = [(study, ds_1, ds_2) for study in all_data_pairs for ds_1, ds_2 in all_data_pairs[study] if [study, ds_1] in dsetfos and [study, ds_2] in dsetfos]
-        for study, ds_1, ds_2 in data_pairs:
-            get_data_plots(args, baseoutdir, method, study, [ds_1, ds_2])
-            dsetfos.remove([study, ds_1])
-            dsetfos.remove([study, ds_2])
-        for study, dset in dsetfos:
-            get_data_plots(args, baseoutdir, method, study, [dset])
+        if method_vs_method:
+            for study, dset in dsetfos:
+                get_data_plots(args, baseoutdir, args.methods, study, [dset])
+        else:
+            data_pairs = [(study, ds_1, ds_2) for study in all_data_pairs for ds_1, ds_2 in all_data_pairs[study] if [study, ds_1] in dsetfos and [study, ds_2] in dsetfos]
+            for study, ds_1, ds_2 in data_pairs:
+                get_data_plots(args, baseoutdir, [method], study, [ds_1, ds_2])
+                dsetfos.remove([study, ds_1])
+                dsetfos.remove([study, ds_2])
+            for study, dset in dsetfos:
+                get_data_plots(args, baseoutdir, [method], study, [dset])
     else:
         plot_single_test(args, baseoutdir, method)
 
@@ -413,6 +423,7 @@ parser.add_argument('--check', action='store_true')
 parser.add_argument('--dry-run', action='store_true')
 parser.add_argument('--label', default='xxx')
 parser.add_argument('--ete-path', default='/home/' + os.getenv('USER') + '/anaconda_ete/bin')
+parser.add_argument('--method-vs-method', action='store_true')
 args = parser.parse_args()
 
 args.methods = utils.get_arg_list(args.methods)
@@ -440,10 +451,12 @@ if args.action == 'multi-nsnp':
     factor = numpy.median([(len(nl) + 1) / 2. for nl in args.varvals])  # i.e. the ratio of (how many alleles we'll be dividing the events among), to (how many we'd be dividing them among for the other [single-nsnp] tests)
     args.n_event_list = [int(factor * n) for n in args.n_event_list]
 
-for method in args.methods:
-    if args.plot:
-        if method == 'simu':
-            continue
-        plot_tests(args, baseoutdir, method)
+if args.plot:
+    if args.method_vs_method:
+        plot_tests(args, baseoutdir, method=None, method_vs_method=True)
     else:
+        for method in [m for m in args.methods if method != 'simu']:
+            plot_tests(args, baseoutdir, method)
+else:
+    for method in args.methods:
         run_tests(args, baseoutdir, method)
