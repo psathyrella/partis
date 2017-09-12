@@ -183,11 +183,15 @@ def get_gene_sets(glsfnames, glslabels, ref_label=None, classification_fcn=None,
         gldir = os.path.dirname(fname).replace('/' + args.locus, '')
         glfos[label] = glutils.read_glfo(gldir, args.locus)  # this is gonna fail for tigger since you only have the .fa
 
+    # synchronize to somebody -- either simulation (<ref_label>) or the first one
     if ref_label is not None:
-        for label in [l for l in glslabels if l != ref_label]:
-            if debug:
-                print '    syncronizing %s names to match %s' % (label, ref_label)
-            glutils.synchronize_glfos(ref_glfo=glfos[ref_label], new_glfo=glfos[label], region=args.region, debug=debug)
+        sync_label = ref_label
+    else:
+        sync_label = glslabels[0]
+    for label in [l for l in glslabels if l != sync_label]:
+        if debug:
+            print '    syncronizing %s names to match %s' % (label, sync_label)
+        glutils.synchronize_glfos(ref_glfo=glfos[sync_label], new_glfo=glfos[label], region=args.region, debug=debug)
 
     gl_sets = {label : {g : seq for g, seq in glfos[label]['seqs'][args.region].items()} for label in glfos}
     all_genes = {g : s for gls in gl_sets.values() for g, s in gls.items()}
@@ -304,7 +308,8 @@ def draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, gene_categories, r
     node_names = set()  # make sure we get out all the genes we put in
     for node in etree.traverse():
         if set_distance_to_zero(node):
-            node.dist = 0.
+            node.dist = 1e-9  #0.
+        # node.dist = 1.
         status = getstatus(gene_categories, node, ref_label=ref_label)
         set_node_style(node, status, n_gl_sets=len(gl_sets), ref_label=ref_label)
         if node.is_leaf():
