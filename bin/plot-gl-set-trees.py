@@ -238,7 +238,7 @@ def get_gene_sets(glsfnames, glslabels, ref_label=None, classification_fcn=None,
     return all_genes, gl_sets, gcats
 
 # ----------------------------------------------------------------------------------------
-def set_node_style(node, status, ref_label=None, pair=False):
+def set_node_style(node, status, n_gl_sets, ref_label=None):
     linewidth = 2
 
     if status != 'internal':
@@ -252,7 +252,7 @@ def set_node_style(node, status, ref_label=None, pair=False):
     node.img_style['hz_line_width'] = linewidth
     node.img_style['vt_line_width'] = linewidth
 
-    if '-&-' in status:
+    if n_gl_sets > 2 and '-&-' in status:
         names = status.split('-&-')
         pcf = ete3.PieChartFace(percents=[100./len(names) for _ in range(len(names))], width=20, height=20, colors=[scolors[n] for n in names], line_color=None)
         node.add_face(pcf, column=0, position='aligned')
@@ -303,13 +303,10 @@ def draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, gene_categories, r
     etree = ete3.ClusterTree(treestr)
     node_names = set()  # make sure we get out all the genes we put in
     for node in etree.traverse():
-        # print '%5.3f   %s' % (node.dist, node.name)
         if set_distance_to_zero(node):
             node.dist = 0.
-        # if '+' in node.name and node.dist > 0.1:  # dammit, I should have named those differently...
-        #     node.dist = 0.05
         status = getstatus(gene_categories, node, ref_label=ref_label)
-        set_node_style(node, status, ref_label=ref_label, pair=(len(gl_sets) > 1))
+        set_node_style(node, status, n_gl_sets=len(gl_sets), ref_label=ref_label)
         if node.is_leaf():
             node_names.add(node.name)
     if len(set(all_genes) - node_names) > 0:

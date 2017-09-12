@@ -371,7 +371,7 @@ default_varvals = {
     'gls-gen' : None,
     'data' : {
         # 'jason-mg' : ['HD07-igh', 'HD07-igk', 'HD07-igl', 'AR03-igh', 'AR03-igk', 'AR03-igl'],
-        'sheng-gssp' : ['lp23810-m-pool', 'lp23810-g-pool', 'lp08248-m-pool'], #, 'lp08248-g-pool'],
+        'sheng-gssp' : ['lp23810-m-pool', 'lp23810-g-pool', 'lp08248-m-pool', 'lp08248-g-pool'],
         # 'kate-qrs' : ['1g', '4g'],
         # 'three-finger' : ['3ftx-1-igh'], #, 'pla2-1-igh'],
         # 'kate-qrs' : ['1g', '1k', '1l', '4g', '4k', '4l', '2k', '2l', '3k', '3l'],
