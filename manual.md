@@ -248,6 +248,12 @@ The idea is that any large clusters will accumulate appreciable size within the 
 What counts as a "small" cluster is controlled by `--small-clusters-to-ignore`, which is either a colon-separated list of clusters sizes (e.g. `1:2:3`) or an inclusive range (e.g. `1-10`).
 The number of steps after which these small clusters are removed is set with `--n-steps-after-which-to-ignore-small-clusters` (default 3).
 
+*limit maximum cluster size*
+
+Cases where memory is a limiting factor typically stem from a sample with several very large clones.
+This can be ameliorated by artificially capping clonal family size with `--max-cluster-size N`.
+Care must be exercised when interpreting the resulting partition, since it will simply stop clustering when any cluster reaches the specified size.
+
 ##### cluster annotations
 
 If --outfname is set, in addition to the clusters in that file, the most likely annotation for each final cluster are written to --cluster-annotation-fname (default `<--outfname>.replace('.csv', '-cluster-annotations.csv')`).
@@ -275,12 +281,11 @@ As in many such cases, this frequently amounts to an attempt to make judicious c
 Because the computational difficulty of the clustering problem is entirely dependent on the detailed structure of each repertoire, however, it is not always possible to make the optimal choice ahead of time.
 For instance, five hundred thousand sequences from a repertoire that consists almost entirely of a single, highly-mutated clone will have very different computational requirements (more!) to one which is more evenly spread among different naive rearrangements and has more typical mutation levels.
 
-Which is a roundabout way of saying: if you find that the sample which you'd like to run on is taking forever with the number of cores you have available, or if it's exhausting your available memory, you have a few options.
-First, consider whether it's possible to run separately on independent subsamples of your full sample -- if you divide into ten subsets, each one will typically run a hundred times faster.
-You can then, for instance, pull from these ten sub-partitions only the clusters you're interested in (e.g. the biggest ones) and run only on those with the `--queries` option.
-Another option, as mentioned above, is to run the very fast but somewhat less accurate `--naive-vsearch` method on the full sample, and then either pass only the most interesting clusters into the full algorithm (using `--queries`), or use `--seed-unique-id` with some sequences from the most interesting clusters.
+Which is a roundabout way of saying: if you find that the sample which you'd like to run on is taking forever with the number of cores you have available, or if it's exhausting your available memory, you have a few options:
 
-We're working to include these two strategies as command line options, but want to do some more validation before we settle on the particulars which are best for a general use case.
+  - `--n-max-queries N`/`--n-random-queries N`: run on one (or several) subsets of the sample independently. Reducing the sample size by a factor of, say, four, will typically make it run eight times faster and use an eighth the memory.
+  - `--naive-vsearch` a very fast, but less accurate version (see above)
+  - `--seed-unique-id <uid>` only find clusters clonally related to `<uid>` (see above)
 
 ### view-annotations
 
