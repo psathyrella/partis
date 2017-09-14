@@ -2477,7 +2477,7 @@ def subset_files(uids, fnames, outdir, uid_header='Sequence ID', delimiter='\t',
                         writer.writerow(line)
 
 # ----------------------------------------------------------------------------------------
-def csv_to_fasta(infname, outfname=None, name_column='unique_ids', seq_column='input_seqs', n_max_lines=None, overwrite=True, remove_duplicates=False):
+def csv_to_fasta(infname, outfname=None, name_column='unique_ids', seq_column='input_seqs', n_max_lines=None, overwrite=True, remove_duplicates=False, debug=True):
 
     if not os.path.exists(infname):
         raise Exception('input file %s d.n.e.' % infname)
@@ -2486,9 +2486,11 @@ def csv_to_fasta(infname, outfname=None, name_column='unique_ids', seq_column='i
         outfname = infname.replace('.csv', '.fa')
     if os.path.exists(outfname):
         if overwrite:
-            print '  csv --> fasta: overwriting %s' % outfname
+            if debug:
+                print '  csv --> fasta: overwriting %s' % outfname
         else:
-            print '  csv --> fasta: leaving existing outfile %s' % outfname
+            if debug:
+                print '  csv --> fasta: leaving existing outfile %s' % outfname
             return
 
     if '.csv' in infname:
@@ -2514,7 +2516,8 @@ def csv_to_fasta(infname, outfname=None, name_column='unique_ids', seq_column='i
                     uid = str(abs(hash(line[seq_column])))
                 if remove_duplicates:
                     if uid in uid_set:
-                        print '    csv --> fasta: skipping duplicate id %s' % uid
+                        if debug:
+                            print '    csv --> fasta: skipping duplicate id %s' % uid
                         continue
                     uid_set.add(uid)
                 n_lines += 1
