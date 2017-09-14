@@ -2478,16 +2478,6 @@ def subset_files(uids, fnames, outdir, uid_header='Sequence ID', delimiter='\t',
 
 # ----------------------------------------------------------------------------------------
 def csv_to_fasta(infname, outfname=None, name_column='unique_ids', seq_column='input_seqs', n_max_lines=None, overwrite=True, remove_duplicates=False):
-    def get_column_names(line):
-        if 'name' in line:
-            name_column = 'name'
-            seq_column = 'nucleotide'
-        elif 'unique_id' in line:
-            name_column = 'unique_id'
-            seq_column = 'seq'
-        else:
-            raise Exception('specified <name_column> \'%s\' and backup \'name\' not in line: %s' % (name_column, line.keys()))
-        return name_column, seq_column
 
     if not os.path.exists(infname):
         raise Exception('input file %s d.n.e.' % infname)
@@ -2514,17 +2504,23 @@ def csv_to_fasta(infname, outfname=None, name_column='unique_ids', seq_column='i
         with open(outfname, 'w') as outfile:
             n_lines = 0
             for line in reader:
-                if name_column not in line:
-                    name_column, seq_column = get_column_names(line)
+                if seq_column not in line:
+                    raise Exception('specified <seq_column> \'%s\' not in line (keys in line: %s)' % (seq_column, ' '.join(line.keys())))
+                if name_column is not None:
+                    if name_column not in line:
+                        raise Exception('specified <name_column> \'%s\' not in line (keys in line: %s)' % (name_column, ' '.join(line.keys())))
+                    uid = line[name_column]
+                else:
+                    uid = str(abs(hash(line[seq_column])))
                 if remove_duplicates:
-                    if line[name_column] in uid_set:
-                        print '    csv --> fasta: skipping duplicate id %s' % line[name_column]
+                    if uid in uid_set:
+                        print '    csv --> fasta: skipping duplicate id %s' % uid
                         continue
-                    uid_set.add(line[name_column])
+                    uid_set.add(uid)
                 n_lines += 1
                 if n_max_lines is not None and n_lines > n_max_lines:
                     break
-                outfile.write('>%s\n' % line[name_column])
+                outfile.write('>%s\n' % uid)
                 outfile.write('%s\n' % line[seq_column])
 
 # ----------------------------------------------------------------------------------------
