@@ -479,6 +479,57 @@ class PartitionDriver(object):
         return float(total) / len(self.bcrham_proc_info)
 
     # ----------------------------------------------------------------------------------------
+    def merge_shared_clusters(self, cpath, debug=False):  # replace the most likely partition with a new partition in which any clusters that share a sequence have been merged
+        # cpath.partitions[cpath.i_best] = [['a', 'b', 'c', 'e'], ['d'], ['f', 'a'], ['g'], ['h'], ['i'], ['j', 'a'], ['x', 'y', 'z', 'd'], ['xx', 'x']]
+        partition = cpath.partitions[cpath.i_best]
+
+        if debug:
+            print 'merging shared clusters'
+            cpath.print_partitions()
+
+        # find every pair of clusters that has some overlap
+        cluster_groups = []
+        if debug:
+            print ' making cluster_groups'
+        for iclust in range(len(partition)):
+            for jclust in range(iclust + 1, len(partition)):
+                if len(set(partition[iclust]) & set(partition[jclust])) > 0:
+                    if debug:
+                        print '  %d %d' % (iclust, jclust)
+                    cluster_groups.append(set([iclust, jclust]))
+
+        # merge these pairs of clusters into groups
+        while True:
+            no_more_merges = True
+            for cp1, cp2 in itertools.combinations(cluster_groups, 2):
+                if len(cp1 & cp2) > 0:
+                    if debug:
+                        print '  merging %s and %s' % (cp1, cp2)
+                    cluster_groups.append(cp1 | cp2)
+                    cluster_groups.remove(cp1)
+                    cluster_groups.remove(cp2)
+                    no_more_merges = False
+                    break  # we've modified it now, so we have to go back and remake the iterator
+            if no_more_merges:
+                break
+
+        # actually merge the groups of clusters
+        new_clusters = []
+        for cgroup in cluster_groups:
+            new_clusters.append(list(set([uid for iclust in cgroup for uid in partition[iclust]])))
+        if debug:
+            print ' removing'
+        for iclust in sorted([i for cgroup in cluster_groups for i in cgroup], reverse=True):
+            if debug:
+                print '    %d' % iclust
+            partition.pop(iclust)
+        for nclust in new_clusters:
+            partition.append(nclust)
+
+        if debug:
+            cpath.print_partitions()
+
+    # ----------------------------------------------------------------------------------------
     def are_we_finished_clustering(self, n_procs, cpath):
         if n_procs == 1:
             return True
@@ -487,10 +538,6 @@ class PartitionDriver(object):
             return True
         elif self.args.max_cluster_size is not None and max([len(c) for c in cpath.partitions[cpath.i_best]]) > self.args.max_cluster_size:  # NOTE I *think* I want the best, not best-minus-x here (hardish to be sure a.t.m., since I'm not really using the minus-x part right now)
             print '   --max-cluster-size: stopping with a cluster of size %d (> %d)' % (max([len(c) for c in cpath.partitions[cpath.i_best]]), self.args.max_cluster_size)
-# ----------------------------------------------------------------------------------------
-            # self.merge_shared_clusters()
-            print 'implement shared cluster merging'
-# ----------------------------------------------------------------------------------------
             return True
         else:
             return False
@@ -510,6 +557,10 @@ class PartitionDriver(object):
             if self.are_we_finished_clustering(n_procs, cpath):
                 break
             n_procs, cpath = self.prepare_next_iteration(n_proc_list, cpath, len(initial_nsets))
+
+        if self.args.max_cluster_size is not None:
+            print '   --max-cluster-size: merging shared clusters'
+            self.merge_shared_clusters(cpath)
 
         print '      loop time: %.1f' % (time.time()-start)
         return cpath
