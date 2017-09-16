@@ -161,7 +161,7 @@ def get_gls_fname(outdir, method, locus, sim_truth=False, data=False):  # NOTE d
     return glutils.get_fname(outdir, locus, region)
 
 # ----------------------------------------------------------------------------------------
-def make_gls_tree_plot(args, plotdir, plotname, glsfnames, glslabels, locus, ref_label=None):
+def make_gls_tree_plot(args, plotdir, plotname, glsfnames, glslabels, locus, ref_label=None, leaf_names=False):
     # ete3 requires its own python version, so we run as a subprocess
     cmdstr = 'export PATH=%s:$PATH && xvfb-run -a ./bin/plot-gl-set-trees.py' % args.ete_path
     cmdstr += ' --plotdir ' + plotdir
@@ -170,6 +170,8 @@ def make_gls_tree_plot(args, plotdir, plotname, glsfnames, glslabels, locus, ref
     cmdstr += ' --glslabels ' + ':'.join(glslabels)
     if ref_label is not None:
         cmdstr += ' --ref-label ' + ref_label
+    if leaf_names:
+        cmdstr += ' --leaf-names'
     cmdstr += ' --locus ' + locus
     if args.plotcache:
         cmdstr += ' --use-cache'
@@ -201,7 +203,11 @@ def get_data_plots(args, baseoutdir, methods, study, dsets):
     else:
         raise Exception('one of \'em has to be length 1: %d %d' % (len(methods), len(dsets)))
     print '%-15s  %10s' % (study, ' '.join(dsets))
-    make_gls_tree_plot(args, outdir + '/' + '-vs-'.join(methods) + '/gls-gen-plots', study + '-' + '-vs-'.join(dsets), glsfnames=[get_gls_fname(ddir, meth, locus=mfo['locus'], data=True) for ddir in data_outdirs for meth in methods], glslabels=glslabels, locus=mfo['locus'])
+    make_gls_tree_plot(args, outdir + '/' + '-vs-'.join(methods) + '/gls-gen-plots', study + '-' + '-vs-'.join(dsets),
+                       glsfnames=[get_gls_fname(ddir, meth, locus=mfo['locus'], data=True) for ddir in data_outdirs for meth in methods],
+                       glslabels=glslabels,
+                       locus=mfo['locus'],
+                       leaf_names=len(dsets) > 1)
 
 # ----------------------------------------------------------------------------------------
 def plot_single_test(args, baseoutdir, method):
@@ -381,9 +387,9 @@ default_varvals = {
     'gls-gen' : None,
     'data' : {
         # 'jason-mg' : ['HD07-igh', 'AR03-igh'],
-        'jason-mg' : ['AR02-igh', 'AR03-igh', 'AR04-igh', 'AR05-igh', 'HD07-igh', 'HD09-igh', 'HD10-igh', 'HD13-igh', 'MK02-igh', 'MK03-igh', 'MK04-igh', 'MK05-igh', 'MK08-igh'], 
+        # 'jason-mg' : ['AR02-igh', 'AR03-igh', 'AR04-igh', 'AR05-igh', 'HD07-igh', 'HD09-igh', 'HD10-igh', 'HD13-igh', 'MK02-igh', 'MK03-igh', 'MK04-igh', 'MK05-igh', 'MK08-igh'],
         # 'jason-mg' : ['HD07-igk', 'HD07-igl', 'AR03-igk', 'AR03-igl'],
-        # 'sheng-gssp' : ['lp23810-m-pool', 'lp23810-g-pool', 'lp08248-m-pool', 'lp08248-g-pool'],
+        # 'sheng-gssp' : ['lp23810-m-pool',  'lp23810-g-pool', 'lp08248-m-pool', 'lp08248-g-pool'],
         # 'kate-qrs' : ['1g', '4g'],
         # 'three-finger' : ['3ftx-1-igh'], #, 'pla2-1-igh'],
         # 'kate-qrs' : ['1g', '1k', '1l', '4g', '4k', '4l', '2k', '2l', '3k', '3l'],
@@ -409,6 +415,7 @@ for study in all_data_pairs:
 parser = argparse.ArgumentParser()
 parser.add_argument('action', choices=['mfreq', 'nsnp', 'multi-nsnp', 'prevalence', 'n-leaves', 'weibull', 'alcluster', 'gls-gen', 'data'])
 parser.add_argument('--methods', default='partis') # not using <choices> 'cause it's harder since it's a list
+parser.add_argument('--method-vs-method', action='store_true')
 parser.add_argument('--v-genes', default='IGHV4-39*01')
 parser.add_argument('--varvals')
 parser.add_argument('--n-event-list', default='1000:2000:4000:8000')  # NOTE modified later for multi-nsnp also NOTE not used for gen-gset
@@ -425,7 +432,6 @@ parser.add_argument('--check', action='store_true')
 parser.add_argument('--dry-run', action='store_true')
 parser.add_argument('--label', default='xxx')
 parser.add_argument('--ete-path', default='/home/' + os.getenv('USER') + '/anaconda_ete/bin')
-parser.add_argument('--method-vs-method', action='store_true')
 args = parser.parse_args()
 
 args.methods = utils.get_arg_list(args.methods)
@@ -457,7 +463,7 @@ if args.plot:
     if args.method_vs_method:
         plot_tests(args, baseoutdir, method=None, method_vs_method=True)
     else:
-        for method in [m for m in args.methods if method != 'simu']:
+        for method in [m for m in args.methods if m != 'simu']:
             plot_tests(args, baseoutdir, method)
 else:
     for method in args.methods:
