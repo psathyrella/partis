@@ -21,6 +21,12 @@ import heads
 
 # custom interactive faces: http://etetoolkit.org/docs/latest/tutorial/tutorial_drawing.html#id34
 
+legend_names = {
+    'tigger-default' : 'tigger',
+    'Hs-LN1-5RACE-IgG' : '240 dpi',  # QB850
+    'Hs-LN4-5RACE-IgG' : '1586 dpi',  # QB850
+}
+
 primary_colors = OrderedDict((
     ('red', '#c32222'),
     # ('yellow', '#e3e317'),
@@ -260,14 +266,15 @@ def set_node_style(node, status, n_gl_sets, used_colors, ref_label=None):
             used_colors[status] = scolors[status]
 
         if glutils.is_novel(node.name):
-            node.add_face(ete3.CircleFace(2.5, 'Gold'), column=0) #, position='aligned')
+            node.add_face(ete3.CircleFace(5. if ref_label is None else 2.5, 'Gold'), column=0) #, position='float') # if args.leaf_names else 'branch')
 
     node.img_style['hz_line_width'] = linewidth
     node.img_style['vt_line_width'] = linewidth
 
     if n_gl_sets > 2 and '-&-' in status:
         names = status.split('-&-')
-        pcf = ete3.PieChartFace(percents=[100./len(names) for _ in range(len(names))], width=20, height=20, colors=[scolors[n] for n in names], line_color=None)
+        pcf = ete3.PieChartFace(percents=[100./len(names) for _ in range(len(names))], width=50, height=50, colors=[scolors[n] for n in names], line_color=None)
+        # pcf = ete3.StackedBarFace(percents=[100./len(names) for _ in range(len(names))], width=30, height=50, colors=[scolors[n] for n in names], line_color=None)
         node.add_face(pcf, column=0, position='aligned')
 
     # if status in faces:
@@ -311,12 +318,45 @@ def set_distance_to_zero(node, debug=False):
             print '    setting to zero'
     return descendents == entirety_of_gene_family
 
+# # ----------------------------------------------------------------------------------------
+# def add_legend(tstyle, used_colors):
+#     for status, color in used_colors.items():
+#         if status == 'all' or '-&-' in status:
+#             continue
+#         tstyle.title.add_face(ete3.RectFace(20, 20, color, color, label=status), column=0)
+
 # ----------------------------------------------------------------------------------------
-def add_legend(tstyle, used_colors):
+def write_legend(used_colors, plotdir):
+    added_two_method_color = False
+    legfo = OrderedDict()
     for status, color in used_colors.items():
-        if status == 'all' or '-&-' in status:
-            continue
-        tstyle.title.add_face(ete3.RectFace(20, 20, color, color, label=status), column=0)
+        if status in legend_names:
+            leg_name = legend_names[status]
+        elif '-&-' in status:
+            if not added_two_method_color:
+                leg_name = 'both'
+                added_two_method_color = True
+            else:
+                continue
+        else:
+            leg_name = status
+        legfo[leg_name] = color
+
+    # reorder some of 'em
+    for leg_name in ['both', 'all']:
+        if leg_name in legfo:
+            tmpcolor = legfo[leg_name]
+            del legfo[leg_name]
+            legfo[leg_name] = tmpcolor
+
+    etree = ete3.ClusterTree()
+    tstyle = ete3.TreeStyle()
+    tstyle.show_scale = False
+    for leg_name, color in legfo.items():
+        tstyle.title.add_face(ete3.RectFace(20, 20, color, color), column=0)
+        tstyle.title.add_face(ete3.TextFace(leg_name, fgcolor=color), column=1)
+
+    etree.render(plotdir + '/legend.svg', h=300, tree_style=tstyle)  # w=500, h=500, 
 
 # ----------------------------------------------------------------------------------------
 def draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, gene_categories, ref_label=None, arc_start=None, arc_span=None):
@@ -325,7 +365,7 @@ def draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, gene_categories, r
     used_colors = {}
     for node in etree.traverse():
         if set_distance_to_zero(node):
-            node.dist = 1e-9  #0.
+            node.dist = 0. if ref_label is not None else 1e-9  # data crashes sometimes with float division by zero if you set it to 0., but simulation sometimes gets screwed up for some other reason (that I don't understand) if it's 1e-9
         # node.dist = 1.
         status = getstatus(gene_categories, node, ref_label=ref_label)
         set_node_style(node, status, len(gl_sets), used_colors, ref_label=ref_label)
@@ -339,7 +379,7 @@ def draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, gene_categories, r
             node.name = shorten_name(node.name)
 
     tstyle = ete3.TreeStyle()
-    if True: #ref_label is not None:
+    if not args.leaf_names:
         tstyle.show_leaf_name = False
     tstyle.mode = 'c'
     tstyle.show_scale = False
@@ -347,8 +387,9 @@ def draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, gene_categories, r
         tstyle.arc_start = arc_start
     if arc_span is not None:
         tstyle.arc_span = arc_span
-    if args.legend:
-        add_legend(tstyle, used_colors)
+    # if args.legend:
+    #     add_legend(tstyle, used_colors)
+    write_legend(used_colors, plotdir)
     etree.render(plotdir + '/' + plotname + '.svg', h=750, tree_style=tstyle)
 
 # ----------------------------------------------------------------------------------------
@@ -371,6 +412,7 @@ parser.add_argument('--glsfnames', required=True)
 parser.add_argument('--glslabels', required=True)
 parser.add_argument('--locus', required=True)
 parser.add_argument('--legend', action='store_true')
+parser.add_argument('--leaf-names', action='store_true')
 parser.add_argument('--use-cache', action='store_true', help='just print results and remake the plots, without remaking the tree (which is the slow part)')
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--title')
