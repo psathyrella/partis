@@ -390,7 +390,6 @@ default_varvals = {
         # 'jason-mg' : ['AR02-igh', 'AR03-igh', 'AR04-igh', 'AR05-igh', 'HD07-igh', 'HD09-igh', 'HD10-igh', 'HD13-igh', 'MK02-igh', 'MK03-igh', 'MK04-igh', 'MK05-igh', 'MK08-igh'],
         # 'jason-mg' : ['HD07-igk', 'HD07-igl', 'AR03-igk', 'AR03-igl'],
         # 'sheng-gssp' : ['lp23810-m-pool',  'lp23810-g-pool', 'lp08248-m-pool', 'lp08248-g-pool'],
-        # 'kate-qrs' : ['1g', '4g'],
         # 'three-finger' : ['3ftx-1-igh'], #, 'pla2-1-igh'],
         'kate-qrs' : ['1g', '4g' , '1k', '1l', '4k', '4l'],
         # 'laura-mb-2' : ['BF520-g-W1', 'BF520-m-W1', 'BF520-g-M9', 'BF520-m-M9'], #, 'BF520-k-W1', 'BF520-l-W1', 'BF520-k-M9', 'BF520-l-M9']
