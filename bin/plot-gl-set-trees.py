@@ -28,19 +28,16 @@ primary_colors = OrderedDict((
     ('blue', '#2455ed'),
 ))
 
+combo_colors = {  # colors need to sorted before calling '-'.join()
+    'red-&-yellow' : '#f5be82',  # orange
+    'blue-&-yellow' : '#85ad98',  # green
+    'blue-&-red' : '#d5aaf4',  # purple
+    'green-&-red' : '#f5be82',  # orange
+    'blue-&-green' : '#8fecd6',  # green
+}
+
 def med_grey():
     return '#929292'
-
-combo_colors = {  # colors need to sorted before calling '-'.join()
-    # 'red-&-yellow' : '#f5be82',  # orange
-    # 'blue-&-yellow' : '#85ad98',  # green
-    # 'blue-&-red' : '#d5aaf4',  # purple
-    # 'green-&-red' : '#f5be82',  # orange
-    # 'blue-&-green' : '#8fecd6',  # green
-    'blue-&-red' : med_grey(),
-    'green-&-red' : med_grey(),
-    'blue-&-green' : med_grey(),
-}
 
 all_colors = dict(primary_colors.items() + combo_colors.items())
 all_colors['LightGrey'] = '#d3d3d3'
@@ -65,6 +62,9 @@ scolors = {
     'all' : '#d3d3d3',
     'pale-green' : '#85ad98',
     'pale-blue' : '#94a3d1',
+    'tigger-default' : '#c32222',  # red
+    'igdiscover' : '#29a614',  # green
+    'partis' : '#2455ed',  # blue
 }
 
 # faces = {}
@@ -74,7 +74,7 @@ scolors = {
 #          'spurious' : ete3.CircleFace(10, 'black')}
 
 # ----------------------------------------------------------------------------------------
-def set_colors(gl_sets, ref_label=None):
+def set_colors(gl_sets, ref_label=None, mix_primary_colors=False):
     if ref_label is not None:  # simulation
         return
 
@@ -88,12 +88,19 @@ def set_colors(gl_sets, ref_label=None):
         scolors[pairkey(names[0], names[1])] = scolors['all']
         return
     elif len(names) == 3:
-        pclist = primary_colors.keys()
-        pccodes = primary_colors.values()
-        for iname in range(len(names)):
-            scolors[names[iname]] = pccodes[iname]  # set this data set to a primary color
-            for jname in range(iname + 1, len(names)):
-                scolors[pairkey(names[iname], names[jname])] = med_grey()  #combo_colors[pairkey(pclist[iname], pclist[jname])]  # ...and set its combos with other data sets to the apropriate secondary color
+        if mix_primary_colors:
+            pclist = primary_colors.keys()
+            pccodes = primary_colors.values()
+            for iname in range(len(names)):
+                scolors[names[iname]] = pccodes[iname]  # set this data set to a primary color
+                for jname in range(iname + 1, len(names)):
+                    scolors[pairkey(names[iname], names[jname])] = combo_colors[pairkey(pclist[iname], pclist[jname])]  # ...and set its combos with other data sets to the apropriate secondary color
+        else:
+            for name in gl_sets:
+                if name not in scolors:
+                    raise Exception('\'%s\' not in <scolors>' % name)
+            for name1, name2 in itertools.combinations(gl_sets, 2):
+                scolors[pairkey(name1, name2)] = med_grey()
     else:
         raise Exception('need more colors')
 # ----------------------------------------------------------------------------------------
