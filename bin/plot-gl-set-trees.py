@@ -25,6 +25,10 @@ legend_names = {
     'tigger-default' : 'tigger',
     'Hs-LN1-5RACE-IgG' : '240 dpi',  # QB850
     'Hs-LN4-5RACE-IgG' : '1586 dpi',  # QB850
+    'Hs-LN1-5RACE-IgK' : '240 dpi',  # QB850
+    'Hs-LN4-5RACE-IgK' : '1586 dpi',  # QB850
+    'Hs-LN1-5RACE-IgL' : '240 dpi',  # QB850
+    'Hs-LN4-5RACE-IgL' : '1586 dpi',  # QB850
 }
 
 primary_colors = OrderedDict((
@@ -327,12 +331,18 @@ def set_distance_to_zero(node, debug=False):
 
 # ----------------------------------------------------------------------------------------
 def write_legend(used_colors, plotdir):
+    def add_crap(sn, col):
+        legfo[sn] = col
+
     added_two_method_color = False
     legfo = OrderedDict()
     for status, color in used_colors.items():
         if status in legend_names:
             leg_name = legend_names[status]
         elif '-&-' in status:
+            for substatus in status.split('-&-'):  # arg, have to handle cases where the single one isn't in there
+                if legend_names.get(substatus, substatus) not in legfo:
+                    add_crap(legend_names.get(substatus, substatus), scolors[substatus])
             if not added_two_method_color:
                 leg_name = 'both'
                 added_two_method_color = True
@@ -340,7 +350,7 @@ def write_legend(used_colors, plotdir):
                 continue
         else:
             leg_name = status
-        legfo[leg_name] = color
+        add_crap(leg_name, color)
 
     # reorder some of 'em
     for leg_name in ['both', 'all']:
@@ -354,7 +364,7 @@ def write_legend(used_colors, plotdir):
     tstyle.show_scale = False
     for leg_name, color in legfo.items():
         tstyle.title.add_face(ete3.RectFace(20, 20, color, color), column=0)
-        tstyle.title.add_face(ete3.TextFace(leg_name, fgcolor=color), column=1)
+        tstyle.title.add_face(ete3.TextFace(' ' + leg_name, fgcolor=color), column=1)
 
     etree.render(plotdir + '/legend.svg', h=300, tree_style=tstyle)  # w=500, h=500, 
 

@@ -401,16 +401,20 @@ def read_extra_info(glfo, gldir):
                     glfo[codon + '-positions'][line['gene']] = int(line[codon + '_position'])
 
 #----------------------------------------------------------------------------------------
-def print_glfo(glfo):  # NOTE kind of similar to bin/cf-alleles.py
+def print_glfo(glfo, use_primary_version=False):  # NOTE kind of similar to bin/cf-alleles.py
     for region in utils.regions:
         print region
-        primary_versions = set([utils.primary_version(g) for g in glfo['seqs'][region]])
-        for pv in sorted(primary_versions):
-            print '  %s' % pv
-            pvseqs = {g : glfo['seqs'][region][g] for g in glfo['seqs'][region] if utils.primary_version(g) == pv}
+        if use_primary_version:
+            groupfcn = utils.primary_version
+        else:
+            groupfcn = utils.gene_family
+        gene_groups = set([groupfcn(g) for g in glfo['seqs'][region]])
+        for ggroup in sorted(gene_groups):
+            print '  %s' % ggroup
+            ggroupseqs = {g : glfo['seqs'][region][g] for g in glfo['seqs'][region] if groupfcn(g) == ggroup}
             workdir = tempfile.mkdtemp()
             with tempfile.NamedTemporaryFile() as tmpfile:  # kind of hilarious that i use vsearch here, but mafft up there... oh well it shouldn't matter
-                _ = utils.run_vsearch('cluster', pvseqs, workdir, threshold=0.3, msa_fname=tmpfile.name)  # <threshold> is kind of random, i just set it to something that seems to group all the V genes with the same pv together
+                _ = utils.run_vsearch('cluster', ggroupseqs, workdir, threshold=0.3, msa_fname=tmpfile.name)  # <threshold> is kind of random, i just set it to something that seems to group all the V genes with the same ggroup together
                 msa_seqs = utils.read_fastx(tmpfile.name, ftype='fa')
             msa_info = []
             for seqfo in msa_seqs:
@@ -428,7 +432,7 @@ def print_glfo(glfo):  # NOTE kind of similar to bin/cf-alleles.py
                     extra_str = ''
                     if region in utils.conserved_codons[glfo['locus']]:
                         codon = utils.conserved_codons[glfo['locus']][region]
-                        aligned_cpos = get_pos_in_alignment(codon, seqfo['seq'], pvseqs[seqfo['name']], utils.cdn_pos(glfo, region, seqfo['name']), seqfo['name'])
+                        aligned_cpos = get_pos_in_alignment(codon, seqfo['seq'], ggroupseqs[seqfo['name']], utils.cdn_pos(glfo, region, seqfo['name']), seqfo['name'])
                         emphasis_positions = [aligned_cpos + i for i in range(3)]
                         if region == 'v':
                             if utils.cdn_pos(glfo, region, seqfo['name']) % 3 != 0:  # flag out of frame cysteines
