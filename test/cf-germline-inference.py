@@ -391,8 +391,8 @@ default_varvals = {
         # 'jason-mg' : ['HD07-igk', 'HD07-igl', 'AR03-igk', 'AR03-igl'],
         # 'sheng-gssp' : ['lp23810-m-pool',  'lp23810-g-pool', 'lp08248-m-pool', 'lp08248-g-pool'],
         # 'three-finger' : ['3ftx-1-igh'], #, 'pla2-1-igh'],
-        'kate-qrs' : ['1g', '4g' , '1k', '1l', '4k', '4l'],
-        # 'laura-mb-2' : ['BF520-g-W1', 'BF520-m-W1', 'BF520-g-M9', 'BF520-m-M9'], #, 'BF520-k-W1', 'BF520-l-W1', 'BF520-k-M9', 'BF520-l-M9']
+        # 'kate-qrs' : ['1g', '4g', '1k', '1l', '4k', '4l'],
+        # 'laura-mb-2' : ['BF520-g-W1', 'BF520-m-W1', 'BF520-g-M9', 'BF520-m-M9', 'BF520-k-W1', 'BF520-l-W1', 'BF520-k-M9', 'BF520-l-M9']
         # 'jason-influenza' : ['FV-igh-m8d', 'FV-igh-p7d', 'FV-igh-p28d'],
     }
 }
