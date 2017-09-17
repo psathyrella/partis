@@ -355,6 +355,8 @@ def run_data(args, baseoutdir, study, dset, method):
     cmd += ' --force-default-initial-germline-dir'
     if method != 'partis':
         cmd += ' --other-method ' + method
+    if args.n_max_jobs is not None:
+        cmd += ' --n-max-jobs ' + str(args.n_max_jobs)
 
     utils.simplerun(cmd, dryrun=args.dry_run)
 
@@ -428,6 +430,7 @@ parser.add_argument('--n-event-list', default='1000:2000:4000:8000')  # NOTE mod
 parser.add_argument('--gls-gen-events', type=int, default=300000)
 parser.add_argument('--gls-gen-difficulty', default='easy', choices=['easy', 'hard'])
 parser.add_argument('--n-random-queries', type=int)
+parser.add_argument('--n-max-jobs', type=int)
 parser.add_argument('--n-tests', type=int, default=3)
 parser.add_argument('--iteststart', type=int, default=0)
 parser.add_argument('--n-procs-per-test', type=int, default=5)
