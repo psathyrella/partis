@@ -29,6 +29,14 @@ legend_names = {
     'Hs-LN4-5RACE-IgK' : '1586 dpi',  # QB850
     'Hs-LN1-5RACE-IgL' : '240 dpi',  # QB850
     'Hs-LN4-5RACE-IgL' : '1586 dpi',  # QB850
+    'BF520-m-W1' : 'week 1',
+    'BF520-g-W1' : 'week 1',
+    'BF520-k-W1' : 'week 1',
+    'BF520-l-W1' : 'week 1',
+    'BF520-m-M9' : 'month 9',
+    'BF520-g-M9' : 'month 9',
+    'BF520-k-M9' : 'month 9',
+    'BF520-l-M9' : 'month 9',
 }
 
 primary_colors = OrderedDict((
@@ -88,7 +96,7 @@ def set_colors(gl_sets, ref_label=None, mix_primary_colors=False):
     if ref_label is not None:  # simulation
         return
 
-    names = gl_sets.keys()
+    names = sorted(gl_sets.keys())
 
     if len(names) == 1:  # single-sample data
         scolors[names[0]] = scolors['data']
@@ -187,7 +195,7 @@ def print_results(gene_categories, ref_label=None):
         else:
             genestr = ' '.join([utils.color_gene(g) for g in genes])
         print ('    %-' + pwidth + 's') % name,
-        print '%20s' % get_color_name(scolors[name]),
+        print '%20s' % scolors[name], #get_color_name(scolors[name]),
         if len(genes) == 0:
             print ' %s' % utils.color('blue', 'none')
         else:
