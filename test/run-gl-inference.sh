@@ -21,3 +21,6 @@ glscmd="$cmd gls-gen --label $label"
 label=v10
 # $cmd data --label $label $testopts --n-random-queries 5000  # laptop
 # $cmd data --label $label --n-procs-per-test 15 --dry
+
+# $cmd data --label $label --methods partis:tigger-default:igdiscover --plot --method-vs-method --plotcache
+# $cmd data --label $label --methods partis:tigger-default --plot # --plotcache
