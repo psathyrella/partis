@@ -2078,7 +2078,7 @@ def process_out_err(extra_str='', dbgfo=None, logdir=None, debug=None, ignore_st
             print err_str + out
         elif debug == 'write':
             logfile = logdir + '/log'
-            print 'writing dbg to %s' % logfile
+            # print 'writing dbg to %s' % logfile
             with open(logfile, 'w') as dbgfile:
                 dbgfile.write(err_str + out)
         else:
