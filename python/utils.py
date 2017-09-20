@@ -2501,6 +2501,7 @@ def csv_to_fasta(infname, outfname=None, name_column='unique_ids', seq_column='i
         assert False
 
     uid_set = set()
+    n_duplicate_ids = 0
     with open(infname) as infile:
         reader = csv.DictReader(infile, delimiter=delimiter)
         with open(outfname, 'w') as outfile:
@@ -2516,8 +2517,7 @@ def csv_to_fasta(infname, outfname=None, name_column='unique_ids', seq_column='i
                     uid = str(abs(hash(line[seq_column])))
                 if remove_duplicates:
                     if uid in uid_set:
-                        if debug:
-                            print '    csv --> fasta: skipping duplicate id %s' % uid
+                        n_duplicate_ids += 1
                         continue
                     uid_set.add(uid)
                 n_lines += 1
@@ -2525,6 +2525,8 @@ def csv_to_fasta(infname, outfname=None, name_column='unique_ids', seq_column='i
                     break
                 outfile.write('>%s\n' % uid)
                 outfile.write('%s\n' % line[seq_column])
+    if debug and n_duplicate_ids > 0:
+        print '   skipped %d / %d duplicate uids' % (n_duplicate_ids, len(uid_set))
 
 # ----------------------------------------------------------------------------------------
 def print_heapy(extrastr, heap):
