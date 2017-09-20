@@ -111,7 +111,7 @@ def run_tigger(infname, outfname, outdir):
     with open(cmdfname, 'w') as cmdfile:
         cmdfile.write('\n'.join(rcmds) + '\n')
     cmdstr = 'R --slave -f ' + cmdfname
-    subprocess.check_call(['cat', cmdfname])
+    # subprocess.check_call(['cat', cmdfname])
     utils.simplerun(cmdstr, shell=True, print_time='tigger')
 
     # post-process tigger .fa
