@@ -478,8 +478,8 @@ def get_line_with_presto_headers(line):  # NOTE doesn't deep copy
 
 # ----------------------------------------------------------------------------------------
 def write_presto_annotations(outfname, glfo, annotations, failed_queries):
-    outstr = subprocess.check_output(['mv', '-v', outfname, outfname + '.partis'])
-    print '    backing up partis output before converting to presto: %s' % outstr.strip()
+    # outstr = subprocess.check_output(['mv', '-v', outfname, outfname + '.partis'])
+    # print '    backing up partis output before converting to presto: %s' % outstr.strip()
 
     with open(outfname, 'w') as outfile:
         writer = csv.DictWriter(outfile, presto_headers.keys(), delimiter='\t')
