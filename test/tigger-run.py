@@ -86,7 +86,7 @@ def run_tigger(infname, outfname, outdir):
     if utils.output_exists(args, outfname, offset=8):
         return
 
-    rcmds = ['library(tigger, warn.conflicts=FALSE)', 'library(dplyr, warn.conflicts=FALSE)']
+    rcmds = ['library(ggplot2)', 'library(tigger, warn.conflicts=FALSE)', 'library(dplyr, warn.conflicts=FALSE)']
     # rcmds += ['data(sample_db, germline_ighv)']
 
     db_name = 'annotations'
@@ -169,3 +169,5 @@ utils.prep_dir(outdir, allow_other_files=True)
 
 outfname = run_alignment(args, outdir)
 run_tigger(outfname, args.outfname, outdir)
+
+os.rmdir(args.workdir)
