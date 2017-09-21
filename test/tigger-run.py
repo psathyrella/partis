@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+import numpy
+import glob
 import time
 import colored_traceback.always
 import argparse
@@ -12,10 +14,21 @@ import glutils
 
 # ----------------------------------------------------------------------------------------
 def get_glfname(region, aligned):  # igblast uses unaligned ones
-    if aligned:
-        return args.igbdir + '/gl-fastas/human_igh_' + region + '.fasta'
-    else:
-        return args.igbdir + '/human_gl_' + region.upper() + '.fa'
+    return '%s/%s/%s%s%s.fasta' % (args.igbdir, args.locus, args.locus, region, '' if aligned else '-unaligned')
+
+# ----------------------------------------------------------------------------------------
+def initialize_germline_info(outdir):
+    if len(glob.glob('%s/%s/%s*-unaligned.fasta.nsq' % (args.igbdir, args.locus, args.locus))) == len(utils.regions):
+        return
+
+    cmds = ['#!/bin/bash']
+    cmds += ['export PATH=%s:$PATH' % args.condapath]
+    # cmds += ['igblastn -help']
+    cmds += ['cd %s/%s' % (args.igbdir, args.locus)]
+    for tmpreg in utils.regions:  # need a dummy d for igk/igl
+        cmds += ['perl ../edit_imgt_file.pl %s%s.fasta > %s%s-unaligned.fasta' % (args.locus, tmpreg, args.locus, tmpreg)]
+        cmds += ['makeblastdb -parse_seqids -dbtype nucl -in %s%s-unaligned.fasta' % (args.locus, tmpreg)]
+    utils.simplerun('\n'.join(cmds) + '\n', cmdfname=outdir + '/run.sh')
 
 # ----------------------------------------------------------------------------------------
 def run_igblast(infname, outfname):
@@ -25,15 +38,30 @@ def run_igblast(infname, outfname):
     if args.glfo_dir is not None:
         print '%s --glfo-dir isn\'t getting plugged in to igblast/changeo (would need to rebuild igblast db)' % utils.color('red', 'warning')
 
-    cmd = './igblastn'
-    cmd += ' -germline_db_V human_gl_V -germline_db_D human_gl_V -germline_db_J human_gl_J'
-    cmd += ' -auxiliary_data optional_file/human_gl.aux'
-    cmd += ' -domain_system imgt -ig_seqtype Ig -organism human -outfmt \'7 std qseq sseq btop\''
-    cmd += ' -num_threads %d' % utils.auto_n_procs()
-    cmd += ' -query ' + infname + ' -out ' + outfname
-    
-    cmd = 'cd %s; %s' % (args.igbdir, cmd)
-    utils.simplerun(cmd, shell=True, print_time='igblast')
+    if args.n_random_queries is not None:
+        sub_infname = os.path.dirname(outfname) + '/' + os.path.basename(infname.replace(utils.getsuffix(infname), '-n-random-queries-%d%s' % (args.n_random_queries, utils.getsuffix(infname))))
+        if os.path.exists(sub_infname):
+            print '    --n-random-queries: leaving existing fasta for igblast (%d queries)' % args.n_random_queries
+        else:
+            print '    --n-random-queries: writing new fasta for igblast (%d queries)' % args.n_random_queries
+            seqfos = utils.read_fastx(infname)
+            seqfos = numpy.random.choice(seqfos, args.n_random_queries, replace=False)
+            with open(sub_infname, 'w') as sub_infile:
+                for seqfo in seqfos:
+                    sub_infile.write('>%s\n%s\n' % (seqfo['name'], seqfo['seq']))
+        infname = sub_infname
+
+    cmds = ['#!/bin/bash']
+    cmds += ['cd %s/%s' % (args.igbdir, args.locus)]
+    cmds += ['export PATH=%s:$PATH' % args.condapath]
+    cmds += ['igblastn']
+    for tmpreg in utils.regions:
+        cmds[-1] += ' -germline_db_%s %s%s-unaligned.fasta' % (tmpreg.upper(), args.locus, tmpreg)
+    cmds[-1] += ' -auxiliary_data optional_file/%s_gl.aux' % args.species
+    cmds[-1] += ' -domain_system imgt -ig_seqtype Ig -organism %s -outfmt \'7 std qseq sseq btop\'' % args.species
+    cmds[-1] += ' -num_threads %d' % utils.auto_n_procs()
+    cmds[-1] += ' -query ' + infname + ' -out ' + outfname
+    utils.simplerun('\n'.join(cmds) + '\n', cmdfname=args.workdir + '/run.sh')
 
 # ----------------------------------------------------------------------------------------
 def run_changeo(infname, igblast_outfname, outfname):
@@ -76,6 +104,7 @@ def run_partis(infname, outfname, n_random_queries=None):
         cmd += ' --n-random-queries %d' % n_random_queries
     if args.slurm:
         cmd += ' --batch-system slurm'
+    cmd += ' --locus ' + args.locus
 
     utils.simplerun(cmd, print_time='partis annotation')
 
@@ -128,7 +157,8 @@ def run_tigger(infname, outfname, outdir):
             sys.exit(proc.returncode)
 
     for oe in ['err', 'out']:
-        subprocess.check_call(['cat', args.workdir + '/' + oe])
+        with open(args.workdir + '/' + oe) as oefile:
+            print ''.join(oefile.readlines())
         os.remove(args.workdir + '/' + oe)
 
     # post-process tigger .fa
@@ -172,8 +202,10 @@ parser.add_argument('--glfo-dir')
 parser.add_argument('--simulation-germline-dir')
 parser.add_argument('--locus', default='igh')
 parser.add_argument('--region', default='v')
+parser.add_argument('--species', default='human')
 parser.add_argument('--slurm', action='store_true')
 parser.add_argument('--changeo-path', default=os.getenv('HOME') + '/.local')
+parser.add_argument('--condapath', default=os.getenv('HOME') + '/miniconda3/bin')
 args = parser.parse_args()
 
 # ----------------------------------------------------------------------------------------
@@ -181,10 +213,11 @@ outdir = os.path.dirname(args.outfname)  # kind of annoying having <args.workdir
 assert outdir.split('/')[-1] == args.locus
 outdir = outdir.rstrip('/' + args.locus)
 
-utils.prep_dir(args.workdir, wildlings=['*.cmd', '*.fa']) #'*.fmt7'])
+utils.prep_dir(args.workdir, wildlings=['*.cmd', '*.fa', '*.sh']) #'*.fmt7'])
 utils.prep_dir(outdir, allow_other_files=True)
 
-outfname = run_alignment(args, outdir)
+initialize_germline_info(outdir)  # deal with igblast germline crap
+outfname = run_alignment(args, outdir)  # get the alignments, either with igblast or partis
 run_tigger(outfname, args.outfname, outdir)
 
 os.rmdir(args.workdir)
