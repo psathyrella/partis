@@ -61,15 +61,7 @@ def run_igdiscover(infname, outfname, outdir):
     cmds += ['cp %s work/' % os.path.basename(args.yamlfname)]
     cmds += ['cd work']
     cmds += ['igdiscover run']
-    cmdfname = outdir + '/run.sh'
-    with open(cmdfname, 'w') as cmdfile:
-        for cmd in cmds:
-            cmdfile.write(cmd + '\n')
-    subprocess.check_call(['chmod', '+x', cmdfname])
-    cmdfos = [{'cmd_str' : cmdfname,
-               'workdir' : outdir,
-               'outfname' : igdiscover_outfname}]
-    utils.simplerun(cmdfname, shell=True, print_time='igdiscover')
+    utils.simplerun('\n'.join(cmds) + '\n', cmdfname=outdir + '/run.sh', print_time='igdiscover')
 
     template_gldir = args.glfo_dir if args.glfo_dir is not None else 'data/germlines/human'
     glfo = glutils.create_glfo_from_fasta(igdiscover_outfname, args.locus, args.region, template_gldir, simulation_germline_dir=args.simulation_germline_dir)
