@@ -2763,7 +2763,7 @@ def collapse_naive_seqs_with_hashes(naive_seq_list, sw_info):
     return naive_seq_map, naive_seq_hashes
 
 # ----------------------------------------------------------------------------------------
-def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, sanitize=False, queries=None, n_max_queries=-1, istartstop=None, ftype=None):  # Bio.SeqIO takes too goddamn long to import
+def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, sanitize=False, queries=None, n_max_queries=-1, istartstop=None, ftype=None, n_random_queries=None):  # Bio.SeqIO takes too goddamn long to import
     if ftype is None:
         suffix = getsuffix(fname)
         if suffix == '.fa' or suffix == '.fasta':
@@ -2852,6 +2852,9 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, sanitize=Fa
                 break
             if queries is not None and len(missing_queries) == 0:
                 break
+
+    if n_random_queries is not None:
+        finfo = numpy.random.choice(finfo, n_random_queries, replace=False)
 
     return finfo
 
