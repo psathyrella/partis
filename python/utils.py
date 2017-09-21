@@ -1879,7 +1879,13 @@ def run_r(cmdlines, workdir, dryrun=False, print_time=None, debug=True):
     os.remove(cmdfname)
 
 # ----------------------------------------------------------------------------------------
-def simplerun(cmd_str, shell=False, dryrun=False, print_time=None, swallow_stdout=False, debug=True):
+def simplerun(cmd_str, shell=False, dryrun=False, print_time=None, swallow_stdout=False, cmdfname=None, debug=True):
+    if cmdfname is not None:
+        with open(cmdfname, 'w') as cmdfile:
+            cmdfile.write(cmd_str)
+        subprocess.check_call(['chmod', '+x', cmdfname])
+        cmd_str = cmdfname
+
     if debug:
         print '%s %s' % (color('red', 'run'), cmd_str)
     sys.stdout.flush()
@@ -1889,6 +1895,8 @@ def simplerun(cmd_str, shell=False, dryrun=False, print_time=None, swallow_stdou
         start = time.time()
     runfcn = subprocess.check_output if swallow_stdout else subprocess.check_call
     runfcn(cmd_str if shell else cmd_str.split(), env=os.environ, shell=shell)
+    if cmdfname is not None:
+        os.remove(cmdfname)
     if print_time is not None:
         print '      %s time: %.1f' % (print_time, time.time() - start)
 
