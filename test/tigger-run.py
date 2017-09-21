@@ -111,8 +111,25 @@ def run_tigger(infname, outfname, outdir):
     with open(cmdfname, 'w') as cmdfile:
         cmdfile.write('\n'.join(rcmds) + '\n')
     cmdstr = 'R --slave -f ' + cmdfname
-    # subprocess.check_call(['cat', cmdfname])
-    utils.simplerun(cmdstr, shell=True, print_time='tigger')
+
+    cmdfo = {'cmd_str' : cmdstr, 'logdir' : args.workdir, 'env' : os.environ}
+    proc = utils.run_cmd(cmdfo)
+    while proc.poll() is None:
+        time.sleep(0.01)
+    if proc.returncode != 0:  # damn thing crashes if it thinks the sample size is small
+        with open(args.workdir + '/err') as ferr:
+            errstr = ''.join(ferr.readlines())
+        if 'Not enough sample sequences were assigned to any germline' in errstr:
+            with open(tigger_outfname, 'w') as dummy_outfasta:
+                dummy_outfasta.write('')
+        else:
+            subprocess.check_call(['cat', args.workdir + '/out'])
+            subprocess.check_call(['cat', args.workdir + '/err'])
+            sys.exit(proc.returncode)
+
+    for oe in ['err', 'out']:
+        subprocess.check_call(['cat', args.workdir + '/' + oe])
+        os.remove(args.workdir + '/' + oe)
 
     # post-process tigger .fa
     template_gldir = args.glfo_dir if args.glfo_dir is not None else 'data/germlines/human'
