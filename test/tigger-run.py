@@ -44,8 +44,7 @@ def run_igblast(infname, outfname):
             print '    --n-random-queries: leaving existing fasta for igblast (%d queries)' % args.n_random_queries
         else:
             print '    --n-random-queries: writing new fasta for igblast (%d queries)' % args.n_random_queries
-            seqfos = utils.read_fastx(infname)
-            seqfos = numpy.random.choice(seqfos, args.n_random_queries, replace=False)
+            seqfos = utils.read_fastx(infname, n_random_queries=args.n_random_queries)
             with open(sub_infname, 'w') as sub_infile:
                 for seqfo in seqfos:
                     sub_infile.write('>%s\n%s\n' % (seqfo['name'], seqfo['seq']))
@@ -74,7 +73,7 @@ def run_changeo(infname, igblast_outfname, outfname):
     utils.simplerun(cmd, print_time='changeo')
 
 # ----------------------------------------------------------------------------------------
-def run_partis(infname, outfname, n_random_queries=None):
+def run_partis(infname, outfname):
     if utils.output_exists(args, outfname, offset=8):
         return
 
@@ -100,8 +99,8 @@ def run_partis(infname, outfname, n_random_queries=None):
         cmd += ' --initial-germline-dir ' + args.glfo_dir
     cmd += ' --aligned-germline-fname ' + aligned_germline_fname
     cmd += ' --n-procs ' + str(args.n_procs)
-    if n_random_queries is not None:
-        cmd += ' --n-random-queries %d' % n_random_queries
+    if args.n_random_queries is not None:
+        cmd += ' --n-random-queries %d' % args.n_random_queries
     if args.slurm:
         cmd += ' --batch-system slurm'
     cmd += ' --locus ' + args.locus
@@ -181,7 +180,7 @@ def run_alignment(args, outdir):
         return changeo_outfname
     elif args.aligner == 'partis':
         outfname = outdir + '/' + infbase + '-partis-sw-annotations.tsv'
-        run_partis(args.infname, outfname, n_random_queries=args.n_random_queries)  # can't change it in changeo (I think), so may as well use the same name here
+        run_partis(args.infname, outfname)  # can't change it in changeo (I think), so may as well use the same name here
         return outfname
     else:
         assert False

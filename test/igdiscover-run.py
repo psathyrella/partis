@@ -49,6 +49,19 @@ def prepare_igdiscover_outdir(outdir):
 def run_igdiscover(infname, outfname, outdir):
     if utils.output_exists(args, outfname):
         return
+
+    if args.n_random_queries is not None:
+        sub_infname = outdir + '/' + os.path.basename(infname.replace(utils.getsuffix(infname), '-n-random-queries-%d%s' % (args.n_random_queries, utils.getsuffix(infname))))
+        if os.path.exists(sub_infname):
+            print '    --n-random-queries: leaving existing fasta for igdiscover (%d queries)' % args.n_random_queries
+        else:
+            print '    --n-random-queries: writing new fasta for igdiscover (%d queries)' % args.n_random_queries
+            seqfos = utils.read_fastx(infname, n_random_queries=args.n_random_queries)
+            with open(sub_infname, 'w') as sub_infile:
+                for seqfo in seqfos:
+                    sub_infile.write('>%s\n%s\n' % (seqfo['name'], seqfo['seq']))
+        infname = sub_infname
+
     prepare_igdiscover_outdir(outdir)
 
     igdiscover_outfname = outdir + '/work/final/database/%s.fasta' % args.region.upper()
@@ -57,11 +70,11 @@ def run_igdiscover(infname, outfname, outdir):
     cmds += ['export PATH=%s:$PATH' % args.condapath]
     cmds += ['export PYTHONNOUSERSITE=True']  # otherwise it finds the pip-installed packages in .local and breaks (see https://github.com/conda/conda/issues/448)
     cmds += ['cd %s' % outdir]
-    cmds += ['igdiscover init --db db --single-reads %s work' % args.infname]  # prepares to run, putting files into <outdir>
+    cmds += ['igdiscover init --db db --single-reads %s work' % infname]  # prepares to run, putting files into <outdir>
     cmds += ['cp %s work/' % os.path.basename(args.yamlfname)]
     cmds += ['cd work']
     cmds += ['igdiscover run']
-    utils.simplerun('\n'.join(cmds) + '\n', cmdfname=outdir + '/run.sh', print_time='igdiscover')
+    utils.simplerun('\n'.join(cmds) + '\n', cmdfname=outdir + '/run.sh', print_time='igdiscover', debug=True)
 
     template_gldir = args.glfo_dir if args.glfo_dir is not None else 'data/germlines/human'
     glfo = glutils.create_glfo_from_fasta(igdiscover_outfname, args.locus, args.region, template_gldir, simulation_germline_dir=args.simulation_germline_dir)
@@ -81,7 +94,7 @@ parser.add_argument('--yamlfname', default=partis_dir + '/test/igdiscover.yaml')
 parser.add_argument('--region', default='v')
 parser.add_argument('--locus', default='igh')
 parser.add_argument('--n-procs', default=1, type=int)
-# parser.add_argument('--n-random-queries', type=int)  # not implemented
+parser.add_argument('--n-random-queries', type=int)
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--condapath', default=os.getenv('HOME') + '/miniconda3/bin')
 args = parser.parse_args()
