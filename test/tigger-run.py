@@ -41,7 +41,7 @@ def run_igblast(infname, outfname):
     if args.n_random_queries is not None:
         sub_infname = os.path.dirname(outfname) + '/' + os.path.basename(infname.replace(utils.getsuffix(infname), '-n-random-queries-%d%s' % (args.n_random_queries, utils.getsuffix(infname))))
         if os.path.exists(sub_infname):
-            print '    --n-random-queries: leaving existing fasta for igblast (%d queries)' % args.n_random_queries
+            print '    --n-random-queries: leaving existing fasta for igblast (hopefully it has %d queries)' % args.n_random_queries
         else:
             print '    --n-random-queries: writing new fasta for igblast (%d queries)' % args.n_random_queries
             seqfos = utils.read_fastx(infname, n_random_queries=args.n_random_queries)

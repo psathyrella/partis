@@ -28,7 +28,16 @@ def prepare_igdiscover_outdir(outdir):
     else:
         os.makedirs(outdir + '/db')
     for region in utils.regions:
-        subprocess.check_call(['ln', '-s', glutils.get_fname(args.glfo_dir, args.locus, region), get_igd_glsfname(outdir, region)])
+        targetname = glutils.get_fname(args.glfo_dir, args.locus, region)
+        linkname = get_igd_glsfname(outdir, region)
+        if region in utils.getregions(args.locus):
+            if not os.path.exists(targetname):
+                raise Exception('gl file %s d.n.e.' % targetname)
+            if not os.path.islink(linkname):
+                subprocess.check_call(['ln', '-s', targetname, linkname])
+        else:
+            with open(linkname, 'w') as dummy_d_file:
+                dummy_d_file.write('>%sDx-x*x\n%s\n' % (args.locus.upper(), 'aa'))
 
     cfgfname = outdir + '/' + os.path.basename(args.yamlfname)  # this is the .yaml in igdiscover/ (but *not* in igdiscover/work/) have to write it in the parent workdir, then cp to work/, because... meh, who cares why, just do it like this so shit works
     if os.path.exists(cfgfname):
@@ -42,7 +51,7 @@ def prepare_igdiscover_outdir(outdir):
     with open(cfgfname, 'w') as cfgfile:
         yaml.dump(cfgdata, cfgfile, width=200)
 
-    if os.path.exists(outdir + '/work'):  # sigh, it spams out too much different output, can't get away without a -r
+    if os.path.exists(outdir + '/work'):  # sigh, it spams out too much different output, can't get away without a '-r'
         subprocess.check_call(['rm', '-r', outdir + '/work'])
 
 # ----------------------------------------------------------------------------------------
@@ -50,10 +59,12 @@ def run_igdiscover(infname, outfname, outdir):
     if utils.output_exists(args, outfname):
         return
 
+    prepare_igdiscover_outdir(outdir)
+
     if args.n_random_queries is not None:
         sub_infname = outdir + '/' + os.path.basename(infname.replace(utils.getsuffix(infname), '-n-random-queries-%d%s' % (args.n_random_queries, utils.getsuffix(infname))))
         if os.path.exists(sub_infname):
-            print '    --n-random-queries: leaving existing fasta for igdiscover (%d queries)' % args.n_random_queries
+            print '    --n-random-queries: leaving existing fasta for igdiscover (hopefully it has %d queries)' % args.n_random_queries
         else:
             print '    --n-random-queries: writing new fasta for igdiscover (%d queries)' % args.n_random_queries
             seqfos = utils.read_fastx(infname, n_random_queries=args.n_random_queries)
@@ -61,8 +72,6 @@ def run_igdiscover(infname, outfname, outdir):
                 for seqfo in seqfos:
                     sub_infile.write('>%s\n%s\n' % (seqfo['name'], seqfo['seq']))
         infname = sub_infname
-
-    prepare_igdiscover_outdir(outdir)
 
     igdiscover_outfname = outdir + '/work/final/database/%s.fasta' % args.region.upper()
 
@@ -109,5 +118,5 @@ if args.slurm:
 # ----------------------------------------------------------------------------------------
 outdir = os.path.dirname(args.outfname)
 assert outdir.split('/')[-1] == args.locus  # otherwise will need to update things
-outdir = outdir.replace('/igh', '')
+outdir = outdir.replace('/' + args.locus, '')
 run_igdiscover(args.infname, args.outfname, outdir)

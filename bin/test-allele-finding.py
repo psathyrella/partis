@@ -318,6 +318,7 @@ parser.add_argument('--partis-path', default='./bin/partis')
 parser.add_argument('--locus', default='igh')
 
 args = parser.parse_args()
+assert args.locus == 'igh'  # would just need to update some things, e.g. propagate through to the various methods
 args.dj_genes = utils.get_arg_list(args.dj_genes)
 args.sim_v_genes = utils.get_arg_list(args.sim_v_genes)
 args.inf_v_genes = utils.get_arg_list(args.inf_v_genes)
