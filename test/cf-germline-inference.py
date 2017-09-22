@@ -175,7 +175,7 @@ def make_gls_tree_plot(args, plotdir, plotname, glsfnames, glslabels, locus, ref
     cmdstr += ' --locus ' + locus
     if args.plotcache:
         cmdstr += ' --use-cache'
-    utils.simplerun(cmdstr, shell=True, debug=True, dryrun=args.dry_run)
+    utils.simplerun(cmdstr, shell=True, debug=False, dryrun=args.dry_run)
 
 # ----------------------------------------------------------------------------------------
 def get_gls_gen_plots(args, baseoutdir, method):
@@ -198,11 +198,13 @@ def get_data_plots(args, baseoutdir, methods, study, dsets):
     outdir = get_outdir(args, baseoutdir, varname='data', varval=study + '/' + '-vs-'.join(dsets))  # for data, only the plots go here, since datascripts puts its output somewhere else
     if len(dsets) > 1 and len(methods) == 1:
         glslabels = dsets
+        single_str = methods[0]
     elif len(methods) > 1 and len(dsets) == 1:
         glslabels = methods
+        single_str = dsets[0]
     else:
         raise Exception('one of \'em has to be length 1: %d %d' % (len(methods), len(dsets)))
-    print '%-15s  %10s' % (study, ' '.join(dsets))
+    print '%s: %s' % ((' %s ' % utils.color('light_blue', 'vs')).join(glslabels), utils.color('green', single_str))
     make_gls_tree_plot(args, outdir + '/' + '-vs-'.join(methods) + '/gls-gen-plots', study + '-' + '-vs-'.join(dsets),
                        glsfnames=[get_gls_fname(ddir, meth, locus=mfo['locus'], data=True) for ddir in data_outdirs for meth in methods],
                        glslabels=glslabels,
