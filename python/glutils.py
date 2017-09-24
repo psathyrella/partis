@@ -272,7 +272,27 @@ def get_new_alignments(glfo, region, debug=False):
 
 
 # ----------------------------------------------------------------------------------------
-def count_gaps(aligned_seq, aligned_pos=None, unaligned_pos=None):
+def count_n_separate_gaps(seq, exclusion_5p=None, exclusion_3p=None):  # NOTE compare to count_gap_chars() below
+    if exclusion_5p is not None:
+        seq = seq[exclusion_5p : ]
+    if exclusion_3p is not None:
+        seq = seq[ : len(seq) - exclusion_3p]
+
+    n_gaps = 0
+    within_a_gap = False
+    for ch in seq:
+        if ch not in utils.gap_chars:
+            within_a_gap = False
+            continue
+        elif within_a_gap:
+            continue
+        within_a_gap = True
+        n_gaps += 1
+
+    return n_gaps
+
+# ----------------------------------------------------------------------------------------
+def count_gap_chars(aligned_seq, aligned_pos=None, unaligned_pos=None):  # NOTE compare to count_n_separate_gaps() above
     """ return number of gap characters up to, but not including a position, either in unaligned or aligned sequence """
     if aligned_pos is not None:
         assert unaligned_pos is None
@@ -296,7 +316,7 @@ def get_pos_in_alignment(codon, aligned_seq, seq, pos, gene):
     """ given <pos> in <seq>, find the codon's position in <aligned_seq> """
     if not utils.codon_unmutated(codon, seq, pos):  # this only gets called on the gene with the *known* position, so it shouldn't fail
         print '  %s mutated %s before alignment in %s' % (utils.color('yellow', 'warning'), codon, gene)
-    pos_in_alignment = pos + count_gaps(aligned_seq, unaligned_pos=pos)
+    pos_in_alignment = pos + count_gap_chars(aligned_seq, unaligned_pos=pos)
     if not utils.codon_unmutated(codon, aligned_seq, pos_in_alignment):
         print '  %s mutated %s after alignment in %s' % (utils.color('yellow', 'warning'), codon, gene)
     return pos_in_alignment
@@ -353,7 +373,7 @@ def get_missing_codon_info(glfo, debug=False):
         seqons = []  # (seq, pos) pairs
         bad_codons = []
         for gene in [known_gene] + list(missing_genes):
-            unaligned_pos = known_pos_in_alignment - count_gaps(aligned_seqs[gene], aligned_pos=known_pos_in_alignment)
+            unaligned_pos = known_pos_in_alignment - count_gap_chars(aligned_seqs[gene], aligned_pos=known_pos_in_alignment)
             seq_to_check = glfo['seqs'][region][gene]
             seqons.append((seq_to_check, unaligned_pos))
             glfo[codon + '-positions'][gene] = unaligned_pos
@@ -514,11 +534,29 @@ def get_template_gene(gene_name, debug=False):
     return template_name
 
 # ----------------------------------------------------------------------------------------
-def try_to_get_mutfo_from_name(gene_name, aligned_seq=None, debug=False):
-    mutfo = {}
+def try_to_get_name_and_mutfo_from_seq(gene_name, new_seq, glfo, debug=False):
+    assert is_novel(gene_name)
+    method, _, _ = split_inferred_allele_name(gene_name)
+    if method != 'igdiscover':
+        raise Exception('unhandled method %s' % method)
+
+    nearest_gene, n_snps, n_indels, realigned_new_seq, realigned_nearest_seq = find_nearest_gene_in_glfo(glfo, new_seq, exclusion_3p=3, debug=True)
+    if n_indels > 0:
+        return None, None, None
+    _, positions = utils.hamming_distance(realigned_new_seq, realigned_nearest_seq, return_mutated_positions=True)
+    snpfo = {pos : {'original' : realigned_nearest_seq[pos], 'new' : realigned_new_seq[pos]} for pos in positions}
+    new_name, snpfo = choose_new_allele_name(nearest_gene, new_seq, snpfo=snpfo)  # NOTE <nearest_distance> is aligned, so if there's gaps to the nearest gene it's not really right
+
+    return new_name, snpfo, nearest_gene
+
+# ----------------------------------------------------------------------------------------
+def try_to_get_mutfo_from_name(gene_name, aligned_seq=None, unaligned_seq=None, debug=False):
     method, _, mutstrs = split_inferred_allele_name(gene_name)
+
     if mutstrs is None:
         return None
+
+    mutfo = {}
     for mutstr in mutstrs:
         if len(mutstr) < 3:
             print 'couldn\'t extract mutation info from \'%s\' in gene %s' % (mutstr, gene_name)
@@ -539,7 +577,7 @@ def try_to_get_mutfo_from_name(gene_name, aligned_seq=None, debug=False):
             if debug:
                 print '    imgt aligned %s%d%s: %s%s%s' % (original, imgt_aligned_pos, new, aligned_seq[:imgt_aligned_pos], utils.color('red', aligned_seq[imgt_aligned_pos]), aligned_seq[imgt_aligned_pos + 1:])
             assert aligned_seq[imgt_aligned_pos] == new
-            n_gaps = count_gaps(aligned_seq, aligned_pos=imgt_aligned_pos)
+            n_gaps = count_gap_chars(aligned_seq, aligned_pos=imgt_aligned_pos)
             unaligned_pos = imgt_aligned_pos - n_gaps
             if debug:
                 print '       unaligned %s%d%s: %s%s%s' % (original, unaligned_pos, new, unaligned_seq[:unaligned_pos], utils.color('red', unaligned_seq[unaligned_pos]), unaligned_seq[unaligned_pos + 1:])
@@ -993,6 +1031,32 @@ def choose_new_allele_name(template_gene, new_seq, snpfo=None, indelfo=None):  #
     return new_name, snpfo
 
 # ----------------------------------------------------------------------------------------
+def find_nearest_gene_in_glfo(glfo, new_seq, new_name=None, exclusion_3p=None, debug=False):
+    region = 'v'
+    if new_seq in glfo['seqs'][region].values():
+        raise Exception('exact sequence already in glfo')
+    seqfos = [{'name' : g, 'seq' : s} for g, s in glfo['seqs'][region].items()]
+    seqfos.append({'name' : 'new', 'seq' : new_seq})
+    aligned_seqs = {sfo['name'] : sfo['seq'] for sfo in utils.align_many_seqs(seqfos)}
+    hdists = [(name, utils.hamming_distance(seq, aligned_seqs['new'])) for name, seq in aligned_seqs.items() if name != 'new']
+    hdists = sorted(hdists, key=operator.itemgetter(1))
+    if len(hdists) == 0:
+        raise Exception('also no nearby genes (should only happen if the gl set is pretty trivial)')
+    nearest_gene, nearest_distance = hdists[0]
+    n_snps = nearest_distance
+
+    realigned_new_seq, realigned_nearest_seq = utils.align_seqs(aligned_seqs['new'], aligned_seqs[nearest_gene])  # have to re-align 'em in order to get rid of extraneous gaps from other seqs in the previous alignment
+    n_indels = count_n_separate_gaps(realigned_new_seq, exclusion_3p=exclusion_3p) + count_n_separate_gaps(realigned_nearest_seq, exclusion_3p=exclusion_3p)
+
+    if debug:
+        colored_realigned_new_seq, colored_realigned_nearest_seq = utils.color_mutants(realigned_new_seq, realigned_nearest_seq, return_ref=True)  # have to re-align 'em in order to get rid of extraneous gaps from other seqs in the previous alignment
+        print '      nearest is %s (%d snp%s, %d indel%s):' % (utils.color_gene(nearest_gene), n_snps, utils.plural(n_snps), n_indels, utils.plural(n_indels))
+        print '            %s %s' % (colored_realigned_new_seq, utils.color_gene(new_name) if new_name is not None else '')
+        print '            %s %s' % (colored_realigned_nearest_seq, utils.color_gene(nearest_gene))
+
+    return nearest_gene, n_snps, n_indels, realigned_new_seq, realigned_nearest_seq
+
+# ----------------------------------------------------------------------------------------
 def find_equivalent_gene_in_glfo(glfo, new_seq, new_cpos=None, new_name=None, exclusion_5p=0, exclusion_3p=3, glfo_str='glfo', debug=False):
     # if <new_seq> likely corresponds to an allele that's already in <glfo>, return that name and its sequence, otherwise return (None, None).
     # NOTE that the calling code, in general, is determining whether we want this sequence in the calling code's glfo.
@@ -1044,19 +1108,8 @@ def find_equivalent_gene_in_glfo(glfo, new_seq, new_cpos=None, new_name=None, ex
         return oldname_gene, oldname_seq  # it might make more sense to keep looking for a better match, rather than just taking the first one
 
     if debug:
-        seqfos = [{'name' : g, 'seq' : s} for g, s in glfo['seqs'][region].items()]
-        seqfos.append({'name' : 'new', 'seq' : new_seq})
-        aligned_seqs = {sfo['name'] : sfo['seq'] for sfo in utils.align_many_seqs(seqfos)}
-        hdists = [(name, utils.hamming_distance(seq, aligned_seqs['new'])) for name, seq in aligned_seqs.items() if name != 'new']
-        hdists = sorted(hdists, key=operator.itemgetter(1))
         print '        no equivalent gene for %s' % utils.color_gene(new_name) if new_name is not None else '',
-        if len(hdists) == 0:
-            raise Exception('also no nearby genes (should only happen if the gl set is pretty trivial)')
-        nearest_gene, nearest_distance = hdists[0]
-        tmp_ref_seq, tmp_seq = utils.color_mutants(aligned_seqs['new'], aligned_seqs[nearest_gene], align=True, return_ref=True)  # have to re-align 'em in order to get rid of extraneous gaps from other seqs in the previous alignment
-        print 'nearest is %s:' % utils.color_gene(nearest_gene)
-        print '            %s %s' % (tmp_ref_seq, utils.color_gene(new_name) if new_name is not None else '')
-        print '            %s %s' % (tmp_seq, utils.color_gene(nearest_gene))
+        _, _, _, _, _ = find_nearest_gene_in_glfo(glfo, new_seq, new_name=new_name, debug=True)
 
     return None, None
 
@@ -1076,6 +1129,17 @@ def synchronize_glfos(ref_glfo, new_glfo, region, debug=False):
                 print '      %s --> %s' % (utils.color_gene(new_name), utils.color_gene(equiv_name))
             remove_gene(new_glfo, new_name)
             add_new_allele(new_glfo, {'gene' : equiv_name, 'seq' : equiv_seq, 'cpos' : utils.cdn_pos(ref_glfo, region, equiv_name)}, use_template_for_codon_info=False)
+
+    for new_name, new_seq in [(name, seq) for name, seq in new_glfo['seqs'][region].items() if is_novel(name)]:
+        method, _, _ = split_inferred_allele_name(new_name)
+        if method != 'igdiscover':
+            continue
+        better_name, better_snpfo, template_gene = try_to_get_name_and_mutfo_from_seq(new_name, new_seq, ref_glfo)
+        if better_name is not None:
+            if debug:
+                print '      %s --> %s' % (utils.color_gene(new_name), utils.color_gene(better_name))
+            remove_gene(new_glfo, new_name)
+            add_new_allele(new_glfo, {'gene' : better_name, 'seq' : new_seq, 'template-gene' : template_gene}, use_template_for_codon_info=True)
 
     return new_glfo
 

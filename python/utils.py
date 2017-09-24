@@ -130,9 +130,9 @@ def cdn_positions(glfo, region):
     return glfo[conserved_codons[glfo['locus']][region] + '-positions']
 def cdn_pos(glfo, region, gene):
     return cdn_positions(glfo, region)[gene]
-def gap_len(seq):
+def gap_len(seq):  # NOTE see two gap-counting fcns in glutlis
     return len(filter(gap_chars.__contains__, seq))
-def non_gap_len(seq):
+def non_gap_len(seq):  # NOTE see two gap-counting fcns in glutlis
     return len(seq) - gap_len(seq)
 
 codon_table = {
