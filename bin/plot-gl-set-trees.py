@@ -193,9 +193,10 @@ def getstatus(gene_categories, node, ref_label=None, debug=False):
     if not node.is_leaf():
         return 'internal'
     cats = [cat for cat, genes in gene_categories.items() if gene in genes]
-    if len(cats) != 1:
-        print cats
-        raise Exception()
+    if len(cats) == 0:
+        raise Exception('couldn\'t find a category for %s (among %s)' % (node.name, gene_categories))
+    elif len(cats) > 1:
+        raise Exception('wtf?')
     if debug:
         print '%-50s   %s' % (gene, cats[0])
     return cats[0]
