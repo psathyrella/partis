@@ -161,13 +161,15 @@ def get_gls_fname(outdir, method, locus, sim_truth=False, data=False):  # NOTE d
     return glutils.get_fname(outdir, locus, region)
 
 # ----------------------------------------------------------------------------------------
-def make_gls_tree_plot(args, plotdir, plotname, glsfnames, glslabels, locus, ref_label=None, leaf_names=False):
+def make_gls_tree_plot(args, plotdir, plotname, glsfnames, glslabels, locus, ref_label=None, leaf_names=False, title=None):
     # ete3 requires its own python version, so we run as a subprocess
     cmdstr = 'export PATH=%s:$PATH && xvfb-run -a ./bin/plot-gl-set-trees.py' % args.ete_path
     cmdstr += ' --plotdir ' + plotdir
     cmdstr += ' --plotname ' + plotname
     cmdstr += ' --glsfnames ' + ':'.join(glsfnames)
     cmdstr += ' --glslabels ' + ':'.join(glslabels)
+    if title is not None:
+        cmdstr += ' --title ' + str(title)
     if ref_label is not None:
         cmdstr += ' --ref-label ' + ref_label
     if leaf_names:
@@ -204,11 +206,12 @@ def get_data_plots(args, baseoutdir, methods, study, dsets):
         single_str = dsets[0]
     else:
         raise Exception('one of \'em has to be length 1: %d %d' % (len(methods), len(dsets)))
-    print '%s: %s' % ((' %s ' % utils.color('light_blue', 'vs')).join(glslabels), utils.color('green', single_str))
+    print '%s: %s' % (utils.color('green', single_str), (' %s ' % utils.color('light_blue', 'vs')).join(glslabels))
     make_gls_tree_plot(args, outdir + '/' + '-vs-'.join(methods) + '/gls-gen-plots', study + '-' + '-vs-'.join(dsets),
                        glsfnames=[get_gls_fname(ddir, meth, locus=mfo['locus'], data=True) for ddir in data_outdirs for meth in methods],
                        glslabels=glslabels,
-                       locus=mfo['locus'])
+                       locus=mfo['locus'],
+                       title=single_str)
                        # leaf_names=len(dsets) > 1)
 
 # ----------------------------------------------------------------------------------------
@@ -396,7 +399,7 @@ default_varvals = {
         # 'jason-mg' : ['HD07-igk', 'HD07-igl', 'AR03-igk', 'AR03-igl'],
         # 'sheng-gssp' : ['lp23810-m-pool',  'lp23810-g-pool', 'lp08248-m-pool', 'lp08248-g-pool'],
         # 'three-finger' : ['3ftx-1-igh'], #, 'pla2-1-igh'],
-        # 'kate-qrs' : ['1g', '4g', '1k', '1l', '4k', '4l'],
+        # 'kate-qrs' : ['1g', '4g'], #, '1k', '1l', '4k', '4l'],
         # 'laura-mb-2' : ['BF520-m-W1', 'BF520-m-M9', 'BF520-g-W1', 'BF520-g-M9'], #, 'BF520-k-W1', 'BF520-l-W1', 'BF520-k-M9', 'BF520-l-M9']
         # 'jason-influenza' : ['FV-igh-m2d', 'FV-igh-m1h', 'FV-igh-p1h', 'FV-igh-p1d', 'FV-igh-p3d', 'FV-igh-p7d', 'FV-igh-p14d', 'FV-igh-p21d', 'FV-igh-p28d', 'GMC-igh-m8d', 'GMC-igh-m2d', 'GMC-igh-m1h', 'GMC-igh-p1h', 'GMC-igh-p1d', 'GMC-igh-p3d', 'GMC-igh-p7d', 'GMC-igh-p14d', 'GMC-igh-p21d', 'GMC-igh-p28d', 'IB-igh-m8d', 'IB-igh-m2d', 'IB-igh-m1h', 'IB-igh-p1h', 'IB-igh-p1d', 'IB-igh-p3d', 'IB-igh-p7d', 'IB-igh-p14d', 'IB-igh-p21d', 'IB-igh-p28d'],
         # 'jason-influenza' : ['FV-igh', 'GMC-igh', 'IB-igh'],
