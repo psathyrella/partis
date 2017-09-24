@@ -21,6 +21,13 @@ import heads
 
 # custom interactive faces: http://etetoolkit.org/docs/latest/tutorial/tutorial_drawing.html#id34
 
+titlestrs = {
+    'tigger-default' : 'tigger',
+}
+for study in ['kate-qrs', 'jason-influenza', 'jason-mg']:
+    for sample, mfo in heads.read_metadata(study).items():
+        titlestrs[sample] = mfo['subject']
+
 legend_names = {
     'tigger-default' : 'tigger',
     'Hs-LN1-5RACE-IgG' : '240 dpi',  # QB850
@@ -80,9 +87,9 @@ scolors = {
     'all' : '#d3d3d3',
     'pale-green' : '#85ad98',
     'pale-blue' : '#94a3d1',
-    'tigger-default' : '#c32222',  # red
-    'igdiscover' : '#29a614',  # green
-    'partis' : '#2455ed',  # blue
+    'tigger-default' : '#d77c7c', #'#c32222',  # red
+    'igdiscover' : '#85ad98', #'#29a614',  # green
+    'partis' : '#94a3d1', #'#2455ed',  # blue
 }
 
 # faces = {}
@@ -101,9 +108,14 @@ def set_colors(gl_sets, ref_label=None, mix_primary_colors=False):
     if len(names) == 1:  # single-sample data
         scolors[names[0]] = scolors['data']
     elif len(names) == 2:  # two-sample data
-        scolors[names[0]] = scolors['pale-green']
-        scolors[names[1]] = scolors['pale-blue']
-        scolors[pairkey(names[0], names[1])] = scolors['all']
+        for name in gl_sets:
+            if name not in scolors:
+                raise Exception('\'%s\' not in <scolors>' % name)
+        for name1, name2 in itertools.combinations(gl_sets, 2):
+            scolors[pairkey(name1, name2)] = all_colors['LightGrey']
+        # scolors[names[0]] = scolors['pale-green']
+        # scolors[names[1]] = scolors['pale-blue']
+        # scolors[pairkey(names[0], names[1])] = scolors['all']
         return
     elif len(names) == 3:
         if mix_primary_colors:
@@ -133,6 +145,10 @@ def shorten_name(name):
         raise Exception('bad node name %s' % name)
 
     pv, sv, allele = utils.split_gene(name)
+    if glutils.is_novel(name):
+        _, template_name, mutstrs = glutils.split_inferred_allele_name(name)
+        if mutstrs is not None:
+            allele = '%s (+%d snp%s)' % (utils.allele(template_name), len(mutstrs), utils.plural(len(mutstrs)))
     if sv is not None:
         return '%s-%s*%s' % (pv, sv, allele)
     else:
@@ -268,8 +284,6 @@ def get_gene_sets(glsfnames, glslabels, ref_label=None, classification_fcn=None,
 
 # ----------------------------------------------------------------------------------------
 def set_node_style(node, status, n_gl_sets, used_colors, ref_label=None):
-    linewidth = 2
-
     if status != 'internal':
         if status not in scolors:
             raise Exception('status \'%s\' not in scolors' % status)
@@ -278,14 +292,15 @@ def set_node_style(node, status, n_gl_sets, used_colors, ref_label=None):
             used_colors[status] = scolors[status]
 
         if glutils.is_novel(node.name):
-            node.add_face(ete3.CircleFace(5. if ref_label is None else 2.5, 'Gold'), column=0) #, position='float') # if args.leaf_names else 'branch')
+            node.add_face(ete3.CircleFace(2.5, 'Gold'), column=1) #, position='float') # if args.leaf_names else 'branch')
 
-    node.img_style['hz_line_width'] = linewidth
-    node.img_style['vt_line_width'] = linewidth
+    # linewidth = 2
+    # node.img_style['hz_line_width'] = linewidth
+    # node.img_style['vt_line_width'] = linewidth
 
     if n_gl_sets > 2 and '-&-' in status:
         names = status.split('-&-')
-        pcf = ete3.PieChartFace(percents=[100./len(names) for _ in range(len(names))], width=50, height=50, colors=[scolors[n] for n in names], line_color=None)
+        pcf = ete3.PieChartFace(percents=[100./len(names) for _ in range(len(names))], width=20, height=20, colors=[scolors[n] for n in names], line_color=None)
         # pcf = ete3.StackedBarFace(percents=[100./len(names) for _ in range(len(names))], width=30, height=50, colors=[scolors[n] for n in names], line_color=None)
         node.add_face(pcf, column=0, position='aligned')
 
@@ -397,21 +412,28 @@ def draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, gene_categories, r
             node.name = shorten_name(node.name)
 
     tstyle = ete3.TreeStyle()
-    if not args.leaf_names:
-        tstyle.show_leaf_name = False
-    tstyle.mode = 'c'
     tstyle.show_scale = False
-    if arc_start is not None:
-        tstyle.arc_start = arc_start
-    if arc_span is not None:
-        tstyle.arc_span = arc_span
+    # if not args.leaf_names:
+    #     tstyle.show_leaf_name = False
+
+    # tstyle.mode = 'c'
+    # if arc_start is not None:
+    #     tstyle.arc_start = arc_start
+    # if arc_span is not None:
+    #     tstyle.arc_span = arc_span
+
     # if args.legend:
     #     add_legend(tstyle, used_colors)
     write_legend(used_colors, plotdir)
-    etree.render(plotdir + '/' + plotname + '.svg', h=750, tree_style=tstyle)
+    if args.title is not None:
+        tstyle.title.add_face(ete3.TextFace(titlestrs.get(args.title, args.title), fsize=13, bold=True), column=0)
+    suffix = '.svg'
+    imagefname = plotdir + '/' + plotname + suffix
+    print '      %s' % imagefname
+    etree.render(imagefname, tree_style=tstyle) # h=750, 
 
 # ----------------------------------------------------------------------------------------
-def plot_trees(args, plotdir, plotname, glsfnames, glslabels, leg_title=None, title=None):
+def plot_trees(args, plotdir, plotname, glsfnames, glslabels):
     all_genes, gl_sets, gene_categories = get_gene_sets(glsfnames, glslabels, ref_label=args.ref_label)
     set_colors(gl_sets, ref_label=args.ref_label)
     print_results(gene_categories, ref_label=args.ref_label)
@@ -449,14 +471,4 @@ if not os.path.exists(args.raxml_path):
 
 assert len(args.glslabels) == len(set(args.glslabels))  # no duplicates
 
-plot_trees(args, args.plotdir, args.plotname, args.glsfnames, args.glslabels, title=args.title)
-
-# if args.ref_label is not None:
-#     plot_gls_gen_tree(args, args.plotdir, args.plotname, args.glsfnames, args.glslabels, title=args.title)
-# else:
-#     plot_data_tree(args, args.plotdir, args.plotname, args.glsfnames, args.glslabels, title=args.title)
-
-# elif len(args.glsfnames) == 1:
-#     plot_single_data_tree(args, args.plotdir, args.plotname, args.glsfnames, args.glslabels, title=args.title)
-# else:
-#     plot_data_pair_tree(args, args.plotdir, args.plotname, args.glsfnames, args.glslabels, title=args.title)
+plot_trees(args, args.plotdir, args.plotname, args.glsfnames, args.glslabels)
