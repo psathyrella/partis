@@ -508,6 +508,8 @@ def get_mutfo_from_seq(old_seq, new_seq):
 # ----------------------------------------------------------------------------------------
 def split_inferred_allele_name(gene_name, debug=False):
     if '+' in gene_name:  # partis (e.g. IGHVx-y*z+G35T.A77C)
+        if len(gene_name.split('+')) != 2:
+            raise Exception('couldn\'t split \'%s\' into two pieces from \'+\'' % gene_name)
         method = 'partis'
         template_name, mutstrs = gene_name.split('+')
         if mutstrs[0] not in utils.nukes:  # hashed name
@@ -540,7 +542,7 @@ def try_to_get_name_and_mutfo_from_seq(gene_name, new_seq, glfo, debug=False):
     if method != 'igdiscover':
         raise Exception('unhandled method %s' % method)
 
-    nearest_gene, n_snps, n_indels, realigned_new_seq, realigned_nearest_seq = find_nearest_gene_in_glfo(glfo, new_seq, exclusion_3p=3, debug=True)
+    nearest_gene, n_snps, n_indels, realigned_new_seq, realigned_nearest_seq = find_nearest_gene_in_glfo(glfo, new_seq, new_name=gene_name, exclusion_3p=3, debug=debug)
     if n_indels > 0:
         return None, None, None
     _, positions = utils.hamming_distance(realigned_new_seq, realigned_nearest_seq, return_mutated_positions=True)
@@ -1017,16 +1019,21 @@ def choose_new_allele_name(template_gene, new_seq, snpfo=None, indelfo=None):  #
 
     if indelfo is not None and len(indelfo['indels']) > 0:  # call it a new gene family
         new_name = utils.rejoin_gene(utils.get_locus(template_gene), utils.get_region(template_gene), hashstr[:5], 'x', '01')
-    elif snpfo is not None and len(snpfo) <= 5:
+    elif snpfo is not None:
         if '+' in utils.allele(template_gene) and len(template_gene.split('+')) == 2:  # if template was snpd we need to fix up <snpfo>
             simplified_snpfo = simplify_snpfo(template_gene, snpfo)  # returns None if it failed to parse mutation info in template name
             if simplified_snpfo is not None:
                 new_name = template_gene.split('+')[0]  # original template name, before we did any snp'ing
                 snpfo = simplified_snpfo
-        if len(snpfo) > 0:
+        if len(snpfo) > 0 and len(snpfo) <= 5:
             new_name += '+' + stringify_mutfo(snpfo)
+        else:
+            new_name += '+' + hashstr[:5]
     else:
         new_name = template_gene + '+' + hashstr[:5]
+
+    if new_name.count('+') > 1:
+        raise Exception('somehow ended up with two many \'+\'s in %s' % new_name)
 
     return new_name, snpfo
 
@@ -1130,16 +1137,30 @@ def synchronize_glfos(ref_glfo, new_glfo, region, debug=False):
             remove_gene(new_glfo, new_name)
             add_new_allele(new_glfo, {'gene' : equiv_name, 'seq' : equiv_seq, 'cpos' : utils.cdn_pos(ref_glfo, region, equiv_name)}, use_template_for_codon_info=False)
 
-    for new_name, new_seq in [(name, seq) for name, seq in new_glfo['seqs'][region].items() if is_novel(name)]:
+    # fiddle with igdiscover names
+    for new_name, new_seq in new_glfo['seqs'][region].items():
+        if not is_novel(new_name):
+            continue
         method, _, _ = split_inferred_allele_name(new_name)
         if method != 'igdiscover':
             continue
-        better_name, better_snpfo, template_gene = try_to_get_name_and_mutfo_from_seq(new_name, new_seq, ref_glfo)
+        better_name, better_snpfo, nearest_gene = try_to_get_name_and_mutfo_from_seq(new_name, new_seq, ref_glfo, debug=debug)
         if better_name is not None:
-            if debug:
-                print '      %s --> %s' % (utils.color_gene(new_name), utils.color_gene(better_name))
             remove_gene(new_glfo, new_name)
-            add_new_allele(new_glfo, {'gene' : better_name, 'seq' : new_seq, 'template-gene' : template_gene}, use_template_for_codon_info=True)
+            newfo = {'gene' : better_name, 'seq' : new_seq}
+            if nearest_gene in new_glfo:
+                newfo['template-gene'] = nearest_gene
+                use_template_for_codon_info = True
+            elif is_novel(nearest_gene) and get_template_gene(nearest_gene) in new_glfo:
+                newfo['template-gene'] = get_template_gene(nearest_gene)
+                use_template_for_codon_info = True
+            else:
+                # newfo['cpos'] = nearest_gene
+                use_template_for_codon_info = False
+                pass  # dammit, I guess just let it do the alignment
+            add_new_allele(new_glfo, newfo, use_template_for_codon_info=use_template_for_codon_info)
+            if True: #debug:
+                print '      %s --> %s' % (utils.color_gene(new_name), utils.color_gene(better_name))
 
     return new_glfo
 
