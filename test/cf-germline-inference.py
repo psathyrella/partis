@@ -161,7 +161,7 @@ def get_gls_fname(outdir, method, locus, sim_truth=False, data=False):  # NOTE d
     return glutils.get_fname(outdir, locus, region)
 
 # ----------------------------------------------------------------------------------------
-def make_gls_tree_plot(args, plotdir, plotname, glsfnames, glslabels, locus, ref_label=None, leaf_names=False, title=None):
+def make_gls_tree_plot(args, plotdir, plotname, glsfnames, glslabels, locus, ref_label=None, leaf_names=False, title=None, study=None):
     # ete3 requires its own python version, so we run as a subprocess
     cmdstr = 'export PATH=%s:$PATH && xvfb-run -a ./bin/plot-gl-set-trees.py' % args.ete_path
     cmdstr += ' --plotdir ' + plotdir
@@ -170,6 +170,8 @@ def make_gls_tree_plot(args, plotdir, plotname, glsfnames, glslabels, locus, ref
     cmdstr += ' --glslabels ' + ':'.join(glslabels)
     if title is not None:
         cmdstr += ' --title ' + str(title)
+    if study is not None:
+        cmdstr += ' --study ' + study
     if ref_label is not None:
         cmdstr += ' --ref-label ' + ref_label
     if leaf_names:
@@ -211,7 +213,8 @@ def get_data_plots(args, baseoutdir, methods, study, dsets):
                        glsfnames=[get_gls_fname(ddir, meth, locus=mfo['locus'], data=True) for ddir in data_outdirs for meth in methods],
                        glslabels=glslabels,
                        locus=mfo['locus'],
-                       title=single_str)
+                       title=single_str,
+                       study=study)
                        # leaf_names=len(dsets) > 1)
 
 # ----------------------------------------------------------------------------------------

@@ -21,12 +21,15 @@ import heads
 
 # custom interactive faces: http://etetoolkit.org/docs/latest/tutorial/tutorial_drawing.html#id34
 
-titlestrs = {
-    'tigger-default' : 'tigger',
-}
-for study in ['kate-qrs', 'jason-influenza', 'jason-mg']:
-    for sample, mfo in heads.read_metadata(study).items():
-        titlestrs[sample] = mfo['subject']
+def get_title(titlestr):
+    if titlestr == 'tigger-default':
+        return 'tigger'
+    if args.metafo is None or titlestr not in args.metafo:
+        return titlestr
+    return_str = args.metafo[titlestr]['subject']
+    if args.metafo[titlestr]['isotype'] != '':
+        return_str += '  Ig%s' % args.metafo[titlestr]['isotype'].upper()
+    return return_str
 
 legend_names = {
     'tigger-default' : 'tigger',
@@ -427,7 +430,7 @@ def draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, gene_categories, r
     #     add_legend(tstyle, used_colors)
     write_legend(used_colors, plotdir)
     if args.title is not None:
-        tstyle.title.add_face(ete3.TextFace(titlestrs.get(args.title, args.title), fsize=13, bold=True), column=0)
+        tstyle.title.add_face(ete3.TextFace(get_title(args.title), fsize=13, bold=True), column=0)
     suffix = '.svg'
     imagefname = plotdir + '/' + plotname + suffix
     print '      %s' % imagefname
@@ -457,12 +460,17 @@ parser.add_argument('--leaf-names', action='store_true')
 parser.add_argument('--use-cache', action='store_true', help='just print results and remake the plots, without remaking the tree (which is the slow part)')
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--title')
+parser.add_argument('--study')
 parser.add_argument('--region', default='v')
 parser.add_argument('--muscle-path', default='./packages/muscle/muscle3.8.31_i86linux64')
 parser.add_argument('--raxml-path', default=glob.glob('./packages/standard-RAxML/raxmlHPC-*')[0])
 parser.add_argument('--ref-label')  # label corresponding to simulation
 
 args = parser.parse_args()
+args.metafo = None
+if args.study is not None:
+    args.metafo = heads.read_metadata(args.study)
+
 args.glsfnames = utils.get_arg_list(args.glsfnames)
 args.glslabels = utils.get_arg_list(args.glslabels)
 if not os.path.exists(args.muscle_path):
