@@ -1082,8 +1082,12 @@ def find_nearest_gene_with_same_cpos(glfo, new_seq, new_cpos=None, new_name=None
             new_cpos = utils.cdn_pos(glfo, region, new_name)
         elif get_template_gene(new_name) in glfo['seqs'][region]:  # that'll fail if it isn't an inferred allele... but then again if it's not an inferred allele hopefully it was in there as itself
             new_cpos = utils.cdn_pos(glfo, region, get_template_gene(new_name))
-        else:
-            raise Exception('couldn\'t guess a codon position for %s (glfo has: %s)' % (new_name, ' '.join(glfo['seqs'][region].keys())))
+        else:  # it's not very safe to use a different allele... but it's probably ok (could do the darn alignment thing, but then that's slow)
+            other_alleles = [g for g in glfo['seqs'][region] if utils.are_alleles(g, get_template_gene(new_name))]
+            if len(other_alleles) > 0:
+                new_cpos = utils.cdn_pos(glfo, region, other_alleles[0])
+            else:
+                raise Exception('couldn\'t guess a codon position for %s (glfo has: %s)' % (new_name, ' '.join(glfo['seqs'][region].keys())))
 
     min_distance, nearest_gene, nearest_seq = None, None, None
     for oldname_gene, oldname_seq in glfo['seqs'][region].items():  # NOTE <oldname_{gene,seq}> is the old *name* corresponding to the new (snp'd) allele, whereas <old_seq> is the allele from which we inferred the new (snp'd) allele
