@@ -153,7 +153,9 @@ def shorten_name(name):
     pv, sv, allele = utils.split_gene(name)
     if glutils.is_novel(name):
         _, template_name, mutstrs = glutils.split_inferred_allele_name(name)
-        if mutstrs is not None:
+        if mutstrs is None:
+            allele = '%s (+...)' % (utils.allele(template_name))
+        else:
             allele = '%s (+%d snp%s)' % (utils.allele(template_name), len(mutstrs), utils.plural(len(mutstrs)))
     if sv is not None:
         return '%s-%s*%s' % (pv, sv, allele)
