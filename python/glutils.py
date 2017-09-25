@@ -536,17 +536,26 @@ def get_template_gene(gene_name, debug=False):
     return template_name
 
 # ----------------------------------------------------------------------------------------
-def try_to_get_name_and_mutfo_from_seq(gene_name, new_seq, glfo, debug=False):
+def try_to_get_name_and_mutfo_from_seq(gene_name, new_seq, glfo, consider_indels=True, debug=False):  # it's way slower with <consider_indels>, since find_nearest_gene_in_glfo() aligns everybody first
     assert is_novel(gene_name)
     method, _, _ = split_inferred_allele_name(gene_name)
     if method != 'igdiscover':
         raise Exception('unhandled method %s' % method)
 
-    nearest_gene, n_snps, n_indels, realigned_new_seq, realigned_nearest_seq = find_nearest_gene_in_glfo(glfo, new_seq, new_name=gene_name, exclusion_3p=3, debug=debug)
-    if n_indels > 0:
-        return None, None, None
-    _, positions = utils.hamming_distance(realigned_new_seq, realigned_nearest_seq, return_mutated_positions=True)
-    snpfo = {pos : {'original' : realigned_nearest_seq[pos], 'new' : realigned_new_seq[pos]} for pos in positions}
+    if consider_indels:
+        nearest_gene, n_snps, n_indels, realigned_new_seq, realigned_nearest_seq = find_nearest_gene_in_glfo(glfo, new_seq, new_name=gene_name, exclusion_3p=3, debug=debug)
+        if n_indels > 0:
+            return None, None, None
+        _, positions = utils.hamming_distance(realigned_new_seq, realigned_nearest_seq, return_mutated_positions=True)
+        snpfo = {pos : {'original' : realigned_nearest_seq[pos], 'new' : realigned_new_seq[pos]} for pos in positions}
+    else:
+        n_snps, nearest_gene, nearest_seq = find_nearest_gene_with_same_cpos(glfo, new_seq, new_name=gene_name, exclusion_3p=3, debug=debug)
+        if n_snps is None:
+            return None, None, None
+        tmp_len = min(len(new_seq), len(nearest_seq))  # this should be ok, since find_nearest_gene_with_same_cpos() will have ensure that their cyst positions are the same
+        _, positions = utils.hamming_distance(new_seq[:tmp_len], nearest_seq[:tmp_len], return_mutated_positions=True)
+        snpfo = {pos : {'original' : nearest_seq[pos], 'new' : new_seq[pos]} for pos in positions}
+
     new_name, snpfo = choose_new_allele_name(nearest_gene, new_seq, snpfo=snpfo)  # NOTE <nearest_distance> is aligned, so if there's gaps to the nearest gene it's not really right
 
     return new_name, snpfo, nearest_gene
@@ -1038,7 +1047,7 @@ def choose_new_allele_name(template_gene, new_seq, snpfo=None, indelfo=None):  #
     return new_name, snpfo
 
 # ----------------------------------------------------------------------------------------
-def find_nearest_gene_in_glfo(glfo, new_seq, new_name=None, exclusion_3p=None, debug=False):
+def find_nearest_gene_in_glfo(glfo, new_seq, new_name=None, exclusion_3p=None, debug=False):  # NOTE should really be merged with find_nearest_gene_with_same_cpos()
     region = 'v'
     if new_seq in glfo['seqs'][region].values():
         raise Exception('exact sequence already in glfo')
@@ -1064,12 +1073,8 @@ def find_nearest_gene_in_glfo(glfo, new_seq, new_name=None, exclusion_3p=None, d
     return nearest_gene, n_snps, n_indels, realigned_new_seq, realigned_nearest_seq
 
 # ----------------------------------------------------------------------------------------
-def find_equivalent_gene_in_glfo(glfo, new_seq, new_cpos=None, new_name=None, exclusion_5p=0, exclusion_3p=3, glfo_str='glfo', debug=False):
-    # if <new_seq> likely corresponds to an allele that's already in <glfo>, return that name and its sequence, otherwise return (None, None).
-    # NOTE that the calling code, in general, is determining whether we want this sequence in the calling code's glfo.
-    # Here, we're trying to find any existing names in <glfo>, which is typically a different glfo (it's usually either default_inititial, or it's simulation)
-    region = 'v'  # conserved codon stuff below will have to be changed for j
-
+def find_nearest_gene_with_same_cpos(glfo, new_seq, new_cpos=None, new_name=None, exclusion_5p=0, exclusion_3p=3, glfo_str='glfo', debug=False, debug_only_zero_distance=False):  # NOTE should really be merged with find_nearest_gene_in_glfo()
+    region = 'v'
     if new_cpos is None:  # try to guess it...
         if new_name is None:
             raise Exception('have to specify either <new_cpos> or <new_name>')
@@ -1079,6 +1084,49 @@ def find_equivalent_gene_in_glfo(glfo, new_seq, new_cpos=None, new_name=None, ex
             new_cpos = utils.cdn_pos(glfo, region, get_template_gene(new_name))
         else:
             raise Exception('couldn\'t guess a codon position for %s (glfo has: %s)' % (new_name, ' '.join(glfo['seqs'][region].keys())))
+
+    min_distance, nearest_gene, nearest_seq = None, None, None
+    for oldname_gene, oldname_seq in glfo['seqs'][region].items():  # NOTE <oldname_{gene,seq}> is the old *name* corresponding to the new (snp'd) allele, whereas <old_seq> is the allele from which we inferred the new (snp'd) allele
+        oldpos = utils.cdn_pos(glfo, region, oldname_gene)
+        if oldpos != new_cpos:
+            continue
+
+        distance = 0
+
+        # snps up through cysteine
+        distance += utils.hamming_distance(oldname_seq[exclusion_5p : oldpos + 3], new_seq[exclusion_5p : new_cpos + 3])
+
+        if abs(len(oldname_seq) - len(new_seq)) > exclusion_3p:  # allow differences in length, but only if they're <= the number of 3' excluded bases
+            continue
+
+        # distance to right of cysteine
+        bases_to_right_of_cysteine = min(len(oldname_seq) - (oldpos + 3), len(new_seq) - exclusion_3p - (new_cpos + 3))  # NOTE this is kind of dumb, it excludes <exclusion_3p> *more* bases, even if we've already excluded <exclusion_3p> bases due to length differences. But, oh, well, it's just equivalent to a somewhat larger exclusion, anyway
+        if bases_to_right_of_cysteine > 0:
+            distance += utils.hamming_distance(oldname_seq[oldpos + 3 : oldpos + 3 + bases_to_right_of_cysteine], new_seq[new_cpos + 3 : new_cpos + 3 + bases_to_right_of_cysteine])
+
+        if min_distance is None or distance < min_distance:
+            min_distance = distance
+            nearest_gene = oldname_gene
+            nearest_seq = oldname_seq
+
+    if min_distance is None:  # nobody had the same cpos
+        return None, None, None
+
+    if debug and (not debug_only_zero_distance or min_distance == 0):
+        def print_sequence_chunks(seq, colored_name, pad=0):
+            print '            %s%s%s%s%s%s   %s' % (utils.color('blue', seq[:exclusion_5p]), seq[exclusion_5p : new_cpos], utils.color('reverse_video', seq[new_cpos : new_cpos + 3]), seq[new_cpos + 3 : new_cpos + 3 + bases_to_right_of_cysteine], utils.color('blue', seq[new_cpos + 3 + bases_to_right_of_cysteine:]), ' ' * pad, colored_name)
+        print '        %s gene %s with same cpos in %s for %s (blue bases are not considered):' % ('equivalent' if min_distance == 0 else 'nearest', utils.color_gene(nearest_gene), glfo_str, ' ' if new_name is None else utils.color_gene(new_name))
+        print_sequence_chunks(new_seq, 'new' if new_name is None else utils.color_gene(new_name), pad=max(0, len(nearest_seq) - len(new_seq)))
+        print_sequence_chunks(nearest_seq, utils.color_gene(nearest_gene), pad=max(0, len(new_seq) - len(nearest_seq)))
+
+    return min_distance, nearest_gene, nearest_seq
+
+# ----------------------------------------------------------------------------------------
+def find_equivalent_gene_in_glfo(glfo, new_seq, new_cpos=None, new_name=None, exclusion_5p=0, exclusion_3p=3, glfo_str='glfo', debug=False):
+    # if <new_seq> likely corresponds to an allele that's already in <glfo>, return that name and its sequence, otherwise return (None, None).
+    # NOTE that the calling code, in general, is determining whether we want this sequence in the calling code's glfo.
+    # Here, we're trying to find any existing names in <glfo>, which is typically a different glfo (it's usually either default_inititial, or it's simulation)
+    region = 'v'  # conserved codon stuff below will have to be changed for j
 
     if new_name is not None and new_name in glfo['seqs'][region]:
         raise Exception('you have to check for new name in glfo before calling this (%s)' % utils.color_gene(new_name))
@@ -1092,27 +1140,9 @@ def find_equivalent_gene_in_glfo(glfo, new_seq, new_cpos=None, new_name=None, ex
             print '        exact sequence in %s under name %s' % (glfo_str, utils.color_gene(new_name))
         return new_name, new_seq
 
-    # then check for sequences that match (roughly) up to the cysteiene
-    for oldname_gene, oldname_seq in glfo['seqs'][region].items():  # NOTE <oldname_{gene,seq}> is the old *name* corresponding to the new (snp'd) allele, whereas <old_seq> is the allele from which we inferred the new (snp'd) allele
-        # first see if they match up through the cysteine
-        oldpos = utils.cdn_pos(glfo, region, oldname_gene)
-        if oldpos != new_cpos or oldname_seq[exclusion_5p : oldpos + 3] != new_seq[exclusion_5p : new_cpos + 3]:
-            continue
-
-        # then require that any bases in common to the right of the cysteine in the new allele match the ones in the old one (where "in common" means either of them can be longer, since this just changes the insertion length)
-        bases_to_right_of_cysteine = min(len(oldname_seq) - (oldpos + 3), len(new_seq) - exclusion_3p - (new_cpos + 3))
-
-        if bases_to_right_of_cysteine > 0 and oldname_seq[oldpos + 3 : oldpos + 3 + bases_to_right_of_cysteine] != new_seq[new_cpos + 3 : new_cpos + 3 + bases_to_right_of_cysteine]:
-            continue
-
-        if debug:
-            def print_sequence_chunks(seq, cpos, colored_name, pad=0):
-                print '            %s%s%s%s%s%s   %s' % (utils.color('blue', seq[:exclusion_5p]), seq[exclusion_5p : cpos], utils.color('reverse_video', seq[cpos : cpos + 3]), seq[cpos + 3 : cpos + 3 + bases_to_right_of_cysteine], utils.color('blue', seq[cpos + 3 + bases_to_right_of_cysteine:]), ' ' * pad, colored_name)
-            print '        equivalent gene %s in %s for %s (blue bases are not considered):' % (utils.color_gene(oldname_gene), glfo_str, ' ' if new_name is None else utils.color_gene(new_name))
-            print_sequence_chunks(new_seq, new_cpos, 'new' if new_name is None else utils.color_gene(new_name), pad=max(0, len(oldname_seq) - len(new_seq)))
-            print_sequence_chunks(oldname_seq, oldpos, utils.color_gene(oldname_gene), pad=max(0, len(new_seq) - len(oldname_seq)))
-
-        return oldname_gene, oldname_seq  # it might make more sense to keep looking for a better match, rather than just taking the first one
+    min_distance, nearest_gene, nearest_seq = find_nearest_gene_with_same_cpos(glfo, new_seq, new_cpos=new_cpos, new_name=new_name, exclusion_5p=exclusion_5p, exclusion_3p=exclusion_3p, glfo_str=glfo_str, debug=debug, debug_only_zero_distance=True)
+    if min_distance is not None and min_distance == 0:
+        return nearest_gene, nearest_seq
 
     if debug:
         print '        no equivalent gene for %s' % utils.color_gene(new_name) if new_name is not None else '',
@@ -1144,14 +1174,14 @@ def synchronize_glfos(ref_glfo, new_glfo, region, debug=False):
         method, _, _ = split_inferred_allele_name(new_name)
         if method != 'igdiscover':
             continue
-        better_name, better_snpfo, nearest_gene = try_to_get_name_and_mutfo_from_seq(new_name, new_seq, ref_glfo, debug=debug)
+        better_name, better_snpfo, nearest_gene = try_to_get_name_and_mutfo_from_seq(new_name, new_seq, ref_glfo, consider_indels=False, debug=debug)
         if better_name is not None:
             remove_gene(new_glfo, new_name)
             newfo = {'gene' : better_name, 'seq' : new_seq}
-            if nearest_gene in new_glfo:
+            if nearest_gene in new_glfo['seqs'][region]:
                 newfo['template-gene'] = nearest_gene
                 use_template_for_codon_info = True
-            elif is_novel(nearest_gene) and get_template_gene(nearest_gene) in new_glfo:
+            elif is_novel(nearest_gene) and get_template_gene(nearest_gene) in new_glfo['seqs'][region]:
                 newfo['template-gene'] = get_template_gene(nearest_gene)
                 use_template_for_codon_info = True
             else:
