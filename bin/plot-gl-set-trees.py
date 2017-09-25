@@ -111,9 +111,12 @@ def set_colors(gl_sets, ref_label=None, mix_primary_colors=False):
     if len(names) == 1:  # single-sample data
         scolors[names[0]] = scolors['data']
     elif len(names) == 2:  # two-sample data
-        for name in gl_sets:
-            if name not in scolors:
-                raise Exception('\'%s\' not in <scolors>' % name)
+        if names[0] in scolors and names[1] in scolors:
+            pass
+        else:
+            assert names[1] not in scolors
+            scolors[names[0]] = scolors['pale-green']
+            scolors[names[1]] = scolors['pale-blue']
         for name1, name2 in itertools.combinations(gl_sets, 2):
             scolors[pairkey(name1, name2)] = all_colors['LightGrey']
         # scolors[names[0]] = scolors['pale-green']
