@@ -93,7 +93,7 @@ scolors = {
 }
 
 listcolors = [
-    getgrey('light-medium'),
+    getgrey('medium'),
     getgrey('medium'),
     # hopefully only really using the first two a.t.m.
     '#d5aaf4',  # purple
@@ -103,6 +103,12 @@ listcolors = [
     '#29a614',  # green
     '#c32222',  # red
 ]
+
+listfaces = [
+    'red',
+    'blue',
+]
+used_faces = {}
 
 # ----------------------------------------------------------------------------------------
 def set_colors(gl_sets, ref_label=None, mix_primary_colors=False):
@@ -118,14 +124,20 @@ def set_colors(gl_sets, ref_label=None, mix_primary_colors=False):
     for name in names:
         if name not in scolors:
             scolors[name] = listcolors[names.index(name) % len(listcolors)]
+            facestr = listfaces[names.index(name) % len(listfaces)]
+            used_faces[name] = facestr
     for name1, name2 in itertools.combinations(names, 2):
-        if name1 in methodnames or name2 in methodnames:
-            if len(names) == 3:
-                pair_color = getgrey('medium')
-            else:
-                pair_color = getgrey('light')
+        if len(names) == 3:
+            pair_color = getgrey('medium')
         else:
-            pair_color = getgrey('white')
+            pair_color = getgrey('light')
+        # if name1 in methodnames or name2 in methodnames:
+        #     if len(names) == 3:
+        #         pair_color = getgrey('medium')
+        #     else:
+        #         pair_color = getgrey('light')
+        # else:
+        #     pair_color = getgrey('white')
         scolors[pairkey(name1, name2)] = pair_color
 
 # ----------------------------------------------------------------------------------------
@@ -296,14 +308,15 @@ def set_node_style(node, status, n_gl_sets, used_colors, ref_label=None):
     # node.img_style['hz_line_width'] = linewidth
     # node.img_style['vt_line_width'] = linewidth
 
-    if n_gl_sets > 2 and '-&-' in status:
-        names = status.split('-&-')
-        pcf = ete3.PieChartFace(percents=[100./len(names) for _ in range(len(names))], width=20, height=20, colors=[scolors[n] for n in names], line_color=None)
-        # pcf = ete3.StackedBarFace(percents=[100./len(names) for _ in range(len(names))], width=30, height=50, colors=[scolors[n] for n in names], line_color=None)
-        node.add_face(pcf, column=0, position='aligned')
-
-    # if status in faces:
-    #     node.add_face(copy.deepcopy(faces[status]), column=0, position='aligned')
+    stlist = status.split('-&-')
+    if len(stlist) > 0:
+        if len(set(stlist) & set(methodnames)) == len(stlist):  # method vs method
+            names = status.split('-&-')
+            pcf = ete3.PieChartFace(percents=[100./len(names) for _ in range(len(names))], width=20, height=20, colors=[scolors[n] for n in names], line_color=None)
+            # pcf = ete3.StackedBarFace(percents=[100./len(names) for _ in range(len(names))], width=30, height=50, colors=[scolors[n] for n in names], line_color=None)
+            node.add_face(pcf, column=0, position='aligned')
+    if len(stlist) == 1 and status in used_faces:
+        node.add_face(ete3.RectFace(width=5, height=20, bgcolor=used_faces[status], fgcolor=None), column=0, position='aligned')
 
 # ----------------------------------------------------------------------------------------
 def get_entirety_of_gene_family(root, family):
@@ -352,16 +365,18 @@ def set_distance_to_zero(node, debug=False):
 
 # ----------------------------------------------------------------------------------------
 def write_legend(used_colors, plotdir):
-    def add_crap(sn, col):
-        legfo[sn] = col
+    def add_stuff(status, leg_name, color):
+        legfo[leg_name] = color
+        if status in used_faces:
+            facefo[leg_name] = used_faces[status]
 
     added_two_method_color = False
-    legfo = OrderedDict()
+    legfo, facefo = OrderedDict(), OrderedDict()
     for status, color in used_colors.items():
         if '-&-' in status:
             for substatus in status.split('-&-'):  # arg, have to handle cases where the single one isn't in there
                 if get_title(substatus) not in legfo:
-                    add_crap(get_title(substatus), scolors[substatus])
+                    add_stuff(substatus, get_title(substatus), scolors[substatus])
             if not added_two_method_color:
                 leg_name = 'both'
                 added_two_method_color = True
@@ -370,7 +385,7 @@ def write_legend(used_colors, plotdir):
         else:
             leg_name = get_title(status)
 
-        add_crap(leg_name, color)
+        add_stuff(status, leg_name, color)
 
     # reorder some of 'em
     for leg_name in ['both', 'all']:
@@ -383,7 +398,10 @@ def write_legend(used_colors, plotdir):
     tstyle = ete3.TreeStyle()
     tstyle.show_scale = False
     for leg_name, color in legfo.items():
-        tstyle.title.add_face(ete3.RectFace(20, 20, color, color), column=0)
+        if leg_name in facefo:
+            tstyle.title.add_face(ete3.StackedBarFace([85., 15.], width=20, height=20, colors=[color, facefo[leg_name]], line_color='black'), column=0)  # looks like maybe they reversed fg/bg kwarg names
+        else:
+            tstyle.title.add_face(ete3.RectFace(20, 20, fgcolor='black', bgcolor=color), column=0)  # looks like maybe they reversed fg/bg kwarg names
         tstyle.title.add_face(ete3.TextFace(' ' + leg_name, fgcolor='black'), column=1)
 
     etree.render(plotdir + '/legend.svg', h=300, tree_style=tstyle)  # w=500, h=500, 
