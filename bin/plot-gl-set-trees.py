@@ -21,73 +21,70 @@ import heads
 
 # custom interactive faces: http://etetoolkit.org/docs/latest/tutorial/tutorial_drawing.html#id34
 
-def get_title(titlestr):
-    if titlestr == 'tigger-default':
-        return 'tigger'
-    if args.metafo is None or titlestr not in args.metafo:
-        return titlestr
-    return_str = args.metafo[titlestr]['subject']
-    if args.metafo[titlestr]['isotype'] != '':
-        return_str += '  Ig%s' % args.metafo[titlestr]['isotype'].upper()
+methodnames = ['tigger-default', 'partis', 'igdiscover']
+
+# ----------------------------------------------------------------------------------------
+def methstr(meth):
+    return 'tigger' if meth == 'tigger-default' else meth
+
+# ----------------------------------------------------------------------------------------
+def tpstr(timepoint):
+    if timepoint[0] == 'W':
+        return 'week %d' % int(timepoint[1:])
+    elif timepoint[0] == 'M':
+        return 'month %d' % int(timepoint[1:])
+    elif 'dpi' in timepoint:
+        return timepoint.replace('dpi', ' dpi')
+    elif timepoint[0] in ['p', 'm'] and timepoint[-1] in ['h', 'd']:
+        plusminusstr = timepoint[0].replace('p', '+').replace('m', '-')
+        number = int(timepoint[1:-1])
+        unitstr = timepoint[-1].replace('h', 'hour').replace('d', 'day')
+        return '%s%d %s%s' % (plusminusstr, number, unitstr, utils.plural(number))
+    else:
+        raise Exception('not sure what to do with %s' % timepoint)
+
+# ----------------------------------------------------------------------------------------
+def get_title(nstr, other_nstr=None):
+    if nstr in methodnames:
+        return_str = methstr(nstr)
+    elif args.metafo is not None and nstr in args.metafo:
+        return_str = args.metafo[nstr]['subject']
+        extras = []
+        if args.metafo[nstr]['isotype'] != '':
+            extras.append('Ig%s' % args.metafo[nstr]['isotype'].upper())
+        if args.metafo[nstr]['timepoint'] != '':
+            extras.append('%s' %tpstr(args.metafo[nstr]['timepoint']))
+        if len(extras) > 0:
+            return_str += '  (%s)' % '  '.join(extras)
+    else:
+        return_str = nstr
+
     return return_str
 
-legend_names = {
-    'tigger-default' : 'tigger',
-    'Hs-LN1-5RACE-IgG' : '240 dpi',  # QB850
-    'Hs-LN4-5RACE-IgG' : '1586 dpi',  # QB850
-    'Hs-LN1-5RACE-IgK' : '240 dpi',  # QB850
-    'Hs-LN4-5RACE-IgK' : '1586 dpi',  # QB850
-    'Hs-LN1-5RACE-IgL' : '240 dpi',  # QB850
-    'Hs-LN4-5RACE-IgL' : '1586 dpi',  # QB850
-    'BF520-m-W1' : 'week 1',
-    'BF520-g-W1' : 'week 1',
-    'BF520-k-W1' : 'week 1',
-    'BF520-l-W1' : 'week 1',
-    'BF520-m-M9' : 'month 9',
-    'BF520-g-M9' : 'month 9',
-    'BF520-k-M9' : 'month 9',
-    'BF520-l-M9' : 'month 9',
-}
-
-primary_colors = OrderedDict((
-    ('red', '#c32222'),
-    # ('yellow', '#e3e317'),
-    ('green', '#29a614'),
-    ('blue', '#2455ed'),
-))
-
-combo_colors = {  # colors need to sorted before calling '-'.join()
-    'red-&-yellow' : '#f5be82',  # orange
-    'blue-&-yellow' : '#85ad98',  # green
-    'blue-&-red' : '#d5aaf4',  # purple
-    'green-&-red' : '#f5be82',  # orange
-    'blue-&-green' : '#8fecd6',  # green
-}
-
-def med_grey():
-    return '#929292'
-
-all_colors = dict(primary_colors.items() + combo_colors.items())
-all_colors['LightGrey'] = '#d3d3d3'
+# ----------------------------------------------------------------------------------------
+def getgrey(gtype='medium'):
+    if gtype == 'medium':
+        return '#929292'
+    elif gtype == 'light-medium':
+        return '#cdcdcd'
+    elif gtype == 'light':
+        return '#d3d3d3'
+    elif gtype == 'white':
+        return '#ffffff'
+    else:
+        assert False
 
 # ----------------------------------------------------------------------------------------
 def pairkey(name1, name2):
     return '-&-'.join(sorted([name1, name2]))
 
 # ----------------------------------------------------------------------------------------
-def get_color_name(code):
-    names = [n for n, c in all_colors.items() if c == code]
-    if len(names) != 1:
-        # print 'couldn\'t find a unique color name for %s (found %s)' % (code, names)
-        return code
-    return names[0]
-
 scolors = {
     'ok' : 'DarkSeaGreen',
     'missing' : '#d77c7c',
     'spurious' : '#a44949',
     'data' : 'LightSteelBlue',
-    'all' : '#d3d3d3',
+    'all' : getgrey('light'),
     'pale-green' : '#85ad98',
     'pale-blue' : '#94a3d1',
     'tigger-default' : '#d77c7c', #'#c32222',  # red
@@ -95,11 +92,17 @@ scolors = {
     'partis' : '#94a3d1', #'#2455ed',  # blue
 }
 
-# faces = {}
-# faces = { 'missing' : ete3.AttrFace("name", fsize=30)}
-#         # faces.add_face_to_node(N, node, 0, position="aligned")}
-# faces = {'missing'  : ete3.CircleFace(10, 'white'),
-#          'spurious' : ete3.CircleFace(10, 'black')}
+listcolors = [
+    getgrey('light-medium'),
+    getgrey('medium'),
+    # hopefully only really using the first two a.t.m.
+    '#d5aaf4',  # purple
+    '#87cfcf',  #
+    scolors['spurious'],
+    '#2455ed',  # blue
+    '#29a614',  # green
+    '#c32222',  # red
+]
 
 # ----------------------------------------------------------------------------------------
 def set_colors(gl_sets, ref_label=None, mix_primary_colors=False):
@@ -110,35 +113,21 @@ def set_colors(gl_sets, ref_label=None, mix_primary_colors=False):
 
     if len(names) == 1:  # single-sample data
         scolors[names[0]] = scolors['data']
-    elif len(names) == 2:  # two-sample data
-        if names[0] in scolors and names[1] in scolors:
-            pass
-        else:
-            assert names[1] not in scolors
-            scolors[names[0]] = scolors['pale-green']
-            scolors[names[1]] = scolors['pale-blue']
-        for name1, name2 in itertools.combinations(gl_sets, 2):
-            scolors[pairkey(name1, name2)] = all_colors['LightGrey']
-        # scolors[names[0]] = scolors['pale-green']
-        # scolors[names[1]] = scolors['pale-blue']
-        # scolors[pairkey(names[0], names[1])] = scolors['all']
         return
-    elif len(names) == 3:
-        if mix_primary_colors:
-            pclist = primary_colors.keys()
-            pccodes = primary_colors.values()
-            for iname in range(len(names)):
-                scolors[names[iname]] = pccodes[iname]  # set this data set to a primary color
-                for jname in range(iname + 1, len(names)):
-                    scolors[pairkey(names[iname], names[jname])] = combo_colors[pairkey(pclist[iname], pclist[jname])]  # ...and set its combos with other data sets to the apropriate secondary color
+
+    for name in names:
+        if name not in scolors:
+            scolors[name] = listcolors[names.index(name) % len(listcolors)]
+    for name1, name2 in itertools.combinations(names, 2):
+        if name1 in methodnames or name2 in methodnames:
+            if len(names) == 3:
+                pair_color = getgrey('medium')
+            else:
+                pair_color = getgrey('light')
         else:
-            for name in gl_sets:
-                if name not in scolors:
-                    raise Exception('\'%s\' not in <scolors>' % name)
-            for name1, name2 in itertools.combinations(gl_sets, 2):
-                scolors[pairkey(name1, name2)] = med_grey()
-    else:
-        raise Exception('need more colors')
+            pair_color = getgrey('white')
+        scolors[pairkey(name1, name2)] = pair_color
+
 # ----------------------------------------------------------------------------------------
 def get_cmdfos(cmdstr, workdir, outfname):
     return [{'cmd_str' : cmdstr,
@@ -220,7 +209,7 @@ def print_results(gene_categories, ref_label=None):
         else:
             genestr = ' '.join([utils.color_gene(g) for g in genes])
         print ('    %-' + pwidth + 's') % name,
-        print '%20s' % scolors[name], #get_color_name(scolors[name]),
+        print '%20s' % scolors[name],
         if len(genes) == 0:
             print ' %s' % utils.color('blue', 'none')
         else:
@@ -369,19 +358,18 @@ def write_legend(used_colors, plotdir):
     added_two_method_color = False
     legfo = OrderedDict()
     for status, color in used_colors.items():
-        if status in legend_names:
-            leg_name = legend_names[status]
-        elif '-&-' in status:
+        if '-&-' in status:
             for substatus in status.split('-&-'):  # arg, have to handle cases where the single one isn't in there
-                if legend_names.get(substatus, substatus) not in legfo:
-                    add_crap(legend_names.get(substatus, substatus), scolors[substatus])
+                if get_title(substatus) not in legfo:
+                    add_crap(get_title(substatus), scolors[substatus])
             if not added_two_method_color:
                 leg_name = 'both'
                 added_two_method_color = True
             else:
                 continue
         else:
-            leg_name = status
+            leg_name = get_title(status)
+
         add_crap(leg_name, color)
 
     # reorder some of 'em
@@ -396,7 +384,7 @@ def write_legend(used_colors, plotdir):
     tstyle.show_scale = False
     for leg_name, color in legfo.items():
         tstyle.title.add_face(ete3.RectFace(20, 20, color, color), column=0)
-        tstyle.title.add_face(ete3.TextFace(' ' + leg_name, fgcolor=color), column=1)
+        tstyle.title.add_face(ete3.TextFace(' ' + leg_name, fgcolor='black'), column=1)
 
     etree.render(plotdir + '/legend.svg', h=300, tree_style=tstyle)  # w=500, h=500, 
 
@@ -435,7 +423,11 @@ def draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, gene_categories, r
     #     add_legend(tstyle, used_colors)
     write_legend(used_colors, plotdir)
     if args.title is not None:
-        tstyle.title.add_face(ete3.TextFace(get_title(args.title), fsize=13, bold=True), column=0)
+        title = get_title(args.title)
+        fsize = 13
+        tstyle.title.add_face(ete3.TextFace(title, fsize=fsize, bold=True), column=0)
+        if args.title in scolors:
+            tstyle.title.add_face(ete3.CircleFace(fsize, scolors[args.title]), column=1)
     suffix = '.svg'
     imagefname = plotdir + '/' + plotname + suffix
     print '      %s' % imagefname
