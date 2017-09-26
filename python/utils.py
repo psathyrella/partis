@@ -40,6 +40,7 @@ loci = {'igh' : 'vdj',
         'trg' : 'vj',
         'trd' : 'vdj',
 }
+isotypes = ['m', 'g', 'k', 'l']
 
 def getregions(locus):  # for clarity, don't use the <loci> dictionary directly to access its .values()
     return list(loci[locus])  # doesn't really need to be a list, but it's more clearly analagous to regions & co that way
