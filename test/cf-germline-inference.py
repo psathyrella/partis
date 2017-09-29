@@ -27,50 +27,8 @@ legend_titles = {
     'n-leaves' : 'mean N leaves',
 }
 
-# # ----------------------------------------------------------------------------------------
-# sys.path.insert(1, './datascripts')
-# import heads
-# label = 'vz'
-# ptype = 'sw'
-# subject = None  # 'GMC'
-# studies = [
-#     'kate-qrs-2016-09-09',
-#     'laura-mb-2016-12-22',
-#     'chaim-donor-45-2016-08-04',
-#     'adaptive-billion-read-2016-04-07',
-#     'vollmers-2016-04-08',
-#     # 'jason-mg-2017-02-01',
-#     # 'jason-influenza-2017-02-03',
-# ]
-
-# merged_names, merged_dirs = [], []
-# for study in studies:
-#     names, dirs = [], []
-#     metafo = heads.read_metadata(study)
-#     print study
-#     for dset in metafo:
-#         if subject is not None and metafo[dset]['subject'] != subject:
-#             continue
-#         bdir = utils.fsdir() + '/processed-data/partis/' + study + '/' + label + '/' + dset
-#         if metafo[dset]['timepoint'] == 'merged':
-#             continue
-#         if dset == 'Hs-LN3-5RACE-IgG':  # bad one
-#             continue
-#         if not os.path.exists(bdir):
-#             print '    %s missing' % dset
-#             continue
-#         names.append(metafo[dset]['shorthand'])
-#         dirs.append(bdir + '/plots/' + ptype + '/mute-freqs/overall')
-#     outdir = utils.fsdir() + '/partis/tmp/lots-of-mfreqs/' + study
-#     if subject is not None:
-#         outdir += '/' + subject
-#     subprocess.check_call(['./bin/compare-plotdirs.py', '--outdir', outdir, '--plotdirs', ':'.join(dirs), '--names', ':'.join(names), '--normalize'])
-#     merged_names += names
-#     merged_dirs += dirs
-# # subprocess.check_call(['./bin/compare-plotdirs.py', '--outdir', utils.fsdir() + '/partis/tmp/lots-of-mfreqs/merged', '--plotdirs', ':'.join(merged_dirs), '--names', ':'.join(merged_names), '--normalize'])
-# sys.exit()
-
-# # ----------------------------------------------------------------------------------------
+all_methods = ['tigger-default', 'igdiscover', 'partis']
+characters = ['subject', 'isotype', 'timepoint']
 
 # ----------------------------------------------------------------------------------------
 def varvalstr(name, val):
@@ -161,25 +119,84 @@ def get_gls_fname(outdir, method, locus, sim_truth=False, data=False):  # NOTE d
     return glutils.get_fname(outdir, locus, region)
 
 # ----------------------------------------------------------------------------------------
-def make_gls_tree_plot(args, plotdir, plotname, glsfnames, glslabels, locus, ref_label=None, leaf_names=False, title=None, study=None):
+def methstr(meth):
+    return 'tigger' if meth == 'tigger-default' else meth
+
+# ----------------------------------------------------------------------------------------
+def get_character_str(character, charval):
+    if character == 'subject':
+        return charval
+    elif character == 'timepoint':
+        if charval[0] == 'W':
+            return 'week %d' % int(charval[1:])
+        elif charval[0] == 'M':
+            return 'month %d' % int(charval[1:])
+        elif 'dpi' in charval:
+            return charval.replace('dpi', ' dpi')
+        elif charval[0] in ['p', 'm'] and charval[-1] in ['h', 'd']:
+            plusminusstr = charval[0].replace('p', '+').replace('m', '-')
+            number = int(charval[1:-1])
+            unitstr = charval[-1].replace('h', 'hour').replace('d', 'day')
+            return '%s%d %s%s' % (plusminusstr, number, unitstr, utils.plural(number))
+        else:
+            raise Exception('not sure what to do with %s' % charval)
+    elif character == 'isotype':
+        return 'Ig%s' % charval.upper()
+    else:
+        assert False
+
+# ----------------------------------------------------------------------------------------
+def all_the_same(chstr, mfolist):
+    if chstr not in mfolist[0]:
+        raise Exception('column \'%s\' not available for %s (choices: %s)' % (chstr, nstr, ' '.join(mfolist[0].keys())))
+    return len(set([mfo[chstr] for mfo in mfolist])) == 1
+
+# ----------------------------------------------------------------------------------------
+def get_dset_title(mfolist):
+    return_strs = []
+    for character in characters:
+        if mfolist[0][character] == '':
+            continue
+        if len(mfolist) == 1 or all_the_same(character, mfolist):
+            return_strs.append('%s' % get_character_str(character, mfolist[0][character]))
+    return '  '.join(return_strs)
+
+# ----------------------------------------------------------------------------------------
+def get_dset_legends(mfolist):
+    assert len(mfolist) > 1
+    legends = []
+    for mfo in mfolist:
+        return_strs = []
+        for character in characters:
+            if mfo[character] == '':
+                continue
+            if not all_the_same(character, mfolist):
+                return_strs.append('%s' % get_character_str(character, mfo[character]))
+        legends.append('  '.join(return_strs))
+    return legends
+
+# ----------------------------------------------------------------------------------------
+def make_gls_tree_plot(args, plotdir, plotname, glsfnames, glslabels, locus, ref_label=None, leaf_names=False, title=None, title_color=None, legends=None):
     # ete3 requires its own python version, so we run as a subprocess
     cmdstr = 'export PATH=%s:$PATH && xvfb-run -a ./bin/plot-gl-set-trees.py' % args.ete_path
     cmdstr += ' --plotdir ' + plotdir
     cmdstr += ' --plotname ' + plotname
     cmdstr += ' --glsfnames ' + ':'.join(glsfnames)
     cmdstr += ' --glslabels ' + ':'.join(glslabels)
-    if title is not None:
-        cmdstr += ' --title ' + str(title)
-    if study is not None:
-        cmdstr += ' --study ' + study
     if ref_label is not None:
         cmdstr += ' --ref-label ' + ref_label
+    if title is not None:
+        cmdstr += ' --title="%s"' % title
+    if title_color is not None:
+        cmdstr += ' --title-color %s' % title_color
+    if legends is not None:
+        cmdstr += ' --legends=' + ':'.join('"%s"' % l for l in legends)
     if leaf_names:
         cmdstr += ' --leaf-names'
     cmdstr += ' --locus ' + locus
     if args.plotcache:
         cmdstr += ' --use-cache'
-    utils.simplerun(cmdstr, shell=True, debug=False, dryrun=args.dry_run)
+    utils.simplerun(cmdstr, shell=True, debug=args.dry_run, dryrun=args.dry_run)
 
 # ----------------------------------------------------------------------------------------
 def get_gls_gen_plots(args, baseoutdir, method):
@@ -196,26 +213,38 @@ def get_gls_gen_plots(args, baseoutdir, method):
 # ----------------------------------------------------------------------------------------
 def get_data_plots(args, baseoutdir, methods, study, dsets):
     metafos = heads.read_metadata(study)
-    assert len(set([metafos[ds]['locus'] for ds in dsets]))  # make sure everybody has is same locus
+    assert len(set([metafos[ds]['locus'] for ds in dsets]))  # make sure everybody has the same locus
     mfo = metafos[dsets[0]]
     data_outdirs = [heads.get_datadir(study, 'processed', extra_str='gls-gen-paper-' + args.label) + '/' + ds for ds in dsets]
     outdir = get_outdir(args, baseoutdir, varname='data', varval=study + '/' + '-vs-'.join(dsets))  # for data, only the plots go here, since datascripts puts its output somewhere else
-    if len(dsets) > 1 and len(methods) == 1:
+    if len(dsets) > 1 and len(methods) == 1:  # comparing one method across several data sets
         glslabels = dsets
-        single_str = methods[0]
-    elif len(methods) > 1 and len(dsets) == 1:
+        title = methstr(methods[0]) + '  ' + get_dset_title([metafos[ds] for ds in dsets])
+        title_color = methods[0]
+        legends = get_dset_legends([metafos[ds] for ds in dsets])
+        print '%s:' % utils.color('green', methods[0]),
+    elif len(methods) > 1 and len(dsets) == 1:  # comparing several methods on one data set
         glslabels = methods
-        single_str = dsets[0]
+        title = get_dset_title([mfo])
+        title_color = None
+        legends = [methstr(m) for m in methods]
+        print '%s:' % utils.color('green', dsets[0]),
     else:
         raise Exception('one of \'em has to be length 1: %d %d' % (len(methods), len(dsets)))
-    print '%s: %s' % (utils.color('green', single_str), (' %s ' % utils.color('light_blue', 'vs')).join(glslabels))
+    print '%s' % (' %s ' % utils.color('light_blue', 'vs')).join(glslabels)
+
+    # print title
+    # for l in legends:
+    #     print '  ', l
+    # sys.exit()
+
     make_gls_tree_plot(args, outdir + '/' + '-vs-'.join(methods) + '/gls-gen-plots', study + '-' + '-vs-'.join(dsets),
                        glsfnames=[get_gls_fname(ddir, meth, locus=mfo['locus'], data=True) for ddir in data_outdirs for meth in methods],
                        glslabels=glslabels,
                        locus=mfo['locus'],
-                       title=single_str,
-                       study=study)
-                       # leaf_names=len(dsets) > 1)
+                       title=title,
+                       title_color=title_color,
+                       legends=legends)
 
 # ----------------------------------------------------------------------------------------
 def plot_single_test(args, baseoutdir, method):
@@ -402,10 +431,12 @@ default_varvals = {
         # 'jason-mg' : ['HD07-igk', 'HD07-igl', 'AR03-igk', 'AR03-igl'],
         # 'sheng-gssp' : ['lp23810-m-pool',  'lp23810-g-pool', 'lp08248-m-pool', 'lp08248-g-pool'],
         # 'three-finger' : ['3ftx-1-igh'], #, 'pla2-1-igh'],
-        # 'kate-qrs' : ['1g', '4g', '1k', '1l', '4k', '4l'],
+        'kate-qrs' : ['1g', '4g', '1k', '1l', '4k', '4l'],
         # 'laura-mb-2' : ['BF520-m-W1', 'BF520-m-M9', 'BF520-g-W1', 'BF520-g-M9'], #, 'BF520-k-W1', 'BF520-l-W1', 'BF520-k-M9', 'BF520-l-M9']
+        # 'jason-influenza' : ['FV-igh-m1h'],
+        # 'jason-influenza' : ['FV-igh-m2d', 'FV-igh-p28d'],
         # 'jason-influenza' : ['FV-igh-m2d', 'FV-igh-m1h', 'FV-igh-p1h', 'FV-igh-p1d', 'FV-igh-p3d', 'FV-igh-p7d', 'FV-igh-p14d', 'FV-igh-p21d', 'FV-igh-p28d', 'GMC-igh-m8d', 'GMC-igh-m2d', 'GMC-igh-m1h', 'GMC-igh-p1h', 'GMC-igh-p1d', 'GMC-igh-p3d', 'GMC-igh-p7d', 'GMC-igh-p14d', 'GMC-igh-p21d', 'GMC-igh-p28d', 'IB-igh-m8d', 'IB-igh-m2d', 'IB-igh-m1h', 'IB-igh-p1h', 'IB-igh-p1d', 'IB-igh-p3d', 'IB-igh-p7d', 'IB-igh-p14d', 'IB-igh-p21d', 'IB-igh-p28d'],
-        # 'jason-influenza' : ['FV-igh', 'GMC-igh', 'IB-igh'],
+        # 'jason-influenza' : ['FV-igh', 'GMC-igh', 'IB-igh'],  # merged
     }
 }
 all_data_pairs = {
