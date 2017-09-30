@@ -219,14 +219,14 @@ def get_data_plots(args, baseoutdir, methods, study, dsets):
     mfo = metafos[dsets[0]]
     data_outdirs = [heads.get_datadir(study, 'processed', extra_str='gls-gen-paper-' + args.label) + '/' + ds for ds in dsets]
     outdir = get_outdir(args, baseoutdir, varname='data', varval=study + '/' + '-vs-'.join(dsets))  # for data, only the plots go here, since datascripts puts its output somewhere else
-    if len(dsets) > 1 and len(methods) == 1:  # comparing one method across several data sets
+    if len(dsets) > 1 and len(methods) == 1:  # one method across several data sets
         glslabels = dsets
         title = methstr(methods[0]) + '  ' + get_dset_title([metafos[ds] for ds in dsets])
         title_color = methods[0]
         legends = get_dset_legends([metafos[ds] for ds in dsets])
         pie_chart_faces = False
         print '%s:' % utils.color('green', methods[0]),
-    elif len(methods) > 1 and len(dsets) == 1:  # comparing several methods on one data set
+    elif len(methods) > 1 and len(dsets) == 1:  # several methods on one data set
         glslabels = methods
         title = get_dset_title([mfo])
         title_color = None
@@ -241,7 +241,6 @@ def get_data_plots(args, baseoutdir, methods, study, dsets):
     # for l in legends:
     #     print '  ', l
     # sys.exit()
-
     make_gls_tree_plot(args, outdir + '/' + '-vs-'.join(methods) + '/gls-gen-plots', study + '-' + '-vs-'.join(dsets),
                        glsfnames=[get_gls_fname(ddir, meth, locus=mfo['locus'], data=True) for ddir in data_outdirs for meth in methods],
                        glslabels=glslabels,

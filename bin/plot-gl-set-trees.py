@@ -323,6 +323,14 @@ def set_distance_to_zero(node, debug=False):
 
 # ----------------------------------------------------------------------------------------
 def write_legend(used_colors, plotdir):
+    def get_leg_name(status):
+        if args.legends is not None:
+            if status in args.glslabels:
+                return args.legends[args.glslabels.index(status)]
+            else:
+                raise Exception('couldn\'t find status \'%s\' in --glslabels (%s), so couldn\'t decide which index to choose in --legends to choose' % (status, ' '.join(args.glslabels)))
+        else:
+            return status
     def add_stuff(status, leg_name, color):
         legfo[leg_name] = color
         if status in used_faces:
@@ -333,15 +341,15 @@ def write_legend(used_colors, plotdir):
     for status, color in used_colors.items():
         if '-&-' in status:
             for substatus in status.split('-&-'):  # arg, have to handle cases where the single one isn't in there
-                if substatus not in legfo:
-                    add_stuff(substatus, substatus, scolors[substatus])
+                if get_leg_name(substatus) not in legfo:
+                    add_stuff(substatus, get_leg_name(substatus), scolors[substatus])
             if not added_two_method_color:
                 leg_name = 'both'
                 added_two_method_color = True
             else:
                 continue
         else:
-            leg_name = status
+            leg_name = get_leg_name(status)
 
         add_stuff(status, leg_name, color)
 
@@ -395,7 +403,7 @@ def draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, gene_categories, r
     # if arc_span is not None:
     #     tstyle.arc_span = arc_span
 
-    write_legend(used_colors, plotdir, gl_sets.keys())
+    write_legend(used_colors, plotdir)
     if args.title is not None:
         fsize = 13
         tstyle.title.add_face(ete3.TextFace(args.title, fsize=fsize, bold=True), column=0)
