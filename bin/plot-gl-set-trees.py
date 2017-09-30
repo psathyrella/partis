@@ -41,9 +41,6 @@ def pairkey(name1, name2):
 # ----------------------------------------------------------------------------------------
 scolors = {
     'novel' : '#ffc300',  # 'Gold'
-    'ok' : 'DarkSeaGreen',
-    'missing' : '#d77c7c',
-    'spurious' : '#a44949',
     'data' : 'LightSteelBlue',
     'pale-green' : '#85ad98',
     'pale-blue' : '#94a3d1',
@@ -53,17 +50,23 @@ scolors = {
 }
 
 listcolors = [getgrey('medium') for _ in range(10)]
-
 listfaces = [
     'red',
     'blue',
     'green',
 ]
 used_faces = {}
+simu_colors = OrderedDict((
+    ('ok', 'DarkSeaGreen'),
+    ('missing', '#d77c7c'),
+    ('spurious', '#a44949'),
+))
 
 # ----------------------------------------------------------------------------------------
 def set_colors(gl_sets, ref_label=None, mix_primary_colors=False):
     if ref_label is not None:  # simulation
+        for status, color in simu_colors.items():
+            scolors[status] = color
         return
 
     names = sorted(gl_sets.keys())
@@ -311,13 +314,6 @@ def set_distance_to_zero(node, debug=False):
             print '    setting to zero'
     return descendents == entirety_of_gene_family
 
-# # ----------------------------------------------------------------------------------------
-# def add_legend(tstyle, used_colors):
-#     for status, color in used_colors.items():
-#         if status == 'all' or '-&-' in status:
-#             continue
-#         tstyle.title.add_face(ete3.RectFace(20, 20, color, color, label=status), column=0)
-
 # ----------------------------------------------------------------------------------------
 def write_legend(used_colors, plotdir):
     def get_leg_name(status):
@@ -330,22 +326,26 @@ def write_legend(used_colors, plotdir):
         if status in used_faces:
             facefo[leg_name] = used_faces[status]
 
-    added_two_method_color = False
     legfo, facefo = OrderedDict(), OrderedDict()
-    for status, color in used_colors.items():
-        if '-&-' in status:
-            for substatus in status.split('-&-'):  # arg, have to handle cases where the single one isn't in there
-                if get_leg_name(substatus) not in legfo:
-                    add_stuff(substatus, get_leg_name(substatus), scolors[substatus])
-            if not added_two_method_color:
-                leg_name = 'both'
-                added_two_method_color = True
+    if args.ref_label is not None:
+        for status, color in simu_colors.items():
+            add_stuff(status, status, color)
+    else:
+        added_two_method_color = False
+        for status, color in used_colors.items():
+            if '-&-' in status:
+                for substatus in status.split('-&-'):  # arg, have to handle cases where the single one isn't in there
+                    if get_leg_name(substatus) not in legfo:
+                        add_stuff(substatus, get_leg_name(substatus), scolors[substatus])
+                if not added_two_method_color:
+                    leg_name = 'both'
+                    added_two_method_color = True
+                else:
+                    continue
             else:
-                continue
-        else:
-            leg_name = get_leg_name(status)
+                leg_name = get_leg_name(status)
 
-        add_stuff(status, leg_name, color)
+            add_stuff(status, leg_name, color)
 
     # reorder some of 'em
     for leg_name in ['both', 'all']:
@@ -409,7 +409,7 @@ def draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, gene_categories, r
     suffix = '.svg'
     imagefname = plotdir + '/' + plotname + suffix
     print '      %s' % imagefname
-    etree.render(imagefname, tree_style=tstyle) # h=750, 
+    etree.render(imagefname, tree_style=tstyle)
 
 # ----------------------------------------------------------------------------------------
 def plot_trees(args, plotdir, plotname, glsfnames, glslabels):

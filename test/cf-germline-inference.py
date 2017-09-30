@@ -29,6 +29,13 @@ legend_titles = {
 
 all_methods = ['tigger-default', 'igdiscover', 'partis']
 characters = ['subject', 'isotype', 'timepoint']
+def methstr(meth):
+    if meth == 'tigger-default':
+        return 'tigger'
+    elif meth == 'full':
+        return 'full IMGT'
+    else:
+        return meth
 
 # ----------------------------------------------------------------------------------------
 def varvalstr(name, val):
@@ -147,17 +154,15 @@ def make_gls_tree_plot(args, plotdir, plotname, glsfnames, glslabels, locus, ref
 def get_gls_gen_plots(args, baseoutdir, method):
     varname = args.action
     varval = 'simu'
-
     for iproc in range(args.iteststart, args.n_tests):
         outdir = get_outdir(args, baseoutdir, varname, varval, n_events=args.gls_gen_events) + '/' + str(iproc)
         print '%-2d                            %s' % (iproc, outdir)
         simfname = get_gls_fname(outdir, method=None, locus=sim_locus, sim_truth=True)
         inffname = get_gls_fname(outdir, method, sim_locus)
-        make_gls_tree_plot(args, outdir + '/' + method + '/gls-gen-plots', varvalstr(varname, varval), glsfnames=[simfname, inffname], glslabels=['sim', 'inf'], locus=sim_locus, ref_label='sim')
-
-# ----------------------------------------------------------------------------------------
-def methstr(meth):
-    return 'tigger' if meth == 'tigger-default' else meth
+        make_gls_tree_plot(args, outdir + '/' + method + '/gls-gen-plots', varvalstr(varname, varval),
+                           glsfnames=[simfname, inffname],
+                           glslabels=['sim', 'inf'],
+                           locus=sim_locus, ref_label='sim', title=methstr(method))  #, title_color=method)
 
 # ----------------------------------------------------------------------------------------
 def get_character_str(character, charval):
@@ -236,11 +241,6 @@ def get_data_plots(args, baseoutdir, methods, study, dsets):
     else:
         raise Exception('one of \'em has to be length 1: %d %d' % (len(methods), len(dsets)))
     print '%s' % (' %s ' % utils.color('light_blue', 'vs')).join(glslabels)
-
-    # print title
-    # for l in legends:
-    #     print '  ', l
-    # sys.exit()
     make_gls_tree_plot(args, outdir + '/' + '-vs-'.join(methods) + '/gls-gen-plots', study + '-' + '-vs-'.join(dsets),
                        glsfnames=[get_gls_fname(ddir, meth, locus=mfo['locus'], data=True) for ddir in data_outdirs for meth in methods],
                        glslabels=glslabels,
