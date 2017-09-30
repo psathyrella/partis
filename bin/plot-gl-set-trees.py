@@ -40,6 +40,7 @@ def pairkey(name1, name2):
 
 # ----------------------------------------------------------------------------------------
 scolors = {
+    'novel' : '#ffc300',  # 'Gold'
     'ok' : 'DarkSeaGreen',
     'missing' : '#d77c7c',
     'spurious' : '#a44949',
@@ -51,18 +52,7 @@ scolors = {
     'partis' : '#94a3d1', #'#2455ed',  # blue
 }
 
-listcolors = [
-    getgrey('medium'),
-    getgrey('medium'),
-    getgrey('medium'),
-    # hopefully only really using the first two a.t.m.
-    '#d5aaf4',  # purple
-    '#87cfcf',  #
-    scolors['spurious'],
-    '#2455ed',  # blue
-    '#29a614',  # green
-    '#c32222',  # red
-]
+listcolors = [getgrey('medium') for _ in range(10)]
 
 listfaces = [
     'red',
@@ -263,7 +253,7 @@ def set_node_style(node, status, n_gl_sets, used_colors, ref_label=None):
             used_colors[status] = scolors[status]
 
         if glutils.is_novel(node.name):
-            node.add_face(ete3.CircleFace(2.5, 'Gold'), column=1) #, position='float') # if args.leaf_names else 'branch')
+            node.add_face(ete3.CircleFace(2.5, scolors['novel']), column=1) #, position='float') # if args.leaf_names else 'branch')
 
     # linewidth = 2
     # node.img_style['hz_line_width'] = linewidth
@@ -272,14 +262,14 @@ def set_node_style(node, status, n_gl_sets, used_colors, ref_label=None):
     names = status.split('-&-')
     if node.is_leaf():
         if args.pie_chart_faces and len(names) > 1:
-            pcf = ete3.PieChartFace(percents=[100./len(names) for _ in range(len(names))], width=20, height=20, colors=[scolors[n] for n in names], line_color=None)
+            pcf = ete3.PieChartFace(percents=[100./len(names) for _ in range(len(names))], width=args.leafheight, height=args.leafheight, colors=[scolors[n] for n in names], line_color=None)
             # pcf = ete3.StackedBarFace(percents=[100./len(names) for _ in range(len(names))], width=30, height=50, colors=[scolors[n] for n in names], line_color=None)
             node.add_face(pcf, column=0, position='aligned')
         elif len(names) == 1 and names[0] in used_faces:
-            node.add_face(ete3.RectFace(width=5, height=20, bgcolor=used_faces[names[0]], fgcolor=None), column=0, position='aligned')
+            node.add_face(ete3.RectFace(width=5, height=args.leafheight, bgcolor=used_faces[names[0]], fgcolor=None), column=0, position='aligned')
         elif n_gl_sets > 2:
             rectnames = [n for n in names if n in used_faces]
-            node.add_face(ete3.StackedBarFace(percents=[100./len(names) for _ in range(len(rectnames))], width=5 * len(rectnames), height=20, colors=[used_faces[rn] for rn in rectnames], line_color=None), column=0, position='aligned')
+            node.add_face(ete3.StackedBarFace(percents=[100./len(names) for _ in range(len(rectnames))], width=5 * len(rectnames), height=args.leafheight, colors=[used_faces[rn] for rn in rectnames], line_color=None), column=0, position='aligned')
 
 # ----------------------------------------------------------------------------------------
 def get_entirety_of_gene_family(root, family):
@@ -366,13 +356,14 @@ def write_legend(used_colors, plotdir):
     tstyle = ete3.TreeStyle()
     tstyle.show_scale = False
     for leg_name, color in legfo.items():
+        size_factor = 2.
         if leg_name in facefo:
-            tstyle.title.add_face(ete3.StackedBarFace([85., 15.], width=20, height=20, colors=[color, facefo[leg_name]], line_color='black'), column=0)  # looks like maybe they reversed fg/bg kwarg names
+            tstyle.title.add_face(ete3.StackedBarFace([80., 20.], width=size_factor*args.leafheight, height=size_factor*args.leafheight, colors=[color, facefo[leg_name]], line_color='black'), column=0)  # looks like maybe they reversed fg/bg kwarg names
         else:
-            tstyle.title.add_face(ete3.RectFace(20, 20, fgcolor='black', bgcolor=color), column=0)  # looks like maybe they reversed fg/bg kwarg names
-        tstyle.title.add_face(ete3.TextFace(' ' + leg_name, fgcolor='black'), column=1)
+            tstyle.title.add_face(ete3.RectFace(size_factor*args.leafheight, size_factor*args.leafheight, fgcolor='black', bgcolor=color), column=0)  # looks like maybe they reversed fg/bg kwarg names
+        tstyle.title.add_face(ete3.TextFace(' ' + leg_name, fsize=args.leafheight, fgcolor='black'), column=1)
 
-    etree.render(plotdir + '/legend.svg', h=300, tree_style=tstyle)  # w=500, h=500, 
+    etree.render(plotdir + '/legend.svg', tree_style=tstyle)
 
 # ----------------------------------------------------------------------------------------
 def draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, gene_categories, ref_label=None, arc_start=None, arc_span=None):
@@ -396,8 +387,8 @@ def draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, gene_categories, r
 
     tstyle = ete3.TreeStyle()
     tstyle.show_scale = False
-    # if not args.leaf_names:
-    #     tstyle.show_leaf_name = False
+    if not args.leaf_names:
+        tstyle.show_leaf_name = False
 
     # tstyle.mode = 'c'
     # if arc_start is not None:
@@ -457,6 +448,8 @@ if not os.path.exists(args.muscle_path):
     raise Exception('muscle path %s does not exist' % args.muscle_path)
 if not os.path.exists(args.raxml_path):
     raise Exception('raxml path %s does not exist' % args.raxml_path)
+
+args.leafheight = 20 if args.leaf_names else 10  # arg, kinda messy
 
 assert len(args.glslabels) == len(set(args.glslabels))  # no duplicates
 
