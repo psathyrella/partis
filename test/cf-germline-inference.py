@@ -119,6 +119,43 @@ def get_gls_fname(outdir, method, locus, sim_truth=False, data=False):  # NOTE d
     return glutils.get_fname(outdir, locus, region)
 
 # ----------------------------------------------------------------------------------------
+def make_gls_tree_plot(args, plotdir, plotname, glsfnames, glslabels, locus, ref_label=None, leaf_names=False, title=None, title_color=None, legends=None, pie_chart_faces=False):
+    # ete3 requires its own python version, so we run as a subprocess
+    cmdstr = 'export PATH=%s:$PATH && xvfb-run -a ./bin/plot-gl-set-trees.py' % args.ete_path
+    cmdstr += ' --plotdir ' + plotdir
+    cmdstr += ' --plotname ' + plotname
+    cmdstr += ' --glsfnames ' + ':'.join(glsfnames)
+    cmdstr += ' --glslabels ' + ':'.join(glslabels)
+    if ref_label is not None:
+        cmdstr += ' --ref-label ' + ref_label
+    if title is not None:
+        cmdstr += ' --title="%s"' % title
+    if title_color is not None:
+        cmdstr += ' --title-color %s' % title_color
+    if legends is not None:
+        cmdstr += ' --legends=' + ':'.join('"%s"' % l for l in legends)
+    if pie_chart_faces:
+        cmdstr += ' --pie-chart-faces'
+    if leaf_names:
+        cmdstr += ' --leaf-names'
+    cmdstr += ' --locus ' + locus
+    if args.plotcache:
+        cmdstr += ' --use-cache'
+    utils.simplerun(cmdstr, shell=True, debug=args.dry_run, dryrun=args.dry_run)
+
+# ----------------------------------------------------------------------------------------
+def get_gls_gen_plots(args, baseoutdir, method):
+    varname = args.action
+    varval = 'simu'
+
+    for iproc in range(args.iteststart, args.n_tests):
+        outdir = get_outdir(args, baseoutdir, varname, varval, n_events=args.gls_gen_events) + '/' + str(iproc)
+        print '%-2d                            %s' % (iproc, outdir)
+        simfname = get_gls_fname(outdir, method=None, locus=sim_locus, sim_truth=True)
+        inffname = get_gls_fname(outdir, method, sim_locus)
+        make_gls_tree_plot(args, outdir + '/' + method + '/gls-gen-plots', varvalstr(varname, varval), glsfnames=[simfname, inffname], glslabels=['sim', 'inf'], locus=sim_locus, ref_label='sim')
+
+# ----------------------------------------------------------------------------------------
 def methstr(meth):
     return 'tigger' if meth == 'tigger-default' else meth
 
@@ -174,43 +211,6 @@ def get_dset_legends(mfolist):
                 return_strs.append('%s' % get_character_str(character, mfo[character]))
         legends.append('  '.join(return_strs))
     return legends
-
-# ----------------------------------------------------------------------------------------
-def make_gls_tree_plot(args, plotdir, plotname, glsfnames, glslabels, locus, ref_label=None, leaf_names=False, title=None, title_color=None, legends=None, pie_chart_faces=False):
-    # ete3 requires its own python version, so we run as a subprocess
-    cmdstr = 'export PATH=%s:$PATH && xvfb-run -a ./bin/plot-gl-set-trees.py' % args.ete_path
-    cmdstr += ' --plotdir ' + plotdir
-    cmdstr += ' --plotname ' + plotname
-    cmdstr += ' --glsfnames ' + ':'.join(glsfnames)
-    cmdstr += ' --glslabels ' + ':'.join(glslabels)
-    if ref_label is not None:
-        cmdstr += ' --ref-label ' + ref_label
-    if title is not None:
-        cmdstr += ' --title="%s"' % title
-    if title_color is not None:
-        cmdstr += ' --title-color %s' % title_color
-    if legends is not None:
-        cmdstr += ' --legends=' + ':'.join('"%s"' % l for l in legends)
-    if pie_chart_faces:
-        cmdstr += ' --pie-chart-faces'
-    if leaf_names:
-        cmdstr += ' --leaf-names'
-    cmdstr += ' --locus ' + locus
-    if args.plotcache:
-        cmdstr += ' --use-cache'
-    utils.simplerun(cmdstr, shell=True, debug=args.dry_run, dryrun=args.dry_run)
-
-# ----------------------------------------------------------------------------------------
-def get_gls_gen_plots(args, baseoutdir, method):
-    varname = args.action
-    varval = 'simu'
-
-    for iproc in range(args.iteststart, args.n_tests):
-        outdir = get_outdir(args, baseoutdir, varname, varval, n_events=args.gls_gen_events) + '/' + str(iproc)
-        print '%-2d                            %s' % (iproc, outdir)
-        simfname = get_gls_fname(outdir, method=None, locus=sim_locus, sim_truth=True)
-        inffname = get_gls_fname(outdir, method, sim_locus)
-        make_gls_tree_plot(args, outdir + '/' + method + '/gls-gen-plots', varvalstr(varname, varval), glsfnames=[simfname, inffname], glslabels=['sim', 'inf'], locus=sim_locus, ref_label='sim')
 
 # ----------------------------------------------------------------------------------------
 def get_data_plots(args, baseoutdir, methods, study, dsets):
@@ -434,7 +434,7 @@ default_varvals = {
     'data' : {
         # 'jason-mg' : ['AR02-igh', 'AR03-igh', 'AR04-igh', 'AR05-igh', 'HD07-igh', 'HD09-igh', 'HD10-igh', 'HD13-igh', 'MK02-igh', 'MK03-igh', 'MK04-igh', 'MK05-igh', 'MK08-igh'],
         # 'jason-mg' : ['HD07-igk', 'HD07-igl', 'AR03-igk', 'AR03-igl'],
-        'sheng-gssp' : ['lp23810-m-pool',  'lp23810-g-pool', 'lp08248-m-pool', 'lp08248-g-pool'],
+        'sheng-gssp' : ['lp23810-m-pool',  'lp23810-g-pool'], #, 'lp08248-m-pool', 'lp08248-g-pool'],
         # 'three-finger' : ['3ftx-1-igh'], #, 'pla2-1-igh'],
         # 'kate-qrs' : ['1g', '4g', '1k', '1l', '4k', '4l'],
         # 'laura-mb-2' : ['BF520-m-W1', 'BF520-m-M9', 'BF520-g-W1', 'BF520-g-M9'], #, 'BF520-k-W1', 'BF520-l-W1', 'BF520-k-M9', 'BF520-l-M9']
