@@ -1087,7 +1087,11 @@ def find_nearest_gene_with_same_cpos(glfo, new_seq, new_cpos=None, new_name=None
             if len(other_alleles) > 0:
                 new_cpos = utils.cdn_pos(glfo, region, other_alleles[0])
             else:
-                raise Exception('couldn\'t guess a codon position for %s (glfo has: %s)' % (new_name, ' '.join(glfo['seqs'][region].keys())))
+                other_alleles = [g for g in glfo['seqs'][region] if utils.gene_family(g) == utils.gene_family(new_name) and len(glfo['seqs'][region][g]) == len(new_seq)]
+                if len(other_alleles) > 0:
+                    print '    arg, giving up and using cpos from %s for %s' % (utils.color_gene(g), utils.color_gene(new_name))
+                else:
+                    raise Exception('couldn\'t guess a codon position for %s (glfo has: %s)' % (new_name, ' '.join(glfo['seqs'][region].keys())))
 
     min_distance, nearest_gene, nearest_seq = None, None, None
     for oldname_gene, oldname_seq in glfo['seqs'][region].items():  # NOTE <oldname_{gene,seq}> is the old *name* corresponding to the new (snp'd) allele, whereas <old_seq> is the allele from which we inferred the new (snp'd) allele
