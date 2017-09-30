@@ -1159,12 +1159,12 @@ def find_equivalent_gene_in_glfo(glfo, new_seq, new_cpos=None, new_name=None, ex
     return None, None
 
 # ----------------------------------------------------------------------------------------
-def synchronize_glfos(ref_glfo, new_glfo, region, debug=False):
+def synchronize_glfos(ref_glfo, new_glfo, region, ref_label=None, debug=False):
     assert region == 'v'  # cysteine stuff would need to be generalized
     for new_name, new_seq in new_glfo['seqs'][region].items():
         if new_name in ref_glfo['seqs'][region]:
             continue
-        equiv_name, equiv_seq = find_equivalent_gene_in_glfo(ref_glfo, new_seq, utils.cdn_pos(new_glfo, region, new_name), new_name=new_name, debug=debug)
+        equiv_name, equiv_seq = find_equivalent_gene_in_glfo(ref_glfo, new_seq, utils.cdn_pos(new_glfo, region, new_name), new_name=new_name, glfo_str='ref glfo' if ref_label is None else ref_label, debug=debug)
         if equiv_name is not None:
             if equiv_name in new_glfo['seqs'][region]:
                 print '        (already in new glfo [probably not a snpd allele, i.e. you\'ve got two alleles in your gl set that are equivalent])'
