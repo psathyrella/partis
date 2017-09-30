@@ -1,77 +1,43 @@
-# switch the jason-influenza to three timepoints per plot (?)
-# locus/isotype in (all) titles (?)
-# maybe no more labels
-# simu plots
-
-# make sure glfo synchronizer checks for same-name-different-seq
-
-# add hover-over gene names to ete plots
-
-# double check shared clustering merging in partitiondriver
-
-# write super detailed simulation section of manual and post to b-t.cr
-
-# add fail/success column to annotation files
-# add failed queries to partition output file
-
-# allele finder v vs. j mutation criterion should more explicitly compare rates, i.e. is v rate really higher than j rate?
-# allele clusterer is tossing new primary version names when there aren't really indels
-# maybe just do another allele removal step after allele clustering?
-
-# AAAAAAAAAAAAAAAAAaaaaa fix cdr3/junction problem
-
-# need to add some plots for allele clustering
-#  - v/j mfreqs for each cluster
-
-# clean up all the complicatedness surrounding choose_new_allele_name(), both when simulating and inferring (why are new snpd+indeld alleles still doing the +yellow hash?)
-# fix alcluster length bug (i think the issue is that when vsearch truncates a sequence, we need to un truncate it?) e.g. in /hard/1/
-# figure out how I'm missing some alcluster alleles completely
-# actually, dammit, the 3/OR16-10 new allele inferred in /hard/1/ alclustering has the wrong name
-
-# datscripts
-#  - add sequence to seeds files
-#  - switch translation file output to processed-data directory
-
-# wait, doesn't cdr3 length need to be reset if there's an shm indel within cdr3?
-# switch to joyplot for partition plots (https://github.com/halhen/viz-pub/blob/master/sports-time-of-day/2_gen_chart.R)
-# is functional info correct after fwk insertion trimming and N padding?
-# switch everybody over to new utils.align_seqs() fcn
-
-# require output files have .csv suffix (or something)
-# write a good error message for when vsearch can't find any v matches (maybe run sw?)
-
 # paper
-#  - figure out igk/igl for other methods
-#  - make sure hmm/ and sw/ germline sets aren't really different
-#  - tigger
-#    - why is it picking up something *close* to the snpd+indeld genes, but not quite correct?
-#  - add time required
-#  - data
-#  - add time required (?)
-#  - more data:
-#   - scheepers
-#   - abvitro/kristian data https://peerj.com/articles/2924/?utm_source=TrendMD&utm_campaign=PeerJ_TrendMD_0&utm_medium=TrendMD
 #  - plots
-#    - add nsnps up to at least 6
+#    - add nsnps up to at least 6 (?)
 #    - add multi-nsnps with more simultaneous alleles and more shared snps
-#  - maybe use /fh/fast/matsen_e/data/turchaninova2016
 
+#  write detailed simulation section of manual and post to b-t.cr
 
-# maybe use mds/k-means instead of vsearch for fast clustering
+# need to do allele removal for d and j
 
-# figure out how to get vsearch to be more permissive with shitty matches to reduce the number of failed queries
+# partitioning
+#  - double check shared clustering merging in partitiondriver (?)
+#  - add option to automatically divide into overlapping random subsets, and then merge shared clusters
+#  - switch to joyplot for partition plots (https://github.com/halhen/viz-pub/blob/master/sports-time-of-day/2_gen_chart.R)
+#  - maybe use mds/k-means instead of vsearch for fast clustering
+#  - is best-minus-x stuff still working? (I'm almost certain not -- I'm only calculating the partition log prob the last time through, so all the other times I can't rewind at all. I need to check that this isn't leading to too much over-merging)
 
-# less urgent
+# general/less urgent
+#  - add fail/success column to annotation files
+#  - add failed queries to partition output file
+#  - fix cdr3/junction problem
+#  - doesn't cdr3 length need to be reset if there's an shm indel within cdr3?
+#  - is functional info correct after fwk insertion trimming and N padding?
+#  - switch everybody over to new utils.align_seqs() fcn
+#  - require output files have .csv suffix (or something similar)
+#  - write a good error message for when vsearch can't find any v matches (maybe run sw?)
+#  - figure out how to get vsearch to be more permissive with shitty matches to reduce the number of failed queries
 #  - split isnp stuff out of color_mutants and combine with hamming_distance
 #  - shouldn't the indel-adders be modifying event.codon_positions?
 #  - allow indels in both V and J at the same time (?)
-# alcluster
-#  - need some way to remove template genes when alclustering (or maybe just a way to remove un-assigned genes afterward) [wait i think i did this]
-#  - make sure J length is reasonable before using n mutations (i.e., use freq instead of n)
-#  - maybe forbid alclusterer to add few-snp alleles
-#  - synchronize "gene we just added" and "existing gene" distance/n_snp requirements
-# alfinder
-#  - move is_a_candidate() stuff into fit_[xxx]()
+# turn per-base mutation rates on (?)
+
+# testing:
+#  - needs at least a little light chain action
+#  - make sure there's some multiple indels in the testing file
+#  - add to metrics:
+#    - mutation-freq accuracy
+#    - cdr3 hamming or n_mutes
+#    - multi-hmm (mebbe annotation accuracy on final clusters?)
+#  - add shm indels, maybe directly checking that they're right
+#  - re-add numerical precision stuff to test.py diff (diff-paramters.py, was it?)
 
 # optimizations/cleanup (more below)
 #  - add a local tmp dir to recombinator
@@ -94,65 +60,25 @@
 #  - stop passing ambiguous char to ham both in the yaml and on the command line
 #  - could speed up sw a lot by first using vsearch info to use only a few v genes for each sequence
 
-# testing
-#  - add allele finding
-
-# ----------------------------------------------------------------------------------------
-# fix ham scons test
-# fix waterer debug fails-to-rerun so they all print uid (or just one of them? in any case clean it up)
-# is best-minus-x stuff still working? (I'm almost certain not -- I'm only calculating the partition log prob the last time through, so all the other times I can't rewind at all. I need to check that this isn't leading to too much over-mergin)
-# add only-big-clusters option (well, probably make it the default, and allow to deactivate with --accurate-singletons)
-# add kbounds to validation plots (i.e. flag queries for which kbounds didn't include true kset)
-# fix fuckup where vsearch partition gets its ccfs
-# improve hfrac bounds for vsearch (especially) and regular (maybe use only cdr3 hfrac?)
-
-# definitively fix ig-sw length issue
-
-# data:
-#  - katie
-#  - cluster these: /fh/fast/matsen_e/processed-data/cft/2016-10-21-rubelt-heritable-influence (/fh/fast/matsen_e/data/rubelt-heritable-influence-2016-10-21/proc_data/B-cell_memory.fasta /fh/fast/matsen_e/data/rubelt-heritable-influence-2016-10-21/proc_data/B-cell_naive.fasta)
-#  - kate
-
 # code cleanup
+#  - clean up how vsearch partition gets its ccfs (?)
 #  - split up utils.py
 #  - remove unused stuff from Result (and RecoEvent?)
 #  - stop using 'queries', 'duplicates', and 'indels' in sw info (?)
+#  - move dummy d adding in waterer to summarize_query()
+#  - definitively fix ig-sw length issue
+#  - when printing cluster annotations on simulation, simulation should actually use the true partition, not split according(ish) to the inferred partition
 
-# partition/annotation validation
-#  - go through a careful round of partition validation on larger samples (including light chain)
-#  - double-check purity/completeness usage (should maybe take account of the fact that we remove duplicate sequences (and simulation should probably just forbid/remove duplicates) UPDATE oh wait but we're not removing duplicates in simulation)
-#  - decide what you really want to do for ccf stuff and check_partition()
-#  - rerun on all(ish) data sets
-
-# simulation
-#  - figure out whether GTR with current parameter setup actually makes sense to use
-#  - --simulate-partially-from-scratch throws the out-of-frame exception if you don't use the allele finding testing --initial-germline-dir
-
-# turn per-base mutation rates on
-# move dummy d adding in waterer to summarize_query()
-# get multi-hmm parameter counting working
-# need to do allele removal for d and j
-
-# testing:
-#  - needs at least a little light chain action
-#  - make sure there's some multiple indels in the testing file
-#  - add to metrics:
-#    - mutation-freq accuracy
-#    - cdr3 hamming or n_mutes
-#    - multi-hmm (mebbe annotation accuracy on final clusters?)
-#  - add shm indels, maybe directly checking that they're right
-#  - re-add numberical precision stuff to test.py diff (diff-paramters.py, was it?)
-
-# allele finding/germline set generation:
-#  - for new alleles that are clearly homozygous (i.e. fit is flat and near 1.) we should maybe remove the old allele
-#  - I don't think there's a reason in principle, at least for 1 snp, why we can't allow more than one new allele for that isnp
-#  - maybe increase self.fraction_of_seqs_to_exclude?
-#  - all alleles (including new ones) should have roughly the same mut freq distribution (especially at low mutation)'
-#  - try trevor's k-means-style-ish clustering idea
-#  - make sure allele finding can't add the same sequence coming from different alleles (update: maybe this is already done?)
-#  - do all the plots separately for each potential original snp base (i.e. separate plot for A, C, G, T)?'
-#  - add requirement for mulitple j genes for new alleles (?)'
-#  - increase n_max_mutations_per_segment for highly-mutated repertoires (?)'
+# germline inference
+# - allele fitting
+#   - do all the plots separately for each potential original snp base (i.e. separate plot for A, C, G, T)?'
+# - alcluster
+#   - switch to k-means + mds
+#   - add plots of v/j mfreqs for each cluster (?)
+#   - need some way to remove template genes when alclustering (or maybe just a way to remove un-assigned genes afterward) [wait i think i did this]
+#   - make sure J length is reasonable before using n mutations (i.e., use freq instead of n)
+#   - maybe forbid alclusterer to add few-snp alleles
+#   - synchronize "gene we just added" and "existing gene" distance/n_snp requirements
 
 # optimization
 #  - could speed up mutefreqer increment if there was only one call to utils get mute freq stuff
@@ -171,21 +97,3 @@
 #    - maybe a stopgap would be to increment/decrement k_v/k_d in tandem?
 #    - would make more sense to have per-gene kbounds
 #  - for partitioning, maybe use time as a proxy rather than number of calculations, perhaps using inter-step vs in-step time (note that at least on my setup the cp commands take a significant amount of time)
-
-# bryan's super-short-read sample
-#  - figure out cause of mutation rate discontinuity in some clusters (better insertion mutation rate?)
-#    - make a simulation sample with low, even mutation throughout v, d, and j, and see what you infer
-#  - print cdr3 mutation rate (and maybe also make plots without dividing by length?)
-#  - are mutation rates in J to left of tryp too high? (they're much higher than in the rest of J)
-#  - try with no-indels?
-
-# over-long multi-hmm d (and kinda j) 5' insertion:
-# /home/dralph/work/partis-dev/packages/ham/bcrham --algorithm viterbi --debug 2 --hmmdir _tmp/tmp-hmms --datadir /tmp/dralph/hmms/391731/germline-sets --infile /tmp/dralph/hmms/391731/hmm_input.csv --outfile /tmp/dralph/hmms/391731/hmm_output.csv --chain h --random-seed 1478107057 --ambig-base N
-
-# print_reco_event:
-#  - when printing cluster annotations on simulation, simulation should actually use the true partition, not split according(ish) to the inferred partition
-
-# d gene finding
-  # corey data
-  # andrew data/ideas
- 
