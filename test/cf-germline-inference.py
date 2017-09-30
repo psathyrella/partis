@@ -196,7 +196,7 @@ def get_dset_title(mfolist):
             continue
         if len(mfolist) == 1 or all_the_same(character, mfolist):
             return_strs.append('%s' % get_character_str(character, mfolist[0][character]))
-    return '  '.join(return_strs)
+    return ' '.join(return_strs)
 
 # ----------------------------------------------------------------------------------------
 def get_dset_legends(mfolist):
@@ -209,7 +209,7 @@ def get_dset_legends(mfolist):
                 continue
             if not all_the_same(character, mfolist):
                 return_strs.append('%s' % get_character_str(character, mfo[character]))
-        legends.append('  '.join(return_strs))
+        legends.append(' '.join(return_strs))
     return legends
 
 # ----------------------------------------------------------------------------------------
@@ -437,7 +437,7 @@ default_varvals = {
     'data' : {
         # 'jason-mg' : ['AR02-igh', 'AR03-igh', 'AR04-igh', 'AR05-igh', 'HD07-igh', 'HD09-igh', 'HD10-igh', 'HD13-igh', 'MK02-igh', 'MK03-igh', 'MK04-igh', 'MK05-igh', 'MK08-igh'],
         # 'jason-mg' : ['HD07-igk', 'HD07-igl', 'AR03-igk', 'AR03-igl'],
-        # 'sheng-gssp' : ['lp23810-m-pool',  'lp23810-g-pool'], #, 'lp08248-m-pool', 'lp08248-g-pool'],
+        # 'sheng-gssp' : ['lp23810-m-pool',  'lp23810-g-pool', 'lp08248-m-pool', 'lp08248-g-pool'],
         # 'three-finger' : ['3ftx-1-igh'], #, 'pla2-1-igh'],
         # 'kate-qrs' : ['1g', '4g', '1k', '1l', '4k', '4l'],
         # 'laura-mb-2' : ['BF520-m-W1', 'BF520-m-M9', 'BF520-g-W1', 'BF520-g-M9'], #, 'BF520-k-W1', 'BF520-l-W1', 'BF520-k-M9', 'BF520-l-M9']

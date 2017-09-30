@@ -270,6 +270,8 @@ def set_node_style(node, status, n_gl_sets, used_colors, ref_label=None):
         elif n_gl_sets > 2:
             rectnames = [n for n in names if n in used_faces]
             node.add_face(ete3.StackedBarFace(percents=[100./len(names) for _ in range(len(rectnames))], width=5 * len(rectnames), height=args.leafheight, colors=[used_faces[rn] for rn in rectnames], line_color=None), column=0, position='aligned')
+        else:  # every leaf has to have a face, so that every leaf takes up the same vertical space
+            node.add_face(ete3.RectFace(width=1, height=args.leafheight, bgcolor=None, fgcolor=None), column=0, position='aligned')
 
 # ----------------------------------------------------------------------------------------
 def get_entirety_of_gene_family(root, family):
