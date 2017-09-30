@@ -176,7 +176,7 @@ def get_dset_legends(mfolist):
     return legends
 
 # ----------------------------------------------------------------------------------------
-def make_gls_tree_plot(args, plotdir, plotname, glsfnames, glslabels, locus, ref_label=None, leaf_names=False, title=None, title_color=None, legends=None):
+def make_gls_tree_plot(args, plotdir, plotname, glsfnames, glslabels, locus, ref_label=None, leaf_names=False, title=None, title_color=None, legends=None, pie_chart_faces=False):
     # ete3 requires its own python version, so we run as a subprocess
     cmdstr = 'export PATH=%s:$PATH && xvfb-run -a ./bin/plot-gl-set-trees.py' % args.ete_path
     cmdstr += ' --plotdir ' + plotdir
@@ -191,6 +191,8 @@ def make_gls_tree_plot(args, plotdir, plotname, glsfnames, glslabels, locus, ref
         cmdstr += ' --title-color %s' % title_color
     if legends is not None:
         cmdstr += ' --legends=' + ':'.join('"%s"' % l for l in legends)
+    if pie_chart_faces:
+        cmdstr += ' --pie-chart-faces'
     if leaf_names:
         cmdstr += ' --leaf-names'
     cmdstr += ' --locus ' + locus
@@ -222,12 +224,14 @@ def get_data_plots(args, baseoutdir, methods, study, dsets):
         title = methstr(methods[0]) + '  ' + get_dset_title([metafos[ds] for ds in dsets])
         title_color = methods[0]
         legends = get_dset_legends([metafos[ds] for ds in dsets])
+        pie_chart_faces = False
         print '%s:' % utils.color('green', methods[0]),
     elif len(methods) > 1 and len(dsets) == 1:  # comparing several methods on one data set
         glslabels = methods
         title = get_dset_title([mfo])
         title_color = None
         legends = [methstr(m) for m in methods]
+        pie_chart_faces = True
         print '%s:' % utils.color('green', dsets[0]),
     else:
         raise Exception('one of \'em has to be length 1: %d %d' % (len(methods), len(dsets)))
@@ -244,7 +248,8 @@ def get_data_plots(args, baseoutdir, methods, study, dsets):
                        locus=mfo['locus'],
                        title=title,
                        title_color=title_color,
-                       legends=legends)
+                       legends=legends,
+                       pie_chart_faces=pie_chart_faces)
 
 # ----------------------------------------------------------------------------------------
 def plot_single_test(args, baseoutdir, method):
@@ -429,9 +434,9 @@ default_varvals = {
     'data' : {
         # 'jason-mg' : ['AR02-igh', 'AR03-igh', 'AR04-igh', 'AR05-igh', 'HD07-igh', 'HD09-igh', 'HD10-igh', 'HD13-igh', 'MK02-igh', 'MK03-igh', 'MK04-igh', 'MK05-igh', 'MK08-igh'],
         # 'jason-mg' : ['HD07-igk', 'HD07-igl', 'AR03-igk', 'AR03-igl'],
-        # 'sheng-gssp' : ['lp23810-m-pool',  'lp23810-g-pool', 'lp08248-m-pool', 'lp08248-g-pool'],
+        'sheng-gssp' : ['lp23810-m-pool',  'lp23810-g-pool', 'lp08248-m-pool', 'lp08248-g-pool'],
         # 'three-finger' : ['3ftx-1-igh'], #, 'pla2-1-igh'],
-        'kate-qrs' : ['1g', '4g', '1k', '1l', '4k', '4l'],
+        # 'kate-qrs' : ['1g', '4g', '1k', '1l', '4k', '4l'],
         # 'laura-mb-2' : ['BF520-m-W1', 'BF520-m-M9', 'BF520-g-W1', 'BF520-g-M9'], #, 'BF520-k-W1', 'BF520-l-W1', 'BF520-k-M9', 'BF520-l-M9']
         # 'jason-influenza' : ['FV-igh-m1h'],
         # 'jason-influenza' : ['FV-igh-m2d', 'FV-igh-p28d'],
