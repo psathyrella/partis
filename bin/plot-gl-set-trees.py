@@ -44,7 +44,6 @@ scolors = {
     'missing' : '#d77c7c',
     'spurious' : '#a44949',
     'data' : 'LightSteelBlue',
-    'all' : getgrey('light'),
     'pale-green' : '#85ad98',
     'pale-blue' : '#94a3d1',
     'tigger-default' : '#d77c7c', #'#c32222',  # red
@@ -53,6 +52,7 @@ scolors = {
 }
 
 listcolors = [
+    getgrey('medium'),
     getgrey('medium'),
     getgrey('medium'),
     # hopefully only really using the first two a.t.m.
@@ -67,6 +67,7 @@ listcolors = [
 listfaces = [
     'red',
     'blue',
+    'green',
 ]
 used_faces = {}
 
@@ -81,24 +82,24 @@ def set_colors(gl_sets, ref_label=None, mix_primary_colors=False):
         scolors[names[0]] = scolors['data']
         return
 
+    assert len(names) in [2, 3]
+
+    if len(names) == 2:
+        scolors['all'] = getgrey('light')
+    else:
+        scolors['all'] = getgrey('white')
+
     for name in names:
         if name not in scolors:
             scolors[name] = listcolors[names.index(name) % len(listcolors)]
             facestr = listfaces[names.index(name) % len(listfaces)]
             used_faces[name] = facestr
     for name1, name2 in itertools.combinations(names, 2):
-        if len(names) == 3:
-            pair_color = getgrey('medium')
+        if len(gl_sets) == 2:
+            shade = 'white'
         else:
-            pair_color = getgrey('light')
-        # if name1 in methodnames or name2 in methodnames:
-        #     if len(names) == 3:
-        #         pair_color = getgrey('medium')
-        #     else:
-        #         pair_color = getgrey('light')
-        # else:
-        #     pair_color = getgrey('white')
-        scolors[pairkey(name1, name2)] = pair_color
+            shade = 'medium' if len(names) == 2 else 'light-medium'
+        scolors[pairkey(name1, name2)] = getgrey(shade)
 
 # ----------------------------------------------------------------------------------------
 def get_cmdfos(cmdstr, workdir, outfname):
@@ -269,12 +270,16 @@ def set_node_style(node, status, n_gl_sets, used_colors, ref_label=None):
     # node.img_style['vt_line_width'] = linewidth
 
     names = status.split('-&-')
-    if node.is_leaf() and len(names) > 0 and args.pie_chart_faces:
-        pcf = ete3.PieChartFace(percents=[100./len(names) for _ in range(len(names))], width=20, height=20, colors=[scolors[n] for n in names], line_color=None)
-        # pcf = ete3.StackedBarFace(percents=[100./len(names) for _ in range(len(names))], width=30, height=50, colors=[scolors[n] for n in names], line_color=None)
-        node.add_face(pcf, column=0, position='aligned')
-    if len(names) == 1 and status in used_faces:
-        node.add_face(ete3.RectFace(width=5, height=20, bgcolor=used_faces[status], fgcolor=None), column=0, position='aligned')
+    if node.is_leaf():
+        if args.pie_chart_faces and len(names) > 1:
+            pcf = ete3.PieChartFace(percents=[100./len(names) for _ in range(len(names))], width=20, height=20, colors=[scolors[n] for n in names], line_color=None)
+            # pcf = ete3.StackedBarFace(percents=[100./len(names) for _ in range(len(names))], width=30, height=50, colors=[scolors[n] for n in names], line_color=None)
+            node.add_face(pcf, column=0, position='aligned')
+        elif len(names) == 1 and names[0] in used_faces:
+            node.add_face(ete3.RectFace(width=5, height=20, bgcolor=used_faces[names[0]], fgcolor=None), column=0, position='aligned')
+        elif n_gl_sets > 2:
+            rectnames = [n for n in names if n in used_faces]
+            node.add_face(ete3.StackedBarFace(percents=[100./len(names) for _ in range(len(rectnames))], width=5 * len(rectnames), height=20, colors=[used_faces[rn] for rn in rectnames], line_color=None), column=0, position='aligned')
 
 # ----------------------------------------------------------------------------------------
 def get_entirety_of_gene_family(root, family):
@@ -324,11 +329,8 @@ def set_distance_to_zero(node, debug=False):
 # ----------------------------------------------------------------------------------------
 def write_legend(used_colors, plotdir):
     def get_leg_name(status):
-        if args.legends is not None:
-            if status in args.glslabels:
-                return args.legends[args.glslabels.index(status)]
-            else:
-                raise Exception('couldn\'t find status \'%s\' in --glslabels (%s), so couldn\'t decide which index to choose in --legends to choose' % (status, ' '.join(args.glslabels)))
+        if args.legends is not None and status in args.glslabels:
+            return args.legends[args.glslabels.index(status)]
         else:
             return status
     def add_stuff(status, leg_name, color):
