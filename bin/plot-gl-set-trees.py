@@ -55,7 +55,7 @@ listfaces = [
     'blue',
     'green',
 ]
-used_faces = {}
+used_colors, used_faces = {}, {}
 simu_colors = OrderedDict((
     ('ok', 'DarkSeaGreen'),
     ('missing', '#d77c7c'),
@@ -86,6 +86,7 @@ def set_colors(gl_sets, ref_label=None, mix_primary_colors=False):
         if name not in scolors:
             scolors[name] = listcolors[names.index(name) % len(listcolors)]
             facestr = listfaces[names.index(name) % len(listfaces)]
+            used_colors[name] = scolors[name]
             used_faces[name] = facestr
     for name1, name2 in itertools.combinations(names, 2):
         if len(gl_sets) == 2:
@@ -247,7 +248,7 @@ def get_gene_sets(glsfnames, glslabels, ref_label=None, classification_fcn=None,
     return all_genes, gl_sets, gcats
 
 # ----------------------------------------------------------------------------------------
-def set_node_style(node, status, n_gl_sets, used_colors, ref_label=None):
+def set_node_style(node, status, n_gl_sets, ref_label=None):
     if status != 'internal':
         if status not in scolors:
             raise Exception('status \'%s\' not in scolors' % status)
@@ -315,7 +316,7 @@ def set_distance_to_zero(node, debug=False):
     return descendents == entirety_of_gene_family
 
 # ----------------------------------------------------------------------------------------
-def write_legend(used_colors, plotdir):
+def write_legend(plotdir):
     def get_leg_name(status):
         if args.legends is not None and status in args.glslabels:
             return args.legends[args.glslabels.index(status)]
@@ -357,6 +358,9 @@ def write_legend(used_colors, plotdir):
     etree = ete3.ClusterTree()
     tstyle = ete3.TreeStyle()
     tstyle.show_scale = False
+    if args.legend_title is not None:
+        tstyle.title.add_face(ete3.TextFace('', fsize=1.5*args.leafheight), column=0)  # keeps the first legend entry from getting added on this line
+        tstyle.title.add_face(ete3.TextFace(args.legend_title, fsize=1.5*args.leafheight, fgcolor='black', bold=True), column=1)
     for leg_name, color in legfo.items():
         size_factor = 2.
         if leg_name in facefo:
@@ -371,13 +375,12 @@ def write_legend(used_colors, plotdir):
 def draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, gene_categories, ref_label=None, arc_start=None, arc_span=None):
     etree = ete3.ClusterTree(treestr)
     node_names = set()  # make sure we get out all the genes we put in
-    used_colors = {}
     for node in etree.traverse():
         if set_distance_to_zero(node):
             node.dist = 0. if ref_label is not None else 1e-9  # data crashes sometimes with float division by zero if you set it to 0., but simulation sometimes gets screwed up for some other reason (that I don't understand) if it's 1e-9
         # node.dist = 1.
         status = getstatus(gene_categories, node, ref_label=ref_label)
-        set_node_style(node, status, len(gl_sets), used_colors, ref_label=ref_label)
+        set_node_style(node, status, len(gl_sets), ref_label=ref_label)
         if node.is_leaf():
             node_names.add(node.name)
     if len(set(all_genes) - node_names) > 0:
@@ -398,7 +401,7 @@ def draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, gene_categories, r
     # if arc_span is not None:
     #     tstyle.arc_span = arc_span
 
-    write_legend(used_colors, plotdir)
+    write_legend(plotdir)
     if args.title is not None:
         fsize = 13
         tstyle.title.add_face(ete3.TextFace(args.title, fsize=fsize, bold=True), column=0)
@@ -431,6 +434,7 @@ parser.add_argument('--glsfnames', required=True)
 parser.add_argument('--glslabels', required=True)
 parser.add_argument('--locus', required=True)
 parser.add_argument('--legends')
+parser.add_argument('--legend-title')
 parser.add_argument('--leaf-names', action='store_true')
 parser.add_argument('--pie-chart-faces', action='store_true')
 parser.add_argument('--use-cache', action='store_true', help='just print results and remake the plots, without remaking the tree (which is the slow part)')

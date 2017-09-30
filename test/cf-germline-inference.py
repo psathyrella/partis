@@ -36,6 +36,13 @@ def methstr(meth):
         return 'full IMGT'
     else:
         return meth
+def diffstr(difficulty):
+    if difficulty == 'easy':
+        return 'simple'
+    elif difficulty == 'hard':
+        return 'complex'
+    else:
+        assert False
 
 # ----------------------------------------------------------------------------------------
 def varvalstr(name, val):
@@ -126,7 +133,7 @@ def get_gls_fname(outdir, method, locus, sim_truth=False, data=False):  # NOTE d
     return glutils.get_fname(outdir, locus, region)
 
 # ----------------------------------------------------------------------------------------
-def make_gls_tree_plot(args, plotdir, plotname, glsfnames, glslabels, locus, ref_label=None, leaf_names=False, title=None, title_color=None, legends=None, pie_chart_faces=False):
+def make_gls_tree_plot(args, plotdir, plotname, glsfnames, glslabels, locus, ref_label=None, leaf_names=False, title=None, title_color=None, legends=None, legend_title=None, pie_chart_faces=False):
     # ete3 requires its own python version, so we run as a subprocess
     cmdstr = 'export PATH=%s:$PATH && xvfb-run -a ./bin/plot-gl-set-trees.py' % args.ete_path
     cmdstr += ' --plotdir ' + plotdir
@@ -141,6 +148,8 @@ def make_gls_tree_plot(args, plotdir, plotname, glsfnames, glslabels, locus, ref
         cmdstr += ' --title-color %s' % title_color
     if legends is not None:
         cmdstr += ' --legends=' + ':'.join('"%s"' % l for l in legends)
+    if legend_title is not None:
+        cmdstr += ' --legend-title="%s"' % legend_title
     if pie_chart_faces:
         cmdstr += ' --pie-chart-faces'
     if leaf_names:
@@ -162,7 +171,7 @@ def get_gls_gen_plots(args, baseoutdir, method):
         make_gls_tree_plot(args, outdir + '/' + method + '/gls-gen-plots', varvalstr(varname, varval),
                            glsfnames=[simfname, inffname],
                            glslabels=['sim', 'inf'],
-                           locus=sim_locus, ref_label='sim', title=methstr(method))  #, title_color=method)
+                           locus=sim_locus, ref_label='sim', legend_title=methstr(method), title=diffstr(args.gls_gen_difficulty))  #, title_color=method)
 
 # ----------------------------------------------------------------------------------------
 def get_character_str(character, charval):
@@ -226,9 +235,10 @@ def get_data_plots(args, baseoutdir, methods, study, dsets):
     outdir = get_outdir(args, baseoutdir, varname='data', varval=study + '/' + '-vs-'.join(dsets))  # for data, only the plots go here, since datascripts puts its output somewhere else
     if len(dsets) > 1 and len(methods) == 1:  # one method across several data sets
         glslabels = dsets
-        title = methstr(methods[0]) + '  ' + get_dset_title([metafos[ds] for ds in dsets])
+        title = get_dset_title([metafos[ds] for ds in dsets])
         title_color = methods[0]
         legends = get_dset_legends([metafos[ds] for ds in dsets])
+        legend_title = methods[0]
         pie_chart_faces = False
         print '%s:' % utils.color('green', methods[0]),
     elif len(methods) > 1 and len(dsets) == 1:  # several methods on one data set
@@ -236,6 +246,7 @@ def get_data_plots(args, baseoutdir, methods, study, dsets):
         title = get_dset_title([mfo])
         title_color = None
         legends = [methstr(m) for m in methods]
+        legend_title = None
         pie_chart_faces = True
         print '%s:' % utils.color('green', dsets[0]),
     else:
@@ -248,6 +259,7 @@ def get_data_plots(args, baseoutdir, methods, study, dsets):
                        title=title,
                        title_color=title_color,
                        legends=legends,
+                       legend_title=legend_title,
                        pie_chart_faces=pie_chart_faces)
 
 # ----------------------------------------------------------------------------------------
@@ -442,7 +454,7 @@ default_varvals = {
         # 'kate-qrs' : ['1g', '4g', '1k', '1l', '4k', '4l'],
         # 'laura-mb-2' : ['BF520-m-W1', 'BF520-m-M9', 'BF520-g-W1', 'BF520-g-M9'], #, 'BF520-k-W1', 'BF520-l-W1', 'BF520-k-M9', 'BF520-l-M9']
         # 'jason-influenza' : ['FV-igh-m1h'],
-        # 'jason-influenza' : ['FV-igh-m2d', 'FV-igh-p28d'],
+        # 'jason-influenza' : ['GMC-igh-m8d', 'GMC-igh-m1h', 'GMC-igh-p28d'],
         # 'jason-influenza' : ['FV-igh-m2d', 'FV-igh-m1h', 'FV-igh-p1h', 'FV-igh-p1d', 'FV-igh-p3d', 'FV-igh-p7d', 'FV-igh-p14d', 'FV-igh-p21d', 'FV-igh-p28d', 'GMC-igh-m8d', 'GMC-igh-m2d', 'GMC-igh-m1h', 'GMC-igh-p1h', 'GMC-igh-p1d', 'GMC-igh-p3d', 'GMC-igh-p7d', 'GMC-igh-p14d', 'GMC-igh-p21d', 'GMC-igh-p28d', 'IB-igh-m8d', 'IB-igh-m2d', 'IB-igh-m1h', 'IB-igh-p1h', 'IB-igh-p1d', 'IB-igh-p3d', 'IB-igh-p7d', 'IB-igh-p14d', 'IB-igh-p21d', 'IB-igh-p28d'],
         # 'jason-influenza' : ['FV-igh', 'GMC-igh', 'IB-igh'],  # merged
     }
