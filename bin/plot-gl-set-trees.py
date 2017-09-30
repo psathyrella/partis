@@ -21,46 +21,6 @@ import heads
 
 # custom interactive faces: http://etetoolkit.org/docs/latest/tutorial/tutorial_drawing.html#id34
 
-methodnames = ['tigger-default', 'partis', 'igdiscover']
-
-# ----------------------------------------------------------------------------------------
-def methstr(meth):
-    return 'tigger' if meth == 'tigger-default' else meth
-
-# ----------------------------------------------------------------------------------------
-def tpstr(timepoint):
-    if timepoint[0] == 'W':
-        return 'week %d' % int(timepoint[1:])
-    elif timepoint[0] == 'M':
-        return 'month %d' % int(timepoint[1:])
-    elif 'dpi' in timepoint:
-        return timepoint.replace('dpi', ' dpi')
-    elif timepoint[0] in ['p', 'm'] and timepoint[-1] in ['h', 'd']:
-        plusminusstr = timepoint[0].replace('p', '+').replace('m', '-')
-        number = int(timepoint[1:-1])
-        unitstr = timepoint[-1].replace('h', 'hour').replace('d', 'day')
-        return '%s%d %s%s' % (plusminusstr, number, unitstr, utils.plural(number))
-    else:
-        raise Exception('not sure what to do with %s' % timepoint)
-
-# ----------------------------------------------------------------------------------------
-def get_title(nstr, other_nstr=None):
-    if nstr in methodnames:
-        return_str = methstr(nstr)
-    elif args.metafo is not None and nstr in args.metafo:
-        return_str = args.metafo[nstr]['subject']
-        extras = []
-        if args.metafo[nstr]['isotype'] != '':
-            extras.append('Ig%s' % args.metafo[nstr]['isotype'].upper())
-        if args.metafo[nstr]['timepoint'] != '':
-            extras.append('%s' %tpstr(args.metafo[nstr]['timepoint']))
-        if len(extras) > 0:
-            return_str += '  (%s)' % '  '.join(extras)
-    else:
-        return_str = nstr
-
-    return return_str
-
 # ----------------------------------------------------------------------------------------
 def getgrey(gtype='medium'):
     if gtype == 'medium':
@@ -308,14 +268,12 @@ def set_node_style(node, status, n_gl_sets, used_colors, ref_label=None):
     # node.img_style['hz_line_width'] = linewidth
     # node.img_style['vt_line_width'] = linewidth
 
-    stlist = status.split('-&-')
-    if len(stlist) > 0:
-        if len(set(stlist) & set(methodnames)) == len(stlist):  # method vs method
-            names = status.split('-&-')
-            pcf = ete3.PieChartFace(percents=[100./len(names) for _ in range(len(names))], width=20, height=20, colors=[scolors[n] for n in names], line_color=None)
-            # pcf = ete3.StackedBarFace(percents=[100./len(names) for _ in range(len(names))], width=30, height=50, colors=[scolors[n] for n in names], line_color=None)
-            node.add_face(pcf, column=0, position='aligned')
-    if len(stlist) == 1 and status in used_faces:
+    names = status.split('-&-')
+    if node.is_leaf() and len(names) > 0 and args.pie_chart_faces:
+        pcf = ete3.PieChartFace(percents=[100./len(names) for _ in range(len(names))], width=20, height=20, colors=[scolors[n] for n in names], line_color=None)
+        # pcf = ete3.StackedBarFace(percents=[100./len(names) for _ in range(len(names))], width=30, height=50, colors=[scolors[n] for n in names], line_color=None)
+        node.add_face(pcf, column=0, position='aligned')
+    if len(names) == 1 and status in used_faces:
         node.add_face(ete3.RectFace(width=5, height=20, bgcolor=used_faces[status], fgcolor=None), column=0, position='aligned')
 
 # ----------------------------------------------------------------------------------------
@@ -375,15 +333,15 @@ def write_legend(used_colors, plotdir):
     for status, color in used_colors.items():
         if '-&-' in status:
             for substatus in status.split('-&-'):  # arg, have to handle cases where the single one isn't in there
-                if get_title(substatus) not in legfo:
-                    add_stuff(substatus, get_title(substatus), scolors[substatus])
+                if substatus not in legfo:
+                    add_stuff(substatus, substatus, scolors[substatus])
             if not added_two_method_color:
                 leg_name = 'both'
                 added_two_method_color = True
             else:
                 continue
         else:
-            leg_name = get_title(status)
+            leg_name = status
 
         add_stuff(status, leg_name, color)
 
@@ -437,16 +395,14 @@ def draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, gene_categories, r
     # if arc_span is not None:
     #     tstyle.arc_span = arc_span
 
-    # if args.legend:
-    #     add_legend(tstyle, used_colors)
-    write_legend(used_colors, plotdir)
+    write_legend(used_colors, plotdir, gl_sets.keys())
     if args.title is not None:
-        title = get_title(args.title)
         fsize = 13
-        tstyle.title.add_face(ete3.TextFace(title, fsize=fsize, bold=True), column=0)
-        if args.title in scolors:
+        tstyle.title.add_face(ete3.TextFace(args.title, fsize=fsize, bold=True), column=0)
+        if args.title_color is not None:
             # tstyle.title.add_face(ete3.CircleFace(fsize, scolors[args.title]), column=1)
-            tstyle.title.add_face(ete3.RectFace(width=3*fsize, height=fsize, bgcolor=scolors[args.title], fgcolor=None), column=1)
+            tcol = scolors[args.title_color] if args.title_color in scolors else args.title_color
+            tstyle.title.add_face(ete3.RectFace(width=3*fsize, height=fsize, bgcolor=tcol, fgcolor=None), column=1)
     suffix = '.svg'
     imagefname = plotdir + '/' + plotname + suffix
     print '      %s' % imagefname
@@ -471,24 +427,22 @@ parser.add_argument('--plotname', required=True)
 parser.add_argument('--glsfnames', required=True)
 parser.add_argument('--glslabels', required=True)
 parser.add_argument('--locus', required=True)
-parser.add_argument('--legend', action='store_true')
+parser.add_argument('--legends')
 parser.add_argument('--leaf-names', action='store_true')
+parser.add_argument('--pie-chart-faces', action='store_true')
 parser.add_argument('--use-cache', action='store_true', help='just print results and remake the plots, without remaking the tree (which is the slow part)')
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--title')
-parser.add_argument('--study')
+parser.add_argument('--title-color')
 parser.add_argument('--region', default='v')
 parser.add_argument('--muscle-path', default='./packages/muscle/muscle3.8.31_i86linux64')
 parser.add_argument('--raxml-path', default=glob.glob('./packages/standard-RAxML/raxmlHPC-*')[0])
 parser.add_argument('--ref-label')  # label corresponding to simulation
 
 args = parser.parse_args()
-args.metafo = None
-if args.study is not None:
-    args.metafo = heads.read_metadata(args.study)
-
 args.glsfnames = utils.get_arg_list(args.glsfnames)
 args.glslabels = utils.get_arg_list(args.glslabels)
+args.legends = utils.get_arg_list(args.legends)
 if not os.path.exists(args.muscle_path):
     raise Exception('muscle path %s does not exist' % args.muscle_path)
 if not os.path.exists(args.raxml_path):
