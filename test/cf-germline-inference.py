@@ -291,11 +291,15 @@ def plot_tests(args, baseoutdir, method, method_vs_method=False):
             for study, dset in dsetfos:
                 get_data_plots(args, baseoutdir, args.methods, study, [dset])
         else:
-            data_pairs = [(study, ds_1, ds_2) for study in all_data_pairs for ds_1, ds_2 in all_data_pairs[study] if [study, ds_1] in dsetfos and [study, ds_2] in dsetfos]
-            for study, ds_1, ds_2 in data_pairs:
-                get_data_plots(args, baseoutdir, [method], study, [ds_1, ds_2])
-                dsetfos.remove([study, ds_1])
-                dsetfos.remove([study, ds_2])
+            sample_groups = []
+            for study in all_data_groups:
+                for samples in all_data_groups[study]:
+                    if len([s for s in samples if [study, s] in dsetfos]) == len(samples):  # if they're all in <dsetfos>
+                        sample_groups.append((study, samples))
+            for study, samples in sample_groups:
+                get_data_plots(args, baseoutdir, [method], study, samples)
+                for sample in samples:
+                    dsetfos.remove([study, sample])
             for study, dset in dsetfos:
                 print 'hmmmm %s (probably need to set --method-vs-method' % dset  # crashes below since both method and dset lists are of length one
                 # get_data_plots(args, baseoutdir, [method], study, [dset])
@@ -433,7 +437,7 @@ default_varvals = {
     'data' : {
         # 'jason-mg' : ['AR02-igh', 'AR03-igh', 'AR04-igh', 'AR05-igh', 'HD07-igh', 'HD09-igh', 'HD10-igh', 'HD13-igh', 'MK02-igh', 'MK03-igh', 'MK04-igh', 'MK05-igh', 'MK08-igh'],
         # 'jason-mg' : ['HD07-igk', 'HD07-igl', 'AR03-igk', 'AR03-igl'],
-        'sheng-gssp' : ['lp23810-m-pool',  'lp23810-g-pool'], #, 'lp08248-m-pool', 'lp08248-g-pool'],
+        # 'sheng-gssp' : ['lp23810-m-pool',  'lp23810-g-pool'], #, 'lp08248-m-pool', 'lp08248-g-pool'],
         # 'three-finger' : ['3ftx-1-igh'], #, 'pla2-1-igh'],
         # 'kate-qrs' : ['1g', '4g', '1k', '1l', '4k', '4l'],
         # 'laura-mb-2' : ['BF520-m-W1', 'BF520-m-M9', 'BF520-g-W1', 'BF520-g-M9'], #, 'BF520-k-W1', 'BF520-l-W1', 'BF520-k-M9', 'BF520-l-M9']
@@ -443,7 +447,7 @@ default_varvals = {
         # 'jason-influenza' : ['FV-igh', 'GMC-igh', 'IB-igh'],  # merged
     }
 }
-all_data_pairs = {
+all_data_groups = {
     'kate-qrs' : [
         ['1g', '4g'],
         ['1k', '4k'],
@@ -460,27 +464,23 @@ all_data_pairs = {
         ['lp08248-m-pool', 'lp08248-g-pool'],
     ],
     'jason-influenza' : [
-        ['FV-igh-m2d', 'FV-igh-p28d'],
-        ['FV-igh-m1h', 'FV-igh-p21d'],
-        ['FV-igh-p1h', 'FV-igh-p14d'],
-        ['FV-igh-p1d', 'FV-igh-p7d'],
-        # ['FV-igh-p3d', '],  # not sure what to do with the odd one out
-        ['GMC-igh-m8d', 'GMC-igh-p28d'],
-        ['GMC-igh-m2d', 'GMC-igh-p21d'],
-        ['GMC-igh-m1h', 'GMC-igh-p14d'],
-        ['GMC-igh-p1h', 'GMC-igh-p7d'],
-        ['GMC-igh-p1d', 'GMC-igh-p3d'],
-        ['IB-igh-m8d', 'IB-igh-p28d'],
-        ['IB-igh-m2d', 'IB-igh-p21d'],
-        ['IB-igh-m1h', 'IB-igh-p14d'],
-        ['IB-igh-p1h', 'IB-igh-p7d'],
-        ['IB-igh-p1d', 'IB-igh-p3d'],
+        ['FV-igh-m2d', 'FV-igh-p1d', 'FV-igh-p28d'],
+        ['FV-igh-m1h', 'FV-igh-p3d', 'FV-igh-p21d'],
+        ['FV-igh-p1h', 'FV-igh-p7d', 'FV-igh-p14d'],
+        ['GMC-igh-m8d', 'GMC-igh-m1h', 'GMC-igh-p28d'],
+        ['GMC-igh-m2d', 'GMC-igh-p14d', 'GMC-igh-p21d'],
+        ['GMC-igh-p1h', 'GMC-igh-p3d', 'GMC-igh-p7d'],
+        # ['GMC-igh-p1d', ],  # odd one out
+        ['IB-igh-m8d', 'IB-igh-m1h', 'IB-igh-p28d'],
+        ['IB-igh-m2d', 'IB-igh-p14d', 'IB-igh-p21d'],
+        ['IB-igh-p1h', 'IB-igh-p3d', 'IB-igh-p7d'],
+        # ['IB-igh-p1d', ],  # odd one out
     ],
 }
 default_varvals['data'] = ':'.join([study + '/' + heads.full_dataset(heads.read_metadata(study), dset) for study in default_varvals['data'] for dset in default_varvals['data'][study]])
-for study in all_data_pairs:
-    for idp in range(len(all_data_pairs[study])):
-        all_data_pairs[study][idp] = [heads.full_dataset(heads.read_metadata(study), ds) for ds in all_data_pairs[study][idp]]
+for study in all_data_groups:
+    for idp in range(len(all_data_groups[study])):
+        all_data_groups[study][idp] = [heads.full_dataset(heads.read_metadata(study), ds) for ds in all_data_groups[study][idp]]
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
 parser.add_argument('action', choices=['mfreq', 'nsnp', 'multi-nsnp', 'prevalence', 'n-leaves', 'weibull', 'alcluster', 'gls-gen', 'data'])
