@@ -223,7 +223,7 @@ def get_dset_legends(mfolist):
                 continue
             if not all_the_same(character, mfolist):
                 return_strs.append('%s' % get_character_str(character, mfo[character]))
-        legends.append(' '.join(return_strs))
+        legends.append(' '.join(return_strs) + ' only')
     return legends
 
 # ----------------------------------------------------------------------------------------
@@ -238,14 +238,14 @@ def get_data_plots(args, baseoutdir, methods, study, dsets):
         title = get_dset_title([metafos[ds] for ds in dsets])
         title_color = methods[0]
         legends = get_dset_legends([metafos[ds] for ds in dsets])
-        legend_title = methods[0]
+        legend_title = methstr(methods[0])
         pie_chart_faces = False
         print '%s:' % utils.color('green', methods[0]),
     elif len(methods) > 1 and len(dsets) == 1:  # several methods on one data set
         glslabels = methods
         title = get_dset_title([mfo])
         title_color = None
-        legends = [methstr(m) for m in methods]
+        legends = [methstr(m) + ' only' for m in methods]
         legend_title = None
         pie_chart_faces = True
         print '%s:' % utils.color('green', dsets[0]),
@@ -517,7 +517,7 @@ parser.add_argument('--label', default='xxx')
 parser.add_argument('--ete-path', default='/home/' + os.getenv('USER') + '/anaconda_ete/bin')
 args = parser.parse_args()
 
-args.methods = utils.get_arg_list(args.methods)
+args.methods = sorted(utils.get_arg_list(args.methods))
 args.v_genes = utils.get_arg_list(args.v_genes)
 args.n_event_list = utils.get_arg_list(args.n_event_list, intify=True)
 

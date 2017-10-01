@@ -319,9 +319,24 @@ def set_distance_to_zero(node, debug=False):
 def write_legend(plotdir):
     def get_leg_name(status):
         if args.legends is not None and status in args.glslabels:
-            return args.legends[args.glslabels.index(status)]
+            lname = args.legends[args.glslabels.index(status)]
+        elif status == 'both':
+            if len(args.glsfnames) == 2:
+                lname = 'both'
+            elif len(args.glsfnames) == 3:
+                lname = 'two'
+            else:
+                raise Exception('wtf %d' % len(args.glsfnames))
+        elif status == 'all':
+            if len(args.glsfnames) == 2:
+                lname = 'both'
+            elif len(args.glsfnames) == 3:
+                lname = 'all three'
+            else:
+                raise Exception('wtf %d' % len(args.glsfnames))
         else:
-            return status
+            lname = status
+        return lname
     def add_stuff(status, leg_name, color):
         legfo[leg_name] = color
         if status in used_faces:
@@ -339,7 +354,7 @@ def write_legend(plotdir):
                     if get_leg_name(substatus) not in legfo:
                         add_stuff(substatus, get_leg_name(substatus), scolors[substatus])
                 if not added_two_method_color:
-                    leg_name = 'both'
+                    leg_name = get_leg_name('both')
                     added_two_method_color = True
                 else:
                     continue
@@ -348,12 +363,12 @@ def write_legend(plotdir):
 
             add_stuff(status, leg_name, color)
 
-    # reorder some of 'em
-    for leg_name in ['both', 'all']:
-        if leg_name in legfo:
-            tmpcolor = legfo[leg_name]
-            del legfo[leg_name]
-            legfo[leg_name] = tmpcolor
+    # reorder some of 'em (it's an ordered dict)
+    for status in ['both', 'all']:
+        if get_leg_name(status) in legfo:
+            tmpcolor = legfo[get_leg_name(status)]
+            del legfo[get_leg_name(status)]
+            legfo[get_leg_name(status)] = tmpcolor
 
     etree = ete3.ClusterTree()
     tstyle = ete3.TreeStyle()
