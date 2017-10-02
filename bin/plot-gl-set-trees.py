@@ -257,7 +257,7 @@ def set_node_style(node, status, n_gl_sets, ref_label=None):
             used_colors[status] = scolors[status]
 
         if glutils.is_novel(node.name):
-            node.add_face(ete3.CircleFace(2.5, scolors['novel']), column=1) #, position='float') # if args.leaf_names else 'branch')
+            node.add_face(ete3.CircleFace(args.novel_dot_size, scolors['novel']), column=1) #, position='float') # if args.leaf_names else 'branch')
 
     # linewidth = 2
     # node.img_style['hz_line_width'] = linewidth
@@ -370,12 +370,18 @@ def write_legend(plotdir):
             del legfo[get_leg_name(status)]
             legfo[get_leg_name(status)] = tmpcolor
 
-    etree = ete3.ClusterTree()
+    etree = ete3.ClusterTree() #'(a);')
     tstyle = ete3.TreeStyle()
     tstyle.show_scale = False
+    # tstyle.show_leaf_name = False
+    # for node in etree.traverse():
+    #     print node.name
+    #     node.add_face(ete3.CircleFace(args.novel_dot_size, scolors['novel']), column=1) #, position='float') # if args.leaf_names else 'branch')
+
     if args.legend_title is not None:
         tstyle.title.add_face(ete3.TextFace('', fsize=1.5*args.leafheight), column=0)  # keeps the first legend entry from getting added on this line
         tstyle.title.add_face(ete3.TextFace(args.legend_title, fsize=1.5*args.leafheight, fgcolor='black', bold=True), column=1)
+
     for leg_name, color in legfo.items():
         size_factor = 2.
         if leg_name in facefo:
@@ -383,6 +389,9 @@ def write_legend(plotdir):
         else:
             tstyle.title.add_face(ete3.RectFace(size_factor*args.leafheight, size_factor*args.leafheight, fgcolor='black', bgcolor=color), column=0)  # looks like maybe they reversed fg/bg kwarg names
         tstyle.title.add_face(ete3.TextFace(' ' + leg_name, fsize=args.leafheight, fgcolor='black'), column=1)
+
+    tstyle.title.add_face(ete3.CircleFace(1.5*args.novel_dot_size, scolors['novel']), column=0)
+    tstyle.title.add_face(ete3.TextFace('novel allele', fsize=args.leafheight), column=1)  # keeps the first legend entry from getting added on this line
 
     etree.render(plotdir + '/legend.svg', tree_style=tstyle)
 
@@ -471,6 +480,7 @@ if not os.path.exists(args.raxml_path):
     raise Exception('raxml path %s does not exist' % args.raxml_path)
 
 args.leafheight = 20 if args.leaf_names else 10  # arg, kinda messy
+args.novel_dot_size = 2.5
 
 assert len(args.glslabels) == len(set(args.glslabels))  # no duplicates
 
