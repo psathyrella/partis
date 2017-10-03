@@ -166,7 +166,7 @@ def getstatus(gene_categories, node, ref_label=None, debug=False):
     return cats[0]
 
 # ----------------------------------------------------------------------------------------
-def print_results(gene_categories, ref_label=None):
+def print_results(gene_categories, gl_sets, ref_label=None):
     pwidth = str(max([len(n) for n in gene_categories]))
     for name, genes in gene_categories.items():
         if name not in scolors:
@@ -176,11 +176,15 @@ def print_results(gene_categories, ref_label=None):
         else:
             genestr = ' '.join([utils.color_gene(g) for g in genes])
         print ('    %-' + pwidth + 's') % name,
-        print '%20s' % scolors[name],
-        if len(genes) == 0:
-            print ' %s' % utils.color('blue', 'none')
+        # print '%20s' % scolors[name],
+        if name in gl_sets:
+            print '  total %2d' % len(gl_sets[name]),
         else:
-            print ' %2d    %s' % (len(genes), genestr)
+            print '          ',
+        if len(genes) == 0:
+            print '  only %s' % utils.color('blue', 'none')
+        else:
+            print '  only %2d    %s' % (len(genes), genestr)
 
 # ----------------------------------------------------------------------------------------
 def get_gene_sets(glsfnames, glslabels, ref_label=None, classification_fcn=None, debug=False):
@@ -442,7 +446,9 @@ def draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, gene_categories, r
 def plot_trees(args, plotdir, plotname, glsfnames, glslabels):
     all_genes, gl_sets, gene_categories = get_gene_sets(glsfnames, glslabels, ref_label=args.ref_label)
     set_colors(gl_sets, ref_label=args.ref_label)
-    print_results(gene_categories, ref_label=args.ref_label)
+    print_results(gene_categories, gl_sets, ref_label=args.ref_label)
+    if args.only_print:
+        return
 
     treefname = make_tree(all_genes, plotdir + '/workdir', use_cache=args.use_cache)
     with open(treefname) as treefile:
@@ -461,7 +467,8 @@ parser.add_argument('--legends')
 parser.add_argument('--legend-title')
 parser.add_argument('--leaf-names', action='store_true')
 parser.add_argument('--pie-chart-faces', action='store_true')
-parser.add_argument('--use-cache', action='store_true', help='just print results and remake the plots, without remaking the tree (which is the slow part)')
+parser.add_argument('--use-cache', action='store_true', help='use existing raxml output (crashes if it isn\'t there)')
+parser.add_argument('--only-print', action='store_true', help='just print the summary, without making any plots')
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--title')
 parser.add_argument('--title-color')

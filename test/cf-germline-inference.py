@@ -157,6 +157,8 @@ def make_gls_tree_plot(args, plotdir, plotname, glsfnames, glslabels, locus, ref
     cmdstr += ' --locus ' + locus
     if args.plotcache:
         cmdstr += ' --use-cache'
+    if args.only_print:
+        cmdstr += ' --only-print'
     utils.simplerun(cmdstr, shell=True, debug=args.dry_run, dryrun=args.dry_run)
 
 # ----------------------------------------------------------------------------------------
@@ -527,6 +529,7 @@ parser.add_argument('--n-procs-per-test', type=int, default=5)
 parser.add_argument('--plot', action='store_true')
 parser.add_argument('--no-slurm', action='store_true')
 parser.add_argument('--plotcache', action='store_true')
+parser.add_argument('--only-print', action='store_true')
 parser.add_argument('--check', action='store_true')
 parser.add_argument('--dry-run', action='store_true')
 parser.add_argument('--label', default='xxx')
