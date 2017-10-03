@@ -178,7 +178,9 @@ def get_character_str(character, charval):
     if character == 'subject':
         return charval
     elif character == 'timepoint':
-        if charval[0] == 'W':
+        if charval == 'merged':
+            return 'merged'
+        elif charval[0] == 'W':
             return 'week %d' % int(charval[1:])
         elif charval[0] == 'M':
             return 'month %d' % int(charval[1:])
@@ -488,6 +490,20 @@ all_data_groups = {
         ['IB-igh-p1h', 'IB-igh-p3d', 'IB-igh-p7d'],
         # ['IB-igh-p1d', ],  # odd one out
     ],
+    # for comparing different individuals:
+    # 'jason-influenza' : [
+    #     ['FV-igh', 'GMC-igh'],
+    # ],
+    # 'jason-mg' : [
+    #     ['HD07-igh', 'HD09-igh'],
+    #     ['HD10-igh', 'HD13-igh'],
+    #     ['AR02-igh', 'AR03-igh'],
+    #     ['AR04-igh', 'AR05-igh'],
+    #     ['MK02-igh', 'MK03-igh'],
+    #     ['MK04-igh', 'MK05-igh'],
+    #     # , 'MK08-igh'],
+    # ],
+
 }
 default_varvals['data'] = ':'.join([study + '/' + heads.full_dataset(heads.read_metadata(study), dset) for study in default_varvals['data'] for dset in default_varvals['data'][study]])
 for study in all_data_groups:
