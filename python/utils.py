@@ -2993,7 +2993,7 @@ def run_vsearch(action, seqs, workdir, threshold, consensus_fname=None, msa_fnam
 
         glutils.remove_glfo_files(dbdir, glfo['locus'])
         if len(query_info) == 0:
-            raise Exception('didn\'t read anything from vsearch output file %s from cmd %s' % (outfname, cmd))
+            raise Exception('vsearch couldn\'t align anything to input sequences (maybe need to take reverse complement?)\n  %s' % (cmd))
 
         for query in query_info:
             if len(query_info[query]) == 0:
