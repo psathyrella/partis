@@ -739,9 +739,12 @@ def add_new_allele(glfo, newfo, remove_template_genes=False, use_template_for_co
     if len(set(newfo['seq']) - utils.alphabet) > 0:
         raise Exception('unexpected characters %s in new gl seq %s' % (set(newfo['seq']) - utils.alphabet, newfo['seq']))
     if newfo['gene'] in glfo['seqs'][region]:
-        raise Exception('attempted to add name %s that already exists in glfo' % newfo['gene'])
+        print '%s attempted to add name %s that already exists in glfo' % (utils.color('red', 'error'), utils.color_gene(newfo['gene']))
+        return
     if newfo['seq'] in glfo['seqs'][region].values():
-        raise Exception('attempted to add sequence that\'s already in glfo with name(s) %s\n  %s' % (' '.join([utils.color_gene(g) for g, seq in glfo['seqs'][region].items() if seq == newfo['seq']]), newfo['seq']))
+        names_with_this_seq = [utils.color_gene(g) for g, seq in glfo['seqs'][region].items() if seq == newfo['seq']]
+        print '%s attempted to add sequence that\'s already in glfo with name%s %s\n  %s' % (utils.color('red', 'error'), utils.plural(len(names_with_this_seq)), ' '.join(names_with_this_seq), newfo['seq'])
+        return
 
     glfo['seqs'][region][newfo['gene']] = newfo['seq']
 
