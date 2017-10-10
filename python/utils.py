@@ -2843,7 +2843,7 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, sanitize=Fa
                     continue
                 missing_queries.remove(uid)
 
-            seqfo = {name_key : uid, seq_key : seqline.upper()}
+            seqfo = {name_key : uid, seq_key : seqline.strip().upper()}
             if add_info:
                 seqfo['infostrs'] = infostrs
             finfo.append(seqfo)
