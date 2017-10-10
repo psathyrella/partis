@@ -186,7 +186,8 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, s
             raise Exception('found uid \'%s\' twice in input file %s' % (uid, infname))
 
         if len(inseq.translate(None, ''.join(utils.alphabet))) > 0:
-            raise Exception('unexpected character (not among %s) in input sequence with id %s:\n  %s' % (utils.nukes + utils.ambiguous_bases, uid, inseq))
+            unexpected_chars = set([ch for ch in inseq if ch not in utils.alphabet])
+            raise Exception('unexpected character%s %s (not among %s) in input sequence with id %s:\n  %s' % (utils.plural(len(unexpected_chars)), ', '.join([('\'%s\'' % ch) for ch in unexpected_chars]), utils.nukes + utils.ambiguous_bases, uid, inseq))
 
         # da business
         input_info[uid] = {'unique_ids' : [uid, ], 'seqs' : [inseq, ]}
