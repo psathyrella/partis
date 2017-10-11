@@ -668,7 +668,7 @@ def generate_single_new_allele(template_gene, template_cpos, template_seq, snp_p
 def restrict_to_genes(glfo, only_genes, debug=False):
     """
     Remove from <glfo> any genes which are not in <only_genes>.
-    Any regions which are not represented in in a non-None <only_genes> will be unrestricted (i.e. any gene from that region is fair game).
+    Any regions which are not represented in a non-None <only_genes> will be *un*restricted (i.e. any gene from that region is fair game).
     """
     if only_genes is None:
         return
@@ -681,9 +681,9 @@ def restrict_to_genes(glfo, only_genes, debug=False):
         print '  %s genes %s in <only_genes> aren\'t in glfo to begin with' % (utils.color('red', 'warning'), ' '.join(only_genes_not_in_glfo))
 
     genes_to_remove = set([g for r in restricted_regions for g in glfo['seqs'][r]]) - set(only_genes)
-    if debug:
-        print '    removing %d genes from glfo' % len(genes_to_remove)
     remove_genes(glfo, genes_to_remove)
+    if debug:
+        print '    removed %-2d genes from glfo (leaving %s)' % (len(genes_to_remove), '  '.join(['%s %-d' % (r, len(glfo['seqs'][r])) for r in utils.regions]))
 
 # ----------------------------------------------------------------------------------------
 def remove_v_genes_with_bad_cysteines(glfo, debug=False):

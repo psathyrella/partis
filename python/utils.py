@@ -1250,11 +1250,11 @@ def separate_into_allelic_groups(glfo, debug=False):
                 allelic_groups[region][primary_version][sub_version] = set()
             allelic_groups[region][primary_version][sub_version].add(gene)
     if debug:
-        for r in allelic_groups:
+        for r in regions:
             print r
-            for p in allelic_groups[r]:
+            for p in sorted(allelic_groups[r]):
                 print '    %15s' % p
-                for s in allelic_groups[r][p]:
+                for s in sorted(allelic_groups[r][p]):
                     print '        %15s      %s' % (s, ' '.join([color_gene(g, width=12) for g in allelic_groups[r][p][s]]))
     return allelic_groups  # NOTE doesn't return the same thing as separate_into_snp_groups()
 
