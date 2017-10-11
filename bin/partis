@@ -21,50 +21,6 @@ import glutils
 from partitiondriver import PartitionDriver
 from partitionplotter import PartitionPlotter
 
-# glfo = glutils.read_glfo('data/germlines/human', locus='igh')
-# glfo = glutils.read_glfo('watson-glfo', locus='igh', debug=True)
-glfo = glutils.read_glfo('data/germlines/ch17', locus='igh', debug=True)
-# glutils.write_glfo('data/germlines/ch17', glfo, debug=True)
-# utils.separate_into_allelic_groups(glfo, debug=True)
-glutils.print_glfo(glfo)
-sys.exit()
-with open('data/germlines/ch17/watson-all-genes.csv') as wfile:
-    reader = csv.DictReader(wfile)
-    genes = {'hg19' : {r : set() for r in utils.regions}, 'ch17' : {r : set() for r in utils.regions}}
-    for line in reader:
-        for htype in genes:
-            if line[htype].split()[-1] == 'orf':
-                continue
-            if line[htype].split()[-1] == '(pseudo)':
-                continue
-            if line[htype] == 'not present':
-                continue
-            if line[htype] == 'region not covered':
-                continue
-            gene = 'IGH' + line[htype].strip()
-            region = utils.get_region(gene)
-            if gene in genes[htype][region]:
-                raise Exception('wtf %s' % gene)
-            genes[htype][region].add(gene)
-
-    # utils.separate_into_allelic_groups({'seqs' : genes['ch17']}, debug=True)
-
-    for region in utils.regions:
-        ch17 = genes['ch17'][region]
-
-        missing = set(ch17) - set(glfo['seqs'][region])
-        print region, missing
-        # glutils.restrict_to_genes(glfo, ch17, debug=True)
-
-        print region
-        print '    hg19: %d   %s' % (len(genes['hg19'][region]),' '.join([utils.color_gene(g) for g in genes['hg19'][region]]))
-        print '    ch17: %d   %s' % (len(genes['ch17'][region]),' '.join([utils.color_gene(g) for g in genes['ch17'][region]]))
-        both = genes['hg19'][region] & genes['ch17'][region]
-        either = genes['hg19'][region] | genes['ch17'][region]
-        print '    both: %d   %s' % (len(both), ' '.join([utils.color_gene(g) for g in both]))
-        print '  either: %d   %s' % (len(either), ' '.join([utils.color_gene(g) for g in either]))
-
-sys.exit()
 # ----------------------------------------------------------------------------------------
 def default_parameter_dir(args):
     if args.infname is not None:
