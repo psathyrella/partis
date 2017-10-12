@@ -186,6 +186,7 @@ class AlleleFinder(object):
 
     # ----------------------------------------------------------------------------------------
     def set_excluded_bases(self, swfo, debug=False):
+        # debug = 2
         for side in self.n_bases_to_exclude:
             # first, for each gene, count how many times we saw each deletion length
             dcounts = {}
@@ -220,16 +221,20 @@ class AlleleFinder(object):
                     print '     choose', self.n_bases_to_exclude[side][gene]
 
         # print choices and check consistency
-        if debug:
+        if debug > 1:
             print '    exclusions:  5p   3p'
         for gene in sorted(dcounts.keys()):
-            if debug:
-                print '                %3d  %3d  %s' % (self.n_bases_to_exclude['5p'][gene], self.n_bases_to_exclude['3p'][gene], utils.color_gene(gene, width=15))
-            if self.n_bases_to_exclude['5p'][gene] + self.n_bases_to_exclude['3p'][gene] >= len(self.glfo['seqs'][self.region][gene]):
+            total_exclusion_length = self.n_bases_to_exclude['5p'][gene] + self.n_bases_to_exclude['3p'][gene]
+            if len(self.glfo['seqs'][self.region][gene]) - total_exclusion_length < self.args.min_allele_finding_gene_length:  # if the non-excluded part of the gene is too short, don't even bother looking for new alleles with/on it
                 self.genes_to_exclude.add(gene)
-                if debug:
-                    print '%s excluding from analysis' % utils.color('red', 'too long:')
-            # print ''
+            if debug > 1:
+                print '                %3d  %3d  %s' % (self.n_bases_to_exclude['5p'][gene], self.n_bases_to_exclude['3p'][gene], utils.color_gene(gene, width=15)),
+                if gene in self.genes_to_exclude:
+                    print '%s excluding from analysis' % utils.color('red', 'too long:'),
+                print ''
+
+        if debug and len(self.genes_to_exclude) > 0:
+            print '    excluding %d / %d genes whose reads are too short (adjust with --min-allele-finding-gene-length) %s' % (len(self.genes_to_exclude), len(dcounts), '' if len(self.genes_to_exclude) > 10 else ' '.join([utils.color_gene(g) for g in self.genes_to_exclude]))
 
     # ----------------------------------------------------------------------------------------
     def get_seqs_for_query(self, info, gene):
@@ -973,8 +978,10 @@ class AlleleFinder(object):
         start = time.time()
 
         # first prepare some things, and increment for each chosen query
-        self.set_excluded_bases(swfo)
+        self.set_excluded_bases(swfo, debug=debug)
         queries_to_use = [q for q in swfo['queries'] if not self.skip_query(q, swfo[q])]  # skip_query() also fills self.seq_info if we're not skipping the query (and sometimes also if we do skip it)
+        if len(queries_to_use) == 0:
+            print '  no queries for allele finding'  # NOTE don't return here -- there's some stuff below that should happen
 
         if debug:
             print '                        total   clones    representatives'

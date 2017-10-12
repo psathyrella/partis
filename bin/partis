@@ -352,6 +352,7 @@ parent_parser.add_argument('--n-max-allele-finding-iterations', type=int, defaul
 parent_parser.add_argument('--n-max-new-alleles-per-gene-per-iteration', type=int, default=3, help='with an option name that long...')
 parent_parser.add_argument('--n-max-snps', type=int, default=8, help='when new-allele finding, look for new alleles separated from existing alleles by up to this many SNPs')
 parent_parser.add_argument('--n-max-mutations-per-segment', type=int, default=23, help='when new-allele finding, exclude sequences which have more than this many mutations in the V segment')
+parent_parser.add_argument('--min-allele-finding-gene-length', type=int, default=150, help='if (after excluding particularly short reads) the reads for a gene are shorter than this, then don\'t look for new alleles with/on this gene')
 parent_parser.add_argument('--plot-and-fit-absolutely-everything', type=int, help='fit every single position for this <istart> and write every single corresponding plot (slow as hell, and only for debugging/making plots for paper)')
 
 parent_parser.add_argument('--seed-unique-id', help='Only look for sequences that are clonally related to this unique id. Much much much faster than partitioning the entire dataset.')
