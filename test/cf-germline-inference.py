@@ -116,7 +116,7 @@ def get_single_performance(outdir, method, debug=False):
     }
 
 # ----------------------------------------------------------------------------------------
-def get_gls_fname(outdir, method, locus, sim_truth=False, data=False):  # NOTE duplicates/depends on code in test-allele-finding.py
+def get_gls_fname(outdir, method, locus, sim_truth=False, data=False):  # NOTE duplicates/depends on code in test-germline-inference.py
     if data:
         if method == 'partis' or method == 'full':
             outdir += '/hmm/germline-sets'  # NOTE this is inside the datascripts output dir, also NOTE doesn't use <method> (since we only have partis for a method a.t.m., although could use --label or --extra-str to differentiate)
@@ -324,7 +324,7 @@ def plot_tests(args, baseoutdir, method, method_vs_method=False):
 
 # ----------------------------------------------------------------------------------------
 def get_base_cmd(args, n_events, method):
-    cmd = './bin/test-allele-finding.py'
+    cmd = './bin/test-germline-inference.py'
     cmd += ' --n-procs ' + str(args.n_procs_per_test) + ' --n-tests ' + str(args.n_tests)
     if args.iteststart != 0:
         cmd += ' --iteststart ' + str(args.iteststart)
@@ -353,11 +353,11 @@ def run_single_test(args, baseoutdir, val, n_events, method):
     elif args.action == 'prevalence':
         cmd += ' --allele-prevalence-freqs ' + str(1. - val) + ':' + str(val)  # i.e. previously-known allele has 1 - p, and new allele has p
     elif args.action == 'n-leaves':
-        cmd += ' --n-leaves ' + str(val)  # NOTE default of 1 (for other tests) is set in test-allele-finding.py
+        cmd += ' --n-leaves ' + str(val)  # NOTE default of 1 (for other tests) is set in test-germline-inference.py
         cmd += ' --n-leaf-distribution geometric'
         cmd += ' --n-max-queries ' + str(n_events)  # i.e. we simulate <n_events> rearrangement events, but then only use <n_events> sequences for inference
     elif args.action == 'weibull':
-        cmd += ' --n-leaves 5'  # NOTE default of 1 (for other tests) is set in test-allele-finding.py
+        cmd += ' --n-leaves 5'  # NOTE default of 1 (for other tests) is set in test-germline-inference.py
         cmd += ' --n-leaf-distribution geometric'
         cmd += ' --n-max-queries ' + str(n_events)  # i.e. we simulate <n_events> rearrangement events, but then only use <n_events> sequences for inference
     elif args.action == 'alcluster':
@@ -368,19 +368,19 @@ def run_single_test(args, baseoutdir, val, n_events, method):
         nsnpstr = '1:1:2:2:3:4:5:6'
         nindelstr = '' # '0:0:0:0:0:0:0:0'
         if args.gls_gen_difficulty == 'easy':
-            genes_per_region_str = '20:5:3'
-            n_sim_alleles_per_gene_str = '1,2:1,2:1,2'
+            # genes_per_region_str = '20:5:3'
+            # n_sim_alleles_per_gene_str = '1,2:1,2:1,2'
             min_allele_prevalence_freq = 0.1
             mut_mult = 0.3
         elif args.gls_gen_difficulty == 'hard':
-            genes_per_region_str = '25:5:3'
-            n_sim_alleles_per_gene_str = '1,2,3:1,2:1,2'
+            # genes_per_region_str = '25:5:3'
+            # n_sim_alleles_per_gene_str = '1,2,3:1,2:1,2'
             min_allele_prevalence_freq = 0.01
             mut_mult = 1.
         else:
             assert False
-        cmd += ' --n-genes-per-region ' + genes_per_region_str
-        cmd += ' --n-sim-alleles-per-gene ' + n_sim_alleles_per_gene_str
+        # cmd += ' --n-genes-per-region ' + genes_per_region_str
+        # cmd += ' --n-sim-alleles-per-gene ' + n_sim_alleles_per_gene_str
         cmd += ' --min-allele-prevalence-freq ' + str(min_allele_prevalence_freq)
         cmd += ' --gls-gen'
     else:

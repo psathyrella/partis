@@ -805,7 +805,7 @@ def remove_the_stupid_godamn_template_genes_all_at_once(glfo, templates_to_remov
 # ----------------------------------------------------------------------------------------
 def generate_new_alleles(glfo, new_allele_info, remove_template_genes=False, debug=False):
     """
-    Generate some snp'd genes and add them to glfo, specified with <snps_to_add>.
+    Generate some snp'd genes and add them to glfo, specified with <new_allele_info>.
     e.g. [{'gene' : 'IGHV3-71*01', 'positions' : (35, None)}, ] will add a snp at position 35 and at a random location.
     The resulting snp'd gene will have a name like IGHV3-71*01+C35T.T47G
     """
@@ -897,18 +897,29 @@ def remove_glfo_files(gldir, locus):
         os.rmdir(gldir)
 
 # ----------------------------------------------------------------------------------------
+def get_alleles_per_gene_weights(n_alleles_per_gene):  # given desired mean alleles per gene, figure out the required probability for 1 and 2 alleles
+    if n_alleles_per_gene == 1.:
+        return 1., 0.
+    elif n_alleles_per_gene == 2.:
+        return 0., 1.
+    assert n_alleles_per_gene > 1. and n_alleles_per_gene < 2.
+    tmpfrac = (n_alleles_per_gene - 2.) / (1. - n_alleles_per_gene)
+    a = tmpfrac / (1. + tmpfrac)
+    b = 1. - a
+    return a, b
+
+# ----------------------------------------------------------------------------------------
 def choose_some_alleles(region, genes_to_use, allelic_groups, n_alleles_per_gene, debug=False):
     """ choose a gene (i.e. a primary and sub-version) from <allelic_groups>, and its attendant alleles """
     # NOTE also modifies <allelic_groups>
 
     if len(allelic_groups[region]) == 0:
         raise Exception('ran out of %s alleles (either --n-genes-per-region or --n-alleles-per-gene are probably too big)' % region)  # note that we don't reuse pv/sv pairs (the idea being such a pair represents an actual gene), and we don't directly control how many alleles are chosen from each such pair, so there isn't really a way to make sure you get every single allele in the germline set.
-
     available_versions = None
     while available_versions is None or len(available_versions) == 0:
-        if available_versions is not None:
-            print '  %s couldn\'t find any versions that have %d alleles, so trying again' % (utils.color('red', 'warning'), n_alleles)
-        n_alleles = numpy.random.choice(n_alleles_per_gene[region])
+        # if available_versions is not None:
+        #     print '  %s couldn\'t find any versions that have %d alleles, so trying again' % (utils.color('red', 'warning'), n_alleles)
+        n_alleles = numpy.random.choice([1, 2], p=get_alleles_per_gene_weights(n_alleles_per_gene[region]))
         available_versions = [(pv, subv) for pv in allelic_groups[region] for subv in allelic_groups[region][pv] if len(allelic_groups[region][pv][subv]) >= n_alleles]
     ichoice = numpy.random.randint(0, len(available_versions) - 1) if len(available_versions) > 1 else 0  # numpy.random.choice() can't handle list of tuples (and barfs if you give it only one thing to choose from)
     primary_version, sub_version = available_versions[ichoice]
@@ -973,12 +984,21 @@ def process_parameter_strings(n_genes_per_region, n_alleles_per_gene):
     n_alleles_per_gene = utils.get_arg_list(n_alleles_per_gene)
     if n_alleles_per_gene is not None:
         assert len(n_alleles_per_gene) == len(utils.regions)
-        n_alleles_per_gene = {utils.regions[i] : [int(n) for n in n_alleles_per_gene[i].split(',')] for i in range(len(utils.regions))}
+        n_alleles_per_gene = {r : float(nstr) for r, nstr in zip(utils.regions, n_alleles_per_gene)}
     return n_genes_per_region, n_alleles_per_gene
 
 # ----------------------------------------------------------------------------------------
-def generate_germline_set(glfo, n_genes_per_region, n_alleles_per_gene, min_allele_prevalence_freq, allele_prevalence_fname, new_allele_info=None, remove_template_genes=False, debug=True):
+def generate_germline_set(glfo, n_genes_per_region, n_alleles_per_gene, min_allele_prevalence_freq, allele_prevalence_fname, new_allele_info=None, dont_remove_template_genes=False, debug=True):
     """ NOTE removes genes from  <glfo> """
+
+    # setting defaults here so that bin/test-germline-inference.py and bin/partis don't have to both have defaults in them
+    if n_genes_per_region is None:
+        n_genes_per_region = '42:22:6'
+    if n_alleles_per_gene is None:
+        n_alleles_per_gene = '1.33:1.1:1.'
+    if min_allele_prevalence_freq is None:
+        min_allele_prevalence_freq = 0.1
+
     if debug:
         print '    choosing germline set'
     n_genes_per_region, n_alleles_per_gene = process_parameter_strings(n_genes_per_region, n_alleles_per_gene)  # they're passed as strings into here, but we need 'em to be dicts
@@ -999,7 +1019,7 @@ def generate_germline_set(glfo, n_genes_per_region, n_alleles_per_gene, min_alle
             template_genes = numpy.random.choice(glfo['seqs'][region].keys(), size=len(new_allele_info))  # (template) genes in <new_allele_info> should all be None
             for ig in range(len(new_allele_info)):
                 new_allele_info[ig]['gene'] = template_genes[ig]
-            _ = generate_new_alleles(glfo, new_allele_info, debug=True, remove_template_genes=remove_template_genes)
+            _ = generate_new_alleles(glfo, new_allele_info, debug=True, remove_template_genes=not dont_remove_template_genes)
 
         choose_allele_prevalence_freqs(glfo, allele_prevalence_freqs, region, min_allele_prevalence_freq, debug=debug)
     write_allele_prevalence_freqs(allele_prevalence_freqs, allele_prevalence_fname)  # NOTE lumps all the regions together, unlike in the parameter dirs
