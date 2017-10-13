@@ -62,6 +62,7 @@ class AlleleFinder(object):
         self.max_good_fit_residual = 4.5  # since this is unbounded above (unlike the min bad fit number), it needs to depend on how bad the bad fit/good fit ratio is (although, this starts making it hard to distinguish this from the ratio criterion, but see next parameter below))
         self.large_residual_ratio = 4.25  # if the ratio's bigger than this, we don't apply the max good fit residual criterion (i.e. if the ratio is a total slam dunk, it's ok if the good fit is shitty) UPDATE this is dumb, I should just find away around this bullshit
         self.default_consistency_sigmas = 3.  # default number of sigma for the boundary between consistent and inconsistent fits
+        self.discontinuity_consistency_sigma = 4.5
         # self.max_consistent_candidate_fit_sigma = 10.  # this is extremely permissiive, since we don't expect  them to actually the same -- in particular, the slopes are given by the position's mutation rate (among I think maybe other things)
         self.min_discontinuity_slope_ratio = 2.5  # the fractional difference between the slope *at* the discontinuity and that on either side has to be at least this big
 
@@ -621,7 +622,7 @@ class AlleleFinder(object):
             return consistent
 
     # ----------------------------------------------------------------------------------------
-    def consistent_discontinuities(self, vals1, vals2, istart, factor=None, debug=False):  # NOTE this is getting passed the one-piece fitfos, which doesn't necessarily make that much sense, but we just want the x- and y-vals, so it's ok
+    def consistent_discontinuities(self, vals1, vals2, istart, debug=False):  # NOTE this is getting passed the one-piece fitfos, which doesn't necessarily make that much sense, but we just want the x- and y-vals, so it's ok
         # this kind of duplicates consistent_bin_vals(), but oh, well, since I may way to remove one or the other eventually
         def getdiff(vals):
             diff = vals['yvals'][istart] - vals['yvals'][istart - 1]
@@ -629,7 +630,7 @@ class AlleleFinder(object):
             return diff, err
         diff1, err1 = getdiff(vals1)
         diff2, err2 = getdiff(vals2)
-        return self.consistent(diff1, err1, diff2, err2, factor=factor, dbgstr='discontinuities', debug=debug)
+        return self.consistent(diff1, err1, diff2, err2, factor=self.discontinuity_consistency_sigma, dbgstr='discontinuities', debug=debug)
 
     # ----------------------------------------------------------------------------------------
     def consistent_bin_vals(self, vals1, vals2, factor=None, debug=False):
