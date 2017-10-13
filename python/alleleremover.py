@@ -28,7 +28,7 @@ class AlleleRemover(object):
         snp_groups = utils.separate_into_snp_groups(self.glfo, self.region, self.args.n_max_snps, genelist=[g for g, _ in sorted_gene_counts])
         class_counts = []  # this could stand to be cleaned up... it's kind of a holdover from before I moved the separating fcn to utils
         for sgroup in snp_groups:
-            class_counts.append([{'gene' : gfo['gene'], 'counts' : easycounts[gfo['gene']], 'seq' : gfo['seq']} for gfo in sgroup])
+            class_counts.append([{'gene' : gfo['gene'], 'counts' : easycounts[gfo['gene']], 'seq' : gfo['seq'], 'hdist' : gfo['hdist']} for gfo in sgroup])
         return class_counts
 
     # ----------------------------------------------------------------------------------------
@@ -43,7 +43,7 @@ class AlleleRemover(object):
 
         if debug:
             print '  removing least likely genes (%.1f total counts)' % total_counts
-            print '     %-20s    %5s (%s)      removed genes (counts)' % ('genes to keep', 'counts', 'snps'),
+            print '     %-20s    %5s (%s)      removed genes (snps counts)  names' % ('genes to keep', 'counts', 'snps'),
             def count_str(cnt):
                 if cnt < 10.:
                     return '%.1f' % cnt
@@ -80,8 +80,9 @@ class AlleleRemover(object):
                     print '\n       %-s  %7s  %-3s' % (utils.color('blue', 'none', width=20, padside='right'), '-', ''),
                 removedfo = [gfo for gfo in gclass if gfo['gene'] not in self.genes_to_keep]
                 if len(removedfo) > 0:
-                    removal_strs = ['%s (%s)' % (utils.color_gene(gfo['gene']), count_str(gfo['counts'])) for gfo in removedfo]
-                    print '        %s' % '  '.join(removal_strs),
+                    number_strs = ['(%d %s)' % (gfo['hdist'], count_str(gfo['counts'])) for gfo in removedfo]
+                    name_strs = ['%s' % utils.color_gene(gfo['gene']) for gfo in removedfo]
+                    print '        %s  %s' % (' '.join(number_strs), ' '.join(name_strs)),
         if debug:
             print ''
 

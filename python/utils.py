@@ -1277,13 +1277,13 @@ def separate_into_snp_groups(glfo, region, n_max_snps, genelist=None):
                 hdist = hamming_distance(gfo['seq'], seq)
                 if hdist < n_max_snps - 2:  # if this gene is close to any gene in the class, add it to this class
                     add_new_class = False
-                    snp_groups[snp_groups.index(gclass)].append({'gene' : gene, 'seq' : seq})
+                    snp_groups[snp_groups.index(gclass)].append({'gene' : gene, 'seq' : seq, 'hdist' : hdist})
                     break
             if not add_new_class:
                 break
 
         if add_new_class:
-            snp_groups.append([{'gene' : gene, 'seq' : seq}, ])
+            snp_groups.append([{'gene' : gene, 'seq' : seq, 'hdist' : 0}, ])
 
     return snp_groups  # NOTE this is a list of lists of dicts, whereas separate_into_allelic_groups() returns a dict of region-keyed dicts
 
