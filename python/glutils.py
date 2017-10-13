@@ -1122,6 +1122,13 @@ def find_nearest_gene_with_same_cpos(glfo, new_seq, new_cpos=None, new_name=None
         if oldpos != new_cpos:
             continue
 
+        # not sure why this happens, but whatever
+        if len(oldname_seq[exclusion_5p : oldpos + 3]) != len(new_seq[exclusion_5p : new_cpos + 3]):
+            # print '%s' % utils.color('red', 'wtf')
+            # print 'oldname_seq[%2d : %2d + 3] = %s' % (exclusion_5p, oldpos, oldname_seq[exclusion_5p : oldpos + 3])
+            # print '    new_seq[%2d : %2d + 3] = %s' % (exclusion_5p, new_cpos, new_seq[exclusion_5p : new_cpos + 3])
+            continue
+
         distance = 0
 
         # snps up through cysteine
