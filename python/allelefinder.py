@@ -29,9 +29,11 @@ def fstr(fval):
 class AlleleFinder(object):
     def big_discontinuity_factor(self, istart):
         if istart == 1:
-            return 3.  # since the <istart - 1>th bin is the zero bin, in which we sometimes expect a very small number of sequences, this needs to be smaller here
+            return 2.25  # since the <istart - 1>th bin is the zero bin, in which we sometimes expect a very small number of sequences, this needs to be smaller here
+        elif istart < 4:
+            return 2.5  # i.e. check everything that's more than <factor> sigma away (where "check" means actually do the fits, as long as it passes all the other prefiltering steps)
         else:
-            return 3.8  # i.e. check everything that's more than <factor> sigma away (where "check" means actually do the fits, as long as it passes all the other prefiltering steps)
+            return 3.5  # i.e. check everything that's more than <factor> sigma away (where "check" means actually do the fits, as long as it passes all the other prefiltering steps)
 
     def __init__(self, glfo, args, itry):
         self.region = 'v'
@@ -53,10 +55,10 @@ class AlleleFinder(object):
 
         self.n_muted_min = 30  # don't fit positions that have fewer total mutations than this (i.e. summed over bins)
         self.n_total_min = 150  # ...or fewer total observations than this
-        self.n_muted_min_per_bin = 8  # <istart>th bin has to have at least this many mutated sequences (i.e. 2-3 sigma from zero)
+        self.n_muted_min_per_bin = 7  # <istart>th bin has to have at least this many mutated sequences (i.e. 2-3 sigma from zero)
         self.min_fraction_per_bin = 0.005  # require that every bin (i.e. n_muted) from 0 through <self.args.max_n_snps> has at least 1% of the total (unless overridden)
 
-        self.min_min_candidate_ratio = 2.75  # every candidate ratio must be greater than this
+        self.min_min_candidate_ratio = 2.25  # every candidate ratio must be greater than this
         self.min_mean_candidate_ratio = 2.75  # mean of candidate ratios must be greater than this
         self.min_bad_fit_residual = 1.95
         self.max_good_fit_residual = 4.5  # since this is unbounded above (unlike the min bad fit number), it needs to depend on how bad the bad fit/good fit ratio is (although, this starts making it hard to distinguish this from the ratio criterion, but see next parameter below))
@@ -101,7 +103,7 @@ class AlleleFinder(object):
     # ----------------------------------------------------------------------------------------
     def dbgfcn(self, pos, istart, pos_2=None):
         dbg_positions = None  # [238, 226]
-        dbg_istart = None # 4
+        dbg_istart = None if dbg_positions is None else len(dbg_positions) #None # 4
 
         if dbg_positions is None or dbg_istart is None:
             return False
@@ -891,6 +893,7 @@ class AlleleFinder(object):
 
         # we actually expect the slope to be somewhat negative (since as the mutation rate increases a higher fraction of them revert to germline)
         # this is heuristically parameterized by the non-zero values
+        # NOTE if there's two new alleles separated from a known allele that isn't in the sample, this doesn't work (this is, of course, quite rare)
         remove_template = True
         homozygous_line = {'slope' : -0.01, 'slope_err' : 0.015, 'y_icpt' : 1.1, 'y_icpt_err' : 0.12}
         for pos in candidfo['fitfos']:  # if every position is consistent with slope = 0, y_icpt = 1, remove the template gene
