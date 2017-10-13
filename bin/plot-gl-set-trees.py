@@ -181,10 +181,11 @@ def print_results(gene_categories, gl_sets, ref_label=None):
             print '  total %2d' % len(gl_sets[name]),
         else:
             print '          ',
+        only_str = 'only' if ref_label is None else ''
         if len(genes) == 0:
-            print '  only %s' % utils.color('blue', 'none')
+            print '  %s %s' % (only_str, utils.color('blue', 'none'))
         else:
-            print '  only %2d    %s' % (len(genes), genestr)
+            print '  %s %2d    %s' % (only_str, len(genes), genestr)
 
 # ----------------------------------------------------------------------------------------
 def get_gene_sets(glsfnames, glslabels, ref_label=None, classification_fcn=None, debug=False):
