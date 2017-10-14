@@ -396,6 +396,8 @@ def run_single_test(args, baseoutdir, val, n_events, method):
             cmd += ' --nsnp-list ' + nsnpstr
         if nindelstr != '':
             cmd += ' --nindel-list ' + nindelstr
+    if args.plot_performance:
+        cmd += ' --plot-performance'
     cmd += ' --outdir ' + outdir
     utils.simplerun(cmd, dryrun=args.dry_run)
 
@@ -527,6 +529,7 @@ parser.add_argument('--n-tests', type=int, default=3)
 parser.add_argument('--iteststart', type=int, default=0)
 parser.add_argument('--n-procs-per-test', type=int, default=5)
 parser.add_argument('--plot', action='store_true')
+parser.add_argument('--plot-performance', action='store_true')
 parser.add_argument('--no-slurm', action='store_true')
 parser.add_argument('--plotcache', action='store_true')
 parser.add_argument('--only-print', action='store_true')
