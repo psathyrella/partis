@@ -116,7 +116,10 @@ def get_single_performance(outdir, method, debug=False):
     }
 
 # ----------------------------------------------------------------------------------------
-def get_gls_fname(outdir, method, locus, sim_truth=False, data=False):  # NOTE duplicates/depends on code in test-germline-inference.py
+def get_gls_fname(outdir, method, locus, sim_truth=False, data=False, annotation_performance_plots=False):  # NOTE duplicates/depends on code in test-germline-inference.py
+    if annotation_performance_plots:
+        return outdir + '/' + method + '/annotation-performance-plots/sw/mutation'
+
     if data:
         if method == 'partis' or method == 'full':
             outdir += '/hmm/germline-sets'  # NOTE this is inside the datascripts output dir, also NOTE doesn't use <method> (since we only have partis for a method a.t.m., although could use --label or --extra-str to differentiate)
@@ -162,7 +165,30 @@ def make_gls_tree_plot(args, plotdir, plotname, glsfnames, glslabels, locus, ref
     utils.simplerun(cmdstr, shell=True, debug=args.dry_run, dryrun=args.dry_run)
 
 # ----------------------------------------------------------------------------------------
-def get_gls_gen_plots(args, baseoutdir, method):
+def get_gls_gen_annotation_performance_plots(args, baseoutdir):
+    methcolors = {  # NOTE started from scolors in bin/plot-gl-set-trees.py htmlcolorcods.com, and slide each one a little rightward
+        'tigger-default' : '#dd4d39',
+        'igdiscover' : '#55ab7a', #60ac84',
+        'partis' : '#6b83ca', #758bcd',
+        'full' : '#858585',
+    }
+    varname = args.action
+    varval = 'simu'
+    import plotting
+    import plotconfig
+    for iproc in range(args.iteststart, args.n_tests):
+        outdir = get_outdir(args, baseoutdir, varname, varval, n_events=args.gls_gen_events) + '/' + str(iproc)  # duplicates code in bin/test-germline-inference.py
+        plotdir = outdir + '/annotation-performance-plots'
+        print '    %s' % plotdir
+        utils.prep_dir(plotdir, wildlings=['*.png', '*.svg', '*.csv'])
+        for plotname in ['v_hamming_to_true_naive', 'v_muted_bases']:
+            print '      %s/%s.svg' % (plotdir, plotname)
+            hists = [Hist(fname= get_gls_fname(outdir, meth, sim_locus, annotation_performance_plots=True) + '/' + plotname + '.csv', title=meth) for meth in args.methods]
+            colors = [methcolors[meth] for meth in args.methods]
+            plotting.draw_no_root(hists[0], log='y', plotdir=plotdir, plotname=plotname, more_hists=hists[1:], colors=colors)
+
+# ----------------------------------------------------------------------------------------
+def get_gls_gen_tree_plots(args, baseoutdir, method):
     varname = args.action
     varval = 'simu'
     for iproc in range(args.iteststart, args.n_tests):
@@ -298,12 +324,17 @@ def plot_single_test(args, baseoutdir, method):
         plotting.plot_gl_inference_fractions(baseoutdir, ptype, [pv[ptype] for pv in plotvals], labels=[legend_str(args, v) for v in args.varvals], xlabel='sample size', ylabel='fraction %s' % ptype, leg_title=legend_titles.get(args.action, None), title=ptype + ' alleles')
 
 # ----------------------------------------------------------------------------------------
-def plot_tests(args, baseoutdir, method, method_vs_method=False):
+def plot_tests(args, baseoutdir, method, method_vs_method=False, annotation_performance_plots=False):
     if args.action == 'gls-gen':
-        get_gls_gen_plots(args, baseoutdir, method)
+        if annotation_performance_plots:
+            assert method is None
+            get_gls_gen_annotation_performance_plots(args, baseoutdir)
+        else:
+            get_gls_gen_tree_plots(args, baseoutdir, method)
     elif args.action == 'data':
         dsetfos = [v.split('/') for v in args.varvals]  # (study, dset)
         if method_vs_method:
+            assert method is None
             for study, dset in dsetfos:
                 get_data_plots(args, baseoutdir, args.methods, study, [dset])
         else:
@@ -567,6 +598,8 @@ if args.action == 'multi-nsnp':
 if args.plot:
     if args.method_vs_method:
         plot_tests(args, baseoutdir, method=None, method_vs_method=True)
+    elif args.plot_performance:
+        plot_tests(args, baseoutdir, method=None, annotation_performance_plots=True)
     else:
         for method in [m for m in args.methods if m != 'simu']:
             plot_tests(args, baseoutdir, method)
