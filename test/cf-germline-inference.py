@@ -195,6 +195,8 @@ def get_gls_gen_annotation_performance_plots(args, baseoutdir):
             plotting.draw_no_root(hists[0], log='y', plotdir=plotdir, plotname=plotname, more_hists=hists[1:], colors=colors, ytitle='sequences')
 
     for plotname in plotnames:
+        if 'muted_bases' in plotname:  #  mean value isn't meaningful
+            continue
         print plotname
         for method in args.methods:
             methtitle = methstr(method)
