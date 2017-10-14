@@ -177,7 +177,7 @@ def get_gls_gen_annotation_performance_plots(args, baseoutdir):
     varname = args.action
     varval = 'simu'
     plotnames = ['v_hamming_to_true_naive', 'v_muted_bases']
-    meanvals = {pn : {m : [] for m in args.methods} for pn in plotnames}
+    meanvals = {pn : {methstr(m) : [] for m in args.methods} for pn in plotnames}
     for iproc in range(args.iteststart, args.n_tests):
         outdir = get_outdir(args, baseoutdir, varname, varval, n_events=args.gls_gen_events) + '/' + str(iproc)  # duplicates code in bin/test-germline-inference.py
         plotdir = outdir + '/annotation-performance-plots'
@@ -185,20 +185,21 @@ def get_gls_gen_annotation_performance_plots(args, baseoutdir):
         utils.prep_dir(plotdir, wildlings=['*.png', '*.svg', '*.csv'])
         for plotname in plotnames:
             print '      %s/%s.svg' % (plotdir, plotname)
-            hists = [Hist(fname=get_gls_fname(outdir, meth, sim_locus, annotation_performance_plots=True) + '/' + plotname + '.csv', title=meth) for meth in args.methods]
+            hists = [Hist(fname=get_gls_fname(outdir, meth, sim_locus, annotation_performance_plots=True) + '/' + plotname + '.csv', title=methstr(meth)) for meth in args.methods]
             for hist in hists:
                 if hist.overflow_contents() != 0.0:
                     print '  %s %s non-zero under/overflow %f' % (utils.color('red', 'error'), hist.title, hist.overflow_contents())
                 meanvals[plotname][hist.title].append(hist.get_mean())
-                # print '%10s  %6.3f' % (methstr(hist.title), hist.get_mean())
+                # print '%10s  %6.3f' % (hist.title, hist.get_mean())
             colors = [methcolors[meth] for meth in args.methods]
-            plotting.draw_no_root(hists[0], log='y', plotdir=plotdir, plotname=plotname, more_hists=hists[1:], colors=colors)
+            plotting.draw_no_root(hists[0], log='y', plotdir=plotdir, plotname=plotname, more_hists=hists[1:], colors=colors, ytitle='sequences')
 
     for plotname in plotnames:
         print plotname
         for method in args.methods:
-            mean = float(sum(meanvals[plotname][method])) / len(meanvals[plotname][method])
-            print '   %15s  %6.3f / %d = %6.3f' % (methstr(method), sum(meanvals[plotname][method]), len(meanvals[plotname][method]), mean)
+            methtitle = methstr(method)
+            mean = float(sum(meanvals[plotname][methtitle])) / len(meanvals[plotname][methtitle])
+            print '   %15s  %6.3f / %d = %6.3f' % (methstr(methtitle), sum(meanvals[plotname][methtitle]), len(meanvals[plotname][methtitle]), mean)
 
 # ----------------------------------------------------------------------------------------
 def get_gls_gen_tree_plots(args, baseoutdir, method):
