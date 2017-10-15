@@ -106,9 +106,8 @@ Once you have partis installed, to annotate a file `/path/to/yourseqs.fa` with B
 ```./bin/partis annotate --infname /path/to/yourseqs.fa --outfname /path/to/yourseqs-annotate.csv```.
 
 To separate them into clonal families, replace `annotate` with `partition`.
-
-(If you're using Docker, and you mounted your host filesystem as described above, you should replace each `/path/to` with `/host/path/to`.)
-
+Note that sequences must be positive sense.
+If you're using Docker, and you mounted your host filesystem as described above, you should replace each `/path/to` with `/host/path/to`.
 To parallelize on your local machine, add `--n-procs N`.
 The slurm and sge batch systems are also supported (see [below](#parallelization)).
 There are also several [faster](#faster-methods) partitioning methods.
