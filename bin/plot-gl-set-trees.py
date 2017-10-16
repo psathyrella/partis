@@ -438,7 +438,8 @@ def draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, gene_categories, r
         if args.title_color is not None:
             # tstyle.title.add_face(ete3.CircleFace(fsize, scolors[args.title]), column=1)
             tcol = scolors[args.title_color] if args.title_color in scolors else args.title_color
-            tstyle.title.add_face(ete3.RectFace(width=3*fsize, height=fsize, bgcolor=tcol, fgcolor=None), column=1)
+            rect_width = 3 if len(args.title) < 12 else 2
+            tstyle.title.add_face(ete3.RectFace(width=rect_width*fsize, height=fsize, bgcolor=tcol, fgcolor=None), column=1)
     suffix = '.svg'
     imagefname = plotdir + '/' + plotname + suffix
     print '      %s' % imagefname
