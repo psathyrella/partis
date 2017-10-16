@@ -36,6 +36,8 @@ class PerformancePlotter(object):
 
         self.subplotdirs = ['gene-call', 'mutation', 'boundaries']
 
+        self.v_3p_exclusion = 3
+
     # ----------------------------------------------------------------------------------------
     def hamming_to_true_naive(self, true_line, line, restrict_to_region=''):
         true_naive_seq = true_line['naive_seq']
@@ -50,7 +52,7 @@ class PerformancePlotter(object):
             else:
                 print 'invalid regional restriction %s' % restrict_to_region
             if restrict_to_region == 'v':  # NOTE this is kind of hackey, especially treating v differently to d and j, but it kind of makes sense -- v is fundamentally different in that germline v is a real source of diversity, so it makes sense to isolate the v germline accuracy from the boundary-call accuracy like this
-                bounds = (bounds[0], bounds[1] - 3)  # most of the boundary uncertainty is in the last three bases
+                bounds = (bounds[0], max(bounds[0], bounds[1] - self.v_3p_exclusion))  # most of the boundary uncertainty is in the last three bases
             true_naive_seq = true_naive_seq[bounds[0] : bounds[1]]
             inferred_naive_seq = inferred_naive_seq[bounds[0] : bounds[1]]
         return utils.hamming_distance(true_naive_seq, inferred_naive_seq)
@@ -114,8 +116,9 @@ class PerformancePlotter(object):
                 mutfo['sim']['freq'][rstr], mutfo['sim']['total'][rstr] = true_line['mut_freqs'][iseq], true_line['n_mutations'][iseq]
                 mutfo['inf']['freq'][rstr], mutfo['inf']['total'][rstr] = inf_line['mut_freqs'][iseq], inf_line['n_mutations'][iseq]
             else:
-                mutfo['sim']['freq'][rstr], mutfo['sim']['total'][rstr] = utils.get_mutation_rate_and_n_muted(true_line, iseq=iseq, restrict_to_region=rstr.rstrip('_'))
-                mutfo['inf']['freq'][rstr], mutfo['inf']['total'][rstr] = utils.get_mutation_rate_and_n_muted(inf_line, iseq=iseq, restrict_to_region=rstr.rstrip('_'))
+                tmpreg = rstr.rstrip('_')
+                mutfo['sim']['freq'][rstr], mutfo['sim']['total'][rstr] = utils.get_mutation_rate_and_n_muted(true_line, iseq=iseq, restrict_to_region=tmpreg, exclusion_3p=self.v_3p_exclusion if tmpreg == 'v' else None)
+                mutfo['inf']['freq'][rstr], mutfo['inf']['total'][rstr] = utils.get_mutation_rate_and_n_muted(inf_line, iseq=iseq, restrict_to_region=tmpreg, exclusion_3p=self.v_3p_exclusion if tmpreg == 'v' else None)
 
         for col in plotconfig.gene_usage_columns:
             self.set_bool_column(true_line, inf_line, col, mutfo['sim']['freq'][''])  # this also sets the fraction-correct-vs-mute-freq hists

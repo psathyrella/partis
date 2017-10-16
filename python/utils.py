@@ -1453,7 +1453,7 @@ def hamming_fraction(seq1, seq2, extra_bases=None, also_return_distance=False):
         return fraction
 
 # ----------------------------------------------------------------------------------------
-def subset_sequences(line, iseq, restrict_to_region):
+def subset_sequences(line, iseq, restrict_to_region, exclusion_3p=None):
     naive_seq = line['naive_seq']  # NOTE this includes the fv and jf insertions
     muted_seq = line['seqs'][iseq]
     if restrict_to_region != '':  # NOTE this is very similar to code in performanceplotter. I should eventually cut it out of there and combine them, but I'm nervous a.t.m. because of all the complications there of having the true *and* inferred sequences so I'm punting
@@ -1463,6 +1463,8 @@ def subset_sequences(line, iseq, restrict_to_region):
             bounds = (line['codon_positions']['v'], line['codon_positions']['j'] + 3)
         else:
             assert False
+        if exclusion_3p is not None:  # see NOTE in performanceplotter.hamming_to_true_naive()
+            bounds = (bounds[0], max(bounds[0], bounds[1] - exclusion_3p))
         naive_seq = naive_seq[bounds[0] : bounds[1]]
         muted_seq = muted_seq[bounds[0] : bounds[1]]
     return naive_seq, muted_seq
@@ -1478,8 +1480,8 @@ def get_mutation_rate(line, iseq, restrict_to_region=''):
     return hamming_fraction(naive_seq, muted_seq)
 
 # ----------------------------------------------------------------------------------------
-def get_mutation_rate_and_n_muted(line, iseq, restrict_to_region=''):
-    naive_seq, muted_seq = subset_sequences(line, iseq, restrict_to_region)
+def get_mutation_rate_and_n_muted(line, iseq, restrict_to_region='', exclusion_3p=None):
+    naive_seq, muted_seq = subset_sequences(line, iseq, restrict_to_region, exclusion_3p=exclusion_3p)
     fraction, distance = hamming_fraction(naive_seq, muted_seq, also_return_distance=True)
     return fraction, distance
 
