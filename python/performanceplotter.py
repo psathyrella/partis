@@ -49,6 +49,8 @@ class PerformancePlotter(object):
                 bounds = (true_line['codon_positions']['v'], true_line['codon_positions']['j'] + 3)
             else:
                 print 'invalid regional restriction %s' % restrict_to_region
+            if restrict_to_region == 'v':  # NOTE this is kind of hackey, especially treating v differently to d and j, but it kind of makes sense -- v is fundamentally different in that germline v is a real source of diversity, so it makes sense to isolate the v germline accuracy from the boundary-call accuracy like this
+                bounds = (bounds[0], bounds[1] - 3)  # most of the boundary uncertainty is in the last three bases
             true_naive_seq = true_naive_seq[bounds[0] : bounds[1]]
             inferred_naive_seq = inferred_naive_seq[bounds[0] : bounds[1]]
         return utils.hamming_distance(true_naive_seq, inferred_naive_seq)
@@ -124,6 +126,10 @@ class PerformancePlotter(object):
         for rstr in plotconfig.rstrings:
             addval(rstr + 'hamming_to_true_naive', 0, self.hamming_to_true_naive(true_line, inf_line, restrict_to_region=rstr.rstrip('_')))
             addval(rstr + 'muted_bases', mutfo['sim']['total'][rstr], mutfo['inf']['total'][rstr])
+
+        # if self.hamming_to_true_naive(true_line, inf_line, restrict_to_region='v') > 5:
+        #     print '%20s %2d  %s %s' % (inf_line['unique_ids'][0], self.hamming_to_true_naive(true_line, inf_line, restrict_to_region='v'),
+        #                                utils.color_gene(true_line['v_gene'], width=20), 'ok' if inf_line['v_gene'] == true_line['v_gene'] else utils.color_gene(inf_line['v_gene'], width=20))
 
         for region in utils.regions:
             if region + '_per_gene_support' in inf_line:
