@@ -12,17 +12,16 @@ testopts="--n-tests 1 --n-procs-per-test 2 --no-slurm"
 # label=v10
 # glscmd="$cmd gls-gen --label $label"
 # for diff in easy hard; do
-#     for meth in full partis; do #simu partis full tigger-default igdiscover; do  # NOTE can add all methods to --methods arg now, i just keep 'em separate here so the log files are separate
-# 	for itest in {3..10}; do
-# 	    $glscmd --methods $meth --n-tests $((itest + 1)) --iteststart $itest --n-procs-per-test 10 --gls-gen-difficulty $diff #--no-slurm  # --plot
+#     for meth in full; do #simu partis full tigger-default igdiscover; do  # NOTE can add all methods to --methods arg now, i just keep 'em separate here so the log files are separate
+# 	for itest in {0..3}; do
+# 	    $glscmd --methods $meth --n-tests $((itest + 1)) --iteststart $itest --n-procs-per-test 10 --gls-gen-difficulty $diff --plot
 # 	done
 # 	# $glscmd --methods $meth --n-tests 3 --n-procs-per-test 10 --gls-gen-difficulty $diff --plot # --plotcache
 #     done
 # done
 
 # data
-# label=v10
+label=v10
 # $cmd data --label $label $testopts --n-random-queries 5000  # laptop
-# $cmd data --label $label --n-procs-per-test 15 --dry
-
-# $cmd data --label $label --methods partis:tigger-default:igdiscover --plot --method-vs-method --plotcache
+$cmd data --label $label --n-procs-per-test 15 --dry
+# $cmd data --label $label --methods partis:tigger-default:igdiscover --plot --method-vs-method #--plotcache

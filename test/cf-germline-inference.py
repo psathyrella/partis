@@ -38,9 +38,9 @@ def methstr(meth):
         return meth
 def diffstr(difficulty):
     if difficulty == 'easy':
-        return 'simple'
+        return 'low SHM'
     elif difficulty == 'hard':
-        return 'complex'
+        return 'high SHM'
     else:
         assert False
 
@@ -178,11 +178,13 @@ def get_gls_gen_annotation_performance_plots(args, baseoutdir):
     varval = 'simu'
     plotnames = ['v_hamming_to_true_naive', 'v_muted_bases']
     meanvals = {pn : {methstr(m) : [] for m in args.methods} for pn in plotnames}
+    print '  annotations: %s' % get_outdir(args, baseoutdir, varname, varval, n_events=args.gls_gen_events)
     for iproc in range(args.iteststart, args.n_tests):
         outdir = get_outdir(args, baseoutdir, varname, varval, n_events=args.gls_gen_events) + '/' + str(iproc)  # duplicates code in bin/test-germline-inference.py
         plotdir = outdir + '/annotation-performance-plots'
         print '    %s' % plotdir
-        utils.prep_dir(plotdir, wildlings=['*.png', '*.svg', '*.csv'])
+        if not args.only_print:
+            utils.prep_dir(plotdir, wildlings=['*.png', '*.svg', '*.csv'])
         for plotname in plotnames:
             print '      %s/%s.svg' % (plotdir, plotname)
             hists = [Hist(fname=get_gls_fname(outdir, meth, sim_locus, annotation_performance_plots=True) + '/' + plotname + '.csv', title=methstr(meth)) for meth in args.methods]
@@ -191,6 +193,8 @@ def get_gls_gen_annotation_performance_plots(args, baseoutdir):
                     print '  %s %s non-zero under/overflow %f' % (utils.color('red', 'error'), hist.title, hist.overflow_contents())
                 meanvals[plotname][hist.title].append(hist.get_mean())
                 # print '%10s  %6.3f' % (hist.title, hist.get_mean())
+            if args.only_print:
+                continue
             colors = [methcolors[meth] for meth in args.methods]
             plotting.draw_no_root(hists[0], log='y', plotdir=plotdir, plotname=plotname, more_hists=hists[1:], colors=colors, ytitle='sequences')
 
