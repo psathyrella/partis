@@ -177,6 +177,7 @@ def get_gls_gen_annotation_performance_plots(args, baseoutdir):
     varname = args.action
     varval = 'simu'
     plotnames = ['v_hamming_to_true_naive', 'v_muted_bases']
+    xtitles = ['hamming distance', 'inferred - true']
     meanvals = {pn : {methstr(m) : [] for m in args.methods} for pn in plotnames}
     print '  annotations: %s' % get_outdir(args, baseoutdir, varname, varval, n_events=args.gls_gen_events)
     for iproc in range(args.iteststart, args.n_tests):
@@ -196,7 +197,7 @@ def get_gls_gen_annotation_performance_plots(args, baseoutdir):
             if args.only_print:
                 continue
             colors = [methcolors[meth] for meth in args.methods]
-            plotting.draw_no_root(hists[0], log='y', plotdir=plotdir, plotname=plotname, more_hists=hists[1:], colors=colors, ytitle='sequences')
+            plotting.draw_no_root(hists[0], log='y', plotdir=plotdir, plotname=plotname, more_hists=hists[1:], colors=colors, ytitle='sequences', xtitle=xtitles[plotnames.index(plotname)])
 
     for plotname in plotnames:
         if 'muted_bases' in plotname:  #  mean value isn't meaningful

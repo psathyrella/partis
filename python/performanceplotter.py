@@ -132,7 +132,8 @@ class PerformancePlotter(object):
 
         # if self.hamming_to_true_naive(true_line, inf_line, restrict_to_region='v') > 5:
         #     print '%20s %2d  %s %s' % (inf_line['unique_ids'][0], self.hamming_to_true_naive(true_line, inf_line, restrict_to_region='v'),
-        #                                utils.color_gene(true_line['v_gene'], width=20), 'ok' if inf_line['v_gene'] == true_line['v_gene'] else utils.color_gene(inf_line['v_gene'], width=20))
+        #                                utils.color_gene(true_line['v_gene'], width=20), 'ok' if inf_line['v_gene'] == true_line['v_gene'] else utils.color_gene(inf_line['v_gene'], width=20)),
+        #     print '   %2d - %2d = %2d  (%2d)' % (mutfo['inf']['total']['v_'], mutfo['sim']['total']['v_'], mutfo['inf']['total']['v_'] - mutfo['sim']['total']['v_'], self.hamming_to_true_naive(true_line, inf_line, restrict_to_region='v'))
 
         for region in utils.regions:
             if region + '_per_gene_support' in inf_line:
