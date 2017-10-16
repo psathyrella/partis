@@ -223,7 +223,7 @@ def get_character_str(character, charval):
         return charval
     elif character == 'timepoint':
         if charval == 'merged':
-            return 'merged'
+            return ''
         elif charval[0] == 'W':
             return 'week %d' % int(charval[1:])
         elif charval[0] == 'M':
@@ -279,15 +279,17 @@ def get_data_plots(args, baseoutdir, methods, study, dsets):
     mfo = metafos[dsets[0]]
     data_outdirs = [heads.get_datadir(study, 'processed', extra_str='gls-gen-paper-' + args.label) + '/' + ds for ds in dsets]
     outdir = get_outdir(args, baseoutdir, varname='data', varval=study + '/' + '-vs-'.join(dsets))  # for data, only the plots go here, since datascripts puts its output somewhere else
-    if len(dsets) > 1 and len(methods) == 1:  # one method across several data sets
+    if len(dsets) > 1 and len(methods) == 1:  # sample vs sample
         glslabels = dsets
         title = get_dset_title([metafos[ds] for ds in dsets])
+        if study != 'kate-qrs':
+            title += '  %s' % methstr(methods[0])
         title_color = methods[0]
         legends = get_dset_legends([metafos[ds] for ds in dsets])
-        legend_title = methstr(methods[0])
+        legend_title = methstr(methods[0]) if study == 'kate-qrs' else None  # for kate-qrs we need to put the subject _and_ the isotype in the title, so there's no room for the method
         pie_chart_faces = False
         print '%s:' % utils.color('green', methods[0]),
-    elif len(methods) > 1 and len(dsets) == 1:  # several methods on one data set
+    elif len(methods) > 1 and len(dsets) == 1:  # method vs method
         glslabels = methods
         title = get_dset_title([mfo])
         title_color = None
@@ -513,10 +515,10 @@ default_varvals = {
         # 'laura-mb-2' : ['BF520-m-W1', 'BF520-m-M9', 'BF520-g-W1', 'BF520-g-M9'], #, 'BF520-k-W1', 'BF520-l-W1', 'BF520-k-M9', 'BF520-l-M9']
         # 'jason-influenza' : ['GMC-igh-m8d', 'GMC-igh-m1h', 'GMC-igh-p28d'],
         # 'jason-influenza' : [
-        #     'FV-igh-m8d', 'FV-igh-m2d', 'FV-igh-m1h', 'FV-igh-p1h', 'FV-igh-p1d', 'FV-igh-p3d', 'FV-igh-p7d', 'FV-igh-p14d', 'FV-igh-p21d', 'FV-igh-p28d',
-        #     'GMC-igh-m8d', 'GMC-igh-m2d', 'GMC-igh-m1h', 'GMC-igh-p1h', 'GMC-igh-p1d', 'GMC-igh-p3d', 'GMC-igh-p7d', 'GMC-igh-p14d', 'GMC-igh-p21d', 'GMC-igh-p28d',
-        #     'IB-igh-m8d', 'IB-igh-m2d', 'IB-igh-m1h', 'IB-igh-p1h', 'IB-igh-p1d', 'IB-igh-p3d', 'IB-igh-p7d', 'IB-igh-p14d', 'IB-igh-p21d', 'IB-igh-p28d',
-        #     # 'FV-igh', 'GMC-igh', 'IB-igh',  # merged
+        #     # 'FV-igh-m8d', 'FV-igh-m2d', 'FV-igh-m1h', 'FV-igh-p1h', 'FV-igh-p1d', 'FV-igh-p3d', 'FV-igh-p7d', 'FV-igh-p14d', 'FV-igh-p21d', 'FV-igh-p28d',
+        #     # 'GMC-igh-m8d', 'GMC-igh-m2d', 'GMC-igh-m1h', 'GMC-igh-p1h', 'GMC-igh-p1d', 'GMC-igh-p3d', 'GMC-igh-p7d', 'GMC-igh-p14d', 'GMC-igh-p21d', 'GMC-igh-p28d',
+        #     # 'IB-igh-m8d', 'IB-igh-m2d', 'IB-igh-m1h', 'IB-igh-p1h', 'IB-igh-p1d', 'IB-igh-p3d', 'IB-igh-p7d', 'IB-igh-p14d', 'IB-igh-p21d', 'IB-igh-p28d',
+        #     'FV-igh', 'GMC-igh', 'IB-igh',  # merged
         # ],
     }
 }
