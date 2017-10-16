@@ -347,7 +347,7 @@ def write_legend(plotdir):
         if status in used_faces:
             facefo[leg_name] = used_faces[status]
 
-    legfo, facefo = OrderedDict(), OrderedDict()
+    legfo, facefo = {}, {}
     if args.ref_label is not None:
         for status, color in simu_colors.items():
             add_stuff(status, status, color)
@@ -368,12 +368,12 @@ def write_legend(plotdir):
 
             add_stuff(status, leg_name, color)
 
-    # reorder some of 'em (it's an ordered dict)
+    # figure out the order we want 'em in
+    lnames = sorted(legfo.keys())
     for status in ['both', 'all']:
-        if get_leg_name(status) in legfo:
-            tmpcolor = legfo[get_leg_name(status)]
-            del legfo[get_leg_name(status)]
-            legfo[get_leg_name(status)] = tmpcolor
+        if get_leg_name(status) in lnames:
+            lnames.remove(get_leg_name(status))
+            lnames.append(get_leg_name(status))
 
     etree = ete3.ClusterTree() #'(a);')
     tstyle = ete3.TreeStyle()
@@ -387,7 +387,8 @@ def write_legend(plotdir):
         tstyle.title.add_face(ete3.TextFace('', fsize=1.5*args.leafheight), column=0)  # keeps the first legend entry from getting added on this line
         tstyle.title.add_face(ete3.TextFace(args.legend_title, fsize=1.5*args.leafheight, fgcolor='black', bold=True), column=1)
 
-    for leg_name, color in legfo.items():
+    for leg_name in lnames:
+        color = legfo[leg_name]
         size_factor = 2.
         if leg_name in facefo:
             tstyle.title.add_face(ete3.StackedBarFace([80., 20.], width=size_factor*args.leafheight, height=size_factor*args.leafheight, colors=[color, facefo[leg_name]], line_color='black'), column=0)  # looks like maybe they reversed fg/bg kwarg names
