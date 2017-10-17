@@ -189,9 +189,15 @@ def get_gls_gen_annotation_performance_plots(args, baseoutdir):
         print '    %s' % plotdir
         if not args.only_print:
             utils.prep_dir(plotdir, wildlings=['*.png', '*.svg', '*.csv'])
+
+        # shenanigans for the six (three easy and thre hard) of 'em that go in the paper pdf
+        make_legend = (iproc > 2) or (iproc == 0 and args.gls_gen_difficulty == 'easy')
+        make_xtitle = (iproc > 2) or (iproc == 2)
+        make_ytitle = (iproc > 2) or (args.gls_gen_difficulty == 'easy')
+
         for plotname in plotnames:
             print '      %s/%s.svg' % (plotdir, plotname)
-            hists = {meth : Hist(fname=get_gls_fname(outdir, meth, sim_locus, annotation_performance_plots=True) + '/' + plotname + '.csv', title=methstr(meth) if (iproc==0 and args.gls_gen_difficulty=='easy') else None) for meth in args.methods}
+            hists = {meth : Hist(fname=get_gls_fname(outdir, meth, sim_locus, annotation_performance_plots=True) + '/' + plotname + '.csv', title=methstr(meth) if make_legend else None) for meth in args.methods}
             for meth in args.methods:
                 if hists[meth].overflow_contents() != 0.0:
                     print '  %s %s non-zero under/overflow %f' % (utils.color('red', 'error'), methstr(meth), hists[meth].overflow_contents())
@@ -200,8 +206,8 @@ def get_gls_gen_annotation_performance_plots(args, baseoutdir):
                 continue
             colors = [methcolors[meth] for meth in args.methods]
             linewidths = [9, 8, 4, 3]  # methods are sorted below, so it's always [full, igdiscover, partis, tigger]
-            plotting.draw_no_root(hists[args.methods[0]], log='y', plotdir=plotdir, plotname=plotname, more_hists=[hists[m] for m in args.methods[1:]], colors=colors, ytitle='sequences',
-                                  xtitle=xtitles[plotnames.index(plotname)],
+            plotting.draw_no_root(hists[args.methods[0]], log='y', plotdir=plotdir, plotname=plotname, more_hists=[hists[m] for m in args.methods[1:]], colors=colors, ytitle='sequences' if make_ytitle else None,
+                                  xtitle=xtitles[plotnames.index(plotname)] if make_xtitle else '',
                                   plottitle=gls_sim_str(args.gls_gen_difficulty, iproc),
                                   linewidths=linewidths)
 
