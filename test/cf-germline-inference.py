@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import math
 import copy
 import numpy
 from collections import OrderedDict
@@ -43,6 +44,8 @@ def diffstr(difficulty):
         return 'high SHM'
     else:
         assert False
+def gls_sim_str(diff, iproc):
+    return '%s (%d)' % (diffstr(diff), iproc)
 
 # ----------------------------------------------------------------------------------------
 def varvalstr(name, val):
@@ -177,8 +180,8 @@ def get_gls_gen_annotation_performance_plots(args, baseoutdir):
     varname = args.action
     varval = 'simu'
     plotnames = ['v_hamming_to_true_naive', 'v_muted_bases']
-    xtitles = ['hamming distance', 'inferred - true']
-    meanvals = {pn : {methstr(m) : [] for m in args.methods} for pn in plotnames}
+    xtitles = ['V distance to true naive', 'inferred - true']
+    meanvals = {pn : {m : [] for m in args.methods} for pn in plotnames}
     print '  annotations: %s' % get_outdir(args, baseoutdir, varname, varval, n_events=args.gls_gen_events)
     for iproc in range(args.iteststart, args.n_tests):
         outdir = get_outdir(args, baseoutdir, varname, varval, n_events=args.gls_gen_events) + '/' + str(iproc)  # duplicates code in bin/test-germline-inference.py
@@ -188,25 +191,28 @@ def get_gls_gen_annotation_performance_plots(args, baseoutdir):
             utils.prep_dir(plotdir, wildlings=['*.png', '*.svg', '*.csv'])
         for plotname in plotnames:
             print '      %s/%s.svg' % (plotdir, plotname)
-            hists = [Hist(fname=get_gls_fname(outdir, meth, sim_locus, annotation_performance_plots=True) + '/' + plotname + '.csv', title=methstr(meth)) for meth in args.methods]
-            for hist in hists:
-                if hist.overflow_contents() != 0.0:
-                    print '  %s %s non-zero under/overflow %f' % (utils.color('red', 'error'), hist.title, hist.overflow_contents())
-                meanvals[plotname][hist.title].append(hist.get_mean())
-                # print '%10s  %6.3f' % (hist.title, hist.get_mean())
+            hists = {meth : Hist(fname=get_gls_fname(outdir, meth, sim_locus, annotation_performance_plots=True) + '/' + plotname + '.csv', title=methstr(meth) if (iproc==0 and args.gls_gen_difficulty=='easy') else None) for meth in args.methods}
+            for meth in args.methods:
+                if hists[meth].overflow_contents() != 0.0:
+                    print '  %s %s non-zero under/overflow %f' % (utils.color('red', 'error'), methstr(meth), hists[meth].overflow_contents())
+                meanvals[plotname][meth].append(hists[meth].get_mean())
             if args.only_print:
                 continue
             colors = [methcolors[meth] for meth in args.methods]
-            plotting.draw_no_root(hists[0], log='y', plotdir=plotdir, plotname=plotname, more_hists=hists[1:], colors=colors, ytitle='sequences', xtitle=xtitles[plotnames.index(plotname)])
+            linewidths = [9, 8, 4, 3]  # methods are sorted below, so it's always [full, igdiscover, partis, tigger]
+            plotting.draw_no_root(hists[args.methods[0]], log='y', plotdir=plotdir, plotname=plotname, more_hists=[hists[m] for m in args.methods[1:]], colors=colors, ytitle='sequences',
+                                  xtitle=xtitles[plotnames.index(plotname)],
+                                  plottitle=gls_sim_str(args.gls_gen_difficulty, iproc),
+                                  linewidths=linewidths)
 
     for plotname in plotnames:
         if 'muted_bases' in plotname:  #  mean value isn't meaningful
             continue
         print plotname
-        for method in args.methods:
-            methtitle = methstr(method)
-            mean = float(sum(meanvals[plotname][methtitle])) / len(meanvals[plotname][methtitle])
-            print '   %15s  %6.3f / %d = %6.3f' % (methstr(methtitle), sum(meanvals[plotname][methtitle]), len(meanvals[plotname][methtitle]), mean)
+        for meth in args.methods:
+            mean = float(sum(meanvals[plotname][meth])) / len(meanvals[plotname][meth])
+            err = numpy.std(meanvals[plotname][meth], ddof=1) / math.sqrt(len(meanvals[plotname][meth]))
+            print '   %15s  %6.3f / %d = %6.2f +/- %6.2f' % (methstr(meth), sum(meanvals[plotname][meth]), len(meanvals[plotname][meth]), mean, err)
 
 # ----------------------------------------------------------------------------------------
 def get_gls_gen_tree_plots(args, baseoutdir, method):
@@ -220,7 +226,7 @@ def get_gls_gen_tree_plots(args, baseoutdir, method):
         make_gls_tree_plot(args, outdir + '/' + method + '/gls-gen-plots', varvalstr(varname, varval),
                            glsfnames=[simfname, inffname],
                            glslabels=['sim', 'inf'],
-                           locus=sim_locus, ref_label='sim', legend_title=methstr(method), title=diffstr(args.gls_gen_difficulty))  #, title_color=method)
+                           locus=sim_locus, ref_label='sim', legend_title=methstr(method), title=gls_sim_str(args.gls_gen_difficulty, iproc))  #, title_color=method)
 
 # ----------------------------------------------------------------------------------------
 def get_character_str(character, charval):
