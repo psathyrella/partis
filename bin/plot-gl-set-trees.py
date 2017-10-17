@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # has to be its own script, since ete3 requires its own god damn python version, installed in a separated directory
+import yaml
 import itertools
 import glob
 import argparse
@@ -186,6 +187,12 @@ def print_results(gene_categories, gl_sets, ref_label=None):
             print '  %s %s' % (only_str, utils.color('blue', 'none'))
         else:
             print '  %s %2d    %s' % (only_str, len(genes), genestr)
+
+# ----------------------------------------------------------------------------------------
+def write_results(outdir, gene_categories, gl_sets):
+    with open(outdir + '/results.yaml', 'w') as yamlfile:
+        yamlfo = {gcat : list(genes) for gcat, genes in gene_categories.items()}
+        yaml.dump(yamlfo, yamlfile, width=150)
 
 # ----------------------------------------------------------------------------------------
 def get_gene_sets(glsfnames, glslabels, ref_label=None, classification_fcn=None, debug=False):
@@ -450,6 +457,7 @@ def plot_trees(args, plotdir, plotname, glsfnames, glslabels):
     all_genes, gl_sets, gene_categories = get_gene_sets(glsfnames, glslabels, ref_label=args.ref_label)
     set_colors(gl_sets, ref_label=args.ref_label)
     print_results(gene_categories, gl_sets, ref_label=args.ref_label)
+    write_results(plotdir, gene_categories, gl_sets)
     if args.only_print:
         return
 

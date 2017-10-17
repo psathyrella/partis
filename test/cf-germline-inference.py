@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import yaml
 import math
 import copy
 import numpy
@@ -168,6 +169,30 @@ def make_gls_tree_plot(args, plotdir, plotname, glsfnames, glslabels, locus, ref
     utils.simplerun(cmdstr, shell=True, debug=args.dry_run, dryrun=args.dry_run)
 
 # ----------------------------------------------------------------------------------------
+def print_gls_gen_summary_table(args, baseoutdir):
+    latex = True
+    varname = args.action
+    varval = 'simu'
+    statuses = ['missing', 'spurious', 'ok']
+    meanvals = {m : {st : [] for st in statuses} for m in args.methods}
+    for method in args.methods:
+        for iproc in range(args.iteststart, args.n_tests):
+            resultfile = get_outdir(args, baseoutdir, varname, varval, n_events=args.gls_gen_events) + '/' + str(iproc) + '/' + method + '/gls-gen-plots/results.yaml'
+            with open(resultfile) as yamlfile:
+                yamlfo = yaml.safe_load(yamlfile)
+            for status in statuses:
+                meanvals[method][status].append(len(yamlfo[status]))
+
+    print '%20s     %s' % ('', ' '.join([('%-16s' % st) for st in statuses]))
+    for meth in args.methods:
+        print '%20s' % methstr(meth),
+        for status in statuses:
+            mean = float(sum(meanvals[meth][status])) / len(meanvals[meth][status])
+            err = numpy.std(meanvals[meth][status], ddof=1) / math.sqrt(len(meanvals[meth][status]))
+            print '  %s   %s%4.1f %s %-4.1f%s' % ('&' if latex else '', '$' if latex else '', mean, '\\pm' if latex else '+/-', err, '$' if latex else ''),
+        print '%s' % ('\\\\' if latex else '')
+
+# ----------------------------------------------------------------------------------------
 def get_gls_gen_annotation_performance_plots(args, baseoutdir):
     import plotting
     import plotconfig
@@ -196,7 +221,6 @@ def get_gls_gen_annotation_performance_plots(args, baseoutdir):
         make_ytitle = (iproc > 2) or (args.gls_gen_difficulty == 'easy')
 
         for plotname in plotnames:
-            print '      %s/%s.svg' % (plotdir, plotname)
             hists = {meth : Hist(fname=get_gls_fname(outdir, meth, sim_locus, annotation_performance_plots=True) + '/' + plotname + '.csv', title=methstr(meth) if make_legend else None) for meth in args.methods}
             for meth in args.methods:
                 if hists[meth].overflow_contents() != 0.0:
@@ -359,11 +383,14 @@ def plot_single_test(args, baseoutdir, method):
         plotting.plot_gl_inference_fractions(baseoutdir, ptype, [pv[ptype] for pv in plotvals], labels=[legend_str(args, v) for v in args.varvals], xlabel='sample size', ylabel='fraction %s' % ptype, leg_title=legend_titles.get(args.action, None), title=ptype + ' alleles')
 
 # ----------------------------------------------------------------------------------------
-def plot_tests(args, baseoutdir, method, method_vs_method=False, annotation_performance_plots=False):
+def plot_tests(args, baseoutdir, method, method_vs_method=False, annotation_performance_plots=False, print_summary_table=False):
     if args.action == 'gls-gen':
         if annotation_performance_plots:
             assert method is None
             get_gls_gen_annotation_performance_plots(args, baseoutdir)
+        elif print_summary_table:
+            assert method is None
+            print_gls_gen_summary_table(args, baseoutdir)
         else:
             get_gls_gen_tree_plots(args, baseoutdir, method)
     elif args.action == 'data':
@@ -605,6 +632,7 @@ parser.add_argument('--iteststart', type=int, default=0)
 parser.add_argument('--n-procs-per-test', type=int, default=5)
 parser.add_argument('--plot', action='store_true')
 parser.add_argument('--plot-performance', action='store_true')
+parser.add_argument('--print-table', action='store_true')
 parser.add_argument('--no-slurm', action='store_true')
 parser.add_argument('--plotcache', action='store_true')
 parser.add_argument('--only-print', action='store_true')
@@ -644,6 +672,8 @@ if args.plot:
         plot_tests(args, baseoutdir, method=None, method_vs_method=True)
     elif args.plot_performance:
         plot_tests(args, baseoutdir, method=None, annotation_performance_plots=True)
+    elif args.print_table:
+        plot_tests(args, baseoutdir, method=None, print_summary_table=True)
     else:
         for method in [m for m in args.methods if m != 'simu']:
             plot_tests(args, baseoutdir, method)
