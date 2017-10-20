@@ -1,27 +1,16 @@
 #  merge to master to pick up hamming length bug fix
 
 # paper
-#  - alphabetize all method names in plot legends
-#  - rerun data stuffs
-#  - add some non-human data to supplement
+
+#  - add some non-human data to supplement (?)
 #  - manual
 #    - update/expand simulation section (post to b-t.cr)
 #    - add/update allele finding and allele clustering
-#  - fix igdiscover name synchronization bug (_+S[xxx]+yyyyy thing)
+#  - fix igdiscover name synchronization issue (_+S[xxx]+yyyyy thing)
 #  - archived supplemental info
 #    - maybe use zenodo?
 #    - simulated samples
 #    - gl fastas from simulation, and all methods
-#  - add section on how trees are made
-#  - time point words in caption are wrong for 2/3 figures
-#  - novel --> non-IMGT (?)
-#  - say something specifically about light chain (\cite{Watson2014-op})
-#  - text
-#    - make it more clear that igdiscover is only for igm
-#  - plots
-#    - borders around legend
-#    - combine slice plots into one/a few figure[s]
-#    - move spurious slice plots to supplement
 
 # improve forbidden character treatment in seqfileopener
 
@@ -102,6 +91,10 @@
 #   - make sure J length is reasonable before using n mutations (i.e., use freq instead of n)
 #   - maybe forbid alclusterer to add few-snp alleles
 #   - synchronize "gene we just added" and "existing gene" distance/n_snp requirements
+#   - maybe try sai reddy's clustering thing rather than k-means
+#     - http://science.sciencemag.org/content/315/5814/972
+#     - http://scikit-learn.org/stable/modules/generated/sklearn.cluster.AffinityPropagation.html
+#     - https://www.toptal.com/machine-learning/clustering-algorithms
 
 # optimization
 #  - could speed up mutefreqer increment if there was only one call to utils get mute freq stuff

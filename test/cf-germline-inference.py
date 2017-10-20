@@ -216,7 +216,7 @@ def get_gls_gen_annotation_performance_plots(args, baseoutdir):
             utils.prep_dir(plotdir, wildlings=['*.png', '*.svg', '*.csv'])
 
         # shenanigans for the six (three easy and thre hard) of 'em that go in the paper pdf
-        make_legend = (iproc > 2) or (iproc == 0 and args.gls_gen_difficulty == 'easy')
+        make_legend = (iproc > 2) or (iproc == 0) # and args.gls_gen_difficulty == 'easy')
         make_xtitle = (iproc > 2) or (iproc == 2)
         make_ytitle = (iproc > 2) or (args.gls_gen_difficulty == 'easy')
 
