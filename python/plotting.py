@@ -773,7 +773,7 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
     if 'x' in log:
         ax.set_xscale('symlog')  # 'log' used to work, but now it screws up the x axis labels
     if 'y' in log:
-        ax.set_yscale('symlog')
+        ax.set_yscale('log')
     if xbounds is not None and xbounds[0] != xbounds[1]:
         plt.xlim(xbounds[0], xbounds[1])
     if ybounds is not None and ybounds[0] != ybounds[1]:
@@ -791,7 +791,7 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
             ax.set_xticklabels(xticklabels)
     if yticklabels is not None:
         ax.set_yticklabels(yticklabels)
-    plt.title(title)
+    plt.title(title, fontweight='bold')
     if not os.path.exists(plotdir):
         os.makedirs(plotdir)
 

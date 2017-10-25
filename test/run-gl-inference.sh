@@ -1,11 +1,12 @@
 cmd=./test/cf-germline-inference.py
 testopts="--n-tests 1 --n-procs-per-test 2 --no-slurm"
 
-# varvals
-# label=XXX  # not sure what it was
-# for tname in alcluster; do #mfreq nsnp multi-nsnp prevalence n-leaves weibull alcluster; do
+# # varvals
+# label=v2
+# ntests=3  #50
+# for tname in mfreq nsnp multi-nsnp prevalence n-leaves weibull; do  #  alcluster
 #     # $cmd $tname --label $label $testopts  # laptop
-#     $cmd $tname --n-tests 10 --label $label # --plot
+#     $cmd $tname --n-tests $ntests --label $label --plot &
 # done
 
 # # gls-gen
@@ -21,8 +22,8 @@ testopts="--n-tests 1 --n-procs-per-test 2 --no-slurm"
 #     done
 # done
 
-# data
-label=v10
-# $cmd data --label $label $testopts --n-random-queries 5000  # laptop
-$cmd data --label $label --n-procs-per-test 15 --dry
-# $cmd data --label $label --methods partis:tigger-default:igdiscover --plot --method-vs-method #--plotcache
+# # data
+# label=v10
+# # $cmd data --label $label $testopts --n-random-queries 5000  # laptop
+# $cmd data --label $label --n-procs-per-test 15 --dry
+# # $cmd data --label $label --methods partis:tigger-default:igdiscover --plot --method-vs-method #--plotcache

@@ -21,12 +21,22 @@ import heads
 sim_locus = 'igh'
 region = 'v'
 
-legend_titles = {
-    'mfreq' : 'mutation',
+varval_titles = {
+    'mfreq' : 'SHM rate',
+    'nsnp' : 'SNPs to new allele',
+    'multi-nsnp' : 'SNPs to multiple new alleles',
+    'prevalence' : 'new-allele prevalence',
+    'n-leaves' : 'mean leaves per clonal family',
+    'weibull' : 'tree balance',
+}
+
+varval_legend_titles = {
+    'mfreq' : 'SHM',
     'nsnp' : 'N SNPs',
     'multi-nsnp' : 'N SNPs',
     'prevalence' : 'prevalence',
-    'n-leaves' : 'mean N leaves',
+    'n-leaves' : 'N leaves',
+    'weibull' : 'Weibull parameter',
 }
 
 all_methods = ['tigger-default', 'igdiscover', 'partis']
@@ -382,7 +392,15 @@ def plot_single_test(args, baseoutdir, method):
                 plotvals[-1][ptype]['ycounts'].append(count)
                 plotvals[-1][ptype]['ytotals'].append(sum(perf_vals['total']))
     for ptype in plot_types:
-        plotting.plot_gl_inference_fractions(baseoutdir, ptype, [pv[ptype] for pv in plotvals], labels=[legend_str(args, v) for v in args.varvals], xlabel='sample size', ylabel='fraction %s' % ptype, leg_title=legend_titles.get(args.action, None), title=ptype + ' alleles')
+        print '    %s' % baseoutdir + '/' + ptype + '.svg'
+        plotting.plot_gl_inference_fractions(baseoutdir, ptype,
+                                             [pv[ptype] for pv in plotvals],
+                                             labels=[legend_str(args, v) for v in args.varvals],
+                                             xlabel='sample size',
+                                             ylabel='%s alleles / total' % ptype,
+                                             leg_title=varval_legend_titles.get(args.action, None),
+                                             title=varval_titles.get(args.action, None)
+        )
 
 # ----------------------------------------------------------------------------------------
 def plot_tests(args, baseoutdir, method, method_vs_method=False, annotation_performance_plots=False, print_summary_table=False):
@@ -559,12 +577,12 @@ default_varvals = {
         # 'three-finger' : ['3ftx-1-igh'], #, 'pla2-1-igh'],
         # 'kate-qrs' : ['1g', '4g', '1k', '1l', '4k', '4l'],
         # 'laura-mb-2' : ['BF520-m-W1', 'BF520-m-M9', 'BF520-g-W1', 'BF520-g-M9'], #, 'BF520-k-W1', 'BF520-l-W1', 'BF520-k-M9', 'BF520-l-M9']
-        # 'jason-influenza' : ['GMC-igh-m8d', 'GMC-igh-m1h', 'GMC-igh-p28d'],
+        # 'jason-influenza' : ['FV-igh-m2d', 'FV-igh-p3d', 'FV-igh-p7d'],
         # 'jason-influenza' : [
-        #     # 'FV-igh-m8d', 'FV-igh-m2d', 'FV-igh-m1h', 'FV-igh-p1h', 'FV-igh-p1d', 'FV-igh-p3d', 'FV-igh-p7d', 'FV-igh-p14d', 'FV-igh-p21d', 'FV-igh-p28d',
-        #     # 'GMC-igh-m8d', 'GMC-igh-m2d', 'GMC-igh-m1h', 'GMC-igh-p1h', 'GMC-igh-p1d', 'GMC-igh-p3d', 'GMC-igh-p7d', 'GMC-igh-p14d', 'GMC-igh-p21d', 'GMC-igh-p28d',
-        #     # 'IB-igh-m8d', 'IB-igh-m2d', 'IB-igh-m1h', 'IB-igh-p1h', 'IB-igh-p1d', 'IB-igh-p3d', 'IB-igh-p7d', 'IB-igh-p14d', 'IB-igh-p21d', 'IB-igh-p28d',
-        #     'FV-igh', 'GMC-igh', 'IB-igh',  # merged
+        #     'FV-igh-m8d', 'FV-igh-m2d', 'FV-igh-m1h', 'FV-igh-p1h', 'FV-igh-p1d', 'FV-igh-p3d', 'FV-igh-p7d', 'FV-igh-p14d', 'FV-igh-p21d', 'FV-igh-p28d',
+        #     'GMC-igh-m8d', 'GMC-igh-m2d', 'GMC-igh-m1h', 'GMC-igh-p1h', 'GMC-igh-p1d', 'GMC-igh-p3d', 'GMC-igh-p7d', 'GMC-igh-p14d', 'GMC-igh-p21d', 'GMC-igh-p28d',
+        #     'IB-igh-m8d', 'IB-igh-m2d', 'IB-igh-m1h', 'IB-igh-p1h', 'IB-igh-p1d', 'IB-igh-p3d', 'IB-igh-p7d', 'IB-igh-p14d', 'IB-igh-p21d', 'IB-igh-p28d',
+        #     # 'FV-igh', 'GMC-igh', 'IB-igh',  # merged
         # ],
     }
 }
