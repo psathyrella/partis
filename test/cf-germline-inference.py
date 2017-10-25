@@ -472,6 +472,7 @@ def run_single_test(args, baseoutdir, val, n_events, method):
     elif args.action == 'weibull':
         cmd += ' --n-leaves 5'  # NOTE default of 1 (for other tests) is set in test-germline-inference.py
         cmd += ' --n-leaf-distribution geometric'
+        cmd += ' --root-mrca-weibull-parameter ' + str(val)
         cmd += ' --n-max-queries ' + str(n_events)  # i.e. we simulate <n_events> rearrangement events, but then only use <n_events> sequences for inference
     elif args.action == 'alcluster':
         nsnpstr = val['snp']

@@ -40,6 +40,8 @@ def simulate(args):
         cmd_str += ' --n-leaf-distribution ' + args.n_leaf_distribution
     if args.mut_mult is not None:
         cmd_str += ' --mutation-multiplier ' + str(args.mut_mult)
+    if args.root_mrca_weibull_parameter is not None:
+        cmd_str += ' --root-mrca-weibull-parameter ' + str(args.root_mrca_weibull_parameter)
 
     cmd_str += ' --n-procs ' + str(args.n_procs)
     if args.slurm:
@@ -319,6 +321,7 @@ parser.add_argument('--n-sim-events', type=int, default=20, help='number of simu
 parser.add_argument('--n-max-queries', type=int, help='number of queries to use for inference from the simulation sample')
 parser.add_argument('--n-leaves', type=float, default=1.)
 parser.add_argument('--n-leaf-distribution')
+parser.add_argument('--root-mrca-weibull-parameter', type=float)
 parser.add_argument('--n-procs', type=int, default=2)
 parser.add_argument('--seed', type=int, default=int(time.time()))
 parser.add_argument('--gls-gen', action='store_true', help='generate a random germline set from scratch (parameters specified above), and infer a germline set from scratch, instead of using --sim-v-genes, --dj-genes, --inf-v-genes, and --snp-positions.')
