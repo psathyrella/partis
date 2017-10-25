@@ -390,21 +390,31 @@ def write_legend(plotdir):
     #     print node.name
     #     node.add_face(ete3.CircleFace(args.novel_dot_size, scolors['novel']), column=1) #, position='float') # if args.leaf_names else 'branch')
 
-    leg_title_height = 1.5 * args.leafheight if args.legend_title is not None else 0.75 * args.leafheight
-    tstyle.title.add_face(ete3.TextFace('', fsize=leg_title_height), column=0)  # keeps the first legend entry from getting added on this line
-    tstyle.title.add_face(ete3.TextFace(args.legend_title if args.legend_title is not None else ' ', fsize=leg_title_height, fgcolor='black', bold=True), column=1)  # add an empty title so there's some white space at the top, even with no actual title text
+    dummy_column = 0
+    pic_column = 1
+    text_column = 2
+    leg_title_height = 1.5 * args.leafheight  # if args.legend_title is not None else 0.75 * args.leafheight
+
+    for icol in range(text_column + 1):  # add a top border
+        tstyle.title.add_face(ete3.RectFace(0.9*args.leafheight, 0.9*args.leafheight, fgcolor=None, bgcolor=None), column=icol)
+
+    tstyle.title.add_face(ete3.TextFace(' ', fsize=leg_title_height), column=dummy_column)  # adds a left border
+
+    if args.legend_title is not None:
+        tstyle.title.add_face(ete3.TextFace('', fsize=leg_title_height), column=pic_column)  # keeps the first legend entry from getting added on this line
+        tstyle.title.add_face(ete3.TextFace(args.legend_title, fsize=leg_title_height, fgcolor='black', bold=True), column=text_column)  # add an empty title so there's some white space at the top, even with no actual title text
 
     for leg_name in lnames:
         color = legfo[leg_name]
         size_factor = 2.
         if leg_name in facefo:
-            tstyle.title.add_face(ete3.StackedBarFace([80., 20.], width=size_factor*args.leafheight, height=size_factor*args.leafheight, colors=[color, facefo[leg_name]], line_color='black'), column=0)  # looks like maybe they reversed fg/bg kwarg names
+            tstyle.title.add_face(ete3.StackedBarFace([80., 20.], width=size_factor*args.leafheight, height=size_factor*args.leafheight, colors=[color, facefo[leg_name]], line_color='black'), column=pic_column)  # looks like maybe they reversed fg/bg kwarg names
         else:
-            tstyle.title.add_face(ete3.RectFace(size_factor*args.leafheight, size_factor*args.leafheight, fgcolor='black', bgcolor=color), column=0)  # looks like maybe they reversed fg/bg kwarg names
-        tstyle.title.add_face(ete3.TextFace(' ' + leg_name, fsize=args.leafheight, fgcolor='black'), column=1)
+            tstyle.title.add_face(ete3.RectFace(size_factor*args.leafheight, size_factor*args.leafheight, fgcolor='black', bgcolor=color), column=pic_column)  # looks like maybe they reversed fg/bg kwarg names
+        tstyle.title.add_face(ete3.TextFace(' ' + leg_name, fsize=args.leafheight, fgcolor='black'), column=text_column)
 
-    tstyle.title.add_face(ete3.CircleFace(1.5*args.novel_dot_size, scolors['novel']), column=0)
-    tstyle.title.add_face(ete3.TextFace('novel allele', fsize=args.leafheight), column=1)  # keeps the first legend entry from getting added on this line
+    tstyle.title.add_face(ete3.CircleFace(1.5*args.novel_dot_size, scolors['novel']), column=pic_column)
+    tstyle.title.add_face(ete3.TextFace('novel allele', fsize=args.leafheight), column=text_column)  # keeps the first legend entry from getting added on this line
 
     etree.render(plotdir + '/legend.svg', tree_style=tstyle)
 

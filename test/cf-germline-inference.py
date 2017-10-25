@@ -33,7 +33,9 @@ all_methods = ['tigger-default', 'igdiscover', 'partis']
 characters = ['subject', 'isotype', 'timepoint']
 def methstr(meth):
     if meth == 'tigger-default':
-        return 'tigger'
+        return 'TIgGER'
+    if meth == 'igdiscover':
+        return 'IgDiscover'
     elif meth == 'full':
         return 'full IMGT'
     else:
