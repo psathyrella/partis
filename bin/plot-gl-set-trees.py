@@ -390,9 +390,9 @@ def write_legend(plotdir):
     #     print node.name
     #     node.add_face(ete3.CircleFace(args.novel_dot_size, scolors['novel']), column=1) #, position='float') # if args.leaf_names else 'branch')
 
-    if args.legend_title is not None:
-        tstyle.title.add_face(ete3.TextFace('', fsize=1.5*args.leafheight), column=0)  # keeps the first legend entry from getting added on this line
-        tstyle.title.add_face(ete3.TextFace(args.legend_title, fsize=1.5*args.leafheight, fgcolor='black', bold=True), column=1)
+    leg_title_height = 1.5 * args.leafheight if args.legend_title is not None else 0.75 * args.leafheight
+    tstyle.title.add_face(ete3.TextFace('', fsize=leg_title_height), column=0)  # keeps the first legend entry from getting added on this line
+    tstyle.title.add_face(ete3.TextFace(args.legend_title if args.legend_title is not None else ' ', fsize=leg_title_height, fgcolor='black', bold=True), column=1)  # add an empty title so there's some white space at the top, even with no actual title text
 
     for leg_name in lnames:
         color = legfo[leg_name]
