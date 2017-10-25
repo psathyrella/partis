@@ -771,9 +771,9 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     if 'x' in log:
-        ax.set_xscale('log')
+        ax.set_xscale('symlog')  # 'log' used to work, but now it screws up the x axis labels
     if 'y' in log:
-        ax.set_yscale('log')
+        ax.set_yscale('symlog')
     if xbounds is not None and xbounds[0] != xbounds[1]:
         plt.xlim(xbounds[0], xbounds[1])
     if ybounds is not None and ybounds[0] != ybounds[1]:
