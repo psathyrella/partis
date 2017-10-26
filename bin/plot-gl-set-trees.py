@@ -17,10 +17,6 @@ from collections import OrderedDict
 sys.path.insert(1, './python')
 import utils
 import glutils
-sys.path.insert(1, './datascripts')
-import heads
-
-# custom interactive faces: http://etetoolkit.org/docs/latest/tutorial/tutorial_drawing.html#id34
 
 # ----------------------------------------------------------------------------------------
 def getgrey(gtype='medium'):
