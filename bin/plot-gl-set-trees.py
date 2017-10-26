@@ -10,13 +10,12 @@ import os
 import tempfile
 import subprocess
 import sys
-import ete3
 import colored_traceback.always
 from collections import OrderedDict
-
-sys.path.insert(1, './python')
-import utils
-import glutils
+try:
+    import ete3
+except ImportError:
+    raise Exception('couldn\'t find the ete3 module. Either:\n          - it isn\'t installed (use instructions at http://etetoolkit.org/download/) or\n          - $PATH needs modifying (typically with the command \'% export PATH=~/anaconda_ete/bin:$PATH\')')
 
 # ----------------------------------------------------------------------------------------
 def getgrey(gtype='medium'):
@@ -474,35 +473,48 @@ def plot_trees(args, plotdir, plotname, glsfnames, glslabels):
     draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, gene_categories, ref_label=args.ref_label)
 
 # ----------------------------------------------------------------------------------------
-parser = argparse.ArgumentParser()
-parser.add_argument('--plotdir', required=True)
-parser.add_argument('--plotname', required=True)
-parser.add_argument('--glsfnames', required=True)
-parser.add_argument('--glslabels', required=True)
-parser.add_argument('--locus', required=True)
-parser.add_argument('--legends')
+example_str = '\n    '.join(['example usage (note that this example as it is will be a) really slow, since the files are the full imgt set, with ~250 genes, and b) not very interesting, since the two .fasta files are the same):',
+                             './bin/plot-gl-set-trees.py --glsfnames data/germlines/human/igh/ighv.fasta:data/germlines/human/igh/ighv.fasta --glslabels foo:bar --locus igh'])
+parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, epilog=example_str)
+parser.add_argument('--plotdir', default=os.getcwd() + '/gl-set-tree-plots')
+parser.add_argument('--plotname', default='test')
+parser.add_argument('--glsfnames', required=True, help='colon-separated list of germline ighv fasta file names')
+parser.add_argument('--glslabels', required=True, help='colon-separated list of labels corresponding to --glsfnames')
+parser.add_argument('--locus', required=True, choices=['igh', 'igk', 'igl'])
+parser.add_argument('--legends', help='colon-separated list of legend labels')
 parser.add_argument('--legend-title')
-parser.add_argument('--leaf-names', action='store_true')
+parser.add_argument('--leaf-names', action='store_true', help='add leaf node names to the plot')
 parser.add_argument('--pie-chart-faces', action='store_true')
-parser.add_argument('--use-cache', action='store_true', help='use existing raxml output (crashes if it isn\'t there)')
+parser.add_argument('--use-cache', action='store_true', help='use existing raxml output from a previous run (crashes if it isn\'t there)')
 parser.add_argument('--only-print', action='store_true', help='just print the summary, without making any plots')
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--title')
 parser.add_argument('--title-color')
-parser.add_argument('--region', default='v')
+parser.add_argument('--region', default='v', help='probably doesn\'t work for other regions yet')
+parser.add_argument('--partis-dir', default=os.getcwd(), help='path to main partis install dir')
 parser.add_argument('--muscle-path', default='./packages/muscle/muscle3.8.31_i86linux64')
-parser.add_argument('--raxml-path', default=glob.glob('./packages/standard-RAxML/raxmlHPC-*')[0])
-parser.add_argument('--ref-label')  # label corresponding to simulation
+parser.add_argument('--raxml-path', default='./packages/standard-RAxML/raxmlHPC-SSE3')
+parser.add_argument('--ref-label', help='label (in --glslabels) corresponding to simulation/truth')
 
 args = parser.parse_args()
+
+sys.path.insert(1, args.partis_dir + '/python')
+try:
+    import utils
+    import glutils
+except ImportError as e:
+    print e
+    raise Exception('couldn\'t import from main partis dir \'%s\' (set with --partis-dir)' % args.partis_dir)
+
 args.glsfnames = utils.get_arg_list(args.glsfnames)
 args.glslabels = utils.get_arg_list(args.glslabels)
 args.legends = utils.get_arg_list(args.legends)
 if not os.path.exists(args.muscle_path):
-    raise Exception('muscle path %s does not exist' % args.muscle_path)
+    raise Exception('muscle binary %s doesn\'t exist (set with --muscle-path)' % args.muscle_path)
 if not os.path.exists(args.raxml_path):
-    raise Exception('raxml path %s does not exist' % args.raxml_path)
-
+    raise Exception('raxml binary %s doesn\'t exist (set with --raxml-path)' % args.raxml_path)
+if not os.path.exists(args.plotdir):
+    os.makedirs(args.plotdir)
 args.leafheight = 20 if args.leaf_names else 10  # arg, kinda messy
 args.novel_dot_size = 2.5
 
