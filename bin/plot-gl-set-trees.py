@@ -272,7 +272,7 @@ def set_node_style(node, status, n_gl_sets, ref_label=None):
 
     names = status.split('-&-')
     if node.is_leaf():
-        if args.pie_chart_faces and len(names) > 2:
+        if args.pie_chart_faces and len(names) > 1:
             pcf = ete3.PieChartFace(percents=[100./len(names) for _ in range(len(names))], width=args.leafheight, height=args.leafheight, colors=[scolors[n] for n in names], line_color=None)
             # pcf = ete3.StackedBarFace(percents=[100./len(names) for _ in range(len(names))], width=30, height=50, colors=[scolors[n] for n in names], line_color=None)
             node.add_face(pcf, column=0, position='aligned')
