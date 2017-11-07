@@ -341,26 +341,29 @@ In addition, any individual sample will contain only a small fraction of the gen
 
 ### simulate
 
-There are a large number of options controlling the details of creating simulated samples.
-The simplest mode is to mimic a particular data sample of your choice as closely as possible -- germline set, gene usage frequencies, insertion and deletion lengths, somatic hypermutation rates and per-position dependencies, etc. (as well as the correlations between these) are modelled using previously-inferred parameters from a particular sample.
-If, for instance, you previously partitioned a sample at the path `/path/to/sample.fa`, unless you specified otherwise with `--parameter-dir`, the parameteres would have been written to `_output/_path_to_sample/`, and you could create a simulated sample with 3 rearrangement events by running
+In the simplest simulation mode, partis mimics the characteristics of a particular template data sample as closely as possible: germline set, gene usage frequencies, insertion and deletion lengths, somatic hypermutation rates and per-position dependencies, etc. (as well as the correlations between these).
+This mode uses the previously-inferred parameters from that sample, located in `--parameter-dir`.
+If, for instance, you previously partitioned a sample at the path `/path/to/sample.fa`, unless you specified otherwise with `--parameter-dir`, the parameters would have been written to `_output/_path_to_sample/`.
+You could thus write a simulated sample to the file `simu.csv` by running
 
 ```./bin/partis simulate --parameter-dir _output/_path_to_sample --outfname simu.csv --n-sim-events 3 --debug 1```,
 
 where `--debug 1` shows you what the rearrangement events look like as they're being made.
-There are a number of parameters for modifying the details of the simulation sample starting from here (for information on defaults, run `./bin/partis simulate --help`):
+Starting from this, there are a wide variety of options for manipulating how the characteristics of the simulation deviate from the template data sample (for information on defaults, run `./bin/partis simulate --help`).
+
+**Misc:**
 
 | option                           | description
 |----------------------------------|-----------------------------------------------------------------
 | `--mutation-multiplier <factor>` | multiply the observed SHM frequency by <factor>
-| `--mimic-data-read-length`       | by default the simulation creates reads that extend through all of V and J -- this tells it to, instead, truncate them according to the lengths/frequencies seen in the data sample
+| `--mimic-data-read-length`       | by default the simulation creates reads that extend through all of V and J -- this tells it, instead, to truncate on the 5' and 3' ends according to the lengths/frequencies seen in the data sample
 
 **Tree control:**
 
 | option                                        | description
 |-----------------------------------------------|-----------------------------------------------------------------
 | `--n-trees`                                   | In a separate, initial step, partis generates a set of this many phylogentic trees, from which it will later choose for each rearrangemnt event. Defaults to the value of --n-sim-events.
-| `--n-leaf-distribution <geometric|box|zipf>`  | When generating these trees, from what distribution should the number of leaves be drawn?
+| `--n-leaf-distribution <geometric,box,zipf>`  | When generating these trees, from what distribution should the number of leaves be drawn?
 | `--n-leaves`                                  | Parameter controlling the n-leaf distribution (e.g. for the default geometric distribution, it's the mean number of leaves)
 | `--constant-number-of-leaves`                 | instead of drawing the number of leaves for each tree from a distribution, force every tree to have the same number of leaves
 | `--root-mrca-weibull-parameter`               | adjusts tree shape and branching
@@ -372,12 +375,11 @@ There are a number of parameters for modifying the details of the simulation sam
 | `--indel-frequency`               | fraction of simulated sequences which will contain SHM indels (currently, insertions and deletions are generated with equal probability, i.e. on average half of 'em will have insertions and half will have deletions)
 | `--mean-indels-per-indeld-seq`    | once we've decided a sequence will have at least one indel, we choose the actual number of indels from a geometric distribution with this mean
 | `--mean-indel-length`             | mean length of each SHM insertion or deletion
-| `--indel-location <v|cdr3>`       | if not set (default), indels are placed uniformly across the sequence. If set to `v` or `cdr3` they are restricted to those bits
+| `--indel-location <v,cdr3>`       | if not set (default), indels are placed uniformly across the sequence. If set to `v` or `cdr3` they are restricted to those bits
 
 **Scratch parameters:**
 
-There also exist options for specifying various ways in which to deviate more profoundly from simply mimicking the specified sample.
-This also allows you to generate simulated samples without previously running inference.
+In order to deviate more profoundly from the template data sample (or use no template sample at all), there are a number of options centered around `--rearrange-from-scratch`:
 
 | option                     | description
 |----------------------------|-----------------------------------------------------------------
@@ -412,7 +414,7 @@ You basically need to tell it how many novel alleles, with how many SNPs and/or 
 
 | option                             | description
 |------------------------------------|-----------------------------------------------------------------
-| `--snp-positions`                  | 
+| `--snp-positions`                  | xxx
 
 ####### Examples
 
