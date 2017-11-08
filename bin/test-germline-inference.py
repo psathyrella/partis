@@ -332,9 +332,9 @@ parser.add_argument('--snp-positions', help='colon-separated list (length must e
 parser.add_argument('--nsnp-list', help='colon-separated list (length must equal length of <--sim-v-genes> unless --gls-gen) of the number of snps to generate for each gene (each snp at a random position). If --gls-gen, then this still gives the number of snpd genes, but it isn\'t assumed to be the same length as anything [i.e. we don\'t yet know how many v genes there\'ll be]')
 parser.add_argument('--indel-positions', help='see --snp-positions (a.t.m. the indel length distributions are hardcoded)')
 parser.add_argument('--nindel-list', help='see --nsnp-list')
-parser.add_argument('--n-genes-per-region', help='Default set in glutils.generate_germline_set.')
-parser.add_argument('--n-sim-alleles-per-gene', help='Default set in glutils.generate_germline_set.')
-parser.add_argument('--min-allele-prevalence-freq', type=float, help='Default set in glutils.generate_germline_set.')
+parser.add_argument('--n-genes-per-region', default=glutils.default_n_genes_per_region)
+parser.add_argument('--n-sim-alleles-per-gene', default=glutils.default_n_alleles_per_gene)
+parser.add_argument('--min-allele-prevalence-freq', default=glutils.default_min_allele_prevalence_freq, type=float)
 parser.add_argument('--allele-prevalence-freqs', help='colon-separated list of allele prevalence frequencies, including newly-generated snpd genes (ordered alphabetically)')
 parser.add_argument('--remove-template-genes', action='store_true', help='when generating snps, remove the original gene before simulation')  # NOTE template gene removal is the default for glutils.generate_germline_set
 parser.add_argument('--mut-mult', type=float)

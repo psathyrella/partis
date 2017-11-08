@@ -17,6 +17,11 @@ import indelutils
 # ----------------------------------------------------------------------------------------
 glfo_dir = 'germline-sets'  # always put germline info into a subdir with this name
 
+# setting defaults here so that bin/test-germline-inference.py and bin/partis don't have to both have defaults in them
+default_n_genes_per_region = '42:22:6'
+default_n_alleles_per_gene = '1.33:1.1:1.'
+default_min_allele_prevalence_freq = 0.1
+
 dummy_d_genes = {l : l.upper() + 'Dx-x*x' if not utils.has_d_gene(l) else None for l in utils.loci}  # e.g. IGKDx-x*x for igk, None for igh
 
 # single-locus file names
@@ -991,13 +996,12 @@ def process_parameter_strings(n_genes_per_region, n_alleles_per_gene):
 def generate_germline_set(glfo, n_genes_per_region, n_alleles_per_gene, min_allele_prevalence_freq, allele_prevalence_fname, new_allele_info=None, dont_remove_template_genes=False, debug=True):
     """ NOTE removes genes from  <glfo> """
 
-    # setting defaults here so that bin/test-germline-inference.py and bin/partis don't have to both have defaults in them
     if n_genes_per_region is None:
-        n_genes_per_region = '42:22:6'
+        n_genes_per_region = default_n_genes_per_region
     if n_alleles_per_gene is None:
-        n_alleles_per_gene = '1.33:1.1:1.'
+        n_alleles_per_gene = default_n_alleles_per_gene
     if min_allele_prevalence_freq is None:
-        min_allele_prevalence_freq = 0.1
+        min_allele_prevalence_freq = default_min_allele_prevalence_freq
 
     if debug:
         print '    choosing germline set'

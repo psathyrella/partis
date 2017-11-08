@@ -56,8 +56,8 @@ def run_simulation(args):
         if args.mutate_from_scratch and not args.rearrange_from_scratch:
             raise Exception('haven\'t yet implemented mutating from scratch without rearranging from scratch')  # and maybe not ever
     else:
-        if args.rearrange_from_scratch or args.mutate_from_scratch:
-            raise Exception('you can\'t specify --parameter-dir if you also set either of the scratch options')
+        if args.rearrange_from_scratch or args.mutate_from_scratch or args.generate_germline_set:
+            raise Exception('you can\'t specify --parameter-dir if you also set either of the scratch options or --generate-germline-set')
         if args.initial_germline_dir is not None:
             raise Exception('you can\'t specify both --parameter-dir and --inital-germline-dir (germline info has to be read from the parameter dir)')
 
@@ -417,9 +417,9 @@ subargs['simulate'].append({'name' : '--mutate-from-scratch', 'kwargs' : {'actio
 subargs['simulate'].append({'name' : '--flat-mute-freq', 'kwargs' : {'type' : float, 'default' : 0.05, 'help' : 'constant mutation frequency, across all positions for all regions and inserts, which is enforced if --mutate-from-scratch is set'}})
 subargs['simulate'].append({'name' : '--scratch-mute-freq-dir', 'kwargs' : {'default' : partis_dir + '/data/recombinator/scratch-parameters', 'help' : 'synthetic/partial parameter directory with only shm-level (mutation) information, which allows to specify --rearrange-from-scratch without also setting --mutate-from-scratch'}})
 subargs['simulate'].append({'name' : '--generate-germline-set', 'kwargs' : {'action' : 'store_true', 'help' : 'Choose a subset of the available genes to represent this sample\'s germline.'}})
-subargs['simulate'].append({'name' : '--n-genes-per-region', 'kwargs' : {'help' : 'colon-separated list specifying the number of genes (not alleles -- i.e. the *total* number of alleles is this times the number of alleles per gene) for each region (for use with --generate-germline-set) Default set in glutils.generate_germline_set.'}})
-subargs['simulate'].append({'name' : '--n-sim-alleles-per-gene', 'kwargs' : {'help' : 'colon-separated list of mean alleles epr gene for each region ((for use with --generate-germline-set) Default set in glutils.generate_germline_set.'}})
-subargs['simulate'].append({'name' : '--min-sim-allele-prevalence-freq', 'kwargs' : {'type' : float, 'help' : 'minimum frequency at which alleles are allowed to occur, e.g. if it\'s 0.01 then each pair of V alleles will have a prevalence ratio between 0.01 and 1. Default set in glutils.generate_germline_set.'}})
+subargs['simulate'].append({'name' : '--n-genes-per-region', 'kwargs' : {'default' : glutils.default_n_genes_per_region, 'help' : 'colon-separated list specifying the number of genes (not alleles -- i.e. the *total* number of alleles is this times the number of alleles per gene) for each region (for use with --generate-germline-set)'}})
+subargs['simulate'].append({'name' : '--n-sim-alleles-per-gene', 'kwargs' : {'default' : glutils.default_n_alleles_per_gene, 'help' : 'colon-separated list of mean alleles per gene for each region (for use with --generate-germline-set).'}})
+subargs['simulate'].append({'name' : '--min-sim-allele-prevalence-freq', 'kwargs' : {'default' : glutils.default_min_allele_prevalence_freq,'type' : float, 'help' : 'minimum frequency at which alleles are allowed to occur, e.g. if it\'s 0.01 then each pair of V alleles will have a prevalence ratio between 0.01 and 1'}})
 subargs['simulate'].append({'name' : '--allele-prevalence-fname', 'kwargs' : {'help' : 'abandon help all ye who enter here'}})
 subargs['simulate'].append({'name' : '--root-mrca-weibull-parameter', 'kwargs' : {'type' : float, 'help' : 'if set, uses TreeSimGM (instead of TreeSim), and value passed as the parameter (e.g. 0.1: long root-mrca distance, lots of shared mutation; 5: short, little) NOTE requires installation of TreeSimGM'}})
 
