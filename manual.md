@@ -343,10 +343,10 @@ Starting from this, there are a wide variety of options for manipulating how the
 
 **Miscellaneous:**
 
-| optionxxxxxxxxxxxxxxxxxxxx       | description
+| option                           | description
 |----------------------------------|-----------------------------------------------------------------
-| `--mutation-multiplier <factor>` | multiply the observed SHM frequency by `<factor>`
-| `--mimic-data-read-length`       | by default the simulation creates reads that extend through all of V and J -- this tells it, instead, to truncate on the 5' and 3' ends according to the lengths/frequencies seen in the data sample
+| ```--mutation-multiplier <factor>``` | multiply the observed SHM frequency by `<factor>`
+| ```--mimic-data-read-length```       | by default the simulation creates reads that extend through all of V and J -- this tells it, instead, to truncate on the 5' and 3' ends according to the lengths/frequencies seen in the data sample
 
 **Tree control:**
 
