@@ -4,7 +4,7 @@ Partis is an HMM-based framework for B- and T-cell receptor annotation, simulati
 It is built on top of the [ham](https://github.com/psathyrella/ham) HMM compiler, and also uses the [ig-sw](https://github.com/matsengrp/ig-sw) set of Smith-Waterman annotation tools.
 Partis is free software under the GPL v3.
 
-The following papers describe the annotation, clonal family, and germline set inference methods used in partis:
+The following papers describe the annotation, clonal family, and germline set inference methods used by partis:
 
 * Ralph, DK, & Matsen IV, FA (2016). [Consistency of VDJ Rearrangement and Substitution Parameters Enables Accurate B Cell Receptor Sequence Annotation.](http://doi.org/10.1371/journal.pcbi.1004409) *PLOS Computational Biology*, 12(1), e1004409.
 * Ralph, DK, & Matsen IV, FA (2016). [Likelihood-based Inference of B-cell Clonal Families.](http://dx.doi.org/10.1371/journal.pcbi.1005086) *PLOS Computational Biology*, 12(10), e1005086.
@@ -25,7 +25,6 @@ This manual is organized into the following sections:
     - [cache-parameters](#cache-parameters) write parameter values and HMM model files for a given data set
       - [germline sets](#germline-sets)
     - [simulate](#simulate) make simulated sequences
-    - [run-forward](#run-forward) find total probability of sequences
   * [Parallelization](#parallelization)
   * [Text output and logging](#text-output-and-logging)
 
@@ -132,7 +131,7 @@ Permament parameter files, on the other hand, are written to `--parameter-dir`, 
 
 The main script has a number of actions:
 
-```./bin/partis annotate | partition | view-annotations | view-partitions | cache-parameters | simulate | run-forward```,
+```./bin/partis annotate | partition | view-annotations | view-partitions | cache-parameters | simulate```,
 
 each of which is described in more detail below.
 For more information you can also type `./bin/partis --help` and `./bin/partis <subcommand> --help`.
@@ -320,11 +319,11 @@ The hmm model files go in the `hmms` subdirectory, which contains yaml HMM model
 #### germline sets
 
 By default partis infers a germline set for each sample during parameter caching, using as a starting point the germline sets in data/germlines.
-These per-sample germline sets are written as three fasta files and a meta-info csv to `<--parameter-dir>/hmm/germline-sets`.
+The resulting per-sample germline sets are written as three fasta files and a meta-info csv to `<--parameter-dir>/hmm/germline-sets`.
 
 By default, this only looks for alleles that are separated by point mutations from existing genes.
 This is appropriate for humans, and probably for mice as well, since the known germline sets are fairly complete.
-For species such as macaques for which the known germline sets are much less complete, it is better to set --allele-cluster, so that it also looks for alleles that are separated by indels from existing genes.
+For species for which the known germline sets are much less complete (e.g. macaque), it is better to set `--allele-cluster`, so that it also looks for alleles that are separated by indels from existing genes.
 
 At the moment we only do clever germline inference things for V, and not for D and J.
 This is kind of dumb, and will be fixed soon, but shouldn't have a big effect since there is much less variation in D and J.
@@ -338,15 +337,15 @@ You could thus write a a few simulated events to the file `simu.csv` by running
 
 ```./bin/partis simulate --parameter-dir _output/_path_to_sample --outfname simu.csv --n-sim-events 3 --debug 1```,
 
-where `--debug 1` shows you what the rearrangement events look like as they're being made.
+where `--debug 1` pritns to std out what the rearrangement events look like as they're being made.
 Starting from this, there are a wide variety of options for manipulating how the characteristics of the simulation deviate from the template data sample (for information on defaults, run `./bin/partis simulate --help`).
 
 **Miscellaneous:**
 
 | option                           | description
 |----------------------------------|-----------------------------------------------------------------
-| ```--mutation-multiplier <factor>``` | multiply the observed SHM frequency by `<factor>`
-| ```--mimic-data-read-length```       | by default the simulation creates reads that extend through all of V and J -- this tells it, instead, to truncate on the 5' and 3' ends according to the lengths/frequencies seen in the data sample
+| `--mutation-multiplier <factor>` | multiply the observed SHM rate by `<factor>`
+| `--mimic-data-read-length`       | by default the simulation creates reads that extend through all of V and J. This tells it, instead, to truncate on the 5' and 3' ends according to the lengths/frequencies seen in the template data sample.
 
 **Tree control:**
 
@@ -354,9 +353,9 @@ Starting from this, there are a wide variety of options for manipulating how the
 |-----------------------------------------------|-----------------------------------------------------------------
 | `--n-trees <N>`                               | During normal operation, a set of `<N>` phylogentic trees are initially generated from which to later choose a tree for each rearrangemnt event. Defaults to the value of --n-sim-events.
 | `--n-leaf-distribution <geometric,box,zipf>`  | When generating these trees, from what distribution should the number of leaves be drawn?
-| `--n-leaves <N>`                              | Parameter controlling the n-leaf distribution (e.g. for the default geometric distribution, it's the mean number of leaves)
+| `--n-leaves <N>`                              | Parameter controlling the n-leaf distribution (e.g. for the geometric distribution, it's the mean number of leaves)
 | `--constant-number-of-leaves`                 | instead of drawing the number of leaves for each tree from a distribution, force every tree to have the same number of leaves
-| `--root-mrca-weibull-parameter`               | adjusts tree shape and branching
+| `--root-mrca-weibull-parameter`               | adjusts tree balance/speciation by switching to TreeSimGM (useful range: 0.3 to 1.3)
 
 **SHM indel control:**
 
@@ -365,7 +364,7 @@ Starting from this, there are a wide variety of options for manipulating how the
 | `--indel-frequency <f>`            | fraction of simulated sequences which will contain SHM indels (currently, insertions and deletions are generated with equal probability, although this would be easy to change)
 | `--mean-indels-per-indeld-seq <N>` | once we've decided a sequence will have at least one indel, we choose the actual number of indels from a geometric distribution with this mean
 | `--mean-indel-length <N>`          | mean length of each SHM insertion or deletion
-| `--indel-location <v,cdr3>`        | if not set (default), indels are placed uniformly over the whole sequence. If set to `v` or `cdr3` indels are restricted to those bits
+| `--indel-location <v,cdr3>`        | if not set (default), indels are placed uniformly over the whole sequence. If set to `v` or `cdr3` indels are restricted to that portion of the sequence.
 
 **Scratch parameters:**
 
@@ -373,48 +372,52 @@ In order to deviate more profoundly from the template data sample (or to use no 
 
 | option                            | description
 |-----------------------------------|-----------------------------------------------------------------
-| `--rearrange-from-scratch`        | instead of taking rearrangement-level (i.e. non-SHM) parameters from --parameter-dir, make up some plausible values from scratch (e.g. geometric insertion lengths)
-| `--scratch-mute-freq-dir <path>`  | parameter directory with only SHM-level information, which allows --rearrange-from-scratch to create realistic mutation spectra for any specified germline set (the default, in data/ shouldn't need to be changed)
-| `--mutate-from-scratch`           | instead of taking realistic SHM-level (i.e. non-rearrangement level) parameters from --parameter-dir (or --scratch-mute-freq-dir), use a simple flat rate across positions and genes specified by --flat-mute-freq
+| `--rearrange-from-scratch`        | instead of taking rearrangement-level (i.e. non-SHM) parameters from --parameter-dir, make up some reasonable values from scratch (e.g. geometric insertion lengths, etc.)
+| `--scratch-mute-freq-dir <path>`  | parameter directory with only SHM-level information, which allows --rearrange-from-scratch to create realistic mutation distributions for any specified germline set (the default, in data/recombinator/scratch-parameters/ shouldn't need to be changed)
+| `--mutate-from-scratch`           | instead of taking realistic SHM-level (i.e. non-rearrangement level) parameters from --parameter-dir or --scratch-mute-freq-dir, use a simple flat rate across positions and genes (value is specified by --flat-mute-freq)
 | `--flat-mute-freq`                | see --mutate-from-scratch
 
 **Germline set control:**
 
 By default, the germline set (set of germline V, D, and J genes) used for simulation, and their prevalance frequencies, are taken from the template data sample (i.e. from `<--parameter-dir>/hmm/germline-sets/<locus>`.
 However, if you have a particular germline set that you want to use, that can be specified with `--initial-germline-dir` (the format, of three fastas and a csv, should mimic that in data/germlines/human/igh).
-You can restrict the genes from the germline set that are actually used for simulation with `--only-genes <gene-list>`, where `<gene-list>` is a colon-separated list of genes, for instance `IGHV3-53*03:IGHJ3*02` (any regions that have no genes in the list, like the D region in this example, will be unrestricted).
+You can restrict the genes that are then actually used for simulation with `--only-genes`:
+
+| option                        | description
+|-------------------------------|-----------------------------------------------------------------
+| `--initial-germline-dir <dir>`| simulate with the germline set in `<dir>`, instead of the one from --parameter-dir
+| `--only-genes <gene-list>`    | restrict the germline set to `<gene-list>`, specified as a colon-separated list of genes, for instance `IGHV3-53*03:IGHJ3*02` (any regions that have no genes in the list, like the D region in this example, will be unrestricted).
 
 You can also direct partis to generate an entirely synthetic germline set with `--generate-germline-set` (use --help to see default values):
 
-| option                             | description
-|------------------------------------|-----------------------------------------------------------------
-| `--generate-germline-set`          | generate a realistic germline set from scratch, rather than mimicing an existing germline set (`--rearrange-from-scratch` must also be set)
-| `--n-genes-per-region <m:n:q>`     | number of genes to choose for each of the V, D, and J regions (colon-separated list ordered like v:d:j)
-| `--n-sim-alleles-per-gene <stuff>` | mean number of alleles to choose for each gene, for each region (colon-separated list, e.g. '1.3:1.2:1.1' will choose either 1 or 2 alleles for each gene with the proper probabilities such that the mean alleles per gene is 1.3 for V, 1.2 for D, and 1.1 for J)
-| `--min-sim-allele-prevalence-freq` | minimum prevalence ratio between any two alleles in the germline set. I.e., the prevalence frequency for each allele is chosen such that the ratio of any two is between this and 1
+| option                                 | description
+|----------------------------------------|-----------------------------------------------------------------
+| `--generate-germline-set`              | generate a realistic germline set from scratch, rather than mimicing an existing germline set (`--rearrange-from-scratch` must also be set)
+| `--n-genes-per-region <m:n:q>`         | number of genes to choose for each of the V, D, and J regions (colon-separated list ordered like v:d:j)
+| `--n-sim-alleles-per-gene <stuff>`     | mean number of alleles to choose for each gene, for each region (colon-separated list, e.g. '1.3:1.2:1.1' will choose either 1 or 2 alleles for each gene with the proper probabilities such that the mean alleles per gene is 1.3 for V, 1.2 for D, and 1.1 for J)
+| `--min-sim-allele-prevalence-freq <f>` | minimum prevalence ratio between any two alleles in the germline set. I.e., the prevalence for each allele is chosen such that the ratio of any two is between `<f>` and 1
 
-details of the generated germline set will be printed to stdout, and after simulation the prevalence frequencies are checked and printed to stdout.
+Details of the generated germline set will be printed to stdout, and after simulation the prevalence frequencies are also checked and printed.
 
 **Generating novel alleles:**
 
-There are also several ways to generate novel alleles, i.e. that are not in an existing germline set.
-Because this is somewhat complicated, we describe these options using the helper script `bin/test-germline-inference.py`, which automates a simulation run and subsequent partis germline inference on that simulation.
-See examples with `./bin/test-germline-inference.py --help`.
+There are also several ways to generate novel alleles, i.e. alleles that are not in an existing germline set.
+Because this is somewhat complicated, we describe these options using the helper script `bin/test-germline-inference.py`, which automates a simulation run and subsequent partis germline inference on that simulation (run `./bin/test-germline-inference.py --help` for examples).
 
 You first need to either give it an explicit list of genes to use, or tell it to generate a germline set from scratch:
 
-| option               | description
-|----------------------|-----------------------------------------------------------------
-| `--sim-v-genes`      | colon-separated list of V genes to use for simulation
-| `--inf-v-genes`      | start from this list of V genes, and try to infer the genes from --sim-v-genes
-| `--dj-genes`         | D and J genes used for both simulation and inference
-| `--gls-gen`          | instead of using the explicit gene lists, generate a full germline set from scratch (see --generate-germline-set in `bin/partis --help` for deatils)
+| option                   | description
+|--------------------------|-----------------------------------------------------------------
+| `--sim-v-genes <v-list>` | colon-separated list of V genes to use for simulation
+| `--inf-v-genes <v-list>` | start from this list of V genes, and try to infer the genes from --sim-v-genes
+| `--dj-genes <dj-list>`   | D and J genes used for both simulation and inference
+| `--gls-gen`              | instead of using explicit gene lists, generate a full germline set from scratch (see --generate-germline-set in `./bin/partis --help` for details)
 
 You can then add novel alleles to the germline set by telling it how many novel alleles, with how many SNPs and/or indels, and where to introduce the SNPs/indels:
 
 | option                        | description
 |-------------------------------|-----------------------------------------------------------------
-| `--nsnp-list <m:n:...>`       | number of SNPs to generate for each novel allele (each SNP at a random position in the sequence). Length must equal length of <--sim-v-genes> if --gls-gen is not set. E.g. '0:1:3' will generate two novel alleles, separated by 1, and 3 SNPs from the second and third genes in --sim-v-genes
+| `--nsnp-list <m:n:...>`       | list of the number of SNPs to generate for each novel allele (each at a random position in the sequence). If --gls-gen is not set, length must equal length of <--sim-v-genes>.  E.g. '0:1:3' will generate two novel alleles, separated by 1 and 3 SNPs from the second and third genes in --sim-v-genes
 | `--nindel-list <m:n:...>`     | same as --nsnp-list, but for indels
 | `--snp-positions <stuff>`     | colon-separated list of comma-separated SNP positions for each gene, e.g. '3,71:45' will generate two novel alleles, separated by two SNPs (at zero-indexed sequence positions 3 and 71) and one SNP (at 45) from the two genes in --sim-v-genes.
 | `--indel-positions <m:n:...>` | same as --snp-positions, but for indels
