@@ -4,10 +4,11 @@ Partis is an HMM-based framework for B- and T-cell receptor annotation, simulati
 It is built on top of the [ham](https://github.com/psathyrella/ham) HMM compiler, and also uses the [ig-sw](https://github.com/matsengrp/ig-sw) set of Smith-Waterman annotation tools.
 Partis is free software under the GPL v3.
 
-The following two papers describe the annotation and clonal family inference functionality of partis, respectively:
+The following papers describe the annotation, clonal family, and germline set inference methods used in partis:
 
 * Ralph, DK, & Matsen IV, FA (2016). [Consistency of VDJ Rearrangement and Substitution Parameters Enables Accurate B Cell Receptor Sequence Annotation.](http://doi.org/10.1371/journal.pcbi.1004409) *PLOS Computational Biology*, 12(1), e1004409.
 * Ralph, DK, & Matsen IV, FA (2016). [Likelihood-based Inference of B-cell Clonal Families.](http://dx.doi.org/10.1371/journal.pcbi.1005086) *PLOS Computational Biology*, 12(10), e1005086.
+* Ralph, DK, & Matsen IV, FA (in preparation). Per-sample immunoglobulin germline inference from B cell receptor deep sequencing data
 
 This manual is organized into the following sections:
 
@@ -318,26 +319,15 @@ The hmm model files go in the `hmms` subdirectory, which contains yaml HMM model
 
 #### germline sets
 
-By default partis uses the set of germline V, D, and J genes (the "germline set") in `data/germlines`, which is from imgt.
-If you have another set you'd like to use, you can do so by setting the `--initial-germline-dir` option to cache-parameters.
-A number of studies have shown that, at least for V genes, this set (and all others) is both missing many alleles which occur in real populations and contains many alleles which do not occur in any real sample.
-In addition, any individual sample will contain only a small fraction of the genes and alleles in the default germline set.
+By default partis infers a germline set for each sample during parameter caching, using as a starting point the germline sets in data/germlines.
+These per-sample germline sets are written as three fasta files and a meta-info csv to `<--parameter-dir>/hmm/germline-sets`.
 
-<!-- By default partis handles these problems when caching parameters with a two step process during the preliminary smith-waterman annotation. -->
-<!-- The V alleles in the initial germline set which were the best match for at least one sequence, and which accounted for more than `--min-allele-prevalence-fraction` (default 0.0005) of the repertoire, are then divided into classes, such that all alleles within each class are the same length, and separated by less than `--n-max-snps` (default 8) SNPs. -->
-<!-- To a first approximation, these classes are the same as imgt gene designations, i.e. the bit before the `*`. -->
-<!-- Within each class, we then keep only the most common `--n-alleles-per-gene` alleles (default 2) which are distinguishable from each other in expressed samples (e.g. which don't differ by one base at codon 108). -->
-<!-- This amounts to the application of a strong diploid prior. -->
-<!-- Which, of course, is not particularly well-justified given the extensive gene deletion and duplication in the BCR locus, and the fact that typical SHM levels are much larger than the typical inter-V-gene distance in the imgt repertoire. -->
-<!-- But, it is a reasonable first approximation. -->
-<!-- And, more importantly, it is vastly more accurate than simply keeping every single allele which is a best match. -->
+By default, this only looks for alleles that are separated by point mutations from existing genes.
+This is appropriate for humans, and probably for mice as well, since the known germline sets are fairly complete.
+For species such as macaques for which the known germline sets are much less complete, it is better to set --allele-cluster, so that it also looks for alleles that are separated by indels from existing genes.
 
-<!-- Second, if `--find-new-alleles` is specified, we re-run smith-waterman using this reduced V germline set, and apply a new method for finding any previously unknown V alleles, or V alleles which were over-aggressively pruned in the previous step. -->
-<!-- This method is too complex to describe here in detail, but can perhaps best be described as a principled, hypothesis-testing-based generalization of the [tigger](https://www.ncbi.nlm.nih.gov/pubmed/25675496) method. -->
-<!-- The entire resulting germline set is written to a subdirectory of `--parameter-dir`, and is used in subsequent runs instead of the initial germline set. -->
-
-<!-- We could probably do the same thing for J, but there doesn't seem to be much polymorphism, so it's probably not worthwhile. -->
-<!-- Doing it for D is probably not realistic. -->
+At the moment we only do clever germline inference things for V, and not for D and J.
+This is kind of dumb, and will be fixed soon, but shouldn't have a big effect since there is much less variation in D and J.
 
 ### simulate
 
@@ -399,7 +389,7 @@ You can also direct partis to generate an entirely synthetic germline set with `
 | option                             | description
 |------------------------------------|-----------------------------------------------------------------
 | `--generate-germline-set`          | generate a realistic germline set from scratch, rather than mimicing an existing germline set (`--rearrange-from-scratch` must also be set)
-| `--n-genes-per-region <m:n:q>`     | number of genes to choose for each of the V, D, and J regions (colon separated list ordered like v:d:j)
+| `--n-genes-per-region <m:n:q>`     | number of genes to choose for each of the V, D, and J regions (colon-separated list ordered like v:d:j)
 | `--n-sim-alleles-per-gene <stuff>` | mean number of alleles to choose for each gene, for each region (colon-separated list, e.g. '1.3:1.2:1.1' will choose either 1 or 2 alleles for each gene with the proper probabilities such that the mean alleles per gene is 1.3 for V, 1.2 for D, and 1.1 for J)
 | `--min-sim-allele-prevalence-freq` | minimum prevalence ratio between any two alleles in the germline set. I.e., the prevalence frequency for each allele is chosen such that the ratio of any two is between this and 1
 
@@ -407,34 +397,27 @@ details of the generated germline set will be printed to stdout, and after simul
 
 **Generating novel alleles:**
 
-Because this is somewhat complicated, in the following we describe the options in the context of options to the helper script `bin/test-germline-inference.py`.
-This helper script, however, is mostly just running `bin/partis`, and it prints the correspond command lines to stdout as it runs.
-You basically need to tell it how many novel alleles, with how many SNPs and/or indels, and where to introduce them.
+There are also several ways to generate novel alleles, i.e. that are not in an existing germline set.
+Because this is somewhat complicated, we describe these options using the helper script `bin/test-germline-inference.py`, which automates a simulation run and subsequent partis germline inference on that simulation.
+See examples with `./bin/test-germline-inference.py --help`.
 
-| option                             | description
-|------------------------------------|-----------------------------------------------------------------
-| `--snp-positions`                  | xxx
+You first need to either give it an explicit list of genes to use, or tell it to generate a germline set from scratch:
 
-####### Examples
+| option               | description
+|----------------------|-----------------------------------------------------------------
+| `--sim-v-genes`      | colon-separated list of V genes to use for simulation
+| `--inf-v-genes`      | start from this list of V genes, and try to infer the genes from --sim-v-genes
+| `--dj-genes`         | D and J genes used for both simulation and inference
+| `--gls-gen`          | instead of using the explicit gene lists, generate a full germline set from scratch (see --generate-germline-set in `bin/partis --help` for deatils)
 
+You can then add novel alleles to the germline set by telling it how many novel alleles, with how many SNPs and/or indels, and where to introduce the SNPs/indels:
 
-###### bin/test-allele-finding.py
-
-
-For testing purposes, we can use the parameters in `--parameter-dir` to create simulated sequences that mimic the data as closely as possible.
-This allows us to test how well our algorithms work on a set of sequences for which we know the correct annotations and clonal relationships.
-Note that while the parameters describe a very detailed picture of the rearrangement and mutation patterns, we do not (yet!) parametrize either the emipical clonal size distributions or phylogenetic relationships.
-These can, however, be specified from a number of realistic options (see `--help` for the simulate subcommand).
-
-For example:
-
-```./bin/partis simulate --outfname _output/examle-simu.csv --parameter-dir test/reference-results/test/parameters/data --n-sim-events 50```.
-
-This will spit out simulated sequences to `--outfname` using some test parameters in `test/reference-results`.
-We also specify that we want it to simulate 50 rearrangement events.
-To get the actual number of sequences, we multiply this by the mean number of leaves per tree (set with `--n-leaves`, at the moment with a default of five).
-At the start of a simulation run, TreeSim generates a set of `--n-trees` trees (default 500 at the moment), and each tree has a number of leaves drawn from an exponential (or zipf, or box, or...) with mean/exponent `--n-leaves`.
-Throughout the run, we sample a tree at random from this set for each rearrangement event.
+| option                        | description
+|-------------------------------|-----------------------------------------------------------------
+| `--nsnp-list <m:n:...>`       | number of SNPs to generate for each novel allele (each SNP at a random position in the sequence). Length must equal length of <--sim-v-genes> if --gls-gen is not set. E.g. '0:1:3' will generate two novel alleles, separated by 1, and 3 SNPs from the second and third genes in --sim-v-genes
+| `--nindel-list <m:n:...>`     | same as --nsnp-list, but for indels
+| `--snp-positions <stuff>`     | colon-separated list of comma-separated SNP positions for each gene, e.g. '3,71:45' will generate two novel alleles, separated by two SNPs (at zero-indexed sequence positions 3 and 71) and one SNP (at 45) from the two genes in --sim-v-genes.
+| `--indel-positions <m:n:...>` | same as --snp-positions, but for indels
 
 <!-- ---------------------------------------------------------------------------------------- -->
 ### Parallelization

@@ -314,42 +314,49 @@ def multiple_tests(args):
 # # ----------------------------------------------------------------------------------------
 
 example_str = '\n    '.join(['example usage:',
-                             './bin/test-germline-inference.py --n-sim-events 2000 --n-procs 10 --sim-v-genes=IGHV1-18*01 --inf-v-genes=IGHV1-18*01 --snp-positions 27,55,88',
-                             './bin/test-germline-inference.py --n-sim-events 2000 --n-procs 10 --sim-v-genes=IGHV4-39*01:IGHV4-39*02 --inf-v-genes=IGHV4-39*01'])
-parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, epilog=example_str)
+                             'one new allele separated by 3 snps from existing allele:',
+                             '    ./bin/test-germline-inference.py --n-sim-events 2000 --n-procs 10 --sim-v-genes=IGHV1-18*01 --inf-v-genes=IGHV1-18*01 --snp-positions 27,55,88',
+                             'one new allele [i.e. that the inference doesn\'t know about, but that in this case is in IMGT] separated by 1 snp from existing allele:',
+                             '    ./bin/test-germline-inference.py --n-sim-events 2000 --n-procs 10 --sim-v-genes=IGHV4-39*01:IGHV4-39*02 --inf-v-genes=IGHV4-39*01',
+                             'generate a full germline set for simulation, and then try to infer it:',
+                             '    ./bin/test-germline-inference.py --n-sim-events 2000 --n-procs 10 --gls-gen'])
+class MultiplyInheritedFormatter(argparse.RawTextHelpFormatter, argparse.ArgumentDefaultsHelpFormatter):
+    pass
+formatter_class = MultiplyInheritedFormatter
+parser = argparse.ArgumentParser(formatter_class=MultiplyInheritedFormatter, epilog=example_str)
 parser.add_argument('--n-sim-events', type=int, default=20, help='number of simulated rearrangement events')
 parser.add_argument('--n-max-queries', type=int, help='number of queries to use for inference from the simulation sample')
-parser.add_argument('--n-leaves', type=float, default=1.)
-parser.add_argument('--n-leaf-distribution')
-parser.add_argument('--root-mrca-weibull-parameter', type=float)
+parser.add_argument('--n-leaves', type=float, default=1., help='see bin/partis --help')
+parser.add_argument('--n-leaf-distribution', help='see bin/partis --help')
+parser.add_argument('--root-mrca-weibull-parameter', type=float, help='see bin/partis --help')
 parser.add_argument('--n-procs', type=int, default=2)
-parser.add_argument('--seed', type=int, default=int(time.time()))
-parser.add_argument('--gls-gen', action='store_true', help='generate a random germline set from scratch (parameters specified above), and infer a germline set from scratch, instead of using --sim-v-genes, --dj-genes, --inf-v-genes, and --snp-positions.')
-parser.add_argument('--sim-v-genes', default='IGHV4-39*01:IGHV4-39*05', help='.')
-parser.add_argument('--inf-v-genes', default='IGHV4-39*01', help='.')
-parser.add_argument('--dj-genes', default='IGHD6-19*01:IGHJ4*02', help='.')
+parser.add_argument('--seed', type=int, default=int(time.time()), help='random seed')
+parser.add_argument('--gls-gen', action='store_true', help='generate a random germline set from scratch (parameters specified above), and infer a germline set from scratch, instead of using --sim-v-genes, --dj-genes, --inf-v-genes.')
+parser.add_argument('--sim-v-genes', default='IGHV4-39*01:IGHV4-39*05', help='V genes to use for simulation')
+parser.add_argument('--inf-v-genes', default='IGHV4-39*01', help='V genes to use for inference')
+parser.add_argument('--dj-genes', default='IGHD6-19*01:IGHJ4*02', help='D and J genes to use for both simulation and inference')
 parser.add_argument('--snp-positions', help='colon-separated list (length must equal length of <--sim-v-genes>) of comma-separated snp positions for each gene, e.g. for two genes you might have \'3,71:45\'')
 parser.add_argument('--nsnp-list', help='colon-separated list (length must equal length of <--sim-v-genes> unless --gls-gen) of the number of snps to generate for each gene (each snp at a random position). If --gls-gen, then this still gives the number of snpd genes, but it isn\'t assumed to be the same length as anything [i.e. we don\'t yet know how many v genes there\'ll be]')
 parser.add_argument('--indel-positions', help='see --snp-positions (a.t.m. the indel length distributions are hardcoded)')
 parser.add_argument('--nindel-list', help='see --nsnp-list')
-parser.add_argument('--n-genes-per-region', default=glutils.default_n_genes_per_region)
-parser.add_argument('--n-sim-alleles-per-gene', default=glutils.default_n_alleles_per_gene)
-parser.add_argument('--min-allele-prevalence-freq', default=glutils.default_min_allele_prevalence_freq, type=float)
+parser.add_argument('--n-genes-per-region', default=glutils.default_n_genes_per_region, help='see bin/partis --help')
+parser.add_argument('--n-sim-alleles-per-gene', default=glutils.default_n_alleles_per_gene, help='see bin/partis --help')
+parser.add_argument('--min-allele-prevalence-freq', default=glutils.default_min_allele_prevalence_freq, type=float, help='see bin/partis --help')
 parser.add_argument('--allele-prevalence-freqs', help='colon-separated list of allele prevalence frequencies, including newly-generated snpd genes (ordered alphabetically)')
 parser.add_argument('--remove-template-genes', action='store_true', help='when generating snps, remove the original gene before simulation')  # NOTE template gene removal is the default for glutils.generate_germline_set
-parser.add_argument('--mut-mult', type=float)
+parser.add_argument('--mut-mult', type=float, help='see bin/partis --help')
 parser.add_argument('--slurm', action='store_true')
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--dry-run', action='store_true')
-parser.add_argument('--allele-cluster', action='store_true')
-parser.add_argument('--plot-performance', action='store_true')
-parser.add_argument('--methods', default='simu:partis')
+parser.add_argument('--allele-cluster', action='store_true', help='see bin/partis --help')
+parser.add_argument('--plot-performance', action='store_true', help='see bin/partis --help')
+parser.add_argument('--methods', default='simu:partis', help='colon-separated list of methods to run. By default runs simulation, and then partis inference (igdiscover and tigger, if installed, are the other options)')
 parser.add_argument('--outdir', default=utils.fsdir() + '/partis/allele-finder')
 parser.add_argument('--inf-glfo-dir', help='default set below')
 parser.add_argument('--simfname', help='default set below')
 parser.add_argument('--workdir', default=utils.fsdir() + '/_tmp/hmms/' + str(random.randint(0, 999999)))
-parser.add_argument('--n-tests', type=int)
-parser.add_argument('--iteststart', type=int, default=0)
+parser.add_argument('--n-tests', type=int, help='instead of just running once, run <N> independent tests simultaneously')
+parser.add_argument('--iteststart', type=int, default=0, help='for use with --n-tests, if you want to add more tests on')
 parser.add_argument('--plot-and-fit-absolutely-everything', type=int, help='fit every single position for this <istart> and write every single corresponding plot (slow as hell, and only for debugging/making plots for paper)')
 parser.add_argument('--partis-path', default='./bin/partis')
 parser.add_argument('--locus', default='igh')
