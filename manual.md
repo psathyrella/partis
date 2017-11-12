@@ -1,6 +1,6 @@
 ### Introduction
 
-Partis is an HMM-based framework for B- and T-cell receptor annotation, simulation, and partitioning.
+partis is an HMM-based framework for B- and T-cell receptor annotation, clonal family, and germline set inference; and simulation.
 It is built on top of the [ham](https://github.com/psathyrella/ham) HMM compiler, and also uses the [ig-sw](https://github.com/matsengrp/ig-sw) set of Smith-Waterman annotation tools.
 Partis is free software under the GPL v3.
 
@@ -333,7 +333,7 @@ This is kind of dumb, and will be fixed soon, but shouldn't have a big effect si
 In the simplest simulation mode, partis mimics the characteristics of a particular template data sample as closely as possible: germline set, gene usage frequencies, insertion and deletion lengths, somatic hypermutation rates and per-position dependencies, etc. (as well as the correlations between these).
 This mode uses the previously-inferred parameters from that sample, located in `--parameter-dir`.
 By default, for instance, if a sample at the path `/path/to/sample.fa` was previously partitioned, the parameters would have been written to `_output/_path_to_sample/`.
-You could thus write a a few simulated events to the file `simu.csv` by running
+You could thus write the mature sequences resulting from three simulated rearrangement events to the file `simu.csv` by running
 
 ```./bin/partis simulate --parameter-dir _output/_path_to_sample --outfname simu.csv --n-sim-events 3 --debug 1```,
 
@@ -351,7 +351,7 @@ Starting from this, there are a wide variety of options for manipulating how the
 
 | option                                        | description
 |-----------------------------------------------|-----------------------------------------------------------------
-| `--n-trees <N>`                               | During normal operation, a set of `<N>` phylogentic trees are initially generated from which to later choose a tree for each rearrangemnt event. Defaults to the value of --n-sim-events.
+| `--n-trees <N>`                               | Before actually generating events, we first make a set of `<N>` phylogentic trees. For each event, we then choose a tree at random from this set. Defaults to the value of --n-sim-events.
 | `--n-leaf-distribution <geometric,box,zipf>`  | When generating these trees, from what distribution should the number of leaves be drawn?
 | `--n-leaves <N>`                              | Parameter controlling the n-leaf distribution (e.g. for the geometric distribution, it's the mean number of leaves)
 | `--constant-number-of-leaves`                 | instead of drawing the number of leaves for each tree from a distribution, force every tree to have the same number of leaves
@@ -388,11 +388,12 @@ You can restrict the genes that are then actually used for simulation with `--on
 | `--initial-germline-dir <dir>`| simulate with the germline set in `<dir>`, instead of the one from --parameter-dir
 | `--only-genes <gene-list>`    | restrict the germline set to `<gene-list>`, specified as a colon-separated list of genes, for instance `IGHV3-53*03:IGHJ3*02` (any regions that have no genes in the list, like the D region in this example, will be unrestricted).
 
-You can also direct partis to generate an entirely synthetic germline set with `--generate-germline-set` (use --help to see default values):
+Instead of modifying an existing per-sample germline set with the options above, you can also direct partis to generate the germline set by choosing genes from an existing species-wide set with `--generate-germline-set` (use --help to see default values).
+The species-wide germline set defaults to the imgt set, but can be set with `--initial-germline-dir`.
 
 | option                                 | description
 |----------------------------------------|-----------------------------------------------------------------
-| `--generate-germline-set`              | generate a realistic germline set from scratch, rather than mimicing an existing germline set (`--rearrange-from-scratch` must also be set)
+| `--generate-germline-set`              | generate a realistic germline set from scratch, rather than mimicking an existing germline set (`--rearrange-from-scratch` must also be set)
 | `--n-genes-per-region <m:n:q>`         | number of genes to choose for each of the V, D, and J regions (colon-separated list ordered like v:d:j)
 | `--n-sim-alleles-per-gene <stuff>`     | mean number of alleles to choose for each gene, for each region (colon-separated list, e.g. '1.3:1.2:1.1' will choose either 1 or 2 alleles for each gene with the proper probabilities such that the mean alleles per gene is 1.3 for V, 1.2 for D, and 1.1 for J)
 | `--min-sim-allele-prevalence-freq <f>` | minimum prevalence ratio between any two alleles in the germline set. I.e., the prevalence for each allele is chosen such that the ratio of any two is between `<f>` and 1
