@@ -9,7 +9,7 @@ It is built on top of the [ham](https://github.com/psathyrella/ham) HMM compiler
 
 It is described in the following papers:
 
-* Ralph, DK, & Matsen IV, FA (2016). [Consistency of \[...\] Accurate B Cell Receptor Sequence Annotation.](http://doi.org/10.1371/journal.pcbi.1004409) *PLOS Computational Biology*, 12(1), e1004409.
+* Ralph, DK, & Matsen IV, FA (2016). [Consistency of \[...\] Enables Accurate B Cell Receptor Sequence Annotation.](http://doi.org/10.1371/journal.pcbi.1004409) *PLOS Computational Biology*, 12(1), e1004409.
 * Ralph, DK, & Matsen IV, FA (2016). [Likelihood-based Inference of B-cell Clonal Families.](http://dx.doi.org/10.1371/journal.pcbi.1005086) *PLOS Computational Biology*, 12(10), e1005086.
 * Ralph, DK, & Matsen IV, FA (in preparation). Per-sample immunoglobulin germline inference from B cell receptor deep sequencing data
 
