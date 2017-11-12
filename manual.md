@@ -1,5 +1,8 @@
 ### Introduction
 
+Partis is an HMM-based framework for B- and T-cell receptor sequence annotation, simulation, clonal family, and germline inference.
+It is built on top of the [ham](https://github.com/psathyrella/ham) HMM compiler and [ig-sw](https://github.com/matsengrp/ig-sw) set of Smith-Waterman annotation tools.
+
 It is described in the following papers:
 
 * Ralph, DK, & Matsen IV, FA (2016). [Consistency of \[...\] Enables Accurate B Cell Receptor Sequence Annotation.](http://doi.org/10.1371/journal.pcbi.1004409) *PLOS Computational Biology*, 12(1), e1004409.
