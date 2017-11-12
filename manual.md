@@ -1,14 +1,12 @@
 ### Introduction
 
-partis is an HMM-based framework for B- and T-cell receptor annotation, clonal family, and germline set inference; and simulation.
-It is built on top of the [ham](https://github.com/psathyrella/ham) HMM compiler, and also uses the [ig-sw](https://github.com/matsengrp/ig-sw) set of Smith-Waterman annotation tools.
-Partis is free software under the GPL v3.
-
-The following papers describe the annotation, clonal family, and germline set inference methods used by partis:
+It is described in the following papers:
 
 * Ralph, DK, & Matsen IV, FA (2016). [Consistency of VDJ Rearrangement and Substitution Parameters Enables Accurate B Cell Receptor Sequence Annotation.](http://doi.org/10.1371/journal.pcbi.1004409) *PLOS Computational Biology*, 12(1), e1004409.
 * Ralph, DK, & Matsen IV, FA (2016). [Likelihood-based Inference of B-cell Clonal Families.](http://dx.doi.org/10.1371/journal.pcbi.1005086) *PLOS Computational Biology*, 12(10), e1005086.
 * Ralph, DK, & Matsen IV, FA (in preparation). Per-sample immunoglobulin germline inference from B cell receptor deep sequencing data
+
+Partis is free software under the GPL v3.
 
 This manual is organized into the following sections:
 
