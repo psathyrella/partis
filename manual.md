@@ -398,6 +398,8 @@ The species-wide germline set defaults to the imgt set, but can be set with `--i
 | `--n-genes-per-region <m:n:q>`         | number of genes to choose for each of the V, D, and J regions (colon-separated list ordered like v:d:j)
 | `--n-sim-alleles-per-gene <stuff>`     | mean number of alleles to choose for each gene, for each region (colon-separated list, e.g. '1.3:1.2:1.1' will choose either 1 or 2 alleles for each gene with the proper probabilities such that the mean alleles per gene is 1.3 for V, 1.2 for D, and 1.1 for J)
 | `--min-sim-allele-prevalence-freq <f>` | minimum prevalence ratio between any two alleles in the germline set. I.e., the prevalence for each allele is chosen such that the ratio of any two is between `<f>` and 1
+| `--allele-prevalence-fname`            | not really designed to be modified or used by hand, but used by `--allele-prevalence-freqs` option to `bin/test-germline-inference.py` (see below)
+
 
 Details of the generated germline set will be printed to stdout, and after simulation the prevalence frequencies are also checked and printed.
 
@@ -417,12 +419,13 @@ You first need to either give it an explicit list of genes to use, or tell it to
 
 You can then add novel alleles to the germline set by telling it how many novel alleles, with how many SNPs and/or indels, and where to introduce the SNPs/indels:
 
-| option                        | description
-|-------------------------------|-----------------------------------------------------------------
-| `--nsnp-list <m:n:...>`       | list of the number of SNPs to generate for each novel allele (each at a random position in the sequence). If --gls-gen is not set, length must equal length of <--sim-v-genes>.  E.g. '0:1:3' will generate two novel alleles, separated by 1 and 3 SNPs from the second and third genes in --sim-v-genes
-| `--nindel-list <m:n:...>`     | same as --nsnp-list, but for indels
-| `--snp-positions <stuff>`     | colon-separated list of comma-separated SNP positions for each gene, e.g. '3,71:45' will generate two novel alleles, separated by two SNPs (at zero-indexed sequence positions 3 and 71) and one SNP (at 45) from the two genes in --sim-v-genes.
-| `--indel-positions <m:n:...>` | same as --snp-positions, but for indels
+| option                                  | description
+|-----------------------------------------|-----------------------------------------------------------------
+| `--nsnp-list <m:n:...>`                 | list of the number of SNPs to generate for each novel allele (each at a random position in the sequence). If --gls-gen is not set, length must equal length of <--sim-v-genes>.  E.g. '0:1:3' will generate two novel alleles, separated by 1 and 3 SNPs from the second and third genes in --sim-v-genes
+| `--nindel-list <m:n:...>`               | same as --nsnp-list, but for indels
+| `--snp-positions <stuff>`               | colon-separated list of comma-separated SNP positions for each gene, e.g. '3,71:45' will generate two novel alleles, separated by two SNPs (at zero-indexed sequence positions 3 and 71) and one SNP (at 45) from the two genes in --sim-v-genes.
+| `--indel-positions <m:n:...>`           | same as --snp-positions, but for indels
+| `--allele-prevalence-freqs <f1:f2:...>` | colon-separated list of allele prevalence frequencies, including newly-generated snpd genes (ordered alphabetically)
 
 <!-- ---------------------------------------------------------------------------------------- -->
 ### Parallelization
