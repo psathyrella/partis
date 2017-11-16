@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from distutils.version import StrictVersion
 import argparse
 import copy
 import time
@@ -6,6 +7,9 @@ import random
 import sys
 import csv
 import numpy
+import scipy
+if StrictVersion(scipy.__version__) < StrictVersion('0.17.0'):
+    raise RuntimeError("scipy version 0.17 or later is required (found version %s)." % scipy.__version__)
 import colored_traceback.always
 import multiprocessing
 from subprocess import check_call, check_output, CalledProcessError
