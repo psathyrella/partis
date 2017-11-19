@@ -2832,7 +2832,7 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, sanitize=Fa
                 elif iline >= istartstop[1]:
                     continue
 
-            infostrs = [ss.strip() for s in headline.split(' ') for ss in s.split('|')]  # NOTE the uid is left untranslated in here
+            infostrs = [s3.strip() for s1 in headline.split(' ') for s2 in s1.split('\t') for s3 in s2.split('|')]  # NOTE the uid is left untranslated in here
             uid = infostrs[0]
             if sanitize and any(fc in uid for fc in forbidden_characters):
                 if not already_printed_forbidden_character_warning:
