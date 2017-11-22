@@ -54,7 +54,7 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
     no_labels = False
     xline, bounds, figsize = None, None, None
     translegend = [0.0, -0.2]
-    extrastats, log = '', ''
+    log = ''
     xtitle, ytitle = hlist[0].xtitle, hlist[0].ytitle
     if xtitle == '':  # arg, plotting.py thinks default should be None, hist.py thinks it's ''
         xtitle = None
@@ -71,7 +71,7 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
     if varname in plotconfig.gene_usage_columns:
         xtitle = 'allele'
         if hlist[0].n_bins == 2:
-            extrastats = ' 0-bin'  # print the fraction of entries in the zero bin into the legend (i.e. the fraction correct)
+            args.extra_stats += ' 0-bin'  # print the fraction of entries in the zero bin into the legend (i.e. the fraction correct)
     # elif hlist[0].bin_labels.count('') == hlist[0].n_bins + 2:
     #     xtitle = '???'
 
@@ -130,7 +130,7 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
     # draw that little #$*(!
     linewidths = [line_width_override, ] if line_width_override is not None else args.linewidths
     alphas = [0.6 for _ in range(len(hlist))]
-    plotting.draw_no_root(hlist[0], plotname=varname, plotdir=outdir, more_hists=hlist[1:], write_csv=False, stats=extrastats, bounds=bounds,
+    plotting.draw_no_root(hlist[0], plotname=varname, plotdir=outdir, more_hists=hlist[1:], write_csv=False, stats=args.extra_stats, bounds=bounds,
                           shift_overflows=(os.path.basename(outdir) != 'gene-call'), plottitle=plottitle, colors=args.colors,
                           xtitle=xtitle, ytitle=ytitle, xline=xline, normalize=(args.normalize and '_vs_mute_freq' not in varname),
                           linewidths=linewidths, alphas=alphas, errors=True,
@@ -147,6 +147,7 @@ parser.add_argument('--linewidths', default=':'.join(plotting.default_linewidths
 parser.add_argument('--gldir', default='data/germlines/human')
 parser.add_argument('--locus', default='igh')
 parser.add_argument('--normalize', action='store_true')
+parser.add_argument('--extra-stats')
 
 args = parser.parse_args()
 args.plotdirs = utils.get_arg_list(args.plotdirs)
