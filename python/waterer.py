@@ -82,16 +82,16 @@ class Waterer(object):
 
         n_procs = self.args.n_fewer_procs
         min_queries_per_proc = 10  # float(len(self.remaining_queries)) / n_procs  # used to be initial queries per proc
-        print '  %4s  sequences    n_procs     ig-sw time    processing time' % ('summary:' if self.debug else '')
+        print '  %4s   step  seqs    procs     ig-sw time    processing time' % ('summary:' if self.debug else '')
         while len(self.remaining_queries) > 0:  # we remove queries from <self.remaining_queries> as we're satisfied with their output
             if self.nth_try > 1 and float(len(self.remaining_queries)) / n_procs < min_queries_per_proc:
                 n_procs = int(max(1., float(len(self.remaining_queries)) / min_queries_per_proc))
             n_queries_written = self.write_vdjalign_input(base_infname, n_procs)
-            print '  %4s  %8d    %5d' % ('summary:' if self.debug else '', n_queries_written, n_procs),
+            print '  %4s     %d    %-8d %-3d' % ('summary:' if self.debug else '', self.nth_try, n_queries_written, n_procs),
             sys.stdout.flush()
             substart = time.time()
             self.execute_commands(base_infname, base_outfname, n_procs)
-            print '      %8.1f%s' % (time.time() - substart, '\n' if self.debug else ''),
+            print '      %-8.1f%s' % (time.time() - substart, '\n' if self.debug else ''),
             self.read_output(base_outfname, n_procs)
             if self.nth_try > 3:
                 break

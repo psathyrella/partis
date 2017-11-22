@@ -3022,7 +3022,8 @@ def run_vsearch(action, seqs, workdir, threshold, consensus_fname=None, msa_fnam
     os.remove(outfname)
     os.rmdir(workdir)
     if print_time:
-        print '      vsearch: %d %s annotations in %.1f sec' % (len(seqs), region, time.time() - start)
+        # NOTE you don't want to remove these failures, since sw is much smarter about alignment than vsearch, i.e. some failures here are actually ok
+        print 'vsearch: %d / %d %s annotations (%d failed) in %.1f sec' % (len(query_info), len(seqs), region, len(seqs) - len(query_info), time.time() - start)
 
     return returnfo
 
