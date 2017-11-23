@@ -86,6 +86,7 @@ private:
 
   string ParentalString(pair<string, string> *parents);
   int CountMembers(string namestr);
+  unsigned LargestClusterSize(Partition &partition);
   string ClusterSizeString(Partition *partition);
   string JoinNames(string name1, string name2, string delimiter=":");
   string JoinNameStrings(vector<Sequence*> &strlist, string delimiter=":");

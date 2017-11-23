@@ -365,6 +365,18 @@ int Glomerator::CountMembers(string namestr) {
 }
 
 // ----------------------------------------------------------------------------------------
+// count the number of members in a cluster's colon-separated name string
+unsigned Glomerator::LargestClusterSize(Partition &partition) {
+  unsigned largest_cluster_size(0);
+  for(auto &cluster : partition) {
+    unsigned cluster_size = (unsigned)CountMembers(cluster);  // damnit, I wish I remembered why I made CountMembers() return a signed one
+    if(largest_cluster_size == 0 or cluster_size > largest_cluster_size)
+      largest_cluster_size = cluster_size;
+  }
+  return largest_cluster_size;
+}
+
+// ----------------------------------------------------------------------------------------
 string Glomerator::ClusterSizeString(Partition *partition) {
   vector<int> cluster_sizes;
   for(auto &cluster : *partition) {
@@ -1136,15 +1148,23 @@ void Glomerator::Merge(ClusterPath *path) {
   }
 
   if(qpair.first == -INFINITY) {  // if there also wasn't a good lratio merge
-    if(args_->n_final_clusters() == 0) {  // default: stop when there's no good lratio merges, i.e. at (well, near) the maximum likelihood partition
+    if(args_->n_final_clusters() == 0 && args_->min_largest_cluster_size() == 0) {  // default: stop when there's no good lratio merges, i.e. at (well, near) the maximum likelihood partition
       path->finished_ = true;
-    } else if(path->CurrentPartition().size() > args_->n_final_clusters()) {  // still have more clusters than we were asked for
+    } else if((args_->n_final_clusters() > 0 && path->CurrentPartition().size() > args_->n_final_clusters()) ||  // still have more clusters than we were asked for
+	      (args_->min_largest_cluster_size() > 0 && LargestClusterSize(path->CurrentPartition()) < args_->min_largest_cluster_size())) {  // largest cluster is still too small
       if(force_merge_) {  // if we already set force merge on a previous iteration
 	path->finished_ = true;
-	printf("    couldn't merge beyond %lu clusters despite setting force merge\n", path->CurrentPartition().size());
+	if(args_->n_final_clusters() > 0)
+	  printf("    couldn't merge beyond %lu clusters despite setting force merge\n", path->CurrentPartition().size());
+	if(args_->min_largest_cluster_size() > 0)
+	  printf("    couldn't merge past a biggest cluster of %u despite setting force merge\n", LargestClusterSize(path->CurrentPartition()));
       } else {
 	force_merge_ = true;
-	printf("    setting force merge (currently at %lu clusters, requested %u)\n", path->CurrentPartition().size(), args_->n_final_clusters());
+	printf("    setting force merge");
+	if(args_->n_final_clusters() > 0)
+	  printf(" (currently have %lu clusters, requested %u)\n", path->CurrentPartition().size(), args_->n_final_clusters());
+	if(args_->min_largest_cluster_size() > 0)
+	  printf(" (current biggest cluster %u, requested %u)\n", LargestClusterSize(path->CurrentPartition()), args_->min_largest_cluster_size());
       }
     } else {  // we've gotten down to the requested number of clusters, so we can stop (shouldn't be possible to get here, since it'd require somehow missing setting the path to finished in the if clause below)
       path->finished_ = true;
@@ -1178,9 +1198,13 @@ void Glomerator::Merge(ClusterPath *path) {
   //  - but also, it'd probably (maybe?) be ok to clear this cache after a logprob merge, since that would mean we're probably through with all the naive hfrac merges
   //  - or at least remove info for clusters we've merged out of existence
 
-  if(args_->n_final_clusters() > 0 && path->CurrentPartition().size() <= args_->n_final_clusters()) {
+  if((args_->n_final_clusters() > 0 && path->CurrentPartition().size() <= args_->n_final_clusters()) ||
+     (args_->min_largest_cluster_size() > 0 && LargestClusterSize(path->CurrentPartition()) >= args_->min_largest_cluster_size())) {  // largest cluster is still too small
     path->finished_ = true;
-    printf("    finished glomerating to %lu clusters (requested %u))\n", path->CurrentPartition().size(), args_->n_final_clusters());
+    if(args_->n_final_clusters() > 0)
+      printf("    finished glomerating to %lu clusters (requested %u))\n", path->CurrentPartition().size(), args_->n_final_clusters());
+    if(args_->min_largest_cluster_size() > 0)
+      printf("    finished glomerating to a biggest cluster of %u (requested %u))\n", LargestClusterSize(path->CurrentPartition()), args_->min_largest_cluster_size());
   }
 }
 
