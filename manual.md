@@ -252,7 +252,7 @@ The number of steps after which these small clusters are removed is set with `--
 
 Cases where memory is a limiting factor typically stem from a sample with several very large clones.
 This can be ameliorated by artificially capping clonal family size with `--max-cluster-size N`.
-Care must be exercised when interpreting the resulting partition, since it will simply stop clustering when any cluster reaches the specified size.
+Care must be exercised when interpreting the resulting partition, since it will simply stop clustering when any cluster reaches the specified size, rather than stopping at the most likely partition.
 
 ##### cluster annotations
 
