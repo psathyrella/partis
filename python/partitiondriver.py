@@ -753,8 +753,11 @@ class PartitionDriver(object):
                 if self.args.seed_unique_id is not None and self.unseeded_seqs is None:  # if we're in the last few cycles (i.e. we've removed unseeded clusters) we want bcrham to not know about the seed (this gives more accurate clustering 'cause we're really doing hierarchical agglomeration)
                     cmd_str += ' --seed-unique-id ' + self.args.seed_unique_id
 
-                if n_procs == 1 and self.args.n_final_clusters is not None:
-                    cmd_str += ' --n-final-clusters ' + str(self.args.n_final_clusters)
+                if n_procs == 1:
+                    if self.args.n_final_clusters is not None:
+                        cmd_str += ' --n-final-clusters ' + str(self.args.n_final_clusters)
+                    if self.args.min_largest_cluster_size is not None:
+                        cmd_str += ' --min-largest-cluster-size ' + str(self.args.min_largest_cluster_size)
 
                 if self.args.max_cluster_size is not None:
                     cmd_str += ' --max-cluster-size ' + str(self.args.max_cluster_size)
