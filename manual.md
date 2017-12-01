@@ -13,8 +13,9 @@ Partis is free software under the GPL v3.
 
 This manual is organized into the following sections:
 
-  * [Installation with Docker](#installation-with-docker)
-  * [Installation from scratch](#installation-from-scratch)
+  * [Installation](#installation)
+    - [with Docker](#installation-with-docker)
+    - [from scratch](#installation-from-scratch)
   * [Quick start](#quick-start)
   * Subcommands: how to navigate the various `partis` actions
     - [annotate](#annotate) find most likely annotations
@@ -36,14 +37,26 @@ In general, we assume that the reader is familiar with the papers describing [an
 To ask questions, or search through past discussions, please use the [google group](https://groups.google.com/forum/#!forum/partis).
 For specific issues with the software, e.g. bug reports or feature requests, on the other hand, [submit an issue](https://github.com/psathyrella/partis/issues?utf8=%E2%9C%93&q=) on github.
 
-### Installation with Docker
+### Installation
 
-The easiest way to install partis is with the [Docker image](https://registry.hub.docker.com/u/psathyrella/partis/).
-Docker images are kind of like lightweight virtual machines, and as such all the dependencies are taken care of automatically.
-If, however, you'll be mucking about under the hood, or you just don't want to deal with Docker, plain installation might be preferable (see [Installation from scratch](#installation-from-scratch) below).
+There are two ways to install partis: either with Docker, or installing each dependency from scratch.
+Docker is nice because it installs specific versions of each dependency into a controlled environment, so you're less likely to run into issues during installation.
+Docker is annoying once you have it installed, however, because you have to learn (a little) about how Docker works, because using a multi-machine batch system will be difficult (or impossible), and because Docker breaks some standard keyboard shortcuts.
+Installing without Docker means you'll need to have some familiarity software installion on your machine, and it's more likely to involve some work to arrive at compatible dependency versions, but once installed it'll be easier to use.
+The closer your system is to the platform we develop on (Ubuntu, 16.04 as of 2017) the easier this will be, although people generally have little diffulty installing on other Unix-like systems (e.g. RHEL variants and macOS).
 
-You'll first want install Docker using their [installation instructions](https://docs.docker.com) for your particular system.
-Once Docker's installed, pull the partis image from dockerhub, start up a container from this image and attach yourself to it interactively, and compile:
+Whichever method of dependency installation you choose, once you've got all the necessary things on your system, you can proceed to clone the partis repository and compile:
+
+```
+git clone git@github.com:psathyrella/partis
+cd partis
+./bin/build.sh
+```
+
+#### Installation with Docker
+
+First install Docker using their [installation instructions](https://docs.docker.com) for your particular system.
+Once Docker is installed, pull the partis [image](https://registry.hub.docker.com/u/psathyrella/partis/) from dockerhub, start up a container from this image and attach yourself to it interactively, and compile:
 
 ```
 sudo docker pull psathyrella/partis
@@ -53,7 +66,9 @@ sudo docker run -it -v /:/host psathyrella/partis /bin/bash
 Depending on your system, the `sudo` may be unnecessary.
 Note the `-v`, which mounts the root of the host filesystem to `/host` inside the container.
 
-To detach from the docker container without stopping it (and you don't want to stop it!), hit `ctrl-p ctrl-q`.
+Then, clone and build the partis repository (as described [above](#installation)).
+
+To detach from the docker container without stopping it (and you don't want to stop it! you'll have to recompile everything if you do), hit `ctrl-p ctrl-q`.
 
 ###### Docker tips
 Docker containers and images are kinda-sorta like virtual machines, only different, so a few things:
@@ -65,14 +80,49 @@ Docker containers and images are kinda-sorta like virtual machines, only differe
     - Hence the `-it` and `/bin/bash` options we used above for `docker run`: these allocate a pseudo-tty, keep STDIN open, and run bash instead of the default command, without all of which you can't reattach
     - the Docker docs are good, but googling on stackoverflow is frequently better
 
-### Installation from scratch
+#### Installation from scratch
 
-Given the wide variety of hardware and operating systems, installing without Docker comes with no guarantees.
-That said, you should be able to get partis running with just a few `apt-get`/`brew` and `pip` commands.
 This docker-free approach is frequently a lot faster (if you already have numpy and scipy installed, for instance, you don't have to wait for docker to compile and install them from scratch).
 You also don't have to deal with the additional complications of being inside docker, perhaps most importantly docker's likely incompatibility with your batch queueing system.
 
-Basically, you just need to install a few extra packages in addition to the dependencies listed in the [Dockerfile](https://github.com/psathyrella/partis/blob/master/Dockerfile).
+You basically just need to install the dependencies listed in the [Dockerfile](https://github.com/psathyrella/partis/blob/master/Dockerfile), plus a few extras.
+We have had good experiences using both conda, and pip plus a package manager.
+
+###### conda
+
+If you don't have conda installed, follow the full installation instructions for your system [here](https://docs.anaconda.com/anaconda/install/), e.g. for [linux](https://docs.anaconda.com/anaconda/install/linux).
+
+Any time you're using conda, it needs to be in your path, for instance:
+```
+export PATH=<path_to_conda>:$PATH
+```
+If you don't need pip, but you've used it in the past, you should rm `~/.local`.
+You should expect some difficulty if you want to use both conda and pip on the same system.
+You can, however, prevent conda from finding the packages in `~/.local` (and then breaking) by setting `export PYTHONNOUSERSITE=True` (see [this issue](https://github.com/conda/conda/issues/448) for some context).
+You may also need to `unset LD_LIBRARY_PATH`.
+
+Then make a conda environment for partis:
+
+```
+conda create -y -n partis
+source activate partis  # do this _every_ time you start a new terminal
+conda install -y biopython cmake gsl openblas pandas psutil pysam r-essentials scons seaborn
+conda install -y -c biocore mafft
+```
+
+Then start a new terminal, and:
+
+```
+source activate partis
+pip install colored-traceback dendropy==3.12.3
+unset R_LIBS_SITE
+R --vanilla --slave -e 'install.packages("TreeSim", repos="http://cran.rstudio.com/")'
+```
+
+Then, clone and build the partis repository (as described [above](#installation)).
+
+###### pip
+
 For Ubuntu (tested on 16.04):
 
 ```
@@ -80,25 +130,17 @@ sudo apt-get install python-pip cmake scons libgsl0-dev libncurses5-dev libxml2-
 pip install --user numpy scipy matplotlib pandas biopython dendropy==3.12.3 pysam pyyaml seaborn colored_traceback psutil
 R --vanilla --slave -e 'install.packages("TreeSim", repos="http://cran.rstudio.com/")'  # optional -- only used for simulation
 ```
+If you're running an old RHEL variant, with a (very) old gcc, you may need to either update gcc, or swap out `-Ofast` for something else in several places.
 
-We have less experience with os-x, so please drop us a line if you run into any problems, but folks have had good luck swapping out the `apt-get`/`pip` calls for a combination of `brew` and `pip`.
-For instance, depending what is already installed on your system (the Ubuntu list above is more comprehensive) this might be sufficient:
+For macOS, you pretty much swap out the `apt-get`/`pip` calls for a combination of `brew` and `pip`.
+For instance, depending what is already installed on your system (the Ubuntu list above is more comprehensive) this is likely sufficient:
 
 ```
 pip install --user colored-traceback pysam cmake pyyaml psutil  # adding --egg may help if it fails
 brew install gsl scons
 ```
 
-If you need to sort out versions, follow the Dockerfile chain beginning [here](https://registry.hub.docker.com/u/psathyrella/partis/dockerfile/) and [here](https://github.com/matsengrp/dockerfiles/blob/master/cpp/Dockerfile).
-And... if you're having trouble, you can go back up and use Docker up there ^.
-
-Once you've got all the necessary things on your system, you can proceed to clone the repository and compile:
-
-```
-git clone git@github.com:psathyrella/partis
-cd partis
-./bin/build.sh
-```
+Then, clone and build the partis repository (as described [above](#installation)).
 
 ### Quick start
 
