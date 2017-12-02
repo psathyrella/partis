@@ -22,8 +22,8 @@ This manual is organized into the following sections:
     - [partition](#partition) cluster sequences into clonally-related families
       - [faster methods](#faster-methods)
       - [cluster annotations](#cluster-annotations)
-    - [view-annotations](#view-annotations) Print (to std out) the annotations from an existing annotation output csv.
-    - [view-partitions](#view-partitions)  Print (to std out) the partitions from an existing partition output csv.
+    - [view-annotations](#view-annotations) Print (to stdout) the annotations from an existing annotation output csv.
+    - [view-partitions](#view-partitions)  Print (to stdout) the partitions from an existing partition output csv.
     - [cache-parameters](#cache-parameters) write parameter values and HMM model files for a given data set
       - [germline sets](#germline-sets)
     - [simulate](#simulate) make simulated sequences
@@ -384,7 +384,7 @@ You could thus write the mature sequences resulting from three simulated rearran
 
 ```./bin/partis simulate --parameter-dir _output/_path_to_sample --outfname simu.csv --n-sim-events 3 --debug 1```,
 
-where `--debug 1` pritns to std out what the rearrangement events look like as they're being made.
+where `--debug 1` prints to stdout what the rearrangement events look like as they're being made.
 Starting from this, there are a wide variety of options for manipulating how the characteristics of the simulation deviate from the template data sample (for information on defaults, run `./bin/partis simulate --help`).
 
 **Miscellaneous:**
@@ -426,7 +426,7 @@ In order to deviate more profoundly from the template data sample (or to use no 
 
 **Germline set control:**
 
-By default, the germline set (set of germline V, D, and J genes) used for simulation, and their prevalance frequencies, are taken from the template data sample (i.e. from `<--parameter-dir>/hmm/germline-sets/<locus>`.
+By default, the germline set (set of germline V, D, and J genes) used for simulation, and their prevalence frequencies, are taken from the template data sample (i.e. from `<--parameter-dir>/hmm/germline-sets/<locus>`.
 However, if you have a particular germline set that you want to use, that can be specified with `--initial-germline-dir` (the format, of three fastas and a csv, should mimic that in data/germlines/human/igh).
 You can restrict the genes that are then actually used for simulation with `--only-genes`:
 
@@ -465,6 +465,14 @@ You first need to either give it an explicit list of genes to use, or tell it to
 
 You can then add novel alleles to the germline set by telling it how many novel alleles, with how many SNPs and/or indels, and where to introduce the SNPs/indels:
 
+<<<<<<< HEAD
+| option                        | description
+|-------------------------------|-----------------------------------------------------------------
+| `--nsnp-list <m:n:...>`       | list of the number of SNPs to generate for each novel allele (each at a random position in the sequence). If --gls-gen is not set, length must equal length of --sim-v-genes.  E.g. '0:1:3' will generate two novel alleles, separated by 1 and 3 SNPs from the second and third genes in --sim-v-genes
+| `--nindel-list <m:n:...>`     | same as --nsnp-list, but for indels
+| `--snp-positions <stuff>`     | colon-separated list of comma-separated SNP positions for each gene, e.g. '3,71:45' will generate two novel alleles, separated by two SNPs (at zero-indexed sequence positions 3 and 71) and one SNP (at 45) from the two genes in --sim-v-genes.
+| `--indel-positions <m:n:...>` | same as --snp-positions, but for indels
+=======
 | option                                  | description
 |-----------------------------------------|-----------------------------------------------------------------
 | `--nsnp-list <m:n:...>`                 | list of the number of SNPs to generate for each novel allele (each at a random position in the sequence). If --gls-gen is not set, length must equal length of <--sim-v-genes>.  E.g. '0:1:3' will generate two novel alleles, separated by 1 and 3 SNPs from the second and third genes in --sim-v-genes
@@ -472,6 +480,7 @@ You can then add novel alleles to the germline set by telling it how many novel 
 | `--snp-positions <stuff>`               | colon-separated list of comma-separated SNP positions for each gene, e.g. '3,71:45' will generate two novel alleles, separated by two SNPs (at zero-indexed sequence positions 3 and 71) and one SNP (at 45) from the two genes in --sim-v-genes.
 | `--indel-positions <m:n:...>`           | same as --snp-positions, but for indels
 | `--allele-prevalence-freqs <f1:f2:...>` | colon-separated list of allele prevalence frequencies, including newly-generated snpd genes (ordered alphabetically)
+>>>>>>> dev
 
 <!-- ---------------------------------------------------------------------------------------- -->
 ### Parallelization
