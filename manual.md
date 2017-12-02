@@ -39,13 +39,16 @@ For specific issues with the software, e.g. bug reports or feature requests, on 
 
 ### Installation
 
-There are two ways to install partis: either with Docker, or installing each dependency from scratch.
-Docker is nice because it installs specific versions of each dependency into a controlled environment, so you're less likely to run into issues during installation.
-Docker is annoying once you have it installed, however, because you have to learn (a little) about how Docker works, because using a multi-machine batch system will be difficult (or impossible), and because Docker breaks some standard keyboard shortcuts.
-Installing without Docker means you'll need to have some familiarity software installion on your machine, and it's more likely to involve some work to arrive at compatible dependency versions, but once installed it'll be easier to use.
-The closer your system is to the platform we develop on (Ubuntu, 16.04 as of 2017) the easier this will be, although people generally have little diffulty installing on other Unix-like systems (e.g. RHEL variants and macOS).
+There are two ways to install the dependencies required by partis: either with Docker, or by installing each dependency from scratch.
 
-Whichever method of dependency installation you choose, once you've got all the necessary things on your system, you can proceed to clone the partis repository and compile:
+[Using Docker](#installation-with-docker) is nice because it installs specific versions of each dependency into a controlled environment, so you're less likely to run into issues during installation.
+Docker is annoying once you have it installed, however, because you have to learn (a little) about how Docker works, because using a multi-machine batch system will be difficult (or impossible), and because Docker breaks some standard keyboard shortcuts.
+
+Installing [without Docker](installation-from-scratch), on the other hand,  means you'll need to have some familiarity with software installion on your system, and it's more likely to involve some work to arrive at compatible dependency versions. 
+But, once installed, it'll be easier to use.
+The closer your system is to the platform we develop on (Ubuntu, 16.04 as of 2017) the easier this will be, although people generally have little difficulty installing on other Unix-like systems (e.g. RHEL variants and macOS).
+
+Whichever method of dependency installation you choose (each is describe below), once you've got all the necessary things on your system, you can proceed to clone the partis repository and compile:
 
 ```
 git clone git@github.com:psathyrella/partis
@@ -87,8 +90,9 @@ You also don't have to deal with the additional complications of being inside do
 
 You basically just need to install the dependencies listed in the [Dockerfile](https://github.com/psathyrella/partis/blob/master/Dockerfile), plus a few extras.
 We have had good experiences using both conda, and pip plus a package manager.
+Both are described below.
 
-###### conda
+##### conda
 
 If you don't have conda installed, follow the full installation instructions for your system [here](https://docs.anaconda.com/anaconda/install/), e.g. for [linux](https://docs.anaconda.com/anaconda/install/linux).
 
@@ -96,7 +100,7 @@ Any time you're using conda, it needs to be in your path, for instance:
 ```
 export PATH=<path_to_conda>:$PATH
 ```
-If you don't need pip, but you've used it in the past, you should rm `~/.local`.
+If you don't need pip, but you've used it in the past, you should completely remove `~/.local`.
 You should expect some difficulty if you want to use both conda and pip on the same system.
 You can, however, prevent conda from finding the packages in `~/.local` (and then breaking) by setting `export PYTHONNOUSERSITE=True` (see [this issue](https://github.com/conda/conda/issues/448) for some context).
 You may also need to `unset LD_LIBRARY_PATH`.
@@ -121,7 +125,7 @@ R --vanilla --slave -e 'install.packages("TreeSim", repos="http://cran.rstudio.c
 
 Then, clone and build the partis repository (as described [above](#installation)).
 
-###### pip
+##### pip
 
 For Ubuntu (tested on 16.04):
 
