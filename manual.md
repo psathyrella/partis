@@ -100,9 +100,9 @@ Any time you're using conda, it needs to be in your path, for instance:
 ```
 export PATH=<path_to_conda>:$PATH
 ```
-If you don't need pip, but you've used it in the past, you should completely remove `~/.local`.
-You should expect some difficulty if you want to use both conda and pip on the same system.
-You can, however, prevent conda from finding the packages in `~/.local` (and then breaking) by setting `export PYTHONNOUSERSITE=True` (see [this issue](https://github.com/conda/conda/issues/448) for some context).
+If you've used pip in the past, but you won't need it in the future, you should also completely remove `~/.local`.
+If you might need pip in the future, you should expect some difficulty with having both conda and pip on the same system.
+In most cases you can prevent conda from finding the packages in `~/.local` (and then breaking) by setting `export PYTHONNOUSERSITE=True` (see [this issue](https://github.com/conda/conda/issues/448) for some context).
 You may also need to `unset LD_LIBRARY_PATH`.
 
 Then make a conda environment for partis:
