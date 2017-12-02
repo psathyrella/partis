@@ -465,14 +465,6 @@ You first need to either give it an explicit list of genes to use, or tell it to
 
 You can then add novel alleles to the germline set by telling it how many novel alleles, with how many SNPs and/or indels, and where to introduce the SNPs/indels:
 
-<<<<<<< HEAD
-| option                        | description
-|-------------------------------|-----------------------------------------------------------------
-| `--nsnp-list <m:n:...>`       | list of the number of SNPs to generate for each novel allele (each at a random position in the sequence). If --gls-gen is not set, length must equal length of --sim-v-genes.  E.g. '0:1:3' will generate two novel alleles, separated by 1 and 3 SNPs from the second and third genes in --sim-v-genes
-| `--nindel-list <m:n:...>`     | same as --nsnp-list, but for indels
-| `--snp-positions <stuff>`     | colon-separated list of comma-separated SNP positions for each gene, e.g. '3,71:45' will generate two novel alleles, separated by two SNPs (at zero-indexed sequence positions 3 and 71) and one SNP (at 45) from the two genes in --sim-v-genes.
-| `--indel-positions <m:n:...>` | same as --snp-positions, but for indels
-=======
 | option                                  | description
 |-----------------------------------------|-----------------------------------------------------------------
 | `--nsnp-list <m:n:...>`                 | list of the number of SNPs to generate for each novel allele (each at a random position in the sequence). If --gls-gen is not set, length must equal length of <--sim-v-genes>.  E.g. '0:1:3' will generate two novel alleles, separated by 1 and 3 SNPs from the second and third genes in --sim-v-genes
@@ -480,7 +472,6 @@ You can then add novel alleles to the germline set by telling it how many novel 
 | `--snp-positions <stuff>`               | colon-separated list of comma-separated SNP positions for each gene, e.g. '3,71:45' will generate two novel alleles, separated by two SNPs (at zero-indexed sequence positions 3 and 71) and one SNP (at 45) from the two genes in --sim-v-genes.
 | `--indel-positions <m:n:...>`           | same as --snp-positions, but for indels
 | `--allele-prevalence-freqs <f1:f2:...>` | colon-separated list of allele prevalence frequencies, including newly-generated snpd genes (ordered alphabetically)
->>>>>>> dev
 
 <!-- ---------------------------------------------------------------------------------------- -->
 ### Parallelization
