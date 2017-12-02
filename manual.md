@@ -44,11 +44,11 @@ There are two ways to install the dependencies required by partis: either with D
 [Using Docker](#installation-with-docker) is nice because it installs specific versions of each dependency into a controlled environment, so you're less likely to run into issues during installation.
 Docker is annoying once you have it installed, however, because you have to learn (a little) about how Docker works, because using a multi-machine batch system will be difficult (or impossible), and because Docker breaks some standard keyboard shortcuts.
 
-Installing [without Docker](installation-from-scratch), on the other hand,  means you'll need to have some familiarity with software installion on your system, and it's more likely to involve some work to arrive at compatible dependency versions. 
+Installing [without Docker](#installation-from-scratch), on the other hand,  means you'll need to have some familiarity with software installion on your system, and it's more likely to involve some work to arrive at compatible dependency versions. 
 But, once installed, it'll be easier to use.
 The closer your system is to the platform we develop on (Ubuntu, 16.04 as of 2017) the easier this will be, although people generally have little difficulty installing on other Unix-like systems (e.g. RHEL variants and macOS).
 
-Whichever method of dependency installation you choose (each is describe below), once you've got all the necessary things on your system, you can proceed to clone the partis repository and compile:
+Whichever method of dependency installation you choose (each is describe below), once you've got all the necessary things on your system, clone the partis repository and compile:
 
 ```
 git clone git@github.com:psathyrella/partis
@@ -59,7 +59,7 @@ cd partis
 #### Installation with Docker
 
 First install Docker using their [installation instructions](https://docs.docker.com) for your particular system.
-Once Docker is installed, pull the partis [image](https://registry.hub.docker.com/u/psathyrella/partis/) from dockerhub, start up a container from this image and attach yourself to it interactively, and compile:
+Then, pull the partis [image](https://registry.hub.docker.com/u/psathyrella/partis/) from dockerhub, start up a container from this image and attach yourself to it interactively, and compile:
 
 ```
 sudo docker pull psathyrella/partis
@@ -85,11 +85,11 @@ Docker containers and images are kinda-sorta like virtual machines, only differe
 
 #### Installation from scratch
 
-This docker-free approach is frequently a lot faster (if you already have numpy and scipy installed, for instance, you don't have to wait for docker to compile and install them from scratch).
+The docker-free approach is frequently a lot faster (if you already have numpy and scipy installed, for instance, you don't have to wait for docker to compile and install them from scratch).
 You also don't have to deal with the additional complications of being inside docker, perhaps most importantly docker's likely incompatibility with your batch queueing system.
 
-You basically just need to install the dependencies listed in the [Dockerfile](https://github.com/psathyrella/partis/blob/master/Dockerfile), plus a few extras.
-We have had good experiences using both conda, and pip plus a package manager.
+You're basically installing the dependencies listed in the [Dockerfile](https://github.com/psathyrella/partis/blob/master/Dockerfile), plus a few extras.
+We have had good experiences using both [conda](#conda), and [pip](#pip) (plus a package manager).
 Both are described below.
 
 ##### conda
