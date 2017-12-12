@@ -537,7 +537,7 @@ class PartitionDriver(object):
             print '  stopping with %d (<= %d) clusters' % (len(cpath.partitions[cpath.i_best]), self.args.n_final_clusters)
             return True
         elif self.args.max_cluster_size is not None and max([len(c) for c in cpath.partitions[cpath.i_best]]) > self.args.max_cluster_size:  # NOTE I *think* I want the best, not best-minus-x here (hardish to be sure a.t.m., since I'm not really using the minus-x part right now)
-            print '   --max-cluster-size: stopping with a cluster of size %d (> %d)' % (max([len(c) for c in cpath.partitions[cpath.i_best]]), self.args.max_cluster_size)
+            print '   --max-cluster-size (partitiondriver): stopping with a cluster of size %d (> %d)' % (max([len(c) for c in cpath.partitions[cpath.i_best]]), self.args.max_cluster_size)
             return True
         else:
             return False
@@ -559,7 +559,7 @@ class PartitionDriver(object):
             n_procs, cpath = self.prepare_next_iteration(n_proc_list, cpath, len(initial_nsets))
 
         if self.args.max_cluster_size is not None:
-            print '   --max-cluster-size: merging shared clusters'
+            print '   --max-cluster-size (partitiondriver): merging shared clusters'
             self.merge_shared_clusters(cpath)
 
         print '      loop time: %.1f' % (time.time()-start)
