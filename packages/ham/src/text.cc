@@ -2,12 +2,21 @@
 namespace ham {
 
 // ----------------------------------------------------------------------------------------
+// removes all instances of string <white> (nothing particular to white space)
 void ClearWhitespace(string white, string *input) {
   size_t found = input->find_first_of(white);
   while(found != string::npos) {
     input->erase(found, 1);
     found = input->find_first_of(white);
   }
+}
+
+// ----------------------------------------------------------------------------------------
+// split <argstr> into a vector by white space, as in python's str.split() NOTE not the same as SplitString() below
+vector<string> PythonSplit(string argstr) {
+  istringstream iss(argstr);
+  vector<string> tokens{istream_iterator<string>{iss}, istream_iterator<string>{}};
+  return tokens;
 }
 
 // ----------------------------------------------------------------------------------------

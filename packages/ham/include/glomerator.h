@@ -81,7 +81,8 @@ private:
 
   void PrintPartition(Partition &clusters, string extrastr);
   string CacheSizeString();
-  string FinalString();
+  string FinalString(bool newline=false);
+  string GetStatusStr(time_t current_time);
   void WriteStatus();  // write some progress info to file
 
   string ParentalString(pair<string, string> *parents);

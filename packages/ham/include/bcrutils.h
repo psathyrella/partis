@@ -200,6 +200,9 @@ bool FishyMultiSeqAnnotation(size_t n_seqs, RecoEvent &event);
 vector<Sequence> GetSeqVector(vector<Sequence*> pseqvector);
 
 void runps();
+int GetMemVal(string name, string path);  // kB
+int GetRss();
+int GetMemTot();
 
 }
 

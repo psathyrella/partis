@@ -568,7 +568,7 @@ vector<Sequence> GetSeqVector(vector<Sequence*> pseqvector) {
 }
 
 // ----------------------------------------------------------------------------------------
-void runps() {
+void runps() {  // NOTE this probably isn't worth using any more, the /proc/self/statm call in glomerator.cc is better
   const int MAX_BUFFER = 255;
   char buffer[MAX_BUFFER];
   FILE *fstr = popen("ps -eo rss,pcpu,pmem,user,stime,args --sort pmem | grep bcrham | grep -v grep", "r");
@@ -577,6 +577,36 @@ void runps() {
     outstr.append(buffer);
   pclose(fstr);
   cout << endl << "ps: " << endl << outstr << endl;
+}
+
+// ----------------------------------------------------------------------------------------
+int GetMemVal(string path, string name) {
+  ifstream ifs("/proc/" + path);
+  string tmpline;
+  int memval_kb(-1);
+  while(getline(ifs, tmpline)) {
+    if(tmpline.find(name) == string::npos)
+      continue;
+    if(memval_kb != -1)
+      throw runtime_error("two values for " + name + " in /proc/" + path);
+    vector<string> valstrs(PythonSplit(tmpline));
+    if(valstrs.size() != 3)
+      throw runtime_error("couldn't split line '" + tmpline + "' into 3 words (got " + to_string(valstrs.size()) + ")");
+    assert(valstrs[0] == name + ":");
+    assert(valstrs[2] == "kB");
+    memval_kb = atoi(valstrs[1].c_str());
+  }
+  return memval_kb;
+}
+
+// ----------------------------------------------------------------------------------------
+int GetRss() {
+  return GetMemVal("self/status", "VmRSS");
+}
+
+// ----------------------------------------------------------------------------------------
+int GetMemTot() {
+  return GetMemVal("meminfo", "MemTotal");
 }
 
 }

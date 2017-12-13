@@ -311,38 +311,36 @@ string Glomerator::CacheSizeString() {
 }
 
 // ----------------------------------------------------------------------------------------
-string Glomerator::FinalString() {
+string Glomerator::FinalString(bool newline) {
     char buffer[2000];
-    sprintf(buffer, "        calcd:   vtb %-4d  fwd %-4d  hfrac %-8d\n        merged:  hfrac %-4d lratio %-4d", n_vtb_calculated_, n_fwd_calculated_, n_hfrac_calculated_, n_hfrac_merges_, n_lratio_merges_);
+    sprintf(buffer, "        calcd:   vtb %-4d  fwd %-4d  hfrac %-8d%s        merged:  hfrac %-4d lratio %-4d", n_vtb_calculated_, n_fwd_calculated_, n_hfrac_calculated_, newline ? "\n" : "", n_hfrac_merges_, n_lratio_merges_);
     return string(buffer);
+}
+
+// ----------------------------------------------------------------------------------------
+string Glomerator::GetStatusStr(time_t current_time) {
+  char timebuf[2000];
+  strftime(timebuf, 2000, "%b %d %T", localtime(&current_time));
+  stringstream ss;
+  ss << "      " << timebuf;
+  ss << "    " << setw(4) << current_partition_->size() << " clusters";
+  ss << "    " << setw(1) << GetRss() << " / " << setw(1) << GetMemTot() << " kB = " << setprecision(3) << 100. * float(GetRss()) / GetMemTot() << " %";
+  ss << "   " << FinalString(false);
+  ss << "     " << ClusterSizeString(current_partition_).c_str();
+  ss << endl;
+  return ss.str();
 }
 
 // ----------------------------------------------------------------------------------------
 void Glomerator::WriteStatus() {
 
-  // // ----------------------------------------------------------------------------------------
-  // // print memory usage
-  // ifstream smapfs("/proc/self/smaps");
-  // string tmpline;
-  // cout << "contents of /proc/self/smaps:" << endl;
-  // while(getline(smapfs, tmpline)) {
-  //   cout << "MEM " << tmpline << endl;
-  // }
-  // cout << endl;
-  // // ----------------------------------------------------------------------------------------
-
   // cout << CacheSizeString() << endl;
   time_t current_time;
   time(&current_time);
-  if(difftime(current_time, last_status_write_time_) > 300) {  // write something every five minutes
-    char buffer[2000];
-    strftime(buffer, 2000, "%b %d %T", localtime(&current_time));  // %H:%M
-    // fprintf(progress_file_, "      %s    %4d clusters    calcd  fwd %-4d   vtb %-4d   hfrac %-8d    merged  hfrac %-4d\n", buffer, (int)path_->CurrentPartition().size(), n_fwd_calculated_, n_vtb_calculated_);
-    fprintf(progress_file_, "      %s    %4d clusters", buffer, (int)current_partition_->size());
-    fprintf(progress_file_, "   %s", FinalString().c_str());
-
-    fprintf(progress_file_, "     %s\n", ClusterSizeString(current_partition_).c_str());
-
+  if(difftime(current_time, last_status_write_time_) > 30) {  // write something every x seconds (if it crashes, partitiondriver prints the contents to stdout)
+    string status_str(GetStatusStr(current_time));
+    // cout << status_str;
+    fprintf(progress_file_, "%s", status_str.c_str());
     fflush(progress_file_);
     last_status_write_time_ = current_time;
   }
