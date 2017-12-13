@@ -363,8 +363,9 @@ class PartitionDriver(object):
             return
 
         print 'hmm'
+
         # cache hmm naive seq for each single query NOTE <self.current_action> is (and needs to be) still set to partition for this
-        if not self.args.dont_precache_naive_seqs and (len(self.sw_info['queries']) > 50 or self.args.naive_vsearch or self.args.naive_swarm):
+        if not self.args.dont_precache_naive_seqs:
             print '--> caching all %d naive sequences' % len(self.sw_info['queries'])
             self.run_hmm('viterbi', self.sub_param_dir, n_procs=self.auto_nprocs(len(self.sw_info['queries'])), precache_all_naive_seqs=True)
 
@@ -544,9 +545,14 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def cluster_with_bcrham(self):
+        # initial_nsets = [[q, ] for q in self.sw_info['queries']]
+        start = time.time()
+        synth_sw_info = {q : {'naive_seq' : s} for q, s in self.get_cached_hmm_naive_seqs().items()}
+        synth_sw_info['queries'] = synth_sw_info.keys()
+        initial_nsets = utils.collapse_naive_seqs(synth_sw_info)
+        print '   collapsed %d initial queries into %d clusters with identical naive seqs (%.1f sec)' % (len(synth_sw_info['queries']), len(initial_nsets), time.time()-start)
         n_procs = self.args.n_procs
         cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
-        initial_nsets = [[q, ] for q in self.sw_info['queries']]
         cpath.add_partition(initial_nsets, logprob=0., n_procs=n_procs)  # NOTE sw info excludes failed sequences (and maybe also sequences with different cdr3 length)
         n_proc_list = []
         start = time.time()
@@ -629,19 +635,24 @@ class PartitionDriver(object):
         return annotations
 
     # ----------------------------------------------------------------------------------------
+    def get_cached_hmm_naive_seqs(self):
+        cached_naive_seqs = {}
+        with open(self.hmm_cachefname) as cachefile:
+            reader = csv.DictReader(cachefile)
+            for line in reader:
+                if ':' in line['unique_ids']:  # if it's a cache file left over from a previous partitioning, there'll be clusters in it, too
+                    continue
+                cached_naive_seqs[line['unique_ids']] = line['naive_seq']
+        return cached_naive_seqs
+
+    # ----------------------------------------------------------------------------------------
     def cluster_with_naive_vsearch_or_swarm(self, parameter_dir=None):
         start = time.time()
 
         naive_seq_list = []
         assert parameter_dir is not None
         threshold = self.get_naive_hamming_bounds(parameter_dir)[0]  # lo and hi are the same
-        cached_naive_seqs = {}
-        with open(self.hmm_cachefname) as cachefile:
-            reader = csv.DictReader(cachefile)
-            for line in reader:
-                unique_ids = line['unique_ids'].split(':')
-                if len(unique_ids) == 1:  # if it's a cache file left over from a previous partitioning, there'll be clusters in it, too
-                    cached_naive_seqs[unique_ids[0]] = line['naive_seq']
+        cached_naive_seqs = self.get_cached_hmm_naive_seqs()
         for uid in self.sw_info['queries']:
             if uid not in cached_naive_seqs:
                 raise Exception('naive sequence for %s not found in %s' % (uid, self.hmm_cachefname))
@@ -944,22 +955,6 @@ class PartitionDriver(object):
     def get_padded_true_naive_seq(self, qry):
         assert len(self.sw_info[qry]['padlefts']) == 1
         return self.sw_info[qry]['padlefts'][0] * utils.ambiguous_bases[0] + self.reco_info[qry]['naive_seq'] + self.sw_info[qry]['padrights'][0] * utils.ambiguous_bases[0]
-
-    # ----------------------------------------------------------------------------------------
-    def get_sw_naive_seqs(self, info, namekey):
-
-        naive_seqs = {}
-        for line in info:
-            query = line[namekey]
-            if len(query.split(':')) == 1:  # ...but if we don't have them, use smith-waterman (should only be for single queries)
-               naive_seqs[query] = self.sw_info[query]['naive_seq']
-            elif len(query.split(':')) > 1:
-                naive_seqs[query] = self.sw_info[query.split(':')[0]]['naive_seq']  # just arbitrarily use the naive seq from the first one. This is ok partly because if we cache the logprob but not the naive seq, that's because we thought about merging two clusters but did not -- so they're naive seqs should be similar. Also, this is just for divvying queries.
-            else:
-                raise Exception('no naive sequence found for ' + str(query))
-            if naive_seqs[query] == '':
-                raise Exception('zero-length naive sequence found for ' + str(query))
-        return naive_seqs
 
     # ----------------------------------------------------------------------------------------
     def split_input(self, n_procs, infname):
