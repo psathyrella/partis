@@ -324,7 +324,7 @@ string Glomerator::GetStatusStr(time_t current_time) {
   stringstream ss;
   ss << "      " << timebuf;
   ss << "    " << setw(4) << current_partition_->size() << " clusters";
-  ss << "    " << setw(1) << GetRss() << " / " << setw(1) << GetMemTot() << " kB = " << setprecision(3) << 100. * float(GetRss()) / GetMemTot() << " %";
+  ss << "    " << setw(9) << GetRss() << " / " << setw(1) << GetMemTot() << " kB = " << setw(6) << setprecision(3) << 100. * float(GetRss()) / GetMemTot() << " %";
   ss << "   " << FinalString(false);
   ss << "     " << ClusterSizeString(current_partition_).c_str();
   ss << endl;
