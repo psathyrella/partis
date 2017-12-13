@@ -1972,7 +1972,9 @@ def run_cmd(cmdfo, batch_system=None, batch_options=None, nodelist=None):
     return proc
 
 # ----------------------------------------------------------------------------------------
-def run_cmds(cmdfos, sleep=True, batch_system=None, batch_options=None, batch_config_fname=None, debug=None, ignore_stderr=False, n_max_tries=3):  # set sleep to False if your commands are going to run really really really quickly
+def run_cmds(cmdfos, sleep=True, batch_system=None, batch_options=None, batch_config_fname=None, debug=None, ignore_stderr=False, n_max_tries=None):  # set sleep to False if your commands are going to run really really really quickly
+    if n_max_tries is None:
+        n_max_tries = 1 if batch_system is None else 3
     corelist = prepare_cmds(cmdfos, batch_system=batch_system, batch_options=batch_options, batch_config_fname=batch_config_fname)
     procs, n_tries = [], []
     per_proc_sleep_time = 0.01 / len(cmdfos)
@@ -2024,7 +2026,10 @@ def finish_process(iproc, procs, n_tries, cmdfo, n_max_tries, dbgfo=None, batch_
             if os.path.exists(cmdfo['logdir'] + '/' + strtype) and os.stat(cmdfo['logdir'] + '/' + strtype).st_size > 0:
                 print '        %s tail:           (%s)' % (strtype, cmdfo['logdir'] + '/' + strtype)
                 logstr = subprocess.check_output(['tail', '-n30', cmdfo['logdir'] + '/' + strtype])
-                print '\n'.join(['            ' + l for l in logstr.split('\n')])
+                print pad_lines(logstr, padwidth=12);
+        if os.path.exists(cmdfo['outfname'] + '.progress'):  # glomerator.cc is the only one that uses this at the moment
+            print '        progress file (%s):' % (cmdfo['outfname'] + '.progress')
+            print pad_lines(subprocess.check_output(['cat', cmdfo['outfname'] + '.progress']), padwidth=12)
         print '    restarting proc %d' % iproc
         procs[iproc] = run_cmd(cmdfo, batch_system=batch_system, batch_options=batch_options)
         n_tries[iproc] += 1
