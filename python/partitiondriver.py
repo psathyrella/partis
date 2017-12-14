@@ -545,7 +545,6 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def cluster_with_bcrham(self):
-        # initial_nsets = [[q, ] for q in self.sw_info['queries']]
         tmpstart = time.time()
         synth_sw_info = {q : {'naive_seq' : s} for q, s in self.get_cached_hmm_naive_seqs().items()}
         synth_sw_info['queries'] = synth_sw_info.keys()
