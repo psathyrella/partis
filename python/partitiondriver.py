@@ -632,7 +632,7 @@ class PartitionDriver(object):
         self.run_hmm('viterbi', self.sub_param_dir, n_procs=n_procs, partition=partition, read_output=False)  # it would be nice to rearrange <self.read_hmm_output()> so I could remove this option
         if n_procs > 1:
             _ = self.merge_all_hmm_outputs(n_procs, precache_all_naive_seqs=False)
-        annotations = self.read_annotation_output(self.hmm_outfname, outfname=self.args.cluster_annotation_fname, print_annotations=self.args.print_cluster_annotations)
+        annotations = self.read_annotation_output(self.hmm_outfname, outfname=self.args.cluster_annotation_fname, print_annotations=self.args.print_cluster_annotations, dont_write_failed_queries=True)
         if os.path.exists(self.hmm_infname):
             os.remove(self.hmm_infname)
         self.current_action = action_cache
@@ -1495,7 +1495,7 @@ class PartitionDriver(object):
             print '  %s couldn\'t account for %d missing input uid%s%s' % (utils.color('red', 'warning'), len(missing_input_keys), utils.plural(len(missing_input_keys)), ': %s' % ' '.join(missing_input_keys) if len(missing_input_keys) < 15 else '')
 
     # ----------------------------------------------------------------------------------------
-    def read_annotation_output(self, annotation_fname, outfname=None, count_parameters=False, parameter_out_dir=None, print_annotations=False):
+    def read_annotation_output(self, annotation_fname, outfname=None, count_parameters=False, parameter_out_dir=None, print_annotations=False, dont_write_failed_queries=False):
         """ Read bcrham annotation output """
         print '    read output'
         sys.stdout.flush()
@@ -1603,7 +1603,7 @@ class PartitionDriver(object):
 
         # write output file
         if outfname is not None:
-            self.write_annotations(annotations_to_use, outfname, hmm_failures)  # [0] takes the best annotation... if people want other ones later it's easy to change
+            self.write_annotations(annotations_to_use, outfname, hmm_failures, dont_write_failed_queries=dont_write_failed_queries)  # [0] takes the best annotation... if people want other ones later it's easy to change
 
         # annotation (VJ CDR3) clustering
         if self.args.annotation_clustering is not None:
@@ -1652,7 +1652,7 @@ class PartitionDriver(object):
         utils.print_reco_event(line, extra_str='    ', label=label, seed_uid=self.args.seed_unique_id)
 
     # ----------------------------------------------------------------------------------------
-    def write_annotations(self, annotations, outfname, hmm_failures):
+    def write_annotations(self, annotations, outfname, hmm_failures, dont_write_failed_queries=False):
         outpath = outfname
         if outpath[0] != '/':  # if full output path wasn't specified on the command line, write to current directory
             outpath = os.getcwd() + '/' + outpath
@@ -1666,9 +1666,9 @@ class PartitionDriver(object):
                 outline = {k : v for k, v in outline.items() if k in utils.annotation_headers}  # remove the columns we don't want to output
                 writer.writerow(outline)
 
-            # write empty lines for seqs that failed either in sw or the hmm
-            for fid in self.sw_info['failed-queries'] | hmm_failures:  # both use single-seq ids a.t.m.
-                writer.writerow({'unique_ids' : fid, 'input_seqs' : ':'.join([self.input_info[f]['seqs'][0] for f in fid.split(':')])})  # .split() stuff is to handle in the future multi-seq ids
+            if not dont_write_failed_queries:  # write empty lines for seqs that failed either in sw or the hmm
+                for fid in self.sw_info['failed-queries'] | hmm_failures:  # both use single-seq ids a.t.m.
+                    writer.writerow({'unique_ids' : fid, 'input_seqs' : ':'.join([self.input_info[f]['seqs'][0] for f in fid.split(':')])})  # .split() stuff is to handle in the future multi-seq ids
 
         # presto!
         if self.args.presto_output:
