@@ -111,8 +111,6 @@ class Tester(object):
         elif 'partition' in ptest:
             argfo['action'] = 'partition'
             argfo['extras'] += ['--persistent-cachefname', self.dirs['new'] + '/' + self.cachefnames[input_stype]]
-            if 'seed-' in ptest or 'vsearch-' in ptest:
-                argfo['extras'] += ['--dont-precache-naive-seqs', ]
         elif 'cache-parameters-' in ptest:
             argfo['action'] = 'cache-parameters'
             if True:  #args.make_plots:

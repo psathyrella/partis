@@ -365,7 +365,7 @@ class PartitionDriver(object):
         print 'hmm'
 
         # cache hmm naive seq for each single query NOTE <self.current_action> is (and needs to be) still set to partition for this
-        if not self.args.dont_precache_naive_seqs:
+        if self.args.persistent_cachefname is None or not os.path.exists(self.hmm_cachefname):  # if the default (no persistent cache file), or if a not-yet-existing persistent cache file was specified
             print '--> caching all %d naive sequences' % len(self.sw_info['queries'])
             self.run_hmm('viterbi', self.sub_param_dir, n_procs=self.auto_nprocs(len(self.sw_info['queries'])), precache_all_naive_seqs=True)
 
@@ -397,7 +397,7 @@ class PartitionDriver(object):
     def split_seeded_clusters(self, old_cpath):
         seeded_clusters, unseeded_clusters = utils.split_partition_with_criterion(old_cpath.partitions[old_cpath.i_best_minus_x], lambda cluster: self.args.seed_unique_id in cluster)
         self.unseeded_seqs = [uid for uclust in unseeded_clusters for uid in uclust]  # they should actually all be singletons, since we shouldn't have merged anything that wasn't seeded
-        if len(unseeded_clusters) != len(self.unseeded_seqs):
+        if len(unseeded_clusters) != len(self.unseeded_seqs):  # NOTE this now usually happens, since we're pre-collapsing identical naive seqs before passing to glomerator.cc
             print '%s unseeded clusters not all singletons' % utils.color('red', 'warning')
         seeded_cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
         seeded_singleton_set = set([uid for sclust in seeded_clusters for uid in sclust])  # in case there's duplicates
@@ -546,11 +546,11 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def cluster_with_bcrham(self):
         # initial_nsets = [[q, ] for q in self.sw_info['queries']]
-        start = time.time()
+        tmpstart = time.time()
         synth_sw_info = {q : {'naive_seq' : s} for q, s in self.get_cached_hmm_naive_seqs().items()}
         synth_sw_info['queries'] = synth_sw_info.keys()
         initial_nsets = utils.collapse_naive_seqs(synth_sw_info)
-        print '   collapsed %d initial queries into %d clusters with identical naive seqs (%.1f sec)' % (len(synth_sw_info['queries']), len(initial_nsets), time.time()-start)
+        print '   collapsed %d initial queries into %d clusters with identical naive seqs (%.1f sec)' % (len(synth_sw_info['queries']), len(initial_nsets), time.time()-tmpstart)
         n_procs = self.args.n_procs
         cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
         cpath.add_partition(initial_nsets, logprob=0., n_procs=n_procs)  # NOTE sw info excludes failed sequences (and maybe also sequences with different cdr3 length)
@@ -642,7 +642,19 @@ class PartitionDriver(object):
             for line in reader:
                 if ':' in line['unique_ids']:  # if it's a cache file left over from a previous partitioning, there'll be clusters in it, too
                     continue
+                if line['unique_ids'] not in self.sw_info['queries']:  # probably can only happen if self.args.persistent_cachefname is set
+                    continue
                 cached_naive_seqs[line['unique_ids']] = line['naive_seq']
+
+        if set(cached_naive_seqs) != set(self.sw_info['queries']):  # probably not really necessary, but, eh
+            extra = set(cached_naive_seqs) - set(self.sw_info['queries'])
+            missing = set(self.sw_info['queries']) - set(cached_naive_seqs)
+            if len(extra) > 0:
+                print '  %d extra in synth: %s' % (len(extra), ' '.join(extra))
+            if len(missing) > 0:
+                print '  %d missing from synth: %s' % (len(missing), ' '.join(missing))
+            raise Exception('error above')
+
         return cached_naive_seqs
 
     # ----------------------------------------------------------------------------------------
