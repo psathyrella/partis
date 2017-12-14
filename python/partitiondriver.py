@@ -397,11 +397,12 @@ class PartitionDriver(object):
     def split_seeded_clusters(self, old_cpath):
         seeded_clusters, unseeded_clusters = utils.split_partition_with_criterion(old_cpath.partitions[old_cpath.i_best_minus_x], lambda cluster: self.args.seed_unique_id in cluster)
         self.unseeded_seqs = [uid for uclust in unseeded_clusters for uid in uclust]  # NOTE we no longer expect them to all be singletons, since we're merging queries with identical naive seqs before passing to glomerator.cc
-        seeded_cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
         seeded_singleton_set = set([uid for sclust in seeded_clusters for uid in sclust])  # in case there's duplicates
-        seeded_singletons = [[uid, ] for uid in seeded_singleton_set]
-        seeded_cpath.add_partition(seeded_singletons, -1., 1)
-        print '      removing %d sequences in unseeded clusters, and splitting %d seeded clusters into %d singletons' % (len(self.unseeded_seqs), len(seeded_clusters), len(seeded_cpath.partitions[seeded_cpath.i_best_minus_x]))
+        seeded_partition = self.collapse_naive_seqs_partitiondriver(queries=seeded_singleton_set)
+        seeded_cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
+        seeded_cpath.add_partition(seeded_partition, -1., 1)
+        print '      removed %d sequences in unseeded clusters,' % len(self.unseeded_seqs),
+        print 'split %d seeded clusters into %d singletons, and merged these into %d clusters with identical naive seqs' % (len(seeded_clusters), len(seeded_singleton_set), len(seeded_cpath.partitions[seeded_cpath.i_best_minus_x]))
 
         return seeded_cpath
 
@@ -542,12 +543,19 @@ class PartitionDriver(object):
             return False
 
     # ----------------------------------------------------------------------------------------
-    def cluster_with_bcrham(self):
+    def collapse_naive_seqs_partitiondriver(self, queries, debug=False):  # this fcn only exists because utils.collapse_naive_seqs() only takes sw_info
         tmpstart = time.time()
-        synth_sw_info = {q : {'naive_seq' : s} for q, s in self.get_cached_hmm_naive_seqs().items()}
+        synth_sw_info = {q : {'naive_seq' : s} for q, s in self.get_cached_hmm_naive_seqs(queries).items()}  # NOTE code duplication in cluster_with_bcrham()
         synth_sw_info['queries'] = synth_sw_info.keys()
         initial_nsets = utils.collapse_naive_seqs(synth_sw_info)
-        print '   collapsed %d initial queries into %d clusters with identical naive seqs (%.1f sec)' % (len(synth_sw_info['queries']), len(initial_nsets), time.time()-tmpstart)
+        if debug:
+            print '   collapsed %d queries into %d cluster%s with identical naive seqs (%.1f sec)' % (len(synth_sw_info['queries']), len(initial_nsets), utils.plural(len(initial_nsets)), time.time()-tmpstart)
+        return initial_nsets
+
+    # ----------------------------------------------------------------------------------------
+    def cluster_with_bcrham(self):
+        tmpstart = time.time()
+        initial_nsets = self.collapse_naive_seqs_partitiondriver(queries=self.sw_info['queries'], debug=True)
         n_procs = self.args.n_procs
         cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
         cpath.add_partition(initial_nsets, logprob=0., n_procs=n_procs)  # NOTE sw info excludes failed sequences (and maybe also sequences with different cdr3 length)
@@ -632,20 +640,23 @@ class PartitionDriver(object):
         return annotations
 
     # ----------------------------------------------------------------------------------------
-    def get_cached_hmm_naive_seqs(self):
+    def get_cached_hmm_naive_seqs(self, queries=None):
+        expected_queries = self.sw_info['queries'] if queries is None else queries
         cached_naive_seqs = {}
         with open(self.hmm_cachefname) as cachefile:
             reader = csv.DictReader(cachefile)
             for line in reader:
                 if ':' in line['unique_ids']:  # if it's a cache file left over from a previous partitioning, there'll be clusters in it, too
                     continue
-                if line['unique_ids'] not in self.sw_info['queries']:  # probably can only happen if self.args.persistent_cachefname is set
+                if line['unique_ids'] not in expected_queries:  # probably can only happen if self.args.persistent_cachefname is set
                     continue
                 cached_naive_seqs[line['unique_ids']] = line['naive_seq']
+                if len(cached_naive_seqs) == len(expected_queries):  # already got everybody
+                    break
 
-        if set(cached_naive_seqs) != set(self.sw_info['queries']):  # probably not really necessary, but, eh
-            extra = set(cached_naive_seqs) - set(self.sw_info['queries'])
-            missing = set(self.sw_info['queries']) - set(cached_naive_seqs)
+        if set(cached_naive_seqs) != set(expected_queries):  # probably not really necessary, but, eh
+            extra = set(cached_naive_seqs) - set(expected_queries)
+            missing = set(expected_queries) - set(cached_naive_seqs)
             if len(extra) > 0:
                 print '  %d extra in synth: %s' % (len(extra), ' '.join(extra))
             if len(missing) > 0:
