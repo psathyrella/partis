@@ -396,9 +396,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def split_seeded_clusters(self, old_cpath):
         seeded_clusters, unseeded_clusters = utils.split_partition_with_criterion(old_cpath.partitions[old_cpath.i_best_minus_x], lambda cluster: self.args.seed_unique_id in cluster)
-        self.unseeded_seqs = [uid for uclust in unseeded_clusters for uid in uclust]  # they should actually all be singletons, since we shouldn't have merged anything that wasn't seeded
-        if len(unseeded_clusters) != len(self.unseeded_seqs):  # NOTE this now usually happens, since we're pre-collapsing identical naive seqs before passing to glomerator.cc
-            print '%s unseeded clusters not all singletons' % utils.color('red', 'warning')
+        self.unseeded_seqs = [uid for uclust in unseeded_clusters for uid in uclust]  # NOTE we no longer expect them to all be singletons, since we're merging queries with identical naive seqs before passing to glomerator.cc
         seeded_cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
         seeded_singleton_set = set([uid for sclust in seeded_clusters for uid in sclust])  # in case there's duplicates
         seeded_singletons = [[uid, ] for uid in seeded_singleton_set]
