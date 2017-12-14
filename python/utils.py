@@ -2012,27 +2012,28 @@ def finish_process(iproc, procs, n_tries, cmdfo, n_max_tries, dbgfo=None, batch_
             return
 
     # handle failure
-    if n_tries[iproc] > n_max_tries:
-        failstr = 'exceeded max number of tries for cmd\n    %s\nlook for output in %s and %s' % (cmdfo['cmd_str'], cmdfo['workdir'], cmdfo['logdir'])
-        print failstr
-        raise Exception(failstr)
+    print '    proc %d try %d' % (iproc, n_tries[iproc]),
+    if procs[iproc].returncode == 0 and not os.path.exists(cmdfo['outfname']):  # don't really need both the clauses
+        print 'succeded but output is missing'
     else:
-        print '    proc %d try %d' % (iproc, n_tries[iproc]),
-        if procs[iproc].returncode == 0 and not os.path.exists(cmdfo['outfname']):  # don't really need both the clauses
-            print 'succeded but output is missing'
-        else:
-            print 'failed with %d (output %s)' % (procs[iproc].returncode, 'exists' if os.path.exists(cmdfo['outfname']) else 'is missing')
-        for strtype in ['out', 'err']:
-            if os.path.exists(cmdfo['logdir'] + '/' + strtype) and os.stat(cmdfo['logdir'] + '/' + strtype).st_size > 0:
-                print '        %s tail:           (%s)' % (strtype, cmdfo['logdir'] + '/' + strtype)
-                logstr = subprocess.check_output(['tail', '-n30', cmdfo['logdir'] + '/' + strtype])
-                print pad_lines(logstr, padwidth=12);
-        if os.path.exists(cmdfo['outfname'] + '.progress'):  # glomerator.cc is the only one that uses this at the moment
-            print '        progress file (%s):' % (cmdfo['outfname'] + '.progress')
-            print pad_lines(subprocess.check_output(['cat', cmdfo['outfname'] + '.progress']), padwidth=12)
+        print 'failed with %d (output %s)' % (procs[iproc].returncode, 'exists' if os.path.exists(cmdfo['outfname']) else 'is missing')
+    for strtype in ['out', 'err']:
+        if os.path.exists(cmdfo['logdir'] + '/' + strtype) and os.stat(cmdfo['logdir'] + '/' + strtype).st_size > 0:
+            print '        %s tail:           (%s)' % (strtype, cmdfo['logdir'] + '/' + strtype)
+            logstr = subprocess.check_output(['tail', '-n30', cmdfo['logdir'] + '/' + strtype])
+            print pad_lines(logstr, padwidth=12);
+    if os.path.exists(cmdfo['outfname'] + '.progress'):  # glomerator.cc is the only one that uses this at the moment
+        print '        progress file (%s):' % (cmdfo['outfname'] + '.progress')
+        print pad_lines(subprocess.check_output(['cat', cmdfo['outfname'] + '.progress']), padwidth=12)
+
+    if n_tries[iproc] < n_max_tries:
         print '    restarting proc %d' % iproc
         procs[iproc] = run_cmd(cmdfo, batch_system=batch_system, batch_options=batch_options)
         n_tries[iproc] += 1
+    else:
+        failstr = 'exceeded max number of tries for cmd\n    %s\nlook for output in %s and %s' % (cmdfo['cmd_str'], cmdfo['workdir'], cmdfo['logdir'])
+        print failstr
+        raise Exception(failstr)
 
 # ----------------------------------------------------------------------------------------
 def process_out_err(extra_str='', dbgfo=None, logdir=None, debug=None, ignore_stderr=False):
