@@ -2714,6 +2714,17 @@ def add_in_log_space(first, second):
         return second + math.log(1 + math.exp(first - second))
 
 # ----------------------------------------------------------------------------------------
+def get_val_from_arglist(clist, argstr):
+    if argstr not in clist:
+        raise Exception('could\'t find %s in clist %s' % (argstr, clist))
+    if clist.index(argstr) == len(clist) - 1:
+        raise Exception('no argument for %s in %s' % (argstr, clist))
+    val = clist[clist.index(argstr) + 1]
+    if val[:2] == '--':
+        raise Exception('no value for %s in %s (next word is %s)' % (argstr, clist, val))
+    return val
+
+# ----------------------------------------------------------------------------------------
 def remove_from_arglist(clist, argstr, has_arg=False):
     if argstr not in clist:
         return
