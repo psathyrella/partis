@@ -650,7 +650,8 @@ def cons_seq(threshold, aligned_seqfos=None, unaligned_seqfos=None, debug=False)
     return cons_seq
 
 # ----------------------------------------------------------------------------------------
-def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', seq_label='', post_str='', print_hfrac=False, print_isnps=False, return_isnps=False, emphasis_positions=None, use_min_len=False, only_print_seq=False, align=False, return_ref=False):
+def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', seq_label='', post_str='',
+                  print_hfrac=False, print_isnps=False, return_isnps=False, emphasis_positions=None, use_min_len=False, only_print_seq=False, align=False, return_ref=False):
     """ default: return <seq> string with colored mutations with respect to <ref_seq> """
 
     # NOTE now I've got <return_ref>, I can probably remove a bunch of the label/whatever arguments and do all the damn formatting in the caller

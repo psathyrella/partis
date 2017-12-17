@@ -286,7 +286,7 @@ class PartitionDriver(object):
         self.run_hmm('viterbi', parameter_in_dir=self.sub_param_dir)
 
     # ----------------------------------------------------------------------------------------
-    def read_existing_annotations(self, outfname=None, debug=False):
+    def read_existing_annotations(self, outfname=None, ignore_args_dot_queries=False, debug=False):
         if outfname is None:
             outfname = self.args.outfname
         annotations = OrderedDict()
@@ -298,7 +298,7 @@ class PartitionDriver(object):
                 if line['v_gene'] == '':
                     failed_queries.add(line['unique_ids'])
                     continue
-                if self.args.queries is not None:
+                if self.args.queries is not None and not ignore_args_dot_queries:  # when printing subcluster naive seqs, we want to read all the ones that have any overlap with self.args.queries, not just the exact cluster of self.args.queries
                     uids = set(line['unique_ids'].split(':'))  # avoid processing the whole input line if we don't need to
                     if len(set(self.args.queries) & uids) == 0:  # actually make sure this is the precise set of queries we want (note that --queries and line['unique_ids'] are both ordered, and this ignores that... oh, well, sigh.)
                         continue
@@ -919,7 +919,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def print_subcluster_naive_seqs(self, uids_of_interest):
         uids_of_interest = set(uids_of_interest)
-        uidstr_of_interest, ref_naive_seq = None, None  # we don't know what order they're in the cache file yet
+        uidstr_of_interest, cache_file_naive_seq = None, None  # we don't know what order they're in the cache file yet
 
         cachefo = self.read_hmm_cachefile()
         sub_uidstrs = []  # uid strings from the file that have non-zero overlap with <uids_of_interest>
@@ -936,31 +936,49 @@ class PartitionDriver(object):
             sub_info[cachefo[uidstr]['naive_seq']].append(uidstr)
             if uids == uids_of_interest:
                 uidstr_of_interest = uidstr
-
+        if len(sub_uidstrs) == 0:
+            print '  couldn\'t find any clusters in %s with uid of interest %s' % (self.hmm_cachefname, uids_of_interest)
         sub_uidstrs = sorted(sub_uidstrs, key=lambda x: x.count(':'))
+
         if uidstr_of_interest is None:
+            print '%s couldn\'t find exact requested cluster in the cache file, so using biggest cluster that has some overlap with the requested cluster for the reference sequence' % utils.color('yellow', 'warning')
             uidstr_of_interest = sub_uidstrs[-1]
             uids_of_interest = None  # make sure we don't use it later
-            print '%s couldn\'t find the exact requested cluster, so using the biggest cluster that has some overlap with the requested cluster for the reference sequence' % utils.color('yellow', 'warning')
-        ref_naive_seq = cachefo[uidstr_of_interest]['naive_seq']
+        cache_file_naive_seq = cachefo[uidstr_of_interest]['naive_seq']
         print '  subcluster naive sequences for %s (in %s below)' % (uidstr_of_interest, utils.color('blue', 'blue'))
 
-        cluster_annotations = self.read_existing_annotations(outfname=self.args.cluster_annotation_fname)
-        ref_v_gene = cluster_annotations[uidstr_of_interest]['v_gene']
+        cluster_annotations = self.read_existing_annotations(outfname=self.args.cluster_annotation_fname, ignore_args_dot_queries=True)
+        if uidstr_of_interest in cluster_annotations:
+            cluster_annotation_line = cluster_annotations[uidstr_of_interest]
+        else:
+            print '%s couldn\'t find exact requested cluster in the cluster annotation file, so using biggest cluster that has some overlap with the requested cluster for the cluster annotation' % utils.color('yellow', 'warning')
+            clusters_with_overlap = sorted([c for c in cluster_annotations if len(set(c.split(':')) & uids_of_interest) > 0], key=lambda x: x.count(':'))
+            print 'with overlap: %s' % clusters_with_overlap
+            cluster_annotation_line = cluster_annotations[clusters_with_overlap[-1]]
 
-        utils.print_reco_event(utils.synthesize_single_seq_line(cluster_annotations[uidstr_of_interest], iseq=0), extra_str='         %15s ' % '', label='iseq 0')
+        cluster_annotation_v_gene = cluster_annotation_line['v_gene']
+        cluster_annotation_naive_seq = cluster_annotation_line['naive_seq']
+        if cluster_annotation_naive_seq != cache_file_naive_seq:
+            print '%s naive sequences from cluster annotation and cache file aren\'t the same:' % utils.color('yellow', 'warning')
+            utils.color_mutants(cluster_annotation_naive_seq, cache_file_naive_seq, print_result=True, ref_label='cluster annotation  ', seq_label='cache file  ', extra_str='     ')
+            print ''
+
+        utils.print_reco_event(utils.synthesize_single_seq_line(cluster_annotation_line, iseq=0), extra_str='         %15s ' % '', label='iseq 0')
 
         print ''
         print ''
-        print ' %15s %s          total    cluster' % ('', ' ' * len(ref_naive_seq))
-        print ' %15s %s           seqs    sizes' % ('', ' ' * len(ref_naive_seq))
+        print ' %15s %s          total    cluster' % ('', ' ' * len(cache_file_naive_seq))
+        print ' %15s %s           seqs    sizes' % ('', ' ' * len(cache_file_naive_seq))
         independent_seq_info = {naive_seq : set([uid for uidstr in uid_str_list for uid in uidstr.split(':')]) for naive_seq, uid_str_list in sub_info.items()}
         for naive_seq in sorted(independent_seq_info, key=lambda ns: len(independent_seq_info[ns]), reverse=True):
             uid_str_list = sorted(sub_info[naive_seq], key=lambda uidstr: uidstr.count(':') + 1, reverse=True)
 
+            # print the v gene along side the first naive sequence, as well as for any subsequent ones that have a different v
             gene_str = ''
             for uidstr in uid_str_list:
-                if uidstr == uidstr_of_interest or uidstr in cluster_annotations and cluster_annotations[uidstr]['v_gene'] != ref_v_gene:
+                if uidstr == uidstr_of_interest:
+                    gene_str += utils.color_gene(cluster_annotation_line['v_gene'], width=15)
+                elif uidstr in cluster_annotations and cluster_annotations[uidstr]['v_gene'] != cluster_annotation_v_gene:
                     gene_str += utils.color_gene(cluster_annotations[uidstr]['v_gene'], width=15)
 
             cluster_size_strs = []
@@ -973,7 +991,7 @@ class PartitionDriver(object):
             pre_str = ''
             if uidstr_of_interest in uid_str_list:
                 pre_str = utils.color('blue', '-->', width=5)
-            print '  %15s  %5s %s  %4d     %s' % (gene_str, pre_str, utils.color_mutants(ref_naive_seq, naive_seq), len(independent_seq_info[naive_seq]), ' '.join(cluster_size_strs))
+            print '  %15s  %5s %s  %4d     %s' % (gene_str, pre_str, utils.color_mutants(cache_file_naive_seq, naive_seq), len(independent_seq_info[naive_seq]), ' '.join(cluster_size_strs))
 
     # ----------------------------------------------------------------------------------------
     def get_padded_true_naive_seq(self, qry):
