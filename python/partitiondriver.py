@@ -641,6 +641,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def get_cached_hmm_naive_seqs(self, queries=None):
+        # TODO merge this with self.read_hmm_cachefile()
         expected_queries = self.sw_info['queries'] if queries is None else queries
         cached_naive_seqs = {}
         with open(self.hmm_cachefname) as cachefile:
@@ -904,6 +905,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def read_hmm_cachefile(self):
+        # TODO merge this with self.get_cached_hmm_naive_seqs()
         cachefo = {}
         if not os.path.exists(self.hmm_cachefname):
             return cachefo
@@ -926,12 +928,13 @@ class PartitionDriver(object):
             if info['naive_seq'] == '':
                 continue
             uids = set(info['unique_ids'])
-            if len(uids & uids_of_interest) > 0:  # first see if there's some overlap with what we're interested in
-                sub_uidstrs.append(uidstr)
-                if cachefo[uidstr]['naive_seq'] not in sub_info:
-                    sub_info[cachefo[uidstr]['naive_seq']] = []
-                sub_info[cachefo[uidstr]['naive_seq']].append(uidstr)
-            if len(uids - uids_of_interest) == 0 and len(uids_of_interest - uids) == 0:  # then see if it's the actual cluster we're interested in
+            if len(uids & uids_of_interest) == 0:  # first see if there's some overlap with what we're interested in
+                continue
+            sub_uidstrs.append(uidstr)
+            if cachefo[uidstr]['naive_seq'] not in sub_info:
+                sub_info[cachefo[uidstr]['naive_seq']] = []
+            sub_info[cachefo[uidstr]['naive_seq']].append(uidstr)
+            if uids == uids_of_interest:
                 uidstr_of_interest = uidstr
 
         sub_uidstrs = sorted(sub_uidstrs, key=lambda x: x.count(':'))
