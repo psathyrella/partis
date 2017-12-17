@@ -297,16 +297,29 @@ annotation_headers = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length',
                      + functional_columns
 sw_cache_headers = ['k_v', 'k_d', 'padlefts', 'padrights', 'all_matches', 'mut_freqs']
 partition_cachefile_headers = ('unique_ids', 'logprob', 'naive_seq', 'naive_hfrac', 'errors')  # these have to match whatever bcrham is expecting
-bcrham_dbgstrs = {  # corresponds to stdout from glomerator.cc
-    'read-cache' : ['logprobs', 'naive-seqs'],
-    'calcd' : ['vtb', 'fwd', 'hfrac'],
-    'merged' : ['hfrac', 'lratio'],
-    'time' : ['bcrham', ]
+bcrham_dbgstrs = {
+    'partition' : {  # corresponds to stdout from glomerator.cc
+        'read-cache' : ['logprobs', 'naive-seqs'],
+        'calcd' : ['vtb', 'fwd', 'hfrac'],
+        'merged' : ['hfrac', 'lratio'],
+        'time' : ['bcrham', ]
+    },
+    'annotate' : {  # corresponds to stdout from, uh, trellis.cc or something
+        'calcd' : ['vtb', 'fwd'],
+        'time' : ['bcrham', ]
+    },
 }
 bcrham_dbgstr_types = {
-    'sum' : ['calcd', 'merged'],  # for these ones, sum over all procs
-    'same' : ['read-cache', ],  # check that these are the same for all procs
-    'min-max' : ['time', ]
+    'partition' : {
+        'sum' : ['calcd', 'merged'],  # for these ones, sum over all procs
+        'same' : ['read-cache', ],  # check that these are the same for all procs
+        'min-max' : ['time', ]
+    },
+    'annotate' : {  # strict subset of the 'partition' ones
+        'sum' : ['calcd', ],
+        'same' : [],
+        'min-max' : ['time', ]
+    },
 }
 
 # ----------------------------------------------------------------------------------------
@@ -2073,7 +2086,7 @@ def process_out_err(extra_str='', dbgfo=None, logdir=None, debug=None, ignore_st
             err_str += line + '\n'
 
     if dbgfo is not None:  # keep track of how many vtb and fwd calculations the process made
-        for header, variables in bcrham_dbgstrs.items():
+        for header, variables in bcrham_dbgstrs['partition'].items():  # 'partition' is all of them, 'annotate' is a subset
             dbgfo[header] = {var : None for var in variables}
             theselines = [ln for ln in out.split('\n') if header + ':' in ln]
             if len(theselines) == 0:
@@ -2082,7 +2095,7 @@ def process_out_err(extra_str='', dbgfo=None, logdir=None, debug=None, ignore_st
                 raise Exception('too many lines with dbgfo for \'%s\' in:\nstdout:\n%s\nstderr:\n%s' % (header, out, err))
             words = theselines[0].split()
             for var in variables:  # convention: value corresponding to the string <var> is the word immediately vollowing <var>
-                if var in  words:
+                if var in words:
                     dbgfo[header][var] = float(words[words.index(var) + 1])
 
     if debug is None:
@@ -2102,34 +2115,34 @@ def process_out_err(extra_str='', dbgfo=None, logdir=None, debug=None, ignore_st
             assert False
 
 # ----------------------------------------------------------------------------------------
-def summarize_bcrham_dbgstrs(dbgfos):
+def summarize_bcrham_dbgstrs(dbgfos, action):
     def defval(dbgcat):
-        if dbgcat in bcrham_dbgstr_types['sum']:
+        if dbgcat in bcrham_dbgstr_types[action]['sum']:
             return 0.
-        elif dbgcat in bcrham_dbgstr_types['same']:
+        elif dbgcat in bcrham_dbgstr_types[action]['same']:
             return None
-        elif dbgcat in bcrham_dbgstr_types['min-max']:
+        elif dbgcat in bcrham_dbgstr_types[action]['min-max']:
             return []
         else:
             assert False
 
-    summaryfo = {dbgcat : {vtype : defval(dbgcat) for vtype in tlist} for dbgcat, tlist in bcrham_dbgstrs.items()}  # fill summaryfo with default/initial values
+    summaryfo = {dbgcat : {vtype : defval(dbgcat) for vtype in tlist} for dbgcat, tlist in bcrham_dbgstrs[action].items()}  # fill summaryfo with default/initial values
     for procfo in dbgfos:
-        for dbgcat in bcrham_dbgstr_types['same']:  # loop over lines in output for which every process should have the same values (e.g. cache-read)
-            for vtype in bcrham_dbgstrs[dbgcat]:  # loop over values in that line (e.g. logprobs and naive-seqs)
+        for dbgcat in bcrham_dbgstr_types[action]['same']:  # loop over lines in output for which every process should have the same values (e.g. cache-read)
+            for vtype in bcrham_dbgstrs[action][dbgcat]:  # loop over values in that line (e.g. logprobs and naive-seqs)
                 if summaryfo[dbgcat][vtype] is None:  # first one
                     summaryfo[dbgcat][vtype] = procfo[dbgcat][vtype]
                 if procfo[dbgcat][vtype] != summaryfo[dbgcat][vtype]:  # make sure all subsequent ones are the same
                     print '        %s bcrham procs had different \'%s\' \'%s\' info: %d vs %d' % (color('red', 'warning'), vtype, dbgcat, procfo[dbgcat][vtype], summaryfo[dbgcat][vtype])
-        for dbgcat in bcrham_dbgstr_types['sum']:  # lines for which we want to add up the values
-            for vtype in bcrham_dbgstrs[dbgcat]:
+        for dbgcat in bcrham_dbgstr_types[action]['sum']:  # lines for which we want to add up the values
+            for vtype in bcrham_dbgstrs[action][dbgcat]:
                 summaryfo[dbgcat][vtype] += procfo[dbgcat][vtype]
-        for dbgcat in bcrham_dbgstr_types['min-max']:  # lines for which we want to keep track of the smallest and largest values (e.g. time required)
-            for vtype in bcrham_dbgstrs[dbgcat]:
+        for dbgcat in bcrham_dbgstr_types[action]['min-max']:  # lines for which we want to keep track of the smallest and largest values (e.g. time required)
+            for vtype in bcrham_dbgstrs[action][dbgcat]:
                 summaryfo[dbgcat][vtype].append(procfo[dbgcat][vtype])
 
-    for dbgcat in bcrham_dbgstr_types['min-max']:
-        for vtype in bcrham_dbgstrs[dbgcat]:
+    for dbgcat in bcrham_dbgstr_types[action]['min-max']:
+        for vtype in bcrham_dbgstrs[action][dbgcat]:
             summaryfo[dbgcat][vtype] = min(summaryfo[dbgcat][vtype]), max(summaryfo[dbgcat][vtype])
 
     return summaryfo

@@ -366,7 +366,7 @@ class PartitionDriver(object):
 
         # cache hmm naive seq for each single query NOTE <self.current_action> is (and needs to be) still set to partition for this
         if self.args.persistent_cachefname is None or not os.path.exists(self.hmm_cachefname):  # if the default (no persistent cache file), or if a not-yet-existing persistent cache file was specified
-            print '--> caching all %d naive sequences' % len(self.sw_info['queries'])
+            print 'caching all %d naive sequences' % len(self.sw_info['queries'])
             self.run_hmm('viterbi', self.sub_param_dir, n_procs=self.auto_nprocs(len(self.sw_info['queries'])), precache_all_naive_seqs=True)
 
         if self.args.naive_vsearch or self.args.naive_swarm:
@@ -562,7 +562,7 @@ class PartitionDriver(object):
         n_proc_list = []
         start = time.time()
         while n_procs > 0:
-            print '--> %d clusters with %d proc%s' % (len(cpath.partitions[cpath.i_best_minus_x]), n_procs, utils.plural(n_procs))
+            print '%d clusters with %d proc%s' % (len(cpath.partitions[cpath.i_best_minus_x]), n_procs, utils.plural(n_procs))
             cpath = self.run_hmm('forward', self.sub_param_dir, n_procs=n_procs, partition=cpath.partitions[cpath.i_best_minus_x], shuffle_input=True)  # NOTE that a.t.m. i_best and i_best_minus_x are usually the same, since we're usually not calculating log probs of partitions (well, we're trying to avoid calculating any extra log probs, which means we usually don't know the log prob of the entire partition)
             n_proc_list.append(n_procs)
             if self.are_we_finished_clustering(n_procs, cpath):
@@ -628,7 +628,7 @@ class PartitionDriver(object):
         self.current_action = 'annotate'
         partition = sorted(partition, key=len, reverse=True)  # as opposed to in clusterpath, where we *don't* want to sort by size, it's nicer to have them sorted by size here, since then as you're scanning down a long list of cluster annotations you know once you get to the singletons you won't be missing something big
         n_procs = min(self.args.n_procs, len(partition))  # we want as many procs as possible, since the large clusters can take a long time (depending on if we're translating...), but in general we treat <self.args.n_procs> as the maximum allowable number of processes
-        print '--> getting annotations for final partition'
+        print 'getting annotations for final partition'
         self.run_hmm('viterbi', self.sub_param_dir, n_procs=n_procs, partition=partition, read_output=False)  # it would be nice to rearrange <self.read_hmm_output()> so I could remove this option
         if n_procs > 1:
             _ = self.merge_all_hmm_outputs(n_procs, precache_all_naive_seqs=False)
@@ -809,15 +809,17 @@ class PartitionDriver(object):
     def print_partition_dbgfo(self):
         if self.bcrham_proc_info is None:
             return
-        summaryfo = utils.summarize_bcrham_dbgstrs(self.bcrham_proc_info)
+        summaryfo = utils.summarize_bcrham_dbgstrs(self.bcrham_proc_info, action=self.current_action)
 
         pwidth = str(len(str(len(self.input_info))))  # close enough
-        if sum(summaryfo['read-cache'].values()) == 0:
-            print '                no/empty cache file'
-        else:
-            print ('          read from cache:  naive-seqs %' + pwidth + 'd   logprobs %' + pwidth + 'd') % (summaryfo['read-cache']['naive-seqs'], summaryfo['read-cache']['logprobs'])
+        if 'read-cache' in utils.bcrham_dbgstrs[self.current_action]:
+            if sum(summaryfo['read-cache'].values()) == 0:
+                print '                no/empty cache file'
+            else:
+                print ('          read from cache:  naive-seqs %' + pwidth + 'd   logprobs %' + pwidth + 'd') % (summaryfo['read-cache']['naive-seqs'], summaryfo['read-cache']['logprobs'])
         print ('                    calcd:         vtb %' + pwidth + 'd        fwd %' + pwidth + 'd') % (summaryfo['calcd']['vtb'], summaryfo['calcd']['fwd'])
-        print ('                   merged:       hfrac %' + pwidth + 'd     lratio %' + pwidth + 'd') % (summaryfo['merged']['hfrac'], summaryfo['merged']['lratio'])
+        if 'merged' in utils.bcrham_dbgstrs[self.current_action]:
+            print ('                   merged:       hfrac %' + pwidth + 'd     lratio %' + pwidth + 'd') % (summaryfo['merged']['hfrac'], summaryfo['merged']['lratio'])
 
         if len(self.bcrham_proc_info) == 1:
             print '                     time:  %.1f sec' % summaryfo['time']['bcrham'][0]
@@ -854,8 +856,7 @@ class PartitionDriver(object):
                    'dbgfo' : self.bcrham_proc_info[iproc]}
                   for iproc in range(n_procs)]
         utils.run_cmds(cmdfos, batch_system=self.args.batch_system, batch_options=self.args.batch_options, batch_config_fname=self.args.batch_config_fname, debug='print' if self.args.debug else None)
-        if self.current_action == 'partition':
-            self.print_partition_dbgfo()
+        self.print_partition_dbgfo()
 
         self.check_wait_times(time.time()-start)
         sys.stdout.flush()
