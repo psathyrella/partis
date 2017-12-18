@@ -554,18 +554,19 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def get_initial_cpath(self, n_procs):
+        initial_nseqs = len(self.sw_info['queries'])  # NOTE um, maybe I should change this to the number of clusters, now that we're doing some preclustering here?
         initial_nsets = self.collapse_naive_seqs_partitiondriver(queries=self.sw_info['queries'], debug=True)
         cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
         cpath.add_partition(initial_nsets, logprob=0., n_procs=n_procs)  # NOTE sw info excludes failed sequences (and maybe also sequences with different cdr3 length)
         if self.args.debug:
             cpath.print_partitions(abbreviate=self.args.abbreviate, reco_info=self.reco_info)
-        return cpath
+        return cpath, initial_nseqs
 
     # ----------------------------------------------------------------------------------------
     def cluster_with_bcrham(self):
         tmpstart = time.time()
         n_procs = self.args.n_procs
-        cpath = self.get_initial_cpath(n_procs)
+        cpath, initial_nseqs = self.get_initial_cpath(n_procs)
         n_proc_list = []
         start = time.time()
         while n_procs > 0:
@@ -574,7 +575,7 @@ class PartitionDriver(object):
             n_proc_list.append(n_procs)
             if self.are_we_finished_clustering(n_procs, cpath):
                 break
-            n_procs, cpath = self.prepare_next_iteration(n_proc_list, cpath, len(initial_nsets))
+            n_procs, cpath = self.prepare_next_iteration(n_proc_list, cpath, initial_nseqs)
 
         if self.args.max_cluster_size is not None:
             print '   --max-cluster-size (partitiondriver): merging shared clusters'
