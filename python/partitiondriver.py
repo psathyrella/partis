@@ -943,7 +943,6 @@ class PartitionDriver(object):
         if uidstr_of_interest is None:
             print '%s couldn\'t find exact requested cluster in the cache file, so using biggest cluster that has some overlap with the requested cluster for the reference sequence' % utils.color('yellow', 'warning')
             uidstr_of_interest = sub_uidstrs[-1]
-            uids_of_interest = None  # make sure we don't use it later
         cache_file_naive_seq = cachefo[uidstr_of_interest]['naive_seq']
         print '  subcluster naive sequences for %s (in %s below)' % (uidstr_of_interest, utils.color('blue', 'blue'))
 
