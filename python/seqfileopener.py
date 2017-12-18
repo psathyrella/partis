@@ -117,8 +117,8 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, s
         seqfile = open(infname)
         reader = csv.DictReader(seqfile, delimiter=delimiter)
     else:
-        reader = utils.read_fastx(infname, name_key='unique_ids', seq_key='input_seqs', add_info=False, sanitize=True, n_max_queries=n_max_queries,
-                                  queries=(args.queries if args is not None else None))  # NOTE don't use istarstop kw arg here, 'cause it fucks with the istartstop treatment in the loop below
+        reader = utils.read_fastx(infname, name_key='unique_ids', seq_key='input_seqs', add_info=False, sanitize=True, n_max_queries=n_max_queries,  # NOTE don't use istarstop kw arg here, 'cause it fucks with the istartstop treatment in the loop below
+                                  queries=(args.queries if (args is not None and not args.abbreviate) else None))  # NOTE also can't filter on args.queries here if we're also translating
 
     input_info = OrderedDict()
     reco_info = None
