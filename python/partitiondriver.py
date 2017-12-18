@@ -553,12 +553,19 @@ class PartitionDriver(object):
         return initial_nsets
 
     # ----------------------------------------------------------------------------------------
-    def cluster_with_bcrham(self):
-        tmpstart = time.time()
+    def get_initial_cpath(self, n_procs):
         initial_nsets = self.collapse_naive_seqs_partitiondriver(queries=self.sw_info['queries'], debug=True)
-        n_procs = self.args.n_procs
         cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
         cpath.add_partition(initial_nsets, logprob=0., n_procs=n_procs)  # NOTE sw info excludes failed sequences (and maybe also sequences with different cdr3 length)
+        if self.args.debug:
+            cpath.print_partitions(abbreviate=self.args.abbreviate, reco_info=self.reco_info)
+        return cpath
+
+    # ----------------------------------------------------------------------------------------
+    def cluster_with_bcrham(self):
+        tmpstart = time.time()
+        n_procs = self.args.n_procs
+        cpath = self.get_initial_cpath(n_procs)
         n_proc_list = []
         start = time.time()
         while n_procs > 0:
