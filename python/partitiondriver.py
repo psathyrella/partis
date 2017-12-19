@@ -818,16 +818,17 @@ class PartitionDriver(object):
     def print_partition_dbgfo(self):
         if self.bcrham_proc_info is None:
             return
-        summaryfo = utils.summarize_bcrham_dbgstrs(self.bcrham_proc_info, action=self.current_action)
+        actionstr = self.current_action if self.current_action != 'cache-parameters' else 'annotate'
+        summaryfo = utils.summarize_bcrham_dbgstrs(self.bcrham_proc_info, action=actionstr)
 
         pwidth = str(len(str(len(self.input_info))))  # close enough
-        if 'read-cache' in utils.bcrham_dbgstrs[self.current_action]:
+        if 'read-cache' in utils.bcrham_dbgstrs[actionstr]:
             if sum(summaryfo['read-cache'].values()) == 0:
                 print '                no/empty cache file'
             else:
                 print ('          read from cache:  naive-seqs %' + pwidth + 'd   logprobs %' + pwidth + 'd') % (summaryfo['read-cache']['naive-seqs'], summaryfo['read-cache']['logprobs'])
         print ('                    calcd:         vtb %' + pwidth + 'd        fwd %' + pwidth + 'd') % (summaryfo['calcd']['vtb'], summaryfo['calcd']['fwd'])
-        if 'merged' in utils.bcrham_dbgstrs[self.current_action]:
+        if 'merged' in utils.bcrham_dbgstrs[actionstr]:
             print ('                   merged:       hfrac %' + pwidth + 'd     lratio %' + pwidth + 'd') % (summaryfo['merged']['hfrac'], summaryfo['merged']['lratio'])
 
         if len(self.bcrham_proc_info) == 1:
