@@ -147,7 +147,7 @@ parser.add_argument('--linewidths', default=':'.join(plotting.default_linewidths
 parser.add_argument('--gldir', default='data/germlines/human')
 parser.add_argument('--locus', default='igh')
 parser.add_argument('--normalize', action='store_true')
-parser.add_argument('--extra-stats')
+parser.add_argument('--extra-stats', default='')
 
 args = parser.parse_args()
 args.plotdirs = utils.get_arg_list(args.plotdirs)
