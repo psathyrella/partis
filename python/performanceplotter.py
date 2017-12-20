@@ -42,8 +42,12 @@ class PerformancePlotter(object):
     def hamming_to_true_naive(self, true_line, line, restrict_to_region=''):
         true_naive_seq = true_line['naive_seq']
         inferred_naive_seq = line['naive_seq']
+        if len(line['fv_insertion']) > 0:
+            inferred_naive_seq = inferred_naive_seq[len(line['fv_insertion']) :]
+        if len(true_naive_seq) != len(inferred_naive_seq) and len(line['jf_insertion']) > 0:  # some j genes are very similar, except differ by one base in length, so we sometimes need the keep the j padding
+            inferred_naive_seq = inferred_naive_seq[: len(inferred_naive_seq) - len(line['jf_insertion'])]
         if len(true_naive_seq) != len(inferred_naive_seq):
-            raise Exception('different length true and inferred naive seqs for %s\n  %s\n  %s' % (' '.join(line['unique_ids']), true_line['naive_seq'], line['naive_seq']))
+            raise Exception('different length true and inferred naive seqs for %s\n  %s\n  %s' % (' '.join(line['unique_ids']), true_naive_seq, inferred_naive_seq))
         if restrict_to_region != '':  # NOTE very similar to utils.get_n_muted(), except, we want to use the true bounds for both true and naive sequences
             if restrict_to_region in utils.regions:
                 bounds = true_line['regional_bounds'][restrict_to_region]
