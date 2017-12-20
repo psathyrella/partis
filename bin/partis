@@ -335,7 +335,8 @@ parent_parser.add_argument('--sw-cachefname', help='Smith-Waterman cache file na
 parent_parser.add_argument('--workdir', help='Temporary working directory (default is set below)')
 
 parent_parser.add_argument('--plotdir', help='Base directory to which to write plots (by default this is not set, and consequently no plots are written')
-parent_parser.add_argument('--plot-performance', action='store_true', help='Write out plots comparing true and inferred distributions')
+parent_parser.add_argument('--plot-performance', action='store_true', help='renamed to --plot-annotation-performance')
+parent_parser.add_argument('--plot-annotation-performance', action='store_true', help='Write out plots comparing true and inferred annotation accuracy distributions')
 parent_parser.add_argument('--only-csv-plots', action='store_true', help='only write csv plots (svg writing is pretty slow, and it\'s frequently better to make comparison plots from csvs with ./bin/compare-plotdirs.py anyway)')
 parent_parser.add_argument('--only-overall-plots', action='store_true', help='don\'t write per-gene plots (it\'s kind of slow writing that many plots)')
 
@@ -567,6 +568,9 @@ if args.calculate_alternative_naive_seqs or (args.action == 'view-alternative-na
             raise Exception('persistent cache file %s already exists, but we were asked to --calculate-alternative-naive-seqs. Either it\'s an old file (in which case you should delete it), or you\'ve already got the alternative annotations (so you can just run view-alternative-naive-seqs)' % args.persistent_cachefname)
 
 if args.plot_performance:
+    print '%s encountered deprecated argument --plot-performance, moving value to --plot-annotation-performance' % utils.color('yellow', 'warning')
+    args.plot_annotation_performance = True
+if args.plot_annotation_performance:
     if args.plotdir is None:
         raise Exception('can\'t plot performance unless --plotdir is specified')
     if not args.is_simu:

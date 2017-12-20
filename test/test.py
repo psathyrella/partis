@@ -61,7 +61,7 @@ class Tester(object):
         self.tests = OrderedDict()
 
         def add_inference_tests(input_stype):  # if input_stype is 'ref', infer on old simulation and parameters, if it's 'new' use the new ones
-            self.tests['annotate-' + input_stype + '-simu']          = {'extras' : ['--plot-performance', ]}
+            self.tests['annotate-' + input_stype + '-simu']          = {'extras' : ['--plot-annotation-performance', ]}
             # self.tests['annotate-' + input_stype + '-data']          = {'extras' : ['--n-max-queries', n_data_inference_queries]}  # don't really need this as long as we're caching parameters on data
             self.tests['partition-' + input_stype + '-simu']         = {'extras' : ['--n-max-queries', self.n_partition_queries, '--n-precache-procs', '10', '--biggest-logprob-cluster-to-calculate', '5', '--biggest-naive-seq-cluster-to-calculate', '5']}
             self.tests['seed-partition-' + input_stype + '-simu']    = {'extras' : ['--n-max-queries', self.n_partition_queries]}
@@ -118,7 +118,7 @@ class Tester(object):
         else:
             argfo['action'] = ptest
 
-        if '--plot-performance' in argfo['extras']:
+        if '--plot-annotation-performance' in argfo['extras']:
             argfo['extras'] += ['--plotdir', self.dirs['new'] + '/' + self.perfdirs[input_stype], '--only-csv-plots']
 
         if ptest == 'simulate':

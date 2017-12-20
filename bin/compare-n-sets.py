@@ -56,7 +56,7 @@ def divide_simulation():
 
 # ----------------------------------------------------------------------------------------
 def run_inference(algorithm):
-    base_cmd = './bin/partis run-' + algorithm + ' --parameter-dir ' + parameter_dir + '/hmm --plot-performance --is-simu --batch-system slurm'
+    base_cmd = './bin/partis run-' + algorithm + ' --parameter-dir ' + parameter_dir + '/hmm --plot-annotation-performance --is-simu --batch-system slurm'
     for n_set in n_set_list:
         # if n_set == 5:
         #     continue

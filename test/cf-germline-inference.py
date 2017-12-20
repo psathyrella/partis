@@ -510,8 +510,8 @@ def run_single_test(args, baseoutdir, val, n_events, method):
             cmd += ' --nsnp-list ' + nsnpstr
         if nindelstr != '':
             cmd += ' --nindel-list ' + nindelstr
-    if args.plot_performance:
-        cmd += ' --plot-performance'
+    if args.plot_annotation_performance:
+        cmd += ' --plot-annotation-performance'
     cmd += ' --outdir ' + outdir
     utils.simplerun(cmd, dryrun=args.dry_run)
 
@@ -652,7 +652,7 @@ parser.add_argument('--n-tests', type=int, default=3)
 parser.add_argument('--iteststart', type=int, default=0)
 parser.add_argument('--n-procs-per-test', type=int, default=5)
 parser.add_argument('--plot', action='store_true')
-parser.add_argument('--plot-performance', action='store_true')
+parser.add_argument('--plot-annotation-performance', action='store_true')
 parser.add_argument('--print-table', action='store_true')
 parser.add_argument('--no-slurm', action='store_true')
 parser.add_argument('--plotcache', action='store_true')
@@ -691,7 +691,7 @@ if args.action == 'multi-nsnp':
 if args.plot:
     if args.method_vs_method:
         plot_tests(args, baseoutdir, method=None, method_vs_method=True)
-    elif args.plot_performance:
+    elif args.plot_annotation_performance:
         plot_tests(args, baseoutdir, method=None, annotation_performance_plots=True)
     elif args.print_table:
         plot_tests(args, baseoutdir, method=None, print_summary_table=True)

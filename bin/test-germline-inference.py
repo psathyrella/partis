@@ -26,7 +26,7 @@ def get_outfname(args, method, annotation_performance_plots=False, return_parent
             return glutils.get_fname(outdir, args.locus, 'v')
         else:
             return outdir
-    else:  # product of running partis annotation with --plot-performance
+    else:  # product of running partis annotation with --plot-annotation-performance
         return outdir + '/annotation-performance-plots'
 
 # ----------------------------------------------------------------------------------------
@@ -117,7 +117,7 @@ def run_performance_plot(args, method):
     if utils.output_exists(args, perf_outdir):
         return
 
-    cmd_str = args.partis_path + ' cache-parameters --infname ' + args.simfname + ' --plot-performance'
+    cmd_str = args.partis_path + ' cache-parameters --infname ' + args.simfname + ' --plot-annotation-performance'
     cmd_str += ' --is-simu --simulation-germline-dir ' + args.outdir + '/germlines/simulation'
     cmd_str += ' --initial-germline-dir ' + get_outfname(args, method, return_parent_gl_dir=True)  # i.e. use the inferred glfo from <method>
     cmd_str += ' --parameter-dir ' + perf_outdir + '/dummy-parameter-dir'
@@ -198,7 +198,7 @@ def run_tests(args):
     if not args.gls_gen:
         write_inf_glfo(args)
     for method in args.methods:
-        if args.plot_performance:
+        if args.plot_annotation_performance:
             run_performance_plot(args, method)
         elif method == 'partis' or method == 'full':
             run_partis_parameter_cache(args, method)
@@ -209,7 +209,7 @@ def run_tests(args):
 def multiple_tests(args):
     def getlogdir(iproc):
         logdir = args.outdir + '/' + str(iproc) + '/logs'
-        if args.plot_performance:
+        if args.plot_annotation_performance:
             logdir += '/annotation-performance-plots'
         return logdir + '/' + '-'.join(args.methods)
     def cmd_str(iproc):
@@ -349,7 +349,7 @@ parser.add_argument('--slurm', action='store_true')
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--dry-run', action='store_true')
 parser.add_argument('--allele-cluster', action='store_true', help='see bin/partis --help')
-parser.add_argument('--plot-performance', action='store_true', help='see bin/partis --help')
+parser.add_argument('--plot-annotation-performance', action='store_true', help='see bin/partis --help')
 parser.add_argument('--methods', default='simu:partis', help='colon-separated list of methods to run. By default runs simulation, and then partis inference (igdiscover and tigger, if installed, are the other options)')
 parser.add_argument('--outdir', default=utils.fsdir() + '/partis/allele-finder')
 parser.add_argument('--inf-glfo-dir', help='default set below')

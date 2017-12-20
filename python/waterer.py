@@ -67,7 +67,7 @@ class Waterer(object):
             self.pcounter = ParameterCounter(self.glfo, self.args)
             if not self.args.is_data:
                 self.true_pcounter = ParameterCounter(self.simglfo, self.args)
-        if plot_performance:  # NOTE *not* the same as <self.args.plot_performance>
+        if plot_performance:  # NOTE *not* the same as <self.args.plot_annotation_performance>
             self.perfplotter = PerformancePlotter('sw')
 
         if not os.path.exists(self.args.ig_sw_binary):
