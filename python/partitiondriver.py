@@ -149,7 +149,7 @@ class PartitionDriver(object):
         waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo,
                           count_parameters=count_parameters,
                           parameter_out_dir=self.sw_param_dir if write_parameters else None,
-                          plot_performance=self.args.plot_annotation_performance,
+                          plot_annotation_performance=self.args.plot_annotation_performance,
                           simglfo=self.simglfo, duplicates=self.duplicates, pre_failed_queries=pre_failed_queries, aligned_gl_seqs=self.aligned_gl_seqs)
         cachefname = self.default_sw_cachefname if self.args.sw_cachefname is None else self.args.sw_cachefname
         if not look_for_cachefile and os.path.exists(cachefname):  # i.e. if we're not explicitly told to look for it, and it's there, then it's probably out of date

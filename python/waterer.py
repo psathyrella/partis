@@ -25,7 +25,7 @@ from clusterpath import ClusterPath
 class Waterer(object):
     """ Run smith-waterman on the query sequences in <infname> """
     def __init__(self, args, input_info, reco_info, glfo, count_parameters=False, parameter_out_dir=None,
-                 plot_performance=False,
+                 plot_annotation_performance=False,
                  simglfo=None, duplicates=None, pre_failed_queries=None, aligned_gl_seqs=None):
         self.args = args
         self.input_info = input_info  # NOTE do *not* modify this, since it's this original input info from partitiondriver
@@ -67,7 +67,7 @@ class Waterer(object):
             self.pcounter = ParameterCounter(self.glfo, self.args)
             if not self.args.is_data:
                 self.true_pcounter = ParameterCounter(self.simglfo, self.args)
-        if plot_performance:  # NOTE *not* the same as <self.args.plot_annotation_performance>
+        if plot_annotation_performance:  # NOTE *not* the same as <self.args.plot_annotation_performance>
             self.perfplotter = PerformancePlotter('sw')
 
         if not os.path.exists(self.args.ig_sw_binary):
