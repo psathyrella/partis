@@ -100,7 +100,7 @@ def post_process(input_info, reco_info, args, infname, found_seed, is_data, ilin
                                                                                                       (' and specifically kept %s' % ' '.join(included_queries)) if len(included_queries) > 0 else '')
 
 # ----------------------------------------------------------------------------------------
-def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, simglfo=None):
+def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, simglfo=None, quiet=False):
     """ return list of sequence info from files of several types """
 
     if not is_data and glfo is None:
@@ -204,7 +204,8 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, s
 
         n_queries_added += 1
         if n_max_queries > 0 and n_queries_added >= n_max_queries:
-            print '  --n-max-queries: stopped after reading %d queries from input file' % len(input_info)
+            if not quiet:  # just adding <quiet>, and too lazy to decide what other print statements it should effect, this is the only one I care about right now
+                print '  --n-max-queries: stopped after reading %d queries from input file' % len(input_info)
             break
 
     post_process(input_info, reco_info, args, infname, found_seed, is_data, iline)

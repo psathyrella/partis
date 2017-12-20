@@ -30,7 +30,6 @@ class Tester(object):
         self.stypes = ['ref', 'new']  # I don't know what the 's' stands for
         self.dtypes = ['data', 'simu']
         self.dirs = {'ref' : 'test/reference-results', 'new' : 'test/new-results'}
-        self.perfdirs = {st : 'simu-' + st + '-performance' for st in self.stypes}
         if not os.path.exists(self.dirs['new']):
             os.makedirs(self.dirs['new'])
         self.infnames = {st : {dt : self.datafname if dt == 'data' else self.dirs[st] + '/' + self.label + '/simu.csv' for dt in self.dtypes} for st in self.stypes}
@@ -38,15 +37,13 @@ class Tester(object):
         self.common_extras = ['--seed', '1', '--n-procs', '10', '--simulation-germline-dir', 'data/germlines/human']
         self.parameter_caching_extras = ['--n-max-total-alleles', '10', '--n-alleles-per-gene', '1']
 
-        self.perf_info = { version_stype : OrderedDict() for version_stype in self.stypes }
-
         # check against reference csv file
         self.tiny_eps = 1e-4
         self.run_times = {}
         self.eps_vals = {}  # fractional difference which we allow for each test type (these were generated with the code in get_typical_variances() above)
-        self.eps_vals['v_gene_correct'] = 0.02  # hm, actually, I think I just made the annotation ones up
-        self.eps_vals['d_gene_correct'] = 0.02
-        self.eps_vals['j_gene_correct'] = 0.02
+        self.eps_vals['v_call'] = 0.02  # hm, actually, I think I just made the annotation ones up
+        self.eps_vals['d_call'] = 0.02
+        self.eps_vals['j_call'] = 0.02
         self.eps_vals['mean_hamming']   = 0.1
         self.eps_vals['purity']         = 0.08
         self.eps_vals['completeness']   = 0.08
@@ -63,7 +60,12 @@ class Tester(object):
         def add_inference_tests(input_stype):  # if input_stype is 'ref', infer on old simulation and parameters, if it's 'new' use the new ones
             self.tests['annotate-' + input_stype + '-simu']          = {'extras' : ['--plot-annotation-performance', ]}
             # self.tests['annotate-' + input_stype + '-data']          = {'extras' : ['--n-max-queries', n_data_inference_queries]}  # don't really need this as long as we're caching parameters on data
-            self.tests['partition-' + input_stype + '-simu']         = {'extras' : ['--n-max-queries', self.n_partition_queries, '--n-precache-procs', '10', '--biggest-logprob-cluster-to-calculate', '5', '--biggest-naive-seq-cluster-to-calculate', '5']}
+            self.tests['partition-' + input_stype + '-simu']         = {'extras' : [
+                '--n-max-queries', self.n_partition_queries,
+                '--n-precache-procs', '10',
+                '--plot-annotation-performance',
+                '--biggest-logprob-cluster-to-calculate', '5', '--biggest-naive-seq-cluster-to-calculate', '5',
+            ]}
             self.tests['seed-partition-' + input_stype + '-simu']    = {'extras' : ['--n-max-queries', self.n_partition_queries]}
             self.tests['vsearch-partition-' + input_stype + '-simu'] = {'extras' : ['--naive-vsearch', '--n-max-queries', self.n_partition_queries]}
 
@@ -78,8 +80,11 @@ class Tester(object):
         self.quick_tests = ['annotate-ref-simu']
         self.production_tests = ['cache-parameters-data', 'simulate', 'cache-parameters-simu']  # vs "inference" tests. Kind of crappy names, but we need to distinguish these three from all the other ones
 
+        self.perfdirs = {}  # set in fiddle_with_arguments() NOTE these correspond only to annotation performance, whereas <self.perf_info> has also partition performance
         for ptest, argfo in self.tests.items():
             self.fiddle_with_arguments(ptest, argfo)
+
+        self.perf_info = {version_stype : {} for version_stype in self.stypes}
 
     # ----------------------------------------------------------------------------------------
     def test(self, args):
@@ -119,7 +124,8 @@ class Tester(object):
             argfo['action'] = ptest
 
         if '--plot-annotation-performance' in argfo['extras']:
-            argfo['extras'] += ['--plotdir', self.dirs['new'] + '/' + self.perfdirs[input_stype], '--only-csv-plots']
+            self.perfdirs[ptest] = ptest + '-annotation-performance'
+            argfo['extras'] += ['--plotdir', self.dirs['new'] + '/' + self.perfdirs[ptest], '--only-csv-plots']
 
         if ptest == 'simulate':
             argfo['extras'] += ['--parameter-dir', self.param_dirs[input_stype]['data']]
@@ -135,7 +141,7 @@ class Tester(object):
         print '%s input' % input_stype
         for version_stype in self.stypes:
             self.read_annotation_performance(version_stype, input_stype)
-            self.read_partition_performance(version_stype, input_stype)
+            self.read_partition_performance(version_stype, input_stype)  # NOTE also calls read_annotation_performance()
         self.compare_performance(input_stype)
         self.compare_partition_cachefiles(input_stype)
         # self.compare_data_annotation(input_stype)
@@ -261,14 +267,8 @@ class Tester(object):
             shutil.move(source_fname, self.dirs['ref'] + '/')
 
     # ----------------------------------------------------------------------------------------
-    def read_annotation_performance(self, version_stype, input_stype, debug=False):
+    def read_annotation_performance(self, version_stype, input_stype, these_are_cluster_annotations=False, debug=False):  # <these_are_cluster_annotations> means this fcn is being called from within read_partition_performance()
         """ version_stype is the code version, while input_stype is the input data version, i.e. 'ref', 'new' is the reference code version (last commit) run on the then-new simulation and parameters"""
-        ptest = 'annotate-' + input_stype + '-simu'
-        if args.quick and ptest not in self.quick_tests:
-            return
-        if debug:
-            print '  version %s input %s annotation' % (version_stype, input_stype)
-
         def read_performance_file(fname, column, only_ibin=None):
             values = []
             with open(fname) as csvfile:
@@ -285,8 +285,22 @@ class Tester(object):
             else:
                 return values
 
-        perfdir = self.dirs[version_stype] + '/' + self.perfdirs[input_stype]
-        for method in ['sw', 'hmm']:
+        if these_are_cluster_annotations:
+            ptest = '-'.join(['partition', input_stype, 'simu'])
+            methods = ['hmm']
+        else:
+            ptest = '-'.join(['annotate', input_stype, 'simu'])
+            methods = ['sw', 'hmm']
+        if args.quick and ptest not in self.quick_tests:
+            return
+        if input_stype not in self.perf_info[version_stype]:
+            self.perf_info[version_stype][input_stype] = OrderedDict()
+        if ptest not in self.perf_info[version_stype][input_stype]:
+            self.perf_info[version_stype][input_stype][ptest] = OrderedDict()
+        if debug:
+            print '  version %s input %s annotation' % (version_stype, input_stype)
+        perfdir = self.dirs[version_stype] + '/' + self.perfdirs[ptest]
+        for method in methods:
             if debug:
                 print '   ', method
 
@@ -295,13 +309,13 @@ class Tester(object):
                 fraction_correct = read_performance_file(perfdir + '/' + method + '/gene-call/' + region + '_gene.csv', 'contents', only_ibin=1)
                 if debug:
                     print '      %s %.3f' % (region, fraction_correct)
-                self.perf_info[version_stype][input_stype + '-' + method + '-' + region + '_gene_correct'] = fraction_correct
+                self.perf_info[version_stype][input_stype][ptest][method + '-' + region + '_call'] = fraction_correct
 
             # hamming fraction
             hamming_hist = Hist(fname=perfdir + '/' + method + '/mutation/hamming_to_true_naive.csv')
             if debug:
                 print '      mean hamming %.2f' % hamming_hist.get_mean()
-            self.perf_info[version_stype][input_stype + '-' + method + '-mean_hamming'] = hamming_hist.get_mean()
+            self.perf_info[version_stype][input_stype][ptest][method + '-mean_hamming'] = hamming_hist.get_mean()
 
     # ----------------------------------------------------------------------------------------
     def read_partition_performance(self, version_stype, input_stype, debug=False):
@@ -318,18 +332,25 @@ class Tester(object):
         ptest_list = [k for k in self.tests.keys() if do_this_test(k)]
         if len(ptest_list) == 0:
             return
+        if input_stype not in self.perf_info[version_stype]:
+            self.perf_info[version_stype][input_stype] = OrderedDict()
         if debug:
             print '  version %s input %s partitioning' % (version_stype, input_stype)
             print '  purity         completeness        test                    description'
         for ptest in ptest_list:
+            if ptest not in self.perf_info[version_stype][input_stype]:
+                self.perf_info[version_stype][input_stype][ptest] = OrderedDict()
             cp = ClusterPath(-1)
             cp.readfile(self.dirs[version_stype] + '/' + ptest + '.csv')
             ccfs = cp.ccfs[cp.i_best]
             if None in ccfs:
                 raise Exception('none type ccf read from %s' % self.dirs[version_stype] + '/' + ptest + '.csv')
-            self.perf_info[version_stype][ptest + '-purity'], self.perf_info[version_stype][ptest + '-completeness'] = ccfs
+            self.perf_info[version_stype][input_stype][ptest]['purity'], self.perf_info[version_stype][input_stype][ptest]['completeness'] = ccfs
             if debug:
-                print '    %5.2f          %5.2f      %-28s   to true partition' % (self.perf_info[version_stype][ptest + '-purity'], self.perf_info[version_stype][ptest + '-completeness'], ptest)
+                print '    %5.2f          %5.2f      %-28s   to true partition' % (self.perf_info[version_stype][input_stype][ptest]['purity'], self.perf_info[version_stype][input_stype][ptest]['completeness'], ptest)
+
+            if ptest in self.perfdirs:
+                self.read_annotation_performance(version_stype, input_stype, these_are_cluster_annotations=True)
 
     # ----------------------------------------------------------------------------------------
     def compare_data_annotation(self, input_stype):
@@ -350,34 +371,56 @@ class Tester(object):
 
     # ----------------------------------------------------------------------------------------
     def compare_performance(self, input_stype):
-        performance_metric_list = [n for n in self.perf_info['ref'] if input_stype in n]
-        if len(performance_metric_list) == 0:
-            return
-
-        print '  performance with %s simulation and parameters' % input_stype
-
-        # make sure there's a new performance value for each reference one, and vice versa
-        refkeys = set(self.perf_info['ref'].keys())
-        newkeys = set(self.perf_info['new'].keys())
-        if len(refkeys - newkeys) > 0 or len(newkeys - refkeys) > 0:
-            print '  %d keys only in ref' % len(refkeys - newkeys)
-            print '  %d keys only in new' % len(newkeys - refkeys)
-            print '  %d in common' % len(refkeys & newkeys)
-            raise Exception('')
-
-        for name in performance_metric_list:  # don't use the sets above so we get the nice ordering
-            ref_val = self.perf_info['ref'][name]
-            new_val = self.perf_info['new'][name]
-            val_type = name.split('-')[-1]
-            print '    %-28s %-15s       %-5.3f' % (name.replace('-' + val_type, ''), val_type, ref_val),
+        def print_comparison_str(method, ref_val, new_val, epsval, metric):
+            alignstr = '' if len(metric.strip()) == 1 else '-'
+            print ('    %-12s %' + alignstr + '7s    %-5.3f') % (method, metric, ref_val),
             fractional_change = (new_val - ref_val) / ref_val  # NOTE not the abs value yet
-            if abs(fractional_change) > self.eps_vals[val_type]:
+            if abs(fractional_change) > epsval:
                 print '--> %-5.3f %s' % (new_val, utils.color('red', '(%+.3f)' % fractional_change)),
             elif abs(fractional_change) > self.tiny_eps:
                 print '--> %-5.3f %s' % (new_val, utils.color('yellow', '(%+.3f)' % fractional_change)),
             else:
                 print '    ok   ',
             print ''
+
+        print '  performance with %s simulation and parameters' % input_stype
+        annotation_ptests = ['annotate-' + input_stype + '-simu', 'partition-' + input_stype + '-simu']  # hard code for order
+        partition_ptests = [flavor + 'partition-' + input_stype + '-simu' for flavor in ['', 'vsearch-', 'seed-']]
+        metricstrs = {
+            'd_call' : 'd  ',
+            'j_call' : 'j  ',
+            'mean_hamming' : 'hamming',
+            'completeness' : 'compl.',
+        }
+
+        for ptest in annotation_ptests:
+            if ptest not in self.perf_info['ref'][input_stype]:
+                continue
+            if set(self.perf_info['ref'][input_stype][ptest]) != set(self.perf_info['new'][input_stype][ptest]):
+                raise Exception('different metrics in ref vs new:\n  %s\n  %s' % (sorted(self.perf_info['ref'][input_stype][ptest]), sorted(self.perf_info['new'][input_stype][ptest])))
+            for fullmetric in self.perf_info['ref'][input_stype][ptest]:
+                if fullmetric in ['purity', 'completeness']:
+                    continue
+                method, metric = fullmetric.split('-')
+                metricstr = metric
+                if 'partition' in ptest:
+                    method = 'multi-hmm'
+                if metric != 'v_call':
+                    method = ''
+                print_comparison_str(method, self.perf_info['ref'][input_stype][ptest][fullmetric], self.perf_info['new'][input_stype][ptest][fullmetric], self.eps_vals[metric], metricstrs.get(metric, metric))
+
+        for ptest in partition_ptests:
+            if ptest not in self.perf_info['ref'][input_stype]:
+                continue
+            if set(self.perf_info['ref'][input_stype][ptest]) != set(self.perf_info['new'][input_stype][ptest]):
+                raise Exception('different metrics in ref vs new:\n  %s\n  %s' % (sorted(self.perf_info['ref'][input_stype][ptest]), sorted(self.perf_info['new'][input_stype][ptest])))
+            for metric in self.perf_info['ref'][input_stype][ptest]:
+                if metric not in ['purity', 'completeness']:
+                    continue
+                method = ptest.split('-')[0]
+                if metric != 'purity':
+                    method = ''
+                print_comparison_str(method, self.perf_info['ref'][input_stype][ptest][metric], self.perf_info['new'][input_stype][ptest][metric], self.eps_vals[metric], metricstrs.get(metric, metric))
 
     # ----------------------------------------------------------------------------------------
     def compare_production_results(self):
@@ -457,6 +500,7 @@ class Tester(object):
 
     # ----------------------------------------------------------------------------------------
     def make_comparison_plots(self):
+        assert False  # self.perfdirs treatment (among probably lots of other things) needs work
         plotdirs = [
             # self.perfdirs['ref'] + '/sw',  # ref sw performance
             # self.perfdirs['ref'] + '/hmm', # ref hmm performance
