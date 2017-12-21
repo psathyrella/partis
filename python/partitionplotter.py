@@ -14,7 +14,7 @@ class PartitionPlotter(object):
     def __init__(self, args):
         # between vs within stuff:
         self.n_bins = 30
-        self.subplotdirs = ['overall', 'within-vs-between']
+        self.subplotdirs = ['overall'] #, 'within-vs-between']
         self.args = args
 
     # ----------------------------------------------------------------------------------------

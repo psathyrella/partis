@@ -279,11 +279,11 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def annotate(self):
         print 'annotating'
-        self.run_waterer(look_for_cachefile=True)
+        self.run_waterer(look_for_cachefile=True, count_parameters=self.args.count_parameters)
         if self.args.only_smith_waterman:
             return
         print 'hmm'
-        self.run_hmm('viterbi', parameter_in_dir=self.sub_param_dir)
+        self.run_hmm('viterbi', parameter_in_dir=self.sub_param_dir, count_parameters=self.args.count_parameters)
 
     # ----------------------------------------------------------------------------------------
     def read_existing_annotations(self, outfname=None, ignore_args_dot_queries=False, debug=False):
@@ -354,7 +354,7 @@ class PartitionDriver(object):
     def partition(self):
         """ Partition sequences in <self.input_info> into clonally related lineages """
         print 'partitioning'
-        self.run_waterer(look_for_cachefile=True)  # run smith-waterman
+        self.run_waterer(look_for_cachefile=True, count_parameters=self.args.count_parameters)  # run smith-waterman
         if len(self.sw_info['queries']) == 0:
             if self.args.outfname is not None:
                 check_call(['touch', self.args.outfname])
@@ -640,7 +640,7 @@ class PartitionDriver(object):
         self.run_hmm('viterbi', self.sub_param_dir, n_procs=n_procs, partition=partition, read_output=False)  # it would be nice to rearrange <self.read_hmm_output()> so I could remove this option
         if n_procs > 1:
             _ = self.merge_all_hmm_outputs(n_procs, precache_all_naive_seqs=False)
-        annotations = self.read_annotation_output(self.hmm_outfname, outfname=self.args.cluster_annotation_fname, print_annotations=self.args.print_cluster_annotations, dont_write_failed_queries=True)
+        annotations = self.read_annotation_output(self.hmm_outfname, outfname=self.args.cluster_annotation_fname, print_annotations=self.args.print_cluster_annotations, dont_write_failed_queries=True, count_parameters=self.args.count_parameters)
         if os.path.exists(self.hmm_infname):
             os.remove(self.hmm_infname)
         self.current_action = action_cache
@@ -1595,21 +1595,22 @@ class PartitionDriver(object):
                 if pcounter is not None:
                     pcounter.increment(line_to_use)
                 if true_pcounter is not None:
-                    true_pcounter.increment(self.reco_info[uids[0]])  # NOTE doesn't matter which id you pass it, since they all have the same reco parameters
+                    true_pcounter.increment(self.reco_info[uids[0]])  # utils.get_true_partition()
 
                 if perfplotter is not None:
                     for iseq in range(len(uids)):  # TODO get perfplotter handling multi-seq lines
                         perfplotter.evaluate(self.reco_info[uids[iseq]], utils.synthesize_single_seq_line(line_to_use, iseq), simglfo=self.simglfo)
 
         # parameter and performance writing/plotting
-        if pcounter is not None and not self.args.dont_write_parameters:
+        if pcounter is not None:
             if self.args.plotdir is not None:
                 pcounter.plot(self.args.plotdir + '/hmm', only_csv=self.args.only_csv_plots, only_overall=self.args.only_overall_plots)
                 if true_pcounter is not None:
                         true_pcounter.plot(self.args.plotdir + '/hmm-true', only_csv=self.args.only_csv_plots, only_overall=self.args.only_overall_plots)
-            pcounter.write(parameter_out_dir)
-            if true_pcounter is not None:
-                true_pcounter.write(parameter_out_dir + '-true')
+            if not self.args.dont_write_parameters:
+                pcounter.write(parameter_out_dir)
+                if true_pcounter is not None:
+                    true_pcounter.write(parameter_out_dir + '-true')
 
         if perfplotter is not None:
             perfplotter.plot(self.args.plotdir + '/hmm', only_csv=self.args.only_csv_plots)

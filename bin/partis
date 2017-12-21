@@ -300,7 +300,8 @@ parent_parser.add_argument('--batch-options', help='additional options to apply 
 parent_parser.add_argument('--batch-config-fname', default='/etc/slurm-llnl/slurm.conf', help='system-wide batch system configuration file name')
 
 parent_parser.add_argument('--only-smith-waterman', action='store_true', help='Exit after finishing smith-waterman.')
-parent_parser.add_argument('--dont-write-parameters', action='store_true', help='don\'t write parameters to disk (mostly for use in conjunction with --only-smith-waterman, so you can avoid cluttering up your file system)')
+parent_parser.add_argument('--count-parameters', action='store_true', help='force parameter counting when action is not cache-parameters (presumably so that you can plot them)')
+parent_parser.add_argument('--dont-write-parameters', action='store_true', help='don\'t write parameters to disk even if you\'ve counted them (mostly for use in conjunction with --only-smith-waterman, so you can avoid cluttering up your file system)')
 parent_parser.add_argument('--write-trimmed-and-padded-seqs-to-sw-cachefname', action='store_true', help='after running sw, trim and pad sequences *before* writing to the sw cache file (rather than after). Note that this will in some cases cause waterer.py to not be able to read sw results from this cache file.')
 parent_parser.add_argument('--ig-sw-binary', default=partis_dir + '/packages/ig-sw/src/ig_align/ig-sw', help='Path to ig-sw executable.')
 parent_parser.add_argument('--vsearch-binary',  help='Path to vsearch binary (vsearch binaries for linux and darwin are pre-installed in bin/, but for other systems you need to get your own)')
@@ -584,6 +585,9 @@ if args.presto_output and args.aligned_germline_fname is None:
 
 if args.parameter_dir is not None:
     args.parameter_dir = args.parameter_dir.rstrip('/')
+
+if args.count_parameters and not args.dont_write_parameters:
+    raise Exception('if you set --count-parameters, you should also set --dont-write-parameters to make sure you\'re not accidentally overwriting existing parameters ')
 
 if os.path.exists(args.default_initial_germline_dir + '/' + args.species):  # ick that is hackey
     args.default_initial_germline_dir += '/' + args.species

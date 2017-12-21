@@ -212,12 +212,12 @@ class Waterer(object):
         if self.perfplotter is not None:
             self.perfplotter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
 
-        if self.pcounter is not None and not self.args.dont_write_parameters:
-            if self.parameter_out_dir is not None:
-                if self.args.plotdir is not None:
-                    self.pcounter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots, only_overall=self.args.only_overall_plots)
-                    if self.true_pcounter is not None:
-                        self.true_pcounter.plot(self.args.plotdir + '/sw-true', only_csv=self.args.only_csv_plots, only_overall=self.args.only_overall_plots)
+        if self.pcounter is not None:
+            if self.args.plotdir is not None:
+                self.pcounter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots, only_overall=self.args.only_overall_plots)
+                if self.true_pcounter is not None:
+                    self.true_pcounter.plot(self.args.plotdir + '/sw-true', only_csv=self.args.only_csv_plots, only_overall=self.args.only_overall_plots)
+            if self.parameter_out_dir is not None and not self.args.dont_write_parameters:
                 self.pcounter.write(self.parameter_out_dir)
                 if self.true_pcounter is not None:
                     self.true_pcounter.write(self.parameter_out_dir + '-true')
