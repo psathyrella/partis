@@ -45,6 +45,10 @@ class Tester(object):
         self.eps_vals['d_call'] = 0.02
         self.eps_vals['j_call'] = 0.02
         self.eps_vals['mean_hamming']   = 0.1
+        self.eps_vals['v_hamming'] = 0.1
+        self.eps_vals['d_hamming'] = 0.1
+        self.eps_vals['j_hamming'] = 0.1
+        self.eps_vals['cdr3_hamming'] = 0.1
         self.eps_vals['purity']         = 0.08
         self.eps_vals['completeness']   = 0.08
 
@@ -267,7 +271,7 @@ class Tester(object):
             shutil.move(source_fname, self.dirs['ref'] + '/')
 
     # ----------------------------------------------------------------------------------------
-    def read_annotation_performance(self, version_stype, input_stype, these_are_cluster_annotations=False, debug=False):  # <these_are_cluster_annotations> means this fcn is being called from within read_partition_performance()
+    def read_annotation_performance(self, version_stype, input_stype, these_are_cluster_annotations=False):  # <these_are_cluster_annotations> means this fcn is being called from within read_partition_performance()
         """ version_stype is the code version, while input_stype is the input data version, i.e. 'ref', 'new' is the reference code version (last commit) run on the then-new simulation and parameters"""
         def read_performance_file(fname, column, only_ibin=None):
             values = []
@@ -297,25 +301,14 @@ class Tester(object):
             self.perf_info[version_stype][input_stype] = OrderedDict()
         if ptest not in self.perf_info[version_stype][input_stype]:
             self.perf_info[version_stype][input_stype][ptest] = OrderedDict()
-        if debug:
-            print '  version %s input %s annotation' % (version_stype, input_stype)
         perfdir = self.dirs[version_stype] + '/' + self.perfdirs[ptest]
         for method in methods:
-            if debug:
-                print '   ', method
-
-            # fraction of genes correct
-            for region in utils.regions:
-                fraction_correct = read_performance_file(perfdir + '/' + method + '/gene-call/' + region + '_gene.csv', 'contents', only_ibin=1)
-                if debug:
-                    print '      %s %.3f' % (region, fraction_correct)
-                self.perf_info[version_stype][input_stype][ptest][method + '-' + region + '_call'] = fraction_correct
-
-            # hamming fraction
-            hamming_hist = Hist(fname=perfdir + '/' + method + '/mutation/hamming_to_true_naive.csv')
-            if debug:
-                print '      mean hamming %.2f' % hamming_hist.get_mean()
-            self.perf_info[version_stype][input_stype][ptest][method + '-mean_hamming'] = hamming_hist.get_mean()
+            self.perf_info[version_stype][input_stype][ptest][method + '-mean_hamming'] = Hist(fname=perfdir + '/' + method + '/mutation/hamming_to_true_naive.csv').get_mean()
+            for region in utils.regions + ['cdr3']:
+                self.perf_info[version_stype][input_stype][ptest][method + '-' + region + '_hamming'] = Hist(fname=perfdir + '/' + method + '/mutation/' + region + '_hamming_to_true_naive.csv').get_mean()
+            # for region in utils.regions:
+            #     fraction_correct = read_performance_file(perfdir + '/' + method + '/gene-call/' + region + '_gene.csv', 'contents', only_ibin=1)
+            #     self.perf_info[version_stype][input_stype][ptest][method + '-' + region + '_call'] = fraction_correct
 
     # ----------------------------------------------------------------------------------------
     def read_partition_performance(self, version_stype, input_stype, debug=False):
@@ -372,9 +365,9 @@ class Tester(object):
     # ----------------------------------------------------------------------------------------
     def compare_performance(self, input_stype):
         def print_comparison_str(method, ref_val, new_val, epsval, metric):
-            alignstr = '' if len(metric.strip()) == 1 else '-'
-            print ('    %-12s %' + alignstr + '7s    %-5.3f') % (method, metric, ref_val),
-            fractional_change = (new_val - ref_val) / ref_val  # NOTE not the abs value yet
+            alignstr = '' if len(metric.strip()) < 5 else '-'
+            print ('    %-12s %' + alignstr + '9s    %-5.3f') % (method, metric, ref_val),
+            fractional_change = 0. if ref_val == 0. else (new_val - ref_val) / ref_val  # NOTE not the abs value yet
             if abs(fractional_change) > epsval:
                 print '--> %-5.3f %s' % (new_val, utils.color('red', '(%+.3f)' % fractional_change)),
             elif abs(fractional_change) > self.tiny_eps:
@@ -387,9 +380,13 @@ class Tester(object):
         annotation_ptests = ['annotate-' + input_stype + '-simu', 'partition-' + input_stype + '-simu']  # hard code for order
         partition_ptests = [flavor + 'partition-' + input_stype + '-simu' for flavor in ['', 'vsearch-', 'seed-']]
         metricstrs = {
+            'mean_hamming' : 'hamming',
+            'v_hamming' : 'v  ',
+            'd_hamming' : 'd  ',
+            'j_hamming' : 'j  ',
+            'cdr3_hamming' : 'cdr3  ',
             'd_call' : 'd  ',
             'j_call' : 'j  ',
-            'mean_hamming' : 'hamming',
             'completeness' : 'compl.',
         }
 
@@ -405,7 +402,7 @@ class Tester(object):
                 metricstr = metric
                 if 'partition' in ptest:
                     method = 'multi-hmm'
-                if metric != 'v_call':
+                if metric != 'mean_hamming':
                     method = ''
                 print_comparison_str(method, self.perf_info['ref'][input_stype][ptest][fullmetric], self.perf_info['new'][input_stype][ptest][fullmetric], self.eps_vals[metric], metricstrs.get(metric, metric))
 
