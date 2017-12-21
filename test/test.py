@@ -302,13 +302,18 @@ class Tester(object):
         if ptest not in self.perf_info[version_stype][input_stype]:
             self.perf_info[version_stype][input_stype][ptest] = OrderedDict()
         perfdir = self.dirs[version_stype] + '/' + self.perfdirs[ptest]
+        perffo = self.perf_info[version_stype][input_stype][ptest]
         for method in methods:
-            self.perf_info[version_stype][input_stype][ptest][method + '-mean_hamming'] = Hist(fname=perfdir + '/' + method + '/mutation/hamming_to_true_naive.csv').get_mean()
+            perffo[method + '-mean_hamming'] = Hist(fname=perfdir + '/' + method + '/mutation/hamming_to_true_naive.csv').get_mean()
             for region in utils.regions + ['cdr3']:
-                self.perf_info[version_stype][input_stype][ptest][method + '-' + region + '_hamming'] = Hist(fname=perfdir + '/' + method + '/mutation/' + region + '_hamming_to_true_naive.csv').get_mean()
+                perffo[method + '-' + region + '_hamming'] = Hist(fname=perfdir + '/' + method + '/mutation/' + region + '_hamming_to_true_naive.csv').get_mean()
+            for bound in utils.boundaries:
+                perffo[method + '-' + bound + '_insertion'] = Hist(fname=perfdir + '/' + method + '/boundaries/' + bound + '_insertion.csv').get_mean(absval=True)
+            for erosion in utils.real_erosions:
+                perffo[method + '-' + erosion + '_del'] = Hist(fname=perfdir + '/' + method + '/boundaries/' + erosion + '_del.csv').get_mean(absval=True)
             # for region in utils.regions:
             #     fraction_correct = read_performance_file(perfdir + '/' + method + '/gene-call/' + region + '_gene.csv', 'contents', only_ibin=1)
-            #     self.perf_info[version_stype][input_stype][ptest][method + '-' + region + '_call'] = fraction_correct
+            #     perffo[method + '-' + region + '_call'] = fraction_correct
 
     # ----------------------------------------------------------------------------------------
     def read_partition_performance(self, version_stype, input_stype, debug=False):
@@ -385,6 +390,8 @@ class Tester(object):
             'd_hamming' : 'd  ',
             'j_hamming' : 'j  ',
             'cdr3_hamming' : 'cdr3  ',
+            'vd_insertion' : 'vd insert',
+            'dj_insertion' : 'dj insert',
             'd_call' : 'd  ',
             'j_call' : 'j  ',
             'completeness' : 'compl.',
@@ -404,7 +411,7 @@ class Tester(object):
                     method = 'multi-hmm'
                 if metric != 'mean_hamming':
                     method = ''
-                print_comparison_str(method, self.perf_info['ref'][input_stype][ptest][fullmetric], self.perf_info['new'][input_stype][ptest][fullmetric], self.eps_vals[metric], metricstrs.get(metric, metric))
+                print_comparison_str(method, self.perf_info['ref'][input_stype][ptest][fullmetric], self.perf_info['new'][input_stype][ptest][fullmetric], self.eps_vals.get(metric, 0.1), metricstrs.get(metric, metric))
 
         for ptest in partition_ptests:
             if ptest not in self.perf_info['ref'][input_stype]:
@@ -417,7 +424,7 @@ class Tester(object):
                 method = ptest.split('-')[0]
                 if metric != 'purity':
                     method = ''
-                print_comparison_str(method, self.perf_info['ref'][input_stype][ptest][metric], self.perf_info['new'][input_stype][ptest][metric], self.eps_vals[metric], metricstrs.get(metric, metric))
+                print_comparison_str(method, self.perf_info['ref'][input_stype][ptest][metric], self.perf_info['new'][input_stype][ptest][metric], self.eps_vals.get(metric, 0.1), metricstrs.get(metric, metric))
 
     # ----------------------------------------------------------------------------------------
     def compare_production_results(self):

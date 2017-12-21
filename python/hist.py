@@ -247,7 +247,7 @@ class Hist(object):
         return bin_centers_no_zeros
 
     # ----------------------------------------------------------------------------------------
-    def get_mean(self, ignore_overflows=False):
+    def get_mean(self, ignore_overflows=False, absval=False):
         if ignore_overflows:
             imin, imax = 1, self.n_bins + 1
         else:
@@ -255,10 +255,8 @@ class Hist(object):
         centers = self.get_bin_centers()
         total, integral = 0.0, 0.0
         for ib in range(imin, imax):
-            # print '    ', centers[ib], self.bin_contents[ib]
-            total += self.bin_contents[ib] * centers[ib]
+            total += self.bin_contents[ib] * (abs(centers[ib]) if absval else centers[ib])
             integral += self.bin_contents[ib]
-        # print total, integral
         if integral > 0.:
             return total / integral
         else:
