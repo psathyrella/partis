@@ -62,11 +62,10 @@ class Waterer(object):
         self.my_gldir = self.args.workdir + '/sw-' + glutils.glfo_dir
         glutils.write_glfo(self.my_gldir, self.glfo)
 
-        self.pcounter, self.true_pcounter, self.perfplotter = None, None, None
+        self.pcounter, self.perfplotter = None, None, None
         if count_parameters:  # NOTE *not* the same as <self.args.cache_parameters>
             self.pcounter = ParameterCounter(self.glfo, self.args)
             if not self.args.is_data:
-                self.true_pcounter = ParameterCounter(self.simglfo, self.args)
         if plot_annotation_performance:  # NOTE *not* the same as <self.args.plot_annotation_performance>
             self.perfplotter = PerformancePlotter('sw')
 
@@ -178,8 +177,6 @@ class Waterer(object):
         if self.pcounter is not None:
             for qname in self.info['queries']:
                 self.pcounter.increment(self.info[qname])
-                if self.true_pcounter is not None:
-                    self.true_pcounter.increment(self.reco_info[qname])
         if self.perfplotter is not None:
             for qname in self.info['queries']:
                 self.perfplotter.evaluate(self.reco_info[qname], self.info[qname], simglfo=self.simglfo)
@@ -215,12 +212,8 @@ class Waterer(object):
         if self.pcounter is not None:
             if self.args.plotdir is not None:
                 self.pcounter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots, only_overall=self.args.only_overall_plots)
-                if self.true_pcounter is not None:
-                    self.true_pcounter.plot(self.args.plotdir + '/sw-true', only_csv=self.args.only_csv_plots, only_overall=self.args.only_overall_plots)
             if self.parameter_out_dir is not None and not self.args.dont_write_parameters:
                 self.pcounter.write(self.parameter_out_dir)
-                if self.true_pcounter is not None:
-                    self.true_pcounter.write(self.parameter_out_dir + '-true')
 
         glutils.remove_glfo_files(self.my_gldir, self.args.locus)
         sys.stdout.flush()
