@@ -62,7 +62,7 @@ class Waterer(object):
         self.my_gldir = self.args.workdir + '/sw-' + glutils.glfo_dir
         glutils.write_glfo(self.my_gldir, self.glfo)
 
-        self.pcounter, self.perfplotter = None, None, None
+        self.pcounter, self.perfplotter = None, None
         if count_parameters:  # NOTE *not* the same as <self.args.cache_parameters>
             self.pcounter = ParameterCounter(self.glfo, self.args)
         if plot_annotation_performance:  # NOTE *not* the same as <self.args.plot_annotation_performance>
