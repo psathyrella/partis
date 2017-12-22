@@ -205,6 +205,7 @@ class HmmWriter(object):
 
         self.n_occurences = utils.read_single_gene_count(self.indir, gene_name, debug=self.debug)  # how many times did we observe this gene in data?
         replacement_genes = None
+        # NOTE this never happens any more, since partitiondriver.cache_parameters() resets <args.min_observations_to_write> if it's arger than 10*(number of sequences)
         if self.n_occurences < self.args.min_observations_to_write:  # if we didn't see it enough, average over all the genes that find_replacement_genes() gives us
             if self.debug:
                 print '      only saw it %d times (wanted %d), so use info from all other genes' % (self.n_occurences, self.args.min_observations_to_write)
@@ -305,12 +306,6 @@ class HmmWriter(object):
 
             self.add_emissions(insert_state, germline_nuke=nuke)
             self.hmm.add_state(insert_state)
-        # insert_state = State('insert_right')
-        # self_transition_prob = self.get_insert_self_transition_prob('jf')
-        # insert_state.add_transition('insert_right', self_transition_prob)
-        # insert_state.add_transition('end', 1.0 - self_transition_prob)
-        # self.add_emissions(insert_state)
-        # self.hmm.add_state(insert_state)
 
     # ----------------------------------------------------------------------------------------
     def add_pseudocounts(self, erosion_probs):
