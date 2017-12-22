@@ -178,7 +178,7 @@ class HmmWriter(object):
         self.debug = debug
         self.codon_positions = {r : glfo[c + '-positions'] for r, c in utils.conserved_codons[args.locus].items()}
 
-        print self.raw_name  # x
+        print self.raw_name  # xXX
         # parameters with values that I more or less made up
         self.precision = '16'  # number of digits after the decimal for probabilities
         self.eps = 1e-6  # NOTE I also have an eps defined in utils, and they should in principle be combined
@@ -688,34 +688,32 @@ class HmmWriter(object):
     def get_emission_prob(self, nuke1, is_insert=True, inuke=-1, germline_nuke='', insertion=''):
         if nuke1 not in utils.nukes + utils.ambiguous_bases:
             raise Exception('bad nuke (%s)' % nuke1)
-        prob = 1.0
         if is_insert:
             if germline_nuke == '' or germline_nuke == 'N':
                 assert insertion == 'fv' or insertion == 'jf'
-                prob = 1. / len(utils.nukes)
+                return 1. / len(utils.nukes)
             else:
                 assert germline_nuke in utils.nukes + ['N', ]
                 mute_freq = self.mute_freqs['overall_mean']  # for now, just use the mean mute freq over the whole sequence for the insertion mute freq
                 if nuke1 == germline_nuke:
-                    prob = 1.0 - mute_freq  # I can think of some other ways to arrange this, but this seems ok
+                    return 1.0 - mute_freq  # I can think of some other ways to arrange this, but this seems ok
                 else:
-                    prob = mute_freq / 3.0
+                    return mute_freq / 3.0
         else:
             assert inuke >= 0 and germline_nuke != ''
 
             if germline_nuke in utils.ambiguous_bases:
-                prob = 1. / len(utils.nukes)
+                return 1. / len(utils.nukes)
             else:
                 mute_freq = self.mute_freqs.get(inuke, self.mute_freqs['overall_mean'])  # if it isn't there, that means we want to make an hmm state for a position that wasn't observed... which I think'll happen mostly with shorter read lengths
-
                 assert mute_freq != 1.0 and mute_freq != 0.0
 
-                if nuke1 == germline_nuke:  # NOTE that if mute_freq is 1.0 this gives zero
-                    prob = 1.0 - mute_freq
+                if nuke1 == germline_nuke:
+                    return 1.0 - mute_freq
                 else:
-                    prob = mute_freq / 3.0
+                    return mute_freq / 3.0
 
-        return prob
+        assert False  # shouldn't fall through to here
 
     # ----------------------------------------------------------------------------------------
     def get_ambiguos_emission_prob(self, inuke):
