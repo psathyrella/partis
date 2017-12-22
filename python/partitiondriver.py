@@ -1594,12 +1594,14 @@ class PartitionDriver(object):
 
                 if pcounter is not None:
                     pcounter.increment(line_to_use)
-                if true_pcounter is not None:
-                    true_pcounter.increment(self.reco_info[uids[0]])  # utils.get_true_partition()
 
                 if perfplotter is not None:
-                    for iseq in range(len(uids)):  # TODO get perfplotter handling multi-seq lines
+                    for iseq in range(len(uids)):  # NOTE this counts rearrangement-level parameters once for every mature sequence, which is inconsistent with the pcounters... but I think might make more sense here?
                         perfplotter.evaluate(self.reco_info[uids[iseq]], utils.synthesize_single_seq_line(line_to_use, iseq), simglfo=self.simglfo)
+
+        if true_pcounter is not None:
+            for uids in utils.get_true_partition(self.reco_info):
+                true_pcounter.increment(utils.synthesize_multi_seq_line_from_reco_info(uids, self.reco_info))
 
         # parameter and performance writing/plotting
         if pcounter is not None:
