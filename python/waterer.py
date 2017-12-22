@@ -65,7 +65,6 @@ class Waterer(object):
         self.pcounter, self.perfplotter = None, None, None
         if count_parameters:  # NOTE *not* the same as <self.args.cache_parameters>
             self.pcounter = ParameterCounter(self.glfo, self.args)
-            if not self.args.is_data:
         if plot_annotation_performance:  # NOTE *not* the same as <self.args.plot_annotation_performance>
             self.perfplotter = PerformancePlotter('sw')
 
