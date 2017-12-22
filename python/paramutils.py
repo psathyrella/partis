@@ -17,16 +17,34 @@ def simplify_state_name(state_name):
         return state_name
 
 # ----------------------------------------------------------------------------------------
-def read_mute_info(indir, this_gene, locus, approved_genes=None):  # NOTE this would probably be more accurate if we made some effort to align the genes before combining all the approved ones
+def read_mute_counts(indir, gene, locus):
+    if gene == glutils.dummy_d_genes[locus]:
+        return {}
+    observed_counts = {}
+    with open(indir + '/mute-freqs/' + utils.sanitize_name(gene) + '.csv', 'r') as mutefile:
+        reader = csv.DictReader(mutefile)
+        for line in reader:
+            pos = int(line['position'])
+            assert pos not in observed_counts
+            observed_counts[pos] = {n : int(line[n + '_obs']) for n in utils.nukes}
+    return observed_counts  # raw per-{ACGT} counts for each position, summed over genes ("raw" as in not a weighted average over a bunch of genes as in read_mute_freqs())
+
+# ----------------------------------------------------------------------------------------
+def read_mute_freqs(indir, this_gene, locus, approved_genes=None):  # NOTE it would be nice to eventually align the genes before combining
+    # returns:
+    #  - mute_freqs: inverse error-weighted average mute freq over all genes for each position
+    #     - also includes weighted and unweigthed means over positions
+
     if this_gene == glutils.dummy_d_genes[locus]:
-        return {'overall_mean' : 0.5, 'unweighted_overall_mean' : 0.5}, {}
+        return {'overall_mean' : 0.5, 'unweighted_overall_mean' : 0.5}
 
     if approved_genes is None:
         approved_genes = [this_gene, ]
+    else:  # huh, wait, was this wrong before? am I even ever using more than one gene now?
+        assert this_gene in approved_genes
 
     # add an observation for each position, for each gene where we observed that position NOTE this would be more sensible if they were aligned first
-    observed_freqs, observed_counts = {}, {}
-    total_counts = 0
+    observed_freqs = {}
     for gene in approved_genes:
         mutefname = indir + '/mute-freqs/' + utils.sanitize_name(gene) + '.csv'
         if not os.path.exists(mutefname):
@@ -45,12 +63,8 @@ def read_mute_info(indir, this_gene, locus, approved_genes=None):  # NOTE this w
 
                 if pos not in observed_freqs:
                     observed_freqs[pos] = []
-                    observed_counts[pos] = {n : 0 for n in utils.nukes}
 
                 observed_freqs[pos].append({'freq' : freq, 'err' : max(abs(freq-lo_err), abs(freq-hi_err))})  # append one for each gene
-                for nuke in utils.nukes:
-                    observed_counts[pos][nuke] += int(line[nuke + '_obs'])
-                total_counts += int(line[nuke + '_obs'])
 
     # set final mute_freqs[pos] to the (inverse error-weighted) average over all the observations [i.e. genes] for each position
     mute_freqs = {}
@@ -77,8 +91,7 @@ def read_mute_info(indir, this_gene, locus, approved_genes=None):  # NOTE this w
     if unweighted_denom > 0.:
         mute_freqs['unweighted_overall_mean'] = sum([obs['freq'] for pos in observed_freqs for obs in observed_freqs[pos]]) / unweighted_denom
 
-    observed_counts['total_counts'] = total_counts
-    return mute_freqs, observed_counts
+    return mute_freqs
 
 # ----------------------------------------------------------------------------------------
 def make_mutefreq_plot(plotdir, gene_name, positions):

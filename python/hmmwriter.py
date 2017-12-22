@@ -178,6 +178,7 @@ class HmmWriter(object):
         self.debug = debug
         self.codon_positions = {r : glfo[c + '-positions'] for r, c in utils.conserved_codons[args.locus].items()}
 
+        print self.raw_name
         # parameters with values that I more or less made up
         self.precision = '16'  # number of digits after the decimal for probabilities
         self.eps = 1e-6  # NOTE I also have an eps defined in utils, and they should in principle be combined
@@ -213,7 +214,8 @@ class HmmWriter(object):
 
         self.erosion_probs = self.read_erosion_info(gene_name, replacement_genes)
         self.insertion_probs, self.insertion_content_probs = self.read_insertion_info(gene_name, replacement_genes)
-        self.mute_freqs, self.mute_obs = paramutils.read_mute_info(self.indir, this_gene=gene_name, locus=self.args.locus, approved_genes=replacement_genes)  # actual info in <self.mute_obs> isn't actually used a.t.m.
+        self.mute_freqs = paramutils.read_mute_freqs(self.indir, this_gene=gene_name, locus=self.args.locus, approved_genes=replacement_genes)  # weighted averages over genes
+        self.mute_counts = paramutils.read_mute_counts(self.indir, gene_name, self.args.locus)  # raw per-{ACGT} counts
 
         self.track = Track('nukes', utils.nukes)
         self.saniname = utils.sanitize_name(gene_name)
@@ -728,10 +730,9 @@ class HmmWriter(object):
 
     # ----------------------------------------------------------------------------------------
     def get_ambiguos_emission_prob(self, inuke):
-        # total_counts = mute_obs['total_counts']
-        if inuke in self.mute_obs:
+        if inuke in self.mute_counts:
             prob = 1. / len(utils.nukes)  # hm, on second thought maybe 0.25 is better?
-            # obs = [c for c in self.mute_obs[inuke].values()]  # list of length four with the number of times we observed A, C, G, and T at this position
+            # obs = [c for c in self.mute_counts[inuke].values()]  # list of length four with the number of times we observed A, C, G, and T at this position
             # sqobs = [o*o for o in obs]
             # prob = float(sum(sqobs)) / (sum(obs))**2  # mean prob per base without Ns (i.e., the use of this value for N emission should ensure that sequences with lots of Ns on average have the same total probability as those without any Ns)
         else:
@@ -741,7 +742,6 @@ class HmmWriter(object):
 
     # ----------------------------------------------------------------------------------------
     def add_emissions(self, state, inuke=-1, germline_nuke=''):
-
         insertion = ''
         if 'insert' in state.name:
             assert len(self.insertions) == 1 or len(self.insertions) == 2

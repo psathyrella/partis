@@ -120,13 +120,13 @@ class Recombinator(object):
             self.all_mute_freqs[gene_or_insert_name] = {'overall_mean' : self.args.flat_mute_freq}
         elif gene_or_insert_name[:2] in utils.boundaries:
             replacement_genes = utils.find_replacement_genes(self.parameter_dir, min_counts=-1, all_from_region='v')
-            self.all_mute_freqs[gene_or_insert_name], _ = paramutils.read_mute_info(self.parameter_dir, this_gene=gene_or_insert_name, locus=self.args.locus, approved_genes=replacement_genes)
+            self.all_mute_freqs[gene_or_insert_name] = paramutils.read_mute_freqs(self.parameter_dir, this_gene=gene_or_insert_name, locus=self.args.locus, approved_genes=replacement_genes)
         else:
             gene_counts = utils.read_overall_gene_probs(self.parameter_dir, only_gene=gene_or_insert_name, normalize=False, expect_zero_counts=True)
             replacement_genes = None
             if gene_counts < self.args.min_observations_to_write:  # if we didn't see it enough, average over all the genes that find_replacement_genes() gives us NOTE if <gene_or_insert_name> isn't in the dict, it's because it's <args.datadir> but not in the parameter dir UPDATE not using datadir like this any more, so previous statement may not be true
                 replacement_genes = utils.find_replacement_genes(self.parameter_dir, min_counts=self.args.min_observations_to_write, gene_name=gene_or_insert_name)
-            self.all_mute_freqs[gene_or_insert_name], _ = paramutils.read_mute_info(self.parameter_dir, this_gene=gene_or_insert_name, locus=self.args.locus, approved_genes=replacement_genes)
+            self.all_mute_freqs[gene_or_insert_name] = paramutils.read_mute_freqs(self.parameter_dir, this_gene=gene_or_insert_name, locus=self.args.locus, approved_genes=replacement_genes)
 
     # ----------------------------------------------------------------------------------------
     def combine(self, initial_irandom):
