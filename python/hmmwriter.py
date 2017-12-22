@@ -178,7 +178,7 @@ class HmmWriter(object):
         self.debug = debug
         self.codon_positions = {r : glfo[c + '-positions'] for r, c in utils.conserved_codons[args.locus].items()}
 
-        print self.raw_name  # XXX
+        print self.raw_name  # x
         # parameters with values that I more or less made up
         self.precision = '16'  # number of digits after the decimal for probabilities
         self.eps = 1e-6  # NOTE I also have an eps defined in utils, and they should in principle be combined
@@ -701,16 +701,12 @@ class HmmWriter(object):
                 else:
                     prob = mute_freq / 3.0
         else:
-            assert inuke >= 0
-            assert germline_nuke != ''
+            assert inuke >= 0 and germline_nuke != ''
 
             if germline_nuke in utils.ambiguous_bases:
                 prob = 1. / len(utils.nukes)
             else:
-                if inuke in self.mute_freqs:  # if we found this base in this gene version in the data parameter file
-                    mute_freq = self.mute_freqs[inuke]
-                else:
-                    mute_freq = self.mute_freqs['overall_mean']
+                mute_freq = self.mute_freqs.get(inuke, self.mute_freqs['overall_mean'])  # if it isn't there, that means we want to make an hmm state for a position that wasn't observed... which I think'll happen mostly with shorter read lengths
 
                 assert mute_freq != 1.0 and mute_freq != 0.0
 
