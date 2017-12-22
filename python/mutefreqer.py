@@ -6,6 +6,7 @@ import os
 from hist import Hist
 import utils
 import glutils
+# import paramutils
 
 # ----------------------------------------------------------------------------------------
 class MuteFreqer(object):
@@ -26,7 +27,7 @@ class MuteFreqer(object):
         self.finalized = False
         self.n_cached, self.n_not_cached = 0, 0
 
-        self.subplotdirs = ['overall', ] + ['per-gene/' + r for r in utils.regions] + ['per-gene-per-position/' + r for r in utils.regions]  # + ['per-gene-per-position--per-base' for r in utils.regions]:
+        self.subplotdirs = ['overall', ] + ['per-gene/' + r for r in utils.regions] + ['per-gene-per-position/' + r for r in utils.regions]  # + ['per-gene-per-position-per-base/' + r for r in utils.regions]
 
     # ----------------------------------------------------------------------------------------
     def increment(self, info, iseq):
