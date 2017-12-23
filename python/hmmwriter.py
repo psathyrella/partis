@@ -491,10 +491,10 @@ class HmmWriter(object):
         for pos in range(len(self.germline_seq)):
             if pos not in self.mute_freqs:
                 self.mute_freqs[pos] = self.mute_freqs['overall_mean']
-                if self.mute_freqs[pos] < self.mute_freq_bounds['lo']:
-                    self.mute_freqs[pos] = self.mute_freq_bounds['lo']
-                if self.mute_freqs[pos] > self.mute_freq_bounds['hi']:
-                    self.mute_freqs[pos] = self.mute_freq_bounds['hi']
+            if self.mute_freqs[pos] < self.mute_freq_bounds['lo']:
+                self.mute_freqs[pos] = self.mute_freq_bounds['lo']
+            if self.mute_freqs[pos] > self.mute_freq_bounds['hi']:
+                self.mute_freqs[pos] = self.mute_freq_bounds['hi']
 
         # then make mfreqs near the ends closer to the overall mean
         for erosion in [re for re in utils.real_erosions if re[0] == self.region]:
