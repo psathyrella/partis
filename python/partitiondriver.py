@@ -1600,7 +1600,7 @@ class PartitionDriver(object):
                         perfplotter.evaluate(self.reco_info[uids[iseq]], utils.synthesize_single_seq_line(line_to_use, iseq), simglfo=self.simglfo)
 
         if true_pcounter is not None:
-            for uids in utils.get_true_partition(self.reco_info):
+            for uids in utils.get_true_partition(self.reco_info, ids=self.sw_info['queries']):  # NOTE this'll include queries that passed sw but failed the hmm... there aren't usually really any of those
                 true_pcounter.increment(utils.synthesize_multi_seq_line_from_reco_info(uids, self.reco_info))
 
         # parameter and performance writing/plotting
