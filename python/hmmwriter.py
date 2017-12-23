@@ -178,12 +178,18 @@ class HmmWriter(object):
         self.debug = debug
         self.codon_positions = {r : glfo[c + '-positions'] for r, c in utils.conserved_codons[args.locus].items()}
 
-        print self.raw_name  # xXX
         # parameters with values that I more or less made up
         self.precision = '16'  # number of digits after the decimal for probabilities
         self.eps = 1e-6  # NOTE I also have an eps defined in utils, and they should in principle be combined
         self.n_max_to_interpolate = args.min_observations_to_write
         self.min_mean_unphysical_insertion_length = {'fv' : 1.5, 'jf' : 25}  # jf has to be quite a bit bigger, since besides account for the variation in J length from the tryp position to the end, it has to account for the difference in cdr3 lengths
+        self.mute_freq_bounds = {'lo' : 0.01, 'hi' : 0.5}  # don't let any position mutate less frequently than 1% of the time, or more frequently than half the time
+        self.enforced_flat_mfreq_length = {  # i.e. distance over which the mute freqs are typically screwed up. I'm not really sure why these vary so much, but it's probably to do with how the s-w step works
+            'v_3p' : 9,
+            'd_5p' : 9,
+            'd_3p' : 9,
+            'j_5p' : 20,
+        }
 
         self.erosion_pseudocount_length = 10  # if we're closer to the end of the gene than this, make sure erosion probability isn't zero
 
@@ -216,6 +222,8 @@ class HmmWriter(object):
         self.insertion_probs, self.insertion_content_probs = self.read_insertion_info(gene_name, replacement_genes)
         self.mute_freqs = paramutils.read_mute_freqs(self.indir, this_gene=gene_name, locus=self.args.locus, approved_genes=replacement_genes)  # weighted averages over genes
         self.mute_counts = paramutils.read_mute_counts(self.indir, gene_name, self.args.locus)  # raw per-{ACGT} counts
+        self.process_mutation_info()  # smooth/interpolation/whatnot for <self.mute_freqs> and <self.mute_counts>
+        # NOTE i'm using a hybrid approach with mute_freqs and mute_counts -- the only thing I get from mute_counts is the ratios of the different bases, whereas the actual freq comes from mute_freqs (which has all the corrections/smooth/bullshit)
 
         self.track = Track('nukes', utils.nukes)
         self.saniname = utils.sanitize_name(gene_name)
@@ -476,6 +484,32 @@ class HmmWriter(object):
         return icontentprobs
 
     # ----------------------------------------------------------------------------------------
+    def process_mutation_info(self):  # NOTE lots of shenanigans also in paramutils.read_mute_freqs() (but not paramutils.read_mute_counts())
+        # print self.raw_name
+
+        # first add anybody that's missing and apply some hard bounds/sanity checks
+        for pos in range(len(self.germline_seq)):
+            if pos not in self.mute_freqs:
+                self.mute_freqs[pos] = self.mute_freqs['overall_mean']
+                if self.mute_freqs[pos] < self.mute_freq_bounds['lo']:
+                    self.mute_freqs[pos] = self.mute_freq_bounds['lo']
+                if self.mute_freqs[pos] > self.mute_freq_bounds['hi']:
+                    self.mute_freqs[pos] = self.mute_freq_bounds['hi']
+
+        # then make mfreqs near the ends closer to the overall mean
+        for erosion in [re for re in utils.real_erosions if re[0] == self.region]:
+            affected_length = self.enforced_flat_mfreq_length[erosion]
+            affected_bounds = {
+                '5p' : [0, affected_length],
+                '3p' : [len(self.germline_seq) - affected_length, len(self.germline_seq)],
+            }
+            for pos in range(*affected_bounds[erosion[-2:]]):
+                distance_to_end = pos if '_5p' in erosion else len(self.germline_seq) - pos - 1
+                w1, w2 = affected_length - distance_to_end, distance_to_end  # i.e. the actual end position is 100% overall mean
+                self.mute_freqs[pos] = (w1 * self.mute_freqs['overall_mean'] + w2 * self.mute_freqs[pos]) / float(w1 + w2)  # yeah, it's always equal to <affected_length>
+                # print '   %2d  %2d  %.2f  %.2f  %.2f' % (pos, distance_to_end, w1 / float(w1 + w2), w2 / float(w1 + w2), self.mute_freqs[pos])
+
+    # ----------------------------------------------------------------------------------------
     def get_mean_insert_length(self, insertion, debug=False):
         if insertion in utils.boundaries:  # for real insertions, use the mean of the inferred histogram
             total, n_tot = 0.0, 0.0
@@ -705,7 +739,7 @@ class HmmWriter(object):
             if germline_nuke in utils.ambiguous_bases:
                 return 1. / len(utils.nukes)
             else:
-                mute_freq = self.mute_freqs.get(inuke, self.mute_freqs['overall_mean'])  # if it isn't there, that means we want to make an hmm state for a position that wasn't observed... which I think'll happen mostly with shorter read lengths
+                mute_freq = self.mute_freqs[inuke]  # if it isn't there, that means we want to make an hmm state for a position that wasn't observed... which I think'll happen mostly with shorter read lengths
                 assert mute_freq != 1.0 and mute_freq != 0.0
 
                 if nuke1 == germline_nuke:
