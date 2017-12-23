@@ -485,10 +485,12 @@ class HmmWriter(object):
 
     # ----------------------------------------------------------------------------------------
     def process_mutation_info(self):  # NOTE lots of shenanigans also in paramutils.read_mute_freqs() (but not paramutils.read_mute_counts())
-        # print self.raw_name
-
         # first add anybody that's missing and apply some hard bounds/sanity checks
         for pos in range(len(self.germline_seq)):
+            if pos not in self.mute_counts:  # NOTE pseudocount also set in get_emission_prob()
+                self.mute_counts[pos] = {n : 1 for n in utils.nukes}
+                if self.germline_seq[pos] in utils.nukes:  # probably only fails if it's ambiguous
+                    self.mute_counts[pos][self.germline_seq[pos]] += 10
             if pos not in self.mute_freqs:
                 self.mute_freqs[pos] = self.mute_freqs['overall_mean']
             if self.mute_freqs[pos] < self.mute_freq_bounds['lo']:
@@ -507,7 +509,6 @@ class HmmWriter(object):
                 distance_to_end = pos if '_5p' in erosion else len(self.germline_seq) - pos - 1
                 w1, w2 = affected_length - distance_to_end, distance_to_end  # i.e. the actual end position is 100% overall mean
                 self.mute_freqs[pos] = (w1 * self.mute_freqs['overall_mean'] + w2 * self.mute_freqs[pos]) / float(w1 + w2)  # yeah, it's always equal to <affected_length>
-                # print '   %2d  %2d  %.2f  %.2f  %.2f' % (pos, distance_to_end, w1 / float(w1 + w2), w2 / float(w1 + w2), self.mute_freqs[pos])
 
     # ----------------------------------------------------------------------------------------
     def get_mean_insert_length(self, insertion, debug=False):
@@ -745,7 +746,10 @@ class HmmWriter(object):
                 if nuke1 == germline_nuke:
                     return 1.0 - mute_freq
                 else:
-                    return mute_freq / 3.0
+                    non_germline_counts = {n : max(c, 1) for n, c in self.mute_counts[inuke].items() if n != germline_nuke}  # NOTE pseudocount also set in process_mutation_info() (it's nice to have this here because it makes it more obvious that the sum can't be zero, but the other fits more naturally with the self.mute_freqs modifications)
+                    # print '    %d / sum(%s) = %.2f' % (non_germline_counts[nuke1], non_germline_counts.values(), non_germline_counts[nuke1] / float(sum(non_germline_counts.values())))
+                    per_base_factor = non_germline_counts[nuke1] / float(sum(non_germline_counts.values()))
+                    return mute_freq * per_base_factor  # / 3.0
 
         assert False  # shouldn't fall through to here
 
@@ -776,6 +780,8 @@ class HmmWriter(object):
 
         emission_probs = {}
         total = 0.0
+        # if germline_nuke != '' and 'insert' not in state.name:
+        #     print '  ', inuke, self.mute_counts[inuke]
         for base in utils.nukes:
             emission_probs[base] = self.get_emission_prob(base, is_insert=('insert' in state.name), inuke=inuke, germline_nuke=germline_nuke, insertion=insertion)
             total += emission_probs[base]
