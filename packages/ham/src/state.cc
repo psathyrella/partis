@@ -82,23 +82,31 @@ void State::RescaleOverallMuteFreq(double factor) {
 
   vector<double> new_log_probs(emission_.log_probs());
   assert(new_log_probs.size() == emission_.track()->alphabet_size());
+
+  // NOTE this calculation is (more or less) repeated in hmmwriter::get_emission_prob() (it's kinda wasteful to go out of and back into log space (but doesn't matter at all in actual practice)
+  double old_mute_freq(-1.);
   for(size_t ip=0; ip<new_log_probs.size(); ++ip) {
-    // NOTE this is wasteful to go out of and back into log space (but doesn't matter at all in actual practice)
-    double old_emit_prob = exp(new_log_probs[ip]);
     bool is_germline(emission_.track()->symbol(ip) == germline_nuc_);
-    double old_mute_freq;
+    if(old_mute_freq > 0.)  // make sure there aren't more than one germline bases (no, there isn't really any way that could happen)
+      assert(!is_germline);
     if(is_germline)
-      old_mute_freq = 1. - old_emit_prob;
-    else
-      old_mute_freq = 3. * old_emit_prob;
-    double new_mute_freq = min(0.95, factor*old_mute_freq);  // .95 is kind of arbitrary, but from looking at lots of plots, the only cases where the extrapolation flies above 1.0 is where we have little information, so .95 is probably a good compromise
-    if(new_mute_freq <= 0.0 || new_mute_freq >= 1.0)
-      throw runtime_error("ERROR new_mute_freq not in (0,1) (" + to_string(new_mute_freq) + ") in State::RescaleOverallMuteFreq old: "
-			  + to_string(old_mute_freq) + " factor: " + to_string(factor) + " is_germline: " + to_string(is_germline));
+      old_mute_freq = 1. - exp(new_log_probs[ip]);  // subtract the old germline emission prob from 1.
+  }
+  assert(old_mute_freq > 0.);  // make sure we found the germline base
+  double new_mute_freq = min(0.95, factor*old_mute_freq);  // .95 is kind of arbitrary, but from looking at lots of plots, the only cases where the extrapolation flies above 1.0 is where we have little information, so .95 is probably a good compromise
+  if(new_mute_freq <= 0.0 || new_mute_freq >= 1.0)
+    throw runtime_error("new_mute_freq not in (0,1) (" + to_string(new_mute_freq) + ") in State::RescaleOverallMuteFreq old: " + to_string(old_mute_freq) + " factor: " + to_string(factor));
+
+  for(size_t ip=0; ip<new_log_probs.size(); ++ip) {
+    bool is_germline(emission_.track()->symbol(ip) == germline_nuc_);
+    // if(is_germline)
+    //   new_log_probs[ip] = log(1.0 - new_mute_freq);
+    // else
+    //   new_log_probs[ip] = log(new_mute_freq / 3.);
     if(is_germline)
       new_log_probs[ip] = log(1.0 - new_mute_freq);
     else
-      new_log_probs[ip] = log(new_mute_freq / 3.);
+      new_log_probs[ip] = log(exp(new_log_probs[ip]) * new_mute_freq / old_mute_freq);  // don't use <factor> because of min() call above
   }
 
   emission_.ReplaceLogProbs(new_log_probs);

@@ -749,7 +749,9 @@ class HmmWriter(object):
                     non_germline_counts = {n : max(c, 1) for n, c in self.mute_counts[inuke].items() if n != germline_nuke}  # NOTE pseudocount also set in process_mutation_info() (it's nice to have this here because it makes it more obvious that the sum can't be zero, but the other fits more naturally with the self.mute_freqs modifications)
                     # print '    %d / sum(%s) = %.2f' % (non_germline_counts[nuke1], non_germline_counts.values(), non_germline_counts[nuke1] / float(sum(non_germline_counts.values())))
                     per_base_factor = non_germline_counts[nuke1] / float(sum(non_germline_counts.values()))
-                    return mute_freq * per_base_factor  # / 3.0
+                    # return mute_freq / 3.0
+                    # NOTE this calculation is (more or less) repeated in ham/src/state::RescaleOverallMuteFreq()
+                    return mute_freq * per_base_factor
 
         assert False  # shouldn't fall through to here
 
