@@ -1373,6 +1373,7 @@ class PartitionDriver(object):
             if self.args.simultaneous_true_clonal_seqs:
                 assert self.args.n_simultaneous_seqs is None and not self.args.is_data  # are both already checked in ./bin/partis
                 nsets = utils.get_true_partition(self.reco_info, ids=qlist)
+                nsets = utils.split_clusters_by_cdr3(nsets, self.sw_info, warn=True)  # arg, have to split some clusters apart by cdr3, for rare cases where we call an shm indel in j within the cdr3
             elif self.args.n_simultaneous_seqs is None:  # plain ol' singletons
                 nsets = [[q] for q in qlist]
             else:

@@ -2172,6 +2172,23 @@ def remove_ambiguous_ends(seq):
     return seq[i_seq_start : i_seq_end]
 
 # ----------------------------------------------------------------------------------------
+def split_clusters_by_cdr3(partition, sw_info, warn=False):
+    new_partition = []
+    n_split = 0
+    for cluster in partition:
+        cdr3_lengths = [sw_info[q]['cdr3_length'] for q in cluster]
+        if len(set(cdr3_lengths)) == 1:
+            new_partition.append(cluster)
+        else:
+            n_split += 1
+            split_clusters = [list(group) for _, group in itertools.groupby(sorted(cluster, key=lambda q: sw_info[q]['cdr3_length']), key=lambda q: sw_info[q]['cdr3_length'])]
+            for sclust in split_clusters:
+                new_partition.append(sclust)
+    if warn and n_split > 0:
+        print '  %s split apart %d cluster%s that contained multiple cdr3 lengths (total clusters: %d --> %d)' % (color('yellow', 'warning'), n_split, plural(n_split), len(partition), len(new_partition))
+    return new_partition
+
+# ----------------------------------------------------------------------------------------
 def get_true_partition(reco_info, ids=None):
     """
     Group queries into their true clonal families.
