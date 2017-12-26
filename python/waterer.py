@@ -30,7 +30,9 @@ class Waterer(object):
         self.args = args
         self.input_info = input_info  # NOTE do *not* modify this, since it's this original input info from partitiondriver
         self.reco_info = reco_info
-        self.glfo = glfo
+        self.glfo = glfo  # NOTE gets overwritten by read_cachefile()
+        self.count_parameters = count_parameters  # NOTE *not* the same as <self.args.cache_parameters>
+        self.plot_annotation_performance = plot_annotation_performance  # NOTE *not* the same as <self.args.plot_annotation_performance>
         self.simglfo = simglfo
         self.parameter_out_dir = parameter_out_dir
         self.duplicates = {} if duplicates is None else duplicates
@@ -60,13 +62,7 @@ class Waterer(object):
         self.skipped_unproductive_queries, self.kept_unproductive_queries = set(), set()
 
         self.my_gldir = self.args.workdir + '/sw-' + glutils.glfo_dir
-        glutils.write_glfo(self.my_gldir, self.glfo)
-
-        self.pcounter, self.perfplotter = None, None
-        if count_parameters:  # NOTE *not* the same as <self.args.cache_parameters>
-            self.pcounter = ParameterCounter(self.glfo, self.args)
-        if plot_annotation_performance:  # NOTE *not* the same as <self.args.plot_annotation_performance>
-            self.perfplotter = PerformancePlotter('sw')
+        glutils.write_glfo(self.my_gldir, self.glfo)  # NOTE gets overwritten by read_cachefile()
 
         if not os.path.exists(self.args.ig_sw_binary):
             raise Exception('ig-sw binary d.n.e: %s' % self.args.ig_sw_binary)
@@ -104,8 +100,9 @@ class Waterer(object):
         cachebase = cachefname.replace('.csv', '')
         print '        reading sw results from %s' % cachebase
 
-        if os.path.exists(cachebase + '-glfo'):
+        if os.path.exists(cachebase + '-glfo'):  # NOTE overwrites original <self.glfo>
             self.glfo = glutils.read_glfo(cachebase + '-glfo', self.args.locus)
+            glutils.write_glfo(self.my_gldir, self.glfo)
         else:
             print '    %s didn\'t find a germline info dir along with sw cache file, but trying to read it anyway' % utils.color('red', 'warning')
 
@@ -173,12 +170,14 @@ class Waterer(object):
 
             assert len(self.info['queries']) + len(self.skipped_unproductive_queries) + len(self.info['failed-queries']) == len(self.input_info)
 
-        if self.pcounter is not None:
+        if self.count_parameters:
+            pcounter = ParameterCounter(self.glfo, self.args)
             for qname in self.info['queries']:
-                self.pcounter.increment(self.info[qname])
-        if self.perfplotter is not None:
+                pcounter.increment(self.info[qname])
+        if self.plot_annotation_performance:
+            perfplotter = PerformancePlotter('sw')
             for qname in self.info['queries']:
-                self.perfplotter.evaluate(self.reco_info[qname], self.info[qname], simglfo=self.simglfo)
+                perfplotter.evaluate(self.reco_info[qname], self.info[qname], simglfo=self.simglfo)
 
         # remove queries with cdr3 length different to the seed sequence
         if self.args.seed_unique_id is not None:  # TODO I should really get the seed cdr3 length before running anything, and then not add seqs with different cdr3 length to start with, so those other sequences' gene matches don't get mixed in UPDATE on the other hand aren't we pretty much alwasy reading cached values if we're seed partitioning?
@@ -205,14 +204,14 @@ class Waterer(object):
 
         self.pad_seqs_to_same_length()  # NOTE this uses all the gene matches (not just the best ones), so it has to come before we call pcounter.write(), since that fcn rewrites the germlines removing genes that weren't best matches. But NOTE also that I'm not sure what but that the padding actually *needs* all matches (rather than just all *best* matches)
 
-        if self.perfplotter is not None:
-            self.perfplotter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
+        if self.plot_annotation_performance:
+            perfplotter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
 
-        if self.pcounter is not None:
+        if self.count_parameters:
             if self.args.plotdir is not None:
-                self.pcounter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots, only_overall=self.args.only_overall_plots)
+                pcounter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots, only_overall=self.args.only_overall_plots)
             if self.parameter_out_dir is not None and not self.args.dont_write_parameters:
-                self.pcounter.write(self.parameter_out_dir)
+                pcounter.write(self.parameter_out_dir)
 
         glutils.remove_glfo_files(self.my_gldir, self.args.locus)
         sys.stdout.flush()
