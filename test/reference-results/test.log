@@ -18,12 +18,12 @@ smith-waterman
     3238265388392705007 true and inferred shm net indel lengths different, so skipping rest of performance evaluation
     -1800108098461973058 true and inferred shm net indel lengths different, so skipping rest of performance evaluation
   plotting performance (0.1 sec)
-        water time: 3.3
+        water time: 2.4
 hmm
     prepare_for_hmm: (0.3 sec)
     running 10 procs
                     calcd:         vtb 2574        fwd    0
-             min-max time:  3.8 - 4.4 sec
+             min-max time:  3.8 - 4.5 sec
     read output
     -1051096791937428203 true and inferred shm net indel lengths different, so skipping rest of performance evaluation
     -1262157731700257807 true and inferred shm net indel lengths different, so skipping rest of performance evaluation
@@ -38,11 +38,11 @@ hmm
     2581860833560800721 true and inferred shm net indel lengths different, so skipping rest of performance evaluation
     9068912360059158134 true and inferred shm net indel lengths different, so skipping rest of performance evaluation
     6011074983096519603 true and inferred shm net indel lengths different, so skipping rest of performance evaluation
-  plotting performance (0.2 sec)
+  plotting performance (0.1 sec)
         processed 2574 hmm output lines with 2574 sequences in 2574 events  (0 failures)
-         infra time: 4.5
-      hmm step time: 9.1
-      total time: 13.0
+         infra time: 4.4
+      hmm step time: 8.9
+      total time: 11.9
 [92mpartition-ref-simu[0m               ./bin/partis partition --n-max-queries 500 --n-precache-procs 10 --plot-annotation-performance --biggest-logprob-cluster-to-calculate 5 --biggest-naive-seq-cluster-to-calculate 5 --persistent-cachefname test/new-results/cache-ref-partition.csv --plotdir test/new-results/partition-ref-simu-annotation-performance --only-csv-plots --is-simu --sw-cachefname test/reference-results/test/parameters/simu/sw-cache.csv --infname test/reference-results/test/simu.csv --parameter-dir test/reference-results/test/parameters/simu --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human --outfname test/new-results/partition-ref-simu.csv
   --n-max-queries: stopped after reading 500 queries from input file
 partitioning
@@ -51,8 +51,8 @@ smith-waterman
       info for 499 / 500 = 0.998   (1 failed)
       kept 360 (0.720) unproductive
     -1051096791937428203 true and inferred shm net indel lengths different, so skipping rest of performance evaluation
-  plotting performance (0.2 sec)
-        water time: 1.5
+  plotting performance (0.1 sec)
+        water time: 1.1
 hmm
 caching all 499 naive sequences
     prepare_for_hmm: (0.1 sec)
@@ -61,7 +61,7 @@ caching all 499 naive sequences
                     calcd:         vtb 499        fwd   0
                    merged:       hfrac   0     lratio   0
              min-max time:  1.2 - 1.5 sec
-      hmm step time: 1.7
+      hmm step time: 1.6
    collapsed 499 queries into 302 clusters with identical naive seqs (0.0 sec)
 302 clusters with 10 procs
     prepare_for_hmm: (0.0 sec)
@@ -72,55 +72,54 @@ caching all 499 naive sequences
                    merged:       hfrac 594     lratio  22
              min-max time:  1.7 - 4.9 sec
          infra time: 0.1
-      hmm step time: 5.2
+      hmm step time: 5.0
 241 clusters with 7 procs
     prepare_for_hmm: (0.0 sec)
     running 7 procs
           read from cache:  naive-seqs 641   logprobs 303
                     calcd:         vtb  42        fwd 173
                    merged:       hfrac 471     lratio  17
-             min-max time:  1.6 - 4.7 sec
-         infra time: 0.1
-      hmm step time: 4.9
+             min-max time:  1.6 - 4.6 sec
+      hmm step time: 4.8
 204 clusters with 5 procs
     prepare_for_hmm: (0.0 sec)
     running 5 procs
           read from cache:  naive-seqs 688   logprobs 476
                     calcd:         vtb  36        fwd 153
                    merged:       hfrac 499     lratio  16
-             min-max time:  2.5 - 10.4 sec
-      hmm step time: 10.7
+             min-max time:  2.5 - 10.5 sec
+      hmm step time: 10.6
 167 clusters with 3 procs
     prepare_for_hmm: (0.0 sec)
     running 3 procs
           read from cache:  naive-seqs 737   logprobs 629
                     calcd:         vtb  23        fwd 115
                    merged:       hfrac 470     lratio   6
-             min-max time:  4.8 - 7.9 sec
-      hmm step time: 8.2
+             min-max time:  4.8 - 7.8 sec
+      hmm step time: 8.0
 141 clusters with 2 procs
     prepare_for_hmm: (0.0 sec)
     running 2 procs
           read from cache:  naive-seqs 769   logprobs 744
                     calcd:         vtb  19        fwd 121
                    merged:       hfrac 555     lratio  10
-             min-max time:  7.4 - 15.9 sec
-      hmm step time: 16.2
+             min-max time:  7.3 - 15.9 sec
+      hmm step time: 16.0
 119 clusters with 2 procs
     prepare_for_hmm: (0.0 sec)
     running 2 procs
           read from cache:  naive-seqs 796   logprobs 865
                     calcd:         vtb   8        fwd  48
                    merged:       hfrac 327     lratio   3
-             min-max time:  4.5 - 7.0 sec
-      hmm step time: 7.3
+             min-max time:  4.5 - 7.1 sec
+      hmm step time: 7.2
 110 clusters with 2 procs
     prepare_for_hmm: (0.0 sec)
     running 2 procs
           read from cache:  naive-seqs 810   logprobs 913
                     calcd:         vtb   5        fwd  34
                    merged:       hfrac 260     lratio   2
-             min-max time:  3.9 - 5.4 sec
+             min-max time:  4.0 - 5.5 sec
       hmm step time: 5.6
 104 clusters with 2 procs
     prepare_for_hmm: (0.0 sec)
@@ -129,29 +128,29 @@ caching all 499 naive sequences
                     calcd:         vtb   3        fwd  21
                    merged:       hfrac 214     lratio   0
              min-max time:  1.6 - 4.5 sec
-      hmm step time: 4.7
+      hmm step time: 4.6
 101 clusters with 1 proc
     prepare_for_hmm: (0.0 sec)
     running 1 proc
           read from cache:  naive-seqs 822   logprobs 968
                     calcd:         vtb   3        fwd  67
                    merged:       hfrac 406     lratio   2
-                     time:  11.5 sec
-      hmm step time: 11.7
-      loop time: 74.4
+                     time:  11.2 sec
+      hmm step time: 11.3
+      loop time: 73.1
 getting annotations for final partition
     prepare_for_hmm: (0.0 sec)
     running 10 procs
                     calcd:         vtb  98        fwd   0
-             min-max time:  0.7 - 1.5 sec
-      hmm step time: 1.8
+             min-max time:  0.7 - 1.6 sec
+      hmm step time: 1.7
     read output
     -1051096791937428203 true and inferred shm net indel lengths different, so skipping rest of performance evaluation
-  plotting performance (0.3 sec)
+  plotting performance (0.1 sec)
         processed 98 hmm output lines with 499 sequences in 98 events  (0 failures)
   plotting partitions
-(5.9 sec)
-      total time: 86.2
+(3.8 sec)
+      total time: 82.0
 [92mseed-partition-ref-simu[0m          ./bin/partis partition --n-max-queries 500 --persistent-cachefname test/new-results/cache-ref-partition.csv --is-simu --sw-cachefname test/reference-results/test/parameters/simu/sw-cache.csv --infname test/reference-results/test/simu.csv --parameter-dir test/reference-results/test/parameters/simu --seed-unique-id -8878221028154153931 --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human --outfname test/new-results/seed-partition-ref-simu.csv
   --n-max-queries: stopped after reading 500 queries from input file
 partitioning
@@ -170,7 +169,7 @@ hmm
           read from cache:  naive-seqs 826   logprobs 1035
                     calcd:         vtb  27        fwd  81
                    merged:       hfrac  68     lratio   0
-             min-max time:  0.7 - 1.4 sec
+             min-max time:  0.7 - 1.5 sec
       hmm step time: 1.6
 54 clusters with 7 procs
     prepare_for_hmm: (0.0 sec)
@@ -179,7 +178,7 @@ hmm
                     calcd:         vtb   0        fwd  29
                    merged:       hfrac  44     lratio   0
              min-max time:  0.5 - 1.3 sec
-      hmm step time: 1.4
+      hmm step time: 1.3
 51 clusters with 5 procs
     prepare_for_hmm: (0.0 sec)
     running 5 procs
@@ -187,7 +186,7 @@ hmm
                     calcd:         vtb   0        fwd  38
                    merged:       hfrac  61     lratio   0
              min-max time:  1.1 - 2.1 sec
-      hmm step time: 2.3
+      hmm step time: 2.2
       removed 85 sequences in unseeded clusters, split 5 seeded clusters into 12 singletons, and merged these into 6 clusters with identical naive seqs
         new n_procs 1 (initial seqs/proc: 9.70   new seqs/proc: 6.00
 6 clusters with 1 proc
@@ -198,16 +197,16 @@ hmm
                    merged:       hfrac  25     lratio   0
                      time:  1.0 sec
       hmm step time: 1.1
-      loop time: 6.4
+      loop time: 6.3
 getting annotations for final partition
     prepare_for_hmm: (0.0 sec)
     running 1 proc
                     calcd:         vtb   1        fwd   0
                      time:  0.3 sec
-      hmm step time: 0.4
+      hmm step time: 0.3
     read output
         processed 1 hmm output lines with 12 sequences in 1 events  (0 failures)
-      total time: 7.4
+      total time: 7.2
 [92mvsearch-partition-ref-simu[0m       ./bin/partis partition --naive-vsearch --n-max-queries 500 --persistent-cachefname test/new-results/cache-ref-partition.csv --is-simu --sw-cachefname test/reference-results/test/parameters/simu/sw-cache.csv --infname test/reference-results/test/simu.csv --parameter-dir test/reference-results/test/parameters/simu --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human --outfname test/new-results/vsearch-partition-ref-simu.csv
   --n-max-queries: stopped after reading 500 queries from input file
 partitioning
@@ -227,15 +226,16 @@ getting annotations for final partition
     running 10 procs
                     calcd:         vtb 100        fwd   0
              min-max time:  0.7 - 2.0 sec
-      hmm step time: 2.3
+      hmm step time: 2.1
     read output
         processed 100 hmm output lines with 499 sequences in 100 events  (0 failures)
-      total time: 3.9
+      total time: 3.7
 [92mcache-parameters-data[0m            ./bin/partis cache-parameters --n-max-total-alleles 10 --n-alleles-per-gene 1 --plotdir test/new-results/test/plots/data --only-csv-plots --only-overall-plots --sw-cachefname test/new-results/test/parameters/data/sw-cache.csv --infname test/mishmash.fa --parameter-dir test/new-results/test/parameters/data --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human
 caching parameters
 vsearch: 1273 / 1412 v annotations (139 failed) in 0.1 sec
     keeping 10 / 239 v genes
 smith-waterman 
+  removing old sw cache test/new-results/test/parameters/data/sw-cache
          step  seqs    procs     ig-sw time    processing time
            1    1412     10        0.3                0.5
            2    310      10        0.1                0.1
@@ -258,33 +258,133 @@ smith-waterman   (writing parameters)
       kept 410 (0.290) unproductive
       removed 23 / 1340 = 0.02 duplicate sequences after trimming framework insertions (leaving 1317)
         writing sw results to test/new-results/test/parameters/data/sw-cache
-  plotting parameters (1.6 sec)
-    writing parameters (0.7 sec)
-        water time: 4.2
-  writing hmms (0.9 sec)
+  plotting parameters (0.9 sec)
+    writing parameters (0.3 sec)
+        water time: 3.0
+  writing hmms [91merror[0m this_gene [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m1[0m[95m-7[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m
+ [91merror[0m this_gene [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m1[0m[95m-7[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m
+ [91merror[0m this_gene [95mh[0m[91md[0m[95m1[0m[95m-7[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m1[0m[95m-7[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m
+ [91merror[0m this_gene [95mh[0m[91md[0m[95m1/OR15[0m[95m-1a[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m5/OR15[0m[95m-5a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-6[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-13[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-7[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-18[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-17[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-22[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m01[0m [95mh[0m[91md[0m[95m3/OR15[0m[95m-3a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m02[0m [95mh[0m[91md[0m[95m2[0m[95m-15[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-25[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-19[0m[93m01[0m [95mh[0m[91md[0m[95m1/OR15[0m[95m-1a[0m[93m01[0m [95mh[0m[91md[0m[95m4/OR15[0m[95m-4a[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-9[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-24[0m[93m01[0m [95mh[0m[91md[0m[95m7[0m[95m-27[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m02[0m [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-12[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m03[0m [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m02[0m [95mh[0m[91md[0m[95m2/OR15[0m[95m-2a[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m02[0m
+ [91merror[0m this_gene [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m02[0m not among approved_genes [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m02[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m03[0m
+ [91merror[0m this_gene [95mh[0m[91md[0m[95m2/OR15[0m[95m-2a[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m5/OR15[0m[95m-5a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-6[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-13[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-7[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-18[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-17[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-22[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m01[0m [95mh[0m[91md[0m[95m3/OR15[0m[95m-3a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m02[0m [95mh[0m[91md[0m[95m2[0m[95m-15[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-25[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-19[0m[93m01[0m [95mh[0m[91md[0m[95m1/OR15[0m[95m-1a[0m[93m01[0m [95mh[0m[91md[0m[95m4/OR15[0m[95m-4a[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-9[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-24[0m[93m01[0m [95mh[0m[91md[0m[95m7[0m[95m-27[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m02[0m [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-12[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m03[0m [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m02[0m [95mh[0m[91md[0m[95m2/OR15[0m[95m-2a[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m02[0m
+ [91merror[0m this_gene [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m4[0m[95m-17[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m
+ [91merror[0m this_gene [95mh[0m[91md[0m[95m4/OR15[0m[95m-4a[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m5/OR15[0m[95m-5a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-6[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-13[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-7[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-18[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-17[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-22[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m01[0m [95mh[0m[91md[0m[95m3/OR15[0m[95m-3a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m02[0m [95mh[0m[91md[0m[95m2[0m[95m-15[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-25[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-19[0m[93m01[0m [95mh[0m[91md[0m[95m1/OR15[0m[95m-1a[0m[93m01[0m [95mh[0m[91md[0m[95m4/OR15[0m[95m-4a[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-9[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-24[0m[93m01[0m [95mh[0m[91md[0m[95m7[0m[95m-27[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m02[0m [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-12[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m03[0m [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m02[0m [95mh[0m[91md[0m[95m2/OR15[0m[95m-2a[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m02[0m
+ [91merror[0m this_gene [95mh[0m[91md[0m[95m3/OR15[0m[95m-3a[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m5/OR15[0m[95m-5a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-6[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-13[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-7[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-18[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-17[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-22[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m01[0m [95mh[0m[91md[0m[95m3/OR15[0m[95m-3a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m02[0m [95mh[0m[91md[0m[95m2[0m[95m-15[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-25[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-19[0m[93m01[0m [95mh[0m[91md[0m[95m1/OR15[0m[95m-1a[0m[93m01[0m [95mh[0m[91md[0m[95m4/OR15[0m[95m-4a[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-9[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-24[0m[93m01[0m [95mh[0m[91md[0m[95m7[0m[95m-27[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m02[0m [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-12[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m03[0m [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m02[0m [95mh[0m[91md[0m[95m2/OR15[0m[95m-2a[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m02[0m
+ [91merror[0m this_gene [95mh[0m[91md[0m[95m5/OR15[0m[95m-5a[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m5/OR15[0m[95m-5a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-6[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-13[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-7[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-18[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-17[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-22[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m01[0m [95mh[0m[91md[0m[95m3/OR15[0m[95m-3a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m02[0m [95mh[0m[91md[0m[95m2[0m[95m-15[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-25[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-19[0m[93m01[0m [95mh[0m[91md[0m[95m1/OR15[0m[95m-1a[0m[93m01[0m [95mh[0m[91md[0m[95m4/OR15[0m[95m-4a[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-9[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-24[0m[93m01[0m [95mh[0m[91md[0m[95m7[0m[95m-27[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m02[0m [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-12[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m03[0m [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m02[0m [95mh[0m[91md[0m[95m2/OR15[0m[95m-2a[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m02[0m
+ [91merror[0m this_gene [95mh[0m[91md[0m[95m6[0m[95m-25[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m6[0m[95m-6[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-13[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-25[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-19[0m[93m01[0m
+ [91merror[0m this_gene [95mh[0m[91md[0m[95m7[0m[95m-27[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m5/OR15[0m[95m-5a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-6[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-13[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-7[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-18[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-17[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-22[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m01[0m [95mh[0m[91md[0m[95m3/OR15[0m[95m-3a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m02[0m [95mh[0m[91md[0m[95m2[0m[95m-15[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-25[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-19[0m[93m01[0m [95mh[0m[91md[0m[95m1/OR15[0m[95m-1a[0m[93m01[0m [95mh[0m[91md[0m[95m4/OR15[0m[95m-4a[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-9[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-24[0m[93m01[0m [95mh[0m[91md[0m[95m7[0m[95m-27[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m02[0m [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-12[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m03[0m [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m02[0m [95mh[0m[91md[0m[95m2/OR15[0m[95m-2a[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m02[0m
+ [91merror[0m this_gene [95mh[0m[91mj[0m[95m3[0m[93m01[0m not among approved_genes [95mh[0m[91mj[0m[95m3[0m[93m01[0m [95mh[0m[91mj[0m[95m3[0m[93m02[0m
+ [91merror[0m this_gene [95mh[0m[91mj[0m[95m4[0m[93m01[0m not among approved_genes [95mh[0m[91mj[0m[95m4[0m[93m03[0m [95mh[0m[91mj[0m[95m4[0m[93m01[0m [95mh[0m[91mj[0m[95m4[0m[93m02[0m
+ [91merror[0m this_gene [95mh[0m[91mj[0m[95m4[0m[93m03[0m not among approved_genes [95mh[0m[91mj[0m[95m4[0m[93m03[0m [95mh[0m[91mj[0m[95m4[0m[93m01[0m [95mh[0m[91mj[0m[95m4[0m[93m02[0m
+ [91merror[0m this_gene [95mh[0m[91mj[0m[95m5[0m[93m01[0m not among approved_genes [95mh[0m[91mj[0m[95m5[0m[93m02[0m [95mh[0m[91mj[0m[95m5[0m[93m01[0m
+ [91merror[0m this_gene [95mh[0m[91mj[0m[95m6[0m[93m01[0m not among approved_genes [95mh[0m[91mj[0m[95m6[0m[93m01[0m [95mh[0m[91mj[0m[95m6[0m[93m03[0m [95mh[0m[91mj[0m[95m6[0m[93m04[0m [95mh[0m[91mj[0m[95m6[0m[93m02[0m
+ [91merror[0m this_gene [95mh[0m[91mj[0m[95m6[0m[93m04[0m not among approved_genes [95mh[0m[91mj[0m[95m6[0m[93m01[0m [95mh[0m[91mj[0m[95m6[0m[93m03[0m [95mh[0m[91mj[0m[95m6[0m[93m04[0m [95mh[0m[91mj[0m[95m6[0m[93m02[0m
+ (0.6 sec)
 hmm
     prepare_for_hmm: (0.1 sec)
     running 10 procs
                     calcd:         vtb 1317        fwd    0
-             min-max time:  3.1 - 3.6 sec
+             min-max time:  3.0 - 3.6 sec
     read output
-  plotting parameters (0.8 sec)
-    writing parameters (0.8 sec)
+  plotting parameters (0.6 sec)
+    writing parameters (0.3 sec)
         processed 1317 hmm output lines with 1316 sequences in 1316 events  (1 failures)
             [91mwarning[0m skipped 1 invalid events
-         infra time: 3.5
-      hmm step time: 7.3
-  writing hmms (0.8 sec)
-      total time: 16.7
+         infra time: 2.7
+      hmm step time: 6.3
+  writing hmms [91merror[0m this_gene [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m1[0m[95m-7[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m
+ [91merror[0m this_gene [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m1[0m[95m-7[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m
+ [91merror[0m this_gene [95mh[0m[91md[0m[95m1[0m[95m-7[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m1[0m[95m-7[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m
+ [91merror[0m this_gene [95mh[0m[91md[0m[95m1/OR15[0m[95m-1a[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m5/OR15[0m[95m-5a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-6[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-13[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-7[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-18[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-17[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-22[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m01[0m [95mh[0m[91md[0m[95m3/OR15[0m[95m-3a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m02[0m [95mh[0m[91md[0m[95m2[0m[95m-15[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-25[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-19[0m[93m01[0m [95mh[0m[91md[0m[95m1/OR15[0m[95m-1a[0m[93m01[0m [95mh[0m[91md[0m[95m4/OR15[0m[95m-4a[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-9[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-24[0m[93m01[0m [95mh[0m[91md[0m[95m7[0m[95m-27[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m02[0m [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m [95mh[0m[91md[0m[95m2/OR15[0m[95m-2a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m03[0m [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m02[0m [95mh[0m[91md[0m[95m5[0m[95m-12[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m02[0m
+ [91merror[0m this_gene [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m02[0m not among approved_genes [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m02[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m03[0m
+ [91merror[0m this_gene [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m02[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m01[0m
+ [91merror[0m this_gene [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m02[0m not among approved_genes [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m02[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m01[0m
+ [91merror[0m this_gene [95mh[0m[91md[0m[95m2/OR15[0m[95m-2a[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m5/OR15[0m[95m-5a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-6[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-13[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-7[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-18[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-17[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-22[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m01[0m [95mh[0m[91md[0m[95m3/OR15[0m[95m-3a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m02[0m [95mh[0m[91md[0m[95m2[0m[95m-15[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-25[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-19[0m[93m01[0m [95mh[0m[91md[0m[95m1/OR15[0m[95m-1a[0m[93m01[0m [95mh[0m[91md[0m[95m4/OR15[0m[95m-4a[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-9[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-24[0m[93m01[0m [95mh[0m[91md[0m[95m7[0m[95m-27[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m02[0m [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m [95mh[0m[91md[0m[95m2/OR15[0m[95m-2a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m03[0m [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m02[0m [95mh[0m[91md[0m[95m5[0m[95m-12[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m02[0m
+ [91merror[0m this_gene [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m02[0m not among approved_genes [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m02[0m
+ [91merror[0m this_gene [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m02[0m
+ [91merror[0m this_gene [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m4[0m[95m-17[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m
+ [91merror[0m this_gene [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m02[0m not among approved_genes [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m02[0m
+ [91merror[0m this_gene [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m4[0m[95m-17[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m
+ [91merror[0m this_gene [95mh[0m[91md[0m[95m3/OR15[0m[95m-3a[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m5/OR15[0m[95m-5a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-6[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-13[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-7[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-18[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-17[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-22[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m01[0m [95mh[0m[91md[0m[95m3/OR15[0m[95m-3a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m02[0m [95mh[0m[91md[0m[95m2[0m[95m-15[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-25[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-19[0m[93m01[0m [95mh[0m[91md[0m[95m1/OR15[0m[95m-1a[0m[93m01[0m [95mh[0m[91md[0m[95m4/OR15[0m[95m-4a[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-9[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-24[0m[93m01[0m [95mh[0m[91md[0m[95m7[0m[95m-27[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m02[0m [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m [95mh[0m[91md[0m[95m2/OR15[0m[95m-2a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m03[0m [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m02[0m [95mh[0m[91md[0m[95m5[0m[95m-12[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m02[0m
+ [91merror[0m this_gene [95mh[0m[91md[0m[95m4/OR15[0m[95m-4a[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m5/OR15[0m[95m-5a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-6[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-13[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-7[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-18[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-17[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-22[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m01[0m [95mh[0m[91md[0m[95m3/OR15[0m[95m-3a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m02[0m [95mh[0m[91md[0m[95m2[0m[95m-15[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-25[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-19[0m[93m01[0m [95mh[0m[91md[0m[95m1/OR15[0m[95m-1a[0m[93m01[0m [95mh[0m[91md[0m[95m4/OR15[0m[95m-4a[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-9[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-24[0m[93m01[0m [95mh[0m[91md[0m[95m7[0m[95m-27[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m02[0m [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m [95mh[0m[91md[0m[95m2/OR15[0m[95m-2a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m03[0m [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m02[0m [95mh[0m[91md[0m[95m5[0m[95m-12[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m02[0m
+ [91merror[0m this_gene [95mh[0m[91md[0m[95m6[0m[95m-25[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m6[0m[95m-6[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-13[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-25[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-19[0m[93m01[0m
+ [91merror[0m this_gene [95mh[0m[91md[0m[95m7[0m[95m-27[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m5/OR15[0m[95m-5a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-6[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-13[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-7[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-18[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-17[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-22[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m01[0m [95mh[0m[91md[0m[95m3/OR15[0m[95m-3a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m02[0m [95mh[0m[91md[0m[95m2[0m[95m-15[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-25[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-19[0m[93m01[0m [95mh[0m[91md[0m[95m1/OR15[0m[95m-1a[0m[93m01[0m [95mh[0m[91md[0m[95m4/OR15[0m[95m-4a[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-9[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-24[0m[93m01[0m [95mh[0m[91md[0m[95m7[0m[95m-27[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m02[0m [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m [95mh[0m[91md[0m[95m2/OR15[0m[95m-2a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m03[0m [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m02[0m [95mh[0m[91md[0m[95m5[0m[95m-12[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m02[0m
+ [91merror[0m this_gene [95mh[0m[91md[0m[95m5/OR15[0m[95m-5a[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m5/OR15[0m[95m-5a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-6[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-13[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-7[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-18[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-17[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-22[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m01[0m [95mh[0m[91md[0m[95m3/OR15[0m[95m-3a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m02[0m [95mh[0m[91md[0m[95m2[0m[95m-15[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-25[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-19[0m[93m01[0m [95mh[0m[91md[0m[95m1/OR15[0m[95m-1a[0m[93m01[0m [95mh[0m[91md[0m[95m4/OR15[0m[95m-4a[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-9[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-24[0m[93m01[0m [95mh[0m[91md[0m[95m7[0m[95m-27[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m02[0m [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m [95mh[0m[91md[0m[95m2/OR15[0m[95m-2a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m03[0m [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m02[0m [95mh[0m[91md[0m[95m5[0m[95m-12[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m02[0m
+ [91merror[0m this_gene [95mh[0m[91mj[0m[95m3[0m[93m01[0m not among approved_genes [95mh[0m[91mj[0m[95m3[0m[93m01[0m [95mh[0m[91mj[0m[95m3[0m[93m02[0m
+ [91merror[0m this_gene [95mh[0m[91mj[0m[95m4[0m[93m01[0m not among approved_genes [95mh[0m[91mj[0m[95m4[0m[93m03[0m [95mh[0m[91mj[0m[95m4[0m[93m02[0m [95mh[0m[91mj[0m[95m4[0m[93m01[0m
+ [91merror[0m this_gene [95mh[0m[91mj[0m[95m4[0m[93m03[0m not among approved_genes [95mh[0m[91mj[0m[95m4[0m[93m03[0m [95mh[0m[91mj[0m[95m4[0m[93m02[0m [95mh[0m[91mj[0m[95m4[0m[93m01[0m
+ [91merror[0m this_gene [95mh[0m[91mj[0m[95m6[0m[93m01[0m not among approved_genes [95mh[0m[91mj[0m[95m6[0m[93m01[0m [95mh[0m[91mj[0m[95m6[0m[93m03[0m [95mh[0m[91mj[0m[95m6[0m[93m04[0m [95mh[0m[91mj[0m[95m6[0m[93m02[0m
+ [91merror[0m this_gene [95mh[0m[91mj[0m[95m6[0m[93m04[0m not among approved_genes [95mh[0m[91mj[0m[95m6[0m[93m01[0m [95mh[0m[91mj[0m[95m6[0m[93m03[0m [95mh[0m[91mj[0m[95m6[0m[93m04[0m [95mh[0m[91mj[0m[95m6[0m[93m02[0m
+ (0.7 sec)
+      total time: 12.7
 [92msimulate[0m                         ./bin/partis simulate --n-sim-events 500 --n-trees 500 --n-leaves 5 --parameter-dir test/new-results/test/parameters/data --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human --outfname test/new-results/test/simu.csv --indel-frequency 0.01 --indel-location v
 simulating
+[91merror[0m this_gene [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m02[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m02[0m not among approved_genes [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m02[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m02[0m not among approved_genes [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m02[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m02[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m4[0m[95m-17[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m02[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m01[0m
+[91merror[0m this_gene [95mh[0m[91mj[0m[95m4[0m[93m01[0m not among approved_genes [95mh[0m[91mj[0m[95m4[0m[93m03[0m [95mh[0m[91mj[0m[95m4[0m[93m02[0m [95mh[0m[91mj[0m[95m4[0m[93m01[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m02[0m not among approved_genes [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m02[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m02[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m01[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m1[0m[95m-7[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m1[0m[95m-7[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m02[0m not among approved_genes [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m02[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m4[0m[95m-17[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m02[0m
+[91merror[0m this_gene [95mh[0m[91mj[0m[95m6[0m[93m04[0m not among approved_genes [95mh[0m[91mj[0m[95m6[0m[93m01[0m [95mh[0m[91mj[0m[95m6[0m[93m03[0m [95mh[0m[91mj[0m[95m6[0m[93m04[0m [95mh[0m[91mj[0m[95m6[0m[93m02[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m02[0m not among approved_genes [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m02[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m2/OR15[0m[95m-2a[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m5/OR15[0m[95m-5a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-6[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-13[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-7[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-18[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-17[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-22[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m01[0m [95mh[0m[91md[0m[95m3/OR15[0m[95m-3a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m02[0m [95mh[0m[91md[0m[95m2[0m[95m-15[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-25[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-19[0m[93m01[0m [95mh[0m[91md[0m[95m1/OR15[0m[95m-1a[0m[93m01[0m [95mh[0m[91md[0m[95m4/OR15[0m[95m-4a[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-9[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-24[0m[93m01[0m [95mh[0m[91md[0m[95m7[0m[95m-27[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m02[0m [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m [95mh[0m[91md[0m[95m2/OR15[0m[95m-2a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m03[0m [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m02[0m [95mh[0m[91md[0m[95m5[0m[95m-12[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m02[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m02[0m not among approved_genes [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m02[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m01[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m02[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m02[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m01[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m4[0m[95m-17[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m02[0m not among approved_genes [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m02[0m
+[91merror[0m this_gene [95mh[0m[91mj[0m[95m3[0m[93m01[0m not among approved_genes [95mh[0m[91mj[0m[95m3[0m[93m01[0m [95mh[0m[91mj[0m[95m3[0m[93m02[0m
+[91merror[0m this_gene [95mh[0m[91mj[0m[95m6[0m[93m04[0m not among approved_genes [95mh[0m[91mj[0m[95m6[0m[93m01[0m [95mh[0m[91mj[0m[95m6[0m[93m03[0m [95mh[0m[91mj[0m[95m6[0m[93m04[0m [95mh[0m[91mj[0m[95m6[0m[93m02[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m02[0m not among approved_genes [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m02[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m01[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m02[0m not among approved_genes [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m02[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m01[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m02[0m not among approved_genes [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m02[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m03[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m4/OR15[0m[95m-4a[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m5/OR15[0m[95m-5a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-6[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-13[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-7[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-18[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-17[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-22[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m01[0m [95mh[0m[91md[0m[95m3/OR15[0m[95m-3a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m02[0m [95mh[0m[91md[0m[95m2[0m[95m-15[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-25[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-19[0m[93m01[0m [95mh[0m[91md[0m[95m1/OR15[0m[95m-1a[0m[93m01[0m [95mh[0m[91md[0m[95m4/OR15[0m[95m-4a[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-9[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-24[0m[93m01[0m [95mh[0m[91md[0m[95m7[0m[95m-27[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m02[0m [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m [95mh[0m[91md[0m[95m2/OR15[0m[95m-2a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m03[0m [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m02[0m [95mh[0m[91md[0m[95m5[0m[95m-12[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m02[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m4[0m[95m-17[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m4[0m[95m-17[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m02[0m not among approved_genes [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m02[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m02[0m not among approved_genes [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m02[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m03[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m02[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m02[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m01[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m1[0m[95m-7[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m4[0m[95m-17[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m7[0m[95m-27[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m5/OR15[0m[95m-5a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-6[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-13[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-7[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-18[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-17[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-22[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m01[0m [95mh[0m[91md[0m[95m3/OR15[0m[95m-3a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m02[0m [95mh[0m[91md[0m[95m2[0m[95m-15[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-25[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-19[0m[93m01[0m [95mh[0m[91md[0m[95m1/OR15[0m[95m-1a[0m[93m01[0m [95mh[0m[91md[0m[95m4/OR15[0m[95m-4a[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-9[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-24[0m[93m01[0m [95mh[0m[91md[0m[95m7[0m[95m-27[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m02[0m [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m [95mh[0m[91md[0m[95m2/OR15[0m[95m-2a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m03[0m [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m02[0m [95mh[0m[91md[0m[95m5[0m[95m-12[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m02[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m02[0m not among approved_genes [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m02[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m03[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m02[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m4[0m[95m-17[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m1[0m[95m-7[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m
+[91merror[0m this_gene [95mh[0m[91mj[0m[95m3[0m[93m01[0m not among approved_genes [95mh[0m[91mj[0m[95m3[0m[93m01[0m [95mh[0m[91mj[0m[95m3[0m[93m02[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m7[0m[95m-27[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m5/OR15[0m[95m-5a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-6[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-13[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-7[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-18[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-17[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-22[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m01[0m [95mh[0m[91md[0m[95m3/OR15[0m[95m-3a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m02[0m [95mh[0m[91md[0m[95m2[0m[95m-15[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-25[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-19[0m[93m01[0m [95mh[0m[91md[0m[95m1/OR15[0m[95m-1a[0m[93m01[0m [95mh[0m[91md[0m[95m4/OR15[0m[95m-4a[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-9[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-24[0m[93m01[0m [95mh[0m[91md[0m[95m7[0m[95m-27[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m02[0m [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m [95mh[0m[91md[0m[95m2/OR15[0m[95m-2a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m03[0m [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m02[0m [95mh[0m[91md[0m[95m5[0m[95m-12[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m02[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m1[0m[95m-7[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m02[0m not among approved_genes [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m02[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m03[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m02[0m not among approved_genes [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m02[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m1[0m[95m-7[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m1/OR15[0m[95m-1a[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m5/OR15[0m[95m-5a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-6[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-13[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-7[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-18[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-17[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-22[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m01[0m [95mh[0m[91md[0m[95m3/OR15[0m[95m-3a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m02[0m [95mh[0m[91md[0m[95m2[0m[95m-15[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-25[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-19[0m[93m01[0m [95mh[0m[91md[0m[95m1/OR15[0m[95m-1a[0m[93m01[0m [95mh[0m[91md[0m[95m4/OR15[0m[95m-4a[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-9[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-24[0m[93m01[0m [95mh[0m[91md[0m[95m7[0m[95m-27[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m02[0m [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m [95mh[0m[91md[0m[95m2/OR15[0m[95m-2a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m03[0m [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m02[0m [95mh[0m[91md[0m[95m5[0m[95m-12[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m02[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m6[0m[95m-25[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m6[0m[95m-6[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-13[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-25[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-19[0m[93m01[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m02[0m not among approved_genes [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m02[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m4[0m[95m-17[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m2/OR15[0m[95m-2a[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m5/OR15[0m[95m-5a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-6[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-13[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-7[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-18[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-17[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-22[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m01[0m [95mh[0m[91md[0m[95m3/OR15[0m[95m-3a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m02[0m [95mh[0m[91md[0m[95m2[0m[95m-15[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-25[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-19[0m[93m01[0m [95mh[0m[91md[0m[95m1/OR15[0m[95m-1a[0m[93m01[0m [95mh[0m[91md[0m[95m4/OR15[0m[95m-4a[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-9[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-24[0m[93m01[0m [95mh[0m[91md[0m[95m7[0m[95m-27[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m02[0m [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m [95mh[0m[91md[0m[95m2/OR15[0m[95m-2a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m03[0m [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m02[0m [95mh[0m[91md[0m[95m5[0m[95m-12[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m02[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m2/OR15[0m[95m-2a[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m5/OR15[0m[95m-5a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-6[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-13[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-7[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-18[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-17[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-22[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m01[0m [95mh[0m[91md[0m[95m3/OR15[0m[95m-3a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m02[0m [95mh[0m[91md[0m[95m2[0m[95m-15[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-25[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-19[0m[93m01[0m [95mh[0m[91md[0m[95m1/OR15[0m[95m-1a[0m[93m01[0m [95mh[0m[91md[0m[95m4/OR15[0m[95m-4a[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-9[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-24[0m[93m01[0m [95mh[0m[91md[0m[95m7[0m[95m-27[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m02[0m [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m [95mh[0m[91md[0m[95m2/OR15[0m[95m-2a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m03[0m [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m02[0m [95mh[0m[91md[0m[95m5[0m[95m-12[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m02[0m
+[91merror[0m this_gene [95mh[0m[91mj[0m[95m6[0m[93m04[0m not among approved_genes [95mh[0m[91mj[0m[95m6[0m[93m01[0m [95mh[0m[91mj[0m[95m6[0m[93m03[0m [95mh[0m[91mj[0m[95m6[0m[93m04[0m [95mh[0m[91mj[0m[95m6[0m[93m02[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m02[0m not among approved_genes [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m02[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m03[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m4[0m[95m-17[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m1[0m[95m-7[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m1[0m[95m-7[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m
+[91merror[0m this_gene [95mh[0m[91md[0m[95m6[0m[95m-25[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m6[0m[95m-6[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-13[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-25[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-19[0m[93m01[0m
    read 499 events from 10 files
-      total time: 5.2
+      total time: 4.1
 [92mcache-parameters-simu[0m            ./bin/partis cache-parameters --n-max-total-alleles 10 --n-alleles-per-gene 1 --plotdir test/new-results/test/plots/simu --only-csv-plots --only-overall-plots --is-simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.csv --infname test/new-results/test/simu.csv --parameter-dir test/new-results/test/parameters/simu --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human
 caching parameters
 vsearch: 2506 / 2575 v annotations (69 failed) in 0.2 sec
     keeping 10 / 239 v genes
 smith-waterman 
+  removing old sw cache test/new-results/test/parameters/simu/sw-cache
          step  seqs    procs     ig-sw time    processing time
            1    2575     10        0.9                1.2
            2    218      10        0.1                0.1
@@ -292,36 +392,54 @@ smith-waterman
            4    1        1         0.0                0.0
       info for 2574 / 2575 = 1.000   (1 failed)
       kept 1882 (0.731) unproductive
-        water time: 2.5
+        water time: 2.4
 [94mtry 0[0m: looking for new alleles among 0 genes (10 genes didn't have enough counts)
     plotting allele finding     <only_csv> not yet implemented in allelefinder
 smith-waterman   (writing parameters) 
          step  seqs    procs     ig-sw time    processing time
-           1    2574     10        0.9                1.3
+           1    2574     10        0.9                1.2
            2    217      10        0.1                0.1
            3    42       4         0.1                0.0
       info for 2574 / 2575 = 1.000   (1 failed)
       kept 1882 (0.731) unproductive
         writing sw results to test/new-results/test/parameters/simu/sw-cache
-  plotting parameters (1.6 sec)
-    writing parameters (0.7 sec)
-        water time: 6.8
-  writing hmms (0.7 sec)
+  plotting parameters (1.2 sec)
+    writing parameters (0.3 sec)
+        water time: 5.8
+  writing hmms [91merror[0m this_gene [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m1[0m[95m-7[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m
+ [91merror[0m this_gene [95mh[0m[91md[0m[95m1[0m[95m-7[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m1[0m[95m-7[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m
+ [91merror[0m this_gene [95mh[0m[91md[0m[95m4/OR15[0m[95m-4a[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m6[0m[95m-19[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-6[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-13[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-7[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-18[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-17[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-22[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m02[0m [95mh[0m[91md[0m[95m2[0m[95m-15[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-25[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91md[0m[95m5/OR15[0m[95m-5a[0m[93m01[0m [95mh[0m[91md[0m[95m4/OR15[0m[95m-4a[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-9[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-24[0m[93m01[0m [95mh[0m[91md[0m[95m3/OR15[0m[95m-3a[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m02[0m [95mh[0m[91md[0m[95m7[0m[95m-27[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-12[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m03[0m [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m02[0m [95mh[0m[91md[0m[95m2/OR15[0m[95m-2a[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m02[0m
+ [91merror[0m this_gene [95mh[0m[91md[0m[95m7[0m[95m-27[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m6[0m[95m-19[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-6[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-13[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-7[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-18[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-17[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-22[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m02[0m [95mh[0m[91md[0m[95m2[0m[95m-15[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-25[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91md[0m[95m5/OR15[0m[95m-5a[0m[93m01[0m [95mh[0m[91md[0m[95m4/OR15[0m[95m-4a[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-9[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-24[0m[93m01[0m [95mh[0m[91md[0m[95m3/OR15[0m[95m-3a[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m02[0m [95mh[0m[91md[0m[95m7[0m[95m-27[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-12[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m03[0m [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m02[0m [95mh[0m[91md[0m[95m2/OR15[0m[95m-2a[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m02[0m
+ [91merror[0m this_gene [95mh[0m[91mj[0m[95m4[0m[93m01[0m not among approved_genes [95mh[0m[91mj[0m[95m4[0m[93m03[0m [95mh[0m[91mj[0m[95m4[0m[93m01[0m [95mh[0m[91mj[0m[95m4[0m[93m02[0m
+ [91merror[0m this_gene [95mh[0m[91mj[0m[95m4[0m[93m03[0m not among approved_genes [95mh[0m[91mj[0m[95m4[0m[93m03[0m [95mh[0m[91mj[0m[95m4[0m[93m01[0m [95mh[0m[91mj[0m[95m4[0m[93m02[0m
+ (0.6 sec)
 hmm
     prepare_for_hmm: (0.3 sec)
     running 10 procs
                     calcd:         vtb 2574        fwd    0
-             min-max time:  3.9 - 4.5 sec
+             min-max time:  3.9 - 4.4 sec
     read output
-  plotting parameters (1.2 sec)
-  plotting parameters (1.2 sec)
-    writing parameters (0.7 sec)
-    writing parameters (0.7 sec)
+  plotting parameters (1.0 sec)
+  plotting parameters (0.9 sec)
+    writing parameters (0.4 sec)
+    writing parameters (0.3 sec)
         processed 2574 hmm output lines with 2574 sequences in 2574 events  (0 failures)
-         infra time: 9.3
-      hmm step time: 14.0
-  writing hmms (0.8 sec)
-      total time: 27.0
+         infra time: 8.2
+      hmm step time: 12.8
+  writing hmms [91merror[0m this_gene [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m
+ [91merror[0m this_gene [95mh[0m[91md[0m[95m2/OR15[0m[95m-2a[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m6[0m[95m-19[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-6[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-13[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-18[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-17[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-22[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m01[0m [95mh[0m[91md[0m[95m3/OR15[0m[95m-3a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m02[0m [95mh[0m[91md[0m[95m2[0m[95m-15[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-25[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91md[0m[95m5/OR15[0m[95m-5a[0m[93m01[0m [95mh[0m[91md[0m[95m4/OR15[0m[95m-4a[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-9[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-24[0m[93m01[0m [95mh[0m[91md[0m[95m7[0m[95m-27[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m02[0m [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-12[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m03[0m [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m02[0m [95mh[0m[91md[0m[95m2/OR15[0m[95m-2a[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m02[0m
+ [91merror[0m this_gene [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m4[0m[95m-17[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m
+ [91merror[0m this_gene [95mh[0m[91md[0m[95m4/OR15[0m[95m-4a[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m6[0m[95m-19[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-6[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-13[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-18[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-17[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-22[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m01[0m [95mh[0m[91md[0m[95m3/OR15[0m[95m-3a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m02[0m [95mh[0m[91md[0m[95m2[0m[95m-15[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-25[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91md[0m[95m5/OR15[0m[95m-5a[0m[93m01[0m [95mh[0m[91md[0m[95m4/OR15[0m[95m-4a[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-9[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-24[0m[93m01[0m [95mh[0m[91md[0m[95m7[0m[95m-27[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m02[0m [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-12[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m03[0m [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m02[0m [95mh[0m[91md[0m[95m2/OR15[0m[95m-2a[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m02[0m
+ [91merror[0m this_gene [95mh[0m[91md[0m[95m3/OR15[0m[95m-3a[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m6[0m[95m-19[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-6[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-13[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-18[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-17[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-22[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m01[0m [95mh[0m[91md[0m[95m3/OR15[0m[95m-3a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m02[0m [95mh[0m[91md[0m[95m2[0m[95m-15[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-25[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91md[0m[95m5/OR15[0m[95m-5a[0m[93m01[0m [95mh[0m[91md[0m[95m4/OR15[0m[95m-4a[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-9[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-24[0m[93m01[0m [95mh[0m[91md[0m[95m7[0m[95m-27[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m02[0m [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-12[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m03[0m [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m02[0m [95mh[0m[91md[0m[95m2/OR15[0m[95m-2a[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m02[0m
+ [91merror[0m this_gene [95mh[0m[91md[0m[95m6[0m[95m-25[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m6[0m[95m-19[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-6[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-13[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-25[0m[93m01[0m
+ [91merror[0m this_gene [95mh[0m[91md[0m[95m5/OR15[0m[95m-5a[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m6[0m[95m-19[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-6[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-13[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-18[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-17[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-22[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m01[0m [95mh[0m[91md[0m[95m3/OR15[0m[95m-3a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m02[0m [95mh[0m[91md[0m[95m2[0m[95m-15[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-25[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91md[0m[95m5/OR15[0m[95m-5a[0m[93m01[0m [95mh[0m[91md[0m[95m4/OR15[0m[95m-4a[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-9[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-24[0m[93m01[0m [95mh[0m[91md[0m[95m7[0m[95m-27[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m02[0m [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-12[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m03[0m [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m02[0m [95mh[0m[91md[0m[95m2/OR15[0m[95m-2a[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m02[0m
+ [91merror[0m this_gene [95mh[0m[91md[0m[95m7[0m[95m-27[0m[93m01[0m not among approved_genes [95mh[0m[91md[0m[95m6[0m[95m-19[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-6[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-13[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-18[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-17[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-22[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m02[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m01[0m [95mh[0m[91md[0m[95m3/OR15[0m[95m-3a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m02[0m [95mh[0m[91md[0m[95m2[0m[95m-15[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-25[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91md[0m[95m5/OR15[0m[95m-5a[0m[93m01[0m [95mh[0m[91md[0m[95m4/OR15[0m[95m-4a[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-9[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-24[0m[93m01[0m [95mh[0m[91md[0m[95m7[0m[95m-27[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m02[0m [95mh[0m[91md[0m[95m1[0m[95m-14[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-12[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m03[0m [95mh[0m[91md[0m[95m4[0m[95m-11[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m02[0m [95mh[0m[91md[0m[95m2/OR15[0m[95m-2a[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m02[0m
+ [91merror[0m this_gene [95mh[0m[91mj[0m[95m4[0m[93m01[0m not among approved_genes [95mh[0m[91mj[0m[95m4[0m[93m03[0m [95mh[0m[91mj[0m[95m4[0m[93m01[0m [95mh[0m[91mj[0m[95m4[0m[93m02[0m
+ [91merror[0m this_gene [95mh[0m[91mj[0m[95m4[0m[93m03[0m not among approved_genes [95mh[0m[91mj[0m[95m4[0m[93m03[0m [95mh[0m[91mj[0m[95m4[0m[93m01[0m [95mh[0m[91mj[0m[95m4[0m[93m02[0m
+ [91merror[0m this_gene [95mh[0m[91mj[0m[95m5[0m[93m01[0m not among approved_genes [95mh[0m[91mj[0m[95m5[0m[93m01[0m [95mh[0m[91mj[0m[95m5[0m[93m02[0m
+ [91merror[0m this_gene [95mh[0m[91mj[0m[95m6[0m[93m01[0m not among approved_genes [95mh[0m[91mj[0m[95m6[0m[93m03[0m [95mh[0m[91mj[0m[95m6[0m[93m01[0m [95mh[0m[91mj[0m[95m6[0m[93m04[0m [95mh[0m[91mj[0m[95m6[0m[93m02[0m
+ (0.6 sec)
+      total time: 23.8
 [92mannotate-new-simu[0m                ./bin/partis annotate --plot-annotation-performance --plotdir test/new-results/annotate-new-simu-annotation-performance --only-csv-plots --is-simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.csv --infname test/new-results/test/simu.csv --parameter-dir test/new-results/test/parameters/simu --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human --outfname test/new-results/annotate-new-simu.csv
 annotating
 smith-waterman 
@@ -341,13 +459,13 @@ smith-waterman
     -8966292501409229258 true and inferred shm net indel lengths different, so skipping rest of performance evaluation
     3238265388392705007 true and inferred shm net indel lengths different, so skipping rest of performance evaluation
     -1800108098461973058 true and inferred shm net indel lengths different, so skipping rest of performance evaluation
-  plotting performance (0.2 sec)
-        water time: 3.3
+  plotting performance (0.1 sec)
+        water time: 2.1
 hmm
     prepare_for_hmm: (0.3 sec)
     running 10 procs
                     calcd:         vtb 2574        fwd    0
-             min-max time:  3.9 - 4.5 sec
+             min-max time:  3.8 - 4.5 sec
     read output
     -1051096791937428203 true and inferred shm net indel lengths different, so skipping rest of performance evaluation
     -1262157731700257807 true and inferred shm net indel lengths different, so skipping rest of performance evaluation
@@ -362,11 +480,11 @@ hmm
     2581860833560800721 true and inferred shm net indel lengths different, so skipping rest of performance evaluation
     9068912360059158134 true and inferred shm net indel lengths different, so skipping rest of performance evaluation
     6011074983096519603 true and inferred shm net indel lengths different, so skipping rest of performance evaluation
-  plotting performance (0.3 sec)
+  plotting performance (0.1 sec)
         processed 2574 hmm output lines with 2574 sequences in 2574 events  (0 failures)
-         infra time: 4.6
-      hmm step time: 9.3
-      total time: 13.2
+         infra time: 4.3
+      hmm step time: 8.9
+      total time: 11.6
 [92mpartition-new-simu[0m               ./bin/partis partition --n-max-queries 500 --n-precache-procs 10 --plot-annotation-performance --biggest-logprob-cluster-to-calculate 5 --biggest-naive-seq-cluster-to-calculate 5 --persistent-cachefname test/new-results/cache-new-partition.csv --plotdir test/new-results/partition-new-simu-annotation-performance --only-csv-plots --is-simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.csv --infname test/new-results/test/simu.csv --parameter-dir test/new-results/test/parameters/simu --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human --outfname test/new-results/partition-new-simu.csv
   --n-max-queries: stopped after reading 500 queries from input file
 partitioning
@@ -375,8 +493,8 @@ smith-waterman
       info for 499 / 500 = 0.998   (1 failed)
       kept 360 (0.720) unproductive
     -1051096791937428203 true and inferred shm net indel lengths different, so skipping rest of performance evaluation
-  plotting performance (0.2 sec)
-        water time: 2.9
+  plotting performance (0.1 sec)
+        water time: 1.1
 hmm
 caching all 499 naive sequences
     prepare_for_hmm: (0.1 sec)
@@ -385,10 +503,10 @@ caching all 499 naive sequences
                     calcd:         vtb 499        fwd   0
                    merged:       hfrac   0     lratio   0
              min-max time:  1.2 - 1.5 sec
-      hmm step time: 1.8
+      hmm step time: 1.6
    collapsed 499 queries into 302 clusters with identical naive seqs (0.0 sec)
 302 clusters with 10 procs
-    prepare_for_hmm: (0.1 sec)
+    prepare_for_hmm: (0.0 sec)
        naive hfrac bounds: 0.015 0.118   (0.132 mean mutation in parameter dir test/new-results/test/parameters/simu/hmm)
     running 10 procs
           read from cache:  naive-seqs 499   logprobs   0
@@ -396,32 +514,31 @@ caching all 499 naive sequences
                    merged:       hfrac 594     lratio  22
              min-max time:  1.7 - 4.8 sec
          infra time: 0.1
-      hmm step time: 5.1
+      hmm step time: 5.0
 241 clusters with 7 procs
     prepare_for_hmm: (0.0 sec)
     running 7 procs
           read from cache:  naive-seqs 641   logprobs 303
                     calcd:         vtb  42        fwd 173
                    merged:       hfrac 471     lratio  17
-             min-max time:  1.6 - 4.8 sec
-         infra time: 0.1
-      hmm step time: 5.1
+             min-max time:  1.6 - 4.6 sec
+      hmm step time: 4.7
 204 clusters with 5 procs
     prepare_for_hmm: (0.0 sec)
     running 5 procs
           read from cache:  naive-seqs 688   logprobs 476
                     calcd:         vtb  36        fwd 153
                    merged:       hfrac 499     lratio  16
-             min-max time:  2.5 - 10.5 sec
-      hmm step time: 10.8
+             min-max time:  2.5 - 10.4 sec
+      hmm step time: 10.5
 167 clusters with 3 procs
     prepare_for_hmm: (0.0 sec)
     running 3 procs
           read from cache:  naive-seqs 737   logprobs 629
                     calcd:         vtb  23        fwd 115
                    merged:       hfrac 470     lratio   6
-             min-max time:  4.8 - 7.9 sec
-      hmm step time: 8.2
+             min-max time:  4.8 - 7.8 sec
+      hmm step time: 8.0
 141 clusters with 2 procs
     prepare_for_hmm: (0.0 sec)
     running 2 procs
@@ -429,7 +546,7 @@ caching all 499 naive sequences
                     calcd:         vtb  19        fwd 121
                    merged:       hfrac 555     lratio  10
              min-max time:  7.3 - 15.9 sec
-      hmm step time: 16.2
+      hmm step time: 16.1
 119 clusters with 2 procs
     prepare_for_hmm: (0.0 sec)
     running 2 procs
@@ -437,45 +554,45 @@ caching all 499 naive sequences
                     calcd:         vtb   8        fwd  48
                    merged:       hfrac 327     lratio   3
              min-max time:  4.5 - 7.0 sec
-      hmm step time: 7.3
+      hmm step time: 7.2
 110 clusters with 2 procs
     prepare_for_hmm: (0.0 sec)
     running 2 procs
           read from cache:  naive-seqs 810   logprobs 913
                     calcd:         vtb   5        fwd  34
                    merged:       hfrac 260     lratio   2
-             min-max time:  3.9 - 5.4 sec
-      hmm step time: 5.7
+             min-max time:  4.0 - 5.4 sec
+      hmm step time: 5.6
 104 clusters with 2 procs
     prepare_for_hmm: (0.0 sec)
     running 2 procs
           read from cache:  naive-seqs 818   logprobs 947
                     calcd:         vtb   3        fwd  21
                    merged:       hfrac 214     lratio   0
-             min-max time:  1.6 - 4.5 sec
-      hmm step time: 4.7
+             min-max time:  1.5 - 4.5 sec
+      hmm step time: 4.6
 101 clusters with 1 proc
     prepare_for_hmm: (0.0 sec)
     running 1 proc
           read from cache:  naive-seqs 822   logprobs 968
                     calcd:         vtb   3        fwd  67
                    merged:       hfrac 406     lratio   2
-                     time:  11.2 sec
-      hmm step time: 11.5
-      loop time: 74.5
+                     time:  11.3 sec
+      hmm step time: 11.4
+      loop time: 73.2
 getting annotations for final partition
     prepare_for_hmm: (0.0 sec)
     running 10 procs
                     calcd:         vtb  98        fwd   0
-             min-max time:  0.7 - 1.6 sec
-      hmm step time: 1.8
+             min-max time:  0.8 - 1.5 sec
+      hmm step time: 1.6
     read output
     -1051096791937428203 true and inferred shm net indel lengths different, so skipping rest of performance evaluation
-  plotting performance (0.3 sec)
+  plotting performance (0.2 sec)
         processed 98 hmm output lines with 499 sequences in 98 events  (0 failures)
   plotting partitions
-(5.1 sec)
-      total time: 87.1
+(3.6 sec)
+      total time: 82.0
 [92mseed-partition-new-simu[0m          ./bin/partis partition --n-max-queries 500 --persistent-cachefname test/new-results/cache-new-partition.csv --is-simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.csv --infname test/new-results/test/simu.csv --parameter-dir test/new-results/test/parameters/simu --seed-unique-id -8878221028154153931 --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human --outfname test/new-results/seed-partition-new-simu.csv
   --n-max-queries: stopped after reading 500 queries from input file
 partitioning
@@ -494,7 +611,7 @@ hmm
           read from cache:  naive-seqs 826   logprobs 1035
                     calcd:         vtb  27        fwd  81
                    merged:       hfrac  68     lratio   0
-             min-max time:  0.6 - 1.5 sec
+             min-max time:  0.7 - 1.5 sec
       hmm step time: 1.6
 54 clusters with 7 procs
     prepare_for_hmm: (0.0 sec)
@@ -510,8 +627,8 @@ hmm
           read from cache:  naive-seqs 844   logprobs 1141
                     calcd:         vtb   0        fwd  38
                    merged:       hfrac  61     lratio   0
-             min-max time:  1.1 - 2.2 sec
-      hmm step time: 2.3
+             min-max time:  1.0 - 2.1 sec
+      hmm step time: 2.2
       removed 85 sequences in unseeded clusters, split 5 seeded clusters into 12 singletons, and merged these into 6 clusters with identical naive seqs
         new n_procs 1 (initial seqs/proc: 9.70   new seqs/proc: 6.00
 6 clusters with 1 proc
@@ -522,16 +639,16 @@ hmm
                    merged:       hfrac  25     lratio   0
                      time:  1.0 sec
       hmm step time: 1.1
-      loop time: 6.5
+      loop time: 6.2
 getting annotations for final partition
     prepare_for_hmm: (0.0 sec)
     running 1 proc
                     calcd:         vtb   1        fwd   0
                      time:  0.3 sec
-      hmm step time: 0.4
+      hmm step time: 0.3
     read output
         processed 1 hmm output lines with 12 sequences in 1 events  (0 failures)
-      total time: 7.5
+      total time: 7.1
 [92mvsearch-partition-new-simu[0m       ./bin/partis partition --naive-vsearch --n-max-queries 500 --persistent-cachefname test/new-results/cache-new-partition.csv --is-simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.csv --infname test/new-results/test/simu.csv --parameter-dir test/new-results/test/parameters/simu --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human --outfname test/new-results/vsearch-partition-new-simu.csv
   --n-max-queries: stopped after reading 500 queries from input file
 partitioning
@@ -550,8 +667,8 @@ getting annotations for final partition
     prepare_for_hmm: (0.0 sec)
     running 10 procs
                     calcd:         vtb 100        fwd   0
-             min-max time:  0.7 - 2.1 sec
-      hmm step time: 2.3
+             min-max time:  0.8 - 2.1 sec
+      hmm step time: 2.2
     read output
         processed 100 hmm output lines with 499 sequences in 100 events  (0 failures)
-      total time: 3.9
+      total time: 3.7
