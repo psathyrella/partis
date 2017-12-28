@@ -381,7 +381,7 @@ class Tester(object):
                 print '    ok   ',
             print ''
 
-        print '  performance with %s simulation and parameters' % input_stype
+        print '  performance with %s simulation and parameters (smaller is better for all annotation metrics)' % input_stype
         annotation_ptests = ['annotate-' + input_stype + '-simu', 'partition-' + input_stype + '-simu']  # hard code for order
         partition_ptests = [flavor + 'partition-' + input_stype + '-simu' for flavor in ['', 'vsearch-', 'seed-']]
         metricstrs = {
