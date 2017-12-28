@@ -16,7 +16,7 @@ class ParameterCounter(object):
     def __init__(self, glfo, args):
         self.glfo = glfo
         self.args = args
-        self.mfreqer = MuteFreqer(self.glfo)
+        self.mfreqer = MuteFreqer(self.glfo, exclusions=args.region_end_exclusions)
         self.reco_total = 0  # total number of recombination events
         self.mute_total = 0  # total number of sequences
         self.counts = {}

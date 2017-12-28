@@ -316,7 +316,7 @@ parent_parser.add_argument('--min-observations-to-write', type=int, default=20, 
 
 parent_parser.add_argument('--flatter-mfreqs', action='store_true')
 parent_parser.add_argument('--per-base-mfreqs', action='store_true')
-
+parent_parser.add_argument('--region-end-exclusion-length', type=int, default=0, help='when counting/writing parameters, ignore this many bases abutting non-templated insertions for calculating mutation frequencies')
 
 parent_parser.add_argument('--only-genes', help='Colon-separated list of genes to which to restrict the analysis. If any regions (V/D/J) are not represented among these genes, these regions are left unrestricted.')
 parent_parser.add_argument('--n-max-per-region', default='3:5:2', help='Number of best smith-waterman matches (per region, in the format v:d:j) to pass on to the hmm')
@@ -484,6 +484,10 @@ if args.istartstop is not None:
     if args.istartstop[0] >= args.istartstop[1] or args.istartstop[0] < 0:
         raise Exception('invalid --istartstop specification: %d %d' % (args.istartstop[0], args.istartstop[1]))
 args.n_max_per_region = utils.get_arg_list(args.n_max_per_region, intify=True)
+
+args.region_end_exclusions = {r : [args.region_end_exclusion_length if ('%s_%s' % (r, e)) in utils.real_erosions else 0 for e in ['5p', '3p']] for r in utils.regions}
+args.region_end_exclusion_length = None  # there isn't really a big reason to set it to None, but this makes clear that I should only be using the dict version
+
 args.initial_match_mismatch = utils.get_arg_list(args.initial_match_mismatch, intify=True)
 args.annotation_clustering_thresholds = utils.get_arg_list(args.annotation_clustering_thresholds, floatify=True)
 args.naive_hamming_bounds = utils.get_arg_list(args.naive_hamming_bounds, floatify=True)
