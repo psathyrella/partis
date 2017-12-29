@@ -40,9 +40,9 @@ def read_mute_freqs(indir, this_gene, locus, approved_genes=None):  # NOTE it wo
 
     if approved_genes is None:
         approved_genes = [this_gene, ]
-    else:  # huh, wait, was this wrong before? am I even ever using more than one gene now?
-        print '%s this_gene %s not among approved_genes %s' % (utils.color('red', 'error'), utils.color_gene(this_gene), ' '.join([utils.color_gene(g) for g in approved_genes]))
-        # assert this_gene in approved_genes
+    else:  # huh, wait, was this wrong before?
+        if this_gene not in approved_genes:
+            print '%s this_gene %s not among approved_genes %s' % (utils.color('red', 'error'), utils.color_gene(this_gene), ' '.join([utils.color_gene(g) for g in approved_genes]))
 
     # add an observation for each position, for each gene where we observed that position NOTE this would be more sensible if they were aligned first
     observed_freqs = {}
