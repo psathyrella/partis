@@ -304,16 +304,17 @@ class Tester(object):
         perfdir = self.dirs[version_stype] + '/' + self.perfdirs[ptest]
         perffo = self.perf_info[version_stype][input_stype][ptest]
         for method in methods:
-            perffo[method + '-mean_hamming'] = Hist(fname=perfdir + '/' + method + '/mutation/hamming_to_true_naive.csv').get_mean()
+            perffo[method] = OrderedDict()  # arg, this is deeper than I'd like
+            perffo[method]['mean_hamming'] = Hist(fname=perfdir + '/' + method + '/mutation/hamming_to_true_naive.csv').get_mean()
             for region in utils.regions + ['cdr3']:
-                perffo[method + '-' + region + '_hamming'] = Hist(fname=perfdir + '/' + method + '/mutation/' + region + '_hamming_to_true_naive.csv').get_mean()
+                perffo[method][region + '_hamming'] = Hist(fname=perfdir + '/' + method + '/mutation/' + region + '_hamming_to_true_naive.csv').get_mean()
             for bound in utils.boundaries:
-                perffo[method + '-' + bound + '_insertion'] = Hist(fname=perfdir + '/' + method + '/boundaries/' + bound + '_insertion.csv').get_mean(absval=True)
+                perffo[method][bound + '_insertion'] = Hist(fname=perfdir + '/' + method + '/boundaries/' + bound + '_insertion.csv').get_mean(absval=True)
             for erosion in utils.real_erosions:
-                perffo[method + '-' + erosion + '_del'] = Hist(fname=perfdir + '/' + method + '/boundaries/' + erosion + '_del.csv').get_mean(absval=True)
+                perffo[method][erosion + '_del'] = Hist(fname=perfdir + '/' + method + '/boundaries/' + erosion + '_del.csv').get_mean(absval=True)
             # for region in utils.regions:
             #     fraction_correct = read_performance_file(perfdir + '/' + method + '/gene-call/' + region + '_gene.csv', 'contents', only_ibin=1)
-            #     perffo[method + '-' + region + '_call'] = fraction_correct
+            #     perffo[method][region + '_call'] = fraction_correct
 
     # ----------------------------------------------------------------------------------------
     def read_partition_performance(self, version_stype, input_stype, debug=False):
@@ -369,21 +370,26 @@ class Tester(object):
 
     # ----------------------------------------------------------------------------------------
     def compare_performance(self, input_stype):
-        def print_comparison_str(method, ref_val, new_val, epsval, metric):
-            alignstr = '' if len(metric.strip()) < 5 else '-'
-            print ('    %-12s %' + alignstr + '9s    %-5.3f') % (method, metric, ref_val),
+
+        def print_comparison_str(ref_val, new_val, epsval):
+            printstr = '%-5.3f' % ref_val
             fractional_change = 0. if ref_val == 0. else (new_val - ref_val) / ref_val  # NOTE not the abs value yet
+            color = None
             if abs(fractional_change) > epsval:
-                print '--> %-5.3f %s' % (new_val, utils.color('red', '(%+.3f)' % fractional_change)),
+                color = 'red'
             elif abs(fractional_change) > self.tiny_eps:
-                print '--> %-5.3f %s' % (new_val, utils.color('yellow', '(%+.3f)' % fractional_change)),
+                color = 'yellow'
+            if color is None:
+                printstr += '          '
             else:
-                print '    ok   ',
-            print ''
+                printstr += utils.color(color, ' --> %-5.3f' % new_val)
+            print '    %-s' % printstr,
 
         print '  performance with %s simulation and parameters (smaller is better for all annotation metrics)' % input_stype
-        annotation_ptests = ['annotate-' + input_stype + '-simu', 'partition-' + input_stype + '-simu']  # hard code for order
-        partition_ptests = [flavor + 'partition-' + input_stype + '-simu' for flavor in ['', 'vsearch-', 'seed-']]
+        all_annotation_ptests = ['annotate-' + input_stype + '-simu', 'partition-' + input_stype + '-simu']  # hard code for order
+        all_partition_ptests = [flavor + 'partition-' + input_stype + '-simu' for flavor in ['', 'vsearch-', 'seed-']]
+        annotation_ptests = [pt for pt in all_annotation_ptests if pt in self.perf_info['ref'][input_stype]]
+        partition_ptests = [pt for pt in all_partition_ptests if pt in self.perf_info['ref'][input_stype]]
         metricstrs = {
             'mean_hamming' : 'hamming',
             'v_hamming' : 'v  ',
@@ -397,34 +403,46 @@ class Tester(object):
             'completeness' : 'compl.',
         }
 
-        for ptest in annotation_ptests:
-            if ptest not in self.perf_info['ref'][input_stype]:
-                continue
-            if set(self.perf_info['ref'][input_stype][ptest]) != set(self.perf_info['new'][input_stype][ptest]):
-                raise Exception('different metrics in ref vs new:\n  %s\n  %s' % (sorted(self.perf_info['ref'][input_stype][ptest]), sorted(self.perf_info['new'][input_stype][ptest])))
-            for fullmetric in self.perf_info['ref'][input_stype][ptest]:
-                if fullmetric in ['purity', 'completeness']:
-                    continue
-                method, metric = fullmetric.split('-')
-                metricstr = metric
-                if 'partition' in ptest:
-                    method = 'multi-hmm'
-                if metric != 'mean_hamming':
-                    method = ''
-                print_comparison_str(method, self.perf_info['ref'][input_stype][ptest][fullmetric], self.perf_info['new'][input_stype][ptest][fullmetric], self.eps_vals.get(metric, 0.1), metricstrs.get(metric, metric))
 
+        # print annotation header
+        print '%8s %9s' % ('', ''),
+        for ptest in annotation_ptests:
+            for method in [m for m in self.perf_info['ref'][input_stype][ptest] if m in ['sw', 'hmm']]:  # 'if' is just to skip purity and completeness
+                if 'partition' not in ptest:
+                    printstr = method
+                else:
+                    printstr = 'partition %s' % method
+                print '    %-15s' % printstr,
+        print ''
+
+        # print values
+        allmetrics = [m for m in self.perf_info['ref'][input_stype][annotation_ptests[0]]['hmm']]
+        for metric in allmetrics:
+            alignstr = '' if len(metricstrs.get(metric, metric).strip()) < 5 else '-'
+            print ('%8s %' + alignstr + '9s') % ('', metricstrs.get(metric, metric)),
+            for ptest in annotation_ptests:
+                for method in [m for m in self.perf_info['ref'][input_stype][ptest] if m in ['sw', 'hmm']]:  # 'if' is just to skip purity and completeness
+                    if set(self.perf_info['ref'][input_stype][ptest]) != set(self.perf_info['new'][input_stype][ptest]):
+                        raise Exception('different metrics in ref vs new:\n  %s\n  %s' % (sorted(self.perf_info['ref'][input_stype][ptest]), sorted(self.perf_info['new'][input_stype][ptest])))
+                    print_comparison_str(self.perf_info['ref'][input_stype][ptest][method][metric], self.perf_info['new'][input_stype][ptest][method][metric], self.eps_vals.get(metric, 0.1))
+            print ''
+
+        # print partition header
+        print '%8s %7s' % ('', ''),
         for ptest in partition_ptests:
-            if ptest not in self.perf_info['ref'][input_stype]:
-                continue
-            if set(self.perf_info['ref'][input_stype][ptest]) != set(self.perf_info['new'][input_stype][ptest]):
-                raise Exception('different metrics in ref vs new:\n  %s\n  %s' % (sorted(self.perf_info['ref'][input_stype][ptest]), sorted(self.perf_info['new'][input_stype][ptest])))
-            for metric in self.perf_info['ref'][input_stype][ptest]:
-                if metric not in ['purity', 'completeness']:
-                    continue
+            print '    %-15s' % ptest.split('-')[0],
+        print ''
+        for metric in ['purity', 'completeness']:
+            alignstr = '' if len(metricstrs.get(metric, metric).strip()) < 5 else '-'
+            print ('%8s %' + alignstr + '9s') % ('', metricstrs.get(metric, metric)),
+            for ptest in partition_ptests:
+                if set(self.perf_info['ref'][input_stype][ptest]) != set(self.perf_info['new'][input_stype][ptest]):
+                    raise Exception('different metrics in ref vs new:\n  %s\n  %s' % (sorted(self.perf_info['ref'][input_stype][ptest]), sorted(self.perf_info['new'][input_stype][ptest])))
                 method = ptest.split('-')[0]
                 if metric != 'purity':
                     method = ''
-                print_comparison_str(method, self.perf_info['ref'][input_stype][ptest][metric], self.perf_info['new'][input_stype][ptest][metric], self.eps_vals.get(metric, 0.1), metricstrs.get(metric, metric))
+                print_comparison_str(self.perf_info['ref'][input_stype][ptest][metric], self.perf_info['new'][input_stype][ptest][metric], self.eps_vals.get(metric, 0.1))
+            print ''
 
     # ----------------------------------------------------------------------------------------
     def compare_production_results(self):
