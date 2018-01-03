@@ -1446,6 +1446,33 @@ class PartitionDriver(object):
         os.remove(annotation_fname)
 
     # ----------------------------------------------------------------------------------------
+    def correct_multi_hmm_boundaries(self, line, debug=False):
+        factor = 2.
+        assert 'regional_bounds' not in line  # need to make sure implicit info isn't in there
+
+        for boundary in utils.boundaries:
+            delname = boundary[1] + '_5p_del'  # could just as well use the insertion length, but this is at least a reminder that the insertion is part of the righthand region
+            sw_deletion_lengths = [self.sw_info[q][delname] for q in line['unique_ids']]
+            median_single_length = numpy.median(sw_deletion_lengths)
+            single_length_err = numpy.std(sw_deletion_lengths)
+
+            if line[delname] < median_single_length + factor * single_length_err:  # skip it if the multi-hmm deletion isn't much longer than the single sw deletions
+                continue
+
+            if debug:
+                true_del = None
+                if self.reco_info is not None:
+                    true_line = utils.synthesize_multi_seq_line_from_reco_info(line['unique_ids'], self.reco_info)
+                    true_del = true_line[delname]
+                print boundary
+                print '  multi %d%s' % (line[delname], ('   true %d' % true_del) if true_del is not None else '')
+                print '  %.2f +/- %.3f  (%s)' % (median_single_length, single_length_err, sw_deletion_lengths)
+
+            while line[delname] > median_single_length and len(line[boundary + '_insertion']) > 0:
+                line[delname] -= 1
+                line[boundary + '_insertion'] = line[boundary + '_insertion'][:-1]
+
+    # ----------------------------------------------------------------------------------------
     def process_dummy_d_hack(self, line, debug=False):
         """
         a.t.m. we force bcrham to give us D of length one for loci with no D genes.
@@ -1560,6 +1587,8 @@ class PartitionDriver(object):
 
                 if not utils.has_d_gene(self.args.locus):
                     self.process_dummy_d_hack(padded_line)
+                if self.args.correct_boundaries and len(padded_line['unique_ids']) > 1:
+                    self.correct_multi_hmm_boundaries(padded_line)
 
                 utils.add_implicit_info(self.glfo, padded_line, aligned_gl_seqs=self.aligned_gl_seqs)
                 utils.process_per_gene_support(padded_line)  # switch per-gene support from log space to normalized probabilities

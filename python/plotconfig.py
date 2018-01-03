@@ -96,11 +96,11 @@ true_vs_inferred_hard_bounds = {
     'muted_bases' : (-5.5, 5.5),
     # boundaries
     'v_3p_del' : (-3.5, 3.5),
-    'd_5p_del' : (-8.5, 8.5),
-    'd_3p_del' : (-8.5, 8.5),
-    'j_5p_del' : (-10.5, 15.5),
-    'vd_insertion' : (-8.5, 8.5),
-    'dj_insertion' : (-10.5, 15.5)
+    'd_5p_del' : (-8.5, 12.5),
+    'd_3p_del' : (-8.5, 12.5),
+    'j_5p_del' : (-10.5, 12.5),
+    'vd_insertion' : (-8.5, 12.5),
+    'dj_insertion' : (-10.5, 12.5)
 }
 for name, bounds in true_vs_inferred_hard_bounds.items():
     if name.find('XXX_') == 0:
