@@ -232,7 +232,7 @@ class Tester(object):
                 print 'in ref dir but not expected\n    %s' % (utils.color('red', ' '.join(dir_content - expected_content)))
             if len(expected_content - dir_content) > 0:
                 print 'expected but not in ref dir\n    %s' % (utils.color('red', ' '.join(expected_content - dir_content)))
-            raise Exception('unexpected or missing content in reference dir')
+            raise Exception('unexpected or missing content in reference dir (see above)')
         for fname in [self.dirs['ref'] + '/' + ec for ec in expected_content]:
             print '    rm %s' % fname
             if os.path.isdir(fname):
