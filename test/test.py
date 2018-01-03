@@ -63,6 +63,7 @@ class Tester(object):
 
         def add_inference_tests(input_stype):  # if input_stype is 'ref', infer on old simulation and parameters, if it's 'new' use the new ones
             self.tests['annotate-' + input_stype + '-simu']          = {'extras' : ['--plot-annotation-performance', ]}
+            self.tests['multi-annotate-' + input_stype + '-simu']    = {'extras' : ['--plot-annotation-performance', '--simultaneous-true-clonal-seqs']}  # NOTE this is mostly different to the multi-seq annotations from the partition step because it uses the whole sample
             # self.tests['annotate-' + input_stype + '-data']          = {'extras' : ['--n-max-queries', n_data_inference_queries]}  # don't really need this as long as we're caching parameters on data
             self.tests['partition-' + input_stype + '-simu']         = {'extras' : [
                 '--n-max-queries', self.n_partition_queries,
@@ -272,6 +273,11 @@ class Tester(object):
 
     # ----------------------------------------------------------------------------------------
     def read_annotation_performance(self, version_stype, input_stype, these_are_cluster_annotations=False):  # <these_are_cluster_annotations> means this fcn is being called from within read_partition_performance()
+        for sequence_multiplicity in ['single', 'multi']:
+            self.read_each_annotation_performance(sequence_multiplicity, version_stype, input_stype, these_are_cluster_annotations=these_are_cluster_annotations)
+
+    # ----------------------------------------------------------------------------------------
+    def read_each_annotation_performance(self, sequence_multiplicity, version_stype, input_stype, these_are_cluster_annotations=False):  # <these_are_cluster_annotations> means this fcn is being called from within read_partition_performance()
         """ version_stype is the code version, while input_stype is the input data version, i.e. 'ref', 'new' is the reference code version (last commit) run on the then-new simulation and parameters"""
         def read_performance_file(fname, column, only_ibin=None):
             values = []
@@ -292,9 +298,14 @@ class Tester(object):
         if these_are_cluster_annotations:
             ptest = '-'.join(['partition', input_stype, 'simu'])
             methods = ['hmm']
-        else:
+        elif sequence_multiplicity == 'single':
             ptest = '-'.join(['annotate', input_stype, 'simu'])
             methods = ['sw', 'hmm']
+        elif sequence_multiplicity == 'multi':
+            ptest = '-'.join(['multi', 'annotate', input_stype, 'simu'])
+            methods = ['hmm']
+        else:
+            assert False
         if args.quick and ptest not in self.quick_tests:
             return
         if input_stype not in self.perf_info[version_stype]:
@@ -349,10 +360,11 @@ class Tester(object):
                 print '    %5.2f          %5.2f      %-28s   to true partition' % (self.perf_info[version_stype][input_stype][ptest]['purity'], self.perf_info[version_stype][input_stype][ptest]['completeness'], ptest)
 
             if ptest in self.perfdirs:
-                self.read_annotation_performance(version_stype, input_stype, these_are_cluster_annotations=True)
+                self.read_each_annotation_performance('single', version_stype, input_stype, these_are_cluster_annotations=True)
 
     # ----------------------------------------------------------------------------------------
     def compare_data_annotation(self, input_stype):
+        raise Exception('might need updating')
         # NOTE don't really need to do this for simulation, since for simulation we already compare the performance info
         ptest = 'annotate-' + input_stype + '-data'
         if args.quick and ptest not in self.quick_tests:
@@ -386,7 +398,7 @@ class Tester(object):
             print '    %-s' % printstr,
 
         print '  performance with %s simulation and parameters (smaller is better for all annotation metrics)' % input_stype
-        all_annotation_ptests = ['annotate-' + input_stype + '-simu', 'partition-' + input_stype + '-simu']  # hard code for order
+        all_annotation_ptests = ['annotate-' + input_stype + '-simu', 'multi-annotate-' + input_stype + '-simu', 'partition-' + input_stype + '-simu']  # hard code for order
         all_partition_ptests = [flavor + 'partition-' + input_stype + '-simu' for flavor in ['', 'vsearch-', 'seed-']]
         annotation_ptests = [pt for pt in all_annotation_ptests if pt in self.perf_info['ref'][input_stype]]
         partition_ptests = [pt for pt in all_partition_ptests if pt in self.perf_info['ref'][input_stype]]
@@ -408,9 +420,10 @@ class Tester(object):
         print '%8s %9s' % ('', ''),
         for ptest in annotation_ptests:
             for method in [m for m in self.perf_info['ref'][input_stype][ptest] if m in ['sw', 'hmm']]:  # 'if' is just to skip purity and completeness
-                if 'partition' not in ptest:
-                    printstr = method
-                else:
+                printstr = method
+                if 'multi-annotate' in ptest:
+                    printstr = 'multi %s' % method
+                if 'partition' in ptest:
                     printstr = 'partition %s' % method
                 print '    %-15s' % printstr,
         print ''
