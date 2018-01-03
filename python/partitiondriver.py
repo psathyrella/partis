@@ -1587,8 +1587,8 @@ class PartitionDriver(object):
 
                 if not utils.has_d_gene(self.args.locus):
                     self.process_dummy_d_hack(padded_line)
-                if self.args.correct_boundaries and len(padded_line['unique_ids']) > 1:
-                    self.correct_multi_hmm_boundaries(padded_line)
+                # if self.args.correct_boundaries and len(padded_line['unique_ids']) > 1:  # this does a decent job of correct the multi-hmms tendency to overestimate insertion and deletion lengths, but it also removes a significant portion of the multi-hmms advantage in naive hamming distance
+                #     self.correct_multi_hmm_boundaries(padded_line)
 
                 utils.add_implicit_info(self.glfo, padded_line, aligned_gl_seqs=self.aligned_gl_seqs)
                 utils.process_per_gene_support(padded_line)  # switch per-gene support from log space to normalized probabilities

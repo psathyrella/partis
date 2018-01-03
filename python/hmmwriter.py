@@ -493,15 +493,10 @@ class HmmWriter(object):
                     self.mute_counts[pos][self.germline_seq[pos]] += 10
             if pos not in self.mute_freqs:
                 self.mute_freqs[pos] = self.mute_freqs['overall_mean']
-            if not self.args.flatter_mfreqs:
-                continue
             if self.mute_freqs[pos] < self.mute_freq_bounds['lo']:
                 self.mute_freqs[pos] = self.mute_freq_bounds['lo']
             if self.mute_freqs[pos] > self.mute_freq_bounds['hi']:
                 self.mute_freqs[pos] = self.mute_freq_bounds['hi']
-
-        if not self.args.flatter_mfreqs:
-            return
 
         # then make mfreqs near the ends closer to the overall mean
         for erosion in [re for re in utils.real_erosions if re[0] == self.region]:
@@ -751,7 +746,7 @@ class HmmWriter(object):
                 if nuke1 == germline_nuke:
                     return 1.0 - mute_freq
                 else:
-                    if self.args.per_base_mfreqs:
+                    if not self.args.no_per_base_mfreqs:
                         # NOTE this calculation is (more or less) repeated in ham/src/state::RescaleOverallMuteFreq()
                         non_germline_counts = {n : max(c, 1) for n, c in self.mute_counts[inuke].items() if n != germline_nuke}  # NOTE pseudocount also set in process_mutation_info() (it's nice to have this here because it makes it more obvious that the sum can't be zero, but the other fits more naturally with the self.mute_freqs modifications)
                         per_base_factor = non_germline_counts[nuke1] / float(sum(non_germline_counts.values()))

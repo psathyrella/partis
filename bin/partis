@@ -313,11 +313,8 @@ parent_parser.add_argument('--dont-rescale-emissions', action='store_true', help
 parent_parser.add_argument('--no-indels', action='store_true', help='Tell smith-waterman not to look for indels, by drastically increasing the gap-open penalty (you can also set the penalty directly).')
 parent_parser.add_argument('--seed', type=int, default=int(time.time()), help='Random seed for use (mostly) by recombinator (to allow reproducibility)')
 parent_parser.add_argument('--min-observations-to-write', type=int, default=20, help='When writing hmm model files, if we see a gene version fewer times than this, we average over other alleles, or other primary versions, etc. (see hmmwriter). NOTE default is manipulated in partitiondriver.py')
-
-parent_parser.add_argument('--flatter-mfreqs', action='store_true')
-parent_parser.add_argument('--per-base-mfreqs', action='store_true')
+parent_parser.add_argument('--no-per-base-mfreqs', action='store_true')
 parent_parser.add_argument('--region-end-exclusion-length', type=int, default=0, help='when counting/writing parameters, ignore this many bases abutting non-templated insertions for calculating mutation frequencies (note: doesn\'t make a difference (hence set to 0 by default) probably because we\'re setting a strongish prior on these bases when writing hmms anyway')
-parent_parser.add_argument('--correct-boundaries', action='store_true')
 
 parent_parser.add_argument('--only-genes', help='Colon-separated list of genes to which to restrict the analysis. If any regions (V/D/J) are not represented among these genes, these regions are left unrestricted.')
 parent_parser.add_argument('--n-max-per-region', default='3:5:2', help='Number of best smith-waterman matches (per region, in the format v:d:j) to pass on to the hmm')
