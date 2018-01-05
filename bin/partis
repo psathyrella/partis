@@ -31,7 +31,7 @@ def default_parameter_dir(args):
         label = args.infname[ : args.infname.rfind('.')]  # probably ok not to use the full path here
         label = label.replace('/', '_')
     else:
-        label = 'no-need-for-a-name'  # maybe actually don't have a need for one, if there's no input file
+        label = 'xxx-dummy-xxx'  # gah, this is a terrible way to do this. But I can't set it to None, and I need some way to communicate that it isn't a valid pdir, so...
     pdir = '_output/' + label
     return pdir
 
@@ -249,10 +249,10 @@ def view_existing_output(args):
     set_default_parameter_dir(args)  # all the calls to this function could probably be combined
 
     if args.initial_germline_dir is None:
-        if args.parameter_dir is not None:
-            args.initial_germline_dir = args.parameter_dir + '/' + args.parameter_type + '/' + glutils.glfo_dir
-        else:
+        if 'xxx-dummy-xxx' in args.parameter_dir:
             args.initial_germline_dir = args.default_initial_germline_dir
+        else:
+            args.initial_germline_dir = args.parameter_dir + '/' + args.parameter_type + '/' + glutils.glfo_dir
 
     parter = PartitionDriver(args, args.action, args.initial_germline_dir)
     if args.action == 'view-annotations':
@@ -410,6 +410,7 @@ subargs['partition'].append({'name' : '--min-largest-cluster-size', 'kwargs' : {
 subargs['partition'].append({'name' : '--n-partition-subsets', 'kwargs' : {'type' : int, 'help' : 'compare the partitions of this many independent subsets, each of size <--n-max-queries>'}})
 subargs['partition'].append({'name' : '--calculate-alternative-naive-seqs', 'kwargs' : {'action' : 'store_true', 'help' : 'write to disk all the information necessary to, in a later step, print alternative inferred naive sequences (i.e. visualize uncertainty in the inferred naive sequence). All this really does is set --persistent-cachefname, i.e. copy the hmm cache file that we would anyway be making (but deleting) to somewhere sensible for later use.'}})
 subargs['partition'].append({'name' : '--max-cluster-size', 'kwargs' : {'type' : int, 'help' : 'stop clustering immediately if any cluster grows larger than this (useful for limiting memory usage, which can become a problem when the final partition contains very large clusters)'}})
+subargs['partition'].append({'name' : '--write-additional-cluster-annotations', 'kwargs' : {'help' : 'in addition to writing annotations for each cluster in the best partition, also write annotations for several partitions on either side of the best partition. Specified as a pair of numbers \'m:n\' for m partitions before, and n partitions after, the best partition.'}})
 
 subargs['simulate'].append({'name' : '--mutation-multiplier', 'kwargs' : {'type' : float, 'help' : 'Multiply observed branch lengths by some factor when simulating, e.g. if in data it was 0.05, but you want closer to ten percent in your simulation, set this to 2'}})
 subargs['simulate'].append({'name' : '--mimic-data-read-length', 'kwargs' : {'action' : 'store_true', 'help' : 'trim V 5\' and D 3\' to mimic read lengths seen in data'}})
@@ -482,6 +483,9 @@ if args.istartstop is not None:
     if args.istartstop[0] >= args.istartstop[1] or args.istartstop[0] < 0:
         raise Exception('invalid --istartstop specification: %d %d' % (args.istartstop[0], args.istartstop[1]))
 args.n_max_per_region = utils.get_arg_list(args.n_max_per_region, intify=True)
+args.write_additional_cluster_annotations = utils.get_arg_list(args.write_additional_cluster_annotations, intify=True)
+if args.write_additional_cluster_annotations is not None and len(args.write_additional_cluster_annotations) != 2:
+    raise Exception('--write-additional-cluster-annotations must be specified as two numbers \'m:n\', but I got %s' % args.write_additional_cluster_annotations)
 
 args.region_end_exclusions = {r : [args.region_end_exclusion_length if ('%s_%s' % (r, e)) in utils.real_erosions else 0 for e in ['5p', '3p']] for r in utils.regions}
 args.region_end_exclusion_length = None  # there isn't really a big reason to set it to None, but this makes clear that I should only be using the dict version
