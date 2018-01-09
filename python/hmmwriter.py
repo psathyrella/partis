@@ -485,8 +485,10 @@ class HmmWriter(object):
 
     # ----------------------------------------------------------------------------------------
     def process_mutation_info(self):  # NOTE lots of shenanigans also in paramutils.read_mute_freqs() (but not paramutils.read_mute_counts())
+        gl_length = len(self.germline_seq)
+
         # first add anybody that's missing and apply some hard bounds/sanity checks
-        for pos in range(len(self.germline_seq)):
+        for pos in range(gl_length):
             if pos not in self.mute_counts:  # NOTE pseudocount also set in get_emission_prob()
                 self.mute_counts[pos] = {n : 1 for n in utils.nukes}
                 if self.germline_seq[pos] in utils.nukes:  # probably only fails if it's ambiguous
@@ -502,11 +504,15 @@ class HmmWriter(object):
         for erosion in [re for re in utils.real_erosions if re[0] == self.region]:
             affected_length = self.enforced_flat_mfreq_length[erosion]
             affected_bounds = {
-                '5p' : [0, affected_length],
-                '3p' : [len(self.germline_seq) - affected_length, len(self.germline_seq)],
+                '5p' : [0, min(gl_length, affected_length)],
+                '3p' : [max(0, gl_length - affected_length), gl_length],
             }
             for pos in range(*affected_bounds[erosion[-2:]]):
-                distance_to_end = pos if '_5p' in erosion else len(self.germline_seq) - pos - 1
+                if pos not in self.mute_freqs:
+                    print 'arg'
+                    for x in range(gl_length):
+                        print '    %d' % x
+                distance_to_end = pos if '_5p' in erosion else gl_length - pos - 1
                 w1, w2 = affected_length - distance_to_end, distance_to_end  # i.e. the actual end position is 100% overall mean
                 self.mute_freqs[pos] = (w1 * self.mute_freqs['overall_mean'] + w2 * self.mute_freqs[pos]) / float(w1 + w2)  # yeah, it's always equal to <affected_length>
 
