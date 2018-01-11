@@ -2013,6 +2013,35 @@ def pad_lines(linestr, padwidth=8):
     return '\n'.join(lines)
 
 # ----------------------------------------------------------------------------------------
+def get_slurm_node(errfname):
+    if not os.path.exists(errfname):
+        return None
+
+    jobid = None
+    try:
+        jobid = subprocess.check_output(['head', '-n1', errfname]).split()[2]
+    except (subprocess.CalledProcessError, IndexError) as err:
+        print err
+        print '      couldn\'t get jobid from err file %s with contents:' % errfname
+        subprocess.check_call(['cat', errfname])
+        return None
+
+    assert jobid is not None
+    nodelist = None
+    try:
+        nodelist = subprocess.check_output(['squeue', '--job', jobid, '--states=all', '--format', '%N']).split()[1]
+    except (subprocess.CalledProcessError, IndexError) as err:
+        print err
+        print '      couldn\'t get node list from jobid \'%s\'' % jobid
+        return None
+
+    assert nodelist is not None
+    if ',' in nodelist:  # I think this is what it looks like if there's more than one, but I'm not checking
+        raise Exception('multiple nodes in nodelist: \'%s\'' % nodelist)
+
+    return nodelist
+
+# ----------------------------------------------------------------------------------------
 # deal with a process once it's finished (i.e. check if it failed, and restart if so)
 def finish_process(iproc, procs, n_tries, cmdfo, n_max_tries, dbgfo=None, batch_system=None, batch_options=None, debug=None, ignore_stderr=False):
     procs[iproc].communicate()
@@ -2036,6 +2065,17 @@ def finish_process(iproc, procs, n_tries, cmdfo, n_max_tries, dbgfo=None, batch_
             print '        %s tail:           (%s)' % (strtype, cmdfo['logdir'] + '/' + strtype)
             logstr = subprocess.check_output(['tail', '-n30', cmdfo['logdir'] + '/' + strtype])
             print pad_lines(logstr, padwidth=12);
+    if batch_system is not None:  # cmdfo['cmd_str'].split()[0] == 'srun' and
+        nodelist = get_slurm_node(cmdfo['logdir'] + '/err')
+        if nodelist is not None:
+            print '    failed on node %s' % nodelist
+        # try:
+        #     print '        sshing to %s' % nodelist
+        #     outstr = check_output('ssh -o StrictHostKeyChecking=no ' + nodelist + ' ps -eo pcpu,pmem,rss,cputime:12,stime:7,user,args:100 --sort pmem | tail', shell=True)
+        #     print pad_lines(outstr, padwidth=12)
+        # except subprocess.CalledProcessError as err:
+        #     print '        failed to ssh:'
+        #     print err
     if os.path.exists(cmdfo['outfname'] + '.progress'):  # glomerator.cc is the only one that uses this at the moment
         print '        progress file (%s):' % (cmdfo['outfname'] + '.progress')
         print pad_lines(subprocess.check_output(['cat', cmdfo['outfname'] + '.progress']), padwidth=12)
@@ -2127,6 +2167,7 @@ def summarize_bcrham_dbgstrs(dbgfos, action):
         else:
             assert False
 
+    cache_read_inconsistency = False
     summaryfo = {dbgcat : {vtype : defval(dbgcat) for vtype in tlist} for dbgcat, tlist in bcrham_dbgstrs[action].items()}  # fill summaryfo with default/initial values
     for procfo in dbgfos:
         for dbgcat in bcrham_dbgstr_types[action]['same']:  # loop over lines in output for which every process should have the same values (e.g. cache-read)
@@ -2134,6 +2175,7 @@ def summarize_bcrham_dbgstrs(dbgfos, action):
                 if summaryfo[dbgcat][vtype] is None:  # first one
                     summaryfo[dbgcat][vtype] = procfo[dbgcat][vtype]
                 if procfo[dbgcat][vtype] != summaryfo[dbgcat][vtype]:  # make sure all subsequent ones are the same
+                    cache_read_inconsistency = True
                     print '        %s bcrham procs had different \'%s\' \'%s\' info: %d vs %d' % (color('red', 'warning'), vtype, dbgcat, procfo[dbgcat][vtype], summaryfo[dbgcat][vtype])
         for dbgcat in bcrham_dbgstr_types[action]['sum']:  # lines for which we want to add up the values
             for vtype in bcrham_dbgstrs[action][dbgcat]:
@@ -2145,6 +2187,9 @@ def summarize_bcrham_dbgstrs(dbgfos, action):
     for dbgcat in bcrham_dbgstr_types[action]['min-max']:
         for vtype in bcrham_dbgstrs[action][dbgcat]:
             summaryfo[dbgcat][vtype] = min(summaryfo[dbgcat][vtype]), max(summaryfo[dbgcat][vtype])
+
+    if cache_read_inconsistency:
+        raise Exception('inconsistent cache reading information across processes (see above), probably due to file system issues')
 
     return summaryfo
 
