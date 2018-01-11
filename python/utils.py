@@ -2062,7 +2062,7 @@ def finish_process(iproc, procs, n_tries, cmdfo, n_max_tries, dbgfo=None, batch_
         print 'failed with %d (output %s)' % (procs[iproc].returncode, 'exists' if os.path.exists(cmdfo['outfname']) else 'is missing')
     for strtype in ['out', 'err']:
         if os.path.exists(cmdfo['logdir'] + '/' + strtype) and os.stat(cmdfo['logdir'] + '/' + strtype).st_size > 0:
-            print '        %s tail:           (%s)' % (strtype, cmdfo['logdir'] + '/' + strtype)
+            print '        %s tail:           %s' % (strtype, cmdfo['logdir'] + '/' + strtype)
             logstr = subprocess.check_output(['tail', '-n30', cmdfo['logdir'] + '/' + strtype])
             print pad_lines(logstr, padwidth=12);
     if batch_system is not None and batch_system == 'slurm':  # cmdfo['cmd_str'].split()[0] == 'srun' and
