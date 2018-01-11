@@ -2065,7 +2065,7 @@ def finish_process(iproc, procs, n_tries, cmdfo, n_max_tries, dbgfo=None, batch_
             print '        %s tail:           (%s)' % (strtype, cmdfo['logdir'] + '/' + strtype)
             logstr = subprocess.check_output(['tail', '-n30', cmdfo['logdir'] + '/' + strtype])
             print pad_lines(logstr, padwidth=12);
-    if batch_system is not None:  # cmdfo['cmd_str'].split()[0] == 'srun' and
+    if batch_system is not None and batch_system == 'slurm':  # cmdfo['cmd_str'].split()[0] == 'srun' and
         nodelist = get_slurm_node(cmdfo['logdir'] + '/err')
         if nodelist is not None:
             print '    failed on node %s' % nodelist
