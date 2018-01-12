@@ -673,7 +673,10 @@ class PartitionDriver(object):
             for uidstr in keys_to_remove:
                 del best_annotations[uidstr]
             if len(best_annotations) != len(cpath.partitions[cpath.i_best]):
-                raise Exception('something went wrong when removing extra clusters from best_annotations (%d vs %d)' % (len(best_annotations), len(cpath.partitions[cpath.i_best])))
+                if len(best_annotations) < len(cpath.partitions[cpath.i_best]):  # if <best_annotations> is too short, it should be because there was a failed annotationg (which'll be printed in self.read_annotation_output())
+                    print '    %s read fewer cluster annotations than there are clusters in the best partition (should be accounted for above)' % utils.color('yellow', 'warning')
+                else:
+                    raise Exception('something went wrong when removing extra clusters from best_annotations (%d vs %d)' % (len(best_annotations), len(cpath.partitions[cpath.i_best])))
 
         if os.path.exists(self.hmm_infname):
             os.remove(self.hmm_infname)
