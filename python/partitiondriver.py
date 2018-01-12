@@ -67,6 +67,8 @@ class PartitionDriver(object):
         self.duplicates = {}
         self.bcrham_proc_info = None
         self.timing_info = []  # TODO clean up this and bcrham_proc_info
+        self.istep = None  # stupid hack to get around network file system issues (see self.subworkidr()
+        self.subworkdirs = []  # arg. same stupid hack
 
         self.unseeded_seqs = None  # all the queries that we *didn't* cluster with the seed uid
         self.small_cluster_seqs = None  # all the queries that we removed after a few partition steps 'cause they were in small clusters
@@ -107,6 +109,10 @@ class PartitionDriver(object):
             os.remove(lockfname)
         if os.path.exists(self.hmm_cachefname):
             os.remove(self.hmm_cachefname)
+
+        for subd in self.subworkdirs:
+            if os.path.exists(subd):  # if there was only one proc for this step, it'll have already been removed
+                os.rmdir(subd)
 
         try:
             os.rmdir(self.args.workdir)
@@ -568,6 +574,7 @@ class PartitionDriver(object):
         n_procs = self.args.n_procs
         cpath, initial_nseqs = self.get_initial_cpath(n_procs)
         n_proc_list = []
+        self.istep = 0
         start = time.time()
         while n_procs > 0:
             print '%d clusters with %d proc%s' % (len(cpath.partitions[cpath.i_best_minus_x]), n_procs, utils.plural(n_procs))
@@ -576,6 +583,7 @@ class PartitionDriver(object):
             if self.are_we_finished_clustering(n_procs, cpath):
                 break
             n_procs, cpath = self.prepare_next_iteration(n_proc_list, cpath, initial_nseqs)
+            self.istep += 1
 
         if self.args.max_cluster_size is not None:
             print '   --max-cluster-size (partitiondriver): merging shared clusters'
@@ -602,15 +610,20 @@ class PartitionDriver(object):
         if self.args.n_precache_procs is not None:  # command line override
             return self.args.n_precache_procs
 
-        seqs_per_proc = 500  # 2.5 mins (at something like 0.3 sec/seq)
-        if nseqs > 3000:
-            seqs_per_proc *= 2
-        if nseqs > 10000:
-            seqs_per_proc *= 1.5
+        if nseqs < 1000:
+            seqs_per_proc = 250
+        elif nseqs < 3000:
+            seqs_per_proc = 500
+        else:
+            seqs_per_proc = 1000
+        if self.args.batch_system is not None:  # if we're using a batch system, all the overhead (and priority issues) means it makes sense to have fewer processes
+            seqs_per_proc *= 4
         n_precache_procs = int(math.ceil(float(nseqs) / seqs_per_proc))
         n_precache_procs = min(n_precache_procs, self.args.n_max_procs)  # I can't get more'n a few hundred slots at a time, so it isn't worth using too much more than that
         if self.args.batch_system is None:  # if we're not on a batch system, make sure it's less than the number of cpus
             n_precache_procs = min(n_precache_procs, multiprocessing.cpu_count())
+        else:
+            n_precache_procs = min(n_precache_procs, self.args.n_procs)  # aw, screw it, just limit it to --n-procs
 
         return n_precache_procs
 
@@ -833,7 +846,11 @@ class PartitionDriver(object):
         if n_procs == 1:
             return self.args.workdir
         else:
-            return self.args.workdir + '/hmm-' + str(iproc)
+            subworkdir = self.args.workdir
+            if self.istep is not None:  # have to use a separate darn subdir for each iteration so the network filesystem doesn't screw everything up (same thing in waterer)
+                subworkdir += '/istep-%d' % self.istep
+                self.subworkdirs.append(subworkdir)
+            return subworkdir + '/hmm-' + str(iproc)
 
     # ----------------------------------------------------------------------------------------
     def print_partition_dbgfo(self):
