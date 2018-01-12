@@ -1964,6 +1964,10 @@ def run_cmd(cmdfo, batch_system=None, batch_options=None, nodelist=None):
                 prefix += ' --cpus-per-task %d' % cmdfo['threads']
             if nodelist is not None:
                 prefix += ' --nodelist ' + ','.join(nodelist)
+                cmdfo['nodelist'] = nodelist  # this is a hackey way of passing this info to finish_process()
+            else:
+                if 'nodelist' in cmdfo:
+                    del cmdfo['nodelist']
         elif batch_system == 'sge':
             prefix = 'qsub -sync y -b y -V -o ' + fout + ' -e ' + ferr
             fout = None
@@ -2066,7 +2070,10 @@ def finish_process(iproc, procs, n_tries, cmdfo, n_max_tries, dbgfo=None, batch_
             logstr = subprocess.check_output(['tail', '-n30', cmdfo['logdir'] + '/' + strtype])
             print pad_lines(logstr, padwidth=12);
     if batch_system is not None and batch_system == 'slurm':  # cmdfo['cmd_str'].split()[0] == 'srun' and
-        nodelist = get_slurm_node(cmdfo['logdir'] + '/err')
+        if 'nodelist' in cmdfo:
+            nodelist = cmdfo['nodelist']
+        else:
+            nodelist = get_slurm_node(cmdfo['logdir'] + '/err')
         if nodelist is not None:
             print '    failed on node %s' % nodelist
         # try:
@@ -2082,7 +2089,7 @@ def finish_process(iproc, procs, n_tries, cmdfo, n_max_tries, dbgfo=None, batch_
 
     if n_tries[iproc] < n_max_tries:
         print '    restarting proc %d' % iproc
-        procs[iproc] = run_cmd(cmdfo, batch_system=batch_system, batch_options=batch_options)
+        procs[iproc] = run_cmd(cmdfo, batch_system=batch_system, batch_options=batch_options, nodelist=cmdfo['nodelist'] if 'nodelist' in cmdfo else None)
         n_tries[iproc] += 1
     else:
         failstr = 'exceeded max number of tries for cmd\n    %s\nlook for output in %s and %s' % (cmdfo['cmd_str'], cmdfo['workdir'], cmdfo['logdir'])
