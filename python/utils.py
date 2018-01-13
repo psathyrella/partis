@@ -1746,7 +1746,7 @@ def get_nodelist_from_slurm_shorthand(nodestr, known_nodes, debug=False):
     return nodes
 
 # ----------------------------------------------------------------------------------------
-def get_available_node_core_list(batch_config_fname, debug=False):
+def get_available_node_core_list(batch_config_fname, debug=False):  # for when you're running the whole thing within one slurm allocation, i.e. with  % salloc --nodes N ./bin/partis [...]
     if debug:
         print ''
         print '  figuring out slurm config'
@@ -1881,8 +1881,8 @@ def prepare_cmds(cmdfos, batch_system=None, batch_options=None, batch_config_fna
             for iproc in range(len(cmdfos)):
                 print '          %-3d    %s' % (iproc, corelist[iproc])
         assert len(corelist) >= len(cmdfos)
-
-    return corelist
+        for iproc in range(len(cmdfos)):  # it's kind of weird to keep batch_system and batch_options as keyword args while putting nodelist into the cmdfos, but they're just different enough that it makes sense (we're only using nodelist if we're inside an existing slurm allocation)
+            cmdfos[iproc]['nodelist'] = [corelist[iproc]]  # the downside to setting each proc's node list here is that each proc is stuck on that node for each restart (well, unless we decide to change it when we restart it)
 
 # ----------------------------------------------------------------------------------------
 def run_r(cmdlines, workdir, dryrun=False, print_time=None, debug=True):
@@ -1949,7 +1949,7 @@ def run_proc_functions(procs, n_procs=None, debug=False):  # <procs> is a list o
             break
 
 # ----------------------------------------------------------------------------------------
-def run_cmd(cmdfo, batch_system=None, batch_options=None, nodelist=None):
+def run_cmd(cmdfo, batch_system=None, batch_options=None):
     cmd_str = cmdfo['cmd_str']  # don't want to modify the str in <cmdfo>
     # print cmd_str
     # sys.exit()
@@ -1962,12 +1962,8 @@ def run_cmd(cmdfo, batch_system=None, batch_options=None, nodelist=None):
             prefix = 'srun --nodes 1 --ntasks 1'  # --exclude=data/gizmod.txt'
             if 'threads' in cmdfo:
                 prefix += ' --cpus-per-task %d' % cmdfo['threads']
-            if nodelist is not None:
-                prefix += ' --nodelist ' + ','.join(nodelist)
-                cmdfo['nodelist'] = nodelist  # this is a hackey way of passing this info to finish_process()
-            else:
-                if 'nodelist' in cmdfo:
-                    del cmdfo['nodelist']
+            if 'nodelist' in cmdfo:
+                prefix += ' --nodelist ' + ','.join(cmdfo['nodelist'])
         elif batch_system == 'sge':
             prefix = 'qsub -sync y -b y -V -o ' + fout + ' -e ' + ferr
             fout = None
@@ -1993,11 +1989,11 @@ def run_cmd(cmdfo, batch_system=None, batch_options=None, nodelist=None):
 def run_cmds(cmdfos, sleep=True, batch_system=None, batch_options=None, batch_config_fname=None, debug=None, ignore_stderr=False, n_max_tries=None):  # set sleep to False if your commands are going to run really really really quickly
     if n_max_tries is None:
         n_max_tries = 1 if batch_system is None else 3
-    corelist = prepare_cmds(cmdfos, batch_system=batch_system, batch_options=batch_options, batch_config_fname=batch_config_fname)
+    prepare_cmds(cmdfos, batch_system=batch_system, batch_options=batch_options, batch_config_fname=batch_config_fname)
     procs, n_tries = [], []
     per_proc_sleep_time = 0.01 / len(cmdfos)
     for iproc in range(len(cmdfos)):
-        procs.append(run_cmd(cmdfos[iproc], batch_system=batch_system, batch_options=batch_options, nodelist=[corelist[iproc]] if corelist is not None else None))
+        procs.append(run_cmd(cmdfos[iproc], batch_system=batch_system, batch_options=batch_options))
         n_tries.append(1)
         if sleep:
             time.sleep(per_proc_sleep_time)
@@ -2070,9 +2066,9 @@ def finish_process(iproc, procs, n_tries, cmdfo, n_max_tries, dbgfo=None, batch_
             logstr = subprocess.check_output(['tail', '-n30', cmdfo['logdir'] + '/' + strtype])
             print pad_lines(logstr, padwidth=12);
     if batch_system is not None and batch_system == 'slurm':  # cmdfo['cmd_str'].split()[0] == 'srun' and
-        if 'nodelist' in cmdfo:
+        if 'nodelist' in cmdfo:  # if we're doing everything from within an existing slurm allocation
             nodelist = cmdfo['nodelist']
-        else:
+        else:  # if, on the other hand, each process made its own allocation on the fly
             nodelist = get_slurm_node(cmdfo['logdir'] + '/err')
         if nodelist is not None:
             print '    failed on node %s' % nodelist
@@ -2089,7 +2085,7 @@ def finish_process(iproc, procs, n_tries, cmdfo, n_max_tries, dbgfo=None, batch_
 
     if n_tries[iproc] < n_max_tries:
         print '    restarting proc %d' % iproc
-        procs[iproc] = run_cmd(cmdfo, batch_system=batch_system, batch_options=batch_options, nodelist=cmdfo['nodelist'] if 'nodelist' in cmdfo else None)
+        procs[iproc] = run_cmd(cmdfo, batch_system=batch_system, batch_options=batch_options)
         n_tries[iproc] += 1
     else:
         failstr = 'exceeded max number of tries for cmd\n    %s\nlook for output in %s and %s' % (cmdfo['cmd_str'], cmdfo['workdir'], cmdfo['logdir'])

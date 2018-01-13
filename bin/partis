@@ -297,7 +297,7 @@ parent_parser.add_argument('--n-max-to-calc-per-process', default=250, help='if 
 parent_parser.add_argument('--min-hmm-step-time', default=2., help='if a clustering step takes fewer than this many seconds, always reduce n_procs')
 parent_parser.add_argument('--batch-system', choices=['slurm', 'sge'], help='batch system with which to attempt paralellization')
 parent_parser.add_argument('--batch-options', help='additional options to apply to --batch-system (e.g. --batch-options="--foo bar")')
-parent_parser.add_argument('--batch-config-fname', default='/etc/slurm-llnl/slurm.conf', help='system-wide batch system configuration file name')
+parent_parser.add_argument('--batch-config-fname', default='/etc/slurm-llnl/slurm.conf', help='system-wide batch system configuration file name')  # for when you're running the whole thing within one slurm allocation, i.e. with  % salloc --nodes N ./bin/partis [...]
 
 parent_parser.add_argument('--only-smith-waterman', action='store_true', help='Exit after finishing smith-waterman.')
 parent_parser.add_argument('--count-parameters', action='store_true', help='force parameter counting when action is not cache-parameters (presumably so that you can plot them)')
