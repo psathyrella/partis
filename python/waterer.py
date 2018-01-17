@@ -132,11 +132,12 @@ class Waterer(object):
         print '        writing sw results to %s' % cachebase
         glutils.write_glfo(cachebase + '-glfo', self.glfo)
         with open(cachefname, 'w') as outfile:
-            writer = csv.DictWriter(outfile, utils.annotation_headers + utils.sw_cache_headers)
+            csv_headers = utils.annotation_headers + utils.sw_cache_headers  # NOTE I'm not adding self.args.extra_annotation_columns here, since if they're in the sw cache file I'd have to deal with removing them when I read it
+            writer = csv.DictWriter(outfile, csv_headers)
             writer.writeheader()
             for query in self.info['queries']:  # NOTE does *not* write failed queries
                 outline = utils.get_line_for_output(self.info[query])  # convert lists to colon-separated strings and whatnot (doens't modify input dictionary)
-                outline = {k : v for k, v in outline.items() if k in utils.annotation_headers + utils.sw_cache_headers}  # remove the columns we don't want to output
+                outline = {k : v for k, v in outline.items() if k in csv_headers}  # remove the columns we don't want to output
                 writer.writerow(outline)
 
     # ----------------------------------------------------------------------------------------

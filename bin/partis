@@ -330,6 +330,7 @@ parent_parser.add_argument('--name-column', help='csv column name for sequence i
 parent_parser.add_argument('--seq-column', help='csv column name for nucleotide sequences')
 parent_parser.add_argument('--outfname', help='output file name')
 parent_parser.add_argument('--presto-output', action='store_true', help='write output file in presto format')
+parent_parser.add_argument('--extra-annotation-columns', help='Extra columns to add to the the (fairly minimal) set of information written by default to annotation output files (choose from: %s' % ' '.join(utils.extra_annotation_headers))  # NOTE '-columns' in command line arg, but '-headers' in utils (it's more consistent that way, I swear)
 parent_parser.add_argument('--linearham', action='store_true', help='write hmm input file in linearham format')
 parent_parser.add_argument('--cluster-annotation-fname', help='output file for cluster annotations (default is <--outfname>-cluster-annotations.csv)')
 parent_parser.add_argument('--parameter-dir', help='Directory to/from which to write/read sample-specific parameters. If not specified, a default location is used (and printed to std out). If it does not exist, we infer parameters before proceeding to the desired action.')
@@ -486,6 +487,7 @@ args.n_max_per_region = utils.get_arg_list(args.n_max_per_region, intify=True)
 args.write_additional_cluster_annotations = utils.get_arg_list(args.write_additional_cluster_annotations, intify=True)
 if args.write_additional_cluster_annotations is not None and len(args.write_additional_cluster_annotations) != 2:
     raise Exception('--write-additional-cluster-annotations must be specified as two numbers \'m:n\', but I got %s' % args.write_additional_cluster_annotations)
+args.extra_annotation_columns = utils.get_arg_list(args.extra_annotation_columns, choices=utils.extra_annotation_headers)
 
 args.region_end_exclusions = {r : [args.region_end_exclusion_length if ('%s_%s' % (r, e)) in utils.real_erosions else 0 for e in ['5p', '3p']] for r in utils.regions}
 args.region_end_exclusion_length = None  # there isn't really a big reason to set it to None, but this makes clear that I should only be using the dict version

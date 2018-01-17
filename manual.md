@@ -204,14 +204,11 @@ If however, you're doing less typical things (running on a subset of sequences i
 
 ### annotate
 
-Finds the Viterbi path (i.e., the most likely annotation/alignment) for each sequence, for example:
+In order to find the most likely annotation (VDJ assignment, deletion boundaries, etc.) for each sequence, run
 
 ```./bin/partis annotate --infname test/example.fa --outfname _output/example.csv```
 
-The output csv headers are listed in the table below, and you can view a colored ascii representation of the rearrangement events with the `view-annotations` action.
-An example of how to parse this output csv (say, if you want to further process the results) is in `bin/example-output-processing.py`.
-
-All columns listed as "colon-separated lists" are trivial/length one for single hmm, and contain actual colons for multi-hmm.
+The output csv file will by default contain the following columns:
 
 |   column header        |  description
 |------------------------|----------------------------------------------------------------------------
@@ -243,21 +240,20 @@ All columns listed as "colon-separated lists" are trivial/length one for single 
 | indel_reversed_seqs  |  colon-separated list of input sequences with indels "reversed" (i.e. undone), and with constant regions (fv/jf insertions) removed. Empty string if there are no indels, i.e. if it's the same as 'input_seqs'
 | duplicates     |  colon-separated list of "duplicate" sequences for each sequence, i.e. sequences which, after trimming fv/jf insertions, were identical and were thus collapsed.
 
-Note that `utils.process_input_line()` and `utils.get_line_for_output()` can be used to automate input/output (see for example `bin/example-output-processing.py`).
 
-Annotation is the algorithm of choice for annotating sequences where the clonal relationship is different i.e. no sequence in the dataset are from the same germinal center, and therefore are not related by having the same naive sequence. Examples of such datasets could be pooled datasets with BCR sequences from many individuals, where clonal relationship cannot be present.
-
-However for many applications sequence data is created unspecifically for a large amount of BCRs and will contain many sequences being from the same germinal center, hence also sharing the same naive sequence. Using this prior knowledge can greatly improve inference of VDJ gene combination and reconstruction of the naive sequence, and therefore when datasets allow for partitioning, the annotations from the partitioning algorithm should be preferred over the single-sequence annotation results.
+All columns listed as "colon-separated lists" are trivial/length one for single sequence annotation, i.e. are only length greater than one (contain actual colons) when the multi-hmm has been used for simultaneous annotation on several clonally-related sequences (typically through the cluster annotation output but partition action).
+You can view a colored ascii representation of the rearrangement events with the `view-annotations` action (see below).
+An example of how to parse this output csv (say, if you want to further process the results) is in `bin/example-output-processing.py`.
+Additional columns (for instance, cdr3_seqs) can be specified with the `--extra-annotation-columns` option (run `./bin/partis annotate --help` to see the choices).
 
 ### partition
 
-Example invocation:
+In order to cluster sequences into clonal families, run
 
 ```./bin/partis partition --infname test/example.fa --outfname _output/example.csv```
 
-The output csv file headers are listed in the table below, and you can view a colored ascii representation of the clusters with the `view-partitions` action.
-We write one line for the most likely partition (with the lowest logprob), as well as a number of lines for the surrounding less-likely partitions (set with `--n-partitions-to-write`)
-An example of how to parse this output csv (say, if you want to further process the results) is in `bin/example-output-processing.py`.
+This writes a list of partitions (see table below for the csv headers), with one line for the most likely partition (with the lowest logprob), as well as a number of lines for the surrounding less-likely partitions.
+It also writes the annotation for each cluster in the most likely partition to a separate file (by default `<--outfname>.replace('.csv', '-cluster-annotations.csv')`, change this with `--cluster-annotation-fname`).
 
 |   column header  |  description
 |------------------|----------------------------------------------------------------------------
@@ -265,6 +261,8 @@ An example of how to parse this output csv (say, if you want to further process 
 | n_clusters       |  Number of clusters (clonal families in this partition)
 | partition        |  String representing the clusters, where clusters are separated by ; and sequences within clusters by :, e.g. 'a:b;c:d:e'
 | n_procs          |  Number of processes which were simultaneously running for this clusterpath. In practice, final output is usually only written for n_procs = 1
+
+An example of how to parse these output csvs is in `bin/example-output-processing.py`.
 
 By default, this uses the most accurate and slowest method: hierarchical agglomeration with, first, hamming distance between naive sequences for distant clsuters, and full likelihood calculation for more similar clusters.
 Like most clustering algorithms, this scales rather closer than you'd like to quadratically than it does to linearly.
@@ -302,9 +300,7 @@ Care must be exercised when interpreting the resulting partition, since it will 
 
 ##### cluster annotations
 
-If --outfname is set, in addition to the clusters in that file, the most likely annotation for each final cluster are written to --cluster-annotation-fname (default `<--outfname>.replace('.csv', '-cluster-annotations.csv')`).
-
-To annotate an arbitrary collection of sequences using simultaneous multi-HMM inference (which is much, much more accurate than annotating the sequences individually), you can combine the `--queries` and `--n-simultaneous-seqs` arguments.
+To annotate an arbitrary collection of sequences using simultaneous multi-HMM inference (which is much more accurate than annotating the sequences individually), you can combine the `--queries` and `--n-simultaneous-seqs` arguments.
 For instance, if you knew from partitioning that three sequences `a`, `b`, and `c` were clonal, you could run:
 
 ``` ./bin/partis annotate --infname in.fa --queries a:b:c --n-simultaneous-seqs 3 --outfname abc-annotation.csv```

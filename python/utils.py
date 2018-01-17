@@ -295,6 +295,9 @@ annotation_headers = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length',
                      + [r + '_per_gene_support' for r in regions] \
                      + [e + '_del' for e in all_erosions] + [b + '_insertion' for b in all_boundaries] \
                      + functional_columns
+extra_annotation_headers = [  # you can specify additional columns (that you want written to csv) on the command line from among these choices (in addition to <annotation_headers>)
+    'cdr3_seqs',  # NOTE I'm not adding it to linekeys['per_seq'] since I don't want it to ever be in the regular <line> dicts, i.e. it's only added to a special dict immediately prior to writing the csv
+] + list(implicit_linekeys)  # NOTE some of the ones in <implicit_linekeys> are already in <annotation_headers>
 sw_cache_headers = ['k_v', 'k_d', 'padlefts', 'padrights', 'all_matches', 'mut_freqs']
 partition_cachefile_headers = ('unique_ids', 'logprob', 'naive_seq', 'naive_hfrac', 'errors')  # these have to match whatever bcrham is expecting
 bcrham_dbgstrs = {
@@ -1615,7 +1618,7 @@ def process_input_line(info, hmm_cachefile=False):
             info[key] = [[] for _ in range(len(info['unique_ids']))]
 
 # ----------------------------------------------------------------------------------------
-def get_line_for_output(info):
+def get_line_for_output(info, extra_columns=None):
     """ Reverse the action of process_input_line() """
     outfo = {}
     for key in info:
@@ -1641,6 +1644,15 @@ def get_line_for_output(info):
             outfo[key] = ';'.join(outfo[key])
         else:
             outfo[key] = str_fcn(info[key])
+
+    if extra_columns is not None:
+        for key in extra_columns:
+            if key in outfo:  # i.e. it's a (probably implicit) header that's in our standard <line>, but that we don't write to file, so we don't need to add it
+                continue
+            if key == 'cdr3_seqs':  # NOTE not in utils.linekeys['per_seq'] (see note there)
+                outfo[key] = ':'.join([info['seqs'][iseq][info['codon_positions']['v'] : info['codon_positions']['j'] + 3] for iseq in range(len(info['unique_ids']))])  # NOTE using <info>, since <outfo> was already converted to strings for writing
+            else:  # shouldn't actually get to here, since we already enforce utils.extra_annotation_headers as the choices for args.extra_annotation_columns
+                raise Exception('unsuported extra annotation column \'%s\'' % key)
 
     return outfo
 

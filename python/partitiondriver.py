@@ -1762,12 +1762,15 @@ class PartitionDriver(object):
             outpath = os.getcwd() + '/' + outpath
 
         with open(outpath, 'w') as outfile:
-            writer = csv.DictWriter(outfile, utils.annotation_headers)
+            csv_headers = utils.annotation_headers
+            if self.args.extra_annotation_columns is not None:
+                csv_headers += self.args.extra_annotation_columns
+            writer = csv.DictWriter(outfile, csv_headers)
             writer.writeheader()
             # hmm annotations
             for line in annotations.values():
-                outline = utils.get_line_for_output(line)  # convert lists to colon-separated strings and whatnot (doesn't modify <line>
-                outline = {k : v for k, v in outline.items() if k in utils.annotation_headers}  # remove the columns we don't want to output
+                outline = utils.get_line_for_output(line, extra_columns=self.args.extra_annotation_columns)  # convert lists to colon-separated strings and whatnot (doesn't modify <line>
+                outline = {k : v for k, v in outline.items() if k in csv_headers}  # remove the columns we don't want to output
                 writer.writerow(outline)
 
             if not dont_write_failed_queries:  # write empty lines for seqs that failed either in sw or the hmm
