@@ -846,7 +846,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def subworkdir(self, iproc, n_procs):
-        if n_procs == 1:
+        if n_procs == 1:  # NOTE it kind of sucks not using the <self.istep> stuff for n_procs=1 (and also not using it for either naive sequence precaching or cluster annotation), but there's too many different places where stuff would need to change and I don't want to fix it now.
             return self.args.workdir
         else:
             subworkdir = self.args.workdir
