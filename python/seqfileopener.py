@@ -100,11 +100,8 @@ def post_process(input_info, reco_info, args, infname, found_seed, is_data, ilin
                                                                                                       (' and specifically kept %s' % ' '.join(included_queries)) if len(included_queries) > 0 else '')
 
 # ----------------------------------------------------------------------------------------
-def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, glfo=None, simglfo=None, quiet=False):
+def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, simglfo=None, quiet=False):
     """ return list of sequence info from files of several types """
-
-    if not is_data and glfo is None:
-        print '  WARNING glfo is None, so not adding implicit info'
 
     suffix = utils.getsuffix(infname)
     if len(re.findall('\.[ct]sv', suffix)) > 0:

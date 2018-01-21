@@ -478,6 +478,9 @@ args.n_fewer_procs = args.n_procs[0] if len(args.n_procs) == 1 else args.n_procs
 args.n_procs = args.n_procs[0]
 args.queries = utils.get_arg_list(args.queries)
 args.queries_to_include = utils.get_arg_list(args.queries_to_include)
+if args.queries_to_include is None and args.seed_unique_id is not None:
+    print '  %s adding empty --seed-unique-id to empty --queries-to-include' % utils.color('red', 'note')  # I'm not sure I really want to do this, but I think it's ok
+    args.queries_to_include = [args.seed_unique_id]
 args.reco_ids = utils.get_arg_list(args.reco_ids)
 args.istartstop = utils.get_arg_list(args.istartstop, intify=True)
 if args.istartstop is not None:

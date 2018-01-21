@@ -47,13 +47,13 @@ class PartitionDriver(object):
         utils.prep_dir(self.args.workdir)
         self.my_gldir = self.args.workdir + '/' + glutils.glfo_dir
         self.glfo = glutils.read_glfo(initial_gldir, locus=self.args.locus, only_genes=self.args.only_genes)
-        self.simglfo = self.glfo
+        self.simglfo = self.glfo  # TODO it would be nicer, in the future, to store the simulation germline info in the simulation file rather than doing this
         if self.args.simulation_germline_dir is not None:
             self.simglfo = glutils.read_glfo(self.args.simulation_germline_dir, locus=self.args.locus)  # NOTE uh, I think I don't want to apply <self.args.only_genes>
 
         self.input_info, self.reco_info = None, None
         if self.args.infname is not None:
-            self.input_info, self.reco_info = seqfileopener.get_seqfile_info(self.args.infname, self.args.is_data, n_max_queries=self.args.n_max_queries, args=self.args, glfo=self.glfo, simglfo=self.simglfo)
+            self.input_info, self.reco_info = seqfileopener.get_seqfile_info(self.args.infname, self.args.is_data, n_max_queries=self.args.n_max_queries, args=self.args, simglfo=self.simglfo)
             if len(self.input_info) > 1000:
                 if self.args.n_procs == 1:
                     print '  note:! running on %d sequences spread over %d processes. This will be kinda slow, so it might be a good idea to set --n-procs N to the number of processors on your local machine, or look into non-local parallelization with --batch-system.\n' % (len(self.input_info), self.args.n_procs)

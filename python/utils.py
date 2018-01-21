@@ -619,6 +619,7 @@ def align_seqs(ref_seq, seq):  # should eventually change name to align_two_seqs
 
 # ----------------------------------------------------------------------------------------
 def cons_seq(threshold, aligned_seqfos=None, unaligned_seqfos=None, debug=False):
+    """ return consensus sequence from either aligned or unaligned seqfos """
     print '%s decide how you want to do these imports' % color('red', 'hey')
     from cStringIO import StringIO
     from Bio.Align import AlignInfo
