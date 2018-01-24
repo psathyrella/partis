@@ -181,7 +181,7 @@ class Tester(object):
 
         # choose a seed uid
         if name == 'seed-partition-' + info['input_stype'] + '-simu':
-            seed_uid, _ = utils.choose_seed_unique_id(args.glfo_dir, args.locus, self.infnames[info['input_stype']]['simu'], 5, 8, n_max_queries=int(self.n_partition_queries), debug=False)
+            seed_uid, _ = utils.choose_seed_unique_id(args.locus, self.infnames[info['input_stype']]['simu'], 5, 8, n_max_queries=int(self.n_partition_queries), debug=False)
             info['extras'] += ['--seed-unique-id', seed_uid]
 
     # ----------------------------------------------------------------------------------------

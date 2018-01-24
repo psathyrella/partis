@@ -1158,7 +1158,7 @@ def get_seqfile(args, datafname, label, n_leaves, mut_mult):
 
 # ----------------------------------------------------------------------------------------
 def get_seed_info(args, seqfname, n_leaves):
-    return utils.choose_seed_unique_id(args.gldir, seqfname, args.seed_cluster_bounds[0], args.seed_cluster_bounds[1], args.iseed)
+    return utils.choose_seed_unique_id(seqfname, args.seed_cluster_bounds[0], args.seed_cluster_bounds[1], args.iseed)
 
 # ----------------------------------------------------------------------------------------
 def get_seed_cluster(outfname):

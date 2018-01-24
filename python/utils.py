@@ -2774,9 +2774,8 @@ def find_genes_that_have_hmms(parameter_dir):
     return genes
 
 # ----------------------------------------------------------------------------------------
-def choose_seed_unique_id(gldir, locus, simfname, seed_cluster_size_low, seed_cluster_size_high, iseed=None, n_max_queries=-1, debug=True):
-    glfo = glutils.read_glfo(gldir, locus)
-    _, reco_info = seqfileopener.get_seqfile_info(simfname, is_data=False, glfo=glfo, n_max_queries=n_max_queries, quiet=not debug)
+def choose_seed_unique_id(locus, simfname, seed_cluster_size_low, seed_cluster_size_high, iseed=None, n_max_queries=-1, debug=True):
+    _, reco_info = seqfileopener.get_seqfile_info(simfname, is_data=False, n_max_queries=n_max_queries, quiet=not debug)
     true_partition = get_true_partition(reco_info)
 
     nth_seed = 0  # don't always take the first one we find
