@@ -3,6 +3,7 @@ import string
 import sys
 import scipy
 import numpy as np
+import argparse
 
 from matplotlib import pyplot as plt
 from matplotlib.collections import LineCollection
@@ -16,7 +17,7 @@ sys.path.insert(0, 'python')
 import utils
 
 # ----------------------------------------------------------------------------------------
-def seqs():
+def seqs(n_components, n_clusters, seed):
     # seqfos = [
     #     {'name' : 'a', 'seq' : 'CCGGTTGAACGGTA', 'color' : 'forestgreen'},
     #     {'name' : 'b', 'seq' : 'ACGGTTGAACGGTA', 'color' : 'red'},
@@ -25,8 +26,12 @@ def seqs():
     #     # # {'name' : 'e', 'seq' : 'TCGGTTGAACGGTA', 'color' : 'black'},
     # ]
 
-    seqfos = utils.read_fastx('head-msa.fa')
+    msafname = 'msa.fa'
+    seqfos = utils.read_fastx('data/germlines/human/igh/ighv.fasta')
+    utils.align_many_seqs(seqfos, outfname=msafname)
+    seqfos = utils.read_fastx(msafname)
 
+    print '  distances'
     # translations = string.maketrans('ACGT-', '01234')
     # def convert(seq):
     #     return [int(c) for c in seq.translate(translations)]
@@ -35,29 +40,33 @@ def seqs():
     # similarities = scipy.spatial.distance.squareform(similarities)
     similarities = scipy.spatial.distance.squareform([utils.hamming_fraction(seqfos[i]['seq'], seqfos[j]['seq']) for i in range(len(seqfos)) for j in range(i + 1, len(seqfos))])
 
-    seed = np.random.RandomState(seed=3)
-    mds = manifold.MDS(n_components=2, max_iter=1000, eps=1e-9, random_state=seed, dissimilarity="precomputed", n_jobs=-1)
-    pos = mds.fit_transform(similarities)
+    print '  mds'
+    random_state = np.random.RandomState(seed=3)
+    mds = manifold.MDS(n_components=n_components, max_iter=1000, eps=1e-9, random_state=random_state, dissimilarity="precomputed", n_jobs=-1)
+    pos = mds.fit_transform(similarities)  # hm, should this be mds.fit(similarities).embedding_?
 
-    # not sure if this makes sense in the current context
-    # pos *= np.sqrt((seqfos ** 2).sum()) / np.sqrt((pos ** 2).sum())
+    print '  kmeans'
+    kmeans = KMeans(n_clusters=n_clusters, random_state=random_state).fit(pos)
 
-    # clf = PCA(n_components=2)
-    # pos = clf.fit_transform(pos)
+    print '  plot'
+    if n_components % 2 != 0:
+        print '%s odd number of components' % utils.color('red', 'warning')
 
-    kmeans = KMeans(n_clusters=3, random_state=seed).fit(pos)
-    colors = ['forestgreen', 'red', 'blue', 'black']
+    def plot_component_pair(ipair, plotname):
+        colors = ['forestgreen', 'red', 'blue', 'black', 'yellow', 'purple', 'orange']
+        fig = plt.figure(1)
+        ax = plt.axes([0., 0., 1., 1.])
+        for iseq in range(len(seqfos)):
+            plt.scatter(pos[iseq][ipair], pos[iseq][ipair + 1], color=colors[kmeans.labels_[iseq]])
+        # plt.scatter(pos[:, 0], pos[:, 1], color='forestgreen', lw=0, label='MDS')
 
-    fig = plt.figure(1)
-    ax = plt.axes([0., 0., 1., 1.])
+        # plt.legend(scatterpoints=1, loc='best', shadow=False)
 
-    for iseq in range(len(seqfos)):
-        plt.scatter(pos[iseq][0], pos[iseq][1], color=colors[kmeans.labels_[iseq]])
-    # plt.scatter(pos[:, 0], pos[:, 1], color='forestgreen', lw=0, label='MDS')
+        plt.savefig(plotname)
 
-    # plt.legend(scatterpoints=1, loc='best', shadow=False)
-
-    plt.savefig('tmp.svg')
+    for ipair in range(0, n_components - 1, 2):
+        print '  %d' % ipair
+        plot_component_pair(ipair, 'tmp-%d.svg' % ipair)
 
 # ----------------------------------------------------------------------------------------
 def example():
@@ -109,5 +118,11 @@ def example():
 
     plt.savefig('tmp.svg')
 
+parser = argparse.ArgumentParser()
+parser.add_argument('--n-clusters', type=int, required=True)
+parser.add_argument('--n-components', type=int, default=2)
+parser.add_argument('--seed', type=int, default=1)
+args = parser.parse_args()
+
 # example()
-seqs()
+seqs(n_components=args.n_components, n_clusters=args.n_clusters, seed=args.seed)
