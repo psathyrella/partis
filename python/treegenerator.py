@@ -87,7 +87,7 @@ def rescale_tree(treestr, new_height, debug=False):
 class TreeGenerator(object):
     def __init__(self, args, parameter_dir, seed):
         self.args = args
-        self.branch_lengths = self.read_mute_freqs(parameter_dir)  # for each region (and 'all'), a list of branch lengths and a list of corresponding probabilities (i.e. two lists: bin centers and bin contents). Also, the mean of the hist.
+        self.branch_lengths = self.read_treegenerator_mfreqs(parameter_dir)  # for each region (and 'all'), a list of branch lengths and a list of corresponding probabilities (i.e. two lists: bin centers and bin contents). Also, the mean of the hist.
         self.n_trees_each_run = '1'  # it would no doubt be faster to have this bigger than 1, but this makes it easier to vary the n-leaf distribution
         if self.args.debug:
             print '  generating %d trees,' % self.args.n_trees,
@@ -126,7 +126,7 @@ class TreeGenerator(object):
         return hist
 
     #----------------------------------------------------------------------------------------
-    def read_mute_freqs(self, parameter_dir):
+    def read_treegenerator_mfreqs(self, parameter_dir):
         # NOTE these are mute freqs, not branch lengths, but it's ok for now
         branch_lengths = {}
         for mtype in ['all',] + utils.regions:

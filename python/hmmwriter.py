@@ -211,16 +211,16 @@ class HmmWriter(object):
             print '%s' % utils.color_gene(gene_name)
 
         self.n_occurences = utils.read_single_gene_count(self.indir, gene_name, debug=self.debug)  # how many times did we observe this gene in data?
-        replacement_genes = None
+        approved_genes = [gene_name]
         # NOTE this never happens any more, since partitiondriver.cache_parameters() resets <args.min_observations_to_write> if it's arger than 10*(number of sequences)
-        if self.n_occurences < self.args.min_observations_to_write:  # if we didn't see it enough, average over all the genes that find_replacement_genes() gives us
+        if self.n_occurences < self.args.min_observations_to_write:  # if we didn't see it enough, average also over all the genes that find_replacement_genes() gives us
             if self.debug:
                 print '      only saw it %d times (wanted %d), so use info from all other genes' % (self.n_occurences, self.args.min_observations_to_write)
-            replacement_genes = utils.find_replacement_genes(self.indir, self.args.min_observations_to_write, gene_name, debug=self.debug)
+            approved_genes += utils.find_replacement_genes(self.indir, self.args.min_observations_to_write, gene_name, debug=self.debug)
 
-        self.erosion_probs = self.read_erosion_info(gene_name, replacement_genes)
-        self.insertion_probs, self.insertion_content_probs = self.read_insertion_info(gene_name, replacement_genes)
-        self.mute_freqs = paramutils.read_mute_freqs(self.indir, this_gene=gene_name, locus=self.args.locus, approved_genes=replacement_genes)  # weighted averages over genes
+        self.erosion_probs = self.read_erosion_info(approved_genes)
+        self.insertion_probs, self.insertion_content_probs = self.read_insertion_info(approved_genes)
+        self.mute_freqs = paramutils.read_mute_freqs_with_weights(self.indir, approved_genes)  # weighted averages over genes
         self.mute_counts = paramutils.read_mute_counts(self.indir, gene_name, self.args.locus)  # raw per-{ACGT} counts
         self.process_mutation_info()  # smooth/interpolation/whatnot for <self.mute_freqs> and <self.mute_counts>
         # NOTE i'm using a hybrid approach with mute_freqs and mute_counts -- the only thing I get from mute_counts is the ratios of the different bases, whereas the actual freq comes from mute_freqs (which has all the corrections/smooth/bullshit)
@@ -326,17 +326,15 @@ class HmmWriter(object):
                 erosion_probs[n_eroded] += 1
 
     # ----------------------------------------------------------------------------------------
-    def read_erosion_info(self, this_gene, approved_genes=None):
+    def read_erosion_info(self, approved_genes):
         # NOTE that d erosion lengths depend on each other... but I don't think that's modellable with an hmm. At least for the moment we integrate over the other erosion
-        if approved_genes is None:
-            approved_genes = [this_gene, ]
         eprobs = {}
         genes_used = set()
         for erosion in utils.all_erosions:
             if erosion[0] != self.region:
                 continue
             eprobs[erosion] = {}
-            if this_gene == glutils.dummy_d_genes[self.args.locus]:
+            if approved_genes[0] == glutils.dummy_d_genes[self.args.locus]:
                 eprobs[erosion][0] = 1.  # always erode zero bases
                 continue
             deps = utils.column_dependencies[erosion + '_del']
@@ -388,14 +386,12 @@ class HmmWriter(object):
         return eprobs
 
     # ----------------------------------------------------------------------------------------
-    def read_insertion_info(self, this_gene, approved_genes=None):
-        if approved_genes is None:  # if we aren't explicitly passed a list of genes to use, we just use the gene for which we're actually writing the hmm
-            approved_genes = [this_gene, ]
+    def read_insertion_info(self, approved_genes):
         iprobs, icontentprobs = {}, {}
         genes_used = set()
         for insertion in self.insertions:
             iprobs[insertion] = {}
-            if this_gene == glutils.dummy_d_genes[self.args.locus]:
+            if approved_genes[0] == glutils.dummy_d_genes[self.args.locus]:
                 iprobs[insertion][0] = 1.  # always insert zero bases
                 icontentprobs[insertion] = {n : 0.25 for n in utils.nukes}
                 continue
@@ -484,7 +480,7 @@ class HmmWriter(object):
         return icontentprobs
 
     # ----------------------------------------------------------------------------------------
-    def process_mutation_info(self):  # NOTE lots of shenanigans also in paramutils.read_mute_freqs() (but not paramutils.read_mute_counts())
+    def process_mutation_info(self):  # NOTE lots of shenanigans also in paramutils.read_mute_freqs_with_weights() (but not paramutils.read_mute_counts())
         gl_length = len(self.germline_seq)
 
         # first add anybody that's missing and apply some hard bounds/sanity checks

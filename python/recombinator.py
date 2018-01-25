@@ -109,24 +109,22 @@ class Recombinator(object):
 
 
     # ----------------------------------------------------------------------------------------
-    def get_mute_freqs(self, gene_or_insert_name):
-        if gene_or_insert_name not in self.all_mute_freqs:
-            self.read_mute_freq_stuff(gene_or_insert_name)
-        return self.all_mute_freqs[gene_or_insert_name]
+    def get_mute_freqs(self, gene):
+        if gene not in self.all_mute_freqs:
+            self.read_mute_freq_stuff(gene)
+        return self.all_mute_freqs[gene]
 
     # ----------------------------------------------------------------------------------------
-    def read_mute_freq_stuff(self, gene_or_insert_name):
-        if self.args.mutate_from_scratch:  # XXX GODDAMMIT i remember putting this 'xxx' here for a reason and I have no fucking clue what it was
-            self.all_mute_freqs[gene_or_insert_name] = {'overall_mean' : self.args.flat_mute_freq}
-        elif gene_or_insert_name[:2] in utils.boundaries:
-            replacement_genes = utils.find_replacement_genes(self.parameter_dir, min_counts=-1, all_from_region='v')
-            self.all_mute_freqs[gene_or_insert_name] = paramutils.read_mute_freqs(self.parameter_dir, this_gene=gene_or_insert_name, locus=self.args.locus, approved_genes=replacement_genes)
+    def read_mute_freq_stuff(self, gene):
+        assert gene[:2] not in utils.boundaries  # make sure <gene> isn't actually an insertion (we used to pass insertions in here separately, but now they're smooshed onto either end of d)
+        if self.args.mutate_from_scratch:
+            self.all_mute_freqs[gene] = {'overall_mean' : self.args.flat_mute_freq}
         else:
-            gene_counts = utils.read_overall_gene_probs(self.parameter_dir, only_gene=gene_or_insert_name, normalize=False, expect_zero_counts=True)
-            replacement_genes = None
-            if gene_counts < self.args.min_observations_to_write:  # if we didn't see it enough, average over all the genes that find_replacement_genes() gives us NOTE if <gene_or_insert_name> isn't in the dict, it's because it's <args.datadir> but not in the parameter dir UPDATE not using datadir like this any more, so previous statement may not be true
-                replacement_genes = utils.find_replacement_genes(self.parameter_dir, min_counts=self.args.min_observations_to_write, gene_name=gene_or_insert_name)
-            self.all_mute_freqs[gene_or_insert_name] = paramutils.read_mute_freqs(self.parameter_dir, this_gene=gene_or_insert_name, locus=self.args.locus, approved_genes=replacement_genes)
+            gene_counts = utils.read_overall_gene_probs(self.parameter_dir, only_gene=gene, normalize=False, expect_zero_counts=True)
+            approved_genes = [gene]
+            if gene_counts < self.args.min_observations_to_write:  # if we didn't see it enough, average over all the genes that find_replacement_genes() gives us NOTE if <gene> isn't in the dict, it's because it's <args.datadir> but not in the parameter dir UPDATE not using datadir like this any more, so previous statement may not be true
+                approved_genes += utils.find_replacement_genes(self.parameter_dir, min_counts=self.args.min_observations_to_write, gene_name=gene)
+            self.all_mute_freqs[gene] = paramutils.read_mute_freqs_with_weights(self.parameter_dir, approved_genes)
 
     # ----------------------------------------------------------------------------------------
     def combine(self, initial_irandom):
