@@ -79,7 +79,7 @@ class PartitionPlotter(object):
             xref = utils.hamming_distance(annotation['naive_seq'], ref_seq)
 
         xvals, yvals = zip(*[[annotation['n_mutations'][iseq], utils.hamming_distance(ref_seq, annotation['seqs'][iseq])] for iseq in range(len(cluster))])
-        hb = ax.hexbin(xvals, yvals, gridsize=100, cmap=plt.cm.Blues, bins='log')
+        hb = ax.hexbin(xvals, yvals, gridsize=40, cmap=plt.cm.Blues, bins='log')
 
         # add a red mark for the reference sequence
         yref = 0
@@ -87,7 +87,7 @@ class PartitionPlotter(object):
         ax.text(xref, yref, ref_label, color='red', fontsize=8)
 
         ylabel = 'identity to %s' % ref_label
-        plotting.mpl_finish(ax, base_plotdir + '/overall', plotname, xlabel='N mutations', ylabel=ylabel)
+        plotting.mpl_finish(ax, base_plotdir + '/overall', plotname, xlabel='N mutations', ylabel=ylabel, title='%d sequences'  % len(cluster))
 
     # ----------------------------------------------------------------------------------------
     def make_single_hexbin_size_vs_shm_plot(self, sorted_clusters, annotations, repertoire_size, base_plotdir, plotname, n_max_mutations=100, log_cluster_size=False, debug=False):  # NOTE not using <repertoire_size> any more, but don't remember if there was a reason I should leave it
@@ -312,9 +312,11 @@ class PartitionPlotter(object):
         self.make_single_hexbin_size_vs_shm_plot(sorted_clusters, annotations, repertoire_size, base_plotdir, get_fname(hexbin=True), n_max_mutations=n_max_mutations, log_cluster_size=True)
         fnames.append(get_fname(hexbin=True) + '-log')
 
-        # for iclust in range(len(sorted_clusters)):
-        #     self.make_single_hexbin_shm_vs_identity_plot(sorted_clusters[iclust], annotations[':'.join(sorted_clusters[iclust])], base_plotdir, get_fname(cluster_rank=iclust))
-        #     fnames.append(get_fname(cluster_rank=iclust))
+        for iclust in range(len(sorted_clusters)):
+            self.make_single_hexbin_shm_vs_identity_plot(sorted_clusters[iclust], annotations[':'.join(sorted_clusters[iclust])], base_plotdir, get_fname(cluster_rank=iclust))
+            fnames.append(get_fname(cluster_rank=iclust))
+            if iclust > 9:
+                print '    stopping after tenth shm vs identity plot'
 
         n_per_row = 4
         fnames = [fnames[i : i + n_per_row] for i in range(0, len(fnames), n_per_row)]
