@@ -347,7 +347,7 @@ parent_parser.add_argument('--only-overall-plots', action='store_true', help='do
 
 parent_parser.add_argument('--default-initial-germline-dir', default=partis_dir + '/data/germlines', help='For internal use only. To specify your own germline directory from which to start, use --initial-germline-dir instead.')
 parent_parser.add_argument('--initial-germline-dir', help='Directory with fastas from which to read germline set. Only used when caching parameters, during which its contents is copied into --parameter-dir, perhaps (i.e. if specified) with modification. NOTE default is set below, because control flow is too complicated for argparse')
-parent_parser.add_argument('--simulation-germline-dir', help='Germline directory that was used for simulation (only used when --plot-annotation-performance is set)')
+parent_parser.add_argument('--simulation-germline-dir', help='Germline directory that was used for simulation (used if --is-simu is set, altough if the default germline info is similar to that used for simulation it may not be necessary)')
 parent_parser.add_argument('--aligned-germline-fname', help='fasta file with alignments for each V gene')
 
 parent_parser.add_argument('--n-alleles-per-gene', type=int, default=None, help='number of alleles to assume per gene when removing spurious alleles during parameter caching (default is set below -- 1 if looking for new alleles, otherwise 2) NOTE difference to --n-sim-alleles-per-gene')
@@ -479,7 +479,7 @@ args.n_procs = args.n_procs[0]
 args.queries = utils.get_arg_list(args.queries)
 args.queries_to_include = utils.get_arg_list(args.queries_to_include)
 if args.queries_to_include is None and args.seed_unique_id is not None:
-    print '  %s adding empty --seed-unique-id to empty --queries-to-include' % utils.color('red', 'note')  # I'm not sure I really want to do this, but I think it's ok
+    print '  %s adding --seed-unique-id to empty --queries-to-include' % utils.color('red', 'note')  # I'm not sure I really want to do this, but I think it's ok
     args.queries_to_include = [args.seed_unique_id]
 args.reco_ids = utils.get_arg_list(args.reco_ids)
 args.istartstop = utils.get_arg_list(args.istartstop, intify=True)
