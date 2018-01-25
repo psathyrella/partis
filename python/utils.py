@@ -1370,7 +1370,7 @@ def read_overall_gene_probs(indir, only_gene=None, normalize=True, expect_zero_c
             return counts[get_region(only_gene)][only_gene]
 
 # ----------------------------------------------------------------------------------------
-def find_replacement_genes(param_dir, min_counts, gene_name=None, debug=False, all_from_region=''):
+def find_replacement_genes(param_dir, min_counts, gene_name=None, debug=False, all_from_region=''):  # NOTE if <gene_name> isn't in <param_dir>, it won't be among the returned genes
     if gene_name is not None:  # if you specify <gene_name> you shouldn't specify <all_from_region>
         assert all_from_region == ''
         region = get_region(gene_name)
@@ -1402,7 +1402,7 @@ def find_replacement_genes(param_dir, min_counts, gene_name=None, debug=False, a
         if total_counts >= min_counts:
             return_list = [vals['gene'] for vals in lists[list_type]]
             if debug:
-                print '      returning all %s for %s (%d genes, %d total counts)' % (list_type + 's', gene_name, len(return_list), total_counts)
+                print '      returning all %s for %s (%d gene%s, %d total counts)' % (list_type + 's', color_gene(gene_name), len(return_list), plural(len(return_list)), total_counts)
             return return_list
         else:
             if debug:
