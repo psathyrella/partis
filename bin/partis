@@ -478,9 +478,6 @@ args.n_fewer_procs = args.n_procs[0] if len(args.n_procs) == 1 else args.n_procs
 args.n_procs = args.n_procs[0]
 args.queries = utils.get_arg_list(args.queries)
 args.queries_to_include = utils.get_arg_list(args.queries_to_include)
-if args.queries_to_include is None and args.seed_unique_id is not None:
-    print '  %s adding --seed-unique-id to empty --queries-to-include' % utils.color('red', 'note')  # I'm not sure I really want to do this, but I think it's ok
-    args.queries_to_include = [args.seed_unique_id]
 args.reco_ids = utils.get_arg_list(args.reco_ids)
 args.istartstop = utils.get_arg_list(args.istartstop, intify=True)
 if args.istartstop is not None:
@@ -510,6 +507,12 @@ if args.seed_unique_id is not None:
         raise Exception('seed uid %s not in --queries %s' % (args.seed_unique_id, ' '.join(args.queries)))
     if args.random_seed_seq:
         raise Exception('can\'t specify both --seed-unique-id and --random-seed-seq')
+
+    if args.queries_to_include is None:  # make sure the seed is in --queries-to-include
+        args.queries_to_include = [args.seed_unique_id]
+    elif args.seed_unique_id not in args.queries_to_include:
+        args.queries_to_include = [args.seed_unique_id] + args.queries_to_include  # may as well put it first, I guess (?)
+
 if args.sw_debug is None:  # if not explicitly set, set equal to regular debug
     args.sw_debug = args.debug
 
