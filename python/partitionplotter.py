@@ -86,6 +86,15 @@ class PartitionPlotter(object):
         ax.plot([xref], [yref], color='red', marker='.', markersize=10)
         ax.text(xref, yref, ref_label, color='red', fontsize=8)
 
+        if self.args.queries_to_include is not None:  # note similarity to code in make_single_hexbin_size_vs_shm_plot()
+            queries_to_include_in_this_cluster = set(cluster) & set(self.args.queries_to_include)
+            for uid in queries_to_include_in_this_cluster:
+                iseq = cluster.index(uid)
+                xval = annotation['n_mutations'][iseq]
+                yval = utils.hamming_distance(ref_seq, annotation['seqs'][iseq])
+                ax.plot([xval], [yval], color='red', marker='.', markersize=10)
+                ax.text(xval, yval, uid, color='red', fontsize=8)
+
         ylabel = 'identity to %s' % ref_label
         plotting.mpl_finish(ax, base_plotdir + '/overall', plotname, xlabel='N mutations', ylabel=ylabel, title='%d sequences'  % len(cluster))
 
@@ -312,12 +321,18 @@ class PartitionPlotter(object):
         self.make_single_hexbin_size_vs_shm_plot(sorted_clusters, annotations, repertoire_size, base_plotdir, get_fname(hexbin=True), n_max_mutations=n_max_mutations, log_cluster_size=True)
         fnames.append(get_fname(hexbin=True) + '-log')
 
+        n_biggest_to_plot = 10
+        skipped_cluster_lengths = []
         for iclust in range(len(sorted_clusters)):
+            if len(sorted_clusters[iclust]) == 1:
+                skipped_cluster_lengths.append(len(sorted_clusters[iclust]))
+                continue
+            if iclust >= n_biggest_to_plot and len(set(self.args.queries_to_include) & set(sorted_clusters[iclust])) == 0:  # seed is added to <args.queries_to_include> in bin/partis
+                skipped_cluster_lengths.append(len(sorted_clusters[iclust]))
+                continue
             self.make_single_hexbin_shm_vs_identity_plot(sorted_clusters[iclust], annotations[':'.join(sorted_clusters[iclust])], base_plotdir, get_fname(cluster_rank=iclust))
             fnames.append(get_fname(cluster_rank=iclust))
-            if iclust > 9:
-                print '    stopping after tenth shm vs identity plot'
-                break
+        print '    skipped %d clusters with lengths: %s' % (len(skipped_cluster_lengths), ' '.join(['%d' % l for l in skipped_cluster_lengths]))
 
         n_per_row = 4
         fnames = [fnames[i : i + n_per_row] for i in range(0, len(fnames), n_per_row)]
