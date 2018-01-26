@@ -317,6 +317,7 @@ class PartitionPlotter(object):
             fnames.append(get_fname(cluster_rank=iclust))
             if iclust > 9:
                 print '    stopping after tenth shm vs identity plot'
+                break
 
         n_per_row = 4
         fnames = [fnames[i : i + n_per_row] for i in range(0, len(fnames), n_per_row)]
