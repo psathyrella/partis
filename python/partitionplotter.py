@@ -315,7 +315,7 @@ class PartitionPlotter(object):
         print 'subclusters'
         for subclusters in sorted_cluster_groups:
             high_mutation_clusters += self.make_single_joyplot(subclusters, annotations, repertoire_size, base_plotdir, get_fname(iclustergroup=iclustergroup), title='per-family SHM (%d / %d)' % (iclustergroup + 1, len(sorted_cluster_groups)), debug=debug)
-            if len(fnames) < self.n_joyplots_in_html:
+            if len(fnames[-1]) < self.n_joyplots_in_html:
                 addfname(get_fname(iclustergroup=iclustergroup))
             iclustergroup += 1
         if len(high_mutation_clusters) > self.n_clusters_per_joy_plot and len(high_mutation_clusters[0]) > self.min_high_mutation_cluster_size:
