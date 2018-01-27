@@ -2850,12 +2850,23 @@ def split_partition_with_criterion(partition, criterion_fcn):
     return true_clusters, false_clusters
 
 # ----------------------------------------------------------------------------------------
-def collapse_naive_seqs(swfo, queries=None):
+def collapse_naive_seqs(swfo, queries=None, split_by_cdr3=False, debug=None):  # <split_by_cdr3> is only needed when we're getting synthetic sw info that's a mishmash of hmm and sw annotations
+    start = time.time()
     if queries is None:
         queries = swfo['queries']  # don't modify this
-    def keyfunc(q):
-        return swfo[q]['naive_seq']  # while this is no longer happening before fwk insertion trimming (which was bad), it is still happening on N-padded sequences, which should be kept in mind
-    return [list(group) for _, group in itertools.groupby(sorted(queries, key=keyfunc), key=keyfunc)]
+
+    def keyfunc(q):  # while this is no longer happening before fwk insertion trimming (which was bad), it is still happening on N-padded sequences, which should be kept in mind
+        if split_by_cdr3:
+            return swfo[q]['cdr3_length'], swfo[q]['naive_seq']
+        else:
+            return swfo[q]['naive_seq']
+
+    partition = [list(group) for _, group in itertools.groupby(sorted(queries, key=keyfunc), key=keyfunc)]
+
+    if debug:
+        print '   collapsed %d queries into %d cluster%s with identical naive seqs (%.1f sec)' % (len(queries), len(partition), plural(len(partition)), time.time() - start)
+
+    return partition
 
 # ----------------------------------------------------------------------------------------
 def collapse_naive_seqs_with_hashes(naive_seq_list, sw_info):

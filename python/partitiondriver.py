@@ -404,7 +404,7 @@ class PartitionDriver(object):
         seeded_clusters, unseeded_clusters = utils.split_partition_with_criterion(old_cpath.partitions[old_cpath.i_best_minus_x], lambda cluster: self.args.seed_unique_id in cluster)
         self.unseeded_seqs = [uid for uclust in unseeded_clusters for uid in uclust]  # NOTE we no longer expect them to all be singletons, since we're merging queries with identical naive seqs before passing to glomerator.cc
         seeded_singleton_set = set([uid for sclust in seeded_clusters for uid in sclust])  # in case there's duplicates
-        seeded_partition = self.collapse_naive_seqs_partitiondriver(queries=seeded_singleton_set)
+        seeded_partition = utils.collapse_naive_seqs(self.synth_sw_info(seeded_singleton_set), split_by_cdr3=True)
         seeded_cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
         seeded_cpath.add_partition(seeded_partition, -1., 1)
         print '      removed %d sequences in unseeded clusters,' % len(self.unseeded_seqs),
@@ -549,19 +549,16 @@ class PartitionDriver(object):
             return False
 
     # ----------------------------------------------------------------------------------------
-    def collapse_naive_seqs_partitiondriver(self, queries, debug=False):  # this fcn only exists because utils.collapse_naive_seqs() only takes sw_info
-        tmpstart = time.time()
-        synth_sw_info = {q : {'naive_seq' : s} for q, s in self.get_cached_hmm_naive_seqs(queries).items()}  # NOTE code duplication in cluster_with_bcrham()
+    def synth_sw_info(self, queries):  # only used for passing info to utils.collapse_naive_seqs()
+        # this uses the cached hmm naive seqs (since we have them and they're better) but then later we pass the hmm the sw annotations, so we have to make sure the sw cdr3 length is the same within each cluster (it's very rare that it isn't)
+        synth_sw_info = {q : {'naive_seq' : s, 'cdr3_length' : self.sw_info[q]['cdr3_length']} for q, s in self.get_cached_hmm_naive_seqs(queries).items()}  # NOTE code duplication in cluster_with_bcrham()
         synth_sw_info['queries'] = synth_sw_info.keys()
-        initial_nsets = utils.collapse_naive_seqs(synth_sw_info)
-        if debug:
-            print '   collapsed %d queries into %d cluster%s with identical naive seqs (%.1f sec)' % (len(synth_sw_info['queries']), len(initial_nsets), utils.plural(len(initial_nsets)), time.time()-tmpstart)
-        return initial_nsets
+        return synth_sw_info
 
     # ----------------------------------------------------------------------------------------
     def get_initial_cpath(self, n_procs):
         initial_nseqs = len(self.sw_info['queries'])  # NOTE um, maybe I should change this to the number of clusters, now that we're doing some preclustering here?
-        initial_nsets = self.collapse_naive_seqs_partitiondriver(queries=self.sw_info['queries'], debug=True)
+        initial_nsets = utils.collapse_naive_seqs(self.synth_sw_info(self.sw_info['queries']), split_by_cdr3=True, debug=True)
         cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
         cpath.add_partition(initial_nsets, logprob=0., n_procs=n_procs)  # NOTE sw info excludes failed sequences (and maybe also sequences with different cdr3 length)
         if self.args.debug:
@@ -1292,7 +1289,7 @@ class PartitionDriver(object):
             uids_and_lengths = {q : self.sw_info[q]['cdr3_length'] for q in query_names}
             uids_and_lengths = sorted(uids_and_lengths.items(), key=operator.itemgetter(1))
             uids, lengths = zip(*uids_and_lengths)
-            raise Exception('%s cdr3 lengths not all the same for %s (%s)' % (utils.color('red', 'warning'), ' '.join(uids), ' '.join([str(c) for c in lengths])))
+            raise Exception('cdr3 lengths not all the same for %s (%s)' % (' '.join(uids), ' '.join([str(c) for c in lengths])))
         combo['cdr3_length'] = cdr3_lengths[0]
 
         combo['k_v'] = {'min' : 99999, 'max' : -1}
