@@ -321,13 +321,19 @@ class PartitionPlotter(object):
         self.make_single_hexbin_size_vs_shm_plot(sorted_clusters, annotations, repertoire_size, base_plotdir, get_fname(hexbin=True), n_max_mutations=n_max_mutations, log_cluster_size=True)
         fnames.append(get_fname(hexbin=True) + '-log')
 
+        def plot_this_cluster(iclust):
+            if len(sorted_clusters[iclust]) == 1:
+                return False
+            if iclust < n_biggest_to_plot:
+                return True
+            if self.args.queries_to_include is not None and len(set(self.args.queries_to_include) & set(sorted_clusters[iclust])) == 0:  # seed is added to <args.queries_to_include> in bin/partis
+                return True
+            return False  # falls through if <iclust> is too big, or if there's no --queries-to-include (which includes the seed)
+
         n_biggest_to_plot = 10
         skipped_cluster_lengths = []
         for iclust in range(len(sorted_clusters)):
-            if len(sorted_clusters[iclust]) == 1:
-                skipped_cluster_lengths.append(len(sorted_clusters[iclust]))
-                continue
-            if iclust >= n_biggest_to_plot and len(set(self.args.queries_to_include) & set(sorted_clusters[iclust])) == 0:  # seed is added to <args.queries_to_include> in bin/partis
+            if not plot_this_cluster(iclust):
                 skipped_cluster_lengths.append(len(sorted_clusters[iclust]))
                 continue
             self.make_single_hexbin_shm_vs_identity_plot(sorted_clusters[iclust], annotations[':'.join(sorted_clusters[iclust])], base_plotdir, get_fname(cluster_rank=iclust))
