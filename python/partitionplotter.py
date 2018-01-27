@@ -326,7 +326,7 @@ class PartitionPlotter(object):
                 return False
             if iclust < n_biggest_to_plot:
                 return True
-            if self.args.queries_to_include is not None and len(set(self.args.queries_to_include) & set(sorted_clusters[iclust])) == 0:  # seed is added to <args.queries_to_include> in bin/partis
+            if self.args.queries_to_include is not None and len(set(self.args.queries_to_include) & set(sorted_clusters[iclust])) > 0:  # seed is added to <args.queries_to_include> in bin/partis
                 return True
             return False  # falls through if <iclust> is too big, or if there's no --queries-to-include (which includes the seed)
 
