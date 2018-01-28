@@ -937,7 +937,7 @@ class Waterer(object):
         k_v_min, k_v_max = best_k_v, best_k_v
         k_d_min, k_d_max = best_k_d, best_k_d
 
-        n_matched_to_break = 3  # once we see this many consecutive unmutated bases, assume we're actually within a germline v/d/j match
+        n_matched_to_break = 4  # once we see this many consecutive unmutated bases, assume we're actually within a germline v/d/j match
 
         # first make sure the hmm will check for cases in which sw over-expanded v
         if debug:
