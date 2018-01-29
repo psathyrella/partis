@@ -34,7 +34,7 @@ class AlleleClusterer(object):
         self.min_n_snps = 5
         self.mfreq_ratio_threshold = 1.25
 # ----------------------------------------------------------------------------------------
-        self.n_mds_components = 2
+        self.n_mds_components = 3
         self.XXX_n_kmeans_clusters = 3
 # ----------------------------------------------------------------------------------------
 
@@ -301,10 +301,11 @@ class AlleleClusterer(object):
 
         # self.check_for_donuts(debug=debug)
 
-        clusterfos, msa_info = self.vsearch_cluster_v_seqs(qr_seqs, threshold, debug=debug)
-
-        # clusterfos = self.kmeans_cluster_v_seqs(qr_seqs, swfo, debug=debug)
-        # msa_info = clusterfos
+        if not self.args.kmeans_allele_cluster:
+            clusterfos, msa_info = self.vsearch_cluster_v_seqs(qr_seqs, threshold, debug=debug)
+        else:
+            clusterfos = self.kmeans_cluster_v_seqs(qr_seqs, swfo, debug=debug)
+            msa_info = clusterfos
 
         # and finally loop over each cluster, deciding if it corresponds to a new allele
         if debug:
@@ -383,8 +384,8 @@ class AlleleClusterer(object):
             if self.adjusted_glcounts[newfo['template-gene']] / float(sum(self.adjusted_glcounts.values())) < self.args.min_allele_prevalence_fraction:  # NOTE self.adjusted_glcounts only includes large clusters, and the constituents of those clusters are clonal representatives, so this isn't quite the same as in alleleremover
                 newfo['remove-template-gene'] = True
 
-        # if plotdir is not None:
-        #     self.plot(clusterfos, swfo, qr_seqs, plotdir)
+        if self.args.kmeans_allele_cluster and plotdir is not None:
+            self.plot(clusterfos, swfo, qr_seqs, plotdir)
 
         return new_alleles
 

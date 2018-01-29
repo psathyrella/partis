@@ -120,41 +120,41 @@ def kmeans_cluster(n_clusters, seqfos, all_qr_seqs, base_workdir, seed, reco_inf
 colors = ['red', 'blue', 'forestgreen', 'grey', 'orange', 'green', 'skyblue4', 'maroon', 'salmon', 'chocolate4', 'magenta']
 
 # ----------------------------------------------------------------------------------------
-def write_reco_info_group_colors(reco_info, region, seqfos, group_csv_fname, untranslate):
-    all_genes = set([reco_info[untranslate(seqfo['name'])][region + '_gene'] for seqfo in seqfos])
-    if len(all_genes) > len(colors):
-        print '%s more genes %d than colors %d' % (color('yellow', 'warning'), len(all_genes), len(colors))
-    all_gene_list = list(all_genes)
-    gene_colors = {all_gene_list[ig] : colors[ig % len(colors)] for ig in range(len(all_gene_list))}
-    with open(group_csv_fname, 'w') as groupfile:
-        for iseq in range(len(seqfos)):
-            seqfo = seqfos[iseq]
-            gene = reco_info[untranslate(seqfo['name'])][region + '_gene']
-            if len(all_genes) == 1 and iseq == 0:  # R code crashes if there's only one group
-                gene += '-dummy'
-            groupfile.write('"%s","%s","%s"\n' % (seqfo['name'], gene, gene_colors.get(gene, 'black')))
-
-# ----------------------------------------------------------------------------------------
-def write_kmeans_group_colors(clusterfos, seqfos, group_csv_fname, untranslate):  # <seqfos> correspond to the family (<plotname>), <clusterfos> is everybody
-    idstrs = ['a', 'b', 'c', 'd', 'e', 'f', 'g']
-    uid_to_cluster_id_map = {sfo['name'] : idstrs[iclust] for iclust in range(len(clusterfos)) for sfo in clusterfos[iclust]['seqfos']}
-    all_cluster_ids = set(uid_to_cluster_id_map.values()) #range(len(clusterfos)))
-    if len(all_cluster_ids) > len(colors):
-        print '%s more clusters %d than colors %d' % (color('yellow', 'warning'), len(all_cluster_ids), len(colors))
-    all_cluster_id_list = list(all_cluster_ids)
-    cluster_id_colors = {all_cluster_id_list[ig] : colors[ig % len(colors)] for ig in range(len(all_cluster_id_list))}
-    with open(group_csv_fname, 'w') as groupfile:
-        for iseq in range(len(seqfos)):
-            seqfo = seqfos[iseq]
-            cluster_id = uid_to_cluster_id_map[untranslate(seqfo['name'])]
-            if len(all_cluster_ids) == 1 and iseq == 0:  # R code crashes if there's only one group
-                cluster_id += '-dummy'
-            groupfile.write('"%s","%s","%s"\n' % (seqfo['name'], cluster_id, cluster_id_colors.get(cluster_id, 'black')))
-
-# ----------------------------------------------------------------------------------------
 def plot(plotname, seqfos, clusterfos, n_components, plotdir, base_workdir, seed, reco_info=None, region=None, debug=False):
     if not os.path.exists(plotdir):
         os.makedirs(plotdir)
+
+    def write_reco_info_group_colors(reco_info, seqfos):
+        all_genes = set([reco_info[untranslate(seqfo['name'])][region + '_gene'] for seqfo in seqfos])
+        if len(all_genes) > len(colors):
+            print '%s more genes %d than colors %d' % (color('yellow', 'warning'), len(all_genes), len(colors))
+        all_gene_list = list(all_genes)
+        gene_colors = {all_gene_list[ig] : colors[ig % len(colors)] for ig in range(len(all_gene_list))}
+        with open(group_csv_fname, 'w') as groupfile:
+            for iseq in range(len(seqfos)):
+                seqfo = seqfos[iseq]
+                gene = reco_info[untranslate(seqfo['name'])][region + '_gene']
+                if len(all_genes) == 1 and iseq == 0:  # R code crashes if there's only one group
+                    gene += '-dummy'
+                groupfile.write('"%s","%s","%s"\n' % (seqfo['name'], gene, gene_colors.get(gene, 'black')))
+
+    def write_kmeans_group_colors(clusterfos, seqfos):  # <seqfos> correspond to the family (<plotname>), <clusterfos> is everybody
+        idstrs = ['a', 'b', 'c', 'd', 'e', 'f', 'g']
+        uid_to_cluster_id_map = {sfo['name'] : idstrs[iclust] for iclust in range(len(clusterfos)) for sfo in clusterfos[iclust]['seqfos']}
+        all_cluster_ids = set(uid_to_cluster_id_map.values()) #range(len(clusterfos)))
+        if len(all_cluster_ids) > len(colors):
+            print '%s more clusters %d than colors %d' % (color('yellow', 'warning'), len(all_cluster_ids), len(colors))
+        all_cluster_id_list = list(all_cluster_ids)
+        cluster_id_colors = {all_cluster_id_list[ig] : colors[ig % len(colors)] for ig in range(len(all_cluster_id_list))}
+        with open(group_csv_fname, 'w') as groupfile:
+            for iseq in range(len(seqfos)):
+                seqfo = seqfos[iseq]
+                if untranslate(seqfo['name']) not in uid_to_cluster_id_map:
+                    print 'reverse translation %s of %s not in uid_to_cluster_id_map:\n %s' % (untranslate(seqfo['name']), seqfo['name'], ' '.join(uid_to_cluster_id_map.keys()))
+                cluster_id = uid_to_cluster_id_map[untranslate(seqfo['name'])]
+                if len(all_cluster_ids) == 1 and iseq == 0:  # R code crashes if there's only one group
+                    cluster_id += '-dummy'
+                groupfile.write('"%s","%s","%s"\n' % (seqfo['name'], cluster_id, cluster_id_colors.get(cluster_id, 'black')))
 
     # R does some horrible truncation or some bullshit when it reads the group csv
     chmap = ['0123456789', 'abcdefghij']
@@ -177,8 +177,8 @@ def plot(plotname, seqfos, clusterfos, n_components, plotdir, base_workdir, seed
     utils.align_many_seqs(seqfos, outfname=msafname)
 
 # ----------------------------------------------------------------------------------------
-    # write_reco_info_group_colors(reco_info, region, seqfos, group_csv_fname, untranslate)
-    write_kmeans_group_colors(clusterfos, seqfos, group_csv_fname, untranslate)
+    # write_reco_info_group_colors(reco_info, seqfos)
+    write_kmeans_group_colors(clusterfos, seqfos)
 # ----------------------------------------------------------------------------------------
 
     cmdlines = [

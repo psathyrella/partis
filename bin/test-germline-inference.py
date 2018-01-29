@@ -157,6 +157,8 @@ def run_partis_parameter_cache(args, method):
         cmd_str += ' --is-simu --simulation-germline-dir ' + args.outdir + '/germlines/simulation'  # alleleclusterer is the only one that really uses this, but for now I want its dbg output to have the sim info
         if args.allele_cluster:
             cmd_str += ' --allele-cluster'
+            if args.kmeans_allele_cluster:
+                cmd_str += ' --kmeans-allele-cluster'
     elif method == 'full':
         cmd_str += ' --leave-default-germline'
     else:
@@ -349,6 +351,7 @@ parser.add_argument('--slurm', action='store_true')
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--dry-run', action='store_true')
 parser.add_argument('--allele-cluster', action='store_true', help='see bin/partis --help')
+parser.add_argument('--kmeans-allele-cluster', action='store_true', help='see bin/partis --help')
 parser.add_argument('--plot-annotation-performance', action='store_true', help='see bin/partis --help')
 parser.add_argument('--methods', default='simu:partis', help='colon-separated list of methods to run. By default runs simulation, and then partis inference (igdiscover and tigger, if installed, are the other options)')
 parser.add_argument('--outdir', default=utils.fsdir() + '/partis/allele-finder')
