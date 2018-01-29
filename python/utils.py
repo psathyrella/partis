@@ -597,9 +597,11 @@ def align_many_seqs(seqfos, outfname=None):  # if <outfname> is specified, we ju
         if outfname is not None:
             return None
         msa_info = read_fastx(fout.name, ftype='fa')
-        x = set([sfo['name'] for sfo in msa_info])
-        y = set([sfo['name'] for sfo in seqfos])
-        if set([sfo['name'] for sfo in msa_info]) != set([sfo['name'] for sfo in seqfos]):
+        input_ids = set([sfo['name'] for sfo in seqfos])
+        output_ids = set([sfo['name'] for sfo in msa_info])
+        if output_ids != input_ids:
+            print '  input ids not in output: %s' % ' '.join(input_ids - output_ids)
+            print '  extra ids in output: %s' % ' '.join(output_ids - input_ids)
             subprocess.check_call(['cat', fin.name])
             raise Exception('incoherent mafft output from %s (cat\'d on previous line)' % fin.name)
     return msa_info
