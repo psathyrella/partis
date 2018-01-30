@@ -190,7 +190,7 @@ def bios2mds_kmeans_cluster(n_clusters, seqfos, all_qr_seqs, base_workdir, seed,
     return clusterfos
 
 # ----------------------------------------------------------------------------------------
-def run_sklearn_mds(seqfos, n_components, n_clusters, seed, aligned=False, max_iter=1000, eps=1e-9, n_jobs=-1):
+def run_sklearn_mds(seqfos, n_components, n_clusters, seed, aligned=False, max_iter=1000, eps=1e-9, n_jobs=-1, plotdir=None):
     print 'align'
     if not aligned:
         seqfos = utils.align_many_seqs(seqfos)
@@ -212,21 +212,8 @@ def run_sklearn_mds(seqfos, n_components, n_clusters, seed, aligned=False, max_i
     print '  kmeans'
     kmeans = KMeans(n_clusters=n_clusters, random_state=random_state).fit(pos)
 
-    print '  plot'
-    if n_components % 2 != 0:
-        print '%s odd number of components' % utils.color('red', 'warning')
-
-    def plot_component_pair(ipair, plotname):
-        colors = ['forestgreen', 'red', 'blue', 'black', 'yellow', 'purple', 'orange']
-        fig = plt.figure(1)
-        ax = plt.axes([0., 0., 1., 1.])
-        for iseq in range(len(seqfos)):
-            plt.scatter(pos[iseq][ipair], pos[iseq][ipair + 1], color=colors[kmeans.labels_[iseq]])
-        # plt.scatter(pos[:, 0], pos[:, 1], color='forestgreen', lw=0, label='MDS')
-        # plt.legend(scatterpoints=1, loc='best', shadow=False)
-        plt.savefig(plotname)
-
-    for ipair in range(0, n_components - 1, 2):
-        print '  %d' % ipair
-        plot_component_pair(ipair, 'tmp-%d.svg' % ipair)
-
+    if plotdir is not None:
+        print '  plot'
+        pcvals = {seqfos[iseq]['name'] : pos[iseq] for iseq in range(len(seqfos))}
+        labels = {seqfos[iseq]['name'] : kmeans.labels_[iseq] for iseq in range(len(seqfos))}
+        plot_mds(n_components, pcvals, plotdir, 'mds', labels=labels)

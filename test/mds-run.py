@@ -20,6 +20,7 @@ import mds
 parser = argparse.ArgumentParser()
 parser.add_argument('--n-clusters', type=int, required=True)
 parser.add_argument('--n-components', type=int, default=2)
+parser.add_argument('--plotdir')
 parser.add_argument('--seed', type=int, default=1)
 args = parser.parse_args()
 
