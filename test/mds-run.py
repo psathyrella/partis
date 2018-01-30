@@ -25,4 +25,4 @@ parser.add_argument('--seed', type=int, default=1)
 args = parser.parse_args()
 
 seqfos = utils.read_fastx('v-qr.fa', n_max_queries=50)
-mds.run_sklearn_mds(seqfos, args.n_components, args.n_clusters, args.seed)
+mds.run_sklearn_mds(args.n_components, args.n_clusters, seqfos, args.seed)

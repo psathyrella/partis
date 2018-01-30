@@ -159,7 +159,19 @@ class AlleleClusterer(object):
         return family_groups
 
     # ----------------------------------------------------------------------------------------
+    def get_clusterfos_from_partition(self, partition, all_seqs):
+        clusterfos = []
+        for cluster in partition:
+            cfo = {'seqfos' : [{'name' : uid, 'seq' : all_seqs[uid]} for uid in cluster]}  # note that vsearch clustering also adds 'centroid', but I think it isn't subsequently used
+            cfo['cons_seq'] = utils.cons_seq(0.1, unaligned_seqfos=cfo['seqfos'])
+            clusterfos.append(cfo)
+        return clusterfos
+
+    # ----------------------------------------------------------------------------------------
     def kmeans_cluster_v_seqs(self, qr_seqs, swfo, plotdir=None, debug=False):
+        if plotdir is not None:
+            utils.prep_dir(plotdir, wildlings=['*.svg'], subdirs=[d for d in os.listdir(plotdir) if os.path.isdir(plotdir + '/' + d)], rm_subdirs=True)
+
         clusterfos = []
         if debug:
             print 'kmeans clustering'
@@ -167,8 +179,9 @@ class AlleleClusterer(object):
         for family, seqfos in self.get_family_groups(qr_seqs, swfo).items():
             if debug:
                 print '  %5d     %s' % (len(seqfos), family)
-            familyfos = mds.bios2mds_kmeans_cluster(self.XXX_n_kmeans_clusters, seqfos, qr_seqs, self.args.workdir, self.args.seed, reco_info=self.reco_info, region=self.region, n_components=self.n_mds_components, plotdir=plotdir + '/' + family if plotdir is not None else None)
-            clusterfos += familyfos
+            partition = mds.bios2mds_kmeans_cluster(self.n_mds_components, self.XXX_n_kmeans_clusters, seqfos, self.args.workdir, self.args.seed, reco_info=self.reco_info, region=self.region, plotdir=plotdir + '/' + family if plotdir is not None else None)
+            # partition = mds.run_sklearn_mds(self.n_mds_components, self.XXX_n_kmeans_clusters, seqfos, self.args.seed, reco_info=self.reco_info, region=self.region, plotdir=plotdir + '/' + family if plotdir is not None else None)
+            clusterfos += self.get_clusterfos_from_partition(partition, qr_seqs)
 
         clusterfos = sorted(clusterfos, key=lambda c: len(c['seqfos']), reverse=True)
         return clusterfos

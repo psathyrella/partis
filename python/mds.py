@@ -100,13 +100,12 @@ def read_component_file(mdsfname, n_components, seqfos):
 colors = ['red', 'blue', 'forestgreen', 'grey', 'orange', 'green', 'skyblue4', 'maroon', 'salmon', 'chocolate4', 'magenta']
 
 # ----------------------------------------------------------------------------------------
-def plot_mds(n_components, pcvals, plotdir, plotname, labels=None):
+def plot_mds(n_components, pcvals, plotdir, plotname, labels=None, partition=None):
     def plot_component_pair(ipair, svgfname):
         fig = plt.figure(1)
         ax = plt.axes([0., 0., 1., 1.])
         for uid, vals in pcvals.items():
-            color = None if labels is None else colors[color_indices[uid]]
-            plt.scatter(vals[ipair], vals[ipair + 1], color=color)
+            plt.scatter(vals[ipair], vals[ipair + 1], color=colors[color_indices[uid]] if color_indices is not None else None)
         # plt.scatter(pos[:, 0], pos[:, 1], color='forestgreen', lw=0, label='MDS')
         # plt.legend(scatterpoints=1, loc='best', shadow=False)
         plt.savefig(svgfname)
@@ -114,20 +113,22 @@ def plot_mds(n_components, pcvals, plotdir, plotname, labels=None):
     if n_components % 2 != 0:
         print '%s odd number of components' % utils.color('red', 'warning')
 
-    if labels is not None:
-        def keyfunc(q):  # should really integrate this with utils.collapse_naive_seqs()/utils.split_partition_with_criterion()
-            return labels[q]
-        partition = [list(group) for _, group in itertools.groupby(sorted(pcvals, key=keyfunc), key=keyfunc)]
+    color_indices = None
+    if labels is not None or partition is not None:
+        assert labels is None or partition is None  # should only specify one of them
+        if partition is None:
+            def keyfunc(q):  # should really integrate this with utils.collapse_naive_seqs()/utils.split_partition_with_criterion()
+                return labels[q]
+            partition = [list(group) for _, group in itertools.groupby(sorted(pcvals, key=keyfunc), key=keyfunc)]
         if len(partition) > len(colors):
-            raise Exception('more labels %d than colors %d' % (len(partition), len(colors)))
+            raise Exception('more clusters/labels %d than colors %d' % (len(partition), len(colors)))
         color_indices = {uid : iclust for iclust in range(len(partition)) for uid in partition[iclust]}  # just for coloring the plot
 
     for ipair in range(0, n_components - 1, 2):
         plot_component_pair(ipair, '%s/%s-%d.svg' % (plotdir, plotname, ipair))
 
 # ----------------------------------------------------------------------------------------
-def bios2mds_kmeans_cluster(n_clusters, seqfos, all_qr_seqs, base_workdir, seed, reco_info=None, region=None, n_components=None, max_iterations=1000, max_runs=10, plotdir=None, debug=False):
-    # NOTE duplication in plotting fcn
+def bios2mds_kmeans_cluster(n_components, n_clusters, seqfos, base_workdir, seed, reco_info=None, region=None, max_runs=100, max_iterations=1000, method='euclidean', plotdir=None, debug=False):
     workdir = base_workdir + '/mds'
     msafname = workdir + '/msa.fa'
     mdsfname = workdir + '/components.txt'
@@ -144,53 +145,43 @@ def bios2mds_kmeans_cluster(n_clusters, seqfos, all_qr_seqs, base_workdir, seed,
         'human <- import.fasta("%s")' % msafname,
         'active <- mat.dif(human, human)',  # mat.dif or mat.dis?
     ]
-    if n_components is not None:  # TODO now that you moved mmds to here, you need to move the plotting stuff into here (or, really, get it to output the PCA components and stop doing the plotting in R)
+
+    if n_components is not None:
         cmdlines += ['mmds_active <- mmds(active, pc=%d)' % n_components]
         cmdlines += ['capture.output(mmds_active$coord, file="%s")' % mdsfname]
     else:
         raise Exception('need to implement')
-    cmdlines += [  # TODO iter.max (max iteratoins and nb.run (max runs), also maybe add method (default "euclidean")
-        'kmeans.run1 <- kmeans.run(mmds_active$coord, nb.clus=%d, iter.max=%d, nb.run=%d)' % (n_clusters, max_iterations, max_runs),
-        # 'kmeans.run1$clusters',
-        # 'kmeans.run1$elements',
-        'options(width=10000)',
-        'capture.output(kmeans.run1$clusters, file="%s")' % clusterfname,
 
-        # sil.score(mat, nb.clus = c(2:13), nb.run = 100, iter.max = 1000,  # run for every possible number of clusters (?)
-        #               method = "euclidean")
-        # random.msa  # builds a random [...]
-    ]
+    if n_clusters is not None:
+        cmdlines += [
+            'kmeans.run1 <- kmeans.run(mmds_active$coord, nb.clus=%d, nb.run=%d, iter.max=%d, method="%s")' % (n_clusters, max_runs, max_iterations, method),
+            # 'kmeans.run1$clusters',
+            # 'kmeans.run1$elements',
+        'options(width=10000)',
+            'capture.output(kmeans.run1$clusters, file="%s")' % clusterfname,
+            # sil.score(mat, nb.clus = c(2:13), nb.run = 100, iter.max = 1000,  # run for every possible number of clusters (?)
+            #               method = "euclidean")
+            # random.msa  # builds a random [...]
+        ]
 
     utils.run_r(cmdlines, workdir, print_time='kmeans')
     pcvals = read_component_file(mdsfname, n_components, seqfos)
-    partition = read_kmeans_clusterfile(clusterfname, seqfos)
-    os.remove(msafname)
+    partition = read_kmeans_clusterfile(clusterfname, seqfos) if n_clusters is not None else None
 
-    clusterfos = []
-    for cluster in partition:
-        cfo = {
-            'seqfos' : [{'name' : uid, 'seq' : all_qr_seqs[uid]} for uid in cluster],
-            # 'centroid'  # placeholder to remind you that vsearch clustering adds this, but I think it isn't subsequently used
-        }
-        cfo['cons_seq'] = utils.cons_seq(0.1, unaligned_seqfos=cfo['seqfos'])
-        clusterfos.append(cfo)
+    os.remove(msafname)
+    os.rmdir(workdir)
 
     if plotdir is not None:
         utils.prep_dir(plotdir, wildlings=['*.svg'])
-
-        labels = {uid : iclust for iclust in range(len(partition)) for uid in partition[iclust]}  # immediately gets converted back to a partition by plot_mds(), but this makes the signature nicer
-        plot_mds(n_components, pcvals, plotdir, 'mds', labels=labels)
-
+        plot_mds(n_components, pcvals, plotdir, 'mds', partition=partition if n_clusters is not None else None)
         if reco_info is not None:
             labels = {uid : reco_info[uid][region + '_gene'] for uid in pcvals}
             plot_mds(n_components, pcvals, plotdir, 'true-genes', labels=labels)
 
-    os.rmdir(workdir)
-
-    return clusterfos
+    return partition
 
 # ----------------------------------------------------------------------------------------
-def run_sklearn_mds(seqfos, n_components, n_clusters, seed, aligned=False, max_iter=1000, eps=1e-9, n_jobs=-1, plotdir=None):
+def run_sklearn_mds(n_components, n_clusters, seqfos, seed, reco_info=None, region=None, aligned=False, n_init=4, max_iter=300, eps=1e-3, n_jobs=-1, plotdir=None):
     print 'align'
     if not aligned:
         seqfos = utils.align_many_seqs(seqfos)
@@ -206,14 +197,25 @@ def run_sklearn_mds(seqfos, n_components, n_clusters, seed, aligned=False, max_i
 
     print '  mds'
     random_state = numpy.random.RandomState(seed=seed)
-    mds = manifold.MDS(n_components=n_components, max_iter=max_iter, eps=eps, random_state=random_state, dissimilarity="precomputed", n_jobs=n_jobs)
-    pos = mds.fit_transform(similarities)  # hm, should this be mds.fit(similarities).embedding_?
+    mds = manifold.MDS(n_components=n_components, n_init=n_init, max_iter=max_iter, eps=eps, random_state=random_state, dissimilarity="precomputed", n_jobs=n_jobs)
+    pos = mds.fit_transform(similarities)
+    # pos = mds.fit(similarities).embedding_
 
     print '  kmeans'
     kmeans = KMeans(n_clusters=n_clusters, random_state=random_state).fit(pos)
+    pcvals = {seqfos[iseq]['name'] : pos[iseq] for iseq in range(len(seqfos))}
+    labels = {seqfos[iseq]['name'] : kmeans.labels_[iseq] for iseq in range(len(seqfos))}
+    def keyfunc(q):  # should really integrate this with utils.collapse_naive_seqs()/utils.split_partition_with_criterion()
+        return labels[q]
+    partition = [list(group) for _, group in itertools.groupby(sorted(pcvals, key=keyfunc), key=keyfunc)]
 
     if plotdir is not None:
+        utils.prep_dir(plotdir, wildlings=['*.svg'])
         print '  plot'
-        pcvals = {seqfos[iseq]['name'] : pos[iseq] for iseq in range(len(seqfos))}
-        labels = {seqfos[iseq]['name'] : kmeans.labels_[iseq] for iseq in range(len(seqfos))}
-        plot_mds(n_components, pcvals, plotdir, 'mds', labels=labels)
+        plot_mds(n_components, pcvals, plotdir, 'mds', partition=partition)
+
+        if reco_info is not None:
+            labels = {uid : reco_info[uid][region + '_gene'] for uid in pcvals}
+            plot_mds(n_components, pcvals, plotdir, 'true-genes', labels=labels)
+
+    return partition
