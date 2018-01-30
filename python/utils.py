@@ -2845,7 +2845,7 @@ def kbound_str(kbounds):
     return ''.join(return_str).strip()
 
 # ----------------------------------------------------------------------------------------
-def split_partition_with_criterion(partition, criterion_fcn):
+def split_partition_with_criterion(partition, criterion_fcn):  # this would probably be faster if I used the itertools stuff from collapse_naive_seqs()
     true_cluster_indices = [ic for ic in range(len(partition)) if criterion_fcn(partition[ic])]  # indices of clusters for which <criterion_fcn()> is true
     true_clusters = [partition[ic] for ic in true_cluster_indices]
     false_clusters = [partition[ic] for ic in range(len(partition)) if ic not in true_cluster_indices]

@@ -159,7 +159,7 @@ class AlleleClusterer(object):
         return family_groups
 
     # ----------------------------------------------------------------------------------------
-    def kmeans_cluster_v_seqs(self, qr_seqs, swfo, debug=False):
+    def kmeans_cluster_v_seqs(self, qr_seqs, swfo, plotdir=None, debug=False):
         clusterfos = []
         if debug:
             print 'kmeans clustering'
@@ -167,7 +167,7 @@ class AlleleClusterer(object):
         for family, seqfos in self.get_family_groups(qr_seqs, swfo).items():
             if debug:
                 print '  %5d     %s' % (len(seqfos), family)
-            familyfos = mds.kmeans_cluster(self.XXX_n_kmeans_clusters, seqfos, qr_seqs, self.args.workdir, self.args.seed, reco_info=self.reco_info, region=self.region, n_components=self.n_mds_components)
+            familyfos = mds.bios2mds_kmeans_cluster(self.XXX_n_kmeans_clusters, seqfos, qr_seqs, self.args.workdir, self.args.seed, reco_info=self.reco_info, region=self.region, n_components=self.n_mds_components, plotdir=plotdir + '/' + family if plotdir is not None else None)
             clusterfos += familyfos
 
         clusterfos = sorted(clusterfos, key=lambda c: len(c['seqfos']), reverse=True)
@@ -304,7 +304,7 @@ class AlleleClusterer(object):
         if not self.args.kmeans_allele_cluster:
             clusterfos, msa_info = self.vsearch_cluster_v_seqs(qr_seqs, threshold, debug=debug)
         else:
-            clusterfos = self.kmeans_cluster_v_seqs(qr_seqs, swfo, debug=debug)
+            clusterfos = self.kmeans_cluster_v_seqs(qr_seqs, swfo, plotdir=plotdir, debug=debug)
             msa_info = clusterfos
 
         # and finally loop over each cluster, deciding if it corresponds to a new allele
@@ -384,9 +384,6 @@ class AlleleClusterer(object):
             if self.adjusted_glcounts[newfo['template-gene']] / float(sum(self.adjusted_glcounts.values())) < self.args.min_allele_prevalence_fraction:  # NOTE self.adjusted_glcounts only includes large clusters, and the constituents of those clusters are clonal representatives, so this isn't quite the same as in alleleremover
                 newfo['remove-template-gene'] = True
 
-        if self.args.kmeans_allele_cluster and plotdir is not None:
-            self.plot(clusterfos, swfo, qr_seqs, plotdir)
-
         return new_alleles
 
     # ----------------------------------------------------------------------------------------
@@ -414,12 +411,3 @@ class AlleleClusterer(object):
                     print 'too close (%d snp%s) to gene we just added %s' % (n_snps, utils.plural(n_snps), utils.color_gene(added_name))
                 return True
         return False
-
-
-    # ----------------------------------------------------------------------------------------
-    def plot(self, clusterfos, swfo, qr_seqs, plotdir):
-        print '  seqs    family'
-        for family, seqfos in self.get_family_groups(qr_seqs, swfo).items():
-            print '  %5d     %s' % (len(seqfos), family)
-            # utils.run_mds(seqfos, self.args.workdir + '/mds', plotdir=plotdir + '/' + utils.sanitize_name(family), reco_info=self.reco_info, title=family)  # sklearn version, I think
-            mds.plot(family, seqfos, clusterfos, self.n_mds_components, plotdir + '/' + utils.sanitize_name(family), self.args.workdir, self.args.seed, reco_info=self.reco_info, region=self.region)

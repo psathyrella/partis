@@ -8,6 +8,7 @@ from sklearn import manifold
 from sklearn.metrics import euclidean_distances
 # from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
+import itertools
 
 import utils
 
@@ -99,7 +100,33 @@ def read_component_file(mdsfname, n_components, seqfos):
 colors = ['red', 'blue', 'forestgreen', 'grey', 'orange', 'green', 'skyblue4', 'maroon', 'salmon', 'chocolate4', 'magenta']
 
 # ----------------------------------------------------------------------------------------
-def kmeans_cluster(n_clusters, seqfos, all_qr_seqs, base_workdir, seed, reco_info=None, region=None, n_components=None, max_iterations=1000, max_runs=10, debug=False):
+def plot_mds(n_components, pcvals, plotdir, plotname, labels=None):
+    def plot_component_pair(ipair, svgfname):
+        fig = plt.figure(1)
+        ax = plt.axes([0., 0., 1., 1.])
+        for uid, vals in pcvals.items():
+            color = None if labels is None else colors[color_indices[uid]]
+            plt.scatter(vals[ipair], vals[ipair + 1], color=color)
+        # plt.scatter(pos[:, 0], pos[:, 1], color='forestgreen', lw=0, label='MDS')
+        # plt.legend(scatterpoints=1, loc='best', shadow=False)
+        plt.savefig(svgfname)
+
+    if n_components % 2 != 0:
+        print '%s odd number of components' % utils.color('red', 'warning')
+
+    if labels is not None:
+        def keyfunc(q):  # should really integrate this with utils.collapse_naive_seqs()/utils.split_partition_with_criterion()
+            return labels[q]
+        partition = [list(group) for _, group in itertools.groupby(sorted(pcvals, key=keyfunc), key=keyfunc)]
+        if len(partition) > len(colors):
+            raise Exception('more labels %d than colors %d' % (len(partition), len(colors)))
+        color_indices = {uid : iclust for iclust in range(len(partition)) for uid in partition[iclust]}  # just for coloring the plot
+
+    for ipair in range(0, n_components - 1, 2):
+        plot_component_pair(ipair, '%s/%s-%d.svg' % (plotdir, plotname, ipair))
+
+# ----------------------------------------------------------------------------------------
+def bios2mds_kmeans_cluster(n_clusters, seqfos, all_qr_seqs, base_workdir, seed, reco_info=None, region=None, n_components=None, max_iterations=1000, max_runs=10, plotdir=None, debug=False):
     # NOTE duplication in plotting fcn
     workdir = base_workdir + '/mds'
     msafname = workdir + '/msa.fa'
@@ -137,6 +164,7 @@ def kmeans_cluster(n_clusters, seqfos, all_qr_seqs, base_workdir, seed, reco_inf
     utils.run_r(cmdlines, workdir, print_time='kmeans')
     pcvals = read_component_file(mdsfname, n_components, seqfos)
     partition = read_kmeans_clusterfile(clusterfname, seqfos)
+    os.remove(msafname)
 
     clusterfos = []
     for cluster in partition:
@@ -147,51 +175,17 @@ def kmeans_cluster(n_clusters, seqfos, all_qr_seqs, base_workdir, seed, reco_inf
         cfo['cons_seq'] = utils.cons_seq(0.1, unaligned_seqfos=cfo['seqfos'])
         clusterfos.append(cfo)
 
-        # debug = True
-        # if debug and reco_info is not None:
-        #     print len(cluster)
-        #     for uid in cluster:
-        #         print '    %s' % utils.color_gene(reco_info[uid][XXX region + '_gene'])  # need to pass in <region> if I want to uncomment this
+    if plotdir is not None:
+        utils.prep_dir(plotdir, wildlings=['*.svg'])
 
-    os.remove(msafname)
+        labels = {uid : iclust for iclust in range(len(partition)) for uid in partition[iclust]}  # immediately gets converted back to a partition by plot_mds(), but this makes the signature nicer
+        plot_mds(n_components, pcvals, plotdir, 'mds', labels=labels)
+
+        if reco_info is not None:
+            labels = {uid : reco_info[uid][region + '_gene'] for uid in pcvals}
+            plot_mds(n_components, pcvals, plotdir, 'true-genes', labels=labels)
+
     os.rmdir(workdir)
-
-
-# ----------------------------------------------------------------------------------------
-    print '  plot'
-    if n_components % 2 != 0:
-        print '%s odd number of components' % utils.color('red', 'warning')
-
-    if reco_info is not None:
-        all_genes = list(set([reco_info[seqfo['name']][region + '_gene'] for seqfo in seqfos]))
-        if len(all_genes) > len(colors):
-            raise Exception('more genes %d than colors %d' % (len(all_genes), len(colors)))
-        gene_colors = {all_genes[ig] : colors[ig] for ig in range(len(all_genes))}
-
-    def plot_component_pair(ipair, plotname):
-        fig = plt.figure(1)
-        ax = plt.axes([0., 0., 1., 1.])
-        for uid, vals in pcvals.items():
-            plt.scatter(vals[ipair], vals[ipair + 1], color=colors[cluster_indices[uid]])
-        # plt.scatter(pos[:, 0], pos[:, 1], color='forestgreen', lw=0, label='MDS')
-        # plt.legend(scatterpoints=1, loc='best', shadow=False)
-        plt.savefig(plotname)
-
-    def plot_simu_component_pair(ipair, plotname):
-        fig = plt.figure(1)
-        ax = plt.axes([0., 0., 1., 1.])
-        for seqfo in seqfos:
-            vals = pcvals[seqfo['name']]
-            gene = reco_info[seqfo['name']][region + '_gene']
-            plt.scatter(vals[ipair], vals[ipair + 1], color=gene_colors[gene])
-        plt.savefig(plotname)
-
-    cluster_indices = {uid : iclust for iclust in range(len(partition)) for uid in partition[iclust]}  # just for coloring the plot
-    for ipair in range(0, n_components - 1, 2):
-        print '  %d' % ipair
-        plot_component_pair(ipair, 'tmp-%d.svg' % ipair)
-        plot_simu_component_pair(ipair, 'tmp-simu-%d.svg' % ipair)
-# ----------------------------------------------------------------------------------------
 
     return clusterfos
 
