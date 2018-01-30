@@ -167,7 +167,7 @@ class AlleleClusterer(object):
         for family, seqfos in self.get_family_groups(qr_seqs, swfo).items():
             if debug:
                 print '  %5d     %s' % (len(seqfos), family)
-            familyfos = mds.kmeans_cluster(self.XXX_n_kmeans_clusters, seqfos, qr_seqs, self.args.workdir, self.args.seed, reco_info=self.reco_info, n_components=self.n_mds_components)
+            familyfos = mds.kmeans_cluster(self.XXX_n_kmeans_clusters, seqfos, qr_seqs, self.args.workdir, self.args.seed, reco_info=self.reco_info, region=self.region, n_components=self.n_mds_components)
             clusterfos += familyfos
 
         clusterfos = sorted(clusterfos, key=lambda c: len(c['seqfos']), reverse=True)

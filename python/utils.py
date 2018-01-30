@@ -1900,14 +1900,14 @@ def prepare_cmds(cmdfos, batch_system=None, batch_options=None, batch_config_fna
             cmdfos[iproc]['nodelist'] = [corelist[iproc]]  # the downside to setting each proc's node list here is that each proc is stuck on that node for each restart (well, unless we decide to change it when we restart it)
 
 # ----------------------------------------------------------------------------------------
-def run_r(cmdlines, workdir, dryrun=False, print_time=None, debug=True):
+def run_r(cmdlines, workdir, dryrun=False, print_time=None, debug=False):
     if not os.path.exists(workdir):
         raise Exception('workdir %s doesn\'t exist' % workdir)
     cmdfname = workdir + '/mds.r'
     with open(cmdfname, 'w') as cmdfile:
         cmdfile.write('\n'.join(cmdlines) + '\n')
     # subprocess.check_call(['cat', cmdfname])
-    simplerun('R --slave -f %s' % cmdfname, shell=True, print_time=print_time, swallow_stdout=True, debug=False)
+    simplerun('R --slave -f %s' % cmdfname, shell=True, print_time=print_time, swallow_stdout=True, debug=debug,  dryrun=dryrun)
     os.remove(cmdfname)
 
 # ----------------------------------------------------------------------------------------

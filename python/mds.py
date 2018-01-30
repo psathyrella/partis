@@ -1,5 +1,7 @@
+import sys
 import os
 import string
+from matplotlib import pyplot as plt
 
 import utils
 
@@ -58,12 +60,44 @@ def read_kmeans_clusterfile(clusterfname, seqfos, debug=False):
     os.remove(clusterfname)
     return partition
 
+# ----------------------------------------------------------------------------------------
+def read_component_file(mdsfname, n_components, seqfos):
+    pc_names = None
+    pcvals = {}
+    with open(mdsfname) as mdsfile:
+        for line in mdsfile:
+            if pc_names is None:  # should be the first line
+                pc_names = [pcn.strip() for pcn in line.split()]
+                expected_names = ['PC%d' % i for i in range(1, n_components + 1)]
+                if pc_names != expected_names:
+                    raise Exception('expected components (%s) don\'t match those read from %s (%s)' % (' '.join(expected_names), mdsfname, ' '.join(pc_names)))
+                continue
+            valstrs = [vs.strip() for vs in line.split()]
+            if len(valstrs) != n_components + 1:
+                raise Exception('wrong number of columns (expected one uid and %d components) in %s: %s' % (n_components, mdsfname, line))
+            pcvals[valstrs[0]] = [float(v) for v in valstrs[1:]]
+
+    expected_uids = set([sfo['name'] for sfo in seqfos])
+    found_uids = set(pcvals)
+    if found_uids != expected_uids:
+        if len(found_uids - expected_uids) > 0:
+            raise Exception('  extra queries read from component file %s:\n %s' % (mdsfname, ' '.join(found_uids - expected_uids)))
+        if len(expected_uids - found_uids) > 0:
+            raise Exception('  queries missing from component file %s:\n %s' % (mdsfname, ' '.join(expected_uids - found_uids)))
+        assert False  # no, it's not possible to get here. why do you ask?
+
+    os.remove(mdsfname)
+    return pcvals
 
 # ----------------------------------------------------------------------------------------
-def kmeans_cluster(n_clusters, seqfos, all_qr_seqs, base_workdir, seed, reco_info=None, n_components=None, max_iterations=1000, max_runs=10, debug=False):
+colors = ['red', 'blue', 'forestgreen', 'grey', 'orange', 'green', 'skyblue4', 'maroon', 'salmon', 'chocolate4', 'magenta']
+
+# ----------------------------------------------------------------------------------------
+def kmeans_cluster(n_clusters, seqfos, all_qr_seqs, base_workdir, seed, reco_info=None, region=None, n_components=None, max_iterations=1000, max_runs=10, debug=False):
     # NOTE duplication in plotting fcn
     workdir = base_workdir + '/mds'
     msafname = workdir + '/msa.fa'
+    mdsfname = workdir + '/components.txt'
     clusterfname = workdir + '/clusters.txt'
     if not os.path.exists(workdir):
         os.makedirs(workdir)
@@ -79,6 +113,7 @@ def kmeans_cluster(n_clusters, seqfos, all_qr_seqs, base_workdir, seed, reco_inf
     ]
     if n_components is not None:  # TODO now that you moved mmds to here, you need to move the plotting stuff into here (or, really, get it to output the PCA components and stop doing the plotting in R)
         cmdlines += ['mmds_active <- mmds(active, pc=%d)' % n_components]
+        cmdlines += ['capture.output(mmds_active$coord, file="%s")' % mdsfname]
     else:
         raise Exception('need to implement')
     cmdlines += [  # TODO iter.max (max iteratoins and nb.run (max runs), also maybe add method (default "euclidean")
@@ -94,6 +129,7 @@ def kmeans_cluster(n_clusters, seqfos, all_qr_seqs, base_workdir, seed, reco_inf
     ]
 
     utils.run_r(cmdlines, workdir, print_time='kmeans')
+    pcvals = read_component_file(mdsfname, n_components, seqfos)
     partition = read_kmeans_clusterfile(clusterfname, seqfos)
 
     clusterfos = []
@@ -114,91 +150,41 @@ def kmeans_cluster(n_clusters, seqfos, all_qr_seqs, base_workdir, seed, reco_inf
     os.remove(msafname)
     os.rmdir(workdir)
 
-    return clusterfos
 
 # ----------------------------------------------------------------------------------------
-colors = ['red', 'blue', 'forestgreen', 'grey', 'orange', 'green', 'skyblue4', 'maroon', 'salmon', 'chocolate4', 'magenta']
+    print '  plot'
+    if n_components % 2 != 0:
+        print '%s odd number of components' % utils.color('red', 'warning')
 
-# ----------------------------------------------------------------------------------------
-def plot(plotname, seqfos, clusterfos, n_components, plotdir, base_workdir, seed, reco_info=None, region=None, debug=False):
-    if not os.path.exists(plotdir):
-        os.makedirs(plotdir)
-
-    def write_reco_info_group_colors(reco_info, seqfos):
-        all_genes = set([reco_info[untranslate(seqfo['name'])][region + '_gene'] for seqfo in seqfos])
-        if len(all_genes) > len(colors):
-            print '%s more genes %d than colors %d' % (color('yellow', 'warning'), len(all_genes), len(colors))
-        all_gene_list = list(all_genes)
-        gene_colors = {all_gene_list[ig] : colors[ig % len(colors)] for ig in range(len(all_gene_list))}
-        with open(group_csv_fname, 'w') as groupfile:
-            for iseq in range(len(seqfos)):
-                seqfo = seqfos[iseq]
-                gene = reco_info[untranslate(seqfo['name'])][region + '_gene']
-                if len(all_genes) == 1 and iseq == 0:  # R code crashes if there's only one group
-                    gene += '-dummy'
-                groupfile.write('"%s","%s","%s"\n' % (seqfo['name'], gene, gene_colors.get(gene, 'black')))
-
-    def write_kmeans_group_colors(clusterfos, seqfos):  # <seqfos> correspond to the family (<plotname>), <clusterfos> is everybody
-        idstrs = ['a', 'b', 'c', 'd', 'e', 'f', 'g']
-        uid_to_cluster_id_map = {sfo['name'] : idstrs[iclust] for iclust in range(len(clusterfos)) for sfo in clusterfos[iclust]['seqfos']}
-        all_cluster_ids = set(uid_to_cluster_id_map.values()) #range(len(clusterfos)))
-        if len(all_cluster_ids) > len(colors):
-            print '%s more clusters %d than colors %d' % (color('yellow', 'warning'), len(all_cluster_ids), len(colors))
-        all_cluster_id_list = list(all_cluster_ids)
-        cluster_id_colors = {all_cluster_id_list[ig] : colors[ig % len(colors)] for ig in range(len(all_cluster_id_list))}
-        with open(group_csv_fname, 'w') as groupfile:
-            for iseq in range(len(seqfos)):
-                seqfo = seqfos[iseq]
-                if untranslate(seqfo['name']) not in uid_to_cluster_id_map:
-                    print 'reverse translation %s of %s not in uid_to_cluster_id_map:\n %s' % (untranslate(seqfo['name']), seqfo['name'], ' '.join(uid_to_cluster_id_map.keys()))
-                cluster_id = uid_to_cluster_id_map[untranslate(seqfo['name'])]
-                if len(all_cluster_ids) == 1 and iseq == 0:  # R code crashes if there's only one group
-                    cluster_id += '-dummy'
-                groupfile.write('"%s","%s","%s"\n' % (seqfo['name'], cluster_id, cluster_id_colors.get(cluster_id, 'black')))
-
-    # R does some horrible truncation or some bullshit when it reads the group csv
-    chmap = ['0123456789', 'abcdefghij']
-    translations = string.maketrans(*chmap)
-    reverse_translations = string.maketrans(*reversed(chmap))
-    def translate(name):
-        return name.translate(translations)
-    def untranslate(trans_name):
-        return trans_name.translate(reverse_translations)
-    # this somewhat wastefully makes a whole new <seqfos>, but it's better than modifying the original one, and it should only happen when we're plotting
-    seqfos = [{'name' : translate(sfo['name']), 'seq' : sfo['seq']} for sfo in seqfos]
-
-    # NOTE duplication in clustering fcn
-    workdir = base_workdir + '/mds'
-    msafname = workdir + '/msa.fa'
-    group_csv_fname = workdir + '/groups.csv'
-    if not os.path.exists(workdir):
-        os.makedirs(workdir)
-
-    utils.align_many_seqs(seqfos, outfname=msafname)
-
-# ----------------------------------------------------------------------------------------
-    # write_reco_info_group_colors(reco_info, seqfos)
-    write_kmeans_group_colors(clusterfos, seqfos)
-# ----------------------------------------------------------------------------------------
-
-    cmdlines = [
-        'require(bios2mds, quietly=TRUE)',
-        'set.seed(%d)' % seed,
-        'human <- import.fasta("%s")' % msafname,
-
-        # mat.dif or mat.dis?
-        'active <- mat.dif(human, human)',
-        'mmds_active <- mmds(active, pc=%d, group.file=%s)' % (n_components, 'NULL' if reco_info is None else '"' + group_csv_fname + '"'),
-
-        'scree.plot(mmds_active$eigen.perc, lab=TRUE, title="%s", pdf.file="%s/scree.pdf")' % (plotname, plotdir),
-        'mmds.2D.plot(mmds_active, title="%s", outfile.name="%s/mmds-2d", outfile.type="pdf")' % (plotname, plotdir),
-
-        # random.msa  # builds a random [...]
-    ]
-
-    utils.run_r(cmdlines, workdir, print_time='mds plot')
-
-    os.remove(msafname)
     if reco_info is not None:
-        os.remove(group_csv_fname)
-    os.rmdir(workdir)
+        all_genes = list(set([reco_info[seqfo['name']][region + '_gene'] for seqfo in seqfos]))
+        if len(all_genes) > len(colors):
+            raise Exception('more genes %d than colors %d' % (len(all_genes), len(colors)))
+        gene_colors = {all_genes[ig] : colors[ig] for ig in range(len(all_genes))}
+
+    def plot_component_pair(ipair, plotname):
+        fig = plt.figure(1)
+        ax = plt.axes([0., 0., 1., 1.])
+        for uid, vals in pcvals.items():
+            plt.scatter(vals[ipair], vals[ipair + 1], color=colors[cluster_indices[uid]])
+        # plt.scatter(pos[:, 0], pos[:, 1], color='forestgreen', lw=0, label='MDS')
+        # plt.legend(scatterpoints=1, loc='best', shadow=False)
+        plt.savefig(plotname)
+
+    def plot_simu_component_pair(ipair, plotname):
+        fig = plt.figure(1)
+        ax = plt.axes([0., 0., 1., 1.])
+        for seqfo in seqfos:
+            vals = pcvals[seqfo['name']]
+            gene = reco_info[seqfo['name']][region + '_gene']
+            plt.scatter(vals[ipair], vals[ipair + 1], color=gene_colors[gene])
+        plt.savefig(plotname)
+
+    cluster_indices = {uid : iclust for iclust in range(len(partition)) for uid in partition[iclust]}  # just for coloring the plot
+    for ipair in range(0, n_components - 1, 2):
+        print '  %d' % ipair
+        plot_component_pair(ipair, 'tmp-%d.svg' % ipair)
+        plot_simu_component_pair(ipair, 'tmp-simu-%d.svg' % ipair)
+# ----------------------------------------------------------------------------------------
+
+    return clusterfos
