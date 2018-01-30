@@ -182,6 +182,9 @@ def bios2mds_kmeans_cluster(n_components, n_clusters, seqfos, base_workdir, seed
 
 # ----------------------------------------------------------------------------------------
 def run_sklearn_mds(n_components, n_clusters, seqfos, seed, reco_info=None, region=None, aligned=False, n_init=4, max_iter=300, eps=1e-3, n_jobs=-1, plotdir=None):
+    if len(set(sfo['name'] for sfo in seqfos)) != len(seqfos):
+        raise Exception('duplicate sequence ids in <seqfos>')
+
     print 'align'
     if not aligned:
         seqfos = utils.align_many_seqs(seqfos)
