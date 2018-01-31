@@ -13,9 +13,9 @@ import mds
 class PartitionPlotter(object):
     # ----------------------------------------------------------------------------------------
     def __init__(self, args):
-        # between vs within stuff:
-        self.n_bins = 30
         self.args = args
+        import plotting
+        self.plotting = sys.modules['plotting']
 
         self.n_clusters_per_joy_plot = 50
         self.n_max_mutations = 80
@@ -26,6 +26,7 @@ class PartitionPlotter(object):
 
         self.n_mds_components = 2
 
+    # self.n_bins = 30
     # # ----------------------------------------------------------------------------------------
     # def get_cdr3_length_classes(self, partition, annotations):
     #     # NOTE this should be replaced by the fcn from utils
@@ -41,14 +42,13 @@ class PartitionPlotter(object):
 
     # # ----------------------------------------------------------------------------------------
     # def plot_each_within_vs_between_hist(self, distances, plotdir, plotname, plottitle):
-    #     import plotting
     #     xmax = 1.2 * max([d for dtype in distances for d in distances[dtype]])
     #     hists = {}
     #     for dtype in distances:
     #         hists[dtype] = Hist(self.n_bins, 0., xmax, title=dtype)
     #         for mut_freq in distances[dtype]:
     #             hists[dtype].fill(mut_freq)
-    #     plotting.draw_no_root(hists['within'], plotname=plotname, plotdir=plotdir, more_hists=[hists['between']], plottitle=plottitle, xtitle='hamming distance', errors=True)
+    #     self.plotting.draw_no_root(hists['within'], plotname=plotname, plotdir=plotdir, more_hists=[hists['between']], plottitle=plottitle, xtitle='hamming distance', errors=True)
 
     # # ----------------------------------------------------------------------------------------
     # def plot_within_vs_between_hists(self, partition, annotations, base_plotdir):
@@ -73,10 +73,9 @@ class PartitionPlotter(object):
     # ----------------------------------------------------------------------------------------
     def make_single_hexbin_shm_vs_identity_plot(self, cluster, annotation, plotdir, plotname, debug=False):
         """ shm (identity to naive sequence) vs identity to some reference sequence """
-        import plotting
         import matplotlib.pyplot as plt
 
-        fig, ax = plotting.mpl_init()
+        fig, ax = self.plotting.mpl_init()
 
         if self.args.seed_unique_id is not None and self.args.seed_unique_id in cluster:
             seed_index = cluster.index(self.args.seed_unique_id)
@@ -106,16 +105,15 @@ class PartitionPlotter(object):
                 ax.text(xval, yval, uid, color='red', fontsize=8)
 
         ylabel = 'identity to %s' % ref_label
-        plotting.mpl_finish(ax, plotdir, plotname, xlabel='N mutations', ylabel=ylabel, title='%d sequences'  % len(cluster))
+        self.plotting.mpl_finish(ax, plotdir, plotname, xlabel='N mutations', ylabel=ylabel, title='%d sequences'  % len(cluster))
 
     # ----------------------------------------------------------------------------------------
     def make_single_hexbin_size_vs_shm_plot(self, sorted_clusters, annotations, repertoire_size, plotdir, plotname, log_cluster_size=False, debug=False):  # NOTE not using <repertoire_size> any more, but don't remember if there was a reason I should leave it
-        import plotting  # TODO clean up stupid plotting imports
         import matplotlib.pyplot as plt
         def getnmutelist(cluster):
             return annotations[':'.join(cluster)]['n_mutations']
 
-        fig, ax = plotting.mpl_init()
+        fig, ax = self.plotting.mpl_init()
 
         clusters_to_use = [cluster for cluster in sorted_clusters if numpy.mean(getnmutelist(cluster)) < self.n_max_mutations]  # have to do it as a separate line so the zip/* don't crash if no clusters pass the criterion
         if len(clusters_to_use) == 0:
@@ -150,7 +148,7 @@ class PartitionPlotter(object):
         if log_cluster_size:
             ylabel += ' (log)'
             plotname += '-log'
-        plotting.mpl_finish(ax, plotdir, plotname, xlabel='mean N mutations', ylabel=ylabel, xbounds=[0, self.n_max_mutations], yticks=yticks, yticklabels=yticklabels)
+        self.plotting.mpl_finish(ax, plotdir, plotname, xlabel='mean N mutations', ylabel=ylabel, xbounds=[0, self.n_max_mutations], yticks=yticks, yticklabels=yticklabels)
 
     # ----------------------------------------------------------------------------------------
     def get_repfracstr(self, csize, repertoire_size):
@@ -168,7 +166,6 @@ class PartitionPlotter(object):
 
     # ----------------------------------------------------------------------------------------
     def make_single_joyplot(self, sorted_clusters, annotations, repertoire_size, plotdir, plotname, plot_high_mutation=False, title=None, debug=False):
-        import plotting
         def gety(minval, maxval, xmax, x):
             slope = (maxval - minval) / xmax
             return slope * x + minval
@@ -185,7 +182,7 @@ class PartitionPlotter(object):
         dpi = 80
         xpixels = 450
         ypixels = max(400, 10 * len(sorted_clusters))
-        fig, ax = plotting.mpl_init(figsize=(xpixels / dpi, ypixels / dpi))
+        fig, ax = self.plotting.mpl_init(figsize=(xpixels / dpi, ypixels / dpi))
 
         min_linewidth = 0.3
         max_linewidth = 12
@@ -270,7 +267,7 @@ class PartitionPlotter(object):
         if len(yticks) > n_ticks:
             yticks = [yticks[i] for i in range(0, len(yticks), int(len(yticks) / float(n_ticks - 1)))]
             yticklabels = [yticklabels[i] for i in range(0, len(yticklabels), int(len(yticklabels) / float(n_ticks - 1)))]
-        plotting.mpl_finish(ax, plotdir, plotname, xlabel='N mutations', ylabel='clonal family size', title=title,
+        self.plotting.mpl_finish(ax, plotdir, plotname, xlabel='N mutations', ylabel='clonal family size', title=title,
                             xbounds=xbounds, ybounds=ybounds, yticks=yticks, yticklabels=yticklabels, adjust={'left' : 0.18})
 
         return high_mutation_clusters
@@ -336,7 +333,7 @@ class PartitionPlotter(object):
         self.make_single_hexbin_size_vs_shm_plot(sorted_clusters, annotations, repertoire_size, plotdir, get_fname(hexbin=True), log_cluster_size=True)
         self.addfname(fnames, get_fname(hexbin=True) + '-log')
 
-        plotting.make_html(plotdir, fnames=fnames, new_table_each_row=True)
+        self.plotting.make_html(plotdir, fnames=fnames, new_table_each_row=True)
 
         return [[subd + '/' + fn for fn in [fnames[0][0]] + fnames[-1]]]  # take the first joy plot, and the two hexbin plots
 
@@ -359,7 +356,7 @@ class PartitionPlotter(object):
 
     #     print '    skipped %d clusters with lengths: %s' % (len(skipped_cluster_lengths), ' '.join(['%d' % l for l in skipped_cluster_lengths]))
 
-    #     plotting.make_html(plotdir, fnames=fnames)
+    #     self.plotting.make_html(plotdir, fnames=fnames)
 
     #     return fnames
 
@@ -387,7 +384,7 @@ class PartitionPlotter(object):
 
         print '    skipped %d clusters with lengths: %s' % (len(skipped_cluster_lengths), ' '.join(['%d' % l for l in skipped_cluster_lengths]))
 
-        plotting.make_html(plotdir, fnames=fnames)
+        self.plotting.make_html(plotdir, fnames=fnames)
 
         return [[subd + '/' + fn for fn in fnames[0]]]
 
@@ -399,20 +396,20 @@ class PartitionPlotter(object):
         utils.prep_dir(plotdir, wildlings=['*.csv', '*.svg'])
 
         if partition is not None:  # one partition
-            csize_hists = {'best' : plotting.get_cluster_size_hist(partition)}
+            csize_hists = {'best' : self.plotting.get_cluster_size_hist(partition)}
         elif infiles is not None:  # plot the mean of a partition from each file
             subset_hists = []
             for fname in infiles:
                 cp = ClusterPath()
                 cp.readfile(fname)
-                subset_hists.append(plotting.get_cluster_size_hist(cp.partitions[cp.i_best]))
-            csize_hists = {'best' : plotting.make_mean_hist(subset_hists)}
+                subset_hists.append(self.plotting.get_cluster_size_hist(cp.partitions[cp.i_best]))
+            csize_hists = {'best' : self.plotting.make_mean_hist(subset_hists)}
             for ih in range(len(subset_hists)):
                 subset_hists[ih].write(plotdir + ('/subset-%d-cluster-sizes.csv' % ih))
         else:
             assert False
 
-        plotting.plot_cluster_size_hists(plotdir + '/cluster-sizes.svg', csize_hists, title='', log='x')
+        self.plotting.plot_cluster_size_hists(plotdir + '/cluster-sizes.svg', csize_hists, title='', log='x')
         return [[subd + '/cluster-sizes.svg']]
 
     # ----------------------------------------------------------------------------------------
@@ -429,7 +426,6 @@ class PartitionPlotter(object):
     # ----------------------------------------------------------------------------------------
     def plot(self, plotdir, partition=None, infiles=None, annotations=None, only_csv=None):
         assert (partition is None and annotations is not None) or infiles is None
-        import plotting
         print '  plotting partitions'
         sys.stdout.flush()
         start = time.time()
@@ -444,6 +440,6 @@ class PartitionPlotter(object):
         fnames += self.make_cluster_size_distribution(plotdir, partition=partition, infiles=infiles)
 
         assert not only_csv  # meh, too much trouble to deal with this now
-        plotting.make_html(plotdir, fnames=fnames, new_table_each_row=True, htmlfname=plotdir + '/overview.html')
+        self.plotting.make_html(plotdir, fnames=fnames, new_table_each_row=True, htmlfname=plotdir + '/overview.html')
 
         print '(%.1f sec)' % (time.time()-start)
