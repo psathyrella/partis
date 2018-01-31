@@ -15,7 +15,6 @@ class PartitionPlotter(object):
     def __init__(self, args):
         # between vs within stuff:
         self.n_bins = 30
-        self.subplotdirs = ['mds'] # 'overall'] #, 'within-vs-between']
         self.args = args
 
         self.n_clusters_per_joy_plot = 50
@@ -72,7 +71,7 @@ class PartitionPlotter(object):
     #         self.plot_each_within_vs_between_hist(subd, base_plotdir + '/within-vs-between', 'cdr3-length-%d' % cdr3_length, 'CDR3 %d' % cdr3_length)
 
     # ----------------------------------------------------------------------------------------
-    def make_single_hexbin_shm_vs_identity_plot(self, cluster, annotation, base_plotdir, plotname, debug=False):
+    def make_single_hexbin_shm_vs_identity_plot(self, cluster, annotation, plotdir, plotname, debug=False):
         """ shm (identity to naive sequence) vs identity to some reference sequence """
         import plotting
         import matplotlib.pyplot as plt
@@ -107,11 +106,11 @@ class PartitionPlotter(object):
                 ax.text(xval, yval, uid, color='red', fontsize=8)
 
         ylabel = 'identity to %s' % ref_label
-        plotting.mpl_finish(ax, base_plotdir + '/overall', plotname, xlabel='N mutations', ylabel=ylabel, title='%d sequences'  % len(cluster))
+        plotting.mpl_finish(ax, plotdir, plotname, xlabel='N mutations', ylabel=ylabel, title='%d sequences'  % len(cluster))
 
     # ----------------------------------------------------------------------------------------
-    def make_single_hexbin_size_vs_shm_plot(self, sorted_clusters, annotations, repertoire_size, base_plotdir, plotname, log_cluster_size=False, debug=False):  # NOTE not using <repertoire_size> any more, but don't remember if there was a reason I should leave it
-        import plotting
+    def make_single_hexbin_size_vs_shm_plot(self, sorted_clusters, annotations, repertoire_size, plotdir, plotname, log_cluster_size=False, debug=False):  # NOTE not using <repertoire_size> any more, but don't remember if there was a reason I should leave it
+        import plotting  # TODO clean up stupid plotting imports
         import matplotlib.pyplot as plt
         def getnmutelist(cluster):
             return annotations[':'.join(cluster)]['n_mutations']
@@ -151,7 +150,7 @@ class PartitionPlotter(object):
         if log_cluster_size:
             ylabel += ' (log)'
             plotname += '-log'
-        plotting.mpl_finish(ax, base_plotdir + '/overall', plotname, xlabel='mean N mutations', ylabel=ylabel, xbounds=[0, self.n_max_mutations], yticks=yticks, yticklabels=yticklabels)
+        plotting.mpl_finish(ax, plotdir, plotname, xlabel='mean N mutations', ylabel=ylabel, xbounds=[0, self.n_max_mutations], yticks=yticks, yticklabels=yticklabels)
 
     # ----------------------------------------------------------------------------------------
     def get_repfracstr(self, csize, repertoire_size):
@@ -168,7 +167,7 @@ class PartitionPlotter(object):
         return repfracstr
 
     # ----------------------------------------------------------------------------------------
-    def make_single_joyplot(self, sorted_clusters, annotations, repertoire_size, base_plotdir, plotname, plot_high_mutation=False, title=None, debug=False):
+    def make_single_joyplot(self, sorted_clusters, annotations, repertoire_size, plotdir, plotname, plot_high_mutation=False, title=None, debug=False):
         import plotting
         def gety(minval, maxval, xmax, x):
             slope = (maxval - minval) / xmax
@@ -271,7 +270,7 @@ class PartitionPlotter(object):
         if len(yticks) > n_ticks:
             yticks = [yticks[i] for i in range(0, len(yticks), int(len(yticks) / float(n_ticks - 1)))]
             yticklabels = [yticklabels[i] for i in range(0, len(yticklabels), int(len(yticklabels) / float(n_ticks - 1)))]
-        plotting.mpl_finish(ax, base_plotdir + '/overall', plotname, xlabel='N mutations', ylabel='clonal family size', title=title,
+        plotting.mpl_finish(ax, plotdir, plotname, xlabel='N mutations', ylabel='clonal family size', title=title,
                             xbounds=xbounds, ybounds=ybounds, yticks=yticks, yticklabels=yticklabels, adjust={'left' : 0.18})
 
         return high_mutation_clusters
@@ -305,6 +304,10 @@ class PartitionPlotter(object):
                 return 'size-vs-shm-hexbin'
             else:
                 assert False
+        plotting = sys.modules['plotting']
+        subd = 'shm-vs-size'
+        plotdir = base_plotdir + '/' + subd
+        utils.prep_dir(plotdir, wildlings=['*.csv', '*.svg'])
 
         repertoire_size = sum([len(c) for c in sorted_clusters])
 
@@ -317,47 +320,57 @@ class PartitionPlotter(object):
             print 'divided repertoire of size %d with %d clusters into %d cluster groups' % (repertoire_size, len(sorted_clusters), len(sorted_cluster_groups))
         print 'subclusters'
         for subclusters in sorted_cluster_groups:
-            high_mutation_clusters += self.make_single_joyplot(subclusters, annotations, repertoire_size, base_plotdir, get_fname(iclustergroup=iclustergroup), title='per-family SHM (%d / %d)' % (iclustergroup + 1, len(sorted_cluster_groups)), debug=debug)
+            title = 'per-family SHM (%d / %d)' % (iclustergroup + 1, len(sorted_cluster_groups))
+            high_mutation_clusters += self.make_single_joyplot(subclusters, annotations, repertoire_size, plotdir, get_fname(iclustergroup=iclustergroup), title=title, debug=debug)
             if len(fnames[-1]) < self.n_joyplots_in_html:
                 self.addfname(fnames, get_fname(iclustergroup=iclustergroup))
             iclustergroup += 1
         if len(high_mutation_clusters) > self.n_clusters_per_joy_plot and len(high_mutation_clusters[0]) > self.min_high_mutation_cluster_size:
             high_mutation_clusters = [cluster for cluster in high_mutation_clusters if len(cluster) > self.min_high_mutation_cluster_size]
-        self.make_single_joyplot(high_mutation_clusters, annotations, repertoire_size, base_plotdir, get_fname(high_mutation=True), plot_high_mutation=True, title='per-family SHM (families with mean > %d mutations)' % self.n_max_mutations, debug=debug)
+        self.make_single_joyplot(high_mutation_clusters, annotations, repertoire_size, plotdir, get_fname(high_mutation=True), plot_high_mutation=True, title='families with mean > %d mutations' % self.n_max_mutations, debug=debug)
         self.addfname(fnames, get_fname(high_mutation=True))
 
         # size vs shm hexbin plots
-        self.make_single_hexbin_size_vs_shm_plot(sorted_clusters, annotations, repertoire_size, base_plotdir, get_fname(hexbin=True))
+        self.make_single_hexbin_size_vs_shm_plot(sorted_clusters, annotations, repertoire_size, plotdir, get_fname(hexbin=True))
         self.addfname(fnames, get_fname(hexbin=True), force_new_row=True)
-        self.make_single_hexbin_size_vs_shm_plot(sorted_clusters, annotations, repertoire_size, base_plotdir, get_fname(hexbin=True), log_cluster_size=True)
+        self.make_single_hexbin_size_vs_shm_plot(sorted_clusters, annotations, repertoire_size, plotdir, get_fname(hexbin=True), log_cluster_size=True)
         self.addfname(fnames, get_fname(hexbin=True) + '-log')
 
-        return fnames
+        plotting.make_html(plotdir, fnames=fnames, new_table_each_row=True)
 
-    # ----------------------------------------------------------------------------------------
-    def make_shm_vs_inverse_identity_plots(self, sorted_clusters, annotations, base_plotdir, debug=False):
-        def get_fname(cluster_rank):
-            return 'shm-vs-identity-icluster-%d' % cluster_rank
+        return [[subd + '/' + fn for fn in [fnames[0][0]] + fnames[-1]]]  # take the first joy plot, and the two hexbin plots
 
-        skipped_cluster_lengths = []
-        fnames.append([])  # force a new row without adding a file
-        for iclust in range(len(sorted_clusters)):
-            if not self.plot_this_cluster(sorted_clusters, iclust):
-                skipped_cluster_lengths.append(len(sorted_clusters[iclust]))
-                continue
-            self.make_single_hexbin_shm_vs_identity_plot(sorted_clusters[iclust], annotations[':'.join(sorted_clusters[iclust])], base_plotdir, get_fname(cluster_rank=iclust))
-            self.addfname(fnames, get_fname(cluster_rank=iclust))
+    # # ----------------------------------------------------------------------------------------
+    # def make_shm_vs_inverse_identity_plots(self, sorted_clusters, annotations, base_plotdir, debug=False):
+    #     def get_fname(cluster_rank):
+    #         return 'shm-vs-identity-icluster-%d' % cluster_rank
+    #     plotting = sys.modules['plotting']
+    #     plotdir = base_plotdir + '/shm-vs-identity'
+    #     utils.prep_dir(plotdir, wildlings=['*.csv', '*.svg'])
 
-        print '    skipped %d clusters with lengths: %s' % (len(skipped_cluster_lengths), ' '.join(['%d' % l for l in skipped_cluster_lengths]))
+    #     skipped_cluster_lengths = []
+    #     fnames = [[]]
+    #     for iclust in range(len(sorted_clusters)):
+    #         if not self.plot_this_cluster(sorted_clusters, iclust):
+    #             skipped_cluster_lengths.append(len(sorted_clusters[iclust]))
+    #             continue
+    #         self.make_single_hexbin_shm_vs_identity_plot(sorted_clusters[iclust], annotations[':'.join(sorted_clusters[iclust])], plotdir, get_fname(cluster_rank=iclust))
+    #         self.addfname(fnames, get_fname(cluster_rank=iclust))
 
-        return fnames
+    #     print '    skipped %d clusters with lengths: %s' % (len(skipped_cluster_lengths), ' '.join(['%d' % l for l in skipped_cluster_lengths]))
+
+    #     plotting.make_html(plotdir, fnames=fnames)
+
+    #     return fnames
 
     # ----------------------------------------------------------------------------------------
     def make_mds_plots(self, sorted_clusters, annotations, base_plotdir, debug=False):
-        plotting = sys.modules['plotting']
-        subd = 'mds'
         def get_fname(ic):
             return 'icluster-%d' % ic
+        plotting = sys.modules['plotting']
+        subd = 'mds'
+        plotdir = base_plotdir + '/' + subd
+        utils.prep_dir(plotdir, wildlings=['*.csv', '*.svg'])
 
         skipped_cluster_lengths = []
         fnames = [[]]
@@ -369,19 +382,22 @@ class PartitionPlotter(object):
             info = annotations[':'.join(cluster)]
             seqfos = [{'name' : info['unique_ids'][iseq], 'seq' : info['seqs'][iseq]} for iseq in range(len(cluster))]
             seqfos.append({'name' : 'naive', 'seq' : info['naive_seq']})
-            mds.bios2mds_kmeans_cluster(self.n_mds_components, None, seqfos, self.args.workdir, self.args.seed, plotdir=base_plotdir + '/' + subd, plotname=get_fname(iclust), queries_to_include=self.args.queries_to_include + ['naive'])
-            print get_fname(iclust)
+            mds.bios2mds_kmeans_cluster(self.n_mds_components, None, seqfos, self.args.workdir, self.args.seed, plotdir=plotdir, plotname=get_fname(iclust), queries_to_include=self.args.queries_to_include + ['naive'])
             self.addfname(fnames, '%s' % get_fname(iclust))
 
         print '    skipped %d clusters with lengths: %s' % (len(skipped_cluster_lengths), ' '.join(['%d' % l for l in skipped_cluster_lengths]))
 
-        plotting.make_html(base_plotdir + '/' + subd, fnames=fnames)  # , new_table_each_row=True)
+        plotting.make_html(plotdir, fnames=fnames)
 
-        return fnames
+        return [[subd + '/' + fn for fn in fnames[0]]]
 
     # ----------------------------------------------------------------------------------------
-    def make_cluster_size_distribution(self, plotdir, partition=None, infiles=None):
+    def make_cluster_size_distribution(self, base_plotdir, partition=None, infiles=None):
         plotting = sys.modules['plotting']
+        subd = 'sizes'
+        plotdir = base_plotdir + '/' + subd
+        utils.prep_dir(plotdir, wildlings=['*.csv', '*.svg'])
+
         if partition is not None:  # one partition
             csize_hists = {'best' : plotting.get_cluster_size_hist(partition)}
         elif infiles is not None:  # plot the mean of a partition from each file
@@ -396,8 +412,8 @@ class PartitionPlotter(object):
         else:
             assert False
 
-        plotting.plot_cluster_size_hists(plotdir + '/overall/cluster-sizes.svg', csize_hists, title='', log='x')
-        return ['cluster-sizes.svg']
+        plotting.plot_cluster_size_hists(plotdir + '/cluster-sizes.svg', csize_hists, title='', log='x')
+        return [[subd + '/cluster-sizes.svg']]
 
     # ----------------------------------------------------------------------------------------
     def remove_failed_clusters(self, partition, annotations):
@@ -417,23 +433,17 @@ class PartitionPlotter(object):
         print '  plotting partitions'
         sys.stdout.flush()
         start = time.time()
-        for subdir in self.subplotdirs:
-            utils.prep_dir(plotdir + '/' + subdir, wildlings=['*.csv', '*.svg'])
 
         fnames = []
         if partition is not None:  # only one partition
             self.remove_failed_clusters(partition, annotations)
             sorted_clusters = sorted(partition, key=lambda c: len(c), reverse=True)
-            # fnames += self.make_shm_vs_cluster_size_plots(sorted_clusters, annotations, plotdir)
-            # fnames += self.make_shm_vs_inverse_identity_plots(sorted_clusters, annotations, plotdir)
+            fnames += self.make_shm_vs_cluster_size_plots(sorted_clusters, annotations, plotdir)
             fnames += self.make_mds_plots(sorted_clusters, annotations, plotdir)
-        # fnames += self.make_cluster_size_distribution(plotdir, partition=partition, infiles=infiles)
+            # fnames += self.make_shm_vs_inverse_identity_plots(sorted_clusters, annotations, plotdir)
+        fnames += self.make_cluster_size_distribution(plotdir, partition=partition, infiles=infiles)
 
         assert not only_csv  # meh, too much trouble to deal with this now
-# ----------------------------------------------------------------------------------------
-        #  TODO make overview.html
-        # for subdir in self.subplotdirs:
-        #     plotting.make_html(plotdir + '/' + subdir, fnames=fnames, new_table_each_row=True)
-# ----------------------------------------------------------------------------------------
+        plotting.make_html(plotdir, fnames=fnames, new_table_each_row=True, htmlfname=plotdir + '/overview.html')
 
         print '(%.1f sec)' % (time.time()-start)

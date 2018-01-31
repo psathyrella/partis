@@ -175,7 +175,7 @@ def bios2mds_kmeans_cluster(n_components, n_clusters, seqfos, base_workdir, seed
             # random.msa  # builds a random [...]
         ]
 
-    utils.run_r(cmdlines, workdir, print_time='kmeans')
+    utils.run_r(cmdlines, workdir)  #, print_time='kmeans')
     pcvals = read_component_file(mdsfname, n_components, seqfos)
     partition = read_kmeans_clusterfile(clusterfname, seqfos) if n_clusters is not None else None
 

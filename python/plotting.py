@@ -853,7 +853,7 @@ def plot_cluster_similarity_matrix(plotdir, plotname, meth1, partition1, meth2, 
     plt.close()
 
 # ----------------------------------------------------------------------------------------
-def make_html(plotdir, n_columns=3, extension='svg', fnames=None, title='foop', new_table_each_row=False):
+def make_html(plotdir, n_columns=3, extension='svg', fnames=None, title='foop', new_table_each_row=False, htmlfname=None):
     if plotdir[-1] == '/':  # remove trailings slash, if present
         plotdir = plotdir[:-1]
     if not os.path.exists(plotdir):
@@ -876,7 +876,9 @@ def make_html(plotdir, n_columns=3, extension='svg', fnames=None, title='foop', 
         lines += newlines
     def add_fname(lines, fullfname):  # NOTE <fullname> may, or may not, be a base name (i.e. it might have a subdir tacked on the left side)
         fname = fullfname.replace(plotdir, '').lstrip('/')
-        line = '<td><a target="_blank" href="' + dirname + '/' + fname + '"><img src="' + dirname + '/' + fname + '" alt="' + dirname + '/' + fname + '" width="100%"></a></td>'
+        if htmlfname is None:  # dirname screws it up if we're specifying htmfname explicitly, since then the files are in a variety of different subdirs
+            fname = dirname + '/' + fname
+        line = '<td><a target="_blank" href="' + fname + '"><img src="' + fname + '" alt="' + fname + '" width="100%"></a></td>'
         lines.append(line)
 
     # if <fnames> wasn't used to tell us how to group them into rows, try to guess based on the file base names
@@ -919,7 +921,8 @@ def make_html(plotdir, n_columns=3, extension='svg', fnames=None, title='foop', 
               '</body>',
               '</html>']
 
-    htmlfname = os.path.dirname(plotdir) + '/' + dirname + '.html'  # more verbose than necessary
+    if htmlfname is None:
+        htmlfname = os.path.dirname(plotdir) + '/' + dirname + '.html'  # more verbose than necessary
     with open(htmlfname, 'w') as htmlfile:
         htmlfile.write('\n'.join(lines))
     # subprocess.check_call(['chmod', '664', htmlfname])
