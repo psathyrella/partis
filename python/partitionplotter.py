@@ -7,6 +7,7 @@ import time
 from hist import Hist
 import utils
 from clusterpath import ClusterPath
+import mds
 
 # ----------------------------------------------------------------------------------------
 class PartitionPlotter(object):
@@ -14,7 +15,7 @@ class PartitionPlotter(object):
     def __init__(self, args):
         # between vs within stuff:
         self.n_bins = 30
-        self.subplotdirs = ['overall'] #, 'within-vs-between']
+        self.subplotdirs = ['mds'] # 'overall'] #, 'within-vs-between']
         self.args = args
 
         self.n_clusters_per_joy_plot = 50
@@ -24,48 +25,51 @@ class PartitionPlotter(object):
         self.n_biggest_to_plot = 12
         self.n_plots_per_row = 4
 
-    # ----------------------------------------------------------------------------------------
-    def get_cdr3_length_classes(self, partition, annotations):
-        classes = {}
-        for cluster in partition:
-            if ':'.join(cluster) not in annotations:  # i.e. if this cluster's annotation failed in the hmm when getting annotations for the final partition (which is weird, I'm surprised there's messed-up-enough sequences at this stage that that would happen)
-                continue
-            info = annotations[':'.join(cluster)]
-            if info['cdr3_length'] not in classes:
-                classes[info['cdr3_length']] = []
-            classes[info['cdr3_length']].append(cluster)
-        return classes
+        self.n_mds_components = 2
 
-    # ----------------------------------------------------------------------------------------
-    def plot_each_within_vs_between_hist(self, distances, plotdir, plotname, plottitle):
-        import plotting
-        xmax = 1.2 * max([d for dtype in distances for d in distances[dtype]])
-        hists = {}
-        for dtype in distances:
-            hists[dtype] = Hist(self.n_bins, 0., xmax, title=dtype)
-            for mut_freq in distances[dtype]:
-                hists[dtype].fill(mut_freq)
-        plotting.draw_no_root(hists['within'], plotname=plotname, plotdir=plotdir, more_hists=[hists['between']], plottitle=plottitle, xtitle='hamming distance', errors=True)
+    # # ----------------------------------------------------------------------------------------
+    # def get_cdr3_length_classes(self, partition, annotations):
+    #     # NOTE this should be replaced by the fcn from utils
+    #     classes = {}
+    #     for cluster in partition:
+    #         if ':'.join(cluster) not in annotations:  # i.e. if this cluster's annotation failed in the hmm when getting annotations for the final partition (which is weird, I'm surprised there's messed-up-enough sequences at this stage that that would happen)
+    #             continue
+    #         info = annotations[':'.join(cluster)]
+    #         if info['cdr3_length'] not in classes:
+    #             classes[info['cdr3_length']] = []
+    #         classes[info['cdr3_length']].append(cluster)
+    #     return classes
 
-    # ----------------------------------------------------------------------------------------
-    def plot_within_vs_between_hists(self, partition, annotations, base_plotdir):
-        classes = self.get_cdr3_length_classes(partition, annotations)
+    # # ----------------------------------------------------------------------------------------
+    # def plot_each_within_vs_between_hist(self, distances, plotdir, plotname, plottitle):
+    #     import plotting
+    #     xmax = 1.2 * max([d for dtype in distances for d in distances[dtype]])
+    #     hists = {}
+    #     for dtype in distances:
+    #         hists[dtype] = Hist(self.n_bins, 0., xmax, title=dtype)
+    #         for mut_freq in distances[dtype]:
+    #             hists[dtype].fill(mut_freq)
+    #     plotting.draw_no_root(hists['within'], plotname=plotname, plotdir=plotdir, more_hists=[hists['between']], plottitle=plottitle, xtitle='hamming distance', errors=True)
 
-        overall_distances = {'within' : [mut_freq for info in annotations.values() for mut_freq in info['mut_freqs']],
-                             'between' : []}
-        sub_distances = {}
-        def nseq(cl):
-            return annotations[':'.join(cl)]['naive_seq']
-        for cdr3_length, clusters in classes.items():  # for each cdr3 length, loop over each pair of clusters that have that cdr3 length
-            # NOTE/TODO I'm extremely unhappy that I have to put the naive seq length check here. But we pad cdr3 length subclasses to the same length during smith waterman, and by the time we get to here, in very rare cases the the cdr3 length has changed.
-            hfracs = [utils.hamming_fraction(nseq(cl_a), nseq(cl_b)) for cl_a, cl_b in itertools.combinations(clusters, 2) if len(nseq(cl_a)) == len(nseq(cl_b))]  # hamming fractions for each pair of clusters with this cdr3 length
-            sub_distances[cdr3_length] = {'within' : [mut_freq for cluster in clusters for mut_freq in annotations[':'.join(cluster)]['mut_freqs']],
-                                          'between' : hfracs}
-            overall_distances['between'] += hfracs
+    # # ----------------------------------------------------------------------------------------
+    # def plot_within_vs_between_hists(self, partition, annotations, base_plotdir):
+    #     classes = self.get_cdr3_length_classes(partition, annotations)
 
-        self.plot_each_within_vs_between_hist(overall_distances, base_plotdir + '/overall', 'within-vs-between', '')
-        for cdr3_length, subd in sub_distances.items():
-            self.plot_each_within_vs_between_hist(subd, base_plotdir + '/within-vs-between', 'cdr3-length-%d' % cdr3_length, 'CDR3 %d' % cdr3_length)
+    #     overall_distances = {'within' : [mut_freq for info in annotations.values() for mut_freq in info['mut_freqs']],
+    #                          'between' : []}
+    #     sub_distances = {}
+    #     def nseq(cl):
+    #         return annotations[':'.join(cl)]['naive_seq']
+    #     for cdr3_length, clusters in classes.items():  # for each cdr3 length, loop over each pair of clusters that have that cdr3 length
+    #         # NOTE/TODO I'm extremely unhappy that I have to put the naive seq length check here. But we pad cdr3 length subclasses to the same length during smith waterman, and by the time we get to here, in very rare cases the the cdr3 length has changed.
+    #         hfracs = [utils.hamming_fraction(nseq(cl_a), nseq(cl_b)) for cl_a, cl_b in itertools.combinations(clusters, 2) if len(nseq(cl_a)) == len(nseq(cl_b))]  # hamming fractions for each pair of clusters with this cdr3 length
+    #         sub_distances[cdr3_length] = {'within' : [mut_freq for cluster in clusters for mut_freq in annotations[':'.join(cluster)]['mut_freqs']],
+    #                                       'between' : hfracs}
+    #         overall_distances['between'] += hfracs
+
+    #     self.plot_each_within_vs_between_hist(overall_distances, base_plotdir + '/overall', 'within-vs-between', '')
+    #     for cdr3_length, subd in sub_distances.items():
+    #         self.plot_each_within_vs_between_hist(subd, base_plotdir + '/within-vs-between', 'cdr3-length-%d' % cdr3_length, 'CDR3 %d' % cdr3_length)
 
     # ----------------------------------------------------------------------------------------
     def make_single_hexbin_shm_vs_identity_plot(self, cluster, annotation, base_plotdir, plotname, debug=False):
@@ -94,7 +98,7 @@ class PartitionPlotter(object):
         ax.text(xref, yref, ref_label, color='red', fontsize=8)
 
         if self.args.queries_to_include is not None:  # note similarity to code in make_single_hexbin_size_vs_shm_plot()
-            queries_to_include_in_this_cluster = set(cluster) & set(self.args.queries_to_include)
+            queries_to_include_in_this_cluster = set(cluster) & set(self.args.queries_to_include)  # TODO merge with similar code in make_single_hexbin_shm_vs_identity_plot
             for uid in queries_to_include_in_this_cluster:
                 iseq = cluster.index(uid)
                 xval = annotation['n_mutations'][iseq]
@@ -131,7 +135,7 @@ class PartitionPlotter(object):
         else:
             yticklabels = [int(yt) for yt in yticks]
 
-        if self.args.queries_to_include is not None:
+        if self.args.queries_to_include is not None:  # TODO merge with similar code in make_single_hexbin_shm_vs_identity_plot
             for cluster in sorted_clusters:  # NOTE just added <clusters_to_use>, and I'm not sure if I should use <sorted_clusters> or <clusters_to_use> here, but I think it's ok how it is
                 queries_to_include_in_this_cluster = set(cluster) & set(self.args.queries_to_include)
                 if len(queries_to_include_in_this_cluster) == 0:
@@ -273,37 +277,36 @@ class PartitionPlotter(object):
         return high_mutation_clusters
 
     # ----------------------------------------------------------------------------------------
-    def plot_size_vs_shm(self, partition, annotations, base_plotdir, debug=False):
-        def get_fname(iclustergroup=None, high_mutation=False, hexbin=False, cluster_rank=None):
+    def addfname(self, fnames, fname, force_new_row=False):
+        fname += '.svg'
+        if force_new_row or len(fnames[-1]) >= self.n_plots_per_row:
+            fnames.append([fname])
+        else:
+            fnames[-1].append(fname)
+
+    # ----------------------------------------------------------------------------------------
+    def plot_this_cluster(self, sorted_clusters, iclust):
+        if len(sorted_clusters[iclust]) == 1:
+            return False
+        if iclust < self.n_biggest_to_plot:
+            return True
+        if self.args.queries_to_include is not None and len(set(self.args.queries_to_include) & set(sorted_clusters[iclust])) > 0:  # seed is added to <args.queries_to_include> in bin/partis
+            return True
+        return False  # falls through if <iclust> is too big, or if there's no --queries-to-include (which includes the seed)
+
+    # ----------------------------------------------------------------------------------------
+    def make_shm_vs_cluster_size_plots(self, sorted_clusters, annotations, base_plotdir, debug=False):
+        def get_fname(iclustergroup=None, high_mutation=False, hexbin=False):
             if iclustergroup is not None:  # index of this group of clusters
                 return 'size-vs-shm-%d' % iclustergroup
             elif high_mutation:
                 return 'size-vs-shm-high-mutation'
             elif hexbin:
                 return 'size-vs-shm-hexbin'
-            elif cluster_rank is not None:  # size-ordered rank of this individual cluster
-                return 'shm-vs-identity-icluster-%d' % cluster_rank
             else:
                 assert False
 
-        def addfname(fname, force_new_row=False):
-            if force_new_row or len(fnames[-1]) >= self.n_plots_per_row:
-                fnames.append([fname])
-            else:
-                fnames[-1].append(fname)
-
-        # remove cluster with failed annotations
-        failed_clusters = []
-        for cluster in partition:
-            if ':'.join(cluster) not in annotations:
-                print '    %s cluster %s not in annotations' % (utils.color('red', 'warning'), ':'.join(cluster))
-                failed_clusters.append(cluster)
-        for fclust in failed_clusters:
-            partition.remove(fclust)
-
-        # sort clusters
-        sorted_clusters = sorted(partition, key=lambda c: len(c), reverse=True)
-        repertoire_size = sum([len(c) for c in partition])
+        repertoire_size = sum([len(c) for c in sorted_clusters])
 
         # size vs shm joy plots
         iclustergroup = 0
@@ -316,58 +319,71 @@ class PartitionPlotter(object):
         for subclusters in sorted_cluster_groups:
             high_mutation_clusters += self.make_single_joyplot(subclusters, annotations, repertoire_size, base_plotdir, get_fname(iclustergroup=iclustergroup), title='per-family SHM (%d / %d)' % (iclustergroup + 1, len(sorted_cluster_groups)), debug=debug)
             if len(fnames[-1]) < self.n_joyplots_in_html:
-                addfname(get_fname(iclustergroup=iclustergroup))
+                self.addfname(fnames, get_fname(iclustergroup=iclustergroup))
             iclustergroup += 1
         if len(high_mutation_clusters) > self.n_clusters_per_joy_plot and len(high_mutation_clusters[0]) > self.min_high_mutation_cluster_size:
             high_mutation_clusters = [cluster for cluster in high_mutation_clusters if len(cluster) > self.min_high_mutation_cluster_size]
         self.make_single_joyplot(high_mutation_clusters, annotations, repertoire_size, base_plotdir, get_fname(high_mutation=True), plot_high_mutation=True, title='per-family SHM (families with mean > %d mutations)' % self.n_max_mutations, debug=debug)
-        addfname(get_fname(high_mutation=True))
+        self.addfname(fnames, get_fname(high_mutation=True))
 
         # size vs shm hexbin plots
         self.make_single_hexbin_size_vs_shm_plot(sorted_clusters, annotations, repertoire_size, base_plotdir, get_fname(hexbin=True))
-        addfname(get_fname(hexbin=True), force_new_row=True)
+        self.addfname(fnames, get_fname(hexbin=True), force_new_row=True)
         self.make_single_hexbin_size_vs_shm_plot(sorted_clusters, annotations, repertoire_size, base_plotdir, get_fname(hexbin=True), log_cluster_size=True)
-        addfname(get_fname(hexbin=True) + '-log')
+        self.addfname(fnames, get_fname(hexbin=True) + '-log')
 
-        def plot_this_cluster(iclust):
-            if len(sorted_clusters[iclust]) == 1:
-                return False
-            if iclust < self.n_biggest_to_plot:
-                return True
-            if self.args.queries_to_include is not None and len(set(self.args.queries_to_include) & set(sorted_clusters[iclust])) > 0:  # seed is added to <args.queries_to_include> in bin/partis
-                return True
-            return False  # falls through if <iclust> is too big, or if there's no --queries-to-include (which includes the seed)
+        return fnames
 
-        # shm vs identity plots
+    # ----------------------------------------------------------------------------------------
+    def make_shm_vs_inverse_identity_plots(self, sorted_clusters, annotations, base_plotdir, debug=False):
+        def get_fname(cluster_rank):
+            return 'shm-vs-identity-icluster-%d' % cluster_rank
+
         skipped_cluster_lengths = []
         fnames.append([])  # force a new row without adding a file
         for iclust in range(len(sorted_clusters)):
-            if not plot_this_cluster(iclust):
+            if not self.plot_this_cluster(sorted_clusters, iclust):
                 skipped_cluster_lengths.append(len(sorted_clusters[iclust]))
                 continue
             self.make_single_hexbin_shm_vs_identity_plot(sorted_clusters[iclust], annotations[':'.join(sorted_clusters[iclust])], base_plotdir, get_fname(cluster_rank=iclust))
-            addfname(get_fname(cluster_rank=iclust))
+            self.addfname(fnames, get_fname(cluster_rank=iclust))
+
         print '    skipped %d clusters with lengths: %s' % (len(skipped_cluster_lengths), ' '.join(['%d' % l for l in skipped_cluster_lengths]))
 
-        return [[fn + '.svg' for fn in row] for row in fnames]
+        return fnames
 
     # ----------------------------------------------------------------------------------------
-    def plot(self, plotdir, partition=None, infiles=None, annotations=None, only_csv=None):
-        import plotting
-        print '  plotting partitions'
-        sys.stdout.flush()
-        start = time.time()
-        for subdir in self.subplotdirs:
-            utils.prep_dir(plotdir + '/' + subdir, wildlings=['*.csv', '*.svg'])
+    def make_mds_plots(self, sorted_clusters, annotations, base_plotdir, debug=False):
+        plotting = sys.modules['plotting']
+        subd = 'mds'
+        def get_fname(ic):
+            return 'icluster-%d' % ic
 
-        fnames = []
+        skipped_cluster_lengths = []
+        fnames = [[]]
+        for iclust in range(len(sorted_clusters)):
+            cluster = sorted_clusters[iclust]
+            if not self.plot_this_cluster(sorted_clusters, iclust):
+                skipped_cluster_lengths.append(len(sorted_clusters[iclust]))
+                continue
+            info = annotations[':'.join(cluster)]
+            seqfos = [{'name' : info['unique_ids'][iseq], 'seq' : info['seqs'][iseq]} for iseq in range(len(cluster))]
+            seqfos.append({'name' : 'naive', 'seq' : info['naive_seq']})
+            mds.bios2mds_kmeans_cluster(self.n_mds_components, None, seqfos, self.args.workdir, self.args.seed, plotdir=base_plotdir + '/' + subd, plotname=get_fname(iclust), queries_to_include=self.args.queries_to_include + ['naive'])
+            print get_fname(iclust)
+            self.addfname(fnames, '%s' % get_fname(iclust))
 
+        print '    skipped %d clusters with lengths: %s' % (len(skipped_cluster_lengths), ' '.join(['%d' % l for l in skipped_cluster_lengths]))
+
+        plotting.make_html(base_plotdir + '/' + subd, fnames=fnames)  # , new_table_each_row=True)
+
+        return fnames
+
+    # ----------------------------------------------------------------------------------------
+    def make_cluster_size_distribution(self, plotdir, partition=None, infiles=None):
+        plotting = sys.modules['plotting']
         if partition is not None:  # one partition
-            assert infiles is None
-            assert annotations is not None
             csize_hists = {'best' : plotting.get_cluster_size_hist(partition)}
-            # self.plot_within_vs_between_hists(partition, annotations, plotdir)
-            fnames += self.plot_size_vs_shm(partition, annotations, plotdir)
         elif infiles is not None:  # plot the mean of a partition from each file
             subset_hists = []
             for fname in infiles:
@@ -381,10 +397,43 @@ class PartitionPlotter(object):
             assert False
 
         plotting.plot_cluster_size_hists(plotdir + '/overall/cluster-sizes.svg', csize_hists, title='', log='x')
-        fnames.append(['cluster-sizes.svg'])
+        return ['cluster-sizes.svg']
 
-        if not only_csv:
-            for subdir in self.subplotdirs:
-                plotting.make_html(plotdir + '/' + subdir, fnames=fnames, new_table_each_row=True)
+    # ----------------------------------------------------------------------------------------
+    def remove_failed_clusters(self, partition, annotations):
+        # remove clusters with failed annotations
+        failed_clusters = []
+        for cluster in partition:
+            if ':'.join(cluster) not in annotations:
+                print '    %s cluster %s not in annotations' % (utils.color('red', 'warning'), ':'.join(cluster))
+                failed_clusters.append(cluster)
+        for fclust in failed_clusters:
+            partition.remove(fclust)
+
+    # ----------------------------------------------------------------------------------------
+    def plot(self, plotdir, partition=None, infiles=None, annotations=None, only_csv=None):
+        assert (partition is None and annotations is not None) or infiles is None
+        import plotting
+        print '  plotting partitions'
+        sys.stdout.flush()
+        start = time.time()
+        for subdir in self.subplotdirs:
+            utils.prep_dir(plotdir + '/' + subdir, wildlings=['*.csv', '*.svg'])
+
+        fnames = []
+        if partition is not None:  # only one partition
+            self.remove_failed_clusters(partition, annotations)
+            sorted_clusters = sorted(partition, key=lambda c: len(c), reverse=True)
+            # fnames += self.make_shm_vs_cluster_size_plots(sorted_clusters, annotations, plotdir)
+            # fnames += self.make_shm_vs_inverse_identity_plots(sorted_clusters, annotations, plotdir)
+            fnames += self.make_mds_plots(sorted_clusters, annotations, plotdir)
+        # fnames += self.make_cluster_size_distribution(plotdir, partition=partition, infiles=infiles)
+
+        assert not only_csv  # meh, too much trouble to deal with this now
+# ----------------------------------------------------------------------------------------
+        #  TODO make overview.html
+        # for subdir in self.subplotdirs:
+        #     plotting.make_html(plotdir + '/' + subdir, fnames=fnames, new_table_each_row=True)
+# ----------------------------------------------------------------------------------------
 
         print '(%.1f sec)' % (time.time()-start)

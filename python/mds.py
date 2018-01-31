@@ -97,18 +97,28 @@ def read_component_file(mdsfname, n_components, seqfos):
     return pcvals
 
 # ----------------------------------------------------------------------------------------
-colors = ['red', 'blue', 'forestgreen', 'grey', 'orange', 'green', 'skyblue4', 'maroon', 'salmon', 'chocolate4', 'magenta']
+colors = ['blue', 'forestgreen', 'red', 'grey', 'orange', 'green', 'skyblue4', 'maroon', 'salmon', 'chocolate4', 'magenta']
 
 # ----------------------------------------------------------------------------------------
-def plot_mds(n_components, pcvals, plotdir, plotname, labels=None, partition=None):
+def plot_mds(n_components, pcvals, plotdir, plotname, labels=None, partition=None, queries_to_include=None):
+    # TODO switch to plotting.py fcns, and probably use hexbins at least sometimes
     def plot_component_pair(ipair, svgfname):
         fig = plt.figure(1)
         ax = plt.axes([0., 0., 1., 1.])
         for uid, vals in pcvals.items():
-            plt.scatter(vals[ipair], vals[ipair + 1], color=colors[color_indices[uid]] if color_indices is not None else None)
+            plt.scatter(vals[ipair], vals[ipair + 1], color=colors[color_indices[uid]] if color_indices is not None else colors[0])
+
+        if queries_to_include is not None:
+            queries_to_include_in_this_cluster = set(pcvals) & set(queries_to_include)
+            for uid in queries_to_include_in_this_cluster:
+                xval, yval = pcvals[uid]
+                ax.plot([xval], [yval], color='red', marker='.', markersize=10)
+                ax.text(xval, yval, uid, color='red', fontsize=8)
+
         # plt.scatter(pos[:, 0], pos[:, 1], color='forestgreen', lw=0, label='MDS')
         # plt.legend(scatterpoints=1, loc='best', shadow=False)
         plt.savefig(svgfname)
+        plt.close()
 
     if n_components % 2 != 0:
         print '%s odd number of components' % utils.color('red', 'warning')
@@ -125,10 +135,11 @@ def plot_mds(n_components, pcvals, plotdir, plotname, labels=None, partition=Non
         color_indices = {uid : iclust for iclust in range(len(partition)) for uid in partition[iclust]}  # just for coloring the plot
 
     for ipair in range(0, n_components - 1, 2):
-        plot_component_pair(ipair, '%s/%s-%d.svg' % (plotdir, plotname, ipair))
+        pcstr = '' if n_components == 2 else ('-pc-%d-vs-%d' % (ipair, ipair + 1))
+        plot_component_pair(ipair, '%s/%s%s.svg' % (plotdir, plotname, pcstr))
 
 # ----------------------------------------------------------------------------------------
-def bios2mds_kmeans_cluster(n_components, n_clusters, seqfos, base_workdir, seed, reco_info=None, region=None, max_runs=100, max_iterations=1000, method='euclidean', plotdir=None, debug=False):
+def bios2mds_kmeans_cluster(n_components, n_clusters, seqfos, base_workdir, seed, reco_info=None, region=None, max_runs=100, max_iterations=1000, method='euclidean', plotdir=None, plotname='mds', queries_to_include=None, debug=False):
     workdir = base_workdir + '/mds'
     msafname = workdir + '/msa.fa'
     mdsfname = workdir + '/components.txt'
@@ -172,11 +183,11 @@ def bios2mds_kmeans_cluster(n_components, n_clusters, seqfos, base_workdir, seed
     os.rmdir(workdir)
 
     if plotdir is not None:
-        utils.prep_dir(plotdir, wildlings=['*.svg'])
-        plot_mds(n_components, pcvals, plotdir, 'mds', partition=partition if n_clusters is not None else None)
+        # utils.prep_dir(plotdir, wildlings=['*.svg'])
+        plot_mds(n_components, pcvals, plotdir, plotname, partition=partition if n_clusters is not None else None, queries_to_include=queries_to_include)
         if reco_info is not None:
             labels = {uid : reco_info[uid][region + '_gene'] for uid in pcvals}
-            plot_mds(n_components, pcvals, plotdir, 'true-genes', labels=labels)
+            plot_mds(n_components, pcvals, plotdir, 'true-genes', labels=labels, queries_to_include=queries_to_include)
 
     return partition
 
