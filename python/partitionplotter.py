@@ -18,7 +18,7 @@ class PartitionPlotter(object):
         self.plotting = sys.modules['plotting']
 
         self.n_clusters_per_joy_plot = 50
-        self.n_max_mutations = 80
+        self.n_max_mutations = 65
         self.n_joyplots_in_html = 4  # the rest of them are still in the dir, they're just not displayed in the html
         self.min_high_mutation_cluster_size = 1
         self.n_biggest_to_plot = 12
@@ -165,7 +165,7 @@ class PartitionPlotter(object):
         return repfracstr
 
     # ----------------------------------------------------------------------------------------
-    def make_single_joyplot(self, sorted_clusters, annotations, repertoire_size, plotdir, plotname, plot_high_mutation=False, title=None, debug=False):
+    def make_single_joyplot(self, sorted_clusters, annotations, repertoire_size, plotdir, plotname, plot_high_mutation=False, cluster_indices=None, title=None, debug=False):
         def gety(minval, maxval, xmax, x):
             slope = (maxval - minval) / xmax
             return slope * x + minval
@@ -192,7 +192,7 @@ class PartitionPlotter(object):
         alpha = 0.55
 
         ymin, ymax = 9999, 0
-        iclust_global = 0
+        iclust_global = 0  # index within this plot
         yticks, yticklabels = [], []
 
         high_mutation_clusters = []
@@ -206,7 +206,7 @@ class PartitionPlotter(object):
             cluster_group = sorted(list(cluster_group), key=lambda c: numpy.median(getnmutelist(c)))
             n_clusters = len(cluster_group)
             repfracstr = self.get_repfracstr(csize, repertoire_size)
-            for iclust in range(len(cluster_group)):
+            for iclust in range(len(cluster_group)):  # index within the clusters of this size
                 cluster = cluster_group[iclust]
                 nmutelist = sorted(getnmutelist(cluster))
                 nmedian = numpy.median(nmutelist)
@@ -248,7 +248,7 @@ class PartitionPlotter(object):
                 for nm in nmutelist:
                     hist.fill(nm)
                 assert hist.overflow_contents() == 0.  # includes underflows
-                xmax = max(hist.bin_contents)  # float(csize)
+                xmax = max(hist.bin_contents)  # NOTE no relation to <ymax> above
                 for ibin in range(1, hist.n_bins + 1):
                     linewidth = gety(min_linewidth, max_linewidth, xmax, hist.bin_contents[ibin])
                     color = base_color
@@ -258,6 +258,12 @@ class PartitionPlotter(object):
                         linewidth = min_linewidth
                         alpha = 0.4
                     ax.plot([hist.low_edges[ibin], hist.low_edges[ibin+1]], [yval, yval], color=color, linewidth=linewidth, alpha=alpha, solid_capstyle='butt')
+
+                if cluster_indices is not None:
+                    xtext = nmutelist[-1] if plot_high_mutation else self.n_max_mutations  # NOTE reuse of <xtext> (arg)
+                    xwidth = ax.get_xlim()[1] - ax.get_xlim()[0] if plot_high_mutation else self.n_max_mutations
+                    ax.text(0.05 * xwidth + xtext, yval, str(csize), color=base_color, fontsize=6, alpha=alpha, fontdict={'weight' : 'bold'})
+                    ax.text(0.10 * xwidth + xtext, yval, str(cluster_indices[':'.join(cluster)]), color=base_color, fontsize=6, alpha=alpha, fontdict={'weight' : 'bold'})
 
                 iclust_global += 1
 
@@ -307,6 +313,7 @@ class PartitionPlotter(object):
         utils.prep_dir(plotdir, wildlings=['*.csv', '*.svg'])
 
         repertoire_size = sum([len(c) for c in sorted_clusters])
+        cluster_indices = {':'.join(sorted_clusters[i]) : i for i in range(len(sorted_clusters))}  # index over all clusters, in the order that the mds plots will appear (compare to the two other indices I need within make_single_joyplot())
 
         # size vs shm joy plots
         iclustergroup = 0
@@ -315,16 +322,15 @@ class PartitionPlotter(object):
         sorted_cluster_groups = [sorted_clusters[i : i + self.n_clusters_per_joy_plot] for i in range(0, len(sorted_clusters), self.n_clusters_per_joy_plot)]
         if debug:
             print 'divided repertoire of size %d with %d clusters into %d cluster groups' % (repertoire_size, len(sorted_clusters), len(sorted_cluster_groups))
-        print 'subclusters'
         for subclusters in sorted_cluster_groups:
             title = 'per-family SHM (%d / %d)' % (iclustergroup + 1, len(sorted_cluster_groups))
-            high_mutation_clusters += self.make_single_joyplot(subclusters, annotations, repertoire_size, plotdir, get_fname(iclustergroup=iclustergroup), title=title, debug=debug)
+            high_mutation_clusters += self.make_single_joyplot(subclusters, annotations, repertoire_size, plotdir, get_fname(iclustergroup=iclustergroup), cluster_indices=cluster_indices, title=title, debug=debug)
             if len(fnames[-1]) < self.n_joyplots_in_html:
                 self.addfname(fnames, get_fname(iclustergroup=iclustergroup))
             iclustergroup += 1
         if len(high_mutation_clusters) > self.n_clusters_per_joy_plot and len(high_mutation_clusters[0]) > self.min_high_mutation_cluster_size:
             high_mutation_clusters = [cluster for cluster in high_mutation_clusters if len(cluster) > self.min_high_mutation_cluster_size]
-        self.make_single_joyplot(high_mutation_clusters, annotations, repertoire_size, plotdir, get_fname(high_mutation=True), plot_high_mutation=True, title='families with mean > %d mutations' % self.n_max_mutations, debug=debug)
+        self.make_single_joyplot(high_mutation_clusters, annotations, repertoire_size, plotdir, get_fname(high_mutation=True), plot_high_mutation=True, cluster_indices=cluster_indices, title='families with mean > %d mutations' % self.n_max_mutations, debug=debug)
         self.addfname(fnames, get_fname(high_mutation=True))
 
         # size vs shm hexbin plots
