@@ -262,8 +262,8 @@ class PartitionPlotter(object):
                 if cluster_indices is not None:
                     xtext = nmutelist[-1] if plot_high_mutation else self.n_max_mutations  # NOTE reuse of <xtext> (arg)
                     xwidth = ax.get_xlim()[1] - ax.get_xlim()[0] if plot_high_mutation else self.n_max_mutations
-                    ax.text(0.05 * xwidth + xtext, yval, str(csize), color=base_color, fontsize=6, alpha=alpha, fontdict={'weight' : 'bold'})
-                    ax.text(0.10 * xwidth + xtext, yval, str(cluster_indices[':'.join(cluster)]), color=base_color, fontsize=6, alpha=alpha, fontdict={'weight' : 'bold'})
+                    ax.text(0.05 * xwidth + xtext, yval, str(cluster_indices[':'.join(cluster)]), color=base_color, fontsize=6, alpha=alpha, fontdict={'weight' : 'bold'})
+                    ax.text(0.10 * xwidth + xtext, yval, str(csize), color=base_color, fontsize=6, alpha=alpha, fontdict={'weight' : 'bold'})
 
                 iclust_global += 1
 
