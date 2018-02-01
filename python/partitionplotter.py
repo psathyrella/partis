@@ -379,7 +379,12 @@ class PartitionPlotter(object):
             info = annotations[':'.join(cluster)]
             seqfos = [{'name' : info['unique_ids'][iseq], 'seq' : info['seqs'][iseq]} for iseq in range(len(cluster))]
             seqfos.append({'name' : 'naive', 'seq' : info['naive_seq']})
-            mds.bios2mds_kmeans_cluster(self.n_mds_components, None, seqfos, self.args.workdir, self.args.seed, plotdir=plotdir, plotname=get_fname(iclust), queries_to_include=self.args.queries_to_include + ['naive'])
+            color_vals = {cluster[iseq] : info['n_mutations'][iseq] for iseq in range(len(cluster))}
+            color_vals['naive'] = 0
+            queries_to_include = ['naive']
+            if self.args.queries_to_include is not None:
+                queries_to_include += self.args.queries_to_include
+            mds.bios2mds_kmeans_cluster(self.n_mds_components, None, seqfos, self.args.workdir, self.args.seed, plotdir=plotdir, plotname=get_fname(iclust), queries_to_include=queries_to_include, color_vals=color_vals)
             self.addfname(fnames, '%s' % get_fname(iclust))
 
         print '    skipped %d clusters with lengths: %s' % (len(skipped_cluster_lengths), ' '.join(['%d' % l for l in skipped_cluster_lengths]))
