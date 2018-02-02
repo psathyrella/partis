@@ -853,18 +853,21 @@ def plot_cluster_similarity_matrix(plotdir, plotname, meth1, partition1, meth2, 
     plt.close()
 
 # ----------------------------------------------------------------------------------------
-def make_html(plotdir, n_columns=3, extension='svg', fnames=None, title='foop', new_table_each_row=False, htmlfname=None):
+def make_html(plotdir, n_columns=3, extension='svg', fnames=None, title='foop', new_table_each_row=False, htmlfname=None, extra_links=None):
     if plotdir[-1] == '/':  # remove trailings slash, if present
         plotdir = plotdir[:-1]
     if not os.path.exists(plotdir):
         raise Exception('plotdir %s d.n.e.' % plotdir)
     dirname = os.path.basename(plotdir)
+    extra_link_str = ''
+    if extra_links is not None:
+        extra_link_str = ' '.join(['<a href=%s>%s</a>' % (url, name) for name, url in extra_links])
     lines = ['<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 3.2//EN>',
              '<html>',
              '<head><title>' + title + '</title></head>',
              '<body bgcolor="000000">', 
              '<h3 style="text-align:left; color:DD6600;">' + title + '</h3>',
-             '',
+             extra_link_str,
              '<table>',
              '<tr>']
 

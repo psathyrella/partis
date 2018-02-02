@@ -157,7 +157,8 @@ class PartitionPlotter(object):
         estimate = 1. / denom
         frac_error = (estimate - repfrac) / repfrac
         if frac_error > 0.10:  # if it's more than 10% off just use the float str
-            repfracstr = '%f' % repfrac
+            # print 'pretty far off: (1/denom - repfrac) / repfrac = (1./%d - %f) / %f = %f' % (denom, repfrac, repfrac, frac_error)
+            repfracstr = '%.2f' % repfrac
         elif denom > 10000:
             repfracstr = '%.0e' % repfrac
         else:
@@ -224,8 +225,8 @@ class PartitionPlotter(object):
                 if yval > ymax:
                     ymax = yval
                 yticks.append(yval)
-                yticklabels.append('%d' % csize)
-                # yticklabels.append(repfracstr)
+                # yticklabels.append('%d' % csize)
+                yticklabels.append(repfracstr)
 
                 base_color = colors[iclust_global % len(colors)]
                 if self.args.queries_to_include is not None:
@@ -273,8 +274,8 @@ class PartitionPlotter(object):
         if len(yticks) > n_ticks:
             yticks = [yticks[i] for i in range(0, len(yticks), int(len(yticks) / float(n_ticks - 1)))]
             yticklabels = [yticklabels[i] for i in range(0, len(yticklabels), int(len(yticklabels) / float(n_ticks - 1)))]
-        self.plotting.mpl_finish(ax, plotdir, plotname, xlabel='N mutations', ylabel='clonal family size', title=title,
-                            xbounds=xbounds, ybounds=ybounds, yticks=yticks, yticklabels=yticklabels, adjust={'left' : 0.18})
+        self.plotting.mpl_finish(ax, plotdir, plotname, xlabel='N mutations', ylabel='fraction of repertoire', title=title,  # ylabel = 'clonal family size'
+                                 xbounds=xbounds, ybounds=ybounds, yticks=yticks, yticklabels=yticklabels, adjust={'left' : 0.25})
 
         return high_mutation_clusters
 
@@ -451,6 +452,6 @@ class PartitionPlotter(object):
         fnames += self.make_cluster_size_distribution(plotdir, partition=partition, infiles=infiles)
 
         assert not only_csv  # meh, too much trouble to deal with this now
-        self.plotting.make_html(plotdir, fnames=fnames, new_table_each_row=True, htmlfname=plotdir + '/overview.html')
+        self.plotting.make_html(plotdir, fnames=fnames, new_table_each_row=True, htmlfname=plotdir + '/overview.html', extra_links=[(subd, '%s/%s.html' % (plotdir, subd)) for subd in ['shm-vs-size', 'mds']])
 
         print '(%.1f sec)' % (time.time()-start)
