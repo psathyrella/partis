@@ -297,6 +297,8 @@ annotation_headers = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length',
                      + functional_columns
 extra_annotation_headers = [  # you can specify additional columns (that you want written to csv) on the command line from among these choices (in addition to <annotation_headers>)
     'cdr3_seqs',  # NOTE I'm not adding it to linekeys['per_seq'] since I don't want it to ever be in the regular <line> dicts, i.e. it's only added to a special dict immediately prior to writing the csv
+    'full_coding_naive_seq',
+    'full_coding_input_seqs',
 ] + list(implicit_linekeys)  # NOTE some of the ones in <implicit_linekeys> are already in <annotation_headers>
 sw_cache_headers = ['k_v', 'k_d', 'padlefts', 'padrights', 'all_matches', 'mut_freqs']
 partition_cachefile_headers = ('unique_ids', 'logprob', 'naive_seq', 'naive_hfrac', 'errors')  # these have to match whatever bcrham is expecting
@@ -1616,7 +1618,7 @@ def process_input_line(info, hmm_cachefile=False):
             info[key] = [[] for _ in range(len(info['unique_ids']))]
 
 # ----------------------------------------------------------------------------------------
-def get_line_for_output(info, extra_columns=None):
+def get_line_for_output(info, extra_columns=None, glfo=None):
     """ Reverse the action of process_input_line() """
     outfo = {}
     for key in info:
@@ -1648,7 +1650,22 @@ def get_line_for_output(info, extra_columns=None):
             if key in outfo:  # i.e. it's a (probably implicit) header that's in our standard <line>, but that we don't write to file, so we don't need to add it
                 continue
             if key == 'cdr3_seqs':  # NOTE not in utils.linekeys['per_seq'] (see note there)
-                outfo[key] = ':'.join([info['seqs'][iseq][info['codon_positions']['v'] : info['codon_positions']['j'] + 3] for iseq in range(len(info['unique_ids']))])  # NOTE using <info>, since <outfo> was already converted to strings for writing
+                cdr3_seqs = [info['seqs'][iseq][info['codon_positions']['v'] : info['codon_positions']['j'] + 3] for iseq in range(len(info['unique_ids']))]  # NOTE using <info>, since <outfo> was already converted to strings for writing
+                outfo[key] = ':'.join(cdr3_seqs)
+            elif key == 'full_coding_naive_seq':
+                assert glfo is not None
+                delstr_5p = glfo['seqs']['v'][info['v_gene']][ : info['v_5p_del']]  # bit missing from the input sequence
+                outfo[key] = delstr_5p + info['naive_seq']
+                if info['j_3p_del'] > 0:
+                    delstr_3p = glfo['seqs']['j'][info['j_gene']][-info['j_3p_del'] : ]
+                    outfo[key] += delstr_3p
+                # print outfo['unique_ids']
+                # color_mutants(info['naive_seq'], outfo[key], print_result=True, align=True, extra_str='  ')
+            elif key == 'full_coding_input_seqs':
+                full_coding_input_seqs = [info['v_5p_del'] * ambiguous_bases[0] + info['input_seqs'][iseq] + info['j_3p_del'] * ambiguous_bases[0] for iseq in range(len(info['unique_ids']))]
+                outfo[key] = ':'.join(full_coding_input_seqs)
+                # print outfo['unique_ids']
+                # color_mutants(info['input_seqs'][0], outfo[key], print_result=True, align=True, extra_str='  ')
             else:  # shouldn't actually get to here, since we already enforce utils.extra_annotation_headers as the choices for args.extra_annotation_columns
                 raise Exception('unsuported extra annotation column \'%s\'' % key)
 

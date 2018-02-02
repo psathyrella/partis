@@ -1766,7 +1766,7 @@ class PartitionDriver(object):
             writer.writeheader()
             # hmm annotations
             for line in annotations.values():
-                outline = utils.get_line_for_output(line, extra_columns=self.args.extra_annotation_columns)  # convert lists to colon-separated strings and whatnot (doesn't modify <line>
+                outline = utils.get_line_for_output(line, extra_columns=self.args.extra_annotation_columns, glfo=self.glfo)  # convert lists to colon-separated strings and whatnot (doesn't modify <line>)
                 outline = {k : v for k, v in outline.items() if k in csv_headers}  # remove the columns we don't want to output
                 writer.writerow(outline)
 
