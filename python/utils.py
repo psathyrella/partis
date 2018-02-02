@@ -1664,8 +1664,9 @@ def get_line_for_output(info, extra_columns=None, glfo=None):
             elif key == 'full_coding_input_seqs':
                 full_coding_input_seqs = [info['v_5p_del'] * ambiguous_bases[0] + info['input_seqs'][iseq] + info['j_3p_del'] * ambiguous_bases[0] for iseq in range(len(info['unique_ids']))]
                 outfo[key] = ':'.join(full_coding_input_seqs)
-                # print outfo['unique_ids']
-                # color_mutants(info['input_seqs'][0], outfo[key], print_result=True, align=True, extra_str='  ')
+                # for iseq in range(len(info['unique_ids'])):
+                #     print info['unique_ids'][iseq]
+                #     color_mutants(info['input_seqs'][iseq], full_coding_input_seqs[iseq], print_result=True, align=True, extra_str='  ')
             else:  # shouldn't actually get to here, since we already enforce utils.extra_annotation_headers as the choices for args.extra_annotation_columns
                 raise Exception('unsuported extra annotation column \'%s\'' % key)
 
