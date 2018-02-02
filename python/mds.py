@@ -97,7 +97,7 @@ def read_component_file(mdsfname, n_components, seqfos):
     return pcvals
 
 # ----------------------------------------------------------------------------------------
-def plot_mds(n_components, pcvals, plotdir, plotname, labels=None, partition=None, queries_to_include=None, gridsize=65, color_vals=None):
+def plot_mds(n_components, pcvals, plotdir, plotname, labels=None, partition=None, queries_to_include=None, gridsize=65, color_scale_vals=None, hexbin=False):
     import matplotlib
     from matplotlib import pyplot as plt
     colors = ['blue', 'forestgreen', 'red', 'grey', 'orange', 'green', 'skyblue4', 'maroon', 'salmon', 'chocolate4', 'magenta']
@@ -105,20 +105,12 @@ def plot_mds(n_components, pcvals, plotdir, plotname, labels=None, partition=Non
     def plot_component_pair(ipair, svgfname, color_map):
         fig = plt.figure(1)
         ax = plt.axes([0., 0., 1., 1.])
-        if color_map is None and len(pcvals) > 250:
+        if hexbin:
             xvals, yvals = zip(*[(v[ipair], v[ipair + 1]) for v in pcvals.values()])
             hb = ax.hexbin(xvals, yvals, gridsize=gridsize, cmap=plt.cm.Blues, bins='log')
         else:
-            if color_vals is not None:
-                assert color_map is None
-                cmap = plt.cm.Blues
-                norm = matplotlib.colors.Normalize(vmin=min([v for k, v in color_vals.items() if k != 'naive']), vmax=max(color_vals.values()))
-                color_map = {uid : cmap(norm(color_vals[uid])) for uid in pcvals}
             for uid, vals in pcvals.items():
-                plt.scatter(vals[ipair], vals[ipair + 1], color=color_map[uid] if color_map is not None else colors[0])
-# sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
-# sm.set_array([])
-# fig.colorbar(sm)
+                plt.scatter(vals[ipair], vals[ipair + 1], color=color_map.get(uid, single_color))
 
         if queries_to_include is not None:
             queries_to_include_in_this_cluster = set(pcvals) & set(queries_to_include)
@@ -127,15 +119,21 @@ def plot_mds(n_components, pcvals, plotdir, plotname, labels=None, partition=Non
                 ax.plot([xval], [yval], color='red', marker='.', markersize=10)
                 ax.text(xval, yval, uid, color='red', fontsize=8)
 
+        # smap = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+        # smap.set_array([])
+        # fig.colorbar(smap)
+
         plt.savefig(svgfname)
         plt.close()
 
     if n_components % 2 != 0:
         print '%s odd number of components' % utils.color('red', 'warning')
 
-    color_map = None
+    # set values in <color_map>
+    color_map = {}
     if labels is not None or partition is not None:
         assert labels is None or partition is None  # should only specify one of them
+        assert color_scale_vals is None
         if partition is None:
             def keyfunc(q):  # should really integrate this with utils.collapse_naive_seqs()/utils.split_partition_with_criterion()
                 return labels[q]
@@ -143,13 +141,17 @@ def plot_mds(n_components, pcvals, plotdir, plotname, labels=None, partition=Non
         if len(partition) > len(colors):
             raise Exception('more clusters/labels %d than colors %d' % (len(partition), len(colors)))
         color_map = {uid : colors[iclust] for iclust in range(len(partition)) for uid in partition[iclust]}  # just for coloring the plot
+    elif color_scale_vals is not None:  # map with a number for each sequence (e.g. number of mutations) that we use to make a new color scale
+        cmap = plt.cm.Blues
+        norm = matplotlib.colors.Normalize(vmin=min([v for k, v in color_scale_vals.items() if k != 'naive']), vmax=max(color_scale_vals.values()))
+        color_map = {uid : cmap(norm(color_scale_vals[uid])) for uid in pcvals}
 
     for ipair in range(0, n_components - 1, 2):
         pcstr = '' if n_components == 2 else ('-pc-%d-vs-%d' % (ipair, ipair + 1))
         plot_component_pair(ipair, '%s/%s%s.svg' % (plotdir, plotname, pcstr), color_map)
 
 # ----------------------------------------------------------------------------------------
-def bios2mds_kmeans_cluster(n_components, n_clusters, seqfos, base_workdir, seed, reco_info=None, region=None, max_runs=100, max_iterations=1000, method='euclidean', plotdir=None, plotname='mds', queries_to_include=None, color_vals=None, debug=False):
+def bios2mds_kmeans_cluster(n_components, n_clusters, seqfos, base_workdir, seed, reco_info=None, region=None, max_runs=100, max_iterations=1000, method='euclidean', plotdir=None, plotname='mds', queries_to_include=None, color_scale_vals=None, debug=False):
     workdir = base_workdir + '/mds'
     msafname = workdir + '/msa.fa'
     mdsfname = workdir + '/components.txt'
@@ -194,10 +196,10 @@ def bios2mds_kmeans_cluster(n_components, n_clusters, seqfos, base_workdir, seed
 
     if plotdir is not None:
         # utils.prep_dir(plotdir, wildlings=['*.svg'])
-        plot_mds(n_components, pcvals, plotdir, plotname, partition=partition if n_clusters is not None else None, queries_to_include=queries_to_include, color_vals=color_vals)
+        plot_mds(n_components, pcvals, plotdir, plotname, partition=partition if n_clusters is not None else None, queries_to_include=queries_to_include, color_scale_vals=color_scale_vals)
         if reco_info is not None:
             labels = {uid : reco_info[uid][region + '_gene'] for uid in pcvals}
-            plot_mds(n_components, pcvals, plotdir, 'true-genes', labels=labels, queries_to_include=queries_to_include, color_vals=color_vals)
+            plot_mds(n_components, pcvals, plotdir, 'true-genes', labels=labels, queries_to_include=queries_to_include, color_scale_vals=color_scale_vals)
 
     return partition
 
