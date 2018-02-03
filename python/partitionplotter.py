@@ -159,7 +159,7 @@ class PartitionPlotter(object):
         if frac_error > 0.10:  # if it's more than 10% off just use the float str
             # print 'pretty far off: (1/denom - repfrac) / repfrac = (1./%d - %f) / %f = %f' % (denom, repfrac, repfrac, frac_error)
             repfracstr = '%.2f' % repfrac
-        elif denom > 10000:
+        elif denom > 1000:
             repfracstr = '%.0e' % repfrac
         else:
             repfracstr = '1/%d' % denom
@@ -368,14 +368,27 @@ class PartitionPlotter(object):
     #     return fnames
 
     # ----------------------------------------------------------------------------------------
-    def make_mds_plots(self, sorted_clusters, annotations, base_plotdir, debug=False):
+    def make_mds_plots(self, sorted_clusters, annotations, base_plotdir, max_cluster_size=1000, debug=False):
+        debug = True
         def get_fname(ic):
             return 'icluster-%d' % ic
+        def subset_cluster(cluster, seqfos, color_scale_vals):
+            new_cluster = numpy.random.choice(cluster, max_cluster_size, replace=False)
+            new_seqfos = [sfo for sfo in seqfos if sfo['name'] in new_cluster]
+            for removed_uid in set(cluster) - set(new_cluster):
+                del color_scale_vals[removed_uid]
+            assert set(new_cluster) == set(color_scale_vals)
+            assert set(new_cluster) == set([sfo['name'] for sfo in new_seqfos])
+            return new_cluster, new_seqfos
+
         plotting = sys.modules['plotting']
         subd = 'mds'
         plotdir = base_plotdir + '/' + subd
         utils.prep_dir(plotdir, wildlings=['*.csv', '*.svg'])
 
+        if debug:
+            print '  making mds plots starting with %d clusters' % len(sorted_clusters)
+            print '       size            mds    plot   total'
         skipped_cluster_lengths = []
         fnames = [[]]
         for iclust in range(len(sorted_clusters)):
@@ -383,18 +396,34 @@ class PartitionPlotter(object):
             if not self.plot_this_cluster(sorted_clusters, iclust):
                 skipped_cluster_lengths.append(len(sorted_clusters[iclust]))
                 continue
+
             info = annotations[':'.join(cluster)]
             seqfos = [{'name' : info['unique_ids'][iseq], 'seq' : info['seqs'][iseq]} for iseq in range(len(cluster))]
-            seqfos.append({'name' : 'naive', 'seq' : info['naive_seq']})
             color_scale_vals = {cluster[iseq] : info['n_mutations'][iseq] for iseq in range(len(cluster))}
+
+            title = ''
+            if len(cluster) > max_cluster_size:
+                cluster, seqfos = subset_cluster(cluster, seqfos, color_scale_vals)
+                title = 'subset: %d / %d' % (len(cluster), len(sorted_clusters[iclust]))
+
+            seqfos.append({'name' : 'naive', 'seq' : info['naive_seq']})
             color_scale_vals['naive'] = 0
             queries_to_include = ['naive']
             if self.args.queries_to_include is not None:
                 queries_to_include += self.args.queries_to_include
-            mds.bios2mds_kmeans_cluster(self.n_mds_components, None, seqfos, self.args.workdir, self.args.seed, plotdir=plotdir, plotname=get_fname(iclust), queries_to_include=queries_to_include, color_scale_vals=color_scale_vals)
+
+            if debug:
+                start = time.time()
+                print '      %4d%6s' % (len(cluster), utils.color('red', '/%d' % len(sorted_clusters[iclust]), width=6, padside='right') if len(sorted_clusters[iclust]) > max_cluster_size else ''),
+
+            mds.bios2mds_kmeans_cluster(self.n_mds_components, None, seqfos, self.args.workdir, self.args.seed, aligned=True, plotdir=plotdir, plotname=get_fname(iclust), queries_to_include=queries_to_include, color_scale_vals=color_scale_vals, title=title)
             self.addfname(fnames, '%s' % get_fname(iclust))
 
-        print '    skipped %d clusters with lengths: %s' % (len(skipped_cluster_lengths), ' '.join(['%d' % l for l in skipped_cluster_lengths]))
+            if debug:
+                print '  %5.1f' % (time.time() - start)
+
+        if debug and len(skipped_cluster_lengths) > 0:
+            print '    skipped %d clusters with lengths: %s' % (len(skipped_cluster_lengths), ' '.join(['%d' % l for l in skipped_cluster_lengths]))
 
         self.plotting.make_html(plotdir, fnames=fnames)
 

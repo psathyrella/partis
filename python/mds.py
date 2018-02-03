@@ -97,7 +97,8 @@ def read_component_file(mdsfname, n_components, seqfos):
     return pcvals
 
 # ----------------------------------------------------------------------------------------
-def plot_mds(n_components, pcvals, plotdir, plotname, labels=None, partition=None, queries_to_include=None, gridsize=65, color_scale_vals=None, hexbin=False):
+def plot_mds(n_components, pcvals, plotdir, plotname, labels=None, partition=None, queries_to_include=None, gridsize=65, color_scale_vals=None, hexbin=False, title=None):
+    # TODO switch to mpl_init/mpl_finalize
     import matplotlib
     from matplotlib import pyplot as plt
     colors = ['blue', 'forestgreen', 'red', 'grey', 'orange', 'green', 'skyblue4', 'maroon', 'salmon', 'chocolate4', 'magenta']
@@ -122,6 +123,9 @@ def plot_mds(n_components, pcvals, plotdir, plotname, labels=None, partition=Non
         # smap = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
         # smap.set_array([])
         # fig.colorbar(smap)
+        if title is not None:
+            # plt.title(title, fontweight='bold')  # wtf, doesn't work
+            ax.text(ax.get_xlim()[0] + 0.5 * (ax.get_xlim()[1] - ax.get_xlim()[0]), 0.9 * ax.get_ylim()[1], title, color='red', fontsize=12)
 
         plt.savefig(svgfname)
         plt.close()
@@ -151,7 +155,9 @@ def plot_mds(n_components, pcvals, plotdir, plotname, labels=None, partition=Non
         plot_component_pair(ipair, '%s/%s%s.svg' % (plotdir, plotname, pcstr), color_map)
 
 # ----------------------------------------------------------------------------------------
-def bios2mds_kmeans_cluster(n_components, n_clusters, seqfos, base_workdir, seed, reco_info=None, region=None, max_runs=100, max_iterations=1000, method='euclidean', plotdir=None, plotname='mds', queries_to_include=None, color_scale_vals=None, debug=False):
+def bios2mds_kmeans_cluster(n_components, n_clusters, seqfos, base_workdir, seed, aligned=False, reco_info=None, region=None,
+                            max_runs=100, max_iterations=1000, method='euclidean',
+                            plotdir=None, plotname='mds', queries_to_include=None, color_scale_vals=None, title=None, debug=False):
     workdir = base_workdir + '/mds'
     msafname = workdir + '/msa.fa'
     mdsfname = workdir + '/components.txt'
@@ -159,10 +165,16 @@ def bios2mds_kmeans_cluster(n_components, n_clusters, seqfos, base_workdir, seed
     if not os.path.exists(workdir):
         os.makedirs(workdir)
 
-    utils.align_many_seqs(seqfos, outfname=msafname)
+    if aligned:  # NOTE unlike the sklearn version below, this doesn't modify <seqfos>
+        with open(msafname, 'w') as fastafile:
+            for sfo in seqfos:
+                fastafile.write('>%s\n%s\n' % (sfo['name'], sfo['seq']))
+    else:
+        utils.align_many_seqs(seqfos, outfname=msafname)
 
     # build the R cmd file
     cmdlines = [
+        'options(rgl.useNULL=TRUE)',
         'require(bios2mds, quietly=TRUE)',
         'set.seed(%d)' % seed,
         'human <- import.fasta("%s")' % msafname,
@@ -180,26 +192,30 @@ def bios2mds_kmeans_cluster(n_components, n_clusters, seqfos, base_workdir, seed
             'kmeans.run1 <- kmeans.run(mmds_active$coord, nb.clus=%d, nb.run=%d, iter.max=%d, method="%s")' % (n_clusters, max_runs, max_iterations, method),
             # 'kmeans.run1$clusters',
             # 'kmeans.run1$elements',
-        'options(width=10000)',
+            'options(width=10000)',
             'capture.output(kmeans.run1$clusters, file="%s")' % clusterfname,
             # sil.score(mat, nb.clus = c(2:13), nb.run = 100, iter.max = 1000,  # run for every possible number of clusters (?)
             #               method = "euclidean")
             # random.msa  # builds a random [...]
         ]
 
+    rstart = time.time()
     utils.run_r(cmdlines, workdir)  #, print_time='kmeans')
     pcvals = read_component_file(mdsfname, n_components, seqfos)
     partition = read_kmeans_clusterfile(clusterfname, seqfos) if n_clusters is not None else None
+    rstop = time.time()
 
     os.remove(msafname)
     os.rmdir(workdir)
 
+    plotstart = time.time()
     if plotdir is not None:
         # utils.prep_dir(plotdir, wildlings=['*.svg'])
-        plot_mds(n_components, pcvals, plotdir, plotname, partition=partition if n_clusters is not None else None, queries_to_include=queries_to_include, color_scale_vals=color_scale_vals)
+        plot_mds(n_components, pcvals, plotdir, plotname, partition=partition if n_clusters is not None else None, queries_to_include=queries_to_include, color_scale_vals=color_scale_vals, title=title)
         if reco_info is not None:
             labels = {uid : reco_info[uid][region + '_gene'] for uid in pcvals}
-            plot_mds(n_components, pcvals, plotdir, 'true-genes', labels=labels, queries_to_include=queries_to_include, color_scale_vals=color_scale_vals)
+            plot_mds(n_components, pcvals, plotdir, 'true-genes', labels=labels, queries_to_include=queries_to_include, color_scale_vals=color_scale_vals, title=title)
+    print '    %5.1f  %5.1f' % (rstop - rstart, time.time() - plotstart),
 
     return partition
 
@@ -209,7 +225,7 @@ def run_sklearn_mds(n_components, n_clusters, seqfos, seed, reco_info=None, regi
         raise Exception('duplicate sequence ids in <seqfos>')
 
     print 'align'
-    if not aligned:
+    if not aligned:  # NOTE unlike the bios2mds version above, this modifies <seqfos>
         seqfos = utils.align_many_seqs(seqfos)
 
     print '  distances'
